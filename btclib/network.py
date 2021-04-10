@@ -61,24 +61,24 @@ class Network:
     hrp: str
 
     # slip132 "m / 44h / 0h" p2pkh or p2sh
-    bip32_prv: bytes
-    bip32_pub: bytes
+    bip32_prv: bytes  # xprv
+    bip32_pub: bytes  # xpub
 
-    # slip132 "m / 49h / 0h" p2wpkh-p2sh (p2sh-wrapped legacy-segwit p2wpkh)
-    slip132_p2wpkh_prv: bytes
-    slip132_p2wpkh_pub: bytes
+    # slip132 "m / 49h / 0h" p2wpkh-p2sh (i.e., p2sh-wrapped p2wpkh)
+    slip132_p2wpkh_p2sh_prv: bytes  # yprv
+    slip132_p2wpkh_p2sh_pub: bytes  # ypub
 
-    # slip132 p2wsh-p2sh (p2sh-wrapped legacy-segwit p2wsh)
-    slip132_p2wpkh_p2sh_prv: bytes
-    slip132_p2wpkh_p2sh_pub: bytes
+    # slip132 "m / 49h / 0h" p2wsh-p2sh (i.e., p2sh-wrapped p2wsh)
+    slip132_p2wsh_p2sh_prv: bytes  # Yprv
+    slip132_p2wsh_p2sh_pub: bytes  # Ypub
 
-    # slip132 "m / 84h / 0h" p2wpkh (native-segwit p2wpkh)
-    slip132_p2wsh_prv: bytes
-    slip132_p2wsh_pub: bytes
+    # slip132 "m / 84h / 0h" p2wpkh
+    slip132_p2wpkh_prv: bytes  # zprv
+    slip132_p2wpkh_pub: bytes  # zpub
 
-    # slip132 p2wsh (native-segwit p2wsh)
-    slip132_p2wsh_p2sh_prv: bytes
-    slip132_p2wsh_p2sh_pub: bytes
+    # slip132 "m / 84h / 0h" p2wsh
+    slip132_p2wsh_prv: bytes  # Zprv
+    slip132_p2wsh_pub: bytes  # Zpub
 
     def __init__(
         self,

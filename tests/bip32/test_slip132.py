@@ -22,7 +22,6 @@ from btclib.network import NETWORKS
 
 
 def test_slip132() -> None:
-    # xkey is not a public one
     xprv = b"xprv9s21ZrQH143K2ZP8tyNiUtgoezZosUkw9hhir2JFzDhcUWKz8qFYk3cxdgSFoCMzt8E2Ubi1nXw71TLhwgCfzqFHfM5Snv4zboSebePRmLS"
     err_msg = "not a public key: "
     with pytest.raises(BTClibValueError, match=err_msg):
@@ -114,48 +113,48 @@ def test_addresses() -> None:
         ),
         (
             "m/49h/0h/0h",
-            "slip132_p2wpkh_p2sh_prv",  # p2wpkh-p2sh (p2sh-wrapped legacy-segwit p2wpkh)
+            "slip132_p2wpkh_p2sh_prv",  # p2wpkh-p2sh (i.e., p2sh-wrapped p2wpkh)
             "ypub6YBGdYufCVeoPVmNXfdrWhaBCXsQoLKNetNmD9bPTrKmnKVmiyU8f1uJqwGdmBb8kbAZpHoYfXQTLbWpkXc4skQDAreeCUXdbX9k8vtiHsN",
         ),
         (
             "m/49h/0h/0h",
-            "slip132_p2wsh_p2sh_prv",  # p2wsh-p2sh (p2sh-wrapped legacy-segwit p2wsh)
+            "slip132_p2wsh_p2sh_prv",  # p2wsh-p2sh (i.e., p2sh-wrapped p2wsh)
             "Ypub6j5Mkne6mTDAp4vkUL6qLmuyvKug1gzxyA2S8QrvqdABQW4gVNrQk8mEeeE7Kcp2z4EYgsofYjnxTm8b3km22EWt1Km3bszdVFRcipc6rXu",
         ),
         (
             "m/84h/0h/0h",
-            "slip132_p2wpkh_prv",  # p2wpkh (native-segwit p2wpkh)
+            "slip132_p2wpkh_prv",  # p2wpkh
             "zpub6qg3Uc1BAQkQvcBUYMmZHSzbsshSon3FvJ8yvH3ZZMjFNvJkwSji8UUwghiF3wvpvSvcNWVP8kfUhc2V2RwGp6pTC3ouj6njj956f26TniN",
         ),
         (
             "m/84h/0h/0h",
-            "slip132_p2wsh_prv",  # p2wsh (native-segwit p2wsh)
+            "slip132_p2wsh_prv",  # p2wsh
             "Zpub72a8bqjcjNJnMBLrV2EY7XLQbfji28irEZneqYK6w8Zf16sfhr7zDbLsVQficP9j9uzbF6VW1y3ypmeFKf6Dxaw82WvK8WFjcsLyEvMNZjF",
         ),
         # coin_type = 1 -> testnet
         (
             "m/44h/1h/0h",
-            "bip32_prv",  # p2pkh BIP44
+            "bip32_prv",  # p2pkh or p2sh
             "tpubDChqWo2Xi2wNsxyJBE8ipcTJHLKWcqeeNUKBVTpUCNPZkHzHTm3qKAeHqgCou1t8PAY5ZnJ9QDa6zXSZxmjDnhiBpgZ7f6Yv88wEm5HXVbm",
         ),
         (
             "m/49h/1h/0h",
-            "slip132_p2wpkh_p2sh_prv",  # p2wpkh-p2sh (p2sh-wrapped legacy-segwit p2wpkh)
+            "slip132_p2wpkh_p2sh_prv",  # p2wpkh-p2sh (i.e., p2sh-wrapped p2wpkh)
             "upub5Dj8j7YrwodV68mt58QmNpSzjqjso2WMXEpLGLSvskKccGuXhCh3dTedkzVLAePA617UyXAg2vdswJXTYjU4qjMJaHU79GJVVJCAiy9ezZ2",
         ),
         (
             "m/49h/1h/0h",
-            "slip132_p2wsh_p2sh_prv",  # p2wsh-p2sh (p2sh-wrapped legacy-segwit p2wsh)
+            "slip132_p2wsh_p2sh_prv",  # p2wsh-p2sh (i.e., p2sh-wrapped p2wsh)
             "Upub5QdDrMHJWmBrWhwG1nskCtnoTdn91PBwqWU1BbiUFXA2ETUSTc5KiaWZZhSoj5c4KUBTr7Anv92P4U9Dqxd1zDTyQkaWYfmVP2U3Js1W5cG",
         ),
         (
             "m/84h/1h/0h",
-            "slip132_p2wpkh_prv",  # p2wpkh (native-segwit p2wpkh)
+            "slip132_p2wpkh_prv",  # p2wpkh
             "vpub5ZhJmduYY7M5J2qCJgSW7hunX6zJrr5WuNg2kKt321HseZEYxqJc6Zso47aNXQw3Wf3sA8kppbfsxnLheUNXcL3xhzeBHLNp8fTVBN6DnJF",
         ),
         (
             "m/84h/1h/0h",
-            "slip132_p2wsh_prv",  # p2wsh (native-segwit p2wsh)
+            "slip132_p2wsh_prv",  # p2wsh
             "Vpub5kbPtsdz74uSibzaFLuUwnFbEu2a5Cm7DeKhfb9aPn8HGjoTjEgtBgjirpXr5r9wk87r2ikwhp4P5wxTwhXUkpAdYTkagjqp2PjMmGPBESU",
         ),
     ]
