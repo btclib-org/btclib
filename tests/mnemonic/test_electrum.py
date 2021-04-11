@@ -17,7 +17,8 @@ import pytest
 
 from btclib.bip32 import bip32, slip132
 from btclib.exceptions import BTClibValueError
-from btclib.mnemonic import electrum
+from btclib.mnemonic import bip39, electrum
+from btclib.network import NETWORKS
 
 
 def test_mnemonic() -> None:
@@ -85,3 +86,37 @@ def test_vectors() -> None:
 
         xprv = bip32.derive(rmxprv, "m/0h/0")
         assert address == slip132.address_from_xkey(xprv)
+
+
+def test_p2wpkh_p2sh() -> None:
+    "Test generation of a p2wpkh-p2sh wallet."
+
+    # https://bitcoinelectrum.com/creating-a-p2sh-segwit-wallet-with-electrum/
+    # https://www.youtube.com/watch?v=-1DBJWwA2Cw
+
+    p2wpkh_p2sh_xkey_version = NETWORKS["mainnet"].slip132_p2wpkh_p2sh_prv
+    mnemonics = [
+        "matrix fitness cook logic peace mercy dinosaur sign measure rescue alert turtle",
+        "chief popular furnace myth decline subject actual toddler plunge rug mixed unlock",
+    ]
+    versions = ["segwit", "standard"]
+    addresses = [
+        "38Ysa2TRwGAGLEE1pgV2HCX7MAw6XsP6BJ",
+        "3A5u2RTjs3t33Kyc48zHA7Dfsr8Zsfwkoo",
+    ]
+    for mnemonic, version, p2wpkh_p2sh_address in zip(mnemonics, versions, addresses):
+        # this is an electrum mnemonic
+        assert electrum.version_from_mnemonic(mnemonic)[0] == version
+        # of course, it is invalid as BIP39 mnemonic
+        with pytest.raises(BTClibValueError, match="invalid checksum: "):
+            bip39.mxprv_from_mnemonic(mnemonic, "")
+        # nonetheless, let's use it as BIP39 mnemonic
+        rootxprv = bip39.mxprv_from_mnemonic(mnemonic, "", verify_checksum=False)
+        # and force the xkey version to p2wpkh_p2sh
+        mxprv = bip32.derive(rootxprv, "m/49h/0h/0h", p2wpkh_p2sh_xkey_version)
+        mxpub = bip32.xpub_from_xprv(mxprv)
+        # finally, verify the first receiving address
+        xpub = bip32.derive_from_account(mxpub, 0, 0)
+        address = slip132.address_from_xkey(xpub)
+        assert addresses
+        assert p2wpkh_p2sh_address == slip132.address_from_xkey(xpub)
