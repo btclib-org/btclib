@@ -43,12 +43,12 @@ def _point_from_xpub(xpub: BIP32Key, ec: Curve) -> Point:
     else:
         xpub = BIP32KeyData.b58decode(xpub)
 
-    if xpub.key[0] in (2, 3):
-        ec2 = curve_from_xkeyversion(xpub.version)
-        if ec != ec2:
-            raise BTClibValueError(f"ec/xpub version ({xpub.version.hex()}) mismatch")
-        return point_from_octets(xpub.key, ec)
-    raise BTClibValueError(f"not a public key: {xpub.key.hex()}")
+    if xpub.is_private:
+        raise BTClibValueError(f"not a public key: {xpub.key.hex()}")
+    ec2 = curve_from_xkeyversion(xpub.version)
+    if ec != ec2:
+        raise BTClibValueError(f"ec/xpub version ({xpub.version.hex()}) mismatch")
+    return point_from_octets(xpub.key, ec)
 
 
 def point_from_key(key: Key, ec: Curve = secp256k1) -> Point:

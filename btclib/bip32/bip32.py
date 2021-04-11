@@ -69,6 +69,11 @@ class BIP32KeyData:
     chain_code: bytes
     key: bytes
 
+    @property
+    def is_private(self) -> bool:
+        return self.key[0] == 0
+
+    @property
     def is_hardened(self) -> bool:
         return self.index >= 0x80000000
 
@@ -296,11 +301,12 @@ class _ExtendedBIP32KeyData(BIP32KeyData):
             version, depth, parent_fingerprint, index, chain_code, key, False
         )
 
-        is_prv = self.key[0] == 0
-        self.prv_key_int = (
-            int.from_bytes(self.key[1:], "big", signed=False) if is_prv else 0
-        )
-        self.pub_key_point = INF if is_prv else point_from_octets(self.key, ec)
+        if self.is_private:
+            self.prv_key_int = int.from_bytes(self.key[1:], "big", signed=False)
+            self.pub_key_point = INF
+        else:
+            self.prv_key_int = 0
+            self.pub_key_point = point_from_octets(self.key, ec)
 
         if check_validity:
             self.assert_valid()
@@ -310,10 +316,10 @@ def __ckd(xkey: _ExtendedBIP32KeyData, index: int) -> None:
 
     xkey.depth += 1
     xkey.index = index
-    if xkey.key[0] == 0:  # private key
+    if xkey.is_private:
         Q_bytes = bytes_from_point(mult(xkey.prv_key_int))
         xkey.parent_fingerprint = hash160(Q_bytes)[:4]
-        if xkey.is_hardened():  # hardened derivation
+        if xkey.is_hardened:  # hardened derivation
             hmac_ = hmac.new(
                 xkey.chain_code,
                 xkey.key + index.to_bytes(4, byteorder="big", signed=False),
@@ -334,7 +340,7 @@ def __ckd(xkey: _ExtendedBIP32KeyData, index: int) -> None:
         xkey.pub_key_point = INF
     else:  # public key
         xkey.parent_fingerprint = hash160(xkey.key)[:4]
-        if xkey.is_hardened():
+        if xkey.is_hardened:
             raise BTClibValueError("invalid hardened derivation from public key")
         hmac_ = hmac.new(
             xkey.chain_code,
@@ -418,7 +424,7 @@ def _derive_from_account(
     if not isinstance(mxkey, BIP32KeyData):
         mxkey = BIP32KeyData.b58decode(mxkey)
 
-    if not mxkey.is_hardened():
+    if not mxkey.is_hardened:
         raise BTClibValueError("unhardened account/master key")
 
     if branch >= 0x80000000:
@@ -485,7 +491,7 @@ def crack_prv_key(parent_xpub: BIP32Key, child_xprv: BIP32Key) -> str:
     if c.parent_fingerprint != hash160(p.key)[:4]:
         raise BTClibValueError("not a parent's child: wrong parent fingerprint")
 
-    if c.is_hardened():
+    if c.is_hardened:
         raise BTClibValueError("hardened child derivation")
 
     p.version = c.version
