@@ -408,17 +408,17 @@ def derive(
 
 
 def _derive_from_account(
-    xkey: BIP32Key,
+    mxkey: BIP32Key,
     branch: int,
     address_index: int,
     branches_0_1_only: bool = True,
     max_index: int = 0xFFFF,
 ) -> BIP32KeyData:
 
-    if not isinstance(xkey, BIP32KeyData):
-        xkey = BIP32KeyData.b58decode(xkey)
+    if not isinstance(mxkey, BIP32KeyData):
+        mxkey = BIP32KeyData.b58decode(mxkey)
 
-    if not xkey.is_hardened():
+    if not mxkey.is_hardened():
         raise BTClibValueError("unhardened account/master key")
 
     if branch >= 0x80000000:
@@ -433,19 +433,25 @@ def _derive_from_account(
     if address_index > max_index:
         raise BTClibValueError(f"too high address index: {branch}")
 
-    return _derive(xkey, f"m/{branch}/{address_index}")
+    return _derive(mxkey, f"m/{branch}/{address_index}")
 
 
 def derive_from_account(
-    xkey: BIP32Key,
+    mxkey: BIP32Key,
     branch: int,
     address_index: int,
     branches_0_1_only: bool = True,
     max_index: int = 0xFFFF,
 ) -> str:
+    """Derive a key with public derivation at the given branch and index.
+
+    It also ensures that the master key is hardened,
+    that the branch is a standard receive or change,
+    and that the index is not arbitrarily high.
+    """
 
     return _derive_from_account(
-        xkey, branch, address_index, branches_0_1_only, max_index
+        mxkey, branch, address_index, branches_0_1_only, max_index
     ).b58encode()
 
 
