@@ -11,6 +11,7 @@
 "Tests for the `btclib.electrum` module."
 
 import json
+import secrets
 from os import path
 
 import pytest
@@ -25,11 +26,11 @@ def test_mnemonic() -> None:
     lang = "en"
 
     entropy = 0x110AAAA03974D093EDA670121023CD0772
-    eversion = "standard"
+    mnemonic_type = "standard"
     # FIXME: is the following mnemonic obtained in Electrum
     # from the above entropy?
     mnemonic = "ability awful fetch liberty company spatial panda hat then canal ball crouch bunker"
-    mnemonic2 = electrum.mnemonic_from_entropy(entropy, eversion, lang)
+    mnemonic2 = electrum.mnemonic_from_entropy(mnemonic_type, entropy, lang)
     assert mnemonic == mnemonic2
 
     entr = int(electrum.entropy_from_mnemonic(mnemonic, lang), 2)
@@ -39,9 +40,9 @@ def test_mnemonic() -> None:
     xprv2 = electrum.mxprv_from_mnemonic(mnemonic)
     assert xprv2 == xprv
 
-    eversion = "std"
+    mnemonic_type = "std"
     with pytest.raises(BTClibValueError, match="unknown electrum mnemonic version: "):
-        electrum.mnemonic_from_entropy(entropy, eversion, lang)
+        electrum.mnemonic_from_entropy(mnemonic_type, entropy, lang)
 
     unkn_ver = "ability awful fetch liberty company spatial panda hat then canal ball cross video"
     with pytest.raises(BTClibValueError, match="unknown electrum mnemonic version: "):
@@ -50,8 +51,8 @@ def test_mnemonic() -> None:
     with pytest.raises(BTClibValueError, match="unknown electrum mnemonic version: "):
         electrum.mxprv_from_mnemonic(unkn_ver)
 
-    for eversion in ("2fa", "2fa_segwit"):
-        mnemonic = electrum.mnemonic_from_entropy(entropy, eversion, lang)
+    for mnemonic_type in ("2fa", "2fa_segwit"):
+        mnemonic = electrum.mnemonic_from_entropy(mnemonic_type, entropy, lang)
         with pytest.raises(
             BTClibValueError, match="unmanaged electrum mnemonic version: "
         ):
@@ -77,15 +78,22 @@ def test_vectors() -> None:
         if mnemonic != "":
             assert rmxprv == electrum.mxprv_from_mnemonic(mnemonic, passphrase)
 
-            eversion, mnemonic = electrum.version_from_mnemonic(mnemonic)
+            mnemonic_type, mnemonic = electrum.version_from_mnemonic(mnemonic)
             entr = int(electrum.entropy_from_mnemonic(mnemonic, lang), 2)
-            mnem = electrum.mnemonic_from_entropy(entr, eversion, lang)
+            mnem = electrum.mnemonic_from_entropy(mnemonic_type, entr, lang)
             assert mnem == mnemonic
 
         assert rmxpub == bip32.xpub_from_xprv(rmxprv)
 
         xprv = bip32.derive(rmxprv, "m/0h/0")
         assert address == slip132.address_from_xkey(xprv)
+
+
+def test_mnemonic_from_entropy() -> None:
+    # zero leading bit should not throw an error
+    electrum.mnemonic_from_entropy("standard", secrets.randbits(127), "en")
+    # random mnemonic
+    electrum.mnemonic_from_entropy()
 
 
 def test_p2wpkh_p2sh() -> None:

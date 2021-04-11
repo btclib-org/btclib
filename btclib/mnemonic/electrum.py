@@ -14,6 +14,7 @@ Electrum mnemonic is versioned, conveying BIP32 derivation rule too.
 """
 
 import hmac
+import secrets
 from hashlib import pbkdf2_hmac, sha512
 from typing import Optional, Tuple
 
@@ -49,7 +50,7 @@ def version_from_mnemonic(mnemonic: Mnemonic) -> Tuple[str, str]:
     (extra spaces, tab, newline, return, formfeed, etc.)
     """
 
-    # split remove spurious whitespaces
+    # clean up mnemonic from spurious whitespaces
     mnemonic = " ".join(mnemonic.split())
     s = hmac.new(b"Seed version", mnemonic.encode(), sha512).hexdigest()
 
@@ -68,7 +69,7 @@ def version_from_mnemonic(mnemonic: Mnemonic) -> Tuple[str, str]:
 
 
 def mnemonic_from_entropy(
-    entropy: Entropy, version_str: str = "standard", lang: str = "en"
+    mnemonic_type: str = "standard", entropy: Optional[Entropy] = None, lang: str = "en"
 ) -> Mnemonic:
     """Convert input entropy to Electrum versioned mnemonic sentence.
 
@@ -79,11 +80,14 @@ def mnemonic_from_entropy(
     leading zeros are considered redundant padding.
     """
 
-    if version_str not in _MNEMONIC_VERSIONS:
-        err_msg = f"unknown electrum mnemonic version: '{version_str}'; "
+    if mnemonic_type not in _MNEMONIC_VERSIONS:
+        err_msg = f"unknown electrum mnemonic version: '{mnemonic_type}'; "
         err_msg += f"not in {list(_MNEMONIC_VERSIONS.keys())}"
         raise BTClibValueError(err_msg)
-    version = _MNEMONIC_VERSIONS[version_str]
+    version = _MNEMONIC_VERSIONS[mnemonic_type]
+
+    if entropy is None or entropy == "":
+        entropy = secrets.randbits(128)
 
     bin_str_entropy = bin_str_entropy_from_entropy(entropy)
     int_entropy = int(bin_str_entropy, 2)

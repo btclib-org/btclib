@@ -69,9 +69,11 @@ def test_vectors() -> None:
         assert bip32.rootxprv_from_seed(seed) == xprv
 
 
-def test_zeroleadingbit() -> None:
-    # it should not throw an error
+def test_mnemonic_from_entropy() -> None:
+    # zero leading bit should not throw an error
     bip39.mnemonic_from_entropy(secrets.randbits(127), "en")
+    # random mnemonic
+    bip39.mnemonic_from_entropy()
 
 
 def test_mxprv_from_mnemonic() -> None:

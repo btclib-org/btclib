@@ -35,6 +35,7 @@ Checksummed entropy (**ENT+CS**) is converted from/to mnemonic.
 """
 
 
+import secrets
 from hashlib import pbkdf2_hmac, sha256
 from typing import Optional, Tuple
 
@@ -80,7 +81,9 @@ def _entropy_checksum(entropy: Entropy) -> Tuple[BinStr, BinStr]:
     return bin_str_entropy, checksum[:checksum_bits]
 
 
-def mnemonic_from_entropy(entropy: Entropy, lang: str = "en") -> Mnemonic:
+def mnemonic_from_entropy(
+    entropy: Optional[Entropy] = None, lang: str = "en"
+) -> Mnemonic:
     """Convert input entropy to BIP39 checksummed mnemonic sentence.
 
     Input entropy can be expressed as
@@ -97,6 +100,8 @@ def mnemonic_from_entropy(entropy: Entropy, lang: str = "en") -> Mnemonic:
     length, then only the leftmost bits are retained.
     """
 
+    if entropy is None or entropy == "":
+        entropy = secrets.randbits(128)
     bin_str_entropy, checksum = _entropy_checksum(entropy)
     base = WORDLISTS.language_length(lang)
     indexes = wordlist_indexes_from_bin_str_entropy(bin_str_entropy + checksum, base)
@@ -129,12 +134,14 @@ def seed_from_mnemonic(
     The mnemonic checksum verification can be skipped if needed.
     """
 
+    # clean up mnemonic from spurious whitespaces
+    mnemonic = " ".join(mnemonic.split())
+
     if verify_checksum:
         entropy_from_mnemonic(mnemonic)
 
     hf_name = "sha512"
-    # clean up mnemonic from spurious whitespaces
-    password = " ".join(mnemonic.split()).encode()
+    password = mnemonic.encode()
     salt = ("mnemonic" + passphrase).encode()
     iterations = 2048
     dksize = 64
