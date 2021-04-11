@@ -77,6 +77,14 @@ class BIP32KeyData:
     def is_hardened(self) -> bool:
         return self.index >= 0x80000000
 
+    @property
+    def is_root(self) -> bool:
+        return (
+            self.depth == 0
+            and self.index == 0
+            and self.parent_fingerprint == b"\x00" * 4
+        )
+
     def __init__(
         self,
         version: Octets,
@@ -118,7 +126,7 @@ class BIP32KeyData:
             raise BTClibValueError(f"invalid depth: {self.depth}")
 
         if self.depth == 0:
-            if self.parent_fingerprint != bytes.fromhex("00000000"):
+            if self.parent_fingerprint != b"\x00" * 4:
                 err_msg = f"zero depth with non-zero parent fingerprint: 0x{self.parent_fingerprint.hex()}"
                 raise BTClibValueError(err_msg)
             if self.index != 0:
@@ -225,7 +233,7 @@ def _rootxprv_from_seed(
     return BIP32KeyData(
         version=v,
         depth=0,
-        parent_fingerprint=bytes.fromhex("00000000"),
+        parent_fingerprint=b"\x00" * 4,
         index=0,
         chain_code=hmac_[32:],
         key=k,
