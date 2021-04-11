@@ -75,7 +75,7 @@ def address_from_xpub(xpub: BIP32Key) -> str:
     raise BTClibValueError(err_msg)  # pragma: no cover
 
 
-def p2pkh_xkey(xkey: BIP32Key, der_path: BIP32DerPath = "m / 44h / 0h") -> str:
+def p2pkh_xkey(xkey: BIP32Key, der_path: BIP32DerPath = "m / 44h / 0h / 0h") -> str:
 
     if not isinstance(xkey, BIP32KeyData):
         xkey = BIP32KeyData.b58decode(xkey)
@@ -86,7 +86,9 @@ def p2pkh_xkey(xkey: BIP32Key, der_path: BIP32DerPath = "m / 44h / 0h") -> str:
     return derive(xkey, der_path, version)
 
 
-def p2wpkh_p2sh_xkey(xkey: BIP32Key, der_path: BIP32DerPath = "m / 49h / 0h") -> str:
+def p2wpkh_p2sh_xkey(
+    xkey: BIP32Key, der_path: BIP32DerPath = "m / 49h / 0h / 0h"
+) -> str:
 
     if not isinstance(xkey, BIP32KeyData):
         xkey = BIP32KeyData.b58decode(xkey)
@@ -101,7 +103,7 @@ def p2wpkh_p2sh_xkey(xkey: BIP32Key, der_path: BIP32DerPath = "m / 49h / 0h") ->
     return derive(xkey, der_path, version)
 
 
-def p2wpkh_xkey(xkey: BIP32Key, der_path: BIP32DerPath = "m / 84h / 0h") -> str:
+def p2wpkh_xkey(xkey: BIP32Key, der_path: BIP32DerPath = "m / 84h / 0h / 0h") -> str:
 
     if not isinstance(xkey, BIP32KeyData):
         xkey = BIP32KeyData.b58decode(xkey)

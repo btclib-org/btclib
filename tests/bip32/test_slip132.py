@@ -29,50 +29,50 @@ def test_slip132() -> None:
     xprv = slip132.p2pkh_xkey(mxprv)
     assert (
         xprv
-        == "xprv9xSb2x6mJ7sAWMQFuVTTwyZFseh5TccEXQtPEAnva8nfqeHmi9n2cYSromkmWeg24n8Q2pbdQ69mygi6K9SZR2vuBp8iGZhSTqoL3wPqkCe"
+        == "xprv9y7Yxxyy7wn5ktGVzAmgatW1vu7daX4V8ddWMcSbKJyK6TzkBbZDimAMCLoogpf4GEp2ThmBZ476vwe7xVC9sPsNfJcyu5isQixgF95HS31"
     )
     with pytest.raises(BTClibValueError, match=err_msg):
         slip132.address_from_xpub(xprv)
     xpub = bip32.xpub_from_xprv(xprv)
     assert (
         xpub
-        == "xpub6BRwSTdf8VRTiqUj1WzUK7VzRgXZs5L5tdoz2ZCY8UKeiScvFh6HALmLf51t23rp5GCgdCNm73YzTyr8VmjPfbKcwu9pjAUjAdMawsUUxTD"
+        == "xpub6C6uNUWrxKLNyNLy6CJgx2SkUvx7yynLVrZ79zrCseWHyGKtj8sUGZUq3dw9fqJGETSEeX1iztXAfRvxh6Gk2m7yVjDCx5cbRP2So559Hb5"
     )
     address = slip132.address_from_xpub(xpub)
     assert slip132.address_from_xkey(xprv) == address
-    assert address == "16b9hWkq6E6gMtJxCWuNzwJSTERha91D6F"
+    assert address == "1DjfiAgNyvRXhYXiDgE9K7bfB82hVUPTm1"
 
     yprv = slip132.p2wpkh_p2sh_xkey(mxprv)
     assert (
         yprv
-        == "yprvAHDkLYwnzk4bRmnpw2hfEEcjSLBetk4A2hJVcCPLuwzTRZdQ5ZtyCF3mMhbAyBf1hHigrMkwPFwpGf8pLSAcdd2NNcaTfGkTRCC7zkZQSQx"
+        == "yprvAJstKLzg5g8RzxfPiX4UT5vH6y5FJkK2yVNkxrzG92WagSCu2PnAxT34JPGCT9Wh5LJCXZi1wB7fd6FUA9veMf2kig7A6cTxD4GMjSbcrqv"
     )
     with pytest.raises(BTClibValueError, match=err_msg):
         slip132.address_from_xpub(yprv)
     ypub = bip32.xpub_from_xprv(yprv)
     assert (
         ypub
-        == "ypub6WD6k4Ugq7cteFsJ34EfbNZTzN29JCn1PvE6QanxUHXSJMxYd7DDk3NFCxvL9ow4sXABtBUdChnj7awZ3sGXx1b6bHWZn2PUtRDt8LxJYse"
+        == "ypub6XsEirXZv3gjDSjrpYbUpDs1ezujiD2tLiJMmFPshN3ZZEY3Zw6RWFMY9grBtrN88Qan7FAVmtPQnLfuepRy7ZVDNQkkDTMGzYoCJpQdwt4"
     )
     address = slip132.address_from_xpub(ypub)
     assert slip132.address_from_xkey(yprv) == address
-    assert address == "3Bwr2SpzrAWUjtPz3XMeZsDKrs8945oYNM"
+    assert address == "3QnhAKhuuwSf2bEFKpgvDKUHNe3rpZr6PG"
 
     zprv = slip132.p2wpkh_xkey(mxprv)
     assert (
         zprv
-        == "zprvAc1SwSrw5SZ5CF5yoNaiiCSiyun1NPra74qoUV1F3s3nXkgJz3eex1yKUjBJ7RmutcnSGgvy3peqo4zmhqu2rMTeBm6cCTd9YqdrM1aFSqm"
+        == "zprvAceWp8rDBfL7EJ4Mz5p76v6ZmFQ3UyftmmHqfdUidHoTPoFwjApHYCXPhdWNsxLv6ozzauk8LQXNjNn2CcxLaLzezH7QTQ3rk9tn8GmzaXT"
     )
     with pytest.raises(BTClibValueError, match=err_msg):
         slip132.address_from_xpub(zprv)
     zpub = bip32.xpub_from_xprv(zprv)
     assert (
         zpub
-        == "zpub6pzoLxPpup7NQjASuQ7j5LPTXwcVmraRUHmQGsQrcCamQZ1TXaxuVpHoL1663yUsEyyuv4Bi1X3RKEy6B79GxNZpBgNhrMZh9y9ihidyEgf"
+        == "zpub6qdsDeP722tQSn8q67M7U43JKHEXtSPk8zDSU1tLBdLSGbb6Gi8Y5zqsYuYPhxprjsxc4ZdqvjC86iuv1SXmmvCkJgZJmoCPbDZdHwUaKbX"
     )
     address = slip132.address_from_xpub(zpub)
     assert slip132.address_from_xkey(zprv) == address
-    assert address == "bc1q9w84gn9zcdw9a2qs0uc6atk40ld4mygq5qpqfg"
+    assert address == "bc1qcne7y6yae0lz3kceg80aunmafu0rwm3uzmf7v6"
 
 
 def test_slip132_test_vectors() -> None:
