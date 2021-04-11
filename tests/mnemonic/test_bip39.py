@@ -17,7 +17,7 @@ from os import path
 
 import pytest
 
-from btclib.bip32.bip32 import rootxprv_from_seed
+from btclib.bip32 import bip32
 from btclib.exceptions import BTClibValueError
 from btclib.mnemonic import bip39
 
@@ -66,7 +66,7 @@ def test_vectors() -> None:
         raw_entr = bip39.entropy_from_mnemonic(mnemonic, lang)
         size = (len(raw_entr) + 7) // 8
         assert entropy == int(raw_entr, 2).to_bytes(size, byteorder="big", signed=False)
-        assert rootxprv_from_seed(seed) == xprv
+        assert bip32.rootxprv_from_seed(seed) == xprv
 
 
 def test_zeroleadingbit() -> None:
