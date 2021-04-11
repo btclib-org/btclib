@@ -142,10 +142,13 @@ def seed_from_mnemonic(
 
 
 def mxprv_from_mnemonic(
-    mnemonic: Mnemonic, passphrase: Optional[str] = None, network: str = "mainnet"
+    mnemonic: Mnemonic,
+    passphrase: Optional[str] = None,
+    network: str = "mainnet",
+    verify_checksum: bool = True,
 ) -> str:
     "Return BIP32 root master extended private key from BIP39 mnemonic."
 
-    seed = seed_from_mnemonic(mnemonic, passphrase or "")
+    seed = seed_from_mnemonic(mnemonic, passphrase or "", verify_checksum)
     version = NETWORKS[network].bip32_prv
     return rootxprv_from_seed(seed, version)
