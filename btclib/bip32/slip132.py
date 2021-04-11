@@ -60,7 +60,7 @@ def address_from_xpub(xpub: BIP32Key) -> str:
         "slip132_p2wpkh_p2sh_pub",
     ]
     for version, function in zip(version_list, function_list):
-        # with pytohn>=3.8 use walrus operator
+        # with python>=3.8 use walrus operator
         # if network := network_from_key_value(version, xpub.version):
         network = network_from_key_value(version, xpub.version)
         if network:
