@@ -117,6 +117,4 @@ def test_p2wpkh_p2sh() -> None:
         mxpub = bip32.xpub_from_xprv(mxprv)
         # finally, verify the first receiving address
         xpub = bip32.derive_from_account(mxpub, 0, 0)
-        address = slip132.address_from_xkey(xpub)
-        assert addresses
         assert p2wpkh_p2sh_address == slip132.address_from_xkey(xpub)
