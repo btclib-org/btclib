@@ -22,17 +22,60 @@ from btclib.network import NETWORKS
 
 
 def test_slip132() -> None:
-    xprv = b"xprv9s21ZrQH143K2ZP8tyNiUtgoezZosUkw9hhir2JFzDhcUWKz8qFYk3cxdgSFoCMzt8E2Ubi1nXw71TLhwgCfzqFHfM5Snv4zboSebePRmLS"
+    mnemonic = "enough regret erode news field main wild jar erupt bronze velvet ugly"
+    mxprv = bip39.mxprv_from_mnemonic(mnemonic)
     err_msg = "not a public key: "
+
+    xprv = slip132.p2pkh_xkey(mxprv)
+    assert (
+        xprv
+        == "xprv9xSb2x6mJ7sAWMQFuVTTwyZFseh5TccEXQtPEAnva8nfqeHmi9n2cYSromkmWeg24n8Q2pbdQ69mygi6K9SZR2vuBp8iGZhSTqoL3wPqkCe"
+    )
     with pytest.raises(BTClibValueError, match=err_msg):
         slip132.address_from_xpub(xprv)
-    address = slip132.address_from_xkey(xprv)
     xpub = bip32.xpub_from_xprv(xprv)
-    address2 = slip132.address_from_xpub(xpub)
-    assert address == address2
+    assert (
+        xpub
+        == "xpub6BRwSTdf8VRTiqUj1WzUK7VzRgXZs5L5tdoz2ZCY8UKeiScvFh6HALmLf51t23rp5GCgdCNm73YzTyr8VmjPfbKcwu9pjAUjAdMawsUUxTD"
+    )
+    address = slip132.address_from_xpub(xpub)
+    assert slip132.address_from_xkey(xprv) == address
+    assert address == "16b9hWkq6E6gMtJxCWuNzwJSTERha91D6F"
+
+    yprv = slip132.p2wpkh_p2sh_xkey(mxprv)
+    assert (
+        yprv
+        == "yprvAHDkLYwnzk4bRmnpw2hfEEcjSLBetk4A2hJVcCPLuwzTRZdQ5ZtyCF3mMhbAyBf1hHigrMkwPFwpGf8pLSAcdd2NNcaTfGkTRCC7zkZQSQx"
+    )
+    with pytest.raises(BTClibValueError, match=err_msg):
+        slip132.address_from_xpub(yprv)
+    ypub = bip32.xpub_from_xprv(yprv)
+    assert (
+        ypub
+        == "ypub6WD6k4Ugq7cteFsJ34EfbNZTzN29JCn1PvE6QanxUHXSJMxYd7DDk3NFCxvL9ow4sXABtBUdChnj7awZ3sGXx1b6bHWZn2PUtRDt8LxJYse"
+    )
+    address = slip132.address_from_xpub(ypub)
+    assert slip132.address_from_xkey(yprv) == address
+    assert address == "3Bwr2SpzrAWUjtPz3XMeZsDKrs8945oYNM"
+
+    zprv = slip132.p2wpkh_xkey(mxprv)
+    assert (
+        zprv
+        == "zprvAc1SwSrw5SZ5CF5yoNaiiCSiyun1NPra74qoUV1F3s3nXkgJz3eex1yKUjBJ7RmutcnSGgvy3peqo4zmhqu2rMTeBm6cCTd9YqdrM1aFSqm"
+    )
+    with pytest.raises(BTClibValueError, match=err_msg):
+        slip132.address_from_xpub(zprv)
+    zpub = bip32.xpub_from_xprv(zprv)
+    assert (
+        zpub
+        == "zpub6pzoLxPpup7NQjASuQ7j5LPTXwcVmraRUHmQGsQrcCamQZ1TXaxuVpHoL1663yUsEyyuv4Bi1X3RKEy6B79GxNZpBgNhrMZh9y9ihidyEgf"
+    )
+    address = slip132.address_from_xpub(zpub)
+    assert slip132.address_from_xkey(zprv) == address
+    assert address == "bc1q9w84gn9zcdw9a2qs0uc6atk40ld4mygq5qpqfg"
 
 
-def test_slip132_test_vector() -> None:
+def test_slip132_test_vectors() -> None:
     """SLIP132 test vector
 
     https://github.com/satoshilabs/slips/blob/master/slip-0132.md

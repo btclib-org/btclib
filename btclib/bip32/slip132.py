@@ -15,9 +15,15 @@ https://github.com/satoshilabs/slips/blob/master/slip-0132.md
 from typing import Any, Callable, List
 
 from btclib import b32, b58
-from btclib.bip32.bip32 import BIP32Key, BIP32KeyData, xpub_from_xprv
+from btclib.bip32.bip32 import (
+    BIP32DerPath,
+    BIP32Key,
+    BIP32KeyData,
+    derive,
+    xpub_from_xprv,
+)
 from btclib.exceptions import BTClibValueError
-from btclib.network import network_from_key_value
+from btclib.network import NETWORKS, network_from_key_value, network_from_xkeyversion
 
 
 def address_from_xkey(xkey: BIP32Key) -> str:
@@ -49,15 +55,15 @@ def address_from_xpub(xpub: BIP32Key) -> str:
         err_msg = f"not a public key: {xpub.b58encode()}"
         raise BTClibValueError(err_msg)
 
-    function_list: List[Callable[[Any, str], str]] = [
-        b58.p2pkh,
-        b32.p2wpkh,
-        b58.p2wpkh_p2sh,
-    ]
     version_list: List[str] = [
         "bip32_pub",
         "slip132_p2wpkh_pub",
         "slip132_p2wpkh_p2sh_pub",
+    ]
+    function_list: List[Callable[[Any, str], str]] = [
+        b58.p2pkh,
+        b32.p2wpkh,
+        b58.p2wpkh_p2sh,
     ]
     for version, function in zip(version_list, function_list):
         # with python>=3.8 use walrus operator
@@ -67,3 +73,42 @@ def address_from_xpub(xpub: BIP32Key) -> str:
             return function(xpub, network)
     err_msg = f"unknown xpub version: {xpub.version.hex()}"  # pragma: no cover
     raise BTClibValueError(err_msg)  # pragma: no cover
+
+
+def p2pkh_xkey(xkey: BIP32Key, der_path: BIP32DerPath = "m / 44h / 0h") -> str:
+
+    if not isinstance(xkey, BIP32KeyData):
+        xkey = BIP32KeyData.b58decode(xkey)
+
+    network = NETWORKS[network_from_xkeyversion(xkey.version)]
+    version = network.bip32_prv if xkey.is_private else network.bip32_pub
+
+    return derive(xkey, der_path, version)
+
+
+def p2wpkh_p2sh_xkey(xkey: BIP32Key, der_path: BIP32DerPath = "m / 49h / 0h") -> str:
+
+    if not isinstance(xkey, BIP32KeyData):
+        xkey = BIP32KeyData.b58decode(xkey)
+
+    network = NETWORKS[network_from_xkeyversion(xkey.version)]
+    version = (
+        network.slip132_p2wpkh_p2sh_prv
+        if xkey.is_private
+        else network.slip132_p2wpkh_p2sh_pub
+    )
+
+    return derive(xkey, der_path, version)
+
+
+def p2wpkh_xkey(xkey: BIP32Key, der_path: BIP32DerPath = "m / 84h / 0h") -> str:
+
+    if not isinstance(xkey, BIP32KeyData):
+        xkey = BIP32KeyData.b58decode(xkey)
+
+    network = NETWORKS[network_from_xkeyversion(xkey.version)]
+    version = (
+        network.slip132_p2wpkh_prv if xkey.is_private else network.slip132_p2wpkh_pub
+    )
+
+    return derive(xkey, der_path, version)
