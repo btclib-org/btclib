@@ -24,14 +24,13 @@ from btclib.network import NETWORKS
 def test_slip132() -> None:
     mnemonic = "enough regret erode news field main wild jar erupt bronze velvet ugly"
     mxprv = bip39.mxprv_from_mnemonic(mnemonic)
-    err_msg = "not a public key: "
 
     xprv = slip132.p2pkh_xkey(mxprv)
     assert (
         xprv
         == "xprv9y7Yxxyy7wn5ktGVzAmgatW1vu7daX4V8ddWMcSbKJyK6TzkBbZDimAMCLoogpf4GEp2ThmBZ476vwe7xVC9sPsNfJcyu5isQixgF95HS31"
     )
-    with pytest.raises(BTClibValueError, match=err_msg):
+    with pytest.raises(BTClibValueError, match="not a public key: "):
         slip132.address_from_xpub(xprv)
     xpub = bip32.xpub_from_xprv(xprv)
     assert (
@@ -41,13 +40,15 @@ def test_slip132() -> None:
     address = slip132.address_from_xpub(xpub)
     assert slip132.address_from_xkey(xprv) == address
     assert address == "1DjfiAgNyvRXhYXiDgE9K7bfB82hVUPTm1"
+    with pytest.raises(BTClibValueError, match="not a root key: "):
+        slip132.p2pkh_xkey(xprv)
 
     yprv = slip132.p2wpkh_p2sh_xkey(mxprv)
     assert (
         yprv
         == "yprvAJstKLzg5g8RzxfPiX4UT5vH6y5FJkK2yVNkxrzG92WagSCu2PnAxT34JPGCT9Wh5LJCXZi1wB7fd6FUA9veMf2kig7A6cTxD4GMjSbcrqv"
     )
-    with pytest.raises(BTClibValueError, match=err_msg):
+    with pytest.raises(BTClibValueError, match="not a public key: "):
         slip132.address_from_xpub(yprv)
     ypub = bip32.xpub_from_xprv(yprv)
     assert (
@@ -57,13 +58,15 @@ def test_slip132() -> None:
     address = slip132.address_from_xpub(ypub)
     assert slip132.address_from_xkey(yprv) == address
     assert address == "3QnhAKhuuwSf2bEFKpgvDKUHNe3rpZr6PG"
+    with pytest.raises(BTClibValueError, match="not a root key: "):
+        slip132.p2wpkh_p2sh_xkey(xprv)
 
     zprv = slip132.p2wpkh_xkey(mxprv)
     assert (
         zprv
         == "zprvAceWp8rDBfL7EJ4Mz5p76v6ZmFQ3UyftmmHqfdUidHoTPoFwjApHYCXPhdWNsxLv6ozzauk8LQXNjNn2CcxLaLzezH7QTQ3rk9tn8GmzaXT"
     )
-    with pytest.raises(BTClibValueError, match=err_msg):
+    with pytest.raises(BTClibValueError, match="not a public key: "):
         slip132.address_from_xpub(zprv)
     zpub = bip32.xpub_from_xprv(zprv)
     assert (
@@ -73,6 +76,8 @@ def test_slip132() -> None:
     address = slip132.address_from_xpub(zpub)
     assert slip132.address_from_xkey(zprv) == address
     assert address == "bc1qcne7y6yae0lz3kceg80aunmafu0rwm3uzmf7v6"
+    with pytest.raises(BTClibValueError, match="not a root key: "):
+        slip132.p2wpkh_xkey(xprv)
 
 
 def test_slip132_test_vectors() -> None:
