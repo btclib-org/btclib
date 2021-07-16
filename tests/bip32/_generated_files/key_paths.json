@@ -1,0 +1,19 @@
+{
+    "bip32_derivs": [
+        {
+            "pub_key": "02c0ce299dc7d853ac7bd0a4d0237f4305b84efaed6148fc2a6a2f8405bdeebced",
+            "master_fingerprint": "3442193e",
+            "path": "m/44h/0h/1h/0/0"
+        },
+        {
+            "pub_key": "039459dd863b2655a67e014a6e2ca4752f9bcbc8573092b22b83ef93190dac8001",
+            "master_fingerprint": "3442193e",
+            "path": "m/44h/0h/1h/0/2"
+        },
+        {
+            "pub_key": "03f69148892e88f92b08d7dcad30f945111f5a03be061bdbc7a3276c2362f994d3",
+            "master_fingerprint": "3442193e",
+            "path": "m/44h/0h/1h/0/1"
+        }
+    ]
+}

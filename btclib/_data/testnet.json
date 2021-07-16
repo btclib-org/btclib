@@ -1,0 +1,19 @@
+{
+    "curve": "secp256k1",
+    "magic_bytes": "0709110b",
+    "genesis_block": "000000000933ea01ad0ee984209779baaec3ced90fa3f408719526f8d77f4943",
+    "wif": "ef",
+    "p2pkh": "6f",
+    "p2sh": "c4",
+    "hrp": "tb",
+    "bip32_prv": "04358394",
+    "bip32_pub": "043587cf",
+    "slip132_p2wpkh_prv": "045f18bc",
+    "slip132_p2wpkh_pub": "045f1cf6",
+    "slip132_p2wpkh_p2sh_prv": "044a4e28",
+    "slip132_p2wpkh_p2sh_pub": "044a5262",
+    "slip132_p2wsh_prv": "02575048",
+    "slip132_p2wsh_pub": "02575483",
+    "slip132_p2wsh_p2sh_prv": "024285b5",
+    "slip132_p2wsh_p2sh_pub": "024289ef"
+}

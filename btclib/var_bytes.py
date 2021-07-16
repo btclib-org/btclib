@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 
-# Copyright (C) 2020 The btclib developers
+# Copyright (C) 2020-2021 The btclib developers
 #
 # This file is part of btclib. It is subject to the license terms in the
 # LICENSE file found in the top-level directory of this distribution.
@@ -10,17 +10,17 @@
 
 "Varbytes encoding and decoding functions."
 
-from . import var_int
-from .alias import BinaryData, Octets
-from .exceptions import BTClibRuntimeError
-from .utils import bytes_from_octets, bytesio_from_binarydata
+from btclib import var_int
+from btclib.alias import BinaryData, Octets
+from btclib.exceptions import BTClibRuntimeError
+from btclib.utils import bytes_from_octets, bytesio_from_binarydata
 
 
-def deserialize(stream: BinaryData, forbid_zero_size=False) -> bytes:
+def parse(stream: BinaryData, forbid_zero_size: bool = False) -> bytes:
     """Return the variable-length octets read from a stream."""
 
     stream = bytesio_from_binarydata(stream)
-    i = var_int.deserialize(stream)
+    i = var_int.parse(stream)
     if forbid_zero_size and i == 0:
         raise BTClibRuntimeError("zero size")
 

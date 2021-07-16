@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 
-# Copyright (C) 2017-2020 The btclib developers
+# Copyright (C) 2017-2021 The btclib developers
 #
 # This file is part of btclib. It is subject to the license terms in the
 # LICENSE file found in the top-level directory of this distribution.
@@ -10,11 +10,11 @@
 
 """Aliases
 
-mypy aliases, documenting also coding imput conventions.
+mypy aliases, documenting also coding input conventions.
 """
 
 from io import BytesIO
-from typing import Any, Callable, List, Tuple, Union
+from typing import Any, Callable, Tuple, Union
 
 # Octets are a sequence of eight-bit bytes or a hex-string (not text string)
 #
@@ -78,11 +78,12 @@ HashF = Callable[[], Any]
 Point = Tuple[int, int]
 
 # Note that the infinity point in affine coordinates is INF = (int, 0)
-# (no affine point has y=0 coordinate in a group of prime order n).
+# (no affine point has y=0 coordinate in a group of prime order).
 # It can be checked with 'INF[1] == 0'
-# The x-coordinate is arbitrary: 7 is preferred
-# because it is not a field element in secp256k1
-INF = 7, 0
+# The x-coordinate is arbitrary: 5 is preferred
+# because it is not a valid x-coordinate in secp256k1
+# (and even 5 + secp256k1.n is not a valid x-coordinate)
+INF = 5, 0
 
 # Elliptic curve point in Jacobian coordinates.
 JacPoint = Tuple[int, int, int]
@@ -95,23 +96,3 @@ JacPoint = Tuple[int, int, int]
 # of the INF Point
 # QJ = Q[0], Q[1], 1 if Q[1] else 0
 INFJ = 7, 0, 0
-
-# the main internal representation of entropy is binary 0/1 string
-BinStr = str
-# but int or bytes are fine too
-Entropy = Union[BinStr, int, bytes]
-
-# the integers [0-16] are shorcuts for 'OP_0'-'OP_16'
-# the integer -1 is a shorcut for 'OP_1NEGATE'
-# other integers are bytes encoded (require push operation)
-# ascii str are for opcodes (e.g. 'OP_HASH160')
-# Octets are for data to be pushed
-ScriptToken = Union[int, str, bytes]
-
-# Bitcoin script expressed as List[ScriptToken]
-# e.g. [OP_HASH160, script_h160, OP_EQUAL]
-# or Octets of its byte-encoded representation
-Script = Union[Octets, List[ScriptToken]]
-
-# Object that can be textually saved without any conversion
-Printable = Union[int, str]

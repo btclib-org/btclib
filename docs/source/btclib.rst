@@ -36,16 +36,16 @@ btclib.base58 module
    :undoc-members:
    :show-inheritance:
 
-btclib.base58_address module
----------------------------
+btclib.base58\_address module
+-----------------------------
 
-.. automodule:: btclib.base58_address
+.. automodule:: btclib.b58
    :members:
    :undoc-members:
    :show-inheritance:
 
-btclib.base58_wif module
------------------------
+btclib.base58\_wif module
+-------------------------
 
 .. automodule:: btclib.base58_wif
    :members:
@@ -60,10 +60,10 @@ btclib.bech32 module
    :undoc-members:
    :show-inheritance:
 
-btclib.bech32_address module
----------------------------
+btclib.bech32\_address module
+-----------------------------
 
-.. automodule:: btclib.bech32_address
+.. automodule:: btclib.b32
    :members:
    :undoc-members:
    :show-inheritance:
@@ -72,6 +72,14 @@ btclib.bip32 module
 -------------------
 
 .. automodule:: btclib.bip32
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
+btclib.bip32\_path module
+-------------------------
+
+.. automodule:: btclib.bip32_path
    :members:
    :undoc-members:
    :show-inheritance:
@@ -116,24 +124,24 @@ btclib.curve module
    :undoc-members:
    :show-inheritance:
 
-btclib.curve_group module
-------------------------
+btclib.curve\_group module
+--------------------------
 
 .. automodule:: btclib.curve_group
    :members:
    :undoc-members:
    :show-inheritance:
 
-btclib.curve_group_2 module
--------------------------
+btclib.curve\_group\_2 module
+-----------------------------
 
 .. automodule:: btclib.curve_group_2
    :members:
    :undoc-members:
    :show-inheritance:
 
-btclib.curve_group_f module
--------------------------
+btclib.curve\_group\_f module
+-----------------------------
 
 .. automodule:: btclib.curve_group_f
    :members:
@@ -212,8 +220,8 @@ btclib.network module
    :undoc-members:
    :show-inheritance:
 
-btclib.number_theory module
---------------------------
+btclib.number\_theory module
+----------------------------
 
 .. automodule:: btclib.number_theory
    :members:
@@ -268,40 +276,40 @@ btclib.script module
    :undoc-members:
    :show-inheritance:
 
-btclib.script_pub_key module
---------------------------
+btclib.script\_pub\_key module
+------------------------------
 
 .. automodule:: btclib.script_pub_key
    :members:
    :undoc-members:
    :show-inheritance:
 
-btclib.script_pub_key\_address module
------------------------------------
+btclib.script\_pub\_key\_address module
+---------------------------------------
 
-.. automodule:: btclib.script_pub_key_address
+.. automodule:: btclib.address
    :members:
    :undoc-members:
    :show-inheritance:
 
-btclib.sec_point module
-----------------------
+btclib.sec\_point module
+------------------------
 
 .. automodule:: btclib.sec_point
    :members:
    :undoc-members:
    :show-inheritance:
 
-btclib.sign_hash module
----------------------
+btclib.sign\_hash module
+------------------------
 
 .. automodule:: btclib.sign_hash
    :members:
    :undoc-members:
    :show-inheritance:
 
-btclib.sign_to_contract module
-----------------------------
+btclib.sign\_to\_contract module
+--------------------------------
 
 .. automodule:: btclib.sign_to_contract
    :members:
@@ -324,16 +332,16 @@ btclib.ssa module
    :undoc-members:
    :show-inheritance:
 
-btclib.to\_prv_key module
-------------------------
+btclib.to\_prv\_key module
+--------------------------
 
 .. automodule:: btclib.to_prv_key
    :members:
    :undoc-members:
    :show-inheritance:
 
-btclib.to\_pub_key module
-------------------------
+btclib.to\_pub\_key module
+--------------------------
 
 .. automodule:: btclib.to_pub_key
    :members:
@@ -372,18 +380,26 @@ btclib.utils module
    :undoc-members:
    :show-inheritance:
 
-btclib.var_bytes module
-----------------------
+btclib.var\_bytes module
+------------------------
 
 .. automodule:: btclib.var_bytes
    :members:
    :undoc-members:
    :show-inheritance:
 
-btclib.var_int module
---------------------
+btclib.var\_int module
+----------------------
 
 .. automodule:: btclib.var_int
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
+btclib.witness module
+---------------------
+
+.. automodule:: btclib.witness
    :members:
    :undoc-members:
    :show-inheritance:

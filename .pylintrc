@@ -61,16 +61,15 @@ confidence=
 # no Warning level messages displayed, use "--disable=all --enable=classes
 # --disable=W".
 disable=invalid-name,  # C0103
-        missing-module-docstring,   #  C0114
         missing-class-docstring,  # C0115
         missing-function-docstring,  # C0116
+        duplicate-code,  # R0801
         too-many-instance-attributes,  # R0902
         too-many-return-statements,  # R0911
         too-many-branches,  # R0912
         too-many-arguments,   # R0913
         too-many-locals,   # R0914
         too-many-statements,  # R0915
-        protected-access,  # W0212
         fixme,  # W0511
         unsubscriptable-object,  # E1136 python3.9-only pylint bug
 

@@ -1,0 +1,10 @@
+{
+    "value": "32.5934337",
+    "scriptPubKey": "0020ed8e9600561000f722bd26e850be7d80f24d174fabeff98baef967325e2b5a86",
+    "type": "p2wsh",
+    "reqSigs": null,
+    "addresses": [
+        "bc1qak8fvqzkzqq0wg4aym59p0nasrey696040hlnzawl9nnyh3tt2rqzgmhmv"
+    ],
+    "network": "mainnet"
+}

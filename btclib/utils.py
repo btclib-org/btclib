@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 
-# Copyright (C) 2017-2020 The btclib developers
+# Copyright (C) 2017-2021 The btclib developers
 #
 # This file is part of btclib. It is subject to the license terms in the
 # LICENSE file found in the top-level directory of this distribution.
@@ -20,8 +20,8 @@ from collections.abc import Iterable as IterableCollection
 from io import BytesIO
 from typing import Callable, Iterable, List, Optional, Union
 
-from .alias import BinaryData, Integer, Octets, Printable, ScriptToken, String
-from .exceptions import BTClibTypeError, BTClibValueError
+from btclib.alias import BinaryData, Integer, Octets
+from btclib.exceptions import BTClibValueError
 
 # hexstr_from_bytes is not needed!!
 # def hexstr_from_bytes(byte_str: bytes) -> str:
@@ -93,8 +93,8 @@ def bytes_from_octets(octets: Octets, out_size: NoneOneOrMoreInt = None) -> byte
     ):
         return octets
 
-    m = f"invalid size: {len(octets)} bytes instead of {out_size}"
-    raise BTClibValueError(m)
+    err_msg = f"invalid size: {len(octets)} bytes instead of {out_size}"
+    raise BTClibValueError(err_msg)
 
 
 def bytesio_from_binarydata(stream: BinaryData) -> BytesIO:
@@ -131,7 +131,7 @@ def int_from_bits(octets: Octets, nlen: int) -> int:
     """
 
     octets = bytes_from_octets(octets)
-    i = int.from_bytes(octets, byteorder="big")
+    i = int.from_bytes(octets, byteorder="big", signed=False)
 
     blen = len(octets) * 8  # bits
     n = (blen - nlen) if blen >= nlen else 0
@@ -157,14 +157,15 @@ def int_from_integer(i: Integer) -> int:
 
     if isinstance(i, int):
         return i
+
     if isinstance(i, str):
         i = i.strip().lower()
         if i.startswith("0x") or i.startswith("-0x"):
             return int(i, 16)
         i = bytes.fromhex(i)
-    if not isinstance(i, bytes):
-        raise BTClibTypeError("not an Integer=Union[int, str, bytes]")
-    return int.from_bytes(i, "big")
+
+    # must be bytes
+    return int.from_bytes(i, "big", signed=False)
 
 
 def hex_string(i: Integer) -> str:
@@ -187,29 +188,3 @@ def hex_string(i: Integer) -> str:
     lresult = [(a_str[max(0, i - 8) : i]) for i in indx]
     result = " ".join(lresult)
     return result.upper()
-
-
-def ensure_is_power_of_two(n: int, var_name: str = None) -> None:
-    # http://www.graphics.stanford.edu/~seander/bithacks.html
-    if n & (n - 1) != 0:
-        raise BTClibValueError(f"{var_name}: {n} (must be a power of two)")
-
-
-def token_or_string_to_hex_string(val: Union[ScriptToken, String]) -> str:
-    """Return a readable string from a ScriptToken or a String object.
-
-    If val are bytes a hex string is returned.
-    If val is an int his string representation is returned.
-    """
-    if isinstance(val, bytes):
-        return val.hex()
-    if isinstance(val, int):
-        return str(val)
-    return val
-
-
-def token_or_string_to_printable(
-    val: Union[List[ScriptToken], List[String]]
-) -> List[Printable]:
-
-    return [v.hex() if isinstance(v, bytes) else v for v in val]

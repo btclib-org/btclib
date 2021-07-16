@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 
-# Copyright (C) 2017-2020 The btclib developers
+# Copyright (C) 2017-2021 The btclib developers
 #
 # This file is part of btclib. It is subject to the license terms in the
 # LICENSE file found in the top-level directory of this distribution.
@@ -8,21 +8,23 @@
 # No part of btclib including this file, may be copied, modified, propagated,
 # or distributed except according to the terms contained in the LICENSE file.
 
+"Functions for conversions between different public key formats."
+
 from typing import Optional, Tuple, Union
 
-from .alias import Point
-from .bip32 import BIP32Key, BIP32KeyData
-from .curve import Curve, mult, secp256k1
-from .exceptions import BTClibValueError
-from .network import (
+from btclib.alias import Point
+from btclib.bip32.bip32 import BIP32Key, BIP32KeyData
+from btclib.ecc.curve import Curve, mult, secp256k1
+from btclib.ecc.sec_point import bytes_from_point, point_from_octets
+from btclib.exceptions import BTClibValueError
+from btclib.network import (
     NETWORKS,
     curve_from_xkeyversion,
     network_from_xkeyversion,
     xpubversions_from_network,
 )
-from .sec_point import bytes_from_point, point_from_octets
-from .to_prv_key import PrvKey, prv_keyinfo_from_prv_key
-from .utils import bytes_from_octets
+from btclib.to_prv_key import PrvKey, prv_keyinfo_from_prv_key
+from btclib.utils import bytes_from_octets
 
 # public key inputs:
 # elliptic curve point as Union[Octets, BIP32Key, Point]
@@ -41,12 +43,12 @@ def _point_from_xpub(xpub: BIP32Key, ec: Curve) -> Point:
     else:
         xpub = BIP32KeyData.b58decode(xpub)
 
-    if xpub.key[0] in (2, 3):
-        ec2 = curve_from_xkeyversion(xpub.version)
-        if ec != ec2:
-            raise BTClibValueError(f"ec/xpub version ({xpub.version.hex()}) mismatch")
-        return point_from_octets(xpub.key, ec)
-    raise BTClibValueError(f"not a public key: {xpub.key.hex()}")
+    if xpub.is_private:
+        raise BTClibValueError(f"not a public key: {xpub.key.hex()}")
+    ec2 = curve_from_xkeyversion(xpub.version)
+    if ec != ec2:
+        raise BTClibValueError(f"ec/xpub version ({xpub.version.hex()}) mismatch")
+    return point_from_octets(xpub.key, ec)
 
 
 def point_from_key(key: Key, ec: Curve = secp256k1) -> Point:
@@ -129,17 +131,17 @@ def _pub_keyinfo_from_xpub(
         xpub = BIP32KeyData.b58decode(xpub)
 
     if xpub.key[0] not in (2, 3):
-        m = f"not a public key: {xpub.b58encode().decode('ascii')}"
-        raise BTClibValueError(m)
+        err_msg = f"not a public key: {xpub.b58encode()}"
+        raise BTClibValueError(err_msg)
 
     if network is None:
         return xpub.key, network_from_xkeyversion(xpub.version)
 
     allowed_versions = xpubversions_from_network(network)
     if xpub.version not in allowed_versions:
-        m = f"Not a {network} key: "
-        m += f"{xpub.b58encode().decode('ascii')}"
-        raise BTClibValueError(m)
+        err_msg = f"Not a {network} key: "
+        err_msg += f"{xpub.b58encode()}"
+        raise BTClibValueError(err_msg)
 
     return xpub.key, network
 
@@ -193,12 +195,12 @@ def pub_keyinfo_from_pub_key(
     # it must be octets
     try:
         if compressed is None:
-            pub_key = bytes_from_octets(pub_key, (ec.psize + 1, 2 * ec.psize + 1))
+            pub_key = bytes_from_octets(pub_key, (ec.p_size + 1, 2 * ec.p_size + 1))
             compr = False
-            if len(pub_key) == ec.psize + 1:
+            if len(pub_key) == ec.p_size + 1:
                 compr = True
         else:
-            size = ec.psize + 1 if compressed else 2 * ec.psize + 1
+            size = ec.p_size + 1 if compressed else 2 * ec.p_size + 1
             pub_key = bytes_from_octets(pub_key, size)
             compr = compressed
     except (TypeError, ValueError) as e:

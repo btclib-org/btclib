@@ -26,6 +26,6 @@ exclude CNAME
 exclude _config.yml
 recursive-exclude assets *
 recursive-exclude _layouts *
+recursive-exclude tests *
 
 recursive-exclude btclib/.mypy_cache *.json
-recursive-exclude btclib/tests/.mypy_cache *.json

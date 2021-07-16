@@ -1,5 +1,5 @@
-- do not ignore errors in mypy.ini
-  ignore_errors = True
+# TODO
+
 - enable flake8 max-complexity
 - improve sphinx documentation
 - network as global variable
@@ -15,15 +15,14 @@
 - add sign(address, msg) using wallet infrastrucure
 - isinstance(entr, bytearray) or isinstance(entr, bytes)
 - optimizations:
-    - https://en.wikipedia.org/wiki/Elliptic_curve_point_multiplication
-    - https://cryptojedi.org/peter/data/eccss-20130911b.pdf
-    - https://arxiv.org/abs/1801.08589
-    - https://ecc2017.cs.ru.nl/slides/ecc2017school-castryck.pdf
-    - https://hal.archives-ouvertes.fr/hal-00932199/document
-    - https://iacr.org/workshops/ches/ches2006/presentations/Douglas%20Stebila.pdf
-    - https://eprint.iacr.org/2005/419.pdf
-    - https://www.esat.kuleuven.be/cosic/publications/article-2293.pdf
-- of a signature: verify or verification ?
+  - <https://en.wikipedia.org/wiki/Elliptic_curve_point_multiplication>
+  - <https://cryptojedi.org/peter/data/eccss-20130911b.pdf>
+  - <https://arxiv.org/abs/1801.08589>
+  - <https://ecc2017.cs.ru.nl/slides/ecc2017school-castryck.pdf>
+  - <https://hal.archives-ouvertes.fr/hal-00932199/document>
+  - <https://iacr.org/workshops/ches/ches2006/presentations/Douglas%20Stebila.pdf>
+  - <https://eprint.iacr.org/2005/419.pdf>
+  - <https://www.esat.kuleuven.be/cosic/publications/article-2293.pdf>
 - better mimic of electrum entropy search, they probably have the words inverted
 - BIP44 in address_from...
 - primitives for interactive threshold and musig
@@ -31,7 +30,6 @@
 - generalize ec, hf in borromean
 - Edwards curve (Curve25519)
 - BLS
-- wherever a Curve is required, accept also a network str ?
 - remove sign_to_contract, adding commit to dsa and ssa
 - compare with test_framework
 
@@ -43,4 +41,4 @@
 - SSA: ask about benefit of removing 02/03 from pub_key
 - SSA: suggest better k
 
-- compare of dsa._rfc6979 and ssa._det_nonce
+- compare of dsa.rfc6979_ and ssa.det_nonce_

@@ -18,7 +18,7 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 # THE SOFTWARE.
 
-# Copyright (C) 2019-2020 The btclib developers
+# Copyright (C) 2019-2021 The btclib developers
 #
 # This file is part of btclib. It is subject to the license terms in the
 # LICENSE file found in the top-level directory of this distribution.
@@ -48,14 +48,15 @@ with the following modifications:
 
 from typing import Iterable, List, Tuple
 
-from .alias import String
-from .exceptions import BTClibValueError
+from btclib.alias import String
+from btclib.exceptions import BTClibValueError
 
-__ALPHABET = "qpzry9x8gf2tvdw0s3jn54khce6mua7l"
+_ALPHABET = "qpzry9x8gf2tvdw0s3jn54khce6mua7l"
+_M = 1  # 0x2bc830a3
 
 
 def _polymod(values: Iterable[int]) -> int:
-    """Internal function that computes the bech32 checksum."""
+    "Internal function that computes the bech32 checksum."
     generator = [0x3B6A57B2, 0x26508E6D, 0x1EA119FA, 0x3D4233DD, 0x2A1462B3]
     chk = 1
     for value in values:
@@ -67,31 +68,31 @@ def _polymod(values: Iterable[int]) -> int:
 
 
 def _hrp_expand(hrp: str) -> List[int]:
-    """Expand the HRP into values for checksum computation."""
+    "Expand the HRP into values for checksum computation."
     return [ord(x) >> 5 for x in hrp] + [0] + [ord(x) & 31 for x in hrp]
 
 
 def _create_checksum(hrp: str, data: List[int]) -> List[int]:
-    """Compute the checksum values given HRP and data."""
+    "Compute the checksum values given HRP and data."
     values = _hrp_expand(hrp) + data
-    polymod = _polymod(values + [0, 0, 0, 0, 0, 0]) ^ 1
+    polymod = _polymod(values + [0, 0, 0, 0, 0, 0]) ^ _M
     return [(polymod >> 5 * (5 - i)) & 31 for i in range(6)]
 
 
 def b32encode(hrp: str, data: List[int]) -> bytes:
-    """Compute a bech32 string given HRP and data values."""
+    "Compute a bech32 string given HRP and data values."
     combined = data + _create_checksum(hrp, data)
-    s = hrp + "1" + "".join([__ALPHABET[d] for d in combined])
+    s = hrp + "1" + "".join(_ALPHABET[d] for d in combined)
     return s.encode("ascii")
 
 
 def _verify_checksum(hrp: str, data: List[int]) -> bool:
-    """Verify a checksum given HRP and converted data characters."""
-    return _polymod(_hrp_expand(hrp) + data) == 1
+    "Verify a checksum given HRP and converted data characters."
+    return _polymod(_hrp_expand(hrp) + data) == _M
 
 
 def b32decode(bech: String) -> Tuple[str, List[int]]:
-    """Validate a bech32 string, and determine HRP and data."""
+    "Validate a bech32 string, and determine HRP and data."
 
     if isinstance(bech, str):
         bech = bech.strip()
@@ -100,11 +101,9 @@ def b32decode(bech: String) -> Tuple[str, List[int]]:
         bech = bech.decode("ascii")
 
     if not all(47 < ord(x) < 123 for x in bech):
-        raise BTClibValueError(
-            f"ASCII character outside [48-122] in bech32 string: {bech}"
-        )
+        raise BTClibValueError(f"ASCII character outside [48-122]: {bech}")
     if bech.lower() != bech and bech.upper() != bech:
-        raise BTClibValueError(f"mixed case in bech32 string: {bech}")
+        raise BTClibValueError(f"mixed case: {bech}")
     bech = bech.lower()
 
     # it is fine to limit bech32 _bitcoin_addresses_ at 90 chars,
@@ -116,18 +115,18 @@ def b32decode(bech: String) -> Tuple[str, List[int]]:
 
     pos = bech.rfind("1")  # find the separator between hrp and data
     if pos == -1:
-        raise BTClibValueError(f"Missing HRP in bech32 string: {bech}")
+        raise BTClibValueError(f"missing HRP: {bech}")
     if pos == 0:
-        raise BTClibValueError(f"Empty HRP in bech32 string: {bech}")
+        raise BTClibValueError(f"empty HRP: {bech}")
     if pos + 7 > len(bech):
-        raise BTClibValueError(f"Too short checksum in bech32 string: {bech}")
+        raise BTClibValueError(f"too short checksum: {bech}")
 
     hrp = bech[:pos]
 
-    if any(x not in __ALPHABET for x in bech[pos + 1 :]):
-        raise BTClibValueError(f"invalid data characters in bech32 string: {bech}")
-    data = [__ALPHABET.find(x) for x in bech[pos + 1 :]]
+    if any(x not in _ALPHABET for x in bech[pos + 1 :]):
+        raise BTClibValueError(f"invalid data characters: {bech}")
+    data = [_ALPHABET.find(x) for x in bech[pos + 1 :]]
 
     if _verify_checksum(hrp, data):
         return hrp, data[:-6]
-    raise BTClibValueError(f"invalid checksum in bech32 string: {bech}")
+    raise BTClibValueError(f"invalid checksum: {bech}")

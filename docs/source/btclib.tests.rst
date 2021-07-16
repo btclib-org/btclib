@@ -20,16 +20,16 @@ btclib.tests.test\_base58 module
    :undoc-members:
    :show-inheritance:
 
-btclib.tests.test\_base58_address module
----------------------------------------
+btclib.tests.test\_base58\_address module
+-----------------------------------------
 
 .. automodule:: btclib.tests.test_base58_address
    :members:
    :undoc-members:
    :show-inheritance:
 
-btclib.tests.test\_base58_wif module
------------------------------------
+btclib.tests.test\_base58\_wif module
+-------------------------------------
 
 .. automodule:: btclib.tests.test_base58_wif
    :members:
@@ -44,8 +44,8 @@ btclib.tests.test\_bech32 module
    :undoc-members:
    :show-inheritance:
 
-btclib.tests.test\_bech32_address module
----------------------------------------
+btclib.tests.test\_bech32\_address module
+-----------------------------------------
 
 .. automodule:: btclib.tests.test_bech32_address
    :members:
@@ -56,6 +56,14 @@ btclib.tests.test\_bip32 module
 -------------------------------
 
 .. automodule:: btclib.tests.test_bip32
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
+btclib.tests.test\_bip32\_path module
+-------------------------------------
+
+.. automodule:: btclib.tests.test_bip32_path
    :members:
    :undoc-members:
    :show-inheritance:
@@ -100,26 +108,34 @@ btclib.tests.test\_curve module
    :undoc-members:
    :show-inheritance:
 
-btclib.tests.test\_curve_group module
-------------------------------------
+btclib.tests.test\_curve\_group module
+--------------------------------------
 
 .. automodule:: btclib.tests.test_curve_group
    :members:
    :undoc-members:
    :show-inheritance:
 
-btclib.tests.test\_curve_group_2 module
--------------------------------------
+btclib.tests.test\_curve\_group\_2 module
+-----------------------------------------
 
 .. automodule:: btclib.tests.test_curve_group_2
    :members:
    :undoc-members:
    :show-inheritance:
 
-btclib.tests.test\_curve_group_f module
--------------------------------------
+btclib.tests.test\_curve\_group\_f module
+-----------------------------------------
 
 .. automodule:: btclib.tests.test_curve_group_f
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
+btclib.tests.test\_dataclasses\_json\_bug module
+------------------------------------------------
+
+.. automodule:: btclib.tests.test_dataclasses_json_bug
    :members:
    :undoc-members:
    :show-inheritance:
@@ -188,8 +204,8 @@ btclib.tests.test\_network module
    :undoc-members:
    :show-inheritance:
 
-btclib.tests.test\_number_theory module
---------------------------------------
+btclib.tests.test\_number\_theory module
+----------------------------------------
 
 .. automodule:: btclib.tests.test_number_theory
    :members:
@@ -208,6 +224,14 @@ btclib.tests.test\_psbt module
 ------------------------------
 
 .. automodule:: btclib.tests.test_psbt
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
+btclib.tests.test\_psbt\_in module
+----------------------------------
+
+.. automodule:: btclib.tests.test_psbt_in
    :members:
    :undoc-members:
    :show-inheritance:
@@ -236,48 +260,48 @@ btclib.tests.test\_script module
    :undoc-members:
    :show-inheritance:
 
-btclib.tests.test\_script_pub_key module
---------------------------------------
+btclib.tests.test\_script\_pub\_key module
+------------------------------------------
 
 .. automodule:: btclib.tests.test_script_pub_key
    :members:
    :undoc-members:
    :show-inheritance:
 
-btclib.tests.test\_script_pub_key\_address module
------------------------------------------------
+btclib.tests.test\_script\_pub\_key\_address module
+---------------------------------------------------
 
-.. automodule:: btclib.tests.test_script_pub_key_address
+.. automodule:: btclib.tests.test_address
    :members:
    :undoc-members:
    :show-inheritance:
 
-btclib.tests.test\_sec_point module
-----------------------------------
+btclib.tests.test\_sec\_point module
+------------------------------------
 
 .. automodule:: btclib.tests.test_sec_point
    :members:
    :undoc-members:
    :show-inheritance:
 
-btclib.tests.test\_sign_hash\_legacy module
------------------------------------------
+btclib.tests.test\_sign\_hash\_legacy module
+--------------------------------------------
 
 .. automodule:: btclib.tests.test_sign_hash_legacy
    :members:
    :undoc-members:
    :show-inheritance:
 
-btclib.tests.test\_sign_hash\_segwitv0 module
--------------------------------------------
+btclib.tests.test\_sign\_hash\_segwitv0 module
+----------------------------------------------
 
 .. automodule:: btclib.tests.test_sign_hash_segwitv0
    :members:
    :undoc-members:
    :show-inheritance:
 
-btclib.tests.test\_sign_to_contract module
-----------------------------------------
+btclib.tests.test\_sign\_to\_contract module
+--------------------------------------------
 
 .. automodule:: btclib.tests.test_sign_to_contract
    :members:
@@ -308,26 +332,42 @@ btclib.tests.test\_to\_key module
    :undoc-members:
    :show-inheritance:
 
-btclib.tests.test\_to\_prv_key module
-------------------------------------
+btclib.tests.test\_to\_prv\_key module
+--------------------------------------
 
 .. automodule:: btclib.tests.test_to_prv_key
    :members:
    :undoc-members:
    :show-inheritance:
 
-btclib.tests.test\_to\_pub_key module
-------------------------------------
+btclib.tests.test\_to\_pub\_key module
+--------------------------------------
 
 .. automodule:: btclib.tests.test_to_pub_key
    :members:
    :undoc-members:
    :show-inheritance:
 
-btclib.tests.test\_transactions module
---------------------------------------
+btclib.tests.test\_tx module
+----------------------------
 
-.. automodule:: btclib.tests.test_transactions
+.. automodule:: btclib.tests.test_tx
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
+btclib.tests.test\_tx\_in module
+--------------------------------
+
+.. automodule:: btclib.tests.test_tx_in
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
+btclib.tests.test\_tx\_out module
+---------------------------------
+
+.. automodule:: btclib.tests.test_tx_out
    :members:
    :undoc-members:
    :show-inheritance:
@@ -340,10 +380,18 @@ btclib.tests.test\_utils module
    :undoc-members:
    :show-inheritance:
 
-btclib.tests.test\_var_int module
---------------------------------
+btclib.tests.test\_var\_int module
+----------------------------------
 
 .. automodule:: btclib.tests.test_var_int
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
+btclib.tests.test\_witness module
+---------------------------------
+
+.. automodule:: btclib.tests.test_witness
    :members:
    :undoc-members:
    :show-inheritance:

@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 
-# Copyright (C) 2017-2020 The btclib developers
+# Copyright (C) 2017-2021 The btclib developers
 #
 # This file is part of btclib. It is subject to the license terms in the
 # LICENSE file found in the top-level directory of this distribution.
@@ -38,12 +38,12 @@ https://github.com/keis/base58, with the following modifications:
 
 from typing import Optional
 
-from .alias import Octets, String
-from .exceptions import BTClibValueError
-from .utils import bytes_from_octets, hash256
+from btclib.alias import Octets, String
+from btclib.exceptions import BTClibValueError
+from btclib.utils import bytes_from_octets, hash256
 
-__ALPHABET = b"123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz"
-__BASE = len(__ALPHABET)
+_ALPHABET = b"123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz"
+__BASE = len(_ALPHABET)
 
 
 def _b58encode_from_int(i: int) -> bytes:
@@ -51,7 +51,7 @@ def _b58encode_from_int(i: int) -> bytes:
     result = b""
     while i or len(result) == 0:
         i, idx = divmod(i, __BASE)
-        result = __ALPHABET[idx : idx + 1] + result
+        result = _ALPHABET[idx : idx + 1] + result
 
     return result
 
@@ -64,10 +64,10 @@ def _b58encode(v: bytes) -> bytes:
     v = v.lstrip(b"\0")
     vlen = len(v)
     n_pad -= vlen
-    result = __ALPHABET[0:1] * n_pad
+    result = _ALPHABET[:1] * n_pad
 
     if vlen:
-        i = int.from_bytes(v, byteorder="big")
+        i = int.from_bytes(v, byteorder="big", signed=False)
         result += _b58encode_from_int(i)
 
     return result
@@ -86,20 +86,20 @@ def _b58decode_to_int(v: bytes) -> int:
     i = 0
     for char in v:
         i *= __BASE
-        i += __ALPHABET.index(char)
+        i += _ALPHABET.index(char)
     return i
 
 
 def _b58decode(v: bytes) -> bytes:
 
-    if any(x not in __ALPHABET for x in v):
+    if any(x not in _ALPHABET for x in v):
         msg = "Base58 string contains invalid characters"
         raise BTClibValueError(msg)
 
     # preserve leading-0s
     # base58 leading-1s become leading-0s
     n_pad = len(v)
-    v = v.lstrip(__ALPHABET[0:1])
+    v = v.lstrip(_ALPHABET[:1])
     vlen = len(v)
     n_pad -= vlen
     result = b"\0" * n_pad
@@ -107,7 +107,7 @@ def _b58decode(v: bytes) -> bytes:
     if vlen:
         i = _b58decode_to_int(v)
         nbytes = (i.bit_length() + 7) // 8
-        result = result + i.to_bytes(nbytes, byteorder="big")
+        result = result + i.to_bytes(nbytes, byteorder="big", signed=False)
 
     return result
 
@@ -119,23 +119,24 @@ def b58decode(v: String, out_size: Optional[int] = None) -> bytes:
     """
 
     if isinstance(v, str):
+        # do not trim spaces
         v = v.encode("ascii")
 
     result = _b58decode(v)
     if len(result) < 4:
-        m = "not enough bytes for checksum, "
-        m += f"invalid base58 decoded size: {len(result)}"
-        raise BTClibValueError(m)
+        err_msg = "not enough bytes for checksum, "
+        err_msg += f"invalid base58 decoded size: {len(result)}"
+        raise BTClibValueError(err_msg)
 
     result, checksum = result[:-4], result[-4:]
     h256 = hash256(result)
     if checksum != h256[:4]:
-        m = f"invalid checksum: 0x{checksum.hex()} instead of 0x{h256[:4].hex()}"
-        raise BTClibValueError(m)
+        err_msg = f"invalid checksum: 0x{checksum.hex()} instead of 0x{h256[:4].hex()}"
+        raise BTClibValueError(err_msg)
 
     if out_size is None or len(result) == out_size:
         return result
 
-    m = "valid checksum, invalid decoded size: "
-    m += f"{len(result)} bytes instead of {out_size}"
-    raise BTClibValueError(m)
+    err_msg = "valid checksum, invalid decoded size: "
+    err_msg += f"{len(result)} bytes instead of {out_size}"
+    raise BTClibValueError(err_msg)

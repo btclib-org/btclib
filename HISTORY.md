@@ -5,14 +5,31 @@ Notable changes to the codebase are documented here.
 Release names follow [*calendar versioning*](https://calver.org/):
 full year, short month, short day (YYYY-M-D)
 
-## v2020.12 (current master, in development, not released yet)
+## v2021.1 (current master, in development, not released yet)
+
+Major changes includes:
+
+- nothing relevant yet
+
+## v2020.12.19
 
 Major changes includes:
 
 - added secp256k1 point multiplication based on efficient endomorphism
 - fixed ssa batch verification functions' logic
-- enforced snake_case convention for 'script_pubkey' and 'script_sig'
-  variable names
+- enforced snake_case variable naming convention,
+  e.g. 'script_pub_key', etc.
+- added BIP32KeyOrigin, BIP32KeyPath, and BIP32KeyPaths
+- adopted str instead of bytes as default type
+  for BIP32 keys, bms sigs, PSBTs, addresses, and WIFs;
+  base58 and bech32 encodings keep returning bytes, like base64
+- cleaned up and refactored all dataclasses,
+  now using serialize/deserialized and
+  possibly b58encode/b58decode, b64encode/b64decode, etc.
+- renamed TxIn.witness as TxIn.script_witness
+- fixed Witness management in TxIn and Tx, including equality operator
+- consolidated sig_hash code into sig_hash module
+- added more script_pub_key functions: assert_p2pkh, is_p2pkh, etc.
 
 ## v2020.11.23
 
@@ -52,7 +69,7 @@ Major changes includes:
 - bip32: indexes_from_bip32_path now returns List[int] instead of
   Tuple[List[bytes], bool] losing the "absolute derivation" bool
 - bms: serialize/deserialize have been renamed encode/decode as they
-  include the base64 (de)encoding, not jut the plain (de)serialization 
+  include the base64 (de)encoding, not jut the plain (de)serialization
 - Block: fixed bug in difficulty calculation
 - introduced first beta version of HdKeyPaths, PartialSigs, PsbtIn,
   PsbtOut, and Psbt data classes and their associated helper functions
@@ -92,8 +109,8 @@ Major changes includes:
 - adopted the function signature of dsa.sign for rfc6979.rfc6979 too
 - added CURVES dictionary of all elliptic curves, e.g.:
   from btclib.curve import CURVES; ec = CURVES['secp256k1']
-- renamed prvkey_info_* as prvkeyinfo_*
-- renamed pubkey_info_* as pubkeyinfo_*
+- renamed prvkey_info_xyz as prvkey_info_xyz
+- renamed pubkey_info_xyz as pubkey_info_xyz
 - renamed bytes_from_key as pubkeyinfo_from_key
 - renamed network_from_xpub as network_from_xkeyversion
   extending its functionality to xprv too

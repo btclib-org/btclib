@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 
-# Copyright (C) 2020 The btclib developers
+# Copyright (C) 2020-2021 The btclib developers
 #
 # This file is part of btclib. It is subject to the license terms in the
 # LICENSE file found in the top-level directory of this distribution.
@@ -8,20 +8,22 @@
 # No part of btclib including this file, may be copied, modified, propagated,
 # or distributed except according to the terms contained in the LICENSE file.
 
+"Functions for conversions between different private key formats."
+
 from typing import Optional, Tuple
 
-from .alias import String, Union
-from .base58 import b58decode
-from .bip32 import BIP32Key, BIP32KeyData
-from .curve import Curve, secp256k1
-from .exceptions import BTClibValueError
-from .network import (
+from btclib.alias import String, Union
+from btclib.base58 import b58decode
+from btclib.bip32.bip32 import BIP32Key, BIP32KeyData
+from btclib.ecc.curve import Curve, secp256k1
+from btclib.exceptions import BTClibValueError
+from btclib.network import (
     NETWORKS,
     network_from_key_value,
     network_from_xkeyversion,
     xprvversions_from_network,
 )
-from .utils import bytes_from_octets
+from btclib.utils import bytes_from_octets
 
 # private key inputs:
 # integer as Union[int, Octets]
@@ -70,7 +72,7 @@ def int_from_prv_key(prv_key: PrvKey, ec: Curve = secp256k1) -> int:
 
         # it must be octets
         try:
-            prv_key = bytes_from_octets(prv_key, ec.nsize)
+            prv_key = bytes_from_octets(prv_key, ec.n_size)
             q = int.from_bytes(prv_key, "big")
         except ValueError as e:
             raise BTClibValueError(f"not a private key: {prv_key!r}") from e
@@ -99,18 +101,20 @@ def _prv_keyinfo_from_wif(
 
     payload = b58decode(wif)
 
-    net = network_from_key_value("wif", payload[0:1])
+    net = network_from_key_value("wif", payload[:1])
+    if net is None:
+        raise BTClibValueError(f"invalid wif prefix: {payload[:1]!r}")
     if network is not None and net != network:
         raise BTClibValueError(f"not a {network} wif: {wif!r}")
 
     ec = NETWORKS[net].curve
 
-    if len(payload) == ec.nsize + 2:  # compressed WIF
+    if len(payload) == ec.n_size + 2:  # compressed WIF
         compr = True
         if payload[-1] != 0x01:  # must have a trailing 0x01
             raise BTClibValueError("not a compressed WIF: missing trailing 0x01")
         prv_key = payload[1:-1]
-    elif len(payload) == ec.nsize + 1:  # uncompressed WIF
+    elif len(payload) == ec.n_size + 1:  # uncompressed WIF
         compr = False
         prv_key = payload[1:]
     else:
@@ -146,17 +150,17 @@ def _prv_keyinfo_from_xprv(
         xprv = BIP32KeyData.b58decode(xprv)
 
     if xprv.key[0] != 0:
-        m = f"not a private key: {xprv.b58encode().decode('ascii')}"
-        raise BTClibValueError(m)
+        err_msg = f"not a private key: {xprv.b58encode()}"
+        raise BTClibValueError(err_msg)
 
     if network is None:
         network = network_from_xkeyversion(xprv.version)
 
     allowed_versions = xprvversions_from_network(network)
     if xprv.version not in allowed_versions:
-        m = f"not a {network} key: "
-        m += f"{xprv.b58encode().decode('ascii')}"
-        raise BTClibValueError(m)
+        err_msg = f"not a {network} key: "
+        err_msg += f"{xprv.b58encode()}"
+        raise BTClibValueError(err_msg)
 
     q = int.from_bytes(xprv.key[1:], byteorder="big")
     return q, network, True
@@ -201,8 +205,8 @@ def prv_keyinfo_from_prv_key(
 
         # it must be octets
         try:
-            prv_key = bytes_from_octets(prv_key, ec.nsize)
-            q = int.from_bytes(prv_key, "big")
+            prv_key = bytes_from_octets(prv_key, ec.n_size)
+            q = int.from_bytes(prv_key, byteorder="big", signed=False)
         except ValueError as e:
             raise BTClibValueError(f"not a private key: {prv_key!r}") from e
 
