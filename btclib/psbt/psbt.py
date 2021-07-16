@@ -306,22 +306,13 @@ class Psbt:
         return cls.parse(psbt_decoded, check_validity)  # type: ignore
 
     @classmethod
-    def from_tx(
-        cls: Type[_Psbt], tx: Optional[Tx] = None, check_validity: bool = True
-    ) -> _Psbt:
+    def from_tx(cls: Type[_Psbt], tx: Tx, check_validity: bool = True) -> _Psbt:
 
-        inputs = []
-        outputs = []
-        if tx:
-            if tx.vin:
-                for tx_in in tx.vin:
-                    tx_in.script_sig = b""
-                    tx_in.script_witness = Witness()
-                inputs = [PsbtIn() for _ in tx.vin]
-            if tx.vout:
-                outputs = [PsbtOut() for _ in tx.vout]
-        else:  # Creator places an unsigned transaction in the Psbt
-            tx = Tx()  # unsigned, unlocked, version 1
+        for tx_in in tx.vin:
+            tx_in.script_sig = b""
+            tx_in.script_witness = Witness()
+        inputs = [PsbtIn() for _ in tx.vin]
+        outputs = [PsbtOut() for _ in tx.vout]
 
         psbt_version = 0
         hd_key_paths: Dict[Octets, BIP32KeyOrigin] = {}

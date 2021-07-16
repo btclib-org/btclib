@@ -8,7 +8,7 @@
 # No part of btclib including this file, may be copied, modified, propagated,
 # or distributed except according to the terms contained in the LICENSE file.
 
-"Tests for the `btclib.psbt` module"
+"Tests for the `btclib.psbt.psbt` module"
 
 import json
 from os import path
@@ -163,6 +163,29 @@ def test_lexicographic_ordering() -> None:
 
 
 # not part of the official BIP174 test vector
+
+
+def test_merge() -> None:
+    psbt_str = "cHNidP8BAD8CAAAAAf//////////////////////////////////////////AAAAAAD/////AQAAAAAAAAAAA2oBAAAAAAAKDwECAwQFBgcICQ8BAgMEBQYHCAkKCwwNDg8KDwECAwQFBgcIEA8BAgMEBQYHCAkKCwwNDg8ACg8BAgMEBQYHCAkPAQIDBAUGBwgJCgsMDQ4PCg8BAgMEBQYHCBAPAQIDBAUGBwgJCgsMDQ4PAAoPAQIDBAUGBwgJDwECAwQFBgcICQoLDA0ODwoPAQIDBAUGBwgQDwECAwQFBgcICQoLDA0ODwA="
+    psbt = Psbt.b64decode(psbt_str)
+    psbt1_str = "cHNidP8BAD8CAAAAAf//////////////////////////////////////////AAAAAAD/////AQAAAAAAAAAAA2oBAAAAAAAKDwECAwQFBgcICQ8BAgMEBQYHCAkKCwwNDg8ACg8BAgMEBQYHCAkPAQIDBAUGBwgJCgsMDQ4PAAoPAQIDBAUGBwgJDwECAwQFBgcICQoLDA0ODwA="
+    psbt1 = Psbt.b64decode(psbt1_str)
+    psbt2_str = "cHNidP8BAD8CAAAAAf//////////////////////////////////////////AAAAAAD/////AQAAAAAAAAAAA2oBAAAAAAAKDwECAwQFBgcIEA8BAgMEBQYHCAkKCwwNDg8ACg8BAgMEBQYHCBAPAQIDBAUGBwgJCgsMDQ4PAAoPAQIDBAUGBwgQDwECAwQFBgcICQoLDA0ODwA="
+    psbt2 = Psbt.b64decode(psbt2_str)
+
+    psbt1.inputs[0].sig_hash_type = 1
+    psbt.inputs[0].sig_hash_type = 1
+    combined_psbt = combine_psbts([psbt2, psbt1])
+    assert combined_psbt == psbt
+
+
+def test_missing_script_pub_key() -> None:
+    psbt_str = "cHNidP8BAD8CAAAAAf//////////////////////////////////////////AAAAAAD/////AQAAAAAAAAAAA2oBAAAAAAAKDwECAwQFBgcICQ8BAgMEBQYHCAkKCwwNDg8KDwECAwQFBgcIEA8BAgMEBQYHCAkKCwwNDg8ACg8BAgMEBQYHCAkPAQIDBAUGBwgJCgsMDQ4PCg8BAgMEBQYHCBAPAQIDBAUGBwgJCgsMDQ4PAAoPAQIDBAUGBwgJDwECAwQFBgcICQoLDA0ODwoPAQIDBAUGBwgQDwECAwQFBgcICQoLDA0ODwA="
+    psbt = Psbt.b64decode(psbt_str)
+
+    with pytest.raises(BTClibValueError) as excinfo:
+        psbt.assert_signable()
+    assert str(excinfo.value) == "missing script_pub_key"
 
 
 def test_psbt() -> None:
