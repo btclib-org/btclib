@@ -18,28 +18,26 @@ from dataclasses import dataclass
 from typing import Any, Dict, List, Mapping, Optional, Sequence, Type, TypeVar, Union
 
 from btclib.alias import Octets, String
-from btclib.bip32.key_origin import decode_hd_key_paths
-from btclib.exceptions import BTClibValueError
-from btclib.psbt.psbt_in import (
-    BIP32KeyOrigin,
-    HdKeyPaths,
-    PsbtIn,
-    Tx,
-    Witness,
+from btclib.bip32.key_origin import (
     assert_valid_hd_key_paths,
+    decode_from_bip32_derivs,
+    decode_hd_key_paths,
+    encode_to_bip32_derivs,
+)
+from btclib.exceptions import BTClibValueError
+from btclib.psbt.psbt_in import BIP32KeyOrigin, HdKeyPaths, PsbtIn, Tx, Witness
+from btclib.psbt.psbt_out import PsbtOut
+from btclib.psbt.psbt_utils import (
     assert_valid_unknown,
     decode_dict_bytes_bytes,
-    decode_from_bip32_derivs,
     deserialize_int,
+    deserialize_map,
     deserialize_tx,
     encode_dict_bytes_bytes,
-    encode_to_bip32_derivs,
     serialize_bytes,
     serialize_dict_bytes_bytes,
     serialize_hd_key_paths,
 )
-from btclib.psbt.psbt_out import PsbtOut
-from btclib.psbt.psbt_utils import deserialize_map
 from btclib.script.script import serialize
 from btclib.script.script_pub_key import type_and_payload
 from btclib.utils import bytesio_from_binarydata, hash160, sha256

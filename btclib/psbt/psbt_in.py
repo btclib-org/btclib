@@ -20,21 +20,24 @@ from typing import Any, Dict, List, Mapping, Optional, Type, TypeVar
 from btclib.alias import Octets
 
 # Standard library imports
-from btclib.bip32.key_origin import decode_hd_key_paths
+from btclib.bip32.key_origin import (
+    assert_valid_hd_key_paths,
+    decode_from_bip32_derivs,
+    decode_hd_key_paths,
+    encode_to_bip32_derivs,
+)
 from btclib.ecc import dsa, sec_point
 from btclib.exceptions import BTClibValueError
-from btclib.psbt.psbt_out import (
-    BIP32KeyOrigin,
-    HdKeyPaths,
-    assert_valid_hd_key_paths,
+from btclib.psbt.psbt_out import BIP32KeyOrigin, HdKeyPaths
+from btclib.psbt.psbt_utils import (
     assert_valid_redeem_script,
     assert_valid_unknown,
     assert_valid_witness_script,
     decode_dict_bytes_bytes,
-    decode_from_bip32_derivs,
     deserialize_bytes,
+    deserialize_int,
+    deserialize_tx,
     encode_dict_bytes_bytes,
-    encode_to_bip32_derivs,
     serialize_bytes,
     serialize_dict_bytes_bytes,
     serialize_hd_key_paths,
@@ -66,15 +69,6 @@ PSBT_IN_FINAL_SCRIPTWITNESS = b"\x08"
 # PSBT_IN_PROPRIETARY = b"\xfc"
 
 
-def deserialize_tx(k: bytes, v: bytes, type_: str) -> Tx:
-    "Return the dataclass element from its binary representation."
-
-    if len(k) != 1:
-        err_msg = f"invalid {type_} key length: {len(k)}"
-        raise BTClibValueError(err_msg)
-    return Tx.parse(v)
-
-
 def _deserialize_witness_utxo(k: bytes, v: bytes) -> TxOut:
     "Return the dataclass element from its binary representation."
 
@@ -100,15 +94,6 @@ def _assert_valid_partial_sigs(partial_sigs: Mapping[bytes, bytes]) -> None:
             err_msg = f"invalid partial signature: {sig!r}"
             raise BTClibValueError(err_msg) from e
         # TODO should we check that pub_key is recoverable from sig?
-
-
-def deserialize_int(k: bytes, v: bytes, type_: str) -> int:
-    "Return the dataclass element from its binary representation."
-
-    if len(k) != 1:
-        err_msg = f"invalid {type_} key length: {len(k)}"
-        raise BTClibValueError(err_msg)
-    return int.from_bytes(v, byteorder="little", signed=False)
 
 
 def _assert_valid_final_script_sig(final_script_sig: bytes) -> None:
