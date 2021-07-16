@@ -15,20 +15,8 @@ https://github.com/bitcoin/bips/blob/master/bip-0174.mediawiki
 import base64
 from copy import deepcopy
 from dataclasses import dataclass
-from typing import (
-    Any,
-    Dict,
-    List,
-    Mapping,
-    Optional,
-    Sequence,
-    Tuple,
-    Type,
-    TypeVar,
-    Union,
-)
+from typing import Any, Dict, List, Mapping, Optional, Sequence, Type, TypeVar, Union
 
-from btclib import var_int
 from btclib.alias import Octets, String
 from btclib.bip32.key_origin import decode_hd_key_paths
 from btclib.exceptions import BTClibValueError
@@ -54,7 +42,7 @@ from btclib.psbt.psbt_out import PsbtOut
 from btclib.psbt.psbt_utils import deserialize_map
 from btclib.script.script import serialize
 from btclib.script.script_pub_key import type_and_payload
-from btclib.utils import bytes_from_octets, bytesio_from_binarydata, hash160, sha256
+from btclib.utils import bytesio_from_binarydata, hash160, sha256
 
 _Psbt = TypeVar("_Psbt", bound="Psbt")
 
