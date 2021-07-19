@@ -20,21 +20,24 @@ from typing import Any, Dict, List, Mapping, Optional, Type, TypeVar
 from btclib.alias import Octets
 
 # Standard library imports
-from btclib.bip32.key_origin import decode_hd_key_paths
+from btclib.bip32.key_origin import (
+    assert_valid_hd_key_paths,
+    decode_from_bip32_derivs,
+    decode_hd_key_paths,
+    encode_to_bip32_derivs,
+)
 from btclib.ecc import dsa, sec_point
 from btclib.exceptions import BTClibValueError
-from btclib.psbt.psbt_out import (
-    BIP32KeyOrigin,
-    HdKeyPaths,
-    assert_valid_hd_key_paths,
+from btclib.psbt.psbt_out import BIP32KeyOrigin, HdKeyPaths
+from btclib.psbt.psbt_utils import (
     assert_valid_redeem_script,
     assert_valid_unknown,
     assert_valid_witness_script,
     decode_dict_bytes_bytes,
-    decode_from_bip32_derivs,
     deserialize_bytes,
+    deserialize_int,
+    deserialize_tx,
     encode_dict_bytes_bytes,
-    encode_to_bip32_derivs,
     serialize_bytes,
     serialize_dict_bytes_bytes,
     serialize_hd_key_paths,
@@ -43,7 +46,7 @@ from btclib.script.witness import Witness
 from btclib.tx.sign_hash import assert_valid_hash_type
 from btclib.tx.tx import Tx
 from btclib.tx.tx_out import TxOut
-from btclib.utils import bytes_from_octets
+from btclib.utils import bytes_from_octets, hash160, hash256, ripemd160, sha256
 
 PSBT_IN_NON_WITNESS_UTXO = b"\x00"
 PSBT_IN_WITNESS_UTXO = b"\x01"
@@ -54,25 +57,15 @@ PSBT_IN_WITNESS_SCRIPT = b"\x05"
 PSBT_IN_BIP32_DERIVATION = b"\x06"
 PSBT_IN_FINAL_SCRIPTSIG = b"\x07"
 PSBT_IN_FINAL_SCRIPTWITNESS = b"\x08"
-# TODO: add support for the following
-# PSBT_IN_RIPEMD160 = b"\0x0a"
-# PSBT_IN_SHA256 = b"\0x0b"
-# PSBT_IN_HASH160 = b"\0x0c"
-# PSBT_IN_HASH256 = b"\0x0d"
+PSBT_IN_RIPEMD160 = b"\x0a"
+PSBT_IN_SHA256 = b"\x0b"
+PSBT_IN_HASH160 = b"\x0c"
+PSBT_IN_HASH256 = b"\x0d"
 
 # 0xfc is reserved for proprietary
 # explicit code support for proprietary (and por) is unnecessary
 # see https://github.com/bitcoin/bips/pull/1038
 # PSBT_IN_PROPRIETARY = b"\xfc"
-
-
-def deserialize_tx(k: bytes, v: bytes, type_: str) -> Tx:
-    "Return the dataclass element from its binary representation."
-
-    if len(k) != 1:
-        err_msg = f"invalid {type_} key length: {len(k)}"
-        raise BTClibValueError(err_msg)
-    return Tx.parse(v)
 
 
 def _deserialize_witness_utxo(k: bytes, v: bytes) -> TxOut:
@@ -102,15 +95,6 @@ def _assert_valid_partial_sigs(partial_sigs: Mapping[bytes, bytes]) -> None:
         # TODO should we check that pub_key is recoverable from sig?
 
 
-def deserialize_int(k: bytes, v: bytes, type_: str) -> int:
-    "Return the dataclass element from its binary representation."
-
-    if len(k) != 1:
-        err_msg = f"invalid {type_} key length: {len(k)}"
-        raise BTClibValueError(err_msg)
-    return int.from_bytes(v, byteorder="little", signed=False)
-
-
 def _assert_valid_final_script_sig(final_script_sig: bytes) -> None:
     # should check for a valid script
     bytes(final_script_sig)
@@ -123,6 +107,36 @@ def _deserialize_final_script_witness(k: bytes, v: bytes) -> Witness:
         err_msg = f"invalid final script witness key length: {len(k)}"
         raise BTClibValueError(err_msg)
     return Witness.parse(v)
+
+
+def _assert_valid_ripemd160_preimages(
+    ripemd160_preimages: Mapping[bytes, bytes]
+) -> None:
+
+    for h, preimage in ripemd160_preimages.items():
+        if ripemd160(preimage) != h:
+            raise BTClibValueError("Invalid RIPEMD160 preimage")
+
+
+def _assert_valid_sha256_preimages(sha256_preimages: Mapping[bytes, bytes]) -> None:
+
+    for h, preimage in sha256_preimages.items():
+        if sha256(preimage) != h:
+            raise BTClibValueError("Invalid SHA256 preimage")
+
+
+def _assert_valid_hash160_preimages(hash160_preimages: Mapping[bytes, bytes]) -> None:
+
+    for h, preimage in hash160_preimages.items():
+        if hash160(preimage) != h:
+            raise BTClibValueError("Invalid HASH160 preimage")
+
+
+def _assert_valid_hash256_preimages(hash256_preimages: Mapping[bytes, bytes]) -> None:
+
+    for h, preimage in hash256_preimages.items():
+        if hash256(preimage) != h:
+            raise BTClibValueError("Invalid HASH256 preimage")
 
 
 _PsbtIn = TypeVar("_PsbtIn", bound="PsbtIn")
@@ -139,6 +153,10 @@ class PsbtIn:
     hd_key_paths: HdKeyPaths
     final_script_sig: bytes
     final_script_witness: Witness
+    ripemd160_preimages: Dict[bytes, bytes]
+    sha256_preimages: Dict[bytes, bytes]
+    hash160_preimages: Dict[bytes, bytes]
+    hash256_preimages: Dict[bytes, bytes]
     unknown: Dict[bytes, bytes]
 
     @property
@@ -157,6 +175,10 @@ class PsbtIn:
         hd_key_paths: Optional[Mapping[Octets, BIP32KeyOrigin]] = None,
         final_script_sig: Octets = b"",
         final_script_witness: Witness = Witness(),
+        ripemd160_preimages: Optional[Mapping[Octets, Octets]] = None,
+        sha256_preimages: Optional[Mapping[Octets, Octets]] = None,
+        hash160_preimages: Optional[Mapping[Octets, Octets]] = None,
+        hash256_preimages: Optional[Mapping[Octets, Octets]] = None,
         unknown: Optional[Mapping[Octets, Octets]] = None,
         check_validity: bool = True,
     ) -> None:
@@ -164,15 +186,17 @@ class PsbtIn:
         self.non_witness_utxo = non_witness_utxo
         self.witness_utxo = witness_utxo
         # https://docs.python.org/3/tutorial/controlflow.html#default-argument-values
-        self.partial_sigs = (
-            decode_dict_bytes_bytes(partial_sigs) if partial_sigs else {}
-        )
+        self.partial_sigs = decode_dict_bytes_bytes(partial_sigs)
         self.sig_hash_type = sig_hash_type
         self.redeem_script = bytes_from_octets(redeem_script)
         self.witness_script = bytes_from_octets(witness_script)
         self.hd_key_paths = decode_hd_key_paths(hd_key_paths)
         self.final_script_sig = bytes_from_octets(final_script_sig)
         self.final_script_witness = final_script_witness
+        self.ripemd160_preimages = decode_dict_bytes_bytes(ripemd160_preimages)
+        self.sha256_preimages = decode_dict_bytes_bytes(sha256_preimages)
+        self.hash160_preimages = decode_dict_bytes_bytes(hash160_preimages)
+        self.hash256_preimages = decode_dict_bytes_bytes(hash256_preimages)
         self.unknown = dict(sorted(decode_dict_bytes_bytes(unknown).items()))
 
         if check_validity:
@@ -198,6 +222,11 @@ class PsbtIn:
         _assert_valid_final_script_sig(self.final_script_sig)
         self.final_script_witness.assert_valid()
 
+        _assert_valid_ripemd160_preimages(self.ripemd160_preimages)
+        _assert_valid_sha256_preimages(self.sha256_preimages)
+        _assert_valid_hash160_preimages(self.hash160_preimages)
+        _assert_valid_hash256_preimages(self.hash256_preimages)
+
         assert_valid_unknown(self.unknown)
 
     def to_dict(self, check_validity: bool = True) -> Dict[str, Any]:
@@ -214,11 +243,18 @@ class PsbtIn:
             else None,
             "partial_signatures": encode_dict_bytes_bytes(self.partial_sigs),
             "sign_hash": self.sig_hash_type,
-            "redeem_script": self.redeem_script.hex(),  # TODO make it { "asm": "", "hex": "" }
-            "witness_script": self.witness_script.hex(),  # TODO make it { "asm": "", "hex": "" }
+            # TODO make it { "asm": "", "hex": "" }
+            "redeem_script": self.redeem_script.hex(),
+            # TODO make it { "asm": "", "hex": "" }
+            "witness_script": self.witness_script.hex(),
             "bip32_derivs": encode_to_bip32_derivs(self.hd_key_paths),
-            "final_script_sig": self.final_script_sig.hex(),  # TODO make it { "asm": "", "hex": "" }
+            # TODO make it { "asm": "", "hex": "" }
+            "final_script_sig": self.final_script_sig.hex(),
             "final_script_witness": self.final_script_witness.to_dict(False),
+            "ripemd160_preimages": encode_dict_bytes_bytes(self.ripemd160_preimages),
+            "sha256_preimages": encode_dict_bytes_bytes(self.sha256_preimages),
+            "hash160_preimages": encode_dict_bytes_bytes(self.hash160_preimages),
+            "hash256_preimages": encode_dict_bytes_bytes(self.hash256_preimages),
             "unknown": dict(sorted(encode_dict_bytes_bytes(self.unknown).items())),
         }
 
@@ -242,6 +278,10 @@ class PsbtIn:
             decode_from_bip32_derivs(dict_["bip32_derivs"]),  # type: ignore
             dict_["final_script_sig"],
             Witness.from_dict(dict_["final_script_witness"], False),
+            dict_["ripemd160_preimages"],
+            dict_["sha256_preimages"],
+            dict_["hash160_preimages"],
+            dict_["hash256_preimages"],
             dict_["unknown"],
             check_validity,
         )
@@ -300,6 +340,30 @@ class PsbtIn:
         if self.unknown:
             psbt_in_bin.append(serialize_dict_bytes_bytes(b"", self.unknown))
 
+        if self.ripemd160_preimages:
+            print(
+                serialize_dict_bytes_bytes(PSBT_IN_RIPEMD160, self.ripemd160_preimages)
+            )
+            print(self.ripemd160_preimages)
+            psbt_in_bin.append(
+                serialize_dict_bytes_bytes(PSBT_IN_RIPEMD160, self.ripemd160_preimages)
+            )
+
+        if self.sha256_preimages:
+            psbt_in_bin.append(
+                serialize_dict_bytes_bytes(PSBT_IN_SHA256, self.sha256_preimages)
+            )
+
+        if self.hash160_preimages:
+            psbt_in_bin.append(
+                serialize_dict_bytes_bytes(PSBT_IN_HASH160, self.hash160_preimages)
+            )
+
+        if self.hash256_preimages:
+            psbt_in_bin.append(
+                serialize_dict_bytes_bytes(PSBT_IN_HASH256, self.hash256_preimages)
+            )
+
         return b"".join(psbt_in_bin)
 
     @classmethod
@@ -321,48 +385,40 @@ class PsbtIn:
         hd_key_paths: Dict[Octets, BIP32KeyOrigin] = {}
         final_script_sig = b""
         final_script_witness = Witness()
+        ripemd160_preimages: Dict[Octets, Octets] = {}
+        sha256_preimages: Dict[Octets, Octets] = {}
+        hash160_preimages: Dict[Octets, Octets] = {}
+        hash256_preimages: Dict[Octets, Octets] = {}
         unknown: Dict[Octets, Octets] = {}
 
         for k, v in input_map.items():
             if k[:1] == PSBT_IN_NON_WITNESS_UTXO:
-                if non_witness_utxo:
-                    raise BTClibValueError("duplicate PsbtIn non_witness_utxo")
                 non_witness_utxo = deserialize_tx(k, v, "non-witness utxo")
             elif k[:1] == PSBT_IN_WITNESS_UTXO:
-                if witness_utxo:
-                    raise BTClibValueError("duplicate PsbtIn witness_utxo")
                 witness_utxo = _deserialize_witness_utxo(k, v)
             elif k[:1] == PSBT_IN_PARTIAL_SIG:
-                if k[1:] in partial_sigs:
-                    raise BTClibValueError("duplicate PsbtIn partial_sigs")
                 partial_sigs[k[1:]] = v
             elif k[:1] == PSBT_IN_SIG_HASH_TYPE:
-                if sig_hash_type:
-                    raise BTClibValueError("duplicate PsbtIn sig_hash_type")
                 sig_hash_type = deserialize_int(k, v, "sign_hash type")
             elif k[:1] == PSBT_IN_REDEEM_SCRIPT:
-                if redeem_script:
-                    raise BTClibValueError("duplicate PsbtIn redeem_script")
                 redeem_script = deserialize_bytes(k, v, "redeem script")
             elif k[:1] == PSBT_IN_WITNESS_SCRIPT:
-                if witness_script:
-                    raise BTClibValueError("duplicate PsbtIn witness_script")
                 witness_script = deserialize_bytes(k, v, "witness script")
             elif k[:1] == PSBT_IN_BIP32_DERIVATION:
-                if k[1:] in hd_key_paths:
-                    raise BTClibValueError("duplicate pub_key in PsbtIn hd_key_path")
                 hd_key_paths[k[1:]] = BIP32KeyOrigin.parse(v)
             elif k[:1] == PSBT_IN_FINAL_SCRIPTSIG:
-                if final_script_sig:
-                    raise BTClibValueError("duplicate PsbtIn final_script_sig")
                 final_script_sig = deserialize_bytes(k, v, "final script_sig")
+            elif k[:1] == PSBT_IN_RIPEMD160:
+                ripemd160_preimages[k[1:]] = v
+            elif k[:1] == PSBT_IN_SHA256:
+                sha256_preimages[k[1:]] = v
+            elif k[:1] == PSBT_IN_HASH160:
+                hash160_preimages[k[1:]] = v
+            elif k[:1] == PSBT_IN_HASH256:
+                hash256_preimages[k[1:]] = v
             elif k[:1] == PSBT_IN_FINAL_SCRIPTWITNESS:
-                if final_script_witness:
-                    raise BTClibValueError("duplicate PsbtIn final_script_witness")
                 final_script_witness = _deserialize_final_script_witness(k, v)
             else:  # unknown
-                if k in unknown:
-                    raise BTClibValueError("duplicate PsbtIn unknown")
                 unknown[k] = v
 
         return cls(
@@ -375,6 +431,10 @@ class PsbtIn:
             hd_key_paths,
             final_script_sig,
             final_script_witness,
+            ripemd160_preimages,
+            sha256_preimages,
+            hash160_preimages,
+            hash256_preimages,
             unknown,
             check_validity,
         )

@@ -16,7 +16,6 @@ https://github.com/bitcoin/bips/blob/master/bip-0174.mediawiki
 from dataclasses import dataclass
 from typing import Any, Dict, List, Mapping, Optional, Type, TypeVar
 
-from btclib import var_bytes
 from btclib.alias import Octets
 from btclib.bip32.key_origin import (
     BIP32KeyOrigin,
@@ -26,90 +25,20 @@ from btclib.bip32.key_origin import (
     decode_hd_key_paths,
     encode_to_bip32_derivs,
 )
-from btclib.exceptions import BTClibValueError
+from btclib.psbt.psbt_utils import (
+    assert_valid_redeem_script,
+    assert_valid_unknown,
+    assert_valid_witness_script,
+    decode_dict_bytes_bytes,
+    deserialize_bytes,
+    encode_dict_bytes_bytes,
+    serialize_bytes,
+    serialize_dict_bytes_bytes,
+    serialize_hd_key_paths,
+)
 from btclib.utils import bytes_from_octets
 
 # from btclib.to_pub_key import point_from_pub_key
-
-
-def encode_dict_bytes_bytes(dict_: Mapping[bytes, bytes]) -> Dict[str, str]:
-    "Return the json representation of the dataclass element."
-    # unknown could be sorted, partial_sigs cannot
-    return {k.hex(): v.hex() for k, v in dict_.items()}
-
-
-def decode_dict_bytes_bytes(
-    map_: Optional[Mapping[Octets, Octets]]
-) -> Dict[bytes, bytes]:
-    "Return the dataclass element from its json representation."
-    # unknown could be sorted, partial_sigs cannot
-    if map_ is None:
-        return {}
-    return {bytes_from_octets(k): bytes_from_octets(v) for k, v in map_.items()}
-
-
-def serialize_dict_bytes_bytes(
-    type_: bytes, dictionary: Mapping[bytes, bytes]
-) -> bytes:
-    "Return the binary representation of the dataclass element."
-
-    return b"".join(
-        [
-            var_bytes.serialize(type_ + k) + var_bytes.serialize(v)
-            for k, v in sorted(dictionary.items())
-        ]
-    )
-
-
-def serialize_bytes(type_: bytes, value: bytes) -> bytes:
-    "Return the binary representation of the dataclass element."
-    return var_bytes.serialize(type_) + var_bytes.serialize(value)
-
-
-def deserialize_bytes(k: bytes, v: bytes, type_: str) -> bytes:
-    "Return the dataclass element from its binary representation."
-
-    if len(k) != 1:
-        err_msg = f"invalid {type_} key length: {len(k)}"
-        raise BTClibValueError(err_msg)
-    return v
-
-
-def assert_valid_redeem_script(redeem_script: bytes) -> None:
-    "Raise an exception if the dataclass element is not valid."
-    # should check for a valid script
-    bytes(redeem_script)
-
-
-def assert_valid_witness_script(witness_script: bytes) -> None:
-    "Raise an exception if the dataclass element is not valid."
-    # should check for a valid script
-    bytes(witness_script)
-
-
-def assert_valid_unknown(data: Mapping[bytes, bytes]) -> None:
-    "Raise an exception if the dataclass element is not valid."
-
-    for key, value in data.items():
-        bytes(key)
-        bytes(value)
-
-
-def serialize_hd_key_paths(
-    type_: bytes, hd_key_paths: Mapping[bytes, BIP32KeyOrigin]
-) -> bytes:
-    "Return the binary representation of the dataclass element."
-
-    if len(type_) != 1:
-        err_msg = f"invalid type marker lenght: {len(type_)}, instead of 1"
-        raise BTClibValueError(err_msg)
-
-    return b"".join(
-        [
-            var_bytes.serialize(type_ + k) + var_bytes.serialize(v.serialize())
-            for k, v in sorted(hd_key_paths.items())
-        ]
-    )
 
 
 PSBT_OUT_REDEEM_SCRIPT = b"\x00"
@@ -225,21 +154,13 @@ class PsbtOut:
 
         for k, v in output_map.items():
             if k[:1] == PSBT_OUT_REDEEM_SCRIPT:
-                if redeem_script:
-                    raise BTClibValueError("duplicate PsbtOut redeem_script")
                 redeem_script = deserialize_bytes(k, v, "redeem script")
             elif k[:1] == PSBT_OUT_WITNESS_SCRIPT:
-                if witness_script:
-                    raise BTClibValueError("duplicate PsbtOut witness_script")
                 witness_script = deserialize_bytes(k, v, "witness script")
             elif k[:1] == PSBT_OUT_BIP32_DERIVATION:
                 #  parse just one hd key path at time :-(
-                if k[1:] in hd_key_paths:
-                    raise BTClibValueError("duplicate pub_key in PsbtOut hd_key_path")
                 hd_key_paths[k[1:]] = BIP32KeyOrigin.parse(v)
             else:  # unknown
-                if k in unknown:
-                    raise BTClibValueError("duplicate PsbtOut unknown")
                 unknown[k] = v
 
         return cls(
