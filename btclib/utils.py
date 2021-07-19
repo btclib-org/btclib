@@ -28,7 +28,7 @@ from btclib.exceptions import BTClibValueError
 #    return byte_str.hex()
 
 
-def ripemd160(octets: Octets):
+def ripemd160(octets: Octets) -> bytes:
     "Return the RIPEMD160(*) of the input octet sequence."
 
     octets = bytes_from_octets(octets)
