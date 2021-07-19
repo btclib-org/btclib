@@ -131,10 +131,16 @@ def assert_valid_unknown(data: Mapping[bytes, bytes]) -> None:
         bytes(value)
 
 
-def deserialize_tx(k: bytes, v: bytes, type_: str) -> Tx:
+def deserialize_tx(
+    k: bytes, v: bytes, type_: str, include_witness: Optional[bool] = True
+) -> Tx:
     "Return the dataclass element from its binary representation."
 
     if len(k) != 1:
         err_msg = f"invalid {type_} key length: {len(k)}"
         raise BTClibValueError(err_msg)
-    return Tx.parse(v)
+    tx = Tx.parse(v)
+    if not include_witness:
+        if tx.serialize(include_witness=False) != v:
+            raise BTClibValueError("wrong tx serialization format")
+    return tx

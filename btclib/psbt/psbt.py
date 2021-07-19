@@ -210,7 +210,7 @@ class Psbt:
 
         psbt_bin: List[bytes] = [PSBT_MAGIC_BYTES, PSBT_SEPARATOR]
 
-        temp = self.tx.serialize(include_witness=True)
+        temp = self.tx.serialize(include_witness=False)
         psbt_bin.append(serialize_bytes(PSBT_GLOBAL_UNSIGNED_TX, temp))
         if self.version:
             temp = self.version.to_bytes(4, byteorder="little", signed=False)
@@ -252,7 +252,7 @@ class Psbt:
         global_map, stream = deserialize_map(stream)
         for k, v in global_map.items():
             if k[:1] == PSBT_GLOBAL_UNSIGNED_TX:
-                tx = deserialize_tx(k, v, "global unsigned tx")
+                tx = deserialize_tx(k, v, "global unsigned tx", False)
             elif k[:1] == PSBT_GLOBAL_VERSION:
                 version = deserialize_int(k, v, "global version")
             elif k[:1] == PSBT_GLOBAL_XPUB:
