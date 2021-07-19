@@ -123,7 +123,7 @@
         },
         {
             "description": "PSBT with unknown types in the inputs.",
-            "encoded psbt": "cHNidP8BAD8CAAAAAf//////////////////////////////////////////AAAAAAD/////AQAAAAAAAAAAA2oBAAAAAAAACg8BAgMEBQYHCAkPAQIDBAUGBwgJCgsMDQ4PAAA="
+            "encoded psbt": "cHNidP8BAD8CAAAAAf//////////////////////////////////////////AAAAAAD/////AQAAAAAAAAAAA2oBAAAAAAAACvABAgMEBQYHCAkPAQIDBAUGBwgJCgsMDQ4PAAA="
         },
         {
             "description": "PSBT with `PSBT_GLOBAL_XPUB`.",
