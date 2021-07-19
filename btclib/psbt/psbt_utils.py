@@ -140,7 +140,6 @@ def deserialize_tx(
         err_msg = f"invalid {type_} key length: {len(k)}"
         raise BTClibValueError(err_msg)
     tx = Tx.parse(v)
-    if not include_witness:
-        if tx.serialize(include_witness=False) != v:
-            raise BTClibValueError("wrong tx serialization format")
+    if not include_witness and tx.serialize(include_witness=False) != v:
+        raise BTClibValueError("wrong tx serialization format")
     return tx
