@@ -25,7 +25,6 @@ from btclib.bip32.key_origin import (
     decode_hd_key_paths,
     encode_to_bip32_derivs,
 )
-from btclib.exceptions import BTClibValueError
 from btclib.psbt.psbt_utils import (
     assert_valid_redeem_script,
     assert_valid_unknown,
@@ -155,21 +154,13 @@ class PsbtOut:
 
         for k, v in output_map.items():
             if k[:1] == PSBT_OUT_REDEEM_SCRIPT:
-                if redeem_script:
-                    raise BTClibValueError("duplicate PsbtOut redeem_script")
                 redeem_script = deserialize_bytes(k, v, "redeem script")
             elif k[:1] == PSBT_OUT_WITNESS_SCRIPT:
-                if witness_script:
-                    raise BTClibValueError("duplicate PsbtOut witness_script")
                 witness_script = deserialize_bytes(k, v, "witness script")
             elif k[:1] == PSBT_OUT_BIP32_DERIVATION:
                 #  parse just one hd key path at time :-(
-                if k[1:] in hd_key_paths:
-                    raise BTClibValueError("duplicate pub_key in PsbtOut hd_key_path")
                 hd_key_paths[k[1:]] = BIP32KeyOrigin.parse(v)
             else:  # unknown
-                if k in unknown:
-                    raise BTClibValueError("duplicate PsbtOut unknown")
                 unknown[k] = v
 
         return cls(

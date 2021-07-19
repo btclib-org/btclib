@@ -252,20 +252,12 @@ class Psbt:
         global_map, stream = deserialize_map(stream)
         for k, v in global_map.items():
             if k[:1] == PSBT_GLOBAL_UNSIGNED_TX:
-                if tx.vin:
-                    raise BTClibValueError("duplicate Psbt unsigned tx")
                 tx = deserialize_tx(k, v, "global unsigned tx")
             elif k[:1] == PSBT_GLOBAL_VERSION:
-                if version:
-                    raise BTClibValueError("duplicate Psbt version")
                 version = deserialize_int(k, v, "global version")
             elif k[:1] == PSBT_GLOBAL_XPUB:
-                if k[1:] in hd_key_paths:
-                    raise BTClibValueError("duplicate xpub in Psbt hd_key_path")
                 hd_key_paths[k[1:]] = BIP32KeyOrigin.parse(v)
             else:  # unknown
-                if k in unknown:
-                    raise BTClibValueError("duplicate Psbt unknown")
                 unknown[k] = v
 
         inputs: List[PsbtIn] = []

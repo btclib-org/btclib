@@ -199,10 +199,13 @@ class PsbtIn:
             else None,
             "partial_signatures": encode_dict_bytes_bytes(self.partial_sigs),
             "sign_hash": self.sig_hash_type,
-            "redeem_script": self.redeem_script.hex(),  # TODO make it { "asm": "", "hex": "" }
-            "witness_script": self.witness_script.hex(),  # TODO make it { "asm": "", "hex": "" }
+            # TODO make it { "asm": "", "hex": "" }
+            "redeem_script": self.redeem_script.hex(),
+            # TODO make it { "asm": "", "hex": "" }
+            "witness_script": self.witness_script.hex(),
             "bip32_derivs": encode_to_bip32_derivs(self.hd_key_paths),
-            "final_script_sig": self.final_script_sig.hex(),  # TODO make it { "asm": "", "hex": "" }
+            # TODO make it { "asm": "", "hex": "" }
+            "final_script_sig": self.final_script_sig.hex(),
             "final_script_witness": self.final_script_witness.to_dict(False),
             "unknown": dict(sorted(encode_dict_bytes_bytes(self.unknown).items())),
         }
@@ -310,44 +313,24 @@ class PsbtIn:
 
         for k, v in input_map.items():
             if k[:1] == PSBT_IN_NON_WITNESS_UTXO:
-                if non_witness_utxo:
-                    raise BTClibValueError("duplicate PsbtIn non_witness_utxo")
                 non_witness_utxo = deserialize_tx(k, v, "non-witness utxo")
             elif k[:1] == PSBT_IN_WITNESS_UTXO:
-                if witness_utxo:
-                    raise BTClibValueError("duplicate PsbtIn witness_utxo")
                 witness_utxo = _deserialize_witness_utxo(k, v)
             elif k[:1] == PSBT_IN_PARTIAL_SIG:
-                if k[1:] in partial_sigs:
-                    raise BTClibValueError("duplicate PsbtIn partial_sigs")
                 partial_sigs[k[1:]] = v
             elif k[:1] == PSBT_IN_SIG_HASH_TYPE:
-                if sig_hash_type:
-                    raise BTClibValueError("duplicate PsbtIn sig_hash_type")
                 sig_hash_type = deserialize_int(k, v, "sign_hash type")
             elif k[:1] == PSBT_IN_REDEEM_SCRIPT:
-                if redeem_script:
-                    raise BTClibValueError("duplicate PsbtIn redeem_script")
                 redeem_script = deserialize_bytes(k, v, "redeem script")
             elif k[:1] == PSBT_IN_WITNESS_SCRIPT:
-                if witness_script:
-                    raise BTClibValueError("duplicate PsbtIn witness_script")
                 witness_script = deserialize_bytes(k, v, "witness script")
             elif k[:1] == PSBT_IN_BIP32_DERIVATION:
-                if k[1:] in hd_key_paths:
-                    raise BTClibValueError("duplicate pub_key in PsbtIn hd_key_path")
                 hd_key_paths[k[1:]] = BIP32KeyOrigin.parse(v)
             elif k[:1] == PSBT_IN_FINAL_SCRIPTSIG:
-                if final_script_sig:
-                    raise BTClibValueError("duplicate PsbtIn final_script_sig")
                 final_script_sig = deserialize_bytes(k, v, "final script_sig")
             elif k[:1] == PSBT_IN_FINAL_SCRIPTWITNESS:
-                if final_script_witness:
-                    raise BTClibValueError("duplicate PsbtIn final_script_witness")
                 final_script_witness = _deserialize_final_script_witness(k, v)
             else:  # unknown
-                if k in unknown:
-                    raise BTClibValueError("duplicate PsbtIn unknown")
                 unknown[k] = v
 
         return cls(
