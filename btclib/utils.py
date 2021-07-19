@@ -28,6 +28,13 @@ from btclib.exceptions import BTClibValueError
 #    return byte_str.hex()
 
 
+def ripemd160(octets: Octets):
+    "Return the RIPEMD160(*) of the input octet sequence."
+
+    octets = bytes_from_octets(octets)
+    return hashlib.new("ripemd160", octets).digest()
+
+
 def sha256(octets: Octets) -> bytes:
     "Return the SHA256(*) of the input octet sequence."
 
@@ -38,15 +45,13 @@ def sha256(octets: Octets) -> bytes:
 def hash160(octets: Octets) -> bytes:
     "Return the HASH160=RIPEMD160(SHA256) of the input octet sequence."
 
-    t = sha256(octets)
-    return hashlib.new("ripemd160", t).digest()
+    return ripemd160(sha256(octets))
 
 
 def hash256(octets: Octets) -> bytes:
     "Return the SHA256(SHA256(*)) of the input octet sequence."
 
-    t = sha256(octets)
-    return hashlib.sha256(t).digest()
+    return sha256(sha256(octets))
 
 
 def merkle_root(data: List[bytes], hf: Callable[[Union[bytes, str]], bytes]) -> bytes:

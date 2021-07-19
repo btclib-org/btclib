@@ -67,5 +67,9 @@
     "final_script_witness": {
         "stack": []
     },
+    "ripemd160_preimages": {},
+    "sha256_preimages": {},
+    "hash160_preimages": {},
+    "hash256_preimages": {},
     "unknown": {}
 }
