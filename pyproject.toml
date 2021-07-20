@@ -1,0 +1,58 @@
+[tool.pytest.ini_options]
+addopts = "--durations=8 -n auto"
+markers = [
+    "first: ordering using pytest-ordering",
+    "second: ordering using pytest-ordering",
+    "third: ordering using pytest-ordering",
+    "fourth: ordering using pytest-ordering",
+    "fifth: ordering using pytest-ordering",
+    "sixth: ordering using pytest-ordering",
+    "seventh: ordering using pytest-ordering",
+]
+
+[tool.mypy]
+show_column_numbers = true
+show_error_codes = true
+
+[tool.isort]
+profile = "black"
+
+[tool.pylint.master]
+jobs = 0
+disable = [
+    "invalid-name",  # C0103
+    "missing-class-docstring",  # C0115
+    "missing-function-docstring",  # C0116
+    "duplicate-code",  # R0801
+    "too-many-instance-attributes",  # R0902
+    "too-many-return-statements",  # R0911
+    "too-many-branches",  # R0912
+    "too-many-arguments",   # R0913
+    "too-many-locals",   # R0914
+    "too-many-statements",  # R0915
+    "fixme",  # W0511
+    "unsubscriptable-object",  # E1136 python3.9-only pylint bug
+]
+
+[tool.pylint.logging]
+logging-format-style = "new"
+logging-modules = "logging"
+
+[tool.pylint.spelling]
+max-spelling-suggestions = 4
+
+[tool.pylint.basic]
+good-names = [
+    "c", "e", "i", "j", "k", "m", "n", "p", "q", "r", "s", "t", "u", "v", "w",
+    "G", "H", "Q", "K", "R",
+    "x_G", "x_H", "x_Q", "x_K", "x_R",
+    "y_G", "y_H", "y_Q", "y_K", "y_R",
+    "GJ", "HJ", "QJ", "KJ", "RJ",
+    "QJs", "KJs", "RJs",
+    "G_bytes", "H_bytes", "Q_bytes", "K_bytes", "R_bytes",
+    "rf", "hf", "ec",
+    "tx"
+]
+
+[tool.pylint.format]
+max-line-length = 2000

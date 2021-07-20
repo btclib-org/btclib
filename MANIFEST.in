@@ -3,10 +3,8 @@ include *.md
 include *.txt
 include *.yml
 include .flake8
-include .isort.cfg
-include .pylintrc
 include tox.ini
-include mypy.ini
+include pyproject.toml
 recursive-include _layouts *.html
 recursive-include assets *.jpg
 recursive-include assets *.png
