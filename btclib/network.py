@@ -229,9 +229,9 @@ def network_from_key_value(key: str, prefix: Union[str, bytes, Curve]) -> Option
     WIF/Base58Address/BIP32xkey
     because the two networks share the same prefixes.
     """
-    for network in NETWORKS:
-        if getattr(NETWORKS[network], key) == prefix:
-            return network
+    for network_str, network in NETWORKS.items():
+        if getattr(network, key) == prefix:
+            return network_str
     return None
 
 
