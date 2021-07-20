@@ -11,7 +11,7 @@
 [![Type-checked: pyright](https://img.shields.io/badge/type--check-pyright-%231674b1)](https://github.com/microsoft/pyright)
 [![Refactored: sourcery](https://img.shields.io/badge/refactor-sourcery-%231674b1)](https://sourcery.ai)
 [![Security: bandit](https://img.shields.io/badge/security-bandit-%231674b1.svg)](https://github.com/PyCQA/bandit)
-[![Build Status](https://travis-ci.org/btclib-org/btclib.svg)](https://travis-ci.org/btclib-org/btclib)
+[![Build Status](https://github.com/btclib-org/btclib/actions/workflows/test.yml/badge.svg)](https://github.com/btclib-org/btclib/actions/workflows/test.yml)
 [![ReadtheDocs](https://img.shields.io/readthedocs/btclib.svg)](https://btclib.readthedocs.io)
 [![Coverage Status](https://coveralls.io/repos/github/btclib-org/btclib/badge.svg?branch=master)](https://coveralls.io/github/btclib-org/btclib?branch=master)
 [![PyPI status](https://img.shields.io/pypi/status/btclib.svg)](https://pypi.python.org/pypi/btclib/)
