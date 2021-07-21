@@ -303,7 +303,7 @@ btclib.sec\_point module
 btclib.sign\_hash module
 ------------------------
 
-.. automodule:: btclib.sign_hash
+.. automodule:: btclib.sig_hash
    :members:
    :undoc-members:
    :show-inheritance:

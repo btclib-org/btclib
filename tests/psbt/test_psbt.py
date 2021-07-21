@@ -425,7 +425,7 @@ def test_exceptions() -> None:
 
     psbt = Psbt.b64decode(psbt_str)
     psbt.inputs[0].sig_hash_type = 101
-    with pytest.raises(BTClibValueError, match="invalid sign_hash type: "):
+    with pytest.raises(BTClibValueError, match="invalid sig_hash type: "):
         psbt.serialize()
 
     psbt = Psbt.b64decode(psbt_str)

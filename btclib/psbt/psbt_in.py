@@ -43,7 +43,7 @@ from btclib.psbt.psbt_utils import (
     serialize_hd_key_paths,
 )
 from btclib.script.witness import Witness
-from btclib.tx.sign_hash import assert_valid_hash_type
+from btclib.sig_hash import assert_valid_hash_type
 from btclib.tx.tx import Tx
 from btclib.tx.tx_out import TxOut
 from btclib.utils import bytes_from_octets, hash160, hash256, ripemd160, sha256
@@ -242,7 +242,7 @@ class PsbtIn:
             if self.witness_utxo
             else None,
             "partial_signatures": encode_dict_bytes_bytes(self.partial_sigs),
-            "sign_hash": self.sig_hash_type,
+            "sig_hash": self.sig_hash_type,
             # TODO make it { "asm": "", "hex": "" }
             "redeem_script": self.redeem_script.hex(),
             # TODO make it { "asm": "", "hex": "" }
@@ -271,7 +271,7 @@ class PsbtIn:
             if dict_["witness_utxo"]
             else None,
             dict_["partial_signatures"],
-            dict_["sign_hash"],
+            dict_["sig_hash"],
             dict_["redeem_script"],
             dict_["witness_script"],
             # FIXME
@@ -399,7 +399,7 @@ class PsbtIn:
             elif k[:1] == PSBT_IN_PARTIAL_SIG:
                 partial_sigs[k[1:]] = v
             elif k[:1] == PSBT_IN_SIG_HASH_TYPE:
-                sig_hash_type = deserialize_int(k, v, "sign_hash type")
+                sig_hash_type = deserialize_int(k, v, "sig_hash type")
             elif k[:1] == PSBT_IN_REDEEM_SCRIPT:
                 redeem_script = deserialize_bytes(k, v, "redeem script")
             elif k[:1] == PSBT_IN_WITNESS_SCRIPT:

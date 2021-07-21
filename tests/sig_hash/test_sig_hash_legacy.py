@@ -8,7 +8,7 @@
 # No part of btclib including this file, may be copied, modified, propagated,
 # or distributed except according to the terms contained in the LICENSE file.
 
-"""Tests for the `btclib.sign_hash` module.
+"""Tests for the `btclib.sig_hash` module.
 
 test vector from https://github.com/bitcoin/bips/blob/master/bip-0143.mediawiki
 """
@@ -18,7 +18,7 @@ from os import path
 
 from btclib.ecc import dsa
 from btclib.script.script import serialize
-from btclib.tx import sign_hash
+from btclib import sig_hash
 from btclib.tx.tx import Tx
 from btclib.tx.tx_in import OutPoint, TxIn
 from btclib.tx.tx_out import TxOut
@@ -34,7 +34,7 @@ def test_first_transaction() -> None:
             "410411db93e1dcdb8a016b49840f8c53bc1eb68a382e97b1482ecad7b148a6909a5cb2e0eaddfb84ccf9744464f82e160bfa9b8b64f9d4c03f999b8643f656b412a3ac"
         ),
     )
-    hash_ = sign_hash.from_utxo(utxo, tx, 0, sign_hash.ALL)
+    hash_ = sig_hash.from_utxo(utxo, tx, 0, sig_hash.ALL)
     assert hash_ == bytes.fromhex(
         "7a05c6145f10101e9d6325494245adf1297d80f8f38d4d576d57cdba220bcb19"
     )
@@ -70,7 +70,7 @@ def test_legacy_p2pkh() -> None:
         ]
     )
     utxo = TxOut(1051173696, script_pub_key)
-    hash_ = sign_hash.from_utxo(utxo, tx, 0, sign_hash.ALL)
+    hash_ = sig_hash.from_utxo(utxo, tx, 0, sig_hash.ALL)
     assert dsa.verify_(hash_, pub_key, bytes.fromhex(signature)[:-1])
 
 
@@ -87,7 +87,7 @@ def test_p2pk() -> None:
 
     tx_in = TxIn(OutPoint(funding_tx.id, 0), script_sig, 0xFFFFFFFF)
     receiving_tx = Tx(1, 0, [tx_in], [TxOut(0, b"")])
-    hash_ = sign_hash.from_utxo(funding_tx.vout[0], receiving_tx, 0, sign_hash.ALL)
+    hash_ = sig_hash.from_utxo(funding_tx.vout[0], receiving_tx, 0, sig_hash.ALL)
     assert dsa.verify_(hash_, pub_key, bytes.fromhex(signature)[:-1])
 
 
@@ -111,7 +111,7 @@ def test_p2pkh() -> None:
 
     tx_in = TxIn(OutPoint(funding_tx.id, 0), script_sig, 0xFFFFFFFF)
     receiving_tx = Tx(1, 0, [tx_in], [TxOut(0, b"")])
-    hash_ = sign_hash.from_utxo(funding_tx.vout[0], receiving_tx, 0, sign_hash.ALL)
+    hash_ = sig_hash.from_utxo(funding_tx.vout[0], receiving_tx, 0, sig_hash.ALL)
     assert dsa.verify_(hash_, pub_key, bytes.fromhex(signature)[:-1])
 
 
@@ -127,13 +127,13 @@ def test_p2pk_anyonecanpay() -> None:
 
     tx_in = TxIn(OutPoint(funding_tx.id, 0), script_sig, 0xFFFFFFFF)
     receiving_tx = Tx(1, 0, [tx_in], [TxOut(0, b"")])
-    hash_ = sign_hash.from_utxo(
-        funding_tx.vout[0], receiving_tx, 0, sign_hash.ANYONECANPAY | sign_hash.ALL
+    hash_ = sig_hash.from_utxo(
+        funding_tx.vout[0], receiving_tx, 0, sig_hash.ANYONECANPAY | sig_hash.ALL
     )
     assert dsa.verify_(hash_, pub_key, bytes.fromhex(signature)[:-1])
 
 
-def test_sign_hashsingle_bug() -> None:
+def test_sig_hashsingle_bug() -> None:
     pub_key = "02D5C25ADB51B61339D2B05315791E21BBE80EA470A49DB0135720983C905AACE0"
     signature = "3045022100C9CDD08798A28AF9D1BAF44A6C77BCC7E279F47DC487C8C899911BC48FEAFFCC0220503C5C50AE3998A733263C5C0F7061B483E2B56C4C41B456E7D2F5A78A74C07703"
     script_pub_key = serialize(
@@ -150,21 +150,21 @@ def test_sign_hashsingle_bug() -> None:
     utxo = TxOut(0, script_pub_key)
     tx_bytes = "01000000020002000000000000000000000000000000000000000000000000000000000000000000000151ffffffff0001000000000000000000000000000000000000000000000000000000000000000000006b483045022100c9cdd08798a28af9d1baf44a6c77bcc7e279f47dc487c8c899911bc48feaffcc0220503c5c50ae3998a733263c5c0f7061b483e2b56c4c41b456e7d2f5a78a74c077032102d5c25adb51b61339d2b05315791e21bbe80ea470a49db0135720983c905aace0ffffffff010000000000000000015100000000"
     tx = Tx.parse(tx_bytes)
-    hash_ = sign_hash.from_utxo(utxo, tx, 1, sign_hash.SINGLE)
+    hash_ = sig_hash.from_utxo(utxo, tx, 1, sig_hash.SINGLE)
     assert dsa.verify_(hash_, pub_key, bytes.fromhex(signature)[:-1])
 
 
 def test_test_vectors() -> None:
-    fname = "sign_hash_legacy_test_vectors.json"
+    fname = "sig_hash_legacy_test_vectors.json"
     filename = path.join(path.dirname(__file__), "_data", fname)
     with open(filename, "r") as file_:
         data = json.load(file_)
     data = data[1:]  # skip column headers
     for raw_tx, raw_script, input_index, hash_type, exp_hash in data:
-        script_ = sign_hash.legacy_script(raw_script)[0]
+        script_ = sig_hash.legacy_script(raw_script)[0]
         # FIXME: separate invalid transaction from the valid ones
         tx = Tx.parse(raw_tx, check_validity=False)
         if hash_type < 0:
             hash_type += 0xFFFFFFFF + 1
-        actual_hash = sign_hash.legacy(script_, tx, input_index, hash_type)
+        actual_hash = sig_hash.legacy(script_, tx, input_index, hash_type)
         assert actual_hash == bytes.fromhex(exp_hash)[::-1]

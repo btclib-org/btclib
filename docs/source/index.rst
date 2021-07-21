@@ -74,7 +74,7 @@ The library features are:
 * nulldata, p2pk, p2pkh, multi-sig, p2sh, p2wpkh, and p2wsh ScriptPubKeys
 * BlockHeader and Block data classes
 * OutPoint, TxIn, TxOut, and TX data classes
-* segwit_v0_sign_hash
+* segwit_v0_sig_hash
 * BIP174 partially signed bitcoin transactions (PSBT):
   PsbtIn, PbstOut, and Psbt data classes
 

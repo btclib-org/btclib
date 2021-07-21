@@ -14,7 +14,7 @@ test vector at https://github.com/bitcoin/bips/blob/master/bip-0143.mediawiki
 """
 
 from btclib.script.witness import Witness
-from btclib.tx import sign_hash
+from btclib import sig_hash
 from btclib.tx.tx import Tx
 from btclib.tx.tx_out import TxOut
 
@@ -25,7 +25,7 @@ def test_native_p2wpkh() -> None:
 
     utxo = TxOut(600000000, "00141d0f172a0ecb48aee1be1f2687d2963ae33f71a1")
 
-    hash_ = sign_hash.from_utxo(utxo, tx, 1, sign_hash.ALL)
+    hash_ = sig_hash.from_utxo(utxo, tx, 1, sig_hash.ALL)
     assert hash_ == bytes.fromhex(
         "c37af31116d1b27caf68aae9e3ac82f1477929014d5b917657d0eb49478cb670"
     )
@@ -38,7 +38,7 @@ def test_wrapped_p2wpkh() -> None:
 
     utxo = TxOut(1000000000, "a9144733f37cf4db86fbc2efed2500b4f4e49f31202387")
 
-    hash_ = sign_hash.from_utxo(utxo, tx, 0, sign_hash.ALL)
+    hash_ = sig_hash.from_utxo(utxo, tx, 0, sig_hash.ALL)
     assert hash_ == bytes.fromhex(
         "64f3b0f4dd2bb3aa1ce8566d220cc74dda9df97d8490cc81d89d735c92e59fb6"
     )
@@ -58,13 +58,13 @@ def test_native_p2wsh() -> None:
         "00205d1b56b63d714eebe542309525f484b7e9d6f686b3781b6f61ef925d66d6f6a0",
     )
 
-    hash_ = sign_hash.from_utxo(utxo, tx, 1, sign_hash.SINGLE)
+    hash_ = sig_hash.from_utxo(utxo, tx, 1, sig_hash.SINGLE)
     assert hash_ == bytes.fromhex(
         "82dde6e4f1e94d02c2b7ad03d2115d691f48d064e9d52f58194a6637e4194391"
     )
 
-    script_ = sign_hash.witness_v0_script(tx.vin[1].script_witness.stack[-1])[1]
-    hash_ = sign_hash.segwit_v0(script_, tx, 1, sign_hash.SINGLE, utxo.value)
+    script_ = sig_hash.witness_v0_script(tx.vin[1].script_witness.stack[-1])[1]
+    hash_ = sig_hash.segwit_v0(script_, tx, 1, sig_hash.SINGLE, utxo.value)
     assert hash_ == bytes.fromhex(
         "fef7bd749cce710c5c052bd796df1af0d935e59cea63736268bcbe2d2134fc47"
     )
@@ -87,8 +87,8 @@ def test_native_p2wsh_2() -> None:
     previous_txout_1 = TxOut(
         16777215, "0020ba468eea561b26301e4cf69fa34bde4ad60c81e70f059f045ca9a79931004a4d"
     )
-    hash_ = sign_hash.from_utxo(
-        previous_txout_1, tx, 0, sign_hash.ANYONECANPAY | sign_hash.SINGLE
+    hash_ = sig_hash.from_utxo(
+        previous_txout_1, tx, 0, sig_hash.ANYONECANPAY | sig_hash.SINGLE
     )
     assert hash_ == bytes.fromhex(
         "e9071e75e25b8a1e298a72f0d2e9f4f95a0f5cdf86a533cda597eb402ed13b3a"
@@ -98,12 +98,12 @@ def test_native_p2wsh_2() -> None:
         16777215, "0020d9bbfbe56af7c4b7f960a70d7ea107156913d9e5a26b0a71429df5e097ca6537"
     )
 
-    script_ = sign_hash.witness_v0_script(tx.vin[1].script_witness.stack[-1])[1]
-    hash_ = sign_hash.segwit_v0(
+    script_ = sig_hash.witness_v0_script(tx.vin[1].script_witness.stack[-1])[1]
+    hash_ = sig_hash.segwit_v0(
         script_,
         tx,
         1,
-        sign_hash.ANYONECANPAY | sign_hash.SINGLE,
+        sig_hash.ANYONECANPAY | sig_hash.SINGLE,
         previous_txout_2.value,
     )
     assert hash_ == bytes.fromhex(
@@ -124,27 +124,27 @@ def test_wrapped_p2wsh() -> None:
         "0020a16b5755f7f6f96dbd65f5f0d6ab9418b89af4b1f14a1bb8a09062c35f0dcb54",
     )
 
-    hash_ = sign_hash.from_utxo(utxo, tx, 0, sign_hash.ALL)
+    hash_ = sig_hash.from_utxo(utxo, tx, 0, sig_hash.ALL)
     assert hash_ == bytes.fromhex(
         "185c0be5263dce5b4bb50a047973c1b6272bfbd0103a89444597dc40b248ee7c"
     )
-    hash_ = sign_hash.from_utxo(utxo, tx, 0, sign_hash.NONE)
+    hash_ = sig_hash.from_utxo(utxo, tx, 0, sig_hash.NONE)
     assert hash_ == bytes.fromhex(
         "e9733bc60ea13c95c6527066bb975a2ff29a925e80aa14c213f686cbae5d2f36"
     )
-    hash_ = sign_hash.from_utxo(utxo, tx, 0, sign_hash.SINGLE)
+    hash_ = sig_hash.from_utxo(utxo, tx, 0, sig_hash.SINGLE)
     assert hash_ == bytes.fromhex(
         "1e1f1c303dc025bd664acb72e583e933fae4cff9148bf78c157d1e8f78530aea"
     )
-    hash_ = sign_hash.from_utxo(utxo, tx, 0, sign_hash.ANYONECANPAY | sign_hash.ALL)
+    hash_ = sig_hash.from_utxo(utxo, tx, 0, sig_hash.ANYONECANPAY | sig_hash.ALL)
     assert hash_ == bytes.fromhex(
         "2a67f03e63a6a422125878b40b82da593be8d4efaafe88ee528af6e5a9955c6e"
     )
-    hash_ = sign_hash.from_utxo(utxo, tx, 0, sign_hash.ANYONECANPAY | sign_hash.NONE)
+    hash_ = sig_hash.from_utxo(utxo, tx, 0, sig_hash.ANYONECANPAY | sig_hash.NONE)
     assert hash_ == bytes.fromhex(
         "781ba15f3779d5542ce8ecb5c18716733a5ee42a6f51488ec96154934e2c890a"
     )
-    hash_ = sign_hash.from_utxo(utxo, tx, 0, sign_hash.ANYONECANPAY | sign_hash.SINGLE)
+    hash_ = sig_hash.from_utxo(utxo, tx, 0, sig_hash.ANYONECANPAY | sig_hash.SINGLE)
     assert hash_ == bytes.fromhex(
         "511e8e52ed574121fc1b654970395502128263f62662e076dc6baf05c2e6a99b"
     )

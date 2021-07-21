@@ -287,7 +287,7 @@ btclib.tests.test\_sec\_point module
 btclib.tests.test\_sign\_hash\_legacy module
 --------------------------------------------
 
-.. automodule:: btclib.tests.test_sign_hash_legacy
+.. automodule:: btclib.tests.test_sig_hash_legacy
    :members:
    :undoc-members:
    :show-inheritance:
@@ -295,7 +295,7 @@ btclib.tests.test\_sign\_hash\_legacy module
 btclib.tests.test\_sign\_hash\_segwitv0 module
 ----------------------------------------------
 
-.. automodule:: btclib.tests.test_sign_hash_segwitv0
+.. automodule:: btclib.tests.test_sig_hash_segwitv0
    :members:
    :undoc-members:
    :show-inheritance:

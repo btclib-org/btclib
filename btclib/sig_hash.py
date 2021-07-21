@@ -16,11 +16,12 @@ https://wiki.bitcoinsv.io/index.php/SIGHASH_flags
 """
 
 from copy import deepcopy
-from typing import List
+from typing import List, Union
 
 from btclib import var_bytes
 from btclib.alias import Octets
 from btclib.exceptions import BTClibValueError
+from btclib.hashes import tagged_hash
 from btclib.script.script import Command, parse, serialize
 from btclib.script.script_pub_key import (
     ScriptPubKey,
@@ -31,7 +32,7 @@ from btclib.script.script_pub_key import (
 )
 from btclib.tx.tx import Tx
 from btclib.tx.tx_out import TxOut
-from btclib.utils import bytes_from_octets, hash256
+from btclib.utils import bytes_from_octets, hash256, sha256
 
 ALL = 1
 NONE = 2
@@ -47,10 +48,16 @@ SIG_HASH_TYPES = [
     ANYONECANPAY & SINGLE,
 ]
 
+# workaround to handle CTransactions
+
+
+def _get_bytes(a: Union[int, str]) -> bytes:
+    return int.to_bytes(a, 32, "big") if isinstance(a, int) else bytes.fromhex(a)
+
 
 def assert_valid_hash_type(hash_type: int) -> None:
     if hash_type not in SIG_HASH_TYPES:
-        raise BTClibValueError(f"invalid sign_hash type: {hex(hash_type)}")
+        raise BTClibValueError(f"invalid sig_hash type: {hex(hash_type)}")
 
 
 def legacy_script(script_pub_key: Octets) -> List[bytes]:
@@ -100,7 +107,7 @@ def legacy(script_: Octets, tx: Tx, vin_i: int, hash_type: int) -> bytes:
                 txin.sequence = 0
 
     if hash_type & 0x1F == SINGLE:
-        # sign_hash single bug
+        # sig_hash single bug
         if vin_i >= len(new_tx.vout):
             return (256 ** 31).to_bytes(32, byteorder="big", signed=False)
         new_tx.vout = new_tx.vout[: vin_i + 1]
@@ -167,6 +174,65 @@ def segwit_v0(
         ]
     )
     return hash256(preimage)
+
+
+def taproot(
+    transaction: Tx,
+    input_index: int,
+    amounts: List[int],
+    scriptpubkeys: List[ScriptPubKey],
+    hashtype: int,
+    ext_flag: int,
+    annex: bytes,
+) -> bytes:
+
+    preimage = b"\x00"
+    preimage += hashtype.to_bytes(4, "big")
+    preimage += transaction.nVersion.to_bytes(4, "little")
+    preimage += transaction.nLockTime.to_bytes(4, "little")
+
+    if hashtype & 0x80 != ANYONECANPAY:
+        sha_prevouts = b""
+        sha_amounts = b""
+        sha_scriptpubkeys = b""
+        sha_sequences = b""
+        for i, vin in enumerate(transaction.vin):
+            sha_prevouts += _get_bytes(vin.prev_out.hash)[::-1]
+            sha_prevouts += vin.prev_out.n.to_bytes(4, "little")
+            sha_amounts += amounts[i].to_bytes(8, "little")
+            sha_scriptpubkeys += scriptpubkeys[i].script
+            sha_sequences += vin.nSequence.to_bytes(4, "little")
+        preimage += sha256(sha_prevouts)
+        preimage += sha256(sha_amounts)
+        preimage += sha256(sha_scriptpubkeys)
+        preimage += sha256(sha_sequences)
+
+    if hashtype & 0x03 not in [NONE, SINGLE]:
+        sha_outputs = b""
+        for vout in transaction.vout:
+            sha_outputs += vout.serialize()
+        preimage += sha256(sha_outputs)
+
+    annex_present = int(bool(annex))
+    preimage += (2 * ext_flag + annex_present).to_bytes(1, "little")
+
+    if hashtype & 0x80 == ANYONECANPAY:
+        preimage += transaction.vin[input_index].prev_out.serialize()
+        preimage += amounts[input_index].to_bytes(8, "little")
+        preimage += scriptpubkeys[input_index].script
+        preimage += transaction.vin[input_index].nSequence.to_bytes(4, "little")
+    else:
+        preimage += input_index.to_bytes(4, "little")
+
+    if annex_present:
+        sha_annex = var_bytes.serialize(annex)
+        preimage += sha256(sha_annex)
+
+    if hashtype & 0x03 == SINGLE:
+        preimage += sha256(transaction.vout[input_index].serialize())
+
+    sig_hash = tagged_hash(b"TapSighash", preimage)
+    return sig_hash
 
 
 def from_utxo(utxo: TxOut, tx: Tx, vin_i: int, hash_type: int) -> bytes:
