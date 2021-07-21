@@ -103,17 +103,8 @@ def _verify_checksum(hrp: str, data: List[int], m: int) -> bool:
 def _b32decode(bech: String, m: int) -> Tuple[str, List[int]]:
     "Validate a bech32 string, and determine HRP and data."
 
-    if isinstance(bech, str):
-        bech = bech.strip()
-
     if isinstance(bech, bytes):
         bech = bech.decode("ascii")
-
-    if not all(47 < ord(x) < 123 for x in bech):
-        raise BTClibValueError(f"ASCII character outside [48-122]: {bech}")
-    if bech.lower() != bech and bech.upper() != bech:
-        raise BTClibValueError(f"mixed case: {bech}")
-    bech = bech.lower()
 
     # it is fine to limit bech32 _bitcoin_addresses_ at 90 chars,
     # but it should be enforced when working with addresses,
@@ -124,16 +115,24 @@ def _b32decode(bech: String, m: int) -> Tuple[str, List[int]]:
 
     pos = bech.rfind("1")  # find the separator between hrp and data
     if pos == -1:
-        raise BTClibValueError(f"missing HRP: {bech}")
+        raise BTClibValueError(f"no separator character: {bech}")
     if pos == 0:
         raise BTClibValueError(f"empty HRP: {bech}")
     if pos + 7 > len(bech):
         raise BTClibValueError(f"too short checksum: {bech}")
 
+    if not all(47 < ord(x) < 123 for x in bech[:pos]):
+        raise BTClibValueError(f"HRP character out of range: {bech}")
+    if bech.lower() != bech and bech.upper() != bech:
+        raise BTClibValueError(f"mixed case: {bech}")
+
+    bech = bech.lower()
     hrp = bech[:pos]
 
+    if any(x not in _ALPHABET for x in bech[-6:]):
+        raise BTClibValueError(f"invalid character in checksum: {bech}")
     if any(x not in _ALPHABET for x in bech[pos + 1 :]):
-        raise BTClibValueError(f"invalid data characters: {bech}")
+        raise BTClibValueError(f"invalid data character: {bech}")
     data = [_ALPHABET.find(x) for x in bech[pos + 1 :]]
 
     if _verify_checksum(hrp, data, m):

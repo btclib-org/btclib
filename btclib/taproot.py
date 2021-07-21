@@ -8,12 +8,12 @@
 # No part of btclib including this file, may be copied, modified, propagated,
 # or distributed except according to the terms contained in the LICENSE file.
 
-from .hashes import tagged_hash
-from .curvemult import mult
-from .ssa import _sign
 from .curve import Curve
+from .curvemult import mult
 from .curves import secp256k1
+from .hashes import tagged_hash
 from .sighash import SegwitV1SignatureHash
+from .ssa import _sign
 
 
 def tweak_pubkey(pubkey, h, ec: Curve = secp256k1):

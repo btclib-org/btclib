@@ -16,9 +16,9 @@ test vector from https://github.com/bitcoin/bips/blob/master/bip-0143.mediawiki
 import json
 from os import path
 
+from btclib import sig_hash
 from btclib.ecc import dsa
 from btclib.script.script import serialize
-from btclib import sig_hash
 from btclib.tx.tx import Tx
 from btclib.tx.tx_in import OutPoint, TxIn
 from btclib.tx.tx_out import TxOut
