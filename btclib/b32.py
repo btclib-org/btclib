@@ -58,7 +58,7 @@ from btclib.utils import bytes_from_octets, sha256
 def has_segwit_prefix(addr: String) -> bool:
 
     str_addr = addr.strip().lower() if isinstance(addr, str) else addr.decode("ascii")
-    return any(str_addr.startswith(NETWORKS[net].hrp + "1") for net in NETWORKS)
+    return any(str_addr.startswith(net.hrp + "1") for net in NETWORKS.values())
 
 
 def power_of_2_base_conversion(

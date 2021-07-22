@@ -25,9 +25,9 @@ from btclib.utils import bytes_from_octets, bytesio_from_binarydata, hash256
 
 # python 3.6
 if sys.version_info.minor == 6:  # pragma: no cover
-    import backports.datetime_fromisoformat  # type: ignore # pylint: disable=import-error
+    import backports.datetime_fromisoformat  # type: ignore # pylint: disable=import-error, no-name-in-module, no-member
 
-    backports.datetime_fromisoformat.MonkeyPatch.patch_fromisoformat()
+    backports.datetime_fromisoformat.MonkeyPatch.patch_fromisoformat()  # pylint: disable=no-member
 
 _HF = hash256
 _HF_LEN = 32  # should be _HF().digest_size

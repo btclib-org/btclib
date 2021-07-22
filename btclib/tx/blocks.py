@@ -28,9 +28,9 @@ from btclib.utils import bytesio_from_binarydata, hash256, merkle_root
 
 # python 3.6
 if sys.version_info.minor == 6:  # pragma: no cover
-    import backports.datetime_fromisoformat  # type: ignore # pylint: disable=import-error
+    import backports.datetime_fromisoformat  # type: ignore # pylint: disable=import-error, no-name-in-module, no-member
 
-    backports.datetime_fromisoformat.MonkeyPatch.patch_fromisoformat()
+    backports.datetime_fromisoformat.MonkeyPatch.patch_fromisoformat()  # pylint: disable=no-member
 
 _HF = hash256
 

@@ -25,14 +25,14 @@ from btclib.script.op_codes import (
 
 
 def test_operators() -> None:
-    for i in OP_CODE_NAMES:
-        b = OP_CODES[OP_CODE_NAMES[i]]
+    for i, name in OP_CODE_NAMES.items():
+        b = OP_CODES[name]
         assert i == b[0]
-    for name in OP_CODES:
+    for name, code in OP_CODES.items():
         # skip duplicated
         if name in ("OP_FALSE", "OP_TRUE", "OP_NOP2", "OP_NOP3"):
             continue
-        i = OP_CODES[name][0]
+        i = code[0]
         assert name == OP_CODE_NAMES[i]
     for i in range(76, 186):
         # skip disabled 'splice' opcodes
