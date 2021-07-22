@@ -1,9 +1,14 @@
 name: Experimental
 
-on: [push, pull_request]
+on:
+  push:
+    branches:
+      - master
+  pull_request:
+    branches:
+      - master
 
 jobs:
-
   experimental:
     runs-on: ${{ matrix.os }}
     continue-on-error: ${{ matrix.experimental }}

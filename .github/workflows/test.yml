@@ -1,6 +1,12 @@
 name: Test
 
-on: [push, pull_request]
+on:
+  push:
+    branches:
+      - master
+  pull_request:
+    branches:
+      - master
 
 jobs:
 
@@ -35,6 +41,7 @@ jobs:
           COVERALLS_PARALLEL: true
 
   finish:
+    if: "github.repository == 'btclib-org/btclib'"
     needs: test
     runs-on: ubuntu-latest
     steps:
