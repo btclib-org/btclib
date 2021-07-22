@@ -20,6 +20,7 @@ from btclib.hashes import hash160, sha256
 from btclib.network import NETWORKS
 from btclib.script.op_codes import op_int
 from btclib.script.script import Command, Script, serialize
+from btclib.taproot import taproot_output_script
 from btclib.to_pub_key import Key, pub_keyinfo_from_key
 from btclib.utils import bytes_from_octets, bytesio_from_binarydata
 
@@ -33,6 +34,8 @@ def address(script_pub_key: Octets, network: str = "mainnet") -> str:
             return b58.address_from_h160(script_type, payload, network)
         if script_type in ("p2wsh", "p2wpkh"):
             return b32.address_from_witness(0, payload, network)
+        if script_type == "p2tr":
+            return b32.address_from_witness(1, payload, network)
 
     # not script_pub_key
     # or
@@ -215,10 +218,47 @@ def is_p2wsh(script_pub_key: Octets) -> bool:
     return _is_funct(assert_p2wsh, script_pub_key)
 
 
+def assert_p2tr(script_pub_key: Octets) -> None:
+    script_pub_key = bytes_from_octets(script_pub_key, 34)
+    # p2wtr [OP_1, redeem_script hash]
+    # 0x0120{32-byte redeem_script hash}
+    if script_pub_key[0] != 1:
+        err_msg = f"invalid witness version: {script_pub_key[0]}"
+        err_msg += f" instead of {0}"
+        raise BTClibValueError(err_msg)
+    if script_pub_key[1] != 0x20:
+        err_msg = f"invalid redeem script hash length marker: {script_pub_key[1]}"
+        err_msg += f" instead of {0x20}"
+        raise BTClibValueError(err_msg)
+
+
+def is_p2tr(script_pub_key: Octets) -> bool:
+    return _is_funct(assert_p2tr, script_pub_key)
+
+
 def type_and_payload(script_pub_key: Octets) -> Tuple[str, bytes]:
     "Return (script_pub_key type, payload) from the input script_pub_key."
 
     script_pub_key = bytes_from_octets(script_pub_key)
+
+    if is_p2pk(script_pub_key):
+        # p2pk [pub_key, OP_CHECKSIG]
+        # 0x41{65-byte pub_key}AC or 0x21{33-byte pub_key}AC
+        return "p2pk", script_pub_key[1:-1]
+
+    if is_p2ms(script_pub_key):
+        # p2ms [m, pub_keys, n, OP_CHECKMULTISIG]
+        return "p2ms", script_pub_key[:-1]
+
+    if is_p2pkh(script_pub_key):
+        # p2pkh [OP_DUP, OP_HASH160, pub_key_hash, OP_EQUALVERIFY, OP_CHECKSIG]
+        # 0x76A914{20-byte pub_key_hash}88AC
+        return "p2pkh", script_pub_key[3:-2]
+
+    if is_p2sh(script_pub_key):
+        # p2sh [OP_HASH160, script_hash, OP_EQUAL]
+        # 0xA914{20-byte script_hash}87
+        return "p2sh", script_pub_key[2:-1]
 
     if is_p2wpkh(script_pub_key):
         # p2wpkh [OP_0, pub_key_hash]
@@ -230,20 +270,14 @@ def type_and_payload(script_pub_key: Octets) -> Tuple[str, bytes]:
         # 0x0020{32-byte script_hash}
         return "p2wsh", script_pub_key[2:]
 
-    if is_p2pk(script_pub_key):
-        # p2pk [pub_key, OP_CHECKSIG]
-        # 0x41{65-byte pub_key}AC or 0x21{33-byte pub_key}AC
-        return "p2pk", script_pub_key[1:-1]
-
-    if is_p2ms(script_pub_key):
-        # p2ms [m, pub_keys, n, OP_CHECKMULTISIG]
-        return "p2ms", script_pub_key[:-1]
-
-    length = len(script_pub_key)
+    if is_p2tr(script_pub_key):
+        # p2wtr [OP_1, script_hash]
+        # 0x0120{32-byte script_hash}
+        return "p2tr", script_pub_key[2:]
 
     if is_nulldata(script_pub_key):
         # nulldata [OP_RETURN, data]
-        if length < 78:
+        if len(script_pub_key) < 78:
             # OP_RETURN, data length, data up to 75 bytes max
             # 0x6A{1 byte data-length}{data (0-75 bytes)}
             return "nulldata", script_pub_key[2:]
@@ -251,16 +285,6 @@ def type_and_payload(script_pub_key: Octets) -> Tuple[str, bytes]:
         # OP_RETURN, OP_PUSHDATA1, data length, data min 76 bytes up to 80
         # 0x6A4C{1-byte data-length}{data (76-80 bytes)}
         return "nulldata", script_pub_key[3:]
-
-    if is_p2pkh(script_pub_key):
-        # p2pkh [OP_DUP, OP_HASH160, pub_key_hash, OP_EQUALVERIFY, OP_CHECKSIG]
-        # 0x76A914{20-byte pub_key_hash}88AC
-        return "p2pkh", script_pub_key[3 : length - 2]
-
-    if is_p2sh(script_pub_key):
-        # p2sh [OP_HASH160, script_hash, OP_EQUAL]
-        # 0xA914{20-byte script_hash}87
-        return "p2sh", script_pub_key[2 : length - 1]
 
     return "unknown", script_pub_key
 
@@ -339,17 +363,15 @@ class ScriptPubKey(Script):
 
         script_type, h160, network = b58.h160_from_address(addr)
         if script_type == "p2sh":
-            return cls(
-                serialize(["OP_HASH160", h160, "OP_EQUAL"]), network, check_validity
-            )
-        commands: List[Command] = [
-            "OP_DUP",
-            "OP_HASH160",
-            h160,
-            "OP_EQUALVERIFY",
-            "OP_CHECKSIG",
-        ]
-        # it must be "p2pkh"
+            commands: List[Command] = ["OP_HASH160", h160, "OP_EQUAL"]
+        else:  # it must be "p2pkh"
+            commands = [
+                "OP_DUP",
+                "OP_HASH160",
+                h160,
+                "OP_EQUALVERIFY",
+                "OP_CHECKSIG",
+            ]
         return cls(serialize(commands), network, check_validity)
 
     @classmethod
@@ -476,4 +498,17 @@ class ScriptPubKey(Script):
 
         script_h256 = sha256(redeem_script)
         script = serialize(["OP_0", script_h256])
+        return cls(script, network, check_validity)
+
+    @classmethod
+    def p2wtr(
+        cls: Type[_ScriptPubKey],
+        script_tree: Octets,
+        internal_pubkey: Key,
+        network: str = "mainnet",
+        check_validity: bool = True,
+    ) -> _ScriptPubKey:
+        "Return the p2wsh ScriptPubKey of the provided redeem script."
+
+        script = taproot_output_script(internal_pubkey, script_tree)
         return cls(script, network, check_validity)

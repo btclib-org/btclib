@@ -100,8 +100,16 @@ def _verify_checksum(hrp: str, data: List[int], m: int) -> bool:
     return _polymod(_hrp_expand(hrp) + data) == m
 
 
-def _b32decode(bech: String, m: int) -> Tuple[str, List[int]]:
-    "Validate a bech32 string, and determine HRP and data."
+def b32_verify_checksum(hrp: str, data: List[int]) -> bool:
+    return _verify_checksum(hrp, data, BECH32_CONST)
+
+
+def bech32m_verify_checksum(hrp: str, data: List[int]) -> bool:
+    return _verify_checksum(hrp, data, BECH32M_CONST)
+
+
+def __b32decode(bech: String) -> Tuple[str, List[int], List[int]]:
+    "Determine a bech32 string HRP, data and checksum."
 
     if isinstance(bech, bytes):
         bech = bech.decode("ascii")
@@ -135,9 +143,14 @@ def _b32decode(bech: String, m: int) -> Tuple[str, List[int]]:
         raise BTClibValueError(f"invalid data character: {bech}")
     data = [_ALPHABET.find(x) for x in bech[pos + 1 :]]
 
-    if _verify_checksum(hrp, data, m):
-        return hrp, data[:-6]
-    raise BTClibValueError(f"invalid checksum: {bech}")
+    return hrp, data[:-6], data[-6:]
+
+
+def _b32decode(bech: String, m: int) -> Tuple[str, List[int]]:
+    hrp, data, checksum = __b32decode(bech)
+    if not _verify_checksum(hrp, data + checksum, m):
+        raise BTClibValueError(f"invalid checksum: {bech!r}")
+    return hrp, data
 
 
 def b32decode(bech: String):

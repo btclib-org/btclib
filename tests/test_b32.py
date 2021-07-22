@@ -70,17 +70,17 @@ def test_valid_address() -> None:
             "0014751e76e8199196d454941c45d1b3a323f1433bd6",
         ),
         (
-            "bc1pw508d6qejxtdg4y5r3zarvary0c5xw7kw508d6qejxtdg4y5r3zarvary0c5xw7k7grplx",
+            "bc1pw508d6qejxtdg4y5r3zarvary0c5xw7kw508d6qejxtdg4y5r3zarvary0c5xw7kt5nd6y",
             "5128751e76e8199196d454941c45d1b3a323f1433bd6751e76e8199196d454941c45d1b3a323f1433bd6",
         ),
-        ("BC1SW50QA3JX3S", "6002751e"),
+        ("BC1SW50QGDZ25J", "6002751e"),
         (
-            "bc1zw508d6qejxtdg4y5r3zarvaryvg6kdaj",
+            "bc1zw508d6qejxtdg4y5r3zarvaryvaxxpcs",
             "5210751e76e8199196d454941c45d1b3a323",
         ),
         (
-            " bc1zw508d6qejxtdg4y5r3zarvaryvg6kdaj",  # extra leading space
-            "5210751e76e8199196d454941c45d1b3a323",
+            "bc1p0xlxvlhemja6c4dqv22uapctqupfhlxm9h8z3k2e72q4k9hcz7vqzk5jj0",
+            "512079be667ef9dcbbac55a06295ce870b07029bfcdb2dce28d959f2815b16f81798",
         ),
     ]
     valid_tb_addresses: List[Tuple[str, str]] = [
@@ -91,6 +91,10 @@ def test_valid_address() -> None:
         (
             "tb1qqqqqp399et2xygdj5xreqhjjvcmzhxw4aywxecjdzew6hylgvsesrxh6hy",
             "0020000000c4a5cad46221b2a187905e5266362b99d5e91c6ce24d165dab93e86433",
+        ),
+        (
+            "tb1pqqqqp399et2xygdj5xreqhjjvcmzhxw4aywxecjdzew6hylgvsesf3hn0c",
+            "5120000000c4a5cad46221b2a187905e5266362b99d5e91c6ce24d165dab93e86433",
         ),
     ]
 
@@ -112,11 +116,45 @@ def test_invalid_address() -> None:
 
     invalid_addresses: List[Tuple[str, str]] = [
         ("tc1qw508d6qejxtdg4y5r3zarvary0c5xw7kg3g4ty", "invalid hrp: "),
+        (
+            "tc1p0xlxvlhemja6c4dqv22uapctqupfhlxm9h8z3k2e72q4k9hcz7vq5zuyut",
+            "invalid hrp: ",
+        ),
         ("bc1qw508d6qejxtdg4y5r3zarvary0c5xw7kv8f3t5", "invalid checksum: "),
+        (
+            "bc1p0xlxvlhemja6c4dqv22uapctqupfhlxm9h8z3k2e72q4k9hcz7vqh2y7hd",
+            "invalid checksum: ",
+        ),
+        (
+            "tb1z0xlxvlhemja6c4dqv22uapctqupfhlxm9h8z3k2e72q4k9hcz7vqglt7rf",
+            "invalid checksum: ",
+        ),
+        (
+            "BC1S0XLXVLHEMJA6C4DQV22UAPCTQUPFHLXM9H8Z3K2E72Q4K9HCZ7VQ54WELL",
+            "invalid checksum: ",
+        ),
+        ("bc1qw508d6qejxtdg4y5r3zarvary0c5xw7kemeawh", "invalid checksum: "),
+        (
+            "tb1q0xlxvlhemja6c4dqv22uapctqupfhlxm9h8z3k2e72q4k9hcz7vq24jc47",
+            "invalid checksum: ",
+        ),
+        (
+            "bc1p38j9r5y49hruaue7wxjce0updqjuyyx0kh56v8s25huc6995vvpql3jow4",
+            "invalid character in checksum",
+        ),
+        (
+            "BC130XLXVLHEMJA6C4DQV22UAPCTQUPFHLXM9H8Z3K2E72Q4K9HCZ7VQ7ZWS8R",
+            "invalid witness version: ",
+        ),
         ("BC13W508D6QEJXTDG4Y5R3ZARVARY0C5XW7KN40WF2", "invalid witness version: "),
+        ("bc1pw5dgrnzv", "invalid size: "),
         ("bc1rw5uspcuh", "invalid size: "),
         (
             "bc10w508d6qejxtdg4y5r3zarvary0c5xw7kw508d6qejxtdg4y5r3zarvary0c5xw7kw5rljs90",
+            "invalid size: ",
+        ),
+        (
+            "bc1p0xlxvlhemja6c4dqv22uapctqupfhlxm9h8z3k2e72q4k9hcz7v8n0nx0muaewav253zgeav",
             "invalid size: ",
         ),
         ("BC1QR508D6QEJXTDG4Y5R3ZARVARYV98GJ9P", "invalid size: "),
@@ -125,11 +163,23 @@ def test_invalid_address() -> None:
             "mixed case: ",
         ),
         (
+            "tb1p0xlxvlhemja6c4dqv22uapctqupfhlxm9h8z3k2e72q4k9hcz7vq47Zagq",
+            "mixed case: ",
+        ),
+        (
+            "bc1p0xlxvlhemja6c4dqv22uapctqupfhlxm9h8z3k2e72q4k9hcz7v07qwwzcrf",
+            "zero padding of more than 4 bits in 5-to-8 conversion",
+        ),
+        (
             "bc1zw508d6qejxtdg4y5r3zarvaryvqyzf3du",
             "zero padding of more than 4 bits in 5-to-8 conversion",
         ),
         (
             "tb1qrp33g0q5c5txsp9arysrx4k6zdkfs4nce4xj0gdcccefvpysxf3pjxtptv",
+            "non-zero padding in 5-to-8 conversion",
+        ),
+        (
+            "tb1p0xlxvlhemja6c4dqv22uapctqupfhlxm9h8z3k2e72q4k9hcz7vpggkg4j",
             "non-zero padding in 5-to-8 conversion",
         ),
         ("bc1gmk9yu", "empty data in bech32 address: "),
@@ -141,6 +191,7 @@ def test_invalid_address() -> None:
 
     for address, err_msg in invalid_addresses:
         with pytest.raises(BTClibValueError, match=err_msg):
+            print(address)
             b32.witness_from_address(address)
 
 

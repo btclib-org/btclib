@@ -15,7 +15,9 @@
 from btclib.ecc.curve import Curve, mult, secp256k1
 from btclib.ecc.ssa import sign_
 from btclib.hashes import tagged_hash
-from btclib.sig_hash import taproot
+from btclib.script import script
+
+# from btclib.sig_hash import taproot
 
 
 def tweak_pubkey(pubkey, h, ec: Curve = secp256k1):
@@ -45,7 +47,8 @@ def taproot_tree_helper(script_tree):
         return ([((leaf_version, script), bytes())], h)
     left, left_h = taproot_tree_helper(script_tree[0])
     right, right_h = taproot_tree_helper(script_tree[1])
-    ret = [(l, c + right_h) for l, c in left] + [(l, c + left_h) for l, c in right]
+    ret = [(leaf, c + right_h) for leaf, c in left]
+    ret += [(leaf, c + left_h) for leaf, c in right]
     if right_h < left_h:
         left_h, right_h = right_h, left_h
     return (ret, tagged_hash(b"TapBranch", left_h + right_h))
@@ -63,16 +66,16 @@ def taproot_output_script(internal_pubkey, script_tree):
     else:
         _, h = taproot_tree_helper(script_tree)
     output_pubkey, _ = tweak_pubkey(internal_pubkey, h)
-    return bytes([0x51, 0x20]) + output_pubkey
+    return script.serialize("OP_1" + output_pubkey)
 
 
-def taproot_sign_key(script_tree, internal_seckey, hash_type):
-    _, h = taproot_tree_helper(script_tree)
-    output_seckey = taproot_tweak_seckey(internal_seckey, h)
-    sig = sign_(taproot(hash_type), output_seckey)
-    if hash_type != 0:
-        sig += bytes([hash_type])
-    return [sig]
+# def taproot_sign_key(script_tree, internal_seckey, hash_type):
+#     _, h = taproot_tree_helper(script_tree)
+#     output_seckey = taproot_tweak_seckey(internal_seckey, h)
+#     sig = sign_(taproot(hash_type), output_seckey)
+#     if hash_type != 0:
+#         sig += bytes([hash_type])
+#     return [sig]
 
 
 def taproot_sign_script(internal_pubkey, script_tree, script_num, inputs):

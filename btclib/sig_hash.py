@@ -26,6 +26,7 @@ from btclib.script.script import Command, parse, serialize
 from btclib.script.script_pub_key import (
     ScriptPubKey,
     is_p2sh,
+    is_p2tr,
     is_p2wpkh,
     is_p2wsh,
     type_and_payload,
@@ -239,7 +240,10 @@ def from_utxo(utxo: TxOut, tx: Tx, vin_i: int, hash_type: int) -> bytes:
 
     script = utxo.script_pub_key.script
 
-    # first off, handle all p2sh-wrapped scripts
+    if is_p2tr(script):
+        pass
+
+    # handle all p2sh-wrapped scripts
     if is_p2sh(script):
         script = tx.vin[vin_i].script_sig
 
@@ -251,6 +255,9 @@ def from_utxo(utxo: TxOut, tx: Tx, vin_i: int, hash_type: int) -> bytes:
         # the real script is contained in the witness
         script_ = witness_v0_script(tx.vin[vin_i].script_witness.stack[-1])[0]
         return segwit_v0(script_, tx, vin_i, hash_type, utxo.value)
+
+    if is_p2tr(script):
+        raise BTClibValueError("Taproot scripts cannot be wrapped in p2sh")
 
     script_ = legacy_script(script)[0]
     return legacy(script_, tx, vin_i, hash_type)

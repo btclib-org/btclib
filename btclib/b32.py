@@ -45,7 +45,13 @@ with the following modifications:
 from typing import Iterable, List, Optional, Tuple
 
 from btclib.alias import Octets, String
-from btclib.bech32 import b32decode, b32encode
+from btclib.bech32 import (
+    __b32decode,
+    b32_verify_checksum,
+    b32encode,
+    bech32m_encode,
+    bech32m_verify_checksum,
+)
 from btclib.exceptions import BTClibValueError
 from btclib.hashes import hash160, sha256
 from btclib.network import NETWORKS, network_from_key_value
@@ -114,7 +120,11 @@ def check_witness(wit_ver: int, wit_prg: Octets) -> bytes:
 
 def _address_from_witness(wit_ver: int, wit_prg: Octets, hrp: str) -> str:
     wit_prg = check_witness(wit_ver, wit_prg)
-    bytes_ = b32encode(hrp, [wit_ver] + power_of_2_base_conversion(wit_prg, 8, 5))
+    data = [wit_ver] + power_of_2_base_conversion(wit_prg, 8, 5)
+    if wit_ver == 0:
+        bytes_ = b32encode(hrp, data)
+    else:
+        bytes_ = bech32m_encode(hrp, data)
     return bytes_.decode("ascii")
 
 
@@ -141,19 +151,28 @@ def witness_from_address(b32addr: String) -> Tuple[int, bytes, str]:
     if len(b32addr) > 90:
         raise BTClibValueError(f"invalid bech32 address length: {len(b32addr)} > 90")
 
-    hrp, data = b32decode(b32addr)
+    hrp, data, checksum = __b32decode(b32addr)
+
+    if len(data) == 0:
+        raise BTClibValueError(f"empty data in bech32 address: {b32addr!r}")
+
+    wit_ver = data[0]
+    wit_prog = bytes(power_of_2_base_conversion(data[1:], 5, 8, False))
+    wit_prog = check_witness(wit_ver, wit_prog)
+
+    if wit_ver == 0:
+        if not b32_verify_checksum(hrp, data + checksum):
+            raise BTClibValueError(f"invalid checksum: {b32addr!r}")
+    else:
+        if not bech32m_verify_checksum(hrp, data + checksum):
+            raise BTClibValueError(f"invalid checksum: {b32addr!r}")
 
     # check that it is a known SegWit address type
     network = network_from_key_value("hrp", hrp)
     if network is None:
         raise BTClibValueError(f"invalid hrp: {hrp}")
 
-    if len(data) == 0:
-        raise BTClibValueError(f"empty data in bech32 address: {b32addr!r}")
-
-    wit_ver = data[0]
-    wit_prg = bytes(power_of_2_base_conversion(data[1:], 5, 8, False))
-    return wit_ver, check_witness(wit_ver, wit_prg), network
+    return wit_ver, wit_prog, network
 
 
 # 1.+2. = 3. bech32 address from pub_key/script_pub_key

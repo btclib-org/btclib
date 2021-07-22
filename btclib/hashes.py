@@ -50,28 +50,6 @@ def hash256(octets: Octets) -> bytes:
     return sha256(sha256(octets))
 
 
-# def hash160_from_key(
-#     key: Key, network: Optional[str] = None, compressed: Optional[bool] = None
-# ) -> H160_Net:
-#     """Return (public key HASH160, network) from a private/public key.
-#
-#     HASH160 is RIPEMD160(SHA256).
-#     """
-#     pub_key, network = pub_keyinfo_from_key(key, network, compressed)
-#     return hash160(pub_key), network
-#
-#
-# def fingerprint(key: Key, network: Optional[str] = None) -> bytes:
-#     """Return the public key fingerprint from a private/public key.
-#
-#     The fingerprint is the last four bytes
-#     of the compressed public key HASH160.
-#     """
-#
-#     pub_key, _ = pub_keyinfo_from_key(key, network, compressed=True)
-#     return hash160(pub_key)[:4]
-
-
 def reduce_to_hlen(msg: Octets, hf: HashF = hashlib.sha256) -> bytes:
 
     msg = bytes_from_octets(msg)
