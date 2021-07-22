@@ -15,6 +15,7 @@ from typing import Dict
 
 import pytest
 
+from btclib.alias import INF
 from btclib.ecc.curve import CURVES, Curve, mult
 from btclib.ecc.sec_point import bytes_from_point, point_from_octets
 from btclib.exceptions import BTClibValueError
@@ -112,3 +113,21 @@ def test_octets2point() -> None:
         bytes_from_point((x_Q, x_Q), ec)
     with pytest.raises(BTClibValueError, match="point not on curve"):
         bytes_from_point((x_Q, x_Q), ec, False)
+
+
+def test_infinity_point_bytes() -> None:
+    with pytest.raises(
+        BTClibValueError, match="no bytes representation for infinity point"
+    ):
+        bytes_from_point(INF)
+
+
+def test_infinity_point_from_octets() -> None:
+    curve_size = CURVES["secp256k1"].p_size
+    inf_bytes = b"\x04"
+    inf_bytes += INF[0].to_bytes(curve_size, byteorder="big", signed=False)
+    inf_bytes += INF[1].to_bytes(curve_size, byteorder="big", signed=False)
+    with pytest.raises(
+        BTClibValueError, match="no bytes representation for infinity point"
+    ):
+        point_from_octets(inf_bytes)

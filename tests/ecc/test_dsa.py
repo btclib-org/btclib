@@ -49,14 +49,14 @@ def test_libsecp256k1() -> None:
     secret = q.to_bytes(32, "big")
 
     c_sig = ffi.new("secp256k1_ecdsa_signature *")
-    if not lib.secp256k1_ecdsa_sign(
+    assert lib.secp256k1_ecdsa_sign(
         GLOBAL_CTX, c_sig, msg_hash, secret, ffi.NULL, ffi.NULL
-    ):
-        raise RuntimeError("libsecp256k1 signature failed")
+    ), "libsecp256k1 signature failed"
 
     output = ffi.new("unsigned char[%d]" % CDATA_SIG_LENGTH)
-    if not lib.secp256k1_ecdsa_signature_serialize_compact(GLOBAL_CTX, output, c_sig):
-        raise RuntimeError("libsecp256k1 signature serialization failed")
+    assert lib.secp256k1_ecdsa_signature_serialize_compact(
+        GLOBAL_CTX, output, c_sig
+    ), "libsecp256k1 signature serialization failed"
 
     c_sig_bytes = bytes(ffi.buffer(output, CDATA_SIG_LENGTH))
 
@@ -313,3 +313,11 @@ def test_forge_hash_sig() -> None:
     s = ec.n - s if s > ec.n / 2 else s
     e = s * u1 % ec.n
     dsa._assert_as_valid_(e, (Q[0], Q[1], 1), r, s, lower_s=True, ec=ec)
+
+
+def test_sign_input_type() -> None:
+    msg = "Satoshi Nakamoto".encode()
+    q, Q = dsa.gen_keys(0x1)
+    sig = dsa.sign(msg, q)
+    dsa.assert_as_valid(msg, Q, sig)
+    dsa.assert_as_valid(msg, Q, sig.serialize())
