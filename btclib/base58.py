@@ -40,7 +40,8 @@ from typing import Optional
 
 from btclib.alias import Octets, String
 from btclib.exceptions import BTClibValueError
-from btclib.utils import bytes_from_octets, hash256
+from btclib.hashes import hash256
+from btclib.utils import bytes_from_octets
 
 _ALPHABET = b"123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz"
 __BASE = len(_ALPHABET)

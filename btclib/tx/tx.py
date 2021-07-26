@@ -34,10 +34,11 @@ from typing import Any, Dict, List, Mapping, Optional, Sequence, Type, TypeVar, 
 from btclib import var_int
 from btclib.alias import BinaryData
 from btclib.exceptions import BTClibValueError
+from btclib.hashes import hash256
 from btclib.script.witness import Witness
 from btclib.tx.tx_in import TX_IN_COMPARES_WITNESS, TxIn
 from btclib.tx.tx_out import TxOut
-from btclib.utils import bytesio_from_binarydata, hash256
+from btclib.utils import bytesio_from_binarydata
 
 _SEGWIT_MARKER = b"\x00\x01"
 

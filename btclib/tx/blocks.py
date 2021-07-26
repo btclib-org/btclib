@@ -21,10 +21,11 @@ from typing import Any, Dict, List, Mapping, Optional, Sequence, Type, TypeVar
 from btclib import var_bytes, var_int
 from btclib.alias import BinaryData
 from btclib.exceptions import BTClibValueError
+from btclib.hashes import hash256, merkle_root
 from btclib.script.script import decode_num
 from btclib.tx.block_header import BlockHeader
 from btclib.tx.tx import Tx
-from btclib.utils import bytesio_from_binarydata, hash256, merkle_root
+from btclib.utils import bytesio_from_binarydata
 
 # python 3.6
 if sys.version_info.minor == 6:  # pragma: no cover

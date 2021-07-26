@@ -20,11 +20,10 @@ from btclib.bip32 import bip32, slip132
 from btclib.ecc.curve import secp256k1
 from btclib.ecc.sec_point import bytes_from_point, point_from_octets
 from btclib.exceptions import BTClibValueError
-from btclib.hashes import hash160_from_key
+from btclib.hashes import hash160
 from btclib.script.script import Command, serialize
 from btclib.to_prv_key import prv_keyinfo_from_prv_key
-from btclib.to_pub_key import pub_keyinfo_from_prv_key
-from btclib.utils import hash160
+from btclib.to_pub_key import pub_keyinfo_from_key, pub_keyinfo_from_prv_key
 
 ec = secp256k1
 
@@ -189,8 +188,9 @@ def test_p2sh() -> None:
 
 def test_p2w_p2sh() -> None:
 
-    pub_key = "03 a1af804ac108a8a51782198c2d034b28bf90c8803f5a53f76276fa69a4eae77f"
-    witness_program, network = hash160_from_key(pub_key)
+    pub_key_str = "03 a1af804ac108a8a51782198c2d034b28bf90c8803f5a53f76276fa69a4eae77f"
+    pub_key, network = pub_keyinfo_from_key(pub_key_str, compressed=True)
+    witness_program = hash160(pub_key)
     b58addr = b58.p2wpkh_p2sh(pub_key, network)
     assert b58addr == "36NvZTcMsMowbt78wPzJaHHWaNiyR73Y4g"
 

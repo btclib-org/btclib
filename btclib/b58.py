@@ -20,12 +20,12 @@ from btclib import b32
 from btclib.alias import Octets, String
 from btclib.base58 import b58decode, b58encode
 from btclib.exceptions import BTClibValueError
-from btclib.hashes import hash160_from_key
+from btclib.hashes import hash160, sha256
 from btclib.network import NETWORKS, network_from_key_value
 from btclib.script.script import serialize
 from btclib.to_prv_key import PrvKey, prv_keyinfo_from_prv_key
-from btclib.to_pub_key import Key
-from btclib.utils import bytes_from_octets, hash160, sha256
+from btclib.to_pub_key import Key, pub_keyinfo_from_key
+from btclib.utils import bytes_from_octets
 
 
 def wif_from_prv_key(
@@ -97,8 +97,8 @@ def p2pkh(
     key: Key, network: Optional[str] = None, compressed: Optional[bool] = None
 ) -> str:
     "Return the p2pkh base58 address corresponding to a public key."
-    h160, network = hash160_from_key(key, network, compressed)
-    return address_from_h160("p2pkh", h160, network)
+    pub_key, network = pub_keyinfo_from_key(key, network, compressed=compressed)
+    return address_from_h160("p2pkh", hash160(pub_key), network)
 
 
 def p2sh(script_pub_key: Octets, network: str = "mainnet") -> str:
@@ -125,8 +125,8 @@ def _address_from_v0_witness(wit_prg: Octets, network: str = "mainnet") -> str:
 
 def p2wpkh_p2sh(key: Key, network: Optional[str] = None) -> str:
     "Return the p2wpkh-p2sh base58 address corresponding to a public key."
-    compressed = True  # needed to force check on pub_key
-    witness_program, network = hash160_from_key(key, network, compressed)
+    pub_key, network = pub_keyinfo_from_key(key, network, compressed=True)
+    witness_program = hash160(pub_key)
     return _address_from_v0_witness(witness_program, network)
 
 

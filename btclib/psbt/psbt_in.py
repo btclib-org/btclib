@@ -28,6 +28,7 @@ from btclib.bip32.key_origin import (
 )
 from btclib.ecc import dsa, sec_point
 from btclib.exceptions import BTClibValueError
+from btclib.hashes import hash160, hash256, ripemd160, sha256
 from btclib.psbt.psbt_out import BIP32KeyOrigin, HdKeyPaths
 from btclib.psbt.psbt_utils import (
     assert_valid_redeem_script,
@@ -46,7 +47,7 @@ from btclib.script.witness import Witness
 from btclib.sig_hash import assert_valid_hash_type
 from btclib.tx.tx import Tx
 from btclib.tx.tx_out import TxOut
-from btclib.utils import bytes_from_octets, hash160, hash256, ripemd160, sha256
+from btclib.utils import bytes_from_octets
 
 PSBT_IN_NON_WITNESS_UTXO = b"\x00"
 PSBT_IN_WITNESS_UTXO = b"\x01"

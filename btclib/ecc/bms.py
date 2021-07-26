@@ -144,10 +144,10 @@ from btclib.ecc import dsa
 from btclib.ecc.curve import mult, secp256k1
 from btclib.ecc.sec_point import bytes_from_point
 from btclib.exceptions import BTClibValueError
-from btclib.hashes import magic_message
+from btclib.hashes import hash160, magic_message
 from btclib.network import NETWORKS
 from btclib.to_prv_key import PrvKey, prv_keyinfo_from_prv_key
-from btclib.utils import bytesio_from_binarydata, hash160
+from btclib.utils import bytesio_from_binarydata
 
 _REQUIRED_LENGHT = 65
 

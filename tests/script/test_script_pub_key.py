@@ -18,6 +18,7 @@ import pytest
 
 from btclib import b32, b58, var_bytes
 from btclib.exceptions import BTClibValueError
+from btclib.hashes import hash160, sha256
 from btclib.script.script import Command, Script, parse, serialize
 from btclib.script.script_pub_key import (
     ScriptPubKey,
@@ -33,7 +34,6 @@ from btclib.script.script_pub_key import (
     type_and_payload,
 )
 from btclib.to_pub_key import Key
-from btclib.utils import hash160, sha256
 
 
 def test_eq() -> None:

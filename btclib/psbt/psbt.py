@@ -25,6 +25,7 @@ from btclib.bip32.key_origin import (
     encode_to_bip32_derivs,
 )
 from btclib.exceptions import BTClibValueError
+from btclib.hashes import hash160, sha256
 from btclib.psbt.psbt_in import BIP32KeyOrigin, HdKeyPaths, PsbtIn, Tx, Witness
 from btclib.psbt.psbt_out import PsbtOut
 from btclib.psbt.psbt_utils import (
@@ -40,7 +41,7 @@ from btclib.psbt.psbt_utils import (
 )
 from btclib.script.script import serialize
 from btclib.script.script_pub_key import type_and_payload
-from btclib.utils import bytesio_from_binarydata, hash160, sha256
+from btclib.utils import bytesio_from_binarydata
 
 _Psbt = TypeVar("_Psbt", bound="Psbt")
 

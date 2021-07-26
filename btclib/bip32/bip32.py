@@ -43,8 +43,9 @@ from btclib.bip32.der_path import BIP32DerPath, indexes_from_bip32_path
 from btclib.ecc.curve import mult, secp256k1
 from btclib.ecc.sec_point import bytes_from_point, point_from_octets
 from btclib.exceptions import BTClibValueError
+from btclib.hashes import hash160
 from btclib.network import NETWORKS, XPRV_VERSIONS_ALL, XPUB_VERSIONS_ALL
-from btclib.utils import bytes_from_octets, bytesio_from_binarydata, hash160, hex_string
+from btclib.utils import bytes_from_octets, bytesio_from_binarydata, hex_string
 
 ec = secp256k1
 

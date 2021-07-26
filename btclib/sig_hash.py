@@ -21,7 +21,7 @@ from typing import List, Union
 from btclib import var_bytes
 from btclib.alias import Octets
 from btclib.exceptions import BTClibValueError
-from btclib.hashes import tagged_hash
+from btclib.hashes import hash256, sha256, tagged_hash
 from btclib.script.script import Command, parse, serialize
 from btclib.script.script_pub_key import (
     ScriptPubKey,
@@ -32,7 +32,7 @@ from btclib.script.script_pub_key import (
 )
 from btclib.tx.tx import Tx
 from btclib.tx.tx_out import TxOut
-from btclib.utils import bytes_from_octets, hash256, sha256
+from btclib.utils import bytes_from_octets
 
 ALL = 1
 NONE = 2

@@ -16,12 +16,12 @@ from btclib import b32, b58, var_bytes
 from btclib.alias import Octets, String
 from btclib.ecc.sec_point import point_from_octets
 from btclib.exceptions import BTClibValueError
-from btclib.hashes import hash160_from_key
+from btclib.hashes import hash160, sha256
 from btclib.network import NETWORKS
 from btclib.script.op_codes import op_int
 from btclib.script.script import Command, Script, serialize
 from btclib.to_pub_key import Key, pub_keyinfo_from_key
-from btclib.utils import bytes_from_octets, bytesio_from_binarydata, hash160, sha256
+from btclib.utils import bytes_from_octets, bytesio_from_binarydata
 
 
 def address(script_pub_key: Octets, network: str = "mainnet") -> str:
@@ -431,9 +431,9 @@ class ScriptPubKey(Script):
     ) -> _ScriptPubKey:
         "Return the p2pkh ScriptPubKey of the provided key."
 
-        pub_key_h160, network = hash160_from_key(key, network, compressed=compressed)
+        pub_key, network = pub_keyinfo_from_key(key, network, compressed=compressed)
         script = serialize(
-            ["OP_DUP", "OP_HASH160", pub_key_h160, "OP_EQUALVERIFY", "OP_CHECKSIG"]
+            ["OP_DUP", "OP_HASH160", hash160(pub_key), "OP_EQUALVERIFY", "OP_CHECKSIG"]
         )
         return cls(script, network, check_validity)
 
@@ -461,8 +461,8 @@ class ScriptPubKey(Script):
         If the provided key is a public one, it must be compressed.
         """
 
-        pub_key_h160, network = hash160_from_key(key, compressed=True)
-        script = serialize(["OP_0", pub_key_h160])
+        pub_key, network = pub_keyinfo_from_key(key, compressed=True)
+        script = serialize(["OP_0", hash160(pub_key)])
         return cls(script, network, check_validity)
 
     @classmethod

@@ -13,36 +13,63 @@
 """
 
 import hashlib
-from typing import Optional, Tuple
+from typing import Callable, List, Tuple, Union
 
 from btclib.alias import HashF, Octets
 from btclib.ecc.curve import Curve, secp256k1
-from btclib.to_pub_key import Key, pub_keyinfo_from_key
-from btclib.utils import bytes_from_octets, hash160, int_from_bits
+
+# from btclib.to_pub_key import Key, pub_keyinfo_from_key
+from btclib.utils import bytes_from_octets, int_from_bits
 
 H160_Net = Tuple[bytes, str]
 
 
-def hash160_from_key(
-    key: Key, network: Optional[str] = None, compressed: Optional[bool] = None
-) -> H160_Net:
-    """Return (public key HASH160, network) from a private/public key.
+def ripemd160(octets: Octets) -> bytes:
+    "Return the RIPEMD160(*) of the input octet sequence."
 
-    HASH160 is RIPEMD160(SHA256).
-    """
-    pub_key, network = pub_keyinfo_from_key(key, network, compressed)
-    return hash160(pub_key), network
+    octets = bytes_from_octets(octets)
+    return hashlib.new("ripemd160", octets).digest()
 
 
-def fingerprint(key: Key, network: Optional[str] = None) -> bytes:
-    """Return the public key fingerprint from a private/public key.
+def sha256(octets: Octets) -> bytes:
+    "Return the SHA256(*) of the input octet sequence."
 
-    The fingerprint is the last four bytes
-    of the compressed public key HASH160.
-    """
+    octets = bytes_from_octets(octets)
+    return hashlib.sha256(octets).digest()
 
-    pub_key, _ = pub_keyinfo_from_key(key, network, compressed=True)
-    return hash160(pub_key)[:4]
+
+def hash160(octets: Octets) -> bytes:
+    "Return the HASH160=RIPEMD160(SHA256) of the input octet sequence."
+
+    return ripemd160(sha256(octets))
+
+
+def hash256(octets: Octets) -> bytes:
+    "Return the SHA256(SHA256(*)) of the input octet sequence."
+
+    return sha256(sha256(octets))
+
+
+# def hash160_from_key(
+#     key: Key, network: Optional[str] = None, compressed: Optional[bool] = None
+# ) -> H160_Net:
+#     """Return (public key HASH160, network) from a private/public key.
+#
+#     HASH160 is RIPEMD160(SHA256).
+#     """
+#     pub_key, network = pub_keyinfo_from_key(key, network, compressed)
+#     return hash160(pub_key), network
+#
+#
+# def fingerprint(key: Key, network: Optional[str] = None) -> bytes:
+#     """Return the public key fingerprint from a private/public key.
+#
+#     The fingerprint is the last four bytes
+#     of the compressed public key HASH160.
+#     """
+#
+#     pub_key, _ = pub_keyinfo_from_key(key, network, compressed=True)
+#     return hash160(pub_key)[:4]
 
 
 def reduce_to_hlen(msg: Octets, hf: HashF = hashlib.sha256) -> bytes:
@@ -62,7 +89,7 @@ def magic_message(msg: Octets) -> bytes:
         + len(msg).to_bytes(1, byteorder="big", signed=False)
         + msg
     )
-    return hashlib.sha256(t).digest()
+    return sha256(t)
 
 
 # FIXME move into ecc folder
@@ -77,6 +104,28 @@ def challenge_(
     # leftmost ec.nlen bits %= ec.n
     c = int_from_bits(msg_hash, ec.nlen) % ec.n
     return c
+
+
+def merkle_root(data: List[bytes], hf: Callable[[Union[bytes, str]], bytes]) -> bytes:
+    """Return the Merkel tree root of a list of binary hashes.
+
+    The Merkel tree is a binary tree constructed
+    with the provided list of binary data as bottom level,
+    then recursively going up one level
+    by hashing every hash value pair in the current level,
+    until a single value (root) is obtained.
+    """
+
+    data = [hf(item) for item in data]
+    while len(data) != 1:
+        parent_level = []
+        if len(data) % 2:
+            data.append(data[-1])
+        for i in range(0, len(data), 2):
+            parent = hf(data[i] + data[i + 1])
+            parent_level.append(parent)
+        data = parent_level[:]
+    return data[0]
 
 
 def tagged_hash(tag: bytes, m: bytes, hf: HashF = hashlib.sha256) -> bytes:

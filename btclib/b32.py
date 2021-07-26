@@ -47,10 +47,10 @@ from typing import Iterable, List, Optional, Tuple
 from btclib.alias import Octets, String
 from btclib.bech32 import b32decode, b32encode
 from btclib.exceptions import BTClibValueError
-from btclib.hashes import hash160_from_key
+from btclib.hashes import hash160, sha256
 from btclib.network import NETWORKS, network_from_key_value
-from btclib.to_pub_key import Key
-from btclib.utils import bytes_from_octets, sha256
+from btclib.to_pub_key import Key, pub_keyinfo_from_key
+from btclib.utils import bytes_from_octets
 
 # 0. bech32 facilities
 
@@ -161,9 +161,8 @@ def witness_from_address(b32addr: String) -> Tuple[int, bytes, str]:
 
 def p2wpkh(key: Key, network: Optional[str] = None) -> str:
     "Return the p2wpkh bech32 address corresponding to a public key."
-    compressed = True  # needed to force check on pub_key
-    h160, network = hash160_from_key(key, network, compressed)
-    return address_from_witness(0, h160, network)
+    pub_key, network = pub_keyinfo_from_key(key, network, compressed=True)
+    return address_from_witness(0, hash160(pub_key), network)
 
 
 def p2wsh(script_pub_key: Octets, network: str = "mainnet") -> str:

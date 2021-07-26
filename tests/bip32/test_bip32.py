@@ -29,6 +29,7 @@ from btclib.bip32.bip32 import (
 )
 from btclib.bip32.der_path import _indexes_from_bip32_path_str
 from btclib.exceptions import BTClibValueError
+from btclib.to_pub_key import pub_keyinfo_from_key
 
 
 def test_exceptions() -> None:
@@ -223,8 +224,9 @@ def test_derive_exceptions() -> None:
     assert rootmxprv == derive(xprv, "m")
     assert rootmxprv == derive(xprv, "")
 
-    fingerprint = hashes.fingerprint(xprv)
+    fingerprint = hashes.hash160(pub_keyinfo_from_key(xprv)[0])[:4]
     assert fingerprint == _derive(xprv, bytes.fromhex("80000000")).parent_fingerprint
+
     for der_path in ("/1", "800000", "80000000"):
         xkey = _derive(xprv, der_path)
         assert fingerprint == xkey.parent_fingerprint
