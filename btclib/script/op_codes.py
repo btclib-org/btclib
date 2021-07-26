@@ -129,6 +129,8 @@ OP_CODES = {
     "OP_NOP8": b"\xb7",
     "OP_NOP9": b"\xb8",
     "OP_NOP10": b"\xb9",
+    # Taproot
+    "OP_CHECKSIGADD": b"\xba",
 }
 
 OP_CODE_NAMES = {
@@ -228,6 +230,7 @@ OP_CODE_NAMES = {
     183: "OP_NOP8",
     184: "OP_NOP9",
     185: "OP_NOP10",
+    186: "OP_CHECKSIGADD",
 }
 
 

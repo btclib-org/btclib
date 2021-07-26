@@ -13,9 +13,8 @@
 
 
 from btclib.ecc.curve import Curve, mult, secp256k1
-from btclib.ecc.ssa import sign_
 from btclib.hashes import tagged_hash
-from btclib.script import script
+from btclib.script.script import serialize
 
 # from btclib.sig_hash import taproot
 
@@ -43,7 +42,7 @@ def taproot_tweak_seckey(seckey0, h, ec: Curve = secp256k1):
 def taproot_tree_helper(script_tree):
     if isinstance(script_tree, tuple):
         leaf_version, script = script_tree
-        h = tagged_hash(b"TapLeaf", bytes([leaf_version]) + script.serialize())
+        h = tagged_hash(b"TapLeaf", bytes([leaf_version]) + serialize(script))
         return ([((leaf_version, script), bytes())], h)
     left, left_h = taproot_tree_helper(script_tree[0])
     right, right_h = taproot_tree_helper(script_tree[1])
@@ -66,7 +65,7 @@ def taproot_output_script(internal_pubkey, script_tree):
     else:
         _, h = taproot_tree_helper(script_tree)
     output_pubkey, _ = tweak_pubkey(internal_pubkey, h)
-    return script.serialize("OP_1" + output_pubkey)
+    return serialize("OP_1" + output_pubkey)
 
 
 # def taproot_sign_key(script_tree, internal_seckey, hash_type):
@@ -83,5 +82,4 @@ def taproot_sign_script(internal_pubkey, script_tree, script_num, inputs):
     (leaf_version, script), path = info[script_num]
     output_pubkey_y_parity, _ = tweak_pubkey(internal_pubkey, h)
     pubkey_data = bytes([output_pubkey_y_parity + leaf_version]) + internal_pubkey
-    return inputs + [script, pubkey_data + path]
     return inputs + [script, pubkey_data + path]

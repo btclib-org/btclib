@@ -222,7 +222,7 @@ def assert_p2tr(script_pub_key: Octets) -> None:
     script_pub_key = bytes_from_octets(script_pub_key, 34)
     # p2wtr [OP_1, redeem_script hash]
     # 0x0120{32-byte redeem_script hash}
-    if script_pub_key[0] != 1:
+    if script_pub_key[0] != 0x51:  # OP_1 = b"\x51",
         err_msg = f"invalid witness version: {script_pub_key[0]}"
         err_msg += f" instead of {0}"
         raise BTClibValueError(err_msg)
@@ -508,7 +508,7 @@ class ScriptPubKey(Script):
         network: str = "mainnet",
         check_validity: bool = True,
     ) -> _ScriptPubKey:
-        "Return the p2wsh ScriptPubKey of the provided redeem script."
+        "Return the p2tr ScriptPubKey of the provided script tree."
 
         script = taproot_output_script(internal_pubkey, script_tree)
         return cls(script, network, check_validity)

@@ -1,0 +1,91 @@
+#!/usr/bin/env python3
+
+# Copyright (C) 2020-2021 The btclib developers
+#
+# This file is part of btclib. It is subject to the license terms in the
+# LICENSE file found in the top-level directory of this distribution.
+#
+# No part of btclib including this file, may be copied, modified, propagated,
+# or distributed except according to the terms contained in the LICENSE file.
+
+"""Tests for the `btclib.sig_hash` module.
+
+test vector at https://github.com/bitcoin/bips/blob/master/bip-0341.mediawiki
+"""
+
+import json
+from os import path
+
+from btclib.ecc import ssa
+from btclib.exceptions import BTClibValueError
+from btclib.script import sig_hash
+from btclib.script.script_pub_key import is_p2tr, type_and_payload
+from btclib.script.witness import Witness
+from btclib.tx.tx import Tx
+from btclib.tx.tx_out import TxOut
+
+
+def test_valid_taproot_key_path() -> None:
+    fname = "tapscript_test_vector.json"
+    filename = path.join(path.dirname(__file__), "_data", fname)
+    with open(filename, "r") as file_:
+        data = json.load(file_)
+
+    for x in data:
+
+        try:
+            tx = Tx.parse(x["tx"])
+        except BTClibValueError:
+            continue  # negative version: WHY?
+        prevouts = [TxOut.parse(prevout) for prevout in x["prevouts"]]
+        index = x["index"]
+
+        if not is_p2tr(prevouts[index].script_pub_key.script):
+            continue
+
+        script_sig = x["success"]["scriptSig"]
+        assert not script_sig
+
+        witness = Witness(x["success"]["witness"])
+
+        # check key path
+        annex = b""
+        if len(witness.stack) > 2:
+            continue
+        if len(witness.stack) == 2 and witness.stack[1][0] == 0x50:
+            annex = witness.stack[1]
+        else:
+            continue
+
+        signature = witness.stack[0][:64]
+        if len(witness.stack[0]) == 65:
+            sighash_type = witness.stack[0][-1]
+        else:
+            sighash_type = 0  # all
+
+        msg_hash = sig_hash.taproot(
+            tx,
+            index,
+            [x.value for x in prevouts],
+            [x.script_pub_key for x in prevouts],
+            sighash_type,
+            0,
+            annex,
+            b"",
+        )
+
+        pub_key = type_and_payload(prevouts[index].script_pub_key.script)[1]
+
+        ssa.assert_as_valid_(msg_hash, pub_key, signature)
+
+
+def test_invalid_taproot_key_path() -> None:
+    assert False
+
+
+def test_taproot_script_path() -> None:
+    assert False
+
+
+def test_invalid_taproot_script_path() -> None:
+    assert False
