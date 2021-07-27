@@ -27,7 +27,6 @@ OP_CODES = {
     "OP_PUSHDATA2": b"\x4d",
     "OP_PUSHDATA4": b"\x4e",
     "OP_1NEGATE": b"\x4f",
-    "OP_RESERVED": b"\x50",
     "OP_1": b"\x51",
     "OP_TRUE": b"\x51",
     "OP_2": b"\x52",
@@ -139,7 +138,6 @@ OP_CODE_NAMES = {
     77: "OP_PUSHDATA2",
     78: "OP_PUSHDATA4",
     79: "OP_1NEGATE",
-    80: "OP_RESERVED",
     81: "OP_1",
     82: "OP_2",
     83: "OP_3",
@@ -311,6 +309,11 @@ def op_str(command: str) -> bytes:
     command = command.strip().upper()
     if command in OP_CODES:
         return OP_CODES[command]
+    elif command[:10] == "OP_SUCCESS":
+        x = int(command[10:])
+        if x in OP_CODE_NAMES.keys():
+            raise BTClibValueError(f"invalid OP_SUCCESS number: {x}")
+        return x.to_bytes(1, "little")
     try:
         data = bytes.fromhex(command)
     except ValueError as e:
