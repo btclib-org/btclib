@@ -34,10 +34,8 @@ def test_valid_taproot_key_path() -> None:
 
     for x in filter(lambda x: "final" in x.keys(), data):
 
-        try:
-            tx = Tx.parse(x["tx"])
-        except BTClibValueError:
-            continue  # negative version: WHY?
+        tx = Tx.parse(x["tx"])
+
         prevouts = [TxOut.parse(prevout) for prevout in x["prevouts"]]
         index = x["index"]
 
@@ -86,10 +84,7 @@ def test_invalid_taproot_key_path() -> None:
 
     for x in filter(lambda x: "failure" in x.keys(), data):
 
-        try:
-            tx = Tx.parse(x["tx"])
-        except BTClibValueError:
-            continue  # negative version: WHY?
+        tx = Tx.parse(x["tx"])
         prevouts = [TxOut.parse(prevout) for prevout in x["prevouts"]]
         index = x["index"]
 
