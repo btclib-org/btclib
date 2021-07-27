@@ -35,18 +35,20 @@ from btclib.tx.tx import Tx
 from btclib.tx.tx_out import TxOut
 from btclib.utils import bytes_from_octets
 
+DEFAULT = 0
 ALL = 1
 NONE = 2
 SINGLE = 3
 ANYONECANPAY = 0b10000000
 
 SIG_HASH_TYPES = [
+    DEFAULT,
     ALL,
     NONE,
     SINGLE,
-    ANYONECANPAY & ALL,
-    ANYONECANPAY & NONE,
-    ANYONECANPAY & SINGLE,
+    ANYONECANPAY | ALL,
+    ANYONECANPAY | NONE,
+    ANYONECANPAY | SINGLE,
 ]
 
 
@@ -181,6 +183,11 @@ def taproot(
     annex: bytes,
     message_extension: bytes,
 ) -> bytes:
+
+    if hashtype not in SIG_HASH_TYPES:
+        raise BTClibValueError(f"Unknown hash type: {hashtype}")
+    if hashtype & 0x03 == SINGLE and input_index >= len(transaction.vout):
+        raise BTClibValueError("Sighash single wihout a corresponding output")
 
     preimage = b"\x00"
     preimage += hashtype.to_bytes(1, "little")
