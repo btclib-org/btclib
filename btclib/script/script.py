@@ -24,6 +24,7 @@ from dataclasses import dataclass
 from typing import List, Sequence, Union
 
 from btclib.alias import BinaryData, Octets
+from btclib.exceptions import BTClibValueError
 from btclib.script.op_codes import (
     OP_CODE_NAMES,
     decode_num,
@@ -32,7 +33,6 @@ from btclib.script.op_codes import (
     op_str,
 )
 from btclib.utils import bytes_from_octets, bytesio_from_binarydata
-from btclib.exceptions import BTClibValueError
 
 Command = Union[int, str, bytes]
 
@@ -83,7 +83,7 @@ def parse(stream: BinaryData, exit_on_op_success: bool = False) -> List[Command]
                 raise BTClibValueError("Invalid pushdata length")
             # if <= 0xFFFFFFFF, parse it as integer
             if i < 6 and decode_num(data) <= 0xFFFFFFFF:
-                new_op_code = decode_num(data)
+                new_op_code: Command = decode_num(data)
             else:
                 new_op_code = data.hex().upper()
         elif i in OP_CODE_NAMES.keys():  # OP_CODE

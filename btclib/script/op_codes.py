@@ -309,7 +309,7 @@ def op_str(command: str) -> bytes:
     command = command.strip().upper()
     if command in OP_CODES:
         return OP_CODES[command]
-    elif command[:10] == "OP_SUCCESS":
+    if command[:10] == "OP_SUCCESS":
         x = int(command[10:])
         if x in OP_CODE_NAMES.keys():
             raise BTClibValueError(f"invalid OP_SUCCESS number: {x}")

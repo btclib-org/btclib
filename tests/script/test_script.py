@@ -59,10 +59,14 @@ def test_exceptions() -> None:
         script_pub_key = ["1f" * 521, "OP_DROP"]
         serialize(script_pub_key)
 
-    # A script_pub_key with OP_PUSHDATA4 can be decoded
+    # A script_pub_key with OP_PUSHDATA4 can't be decoded
     script_bytes = "4e09020000" + "00" * 521 + "75"  # ['00'*521, 'OP_DROP']
-    script_pub_key_ = parse(script_bytes)
-    # but it cannot be encoded
+    err_msg = "Invalid pushdata length"
+    with pytest.raises(BTClibValueError, match=err_msg):
+        parse(script_bytes)
+
+    # and can't be encoded
+    script_pub_key_ = ["00" * 521, "OP_DROP"]
     err_msg = "too many bytes for OP_PUSHDATA: "
     with pytest.raises(BTClibValueError, match=err_msg):
         serialize(script_pub_key_)

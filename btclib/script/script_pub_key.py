@@ -20,7 +20,6 @@ from btclib.hashes import hash160, sha256
 from btclib.network import NETWORKS
 from btclib.script.op_codes import op_int
 from btclib.script.script import Command, Script, serialize
-from btclib.taproot import taproot_output_script
 from btclib.to_pub_key import Key, pub_keyinfo_from_key
 from btclib.utils import bytes_from_octets, bytesio_from_binarydata
 
@@ -503,12 +502,13 @@ class ScriptPubKey(Script):
     @classmethod
     def p2wtr(
         cls: Type[_ScriptPubKey],
-        script_tree: Octets,
-        internal_pubkey: Key,
+        pubkey: Key,
         network: str = "mainnet",
         check_validity: bool = True,
     ) -> _ScriptPubKey:
         "Return the p2tr ScriptPubKey of the provided script tree."
 
-        script = taproot_output_script(internal_pubkey, script_tree)
+        pub_key, network = pub_keyinfo_from_key(pubkey, compressed=True)
+        pub_key = pub_key[1:]
+        script = serialize(["OP_1", pub_key])
         return cls(script, network, check_validity)

@@ -15,10 +15,11 @@ test vector at https://github.com/bitcoin/bips/blob/master/bip-0341.mediawiki
 
 import json
 from os import path
+
 import pytest
 
 from btclib.ecc import ssa
-from btclib.exceptions import BTClibValueError, BTClibRuntimeError
+from btclib.exceptions import BTClibRuntimeError, BTClibValueError
 from btclib.script import sig_hash
 from btclib.script.script_pub_key import is_p2tr, type_and_payload
 from btclib.script.witness import Witness
