@@ -122,10 +122,7 @@ def check_witness(wit_ver: int, wit_prg: Octets) -> bytes:
 def _address_from_witness(wit_ver: int, wit_prg: Octets, hrp: str) -> str:
     wit_prg = check_witness(wit_ver, wit_prg)
     data = [wit_ver] + power_of_2_base_conversion(wit_prg, 8, 5)
-    if wit_ver == 0:
-        bytes_ = b32encode(hrp, data)
-    else:
-        bytes_ = bech32m_encode(hrp, data)
+    bytes_ = b32encode(hrp, data) if wit_ver == 0 else bech32m_encode(hrp, data)
     return bytes_.decode("ascii")
 
 

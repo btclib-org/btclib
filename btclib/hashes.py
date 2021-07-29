@@ -80,8 +80,7 @@ def challenge_(
     msg_hash = bytes_from_octets(msg_hash, hf_len)
 
     # leftmost ec.nlen bits %= ec.n
-    c = int_from_bits(msg_hash, ec.nlen) % ec.n
-    return c
+    return int_from_bits(msg_hash, ec.nlen) % ec.n
 
 
 def merkle_root(data: List[bytes], hf: Callable[[Union[bytes, str]], bytes]) -> bytes:
