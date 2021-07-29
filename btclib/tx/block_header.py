@@ -17,7 +17,7 @@ version, previous block hash, merkle root, time, bits, and nonce.
 import sys
 from dataclasses import dataclass
 from datetime import datetime, timezone
-from typing import Any, Dict, List, Mapping, Tuple, Type, TypeVar, Union
+from typing import Any, Dict, List, Mapping, Tuple, Type, Union
 
 from btclib.alias import BinaryData, Octets
 from btclib.exceptions import BTClibValueError
@@ -32,8 +32,6 @@ if sys.version_info.minor == 6:  # pragma: no cover
 
 _HF = hash256
 _HF_LEN = 32  # should be _HF().digest_size
-
-_BlockHeader = TypeVar("_BlockHeader", bound="BlockHeader")
 _KEY_SIZE: List[Tuple[str, int]] = [
     ("previous_block_hash", _HF_LEN),
     ("merkle_root", 32),
@@ -140,8 +138,8 @@ class BlockHeader:
 
     @classmethod
     def from_dict(
-        cls: Type[_BlockHeader], dict_: Mapping[str, Any], check_validity: bool = True
-    ) -> _BlockHeader:
+        cls: Type["BlockHeader"], dict_: Mapping[str, Any], check_validity: bool = True
+    ) -> "BlockHeader":
 
         return cls(
             dict_["version"],
@@ -208,8 +206,8 @@ class BlockHeader:
 
     @classmethod
     def parse(
-        cls: Type[_BlockHeader], data: BinaryData, check_validity: bool = True
-    ) -> _BlockHeader:
+        cls: Type["BlockHeader"], data: BinaryData, check_validity: bool = True
+    ) -> "BlockHeader":
         "Return a BlockHeader by parsing 80 bytes from binary data."
 
         stream = bytesio_from_binarydata(data)

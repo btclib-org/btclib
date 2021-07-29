@@ -14,7 +14,7 @@ Dataclass encapsulating prev_out, script_sig, sequence, and script_witness.
 """
 
 from dataclasses import dataclass, field
-from typing import Any, Dict, Mapping, Type, TypeVar
+from typing import Any, Dict, Mapping, Type
 
 from btclib import var_bytes
 from btclib.alias import BinaryData, Octets
@@ -22,8 +22,6 @@ from btclib.exceptions import BTClibValueError
 from btclib.script.witness import Witness
 from btclib.tx.out_point import OutPoint
 from btclib.utils import bytes_from_octets, bytesio_from_binarydata
-
-_TxIn = TypeVar("_TxIn", bound="TxIn")
 
 TX_IN_COMPARES_WITNESS = True
 
@@ -111,8 +109,8 @@ class TxIn:
 
     @classmethod
     def from_dict(
-        cls: Type[_TxIn], dict_: Mapping[str, Any], check_validity: bool = True
-    ) -> _TxIn:
+        cls: Type["TxIn"], dict_: Mapping[str, Any], check_validity: bool = True
+    ) -> "TxIn":
 
         return cls(
             OutPoint.from_dict(dict_["prev_out"], False),
@@ -133,7 +131,9 @@ class TxIn:
         return out
 
     @classmethod
-    def parse(cls: Type[_TxIn], data: BinaryData, check_validity: bool = True) -> _TxIn:
+    def parse(
+        cls: Type["TxIn"], data: BinaryData, check_validity: bool = True
+    ) -> "TxIn":
 
         stream = bytesio_from_binarydata(data)
         prev_out = OutPoint.parse(stream)

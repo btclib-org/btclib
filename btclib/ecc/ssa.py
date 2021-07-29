@@ -52,7 +52,7 @@ For sepcp256k1 the resulting signature size is 64 bytes.
 import secrets
 from dataclasses import InitVar, dataclass
 from hashlib import sha256
-from typing import List, Optional, Sequence, Tuple, Type, TypeVar, Union
+from typing import List, Optional, Sequence, Tuple, Type, Union
 
 from btclib.alias import BinaryData, HashF, Integer, JacPoint, Octets, Point
 from btclib.bip32.bip32 import BIP32Key
@@ -69,8 +69,6 @@ from btclib.utils import (
     hex_string,
     int_from_bits,
 )
-
-_Sig = TypeVar("_Sig", bound="Sig")
 
 
 @dataclass(frozen=True)
@@ -114,7 +112,7 @@ class Sig:
         return out
 
     @classmethod
-    def parse(cls: Type[_Sig], data: BinaryData, check_validity: bool = True) -> _Sig:
+    def parse(cls: Type["Sig"], data: BinaryData, check_validity: bool = True) -> "Sig":
 
         stream = bytesio_from_binarydata(data)
         ec = secp256k1

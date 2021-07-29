@@ -14,7 +14,7 @@ https://github.com/bitcoin/bips/blob/master/bip-0174.mediawiki
 """
 
 from dataclasses import dataclass
-from typing import Any, Dict, List, Mapping, Optional, Type, TypeVar
+from typing import Any, Dict, List, Mapping, Optional, Type
 
 from btclib.alias import Octets
 from btclib.bip32.key_origin import (
@@ -38,9 +38,6 @@ from btclib.psbt.psbt_utils import (
 )
 from btclib.utils import bytes_from_octets
 
-# from btclib.to_pub_key import point_from_pub_key
-
-
 PSBT_OUT_REDEEM_SCRIPT = b"\x00"
 PSBT_OUT_WITNESS_SCRIPT = b"\x01"
 PSBT_OUT_BIP32_DERIVATION = b"\x02"
@@ -48,9 +45,6 @@ PSBT_OUT_BIP32_DERIVATION = b"\x02"
 # explicit code support for proprietary (and por) is unnecessary
 # see https://github.com/bitcoin/bips/pull/1038
 # PSBT_OUT_PROPRIETARY = b"\xfc"
-
-
-_PsbtOut = TypeVar("_PsbtOut", bound="PsbtOut")
 
 
 @dataclass
@@ -98,8 +92,8 @@ class PsbtOut:
 
     @classmethod
     def from_dict(
-        cls: Type[_PsbtOut], dict_: Mapping[str, Any], check_validity: bool = True
-    ) -> _PsbtOut:
+        cls: Type["PsbtOut"], dict_: Mapping[str, Any], check_validity: bool = True
+    ) -> "PsbtOut":
 
         return cls(
             dict_["redeem_script"],
@@ -139,10 +133,10 @@ class PsbtOut:
 
     @classmethod
     def parse(
-        cls: Type[_PsbtOut],
+        cls: Type["PsbtOut"],
         output_map: Mapping[bytes, bytes],
         check_validity: bool = True,
-    ) -> _PsbtOut:
+    ) -> "PsbtOut":
         "Return a PsbtOut by parsing binary data."
 
         # FIX parse must use BinaryData

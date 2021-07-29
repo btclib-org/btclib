@@ -11,16 +11,17 @@
 
 """Taproot related functions"""
 
-from typing import Tuple, Any, Optional, Union, List
+from typing import Any, Optional, Tuple
+
 from btclib import var_bytes
 from btclib.alias import Octets
 from btclib.ecc.curve import Curve, mult, secp256k1
 from btclib.exceptions import BTClibValueError
 from btclib.hashes import tagged_hash
-from btclib.script.script import serialize, Script
-from btclib.utils import bytes_from_octets
-from btclib.to_pub_key import Key, pub_keyinfo_from_key
+from btclib.script.script import serialize
 from btclib.to_prv_key import PrvKey, int_from_prv_key
+from btclib.to_pub_key import Key, pub_keyinfo_from_key
+from btclib.utils import bytes_from_octets
 
 # TODO: add type hinting to script_tree
 # unfortunately recursive type hinting is not supported
@@ -107,7 +108,7 @@ def check_tree_hash(q: Octets, script: Octets, control: Octets) -> bool:
     m = (len(control) - 33) // 32
     if len(control) != 33 + 32 * m:
         raise BTClibValueError()
-    if m > 127:
+    if m > 128:
         raise BTClibValueError()
     leaf_version = control[0] & 0xFE
     preimage = leaf_version.to_bytes(1, "big") + var_bytes.serialize(script)

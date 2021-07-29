@@ -14,7 +14,7 @@ https://github.com/bitcoin/bips/blob/master/bip-0174.mediawiki
 """
 
 from dataclasses import dataclass
-from typing import Any, Dict, List, Mapping, Optional, Type, TypeVar
+from typing import Any, Dict, List, Mapping, Optional, Type
 
 # Library imports
 from btclib.alias import Octets
@@ -140,9 +140,6 @@ def _assert_valid_hash256_preimages(hash256_preimages: Mapping[bytes, bytes]) ->
             raise BTClibValueError("Invalid HASH256 preimage")
 
 
-_PsbtIn = TypeVar("_PsbtIn", bound="PsbtIn")
-
-
 @dataclass
 class PsbtIn:
     non_witness_utxo: Optional[Tx]
@@ -261,8 +258,8 @@ class PsbtIn:
 
     @classmethod
     def from_dict(
-        cls: Type[_PsbtIn], dict_: Mapping[str, Any], check_validity: bool = True
-    ) -> _PsbtIn:
+        cls: Type["PsbtIn"], dict_: Mapping[str, Any], check_validity: bool = True
+    ) -> "PsbtIn":
 
         return cls(
             Tx.from_dict(dict_["non_witness_utxo"], False)
@@ -369,10 +366,10 @@ class PsbtIn:
 
     @classmethod
     def parse(
-        cls: Type[_PsbtIn],
+        cls: Type["PsbtIn"],
         input_map: Mapping[bytes, bytes],
         check_validity: bool = True,
-    ) -> _PsbtIn:
+    ) -> "PsbtIn":
         "Return a PsbtIn by parsing binary data."
 
         # FIX parse must use BinaryData

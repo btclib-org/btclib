@@ -29,7 +29,7 @@ https://en.bitcoin.it/wiki/Timelock
 from dataclasses import dataclass
 from io import SEEK_CUR
 from math import ceil
-from typing import Any, Dict, List, Mapping, Optional, Sequence, Type, TypeVar, Union
+from typing import Any, Dict, List, Mapping, Optional, Sequence, Type, Union
 
 from btclib import var_int
 from btclib.alias import BinaryData
@@ -41,8 +41,6 @@ from btclib.tx.tx_out import TxOut
 from btclib.utils import bytesio_from_binarydata
 
 _SEGWIT_MARKER = b"\x00\x01"
-
-_Tx = TypeVar("_Tx", bound="Tx")
 
 
 @dataclass
@@ -172,8 +170,8 @@ class Tx:
 
     @classmethod
     def from_dict(
-        cls: Type[_Tx], dict_: Mapping[str, Any], check_validity: bool = True
-    ) -> _Tx:
+        cls: Type["Tx"], dict_: Mapping[str, Any], check_validity: bool = True
+    ) -> "Tx":
 
         return cls(
             dict_["version"],
@@ -232,7 +230,7 @@ class Tx:
         )
 
     @classmethod
-    def parse(cls: Type[_Tx], data: BinaryData, check_validity: bool = True) -> _Tx:
+    def parse(cls: Type["Tx"], data: BinaryData, check_validity: bool = True) -> "Tx":
         "Return a Tx by parsing binary data."
 
         stream = bytesio_from_binarydata(data)

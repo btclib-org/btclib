@@ -15,7 +15,7 @@ https://github.com/bitcoin/bips/blob/master/bip-0174.mediawiki
 import base64
 from copy import deepcopy
 from dataclasses import dataclass
-from typing import Any, Dict, List, Mapping, Optional, Sequence, Type, TypeVar, Union
+from typing import Any, Dict, List, Mapping, Optional, Sequence, Type, Union
 
 from btclib.alias import Octets, String
 from btclib.bip32.key_origin import (
@@ -42,8 +42,6 @@ from btclib.psbt.psbt_utils import (
 from btclib.script.script import serialize
 from btclib.script.script_pub_key import type_and_payload
 from btclib.utils import bytesio_from_binarydata
-
-_Psbt = TypeVar("_Psbt", bound="Psbt")
 
 PSBT_MAGIC_BYTES = b"psbt"
 PSBT_SEPARATOR = b"\xff"
@@ -190,8 +188,8 @@ class Psbt:
 
     @classmethod
     def from_dict(
-        cls: Type[_Psbt], dict_: Mapping[str, Any], check_validity: bool = True
-    ) -> _Psbt:
+        cls: Type["Psbt"], dict_: Mapping[str, Any], check_validity: bool = True
+    ) -> "Psbt":
 
         return cls(
             Tx.from_dict(dict_["tx"]),
@@ -229,7 +227,9 @@ class Psbt:
         return b"".join(psbt_bin)
 
     @classmethod
-    def parse(cls: Type[_Psbt], psbt_bin: Octets, check_validity: bool = True) -> _Psbt:
+    def parse(
+        cls: Type["Psbt"], psbt_bin: Octets, check_validity: bool = True
+    ) -> "Psbt":
         "Return a Psbt by parsing binary data."
 
         # FIXME: psbt_bin should be BinaryData
@@ -287,8 +287,8 @@ class Psbt:
 
     @classmethod
     def b64decode(
-        cls: Type[_Psbt], psbt_str: String, check_validity: bool = True
-    ) -> _Psbt:
+        cls: Type["Psbt"], psbt_str: String, check_validity: bool = True
+    ) -> "Psbt":
 
         if isinstance(psbt_str, str):
             psbt_str = psbt_str.strip()
@@ -299,7 +299,7 @@ class Psbt:
         return cls.parse(psbt_decoded, check_validity)  # type: ignore
 
     @classmethod
-    def from_tx(cls: Type[_Psbt], tx: Tx, check_validity: bool = True) -> _Psbt:
+    def from_tx(cls: Type["Psbt"], tx: Tx, check_validity: bool = True) -> "Psbt":
 
         for tx_in in tx.vin:
             tx_in.script_sig = b""

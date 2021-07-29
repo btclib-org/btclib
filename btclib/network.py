@@ -14,7 +14,7 @@
 import json
 from dataclasses import dataclass
 from os import path
-from typing import Any, Dict, List, Mapping, Optional, Tuple, Type, TypeVar, Union
+from typing import Any, Dict, List, Mapping, Optional, Tuple, Type, Union
 
 from btclib.alias import Octets
 from btclib.ecc.curve import CURVES, Curve
@@ -38,8 +38,6 @@ _KEY_SIZE: List[Tuple[str, int]] = [
     ("slip132_p2wsh_p2sh_prv", 4),
     ("slip132_p2wsh_p2sh_pub", 4),
 ]
-
-_Network = TypeVar("_Network", bound="Network")
 
 
 @dataclass(frozen=True)
@@ -174,8 +172,8 @@ class Network:
 
     @classmethod
     def from_dict(
-        cls: Type[_Network], dict_: Mapping[str, Any], check_validity: bool = True
-    ) -> _Network:
+        cls: Type["Network"], dict_: Mapping[str, Any], check_validity: bool = True
+    ) -> "Network":
 
         return cls(
             CURVES[dict_["curve"]],
