@@ -50,6 +50,7 @@ from btclib.exceptions import BTClibValueError
 from btclib.hashes import hash160, sha256
 from btclib.script.op_codes import op_int
 from btclib.script.script import Command, serialize
+from btclib.script.taproot import output_pubkey
 
 
 def test_has_segwit_prefix() -> None:
@@ -318,3 +319,13 @@ def test_p2wsh() -> None:
     err_msg = "invalid size: "
     with pytest.raises(BTClibValueError, match=err_msg):
         b32.address_from_witness(0, witness_script_bytes)
+
+
+def test_p2tr() -> None:
+
+    key = 1
+    pubkey = output_pubkey(key)[0]
+    addr = b32.p2tr(key)
+    _, wit_prg, _ = b32.witness_from_address(addr)
+
+    assert wit_prg == pubkey

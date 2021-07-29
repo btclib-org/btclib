@@ -577,3 +577,14 @@ def test_p2tr() -> None:
     script_pub_key = serialize(["OP_1", payload])
     assert_p2tr(script_pub_key)
     assert ("p2tr", payload) == type_and_payload(script_pub_key)
+
+    network = "mainnet"
+    addr = b32.p2tr(pub_key, network=network)
+    assert addr == address(script_pub_key, network)
+
+    assert script_pub_key == ScriptPubKey.from_address(addr).script
+    assert script_pub_key == ScriptPubKey.p2tr(pub_key).script
+
+    err_msg = "invalid redeem script hash length marker: "
+    with pytest.raises(BTClibValueError, match=err_msg):
+        assert_p2tr(script_pub_key[:1] + b"\x00" + script_pub_key[2:])
