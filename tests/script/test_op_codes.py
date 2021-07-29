@@ -21,6 +21,7 @@ from btclib.script.op_codes import (
     op_int,
     op_num,
     op_pushdata,
+    op_str,
 )
 
 
@@ -113,3 +114,14 @@ def test_op_pushdata() -> None:
     assert len(op_pushdata(b)) == length + 2
     b = "00" * (length + 1)
     assert len(op_pushdata(b)) == (length + 1) + 3
+
+
+def test_invalid_op_success() -> None:
+    err_msg = "invalid OP_SUCCESS number:"
+    with pytest.raises(BTClibValueError, match=err_msg):
+        op_str("OP_SUCCESS1")
+    err_msg = "invalid OP_SUCCESS number:"
+    with pytest.raises(BTClibValueError, match=err_msg):
+        op_str("OP_SUCCESS173")
+
+    assert op_str("OP_SUCCESS80") == b"\x50"

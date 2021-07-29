@@ -36,7 +36,7 @@ def test_valid_taproot_key_path() -> None:
     with open(filename, "r") as file_:
         data = json.load(file_)
 
-    for x in filter(lambda x: "final" in x.keys(), data):
+    for x in filter(lambda x: "TAPROOT" in x["flags"], data):
 
         tx = Tx.parse(x["tx"])
 
@@ -153,10 +153,6 @@ def test_valid_taproot_script_path() -> None:
     prevouts = [TxOut.parse(prevout) for prevout in prevouts_data]
     index = 1
     witness = Witness(witness_data)
-    annex = b""
-    if len(witness.stack) >= 2 and witness.stack[-1][0] == 0x50:
-        annex = witness.stack[-1]
-        witness.stack = witness.stack[:-1]
 
     tapscript = parse(witness.stack[-2])
 
@@ -180,8 +176,19 @@ def test_valid_taproot_script_path() -> None:
         [x.script_pub_key for x in prevouts],
         sighash_type,
         1,
-        annex,
+        b"",
         ext,
     )
 
     ssa.assert_as_valid_(msg_hash, pub_key, signature)
+
+
+def test_valid_sighash_type() -> None:
+
+    for hash_type in range(256):
+        if hash_type in sig_hash.SIG_HASH_TYPES:
+            sig_hash.assert_valid_hash_type(hash_type)
+        else:
+            err_msg = "invalid sig_hash type:"
+            with pytest.raises(BTClibValueError, match=err_msg):
+                sig_hash.assert_valid_hash_type(hash_type)

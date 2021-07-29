@@ -13,8 +13,18 @@
 import json
 from os import path
 
+import pytest
+
+from btclib.ecc.curve import mult
+from btclib.exceptions import BTClibValueError
+from btclib.script.script import serialize
 from btclib.script.script_pub_key import is_p2tr, type_and_payload
-from btclib.script.taproot import check_tree_hash
+from btclib.script.taproot import (
+    check_output_pubkey,
+    input_script_sig,
+    output_prvkey,
+    output_pubkey,
+)
 from btclib.script.witness import Witness
 from btclib.tx.tx_out import TxOut
 
@@ -25,7 +35,7 @@ def test_valid_script_path() -> None:
     with open(filename, "r") as file_:
         data = json.load(file_)
 
-    for x in filter(lambda x: "final" in x.keys(), data):
+    for x in data:
 
         prevouts = [TxOut.parse(prevout) for prevout in x["prevouts"]]
         index = x["index"]
@@ -49,4 +59,53 @@ def test_valid_script_path() -> None:
         script = witness.stack[-2]
         control = witness.stack[-1]
 
-        assert check_tree_hash(Q, script, control)
+        assert check_output_pubkey(Q, script, control)
+
+
+def test_taproot_key_tweaking() -> None:
+    prvkey = 123456
+    pubkey = mult(prvkey)
+
+    script_trees = [
+        None,
+        [(0xC0, ["OP_1"])],
+        [[(0xC0, ["OP_2"])], [(0xC0, ["OP_3"])]],
+    ]
+
+    for script_tree in script_trees:
+        tweaked_prvkey = output_prvkey(prvkey, script_tree)
+        tweaked_pubkey = output_pubkey(pubkey, script_tree)[0]
+
+        assert tweaked_pubkey == mult(tweaked_prvkey)[0].to_bytes(32, "big")
+
+
+def test_invalid_control_block() -> None:
+
+    err_msg = "Control block too long"
+    with pytest.raises(BTClibValueError, match=err_msg):
+        check_output_pubkey(b"\x00" * 32, b"\x00", b"\x00" * 4130)
+
+    err_msg = "Invalid control block length"
+    with pytest.raises(BTClibValueError, match=err_msg):
+        check_output_pubkey(b"\x00" * 32, b"\x00", b"\x00" * 100)
+
+
+def test_unspendable_script() -> None:
+    err_msg = "Missing data"
+    with pytest.raises(BTClibValueError, match=err_msg):
+        output_pubkey()
+
+
+def test_control_block() -> None:
+
+    script_tree = [[(0xC0, ["OP_2"])], [(0xC0, ["OP_3"])]]
+    pubkey = output_pubkey(None, script_tree)[0]
+    script, control = input_script_sig(None, script_tree, 0)
+    assert check_output_pubkey(pubkey, serialize(script), control)
+
+    prvkey = 123456
+    internal_pubkey = mult(prvkey)
+    script_tree = [[(0xC0, ["OP_2"])], [(0xC0, ["OP_3"])]]
+    pubkey = output_pubkey(internal_pubkey, script_tree)[0]
+    script, control = input_script_sig(internal_pubkey, script_tree, 0)
+    assert check_output_pubkey(pubkey, serialize(script), control)

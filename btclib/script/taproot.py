@@ -58,18 +58,19 @@ def output_pubkey(
     if internal_pubkey:
         pubkey = pub_keyinfo_from_key(internal_pubkey, compressed=True)[0][1:]
     else:
-        h_str = "0250929b74c1a04954b78b4b6035e97a5e078a5a0f28ec96d547bfee9ace803ac0"
+        h_str = "50929b74c1a04954b78b4b6035e97a5e078a5a0f28ec96d547bfee9ace803ac0"
         pubkey = bytes.fromhex(h_str)
     if script_tree:
         _, h = tree_helper(script_tree)
     else:
         h = tagged_hash(b"TapTweak", pubkey)
     t = int.from_bytes(tagged_hash(b"TapTweak", pubkey + h), "big")
+    # edge case that cannot be reproduced in the test suite
     if t >= ec.n:
-        raise ValueError
+        raise BTClibValueError("Invalid script tree hash")  # pragma: no cover
     x = int.from_bytes(pubkey, "big")
     Q = ec.add((x, ec.y_even(x)), mult(t))
-    return Q[0].to_bytes(32, "big"), 1 - Q[1] % 2
+    return Q[0].to_bytes(32, "big"), Q[1] % 2
 
 
 def output_prvkey(
@@ -83,33 +84,42 @@ def output_prvkey(
         _, h = tree_helper(script_tree)
     else:
         h = tagged_hash(b"TapTweak", P[0].to_bytes(32, "big"))
-    has_even_y = ec.y_even(P[0]) != P[1]
+    has_even_y = ec.y_even(P[0]) == P[1]
     internal_prvkey = internal_prvkey if has_even_y else ec.n - internal_prvkey
     t = int.from_bytes(tagged_hash(b"TapTweak", P[0].to_bytes(32, "big") + h), "big")
+    # edge case that cannot be reproduced in the test suite
     if t >= ec.n:
-        raise ValueError
+        raise BTClibValueError("Invalid script tree hash")  # pragma: no cover
     return (internal_prvkey + t) % ec.n
 
 
 def input_script_sig(
-    internal_pubkey: Key, script_tree: TaprootScriptTree, script_num: int
+    internal_pubkey: Optional[Key], script_tree: TaprootScriptTree, script_num: int
 ) -> Tuple[bytes, bytes]:
     parity_bit = output_pubkey(internal_pubkey, script_tree)[1]
-    pub_key_bytes = pub_keyinfo_from_key(internal_pubkey, compressed=True)[0][1:]
+    if internal_pubkey:
+        pub_key_bytes = pub_keyinfo_from_key(internal_pubkey, compressed=True)[0][1:]
+    else:
+        h_str = "50929b74c1a04954b78b4b6035e97a5e078a5a0f28ec96d547bfee9ace803ac0"
+        pub_key_bytes = bytes.fromhex(h_str)
     (leaf_version, script), path = tree_helper(script_tree)[0][script_num]
-    pubkey_data = (parity_bit + leaf_version).to_bytes(1, "big") + pub_key_bytes
-    return script, pubkey_data + path
+    control = (parity_bit + leaf_version).to_bytes(1, "big")
+    control += pub_key_bytes
+    control += path
+    return script, control
 
 
-def check_tree_hash(q: Octets, script: Octets, control: Octets) -> bool:
+def check_output_pubkey(
+    q: Octets, script: Octets, control: Octets, ec: Curve = secp256k1
+) -> bool:
     q = bytes_from_octets(q)
     script = bytes_from_octets(script)
     control = bytes_from_octets(control)
+    if len(control) > 4129:  # 33 + 32 * 128
+        raise BTClibValueError("Control block too long")
     m = (len(control) - 33) // 32
     if len(control) != 33 + 32 * m:
-        raise BTClibValueError()
-    if m > 128:
-        raise BTClibValueError()
+        raise BTClibValueError("Invalid control block length")
     leaf_version = control[0] & 0xFE
     preimage = leaf_version.to_bytes(1, "big") + var_bytes.serialize(script)
     k = tagged_hash(b"TapLeaf", preimage)
@@ -123,8 +133,9 @@ def check_tree_hash(q: Octets, script: Octets, control: Octets) -> bool:
     t_bytes = tagged_hash(b"TapTweak", p_bytes + k)
     p = int.from_bytes(p_bytes, "big")
     t = int.from_bytes(t_bytes, "big")
-    if t >= secp256k1.n:
-        raise BTClibValueError()
+    # edge case that cannot be reproduced in the test suite
+    if t >= ec.n:
+        raise BTClibValueError("Invalid script tree hash")  # pragma: no cover
     P = (p, secp256k1.y_even(p))
     Q = secp256k1.add(P, mult(t))
     return Q[0] == int.from_bytes(q, "big") and control[0] & 1 == Q[1] % 2

@@ -27,12 +27,14 @@ from btclib.script.script_pub_key import (
     assert_p2pk,
     assert_p2pkh,
     assert_p2sh,
+    assert_p2tr,
     assert_p2wpkh,
     assert_p2wsh,
     is_nulldata,
     is_p2ms,
     type_and_payload,
 )
+from btclib.script.taproot import output_pubkey
 from btclib.to_pub_key import Key
 
 
@@ -567,3 +569,11 @@ def test_non_standard_script_in_p2wsh() -> None:
     addr = "bc1q0df3qvuuvqqlw4s5m2jsswpelf2dgct97mzkqfwv2nfe02z62uyq7n4zjj"
     assert addr == address(script_pub_key, network)
     assert addr == b32.address_from_witness(0, payload, network)
+
+
+def test_p2tr() -> None:
+    pub_key = "cc71eb30d653c0c3163990c47b976f3fb3f37cccdcbedb169a1dfef58bbfbfaf"
+    payload = output_pubkey(pub_key)[0]
+    script_pub_key = serialize(["OP_1", payload])
+    assert_p2tr(script_pub_key)
+    assert ("p2tr", payload) == type_and_payload(script_pub_key)

@@ -83,3 +83,14 @@ def test_nulldata() -> None:
 def test_encoding():
     script_bytes = b"jKBIP141 \\o/ Hello SegWit :-) keep it strong! LLAP Bitcoin twitter.com/khs9ne"
     assert serialize(parse(script_bytes)) == script_bytes
+
+
+def test_opcode_length() -> None:
+    err_msg = "Invalid pushdata length"
+    with pytest.raises(BTClibValueError, match=err_msg):
+        parse(b"\x4e\x00")
+    with pytest.raises(BTClibValueError, match=err_msg):
+        parse(b"\x40\x00")
+
+    assert parse(b"\x01\x00\x50") == [0, "OP_SUCCESS80"]
+    assert parse(b"\x01\x00\x50", exit_on_op_success=True) == ["OP_SUCCESS"]
