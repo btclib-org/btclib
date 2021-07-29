@@ -158,13 +158,13 @@ def witness_from_address(b32addr: String) -> Tuple[int, bytes, str]:
     wit_prog = bytes(power_of_2_base_conversion(data[1:], 5, 8, False))
     wit_prog = check_witness(wit_ver, wit_prog)
 
-    if wit_ver == 0:
-        if not b32_verify_checksum(hrp, data + checksum):
-            raise BTClibValueError(f"invalid checksum: {b32addr!r}")
-    else:
-        if not bech32m_verify_checksum(hrp, data + checksum):
-            raise BTClibValueError(f"invalid checksum: {b32addr!r}")
-
+    if (
+        wit_ver == 0
+        and not b32_verify_checksum(hrp, data + checksum)
+        or wit_ver != 0
+        and not bech32m_verify_checksum(hrp, data + checksum)
+    ):
+        raise BTClibValueError(f"invalid checksum: {b32addr!r}")
     # check that it is a known SegWit address type
     network = network_from_key_value("hrp", hrp)
     if network is None:
