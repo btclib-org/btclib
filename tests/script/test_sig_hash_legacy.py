@@ -34,7 +34,7 @@ def test_first_transaction() -> None:
             "410411db93e1dcdb8a016b49840f8c53bc1eb68a382e97b1482ecad7b148a6909a5cb2e0eaddfb84ccf9744464f82e160bfa9b8b64f9d4c03f999b8643f656b412a3ac"
         ),
     )
-    hash_ = sig_hash.from_utxo(utxo, tx, 0, sig_hash.ALL)
+    hash_ = sig_hash.from_tx([utxo], tx, 0, sig_hash.ALL)
     assert hash_ == bytes.fromhex(
         "7a05c6145f10101e9d6325494245adf1297d80f8f38d4d576d57cdba220bcb19"
     )
@@ -70,7 +70,7 @@ def test_legacy_p2pkh() -> None:
         ]
     )
     utxo = TxOut(1051173696, script_pub_key)
-    hash_ = sig_hash.from_utxo(utxo, tx, 0, sig_hash.ALL)
+    hash_ = sig_hash.from_tx([utxo], tx, 0, sig_hash.ALL)
     assert dsa.verify_(hash_, pub_key, bytes.fromhex(signature)[:-1])
 
 
@@ -87,7 +87,7 @@ def test_p2pk() -> None:
 
     tx_in = TxIn(OutPoint(funding_tx.id, 0), script_sig, 0xFFFFFFFF)
     receiving_tx = Tx(1, 0, [tx_in], [TxOut(0, b"")])
-    hash_ = sig_hash.from_utxo(funding_tx.vout[0], receiving_tx, 0, sig_hash.ALL)
+    hash_ = sig_hash.from_tx(funding_tx.vout, receiving_tx, 0, sig_hash.ALL)
     assert dsa.verify_(hash_, pub_key, bytes.fromhex(signature)[:-1])
 
 
@@ -111,7 +111,7 @@ def test_p2pkh() -> None:
 
     tx_in = TxIn(OutPoint(funding_tx.id, 0), script_sig, 0xFFFFFFFF)
     receiving_tx = Tx(1, 0, [tx_in], [TxOut(0, b"")])
-    hash_ = sig_hash.from_utxo(funding_tx.vout[0], receiving_tx, 0, sig_hash.ALL)
+    hash_ = sig_hash.from_tx(funding_tx.vout, receiving_tx, 0, sig_hash.ALL)
     assert dsa.verify_(hash_, pub_key, bytes.fromhex(signature)[:-1])
 
 
@@ -127,8 +127,8 @@ def test_p2pk_anyonecanpay() -> None:
 
     tx_in = TxIn(OutPoint(funding_tx.id, 0), script_sig, 0xFFFFFFFF)
     receiving_tx = Tx(1, 0, [tx_in], [TxOut(0, b"")])
-    hash_ = sig_hash.from_utxo(
-        funding_tx.vout[0], receiving_tx, 0, sig_hash.ANYONECANPAY | sig_hash.ALL
+    hash_ = sig_hash.from_tx(
+        funding_tx.vout, receiving_tx, 0, sig_hash.ANYONECANPAY | sig_hash.ALL
     )
     assert dsa.verify_(hash_, pub_key, bytes.fromhex(signature)[:-1])
 
@@ -150,7 +150,7 @@ def test_sig_hashsingle_bug() -> None:
     utxo = TxOut(0, script_pub_key)
     tx_bytes = "01000000020002000000000000000000000000000000000000000000000000000000000000000000000151ffffffff0001000000000000000000000000000000000000000000000000000000000000000000006b483045022100c9cdd08798a28af9d1baf44a6c77bcc7e279f47dc487c8c899911bc48feaffcc0220503c5c50ae3998a733263c5c0f7061b483e2b56c4c41b456e7d2f5a78a74c077032102d5c25adb51b61339d2b05315791e21bbe80ea470a49db0135720983c905aace0ffffffff010000000000000000015100000000"
     tx = Tx.parse(tx_bytes)
-    hash_ = sig_hash.from_utxo(utxo, tx, 1, sig_hash.SINGLE)
+    hash_ = sig_hash.from_tx([TxOut(0, ""), utxo], tx, 1, sig_hash.SINGLE)
     assert dsa.verify_(hash_, pub_key, bytes.fromhex(signature)[:-1])
 
 

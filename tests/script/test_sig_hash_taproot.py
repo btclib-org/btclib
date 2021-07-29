@@ -18,15 +18,15 @@ from os import path
 
 import pytest
 
-from btclib import var_bytes
 from btclib.ecc import ssa
 from btclib.exceptions import BTClibRuntimeError, BTClibValueError
-from btclib.hashes import tagged_hash
+from btclib.hashes import hash160
 from btclib.script import sig_hash
-from btclib.script.script import parse
+from btclib.script.script import parse, serialize
 from btclib.script.script_pub_key import is_p2tr, type_and_payload
 from btclib.script.witness import Witness
 from btclib.tx.tx import Tx
+from btclib.tx.tx_in import OutPoint, TxIn
 from btclib.tx.tx_out import TxOut
 
 
@@ -46,17 +46,16 @@ def test_valid_taproot_key_path() -> None:
         if not is_p2tr(prevouts[index].script_pub_key.script):
             continue
 
-        script_sig = x["success"]["scriptSig"]
-        assert not script_sig
+        assert not x["success"]["scriptSig"]
 
         witness = Witness(x["success"]["witness"])
-        annex = b""
-        if len(witness.stack) >= 2 and witness.stack[-1][0] == 0x50:
-            annex = witness.stack[-1]
-            witness.stack = witness.stack[:-1]
+        tx.vin[index].script_witness = witness
 
-        # check only key paths
-        if len(witness.stack) == 1:
+        if (
+            len(witness.stack) == 1
+            or len(witness.stack) == 2
+            and witness.stack[-1][0] == 0x50
+        ):
 
             sighash_type = 0  # all
             signature = witness.stack[0][:64]
@@ -64,16 +63,7 @@ def test_valid_taproot_key_path() -> None:
                 sighash_type = witness.stack[0][-1]
                 assert sighash_type != 0
 
-            msg_hash = sig_hash.taproot(
-                tx,
-                index,
-                [x.value for x in prevouts],
-                [x.script_pub_key for x in prevouts],
-                sighash_type,
-                0,
-                annex,
-                b"",
-            )
+            msg_hash = sig_hash.from_tx(prevouts, tx, index, sighash_type)
 
             pub_key = type_and_payload(prevouts[index].script_pub_key.script)[1]
 
@@ -95,21 +85,19 @@ def test_invalid_taproot_key_path() -> None:
         if not is_p2tr(prevouts[index].script_pub_key.script):
             continue
 
-        script_sig = x["failure"]["scriptSig"]
-        assert not script_sig
-
         witness = Witness(x["failure"]["witness"])
-        annex = b""
-        if not witness.stack or not witness.stack[-1]:
-            continue  # invalid taproot witness stack
-        if len(witness.stack) >= 2 and witness.stack[-1][0] == 0x50:
-            annex = witness.stack[-1]
-            witness.stack = witness.stack[:-1]
+        tx.vin[index].script_witness = witness
 
         # check only key paths
-        if len(witness.stack) == 1:
+        if (
+            len(witness.stack) == 1
+            or len(witness.stack) == 2
+            and witness.stack[-1][0] == 0x50
+        ):
 
-            with pytest.raises((BTClibRuntimeError, BTClibValueError)):
+            with pytest.raises((BTClibRuntimeError, BTClibValueError, AssertionError)):
+
+                assert not x["failure"]["scriptSig"]
 
                 sighash_type = 0  # all
                 signature = witness.stack[0][:64]
@@ -120,16 +108,7 @@ def test_invalid_taproot_key_path() -> None:
                             "invalid sighash 0 in 65 bytes signature"
                         )
 
-                msg_hash = sig_hash.taproot(
-                    tx,
-                    index,
-                    [x.value for x in prevouts],
-                    [x.script_pub_key for x in prevouts],
-                    sighash_type,
-                    0,
-                    annex,
-                    b"",
-                )
+                msg_hash = sig_hash.from_tx(prevouts, tx, index, sighash_type)
 
                 pub_key = type_and_payload(prevouts[index].script_pub_key.script)[1]
 
@@ -153,8 +132,7 @@ def test_valid_taproot_script_path() -> None:
     prevouts = [TxOut.parse(prevout) for prevout in prevouts_data]
     index = 1
     witness = Witness(witness_data)
-
-    tapscript = parse(witness.stack[-2])
+    tx.vin[index].script_witness = witness
 
     sighash_type = 0  # all
     signature = witness.stack[0][:64]
@@ -162,23 +140,10 @@ def test_valid_taproot_script_path() -> None:
         sighash_type = witness.stack[0][-1]
         assert sighash_type != 0
 
+    msg_hash = sig_hash.from_tx(prevouts, tx, index, sighash_type)
+
+    tapscript = parse(witness.stack[-2])
     pub_key = bytes.fromhex(str(tapscript[1]))
-
-    leaf_version = witness.stack[-1][0] & 0xFE
-    preimage = leaf_version.to_bytes(1, "big") + var_bytes.serialize(witness.stack[-2])
-    tapleaf_hash = tagged_hash(b"TapLeaf", preimage)
-    ext = tapleaf_hash + b"\x00\xff\xff\xff\xff"
-
-    msg_hash = sig_hash.taproot(
-        tx,
-        index,
-        [x.value for x in prevouts],
-        [x.script_pub_key for x in prevouts],
-        sighash_type,
-        1,
-        b"",
-        ext,
-    )
 
     ssa.assert_as_valid_(msg_hash, pub_key, signature)
 
@@ -192,3 +157,36 @@ def test_valid_sighash_type() -> None:
             err_msg = "invalid sig_hash type:"
             with pytest.raises(BTClibValueError, match=err_msg):
                 sig_hash.assert_valid_hash_type(hash_type)
+
+
+def test_empty_stack() -> None:
+
+    utxo = TxOut(
+        100000000,
+        serialize(
+            ["OP_1", "cc71eb30d653c0c3163990c47b976f3fb3f37cccdcbedb169a1dfef58bbfbfaf"]
+        ),
+    )
+    tx_in = TxIn(OutPoint(), "", 1, Witness([]))
+    tx = Tx(vin=[tx_in], vout=[TxOut(100000000, "")])
+
+    err_msg = "Empty stack"
+    with pytest.raises(BTClibValueError, match=err_msg):
+        sig_hash.from_tx([utxo], tx, 0, 0)
+
+
+def test_wrapped_p2tr() -> None:
+
+    script = [
+        "OP_1",
+        "cc71eb30d653c0c3163990c47b976f3fb3f37cccdcbedb169a1dfef58bbfbfaf",
+    ]
+    utxo = TxOut(
+        100000000, serialize(["OP_HASH160", hash160(serialize(script)), "OP_EQUAL"])
+    )
+    tx_in = TxIn(OutPoint(), serialize(script), 1, Witness(["00" * 32]))
+    tx = Tx(vin=[tx_in], vout=[TxOut(100000000, "")])
+
+    err_msg = "Taproot scripts cannot be wrapped in p2sh"
+    with pytest.raises(BTClibValueError, match=err_msg):
+        sig_hash.from_tx([utxo], tx, 0, 0)
