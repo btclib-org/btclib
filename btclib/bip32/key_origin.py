@@ -13,7 +13,7 @@
 """
 
 from dataclasses import dataclass
-from typing import Dict, List, Mapping, Optional, Sequence, Tuple, Type, TypeVar
+from typing import Dict, List, Mapping, Optional, Sequence, Tuple, Type
 
 from btclib.alias import Octets
 from btclib.bip32.der_path import (
@@ -24,8 +24,6 @@ from btclib.bip32.der_path import (
 )
 from btclib.exceptions import BTClibValueError
 from btclib.utils import bytes_from_octets
-
-_BIP32KeyOrigin = TypeVar("_BIP32KeyOrigin", bound="BIP32KeyOrigin")
 
 
 @dataclass(frozen=True)
@@ -78,10 +76,10 @@ class BIP32KeyOrigin:
 
     @classmethod
     def from_dict(
-        cls: Type[_BIP32KeyOrigin],
+        cls: Type["BIP32KeyOrigin"],
         dict_: Mapping[str, str],
         check_validity: bool = True,
-    ) -> _BIP32KeyOrigin:
+    ) -> "BIP32KeyOrigin":
 
         return cls(
             dict_["master_fingerprint"],
@@ -98,8 +96,8 @@ class BIP32KeyOrigin:
 
     @classmethod
     def parse(
-        cls: Type[_BIP32KeyOrigin], data: Octets, check_validity: bool = True
-    ) -> _BIP32KeyOrigin:
+        cls: Type["BIP32KeyOrigin"], data: Octets, check_validity: bool = True
+    ) -> "BIP32KeyOrigin":
         "Return a BIP32KeyOrigin by parsing binary data."
 
         data = bytes_from_octets(data)
@@ -110,8 +108,8 @@ class BIP32KeyOrigin:
 
     @classmethod
     def from_description(
-        cls: Type[_BIP32KeyOrigin], data: str, check_validity: bool = True
-    ) -> _BIP32KeyOrigin:
+        cls: Type["BIP32KeyOrigin"], data: str, check_validity: bool = True
+    ) -> "BIP32KeyOrigin":
 
         data = data.strip()
         return cls(data[:8], data[9:], check_validity)

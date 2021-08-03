@@ -135,7 +135,7 @@ import base64
 import secrets
 from dataclasses import InitVar, dataclass
 from hashlib import sha256
-from typing import Optional, Tuple, Type, TypeVar, Union
+from typing import Optional, Tuple, Type, Union
 
 from btclib.alias import BinaryData, Octets, String
 from btclib.b32 import has_segwit_prefix, p2wpkh, witness_from_address
@@ -144,14 +144,12 @@ from btclib.ecc import dsa
 from btclib.ecc.curve import mult, secp256k1
 from btclib.ecc.sec_point import bytes_from_point
 from btclib.exceptions import BTClibValueError
-from btclib.hashes import magic_message
+from btclib.hashes import hash160, magic_message
 from btclib.network import NETWORKS
 from btclib.to_prv_key import PrvKey, prv_keyinfo_from_prv_key
-from btclib.utils import bytesio_from_binarydata, hash160
+from btclib.utils import bytesio_from_binarydata
 
 _REQUIRED_LENGHT = 65
-
-_Sig = TypeVar("_Sig", bound="Sig")
 
 
 @dataclass(frozen=True)
@@ -198,7 +196,7 @@ class Sig:
         return base64.b64encode(data_binary).decode("ascii")
 
     @classmethod
-    def parse(cls: Type[_Sig], data: BinaryData, check_validity: bool = True) -> _Sig:
+    def parse(cls: Type["Sig"], data: BinaryData, check_validity: bool = True) -> "Sig":
 
         stream = bytesio_from_binarydata(data)
         sig_bin = stream.read(_REQUIRED_LENGHT)
@@ -218,7 +216,7 @@ class Sig:
         return cls(rf, dsa_sig, check_validity)
 
     @classmethod
-    def b64decode(cls: Type[_Sig], data: String, check_validity: bool = True) -> _Sig:
+    def b64decode(cls: Type["Sig"], data: String, check_validity: bool = True) -> "Sig":
         """Return the verified components of the provided BMS signature.
 
         The address-based BMS signature can be represented

@@ -59,10 +59,14 @@ def test_exceptions() -> None:
         script_pub_key = ["1f" * 521, "OP_DROP"]
         serialize(script_pub_key)
 
-    # A script_pub_key with OP_PUSHDATA4 can be decoded
+    # A script_pub_key with OP_PUSHDATA4 can't be decoded
     script_bytes = "4e09020000" + "00" * 521 + "75"  # ['00'*521, 'OP_DROP']
-    script_pub_key_ = parse(script_bytes)
-    # but it cannot be encoded
+    err_msg = "Invalid pushdata length"
+    with pytest.raises(BTClibValueError, match=err_msg):
+        parse(script_bytes)
+
+    # and can't be encoded
+    script_pub_key_ = ["00" * 521, "OP_DROP"]
     err_msg = "too many bytes for OP_PUSHDATA: "
     with pytest.raises(BTClibValueError, match=err_msg):
         serialize(script_pub_key_)
@@ -79,3 +83,14 @@ def test_nulldata() -> None:
 def test_encoding():
     script_bytes = b"jKBIP141 \\o/ Hello SegWit :-) keep it strong! LLAP Bitcoin twitter.com/khs9ne"
     assert serialize(parse(script_bytes)) == script_bytes
+
+
+def test_opcode_length() -> None:
+    err_msg = "Invalid pushdata length"
+    with pytest.raises(BTClibValueError, match=err_msg):
+        parse(b"\x4e\x00")
+    with pytest.raises(BTClibValueError, match=err_msg):
+        parse(b"\x40\x00")
+
+    assert parse(b"\x01\x00\x50") == [0, "OP_SUCCESS80"]
+    assert parse(b"\x01\x00\x50", exit_on_op_success=True) == ["OP_SUCCESS"]

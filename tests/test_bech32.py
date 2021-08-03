@@ -41,55 +41,56 @@ with the following modifications:
 
 import pytest
 
-from btclib.bech32 import b32decode
+from btclib.bech32 import b32decode, b32encode, bech32m_decode, bech32m_encode
 from btclib.exceptions import BTClibValueError
 
-VALID_CHECKSUM = [
-    "A12UEL5L",
-    "a12uel5l",
-    "an83characterlonghumanreadablepartthatcontainsthenumber1andtheexcludedcharactersbio1tt5tgs",
-    "abcdef1qpzry9x8gf2tvdw0s3jn54khce6mua7lmqqqxw",
-    "11qqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqc8247j",
-    "split1checkupstagehandshakeupstreamerranterredcaperred2y9e3w",
-    "?1ezyfcl",
-    # the next one would have been invalid with the 90 char limit
-    "an84characterslonghumanreadablepartthatcontainsthenumber1andtheexcludedcharactersbio1569pvx",
-]
 
-INVALID_CHECKSUM = [
-    [" 1nwldj5", r"empty HRP: *"],
-    ["\x7F" + "1axkwrx", r"ASCII character outside *"],
-    ["\x80" + "1eym55h", r"ASCII character outside *"],
-    ["pzry9x0s0muk", r"missing HRP: *"],
-    ["1pzry9x0s0muk", r"empty HRP: *"],
-    ["x1b4n0q5v", r"invalid data characters: *"],
-    ["li1dgmt3", r"too short checksum: *"],
-    # Invalid character in checksum
-    ["de1lg7wt\xff", r"ASCII character outside *"],
-    # checksum calculated with uppercase form of HRP
-    ["A1G7SGD8", r"invalid checksum: *"],
-    ["10a06t8", r"empty HRP: *"],
-    ["1qzzfhee", r"empty HRP: *"],
-]
-
-
-def test_bechs32_checksum() -> None:
+def test_bech32() -> None:
     "Test bech32 checksum."
 
-    for test in VALID_CHECKSUM:
+    valid_checksum = [
+        "A12UEL5L",
+        "a12uel5l",
+        "an83characterlonghumanreadablepartthatcontainsthenumber1andtheexcludedcharactersbio1tt5tgs",
+        "abcdef1qpzry9x8gf2tvdw0s3jn54khce6mua7lmqqqxw",
+        "11qqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqc8247j",
+        "split1checkupstagehandshakeupstreamerranterredcaperred2y9e3w",
+        "?1ezyfcl",
+        # the next one would have been invalid with the 90 char limit
+        "an84characterslonghumanreadablepartthatcontainsthenumber1andtheexcludedcharactersbio1569pvx",
+    ]
+
+    for test in valid_checksum:
         b32decode(test)
         b32decode(test.encode("ascii"))
+        assert b32encode(*b32decode(test)).decode() == test.lower()
         pos = test.rfind("1")
         test = test[: pos + 1] + chr(ord(test[pos + 1]) ^ 1) + test[pos + 2 :]
         with pytest.raises(BTClibValueError):
             b32decode(test)
 
-    for addr, err_msg in INVALID_CHECKSUM:
+    invalid_checksum = [
+        ["\x20" + " 1nwldj5", r"HRP character out of range: *"],
+        ["\x7F" + "1axkwrx", r"HRP character out of range: *"],
+        ["\x80" + "1eym55h", r"HRP character out of range: *"],
+        ["pzry9x0s0muk", r"no separator character: *"],
+        ["1pzry9x0s0muk", r"empty HRP: *"],
+        ["x1b4n0q5v", r"invalid data character: *"],
+        ["li1dgmt3", r"too short checksum: *"],
+        # Invalid character in checksum
+        ["de1lg7wt\xff", r"invalid character in checksum: *"],
+        # checksum calculated with uppercase form of HRP
+        ["A1G7SGD8", r"invalid checksum: *"],
+        ["10a06t8", r"empty HRP: *"],
+        ["1qzzfhee", r"empty HRP: *"],
+    ]
+
+    for addr, err_msg in invalid_checksum:
         with pytest.raises(BTClibValueError, match=err_msg):
             b32decode(addr)
 
 
-def test_insertion_issue() -> None:
+def test_bech32_insertion_issue() -> None:
     """Test documented bech32 insertion issue.
 
     https://github.com/sipa/bech32/issues/51
@@ -101,8 +102,50 @@ def test_insertion_issue() -> None:
     https://gist.github.com/sipa/14c248c288c3880a3b191f978a34508e
 
     """
-
     strings = ("ii2134hk2xmat79tp", "eyg5bsz1l2mrq5ypl40hp")
     for string in strings:
         for i in range(20):
             b32decode(string[:-1] + i * "q" + string[-1:])
+
+
+def test_bech32m() -> None:
+
+    valid_checksum = [
+        "A1LQFN3A",
+        "a1lqfn3a",
+        "an83characterlonghumanreadablepartthatcontainsthetheexcludedcharactersbioandnumber11sg7hg6",
+        "abcdef1l7aum6echk45nj3s0wdvt2fg8x9yrzpqzd3ryx",
+        "11llllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllludsr8",
+        "split1checkupstagehandshakeupstreamerranterredcaperredlc445v",
+        "?1v759aa",
+        # the next one would have been invalid with the 90 char limit
+        "an84characterslonghumanreadablepartthatcontainsthetheexcludedcharactersbioandnumber11d6pts4",
+    ]
+    for test in valid_checksum:
+        bech32m_decode(test)
+        bech32m_decode(test.encode("ascii"))
+        assert bech32m_encode(*bech32m_decode(test)).decode() == test.lower()
+        pos = test.rfind("1")
+        test = test[: pos + 1] + chr(ord(test[pos + 1]) ^ 1) + test[pos + 2 :]
+        with pytest.raises(BTClibValueError):
+            bech32m_decode(test)
+
+    invalid_checksum = [
+        ["\x20" + "1xj0phk", r"HRP character out of range: *"],
+        ["\x7F" + "1g6xzxy", r"HRP character out of range: *"],
+        ["\x80" + "1vctc34", r"HRP character out of range: *"],
+        ["qyrz8wqd2c9m", r"no separator character: *"],
+        ["1qyrz8wqd2c9m", r"empty HRP: *"],
+        ["y1b0jsk6g", r"invalid data character: *"],
+        ["lt1igcx5c0", r"invalid data character: *"],
+        ["in1muywd", r"too short checksum: *"],
+        ["mm1crxm3i", r"invalid character in checksum: *"],
+        ["au1s5cgom", r"invalid character in checksum: *"],
+        ["M1VUXWEZ", r"invalid checksum: *"],
+        ["16plkw9", r"empty HRP: *"],
+        ["1p2gdwpf", r"empty HRP: *"],
+    ]
+
+    for addr, err_msg in invalid_checksum:
+        with pytest.raises(BTClibValueError, match=err_msg):
+            bech32m_decode(addr)

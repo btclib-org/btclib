@@ -15,15 +15,13 @@ Dataclass encapsulating value and script_pub_key
 """
 
 from dataclasses import dataclass
-from typing import Any, Dict, Mapping, Type, TypeVar, Union
+from typing import Any, Dict, Mapping, Type, Union
 
 from btclib import var_bytes
 from btclib.alias import BinaryData, Octets, String
 from btclib.amount import btc_from_sats, sats_from_btc
 from btclib.script.script_pub_key import ScriptPubKey
 from btclib.utils import bytes_from_octets, bytesio_from_binarydata
-
-_TxOut = TypeVar("_TxOut", bound="TxOut")
 
 
 # FIXME make it frozen
@@ -80,8 +78,8 @@ class TxOut:
 
     @classmethod
     def from_dict(
-        cls: Type[_TxOut], dict_: Mapping[str, Any], check_validity: bool = True
-    ) -> _TxOut:
+        cls: Type["TxOut"], dict_: Mapping[str, Any], check_validity: bool = True
+    ) -> "TxOut":
 
         value = sats_from_btc(dict_["value"])
         script_bin = dict_["scriptPubKey"]
@@ -102,14 +100,14 @@ class TxOut:
 
     @classmethod
     def parse(
-        cls: Type[_TxOut], data: BinaryData, check_validity: bool = True
-    ) -> _TxOut:
+        cls: Type["TxOut"], data: BinaryData, check_validity: bool = True
+    ) -> "TxOut":
         stream = bytesio_from_binarydata(data)
         value = int.from_bytes(stream.read(8), byteorder="little", signed=False)
         script = var_bytes.parse(stream)
         return cls(value, ScriptPubKey(script, "mainnet"), check_validity)
 
     @classmethod
-    def from_address(cls: Type[_TxOut], value: int, address: String) -> _TxOut:
+    def from_address(cls: Type["TxOut"], value: int, address: String) -> "TxOut":
         script_pub_key = ScriptPubKey.from_address(address)
         return cls(value, script_pub_key)

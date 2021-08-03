@@ -35,7 +35,7 @@ A BIP32 extended key is 78 bytes:
 import copy
 import hmac
 from dataclasses import dataclass
-from typing import List, Optional, Tuple, Type, TypeVar, Union
+from typing import List, Optional, Tuple, Type, Union
 
 from btclib import base58
 from btclib.alias import INF, BinaryData, Octets, Point, String
@@ -43,13 +43,13 @@ from btclib.bip32.der_path import BIP32DerPath, indexes_from_bip32_path
 from btclib.ecc.curve import mult, secp256k1
 from btclib.ecc.sec_point import bytes_from_point, point_from_octets
 from btclib.exceptions import BTClibValueError
+from btclib.hashes import hash160
 from btclib.network import NETWORKS, XPRV_VERSIONS_ALL, XPUB_VERSIONS_ALL
-from btclib.utils import bytes_from_octets, bytesio_from_binarydata, hash160, hex_string
+from btclib.utils import bytes_from_octets, bytesio_from_binarydata, hex_string
 
 ec = secp256k1
 
 
-_BIP32KeyData = TypeVar("_BIP32KeyData", bound="BIP32KeyData")
 _KEY_SIZE: List[Tuple[str, int]] = [
     ("version", 4),
     ("parent_fingerprint", 4),
@@ -176,8 +176,8 @@ class BIP32KeyData:
 
     @classmethod
     def parse(
-        cls: Type[_BIP32KeyData], xkey_bin: BinaryData, check_validity: bool = True
-    ) -> _BIP32KeyData:
+        cls: Type["BIP32KeyData"], xkey_bin: BinaryData, check_validity: bool = True
+    ) -> "BIP32KeyData":
         "Return a BIP32KeyData by parsing 73 bytes from binary data."
 
         stream = bytesio_from_binarydata(xkey_bin)
@@ -200,8 +200,8 @@ class BIP32KeyData:
 
     @classmethod
     def b58decode(
-        cls: Type[_BIP32KeyData], address: String, check_validity: bool = True
-    ) -> _BIP32KeyData:
+        cls: Type["BIP32KeyData"], address: String, check_validity: bool = True
+    ) -> "BIP32KeyData":
 
         if isinstance(address, str):
             address = address.strip()

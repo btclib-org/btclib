@@ -11,6 +11,7 @@
 "Tests for the `btclib.bms` module."
 
 import json
+from hashlib import sha256
 from os import path
 
 import pytest
@@ -654,3 +655,17 @@ def test_ledger() -> None:
     bms.assert_as_valid(msg_str, addr, bms_sig)
     assert bms.verify(msg_str, addr, bms_sig)
     assert not bms.verify(magic_msg, addr, bms_sig)
+
+
+def test_recover_pub_key_input_type() -> None:
+    msg = "test message".encode()
+    wif, _ = bms.gen_keys()
+    bms_sig = bms.sign(msg, wif)
+
+    key_id = bms_sig.rf - 27 & 0b11
+    magic_msg = magic_message(msg)
+    Q = dsa.recover_pub_key(
+        key_id, magic_msg, bms_sig.dsa_sig.serialize(), True, sha256
+    )
+    Q2 = dsa.recover_pub_key(key_id, magic_msg, bms_sig.dsa_sig, True, sha256)
+    assert Q == Q2

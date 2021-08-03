@@ -24,6 +24,7 @@ from dataclasses import dataclass
 from typing import List, Sequence, Union
 
 from btclib.alias import BinaryData, Octets
+from btclib.exceptions import BTClibValueError
 from btclib.script.op_codes import (
     OP_CODE_NAMES,
     decode_num,
@@ -50,42 +51,49 @@ def serialize(script: Sequence[Command]) -> bytes:
     return b"".join(r)
 
 
-def parse(stream: BinaryData) -> List[Command]:
+def parse(stream: BinaryData, exit_on_op_success: bool = False) -> List[Command]:
 
     s = bytesio_from_binarydata(stream)
-    # initialize the result list
-    r: List[Command] = []
+    r: List[Command] = []  # initialize the result list
+
     while True:
-        # get one byte
-        t = s.read(1)
+
+        t = s.read(1)  # get one byte
         if not t:
             break
-        # convert the byte to an integer
-        i = t[0]
-        if 0 < i < 76:
-            # 1-byte-data-length | data
-            data = s.read(i)
+        i = t[0]  # convert the byte to an integer
+        if 0 < i <= 78:  # push
+            if 0 < i < 76:  # 1-byte-data-length | data
+                data_length = i
+            if 76 <= i <= 78:
+                if i == 76:  # OP_PUSHDATA1 | 1-byte-data-length | data
+                    x = 1
+                elif i == 77:  # OP_PUSHDATA2 | 2-byte-data-length | data
+                    x = 2
+                elif i == 78:  # OP_PUSHDATA4 | 4-byte-data-length | data
+                    x = 4
+                y = s.read(x)
+                if len(y) != x:
+                    raise BTClibValueError("Invalid pushdata length")
+                data_length = int.from_bytes(y, byteorder="little")
+            if data_length > 520:
+                raise BTClibValueError("Invalid pushdata length")
+            data = s.read(data_length)
+            if len(data) != data_length:
+                raise BTClibValueError("Invalid pushdata length")
             # if <= 0xFFFFFFFF, parse it as integer
-            as_int = decode_num(data)
-            r.append(as_int if i < 6 and as_int <= 0xFFFFFFFF else data.hex().upper())
-        elif i == 76:
-            # OP_PUSHDATA1 | 1-byte-data-length | data
-            data_length = int.from_bytes(s.read(1), byteorder="little", signed=False)
-            data = s.read(data_length)
-            r.append(data.hex().upper())
-        elif i == 77:
-            # OP_PUSHDATA2 | 2-byte-data-length | data
-            data_length = int.from_bytes(s.read(2), byteorder="little", signed=False)
-            data = s.read(data_length)
-            r.append(data.hex().upper())
-        elif i == 78:
-            # OP_PUSHDATA4 | 4-byte-data-length | data
-            data_length = int.from_bytes(s.read(4), byteorder="little", signed=False)
-            data = s.read(data_length)
-            r.append(data.hex().upper())
-        else:
-            # OP_CODE
-            r.append(OP_CODE_NAMES[i])
+            if i < 6 and decode_num(data) <= 0xFFFFFFFF:
+                new_op_code: Command = decode_num(data)
+            else:
+                new_op_code = data.hex().upper()
+        elif i in OP_CODE_NAMES.keys():  # OP_CODE
+            new_op_code = OP_CODE_NAMES[i]
+        else:  # OP_SUCCESSx
+            new_op_code = f"OP_SUCCESS{i}"
+            if exit_on_op_success:
+                return ["OP_SUCCESS"]
+
+        r.append(new_op_code)
 
     return r
 

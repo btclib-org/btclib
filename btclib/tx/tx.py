@@ -29,19 +29,18 @@ https://en.bitcoin.it/wiki/Timelock
 from dataclasses import dataclass
 from io import SEEK_CUR
 from math import ceil
-from typing import Any, Dict, List, Mapping, Optional, Sequence, Type, TypeVar, Union
+from typing import Any, Dict, List, Mapping, Optional, Sequence, Type, Union
 
 from btclib import var_int
 from btclib.alias import BinaryData
 from btclib.exceptions import BTClibValueError
+from btclib.hashes import hash256
 from btclib.script.witness import Witness
 from btclib.tx.tx_in import TX_IN_COMPARES_WITNESS, TxIn
 from btclib.tx.tx_out import TxOut
-from btclib.utils import bytesio_from_binarydata, hash256
+from btclib.utils import bytesio_from_binarydata
 
 _SEGWIT_MARKER = b"\x00\x01"
-
-_Tx = TypeVar("_Tx", bound="Tx")
 
 
 @dataclass
@@ -171,8 +170,8 @@ class Tx:
 
     @classmethod
     def from_dict(
-        cls: Type[_Tx], dict_: Mapping[str, Any], check_validity: bool = True
-    ) -> _Tx:
+        cls: Type["Tx"], dict_: Mapping[str, Any], check_validity: bool = True
+    ) -> "Tx":
 
         return cls(
             dict_["version"],
@@ -182,10 +181,18 @@ class Tx:
             check_validity,
         )
 
+    def assert_standard(self) -> None:
+
+        self.assert_valid()
+
+        # should be a 4-bytes __signed__ integer
+        if not 0 < self.version <= 0x7FFFFFFF:
+            raise BTClibValueError(f"invalid version: {self.version}")
+
     def assert_valid(self) -> None:
 
-        # must be a 4-bytes _signed_ integer
-        if not 0 < self.version <= 0x7FFFFFFF:
+        # must be a 4-bytes integer
+        if not 0 < self.version <= 0xFFFFFFFF:
             raise BTClibValueError(f"invalid version: {self.version}")
 
         # must be a 4-bytes int
@@ -207,7 +214,7 @@ class Tx:
 
         return b"".join(
             [
-                self.version.to_bytes(4, byteorder="little", signed=True),  # int32_t
+                self.version.to_bytes(4, byteorder="little", signed=False),
                 _SEGWIT_MARKER if segwit else b"",
                 var_int.serialize(len(self.vin)),
                 b"".join(tx_in.serialize(check_validity) for tx_in in self.vin),
@@ -223,13 +230,19 @@ class Tx:
         )
 
     @classmethod
-    def parse(cls: Type[_Tx], data: BinaryData, check_validity: bool = True) -> _Tx:
+    def parse(cls: Type["Tx"], data: BinaryData, check_validity: bool = True) -> "Tx":
         "Return a Tx by parsing binary data."
 
         stream = bytesio_from_binarydata(data)
 
-        # version is a signed int (int32_t, not uint32_t)
-        version = int.from_bytes(stream.read(4), byteorder="little", signed=True)
+        # version is a signed int (int32_t) in bitcoin_core
+        # However there are at least two transactions:
+        # 35e79ee733fad376e76d16d1f10088273c2f4c2eaba1374a837378a88e530005
+        # c659729a7fea5071361c2c1a68551ca2bf77679b27086cc415adeeb03852e369
+        # where the version number is negative if it is considered as a signed
+        # integer. As such in btclib the version is an UNSIGNED integer.
+        # This has been discussed in: https://github.com/bitcoin/bitcoin/pull/16525
+        version = int.from_bytes(stream.read(4), byteorder="little", signed=False)
 
         segwit = stream.read(2) == _SEGWIT_MARKER
         if not segwit:

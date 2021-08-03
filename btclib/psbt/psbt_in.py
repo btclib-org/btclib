@@ -14,7 +14,7 @@ https://github.com/bitcoin/bips/blob/master/bip-0174.mediawiki
 """
 
 from dataclasses import dataclass
-from typing import Any, Dict, List, Mapping, Optional, Type, TypeVar
+from typing import Any, Dict, List, Mapping, Optional, Type
 
 # Library imports
 from btclib.alias import Octets
@@ -28,6 +28,7 @@ from btclib.bip32.key_origin import (
 )
 from btclib.ecc import dsa, sec_point
 from btclib.exceptions import BTClibValueError
+from btclib.hashes import hash160, hash256, ripemd160, sha256
 from btclib.psbt.psbt_out import BIP32KeyOrigin, HdKeyPaths
 from btclib.psbt.psbt_utils import (
     assert_valid_redeem_script,
@@ -42,11 +43,11 @@ from btclib.psbt.psbt_utils import (
     serialize_dict_bytes_bytes,
     serialize_hd_key_paths,
 )
+from btclib.script.sig_hash import assert_valid_hash_type
 from btclib.script.witness import Witness
-from btclib.tx.sign_hash import assert_valid_hash_type
 from btclib.tx.tx import Tx
 from btclib.tx.tx_out import TxOut
-from btclib.utils import bytes_from_octets, hash160, hash256, ripemd160, sha256
+from btclib.utils import bytes_from_octets
 
 PSBT_IN_NON_WITNESS_UTXO = b"\x00"
 PSBT_IN_WITNESS_UTXO = b"\x01"
@@ -137,9 +138,6 @@ def _assert_valid_hash256_preimages(hash256_preimages: Mapping[bytes, bytes]) ->
     for h, preimage in hash256_preimages.items():
         if hash256(preimage) != h:
             raise BTClibValueError("Invalid HASH256 preimage")
-
-
-_PsbtIn = TypeVar("_PsbtIn", bound="PsbtIn")
 
 
 @dataclass
@@ -242,7 +240,7 @@ class PsbtIn:
             if self.witness_utxo
             else None,
             "partial_signatures": encode_dict_bytes_bytes(self.partial_sigs),
-            "sign_hash": self.sig_hash_type,
+            "sig_hash": self.sig_hash_type,
             # TODO make it { "asm": "", "hex": "" }
             "redeem_script": self.redeem_script.hex(),
             # TODO make it { "asm": "", "hex": "" }
@@ -260,8 +258,8 @@ class PsbtIn:
 
     @classmethod
     def from_dict(
-        cls: Type[_PsbtIn], dict_: Mapping[str, Any], check_validity: bool = True
-    ) -> _PsbtIn:
+        cls: Type["PsbtIn"], dict_: Mapping[str, Any], check_validity: bool = True
+    ) -> "PsbtIn":
 
         return cls(
             Tx.from_dict(dict_["non_witness_utxo"], False)
@@ -271,7 +269,7 @@ class PsbtIn:
             if dict_["witness_utxo"]
             else None,
             dict_["partial_signatures"],
-            dict_["sign_hash"],
+            dict_["sig_hash"],
             dict_["redeem_script"],
             dict_["witness_script"],
             # FIXME
@@ -368,10 +366,10 @@ class PsbtIn:
 
     @classmethod
     def parse(
-        cls: Type[_PsbtIn],
+        cls: Type["PsbtIn"],
         input_map: Mapping[bytes, bytes],
         check_validity: bool = True,
-    ) -> _PsbtIn:
+    ) -> "PsbtIn":
         "Return a PsbtIn by parsing binary data."
 
         # FIX parse must use BinaryData
@@ -399,7 +397,7 @@ class PsbtIn:
             elif k[:1] == PSBT_IN_PARTIAL_SIG:
                 partial_sigs[k[1:]] = v
             elif k[:1] == PSBT_IN_SIG_HASH_TYPE:
-                sig_hash_type = deserialize_int(k, v, "sign_hash type")
+                sig_hash_type = deserialize_int(k, v, "sig_hash type")
             elif k[:1] == PSBT_IN_REDEEM_SCRIPT:
                 redeem_script = deserialize_bytes(k, v, "redeem script")
             elif k[:1] == PSBT_IN_WITNESS_SCRIPT:

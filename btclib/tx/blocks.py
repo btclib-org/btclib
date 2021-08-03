@@ -16,15 +16,16 @@ Dataclass encapsulating BlockHeader and List[Tx].
 import sys
 from dataclasses import dataclass
 from math import ceil
-from typing import Any, Dict, List, Mapping, Optional, Sequence, Type, TypeVar
+from typing import Any, Dict, List, Mapping, Optional, Sequence, Type
 
 from btclib import var_bytes, var_int
 from btclib.alias import BinaryData
 from btclib.exceptions import BTClibValueError
+from btclib.hashes import hash256, merkle_root
 from btclib.script.script import decode_num
 from btclib.tx.block_header import BlockHeader
 from btclib.tx.tx import Tx
-from btclib.utils import bytesio_from_binarydata, hash256, merkle_root
+from btclib.utils import bytesio_from_binarydata
 
 # python 3.6
 if sys.version_info.minor == 6:  # pragma: no cover
@@ -33,8 +34,6 @@ if sys.version_info.minor == 6:  # pragma: no cover
     backports.datetime_fromisoformat.MonkeyPatch.patch_fromisoformat()  # pylint: disable=no-member
 
 _HF = hash256
-
-_Block = TypeVar("_Block", bound="Block")
 
 
 @dataclass
@@ -104,8 +103,8 @@ class Block:
 
     @classmethod
     def from_dict(
-        cls: Type[_Block], dict_: Mapping[str, Any], check_validity: bool = True
-    ) -> _Block:
+        cls: Type["Block"], dict_: Mapping[str, Any], check_validity: bool = True
+    ) -> "Block":
 
         return cls(
             BlockHeader.from_dict(dict_["header"], False),
@@ -151,8 +150,8 @@ class Block:
 
     @classmethod
     def parse(
-        cls: Type[_Block], data: BinaryData, check_validity: bool = True
-    ) -> _Block:
+        cls: Type["Block"], data: BinaryData, check_validity: bool = True
+    ) -> "Block":
         "Return a Block by parsing binary data."
 
         stream = bytesio_from_binarydata(data)

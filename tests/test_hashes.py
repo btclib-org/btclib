@@ -10,15 +10,30 @@
 
 "Tests for the `btclib.hashes` module."
 
-from btclib.bip32.bip32 import BIP32KeyData, derive, rootxprv_from_seed
-from btclib.hashes import fingerprint
+from btclib.hashes import hash160, hash256
+from tests.test_to_key import (
+    net_unaware_compressed_pub_keys,
+    net_unaware_uncompressed_pub_keys,
+    plain_prv_keys,
+)
 
 
-def test_fingerprint() -> None:
+def test_hash160_hash256() -> None:
+    test_vectors = (
+        plain_prv_keys
+        + net_unaware_compressed_pub_keys
+        + net_unaware_uncompressed_pub_keys
+    )
+    for hexstring in test_vectors:
+        hash160(hexstring)
+        hash256(hexstring)
 
-    seed = "bfc4cbaad0ff131aa97fa30a48d09ae7df914bcc083af1e07793cd0a7c61a03f65d622848209ad3366a419f4718a80ec9037df107d8d12c19b83202de00a40ad"
-    xprv = rootxprv_from_seed(seed)
-    pf = fingerprint(xprv)  # xprv is automatically converted to xpub
-    child_key = derive(xprv, 0x80000000)
-    pf2 = BIP32KeyData.b58decode(child_key).parent_fingerprint
-    assert pf == pf2
+
+# def test_fingerprint() -> None:
+#
+#     seed = "bfc4cbaad0ff131aa97fa30a48d09ae7df914bcc083af1e07793cd0a7c61a03f65d622848209ad3366a419f4718a80ec9037df107d8d12c19b83202de00a40ad"
+#     xprv = rootxprv_from_seed(seed)
+#     pf = fingerprint(xprv)  # xprv is automatically converted to xpub
+#     child_key = derive(xprv, 0x80000000)
+#     pf2 = BIP32KeyData.b58decode(child_key).parent_fingerprint
+#     assert pf == pf2

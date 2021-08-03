@@ -11,13 +11,11 @@
 "Witness (List[bytes]) class."
 
 from dataclasses import dataclass
-from typing import Dict, List, Mapping, Optional, Sequence, Type, TypeVar
+from typing import Dict, List, Mapping, Optional, Sequence, Type
 
 from btclib import var_bytes, var_int
 from btclib.alias import BinaryData, Octets
 from btclib.utils import bytes_from_octets, bytesio_from_binarydata
-
-_Witness = TypeVar("_Witness", bound="Witness")
 
 
 @dataclass
@@ -50,10 +48,10 @@ class Witness:
 
     @classmethod
     def from_dict(
-        cls: Type[_Witness],
+        cls: Type["Witness"],
         dict_: Mapping[str, Sequence[Octets]],
         check_validity: bool = True,
-    ) -> _Witness:
+    ) -> "Witness":
 
         return cls(dict_["stack"], check_validity)
 
@@ -68,8 +66,8 @@ class Witness:
 
     @classmethod
     def parse(
-        cls: Type[_Witness], data: BinaryData, check_validity: bool = True
-    ) -> _Witness:
+        cls: Type["Witness"], data: BinaryData, check_validity: bool = True
+    ) -> "Witness":
         "Return a Witness by parsing binary data."
 
         data = bytesio_from_binarydata(data)

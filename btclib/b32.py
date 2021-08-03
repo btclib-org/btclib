@@ -45,12 +45,19 @@ with the following modifications:
 from typing import Iterable, List, Optional, Tuple
 
 from btclib.alias import Octets, String
-from btclib.bech32 import b32decode, b32encode
+from btclib.bech32 import (
+    __b32decode,
+    b32_verify_checksum,
+    b32encode,
+    bech32m_encode,
+    bech32m_verify_checksum,
+)
 from btclib.exceptions import BTClibValueError
-from btclib.hashes import hash160_from_key
+from btclib.hashes import hash160, sha256
 from btclib.network import NETWORKS, network_from_key_value
-from btclib.to_pub_key import Key
-from btclib.utils import bytes_from_octets, sha256
+from btclib.script.taproot import TaprootScriptTree, output_pubkey
+from btclib.to_pub_key import Key, pub_keyinfo_from_key
+from btclib.utils import bytes_from_octets
 
 # 0. bech32 facilities
 
@@ -114,7 +121,8 @@ def check_witness(wit_ver: int, wit_prg: Octets) -> bytes:
 
 def _address_from_witness(wit_ver: int, wit_prg: Octets, hrp: str) -> str:
     wit_prg = check_witness(wit_ver, wit_prg)
-    bytes_ = b32encode(hrp, [wit_ver] + power_of_2_base_conversion(wit_prg, 8, 5))
+    data = [wit_ver] + power_of_2_base_conversion(wit_prg, 8, 5)
+    bytes_ = b32encode(hrp, data) if wit_ver == 0 else bech32m_encode(hrp, data)
     return bytes_.decode("ascii")
 
 
@@ -141,19 +149,28 @@ def witness_from_address(b32addr: String) -> Tuple[int, bytes, str]:
     if len(b32addr) > 90:
         raise BTClibValueError(f"invalid bech32 address length: {len(b32addr)} > 90")
 
-    hrp, data = b32decode(b32addr)
+    hrp, data, checksum = __b32decode(b32addr)
+
+    if len(data) == 0:
+        raise BTClibValueError(f"empty data in bech32 address: {b32addr!r}")
+
+    wit_ver = data[0]
+    wit_prog = bytes(power_of_2_base_conversion(data[1:], 5, 8, False))
+    wit_prog = check_witness(wit_ver, wit_prog)
+
+    if wit_ver == 0:
+        if not b32_verify_checksum(hrp, data + checksum):
+            raise BTClibValueError(f"invalid checksum: {b32addr!r}")
+    else:
+        if not bech32m_verify_checksum(hrp, data + checksum):
+            raise BTClibValueError(f"invalid checksum: {b32addr!r}")
 
     # check that it is a known SegWit address type
     network = network_from_key_value("hrp", hrp)
     if network is None:
         raise BTClibValueError(f"invalid hrp: {hrp}")
 
-    if len(data) == 0:
-        raise BTClibValueError(f"empty data in bech32 address: {b32addr!r}")
-
-    wit_ver = data[0]
-    wit_prg = bytes(power_of_2_base_conversion(data[1:], 5, 8, False))
-    return wit_ver, check_witness(wit_ver, wit_prg), network
+    return wit_ver, wit_prog, network
 
 
 # 1.+2. = 3. bech32 address from pub_key/script_pub_key
@@ -161,12 +178,21 @@ def witness_from_address(b32addr: String) -> Tuple[int, bytes, str]:
 
 def p2wpkh(key: Key, network: Optional[str] = None) -> str:
     "Return the p2wpkh bech32 address corresponding to a public key."
-    compressed = True  # needed to force check on pub_key
-    h160, network = hash160_from_key(key, network, compressed)
-    return address_from_witness(0, h160, network)
+    pub_key, network = pub_keyinfo_from_key(key, network, compressed=True)
+    return address_from_witness(0, hash160(pub_key), network)
 
 
 def p2wsh(script_pub_key: Octets, network: str = "mainnet") -> str:
     "Return the p2wsh bech32 address corresponding to a script_pub_key."
     h256 = sha256(script_pub_key)
     return address_from_witness(0, h256, network)
+
+
+def p2tr(
+    internal_key: Optional[Key] = None,
+    script_path: Optional[TaprootScriptTree] = None,
+    network: str = "mainnet",
+):
+    "Return the p2tr bech32 address corresponding to a taproot output key."
+    pub_key = output_pubkey(internal_key, script_path)[0]
+    return address_from_witness(1, pub_key, network)

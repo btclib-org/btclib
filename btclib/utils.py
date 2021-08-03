@@ -15,10 +15,9 @@ Most conversions from SEC 1 v.2 2.3 are included.
 https://www.secg.org/sec1-v2.pdf
 """
 
-import hashlib
 from collections.abc import Iterable as IterableCollection
 from io import BytesIO
-from typing import Callable, Iterable, List, Optional, Union
+from typing import Iterable, Optional, Union
 
 from btclib.alias import BinaryData, Integer, Octets
 from btclib.exceptions import BTClibValueError
@@ -26,54 +25,6 @@ from btclib.exceptions import BTClibValueError
 # hexstr_from_bytes is not needed!!
 # def hexstr_from_bytes(byte_str: bytes) -> str:
 #    return byte_str.hex()
-
-
-def ripemd160(octets: Octets) -> bytes:
-    "Return the RIPEMD160(*) of the input octet sequence."
-
-    octets = bytes_from_octets(octets)
-    return hashlib.new("ripemd160", octets).digest()
-
-
-def sha256(octets: Octets) -> bytes:
-    "Return the SHA256(*) of the input octet sequence."
-
-    octets = bytes_from_octets(octets)
-    return hashlib.sha256(octets).digest()
-
-
-def hash160(octets: Octets) -> bytes:
-    "Return the HASH160=RIPEMD160(SHA256) of the input octet sequence."
-
-    return ripemd160(sha256(octets))
-
-
-def hash256(octets: Octets) -> bytes:
-    "Return the SHA256(SHA256(*)) of the input octet sequence."
-
-    return sha256(sha256(octets))
-
-
-def merkle_root(data: List[bytes], hf: Callable[[Union[bytes, str]], bytes]) -> bytes:
-    """Return the Merkel tree root of a list of binary hashes.
-
-    The Merkel tree is a binary tree constructed
-    with the provided list of binary data as bottom level,
-    then recursively going up one level
-    by hashing every hash value pair in the current level,
-    until a single value (root) is obtained.
-    """
-
-    data = [hf(item) for item in data]
-    while len(data) != 1:
-        parent_level = []
-        if len(data) % 2:
-            data.append(data[-1])
-        for i in range(0, len(data), 2):
-            parent = hf(data[i] + data[i + 1])
-            parent_level.append(parent)
-        data = parent_level[:]
-    return data[0]
 
 
 NoneOneOrMoreInt = Optional[Union[int, Iterable[int]]]

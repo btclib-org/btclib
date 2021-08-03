@@ -56,7 +56,7 @@ Moreover, no such rule exists for r.
 
 from dataclasses import InitVar, dataclass
 from io import BytesIO
-from typing import Type, TypeVar
+from typing import Type
 
 from btclib import var_bytes
 from btclib.alias import BinaryData
@@ -90,9 +90,6 @@ def _deserialize_scalar(sig_data_stream: BytesIO) -> int:
         raise BTClibValueError("invalid negative scalar")
 
     return int.from_bytes(r_bytes, byteorder="big", signed=False)
-
-
-_Sig = TypeVar("_Sig", bound="Sig")
 
 
 @dataclass(frozen=True)
@@ -154,7 +151,7 @@ class Sig:
         return _DER_SIG_MARKER + var_bytes.serialize(out)
 
     @classmethod
-    def parse(cls: Type[_Sig], data: BinaryData, check_validity: bool = True) -> _Sig:
+    def parse(cls: Type["Sig"], data: BinaryData, check_validity: bool = True) -> "Sig":
         """Return a Sig by parsing binary data.
 
         Deserialize a strict ASN.1 DER representation of an ECDSA signature.
