@@ -320,6 +320,7 @@ def serialize(script: Sequence[Command]) -> bytes:
 def parse(stream: BinaryData, exit_on_op_success: bool = False) -> list[Command]:
     s = bytesio_from_binarydata(stream)
     r: list[Command] = []  # initialize the result list
+    invalid_element_size = False
 
     while True:
         t = s.read(1)  # get one byte
@@ -338,8 +339,8 @@ def parse(stream: BinaryData, exit_on_op_success: bool = False) -> list[Command]
                 if len(y) != x:
                     raise BTClibValueError("not enough data for pushdata length")
                 data_length = int.from_bytes(y, byteorder="little")
-                if data_length > 520:
-                    raise BTClibValueError(f"invalid pushdata length: {data_length}")
+            if data_length > 520:
+                invalid_element_size = True
             data = s.read(data_length)
             if len(data) != data_length:
                 raise BTClibValueError("not enough data for pushdata")
@@ -358,6 +359,9 @@ def parse(stream: BinaryData, exit_on_op_success: bool = False) -> list[Command]
                 return ["OP_SUCCESS"]
 
         r.append(command)
+
+    if invalid_element_size:
+        raise BTClibValueError("Invalid pushdata length")
 
     return r
 

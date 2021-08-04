@@ -177,13 +177,16 @@ def segwit_v0(
 def taproot(
     transaction: Tx,
     input_index: int,
-    amounts: Sequence[int],
-    scriptpubkeys: Sequence[ScriptPubKey],
+    prevouts: List[TxOut],
     hashtype: int,
     ext_flag: int,
     annex: bytes,
     message_extension: bytes,
 ) -> bytes:
+
+    amounts = [x.value for x in prevouts]
+    scriptpubkeys = [x.script_pub_key for x in prevouts]
+
     if hashtype not in SIG_HASH_TYPES:
         raise BTClibValueError(f"Unknown hash type: {hashtype}")
     if hashtype & 0x03 == SINGLE and input_index >= len(transaction.vout):
@@ -244,6 +247,20 @@ def from_tx(prevouts: list[TxOut], tx: Tx, vin_i: int, hash_type: int) -> bytes:
     if is_p2tr(script):
         return _script_from_p2tr(prevouts, tx, vin_i, hash_type)
 
+        if len(witness.stack) == 0:
+            raise BTClibValueError("Empty stack")
+
+        ext = b""
+        if len(witness.stack) > 1:
+            leaf_version = witness.stack[-1][0] & 0xFE
+            preimage = leaf_version.to_bytes(1, "big")
+            preimage += var_bytes.serialize(witness.stack[-2])
+            tapleaf_hash = tagged_hash(b"TapLeaf", preimage)
+            ext = tapleaf_hash + b"\x00\xff\xff\xff\xff"
+
+        return taproot(tx, vin_i, prevouts, hash_type, int(bool(ext)), annex, ext)
+
+    # handle all p2sh-wrapped scripts
     if is_p2sh(script):
         script = tx.vin[vin_i].script_sig
         if is_p2tr(script):
