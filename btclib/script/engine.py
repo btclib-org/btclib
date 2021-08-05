@@ -12,10 +12,10 @@
 Bitcoin Script engine
 """
 
-from typing import List, Tuple
+from typing import List, Tuple, Sequence
 
 from btclib.exceptions import BTClibValueError
-from btclib.script.script import Command, parse
+from btclib.script.script import Command, parse, serialize
 from btclib.script.script_pub_key import (
     is_p2sh,
     is_p2tr,
@@ -29,13 +29,16 @@ from btclib.script.witness import Witness
 from btclib.script import sig_hash
 from btclib.ecc import ssa
 from btclib.script.taproot import check_output_pubkey
+from btclib.utils import bytes_from_octets
+from btclib import var_bytes
+from btclib.hashes import tagged_hash
 
 
 def __unwrap_taproot_script(
-    script: List[Command], stack: List[bytes]
+    script: bytes, stack: List[bytes]
 ) -> Tuple[bytes, List[bytes], int]:
 
-    pub_key = script[1]
+    pub_key = type_and_payload(script)[1]
     script_bytes = stack[-2]
     control = stack[-1]
 
@@ -64,8 +67,47 @@ def __taproot_get_annex(witness: Witness) -> bytes:
     return annex
 
 
+def op_if(script: List[Command], stack: List[Command]) -> List[Command]:
+    condition = int(bool(stack.pop()))
+
+    level = 1
+    for x in range(len(script) - 1, -1, -1):
+        if script[x] == "OP_IF":
+            level += 1
+        if script[x] == "OP_ENDIF":
+            level -= 1
+        if level == 0:
+            break
+    if level != 0:
+        raise BTClibValueError()
+
+    after_script = script[:x]
+    condition_script = script[x:][1:]
+    new_condition_script = []
+
+    level = 1
+
+    else_reached = False
+    for x in range(len(condition_script) - 1, -1, -1):
+        if condition_script[x] == "OP_ELSE":
+            if level == 1 and not else_reached:
+                else_reached = True
+                condition = 1 - condition
+            continue
+        if condition_script[x] == "OP_IF":
+            level += 1
+        if condition_script[x] == "OP_ENDIF":
+            level -= 1
+        if condition:
+            new_condition_script.append(condition_script[x])
+        if level == 0:
+            break
+
+    return after_script + new_condition_script[::-1]
+
+
 def _verify_taproot_key_path(
-    script_pub_key: List[Command],
+    script_pub_key: bytes,
     stack: List[bytes],
     prevouts: List[TxOut],
     tx: Tx,
@@ -75,7 +117,7 @@ def _verify_taproot_key_path(
 
     sighash_type = __taproot_get_hashtype(stack[0])
     signature = stack[0][:64]
-    pub_key = bytes.fromhex(script_pub_key[1])
+    pub_key = type_and_payload(script_pub_key)[1]
     msg_hash = sig_hash.taproot(tx, i, prevouts, sighash_type, 0, annex, b"")
 
     ssa.assert_as_valid_(msg_hash, pub_key, signature)
@@ -83,24 +125,79 @@ def _verify_taproot_key_path(
 
 def __verify_taproot_script_path_leaf_vc0(
     script: List[Command],
-    stack: List[bytes],
+    stack: List[Command],
     prevouts: List[TxOut],
     tx: Tx,
     i: int,
     annex: bytes,
 ) -> None:
 
+    print(script)
+
+    if script == ["OP_SUCCESS"]:
+        return
+
+    script_bytes = serialize(script)
+
     if script == ["OP_SUCCESS"]:
         return
     script.reverse()
     while script:
         command = script.pop()
+        if isinstance(command, int):
+            stack.append(command)
+            continue
         if command[:6] == "OP_NOP":
             continue
-
+        elif command == "OP_DUP":
+            stack.append(stack[-1])
+        elif command == "OP_2DUP":
+            stack.extend(stack[-2:])
+        elif command == "OP_DROP":
+            stack.pop()
+        elif command == "OP_SWAP":
+            stack[-1], stack[-2] = stack[-2], stack[-1]
+        elif command == "OP_CHECKSIG":
+            pub_key = bytes_from_octets(stack.pop())
+            signature = bytes_from_octets(stack.pop())
+            sighash_type = __taproot_get_hashtype(signature)
+            preimage = b"\xc0"
+            preimage += var_bytes.serialize(script_bytes)
+            tapleaf_hash = tagged_hash(b"TapLeaf", preimage)
+            ext = tapleaf_hash + b"\x00\xff\xff\xff\xff"
+            msg_hash = sig_hash.taproot(tx, i, prevouts, sighash_type, 1, annex, ext)
+            stack.append(int(bool(ssa.verify_(msg_hash, pub_key, signature))))
+        elif command == "OP_EQUAL":
+            a = stack.pop()
+            b = stack.pop()
+            stack.append(int(bool(a == b)))
+        elif command == "OP_ADD":
+            a = stack.pop()
+            b = stack.pop()
+            stack.append(a + b)
+        elif command == "OP_VERIFY":
+            x = stack.pop()
+            if not x:
+                raise BTClibValueError()
+        elif command == "OP_CHECKSIGVERIFY":
+            script.extend(["OP_CHECKSIG", "OP_VERIFY"][::-1])
+        elif command == "OP_CHECKSIGADD":
+            stack[-2], stack[-3] = stack[-3], stack[-2]
+            script.extend(["OP_CHECKSIG", "OP_ADD"][::-1])
+        elif command == "OP_EQUALVERIFY":
+            script.extend(["OP_EQUAL", "OP_VERIFY"][::-1])
+        elif command == "OP_IF":
+            script = op_if(script, stack)
+        elif command in ["OP_ENDIF", "OP_ELSE"]:
+            raise BTClibValueError()
+        elif command[:3] == "OP_":
+            stack.append(int(command[3:]))
+        else:
+            stack.append(command)
+    # 2147483648
     if len(stack) != 1:
         raise BTClibValueError()
-    if stack[0] not in ["OP_0", 0]:
+    if stack[0] in ["OP_0", 0]:
         raise BTClibValueError()
 
 
@@ -109,18 +206,15 @@ def verify_input(prevouts: List[TxOut], tx: Tx, i: int) -> None:
     script = prevouts[i].script_pub_key.script
 
     if is_p2tr(script):
-        parsed_script = parse(prevouts[i].script_pub_key.script)
         witness = tx.vin[i].script_witness
         annex = __taproot_get_annex(witness)
         stack = witness.stack
         if len(stack) == 0:
             raise BTClibValueError()
         elif len(stack) == 1:
-            _verify_taproot_key_path(parsed_script, stack, prevouts, tx, i, annex)
+            _verify_taproot_key_path(script, stack, prevouts, tx, i, annex)
         else:
-            script_bytes, stack, leaf_version = __unwrap_taproot_script(
-                parsed_script, stack
-            )
+            script_bytes, stack, leaf_version = __unwrap_taproot_script(script, stack)
             if leaf_version == 0xC0:
                 __verify_taproot_script_path_leaf_vc0(
                     parse(script_bytes, True), stack, prevouts, tx, i, annex

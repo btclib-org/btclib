@@ -26,7 +26,7 @@ def test_valid_taproot_key_path() -> None:
     with open(filename, "r") as file_:
         data = json.load(file_)
 
-    for x in filter(lambda x: "TAPROOT" in x["flags"], data):
+    for i, x in enumerate(filter(lambda x: "TAPROOT" in x["flags"], data)):
 
         tx = Tx.parse(x["tx"])
 
@@ -36,4 +36,15 @@ def test_valid_taproot_key_path() -> None:
         witness = Witness(x["success"]["witness"])
         tx.vin[index].script_witness = witness
 
-        verify_input(prevouts, tx, index)
+        # if i != 1349:
+        #     continue
+        # verify_input(prevouts, tx, index)
+
+        print()
+        print(i)
+        try:
+            verify_input(prevouts, tx, index)
+        except:
+            print("error")
+
+    assert False
