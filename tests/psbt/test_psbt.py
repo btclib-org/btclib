@@ -40,7 +40,7 @@ def test_vectors_bip174() -> None:
 
     data_folder = path.join(path.dirname(__file__), "_data")
     filename = path.join(data_folder, "bip174_test_vectors.json")
-    with open(filename, "r") as file_:
+    with open(filename, "r", encoding="ascii") as file_:
         # json.dump(test_vectors, f, indent=4)
         test_vectors = json.load(file_)
 
@@ -370,11 +370,11 @@ def test_dataclasses_json_dict() -> None:
     # Psbt dataclass dict to file
     datadir = path.join(path.dirname(__file__), "_generated_files")
     filename = path.join(datadir, "psbt.json")
-    with open(filename, "w") as file_:
+    with open(filename, "w", encoding="ascii") as file_:
         json.dump(psbt_dict, file_, indent=4)
 
     # Psbt dataclass dict from file
-    with open(filename, "r") as file_:
+    with open(filename, "r", encoding="ascii") as file_:
         psbt_dict2 = json.load(file_)
     assert isinstance(psbt_dict2, dict)
     assert psbt_dict2["tx"]

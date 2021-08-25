@@ -32,7 +32,7 @@ from btclib.tx.tx_out import TxOut
 def test_valid_script_path() -> None:
     fname = "tapscript_test_vector.json"
     filename = path.join(path.dirname(__file__), "_data", fname)
-    with open(filename, "r") as file_:
+    with open(filename, "r", encoding="ascii") as file_:
         data = json.load(file_)
 
     for x in data:

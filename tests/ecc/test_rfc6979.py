@@ -53,7 +53,7 @@ def test_rfc6979_tv() -> None:
 
     fname = "rfc6979.json"
     filename = path.join(path.dirname(__file__), "_data", fname)
-    with open(filename, "r") as file_:
+    with open(filename, "r", encoding="ascii") as file_:
         test_dict = json.load(file_)
 
     lower_s = False

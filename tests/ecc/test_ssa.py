@@ -102,7 +102,7 @@ def test_bip340_vectors() -> None:
     """
     fname = "bip340_test_vectors.csv"
     filename = path.join(path.dirname(__file__), "_data", fname)
-    with open(filename, newline="") as csvfile:
+    with open(filename, newline="", encoding="ascii") as csvfile:
         reader = csv.reader(csvfile)
         # skip column headers while checking that there are 7 columns
         _, _, _, _, _, _, _, _ = reader.__next__()

@@ -52,7 +52,7 @@ def test_vectors() -> None:
     """
     fname = "bip39_test_vectors.json"
     filename = path.join(path.dirname(__file__), "_data", fname)
-    with open(filename, "r") as file_:
+    with open(filename, "r", encoding="ascii") as file_:
         bip39_test_vectors = json.load(file_)["english"]
 
     lang = "en"

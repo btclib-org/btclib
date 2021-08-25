@@ -66,11 +66,11 @@ def test_dataclasses_json_dict() -> None:
     # PsbtOut dataclass dict to file
     datadir = path.join(path.dirname(__file__), "_generated_files")
     filename = path.join(datadir, "psbt_out.json")
-    with open(filename, "w") as file_:
+    with open(filename, "w", encoding="ascii") as file_:
         json.dump(psbt_out_dict, file_, indent=4)
 
     # PsbtOut dataclass dict from file
-    with open(filename, "r") as file_:
+    with open(filename, "r", encoding="ascii") as file_:
         psbt_out_dict2 = json.load(file_)
     assert isinstance(psbt_out_dict2, dict)
     assert psbt_out_dict2["redeem_script"] == ""

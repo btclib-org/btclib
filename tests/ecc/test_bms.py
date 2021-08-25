@@ -537,7 +537,7 @@ def test_vector_python_bitcoinlib() -> None:
 
     fname = "bms.json"
     filename = path.join(path.dirname(__file__), "_data", fname)
-    with open(filename, "r") as file_:
+    with open(filename, "r", encoding="ascii") as file_:
         test_vectors = json.load(file_)
 
     for vector in test_vectors[:10]:

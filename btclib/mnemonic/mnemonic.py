@@ -68,7 +68,7 @@ class WordLists:
 
         # language has not been loaded yet
         if self._language_length[lang] == 0:
-            with open(self.language_files[lang], "r") as file_:
+            with open(self.language_files[lang], "r", encoding="ascii") as file_:
                 lines = file_.readlines()
 
             nwords = len(lines)

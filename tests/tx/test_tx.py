@@ -337,11 +337,11 @@ def test_dataclasses_json_dict() -> None:
     # Tx dataclass dict to file
     datadir = path.join(path.dirname(__file__), "_generated_files")
     filename = path.join(datadir, "tx.json")
-    with open(filename, "w") as file_:
+    with open(filename, "w", encoding="ascii") as file_:
         json.dump(tx_dict, file_, indent=4)
 
     # Tx dataclass dict from file
-    with open(filename, "r") as file_:
+    with open(filename, "r", encoding="ascii") as file_:
         tx_dict2 = json.load(file_)
     assert isinstance(tx_dict2, dict)
     assert tx_dict2["vin"][0]["txinwitness"]["stack"]  # type: ignore
