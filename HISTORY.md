@@ -9,7 +9,24 @@ full year, short month, short day (YYYY-M-D)
 
 Major changes includes:
 
-- nothing relevant yet
+- added bech32m
+- added Taproot support
+- introduced ScriptPubKey class
+- used script_type instead of prefix/wit_ver for b58/b32 address functions
+- split up op_int in op_num and op_int
+- prevented bip32 account derivation with arbitrarily high index
+- ensured der.Sig.r is congruent to a valid x-coordinate
+- renamed ScriptToken as Command
+- moved witness and script_pub_key into script folder
+- removed dataclasses_json dependency
+- introduced submodules
+- renamed Tx.tx_id as Tx.id
+- renamed deserialize as parse
+- renamed signature functions: trailing underscore marks hash-reduced versions
+- updated BIP32 test vectors
+- moved continuous testing from TravisCI to Github Actions
+- simplified configuration files
+- fixed pylint and flake8 warnings
 
 ## v2020.12.19
 
