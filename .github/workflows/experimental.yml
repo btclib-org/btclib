@@ -25,9 +25,7 @@ jobs:
           python-version: 3.10-dev
       - name: Install requirements
         run: |
-          python -m pip install -U pip
-          pip install wheel
-          pip install -r requirements.txt
-          pip install -r requirements-dev.txt
+          pip install -U -r requirements-dev.txt
+          pip install -U -r requirements.txt
       - name: Run Tox
         run: tox -e py
