@@ -166,7 +166,7 @@ data_folder = path.join(path.dirname(__file__), "_data")
 
 
 def test_bip32_vectors() -> None:
-    """BIP32 test vectors
+    """BIP32 test vectors #1, #2, #3, and #4
 
     https://github.com/bitcoin/bips/blob/master/bip-0032.mediawiki
     """
@@ -182,6 +182,10 @@ def test_bip32_vectors() -> None:
 
 
 def test_invalid_bip32_xkeys() -> None:
+    """BIP32 test vectors #5
+
+    https://github.com/bitcoin/bips/pull/921
+    """
 
     filename = path.join(data_folder, "bip32_invalid_keys.json")
     with open(filename, "r") as file_:
