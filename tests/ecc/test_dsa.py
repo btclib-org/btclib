@@ -13,11 +13,8 @@
 import secrets
 from hashlib import sha1
 
+import coincurve  # type: ignore # pylint: disable=no-name-in-module
 import pytest
-from coincurve._libsecp256k1 import (  # type: ignore # pylint: disable=no-name-in-module
-    ffi,
-    lib,
-)
 
 from btclib.alias import INF
 from btclib.ecc import dsa
@@ -29,42 +26,26 @@ from btclib.exceptions import BTClibRuntimeError, BTClibValueError
 from btclib.hashes import reduce_to_hlen
 from tests.ecc.test_curve import low_card_curves
 
-GLOBAL_CTX = ffi.gc(
-    lib.secp256k1_context_create(
-        lib.SECP256K1_CONTEXT_SIGN | lib.SECP256K1_CONTEXT_VERIFY
-    ),
-    lib.secp256k1_context_destroy,
-)
-
-CDATA_SIG_LENGTH = 64
-
 
 def test_libsecp256k1() -> None:
+
+    prvkey = 1
     msg = "Satoshi Nakamoto".encode()
-
-    q, _ = dsa.gen_keys(0x1)
-    sig = dsa.sign(msg, q)
-
     msg_hash = reduce_to_hlen(msg)
-    secret = q.to_bytes(32, "big")
 
-    c_sig = ffi.new("secp256k1_ecdsa_signature *")
-    assert lib.secp256k1_ecdsa_sign(
-        GLOBAL_CTX, c_sig, msg_hash, secret, ffi.NULL, ffi.NULL
-    ), "libsecp256k1 signature failed"
+    btclib_sig = dsa.sign(msg, prvkey)
+    coincurve_sig = coincurve.PrivateKey.from_int(prvkey).sign(msg)
+    assert btclib_sig.serialize() == coincurve_sig
 
-    output = ffi.new(f"unsigned char[{CDATA_SIG_LENGTH}]")
-    assert lib.secp256k1_ecdsa_signature_serialize_compact(
-        GLOBAL_CTX, output, c_sig
-    ), "libsecp256k1 signature serialization failed"
+    btclib_sig = dsa.sign_(msg_hash, prvkey)
+    assert btclib_sig.serialize() == coincurve_sig
+    coincurve_sig = coincurve.PrivateKey.from_int(prvkey).sign(msg_hash, None)
+    assert btclib_sig.serialize() == coincurve_sig
 
-    c_sig_bytes = bytes(ffi.buffer(output, CDATA_SIG_LENGTH))
-
-    r = c_sig_bytes[:32]
-    s = c_sig_bytes[32:]
-
-    assert r.hex() == sig.r.to_bytes(32, "big").hex()
-    assert s.hex() == sig.s.to_bytes(32, "big").hex()
+    assert coincurve.PublicKey.from_secret(prvkey.to_bytes(32, "big")).verify(
+        btclib_sig.serialize(), msg
+    )
+    assert dsa.verify(msg, prvkey, coincurve_sig)
 
 
 def test_signature() -> None:
