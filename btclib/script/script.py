@@ -104,10 +104,11 @@ class Script:
     # e.g. [OP_HASH160, script_h160, OP_EQUAL]
     # or Octets of its byte-encoded representation
     script: bytes
+    taproot: bool = False
 
     @property
     def asm(self) -> List[Command]:
-        return parse(self.script)
+        return parse(self.script, self.taproot)
 
     def __add__(self, other: object):
 
@@ -116,11 +117,15 @@ class Script:
 
         return Script(self.script + other.script)
 
-    def __init__(self, script: Octets = b"", check_validity: bool = True) -> None:
-
+    def __init__(
+        self, script: Octets = b"", check_validity: bool = True, taproot: bool = False
+    ) -> None:
+        self.taproot = taproot
         self.script = bytes_from_octets(script)
         if check_validity:
             self.assert_valid()
 
     def assert_valid(self) -> None:
-        serialize(self.asm)
+        asm = self.asm
+        if asm != ["OP_SUCCESS"]:
+            serialize(asm)

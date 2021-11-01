@@ -100,12 +100,17 @@ class TxOut:
 
     @classmethod
     def parse(
-        cls: Type["TxOut"], data: BinaryData, check_validity: bool = True
+        cls: Type["TxOut"],
+        data: BinaryData,
+        check_validity: bool = True,
+        taproot: bool = False,
     ) -> "TxOut":
         stream = bytesio_from_binarydata(data)
         value = int.from_bytes(stream.read(8), byteorder="little", signed=False)
         script = var_bytes.parse(stream)
-        return cls(value, ScriptPubKey(script, "mainnet"), check_validity)
+        return cls(
+            value, ScriptPubKey(script, "mainnet", taproot=taproot), check_validity
+        )
 
     @classmethod
     def from_address(cls: Type["TxOut"], value: int, address: String) -> "TxOut":
