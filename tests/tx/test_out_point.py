@@ -62,9 +62,9 @@ def test_dataclasses_json_dict_out_point() -> None:
 
     # Tx dict to/from dict file
     filename = path.join(datadir, "out_point.json")
-    with open(filename, "w") as file_:
+    with open(filename, "w", encoding="ascii") as file_:
         json.dump(out_point_dict, file_, indent=4)
-    with open(filename, "r") as file_:
+    with open(filename, "r", encoding="ascii") as file_:
         out_point_dict2 = json.load(file_)
     assert isinstance(out_point_dict2, dict)
     assert out_point_dict == out_point_dict2

@@ -215,7 +215,7 @@ NETWORKS: Dict[str, Network] = {}
 datadir = path.join(path.dirname(__file__), "_data")
 for net in ("mainnet", "testnet", "regtest"):
     filename = path.join(datadir, net + ".json")
-    with open(filename, "r") as f:
+    with open(filename, "r", encoding="ascii") as f:
         NETWORKS[net] = Network.from_dict(json.load(f))
 
 

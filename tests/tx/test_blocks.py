@@ -261,7 +261,7 @@ def test_dataclasses_json_dict() -> None:
     block_dict = block_data.to_dict()
     assert isinstance(block_dict, dict)
     filename = path.join(datadir, "block_481824.json")
-    with open(filename, "w") as file_:
+    with open(filename, "w", encoding="ascii") as file_:
         json.dump(block_dict, file_, indent=4)
     assert block_data == Block.from_dict(block_dict)
 
@@ -275,6 +275,6 @@ def test_dataclasses_json_dict() -> None:
     block_header_d = block_header_data.to_dict()
     assert isinstance(block_header_d, dict)
     filename = path.join(datadir, "block_header_481824.json")
-    with open(filename, "w") as file_:
+    with open(filename, "w", encoding="ascii") as file_:
         json.dump(block_header_d, file_, indent=4)
     assert block_header_data == BlockHeader.from_dict(block_header_d)

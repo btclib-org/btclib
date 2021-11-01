@@ -157,7 +157,7 @@ def test_sig_hashsingle_bug() -> None:
 def test_test_vectors() -> None:
     fname = "sig_hash_legacy_test_vectors.json"
     filename = path.join(path.dirname(__file__), "_data", fname)
-    with open(filename, "r") as file_:
+    with open(filename, "r", encoding="ascii") as file_:
         data = json.load(file_)
     data = data[1:]  # skip column headers
     for raw_tx, raw_script, input_index, hash_type, exp_hash in data:

@@ -6,7 +6,7 @@ from setuptools import find_packages, setup  # type: ignore
 
 import btclib
 
-with open("README.md", "r") as file_:
+with open("README.md", "r", encoding="ascii") as file_:
     longdescription = file_.read()
 
 setup(
@@ -42,7 +42,11 @@ setup(
     ),
     python_requires=">=3.6",
     classifiers=[
-        "Programming Language :: Python :: 3 :: Only",
+        "Programming Language :: Python :: 3.6",
+        "Programming Language :: Python :: 3.7",
+        "Programming Language :: Python :: 3.8",
+        "Programming Language :: Python :: 3.9",
+        "Programming Language :: Python :: 3.10",
         "Development Status :: 4 - Beta",
         "Intended Audience :: Developers",
         "Intended Audience :: Education",

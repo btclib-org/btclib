@@ -525,7 +525,7 @@ def test_bip67() -> None:
 
     data_folder = path.join(path.dirname(__file__), "_data")
     filename = path.join(data_folder, "bip67_test_vectors.json")
-    with open(filename, "r") as file_:
+    with open(filename, "r", encoding="ascii") as file_:
         # json.dump(test_vectors, f, indent=4)
         test_vectors = json.load(file_)
 

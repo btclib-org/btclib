@@ -162,7 +162,7 @@ datadir = path.join(path.dirname(__file__), "_data")
 # Brainpool Standard Curves and Curve Generation
 # https://tools.ietf.org/html/rfc5639
 filename = path.join(datadir, "ec_Brainpool.json")
-with open(filename, "r") as file_:
+with open(filename, "r", encoding="ascii") as file_:
     Brainpool_params2 = json.load(file_)
 Brainpool: Dict[str, Curve] = {}
 for ec_name in Brainpool_params2:
@@ -174,7 +174,7 @@ for ec_name in Brainpool_params2:
 # Digital Signature Standard (DSS)
 # https://oag.ca.gov/sites/all/files/agweb/pdfs/erds1/fips_pub_07_2013.pdf
 filename = path.join(datadir, "ec_NIST.json")
-with open(filename, "r") as file_:
+with open(filename, "r", encoding="ascii") as file_:
     NIST_params2 = json.load(file_)
 NIST: Dict[str, Curve] = {}
 for ec_name in NIST_params2:
@@ -184,7 +184,7 @@ for ec_name in NIST_params2:
 # SEC 2 v.1 curves, removed from SEC 2 v.2 as insecure ones
 # http://www.secg.org/SEC2-Ver-1.0.pdf
 filename = path.join(datadir, "ec_SEC2v1_insecure.json")
-with open(filename, "r") as file_:
+with open(filename, "r", encoding="ascii") as file_:
     SEC2v1_params2 = json.load(file_)
 SEC2v1: Dict[str, Curve] = {}
 for ec_name in SEC2v1_params2:
@@ -194,7 +194,7 @@ for ec_name in SEC2v1_params2:
 # curves included in both SEC 2 v.1 and SEC 2 v.2
 # http://www.secg.org/sec2-v2.pdf
 filename = path.join(datadir, "ec_SEC2v2.json")
-with open(filename, "r") as file_:
+with open(filename, "r", encoding="ascii") as file_:
     SEC2v2_params2 = json.load(file_)
 SEC2v2: Dict[str, Curve] = {}
 for ec_name in SEC2v2_params2:
