@@ -311,7 +311,7 @@ def op_str(command: str) -> bytes:
         return OP_CODES[command]
     if command[:10] == "OP_SUCCESS":
         x = int(command[10:])
-        if x in OP_CODE_NAMES.keys() or 0 < x < 76:
+        if x in OP_CODE_NAMES or 0 < x < 76:
             raise BTClibValueError(f"invalid OP_SUCCESS number: {x}")
         return x.to_bytes(1, "little")
     try:

@@ -48,7 +48,7 @@ def test_operators() -> None:
         # skip 'reserved' opcodes
         if i in (80, 98, 101, 102, 137, 138):
             continue
-        assert i in OP_CODE_NAMES.keys()
+        assert i in OP_CODE_NAMES
 
 
 def test_op_num() -> None:

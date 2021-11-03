@@ -15,6 +15,7 @@ from os import path
 
 import pytest
 
+from btclib import b32
 from btclib.ecc.curve import mult
 from btclib.exceptions import BTClibValueError
 from btclib.script.script import serialize
@@ -27,7 +28,6 @@ from btclib.script.taproot import (
 )
 from btclib.script.witness import Witness
 from btclib.tx.tx_out import TxOut
-from btclib import b32
 
 
 def test_valid_script_path() -> None:

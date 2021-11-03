@@ -86,7 +86,7 @@ def parse(stream: BinaryData, exit_on_op_success: bool = False) -> List[Command]
                 new_op_code: Command = decode_num(data)
             else:
                 new_op_code = data.hex().upper()
-        elif i in OP_CODE_NAMES.keys():  # OP_CODE
+        elif i in OP_CODE_NAMES:  # OP_CODE
             new_op_code = OP_CODE_NAMES[i]
         else:  # OP_SUCCESSx
             new_op_code = f"OP_SUCCESS{i}"
