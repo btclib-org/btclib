@@ -18,7 +18,7 @@ import pytest
 from btclib import b32
 from btclib.ecc.curve import mult
 from btclib.exceptions import BTClibValueError
-from btclib.script.script import serialize, parse
+from btclib.script.script import parse, serialize
 from btclib.script.script_pub_key import is_p2tr, type_and_payload
 from btclib.script.taproot import (
     check_output_pubkey,
@@ -113,16 +113,15 @@ def test_control_block() -> None:
 
 
 def convert_script_tree(script_tree):
-    if not script_tree:
-        return []
     if isinstance(script_tree, list):
         new_script_tree = []
         for x in script_tree:
             new_script_tree.append(convert_script_tree(x))
         return new_script_tree
-    elif isinstance(script_tree, dict):
+    if isinstance(script_tree, dict):
         leaf = [[script_tree["leafVersion"], parse(script_tree["script"])]]
         return leaf
+    return []
 
 
 def test_bip_test_vector():

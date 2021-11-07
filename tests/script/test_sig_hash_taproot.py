@@ -208,8 +208,8 @@ def test_bip_test_vector():
     for vin in unsigned_tx.vin:
         vin.script_witness.stack.append(["00"])
 
-    for input in data["inputSpending"]:
-        index = input["given"]["txinIndex"]
-        hash_type = input["given"]["hashType"]
+    for test in data["inputSpending"]:
+        index = test["given"]["txinIndex"]
+        hash_type = test["given"]["hashType"]
         signature_hash = sig_hash.from_tx(utxos, unsigned_tx, index, hash_type)
-        assert signature_hash.hex() == input["intermediary"]["sigHash"]
+        assert signature_hash.hex() == test["intermediary"]["sigHash"]
