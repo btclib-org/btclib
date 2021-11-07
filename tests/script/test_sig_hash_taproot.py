@@ -193,74 +193,23 @@ def test_wrapped_p2tr() -> None:
 
 
 def test_bip_test_vector():
-    unsigned_tx_hex = "02000000097de20cbff686da83a54981d2b9bab3586f4ca7e48f57f5b55963115f3b334e9c010000000000000000d7b7cab57b1393ace2d064f4d4a2cb8af6def61273e127517d44759b6dafdd990000000000fffffffff8e1f583384333689228c5d28eac13366be082dc57441760d957275419a418420000000000fffffffff0689180aa63b30cb162a73c6d2a38b7eeda2a83ece74310fda0843ad604853b0100000000feffffff0c638ca38362001f5e128a01ae2b379288eb22cfaf903652b2ec1c88588f487a0000000000feffffff956149bdc66faa968eb2be2d2faa29718acbfe3941215893a2a3446d32acd05000000000000000000081efa267f1f0e46e054ecec01773de7c844721e010c2db5d5864a6a6b53e013a010000000000000000a690669c3c4a62507d93609810c6de3f99d1a6e311fe39dd23683d695c07bdee0000000000ffffffff727ab5f877438496f8613ca84002ff38e8292f7bd11f0a9b9b83ebd16779669e0100000000ffffffff0200ca9a3b000000001976a91406afd46bcdfd22ef94ac122aa11f241244a37ecc88ac807840cb0000000020ac9a87f5594be208f8532db38cff670c450ed2fea8fcdefcc9a663f78bab962b0065cd1d"
-    unsigned_tx = Tx.parse(unsigned_tx_hex, taproot=True)
 
-    utxo_0 = TxOut(
-        420000000,
-        "512053a1f6e454df1aa2776a2814a721372d6258050de330b3c6d10ee8f4e0dda343",
-    )
-    utxo_1 = TxOut(
-        462000000,
-        "5120147c9c57132f6e7ecddba9800bb0c4449251c92a1e60371ee77557b6620f3ea3",
-    )
-    utxo_2 = TxOut(
-        294000000,
-        "76a914751e76e8199196d454941c45d1b3a323f1433bd688ac",
-    )
-    utxo_3 = TxOut(
-        504000000,
-        "5120e4d810fd50586274face62b8a807eb9719cef49c04177cc6b76a9a4251d5450e",
-    )
-    utxo_4 = TxOut(
-        630000000,
-        "512091b64d5324723a985170e4dc5a0f84c041804f2cd12660fa5dec09fc21783605",
-    )
-    utxo_5 = TxOut(
-        378000000,
-        "00147dd65592d0ab2fe0d0257d571abf032cd9db93dc",
-    )
-    utxo_6 = TxOut(
-        672000000,
-        "512075169f4001aa68f15bbed28b218df1d0a62cbbcf1188c6665110c293c907b831",
-    )
-    utxo_7 = TxOut(
-        546000000,
-        "51200f63ca2c7639b9bb4be0465cc0aa3ee78a0761ba5f5f7d6ff8eab340f09da561",
-    )
-    utxo_8 = TxOut(
-        588000000,
-        "5120053690babeabbb7850c32eead0acf8df990ced79f7a31e358fabf2658b4bc587",
-    )
-    utxos = [utxo_0, utxo_1, utxo_2, utxo_3, utxo_4, utxo_5, utxo_6, utxo_7, utxo_8]
+    fname = "taproot_test_vector.json"
+    filename = path.join(path.dirname(__file__), "_data", fname)
+    with open(filename, "r", encoding="ascii") as file_:
+        data = json.load(file_)["keyPathSpending"][0]
+
+    unsigned_tx = Tx.parse(data["given"]["rawUnsignedTx"], taproot=True)
+
+    utxos = []
+    for utxo in data["given"]["utxosSpent"]:
+        utxos.append(TxOut(utxo["amountSats"], utxo["scriptPubKey"]))
+
     for vin in unsigned_tx.vin:
         vin.script_witness.stack.append(["00"])
 
-    assert (
-        sig_hash.from_tx(utxos, unsigned_tx, 0, 0x03).hex()
-        == "7e584883b084ace0469c6962a9a7d2a9060e1f3c218ab40d32c77651482122bc"
-    )
-    assert (
-        sig_hash.from_tx(utxos, unsigned_tx, 1, 0x83).hex()
-        == "325a644af47e8a5a2591cda0ab0723978537318f10e6a63d4eed783b96a71a4d"
-    )
-    assert (
-        sig_hash.from_tx(utxos, unsigned_tx, 3, 0x01).hex()
-        == "6ffd256e108685b41831385f57eebf2fca041bc6b5e607ea11b3e03d4cf9d9ba"
-    )
-    assert (
-        sig_hash.from_tx(utxos, unsigned_tx, 4, 0x00).hex()
-        == "9f90136737540ccc18707e1fd398ad222a1a7e4dd65cbfd22dbe4660191efa58"
-    )
-    assert (
-        sig_hash.from_tx(utxos, unsigned_tx, 6, 0x02).hex()
-        == "835c9ab6084ed9a8ae9b7cda21e0aa797aca3b76a54bd1e3c7db093f6c57e23f"
-    )
-    assert (
-        sig_hash.from_tx(utxos, unsigned_tx, 7, 0x82).hex()
-        == "df1cca638283c667084b8ffe6bf6e116cc5a53cf7ae1202c5fee45a9085f1ba5"
-    )
-    assert (
-        sig_hash.from_tx(utxos, unsigned_tx, 8, 0x81).hex()
-        == "30319859ca79ea1b7a9782e9daebc46e4ca4ca2bc04c9c53b2ec87fa83a526bd"
-    )
+    for input in data["inputSpending"]:
+        index = input["given"]["txinIndex"]
+        hash_type = input["given"]["hashType"]
+        signature_hash = sig_hash.from_tx(utxos, unsigned_tx, index, hash_type)
+        assert signature_hash.hex() == input["intermediary"]["sigHash"]
