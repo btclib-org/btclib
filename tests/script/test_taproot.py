@@ -114,13 +114,9 @@ def test_control_block() -> None:
 
 def convert_script_tree(script_tree):
     if isinstance(script_tree, list):
-        new_script_tree = []
-        for x in script_tree:
-            new_script_tree.append(convert_script_tree(x))
-        return new_script_tree
+        return [convert_script_tree(x) for x in script_tree]
     if isinstance(script_tree, dict):
-        leaf = [[script_tree["leafVersion"], parse(script_tree["script"])]]
-        return leaf
+        return [[script_tree["leafVersion"], parse(script_tree["script"])]]
     return []
 
 

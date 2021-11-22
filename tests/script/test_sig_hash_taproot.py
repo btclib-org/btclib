@@ -201,9 +201,10 @@ def test_bip_test_vector():
 
     unsigned_tx = Tx.parse(data["given"]["rawUnsignedTx"], taproot=True)
 
-    utxos = []
-    for utxo in data["given"]["utxosSpent"]:
-        utxos.append(TxOut(utxo["amountSats"], utxo["scriptPubKey"]))
+    utxos = [
+        TxOut(utxo["amountSats"], utxo["scriptPubKey"])
+        for utxo in data["given"]["utxosSpent"]
+    ]
 
     for vin in unsigned_tx.vin:
         vin.script_witness.stack.append(["00"])
