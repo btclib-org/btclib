@@ -316,7 +316,8 @@ def serialize(script: Sequence[Command]) -> bytes:
     return b"".join(r)
 
 
-def parse(stream: BinaryData, exit_on_op_success: bool = False) -> list[Command]:
+def parse(stream: BinaryData, taproot: bool = False) -> List[Command]:
+
     s = bytesio_from_binarydata(stream)
     r: list[Command] = []  # initialize the result list
     invalid_element_size = False
@@ -342,20 +343,16 @@ def parse(stream: BinaryData, exit_on_op_success: bool = False) -> list[Command]
                 invalid_element_size = True
             data = s.read(data_length)
             if len(data) != data_length:
-                raise BTClibValueError("not enough data for pushdata")
-            command = data.hex().upper()
-        elif i in OP_CODE_NAME_FROM_INT:  # OP_CODE
-            command = OP_CODE_NAME_FROM_INT[i]
-            # Opcodes which take integers and bools off the stack require
-            # that they be no more than 4 bytes long.
-            # If this is the case, parse that command as int
-            # t = r[-1]
-            # if isinstance(t, bytes) and len(t) <= 4:
-            #    r[-1] = decode_num(t)
-        else:  # OP_SUCCESSx
-            command = f"OP_SUCCESS{i}"
-            if exit_on_op_success:
-                return ["OP_SUCCESS"]
+                raise BTClibValueError("Invalid pushdata length")
+            # if <= 0xFFFFFFFF, parse it as integer
+            # if i < 6 and decode_num(data) <= 0xFFFFFFFF:
+            #     new_op_code: Command = decode_num(data)
+            # else:
+            new_op_code = data.hex().upper()
+        elif taproot and i in OP_SUCCESS:  # OP_SUCCESSx
+            return ["OP_SUCCESS"]
+        else:  # OP_CODE
+            new_op_code = OP_CODE_NAMES[i]
 
         r.append(command)
 
