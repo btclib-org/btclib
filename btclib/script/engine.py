@@ -12,9 +12,13 @@
 Bitcoin Script engine
 """
 
-from typing import List, Tuple, Sequence
+from typing import List, Sequence, Tuple
 
+from btclib import var_bytes
+from btclib.ecc import ssa
 from btclib.exceptions import BTClibValueError
+from btclib.hashes import tagged_hash
+from btclib.script import sig_hash
 from btclib.script.script import Command, parse, serialize
 from btclib.script.script_pub_key import (
     is_p2sh,
@@ -23,15 +27,11 @@ from btclib.script.script_pub_key import (
     is_p2wsh,
     type_and_payload,
 )
+from btclib.script.taproot import check_output_pubkey
+from btclib.script.witness import Witness
 from btclib.tx.tx import Tx
 from btclib.tx.tx_out import TxOut
-from btclib.script.witness import Witness
-from btclib.script import sig_hash
-from btclib.ecc import ssa
-from btclib.script.taproot import check_output_pubkey
 from btclib.utils import bytes_from_octets
-from btclib import var_bytes
-from btclib.hashes import tagged_hash
 
 
 def __unwrap_taproot_script(
@@ -132,41 +132,51 @@ def __verify_taproot_script_path_leaf_vc0(
     annex: bytes,
 ) -> None:
 
-    print(script)
-
     if script == ["OP_SUCCESS"]:
         return
 
     script_bytes = serialize(script)
+    codesep_pos = 0xFFFFFFFF
 
-    if script == ["OP_SUCCESS"]:
-        return
+    for x in range(len(script)):
+        if script[x] == "OP_CODESEPARATOR":
+            script[x] = f"OP_CODESEPARATOR{x}"
+
     script.reverse()
     while script:
         command = script.pop()
         if isinstance(command, int):
             stack.append(command)
-            continue
-        if command[:6] == "OP_NOP":
-            continue
+        elif command[:6] == "OP_NOP":
+            pass
         elif command == "OP_DUP":
             stack.append(stack[-1])
         elif command == "OP_2DUP":
             stack.extend(stack[-2:])
         elif command == "OP_DROP":
             stack.pop()
+        elif command == "OP_2DROP":
+            stack.pop()
+            stack.pop()
         elif command == "OP_SWAP":
             stack[-1], stack[-2] = stack[-2], stack[-1]
         elif command == "OP_CHECKSIG":
             pub_key = bytes_from_octets(stack.pop())
             signature = bytes_from_octets(stack.pop())
-            sighash_type = __taproot_get_hashtype(signature)
-            preimage = b"\xc0"
-            preimage += var_bytes.serialize(script_bytes)
-            tapleaf_hash = tagged_hash(b"TapLeaf", preimage)
-            ext = tapleaf_hash + b"\x00\xff\xff\xff\xff"
-            msg_hash = sig_hash.taproot(tx, i, prevouts, sighash_type, 1, annex, ext)
-            stack.append(int(bool(ssa.verify_(msg_hash, pub_key, signature))))
+            if not isinstance(pub_key, int):
+                if len(pub_key) == 0:
+                    raise BTClibValueError()
+                if len(pub_key) == 32 and signature:
+                    sighash_type = __taproot_get_hashtype(signature)
+                    preimage = b"\xc0"
+                    preimage += var_bytes.serialize(script_bytes)
+                    tapleaf_hash = tagged_hash(b"TapLeaf", preimage)
+                    ext = tapleaf_hash + b"\x00" + codesep_pos.to_bytes(4, "little")
+                    msg_hash = sig_hash.taproot(
+                        tx, i, prevouts, sighash_type, 1, annex, ext
+                    )
+                    ssa.assert_as_valid_(msg_hash, pub_key, signature[:64])
+            stack.append(int(bool(signature)))
         elif command == "OP_EQUAL":
             a = stack.pop()
             b = stack.pop()
@@ -175,6 +185,14 @@ def __verify_taproot_script_path_leaf_vc0(
             a = stack.pop()
             b = stack.pop()
             stack.append(a + b)
+        elif command == "OP_NOT":
+            x = stack.pop()
+            if x in [0, 1, "0", "1"]:
+                stack.append(1 - int(x))
+            elif x in [b"\x00", b"\x01"]:
+                stack.append(1 - int.from_bytes(x, "big"))
+            else:
+                stack.append(0)
         elif command == "OP_VERIFY":
             x = stack.pop()
             if not x:
@@ -186,15 +204,21 @@ def __verify_taproot_script_path_leaf_vc0(
             script.extend(["OP_CHECKSIG", "OP_ADD"][::-1])
         elif command == "OP_EQUALVERIFY":
             script.extend(["OP_EQUAL", "OP_VERIFY"][::-1])
+        elif command == "OP_NOTIF":
+            script.extend(["OP_NOT", "OP_IF"][::-1])
         elif command == "OP_IF":
             script = op_if(script, stack)
         elif command in ["OP_ENDIF", "OP_ELSE"]:
             raise BTClibValueError()
+        elif command[:16] == "OP_CODESEPARATOR":
+            codesep_pos = int(command[16:])
+        elif command == "OP_1NEGATE":
+            stack.append(-1)
         elif command[:3] == "OP_":
             stack.append(int(command[3:]))
         else:
             stack.append(command)
-    # 2147483648
+
     if len(stack) != 1:
         raise BTClibValueError()
     if stack[0] in ["OP_0", 0]:

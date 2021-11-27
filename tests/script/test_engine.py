@@ -10,11 +10,10 @@
 
 "Tests for the `btclib.script.engine` module."
 
-from btclib.script.engine import verify_input
-
 import json
 from os import path
 
+from btclib.script.engine import verify_input
 from btclib.script.witness import Witness
 from btclib.tx.tx import Tx
 from btclib.tx.tx_out import TxOut
@@ -36,15 +35,4 @@ def test_valid_taproot_key_path() -> None:
         witness = Witness(x["success"]["witness"])
         tx.vin[index].script_witness = witness
 
-        # if i != 1349:
-        #     continue
-        # verify_input(prevouts, tx, index)
-
-        print()
-        print(i)
-        try:
-            verify_input(prevouts, tx, index)
-        except:
-            print("error")
-
-    assert False
+        verify_input(prevouts, tx, index)
