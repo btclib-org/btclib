@@ -13,7 +13,6 @@
 import secrets
 from hashlib import sha1
 
-import coincurve  # type: ignore # pylint: disable=no-name-in-module
 import pytest
 
 from btclib.alias import INF
@@ -25,27 +24,6 @@ from btclib.ecc.sec_point import bytes_from_point, point_from_octets
 from btclib.exceptions import BTClibRuntimeError, BTClibValueError
 from btclib.hashes import reduce_to_hlen
 from tests.ecc.test_curve import low_card_curves
-
-
-def test_libsecp256k1() -> None:
-
-    prvkey = 1
-    msg = "Satoshi Nakamoto".encode()
-    msg_hash = reduce_to_hlen(msg)
-
-    btclib_sig = dsa.sign(msg, prvkey)
-    coincurve_sig = coincurve.PrivateKey.from_int(prvkey).sign(msg)
-    assert btclib_sig.serialize() == coincurve_sig
-
-    btclib_sig = dsa.sign_(msg_hash, prvkey)
-    assert btclib_sig.serialize() == coincurve_sig
-    coincurve_sig = coincurve.PrivateKey.from_int(prvkey).sign(msg_hash, None)
-    assert btclib_sig.serialize() == coincurve_sig
-
-    assert coincurve.PublicKey.from_secret(prvkey.to_bytes(32, "big")).verify(
-        btclib_sig.serialize(), msg
-    )
-    assert dsa.verify(msg, prvkey, coincurve_sig)
 
 
 def test_signature() -> None:
