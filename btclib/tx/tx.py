@@ -230,7 +230,12 @@ class Tx:
         )
 
     @classmethod
-    def parse(cls: Type["Tx"], data: BinaryData, check_validity: bool = True) -> "Tx":
+    def parse(
+        cls: Type["Tx"],
+        data: BinaryData,
+        check_validity: bool = True,
+        taproot: bool = False,
+    ) -> "Tx":
         "Return a Tx by parsing binary data."
 
         stream = bytesio_from_binarydata(data)
@@ -253,7 +258,7 @@ class Tx:
         vin = [TxIn.parse(stream) for _ in range(n)]
 
         n = var_int.parse(stream)
-        vout = [TxOut.parse(stream) for _ in range(n)]
+        vout = [TxOut.parse(stream, taproot=taproot) for _ in range(n)]
 
         if segwit:
             for tx_in in vin:

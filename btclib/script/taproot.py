@@ -63,13 +63,13 @@ def output_pubkey(
     if script_tree:
         _, h = tree_helper(script_tree)
     else:
-        h = tagged_hash(b"TapTweak", pubkey)
+        h = b""
     t = int.from_bytes(tagged_hash(b"TapTweak", pubkey + h), "big")
     # edge case that cannot be reproduced in the test suite
     if t >= ec.n:
         raise BTClibValueError("Invalid script tree hash")  # pragma: no cover
-    x = int.from_bytes(pubkey, "big")
-    Q = ec.add((x, ec.y_even(x)), mult(t))
+    P_x = int.from_bytes(pubkey, "big")
+    Q = ec.add((P_x, ec.y_even(P_x)), mult(t))
     return Q[0].to_bytes(32, "big"), Q[1] % 2
 
 
@@ -83,7 +83,7 @@ def output_prvkey(
     if script_tree:
         _, h = tree_helper(script_tree)
     else:
-        h = tagged_hash(b"TapTweak", P[0].to_bytes(32, "big"))
+        h = b""
     has_even_y = ec.y_even(P[0]) == P[1]
     internal_prvkey = internal_prvkey if has_even_y else ec.n - internal_prvkey
     t = int.from_bytes(tagged_hash(b"TapTweak", P[0].to_bytes(32, "big") + h), "big")

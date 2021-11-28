@@ -190,3 +190,26 @@ def test_wrapped_p2tr() -> None:
     err_msg = "Taproot scripts cannot be wrapped in p2sh"
     with pytest.raises(BTClibValueError, match=err_msg):
         sig_hash.from_tx([utxo], tx, 0, 0)
+
+
+def test_bip_test_vector():
+
+    fname = "taproot_test_vector.json"
+    filename = path.join(path.dirname(__file__), "_data", fname)
+    with open(filename, "r", encoding="ascii") as file_:
+        data = json.load(file_)["keyPathSpending"][0]
+
+    unsigned_tx = Tx.parse(data["given"]["rawUnsignedTx"], taproot=True)
+
+    utxos = []
+    for utxo in data["given"]["utxosSpent"]:
+        utxos.append(TxOut(utxo["amountSats"], utxo["scriptPubKey"]))
+
+    for vin in unsigned_tx.vin:
+        vin.script_witness.stack.append(["00"])
+
+    for test in data["inputSpending"]:
+        index = test["given"]["txinIndex"]
+        hash_type = test["given"]["hashType"]
+        signature_hash = sig_hash.from_tx(utxos, unsigned_tx, index, hash_type)
+        assert signature_hash.hex() == test["intermediary"]["sigHash"]

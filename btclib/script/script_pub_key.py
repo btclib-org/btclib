@@ -337,9 +337,10 @@ class ScriptPubKey(Script):
         script: Octets,
         network: str = "mainnet",
         check_validity: bool = True,
+        taproot: bool = False,
     ) -> None:
         self.network = network
-        super().__init__(script, check_validity=False)
+        super().__init__(script, check_validity=check_validity, taproot=taproot)
         if check_validity:
             self.assert_valid()
 

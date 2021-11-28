@@ -15,9 +15,10 @@ from os import path
 
 import pytest
 
+from btclib import b32
 from btclib.ecc.curve import mult
 from btclib.exceptions import BTClibValueError
-from btclib.script.script import serialize
+from btclib.script.script import parse, serialize
 from btclib.script.script_pub_key import is_p2tr, type_and_payload
 from btclib.script.taproot import (
     check_output_pubkey,
@@ -109,3 +110,33 @@ def test_control_block() -> None:
     pubkey = output_pubkey(internal_pubkey, script_tree)[0]
     script, control = input_script_sig(internal_pubkey, script_tree, 0)
     assert check_output_pubkey(pubkey, serialize(script), control)
+
+
+def convert_script_tree(script_tree):
+    if isinstance(script_tree, list):
+        new_script_tree = []
+        for x in script_tree:
+            new_script_tree.append(convert_script_tree(x))
+        return new_script_tree
+    if isinstance(script_tree, dict):
+        leaf = [[script_tree["leafVersion"], parse(script_tree["script"])]]
+        return leaf
+    return []
+
+
+def test_bip_test_vector():
+
+    fname = "taproot_test_vector.json"
+    filename = path.join(path.dirname(__file__), "_data", fname)
+    with open(filename, "r", encoding="ascii") as file_:
+        data = json.load(file_)["scriptPubKey"]
+
+    for test in data:
+        pubkey = test["given"]["internalPubkey"]
+        script_tree = convert_script_tree(test["given"]["scriptTree"])
+
+        tweaked_pubkey = output_pubkey("02" + pubkey, script_tree)[0]
+        address = b32.p2tr("02" + pubkey, script_tree)
+
+        assert tweaked_pubkey.hex() == test["intermediary"]["tweakedPubkey"]
+        assert address == test["expected"]["bip350Address"]

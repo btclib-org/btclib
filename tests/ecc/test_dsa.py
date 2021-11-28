@@ -53,7 +53,7 @@ def test_libsecp256k1() -> None:
         GLOBAL_CTX, c_sig, msg_hash, secret, ffi.NULL, ffi.NULL
     ), "libsecp256k1 signature failed"
 
-    output = ffi.new("unsigned char[%d]" % CDATA_SIG_LENGTH)
+    output = ffi.new(f"unsigned char[{CDATA_SIG_LENGTH}]")
     assert lib.secp256k1_ecdsa_signature_serialize_compact(
         GLOBAL_CTX, output, c_sig
     ), "libsecp256k1 signature serialization failed"
