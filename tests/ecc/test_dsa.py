@@ -280,3 +280,24 @@ def test_sign_input_type() -> None:
     sig = dsa.sign(msg, q)
     dsa.assert_as_valid(msg, Q, sig)
     dsa.assert_as_valid(msg, Q, sig.serialize())
+
+
+def test_libsecp256k1() -> None:
+
+    try:
+        import btclib_libsecp256k1.dsa  # pylint: disable=import-outside-toplevel
+    except ImportError:  # pragma: no cover
+        pytest.skip()
+
+    prvkey, Q = dsa.gen_keys(0x1)
+    pubkey_bytes = bytes_from_point(Q)
+    msg = "Satoshi Nakamoto".encode()
+    msg_hash = reduce_to_hlen(msg)
+
+    libsecp256k1_sig = btclib_libsecp256k1.dsa.sign(msg_hash, prvkey)
+    btclib_sig = dsa.sign_(msg_hash, prvkey)
+
+    assert btclib_libsecp256k1.dsa.verify(
+        msg_hash, pubkey_bytes, btclib_sig.serialize()
+    )
+    assert dsa.verify(msg, prvkey, libsecp256k1_sig)
