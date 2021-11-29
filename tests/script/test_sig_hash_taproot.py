@@ -199,7 +199,7 @@ def test_bip_test_vector():
     with open(filename, "r", encoding="ascii") as file_:
         data = json.load(file_)["keyPathSpending"][0]
 
-    unsigned_tx = Tx.parse(data["given"]["rawUnsignedTx"], taproot=True)
+    unsigned_tx = Tx.parse(data["given"]["rawUnsignedTx"])
 
     utxos = []
     for utxo in data["given"]["utxosSpent"]:

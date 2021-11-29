@@ -59,7 +59,8 @@ class TxOut:
 
     def assert_valid(self) -> None:
         btc_from_sats(self.value)
-        self.script_pub_key.assert_valid()
+        # https://github.com/bitcoin/bitcoin/issues/320
+        # self.script_pub_key.assert_valid()
 
     def to_dict(self, check_validity: bool = True) -> Dict[str, Any]:
 
@@ -103,13 +104,16 @@ class TxOut:
         cls: Type["TxOut"],
         data: BinaryData,
         check_validity: bool = True,
-        taproot: bool = False,
     ) -> "TxOut":
         stream = bytesio_from_binarydata(data)
         value = int.from_bytes(stream.read(8), byteorder="little", signed=False)
         script = var_bytes.parse(stream)
         return cls(
-            value, ScriptPubKey(script, "mainnet", taproot=taproot), check_validity
+            value,
+            ScriptPubKey(
+                script, "mainnet", check_validity=False
+            ),  # https://github.com/bitcoin/bitcoin/issues/320
+            check_validity,
         )
 
     @classmethod
