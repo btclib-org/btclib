@@ -3,5 +3,5 @@ backports-datetime-fromisoformat>=1.0.0; python_version<'3.7'
 dataclasses>=0.8; python_version<'3.7'
 types-dataclasses>=0.1.5; python_version<'3.7'
 
-# for libsecp256k1
-coincurve
+#optional
+btclib_libsecp256k1

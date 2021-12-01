@@ -711,3 +711,24 @@ def test_threshold() -> None:
     # ADDITIONAL PHASE: reconstruction of the private key ###
     secret = (omega1 * alpha1 + omega3 * alpha3) % ec.n
     assert (q1 + q2 + q3) % ec.n in (secret, ec.n - secret)
+
+
+def test_libsecp256k1() -> None:
+
+    try:
+        import btclib_libsecp256k1.ssa  # pylint: disable=import-outside-toplevel
+    except ImportError:  # pragma: no cover
+        pytest.skip()
+
+    prvkey, X_Q = ssa.gen_keys(0x1)
+    pubkey_bytes = X_Q.to_bytes(32, "big")
+    msg = "Satoshi Nakamoto".encode()
+    msg_hash = reduce_to_hlen(msg)
+
+    libsecp256k1_sig = btclib_libsecp256k1.ssa.sign(msg_hash, prvkey)
+    btclib_sig = ssa.sign_(msg_hash, prvkey)
+
+    assert btclib_libsecp256k1.ssa.verify(
+        msg_hash, pubkey_bytes, btclib_sig.serialize()
+    )
+    assert ssa.verify(msg, X_Q, libsecp256k1_sig)

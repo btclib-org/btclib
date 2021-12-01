@@ -14,10 +14,6 @@ import secrets
 from hashlib import sha1
 
 import pytest
-from coincurve._libsecp256k1 import (  # type: ignore # pylint: disable=no-name-in-module
-    ffi,
-    lib,
-)
 
 from btclib.alias import INF
 from btclib.ecc import dsa
@@ -28,43 +24,6 @@ from btclib.ecc.sec_point import bytes_from_point, point_from_octets
 from btclib.exceptions import BTClibRuntimeError, BTClibValueError
 from btclib.hashes import reduce_to_hlen
 from tests.ecc.test_curve import low_card_curves
-
-GLOBAL_CTX = ffi.gc(
-    lib.secp256k1_context_create(
-        lib.SECP256K1_CONTEXT_SIGN | lib.SECP256K1_CONTEXT_VERIFY
-    ),
-    lib.secp256k1_context_destroy,
-)
-
-CDATA_SIG_LENGTH = 64
-
-
-def test_libsecp256k1() -> None:
-    msg = "Satoshi Nakamoto".encode()
-
-    q, _ = dsa.gen_keys(0x1)
-    sig = dsa.sign(msg, q)
-
-    msg_hash = reduce_to_hlen(msg)
-    secret = q.to_bytes(32, "big")
-
-    c_sig = ffi.new("secp256k1_ecdsa_signature *")
-    assert lib.secp256k1_ecdsa_sign(
-        GLOBAL_CTX, c_sig, msg_hash, secret, ffi.NULL, ffi.NULL
-    ), "libsecp256k1 signature failed"
-
-    output = ffi.new(f"unsigned char[{CDATA_SIG_LENGTH}]")
-    assert lib.secp256k1_ecdsa_signature_serialize_compact(
-        GLOBAL_CTX, output, c_sig
-    ), "libsecp256k1 signature serialization failed"
-
-    c_sig_bytes = bytes(ffi.buffer(output, CDATA_SIG_LENGTH))
-
-    r = c_sig_bytes[:32]
-    s = c_sig_bytes[32:]
-
-    assert r.hex() == sig.r.to_bytes(32, "big").hex()
-    assert s.hex() == sig.s.to_bytes(32, "big").hex()
 
 
 def test_signature() -> None:
@@ -321,3 +280,24 @@ def test_sign_input_type() -> None:
     sig = dsa.sign(msg, q)
     dsa.assert_as_valid(msg, Q, sig)
     dsa.assert_as_valid(msg, Q, sig.serialize())
+
+
+def test_libsecp256k1() -> None:
+
+    try:
+        import btclib_libsecp256k1.dsa  # pylint: disable=import-outside-toplevel
+    except ImportError:  # pragma: no cover
+        pytest.skip()
+
+    prvkey, Q = dsa.gen_keys(0x1)
+    pubkey_bytes = bytes_from_point(Q)
+    msg = "Satoshi Nakamoto".encode()
+    msg_hash = reduce_to_hlen(msg)
+
+    libsecp256k1_sig = btclib_libsecp256k1.dsa.sign(msg_hash, prvkey)
+    btclib_sig = dsa.sign_(msg_hash, prvkey)
+
+    assert btclib_libsecp256k1.dsa.verify(
+        msg_hash, pubkey_bytes, btclib_sig.serialize()
+    )
+    assert dsa.verify(msg, prvkey, libsecp256k1_sig)
