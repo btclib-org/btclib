@@ -348,10 +348,7 @@ def test_musig() -> None:
     # (non interactive) key setup
     # this is MuSig core: the rest is just Schnorr signature additivity
     # 1. lexicographic sorting of public keys
-    keys: List[bytes] = []
-    keys.append(x_Q1)
-    keys.append(x_Q2)
-    keys.append(x_Q3)
+    keys: List[bytes] = [x_Q1, x_Q2, x_Q3]
     keys.sort()
     # 2. coefficients
     prefix = b"".join(keys)
