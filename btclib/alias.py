@@ -104,3 +104,5 @@ INFJ = 7, 0, 0
 # TaprootLeaf = Tuple[int, Script]
 # TaprootScriptTree = List[Union[Any, TaprootLeaf]]
 TaprootScriptTree = Any
+
+Command = Union[int, str, bytes]

@@ -12,7 +12,7 @@
 Bitcoin Script engine
 """
 
-from typing import List, Tuple
+from typing import Callable, List, Mapping
 
 import btclib_libsecp256k1.ssa
 
@@ -23,11 +23,9 @@ from btclib.exceptions import BTClibValueError
 from btclib.hashes import tagged_hash
 from btclib.script import Command, parse, sig_hash
 from btclib.script.script_pub_key import type_and_payload
-from btclib.script.taproot import check_output_pubkey
-from btclib.script.witness import Witness
 from btclib.tx.tx import Tx
 from btclib.tx.tx_out import TxOut
-from btclib.utils import bytes_from_octets
+from btclib.utils import bytes_from_command
 
 
 def get_hashtype(signature: bytes) -> int:
@@ -53,7 +51,8 @@ def verify_key_path(
     pub_key = type_and_payload(script_pub_key)[1]
     msg_hash = sig_hash.taproot(tx, i, prevouts, sighash_type, 0, annex, b"")
 
-    assert btclib_libsecp256k1.ssa.verify(msg_hash, pub_key, signature)
+    if not btclib_libsecp256k1.ssa.verify(msg_hash, pub_key, signature):
+        raise BTClibValueError()
     # ssa.assert_as_valid_(msg_hash, pub_key, signature)
 
 
@@ -71,12 +70,12 @@ def verify_script_path_vc0(
     if script == ["OP_SUCCESS"]:
         return
 
-    for x in range(len(script)):
-        if script[x] == "OP_CODESEPARATOR":
+    for x, op_code in enumerate(script):
+        if op_code == "OP_CODESEPARATOR":
             script[x] = f"OP_CODESEPARATOR{x}"
     codesep_pos = 0xFFFFFFFF
 
-    operations = {
+    operations: Mapping[str, Callable] = {
         "OP_NOP": bitcoin_script.op_nop,
         "OP_DUP": bitcoin_script.op_dup,
         "OP_2DUP": bitcoin_script.op_2dup,
@@ -105,22 +104,24 @@ def verify_script_path_vc0(
         if op in operations:
             operations[op](script, stack, op)
         elif op == "OP_CHECKSIG":
-            pub_key = bytes_from_octets(stack.pop())
-            signature = bytes_from_octets(stack.pop())
-            if not isinstance(pub_key, int):
-                if len(pub_key) == 0:
+            pub_key = bytes_from_command(stack.pop())
+            signature = bytes_from_command(stack.pop())
+
+            if len(pub_key) == 0:
+                raise BTClibValueError()
+            if len(pub_key) == 32 and signature:
+                sighash_type = get_hashtype(signature)
+                preimage = b"\xc0"
+                preimage += var_bytes.serialize(script_bytes)
+                tapleaf_hash = tagged_hash(b"TapLeaf", preimage)
+                ext = tapleaf_hash + b"\x00" + codesep_pos.to_bytes(4, "little")
+                msg_hash = sig_hash.taproot(
+                    tx, i, prevouts, sighash_type, 1, annex, ext
+                )
+                if not btclib_libsecp256k1.ssa.verify(msg_hash, pub_key, signature):
                     raise BTClibValueError()
-                if len(pub_key) == 32 and signature:
-                    sighash_type = get_hashtype(signature)
-                    preimage = b"\xc0"
-                    preimage += var_bytes.serialize(script_bytes)
-                    tapleaf_hash = tagged_hash(b"TapLeaf", preimage)
-                    ext = tapleaf_hash + b"\x00" + codesep_pos.to_bytes(4, "little")
-                    msg_hash = sig_hash.taproot(
-                        tx, i, prevouts, sighash_type, 1, annex, ext
-                    )
-                    assert btclib_libsecp256k1.ssa.verify(msg_hash, pub_key, signature)
-                    # ssa.assert_as_valid_(msg_hash, pub_key, signature[:64])
+                # ssa.assert_as_valid_(msg_hash, pub_key, signature[:64])
+
             stack.append(int(bool(signature)))
         elif isinstance(op, int):
             stack.append(op)

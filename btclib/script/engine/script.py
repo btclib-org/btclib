@@ -12,21 +12,23 @@
 Bitcoin Script engine
 """
 
-from typing import List, Tuple
+from typing import List
 
-import btclib_libsecp256k1.ssa
-
-from btclib import var_bytes
-from btclib.ecc import ssa
+from btclib.alias import Command
 from btclib.exceptions import BTClibValueError
-from btclib.hashes import tagged_hash
-from btclib.script import Command, parse, sig_hash
-from btclib.script.script_pub_key import type_and_payload
-from btclib.script.taproot import check_output_pubkey
-from btclib.script.witness import Witness
-from btclib.tx.tx import Tx
-from btclib.tx.tx_out import TxOut
-from btclib.utils import bytes_from_octets
+from btclib.utils import decode_num
+
+
+def _to_num(command: Command) -> int:
+    if isinstance(command, int):
+        x = command
+    else:
+        if isinstance(command, str):
+            command = bytes.fromhex(command)
+        x = decode_num(command)
+    if x > 0xFFFFFFFF:
+        raise BTClibValueError()
+    return x
 
 
 def op_if(script: List[Command], stack: List[Command], op: str):
@@ -123,8 +125,8 @@ def op_equal(script: List[Command], stack: List[Command], op: str):
 
 
 def op_add(script: List[Command], stack: List[Command], op: str):
-    a = stack.pop()
-    b = stack.pop()
+    a = _to_num(stack.pop())
+    b = _to_num(stack.pop())
     stack.append(a + b)
 
 

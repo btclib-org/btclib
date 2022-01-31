@@ -14,13 +14,7 @@ Bitcoin Script engine
 
 from typing import List, Tuple
 
-import btclib_libsecp256k1.ssa
-
-from btclib import var_bytes
-from btclib.ecc import ssa
 from btclib.exceptions import BTClibValueError
-from btclib.hashes import tagged_hash
-from btclib.script import Command, parse, sig_hash
 from btclib.script.engine import tapscript
 from btclib.script.script_pub_key import (
     is_p2sh,
@@ -33,9 +27,6 @@ from btclib.script.taproot import check_output_pubkey
 from btclib.script.witness import Witness
 from btclib.tx.tx import Tx
 from btclib.tx.tx_out import TxOut
-from btclib.utils import bytes_from_octets
-
-# from btclib.script.engine import script
 
 
 def taproot_unwrap_script(
@@ -72,17 +63,18 @@ def verify_input(prevouts: List[TxOut], tx: Tx, i: int) -> None:
         stack = witness.stack
         if len(stack) == 0:
             raise BTClibValueError()
-        elif len(stack) == 1:
+        if len(stack) == 1:
             return tapscript.verify_key_path(script, stack, prevouts, tx, i, annex)
-        else:
-            script_bytes, stack, leaf_version = taproot_unwrap_script(script, stack)
-            if leaf_version == 0xC0:
-                args = [script_bytes, stack, prevouts, tx, i, annex]
-                return tapscript.verify_script_path_vc0(*args)
-            else:
-                return  # unknown leaf version type
 
-    pass
+        script_bytes, stack, leaf_version = taproot_unwrap_script(script, stack)
+        if leaf_version == 0xC0:
+            return tapscript.verify_script_path_vc0(
+                script_bytes, stack, prevouts, tx, i, annex
+            )
+
+        return  # unknown leaf version type
+
+    return
 
 
 def verify_transaction(prevouts: List[TxOut], tx: Tx) -> None:
