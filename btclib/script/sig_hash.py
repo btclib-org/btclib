@@ -126,7 +126,11 @@ def legacy(script_: Octets, tx: Tx, vin_i: int, hash_type: int) -> bytes:
 
 # https://github.com/bitcoin/bitcoin/blob/4b30c41b4ebf2eb70d8a3cd99cf4d05d405eec81/test/functional/test_framework/script.py#L673
 def segwit_v0(
-    script_: Octets, tx: Tx, vin_i: int, hash_type: int, amount: int
+    script_: Octets,
+    tx: Tx,
+    vin_i: int,
+    hash_type: int,
+    amount: int,
 ) -> bytes:
     script_ = bytes_from_octets(script_)
 
