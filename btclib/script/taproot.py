@@ -18,7 +18,7 @@ from btclib.alias import Octets, TaprootScriptTree
 from btclib.ec import Curve, mult, secp256k1
 from btclib.exceptions import BTClibValueError
 from btclib.hashes import tagged_hash
-from btclib.script.script import serialize
+from btclib.script import serialize
 from btclib.to_prv_key import PrvKey, int_from_prv_key
 from btclib.to_pub_key import Key, pub_keyinfo_from_key
 from btclib.utils import bytes_from_octets
