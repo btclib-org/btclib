@@ -3,7 +3,7 @@ from typing import List
 
 from btclib import var_bytes
 from btclib.ecc import dsa, ssa
-from btclib.ecc.curve import mult
+from btclib.ecc.curve import mult, secp256k1
 from btclib.exceptions import BTClibValueError
 from btclib.hashes import hash160, sha256, tagged_hash
 from btclib.script import script
@@ -23,7 +23,6 @@ from btclib.tx.out_point import OutPoint
 from btclib.tx.tx import Tx
 from btclib.tx.tx_in import TxIn
 from btclib.tx.tx_out import TxOut
-from btclib.ecc.curve import secp256k1
 
 
 def taproot(
