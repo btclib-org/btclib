@@ -24,7 +24,7 @@ from btclib import var_bytes
 from btclib.alias import Octets
 from btclib.exceptions import BTClibValueError
 from btclib.hashes import hash256, sha256, tagged_hash
-from btclib.script.script import Command, parse, serialize
+from btclib.script import Command, parse, serialize
 from btclib.script.script_pub_key import (
     ScriptPubKey,
     is_p2sh,
