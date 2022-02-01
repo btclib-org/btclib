@@ -13,13 +13,16 @@
 import json
 from os import path
 
+import pytest
+
+from btclib.exceptions import BTClibValueError
 from btclib.script.engine import verify_input
 from btclib.script.witness import Witness
 from btclib.tx.tx import Tx
 from btclib.tx.tx_out import TxOut
 
 
-def test_valid_taproot_key_path() -> None:
+def test_valid_taproot() -> None:
     fname = "tapscript_test_vector.json"
     filename = path.join(path.dirname(__file__), "_data", fname)
     with open(filename, "r", encoding="ascii") as file_:
@@ -35,4 +38,24 @@ def test_valid_taproot_key_path() -> None:
         witness = Witness(x["success"]["witness"])
         tx.vin[index].script_witness = witness
 
+        verify_input(prevouts, tx, index)
+
+
+def test_invalid_taproo_script_path() -> None:
+    fname = "tapscript_test_vector.json"
+    filename = path.join(path.dirname(__file__), "_data", fname)
+    with open(filename, "r", encoding="ascii") as file_:
+        data = json.load(file_)
+
+    for x in filter(lambda x: "TAPROOT" in x["flags"] and "failure" in x.keys(), data):
+
+        tx = Tx.parse(x["tx"])
+
+        prevouts = [TxOut.parse(prevout) for prevout in x["prevouts"]]
+        index = x["index"]
+
+        witness = Witness(x["failure"]["witness"])
+        tx.vin[index].script_witness = witness
+
+    with pytest.raises(BTClibValueError):
         verify_input(prevouts, tx, index)

@@ -47,6 +47,8 @@ def decode_num(data: bytes) -> int:
 
 def encode_num(i: int) -> bytes:
     "Encode a number to the bitcoin-specific little endian format."
+    if i == 0:
+        return b""
     # i.bit_length() bits, plus a sign bit
     n_bits = i.bit_length() + 1
     # The number of bytes necessary to accomodate n_bits
@@ -57,7 +59,7 @@ def encode_num(i: int) -> bytes:
     return encoded_i.to_bytes(n_bytes, byteorder="little", signed=False)
 
 
-def bytes_from_command(command: Command):
+def bytes_from_command(command: Command) -> bytes:
 
     if isinstance(command, str):  # hex string
         return bytes.fromhex(command)

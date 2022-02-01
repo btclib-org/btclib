@@ -14,14 +14,17 @@ Bitcoin Script engine
 
 from typing import Callable, List, Mapping
 
-import btclib_libsecp256k1.ssa
+try:
+    from btclib_libsecp256k1.ssa import verify as ssa_verify
+except ImportError:
+    from btclib.ecc.ssa import verify_ as ssa_verify
 
 import btclib.script.engine.script as bitcoin_script
 from btclib import var_bytes
-from btclib.ecc import ssa
 from btclib.exceptions import BTClibValueError
 from btclib.hashes import tagged_hash
-from btclib.script import Command, parse, sig_hash
+from btclib.script import parse, sig_hash
+from btclib.script.engine.script import _from_num, _to_num
 from btclib.script.script_pub_key import type_and_payload
 from btclib.tx.tx import Tx
 from btclib.tx.tx_out import TxOut
@@ -51,14 +54,13 @@ def verify_key_path(
     pub_key = type_and_payload(script_pub_key)[1]
     msg_hash = sig_hash.taproot(tx, i, prevouts, sighash_type, 0, annex, b"")
 
-    if not btclib_libsecp256k1.ssa.verify(msg_hash, pub_key, signature):
+    if not ssa_verify(msg_hash, pub_key, signature[:64]):
         raise BTClibValueError()
-    # ssa.assert_as_valid_(msg_hash, pub_key, signature)
 
 
 def verify_script_path_vc0(
     script_bytes: bytes,
-    stack: List[Command],
+    stack: List[bytes],
     prevouts: List[TxOut],
     tx: Tx,
     i: int,
@@ -87,8 +89,6 @@ def verify_script_path_vc0(
         "OP_1NEGATE": bitcoin_script.op_1negate,
         "OP_VERIFY": bitcoin_script.op_verify,
         "OP_EQUAL": bitcoin_script.op_equal,
-        "OP_ADD": bitcoin_script.op_add,
-        "OP_NOT": bitcoin_script.op_not,
         "OP_CHECKSIGVERIFY": bitcoin_script.op_checksigverify,
         "OP_CHECKSIGADD": bitcoin_script.op_checksigadd,
         "OP_EQUALVERIFY": bitcoin_script.op_equalverify,
@@ -96,41 +96,71 @@ def verify_script_path_vc0(
         "OP_VER": bitcoin_script.op_ver,
         "OP_RESERVED1": bitcoin_script.op_reserved1,
         "OP_RESERVED2": bitcoin_script.op_reserved2,
+        "OP_RETURN": bitcoin_script.op_return,
+        "OP_SIZE": bitcoin_script.op_size,
+        # 'OP_CHECKLOCKTIMEVERIFY': bitcoin_script.op_checklocktimeverify
+        # 'OP_CHECKSEQUENCEVERIFY': bitcoin_script.op_checksequenceverify
+        "OP_RIPEMD160": bitcoin_script.op_ripemd160,
+        "OP_SHA1": bitcoin_script.op_sha1,
+        "OP_SHA256": bitcoin_script.op_sha256,
+        "OP_HASH160": bitcoin_script.op_hash160,
+        "OP_HASH256": bitcoin_script.op_hash256,
+        "OP_1ADD": bitcoin_script.op_1add,
+        "OP_1SUB": bitcoin_script.op_1sub,
+        "OP_NEGATE": bitcoin_script.op_negate,
+        "OP_ABS": bitcoin_script.op_abs,
+        "OP_NOT": bitcoin_script.op_not,
+        "OP_0NOTEQUAL": bitcoin_script.op_0notequal,
+        "OP_ADD": bitcoin_script.op_add,
+        "OP_SUB ": bitcoin_script.op_sub,
+        "OP_BOOLAND ": bitcoin_script.op_booland,
+        "OP_BOOLOR ": bitcoin_script.op_boolor,
+        "OP_NUMEQUAL ": bitcoin_script.op_numequal,
+        "OP_NUMEQUALVERIFY ": bitcoin_script.op_numequalverify,
+        "OP_NUMNOTEQUAL ": bitcoin_script.op_numnotequal,
+        "OP_LESSTHAN ": bitcoin_script.op_lessthan,
+        "OP_GREATERTHAN ": bitcoin_script.op_greaterthan,
+        "OP_LESSTHANOREQUAL ": bitcoin_script.op_lessthanorequal,
+        "OP_GREATERTHANOREQUAL ": bitcoin_script.op_greaterthanorequal,
+        "OP_MIN ": bitcoin_script.op_min,
+        "OP_MAX ": bitcoin_script.op_max,
+        "OP_WITHIN ": bitcoin_script.op_within,
     }
 
     script.reverse()
     while script:
         op = script.pop()
-        if op in operations:
-            operations[op](script, stack, op)
-        elif op == "OP_CHECKSIG":
-            pub_key = bytes_from_command(stack.pop())
-            signature = bytes_from_command(stack.pop())
+        if isinstance(op, str) and op[:3] == "OP_":
 
-            if len(pub_key) == 0:
-                raise BTClibValueError()
-            if len(pub_key) == 32 and signature:
-                sighash_type = get_hashtype(signature)
-                preimage = b"\xc0"
-                preimage += var_bytes.serialize(script_bytes)
-                tapleaf_hash = tagged_hash(b"TapLeaf", preimage)
-                ext = tapleaf_hash + b"\x00" + codesep_pos.to_bytes(4, "little")
-                msg_hash = sig_hash.taproot(
-                    tx, i, prevouts, sighash_type, 1, annex, ext
-                )
-                if not btclib_libsecp256k1.ssa.verify(msg_hash, pub_key, signature):
+            if op == "OP_CHECKSIG":
+                pub_key = stack.pop()
+                signature = stack.pop()
+                if len(pub_key) == 0:
                     raise BTClibValueError()
-                # ssa.assert_as_valid_(msg_hash, pub_key, signature[:64])
+                if len(pub_key) == 32 and signature:
+                    sighash_type = get_hashtype(signature)
+                    preimage = b"\xc0"
+                    preimage += var_bytes.serialize(script_bytes)
+                    tapleaf_hash = tagged_hash(b"TapLeaf", preimage)
+                    ext = tapleaf_hash + b"\x00" + codesep_pos.to_bytes(4, "little")
+                    msg_hash = sig_hash.taproot(
+                        tx, i, prevouts, sighash_type, 1, annex, ext
+                    )
+                    if not ssa_verify(msg_hash, pub_key, signature[:64]):
+                        raise BTClibValueError()
+                stack.append(_from_num(int(bool(signature))))
 
-            stack.append(int(bool(signature)))
-        elif isinstance(op, int):
-            stack.append(op)
-        elif op[:3] == "OP_" and op[3:].isdigit():
-            stack.append(int(op[3:]))
-        elif op[:16] == "OP_CODESEPARATOR":
-            codesep_pos = int(op[16:])
+            elif op[3:].isdigit():
+                stack.append(_from_num(int(op[3:])))
+            elif op[:16] == "OP_CODESEPARATOR":
+                codesep_pos = int(op[16:])
+            elif op in operations:
+                operations[op](script, stack)
+            else:
+                raise BTClibValueError()
+
         else:
-            stack.append(op)
+            stack.append(bytes_from_command(op))
 
-    if len(stack) != 1 or stack[0] in ["OP_0", 0]:
+    if len(stack) != 1 or _to_num(stack[0]) == 0:
         raise BTClibValueError()
