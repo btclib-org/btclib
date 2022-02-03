@@ -17,7 +17,7 @@ import pytest
 
 from btclib.exceptions import BTClibValueError
 from btclib.script import serialize
-from btclib.script.engine import verify_input, verify_transaction
+from btclib.script.engine import ALL_FLAGS, verify_input, verify_transaction
 from btclib.script.op_codes import OP_CODES
 from btclib.script.witness import Witness
 from btclib.tx.tx import Tx
@@ -39,11 +39,14 @@ def test_valid_taproot() -> None:
 
         witness = Witness(x["success"]["witness"])
         tx.vin[index].script_witness = witness
+        tx.vin[index].script_sig = bytes.fromhex(x["success"]["scriptSig"])
 
-        verify_input(prevouts, tx, index)
+        flags = x["flags"].split(",")
+
+        verify_input(prevouts, tx, index, flags)
 
 
-def test_invalid_taproo_script_path() -> None:
+def test_invalid_taproot() -> None:
     fname = "tapscript_test_vector.json"
     filename = path.join(path.dirname(__file__), "_data", fname)
     with open(filename, "r", encoding="ascii") as file_:
@@ -58,9 +61,12 @@ def test_invalid_taproo_script_path() -> None:
 
         witness = Witness(x["failure"]["witness"])
         tx.vin[index].script_witness = witness
+        tx.vin[index].script_sig = bytes.fromhex(x["failure"]["scriptSig"])
 
-    with pytest.raises(BTClibValueError):
-        verify_input(prevouts, tx, index)
+        flags = x["flags"].split(",")
+
+        with pytest.raises(BTClibValueError):
+            verify_input(prevouts, tx, index, flags)
 
 
 def test_valid_legacy() -> None:
@@ -78,7 +84,12 @@ def test_valid_legacy() -> None:
         except BTClibValueError as e:
             if "invalid satoshi amount:" not in str(e):
                 raise e
-        # flags = x[2].split(",")
+            continue
+
+        flags = ALL_FLAGS
+        for f in x[2].split(","):
+            if f in flags:
+                flags.remove(f)
 
         prevouts = []
         for i in x[0]:
@@ -95,7 +106,7 @@ def test_valid_legacy() -> None:
                     script_pub_key += OP_CODES[y].hex()
             prevouts.append(TxOut(amount, ScriptPubKey(script_pub_key)))
 
-        verify_transaction(prevouts, tx)
+        verify_transaction(prevouts, tx, flags)
 
 
 def test_invalid_legacy() -> None:
@@ -113,7 +124,12 @@ def test_invalid_legacy() -> None:
         except BTClibValueError as e:
             if "invalid satoshi amount:" not in str(e):
                 raise e
-        # flags = x[2].split(",")
+            continue
+
+        flags = ALL_FLAGS
+        for f in x[2].split(","):
+            if f in flags:
+                flags.remove(f)
 
         prevouts = []
         for i in x[0]:
@@ -130,5 +146,5 @@ def test_invalid_legacy() -> None:
                     script_pub_key += OP_CODES[y].hex()
             prevouts.append(TxOut(amount, ScriptPubKey(script_pub_key)))
 
-    with pytest.raises(BTClibValueError):
-        verify_transaction(prevouts, tx)
+        with pytest.raises(BTClibValueError):
+            verify_transaction(prevouts, tx, flags)
