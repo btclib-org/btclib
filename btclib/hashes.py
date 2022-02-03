@@ -38,7 +38,7 @@ def sha1(octets: Octets) -> bytes:
     "Return the SHA1(*) of the input octet sequence."
 
     octets = bytes_from_octets(octets)
-    return hashlib.sha1(octets).digest()
+    return hashlib.sha1(octets).digest()  # nosec
 
 
 def sha256(octets: Octets) -> bytes:
