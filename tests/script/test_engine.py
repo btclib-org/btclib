@@ -52,7 +52,9 @@ def test_invalid_taproot() -> None:
     with open(filename, "r", encoding="ascii") as file_:
         data = json.load(file_)
 
-    for x in filter(lambda x: "TAPROOT" in x["flags"] and "failure" in x.keys(), data):
+    for i, x in enumerate(
+        filter(lambda x: "TAPROOT" in x["flags"] and "failure" in x.keys(), data)
+    ):
 
         tx = Tx.parse(x["tx"])
 
@@ -65,8 +67,14 @@ def test_invalid_taproot() -> None:
 
         flags = x["flags"].split(",")
 
-        with pytest.raises(BTClibValueError):
-            verify_input(prevouts, tx, index, flags)
+        try:
+            with pytest.raises(BTClibValueError):
+                verify_input(prevouts, tx, index, flags)
+            print(i, "ok")
+        except:
+            print(i, "error")
+
+    assert False
 
 
 def test_valid_legacy() -> None:
@@ -75,9 +83,14 @@ def test_valid_legacy() -> None:
     with open(filename, "r", encoding="ascii") as file_:
         data = json.load(file_)
 
-    for x in data:
+    for index, x in enumerate(data):
         if isinstance(x[0], str):
             continue
+
+        # if index != 38:
+        #     continue
+        # print(x)
+        # assert False
 
         try:
             tx = Tx.parse(x[1])
@@ -86,7 +99,7 @@ def test_valid_legacy() -> None:
                 raise e
             continue
 
-        flags = ALL_FLAGS
+        flags = ALL_FLAGS[:]
         for f in x[2].split(","):
             if f in flags:
                 flags.remove(f)
@@ -106,7 +119,13 @@ def test_valid_legacy() -> None:
                     script_pub_key += OP_CODES[y].hex()
             prevouts.append(TxOut(amount, ScriptPubKey(script_pub_key)))
 
-        verify_transaction(prevouts, tx, flags)
+        try:
+            verify_transaction(prevouts, tx, flags)
+            print(index, "ok")
+        except:
+            print(index, "error")
+
+    assert False
 
 
 def test_invalid_legacy() -> None:
@@ -115,21 +134,24 @@ def test_invalid_legacy() -> None:
     with open(filename, "r", encoding="ascii") as file_:
         data = json.load(file_)
 
-    for x in data:
+    for index, x in enumerate(data):
         if isinstance(x[0], str):
             continue
 
         try:
             tx = Tx.parse(x[1])
         except BTClibValueError as e:
+            print(index, "ok")
             if "invalid satoshi amount:" not in str(e):
-                raise e
-            continue
+                continue
+            if "missing outputs" not in str(e):
+                continue
+            raise e
 
-        flags = ALL_FLAGS
-        for f in x[2].split(","):
-            if f in flags:
-                flags.remove(f)
+        flags = x[2].split(",")  # different flags handling
+
+        # if "BADTX" in flags:
+        #     continue  # TODO
 
         prevouts = []
         for i in x[0]:
@@ -146,5 +168,11 @@ def test_invalid_legacy() -> None:
                     script_pub_key += OP_CODES[y].hex()
             prevouts.append(TxOut(amount, ScriptPubKey(script_pub_key)))
 
-        with pytest.raises(BTClibValueError):
-            verify_transaction(prevouts, tx, flags)
+        try:
+            with pytest.raises(BTClibValueError):
+                verify_transaction(prevouts, tx, flags)
+            print(index, "ok")
+        except:
+            print(index, "error")
+
+    assert False
