@@ -14,15 +14,19 @@ Bitcoin Script engine
 
 from typing import Callable, List, Mapping
 
-from btclib import var_bytes
 from btclib.alias import Command
+from btclib.ecc.der import Sig
 from btclib.exceptions import BTClibValueError
-from btclib.hashes import hash160, hash256, ripemd160, sha1, sha256, tagged_hash
+from btclib.hashes import hash160, hash256, ripemd160, sha1, sha256
 from btclib.script import parse, sig_hash
-from btclib.script.script_pub_key import type_and_payload
 from btclib.tx.tx import Tx
 from btclib.tx.tx_out import TxOut
 from btclib.utils import bytes_from_command, decode_num, encode_num
+
+try:
+    from btclib_libsecp256k1.dsa import verify as dsa_verify
+except ImportError:
+    from btclib.ecc.dsa import verify_ as dsa_verify
 
 
 def _to_num(element: bytes) -> int:
@@ -138,7 +142,7 @@ def op_equal(script: List[Command], stack: List[bytes], altstack: List[bytes]) -
     if a == b:
         stack.append(b"\x01")
     else:
-        stack.append(b"\x00")
+        stack.append(b"")
 
 
 def op_equalverify(
@@ -480,21 +484,38 @@ def op_2swap(script: List[Command], stack: List[bytes], altstack: List[bytes]) -
 # TODO: check stack length
 
 
+def fix_signature(signature: bytes, flags: List[str]) -> bytes:
+    signature_suffix = signature[-1:]
+    signature = signature[:-1]
+    if "STRICTENC" not in flags:
+        signature = Sig.parse(signature, strict=False).serialize()
+    if "LOW_S" not in flags:
+        sig = Sig.parse(signature)
+        if sig.s > sig.ec.n // 2:
+            signature = Sig(sig.r, sig.ec.n - sig.s).serialize()
+        sig = Sig.parse(signature)
+    return signature + signature_suffix
+
+
+def check_pub_key(pub_key: bytes) -> bool:
+    if pub_key[0] == 4:
+        return len(pub_key) == 65
+    if pub_key[0] == 2 or pub_key[0] == 3:
+        return len(pub_key) == 33
+    return False
+
+
 def verify_script(
     script_bytes: bytes,
-    stack: List[bytes],
+    redeem_script: List[Command],
     prevouts: List[TxOut],
     tx: Tx,
     i: int,
     flags: List[str],
 ) -> None:
 
-    script = parse(script_bytes, taproot=True)
-
-    for x, op_code in enumerate(script):
-        if op_code == "OP_CODESEPARATOR":
-            script[x] = f"OP_CODESEPARATOR{x}"
-    codesep_pos = 0xFFFFFFFF
+    script_pub_key = parse(script_bytes, taproot=False)
+    script = redeem_script + script_pub_key
 
     operations: Mapping[str, Callable] = {
         "OP_NOP": op_nop,
@@ -560,18 +581,29 @@ def verify_script(
         "OP_2SWAP": op_2swap,
     }
 
-    altstack = []
+    stack: List[bytes] = []
+    altstack: List[bytes] = []
 
     script.reverse()
     while script:
         op = script.pop()
+
         if isinstance(op, str) and op[:3] == "OP_":
 
-            if op == "OP_CHECKSIG":
+            if op == "OP_CHECKSIG":  # TODO: OP_CODESEPARATOR
                 pub_key = stack.pop()
                 signature = stack.pop()
-                stack.append(b"\x01")
-                pass
+                if not signature or not pub_key:
+                    stack.append(b"")
+                else:
+                    signature = fix_signature(signature, flags)
+                    msg_hash = sig_hash.legacy(script_bytes, tx, i, signature[-1])
+                    if check_pub_key(pub_key) and dsa_verify(
+                        msg_hash, pub_key, signature[:-1]
+                    ):
+                        stack.append(b"\x01")
+                    else:
+                        stack.append(b"")
 
             elif op == "OP_CHECKMULTISIG":
                 pub_key_num = _to_num(stack.pop())
@@ -580,13 +612,28 @@ def verify_script(
                 signatures = [stack.pop() for x in range(signature_num)]
                 if stack.pop() != b"" and "NULLDUMMY" in flags:  # dummy value
                     raise BTClibValueError()
-                stack.append(b"\x01")
-                pass
+                signature_index = 0
+                for pub_key in pub_keys:
+                    signature = signatures[signature_index]
+                    if not signature or not pub_key:
+                        continue
+                    signature = fix_signature(signature, flags)
+                    msg_hash = sig_hash.legacy(script_bytes, tx, i, signature[-1])
+                    if not check_pub_key(pub_key):
+                        continue
+                    if dsa_verify(msg_hash, pub_key, signature[:-1]):
+                        signature_index += 1
+                        if signature_index == signature_num:
+                            break
+                if signature_index == signature_num:
+                    stack.append(b"\x01")
+                else:
+                    stack.append(b"")
 
             elif op[3:].isdigit():
                 stack.append(_from_num(int(op[3:])))
             elif op[:16] == "OP_CODESEPARATOR":
-                codesep_pos = int(op[16:])
+                pass
             elif op in operations:
                 operations[op](script, stack, altstack)
             else:
@@ -597,5 +644,5 @@ def verify_script(
 
     op_verify([], stack, [])
 
-    if len(stack) and "CLEANSTACK" in flags:
+    if stack and "CLEANSTACK" in flags:
         raise BTClibValueError()
