@@ -186,7 +186,7 @@ def verify_script_path_vc0(
         else:
             stack.append(bytes_from_command(op))
 
-    if len(stack) != 1:
-        raise BTClibValueError()
-
     bitcoin_script.op_verify([], stack, [])
+
+    if stack:
+        raise BTClibValueError()
