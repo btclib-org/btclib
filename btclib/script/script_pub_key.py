@@ -185,7 +185,7 @@ def assert_segwit(script_pub_key: Octets) -> None:
     script_pub_key = bytes_from_octets(script_pub_key)
     if not (script_pub_key[0] == 0 or 0x51 <= script_pub_key[0] <= 0x60):
         raise BTClibValueError()
-    if len(script_pub_key) == 1 or not (2 <= script_pub_key[1] <= 40):
+    if len(script_pub_key) == 1 or not 2 <= script_pub_key[1] <= 40:
         raise BTClibValueError()
     if len(script_pub_key) != script_pub_key[1] + 2:
         raise BTClibValueError()

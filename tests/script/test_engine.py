@@ -52,6 +52,8 @@ def test_invalid_taproot() -> None:
     with open(filename, "r", encoding="ascii") as file_:
         data = json.load(file_)
 
+    error_count = 0
+
     for i, x in enumerate(
         filter(lambda x: "TAPROOT" in x["flags"] and "failure" in x.keys(), data)
     ):
@@ -72,8 +74,11 @@ def test_invalid_taproot() -> None:
                 verify_input(prevouts, tx, index, flags)
             print(i, "ok")
         except:
+            error_count += 1
             print(i, "error")
 
+    print()
+    print(error_count)
     assert False
 
 
@@ -86,11 +91,6 @@ def test_valid_legacy() -> None:
     for index, x in enumerate(data):
         if isinstance(x[0], str):
             continue
-
-        # if index != 38:
-        #     continue
-        # print(x)
-        # assert False
 
         try:
             tx = Tx.parse(x[1])
@@ -119,13 +119,7 @@ def test_valid_legacy() -> None:
                     script_pub_key += OP_CODES[y].hex()
             prevouts.append(TxOut(amount, ScriptPubKey(script_pub_key)))
 
-        try:
-            verify_transaction(prevouts, tx, flags)
-            print(index, "ok")
-        except:
-            print(index, "error")
-
-    assert False
+        verify_transaction(prevouts, tx, flags)
 
 
 def test_invalid_legacy() -> None:
@@ -133,6 +127,8 @@ def test_invalid_legacy() -> None:
     filename = path.join(path.dirname(__file__), "_data", fname)
     with open(filename, "r", encoding="ascii") as file_:
         data = json.load(file_)
+
+    error_count = 0
 
     for index, x in enumerate(data):
         if isinstance(x[0], str):
@@ -149,9 +145,6 @@ def test_invalid_legacy() -> None:
             raise e
 
         flags = x[2].split(",")  # different flags handling
-
-        # if "BADTX" in flags:
-        #     continue  # TODO
 
         prevouts = []
         for i in x[0]:
@@ -173,6 +166,9 @@ def test_invalid_legacy() -> None:
                 verify_transaction(prevouts, tx, flags)
             print(index, "ok")
         except:
+            error_count += 1
             print(index, "error")
 
+    print()
+    print(error_count)
     assert False

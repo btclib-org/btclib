@@ -18,7 +18,9 @@ from btclib.alias import Command
 from btclib.ecc.der import Sig
 from btclib.exceptions import BTClibValueError
 from btclib.hashes import hash160, hash256, ripemd160, sha1, sha256
-from btclib.script import parse, sig_hash
+from btclib.script import parse
+from btclib.script import serialize as serialize_script
+from btclib.script import sig_hash
 from btclib.tx.tx import Tx
 from btclib.tx.tx_out import TxOut
 from btclib.utils import bytes_from_command, decode_num, encode_num
@@ -187,20 +189,6 @@ def op_reserved2(
 
 def op_size(script: List[Command], stack: List[bytes], altstack: List[bytes]) -> None:
     stack.append(_from_num(len(stack[-1])))
-
-
-# TODO: implement locktime
-def op_checklocktimeverify(
-    script: List[Command], stack: List[bytes], altstack: List[bytes]
-) -> None:
-    pass
-
-
-# TODO: implement locktime
-def op_checksequenceverify(
-    script: List[Command], stack: List[bytes], altstack: List[bytes]
-) -> None:
-    pass
 
 
 def op_ripemd160(
@@ -505,6 +493,18 @@ def check_pub_key(pub_key: bytes) -> bool:
     return False
 
 
+def calculate_script_code(
+    script: List[Command], separator_index: int, signatures: List[bytes]
+) -> bytes:
+    script_code = script[separator_index + 1 :]
+    for signature in signatures:  # find and delete
+        while signature.hex().upper() in script_code:
+            script_code.remove(signature.hex().upper())
+    while "OP_CODESEPARATOR" in script_code:
+        script_code.remove("OP_CODESEPARATOR")
+    return serialize_script(script_code)
+
+
 def verify_script(
     script_bytes: bytes,
     redeem_script: List[Command],
@@ -516,6 +516,16 @@ def verify_script(
 
     script_pub_key = parse(script_bytes, taproot=False)
     script = redeem_script + script_pub_key
+
+    if "OP_CODESEPARATOR" in script and "CONST_SCRIPTCODE" in flags:
+        raise BTClibValueError()
+
+    for x, op_code in enumerate(script):
+        if x <= len(redeem_script):
+            continue
+        if op_code == "OP_CODESEPARATOR":
+            script[x] = f"OP_CODESEPARATOR{x-len(redeem_script)}"
+    codesep_index = -1
 
     operations: Mapping[str, Callable] = {
         "OP_NOP": op_nop,
@@ -537,8 +547,6 @@ def verify_script(
         "OP_RESERVED2": op_reserved2,
         "OP_RETURN": op_return,
         "OP_SIZE": op_size,
-        "OP_CHECKLOCKTIMEVERIFY": op_checklocktimeverify,
-        "OP_CHECKSEQUENCEVERIFY": op_checksequenceverify,
         "OP_RIPEMD160": op_ripemd160,
         "OP_SHA1": op_sha1,
         "OP_SHA256": op_sha256,
@@ -581,6 +589,11 @@ def verify_script(
         "OP_2SWAP": op_2swap,
     }
 
+    if "CHECKLOCKTIMEVERIFY" not in flags:
+        operations["OP_CHECKLOCKTIMEVERIFY"] = op_nop
+    if "CHECKSEQUENCEVERIFY" not in flags:
+        operations["OP_CHECKSEQUENCEVERIFY"] = op_nop
+
     stack: List[bytes] = []
     altstack: List[bytes] = []
 
@@ -590,14 +603,22 @@ def verify_script(
 
         if isinstance(op, str) and op[:3] == "OP_":
 
-            if op == "OP_CHECKSIG":  # TODO: OP_CODESEPARATOR
+            if op in operations:
+                operations[op](script, stack, altstack)
+
+            elif op == "OP_CHECKSIG":  # TODO: OP_CODESEPARATOR
                 pub_key = stack.pop()
                 signature = stack.pop()
+
                 if not signature or not pub_key:
                     stack.append(b"")
                 else:
+
+                    script_code = calculate_script_code(
+                        script_pub_key, codesep_index, [signature]
+                    )
                     signature = fix_signature(signature, flags)
-                    msg_hash = sig_hash.legacy(script_bytes, tx, i, signature[-1])
+                    msg_hash = sig_hash.legacy(script_code, tx, i, signature[-1])
                     if check_pub_key(pub_key) and dsa_verify(
                         msg_hash, pub_key, signature[:-1]
                     ):
@@ -614,28 +635,38 @@ def verify_script(
                     raise BTClibValueError()
                 signature_index = 0
                 for pub_key in pub_keys:
+
                     signature = signatures[signature_index]
                     if not signature or not pub_key:
                         continue
+
+                    script_code = calculate_script_code(
+                        script_pub_key, codesep_index, signatures
+                    )
                     signature = fix_signature(signature, flags)
-                    msg_hash = sig_hash.legacy(script_bytes, tx, i, signature[-1])
+                    msg_hash = sig_hash.legacy(script_code, tx, i, signature[-1])
                     if not check_pub_key(pub_key):
                         continue
                     if dsa_verify(msg_hash, pub_key, signature[:-1]):
                         signature_index += 1
                         if signature_index == signature_num:
                             break
+
                 if signature_index == signature_num:
                     stack.append(b"\x01")
                 else:
                     stack.append(b"")
 
+            elif op == "OP_CHECKLOCKTIMEVERIFY":
+                pass
+            elif op == "OP_CHECKSEQUENCEVERIFY":
+                pass
+
             elif op[3:].isdigit():
                 stack.append(_from_num(int(op[3:])))
             elif op[:16] == "OP_CODESEPARATOR":
-                pass
-            elif op in operations:
-                operations[op](script, stack, altstack)
+                if len(op) > 16:
+                    codesep_index = int(op[16:])
             else:
                 raise BTClibValueError()
 
