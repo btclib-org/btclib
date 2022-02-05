@@ -106,8 +106,6 @@ def verify_script_path_vc0(
         "OP_RESERVED2": bitcoin_script.op_reserved2,
         "OP_RETURN": bitcoin_script.op_return,
         "OP_SIZE": bitcoin_script.op_size,
-        "OP_CHECKLOCKTIMEVERIFY": bitcoin_script.op_checklocktimeverify,
-        "OP_CHECKSEQUENCEVERIFY": bitcoin_script.op_checksequenceverify,
         "OP_RIPEMD160": bitcoin_script.op_ripemd160,
         "OP_SHA1": bitcoin_script.op_sha1,
         "OP_SHA256": bitcoin_script.op_sha256,
@@ -149,7 +147,7 @@ def verify_script_path_vc0(
         "OP_2SWAP": bitcoin_script.op_2swap,
     }
 
-    altstack = []
+    altstack: List[bytes] = []
 
     script.reverse()
     while script:
@@ -173,7 +171,10 @@ def verify_script_path_vc0(
                     if not ssa_verify(msg_hash, pub_key, signature[:64]):
                         raise BTClibValueError()
                 stack.append(_from_num(int(bool(signature))))
-
+            elif op == "OP_CHECKLOCKTIMEVERIFY":
+                pass
+            elif op == "OP_CHECKSEQUENCEVERIFY":
+                pass
             elif op[3:].isdigit():
                 stack.append(_from_num(int(op[3:])))
             elif op[:16] == "OP_CODESEPARATOR":
