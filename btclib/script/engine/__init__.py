@@ -62,14 +62,17 @@ def validate_redeem_script(redeem_script: List[Command]) -> None:
 
 
 ALL_FLAGS = [
+    "SIGPUSHONLY",
     "LOW_S",
     "STRICTENC",
-    "P2SH",
+    "CONST_SCRIPTCODE",
     "NULLDUMMY",
     "CLEANSTACK",
+    "P2SH",
+    "CHECKLOCKTIMEVERIFY",
+    "CHECKSEQUENCEVERIFY",
     "WITNESS",
     "TAPROOT",
-    "SIGPUSHONLY",
 ]
 
 
