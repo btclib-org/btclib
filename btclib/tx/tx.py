@@ -185,6 +185,15 @@ class Tx:
             raise BTClibValueError(f"invalid version: {self.version}")
 
     def assert_valid(self) -> None:
+
+        if self.is_coinbase():
+            if not 2 <= len(self.vin[0].script_sig) <= 100:
+                raise BTClibValueError("Invalid coinbase script size")
+        else:
+            for tx_in in self.vin:
+                if tx_in.is_coinbase():
+                    raise BTClibValueError()
+
         # must be a 4-bytes integer
         if not 0 <= self.version <= 0xFFFFFFFF:
             raise BTClibValueError(f"invalid version: {self.version}")

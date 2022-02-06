@@ -12,7 +12,7 @@
 Bitcoin Script engine
 """
 
-from typing import List, Tuple
+from typing import List, Optional, Tuple
 
 from btclib.alias import Command
 from btclib.exceptions import BTClibValueError
@@ -76,17 +76,15 @@ ALL_FLAGS = [
 ]
 
 
-def verify_input(
-    prevouts: List[TxOut], tx: Tx, i: int, flags: List[str] = ALL_FLAGS
-) -> None:
+def verify_input(prevouts: List[TxOut], tx: Tx, i: int, flags: List[str]) -> None:
 
     script = prevouts[i].script_pub_key.script
-    type, payload = type_and_payload(script)
+    script_type, payload = type_and_payload(script)
 
     redeem_script = parse(tx.vin[i].script_sig)
 
     p2sh = False
-    if type == "p2sh" and "P2SH" in flags:
+    if script_type == "p2sh" and "P2SH" in flags:
         p2sh = True
         parsed_script = parse(tx.vin[i].script_sig)
         if isinstance(parsed_script[-1], int):
@@ -96,9 +94,7 @@ def verify_input(
         if payload != hash160(script):
             raise BTClibValueError()
         redeem_script = parsed_script[:-1]
-        type, payload = type_and_payload(script)
-
-    # print(parse(script), redeem_script)
+        script_type, payload = type_and_payload(script)
 
     segwit_version = -1
     if is_segwit(script):
@@ -116,10 +112,11 @@ def verify_input(
     if supported_segwit_version + 1 and segwit_version > supported_segwit_version:
         return
 
-    if type == "p2tr":
+    if script_type == "p2tr":
         if p2sh:
             return  # remains unencumbered
         witness = tx.vin[i].script_witness
+        budget = 50 + len(witness.serialize())
         annex = taproot_get_annex(witness)
         stack = witness.stack
         if len(stack) == 0:
@@ -130,30 +127,28 @@ def verify_input(
         script_bytes, stack, leaf_version = taproot_unwrap_script(script, stack)
         if leaf_version == 0xC0:
             tapscript.verify_script_path_vc0(
-                script_bytes, stack, prevouts, tx, i, annex
+                script_bytes, stack, prevouts, tx, i, annex, budget
             )
             return
-        return  # unknown leaf version type
+        return  # unknown leaf version script_type
 
-    # stack = parse(tx.vin[i].script_sig)
-    # print(tx.vin[i].script_sig)
-    # print(stack)
-
-    if type == "p2wpkh" and "WITNESS" in flags:
+    if script_type == "p2wpkh" and "WITNESS" in flags:
         return
 
-    if type == "p2wsh" and "WITNESS" in flags:
+    if script_type == "p2wsh" and "WITNESS" in flags:
         return
 
     if "SIGPUSHONLY" in flags:
         validate_redeem_script(redeem_script)
 
-    verify_script_legacy(script, redeem_script, prevouts, tx, i, flags)
-    #
-    # print("should have failed")
+    verify_script_legacy(script, redeem_script, tx, i, flags)
 
 
-def verify_transaction(prevouts: List[TxOut], tx: Tx, flags: List = ALL_FLAGS) -> None:
+def verify_transaction(
+    prevouts: List[TxOut], tx: Tx, flags: Optional[List] = None
+) -> None:
+    if flags is None:
+        flags = ALL_FLAGS
     if not len(prevouts) == len(tx.vin):
         raise BTClibValueError()
     for i in range(len(prevouts)):
