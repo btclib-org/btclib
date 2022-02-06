@@ -154,7 +154,7 @@ def test_empty_stack() -> None:
             ["OP_1", "cc71eb30d653c0c3163990c47b976f3fb3f37cccdcbedb169a1dfef58bbfbfaf"]
         ),
     )
-    tx_in = TxIn(OutPoint(), "", 1, Witness([]))
+    tx_in = TxIn(OutPoint(), "5151", 1, Witness([]))
     tx = Tx(vin=[tx_in], vout=[TxOut(100000000, "")])
 
     err_msg = "empty stack"

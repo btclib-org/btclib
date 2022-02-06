@@ -71,6 +71,8 @@ def bytes_from_command(command: Command) -> bytes:
             return b""
         return encode_num(command)
 
+    return command
+
 
 def bytes_from_octets(octets: Octets, out_size: NoneOneOrMoreInt = None) -> bytes:
     """Return bytes from a hex-string, stripping leading/trailing spaces.
