@@ -66,6 +66,37 @@ def verify_key_path(
         raise BTClibValueError()
 
 
+def op_checksig(
+    stack: List[bytes],
+    script_bytes: bytes,
+    codesep_pos: int,
+    tx: Tx,
+    i: int,
+    prevouts: List[TxOut],
+    annex: bytes,
+    budget: int,
+):
+    pub_key = stack.pop()
+    signature = stack.pop()
+    if len(pub_key) == 0:
+        raise BTClibValueError()
+    if signature:
+        budget -= 50
+        if budget < 0:
+            raise BTClibValueError()
+    if len(pub_key) == 32 and signature:
+        sighash_type = get_hashtype(signature)
+        preimage = b"\xc0"
+        preimage += var_bytes.serialize(script_bytes)
+        tapleaf_hash = tagged_hash(b"TapLeaf", preimage)
+        ext = tapleaf_hash + b"\x00" + codesep_pos.to_bytes(4, "little")
+        msg_hash = sig_hash.taproot(tx, i, prevouts, sighash_type, 1, annex, ext)
+        if not ssa_verify(msg_hash, pub_key, signature[:64]):
+            raise BTClibValueError()
+    stack.append(_from_num(int(bool(signature))))
+    return budget
+
+
 def verify_script_path_vc0(
     script_bytes: bytes,
     stack: List[bytes],
@@ -73,7 +104,11 @@ def verify_script_path_vc0(
     tx: Tx,
     i: int,
     annex: bytes,
+    sigops_budget: int,
 ) -> None:
+
+    if any(len(x) > 520 for x in stack):
+        raise BTClibValueError()
 
     script = parse(script_bytes, taproot=True)
 
@@ -100,10 +135,6 @@ def verify_script_path_vc0(
         "OP_CHECKSIGVERIFY": bitcoin_script.op_checksigverify,
         "OP_CHECKSIGADD": op_checksigadd,
         "OP_EQUALVERIFY": bitcoin_script.op_equalverify,
-        "OP_RESERVED": bitcoin_script.op_reserved,
-        "OP_VER": bitcoin_script.op_ver,
-        "OP_RESERVED1": bitcoin_script.op_reserved1,
-        "OP_RESERVED2": bitcoin_script.op_reserved2,
         "OP_RETURN": bitcoin_script.op_return,
         "OP_SIZE": bitcoin_script.op_size,
         "OP_RIPEMD160": bitcoin_script.op_ripemd160,
@@ -151,34 +182,39 @@ def verify_script_path_vc0(
 
     script.reverse()
     while script:
+
+        if len(stack) + len(altstack) > 1000:
+            raise BTClibValueError()
+
         op = script.pop()
         if isinstance(op, str) and op[:3] == "OP_":
 
             if op == "OP_CHECKSIG":
-                pub_key = stack.pop()
-                signature = stack.pop()
-                if len(pub_key) == 0:
-                    raise BTClibValueError()
-                if len(pub_key) == 32 and signature:
-                    sighash_type = get_hashtype(signature)
-                    preimage = b"\xc0"
-                    preimage += var_bytes.serialize(script_bytes)
-                    tapleaf_hash = tagged_hash(b"TapLeaf", preimage)
-                    ext = tapleaf_hash + b"\x00" + codesep_pos.to_bytes(4, "little")
-                    msg_hash = sig_hash.taproot(
-                        tx, i, prevouts, sighash_type, 1, annex, ext
-                    )
-                    if not ssa_verify(msg_hash, pub_key, signature[:64]):
-                        raise BTClibValueError()
-                stack.append(_from_num(int(bool(signature))))
+
+                sigops_budget = op_checksig(
+                    stack,
+                    script_bytes,
+                    codesep_pos,
+                    tx,
+                    i,
+                    prevouts,
+                    annex,
+                    sigops_budget,
+                )
+
             elif op == "OP_CHECKLOCKTIMEVERIFY":
-                pass
+                bitcoin_script.op_checklocktimeverify(stack, tx, i)
             elif op == "OP_CHECKSEQUENCEVERIFY":
-                pass
+                bitcoin_script.op_checksequenceverify(stack, tx, i)
+
             elif op[3:].isdigit():
                 stack.append(_from_num(int(op[3:])))
             elif op[:16] == "OP_CODESEPARATOR":
                 codesep_pos = int(op[16:])
+            elif op == "OP_IF":
+                bitcoin_script.op_if(script, stack, altstack, True)
+            elif op == "OP_NOTIF":
+                bitcoin_script.op_notif(script, stack, altstack, True)
             elif op in operations:
                 operations[op](script, stack, altstack)
             else:

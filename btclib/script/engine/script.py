@@ -14,6 +14,10 @@ Bitcoin Script engine
 
 from typing import Callable, List, Mapping
 
+try:
+    from btclib_libsecp256k1.dsa import verify as dsa_verify
+except ImportError:
+    from btclib.ecc.dsa import verify_ as dsa_verify
 from btclib.alias import Command
 from btclib.ecc.der import Sig
 from btclib.exceptions import BTClibValueError
@@ -22,31 +26,31 @@ from btclib.script import parse
 from btclib.script import serialize as serialize_script
 from btclib.script import sig_hash
 from btclib.tx.tx import Tx
-from btclib.tx.tx_out import TxOut
 from btclib.utils import bytes_from_command, decode_num, encode_num
 
-try:
-    from btclib_libsecp256k1.dsa import verify as dsa_verify
-except ImportError:
-    from btclib.ecc.dsa import verify_ as dsa_verify
 
-
-def _to_num(element: bytes) -> int:
-    x = decode_num(element)
-    if x > 0xFFFFFFFF:
+def _to_num(element: bytes, max_size: int = 4) -> int:
+    if len(element) > max_size:
         raise BTClibValueError()
+    x = decode_num(element)
     return x
 
 
 def _from_num(x: int) -> bytes:
-    # x %= 0xFFFFFFFF
-    # if x > 0xFFFFFFFF:
-    #     raise BTClibValueError()
     return encode_num(x)
 
 
-def op_if(script: List[Command], stack: List[bytes], altstack: List[bytes]) -> None:
-    condition = int(bool(_to_num(stack.pop())))
+def op_if(
+    script: List[Command],
+    stack: List[bytes],
+    altstack: List[bytes],
+    minimalif: bool = False,
+) -> None:
+
+    a = _to_num(stack.pop())
+    condition = int(bool(a))
+    if minimalif and a not in [0, 1]:
+        raise BTClibValueError()
 
     level = 1
     for x in range(len(script) - 1, -1, -1):
@@ -93,7 +97,14 @@ def op_else(script: List[Command], stack: List[bytes], altstack: List[bytes]) ->
     raise BTClibValueError()
 
 
-def op_notif(script: List[Command], stack: List[bytes], altstack: List[bytes]) -> None:
+def op_notif(
+    script: List[Command],
+    stack: List[bytes],
+    altstack: List[bytes],
+    minimalif: bool = False,
+) -> None:
+    if minimalif and stack[-1] not in [b"", b"\x01"]:
+        raise BTClibValueError()
     script.extend(["OP_NOT", "OP_IF"][::-1])
 
 
@@ -106,6 +117,8 @@ def op_dup(script: List[Command], stack: List[bytes], altstack: List[bytes]) -> 
 
 
 def op_2dup(script: List[Command], stack: List[bytes], altstack: List[bytes]) -> None:
+    if len(stack) < 2:
+        raise BTClibValueError()
     stack.extend(stack[-2:])
 
 
@@ -442,10 +455,14 @@ def op_tuck(script: List[Command], stack: List[bytes], altstack: List[bytes]) ->
 
 
 def op_3dup(script: List[Command], stack: List[bytes], altstack: List[bytes]) -> None:
+    if len(stack) < 3:
+        raise BTClibValueError()
     stack.extend(stack[-3:])
 
 
 def op_2over(script: List[Command], stack: List[bytes], altstack: List[bytes]) -> None:
+    if len(stack) < 4:
+        raise BTClibValueError()
     stack.extend(stack[-4:-2])
 
 
@@ -469,7 +486,32 @@ def op_2swap(script: List[Command], stack: List[bytes], altstack: List[bytes]) -
     stack[-2], stack[-3] = stack[-3], stack[-2]
 
 
-# TODO: check stack length
+def op_checklocktimeverify(stack: List[bytes], tx: Tx, i: int) -> None:
+    if not stack:
+        raise BTClibValueError()
+    lock_time = _to_num(stack[-1], 5)
+    if lock_time < 0:
+        raise BTClibValueError()
+    # additional condition
+    if lock_time > tx.lock_time:
+        raise BTClibValueError()
+    if tx.vin[i].sequence == 0xFFFFFFFF:
+        raise BTClibValueError()
+
+
+def op_checksequenceverify(stack: List[bytes], tx: Tx, i: int) -> None:
+    if not stack:
+        raise BTClibValueError()
+    sequence = _to_num(stack[-1], 5)
+    if sequence < 0:
+        raise BTClibValueError()
+    if not sequence & (1 << 31):
+        if tx.version < 2:
+            raise BTClibValueError()
+        if tx.vin[i].sequence & (1 << 31):
+            raise BTClibValueError()
+    # additional condition
+    # additional condition
 
 
 def fix_signature(signature: bytes, flags: List[str]) -> bytes:
@@ -508,7 +550,6 @@ def calculate_script_code(
 def verify_script(
     script_bytes: bytes,
     redeem_script: List[Command],
-    prevouts: List[TxOut],
     tx: Tx,
     i: int,
     flags: List[str],
@@ -599,6 +640,10 @@ def verify_script(
 
     script.reverse()
     while script:
+
+        if len(stack) + len(altstack) > 1000:
+            raise BTClibValueError()
+
         op = script.pop()
 
         if isinstance(op, str) and op[:3] == "OP_":
@@ -606,7 +651,7 @@ def verify_script(
             if op in operations:
                 operations[op](script, stack, altstack)
 
-            elif op == "OP_CHECKSIG":  # TODO: OP_CODESEPARATOR
+            elif op == "OP_CHECKSIG":
                 pub_key = stack.pop()
                 signature = stack.pop()
 
@@ -658,9 +703,9 @@ def verify_script(
                     stack.append(b"")
 
             elif op == "OP_CHECKLOCKTIMEVERIFY":
-                pass
+                op_checklocktimeverify(stack, tx, i)
             elif op == "OP_CHECKSEQUENCEVERIFY":
-                pass
+                op_checksequenceverify(stack, tx, i)
 
             elif op[3:].isdigit():
                 stack.append(_from_num(int(op[3:])))
@@ -668,7 +713,7 @@ def verify_script(
                 if len(op) > 16:
                     codesep_index = int(op[16:])
             else:
-                raise BTClibValueError()
+                raise BTClibValueError("unknown op code")
 
         else:
             stack.append(bytes_from_command(op))

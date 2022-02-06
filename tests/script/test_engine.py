@@ -52,11 +52,7 @@ def test_invalid_taproot() -> None:
     with open(filename, "r", encoding="ascii") as file_:
         data = json.load(file_)
 
-    error_count = 0
-
-    for i, x in enumerate(
-        filter(lambda x: "TAPROOT" in x["flags"] and "failure" in x.keys(), data)
-    ):
+    for x in filter(lambda x: "TAPROOT" in x["flags"] and "failure" in x.keys(), data):
 
         tx = Tx.parse(x["tx"])
 
@@ -69,17 +65,8 @@ def test_invalid_taproot() -> None:
 
         flags = x["flags"].split(",")
 
-        try:
-            with pytest.raises(BTClibValueError):
-                verify_input(prevouts, tx, index, flags)
-            print(i, "ok")
-        except:
-            error_count += 1
-            print(i, "error")
-
-    print()
-    print(error_count)
-    assert False
+        with pytest.raises((BTClibValueError, IndexError, KeyError)):
+            verify_input(prevouts, tx, index, flags)
 
 
 def test_valid_legacy() -> None:
@@ -88,7 +75,7 @@ def test_valid_legacy() -> None:
     with open(filename, "r", encoding="ascii") as file_:
         data = json.load(file_)
 
-    for index, x in enumerate(data):
+    for x in data:
         if isinstance(x[0], str):
             continue
 
@@ -162,12 +149,12 @@ def test_invalid_legacy() -> None:
             prevouts.append(TxOut(amount, ScriptPubKey(script_pub_key)))
 
         try:
-            with pytest.raises(BTClibValueError):
+            with pytest.raises((BTClibValueError, IndexError)):
                 verify_transaction(prevouts, tx, flags)
             print(index, "ok")
-        except:
+        except BaseException:
             error_count += 1
-            print(index, "error")
+            print(index, "error", data[index - 1], flags)
 
     print()
     print(error_count)
