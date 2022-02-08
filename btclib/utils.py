@@ -68,7 +68,7 @@ def bytes_from_command(command: Command) -> bytes:
 
     if isinstance(command, int):
         if command == 0:
-            return b""
+            return b"\x00"
         return encode_num(command)
 
     return command

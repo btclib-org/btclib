@@ -112,31 +112,37 @@ def verify_input(prevouts: List[TxOut], tx: Tx, i: int, flags: List[str]) -> Non
     if supported_segwit_version + 1 and segwit_version > supported_segwit_version:
         return
 
-    if script_type == "p2tr":
-        if p2sh:
-            return  # remains unencumbered
-        witness = tx.vin[i].script_witness
-        budget = 50 + len(witness.serialize())
-        annex = taproot_get_annex(witness)
-        stack = witness.stack
-        if len(stack) == 0:
+    if segwit_version == 1:
+        if script_type == "p2tr":
+            if p2sh:
+                return  # remains unencumbered
+            witness = tx.vin[i].script_witness
+            budget = 50 + len(witness.serialize())
+            annex = taproot_get_annex(witness)
+            stack = witness.stack
+            if len(stack) == 0:
+                raise BTClibValueError()
+            if len(stack) == 1:
+                tapscript.verify_key_path(script, stack, prevouts, tx, i, annex)
+                return
+            script_bytes, stack, leaf_version = taproot_unwrap_script(script, stack)
+            if leaf_version == 0xC0:
+                tapscript.verify_script_path_vc0(
+                    script_bytes, stack, prevouts, tx, i, annex, budget
+                )
+                return
+            return  # unknown leaf version script_type
+        return  # non 32 bytes program, unencumbered
+
+    if segwit_version == 0:
+        if script_type == "p2wpkh":
+            return
+
+        elif script_type == "p2wsh":
+            return
+
+        else:
             raise BTClibValueError()
-        if len(stack) == 1:
-            tapscript.verify_key_path(script, stack, prevouts, tx, i, annex)
-            return
-        script_bytes, stack, leaf_version = taproot_unwrap_script(script, stack)
-        if leaf_version == 0xC0:
-            tapscript.verify_script_path_vc0(
-                script_bytes, stack, prevouts, tx, i, annex, budget
-            )
-            return
-        return  # unknown leaf version script_type
-
-    if script_type == "p2wpkh" and "WITNESS" in flags:
-        return
-
-    if script_type == "p2wsh" and "WITNESS" in flags:
-        return
 
     if "SIGPUSHONLY" in flags:
         validate_redeem_script(redeem_script)
