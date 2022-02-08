@@ -65,6 +65,7 @@ ALL_FLAGS = [
     "SIGPUSHONLY",
     "LOW_S",
     "STRICTENC",
+    "DERSIG",
     "CONST_SCRIPTCODE",
     "NULLDUMMY",
     "CLEANSTACK",
