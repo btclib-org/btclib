@@ -495,7 +495,7 @@ def op_checksequenceverify(stack: List[bytes], tx: Tx, i: int) -> None:
 def fix_signature(signature: bytes, flags: List[str]) -> bytes:
     signature_suffix = signature[-1:]
     signature = signature[:-1]
-    if "STRICTENC" not in flags:
+    if "STRICTENC" not in flags and "DERSIG" not in flags:
         signature = Sig.parse(signature, strict=False).serialize()
     if "LOW_S" not in flags:
         sig = Sig.parse(signature)
@@ -514,12 +514,34 @@ def check_pub_key(pub_key: bytes) -> bool:
 
 
 def calculate_script_code(
-    script: List[Command], separator_index: int, signatures: List[bytes]
+    script_bytes: bytes,
+    separator_index: int,
+    signatures: List[bytes],
+    flags: List[str],
 ) -> bytes:
-    script_code = script[separator_index + 1 :]
+
+    script_code = parse(script_bytes, False)
+
+    # We only take the bytes from the last executed OP_CODESEPARATOR
+    # we can't serialize the script_pub_key from the last executed
+    # OP_CODESEPARATOR because this will hide away the pushdata prefix, and this
+    # will cause failure in some tests because FindAndDelete takes in account
+    # this prefix too
+    redeem_script = script_code[: separator_index + 1]
+    redeem_script_len = len(serialize_script(redeem_script))
+    script_bytes = script_bytes[redeem_script_len:]
+
     for signature in signatures:  # find and delete
-        while signature.hex().upper() in script_code:
-            script_code.remove(signature.hex().upper())
+        ser_signature = serialize_script([signature])
+        while ser_signature in script_bytes:
+            if "CONST_SCRIPTCODE" in flags:
+                raise BTClibValueError()
+            script_bytes = script_bytes.replace(ser_signature, b"")
+
+    if "CONST_SCRIPTCODE" in flags:
+        return script_bytes
+
+    script_code = parse(script_bytes, taproot=False)
     while "OP_CODESEPARATOR" in script_code:
         script_code.remove("OP_CODESEPARATOR")
     return serialize_script(script_code)
@@ -529,7 +551,7 @@ def op_checksig(
     signature: bytes,
     signatures: List[bytes],
     pub_key: bytes,
-    script_pub_key: List[Command],
+    script_bytes: bytes,
     codesep_index: int,
     tx: Tx,
     i: int,
@@ -537,7 +559,7 @@ def op_checksig(
 ) -> bool:
     if not signature or not pub_key:
         return False
-    script_code = calculate_script_code(script_pub_key, codesep_index, signatures)
+    script_code = calculate_script_code(script_bytes, codesep_index, signatures, flags)
     signature = fix_signature(signature, flags)
     msg_hash = sig_hash.legacy(script_code, tx, i, signature[-1])
     if not check_pub_key(pub_key):
@@ -557,6 +579,9 @@ def verify_script(
 
     script_pub_key = parse(script_bytes, taproot=False)
     script = redeem_script + script_pub_key
+
+    # print(script)
+    # print(script_bytes)
 
     if "OP_CODESEPARATOR" in script and "CONST_SCRIPTCODE" in flags:
         raise BTClibValueError()
@@ -634,6 +659,8 @@ def verify_script(
     stack: List[bytes] = []
     altstack: List[bytes] = []
 
+    script_index = 0
+
     script.reverse()
     while script:
 
@@ -641,6 +668,7 @@ def verify_script(
             raise BTClibValueError()
 
         op = script.pop()
+        script_index += 1
 
         if isinstance(op, str) and op[:3] == "OP_":
 
@@ -648,13 +676,15 @@ def verify_script(
                 operations[op](script, stack, altstack)
 
             elif op == "OP_CHECKSIG":
+                if script_index < len(redeem_script) and "CONST_SCRIPTCODE" in flags:
+                    raise BTClibValueError()
                 pub_key = stack.pop()
                 signature = stack.pop()
                 result = op_checksig(
                     signature,
                     [signature],
                     pub_key,
-                    script_pub_key,
+                    script_bytes,
                     codesep_index,
                     tx,
                     i,
@@ -663,6 +693,8 @@ def verify_script(
                 stack.append(_from_num(int(result)))
 
             elif op == "OP_CHECKMULTISIG":
+                if script_index < len(redeem_script) and "CONST_SCRIPTCODE" in flags:
+                    raise BTClibValueError()
                 pub_key_num = _to_num(stack.pop())
                 pub_keys = [stack.pop() for x in range(pub_key_num)]
                 signature_num = _to_num(stack.pop())
@@ -676,7 +708,7 @@ def verify_script(
                         signature,
                         signatures,
                         pub_key,
-                        script_pub_key,
+                        script_bytes,
                         codesep_index,
                         tx,
                         i,
