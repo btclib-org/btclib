@@ -75,7 +75,7 @@ def op_checksig(
     prevouts: List[TxOut],
     annex: bytes,
     budget: int,
-):
+) -> int:
     pub_key = stack.pop()
     signature = stack.pop()
     if len(pub_key) == 0:

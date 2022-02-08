@@ -89,14 +89,6 @@ def op_if(
     script.extend(after_script + new_condition_script[::-1])
 
 
-def op_endif(script: List[Command], stack: List[bytes], altstack: List[bytes]) -> None:
-    raise BTClibValueError()
-
-
-def op_else(script: List[Command], stack: List[bytes], altstack: List[bytes]) -> None:
-    raise BTClibValueError()
-
-
 def op_notif(
     script: List[Command],
     stack: List[bytes],
@@ -176,28 +168,6 @@ def op_checkmultisigverify(
     script: List[Command], stack: List[bytes], altstack: List[bytes]
 ) -> None:
     script.extend(["OP_CHECKMULTISIG", "OP_VERIFY"][::-1])
-
-
-def op_ver(script: List[Command], stack: List[bytes], altstack: List[bytes]) -> None:
-    raise BTClibValueError()
-
-
-def op_reserved(
-    script: List[Command], stack: List[bytes], altstack: List[bytes]
-) -> None:
-    raise BTClibValueError()
-
-
-def op_reserved1(
-    script: List[Command], stack: List[bytes], altstack: List[bytes]
-) -> None:
-    raise BTClibValueError()
-
-
-def op_reserved2(
-    script: List[Command], stack: List[bytes], altstack: List[bytes]
-) -> None:
-    raise BTClibValueError()
 
 
 def op_size(script: List[Command], stack: List[bytes], altstack: List[bytes]) -> None:
@@ -492,7 +462,13 @@ def op_checklocktimeverify(stack: List[bytes], tx: Tx, i: int) -> None:
     lock_time = _to_num(stack[-1], 5)
     if lock_time < 0:
         raise BTClibValueError()
-    # additional condition
+
+    # different lock time type
+    if tx.lock_time >= 500000000 and lock_time < 500000000:
+        raise BTClibValueError()
+    if tx.lock_time < 500000000 and lock_time >= 500000000:
+        raise BTClibValueError()
+
     if lock_time > tx.lock_time:
         raise BTClibValueError()
     if tx.vin[i].sequence == 0xFFFFFFFF:
@@ -510,8 +486,10 @@ def op_checksequenceverify(stack: List[bytes], tx: Tx, i: int) -> None:
             raise BTClibValueError()
         if tx.vin[i].sequence & (1 << 31):
             raise BTClibValueError()
-    # additional condition
-    # additional condition
+        if sequence & (1 << 22) != tx.vin[i].sequence & (1 << 22):
+            raise BTClibValueError()
+        if sequence & 0x0000FFFF > tx.vin[i].sequence & 0x0000FFFF:
+            raise BTClibValueError()
 
 
 def fix_signature(signature: bytes, flags: List[str]) -> bytes:
@@ -545,6 +523,28 @@ def calculate_script_code(
     while "OP_CODESEPARATOR" in script_code:
         script_code.remove("OP_CODESEPARATOR")
     return serialize_script(script_code)
+
+
+def op_checksig(
+    signature: bytes,
+    signatures: List[bytes],
+    pub_key: bytes,
+    script_pub_key: List[Command],
+    codesep_index: int,
+    tx: Tx,
+    i: int,
+    flags: List[str],
+) -> bool:
+    if not signature or not pub_key:
+        return False
+    script_code = calculate_script_code(script_pub_key, codesep_index, signatures)
+    signature = fix_signature(signature, flags)
+    msg_hash = sig_hash.legacy(script_code, tx, i, signature[-1])
+    if not check_pub_key(pub_key):
+        return False
+    if not dsa_verify(msg_hash, pub_key, signature[:-1]):
+        return False
+    return True
 
 
 def verify_script(
@@ -582,10 +582,6 @@ def verify_script(
         "OP_EQUAL": op_equal,
         "OP_CHECKSIGVERIFY": op_checksigverify,
         "OP_EQUALVERIFY": op_equalverify,
-        "OP_RESERVED": op_reserved,
-        "OP_VER": op_ver,
-        "OP_RESERVED1": op_reserved1,
-        "OP_RESERVED2": op_reserved2,
         "OP_RETURN": op_return,
         "OP_SIZE": op_size,
         "OP_RIPEMD160": op_ripemd160,
@@ -654,22 +650,17 @@ def verify_script(
             elif op == "OP_CHECKSIG":
                 pub_key = stack.pop()
                 signature = stack.pop()
-
-                if not signature or not pub_key:
-                    stack.append(b"")
-                else:
-
-                    script_code = calculate_script_code(
-                        script_pub_key, codesep_index, [signature]
-                    )
-                    signature = fix_signature(signature, flags)
-                    msg_hash = sig_hash.legacy(script_code, tx, i, signature[-1])
-                    if check_pub_key(pub_key) and dsa_verify(
-                        msg_hash, pub_key, signature[:-1]
-                    ):
-                        stack.append(b"\x01")
-                    else:
-                        stack.append(b"")
+                result = op_checksig(
+                    signature,
+                    [signature],
+                    pub_key,
+                    script_pub_key,
+                    codesep_index,
+                    tx,
+                    i,
+                    flags,
+                )
+                stack.append(_from_num(int(result)))
 
             elif op == "OP_CHECKMULTISIG":
                 pub_key_num = _to_num(stack.pop())
@@ -680,27 +671,21 @@ def verify_script(
                     raise BTClibValueError()
                 signature_index = 0
                 for pub_key in pub_keys:
-
                     signature = signatures[signature_index]
-                    if not signature or not pub_key:
-                        continue
-
-                    script_code = calculate_script_code(
-                        script_pub_key, codesep_index, signatures
+                    signature_index += op_checksig(
+                        signature,
+                        signatures,
+                        pub_key,
+                        script_pub_key,
+                        codesep_index,
+                        tx,
+                        i,
+                        flags,
                     )
-                    signature = fix_signature(signature, flags)
-                    msg_hash = sig_hash.legacy(script_code, tx, i, signature[-1])
-                    if not check_pub_key(pub_key):
-                        continue
-                    if dsa_verify(msg_hash, pub_key, signature[:-1]):
-                        signature_index += 1
-                        if signature_index == signature_num:
-                            break
+                    if signature_index == signature_num:
+                        break
 
-                if signature_index == signature_num:
-                    stack.append(b"\x01")
-                else:
-                    stack.append(b"")
+                stack.append(_from_num(int(signature_index == signature_num)))
 
             elif op == "OP_CHECKLOCKTIMEVERIFY":
                 op_checklocktimeverify(stack, tx, i)
