@@ -4,9 +4,11 @@ on:
   push:
     branches:
       - master
+      - dev
   pull_request:
     branches:
       - master
+      - dev
 
 jobs:
 
@@ -39,7 +41,7 @@ jobs:
           COVERALLS_PARALLEL: true
 
   finish:
-    if: "github.repository == 'btclib-org/btclib'"
+    if: "github.repository == 'btclib-org/btclib' && github.base_ref == 'master'"
     needs: test
     runs-on: ubuntu-latest
     steps:
