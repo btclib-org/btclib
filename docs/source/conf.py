@@ -23,7 +23,7 @@ copyright = "2017-2022 The btclib developers"
 author = "The btclib developers"
 
 # The full version, including alpha/beta/rc tags
-release = "2022.2.9"
+release = "2022.3"
 
 
 # -- General configuration ---------------------------------------------------

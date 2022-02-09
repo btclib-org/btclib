@@ -26,12 +26,6 @@ from btclib.tx.block_header import BlockHeader
 from btclib.tx.tx import Tx
 from btclib.utils import bytesio_from_binarydata, decode_num
 
-# python 3.6
-if sys.version_info.minor == 6:  # pragma: no cover
-    # type: ignore # pylint: disable=import-error, no-name-in-module, no-member
-    import backports.datetime_fromisoformat
-
-    backports.datetime_fromisoformat.MonkeyPatch.patch_fromisoformat()  # pylint: disable=no-member
 
 _HF = hash256
 

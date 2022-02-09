@@ -11,7 +11,7 @@
 "__init__ module for the btclib package."
 
 name = "btclib"
-__version__ = "2022.2.9"
+__version__ = "2022.3"
 __author__ = "The btclib developers"
 __author_email__ = "devs@btclib.org"
 __copyright__ = "Copyright (C) 2017-2022 The btclib developers"
