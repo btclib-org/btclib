@@ -12,10 +12,12 @@
 
 import pytest
 
+from btclib.bip32.bip32 import BIP32KeyData, derive, rootxprv_from_seed
 from btclib.ecc.curve import CURVES
 from btclib.ecc.sec_point import bytes_from_point
 from btclib.exceptions import BTClibValueError
 from btclib.to_pub_key import (
+    fingerprint,
     point_from_key,
     point_from_pub_key,
     pub_keyinfo_from_key,
@@ -222,3 +224,12 @@ def test_from_key() -> None:
             point_from_key(not_a_key)  # type: ignore
         with pytest.raises(BTClibValueError):
             pub_keyinfo_from_key(not_a_key)  # type: ignore
+
+
+def test_fingerprint() -> None:
+    seed = "bfc4cbaad0ff131aa97fa30a48d09ae7df914bcc083af1e07793cd0a7c61a03f65d622848209ad3366a419f4718a80ec9037df107d8d12c19b83202de00a40ad"
+    xprv = rootxprv_from_seed(seed)
+    pf = fingerprint(xprv)  # xprv is automatically converted to xpub
+    child_key = derive(xprv, 0x80000000)
+    pf2 = BIP32KeyData.b58decode(child_key).parent_fingerprint
+    assert pf == pf2

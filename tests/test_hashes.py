@@ -27,13 +27,3 @@ def test_hash160_hash256() -> None:
     for hexstring in test_vectors:
         hash160(hexstring)
         hash256(hexstring)
-
-
-# def test_fingerprint() -> None:
-#
-#     seed = "bfc4cbaad0ff131aa97fa30a48d09ae7df914bcc083af1e07793cd0a7c61a03f65d622848209ad3366a419f4718a80ec9037df107d8d12c19b83202de00a40ad"
-#     xprv = rootxprv_from_seed(seed)
-#     pf = fingerprint(xprv)  # xprv is automatically converted to xpub
-#     child_key = derive(xprv, 0x80000000)
-#     pf2 = BIP32KeyData.b58decode(child_key).parent_fingerprint
-#     assert pf == pf2

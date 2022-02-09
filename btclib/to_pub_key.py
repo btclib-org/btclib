@@ -17,6 +17,7 @@ from btclib.bip32.bip32 import BIP32Key, BIP32KeyData
 from btclib.ecc.curve import Curve, mult, secp256k1
 from btclib.ecc.sec_point import bytes_from_point, point_from_octets
 from btclib.exceptions import BTClibValueError
+from btclib.hashes import hash160
 from btclib.network import (
     NETWORKS,
     curve_from_xkeyversion,
@@ -222,3 +223,14 @@ def pub_keyinfo_from_prv_key(
     ec = NETWORKS[net].curve
     pub_key = mult(q, ec.G, ec)
     return bytes_from_point(pub_key, ec, compr), net
+
+
+def fingerprint(key: Key, network: Optional[str] = None) -> bytes:
+    """Return the public key fingerprint from a private/public key.
+
+    The fingerprint is the last four bytes
+    of the compressed public key HASH160.
+    """
+
+    pub_key, _ = pub_keyinfo_from_key(key, network, compressed=True)
+    return hash160(pub_key)[:4]
