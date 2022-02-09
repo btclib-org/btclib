@@ -306,7 +306,7 @@ class CurveGroup:
         # skipping a crucial check here:
         # if sqrt(y*y) does not exist, then x is not valid.
         # This is a good reason to keep this method private
-        return ((x ** 2 + self._a) * x + self._b) % self.p
+        return ((x**2 + self._a) * x + self._b) % self.p
 
     def y(self, x: int) -> int:
         """Return the y coordinate from x, as in (x, y)."""
@@ -505,7 +505,7 @@ MAX_W = 5
 def cached_multiples(Q: JacPoint, ec: CurveGroup) -> List[JacPoint]:
 
     T = [INFJ, Q]
-    for i in range(3, 2 ** MAX_W, 2):
+    for i in range(3, 2**MAX_W, 2):
         T.append(ec.double_jac(T[(i - 1) // 2]))
         T.append(ec.add_jac(T[-1], Q))
     return T
@@ -524,7 +524,7 @@ def cached_multiples_fixwind(
     K = Q
     for _ in range((ec.p_size * 8) // w + 1):
         sublist = [INFJ, K]
-        for j in range(3, 2 ** w, 2):
+        for j in range(3, 2**w, 2):
             sublist.append(ec.double_jac(sublist[(j - 1) // 2]))
             sublist.append(ec.add_jac(sublist[-1], K))
         K = ec.double_jac(sublist[2 ** (w - 1)])
@@ -632,9 +632,9 @@ def mult_fixed_window(
     # T = cached_multiples(Q, ec)
     # T = multiples(Q, 2 ** w, ec)
 
-    T = cached_multiples(Q, ec) if cached else multiples(Q, 2 ** w, ec)
+    T = cached_multiples(Q, ec) if cached else multiples(Q, 2**w, ec)
 
-    digits = convert_number_to_base(m, 2 ** w)
+    digits = convert_number_to_base(m, 2**w)
 
     R = T[digits[0]]
     for i in digits[1:]:
@@ -673,7 +673,7 @@ def mult_fixed_window_cached(
 
     T = cached_multiples_fixwind(Q, ec, w)
 
-    digits = convert_number_to_base(m, 2 ** w)
+    digits = convert_number_to_base(m, 2**w)
 
     k = len(digits) - 1
 

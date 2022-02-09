@@ -39,7 +39,7 @@ def ansi_x9_63_kdf(
     http://www.secg.org/sec1-v2.pdf, section 3.6.1
     """
     hf_size = hf().digest_size
-    max_size = hf_size * (2 ** 32 - 1)
+    max_size = hf_size * (2**32 - 1)
     if size > max_size:
         raise BTClibValueError(f"cannot derive a key larger than {max_size} bytes")
     K_temp = []

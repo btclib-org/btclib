@@ -54,7 +54,7 @@ def test_ecdh() -> None:
         assert shared_key == diffie_hellman(a, B, size, shared_info, ec, hf)
         assert shared_key == diffie_hellman(b, A, size, shared_info, ec, hf)
 
-    max_size = hf_size * (2 ** 32 - 1)
+    max_size = hf_size * (2**32 - 1)
     size = max_size + 1
     with pytest.raises(BTClibValueError, match="cannot derive a key larger than "):
         ansi_x9_63_kdf(z, size, hf, None)

@@ -224,7 +224,7 @@ def test_cached_multiples() -> None:
 
     ec = secp256k1
     M = cached_multiples(ec.GJ, ec)
-    assert len(M) == 2 ** MAX_W
+    assert len(M) == 2**MAX_W
 
 
 def test_multiples() -> None:

@@ -23,11 +23,11 @@ def test_der_size() -> None:
 
     sig8 = 1, 1
     sig72 = ec.n - 2, ec.n - 1
-    sig71 = 2 ** 255 - 4, ec.n - 1
-    sig70 = 2 ** 255 - 4, 2 ** 255 - 1
-    sig70b = 2 ** 255 - 4, 2 ** 248 - 1
-    sig69 = 2 ** 255 - 4, 2 ** 247 - 1
-    sig68 = 2 ** 247 - 1, 2 ** 247 - 1
+    sig71 = 2**255 - 4, ec.n - 1
+    sig70 = 2**255 - 4, 2**255 - 1
+    sig70b = 2**255 - 4, 2**248 - 1
+    sig69 = 2**255 - 4, 2**247 - 1
+    sig68 = 2**247 - 1, 2**247 - 1
     sigs = [sig8, sig72, sig71, sig70, sig70b, sig69, sig68]
     lenghts = [8, 72, 71, 70, 70, 69, 68]
 
@@ -47,7 +47,7 @@ def test_der_deserialize() -> None:
     with pytest.raises(ValueError, match=err_msg):
         Sig.parse("not a sig")
 
-    sig = Sig(2 ** 255 - 4, 2 ** 247 - 1)
+    sig = Sig(2**255 - 4, 2**247 - 1)
     sig_bin = sig.serialize()
     r_size = sig_bin[3]
 
@@ -98,8 +98,8 @@ def test_der_deserialize() -> None:
 
 def test_der_serialize() -> None:
 
-    r = 2 ** 247 - 1
-    s = 2 ** 247 - 1
+    r = 2**247 - 1
+    s = 2**247 - 1
     Sig(r, s)
 
     err_msg = "scalar r not in 1..n-1: "

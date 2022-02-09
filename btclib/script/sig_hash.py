@@ -106,7 +106,7 @@ def legacy(script_: Octets, tx: Tx, vin_i: int, hash_type: int) -> bytes:
     if hash_type & 0x1F == SINGLE:
         # sig_hash single bug
         if vin_i >= len(new_tx.vout):
-            return (256 ** 31).to_bytes(32, byteorder="big", signed=False)
+            return (256**31).to_bytes(32, byteorder="big", signed=False)
         new_tx.vout = new_tx.vout[: vin_i + 1]
         for txout in new_tx.vout[:-1]:
             txout.script_pub_key = ScriptPubKey(b"")

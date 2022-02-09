@@ -191,7 +191,7 @@ def test_collect_rolls(monkeypatch):
         dice_sides, dice_rolls = collect_rolls(bits)
         assert dice_sides == sides
         bits_per_roll = math.floor(math.log2(sides))
-        base = 2 ** bits_per_roll
+        base = 2**bits_per_roll
         for roll in dice_rolls:
             assert 0 < roll <= base
         min_roll_number = math.ceil(bits / bits_per_roll)
@@ -202,7 +202,7 @@ def test_bin_str_entropy_from_rolls() -> None:
     bits = 256
     dice_base = 20
     bits_per_roll = math.floor(math.log2(dice_base))
-    base = 2 ** bits_per_roll
+    base = 2**bits_per_roll
     roll_number = math.ceil(bits / bits_per_roll)
 
     rolls = [base for _ in range(roll_number)]

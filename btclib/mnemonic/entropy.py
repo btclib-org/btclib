@@ -261,7 +261,7 @@ def collect_rolls(bits: int) -> Tuple[int, List[int]]:
                 dice_sides = 0
 
     bits_per_roll = math.floor(math.log2(dice_sides))
-    base = 2 ** bits_per_roll
+    base = 2**bits_per_roll
     if not automate:
         print(f"rolls are used only if in 1..{base}")
 
@@ -306,7 +306,7 @@ def bin_str_entropy_from_rolls(
         raise BTClibValueError(f"invalid dice base: {dice_sides}, must be >= 2")
     bits_per_roll = math.floor(math.log2(dice_sides))
     # used base
-    base = 2 ** bits_per_roll
+    base = 2**bits_per_roll
 
     if shuffle:
         secrets.SystemRandom().shuffle(rolls)
