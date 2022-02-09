@@ -11,16 +11,16 @@ setuptools
 twine
 
 bandit==1.7.1
-black>=21.11b1
+black>=22.1.0
 check-manifest>=0.47
-coverage>=5.5
+coverage>=6.2
 flake8>=4.0.1
 isort>=5.10.1
-mypy>=0.910
-pylint>=2.12.1
-pytest>=6.2.5
+mypy>=0.931
+pylint>=2.12.2
+pytest>=7.0.0
 pytest-cov>=3.0.0
 pytest-ordering>=0.6
-pytest-xdist>=2.4.0
-Sphinx>=4.3.1
-tox>=3.24.4
+pytest-xdist>=2.5.0
+Sphinx>=4.3.2
+tox>=3.24.5
