@@ -70,10 +70,13 @@ def test_exceptions() -> None:
             err_msg = "too many decimals for a BTC amount: "
             with pytest.raises(BTClibValueError, match=err_msg):
                 sats_from_btc(Decimal("0.123456789"))
+            # too many decimales, now with a float
             with pytest.raises(BTClibValueError, match=err_msg):
                 valid_btc_amount(0.123456789)
             with pytest.raises(BTClibValueError, match=err_msg):
-                sats_from_btc(1 / (1 + pow(2, 8)))
+                float_amount = 1 / (1 + pow(2, 8))
+                decimal_amount = Decimal(float_amount)
+                sats_from_btc(decimal_amount)
 
             with pytest.raises(TypeError):
                 btc_from_sats(2.5)  # type: ignore
