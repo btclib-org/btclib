@@ -5,6 +5,12 @@ Notable changes to the codebase are documented here.
 Release names follow [*calendar versioning*](https://calver.org/):
 full year, short month, short day (YYYY-M-D)
 
+## v2022.3 (current master, in development, not released yet)
+
+Major changes includes:
+
+- dropper python 3.6 support
+
 ## v2022.2.9
 
 This is the latest release to support python 3.6

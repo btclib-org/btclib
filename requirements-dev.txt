@@ -10,7 +10,7 @@ wheel
 setuptools
 twine
 
-bandit==1.7.1
+bandit>=1.7.2
 black>=22.1.0
 check-manifest>=0.47
 coverage>=6.2

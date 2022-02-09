@@ -24,12 +24,6 @@ from btclib.exceptions import BTClibValueError
 from btclib.hashes import hash256
 from btclib.utils import bytes_from_octets, bytesio_from_binarydata
 
-# python 3.6
-if sys.version_info.minor == 6:  # pragma: no cover
-    import backports.datetime_fromisoformat  # type: ignore # pylint: disable=import-error, no-name-in-module, no-member
-
-    backports.datetime_fromisoformat.MonkeyPatch.patch_fromisoformat()  # pylint: disable=no-member
-
 _HF = hash256
 _HF_LEN = 32  # should be _HF().digest_size
 _KEY_SIZE: List[Tuple[str, int]] = [
@@ -145,8 +139,7 @@ class BlockHeader:
             dict_["version"],
             dict_["previous_block_hash"],
             dict_["merkle_root"],
-            # mypy with python 3.6 complain about the following
-            datetime.fromisoformat(dict_["time"]),  # type: ignore
+            datetime.fromisoformat(dict_["time"]),
             dict_["bits"],
             dict_["nonce"],
             check_validity,
