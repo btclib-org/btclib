@@ -31,7 +31,7 @@ setup(
     package_data={"btclib": ["_data/*", "ecc/_data/*", "mnemonic/_data/*", "py.typed"]},
     # test_suite="btclib.tests",
     # install_requires=[],
-    extra_requires={"secp256k1": ["btclib_libsecp256k1"]},
+    extras_require={"secp256k1": ["btclib_libsecp256k1"]},
     keywords=(
         "bitcoin cryptography elliptic-curves ecdsa schnorr RFC-6979 "
         "bip32 bip39 electrum base58 bech32 segwit message-signing "

@@ -73,15 +73,15 @@ Included features are:
 - [SLIP132](https://github.com/satoshilabs/slips/blob/master/slip-0132.md)
   key versions (xprv, yprv, zprv, Yprv, Zprv, tprv, uprv, vprv, and Uprv)
   with corresponding mapping to
-  p2pkh/p2sh, p2wpkh-p2sh, p2wpkh, p2wsh-p2sh, and p2wsh addresses
+  p2pkh/p2sh, p2wpkh-p2sh, p2wpkh, p2wsh-p2sh, p2wsh and p2tr addresses
 - [BIP39](https://github.com/bitcoin/bips/blob/master/bip-0039.mediawiki)
   wordlists and mnemonic for generating deterministic keys
 - [Electrum](https://electrum.org/#home) standard for mnemonic
 - Script encoding/decoding
-- nulldata, p2pk, p2ms, p2pkh, p2sh, p2wpkh, and p2wsh ScriptPubKeys
+- nulldata, p2pk, p2ms, p2pkh, p2sh, p2wpkh, p2wsh and p2tr ScriptPubKeys
 - BlockHeader and Block data classes
 - OutPoint, TxIn, TxOut, and TX data classes
-- legacy and segwit_v0 transaction hash signatures
+- legacy, segwit_v0 and taproot transaction hash signatures
 - [BIP174](https://github.com/bitcoin/bips/blob/master/bip-0174.mediawiki)
   partially signed bitcoin transactions (PSBT):
   PsbtIn, PbstOut, and Psbt data classes

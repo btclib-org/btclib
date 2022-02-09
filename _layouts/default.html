@@ -5,7 +5,6 @@
     <meta charset="UTF-8">
     <meta http-equiv="X-UA-Compatible" content="IE=edge">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-
     {% seo %}
     <link rel="stylesheet" href="{{ "/assets/css/style.css?v=" | append: site.github.build_revision | relative_url }}">
     <!--[if lt IE 9]>
@@ -24,28 +23,12 @@
 
             <p>{{ site.description | default: site.github.project_tagline }}</p>
 
-            {% if site.github.is_project_page %}
-            <p class="view"><a href="{{ site.github.repository_url }}">View the Project on GitHub
-                    <small>{{ site.github.repository_nwo }}</small></a></p>
-            {% endif %}
+            <p class="view">
+              <a href="{{ site.github.repository_url }}">
+                View the Project on GitHub <small>{{ site.github.repository_nwo }}</small>
+              </a>
+            </p>
 
-            {% if site.github.is_user_page %}
-            <p class="view"><a href="{{ site.github.owner_url }}">View My GitHub Profile</a></p>
-            {% endif %}
-
-            {% if site.show_downloads %}
-            <ul class="downloads">
-                <li>
-                    <a href="{{ site.github.repository_url }}/network/members">See <strong>Forks</strong></a>
-                </li>
-                <li>
-                    <a href="{{ site.github.repository_url }}/pulls"><strong>Pull requests</strong></a>
-                </li>
-                <li>
-                    <a href="{{ site.github.repository_url }}/issues">View <strong>Issues</strong></a>
-                </li>
-            </ul>
-            {% endif %}
         </header>
         <section>
 
@@ -53,18 +36,18 @@
 
         </section>
         <footer>
-            {% if site.github.is_project_page %}
             <p>Maintained by <a href="{{ site.github.owner_url }}">{{ site.github.owner_name }}</a></p>
-            {% endif %}
-            <p>Development is supported by:
+            <p>Development is supported by:</p>
+            <p>
+                <a href="https://checksig.io">
+                  <img style='background-color:#211f1e; padding:0.5rem;' width="180" alt="CheckSig"
+                   src="https://www.checksig.com/wp-content/uploads/2021/12/cropped-logo.png"/>
+                </a>
             </p>
             <p>
-                <a href="https://checksig.io"><img width="180" src="https://raw.githubusercontent.com/checksig-custody/checksig-custody.github.io/master/img/logo/new_logo/png/logo-CheckSig.png"
-                        alt="CheckSig" /></a>
-            </p>
-            <p>
-                <a href="https://dgi.io"><img width="120" src="https://dgi.io/img/logo/dgi-tagline-logo.png"
-                        alt="Digital Gold Institute" /></a>
+                <a href="https://dgi.io">
+                  <img width="120" alt="Digital Gold Institute" src="https://dgi.io/img/logo/dgi-tagline-logo.png"/>
+                </a>
             </p>
         </footer>
     </div>

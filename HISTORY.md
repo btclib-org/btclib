@@ -9,7 +9,8 @@ full year, short month, short day (YYYY-M-D)
 
 Major changes includes:
 
-- dropper python 3.6 support
+- dropped python 3.6 support
+- added support for btclib_libsecp256k1
 
 ## v2022.2.9
 
