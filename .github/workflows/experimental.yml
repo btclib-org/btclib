@@ -15,10 +15,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        # macos-latest ERROR: Could not build wheels for coincurve which
-        # use PEP 517 and cannot be installed directly
-        # os: [ubuntu-latest, macos-latest, windows-latest]
-        os: [ubuntu-latest, windows-latest]
+        os: [ubuntu-latest, macos-latest, windows-latest]
         experimental: [true]
     steps:
       - uses: actions/checkout@v2

@@ -13,7 +13,6 @@
 Dataclass encapsulating BlockHeader and List[Tx].
 """
 
-import sys
 from dataclasses import dataclass
 from math import ceil
 from typing import Any, Dict, List, Mapping, Optional, Sequence, Type
@@ -25,7 +24,6 @@ from btclib.hashes import hash256, merkle_root
 from btclib.tx.block_header import BlockHeader
 from btclib.tx.tx import Tx
 from btclib.utils import bytesio_from_binarydata, decode_num
-
 
 _HF = hash256
 
