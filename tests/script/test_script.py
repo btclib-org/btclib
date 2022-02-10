@@ -62,7 +62,7 @@ def test_exceptions() -> None:
 
     # A script_pub_key with OP_PUSHDATA4 can't be decoded
     script_bytes = "4e09020000" + "00" * 521 + "75"  # ['00'*521, 'OP_DROP']
-    err_msg = "Invalid pushdata length"
+    err_msg = "Invalid pushdata length: "
     with pytest.raises(BTClibValueError, match=err_msg):
         parse(script_bytes)
 
@@ -87,9 +87,10 @@ def test_encoding() -> None:
 
 
 def test_opcode_length() -> None:
-    err_msg = "Invalid pushdata length"
+    err_msg = "Not enough data for pushdata length"
     with pytest.raises(BTClibValueError, match=err_msg):
         parse(b"\x4e\x00")
+    err_msg = "Not enough data for pushdata"
     with pytest.raises(BTClibValueError, match=err_msg):
         parse(b"\x40\x00")
 

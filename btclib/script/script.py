@@ -60,24 +60,22 @@ def parse(stream: BinaryData, exit_on_op_success: bool = False) -> List[Command]
             break
         i = t[0]  # convert the byte to an integer
         if 0 < i <= 78:  # push
-            if 0 < i < 76:  # 1-byte-data-length | data
-                data_length = i
-            if 76 <= i <= 78:
-                if i == 76:  # OP_PUSHDATA1 | 1-byte-data-length | data
-                    x = 1
-                elif i == 77:  # OP_PUSHDATA2 | 2-byte-data-length | data
-                    x = 2
-                elif i == 78:  # OP_PUSHDATA4 | 4-byte-data-length | data
+            data_length = i  # 0 < i < 76 -> 1-byte-data-length | data
+            if 75 < i < 79:
+                # i == 76 -> OP_PUSHDATA1 | 1-byte-data-length | data
+                # i == 77 -> OP_PUSHDATA2 | 2-byte-data-length | data
+                x = i - 75
+                if i == 78:  # OP_PUSHDATA4 | 4-byte-data-length | data
                     x = 4
                 y = s.read(x)
                 if len(y) != x:
-                    raise BTClibValueError("Invalid pushdata length")
+                    raise BTClibValueError("Not enough data for pushdata length")
                 data_length = int.from_bytes(y, byteorder="little")
-            if data_length > 520:
-                raise BTClibValueError("Invalid pushdata length")
+                if data_length > 520:
+                    raise BTClibValueError(f"Invalid pushdata length: {data_length}")
             data = s.read(data_length)
             if len(data) != data_length:
-                raise BTClibValueError("Invalid pushdata length")
+                raise BTClibValueError("Not enough data for pushdata")
             # if <= 0xFFFFFFFF, parse it as integer
             # if i < 6 and decode_num(data) <= 0xFFFFFFFF:
             #     new_op_code: Command = decode_num(data)
