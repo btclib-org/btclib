@@ -16,6 +16,7 @@ import pytest
 
 from btclib.exceptions import BTClibValueError
 from btclib.script.script import Command, Script, parse, serialize
+from btclib.utils import hex_string
 
 
 def test_add_and_eq() -> None:
@@ -124,13 +125,22 @@ def test_regressions() -> None:
 
 def test_integers() -> None:
 
-    assert serialize([127]) == serialize(["7F"])
-
-    assert serialize([1]) == serialize(["OP_1"])
-    assert serialize([1]) != serialize(["01"])
-
     assert serialize([-1]) == serialize(["OP_1NEGATE"])
 
     assert serialize([0]) == serialize([""])
-    assert serialize([0]) == serialize(["OP_0"])
-    assert serialize([0]) != serialize(["00"])
+
+    for i in range(17):
+        serialized_int = serialize([i])
+        assert serialized_int == serialize([f"OP_{i}"])
+        serialized_byte = serialize([hex_string(i)])
+        assert serialized_byte != serialized_int
+
+    for i in range(17, 128):
+        serialized_int = serialize([i])
+        serialized_byte = serialize([hex_string(i)])
+        assert serialized_byte == serialized_int
+
+    for i in range(128, 256):
+        serialized_int = serialize([i])
+        serialized_byte = serialize([hex_string(i)])
+        assert serialized_byte != serialized_int
