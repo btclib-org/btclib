@@ -578,9 +578,10 @@ def test_non_standard_script_in_p2wsh() -> None:
     ]
     # fmt: on
     redeem_script = serialize(redeem_script_cmds)
-    assert redeem_script_cmds == parse(redeem_script)
-    payload = sha256(redeem_script)
 
+    assert redeem_script == serialize(parse(redeem_script))
+
+    payload = sha256(redeem_script)
     assert addr == b32.address_from_witness(0, payload, network)
     assert script_pub_key == ScriptPubKey.p2wsh(redeem_script)
 

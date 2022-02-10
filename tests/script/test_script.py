@@ -40,8 +40,9 @@ def test_simple_scripts() -> None:
         ["1F" * 520, "OP_DROP"],
     ]
     for script_pub_key in script_list:
-        assert script_pub_key == parse(serialize(script_pub_key))
-        assert script_pub_key == parse(serialize(script_pub_key).hex())
+        serialized_script = serialize(script_pub_key)
+        assert serialized_script == serialize(parse(serialized_script))
+        assert serialized_script == serialize(parse(serialized_script.hex()))
 
 
 def test_exceptions() -> None:
@@ -80,7 +81,7 @@ def test_nulldata() -> None:
         assert script_pub_key == parse(serialize(script_pub_key).hex())
 
 
-def test_encoding():
+def test_encoding() -> None:
     script_bytes = b"jKBIP141 \\o/ Hello SegWit :-) keep it strong! LLAP Bitcoin twitter.com/khs9ne"
     assert serialize(parse(script_bytes)) == script_bytes
 
@@ -92,5 +93,29 @@ def test_opcode_length() -> None:
     with pytest.raises(BTClibValueError, match=err_msg):
         parse(b"\x40\x00")
 
-    assert parse(b"\x01\x00\x50") == [0, "OP_SUCCESS80"]
+    assert parse(b"\x01\x00\x50")[1] == "OP_SUCCESS80"
     assert parse(b"\x01\x00\x50", exit_on_op_success=True) == ["OP_SUCCESS"]
+
+
+def test_regressions() -> None:
+    scripts = [
+        [1],
+        ["OP_1"],
+        [51],
+        [b"\x01"],
+        ["01"],
+        ["AA"],
+        ["aa"],
+        ["AAAA"],
+        [0],
+        [""],
+        [b""],
+        ["OP_0"],
+        [-1],
+        ["OP_1NEGATE"],
+        [0x81],
+        ["81"],
+    ]
+    for s in scripts:
+        assert serialize(parse(serialize(s))) == serialize(s)
+
