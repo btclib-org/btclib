@@ -99,7 +99,7 @@ def test_opcode_length() -> None:
 
 
 def test_regressions() -> None:
-    scripts = [
+    script_list: List[List[Command]] = [
         [1],
         ["OP_1"],
         [51],
@@ -117,8 +117,9 @@ def test_regressions() -> None:
         [0x81],
         ["81"],
     ]
-    for s in scripts:
-        assert serialize(parse(serialize(s))) == serialize(s)  # type:ignore
+    for s in script_list:
+        serialized = serialize(s)
+        assert serialize(parse(serialized)) == serialized
 
 
 def test_integers() -> None:
