@@ -547,14 +547,31 @@ def test_non_standard_script_in_p2wsh() -> None:
 
     network = "mainnet"
 
-    fed_pub_keys: List[Command] = ["00" * 33, "11" * 33, "22" * 33]
-    rec_pub_keys: List[Command] = ["77" * 33, "88" * 33, "99" * 33]
+    addr = "bc1qqst9un5sz8576fy2nnqkpm4rpfh0weveqwtt8zxgjp02g2mx5q7s2vresu"
+    script_pub_key = ScriptPubKey.from_address(addr)
+    assert addr == address(script_pub_key.script, network)
+
+    fed_pub_keys: List[Command] = [
+        "03356aeda9c56586fe1e4a63d5118ffa3bf29bd91c6323e31de113a500a1ffe441".upper(),
+        "0339f970e066a3efe1787722bd9cd59f69f1cf5cd29cb39fdec845415d8dbcb7a6".upper(),
+        "0346f1233885981cc50b4064b6ed27174a149ac0842a25941f280302ddd7d2153d".upper(),
+        "035d237b0807dd736cf4f3ab9c093bae2ccd128596dca883d3470f6327e6551688".upper(),
+        "037b5acce33944ae02454c65011ffb04e604f36f685c474134e8874ddac45ff7c8".upper(),
+        "03a88488e5ab6ae35c7d22d76efb9578e4a71b59c2ff0bd3cc3277e3a60717f3d6".upper(),
+    ]
+
+    rec_pub_keys: List[Command] = [
+        "02219c3f199942fdd37a88065a8a8333189aadb5667a7c27681f66952fddf0eea4".upper(),
+        "034c52cdf0125e50a53556c3f7586245f3f556bf26a80a4dae0ea6d0c81c11ebef".upper(),
+        "03e8abfc4e3dcd5be461e79c9fa68a4d657b344391d7fd65ed40aaa56f584c7711".upper(),
+    ]
+
     # fmt: off
     redeem_script_cmds: List[Command] = [
         "OP_IF",
-            "OP_2", *fed_pub_keys, "OP_3", "OP_CHECKMULTISIG",  # noqa E131
+            "OP_3", *fed_pub_keys, "OP_6", "OP_CHECKMULTISIG",  # noqa E131
         "OP_ELSE",
-            500, "OP_CHECKLOCKTIMEVERIFY", "OP_DROP",  # noqa E131
+            5184, "OP_CHECKSEQUENCEVERIFY", "OP_DROP",  # noqa E131
             "OP_2", *rec_pub_keys, "OP_3", "OP_CHECKMULTISIG",  # noqa E131
         "OP_ENDIF",
     ]
@@ -562,13 +579,9 @@ def test_non_standard_script_in_p2wsh() -> None:
     redeem_script = serialize(redeem_script_cmds)
     assert redeem_script_cmds == parse(redeem_script)
     payload = sha256(redeem_script)
-    script_pub_key = (
-        "00207b5310339c6001f75614daa5083839fa54d46165f6c56025cc54d397a85a5708"
-    )
-    assert script_pub_key == ScriptPubKey.p2wsh(redeem_script).script.hex()
-    addr = "bc1q0df3qvuuvqqlw4s5m2jsswpelf2dgct97mzkqfwv2nfe02z62uyq7n4zjj"
-    assert addr == address(script_pub_key, network)
+
     assert addr == b32.address_from_witness(0, payload, network)
+    assert script_pub_key == ScriptPubKey.p2wsh(redeem_script)
 
 
 def test_p2tr() -> None:
