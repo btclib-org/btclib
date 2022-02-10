@@ -135,3 +135,10 @@ def test_bip_test_vector() -> None:
 
         assert tweaked_pubkey.hex() == test["intermediary"]["tweakedPubkey"]
         assert address == test["expected"]["bip350Address"]
+
+
+def test_serialize_op_success() -> None:
+
+    assert parse(b"\x01\x00\x7e", exit_on_op_success=True) == ["OP_SUCCESS"]
+
+    assert parse(b"\x7e\x02\x01") == ["OP_SUCCESS126", b"\x02\x01"]

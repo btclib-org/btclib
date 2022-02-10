@@ -18,13 +18,14 @@ try:
     from btclib_libsecp256k1.dsa import verify as dsa_verify
 except ImportError:
     from btclib.ecc.dsa import verify_ as dsa_verify  # type: ignore
+
 from btclib.alias import Command
 from btclib.ecc.der import Sig
 from btclib.exceptions import BTClibValueError
 from btclib.hashes import hash160, hash256, ripemd160, sha1, sha256
-from btclib.script import parse
-from btclib.script import serialize as serialize_script
 from btclib.script import sig_hash
+from btclib.script.script import parse
+from btclib.script.script import serialize as serialize_script
 from btclib.tx.tx import Tx
 from btclib.utils import bytes_from_command, decode_num, encode_num
 
@@ -524,7 +525,7 @@ def calculate_script_code(
     flags: List[str],
 ) -> bytes:
 
-    script_code = parse(script_bytes, False)
+    script_code = parse(script_bytes)
 
     # We only take the bytes from the last executed OP_CODESEPARATOR
     # we can't serialize the script_pub_key from the last executed
@@ -545,7 +546,7 @@ def calculate_script_code(
     if "CONST_SCRIPTCODE" in flags:
         return script_bytes
 
-    script_code = parse(script_bytes, taproot=False)
+    script_code = parse(script_bytes)
     while "OP_CODESEPARATOR" in script_code:
         script_code.remove("OP_CODESEPARATOR")
     return serialize_script(script_code)
@@ -581,7 +582,7 @@ def verify_script(
     flags: List[str],
 ) -> None:
 
-    script_pub_key = parse(script_bytes, taproot=False)
+    script_pub_key = parse(script_bytes)
     script = redeem_script + script_pub_key
 
     # print(script)

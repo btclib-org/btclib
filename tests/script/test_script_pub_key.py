@@ -18,6 +18,7 @@ from os import path
 import pytest
 
 from btclib import b32, b58, var_bytes
+from btclib.alias import Command
 from btclib.exceptions import BTClibValueError
 from btclib.hashes import hash160, sha256
 from btclib.script import (

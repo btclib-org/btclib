@@ -21,10 +21,10 @@ from copy import deepcopy
 from typing import Sequence
 
 from btclib import var_bytes
-from btclib.alias import Octets
+from btclib.alias import Command, Octets
 from btclib.exceptions import BTClibValueError
 from btclib.hashes import hash256, sha256, tagged_hash
-from btclib.script import Command, parse, serialize
+from btclib.script.script import parse, serialize
 from btclib.script.script_pub_key import (
     ScriptPubKey,
     is_p2sh,

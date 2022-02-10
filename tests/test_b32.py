@@ -44,6 +44,7 @@ from __future__ import annotations
 import pytest
 
 from btclib import b32, b58
+from btclib.alias import Command
 from btclib.ec import bytes_from_point, point_from_octets
 from btclib.exceptions import BTClibValueError
 from btclib.hashes import hash160, sha256

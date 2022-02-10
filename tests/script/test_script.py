@@ -135,7 +135,7 @@ def test_exceptions() -> None:
         parse(script_bytes)
 
     # and can't be encoded
-    script_pub_key_ = ["0A" * 521, "OP_DROP"]
+    script_pub_key_: List[Command] = ["00" * 521, "OP_DROP"]
     err_msg = "too many bytes for OP_PUSHDATA: "
     with pytest.raises(BTClibValueError, match=err_msg):
         serialize(script_pub_key_)
@@ -163,7 +163,6 @@ def test_opcode_length() -> None:
 
     with pytest.raises(KeyError):
         assert parse(b"\x01\x00\x7e")
-    assert parse(b"\x01\x00\x7e", taproot=True) == ["OP_SUCCESS"]
 
 
 def test_regressions() -> None:
