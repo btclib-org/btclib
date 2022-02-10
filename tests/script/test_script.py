@@ -161,8 +161,9 @@ def test_opcode_length() -> None:
     with pytest.raises(BTClibValueError, match=err_msg):
         parse(b"\x40\x00")
 
-    assert parse(b"\x01\x00\x50")[1] == "OP_SUCCESS80"
-    assert parse(b"\x01\x00\x50", exit_on_op_success=True) == ["OP_SUCCESS"]
+    with pytest.raises(KeyError):
+        assert parse(b"\x01\x00\x7e")
+    assert parse(b"\x01\x00\x7e", taproot=True) == ["OP_SUCCESS"]
 
 
 def test_regressions() -> None:

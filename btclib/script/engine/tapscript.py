@@ -17,7 +17,7 @@ from typing import Callable, List, Mapping
 try:
     from btclib_libsecp256k1.ssa import verify as ssa_verify
 except ImportError:
-    from btclib.ecc.ssa import verify_ as ssa_verify
+    from btclib.ecc.ssa import verify_ as ssa_verify  # type: ignore
 
 import btclib.script.engine.script as bitcoin_script
 from btclib import var_bytes
@@ -62,7 +62,7 @@ def verify_key_path(
     pub_key = type_and_payload(script_pub_key)[1]
     msg_hash = sig_hash.taproot(tx, i, prevouts, sighash_type, 0, annex, b"")
 
-    if not ssa_verify(msg_hash, pub_key, signature[:64]):
+    if not ssa_verify(msg_hash, pub_key, signature[:64]):  # type: ignore
         raise BTClibValueError()
 
 
@@ -91,7 +91,7 @@ def op_checksig(
         tapleaf_hash = tagged_hash(b"TapLeaf", preimage)
         ext = tapleaf_hash + b"\x00" + codesep_pos.to_bytes(4, "little")
         msg_hash = sig_hash.taproot(tx, i, prevouts, sighash_type, 1, annex, ext)
-        if not ssa_verify(msg_hash, pub_key, signature[:64]):
+        if not ssa_verify(msg_hash, pub_key, signature[:64]):  # type: ignore
             raise BTClibValueError()
     stack.append(_from_num(int(bool(signature))))
     return budget
