@@ -187,7 +187,7 @@ def test_p2pk() -> None:
         "ae1a62fe09c5f51b13905f07f06b99a2f7159b2225f374cd378d71302fa28414"
         "e7aab37397f554a7df5f142c21c1b7303b8a0626f1baded5c72a704f7e6cd84c"
     )
-    script_pub_key = bytes.fromhex(f'41{pub_key}ac')
+    script_pub_key = bytes.fromhex(f"41{pub_key}ac")
     assert_p2pk(script_pub_key)
     assert script_pub_key == ScriptPubKey.p2pk(pub_key).script
 
@@ -411,11 +411,11 @@ def test_p2ms_1() -> None:
 
     err_msg = "not a private or public key: "
     with pytest.raises(BTClibValueError, match=err_msg):
-        ScriptPubKey.p2ms(1, [f'{pub_key0}00', pub_key1])
+        ScriptPubKey.p2ms(1, [f"{pub_key0}00", pub_key1])
 
     script_: List[Command] = [
         "OP_1",
-        f'{pub_key0}00',
+        f"{pub_key0}00",
         pub_key1,
         "OP_2",
         "OP_CHECKMULTISIG",

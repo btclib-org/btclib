@@ -117,5 +117,18 @@ def test_regressions() -> None:
         ["81"],
     ]
     for s in scripts:
-        assert serialize(parse(serialize(s))) == serialize(s)
+        assert serialize(parse(serialize(s))) == serialize(s)  # type:ignore
 
+
+def test_integers() -> None:
+
+    assert serialize([127]) == serialize(["7F"])
+
+    assert serialize([1]) == serialize(["OP_1"])
+    assert serialize([1]) != serialize(["01"])
+
+    assert serialize([-1]) == serialize(["OP_1NEGATE"])
+
+    assert serialize([0]) == serialize([""])
+    assert serialize([0]) == serialize(["OP_0"])
+    assert serialize([0]) != serialize(["00"])

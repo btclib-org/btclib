@@ -25,13 +25,7 @@ from typing import List, Sequence, Union
 
 from btclib.alias import BinaryData, Octets
 from btclib.exceptions import BTClibValueError
-from btclib.script.op_codes import (
-    OP_CODE_NAMES,
-    decode_num,
-    op_num,
-    op_pushdata,
-    op_str,
-)
+from btclib.script.op_codes import OP_CODE_NAMES, op_int, op_num, op_pushdata, op_str
 from btclib.utils import bytes_from_octets, bytesio_from_binarydata
 
 Command = Union[int, str, bytes]
@@ -41,7 +35,10 @@ def serialize(script: Sequence[Command]) -> bytes:
     r: List[bytes] = []
     for command in script:
         if isinstance(command, int):
-            r.append(op_num(command))
+            if -1 <= command <= 16:
+                r.append(op_str(op_int(command)))
+            else:
+                r.append(op_num(command))
             # err_msg = f"ints are not allowed, use OP_X instead: {command}"
             # raise BTClibValueError(err_msg)
         elif isinstance(command, str):
@@ -82,10 +79,11 @@ def parse(stream: BinaryData, exit_on_op_success: bool = False) -> List[Command]
             if len(data) != data_length:
                 raise BTClibValueError("Invalid pushdata length")
             # if <= 0xFFFFFFFF, parse it as integer
-            if i < 6 and decode_num(data) <= 0xFFFFFFFF:
-                new_op_code: Command = decode_num(data)
-            else:
-                new_op_code = data.hex().upper()
+            # if i < 6 and decode_num(data) <= 0xFFFFFFFF:
+            #     new_op_code: Command = decode_num(data)
+            # else:
+            #     new_op_code = data.hex().upper()
+            new_op_code = data.hex().upper()
         elif i in OP_CODE_NAMES:  # OP_CODE
             new_op_code = OP_CODE_NAMES[i]
         else:  # OP_SUCCESSx
