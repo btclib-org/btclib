@@ -17,9 +17,9 @@ from typing import List, Optional, Tuple
 from btclib.alias import Command
 from btclib.exceptions import BTClibValueError
 from btclib.hashes import hash160
-from btclib.script import parse
 from btclib.script.engine import tapscript
 from btclib.script.engine.script import verify_script as verify_script_legacy
+from btclib.script.script import parse
 from btclib.script.script_pub_key import is_segwit, type_and_payload
 from btclib.script.taproot import check_output_pubkey
 from btclib.script.witness import Witness

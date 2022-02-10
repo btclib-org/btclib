@@ -14,12 +14,13 @@ from __future__ import annotations
 import pytest
 
 from btclib import b32, b58
+from btclib.alias import Command
 from btclib.base58 import b58encode
 from btclib.bip32 import bip32, slip132
 from btclib.ec import bytes_from_point, point_from_octets, secp256k1
 from btclib.exceptions import BTClibValueError
 from btclib.hashes import hash160
-from btclib.script import Command, serialize
+from btclib.script.script import serialize
 from btclib.to_prv_key import prv_keyinfo_from_prv_key
 from btclib.to_pub_key import pub_keyinfo_from_key, pub_keyinfo_from_prv_key
 
