@@ -24,7 +24,7 @@ from dataclasses import dataclass
 from typing import Sequence, Union
 from warnings import warn
 
-from btclib.alias import BinaryData, Octets
+from btclib.alias import BinaryData, Command, Octets
 from btclib.exceptions import BTClibValueError
 from btclib.utils import bytes_from_octets, bytesio_from_binarydata, encode_num
 
@@ -251,9 +251,6 @@ def op_int(i: int) -> str:
     raise BTClibValueError(f"invalid OP_INT: {i}")
 
 
-Command = Union[int, str, bytes]
-
-
 def _serialize_int_command(command: int) -> bytes:
     if -1 <= command <= 16:
         warn(f"consider using OP_{command} instead")
@@ -317,7 +314,7 @@ def serialize(script: Sequence[Command]) -> bytes:
     return b"".join(r)
 
 
-def parse(stream: BinaryData, taproot: bool = False) -> List[Command]:
+def parse(stream: BinaryData) -> List[Command]:
 
     s = bytesio_from_binarydata(stream)
     r: list[Command] = []  # initialize the result list
@@ -350,8 +347,6 @@ def parse(stream: BinaryData, taproot: bool = False) -> List[Command]:
             #     new_op_code: Command = decode_num(data)
             # else:
             new_op_code = data.hex().upper()
-        elif taproot and i in OP_SUCCESS:  # OP_SUCCESSx
-            return ["OP_SUCCESS"]
         else:  # OP_CODE
             new_op_code = OP_CODE_NAMES[i]
 

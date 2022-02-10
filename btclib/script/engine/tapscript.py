@@ -24,9 +24,10 @@ from btclib import var_bytes
 from btclib.alias import Command
 from btclib.exceptions import BTClibValueError
 from btclib.hashes import tagged_hash
-from btclib.script import parse, sig_hash
+from btclib.script import sig_hash
 from btclib.script.engine.script import _from_num
 from btclib.script.script_pub_key import type_and_payload
+from btclib.script.taproot import parse
 from btclib.tx.tx import Tx
 from btclib.tx.tx_out import TxOut
 from btclib.utils import bytes_from_command
@@ -110,7 +111,7 @@ def verify_script_path_vc0(
     if any(len(x) > 520 for x in stack):
         raise BTClibValueError()
 
-    script = parse(script_bytes, taproot=True)
+    script = parse(script_bytes, exit_on_op_success=True)
 
     if script == ["OP_SUCCESS"]:
         return
