@@ -31,7 +31,6 @@ disable = [
     "too-many-locals",   # R0914
     "too-many-statements",  # R0915
     "fixme",  # W0511
-    "unsubscriptable-object",  # E1136 python3.9-only pylint bug
 ]
 
 [tool.pylint.logging]
