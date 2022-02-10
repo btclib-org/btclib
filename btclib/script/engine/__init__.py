@@ -19,13 +19,13 @@ from btclib.exceptions import BTClibValueError
 from btclib.hashes import hash160
 from btclib.script import parse
 from btclib.script.engine import tapscript
-from btclib.script.engine.script import _from_num
 from btclib.script.engine.script import verify_script as verify_script_legacy
 from btclib.script.script_pub_key import is_segwit, type_and_payload
 from btclib.script.taproot import check_output_pubkey
 from btclib.script.witness import Witness
 from btclib.tx.tx import Tx
 from btclib.tx.tx_out import TxOut
+from btclib.utils import bytes_from_command
 
 
 def taproot_unwrap_script(
@@ -88,10 +88,7 @@ def verify_input(prevouts: List[TxOut], tx: Tx, i: int, flags: List[str]) -> Non
     if script_type == "p2sh" and "P2SH" in flags:
         p2sh = True
         parsed_script = parse(tx.vin[i].script_sig)
-        if isinstance(parsed_script[-1], int):
-            script = _from_num(parsed_script[-1])
-        else:
-            script = bytes.fromhex(parsed_script[-1])
+        script = bytes_from_command(parsed_script[-1])
         if payload != hash160(script):
             raise BTClibValueError()
         redeem_script = parsed_script[:-1]
@@ -125,25 +122,22 @@ def verify_input(prevouts: List[TxOut], tx: Tx, i: int, flags: List[str]) -> Non
                 raise BTClibValueError()
             if len(stack) == 1:
                 tapscript.verify_key_path(script, stack, prevouts, tx, i, annex)
-                return
-            script_bytes, stack, leaf_version = taproot_unwrap_script(script, stack)
-            if leaf_version == 0xC0:
-                tapscript.verify_script_path_vc0(
-                    script_bytes, stack, prevouts, tx, i, annex, budget
-                )
-                return
-            return  # unknown leaf version script_type
-        return  # non 32 bytes program, unencumbered
+            else:
+                script_bytes, stack, leaf_version = taproot_unwrap_script(script, stack)
+                if leaf_version == 0xC0:
+                    tapscript.verify_script_path_vc0(
+                        script_bytes, stack, prevouts, tx, i, annex, budget
+                    )
+            return  # unknown program, passes validation
 
     if segwit_version == 0:
         if script_type == "p2wpkh":
-            return
-
+            pass
         elif script_type == "p2wsh":
-            return
-
+            pass
         else:
             raise BTClibValueError()
+        return
 
     if "SIGPUSHONLY" in flags:
         validate_redeem_script(redeem_script)

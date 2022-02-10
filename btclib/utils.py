@@ -63,15 +63,12 @@ def bytes_from_command(command: Command) -> bytes:
     if isinstance(command, str):  # hex string
         return bytes.fromhex(command)
 
-    if isinstance(command, bytes):
-        return command
-
     if isinstance(command, int):
         if command == 0:
             return b"\x00"
         return encode_num(command)
 
-    return command
+    return command  # bytes
 
 
 def bytes_from_octets(octets: Octets, out_size: NoneOneOrMoreInt = None) -> bytes:

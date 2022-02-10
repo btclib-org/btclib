@@ -12,12 +12,12 @@
 Bitcoin Script engine
 """
 
-from typing import Callable, List, Mapping
+from typing import Callable, List, MutableMapping
 
 try:
     from btclib_libsecp256k1.dsa import verify as dsa_verify
 except ImportError:
-    from btclib.ecc.dsa import verify_ as dsa_verify
+    from btclib.ecc.dsa import verify_ as dsa_verify  # type: ignore
 from btclib.alias import Command
 from btclib.ecc.der import Sig
 from btclib.exceptions import BTClibValueError
@@ -402,6 +402,8 @@ def op_pick(script: List[Command], stack: List[bytes], altstack: List[bytes]) ->
 
 def op_roll(script: List[Command], stack: List[bytes], altstack: List[bytes]) -> None:
     n = _to_num(stack.pop())
+    if len(stack) < n:
+        raise BTClibValueError()
     new_stack = stack[: -n - 1] + stack[-n:] + [stack[-n - 1]]
     stack.clear()
     stack.extend(new_stack)
@@ -437,6 +439,8 @@ def op_2over(script: List[Command], stack: List[bytes], altstack: List[bytes]) -
 
 
 def op_2rot(script: List[Command], stack: List[bytes], altstack: List[bytes]) -> None:
+    if len(stack) < 6:
+        raise BTClibValueError()
     x6 = stack.pop()
     x5 = stack.pop()
     x4 = stack.pop()
@@ -464,9 +468,9 @@ def op_checklocktimeverify(stack: List[bytes], tx: Tx, i: int) -> None:
         raise BTClibValueError()
 
     # different lock time type
-    if tx.lock_time >= 500000000 and lock_time < 500000000:
+    if tx.lock_time >= 500000000 > lock_time:
         raise BTClibValueError()
-    if tx.lock_time < 500000000 and lock_time >= 500000000:
+    if lock_time >= 500000000 > tx.lock_time:
         raise BTClibValueError()
 
     if lock_time > tx.lock_time:
@@ -564,7 +568,7 @@ def op_checksig(
     msg_hash = sig_hash.legacy(script_code, tx, i, signature[-1])
     if not check_pub_key(pub_key):
         return False
-    if not dsa_verify(msg_hash, pub_key, signature[:-1]):
+    if not dsa_verify(msg_hash, pub_key, signature[:-1]):  # type: ignore
         return False
     return True
 
@@ -593,7 +597,7 @@ def verify_script(
             script[x] = f"OP_CODESEPARATOR{x-len(redeem_script)}"
     codesep_index = -1
 
-    operations: Mapping[str, Callable] = {
+    operations: MutableMapping[str, Callable] = {
         "OP_NOP": op_nop,
         "OP_DUP": op_dup,
         "OP_2DUP": op_2dup,
