@@ -97,23 +97,23 @@ python virtual environment; e.g. from the root folder:
 
 Bash shell
 
-    python -m venv venv
-    source ./venv/bin/activate
-    pip install --upgrade btclib
+    python -m venv venv_btclib
+    source ./venv_btclib/bin/activate
+    python -m pip install --upgrade btclib
 
 Windows CMD or PowerShell:
 
-    python -m venv venv
-    .\venv\Scripts\activate
-    pip install --upgrade btclib
+    python -m venv venv_btclib
+    .\venv_btclib\Scripts\activate
+    python -m pip install --upgrade btclib
 
 Windows Git bash shell:
 
-    python -m venv venv
-    cd ./venv/Scripts
+    python -m venv venv_btclib
+    cd ./venv_btclib/Scripts
     . activate
     cd ../..
-    pip install --upgrade btclib
+    python -m pip install --upgrade btclib
 
 Some development tools are required to develop and test btclib;
 they can be installed with:
