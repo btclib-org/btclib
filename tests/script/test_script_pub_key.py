@@ -578,12 +578,23 @@ def test_non_standard_script_in_p2wsh() -> None:
     ]
     # fmt: on
     redeem_script = serialize(redeem_script_cmds)
-
     assert redeem_script == serialize(parse(redeem_script))
 
-    payload = sha256(redeem_script)
-    assert addr == b32.address_from_witness(0, payload, network)
+    assert addr == b32.address_from_witness(0, sha256(redeem_script), network)
     assert script_pub_key == ScriptPubKey.p2wsh(redeem_script)
+
+    # same redeem_script must be obtained using the int x instead of OP_x
+    # fmt: off
+    redeem_script_cmds = [
+        "OP_IF",
+            3, *fed_pub_keys, 6, "OP_CHECKMULTISIG",  # noqa E131
+        "OP_ELSE",
+            5184, "OP_CHECKSEQUENCEVERIFY", "OP_DROP",  # noqa E131
+            2, *rec_pub_keys, 3, "OP_CHECKMULTISIG",  # noqa E131
+        "OP_ENDIF",
+    ]
+    # fmt: on
+    assert redeem_script == serialize(redeem_script_cmds)
 
 
 def test_p2tr() -> None:
