@@ -26,7 +26,8 @@ from btclib.tx.tx_out import ScriptPubKey, TxOut
 
 def test_valid_taproot() -> None:
     fname = "tapscript_test_vector.json"
-    filename = path.join(path.dirname(__file__), "_data", fname)
+    filename = path.join(path.dirname(path.dirname(__file__)), "script", "_data", fname)
+
     with open(filename, "r", encoding="ascii") as file_:
         data = json.load(file_)
 
@@ -48,7 +49,7 @@ def test_valid_taproot() -> None:
 
 def test_invalid_taproot() -> None:
     fname = "tapscript_test_vector.json"
-    filename = path.join(path.dirname(__file__), "_data", fname)
+    filename = path.join(path.dirname(path.dirname(__file__)), "script", "_data", fname)
     with open(filename, "r", encoding="ascii") as file_:
         data = json.load(file_)
 
