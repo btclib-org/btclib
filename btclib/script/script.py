@@ -342,10 +342,6 @@ def parse(stream: BinaryData) -> List[Command]:
             data = s.read(data_length)
             if len(data) != data_length:
                 raise BTClibValueError("Invalid pushdata length")
-            # if <= 0xFFFFFFFF, parse it as integer
-            # if i < 6 and decode_num(data) <= 0xFFFFFFFF:
-            #     new_op_code: Command = decode_num(data)
-            # else:
             new_op_code = data.hex().upper()
         else:  # OP_CODE
             new_op_code = OP_CODE_NAMES[i]
