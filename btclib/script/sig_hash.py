@@ -57,19 +57,20 @@ def assert_valid_hash_type(hash_type: int) -> None:
         raise BTClibValueError(f"invalid sig_hash type: {hex(hash_type)}")
 
 
+# TODO: should remove signature even if not standard
 def legacy_script(script_pub_key: Octets) -> list[bytes]:
     script_s: list[bytes] = []
     current_script: list[Command] = []
-    for cmd in parse(script_pub_key)[::-1]:
-        if cmd == "OP_CODESEPARATOR":
+    for token in parse(script_pub_key)[::-1]:
+        if token == "OP_CODESEPARATOR":  # nosec required for python < 3.8
             script_s.append(serialize(current_script[::-1]))
         else:
-            current_script.append(cmd)
+            current_script.append(token)
     script_s.append(serialize(current_script[::-1]))
     return script_s[::-1]
 
 
-# FIXME remove OP_CODESEPARATOR only if executed
+# FIXME: remove OP_CODESEPARATOR only if executed
 def witness_v0_script(script_pub_key: Octets) -> list[bytes]:
     script_type, payload = type_and_payload(script_pub_key)
 
@@ -81,16 +82,16 @@ def witness_v0_script(script_pub_key: Octets) -> list[bytes]:
 
     script_s: list[bytes] = []
     current_script: list[Command] = []
-    for cmd in parse(script_pub_key)[::-1]:
-        if cmd == "OP_CODESEPARATOR":
+    for token in parse(script_pub_key)[::-1]:
+        if token == "OP_CODESEPARATOR":  # nosec required for python < 3.8
             script_s.append(serialize(current_script[::-1]))
-        current_script.append(cmd)
+        current_script.append(token)
     script_s.append(serialize(current_script[::-1]))
     return script_s[::-1]
 
 
-def legacy(script_: Octets, tx: Tx, vin_i: int, hash_type: int) -> bytes:
-    script_ = bytes_from_octets(script_)
+def legacy(script_code: Octets, tx: Tx, vin_i: int, hash_type: int) -> bytes:
+    script_code = bytes_from_octets(script_code)
 
     new_tx = deepcopy(tx)
     for txin in new_tx.vin:
@@ -126,13 +127,13 @@ def legacy(script_: Octets, tx: Tx, vin_i: int, hash_type: int) -> bytes:
 
 # https://github.com/bitcoin/bitcoin/blob/4b30c41b4ebf2eb70d8a3cd99cf4d05d405eec81/test/functional/test_framework/script.py#L673
 def segwit_v0(
-    script_: Octets,
+    script_code: Octets,
     tx: Tx,
     vin_i: int,
     hash_type: int,
     amount: int,
 ) -> bytes:
-    script_ = bytes_from_octets(script_)
+    script_code = bytes_from_octets(script_code)
 
     hash_prev_outs = b"\x00" * 32
     if not hash_type & ANYONECANPAY:
@@ -166,7 +167,7 @@ def segwit_v0(
             hash_prev_outs,
             hash_seqs,
             tx.vin[vin_i].prev_out.serialize(),
-            var_bytes.serialize(script_),
+            var_bytes.serialize(script_code),
             amount.to_bytes(8, byteorder="little", signed=False),  # value
             tx.vin[vin_i].sequence.to_bytes(4, byteorder="little", signed=False),
             hash_outputs,
@@ -180,7 +181,7 @@ def segwit_v0(
 def taproot(
     transaction: Tx,
     input_index: int,
-    prevouts: List[TxOut],
+    prevouts: list[TxOut],
     hashtype: int,
     ext_flag: int,
     annex: bytes,
@@ -270,17 +271,19 @@ def from_tx(prevouts: list[TxOut], tx: Tx, vin_i: int, hash_type: int) -> bytes:
             raise BTClibValueError("taproot scripts cannot be wrapped in p2sh")
 
     if is_p2wpkh(script):
-        script_ = witness_v0_script(script)[0]
-        return segwit_v0(script_, tx, vin_i, hash_type, prevouts[vin_i].value)
+        script_code = witness_v0_script(script)[0]
+        return segwit_v0(script_code, tx, vin_i, hash_type, prevouts[vin_i].value)
 
     if is_p2wsh(script):
         # the real script is contained in the witness
-        script_ = witness_v0_script(tx.vin[vin_i].script_witness.stack[-1])[0]
-        return segwit_v0(script_, tx, vin_i, hash_type, prevouts[vin_i].value)
+        script_code = witness_v0_script(tx.vin[vin_i].script_witness.stack[-1])[0]
+        return segwit_v0(script_code, tx, vin_i, hash_type, prevouts[vin_i].value)
 
-    script_ = legacy_script(script)[0]
-    return legacy(script_, tx, vin_i, hash_type)
+    if is_p2tr(script):
+        raise BTClibValueError("Taproot scripts cannot be wrapped in p2sh")
 
+    script_code = legacy_script(script)[0]
+    return legacy(script_code, tx, vin_i, hash_type)
 
 def _script_from_p2tr(
     prevouts: Sequence[TxOut], tx: Tx, vin_i: int, hash_type: int

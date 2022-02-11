@@ -19,13 +19,13 @@ try:
 except ImportError:
     from btclib.ecc.ssa import verify_ as ssa_verify  # type: ignore
 
-import btclib.script.engine.script as bitcoin_script
 from btclib import var_bytes
 from btclib.alias import Command
 from btclib.exceptions import BTClibValueError
 from btclib.hashes import tagged_hash
 from btclib.script import sig_hash
-from btclib.script.engine.script import _from_num
+from btclib.script.engine import script_op_codes
+from btclib.script.engine.script_op_codes import _from_num
 from btclib.script.script_pub_key import type_and_payload
 from btclib.script.taproot import parse
 from btclib.tx.tx import Tx
@@ -122,61 +122,61 @@ def verify_script_path_vc0(
     codesep_pos = 0xFFFFFFFF
 
     operations: Mapping[str, Callable] = {
-        "OP_NOP": bitcoin_script.op_nop,
-        "OP_DUP": bitcoin_script.op_dup,
-        "OP_2DUP": bitcoin_script.op_2dup,
-        "OP_DROP": bitcoin_script.op_drop,
-        "OP_2DROP": bitcoin_script.op_2drop,
-        "OP_SWAP": bitcoin_script.op_swap,
-        "OP_IF": bitcoin_script.op_if,
-        "OP_NOTIF": bitcoin_script.op_notif,
-        "OP_1NEGATE": bitcoin_script.op_1negate,
-        "OP_VERIFY": bitcoin_script.op_verify,
-        "OP_EQUAL": bitcoin_script.op_equal,
-        "OP_CHECKSIGVERIFY": bitcoin_script.op_checksigverify,
+        "OP_NOP": script_op_codes.op_nop,
+        "OP_DUP": script_op_codes.op_dup,
+        "OP_2DUP": script_op_codes.op_2dup,
+        "OP_DROP": script_op_codes.op_drop,
+        "OP_2DROP": script_op_codes.op_2drop,
+        "OP_SWAP": script_op_codes.op_swap,
+        "OP_IF": script_op_codes.op_if,
+        "OP_NOTIF": script_op_codes.op_notif,
+        "OP_1NEGATE": script_op_codes.op_1negate,
+        "OP_VERIFY": script_op_codes.op_verify,
+        "OP_EQUAL": script_op_codes.op_equal,
+        "OP_CHECKSIGVERIFY": script_op_codes.op_checksigverify,
         "OP_CHECKSIGADD": op_checksigadd,
-        "OP_EQUALVERIFY": bitcoin_script.op_equalverify,
-        "OP_RETURN": bitcoin_script.op_return,
-        "OP_SIZE": bitcoin_script.op_size,
-        "OP_RIPEMD160": bitcoin_script.op_ripemd160,
-        "OP_SHA1": bitcoin_script.op_sha1,
-        "OP_SHA256": bitcoin_script.op_sha256,
-        "OP_HASH160": bitcoin_script.op_hash160,
-        "OP_HASH256": bitcoin_script.op_hash256,
-        "OP_1ADD": bitcoin_script.op_1add,
-        "OP_1SUB": bitcoin_script.op_1sub,
-        "OP_NEGATE": bitcoin_script.op_negate,
-        "OP_ABS": bitcoin_script.op_abs,
-        "OP_NOT": bitcoin_script.op_not,
-        "OP_0NOTEQUAL": bitcoin_script.op_0notequal,
-        "OP_ADD": bitcoin_script.op_add,
-        "OP_SUB": bitcoin_script.op_sub,
-        "OP_BOOLAND": bitcoin_script.op_booland,
-        "OP_BOOLOR": bitcoin_script.op_boolor,
-        "OP_NUMEQUAL": bitcoin_script.op_numequal,
-        "OP_NUMEQUALVERIFY": bitcoin_script.op_numequalverify,
-        "OP_NUMNOTEQUAL": bitcoin_script.op_numnotequal,
-        "OP_LESSTHAN": bitcoin_script.op_lessthan,
-        "OP_GREATERTHAN": bitcoin_script.op_greaterthan,
-        "OP_LESSTHANOREQUAL": bitcoin_script.op_lessthanorequal,
-        "OP_GREATERTHANOREQUAL": bitcoin_script.op_greaterthanorequal,
-        "OP_MIN": bitcoin_script.op_min,
-        "OP_MAX": bitcoin_script.op_max,
-        "OP_WITHIN": bitcoin_script.op_within,
-        "OP_TOALTSTACK": bitcoin_script.op_toaltstack,
-        "OP_FROMALTSTACK": bitcoin_script.op_fromaltstack,
-        "OP_IFDUP": bitcoin_script.op_ifdup,
-        "OP_DEPTH": bitcoin_script.op_depth,
-        "OP_NIP": bitcoin_script.op_nip,
-        "OP_OVER": bitcoin_script.op_over,
-        "OP_PICK": bitcoin_script.op_pick,
-        "OP_ROLL": bitcoin_script.op_roll,
-        "OP_ROT": bitcoin_script.op_rot,
-        "OP_TUCK": bitcoin_script.op_tuck,
-        "OP_3DUP": bitcoin_script.op_3dup,
-        "OP_2OVER": bitcoin_script.op_2over,
-        "OP_2ROT": bitcoin_script.op_2rot,
-        "OP_2SWAP": bitcoin_script.op_2swap,
+        "OP_EQUALVERIFY": script_op_codes.op_equalverify,
+        "OP_RETURN": script_op_codes.op_return,
+        "OP_SIZE": script_op_codes.op_size,
+        "OP_RIPEMD160": script_op_codes.op_ripemd160,
+        "OP_SHA1": script_op_codes.op_sha1,
+        "OP_SHA256": script_op_codes.op_sha256,
+        "OP_HASH160": script_op_codes.op_hash160,
+        "OP_HASH256": script_op_codes.op_hash256,
+        "OP_1ADD": script_op_codes.op_1add,
+        "OP_1SUB": script_op_codes.op_1sub,
+        "OP_NEGATE": script_op_codes.op_negate,
+        "OP_ABS": script_op_codes.op_abs,
+        "OP_NOT": script_op_codes.op_not,
+        "OP_0NOTEQUAL": script_op_codes.op_0notequal,
+        "OP_ADD": script_op_codes.op_add,
+        "OP_SUB": script_op_codes.op_sub,
+        "OP_BOOLAND": script_op_codes.op_booland,
+        "OP_BOOLOR": script_op_codes.op_boolor,
+        "OP_NUMEQUAL": script_op_codes.op_numequal,
+        "OP_NUMEQUALVERIFY": script_op_codes.op_numequalverify,
+        "OP_NUMNOTEQUAL": script_op_codes.op_numnotequal,
+        "OP_LESSTHAN": script_op_codes.op_lessthan,
+        "OP_GREATERTHAN": script_op_codes.op_greaterthan,
+        "OP_LESSTHANOREQUAL": script_op_codes.op_lessthanorequal,
+        "OP_GREATERTHANOREQUAL": script_op_codes.op_greaterthanorequal,
+        "OP_MIN": script_op_codes.op_min,
+        "OP_MAX": script_op_codes.op_max,
+        "OP_WITHIN": script_op_codes.op_within,
+        "OP_TOALTSTACK": script_op_codes.op_toaltstack,
+        "OP_FROMALTSTACK": script_op_codes.op_fromaltstack,
+        "OP_IFDUP": script_op_codes.op_ifdup,
+        "OP_DEPTH": script_op_codes.op_depth,
+        "OP_NIP": script_op_codes.op_nip,
+        "OP_OVER": script_op_codes.op_over,
+        "OP_PICK": script_op_codes.op_pick,
+        "OP_ROLL": script_op_codes.op_roll,
+        "OP_ROT": script_op_codes.op_rot,
+        "OP_TUCK": script_op_codes.op_tuck,
+        "OP_3DUP": script_op_codes.op_3dup,
+        "OP_2OVER": script_op_codes.op_2over,
+        "OP_2ROT": script_op_codes.op_2rot,
+        "OP_2SWAP": script_op_codes.op_2swap,
     }
 
     altstack: List[bytes] = []
@@ -204,18 +204,18 @@ def verify_script_path_vc0(
                 )
 
             elif op == "OP_CHECKLOCKTIMEVERIFY":
-                bitcoin_script.op_checklocktimeverify(stack, tx, i)
+                script_op_codes.op_checklocktimeverify(stack, tx, i)
             elif op == "OP_CHECKSEQUENCEVERIFY":
-                bitcoin_script.op_checksequenceverify(stack, tx, i)
+                script_op_codes.op_checksequenceverify(stack, tx, i)
 
             elif op[3:].isdigit():
                 stack.append(_from_num(int(op[3:])))
             elif op[:16] == "OP_CODESEPARATOR":
                 codesep_pos = int(op[16:])
             elif op == "OP_IF":
-                bitcoin_script.op_if(script, stack, altstack, True)
+                script_op_codes.op_if(script, stack, altstack, True)
             elif op == "OP_NOTIF":
-                bitcoin_script.op_notif(script, stack, altstack, True)
+                script_op_codes.op_notif(script, stack, altstack, True)
             elif op in operations:
                 operations[op](script, stack, altstack)
             else:
@@ -224,7 +224,7 @@ def verify_script_path_vc0(
         else:
             stack.append(bytes_from_command(op))
 
-    bitcoin_script.op_verify([], stack, [])
+    script_op_codes.op_verify([], stack, [])
 
     if stack:
         raise BTClibValueError()
