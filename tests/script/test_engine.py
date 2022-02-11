@@ -52,11 +52,7 @@ def test_invalid_taproot() -> None:
     with open(filename, "r", encoding="ascii") as file_:
         data = json.load(file_)
 
-    error_count = 0
-
-    for i, x in enumerate(
-        filter(lambda x: "TAPROOT" in x["flags"] and "failure" in x.keys(), data)
-    ):
+    for x in filter(lambda x: "TAPROOT" in x["flags"] and "failure" in x.keys(), data):
 
         tx = Tx.parse(x["tx"])
 
@@ -69,19 +65,8 @@ def test_invalid_taproot() -> None:
 
         flags = x["flags"].split(",")
 
-        # with pytest.raises((BTClibValueError, IndexError, KeyError)):
-        #     verify_input(prevouts, tx, index, flags)
-        try:
-            with pytest.raises((BTClibValueError, IndexError, KeyError)):
-                verify_input(prevouts, tx, index, flags)
-            print(i, "ok")
-        except BaseException:
-            error_count += 1
-            print(i, "error", x["comment"])
-
-    print()
-    print(error_count)
-    assert False
+        with pytest.raises((BTClibValueError, IndexError, KeyError)):
+            verify_input(prevouts, tx, index, flags)
 
 
 def test_valid_legacy() -> None:
@@ -97,9 +82,8 @@ def test_valid_legacy() -> None:
         try:
             tx = Tx.parse(x[1])
         except BTClibValueError as e:
-            if "invalid satoshi amount:" not in str(e):
-                raise e
-            continue
+            if "invalid satoshi amount:" in str(e):
+                continue
 
         flags = ALL_FLAGS[:]
         for f in x[2].split(","):
@@ -130,21 +114,17 @@ def test_invalid_legacy() -> None:
     with open(filename, "r", encoding="ascii") as file_:
         data = json.load(file_)
 
-    error_count = 0
-
-    for index, x in enumerate(data):
+    for x in data:
         if isinstance(x[0], str):
             continue
 
         try:
             tx = Tx.parse(x[1])
         except BTClibValueError as e:
-            print(index, "ok")
             if "invalid satoshi amount:" not in str(e):
                 continue
             if "missing outputs" not in str(e):
                 continue
-            raise e
 
         flags = x[2].split(",")  # different flags handling
         if "DISCOURAGE_UPGRADABLE_WITNESS_PROGRAM" in flags:
@@ -166,14 +146,5 @@ def test_invalid_legacy() -> None:
                     script_pub_key += OP_CODES[y].hex()
             prevouts.append(TxOut(amount, ScriptPubKey(script_pub_key)))
 
-        try:
-            with pytest.raises((BTClibValueError, IndexError, KeyError)):
-                verify_transaction(prevouts, tx, flags)
-            print(index, "ok")
-        except BaseException:
-            error_count += 1
-            print(index, "error", data[index - 1], flags)
-
-    print()
-    print(error_count)
-    assert False
+        with pytest.raises((BTClibValueError, IndexError, KeyError)):
+            verify_transaction(prevouts, tx, flags)

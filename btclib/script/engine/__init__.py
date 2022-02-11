@@ -16,9 +16,10 @@ from typing import List, Optional, Tuple
 
 from btclib.alias import Command
 from btclib.exceptions import BTClibValueError
-from btclib.hashes import hash160
+from btclib.hashes import hash160, sha256
 from btclib.script.engine import tapscript
 from btclib.script.engine.script import verify_script as verify_script_legacy
+from btclib.script.engine.script_op_codes import op_verify
 from btclib.script.script import parse
 from btclib.script.script_pub_key import is_segwit, type_and_payload
 from btclib.script.taproot import check_output_pubkey
@@ -108,6 +109,7 @@ def verify_input(prevouts: List[TxOut], tx: Tx, i: int, flags: List[str]) -> Non
     if segwit_version + 1 and tx.vin[i].script_sig and not p2sh:
         raise BTClibValueError()
     if supported_segwit_version + 1 and segwit_version > supported_segwit_version:
+        op_verify([], [script[1:]], [])
         return
 
     if segwit_version == 1:
@@ -130,19 +132,30 @@ def verify_input(prevouts: List[TxOut], tx: Tx, i: int, flags: List[str]) -> Non
                     )
             return  # unknown program, passes validation
 
+    segwit = False
     if segwit_version == 0:
+        segwit = True
         if script_type == "p2wpkh":
-            pass
+            redeem_script = tx.vin[i].script_witness.stack
+            # serialization of ["OP_DUP", "OP_HASH160", payload, "OP_EQUALVERIFY", "OP_CHECKSIG"]
+            script = b"v\xa9\x14" + payload + b"\x88\xac"
         elif script_type == "p2wsh":
-            pass
+            parsed_script = tx.vin[i].script_witness.stack
+            if any(len(x) > 520 for x in parsed_script):
+                raise BTClibValueError()
+            script = bytes_from_command(parsed_script[-1])
+            if len(script) > 10000:
+                raise BTClibValueError()
+            if payload != sha256(script):
+                raise BTClibValueError()
+            redeem_script = parsed_script[:-1]
         else:
             raise BTClibValueError()
-        return
 
     if "SIGPUSHONLY" in flags:
         validate_redeem_script(redeem_script)
 
-    verify_script_legacy(script, redeem_script, tx, i, flags)
+    verify_script_legacy(script, redeem_script, prevouts[i].value, tx, i, flags, segwit)
 
 
 def verify_transaction(
