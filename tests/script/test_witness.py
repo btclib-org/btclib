@@ -18,7 +18,7 @@ from btclib.script.witness import Witness
 
 def test_witness() -> None:
     witness = Witness()
-    assert witness.stack == []
+    assert not witness.stack
     assert len(witness) == 0
     witness.assert_valid()
     assert witness == Witness.parse(witness.serialize())
