@@ -264,4 +264,4 @@ def test_exceptions() -> None:
         b58.h160_from_address(invalid_address)
 
     with pytest.raises(BTClibValueError, match="not a private or public key: "):
-        b58.p2pkh(pub_key + "00")
+        b58.p2pkh(pub_key + "0A")

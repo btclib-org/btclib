@@ -350,9 +350,9 @@ invalid_prv_keys: List[Union[bytes, str]] = (
     + [
         wif_compressed_string + "01",
         wif_uncompressed_string + "01",
-        xprv_string + "00",
+        xprv_string + "0A",
         xprv_data.key[1:] + b"\x00",
-        xprv_data.key[1:].hex() + "00",
+        xprv_data.key[1:].hex() + "0A",
         xprv_data.key,
         xprv_data.key.hex(),
         "invalidprv_key",

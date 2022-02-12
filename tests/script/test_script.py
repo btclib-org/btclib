@@ -62,13 +62,13 @@ def test_exceptions() -> None:
         serialize(script_pub_key)
 
     # A script_pub_key with OP_PUSHDATA4 can't be decoded
-    script_bytes = "4e09020000" + "00" * 521 + "75"  # ['00'*521, 'OP_DROP']
+    script_bytes = "4e09020000" + "0A" * 521 + "75"  # ['0A'*521, 'OP_DROP']
     err_msg = "Invalid pushdata length: "
     with pytest.raises(BTClibValueError, match=err_msg):
         parse(script_bytes)
 
     # and can't be encoded
-    script_pub_key_ = ["00" * 521, "OP_DROP"]
+    script_pub_key_ = ["0A" * 521, "OP_DROP"]
     err_msg = "too many bytes for OP_PUSHDATA: "
     with pytest.raises(BTClibValueError, match=err_msg):
         serialize(script_pub_key_)
@@ -76,7 +76,7 @@ def test_exceptions() -> None:
 
 def test_nulldata() -> None:
 
-    scripts: List[List[Command]] = [["OP_RETURN", "11" * 79], ["OP_RETURN", "00" * 79]]
+    scripts: List[List[Command]] = [["OP_RETURN", "1A" * 79], ["OP_RETURN", "0A" * 79]]
     for script_pub_key in scripts:
         assert script_pub_key == parse(serialize(script_pub_key))
         assert script_pub_key == parse(serialize(script_pub_key).hex())

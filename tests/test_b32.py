@@ -209,11 +209,11 @@ def test_invalid_address_enc() -> None:
 
     network, wit_ver, length, err_msg = invalid_address_enc[0]
     with pytest.raises(KeyError, match=err_msg):
-        b32.address_from_witness(wit_ver, "00" * length, network)
+        b32.address_from_witness(wit_ver, "0A" * length, network)
 
     for network, wit_ver, length, err_msg in invalid_address_enc[1:]:
         with pytest.raises(BTClibValueError, match=err_msg):
-            b32.address_from_witness(wit_ver, "00" * length, network)
+            b32.address_from_witness(wit_ver, "0A" * length, network)
 
 
 def test_address_witness() -> None:
@@ -282,7 +282,7 @@ def test_p2wpkh() -> None:
     with pytest.raises(BTClibValueError, match=err_msg):
         b32.p2wpkh(uncompr_pub)
     with pytest.raises(BTClibValueError, match=err_msg):
-        b32.p2wpkh(pub + "00")
+        b32.p2wpkh(pub + "0A")
 
     err_msg = "invalid size: "
     with pytest.raises(BTClibValueError, match=err_msg):

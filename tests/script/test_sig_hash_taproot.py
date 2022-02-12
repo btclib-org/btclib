@@ -184,7 +184,7 @@ def test_wrapped_p2tr() -> None:
     utxo = TxOut(
         100000000, serialize(["OP_HASH160", hash160(serialize(script)), "OP_EQUAL"])
     )
-    tx_in = TxIn(OutPoint(), serialize(script), 1, Witness(["00" * 32]))
+    tx_in = TxIn(OutPoint(), serialize(script), 1, Witness(["0A" * 32]))
     tx = Tx(vin=[tx_in], vout=[TxOut(100000000, "")])
 
     err_msg = "Taproot scripts cannot be wrapped in p2sh"

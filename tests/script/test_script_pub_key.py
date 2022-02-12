@@ -118,7 +118,7 @@ def test_nulldata3() -> None:
 
     err_msg = "invalid nulldata payload length: "
     with pytest.raises(BTClibValueError, match=err_msg):
-        payload = "00" * 81
+        payload = "0A" * 81
         ScriptPubKey.nulldata(payload)
 
     # wrong data length: 32 in 35-bytes nulldata script;
@@ -425,7 +425,7 @@ def test_p2ms_1() -> None:
     assert not is_p2ms(script_pub_key)
 
     err_msg = "invalid key in p2ms"
-    script_pub_key = serialize(["OP_1", pub_key0, "00", "OP_2", "OP_CHECKMULTISIG"])
+    script_pub_key = serialize(["OP_1", pub_key0, "0A", "OP_2", "OP_CHECKMULTISIG"])
     assert not is_p2ms(script_pub_key)
 
     script_pub_key = serialize(["OP_1", pub_key0, pub_key1, "OP_2", "OP_CHECKMULTISIG"])

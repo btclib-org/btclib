@@ -104,15 +104,15 @@ def test_encode_num() -> None:
 
 def test_op_pushdata() -> None:
     length = 75
-    b = "00" * length
+    b = "0A" * length
     assert len(op_pushdata(b)) == length + 1
-    b = "00" * (length + 1)
+    b = "0A" * (length + 1)
     assert len(op_pushdata(b)) == (length + 1) + 2
 
     length = 255
-    b = "00" * length
+    b = "0A" * length
     assert len(op_pushdata(b)) == length + 2
-    b = "00" * (length + 1)
+    b = "0A" * (length + 1)
     assert len(op_pushdata(b)) == (length + 1) + 3
 
 
