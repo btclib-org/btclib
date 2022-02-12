@@ -16,7 +16,7 @@ Scripts are represented by List[Command], where Command = Union[int, str, bytes]
 
 * int -1 and 0-16 are shorcuts for 'OP_1NEGATE' and 'OP_0'-'OP_16';
   anyway, the use of the corresponding operator is to be preferred.
-* ascii str are for opcodes (e.g. 'OP_HASH160', 'OP_1', 'OP_1NEGATE', etc.)
+* ascii string are for opcodes (e.g. 'OP_HASH160', 'OP_1', 'OP_1NEGATE', etc.)
 * hex-string or bytes (i.e., Octets) are for data
 """
 
