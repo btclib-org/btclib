@@ -22,6 +22,7 @@ from btclib.script.script import serialize
 from btclib.script.witness import Witness
 from btclib.tx.tx import Tx
 from btclib.tx.tx_out import ScriptPubKey, TxOut
+from tests.script_engine import parse_script
 
 
 def test_valid_taproot() -> None:
@@ -94,16 +95,7 @@ def test_valid_legacy() -> None:
         prevouts = []
         for i in x[0]:
             amount = 0 if len(i) == 3 else i[3]
-            script_pub_key = ""
-            for y in i[2].split(" "):
-                if y[:2] == "0x":
-                    script_pub_key += y[2:]
-                elif y[1:].isdigit():
-                    script_pub_key += serialize([int(y)]).hex()
-                else:
-                    if y[:3] != "OP_":
-                        y = "OP_" + y
-                    script_pub_key += OP_CODES[y].hex()
+            script_pub_key = parse_script(i[2])
             prevouts.append(TxOut(amount, ScriptPubKey(script_pub_key)))
 
         verify_transaction(prevouts, tx, flags)
@@ -135,16 +127,7 @@ def test_invalid_legacy() -> None:
         prevouts = []
         for i in x[0]:
             amount = 0 if len(i) == 3 else i[3]
-            script_pub_key = ""
-            for y in i[2].split(" "):
-                if y[:2] == "0x":
-                    script_pub_key += y[2:]
-                elif y[1:].isdigit():
-                    script_pub_key += serialize([int(y)]).hex()
-                else:
-                    if y[:3] != "OP_":
-                        y = "OP_" + y
-                    script_pub_key += OP_CODES[y].hex()
+            script_pub_key = parse_script(i[2])
             prevouts.append(TxOut(amount, ScriptPubKey(script_pub_key)))
 
         with pytest.raises((BTClibValueError, IndexError, KeyError)):
