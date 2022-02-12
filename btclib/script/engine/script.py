@@ -117,6 +117,25 @@ def op_checksig(
     return True
 
 
+def check_script_op_code_limit(script: List[Command], segwit: bool) -> None:
+    count = 0
+    for i, op in enumerate(script):
+        if not isinstance(op, str):
+            continue
+        serialized_op = serialize_script([op])
+        if len(serialized_op) == 1 and serialized_op[0] > 0x60:
+            if "OP_CHECKMULTISIG" in op:
+                pub_key_count = int(script[i - 1][3:])
+                if segwit:
+                    count += pub_key_count
+                else:
+                    count += 20 if pub_key_count else 0
+            else:
+                count += 1
+        if count > 201:
+            raise BTClibValueError()
+
+
 def verify_script(
     script_bytes: bytes,
     redeem_script: List[Command],
@@ -128,9 +147,13 @@ def verify_script(
 ) -> None:
 
     script_pub_key = parse(script_bytes)
+    check_script_op_code_limit(script_pub_key, segwit)
     script = redeem_script + script_pub_key
 
     if "OP_CODESEPARATOR" in script and "CONST_SCRIPTCODE" in flags and not segwit:
+        raise BTClibValueError()
+
+    if "OP_VERIF" in script or "OP_VERNOTIF" in script:
         raise BTClibValueError()
 
     for x, op_code in enumerate(script):
@@ -210,11 +233,10 @@ def verify_script(
 
     script.reverse()
     while script:
-
-        if len(stack) + len(altstack) > 1000:
-            raise BTClibValueError()
-
         op = script.pop()
+
+        if script_index == len(redeem_script):
+            altstack = []  # clean altstack when finishing the redeem script
         script_index += 1
 
         if isinstance(op, str) and op[:3] == "OP_":
@@ -223,6 +245,7 @@ def verify_script(
                 operations[op](script, stack, altstack)
 
             elif op == "OP_CHECKSIG":
+
                 if script_index < len(redeem_script) and "CONST_SCRIPTCODE" in flags:
                     raise BTClibValueError()
                 pub_key = stack.pop()
@@ -247,8 +270,8 @@ def verify_script(
                 pub_key_num = _to_num(stack.pop())
                 pub_keys = [stack.pop() for x in range(pub_key_num)]
                 signature_num = _to_num(stack.pop())
-
                 signatures = [stack.pop() for x in range(signature_num)]
+
                 if stack.pop() != b"" and "NULLDUMMY" in flags:  # dummy value
                     raise BTClibValueError()
                 signature_index = 0
@@ -286,6 +309,9 @@ def verify_script(
 
         else:
             stack.append(bytes_from_command(op))
+
+        if len(stack) + len(altstack) > 1000:
+            raise BTClibValueError()
 
     script_op_codes.op_verify([], stack, [])
 
