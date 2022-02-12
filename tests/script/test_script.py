@@ -125,22 +125,37 @@ def test_regressions() -> None:
 
 def test_integers() -> None:
 
-    assert serialize([-1]) == serialize(["OP_1NEGATE"])
+    serialized_int = serialize([-1])
+    assert ["OP_1NEGATE"] == parse(serialized_int)
 
-    assert serialize([0]) == serialize([""])
+    # serialized_byte = serialize([hex_string(-1)])
+    # assert [hex_string(-1)] == parse(serialized_byte)
+
+    serialized_int = serialize(["OP_1NEGATE"])
+    assert ["OP_1NEGATE"] == parse(serialized_int)
 
     for i in range(17):
         serialized_int = serialize([i])
-        assert serialized_int == serialize([f"OP_{i}"])
+        assert [f"OP_{i}"] == parse(serialized_int)
+
         serialized_byte = serialize([hex_string(i)])
-        assert serialized_byte != serialized_int
+        assert [hex_string(i)] == parse(serialized_byte)
+
+        serialized_int = serialize([f"OP_{i}"])
+        assert [f"OP_{i}"] == parse(serialized_int)
 
     for i in range(17, 128):
-        serialized_int = serialize([i])
-        serialized_byte = serialize([hex_string(i)])
-        assert serialized_byte == serialized_int
+        serialized_int = serialize([i])  # e.g., i = 26
+        assert [hex_string(i)] == parse(serialized_int)
+
+        serialized_byte = serialize([hex_string(i)])  # "1A"
+        assert [hex_string(i)] == parse(serialized_byte)
 
     for i in range(128, 256):
         serialized_int = serialize([i])
+        # assert [hex_string(i)] == parse(serialized_int)
+
         serialized_byte = serialize([hex_string(i)])
-        assert serialized_byte != serialized_int
+        assert [hex_string(i)] == parse(serialized_byte)
+
+    assert serialize([0]) == serialize([""])
