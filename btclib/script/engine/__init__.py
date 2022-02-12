@@ -144,8 +144,6 @@ def verify_input(prevouts: List[TxOut], tx: Tx, i: int, flags: List[str]) -> Non
             if any(len(x) > 520 for x in parsed_script):
                 raise BTClibValueError()
             script = bytes_from_command(parsed_script[-1])
-            if len(script) > 10000:
-                raise BTClibValueError()
             if payload != sha256(script):
                 raise BTClibValueError()
             redeem_script = parsed_script[:-1]
@@ -154,6 +152,9 @@ def verify_input(prevouts: List[TxOut], tx: Tx, i: int, flags: List[str]) -> Non
 
     if "SIGPUSHONLY" in flags:
         validate_redeem_script(redeem_script)
+
+    if len(script) > 10000:
+        raise BTClibValueError()
 
     verify_script_legacy(script, redeem_script, prevouts[i].value, tx, i, flags, segwit)
 
