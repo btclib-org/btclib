@@ -41,7 +41,7 @@ with the following modifications:
 
 import pytest
 
-from btclib.bech32 import b32decode, b32encode, bech32m_decode, bech32m_encode
+from btclib.bech32 import b32decode, b32encode, b32m_decode, b32m_encode
 from btclib.exceptions import BTClibValueError
 
 
@@ -122,13 +122,13 @@ def test_bech32m() -> None:
         "an84characterslonghumanreadablepartthatcontainsthetheexcludedcharactersbioandnumber11d6pts4",
     ]
     for test in valid_checksum:
-        bech32m_decode(test)
-        bech32m_decode(test.encode("ascii"))
-        assert bech32m_encode(*bech32m_decode(test)).decode() == test.lower()
+        b32m_decode(test)
+        b32m_decode(test.encode("ascii"))
+        assert b32m_encode(*b32m_decode(test)).decode() == test.lower()
         pos = test.rfind("1")
         test = test[: pos + 1] + chr(ord(test[pos + 1]) ^ 1) + test[pos + 2 :]
         with pytest.raises(BTClibValueError):
-            bech32m_decode(test)
+            b32m_decode(test)
 
     invalid_checksum = [
         ["\x20" + "1xj0phk", r"HRP character out of range: *"],
@@ -148,4 +148,4 @@ def test_bech32m() -> None:
 
     for addr, err_msg in invalid_checksum:
         with pytest.raises(BTClibValueError, match=err_msg):
-            bech32m_decode(addr)
+            b32m_decode(addr)

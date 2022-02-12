@@ -49,8 +49,8 @@ from btclib.bech32 import (
     __b32decode,
     b32_verify_checksum,
     b32encode,
-    bech32m_encode,
-    bech32m_verify_checksum,
+    b32m_encode,
+    b32m_verify_checksum,
 )
 from btclib.exceptions import BTClibValueError
 from btclib.hashes import hash160, sha256
@@ -122,7 +122,7 @@ def check_witness(wit_ver: int, wit_prg: Octets) -> bytes:
 def _address_from_witness(wit_ver: int, wit_prg: Octets, hrp: str) -> str:
     wit_prg = check_witness(wit_ver, wit_prg)
     data = [wit_ver] + power_of_2_base_conversion(wit_prg, 8, 5)
-    bytes_ = b32encode(hrp, data) if wit_ver == 0 else bech32m_encode(hrp, data)
+    bytes_ = b32encode(hrp, data) if wit_ver == 0 else b32m_encode(hrp, data)
     return bytes_.decode("ascii")
 
 
@@ -162,7 +162,7 @@ def witness_from_address(b32addr: String) -> Tuple[int, bytes, str]:
         if not b32_verify_checksum(hrp, data + checksum):
             raise BTClibValueError(f"invalid checksum: {b32addr!r}")
     else:
-        if not bech32m_verify_checksum(hrp, data + checksum):
+        if not b32m_verify_checksum(hrp, data + checksum):
             raise BTClibValueError(f"invalid checksum: {b32addr!r}")
 
     # check that it is a known SegWit address type

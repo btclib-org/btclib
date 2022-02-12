@@ -53,7 +53,7 @@ from btclib.exceptions import BTClibValueError
 
 _ALPHABET = "qpzry9x8gf2tvdw0s3jn54khce6mua7l"
 BECH32_CONST = 1
-BECH32M_CONST = 0x2BC830A3
+b32m_CONST = 0x2BC830A3
 
 
 def _polymod(values: Iterable[int]) -> int:
@@ -91,8 +91,8 @@ def b32encode(hrp: str, data: List[int]):
     return _b32encode(hrp, data, BECH32_CONST)
 
 
-def bech32m_encode(hrp: str, data: List[int]):
-    return _b32encode(hrp, data, BECH32M_CONST)
+def b32m_encode(hrp: str, data: List[int]):
+    return _b32encode(hrp, data, b32m_CONST)
 
 
 def _verify_checksum(hrp: str, data: List[int], m: int) -> bool:
@@ -104,8 +104,8 @@ def b32_verify_checksum(hrp: str, data: List[int]) -> bool:
     return _verify_checksum(hrp, data, BECH32_CONST)
 
 
-def bech32m_verify_checksum(hrp: str, data: List[int]) -> bool:
-    return _verify_checksum(hrp, data, BECH32M_CONST)
+def b32m_verify_checksum(hrp: str, data: List[int]) -> bool:
+    return _verify_checksum(hrp, data, b32m_CONST)
 
 
 def __b32decode(bech: String) -> Tuple[str, List[int], List[int]]:
@@ -157,5 +157,5 @@ def b32decode(bech: String):
     return _b32decode(bech, BECH32_CONST)
 
 
-def bech32m_decode(bech: String):
-    return _b32decode(bech, BECH32M_CONST)
+def b32m_decode(bech: String):
+    return _b32decode(bech, b32m_CONST)
