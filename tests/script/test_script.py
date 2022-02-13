@@ -161,7 +161,8 @@ def test_opcode_length() -> None:
     with pytest.raises(BTClibValueError, match=err_msg):
         parse(b"\x40\x00")
 
-    with pytest.raises(KeyError):
+    err_msg = "Unknown op code"
+    with pytest.raises(BTClibValueError, match=err_msg):
         assert parse(b"\x01\x00\x7e")
 
 
