@@ -66,7 +66,6 @@ def test_invalid_taproot() -> None:
         tx.vin[index].script_sig = bytes.fromhex(x["failure"]["scriptSig"])
 
         flags = x["flags"].split(",")
-
         with pytest.raises((BTClibValueError, IndexError, KeyError)):
             verify_input(prevouts, tx, index, flags)
 

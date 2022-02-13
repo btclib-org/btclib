@@ -54,6 +54,7 @@ def taproot_get_annex(witness: Witness) -> bytes:
 
 
 def validate_redeem_script(redeem_script: List[Command]) -> None:
+    print(redeem_script)
     for c in redeem_script:
         if isinstance(c, str):
             if c == "OP_1NEGATE":
@@ -70,6 +71,7 @@ ALL_FLAGS = [
     "CONST_SCRIPTCODE",
     "NULLDUMMY",
     "CLEANSTACK",
+    "MINIMALDATA",
     "P2SH",
     "CHECKLOCKTIMEVERIFY",
     "CHECKSEQUENCEVERIFY",
@@ -83,12 +85,12 @@ def verify_input(prevouts: List[TxOut], tx: Tx, i: int, flags: List[str]) -> Non
     script = prevouts[i].script_pub_key.script
     script_type, payload = type_and_payload(script)
 
-    redeem_script = parse(tx.vin[i].script_sig)
+    redeem_script = parse(tx.vin[i].script_sig, accept_unknown=True)
 
     p2sh = False
     if script_type == "p2sh" and "P2SH" in flags:
         p2sh = True
-        parsed_script = parse(tx.vin[i].script_sig)
+        parsed_script = parse(tx.vin[i].script_sig, accept_unknown=True)
         script = bytes_from_command(parsed_script[-1])
         if payload != hash160(script):
             raise BTClibValueError()
@@ -109,7 +111,7 @@ def verify_input(prevouts: List[TxOut], tx: Tx, i: int, flags: List[str]) -> Non
     if segwit_version + 1 and tx.vin[i].script_sig and not p2sh:
         raise BTClibValueError()
     if supported_segwit_version + 1 and segwit_version > supported_segwit_version:
-        op_verify([], [script[1:]], [])
+        op_verify([script[1:]], [], flags)
         return
 
     if segwit_version == 1:
@@ -128,7 +130,7 @@ def verify_input(prevouts: List[TxOut], tx: Tx, i: int, flags: List[str]) -> Non
                 script_bytes, stack, leaf_version = taproot_unwrap_script(script, stack)
                 if leaf_version == 0xC0:
                     tapscript.verify_script_path_vc0(
-                        script_bytes, stack, prevouts, tx, i, annex, budget
+                        script_bytes, stack, prevouts, tx, i, annex, budget, flags
                     )
             return  # unknown program, passes validation
 
