@@ -20,7 +20,6 @@ except ImportError:
     from btclib.ecc.ssa import verify_ as ssa_verify  # type: ignore
 
 from btclib import var_bytes
-from btclib.alias import Command
 from btclib.exceptions import BTClibValueError
 from btclib.hashes import tagged_hash
 from btclib.script import sig_hash
@@ -42,11 +41,9 @@ def get_hashtype(signature: bytes) -> int:
     return sighash_type
 
 
-def op_checksigadd(
-    script: List[Command], stack: List[bytes], altstack: List[bytes]
-) -> None:
+def op_checksigadd(stack: List[bytes], altstack: List[bytes], flags: List[str]) -> None:
     stack[-2], stack[-3] = stack[-3], stack[-2]
-    script.extend(["OP_CHECKSIG", "OP_ADD"][::-1])
+    return ["OP_CHECKSIG", "OP_ADD"][::-1]
 
 
 def verify_key_path(
@@ -106,6 +103,7 @@ def verify_script_path_vc0(
     i: int,
     annex: bytes,
     sigops_budget: int,
+    flags: List[str],
 ) -> None:
 
     if any(len(x) > 520 for x in stack):
@@ -204,27 +202,29 @@ def verify_script_path_vc0(
                 )
 
             elif op == "OP_CHECKLOCKTIMEVERIFY":
-                script_op_codes.op_checklocktimeverify(stack, tx, i)
+                script_op_codes.op_checklocktimeverify(stack, tx, i, flags)
             elif op == "OP_CHECKSEQUENCEVERIFY":
-                script_op_codes.op_checksequenceverify(stack, tx, i)
+                script_op_codes.op_checksequenceverify(stack, tx, i, flags)
 
             elif op[3:].isdigit():
                 stack.append(_from_num(int(op[3:])))
             elif op[:16] == "OP_CODESEPARATOR":
                 codesep_pos = int(op[16:])
             elif op == "OP_IF":
-                script_op_codes.op_if(script, stack, altstack, True)
+                script_op_codes.op_if(script, stack, True)
             elif op == "OP_NOTIF":
-                script_op_codes.op_notif(script, stack, altstack, True)
+                script_op_codes.op_notif(script, stack, True)
             elif op in operations:
-                operations[op](script, stack, altstack)
+                r = operations[op](stack, altstack, flags)
+                if r:
+                    script.extend(r)
             else:
                 raise BTClibValueError()
 
         else:
             stack.append(bytes_from_command(op))
 
-    script_op_codes.op_verify([], stack, [])
+    script_op_codes.op_verify(stack, [], flags)
 
     if stack:
         raise BTClibValueError()

@@ -140,6 +140,7 @@ BYTE_FROM_OP_CODE_NAME = {
     "OP_CHECKSIGADD": b"\xba",
 }
 
+
 OP_CODE_NAME_FROM_INT = {
     0: "OP_0",
     76: "OP_PUSHDATA1",
@@ -307,13 +308,16 @@ def serialize(script: Sequence[Command]) -> bytes:
         if isinstance(command, int):
             r.append(_serialize_int_command(command))
         elif isinstance(command, str):
-            r.append(_serialize_str_command(command))
+            if "UNKNOWN_OP_CODE_" in command:
+                r.append(int(command[16:]).to_bytes(1, "big"))
+            else:
+                r.append(_serialize_str_command(command))
         else:  # must be bytes
             r.append(_serialize_bytes_command(command))
     return b"".join(r)
 
 
-def parse(stream: BinaryData) -> List[Command]:
+def parse(stream: BinaryData, accept_unknown: bool = False) -> List[Command]:
 
     s = bytesio_from_binarydata(stream)
     r: list[Command] = []  # initialize the result list
@@ -343,9 +347,15 @@ def parse(stream: BinaryData) -> List[Command]:
                 raise BTClibValueError("Invalid pushdata length")
             new_op_code = data.hex().upper()
         else:  # OP_CODE
-            new_op_code = OP_CODE_NAMES[i]
+            if i in OP_CODE_NAMES:
+                new_op_code = OP_CODE_NAMES[i]
+            else:
+                if not accept_unknown:
+                    raise BTClibValueError("Unknown op code")
+                # https://bitcoin.stackexchange.com/a/98652/111488
+                new_op_code = f"UNKNOWN_OP_CODE_{i}"
 
-        r.append(command)
+        r.append(new_op_code)
 
     if invalid_element_size:
         raise BTClibValueError("Invalid pushdata length")
@@ -362,7 +372,7 @@ class Script:
 
     @property
     def asm(self) -> list[Command]:
-        return parse(self.script)
+        return parse(self.script, accept_unknown=True)
 
     def __add__(self, other: Script) -> Script:
         return (

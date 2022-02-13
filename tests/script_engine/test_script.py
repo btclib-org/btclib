@@ -70,10 +70,11 @@ def test_script() -> None:
             else:
                 with pytest.raises(Exception):
                     test()
-            print(index, "ok")
             ok_count += 1
         except:
-            print(index, "error", x[-1])
+            print()
+            print(x)
+            print(index, "error")
             error_count += 1
 
     print()
