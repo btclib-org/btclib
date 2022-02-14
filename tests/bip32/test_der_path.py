@@ -90,10 +90,10 @@ def test_from_bip32_path_str() -> None:
     i = 0x80000000
 
     with pytest.raises(BTClibValueError, match="invalid index: "):
-        _indexes_from_bip32_path_str("m/1/2/" + str(i) + "/4")
+        _indexes_from_bip32_path_str(f"m/1/2/{i}/4")
 
     with pytest.raises(BTClibValueError, match="invalid index: "):
-        _indexes_from_bip32_path_str("m/1/2/" + str(i) + "h/4")
+        _indexes_from_bip32_path_str(f"m/1/2/{i}h/4")
 
 
 def test_index_int_to_from_str() -> None:

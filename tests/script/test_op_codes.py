@@ -71,7 +71,7 @@ def test_op_num() -> None:
 def test_op_int() -> None:
     assert op_int(-1) == "OP_1NEGATE"
     for i in range(17):
-        assert op_int(i) == "OP_" + str(i)
+        assert op_int(i) == f"OP_{i}"
 
     err_msg = "invalid OP_INT: "
     with pytest.raises(BTClibValueError, match=err_msg):
