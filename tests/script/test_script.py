@@ -123,20 +123,16 @@ def test_regressions() -> None:
         assert serialize(parse(serialized)) == serialized
 
 
-def test_op_int() -> None:
+def test_op_int_serialization() -> None:
 
     for i in range(-1, 17):
         op_int = f"OP_{i}" if i > -1 else "OP_1NEGATE"
         assert len(serialize([op_int])) == 1
         assert [op_int] == parse(serialize([op_int]))
-        assert len(serialize([i])) == 1
-        assert [op_int] == parse(serialize([i]))
 
 
-def test_int_bytes() -> None:
+def test_single_byte_serialization() -> None:
 
-    assert serialize([0]) == serialize([""])
-    # assert ["00"] == parse(serialize([""]))
     for i in range(256):
         hex_str = hex_string(i)  # e.g., "1A"
         assert len(serialize([hex_str])) == 2
@@ -144,9 +140,9 @@ def test_int_bytes() -> None:
         assert [hex_str] == parse(serialize([hex_str]))
 
 
-def test_integers() -> None:
+def test_integer_serialization() -> None:
 
-    for i in range(17, 128):
+    for i in range(0, 128):
         serialized_int = serialize([i])  # e.g., i = 26
         assert [hex_string(i)] == parse(serialized_int)
 

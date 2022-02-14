@@ -277,8 +277,8 @@ def decode_num(data: bytes) -> int:
 
 def encode_num(i: int) -> bytes:
     "Encode a number to the bitcoin-specific little endian format."
-    if i == 0:
-        return b""
+    # if i == 0:
+    #    return b""
     # i.bit_length() bits, plus a sign bit
     n_bits = i.bit_length() + 1
     # The number of bytes necessary to accomodate n_bits
@@ -295,7 +295,7 @@ def op_int(i: int) -> str:
     if i == -1:
         return "OP_1NEGATE"
     if 0 <= i <= 16:
-        return "OP_" + str(i)
+        return f"OP_{i}"
     raise BTClibValueError(f"invalid OP_INT: {i}")
 
 

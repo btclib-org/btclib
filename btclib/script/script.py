@@ -35,12 +35,9 @@ def serialize(script: Sequence[Command]) -> bytes:
     r: List[bytes] = []
     for command in script:
         if isinstance(command, int):
-            if -1 <= command <= 16:
-                r.append(op_str(op_int(command)))
-            else:
-                r.append(op_num(command))
-            # err_msg = f"ints are not allowed, use OP_X instead: {command}"
-            # raise BTClibValueError(err_msg)
+            # if -1 <= command <= 16:
+            #     warning, use OP_INT instead
+            r.append(op_num(command))
         elif isinstance(command, str):
             r.append(op_str(command))
         else:  # must be bytes
