@@ -18,6 +18,7 @@ import pytest
 # from btclib.exceptions import BTClibValueError
 # from btclib.script.engine import ALL_FLAGS
 from btclib.script.engine import verify_input
+from btclib.script.witness import Witness
 from btclib.tx.out_point import OutPoint
 from btclib.tx.tx import Tx
 from btclib.tx.tx_in import TxIn
@@ -39,30 +40,50 @@ def test_script() -> None:
         if len(x) == 1 and isinstance(x[0], str):
             continue
 
-        flags = x[2]
-        result = x[3] == "OK"
+        # if index != 351:
+        #     continue
+
+        # print()
+        # print(index)
+        # print(x)
+
+        if isinstance(x[0], str):
+            i = 0
+            stack = []
+        else:
+            i = 1
+            stack = x[0][:-1]
+        script_sig_str = x[i]
+        script_pub_key_str = x[i + 1]
+        flags = x[i + 2]
+        result = x[i + 3] == "OK"
 
         def test():
             coinbase_input = TxIn(
                 sequence=0xFFFFFFFF, prev_out=OutPoint(), script_sig=b"\x00\x00"
             )
-            script_pub_key = parse_script(x[1])
+            script_pub_key = parse_script(script_pub_key_str)
             coinbase_output = TxOut(
                 value=0, script_pub_key=ScriptPubKey(script_pub_key)
             )
             coinbase = Tx(lock_time=0, vin=[coinbase_input], vout=[coinbase_output])
 
-            script_sig = parse_script(x[0])
+            script_sig = parse_script(script_sig_str)
             spending_input = TxIn(
                 sequence=0xFFFFFFFF,
                 prev_out=OutPoint(tx_id=coinbase.id, vout=0),
                 script_sig=script_sig,
+                script_witness=Witness(stack),
             )
             spending = Tx(
                 lock_time=0, vin=[spending_input], vout=[TxOut(0, ScriptPubKey(""))]
             )
 
             verify_input([coinbase_output], spending, 0, flags)
+
+        # print(x)
+        # test()
+        # print()
 
         try:
             if result:
