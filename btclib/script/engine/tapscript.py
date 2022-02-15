@@ -120,7 +120,6 @@ def verify_script_path_vc0(
     codesep_pos = 0xFFFFFFFF
 
     operations: Mapping[str, Callable] = {
-        "OP_NOP": script_op_codes.op_nop,
         "OP_DUP": script_op_codes.op_dup,
         "OP_2DUP": script_op_codes.op_2dup,
         "OP_DROP": script_op_codes.op_drop,
@@ -211,9 +210,13 @@ def verify_script_path_vc0(
             elif op[:16] == "OP_CODESEPARATOR":
                 codesep_pos = int(op[16:])
             elif op == "OP_IF":
-                script_op_codes.op_if(script, stack, True)
+                script_op_codes.op_if(script, stack, flags, segwit_version=1)
             elif op == "OP_NOTIF":
-                script_op_codes.op_notif(script, stack, True)
+                script_op_codes.op_notif(script, stack, flags, segwit_version=1)
+            elif op == "OP_NOP":
+                pass
+            elif "OP_NOP" in op:
+                script_op_codes.op_nop(flags)
             elif op in operations:
                 r = operations[op](stack, altstack, flags)
                 if r:

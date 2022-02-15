@@ -17,8 +17,6 @@ import pytest
 
 from btclib.exceptions import BTClibValueError
 from btclib.script.engine import ALL_FLAGS, verify_input, verify_transaction
-from btclib.script.op_codes import OP_CODES
-from btclib.script.script import serialize
 from btclib.script.witness import Witness
 from btclib.tx.tx import Tx
 from btclib.tx.tx_out import ScriptPubKey, TxOut

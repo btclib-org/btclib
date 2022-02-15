@@ -35,12 +35,21 @@ def _from_num(x: int) -> bytes:
     return encode_num(x)
 
 
-def op_if(script: List[Command], stack: List[bytes], minimalif: bool) -> None:
+def op_if(
+    script: List[Command], stack: List[bytes], flags: List[str], segwit_version: int
+) -> None:
 
-    a = _to_num(stack.pop(), [])  # Fixme: should check minimaldata
-    condition = int(bool(a))
-    if minimalif and a not in [0, 1]:
+    minimalif = False
+    if segwit_version == 1:
+        minimalif = True
+    elif segwit_version == 0 and "MINIMALIF" in flags:
+        minimalif = True
+
+    if minimalif and stack[-1] not in [b"", b"\x01"]:
         raise BTClibValueError()
+    condition = bool(_to_num(stack.pop(), flags))
+
+    # Multiple ELSE's are valid and executed inverts on each ELSE encountered
 
     level = 1
     for x in range(len(script) - 1, -1, -1):
@@ -59,36 +68,42 @@ def op_if(script: List[Command], stack: List[bytes], minimalif: bool) -> None:
 
     level = 1
 
-    else_reached = False
     for x in range(len(condition_script) - 1, -1, -1):
         if condition_script[x] == "OP_ELSE":
-            if level == 1 and not else_reached:
-                else_reached = True
-                condition = 1 - condition
-            continue
+            if level == 1:
+                condition = not condition
+                continue
         if condition_script[x] == "OP_IF":
             level += 1
-        if condition_script[x] == "OP_ENDIF":
+        elif condition_script[x] == "OP_ENDIF":
             level -= 1
-        if condition:
-            new_condition_script.append(condition_script[x])
         if level == 0:
             break
+        if condition:
+            new_condition_script.append(condition_script[x])
 
     script.clear()
     script.extend(after_script + new_condition_script[::-1])
 
 
 def op_notif(
-    script: List[Command], stack: List[bytes], minimalif: bool = False
+    script: List[Command], stack: List[bytes], flags: List[str], segwit_version: int
 ) -> None:
+
+    minimalif = False
+    if segwit_version == 1:
+        minimalif = True
+    elif segwit_version == 0 and "MINIMALIF" in flags:
+        minimalif = True
+
     if minimalif and stack[-1] not in [b"", b"\x01"]:
         raise BTClibValueError()
     script.extend(["OP_NOT", "OP_IF"][::-1])
 
 
-def op_nop(stack: List[bytes], altstack: List[bytes], flags: List[str]) -> None:
-    pass
+def op_nop(flags: List[str]) -> None:
+    if "DISCOURAGE_UPGRADABLE_NOPS" in flags:
+        raise BTClibValueError()
 
 
 def op_dup(stack: List[bytes], altstack: List[bytes], flags: List[str]) -> None:
@@ -204,7 +219,7 @@ def op_not(stack: List[bytes], altstack: List[bytes], flags: List[str]) -> None:
     if _to_num(stack.pop(), flags) == 0:
         stack.append(b"\x01")
     else:
-        stack.append(b"\x00")
+        stack.append(b"")
 
 
 def op_0notequal(stack: List[bytes], altstack: List[bytes], flags: List[str]) -> None:
@@ -371,8 +386,10 @@ def op_roll(stack: List[bytes], altstack: List[bytes], flags: List[str]) -> None
     n = _to_num(stack.pop(), flags)
     if n < 0:
         raise BTClibValueError()
-    if len(stack) < n:
+    if len(stack) < n + 1:
         raise BTClibValueError()
+    if n == 0:
+        return
     new_stack = stack[: -n - 1] + stack[-n:] + [stack[-n - 1]]
     stack.clear()
     stack.extend(new_stack)
@@ -425,8 +442,8 @@ def op_2rot(stack: List[bytes], altstack: List[bytes], flags: List[str]) -> None
 
 
 def op_2swap(stack: List[bytes], altstack: List[bytes], flags: List[str]) -> None:
-    stack[-1], stack[-4] = stack[-4], stack[-1]
-    stack[-2], stack[-3] = stack[-3], stack[-2]
+    stack[-1], stack[-3] = stack[-3], stack[-1]
+    stack[-2], stack[-4] = stack[-4], stack[-2]
 
 
 def op_checklocktimeverify(

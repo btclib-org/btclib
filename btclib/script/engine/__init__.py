@@ -54,7 +54,6 @@ def taproot_get_annex(witness: Witness) -> bytes:
 
 
 def validate_redeem_script(redeem_script: List[Command]) -> None:
-    print(redeem_script)
     for c in redeem_script:
         if isinstance(c, str):
             if c == "OP_1NEGATE":
@@ -64,6 +63,7 @@ def validate_redeem_script(redeem_script: List[Command]) -> None:
 
 
 ALL_FLAGS = [
+    "P2SH",
     "SIGPUSHONLY",
     "LOW_S",
     "STRICTENC",
@@ -72,7 +72,10 @@ ALL_FLAGS = [
     "NULLDUMMY",
     "CLEANSTACK",
     "MINIMALDATA",
-    "P2SH",
+    # only standard, not consensus
+    # "NULLFAIL",
+    # "MINMALIF",
+    # "DISCOURAGE_UPGRADABLE_NOPS",
     "CHECKLOCKTIMEVERIFY",
     "CHECKSEQUENCEVERIFY",
     "WITNESS",
