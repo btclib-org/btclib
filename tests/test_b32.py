@@ -147,12 +147,12 @@ def test_invalid_address() -> None:
             "BC130XLXVLHEMJA6C4DQV22UAPCTQUPFHLXM9H8Z3K2E72Q4K9HCZ7VQ7ZWS8R",
             "invalid witness version: ",
         ),
-        ("BC13W508D6QEJXTDG4Y5R3ZARVARY0C5XW7KN40WF2", "invalid witness version: "),
+        ("BC13W508D6QEJXTDG4Y5R3ZARVARY0C5XW7KN40WF2", "invalid checksum: "),
         ("bc1pw5dgrnzv", "invalid size: "),
-        ("bc1rw5uspcuh", "invalid size: "),
+        ("bc1rw5uspcuh", "invalid checksum: "),
         (
             "bc10w508d6qejxtdg4y5r3zarvary0c5xw7kw508d6qejxtdg4y5r3zarvary0c5xw7kw5rljs90",
-            "invalid size: ",
+            "invalid checksum: ",
         ),
         (
             "bc1p0xlxvlhemja6c4dqv22uapctqupfhlxm9h8z3k2e72q4k9hcz7v8n0nx0muaewav253zgeav",
@@ -173,7 +173,7 @@ def test_invalid_address() -> None:
         ),
         (
             "bc1zw508d6qejxtdg4y5r3zarvaryvqyzf3du",
-            "zero padding of more than 4 bits in 5-to-8 conversion",
+            "invalid checksum: ",
         ),
         (
             "tb1qrp33g0q5c5txsp9arysrx4k6zdkfs4nce4xj0gdcccefvpysxf3pjxtptv",
@@ -183,7 +183,7 @@ def test_invalid_address() -> None:
             "tb1p0xlxvlhemja6c4dqv22uapctqupfhlxm9h8z3k2e72q4k9hcz7vpggkg4j",
             "non-zero padding in 5-to-8 conversion",
         ),
-        ("bc1gmk9yu", "empty data in bech32 address: "),
+        ("bc1gmk9yu", "empty data in bech32 address"),
         (
             "bc1qqvpsxqcrqvpsxqcrqvpsxqcrqvpsxqcrqvpsxqcrqvpsxqcrqvpsxqcrqvpsxqcrqvpsxqcrqvpsxqcrqv0jstn5",
             "invalid bech32 address length: ",

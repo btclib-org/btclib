@@ -45,13 +45,7 @@ with the following modifications:
 from typing import Iterable, List, Optional, Tuple
 
 from btclib.alias import Octets, String
-from btclib.bech32 import (
-    __b32decode,
-    b32_verify_checksum,
-    b32encode,
-    b32m_encode,
-    b32m_verify_checksum,
-)
+from btclib.bech32 import decode, encode
 from btclib.exceptions import BTClibValueError
 from btclib.hashes import hash160, sha256
 from btclib.network import NETWORKS, network_from_key_value
@@ -122,7 +116,7 @@ def check_witness(wit_ver: int, wit_prg: Octets) -> bytes:
 def _address_from_witness(wit_ver: int, wit_prg: Octets, hrp: str) -> str:
     wit_prg = check_witness(wit_ver, wit_prg)
     data = [wit_ver] + power_of_2_base_conversion(wit_prg, 8, 5)
-    bytes_ = b32encode(hrp, data) if wit_ver == 0 else b32m_encode(hrp, data)
+    bytes_ = encode(hrp, data)
     return bytes_.decode("ascii")
 
 
@@ -149,21 +143,11 @@ def witness_from_address(b32addr: String) -> Tuple[int, bytes, str]:
     if len(b32addr) > 90:
         raise BTClibValueError(f"invalid bech32 address length: {len(b32addr)} > 90")
 
-    hrp, data, checksum = __b32decode(b32addr)
-
-    if len(data) == 0:
-        raise BTClibValueError(f"empty data in bech32 address: {b32addr!r}")
+    hrp, data = decode(b32addr)
 
     wit_ver = data[0]
     wit_prog = bytes(power_of_2_base_conversion(data[1:], 5, 8, False))
     wit_prog = check_witness(wit_ver, wit_prog)
-
-    if wit_ver == 0:
-        if not b32_verify_checksum(hrp, data + checksum):
-            raise BTClibValueError(f"invalid checksum: {b32addr!r}")
-    else:
-        if not b32m_verify_checksum(hrp, data + checksum):
-            raise BTClibValueError(f"invalid checksum: {b32addr!r}")
 
     # check that it is a known SegWit address type
     network = network_from_key_value("hrp", hrp)

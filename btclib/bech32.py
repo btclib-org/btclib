@@ -27,7 +27,7 @@
 # or distributed except according to the terms contained in the LICENSE file.
 
 
-"""Bech32 encoding and decoding functions.
+"""Bech32(m) encoding and decoding functions.
 
 BIP173: https://github.com/bitcoin/bips/blob/master/bip-0173.mediawiki
 
@@ -46,14 +46,14 @@ with the following modifications:
 """
 
 
-from typing import Iterable, List, Tuple
+from typing import Iterable, List, Optional, Tuple
 
 from btclib.alias import String
 from btclib.exceptions import BTClibValueError
 
 _ALPHABET = "qpzry9x8gf2tvdw0s3jn54khce6mua7l"
-BECH32_CONST = 1
-b32m_CONST = 0x2BC830A3
+_BECH32_1_CONST = 1
+_BECH32_M_CONST = 0x2BC830A3
 
 
 def _polymod(values: Iterable[int]) -> int:
@@ -80,19 +80,11 @@ def _create_checksum(hrp: str, data: List[int], m: int) -> List[int]:
     return [(polymod >> 5 * (5 - i)) & 31 for i in range(6)]
 
 
-def _b32encode(hrp: str, data: List[int], m: int) -> bytes:
-    "Compute a bech32 string given HRP and data values."
-    combined = data + _create_checksum(hrp, data, m)
-    s = hrp + "1" + "".join(_ALPHABET[d] for d in combined)
-    return s.encode("ascii")
-
-
-def b32encode(hrp: str, data: List[int]):
-    return _b32encode(hrp, data, BECH32_CONST)
-
-
-def b32m_encode(hrp: str, data: List[int]):
-    return _b32encode(hrp, data, b32m_CONST)
+def _m_from_wit_ver(data: List[int]) -> int:
+    if len(data) == 0:
+        raise BTClibValueError("empty data in bech32 address")
+    wit_ver = data[0]
+    return _BECH32_1_CONST if wit_ver == 0 else _BECH32_M_CONST
 
 
 def _verify_checksum(hrp: str, data: List[int], m: int) -> bool:
@@ -100,15 +92,7 @@ def _verify_checksum(hrp: str, data: List[int], m: int) -> bool:
     return _polymod(_hrp_expand(hrp) + data) == m
 
 
-def b32_verify_checksum(hrp: str, data: List[int]) -> bool:
-    return _verify_checksum(hrp, data, BECH32_CONST)
-
-
-def b32m_verify_checksum(hrp: str, data: List[int]) -> bool:
-    return _verify_checksum(hrp, data, b32m_CONST)
-
-
-def __b32decode(bech: String) -> Tuple[str, List[int], List[int]]:
+def _decode(bech: String) -> Tuple[str, List[int], List[int]]:
     "Determine a bech32 string HRP, data and checksum."
 
     if isinstance(bech, bytes):
@@ -146,16 +130,17 @@ def __b32decode(bech: String) -> Tuple[str, List[int], List[int]]:
     return hrp, data[:-6], data[-6:]
 
 
-def _b32decode(bech: String, m: int) -> Tuple[str, List[int]]:
-    hrp, data, checksum = __b32decode(bech)
-    if not _verify_checksum(hrp, data + checksum, m):
-        raise BTClibValueError(f"invalid checksum: {bech!r}")
-    return hrp, data
+def decode(bech: String, m: Optional[int] = None) -> Tuple[str, List[int]]:
+    hrp, data, checksum = _decode(bech)
+    m = _m_from_wit_ver(data) if m is None else m
+    if _verify_checksum(hrp, data + checksum, m):
+        return hrp, data
+    raise BTClibValueError(f"invalid checksum: {bech!r}")
 
 
-def b32decode(bech: String):
-    return _b32decode(bech, BECH32_CONST)
-
-
-def b32m_decode(bech: String):
-    return _b32decode(bech, b32m_CONST)
+def encode(hrp: str, data: List[int], m: Optional[int] = None) -> bytes:
+    "Compute a bech32 string given HRP and data values."
+    m = _m_from_wit_ver(data) if m is None else m
+    combined = data + _create_checksum(hrp, data, m)
+    s = hrp + "1" + "".join(_ALPHABET[d] for d in combined)
+    return s.encode("ascii")

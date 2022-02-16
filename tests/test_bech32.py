@@ -41,7 +41,7 @@ with the following modifications:
 
 import pytest
 
-from btclib.bech32 import b32decode, b32encode, b32m_decode, b32m_encode
+from btclib.bech32 import _BECH32_1_CONST, _BECH32_M_CONST, decode, encode
 from btclib.exceptions import BTClibValueError
 
 
@@ -61,13 +61,13 @@ def test_bech32() -> None:
     ]
 
     for test in valid_checksum:
-        b32decode(test)
-        b32decode(test.encode("ascii"))
-        assert b32encode(*b32decode(test)).decode() == test.lower()
+        decoded = decode(test, _BECH32_1_CONST)
+        assert decoded == decode(test.encode("ascii"), _BECH32_1_CONST)
+        assert encode(*decoded, _BECH32_1_CONST).decode() == test.lower()
         pos = test.rfind("1")
         test = test[: pos + 1] + chr(ord(test[pos + 1]) ^ 1) + test[pos + 2 :]
         with pytest.raises(BTClibValueError):
-            b32decode(test)
+            decode(test, _BECH32_1_CONST)
 
     invalid_checksum = [
         ["\x20" + " 1nwldj5", r"HRP character out of range: *"],
@@ -87,7 +87,7 @@ def test_bech32() -> None:
 
     for addr, err_msg in invalid_checksum:
         with pytest.raises(BTClibValueError, match=err_msg):
-            b32decode(addr)
+            decode(addr, _BECH32_1_CONST)
 
 
 def test_bech32_insertion_issue() -> None:
@@ -105,7 +105,7 @@ def test_bech32_insertion_issue() -> None:
     strings = ("ii2134hk2xmat79tp", "eyg5bsz1l2mrq5ypl40hp")
     for string in strings:
         for i in range(20):
-            b32decode(string[:-1] + i * "q" + string[-1:])
+            decode(string[:-1] + i * "q" + string[-1:], _BECH32_1_CONST)
 
 
 def test_bech32m() -> None:
@@ -122,13 +122,13 @@ def test_bech32m() -> None:
         "an84characterslonghumanreadablepartthatcontainsthetheexcludedcharactersbioandnumber11d6pts4",
     ]
     for test in valid_checksum:
-        b32m_decode(test)
-        b32m_decode(test.encode("ascii"))
-        assert b32m_encode(*b32m_decode(test)).decode() == test.lower()
+        decoded = decode(test, _BECH32_M_CONST)
+        assert decoded == decode(test.encode("ascii"), _BECH32_M_CONST)
+        assert encode(*decoded, _BECH32_M_CONST).decode() == test.lower()
         pos = test.rfind("1")
         test = test[: pos + 1] + chr(ord(test[pos + 1]) ^ 1) + test[pos + 2 :]
         with pytest.raises(BTClibValueError):
-            b32m_decode(test)
+            decode(test, _BECH32_M_CONST)
 
     invalid_checksum = [
         ["\x20" + "1xj0phk", r"HRP character out of range: *"],
@@ -148,4 +148,4 @@ def test_bech32m() -> None:
 
     for addr, err_msg in invalid_checksum:
         with pytest.raises(BTClibValueError, match=err_msg):
-            b32m_decode(addr)
+            decode(addr, _BECH32_M_CONST)
