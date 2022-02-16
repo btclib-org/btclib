@@ -276,9 +276,15 @@ def decode_num(data: bytes) -> int:
 
 
 def encode_num(i: int) -> bytes:
-    "Encode a number to the bitcoin-specific little endian format."
-    # if i == 0:
-    #    return b""
+    """Encode a number to the bitcoin-specific little endian format.
+
+    Numbers are encoded as little-endian variable-length
+    with the most significant bit (MSB) determining the sign.
+
+    0x01 is 1, 0x00 is zero
+    0x81 is -1, 0x80 is negative zero
+    """
+
     # i.bit_length() bits, plus a sign bit
     n_bits = i.bit_length() + 1
     # The number of bytes necessary to accomodate n_bits
