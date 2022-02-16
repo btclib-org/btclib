@@ -130,14 +130,7 @@ def test_op_int_serialization() -> None:
         assert len(serialize([op_int])) == 1
         assert [op_int] == parse(serialize([op_int]))
 
-
-def test_single_byte_serialization() -> None:
-
-    for i in range(256):
-        hex_str = hex_string(i)  # e.g., "1A"
-        assert len(serialize([hex_str])) == 2
-        assert serialize([hex_str])[0] == 1
-        assert [hex_str] == parse(serialize([hex_str]))
+    # assert serialize("") == serialize("OP_0")
 
 
 def test_integer_serialization() -> None:
@@ -149,3 +142,20 @@ def test_integer_serialization() -> None:
     for i in range(128, 256):
         serialized_int = serialize([i])
         # assert [hex_string(i)] == parse(serialized_int)
+
+
+def test_single_byte_serialization() -> None:
+
+    for i in range(256):
+        hex_str = hex_string(i)  # e.g., "1A"
+        assert len(serialize([hex_str])) == 2
+        assert serialize([hex_str])[0] == 1
+        assert [hex_str] == parse(serialize([hex_str]))
+
+
+def test_null_serialization() -> None:
+
+    empty_script: List[Command] = []
+
+    assert empty_script == parse(b"")
+    assert serialize(empty_script) == b""
