@@ -262,10 +262,15 @@ def op_pushdata(data: Octets) -> bytes:
 
 
 def decode_num(data: bytes) -> int:
-    "Decode a number from the bitcoin-specific little endian format."
+    """Decode a number to the bitcoin-specific little endian format.
 
-    if data == b"":
-        return 0
+    Numbers are encoded as little-endian variable-length
+    with the most significant bit (MSB) determining the sign.
+
+    0x01 is 1, 0x00 is zero
+    0x81 is -1, 0x80 is negative zero
+    """
+
     i = int.from_bytes(data, byteorder="little", signed=False)
     if data[-1] >= 0x80:  # negative number
         # mask for all but the highest bit
