@@ -4,14 +4,6 @@ btclib.script package
 Submodules
 ----------
 
-btclib.script.op\_codes module
-------------------------------
-
-.. automodule:: btclib.script.op_codes
-   :members:
-   :undoc-members:
-   :show-inheritance:
-
 btclib.script.script module
 ---------------------------
 

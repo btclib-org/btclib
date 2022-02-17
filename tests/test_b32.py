@@ -48,8 +48,7 @@ from btclib import b32, b58
 from btclib.ecc.sec_point import bytes_from_point, point_from_octets
 from btclib.exceptions import BTClibValueError
 from btclib.hashes import hash160, sha256
-from btclib.script.op_codes import op_int
-from btclib.script.script import Command, serialize
+from btclib.script.script import Command, op_int, serialize
 from btclib.script.taproot import output_pubkey
 
 
