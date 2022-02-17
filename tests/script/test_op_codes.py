@@ -13,28 +13,27 @@
 import pytest
 
 from btclib.script.op_codes import (
-    OP_CODE_NAMES,
-    OP_CODES,
+    BYTE_FROM_OP_CODE_NAME,
+    OP_CODE_NAME_FROM_INT,
     BTClibValueError,
     decode_num,
     encode_num,
     op_int,
-    op_num,
     op_pushdata,
     op_str,
 )
 
 
 def test_operators() -> None:
-    for i, name in OP_CODE_NAMES.items():
-        b = OP_CODES[name]
+    for i, name in OP_CODE_NAME_FROM_INT.items():
+        b = BYTE_FROM_OP_CODE_NAME[name]
         assert i == b[0]
-    for name, code in OP_CODES.items():
+    for name, code in BYTE_FROM_OP_CODE_NAME.items():
         # skip duplicated
         if name in ("OP_FALSE", "OP_TRUE", "OP_NOP2", "OP_NOP3"):
             continue
         i = code[0]
-        assert name == OP_CODE_NAMES[i]
+        assert name == OP_CODE_NAME_FROM_INT[i]
     for i in range(76, 186):
         # skip disabled 'splice' opcodes
         if i in (126, 127, 128, 129):
@@ -48,24 +47,7 @@ def test_operators() -> None:
         # skip 'reserved' opcodes
         if i in (80, 98, 101, 102, 137, 138):
             continue
-        assert i in OP_CODE_NAMES
-
-
-def test_op_num() -> None:
-    "test correct number of bytes in integer encoding"
-
-    # 7 bits + sign bit = 8 bits = 1 byte (plus 1 byte for length)
-    i = 0b01111111
-    assert len(op_num(i)) == 2
-    # 8 bits + sign bit = 9 bits = 2 byte (plus 1 byte for length)
-    i = 0b11111111
-    assert len(op_num(i)) == 3
-    # 15 bits + sign bit = 16 bits = 2 byte (plus 1 byte for length)
-    i = 0b0111111111111111
-    assert len(op_num(i)) == 3
-    # 16 bits + sign bit = 17 bits = 3 byte (plus 1 byte for length)
-    i = 0b1111111111111111
-    assert len(op_num(i)) == 4
+        assert i in OP_CODE_NAME_FROM_INT
 
 
 def test_op_int() -> None:
@@ -100,6 +82,19 @@ def test_encode_num() -> None:
         assert decode_num(encode_num(-i - 1)) == -i - 1
         assert decode_num(encode_num(-i)) == -i
         assert decode_num(encode_num(-i + 1)) == -i + 1
+
+    # 7 bits + sign bit = 8 bits = 1 byte (plus 1 byte for length)
+    i = 0b01111111
+    assert len(encode_num(i)) == 1
+    # 8 bits + sign bit = 9 bits = 2 byte (plus 1 byte for length)
+    i = 0b11111111
+    assert len(encode_num(i)) == 2
+    # 15 bits + sign bit = 16 bits = 2 byte (plus 1 byte for length)
+    i = 0b0111111111111111
+    assert len(encode_num(i)) == 2
+    # 16 bits + sign bit = 17 bits = 3 byte (plus 1 byte for length)
+    i = 0b1111111111111111
+    assert len(encode_num(i)) == 3
 
 
 def test_op_pushdata() -> None:

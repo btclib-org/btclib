@@ -19,7 +19,7 @@ from btclib.alias import Octets
 from btclib.exceptions import BTClibValueError
 from btclib.utils import bytes_from_octets
 
-OP_CODES = {
+BYTE_FROM_OP_CODE_NAME = {
     # Constants
     "OP_0": b"\x00",
     "OP_FALSE": b"\x00",
@@ -132,7 +132,7 @@ OP_CODES = {
     "OP_CHECKSIGADD": b"\xba",
 }
 
-OP_CODE_NAMES = {
+OP_CODE_NAME_FROM_INT = {
     0: "OP_0",
     76: "OP_PUSHDATA1",
     77: "OP_PUSHDATA2",
@@ -246,15 +246,15 @@ def op_pushdata(data: Octets) -> bytes:
     if length < 76:  # 1-byte-length
         out.append(length.to_bytes(1, byteorder="little", signed=False))
     elif length < 256:  # OP_PUSHDATA1 | 1-byte-length
-        out.append(OP_CODES["OP_PUSHDATA1"])
+        out.append(BYTE_FROM_OP_CODE_NAME["OP_PUSHDATA1"])
         out.append(length.to_bytes(1, byteorder="little", signed=False))
     elif length < 521:  # OP_PUSHDATA2 | 2-byte-length
-        out.append(OP_CODES["OP_PUSHDATA2"])
+        out.append(BYTE_FROM_OP_CODE_NAME["OP_PUSHDATA2"])
         out.append(length.to_bytes(2, byteorder="little", signed=False))
     else:
         # because of the 520 bytes limit
         # there is no need to use OP_PUSHDATA4
-        # out.append(OP_CODES['OP_PUSHDATA4'])
+        # out.append(BYTE_FROM_OP_CODE_NAME['OP_PUSHDATA4'])
         # out.append(length.to_bytes(4, byteorder="little", signed=False))
         raise BTClibValueError(f"too many bytes for OP_PUSHDATA: {length}")
     out.append(data)
@@ -310,19 +310,13 @@ def op_int(i: int) -> str:
     raise BTClibValueError(f"invalid OP_INT: {i}")
 
 
-def op_num(i: int) -> bytes:
-
-    data = encode_num(i)
-    return op_pushdata(data)
-
-
 def op_str(command: str) -> bytes:
     command = command.strip().upper()
-    if command in OP_CODES:
-        return OP_CODES[command]
+    if command in BYTE_FROM_OP_CODE_NAME:
+        return BYTE_FROM_OP_CODE_NAME[command]
     if command[:10] == "OP_SUCCESS":
         x = int(command[10:])
-        if x in OP_CODE_NAMES or 0 < x < 76:
+        if x in OP_CODE_NAME_FROM_INT or 0 < x < 76:
             raise BTClibValueError(f"invalid OP_SUCCESS number: {x}")
         return x.to_bytes(1, "little")
     try:

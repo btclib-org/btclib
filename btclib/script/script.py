@@ -25,7 +25,12 @@ from typing import List, Sequence, Union
 
 from btclib.alias import BinaryData, Octets
 from btclib.exceptions import BTClibValueError
-from btclib.script.op_codes import OP_CODE_NAMES, op_num, op_pushdata, op_str
+from btclib.script.op_codes import (
+    OP_CODE_NAME_FROM_INT,
+    encode_num,
+    op_pushdata,
+    op_str,
+)
 from btclib.utils import bytes_from_octets, bytesio_from_binarydata
 
 Command = Union[int, str, bytes]
@@ -36,8 +41,8 @@ def serialize(script: Sequence[Command]) -> bytes:
     for command in script:
         if isinstance(command, int):
             # if -1 <= command <= 16:
-            #     warning, use OP_INT instead
-            r.append(op_num(command))
+            #     warning: consider using OP_INT instead
+            r.append(op_pushdata(encode_num(command)))
         elif isinstance(command, str):
             r.append(op_str(command))
         else:  # must be bytes
@@ -55,7 +60,7 @@ def parse(stream: BinaryData, exit_on_op_success: bool = False) -> List[Command]
         t = s.read(1)  # get one byte
         if not t:
             break
-        i = t[0]  # convert the byte to an integer
+        i = t[0]  # convert the first byte to an integer
         if 0 < i <= 78:  # push
             data_length = i  # 0 < i < 76 -> 1-byte-data-length | data
             if 75 < i < 79:
@@ -75,18 +80,18 @@ def parse(stream: BinaryData, exit_on_op_success: bool = False) -> List[Command]
                 raise BTClibValueError("Not enough data for pushdata")
             # if <= 0xFFFFFFFF, parse it as integer
             # if i < 6 and decode_num(data) <= 0xFFFFFFFF:
-            #     new_op_code: Command = decode_num(data)
+            #     command: Command = decode_num(data)
             # else:
-            #     new_op_code = data.hex().upper()
-            new_op_code = data.hex().upper()
-        elif i in OP_CODE_NAMES:  # OP_CODE
-            new_op_code = OP_CODE_NAMES[i]
+            #     command = data.hex().upper()
+            command = data.hex().upper()
+        elif i in OP_CODE_NAME_FROM_INT:  # OP_CODE
+            command = OP_CODE_NAME_FROM_INT[i]
         else:  # OP_SUCCESSx
-            new_op_code = f"OP_SUCCESS{i}"
+            command = f"OP_SUCCESS{i}"
             if exit_on_op_success:
                 return ["OP_SUCCESS"]
 
-        r.append(new_op_code)
+        r.append(command)
 
     return r
 
