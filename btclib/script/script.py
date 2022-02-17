@@ -25,13 +25,8 @@ from typing import List, Sequence, Union
 
 from btclib.alias import BinaryData, Octets
 from btclib.exceptions import BTClibValueError
-from btclib.script.op_codes import (
-    OP_CODE_NAME_FROM_INT,
-    encode_num,
-    op_pushdata,
-    op_str,
-)
-from btclib.utils import bytes_from_octets, bytesio_from_binarydata
+from btclib.script.op_codes import OP_CODE_NAME_FROM_INT, op_pushdata, op_str
+from btclib.utils import bytes_from_octets, bytesio_from_binarydata, encode_num
 
 Command = Union[int, str, bytes]
 

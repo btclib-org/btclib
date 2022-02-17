@@ -16,8 +16,6 @@ from btclib.script.op_codes import (
     BYTE_FROM_OP_CODE_NAME,
     OP_CODE_NAME_FROM_INT,
     BTClibValueError,
-    decode_num,
-    encode_num,
     op_int,
     op_pushdata,
     op_str,
@@ -58,43 +56,6 @@ def test_op_int() -> None:
     err_msg = "invalid OP_INT: "
     with pytest.raises(BTClibValueError, match=err_msg):
         op_int(17)
-
-
-def test_encode_num() -> None:
-
-    for i in range(-255, 256):
-        assert decode_num(encode_num(i)) == i
-
-    for i in [
-        0x80FF,
-        0xFFFF,
-        0x80FFFF,
-        0xFFFFFF,
-        0x80FFFFFF,
-        0xFFFFFFFF,
-        0x80FFFFFFFF,
-        0xFFFFFFFFFF,
-    ]:
-        assert decode_num(encode_num(i - 1)) == i - 1
-        assert decode_num(encode_num(i)) == i
-        assert decode_num(encode_num(i + 1)) == i + 1
-
-        assert decode_num(encode_num(-i - 1)) == -i - 1
-        assert decode_num(encode_num(-i)) == -i
-        assert decode_num(encode_num(-i + 1)) == -i + 1
-
-    # 7 bits + sign bit = 8 bits = 1 byte (plus 1 byte for length)
-    i = 0b01111111
-    assert len(encode_num(i)) == 1
-    # 8 bits + sign bit = 9 bits = 2 byte (plus 1 byte for length)
-    i = 0b11111111
-    assert len(encode_num(i)) == 2
-    # 15 bits + sign bit = 16 bits = 2 byte (plus 1 byte for length)
-    i = 0b0111111111111111
-    assert len(encode_num(i)) == 2
-    # 16 bits + sign bit = 17 bits = 3 byte (plus 1 byte for length)
-    i = 0b1111111111111111
-    assert len(encode_num(i)) == 3
 
 
 def test_op_pushdata() -> None:

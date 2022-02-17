@@ -22,10 +22,9 @@ from btclib import var_bytes, var_int
 from btclib.alias import BinaryData
 from btclib.exceptions import BTClibValueError
 from btclib.hashes import hash256, merkle_root
-from btclib.script.op_codes import decode_num
 from btclib.tx.block_header import BlockHeader
 from btclib.tx.tx import Tx
-from btclib.utils import bytesio_from_binarydata
+from btclib.utils import bytesio_from_binarydata, decode_num
 
 # python 3.6
 if sys.version_info.minor == 6:  # pragma: no cover

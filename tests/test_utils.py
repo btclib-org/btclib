@@ -18,7 +18,7 @@ import pytest
 
 # Library imports
 from btclib.exceptions import BTClibValueError
-from btclib.utils import hex_string, int_from_integer
+from btclib.utils import decode_num, encode_num, hex_string, int_from_integer
 
 
 def test_int_from_integer() -> None:
@@ -51,3 +51,40 @@ def test_hex_string() -> None:
     int_ = -1
     with pytest.raises(BTClibValueError, match="negative integer: "):
         hex_string(int_)
+
+
+def test_encode_num() -> None:
+
+    for i in range(-255, 256):
+        assert decode_num(encode_num(i)) == i
+
+    for i in [
+        0x80FF,
+        0xFFFF,
+        0x80FFFF,
+        0xFFFFFF,
+        0x80FFFFFF,
+        0xFFFFFFFF,
+        0x80FFFFFFFF,
+        0xFFFFFFFFFF,
+    ]:
+        assert decode_num(encode_num(i - 1)) == i - 1
+        assert decode_num(encode_num(i)) == i
+        assert decode_num(encode_num(i + 1)) == i + 1
+
+        assert decode_num(encode_num(-i - 1)) == -i - 1
+        assert decode_num(encode_num(-i)) == -i
+        assert decode_num(encode_num(-i + 1)) == -i + 1
+
+    # 7 bits + sign bit = 8 bits = 1 byte (plus 1 byte for length)
+    i = 0b01111111
+    assert len(encode_num(i)) == 1
+    # 8 bits + sign bit = 9 bits = 2 byte (plus 1 byte for length)
+    i = 0b11111111
+    assert len(encode_num(i)) == 2
+    # 15 bits + sign bit = 16 bits = 2 byte (plus 1 byte for length)
+    i = 0b0111111111111111
+    assert len(encode_num(i)) == 2
+    # 16 bits + sign bit = 17 bits = 3 byte (plus 1 byte for length)
+    i = 0b1111111111111111
+    assert len(encode_num(i)) == 3
