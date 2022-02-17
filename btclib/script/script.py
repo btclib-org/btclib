@@ -341,14 +341,15 @@ def parse(stream: BinaryData, exit_on_op_success: bool = False) -> List[Command]
             data = s.read(data_length)
             if len(data) != data_length:
                 raise BTClibValueError("Not enough data for pushdata")
-            # if <= 0xFFFFFFFF, parse it as integer
-            # if i < 6 and decode_num(data) <= 0xFFFFFFFF:
-            #     command: Command = decode_num(data)
-            # else:
-            #     command = data.hex().upper()
             command = data.hex().upper()
         elif i in OP_CODE_NAME_FROM_INT:  # OP_CODE
             command = OP_CODE_NAME_FROM_INT[i]
+            # Opcodes which take integers and bools off the stack require
+            # that they be no more than 4 bytes long.
+            # If this is the case, parse that command as int
+            # t = r[-1]
+            # if isinstance(t, bytes) and len(t) <= 4:
+            #    r[-1] = decode_num(t)
         else:  # OP_SUCCESSx
             command = f"OP_SUCCESS{i}"
             if exit_on_op_success:

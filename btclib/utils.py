@@ -149,17 +149,29 @@ def hex_string(i: Integer) -> str:
 def decode_num(data: bytes) -> int:
     """Decode a number to the bitcoin-specific little endian format.
 
-    Numbers are encoded as little-endian variable-length
+    A number is encoded as little-endian variable-length byte vector
     with the most significant bit (MSB) determining the sign.
 
-    0x01 is 1, 0x00 is zero
-    0x81 is -1, 0x80 is negative zero
+    * 0x01 is 1
+    * 0x81 is -1
+
+    Therefore, there are two representations of zero:
+
+    * 0x00 is "positive" zero
+    * 0x80 is "negative" zero
+
+    Positive zero is also represented by a null-length byte vector,
+    which is considered the canonical one.
     """
+
+    length = len(data)
+    if length == 0:
+        return 0
 
     i = int.from_bytes(data, byteorder="little", signed=False)
     if data[-1] >= 0x80:  # negative number
         # mask for all but the highest bit
-        mask = (2 ** (len(data) * 8) - 1) >> 1
+        mask = (2 ** (length * 8) - 1) >> 1
         i &= mask
         i *= -1
     return i
@@ -168,13 +180,23 @@ def decode_num(data: bytes) -> int:
 def encode_num(i: int) -> bytes:
     """Encode a number to the bitcoin-specific little endian format.
 
-    Numbers are encoded as little-endian variable-length
+    A number is encoded as little-endian variable-length byte vector
     with the most significant bit (MSB) determining the sign.
 
-    0x01 is 1, 0x00 is zero
-    0x81 is -1, 0x80 is negative zero
+    * 0x01 is 1
+    * 0x81 is -1
+
+    Therefore, there are two representations of zero:
+
+    * 0x00 is "positive" zero
+    * 0x80 is "negative" zero
+
+    Positive zero is also represented by a null-length byte vector,
+    which is considered the canonical one.
     """
 
+    if i == 0:
+        return b""
     # i.bit_length() bits, plus a sign bit
     n_bits = i.bit_length() + 1
     # The number of bytes necessary to accomodate n_bits

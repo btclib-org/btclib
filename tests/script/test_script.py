@@ -193,39 +193,47 @@ def test_regressions() -> None:
         assert serialize(parse(serialized)) == serialized
 
 
+def test_null_serialization() -> None:
+
+    empty_script: List[Command] = []
+    assert empty_script == parse(b"")
+    assert serialize(empty_script) == b""
+
+    # hic sunt leones
+    assert parse(serialize([""])) == ["OP_0"]  # right
+    assert parse(serialize([" "])) == ["OP_0"]  # dubious
+    assert parse(serialize([b""])) == ["OP_0"]  # right
+    assert parse(serialize([b" "])) == ["20"]  # what?
+    assert parse(serialize([0])) == ["OP_0"]  # right
+
+
 def test_op_int_serialization() -> None:
 
     for i in range(-1, 17):
         op_int_str = f"OP_{i}" if i > -1 else "OP_1NEGATE"
-        assert len(serialize([op_int_str])) == 1
-        assert [op_int_str] == parse(serialize([op_int_str]))
-
-    # assert serialize("") == serialize("OP_0")
+        serialized_op_int = serialize([op_int_str])
+        assert len(serialized_op_int) == 1
+        assert [op_int_str] == parse(serialized_op_int)
 
 
 def test_integer_serialization() -> None:
 
-    for i in range(0, 128):
+    assert serialize([0]) == b"\x00"  # ????
+    assert ["OP_0"] == parse(b"\x00")
+
+    for i in range(1, 128):
         serialized_int = serialize([i])  # e.g., i = 26
         assert [hex_string(i)] == parse(serialized_int)
 
     for i in range(128, 256):
         serialized_int = serialize([i])
-        # assert [hex_string(i)] == parse(serialized_int)
 
 
 def test_single_byte_serialization() -> None:
 
     for i in range(256):
         hex_str = hex_string(i)  # e.g., "1A"
-        assert len(serialize([hex_str])) == 2
-        assert serialize([hex_str])[0] == 1
-        assert [hex_str] == parse(serialize([hex_str]))
-
-
-def test_null_serialization() -> None:
-
-    empty_script: List[Command] = []
-
-    assert empty_script == parse(b"")
-    assert serialize(empty_script) == b""
+        serialized_byte = serialize([hex_str])
+        assert len(serialized_byte) == 2
+        assert serialized_byte[0] == 1
+        assert [hex_str] == parse(serialized_byte)

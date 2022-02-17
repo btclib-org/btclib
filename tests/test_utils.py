@@ -55,6 +55,14 @@ def test_hex_string() -> None:
 
 def test_encode_num() -> None:
 
+    # canonical representation of zero
+    assert encode_num(0) == b""
+    assert decode_num(b"") == 0
+
+    # other representations of zero
+    assert decode_num(b"\x00") == 0
+    assert decode_num(b"\x80") == 0
+
     for i in range(-255, 256):
         assert decode_num(encode_num(i)) == i
 
