@@ -25,7 +25,11 @@ from typing import List, Sequence, Union
 
 from btclib.alias import BinaryData, Octets
 from btclib.exceptions import BTClibValueError
-from btclib.script.op_codes import OP_CODE_NAME_FROM_INT, op_pushdata, op_str
+from btclib.script.op_codes import (
+    OP_CODE_NAME_FROM_INT,
+    serialize_bytes_command,
+    serialize_str_command,
+)
 from btclib.utils import bytes_from_octets, bytesio_from_binarydata, encode_num
 
 Command = Union[int, str, bytes]
@@ -37,11 +41,11 @@ def serialize(script: Sequence[Command]) -> bytes:
         if isinstance(command, int):
             # if -1 <= command <= 16:
             #     warning: consider using OP_INT instead
-            r.append(op_pushdata(encode_num(command)))
+            r.append(serialize_bytes_command(encode_num(command)))
         elif isinstance(command, str):
-            r.append(op_str(command))
+            r.append(serialize_str_command(command))
         else:  # must be bytes
-            r.append(op_pushdata(command))
+            r.append(serialize_bytes_command(command))
     return b"".join(r)
 
 

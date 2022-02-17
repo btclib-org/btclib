@@ -15,9 +15,7 @@ https://en.bitcoin.it/wiki/Script
 
 from typing import List
 
-from btclib.alias import Octets
 from btclib.exceptions import BTClibValueError
-from btclib.utils import bytes_from_octets
 
 BYTE_FROM_OP_CODE_NAME = {
     # Constants
@@ -232,17 +230,16 @@ OP_CODE_NAME_FROM_INT = {
 }
 
 
-def op_pushdata(data: Octets) -> bytes:
-    """Convert to canonical push: OP_PUSHDATA (if needed) | length | data.
+def serialize_bytes_command(command: bytes) -> bytes:
+    """Convert to canonical push: OP_PUSHDATA (if needed) | length | command.
 
     According to standardness rules (BIP-62) the
     minimum possible PUSHDATA operator must be used.
     Byte vectors on the stack are not allowed to be more than 520 bytes long.
     """
 
-    data = bytes_from_octets(data)
     out: List[bytes] = []
-    length = len(data)
+    length = len(command)
     if length < 76:  # 1-byte-length
         out.append(length.to_bytes(1, byteorder="little", signed=False))
     elif length < 256:  # OP_PUSHDATA1 | 1-byte-length
@@ -257,7 +254,7 @@ def op_pushdata(data: Octets) -> bytes:
         # out.append(BYTE_FROM_OP_CODE_NAME['OP_PUSHDATA4'])
         # out.append(length.to_bytes(4, byteorder="little", signed=False))
         raise BTClibValueError(f"too many bytes for OP_PUSHDATA: {length}")
-    out.append(data)
+    out.append(command)
     return b"".join(out)
 
 
@@ -271,7 +268,7 @@ def op_int(i: int) -> str:
     raise BTClibValueError(f"invalid OP_INT: {i}")
 
 
-def op_str(command: str) -> bytes:
+def serialize_str_command(command: str) -> bytes:
     command = command.strip().upper()
     if command in BYTE_FROM_OP_CODE_NAME:
         return BYTE_FROM_OP_CODE_NAME[command]
@@ -284,4 +281,4 @@ def op_str(command: str) -> bytes:
         data = bytes.fromhex(command)
     except ValueError as e:
         raise BTClibValueError(f"invalid string command: {command}") from e
-    return op_pushdata(data)
+    return serialize_bytes_command(data)

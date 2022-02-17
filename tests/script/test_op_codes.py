@@ -17,8 +17,8 @@ from btclib.script.op_codes import (
     OP_CODE_NAME_FROM_INT,
     BTClibValueError,
     op_int,
-    op_pushdata,
-    op_str,
+    serialize_bytes_command,
+    serialize_str_command,
 )
 
 
@@ -58,26 +58,26 @@ def test_op_int() -> None:
         op_int(17)
 
 
-def test_op_pushdata() -> None:
+def test_serialize_bytes_command() -> None:
     length = 75
-    b = "0A" * length
-    assert len(op_pushdata(b)) == length + 1
-    b = "0A" * (length + 1)
-    assert len(op_pushdata(b)) == (length + 1) + 2
+    b = b"\x0A" * length
+    assert len(serialize_bytes_command(b)) == length + 1
+    b = b"\x0A" * (length + 1)
+    assert len(serialize_bytes_command(b)) == (length + 1) + 2
 
     length = 255
-    b = "0A" * length
-    assert len(op_pushdata(b)) == length + 2
-    b = "0A" * (length + 1)
-    assert len(op_pushdata(b)) == (length + 1) + 3
+    b = b"\x0A" * length
+    assert len(serialize_bytes_command(b)) == length + 2
+    b = b"\x0A" * (length + 1)
+    assert len(serialize_bytes_command(b)) == (length + 1) + 3
 
 
 def test_invalid_op_success() -> None:
     err_msg = "invalid OP_SUCCESS number:"
     with pytest.raises(BTClibValueError, match=err_msg):
-        op_str("OP_SUCCESS1")
+        serialize_str_command("OP_SUCCESS1")
     err_msg = "invalid OP_SUCCESS number:"
     with pytest.raises(BTClibValueError, match=err_msg):
-        op_str("OP_SUCCESS173")
+        serialize_str_command("OP_SUCCESS173")
 
-    assert op_str("OP_SUCCESS80") == b"\x50"
+    assert serialize_str_command("OP_SUCCESS80") == b"\x50"
