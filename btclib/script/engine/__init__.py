@@ -19,14 +19,13 @@ from btclib.exceptions import BTClibValueError
 from btclib.hashes import hash160, sha256
 from btclib.script.engine import tapscript
 from btclib.script.engine.script import verify_script as verify_script_legacy
-from btclib.script.engine.script_op_codes import op_verify
 from btclib.script.script import parse
 from btclib.script.script_pub_key import is_segwit, type_and_payload
 from btclib.script.taproot import check_output_pubkey
 from btclib.script.witness import Witness
 from btclib.tx.tx import Tx
 from btclib.tx.tx_out import TxOut
-from btclib.utils import bytes_from_command
+from btclib.utils import bytes_from_command, decode_num
 
 
 def taproot_unwrap_script(
@@ -76,36 +75,56 @@ ALL_FLAGS = [
     # "NULLFAIL",
     # "MINMALIF",
     # "DISCOURAGE_UPGRADABLE_NOPS",
+    # "DISCOURAGE_UPGRADABLE_WITNESS_PROGRAM",
     "CHECKLOCKTIMEVERIFY",
     "CHECKSEQUENCEVERIFY",
     "WITNESS",
+    "WITNESS_PUBKEYTYPE",
     "TAPROOT",
 ]
 
 
 def verify_input(prevouts: List[TxOut], tx: Tx, i: int, flags: List[str]) -> None:
 
-    script = prevouts[i].script_pub_key.script
-    script_type, payload = type_and_payload(script)
+    script_sig = tx.vin[i].script_sig
+    parsed_script_sig = parse(script_sig, accept_unknown=True)
+    if "SIGPUSHONLY" in flags:
+        validate_redeem_script(parsed_script_sig)
+    if "CONST_SCRIPTCODE" in flags:
+        for x in parsed_script_sig:
+            op_checks = [
+                "OP_CHECKSIG",
+                "OP_CHECKSIGVERIFY",
+                "OP_CHECKMULTISIG",
+                "OP_CHECKSIGVERIFY",
+            ]
+            if x in op_checks:
+                raise BTClibValueError()
+    stack: List[bytes] = []
+    verify_script_legacy(
+        script_sig, stack, prevouts[i].value, tx, i, flags, False, False
+    )
 
-    redeem_script = parse(tx.vin[i].script_sig, accept_unknown=True)
+    script = prevouts[i].script_pub_key.script
+    verify_script_legacy(script, stack, prevouts[i].value, tx, i, flags, False, True)
+
+    script_type, payload = type_and_payload(script)
 
     p2sh = False
     if script_type == "p2sh" and "P2SH" in flags:
         p2sh = True
-        parsed_script = parse(tx.vin[i].script_sig, accept_unknown=True)
-        script = bytes_from_command(parsed_script[-1])
-        if payload != hash160(script):
-            raise BTClibValueError()
-        redeem_script = parsed_script[:-1]
+        validate_redeem_script(parsed_script_sig)  # similar to SIGPUSHONLY
+        script = bytes_from_command(
+            parse(tx.vin[i].script_sig, accept_unknown=True)[-1]
+        )
+        verify_script_legacy(
+            script, stack, prevouts[i].value, tx, i, flags, False, True
+        )
         script_type, payload = type_and_payload(script)
 
     segwit_version = -1
     if is_segwit(script):
-        if script[0] == 0:
-            segwit_version = 0
-        else:
-            segwit_version = script[0] - 80
+        segwit_version = decode_num(stack[-1])
     supported_segwit_version = -1
     if "WITNESS" in flags:
         supported_segwit_version = 0
@@ -113,8 +132,11 @@ def verify_input(prevouts: List[TxOut], tx: Tx, i: int, flags: List[str]) -> Non
         supported_segwit_version = 1
     if segwit_version + 1 and tx.vin[i].script_sig and not p2sh:
         raise BTClibValueError()
-    if supported_segwit_version + 1 and segwit_version > supported_segwit_version:
-        op_verify([script[1:]], [], flags)
+    if not (segwit_version + 1) and tx.vin[i].script_witness:
+        raise BTClibValueError()  # witness without witness script
+    if segwit_version > supported_segwit_version:
+        if segwit_version + 1 and "DISCOURAGE_UPGRADABLE_WITNESS_PROGRAM" in flags:
+            raise BTClibValueError()
         return
 
     if segwit_version == 1:
@@ -135,40 +157,35 @@ def verify_input(prevouts: List[TxOut], tx: Tx, i: int, flags: List[str]) -> Non
                     tapscript.verify_script_path_vc0(
                         script_bytes, stack, prevouts, tx, i, annex, budget, flags
                     )
-            return  # unknown program, passes validation
+                else:
+                    return  # unknown program, passes validation
 
-    segwit = False
     if segwit_version == 0:
-        segwit = True
         if script_type == "p2wpkh":
-            redeem_script = tx.vin[i].script_witness.stack
+            stack = tx.vin[i].script_witness.stack
             # serialization of ["OP_DUP", "OP_HASH160", payload, "OP_EQUALVERIFY", "OP_CHECKSIG"]
             script = b"v\xa9\x14" + payload + b"\x88\xac"
         elif script_type == "p2wsh":
-            parsed_script = tx.vin[i].script_witness.stack
-            if any(len(x) > 520 for x in parsed_script):
+            stack = tx.vin[i].script_witness.stack
+            if any(len(x) > 520 for x in stack):
                 raise BTClibValueError()
-            script = bytes_from_command(parsed_script[-1])
+            script = stack[-1]
             if payload != sha256(script):
                 raise BTClibValueError()
-            redeem_script = parsed_script[:-1]
+            stack = stack[:-1]
         else:
             raise BTClibValueError()
+        verify_script_legacy(script, stack, prevouts[i].value, tx, i, flags, True, True)
 
-    if "SIGPUSHONLY" in flags:
-        validate_redeem_script(redeem_script)
-
-    if len(script) > 10000:
+    if stack and ("CLEANSTACK" in flags or segwit_version == 0):
         raise BTClibValueError()
-
-    verify_script_legacy(script, redeem_script, prevouts[i].value, tx, i, flags, segwit)
 
 
 def verify_transaction(
     prevouts: List[TxOut], tx: Tx, flags: Optional[List] = None
 ) -> None:
     if flags is None:
-        flags = ALL_FLAGS
+        flags = ALL_FLAGS[:]
     if not len(prevouts) == len(tx.vin):
         raise BTClibValueError()
     for i in range(len(prevouts)):

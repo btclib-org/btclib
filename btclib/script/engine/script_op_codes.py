@@ -53,14 +53,12 @@ def op_if(
 
     level = 1
     for x in range(len(script) - 1, -1, -1):
-        if script[x] == "OP_IF":
+        if script[x] in ["OP_IF", "OP_NOTIF"]:
             level += 1
         if script[x] == "OP_ENDIF":
             level -= 1
         if level == 0:
             break
-    if level != 0:
-        raise BTClibValueError()
 
     after_script = script[:x]
     condition_script = script[x:][1:]
@@ -73,7 +71,7 @@ def op_if(
             if level == 1:
                 condition = not condition
                 continue
-        if condition_script[x] == "OP_IF":
+        if condition_script[x] in ["OP_IF", "OP_NOTIF"]:
             level += 1
         elif condition_script[x] == "OP_ENDIF":
             level -= 1
