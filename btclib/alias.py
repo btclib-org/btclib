@@ -15,7 +15,7 @@ mypy aliases, documenting also coding input conventions.
 from __future__ import annotations
 
 from io import BytesIO
-from typing import Any, Callable, Tuple, Union, List
+from typing import Any, Callable, List, Tuple, Union
 
 # Octets are a sequence of eight-bit bytes or a hex-string (not text string)
 #
