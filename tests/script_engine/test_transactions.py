@@ -117,9 +117,6 @@ def test_invalid_legacy() -> None:
                 continue
 
         flags = x[2].split(",")  # different flags handling
-        if "DISCOURAGE_UPGRADABLE_WITNESS_PROGRAM" in flags:
-            # we do not support this flag
-            continue
 
         prevouts = []
         for i in x[0]:

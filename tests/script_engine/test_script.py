@@ -40,19 +40,19 @@ def test_script() -> None:
         if len(x) == 1 and isinstance(x[0], str):
             continue
 
-        # if index != 351:
+        # if index != 1209:
         #     continue
 
-        # print()
-        # print(index)
-        # print(x)
-
+        amount = 0
         if isinstance(x[0], str):
             i = 0
             stack = []
         else:
             i = 1
-            stack = x[0][:-1]
+            stack = x[0]
+            if isinstance(stack[-1], int) or isinstance(stack[-1], float):
+                amount = int(stack[-1] * 10 ** 8)
+                stack = stack[:-1]
         script_sig_str = x[i]
         script_pub_key_str = x[i + 1]
         flags = x[i + 2]
@@ -64,9 +64,11 @@ def test_script() -> None:
             )
             script_pub_key = parse_script(script_pub_key_str)
             coinbase_output = TxOut(
-                value=0, script_pub_key=ScriptPubKey(script_pub_key)
+                value=amount, script_pub_key=ScriptPubKey(script_pub_key)
             )
-            coinbase = Tx(lock_time=0, vin=[coinbase_input], vout=[coinbase_output])
+            coinbase = Tx(
+                version=1, lock_time=0, vin=[coinbase_input], vout=[coinbase_output]
+            )
 
             script_sig = parse_script(script_sig_str)
             spending_input = TxIn(
@@ -76,7 +78,10 @@ def test_script() -> None:
                 script_witness=Witness(stack),
             )
             spending = Tx(
-                lock_time=0, vin=[spending_input], vout=[TxOut(0, ScriptPubKey(""))]
+                version=1,
+                lock_time=0,
+                vin=[spending_input],
+                vout=[TxOut(amount, ScriptPubKey(""))],
             )
 
             verify_input([coinbase_output], spending, 0, flags)
