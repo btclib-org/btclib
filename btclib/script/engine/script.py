@@ -21,14 +21,15 @@ except ImportError:
 
 from btclib.alias import Command
 from btclib.ecc.der import Sig
-from btclib.exceptions import BTClibValueError
+from btclib.exceptions import BTClibRuntimeError, BTClibValueError
 from btclib.script import sig_hash
 from btclib.script.engine import script_op_codes
 from btclib.script.engine.script_op_codes import _from_num, _to_num
-from btclib.script.script import parse, serialize as serialize_script
+from btclib.script.script import parse
+from btclib.script.script import serialize as serialize_script
+from btclib.script.sig_hash import SIG_HASH_TYPES
 from btclib.tx.tx import Tx
 from btclib.utils import bytes_from_command
-from btclib.script.sig_hash import SIG_HASH_TYPES
 
 
 def fix_signature(signature: bytes, flags: List[str]) -> bytes:
@@ -46,12 +47,16 @@ def fix_signature(signature: bytes, flags: List[str]) -> bytes:
     return signature + signature_suffix
 
 
-def check_pub_key(pub_key: bytes) -> bool:
+def check_pub_key(pub_key: bytes, segwit: bool, flags: List[str]) -> bool:
     if not pub_key:
         return False
-    if pub_key[0] == 4:
+    if pub_key[0] in [4, 6, 7]:
+        if pub_key[0] in [6, 7] and "STRICTENC" in flags:
+            raise BTClibValueError()
+        if segwit and "WITNESS_PUBKEYTYPE" in flags:
+            raise BTClibValueError()  # uncompressed pubkeys are not possible with segwit
         return len(pub_key) == 65
-    if pub_key[0] == 2 or pub_key[0] == 3:
+    if pub_key[0] in [2, 3]:
         return len(pub_key) == 33
     return False
 
@@ -109,12 +114,12 @@ def op_checksig(
         return False
     try:
         signature = fix_signature(signature, flags)
-    except:
+    except (BTClibValueError, BTClibRuntimeError):
         if "DERSIG" in flags or "STRICTENC" in flags:
             raise BTClibValueError()
         return False
 
-    if not check_pub_key(pub_key):
+    if not check_pub_key(pub_key, segwit, flags):
         if "STRICTENC" in flags:
             raise BTClibValueError()
         return False
@@ -152,9 +157,7 @@ def check_script_op_code_limit(script: List[Command], segwit: bool) -> None:
             raise BTClibValueError()
 
 
-def prepare_script(
-    script: List[Command], redeem_script_len: int, flags: List[str], segwit: bool
-) -> None:
+def prepare_script(script: List[Command], flags: List[str], segwit: bool) -> None:
     if "OP_CODESEPARATOR" in script and "CONST_SCRIPTCODE" in flags and not segwit:
         raise BTClibValueError()
 
@@ -162,27 +165,33 @@ def prepare_script(
         raise BTClibValueError()
 
     for x, op_code in enumerate(script):
-        if x <= redeem_script_len:
-            continue
         if op_code == "OP_CODESEPARATOR":
-            script[x] = f"OP_CODESEPARATOR{x-redeem_script_len}"
+            script[x] = f"OP_CODESEPARATOR{x}"
+
+
+def check_balanced_if(script: List[Command]) -> None:
+    if script.count("OP_IF") + script.count("OP_NOTIF") - script.count("OP_ENDIF"):
+        raise BTClibValueError()
 
 
 def verify_script(
     script_bytes: bytes,
-    redeem_script: List[Command],
+    stack: List[bytes],
     prevout_value: int,
     tx: Tx,
     i: int,
     flags: List[str],
     segwit: bool,
+    final: bool = False,
 ) -> None:
 
-    script_pub_key = parse(script_bytes, accept_unknown=True)
-    check_script_op_code_limit(script_pub_key, segwit)
+    if len(script_bytes) > 10000:
+        raise BTClibValueError()
 
-    script = redeem_script + script_pub_key
-    prepare_script(script, len(redeem_script), flags, segwit)
+    script = parse(script_bytes, accept_unknown=True)
+    check_script_op_code_limit(script, segwit)
+    check_balanced_if(script)
+    prepare_script(script, flags, segwit)
 
     segwit_version = 0 if segwit else -1
 
@@ -243,7 +252,6 @@ def verify_script(
         "OP_2SWAP": script_op_codes.op_2swap,
     }
 
-    stack: List[bytes] = []
     altstack: List[bytes] = []
 
     script_index = 0
@@ -251,17 +259,12 @@ def verify_script(
     script.reverse()
     while script:
         op = script.pop()
-
-        if script_index == len(redeem_script):
-            altstack = []  # clean altstack when finishing the redeem script
         script_index += 1
 
         if isinstance(op, str) and op[:3] == "OP_":
 
             if op == "OP_CHECKSIG":
 
-                if script_index < len(redeem_script) and "CONST_SCRIPTCODE" in flags:
-                    raise BTClibValueError()
                 pub_key = stack.pop()
                 signature = stack.pop()
                 result = op_checksig(
@@ -281,8 +284,6 @@ def verify_script(
                 stack.append(_from_num(int(result)))
 
             elif op == "OP_CHECKMULTISIG":
-                if script_index < len(redeem_script) and "CONST_SCRIPTCODE" in flags:
-                    raise BTClibValueError()
                 pub_key_num = _to_num(stack.pop(), flags)
                 pub_keys = [stack.pop() for x in range(pub_key_num)]
                 signature_num = _to_num(stack.pop(), flags)
@@ -330,8 +331,7 @@ def verify_script(
             elif op[3:].isdigit():
                 stack.append(_from_num(int(op[3:])))
             elif op[:16] == "OP_CODESEPARATOR":
-                if len(op) > 16:
-                    codesep_index = int(op[16:])
+                codesep_index = int(op[16:])
             elif op == "OP_IF":
                 script_op_codes.op_if(script, stack, flags, segwit_version)
             elif op == "OP_NOTIF":
@@ -349,8 +349,7 @@ def verify_script(
 
         else:
             c = bytes_from_command(op)
-            # We don't have to check the stack for MINIMALDATA
-            if "MINIMALDATA" in flags and not segwit:
+            if "MINIMALDATA" in flags:
                 if len(c) == 1 and (c[0] == 129 or 0 < c[0] <= 16) or len(c) == 0:
                     raise BTClibValueError()
             stack.append(c)
@@ -358,7 +357,5 @@ def verify_script(
         if len(stack) + len(altstack) > 1000:
             raise BTClibValueError()
 
-    script_op_codes.op_verify(stack, [], flags)
-
-    if stack and ("CLEANSTACK" in flags or segwit):
-        raise BTClibValueError()
+    if final:
+        script_op_codes.op_verify(stack, [], flags)

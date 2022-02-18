@@ -58,7 +58,7 @@ def _deserialize_scalar(sig_data_stream: BytesIO, strict: bool = True) -> int:
         raise BTClibValueError(err_msg)
 
     r_bytes = var_bytes.parse(sig_data_stream, forbid_zero_size=True)
-    if r_bytes[0] == 0 and r_bytes[1] < 0x80:
+    if r_bytes[0] == 0 and r_bytes[1] < 0x80 and strict:
         raise BTClibValueError("invalid 'highest bit set' padding")
 
     scalar = int.from_bytes(r_bytes, byteorder="big", signed=False)

@@ -24,6 +24,7 @@ from btclib.exceptions import BTClibValueError
 from btclib.hashes import tagged_hash
 from btclib.script import sig_hash
 from btclib.script.engine import script_op_codes
+from btclib.script.engine.script import check_balanced_if
 from btclib.script.engine.script_op_codes import _from_num
 from btclib.script.script_pub_key import type_and_payload
 from btclib.script.taproot import parse
@@ -110,6 +111,8 @@ def verify_script_path_vc0(
         raise BTClibValueError()
 
     script = parse(script_bytes, exit_on_op_success=True)
+
+    check_balanced_if(script)
 
     if script == ["OP_SUCCESS"]:
         return
