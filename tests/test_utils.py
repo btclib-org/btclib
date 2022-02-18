@@ -55,13 +55,12 @@ def test_hex_string() -> None:
 
 def test_encode_num() -> None:
 
-    # canonical representation of zero
-    assert encode_num(0) == b""
-    assert decode_num(b"") == 0
+    with pytest.raises(BTClibValueError, match="empty byte string"):
+        decode_num(b"")
 
-    # other representations of zero
-    assert decode_num(b"\x00") == 0
-    assert decode_num(b"\x80") == 0
+    # different representations of zero
+    assert decode_num(b"\x00") == 0  # "positive" zero
+    assert decode_num(b"\x80") == 0  # "negative" zero
 
     for i in range(-255, 256):
         assert decode_num(encode_num(i)) == i
