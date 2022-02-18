@@ -199,12 +199,23 @@ def test_null_serialization() -> None:
     assert empty_script == parse(b"")
     assert serialize(empty_script) == b""
 
-    # hic sunt leones
-    assert parse(serialize([""])) == ["OP_0"]  # right
-    assert parse(serialize([" "])) == ["OP_0"]  # dubious
-    assert parse(serialize([b""])) == ["OP_0"]  # right
-    assert parse(serialize([b" "])) == ["20"]  # what?
-    assert parse(serialize([0])) == ["OP_0"]  # right
+    assert parse(serialize([""])) == ["OP_0"]
+    assert parse(serialize([" "])) == ["OP_0"]
+    assert parse(serialize([b""])) == ["OP_0"]
+    assert parse(serialize([b" "])) == ["20"]
+
+    assert serialize([0]) == b"\x01\x00"
+    assert parse(serialize([0])) == ["00"]
+
+    assert serialize([16]) == b"\x01\x10"
+    assert serialize([17]) == b"\x01\x11"
+    assert parse(serialize([16])) == ["10"]
+    assert parse(serialize([17])) == ["11"]
+    assert serialize(["10"]) == b"\x01\x10"
+    assert serialize(["11"]) == b"\x01\x11"
+
+    assert serialize(["OP_16"]) == b"\x60"
+    assert parse(serialize(["OP_16"])) == ["OP_16"]
 
 
 def test_op_int_serialization() -> None:
@@ -218,7 +229,7 @@ def test_op_int_serialization() -> None:
 
 def test_integer_serialization() -> None:
 
-    assert serialize([0]) == b"\x00"  # ????
+    assert serialize([0]) != b"\x00"
     assert ["OP_0"] == parse(b"\x00")
 
     for i in range(1, 128):
