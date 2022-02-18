@@ -253,6 +253,9 @@ def verify_script(
     }
 
     altstack: List[bytes] = []
+    condition_stack: List[bool] = [True]
+
+    op_conditions = ["OP_IF", "OP_NOTIF", "OP_ELSE", "OP_ENDIF"]
 
     script_index = 0
 
@@ -260,6 +263,9 @@ def verify_script(
     while script:
         op = script.pop()
         script_index += 1
+
+        if any(not x for x in condition_stack) and op not in op_conditions:
+            continue
 
         if isinstance(op, str) and op[:3] == "OP_":
 
@@ -333,9 +339,17 @@ def verify_script(
             elif op[:16] == "OP_CODESEPARATOR":
                 codesep_index = int(op[16:])
             elif op == "OP_IF":
-                script_op_codes.op_if(script, stack, flags, segwit_version)
+                script_op_codes.op_if(
+                    script, stack, condition_stack, flags, segwit_version
+                )
             elif op == "OP_NOTIF":
-                script_op_codes.op_notif(script, stack, flags, segwit_version)
+                script_op_codes.op_notif(
+                    script, stack, condition_stack, flags, segwit_version
+                )
+            elif op == "OP_ELSE":
+                script_op_codes.op_else(condition_stack)
+            elif op == "OP_ENDIF":
+                script_op_codes.op_endif(condition_stack)
             elif op == "OP_NOP":
                 pass
             elif "OP_NOP" in op:

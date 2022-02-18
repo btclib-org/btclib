@@ -180,6 +180,9 @@ def verify_script_path_vc0(
     }
 
     altstack: List[bytes] = []
+    condition_stack: List[bool] = [True]
+
+    op_conditions = ["OP_IF", "OP_NOTIF", "OP_ELSE", "OP_ENDIF"]
 
     script.reverse()
     while script:
@@ -188,6 +191,10 @@ def verify_script_path_vc0(
             raise BTClibValueError()
 
         op = script.pop()
+
+        if any(not x for x in condition_stack) and op not in op_conditions:
+            continue
+
         if isinstance(op, str) and op[:3] == "OP_":
 
             if op == "OP_CHECKSIG":
@@ -213,9 +220,17 @@ def verify_script_path_vc0(
             elif op[:16] == "OP_CODESEPARATOR":
                 codesep_pos = int(op[16:])
             elif op == "OP_IF":
-                script_op_codes.op_if(script, stack, flags, segwit_version=1)
+                script_op_codes.op_if(
+                    script, stack, condition_stack, flags, segwit_version=1
+                )
             elif op == "OP_NOTIF":
-                script_op_codes.op_notif(script, stack, flags, segwit_version=1)
+                script_op_codes.op_notif(
+                    script, stack, condition_stack, flags, segwit_version=1
+                )
+            elif op == "OP_ELSE":
+                script_op_codes.op_else(condition_stack)
+            elif op == "OP_ENDIF":
+                script_op_codes.op_endif(condition_stack)
             elif op == "OP_NOP":
                 pass
             elif "OP_NOP" in op:
