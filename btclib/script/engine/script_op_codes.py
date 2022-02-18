@@ -36,7 +36,6 @@ def _from_num(x: int) -> bytes:
 
 
 def op_if(
-    script: ScriptList,
     stack: List[bytes],
     condition_stack: List[bool],
     flags: List[str],
@@ -61,16 +60,15 @@ def op_if(
 
 
 def op_notif(
-    script: ScriptList,
     stack: List[bytes],
     condition_stack: List[bool],
     flags: List[str],
     segwit_version: int,
-) -> None:
+) -> ScriptList:
 
     if any(not x for x in condition_stack):
         condition_stack.append(False)
-        return
+        return []
 
     minimalif = False
     if segwit_version == 1:
@@ -80,7 +78,8 @@ def op_notif(
 
     if minimalif and stack[-1] not in [b"", b"\x01"]:
         raise BTClibValueError()
-    script.extend(["OP_NOT", "OP_IF"][::-1])
+
+    return ["OP_NOT", "OP_IF"]
 
 
 def op_else(condition_stack: List[bool]) -> None:
@@ -168,19 +167,19 @@ def op_equal(
 def op_equalverify(
     stack: List[bytes], altstack: List[bytes], flags: List[str]
 ) -> Optional[ScriptList]:
-    return ["OP_EQUAL", "OP_VERIFY"][::-1]
+    return ["OP_EQUAL", "OP_VERIFY"]
 
 
 def op_checksigverify(
     stack: List[bytes], altstack: List[bytes], flags: List[str]
 ) -> Optional[ScriptList]:
-    return ["OP_CHECKSIG", "OP_VERIFY"][::-1]
+    return ["OP_CHECKSIG", "OP_VERIFY"]
 
 
 def op_checkmultisigverify(
     stack: List[bytes], altstack: List[bytes], flags: List[str]
 ) -> Optional[ScriptList]:
-    return ["OP_CHECKMULTISIG", "OP_VERIFY"][::-1]
+    return ["OP_CHECKMULTISIG", "OP_VERIFY"]
 
 
 def op_size(
@@ -318,7 +317,7 @@ def op_numequal(
 def op_numequalverify(
     stack: List[bytes], altstack: List[bytes], flags: List[str]
 ) -> Optional[ScriptList]:
-    return ["OP_NUMEQUAL", "OP_VERIFY"][::-1]
+    return ["OP_NUMEQUAL", "OP_VERIFY"]
 
 
 def op_numnotequal(

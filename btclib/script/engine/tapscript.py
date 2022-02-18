@@ -26,11 +26,13 @@ from btclib.script import sig_hash
 from btclib.script.engine import script_op_codes
 from btclib.script.engine.script import check_balanced_if
 from btclib.script.engine.script_op_codes import _from_num
+from btclib.script.op_codes_tapscript import OP_CODE_NAMES
 from btclib.script.script_pub_key import type_and_payload
 from btclib.script.taproot import parse
+from btclib.script.taproot import serialize as serialize_script
 from btclib.tx.tx import Tx
 from btclib.tx.tx_out import TxOut
-from btclib.utils import bytes_from_command
+from btclib.utils import bytes_from_command, bytesio_from_binarydata
 
 
 def get_hashtype(signature: bytes) -> int:
@@ -44,7 +46,7 @@ def get_hashtype(signature: bytes) -> int:
 
 def op_checksigadd(stack: List[bytes], altstack: List[bytes], flags: List[str]) -> None:
     stack[-2], stack[-3] = stack[-3], stack[-2]
-    return ["OP_CHECKSIG", "OP_ADD"][::-1]
+    return ["OP_CHECKSIG", "OP_ADD"]
 
 
 def verify_key_path(
@@ -117,9 +119,6 @@ def verify_script_path_vc0(
     if script == ["OP_SUCCESS"]:
         return
 
-    for x, op_code in enumerate(script):
-        if op_code == "OP_CODESEPARATOR":
-            script[x] = f"OP_CODESEPARATOR{x}"
     codesep_pos = 0xFFFFFFFF
 
     operations: Mapping[str, Callable] = {
@@ -182,68 +181,84 @@ def verify_script_path_vc0(
     altstack: List[bytes] = []
     condition_stack: List[bool] = [True]
 
-    op_conditions = ["OP_IF", "OP_NOTIF", "OP_ELSE", "OP_ENDIF"]
+    script_index = -1
 
-    script.reverse()
-    while script:
+    op_conditions = [99, 100, 103, 104]  # ["OP_IF", "OP_NOTIF", "OP_ELSE", "OP_ENDIF"]
+
+    s = bytesio_from_binarydata(script_bytes)
+    while True:
+
+        script_index += 1
+
+        exec = all(condition_stack)
 
         if len(stack) + len(altstack) > 1000:
             raise BTClibValueError()
 
-        op = script.pop()
-
-        if any(not x for x in condition_stack) and op not in op_conditions:
-            continue
-
-        if isinstance(op, str) and op[:3] == "OP_":
-
-            if op == "OP_CHECKSIG":
-
-                sigops_budget = op_checksig(
-                    stack,
-                    script_bytes,
-                    codesep_pos,
-                    tx,
-                    i,
-                    prevouts,
-                    annex,
-                    sigops_budget,
-                )
-
-            elif op == "OP_CHECKLOCKTIMEVERIFY":
-                script_op_codes.op_checklocktimeverify(stack, tx, i, flags)
-            elif op == "OP_CHECKSEQUENCEVERIFY":
-                script_op_codes.op_checksequenceverify(stack, tx, i, flags)
-
-            elif op[3:].isdigit():
-                stack.append(_from_num(int(op[3:])))
-            elif op[:16] == "OP_CODESEPARATOR":
-                codesep_pos = int(op[16:])
-            elif op == "OP_IF":
-                script_op_codes.op_if(
-                    script, stack, condition_stack, flags, segwit_version=1
-                )
-            elif op == "OP_NOTIF":
-                script_op_codes.op_notif(
-                    script, stack, condition_stack, flags, segwit_version=1
-                )
-            elif op == "OP_ELSE":
-                script_op_codes.op_else(condition_stack)
-            elif op == "OP_ENDIF":
-                script_op_codes.op_endif(condition_stack)
-            elif op == "OP_NOP":
-                pass
-            elif "OP_NOP" in op:
-                script_op_codes.op_nop(flags)
-            elif op in operations:
-                r = operations[op](stack, altstack, flags)
-                if r:
-                    script.extend(r)
+        b = s.read(1)
+        if not b:
+            break
+        t = b[0]
+        if 0 < t <= 78:  # pushdata
+            if t < 76:
+                data_length = t
             else:
-                raise BTClibValueError()
-
+                data_length = int.from_bytes(s.read(2 ** (t - 76)), byteorder="little")
+            a = s.read(data_length)
+            if not exec:
+                continue
+            if "MINIMALDATA" in flags:
+                if len(a) == 1 and (a[0] == 129 or 0 < a[0] <= 16) or len(a) == 0:
+                    raise BTClibValueError()
+                if serialize_script([a])[0] != t:
+                    raise BTClibValueError()
+            stack.append(a)
+            continue
         else:
-            stack.append(bytes_from_command(op))
+            if not exec and t not in op_conditions:
+                continue
+            op = OP_CODE_NAMES[t]
+
+        if op == "OP_CHECKSIG":
+
+            sigops_budget = op_checksig(
+                stack,
+                script_bytes,
+                codesep_pos,
+                tx,
+                i,
+                prevouts,
+                annex,
+                sigops_budget,
+            )
+
+        elif op == "OP_CHECKLOCKTIMEVERIFY":
+            script_op_codes.op_checklocktimeverify(stack, tx, i, flags)
+        elif op == "OP_CHECKSEQUENCEVERIFY":
+            script_op_codes.op_checksequenceverify(stack, tx, i, flags)
+        elif op[3:].isdigit():
+            stack.append(_from_num(int(op[3:])))
+        elif op == "OP_CODESEPARATOR":
+            codesep_pos = script_index
+        elif op == "OP_IF":
+            script_op_codes.op_if(stack, condition_stack, flags, 1)
+        elif op == "OP_NOTIF":
+            r = script_op_codes.op_notif(stack, condition_stack, flags, 1)
+            s = bytesio_from_binarydata(serialize_script(r) + s.read())
+        elif op == "OP_ELSE":
+            script_op_codes.op_else(condition_stack)
+        elif op == "OP_ENDIF":
+            script_op_codes.op_endif(condition_stack)
+        elif op == "OP_NOP":
+            pass
+        elif "OP_NOP" in op:
+            script_op_codes.op_nop(flags)
+        elif op in operations:
+            r = operations[op](stack, altstack, flags)
+            if r:
+                s = bytesio_from_binarydata(serialize_script(r) + s.read())
+        else:
+            raise BTClibValueError()
 
     script_op_codes.op_verify(stack, [], flags)
 

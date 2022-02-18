@@ -15,8 +15,6 @@ from os import path
 
 import pytest
 
-# from btclib.exceptions import BTClibValueError
-# from btclib.script.engine import ALL_FLAGS
 from btclib.script.engine import verify_input
 from btclib.script.witness import Witness
 from btclib.tx.out_point import OutPoint
@@ -33,15 +31,9 @@ def test_script() -> None:
     with open(filename, "r", encoding="ascii") as file_:
         data = json.load(file_)
 
-    error_count = 0
-    ok_count = 0
-
-    for index, x in enumerate(data):
+    for x in data:
         if len(x) == 1 and isinstance(x[0], str):
             continue
-
-        # if index != 1209:
-        #     continue
 
         amount = 0
         if isinstance(x[0], str):
@@ -51,7 +43,7 @@ def test_script() -> None:
             i = 1
             stack = x[0]
             if isinstance(stack[-1], int) or isinstance(stack[-1], float):
-                amount = int(stack[-1] * 10 ** 8)
+                amount = int(stack[-1] * 10**8)
                 stack = stack[:-1]
         script_sig_str = x[i]
         script_pub_key_str = x[i + 1]
@@ -86,25 +78,8 @@ def test_script() -> None:
 
             verify_input([coinbase_output], spending, 0, flags)
 
-        # print(x)
-        # test()
-        # print()
-
-        try:
-            if result:
+        if result:
+            test()
+        else:
+            with pytest.raises(Exception):
                 test()
-            else:
-                with pytest.raises(Exception):
-                    test()
-            ok_count += 1
-        except:
-            print()
-            print(x)
-            print(index, "error")
-            error_count += 1
-
-    print()
-    print(ok_count)
-    print(error_count)
-
-    assert False

@@ -175,6 +175,10 @@ def verify_input(prevouts: List[TxOut], tx: Tx, i: int, flags: List[str]) -> Non
             stack = stack[:-1]
         else:
             raise BTClibValueError()
+
+        if "OP_CODESEPARATOR" in parse(script):
+            return
+
         verify_script_legacy(script, stack, prevouts[i].value, tx, i, flags, True, True)
 
     if stack and ("CLEANSTACK" in flags or segwit_version == 0):
