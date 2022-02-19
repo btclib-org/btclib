@@ -10,9 +10,9 @@
 Bitcoin Script legacy op codes
 """
 
-from typing import List, Optional
+from typing import List
 
-from btclib.alias import Command, ScriptList
+from btclib.alias import ScriptList
 from btclib.exceptions import BTClibValueError
 from btclib.hashes import hash160, hash256, ripemd160, sha1, sha256
 from btclib.tx.tx import Tx
@@ -92,53 +92,39 @@ def op_endif(condition_stack: List[bool]) -> None:
     condition_stack.pop()
 
 
-def op_nop(flags: List[str]) -> Optional[ScriptList]:
+def op_nop(flags: List[str]) -> None:
     if "DISCOURAGE_UPGRADABLE_NOPS" in flags:
         raise BTClibValueError()
 
 
-def op_dup(
-    stack: List[bytes], altstack: List[bytes], flags: List[str]
-) -> Optional[ScriptList]:
+def op_dup(stack: List[bytes], altstack: List[bytes], flags: List[str]) -> None:
     stack.append(stack[-1])
 
 
-def op_2dup(
-    stack: List[bytes], altstack: List[bytes], flags: List[str]
-) -> Optional[ScriptList]:
+def op_2dup(stack: List[bytes], altstack: List[bytes], flags: List[str]) -> None:
     if len(stack) < 2:
         raise BTClibValueError()
     stack.extend(stack[-2:])
 
 
-def op_drop(
-    stack: List[bytes], altstack: List[bytes], flags: List[str]
-) -> Optional[ScriptList]:
+def op_drop(stack: List[bytes], altstack: List[bytes], flags: List[str]) -> None:
     stack.pop()
 
 
-def op_2drop(
-    stack: List[bytes], altstack: List[bytes], flags: List[str]
-) -> Optional[ScriptList]:
+def op_2drop(stack: List[bytes], altstack: List[bytes], flags: List[str]) -> None:
     stack.pop()
     stack.pop()
 
 
-def op_swap(
-    stack: List[bytes], altstack: List[bytes], flags: List[str]
-) -> Optional[ScriptList]:
+def op_swap(stack: List[bytes], altstack: List[bytes], flags: List[str]) -> None:
     stack[-1], stack[-2] = stack[-2], stack[-1]
 
 
-def op_1negate(
-    stack: List[bytes], altstack: List[bytes], flags: List[str]
-) -> Optional[ScriptList]:
+def op_1negate(stack: List[bytes], altstack: List[bytes], flags: List[str]) -> None:
     stack.append(_from_num(-1))
 
 
-def op_verify(
-    stack: List[bytes], altstack: List[bytes], flags: List[str]
-) -> Optional[ScriptList]:
+def op_verify(stack: List[bytes], altstack: List[bytes], flags: List[str]) -> None:
     x = stack.pop()
     for b in x[:-1]:
         if b != 0:
@@ -147,15 +133,11 @@ def op_verify(
         raise BTClibValueError()
 
 
-def op_return(
-    stack: List[bytes], altstack: List[bytes], flags: List[str]
-) -> Optional[ScriptList]:
+def op_return(stack: List[bytes], altstack: List[bytes], flags: List[str]) -> None:
     raise BTClibValueError()
 
 
-def op_equal(
-    stack: List[bytes], altstack: List[bytes], flags: List[str]
-) -> Optional[ScriptList]:
+def op_equal(stack: List[bytes], altstack: List[bytes], flags: List[str]) -> None:
     a = stack.pop()
     b = stack.pop()
     if a == b:
@@ -166,98 +148,74 @@ def op_equal(
 
 def op_equalverify(
     stack: List[bytes], altstack: List[bytes], flags: List[str]
-) -> Optional[ScriptList]:
+) -> ScriptList:
     return ["OP_EQUAL", "OP_VERIFY"]
 
 
 def op_checksigverify(
     stack: List[bytes], altstack: List[bytes], flags: List[str]
-) -> Optional[ScriptList]:
+) -> ScriptList:
     return ["OP_CHECKSIG", "OP_VERIFY"]
 
 
 def op_checkmultisigverify(
     stack: List[bytes], altstack: List[bytes], flags: List[str]
-) -> Optional[ScriptList]:
+) -> ScriptList:
     return ["OP_CHECKMULTISIG", "OP_VERIFY"]
 
 
-def op_size(
-    stack: List[bytes], altstack: List[bytes], flags: List[str]
-) -> Optional[ScriptList]:
+def op_size(stack: List[bytes], altstack: List[bytes], flags: List[str]) -> None:
     stack.append(_from_num(len(stack[-1])))
 
 
-def op_ripemd160(
-    stack: List[bytes], altstack: List[bytes], flags: List[str]
-) -> Optional[ScriptList]:
+def op_ripemd160(stack: List[bytes], altstack: List[bytes], flags: List[str]) -> None:
     stack.append(ripemd160(stack.pop()))
 
 
-def op_sha1(
-    stack: List[bytes], altstack: List[bytes], flags: List[str]
-) -> Optional[ScriptList]:
+def op_sha1(stack: List[bytes], altstack: List[bytes], flags: List[str]) -> None:
     stack.append(sha1(stack.pop()))
 
 
-def op_sha256(
-    stack: List[bytes], altstack: List[bytes], flags: List[str]
-) -> Optional[ScriptList]:
+def op_sha256(stack: List[bytes], altstack: List[bytes], flags: List[str]) -> None:
     stack.append(sha256(stack.pop()))
 
 
-def op_hash160(
-    stack: List[bytes], altstack: List[bytes], flags: List[str]
-) -> Optional[ScriptList]:
+def op_hash160(stack: List[bytes], altstack: List[bytes], flags: List[str]) -> None:
     stack.append(hash160(stack.pop()))
 
 
-def op_hash256(
-    stack: List[bytes], altstack: List[bytes], flags: List[str]
-) -> Optional[ScriptList]:
+def op_hash256(stack: List[bytes], altstack: List[bytes], flags: List[str]) -> None:
     stack.append(hash256(stack.pop()))
 
 
-def op_1add(
-    stack: List[bytes], altstack: List[bytes], flags: List[str]
-) -> Optional[ScriptList]:
+def op_1add(stack: List[bytes], altstack: List[bytes], flags: List[str]) -> None:
     a = _to_num(stack.pop(), flags)
     stack.append(_from_num(a + 1))
 
 
-def op_1sub(
-    stack: List[bytes], altstack: List[bytes], flags: List[str]
-) -> Optional[ScriptList]:
+def op_1sub(stack: List[bytes], altstack: List[bytes], flags: List[str]) -> None:
     a = _to_num(stack.pop(), flags)
     stack.append(_from_num(a - 1))
 
 
-def op_negate(
-    stack: List[bytes], altstack: List[bytes], flags: List[str]
-) -> Optional[ScriptList]:
+def op_negate(stack: List[bytes], altstack: List[bytes], flags: List[str]) -> None:
     a = _to_num(stack.pop(), flags)
     stack.append(_from_num(-a))
 
 
-def op_abs(
-    stack: List[bytes], altstack: List[bytes], flags: List[str]
-) -> Optional[ScriptList]:
+def op_abs(stack: List[bytes], altstack: List[bytes], flags: List[str]) -> None:
     a = _to_num(stack.pop(), flags)
     stack.append(_from_num(abs(a)))
 
 
-def op_not(
-    stack: List[bytes], altstack: List[bytes], flags: List[str]
-) -> Optional[ScriptList]:
+def op_not(stack: List[bytes], altstack: List[bytes], flags: List[str]) -> None:
     if _to_num(stack.pop(), flags) == 0:
         stack.append(b"\x01")
     else:
         stack.append(b"")
 
 
-def op_0notequal(
-    stack: List[bytes], altstack: List[bytes], flags: List[str]
-) -> Optional[ScriptList]:
+def op_0notequal(stack: List[bytes], altstack: List[bytes], flags: List[str]) -> None:
     a = _to_num(stack.pop(), flags)
     if a == 0:
         stack.append(b"")
@@ -265,25 +223,19 @@ def op_0notequal(
         stack.append(b"\x01")
 
 
-def op_add(
-    stack: List[bytes], altstack: List[bytes], flags: List[str]
-) -> Optional[ScriptList]:
+def op_add(stack: List[bytes], altstack: List[bytes], flags: List[str]) -> None:
     b = _to_num(stack.pop(), flags)
     a = _to_num(stack.pop(), flags)
     stack.append(_from_num(a + b))
 
 
-def op_sub(
-    stack: List[bytes], altstack: List[bytes], flags: List[str]
-) -> Optional[ScriptList]:
+def op_sub(stack: List[bytes], altstack: List[bytes], flags: List[str]) -> None:
     b = _to_num(stack.pop(), flags)
     a = _to_num(stack.pop(), flags)
     stack.append(_from_num(a - b))
 
 
-def op_booland(
-    stack: List[bytes], altstack: List[bytes], flags: List[str]
-) -> Optional[ScriptList]:
+def op_booland(stack: List[bytes], altstack: List[bytes], flags: List[str]) -> None:
     b = _to_num(stack.pop(), flags)
     a = _to_num(stack.pop(), flags)
     if a != 0 and b != 0:
@@ -292,9 +244,7 @@ def op_booland(
         stack.append(b"")
 
 
-def op_boolor(
-    stack: List[bytes], altstack: List[bytes], flags: List[str]
-) -> Optional[ScriptList]:
+def op_boolor(stack: List[bytes], altstack: List[bytes], flags: List[str]) -> None:
     b = _to_num(stack.pop(), flags)
     a = _to_num(stack.pop(), flags)
     if a != 0 or b != 0:
@@ -303,9 +253,7 @@ def op_boolor(
         stack.append(b"")
 
 
-def op_numequal(
-    stack: List[bytes], altstack: List[bytes], flags: List[str]
-) -> Optional[ScriptList]:
+def op_numequal(stack: List[bytes], altstack: List[bytes], flags: List[str]) -> None:
     b = _to_num(stack.pop(), flags)
     a = _to_num(stack.pop(), flags)
     if a == b:
@@ -316,13 +264,11 @@ def op_numequal(
 
 def op_numequalverify(
     stack: List[bytes], altstack: List[bytes], flags: List[str]
-) -> Optional[ScriptList]:
+) -> ScriptList:
     return ["OP_NUMEQUAL", "OP_VERIFY"]
 
 
-def op_numnotequal(
-    stack: List[bytes], altstack: List[bytes], flags: List[str]
-) -> Optional[ScriptList]:
+def op_numnotequal(stack: List[bytes], altstack: List[bytes], flags: List[str]) -> None:
     b = _to_num(stack.pop(), flags)
     a = _to_num(stack.pop(), flags)
     if a != b:
@@ -331,9 +277,7 @@ def op_numnotequal(
         stack.append(b"")
 
 
-def op_lessthan(
-    stack: List[bytes], altstack: List[bytes], flags: List[str]
-) -> Optional[ScriptList]:
+def op_lessthan(stack: List[bytes], altstack: List[bytes], flags: List[str]) -> None:
     b = _to_num(stack.pop(), flags)
     a = _to_num(stack.pop(), flags)
     if a < b:
@@ -342,9 +286,7 @@ def op_lessthan(
         stack.append(b"")
 
 
-def op_greaterthan(
-    stack: List[bytes], altstack: List[bytes], flags: List[str]
-) -> Optional[ScriptList]:
+def op_greaterthan(stack: List[bytes], altstack: List[bytes], flags: List[str]) -> None:
     b = _to_num(stack.pop(), flags)
     a = _to_num(stack.pop(), flags)
     if a > b:
@@ -355,7 +297,7 @@ def op_greaterthan(
 
 def op_lessthanorequal(
     stack: List[bytes], altstack: List[bytes], flags: List[str]
-) -> Optional[ScriptList]:
+) -> None:
     b = _to_num(stack.pop(), flags)
     a = _to_num(stack.pop(), flags)
     if a <= b:
@@ -366,7 +308,7 @@ def op_lessthanorequal(
 
 def op_greaterthanorequal(
     stack: List[bytes], altstack: List[bytes], flags: List[str]
-) -> Optional[ScriptList]:
+) -> None:
     b = _to_num(stack.pop(), flags)
     a = _to_num(stack.pop(), flags)
     if a >= b:
@@ -375,25 +317,19 @@ def op_greaterthanorequal(
         stack.append(b"")
 
 
-def op_min(
-    stack: List[bytes], altstack: List[bytes], flags: List[str]
-) -> Optional[ScriptList]:
+def op_min(stack: List[bytes], altstack: List[bytes], flags: List[str]) -> None:
     b = _to_num(stack.pop(), flags)
     a = _to_num(stack.pop(), flags)
     stack.append(_from_num(min(a, b)))
 
 
-def op_max(
-    stack: List[bytes], altstack: List[bytes], flags: List[str]
-) -> Optional[ScriptList]:
+def op_max(stack: List[bytes], altstack: List[bytes], flags: List[str]) -> None:
     b = _to_num(stack.pop(), flags)
     a = _to_num(stack.pop(), flags)
     stack.append(_from_num(max(a, b)))
 
 
-def op_within(
-    stack: List[bytes], altstack: List[bytes], flags: List[str]
-) -> Optional[ScriptList]:
+def op_within(stack: List[bytes], altstack: List[bytes], flags: List[str]) -> None:
     M = _to_num(stack.pop(), flags)
     m = _to_num(stack.pop(), flags)
     x = _to_num(stack.pop(), flags)
@@ -403,57 +339,43 @@ def op_within(
         stack.append(b"")
 
 
-def op_toaltstack(
-    stack: List[bytes], altstack: List[bytes], flags: List[str]
-) -> Optional[ScriptList]:
+def op_toaltstack(stack: List[bytes], altstack: List[bytes], flags: List[str]) -> None:
     altstack.append(stack.pop())
 
 
 def op_fromaltstack(
     stack: List[bytes], altstack: List[bytes], flags: List[str]
-) -> Optional[ScriptList]:
+) -> None:
     stack.append(altstack.pop())
 
 
-def op_ifdup(
-    stack: List[bytes], altstack: List[bytes], flags: List[str]
-) -> Optional[ScriptList]:
+def op_ifdup(stack: List[bytes], altstack: List[bytes], flags: List[str]) -> None:
     if stack[-1] != b"":
         stack.append(stack[-1])
 
 
-def op_depth(
-    stack: List[bytes], altstack: List[bytes], flags: List[str]
-) -> Optional[ScriptList]:
+def op_depth(stack: List[bytes], altstack: List[bytes], flags: List[str]) -> None:
     stack.append(_from_num(len(stack)))
 
 
-def op_nip(
-    stack: List[bytes], altstack: List[bytes], flags: List[str]
-) -> Optional[ScriptList]:
+def op_nip(stack: List[bytes], altstack: List[bytes], flags: List[str]) -> None:
     x = stack.pop()
     stack.pop()
     stack.append(x)
 
 
-def op_over(
-    stack: List[bytes], altstack: List[bytes], flags: List[str]
-) -> Optional[ScriptList]:
+def op_over(stack: List[bytes], altstack: List[bytes], flags: List[str]) -> None:
     stack.append(stack[-2])
 
 
-def op_pick(
-    stack: List[bytes], altstack: List[bytes], flags: List[str]
-) -> Optional[ScriptList]:
+def op_pick(stack: List[bytes], altstack: List[bytes], flags: List[str]) -> None:
     n = _to_num(stack.pop(), flags)
     if n < 0:
         raise BTClibValueError()
     stack.append(stack[-n - 1])
 
 
-def op_roll(
-    stack: List[bytes], altstack: List[bytes], flags: List[str]
-) -> Optional[ScriptList]:
+def op_roll(stack: List[bytes], altstack: List[bytes], flags: List[str]) -> None:
     n = _to_num(stack.pop(), flags)
     if n < 0:
         raise BTClibValueError()
@@ -466,9 +388,7 @@ def op_roll(
     stack.extend(new_stack)
 
 
-def op_rot(
-    stack: List[bytes], altstack: List[bytes], flags: List[str]
-) -> Optional[ScriptList]:
+def op_rot(stack: List[bytes], altstack: List[bytes], flags: List[str]) -> None:
     x3 = stack.pop()
     x2 = stack.pop()
     x1 = stack.pop()
@@ -477,9 +397,7 @@ def op_rot(
     stack.append(x1)
 
 
-def op_tuck(
-    stack: List[bytes], altstack: List[bytes], flags: List[str]
-) -> Optional[ScriptList]:
+def op_tuck(stack: List[bytes], altstack: List[bytes], flags: List[str]) -> None:
     x2 = stack.pop()
     x1 = stack.pop()
     stack.append(x2)
@@ -487,25 +405,19 @@ def op_tuck(
     stack.append(x2)
 
 
-def op_3dup(
-    stack: List[bytes], altstack: List[bytes], flags: List[str]
-) -> Optional[ScriptList]:
+def op_3dup(stack: List[bytes], altstack: List[bytes], flags: List[str]) -> None:
     if len(stack) < 3:
         raise BTClibValueError()
     stack.extend(stack[-3:])
 
 
-def op_2over(
-    stack: List[bytes], altstack: List[bytes], flags: List[str]
-) -> Optional[ScriptList]:
+def op_2over(stack: List[bytes], altstack: List[bytes], flags: List[str]) -> None:
     if len(stack) < 4:
         raise BTClibValueError()
     stack.extend(stack[-4:-2])
 
 
-def op_2rot(
-    stack: List[bytes], altstack: List[bytes], flags: List[str]
-) -> Optional[ScriptList]:
+def op_2rot(stack: List[bytes], altstack: List[bytes], flags: List[str]) -> None:
     if len(stack) < 6:
         raise BTClibValueError()
     x6 = stack.pop()
@@ -522,16 +434,14 @@ def op_2rot(
     stack.append(x2)
 
 
-def op_2swap(
-    stack: List[bytes], altstack: List[bytes], flags: List[str]
-) -> Optional[ScriptList]:
+def op_2swap(stack: List[bytes], altstack: List[bytes], flags: List[str]) -> None:
     stack[-1], stack[-3] = stack[-3], stack[-1]
     stack[-2], stack[-4] = stack[-4], stack[-2]
 
 
 def op_checklocktimeverify(
     stack: List[bytes], tx: Tx, i: int, flags: List[str]
-) -> Optional[ScriptList]:
+) -> None:
     if "CHECKLOCKTIMEVERIFY" not in flags:
         return
     if not stack:
@@ -554,7 +464,7 @@ def op_checklocktimeverify(
 
 def op_checksequenceverify(
     stack: List[bytes], tx: Tx, i: int, flags: List[str]
-) -> Optional[ScriptList]:
+) -> None:
     if "CHECKSEQUENCEVERIFY" not in flags:
         return
     if not stack:

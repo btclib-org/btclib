@@ -95,7 +95,7 @@ def test_valid_legacy() -> None:
             script_pub_key = parse_script(i[2])
             prevouts.append(TxOut(amount, ScriptPubKey(script_pub_key)))
 
-        verify_transaction(prevouts, tx, flags)
+        verify_transaction(prevouts, tx, flags if flags != ["NONE"] else None)
 
 
 def test_invalid_legacy() -> None:
@@ -125,4 +125,4 @@ def test_invalid_legacy() -> None:
             prevouts.append(TxOut(amount, ScriptPubKey(script_pub_key)))
 
         with pytest.raises((BTClibValueError, IndexError, KeyError)):
-            verify_transaction(prevouts, tx, flags)
+            verify_transaction(prevouts, tx, flags if flags != ["NONE"] else None)

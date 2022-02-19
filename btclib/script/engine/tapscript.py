@@ -20,6 +20,7 @@ except ImportError:
     from btclib.ecc.ssa import verify_ as ssa_verify  # type: ignore
 
 from btclib import var_bytes
+from btclib.alias import ScriptList
 from btclib.exceptions import BTClibValueError
 from btclib.hashes import tagged_hash
 from btclib.script import sig_hash
@@ -32,7 +33,7 @@ from btclib.script.taproot import parse
 from btclib.script.taproot import serialize as serialize_script
 from btclib.tx.tx import Tx
 from btclib.tx.tx_out import TxOut
-from btclib.utils import bytes_from_command, bytesio_from_binarydata
+from btclib.utils import bytesio_from_binarydata
 
 
 def get_hashtype(signature: bytes) -> int:
@@ -44,7 +45,9 @@ def get_hashtype(signature: bytes) -> int:
     return sighash_type
 
 
-def op_checksigadd(stack: List[bytes], altstack: List[bytes], flags: List[str]) -> None:
+def op_checksigadd(
+    stack: List[bytes], altstack: List[bytes], flags: List[str]
+) -> ScriptList:
     stack[-2], stack[-3] = stack[-3], stack[-2]
     return ["OP_CHECKSIG", "OP_ADD"]
 
@@ -190,7 +193,7 @@ def verify_script_path_vc0(
 
         script_index += 1
 
-        exec = all(condition_stack)
+        skip_execution = not all(condition_stack)
 
         if len(stack) + len(altstack) > 1000:
             raise BTClibValueError()
@@ -205,7 +208,7 @@ def verify_script_path_vc0(
             else:
                 data_length = int.from_bytes(s.read(2 ** (t - 76)), byteorder="little")
             a = s.read(data_length)
-            if not exec:
+            if skip_execution:
                 continue
             if "MINIMALDATA" in flags:
                 if len(a) == 1 and (a[0] == 129 or 0 < a[0] <= 16) or len(a) == 0:
@@ -214,10 +217,9 @@ def verify_script_path_vc0(
                     raise BTClibValueError()
             stack.append(a)
             continue
-        else:
-            if not exec and t not in op_conditions:
-                continue
-            op = OP_CODE_NAMES[t]
+        if skip_execution and t not in op_conditions:
+            continue
+        op = OP_CODE_NAMES[t]
 
         if op == "OP_CHECKSIG":
 
