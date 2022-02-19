@@ -25,13 +25,17 @@ def _to_num(element: bytes, flags: List[str], max_size: int = 4) -> int:
         raise BTClibValueError()
     if len(element) > max_size:
         raise BTClibValueError()
+    if element == b"":
+        return 0
     x = decode_num(element)
-    if minimaldata and encode_num(x) != element:
+    if minimaldata and _from_num(x) != element:
         raise BTClibValueError()
     return x
 
 
 def _from_num(x: int) -> bytes:
+    if x == 0:
+        return b""
     return encode_num(x)
 
 

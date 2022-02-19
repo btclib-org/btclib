@@ -21,6 +21,12 @@ from btclib.script.script import (
     BYTE_FROM_OP_CODE_NAME,
     OP_CODE_NAME_FROM_INT,
     _serialize_str_command,
+    BTClibValueError,
+    Command,
+    Script,
+    op_int,
+    parse,
+    serialize,
 )
 from btclib.utils import hex_string
 

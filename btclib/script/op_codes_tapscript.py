@@ -11,10 +11,10 @@
 """Tapscript OP_CODES"""
 
 from btclib.exceptions import BTClibValueError
-from btclib.script.op_codes import (  # noqa pylint: disable=unused-import
+from btclib.script.script import (  # noqa pylint: disable=unused-import
+    _serialize_bytes_command,
+    _serialize_int_command,
     op_int,
-    op_num,
-    op_pushdata,
 )
 
 OP_CODES = {
@@ -247,7 +247,7 @@ OP_SUCCESS = [
 ]
 
 
-def op_str(command: str) -> bytes:
+def _serialize_str_command(command: str) -> bytes:
     command = command.strip().upper()
     if command in OP_CODES:
         return OP_CODES[command]
@@ -260,4 +260,4 @@ def op_str(command: str) -> bytes:
         data = bytes.fromhex(command)
     except ValueError as e:
         raise BTClibValueError(f"invalid string command: {command}") from e
-    return op_pushdata(data)
+    return _serialize_bytes_command(data)

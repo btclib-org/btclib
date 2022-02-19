@@ -10,8 +10,7 @@
 
 """btclib.script.engine non-regression tests."""
 
-from btclib.script.op_codes import OP_CODES
-from btclib.script.script import serialize
+from btclib.script.script import BYTE_FROM_OP_CODE_NAME, serialize
 
 
 def parse_script(bitcoin_core_script):
@@ -26,7 +25,7 @@ def parse_script(bitcoin_core_script):
         else:
             if y[:3] != "OP_":
                 y = "OP_" + y
-            script_pub_key += OP_CODES[y].hex()
+            script_pub_key += BYTE_FROM_OP_CODE_NAME[y].hex()
     return script_pub_key
 
 

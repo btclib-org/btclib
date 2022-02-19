@@ -14,15 +14,15 @@
 import pytest
 
 from btclib.exceptions import BTClibValueError
-from btclib.script.op_codes_tapscript import op_str
+from btclib.script.op_codes_tapscript import _serialize_str_command
 
 
 def test_invalid_op_success() -> None:
     err_msg = "invalid OP_SUCCESS number:"
     with pytest.raises(BTClibValueError, match=err_msg):
-        op_str("OP_SUCCESS1")
+        _serialize_str_command("OP_SUCCESS1")
     err_msg = "invalid OP_SUCCESS number:"
     with pytest.raises(BTClibValueError, match=err_msg):
-        op_str("OP_SUCCESS173")
+        _serialize_str_command("OP_SUCCESS173")
 
-    assert op_str("OP_SUCCESS80") == b"\x50"
+    assert _serialize_str_command("OP_SUCCESS80") == b"\x50"
