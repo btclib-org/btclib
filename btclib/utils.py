@@ -19,7 +19,7 @@ from collections.abc import Iterable as IterableCollection
 from io import BytesIO
 from typing import Iterable, Optional, Union
 
-from btclib.alias import BinaryData, Command, Integer, Octets
+from btclib.alias import BinaryData, Integer, Octets
 from btclib.exceptions import BTClibValueError
 
 # hexstr_from_bytes is not needed!!
@@ -56,17 +56,6 @@ def encode_num(i: int) -> bytes:
     encoded_i = abs(i) | ((i < 0) << (n_bytes * 8 - 1))
     # Serialize to bytes
     return encoded_i.to_bytes(n_bytes, byteorder="little", signed=False)
-
-
-def bytes_from_command(command: Command) -> bytes:
-
-    if isinstance(command, str):  # hex string
-        return bytes.fromhex(command)
-
-    if isinstance(command, int):
-        return encode_num(command)
-
-    return command  # bytes
 
 
 def bytes_from_octets(octets: Octets, out_size: NoneOneOrMoreInt = None) -> bytes:
