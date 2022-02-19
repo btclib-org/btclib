@@ -30,7 +30,7 @@ from btclib.script.script import parse
 from btclib.script.script import serialize as serialize_script
 from btclib.script.sig_hash import SIG_HASH_TYPES
 from btclib.tx.tx import Tx
-from btclib.utils import bytes_from_command, bytesio_from_binarydata
+from btclib.utils import bytesio_from_binarydata
 
 
 def fix_signature(signature: bytes, flags: List[str]) -> bytes:
@@ -114,9 +114,9 @@ def op_checksig(
         return False
     try:
         signature = fix_signature(signature, flags)
-    except (BTClibValueError, BTClibRuntimeError):
+    except (BTClibValueError, BTClibRuntimeError) as e:
         if "DERSIG" in flags or "STRICTENC" in flags:
-            raise BTClibValueError()
+            raise e
         return False
 
     if not check_pub_key(pub_key, segwit, flags):
@@ -142,18 +142,22 @@ def check_script_op_code_limit(script: List[Command], segwit: bool) -> None:
         if not isinstance(op, str):
             continue
         serialized_op = serialize_script([op])
-        if len(serialized_op) == 1 and serialized_op[0] > 0x60:
-            if "OP_CHECKMULTISIG" in op:
-                pub_key_count = script[i - 1]
+        if not (len(serialized_op) == 1 and serialized_op[0] > 0x60):
+            continue
+        if "OP_CHECKMULTISIG" in op:
+            pub_key_count = script[i - 1]
+            if isinstance(pub_key_count, str):
                 if "OP_" in pub_key_count:
                     count += int(pub_key_count[3:])
                 else:
                     count += int(pub_key_count, 16)
-            if "OP_CHECKSIG" in op:
-                count += 1
+            elif isinstance(pub_key_count, int):
+                count += pub_key_count
+        if "OP_CHECKSIG" in op:
             count += 1
-        if count > 201:
-            raise BTClibValueError()
+        count += 1
+    if count > 201:
+        raise BTClibValueError()
 
 
 def prepare_script(script: List[Command], flags: List[str], segwit: bool) -> None:
@@ -262,7 +266,7 @@ def verify_script(
         if len(stack) + len(altstack) > 1000:
             raise BTClibValueError()
 
-        exec = all(condition_stack)
+        skip_execution = not all(condition_stack)
 
         b = s.read(1)
         if not b:
@@ -274,7 +278,7 @@ def verify_script(
             else:
                 data_length = int.from_bytes(s.read(2 ** (t - 76)), byteorder="little")
             a = s.read(data_length)
-            if not exec:
+            if skip_execution:
                 continue
             if "MINIMALDATA" in flags:
                 if len(a) == 1 and (a[0] == 129 or 0 < a[0] <= 16) or len(a) == 0:
@@ -283,10 +287,9 @@ def verify_script(
                     raise BTClibValueError()
             stack.append(a)
             continue
-        else:
-            if not exec and t not in op_conditions:
-                continue
-            op = OP_CODE_NAMES[t]
+        if skip_execution and t not in op_conditions:
+            continue
+        op = OP_CODE_NAMES[t]
 
         if op == "OP_CHECKSIG":
 

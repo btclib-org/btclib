@@ -12,11 +12,11 @@
 Bitcoin Script engine
 """
 
-from typing import List, Optional, Tuple
+from typing import List, Optional, Tuple, cast
 
 from btclib.alias import Command
 from btclib.exceptions import BTClibValueError
-from btclib.hashes import hash160, sha256
+from btclib.hashes import sha256
 from btclib.script.engine import tapscript
 from btclib.script.engine.script import verify_script as verify_script_legacy
 from btclib.script.script import parse
@@ -25,7 +25,7 @@ from btclib.script.taproot import check_output_pubkey
 from btclib.script.witness import Witness
 from btclib.tx.tx import Tx
 from btclib.tx.tx_out import TxOut
-from btclib.utils import bytes_from_command, decode_num
+from btclib.utils import decode_num
 
 
 def taproot_unwrap_script(
@@ -114,8 +114,8 @@ def verify_input(prevouts: List[TxOut], tx: Tx, i: int, flags: List[str]) -> Non
     if script_type == "p2sh" and "P2SH" in flags:
         p2sh = True
         validate_redeem_script(parsed_script_sig)  # similar to SIGPUSHONLY
-        script = bytes_from_command(
-            parse(tx.vin[i].script_sig, accept_unknown=True)[-1]
+        script = bytes.fromhex(
+            cast(str, parse(tx.vin[i].script_sig, accept_unknown=True)[-1])
         )
         verify_script_legacy(
             script, stack, prevouts[i].value, tx, i, flags, False, True
