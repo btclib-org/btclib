@@ -31,34 +31,6 @@ from btclib.exceptions import BTClibValueError
 NoneOneOrMoreInt = Optional[Union[int, Iterable[int]]]
 
 
-def decode_num(data: bytes) -> int:
-    "Decode a number from the bitcoin-specific little endian format."
-
-    if data == b"":
-        return 0
-    i = int.from_bytes(data, byteorder="little", signed=False)
-    if data[-1] >= 0x80:  # negative number
-        # mask for all but the highest bit
-        mask = (2 ** (len(data) * 8) - 1) >> 1
-        i &= mask
-        i *= -1
-    return i
-
-
-def encode_num(i: int) -> bytes:
-    "Encode a number to the bitcoin-specific little endian format."
-    if i == 0:
-        return b""
-    # i.bit_length() bits, plus a sign bit
-    n_bits = i.bit_length() + 1
-    # The number of bytes necessary to accomodate n_bits
-    n_bytes = (n_bits + 7) // 8
-    # Convert the input number to absolute value + sign in top bit
-    encoded_i = abs(i) | ((i < 0) << (n_bytes * 8 - 1))
-    # Serialize to bytes
-    return encoded_i.to_bytes(n_bytes, byteorder="little", signed=False)
-
-
 def bytes_from_octets(octets: Octets, out_size: NoneOneOrMoreInt = None) -> bytes:
     """Return bytes from a hex-string, stripping leading/trailing spaces.
 

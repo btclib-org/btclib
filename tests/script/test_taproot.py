@@ -164,9 +164,9 @@ def test_serialization() -> None:
     script: ScriptList = ["OP_SUCCESS80", b"\x01\x01\x01"]
     assert parse(serialize(script)) == script
 
-    assert parse(serialize([-1])) == ["OP_1NEGATE"]
+    assert parse(serialize([-1])) == ["81"]
     for x in range(0, 17):
-        assert parse(serialize([x])) == [f"OP_{x}"]
+        assert parse(serialize([x])) == [f"{x:02X}"]
 
-    for x in range(18, 100):
-        assert parse(serialize([x])) == [hex(x)[2:].upper()]
+    for x in range(17, 100):
+        assert parse(serialize([x])) == [f"{x:02X}"]

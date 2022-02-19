@@ -25,8 +25,7 @@ from btclib.exceptions import BTClibRuntimeError, BTClibValueError
 from btclib.script import sig_hash
 from btclib.script.engine import script_op_codes
 from btclib.script.engine.script_op_codes import _from_num, _to_num
-from btclib.script.op_codes import OP_CODE_NAMES
-from btclib.script.script import parse
+from btclib.script.script import OP_CODE_NAME_FROM_INT, parse
 from btclib.script.script import serialize as serialize_script
 from btclib.script.sig_hash import SIG_HASH_TYPES
 from btclib.tx.tx import Tx
@@ -289,7 +288,7 @@ def verify_script(
             continue
         if skip_execution and t not in op_conditions:
             continue
-        op = OP_CODE_NAMES[t]
+        op = OP_CODE_NAME_FROM_INT[t]
 
         if op == "OP_CHECKSIG":
 

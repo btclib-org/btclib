@@ -19,13 +19,13 @@ from btclib.exceptions import BTClibValueError
 from btclib.hashes import sha256
 from btclib.script.engine import tapscript
 from btclib.script.engine.script import verify_script as verify_script_legacy
+from btclib.script.engine.script_op_codes import _to_num
 from btclib.script.script import parse
 from btclib.script.script_pub_key import is_segwit, type_and_payload
 from btclib.script.taproot import check_output_pubkey
 from btclib.script.witness import Witness
 from btclib.tx.tx import Tx
 from btclib.tx.tx_out import TxOut
-from btclib.utils import decode_num
 
 
 def taproot_unwrap_script(
@@ -124,7 +124,7 @@ def verify_input(prevouts: List[TxOut], tx: Tx, i: int, flags: List[str]) -> Non
 
     segwit_version = -1
     if is_segwit(script):
-        segwit_version = decode_num(stack[-1])
+        segwit_version = _to_num(stack[-1], [])
     supported_segwit_version = -1
     if "WITNESS" in flags:
         supported_segwit_version = 0

@@ -21,7 +21,7 @@ Scripts are represented by list[Command], where Command = Union[int, str, bytes]
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Sequence, Union
+from typing import list, Sequence
 from warnings import warn
 
 from btclib.alias import BinaryData, Command, Octets
@@ -36,6 +36,7 @@ BYTE_FROM_OP_CODE_NAME = {
     "OP_PUSHDATA2": b"\x4d",
     "OP_PUSHDATA4": b"\x4e",
     "OP_1NEGATE": b"\x4f",
+    "OP_RESERVED": b"\x50",
     "OP_1": b"\x51",
     "OP_TRUE": b"\x51",
     "OP_2": b"\x52",
@@ -148,6 +149,7 @@ OP_CODE_NAME_FROM_INT = {
     77: "OP_PUSHDATA2",
     78: "OP_PUSHDATA4",
     79: "OP_1NEGATE",
+    80: "OP_RESERVED",
     81: "OP_1",
     82: "OP_2",
     83: "OP_3",
@@ -262,11 +264,6 @@ def _serialize_str_command(command: str) -> bytes:
     command = command.strip().upper()
     if command in BYTE_FROM_OP_CODE_NAME:
         return BYTE_FROM_OP_CODE_NAME[command]
-    if command.startswith("OP_SUCCESS"):
-        x = int(command[10:])
-        if x in OP_CODE_NAME_FROM_INT or 0 < x < 76:
-            raise BTClibValueError(f"invalid OP_SUCCESS number: {x}")
-        return x.to_bytes(1, "little")
     try:
         data = bytes.fromhex(command)
     except ValueError as e:
@@ -318,11 +315,10 @@ def serialize(script: Sequence[Command]) -> bytes:
     return b"".join(r)
 
 
-def parse(stream: BinaryData, accept_unknown: bool = False) -> List[Command]:
+def parse(stream: BinaryData, accept_unknown: bool = False) -> list[Command]:
 
     s = bytesio_from_binarydata(stream)
     r: list[Command] = []  # initialize the result list
-    invalid_element_size = False
 
     while True:
         t = s.read(1)  # get one byte
@@ -342,24 +338,26 @@ def parse(stream: BinaryData, accept_unknown: bool = False) -> List[Command]:
                     raise BTClibValueError("not enough data for pushdata length")
                 data_length = int.from_bytes(y, byteorder="little")
             if data_length > 520:
-                invalid_element_size = True
+                raise BTClibValueError(f"Invalid pushdata length: {data_length}")
             data = s.read(data_length)
             if len(data) != data_length:
-                raise BTClibValueError("Invalid pushdata length")
-            new_op_code = data.hex().upper()
-        else:  # OP_CODE
-            if i in OP_CODE_NAMES:
-                new_op_code = OP_CODE_NAMES[i]
-            else:
-                if not accept_unknown:
-                    raise BTClibValueError("Unknown op code")
-                # https://bitcoin.stackexchange.com/a/98652/111488
-                new_op_code = f"UNKNOWN_OP_CODE_{i}"
+                raise BTClibValueError("Not enough data for pushdata")
+            command = data.hex().upper()
+        elif i in OP_CODE_NAME_FROM_INT:  # OP_CODE
+            command = OP_CODE_NAME_FROM_INT[i]
+            # Opcodes which take integers and bools off the stack require
+            # that they be no more than 4 bytes long.
+            # If this is the case, parse that command as int
+            # t = r[-1]
+            # if isinstance(t, bytes) and len(t) <= 4:
+            #    r[-1] = decode_num(t)
+        else:
+            if not accept_unknown:
+                raise BTClibValueError("Unknown op code")
+            # https://bitcoin.stackexchange.com/a/98652/111488
+            command = f"UNKNOWN_OP_CODE_{i}"
 
-        r.append(new_op_code)
-
-    if invalid_element_size:
-        raise BTClibValueError("Invalid pushdata length")
+        r.append(command)
 
     return r
 

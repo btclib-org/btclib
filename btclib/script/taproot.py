@@ -23,10 +23,9 @@ from btclib.hashes import tagged_hash
 from btclib.script.op_codes_tapscript import (
     OP_CODE_NAMES,
     OP_SUCCESS,
-    op_int,
-    op_num,
-    op_pushdata,
-    op_str,
+    _serialize_bytes_command,
+    _serialize_int_command,
+    _serialize_str_command,
 )
 from btclib.to_prv_key import PrvKey, int_from_prv_key
 from btclib.to_pub_key import Key, pub_keyinfo_from_key
@@ -39,20 +38,15 @@ def serialize(script: List[Command]) -> bytes:
     while script:
         command = script.pop()
         if isinstance(command, int):
-            if -1 <= command <= 16:
-                r.append(op_str(op_int(command)))
-            else:
-                r.append(op_num(command))
+            r.append(_serialize_int_command(command))
         elif isinstance(command, str):
-            r.append(op_str(command))
+            r.append(_serialize_str_command(command))
             if "OP_SUCCESS" in command:
-                if len(script) != 1:
-                    raise BTClibValueError()
-                if not isinstance(script[0], bytes):
+                if len(script) != 1 or not isinstance(script[0], bytes):
                     raise BTClibValueError()
                 return b"".join(r) + script[0]
         else:  # must be bytes
-            r.append(op_pushdata(command))
+            r.append(_serialize_bytes_command(command))
     return b"".join(r)
 
 
