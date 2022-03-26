@@ -13,6 +13,7 @@ markers = [
 [tool.mypy]
 show_column_numbers = true
 show_error_codes = true
+exclude = "build"
 
 [tool.isort]
 profile = "black"

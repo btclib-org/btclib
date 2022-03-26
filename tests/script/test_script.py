@@ -10,6 +10,7 @@
 
 "Tests for the `btclib.script.script` module."
 
+import warnings
 from typing import List
 
 import pytest
@@ -188,9 +189,12 @@ def test_regressions() -> None:
         [0x81],
         ["81"],
     ]
-    for s in script_list:
-        serialized = serialize(s)
-        assert serialize(parse(serialized)) == serialized
+    with warnings.catch_warnings():
+        warnings.simplefilter("ignore")
+
+        for s in script_list:
+            serialized = serialize(s)
+            assert serialize(parse(serialized)) == serialized
 
 
 def test_null_serialization() -> None:
@@ -204,13 +208,17 @@ def test_null_serialization() -> None:
     assert parse(serialize([b""])) == ["OP_0"]
     assert parse(serialize([b" "])) == ["20"]
 
-    assert serialize([0]) == b"\x01\x00"
-    assert parse(serialize([0])) == ["00"]
+    with warnings.catch_warnings():
+        warnings.simplefilter("ignore")
 
-    assert serialize([16]) == b"\x01\x10"
-    assert serialize([17]) == b"\x01\x11"
-    assert parse(serialize([16])) == ["10"]
-    assert parse(serialize([17])) == ["11"]
+        assert serialize([0]) == b"\x01\x00"
+        assert parse(serialize([0])) == ["00"]
+
+        assert serialize([16]) == b"\x01\x10"
+        assert serialize([17]) == b"\x01\x11"
+        assert parse(serialize([16])) == ["10"]
+        assert parse(serialize([17])) == ["11"]
+
     assert serialize(["10"]) == b"\x01\x10"
     assert serialize(["11"]) == b"\x01\x11"
 
@@ -229,10 +237,16 @@ def test_op_int_serialization() -> None:
 
 def test_integer_serialization() -> None:
 
-    assert serialize([0]) != b"\x00"
     assert ["OP_0"] == parse(b"\x00")
 
-    for i in range(1, 128):
+    with warnings.catch_warnings():
+        warnings.simplefilter("ignore")
+        assert serialize([0]) != b"\x00"
+        for i in range(1, 17):
+            serialized_int = serialize([i])
+            assert [hex_string(i)] == parse(serialized_int)
+
+    for i in range(17, 128):
         serialized_int = serialize([i])  # e.g., i = 26
         assert [hex_string(i)] == parse(serialized_int)
 
