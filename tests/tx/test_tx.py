@@ -139,14 +139,12 @@ def test_tx() -> None:
     assert not tx_2.is_segwit()
     assert tx_2 != tx
 
+    tx.version = 0
+    tx.assert_valid()
+
 
 def test_exceptions() -> None:
     tx_bytes = "010000000001019bdea7abb2fa14dead47dd14d03cf82212a25b6096a8da6b14feec3658dbcf9d0100000000ffffffff02a02526000000000017a914f987c321394968be164053d352fc49763b2be55c874361610000000000220020701a8d401c84fb13e6baf169d59684e17abd9fa216c8cc5b9fc63d622ff8c58d04004730440220421fbbedf2ee096d6289b99973509809d5e09589040d5e0d453133dd11b2f78a02205686dbdb57e0c44e49421e9400dd4e931f1655332e8d078260c9295ba959e05d014730440220398f141917e4525d3e9e0d1c6482cb19ca3188dc5516a3a5ac29a0f4017212d902204ea405fae3a58b1fc30c5ad8ac70a76ab4f4d876e8af706a6a7b4cd6fa100f44016952210375e00eb72e29da82b89367947f29ef34afb75e8654f6ea368e0acdfd92976b7c2103a1b26313f430c4b15bb1fdce663207659d8cac749a0e53d70eff01874496feff2103c96d495bfdd5ba4145e3e046fee45e84a8a48ad05bd8dbb395c011a32cf9f88053ae00000000"
-
-    tx = Tx.parse(tx_bytes)
-    tx.version = 0
-    with pytest.raises(BTClibValueError, match="invalid version: "):
-        tx.assert_valid()
 
     tx = Tx.parse(tx_bytes)
     tx.version = 0xFFFFFFFF + 1

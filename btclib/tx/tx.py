@@ -192,7 +192,7 @@ class Tx:
     def assert_valid(self) -> None:
 
         # must be a 4-bytes integer
-        if not 0 < self.version <= 0xFFFFFFFF:
+        if not 0 <= self.version <= 0xFFFFFFFF:
             raise BTClibValueError(f"invalid version: {self.version}")
 
         # must be a 4-bytes int
