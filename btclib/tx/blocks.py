@@ -28,7 +28,8 @@ from btclib.utils import bytesio_from_binarydata, decode_num
 
 # python 3.6
 if sys.version_info.minor == 6:  # pragma: no cover
-    import backports.datetime_fromisoformat  # type: ignore # pylint: disable=import-error, no-name-in-module, no-member
+    # type: ignore # pylint: disable=import-error, no-name-in-module, no-member
+    import backports.datetime_fromisoformat
 
     backports.datetime_fromisoformat.MonkeyPatch.patch_fromisoformat()  # pylint: disable=no-member
 
@@ -143,9 +144,11 @@ class Block:
         if check_validity:
             self.assert_valid()
 
-        out = self.header.serialize()
+        out = self.header.serialize(check_validity)
         out += var_int.serialize(len(self.transactions))
-        return out + b"".join([t.serialize(include_witness) for t in self.transactions])
+        return out + b"".join(
+            [t.serialize(include_witness, check_validity) for t in self.transactions]
+        )
 
     @classmethod
     def parse(
@@ -154,9 +157,9 @@ class Block:
         "Return a Block by parsing binary data."
 
         stream = bytesio_from_binarydata(data)
-        header = BlockHeader.parse(stream)
+        header = BlockHeader.parse(stream, check_validity)
         n = var_int.parse(stream)
         # TODO: is a block required to have a coinbase tx?
-        transactions = [Tx.parse(stream) for _ in range(n)]
+        transactions = [Tx.parse(stream, check_validity) for _ in range(n)]
 
         return cls(header, transactions, check_validity)

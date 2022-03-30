@@ -102,7 +102,8 @@ class TxIn:
 
         return {
             "prev_out": self.prev_out.to_dict(False),
-            "scriptSig": self.script_sig.hex(),  # TODO make it { "asm": "", "hex": "" }
+            # TODO make it { "asm": "", "hex": "" }
+            "scriptSig": self.script_sig.hex(),
             "sequence": self.sequence,
             "txinwitness": self.script_witness.to_dict(False),
         }
@@ -125,7 +126,7 @@ class TxIn:
         if check_validity:
             self.assert_valid()
 
-        out = self.prev_out.serialize()
+        out = self.prev_out.serialize(check_validity)
         out += var_bytes.serialize(self.script_sig)
         out += self.sequence.to_bytes(4, byteorder="little", signed=False)
         return out
@@ -136,8 +137,9 @@ class TxIn:
     ) -> "TxIn":
 
         stream = bytesio_from_binarydata(data)
-        prev_out = OutPoint.parse(stream)
+        prev_out = OutPoint.parse(stream, check_validity)
         script_sig = var_bytes.parse(stream)
-        sequence = int.from_bytes(stream.read(4), byteorder="little", signed=False)
+        sequence = int.from_bytes(stream.read(
+            4), byteorder="little", signed=False)
 
         return cls(prev_out, script_sig, sequence, Witness(), check_validity)

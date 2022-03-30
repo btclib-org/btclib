@@ -254,10 +254,10 @@ class Tx:
             stream.seek(-2, SEEK_CUR)  # current position
 
         n = var_int.parse(stream)
-        vin = [TxIn.parse(stream) for _ in range(n)]
+        vin = [TxIn.parse(stream, check_validity) for _ in range(n)]
 
         n = var_int.parse(stream)
-        vout = [TxOut.parse(stream) for _ in range(n)]
+        vout = [TxOut.parse(stream, check_validity) for _ in range(n)]
 
         if segwit:
             for tx_in in vin:

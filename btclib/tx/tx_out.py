@@ -19,7 +19,7 @@ from typing import Any, Dict, Mapping, Type, Union
 
 from btclib import var_bytes
 from btclib.alias import BinaryData, Octets, String
-from btclib.amount import btc_from_sats, sats_from_btc
+from btclib.amount import btc_from_sats, sats_from_btc, valid_sats_amount
 from btclib.script.script_pub_key import ScriptPubKey
 from btclib.utils import bytes_from_octets, bytesio_from_binarydata
 
@@ -58,7 +58,7 @@ class TxOut:
             self.assert_valid()
 
     def assert_valid(self) -> None:
-        btc_from_sats(self.value)
+        valid_sats_amount(self.value)
         # https://github.com/bitcoin/bitcoin/issues/320
         # self.script_pub_key.assert_valid()
 
