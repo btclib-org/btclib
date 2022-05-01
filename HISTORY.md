@@ -5,12 +5,24 @@ Notable changes to the codebase are documented here.
 Release names follow [*calendar versioning*](https://calver.org/):
 full year, short month, short day (YYYY-M-D)
 
-## v2022.3 (current master, in development, not released yet)
+## v2022.5 (current master, in development, not released yet)
 
 Major changes includes:
 
 - dropped python 3.6 support
 - added support for btclib_libsecp256k1
+- the hashes.fingerprint function, removed in the previous version, 
+  has been reinstated in the to_pub_key module 
+- encode_num and decode_num have been moved from 
+script.op_codes to utils
+- op_pushdata and op_str have been renamed to 
+  serialize_bytes_command and serialize_str_command
+- script.op_codes has been removed and its functions merged in script
+- script serialization is now more consistent: all integers, even small
+  ones, are now considered like bytes. To put small integers on the stack 
+  OP_X must be used explicitly. Using integers directly will lead to larger
+  scripts that will be likely to be rejected by the network as not standard
+- check_validity is now correctly propagated inside each function
 
 ## v2022.2.9
 
