@@ -120,6 +120,11 @@ they can be installed with:
 
     python -m pip install --upgrade -r requirements-dev.txt
 
+Some additional packages are needed to build the documentation:
+
+    python -m pip install --upgrade -r docs/requirements.txt
+
+
 Developers might also consider to install btclib in editable way:
 
     python -m pip install --upgrade -e ./

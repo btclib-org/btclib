@@ -1,8 +1,5 @@
 # packages required to develop, build, and test btclib
 
-# If your project uses README.rst, uncomment the following:
-# readme_renderer
-
 pip
 wheel
 
@@ -22,6 +19,4 @@ pytest>=7.0.0
 pytest-cov>=3.0.0
 pytest-ordering>=0.6
 pytest-xdist>=2.5.0
-Sphinx>=4.3.2
-m2r2>=0.3.2
 tox>=3.24.5
