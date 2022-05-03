@@ -5,6 +5,11 @@ Notable changes to the codebase are documented here.
 Release names follow [*calendar versioning*](https://calver.org/):
 full year, short month, short day (YYYY-M-D)
 
+## v2022.6 (current master, in development, not released yet)
+
+Major changes include:
+
+
 ## v2022.5.3 
 
 Major changes includes:
