@@ -5,25 +5,32 @@ include *.yml
 include .flake8
 include tox.ini
 include pyproject.toml
-recursive-include _layouts *.html
-recursive-include assets *.jpg
-recursive-include assets *.png
-recursive-include btclib *.csv
-recursive-include btclib *.json
-recursive-include btclib *.md
-recursive-include btclib *.txt
-recursive-include btclib *.bin
-recursive-include btclib *.typed
-recursive-include docs *.bat
-recursive-include docs *.py
-recursive-include docs *.rst
-recursive-include docs Makefile
 
 exclude Gemfile
 exclude CNAME
 exclude _config.yml
 recursive-exclude assets *
 recursive-exclude _layouts *
-recursive-exclude tests *
+recursive-exclude .mypy_cache *.json
 
-recursive-exclude btclib/.mypy_cache *.json
+recursive-include btclib *.csv
+recursive-include btclib *.json
+recursive-include btclib *.md
+recursive-include btclib *.txt
+recursive-include btclib *.bin
+recursive-include btclib *.typed
+
+recursive-include tests *.bin
+recursive-include tests *.csv
+recursive-include tests *.json
+recursive-include tests *.md
+recursive-include tests *.py
+recursive-exclude tests *.pyc
+recursive-include tests *.txt
+
+recursive-exclude docs/build *
+recursive-include docs *.bat
+recursive-include docs *.py
+recursive-include docs *.rst
+recursive-include docs *.txt
+recursive-include docs Makefile

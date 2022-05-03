@@ -139,7 +139,6 @@ class TxIn:
         stream = bytesio_from_binarydata(data)
         prev_out = OutPoint.parse(stream, check_validity)
         script_sig = var_bytes.parse(stream)
-        sequence = int.from_bytes(stream.read(
-            4), byteorder="little", signed=False)
+        sequence = int.from_bytes(stream.read(4), byteorder="little", signed=False)
 
         return cls(prev_out, script_sig, sequence, Witness(), check_validity)
