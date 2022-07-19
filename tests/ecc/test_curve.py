@@ -320,7 +320,7 @@ def test_assorted_mult() -> None:
             K2 = mult(k2, H, ec)
 
             shamir = double_mult(k1, ec.G, k2, ec.G, ec)
-            assert shamir == mult(k1 + k2, ec.G, ec)
+            assert shamir == mult(k1 + k2, None, ec)
 
             shamir = double_mult(k1, INF, k2, H, ec)
             assert ec.is_on_curve(shamir)

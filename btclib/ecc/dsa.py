@@ -23,6 +23,7 @@ from hashlib import sha256
 from typing import List, Optional, Tuple, Union
 
 from btclib.alias import HashF, JacPoint, Octets, Point
+from btclib.ecc import libsecp256k1
 from btclib.ecc.curve import Curve, secp256k1
 from btclib.ecc.curve_group import _double_mult, _mult
 from btclib.ecc.der import Sig
@@ -33,6 +34,7 @@ from btclib.hashes import challenge_, reduce_to_hlen
 from btclib.to_prv_key import PrvKey, int_from_prv_key
 from btclib.to_pub_key import Key, point_from_key
 from btclib.utils import bytes_from_octets
+from btclib.to_pub_key import pub_keyinfo_from_key
 
 
 def gen_keys(
@@ -104,6 +106,15 @@ def sign_(
 
     # the challenge
     c = challenge_(msg_hash, ec, hf)  # 4, 5
+
+    if (
+        ec == secp256k1
+        and nonce == None
+        and lower_s
+        and hf == sha256
+        and libsecp256k1.is_enabled()
+    ):
+        return Sig.parse(libsecp256k1.dsa.sign(msg_hash, q))
 
     # nonce: an integer in the range 1..n-1.
     if nonce is None:
@@ -193,6 +204,13 @@ def assert_as_valid_(
 
     Q = point_from_key(key, sig.ec)
     QJ = Q[0], Q[1], 1
+
+    if libsecp256k1.is_enabled() and sig.ec == secp256k1 and lower_s and hf == sha256:
+        if not libsecp256k1.dsa.verify(
+            msg_hash, pub_keyinfo_from_key(key)[0], sig.serialize()
+        ):
+            raise BTClibRuntimeError("signature verification failed")
+        return
 
     # second part delegated to helper function
     _assert_as_valid_(c, QJ, sig.r, sig.s, lower_s, sig.ec)

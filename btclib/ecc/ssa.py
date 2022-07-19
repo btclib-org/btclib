@@ -69,6 +69,7 @@ from btclib.utils import (
     hex_string,
     int_from_bits,
 )
+from btclib.ecc import libsecp256k1
 
 
 @dataclass(frozen=True)
@@ -307,6 +308,9 @@ def sign_(
     # private and public keys
     q, x_Q = gen_keys(prv_key, ec)
 
+    if ec == secp256k1 and nonce == None and hf == sha256 and libsecp256k1.is_enabled():
+        return Sig.parse(libsecp256k1.ssa.sign(msg_hash, q))
+
     # nonce: an integer in the range 1..n-1.
     if nonce is None:
         nonce = _det_nonce_(msg_hash, q, x_Q, secrets.token_bytes(hf_len), ec, hf)
@@ -380,6 +384,13 @@ def assert_as_valid_(
 
     # Let c = int(hf(bytes(r) || bytes(Q) || msg_hash)) mod n.
     c = challenge_(msg_hash, x_Q, sig.r, sig.ec, hf)
+
+    if libsecp256k1.is_enabled() and sig.ec == secp256k1 and hf == sha256:
+        pubkey_bytes = x_Q.to_bytes(32, "big")
+        msg_hash = bytes_from_octets(msg_hash)
+        if not libsecp256k1.ssa.verify(msg_hash, pubkey_bytes, sig.serialize()):
+            raise BTClibRuntimeError("signature verification failed")
+        return
 
     _assert_as_valid_(c, (x_Q, y_Q, 1), sig.r, sig.s, sig.ec)
 

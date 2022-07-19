@@ -29,10 +29,13 @@ from btclib.exceptions import BTClibRuntimeError, BTClibTypeError, BTClibValueEr
 from btclib.hashes import reduce_to_hlen
 from btclib.utils import int_from_bits
 from tests.ecc.test_curve import low_card_curves
+from btclib.ecc import libsecp256k1
 
 
 def test_signature() -> None:
     msg = "Satoshi Nakamoto".encode()
+
+    libsecp256k1.disable()
 
     q, x_Q = ssa.gen_keys(0x01)
     sig = ssa.sign(msg, q)
@@ -93,6 +96,8 @@ def test_signature() -> None:
         ssa.sign_(m_bytes, q, 0)
     with pytest.raises(BTClibValueError, match=err_msg):
         ssa.sign_(m_bytes, q, sig.ec.n)
+
+    libsecp256k1.enable()
 
 
 def test_bip340_vectors() -> None:
@@ -190,6 +195,14 @@ def test_low_cardinality() -> None:
     for ec in test_curves:
         for q in range(1, ec.n // 2):  # all possible private keys
             q, x_Q, QJ = ssa.gen_keys_(q, ec)
+            while True:
+                try:
+                    msg = secrets.token_bytes(32)
+                    sig = ssa.sign(msg, q, ec=ec)
+                    break
+                except BTClibRuntimeError:
+                    continue
+            ssa.assert_as_valid(msg, x_Q, sig)
             for k in range(1, ec.n // 2):  # all possible ephemeral keys
                 k, r = ssa.gen_keys(k, ec)
                 for e in range(ec.n):  # all possible challenges
