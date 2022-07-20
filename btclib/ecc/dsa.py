@@ -32,9 +32,8 @@ from btclib.ecc.rfc6979 import _rfc6979_
 from btclib.exceptions import BTClibRuntimeError, BTClibValueError
 from btclib.hashes import challenge_, reduce_to_hlen
 from btclib.to_prv_key import PrvKey, int_from_prv_key
-from btclib.to_pub_key import Key, point_from_key
+from btclib.to_pub_key import Key, point_from_key, pub_keyinfo_from_key
 from btclib.utils import bytes_from_octets
-from btclib.to_pub_key import pub_keyinfo_from_key
 
 
 def gen_keys(
@@ -109,7 +108,7 @@ def sign_(
 
     if (
         ec == secp256k1
-        and nonce == None
+        and nonce is None
         and lower_s
         and hf == sha256
         and libsecp256k1.is_enabled()
@@ -206,9 +205,9 @@ def assert_as_valid_(
     QJ = Q[0], Q[1], 1
 
     if libsecp256k1.is_enabled() and sig.ec == secp256k1 and lower_s and hf == sha256:
-        if not libsecp256k1.dsa.verify(
-            msg_hash, pub_keyinfo_from_key(key)[0], sig.serialize()
-        ):
+        msg_hash_bytes = bytes_from_octets(msg_hash)
+        pubkey_bytes = pub_keyinfo_from_key(key)[0]
+        if not libsecp256k1.dsa.verify(msg_hash_bytes, pubkey_bytes, sig.serialize()):
             raise BTClibRuntimeError("signature verification failed")
         return
 

@@ -12,23 +12,23 @@
 """
 
 try:
-    from btclib_libsecp256k1 import dsa, ssa, mult
+    from btclib_libsecp256k1 import dsa, mult, ssa  # pylint: disable=unused-import
 
     LIBSECP256K1_AVAILABLE = True
 except ImportError:  # pragma: no cover
-    dsa, ssa, mult = None, None, None
+    dsa, ssa, mult = None, None, None  # type: ignore
     LIBSECP256K1_AVAILABLE = False
 
 LIBSECP256K1_ENABLED = True
 
 
 def enable():
-    global LIBSECP256K1_ENABLED
+    global LIBSECP256K1_ENABLED  # pylint: disable=global-statement
     LIBSECP256K1_ENABLED = True
 
 
 def disable():
-    global LIBSECP256K1_ENABLED
+    global LIBSECP256K1_ENABLED  # pylint: disable=global-statement
     LIBSECP256K1_ENABLED = False
 
 

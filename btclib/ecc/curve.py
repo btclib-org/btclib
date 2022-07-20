@@ -16,6 +16,7 @@ from os import path
 from typing import Dict, List, Optional, Sequence
 
 from btclib.alias import Integer, JacPoint, Point
+from btclib.ecc import libsecp256k1
 from btclib.ecc.curve_group import (
     HEX_THRESHOLD,
     CurveGroup,
@@ -24,7 +25,6 @@ from btclib.ecc.curve_group import (
     _multi_mult,
     jac_from_aff,
 )
-from btclib.ecc import libsecp256k1
 from btclib.exceptions import BTClibValueError
 from btclib.utils import hex_string, int_from_integer
 
@@ -214,7 +214,7 @@ def mult(m: Integer, Q: Optional[Point] = None, ec: Curve = secp256k1) -> Point:
 
     m = int_from_integer(m) % ec.n
 
-    if (Q == ec.G or Q == None) and ec == secp256k1 and libsecp256k1.is_enabled():
+    if (Q == ec.G or Q is None) and ec == secp256k1 and libsecp256k1.is_enabled():
         return libsecp256k1.mult.mult(m)
 
     if Q is None:

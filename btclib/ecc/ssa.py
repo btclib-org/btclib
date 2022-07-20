@@ -56,6 +56,7 @@ from typing import List, Optional, Sequence, Tuple, Type, Union
 
 from btclib.alias import BinaryData, HashF, Integer, JacPoint, Octets, Point
 from btclib.bip32.bip32 import BIP32Key
+from btclib.ecc import libsecp256k1
 from btclib.ecc.curve import Curve, secp256k1
 from btclib.ecc.curve_group import _double_mult, _mult, _multi_mult
 from btclib.ecc.number_theory import mod_inv
@@ -69,7 +70,6 @@ from btclib.utils import (
     hex_string,
     int_from_bits,
 )
-from btclib.ecc import libsecp256k1
 
 
 @dataclass(frozen=True)
@@ -308,7 +308,7 @@ def sign_(
     # private and public keys
     q, x_Q = gen_keys(prv_key, ec)
 
-    if ec == secp256k1 and nonce == None and hf == sha256 and libsecp256k1.is_enabled():
+    if ec == secp256k1 and nonce is None and hf == sha256 and libsecp256k1.is_enabled():
         return Sig.parse(libsecp256k1.ssa.sign(msg_hash, q))
 
     # nonce: an integer in the range 1..n-1.

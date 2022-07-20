@@ -20,7 +20,7 @@ import pytest
 
 from btclib.alias import INF, Point, String
 from btclib.bip32.bip32 import BIP32KeyData
-from btclib.ecc import ssa
+from btclib.ecc import libsecp256k1, ssa
 from btclib.ecc.curve import CURVES, double_mult, mult
 from btclib.ecc.number_theory import mod_inv
 from btclib.ecc.pedersen import second_generator
@@ -29,7 +29,6 @@ from btclib.exceptions import BTClibRuntimeError, BTClibTypeError, BTClibValueEr
 from btclib.hashes import reduce_to_hlen
 from btclib.utils import int_from_bits
 from tests.ecc.test_curve import low_card_curves
-from btclib.ecc import libsecp256k1
 
 
 def test_signature() -> None:
@@ -110,7 +109,7 @@ def test_bip340_vectors() -> None:
     with open(filename, newline="", encoding="ascii") as csvfile:
         reader = csv.reader(csvfile)
         # skip column headers while checking that there are 7 columns
-        _, _, _, _, _, _, _, _ = reader.__next__()
+        next(reader)
         for row in reader:
             (index, seckey, pub_key, aux_rand, m, sig, result, comment) = row
             err_msg = f"Test vector #{int(index)}"
