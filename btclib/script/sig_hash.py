@@ -235,8 +235,7 @@ def taproot(
 
     preimage += message_extension
 
-    sig_hash = tagged_hash(b"TapSighash", preimage)
-    return sig_hash
+    return tagged_hash(b"TapSighash", preimage)
 
 
 def from_tx(prevouts: List[TxOut], tx: Tx, vin_i: int, hash_type: int) -> bytes:

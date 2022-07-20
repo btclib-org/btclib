@@ -124,7 +124,7 @@ def test_bip340_vectors() -> None:
                     assert ssa.Sig.parse(sig) == sig_actual, err_msg
 
                 if comment:
-                    err_msg += ": " + comment
+                    err_msg += f": {comment}"
                 # TODO what's wrong with xor-ing ?
                 # assert (result == "TRUE") ^ ssa.verify_(m, pub_key, sig), err_msg
                 if result == "TRUE":
@@ -360,10 +360,7 @@ def test_musig() -> None:
     # (non interactive) key setup
     # this is MuSig core: the rest is just Schnorr signature additivity
     # 1. lexicographic sorting of public keys
-    keys: List[bytes] = []
-    keys.append(x_Q1)
-    keys.append(x_Q2)
-    keys.append(x_Q3)
+    keys: List[bytes] = [x_Q1, x_Q2, x_Q3]
     keys.sort()
     # 2. coefficients
     prefix = b"".join(keys)

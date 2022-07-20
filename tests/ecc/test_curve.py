@@ -10,6 +10,7 @@
 
 "Tests for the `btclib.curve` module."
 
+
 import secrets
 from typing import Dict
 
@@ -26,9 +27,10 @@ from btclib.exceptions import BTClibTypeError, BTClibValueError
 # FIXME test curves when n>p
 
 # test curves: very low cardinality
-low_card_curves: Dict[str, Curve] = {}
-# 13 % 4 = 1; 13 % 8 = 5
-low_card_curves["ec13_11"] = Curve(13, 7, 6, (1, 1), 11, 1, False)
+low_card_curves: Dict[str, Curve] = {
+    "ec13_11": Curve(13, 7, 6, (1, 1), 11, 1, False)
+}
+
 low_card_curves["ec13_19"] = Curve(13, 0, 2, (1, 9), 19, 1, False)
 # 17 % 4 = 1; 17 % 8 = 1
 low_card_curves["ec17_13"] = Curve(17, 6, 8, (0, 12), 13, 2, False)
@@ -41,8 +43,8 @@ low_card_curves["ec23_19"] = Curve(23, 9, 7, (5, 4), 19, 1, False)
 low_card_curves["ec23_31"] = Curve(23, 5, 1, (0, 1), 31, 1, False)
 
 all_curves: Dict[str, Curve] = {}
-all_curves.update(low_card_curves)
-all_curves.update(CURVES)
+all_curves |= low_card_curves
+all_curves |= CURVES
 
 ec23_31 = low_card_curves["ec23_31"]
 
@@ -193,7 +195,7 @@ def test_ec_repr() -> None:
     for ec in all_curves.values():
         ec_repr = repr(ec)
         if ec in low_card_curves.values() or ec.p_size < 24:
-            ec_repr = ec_repr[:-1] + ", False)"
+            ec_repr = f"{ec_repr[:-1]}, False)"
         ec2 = eval(ec_repr)  # pylint: disable=eval-used # nosec
         assert str(ec) == str(ec2)
 
