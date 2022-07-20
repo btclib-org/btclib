@@ -5,9 +5,12 @@ Notable changes to the codebase are documented here.
 Release names follow [*calendar versioning*](https://calver.org/):
 full year, short month, short day (YYYY-M-D)
 
-## v2022.6 (current master, in development, not released yet)
+## v2022.7.20
 
 Major changes include:
+
+- by default ssa, dsa and point multiplication are now sped up using btclib_libsecp256k1;
+  this provides an 8 times speed up in benchmarks and 3 times in real world applications.
 
 
 ## v2022.5.3 

@@ -20,7 +20,7 @@ import pytest
 
 from btclib.alias import INF, Point, String
 from btclib.bip32.bip32 import BIP32KeyData
-from btclib.ecc import ssa
+from btclib.ecc import libsecp256k1, ssa
 from btclib.ecc.curve import CURVES, double_mult, mult
 from btclib.ecc.number_theory import mod_inv
 from btclib.ecc.pedersen import second_generator
@@ -33,6 +33,8 @@ from tests.ecc.test_curve import low_card_curves
 
 def test_signature() -> None:
     msg = "Satoshi Nakamoto".encode()
+
+    libsecp256k1.disable()
 
     q, x_Q = ssa.gen_keys(0x01)
     sig = ssa.sign(msg, q)
@@ -94,6 +96,8 @@ def test_signature() -> None:
     with pytest.raises(BTClibValueError, match=err_msg):
         ssa.sign_(m_bytes, q, sig.ec.n)
 
+    libsecp256k1.enable()
+
 
 def test_bip340_vectors() -> None:
     """BIP340 (Schnorr) test vectors.
@@ -105,7 +109,7 @@ def test_bip340_vectors() -> None:
     with open(filename, newline="", encoding="ascii") as csvfile:
         reader = csv.reader(csvfile)
         # skip column headers while checking that there are 7 columns
-        _, _, _, _, _, _, _, _ = reader.__next__()
+        next(reader)
         for row in reader:
             (index, seckey, pub_key, aux_rand, m, sig, result, comment) = row
             err_msg = f"Test vector #{int(index)}"
@@ -190,6 +194,14 @@ def test_low_cardinality() -> None:
     for ec in test_curves:
         for q in range(1, ec.n // 2):  # all possible private keys
             q, x_Q, QJ = ssa.gen_keys_(q, ec)
+            while True:
+                try:
+                    msg = secrets.token_bytes(32)
+                    sig = ssa.sign(msg, q, ec=ec)
+                    break
+                except BTClibRuntimeError:
+                    continue
+            ssa.assert_as_valid(msg, x_Q, sig)
             for k in range(1, ec.n // 2):  # all possible ephemeral keys
                 k, r = ssa.gen_keys(k, ec)
                 for e in range(ec.n):  # all possible challenges

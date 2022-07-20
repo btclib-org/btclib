@@ -16,7 +16,7 @@ from hashlib import sha1
 import pytest
 
 from btclib.alias import INF
-from btclib.ecc import dsa
+from btclib.ecc import dsa, libsecp256k1
 from btclib.ecc.curve import CURVES, Curve, double_mult, mult
 from btclib.ecc.curve_group import _mult
 from btclib.ecc.number_theory import mod_inv
@@ -61,6 +61,8 @@ def test_signature() -> None:
     with pytest.raises(BTClibRuntimeError, match=err_msg):
         dsa.assert_as_valid(msg_fake, Q, sig)
 
+    libsecp256k1.disable()
+
     _, Q_fake = dsa.gen_keys()
     assert not dsa.verify(msg, Q_fake, sig)
     err_msg = "signature verification failed"
@@ -93,6 +95,8 @@ def test_signature() -> None:
         dsa.sign_(reduce_to_hlen(msg), q, 0)
     with pytest.raises(BTClibValueError, match=err_msg):
         dsa.sign_(reduce_to_hlen(msg), q, sig.ec.n)
+
+    libsecp256k1.enable()
 
 
 def test_gec() -> None:
