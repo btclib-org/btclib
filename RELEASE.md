@@ -13,7 +13,7 @@
 
 6. Build the package distribution files:
 
-   ```rm -rf btclib.egg-info/ build/ dist/ && python setup.py sdist bdist_wheel```
+   ```rm -r btclib.egg-info/ build/ dist/ && python setup.py sdist bdist_wheel```
    
 7. Push the package files to PyPi:
 

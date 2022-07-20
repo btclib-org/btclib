@@ -76,6 +76,14 @@ btclib.ecc.dsa module
    :undoc-members:
    :show-inheritance:
 
+btclib.ecc.libsecp256k1 module
+------------------------------
+
+.. automodule:: btclib.ecc.libsecp256k1
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
 btclib.ecc.number\_theory module
 --------------------------------
 
