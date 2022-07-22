@@ -97,8 +97,8 @@ def legacy(script_code: Octets, tx: Tx, vin_i: int, hash_type: int) -> bytes:
     new_tx = deepcopy(tx)
     for txin in new_tx.vin:
         txin.script_sig = b""
-    # TODO delete sig from script_ (even if non standard)
-    new_tx.vin[vin_i].script_sig = script_
+    # TODO: delete sig from script_ (even if non standard)
+    new_tx.vin[vin_i].script_sig = script_code
     if hash_type & 0x1F is NONE:
         new_tx.vout = []
         for i, txin in enumerate(new_tx.vin):
