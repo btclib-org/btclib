@@ -38,6 +38,14 @@ def _from_num(x: int) -> bytes:
         return b""
     return encode_num(x)
 
+def _to_bool(element: bytes):
+    for x in element[:-1]:
+        if x != 0:
+            return True
+    if not element or element[-1] in (0x00, 0x80): # positive or negative 0
+        return False
+    return True
+
 
 def op_if(
     stack: List[bytes],
@@ -58,7 +66,7 @@ def op_if(
 
     if minimalif and stack[-1] not in [b"", b"\x01"]:
         raise BTClibValueError()
-    condition = bool(_to_num(stack.pop(), flags))
+    condition = _to_bool(stack.pop())
 
     condition_stack.append(condition)
 
@@ -129,11 +137,7 @@ def op_1negate(stack: List[bytes], altstack: List[bytes], flags: List[str]) -> N
 
 
 def op_verify(stack: List[bytes], altstack: List[bytes], flags: List[str]) -> None:
-    x = stack.pop()
-    for b in x[:-1]:
-        if b != 0:
-            return
-    if not _to_num(x[-1:], []):  # Todo: is this right?
+    if not _to_bool(stack.pop()):
         raise BTClibValueError()
 
 
