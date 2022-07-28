@@ -20,7 +20,7 @@ from btclib.hashes import sha256
 from btclib.script.engine import tapscript
 from btclib.script.engine.script import verify_script as verify_script_legacy
 from btclib.script.engine.script_op_codes import _to_num
-from btclib.script.script import parse
+from btclib.script.script import parse, serialize
 from btclib.script.script_pub_key import is_segwit, type_and_payload
 from btclib.script.taproot import check_output_pubkey
 from btclib.script.witness import Witness
@@ -104,6 +104,7 @@ def verify_input(prevouts: List[TxOut], tx: Tx, i: int, flags: List[str]) -> Non
     verify_script_legacy(
         script_sig, stack, prevouts[i].value, tx, i, flags, False, False
     )
+    p2sh_script = stack[-1] if stack else b'\x00'
 
     script = prevouts[i].script_pub_key.script
     verify_script_legacy(script, stack, prevouts[i].value, tx, i, flags, False, True)
@@ -114,9 +115,7 @@ def verify_input(prevouts: List[TxOut], tx: Tx, i: int, flags: List[str]) -> Non
     if script_type == "p2sh" and "P2SH" in flags:
         p2sh = True
         validate_redeem_script(parsed_script_sig)  # similar to SIGPUSHONLY
-        script = bytes.fromhex(
-            cast(str, parse(tx.vin[i].script_sig, accept_unknown=True)[-1])
-        )
+        script = p2sh_script
         verify_script_legacy(
             script, stack, prevouts[i].value, tx, i, flags, False, True
         )
@@ -151,6 +150,7 @@ def verify_input(prevouts: List[TxOut], tx: Tx, i: int, flags: List[str]) -> Non
                 raise BTClibValueError()
             if len(stack) == 1:
                 tapscript.verify_key_path(script, stack, prevouts, tx, i, annex)
+                stack = []
             else:
                 script_bytes, stack, leaf_version = taproot_unwrap_script(script, stack)
                 if leaf_version == 0xC0:

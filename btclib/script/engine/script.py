@@ -43,7 +43,7 @@ def fix_signature(signature: bytes, flags: List[str]) -> bytes:
         sig = Sig.parse(signature)
         if sig.s > sig.ec.n // 2:
             signature = Sig(sig.r, sig.ec.n - sig.s).serialize()
-        sig = Sig.parse(signature)
+        # Sig.parse(signature)
     return signature + signature_suffix
 
 
@@ -130,9 +130,7 @@ def op_checksig(
         msg_hash = sig_hash.segwit_v0(script_code, tx, i, signature[-1], prevout_value)
     else:
         msg_hash = sig_hash.legacy(script_code, tx, i, signature[-1])
-    if not dsa_verify(msg_hash, pub_key, signature[:-1]):  # type: ignore
-        return False
-    return True
+    return dsa_verify(msg_hash, pub_key, signature[:-1])  # type: ignore
 
 
 def check_script_op_code_limit(script: List[Command], segwit: bool) -> None:
@@ -144,7 +142,7 @@ def check_script_op_code_limit(script: List[Command], segwit: bool) -> None:
         if not (len(serialized_op) == 1 and serialized_op[0] > 0x60):
             continue
         if "OP_CHECKMULTISIG" in op:
-            pub_key_count = script[i - 1]
+            pub_key_count = script[i - 1] # if i else 'OP_0' # FIXME: fails on strange scripts
             if isinstance(pub_key_count, str):
                 if "OP_" in pub_key_count:
                     count += int(pub_key_count[3:])
