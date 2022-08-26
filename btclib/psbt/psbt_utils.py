@@ -93,6 +93,74 @@ def serialize_dict_bytes_bytes(
     )
 
 
+def encode_leaf_scripts(
+    dict_: Mapping[bytes, Tuple[bytes, int]]
+) -> Dict[str, Tuple[str, int]]:
+    return {k.hex(): (v[0].hex(), v[1]) for k, v in dict_.items()}
+
+
+def decode_leaf_scripts(
+    map_: Optional[Mapping[Octets, Tuple[Octets, int]]]
+) -> Dict[bytes, Tuple[bytes, int]]:
+    if map_ is None:
+        return {}
+    return {
+        bytes_from_octets(k): (bytes_from_octets(v[0]), v[1]) for k, v in map_.items()
+    }
+
+
+def serialize_leaf_scripts(
+    type_: bytes, dictionary: Dict[bytes, Tuple[bytes, int]]
+) -> bytes:
+    return b"".join(
+        [
+            var_bytes.serialize(type_ + k) + v[0] + v[1].to_bytes(1, "big")
+            for k, v in sorted(dictionary.items())
+        ]
+    )
+
+
+def parse_leaf_script(v: bytes) -> Tuple[bytes, int]:
+    if len(v) != var_int.parse(v) + 1:
+        raise BTClibValueError("Invalid leaf script length")
+    return (v[:-1], v[-1])
+
+
+def encode_taproot_tree(
+    list_: List[Tuple[int, int, bytes]]
+) -> List[Tuple[int, int, str]]:
+    return [(v[0], v[1], v[2].hex()) for v in list_]
+
+
+def decode_taproot_tree(
+    list_: Optional[Sequence[Tuple[int, int, Octets]]]
+) -> List[Tuple[int, int, bytes]]:
+    if list_ is None:
+        return []
+    return [(v[0], v[1], bytes_from_octets(v[2])) for v in list_]
+
+
+def serialize_taproot_tree(type_: bytes, list_: List[Tuple[int, int, bytes]]) -> bytes:
+    return var_bytes.serialize(type_) + b"".join(
+        [v[0].to_bytes(1, "big") + v[1].to_bytes(1, "big") + v[2] for v in list_]
+    )
+
+
+def parse_taproot_tree(v: bytes) -> List[Tuple[int, int, bytes]]:
+    out: List[Tuple[int, int, bytes]] = []
+
+    stream = bytesio_from_binarydata(v)
+    while True:
+        v = stream.read()
+        if not v:
+            return out
+        depth = int.from_bytes(v, "big")
+        leaf_version = int.from_bytes(stream.read(), "big")
+        script_length = var_int.parse(stream)
+        script = stream.read(script_length)
+        out.append((depth, leaf_version, var_int.serialize(script_length) + script))
+
+
 def serialize_bytes(type_: bytes, value: bytes) -> bytes:
     """Return the binary representation of the dataclass element."""
     return var_bytes.serialize(type_) + var_bytes.serialize(value)

@@ -35,13 +35,17 @@ from btclib.psbt.psbt_utils import (
     assert_valid_unknown,
     assert_valid_witness_script,
     decode_dict_bytes_bytes,
+    decode_leaf_scripts,
     deserialize_bytes,
     deserialize_int,
     deserialize_tx,
     encode_dict_bytes_bytes,
+    encode_leaf_scripts,
+    parse_leaf_script,
     serialize_bytes,
     serialize_dict_bytes_bytes,
     serialize_hd_key_paths,
+    serialize_leaf_scripts,
 )
 from btclib.script import Witness
 from btclib.script.sig_hash import assert_valid_hash_type
@@ -61,6 +65,12 @@ PSBT_IN_RIPEMD160 = b"\x0a"
 PSBT_IN_SHA256 = b"\x0b"
 PSBT_IN_HASH160 = b"\x0c"
 PSBT_IN_HASH256 = b"\x0d"
+PSBT_IN_TAP_KEY_SIG = b"\x13"
+PSBT_IN_TAP_SCRIPT_SIG = b"\x14"
+PSBT_IN_TAP_LEAF_SCRIPT = b"\x15"
+PSBT_IN_TAP_BIP32_DERIVATION = b"\x16"
+PSBT_IN_TAP_INTERNAL_KEY = b"\x17"
+PSBT_IN_TAP_MERKLE_ROOT = b"\x18"
 
 # 0xfc is reserved for proprietary
 # explicit code support for proprietary (and por) is unnecessary
@@ -147,6 +157,12 @@ class PsbtIn:
     sha256_preimages: dict[bytes, bytes]
     hash160_preimages: dict[bytes, bytes]
     hash256_preimages: dict[bytes, bytes]
+    taproot_key_spend_signature: bytes
+    taproot_script_spend_signatures: dict[bytes, bytes]
+    taproot_leaf_scripts: dict[bytes, tuple[bytes, int]]
+    taproot_hd_key_paths: HdKeyPaths
+    taproot_internal_key: bytes
+    taproot_merkle_root: bytes
     unknown: dict[bytes, bytes]
 
     @property
@@ -171,7 +187,13 @@ class PsbtIn:
         ripemd160_preimages: Mapping[Octets, Octets] | None = None,
         sha256_preimages: Mapping[Octets, Octets] | None = None,
         hash160_preimages: Mapping[Octets, Octets] | None = None,
-        hash256_preimages: Mapping[Octets, Octets] | None = None,
+        hash256_preimages: Mapping[Octets, Octets] | None = None,,
+        taproot_key_spend_signature: Octets = b"",
+        taproot_script_spend_signatures: Mapping[Octets, Octets] | None = None,
+        taproot_leaf_scripts: Mapping[Octets, Tuple[Octets, int]] | None = None,
+        taproot_hd_key_paths: Mapping[Octets, BIP32KeyOrigin] | None = None,
+        taproot_internal_key: Octets = b"",
+        taproot_merkle_root: Octets = b"",
         unknown: Mapping[Octets, Octets] | None = None,
         check_validity: bool = True,
     ) -> None:
@@ -189,6 +211,16 @@ class PsbtIn:
         self.sha256_preimages = decode_dict_bytes_bytes(sha256_preimages)
         self.hash160_preimages = decode_dict_bytes_bytes(hash160_preimages)
         self.hash256_preimages = decode_dict_bytes_bytes(hash256_preimages)
+        self.taproot_key_spend_signature = bytes_from_octets(
+            taproot_key_spend_signature
+        )
+        self.taproot_script_spend_signatures = decode_dict_bytes_bytes(
+            taproot_script_spend_signatures
+        )
+        self.taproot_leaf_scripts = decode_leaf_scripts(taproot_leaf_scripts)
+        self.taproot_hd_key_paths = decode_hd_key_paths(taproot_hd_key_paths)
+        self.taproot_internal_key = bytes_from_octets(taproot_internal_key)
+        self.taproot_merkle_root = bytes_from_octets(taproot_merkle_root)
         self.unknown = dict(sorted(decode_dict_bytes_bytes(unknown).items()))
 
         if check_validity:
@@ -245,6 +277,14 @@ class PsbtIn:
             "sha256_preimages": encode_dict_bytes_bytes(self.sha256_preimages),
             "hash160_preimages": encode_dict_bytes_bytes(self.hash160_preimages),
             "hash256_preimages": encode_dict_bytes_bytes(self.hash256_preimages),
+            "taproot_key_spend_signature": self.taproot_key_spend_signature.hex(),
+            "taproot_script_spend_signatures": encode_dict_bytes_bytes(
+                self.taproot_script_spend_signatures
+            ),
+            "taproot_leaf_scripts": encode_leaf_scripts(self.taproot_leaf_scripts),
+            "taproot_hd_key_paths": encode_to_bip32_derivs(self.taproot_hd_key_paths),
+            "taproot_internal_key": self.taproot_internal_key.hex(),
+            "taproot_merkle_root": self.taproot_merkle_root.hex(),
             "unknown": dict(sorted(encode_dict_bytes_bytes(self.unknown).items())),
         }
 
@@ -271,6 +311,12 @@ class PsbtIn:
             dict_["sha256_preimages"],
             dict_["hash160_preimages"],
             dict_["hash256_preimages"],
+            dict_["taproot_key_spend_signature"],
+            dict_["taproot_script_spend_signatures"],
+            dict_["taproot_leaf_scripts"],
+            decode_from_bip32_derivs(dict_["taproot_hd_key_paths"]),  # type: ignore
+            dict_["taproot_internal_key"],
+            dict_["taproot_merkle_root"],
             dict_["unknown"],
             check_validity,
         )
@@ -328,10 +374,6 @@ class PsbtIn:
             psbt_in_bin.append(serialize_dict_bytes_bytes(b"", self.unknown))
 
         if self.ripemd160_preimages:
-            print(
-                serialize_dict_bytes_bytes(PSBT_IN_RIPEMD160, self.ripemd160_preimages)
-            )
-            print(self.ripemd160_preimages)
             psbt_in_bin.append(
                 serialize_dict_bytes_bytes(PSBT_IN_RIPEMD160, self.ripemd160_preimages)
             )
@@ -349,6 +391,44 @@ class PsbtIn:
         if self.hash256_preimages:
             psbt_in_bin.append(
                 serialize_dict_bytes_bytes(PSBT_IN_HASH256, self.hash256_preimages)
+            )
+
+        # FIXME: we should put conditions on serializations
+
+        if self.taproot_key_spend_signature:
+            psbt_in_bin.append(
+                serialize_bytes(PSBT_IN_FINAL_SCRIPTSIG, self.final_script_sig)
+            )
+
+        if self.taproot_script_spend_signatures:
+            psbt_in_bin.append(
+                serialize_dict_bytes_bytes(
+                    PSBT_IN_TAP_SCRIPT_SIG, self.taproot_script_spend_signatures
+                )
+            )
+
+        if self.taproot_leaf_scripts:
+            psbt_in_bin.append(
+                serialize_leaf_scripts(
+                    PSBT_IN_TAP_LEAF_SCRIPT, self.taproot_leaf_scripts
+                )
+            )
+
+        if self.taproot_hd_key_paths:
+            psbt_in_bin.append(
+                serialize_hd_key_paths(
+                    PSBT_IN_TAP_BIP32_DERIVATION, self.taproot_hd_key_paths
+                )
+            )
+
+        if self.taproot_internal_key:
+            psbt_in_bin.append(
+                serialize_bytes(PSBT_IN_TAP_INTERNAL_KEY, self.taproot_internal_key)
+            )
+
+        if self.taproot_merkle_root:
+            psbt_in_bin.append(
+                serialize_bytes(PSBT_IN_TAP_MERKLE_ROOT, self.taproot_merkle_root)
             )
 
         return b"".join(psbt_in_bin)
@@ -375,6 +455,12 @@ class PsbtIn:
         sha256_preimages: dict[Octets, Octets] = {}
         hash160_preimages: dict[Octets, Octets] = {}
         hash256_preimages: dict[Octets, Octets] = {}
+        taproot_key_spend_signature = b""
+        taproot_script_spend_signatures: dict[Octets, Octets] = {}
+        taproot_leaf_scripts: dict[Octets, Tuple[Octets, int]] = {}
+        taproot_hd_key_paths: dict[Octets, BIP32KeyOrigin] = {}
+        taproot_internal_key = b""
+        taproot_merkle_root = b""
         unknown: dict[Octets, Octets] = {}
 
         for k, v in input_map.items():
@@ -404,6 +490,20 @@ class PsbtIn:
                 hash256_preimages[k[1:]] = v
             elif k[:1] == PSBT_IN_FINAL_SCRIPTWITNESS:
                 final_script_witness = _deserialize_final_script_witness(k, v)
+            elif k[:1] == PSBT_IN_TAP_KEY_SIG:
+                taproot_key_spend_signature = deserialize_bytes(
+                    k, v, "taproot key spend signature"
+                )
+            elif k[:1] == PSBT_IN_TAP_SCRIPT_SIG:
+                taproot_script_spend_signatures[k[1:]] = v
+            elif k[:1] == PSBT_IN_TAP_LEAF_SCRIPT:
+                taproot_leaf_scripts[k[1:]] = parse_leaf_script(v)
+            elif k[:1] == PSBT_IN_TAP_BIP32_DERIVATION:
+                taproot_hd_key_paths[k[1:]] = BIP32KeyOrigin.parse(v)
+            elif k[:1] == PSBT_IN_TAP_INTERNAL_KEY:
+                taproot_internal_key = deserialize_bytes(k, v, "taproot internal key")
+            elif k[:1] == PSBT_IN_TAP_MERKLE_ROOT:
+                taproot_merkle_root = deserialize_bytes(k, v, "taproot merkle root")
             else:  # unknown
                 unknown[k] = v
 
@@ -421,6 +521,12 @@ class PsbtIn:
             sha256_preimages,
             hash160_preimages,
             hash256_preimages,
+            taproot_key_spend_signature,
+            taproot_script_spend_signatures,
+            taproot_leaf_scripts,
+            taproot_hd_key_paths,
+            taproot_internal_key,
+            taproot_merkle_root,
             unknown,
             check_validity,
         )
