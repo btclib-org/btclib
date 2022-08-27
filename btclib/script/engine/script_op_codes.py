@@ -90,8 +90,9 @@ def op_notif(
 
     if minimalif and stack[-1] not in [b"", b"\x01"]:
         raise BTClibValueError()
+    condition = _to_bool(stack.pop())
 
-    return ["OP_NOT", "OP_IF"]
+    condition_stack.append(not condition)
 
 
 def op_else(condition_stack: List[bool]) -> None:
