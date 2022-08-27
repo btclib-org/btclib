@@ -32,15 +32,20 @@ from btclib.psbt.psbt_utils import (
     assert_valid_unknown,
     assert_valid_witness_script,
     decode_dict_bytes_bytes,
+    decode_taproot_bip32,
     decode_taproot_tree,
     deserialize_bytes,
     encode_dict_bytes_bytes,
     encode_taproot_tree,
+    parse_taproot_bip32,
     parse_taproot_tree,
     serialize_bytes,
     serialize_dict_bytes_bytes,
     serialize_hd_key_paths,
+    serialize_taproot_bip32,
     serialize_taproot_tree,
+    taproot_bip32_from_dict,
+    taproot_bip32_to_dict,
 )
 from btclib.utils import bytes_from_octets
 
@@ -63,7 +68,7 @@ class PsbtOut:
     hd_key_paths: HdKeyPaths
     taproot_internal_key: bytes
     taproot_tree: list[tuple[int, int, bytes]]
-    taproot_hd_key_paths: HdKeyPaths
+    taproot_hd_key_paths: dict[bytes, tuple[list[bytes], BIP32KeyOrigin]]
     unknown: dict[bytes, bytes]
 
     def __init__(
@@ -82,7 +87,7 @@ class PsbtOut:
         self.hd_key_paths = decode_hd_key_paths(hd_key_paths)
         self.taproot_internal_key = bytes_from_octets(taproot_internal_key)
         self.taproot_tree = decode_taproot_tree(taproot_tree)
-        self.taproot_hd_key_paths = decode_hd_key_paths(taproot_hd_key_paths)
+        self.taproot_hd_key_paths = decode_taproot_bip32(taproot_hd_key_paths)
         self.unknown = dict(sorted(decode_dict_bytes_bytes(unknown).items()))
 
         if check_validity:
@@ -107,7 +112,7 @@ class PsbtOut:
             "bip32_derivs": encode_to_bip32_derivs(self.hd_key_paths),
             "taproot_internal_key": self.taproot_internal_key.hex(),
             "taproot_tree": encode_taproot_tree(self.taproot_tree),
-            "taproot_bip32_derivs": encode_to_bip32_derivs(self.taproot_hd_key_paths),
+            "taproot_hd_key_paths": taproot_bip32_to_dict(self.taproot_hd_key_paths),
             "unknown": dict(sorted(encode_dict_bytes_bytes(self.unknown).items())),
         }
 
@@ -123,7 +128,7 @@ class PsbtOut:
             dict_["taproot_internal_key"],
             dict_["taproot_tree"],
             # FIXME
-            decode_from_bip32_derivs(dict_["taproot_bip32_derivs"]),  # type: ignore
+            taproot_bip32_from_dict(dict_["taproot_hd_key_paths"]),  # type: ignore
             dict_["unknown"],
             check_validity,
         )
@@ -161,7 +166,7 @@ class PsbtOut:
 
         if self.taproot_hd_key_paths:
             psbt_out_bin.append(
-                serialize_hd_key_paths(
+                serialize_taproot_bip32(
                     PSBT_OUT_TAP_BIP32_DERIVATION, self.taproot_hd_key_paths
                 )
             )
@@ -183,9 +188,9 @@ class PsbtOut:
         witness_script = b""
         hd_key_paths: dict[Octets, BIP32KeyOrigin] = {}
         taproot_internal_key = b""
-        taproot_tree: dist[tuple[int, int, bytes]] = []
-        taproot_hd_key_paths: dict[Octets, BIP32KeyOrigin] = {}
-        unknown: dict[Octets, Octets] = {}
+        taproot_tree: List[Tuple[int, int, bytes]] = []
+        taproot_hd_key_paths: dict[Octets, tuple[list[Octets], BIP32KeyOrigin]] = {}
+        unknown: Dict[Octets, Octets] = {}
 
         for k, v in output_map.items():
             if k[:1] == PSBT_OUT_REDEEM_SCRIPT:
@@ -201,7 +206,7 @@ class PsbtOut:
                 taproot_tree = parse_taproot_tree(v)
             elif k[:1] == PSBT_OUT_TAP_BIP32_DERIVATION:
                 #  parse just one hd key path at time :-(
-                taproot_hd_key_paths[k[1:]] = BIP32KeyOrigin.parse(v)
+                taproot_hd_key_paths[k[1:]] = parse_taproot_bip32(v)
             else:  # unknown
                 unknown[k] = v
 

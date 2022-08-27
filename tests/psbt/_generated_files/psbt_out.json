@@ -10,6 +10,6 @@
     ],
     "taproot_internal_key": "",
     "taproot_tree": [],
-    "taproot_bip32_derivs": [],
+    "taproot_hd_key_paths": [],
     "unknown": {}
 }

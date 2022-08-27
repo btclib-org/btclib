@@ -14,12 +14,12 @@ https://github.com/bitcoin/bips/blob/master/bip-0174.mediawiki
 """
 from __future__ import annotations
 
+# Standard library imports
 from dataclasses import dataclass
 from typing import Any, Mapping
 
 from btclib.alias import Octets
-from btclib.bip32 import (
-    BIP32KeyOrigin,
+from btclib.bip32.key_origin import (
     HdKeyPaths,
     assert_valid_hd_key_paths,
     decode_from_bip32_derivs,
@@ -30,22 +30,28 @@ from btclib.ec import sec_point
 from btclib.ecc import dsa
 from btclib.exceptions import BTClibValueError
 from btclib.hashes import hash160, hash256, ripemd160, sha256
+from btclib.psbt.psbt_out import BIP32KeyOrigin
 from btclib.psbt.psbt_utils import (
     assert_valid_redeem_script,
     assert_valid_unknown,
     assert_valid_witness_script,
     decode_dict_bytes_bytes,
     decode_leaf_scripts,
+    decode_taproot_bip32,
     deserialize_bytes,
     deserialize_int,
     deserialize_tx,
     encode_dict_bytes_bytes,
     encode_leaf_scripts,
     parse_leaf_script,
+    parse_taproot_bip32,
     serialize_bytes,
     serialize_dict_bytes_bytes,
     serialize_hd_key_paths,
     serialize_leaf_scripts,
+    serialize_taproot_bip32,
+    taproot_bip32_from_dict,
+    taproot_bip32_to_dict,
 )
 from btclib.script import Witness
 from btclib.script.sig_hash import assert_valid_hash_type
@@ -160,7 +166,7 @@ class PsbtIn:
     taproot_key_spend_signature: bytes
     taproot_script_spend_signatures: dict[bytes, bytes]
     taproot_leaf_scripts: dict[bytes, tuple[bytes, int]]
-    taproot_hd_key_paths: HdKeyPaths
+    taproot_hd_key_paths:dict[bytes, tuple[list[bytes], BIP32KeyOrigin]]
     taproot_internal_key: bytes
     taproot_merkle_root: bytes
     unknown: dict[bytes, bytes]
@@ -190,8 +196,8 @@ class PsbtIn:
         hash256_preimages: Mapping[Octets, Octets] | None = None,,
         taproot_key_spend_signature: Octets = b"",
         taproot_script_spend_signatures: Mapping[Octets, Octets] | None = None,
-        taproot_leaf_scripts: Mapping[Octets, Tuple[Octets, int]] | None = None,
-        taproot_hd_key_paths: Mapping[Octets, BIP32KeyOrigin] | None = None,
+        taproot_leaf_scripts: Mapping[Octets, tuple[Octets, int]] | None = None,
+        taproot_hd_key_paths: Mapping[Octets, tuple[list[Octets], BIP32KeyOrigin]] | None = None,
         taproot_internal_key: Octets = b"",
         taproot_merkle_root: Octets = b"",
         unknown: Mapping[Octets, Octets] | None = None,
@@ -218,7 +224,7 @@ class PsbtIn:
             taproot_script_spend_signatures
         )
         self.taproot_leaf_scripts = decode_leaf_scripts(taproot_leaf_scripts)
-        self.taproot_hd_key_paths = decode_hd_key_paths(taproot_hd_key_paths)
+        self.taproot_hd_key_paths = decode_taproot_bip32(taproot_hd_key_paths)
         self.taproot_internal_key = bytes_from_octets(taproot_internal_key)
         self.taproot_merkle_root = bytes_from_octets(taproot_merkle_root)
         self.unknown = dict(sorted(decode_dict_bytes_bytes(unknown).items()))
@@ -282,7 +288,7 @@ class PsbtIn:
                 self.taproot_script_spend_signatures
             ),
             "taproot_leaf_scripts": encode_leaf_scripts(self.taproot_leaf_scripts),
-            "taproot_hd_key_paths": encode_to_bip32_derivs(self.taproot_hd_key_paths),
+            "taproot_hd_key_paths": taproot_bip32_to_dict(self.taproot_hd_key_paths),
             "taproot_internal_key": self.taproot_internal_key.hex(),
             "taproot_merkle_root": self.taproot_merkle_root.hex(),
             "unknown": dict(sorted(encode_dict_bytes_bytes(self.unknown).items())),
@@ -314,7 +320,7 @@ class PsbtIn:
             dict_["taproot_key_spend_signature"],
             dict_["taproot_script_spend_signatures"],
             dict_["taproot_leaf_scripts"],
-            decode_from_bip32_derivs(dict_["taproot_hd_key_paths"]),  # type: ignore
+            taproot_bip32_from_dict(dict_["taproot_hd_key_paths"]),  # type: ignore
             dict_["taproot_internal_key"],
             dict_["taproot_merkle_root"],
             dict_["unknown"],
@@ -397,7 +403,7 @@ class PsbtIn:
 
         if self.taproot_key_spend_signature:
             psbt_in_bin.append(
-                serialize_bytes(PSBT_IN_FINAL_SCRIPTSIG, self.final_script_sig)
+                serialize_bytes(PSBT_IN_TAP_KEY_SIG, self.taproot_key_spend_signature)
             )
 
         if self.taproot_script_spend_signatures:
@@ -416,7 +422,7 @@ class PsbtIn:
 
         if self.taproot_hd_key_paths:
             psbt_in_bin.append(
-                serialize_hd_key_paths(
+                serialize_taproot_bip32(
                     PSBT_IN_TAP_BIP32_DERIVATION, self.taproot_hd_key_paths
                 )
             )
@@ -457,8 +463,8 @@ class PsbtIn:
         hash256_preimages: dict[Octets, Octets] = {}
         taproot_key_spend_signature = b""
         taproot_script_spend_signatures: dict[Octets, Octets] = {}
-        taproot_leaf_scripts: dict[Octets, Tuple[Octets, int]] = {}
-        taproot_hd_key_paths: dict[Octets, BIP32KeyOrigin] = {}
+        taproot_leaf_scripts: dict[Octets, tuple[Octets, int]] = {}
+        taproot_hd_key_paths: dict[Octets, tuple[list[Octets], BIP32KeyOrigin]] = {}
         taproot_internal_key = b""
         taproot_merkle_root = b""
         unknown: dict[Octets, Octets] = {}
@@ -499,7 +505,7 @@ class PsbtIn:
             elif k[:1] == PSBT_IN_TAP_LEAF_SCRIPT:
                 taproot_leaf_scripts[k[1:]] = parse_leaf_script(v)
             elif k[:1] == PSBT_IN_TAP_BIP32_DERIVATION:
-                taproot_hd_key_paths[k[1:]] = BIP32KeyOrigin.parse(v)
+                taproot_hd_key_paths[k[1:]] = parse_taproot_bip32(v)
             elif k[:1] == PSBT_IN_TAP_INTERNAL_KEY:
                 taproot_internal_key = deserialize_bytes(k, v, "taproot internal key")
             elif k[:1] == PSBT_IN_TAP_MERKLE_ROOT:
