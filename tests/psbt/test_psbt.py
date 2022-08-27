@@ -61,6 +61,33 @@ def test_vectors_bip174() -> None:
         assert test_vector["encoded psbt"] == Psbt.b64encode(psbt_decoded)
 
 
+def test_vectors_bip371() -> None:
+    "Test https://github.com/bitcoin/bips/blob/master/bip-0371.mediawiki"
+
+    data_folder = path.join(path.dirname(__file__), "_data")
+    filename = path.join(data_folder, "bip371_test_vectors.json")
+    with open(filename, "r", encoding="ascii") as file_:
+        # json.dump(test_vectors, f, indent=4)
+        test_vectors = json.load(file_)
+
+    for i, test_vector in enumerate(test_vectors["valid psbts"]):
+        try:
+            psbt_decoded = Psbt.b64decode(test_vector["encoded psbt"])
+        except Exception as e:  # pragma: no cover # pylint: disable=broad-except
+            print(f"valid case {i+1}: {test_vector['description']}")  # pragma: no cover
+            raise e  # pragma: no cover
+        assert test_vector["encoded psbt"] == Psbt.b64encode(psbt_decoded)
+
+    for i, test_vector in enumerate(test_vectors["invalid psbts"]):
+        with pytest.raises(BTClibValueError) as excinfo:
+            Psbt.b64decode(test_vector["encoded psbt"])
+        assert test_vector["error message"] in str(
+            excinfo.value
+        ), f"invalid case {i+1}: {test_vector['description']}\n{excinfo.value}"
+
+    1 / 0
+
+
 def test_creation() -> None:
     psbt_str = "cHNidP8BAJoCAAAAAljoeiG1ba8MI76OcHBFbDNvfLqlyHV5JPVFiHuyq911AAAAAAD/////g40EJ9DsZQpoqka7CwmK6kQiwHGyyng1Kgd5WdB86h0BAAAAAP////8CcKrwCAAAAAAWABTYXCtx0AYLCcmIauuBXlCZHdoSTQDh9QUAAAAAFgAUAK6pouXw+HaliN9VRuh0LR2HAI8AAAAAAAAAAAA="
     psbt = Psbt.b64decode(psbt_str)
