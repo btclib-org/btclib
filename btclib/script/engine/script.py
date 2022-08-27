@@ -360,9 +360,7 @@ def verify_script(
         elif op == "OP_IF":
             script_op_codes.op_if(stack, condition_stack, flags, segwit_version)
         elif op == "OP_NOTIF":
-            r = script_op_codes.op_notif(stack, condition_stack, flags, segwit_version)
-            script_index -= len(r)
-            s = bytesio_from_binarydata(serialize_script(r) + s.read())
+            script_op_codes.op_notif(stack, condition_stack, flags, segwit_version)
         elif op == "OP_ELSE":
             script_op_codes.op_else(condition_stack)
         elif op == "OP_ENDIF":

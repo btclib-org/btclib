@@ -167,7 +167,7 @@ def verify_input(prevouts: List[TxOut], tx: Tx, i: int, flags: List[str]) -> Non
             script = b"v\xa9\x14" + payload + b"\x88\xac"
         elif script_type == "p2wsh":
             stack = tx.vin[i].script_witness.stack
-            if any(len(x) > 520 for x in stack):
+            if any(len(x) > 520 for x in stack[:-1]):
                 raise BTClibValueError()
             script = stack[-1]
             if payload != sha256(script):
