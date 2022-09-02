@@ -29,6 +29,8 @@ from btclib.bip32 import (
 )
 from btclib.psbt.psbt_utils import (
     assert_valid_redeem_script,
+    assert_valid_taproot_bip32_derivation,
+    assert_valid_taproot_internal_key,
     assert_valid_unknown,
     assert_valid_witness_script,
     decode_dict_bytes_bytes,
@@ -77,7 +79,7 @@ class PsbtOut:
         witness_script: Octets = b"",
         hd_key_paths: Mapping[Octets, BIP32KeyOrigin] | None = None,
         taproot_internal_key: Octets = b"",
-        taproot_tree: Sequence[Tuple[int, int, Octets]] | None = None,
+        taproot_tree: Sequence[tuple[int, int, Octets]] | None = None,
         taproot_hd_key_paths: Mapping[Octets, BIP32KeyOrigin] | None = None,
         unknown: Mapping[Octets, Octets] | None = None,
         check_validity: bool = True,
@@ -98,6 +100,8 @@ class PsbtOut:
         assert_valid_redeem_script(self.redeem_script)
         assert_valid_witness_script(self.witness_script)
         assert_valid_hd_key_paths(self.hd_key_paths)
+        assert_valid_taproot_internal_key(self.taproot_internal_key)
+        assert_valid_taproot_bip32_derivation(self.taproot_hd_key_paths)
         assert_valid_unknown(self.unknown)
 
     def to_dict(self, check_validity: bool = True) -> dict[str, Any]:

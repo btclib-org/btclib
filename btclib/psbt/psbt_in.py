@@ -32,7 +32,12 @@ from btclib.exceptions import BTClibValueError
 from btclib.hashes import hash160, hash256, ripemd160, sha256
 from btclib.psbt.psbt_out import BIP32KeyOrigin
 from btclib.psbt.psbt_utils import (
+    assert_valid_leaf_scripts,
     assert_valid_redeem_script,
+    assert_valid_taproot_bip32_derivation,
+    assert_valid_taproot_internal_key,
+    assert_valid_taproot_script_keys,
+    assert_valid_taproot_signatures,
     assert_valid_unknown,
     assert_valid_witness_script,
     decode_dict_bytes_bytes,
@@ -255,6 +260,22 @@ class PsbtIn:
         _assert_valid_sha256_preimages(self.sha256_preimages)
         _assert_valid_hash160_preimages(self.hash160_preimages)
         _assert_valid_hash256_preimages(self.hash256_preimages)
+
+        assert_valid_taproot_internal_key(self.taproot_internal_key)
+        assert_valid_taproot_signatures(
+            [self.taproot_key_spend_signature],
+            "invalid taproot key path signature length",
+        )
+        assert_valid_taproot_script_keys(
+            list(self.taproot_script_spend_signatures.keys()),
+            "invalid taproot script path key length",
+        )
+        assert_valid_taproot_signatures(
+            list(self.taproot_script_spend_signatures.values()),
+            "invalid taproot script path signature length",
+        )
+        assert_valid_leaf_scripts(self.taproot_leaf_scripts)
+        assert_valid_taproot_bip32_derivation(self.taproot_hd_key_paths)
 
         assert_valid_unknown(self.unknown)
 

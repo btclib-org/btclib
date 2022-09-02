@@ -85,8 +85,6 @@ def test_vectors_bip371() -> None:
             excinfo.value
         ), f"invalid case {i+1}: {test_vector['description']}\n{excinfo.value}"
 
-    1 / 0
-
 
 def test_creation() -> None:
     psbt_str = "cHNidP8BAJoCAAAAAljoeiG1ba8MI76OcHBFbDNvfLqlyHV5JPVFiHuyq911AAAAAAD/////g40EJ9DsZQpoqka7CwmK6kQiwHGyyng1Kgd5WdB86h0BAAAAAP////8CcKrwCAAAAAAWABTYXCtx0AYLCcmIauuBXlCZHdoSTQDh9QUAAAAAFgAUAK6pouXw+HaliN9VRuh0LR2HAI8AAAAAAAAAAAA="

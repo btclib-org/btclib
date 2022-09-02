@@ -165,7 +165,7 @@ def parse_taproot_tree(v: bytes) -> List[Tuple[int, int, bytes]]:
 
 def taproot_bip32_to_dict(
     taproot_hd_key_paths: Dict[bytes, Tuple[List[bytes], BIP32KeyOrigin]]
-) -> List[Dict[str, str]]:
+) -> List[Dict[str, Any]]:
     return [
         {
             "pub_key": pub_key.hex(),
@@ -193,7 +193,7 @@ def taproot_bip32_from_dict(
 
 
 def decode_taproot_bip32(
-    dict_: Optional[Mapping[Octets, Tuple[List[Octets], BIP32KeyOrigin]]]
+    dict_: Optional[Mapping[Octets, Tuple[Sequence[Octets], BIP32KeyOrigin]]]
 ) -> Dict[bytes, Tuple[List[bytes], BIP32KeyOrigin]]:
     if dict_ is None:
         return {}
@@ -256,6 +256,34 @@ def assert_valid_unknown(data: Mapping[bytes, bytes]) -> None:
     for key, value in data.items():
         bytes(key)
         bytes(value)
+
+
+def assert_valid_taproot_internal_key(key: bytes) -> None:
+    if key and len(key) != 32:
+        raise BTClibValueError("invalid taproot internal key length")
+
+
+def assert_valid_taproot_script_keys(keys: List[bytes], err_msg: str) -> None:
+    if any(key and len(key) != 64 for key in keys):
+        raise BTClibValueError(err_msg)
+
+
+def assert_valid_taproot_signatures(signatures: List[bytes], err_msg: str) -> None:
+    if any(signature and len(signature) != 64 for signature in signatures):
+        raise BTClibValueError(err_msg)
+
+
+def assert_valid_taproot_bip32_derivation(
+    derivations: Dict[bytes, Tuple[List[bytes], BIP32KeyOrigin]]
+) -> None:
+    for pubkey in derivations.keys():
+        if len(pubkey) != 32:
+            raise BTClibValueError("invalid taproot bip32 derivation")
+
+
+def assert_valid_leaf_scripts(leaf_scripts: Dict[bytes, Tuple[bytes, int]]) -> None:
+    for control_block in leaf_scripts.keys():
+        assert_valid_control_block(control_block)
 
 
 def deserialize_tx(
