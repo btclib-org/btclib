@@ -140,3 +140,8 @@ def check_output_pubkey(
     P = (p, secp256k1.y_even(p))
     Q = secp256k1.add(P, mult(t))
     return Q[0] == int.from_bytes(q, "big") and control[0] & 1 == Q[1] % 2
+
+
+def assert_valid_control_block(control_block: bytes) -> None:
+    if (len(control_block) - 1) % 32 != 0:
+        raise BTClibValueError("invalid control block size")
