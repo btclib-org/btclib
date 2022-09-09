@@ -38,11 +38,12 @@ def _from_num(x: int) -> bytes:
         return b""
     return encode_num(x)
 
+
 def _to_bool(element: bytes):
     for x in element[:-1]:
         if x != 0:
             return True
-    if not element or element[-1] in (0x00, 0x80): # positive or negative 0
+    if not element or element[-1] in (0x00, 0x80):  # positive or negative 0
         return False
     return True
 
@@ -76,11 +77,11 @@ def op_notif(
     condition_stack: List[bool],
     flags: List[str],
     segwit_version: int,
-) -> ScriptList:
+) -> None:
 
     if any(not x for x in condition_stack):
         condition_stack.append(False)
-        return []
+        return
 
     minimalif = False
     if segwit_version == 1:

@@ -104,7 +104,7 @@ def verify_input(prevouts: List[TxOut], tx: Tx, i: int, flags: List[str]) -> Non
     verify_script_legacy(
         script_sig, stack, prevouts[i].value, tx, i, flags, False, False
     )
-    p2sh_script = stack[-1] if stack else b'\x00'
+    p2sh_script = stack[-1] if stack else b"\x00"
 
     script = prevouts[i].script_pub_key.script
     verify_script_legacy(script, stack, prevouts[i].value, tx, i, flags, False, True)
