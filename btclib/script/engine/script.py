@@ -133,28 +133,11 @@ def op_checksig(
     return dsa_verify(msg_hash, pub_key, signature[:-1])  # type: ignore
 
 
-def check_script_op_code_limit(script: List[Command], segwit: bool) -> None:
-    count = 0
-    for i, op in enumerate(script):
-        if not isinstance(op, str):
-            continue
-        serialized_op = serialize_script([op])
-        if not (len(serialized_op) == 1 and serialized_op[0] > 0x60):
-            continue
-        if "OP_CHECKMULTISIG" in op:
-            pub_key_count = script[i - 1] # if i else 'OP_0' # FIXME: fails on strange scripts
-            if isinstance(pub_key_count, str):
-                if "OP_" in pub_key_count:
-                    count += int(pub_key_count[3:])
-                else:
-                    count += int(pub_key_count, 16)
-            elif isinstance(pub_key_count, int):
-                count += pub_key_count
-        if "OP_CHECKSIG" in op:
-            count += 1
-        count += 1
+def script_op_count(count: int, increment: int):
+    count += increment
     if count > 201:
         raise BTClibValueError()
+    return count
 
 
 def prepare_script(script: List[Command], flags: List[str], segwit: bool) -> None:
@@ -185,7 +168,6 @@ def verify_script(
         raise BTClibValueError()
 
     script = parse(script_bytes, accept_unknown=True)
-    check_script_op_code_limit(script, segwit)
     check_balanced_if(script)
     prepare_script(script, flags, segwit)
 
@@ -253,6 +235,8 @@ def verify_script(
     altstack: List[bytes] = []
     condition_stack: List[bool] = [True]
 
+    op_code_num = 0
+
     op_conditions = [99, 100, 103, 104]  # ["OP_IF", "OP_NOTIF", "OP_ELSE", "OP_ENDIF"]
 
     s = bytesio_from_binarydata(script_bytes)
@@ -284,6 +268,10 @@ def verify_script(
                     raise BTClibValueError()
             stack.append(a)
             continue
+
+        if t > 96:  # OP_16
+            op_code_num = script_op_count(op_code_num, 1)
+
         if skip_execution and t not in op_conditions:
             continue
         op = OP_CODE_NAME_FROM_INT[t]
@@ -313,6 +301,8 @@ def verify_script(
             pub_keys = [stack.pop() for x in range(pub_key_num)]
             signature_num = _to_num(stack.pop(), flags)
             signatures = [stack.pop() for x in range(signature_num)]
+
+            op_code_num = script_op_count(op_code_num, pub_key_num)
 
             if pub_key_num > 20:
                 raise BTClibValueError()
@@ -373,6 +363,7 @@ def verify_script(
             r = operations[op](stack, altstack, flags)
             if r:
                 script_index -= len(r)
+                op_code_num -= len(r)
                 s = bytesio_from_binarydata(serialize_script(r) + s.read())
         else:
             raise BTClibValueError("unknown op code")

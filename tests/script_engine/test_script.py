@@ -78,6 +78,7 @@ def test_script() -> None:
         flags = x[i + 2]
         result = x[i + 3] == "OK"
 
+        print(x)
         if result:
             test(stack, amount, script_sig_str, script_pub_key_str, flags, result)
         else:

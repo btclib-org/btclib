@@ -32,7 +32,7 @@ from btclib.script.script_pub_key import (
     is_p2wsh,
     type_and_payload,
 )
-from btclib.tx import Tx, TxOut
+from btclib.tx import Tx, TxIn, TxOut
 from btclib.utils import bytes_from_octets
 
 DEFAULT = 0
@@ -93,12 +93,31 @@ def witness_v0_script(script_pub_key: Octets) -> list[bytes]:
 def legacy(script_code: Octets, tx: Tx, vin_i: int, hash_type: int) -> bytes:
     script_code = bytes_from_octets(script_code)
 
-    new_tx = Tx(version=tx.version, lock_time=tx.lock_time, vin=[], vout=[], check_validity=False)
+    new_tx = Tx(
+        version=tx.version,
+        lock_time=tx.lock_time,
+        vin=[],
+        vout=[],
+        check_validity=False,
+    )
 
     for txin in tx.vin:
-        new_tx.vin.append(TxIn(prev_out=txin.prev_out, script_sig=b'' , sequence=txin.sequence, check_validity=False))
+        new_tx.vin.append(
+            TxIn(
+                prev_out=txin.prev_out,
+                script_sig=b"",
+                sequence=txin.sequence,
+                check_validity=False,
+            )
+        )
     for txout in tx.vout:
-        new_tx.vout.append(TxOut(value=txout.value, script_pub_key=txout.script_pub_key, check_validity=False))
+        new_tx.vout.append(
+            TxOut(
+                value=txout.value,
+                script_pub_key=txout.script_pub_key,
+                check_validity=False,
+            )
+        )
     new_tx.vin[vin_i].script_sig = script_code
 
     if hash_type & 0x1F is NONE:
@@ -140,7 +159,9 @@ def segwit_v0(
 
     hash_prev_outs = b"\x00" * 32
     if not hash_type & ANYONECANPAY:
-        hash_prev_outs = b"".join([vin.prev_out.serialize() for vin in tx.vin])
+        hash_prev_outs = b"".join(
+            [vin.prev_out.serialize(check_validity=False) for vin in tx.vin]
+        )
         hash_prev_outs = hash256(hash_prev_outs)
 
     hash_seqs = b"\x00" * 32
@@ -159,17 +180,19 @@ def segwit_v0(
 
     hash_outputs = b"\x00" * 32
     if hash_type & 0x1F not in (SINGLE, NONE):
-        hash_outputs = b"".join([vout.serialize() for vout in tx.vout])
+        hash_outputs = b"".join(
+            [vout.serialize(check_validity=False) for vout in tx.vout]
+        )
         hash_outputs = hash256(hash_outputs)
     elif (hash_type & 0x1F) == SINGLE and vin_i < len(tx.vout):
-        hash_outputs = hash256(tx.vout[vin_i].serialize())
+        hash_outputs = hash256(tx.vout[vin_i].serialize(check_validity=False))
 
     preimage = b"".join(
         [
             tx.version.to_bytes(4, byteorder="little", signed=False),
             hash_prev_outs,
             hash_seqs,
-            tx.vin[vin_i].prev_out.serialize(),
+            tx.vin[vin_i].prev_out.serialize(check_validity=False),
             var_bytes.serialize(script_code),
             amount.to_bytes(8, byteorder="little", signed=False),  # value
             tx.vin[vin_i].sequence.to_bytes(4, byteorder="little", signed=False),
