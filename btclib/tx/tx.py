@@ -280,6 +280,7 @@ def join_txs(*txs: Tx) -> Tx:
         assert version == tx.version
         assert lock_time == tx.lock_time
 
-    assert len(vin) == len(set(v.prev_out for v in vin))
+    # check for duplivated inputs
+    assert len(vin) == len(set(v.serialize() for v in vin))
     # ??? version = max(tx.version for tx in txs)
     return Tx(version, lock_time, vin, vout)
