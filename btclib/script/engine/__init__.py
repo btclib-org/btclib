@@ -63,14 +63,14 @@ def validate_redeem_script(redeem_script: List[Command]) -> None:
 
 ALL_FLAGS = [
     "P2SH",
-    "SIGPUSHONLY",
-    "LOW_S",
-    "STRICTENC",
+    # Bip 62, never finalized
+    # "SIGPUSHONLY",
+    # "LOW_S",
+    # "STRICTENC",
+    # "CONST_SCRIPTCODE",
+    # "CLEANSTACK",
+    # "MINIMALDATA",
     "DERSIG",
-    "CONST_SCRIPTCODE",
-    "NULLDUMMY",
-    "CLEANSTACK",
-    "MINIMALDATA",
     # only standard, not consensus
     # "NULLFAIL",
     # "MINMALIF",
@@ -79,7 +79,9 @@ ALL_FLAGS = [
     "CHECKLOCKTIMEVERIFY",
     "CHECKSEQUENCEVERIFY",
     "WITNESS",
-    "WITNESS_PUBKEYTYPE",
+    "NULLDUMMY",
+    # only standard, not strictly consensus
+    # "WITNESS_PUBKEYTYPE",
     "TAPROOT",
 ]
 
