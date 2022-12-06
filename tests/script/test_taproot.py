@@ -10,6 +10,7 @@
 """Tests for the `btclib.script.taproot` module."""
 
 import json
+import warnings
 from os import path
 
 import pytest
@@ -163,9 +164,11 @@ def test_serialization() -> None:
     script: ScriptList = ["OP_SUCCESS80", b"\x01\x01\x01"]
     assert parse(serialize(script)) == script
 
-    assert parse(serialize([-1])) == ["81"]
-    for x in range(0, 17):
-        assert parse(serialize([x])) == [f"{x:02X}"]
+    with warnings.catch_warnings():
+        warnings.simplefilter("ignore")
+        assert parse(serialize([-1])) == ["81"]
+        for x in range(0, 17):
+            assert parse(serialize([x])) == [f"{x:02X}"]
 
     for x in range(17, 100):
         assert parse(serialize([x])) == [f"{x:02X}"]

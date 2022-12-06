@@ -11,6 +11,7 @@
 "Tests for the `btclib.script.engine` module."
 
 import json
+import warnings
 from os import path
 
 import pytest
@@ -78,9 +79,12 @@ def test_script() -> None:
         flags = x[i + 2]
         result = x[i + 3] == "OK"
 
-        print(x)
-        if result:
-            test(stack, amount, script_sig_str, script_pub_key_str, flags, result)
-        else:
-            with pytest.raises(Exception):
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore")
+            if result:
                 test(stack, amount, script_sig_str, script_pub_key_str, flags, result)
+            else:
+                with pytest.raises(Exception):
+                    test(
+                        stack, amount, script_sig_str, script_pub_key_str, flags, result
+                    )

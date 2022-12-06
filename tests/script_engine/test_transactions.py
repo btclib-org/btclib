@@ -14,9 +14,9 @@ import json
 from os import path
 
 import pytest
-
+import warnings
 from btclib.exceptions import BTClibValueError
-from btclib.script.engine import ALL_FLAGS, verify_input, verify_transaction
+from btclib.script.engine import verify_input, verify_transaction
 from btclib.script.witness import Witness
 from btclib.tx.tx import Tx
 from btclib.tx.tx_out import ScriptPubKey, TxOut
@@ -84,7 +84,27 @@ def test_valid_legacy() -> None:
             if "invalid satoshi amount:" in str(e):
                 continue
 
-        flags = ALL_FLAGS[:]
+        flags = [
+            "P2SH",
+            "SIGPUSHONLY",
+            "LOW_S",
+            "STRICTENC",
+            "DERSIG",
+            "CONST_SCRIPTCODE",
+            "NULLDUMMY",
+            "CLEANSTACK",
+            "MINIMALDATA",
+            # only standard, not consensus
+            # "NULLFAIL",
+            # "MINMALIF",
+            # "DISCOURAGE_UPGRADABLE_NOPS",
+            # "DISCOURAGE_UPGRADABLE_WITNESS_PROGRAM",
+            "CHECKLOCKTIMEVERIFY",
+            "CHECKSEQUENCEVERIFY",
+            "WITNESS",
+            "WITNESS_PUBKEYTYPE",
+            "TAPROOT",
+        ]
         for f in x[2].split(","):
             if f in flags:
                 flags.remove(f)
@@ -121,7 +141,9 @@ def test_invalid_legacy() -> None:
         prevouts = []
         for i in x[0]:
             amount = 0 if len(i) == 3 else i[3]
-            script_pub_key = parse_script(i[2])
+            with warnings.catch_warnings():
+                warnings.simplefilter("ignore")
+                script_pub_key = parse_script(i[2])
             prevouts.append(TxOut(amount, ScriptPubKey(script_pub_key)))
 
         with pytest.raises((BTClibValueError, IndexError, KeyError)):
