@@ -375,4 +375,23 @@ def test_join_txs() -> None:
         v.serialize() for v in tx1.vout
     ).union(set(v.serialize() for v in tx2.vout))
     assert len(joint_tx.vout) == len(tx1.vout) + len(tx2.vout)
-    assert joint_tx.version == max(tx1.version, tx2.version)
+    assert joint_tx.version == tx1.version
+    assert joint_tx.lock_time == tx1.lock_time
+
+    # mismatched version
+    tx2.version = 2
+    with pytest.raises(Exception):
+        join_txs(tx1, tx2)
+    tx2 = Tx.parse(tx_bytes)
+
+    # mismatched lock_time
+    tx2.lock_time = 23526
+    with pytest.raises(Exception):
+        join_txs(tx1, tx2)
+    tx2 = Tx.parse(tx_bytes)
+
+    # duplicated input
+    tx2.vin.append(tx1.vin[0])
+    with pytest.raises(Exception):
+        join_txs(tx1, tx2)
+    tx2 = Tx.parse(tx_bytes)
