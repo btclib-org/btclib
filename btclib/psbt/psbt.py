@@ -15,9 +15,10 @@ https://github.com/bitcoin/bips/blob/master/bip-0174.mediawiki
 from __future__ import annotations
 
 import base64
+import random
 from copy import deepcopy
 from dataclasses import dataclass
-from typing import Any, Mapping, Sequence
+from typing import Any, Callable, Mapping, Sequence
 
 from btclib.alias import Octets, String
 from btclib.bip32 import (
@@ -44,7 +45,7 @@ from btclib.psbt.psbt_utils import (
     serialize_hd_key_paths,
 )
 from btclib.script import Witness, serialize, type_and_payload
-from btclib.tx import Tx
+from btclib.tx import Tx, join_txs
 from btclib.utils import bytesio_from_binarydata
 
 PSBT_MAGIC_BYTES = b"psbt"
@@ -313,6 +314,18 @@ class Psbt:
             check_validity,
         )
 
+    def sort_inputs(self, ordering_func: Callable[[PsbtIn], int] | None = None) -> None:
+        self.inputs, self.tx.vin = _sort_or_shuffle_together(
+            self.inputs, self.tx.vin, ordering_func
+        )
+
+    def sort_outputs(
+        self, ordering_func: Callable[[PsbtOut], int] | None = None
+    ) -> None:
+        self.outputs, self.tx.vout = _sort_or_shuffle_together(
+            self.outputs, self.tx.vout, ordering_func
+        )
+
 
 def _combine_field(
     psbt_map: PsbtIn | PsbtOut | Psbt, out: PsbtIn | PsbtOut | Psbt, key: str
@@ -442,3 +455,74 @@ def extract_tx(psbt: Psbt, check_validity: bool = True) -> Tx:
     if check_validity:
         tx.assert_valid()
     return tx
+
+
+def _sort_or_shuffle_together(
+    sequence_a: Sequence[Any],
+    sequence_b: Sequence[Any],
+    ordering_func: Callable[[Any], int] | None = None,
+) -> tuple[list[Any], list[Any]]:
+
+    if len(sequence_a) != len(sequence_b):
+        raise BTClibValueError("sequences must have same length")
+
+    tmp = list(zip(sequence_a, sequence_b))
+    if ordering_func is None:
+        random.shuffle(tmp)
+    else:
+        tmp.sort(key=lambda t: ordering_func(t[0]))  # type: ignore
+    tuple_a, tuple_b = zip(*tmp)
+    return list(tuple_a), list(tuple_b)
+
+
+def _ensure_consistency(psbts: Sequence[Psbt]) -> None:
+    if any(
+        k in psbts[0].hd_key_paths and v != psbts[0].hd_key_paths[k]
+        for psbt in psbts
+        for k, v in psbt.hd_key_paths.items()
+    ):
+        raise BTClibValueError("inconsistent hd_key_paths")
+    if any(
+        k in psbts[0].unknown and v != psbts[0].unknown[k]
+        for psbt in psbts
+        for k, v in psbt.unknown.items()
+    ):
+        raise BTClibValueError("inconsistent custom fields")
+
+
+def join_psbts(
+    *psbts: Psbt,
+    shuffle: bool = True,
+    sort_inputs: Callable[[PsbtIn], int] | None = None,
+    sort_outputs: Callable[[PsbtOut], int] | None = None,
+) -> Psbt:
+    """Join multiple psbts into a single one by merging inputs and outputs.
+
+    inputs/outputs are shuffled by default. If shuffle=False, they are simply
+    concatenated in the same order as psbts are specified. A specific ordering can be
+    specified via sort_{inputs|outputs}, which overwrite shuffle when present.
+    """
+    _ensure_consistency(psbts)
+
+    inputs = [inp for psbt in psbts for inp in psbt.inputs]
+    outputs = [outp for psbt in psbts for outp in psbt.outputs]
+    hd_key_paths: dict[Octets, BIP32KeyOrigin] = {
+        k: v for psbt in psbts for k, v in psbt.hd_key_paths.items()
+    }
+    unknown: dict[Octets, Octets] = {
+        k: v for psbt in psbts for k, v in psbt.unknown.items()
+    }
+    version = max(psbt.version for psbt in psbts)
+
+    merged_tx = join_txs(*(psbt.tx for psbt in psbts), shuffle=False)
+
+    if shuffle or sort_inputs:
+        inputs, merged_tx.vin = _sort_or_shuffle_together(
+            inputs, merged_tx.vin, sort_inputs
+        )
+    if shuffle or sort_outputs:
+        outputs, merged_tx.vout = _sort_or_shuffle_together(
+            outputs, merged_tx.vout, sort_outputs
+        )
+
+    return Psbt(merged_tx, inputs, outputs, version, hd_key_paths, unknown)

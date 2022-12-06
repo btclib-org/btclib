@@ -26,6 +26,7 @@ https://en.bitcoin.it/wiki/Timelock
 
 from __future__ import annotations
 
+import random
 from dataclasses import dataclass
 from io import SEEK_CUR
 from math import ceil
@@ -259,3 +260,29 @@ class Tx:
         lock_time = int.from_bytes(stream.read(4), byteorder="little", signed=False)
 
         return cls(version, lock_time, vin, vout, check_validity)
+
+
+def join_txs(*txs: Tx, shuffle: bool = True) -> Tx:
+
+    version = txs[0].version
+    if any(tx.version != version for tx in txs[1:]):
+        raise BTClibValueError("version numbers are not the same")
+
+    lock_time = txs[0].lock_time
+    if any(tx.lock_time != lock_time for tx in txs[1:]):
+        raise BTClibValueError("lock times are not the same")
+
+    if sum(len(tx.vin) for tx in txs) != len(
+        {vin.serialize() for tx in txs for vin in tx.vin}
+    ):
+        raise BTClibValueError("common inputs")
+    vin = [vin for tx in txs for vin in tx.vin]
+
+    vout = [vout for tx in txs for vout in tx.vout]
+
+    # avoid leaking matches between inputs and outputs
+    if shuffle:
+        random.shuffle(vin)
+        random.shuffle(vout)
+
+    return Tx(version, lock_time, vin, vout)

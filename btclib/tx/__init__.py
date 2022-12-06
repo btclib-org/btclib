@@ -11,8 +11,8 @@
 """Module btclib.tx."""
 
 from btclib.tx.out_point import OutPoint
-from btclib.tx.tx import Tx
+from btclib.tx.tx import Tx, join_txs
 from btclib.tx.tx_in import TxIn
 from btclib.tx.tx_out import TxOut
 
-__all__ = ["OutPoint", "TxOut", "TxIn", "Tx"]
+__all__ = ["OutPoint", "TxOut", "TxIn", "Tx", "join_txs"]

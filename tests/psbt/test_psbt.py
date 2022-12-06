@@ -15,12 +15,13 @@ from os import path
 
 import pytest
 
+from btclib.bip32 import BIP32KeyOrigin
 from btclib.ec import sec_point
 from btclib.ecc import dsa
 from btclib.exceptions import BTClibValueError
 from btclib.hashes import hash160, hash256, ripemd160, sha256
-from btclib.psbt import Psbt, combine_psbts, extract_tx, finalize_psbt
-from btclib.psbt.psbt import PSBT_DELIMITER, PSBT_SEPARATOR
+from btclib.psbt import Psbt, combine_psbts, extract_tx, finalize_psbt, join_psbts
+from btclib.psbt.psbt import PSBT_DELIMITER, PSBT_SEPARATOR, _sort_or_shuffle_together
 from btclib.script import ScriptPubKey, Witness
 from btclib.tx import OutPoint, Tx, TxIn, TxOut
 
@@ -214,9 +215,9 @@ def test_explicit_version() -> None:
     psbt.version = 10
     assert_valid = False
     assert Psbt.b64decode(psbt.b64encode(assert_valid), assert_valid) == psbt
-    with pytest.raises(BTClibValueError):
+    with pytest.raises(BTClibValueError, match="invalid non-zero version: "):
         psbt.b64encode(True)
-    with pytest.raises(BTClibValueError):
+    with pytest.raises(BTClibValueError, match="invalid non-zero version: "):
         Psbt.b64decode(psbt.b64encode(assert_valid), True)
 
 
@@ -515,7 +516,7 @@ def test_invalid_ripemd160_preimage() -> None:
     preimage = b"\x01"
     psbt.inputs[0].ripemd160_preimages.update({preimage: preimage})
 
-    with pytest.raises(BTClibValueError):
+    with pytest.raises(BTClibValueError, match="invalid RIPEMD160 preimage"):
         psbt.assert_valid()
 
 
@@ -539,7 +540,7 @@ def test_invalid_sha256_preimage() -> None:
     preimage = b"\x01"
     psbt.inputs[0].sha256_preimages.update({preimage: preimage})
 
-    with pytest.raises(BTClibValueError):
+    with pytest.raises(BTClibValueError, match="invalid SHA256 preimage"):
         psbt.assert_valid()
 
 
@@ -563,7 +564,7 @@ def test_invalid_hash160_preimage() -> None:
     preimage = b"\x01"
     psbt.inputs[0].hash160_preimages.update({preimage: preimage})
 
-    with pytest.raises(BTClibValueError):
+    with pytest.raises(BTClibValueError, match="invalid HASH160 preimage"):
         psbt.assert_valid()
 
 
@@ -587,5 +588,83 @@ def test_invalid_hash256_preimage() -> None:
     preimage = b"\x01"
     psbt.inputs[0].hash256_preimages.update({preimage: preimage})
 
-    with pytest.raises(BTClibValueError):
+    with pytest.raises(BTClibValueError, match="invalid HASH256 preimage"):
         psbt.assert_valid()
+
+
+def test_join_psbts() -> None:
+    psbt1_str = "cHNidP8BAJoCAAAAAljoeiG1ba8MI76OcHBFbDNvfLqlyHV5JPVFiHuyq911AAAAAAD/////g40EJ9DsZQpoqka7CwmK6kQiwHGyyng1Kgd5WdB86h0BAAAAAP////8CcKrwCAAAAAAWABTYXCtx0AYLCcmIauuBXlCZHdoSTQDh9QUAAAAAFgAUAK6pouXw+HaliN9VRuh0LR2HAI8AAAAAAAEAuwIAAAABqtc5MQGL0l+ErkALaISL4J23BurCrBgpi6vucatlb4sAAAAASEcwRAIgWPb8fGoz4bMVSNSByCbAFb0wE1qtQs1neQ2rZtKtJDsCIEoc7SYExnNbY5PltBaR3XiwDwxZQvufdRhW+qk4FX26Af7///8CgPD6AgAAAAAXqRQPuUY0IWlrgsgzryQceMF9295JNIfQ8gonAQAAABepFCnKdPigj4GZlCgYXJe12FLkBj9hh2UAAAAiAgKVg785rgpgl0etGZrd1jT6YQhVnWxc05tMIYPxq5bgf0cwRAIgdAGK1BgAl7hzMjwAFXILNoTMgSOJEEjn282bVa1nnJkCIHPTabdA4+tT3O+jOCPIBwUUylWn3ZVE8VfBZ5EyYRGMASICAtq2H/SaFNtqfQKwzR+7ePxLGDErW05U2uTbovv+9TbXSDBFAiEA9hA4swjcHahlo0hSdG8BV3KTQgjG0kRUOTzZm98iF3cCIAVuZ1pnWm0KArhbFOXikHTYolqbV2C+ooFvZhkQoAbqAQEDBAEAAAABBEdSIQKVg785rgpgl0etGZrd1jT6YQhVnWxc05tMIYPxq5bgfyEC2rYf9JoU22p9ArDNH7t4/EsYMStbTlTa5Nui+/71NtdSriIGApWDvzmuCmCXR60Zmt3WNPphCFWdbFzTm0whg/GrluB/ENkMak8AAACAAAAAgAAAAIAiBgLath/0mhTban0CsM0fu3j8SxgxK1tOVNrk26L7/vU21xDZDGpPAAAAgAAAAIABAACAAAEBIADC6wsAAAAAF6kUt/X69A49QKWkWbHbNTXyty+pIeiHIgIDCJ3BDHrG21T5EymvYXMz2ziM6tDCMfcjN50bmQMLAtxHMEQCIGLrelVhB6fHP0WsSrWh3d9vcHX7EnWWmn84Pv/3hLyyAiAMBdu3Rw2/LwhVfdNWxzJcHtMJE+mWzThAlF2xIijaXwEiAgI63ZBPPW3PWd25BrDe4jUpt/+57VDl6GFRkmhgIh8Oc0cwRAIgZfRbpZmLWaJ//hp77QFq8fH5DVSzqo90UKpfVqJRA70CIH9yRwOtHtuWaAsoS1bU/8uI9/t1nqu+CKow8puFE4PSAQEDBAEAAAABBCIAIIwjUxc3Q7WV37Sge3K6jkLjeX2nTof+fZ10l+OyAokDAQVHUiEDCJ3BDHrG21T5EymvYXMz2ziM6tDCMfcjN50bmQMLAtwhAjrdkE89bc9Z3bkGsN7iNSm3/7ntUOXoYVGSaGAiHw5zUq4iBgI63ZBPPW3PWd25BrDe4jUpt/+57VDl6GFRkmhgIh8OcxDZDGpPAAAAgAAAAIADAACAIgYDCJ3BDHrG21T5EymvYXMz2ziM6tDCMfcjN50bmQMLAtwQ2QxqTwAAAIAAAACAAgAAgAAiAgOppMN/WZbTqiXbrGtXCvBlA5RJKUJGCzVHU+2e7KWHcRDZDGpPAAAAgAAAAIAEAACAACICAn9jmXV9Lv9VoTatAsaEsYOLZVbl8bazQoKpS2tQBRCWENkMak8AAACAAAAAgAUAAIAA"
+    psbt1 = Psbt.b64decode(psbt1_str)
+
+    psbt2_str = "cHNidP8BAIkCAAAAAQKRPRGG7prm5Q6O5UJleyh9L9mmTPInNsVHnHzOS+ouAAAAAAAAAAAAAkBCDwAAAAAAIgAg1CyIdLnm/VxeOpIrt1Cvd2pVfTIgBuhGjqY7NVWGNgNDZAMAAAAAACIAIIUkJZx27tj1ukl5cN1lACHcJpd+XYVHg3XdxlGGJaRGAAAAAAABASslqRIAAAAAACIAIIUkJZx27tj1ukl5cN1lACHcJpd+XYVHg3XdxlGGJaRGIgICAO+hDq7He+h19gglhqAwUuruSCtWpIXFyEkj53crNh1IMEUCIQDiB1FrWN+TYztVhZTo7T7OJzQXTDz5dOhMG9+2ydm8+AIgb6pEEFSXYa9bAOExy4VQ3R3hpbi94l4doBBqLHQIh1ABIgIDxpfu3Y+krSVPw26m5LwhdoYVyRf7xWBL+P5WUbdO2etHMEQCIC/gN9WvBgebfiLJoNGXL6VPtblmo09Yr9bkjmCdMVIfAiBKJu4UTYVPkun4Whq8YKlddlRp95nzzInN4MnPx0N7ZQEBBf2oAVIhAgDvoQ6ux3vodfYIJYagMFLq7kgrVqSFxchJI+d3KzYdIQKtPKqcpvfFHCIaEGlHiX2kBTvZ+sZa8dtXLz6eErPsWyEDxpfu3Y+krSVPw26m5LwhdoYVyRf7xWBL+P5WUbdO2etTrmRSIQJAg8IBrMPT1XzBOuatwoVRObsgDKywIO/hTXX5BLqJ2yECWDeYBx2nVYYUPeICE2IgZ32CtqldcbZWrhmncmX7fxIhAs/eanomSWEuQFlCjry6HTmZcZ03c12wzMe6+jFMZFjYU68CkACyZ1MhA2HwlTuHQ7vQzuBibvN/r36m4MaIP6p1CEypK06o02pyIQNlG153o/5ni/xXlHgDAsD8sjOmvfh8E3s8XoQr8kBj7SEDahsw8dKvYjcoyrLfr+kWiXBRmG8cr0EBhDoslO3JgF0hA34ELbQa8gKi0ju2YUck4PSOLtfJ+QWAREM9Zmn4zAcjIQOnrP8c7MWRPaVi8ew06516BidH/65MoqblLYUp4+3KwSEDw2+64TPFicHXuZ1HYJWxEQ5v6iKmuTdgDvwIndMCfI9WrmgiBgIA76EOrsd76HX2CCWGoDBS6u5IK1akhcXISSPndys2HRj8i5WHKgAAgAAAAIAAAACAAQAAAAEAAAAiBgKtPKqcpvfFHCIaEGlHiX2kBTvZ+sZa8dtXLz6eErPsWxgN8rafKgAAgAAAAIAAAACAAQAAAAEAAAAiBgNh8JU7h0O70M7gYm7zf69+puDGiD+qdQhMqStOqNNqchg/h1X2LAAAgAAAAIAAAACAAQAAAAEAAAAiBgNlG153o/5ni/xXlHgDAsD8sjOmvfh8E3s8XoQr8kBj7RgmqLvwLAAAgAAAAIAAAACAAQAAAAEAAAAiBgNqGzDx0q9iNyjKst+v6RaJcFGYbxyvQQGEOiyU7cmAXRgQqVSnLAAAgAAAAIAAAACAAQAAAAEAAAAiBgN+BC20GvICotI7tmFHJOD0ji7XyfkFgERDPWZp+MwHIxgZXhf6LAAAgAAAAIAAAACAAQAAAAEAAAAiBgOnrP8c7MWRPaVi8ew06516BidH/65MoqblLYUp4+3KwRhm/AUgLAAAgAAAAIAAAACAAQAAAAEAAAAiBgPDb7rhM8WJwde5nUdglbERDm/qIqa5N2AO/Aid0wJ8jxg2/ys6LAAAgAAAAIAAAACAAQAAAAEAAAAiBgPGl+7dj6StJU/DbqbkvCF2hhXJF/vFYEv4/lZRt07Z6xiTeMdTKgAAgAAAAIAAAACAAQAAAAEAAAAAAAA="
+    psbt2 = Psbt.b64decode(psbt2_str)
+    psbt2.tx.lock_time = psbt1.tx.lock_time
+    joint_psbt = join_psbts(psbt1, psbt2)
+
+    joint_psbt.assert_valid()
+    assert all(i in joint_psbt.inputs for i in psbt1.inputs + psbt2.inputs)
+    assert all(i in joint_psbt.outputs for i in psbt1.outputs + psbt2.outputs)
+
+    # non-shuffled join is deterministic
+    assert join_psbts(psbt1, psbt2, shuffle=False) == join_psbts(
+        psbt1, psbt2, shuffle=False
+    )
+    # shuffling works at least once every 10 tries
+    # https://github.com/bitcoin/bitcoin/blob/6061eb6564105ad54703a7cf3282590d0e1a7f28/test/functional/rpc_psbt.py#L579
+    assert any(join_psbts(psbt1, psbt2, shuffle=True) != joint_psbt for _ in range(10))
+
+    # failure: different locktimes
+    psbt2.tx.lock_time = psbt1.tx.lock_time ^ 12345678
+    with pytest.raises(BTClibValueError, match="lock times are not the same"):
+        join_psbts(psbt1, psbt2)
+    psbt2 = Psbt.b64decode(psbt2_str)
+
+    # failure: common inputs
+    psbt2.inputs.append(psbt2.inputs[0])
+    with pytest.raises(BTClibValueError, match="sequences must have same length"):
+        join_psbts(psbt1, psbt2)
+    psbt2 = Psbt.b64decode(psbt2_str)
+
+    # failure: Incompatible hd_key_paths
+    fingerprint = b"beef"
+    psbt1.hd_key_paths[fingerprint] = BIP32KeyOrigin(fingerprint, "m/42/0/0/1")
+    psbt2.hd_key_paths[fingerprint] = BIP32KeyOrigin(fingerprint, "m/42/0/0/2")
+    with pytest.raises(BTClibValueError, match="inconsistent hd_key_paths"):
+        join_psbts(psbt1, psbt2)
+    psbt2 = Psbt.b64decode(psbt2_str)
+
+    # failure: Incompatible 'unknown' fields
+    psbt1.unknown[b"foo"] = b"321"
+    psbt2.unknown[b"foo"] = b"123"
+    with pytest.raises(BTClibValueError, match="inconsistent custom fields"):
+        join_psbts(psbt1, psbt2)
+    psbt2 = Psbt.b64decode(psbt2_str)
+
+
+def test_shuffle_sort_inp_out() -> None:
+    psbt1_str = "cHNidP8BAJoCAAAAAljoeiG1ba8MI76OcHBFbDNvfLqlyHV5JPVFiHuyq911AAAAAAD/////g40EJ9DsZQpoqka7CwmK6kQiwHGyyng1Kgd5WdB86h0BAAAAAP////8CcKrwCAAAAAAWABTYXCtx0AYLCcmIauuBXlCZHdoSTQDh9QUAAAAAFgAUAK6pouXw+HaliN9VRuh0LR2HAI8AAAAAAAEAuwIAAAABqtc5MQGL0l+ErkALaISL4J23BurCrBgpi6vucatlb4sAAAAASEcwRAIgWPb8fGoz4bMVSNSByCbAFb0wE1qtQs1neQ2rZtKtJDsCIEoc7SYExnNbY5PltBaR3XiwDwxZQvufdRhW+qk4FX26Af7///8CgPD6AgAAAAAXqRQPuUY0IWlrgsgzryQceMF9295JNIfQ8gonAQAAABepFCnKdPigj4GZlCgYXJe12FLkBj9hh2UAAAAiAgKVg785rgpgl0etGZrd1jT6YQhVnWxc05tMIYPxq5bgf0cwRAIgdAGK1BgAl7hzMjwAFXILNoTMgSOJEEjn282bVa1nnJkCIHPTabdA4+tT3O+jOCPIBwUUylWn3ZVE8VfBZ5EyYRGMASICAtq2H/SaFNtqfQKwzR+7ePxLGDErW05U2uTbovv+9TbXSDBFAiEA9hA4swjcHahlo0hSdG8BV3KTQgjG0kRUOTzZm98iF3cCIAVuZ1pnWm0KArhbFOXikHTYolqbV2C+ooFvZhkQoAbqAQEDBAEAAAABBEdSIQKVg785rgpgl0etGZrd1jT6YQhVnWxc05tMIYPxq5bgfyEC2rYf9JoU22p9ArDNH7t4/EsYMStbTlTa5Nui+/71NtdSriIGApWDvzmuCmCXR60Zmt3WNPphCFWdbFzTm0whg/GrluB/ENkMak8AAACAAAAAgAAAAIAiBgLath/0mhTban0CsM0fu3j8SxgxK1tOVNrk26L7/vU21xDZDGpPAAAAgAAAAIABAACAAAEBIADC6wsAAAAAF6kUt/X69A49QKWkWbHbNTXyty+pIeiHIgIDCJ3BDHrG21T5EymvYXMz2ziM6tDCMfcjN50bmQMLAtxHMEQCIGLrelVhB6fHP0WsSrWh3d9vcHX7EnWWmn84Pv/3hLyyAiAMBdu3Rw2/LwhVfdNWxzJcHtMJE+mWzThAlF2xIijaXwEiAgI63ZBPPW3PWd25BrDe4jUpt/+57VDl6GFRkmhgIh8Oc0cwRAIgZfRbpZmLWaJ//hp77QFq8fH5DVSzqo90UKpfVqJRA70CIH9yRwOtHtuWaAsoS1bU/8uI9/t1nqu+CKow8puFE4PSAQEDBAEAAAABBCIAIIwjUxc3Q7WV37Sge3K6jkLjeX2nTof+fZ10l+OyAokDAQVHUiEDCJ3BDHrG21T5EymvYXMz2ziM6tDCMfcjN50bmQMLAtwhAjrdkE89bc9Z3bkGsN7iNSm3/7ntUOXoYVGSaGAiHw5zUq4iBgI63ZBPPW3PWd25BrDe4jUpt/+57VDl6GFRkmhgIh8OcxDZDGpPAAAAgAAAAIADAACAIgYDCJ3BDHrG21T5EymvYXMz2ziM6tDCMfcjN50bmQMLAtwQ2QxqTwAAAIAAAACAAgAAgAAiAgOppMN/WZbTqiXbrGtXCvBlA5RJKUJGCzVHU+2e7KWHcRDZDGpPAAAAgAAAAIAEAACAACICAn9jmXV9Lv9VoTatAsaEsYOLZVbl8bazQoKpS2tQBRCWENkMak8AAACAAAAAgAUAAIAA"
+    psbt1 = Psbt.b64decode(psbt1_str)
+    # let's shuffle inputs and outputs
+    psbt1.sort_inputs()
+    psbt1.sort_outputs()
+    psbt1.assert_valid()
+    # psbt1.sort_inputs(lambda t: TxOut.value)
+
+
+def test_shuffle_sort() -> None:
+    list_a = [2, 1, 4, 3]
+    list_b = ["b", "a", "d", "c"]
+
+    list_a_sorted, list_b_sorted = _sort_or_shuffle_together(
+        list_a, list_b, lambda t: t
+    )
+    assert list_a == [2, 1, 4, 3]
+    assert list_b == ["b", "a", "d", "c"]
+    assert list_a_sorted == [1, 2, 3, 4]
+    assert list_b_sorted == ["a", "b", "c", "d"]
+
+    list_a_shuffled, list_b_shuffled = _sort_or_shuffle_together(list_a, list_b)
+    assert list_a == [2, 1, 4, 3]
+    assert list_b == ["b", "a", "d", "c"]
+    assert list_a_shuffled != [1, 2, 3, 4]
+    assert list_b_shuffled != ["a", "b", "c", "d"]

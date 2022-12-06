@@ -12,7 +12,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Mapping, Sequence
+from typing import Mapping, MutableMapping, Sequence
 
 from btclib.alias import Octets
 from btclib.bip32.der_path import (
@@ -107,7 +107,7 @@ class BIP32KeyOrigin:
         return cls(data[:8], data[9:], check_validity)
 
 
-HdKeyPaths = Mapping[bytes, BIP32KeyOrigin]
+HdKeyPaths = MutableMapping[bytes, BIP32KeyOrigin]
 
 
 def assert_valid_hd_key_paths(hd_key_paths: Mapping[bytes, BIP32KeyOrigin]) -> None:

@@ -17,7 +17,7 @@ import pytest
 
 from btclib.exceptions import BTClibValueError
 from btclib.script import Witness
-from btclib.tx import OutPoint, Tx, TxIn, TxOut
+from btclib.tx import OutPoint, Tx, TxIn, TxOut, join_txs
 
 
 def test_tx() -> None:
@@ -355,3 +355,49 @@ def test_dataclasses_json_dict() -> None:
     assert any(bool(tx_in.script_witness) for tx_in in tx2.vin)
 
     assert tx == tx2
+
+
+def test_join_txs() -> None:
+    tx_bytes = "010000000001019bdea7abb2fa14dead47dd14d03cf82212a25b6096a8da6b14feec3658dbcf9d0100000000ffffffff02a02526000000000017a914f987c321394968be164053d352fc49763b2be55c874361610000000000220020701a8d401c84fb13e6baf169d59684e17abd9fa216c8cc5b9fc63d622ff8c58d04004730440220421fbbedf2ee096d6289b99973509809d5e09589040d5e0d453133dd11b2f78a02205686dbdb57e0c44e49421e9400dd4e931f1655332e8d078260c9295ba959e05d014730440220398f141917e4525d3e9e0d1c6482cb19ca3188dc5516a3a5ac29a0f4017212d902204ea405fae3a58b1fc30c5ad8ac70a76ab4f4d876e8af706a6a7b4cd6fa100f44016952210375e00eb72e29da82b89367947f29ef34afb75e8654f6ea368e0acdfd92976b7c2103a1b26313f430c4b15bb1fdce663207659d8cac749a0e53d70eff01874496feff2103c96d495bfdd5ba4145e3e046fee45e84a8a48ad05bd8dbb395c011a32cf9f88053ae00000000"
+    tx1 = Tx.parse(tx_bytes)
+
+    tx_bytes = "01000000016dbddb085b1d8af75184f0bc01fad58d1266e9b63b50881990e4b40d6aee3629000000008b483045022100f3581e1972ae8ac7c7367a7a253bc1135223adb9a468bb3a59233f45bc578380022059af01ca17d00e41837a1d58e97aa31bae584edec28d35bd96923690913bae9a0141049c02bfc97ef236ce6d8fe5d94013c721e915982acd2b12b65d9b7d59e20a842005f8fc4e02532e873d37b96f09d6d4511ada8f14042f46614a4c70c0f14beff5ffffffff02404b4c00000000001976a9141aa0cd1cbea6e7458a7abad512a9d9ea1afb225e88ac80fae9c7000000001976a9140eab5bea436a0484cfab12485efda0b78b4ecc5288ac00000000"
+    tx2 = Tx.parse(tx_bytes)
+
+    joint_tx = join_txs(tx1, tx2)
+
+    joint_tx.assert_valid()
+    assert {v.serialize() for v in joint_tx.vin} == {
+        v.serialize() for v in tx1.vin
+    }.union({v.serialize() for v in tx2.vin})
+    assert len(joint_tx.vin) == len(tx1.vin) + len(tx2.vin)
+    assert {v.serialize() for v in joint_tx.vout} == {
+        v.serialize() for v in tx1.vout
+    }.union({v.serialize() for v in tx2.vout})
+    assert len(joint_tx.vout) == len(tx1.vout) + len(tx2.vout)
+    assert joint_tx.version == tx1.version
+    assert joint_tx.lock_time == tx1.lock_time
+
+    # non-shuffled join is deterministic
+    assert join_txs(tx1, tx2, shuffle=False) == join_txs(tx1, tx2, shuffle=False)
+    # shuffling works at least once every 10 tries
+    # https://github.com/bitcoin/bitcoin/blob/6061eb6564105ad54703a7cf3282590d0e1a7f28/test/functional/rpc_psbt.py#L579
+    assert any(join_txs(tx1, tx2, shuffle=True) != joint_tx for _ in range(10))
+
+    # ERROR CASES
+    # FIXME: check against proper error messages
+
+    tx2.version = 2
+    with pytest.raises(BTClibValueError, match="version numbers are not the same"):
+        join_txs(tx1, tx2)
+    tx2 = Tx.parse(tx_bytes)
+
+    tx2.lock_time = 23526
+    with pytest.raises(BTClibValueError, match="lock times are not the same"):
+        join_txs(tx1, tx2)
+    tx2 = Tx.parse(tx_bytes)
+
+    tx2.vin.append(tx1.vin[0])
+    with pytest.raises(BTClibValueError, match="common inputs"):
+        join_txs(tx1, tx2)
+    tx2 = Tx.parse(tx_bytes)
