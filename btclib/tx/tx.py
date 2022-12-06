@@ -266,3 +266,20 @@ class Tx:
         lock_time = int.from_bytes(stream.read(4), byteorder="little", signed=False)
 
         return cls(version, lock_time, vin, vout, check_validity)
+
+
+def join_txs(txs: Sequence[Tx]) -> Tx:
+    vin = []
+    vout = []
+    version = txs[0].version
+    lock_time = txs[0].lock_time
+
+    for tx in txs:
+        vin.extend(tx.vin)
+        vout.extend(tx.vout)
+        assert version == tx.version
+        assert lock_time == tx.lock_time
+
+    assert len(vin) == len(set(v.prev_out for v in vin))
+    # ??? version = max(tx.version for tx in txs)
+    return Tx(version, lock_time, vin, vout)
