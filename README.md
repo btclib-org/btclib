@@ -125,6 +125,6 @@ Some additional packages are needed to build the documentation:
     python -m pip install --upgrade -r docs/requirements.txt
 
 
-Developers might also consider to install btclib in editable way:
+Developers might also consider installing btclib in editable way:
 
     python -m pip install --upgrade -e ./
