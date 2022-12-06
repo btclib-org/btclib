@@ -12,12 +12,18 @@
 
 """
 
+import ctypes
 import hashlib
+import sys
 from typing import Callable, List, Tuple, Union
 
 from btclib.alias import HashF, Octets
 from btclib.ecc.curve import Curve, secp256k1
 from btclib.utils import bytes_from_octets, int_from_bits
+
+if sys.platform.startswith("linux"):
+    ctypes.CDLL("libssl.so").OSSL_PROVIDER_load(None, b"legacy")
+    ctypes.CDLL("libssl.so").OSSL_PROVIDER_load(None, b"default")
 
 H160_Net = Tuple[bytes, str]
 
