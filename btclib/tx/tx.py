@@ -268,7 +268,7 @@ class Tx:
         return cls(version, lock_time, vin, vout, check_validity)
 
 
-def join_txs(txs: Sequence[Tx]) -> Tx:
+def join_txs(*txs: Tx) -> Tx:
     vin = []
     vout = []
     version = txs[0].version

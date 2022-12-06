@@ -455,7 +455,7 @@ def extract_tx(psbt: Psbt, check_validity: bool = True) -> Tx:
     return tx
 
 
-def join_psbts(psbts: Sequence[Psbt]) -> Psbt:
+def join_psbts(*psbts: Psbt) -> Psbt:
     inputs = []
     outputs = []
     hd_key_paths = {}
@@ -472,5 +472,5 @@ def join_psbts(psbts: Sequence[Psbt]) -> Psbt:
 
     version = max(psbt.version for psbt in psbts)
 
-    merged_tx = join_txs([psbt.tx for psbt in psbts])
+    merged_tx = join_txs(*(psbt.tx for psbt in psbts))
     return Psbt(merged_tx, inputs, outputs, version, hd_key_paths, unknown)
