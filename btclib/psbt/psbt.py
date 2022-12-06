@@ -41,6 +41,7 @@ from btclib.psbt.psbt_utils import (
 )
 from btclib.script.script import serialize
 from btclib.script.script_pub_key import type_and_payload
+from btclib.tx.tx import join_txs
 from btclib.utils import bytesio_from_binarydata
 
 PSBT_MAGIC_BYTES = b"psbt"
@@ -452,3 +453,24 @@ def extract_tx(psbt: Psbt, check_validity: bool = True) -> Tx:
     if check_validity:
         tx.assert_valid()
     return tx
+
+
+def join_psbts(psbts: Sequence[Psbt]) -> Psbt:
+    inputs = []
+    outputs = []
+    hd_key_paths = {}
+    unknown = {}
+    for psbt in psbts:
+        inputs.extend(psbt.inputs)
+        outputs.extend(psbt.outputs)
+        assert not any(
+            k in hd_key_paths and v != hd_key_paths[k] for k, v in psbt.hd_key_paths
+        )
+        hd_key_paths.update(psbt.hd_key_paths)
+        assert not any(k in unknown and v != unknown[k] for k, v in psbt.unknown)
+        unknown.update(psbt.unknown)
+
+    version = max(psbt.version for psbt in psbts)
+
+    merged_tx = join_txs([psbt.tx for psbt in psbts])
+    return Psbt(merged_tx, inputs, outputs, version, hd_key_paths, unknown)
