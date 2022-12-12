@@ -29,6 +29,7 @@ https://en.bitcoin.it/wiki/Timelock
 from dataclasses import dataclass
 from io import SEEK_CUR
 from math import ceil
+import random
 from typing import Any, Dict, List, Mapping, Optional, Sequence, Type, Union
 
 from btclib import var_int
@@ -268,7 +269,7 @@ class Tx:
         return cls(version, lock_time, vin, vout, check_validity)
 
 
-def join_txs(*txs: Tx) -> Tx:
+def join_txs(*txs: Tx, shuffle: bool = True) -> Tx:
     vin = []
     vout = []
     version = txs[0].version
@@ -285,6 +286,11 @@ def join_txs(*txs: Tx) -> Tx:
     # raise an error in case of duplicated inputs
     if len(vin) != len(set(v.serialize() for v in vin)):
         raise BTClibValueError("Psbts to merge have inputs in common, cannot join them")
+
+    # shuffle inputs and outputs to avoid leaking matches between inputs and outputs
+    if shuffle:
+        random.shuffle(vin)
+        random.shuffle(vout)
 
     # ??? version = max(tx.version for tx in txs)
     return Tx(version, lock_time, vin, vout)

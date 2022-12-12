@@ -15,6 +15,7 @@ https://github.com/bitcoin/bips/blob/master/bip-0174.mediawiki
 import base64
 from copy import deepcopy
 from dataclasses import dataclass
+import random
 from typing import Any, Dict, List, Mapping, Optional, Sequence, Type, Union
 
 from btclib.alias import Octets, String
@@ -455,7 +456,15 @@ def extract_tx(psbt: Psbt, check_validity: bool = True) -> Tx:
     return tx
 
 
-def join_psbts(*psbts: Psbt) -> Psbt:
+def _shuffle_together(*lists: List) -> List[List]:
+    if any(len(l) != len(lists[0]) for l in lists[1:]):
+        raise ValueError("All lists need to have the same length")
+    tmp = list(zip(*lists))
+    random.shuffle(tmp)
+    return list(zip(*tmp))
+
+
+def join_psbts(*psbts: Psbt, shuffle: bool = True) -> Psbt:
     inputs = []
     outputs = []
     hd_key_paths = {}
@@ -474,5 +483,10 @@ def join_psbts(*psbts: Psbt) -> Psbt:
 
     version = max(psbt.version for psbt in psbts)
 
-    merged_tx = join_txs(*(psbt.tx for psbt in psbts))
+    merged_tx = join_txs(*(psbt.tx for psbt in psbts), shuffle=False)
+
+    if shuffle:
+        inputs, merged_tx.vin = _shuffle_together(inputs, merged_tx.vin)
+        outputs, merged_tx.vout = _shuffle_together(outputs, merged_tx.vout)
+
     return Psbt(merged_tx, inputs, outputs, version, hd_key_paths, unknown)

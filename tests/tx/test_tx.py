@@ -367,6 +367,8 @@ def test_join_txs() -> None:
     tx2 = Tx.parse(tx_bytes)
 
     joint_tx = join_txs(tx1, tx2)
+
+    joint_tx.assert_valid()
     assert set(v.serialize() for v in joint_tx.vin) == set(
         v.serialize() for v in tx1.vin
     ).union(set(v.serialize() for v in tx2.vin))
@@ -377,6 +379,12 @@ def test_join_txs() -> None:
     assert len(joint_tx.vout) == len(tx1.vout) + len(tx2.vout)
     assert joint_tx.version == tx1.version
     assert joint_tx.lock_time == tx1.lock_time
+
+    # non-shuffled join is deterministic
+    assert join_txs(tx1, tx2, shuffle=False) == join_txs(tx1, tx2, shuffle=False)
+    # shuffling works at least once every 10 tries
+    # https://github.com/bitcoin/bitcoin/blob/6061eb6564105ad54703a7cf3282590d0e1a7f28/test/functional/rpc_psbt.py#L579
+    assert any(join_txs(tx1, tx2, shuffle=True) != joint_tx for _ in range(10))
 
     # ERROR CASES
     # FIXME: check against proper error messages
