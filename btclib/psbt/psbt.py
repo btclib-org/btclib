@@ -463,11 +463,13 @@ def join_psbts(*psbts: Psbt) -> Psbt:
     for psbt in psbts:
         inputs.extend(psbt.inputs)
         outputs.extend(psbt.outputs)
-        assert not any(
+        if any(
             k in hd_key_paths and v != hd_key_paths[k] for k, v in psbt.hd_key_paths
-        )
+        ):
+            raise BTClibValueError("Inconsistency found among hd_key_paths in psbts")
         hd_key_paths.update(psbt.hd_key_paths)
-        assert not any(k in unknown and v != unknown[k] for k, v in psbt.unknown)
+        if any(k in unknown and v != unknown[k] for k, v in psbt.unknown):
+            raise BTClibValueError("Inconsistency found among custom fields in psbts")
         unknown.update(psbt.unknown)
 
     version = max(psbt.version for psbt in psbts)

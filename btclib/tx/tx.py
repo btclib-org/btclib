@@ -277,10 +277,14 @@ def join_txs(*txs: Tx) -> Tx:
     for tx in txs:
         vin.extend(tx.vin)
         vout.extend(tx.vout)
-        assert version == tx.version
-        assert lock_time == tx.lock_time
+        if version != tx.version:
+            raise BTClibValueError("Inconsistency found among tx version numbers")
+        if lock_time != tx.lock_time:
+            raise BTClibValueError("Inconsistency found among tx lok times")
 
-    # check for duplivated inputs
-    assert len(vin) == len(set(v.serialize() for v in vin))
+    # raise an error in case of duplicated inputs
+    if len(vin) != len(set(v.serialize() for v in vin)):
+        raise BTClibValueError("Psbts to merge have inputs in common, cannot join them")
+
     # ??? version = max(tx.version for tx in txs)
     return Tx(version, lock_time, vin, vout)

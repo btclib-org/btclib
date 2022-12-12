@@ -378,6 +378,9 @@ def test_join_txs() -> None:
     assert joint_tx.version == tx1.version
     assert joint_tx.lock_time == tx1.lock_time
 
+    # ERROR CASES
+    # FIXME: check against proper error messages
+
     # mismatched version
     tx2.version = 2
     with pytest.raises(Exception):

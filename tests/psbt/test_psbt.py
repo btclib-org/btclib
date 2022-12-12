@@ -615,6 +615,9 @@ def test_join_psbts() -> None:
     assert all(i in joint_psbt.inputs for i in psbt1.inputs + psbt2.inputs)
     assert all(i in joint_psbt.outputs for i in psbt1.outputs + psbt2.outputs)
 
+    # ERROR CASES
+    # FIXME: check against proper error messages
+
     # failure: different locktimes
     psbt2.tx.lock_time = psbt1.tx.lock_time ^ 12345678
     with pytest.raises(Exception):
