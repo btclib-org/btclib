@@ -617,7 +617,9 @@ def test_join_psbts() -> None:
     assert all(i in joint_psbt.outputs for i in psbt1.outputs + psbt2.outputs)
 
     # non-shuffled join is deterministic
-    assert join_psbts(psbt1, psbt2, shuffle=False) == join_psbts(psbt1, psbt2, shuffle=False)
+    assert join_psbts(psbt1, psbt2, shuffle=False) == join_psbts(
+        psbt1, psbt2, shuffle=False
+    )
     # shuffling works at least once every 10 tries
     # https://github.com/bitcoin/bitcoin/blob/6061eb6564105ad54703a7cf3282590d0e1a7f28/test/functional/rpc_psbt.py#L579
     assert any(join_psbts(psbt1, psbt2, shuffle=True) != joint_psbt for _ in range(10))

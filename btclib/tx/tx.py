@@ -26,10 +26,10 @@ https://en.bitcoin.it/wiki/Timelock
 
 """
 
+import random
 from dataclasses import dataclass
 from io import SEEK_CUR
 from math import ceil
-import random
 from typing import Any, Dict, List, Mapping, Optional, Sequence, Type, Union
 
 from btclib import var_int
@@ -269,23 +269,25 @@ class Tx:
         return cls(version, lock_time, vin, vout, check_validity)
 
 
+def _ensure_consistency(txs: Sequence[Tx]) -> None:
+    if any(txs[0].version != tx.version for tx in txs[1:]):
+        raise BTClibValueError("Inconsistency found among tx version numbers")
+    if any(txs[0].lock_time != tx.lock_time for tx in txs[1:]):
+        raise BTClibValueError("Inconsistency found among tx lock times")
+
+    if sum(len(tx.vin) for tx in txs) != len(
+        set(vin.serialize() for tx in txs for vin in tx.vin)
+    ):
+        raise BTClibValueError("Psbts to merge have inputs in common, cannot join them")
+
+
 def join_txs(*txs: Tx, shuffle: bool = True) -> Tx:
-    vin = []
-    vout = []
+    _ensure_consistency(txs)
+
+    vin = [vin for tx in txs for vin in tx.vin]
+    vout = [vout for tx in txs for vout in tx.vout]
     version = txs[0].version
     lock_time = txs[0].lock_time
-
-    for tx in txs:
-        vin.extend(tx.vin)
-        vout.extend(tx.vout)
-        if version != tx.version:
-            raise BTClibValueError("Inconsistency found among tx version numbers")
-        if lock_time != tx.lock_time:
-            raise BTClibValueError("Inconsistency found among tx lok times")
-
-    # raise an error in case of duplicated inputs
-    if len(vin) != len(set(v.serialize() for v in vin)):
-        raise BTClibValueError("Psbts to merge have inputs in common, cannot join them")
 
     # shuffle inputs and outputs to avoid leaking matches between inputs and outputs
     if shuffle:

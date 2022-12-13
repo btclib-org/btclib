@@ -13,9 +13,9 @@
 https://github.com/bitcoin/bips/blob/master/bip-0174.mediawiki
 """
 import base64
+import random
 from copy import deepcopy
 from dataclasses import dataclass
-import random
 from typing import Any, Dict, List, Mapping, Optional, Sequence, Type, Union
 
 from btclib.alias import Octets, String
@@ -457,30 +457,35 @@ def extract_tx(psbt: Psbt, check_validity: bool = True) -> Tx:
 
 
 def _shuffle_together(*lists: List) -> List[List]:
-    if any(len(l) != len(lists[0]) for l in lists[1:]):
+    if any(len(list_) != len(lists[0]) for list_ in lists[1:]):
         raise ValueError("All lists need to have the same length")
     tmp = list(zip(*lists))
     random.shuffle(tmp)
     return list(zip(*tmp))
 
 
-def join_psbts(*psbts: Psbt, shuffle: bool = True) -> Psbt:
-    inputs = []
-    outputs = []
-    hd_key_paths = {}
-    unknown = {}
-    for psbt in psbts:
-        inputs.extend(psbt.inputs)
-        outputs.extend(psbt.outputs)
-        if any(
-            k in hd_key_paths and v != hd_key_paths[k] for k, v in psbt.hd_key_paths
-        ):
-            raise BTClibValueError("Inconsistency found among hd_key_paths in psbts")
-        hd_key_paths.update(psbt.hd_key_paths)
-        if any(k in unknown and v != unknown[k] for k, v in psbt.unknown):
-            raise BTClibValueError("Inconsistency found among custom fields in psbts")
-        unknown.update(psbt.unknown)
+def _ensure_consistency(psbts: Sequence[Psbt]) -> None:
+    if any(
+        k in psbts[0].hd_key_paths and v != psbts[0].hd_key_paths[k]
+        for psbt in psbts
+        for k, v in psbt.hd_key_paths
+    ):
+        raise BTClibValueError("Inconsistency found among hd_key_paths in psbts")
+    if any(
+        k in psbts[0].unknown and v != psbts[0].hd_key_paths[k]
+        for psbt in psbts
+        for k, v in psbt.unknown
+    ):
+        raise BTClibValueError("Inconsistency found among custom fields in psbts")
 
+
+def join_psbts(*psbts: Psbt, shuffle: bool = True) -> Psbt:
+    _ensure_consistency(psbts)
+
+    inputs = [inp for psbt in psbts for inp in psbt.inputs]
+    outputs = [outp for psbt in psbts for outp in psbt.outputs]
+    hd_key_paths = {k: v for psbt in psbts for k, v in psbt.hd_key_paths.items()}
+    unknown = {k: v for psbt in psbts for k, v in psbt.unknown.items()}
     version = max(psbt.version for psbt in psbts)
 
     merged_tx = join_txs(*(psbt.tx for psbt in psbts), shuffle=False)
