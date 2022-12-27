@@ -46,9 +46,7 @@ def str_from_index_int(i: int, hardening: str = _HARDENING) -> str:
         raise BTClibValueError(f"invalid hardening symbol: {hardening}")
     if not 0 <= i <= 0xFFFFFFFF:
         raise BTClibValueError(f"invalid index: {i}")
-    if i < 0x80000000:
-        return str(i)
-    return str(i - 0x80000000) + hardening
+    return str(i) if i < 0x80000000 else str(i - 0x80000000) + hardening
 
 
 def _indexes_from_bip32_path_str(der_path: str, skip_m: bool = True) -> List[int]:
@@ -112,7 +110,7 @@ def str_from_bip32_path(
     else:
         first_element = "m"
 
-    return first_element + ("/" + result if result else "")
+    return first_element + (f"/{result}" if result else "")
 
 
 def bytes_from_bip32_path(der_path: BIP32DerPath) -> bytes:

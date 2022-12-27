@@ -146,10 +146,9 @@ class Psbt:
         for i, tx_in in enumerate(self.tx.vin):
 
             non_witness_utxo = self.inputs[i].non_witness_utxo
-            witness_utxo = self.inputs[i].witness_utxo
             redeem_script = self.inputs[i].redeem_script
 
-            if witness_utxo:
+            if witness_utxo := self.inputs[i].witness_utxo:
                 script_pub_key = witness_utxo.script_pub_key
                 script_type, payload = type_and_payload(script_pub_key.script)
                 if script_type == "p2sh":
@@ -222,10 +221,10 @@ class Psbt:
             psbt_bin.append(serialize_dict_bytes_bytes(b"", self.unknown))
 
         psbt_bin.append(PSBT_DELIMITER)
-        for input_map in self.inputs:
-            psbt_bin.append(input_map.serialize() + b"\x00")
-        for output_map in self.outputs:
-            psbt_bin.append(output_map.serialize() + b"\x00")
+        psbt_bin.extend(input_map.serialize() + b"\x00" for input_map in self.inputs)
+        psbt_bin.extend(
+            output_map.serialize() + b"\x00" for output_map in self.outputs
+        )
         return b"".join(psbt_bin)
 
     @classmethod

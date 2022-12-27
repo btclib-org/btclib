@@ -190,7 +190,7 @@ def test_coinbase_block_1() -> None:
     assert tx_in.serialize().hex() == coinbase_inp
     assert tx_in.prev_out.is_coinbase()
 
-    coinbase = "01000000" "01" + coinbase_inp + "01" + coinbase_out + "00000000"
+    coinbase = f"0100000001{coinbase_inp}01{coinbase_out}00000000"
     tx = Tx.parse(coinbase)
     assert tx.serialize(include_witness=True).hex() == coinbase
     assert tx == Tx.from_dict(tx.to_dict())
@@ -369,13 +369,13 @@ def test_join_txs() -> None:
     joint_tx = join_txs(tx1, tx2)
 
     joint_tx.assert_valid()
-    assert set(v.serialize() for v in joint_tx.vin) == set(
+    assert {v.serialize() for v in joint_tx.vin} == {
         v.serialize() for v in tx1.vin
-    ).union(set(v.serialize() for v in tx2.vin))
+    }.union({v.serialize() for v in tx2.vin})
     assert len(joint_tx.vin) == len(tx1.vin) + len(tx2.vin)
-    assert set(v.serialize() for v in joint_tx.vout) == set(
+    assert {v.serialize() for v in joint_tx.vout} == {
         v.serialize() for v in tx1.vout
-    ).union(set(v.serialize() for v in tx2.vout))
+    }.union({v.serialize() for v in tx2.vout})
     assert len(joint_tx.vout) == len(tx1.vout) + len(tx2.vout)
     assert joint_tx.version == tx1.version
     assert joint_tx.lock_time == tx1.lock_time

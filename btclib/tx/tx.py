@@ -276,7 +276,7 @@ def _ensure_consistency(txs: Sequence[Tx]) -> None:
         raise BTClibValueError("Inconsistency found among tx lock times")
 
     if sum(len(tx.vin) for tx in txs) != len(
-        unique_inputs := set(vin.serialize() for tx in txs for vin in tx.vin)
+        unique_inputs := {vin.serialize() for tx in txs for vin in tx.vin}
     ):
         inp = [vin.serialize().hex() for tx in txs for vin in tx.vin]
         for i in unique_inputs:
