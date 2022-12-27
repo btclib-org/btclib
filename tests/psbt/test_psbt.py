@@ -15,6 +15,7 @@ from os import path
 
 import pytest
 
+from btclib.bip32.key_origin import BIP32KeyOrigin
 from btclib.ecc import der, dsa, sec_point
 from btclib.exceptions import BTClibValueError
 from btclib.hashes import hash160, hash256, ripemd160, sha256
@@ -635,6 +636,21 @@ def test_join_psbts() -> None:
 
     # failure: common inputs
     psbt2.inputs.append(psbt2.inputs[0])
+    with pytest.raises(Exception):
+        join_psbts(psbt1, psbt2)
+    psbt2 = Psbt.b64decode(psbt2_str)
+
+    # failure: Incompatible hd_key_paths
+    fingerprint = b"beef"
+    psbt1.hd_key_paths[fingerprint] = BIP32KeyOrigin(fingerprint, "m/42/0/0/1")
+    psbt2.hd_key_paths[fingerprint] = BIP32KeyOrigin(fingerprint, "m/42/0/0/2")
+    with pytest.raises(Exception):
+        join_psbts(psbt1, psbt2)
+    psbt2 = Psbt.b64decode(psbt2_str)
+
+    # failure: Incompatible 'unknown' fields
+    psbt1.unknown[b"foo"] = b"321"
+    psbt2.unknown[b"foo"] = b"123"
     with pytest.raises(Exception):
         join_psbts(psbt1, psbt2)
     psbt2 = Psbt.b64decode(psbt2_str)
