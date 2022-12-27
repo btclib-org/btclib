@@ -276,9 +276,14 @@ def _ensure_consistency(txs: Sequence[Tx]) -> None:
         raise BTClibValueError("Inconsistency found among tx lock times")
 
     if sum(len(tx.vin) for tx in txs) != len(
-        set(vin.serialize() for tx in txs for vin in tx.vin)
+        unique_inputs := set(vin.serialize() for tx in txs for vin in tx.vin)
     ):
-        raise BTClibValueError("Psbts to merge have inputs in common, cannot join them")
+        inp = [vin.serialize().hex() for tx in txs for vin in tx.vin]
+        for i in unique_inputs:
+            inp.remove(i.hex())
+        raise BTClibValueError(
+            "Cannot join psbts as they have the following inputs in common:", inp
+        )
 
 
 def join_txs(*txs: Tx, shuffle: bool = True) -> Tx:

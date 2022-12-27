@@ -468,13 +468,13 @@ def _ensure_consistency(psbts: Sequence[Psbt]) -> None:
     if any(
         k in psbts[0].hd_key_paths and v != psbts[0].hd_key_paths[k]
         for psbt in psbts
-        for k, v in psbt.hd_key_paths
+        for k, v in psbt.hd_key_paths.items()
     ):
         raise BTClibValueError("Inconsistency found among hd_key_paths in psbts")
     if any(
-        k in psbts[0].unknown and v != psbts[0].hd_key_paths[k]
+        k in psbts[0].unknown and v != psbts[0].unknown[k]
         for psbt in psbts
-        for k, v in psbt.unknown
+        for k, v in psbt.unknown.items()
     ):
         raise BTClibValueError("Inconsistency found among custom fields in psbts")
 
@@ -484,8 +484,12 @@ def join_psbts(*psbts: Psbt, shuffle: bool = True) -> Psbt:
 
     inputs = [inp for psbt in psbts for inp in psbt.inputs]
     outputs = [outp for psbt in psbts for outp in psbt.outputs]
-    hd_key_paths = {k: v for psbt in psbts for k, v in psbt.hd_key_paths.items()}
-    unknown = {k: v for psbt in psbts for k, v in psbt.unknown.items()}
+    hd_key_paths: Dict[Octets, BIP32KeyOrigin] = {
+        k: v for psbt in psbts for k, v in psbt.hd_key_paths.items()
+    }
+    unknown: Dict[Octets, Octets] = {
+        k: v for psbt in psbts for k, v in psbt.unknown.items()
+    }
     version = max(psbt.version for psbt in psbts)
 
     merged_tx = join_txs(*(psbt.tx for psbt in psbts), shuffle=False)
