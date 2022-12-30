@@ -188,7 +188,7 @@ def test_coinbase_block_1() -> None:
     )
     tx_in = TxIn.parse(coinbase_inp)
     assert tx_in.serialize().hex() == coinbase_inp
-    assert tx_in.prev_out.is_coinbase
+    assert tx_in.prev_out.is_coinbase()
 
     coinbase = "01000000" "01" + coinbase_inp + "01" + coinbase_out + "00000000"
     tx = Tx.parse(coinbase)
