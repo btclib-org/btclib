@@ -21,6 +21,17 @@ from btclib.utils import bytes_from_octets, int_from_bits
 
 H160_Net = Tuple[bytes, str]
 
+# see https://bugs.python.org/issue47101
+# With OpenSSL 3.x, hashlib still includes ripemd160
+# but it is not usable unless the legacy provider is loaded.
+try:
+    hashlib.new("ripemd160")
+except ValueError:  # pragma: no cover
+    import ctypes
+
+    ctypes.CDLL("libssl.so").OSSL_PROVIDER_load(None, b"legacy")
+    ctypes.CDLL("libssl.so").OSSL_PROVIDER_load(None, b"default")
+
 
 def ripemd160(octets: Octets) -> bytes:
     "Return the RIPEMD160(*) of the input octet sequence."
