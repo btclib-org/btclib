@@ -27,7 +27,7 @@ from btclib.ecc import libsecp256k1
 from btclib.ecc.curve import Curve, secp256k1
 from btclib.ecc.curve_group import _double_mult, _mult
 from btclib.ecc.der import Sig
-from btclib.ecc.number_theory import mod_inv
+from btclib.number_theory import mod_inv
 from btclib.ecc.rfc6979 import _rfc6979_
 from btclib.exceptions import BTClibRuntimeError, BTClibValueError
 from btclib.hashes import challenge_, reduce_to_hlen
