@@ -16,7 +16,8 @@ from os import path
 
 import pytest
 
-from btclib.block import Block, BlockHeader
+from btclib.block import Block
+from btclib.block_header import BlockHeader
 from btclib.exceptions import BTClibValueError
 from btclib.network import NETWORKS
 
