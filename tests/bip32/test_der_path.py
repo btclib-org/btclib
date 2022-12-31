@@ -13,15 +13,14 @@
 
 import pytest
 
-from btclib.bip32.der_path import (
-    _HARDENING,
-    _indexes_from_bip32_path_str,
+from btclib.bip32 import (
     bytes_from_bip32_path,
     indexes_from_bip32_path,
     int_from_index_str,
     str_from_bip32_path,
     str_from_index_int,
 )
+from btclib.bip32.der_path import _HARDENING, _indexes_from_bip32_path_str
 from btclib.exceptions import BTClibValueError
 
 

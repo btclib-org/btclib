@@ -18,7 +18,7 @@ from dataclasses import dataclass
 from typing import Any, Dict, List, Mapping, Optional, Sequence, Type, Union
 
 from btclib.alias import Octets, String
-from btclib.bip32.key_origin import (
+from btclib.bip32 import (
     assert_valid_hd_key_paths,
     decode_from_bip32_derivs,
     decode_hd_key_paths,

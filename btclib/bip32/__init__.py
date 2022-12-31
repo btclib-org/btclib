@@ -13,9 +13,18 @@
 from btclib.bip32.bip32 import (
     BIP32Key,
     BIP32KeyData,
+    crack_prv_key,
     derive,
+    derive_from_account,
     rootxprv_from_seed,
     xpub_from_xprv,
+)
+from btclib.bip32.der_path import (
+    bytes_from_bip32_path,
+    indexes_from_bip32_path,
+    int_from_index_str,
+    str_from_bip32_path,
+    str_from_index_int,
 )
 from btclib.bip32.key_origin import (
     BIP32KeyOrigin,

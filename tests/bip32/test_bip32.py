@@ -18,15 +18,15 @@ import pytest
 
 from btclib import base58, hashes
 from btclib.b58 import p2pkh  # FIXME why it is needed here
-from btclib.bip32.bip32 import (
+from btclib.bip32 import (
     BIP32KeyData,
-    _derive,
     crack_prv_key,
     derive,
     derive_from_account,
     rootxprv_from_seed,
     xpub_from_xprv,
 )
+from btclib.bip32.bip32 import _derive
 from btclib.bip32.der_path import _indexes_from_bip32_path_str
 from btclib.exceptions import BTClibValueError
 from btclib.to_pub_key import pub_keyinfo_from_key
