@@ -49,7 +49,7 @@ from btclib.bech32 import decode, encode
 from btclib.exceptions import BTClibValueError
 from btclib.hashes import hash160, sha256
 from btclib.network import NETWORKS, network_from_key_value
-from btclib.script.taproot import TaprootScriptTree, output_pubkey
+from btclib.script import TaprootScriptTree, output_pubkey
 from btclib.to_pub_key import Key, pub_keyinfo_from_key
 from btclib.utils import bytes_from_octets
 

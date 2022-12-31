@@ -27,6 +27,7 @@ from btclib.script.script_pub_key import (
     type_and_payload,
 )
 from btclib.script.taproot import (
+    TaprootScriptTree,
     check_output_pubkey,
     input_script_sig,
     output_prvkey,

@@ -22,8 +22,8 @@ from math import ceil
 from typing import List, Sequence, Tuple
 
 from btclib.alias import INF, INFJ, Integer, JacPoint, Point
-from btclib.number_theory import legendre_symbol, mod_inv, mod_sqrt
 from btclib.exceptions import BTClibTypeError, BTClibValueError
+from btclib.number_theory import legendre_symbol, mod_inv, mod_sqrt
 from btclib.utils import hex_string, int_from_integer
 
 HEX_THRESHOLD = 0xFFFFFFFF

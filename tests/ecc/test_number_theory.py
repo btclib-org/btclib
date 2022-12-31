@@ -12,8 +12,8 @@
 
 import pytest
 
-from btclib.number_theory import mod_inv, mod_sqrt, tonelli
 from btclib.exceptions import BTClibValueError
+from btclib.number_theory import mod_inv, mod_sqrt, tonelli
 
 primes = [
     2,
