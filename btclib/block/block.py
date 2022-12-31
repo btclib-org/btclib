@@ -19,7 +19,7 @@ from typing import Any, Dict, List, Mapping, Optional, Sequence, Type
 
 from btclib import var_bytes, var_int
 from btclib.alias import BinaryData
-from btclib.block_header import BlockHeader
+from btclib.block.block_header import BlockHeader
 from btclib.exceptions import BTClibValueError
 from btclib.hashes import hash256, merkle_root
 from btclib.tx.tx import Tx
