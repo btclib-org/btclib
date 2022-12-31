@@ -19,11 +19,11 @@ sys.path.insert(0, path.abspath("../../"))
 # -- Project information -----------------------------------------------------
 
 project = "btclib"
-copyright = "2017-2022 The btclib developers"
+copyright = "2017-2023 The btclib developers"
 author = "The btclib developers"
 
 # The full version, including alpha/beta/rc tags
-release = "2022.7.20"
+release = "2022.12.31"
 
 
 # -- General configuration ---------------------------------------------------

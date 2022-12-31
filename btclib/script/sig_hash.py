@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 
-# Copyright (C) 2020-2022 The btclib developers
+# Copyright (C) 2020-2023 The btclib developers
 #
 # This file is part of btclib. It is subject to the license terms in the
 # LICENSE file found in the top-level directory of this distribution.
@@ -31,8 +31,7 @@ from btclib.script.script_pub_key import (
     is_p2wsh,
     type_and_payload,
 )
-from btclib.tx.tx import Tx
-from btclib.tx.tx_out import TxOut
+from btclib.tx import Tx, TxOut
 from btclib.utils import bytes_from_octets
 
 DEFAULT = 0

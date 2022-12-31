@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 
-# Copyright (C) 2020-2022 The btclib developers
+# Copyright (C) 2020-2023 The btclib developers
 #
 # This file is part of btclib. It is subject to the license terms in the
 # LICENSE file found in the top-level directory of this distribution.
@@ -45,8 +45,7 @@ from btclib.psbt.psbt_utils import (
 )
 from btclib.script.sig_hash import assert_valid_hash_type
 from btclib.script.witness import Witness
-from btclib.tx.tx import Tx
-from btclib.tx.tx_out import TxOut
+from btclib.tx import Tx, TxOut
 from btclib.utils import bytes_from_octets
 
 PSBT_IN_NON_WITNESS_UTXO = b"\x00"

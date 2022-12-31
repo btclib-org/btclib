@@ -5,6 +5,15 @@ Notable changes to the codebase are documented here.
 Release names follow [*calendar versioning*](https://calver.org/):
 full year, short month, short day (YYYY-M-D)
 
+## v2022.12.31
+
+Major changes include:
+
+- added support for Python 3.11
+- fixed the OpenSSL 3.x RIPEMD160 issue in btclib/hashes.py
+- added CONTRIBUTING and SECURITY
+- solved issue #73 [Re-import Tx subclasses into btclib.tx](https://github.com/btclib-org/btclib/issues/73)
+
 ## v2022.7.20
 
 Major changes include:
@@ -12,22 +21,21 @@ Major changes include:
 - by default ssa, dsa and point multiplication are now sped up using btclib_libsecp256k1;
   this provides an 8 times speed up in benchmarks and 3 times in real world applications.
 
-
-## v2022.5.3 
+## v2022.5.3
 
 Major changes includes:
 
 - dropped python 3.6 support
 - added support for btclib_libsecp256k1
-- the hashes.fingerprint function, removed in the previous version, 
-  has been reinstated in the to_pub_key module 
-- encode_num and decode_num have been moved from 
+- the hashes.fingerprint function, removed in the previous version,
+  has been reinstated in the to_pub_key module
+- encode_num and decode_num have been moved from
 script.op_codes to utils
-- op_pushdata and op_str have been renamed to 
+- op_pushdata and op_str have been renamed to
   serialize_bytes_command and serialize_str_command
 - script.op_codes has been removed and its functions merged in script
 - script serialization is now more consistent: all integers, even small
-  ones, are now considered like bytes. To put small integers on the stack 
+  ones, are now considered like bytes. To put small integers on the stack
   OP_X must be used explicitly. Using integers directly will lead to larger
   scripts that will be likely to be rejected by the network as not standard
 - check_validity is now correctly propagated inside each function
@@ -108,7 +116,7 @@ Major changes includes:
   bip32.deserialize(xkey), now it is bip32.BIP32KeyData.deserialize(xkey)
 - bip32: added str_from_bip32_path and bytes_from_bip32_path
 - bip3: made bip32 index an int (not bytes) to avoid byteorder ambiguity.
-  Consequently, where previously it was xkey_dict["index"][0] < 0x80,
+  Consequently, where previously it was xkey_dict\["index"\][0] < 0x80,
   now it is xkey_dict.index < 0x80000000
 - bip32: local "./" derivation, opposed to absolute "m/" derivation,
   is not available anymore

@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 
-# Copyright (C) 2020-2022 The btclib developers
+# Copyright (C) 2020-2023 The btclib developers
 #
 # This file is part of btclib. It is subject to the license terms in the
 # LICENSE file found in the top-level directory of this distribution.
@@ -15,8 +15,7 @@ test vector at https://github.com/bitcoin/bips/blob/master/bip-0143.mediawiki
 
 from btclib.script import sig_hash
 from btclib.script.witness import Witness
-from btclib.tx.tx import Tx
-from btclib.tx.tx_out import TxOut
+from btclib.tx import Tx, TxOut
 
 
 def test_native_p2wpkh() -> None:

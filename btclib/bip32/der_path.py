@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 
-# Copyright (C) 2017-2022 The btclib developers
+# Copyright (C) 2017-2023 The btclib developers
 #
 # This file is part of btclib. It is subject to the license terms in the
 # LICENSE file found in the top-level directory of this distribution.
@@ -17,7 +17,7 @@ A BIP 32 derivation path can be represented as:
 - bytes (multiples of 4-bytes index)
 """
 
-from typing import List, Sequence, Union
+from typing import List, Optional, Sequence, Union
 
 from btclib.alias import Octets
 from btclib.exceptions import BTClibValueError
@@ -97,7 +97,7 @@ def _str_from_bip32_path(der_path: BIP32DerPath, hardening: str = _HARDENING) ->
 
 def str_from_bip32_path(
     der_path: BIP32DerPath,
-    master_fingerprint: Octets = None,
+    master_fingerprint: Optional[Octets] = None,
     hardening: str = _HARDENING,
 ) -> str:
     result = _str_from_bip32_path(der_path, hardening)

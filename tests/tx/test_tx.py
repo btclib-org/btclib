@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 
-# Copyright (C) 2020-2022 The btclib developers
+# Copyright (C) 2020-2023 The btclib developers
 #
 # This file is part of btclib. It is subject to the license terms in the
 # LICENSE file found in the top-level directory of this distribution.
@@ -17,9 +17,7 @@ import pytest
 
 from btclib.exceptions import BTClibValueError
 from btclib.script.witness import Witness
-from btclib.tx.tx import Tx
-from btclib.tx.tx_in import OutPoint, TxIn
-from btclib.tx.tx_out import TxOut
+from btclib.tx import OutPoint, Tx, TxIn, TxOut
 
 
 def test_tx() -> None:
@@ -188,7 +186,7 @@ def test_coinbase_block_1() -> None:
     )
     tx_in = TxIn.parse(coinbase_inp)
     assert tx_in.serialize().hex() == coinbase_inp
-    assert tx_in.prev_out.is_coinbase
+    assert tx_in.prev_out.is_coinbase()
 
     coinbase = "01000000" "01" + coinbase_inp + "01" + coinbase_out + "00000000"
     tx = Tx.parse(coinbase)
