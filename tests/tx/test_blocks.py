@@ -18,7 +18,7 @@ import pytest
 
 from btclib.exceptions import BTClibValueError
 from btclib.network import NETWORKS
-from btclib.tx.blocks import Block, BlockHeader
+from btclib.blocks import Block, BlockHeader
 
 datadir = path.join(path.dirname(__file__), "_generated_files")
 
