@@ -16,7 +16,7 @@ from os import path
 import pytest
 
 from btclib.exceptions import BTClibValueError
-from btclib.script.witness import Witness
+from btclib.script import Witness
 from btclib.tx import OutPoint, Tx, TxIn, TxOut
 
 

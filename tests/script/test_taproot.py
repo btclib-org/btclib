@@ -18,15 +18,17 @@ import pytest
 from btclib import b32
 from btclib.ecc.curve import mult
 from btclib.exceptions import BTClibValueError
-from btclib.script.script import parse, serialize
-from btclib.script.script_pub_key import is_p2tr, type_and_payload
-from btclib.script.taproot import (
+from btclib.script import (
+    Witness,
     check_output_pubkey,
     input_script_sig,
+    is_p2tr,
     output_prvkey,
     output_pubkey,
+    parse,
+    serialize,
+    type_and_payload,
 )
-from btclib.script.witness import Witness
 from btclib.tx import TxOut
 
 

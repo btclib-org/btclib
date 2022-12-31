@@ -21,10 +21,7 @@ import pytest
 from btclib.ecc import ssa
 from btclib.exceptions import BTClibRuntimeError, BTClibValueError
 from btclib.hashes import hash160
-from btclib.script import sig_hash
-from btclib.script.script import parse, serialize
-from btclib.script.script_pub_key import is_p2tr, type_and_payload
-from btclib.script.witness import Witness
+from btclib.script import Witness, is_p2tr, parse, serialize, sig_hash, type_and_payload
 from btclib.tx import OutPoint, Tx, TxIn, TxOut
 
 

@@ -13,7 +13,7 @@
 import pytest
 
 from btclib.exceptions import BTClibValueError
-from btclib.psbt.psbt_utils import serialize_hd_key_paths
+from btclib.psbt import serialize_hd_key_paths
 
 
 def test_invalid_serialize_hd_key_paths():

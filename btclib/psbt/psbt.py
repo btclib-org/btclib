@@ -39,7 +39,7 @@ from btclib.psbt.psbt_utils import (
     serialize_dict_bytes_bytes,
     serialize_hd_key_paths,
 )
-from btclib.script.script import serialize
+from btclib.script import serialize
 from btclib.script.script_pub_key import type_and_payload
 from btclib.utils import bytesio_from_binarydata
 

@@ -15,8 +15,8 @@ from os import path
 from typing import Dict
 
 from btclib.alias import Octets
-from btclib.psbt.psbt import Psbt
-from btclib.psbt.psbt_out import (
+from btclib.psbt import (
+    Psbt,
     PsbtOut,
     assert_valid_unknown,
     decode_dict_bytes_bytes,
