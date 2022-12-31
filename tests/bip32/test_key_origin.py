@@ -15,13 +15,13 @@ from os import path
 
 import pytest
 
-from btclib.bip32.der_path import _HARDENING
-from btclib.bip32.key_origin import (
+from btclib.bip32 import (
     BIP32KeyOrigin,
     assert_valid_hd_key_paths,
     decode_from_bip32_derivs,
     encode_to_bip32_derivs,
 )
+from btclib.bip32.der_path import _HARDENING
 from btclib.exceptions import BTClibValueError
 
 
