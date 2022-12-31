@@ -9,3 +9,5 @@
 # or distributed except according to the terms contained in the LICENSE file.
 
 """btclib.bip32 submodule."""
+
+from btclib.bip32.bip32 import BIP32Key, BIP32KeyData
