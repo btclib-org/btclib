@@ -16,11 +16,8 @@ https://github.com/bitcoin/bips/blob/master/bip-0174.mediawiki
 from dataclasses import dataclass
 from typing import Any, Dict, List, Mapping, Optional, Type
 
-# Library imports
 from btclib.alias import Octets
-
-# Standard library imports
-from btclib.bip32.key_origin import (
+from btclib.bip32 import (
     assert_valid_hd_key_paths,
     decode_from_bip32_derivs,
     decode_hd_key_paths,

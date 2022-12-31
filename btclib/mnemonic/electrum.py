@@ -18,7 +18,7 @@ import secrets
 from hashlib import pbkdf2_hmac, sha512
 from typing import Optional, Tuple
 
-from btclib.bip32.bip32 import derive, rootxprv_from_seed
+from btclib.bip32 import derive, rootxprv_from_seed
 from btclib.exceptions import BTClibValueError
 from btclib.mnemonic.entropy import (
     BinStr,

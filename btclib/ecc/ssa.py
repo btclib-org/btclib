@@ -55,7 +55,7 @@ from hashlib import sha256
 from typing import List, Optional, Sequence, Tuple, Type, Union
 
 from btclib.alias import BinaryData, HashF, Integer, JacPoint, Octets, Point
-from btclib.bip32.bip32 import BIP32Key
+from btclib.bip32 import BIP32Key
 from btclib.ecc import libsecp256k1
 from btclib.ecc.curve import Curve, secp256k1
 from btclib.ecc.curve_group import _double_mult, _mult, _multi_mult

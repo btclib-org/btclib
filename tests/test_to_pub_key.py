@@ -12,7 +12,7 @@
 
 import pytest
 
-from btclib.bip32.bip32 import BIP32KeyData, derive, rootxprv_from_seed
+from btclib.bip32 import BIP32KeyData, derive, rootxprv_from_seed
 from btclib.ecc.curve import CURVES
 from btclib.ecc.sec_point import bytes_from_point
 from btclib.exceptions import BTClibValueError

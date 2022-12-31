@@ -19,7 +19,7 @@ from typing import List
 import pytest
 
 from btclib.alias import INF, Point, String
-from btclib.bip32.bip32 import BIP32KeyData
+from btclib.bip32 import BIP32KeyData
 from btclib.ecc import libsecp256k1, ssa
 from btclib.ecc.curve import CURVES, double_mult, mult
 from btclib.ecc.pedersen import second_generator

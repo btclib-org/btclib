@@ -10,4 +10,18 @@
 
 """btclib.bip32 submodule."""
 
-from btclib.bip32.bip32 import BIP32Key, BIP32KeyData
+from btclib.bip32.bip32 import (
+    BIP32Key,
+    BIP32KeyData,
+    derive,
+    rootxprv_from_seed,
+    xpub_from_xprv,
+)
+from btclib.bip32.key_origin import (
+    BIP32KeyOrigin,
+    HdKeyPaths,
+    assert_valid_hd_key_paths,
+    decode_from_bip32_derivs,
+    decode_hd_key_paths,
+    encode_to_bip32_derivs,
+)
