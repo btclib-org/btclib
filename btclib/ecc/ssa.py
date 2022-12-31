@@ -59,7 +59,7 @@ from btclib.bip32.bip32 import BIP32Key
 from btclib.ecc import libsecp256k1
 from btclib.ecc.curve import Curve, secp256k1
 from btclib.ecc.curve_group import _double_mult, _mult, _multi_mult
-from btclib.ecc.number_theory import mod_inv
+from btclib.number_theory import mod_inv
 from btclib.exceptions import BTClibRuntimeError, BTClibTypeError, BTClibValueError
 from btclib.hashes import reduce_to_hlen, tagged_hash
 from btclib.to_prv_key import PrvKey, int_from_prv_key
