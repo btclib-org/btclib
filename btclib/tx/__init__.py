@@ -9,3 +9,7 @@
 # or distributed except according to the terms contained in the LICENSE file.
 
 """btclib.tx submodule."""
+
+from btclib.tx.tx import Tx
+from btclib.tx.tx_in import OutPoint, TxIn
+from btclib.tx.tx_out import TxOut

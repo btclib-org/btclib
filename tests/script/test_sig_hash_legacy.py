@@ -19,9 +19,7 @@ from os import path
 from btclib.ecc import dsa
 from btclib.script import sig_hash
 from btclib.script.script import serialize
-from btclib.tx.tx import Tx
-from btclib.tx.tx_in import OutPoint, TxIn
-from btclib.tx.tx_out import TxOut
+from btclib.tx import OutPoint, Tx, TxIn, TxOut
 
 
 # block 170

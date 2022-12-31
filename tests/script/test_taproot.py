@@ -27,7 +27,7 @@ from btclib.script.taproot import (
     output_pubkey,
 )
 from btclib.script.witness import Witness
-from btclib.tx.tx_out import TxOut
+from btclib.tx import TxOut
 
 
 def test_valid_script_path() -> None:

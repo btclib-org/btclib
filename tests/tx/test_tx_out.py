@@ -16,8 +16,7 @@ from os import path
 import pytest
 
 from btclib.exceptions import BTClibValueError
-from btclib.tx.tx import Tx
-from btclib.tx.tx_out import TxOut
+from btclib.tx import Tx, TxOut
 
 
 def test_tx_out() -> None:

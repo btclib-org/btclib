@@ -28,9 +28,7 @@ from btclib.psbt.psbt import (
 )
 from btclib.script.script_pub_key import ScriptPubKey
 from btclib.script.witness import Witness
-from btclib.tx.tx import Tx
-from btclib.tx.tx_in import OutPoint, TxIn
-from btclib.tx.tx_out import TxOut
+from btclib.tx import OutPoint, Tx, TxIn, TxOut
 
 # first tests are part of the official BIP174 test vectors
 

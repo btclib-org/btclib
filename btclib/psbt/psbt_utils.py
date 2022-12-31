@@ -20,7 +20,7 @@ from btclib import var_bytes, var_int
 from btclib.alias import BinaryData, Octets
 from btclib.bip32.key_origin import BIP32KeyOrigin
 from btclib.exceptions import BTClibValueError
-from btclib.tx.tx import Tx
+from btclib.tx import Tx
 from btclib.utils import bytes_from_octets, bytesio_from_binarydata
 
 

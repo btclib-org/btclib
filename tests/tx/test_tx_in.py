@@ -17,8 +17,8 @@ import pytest
 
 from btclib.exceptions import BTClibValueError
 from btclib.script.witness import Witness
-from btclib.tx.tx import Tx
-from btclib.tx.tx_in import TX_IN_COMPARES_WITNESS, OutPoint, TxIn
+from btclib.tx import OutPoint, Tx, TxIn
+from btclib.tx.tx_in import TX_IN_COMPARES_WITNESS
 
 
 def test_tx_in() -> None:
