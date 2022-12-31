@@ -13,7 +13,7 @@
 from typing import Optional, Tuple, Union
 
 from btclib.alias import Point
-from btclib.bip32.bip32 import BIP32Key, BIP32KeyData
+from btclib.bip32 import BIP32Key, BIP32KeyData
 from btclib.ecc.curve import Curve, mult, secp256k1
 from btclib.ecc.sec_point import bytes_from_point, point_from_octets
 from btclib.exceptions import BTClibValueError
