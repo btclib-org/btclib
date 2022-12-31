@@ -11,6 +11,7 @@ Major changes include:
 
 - added support for Python 3.11
 - fixed the OpenSSL 3.x RIPEMD160 issue in btclib/hashes.py
+- added CONTRIBUTING and SECURITY
 
 ## v2022.7.20
 

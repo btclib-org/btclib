@@ -115,15 +115,7 @@ Windows Git bash shell:
     cd ../..
     python -m pip install --upgrade btclib
 
-Some development tools are required to develop and test btclib;
-they can be installed with:
+See [CONTRIBUTING](./CONTRIBUTING.md) if you are interested
+in btclib develoment.
 
-    python -m pip install --upgrade -r requirements-dev.txt
-
-Some additional packages are needed to build the documentation:
-
-    python -m pip install --upgrade -r docs/requirements.txt
-
-Developers might also consider installing btclib in editable way:
-
-    python -m pip install --upgrade -e ./
+See [SECURITY](./SECURITY.md) if you have found a security vulnerability.
