@@ -13,8 +13,7 @@
 import json
 from os import path
 
-from btclib.psbt.psbt import Psbt
-from btclib.psbt.psbt_in import PsbtIn
+from btclib.psbt import Psbt, PsbtIn
 
 
 def test_psbt_out() -> None:

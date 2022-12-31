@@ -19,8 +19,9 @@ import pytest
 from btclib import b32, b58, var_bytes
 from btclib.exceptions import BTClibValueError
 from btclib.hashes import hash160, sha256
-from btclib.script.script import Command, Script, parse, serialize
-from btclib.script.script_pub_key import (
+from btclib.script import (
+    Command,
+    Script,
     ScriptPubKey,
     address,
     assert_p2ms,
@@ -32,9 +33,11 @@ from btclib.script.script_pub_key import (
     assert_p2wsh,
     is_nulldata,
     is_p2ms,
+    output_pubkey,
+    parse,
+    serialize,
     type_and_payload,
 )
-from btclib.script.taproot import output_pubkey
 from btclib.to_pub_key import Key
 
 

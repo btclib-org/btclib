@@ -15,16 +15,12 @@ from typing import List
 
 import pytest
 
+from btclib.exceptions import BTClibValueError
+from btclib.script import Command, Script, op_int, parse, serialize
 from btclib.script.script import (
     BYTE_FROM_OP_CODE_NAME,
     OP_CODE_NAME_FROM_INT,
-    BTClibValueError,
-    Command,
-    Script,
     _serialize_str_command,
-    op_int,
-    parse,
-    serialize,
 )
 from btclib.utils import hex_string
 

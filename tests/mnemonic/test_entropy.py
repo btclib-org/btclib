@@ -18,8 +18,7 @@ from typing import List
 import pytest
 
 from btclib.exceptions import BTClibValueError
-from btclib.mnemonic.entropy import (
-    _bits,
+from btclib.mnemonic import (
     bin_str_entropy_from_bytes,
     bin_str_entropy_from_entropy,
     bin_str_entropy_from_int,
@@ -31,6 +30,7 @@ from btclib.mnemonic.entropy import (
     collect_rolls,
     wordlist_indexes_from_bin_str_entropy,
 )
+from btclib.mnemonic.entropy import _bits
 
 
 def test_indexes() -> None:

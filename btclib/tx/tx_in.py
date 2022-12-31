@@ -19,7 +19,7 @@ from typing import Any, Dict, Mapping, Type
 from btclib import var_bytes
 from btclib.alias import BinaryData, Octets
 from btclib.exceptions import BTClibValueError
-from btclib.script.witness import Witness
+from btclib.script import Witness
 from btclib.tx.out_point import OutPoint
 from btclib.utils import bytes_from_octets, bytesio_from_binarydata
 

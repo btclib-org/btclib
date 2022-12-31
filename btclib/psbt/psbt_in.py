@@ -43,8 +43,8 @@ from btclib.psbt.psbt_utils import (
     serialize_dict_bytes_bytes,
     serialize_hd_key_paths,
 )
+from btclib.script import Witness
 from btclib.script.sig_hash import assert_valid_hash_type
-from btclib.script.witness import Witness
 from btclib.tx import Tx, TxOut
 from btclib.utils import bytes_from_octets
 

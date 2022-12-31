@@ -13,7 +13,7 @@
 import json
 from os import path
 
-from btclib.script.witness import Witness
+from btclib.script import Witness
 
 
 def test_witness() -> None:
