@@ -19,10 +19,10 @@ from btclib.alias import INF
 from btclib.ecc import dsa, libsecp256k1
 from btclib.ecc.curve import CURVES, Curve, double_mult, mult
 from btclib.ecc.curve_group import _mult
-from btclib.number_theory import mod_inv
 from btclib.ecc.sec_point import bytes_from_point, point_from_octets
 from btclib.exceptions import BTClibRuntimeError, BTClibValueError
 from btclib.hashes import reduce_to_hlen
+from btclib.number_theory import mod_inv
 from tests.ecc.test_curve import low_card_curves
 
 

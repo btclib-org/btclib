@@ -22,11 +22,11 @@ from btclib.alias import INF, Point, String
 from btclib.bip32.bip32 import BIP32KeyData
 from btclib.ecc import libsecp256k1, ssa
 from btclib.ecc.curve import CURVES, double_mult, mult
-from btclib.number_theory import mod_inv
 from btclib.ecc.pedersen import second_generator
 from btclib.ecc.sec_point import bytes_from_point
 from btclib.exceptions import BTClibRuntimeError, BTClibTypeError, BTClibValueError
 from btclib.hashes import reduce_to_hlen
+from btclib.number_theory import mod_inv
 from btclib.utils import int_from_bits
 from tests.ecc.test_curve import low_card_curves
 
