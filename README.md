@@ -90,30 +90,38 @@ Included features are:
 
 To install (and/or upgrade) btclib:
 
-    python -m pip install --upgrade btclib
+```shell
+python -m pip install --upgrade btclib
+```
 
 You might want to install btclib into a
 python virtual environment; e.g. from the root folder:
 
 Bash shell
 
-    python -m venv venv_btclib
-    source ./venv_btclib/bin/activate
-    python -m pip install --upgrade btclib
+```shell
+python -m venv venv_btclib
+source ./venv_btclib/bin/activate
+python -m pip install --upgrade btclib
+```
 
 Windows CMD or PowerShell:
 
-    python -m venv venv_btclib
-    .\venv_btclib\Scripts\activate
-    python -m pip install --upgrade btclib
+```shell
+python -m venv venv_btclib
+.\venv_btclib\Scripts\activate
+python -m pip install --upgrade btclib
+```
 
 Windows Git bash shell:
 
-    python -m venv venv_btclib
-    cd ./venv_btclib/Scripts
-    . activate
-    cd ../..
-    python -m pip install --upgrade btclib
+```shell
+python -m venv venv_btclib
+cd ./venv_btclib/Scripts
+. activate
+cd ../..
+python -m pip install --upgrade btclib
+```
 
 See [CONTRIBUTING](./CONTRIBUTING.md) if you are interested
 in btclib develoment.

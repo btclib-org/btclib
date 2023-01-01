@@ -28,15 +28,21 @@ Here are some resources to help you get started with open source contributions:
 Development tools are required to develop and test btclib;
 they can be installed with:
 
-    python -m pip install --upgrade -r requirements-dev.txt
+```shell
+python -m pip install --upgrade -r requirements-dev.txt
+```
 
 Developers might also consider installing btclib in editable way:
 
-    python -m pip install --upgrade -e ./
+```shell
+python -m pip install --upgrade -e ./
+```
 
 Finally, additional packages are needed to build the documentation:
 
-    python -m pip install --upgrade -r docs/requirements.txt
+```shell
+python -m pip install --upgrade -r docs/requirements.txt
+```
 
 As an annotated python3 project, btclib is very strict on code formatting
 ([isort](https://pycqa.github.io/isort/),
