@@ -37,7 +37,7 @@ jobs:
           COVERALLS_FLAG_NAME: ${{ matrix.python }}-${{ matrix.os }}
           COVERALLS_PARALLEL: true
 
-  coveralls-py:
+  coveralls:
     if: "github.repository == 'btclib-org/btclib' && github.base_ref == 'master'"
     needs: test-cov-py
     runs-on: ubuntu-latest
