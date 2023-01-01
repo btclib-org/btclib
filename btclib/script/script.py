@@ -262,7 +262,7 @@ def _serialize_str_command(command: str) -> bytes:
     command = command.strip().upper()
     if command in BYTE_FROM_OP_CODE_NAME:
         return BYTE_FROM_OP_CODE_NAME[command]
-    if command[:10] == "OP_SUCCESS":
+    if command.startswith("OP_SUCCESS"):
         x = int(command[10:])
         if x in OP_CODE_NAME_FROM_INT or 0 < x < 76:
             raise BTClibValueError(f"invalid OP_SUCCESS number: {x}")
@@ -287,19 +287,21 @@ def _serialize_bytes_command(command: bytes) -> bytes:
     if length < 76:  # 1-byte-length
         out.append(length.to_bytes(1, byteorder="little", signed=False))
     elif length < 256:  # OP_PUSHDATA1 | 1-byte-length
-        out.append(BYTE_FROM_OP_CODE_NAME["OP_PUSHDATA1"])
-        out.append(length.to_bytes(1, byteorder="little", signed=False))
+        _pushdata(1, length, out)
     elif length < 521:  # OP_PUSHDATA2 | 2-byte-length
-        out.append(BYTE_FROM_OP_CODE_NAME["OP_PUSHDATA2"])
-        out.append(length.to_bytes(2, byteorder="little", signed=False))
+        _pushdata(2, length, out)
     else:
         # because of the 520 bytes limit
         # there is no need to use OP_PUSHDATA4
-        # out.append(BYTE_FROM_OP_CODE_NAME['OP_PUSHDATA4'])
-        # out.append(length.to_bytes(4, byteorder="little", signed=False))
+        # _pushdata(4, lenght, out)
         raise BTClibValueError(f"too many bytes for OP_PUSHDATA: {length}")
     out.append(command)
     return b"".join(out)
+
+
+def _pushdata(i: int, length: int, out: List[bytes]) -> None:
+    out.append(BYTE_FROM_OP_CODE_NAME[f"OP_PUSHDATA{i}"])
+    out.append(length.to_bytes(i, byteorder="little", signed=False))
 
 
 def serialize(script: Sequence[Command]) -> bytes:
@@ -374,10 +376,11 @@ class Script:
 
     def __add__(self, other: object):
 
-        if not isinstance(other, Script):
-            return NotImplemented
-
-        return Script(self.script + other.script)
+        return (
+            Script(self.script + other.script)
+            if isinstance(other, Script)
+            else NotImplemented
+        )
 
     def __init__(self, script: Octets = b"", check_validity: bool = True) -> None:
         self.script = bytes_from_octets(script)

@@ -33,12 +33,7 @@ TaprootScriptTree = Any
 
 def tree_helper(script_tree) -> Tuple[Any, bytes]:
     if len(script_tree) == 1:
-        leaf_version, script = script_tree[0]
-        leaf_version = leaf_version & 0xFE
-        preimage = leaf_version.to_bytes(1, "big")
-        preimage += var_bytes.serialize(serialize(script))
-        h = tagged_hash(b"TapLeaf", preimage)
-        return ([((leaf_version, script), bytes())], h)
+        return _tree_helper(script_tree)
     left, left_h = tree_helper(script_tree[0])
     right, right_h = tree_helper(script_tree[1])
     info = [(leaf, c + right_h) for leaf, c in left]
@@ -46,6 +41,15 @@ def tree_helper(script_tree) -> Tuple[Any, bytes]:
     if right_h < left_h:
         left_h, right_h = right_h, left_h
     return (info, tagged_hash(b"TapBranch", left_h + right_h))
+
+
+def _tree_helper(script_tree):
+    leaf_version, script = script_tree[0]
+    leaf_version = leaf_version & 0xFE
+    preimage = leaf_version.to_bytes(1, "big")
+    preimage += var_bytes.serialize(serialize(script))
+    h = tagged_hash(b"TapLeaf", preimage)
+    return ([((leaf_version, script), bytes())], h)
 
 
 def output_pubkey(
