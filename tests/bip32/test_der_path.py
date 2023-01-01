@@ -28,9 +28,9 @@ def test_from_bip32_path_str() -> None:
 
     test_reg_str_vectors = [
         # account 0, external branch, address_index 463
-        ("m/0" + _HARDENING + "/0/463", [0x80000000, 0, 463]),
+        (f"m/0{_HARDENING}/0/463", [0x80000000, 0, 463]),
         # account 0, internal branch, address_index 267
-        ("m/0" + _HARDENING + "/1/267", [0x80000000, 1, 267]),
+        (f"m/0{_HARDENING}/1/267", [0x80000000, 1, 267]),
     ]
 
     for bip32_path_str, bip32_path_ints in test_reg_str_vectors:
@@ -104,7 +104,8 @@ def test_index_int_to_from_str() -> None:
         with pytest.raises(BTClibValueError):
             str_from_index_int(i)
 
-    for s in ("-1", "-1h", str(0x80000000) + "h", str(0xFFFFFFFF + 1)):
+    # sourcery skip: remove-str-from-fstring
+    for s in ("-1", "-1h", f"{str(0x80000000)}h", str(0xFFFFFFFF + 1)):
         with pytest.raises(BTClibValueError):
             int_from_index_str(s)
 
@@ -114,7 +115,7 @@ def test_index_int_to_from_str() -> None:
 
 def test_str_from_bip32_path() -> None:
     der_path = "/44h/0h"
-    assert str_from_bip32_path(der_path) == "m" + der_path
+    assert str_from_bip32_path(der_path) == f"m{der_path}"
     m_fngrprnt = "deadbeef"
     assert str_from_bip32_path(der_path, m_fngrprnt) == m_fngrprnt + der_path
 

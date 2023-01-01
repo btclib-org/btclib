@@ -13,7 +13,6 @@
 import math
 import secrets
 from io import StringIO
-from typing import List
 
 import pytest
 
@@ -107,7 +106,7 @@ def test_conversions() -> None:
     raw2 = bin_str_entropy_from_int(i, 255)
     assert int(raw2, 2) == i
     assert len(raw2) == 255
-    assert bin_str_entropy_from_str("0" + raw2) == raw
+    assert bin_str_entropy_from_str(f"0{raw2}") == raw
     raw2 = bin_str_entropy_from_str(raw, 128)
     assert len(raw2) == 128
     assert raw2 == raw[:128]
@@ -174,9 +173,8 @@ def test_exceptions() -> None:
         bytes_entropy_from_str(bin_str_entropy)
 
 
-inputs: List[StringIO] = []
 # 2 input failures, then automatic rolls with default D6
-inputs.append(StringIO("3\npluto\na\n"))
+inputs = [StringIO("3\npluto\na\n")]
 # D120, then 43 automatic rolls
 inputs.append(StringIO("a120\n"))
 # D120, one input failure, then 43 (implausible but valid) non-automatic rolls
