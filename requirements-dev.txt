@@ -19,5 +19,5 @@ pytest>=7.2.0
 pytest-cov>=4.0.0
 pytest-ordering>=0.6
 pytest-xdist>=3.1.0
-sourcery>=1.0.2
+sourcery-cli>=1.0.2
 tox>=4.1.1
