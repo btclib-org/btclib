@@ -11,4 +11,4 @@
 """btclib.ec submodule."""
 
 from btclib.ec.curve import Curve, double_mult, mult, multi_mult, secp256k1
-from btclib.ec.sec_point import bytes_from_point
+from btclib.ec.sec_point import bytes_from_point, point_from_octets

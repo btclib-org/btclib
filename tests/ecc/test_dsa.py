@@ -16,10 +16,16 @@ from hashlib import sha1
 import pytest
 
 from btclib.alias import INF
-from btclib.ec import Curve, double_mult, libsecp256k1, mult
+from btclib.ec import (
+    Curve,
+    bytes_from_point,
+    double_mult,
+    libsecp256k1,
+    mult,
+    point_from_octets,
+)
 from btclib.ec.curve import CURVES
 from btclib.ec.curve_group import _mult
-from btclib.ec.sec_point import bytes_from_point, point_from_octets
 from btclib.ecc import dsa
 from btclib.exceptions import BTClibRuntimeError, BTClibValueError
 from btclib.hashes import reduce_to_hlen
