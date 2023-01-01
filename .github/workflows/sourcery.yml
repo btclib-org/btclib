@@ -1,9 +1,7 @@
 name: Check PR using Sourcery
 
-on: [push, pull]
-  branches:
-    - master
-    - dev
+on: pull_request
+  branches: [master, dev]
 
 jobs:
   review-with-sourcery:
