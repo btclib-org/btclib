@@ -416,6 +416,7 @@ def test_musig() -> None:
 
 def test_threshold() -> None:
     "testing 2-of-3 threshold signature (Pedersen secret sharing)"
+    # sourcery skip: low-code-quality
 
     ec = CURVES["secp256k1"]
 
