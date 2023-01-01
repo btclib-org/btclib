@@ -123,7 +123,7 @@ def test_bip340_vectors() -> None:
                     assert ssa.Sig.parse(sig) == sig_actual, err_msg
 
                 if comment:
-                    err_msg += ": " + comment
+                    err_msg += f": {comment}"
                 # TODO what's wrong with xor-ing ?
                 # assert (result == "TRUE") ^ ssa.verify_(m, pub_key, sig), err_msg
                 if result == "TRUE":
@@ -359,10 +359,7 @@ def test_musig() -> None:
     # (non interactive) key setup
     # this is MuSig core: the rest is just Schnorr signature additivity
     # 1. lexicographic sorting of public keys
-    keys: List[bytes] = []
-    keys.append(x_Q1)
-    keys.append(x_Q2)
-    keys.append(x_Q3)
+    keys = [x_Q1, x_Q2, x_Q3]
     keys.sort()
     # 2. coefficients
     prefix = b"".join(keys)
@@ -576,10 +573,7 @@ def test_threshold() -> None:
     assert mult(alpha13) == RHS1, "signer one is cheating"
     assert mult(alpha23) == RHS2, "signer two is cheating"
     # commitment at the global sharing polynomial
-    A: List[Point] = []
-    for i in range(m):
-        A.append(ec.add(A1[i], ec.add(A2[i], A3[i])))
-
+    A = [ec.add(A1[i], ec.add(A2[i], A3[i])) for i in range(m)]
     # aggregated public key
     Q = A[0]
     if Q[1] % 2:
@@ -597,10 +591,9 @@ def test_threshold() -> None:
     msg_hash = reduce_to_hlen(msg, hf)
 
     # 2.1 signer one acting as the dealer
-    commits1 = []
     k1 = ssa.det_nonce_(msg_hash, q1, None, ec, hf)
     k1_prime = ssa.det_nonce_(msg_hash, q1_prime, None, ec, hf)
-    commits1.append(double_mult(k1_prime, H, k1, ec.G))
+    commits1 = [double_mult(k1_prime, H, k1, ec.G)]
     # sharing polynomials
     f1 = [k1]
     f1_prime = [k1_prime]
@@ -622,10 +615,9 @@ def test_threshold() -> None:
     assert t == RHS, "signer one is cheating"
 
     # 2.2 signer three acting as the dealer
-    commits3 = []
     k3 = ssa.det_nonce_(msg_hash, q3, None, ec, hf)
     k3_prime = ssa.det_nonce_(msg_hash, q3_prime, None, ec, hf)
-    commits3.append(double_mult(k3_prime, H, k3, ec.G))
+    commits3 = [double_mult(k3_prime, H, k3, ec.G)]
     # sharing polynomials
     f3 = [k3]
     f3_prime = [k3_prime]
@@ -674,10 +666,7 @@ def test_threshold() -> None:
     assert mult(beta13) == RHS1, "signer one is cheating"
 
     # commitment at the global sharing polynomial
-    B: List[Point] = []
-    for i in range(m):
-        B.append(ec.add(B1[i], B3[i]))
-
+    B = [ec.add(B1[i], B3[i]) for i in range(m)]
     # aggregated public nonce
     K = B[0]
     if K[1] % 2:

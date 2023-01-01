@@ -119,7 +119,7 @@ def assert_p2pkh(script_pub_key: Octets) -> None:
         raise BTClibValueError("missing leading OP_DUP, OP_HASH160")
     if script_pub_key[2] != 0x14:
         err_msg = f"invalid pub_key hash length marker: {script_pub_key[2]}"
-        err_msg += f" instead of {0x14}"
+        err_msg += " instead of 20"
         raise BTClibValueError(err_msg)
 
 
@@ -137,7 +137,7 @@ def assert_p2sh(script_pub_key: Octets) -> None:
         raise BTClibValueError("missing leading OP_HASH160")
     if script_pub_key[1] != 0x14:
         err_msg = f"invalid redeem script hash length marker: {script_pub_key[1]}"
-        err_msg += f" instead of {0x14}"
+        err_msg += " instead of 20"
         raise BTClibValueError(err_msg)
 
 
@@ -327,9 +327,7 @@ class ScriptPubKey(Script):
         if not isinstance(other, ScriptPubKey):
             return NotImplemented
 
-        if self.network != other.network:
-            return False
-        return super().__eq__(other)
+        return False if self.network != other.network else super().__eq__(other)
 
     def __init__(
         self,

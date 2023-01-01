@@ -21,9 +21,8 @@ from btclib.ec.curve import CURVES
 from btclib.exceptions import BTClibValueError
 
 # test curves: very low cardinality
-low_card_curves: Dict[str, Curve] = {}
 # 13 % 4 = 1; 13 % 8 = 5
-low_card_curves["ec13_11"] = Curve(13, 7, 6, (1, 1), 11, 1, False)
+low_card_curves = {"ec13_11": Curve(13, 7, 6, (1, 1), 11, 1, False)}
 low_card_curves["ec13_19"] = Curve(13, 0, 2, (1, 9), 19, 1, False)
 # 17 % 4 = 1; 17 % 8 = 1
 low_card_curves["ec17_13"] = Curve(17, 6, 8, (0, 12), 13, 2, False)
@@ -106,7 +105,7 @@ def test_octets2point() -> None:
     x_Q = 0xEEFDEA4CDB677750A420FEE807EACF21EB9898AE79B9768766E4FAA04A2D4A34
     xstr = format(x_Q, "32X")
     with pytest.raises(BTClibValueError, match="invalid x-coordinate: "):
-        point_from_octets("03" + xstr, ec)
+        point_from_octets(f"03{xstr}", ec)
     with pytest.raises(BTClibValueError, match="point not on curve: "):
         point_from_octets("04" + 2 * xstr, ec)
     with pytest.raises(BTClibValueError, match="point not on curve"):

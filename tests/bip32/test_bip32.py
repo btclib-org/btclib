@@ -293,7 +293,7 @@ def test_derive_from_account() -> None:
     ]
 
     for branch, index in test_vectors:
-        full_path = der_path + f"/{branch}/{index}"
+        full_path = f"{der_path}/{branch}/{index}"
         addr = p2pkh(derive(rmxprv, full_path))
         assert addr == p2pkh(derive_from_account(mxpub, branch, index))
 

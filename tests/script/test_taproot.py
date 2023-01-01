@@ -116,13 +116,9 @@ def test_control_block() -> None:
 
 def convert_script_tree(script_tree):
     if isinstance(script_tree, list):
-        new_script_tree = []
-        for x in script_tree:
-            new_script_tree.append(convert_script_tree(x))
-        return new_script_tree
+        return [convert_script_tree(x) for x in script_tree]
     if isinstance(script_tree, dict):
-        leaf = [[script_tree["leafVersion"], parse(script_tree["script"])]]
-        return leaf
+        return [[script_tree["leafVersion"], parse(script_tree["script"])]]
     return []
 
 
@@ -137,8 +133,8 @@ def test_bip_test_vector():
         pubkey = test["given"]["internalPubkey"]
         script_tree = convert_script_tree(test["given"]["scriptTree"])
 
-        tweaked_pubkey = output_pubkey("02" + pubkey, script_tree)[0]
-        address = b32.p2tr("02" + pubkey, script_tree)
+        tweaked_pubkey = output_pubkey(f"02{pubkey}", script_tree)[0]
+        address = b32.p2tr(f"02{pubkey}", script_tree)
 
         assert tweaked_pubkey.hex() == test["intermediary"]["tweakedPubkey"]
         assert address == test["expected"]["bip350Address"]
