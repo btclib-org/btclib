@@ -42,6 +42,8 @@ pytest
 
 ## Profiling
 
+## Profiling
+
 Profiling can be obtained with:
 
 ```shell
