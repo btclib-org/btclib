@@ -1,4 +1,4 @@
-# packages required to develop, build, and test btclib
+sourcery# packages required to develop, build, and test btclib
 
 pip
 wheel
@@ -15,6 +15,7 @@ coverage>=7.0.1
 flake8>=5.0.4
 isort>=5.11.4
 mypy>=0.991
+pre-commit>=2.21.0
 pylint>=2.12.2
 pytest>=7.2.0
 pytest-cov>=4.0.0

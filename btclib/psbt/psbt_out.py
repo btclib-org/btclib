@@ -84,8 +84,10 @@ class PsbtOut:
             self.assert_valid()
 
         return {
-            "redeem_script": self.redeem_script.hex(),  # TODO make it { "asm": "", "hex": "" }
-            "witness_script": self.witness_script.hex(),  # TODO make it { "asm": "", "hex": "" }
+            # TODO make it { "asm": "", "hex": "" }
+            "redeem_script": self.redeem_script.hex(),
+            # TODO make it { "asm": "", "hex": "" }
+            "witness_script": self.witness_script.hex(),
             "bip32_derivs": encode_to_bip32_derivs(self.hd_key_paths),
             "unknown": dict(sorted(encode_dict_bytes_bytes(self.unknown).items())),
         }

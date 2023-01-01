@@ -37,6 +37,8 @@ jobs:
         run: |
           isort -c .
           black --check .
+          flake8 .
+          mypy .
           pylint setup.py
           pylint btclib
           pylint tests
@@ -44,5 +46,3 @@ jobs:
           python setup.py check -m -s
           bandit -r {toxinidir}/btclib
           bandit -s B101 -r {toxinidir}/tests
-          flake8 .
-          mypy .
