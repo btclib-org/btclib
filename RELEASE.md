@@ -22,16 +22,12 @@
 
 1. Build the package distribution files:
 
-```shell
-rm -r btclib.egg-info/ build/ dist/
-python setup.py sdist bdist_wheel
-```
+    rm -r btclib.egg-info/ build/ dist/
+    python setup.py sdist bdist_wheel
 
 1. Push the package files to PyPi:
 
-```shell
-twine upload dist/*
-```
+    twine upload dist/*
 
 1. Create a new release on GitHub:
 
