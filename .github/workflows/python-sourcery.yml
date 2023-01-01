@@ -1,4 +1,4 @@
-name: Check PR using Sourcery
+name: Python - Check PR using Sourcery
 
 on:
   pull_request:
