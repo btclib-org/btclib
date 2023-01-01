@@ -59,7 +59,7 @@ Included features are:
     - threshold signature (see test-suite)
     - MuSig multi-signature (see test-suite)
 - Borromean ring signature
-- [RFC 6979](https://tools.ietf.org/html/rfc6979:) to make signature
+- [RFC 6979](https://tools.ietf.org/html/rfc6979) to make signature
   schemes deterministic
 - Sign-to-contract commitment
 - Diffie-Hellman

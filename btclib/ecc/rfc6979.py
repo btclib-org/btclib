@@ -10,7 +10,7 @@
 
 """Deterministic generation of the ephemeral key following RFC6979.
 
-https://tools.ietf.org/html/rfc6979:
+https://tools.ietf.org/html/rfc6979
 
 ECDSA and ECSSA need to produce, for each signature generation,
 a fresh random value (ephemeral key, hereafter designated as nonce).
