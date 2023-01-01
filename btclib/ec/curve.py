@@ -198,6 +198,9 @@ for ec_name in SEC2v2_params2:
     SEC2v2[ec_name] = Curve(*SEC2v2_params2[ec_name] + [True, ec_name])
     SEC2v1[ec_name] = Curve(*SEC2v2_params2[ec_name] + [True, ec_name])
 
+# sourcery skip: dict-assign-update-to-union
+# with python>=3.9 use dictionary union operators
+# CURVES = SEC2v1 | NIST | Brainpool
 CURVES = SEC2v1
 CURVES.update(NIST)
 CURVES.update(Brainpool)

@@ -69,6 +69,7 @@ def address_from_xpub(xpub: BIP32Key) -> str:
         b58.p2wpkh_p2sh,
     ]
     for version, function in zip(version_list, function_list):
+        # sourcery skip: use-named-expression
         # with python>=3.8 use walrus operator
         # if network := network_from_key_value(version, xpub.version):
         network = network_from_key_value(version, xpub.version)
