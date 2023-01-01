@@ -133,7 +133,7 @@ def mult_sliding_window(m: int, Q: JacPoint, ec: CurveGroup, w: int = 4) -> JacP
             R = ec.double_jac(R)
             i += 1
         else:
-            j = len(digits) - i if (len(digits) - i) < w else w
+            j = min(len(digits) - i, w)
             t = digits[i]
             for a in range(1, j):
                 t = 2 * t + digits[i + a]
@@ -184,11 +184,8 @@ def mult_w_NAF(m: int, Q: JacPoint, ec: CurveGroup, w: int = 4) -> JacPoint:
 
     Q2 = ec.double_jac(Q)
     T = [Q]
-    for i in range(1, (b // 4)):
-        T.append(ec.add_jac(T[i - 1], Q2))
-    for i in range((b // 4), (b // 2)):
-        T.append(ec.negate_jac(T[i - (b // 4)]))
-
+    T.extend(ec.add_jac(T[i - 1], Q2) for i in range(1, (b // 4)))
+    T.extend(ec.negate_jac(T[i - (b // 4)]) for i in range((b // 4), (b // 2)))
     R = INFJ
     for j in range(p - 1, -1, -1):
         R = ec.double_jac(R)
@@ -196,13 +193,12 @@ def mult_w_NAF(m: int, Q: JacPoint, ec: CurveGroup, w: int = 4) -> JacPoint:
             if M[j] > 0:
                 # It adds the element jQ
                 R = ec.add_jac(R, T[(M[j] - 1) // 2])
+            elif w == 1:
+                # Case w=1 must be studied on its own for now
+                R = R = ec.add_jac(R, T[1])
             else:
                 # In this case it adds the opposite, ie -jQ
-                if w != 1:
-                    R = ec.add_jac(R, T[(b // 4) - ((M[j] + 1) // 2)])
-                else:
-                    # Case w=1 must be studied on its own for now
-                    R = R = ec.add_jac(R, T[1])
+                R = ec.add_jac(R, T[(b // 4) - ((M[j] + 1) // 2)])
     return R
 
 

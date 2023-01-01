@@ -81,7 +81,7 @@ def _create_checksum(hrp: str, data: List[int], m: int) -> List[int]:
 
 
 def _m_from_wit_ver(data: List[int]) -> int:
-    if len(data) == 0:
+    if not data:
         raise BTClibValueError("empty data in bech32 address")
     wit_ver = data[0]
     return _BECH32_1_CONST if wit_ver == 0 else _BECH32_M_CONST
@@ -142,5 +142,5 @@ def encode(hrp: str, data: List[int], m: Optional[int] = None) -> bytes:
     "Compute a bech32 string given HRP and data values."
     m = _m_from_wit_ver(data) if m is None else m
     combined = data + _create_checksum(hrp, data, m)
-    s = hrp + "1" + "".join(_ALPHABET[d] for d in combined)
+    s = f"{hrp}1" + "".join(_ALPHABET[d] for d in combined)
     return s.encode("ascii")

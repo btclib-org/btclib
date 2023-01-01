@@ -50,7 +50,7 @@ __BASE = len(_ALPHABET)
 def _b58encode_from_int(i: int) -> bytes:
 
     result = b""
-    while i or len(result) == 0:
+    while i or not result:
         i, idx = divmod(i, __BASE)
         result = _ALPHABET[idx : idx + 1] + result
 

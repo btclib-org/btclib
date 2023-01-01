@@ -57,15 +57,7 @@ class WordLists:
 
         # a new language, unknown before
         if lang not in self.languages:
-            if filename is None:
-                raise BTClibValueError(f"Missing file for language '{lang}'")
-            # initialize the new language
-            self.languages.append(lang)
-            self.language_files[lang] = filename
-            self._wordlist[lang] = []
-            self._bits_per_word[lang] = 0
-            self._language_length[lang] = 0
-
+            self._init_new_lang(filename, lang)
         # language has not been loaded yet
         if self._language_length[lang] == 0:
             with open(self.language_files[lang], "r", encoding="ascii") as file_:
@@ -80,6 +72,16 @@ class WordLists:
             self._language_length[lang] = nwords
             # clean up and normalization are missing, but removal of \n
             self._wordlist[lang] = [line[:-1] for line in lines]
+
+    def _init_new_lang(self, filename, lang):
+        if filename is None:
+            raise BTClibValueError(f"Missing file for language '{lang}'")
+        # initialize the new language
+        self.languages.append(lang)
+        self.language_files[lang] = filename
+        self._wordlist[lang] = []
+        self._bits_per_word[lang] = 0
+        self._language_length[lang] = 0
 
     def wordlist(self, lang: str) -> WordList:
         """Return the language word-list."""
@@ -107,11 +109,8 @@ def mnemonic_from_indexes(indexes: Sequence[int], lang: str) -> Mnemonic:
     a given language word-list.
     """
 
-    words = []
     wordlist = WORDLISTS.wordlist(lang)
-    for index in indexes:
-        word = wordlist[index]
-        words.append(word)
+    words = [wordlist[index] for index in indexes]
     return " ".join(words)
 
 

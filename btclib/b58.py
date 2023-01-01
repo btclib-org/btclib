@@ -80,7 +80,7 @@ def h160_from_address(b58addr: String) -> Tuple[str, bytes, str]:
     prefix = payload[:1]
 
     for script_type in ("p2pkh", "p2sh"):
-        # with pytohn>=3.8 use walrus operator
+        # with python>=3.8 use walrus operator
         # if network := network_from_key_value(script_type, prefix):
         network = network_from_key_value(script_type, prefix)
         if network:

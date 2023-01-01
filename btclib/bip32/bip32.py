@@ -189,7 +189,7 @@ class BIP32KeyData:
             raise BTClibValueError(err_msg)
 
         return cls(
-            version=xkey_bin[0:4],
+            version=xkey_bin[:4],
             depth=xkey_bin[4],
             parent_fingerprint=xkey_bin[5:9],
             index=int.from_bytes(xkey_bin[9:13], byteorder="big", signed=False),
@@ -320,46 +320,53 @@ class _ExtendedBIP32KeyData(BIP32KeyData):
             self.assert_valid()
 
 
-def __ckd(xkey: _ExtendedBIP32KeyData, index: int) -> None:
+def __child_key_derivation(xkey: _ExtendedBIP32KeyData, index: int) -> None:
 
     xkey.depth += 1
     xkey.index = index
     if xkey.is_private:
-        Q_bytes = bytes_from_point(mult(xkey.prv_key_int))
-        xkey.parent_fingerprint = hash160(Q_bytes)[:4]
-        if xkey.is_hardened:  # hardened derivation
-            hmac_ = hmac.new(
-                xkey.chain_code,
-                xkey.key + index.to_bytes(4, byteorder="big", signed=False),
-                "sha512",
-            ).digest()
-        else:  # normal derivation
-            hmac_ = hmac.new(
-                xkey.chain_code,
-                Q_bytes + index.to_bytes(4, byteorder="big", signed=False),
-                "sha512",
-            ).digest()
-        xkey.chain_code = hmac_[32:]
-        offset = int.from_bytes(hmac_[:32], byteorder="big", signed=False)
-        xkey.prv_key_int = (xkey.prv_key_int + offset) % ec.n
-        xkey.key = b"\x00" + xkey.prv_key_int.to_bytes(
-            32, byteorder="big", signed=False
-        )
-        xkey.pub_key_point = INF
-    else:  # public key
-        xkey.parent_fingerprint = hash160(xkey.key)[:4]
-        if xkey.is_hardened:
-            raise BTClibValueError("invalid hardened derivation from public key")
-        hmac_ = hmac.new(
+        __private_key_derivation(xkey, index)
+    else:
+        __public_key_derivation(xkey, index)
+
+
+def __private_key_derivation(xkey: _ExtendedBIP32KeyData, index: int) -> None:
+    Q_bytes = bytes_from_point(mult(xkey.prv_key_int))
+    xkey.parent_fingerprint = hash160(Q_bytes)[:4]
+    hmac_ = (
+        hmac.new(
             xkey.chain_code,
             xkey.key + index.to_bytes(4, byteorder="big", signed=False),
             "sha512",
         ).digest()
-        xkey.chain_code = hmac_[32:]
-        offset = int.from_bytes(hmac_[:32], byteorder="big", signed=False)
-        xkey.pub_key_point = ec.add(xkey.pub_key_point, mult(offset))
-        xkey.key = bytes_from_point(xkey.pub_key_point)
-        xkey.prv_key_int = 0
+        if xkey.is_hardened
+        else hmac.new(
+            xkey.chain_code,
+            Q_bytes + index.to_bytes(4, byteorder="big", signed=False),
+            "sha512",
+        ).digest()
+    )
+    xkey.chain_code = hmac_[32:]
+    offset = int.from_bytes(hmac_[:32], byteorder="big", signed=False)
+    xkey.prv_key_int = (xkey.prv_key_int + offset) % ec.n
+    xkey.key = b"\x00" + xkey.prv_key_int.to_bytes(32, byteorder="big", signed=False)
+    xkey.pub_key_point = INF
+
+
+def __public_key_derivation(xkey: _ExtendedBIP32KeyData, index: int) -> None:
+    xkey.parent_fingerprint = hash160(xkey.key)[:4]
+    if xkey.is_hardened:
+        raise BTClibValueError("invalid hardened derivation from public key")
+    hmac_ = hmac.new(
+        xkey.chain_code,
+        xkey.key + index.to_bytes(4, byteorder="big", signed=False),
+        "sha512",
+    ).digest()
+    xkey.chain_code = hmac_[32:]
+    offset = int.from_bytes(hmac_[:32], byteorder="big", signed=False)
+    xkey.pub_key_point = ec.add(xkey.pub_key_point, mult(offset))
+    xkey.key = bytes_from_point(xkey.pub_key_point)
+    xkey.prv_key_int = 0
 
 
 def _derive(
@@ -385,7 +392,7 @@ def _derive(
         key=xkey.key,
     )
     for index in indexes:
-        __ckd(xkey, index)
+        __child_key_derivation(xkey, index)
 
     if forced_version:
         if xkey.version in XPRV_VERSIONS_ALL:
@@ -477,20 +484,14 @@ def crack_prv_key(parent_xpub: BIP32Key, child_xprv: BIP32Key) -> str:
         p = BIP32KeyData.b58decode(parent_xpub)
 
     if p.key[0] not in (2, 3):
-        err_msg = "extended parent key is not a public key: "
-        err_msg += f"{p.b58encode()}"
-        raise BTClibValueError(err_msg)
-
+        raise BTClibValueError(_err_msg("parent", "not a public", p))
     if isinstance(child_xprv, BIP32KeyData):
         c = child_xprv
     else:
         c = BIP32KeyData.b58decode(child_xprv)
 
     if c.key[0] != 0:
-        err_msg = "extended child key is not a private key: "
-        err_msg += f"{c.b58encode()}"
-        raise BTClibValueError(err_msg)
-
+        raise BTClibValueError(_err_msg("child", "not a private", c))
     # check depth
     if c.depth != p.depth + 1:
         raise BTClibValueError("not a parent's child: wrong depths")
@@ -515,3 +516,7 @@ def crack_prv_key(parent_xpub: BIP32Key, child_xprv: BIP32Key) -> str:
     p.key = b"\x00" + parent_q.to_bytes(32, byteorder="big", signed=False)
 
     return p.b58encode()
+
+
+def _err_msg(child_or_parent, not_a_private_or_public, key) -> str:
+    return f"extended {child_or_parent} key is {not_a_private_or_public} key: {key.b58encode()}"

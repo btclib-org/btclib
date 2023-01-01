@@ -12,6 +12,8 @@
 
 https://github.com/satoshilabs/slips/blob/master/slip-0132.md
 """
+
+import contextlib
 from typing import Any, Callable, List, Tuple
 
 from btclib import b32, b58
@@ -38,11 +40,8 @@ def address_from_xkey(xkey: BIP32Key) -> str:
     as this is the default public key representation in BIP32.
     """
 
-    try:
+    with contextlib.suppress(BTClibValueError):
         xkey = xpub_from_xprv(xkey)
-    except BTClibValueError:
-        pass
-
     return address_from_xpub(xkey)
 
 
