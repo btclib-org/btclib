@@ -41,7 +41,7 @@ jobs:
 
   coveralls:
     if: "github.repository == 'btclib-org/btclib' && github.base_ref == 'master'"
-    needs: test
+    needs: test-and-coverage
     runs-on: ubuntu-latest
     steps:
       - name: Upload to coveralls.io
