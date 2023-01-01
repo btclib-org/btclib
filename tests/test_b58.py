@@ -135,10 +135,10 @@ def test_p2pkh_from_pub_key() -> None:
     assert h160 == hash160(pub_key)
 
     # trailing/leading spaces in address string
-    assert address == b58.p2pkh(" " + pub_key)
-    assert h160 == hash160(" " + pub_key)
-    assert address == b58.p2pkh(pub_key + " ")
-    assert h160 == hash160(pub_key + " ")
+    assert address == b58.p2pkh(f" {pub_key}")
+    assert h160 == hash160(f" {pub_key}")
+    assert address == b58.p2pkh(f"{pub_key} ")
+    assert h160 == hash160(f"{pub_key} ")
 
     uncompr_pub_key = bytes_from_point(point_from_octets(pub_key), compressed=False)
     uncompr_address = "16UwLL9Risc3QfPqBUvKofHmBQ7wMtjvM"
@@ -178,7 +178,7 @@ def test_p2sh() -> None:
 
     script_hash = hash160(script_pub_key)
     assert ("p2sh", script_hash, network) == b58.h160_from_address(address)
-    assert ("p2sh", script_hash, network) == b58.h160_from_address(" " + address + " ")
+    assert ("p2sh", script_hash, network) == b58.h160_from_address(f" {address} ")
 
     assert script_hash.hex() == "4266fc6f2c2861d7fe229b279a79803afca7ba34"
     script_sig: List[Command] = ["OP_HASH160", script_hash.hex(), "OP_EQUAL"]
@@ -263,4 +263,4 @@ def test_exceptions() -> None:
         b58.h160_from_address(invalid_address)
 
     with pytest.raises(BTClibValueError, match="not a private or public key: "):
-        b58.p2pkh(pub_key + "0A")
+        b58.p2pkh(f"{pub_key}0A")

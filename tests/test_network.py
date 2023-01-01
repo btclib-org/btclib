@@ -80,6 +80,6 @@ def test_dataclasses_json_dict() -> None:
         assert net == Network.from_dict(net.to_dict())
 
         datadir = path.join(path.dirname(__file__), "_generated_files")
-        filename = path.join(datadir, network_name + ".json")
+        filename = path.join(datadir, f"{network_name}.json")
         with open(filename, "w", encoding="ascii") as file_:
             json.dump(net.to_dict(), file_, indent=4)

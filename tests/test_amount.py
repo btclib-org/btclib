@@ -30,17 +30,9 @@ def test_conversions() -> None:
         with localcontext() as ctx:
             ctx.traps[FloatOperation] = trap_float_operation
 
-            float_1 = 1.1
-            float_2 = 2.2
-            float_tot = float_1 + float_2
-            # _NOT_ equal !!
-            assert float_tot != 3.3
-
-            btc_1 = Decimal("1.1")
-            btc_2 = Decimal("2.2")
-            btc_tot = btc_1 + btc_2
-            # equal !!
-            assert btc_tot == Decimal("3.3")
+            # sourcery skip: simplify-numeric-comparison
+            assert 1.1 + 2.2 != 3.3
+            assert Decimal("1.1") + Decimal("2.2") == Decimal("3.3")
 
             assert btc_from_sats(10000) == Decimal("0.00010000")
             assert str(btc_from_sats(10000)) != str(Decimal("0.00010000"))

@@ -281,7 +281,7 @@ def test_p2wpkh() -> None:
     with pytest.raises(BTClibValueError, match=err_msg):
         b32.p2wpkh(uncompr_pub)
     with pytest.raises(BTClibValueError, match=err_msg):
-        b32.p2wpkh(pub + "0A")
+        b32.p2wpkh(f"{pub}0A")
 
     err_msg = "invalid size: "
     with pytest.raises(BTClibValueError, match=err_msg):
