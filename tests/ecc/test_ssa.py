@@ -28,7 +28,7 @@ from btclib.exceptions import BTClibRuntimeError, BTClibTypeError, BTClibValueEr
 from btclib.hashes import reduce_to_hlen
 from btclib.number_theory import mod_inv
 from btclib.utils import int_from_bits
-from tests.ecc.test_curve import low_card_curves
+from tests.ec.test_curve import low_card_curves
 
 
 def test_signature() -> None:
