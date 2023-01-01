@@ -18,14 +18,10 @@ opening an issue, creating a PR, reviewing, and merging the PR.
 
 Here are some resources to help you get started with open source contributions:
 
-<!-- markdown-link-check-disable -->
-
 - [Finding ways to contribute to open source on GitHub](https://docs.github.com/en/get-started/exploring-projects-on-github/finding-ways-to-contribute-to-open-source-on-github)
 - [Set up Git](https://docs.github.com/en/get-started/quickstart/set-up-git)
 - [GitHub flow](https://docs.github.com/en/get-started/quickstart/github-flow)
 - [Collaborating with pull requests](https://docs.github.com/en/github/collaborating-with-pull-requests)
-
-<!-- markdown-link-check-enable -->
 
 ## Getting started
 
@@ -86,12 +82,9 @@ Did you find a bug?
 *Do not open up a GitHub issue if the bug is a security vulnerability*,
 and instead refer to our [security policy](README.md).
 
-<!-- markdown-link-check-disable -->
-
 For any other problem,
 [search](https://docs.github.com/en/github/searching-for-information-on-github/searching-on-github/searching-issues-and-pull-requests)
 first if an
-<!-- markdown-link-check-enable -->
 [issue](https://github.com/btclib-org/btclib/issues) (or a
 [fixing pull request](https://github.com/btclib-org/btclib/pulls),
 also known as a PR) already exists.
@@ -119,7 +112,6 @@ Commit the changes to your fork once you are happy with them.
 
 When you're finished with the changes, create a pull request (PR).
 
-<!-- markdown-link-check-disable -->
 - Don't forget to
   [link PR to issue](https://docs.github.com/en/issues/tracking-your-work-with-issues/linking-a-pull-request-to-an-issue)
   if you are solving one.
@@ -138,7 +130,6 @@ When you're finished with the changes, create a pull request (PR).
 - If you run into any merge issues, checkout this
   [git tutorial](https://github.com/skills/resolve-merge-conflicts)
   to help you resolve merge conflicts and other issues.
-<!-- markdown-link-check-enable -->
 
 ### Your PR is merged
 

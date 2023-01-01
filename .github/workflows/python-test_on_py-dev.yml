@@ -27,7 +27,5 @@ jobs:
           python-version: 3.12-dev
       - name: Run tox -e py
         run: |
-          pip install -U -r requirements-dev.txt
-          pip install -U -r requirements.txt
-      - name: Run test
-        run: pytest
+          python -m pip install tox
+          tox -e py
