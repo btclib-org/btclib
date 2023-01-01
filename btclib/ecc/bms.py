@@ -140,9 +140,9 @@ from typing import Optional, Tuple, Type, Union
 from btclib.alias import BinaryData, Octets, String
 from btclib.b32 import has_segwit_prefix, p2wpkh, witness_from_address
 from btclib.b58 import h160_from_address, p2pkh, p2wpkh_p2sh, wif_from_prv_key
+from btclib.ec import mult, secp256k1
+from btclib.ec.sec_point import bytes_from_point
 from btclib.ecc import dsa
-from btclib.ecc.curve import mult, secp256k1
-from btclib.ecc.sec_point import bytes_from_point
 from btclib.exceptions import BTClibValueError
 from btclib.hashes import hash160, magic_message
 from btclib.network import NETWORKS

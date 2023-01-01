@@ -17,7 +17,8 @@ from os import path
 from typing import Any, Dict, List, Mapping, Optional, Tuple, Type, Union
 
 from btclib.alias import Octets
-from btclib.ecc.curve import CURVES, Curve
+from btclib.ec import Curve
+from btclib.ec.curve import CURVES
 from btclib.exceptions import BTClibValueError
 from btclib.utils import bytes_from_octets
 

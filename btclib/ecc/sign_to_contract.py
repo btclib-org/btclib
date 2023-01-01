@@ -37,10 +37,9 @@ from hashlib import sha256
 from typing import Optional, Tuple
 
 from btclib.alias import HashF, Octets, Point
+from btclib.ec import Curve, bytes_from_point, mult, secp256k1
 from btclib.ecc import dsa, ssa
-from btclib.ecc.curve import Curve, mult, secp256k1
 from btclib.ecc.rfc6979 import rfc6979_
-from btclib.ecc.sec_point import bytes_from_point
 from btclib.hashes import reduce_to_hlen
 from btclib.to_prv_key import PrvKey, int_from_prv_key
 from btclib.utils import bytes_from_octets, int_from_bits

@@ -16,8 +16,8 @@ from hashlib import sha256 as hf  # FIXME: any hf
 from typing import Dict, List, Sequence, Tuple
 
 from btclib.alias import Octets, Point
-from btclib.ecc.curve import double_mult, mult, secp256k1
-from btclib.ecc.sec_point import bytes_from_point
+from btclib.ec import double_mult, mult, secp256k1
+from btclib.ec.sec_point import bytes_from_point
 from btclib.exceptions import BTClibRuntimeError
 from btclib.utils import bytes_from_octets, int_from_bits
 

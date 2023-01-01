@@ -23,7 +23,8 @@ from btclib.bip32 import (
     decode_hd_key_paths,
     encode_to_bip32_derivs,
 )
-from btclib.ecc import dsa, sec_point
+from btclib.ec import sec_point
+from btclib.ecc import dsa
 from btclib.exceptions import BTClibValueError
 from btclib.hashes import hash160, hash256, ripemd160, sha256
 from btclib.psbt.psbt_out import BIP32KeyOrigin, HdKeyPaths

@@ -15,7 +15,8 @@ from os import path
 
 import pytest
 
-from btclib.ecc import der, dsa, sec_point
+from btclib.ec import sec_point
+from btclib.ecc import der, dsa
 from btclib.exceptions import BTClibValueError
 from btclib.hashes import hash160, hash256, ripemd160, sha256
 from btclib.psbt import Psbt, combine_psbts, extract_tx, finalize_psbt

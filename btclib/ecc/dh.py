@@ -24,7 +24,7 @@ from math import ceil
 from typing import Optional
 
 from btclib.alias import HashF, Point
-from btclib.ecc.curve import Curve, mult, secp256k1
+from btclib.ec import Curve, mult, secp256k1
 from btclib.exceptions import BTClibRuntimeError, BTClibValueError
 
 

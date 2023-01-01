@@ -16,7 +16,7 @@ import hashlib
 from typing import Callable, List, Tuple, Union
 
 from btclib.alias import HashF, Octets
-from btclib.ecc.curve import Curve, secp256k1
+from btclib.ec import Curve, secp256k1
 from btclib.utils import bytes_from_octets, int_from_bits
 
 H160_Net = Tuple[bytes, str]

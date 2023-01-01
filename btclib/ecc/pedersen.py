@@ -33,8 +33,7 @@ the discrete logarithm of H with respect to G must be unknown.
 from hashlib import sha256
 
 from btclib.alias import HashF, Point
-from btclib.ecc.curve import Curve, double_mult, secp256k1
-from btclib.ecc.sec_point import bytes_from_point
+from btclib.ec import Curve, bytes_from_point, double_mult, secp256k1
 from btclib.exceptions import BTClibRuntimeError, BTClibValueError
 from btclib.utils import int_from_bits
 

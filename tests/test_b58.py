@@ -17,8 +17,8 @@ import pytest
 from btclib import b32, b58
 from btclib.base58 import b58encode
 from btclib.bip32 import bip32, slip132
-from btclib.ecc.curve import secp256k1
-from btclib.ecc.sec_point import bytes_from_point, point_from_octets
+from btclib.ec import secp256k1
+from btclib.ec.sec_point import bytes_from_point, point_from_octets
 from btclib.exceptions import BTClibValueError
 from btclib.hashes import hash160
 from btclib.script import Command, serialize

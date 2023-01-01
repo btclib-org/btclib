@@ -16,8 +16,8 @@ from typing import Dict
 import pytest
 
 from btclib.alias import INF, INFJ
-from btclib.ecc.curve import CURVES, Curve, double_mult, mult, multi_mult, secp256k1
-from btclib.ecc.curve_group import jac_from_aff
+from btclib.ec.curve import CURVES, Curve, double_mult, mult, multi_mult, secp256k1
+from btclib.ec.curve_group import jac_from_aff
 from btclib.ecc.pedersen import second_generator
 from btclib.exceptions import BTClibTypeError, BTClibValueError
 from btclib.number_theory import mod_sqrt

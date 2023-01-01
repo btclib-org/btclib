@@ -15,7 +15,7 @@ from typing import Any, Optional, Tuple
 
 from btclib import var_bytes
 from btclib.alias import Octets
-from btclib.ecc.curve import Curve, mult, secp256k1
+from btclib.ec import Curve, mult, secp256k1
 from btclib.exceptions import BTClibValueError
 from btclib.hashes import tagged_hash
 from btclib.script.script import serialize

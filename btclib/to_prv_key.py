@@ -15,7 +15,7 @@ from typing import Optional, Tuple
 from btclib.alias import String, Union
 from btclib.base58 import b58decode
 from btclib.bip32 import BIP32Key, BIP32KeyData
-from btclib.ecc.curve import Curve, secp256k1
+from btclib.ec import Curve, secp256k1
 from btclib.exceptions import BTClibValueError
 from btclib.network import (
     NETWORKS,

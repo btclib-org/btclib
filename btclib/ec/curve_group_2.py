@@ -45,7 +45,7 @@ from math import ceil
 from typing import List, Tuple
 
 from btclib.alias import INFJ, JacPoint
-from btclib.ecc.curve_group import CurveGroup, _double_mult, convert_number_to_base
+from btclib.ec.curve_group import CurveGroup, _double_mult, convert_number_to_base
 from btclib.exceptions import BTClibValueError
 
 

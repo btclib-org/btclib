@@ -15,8 +15,8 @@ import secrets
 import pytest
 
 from btclib.alias import INF, INFJ
-from btclib.ecc.curve import secp256k1
-from btclib.ecc.curve_group import (
+from btclib.ec import secp256k1
+from btclib.ec.curve_group import (
     MAX_W,
     _double_mult,
     _mult,
