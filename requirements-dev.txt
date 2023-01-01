@@ -1,4 +1,4 @@
-# packages required to develop, build, and test btclib
+sourcery# packages required to develop, build, and test btclib
 
 pip
 wheel
