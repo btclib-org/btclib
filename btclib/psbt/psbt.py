@@ -147,6 +147,7 @@ class Psbt:
 
             non_witness_utxo = self.inputs[i].non_witness_utxo
             redeem_script = self.inputs[i].redeem_script
+            # sourcery skip: use-named-expression
             # with python>=3.8 use walrus operator
             # if witness_utxo := self.inputs[i].witness_utxo:
             witness_utxo = self.inputs[i].witness_utxo
