@@ -138,7 +138,7 @@ def hex_string(i: Integer) -> str:
         raise BTClibValueError(f"negative integer: {int_}")
     a_str = hex(int_)[2:]
     if len(a_str) % 2 != 0:
-        a_str = "0" + a_str
+        a_str = f"0{a_str}"
 
     indx = list(reversed(range(len(a_str), 0, -8)))
     lresult = [(a_str[max(0, i - 8) : i]) for i in indx]

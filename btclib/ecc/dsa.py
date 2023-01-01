@@ -18,6 +18,8 @@
    to avoid accepting malleable signatures.
 """
 
+
+import contextlib
 import secrets
 from hashlib import sha256
 from typing import List, Optional, Tuple, Union
@@ -278,17 +280,14 @@ def _recover_pub_keys_(
         # affine x_K-coordinate of K (field element)
         x_K = (r + j * ec.n) % ec.p  # 1.1
         # two possible y_K-coordinates, i.e. two possible keys for each cycle
-        try:
+        with contextlib.suppress(BTClibValueError, BTClibRuntimeError):
             # even root first for bitcoin message signing compatibility
             yodd = ec.y_even(x_K)
             KJ = x_K, yodd, 1  # 1.2, 1.3, and 1.4
             # 1.5 has been performed in the recover_pub_keys calling function
             QJ = _double_mult(r1s, KJ, r1e, ec.GJ, ec)  # 1.6.1
-            try:
+            with contextlib.suppress(BTClibValueError, BTClibRuntimeError):
                 _assert_as_valid_(c, QJ, r, s, lower_s, ec)  # 1.6.2
-            except (BTClibValueError, BTClibRuntimeError):
-                pass
-            else:
                 keys.append(QJ)  # 1.6.2
             KJ = x_K, ec.p - yodd, 1  # 1.6.3
             QJ = _double_mult(r1s, KJ, r1e, ec.GJ, ec)
@@ -298,8 +297,6 @@ def _recover_pub_keys_(
                 pass
             else:
                 keys.append(QJ)  # 1.6.2
-        except (BTClibValueError, BTClibRuntimeError):  # K is not a curve point
-            pass
     return keys
 
 

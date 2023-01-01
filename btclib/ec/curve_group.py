@@ -223,16 +223,9 @@ class CurveGroup:
         U = R[1] * QZ3
 
         # FIXME: it would be better if doubling was not a special case
-        if M % self.p == N % self.p:  # same affine x
-            if T % self.p == U % self.p:  # point doubling
-                QY2 = Q[1] * Q[1]
-                W = 3 * Q[0] * Q[0] + self._a * QZ2 * QZ2
-                V = 4 * Q[0] * QY2
-                X = W * W - 2 * V
-                Y = W * (V - X) - 8 * QY2 * QY2
-                Z = 2 * Q[1] * Q[2]
-                return X % self.p, Y % self.p, Z % self.p
-
+        # if same affine x and same affine y, then point doubling
+        if M % self.p == N % self.p and T % self.p == U % self.p:
+            return self._double_jac_helper(Q, QZ2)
         W = U - T
         V = N - M
 
@@ -262,6 +255,9 @@ class CurveGroup:
         # point is assumed to be on curve
 
         QZ2 = Q[2] * Q[2]
+        return self._double_jac_helper(Q, QZ2)
+
+    def _double_jac_helper(self, Q: JacPoint, QZ2: int) -> JacPoint:
         QY2 = Q[1] * Q[1]
         W = 3 * Q[0] * Q[0] + self._a * QZ2 * QZ2
         V = 4 * Q[0] * QY2
@@ -281,11 +277,7 @@ class CurveGroup:
 
         # FIXME: it would be better if doubling was checked before INF handling
         if R[0] == Q[0]:
-            if R[1] == Q[1]:  # point doubling
-                return self.double_aff(R)
-            # opposite points
-            return INF
-
+            return self.double_aff(R) if R[1] == Q[1] else INF
         lam = (R[1] - Q[1]) * mod_inv(R[0] - Q[0], self.p)
         x = lam * lam - Q[0] - R[0]
         y = lam * (Q[0] - x) - Q[1]

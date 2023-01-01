@@ -126,7 +126,7 @@ def _seed_from_mnemonic(mnemonic: Mnemonic, passphrase: str) -> Tuple[str, bytes
 
     hf_name = "sha512"
     password = mnemonic.encode()
-    salt = ("electrum" + passphrase).encode()
+    salt = f"electrum{passphrase}".encode()
     iterations = 2048
     dksize = 64
     return version, pbkdf2_hmac(hf_name, password, salt, iterations, dksize)

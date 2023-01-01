@@ -140,7 +140,7 @@ def seed_from_mnemonic(
 
     hf_name = "sha512"
     password = mnemonic.encode()
-    salt = ("mnemonic" + passphrase).encode()
+    salt = f"mnemonic{passphrase}".encode()
     iterations = 2048
     dksize = 64
     return pbkdf2_hmac(hf_name, password, salt, iterations, dksize)
