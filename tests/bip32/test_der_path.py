@@ -104,8 +104,8 @@ def test_index_int_to_from_str() -> None:
         with pytest.raises(BTClibValueError):
             str_from_index_int(i)
 
-    # sourcery skip: remove-str-from-fstring
-    for s in ("-1", "-1h", f"{str(0x80000000)}h", str(0xFFFFFFFF + 1)):
+    # sourcery skip: simplify-fstring-formatting
+    for s in ("-1", "-1h", f"{0x80000000}h", f"{0xFFFFFFFF + 1}"):
         with pytest.raises(BTClibValueError):
             int_from_index_str(s)
 
