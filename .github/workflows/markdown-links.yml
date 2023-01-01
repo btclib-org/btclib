@@ -11,3 +11,5 @@ jobs:
 
       - name: Check Markdown links
         uses: gaurav-nelson/github-action-markdown-link-check@v1
+        with:
+          quiet: true
