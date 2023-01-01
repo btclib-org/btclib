@@ -30,7 +30,7 @@ Major changes includes:
 - the hashes.fingerprint function, removed in the previous version,
   has been reinstated in the to_pub_key module
 - encode_num and decode_num have been moved from
-script.op_codes to utils
+  script.op_codes to utils
 - op_pushdata and op_str have been renamed to
   serialize_bytes_command and serialize_str_command
 - script.op_codes has been removed and its functions merged in script
