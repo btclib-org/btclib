@@ -14,14 +14,14 @@
 - add sign(address, msg) using wallet infrastrucure
 - isinstance(entr, bytearray) or isinstance(entr, bytes)
 - optimizations:
-  - <https://en.wikipedia.org/wiki/Elliptic_curve_point_multiplication>
-  - <https://cryptojedi.org/peter/data/eccss-20130911b.pdf>
-  - <https://arxiv.org/abs/1801.08589>
-  - <https://ecc2017.cs.ru.nl/slides/ecc2017school-castryck.pdf>
-  - <https://hal.archives-ouvertes.fr/hal-00932199/document>
-  - <https://iacr.org/workshops/ches/ches2006/presentations/Douglas%20Stebila.pdf>
-  - <https://eprint.iacr.org/2005/419.pdf>
-  - <https://www.esat.kuleuven.be/cosic/publications/article-2293.pdf>
+    - <https://en.wikipedia.org/wiki/Elliptic_curve_point_multiplication>
+    - <https://cryptojedi.org/peter/data/eccss-20130911b.pdf>
+    - <https://arxiv.org/abs/1801.08589>
+    - <https://ecc2017.cs.ru.nl/slides/ecc2017school-castryck.pdf>
+    - <https://hal.archives-ouvertes.fr/hal-00932199/document>
+    - <https://iacr.org/workshops/ches/ches2006/presentations/Douglas%20Stebila.pdf>
+    - <https://eprint.iacr.org/2005/419.pdf>
+    - <https://www.esat.kuleuven.be/cosic/publications/article-2293.pdf>
 - better mimic of electrum entropy search, they probably have the words inverted
 - BIP44 in address_from...
 - primitives for interactive threshold and musig
@@ -39,5 +39,3 @@
 - SSA: ask about why e=e(k), making impossible to select e, k indipendently
 - SSA: ask about benefit of removing 02/03 from pub_key
 - SSA: suggest better k
-
-- compare of dsa.rfc6979_ and ssa.det_nonce_
