@@ -91,7 +91,6 @@ and instead refer to our [security policy](README.md).
 For any other problem,
 [search](https://docs.github.com/en/github/searching-for-information-on-github/searching-on-github/searching-issues-and-pull-requests)
 first if an
-<!-- markdown-link-check-enable -->
 [issue](https://github.com/btclib-org/btclib/issues) (or a
 [fixing pull request](https://github.com/btclib-org/btclib/pulls),
 also known as a PR) already exists.
