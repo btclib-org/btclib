@@ -3,7 +3,7 @@ name: Markdown - Check linted code
 on: [push, pull_request]
 
 jobs:
-  check-linted-code:
+  check-md-linted:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
@@ -13,5 +13,5 @@ jobs:
         with:
           command: config
           globs: |
-            .markdownlint.jsonc
+            .markdownlint.json
             **/*.md

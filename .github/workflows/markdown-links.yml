@@ -3,7 +3,7 @@ name: Markdown - Check links
 on: [push, pull_request]
 
 jobs:
-  check-markdown-links:
+  check-md-links:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
