@@ -125,6 +125,7 @@ When you're finished with the changes, create a pull request (PR).
   or pull request comments.
   You can apply suggested changes directly through the UI.
   You can make any other changes in your fork, then commit them to your branch.
+- [Sourcery](https://sourcery.ai/) might suggest changes, please accept them.
 - As you update your PR and apply changes, mark each conversation as
   [resolved](https://docs.github.com/en/github/collaborating-with-issues-and-pull-requests/commenting-on-a-pull-request#resolving-conversations).
 - If you run into any merge issues, checkout this
