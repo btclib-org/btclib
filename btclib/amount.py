@@ -59,7 +59,7 @@ def valid_btc_amount(amount: Any, dust: Decimal = Decimal("0")) -> Decimal:
         raise BTClibValueError(f"invalid BTC amount: {amount}")
     if btc == btc.quantize(_BITCOIN_PER_SATOSHI):
         return btc
-    raise BTClibValueError(f"too many decimals for a BTC amount: {amount}")
+    raise BTClibValueError("too many decimals for a BTC amount: " + f"{amount}")
 
 
 def sats_from_btc(amount: Decimal) -> int:
