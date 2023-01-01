@@ -1,4 +1,4 @@
-name: Check linted code
+name: Python - Check linted code
 
 on:
   push:

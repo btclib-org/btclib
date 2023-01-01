@@ -1,0 +1,15 @@
+name: Markdown - Check linted code
+
+on: [push, pull_request]
+
+jobs:
+  check-linted-code:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Run Markdown Lint
+        uses: actionshub/markdownlint@main
+        with:
+          filesToIgnoreRegex: "node_modules\\/.*"
