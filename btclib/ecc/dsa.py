@@ -23,9 +23,8 @@ from hashlib import sha256
 from typing import List, Optional, Tuple, Union
 
 from btclib.alias import HashF, JacPoint, Octets, Point
-from btclib.ecc import libsecp256k1
-from btclib.ecc.curve import Curve, secp256k1
-from btclib.ecc.curve_group import _double_mult, _mult
+from btclib.ec import Curve, libsecp256k1, secp256k1
+from btclib.ec.curve_group import _double_mult, _mult
 from btclib.ecc.der import Sig
 from btclib.ecc.rfc6979 import _rfc6979_
 from btclib.exceptions import BTClibRuntimeError, BTClibValueError

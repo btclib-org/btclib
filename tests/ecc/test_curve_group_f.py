@@ -12,8 +12,8 @@
 
 import pytest
 
-from btclib.ecc.curve_group import CurveGroup, mult_aff
-from btclib.ecc.curve_group_f import find_all_points, find_subgroup_points
+from btclib.ec.curve_group import CurveGroup, mult_aff
+from btclib.ec.curve_group_f import find_all_points, find_subgroup_points
 from btclib.exceptions import BTClibValueError
 
 

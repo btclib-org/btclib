@@ -16,8 +16,8 @@ from os import path
 from typing import Dict, List, Optional, Sequence
 
 from btclib.alias import Integer, JacPoint, Point
-from btclib.ecc import libsecp256k1
-from btclib.ecc.curve_group import (
+from btclib.ec import libsecp256k1
+from btclib.ec.curve_group import (
     HEX_THRESHOLD,
     CurveGroup,
     _double_mult,

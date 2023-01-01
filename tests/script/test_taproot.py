@@ -16,7 +16,7 @@ from os import path
 import pytest
 
 from btclib import b32
-from btclib.ecc.curve import mult
+from btclib.ec import mult
 from btclib.exceptions import BTClibValueError
 from btclib.script import (
     Witness,

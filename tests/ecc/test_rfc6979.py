@@ -16,8 +16,9 @@ from os import path
 
 import pytest
 
+from btclib.ec import mult
+from btclib.ec.curve import CURVES
 from btclib.ecc import dsa
-from btclib.ecc.curve import CURVES, mult
 from btclib.ecc.rfc6979 import rfc6979_
 from btclib.hashes import reduce_to_hlen
 

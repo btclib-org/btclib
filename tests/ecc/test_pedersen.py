@@ -14,8 +14,9 @@ from hashlib import sha256, sha384
 
 import pytest
 
+from btclib.ec import secp256k1
+from btclib.ec.curve import CURVES
 from btclib.ecc import pedersen
-from btclib.ecc.curve import CURVES, secp256k1
 
 secp256r1 = CURVES["secp256r1"]
 secp384r1 = CURVES["secp384r1"]

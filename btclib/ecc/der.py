@@ -60,7 +60,7 @@ from typing import Type
 
 from btclib import var_bytes
 from btclib.alias import BinaryData
-from btclib.ecc.curve import Curve, secp256k1
+from btclib.ec import Curve, secp256k1
 from btclib.exceptions import BTClibValueError
 from btclib.utils import bytesio_from_binarydata, hex_string
 
