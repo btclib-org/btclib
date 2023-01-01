@@ -9,3 +9,5 @@
 # or distributed except according to the terms contained in the LICENSE file.
 
 """btclib.ecc submodule."""
+
+from btclib.ecc.pedersen import second_generator

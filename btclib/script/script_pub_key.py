@@ -14,7 +14,7 @@ from typing import Callable, List, Optional, Sequence, Tuple, Type
 
 from btclib import b32, b58, var_bytes
 from btclib.alias import Octets, String
-from btclib.ec.sec_point import point_from_octets
+from btclib.ec import point_from_octets
 from btclib.exceptions import BTClibValueError
 from btclib.hashes import hash160, sha256
 from btclib.network import NETWORKS

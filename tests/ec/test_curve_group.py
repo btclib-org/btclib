@@ -33,7 +33,7 @@ from btclib.ec.curve_group import (
     mult_recursive_jac,
     multiples,
 )
-from btclib.ecc.pedersen import second_generator
+from btclib.ecc import second_generator
 from btclib.exceptions import BTClibValueError
 from tests.ec.test_curve import all_curves, low_card_curves
 

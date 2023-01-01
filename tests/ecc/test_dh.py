@@ -14,9 +14,8 @@ from hashlib import sha1, sha224, sha256, sha384, sha512
 
 import pytest
 
-from btclib.ec import mult
+from btclib.ec import bytes_from_point, mult
 from btclib.ec.curve import CURVES
-from btclib.ec.sec_point import bytes_from_point
 from btclib.ecc import dsa
 from btclib.ecc.dh import ansi_x9_63_kdf, diffie_hellman
 from btclib.exceptions import BTClibValueError
