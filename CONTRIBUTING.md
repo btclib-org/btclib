@@ -7,10 +7,12 @@ to help this project come to fruition.
 If you haven't already:
 
 - see the [README](./README.md) file to get an overview of the project
-- read our [Code of Conduct](./CODE_OF_CONDUCT.md) to keep our community approachable and respectable
+- read our [Code of Conduct](./CODE_OF_CONDUCT.md) to keep our community
+  approachable and respectable
 - come find us on [Slack](https://bbt-training.slack.com/archives/C01CCJ85AES).
 
-In this guide you will get an overview of the contribution workflow from opening an issue, creating a PR, reviewing, and merging the PR.
+In this guide you will get an overview of the contribution workflow from
+opening an issue, creating a PR, reviewing, and merging the PR.
 
 ## New contributor guide
 
@@ -73,13 +75,19 @@ and instead refer to our [security policy](README.md).
 
 For any other problem,
 [search](https://docs.github.com/en/github/searching-for-information-on-github/searching-on-github/searching-issues-and-pull-requests)
-first if an [issue](https://github.com/btclib-org/btclib/issues) (or a [fixing pull request](https://github.com/btclib-org/btclib/pulls), also known as a PR) already exists.
-If a related issue/PR does not exist,
-please open a new issue.
+first if an
+[issue](https://github.com/btclib-org/btclib/issues) (or a
+[fixing pull request](https://github.com/btclib-org/btclib/pulls),
+also known as a PR) already exists.
+If a related issue/PR does not exist, please open a new issue.
 
 #### Solve an issue
 
-Scan through our [existing issues](https://github.com/btclib-org/btclib/issues) to find one that interests you. As a general rule, we don’t assign issues to anyone. If you find an issue to work on, you are welcome to open a PR with a fix.
+Scan through our
+[existing issues](https://github.com/btclib-org/btclib/issues)
+to find one that interests you.
+As a general rule, we don’t assign issues to anyone.
+If you find an issue to work on, you are welcome to open a PR with a fix.
 
 ### Make Changes
 
@@ -99,7 +107,8 @@ When you're finished with the changes, create a pull request (PR).
 [link PR to issue](https://docs.github.com/en/issues/tracking-your-work-with-issues/linking-a-pull-request-to-an-issue)
 if you are solving one.
 - Enable the checkbox to
-[allow maintainer edits](https://docs.github.com/en/github/collaborating-with-issues-and-pull-requests/allowing-changes-to-a-pull-request-branch-created-from-a-fork) so the branch can be updated for a merge.
+[allow maintainer edits](https://docs.github.com/en/github/collaborating-with-issues-and-pull-requests/allowing-changes-to-a-pull-request-branch-created-from-a-fork)
+so the branch can be updated for a merge.
 Once you submit your PR, team members will review your proposal.
 We may ask questions or request additional information.
 - We may ask for changes to be made before a PR can be merged, either using
