@@ -1,4 +1,4 @@
-name: Experimental
+name: Python - Test on 3.12-dev
 
 on:
   push:
@@ -25,7 +25,7 @@ jobs:
           python-version: 3.12-dev
       - name: Install requirements
         run: |
+          pip install -U -r requirements-dev.txt
           pip install -U -r requirements.txt
-          pip install -U pytest
       - name: Run test
         run: pytest
