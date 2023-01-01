@@ -11,10 +11,11 @@
 "Tests for the `btclib.script.engine` module."
 
 import json
+import warnings
 from os import path
 
 import pytest
-import warnings
+
 from btclib.exceptions import BTClibValueError
 from btclib.script.engine import verify_input, verify_transaction
 from btclib.script.witness import Witness
