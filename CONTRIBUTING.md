@@ -91,12 +91,11 @@ and instead refer to our [security policy](README.md).
 For any other problem,
 [search](https://docs.github.com/en/github/searching-for-information-on-github/searching-on-github/searching-issues-and-pull-requests)
 first if an
+<!-- markdown-link-check-enable -->
 [issue](https://github.com/btclib-org/btclib/issues) (or a
 [fixing pull request](https://github.com/btclib-org/btclib/pulls),
 also known as a PR) already exists.
 If a related issue/PR does not exist, please open a new issue.
-
-<!-- markdown-link-check-enable -->
 
 #### Solve an issue
 
@@ -120,6 +119,7 @@ Commit the changes to your fork once you are happy with them.
 
 When you're finished with the changes, create a pull request (PR).
 
+<!-- markdown-link-check-disable -->
 - Don't forget to
   [link PR to issue](https://docs.github.com/en/issues/tracking-your-work-with-issues/linking-a-pull-request-to-an-issue)
   if you are solving one.
@@ -133,12 +133,12 @@ When you're finished with the changes, create a pull request (PR).
   or pull request comments.
   You can apply suggested changes directly through the UI.
   You can make any other changes in your fork, then commit them to your branch.
-- [Sourcery](https://sourcery.ai/) might suggest changes, please accept them.
 - As you update your PR and apply changes, mark each conversation as
   [resolved](https://docs.github.com/en/github/collaborating-with-issues-and-pull-requests/commenting-on-a-pull-request#resolving-conversations).
 - If you run into any merge issues, checkout this
   [git tutorial](https://github.com/skills/resolve-merge-conflicts)
   to help you resolve merge conflicts and other issues.
+<!-- markdown-link-check-enable -->
 
 ### Your PR is merged
 
