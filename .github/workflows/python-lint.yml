@@ -11,20 +11,17 @@ on:
       - dev
 
 jobs:
-  check-py-lint:
-    runs-on: ${{ matrix.os }}
+  check-py-linted:
+    runs-on: ubuntu-latest
     strategy:
       fail-fast: false
-      matrix:
-        os: [ubuntu-latest]
-        python: ["3.11"]
     steps:
       - name: Checkout code
         uses: actions/checkout@v3
       - name: Setup Python
         uses: actions/setup-python@v4
         with:
-          python-version: ${{ matrix.python }}
+          python-version: "3.11"
       - name: Install requirements
         run: |
           python -m pip install -U -r requirements-dev.txt

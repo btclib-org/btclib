@@ -11,7 +11,7 @@ on:
       - dev
 
 jobs:
-  py312-dev-test:
+  test-py312-dev:
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
