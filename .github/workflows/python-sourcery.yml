@@ -7,7 +7,7 @@ on:
       - dev
 
 jobs:
-  review-with-sourcery:
+  check-py-sourcery:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
