@@ -93,12 +93,12 @@ def assert_p2pk(script_pub_key: Octets) -> None:
     if length == 35:
         if len_marker != 0x21:
             err_msg = f"invalid pub_key length marker: {len_marker}"
-            err_msg += f" instead of {0x21}"
+            err_msg += " instead of 33"
             raise BTClibValueError(err_msg)
     elif length == 67:
         if len_marker != 0x41:
             err_msg = f"invalid pub_key length marker: {len_marker}"
-            err_msg += f" instead of {0x41}"
+            err_msg += " instead of 65"
             raise BTClibValueError(err_msg)
 
     pub_key = script_pub_key[1:-1]
@@ -187,11 +187,11 @@ def assert_p2wpkh(script_pub_key: Octets) -> None:
     # 0x0014{20-byte pub_key hash}
     if script_pub_key[0] != 0:
         err_msg = f"invalid witness version: {script_pub_key[0]}"
-        err_msg += f" instead of {0}"
+        err_msg += " instead of 0"
         raise BTClibValueError(err_msg)
     if script_pub_key[1] != 0x14:
         err_msg = f"invalid pub_key hash length marker: {script_pub_key[1]}"
-        err_msg += f" instead of {0x14}"
+        err_msg += " instead of 20"
         raise BTClibValueError(err_msg)
 
 
@@ -205,11 +205,11 @@ def assert_p2wsh(script_pub_key: Octets) -> None:
     # 0x0020{32-byte redeem_script hash}
     if script_pub_key[0] != 0:
         err_msg = f"invalid witness version: {script_pub_key[0]}"
-        err_msg += f" instead of {0}"
+        err_msg += " instead of 0"
         raise BTClibValueError(err_msg)
     if script_pub_key[1] != 0x20:
         err_msg = f"invalid redeem script hash length marker: {script_pub_key[1]}"
-        err_msg += f" instead of {0x20}"
+        err_msg += " instead of 32"
         raise BTClibValueError(err_msg)
 
 
@@ -223,11 +223,11 @@ def assert_p2tr(script_pub_key: Octets) -> None:
     # 0x0120{32-byte redeem_script hash}
     if script_pub_key[0] != 0x51:  # OP_1 = b"\x51",
         err_msg = f"invalid witness version: {script_pub_key[0]}"
-        err_msg += f" instead of {0}"
+        err_msg += " instead of 0"
         raise BTClibValueError(err_msg)
     if script_pub_key[1] != 0x20:
         err_msg = f"invalid redeem script hash length marker: {script_pub_key[1]}"
-        err_msg += f" instead of {0x20}"
+        err_msg += " instead of 32"
         raise BTClibValueError(err_msg)
 
 

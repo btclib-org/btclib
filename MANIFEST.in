@@ -2,6 +2,7 @@ include LICENSE
 include *.md
 include *.txt
 include *.yml
+include *.yaml
 include .flake8
 include tox.ini
 include pyproject.toml

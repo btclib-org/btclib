@@ -36,19 +36,19 @@ Finally, additional packages are needed to build the documentation:
 
     python -m pip install --upgrade -r docs/requirements.txt
 
-As an annotated python project, btclib is very strict on code formatting
+As an annotated python3 project, btclib is very strict on code formatting
 ([isort](https://pycqa.github.io/isort/),
 [black](https://github.com/psf/black),
 [pylint](https://pylint.pycqa.org/en/latest/),
 [bandit](https://github.com/PyCQA/bandit),
 [flake8](https://flake8.pycqa.org/en/latest/),
-and [check-manifest](https://pypi.org/project/check-manifest/))
+and [sourcery](https://pypi.org/project/sourcery-cli/))
 and proper type definition
 ([mypy](https://mypy-lang.org/)):
 warnings are not tolerated and should be taken care of.
 This might be annoying at first, but enforcing formatting rules can be done
 easily once you're finished with coding or, even better, automatically
-taken care of while coding, especially if you properly setup your development environment.
+taken care of while coding if you configure your development environment.
 Type definition improves code readability and helps in spotting bugs.
 
 Moreover, [unit tests](https://github.com/pytest-dev/pytest/) must pass at any time with 100% [coverage](https://coverage.readthedocs.io/) of both the
@@ -56,8 +56,6 @@ library and the test suite.
 
 These requirements are easily checked (and partially fixed) if you test
 the impact of your contribution with [tox](https://tox.wiki/).
-
-We also like the contribution of [sourcery](https://sourcery.ai/): you might too.
 
 Finally, even when it comes to mark-down (*.md files),
 please use [markdownlint](https://github.com/DavidAnson/markdownlint).
