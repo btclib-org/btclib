@@ -1,10 +1,10 @@
-name: Linters
+name: Check linted code
 
-on: [push, pull]
+on: [push, pull_request]
   branches: [master, dev]
 
 jobs:
-  check-code-is-lint:
+  check-linted-code:
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
