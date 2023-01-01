@@ -41,11 +41,13 @@ Included features are:
 - modulo algebra functions (gcd, inverse, legendre symbol, square root)
 - octets / integer / point / var_int / var_bytes helper functions
 - elliptic curve class
+
   - fast algebra implemented using Jacobian coordinates
   - double scalar multiplication (Straus's algorithm, also known as
     Shamir's trick)
   - multi scalar multiplication (Bos-coster's algorithm)
   - point simmetry solution: odd/even, low/high, and quadratic residue
+
 - elliptic curves: SEC 1 v1 and v2, NIST, Brainpool, and
   low cardinality test curves
 - ECDSA signature with (transaction) DER encoding
@@ -55,9 +57,11 @@ Included features are:
 - EC Schnorr signature (according to
   [BIP340](https://github.com/bitcoin/bips/blob/master/bip-0340.mediawiki)
   bitcoin standardization)
+
   - batch validation
   - threshold signature (see test-suite)
   - MuSig multi-signature (see test-suite)
+
 - Borromean ring signature
 - [RFC 6979](https://tools.ietf.org/html/rfc6979:) to make signature
   schemes deterministic

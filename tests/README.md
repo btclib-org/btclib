@@ -1,13 +1,12 @@
 # Tests, code coverage, and profiling
 
-## Required packages
-
-btclib has no required packages, but btclib tests do:
-consider installing the required packages in a dedicated virtual environment.
+## Install required packages
 
     python -m pip install -r requirements-dev.txt
 
-## Test
+Consider installing the required packages in a dedicated virtual environment.
+
+## Test and code coverage
 
 Test execution is distributed across multiple cores,
 with the default number of cores being eight:
@@ -30,6 +29,8 @@ Coverage results can also be reported as html at htmlcov/index.html:
 Finally, the fastest test execution can be accomplished running pytest only
 
     pytest
+
+## Profiling
 
 Profiling can be obtained with:
 
