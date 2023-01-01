@@ -65,6 +65,7 @@ def sign(
     - sign_keys: list containing the whole set of signing keys (one per ring)
     - pubk_rings: dictionary of sequences representing single rings of pub_keys
     """
+    # sourcery skip: low-code-quality
 
     msg = bytes_from_octets(msg)
     m = _get_msg_format(msg, pubk_rings)
