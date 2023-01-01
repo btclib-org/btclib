@@ -1,4 +1,4 @@
-name: Test
+name: Python - Test and coverage
 
 on:
   push:
