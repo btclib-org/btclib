@@ -404,7 +404,7 @@ def test_p2ms_1() -> None:
     err_msg = "invalid n in m-of-n: "
     with pytest.raises(BTClibValueError, match=err_msg):
         # pylance cannot grok the following line
-        ScriptPubKey.p2ms(4, [pub_key0] * 17)  # type: ignore
+        ScriptPubKey.p2ms(4, [pub_key0] * 17)  # type: ignore[arg-type]
     err_msg = "invalid m in m-of-n: "
     with pytest.raises(BTClibValueError, match=err_msg):
         ScriptPubKey.p2ms(0, pub_keys)

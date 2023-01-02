@@ -57,7 +57,7 @@ class WordLists:
 
         # a new language, unknown before
         if lang not in self.languages:
-            self._init_new_lang(filename, lang)
+            self._init_new_lang(lang, filename)
         # language has not been loaded yet
         if self._language_length[lang] == 0:
             with open(self.language_files[lang], "r", encoding="ascii") as file_:
@@ -73,7 +73,7 @@ class WordLists:
             # clean up and normalization are missing, but removal of \n
             self._wordlist[lang] = [line[:-1] for line in lines]
 
-    def _init_new_lang(self, filename, lang):
+    def _init_new_lang(self, lang: str, filename: Optional[str]) -> None:
         if filename is None:
             raise BTClibValueError(f"Missing file for language '{lang}'")
         # initialize the new language

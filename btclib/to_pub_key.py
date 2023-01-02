@@ -11,7 +11,7 @@
 "Functions for conversions between different public key formats."
 
 import contextlib
-from typing import Optional, Tuple, Union
+from typing import Optional, Tuple, TypeAlias, Union
 
 from btclib.alias import Point
 from btclib.bip32 import BIP32Key, BIP32KeyData
@@ -29,11 +29,11 @@ from btclib.utils import bytes_from_octets
 
 # public key inputs:
 # elliptic curve point as Union[Octets, BIP32Key, Point]
-PubKey = Union[bytes, str, BIP32KeyData, Point]
+PubKey: TypeAlias = Union[bytes, str, BIP32KeyData, Point]
 
 # public or private key input,
 # usable wherever a PubKey is logically expected
-Key = Union[int, bytes, str, BIP32KeyData, Point]
+Key: TypeAlias = Union[int, bytes, str, BIP32KeyData, Point]
 
 
 def _point_from_xpub(xpub: BIP32Key, ec: Curve) -> Point:
@@ -84,7 +84,7 @@ def point_from_pub_key(pub_key: PubKey, ec: Curve = secp256k1) -> Point:
 
     if isinstance(pub_key, tuple):
         if ec.is_on_curve(pub_key) and pub_key[1] != 0:
-            return pub_key
+            return pub_key[0], pub_key[1]
         raise BTClibValueError(f"not a valid public key: {pub_key}")
     if isinstance(pub_key, BIP32KeyData):
         return _point_from_xpub(pub_key, ec)

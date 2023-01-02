@@ -44,7 +44,7 @@ def test_bip32_key_origin() -> None:
     assert key_origin == key_origin2
     assert key_origin.description == description
     assert key_origin.master_fingerprint == bytes.fromhex(master_fingerprint)
-    assert key_origin.der_path == []
+    assert not key_origin.der_path
     assert BIP32KeyOrigin.parse(key_origin.serialize()) == key_origin
     assert BIP32KeyOrigin.from_dict(key_origin.to_dict()) == key_origin
 

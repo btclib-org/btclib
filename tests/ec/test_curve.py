@@ -72,7 +72,7 @@ def test_exceptions() -> None:
 
     err_msg = "Generator must a be a sequence\\[int, int\\]"
     with pytest.raises(BTClibValueError, match=err_msg):
-        Curve(13, 0, 2, (1, 9, 1), 19, 1, False)  # type: ignore
+        Curve(13, 0, 2, (1, 9, 1), 19, 1, False)  # type: ignore[arg-type]
 
     with pytest.raises(BTClibValueError, match="Generator is not on the curve"):
         Curve(13, 0, 2, (2, 9), 19, 1, False)
@@ -202,7 +202,7 @@ def test_is_on_curve() -> None:
     for ec in all_curves.values():
 
         with pytest.raises(BTClibValueError, match="point must be a tuple"):
-            ec.is_on_curve("not a point")  # type: ignore
+            ec.is_on_curve("not a point")  # type: ignore[arg-type]
 
         with pytest.raises(BTClibValueError, match="x-coordinate not in 0..p-1: "):
             ec.y(ec.p)
@@ -237,10 +237,10 @@ def test_negate() -> None:
         assert ec.jac_equality(minus_INFJ, INFJ)
 
         with pytest.raises(BTClibTypeError, match="not a point"):
-            ec.negate(ec.GJ)  # type: ignore
+            ec.negate(ec.GJ)  # type: ignore[arg-type]
 
         with pytest.raises(BTClibTypeError, match="not a Jacobian point"):
-            ec.negate_jac(ec.G)  # type: ignore
+            ec.negate_jac(ec.G)  # type: ignore[arg-type]
 
 
 def test_symmetry() -> None:

@@ -227,8 +227,7 @@ class Sig:
             data = data.strip()
 
         data_decoded = base64.b64decode(data)
-        # pylance cannot grok the following line
-        return cls.parse(data_decoded, check_validity)  # type: ignore
+        return cls.parse(data_decoded, check_validity)
 
 
 def gen_keys(

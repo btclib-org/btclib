@@ -176,7 +176,7 @@ def p2tr(
     internal_key: Optional[Key] = None,
     script_path: Optional[TaprootScriptTree] = None,
     network: str = "mainnet",
-):
+) -> str:
     "Return the p2tr bech32 address corresponding to a taproot output key."
     pub_key = output_pubkey(internal_key, script_path)[0]
     return address_from_witness(1, pub_key, network)

@@ -159,13 +159,13 @@ def test_exceptions() -> None:
         bin_str_entropy_from_entropy(bytes_entropy216, 224)
 
     with pytest.raises(BTClibValueError, match=err_msg):
-        bin_str_entropy_from_entropy(tuple())  # type: ignore
+        bin_str_entropy_from_entropy(tuple())  # type: ignore[arg-type]
 
     with pytest.raises(ValueError):
-        bin_str_entropy_from_int("not an int")  # type: ignore
+        bin_str_entropy_from_int("not an int")  # type: ignore[arg-type]
 
     with pytest.raises(TypeError):
-        bin_str_entropy_from_str(3)  # type: ignore
+        bin_str_entropy_from_str(3)  # type: ignore[arg-type]
 
     err_msg = "invalid number of bits: "
     with pytest.raises(BTClibValueError, match=err_msg):
@@ -181,7 +181,7 @@ inputs.append(StringIO("a120\n"))
 inputs.append(StringIO("120\npluto\n" + "64\n" * 43))
 
 
-def test_collect_rolls(monkeypatch):
+def test_collect_rolls(monkeypatch: pytest.MonkeyPatch) -> None:
 
     bits = 256
     for i, sides in enumerate((6, 120, 120)):

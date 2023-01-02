@@ -46,7 +46,7 @@ def test_rfc6979_example() -> None:
     msg = "sample".encode()
     msg_hash = hashlib.sha256(msg).digest()
     k = 0x23AF4074C90A02B3FE61D286D5C87F425E6BDD81B
-    assert k == rfc6979_(msg_hash, x, fake_ec)  # type: ignore
+    assert k == rfc6979_(msg_hash, x, fake_ec)  # type: ignore[arg-type]
 
 
 @pytest.mark.second

@@ -221,9 +221,9 @@ def test_from_key() -> None:
         *not_a_pub_keys,
     ]:
         with pytest.raises(BTClibValueError):
-            point_from_key(not_a_key)  # type: ignore
+            point_from_key(not_a_key)  # type: ignore[arg-type]
         with pytest.raises(BTClibValueError):
-            pub_keyinfo_from_key(not_a_key)  # type: ignore
+            pub_keyinfo_from_key(not_a_key)  # type: ignore[arg-type]
 
 
 def test_fingerprint() -> None:

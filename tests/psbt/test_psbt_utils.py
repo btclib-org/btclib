@@ -16,6 +16,6 @@ from btclib.exceptions import BTClibValueError
 from btclib.psbt import serialize_hd_key_paths
 
 
-def test_invalid_serialize_hd_key_paths():
+def test_invalid_serialize_hd_key_paths() -> None:
     with pytest.raises(BTClibValueError):
-        serialize_hd_key_paths(b"\x01\x01", [])
+        serialize_hd_key_paths(b"\x01\x01", [])  # type: ignore[arg-type]

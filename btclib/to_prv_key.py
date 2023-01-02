@@ -11,7 +11,7 @@
 "Functions for conversions between different private key formats."
 
 import contextlib
-from typing import Optional, Tuple
+from typing import Optional, Tuple, TypeAlias
 
 from btclib.alias import String, Union
 from btclib.base58 import b58decode
@@ -33,7 +33,7 @@ from btclib.utils import bytes_from_octets
 #
 # BIP32key and WIF also provide extra info about
 # network and (un)compressed-pub_key-derivation
-PrvKey = Union[int, bytes, str, BIP32KeyData]
+PrvKey: TypeAlias = Union[int, bytes, str, BIP32KeyData]
 
 
 def int_from_prv_key(prv_key: PrvKey, ec: Curve = secp256k1) -> int:
