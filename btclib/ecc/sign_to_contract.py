@@ -42,6 +42,7 @@ from btclib.ecc import dsa, ssa
 from btclib.ecc.rfc6979 import rfc6979_
 from btclib.hashes import reduce_to_hlen
 from btclib.to_prv_key import PrvKey, int_from_prv_key
+from btclib.to_pub_key import PubKey
 from btclib.utils import bytes_from_octets, int_from_bits
 
 
@@ -112,7 +113,7 @@ def dsa_verify_commit_(
     commit_hash: Octets,
     R: Point,
     msg_hash: Octets,
-    key: dsa.Key,
+    key: PubKey,
     sig: dsa.Sig,
     lower_s: bool = True,
     hf: HashF = sha256,
@@ -130,7 +131,7 @@ def dsa_verify_commit(
     commit: Octets,
     receipt: Point,
     msg: Octets,
-    key: dsa.Key,
+    key: PubKey,
     sig: dsa.Sig,
     lower_s: bool = True,
     hf: HashF = sha256,

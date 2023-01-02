@@ -67,14 +67,14 @@ def test_exceptions() -> None:
                 valid_btc_amount(0.123456789)
 
             with pytest.raises(TypeError):
-                btc_from_sats(2.5)  # type: ignore
+                btc_from_sats(2.5)  # type: ignore[arg-type]
             with pytest.raises(TypeError):
-                btc_from_sats(5 / 2)  # type: ignore
+                btc_from_sats(5 / 2)  # type: ignore[arg-type]
             with pytest.raises(ValueError):
-                btc_from_sats("2.5")  # type: ignore
+                btc_from_sats("2.5")  # type: ignore[arg-type]
             err_msg = "non-integer satoshi amount: "
             with pytest.raises(BTClibTypeError, match=err_msg):
-                btc_from_sats(Decimal("2.5"))  # type: ignore
+                btc_from_sats(Decimal("2.5"))  # type: ignore[arg-type]
 
 
 def test_self_consistency() -> None:
@@ -93,6 +93,6 @@ def test_self_consistency() -> None:
 
             for btc_amount in cases:
                 exp_btc = Decimal(str(btc_amount)).normalize()
-                btc = btc_from_sats(sats_from_btc(btc_amount))  # type: ignore
+                btc = btc_from_sats(sats_from_btc(btc_amount))  # type: ignore[arg-type]
                 assert btc == exp_btc
                 assert str(btc) == str(exp_btc)

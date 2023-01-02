@@ -51,14 +51,14 @@ class BlockHeader:
     def target(self) -> bytes:
         """Return the BlockHeader proof-of-work target.
 
-        The target aabbcc * 256^dd is represented
-        in scientific notation by the 4 bytes bits 0xaabbccdd
+        The target yyzzww * 256^(xx-3) is represented in the blockhader
+        by the 4 bytes 'bits' xxyyzzww
         """
         # significand (also known as mantissa or coefficient)
         significand = int.from_bytes(self.bits[1:], byteorder="big", signed=False)
         # power term, also called characteristics
         power_term = pow(256, (self.bits[0] - 3))
-        return (significand * power_term).to_bytes(_HF_LEN, "big", signed=False)
+        return int(significand * power_term).to_bytes(_HF_LEN, "big", signed=False)
 
     @property
     def difficulty(self) -> float:
@@ -83,7 +83,7 @@ class BlockHeader:
         )
         # power term ratio
         power_term = pow(256, genesis_exponent - self.bits[0])
-        return significand * power_term
+        return float(significand * power_term)
 
     @property
     def hash(self) -> bytes:

@@ -187,7 +187,7 @@ def test_wrapped_p2tr() -> None:
         sig_hash.from_tx([utxo], tx, 0, 0)
 
 
-def test_bip_test_vector():
+def test_bip_test_vector() -> None:
 
     fname = "taproot_test_vector.json"
     filename = path.join(path.dirname(__file__), "_data", fname)
@@ -201,7 +201,7 @@ def test_bip_test_vector():
         for utxo in data["given"]["utxosSpent"]
     ]
     for vin in unsigned_tx.vin:
-        vin.script_witness.stack.append(["00"])
+        vin.script_witness.stack.append(b"00")
 
     for test in data["inputSpending"]:
         index = test["given"]["txinIndex"]

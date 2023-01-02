@@ -31,7 +31,7 @@ from btclib.utils import bytes_from_octets
 TaprootScriptTree = Any
 
 
-def tree_helper(script_tree) -> Tuple[Any, bytes]:
+def tree_helper(script_tree: TaprootScriptTree) -> Tuple[Any, bytes]:
     if len(script_tree) == 1:
         return _tree_helper(script_tree)
     left, left_h = tree_helper(script_tree[0])
@@ -43,7 +43,7 @@ def tree_helper(script_tree) -> Tuple[Any, bytes]:
     return (info, tagged_hash(b"TapBranch", left_h + right_h))
 
 
-def _tree_helper(script_tree):
+def _tree_helper(script_tree: TaprootScriptTree) -> TaprootScriptTree:
     leaf_version, script = script_tree[0]
     leaf_version = leaf_version & 0xFE
     preimage = leaf_version.to_bytes(1, "big")

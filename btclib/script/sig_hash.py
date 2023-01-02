@@ -242,7 +242,7 @@ def from_tx(prevouts: List[TxOut], tx: Tx, vin_i: int, hash_type: int) -> bytes:
     script = prevouts[vin_i].script_pub_key.script
 
     if is_p2tr(script):
-        return _script_from_p2tr(tx, vin_i, prevouts, hash_type)
+        return _script_from_p2tr(prevouts, tx, vin_i, hash_type)
 
     if is_p2sh(script):
         script = tx.vin[vin_i].script_sig
@@ -262,7 +262,9 @@ def from_tx(prevouts: List[TxOut], tx: Tx, vin_i: int, hash_type: int) -> bytes:
     return legacy(script_, tx, vin_i, hash_type)
 
 
-def _script_from_p2tr(tx, vin_i, prevouts, hash_type):
+def _script_from_p2tr(
+    prevouts: List[TxOut], tx: Tx, vin_i: int, hash_type: int
+) -> bytes:
 
     witness = tx.vin[vin_i].script_witness
     if len(witness.stack) == 0:

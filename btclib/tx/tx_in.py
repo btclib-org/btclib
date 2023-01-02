@@ -78,7 +78,7 @@ class TxIn:
 
     def is_segwit(self) -> bool:
         # self.prev_out has no segwit information
-        return self.script_witness.stack != []
+        return bool(self.script_witness.stack)
 
     def is_coinbase(self) -> bool:
         return self.prev_out.is_coinbase()

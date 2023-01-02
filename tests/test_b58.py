@@ -249,9 +249,9 @@ def test_address_from_wif() -> None:
         else:
             err_msg = "not a private or compressed public key: "
             with pytest.raises(BTClibValueError, match=err_msg):
-                b32.p2wpkh(wif)  # type: ignore
+                b32.p2wpkh(wif)  # type: ignore[arg-type]
             with pytest.raises(BTClibValueError, match=err_msg):
-                b58.p2wpkh_p2sh(wif)  # type: ignore
+                b58.p2wpkh_p2sh(wif)  # type: ignore[arg-type]
 
 
 def test_exceptions() -> None:

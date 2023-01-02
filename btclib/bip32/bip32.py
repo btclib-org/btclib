@@ -207,8 +207,7 @@ class BIP32KeyData:
             address = address.strip()
 
         xkey_bin = base58.b58decode(address)
-        # pylance cannot grok the following line
-        return cls.parse(xkey_bin, check_validity)  # type: ignore
+        return cls.parse(xkey_bin, check_validity)
 
 
 def _rootxprv_from_seed(
@@ -518,5 +517,7 @@ def crack_prv_key(parent_xpub: BIP32Key, child_xprv: BIP32Key) -> str:
     return p.b58encode()
 
 
-def _err_msg(child_or_parent, not_a_private_or_public, key) -> str:
+def _err_msg(
+    child_or_parent: str, not_a_private_or_public: str, key: BIP32KeyData
+) -> str:
     return f"extended {child_or_parent} key is {not_a_private_or_public} key: {key.b58encode()}"

@@ -65,7 +65,7 @@ def test_assert_valid2() -> None:
         xkey_data.assert_valid()
 
     xkey_data = BIP32KeyData.b58decode(xkey)
-    xkey_data.version = "1234"  # type: ignore
+    xkey_data.version = "1234"  # type: ignore[assignment]
     with pytest.raises(TypeError):
         xkey_data.assert_valid()
 
@@ -80,7 +80,7 @@ def test_assert_valid2() -> None:
         xkey_data.assert_valid()
 
     xkey_data = BIP32KeyData.b58decode(xkey)
-    xkey_data.depth = tuple()  # type: ignore
+    xkey_data.depth = tuple()  # type: ignore[assignment]
     with pytest.raises(TypeError):
         xkey_data.assert_valid()
 
@@ -90,7 +90,7 @@ def test_assert_valid2() -> None:
         xkey_data.assert_valid()
 
     xkey_data = BIP32KeyData.b58decode(xkey)
-    xkey_data.parent_fingerprint = "1234"  # type: ignore
+    xkey_data.parent_fingerprint = "1234"  # type: ignore[assignment]
     with pytest.raises(TypeError):
         xkey_data.assert_valid()
 
@@ -105,7 +105,7 @@ def test_assert_valid2() -> None:
         xkey_data.assert_valid()
 
     xkey_data = BIP32KeyData.b58decode(xkey)
-    xkey_data.index = tuple()  # type: ignore
+    xkey_data.index = tuple()  # type: ignore[assignment]
     with pytest.raises(TypeError):
         xkey_data.assert_valid()
 
@@ -115,7 +115,7 @@ def test_assert_valid2() -> None:
         xkey_data.assert_valid()
 
     xkey_data = BIP32KeyData.b58decode(xkey)
-    xkey_data.chain_code = "length is 32 but not a chaincode"  # type: ignore
+    xkey_data.chain_code = "length is 32 but not a chaincode"  # type: ignore[assignment]
     assert len(xkey_data.chain_code) == 32
     with pytest.raises(TypeError):
         xkey_data.assert_valid()
@@ -126,7 +126,7 @@ def test_assert_valid2() -> None:
         xkey_data.assert_valid()
 
     xkey_data = BIP32KeyData.b58decode(xkey)
-    xkey_data.key = "length is 33, but not a key      "  # type: ignore
+    xkey_data.key = "length is 33, but not a key      "  # type: ignore[assignment]
     assert len(xkey_data.key) == 33
     with pytest.raises(TypeError):
         xkey_data.assert_valid()

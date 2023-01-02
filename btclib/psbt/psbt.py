@@ -198,7 +198,7 @@ class Psbt:
             [PsbtOut.from_dict(psbt_out, False) for psbt_out in dict_["outputs"]],
             dict_["version"],
             # FIXME
-            decode_from_bip32_derivs(dict_["bip32_derivs"]),  # type: ignore
+            decode_from_bip32_derivs(dict_["bip32_derivs"]),  # type: ignore[arg-type]
             dict_["unknown"],
             check_validity,
         )
@@ -294,8 +294,7 @@ class Psbt:
 
         psbt_decoded = base64.b64decode(psbt_str)
 
-        # pylance cannot grok the following line
-        return cls.parse(psbt_decoded, check_validity)  # type: ignore
+        return cls.parse(psbt_decoded, check_validity)
 
     @classmethod
     def from_tx(cls: Type["Psbt"], tx: Tx, check_validity: bool = True) -> "Psbt":

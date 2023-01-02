@@ -19,6 +19,7 @@ from btclib import b32
 from btclib.ec import mult
 from btclib.exceptions import BTClibValueError
 from btclib.script import (
+    TaprootScriptTree,
     Witness,
     check_output_pubkey,
     input_script_sig,
@@ -114,7 +115,7 @@ def test_control_block() -> None:
     assert check_output_pubkey(pubkey, serialize(script), control)
 
 
-def convert_script_tree(script_tree):
+def convert_script_tree(script_tree: TaprootScriptTree) -> TaprootScriptTree:
     if isinstance(script_tree, list):
         return [convert_script_tree(x) for x in script_tree]
     if isinstance(script_tree, dict):
@@ -122,7 +123,7 @@ def convert_script_tree(script_tree):
     return []
 
 
-def test_bip_test_vector():
+def test_bip_test_vector() -> None:
 
     fname = "taproot_test_vector.json"
     filename = path.join(path.dirname(__file__), "_data", fname)
