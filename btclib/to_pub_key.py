@@ -11,7 +11,9 @@
 "Functions for conversions between different public key formats."
 
 import contextlib
-from typing import Optional, Tuple, TypeAlias, Union
+from typing import Optional, Tuple, Union
+
+from typing_extensions import TypeAlias
 
 from btclib.alias import Point
 from btclib.bip32 import BIP32Key, BIP32KeyData

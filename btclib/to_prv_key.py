@@ -11,9 +11,11 @@
 "Functions for conversions between different private key formats."
 
 import contextlib
-from typing import Optional, Tuple, TypeAlias
+from typing import Optional, Tuple, Union
 
-from btclib.alias import String, Union
+from typing_extensions import TypeAlias
+
+from btclib.alias import String
 from btclib.base58 import b58decode
 from btclib.bip32 import BIP32Key, BIP32KeyData
 from btclib.ec import Curve, secp256k1

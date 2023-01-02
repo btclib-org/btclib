@@ -16,6 +16,8 @@ mypy aliases, documenting also coding input conventions.
 from io import BytesIO
 from typing import Any, Callable, Tuple, Union
 
+from typing_extensions import TypeAlias
+
 # Octets are a sequence of eight-bit bytes or a hex-string (not text string)
 #
 # hex-strings are strings that can be converted to bytes using bytes.fromhex,
@@ -75,7 +77,7 @@ HashF = Callable[[], Any]
 
 # Elliptic curve point in affine coordinates.
 # Warning: to make Point a NamedTuple would slow down the code
-Point = Tuple[int, int]
+Point: TypeAlias = Tuple[int, int]
 
 # Note that the infinity point in affine coordinates is INF = (int, 0)
 # (no affine point has y=0 coordinate in a group of prime order).
