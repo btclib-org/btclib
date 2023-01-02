@@ -18,6 +18,8 @@ from typing import Any, Dict, List, Mapping, Optional, Type
 
 from btclib.alias import Octets
 from btclib.bip32 import (
+    BIP32KeyOrigin,
+    HdKeyPaths,
     assert_valid_hd_key_paths,
     decode_from_bip32_derivs,
     decode_hd_key_paths,
@@ -27,7 +29,6 @@ from btclib.ec import sec_point
 from btclib.ecc import dsa
 from btclib.exceptions import BTClibValueError
 from btclib.hashes import hash160, hash256, ripemd160, sha256
-from btclib.psbt.psbt_out import BIP32KeyOrigin, HdKeyPaths
 from btclib.psbt.psbt_utils import (
     assert_valid_redeem_script,
     assert_valid_unknown,

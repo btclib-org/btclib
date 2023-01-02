@@ -17,13 +17,8 @@ import contextlib
 from typing import Any, Callable, List, Tuple
 
 from btclib import b32, b58
-from btclib.bip32.bip32 import (
-    BIP32DerPath,
-    BIP32Key,
-    BIP32KeyData,
-    derive,
-    xpub_from_xprv,
-)
+from btclib.bip32.bip32 import BIP32Key, BIP32KeyData, derive, xpub_from_xprv
+from btclib.bip32.der_path import BIP32DerPath
 from btclib.exceptions import BTClibValueError
 from btclib.network import (
     NETWORKS,

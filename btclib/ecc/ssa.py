@@ -266,7 +266,7 @@ def challenge_(msg_hash: Octets, x_Q: int, x_K: int, ec: Curve, hf: HashF) -> in
     )
     t = tagged_hash("BIP0340/challenge".encode(), t, hf)
 
-    c = int_from_bits(t, ec.nlen) % ec.n
+    c: int = int_from_bits(t, ec.nlen) % ec.n
     if c == 0:
         raise BTClibRuntimeError("invalid zero challenge")  # pragma: no cover
     return c
@@ -439,7 +439,7 @@ def _recover_pub_key_(c: int, r: int, s: int, ec: Curve) -> int:
     if QJ[2] == 0:
         err_msg = "invalid (INF) key"  # pragma: no cover
         raise BTClibRuntimeError(err_msg)  # pragma: no cover
-    return ec.x_aff_from_jac(QJ)
+    return int(ec.x_aff_from_jac(QJ))
 
 
 def crack_prv_key_(

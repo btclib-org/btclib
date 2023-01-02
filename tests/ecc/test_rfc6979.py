@@ -78,6 +78,6 @@ def test_rfc6979_tv() -> None:
             assert int(s, 16) == sig.s
             # test key-pair coherence
             U = mult(x, ec.G, ec)
-            assert int(x_U, 16), int(y_U, 16) == U
+            assert (int(x_U, 16), int(y_U, 16)) == U
             # test signature validity
             dsa.assert_as_valid(msg, U, sig, lower_s, getattr(hashlib, hf))

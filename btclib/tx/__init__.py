@@ -8,8 +8,11 @@
 # No part of btclib including this file, may be copied, modified, propagated,
 # or distributed except according to the terms contained in the LICENSE file.
 
-"""btclib.tx submodule."""
+"""btclib.tx module."""
 
+from btclib.tx.out_point import OutPoint
 from btclib.tx.tx import Tx
-from btclib.tx.tx_in import OutPoint, TxIn
+from btclib.tx.tx_in import TxIn
 from btclib.tx.tx_out import TxOut
+
+__all__ = ["OutPoint", "TxOut", "TxIn", "Tx"]
