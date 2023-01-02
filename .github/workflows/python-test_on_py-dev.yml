@@ -16,7 +16,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        # 2023-01-01 windows-latest does crash
+        # as of 2023-01-01 windows-latest does crash
         os: [ubuntu-latest, macos-latest]
     steps:
       - name: Checkout code
@@ -25,8 +25,7 @@ jobs:
         uses: actions/setup-python@v4
         with:
           python-version: 3.12-dev
-      - name: Run Tox
-        # Run tox using the version of Python in `PATH`
+      - name: Run tox -e py
         run: |
           python -m pip install tox
           tox -e py
