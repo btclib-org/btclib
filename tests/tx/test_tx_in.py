@@ -87,8 +87,6 @@ def test_tx_in() -> None:
     assert tx_in2.is_segwit()
     assert tx_in == tx_in2
 
-    assert tx_in != OutPoint()
-
     tx_in.sequence = 0xFFFFFFFF + 1
     with pytest.raises(BTClibValueError, match="invalid sequence: "):
         tx_in.assert_valid()

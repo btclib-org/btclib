@@ -19,6 +19,8 @@ from typing import Any, Dict, List, Mapping, Optional, Sequence, Type, Union
 
 from btclib.alias import Octets, String
 from btclib.bip32 import (
+    BIP32KeyOrigin,
+    HdKeyPaths,
     assert_valid_hd_key_paths,
     decode_from_bip32_derivs,
     decode_hd_key_paths,
@@ -26,7 +28,7 @@ from btclib.bip32 import (
 )
 from btclib.exceptions import BTClibValueError
 from btclib.hashes import hash160, sha256
-from btclib.psbt.psbt_in import BIP32KeyOrigin, HdKeyPaths, PsbtIn, Tx, Witness
+from btclib.psbt.psbt_in import PsbtIn
 from btclib.psbt.psbt_out import PsbtOut
 from btclib.psbt.psbt_utils import (
     assert_valid_unknown,
@@ -39,8 +41,8 @@ from btclib.psbt.psbt_utils import (
     serialize_dict_bytes_bytes,
     serialize_hd_key_paths,
 )
-from btclib.script import serialize
-from btclib.script.script_pub_key import type_and_payload
+from btclib.script import Witness, serialize, type_and_payload
+from btclib.tx import Tx
 from btclib.utils import bytesio_from_binarydata
 
 PSBT_MAGIC_BYTES = b"psbt"

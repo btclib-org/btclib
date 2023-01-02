@@ -8,7 +8,7 @@
 # No part of btclib including this file, may be copied, modified, propagated,
 # or distributed except according to the terms contained in the LICENSE file.
 
-"""btclib.mnemonic submodule."""
+"""btclib.mnemonic module."""
 
 from btclib.mnemonic.entropy import (
     BinStr,
@@ -29,3 +29,21 @@ from btclib.mnemonic.mnemonic import (
     indexes_from_mnemonic,
     mnemonic_from_indexes,
 )
+
+__all__ = [
+    "BinStr",
+    "Entropy",
+    "bin_str_entropy_from_bytes",
+    "bin_str_entropy_from_entropy",
+    "bin_str_entropy_from_int",
+    "bin_str_entropy_from_random",
+    "bin_str_entropy_from_rolls",
+    "bin_str_entropy_from_str",
+    "bin_str_entropy_from_wordlist_indexes",
+    "bytes_entropy_from_str",
+    "collect_rolls",
+    "wordlist_indexes_from_bin_str_entropy",
+    "Mnemonic",
+    "indexes_from_mnemonic",
+    "mnemonic_from_indexes",
+]

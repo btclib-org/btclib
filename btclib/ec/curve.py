@@ -207,10 +207,10 @@ CURVES.update(Brainpool)
 secp256k1 = CURVES["secp256k1"]
 
 
-def mult(m: Integer, Q: Optional[Point] = None, ec: Curve = secp256k1) -> Point:
+def mult(m_int: Integer, Q: Optional[Point] = None, ec: Curve = secp256k1) -> Point:
     "Elliptic curve scalar multiplication."
 
-    m = int_from_integer(m) % ec.n
+    m: int = int_from_integer(m_int) % ec.n
 
     if (Q == ec.G or Q is None) and ec == secp256k1 and libsecp256k1.is_enabled():
         return libsecp256k1.mult.mult(m)

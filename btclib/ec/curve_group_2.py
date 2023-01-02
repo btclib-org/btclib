@@ -52,7 +52,7 @@ from btclib.exceptions import BTClibValueError
 def mods(m: int, w: int) -> int:
     "Signed modulo function."
 
-    w2 = pow(2, w)
+    w2: int = pow(2, w)
     M = m % w2
     return M - w2 if M >= (w2 / 2) else M
 

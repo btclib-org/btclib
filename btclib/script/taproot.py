@@ -78,11 +78,11 @@ def output_pubkey(
 
 
 def output_prvkey(
-    internal_prvkey: PrvKey,
+    prvkey: PrvKey,
     script_tree: Optional[TaprootScriptTree] = None,
     ec: Curve = secp256k1,
 ) -> int:
-    internal_prvkey = int_from_prv_key(internal_prvkey)
+    internal_prvkey: int = int_from_prv_key(prvkey)
     P = mult(internal_prvkey)
     if script_tree:
         _, h = tree_helper(script_tree)
@@ -90,7 +90,9 @@ def output_prvkey(
         h = b""
     has_even_y = ec.y_even(P[0]) == P[1]
     internal_prvkey = internal_prvkey if has_even_y else ec.n - internal_prvkey
-    t = int.from_bytes(tagged_hash(b"TapTweak", P[0].to_bytes(32, "big") + h), "big")
+    t: int = int.from_bytes(
+        tagged_hash(b"TapTweak", P[0].to_bytes(32, "big") + h), "big"
+    )
     # edge case that cannot be reproduced in the test suite
     if t >= ec.n:
         raise BTClibValueError("Invalid script tree hash")  # pragma: no cover
