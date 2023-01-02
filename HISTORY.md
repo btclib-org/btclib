@@ -11,7 +11,7 @@ Major changes include:
 
 - exported names per module (bip32, block, ec, ecc, mnemonic, psbt, script, tx)
 - improved typing
-- added SECURITY, CONTRIBUTING, but report and feature request templates
+- added SECURITY, CONTRIBUTING, bug report and feature request templates
 
 ## v2022.12.31
 
@@ -39,8 +39,7 @@ Major changes includes:
 - added support for btclib_libsecp256k1
 - the hashes.fingerprint function, removed in the previous version,
   has been reinstated in the to_pub_key module
-- encode_num and decode_num have been moved from
-  script.op_codes to utils
+- encode_num and decode_num have been moved from script.op_codes to utils
 - op_pushdata and op_str have been renamed to
   serialize_bytes_command and serialize_str_command
 - script.op_codes has been removed and its functions merged in script
