@@ -1,13 +1,22 @@
-""" btclib build script for setuptools.
+#!/usr/bin/env python3
 
-"""
+# Copyright (C) The btclib developers
+#
+# This file is part of btclib. It is subject to the license terms in the
+# LICENSE file found in the top-level directory of this distribution.
+#
+# No part of btclib including this file, may be copied, modified, propagated,
+# or distributed except according to the terms contained in the LICENSE file.
+
+""" btclib build script for setuptools. """
 
 from setuptools import find_packages, setup  # type: ignore
 
 import btclib
 
-with open("README.md", "r", encoding="ascii") as file_:
+with open("README.md", encoding="ascii") as file_:
     longdescription = file_.read()
+
 
 setup(
     name=btclib.name,

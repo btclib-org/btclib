@@ -1,0 +1,11 @@
+{
+  // See https://github.com/DavidAnson/markdownlint-cli2 and
+  // https://github.com/DavidAnson/markdownlint/blob/main/schema/.markdownlint.jsonc
+
+  // MD007/ul-indent - Unordered list indentation
+  "MD007": {
+    // Spaces for indent
+    "indent": 4
+  }
+
+}

@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 
-# Copyright (C) 2017-2023 The btclib developers
+# Copyright (C) The btclib developers
 #
 # This file is part of btclib. It is subject to the license terms in the
 # LICENSE file found in the top-level directory of this distribution.
@@ -171,7 +171,7 @@ def test_bip32_vectors() -> None:
     https://github.com/bitcoin/bips/blob/master/bip-0032.mediawiki
     """
     filename = path.join(data_folder, "bip32_test_vectors.json")
-    with open(filename, "r", encoding="ascii") as file_:
+    with open(filename, encoding="ascii") as file_:
         test_vectors = json.load(file_)
 
     for seed in test_vectors:
@@ -188,7 +188,7 @@ def test_invalid_bip32_xkeys() -> None:
     """
 
     filename = path.join(data_folder, "bip32_invalid_keys.json")
-    with open(filename, "r", encoding="ascii") as file_:
+    with open(filename, encoding="ascii") as file_:
         test_vectors = json.load(file_)
 
     for xkey, err_msg in test_vectors:

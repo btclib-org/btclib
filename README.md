@@ -4,19 +4,28 @@
 [![PyPI pyversions](https://img.shields.io/pypi/pyversions/btclib.svg)](https://pypi.python.org/pypi/btclib/)
 [![PyPI version](https://img.shields.io/pypi/v/btclib.svg)](https://pypi.python.org/pypi/btclib/)
 [![Code style: black](https://img.shields.io/badge/code%20style-black-%231674b1.svg)](https://github.com/psf/black)
-[![Imports: isort](https://img.shields.io/badge/imports-isort-%231674b1)](https://timothycrosley.github.io/isort/)
+[![Imports: isort](https://img.shields.io/badge/%20imports-isort-%231674b1?style=flat)](https://pycqa.github.io/isort/)
 [![Linted: flake8](https://img.shields.io/badge/lint-flake8-%231674b1)](https://flake8.pycqa.org)
-[![Linted: pylint](https://img.shields.io/badge/lint-pylint-%231674b1)](https://pylint.pycqa.org)
+[![Linted: pylint](https://img.shields.io/badge/linting-pylint-yellowgreen)](https://github.com/PyCQA/pylint)
 [![Type-checked: mypy](https://img.shields.io/badge/type--check-mypy-%231674b1)](http://mypy-lang.org/)
 [![Type-checked: pyright](https://img.shields.io/badge/type--check-pyright-%231674b1)](https://github.com/microsoft/pyright)
 [![Refactored: sourcery](https://img.shields.io/badge/refactor-sourcery-%231674b1)](https://sourcery.ai)
 [![Security: bandit](https://img.shields.io/badge/security-bandit-%231674b1.svg)](https://github.com/PyCQA/bandit)
+[![pre-commit](https://img.shields.io/badge/pre--commit-enabled-brightgreen?logo=pre-commit)](https://github.com/pre-commit/pre-commit)
 [![Build Status](https://github.com/btclib-org/btclib/actions/workflows/test.yml/badge.svg)](https://github.com/btclib-org/btclib/actions/workflows/test.yml)
 [![ReadtheDocs](https://img.shields.io/readthedocs/btclib.svg)](https://btclib.readthedocs.io)
 [![Coverage Status](https://coveralls.io/repos/github/btclib-org/btclib/badge.svg?branch=master)](https://coveralls.io/github/btclib-org/btclib?branch=master)
 [![PyPI status](https://img.shields.io/pypi/status/btclib.svg)](https://pypi.python.org/pypi/btclib/)
 [![GitHub License](https://img.shields.io/github/license/btclib-org/btclib.svg)](https://github.com/btclib-org/btclib/blob/master/LICENSE)
+[![Downloads](https://static.pepy.tech/badge/btclib)](https://pepy.tech/project/btclib)
 [![Follow on Twitter](https://img.shields.io/twitter/follow/btclib?style=social&logo=twitter)](https://twitter.com/intent/follow?screen_name=btclib)
+
+---
+
+[Read Latest Documentation](https://btclib.readthedocs.io/en/latest/) -
+[Browse GitHub Code Repository](https://github.com/btclib-org/btclib/)
+
+---
 
 [btclib](https://btclib.org) is a
 Python3 [type annotated](https://docs.python.org/3/library/typing.html)
@@ -86,7 +95,7 @@ Included features are:
   partially signed bitcoin transactions (PSBT):
   PsbtIn, PbstOut, and Psbt data classes
 
-* * *
+---
 
 To install (and/or upgrade) btclib:
 
@@ -97,7 +106,7 @@ python -m pip install --upgrade btclib
 You might want to install btclib into a
 python virtual environment; e.g. from the root folder:
 
-Bash shell
+Shell
 
 ```shell
 python -m venv venv_btclib
@@ -107,7 +116,7 @@ python -m pip install --upgrade btclib
 
 Windows CMD or PowerShell:
 
-```shell
+```cmd
 python -m venv venv_btclib
 .\venv_btclib\Scripts\activate
 python -m pip install --upgrade btclib
@@ -115,7 +124,7 @@ python -m pip install --upgrade btclib
 
 Windows Git bash shell:
 
-```shell
+```bash
 python -m venv venv_btclib
 cd ./venv_btclib/Scripts
 . activate

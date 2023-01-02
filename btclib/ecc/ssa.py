@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 
-# Copyright (C) 2017-2023 The btclib developers
+# Copyright (C) The btclib developers
 #
 # This file is part of btclib. It is subject to the license terms in the
 # LICENSE file found in the top-level directory of this distribution.
@@ -202,7 +202,7 @@ def _det_nonce_(
     # the unbiased implementation is provided here,
     # which works also for very-low-cardinality test curves
 
-    randomizer = tagged_hash("BIP0340/aux".encode(), aux, hf)
+    randomizer = tagged_hash(b"BIP0340/aux", aux, hf)
     xor = q ^ int.from_bytes(randomizer, "big", signed=False)
     max_len = max(ec.n_size, hf().digest_size)
     t = b"".join(
@@ -213,7 +213,7 @@ def _det_nonce_(
         ]
     )
 
-    nonce_tag = "BIP0340/nonce".encode()
+    nonce_tag = b"BIP0340/nonce"
     while True:
         t = tagged_hash(nonce_tag, t, hf)
         # The following lines would introduce a bias
@@ -264,7 +264,7 @@ def challenge_(msg_hash: Octets, x_Q: int, x_K: int, ec: Curve, hf: HashF) -> in
             msg_hash,
         ]
     )
-    t = tagged_hash("BIP0340/challenge".encode(), t, hf)
+    t = tagged_hash(b"BIP0340/challenge", t, hf)
 
     c: int = int_from_bits(t, ec.nlen) % ec.n
     if c == 0:

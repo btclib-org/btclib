@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 
-# Copyright (C) 2020-2023 The btclib developers
+# Copyright (C) The btclib developers
 #
 # This file is part of btclib. It is subject to the license terms in the
 # LICENSE file found in the top-level directory of this distribution.
@@ -114,7 +114,7 @@ def test_dataclasses_json_dict() -> None:
         json.dump(tx_in_dict, file_, indent=4)
 
     # TxIn dataclass dict from file
-    with open(filename, "r", encoding="ascii") as file_:
+    with open(filename, encoding="ascii") as file_:
         tx_dict2 = json.load(file_)
     assert isinstance(tx_dict2, dict)
 

@@ -1,4 +1,4 @@
-name: Python - Test on py312-dev
+name: Py312-dev
 
 on:
   push:

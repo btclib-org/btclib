@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 
-# Copyright (C) 2017-2023 The btclib developers
+# Copyright (C) The btclib developers
 #
 # This file is part of btclib. It is subject to the license terms in the
 # LICENSE file found in the top-level directory of this distribution.
@@ -31,7 +31,7 @@ from tests.ec.test_curve import low_card_curves
 
 
 def test_signature() -> None:
-    msg = "Satoshi Nakamoto".encode()
+    msg = b"Satoshi Nakamoto"
 
     libsecp256k1.disable()
 
@@ -42,7 +42,7 @@ def test_signature() -> None:
     assert sig == ssa.Sig.parse(sig.serialize())
     assert sig == ssa.Sig.parse(sig.serialize().hex())
 
-    msg_fake = "Craig Wright".encode()
+    msg_fake = b"Craig Wright"
     assert not ssa.verify(msg_fake, x_Q, sig)
     err_msg = r"y_K is odd|signature verification failed"
     with pytest.raises(BTClibRuntimeError, match=err_msg):
@@ -233,12 +233,12 @@ def test_crack_prv_key() -> None:
 
     q, x_Q = ssa.gen_keys(19)  # remove any randomness
 
-    msg1 = "Paolo is afraid of ephemeral random numbers".encode()
+    msg1 = b"Paolo is afraid of ephemeral random numbers"
     m_1 = reduce_to_hlen(msg1)
     k = ssa.det_nonce_(m_1, q, aux=32 * b"\x01")  # remove any randomness
     sig1 = ssa.sign_(m_1, q, k)
 
-    msg2 = "and Paolo is right to be afraid".encode()
+    msg2 = b"and Paolo is right to be afraid"
     m_2 = reduce_to_hlen(msg2)
     # reuse same k
     sig2 = ssa.sign_(m_2, q, k)
@@ -588,7 +588,7 @@ def test_threshold() -> None:
     # SECOND PHASE: generation of the nonces' pair  ######################
     # Assume signer one and three want to sign
 
-    msg = "message to sign".encode()
+    msg = b"message to sign"
     msg_hash = reduce_to_hlen(msg, hf)
 
     # 2.1 signer one acting as the dealer
@@ -723,7 +723,7 @@ def test_libsecp256k1() -> None:
 
     prvkey, X_Q = ssa.gen_keys(0x1)
     pubkey_bytes = X_Q.to_bytes(32, "big")
-    msg = "Satoshi Nakamoto".encode()
+    msg = b"Satoshi Nakamoto"
     msg_hash = reduce_to_hlen(msg)
 
     libsecp256k1_sig = btclib_libsecp256k1.ssa.sign(msg_hash, prvkey)

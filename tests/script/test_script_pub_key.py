@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 
-# Copyright (C) 2017-2023 The btclib developers
+# Copyright (C) The btclib developers
 #
 # This file is part of btclib. It is subject to the license terms in the
 # LICENSE file found in the top-level directory of this distribution.
@@ -529,7 +529,7 @@ def test_bip67() -> None:
 
     data_folder = path.join(path.dirname(__file__), "_data")
     filename = path.join(data_folder, "bip67_test_vectors.json")
-    with open(filename, "r", encoding="ascii") as file_:
+    with open(filename, encoding="ascii") as file_:
         # json.dump(test_vectors, f, indent=4)
         test_vectors = json.load(file_)
 

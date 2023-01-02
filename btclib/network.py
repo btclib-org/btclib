@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 
-# Copyright (C) 2017-2023 The btclib developers
+# Copyright (C) The btclib developers
 #
 # This file is part of btclib. It is subject to the license terms in the
 # LICENSE file found in the top-level directory of this distribution.
@@ -216,7 +216,7 @@ NETWORKS: Dict[str, Network] = {}
 datadir = path.join(path.dirname(__file__), "_data")
 for net in ("mainnet", "testnet", "regtest"):
     filename = path.join(datadir, f"{net}.json")
-    with open(filename, "r", encoding="ascii") as f:
+    with open(filename, encoding="ascii") as f:
         NETWORKS[net] = Network.from_dict(json.load(f))
 
 

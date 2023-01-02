@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 
-# Copyright (C) 2020-2023 The btclib developers
+# Copyright (C) The btclib developers
 #
 # This file is part of btclib. It is subject to the license terms in the
 # LICENSE file found in the top-level directory of this distribution.
@@ -154,7 +154,7 @@ def test_sig_hashsingle_bug() -> None:
 def test_test_vectors() -> None:
     fname = "sig_hash_legacy_test_vectors.json"
     filename = path.join(path.dirname(__file__), "_data", fname)
-    with open(filename, "r", encoding="ascii") as file_:
+    with open(filename, encoding="ascii") as file_:
         data = json.load(file_)
     data = data[1:]  # skip column headers
     for raw_tx, raw_script, input_index, hash_type, exp_hash in data:

@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 
-# Copyright (C) 2017-2023 The btclib developers
+# Copyright (C) The btclib developers
 #
 # This file is part of btclib. It is subject to the license terms in the
 # LICENSE file found in the top-level directory of this distribution.
@@ -163,7 +163,7 @@ datadir = path.join(path.dirname(__file__), "_data")
 # Brainpool Standard Curves and Curve Generation
 # https://tools.ietf.org/html/rfc5639
 filename = path.join(datadir, "ec_Brainpool.json")
-with open(filename, "r", encoding="ascii") as file_:
+with open(filename, encoding="ascii") as file_:
     Brainpool_params2 = json.load(file_)
 Brainpool: Dict[str, Curve] = {
     ec_name: Curve(*Brainpool_params2[ec_name] + [True, ec_name])
@@ -174,7 +174,7 @@ Brainpool: Dict[str, Curve] = {
 # Digital Signature Standard (DSS)
 # https://oag.ca.gov/sites/all/files/agweb/pdfs/erds1/fips_pub_07_2013.pdf
 filename = path.join(datadir, "ec_NIST.json")
-with open(filename, "r", encoding="ascii") as file_:
+with open(filename, encoding="ascii") as file_:
     NIST_params2 = json.load(file_)
 NIST: Dict[str, Curve] = {
     ec_name: Curve(*NIST_params2[ec_name] + [True, ec_name]) for ec_name in NIST_params2
@@ -182,7 +182,7 @@ NIST: Dict[str, Curve] = {
 # SEC 2 v.1 curves, removed from SEC 2 v.2 as insecure ones
 # http://www.secg.org/SEC2-Ver-1.0.pdf
 filename = path.join(datadir, "ec_SEC2v1_insecure.json")
-with open(filename, "r", encoding="ascii") as file_:
+with open(filename, encoding="ascii") as file_:
     SEC2v1_params2 = json.load(file_)
 SEC2v1: Dict[str, Curve] = {
     ec_name: Curve(*SEC2v1_params2[ec_name] + [True, ec_name])
@@ -191,7 +191,7 @@ SEC2v1: Dict[str, Curve] = {
 # curves included in both SEC 2 v.1 and SEC 2 v.2
 # http://www.secg.org/sec2-v2.pdf
 filename = path.join(datadir, "ec_SEC2v2.json")
-with open(filename, "r", encoding="ascii") as file_:
+with open(filename, encoding="ascii") as file_:
     SEC2v2_params2 = json.load(file_)
 SEC2v2: Dict[str, Curve] = {}
 for ec_name in SEC2v2_params2:

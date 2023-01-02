@@ -1,4 +1,4 @@
-name: Markdown - Check linted code
+name: Markdown Lint
 
 on: [push, pull_request]
 
@@ -13,5 +13,5 @@ jobs:
         with:
           command: config
           globs: |
-            .markdownlint.json
+            .markdownlint.jsonc
             **/*.md

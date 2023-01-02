@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 
-# Copyright (C) 2019-2023 The btclib developers
+# Copyright (C) The btclib developers
 #
 # This file is part of btclib. It is subject to the license terms in the
 # LICENSE file found in the top-level directory of this distribution.
@@ -30,7 +30,7 @@ ec = secp256k1
 
 
 def test_signature() -> None:
-    msg = "test message".encode()
+    msg = b"test message"
 
     wif, addr = bms.gen_keys()
     bms_sig = bms.sign(msg, wif)
@@ -79,7 +79,7 @@ def test_signature() -> None:
 
 def test_exceptions() -> None:
 
-    msg = "test".encode()
+    msg = b"test"
     wif = "KwELaABegYxcKApCb3kJR9ymecfZZskL9BzVUkQhsqFiUKftb4tu"
     address = b58.p2pkh(wif)
     exp_sig = "IHdKsFF1bUrapA8GMoQUbgI+Ad0ZXyX1c/yAZHmJn5hSNBi7J+TrI1615FG3g9JEOPGVvcfDWIFWrg2exLNtoVc="
@@ -125,7 +125,7 @@ def test_exceptions() -> None:
     with pytest.raises(BTClibValueError, match=err_msg):
         bms.sign(msg, wif, address)
 
-    msg = "test".encode()
+    msg = b"test"
     wif = "L4xAvhKR35zFcamyHME2ZHfhw5DEyeJvEMovQHQ7DttPTM8NLWCK"
     b58_p2pkh = b58.p2pkh(wif)
     b32_p2wpkh = b32.p2wpkh(wif)
@@ -161,7 +161,7 @@ def test_exceptions() -> None:
 @pytest.mark.sixth
 def test_one_prv_key_multiple_addresses() -> None:
 
-    msg = "Paolo is afraid of ephemeral random numbers".encode()
+    msg = b"Paolo is afraid of ephemeral random numbers"
 
     # Compressed WIF
     wif = "Kx45GeUBSMPReYQwgXiKhG9FzNXrnCeutJp4yjTd5kKxCitadm3C"
@@ -284,7 +284,7 @@ def test_one_prv_key_multiple_addresses() -> None:
 
 
 def test_msgsign_p2pkh() -> None:
-    msg = "test message".encode()
+    msg = b"test message"
     # sigs are taken from (Electrum and) Bitcoin Core
 
     q = "ca978112ca1bbdcafac231b39a23dc4da786eff8147c4e72b9807785afee48bb"
@@ -336,7 +336,7 @@ def test_msgsign_p2pkh() -> None:
 
 
 def test_msgsign_p2pkh_2() -> None:
-    msg = "test message".encode()
+    msg = b"test message"
     # sigs are taken from (Electrum and) Bitcoin Core
 
     wif = "Ky1XfDK2v6wHPazA6ECaD8UctEoShXdchgABjpU9GWGZDxVRDBMJ"
@@ -365,19 +365,19 @@ def test_msgsign_p2pkh_2() -> None:
 
 
 def test_verify_p2pkh() -> None:
-    msg = "Hello, world!".encode()
+    msg = b"Hello, world!"
     address = "1FEz167JCVgBvhJBahpzmrsTNewhiwgWVG"
     exp_sig = "G+WptuOvPCSswt/Ncm1upO4lPSCWbS2cpKariPmHvxX5eOJwgqmdEExMTKvaR0S3f1TXwggLn/m4CbI2jv0SCuM="
     assert bms.verify(msg, address, exp_sig)
 
     # https://github.com/stequald/bitcoin-bms.sign-message
-    msg = "test message".encode()
+    msg = b"test message"
     address = "14dD6ygPi5WXdwwBTt1FBZK3aD8uDem1FY"
     exp_sig = "IPn9bbEdNUp6+bneZqE2YJbq9Hv5aNILq9E5eZoMSF3/fBX4zjeIN6fpXfGSGPrZyKfHQ/c/kTSP+NIwmyTzMfk="
     assert bms.verify(msg, address, exp_sig)
 
     # https://github.com/stequald/bitcoin-bms.sign-message
-    msg = "test message".encode()
+    msg = b"test message"
     address = "1HUBHMij46Hae75JPdWjeZ5Q7KaL7EFRSD"
     exp_sig = "G0k+Nt1u5boTTUfLyj6x1T5flg1v9rUKGlhs/jPApaTWLHf3GVdAIOIHip6sVwXEuzQGPWIlS0VT+yryXiDaavw="
     assert bms.verify(msg, address, exp_sig)
@@ -389,32 +389,30 @@ def test_verify_p2pkh() -> None:
     assert bms.verify(msg, address, exp_sig)
 
     # https://github.com/nanotube/supybot-bitcoin-marketmonitor/blob/master/GPG/local/bitcoinsig.py
-    msg = "test message".encode()
+    msg = b"test message"
     address = "16vqGo3KRKE9kTsTZxKoJKLzwZGTodK3ce"
     exp_sig = "HPDs1TesA48a9up4QORIuub67VHBM37X66skAYz0Esg23gdfMuCTYDFORc6XGpKZ2/flJ2h/DUF569FJxGoVZ50="
     assert bms.verify(msg, address, exp_sig, lower_s=False)
 
-    msg = "test message 2".encode()
+    msg = b"test message 2"
     assert not bms.verify(msg, address, exp_sig)
 
-    msg = (
-        "freenode:#bitcoin-otc:b42f7e7ea336db4109df6badc05c6b3ea8bfaa13575b51631c5178a7"
-    ).encode()
+    msg = b"freenode:#bitcoin-otc:b42f7e7ea336db4109df6badc05c6b3ea8bfaa13575b51631c5178a7"
     address = "1GdKjTSg2eMyeVvPV5Nivo6kR8yP2GT7wF"
     exp_sig = "GyMn9AdYeZIPWLVCiAblOOG18Qqy4fFaqjg5rjH6QT5tNiUXLS6T2o7iuWkV1gc4DbEWvyi8yJ8FvSkmEs3voWE="
     assert bms.verify(msg, address, exp_sig)
 
-    msg = "testtest".encode()
+    msg = b"testtest"
     address = "1Hpj6xv9AzaaXjPPisQrdAD2tu84cnPv3f"
     exp_sig = "INEJxQnSu6mwGnLs0E8eirl5g+0cAC9D5M7hALHD9sK0XQ66CH9mas06gNoIX7K1NKTLaj3MzVe8z3pt6apGJ34="
     assert bms.verify(msg, address, exp_sig)
 
-    msg = "testtest".encode()
+    msg = b"testtest"
     address = "18uitB5ARAhyxmkN2Sa9TbEuoGN1he83BX"
     exp_sig = "IMAtT1SjRyP6bz6vm5tKDTTTNYS6D8w2RQQyKD3VGPq2i2txGd2ar18L8/nvF1+kAMo5tNc4x0xAOGP0HRjKLjc="
     assert bms.verify(msg, address, exp_sig, lower_s=False)
 
-    msg = "testtest".encode()
+    msg = b"testtest"
     address = "1LsPb3D1o1Z7CzEt1kv5QVxErfqzXxaZXv"
     exp_sig = "H3I37ur48/fn52ZvWQT+Mj2wXL36gyjfaN5qcgfiVRTJb1eP1li/IacCQspYnUntiRv8r6GDfJYsdiQ5VzlG3As="
     assert bms.verify(msg, address, exp_sig)
@@ -434,7 +432,7 @@ def test_verify_p2pkh() -> None:
 
 def test_segwit() -> None:
 
-    msg = "test".encode()
+    msg = b"test"
     wif = "L4xAvhKR35zFcamyHME2ZHfhw5DEyeJvEMovQHQ7DttPTM8NLWCK"
     b58_p2pkh = b58.p2pkh(wif)
     b32_p2wpkh = b32.p2wpkh(wif)
@@ -475,7 +473,7 @@ def test_sign_strippable_message() -> None:
     wif = "Ky1XfDK2v6wHPazA6ECaD8UctEoShXdchgABjpU9GWGZDxVRDBMJ"
     address = "1DAag8qiPLHh6hMFVu9qJQm9ro1HtwuyK5"
 
-    msg = "".encode()
+    msg = b""
     exp_sig = "IFh0InGTy8lLCs03yoUIpJU6MUbi0La/4abhVxyKcCsoUiF3RM7lg51rCqyoOZ8Yt43h8LZrmj7nwwO3HIfesiw="
     assert bms.verify(msg, address, exp_sig)
     bms_sig = bms.sign(msg, wif)
@@ -483,7 +481,7 @@ def test_sign_strippable_message() -> None:
     assert bms_sig.b64encode() == exp_sig
 
     # Bitcoin Core exp_sig (Electrum does strip leading/trailing spaces)
-    msg = " ".encode()
+    msg = b" "
     exp_sig = "IEveV6CMmOk5lFP+oDbw8cir/OkhJn4S767wt+YwhzHnEYcFOb/uC6rrVmTtG3M43mzfObA0Nn1n9CRcv5IGyak="
     assert bms.verify(msg, address, exp_sig)
     bms_sig = bms.sign(msg, wif)
@@ -491,14 +489,14 @@ def test_sign_strippable_message() -> None:
     assert bms_sig.b64encode() == exp_sig
 
     # Bitcoin Core exp_sig (Electrum does strip leading/trailing spaces)
-    msg = "  ".encode()
+    msg = b"  "
     exp_sig = "H/QjF1V4fVI8IHX8ko0SIypmb0yxfaZLF0o56Cif9z8CX24n4petTxolH59pYVMvbTKQkGKpznSiPiQVn83eJF0="
     assert bms.verify(msg, address, exp_sig)
     bms_sig = bms.sign(msg, wif)
     assert bms.verify(msg, address, bms_sig)
     assert bms_sig.b64encode() == exp_sig
 
-    msg = "test".encode()
+    msg = b"test"
     exp_sig = "IJUtN/2LZjh1Vx8Ekj9opnIKA6ohKhWB95PLT/3EFgLnOu9hTuYX4+tJJ60ZyddFMd6dgAYx15oP+jLw2NzgNUo="
     assert bms.verify(msg, address, exp_sig)
     bms_sig = bms.sign(msg, wif)
@@ -506,7 +504,7 @@ def test_sign_strippable_message() -> None:
     assert bms_sig.b64encode() == exp_sig
 
     # Bitcoin Core exp_sig (Electrum does strip leading/trailing spaces)
-    msg = " test ".encode()
+    msg = b" test "
     exp_sig = "IA59z13/HBhvMMJtNwT6K7vJByE40lQUdqEMYhX2tnZSD+IGQIoBGE+1IYGCHCyqHvTvyGeqJTUx5ywb4StuX0s="
     assert bms.verify(msg, address, exp_sig)
     bms_sig = bms.sign(msg, wif)
@@ -514,7 +512,7 @@ def test_sign_strippable_message() -> None:
     assert bms_sig.b64encode() == exp_sig
 
     # Bitcoin Core exp_sig (Electrum does strip leading/trailing spaces)
-    msg = "test ".encode()
+    msg = b"test "
     exp_sig = "IPp9l2w0LVYB4FYKBahs+k1/Oa08j+NTuzriDpPWnWQmfU0+UsJNLIPI8Q/gekrWPv6sDeYsFSG9VybUKDPGMuo="
     assert bms.verify(msg, address, exp_sig)
     bms_sig = bms.sign(msg, wif)
@@ -522,7 +520,7 @@ def test_sign_strippable_message() -> None:
     assert bms_sig.b64encode() == exp_sig
 
     # Bitcoin Core exp_sig (Electrum does strip leading/trailing spaces)
-    msg = " test".encode()
+    msg = b" test"
     exp_sig = "H1nGwD/kcMSmsYU6qihV2l2+Pa+7SPP9zyViZ59VER+QL9cJsIAtu1CuxfYDAVt3kgr4t3a/Es3PV82M6z0eQAo="
     assert bms.verify(msg, address, exp_sig)
     bms_sig = bms.sign(msg, wif)
@@ -538,7 +536,7 @@ def test_vector_python_bitcoinlib() -> None:
 
     fname = "bms.json"
     filename = path.join(path.dirname(__file__), "_data", fname)
-    with open(filename, "r", encoding="ascii") as file_:
+    with open(filename, encoding="ascii") as file_:
         test_vectors = json.load(file_)
 
     for vector in test_vectors[:10]:
@@ -626,7 +624,7 @@ def test_ledger() -> None:
 
     # standard leading 30 in DER serialization
     derivation_path = "m/0/0"
-    msg_str = "hello world".encode()
+    msg_str = b"hello world"
     dersig_hex_str = "3045022100967dac3262b4686e89638c8219c5761017f05cd87a855edf034f4a3ec6b59d3d0220108a4ef9682b71a45979d8c75c393382d9ccb8eb561d73b8c5fc0b87a47e7d27"
 
     # pub_key derivation
@@ -659,7 +657,7 @@ def test_ledger() -> None:
 
 
 def test_recover_pub_key_input_type() -> None:
-    msg = "test message".encode()
+    msg = b"test message"
     wif, _ = bms.gen_keys()
     bms_sig = bms.sign(msg, wif)
 

@@ -1,31 +1,89 @@
+# Skip execution of one or more hooks using the SKIP environment variable:
+# $ SKIP=sourcery git commit -m "foo"
+# $ SKIP=sourcery,pylint pre-commit run --all-files
+#
+# If want to disable all hooks while committing, use the --no-verify/-n option:
+# $ git commit -n -m "foo"
 repos:
+  - repo: https://github.com/asottile/pyupgrade
+    rev: v3.3.1
+    hooks:
+      - id: pyupgrade
+        args: [--py37-plus]
+        # exclude: *fixtures
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v4.4.0
+    hooks:
+      - id: trailing-whitespace
+      - id: end-of-file-fixer
+  - repo: https://github.com/PyCQA/autoflake
+    rev: v2.0.0
+    hooks:
+      - id: autoflake
+        name: autoflake (remove unused imports and variables)
+        args:
+          - --in-place
+          - --expand-star-imports
+          - --remove-all-unused-imports
+          - --ignore-init-module-imports
+          - --remove-duplicate-keys
+          - --remove-unused-variables
+          - --remove-rhs-for-unused-variables
   - repo: https://github.com/pycqa/isort
-    rev: 5.11.2
+    rev: 5.11.4
     hooks:
       - id: isort
-        name: isort (python)
+        name: isort (black profile, in place fixes)
+        args: ["--profile", "black", "--filter-files"]
   - repo: https://github.com/psf/black
     rev: 22.12.0
     hooks:
       - id: black
-        name: black
-        args: [--diff, --check]
+        name: black (in place fixes)
+        # args: [--diff, --check]
         # It is recommended to specify the latest version of Python
         # supported by your project here, or alternatively use
         # pre-commit's default_language_version, see
         # https://pre-commit.com/#top_level-default_language_version
-        language_version: python3.11
+        # language_version: python3.11
   - repo: https://github.com/PyCQA/flake8
     rev: 5.0.4
     hooks:
       - id: flake8
-        name: flake8
+  - repo: https://github.com/DavidAnson/markdownlint-cli2
+    rev: v0.6.0
+    hooks:
+      - id: markdownlint-cli2-fix
+        name: markdownlint-cli2-fix (in place fixes)
   - repo: https://github.com/sourcery-ai/sourcery
     rev: v1.0.2
     hooks:
       - id: sourcery
-        name: sourcery
+        name: sourcery (in place fixes, only diffs)
         # The best way to use Sourcery in a pre-commit hook:
-        # * review only changed lines:
+        # * review only changed lines
+        # * automatically apply the suggestions
         # * omit the summary
-        args: [--diff=git diff HEAD, --no-summary]
+        args: [--diff=git diff HEAD, --in-place, --no-summary]
+  # Since pylint needs to import modules and dependencies to work correctly,
+  # the hook only works with a local installation of pylint (in your environment).
+  # see https://pylint.pycqa.org/en/latest/user_guide/installation/pre-commit-integration.html
+  # the following would complain about E0401: Unable to import 'pytest' (import-error)
+  - repo: local
+    hooks:
+      - id: pylint
+        name: pylint (local)
+        entry: pylint
+        language: system
+        types: [python]
+        args: [
+            "-rn", # Only display messages
+            "-sn", # Don't display the score
+          ]
+  - repo: https://github.com/leoll2/copyright_notice_precommit
+    rev: 0.1.1
+    hooks:
+      - id: copyright-notice
+        args: ["--notice=COPYRIGHT", "--enforce-all"]
+        # exclude: tests(/\w*)*/functional/|tests/input|doc/data/messages|examples/|setup.py|tests(/\w*)*data/
+        types: [python]

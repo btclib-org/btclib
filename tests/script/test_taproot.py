@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 
-# Copyright (C) 2017-2023 The btclib developers
+# Copyright (C) The btclib developers
 #
 # This file is part of btclib. It is subject to the license terms in the
 # LICENSE file found in the top-level directory of this distribution.
@@ -36,7 +36,7 @@ from btclib.tx import TxOut
 def test_valid_script_path() -> None:
     fname = "tapscript_test_vector.json"
     filename = path.join(path.dirname(__file__), "_data", fname)
-    with open(filename, "r", encoding="ascii") as file_:
+    with open(filename, encoding="ascii") as file_:
         data = json.load(file_)
 
     for x in data:
@@ -127,7 +127,7 @@ def test_bip_test_vector() -> None:
 
     fname = "taproot_test_vector.json"
     filename = path.join(path.dirname(__file__), "_data", fname)
-    with open(filename, "r", encoding="ascii") as file_:
+    with open(filename, encoding="ascii") as file_:
         data = json.load(file_)["scriptPubKey"]
 
     for test in data:
