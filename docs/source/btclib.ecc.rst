@@ -20,46 +20,6 @@ btclib.ecc.borromean module
    :undoc-members:
    :show-inheritance:
 
-btclib.ecc.curve module
------------------------
-
-.. automodule:: btclib.ecc.curve
-   :members:
-   :undoc-members:
-   :show-inheritance:
-
-btclib.ecc.curve\_group module
-------------------------------
-
-.. automodule:: btclib.ecc.curve_group
-   :members:
-   :undoc-members:
-   :show-inheritance:
-
-btclib.ecc.curve\_group\_2 module
----------------------------------
-
-.. automodule:: btclib.ecc.curve_group_2
-   :members:
-   :undoc-members:
-   :show-inheritance:
-
-btclib.ecc.curve\_group\_f module
----------------------------------
-
-.. automodule:: btclib.ecc.curve_group_f
-   :members:
-   :undoc-members:
-   :show-inheritance:
-
-btclib.ecc.der module
----------------------
-
-.. automodule:: btclib.ecc.der
-   :members:
-   :undoc-members:
-   :show-inheritance:
-
 btclib.ecc.dh module
 --------------------
 
@@ -76,22 +36,6 @@ btclib.ecc.dsa module
    :undoc-members:
    :show-inheritance:
 
-btclib.ecc.libsecp256k1 module
-------------------------------
-
-.. automodule:: btclib.ecc.libsecp256k1
-   :members:
-   :undoc-members:
-   :show-inheritance:
-
-btclib.ecc.number\_theory module
---------------------------------
-
-.. automodule:: btclib.ecc.number_theory
-   :members:
-   :undoc-members:
-   :show-inheritance:
-
 btclib.ecc.pedersen module
 --------------------------
 
@@ -104,14 +48,6 @@ btclib.ecc.rfc6979 module
 -------------------------
 
 .. automodule:: btclib.ecc.rfc6979
-   :members:
-   :undoc-members:
-   :show-inheritance:
-
-btclib.ecc.sec\_point module
-----------------------------
-
-.. automodule:: btclib.ecc.sec_point
    :members:
    :undoc-members:
    :show-inheritance:
