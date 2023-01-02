@@ -14,11 +14,11 @@ Assuming you have Python already, `install Sphinx`_:
     $ python -m pip install --upgrade -r docs/requirements.txt
 
 
-Move into the btclib directory and autogenerate docs:
+Move into the btclib project root folder and autogenerate docs:
 
 .. sourcecode:: bash
 
-    $ cd /path/to/btclibdirectory
+    $ cd /path/to/btclibrootfolder
     $ sphinx-apidoc -f -o ./docs/source ./btclib
 
 Perform the above sphinx-apidoc step everytime files are added/removed.

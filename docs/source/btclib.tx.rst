@@ -4,22 +4,6 @@ btclib.tx package
 Submodules
 ----------
 
-btclib.tx.block\_header module
-------------------------------
-
-.. automodule:: btclib.tx.block_header
-   :members:
-   :undoc-members:
-   :show-inheritance:
-
-btclib.tx.blocks module
------------------------
-
-.. automodule:: btclib.tx.blocks
-   :members:
-   :undoc-members:
-   :show-inheritance:
-
 btclib.tx.out\_point module
 ---------------------------
 

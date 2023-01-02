@@ -8,6 +8,8 @@ Subpackages
    :maxdepth: 4
 
    btclib.bip32
+   btclib.block
+   btclib.ec
    btclib.ecc
    btclib.mnemonic
    btclib.psbt
@@ -85,6 +87,14 @@ btclib.network module
 ---------------------
 
 .. automodule:: btclib.network
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
+btclib.number\_theory module
+----------------------------
+
+.. automodule:: btclib.number_theory
    :members:
    :undoc-members:
    :show-inheritance:

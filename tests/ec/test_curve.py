@@ -11,7 +11,6 @@
 "Tests for the `btclib.curve` module."
 
 import secrets
-from typing import Dict
 
 import pytest
 
@@ -40,8 +39,9 @@ low_card_curves["ec19_23"] = Curve(19, 2, 9, (0, 16), 23, 1, False)
 low_card_curves["ec23_19"] = Curve(23, 9, 7, (5, 4), 19, 1, False)
 low_card_curves["ec23_31"] = Curve(23, 5, 1, (0, 1), 31, 1, False)
 
-all_curves: Dict[str, Curve] = {}
-all_curves.update(low_card_curves)
+# with python>=3.9 use Dict Union operator
+# all_curves = low_card_curves | CURVES
+all_curves = low_card_curves.copy()
 all_curves.update(CURVES)
 
 ec23_31 = low_card_curves["ec23_31"]
