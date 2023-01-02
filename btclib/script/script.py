@@ -374,7 +374,7 @@ class Script:
     def asm(self) -> List[Command]:
         return parse(self.script)
 
-    def __add__(self, other: object):
+    def __add__(self, other: object) -> object:
 
         return (
             Script(self.script + other.script)
