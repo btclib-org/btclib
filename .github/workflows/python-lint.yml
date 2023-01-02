@@ -20,10 +20,13 @@ jobs:
         uses: actions/setup-python@v4
         with:
           python-version: "3.11"
-      - name: Install requirements
+      - name: Check isort and black
         run: |
-          python -m pip install -U -r requirements-dev.txt
-          python -m pip install -U -r requirements.txt
+          python -m pip install -U pip
+          python -m pip install -r isort
+          isort -c .
+          python -m pip install -r black
+          black --check .
       - name: Run tox -e lint
         run: |
           python -m pip install tox
