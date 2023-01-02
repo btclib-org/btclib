@@ -11,7 +11,7 @@
 "Functions for conversions between different public key formats."
 
 import contextlib
-from typing import Optional, Tuple, Union
+from typing import Optional, Tuple, TypeAlias, Union
 
 from typing_extensions import TypeAlias
 
