@@ -1,4 +1,4 @@
-name: Py312-dev
+name: py312-dev
 
 on:
   push:

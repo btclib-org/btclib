@@ -1,4 +1,4 @@
-name: Markdown links
+name: md-links
 
 on: [push, pull_request]
 
