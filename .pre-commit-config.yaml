@@ -139,16 +139,6 @@ repos:
       - id: pyupgrade
         args: [--py37-plus]
         # exclude: *fixtures
-  - repo: https://github.com/sourcery-ai/sourcery
-    rev: v1.0.2
-    hooks:
-      - id: sourcery
-        name: sourcery (in place fixes, only diffs)
-        # The best way to use Sourcery in a pre-commit hook:
-        # * review only changed lines
-        # * automatically apply the suggestions
-        # * omit the summary
-        args: [--diff=git diff HEAD, --in-place, --no-summary]
   - repo: https://github.com/mgedmin/check-manifest
     rev: "0.49"
     hooks:
