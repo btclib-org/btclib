@@ -1,6 +1,6 @@
 # Skip execution of one or more hooks using the SKIP environment variable:
-# $ SKIP=sourcery git commit -m "foo"
-# $ SKIP=sourcery,pylint pre-commit run --all-files
+# $ SKIP=pylint git commit -m "foo"
+# $ SKIP=mypy,pylint pre-commit run --all-files
 #
 # If want to disable all hooks while committing, use the --no-verify/-n option:
 # $ git commit -n -m "foo"
@@ -46,7 +46,6 @@ repos:
     rev: v2.0.0
     hooks:
       - id: autoflake
-        name: autoflake (remove unused imports and variables)
         args:
           - --in-place
           - --expand-star-imports
@@ -55,6 +54,12 @@ repos:
           - --remove-duplicate-keys
           - --remove-unused-variables
           - --remove-rhs-for-unused-variables
+  - repo: https://github.com/asottile/pyupgrade
+    rev: v3.3.1
+    hooks:
+      - id: pyupgrade
+        args: [--py37-plus]
+        # exclude: *fixtures
   - repo: https://github.com/pycqa/isort
     rev: 5.11.4
     hooks:
@@ -67,7 +72,11 @@ repos:
       - id: pydocstringformatter
         #exclude: *fixtures
         #args: ["--max-summary-lines=2", "--linewrap-full-docstring"]
-        files: "pylint"
+        files: "python"
+  - repo: https://github.com/asottile/yesqa
+    rev: v1.4.0
+    hooks:
+      - id: yesqa
   - repo: https://github.com/psf/black
     rev: 22.12.0
     hooks:
@@ -79,10 +88,6 @@ repos:
         # pre-commit's default_language_version, see
         # https://pre-commit.com/#top_level-default_language_version
         # language_version: python3.11
-  - repo: https://github.com/asottile/yesqa
-    rev: v1.4.0
-    hooks:
-      - id: yesqa
   - repo: https://github.com/PyCQA/flake8
     rev: 5.0.4
     hooks:
@@ -131,16 +136,13 @@ repos:
         #    "types-pkg_resources==0.1.3",
         #  ]
         #exclude: tests(/\w*)*/functional/|tests/input|tests(/.*)+/conftest.py|doc/data/messages|tests(/\w*)*data/
-  - repo: https://github.com/asottile/pyupgrade
-    rev: v3.3.1
-    hooks:
-      - id: pyupgrade
-        args: [--py37-plus]
-        # exclude: *fixtures
   - repo: https://github.com/mgedmin/check-manifest
     rev: "0.49"
     hooks:
       - id: check-manifest
+        description: Check the completeness of MANIFEST.in for Python packages.
+        language: python
+        pass_filenames: false
         always_run: true
   - repo: https://github.com/regebro/pyroma
     rev: "4.1"
