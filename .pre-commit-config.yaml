@@ -15,20 +15,20 @@ repos:
     hooks:
       - id: trailing-whitespace
       - id: end-of-file-fixer
+      - id: mixed-line-ending
       - id: check-case-conflict
       # - id: check-executables-have-shebangs
       # - id: check-shebang-scripts-are-executable
       # - id: fix-byte-order-marker
       # - id: fix-encoding-pragma
+      - id: check-xml
+      - id: check-yaml
+      - id: sort-simple-yaml
       - id: check-json
       # - id: pretty-format-json
       - id: check-merge-conflict
       - id: check-vcs-permalinks
-      - id: check-xml
-      - id: check-yaml
       - id: detect-private-key
-      - id: mixed-line-ending
-      - id: sort-simple-yaml
       - id: debug-statements
       - id: requirements-txt-fixer
       - id: check-docstring-first
