@@ -11,23 +11,24 @@ on:
       - dev
 
 jobs:
-  check-py-linted:
+  lint:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
         uses: actions/checkout@v3
+      - name: Check linted md
+        uses: DavidAnson/markdownlint-cli2-action@v8
+        with:
+          command: config
+          globs: |
+            .markdownlint.jsonc
+            **/*.md
       - name: Setup Python
         uses: actions/setup-python@v4
         with:
           python-version: "3.11"
       - name: Check isort and black
         run: |
-          python -m pip install -U pip
-          python -m pip install -U isort
+          python -m pip install -U pip isort black
           isort -c .
-          python -m pip install -U black
           black --check .
-      - name: Run tox -e lint
-        run: |
-          python -m pip install tox
-          tox -e lint

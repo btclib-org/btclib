@@ -16,8 +16,9 @@
 [![security: bandit](https://img.shields.io/badge/security-bandit-yellowgreen.svg?logo=bandit)](https://github.com/PyCQA/bandit)
 [![refactor: sourcery](https://img.shields.io/badge/refactor-sourcery-yellowgreen.svg?logo=sourcery)](https://sourcery.ai)
 [![pre-commit.ci status](https://results.pre-commit.ci/badge/github/btclib-org/btclib/master.svg)](https://results.pre-commit.ci/latest/github/btclib-org/btclib/master)
+[![lint](https://github.com/btclib-org/btclib/actions/workflows/lint.yml/badge.svg)](https://github.com/btclib-org/btclib/actions/workflows/lint.yml)
 [![test](https://github.com/btclib-org/btclib/actions/workflows/test.yml/badge.svg)](https://github.com/btclib-org/btclib/actions/workflows/test.yml)
-[![lint](https://github.com/btclib-org/btclib/actions/workflows/lint.yml/badge.svg)](https://github.com/btclib-org/btclib/actions/workflows/test.yml)
+[![test-py312](https://github.com/btclib-org/btclib/actions/workflows/test-py312.yml/badge.svg)](https://github.com/btclib-org/btclib/actions/workflows/test-py312.yml)
 [![docs](https://img.shields.io/readthedocs/btclib.svg?logo=readthedocs)](https://btclib.readthedocs.io)
 [![coverage](https://coveralls.io/repos/github/btclib-org/btclib/badge.svg?logo=coveralls)](https://coveralls.io/github/btclib-org/btclib)
 

@@ -25,7 +25,7 @@ jobs:
         uses: actions/setup-python@v4
         with:
           python-version: 3.12-dev
-      - name: Run tox -e py
+      - name: Run pytest
         run: |
-          python -m pip install tox
-          tox -e py
+          python -m pip install -U -rrequirements.txt -rrequirements-dev.txt
+          pytest
