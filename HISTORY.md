@@ -12,6 +12,7 @@ Major changes include:
 - exported names per module (bip32, block, ec, ecc, mnemonic, psbt, script, tx)
 - improved typing
 - added SECURITY, CONTRIBUTING, bug report and feature request templates
+- added pre-commit hooks
 
 ## v2022.12.31
 
