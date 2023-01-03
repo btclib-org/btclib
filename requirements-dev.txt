@@ -18,6 +18,7 @@ isort
 mypy
 pre-commit
 pylint
+pyroma
 pytest
 pytest-cov
 pytest-ordering

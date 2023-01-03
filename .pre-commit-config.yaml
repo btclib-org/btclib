@@ -113,3 +113,7 @@ repos:
         # * automatically apply the suggestions
         # * omit the summary
         args: [--diff=git diff HEAD, --in-place, --no-summary]
+  - repo: https://github.com/regebro/pyroma
+    rev: "4.1"
+    hooks:
+      - id: pyroma
