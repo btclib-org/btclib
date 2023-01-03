@@ -144,6 +144,11 @@ repos:
         # * automatically apply the suggestions
         # * omit the summary
         args: [--diff=git diff HEAD, --in-place, --no-summary]
+  - repo: https://github.com/mgedmin/check-manifest
+    rev: "0.49"
+    hooks:
+      - id: check-manifest
+        always_run: true
   - repo: https://github.com/asottile/setup-cfg-fmt
     rev: v2.2.0
     hooks:
