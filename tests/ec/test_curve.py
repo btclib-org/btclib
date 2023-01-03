@@ -310,7 +310,6 @@ def test_symmetry() -> None:
         secp256k1.y_quadratic_residue(INF[0])
 
 
-@pytest.mark.fifth
 def test_assorted_mult() -> None:
     ec = ec23_31
     H = second_generator(ec)

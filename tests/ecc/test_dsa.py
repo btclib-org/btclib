@@ -143,7 +143,6 @@ def test_gec() -> None:
     assert dsa.verify(msg, QU, sig, lower_s, hf)
 
 
-@pytest.mark.first
 def test_low_cardinality() -> None:
     """Test low-cardinality curves for all msg/key pairs."""
     # pylint: disable=protected-access

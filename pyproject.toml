@@ -1,14 +1,5 @@
 [tool.pytest.ini_options]
 addopts = "--durations=8 -n auto"
-markers = [
-    "first: ordering using pytest-ordering",
-    "second: ordering using pytest-ordering",
-    "third: ordering using pytest-ordering",
-    "fourth: ordering using pytest-ordering",
-    "fifth: ordering using pytest-ordering",
-    "sixth: ordering using pytest-ordering",
-    "seventh: ordering using pytest-ordering",
-]
 
 [tool.mypy]
 strict = false

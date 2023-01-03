@@ -202,7 +202,6 @@ def test_block_200000() -> None:
         _ = block.height
 
 
-@pytest.mark.seventh
 def test_block_481824() -> None:
     """Test first block with segwit transaction as seen from legacy nodes."""
 

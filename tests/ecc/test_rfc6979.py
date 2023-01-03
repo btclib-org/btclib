@@ -14,8 +14,6 @@ import hashlib
 import json
 from os import path
 
-import pytest
-
 from btclib.ec import mult
 from btclib.ec.curve import CURVES
 from btclib.ecc import dsa
@@ -49,7 +47,6 @@ def test_rfc6979_example() -> None:
     assert k == rfc6979_(msg_hash, x, fake_ec)  # type: ignore[arg-type]
 
 
-@pytest.mark.second
 def test_rfc6979_tv() -> None:
 
     fname = "rfc6979.json"

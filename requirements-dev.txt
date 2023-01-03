@@ -15,7 +15,6 @@ pylint
 pyroma
 pytest
 pytest-cov
-pytest-ordering
 pytest-xdist
 pyupgrade
 setuptools
