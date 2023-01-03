@@ -8,7 +8,7 @@
 # No part of btclib including this file, may be copied, modified, propagated,
 # or distributed except according to the terms contained in the LICENSE file.
 
-"Tests for the `btclib.pedersen` module."
+"""Tests for the `btclib.pedersen` module."""
 
 from hashlib import sha256, sha384
 
@@ -24,7 +24,8 @@ secp384r1 = CURVES["secp384r1"]
 
 def test_second_generator() -> None:
     """
-    important remarks on secp256-zkp prefix for
+    Important remarks on secp256-zkp prefix for.
+
     compressed encoding of the second generator:
     https://github.com/garyyu/rust-secp256k1-zkp/wiki/Pedersen-Commitment
     """

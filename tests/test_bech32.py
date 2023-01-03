@@ -49,7 +49,7 @@ from btclib.exceptions import BTClibValueError
 
 
 def test_bech32() -> None:
-    "Test bech32 checksum."
+    """Test bech32 checksum."""
 
     valid_checksum = [
         "A12UEL5L",
@@ -103,7 +103,6 @@ def test_bech32_insertion_issue() -> None:
     https://lists.linuxfoundation.org/pipermail/bitcoin-dev/2020-October/018236.html
     https://lists.linuxfoundation.org/pipermail/bitcoin-dev/2020-December/018292.html
     https://gist.github.com/sipa/14c248c288c3880a3b191f978a34508e
-
     """
     strings = ("ii2134hk2xmat79tp", "eyg5bsz1l2mrq5ypl40hp")
     for string, i in itertools.product(strings, range(20)):

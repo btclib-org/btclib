@@ -9,7 +9,7 @@
 # or distributed except according to the terms contained in the LICENSE file.
 
 
-"""Taproot related functions"""
+"""Taproot related functions."""
 
 from typing import Any, Optional, Tuple
 

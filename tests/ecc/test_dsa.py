@@ -8,7 +8,7 @@
 # No part of btclib including this file, may be copied, modified, propagated,
 # or distributed except according to the terms contained in the LICENSE file.
 
-"Tests for the `btclib.dsa` module."
+"""Tests for the `btclib.dsa` module."""
 
 import secrets
 from hashlib import sha1
@@ -107,7 +107,7 @@ def test_signature() -> None:
 
 
 def test_gec() -> None:
-    """GEC 2: Test Vectors for SEC 1, section 2
+    """GEC 2: Test Vectors for SEC 1, section 2.
 
     http://read.pudn.com/downloads168/doc/772358/TestVectorsforSEC%201-gec2.pdf
     """
@@ -145,7 +145,7 @@ def test_gec() -> None:
 
 @pytest.mark.first
 def test_low_cardinality() -> None:
-    """test low-cardinality curves for all msg/key pairs."""
+    """Test low-cardinality curves for all msg/key pairs."""
     # pylint: disable=protected-access
 
     # ec.n has to be prime to sign
@@ -252,7 +252,7 @@ def test_crack_prv_key() -> None:
 
 
 def test_forge_hash_sig() -> None:
-    """forging valid hash signatures"""
+    """Forging valid hash signatures."""
     # pylint: disable=protected-access
 
     ec = CURVES["secp256k1"]

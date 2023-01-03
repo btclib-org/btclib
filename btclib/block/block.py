@@ -146,7 +146,7 @@ class Block:
     def parse(
         cls: Type["Block"], data: BinaryData, check_validity: bool = True
     ) -> "Block":
-        "Return a Block by parsing binary data."
+        """Return a Block by parsing binary data."""
 
         stream = bytesio_from_binarydata(data)
         header = BlockHeader.parse(stream, check_validity)

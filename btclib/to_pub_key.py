@@ -8,7 +8,7 @@
 # No part of btclib including this file, may be copied, modified, propagated,
 # or distributed except according to the terms contained in the LICENSE file.
 
-"Functions for conversions between different public key formats."
+"""Functions for conversions between different public key formats."""
 
 import contextlib
 from typing import Optional, Tuple, Union
@@ -41,7 +41,7 @@ Key: TypeAlias = Union[int, bytes, str, BIP32KeyData, Point]
 
 
 def _point_from_xpub(xpub: BIP32Key, ec: Curve) -> Point:
-    "Return an elliptic curve point tuple from a xpub key."
+    """Return an elliptic curve point tuple from a xpub key."""
 
     if isinstance(xpub, BIP32KeyData):
         xpub.assert_valid()
@@ -84,7 +84,7 @@ def point_from_key(key: Key, ec: Curve = secp256k1) -> Point:
 
 
 def point_from_pub_key(pub_key: PubKey, ec: Curve = secp256k1) -> Point:
-    "Return an elliptic curve point tuple from a public key."
+    """Return an elliptic curve point tuple from a public key."""
 
     if isinstance(pub_key, tuple):
         if ec.is_on_curve(pub_key) and pub_key[1] != 0:
@@ -151,7 +151,7 @@ def _pub_keyinfo_from_xpub(
 def pub_keyinfo_from_key(
     key: Key, network: Optional[str] = None, compressed: Optional[bool] = None
 ) -> PubkeyInfo:
-    "Return the pub key tuple (SEC-bytes, network) from a pub/prv key."
+    """Return the pub key tuple (SEC-bytes, network) from a pub/prv key."""
 
     if isinstance(key, tuple):
         return pub_keyinfo_from_pub_key(key, network, compressed)
@@ -180,7 +180,7 @@ def _err_msg(key: Key, network: Optional[str], compressed: Optional[bool]) -> st
 def pub_keyinfo_from_pub_key(
     pub_key: PubKey, network: Optional[str] = None, compressed: Optional[bool] = None
 ) -> PubkeyInfo:
-    "Return the pub key tuple (SEC-bytes, network) from a public key."
+    """Return the pub key tuple (SEC-bytes, network) from a public key."""
 
     compr = True if compressed is None else compressed
     net = "mainnet" if network is None else network
@@ -214,7 +214,7 @@ def pub_keyinfo_from_pub_key(
 def pub_keyinfo_from_prv_key(
     prv_key: PrvKey, network: Optional[str] = None, compressed: Optional[bool] = None
 ) -> PubkeyInfo:
-    "Return the pub key tuple (SEC-bytes, network) from a private key."
+    """Return the pub key tuple (SEC-bytes, network) from a private key."""
 
     q, net, compr = prv_keyinfo_from_prv_key(prv_key, network, compressed)
     ec = NETWORKS[net].curve

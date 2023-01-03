@@ -8,7 +8,7 @@
 # No part of btclib including this file, may be copied, modified, propagated,
 # or distributed except according to the terms contained in the LICENSE file.
 
-"Witness (List[bytes]) class."
+"""Witness (List[bytes]) class."""
 
 from dataclasses import dataclass
 from typing import Dict, List, Mapping, Optional, Sequence, Type
@@ -56,7 +56,7 @@ class Witness:
         return cls(dict_["stack"], check_validity)
 
     def serialize(self, check_validity: bool = True) -> bytes:
-        "Return the serialization of the Witness."
+        """Return the serialization of the Witness."""
 
         if check_validity:
             self.assert_valid()
@@ -68,7 +68,7 @@ class Witness:
     def parse(
         cls: Type["Witness"], data: BinaryData, check_validity: bool = True
     ) -> "Witness":
-        "Return a Witness by parsing binary data."
+        """Return a Witness by parsing binary data."""
 
         data = bytesio_from_binarydata(data)
         n = var_int.parse(data)

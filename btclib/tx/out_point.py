@@ -32,12 +32,12 @@ class OutPoint:
 
     @property
     def hash(self) -> int:
-        "Return the hash int for compatibility with COutPoint."
+        """Return the hash int for compatibility with COutPoint."""
         return int.from_bytes(self.tx_id, "big", signed=False)
 
     @property
     def n(self) -> int:
-        "Return the n int for compatibility with COutPoint."
+        """Return the n int for compatibility with COutPoint."""
         return self.vout
 
     def __init__(
@@ -83,7 +83,7 @@ class OutPoint:
         return cls(dict_["txid"], dict_["vout"], check_validity)
 
     def serialize(self, check_validity: bool = True) -> bytes:
-        "Return the 36 bytes serialization of the OutPoint."
+        """Return the 36 bytes serialization of the OutPoint."""
 
         if check_validity:
             self.assert_valid()
@@ -96,7 +96,7 @@ class OutPoint:
     def parse(
         cls: Type["OutPoint"], data: BinaryData, check_validity: bool = True
     ) -> "OutPoint":
-        "Return an OutPoint from the first 36 bytes of the provided data."
+        """Return an OutPoint from the first 36 bytes of the provided data."""
 
         data = bytesio_from_binarydata(data)
         tx_id = data.read(32)[::-1]

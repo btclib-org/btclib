@@ -8,7 +8,7 @@
 # No part of btclib including this file, may be copied, modified, propagated,
 # or distributed except according to the terms contained in the LICENSE file.
 
-"Tests for the `btclib.hashes` module."
+"""Tests for the `btclib.hashes` module."""
 
 from btclib.hashes import hash160, hash256
 from tests.test_to_key import (

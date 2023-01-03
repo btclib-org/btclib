@@ -8,4 +8,4 @@
 # No part of btclib including this file, may be copied, modified, propagated,
 # or distributed except according to the terms contained in the LICENSE file.
 
-"""btclib.block non-regression tests."""
+"""Btclib.block non-regression tests."""

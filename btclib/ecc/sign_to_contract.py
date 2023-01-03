@@ -47,7 +47,7 @@ from btclib.utils import bytes_from_octets, int_from_bits
 
 
 def _tweak(commit_hash: Octets, R: Point, ec: Curve, hf: HashF) -> int:
-    "Return the hash(R||commit_hash) tweak for the provided R."
+    """Return the hash(R||commit_hash) tweak for the provided R."""
 
     t = bytes_from_point(R, ec) + bytes_from_octets(commit_hash)
     while True:
@@ -77,7 +77,7 @@ def dsa_commit_sign_(
     ec: Curve = secp256k1,
     hf: HashF = sha256,
 ) -> Tuple[dsa.Sig, Point]:
-    "Include a commitment inside an EC DSA signature."
+    """Include a commitment inside an EC DSA signature."""
 
     nonce = (
         rfc6979_(msg_hash, prv_key, ec, hf)
@@ -100,7 +100,7 @@ def dsa_commit_sign(
     ec: Curve = secp256k1,
     hf: HashF = sha256,
 ) -> Tuple[dsa.Sig, Point]:
-    "Include a commitment inside an EC DSA signature."
+    """Include a commitment inside an EC DSA signature."""
 
     commit_hash = reduce_to_hlen(commit, hf)
     msg_hash = reduce_to_hlen(msg, hf)
@@ -118,7 +118,7 @@ def dsa_verify_commit_(
     lower_s: bool = True,
     hf: HashF = sha256,
 ) -> bool:
-    "Open the commitment associated to an EC DSA signature."
+    """Open the commitment associated to an EC DSA signature."""
 
     tweak = _tweak(commit_hash, R, sig.ec, hf)
     W = sig.ec.add(R, mult(tweak, sig.ec.G, sig.ec))
@@ -136,7 +136,7 @@ def dsa_verify_commit(
     lower_s: bool = True,
     hf: HashF = sha256,
 ) -> bool:
-    "Open the commitment associated to an EC DSA signature."
+    """Open the commitment associated to an EC DSA signature."""
     commit_hash = reduce_to_hlen(commit, hf)
     msg_hash = reduce_to_hlen(msg, hf)
     return dsa_verify_commit_(commit_hash, receipt, msg_hash, key, sig, lower_s, hf)
@@ -150,7 +150,7 @@ def ssa_commit_sign_(
     ec: Curve = secp256k1,
     hf: HashF = sha256,
 ) -> Tuple[ssa.Sig, Point]:
-    "Include a commitment inside an EC SSA signature."
+    """Include a commitment inside an EC SSA signature."""
 
     nonce = (
         ssa.det_nonce_(msg_hash, prv_key, aux=None, ec=ec, hf=hf)
@@ -173,7 +173,7 @@ def ssa_commit_sign(
     ec: Curve = secp256k1,
     hf: HashF = sha256,
 ) -> Tuple[ssa.Sig, Point]:
-    "Include a commitment inside an EC SSA signature."
+    """Include a commitment inside an EC SSA signature."""
 
     commit_hash = reduce_to_hlen(commit, hf)
     msg_hash = reduce_to_hlen(msg, hf)
@@ -188,7 +188,7 @@ def ssa_verify_commit_(
     sig: ssa.Sig,
     hf: HashF = sha256,
 ) -> bool:
-    "Open the commitment associated to an EC SSA signature."
+    """Open the commitment associated to an EC SSA signature."""
 
     tweak = _tweak(commit_hash, R, sig.ec, hf)
     W = sig.ec.add(R, mult(tweak, sig.ec.G, sig.ec))
@@ -205,7 +205,7 @@ def ssa_verify_commit(
     sig: ssa.Sig,
     hf: HashF = sha256,
 ) -> bool:
-    "Open the commitment associated to an EC SSA signature."
+    """Open the commitment associated to an EC SSA signature."""
     commit_hash = reduce_to_hlen(commit, hf)
     msg_hash = reduce_to_hlen(msg, hf)
     return ssa_verify_commit_(commit_hash, receipt, msg_hash, pub_key, sig, hf)

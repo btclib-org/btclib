@@ -107,7 +107,7 @@ def mnemonic_from_entropy(
 
 
 def entropy_from_mnemonic(mnemonic: Mnemonic, lang: str = "en") -> BinStr:
-    "Return the entropy from the BIP39 checksummed mnemonic sentence."
+    """Return the entropy from the BIP39 checksummed mnemonic sentence."""
 
     indexes = indexes_from_mnemonic(mnemonic, lang)
     base = WORDLISTS.language_length(lang)
@@ -152,7 +152,7 @@ def mxprv_from_mnemonic(
     network: str = "mainnet",
     verify_checksum: bool = True,
 ) -> str:
-    "Return BIP32 root master extended private key from BIP39 mnemonic."
+    """Return BIP32 root master extended private key from BIP39 mnemonic."""
 
     seed = seed_from_mnemonic(mnemonic, passphrase or "", verify_checksum)
     version = NETWORKS[network].bip32_prv

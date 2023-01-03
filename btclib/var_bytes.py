@@ -8,7 +8,7 @@
 # No part of btclib including this file, may be copied, modified, propagated,
 # or distributed except according to the terms contained in the LICENSE file.
 
-"Varbytes encoding and decoding functions."
+"""Varbytes encoding and decoding functions."""
 
 from btclib import var_int
 from btclib.alias import BinaryData, Octets
@@ -31,7 +31,7 @@ def parse(stream: BinaryData, forbid_zero_size: bool = False) -> bytes:
 
 
 def serialize(octets: Octets) -> bytes:
-    "Return the var_int(len(octets)) + octets serialization of octets."
+    """Return the var_int(len(octets)) + octets serialization of octets."""
 
     bytes_ = bytes_from_octets(octets)
     return var_int.serialize(len(bytes_)) + bytes_

@@ -8,7 +8,7 @@
 # No part of btclib including this file, may be copied, modified, propagated,
 # or distributed except according to the terms contained in the LICENSE file.
 
-"Tests for the `btclib.curve` module."
+"""Tests for the `btclib.curve` module."""
 
 import secrets
 
@@ -122,7 +122,7 @@ def test_aff_jac_conversions() -> None:
 
 
 def test_add_double_aff() -> None:
-    "Test self-consistency of add and double in affine coordinates."
+    """Test self-consistency of add and double in affine coordinates."""
     for ec in all_curves.values():
 
         # add G and the infinity point
@@ -145,7 +145,7 @@ def test_add_double_aff() -> None:
 
 
 def test_add_double_jac() -> None:
-    "Test self-consistency of add and double in Jacobian coordinates."
+    """Test self-consistency of add and double in Jacobian coordinates."""
     for ec in all_curves.values():
 
         # add G and the infinity point
@@ -168,7 +168,7 @@ def test_add_double_jac() -> None:
 
 
 def test_add_double_aff_jac() -> None:
-    "Test consistency between affine and Jacobian add/double methods."
+    """Test consistency between affine and Jacobian add/double methods."""
     for ec in all_curves.values():
 
         # just a random point, not INF
@@ -244,7 +244,7 @@ def test_negate() -> None:
 
 
 def test_symmetry() -> None:
-    "Methods to break simmetry: quadratic residue, even/odd, low/high."
+    """Methods to break simmetry: quadratic residue, even/odd, low/high."""
     for ec in low_card_curves.values():
 
         # just a random point, not INF

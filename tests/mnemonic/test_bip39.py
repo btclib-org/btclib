@@ -8,7 +8,7 @@
 # No part of btclib including this file, may be copied, modified, propagated,
 # or distributed except according to the terms contained in the LICENSE file.
 
-"Tests for the `btclib.bip39` module."
+"""Tests for the `btclib.bip39` module."""
 
 import json
 import secrets
@@ -46,7 +46,7 @@ def test_bip39() -> None:
 
 
 def test_vectors() -> None:
-    """BIP39 test vectors
+    """BIP39 test vectors.
 
     https://github.com/trezor/python-mnemonic/blob/master/vectors.json
     """

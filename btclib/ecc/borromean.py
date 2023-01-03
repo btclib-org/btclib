@@ -8,7 +8,7 @@
 # No part of btclib including this file, may be copied, modified, propagated,
 # or distributed except according to the terms contained in the LICENSE file.
 
-"Borromean signature functions."
+"""Borromean signature functions."""
 
 import secrets
 from collections import defaultdict
@@ -54,7 +54,7 @@ def sign(
     sign_keys: Sequence[int],
     pubk_rings: PubkeyRing,
 ) -> Tuple[bytes, SValues]:
-    """Borromean ring signature - signing algorithm
+    """Borromean ring signature - signing algorithm.
 
     https://github.com/ElementsProject/borromean-signatures-writeup
     https://github.com/Blockstream/borromean_paper/blob/master/borromean_draft_0.01_9ade1e49.pdf
@@ -115,7 +115,7 @@ def sign(
 
 
 def verify(msg: Octets, e0: bytes, s: SValues, pubk_rings: PubkeyRing) -> bool:
-    """Borromean ring signature - verification algorithm
+    """Borromean ring signature - verification algorithm.
 
     inputs:
 

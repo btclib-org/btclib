@@ -8,7 +8,7 @@
 # No part of btclib including this file, may be copied, modified, propagated,
 # or distributed except according to the terms contained in the LICENSE file.
 
-"Functions for conversions between different private key formats."
+"""Functions for conversions between different private key formats."""
 
 import contextlib
 from typing import Optional, Tuple, Union

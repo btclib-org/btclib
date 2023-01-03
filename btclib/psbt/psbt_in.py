@@ -68,7 +68,7 @@ PSBT_IN_HASH256 = b"\x0d"
 
 
 def _deserialize_witness_utxo(k: bytes, v: bytes) -> TxOut:
-    "Return the dataclass element from its binary representation."
+    """Return the dataclass element from its binary representation."""
 
     if len(k) != 1:
         err_msg = f"invalid witness-utxo key length: {len(k)}"
@@ -77,7 +77,7 @@ def _deserialize_witness_utxo(k: bytes, v: bytes) -> TxOut:
 
 
 def _assert_valid_partial_sigs(partial_sigs: Mapping[bytes, bytes]) -> None:
-    "Raise an exception if the dataclass element is not valid."
+    """Raise an exception if the dataclass element is not valid."""
 
     for pub_key, sig in partial_sigs.items():
         try:
@@ -100,7 +100,7 @@ def _assert_valid_final_script_sig(final_script_sig: bytes) -> None:
 
 
 def _deserialize_final_script_witness(k: bytes, v: bytes) -> Witness:
-    "Return the dataclass element from its binary representation."
+    """Return the dataclass element from its binary representation."""
 
     if len(k) != 1:
         err_msg = f"invalid final script witness key length: {len(k)}"
@@ -157,7 +157,7 @@ class PsbtIn:
 
     @property
     def sig_hash(self) -> int:
-        "Return the sig_hash int for compatibility with PartiallySignedInput."
+        """Return the sig_hash int for compatibility with PartiallySignedInput."""
         return self.sig_hash_type or 0
 
     def __init__(
@@ -199,7 +199,7 @@ class PsbtIn:
             self.assert_valid()
 
     def assert_valid(self) -> None:
-        "Assert logical self-consistency."
+        """Assert logical self-consistency."""
 
         if self.non_witness_utxo:
             self.non_witness_utxo.assert_valid()
@@ -368,7 +368,7 @@ class PsbtIn:
         input_map: Mapping[bytes, bytes],
         check_validity: bool = True,
     ) -> "PsbtIn":
-        "Return a PsbtIn by parsing binary data."
+        """Return a PsbtIn by parsing binary data."""
         # sourcery skip: low-code-quality
 
         # FIX parse must use BinaryData

@@ -8,7 +8,7 @@
 # No part of btclib including this file, may be copied, modified, propagated,
 # or distributed except according to the terms contained in the LICENSE file.
 
-"Tests for the `btclib.ssa` module."
+"""Tests for the `btclib.ssa` module."""
 
 import csv
 import secrets
@@ -174,7 +174,7 @@ def test_point_from_bip340pub_key() -> None:
 
 
 def test_low_cardinality() -> None:
-    "test low-cardinality curves for all msg/key pairs."
+    """Test low-cardinality curves for all msg/key pairs."""
     # pylint: disable=protected-access
 
     # ec.n has to be prime to sign
@@ -332,7 +332,7 @@ def test_batch_validation() -> None:
 
 
 def test_musig() -> None:
-    """testing 3-of-3 MuSig.
+    """Testing 3-of-3 MuSig.
 
     https://github.com/ElementsProject/secp256k1-zkp/blob/secp256k1-zkp/src/modules/musig/musig.md
     https://blockstream.com/2019/02/18/musig-a-new-multisignature-standard/
@@ -415,7 +415,7 @@ def test_musig() -> None:
 
 
 def test_threshold() -> None:
-    "testing 2-of-3 threshold signature (Pedersen secret sharing)"
+    """Testing 2-of-3 threshold signature (Pedersen secret sharing)."""
     # sourcery skip: low-code-quality
 
     ec = CURVES["secp256k1"]

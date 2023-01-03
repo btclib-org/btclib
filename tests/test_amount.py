@@ -8,7 +8,7 @@
 # No part of btclib including this file, may be copied, modified, propagated,
 # or distributed except according to the terms contained in the LICENSE file.
 
-"Tests for the `btclib.amount` module."
+"""Tests for the `btclib.amount` module."""
 
 from decimal import Decimal, FloatOperation, localcontext
 from typing import List, Union

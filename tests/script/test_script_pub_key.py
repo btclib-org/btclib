@@ -8,7 +8,7 @@
 # No part of btclib including this file, may be copied, modified, propagated,
 # or distributed except according to the terms contained in the LICENSE file.
 
-"Tests for the `btclib.script.script_pub_key` module."
+"""Tests for the `btclib.script.script_pub_key` module."""
 
 import json
 from os import path
@@ -525,7 +525,7 @@ def test_p2ms_3() -> None:
 
 
 def test_bip67() -> None:
-    "BIP67 test vectors https://en.bitcoin.it/wiki/BIP_0067"
+    """BIP67 test vectors https://en.bitcoin.it/wiki/BIP_0067."""
 
     data_folder = path.join(path.dirname(__file__), "_data")
     filename = path.join(data_folder, "bip67_test_vectors.json")

@@ -8,7 +8,7 @@
 # No part of btclib including this file, may be copied, modified, propagated,
 # or distributed except according to the terms contained in the LICENSE file.
 
-"Tests for the `btclib.slip132` module."
+"""Tests for the `btclib.slip132` module."""
 
 from typing import List, Tuple
 
@@ -81,7 +81,7 @@ def test_slip132() -> None:
 
 
 def test_slip132_test_vectors() -> None:
-    """SLIP132 test vector
+    """SLIP132 test vector.
 
     https://github.com/satoshilabs/slips/blob/master/slip-0132.md
     """

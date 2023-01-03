@@ -8,7 +8,7 @@
 # No part of btclib including this file, may be copied, modified, propagated,
 # or distributed except according to the terms contained in the LICENSE file.
 
-"Tests for the `btclib.psbt.psbt` module"
+"""Tests for the `btclib.psbt.psbt` module."""
 
 import json
 from os import path
@@ -28,7 +28,7 @@ from btclib.tx import OutPoint, Tx, TxIn, TxOut
 
 
 def test_vectors_bip174() -> None:
-    "Test https://github.com/bitcoin/bips/blob/master/bip-0174.mediawiki"
+    """Test https://github.com/bitcoin/bips/blob/master/bip-0174.mediawiki."""
 
     data_folder = path.join(path.dirname(__file__), "_data")
     filename = path.join(data_folder, "bip174_test_vectors.json")

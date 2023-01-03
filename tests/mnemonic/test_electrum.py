@@ -8,7 +8,7 @@
 # No part of btclib including this file, may be copied, modified, propagated,
 # or distributed except according to the terms contained in the LICENSE file.
 
-"Tests for the `btclib.electrum` module."
+"""Tests for the `btclib.electrum` module."""
 
 import json
 import secrets
@@ -97,7 +97,7 @@ def test_mnemonic_from_entropy() -> None:
 
 
 def test_p2wpkh_p2sh() -> None:
-    "Test generation of a p2wpkh-p2sh wallet."
+    """Test generation of a p2wpkh-p2sh wallet."""
 
     # https://bitcoinelectrum.com/creating-a-p2sh-segwit-wallet-with-electrum/
     # https://www.youtube.com/watch?v=-1DBJWwA2Cw

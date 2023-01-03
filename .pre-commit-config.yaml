@@ -39,6 +39,13 @@ repos:
       - id: isort
         name: isort (black profile, in place fixes)
         args: ["--profile", "black", "--filter-files"]
+  - repo: https://github.com/DanielNoord/pydocstringformatter
+    rev: v0.7.2
+    hooks:
+      - id: pydocstringformatter
+        #exclude: *fixtures
+        #args: ["--max-summary-lines=2", "--linewrap-full-docstring"]
+        files: "pylint"
   - repo: https://github.com/psf/black
     rev: 22.12.0
     hooks:

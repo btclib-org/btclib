@@ -54,7 +54,7 @@ def parse(stream: BinaryData) -> int:
 
 
 def serialize(i: int) -> bytes:
-    "Return the var_int bytes encoding of an integer."
+    """Return the var_int bytes encoding of an integer."""
 
     if i < 0x00:
         raise BTClibValueError(f"negative integer: {i}")

@@ -252,7 +252,7 @@ def gen_keys(
 
 
 def sign(msg: Octets, prv_key: PrvKey, addr: Optional[String] = None) -> Sig:
-    "Generate address-based compact signature for the provided message."
+    """Generate address-based compact signature for the provided message."""
 
     # first sign the message
     magic_msg = magic_message(msg)
@@ -343,7 +343,7 @@ def assert_as_valid(
 def verify(
     msg: Octets, addr: String, sig: Union[Sig, String], lower_s: bool = True
 ) -> bool:
-    "Verify address-based compact signature for the provided message."
+    """Verify address-based compact signature for the provided message."""
 
     # all kind of Exceptions are catched because
     # verify must always return a bool

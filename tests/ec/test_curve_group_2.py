@@ -8,7 +8,7 @@
 # No part of btclib including this file, may be copied, modified, propagated,
 # or distributed except according to the terms contained in the LICENSE file.
 
-"Tests for the `btclib.curve_group_2` module."
+"""Tests for the `btclib.curve_group_2` module."""
 
 import pytest
 

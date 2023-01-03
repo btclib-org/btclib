@@ -8,7 +8,7 @@
 # No part of btclib including this file, may be copied, modified, propagated,
 # or distributed except according to the terms contained in the LICENSE file.
 
-"Tests for the `btclib.number_theory` module."
+"""Tests for the `btclib.number_theory` module."""
 
 import pytest
 
@@ -123,7 +123,7 @@ def test_mod_sqrt2() -> None:
 
 
 def test_minus_one_quadr_res() -> None:
-    "Ensure that if p = 3 (mod 4) then p - 1 is not a quadratic residue"
+    """Ensure that if p = 3 (mod 4) then p - 1 is not a quadratic residue."""
     for p in primes:
         if (p % 4) == 3:
             with pytest.raises(BTClibValueError, match="no root for "):

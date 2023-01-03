@@ -48,7 +48,7 @@ _MAX_BITCOIN = Decimal("20_999_999.9769")
 
 
 def valid_btc_amount(amount: Any, dust: Decimal = Decimal("0")) -> Decimal:
-    "Return the BTC amount as Decimal, if valid and not less than dust."
+    """Return the BTC amount as Decimal, if valid and not less than dust."""
     # any input that can be converted to str is fine
     amount = "0" if amount is None else str(amount)
     # using str in the Decimal constructor avoids the
@@ -63,13 +63,13 @@ def valid_btc_amount(amount: Any, dust: Decimal = Decimal("0")) -> Decimal:
 
 
 def sats_from_btc(amount: Decimal) -> int:
-    "Return the satoshi equivalent of the provided BTC amount."
+    """Return the satoshi equivalent of the provided BTC amount."""
     btc = valid_btc_amount(amount)
     return int(btc * _SATOSHI_PER_BITCOIN)
 
 
 def valid_sats_amount(amount: Any, dust: int = 0) -> int:
-    "Return the satoshi amount as int, if valid and not less than dust."
+    """Return the satoshi amount as int, if valid and not less than dust."""
     # any input that can be converted to int is fine
     sats = 0 if amount is None else int(amount)
     if amount is not None and sats != amount:
@@ -80,7 +80,7 @@ def valid_sats_amount(amount: Any, dust: int = 0) -> int:
 
 
 def btc_from_sats(amount: int) -> Decimal:
-    "Return the BTC Decimal equivalent of the provided satoshi amount."
+    """Return the BTC Decimal equivalent of the provided satoshi amount."""
     sats = valid_sats_amount(amount)
     # normalize() strips the rightmost trailing zeros
     # and produces canonical values for attributes of an equivalence class

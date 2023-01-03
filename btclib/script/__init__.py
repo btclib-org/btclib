@@ -8,7 +8,7 @@
 # No part of btclib including this file, may be copied, modified, propagated,
 # or distributed except according to the terms contained in the LICENSE file.
 
-"""btclib.script module."""
+"""Btclib.script module."""
 
 from btclib.script.script import Command, Script, op_int, parse, serialize
 from btclib.script.script_pub_key import (

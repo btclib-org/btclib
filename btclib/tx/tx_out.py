@@ -33,12 +33,12 @@ class TxOut:
 
     @property
     def nValue(self) -> int:  # pylint: disable=invalid-name
-        "Return the nValue int for compatibility with CTxOut."
+        """Return the nValue int for compatibility with CTxOut."""
         return self.value
 
     @property
     def scriptPubKey(self) -> bytes:  # pylint: disable=invalid-name
-        "Return the scriptPubKey bytes for compatibility with CTxOut."
+        """Return the scriptPubKey bytes for compatibility with CTxOut."""
         return self.script_pub_key.script
 
     def __init__(

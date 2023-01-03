@@ -161,7 +161,7 @@ def point_from_bip340pub_key(x_Q: BIP340PubKey, ec: Curve = secp256k1) -> Point:
 def gen_keys_(
     prv_key: Optional[PrvKey] = None, ec: Curve = secp256k1
 ) -> Tuple[int, int, JacPoint]:
-    "Return a BIP340 private/public (int, JacPoint) key-pair."
+    """Return a BIP340 private/public (int, JacPoint) key-pair."""
 
     if prv_key is None:
         q = 1 + secrets.randbelow(ec.n - 1)
@@ -180,7 +180,7 @@ def gen_keys_(
 def gen_keys(
     prv_key: Optional[PrvKey] = None, ec: Curve = secp256k1
 ) -> Tuple[int, int]:
-    "Return a BIP340 private/public (int, int) key-pair."
+    """Return a BIP340 private/public (int, int) key-pair."""
 
     q, x_Q, _ = gen_keys_(prv_key, ec)
     return q, x_Q
@@ -237,7 +237,7 @@ def det_nonce_(
     ec: Curve = secp256k1,
     hf: HashF = sha256,
 ) -> int:
-    "Return a BIP340 deterministic ephemeral key (nonce)."
+    """Return a BIP340 deterministic ephemeral key (nonce)."""
 
     # the message msg_hash: a hf_len array
     hf_len = hf().digest_size
@@ -404,7 +404,7 @@ def assert_as_valid(
 def verify_(
     msg_hash: Octets, Q: BIP340PubKey, sig: Union[Sig, Octets], hf: HashF = sha256
 ) -> bool:
-    "Verify the BIP340 signature of the provided message."
+    """Verify the BIP340 signature of the provided message."""
 
     # all kind of Exceptions are catched because
     # verify must always return a bool
@@ -419,7 +419,7 @@ def verify_(
 def verify(
     msg: Octets, Q: BIP340PubKey, sig: Union[Sig, Octets], hf: HashF = sha256
 ) -> bool:
-    "Verify the BIP340 signature of the provided message."
+    """Verify the BIP340 signature of the provided message."""
 
     msg_hash = reduce_to_hlen(msg, hf)
     return verify_(msg_hash, Q, sig, hf)
@@ -594,7 +594,7 @@ def batch_verify(
     sigs: Sequence[Sig],
     hf: HashF = sha256,
 ) -> bool:
-    "Batch verification of BIP340 signatures."
+    """Batch verification of BIP340 signatures."""
 
     m_hashes = [reduce_to_hlen(msg, hf) for msg in ms]
     return batch_verify_(m_hashes, Qs, sigs, hf)

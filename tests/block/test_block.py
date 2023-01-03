@@ -8,7 +8,7 @@
 # No part of btclib including this file, may be copied, modified, propagated,
 # or distributed except according to the terms contained in the LICENSE file.
 
-"Tests for the `btclib.block` module."
+"""Tests for the `btclib.block` module."""
 
 import json
 from datetime import datetime, timezone
@@ -24,7 +24,7 @@ datadir = path.join(path.dirname(__file__), "_generated_files")
 
 
 def test_block_1() -> None:
-    "Test first block after genesis"
+    """Test first block after genesis."""
 
     fname = "block_1.bin"
     filename = path.join(path.dirname(__file__), "_data", fname)
@@ -123,7 +123,7 @@ def test_exceptions() -> None:
 
 
 def test_block_170() -> None:
-    "Test first block with a transaction"
+    """Test first block with a transaction."""
 
     fname = "block_170.bin"
     filename = path.join(path.dirname(__file__), "_data", fname)
@@ -204,7 +204,7 @@ def test_block_200000() -> None:
 
 @pytest.mark.seventh
 def test_block_481824() -> None:
-    "Test first block with segwit transaction as seen from legacy nodes"
+    """Test first block with segwit transaction as seen from legacy nodes."""
 
     for i, fname in enumerate(["block_481824.bin", "block_481824_complete.bin"]):
         filename = path.join(path.dirname(__file__), "_data", fname)

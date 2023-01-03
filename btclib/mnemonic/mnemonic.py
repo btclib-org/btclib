@@ -8,7 +8,7 @@
 # No part of btclib including this file, may be copied, modified, propagated,
 # or distributed except according to the terms contained in the LICENSE file.
 
-"Mnemonic word-list sentence conversion from/to sequence of integer indexes."
+"""Mnemonic word-list sentence conversion from/to sequence of integer indexes."""
 
 from os import path
 from typing import List, Optional, Sequence

@@ -43,7 +43,9 @@ def xgcd(a: int, b: int) -> Tuple[int, int, int]:
 
 
 def mod_inv(a: int, m: int) -> int:
-    """Return the inverse of a (mod m). m does not have to be a prime.
+    """Return the inverse of a (mod m).
+
+    m does not have to be a prime.
 
     Based on Extended Euclidean Algorithm, see:
     https://en.wikibooks.org/wiki/Algorithm_Implementation/Mathematics/Extended_Euclidean_algorithm

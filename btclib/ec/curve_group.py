@@ -473,7 +473,7 @@ def mult_jac(m: int, Q: JacPoint, ec: CurveGroup) -> JacPoint:
 
 
 def multiples(Q: JacPoint, size: int, ec: CurveGroup) -> List[JacPoint]:
-    "Return {k_i * Q} for k_i in {0, ..., size-1)"
+    """Return {k_i * Q} for k_i in {0, ..., size-1)."""
 
     if size < 2:
         raise BTClibValueError(f"size too low: {size}")
@@ -508,6 +508,7 @@ def cached_multiples_fixwind(
     Q: JacPoint, ec: CurveGroup, w: int = 4
 ) -> List[List[JacPoint]]:
     """Made to precompute values for mult_fixed_window_cached.
+
     Do not use it for other functions.
     Made to be used for w=4, do not use w.
     """
@@ -526,7 +527,7 @@ def cached_multiples_fixwind(
 
 
 def convert_number_to_base(i: int, base: int) -> List[int]:
-    "Return the digits of an integer in the requested base."
+    """Return the digits of an integer in the requested base."""
 
     digits: List[int] = []
     while i or not digits:

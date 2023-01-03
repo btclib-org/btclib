@@ -72,7 +72,7 @@ class PsbtOut:
             self.assert_valid()
 
     def assert_valid(self) -> None:
-        "Assert logical self-consistency."
+        """Assert logical self-consistency."""
         assert_valid_redeem_script(self.redeem_script)
         assert_valid_witness_script(self.witness_script)
         assert_valid_hd_key_paths(self.hd_key_paths)
@@ -139,7 +139,7 @@ class PsbtOut:
         output_map: Mapping[bytes, bytes],
         check_validity: bool = True,
     ) -> "PsbtOut":
-        "Return a PsbtOut by parsing binary data."
+        """Return a PsbtOut by parsing binary data."""
 
         # FIX parse must use BinaryData
 
