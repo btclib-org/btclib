@@ -8,7 +8,7 @@
 # No part of btclib including this file, may be copied, modified, propagated,
 # or distributed except according to the terms contained in the LICENSE file.
 
-"""Btclib.tx module."""
+"""Module btclib.tx."""
 
 from btclib.tx.out_point import OutPoint
 from btclib.tx.tx import Tx

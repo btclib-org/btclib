@@ -39,6 +39,11 @@ repos:
     hooks:
       - id: markdownlint-cli2-fix
         name: markdownlint-cli2-fix (in place fixes)
+  - repo: https://github.com/leoll2/copyright_notice_precommit
+    rev: 0.1.1
+    hooks:
+      - id: copyright-notice
+        args: [--notice=COPYRIGHT]
   - repo: https://github.com/PyCQA/autoflake
     rev: v2.0.0
     hooks:

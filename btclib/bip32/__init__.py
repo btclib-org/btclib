@@ -8,7 +8,7 @@
 # No part of btclib including this file, may be copied, modified, propagated,
 # or distributed except according to the terms contained in the LICENSE file.
 
-"""Btclib.bip32 module."""
+"""Module btclib.bip32."""
 
 from btclib.bip32.bip32 import (
     BIP32Key,

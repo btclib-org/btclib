@@ -8,7 +8,7 @@
 # No part of btclib including this file, may be copied, modified, propagated,
 # or distributed except according to the terms contained in the LICENSE file.
 
-"""Btclib.mnemonic module."""
+"""Module btclib.mnemonic."""
 
 from btclib.mnemonic.entropy import (
     BinStr,
