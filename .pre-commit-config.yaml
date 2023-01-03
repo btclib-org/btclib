@@ -15,6 +15,25 @@ repos:
     hooks:
       - id: trailing-whitespace
       - id: end-of-file-fixer
+      - id: check-case-conflict
+      # - id: check-executables-have-shebangs
+      # - id: check-shebang-scripts-are-executable
+      # - id: fix-byte-order-marker
+      # - id: fix-encoding-pragma
+      - id: check-json
+      # - id: pretty-format-json
+      - id: check-merge-conflict
+      - id: check-vcs-permalinks
+      - id: check-xml
+      - id: check-yaml
+      - id: detect-private-key
+      - id: mixed-line-ending
+      - id: sort-simple-yaml
+      - id: debug-statements
+      - id: requirements-txt-fixer
+      - id: check-docstring-first
+      # - id: name-tests-test
+      - id: check-toml
   - repo: https://github.com/DavidAnson/markdownlint-cli2
     rev: v0.6.0
     hooks:
@@ -40,7 +59,7 @@ repos:
         name: isort (black profile, in place fixes)
         args: ["--profile", "black", "--filter-files"]
   - repo: https://github.com/DanielNoord/pydocstringformatter
-    rev: v0.7.2
+    rev: v0.7.3
     hooks:
       - id: pydocstringformatter
         #exclude: *fixtures
@@ -57,6 +76,10 @@ repos:
         # pre-commit's default_language_version, see
         # https://pre-commit.com/#top_level-default_language_version
         # language_version: python3.11
+  - repo: https://github.com/asottile/yesqa
+    rev: v1.4.0
+    hooks:
+      - id: yesqa
   - repo: https://github.com/PyCQA/flake8
     rev: 5.0.4
     hooks:
@@ -73,6 +96,7 @@ repos:
     hooks:
       - id: bandit
         name: bandit (tests only)
+        # disable B101 (Test for use of assert) on tests folder
         args: ["-s", "B101"]
         exclude: btclib
   - repo: local
@@ -120,6 +144,10 @@ repos:
         # * automatically apply the suggestions
         # * omit the summary
         args: [--diff=git diff HEAD, --in-place, --no-summary]
+  - repo: https://github.com/asottile/setup-cfg-fmt
+    rev: v2.2.0
+    hooks:
+      - id: setup-cfg-fmt
   - repo: https://github.com/regebro/pyroma
     rev: "4.1"
     hooks:

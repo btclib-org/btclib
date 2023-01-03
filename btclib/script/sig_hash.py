@@ -60,7 +60,8 @@ def legacy_script(script_pub_key: Octets) -> List[bytes]:
     script_s: List[bytes] = []
     current_script: List[Command] = []
     for token in parse(script_pub_key)[::-1]:
-        if token == "OP_CODESEPARATOR":  # nosec B105 required for py<38
+        # B105 required for py<38
+        if token == "OP_CODESEPARATOR":  # nosec B105
             script_s.append(serialize(current_script[::-1]))
         else:
             current_script.append(token)
@@ -81,7 +82,8 @@ def witness_v0_script(script_pub_key: Octets) -> List[bytes]:
     script_s: List[bytes] = []
     current_script: List[Command] = []
     for token in parse(script_pub_key)[::-1]:
-        if token == "OP_CODESEPARATOR":  # nosec B105 required for py<3.8
+        # B105 required for py<38
+        if token == "OP_CODESEPARATOR":  # nosec B105
             script_s.append(serialize(current_script[::-1]))
         current_script.append(token)
     script_s.append(serialize(current_script[::-1]))

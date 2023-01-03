@@ -1,12 +1,5 @@
 # packages required to develop, build, and test btclib
 
-pip
-wheel
-
-# only needed to package releases
-setuptools
-twine
-
 autoflake
 bandit
 black
@@ -16,6 +9,7 @@ coverage
 flake8
 isort
 mypy
+pip
 pre-commit
 pylint
 pyroma
@@ -24,6 +18,9 @@ pytest-cov
 pytest-ordering
 pytest-xdist
 pyupgrade
+setuptools
 sourcery-cli
 # tox 4.x depends on importlib-metadata>=5.2
 tox
+twine
+wheel
