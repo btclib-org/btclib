@@ -3,6 +3,7 @@
 
 [![PyPI pyversions](https://img.shields.io/pypi/pyversions/btclib.svg)](https://pypi.python.org/pypi/btclib/)
 [![PyPI version](https://img.shields.io/pypi/v/btclib.svg)](https://pypi.python.org/pypi/btclib/)
+[![Versioning](https://img.shields.io/badge/calver-YYYY.M.D-22bfda.svg)](https://calver.org/)
 [![Code style: black](https://img.shields.io/badge/code%20style-black-%231674b1.svg)](https://github.com/psf/black)
 [![Imports: isort](https://img.shields.io/badge/%20imports-isort-%231674b1?style=flat)](https://pycqa.github.io/isort/)
 [![Linted: flake8](https://img.shields.io/badge/lint-flake8-%231674b1)](https://flake8.pycqa.org)
