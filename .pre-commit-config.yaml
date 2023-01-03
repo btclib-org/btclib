@@ -21,9 +21,7 @@ repos:
       # - id: check-shebang-scripts-are-executable
       # - id: fix-byte-order-marker
       # - id: fix-encoding-pragma
-      - id: check-xml
       - id: check-yaml
-      - id: sort-simple-yaml
       - id: check-json
       # - id: pretty-format-json
       - id: check-merge-conflict
@@ -93,14 +91,14 @@ repos:
     rev: 1.7.4
     hooks:
       - id: bandit
-        name: bandit (no tests)
+        name: bandit (btclib)
         args: []
         exclude: test_*
   - repo: https://github.com/PyCQA/bandit
     rev: 1.7.4
     hooks:
       - id: bandit
-        name: bandit (tests only)
+        name: bandit (tests)
         # disable B101 (Test for use of assert) on tests folder
         args: ["-s", "B101"]
         exclude: btclib
@@ -144,10 +142,6 @@ repos:
     hooks:
       - id: check-manifest
         always_run: true
-  - repo: https://github.com/asottile/setup-cfg-fmt
-    rev: v2.2.0
-    hooks:
-      - id: setup-cfg-fmt
   - repo: https://github.com/regebro/pyroma
     rev: "4.1"
     hooks:
