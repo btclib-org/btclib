@@ -263,6 +263,7 @@ def test_dataclasses_json_dict() -> None:
     filename = path.join(datadir, "block_481824.json")
     with open(filename, "w", encoding="ascii") as file_:
         json.dump(block_dict, file_, indent=4)
+        file_.write("\n")  # end-of-file-fixer
     assert block_data == Block.from_dict(block_dict)
 
     block_header = block_data.header.serialize()
@@ -277,4 +278,5 @@ def test_dataclasses_json_dict() -> None:
     filename = path.join(datadir, "block_header_481824.json")
     with open(filename, "w", encoding="ascii") as file_:
         json.dump(block_header_d, file_, indent=4)
+        file_.write("\n")  # end-of-file-fixer
     assert block_header_data == BlockHeader.from_dict(block_header_d)

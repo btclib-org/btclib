@@ -68,6 +68,7 @@ def test_dataclasses_json_dict() -> None:
     filename = path.join(datadir, "psbt_out.json")
     with open(filename, "w", encoding="ascii") as file_:
         json.dump(psbt_out_dict, file_, indent=4)
+        file_.write("\n")  # end-of-file-fixer
 
     # PsbtOut dataclass dict from file
     with open(filename, encoding="ascii") as file_:

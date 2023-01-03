@@ -94,6 +94,7 @@ def test_dataclasses_json_dict_key_origin() -> None:
     filename = path.join(datadir, "key_origin.json")
     with open(filename, "w", encoding="ascii") as file_:
         json.dump(key_origin_dict, file_, indent=4)
+        file_.write("\n")  # end-of-file-fixer
 
     # BIP32KeyOrigin dict from file
     with open(filename, encoding="ascii") as file_:

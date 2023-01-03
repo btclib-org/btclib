@@ -4,18 +4,22 @@
 #
 # If want to disable all hooks while committing, use the --no-verify/-n option:
 # $ git commit -n -m "foo"
+
+# Since pylint and mypy need to import modules and dependencies to work correctly,
+# their hooks only work with a local installation (in your environment).
+# see https://pylint.pycqa.org/en/latest/user_guide/installation/pre-commit-integration.html
+
 repos:
-  - repo: https://github.com/asottile/pyupgrade
-    rev: v3.3.1
-    hooks:
-      - id: pyupgrade
-        args: [--py37-plus]
-        # exclude: *fixtures
   - repo: https://github.com/pre-commit/pre-commit-hooks
     rev: v4.4.0
     hooks:
       - id: trailing-whitespace
       - id: end-of-file-fixer
+  - repo: https://github.com/DavidAnson/markdownlint-cli2
+    rev: v0.6.0
+    hooks:
+      - id: markdownlint-cli2-fix
+        name: markdownlint-cli2-fix (in place fixes)
   - repo: https://github.com/PyCQA/autoflake
     rev: v2.0.0
     hooks:
@@ -50,25 +54,20 @@ repos:
     rev: 5.0.4
     hooks:
       - id: flake8
-  - repo: https://github.com/DavidAnson/markdownlint-cli2
-    rev: v0.6.0
+  - repo: https://github.com/PyCQA/bandit
+    rev: 1.7.4
     hooks:
-      - id: markdownlint-cli2-fix
-        name: markdownlint-cli2-fix (in place fixes)
-  - repo: https://github.com/sourcery-ai/sourcery
-    rev: v1.0.2
+      - id: bandit
+        name: bandit (no tests)
+        args: []
+        exclude: test_*
+  - repo: https://github.com/PyCQA/bandit
+    rev: 1.7.4
     hooks:
-      - id: sourcery
-        name: sourcery (in place fixes, only diffs)
-        # The best way to use Sourcery in a pre-commit hook:
-        # * review only changed lines
-        # * automatically apply the suggestions
-        # * omit the summary
-        args: [--diff=git diff HEAD, --in-place, --no-summary]
-  # Since pylint needs to import modules and dependencies to work correctly,
-  # the hook only works with a local installation of pylint (in your environment).
-  # see https://pylint.pycqa.org/en/latest/user_guide/installation/pre-commit-integration.html
-  # the following would complain about E0401: Unable to import 'pytest' (import-error)
+      - id: bandit
+        name: bandit (tests only)
+        args: ["-s", "B101"]
+        exclude: btclib
   - repo: local
     hooks:
       - id: pylint
@@ -80,10 +79,37 @@ repos:
             "-rn", # Only display messages
             "-sn", # Don't display the score
           ]
-  - repo: https://github.com/leoll2/copyright_notice_precommit
-    rev: 0.1.1
+  - repo: local
     hooks:
-      - id: copyright-notice
-        args: ["--notice=COPYRIGHT", "--enforce-all"]
-        # exclude: tests(/\w*)*/functional/|tests/input|doc/data/messages|examples/|setup.py|tests(/\w*)*data/
+      - id: mypy
+        name: mypy (local)
+        entry: mypy
+        language: python
         types: [python]
+        args: []
+        #require_serial: true
+        #additional_dependencies:
+        #  [
+        #    "isort>=5",
+        #    "platformdirs==2.2.0",
+        #    "py==1.11",
+        #    "tomlkit>=0.10.1",
+        #    "types-pkg_resources==0.1.3",
+        #  ]
+        #exclude: tests(/\w*)*/functional/|tests/input|tests(/.*)+/conftest.py|doc/data/messages|tests(/\w*)*data/
+  - repo: https://github.com/asottile/pyupgrade
+    rev: v3.3.1
+    hooks:
+      - id: pyupgrade
+        args: [--py37-plus]
+        # exclude: *fixtures
+  - repo: https://github.com/sourcery-ai/sourcery
+    rev: v1.0.2
+    hooks:
+      - id: sourcery
+        name: sourcery (in place fixes, only diffs)
+        # The best way to use Sourcery in a pre-commit hook:
+        # * review only changed lines
+        # * automatically apply the suggestions
+        # * omit the summary
+        args: [--diff=git diff HEAD, --in-place, --no-summary]
