@@ -5,10 +5,6 @@
 # If want to disable all hooks while committing, use the --no-verify/-n option:
 # $ git commit -n -m "foo"
 
-# Since pylint and mypy need to import modules and dependencies to work correctly,
-# their hooks only work with a local installation (in your environment).
-# see https://pylint.pycqa.org/en/latest/user_guide/installation/pre-commit-integration.html
-
 repos:
   - repo: https://github.com/pre-commit/pre-commit-hooks
     rev: v4.4.0
@@ -70,9 +66,6 @@ repos:
     rev: v0.7.3
     hooks:
       - id: pydocstringformatter
-        #exclude: *fixtures
-        #args: ["--max-summary-lines=2", "--linewrap-full-docstring"]
-        files: "python"
   - repo: https://github.com/asottile/yesqa
     rev: v1.4.0
     hooks:
