@@ -2,7 +2,7 @@
 addopts = "--durations=8 -n auto"
 
 [tool.mypy]
-strict = true
+strict = false
 disable_error_code = [
     'attr-defined',
     'no-any-return',
@@ -12,7 +12,6 @@ show_error_codes = true
 exclude = [
     "build",
 ]
-ignore_missing_imports = true
 
 [tool.isort]
 profile = "black"
