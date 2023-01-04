@@ -40,8 +40,7 @@ from typing import List, Optional, Tuple, Type, Union
 from btclib import base58
 from btclib.alias import INF, BinaryData, Octets, Point, String
 from btclib.bip32.der_path import BIP32DerPath, indexes_from_bip32_path
-from btclib.ec import mult, secp256k1
-from btclib.ec.sec_point import bytes_from_point, point_from_octets
+from btclib.ec import bytes_from_point, mult, point_from_octets, secp256k1
 from btclib.exceptions import BTClibValueError
 from btclib.hashes import hash160
 from btclib.network import NETWORKS, XPRV_VERSIONS_ALL, XPUB_VERSIONS_ALL

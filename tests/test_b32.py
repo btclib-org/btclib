@@ -47,8 +47,7 @@ from btclib import b32, b58
 from btclib.ec import bytes_from_point, point_from_octets
 from btclib.exceptions import BTClibValueError
 from btclib.hashes import hash160, sha256
-from btclib.script import Command, op_int, serialize
-from btclib.script.taproot import output_pubkey
+from btclib.script import Command, op_int, output_pubkey, serialize
 
 
 def test_has_segwit_prefix() -> None:
