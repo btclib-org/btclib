@@ -15,13 +15,13 @@ from os import path
 
 import pytest
 
-from btclib.bip32.der_path import _HARDENING
-from btclib.bip32.key_origin import (
+from btclib.bip32 import (
     BIP32KeyOrigin,
     assert_valid_hd_key_paths,
     decode_from_bip32_derivs,
     encode_to_bip32_derivs,
 )
+from btclib.bip32.der_path import _HARDENING
 from btclib.exceptions import BTClibValueError
 
 
@@ -39,12 +39,12 @@ def test_bip32_key_origin() -> None:
     description = master_fingerprint = "deadbeef"
     key_origin = BIP32KeyOrigin.from_description(description)
     assert len(key_origin) == 0
-    key_origin2 = BIP32KeyOrigin.from_description(description + "/")
+    key_origin2 = BIP32KeyOrigin.from_description(f"{description}/")
     assert len(key_origin) == 0
     assert key_origin == key_origin2
     assert key_origin.description == description
     assert key_origin.master_fingerprint == bytes.fromhex(master_fingerprint)
-    assert key_origin.der_path == []
+    assert not key_origin.der_path
     assert BIP32KeyOrigin.parse(key_origin.serialize()) == key_origin
     assert BIP32KeyOrigin.from_dict(key_origin.to_dict()) == key_origin
 
@@ -118,12 +118,12 @@ def test_bip32_derivs() -> None:
         {
             "pub_key": "029583bf39ae0a609747ad199addd634fa6108559d6c5cd39b4c2183f1ab96e07f",
             "master_fingerprint": "d90c6a4f",
-            "path": "m/0" + _HARDENING + "/0/0",
+            "path": f"m/0{_HARDENING}/0/0",
         },
         {
             "pub_key": "02dab61ff49a14db6a7d02b0cd1fbb78fc4b18312b5b4e54dae4dba2fbfef536d7",
             "master_fingerprint": "d90c6a4f",
-            "path": "m/0" + _HARDENING + "/0/1",
+            "path": f"m/0{_HARDENING}/0/1",
         },
     ]
     hd_key_paths = decode_from_bip32_derivs(bip32_derivs)

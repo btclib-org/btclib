@@ -16,8 +16,9 @@ from os import path
 
 import pytest
 
+from btclib.ec import mult
+from btclib.ec.curve import CURVES
 from btclib.ecc import dsa
-from btclib.ecc.curve import CURVES, mult
 from btclib.ecc.rfc6979 import rfc6979_
 from btclib.hashes import reduce_to_hlen
 
@@ -45,7 +46,7 @@ def test_rfc6979_example() -> None:
     msg = "sample".encode()
     msg_hash = hashlib.sha256(msg).digest()
     k = 0x23AF4074C90A02B3FE61D286D5C87F425E6BDD81B
-    assert k == rfc6979_(msg_hash, x, fake_ec)  # type: ignore
+    assert k == rfc6979_(msg_hash, x, fake_ec)  # type: ignore[arg-type]
 
 
 @pytest.mark.second
@@ -77,6 +78,6 @@ def test_rfc6979_tv() -> None:
             assert int(s, 16) == sig.s
             # test key-pair coherence
             U = mult(x, ec.G, ec)
-            assert int(x_U, 16), int(y_U, 16) == U
+            assert (int(x_U, 16), int(y_U, 16)) == U
             # test signature validity
             dsa.assert_as_valid(msg, U, sig, lower_s, getattr(hashlib, hf))

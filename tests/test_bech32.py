@@ -39,6 +39,9 @@ with the following modifications:
 - checked for raised exceptions instead of assertIsNone
 """
 
+
+import itertools
+
 import pytest
 
 from btclib.bech32 import _BECH32_1_CONST, _BECH32_M_CONST, decode, encode
@@ -103,9 +106,8 @@ def test_bech32_insertion_issue() -> None:
 
     """
     strings = ("ii2134hk2xmat79tp", "eyg5bsz1l2mrq5ypl40hp")
-    for string in strings:
-        for i in range(20):
-            decode(string[:-1] + i * "q" + string[-1:], _BECH32_1_CONST)
+    for string, i in itertools.product(strings, range(20)):
+        decode(string[:-1] + i * "q" + string[-1:], _BECH32_1_CONST)
 
 
 def test_bech32m() -> None:

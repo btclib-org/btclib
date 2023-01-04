@@ -16,7 +16,7 @@ import hashlib
 from typing import Callable, List, Tuple, Union
 
 from btclib.alias import HashF, Octets
-from btclib.ecc.curve import Curve, secp256k1
+from btclib.ec import Curve, secp256k1
 from btclib.utils import bytes_from_octets, int_from_bits
 
 H160_Net = Tuple[bytes, str]
@@ -65,7 +65,7 @@ def reduce_to_hlen(msg: Octets, hf: HashF = hashlib.sha256) -> bytes:
     # Step 4 of SEC 1 v.2 section 4.1.3
     h = hf()
     h.update(msg)
-    return h.digest()
+    return bytes(h.digest())
 
 
 def magic_message(msg: Octets) -> bytes:
@@ -126,4 +126,4 @@ def tagged_hash(tag: bytes, m: bytes, hf: HashF = hashlib.sha256) -> bytes:
     # it could be sped up by storing the above midstate
 
     h2.update(m)
-    return h2.digest()
+    return bytes(h2.digest())

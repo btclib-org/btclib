@@ -16,8 +16,8 @@ from os import path
 from typing import Dict, List, Optional, Sequence
 
 from btclib.alias import Integer, JacPoint, Point
-from btclib.ecc import libsecp256k1
-from btclib.ecc.curve_group import (
+from btclib.ec import libsecp256k1
+from btclib.ec.curve_group import (
     HEX_THRESHOLD,
     CurveGroup,
     _double_mult,
@@ -165,11 +165,10 @@ datadir = path.join(path.dirname(__file__), "_data")
 filename = path.join(datadir, "ec_Brainpool.json")
 with open(filename, "r", encoding="ascii") as file_:
     Brainpool_params2 = json.load(file_)
-Brainpool: Dict[str, Curve] = {}
-for ec_name in Brainpool_params2:
-    Brainpool[ec_name] = Curve(*Brainpool_params2[ec_name] + [True, ec_name])
-
-
+Brainpool: Dict[str, Curve] = {
+    ec_name: Curve(*Brainpool_params2[ec_name] + [True, ec_name])
+    for ec_name in Brainpool_params2
+}
 # FIPS PUB 186-4
 # FEDERAL INFORMATION PROCESSING STANDARDS PUBLICATION
 # Digital Signature Standard (DSS)
@@ -177,21 +176,18 @@ for ec_name in Brainpool_params2:
 filename = path.join(datadir, "ec_NIST.json")
 with open(filename, "r", encoding="ascii") as file_:
     NIST_params2 = json.load(file_)
-NIST: Dict[str, Curve] = {}
-for ec_name in NIST_params2:
-    NIST[ec_name] = Curve(*NIST_params2[ec_name] + [True, ec_name])
-
-
+NIST: Dict[str, Curve] = {
+    ec_name: Curve(*NIST_params2[ec_name] + [True, ec_name]) for ec_name in NIST_params2
+}
 # SEC 2 v.1 curves, removed from SEC 2 v.2 as insecure ones
 # http://www.secg.org/SEC2-Ver-1.0.pdf
 filename = path.join(datadir, "ec_SEC2v1_insecure.json")
 with open(filename, "r", encoding="ascii") as file_:
     SEC2v1_params2 = json.load(file_)
-SEC2v1: Dict[str, Curve] = {}
-for ec_name in SEC2v1_params2:
-    SEC2v1[ec_name] = Curve(*SEC2v1_params2[ec_name] + [True, ec_name])
-
-
+SEC2v1: Dict[str, Curve] = {
+    ec_name: Curve(*SEC2v1_params2[ec_name] + [True, ec_name])
+    for ec_name in SEC2v1_params2
+}
 # curves included in both SEC 2 v.1 and SEC 2 v.2
 # http://www.secg.org/sec2-v2.pdf
 filename = path.join(datadir, "ec_SEC2v2.json")
@@ -202,6 +198,8 @@ for ec_name in SEC2v2_params2:
     SEC2v2[ec_name] = Curve(*SEC2v2_params2[ec_name] + [True, ec_name])
     SEC2v1[ec_name] = Curve(*SEC2v2_params2[ec_name] + [True, ec_name])
 
+# with python>=3.9 use dictionary union operators
+# CURVES = SEC2v1 | NIST | Brainpool
 CURVES = SEC2v1
 CURVES.update(NIST)
 CURVES.update(Brainpool)
@@ -209,10 +207,10 @@ CURVES.update(Brainpool)
 secp256k1 = CURVES["secp256k1"]
 
 
-def mult(m: Integer, Q: Optional[Point] = None, ec: Curve = secp256k1) -> Point:
+def mult(m_int: Integer, Q: Optional[Point] = None, ec: Curve = secp256k1) -> Point:
     "Elliptic curve scalar multiplication."
 
-    m = int_from_integer(m) % ec.n
+    m: int = int_from_integer(m_int) % ec.n
 
     if (Q == ec.G or Q is None) and ec == secp256k1 and libsecp256k1.is_enabled():
         return libsecp256k1.mult.mult(m)

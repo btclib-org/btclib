@@ -19,7 +19,7 @@ from typing import Any, Dict, Mapping, Type
 from btclib import var_bytes
 from btclib.alias import BinaryData, Octets
 from btclib.exceptions import BTClibValueError
-from btclib.script.witness import Witness
+from btclib.script import Witness
 from btclib.tx.out_point import OutPoint
 from btclib.utils import bytes_from_octets, bytesio_from_binarydata
 
@@ -78,7 +78,7 @@ class TxIn:
 
     def is_segwit(self) -> bool:
         # self.prev_out has no segwit information
-        return self.script_witness.stack != []
+        return bool(self.script_witness.stack)
 
     def is_coinbase(self) -> bool:
         return self.prev_out.is_coinbase()

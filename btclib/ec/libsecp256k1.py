@@ -22,15 +22,15 @@ except ImportError:  # pragma: no cover
 LIBSECP256K1_ENABLED = True
 
 
-def enable():
+def enable() -> None:
     global LIBSECP256K1_ENABLED  # pylint: disable=global-statement
     LIBSECP256K1_ENABLED = True
 
 
-def disable():
+def disable() -> None:
     global LIBSECP256K1_ENABLED  # pylint: disable=global-statement
     LIBSECP256K1_ENABLED = False
 
 
-def is_enabled():
+def is_enabled() -> bool:
     return LIBSECP256K1_ENABLED and LIBSECP256K1_AVAILABLE

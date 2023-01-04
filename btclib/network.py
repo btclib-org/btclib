@@ -17,7 +17,8 @@ from os import path
 from typing import Any, Dict, List, Mapping, Optional, Tuple, Type, Union
 
 from btclib.alias import Octets
-from btclib.ecc.curve import CURVES, Curve
+from btclib.ec import Curve
+from btclib.ec.curve import CURVES
 from btclib.exceptions import BTClibValueError
 from btclib.utils import bytes_from_octets
 
@@ -214,7 +215,7 @@ class Network:
 NETWORKS: Dict[str, Network] = {}
 datadir = path.join(path.dirname(__file__), "_data")
 for net in ("mainnet", "testnet", "regtest"):
-    filename = path.join(datadir, net + ".json")
+    filename = path.join(datadir, f"{net}.json")
     with open(filename, "r", encoding="ascii") as f:
         NETWORKS[net] = Network.from_dict(json.load(f))
 
@@ -227,10 +228,14 @@ def network_from_key_value(key: str, prefix: Union[str, bytes, Curve]) -> Option
     WIF/Base58Address/BIP32xkey
     because the two networks share the same prefixes.
     """
-    for network_str, network in NETWORKS.items():
-        if getattr(network, key) == prefix:
-            return network_str
-    return None
+    return next(
+        (
+            network_str
+            for network_str, network in NETWORKS.items()
+            if getattr(network, key) == prefix
+        ),
+        None,
+    )
 
 
 def xpubversions_from_network(network: str = "mainnet") -> List[bytes]:

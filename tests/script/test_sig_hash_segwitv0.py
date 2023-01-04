@@ -13,8 +13,7 @@
 test vector at https://github.com/bitcoin/bips/blob/master/bip-0143.mediawiki
 """
 
-from btclib.script import sig_hash
-from btclib.script.witness import Witness
+from btclib.script import Witness, sig_hash
 from btclib.tx import Tx, TxOut
 
 

@@ -16,8 +16,7 @@ from hashlib import sha256 as hf  # FIXME: any hf
 from typing import Dict, List, Sequence, Tuple
 
 from btclib.alias import Octets, Point
-from btclib.ecc.curve import double_mult, mult, secp256k1
-from btclib.ecc.sec_point import bytes_from_point
+from btclib.ec import bytes_from_point, double_mult, mult, secp256k1
 from btclib.exceptions import BTClibRuntimeError
 from btclib.utils import bytes_from_octets, int_from_bits
 
@@ -66,6 +65,7 @@ def sign(
     - sign_keys: list containing the whole set of signing keys (one per ring)
     - pubk_rings: dictionary of sequences representing single rings of pub_keys
     """
+    # sourcery skip: low-code-quality
 
     msg = bytes_from_octets(msg)
     m = _get_msg_format(msg, pubk_rings)

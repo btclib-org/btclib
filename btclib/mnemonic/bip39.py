@@ -39,22 +39,20 @@ import secrets
 from hashlib import pbkdf2_hmac, sha256
 from typing import Optional, Tuple
 
-from btclib.bip32.bip32 import rootxprv_from_seed
+from btclib.bip32 import rootxprv_from_seed
 from btclib.exceptions import BTClibValueError
-from btclib.mnemonic.entropy import (
+from btclib.mnemonic import (
     BinStr,
     Entropy,
+    Mnemonic,
     bin_str_entropy_from_entropy,
     bin_str_entropy_from_wordlist_indexes,
     bytes_entropy_from_str,
-    wordlist_indexes_from_bin_str_entropy,
-)
-from btclib.mnemonic.mnemonic import (
-    WORDLISTS,
-    Mnemonic,
     indexes_from_mnemonic,
     mnemonic_from_indexes,
+    wordlist_indexes_from_bin_str_entropy,
 )
+from btclib.mnemonic.mnemonic import WORDLISTS
 from btclib.network import NETWORKS
 
 
@@ -142,7 +140,7 @@ def seed_from_mnemonic(
 
     hf_name = "sha512"
     password = mnemonic.encode()
-    salt = ("mnemonic" + passphrase).encode()
+    salt = f"mnemonic{passphrase}".encode()
     iterations = 2048
     dksize = 64
     return pbkdf2_hmac(hf_name, password, salt, iterations, dksize)

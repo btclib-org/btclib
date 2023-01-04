@@ -13,8 +13,9 @@
 import secrets
 from hashlib import sha1, sha256
 
+from btclib.ec import secp256k1
+from btclib.ec.curve import CURVES
 from btclib.ecc import dsa, ssa
-from btclib.ecc.curve import CURVES, secp256k1
 from btclib.ecc.sign_to_contract import (
     dsa_commit_sign,
     dsa_verify_commit,

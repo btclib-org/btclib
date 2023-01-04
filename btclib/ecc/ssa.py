@@ -49,19 +49,20 @@ The signature size is p-size*n-size, where p-size is the field element
 For sepcp256k1 the resulting signature size is 64 bytes.
 """
 
+
+import contextlib
 import secrets
 from dataclasses import InitVar, dataclass
 from hashlib import sha256
 from typing import List, Optional, Sequence, Tuple, Type, Union
 
 from btclib.alias import BinaryData, HashF, Integer, JacPoint, Octets, Point
-from btclib.bip32.bip32 import BIP32Key
-from btclib.ecc import libsecp256k1
-from btclib.ecc.curve import Curve, secp256k1
-from btclib.ecc.curve_group import _double_mult, _mult, _multi_mult
-from btclib.ecc.number_theory import mod_inv
+from btclib.bip32 import BIP32Key
+from btclib.ec import Curve, libsecp256k1, secp256k1
+from btclib.ec.curve_group import _double_mult, _mult, _multi_mult
 from btclib.exceptions import BTClibRuntimeError, BTClibTypeError, BTClibValueError
 from btclib.hashes import reduce_to_hlen, tagged_hash
+from btclib.number_theory import mod_inv
 from btclib.to_prv_key import PrvKey, int_from_prv_key
 from btclib.to_pub_key import point_from_pub_key
 from btclib.utils import (
@@ -145,12 +146,9 @@ def point_from_bip340pub_key(x_Q: BIP340PubKey, ec: Curve = secp256k1) -> Point:
         return x_Q, ec.y_even(x_Q)
 
     # (tuple) Point, (dict or str) BIP32Key, or 33/65 bytes
-    try:
+    with contextlib.suppress(BTClibValueError):
         x_Q = point_from_pub_key(x_Q, ec)[0]
         return x_Q, ec.y_even(x_Q)
-    except BTClibValueError:
-        pass
-
     # BIP 340 key as bytes or hex-string
     if isinstance(x_Q, (str, bytes)):
         Q = bytes_from_octets(x_Q, ec.p_size)
@@ -268,7 +266,7 @@ def challenge_(msg_hash: Octets, x_Q: int, x_K: int, ec: Curve, hf: HashF) -> in
     )
     t = tagged_hash("BIP0340/challenge".encode(), t, hf)
 
-    c = int_from_bits(t, ec.nlen) % ec.n
+    c: int = int_from_bits(t, ec.nlen) % ec.n
     if c == 0:
         raise BTClibRuntimeError("invalid zero challenge")  # pragma: no cover
     return c
@@ -441,7 +439,7 @@ def _recover_pub_key_(c: int, r: int, s: int, ec: Curve) -> int:
     if QJ[2] == 0:
         err_msg = "invalid (INF) key"  # pragma: no cover
         raise BTClibRuntimeError(err_msg)  # pragma: no cover
-    return ec.x_aff_from_jac(QJ)
+    return int(ec.x_aff_from_jac(QJ))
 
 
 def crack_prv_key_(
@@ -497,6 +495,11 @@ def crack_prv_key(
     return crack_prv_key_(msg_hash1, sig1, msg_hash2, sig2, Q, hf)
 
 
+def _err_msg(size: int, msgs_or_sigs: str, arg2: Sequence[Union[Octets, Sig]]) -> str:
+    err_msg = f"mismatch between number of pub_keys ({size}) "
+    return f"{err_msg} and number of {msgs_or_sigs} ({len(arg2)})"
+
+
 def assert_batch_as_valid_(
     m_hashes: Sequence[Octets],
     Qs: Sequence[BIP340PubKey],
@@ -509,14 +512,9 @@ def assert_batch_as_valid_(
         raise BTClibValueError("no signatures provided")
 
     if len(m_hashes) != batch_size:
-        err_msg = f"mismatch between number of pub_keys ({batch_size}) "
-        err_msg += f"and number of messages ({len(m_hashes)})"
-        raise BTClibValueError(err_msg)
+        raise BTClibValueError(_err_msg(batch_size, "messages", m_hashes))
     if len(sigs) != batch_size:
-        err_msg = f"mismatch between number of pub_keys ({batch_size}) "
-        err_msg += f"and number of signatures ({len(sigs)})"
-        raise BTClibValueError(err_msg)
-
+        raise BTClibValueError(_err_msg(batch_size, "signatures", sigs))
     if batch_size == 1:
         assert_as_valid_(m_hashes[0], Qs[0], sigs[0], hf)
         return None

@@ -18,15 +18,15 @@ import pytest
 
 from btclib import base58, hashes
 from btclib.b58 import p2pkh  # FIXME why it is needed here
-from btclib.bip32.bip32 import (
+from btclib.bip32 import (
     BIP32KeyData,
-    _derive,
     crack_prv_key,
     derive,
     derive_from_account,
     rootxprv_from_seed,
     xpub_from_xprv,
 )
+from btclib.bip32.bip32 import _derive
 from btclib.bip32.der_path import _indexes_from_bip32_path_str
 from btclib.exceptions import BTClibValueError
 from btclib.to_pub_key import pub_keyinfo_from_key
@@ -65,7 +65,7 @@ def test_assert_valid2() -> None:
         xkey_data.assert_valid()
 
     xkey_data = BIP32KeyData.b58decode(xkey)
-    xkey_data.version = "1234"  # type: ignore
+    xkey_data.version = "1234"  # type: ignore[assignment]
     with pytest.raises(TypeError):
         xkey_data.assert_valid()
 
@@ -80,7 +80,7 @@ def test_assert_valid2() -> None:
         xkey_data.assert_valid()
 
     xkey_data = BIP32KeyData.b58decode(xkey)
-    xkey_data.depth = tuple()  # type: ignore
+    xkey_data.depth = tuple()  # type: ignore[assignment]
     with pytest.raises(TypeError):
         xkey_data.assert_valid()
 
@@ -90,7 +90,7 @@ def test_assert_valid2() -> None:
         xkey_data.assert_valid()
 
     xkey_data = BIP32KeyData.b58decode(xkey)
-    xkey_data.parent_fingerprint = "1234"  # type: ignore
+    xkey_data.parent_fingerprint = "1234"  # type: ignore[assignment]
     with pytest.raises(TypeError):
         xkey_data.assert_valid()
 
@@ -105,7 +105,7 @@ def test_assert_valid2() -> None:
         xkey_data.assert_valid()
 
     xkey_data = BIP32KeyData.b58decode(xkey)
-    xkey_data.index = tuple()  # type: ignore
+    xkey_data.index = tuple()  # type: ignore[assignment]
     with pytest.raises(TypeError):
         xkey_data.assert_valid()
 
@@ -115,7 +115,7 @@ def test_assert_valid2() -> None:
         xkey_data.assert_valid()
 
     xkey_data = BIP32KeyData.b58decode(xkey)
-    xkey_data.chain_code = "length is 32 but not a chaincode"  # type: ignore
+    xkey_data.chain_code = "length is 32 but not a chaincode"  # type: ignore[assignment]
     assert len(xkey_data.chain_code) == 32
     with pytest.raises(TypeError):
         xkey_data.assert_valid()
@@ -126,7 +126,7 @@ def test_assert_valid2() -> None:
         xkey_data.assert_valid()
 
     xkey_data = BIP32KeyData.b58decode(xkey)
-    xkey_data.key = "length is 33, but not a key      "  # type: ignore
+    xkey_data.key = "length is 33, but not a key      "  # type: ignore[assignment]
     assert len(xkey_data.key) == 33
     with pytest.raises(TypeError):
         xkey_data.assert_valid()
@@ -293,7 +293,7 @@ def test_derive_from_account() -> None:
     ]
 
     for branch, index in test_vectors:
-        full_path = der_path + f"/{branch}/{index}"
+        full_path = f"{der_path}/{branch}/{index}"
         addr = p2pkh(derive(rmxprv, full_path))
         assert addr == p2pkh(derive_from_account(mxpub, branch, index))
 

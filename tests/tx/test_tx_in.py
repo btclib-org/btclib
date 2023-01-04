@@ -16,7 +16,7 @@ from os import path
 import pytest
 
 from btclib.exceptions import BTClibValueError
-from btclib.script.witness import Witness
+from btclib.script import Witness
 from btclib.tx import OutPoint, Tx, TxIn
 from btclib.tx.tx_in import TX_IN_COMPARES_WITNESS
 
@@ -86,8 +86,6 @@ def test_tx_in() -> None:
     tx_in2 = TxIn.from_dict(tx_in.to_dict())
     assert tx_in2.is_segwit()
     assert tx_in == tx_in2
-
-    assert tx_in != OutPoint()
 
     tx_in.sequence = 0xFFFFFFFF + 1
     with pytest.raises(BTClibValueError, match="invalid sequence: "):

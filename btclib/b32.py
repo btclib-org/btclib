@@ -49,7 +49,7 @@ from btclib.bech32 import decode, encode
 from btclib.exceptions import BTClibValueError
 from btclib.hashes import hash160, sha256
 from btclib.network import NETWORKS, network_from_key_value
-from btclib.script.taproot import TaprootScriptTree, output_pubkey
+from btclib.script import TaprootScriptTree, output_pubkey
 from btclib.to_pub_key import Key, pub_keyinfo_from_key
 from btclib.utils import bytes_from_octets
 
@@ -59,7 +59,7 @@ from btclib.utils import bytes_from_octets
 def has_segwit_prefix(addr: String) -> bool:
 
     str_addr = addr.strip().lower() if isinstance(addr, str) else addr.decode("ascii")
-    return any(str_addr.startswith(net.hrp + "1") for net in NETWORKS.values())
+    return any(str_addr.startswith(f"{net.hrp}1") for net in NETWORKS.values())
 
 
 def power_of_2_base_conversion(
@@ -96,7 +96,7 @@ def power_of_2_base_conversion(
 
 def check_witness(wit_ver: int, wit_prg: Octets) -> bytes:
 
-    if not 0 <= int(wit_ver) < 17:
+    if not 0 <= wit_ver < 17:
         err_msg = "invalid witness version: "
         err_msg += f"{wit_ver} not in 0..16"
         raise BTClibValueError(err_msg)
@@ -176,7 +176,7 @@ def p2tr(
     internal_key: Optional[Key] = None,
     script_path: Optional[TaprootScriptTree] = None,
     network: str = "mainnet",
-):
+) -> str:
     "Return the p2tr bech32 address corresponding to a taproot output key."
     pub_key = output_pubkey(internal_key, script_path)[0]
     return address_from_witness(1, pub_key, network)

@@ -14,8 +14,9 @@ from hashlib import sha256, sha384
 
 import pytest
 
+from btclib.ec import secp256k1
+from btclib.ec.curve import CURVES
 from btclib.ecc import pedersen
-from btclib.ecc.curve import CURVES, secp256k1
 
 secp256r1 = CURVES["secp256r1"]
 secp384r1 = CURVES["secp384r1"]
@@ -61,6 +62,6 @@ def test_commitment() -> None:
     assert ec.add(C1, C2) == R
 
     # commit does not verify (with catched exception)
-    assert not pedersen.verify(sha256, v1, C2, ec, hf)  # type: ignore
+    assert not pedersen.verify(sha256, v1, C2, ec, hf)  # type: ignore[arg-type]
     with pytest.raises(TypeError):
-        pedersen.commit(sha256, v1, ec, hf)  # type: ignore
+        pedersen.commit(sha256, v1, ec, hf)  # type: ignore[arg-type]

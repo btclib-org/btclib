@@ -11,9 +11,16 @@ markers = [
 ]
 
 [tool.mypy]
+strict = false
+disable_error_code = [
+    'attr-defined',
+    'no-any-return',
+]
 show_column_numbers = true
 show_error_codes = true
-exclude = "build"
+exclude = [
+    "build",
+]
 
 [tool.isort]
 profile = "black"

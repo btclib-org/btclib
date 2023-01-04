@@ -21,10 +21,7 @@ import pytest
 from btclib.ecc import ssa
 from btclib.exceptions import BTClibRuntimeError, BTClibValueError
 from btclib.hashes import hash160
-from btclib.script import sig_hash
-from btclib.script.script import parse, serialize
-from btclib.script.script_pub_key import is_p2tr, type_and_payload
-from btclib.script.witness import Witness
+from btclib.script import Witness, is_p2tr, parse, serialize, sig_hash, type_and_payload
 from btclib.tx import OutPoint, Tx, TxIn, TxOut
 
 
@@ -190,7 +187,7 @@ def test_wrapped_p2tr() -> None:
         sig_hash.from_tx([utxo], tx, 0, 0)
 
 
-def test_bip_test_vector():
+def test_bip_test_vector() -> None:
 
     fname = "taproot_test_vector.json"
     filename = path.join(path.dirname(__file__), "_data", fname)
@@ -199,12 +196,12 @@ def test_bip_test_vector():
 
     unsigned_tx = Tx.parse(data["given"]["rawUnsignedTx"])
 
-    utxos = []
-    for utxo in data["given"]["utxosSpent"]:
-        utxos.append(TxOut(utxo["amountSats"], utxo["scriptPubKey"]))
-
+    utxos = [
+        TxOut(utxo["amountSats"], utxo["scriptPubKey"])
+        for utxo in data["given"]["utxosSpent"]
+    ]
     for vin in unsigned_tx.vin:
-        vin.script_witness.stack.append(["00"])
+        vin.script_witness.stack.append(b"00")
 
     for test in data["inputSpending"]:
         index = test["given"]["txinIndex"]

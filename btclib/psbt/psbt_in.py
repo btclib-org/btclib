@@ -16,20 +16,19 @@ https://github.com/bitcoin/bips/blob/master/bip-0174.mediawiki
 from dataclasses import dataclass
 from typing import Any, Dict, List, Mapping, Optional, Type
 
-# Library imports
 from btclib.alias import Octets
-
-# Standard library imports
-from btclib.bip32.key_origin import (
+from btclib.bip32 import (
+    BIP32KeyOrigin,
+    HdKeyPaths,
     assert_valid_hd_key_paths,
     decode_from_bip32_derivs,
     decode_hd_key_paths,
     encode_to_bip32_derivs,
 )
-from btclib.ecc import dsa, sec_point
+from btclib.ec import sec_point
+from btclib.ecc import dsa
 from btclib.exceptions import BTClibValueError
 from btclib.hashes import hash160, hash256, ripemd160, sha256
-from btclib.psbt.psbt_out import BIP32KeyOrigin, HdKeyPaths
 from btclib.psbt.psbt_utils import (
     assert_valid_redeem_script,
     assert_valid_unknown,
@@ -43,8 +42,8 @@ from btclib.psbt.psbt_utils import (
     serialize_dict_bytes_bytes,
     serialize_hd_key_paths,
 )
+from btclib.script import Witness
 from btclib.script.sig_hash import assert_valid_hash_type
-from btclib.script.witness import Witness
 from btclib.tx import Tx, TxOut
 from btclib.utils import bytes_from_octets
 
@@ -370,6 +369,7 @@ class PsbtIn:
         check_validity: bool = True,
     ) -> "PsbtIn":
         "Return a PsbtIn by parsing binary data."
+        # sourcery skip: low-code-quality
 
         # FIX parse must use BinaryData
 

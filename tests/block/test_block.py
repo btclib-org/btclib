@@ -8,7 +8,7 @@
 # No part of btclib including this file, may be copied, modified, propagated,
 # or distributed except according to the terms contained in the LICENSE file.
 
-"Tests for the `btclib.blocks` module."
+"Tests for the `btclib.block` module."
 
 import json
 from datetime import datetime, timezone
@@ -16,9 +16,9 @@ from os import path
 
 import pytest
 
+from btclib.block import Block, BlockHeader
 from btclib.exceptions import BTClibValueError
 from btclib.network import NETWORKS
-from btclib.tx.blocks import Block, BlockHeader
 
 datadir = path.join(path.dirname(__file__), "_generated_files")
 

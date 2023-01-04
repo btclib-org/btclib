@@ -17,11 +17,10 @@ import pytest
 from btclib import b32, b58
 from btclib.base58 import b58encode
 from btclib.bip32 import bip32, slip132
-from btclib.ecc.curve import secp256k1
-from btclib.ecc.sec_point import bytes_from_point, point_from_octets
+from btclib.ec import bytes_from_point, point_from_octets, secp256k1
 from btclib.exceptions import BTClibValueError
 from btclib.hashes import hash160
-from btclib.script.script import Command, serialize
+from btclib.script import Command, serialize
 from btclib.to_prv_key import prv_keyinfo_from_prv_key
 from btclib.to_pub_key import pub_keyinfo_from_key, pub_keyinfo_from_prv_key
 
@@ -136,10 +135,10 @@ def test_p2pkh_from_pub_key() -> None:
     assert h160 == hash160(pub_key)
 
     # trailing/leading spaces in address string
-    assert address == b58.p2pkh(" " + pub_key)
-    assert h160 == hash160(" " + pub_key)
-    assert address == b58.p2pkh(pub_key + " ")
-    assert h160 == hash160(pub_key + " ")
+    assert address == b58.p2pkh(f" {pub_key}")
+    assert h160 == hash160(f" {pub_key}")
+    assert address == b58.p2pkh(f"{pub_key} ")
+    assert h160 == hash160(f"{pub_key} ")
 
     uncompr_pub_key = bytes_from_point(point_from_octets(pub_key), compressed=False)
     uncompr_address = "16UwLL9Risc3QfPqBUvKofHmBQ7wMtjvM"
@@ -179,7 +178,7 @@ def test_p2sh() -> None:
 
     script_hash = hash160(script_pub_key)
     assert ("p2sh", script_hash, network) == b58.h160_from_address(address)
-    assert ("p2sh", script_hash, network) == b58.h160_from_address(" " + address + " ")
+    assert ("p2sh", script_hash, network) == b58.h160_from_address(f" {address} ")
 
     assert script_hash.hex() == "4266fc6f2c2861d7fe229b279a79803afca7ba34"
     script_sig: List[Command] = ["OP_HASH160", script_hash.hex(), "OP_EQUAL"]
@@ -250,9 +249,9 @@ def test_address_from_wif() -> None:
         else:
             err_msg = "not a private or compressed public key: "
             with pytest.raises(BTClibValueError, match=err_msg):
-                b32.p2wpkh(wif)  # type: ignore
+                b32.p2wpkh(wif)  # type: ignore[arg-type]
             with pytest.raises(BTClibValueError, match=err_msg):
-                b58.p2wpkh_p2sh(wif)  # type: ignore
+                b58.p2wpkh_p2sh(wif)  # type: ignore[arg-type]
 
 
 def test_exceptions() -> None:
@@ -264,4 +263,4 @@ def test_exceptions() -> None:
         b58.h160_from_address(invalid_address)
 
     with pytest.raises(BTClibValueError, match="not a private or public key: "):
-        b58.p2pkh(pub_key + "0A")
+        b58.p2pkh(f"{pub_key}0A")

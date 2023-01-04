@@ -10,12 +10,14 @@
 
 "Functions for conversions between different public key formats."
 
+import contextlib
 from typing import Optional, Tuple, Union
 
+from typing_extensions import TypeAlias
+
 from btclib.alias import Point
-from btclib.bip32.bip32 import BIP32Key, BIP32KeyData
-from btclib.ecc.curve import Curve, mult, secp256k1
-from btclib.ecc.sec_point import bytes_from_point, point_from_octets
+from btclib.bip32 import BIP32Key, BIP32KeyData
+from btclib.ec import Curve, bytes_from_point, mult, point_from_octets, secp256k1
 from btclib.exceptions import BTClibValueError
 from btclib.hashes import hash160
 from btclib.network import (
@@ -29,11 +31,11 @@ from btclib.utils import bytes_from_octets
 
 # public key inputs:
 # elliptic curve point as Union[Octets, BIP32Key, Point]
-PubKey = Union[bytes, str, BIP32KeyData, Point]
+PubKey: TypeAlias = Union[bytes, str, BIP32KeyData, Point]
 
 # public or private key input,
 # usable wherever a PubKey is logically expected
-Key = Union[int, bytes, str, BIP32KeyData, Point]
+Key: TypeAlias = Union[int, bytes, str, BIP32KeyData, Point]
 
 
 def _point_from_xpub(xpub: BIP32Key, ec: Curve) -> Point:
@@ -84,15 +86,12 @@ def point_from_pub_key(pub_key: PubKey, ec: Curve = secp256k1) -> Point:
 
     if isinstance(pub_key, tuple):
         if ec.is_on_curve(pub_key) and pub_key[1] != 0:
-            return pub_key
+            return pub_key[0], pub_key[1]
         raise BTClibValueError(f"not a valid public key: {pub_key}")
     if isinstance(pub_key, BIP32KeyData):
         return _point_from_xpub(pub_key, ec)
-    try:
+    with contextlib.suppress(TypeError, BTClibValueError):
         return _point_from_xpub(pub_key, ec)
-    except (TypeError, BTClibValueError):
-        pass
-
     # it must be octets
     try:
         return point_from_octets(pub_key, ec)
@@ -156,23 +155,24 @@ def pub_keyinfo_from_key(
         return pub_keyinfo_from_pub_key(key, network, compressed)
     if isinstance(key, int):
         return pub_keyinfo_from_prv_key(key, network, compressed)
-    try:
+    with contextlib.suppress(BTClibValueError):
         return pub_keyinfo_from_pub_key(key, network, compressed)
-    except BTClibValueError:
-        pass
-
     # it must be a prv_key
     try:
         return pub_keyinfo_from_prv_key(key, network, compressed)
     except BTClibValueError as e:
-        err_msg = "not a private or"
-        if compressed is not None:
-            err_msg += " compressed" if compressed else " uncompressed"
-        err_msg += " public key"
-        if network is not None:
-            err_msg += f" for {network}"
-        err_msg += f": {key!r}"
+        err_msg = _err_msg(key, network, compressed)
         raise BTClibValueError(err_msg) from e
+
+
+def _err_msg(key: Key, network: Optional[str], compressed: Optional[bool]) -> str:
+    err_msg = "not a private or"
+    if compressed is not None:
+        err_msg += " compressed" if compressed else " uncompressed"
+    err_msg += " public key"
+    if network is not None:
+        err_msg += f" for {network}"
+    return f"{err_msg}: {key!r}"
 
 
 def pub_keyinfo_from_pub_key(
@@ -188,11 +188,8 @@ def pub_keyinfo_from_pub_key(
         return bytes_from_point(pub_key, ec, compr), net
     if isinstance(pub_key, BIP32KeyData):
         return _pub_keyinfo_from_xpub(pub_key, network, compressed)
-    try:
+    with contextlib.suppress(TypeError, BTClibValueError):
         return _pub_keyinfo_from_xpub(pub_key, network, compressed)
-    except (TypeError, BTClibValueError):
-        pass
-
     # it must be octets
     try:
         if compressed is None:

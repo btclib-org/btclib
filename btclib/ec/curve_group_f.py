@@ -17,7 +17,7 @@ for didactical (and fun) reason only.
 from typing import List
 
 from btclib.alias import INF, Point
-from btclib.ecc.curve import CurveGroup
+from btclib.ec.curve_group import CurveGroup
 from btclib.exceptions import BTClibValueError
 
 

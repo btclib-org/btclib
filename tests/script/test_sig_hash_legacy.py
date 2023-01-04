@@ -17,8 +17,7 @@ import json
 from os import path
 
 from btclib.ecc import dsa
-from btclib.script import sig_hash
-from btclib.script.script import serialize
+from btclib.script import serialize, sig_hash
 from btclib.tx import OutPoint, Tx, TxIn, TxOut
 
 

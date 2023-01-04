@@ -45,10 +45,10 @@ from typing import List, Tuple
 import pytest
 
 from btclib import b32, b58
-from btclib.ecc.sec_point import bytes_from_point, point_from_octets
+from btclib.ec import bytes_from_point, point_from_octets
 from btclib.exceptions import BTClibValueError
 from btclib.hashes import hash160, sha256
-from btclib.script.script import Command, op_int, serialize
+from btclib.script import Command, op_int, serialize
 from btclib.script.taproot import output_pubkey
 
 
@@ -281,7 +281,7 @@ def test_p2wpkh() -> None:
     with pytest.raises(BTClibValueError, match=err_msg):
         b32.p2wpkh(uncompr_pub)
     with pytest.raises(BTClibValueError, match=err_msg):
-        b32.p2wpkh(pub + "0A")
+        b32.p2wpkh(f"{pub}0A")
 
     err_msg = "invalid size: "
     with pytest.raises(BTClibValueError, match=err_msg):

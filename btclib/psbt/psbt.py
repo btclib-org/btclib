@@ -18,7 +18,9 @@ from dataclasses import dataclass
 from typing import Any, Dict, List, Mapping, Optional, Sequence, Type, Union
 
 from btclib.alias import Octets, String
-from btclib.bip32.key_origin import (
+from btclib.bip32 import (
+    BIP32KeyOrigin,
+    HdKeyPaths,
     assert_valid_hd_key_paths,
     decode_from_bip32_derivs,
     decode_hd_key_paths,
@@ -26,7 +28,7 @@ from btclib.bip32.key_origin import (
 )
 from btclib.exceptions import BTClibValueError
 from btclib.hashes import hash160, sha256
-from btclib.psbt.psbt_in import BIP32KeyOrigin, HdKeyPaths, PsbtIn, Tx, Witness
+from btclib.psbt.psbt_in import PsbtIn
 from btclib.psbt.psbt_out import PsbtOut
 from btclib.psbt.psbt_utils import (
     assert_valid_unknown,
@@ -39,8 +41,8 @@ from btclib.psbt.psbt_utils import (
     serialize_dict_bytes_bytes,
     serialize_hd_key_paths,
 )
-from btclib.script.script import serialize
-from btclib.script.script_pub_key import type_and_payload
+from btclib.script import Witness, serialize, type_and_payload
+from btclib.tx import Tx
 from btclib.utils import bytesio_from_binarydata
 
 PSBT_MAGIC_BYTES = b"psbt"
@@ -144,9 +146,10 @@ class Psbt:
         for i, tx_in in enumerate(self.tx.vin):
 
             non_witness_utxo = self.inputs[i].non_witness_utxo
-            witness_utxo = self.inputs[i].witness_utxo
             redeem_script = self.inputs[i].redeem_script
-
+            # with python>=3.8 use walrus operator
+            # if witness_utxo := self.inputs[i].witness_utxo:
+            witness_utxo = self.inputs[i].witness_utxo
             if witness_utxo:
                 script_pub_key = witness_utxo.script_pub_key
                 script_type, payload = type_and_payload(script_pub_key.script)
@@ -197,7 +200,7 @@ class Psbt:
             [PsbtOut.from_dict(psbt_out, False) for psbt_out in dict_["outputs"]],
             dict_["version"],
             # FIXME
-            decode_from_bip32_derivs(dict_["bip32_derivs"]),  # type: ignore
+            decode_from_bip32_derivs(dict_["bip32_derivs"]),  # type: ignore[arg-type]
             dict_["unknown"],
             check_validity,
         )
@@ -220,10 +223,8 @@ class Psbt:
             psbt_bin.append(serialize_dict_bytes_bytes(b"", self.unknown))
 
         psbt_bin.append(PSBT_DELIMITER)
-        for input_map in self.inputs:
-            psbt_bin.append(input_map.serialize() + b"\x00")
-        for output_map in self.outputs:
-            psbt_bin.append(output_map.serialize() + b"\x00")
+        psbt_bin.extend(input_map.serialize() + b"\x00" for input_map in self.inputs)
+        psbt_bin.extend(output_map.serialize() + b"\x00" for output_map in self.outputs)
         return b"".join(psbt_bin)
 
     @classmethod
@@ -295,8 +296,7 @@ class Psbt:
 
         psbt_decoded = base64.b64decode(psbt_str)
 
-        # pylance cannot grok the following line
-        return cls.parse(psbt_decoded, check_validity)  # type: ignore
+        return cls.parse(psbt_decoded, check_validity)
 
     @classmethod
     def from_tx(cls: Type["Psbt"], tx: Tx, check_validity: bool = True) -> "Psbt":

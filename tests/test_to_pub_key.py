@@ -12,9 +12,10 @@
 
 import pytest
 
-from btclib.bip32.bip32 import BIP32KeyData, derive, rootxprv_from_seed
-from btclib.ecc.curve import CURVES
-from btclib.ecc.sec_point import bytes_from_point
+from btclib.alias import INF
+from btclib.bip32 import BIP32KeyData, derive, rootxprv_from_seed
+from btclib.ec import bytes_from_point
+from btclib.ec.curve import CURVES
 from btclib.exceptions import BTClibValueError
 from btclib.to_pub_key import (
     fingerprint,
@@ -24,7 +25,6 @@ from btclib.to_pub_key import (
     pub_keyinfo_from_pub_key,
 )
 from tests.test_to_key import (
-    INF,
     INF_xpub_data,
     Q,
     compressed_prv_keys,
@@ -221,9 +221,9 @@ def test_from_key() -> None:
         *not_a_pub_keys,
     ]:
         with pytest.raises(BTClibValueError):
-            point_from_key(not_a_key)  # type: ignore
+            point_from_key(not_a_key)  # type: ignore[arg-type]
         with pytest.raises(BTClibValueError):
-            pub_keyinfo_from_key(not_a_key)  # type: ignore
+            pub_keyinfo_from_key(not_a_key)  # type: ignore[arg-type]
 
 
 def test_fingerprint() -> None:

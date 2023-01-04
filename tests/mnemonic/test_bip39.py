@@ -34,7 +34,7 @@ def test_bip39() -> None:
     size = ceil(len(r) / 8)
     assert raw_entr == int(r, 2).to_bytes(size, byteorder="big", signed=False)
 
-    wrong_mnemonic = mnemonic + " abandon"
+    wrong_mnemonic = f"{mnemonic} abandon"
     err_msg = "invalid number of bits: "
     with pytest.raises(BTClibValueError, match=err_msg):
         bip39.entropy_from_mnemonic(wrong_mnemonic, lang)

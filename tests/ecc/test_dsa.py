@@ -16,14 +16,21 @@ from hashlib import sha1
 import pytest
 
 from btclib.alias import INF
-from btclib.ecc import dsa, libsecp256k1
-from btclib.ecc.curve import CURVES, Curve, double_mult, mult
-from btclib.ecc.curve_group import _mult
-from btclib.ecc.number_theory import mod_inv
-from btclib.ecc.sec_point import bytes_from_point, point_from_octets
+from btclib.ec import (
+    Curve,
+    bytes_from_point,
+    double_mult,
+    libsecp256k1,
+    mult,
+    point_from_octets,
+)
+from btclib.ec.curve import CURVES
+from btclib.ec.curve_group import _mult
+from btclib.ecc import dsa
 from btclib.exceptions import BTClibRuntimeError, BTClibValueError
 from btclib.hashes import reduce_to_hlen
-from tests.ecc.test_curve import low_card_curves
+from btclib.number_theory import mod_inv
+from tests.ec.test_curve import low_card_curves
 
 
 def test_signature() -> None:
@@ -112,7 +119,7 @@ def test_gec() -> None:
     dU = 971761939728640320549601132085879836204587084162
     dU, QU = dsa.gen_keys(dU, ec)
     assert (
-        format(dU, str(ec.n_size) + "x") == "aa374ffc3ce144e6b073307972cb6d57b2a4e982"
+        format(dU, f"{str(ec.n_size)}x") == "aa374ffc3ce144e6b073307972cb6d57b2a4e982"
     )
     assert QU == (
         466448783855397898016055842232266600516272889280,
@@ -183,7 +190,7 @@ def test_low_cardinality() -> None:
                         # FIXME speed this up
                         Qs = [ec.aff_from_jac(key) for key in jac_keys]
                         assert ec.aff_from_jac(QJ) in Qs
-                        assert len(jac_keys) in (2, 4)
+                        assert len(jac_keys) in {2, 4}
 
 
 def test_pub_key_recovery() -> None:

@@ -12,8 +12,8 @@
 
 import pytest
 
-from btclib.ecc.curve import secp256k1
-from btclib.ecc.der import Sig
+from btclib.ec import secp256k1
+from btclib.ecc.dsa import Sig
 from btclib.exceptions import BTClibRuntimeError, BTClibValueError
 
 ec = secp256k1

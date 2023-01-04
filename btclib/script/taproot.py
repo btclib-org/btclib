@@ -15,7 +15,7 @@ from typing import Any, Optional, Tuple
 
 from btclib import var_bytes
 from btclib.alias import Octets
-from btclib.ecc.curve import Curve, mult, secp256k1
+from btclib.ec import Curve, mult, secp256k1
 from btclib.exceptions import BTClibValueError
 from btclib.hashes import tagged_hash
 from btclib.script.script import serialize
@@ -31,14 +31,9 @@ from btclib.utils import bytes_from_octets
 TaprootScriptTree = Any
 
 
-def tree_helper(script_tree) -> Tuple[Any, bytes]:
+def tree_helper(script_tree: TaprootScriptTree) -> Tuple[Any, bytes]:
     if len(script_tree) == 1:
-        leaf_version, script = script_tree[0]
-        leaf_version = leaf_version & 0xFE
-        preimage = leaf_version.to_bytes(1, "big")
-        preimage += var_bytes.serialize(serialize(script))
-        h = tagged_hash(b"TapLeaf", preimage)
-        return ([((leaf_version, script), bytes())], h)
+        return _tree_helper(script_tree)
     left, left_h = tree_helper(script_tree[0])
     right, right_h = tree_helper(script_tree[1])
     info = [(leaf, c + right_h) for leaf, c in left]
@@ -46,6 +41,15 @@ def tree_helper(script_tree) -> Tuple[Any, bytes]:
     if right_h < left_h:
         left_h, right_h = right_h, left_h
     return (info, tagged_hash(b"TapBranch", left_h + right_h))
+
+
+def _tree_helper(script_tree: TaprootScriptTree) -> TaprootScriptTree:
+    leaf_version, script = script_tree[0]
+    leaf_version = leaf_version & 0xFE
+    preimage = leaf_version.to_bytes(1, "big")
+    preimage += var_bytes.serialize(serialize(script))
+    h = tagged_hash(b"TapLeaf", preimage)
+    return ([((leaf_version, script), bytes())], h)
 
 
 def output_pubkey(
@@ -74,11 +78,11 @@ def output_pubkey(
 
 
 def output_prvkey(
-    internal_prvkey: PrvKey,
+    prvkey: PrvKey,
     script_tree: Optional[TaprootScriptTree] = None,
     ec: Curve = secp256k1,
 ) -> int:
-    internal_prvkey = int_from_prv_key(internal_prvkey)
+    internal_prvkey: int = int_from_prv_key(prvkey)
     P = mult(internal_prvkey)
     if script_tree:
         _, h = tree_helper(script_tree)
@@ -86,7 +90,9 @@ def output_prvkey(
         h = b""
     has_even_y = ec.y_even(P[0]) == P[1]
     internal_prvkey = internal_prvkey if has_even_y else ec.n - internal_prvkey
-    t = int.from_bytes(tagged_hash(b"TapTweak", P[0].to_bytes(32, "big") + h), "big")
+    t: int = int.from_bytes(
+        tagged_hash(b"TapTweak", P[0].to_bytes(32, "big") + h), "big"
+    )
     # edge case that cannot be reproduced in the test suite
     if t >= ec.n:
         raise BTClibValueError("Invalid script tree hash")  # pragma: no cover

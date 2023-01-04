@@ -10,12 +10,15 @@
 
 "Functions for conversions between different private key formats."
 
-from typing import Optional, Tuple
+import contextlib
+from typing import Optional, Tuple, Union
 
-from btclib.alias import String, Union
+from typing_extensions import TypeAlias
+
+from btclib.alias import String
 from btclib.base58 import b58decode
-from btclib.bip32.bip32 import BIP32Key, BIP32KeyData
-from btclib.ecc.curve import Curve, secp256k1
+from btclib.bip32 import BIP32Key, BIP32KeyData
+from btclib.ec import Curve, secp256k1
 from btclib.exceptions import BTClibValueError
 from btclib.network import (
     NETWORKS,
@@ -32,7 +35,7 @@ from btclib.utils import bytes_from_octets
 #
 # BIP32key and WIF also provide extra info about
 # network and (un)compressed-pub_key-derivation
-PrvKey = Union[int, bytes, str, BIP32KeyData]
+PrvKey: TypeAlias = Union[int, bytes, str, BIP32KeyData]
 
 
 def int_from_prv_key(prv_key: PrvKey, ec: Curve = secp256k1) -> int:
@@ -54,10 +57,7 @@ def int_from_prv_key(prv_key: PrvKey, ec: Curve = secp256k1) -> int:
     elif isinstance(prv_key, BIP32KeyData):
         q, network, _ = _prv_keyinfo_from_xprv(prv_key)
         # q has been validated on the xprv/wif network
-        ec2 = NETWORKS[network].curve
-        if ec != ec2:
-            raise BTClibValueError(f"ec / network ({network}) mismatch")
-        return q
+        return _q_if_network_and_ec_match(q, network, ec)
     else:
         try:
             q, network, _ = _prv_keyinfo_from_xprvwif(prv_key)
@@ -65,11 +65,7 @@ def int_from_prv_key(prv_key: PrvKey, ec: Curve = secp256k1) -> int:
             pass
         else:
             # q has been validated on the xprv/wif network
-            ec2 = NETWORKS[network].curve
-            if ec != ec2:
-                raise BTClibValueError(f"ec / network ({network}) mismatch")
-            return q
-
+            return _q_if_network_and_ec_match(q, network, ec)
         # it must be octets
         try:
             prv_key = bytes_from_octets(prv_key, ec.n_size)
@@ -80,6 +76,14 @@ def int_from_prv_key(prv_key: PrvKey, ec: Curve = secp256k1) -> int:
     if not 0 < q < ec.n:
         raise BTClibValueError(f"private key not in 1..n-1: {hex(q).upper()}")
 
+    return q
+
+
+def _q_if_network_and_ec_match(q: int, network: str, ec: Curve) -> int:
+    # q has been validated on the xprv/wif network
+    ec2 = NETWORKS[network].curve
+    if ec != ec2:
+        raise BTClibValueError(f"ec / network ({network}) mismatch")
     return q
 
 
@@ -175,12 +179,9 @@ def _prv_keyinfo_from_xprvwif(
     """
 
     if not isinstance(xprvwif, BIP32KeyData):
-        try:
-            return _prv_keyinfo_from_wif(xprvwif, network, compressed)
         # FIXME: except the NotPrvKeyError only, let InvalidPrvKey go through
-        except BTClibValueError:
-            pass
-
+        with contextlib.suppress(BTClibValueError):
+            return _prv_keyinfo_from_wif(xprvwif, network, compressed)
     return _prv_keyinfo_from_xprv(xprvwif, network, compressed)
 
 
@@ -197,12 +198,9 @@ def prv_keyinfo_from_prv_key(
     elif isinstance(prv_key, BIP32KeyData):
         return _prv_keyinfo_from_xprv(prv_key, network, compressed)
     else:
-        try:
-            return _prv_keyinfo_from_xprvwif(prv_key, network, compressed)
         # FIXME: except the NotPrvKeyError only, let InvalidPrvKey go through
-        except ValueError:
-            pass
-
+        with contextlib.suppress(ValueError):
+            return _prv_keyinfo_from_xprvwif(prv_key, network, compressed)
         # it must be octets
         try:
             prv_key = bytes_from_octets(prv_key, ec.n_size)

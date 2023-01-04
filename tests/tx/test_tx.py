@@ -16,7 +16,7 @@ from os import path
 import pytest
 
 from btclib.exceptions import BTClibValueError
-from btclib.script.witness import Witness
+from btclib.script import Witness
 from btclib.tx import OutPoint, Tx, TxIn, TxOut
 
 
@@ -188,7 +188,7 @@ def test_coinbase_block_1() -> None:
     assert tx_in.serialize().hex() == coinbase_inp
     assert tx_in.prev_out.is_coinbase()
 
-    coinbase = "01000000" "01" + coinbase_inp + "01" + coinbase_out + "00000000"
+    coinbase = f"0100000001{coinbase_inp}01{coinbase_out}00000000"
     tx = Tx.parse(coinbase)
     assert tx.serialize(include_witness=True).hex() == coinbase
     assert tx == Tx.from_dict(tx.to_dict())

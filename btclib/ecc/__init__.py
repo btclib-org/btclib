@@ -8,4 +8,8 @@
 # No part of btclib including this file, may be copied, modified, propagated,
 # or distributed except according to the terms contained in the LICENSE file.
 
-"""btclib.ecc submodule."""
+"""btclib.ecc module."""
+
+from btclib.ecc.pedersen import second_generator
+
+__all__ = ["second_generator"]

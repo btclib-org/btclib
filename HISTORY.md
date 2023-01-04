@@ -5,6 +5,14 @@ Notable changes to the codebase are documented here.
 Release names follow [*calendar versioning*](https://calver.org/):
 full year, short month, short day (YYYY-M-D)
 
+## v2023.2 (unreleased yet)
+
+Major changes include:
+
+- exported names per module (bip32, block, ec, ecc, mnemonic, psbt, script, tx)
+- improved typing
+- added SECURITY, CONTRIBUTING, but report and feature request templates
+
 ## v2022.12.31
 
 Major changes include:
@@ -12,14 +20,16 @@ Major changes include:
 - added support for Python 3.11
 - fixed the OpenSSL 3.x RIPEMD160 issue in btclib/hashes.py
 - added CONTRIBUTING and SECURITY
-- solved issue #73 [Re-import Tx subclasses into btclib.tx](https://github.com/btclib-org/btclib/issues/73)
+- solved issue #73
+  [Re-import Tx subclasses into btclib.tx](https://github.com/btclib-org/btclib/issues/73)
 
 ## v2022.7.20
 
 Major changes include:
 
-- by default ssa, dsa and point multiplication are now sped up using btclib_libsecp256k1;
-  this provides an 8 times speed up in benchmarks and 3 times in real world applications.
+- by default ssa, dsa and point multiplication are now sped up
+  using btclib_libsecp256k1; this provides an 8 times speed up
+  in benchmarks and 3 times in real world applications.
 
 ## v2022.5.3
 
@@ -29,8 +39,7 @@ Major changes includes:
 - added support for btclib_libsecp256k1
 - the hashes.fingerprint function, removed in the previous version,
   has been reinstated in the to_pub_key module
-- encode_num and decode_num have been moved from
-script.op_codes to utils
+- encode_num and decode_num have been moved from script.op_codes to utils
 - op_pushdata and op_str have been renamed to
   serialize_bytes_command and serialize_str_command
 - script.op_codes has been removed and its functions merged in script

@@ -18,8 +18,9 @@ import pytest
 
 from btclib import b32, b58
 from btclib.bip32 import bip32
+from btclib.ec import secp256k1
+from btclib.ec.curve import CURVES
 from btclib.ecc import bms, dsa
-from btclib.ecc.curve import CURVES, secp256k1
 from btclib.exceptions import BTClibValueError
 from btclib.hashes import magic_message
 from btclib.mnemonic import bip39

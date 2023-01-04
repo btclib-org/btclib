@@ -11,24 +11,23 @@
 "Tests for the `btclib.curve` module."
 
 import secrets
-from typing import Dict
 
 import pytest
 
 from btclib.alias import INF, INFJ
-from btclib.ecc.curve import CURVES, Curve, double_mult, mult, multi_mult, secp256k1
-from btclib.ecc.curve_group import jac_from_aff
-from btclib.ecc.number_theory import mod_sqrt
-from btclib.ecc.pedersen import second_generator
+from btclib.ec import Curve, double_mult, mult, multi_mult, secp256k1
+from btclib.ec.curve import CURVES
+from btclib.ec.curve_group import jac_from_aff
+from btclib.ecc import second_generator
 from btclib.exceptions import BTClibTypeError, BTClibValueError
+from btclib.number_theory import mod_sqrt
 
 # FIXME Curve repr should use "dedbeef 00000000", not "0xdedbeef00000000"
 # FIXME test curves when n>p
 
 # test curves: very low cardinality
-low_card_curves: Dict[str, Curve] = {}
 # 13 % 4 = 1; 13 % 8 = 5
-low_card_curves["ec13_11"] = Curve(13, 7, 6, (1, 1), 11, 1, False)
+low_card_curves = {"ec13_11": Curve(13, 7, 6, (1, 1), 11, 1, False)}
 low_card_curves["ec13_19"] = Curve(13, 0, 2, (1, 9), 19, 1, False)
 # 17 % 4 = 1; 17 % 8 = 1
 low_card_curves["ec17_13"] = Curve(17, 6, 8, (0, 12), 13, 2, False)
@@ -40,8 +39,9 @@ low_card_curves["ec19_23"] = Curve(19, 2, 9, (0, 16), 23, 1, False)
 low_card_curves["ec23_19"] = Curve(23, 9, 7, (5, 4), 19, 1, False)
 low_card_curves["ec23_31"] = Curve(23, 5, 1, (0, 1), 31, 1, False)
 
-all_curves: Dict[str, Curve] = {}
-all_curves.update(low_card_curves)
+# with python>=3.9 use Dict Union operator
+# all_curves = low_card_curves | CURVES
+all_curves = low_card_curves.copy()
 all_curves.update(CURVES)
 
 ec23_31 = low_card_curves["ec23_31"]
@@ -72,7 +72,7 @@ def test_exceptions() -> None:
 
     err_msg = "Generator must a be a sequence\\[int, int\\]"
     with pytest.raises(BTClibValueError, match=err_msg):
-        Curve(13, 0, 2, (1, 9, 1), 19, 1, False)  # type: ignore
+        Curve(13, 0, 2, (1, 9, 1), 19, 1, False)  # type: ignore[arg-type]
 
     with pytest.raises(BTClibValueError, match="Generator is not on the curve"):
         Curve(13, 0, 2, (2, 9), 19, 1, False)
@@ -193,7 +193,7 @@ def test_ec_repr() -> None:
     for ec in all_curves.values():
         ec_repr = repr(ec)
         if ec in low_card_curves.values() or ec.p_size < 24:
-            ec_repr = ec_repr[:-1] + ", False)"
+            ec_repr = f"{ec_repr[:-1]}, False)"
         ec2 = eval(ec_repr)  # pylint: disable=eval-used # nosec
         assert str(ec) == str(ec2)
 
@@ -202,7 +202,7 @@ def test_is_on_curve() -> None:
     for ec in all_curves.values():
 
         with pytest.raises(BTClibValueError, match="point must be a tuple"):
-            ec.is_on_curve("not a point")  # type: ignore
+            ec.is_on_curve("not a point")  # type: ignore[arg-type]
 
         with pytest.raises(BTClibValueError, match="x-coordinate not in 0..p-1: "):
             ec.y(ec.p)
@@ -237,10 +237,10 @@ def test_negate() -> None:
         assert ec.jac_equality(minus_INFJ, INFJ)
 
         with pytest.raises(BTClibTypeError, match="not a point"):
-            ec.negate(ec.GJ)  # type: ignore
+            ec.negate(ec.GJ)  # type: ignore[arg-type]
 
         with pytest.raises(BTClibTypeError, match="not a Jacobian point"):
-            ec.negate_jac(ec.G)  # type: ignore
+            ec.negate_jac(ec.G)  # type: ignore[arg-type]
 
 
 def test_symmetry() -> None:

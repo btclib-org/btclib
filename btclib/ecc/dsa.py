@@ -18,22 +18,182 @@
    to avoid accepting malleable signatures.
 """
 
-import secrets
-from hashlib import sha256
-from typing import List, Optional, Tuple, Union
 
-from btclib.alias import HashF, JacPoint, Octets, Point
-from btclib.ecc import libsecp256k1
-from btclib.ecc.curve import Curve, secp256k1
-from btclib.ecc.curve_group import _double_mult, _mult
-from btclib.ecc.der import Sig
-from btclib.ecc.number_theory import mod_inv
+import contextlib
+import secrets
+from dataclasses import InitVar, dataclass
+from hashlib import sha256
+from io import BytesIO
+from typing import List, Optional, Tuple, Type, Union
+
+from btclib import var_bytes
+from btclib.alias import BinaryData, HashF, JacPoint, Octets, Point
+from btclib.ec import Curve, libsecp256k1, secp256k1
+from btclib.ec.curve_group import _double_mult, _mult
 from btclib.ecc.rfc6979 import _rfc6979_
 from btclib.exceptions import BTClibRuntimeError, BTClibValueError
 from btclib.hashes import challenge_, reduce_to_hlen
+from btclib.number_theory import mod_inv
 from btclib.to_prv_key import PrvKey, int_from_prv_key
 from btclib.to_pub_key import Key, point_from_key, pub_keyinfo_from_key
-from btclib.utils import bytes_from_octets
+from btclib.utils import bytes_from_octets, bytesio_from_binarydata, hex_string
+
+_DER_SCALAR_MARKER = b"\x02"
+_DER_SIG_MARKER = b"\x30"
+
+
+def _serialize_scalar(scalar: int) -> bytes:
+    # 'highest bit set' padding included here
+    scalar_size = scalar.bit_length() // 8 + 1
+    scalar_bytes = scalar.to_bytes(scalar_size, byteorder="big", signed=False)
+    return _DER_SCALAR_MARKER + var_bytes.serialize(scalar_bytes)
+
+
+def _deserialize_scalar(sig_data_stream: BytesIO) -> int:
+
+    marker = sig_data_stream.read(1)
+    if marker != _DER_SCALAR_MARKER:
+        err_msg = f"invalid value header: {marker.hex()}"
+        err_msg += f", instead of integer element {_DER_SCALAR_MARKER.hex()}"
+        raise BTClibValueError(err_msg)
+
+    r_bytes = var_bytes.parse(sig_data_stream, forbid_zero_size=True)
+    if r_bytes[0] == 0 and r_bytes[1] < 0x80:
+        raise BTClibValueError("invalid 'highest bit set' padding")
+    if r_bytes[0] >= 0x80:
+        raise BTClibValueError("invalid negative scalar")
+
+    return int.from_bytes(r_bytes, byteorder="big", signed=False)
+
+
+@dataclass(frozen=True)
+class Sig:
+    """ECDSA signature with strict ASN.1 DER serialization.
+
+    The original Bitcoin implementation used OpenSSL to verify
+    ECDSA signatures in ASN.1 DER representation.
+    However, OpenSSL does not do strict validation
+    (e.g. extra padding is ignored) and this changes the transaction
+    hash value, leading to transaction malleability.
+    This was fixed by BIP66, activated on block 363,724.
+
+    source:
+    https://github.com/bitcoin/bips/blob/master/bip-0066.mediawiki
+
+    BIP66 mandates a strict DER format:
+
+    Format:
+    [0x30] [data-size][0x02][r-size][r][0x02][s-size][s]
+
+    * 0x30: header byte to indicate compound structure
+    * data-size: 1-byte size descriptor of the following data
+    * 0x02: header byte indicating an integer
+    * r-size: 1-byte size descriptor of the r value that follows
+    * r: arbitrary-size big-endian r value.
+        It must use the shortest possible encoding for
+        a positive integers: no null bytes at the start,
+        except a single one when the next byte has its highest bit set
+        (to avoid being interpreted as a negative number)
+    * 0x02: header byte indicating an integer
+    * s-size: 1-byte size descriptor of the s value that follows
+    * s: arbitrary-size big-endian s value. Same rules as for r apply
+
+    There are 7 bytes of meta-data:
+
+    * compound header, compound size,
+    * value header, r-value size,
+    * value header, s-value size
+
+    The ECDSA signature (r, s) should be 64 bytes,
+    r and s being 32 bytes integers each;
+    however, integers in DER are signed,
+    so if the value being encoded is greater than 2^128,
+    a 33rd byte is added in front.
+    Bitcoin has a "low s" rule for the s value to be below ec.n,
+    but it is only a standardness rule miners are allowed to ignore.
+    Moreover, no such rule exists for r.
+    """
+
+    # 32 bytes scalar, 0 < r < ec.n (ec.n is the curve order)
+    r: int
+    # 32 bytes scalar, 0 < s < ec.n (ec.n is the curve order)
+    s: int
+    ec: Curve = secp256k1
+    check_validity: InitVar[bool] = True
+
+    def __post_init__(self, check_validity: bool) -> None:
+        if check_validity:
+            self.assert_valid()
+
+    def assert_valid(self) -> None:
+        # r is a scalar, fail if r is not in [1, n-1]
+        if not 0 < self.r < self.ec.n:
+            err_msg = "scalar r not in 1..n-1: "
+            err_msg += f"'{hex_string(self.r)}'" if self.r > 0xFFFFFFFF else f"{self.r}"
+            raise BTClibValueError(err_msg)
+
+        # ensure r is congruent to a valid x-coordinate
+        r = self.r
+        congruence_not_found = True
+        while congruence_not_found and r < self.ec.p:
+            try:
+                self.ec.y(r)
+                congruence_not_found = False
+            except BTClibValueError:
+                r += self.ec.n
+        if congruence_not_found:
+            err_msg = "r is not (congruent to) a valid x-coordinate: "
+            err_msg += f"'{hex_string(self.r)}'" if self.r > 0xFFFFFFFF else f"{self.r}"
+            raise BTClibValueError(err_msg)
+
+        # s is a scalar, fail if s is not in [1, n-1]
+        if not 0 < self.s < self.ec.n:
+            err_msg = "scalar s not in 1..n-1: "
+            err_msg += f"'{hex_string(self.s)}'" if self.s > 0xFFFFFFFF else f"{self.s}"
+            raise BTClibValueError(err_msg)
+
+    def serialize(self, check_validity: bool = True) -> bytes:
+        "Serialize an ECDSA signature to strict ASN.1 DER representation"
+
+        if check_validity:
+            self.assert_valid()
+
+        out = _serialize_scalar(self.r)
+        out += _serialize_scalar(self.s)
+        return _DER_SIG_MARKER + var_bytes.serialize(out)
+
+    @classmethod
+    def parse(cls: Type["Sig"], data: BinaryData, check_validity: bool = True) -> "Sig":
+        """Return a Sig by parsing binary data.
+
+        Deserialize a strict ASN.1 DER representation of an ECDSA signature.
+        """
+
+        stream = bytesio_from_binarydata(data)
+        ec = secp256k1
+
+        # [0x30] [data-size][0x02][r-size][r][0x02][s-size][s]
+        marker = stream.read(1)
+        if marker != _DER_SIG_MARKER:
+            err_msg = f"invalid compound header: {marker.hex()}"
+            err_msg += f", instead of DER sequence tag {_DER_SIG_MARKER.hex()}"
+            raise BTClibValueError(err_msg)
+
+        # [data-size][0x02][r-size][r][0x02][s-size][s]
+        sig_data = var_bytes.parse(stream, forbid_zero_size=True)
+
+        # [0x02][r-size][r][0x02][s-size][s]
+        sig_data_substream = bytesio_from_binarydata(sig_data)
+        r = _deserialize_scalar(sig_data_substream)
+        s = _deserialize_scalar(sig_data_substream)
+
+        # to prevent malleability
+        # the sig_data_substream must have been consumed entirely
+        if sig_data_substream.read(1) != b"":
+            err_msg = "invalid DER sequence length"
+            raise BTClibValueError(err_msg)
+
+        return cls(r, s, ec, check_validity)
 
 
 def gen_keys(
@@ -279,17 +439,14 @@ def _recover_pub_keys_(
         # affine x_K-coordinate of K (field element)
         x_K = (r + j * ec.n) % ec.p  # 1.1
         # two possible y_K-coordinates, i.e. two possible keys for each cycle
-        try:
+        with contextlib.suppress(BTClibValueError, BTClibRuntimeError):
             # even root first for bitcoin message signing compatibility
             yodd = ec.y_even(x_K)
             KJ = x_K, yodd, 1  # 1.2, 1.3, and 1.4
             # 1.5 has been performed in the recover_pub_keys calling function
             QJ = _double_mult(r1s, KJ, r1e, ec.GJ, ec)  # 1.6.1
-            try:
+            with contextlib.suppress(BTClibValueError, BTClibRuntimeError):
                 _assert_as_valid_(c, QJ, r, s, lower_s, ec)  # 1.6.2
-            except (BTClibValueError, BTClibRuntimeError):
-                pass
-            else:
                 keys.append(QJ)  # 1.6.2
             KJ = x_K, ec.p - yodd, 1  # 1.6.3
             QJ = _double_mult(r1s, KJ, r1e, ec.GJ, ec)
@@ -299,8 +456,6 @@ def _recover_pub_keys_(
                 pass
             else:
                 keys.append(QJ)  # 1.6.2
-        except (BTClibValueError, BTClibRuntimeError):  # K is not a curve point
-            pass
     return keys
 
 

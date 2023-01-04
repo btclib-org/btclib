@@ -12,15 +12,15 @@
 import pytest
 
 from btclib.alias import INFJ
-from btclib.ecc.curve import secp256k1
-from btclib.ecc.curve_group import _mult
-from btclib.ecc.curve_group_2 import (
+from btclib.ec import secp256k1
+from btclib.ec.curve_group import _mult
+from btclib.ec.curve_group_2 import (
     mult_endomorphism_secp256k1,
     mult_sliding_window,
     mult_w_NAF,
 )
 from btclib.exceptions import BTClibValueError
-from tests.ecc.test_curve import low_card_curves
+from tests.ec.test_curve import low_card_curves
 
 ec23_31 = low_card_curves["ec23_31"]
 

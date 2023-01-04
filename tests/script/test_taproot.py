@@ -16,17 +16,20 @@ from os import path
 import pytest
 
 from btclib import b32
-from btclib.ecc.curve import mult
+from btclib.ec import mult
 from btclib.exceptions import BTClibValueError
-from btclib.script.script import parse, serialize
-from btclib.script.script_pub_key import is_p2tr, type_and_payload
-from btclib.script.taproot import (
+from btclib.script import (
+    TaprootScriptTree,
+    Witness,
     check_output_pubkey,
     input_script_sig,
+    is_p2tr,
     output_prvkey,
     output_pubkey,
+    parse,
+    serialize,
+    type_and_payload,
 )
-from btclib.script.witness import Witness
 from btclib.tx import TxOut
 
 
@@ -112,19 +115,15 @@ def test_control_block() -> None:
     assert check_output_pubkey(pubkey, serialize(script), control)
 
 
-def convert_script_tree(script_tree):
+def convert_script_tree(script_tree: TaprootScriptTree) -> TaprootScriptTree:
     if isinstance(script_tree, list):
-        new_script_tree = []
-        for x in script_tree:
-            new_script_tree.append(convert_script_tree(x))
-        return new_script_tree
+        return [convert_script_tree(x) for x in script_tree]
     if isinstance(script_tree, dict):
-        leaf = [[script_tree["leafVersion"], parse(script_tree["script"])]]
-        return leaf
+        return [[script_tree["leafVersion"], parse(script_tree["script"])]]
     return []
 
 
-def test_bip_test_vector():
+def test_bip_test_vector() -> None:
 
     fname = "taproot_test_vector.json"
     filename = path.join(path.dirname(__file__), "_data", fname)
@@ -135,8 +134,8 @@ def test_bip_test_vector():
         pubkey = test["given"]["internalPubkey"]
         script_tree = convert_script_tree(test["given"]["scriptTree"])
 
-        tweaked_pubkey = output_pubkey("02" + pubkey, script_tree)[0]
-        address = b32.p2tr("02" + pubkey, script_tree)
+        tweaked_pubkey = output_pubkey(f"02{pubkey}", script_tree)[0]
+        address = b32.p2tr(f"02{pubkey}", script_tree)
 
         assert tweaked_pubkey.hex() == test["intermediary"]["tweakedPubkey"]
         assert address == test["expected"]["bip350Address"]

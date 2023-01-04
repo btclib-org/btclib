@@ -16,6 +16,8 @@ mypy aliases, documenting also coding input conventions.
 from io import BytesIO
 from typing import Any, Callable, Tuple, Union
 
+from typing_extensions import TypeAlias
+
 # Octets are a sequence of eight-bit bytes or a hex-string (not text string)
 #
 # hex-strings are strings that can be converted to bytes using bytes.fromhex,
@@ -33,7 +35,7 @@ from typing import Any, Callable, Tuple, Union
 # dsa.Sig (DER serialization of ECDSA signature),
 # ssa.Sig (BIP340 serialization of Schnorr signature)
 # etc.
-Octets = Union[bytes, str]
+Octets: TypeAlias = Union[bytes, str]
 
 # bytes or text string (not hex-string)
 #
@@ -59,23 +61,23 @@ Octets = Union[bytes, str]
 #
 # In those cases often there is no need to encode() to bytes
 # as b58decode/b32decode/etc. will take care of that
-String = Union[bytes, str]
+String: TypeAlias = Union[bytes, str]
 
 # binary data, usually to be cosumed as byte stream,
 # but possibily provided as Octets too
-BinaryData = Union[BytesIO, Octets]
+BinaryData: TypeAlias = Union[BytesIO, Octets]
 
 # hex-string or bytes representation of an int
 # Integer = Union[Octets, int]
-Integer = Union[bytes, str, int]
+Integer: TypeAlias = Union[bytes, str, int]
 
 # Hash digest constructor: it may be any name suitable to hashlib.new()
-HashF = Callable[[], Any]
+HashF: TypeAlias = Callable[[], Any]
 # HashF = Callable[[Any], Any]
 
 # Elliptic curve point in affine coordinates.
 # Warning: to make Point a NamedTuple would slow down the code
-Point = Tuple[int, int]
+Point: TypeAlias = Tuple[int, int]
 
 # Note that the infinity point in affine coordinates is INF = (int, 0)
 # (no affine point has y=0 coordinate in a group of prime order).
@@ -86,7 +88,7 @@ Point = Tuple[int, int]
 INF = 5, 0
 
 # Elliptic curve point in Jacobian coordinates.
-JacPoint = Tuple[int, int, int]
+JacPoint: TypeAlias = Tuple[int, int, int]
 
 # Infinity point in Jacobian coordinates is INF = (int, int, 0).
 # It can be checked with 'INF[2] == 0'

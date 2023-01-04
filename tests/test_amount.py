@@ -30,17 +30,9 @@ def test_conversions() -> None:
         with localcontext() as ctx:
             ctx.traps[FloatOperation] = trap_float_operation
 
-            float_1 = 1.1
-            float_2 = 2.2
-            float_tot = float_1 + float_2
-            # _NOT_ equal !!
-            assert float_tot != 3.3
-
-            btc_1 = Decimal("1.1")
-            btc_2 = Decimal("2.2")
-            btc_tot = btc_1 + btc_2
-            # equal !!
-            assert btc_tot == Decimal("3.3")
+            # sourcery skip: simplify-numeric-comparison
+            assert 1.1 + 2.2 != 3.3
+            assert Decimal("1.1") + Decimal("2.2") == Decimal("3.3")
 
             assert btc_from_sats(10000) == Decimal("0.00010000")
             assert str(btc_from_sats(10000)) != str(Decimal("0.00010000"))
@@ -75,14 +67,14 @@ def test_exceptions() -> None:
                 valid_btc_amount(0.123456789)
 
             with pytest.raises(TypeError):
-                btc_from_sats(2.5)  # type: ignore
+                btc_from_sats(2.5)  # type: ignore[arg-type]
             with pytest.raises(TypeError):
-                btc_from_sats(5 / 2)  # type: ignore
+                btc_from_sats(5 / 2)  # type: ignore[arg-type]
             with pytest.raises(ValueError):
-                btc_from_sats("2.5")  # type: ignore
+                btc_from_sats("2.5")  # type: ignore[arg-type]
             err_msg = "non-integer satoshi amount: "
             with pytest.raises(BTClibTypeError, match=err_msg):
-                btc_from_sats(Decimal("2.5"))  # type: ignore
+                btc_from_sats(Decimal("2.5"))  # type: ignore[arg-type]
 
 
 def test_self_consistency() -> None:
@@ -101,6 +93,6 @@ def test_self_consistency() -> None:
 
             for btc_amount in cases:
                 exp_btc = Decimal(str(btc_amount)).normalize()
-                btc = btc_from_sats(sats_from_btc(btc_amount))  # type: ignore
+                btc = btc_from_sats(sats_from_btc(btc_amount))  # type: ignore[arg-type]
                 assert btc == exp_btc
                 assert str(btc) == str(exp_btc)

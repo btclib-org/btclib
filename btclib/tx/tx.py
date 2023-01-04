@@ -35,7 +35,7 @@ from btclib import var_int
 from btclib.alias import BinaryData
 from btclib.exceptions import BTClibValueError
 from btclib.hashes import hash256
-from btclib.script.witness import Witness
+from btclib.script import Witness
 from btclib.tx.tx_in import TX_IN_COMPARES_WITNESS, TxIn
 from btclib.tx.tx_out import TxOut
 from btclib.utils import bytesio_from_binarydata

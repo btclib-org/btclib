@@ -19,8 +19,9 @@ import pytest
 from btclib import b32, b58, var_bytes
 from btclib.exceptions import BTClibValueError
 from btclib.hashes import hash160, sha256
-from btclib.script.script import Command, Script, parse, serialize
-from btclib.script.script_pub_key import (
+from btclib.script import (
+    Command,
+    Script,
     ScriptPubKey,
     address,
     assert_p2ms,
@@ -32,9 +33,11 @@ from btclib.script.script_pub_key import (
     assert_p2wsh,
     is_nulldata,
     is_p2ms,
+    output_pubkey,
+    parse,
+    serialize,
     type_and_payload,
 )
-from btclib.script.taproot import output_pubkey
 from btclib.to_pub_key import Key
 
 
@@ -374,17 +377,17 @@ def test_unknown() -> None:
 def test_p2ms_1() -> None:
 
     # self-consistency
+    # documented test case: https://learnmeabitcoin.com/guide/p2ms
     pub_key0 = "04 cc71eb30d653c0c3163990c47b976f3fb3f37cccdcbedb169a1dfef58bbfbfaf f7d8a473e7e2e6d317b87bafe8bde97e3cf8f065dec022b51d11fcdd0d348ac4"
     pub_key1 = "04 61cbdcc5409fb4b4d42b51d33381354d80e550078cb532a34bfa2fcfdeb7d765 19aecc62770f5b0e4ef8551946d8a540911abe3e7854a26f39f58b25c15342af"
-
-    # documented test case: https://learnmeabitcoin.com/guide/p2ms
+    # sourcery skip: move-assign-in-block
     script_pub_key = bytes.fromhex(  # fmt: off
         "51"  # OP_1
         "41"  # canonical 65-bytes push
-        + pub_key0
-        + "41"  # noqa E148  # canonical 65-bytes push
-        + pub_key1
-        + "52"  # noqa E148  # OP_2
+        f"{pub_key0}"
+        "41"  # noqa E148  # canonical 65-bytes push
+        f"{pub_key1}"
+        "52"  # noqa E148  # OP_2
         "ae"  # OP_CHECKMULTISIG
     )  # fmt: on
     assert is_p2ms(script_pub_key)
@@ -401,7 +404,7 @@ def test_p2ms_1() -> None:
     err_msg = "invalid n in m-of-n: "
     with pytest.raises(BTClibValueError, match=err_msg):
         # pylance cannot grok the following line
-        ScriptPubKey.p2ms(4, [pub_key0] * 17)  # type: ignore
+        ScriptPubKey.p2ms(4, [pub_key0] * 17)  # type: ignore[arg-type]
     err_msg = "invalid m in m-of-n: "
     with pytest.raises(BTClibValueError, match=err_msg):
         ScriptPubKey.p2ms(0, pub_keys)

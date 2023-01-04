@@ -14,11 +14,11 @@
 import pytest
 
 # Library imports
-from btclib.ecc.curve import CURVES
+from btclib.alias import INF
+from btclib.ec.curve import CURVES
 from btclib.exceptions import BTClibValueError
 from btclib.to_prv_key import int_from_prv_key, prv_keyinfo_from_prv_key
 from tests.test_to_key import (
-    INF,
     INF_xpub_data,
     Q,
     compressed_prv_keys,
@@ -117,9 +117,9 @@ def test_from_prv_key() -> None:
 
     for invalid_prv_key in [q0, qn, xprv0_data, xprvn_data, *invalid_prv_keys]:
         with pytest.raises(BTClibValueError):
-            int_from_prv_key(invalid_prv_key)  # type: ignore
+            int_from_prv_key(invalid_prv_key)  # type: ignore[arg-type]
         with pytest.raises(BTClibValueError):
-            prv_keyinfo_from_prv_key(invalid_prv_key)  # type: ignore
+            prv_keyinfo_from_prv_key(invalid_prv_key)  # type: ignore[arg-type]
 
     for not_a_prv_key in [
         q0,
@@ -136,6 +136,6 @@ def test_from_prv_key() -> None:
         *uncompressed_pub_keys,
     ]:
         with pytest.raises(BTClibValueError):
-            int_from_prv_key(not_a_prv_key)  # type: ignore
+            int_from_prv_key(not_a_prv_key)  # type: ignore[arg-type]
         with pytest.raises(BTClibValueError):
-            prv_keyinfo_from_prv_key(not_a_prv_key)  # type: ignore
+            prv_keyinfo_from_prv_key(not_a_prv_key)  # type: ignore[arg-type]

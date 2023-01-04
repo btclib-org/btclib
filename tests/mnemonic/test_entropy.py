@@ -13,13 +13,11 @@
 import math
 import secrets
 from io import StringIO
-from typing import List
 
 import pytest
 
 from btclib.exceptions import BTClibValueError
-from btclib.mnemonic.entropy import (
-    _bits,
+from btclib.mnemonic import (
     bin_str_entropy_from_bytes,
     bin_str_entropy_from_entropy,
     bin_str_entropy_from_int,
@@ -31,6 +29,7 @@ from btclib.mnemonic.entropy import (
     collect_rolls,
     wordlist_indexes_from_bin_str_entropy,
 )
+from btclib.mnemonic.entropy import _bits
 
 
 def test_indexes() -> None:
@@ -107,7 +106,7 @@ def test_conversions() -> None:
     raw2 = bin_str_entropy_from_int(i, 255)
     assert int(raw2, 2) == i
     assert len(raw2) == 255
-    assert bin_str_entropy_from_str("0" + raw2) == raw
+    assert bin_str_entropy_from_str(f"0{raw2}") == raw
     raw2 = bin_str_entropy_from_str(raw, 128)
     assert len(raw2) == 128
     assert raw2 == raw[:128]
@@ -160,13 +159,13 @@ def test_exceptions() -> None:
         bin_str_entropy_from_entropy(bytes_entropy216, 224)
 
     with pytest.raises(BTClibValueError, match=err_msg):
-        bin_str_entropy_from_entropy(tuple())  # type: ignore
+        bin_str_entropy_from_entropy(tuple())  # type: ignore[arg-type]
 
     with pytest.raises(ValueError):
-        bin_str_entropy_from_int("not an int")  # type: ignore
+        bin_str_entropy_from_int("not an int")  # type: ignore[arg-type]
 
     with pytest.raises(TypeError):
-        bin_str_entropy_from_str(3)  # type: ignore
+        bin_str_entropy_from_str(3)  # type: ignore[arg-type]
 
     err_msg = "invalid number of bits: "
     with pytest.raises(BTClibValueError, match=err_msg):
@@ -174,16 +173,15 @@ def test_exceptions() -> None:
         bytes_entropy_from_str(bin_str_entropy)
 
 
-inputs: List[StringIO] = []
 # 2 input failures, then automatic rolls with default D6
-inputs.append(StringIO("3\npluto\na\n"))
+inputs = [StringIO("3\npluto\na\n")]
 # D120, then 43 automatic rolls
 inputs.append(StringIO("a120\n"))
 # D120, one input failure, then 43 (implausible but valid) non-automatic rolls
 inputs.append(StringIO("120\npluto\n" + "64\n" * 43))
 
 
-def test_collect_rolls(monkeypatch):
+def test_collect_rolls(monkeypatch: pytest.MonkeyPatch) -> None:
 
     bits = 256
     for i, sides in enumerate((6, 120, 120)):

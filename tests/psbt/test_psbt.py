@@ -15,19 +15,13 @@ from os import path
 
 import pytest
 
-from btclib.ecc import der, dsa, sec_point
+from btclib.ec import sec_point
+from btclib.ecc import dsa
 from btclib.exceptions import BTClibValueError
 from btclib.hashes import hash160, hash256, ripemd160, sha256
-from btclib.psbt.psbt import (
-    PSBT_DELIMITER,
-    PSBT_SEPARATOR,
-    Psbt,
-    combine_psbts,
-    extract_tx,
-    finalize_psbt,
-)
-from btclib.script.script_pub_key import ScriptPubKey
-from btclib.script.witness import Witness
+from btclib.psbt import Psbt, combine_psbts, extract_tx, finalize_psbt
+from btclib.psbt.psbt import PSBT_DELIMITER, PSBT_SEPARATOR
+from btclib.script import ScriptPubKey, Witness
 from btclib.tx import OutPoint, Tx, TxIn, TxOut
 
 # first tests are part of the official BIP174 test vectors
@@ -441,7 +435,7 @@ def test_exceptions() -> None:
     _, Q = dsa.gen_keys()
     pub_key = sec_point.bytes_from_point(Q)
     r = s = int.from_bytes(bytes.fromhex("FF" * 32), byteorder="big", signed=False)
-    sig_bytes = der.Sig(r, s, check_validity=False).serialize(check_validity=False)
+    sig_bytes = dsa.Sig(r, s, check_validity=False).serialize(check_validity=False)
     psbt.inputs[0].partial_sigs = {pub_key: sig_bytes}
     with pytest.raises(BTClibValueError, match="invalid partial signature: "):
         psbt.serialize()

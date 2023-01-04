@@ -15,11 +15,8 @@ from os import path
 import pytest
 
 from btclib.exceptions import BTClibValueError
-from btclib.mnemonic.mnemonic import (
-    WORDLISTS,
-    indexes_from_mnemonic,
-    mnemonic_from_indexes,
-)
+from btclib.mnemonic import indexes_from_mnemonic, mnemonic_from_indexes
+from btclib.mnemonic.mnemonic import WORDLISTS
 
 
 def test_mnemonic() -> None:
