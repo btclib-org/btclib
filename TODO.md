@@ -32,7 +32,6 @@
 - remove sign_to_contract, adding commit to dsa and ssa
 - compare with test_framework
 
-
 - report test vectors from P. Todd's library
 - report trailing/leading blank trimming in Electrum message signing
 - report BIP39 whitespaces
