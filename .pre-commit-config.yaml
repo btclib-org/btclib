@@ -105,8 +105,7 @@ repos:
     hooks:
       - id: pylint
         args: [
-            "-rn", # Only display messages
-            "-sn", # Don't display the score
+            "--score=false",
             "--disable=E0401", # import-error
           ]
   - repo: https://github.com/pre-commit/mirrors-mypy
