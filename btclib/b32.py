@@ -42,8 +42,9 @@ with the following modifications:
   (as this is not enforced by bech32.b32decode anymore)
 """
 
+from __future__ import annotations
 
-from typing import Iterable, List, Optional, Tuple
+from typing import Iterable
 
 from btclib.alias import Octets, String
 from btclib.bech32 import decode, encode
@@ -65,7 +66,7 @@ def has_segwit_prefix(addr: String) -> bool:
 
 def power_of_2_base_conversion(
     data: Iterable[int], from_bits: int, to_bits: int, pad: bool = True
-) -> List[int]:
+) -> list[int]:
     """Convert a power-of-two digit sequence to another power-of-two base."""
     acc = 0
     bits = 0
@@ -130,7 +131,7 @@ def address_from_witness(
     return _address_from_witness(wit_ver, wit_prg, hrp)
 
 
-def witness_from_address(b32addr: String) -> Tuple[int, bytes, str]:
+def witness_from_address(b32addr: String) -> tuple[int, bytes, str]:
     """Return the witness from a bech32 native SegWit address.
 
     The returned data structure is: version, program, network.
@@ -161,7 +162,7 @@ def witness_from_address(b32addr: String) -> Tuple[int, bytes, str]:
 # 1.+2. = 3. bech32 address from pub_key/script_pub_key
 
 
-def p2wpkh(key: Key, network: Optional[str] = None) -> str:
+def p2wpkh(key: Key, network: str | None = None) -> str:
     """Return the p2wpkh bech32 address corresponding to a public key."""
     pub_key, network = pub_keyinfo_from_key(key, network, compressed=True)
     return address_from_witness(0, hash160(pub_key), network)
@@ -174,8 +175,8 @@ def p2wsh(script_pub_key: Octets, network: str = "mainnet") -> str:
 
 
 def p2tr(
-    internal_key: Optional[Key] = None,
-    script_path: Optional[TaprootScriptTree] = None,
+    internal_key: Key | None = None,
+    script_path: TaprootScriptTree | None = None,
     network: str = "mainnet",
 ) -> str:
     """Return the p2tr bech32 address corresponding to a taproot output key."""

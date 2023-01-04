@@ -38,6 +38,12 @@ repos:
     hooks:
       - id: copyright-notice
         args: [--notice=COPYRIGHT]
+  - repo: https://github.com/asottile/pyupgrade
+    rev: v3.3.1
+    hooks:
+      - id: pyupgrade
+        args: [--py37-plus]
+        # exclude: *fixtures
   - repo: https://github.com/PyCQA/autoflake
     rev: v2.0.0
     hooks:
@@ -50,12 +56,6 @@ repos:
           - --remove-duplicate-keys
           - --remove-unused-variables
           - --remove-rhs-for-unused-variables
-  - repo: https://github.com/asottile/pyupgrade
-    rev: v3.3.1
-    hooks:
-      - id: pyupgrade
-        args: [--py37-plus]
-        # exclude: *fixtures
   - repo: https://github.com/pycqa/isort
     rev: 5.11.4
     hooks:

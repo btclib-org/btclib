@@ -34,10 +34,10 @@ Checksummed entropy (**ENT+CS**) is converted from/to mnemonic.
 +-----+----+--------+----+
 """
 
+from __future__ import annotations
 
 import secrets
 from hashlib import pbkdf2_hmac, sha256
-from typing import Optional, Tuple
 
 from btclib.bip32 import rootxprv_from_seed
 from btclib.exceptions import BTClibValueError
@@ -58,7 +58,7 @@ from btclib.mnemonic.mnemonic import (
 from btclib.network import NETWORKS
 
 
-def _entropy_checksum(entropy: Entropy) -> Tuple[BinStr, BinStr]:
+def _entropy_checksum(entropy: Entropy) -> tuple[BinStr, BinStr]:
     """Return the checksum of the binary string input entropy.
 
     Entropy must be expressed as binary 0/1 string and
@@ -81,9 +81,7 @@ def _entropy_checksum(entropy: Entropy) -> Tuple[BinStr, BinStr]:
     return bin_str_entropy, checksum[:checksum_bits]
 
 
-def mnemonic_from_entropy(
-    entropy: Optional[Entropy] = None, lang: str = "en"
-) -> Mnemonic:
+def mnemonic_from_entropy(entropy: Entropy | None = None, lang: str = "en") -> Mnemonic:
     """Convert input entropy to BIP39 checksummed mnemonic sentence.
 
     Input entropy can be expressed as
@@ -150,7 +148,7 @@ def seed_from_mnemonic(
 
 def mxprv_from_mnemonic(
     mnemonic: Mnemonic,
-    passphrase: Optional[str] = None,
+    passphrase: str | None = None,
     network: str = "mainnet",
     verify_checksum: bool = True,
 ) -> str:

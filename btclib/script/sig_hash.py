@@ -15,8 +15,9 @@ https://raghavsood.com/blog/2018/06/10/bitcoin-signature-types-sighash
 https://wiki.bitcoinsv.io/index.php/SIGHASH_flags
 """
 
+from __future__ import annotations
+
 from copy import deepcopy
-from typing import List
 
 from btclib import var_bytes
 from btclib.alias import Octets
@@ -56,9 +57,9 @@ def assert_valid_hash_type(hash_type: int) -> None:
         raise BTClibValueError(f"invalid sig_hash type: {hex(hash_type)}")
 
 
-def legacy_script(script_pub_key: Octets) -> List[bytes]:
-    script_s: List[bytes] = []
-    current_script: List[Command] = []
+def legacy_script(script_pub_key: Octets) -> list[bytes]:
+    script_s: list[bytes] = []
+    current_script: list[Command] = []
     for token in parse(script_pub_key)[::-1]:
         # B105 required for py<38
         if token == "OP_CODESEPARATOR":  # nosec B105
@@ -70,7 +71,7 @@ def legacy_script(script_pub_key: Octets) -> List[bytes]:
 
 
 # FIXME: remove OP_CODESEPARATOR only if executed
-def witness_v0_script(script_pub_key: Octets) -> List[bytes]:
+def witness_v0_script(script_pub_key: Octets) -> list[bytes]:
     script_type, payload = type_and_payload(script_pub_key)
 
     if script_type == "p2wpkh":
@@ -79,8 +80,8 @@ def witness_v0_script(script_pub_key: Octets) -> List[bytes]:
         )
         return [script]
 
-    script_s: List[bytes] = []
-    current_script: List[Command] = []
+    script_s: list[bytes] = []
+    current_script: list[Command] = []
     for token in parse(script_pub_key)[::-1]:
         # B105 required for py<38
         if token == "OP_CODESEPARATOR":  # nosec B105
@@ -177,8 +178,8 @@ def segwit_v0(
 def taproot(
     transaction: Tx,
     input_index: int,
-    amounts: List[int],
-    scriptpubkeys: List[ScriptPubKey],
+    amounts: list[int],
+    scriptpubkeys: list[ScriptPubKey],
     hashtype: int,
     ext_flag: int,
     annex: bytes,
@@ -239,7 +240,7 @@ def taproot(
     return tagged_hash(b"TapSighash", preimage)
 
 
-def from_tx(prevouts: List[TxOut], tx: Tx, vin_i: int, hash_type: int) -> bytes:
+def from_tx(prevouts: list[TxOut], tx: Tx, vin_i: int, hash_type: int) -> bytes:
 
     script = prevouts[vin_i].script_pub_key.script
 
@@ -265,7 +266,7 @@ def from_tx(prevouts: List[TxOut], tx: Tx, vin_i: int, hash_type: int) -> bytes:
 
 
 def _script_from_p2tr(
-    prevouts: List[TxOut], tx: Tx, vin_i: int, hash_type: int
+    prevouts: list[TxOut], tx: Tx, vin_i: int, hash_type: int
 ) -> bytes:
 
     witness = tx.vin[vin_i].script_witness

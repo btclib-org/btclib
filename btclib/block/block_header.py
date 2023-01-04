@@ -13,10 +13,11 @@
 Dataclass encapsulating
 version, previous block hash, merkle root, time, bits, and nonce.
 """
+from __future__ import annotations
 
 from dataclasses import dataclass
 from datetime import datetime, timezone
-from typing import Any, Dict, List, Mapping, Tuple, Type, Union
+from typing import Any, Mapping
 
 from btclib.alias import BinaryData, Octets
 from btclib.exceptions import BTClibValueError
@@ -25,7 +26,7 @@ from btclib.utils import bytes_from_octets, bytesio_from_binarydata
 
 _HF = hash256
 _HF_LEN = 32  # should be _HF().digest_size
-_KEY_SIZE: List[Tuple[str, int]] = [
+_KEY_SIZE: list[tuple[str, int]] = [
     ("previous_block_hash", _HF_LEN),
     ("merkle_root", 32),
     ("bits", 4),
@@ -113,7 +114,7 @@ class BlockHeader:
         if check_validity:
             self.assert_valid()
 
-    def to_dict(self, check_validity: bool = True) -> Dict[str, Union[int, float, str]]:
+    def to_dict(self, check_validity: bool = True) -> dict[str, int | float | str]:
 
         if check_validity:
             self.assert_valid()
@@ -131,8 +132,8 @@ class BlockHeader:
 
     @classmethod
     def from_dict(
-        cls: Type["BlockHeader"], dict_: Mapping[str, Any], check_validity: bool = True
-    ) -> "BlockHeader":
+        cls: type[BlockHeader], dict_: Mapping[str, Any], check_validity: bool = True
+    ) -> BlockHeader:
 
         return cls(
             dict_["version"],
@@ -198,8 +199,8 @@ class BlockHeader:
 
     @classmethod
     def parse(
-        cls: Type["BlockHeader"], data: BinaryData, check_validity: bool = True
-    ) -> "BlockHeader":
+        cls: type[BlockHeader], data: BinaryData, check_validity: bool = True
+    ) -> BlockHeader:
         """Return a BlockHeader by parsing 80 bytes from binary data."""
 
         stream = bytesio_from_binarydata(data)

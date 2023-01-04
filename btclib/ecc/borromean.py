@@ -9,11 +9,12 @@
 # or distributed except according to the terms contained in the LICENSE file.
 
 """Borromean signature functions."""
+from __future__ import annotations
 
 import secrets
 from collections import defaultdict
 from hashlib import sha256 as hf  # FIXME: any hf
-from typing import Dict, List, Sequence, Tuple
+from typing import Dict, List, Sequence
 
 from btclib.alias import Octets, Point
 from btclib.ec import bytes_from_point, double_mult, mult, secp256k1
@@ -53,7 +54,7 @@ def sign(
     sign_key_idx: Sequence[int],
     sign_keys: Sequence[int],
     pubk_rings: PubkeyRing,
-) -> Tuple[bytes, SValues]:
+) -> tuple[bytes, SValues]:
     """Borromean ring signature - signing algorithm.
 
     https://github.com/ElementsProject/borromean-signatures-writeup

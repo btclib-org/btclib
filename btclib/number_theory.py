@@ -20,14 +20,13 @@ with the following modifications:
 * minor improvements
 * added extensive unit test
 """
-
-from typing import Tuple
+from __future__ import annotations
 
 from btclib.exceptions import BTClibValueError
 from btclib.utils import hex_string
 
 
-def xgcd(a: int, b: int) -> Tuple[int, int, int]:
+def xgcd(a: int, b: int) -> tuple[int, int, int]:
     """Return (g, x, y) such that a*x + b*y = g = gcd(x, y).
 
     based on Extended Euclidean Algorithm, see

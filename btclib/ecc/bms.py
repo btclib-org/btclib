@@ -130,12 +130,12 @@ https://github.com/bitcoin/bitcoin/pull/524
 
 https://github.com/bitcoin/bips/blob/master/bip-0137.mediawiki
 """
+from __future__ import annotations
 
 import base64
 import secrets
 from dataclasses import InitVar, dataclass
 from hashlib import sha256
-from typing import Optional, Tuple, Type, Union
 
 from btclib.alias import BinaryData, Octets, String
 from btclib.b32 import has_segwit_prefix, p2wpkh, witness_from_address
@@ -195,7 +195,7 @@ class Sig:
         return base64.b64encode(data_binary).decode("ascii")
 
     @classmethod
-    def parse(cls: Type["Sig"], data: BinaryData, check_validity: bool = True) -> "Sig":
+    def parse(cls: type[Sig], data: BinaryData, check_validity: bool = True) -> Sig:
 
         stream = bytesio_from_binarydata(data)
         sig_bin = stream.read(_REQUIRED_LENGHT)
@@ -215,7 +215,7 @@ class Sig:
         return cls(rf, dsa_sig, check_validity)
 
     @classmethod
-    def b64decode(cls: Type["Sig"], data: String, check_validity: bool = True) -> "Sig":
+    def b64decode(cls: type[Sig], data: String, check_validity: bool = True) -> Sig:
         """Return the verified components of the provided BMS signature.
 
         The address-based BMS signature can be represented
@@ -231,10 +231,10 @@ class Sig:
 
 
 def gen_keys(
-    prv_key: Optional[PrvKey] = None,
-    network: Optional[str] = None,
-    compressed: Optional[bool] = None,
-) -> Tuple[str, str]:
+    prv_key: PrvKey | None = None,
+    network: str | None = None,
+    compressed: bool | None = None,
+) -> tuple[str, str]:
     """Return a private/public key pair.
 
     The private key is a WIF, the public key is a base58 P2PKH address.
@@ -251,7 +251,7 @@ def gen_keys(
     return wif, p2pkh(wif)
 
 
-def sign(msg: Octets, prv_key: PrvKey, addr: Optional[String] = None) -> Sig:
+def sign(msg: Octets, prv_key: PrvKey, addr: String | None = None) -> Sig:
     """Generate address-based compact signature for the provided message."""
 
     # first sign the message
@@ -290,7 +290,7 @@ def sign(msg: Octets, prv_key: PrvKey, addr: Optional[String] = None) -> Sig:
 
 
 def assert_as_valid(
-    msg: Octets, addr: String, sig: Union[Sig, String], lower_s: bool = True
+    msg: Octets, addr: String, sig: Sig | String, lower_s: bool = True
 ) -> None:
     # Private function for test/dev purposes
     # It raises Errors, while verify should always return True or False
@@ -340,9 +340,7 @@ def assert_as_valid(
         raise BTClibValueError(f"invalid p2wpkh-p2sh address: {addr!r}")
 
 
-def verify(
-    msg: Octets, addr: String, sig: Union[Sig, String], lower_s: bool = True
-) -> bool:
+def verify(msg: Octets, addr: String, sig: Sig | String, lower_s: bool = True) -> bool:
     """Verify address-based compact signature for the provided message."""
 
     # all kind of Exceptions are catched because

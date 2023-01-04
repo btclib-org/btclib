@@ -9,9 +9,10 @@
 # or distributed except according to the terms contained in the LICENSE file.
 
 """BIP32 key origin."""
+from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Dict, List, Mapping, Optional, Sequence, Tuple, Type
+from typing import Dict, Mapping, Sequence
 
 from btclib.alias import Octets
 from btclib.bip32.der_path import (
@@ -62,7 +63,7 @@ class BIP32KeyOrigin:
         if any(not 0 <= i <= 0xFFFFFFFF for i in self.der_path):
             raise BTClibValueError("invalid der_path element")
 
-    def to_dict(self, check_validity: bool = True) -> Dict[str, str]:
+    def to_dict(self, check_validity: bool = True) -> dict[str, str]:
 
         if check_validity:
             self.assert_valid()
@@ -74,10 +75,10 @@ class BIP32KeyOrigin:
 
     @classmethod
     def from_dict(
-        cls: Type["BIP32KeyOrigin"],
+        cls: type[BIP32KeyOrigin],
         dict_: Mapping[str, str],
         check_validity: bool = True,
-    ) -> "BIP32KeyOrigin":
+    ) -> BIP32KeyOrigin:
 
         return cls(
             dict_["master_fingerprint"],
@@ -94,8 +95,8 @@ class BIP32KeyOrigin:
 
     @classmethod
     def parse(
-        cls: Type["BIP32KeyOrigin"], data: Octets, check_validity: bool = True
-    ) -> "BIP32KeyOrigin":
+        cls: type[BIP32KeyOrigin], data: Octets, check_validity: bool = True
+    ) -> BIP32KeyOrigin:
         """Return a BIP32KeyOrigin by parsing binary data."""
 
         data = bytes_from_octets(data)
@@ -106,8 +107,8 @@ class BIP32KeyOrigin:
 
     @classmethod
     def from_description(
-        cls: Type["BIP32KeyOrigin"], data: str, check_validity: bool = True
-    ) -> "BIP32KeyOrigin":
+        cls: type[BIP32KeyOrigin], data: str, check_validity: bool = True
+    ) -> BIP32KeyOrigin:
 
         data = data.strip()
         return cls(data[:8], data[9:], check_validity)
@@ -128,7 +129,7 @@ def assert_valid_hd_key_paths(hd_key_paths: Mapping[bytes, BIP32KeyOrigin]) -> N
         key_origin.assert_valid()
 
 
-def decode_hd_key_paths(map_: Optional[Mapping[Octets, BIP32KeyOrigin]]) -> HdKeyPaths:
+def decode_hd_key_paths(map_: Mapping[Octets, BIP32KeyOrigin] | None) -> HdKeyPaths:
     """Return the dataclass element from its json representation."""
 
     hd_key_paths = {bytes_from_octets(k): v for k, v in map_.items()} if map_ else {}
@@ -140,7 +141,7 @@ _BIP32Deriv = Dict[str, str]
 
 def encode_to_bip32_derivs(
     hd_key_paths: Mapping[bytes, BIP32KeyOrigin]
-) -> List[_BIP32Deriv]:
+) -> list[_BIP32Deriv]:
     """Return the json representation of the dataclass element."""
 
     return [
@@ -155,7 +156,7 @@ def encode_to_bip32_derivs(
 
 def _decode_from_bip32_deriv(
     bip32_deriv: Mapping[str, str]
-) -> Tuple[bytes, BIP32KeyOrigin]:
+) -> tuple[bytes, BIP32KeyOrigin]:
     # FIXME remove size checks to allow
     # the instantiation of invalid master_fingerprint and pub_key
     master_fingerprint = bytes_from_octets(bip32_deriv["master_fingerprint"], 4)

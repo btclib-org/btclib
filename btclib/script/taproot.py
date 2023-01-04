@@ -11,7 +11,9 @@
 
 """Taproot related functions."""
 
-from typing import Any, Optional, Tuple
+from __future__ import annotations
+
+from typing import Any
 
 from btclib import var_bytes
 from btclib.alias import Octets
@@ -31,7 +33,7 @@ from btclib.utils import bytes_from_octets
 TaprootScriptTree = Any
 
 
-def tree_helper(script_tree: TaprootScriptTree) -> Tuple[Any, bytes]:
+def tree_helper(script_tree: TaprootScriptTree) -> tuple[Any, bytes]:
     if len(script_tree) == 1:
         return _tree_helper(script_tree)
     left, left_h = tree_helper(script_tree[0])
@@ -53,10 +55,10 @@ def _tree_helper(script_tree: TaprootScriptTree) -> TaprootScriptTree:
 
 
 def output_pubkey(
-    internal_pubkey: Optional[Key] = None,
-    script_tree: Optional[TaprootScriptTree] = None,
+    internal_pubkey: Key | None = None,
+    script_tree: TaprootScriptTree | None = None,
     ec: Curve = secp256k1,
-) -> Tuple[bytes, int]:
+) -> tuple[bytes, int]:
     if not internal_pubkey and not script_tree:
         raise BTClibValueError("Missing data")
     if internal_pubkey:
@@ -79,7 +81,7 @@ def output_pubkey(
 
 def output_prvkey(
     prvkey: PrvKey,
-    script_tree: Optional[TaprootScriptTree] = None,
+    script_tree: TaprootScriptTree | None = None,
     ec: Curve = secp256k1,
 ) -> int:
     internal_prvkey: int = int_from_prv_key(prvkey)
@@ -100,8 +102,8 @@ def output_prvkey(
 
 
 def input_script_sig(
-    internal_pubkey: Optional[Key], script_tree: TaprootScriptTree, script_num: int
-) -> Tuple[bytes, bytes]:
+    internal_pubkey: Key | None, script_tree: TaprootScriptTree, script_num: int
+) -> tuple[bytes, bytes]:
     parity_bit = output_pubkey(internal_pubkey, script_tree)[1]
     if internal_pubkey:
         pub_key_bytes = pub_keyinfo_from_key(internal_pubkey, compressed=True)[0][1:]

@@ -12,9 +12,10 @@
 
 https://github.com/satoshilabs/slips/blob/master/slip-0132.md
 """
+from __future__ import annotations
 
 import contextlib
-from typing import Any, Callable, List, Tuple
+from typing import Any, Callable
 
 from btclib import b32, b58
 from btclib.bip32.bip32 import BIP32Key, BIP32KeyData, derive, xpub_from_xprv
@@ -53,12 +54,12 @@ def address_from_xpub(xpub: BIP32Key) -> str:
     if xpub.key[0] not in (2, 3):
         raise BTClibValueError(f"not a public key: {xpub.b58encode()}")
 
-    version_list: List[str] = [
+    version_list: list[str] = [
         "bip32_pub",
         "slip132_p2wpkh_pub",
         "slip132_p2wpkh_p2sh_pub",
     ]
-    function_list: List[Callable[[Any, str], str]] = [
+    function_list: list[Callable[[Any, str], str]] = [
         b58.p2pkh,
         b32.p2wpkh,
         b58.p2wpkh_p2sh,
@@ -75,7 +76,7 @@ def address_from_xpub(xpub: BIP32Key) -> str:
 
 def _helper_checks(
     xkey: BIP32Key, check_root_xkey: bool
-) -> Tuple[BIP32KeyData, Network]:
+) -> tuple[BIP32KeyData, Network]:
     if not isinstance(xkey, BIP32KeyData):
         xkey = BIP32KeyData.b58decode(xkey)
     if check_root_xkey and not xkey.is_root:

@@ -16,8 +16,9 @@ A BIP 32 derivation path can be represented as:
 - sequence of integer indexes (even a single int)
 - bytes (multiples of 4-bytes index)
 """
+from __future__ import annotations
 
-from typing import List, Optional, Sequence, Union
+from typing import Sequence, Union
 
 from btclib.alias import Octets
 from btclib.exceptions import BTClibValueError
@@ -49,7 +50,7 @@ def str_from_index_int(i: int, hardening: str = _HARDENING) -> str:
     return str(i) if i < 0x80000000 else str(i - 0x80000000) + hardening
 
 
-def _indexes_from_bip32_path_str(der_path: str, skip_m: bool = True) -> List[int]:
+def _indexes_from_bip32_path_str(der_path: str, skip_m: bool = True) -> list[int]:
 
     steps = [x.strip().lower() for x in der_path.split("/")]
     if skip_m and steps[0] == "m":
@@ -67,7 +68,7 @@ BIP32DerPath = Union[str, Sequence[int], int, bytes]
 
 
 # FIXME bip32_path should be der_path, BIP32DerPath DerPath, etc
-def indexes_from_bip32_path(der_path: BIP32DerPath) -> List[int]:
+def indexes_from_bip32_path(der_path: BIP32DerPath) -> list[int]:
 
     if isinstance(der_path, str):
         return _indexes_from_bip32_path_str(der_path)
@@ -95,7 +96,7 @@ def _str_from_bip32_path(der_path: BIP32DerPath, hardening: str = _HARDENING) ->
 
 def str_from_bip32_path(
     der_path: BIP32DerPath,
-    master_fingerprint: Optional[Octets] = None,
+    master_fingerprint: Octets | None = None,
     hardening: str = _HARDENING,
 ) -> str:
     result = _str_from_bip32_path(der_path, hardening)

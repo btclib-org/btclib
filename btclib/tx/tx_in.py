@@ -13,8 +13,10 @@
 Dataclass encapsulating prev_out, script_sig, sequence, and script_witness.
 """
 
+from __future__ import annotations
+
 from dataclasses import dataclass, field
-from typing import Any, Dict, Mapping, Type
+from typing import Any, Mapping
 
 from btclib import var_bytes
 from btclib.alias import BinaryData, Octets
@@ -95,7 +97,7 @@ class TxIn:
         if self.script_witness:
             self.script_witness.assert_valid()
 
-    def to_dict(self, check_validity: bool = True) -> Dict[str, Any]:
+    def to_dict(self, check_validity: bool = True) -> dict[str, Any]:
 
         if check_validity:
             self.assert_valid()
@@ -110,8 +112,8 @@ class TxIn:
 
     @classmethod
     def from_dict(
-        cls: Type["TxIn"], dict_: Mapping[str, Any], check_validity: bool = True
-    ) -> "TxIn":
+        cls: type[TxIn], dict_: Mapping[str, Any], check_validity: bool = True
+    ) -> TxIn:
 
         return cls(
             OutPoint.from_dict(dict_["prev_out"], False),
@@ -132,9 +134,7 @@ class TxIn:
         return out
 
     @classmethod
-    def parse(
-        cls: Type["TxIn"], data: BinaryData, check_validity: bool = True
-    ) -> "TxIn":
+    def parse(cls: type[TxIn], data: BinaryData, check_validity: bool = True) -> TxIn:
 
         stream = bytesio_from_binarydata(data)
         prev_out = OutPoint.parse(stream, check_validity)

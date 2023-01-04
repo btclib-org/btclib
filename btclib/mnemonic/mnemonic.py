@@ -9,9 +9,10 @@
 # or distributed except according to the terms contained in the LICENSE file.
 
 """Mnemonic word-list sentence conversion from/to sequence of integer indexes."""
+from __future__ import annotations
 
 from os import path
-from typing import List, Optional, Sequence
+from typing import List, Sequence
 
 from btclib.exceptions import BTClibValueError
 
@@ -41,14 +42,14 @@ class WordLists:
         self.languages = list(self.language_files)
 
         # create dictionaries where each language has empty word-list
-        wordlists: List[List[str]] = [[] for _ in self.languages]
+        wordlists: list[list[str]] = [[] for _ in self.languages]
         self._wordlist = dict(zip(self.languages, wordlists))
 
         zeros = len(self.languages) * [0]
         self._bits_per_word = dict(zip(self.languages, zeros))
         self._language_length = dict(zip(self.languages, zeros))
 
-    def load_lang(self, lang: str, filename: Optional[str] = None) -> None:
+    def load_lang(self, lang: str, filename: str | None = None) -> None:
         """Load/add a language word-list if not loaded/added yet.
 
         The language file has to be provided for adding new languages
@@ -73,7 +74,7 @@ class WordLists:
             # clean up and normalization are missing, but removal of \n
             self._wordlist[lang] = [line[:-1] for line in lines]
 
-    def _init_new_lang(self, lang: str, filename: Optional[str]) -> None:
+    def _init_new_lang(self, lang: str, filename: str | None) -> None:
         if filename is None:
             raise BTClibValueError(f"Missing file for language '{lang}'")
         # initialize the new language
@@ -114,7 +115,7 @@ def mnemonic_from_indexes(indexes: Sequence[int], lang: str) -> Mnemonic:
     return " ".join(words)
 
 
-def indexes_from_mnemonic(mnemonic: Mnemonic, lang: str) -> List[int]:
+def indexes_from_mnemonic(mnemonic: Mnemonic, lang: str) -> list[int]:
     """Return the word-list integer indexes for a given mnemonic.
 
     Return the list of integer indexes into a language word-list

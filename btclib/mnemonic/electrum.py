@@ -12,11 +12,11 @@
 
 Electrum mnemonic is versioned, conveying BIP32 derivation rule too.
 """
+from __future__ import annotations
 
 import hmac
 import secrets
 from hashlib import pbkdf2_hmac, sha512
-from typing import Optional, Tuple
 
 from btclib.bip32 import derive, rootxprv_from_seed
 from btclib.exceptions import BTClibValueError
@@ -43,7 +43,7 @@ _MNEMONIC_VERSIONS = {
 }
 
 
-def version_from_mnemonic(mnemonic: Mnemonic) -> Tuple[str, str]:
+def version_from_mnemonic(mnemonic: Mnemonic) -> tuple[str, str]:
     """Return the (Electrum version, clean mnemonic) tuple.
 
     The clean mnemonic is free from spurious whitespace characters
@@ -69,7 +69,7 @@ def version_from_mnemonic(mnemonic: Mnemonic) -> Tuple[str, str]:
 
 
 def mnemonic_from_entropy(
-    mnemonic_type: str = "standard", entropy: Optional[Entropy] = None, lang: str = "en"
+    mnemonic_type: str = "standard", entropy: Entropy | None = None, lang: str = "en"
 ) -> Mnemonic:
     """Convert input entropy to Electrum versioned mnemonic sentence.
 
@@ -118,7 +118,7 @@ def entropy_from_mnemonic(mnemonic: Mnemonic, lang: str = "en") -> BinStr:
     return bin_str_entropy_from_wordlist_indexes(indexes, base)
 
 
-def _seed_from_mnemonic(mnemonic: Mnemonic, passphrase: str) -> Tuple[str, bytes]:
+def _seed_from_mnemonic(mnemonic: Mnemonic, passphrase: str) -> tuple[str, bytes]:
     """Return (version, seed) from the provided Electrum mnemonic."""
 
     # clean up mnemonic from spurious whitespaces
@@ -133,7 +133,7 @@ def _seed_from_mnemonic(mnemonic: Mnemonic, passphrase: str) -> Tuple[str, bytes
 
 
 def mxprv_from_mnemonic(
-    mnemonic: Mnemonic, passphrase: Optional[str] = None, network: str = "mainnet"
+    mnemonic: Mnemonic, passphrase: str | None = None, network: str = "mainnet"
 ) -> str:
     """Return BIP32 master extended private key from Electrum mnemonic.
 

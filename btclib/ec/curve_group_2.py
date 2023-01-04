@@ -39,10 +39,9 @@ TODO:
     - Joint sparse form (JSF) for double mult
     -  Interleaving with NAFs
 """
-
+from __future__ import annotations
 
 from math import ceil
-from typing import List, Tuple
 
 from btclib.alias import INFJ, JacPoint
 from btclib.ec.curve_group import CurveGroup, _double_mult, convert_number_to_base
@@ -57,7 +56,7 @@ def mods(m: int, w: int) -> int:
     return M - w2 if M >= (w2 / 2) else M
 
 
-def wNAF_of_m(m: int, w: int) -> List[int]:
+def wNAF_of_m(m: int, w: int) -> list[int]:
     """WNAF (width-w Non-adjacent form) of number m.
 
     Given an integer m, wNAF is a method of rapresentation
@@ -75,7 +74,7 @@ def wNAF_of_m(m: int, w: int) -> List[int]:
 
     i = 0
 
-    M: List[int] = []
+    M: list[int] = []
     while m > 0:
         if (m % 2) == 1:
             if w == 1:
@@ -202,7 +201,7 @@ def mult_w_NAF(m: int, Q: JacPoint, ec: CurveGroup, w: int = 4) -> JacPoint:
     return R
 
 
-def multiplier_decomposer(m: int, ec: CurveGroup) -> Tuple[int, int]:
+def multiplier_decomposer(m: int, ec: CurveGroup) -> tuple[int, int]:
     """Decompose m in two integers m1 e m2 so that mP = m1*P + m2*lambda*P.
 
     Used for point multiplication with efficiently computable endomorphisms.

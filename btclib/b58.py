@@ -13,8 +13,7 @@
 Base58 encoding of public keys and scripts as addresses,
 private keys as WIFs
 """
-
-from typing import Optional, Tuple
+from __future__ import annotations
 
 from btclib import b32
 from btclib.alias import Octets, String
@@ -29,7 +28,7 @@ from btclib.utils import bytes_from_octets
 
 
 def wif_from_prv_key(
-    prv_key: PrvKey, network: Optional[str] = None, compressed: Optional[bool] = None
+    prv_key: PrvKey, network: str | None = None, compressed: bool | None = None
 ) -> str:
     """Return the WIF encoding of a private key."""
 
@@ -71,7 +70,7 @@ def address_from_h160(script_type: str, h160: Octets, network: str = "mainnet") 
     return b58encode(payload).decode("ascii")
 
 
-def h160_from_address(b58addr: String) -> Tuple[str, bytes, str]:
+def h160_from_address(b58addr: String) -> tuple[str, bytes, str]:
     """Return the payload from a base58 address."""
 
     if isinstance(b58addr, str):
@@ -93,9 +92,7 @@ def h160_from_address(b58addr: String) -> Tuple[str, bytes, str]:
 # 1.+2. = 3. base58 address from pub_key/script_pub_key
 
 
-def p2pkh(
-    key: Key, network: Optional[str] = None, compressed: Optional[bool] = None
-) -> str:
+def p2pkh(key: Key, network: str | None = None, compressed: bool | None = None) -> str:
     """Return the p2pkh base58 address corresponding to a public key."""
     pub_key, network = pub_keyinfo_from_key(key, network, compressed=compressed)
     return address_from_h160("p2pkh", hash160(pub_key), network)
@@ -123,7 +120,7 @@ def _address_from_v0_witness(wit_prg: Octets, network: str = "mainnet") -> str:
 # 1.+2b. = 3b. base58 (p2sh-wrapped) SegWit addresses from pub_key/script_pub_key
 
 
-def p2wpkh_p2sh(key: Key, network: Optional[str] = None) -> str:
+def p2wpkh_p2sh(key: Key, network: str | None = None) -> str:
     """Return the p2wpkh-p2sh base58 address corresponding to a public key."""
     pub_key, network = pub_keyinfo_from_key(key, network, compressed=True)
     witness_program = hash160(pub_key)

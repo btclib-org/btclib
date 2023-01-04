@@ -31,11 +31,12 @@ A BIP32 extended key is 78 bytes:
 - [13:45] chain code
 - [45:78] compressed pub_key or [0x00][prv_key]
 """
+from __future__ import annotations
 
 import copy
 import hmac
 from dataclasses import dataclass
-from typing import List, Optional, Tuple, Type, Union
+from typing import Union
 
 from btclib import base58
 from btclib.alias import INF, BinaryData, Octets, Point, String
@@ -49,7 +50,7 @@ from btclib.utils import bytes_from_octets, bytesio_from_binarydata, hex_string
 ec = secp256k1
 
 
-_KEY_SIZE: List[Tuple[str, int]] = [
+_KEY_SIZE: list[tuple[str, int]] = [
     ("version", 4),
     ("parent_fingerprint", 4),
     ("chain_code", 32),
@@ -175,8 +176,8 @@ class BIP32KeyData:
 
     @classmethod
     def parse(
-        cls: Type["BIP32KeyData"], xkey_bin: BinaryData, check_validity: bool = True
-    ) -> "BIP32KeyData":
+        cls: type[BIP32KeyData], xkey_bin: BinaryData, check_validity: bool = True
+    ) -> BIP32KeyData:
         """Return a BIP32KeyData by parsing 73 bytes from binary data."""
 
         stream = bytesio_from_binarydata(xkey_bin)
@@ -199,8 +200,8 @@ class BIP32KeyData:
 
     @classmethod
     def b58decode(
-        cls: Type["BIP32KeyData"], address: String, check_validity: bool = True
-    ) -> "BIP32KeyData":
+        cls: type[BIP32KeyData], address: String, check_validity: bool = True
+    ) -> BIP32KeyData:
 
         if isinstance(address, str):
             address = address.strip()
@@ -368,7 +369,7 @@ def __public_key_derivation(xkey: _ExtendedBIP32KeyData, index: int) -> None:
 
 
 def _derive(
-    xkey: BIP32Key, der_path: BIP32DerPath, forced_version: Optional[Octets] = None
+    xkey: BIP32Key, der_path: BIP32DerPath, forced_version: Octets | None = None
 ) -> BIP32KeyData:
 
     if not isinstance(xkey, BIP32KeyData):
@@ -408,7 +409,7 @@ def _derive(
 
 
 def derive(
-    xkey: BIP32Key, der_path: BIP32DerPath, forced_version: Optional[Octets] = None
+    xkey: BIP32Key, der_path: BIP32DerPath, forced_version: Octets | None = None
 ) -> str:
     """Derive a BIP32 key across a path spanning multiple depth levels.
 

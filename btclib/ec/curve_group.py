@@ -15,11 +15,12 @@ For the cyclic subgroup class CurveSubGroup and
 the cyclic subgroup class of prime order Curve,
 see the btclib.curve module.
 """
+from __future__ import annotations
 
 import functools
 import heapq
 from math import ceil
-from typing import List, Sequence, Tuple
+from typing import Sequence
 
 from btclib.alias import INF, INFJ, Integer, JacPoint, Point
 from btclib.exceptions import BTClibTypeError, BTClibValueError
@@ -472,7 +473,7 @@ def mult_jac(m: int, Q: JacPoint, ec: CurveGroup) -> JacPoint:
     return R[0]
 
 
-def multiples(Q: JacPoint, size: int, ec: CurveGroup) -> List[JacPoint]:
+def multiples(Q: JacPoint, size: int, ec: CurveGroup) -> list[JacPoint]:
     """Return {k_i * Q} for k_i in {0, ..., size-1)."""
 
     if size < 2:
@@ -494,7 +495,7 @@ MAX_W = 5
 
 
 @functools.lru_cache()  # least recently used cache
-def cached_multiples(Q: JacPoint, ec: CurveGroup) -> List[JacPoint]:
+def cached_multiples(Q: JacPoint, ec: CurveGroup) -> list[JacPoint]:
 
     T = [INFJ, Q]
     for i in range(3, 2**MAX_W, 2):
@@ -506,7 +507,7 @@ def cached_multiples(Q: JacPoint, ec: CurveGroup) -> List[JacPoint]:
 @functools.lru_cache()
 def cached_multiples_fixwind(
     Q: JacPoint, ec: CurveGroup, w: int = 4
-) -> List[List[JacPoint]]:
+) -> list[list[JacPoint]]:
     """Made to precompute values for mult_fixed_window_cached.
 
     Do not use it for other functions.
@@ -526,10 +527,10 @@ def cached_multiples_fixwind(
     return T
 
 
-def convert_number_to_base(i: int, base: int) -> List[int]:
+def convert_number_to_base(i: int, base: int) -> list[int]:
     """Return the digits of an integer in the requested base."""
 
-    digits: List[int] = []
+    digits: list[int] = []
     while i or not digits:
         i, idx = divmod(i, base)
         digits.append(idx)
@@ -747,7 +748,7 @@ def _multi_mult(
         raise BTClibValueError(err_msg)
 
     # x = list(zip([-n for n in scalars], jac_points))
-    x: List[Tuple[int, JacPoint]] = []
+    x: list[tuple[int, JacPoint]] = []
     for n, PJ in zip(scalars, jac_points):
         if n == 0:  # mandatory check to avoid infinite loop
             continue

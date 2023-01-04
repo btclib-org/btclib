@@ -16,10 +16,10 @@ http://www.sphinx-doc.org/en/master/config
 """
 
 # -- Path setup --------------------------------------------------------------
+from __future__ import annotations
 
 import sys
 from os import path
-from typing import List
 
 # If extensions (or modules to document with autodoc) are in another directory,
 # add these directories to sys.path here. If the directory is relative to the
@@ -50,7 +50,7 @@ templates_path = ["_templates"]
 # List of patterns, relative to source directory, that match files and
 # directories to ignore when looking for source files.
 # This pattern also affects html_static_path and html_extra_path.
-exclude_patterns: List[str] = []
+exclude_patterns: list[str] = []
 
 
 # -- Options for HTML output -------------------------------------------------
@@ -63,6 +63,6 @@ html_theme = "alabaster"
 # Add any paths that contain custom static files (such as style sheets) here,
 # relative to this directory. They are copied after the builtin static files,
 # so a file named "default.css" will overwrite the builtin "default.css".
-html_static_path: List[str] = []
+html_static_path: list[str] = []
 
 master_doc = "index"

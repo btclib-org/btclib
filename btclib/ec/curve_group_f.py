@@ -13,15 +13,14 @@
 These functions are meant to explore low-cardinality CurveGroup,
 for didactical (and fun) reason only.
 """
-
-from typing import List
+from __future__ import annotations
 
 from btclib.alias import INF, Point
 from btclib.ec.curve_group import CurveGroup
 from btclib.exceptions import BTClibValueError
 
 
-def find_all_points(ec: CurveGroup) -> List[Point]:
+def find_all_points(ec: CurveGroup) -> list[Point]:
     """Attemp to find all group points, if p is low.
 
     Very unsofisticated walk-through approach,
@@ -31,7 +30,7 @@ def find_all_points(ec: CurveGroup) -> List[Point]:
         err_msg = f"p is too big to count all group points: {ec.p}"
         raise BTClibValueError(err_msg)
 
-    points: List[Point] = [INF]
+    points: list[Point] = [INF]
     for x in range(ec.p):
         try:
             y = ec.y(x)
@@ -45,7 +44,7 @@ def find_all_points(ec: CurveGroup) -> List[Point]:
     return points
 
 
-def find_subgroup_points(ec: CurveGroup, G: Point) -> List[Point]:
+def find_subgroup_points(ec: CurveGroup, G: Point) -> list[Point]:
     """Attemp to count all G-generated subgroup points, if p is low.
 
     Very unsofisticated walk-through approach,
@@ -55,7 +54,7 @@ def find_subgroup_points(ec: CurveGroup, G: Point) -> List[Point]:
         err_msg = f"p is too big to count all subgroup points: {ec.p}"
         raise BTClibValueError(err_msg)
 
-    points: List[Point] = [G]
+    points: list[Point] = [G]
     while points[-1] != INF:
         Q = ec.add(points[-1], G)
         points.append(Q)
