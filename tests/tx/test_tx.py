@@ -341,7 +341,7 @@ def test_dataclasses_json_dict() -> None:
     with open(filename, encoding="ascii") as file_:
         tx_dict2 = json.load(file_)
     assert isinstance(tx_dict2, dict)
-    assert tx_dict2["vin"][0]["txinwitness"]["stack"]  # type: ignore
+    assert tx_dict2["vin"][0]["txinwitness"]["stack"]
 
     assert tx_dict == tx_dict2
 

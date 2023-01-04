@@ -2,7 +2,7 @@
 addopts = "--durations=8 -n auto"
 
 [tool.mypy]
-strict = false
+strict = true
 disable_error_code = [
     'attr-defined',
     'no-any-return',

@@ -13,13 +13,14 @@ Major changes include:
 - improved typing
 - added SECURITY, CONTRIBUTING, bug report and feature request templates
 - added pre-commit hooks
+- adopted mypy --strict
 
 ## v2022.12.31
 
 Major changes include:
 
 - added support for Python 3.11
-- fixed the OpenSSL 3.x RIPEMD160 issue in btclib/hashes.py
+- fixed the OpenSSL 3.x RIPEMD160 issue in btclib/hashes.pymypy
 - added CONTRIBUTING and SECURITY
 - solved issue #73
   [Re-import Tx subclasses into btclib.tx](https://github.com/btclib-org/btclib/issues/73)

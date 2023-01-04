@@ -52,7 +52,7 @@ def test_dataclasses_json_dict() -> None:
     witness_dict = witness.to_dict()
     assert isinstance(witness_dict, dict)
     assert witness_dict["stack"]
-    assert len(witness_dict["stack"]) > 0  # type: ignore
+    assert len(witness_dict["stack"]) > 0
 
     # Witness dataclass dict to file
     datadir = path.join(path.dirname(__file__), "_generated_files")
@@ -66,7 +66,7 @@ def test_dataclasses_json_dict() -> None:
         witness_dict2 = json.load(file_)
     assert isinstance(witness_dict2, dict)
     assert witness_dict2["stack"]
-    assert len(witness_dict2["stack"]) > 0  # type: ignore
+    assert len(witness_dict2["stack"]) > 0
 
     assert witness_dict == witness_dict2
 

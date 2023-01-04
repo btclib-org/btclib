@@ -60,9 +60,9 @@ def test_signature() -> None:
 
     err_msg = "not a BIP340 public key"
     with pytest.raises(BTClibTypeError, match=err_msg):
-        ssa.assert_as_valid(msg, INF, sig)  # type: ignore[arg-type]
+        ssa.assert_as_valid(msg, INF, sig)
     with pytest.raises(BTClibTypeError, match=err_msg):
-        ssa.point_from_bip340pub_key(INF)  # type: ignore[arg-type]
+        ssa.point_from_bip340pub_key(INF)
 
     sig_invalid = ssa.Sig(sig.ec.p, sig.s, check_validity=False)
     assert not ssa.verify(msg, x_Q, sig_invalid)
