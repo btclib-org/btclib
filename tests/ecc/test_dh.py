@@ -16,8 +16,7 @@ import pytest
 
 from btclib.ec import bytes_from_point, mult
 from btclib.ec.curve import CURVES
-from btclib.ecc import dsa
-from btclib.ecc.dh import ansi_x9_63_kdf, diffie_hellman
+from btclib.ecc import ansi_x9_63_kdf, diffie_hellman, dsa
 from btclib.exceptions import BTClibValueError
 
 
