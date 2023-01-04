@@ -10,11 +10,12 @@
 
 """Tests for the `btclib.ssa` module."""
 
+from __future__ import annotations
+
 import csv
 import secrets
 from hashlib import sha256 as hf
 from os import path
-from typing import List
 
 import pytest
 
@@ -265,9 +266,9 @@ def test_crack_prv_key() -> None:
 
 def test_batch_validation() -> None:
 
-    ms: List[String] = []
-    Qs: List[int] = []
-    sigs: List[ssa.Sig] = []
+    ms: list[String] = []
+    Qs: list[int] = []
+    sigs: list[ssa.Sig] = []
     err_msg = "no signatures provided"
     with pytest.raises(BTClibValueError, match=err_msg):
         ssa.assert_batch_as_valid(ms, Qs, sigs)
@@ -427,7 +428,7 @@ def test_threshold() -> None:
     # FIRST PHASE: key pair generation ###################################
 
     # 1.1 signer one acting as the dealer
-    commits1: List[Point] = []
+    commits1: list[Point] = []
     q1, _ = ssa.gen_keys()
     q1_prime, _ = ssa.gen_keys()
     commits1.append(double_mult(q1_prime, H, q1, ec.G))
@@ -462,7 +463,7 @@ def test_threshold() -> None:
     assert t == RHS, "signer one is cheating"
 
     # 1.2 signer two acting as the dealer
-    commits2: List[Point] = []
+    commits2: list[Point] = []
     q2, _ = ssa.gen_keys()
     q2_prime, _ = ssa.gen_keys()
     commits2.append(double_mult(q2_prime, H, q2, ec.G))
@@ -497,7 +498,7 @@ def test_threshold() -> None:
     assert t == RHS, "signer two is cheating"
 
     # 1.3 signer three acting as the dealer
-    commits3: List[Point] = []
+    commits3: list[Point] = []
     q3, _ = ssa.gen_keys()
     q3_prime, _ = ssa.gen_keys()
     commits3.append(double_mult(q3_prime, H, q3, ec.G))
@@ -542,9 +543,9 @@ def test_threshold() -> None:
     # 1.4 it's time to recover the public key
     # each participant i = 1, 2, 3 shares Qi as follows
     # Q = Q1 + Q2 + Q3 = (q1 + q2 + q3) G
-    A1: List[Point] = []
-    A2: List[Point] = []
-    A3: List[Point] = []
+    A1: list[Point] = []
+    A2: list[Point] = []
+    A3: list[Point] = []
     for i in range(m):
         A1.append(mult(f1[i]))
         A2.append(mult(f2[i]))
@@ -648,8 +649,8 @@ def test_threshold() -> None:
 
     # 2.4 it's time to recover the public nonce
     # each participant i = 1, 3 shares Qi as follows
-    B1: List[Point] = []
-    B3: List[Point] = []
+    B1: list[Point] = []
+    B3: list[Point] = []
     for i in range(m):
         B1.append(mult(f1[i]))
         B3.append(mult(f3[i]))

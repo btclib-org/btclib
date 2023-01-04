@@ -14,8 +14,9 @@ Used by `btclib.tests.to_pub_key` and `btclib.tests.to_pub_key` modules.
 Test vectors do include str only: no int, point tuble, or BIP32KeyData.
 """
 
+from __future__ import annotations
+
 import copy
-from typing import List, Union
 
 from btclib.alias import INF
 from btclib.base58 import b58encode
@@ -30,7 +31,7 @@ q_hexstring = q_bytes.hex()
 q_hexstring2 = " " + q_hexstring + " "
 
 # prv_keys with no network / compression information
-plain_prv_keys: List[Union[bytes, str]] = [
+plain_prv_keys: list[bytes | str] = [
     q_hexstring,
     q_hexstring2,
 ]
@@ -53,18 +54,18 @@ xprv_data = BIP32KeyData(
 xprv_string = xprv_data.b58encode(False)
 xprv_string2 = " " + xprv_string + " "
 
-net_aware_compressed_prv_keys: List[Union[bytes, str]] = [
+net_aware_compressed_prv_keys: list[bytes | str] = [
     wif_compressed_string,
     wif_compressed_string2,
     xprv_string,
     xprv_string2,
 ]
-net_aware_uncompressed_prv_keys: List[Union[bytes, str]] = [
+net_aware_uncompressed_prv_keys: list[bytes | str] = [
     wif_uncompressed_string,
     wif_uncompressed_string2,
 ]
-net_unaware_compressed_prv_keys: List[Union[bytes, str]] = []
-net_unaware_uncompressed_prv_keys: List[Union[bytes, str]] = []
+net_unaware_compressed_prv_keys: list[bytes | str] = []
+net_unaware_uncompressed_prv_keys: list[bytes | str] = []
 
 compressed_prv_keys = net_aware_compressed_prv_keys + net_unaware_compressed_prv_keys
 uncompressed_prv_keys = (
@@ -80,7 +81,7 @@ Q = mult(q)
 
 # pub_keys with no network / compression information
 # but curve aware
-plain_pub_keys: List[Union[bytes, str]] = []
+plain_pub_keys: list[bytes | str] = []
 
 x_Q_bytes = Q[0].to_bytes(32, byteorder="big", signed=False)
 Q_compressed = (b"\x03" if (Q[1] & 1) else b"\x02") + x_Q_bytes
@@ -109,17 +110,17 @@ xpub_string = xpub_data.b58encode(False)
 
 xpub_string2 = " " + xpub_string + " "
 
-net_aware_compressed_pub_keys: List[Union[bytes, str]] = [
+net_aware_compressed_pub_keys: list[bytes | str] = [
     xpub_string,
     xpub_string2,
 ]
-net_aware_uncompressed_pub_keys: List[Union[bytes, str]] = []
-net_unaware_compressed_pub_keys: List[Union[bytes, str]] = [
+net_aware_uncompressed_pub_keys: list[bytes | str] = []
+net_unaware_compressed_pub_keys: list[bytes | str] = [
     Q_compressed_hexstring,
     Q_compressed_hexstring2,
     Q_compressed_hexstring3,
 ]
-net_unaware_uncompressed_pub_keys: List[Union[bytes, str]] = [
+net_unaware_uncompressed_pub_keys: list[bytes | str] = [
     Q_uncompressed_hexstring,
     Q_uncompressed_hexstring2,
     Q_uncompressed_hexstring3,
@@ -136,7 +137,7 @@ net_unaware_pub_keys = (
 )
 
 # all bad BIP32 keys
-bad_bip32_keys: List[Union[bytes, str]] = []
+bad_bip32_keys: list[bytes | str] = []
 # version / key mismatch
 xprv_data_bad = copy.copy(xprv_data)
 xpub_data_bad = copy.copy(xpub_data)
@@ -198,7 +199,7 @@ qn_bytes = qn.to_bytes(32, byteorder="big", signed=False)
 qn_hexstring = qn_bytes.hex()
 qn_hexstring2 = " " + qn_hexstring + " "
 
-plain_inf_prv_keys: List[Union[bytes, str]] = [
+plain_inf_prv_keys: list[bytes | str] = [
     q0_hexstring,
     q0_hexstring2,
     qn_hexstring,
@@ -245,7 +246,7 @@ xprvn_string2 = " " + xprvn_string + " "
 
 bad_bip32_keys += [xprv0_string, xprvn_string]
 
-net_aware_compressed_inf_prv_keys: List[Union[bytes, str]] = [
+net_aware_compressed_inf_prv_keys: list[bytes | str] = [
     wif_0_compressed_string,
     wif_0_compressed_string2,
     wif_n_compressed_string,
@@ -255,14 +256,14 @@ net_aware_compressed_inf_prv_keys: List[Union[bytes, str]] = [
     xprvn_string,
     xprvn_string2,
 ]
-net_aware_uncompressed_inf_prv_keys: List[Union[bytes, str]] = [
+net_aware_uncompressed_inf_prv_keys: list[bytes | str] = [
     wif_0_uncompressed_string,
     wif_0_uncompressed_string2,
     wif_n_uncompressed_string,
     wif_n_uncompressed_string2,
 ]
-net_unaware_compressed_inf_prv_keys: List[Union[bytes, str]] = []
-net_unaware_uncompressed_inf_prv_keys: List[Union[bytes, str]] = []
+net_unaware_compressed_inf_prv_keys: list[bytes | str] = []
+net_unaware_uncompressed_inf_prv_keys: list[bytes | str] = []
 
 # compressed_inf_prv_keys = (
 #    net_aware_compressed_inf_prv_keys + net_unaware_compressed_inf_prv_keys
@@ -271,18 +272,16 @@ net_unaware_uncompressed_inf_prv_keys: List[Union[bytes, str]] = []
 #    net_aware_uncompressed_inf_prv_keys + net_unaware_uncompressed_inf_prv_keys
 # )
 
-net_aware_inf_prv_keys: List[Union[bytes, str]] = (
+net_aware_inf_prv_keys: list[bytes | str] = (
     net_aware_compressed_inf_prv_keys + net_aware_uncompressed_inf_prv_keys
 )
-net_unaware_inf_prv_keys: List[Union[bytes, str]] = (
+net_unaware_inf_prv_keys: list[bytes | str] = (
     plain_inf_prv_keys
     + net_unaware_compressed_inf_prv_keys
     + net_unaware_uncompressed_inf_prv_keys
 )
 
-inf_prv_keys: List[Union[bytes, str]] = (
-    net_aware_inf_prv_keys + net_unaware_inf_prv_keys
-)
+inf_prv_keys: list[bytes | str] = net_aware_inf_prv_keys + net_unaware_inf_prv_keys
 
 
 Q_compressed = (b"\x03" if (Q[1] & 1) else b"\x02") + x_Q_bytes
@@ -332,7 +331,7 @@ INF_xpub_string2 = " " + INF_xpub_string + " "
 
 bad_bip32_keys += [INF_xpub_string]
 
-inf_pub_keys: List[Union[bytes, str]] = [
+inf_pub_keys: list[bytes | str] = [
     INF_compressed_hexstring,
     INF_compressed_hexstring2,
     INF_compressed_hexstring3,
@@ -344,7 +343,7 @@ inf_pub_keys: List[Union[bytes, str]] = [
 ]
 
 
-invalid_prv_keys: List[Union[bytes, str]] = (
+invalid_prv_keys: list[bytes | str] = (
     bad_bip32_keys
     + inf_prv_keys
     + [

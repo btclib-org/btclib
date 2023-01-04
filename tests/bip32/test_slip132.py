@@ -10,7 +10,7 @@
 
 """Tests for the `btclib.slip132` module."""
 
-from typing import List, Tuple
+from __future__ import annotations
 
 import pytest
 
@@ -87,7 +87,7 @@ def test_slip132_test_vectors() -> None:
     """
     mnemonic = "abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about"
     kpath = "m/0/0"
-    test_vectors: List[Tuple[bytes, str, str, str, str]] = [
+    test_vectors: list[tuple[bytes, str, str, str, str]] = [
         (
             NETWORKS["mainnet"].bip32_prv,
             "m / 44h / 0h / 0h",
@@ -152,7 +152,7 @@ def test_addresses() -> None:
     mnemonic = bip39.mnemonic_from_entropy(raw_entr, "en")
 
     # m / purpose h / coin_type h / account h / change / address_index
-    test_vectors: List[Tuple[str, str, str]] = [
+    test_vectors: list[tuple[str, str, str]] = [
         # coin_type = 0 -> mainnet
         (
             "m/44h/0h/0h",

@@ -10,9 +10,10 @@
 
 """Tests for the `btclib.script.script_pub_key` module."""
 
+from __future__ import annotations
+
 import json
 from os import path
-from typing import List
 
 import pytest
 
@@ -150,7 +151,7 @@ def test_nulldata3() -> None:
 
 def test_nulldata4() -> None:
 
-    script_: List[Command] = [
+    script_: list[Command] = [
         "OP_RETURN",
         "OP_RETURN",
         "OP_3",
@@ -395,7 +396,7 @@ def test_p2ms_1() -> None:
     script_type, payload = type_and_payload(script_pub_key)
     assert script_type == "p2ms"
     assert payload == script_pub_key[:-1]
-    pub_keys: List[Key] = [pub_key0, pub_key1]
+    pub_keys: list[Key] = [pub_key0, pub_key1]
     assert script_pub_key == ScriptPubKey.p2ms(1, pub_keys, lexi_sort=False).script
 
     err_msg = "invalid m in m-of-n: "
@@ -416,7 +417,7 @@ def test_p2ms_1() -> None:
     with pytest.raises(BTClibValueError, match=err_msg):
         ScriptPubKey.p2ms(1, [f"{pub_key0}00", pub_key1])
 
-    script_: List[Command] = [
+    script_: list[Command] = [
         "OP_1",
         f"{pub_key0}00",
         pub_key1,
@@ -473,12 +474,12 @@ def test_p2ms_2() -> None:
     pub_key0 = "04 cc71eb30d653c0c3163990c47b976f3fb3f37cccdcbedb169a1dfef58bbfbfaf f7d8a473e7e2e6d317b87bafe8bde97e3cf8f065dec022b51d11fcdd0d348ac4"
     pub_key1 = "04 61cbdcc5409fb4b4d42b51d33381354d80e550078cb532a34bfa2fcfdeb7d765 19aecc62770f5b0e4ef8551946d8a540911abe3e7854a26f39f58b25c15342af"
     pub_key2 = "04 79BE667EF9DCBBAC55A06295CE870B07029BFCDB2DCE28D959F2815B16F81798 483ADA7726A3C4655DA4FBFC0E1108A8FD17B448A68554199C47D08FFB10D4B8"
-    uncompressed_pub_keys: List[Key] = [pub_key0, pub_key1, pub_key2]
+    uncompressed_pub_keys: list[Key] = [pub_key0, pub_key1, pub_key2]
     # mixed compressed / uncompressed public keys
     pub_key0 = "04 cc71eb30d653c0c3163990c47b976f3fb3f37cccdcbedb169a1dfef58bbfbfaf f7d8a473e7e2e6d317b87bafe8bde97e3cf8f065dec022b51d11fcdd0d348ac4"
     pub_key1 = "03 61cbdcc5409fb4b4d42b51d33381354d80e550078cb532a34bfa2fcfdeb7d765"
     pub_key2 = "02 79BE667EF9DCBBAC55A06295CE870B07029BFCDB2DCE28D959F2815B16F81798"
-    mixed_pub_keys: List[Key] = [pub_key0, pub_key1, pub_key2]
+    mixed_pub_keys: list[Key] = [pub_key0, pub_key1, pub_key2]
 
     for pub_keys in (uncompressed_pub_keys, mixed_pub_keys):
         for lexi_sort in (True, False):
@@ -493,11 +494,11 @@ def test_p2ms_2() -> None:
 def test_p2ms_3() -> None:
     # tx_id 33ac2af1a6f894276713b59ed09ce1a20fed5b36d169f20a3fe831dc45564d57
     # output n 0
-    keys: List[Command] = [
+    keys: list[Command] = [
         "036D568125A969DC78B963B494FA7ED5F20EE9C2F2FC2C57F86C5DF63089F2ED3A",
         "03FE4E6231D614D159741DF8371FA3B31AB93B3D28A7495CDAA0CD63A2097015C7",
     ]
-    cmds: List[Command] = ["OP_1", *keys, "OP_2", "OP_CHECKMULTISIG"]
+    cmds: list[Command] = ["OP_1", *keys, "OP_2", "OP_CHECKMULTISIG"]
     script_pub_key = ScriptPubKey(serialize(cmds))
     assert script_pub_key == ScriptPubKey.p2ms(1, keys)
 
@@ -512,7 +513,7 @@ def test_p2ms_3() -> None:
 
     # tx 56214420a7c4dcc4832944298d169a75e93acf9721f00656b2ee0e4d194f9970
     # input n 1
-    cmds_sig: List[Command] = [
+    cmds_sig: list[Command] = [
         "OP_0",
         "3045022100dba1e9b1c8477fd364edcc1f81845928202daf465a1e2d92904c13c88761cbd002200add6af863dfdb7efb95f334baec041e90811ae9d81624f9f87f33a56761f29401",
     ]
@@ -555,7 +556,7 @@ def test_non_standard_script_in_p2wsh() -> None:
     script_pub_key = ScriptPubKey.from_address(addr)
     assert addr == address(script_pub_key.script, network)
 
-    fed_pub_keys: List[Command] = [
+    fed_pub_keys: list[Command] = [
         "03356aeda9c56586fe1e4a63d5118ffa3bf29bd91c6323e31de113a500a1ffe441".upper(),
         "0339f970e066a3efe1787722bd9cd59f69f1cf5cd29cb39fdec845415d8dbcb7a6".upper(),
         "0346f1233885981cc50b4064b6ed27174a149ac0842a25941f280302ddd7d2153d".upper(),
@@ -564,14 +565,14 @@ def test_non_standard_script_in_p2wsh() -> None:
         "03a88488e5ab6ae35c7d22d76efb9578e4a71b59c2ff0bd3cc3277e3a60717f3d6".upper(),
     ]
 
-    rec_pub_keys: List[Command] = [
+    rec_pub_keys: list[Command] = [
         "02219c3f199942fdd37a88065a8a8333189aadb5667a7c27681f66952fddf0eea4".upper(),
         "034c52cdf0125e50a53556c3f7586245f3f556bf26a80a4dae0ea6d0c81c11ebef".upper(),
         "03e8abfc4e3dcd5be461e79c9fa68a4d657b344391d7fd65ed40aaa56f584c7711".upper(),
     ]
 
     # fmt: off
-    redeem_script_cmds: List[Command] = [
+    redeem_script_cmds: list[Command] = [
         "OP_IF",
             "OP_3", *fed_pub_keys, "OP_6", "OP_CHECKMULTISIG",  # noqa E131
         "OP_ELSE",
