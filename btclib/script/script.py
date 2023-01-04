@@ -18,8 +18,10 @@ Scripts are represented by List[Command], where Command = Union[int, str, bytes]
 * hex-string or bytes (i.e., Octets) are for data
 """
 
+from __future__ import annotations
+
 from dataclasses import dataclass
-from typing import List, Sequence, Union
+from typing import Sequence, Union
 from warnings import warn
 
 from btclib.alias import BinaryData, Octets
@@ -282,7 +284,7 @@ def _serialize_bytes_command(command: bytes) -> bytes:
     Byte vectors on the stack are not allowed to be more than 520 bytes long.
     """
 
-    out: List[bytes] = []
+    out: list[bytes] = []
     length = len(command)
     if length < 76:  # 1-byte-length
         out.append(length.to_bytes(1, byteorder="little", signed=False))
@@ -299,13 +301,13 @@ def _serialize_bytes_command(command: bytes) -> bytes:
     return b"".join(out)
 
 
-def _pushdata(i: int, length: int, out: List[bytes]) -> None:
+def _pushdata(i: int, length: int, out: list[bytes]) -> None:
     out.append(BYTE_FROM_OP_CODE_NAME[f"OP_PUSHDATA{i}"])
     out.append(length.to_bytes(i, byteorder="little", signed=False))
 
 
 def serialize(script: Sequence[Command]) -> bytes:
-    r: List[bytes] = []
+    r: list[bytes] = []
     for command in script:
         if isinstance(command, int):
             r.append(_serialize_int_command(command))
@@ -316,10 +318,10 @@ def serialize(script: Sequence[Command]) -> bytes:
     return b"".join(r)
 
 
-def parse(stream: BinaryData, exit_on_op_success: bool = False) -> List[Command]:
+def parse(stream: BinaryData, exit_on_op_success: bool = False) -> list[Command]:
 
     s = bytesio_from_binarydata(stream)
-    r: List[Command] = []  # initialize the result list
+    r: list[Command] = []  # initialize the result list
 
     while True:
 
@@ -371,10 +373,10 @@ class Script:
     script: bytes
 
     @property
-    def asm(self) -> List[Command]:
+    def asm(self) -> list[Command]:
         return parse(self.script)
 
-    def __add__(self, other: object) -> object:
+    def __add__(self, other: Script) -> Script:
 
         return (
             Script(self.script + other.script)
