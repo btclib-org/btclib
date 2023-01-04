@@ -15,8 +15,6 @@ from typing import Optional, Tuple, Union
 
 from typing_extensions import TypeAlias
 
-from typing_extensions import TypeAlias
-
 from btclib.alias import Point
 from btclib.bip32 import BIP32Key, BIP32KeyData
 from btclib.ec import Curve, bytes_from_point, mult, point_from_octets, secp256k1

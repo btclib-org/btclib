@@ -12,7 +12,6 @@ show_error_codes = true
 exclude = [
     "build",
 ]
-warn-unused-configs = true
 
 [tool.isort]
 profile = "black"
