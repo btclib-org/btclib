@@ -20,7 +20,7 @@ Major changes include:
 Major changes include:
 
 - added support for Python 3.11
-- fixed the OpenSSL 3.x RIPEMD160 issue in btclib/hashes.pymypy
+- fixed the OpenSSL 3.x RIPEMD160 issue in btclib/hashes.py
 - added CONTRIBUTING and SECURITY
 - solved issue #73
   [Re-import Tx subclasses into btclib.tx](https://github.com/btclib-org/btclib/issues/73)
