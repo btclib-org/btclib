@@ -12,7 +12,7 @@
 
 https://en.bitcoin.it/wiki/Script
 
-Scripts are represented by List[Command], where Command = Union[int, str, bytes]
+Scripts are represented by list[Command], where Command = Union[int, str, bytes]
 
 * ascii string are for opcodes (e.g. 'OP_HASH160', 'OP_1', 'OP_1NEGATE', etc.)
 * hex-string or bytes (i.e., Octets) are for data
@@ -367,7 +367,7 @@ def parse(stream: BinaryData, exit_on_op_success: bool = False) -> list[Command]
 
 @dataclass
 class Script:
-    # Bitcoin script expressed as List[Command]
+    # Bitcoin script expressed as list[Command]
     # e.g. [OP_HASH160, script_h160, OP_EQUAL]
     # or Octets of its byte-encoded representation
     script: bytes

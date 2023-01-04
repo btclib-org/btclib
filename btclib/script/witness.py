@@ -8,7 +8,7 @@
 # No part of btclib including this file, may be copied, modified, propagated,
 # or distributed except according to the terms contained in the LICENSE file.
 
-"""Witness (List[bytes]) class."""
+"""Witness (list[bytes]) class."""
 
 from __future__ import annotations
 

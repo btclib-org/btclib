@@ -10,7 +10,7 @@
 
 """Block dataclass.
 
-Dataclass encapsulating BlockHeader and List[Tx].
+Dataclass encapsulating BlockHeader and list[Tx].
 """
 from __future__ import annotations
 

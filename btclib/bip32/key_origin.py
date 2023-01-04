@@ -12,7 +12,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Dict, Mapping, Sequence
+from typing import Mapping, Sequence
 
 from btclib.alias import Octets
 from btclib.bip32.der_path import (
@@ -114,7 +114,7 @@ class BIP32KeyOrigin:
         return cls(data[:8], data[9:], check_validity)
 
 
-HdKeyPaths = Dict[bytes, BIP32KeyOrigin]
+HdKeyPaths = Mapping[bytes, BIP32KeyOrigin]
 
 
 def assert_valid_hd_key_paths(hd_key_paths: Mapping[bytes, BIP32KeyOrigin]) -> None:
@@ -136,7 +136,7 @@ def decode_hd_key_paths(map_: Mapping[Octets, BIP32KeyOrigin] | None) -> HdKeyPa
     return dict(sorted(hd_key_paths.items()))
 
 
-_BIP32Deriv = Dict[str, str]
+_BIP32Deriv = Mapping[str, str]
 
 
 def encode_to_bip32_derivs(

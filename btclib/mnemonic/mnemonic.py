@@ -12,11 +12,11 @@
 from __future__ import annotations
 
 from os import path
-from typing import List, Sequence
+from typing import Sequence
 
 from btclib.exceptions import BTClibValueError
 
-WordList = List[str]
+WordList = Sequence[str]
 
 
 class WordLists:

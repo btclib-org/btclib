@@ -11,7 +11,7 @@
 """Transaction (Tx) class.
 
 Dataclass encapsulating version, lock_time,
-vin (List[TxIn]), and vout (List[TxOut]).
+vin (list[TxIn]), and vout (list[TxOut]).
 
 https://en.bitcoin.it/wiki/Transaction
 https://learnmeabitcoin.com/guide/coinbase-transaction
