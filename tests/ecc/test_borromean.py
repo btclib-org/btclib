@@ -10,6 +10,8 @@
 
 """Tests for the `btclib.borromean` module."""
 
+from __future__ import annotations
+
 import secrets
 
 from btclib.ecc import borromean, dsa
