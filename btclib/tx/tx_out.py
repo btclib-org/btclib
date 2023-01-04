@@ -20,7 +20,7 @@ from typing import Any, Dict, Mapping, Type, Union
 from btclib import var_bytes
 from btclib.alias import BinaryData, Octets, String
 from btclib.amount import btc_from_sats, sats_from_btc, valid_sats_amount
-from btclib.script.script_pub_key import ScriptPubKey
+from btclib.script import ScriptPubKey
 from btclib.utils import bytes_from_octets, bytesio_from_binarydata
 
 
