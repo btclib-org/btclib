@@ -14,8 +14,6 @@ from __future__ import annotations
 import contextlib
 from typing import Tuple, Union
 
-from typing_extensions import TypeAlias
-
 from btclib.alias import Point
 from btclib.bip32 import BIP32Key, BIP32KeyData
 from btclib.ec import Curve, bytes_from_point, mult, point_from_octets, secp256k1
@@ -32,11 +30,11 @@ from btclib.utils import bytes_from_octets
 
 # public key inputs:
 # elliptic curve point as Union[Octets, BIP32Key, Point]
-PubKey: TypeAlias = Union[bytes, str, BIP32KeyData, Point]
+PubKey = Union[bytes, str, BIP32KeyData, Point]
 
 # public or private key input,
 # usable wherever a PubKey is logically expected
-Key: TypeAlias = Union[int, bytes, str, BIP32KeyData, Point]
+Key = Union[int, bytes, str, BIP32KeyData, Point]
 
 
 def _point_from_xpub(xpub: BIP32Key, ec: Curve) -> Point:

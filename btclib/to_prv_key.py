@@ -14,8 +14,6 @@ from __future__ import annotations
 import contextlib
 from typing import Tuple, Union
 
-from typing_extensions import TypeAlias
-
 from btclib.alias import String
 from btclib.base58 import b58decode
 from btclib.bip32 import BIP32Key, BIP32KeyData
@@ -36,7 +34,7 @@ from btclib.utils import bytes_from_octets
 #
 # BIP32key and WIF also provide extra info about
 # network and (un)compressed-pub_key-derivation
-PrvKey: TypeAlias = Union[int, bytes, str, BIP32KeyData]
+PrvKey = Union[int, bytes, str, BIP32KeyData]
 
 
 def int_from_prv_key(prv_key: PrvKey, ec: Curve = secp256k1) -> int:
