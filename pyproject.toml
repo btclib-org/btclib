@@ -3,10 +3,6 @@ addopts = "--durations=8 -n auto"
 
 [tool.mypy]
 strict = false
-disable_error_code = [
-    'attr-defined',
-    'no-any-return',
-]
 show_column_numbers = true
 show_error_codes = true
 exclude = [
