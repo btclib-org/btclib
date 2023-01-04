@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 
-# Copyright (C) 2017-2023 The btclib developers
+# Copyright (C) The btclib developers
 #
 # This file is part of btclib. It is subject to the license terms in the
 # LICENSE file found in the top-level directory of this distribution.
@@ -8,7 +8,7 @@
 # No part of btclib including this file, may be copied, modified, propagated,
 # or distributed except according to the terms contained in the LICENSE file.
 
-"Tests for the `btclib.curve_group` module."
+"""Tests for the `btclib.curve_group` module."""
 
 import secrets
 
@@ -40,7 +40,6 @@ from tests.ec.test_curve import all_curves, low_card_curves
 ec23_31 = low_card_curves["ec23_31"]
 
 
-@pytest.mark.third
 def test_mult_recursive_aff() -> None:
     for ec in all_curves.values():
         assert mult_recursive_aff(0, ec.G, ec) == INF
@@ -102,7 +101,6 @@ def test_mult_recursive_jac() -> None:
         assert ec.jac_equality(K1, _mult(k1, ec.GJ, ec))
 
 
-@pytest.mark.fourth
 def test_mult_aff() -> None:
     for ec in all_curves.values():
         assert mult_aff(0, ec.G, ec) == INF

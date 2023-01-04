@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 
-# Copyright (C) 2020-2023 The btclib developers
+# Copyright (C) The btclib developers
 #
 # This file is part of btclib. It is subject to the license terms in the
 # LICENSE file found in the top-level directory of this distribution.
@@ -46,17 +46,17 @@ class TxIn:
 
     @property
     def outpoint(self) -> OutPoint:
-        "Return the outpoint OutPoint for compatibility with CTxIn."
+        """Return the outpoint OutPoint for compatibility with CTxIn."""
         return self.prev_out
 
     @property
     def scriptSig(self) -> bytes:  # pylint: disable=invalid-name
-        "Return the scriptSig bytes for compatibility with CTxIn."
+        """Return the scriptSig bytes for compatibility with CTxIn."""
         return self.script_sig
 
     @property
     def nSequence(self) -> int:  # pylint: disable=invalid-name
-        "Return the nSequence int for compatibility with CTxIn."
+        """Return the nSequence int for compatibility with CTxIn."""
         return self.sequence
 
     def __init__(

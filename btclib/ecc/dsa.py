@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 
-# Copyright (C) 2017-2023 The btclib developers
+# Copyright (C) The btclib developers
 #
 # This file is part of btclib. It is subject to the license terms in the
 # LICENSE file found in the top-level directory of this distribution.
@@ -153,7 +153,7 @@ class Sig:
             raise BTClibValueError(err_msg)
 
     def serialize(self, check_validity: bool = True) -> bytes:
-        "Serialize an ECDSA signature to strict ASN.1 DER representation"
+        """Serialize an ECDSA signature to strict ASN.1 DER representation."""
 
         if check_validity:
             self.assert_valid()
@@ -199,7 +199,7 @@ class Sig:
 def gen_keys(
     prv_key: Optional[PrvKey] = None, ec: Curve = secp256k1
 ) -> Tuple[int, Point]:
-    "Return a private/public (int, Point) key-pair."
+    """Return a private/public (int, Point) key-pair."""
 
     if prv_key is None:
         # q in the range [1, ec.n-1]

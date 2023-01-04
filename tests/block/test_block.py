@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 
-# Copyright (C) 2020-2023 The btclib developers
+# Copyright (C) The btclib developers
 #
 # This file is part of btclib. It is subject to the license terms in the
 # LICENSE file found in the top-level directory of this distribution.
@@ -8,7 +8,7 @@
 # No part of btclib including this file, may be copied, modified, propagated,
 # or distributed except according to the terms contained in the LICENSE file.
 
-"Tests for the `btclib.block` module."
+"""Tests for the `btclib.block` module."""
 
 import json
 from datetime import datetime, timezone
@@ -24,7 +24,7 @@ datadir = path.join(path.dirname(__file__), "_generated_files")
 
 
 def test_block_1() -> None:
-    "Test first block after genesis"
+    """Test first block after genesis."""
 
     fname = "block_1.bin"
     filename = path.join(path.dirname(__file__), "_data", fname)
@@ -123,7 +123,7 @@ def test_exceptions() -> None:
 
 
 def test_block_170() -> None:
-    "Test first block with a transaction"
+    """Test first block with a transaction."""
 
     fname = "block_170.bin"
     filename = path.join(path.dirname(__file__), "_data", fname)
@@ -202,9 +202,8 @@ def test_block_200000() -> None:
         _ = block.height
 
 
-@pytest.mark.seventh
 def test_block_481824() -> None:
-    "Test first block with segwit transaction as seen from legacy nodes"
+    """Test first block with segwit transaction as seen from legacy nodes."""
 
     for i, fname in enumerate(["block_481824.bin", "block_481824_complete.bin"]):
         filename = path.join(path.dirname(__file__), "_data", fname)
@@ -263,6 +262,7 @@ def test_dataclasses_json_dict() -> None:
     filename = path.join(datadir, "block_481824.json")
     with open(filename, "w", encoding="ascii") as file_:
         json.dump(block_dict, file_, indent=4)
+        file_.write("\n")  # end-of-file-fixer
     assert block_data == Block.from_dict(block_dict)
 
     block_header = block_data.header.serialize()
@@ -277,4 +277,5 @@ def test_dataclasses_json_dict() -> None:
     filename = path.join(datadir, "block_header_481824.json")
     with open(filename, "w", encoding="ascii") as file_:
         json.dump(block_header_d, file_, indent=4)
+        file_.write("\n")  # end-of-file-fixer
     assert block_header_data == BlockHeader.from_dict(block_header_d)

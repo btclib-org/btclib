@@ -1,6 +1,6 @@
-# !/usr/bin/env python3
+#!/usr/bin/env python3
 
-# Copyright (C) 2021-2023 The btclib developers
+# Copyright (C) The btclib developers
 #
 # This file is part of btclib. It is subject to the license terms in the
 # LICENSE file found in the top-level directory of this distribution.
@@ -9,7 +9,7 @@
 # or distributed except according to the terms contained in the LICENSE file.
 
 
-"""Taproot related functions"""
+"""Taproot related functions."""
 
 from typing import Any, Optional, Tuple
 
@@ -49,7 +49,7 @@ def _tree_helper(script_tree: TaprootScriptTree) -> TaprootScriptTree:
     preimage = leaf_version.to_bytes(1, "big")
     preimage += var_bytes.serialize(serialize(script))
     h = tagged_hash(b"TapLeaf", preimage)
-    return ([((leaf_version, script), bytes())], h)
+    return ([((leaf_version, script), b"")], h)
 
 
 def output_pubkey(

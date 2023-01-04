@@ -5,13 +5,14 @@ Notable changes to the codebase are documented here.
 Release names follow [*calendar versioning*](https://calver.org/):
 full year, short month, short day (YYYY-M-D)
 
-## v2023.2 (unreleased yet)
+## v2023.0.0 (unreleased yet)
 
 Major changes include:
 
 - exported names per module (bip32, block, ec, ecc, mnemonic, psbt, script, tx)
 - improved typing
-- added SECURITY, CONTRIBUTING, but report and feature request templates
+- added SECURITY, CONTRIBUTING, bug report and feature request templates
+- added pre-commit hooks
 
 ## v2022.12.31
 

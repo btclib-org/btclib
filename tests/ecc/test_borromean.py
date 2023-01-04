@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 
-# Copyright (C) 2017-2023 The btclib developers
+# Copyright (C) The btclib developers
 #
 # This file is part of btclib. It is subject to the license terms in the
 # LICENSE file found in the top-level directory of this distribution.
@@ -8,7 +8,7 @@
 # No part of btclib including this file, may be copied, modified, propagated,
 # or distributed except according to the terms contained in the LICENSE file.
 
-"Tests for the `btclib.borromean` module."
+"""Tests for the `btclib.borromean` module."""
 
 import secrets
 from collections import defaultdict
@@ -32,7 +32,7 @@ def test_borromean() -> None:
             if j == sign_key_idx[i]:
                 sign_keys.append(priv_key)
 
-    msg = "Borromean ring signature".encode()
+    msg = b"Borromean ring signature"
     sig = borromean.sign(msg, list(range(1, 5)), sign_key_idx, sign_keys, pubk_rings)
 
     borromean.assert_as_valid(msg, sig[0], sig[1], pubk_rings)

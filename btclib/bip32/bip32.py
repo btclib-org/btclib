@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 
-# Copyright (C) 2017-2023 The btclib developers
+# Copyright (C) The btclib developers
 #
 # This file is part of btclib. It is subject to the license terms in the
 # LICENSE file found in the top-level directory of this distribution.
@@ -178,7 +178,7 @@ class BIP32KeyData:
     def parse(
         cls: Type["BIP32KeyData"], xkey_bin: BinaryData, check_validity: bool = True
     ) -> "BIP32KeyData":
-        "Return a BIP32KeyData by parsing 73 bytes from binary data."
+        """Return a BIP32KeyData by parsing 73 bytes from binary data."""
 
         stream = bytesio_from_binarydata(xkey_bin)
         xkey_bin = stream.read(_REQUIRED_LENGHT)

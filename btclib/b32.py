@@ -1,3 +1,13 @@
+#!/usr/bin/env python3
+
+# Copyright (C) The btclib developers
+#
+# This file is part of btclib. It is subject to the license terms in the
+# LICENSE file found in the top-level directory of this distribution.
+#
+# No part of btclib including this file, may be copied, modified, propagated,
+# or distributed except according to the terms contained in the LICENSE file.
+
 # Copyright (c) 2017 Pieter Wuille
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
@@ -17,15 +27,6 @@
 # LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 # THE SOFTWARE.
-
-# Copyright (C) 2019-2023 The btclib developers
-#
-# This file is part of btclib. It is subject to the license terms in the
-# LICENSE file found in the top-level directory of this distribution.
-#
-# No part of btclib including this file, may be copied, modified, propagated,
-# or distributed except according to the terms contained in the LICENSE file.
-
 
 """SegWit address functions.
 
@@ -65,7 +66,7 @@ def has_segwit_prefix(addr: String) -> bool:
 def power_of_2_base_conversion(
     data: Iterable[int], from_bits: int, to_bits: int, pad: bool = True
 ) -> List[int]:
-    "Convert a power-of-two digit sequence to another power-of-two base."
+    """Convert a power-of-two digit sequence to another power-of-two base."""
     acc = 0
     bits = 0
     ret = []
@@ -123,7 +124,7 @@ def _address_from_witness(wit_ver: int, wit_prg: Octets, hrp: str) -> str:
 def address_from_witness(
     wit_ver: int, wit_prg: Octets, network: str = "mainnet"
 ) -> str:
-    "Encode a bech32 native SegWit address from the witness."
+    """Encode a bech32 native SegWit address from the witness."""
 
     hrp = NETWORKS[network].hrp
     return _address_from_witness(wit_ver, wit_prg, hrp)
@@ -161,13 +162,13 @@ def witness_from_address(b32addr: String) -> Tuple[int, bytes, str]:
 
 
 def p2wpkh(key: Key, network: Optional[str] = None) -> str:
-    "Return the p2wpkh bech32 address corresponding to a public key."
+    """Return the p2wpkh bech32 address corresponding to a public key."""
     pub_key, network = pub_keyinfo_from_key(key, network, compressed=True)
     return address_from_witness(0, hash160(pub_key), network)
 
 
 def p2wsh(script_pub_key: Octets, network: str = "mainnet") -> str:
-    "Return the p2wsh bech32 address corresponding to a script_pub_key."
+    """Return the p2wsh bech32 address corresponding to a script_pub_key."""
     h256 = sha256(script_pub_key)
     return address_from_witness(0, h256, network)
 
@@ -177,6 +178,6 @@ def p2tr(
     script_path: Optional[TaprootScriptTree] = None,
     network: str = "mainnet",
 ) -> str:
-    "Return the p2tr bech32 address corresponding to a taproot output key."
+    """Return the p2tr bech32 address corresponding to a taproot output key."""
     pub_key = output_pubkey(internal_key, script_path)[0]
     return address_from_witness(1, pub_key, network)

@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 
-# Copyright (C) 2017-2023 The btclib developers
+# Copyright (C) The btclib developers
 #
 # This file is part of btclib. It is subject to the license terms in the
 # LICENSE file found in the top-level directory of this distribution.
@@ -8,9 +8,7 @@
 # No part of btclib including this file, may be copied, modified, propagated,
 # or distributed except according to the terms contained in the LICENSE file.
 
-"""BIP32 key origin.
-
-"""
+"""BIP32 key origin."""
 
 from dataclasses import dataclass
 from typing import Dict, List, Mapping, Optional, Sequence, Tuple, Type
@@ -98,7 +96,7 @@ class BIP32KeyOrigin:
     def parse(
         cls: Type["BIP32KeyOrigin"], data: Octets, check_validity: bool = True
     ) -> "BIP32KeyOrigin":
-        "Return a BIP32KeyOrigin by parsing binary data."
+        """Return a BIP32KeyOrigin by parsing binary data."""
 
         data = bytes_from_octets(data)
         master_fingerprint = data[:4]
@@ -119,7 +117,7 @@ HdKeyPaths = Dict[bytes, BIP32KeyOrigin]
 
 
 def assert_valid_hd_key_paths(hd_key_paths: Mapping[bytes, BIP32KeyOrigin]) -> None:
-    "Raise an exception if the dataclass element is not valid."
+    """Raise an exception if the dataclass element is not valid."""
 
     for pub_key, key_origin in hd_key_paths.items():
         # test vector 6 contains an invalid pubkey
@@ -131,7 +129,7 @@ def assert_valid_hd_key_paths(hd_key_paths: Mapping[bytes, BIP32KeyOrigin]) -> N
 
 
 def decode_hd_key_paths(map_: Optional[Mapping[Octets, BIP32KeyOrigin]]) -> HdKeyPaths:
-    "Return the dataclass element from its json representation."
+    """Return the dataclass element from its json representation."""
 
     hd_key_paths = {bytes_from_octets(k): v for k, v in map_.items()} if map_ else {}
     return dict(sorted(hd_key_paths.items()))
@@ -143,7 +141,7 @@ _BIP32Deriv = Dict[str, str]
 def encode_to_bip32_derivs(
     hd_key_paths: Mapping[bytes, BIP32KeyOrigin]
 ) -> List[_BIP32Deriv]:
-    "Return the json representation of the dataclass element."
+    """Return the json representation of the dataclass element."""
 
     return [
         {
@@ -169,6 +167,6 @@ def _decode_from_bip32_deriv(
 def decode_from_bip32_derivs(
     bip32_derivs: Sequence[Mapping[str, str]],
 ) -> HdKeyPaths:
-    "Return the dataclass element from its json representation."
+    """Return the dataclass element from its json representation."""
 
     return dict(sorted([_decode_from_bip32_deriv(item) for item in bip32_derivs]))

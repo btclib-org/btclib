@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 
-# Copyright (C) 2020-2023 The btclib developers
+# Copyright (C) The btclib developers
 #
 # This file is part of btclib. It is subject to the license terms in the
 # LICENSE file found in the top-level directory of this distribution.
@@ -9,7 +9,6 @@
 # or distributed except according to the terms contained in the LICENSE file.
 
 """Transaction (Tx) class.
-
 
 Dataclass encapsulating version, lock_time,
 vin (List[TxIn]), and vout (List[TxOut]).
@@ -23,7 +22,6 @@ https://developer.bitcoin.org/devguide/transactions.html
 https://medium.com/summa-technology/bitcoins-time-locks-27e0c362d7a1
 https://bitcoin.stackexchange.com/questions/40764/is-my-understanding-of-locktime-correct
 https://en.bitcoin.it/wiki/Timelock
-
 """
 
 from dataclasses import dataclass
@@ -61,17 +59,17 @@ class Tx:
 
     @property
     def nVersion(self) -> int:  # pylint: disable=invalid-name
-        "Return the nVersion int for compatibility with CTransaction."
+        """Return the nVersion int for compatibility with CTransaction."""
         return self.version
 
     @property
     def nLockTime(self) -> int:  # pylint: disable=invalid-name
-        "Return the nLockTime int for compatibility with CTransaction."
+        """Return the nLockTime int for compatibility with CTransaction."""
         return self.lock_time
 
     @property
     def id(self) -> bytes:
-        "Return the transaction id."
+        """Return the transaction id."""
         serialized_ = self.serialize(include_witness=False, check_validity=False)
         hash256_ = hash256(serialized_)
         return hash256_[::-1]
@@ -88,7 +86,7 @@ class Tx:
 
     @property
     def size(self) -> int:
-        "Return the transaction size."
+        """Return the transaction size."""
         return len(self.serialize(include_witness=True, check_validity=False))
 
     @property
@@ -235,7 +233,7 @@ class Tx:
         data: BinaryData,
         check_validity: bool = True,
     ) -> "Tx":
-        "Return a Tx by parsing binary data."
+        """Return a Tx by parsing binary data."""
 
         stream = bytesio_from_binarydata(data)
 

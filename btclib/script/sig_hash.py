@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 
-# Copyright (C) 2020-2023 The btclib developers
+# Copyright (C) The btclib developers
 #
 # This file is part of btclib. It is subject to the license terms in the
 # LICENSE file found in the top-level directory of this distribution.
@@ -60,7 +60,8 @@ def legacy_script(script_pub_key: Octets) -> List[bytes]:
     script_s: List[bytes] = []
     current_script: List[Command] = []
     for token in parse(script_pub_key)[::-1]:
-        if token == "OP_CODESEPARATOR":  # nosec required for python < 3.8
+        # B105 required for py<38
+        if token == "OP_CODESEPARATOR":  # nosec B105
             script_s.append(serialize(current_script[::-1]))
         else:
             current_script.append(token)
@@ -81,7 +82,8 @@ def witness_v0_script(script_pub_key: Octets) -> List[bytes]:
     script_s: List[bytes] = []
     current_script: List[Command] = []
     for token in parse(script_pub_key)[::-1]:
-        if token == "OP_CODESEPARATOR":  # nosec required for python < 3.8
+        # B105 required for py<38
+        if token == "OP_CODESEPARATOR":  # nosec B105
             script_s.append(serialize(current_script[::-1]))
         current_script.append(token)
     script_s.append(serialize(current_script[::-1]))

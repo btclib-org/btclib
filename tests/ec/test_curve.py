@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 
-# Copyright (C) 2017-2023 The btclib developers
+# Copyright (C) The btclib developers
 #
 # This file is part of btclib. It is subject to the license terms in the
 # LICENSE file found in the top-level directory of this distribution.
@@ -8,7 +8,7 @@
 # No part of btclib including this file, may be copied, modified, propagated,
 # or distributed except according to the terms contained in the LICENSE file.
 
-"Tests for the `btclib.curve` module."
+"""Tests for the `btclib.curve` module."""
 
 import secrets
 
@@ -122,7 +122,7 @@ def test_aff_jac_conversions() -> None:
 
 
 def test_add_double_aff() -> None:
-    "Test self-consistency of add and double in affine coordinates."
+    """Test self-consistency of add and double in affine coordinates."""
     for ec in all_curves.values():
 
         # add G and the infinity point
@@ -145,7 +145,7 @@ def test_add_double_aff() -> None:
 
 
 def test_add_double_jac() -> None:
-    "Test self-consistency of add and double in Jacobian coordinates."
+    """Test self-consistency of add and double in Jacobian coordinates."""
     for ec in all_curves.values():
 
         # add G and the infinity point
@@ -168,7 +168,7 @@ def test_add_double_jac() -> None:
 
 
 def test_add_double_aff_jac() -> None:
-    "Test consistency between affine and Jacobian add/double methods."
+    """Test consistency between affine and Jacobian add/double methods."""
     for ec in all_curves.values():
 
         # just a random point, not INF
@@ -194,7 +194,7 @@ def test_ec_repr() -> None:
         ec_repr = repr(ec)
         if ec in low_card_curves.values() or ec.p_size < 24:
             ec_repr = f"{ec_repr[:-1]}, False)"
-        ec2 = eval(ec_repr)  # pylint: disable=eval-used # nosec
+        ec2 = eval(ec_repr)  # pylint: disable=eval-used # nosec B307
         assert str(ec) == str(ec2)
 
 
@@ -244,7 +244,7 @@ def test_negate() -> None:
 
 
 def test_symmetry() -> None:
-    "Methods to break simmetry: quadratic residue, even/odd, low/high."
+    """Methods to break simmetry: quadratic residue, even/odd, low/high."""
     for ec in low_card_curves.values():
 
         # just a random point, not INF
@@ -310,7 +310,6 @@ def test_symmetry() -> None:
         secp256k1.y_quadratic_residue(INF[0])
 
 
-@pytest.mark.fifth
 def test_assorted_mult() -> None:
     ec = ec23_31
     H = second_generator(ec)

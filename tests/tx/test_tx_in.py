@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 
-# Copyright (C) 2020-2023 The btclib developers
+# Copyright (C) The btclib developers
 #
 # This file is part of btclib. It is subject to the license terms in the
 # LICENSE file found in the top-level directory of this distribution.
@@ -8,7 +8,7 @@
 # No part of btclib including this file, may be copied, modified, propagated,
 # or distributed except according to the terms contained in the LICENSE file.
 
-"Tests for the `btclib.tx_in` module."
+"""Tests for the `btclib.tx_in` module."""
 
 import json
 from os import path
@@ -112,9 +112,10 @@ def test_dataclasses_json_dict() -> None:
     filename = path.join(datadir, "tx_in.json")
     with open(filename, "w", encoding="ascii") as file_:
         json.dump(tx_in_dict, file_, indent=4)
+        file_.write("\n")  # end-of-file-fixer
 
     # TxIn dataclass dict from file
-    with open(filename, "r", encoding="ascii") as file_:
+    with open(filename, encoding="ascii") as file_:
         tx_dict2 = json.load(file_)
     assert isinstance(tx_dict2, dict)
 

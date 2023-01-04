@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 
-# Copyright (C) 2017-2023 The btclib developers
+# Copyright (C) The btclib developers
 #
 # This file is part of btclib. It is subject to the license terms in the
 # LICENSE file found in the top-level directory of this distribution.
@@ -87,7 +87,7 @@ def _helper_checks(
 def p2pkh_xkey(
     xkey: BIP32Key, der_path: BIP32DerPath = "m/44h/0h/0h", check_root_xkey: bool = True
 ) -> str:
-    "Return a p2pkh BIP32 xprv/xpub master key at the derivation path."
+    """Return a p2pkh BIP32 xprv/xpub master key at the derivation path."""
 
     xkey, network = _helper_checks(xkey, check_root_xkey)
     version = network.bip32_prv if xkey.is_private else network.bip32_pub
@@ -97,7 +97,7 @@ def p2pkh_xkey(
 def p2wpkh_p2sh_xkey(
     xkey: BIP32Key, der_path: BIP32DerPath = "m/49h/0h/0h", check_root_xkey: bool = True
 ) -> str:
-    "Return a p2wpkh-p2sh BIP32 yprv/ypub master key at the derivation path."
+    """Return a p2wpkh-p2sh BIP32 yprv/ypub master key at the derivation path."""
 
     xkey, network = _helper_checks(xkey, check_root_xkey)
     version = (
@@ -111,7 +111,7 @@ def p2wpkh_p2sh_xkey(
 def p2wpkh_xkey(
     xkey: BIP32Key, der_path: BIP32DerPath = "m/84h/0h/0h", check_root_xkey: bool = True
 ) -> str:
-    "Return a p2wpkh BIP32 zprv/zpub master key at the derivation path."
+    """Return a p2wpkh BIP32 zprv/zpub master key at the derivation path."""
 
     xkey, network = _helper_checks(xkey, check_root_xkey)
     version = (

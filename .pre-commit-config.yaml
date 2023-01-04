@@ -1,31 +1,127 @@
+# Skip execution of one or more hooks using the SKIP environment variable:
+# $ SKIP=pylint git commit -m "foo"
+# $ SKIP=mypy,pylint pre-commit run --all-files
+#
+# If want to disable all hooks while committing, use the --no-verify/-n option:
+# $ git commit -n -m "foo"
+
 repos:
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v4.4.0
+    hooks:
+      - id: trailing-whitespace
+      - id: end-of-file-fixer
+      - id: mixed-line-ending
+      - id: check-case-conflict
+      # - id: check-executables-have-shebangs
+      # - id: check-shebang-scripts-are-executable
+      # - id: fix-byte-order-marker
+      # - id: fix-encoding-pragma
+      - id: check-yaml
+      - id: check-json
+      # - id: pretty-format-json
+      - id: check-merge-conflict
+      - id: check-vcs-permalinks
+      - id: detect-private-key
+      - id: debug-statements
+      - id: requirements-txt-fixer
+      - id: check-docstring-first
+      # - id: name-tests-test
+      - id: check-toml
+  - repo: https://github.com/DavidAnson/markdownlint-cli2
+    rev: v0.6.0
+    hooks:
+      - id: markdownlint-cli2-fix
+        name: markdownlint-cli2-fix (in place fixes)
+  - repo: https://github.com/leoll2/copyright_notice_precommit
+    rev: 0.1.1
+    hooks:
+      - id: copyright-notice
+        args: [--notice=COPYRIGHT]
+  - repo: https://github.com/PyCQA/autoflake
+    rev: v2.0.0
+    hooks:
+      - id: autoflake
+        args:
+          - --in-place
+          - --expand-star-imports
+          - --remove-all-unused-imports
+          - --ignore-init-module-imports
+          - --remove-duplicate-keys
+          - --remove-unused-variables
+          - --remove-rhs-for-unused-variables
+  - repo: https://github.com/asottile/pyupgrade
+    rev: v3.3.1
+    hooks:
+      - id: pyupgrade
+        args: [--py37-plus]
+        # exclude: *fixtures
   - repo: https://github.com/pycqa/isort
-    rev: 5.11.2
+    rev: 5.11.4
     hooks:
       - id: isort
-        name: isort (python)
+        name: isort (black profile, in place fixes)
+        args: ["--profile", "black", "--filter-files"]
+  - repo: https://github.com/DanielNoord/pydocstringformatter
+    rev: v0.7.3
+    hooks:
+      - id: pydocstringformatter
+  - repo: https://github.com/asottile/yesqa
+    rev: v1.4.0
+    hooks:
+      - id: yesqa
   - repo: https://github.com/psf/black
     rev: 22.12.0
     hooks:
       - id: black
-        name: black
-        args: [--diff, --check]
+        name: black (in place fixes)
+        # args: [--diff, --check]
         # It is recommended to specify the latest version of Python
         # supported by your project here, or alternatively use
         # pre-commit's default_language_version, see
         # https://pre-commit.com/#top_level-default_language_version
-        language_version: python3.11
+        # language_version: python3.11
   - repo: https://github.com/PyCQA/flake8
-    rev: 5.0.4
+    rev: 6.0.0
     hooks:
       - id: flake8
-        name: flake8
-  - repo: https://github.com/sourcery-ai/sourcery
-    rev: v1.0.2
+  - repo: https://github.com/PyCQA/bandit
+    rev: 1.7.4
     hooks:
-      - id: sourcery
-        name: sourcery
-        # The best way to use Sourcery in a pre-commit hook:
-        # * review only changed lines:
-        # * omit the summary
-        args: [--diff=git diff HEAD, --no-summary]
+      - id: bandit
+        name: bandit (btclib)
+        args: []
+        exclude: test_*
+  - repo: https://github.com/PyCQA/bandit
+    rev: 1.7.4
+    hooks:
+      - id: bandit
+        name: bandit (tests)
+        # disable B101 (Test for use of assert) on tests folder
+        args: ["-s", "B101"]
+        exclude: btclib
+  - repo: https://github.com/pycqa/pylint
+    rev: v2.15.9
+    hooks:
+      - id: pylint
+        args: [
+            "-rn", # Only display messages
+            "-sn", # Don't display the score
+            "--disable=E0401", # import-error
+          ]
+  - repo: https://github.com/pre-commit/mirrors-mypy
+    rev: v0.991
+    hooks:
+      - id: mypy
+  - repo: https://github.com/mgedmin/check-manifest
+    rev: "0.49"
+    hooks:
+      - id: check-manifest
+        description: Check the completeness of MANIFEST.in for Python packages.
+        language: python
+        pass_filenames: false
+        always_run: true
+  - repo: https://github.com/regebro/pyroma
+    rev: "4.1"
+    hooks:
+      - id: pyroma

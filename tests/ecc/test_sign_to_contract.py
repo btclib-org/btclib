@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 
-# Copyright (C) 2017-2023 The btclib developers
+# Copyright (C) The btclib developers
 #
 # This file is part of btclib. It is subject to the license terms in the
 # LICENSE file found in the top-level directory of this distribution.
@@ -8,7 +8,7 @@
 # No part of btclib including this file, may be copied, modified, propagated,
 # or distributed except according to the terms contained in the LICENSE file.
 
-"Tests for the `btclib.sign_to_contract` module."
+"""Tests for the `btclib.sign_to_contract` module."""
 
 import secrets
 from hashlib import sha1, sha256
@@ -25,8 +25,8 @@ from btclib.ecc.sign_to_contract import (
 
 
 def test_sign_to_contract_dsa() -> None:
-    commit_msg = "to be committed".encode()
-    msg = "to be signed".encode()
+    commit_msg = b"to be committed"
+    msg = b"to be signed"
 
     lower_s = True
     for hf in (sha256, sha1):
@@ -46,8 +46,8 @@ def test_sign_to_contract_dsa() -> None:
 
 
 def test_sign_to_contract_ssa() -> None:
-    commit_msg = "to be committed".encode()
-    msg = "to be signed".encode()
+    commit_msg = b"to be committed"
+    msg = b"to be signed"
 
     for hf in (sha256, sha1):
         for ec in (secp256k1, CURVES["secp160r1"]):

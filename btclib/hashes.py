@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 
-# Copyright (C) 2017-2023 The btclib developers
+# Copyright (C) The btclib developers
 #
 # This file is part of btclib. It is subject to the license terms in the
 # LICENSE file found in the top-level directory of this distribution.
@@ -8,9 +8,7 @@
 # No part of btclib including this file, may be copied, modified, propagated,
 # or distributed except according to the terms contained in the LICENSE file.
 
-""" Hash based helper functions.
-
-"""
+"""Hash based helper functions."""
 
 import hashlib
 from typing import Callable, List, Tuple, Union
@@ -34,27 +32,27 @@ except ValueError:  # pragma: no cover
 
 
 def ripemd160(octets: Octets) -> bytes:
-    "Return the RIPEMD160(*) of the input octet sequence."
+    """Return the RIPEMD160(*) of the input octet sequence."""
 
     octets = bytes_from_octets(octets)
     return hashlib.new("ripemd160", octets).digest()
 
 
 def sha256(octets: Octets) -> bytes:
-    "Return the SHA256(*) of the input octet sequence."
+    """Return the SHA256(*) of the input octet sequence."""
 
     octets = bytes_from_octets(octets)
     return hashlib.sha256(octets).digest()
 
 
 def hash160(octets: Octets) -> bytes:
-    "Return the HASH160=RIPEMD160(SHA256) of the input octet sequence."
+    """Return the HASH160=RIPEMD160(SHA256) of the input octet sequence."""
 
     return ripemd160(sha256(octets))
 
 
 def hash256(octets: Octets) -> bytes:
-    "Return the SHA256(SHA256(*)) of the input octet sequence."
+    """Return the SHA256(SHA256(*)) of the input octet sequence."""
 
     return sha256(sha256(octets))
 

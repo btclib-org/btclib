@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 
-# Copyright (C) 2017-2023 The btclib developers
+# Copyright (C) The btclib developers
 #
 # This file is part of btclib. It is subject to the license terms in the
 # LICENSE file found in the top-level directory of this distribution.
@@ -8,7 +8,7 @@
 # No part of btclib including this file, may be copied, modified, propagated,
 # or distributed except according to the terms contained in the LICENSE file.
 
-"Tests for the `btclib.bip32_path` module."
+"""Tests for the `btclib.bip32_path` module."""
 
 import json
 from os import path
@@ -94,9 +94,10 @@ def test_dataclasses_json_dict_key_origin() -> None:
     filename = path.join(datadir, "key_origin.json")
     with open(filename, "w", encoding="ascii") as file_:
         json.dump(key_origin_dict, file_, indent=4)
+        file_.write("\n")  # end-of-file-fixer
 
     # BIP32KeyOrigin dict from file
-    with open(filename, "r", encoding="ascii") as file_:
+    with open(filename, encoding="ascii") as file_:
         key_origin_dict2 = json.load(file_)
     assert isinstance(key_origin_dict2, dict)
     assert key_origin_dict["master_fingerprint"]

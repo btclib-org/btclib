@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 
-# Copyright (C) 2020-2023 The btclib developers
+# Copyright (C) The btclib developers
 #
 # This file is part of btclib. It is subject to the license terms in the
 # LICENSE file found in the top-level directory of this distribution.
@@ -50,7 +50,7 @@ from btclib.exceptions import BTClibValueError
 
 
 def mods(m: int, w: int) -> int:
-    "Signed modulo function."
+    """Signed modulo function."""
 
     w2: int = pow(2, w)
     M = m % w2
@@ -58,7 +58,7 @@ def mods(m: int, w: int) -> int:
 
 
 def wNAF_of_m(m: int, w: int) -> List[int]:
-    """wNAF (width-w Non-adjacent form) of number m
+    """WNAF (width-w Non-adjacent form) of number m.
 
     Given an integer m, wNAF is a method of rapresentation
     with powers of 2, where the coefficients are odd or 0,
@@ -235,7 +235,7 @@ def multiplier_decomposer(m: int, ec: CurveGroup) -> Tuple[int, int]:
 
 
 def mult_endomorphism_secp256k1(m: int, Q: JacPoint, ec: CurveGroup) -> JacPoint:
-    "Scalar multiplication in Jacobian coordinates using efficient endomorphism."
+    """Scalar multiplication in Jacobian coordinates using efficient endomorphism."""
 
     m1, m2 = multiplier_decomposer(m, ec)
 

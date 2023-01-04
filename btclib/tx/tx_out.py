@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 
-# Copyright (C) 2020-2023 The btclib developers
+# Copyright (C) The btclib developers
 #
 # This file is part of btclib. It is subject to the license terms in the
 # LICENSE file found in the top-level directory of this distribution.
@@ -33,12 +33,12 @@ class TxOut:
 
     @property
     def nValue(self) -> int:  # pylint: disable=invalid-name
-        "Return the nValue int for compatibility with CTxOut."
+        """Return the nValue int for compatibility with CTxOut."""
         return self.value
 
     @property
     def scriptPubKey(self) -> bytes:  # pylint: disable=invalid-name
-        "Return the scriptPubKey bytes for compatibility with CTxOut."
+        """Return the scriptPubKey bytes for compatibility with CTxOut."""
         return self.script_pub_key.script
 
     def __init__(

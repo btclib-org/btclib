@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 
-# Copyright (C) 2017-2023 The btclib developers
+# Copyright (C) The btclib developers
 #
 # This file is part of btclib. It is subject to the license terms in the
 # LICENSE file found in the top-level directory of this distribution.
@@ -8,7 +8,7 @@
 # No part of btclib including this file, may be copied, modified, propagated,
 # or distributed except according to the terms contained in the LICENSE file.
 
-"Tests for the `btclib.bip39` module."
+"""Tests for the `btclib.bip39` module."""
 
 import json
 import secrets
@@ -46,13 +46,13 @@ def test_bip39() -> None:
 
 
 def test_vectors() -> None:
-    """BIP39 test vectors
+    """BIP39 test vectors.
 
     https://github.com/trezor/python-mnemonic/blob/master/vectors.json
     """
     fname = "bip39_test_vectors.json"
     filename = path.join(path.dirname(__file__), "_data", fname)
-    with open(filename, "r", encoding="ascii") as file_:
+    with open(filename, encoding="ascii") as file_:
         bip39_test_vectors = json.load(file_)["english"]
 
     lang = "en"

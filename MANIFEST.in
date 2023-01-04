@@ -1,11 +1,12 @@
 include LICENSE
+include COPYRIGHT
 include *.md
 include *.txt
 include *.yml
 include *.yaml
 include .flake8
 include tox.ini
-include *.json
+include *.jsonc
 include pyproject.toml
 
 exclude Gemfile

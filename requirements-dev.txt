@@ -1,26 +1,25 @@
 # packages required to develop, build, and test btclib
 
-pip
-wheel
-
-# only needed to package releases
-setuptools
-twine
-
-bandit>=1.7.4
-black>=22.12.0
-check-manifest>=0.49
-coverage>=7.0.1
+autoflake
+bandit
+black
+check-manifest
+coverage
 # flake8 6.x requires python>=3.8.1
-flake8>=5.0.4
-isort>=5.11.4
-mypy>=0.991
-pre-commit>=2.21.0
-pylint>=2.12.2
-pytest>=7.2.0
-pytest-cov>=4.0.0
-pytest-ordering>=0.6
-pytest-xdist>=3.1.0
-sourcery-cli>=1.0.2
+flake8
+isort
+mypy
+pip
+pre-commit
+pylint
+pyroma
+pytest
+pytest-cov
+pytest-xdist
+pyupgrade
+setuptools
+sourcery-cli
 # tox 4.x depends on importlib-metadata>=5.2
-tox>=3.28.0
+tox
+twine
+wheel

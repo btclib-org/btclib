@@ -1,8 +1,19 @@
-# Configuration file for the Sphinx documentation builder.
+#!/usr/bin/env python3
+
+# Copyright (C) The btclib developers
 #
-# This file only contains a selection of the most common options. For a full
-# list see the documentation:
-# http://www.sphinx-doc.org/en/master/config
+# This file is part of btclib. It is subject to the license terms in the
+# LICENSE file found in the top-level directory of this distribution.
+#
+# No part of btclib including this file, may be copied, modified, propagated,
+# or distributed except according to the terms contained in the LICENSE file.
+
+"""Configuration file for the Sphinx documentation builder.
+
+This file only contains a selection of the most common options. For a full
+list see the documentation:
+http://www.sphinx-doc.org/en/master/config
+"""
 
 # -- Path setup --------------------------------------------------------------
 
@@ -19,7 +30,7 @@ sys.path.insert(0, path.abspath("../../"))
 # -- Project information -----------------------------------------------------
 
 project = "btclib"
-copyright = "2017-2023 The btclib developers"
+project_copyright = "2017-2023 The btclib developers"
 author = "The btclib developers"
 
 # The full version, including alpha/beta/rc tags

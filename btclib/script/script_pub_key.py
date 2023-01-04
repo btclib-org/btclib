@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 
-# Copyright (C) 2017-2023 The btclib developers
+# Copyright (C) The btclib developers
 #
 # This file is part of btclib. It is subject to the license terms in the
 # LICENSE file found in the top-level directory of this distribution.
@@ -8,7 +8,7 @@
 # No part of btclib including this file, may be copied, modified, propagated,
 # or distributed except according to the terms contained in the LICENSE file.
 
-"ScriptPubKey class and functions."
+"""ScriptPubKey class and functions."""
 
 from typing import Callable, List, Optional, Sequence, Tuple, Type
 
@@ -25,7 +25,7 @@ from btclib.utils import bytes_from_octets, bytesio_from_binarydata
 
 
 def address(script_pub_key: Octets, network: str = "mainnet") -> str:
-    "Return the bech32/base58 address from a script_pub_key."
+    """Return the bech32/base58 address from a script_pub_key."""
 
     if script_pub_key:
         script_type, payload = type_and_payload(script_pub_key)
@@ -43,7 +43,7 @@ def address(script_pub_key: Octets, network: str = "mainnet") -> str:
 
 
 def addresses(script_pub_key: Octets, network: str = "mainnet") -> List[str]:
-    "Return the p2pkh addresses of the pub_keys used in a p2ms script_pub_key."
+    """Return the p2pkh addresses of the pub_keys used in a p2ms script_pub_key."""
 
     script_pub_key = bytes_from_octets(script_pub_key)
     # p2ms [m, pub_keys, n, OP_CHECKMULTISIG]
@@ -236,7 +236,7 @@ def is_p2tr(script_pub_key: Octets) -> bool:
 
 
 def type_and_payload(script_pub_key: Octets) -> Tuple[str, bytes]:
-    "Return (script_pub_key type, payload) from the input script_pub_key."
+    """Return (script_pub_key type, payload) from the input script_pub_key."""
 
     script_pub_key = bytes_from_octets(script_pub_key)
 
@@ -349,7 +349,7 @@ class ScriptPubKey(Script):
     def from_address(
         cls: Type["ScriptPubKey"], addr: String, check_validity: bool = True
     ) -> "ScriptPubKey":
-        "Return the ScriptPubKey of the input bech32/base58 address."
+        """Return the ScriptPubKey of the input bech32/base58 address."""
 
         if b32.has_segwit_prefix(addr):
             wit_ver, wit_prg, network = b32.witness_from_address(addr)
@@ -375,7 +375,7 @@ class ScriptPubKey(Script):
         network: Optional[str] = None,
         check_validity: bool = True,
     ) -> "ScriptPubKey":
-        "Return the p2pk ScriptPubKey of the provided Key."
+        """Return the p2pk ScriptPubKey of the provided Key."""
         payload, network = pub_keyinfo_from_key(key, network)
         script = serialize([payload, "OP_CHECKSIG"])
         return cls(script, network, check_validity)
@@ -424,7 +424,7 @@ class ScriptPubKey(Script):
         data: String,
         check_validity: bool = True,
     ) -> "ScriptPubKey":
-        "Return the nulldata ScriptPubKey of the provided data."
+        """Return the nulldata ScriptPubKey of the provided data."""
 
         if isinstance(data, str):
             # do not strip spaces
@@ -445,7 +445,7 @@ class ScriptPubKey(Script):
         network: Optional[str] = None,
         check_validity: bool = True,
     ) -> "ScriptPubKey":
-        "Return the p2pkh ScriptPubKey of the provided key."
+        """Return the p2pkh ScriptPubKey of the provided key."""
 
         pub_key, network = pub_keyinfo_from_key(key, network, compressed=compressed)
         script = serialize(
@@ -460,7 +460,7 @@ class ScriptPubKey(Script):
         network: str = "mainnet",
         check_validity: bool = True,
     ) -> "ScriptPubKey":
-        "Return the p2sh ScriptPubKey of the provided redeem script."
+        """Return the p2sh ScriptPubKey of the provided redeem script."""
 
         script_h160 = hash160(redeem_script)
         script = serialize(["OP_HASH160", script_h160, "OP_EQUAL"])
@@ -488,7 +488,7 @@ class ScriptPubKey(Script):
         network: str = "mainnet",
         check_validity: bool = True,
     ) -> "ScriptPubKey":
-        "Return the p2wsh ScriptPubKey of the provided redeem script."
+        """Return the p2wsh ScriptPubKey of the provided redeem script."""
 
         script_h256 = sha256(redeem_script)
         script = serialize(["OP_0", script_h256])
@@ -502,7 +502,7 @@ class ScriptPubKey(Script):
         network: str = "mainnet",
         check_validity: bool = True,
     ) -> "ScriptPubKey":
-        "Return the p2tr ScriptPubKey of the provided script tree."
+        """Return the p2tr ScriptPubKey of the provided script tree."""
 
         pub_key = output_pubkey(internal_key, script_path)[0]
         script = serialize(["OP_1", pub_key])

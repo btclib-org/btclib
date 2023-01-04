@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 
-# Copyright (C) 2020-2023 The btclib developers
+# Copyright (C) The btclib developers
 #
 # This file is part of btclib. It is subject to the license terms in the
 # LICENSE file found in the top-level directory of this distribution.
@@ -99,7 +99,7 @@ class Psbt:
             self.assert_valid()
 
     def assert_valid(self) -> None:
-        "Assert logical self-consistency."
+        """Assert logical self-consistency."""
 
         self.tx.assert_valid()
 
@@ -231,7 +231,7 @@ class Psbt:
     def parse(
         cls: Type["Psbt"], psbt_bin: Octets, check_validity: bool = True
     ) -> "Psbt":
-        "Return a Psbt by parsing binary data."
+        """Return a Psbt by parsing binary data."""
 
         # FIXME: psbt_bin should be BinaryData
         # stream = bytesio_from_binarydata(psbt_bin)
@@ -418,7 +418,7 @@ def finalize_psbt(psbt: Psbt) -> Psbt:
 
 
 def extract_tx(psbt: Psbt, check_validity: bool = True) -> Tx:
-    """Extract the Tx fro the Psbt
+    """Extract the Tx fro the Psbt.
 
     The Transaction Extractor must only accept a PSBT.
     It checks whether all inputs have complete scriptSigs

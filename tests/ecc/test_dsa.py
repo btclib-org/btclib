@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 
-# Copyright (C) 2017-2023 The btclib developers
+# Copyright (C) The btclib developers
 #
 # This file is part of btclib. It is subject to the license terms in the
 # LICENSE file found in the top-level directory of this distribution.
@@ -8,7 +8,7 @@
 # No part of btclib including this file, may be copied, modified, propagated,
 # or distributed except according to the terms contained in the LICENSE file.
 
-"Tests for the `btclib.dsa` module."
+"""Tests for the `btclib.dsa` module."""
 
 import secrets
 from hashlib import sha1
@@ -34,7 +34,7 @@ from tests.ec.test_curve import low_card_curves
 
 
 def test_signature() -> None:
-    msg = "Satoshi Nakamoto".encode()
+    msg = b"Satoshi Nakamoto"
 
     q, Q = dsa.gen_keys(0x1)
     sig = dsa.sign(msg, q)
@@ -62,7 +62,7 @@ def test_signature() -> None:
     assert len(keys) == 2
     assert Q in keys
 
-    msg_fake = "Craig Wright".encode()
+    msg_fake = b"Craig Wright"
     assert not dsa.verify(msg_fake, Q, sig)
     err_msg = "signature verification failed"
     with pytest.raises(BTClibRuntimeError, match=err_msg):
@@ -107,7 +107,7 @@ def test_signature() -> None:
 
 
 def test_gec() -> None:
-    """GEC 2: Test Vectors for SEC 1, section 2
+    """GEC 2: Test Vectors for SEC 1, section 2.
 
     http://read.pudn.com/downloads168/doc/772358/TestVectorsforSEC%201-gec2.pdf
     """
@@ -143,9 +143,8 @@ def test_gec() -> None:
     assert dsa.verify(msg, QU, sig, lower_s, hf)
 
 
-@pytest.mark.first
 def test_low_cardinality() -> None:
-    """test low-cardinality curves for all msg/key pairs."""
+    """Test low-cardinality curves for all msg/key pairs."""
     # pylint: disable=protected-access
 
     # ec.n has to be prime to sign
@@ -200,7 +199,7 @@ def test_pub_key_recovery() -> None:
     q = 0x10
     Q = mult(q, ec.G, ec)
 
-    msg = "Satoshi Nakamoto".encode()
+    msg = b"Satoshi Nakamoto"
     sig = dsa.sign(msg, q, ec=ec)
     dsa.assert_as_valid(msg, Q, sig)
     assert dsa.verify(msg, Q, sig)
@@ -219,11 +218,11 @@ def test_crack_prv_key() -> None:
     q, _ = dsa.gen_keys(1)
     k = 1 + secrets.randbelow(ec.n - 1)
 
-    msg1 = "Paolo is afraid of ephemeral random numbers".encode()
+    msg1 = b"Paolo is afraid of ephemeral random numbers"
     m_1 = reduce_to_hlen(msg1)
     sig1 = dsa.sign_(m_1, q, k)
 
-    msg2 = "and Paolo is right to be afraid".encode()
+    msg2 = b"and Paolo is right to be afraid"
     m_2 = reduce_to_hlen(msg2)
     sig2 = dsa.sign_(m_2, q, k)
 
@@ -252,7 +251,7 @@ def test_crack_prv_key() -> None:
 
 
 def test_forge_hash_sig() -> None:
-    """forging valid hash signatures"""
+    """Forging valid hash signatures."""
     # pylint: disable=protected-access
 
     ec = CURVES["secp256k1"]
@@ -286,7 +285,7 @@ def test_forge_hash_sig() -> None:
 
 
 def test_sign_input_type() -> None:
-    msg = "Satoshi Nakamoto".encode()
+    msg = b"Satoshi Nakamoto"
     q, Q = dsa.gen_keys(0x1)
     sig = dsa.sign(msg, q)
     dsa.assert_as_valid(msg, Q, sig)
@@ -302,7 +301,7 @@ def test_libsecp256k1() -> None:
 
     prvkey, Q = dsa.gen_keys(0x1)
     pubkey_bytes = bytes_from_point(Q)
-    msg = "Satoshi Nakamoto".encode()
+    msg = b"Satoshi Nakamoto"
     msg_hash = reduce_to_hlen(msg)
 
     libsecp256k1_sig = btclib_libsecp256k1.dsa.sign(msg_hash, prvkey)

@@ -20,9 +20,10 @@ A clear and concise description of what you expected to happen.
 If applicable, add screenshots to help explain your problem.
 
 **Environment (please complete the following information):**
- - OS: [e.g. Mac OS, ubuntu, Windows]
- - Python version [e.g. 3.10.2]
- - btclib version [e.g. 2022.12.31]
+
+- OS: [e.g. Mac OS, ubuntu, Windows]
+- Python version [e.g. 3.10.2]
+- btclib version [e.g. 2022.12.31]
 
 **Additional context**
 Add any other context about the problem here.

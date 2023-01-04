@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 
-# Copyright (C) 2017-2023 The btclib developers
+# Copyright (C) The btclib developers
 #
 # This file is part of btclib. It is subject to the license terms in the
 # LICENSE file found in the top-level directory of this distribution.
@@ -8,7 +8,7 @@
 # No part of btclib including this file, may be copied, modified, propagated,
 # or distributed except according to the terms contained in the LICENSE file.
 
-""" Base58 address and WIF functions.
+"""Base58 address and WIF functions.
 
 Base58 encoding of public keys and scripts as addresses,
 private keys as WIFs
@@ -31,7 +31,7 @@ from btclib.utils import bytes_from_octets
 def wif_from_prv_key(
     prv_key: PrvKey, network: Optional[str] = None, compressed: Optional[bool] = None
 ) -> str:
-    "Return the WIF encoding of a private key."
+    """Return the WIF encoding of a private key."""
 
     q, net, compr = prv_keyinfo_from_prv_key(prv_key)
 
@@ -58,7 +58,7 @@ def wif_from_prv_key(
 
 
 def address_from_h160(script_type: str, h160: Octets, network: str = "mainnet") -> str:
-    "Return a base58 address from the payload."
+    """Return a base58 address from the payload."""
 
     if script_type == "p2sh":
         prefix = NETWORKS[network].p2sh
@@ -72,7 +72,7 @@ def address_from_h160(script_type: str, h160: Octets, network: str = "mainnet") 
 
 
 def h160_from_address(b58addr: String) -> Tuple[str, bytes, str]:
-    "Return the payload from a base58 address."
+    """Return the payload from a base58 address."""
 
     if isinstance(b58addr, str):
         b58addr = b58addr.strip()
@@ -96,13 +96,13 @@ def h160_from_address(b58addr: String) -> Tuple[str, bytes, str]:
 def p2pkh(
     key: Key, network: Optional[str] = None, compressed: Optional[bool] = None
 ) -> str:
-    "Return the p2pkh base58 address corresponding to a public key."
+    """Return the p2pkh base58 address corresponding to a public key."""
     pub_key, network = pub_keyinfo_from_key(key, network, compressed=compressed)
     return address_from_h160("p2pkh", hash160(pub_key), network)
 
 
 def p2sh(script_pub_key: Octets, network: str = "mainnet") -> str:
-    "Return the p2sh base58 address corresponding to a script_pub_key."
+    """Return the p2sh base58 address corresponding to a script_pub_key."""
     h160 = hash160(script_pub_key)
     return address_from_h160("p2sh", h160, network)
 
@@ -112,7 +112,7 @@ def p2sh(script_pub_key: Octets, network: str = "mainnet") -> str:
 
 
 def _address_from_v0_witness(wit_prg: Octets, network: str = "mainnet") -> str:
-    "Return the legacy base58 p2sh-wrapped SegWit v0 address."
+    """Return the legacy base58 p2sh-wrapped SegWit v0 address."""
 
     # check witness program
     wit_prg = b32.check_witness(0, wit_prg)
@@ -124,13 +124,13 @@ def _address_from_v0_witness(wit_prg: Octets, network: str = "mainnet") -> str:
 
 
 def p2wpkh_p2sh(key: Key, network: Optional[str] = None) -> str:
-    "Return the p2wpkh-p2sh base58 address corresponding to a public key."
+    """Return the p2wpkh-p2sh base58 address corresponding to a public key."""
     pub_key, network = pub_keyinfo_from_key(key, network, compressed=True)
     witness_program = hash160(pub_key)
     return _address_from_v0_witness(witness_program, network)
 
 
 def p2wsh_p2sh(redeem_script: Octets, network: str = "mainnet") -> str:
-    "Return the p2wsh-p2sh base58 address corresponding to a reedem script."
+    """Return the p2wsh-p2sh base58 address corresponding to a reedem script."""
     witness_program = sha256(redeem_script)
     return _address_from_v0_witness(witness_program, network)

@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 
-# Copyright (C) 2020-2023 The btclib developers
+# Copyright (C) The btclib developers
 #
 # This file is part of btclib. It is subject to the license terms in the
 # LICENSE file found in the top-level directory of this distribution.
@@ -45,7 +45,7 @@ def deserialize_map(data: BinaryData) -> Tuple[Dict[bytes, bytes], BytesIO]:
 def serialize_hd_key_paths(
     type_: bytes, hd_key_paths: Mapping[bytes, BIP32KeyOrigin]
 ) -> bytes:
-    "Return the binary representation of the dataclass element."
+    """Return the binary representation of the dataclass element."""
 
     if len(type_) != 1:
         err_msg = f"invalid type marker lenght: {len(type_)}, instead of 1"
@@ -60,7 +60,7 @@ def serialize_hd_key_paths(
 
 
 def deserialize_int(k: bytes, v: bytes, type_: str) -> int:
-    "Return the dataclass element from its binary representation."
+    """Return the dataclass element from its binary representation."""
 
     if len(k) != 1:
         err_msg = f"invalid {type_} key length: {len(k)}"
@@ -69,7 +69,7 @@ def deserialize_int(k: bytes, v: bytes, type_: str) -> int:
 
 
 def encode_dict_bytes_bytes(dict_: Mapping[bytes, bytes]) -> Dict[str, str]:
-    "Return the json representation of the dataclass element."
+    """Return the json representation of the dataclass element."""
     # unknown could be sorted, partial_sigs cannot
     return {k.hex(): v.hex() for k, v in dict_.items()}
 
@@ -77,7 +77,7 @@ def encode_dict_bytes_bytes(dict_: Mapping[bytes, bytes]) -> Dict[str, str]:
 def decode_dict_bytes_bytes(
     map_: Optional[Mapping[Octets, Octets]]
 ) -> Dict[bytes, bytes]:
-    "Return the dataclass element from its json representation."
+    """Return the dataclass element from its json representation."""
     # unknown could be sorted, partial_sigs cannot
     if map_ is None:
         return {}
@@ -87,7 +87,7 @@ def decode_dict_bytes_bytes(
 def serialize_dict_bytes_bytes(
     type_: bytes, dictionary: Mapping[bytes, bytes]
 ) -> bytes:
-    "Return the binary representation of the dataclass element."
+    """Return the binary representation of the dataclass element."""
 
     return b"".join(
         [
@@ -98,12 +98,12 @@ def serialize_dict_bytes_bytes(
 
 
 def serialize_bytes(type_: bytes, value: bytes) -> bytes:
-    "Return the binary representation of the dataclass element."
+    """Return the binary representation of the dataclass element."""
     return var_bytes.serialize(type_) + var_bytes.serialize(value)
 
 
 def deserialize_bytes(k: bytes, v: bytes, type_: str) -> bytes:
-    "Return the dataclass element from its binary representation."
+    """Return the dataclass element from its binary representation."""
 
     if len(k) != 1:
         err_msg = f"invalid {type_} key length: {len(k)}"
@@ -112,19 +112,19 @@ def deserialize_bytes(k: bytes, v: bytes, type_: str) -> bytes:
 
 
 def assert_valid_redeem_script(redeem_script: bytes) -> None:
-    "Raise an exception if the dataclass element is not valid."
+    """Raise an exception if the dataclass element is not valid."""
     # should check for a valid script
     bytes(redeem_script)
 
 
 def assert_valid_witness_script(witness_script: bytes) -> None:
-    "Raise an exception if the dataclass element is not valid."
+    """Raise an exception if the dataclass element is not valid."""
     # should check for a valid script
     bytes(witness_script)
 
 
 def assert_valid_unknown(data: Mapping[bytes, bytes]) -> None:
-    "Raise an exception if the dataclass element is not valid."
+    """Raise an exception if the dataclass element is not valid."""
 
     for key, value in data.items():
         bytes(key)
@@ -134,7 +134,7 @@ def assert_valid_unknown(data: Mapping[bytes, bytes]) -> None:
 def deserialize_tx(
     k: bytes, v: bytes, type_: str, include_witness: Optional[bool] = True
 ) -> Tx:
-    "Return the dataclass element from its binary representation."
+    """Return the dataclass element from its binary representation."""
 
     if len(k) != 1:
         err_msg = f"invalid {type_} key length: {len(k)}"

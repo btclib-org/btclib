@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 
-# Copyright (C) 2017-2023 The btclib developers
+# Copyright (C) The btclib developers
 #
 # This file is part of btclib. It is subject to the license terms in the
 # LICENSE file found in the top-level directory of this distribution.
@@ -8,7 +8,7 @@
 # No part of btclib including this file, may be copied, modified, propagated,
 # or distributed except according to the terms contained in the LICENSE file.
 
-"Tests for the `btclib.electrum` module."
+"""Tests for the `btclib.electrum` module."""
 
 import json
 import secrets
@@ -70,7 +70,7 @@ def test_mnemonic() -> None:
 def test_vectors() -> None:
     fname = "electrum_test_vectors.json"
     filename = path.join(path.dirname(__file__), "_data", fname)
-    with open(filename, "r", encoding="ascii") as file_:
+    with open(filename, encoding="ascii") as file_:
         electrum_test_vectors = json.load(file_)
 
     lang = "en"
@@ -97,7 +97,7 @@ def test_mnemonic_from_entropy() -> None:
 
 
 def test_p2wpkh_p2sh() -> None:
-    "Test generation of a p2wpkh-p2sh wallet."
+    """Test generation of a p2wpkh-p2sh wallet."""
 
     # https://bitcoinelectrum.com/creating-a-p2sh-segwit-wallet-with-electrum/
     # https://www.youtube.com/watch?v=-1DBJWwA2Cw

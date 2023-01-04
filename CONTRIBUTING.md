@@ -70,8 +70,11 @@ must pass at any time with
 of both the library and the test suite.
 See [Tests, code coverage, and profiling](./tests/README.md).
 
+These requirements are easily checked (and partially fixed) if you test
+the impact of your contribution with [tox](https://tox.wiki/).
+
 Finally, even when it comes to mark-down (i.e., *.md files),
-please use [markdownlint](https://github.com/DavidAnson/markdownlint).
+please use [markdownlint-cli2](https://github.com/DavidAnson/markdownlint-cli2).
 
 \[To do: document how to do it in VS Code\]
 

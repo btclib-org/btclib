@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 
-# Copyright (C) 2017-2023 The btclib developers
+# Copyright (C) The btclib developers
 #
 # This file is part of btclib. It is subject to the license terms in the
 # LICENSE file found in the top-level directory of this distribution.
@@ -8,7 +8,7 @@
 # No part of btclib including this file, may be copied, modified, propagated,
 # or distributed except according to the terms contained in the LICENSE file.
 
-"Mnemonic word-list sentence conversion from/to sequence of integer indexes."
+"""Mnemonic word-list sentence conversion from/to sequence of integer indexes."""
 
 from os import path
 from typing import List, Optional, Sequence
@@ -60,7 +60,7 @@ class WordLists:
             self._init_new_lang(lang, filename)
         # language has not been loaded yet
         if self._language_length[lang] == 0:
-            with open(self.language_files[lang], "r", encoding="ascii") as file_:
+            with open(self.language_files[lang], encoding="ascii") as file_:
                 lines = file_.readlines()
 
             nwords = len(lines)

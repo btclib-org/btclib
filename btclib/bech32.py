@@ -1,3 +1,13 @@
+#!/usr/bin/env python3
+
+# Copyright (C) The btclib developers
+#
+# This file is part of btclib. It is subject to the license terms in the
+# LICENSE file found in the top-level directory of this distribution.
+#
+# No part of btclib including this file, may be copied, modified, propagated,
+# or distributed except according to the terms contained in the LICENSE file.
+
 # Copyright (c) 2017 Pieter Wuille
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
@@ -17,15 +27,6 @@
 # LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 # THE SOFTWARE.
-
-# Copyright (C) 2019-2023 The btclib developers
-#
-# This file is part of btclib. It is subject to the license terms in the
-# LICENSE file found in the top-level directory of this distribution.
-#
-# No part of btclib including this file, may be copied, modified, propagated,
-# or distributed except according to the terms contained in the LICENSE file.
-
 
 """Bech32(m) encoding and decoding functions.
 
@@ -57,7 +58,7 @@ _BECH32_M_CONST = 0x2BC830A3
 
 
 def _polymod(values: Iterable[int]) -> int:
-    "Internal function that computes the bech32 checksum."
+    """Internal function that computes the bech32 checksum."""
     generator = [0x3B6A57B2, 0x26508E6D, 0x1EA119FA, 0x3D4233DD, 0x2A1462B3]
     chk = 1
     for value in values:
@@ -69,12 +70,12 @@ def _polymod(values: Iterable[int]) -> int:
 
 
 def _hrp_expand(hrp: str) -> List[int]:
-    "Expand the HRP into values for checksum computation."
+    """Expand the HRP into values for checksum computation."""
     return [ord(x) >> 5 for x in hrp] + [0] + [ord(x) & 31 for x in hrp]
 
 
 def _create_checksum(hrp: str, data: List[int], m: int) -> List[int]:
-    "Compute the checksum values given HRP and data."
+    """Compute the checksum values given HRP and data."""
     values = _hrp_expand(hrp) + data
     polymod = _polymod(values + [0, 0, 0, 0, 0, 0]) ^ m
     return [(polymod >> 5 * (5 - i)) & 31 for i in range(6)]
@@ -88,12 +89,12 @@ def _m_from_wit_ver(data: List[int]) -> int:
 
 
 def _verify_checksum(hrp: str, data: List[int], m: int) -> bool:
-    "Verify a checksum given HRP and converted data characters."
+    """Verify a checksum given HRP and converted data characters."""
     return _polymod(_hrp_expand(hrp) + data) == m
 
 
 def _decode(bech: String) -> Tuple[str, List[int], List[int]]:
-    "Determine a bech32 string HRP, data and checksum."
+    """Determine a bech32 string HRP, data and checksum."""
 
     if isinstance(bech, bytes):
         bech = bech.decode("ascii")
@@ -139,7 +140,7 @@ def decode(bech: String, m: Optional[int] = None) -> Tuple[str, List[int]]:
 
 
 def encode(hrp: str, data: List[int], m: Optional[int] = None) -> bytes:
-    "Compute a bech32 string given HRP and data values."
+    """Compute a bech32 string given HRP and data values."""
     m = _m_from_wit_ver(data) if m is None else m
     combined = data + _create_checksum(hrp, data, m)
     s = f"{hrp}1" + "".join(_ALPHABET[d] for d in combined)

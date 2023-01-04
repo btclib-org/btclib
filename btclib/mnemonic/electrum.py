@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 
-# Copyright (C) 2017-2023 The btclib developers
+# Copyright (C) The btclib developers
 #
 # This file is part of btclib. It is subject to the license terms in the
 # LICENSE file found in the top-level directory of this distribution.
@@ -108,7 +108,7 @@ def mnemonic_from_entropy(
 
 
 def entropy_from_mnemonic(mnemonic: Mnemonic, lang: str = "en") -> BinStr:
-    "Return the entropy from the Electrum versioned mnemonic sentence."
+    """Return the entropy from the Electrum versioned mnemonic sentence."""
 
     # verify that it is a valid Electrum mnemonic sentence
     version_from_mnemonic(mnemonic)
@@ -119,7 +119,7 @@ def entropy_from_mnemonic(mnemonic: Mnemonic, lang: str = "en") -> BinStr:
 
 
 def _seed_from_mnemonic(mnemonic: Mnemonic, passphrase: str) -> Tuple[str, bytes]:
-    "Return (version, seed) from the provided Electrum mnemonic."
+    """Return (version, seed) from the provided Electrum mnemonic."""
 
     # clean up mnemonic from spurious whitespaces
     version, mnemonic = version_from_mnemonic(mnemonic)

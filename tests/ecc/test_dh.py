@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 
-# Copyright (C) 2017-2023 The btclib developers
+# Copyright (C) The btclib developers
 #
 # This file is part of btclib. It is subject to the license terms in the
 # LICENSE file found in the top-level directory of this distribution.
@@ -8,7 +8,7 @@
 # No part of btclib including this file, may be copied, modified, propagated,
 # or distributed except according to the terms contained in the LICENSE file.
 
-"Tests for the `btclib.dh` module."
+"""Tests for the `btclib.dh` module."""
 
 from hashlib import sha1, sha224, sha256, sha384, sha512
 
@@ -61,7 +61,7 @@ def test_ecdh() -> None:
 
 
 def test_gec_2() -> None:
-    """GEC 2: Test Vectors for SEC 1, section 4.1
+    """GEC 2: Test Vectors for SEC 1, section 4.1.
 
     http://read.pudn.com/downloads168/doc/772358/TestVectorsforSEC%201-gec2.pdf
     """

@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 
-# Copyright (C) 2017-2023 The btclib developers
+# Copyright (C) The btclib developers
 #
 # This file is part of btclib. It is subject to the license terms in the
 # LICENSE file found in the top-level directory of this distribution.
@@ -8,7 +8,7 @@
 # No part of btclib including this file, may be copied, modified, propagated,
 # or distributed except according to the terms contained in the LICENSE file.
 
-"Tests for the `btclib.bip32` module."
+"""Tests for the `btclib.bip32` module."""
 
 import json
 import re
@@ -166,12 +166,12 @@ data_folder = path.join(path.dirname(__file__), "_data")
 
 
 def test_bip32_vectors() -> None:
-    """BIP32 test vectors #1, #2, #3, and #4
+    """BIP32 test vectors #1, #2, #3, and #4.
 
     https://github.com/bitcoin/bips/blob/master/bip-0032.mediawiki
     """
     filename = path.join(data_folder, "bip32_test_vectors.json")
-    with open(filename, "r", encoding="ascii") as file_:
+    with open(filename, encoding="ascii") as file_:
         test_vectors = json.load(file_)
 
     for seed in test_vectors:
@@ -182,13 +182,13 @@ def test_bip32_vectors() -> None:
 
 
 def test_invalid_bip32_xkeys() -> None:
-    """BIP32 test vectors #5
+    """BIP32 test vectors #5.
 
     https://github.com/bitcoin/bips/pull/921
     """
 
     filename = path.join(data_folder, "bip32_invalid_keys.json")
-    with open(filename, "r", encoding="ascii") as file_:
+    with open(filename, encoding="ascii") as file_:
         test_vectors = json.load(file_)
 
     for xkey, err_msg in test_vectors:
@@ -359,7 +359,7 @@ def test_crack() -> None:
 
 
 def test_bips_pr905() -> None:
-    "https://github.com/bitcoin/bips/pull/905"
+    """Https://github.com/bitcoin/bips/pull/905."""
 
     seed = "57fb1e450b8afb95c62afbcd49e4100d6790e0822b8905608679180ac34ca0bd45bf7ccc6c5f5218236d0eb93afc78bd117b9f02a6b7df258ea182dfaef5aad7"
     xroot = rootxprv_from_seed(seed)

@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 
-# Copyright (C) 2017-2023 The btclib developers
+# Copyright (C) The btclib developers
 #
 # This file is part of btclib. It is subject to the license terms in the
 # LICENSE file found in the top-level directory of this distribution.
@@ -54,7 +54,7 @@ def parse(stream: BinaryData) -> int:
 
 
 def serialize(i: int) -> bytes:
-    "Return the var_int bytes encoding of an integer."
+    """Return the var_int bytes encoding of an integer."""
 
     if i < 0x00:
         raise BTClibValueError(f"negative integer: {i}")

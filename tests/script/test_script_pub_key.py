@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 
-# Copyright (C) 2017-2023 The btclib developers
+# Copyright (C) The btclib developers
 #
 # This file is part of btclib. It is subject to the license terms in the
 # LICENSE file found in the top-level directory of this distribution.
@@ -8,7 +8,7 @@
 # No part of btclib including this file, may be copied, modified, propagated,
 # or distributed except according to the terms contained in the LICENSE file.
 
-"Tests for the `btclib.script.script_pub_key` module."
+"""Tests for the `btclib.script.script_pub_key` module."""
 
 import json
 from os import path
@@ -381,15 +381,15 @@ def test_p2ms_1() -> None:
     pub_key0 = "04 cc71eb30d653c0c3163990c47b976f3fb3f37cccdcbedb169a1dfef58bbfbfaf f7d8a473e7e2e6d317b87bafe8bde97e3cf8f065dec022b51d11fcdd0d348ac4"
     pub_key1 = "04 61cbdcc5409fb4b4d42b51d33381354d80e550078cb532a34bfa2fcfdeb7d765 19aecc62770f5b0e4ef8551946d8a540911abe3e7854a26f39f58b25c15342af"
     # sourcery skip: move-assign-in-block
-    script_pub_key = bytes.fromhex(  # fmt: off
+    script_pub_key = bytes.fromhex(
         "51"  # OP_1
         "41"  # canonical 65-bytes push
         f"{pub_key0}"
-        "41"  # noqa E148  # canonical 65-bytes push
+        "41"  # canonical 65-bytes push
         f"{pub_key1}"
-        "52"  # noqa E148  # OP_2
+        "52"  # OP_2
         "ae"  # OP_CHECKMULTISIG
-    )  # fmt: on
+    )
     assert is_p2ms(script_pub_key)
     assert address(script_pub_key) == ""
     script_type, payload = type_and_payload(script_pub_key)
@@ -525,11 +525,11 @@ def test_p2ms_3() -> None:
 
 
 def test_bip67() -> None:
-    "BIP67 test vectors https://en.bitcoin.it/wiki/BIP_0067"
+    """BIP67 test vectors https://en.bitcoin.it/wiki/BIP_0067."""
 
     data_folder = path.join(path.dirname(__file__), "_data")
     filename = path.join(data_folder, "bip67_test_vectors.json")
-    with open(filename, "r", encoding="ascii") as file_:
+    with open(filename, encoding="ascii") as file_:
         # json.dump(test_vectors, f, indent=4)
         test_vectors = json.load(file_)
 
@@ -575,8 +575,8 @@ def test_non_standard_script_in_p2wsh() -> None:
         "OP_IF",
             "OP_3", *fed_pub_keys, "OP_6", "OP_CHECKMULTISIG",  # noqa E131
         "OP_ELSE",
-            5184, "OP_CHECKSEQUENCEVERIFY", "OP_DROP",  # noqa E131
-            "OP_2", *rec_pub_keys, "OP_3", "OP_CHECKMULTISIG",  # noqa E131
+            5184, "OP_CHECKSEQUENCEVERIFY", "OP_DROP",  # E131
+            "OP_2", *rec_pub_keys, "OP_3", "OP_CHECKMULTISIG",  # E131
         "OP_ENDIF",
     ]
     # fmt: on

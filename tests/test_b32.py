@@ -1,5 +1,13 @@
 #!/usr/bin/env python3
 
+# Copyright (C) The btclib developers
+#
+# This file is part of btclib. It is subject to the license terms in the
+# LICENSE file found in the top-level directory of this distribution.
+#
+# No part of btclib including this file, may be copied, modified, propagated,
+# or distributed except according to the terms contained in the LICENSE file.
+
 # Copyright (c) 2017 Pieter Wuille
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
@@ -19,15 +27,6 @@
 # LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 # THE SOFTWARE.
-
-# Copyright (C) 2019-2023 The btclib developers
-#
-# This file is part of btclib. It is subject to the license terms in the
-# LICENSE file found in the top-level directory of this distribution.
-#
-# No part of btclib including this file, may be copied, modified, propagated,
-# or distributed except according to the terms contained in the LICENSE file.
-
 
 """Tests for the `btclib.b32` module.
 
@@ -62,7 +61,7 @@ def test_has_segwit_prefix() -> None:
 
 
 def test_valid_address() -> None:
-    "Test whether valid addresses decode to the correct output."
+    """Test whether valid addresses decode to the correct output."""
 
     valid_bc_addresses: List[Tuple[str, str]] = [
         (
@@ -112,7 +111,7 @@ def test_valid_address() -> None:
 
 
 def test_invalid_address() -> None:
-    "Test whether invalid addresses fail to decode."
+    """Test whether invalid addresses fail to decode."""
 
     invalid_addresses: List[Tuple[str, str]] = [
         ("tc1qw508d6qejxtdg4y5r3zarvary0c5xw7kg3g4ty", "invalid hrp: "),
@@ -196,7 +195,7 @@ def test_invalid_address() -> None:
 
 
 def test_invalid_address_enc() -> None:
-    "Test whether address encoding fails on invalid input."
+    """Test whether address encoding fails on invalid input."""
 
     invalid_address_enc: List[Tuple[str, int, int, str]] = [
         ("MAINNET", 0, 20, "'MAINNET'"),

@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 
-# Copyright (C) 2017-2023 The btclib developers
+# Copyright (C) The btclib developers
 #
 # This file is part of btclib. It is subject to the license terms in the
 # LICENSE file found in the top-level directory of this distribution.
@@ -43,7 +43,9 @@ def xgcd(a: int, b: int) -> Tuple[int, int, int]:
 
 
 def mod_inv(a: int, m: int) -> int:
-    """Return the inverse of a (mod m). m does not have to be a prime.
+    """Return the inverse of a (mod m).
+
+    m does not have to be a prime.
 
     Based on Extended Euclidean Algorithm, see:
     https://en.wikibooks.org/wiki/Algorithm_Implementation/Mathematics/Extended_Euclidean_algorithm

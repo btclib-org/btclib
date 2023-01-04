@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 
-# Copyright (C) 2020-2023 The btclib developers
+# Copyright (C) The btclib developers
 #
 # This file is part of btclib. It is subject to the license terms in the
 # LICENSE file found in the top-level directory of this distribution.
@@ -87,7 +87,7 @@ class BlockHeader:
 
     @property
     def hash(self) -> bytes:
-        "Return the reversed hash of the BlockHeader."
+        """Return the reversed hash of the BlockHeader."""
         s = self.serialize(check_validity=False)
         hash_ = _HF(s)
         return hash_[::-1]
@@ -145,7 +145,7 @@ class BlockHeader:
         )
 
     def assert_valid_pow(self) -> None:
-        "Assert whether the BlockHeader provides a valid proof-of-work."
+        """Assert whether the BlockHeader provides a valid proof-of-work."""
 
         if self.hash >= self.target:
             err_msg = f"invalid proof-of-work: {self.hash.hex()}"
@@ -180,7 +180,7 @@ class BlockHeader:
         self.assert_valid_pow()
 
     def serialize(self, check_validity: bool = True) -> bytes:
-        "Return a BlockHeader binary serialization."
+        """Return a BlockHeader binary serialization."""
 
         if check_validity:
             self.assert_valid()
@@ -200,7 +200,7 @@ class BlockHeader:
     def parse(
         cls: Type["BlockHeader"], data: BinaryData, check_validity: bool = True
     ) -> "BlockHeader":
-        "Return a BlockHeader by parsing 80 bytes from binary data."
+        """Return a BlockHeader by parsing 80 bytes from binary data."""
 
         stream = bytesio_from_binarydata(data)
 
