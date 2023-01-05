@@ -12,9 +12,8 @@
 from __future__ import annotations
 
 import secrets
-from collections import defaultdict
 from hashlib import sha256 as hf  # FIXME: any hf
-from typing import Dict, List, Sequence
+from typing import List, Sequence
 
 from btclib.alias import Octets, Point
 from btclib.ec import bytes_from_point, double_mult, mult, secp256k1
@@ -33,19 +32,27 @@ def _hash(m: bytes, R: bytes, i: int, j: int) -> bytes:
     return hf(temp).digest()
 
 
-PubkeyRing = Dict[int, List[Point]]
+PubkeyRing = Sequence[Point]
 
 
-def _get_msg_format(msg: bytes, pubk_rings: PubkeyRing) -> bytes:
+def _get_msg_format(msg: bytes, pubk_rings: Sequence[PubkeyRing]) -> bytes:
 
     t = b"".join(
-        b"".join(bytes_from_point(Q, ec) for Q in pubk_ring)
-        for pubk_ring in pubk_rings.values()
+        b"".join(bytes_from_point(Q, ec) for Q in pubk_ring) for pubk_ring in pubk_rings
     )
     return hf(msg + t).digest()
 
 
-SValues = Dict[int, List[int]]
+SValues = List[List[int]]
+
+
+def _initialize(
+    msg: Octets, pubk_rings: Sequence[PubkeyRing]
+) -> tuple[bytes, bytes, SValues]:
+    msg_ = bytes_from_octets(msg)
+    m = _get_msg_format(msg_, pubk_rings)
+    e = [[0] * len(pubk_ring) for pubk_ring in pubk_rings]
+    return msg_, m, e
 
 
 def sign(
@@ -53,7 +60,7 @@ def sign(
     ks: Sequence[int],
     sign_key_idx: Sequence[int],
     sign_keys: Sequence[int],
-    pubk_rings: PubkeyRing,
+    pubk_rings: Sequence[PubkeyRing],
 ) -> tuple[bytes, SValues]:
     """Borromean ring signature - signing algorithm.
 
@@ -68,24 +75,20 @@ def sign(
     """
     # sourcery skip: low-code-quality
 
-    msg = bytes_from_octets(msg)
-    m = _get_msg_format(msg, pubk_rings)
-
+    msg, m, e = _initialize(msg, pubk_rings)
     e0bytes = m
-    s: SValues = defaultdict(list)
-    e: SValues = defaultdict(list)
+    s = [
+        [secrets.randbits(256) for _ in range(len(pubk_ring))]
+        for pubk_ring in pubk_rings
+    ]
+
     # step 1
-    for i, (pubk_ring, j_star, k) in enumerate(
-        zip(pubk_rings.values(), sign_key_idx, ks)
-    ):
+    for i, (pubk_ring, j_star, k) in enumerate(zip(pubk_rings, sign_key_idx, ks)):
         keys_size = len(pubk_ring)
-        s[i] = [0] * keys_size
-        e[i] = [0] * keys_size
         start_idx = (j_star + 1) % keys_size
         r = bytes_from_point(mult(k), ec)
         if start_idx != 0:
             for j in range(start_idx, keys_size):
-                s[i][j] = secrets.randbits(256)
                 e[i][j] = int_from_bits(_hash(m, r, i, j), ec.nlen) % ec.n
                 # edge case that cannot be reproduced in the test suite
                 if not 0 < e[i][j] < ec.n:
@@ -115,7 +118,9 @@ def sign(
     return e0, s
 
 
-def verify(msg: Octets, e0: bytes, s: SValues, pubk_rings: PubkeyRing) -> bool:
+def verify(
+    msg: Octets, e0: bytes, s: SValues, pubk_rings: Sequence[PubkeyRing]
+) -> bool:
     """Borromean ring signature - verification algorithm.
 
     inputs:
@@ -123,7 +128,7 @@ def verify(msg: Octets, e0: bytes, s: SValues, pubk_rings: PubkeyRing) -> bool:
     - msg: message to be signed
     - e0: pinned e-value needed to start the verification algorithm
     - s: s-values, both real (one per ring) and forged
-    - pubk_rings: dictionary of sequences representing single rings of pub_keys
+    - pubk_rings: sequence of PubKey rings
     """
 
     # all kind of Exceptions are catched because
@@ -134,17 +139,15 @@ def verify(msg: Octets, e0: bytes, s: SValues, pubk_rings: PubkeyRing) -> bool:
         return False
 
 
-def assert_as_valid(msg: Octets, e0: bytes, s: SValues, pubk_rings: PubkeyRing) -> bool:
+def assert_as_valid(
+    msg: Octets, e0: bytes, s: SValues, pubk_rings: Sequence[PubkeyRing]
+) -> bool:
 
-    msg = bytes_from_octets(msg)
-    m = _get_msg_format(msg, pubk_rings)
-
-    ring_size = len(pubk_rings)
-    e: SValues = defaultdict(list)
+    msg, m, e = _initialize(msg, pubk_rings)
     e0bytes = m
-    for i in range(ring_size):
-        keys_size = len(pubk_rings[i])
-        e[i] = [0] * keys_size
+
+    for i, pubk_ring in enumerate(pubk_rings):
+        keys_size = len(pubk_ring)
         e[i][0] = int_from_bits(_hash(m, e0, i, 0), ec.nlen) % ec.n
         # edge case that cannot be reproduced in the test suite
         if e[i][0] == 0:
@@ -152,9 +155,9 @@ def assert_as_valid(msg: Octets, e0: bytes, s: SValues, pubk_rings: PubkeyRing) 
             raise BTClibRuntimeError(err_msg)  # pragma: no cover
         r = b"\0x00"
         for j in range(keys_size):
-            t = double_mult(-e[i][j], pubk_rings[i][j], s[i][j], ec.G)
+            t = double_mult(-e[i][j], pubk_ring[j], s[i][j], ec.G)
             r = bytes_from_point(t, ec)
-            if j != len(pubk_rings[i]) - 1:
+            if j != keys_size - 1:
                 h = _hash(m, r, i, j + 1)
                 e[i][j + 1] = int_from_bits(h, ec.nlen) % ec.n
                 # edge case that cannot be reproduced in the test suite
