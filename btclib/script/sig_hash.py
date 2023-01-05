@@ -60,12 +60,11 @@ def assert_valid_hash_type(hash_type: int) -> None:
 def legacy_script(script_pub_key: Octets) -> list[bytes]:
     script_s: list[bytes] = []
     current_script: list[Command] = []
-    for token in parse(script_pub_key)[::-1]:
-        # B105 required for py<38
-        if token == "OP_CODESEPARATOR":  # nosec B105
+    for cmd in parse(script_pub_key)[::-1]:
+        if cmd == "OP_CODESEPARATOR":
             script_s.append(serialize(current_script[::-1]))
         else:
-            current_script.append(token)
+            current_script.append(cmd)
     script_s.append(serialize(current_script[::-1]))
     return script_s[::-1]
 
@@ -82,11 +81,10 @@ def witness_v0_script(script_pub_key: Octets) -> list[bytes]:
 
     script_s: list[bytes] = []
     current_script: list[Command] = []
-    for token in parse(script_pub_key)[::-1]:
-        # B105 required for py<38
-        if token == "OP_CODESEPARATOR":  # nosec B105
+    for cmd in parse(script_pub_key)[::-1]:
+        if cmd == "OP_CODESEPARATOR":
             script_s.append(serialize(current_script[::-1]))
-        current_script.append(token)
+        current_script.append(cmd)
     script_s.append(serialize(current_script[::-1]))
     return script_s[::-1]
 

@@ -97,8 +97,8 @@ repos:
     hooks:
       - id: bandit
         name: bandit (tests)
-        # disable B101 (Test for use of assert) on tests folder
-        args: ["-s", "B101"]
+        # disable B101 (Test for use of assert) for the tests folder
+        args: ["--skip", "B101"]
         exclude: btclib
   - repo: https://github.com/pycqa/pylint
     rev: v2.15.9
