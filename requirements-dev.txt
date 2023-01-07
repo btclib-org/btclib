@@ -18,7 +18,6 @@ pytest-cov
 pytest-xdist
 pyupgrade
 setuptools
-sourcery-cli
 # tox 4.x depends on importlib-metadata>=5.2
 tox
 twine
