@@ -11,7 +11,7 @@
 """Transaction (Tx) class.
 
 Dataclass encapsulating version, lock_time,
-vin (List[TxIn]), and vout (List[TxOut]).
+vin (list[TxIn]), and vout (list[TxOut]).
 
 https://en.bitcoin.it/wiki/Transaction
 https://learnmeabitcoin.com/guide/coinbase-transaction
@@ -24,10 +24,12 @@ https://bitcoin.stackexchange.com/questions/40764/is-my-understanding-of-locktim
 https://en.bitcoin.it/wiki/Timelock
 """
 
+from __future__ import annotations
+
 from dataclasses import dataclass
 from io import SEEK_CUR
 from math import ceil
-from typing import Any, Dict, List, Mapping, Optional, Sequence, Type, Union
+from typing import Any, Mapping, Sequence
 
 from btclib import var_int
 from btclib.alias import BinaryData
@@ -52,8 +54,8 @@ class Tx:
     # Otherwise, the transaction may not be added to a block until after lock_time.
     # Set to the current block to prevent fee sniping.
     lock_time: int
-    vin: List[TxIn]
-    vout: List[TxOut]
+    vin: list[TxIn]
+    vout: list[TxOut]
 
     # TODO: add fee property when a tx fetcher will be available
 
@@ -104,7 +106,7 @@ class Tx:
         return no_wit + wit
 
     @property
-    def vwitness(self) -> List[Witness]:
+    def vwitness(self) -> list[Witness]:
         return [tx_in.script_witness for tx_in in self.vin]
 
     def is_segwit(self) -> bool:
@@ -118,8 +120,8 @@ class Tx:
         self,
         version: int = 1,
         lock_time: int = 0,
-        vin: Optional[Sequence[TxIn]] = None,
-        vout: Optional[Sequence[TxOut]] = None,
+        vin: Sequence[TxIn] | None = None,
+        vout: Sequence[TxOut] | None = None,
         check_validity: bool = True,
     ) -> None:
 
@@ -147,9 +149,7 @@ class Tx:
             other.vout,
         )
 
-    def to_dict(
-        self, check_validity: bool = True
-    ) -> Dict[str, Union[str, int, List[Any]]]:
+    def to_dict(self, check_validity: bool = True) -> dict[str, str | int | list[Any]]:
 
         if check_validity:
             self.assert_valid()
@@ -168,8 +168,8 @@ class Tx:
 
     @classmethod
     def from_dict(
-        cls: Type["Tx"], dict_: Mapping[str, Any], check_validity: bool = True
-    ) -> "Tx":
+        cls: type[Tx], dict_: Mapping[str, Any], check_validity: bool = True
+    ) -> Tx:
 
         return cls(
             dict_["version"],
@@ -229,10 +229,10 @@ class Tx:
 
     @classmethod
     def parse(
-        cls: Type["Tx"],
+        cls: type[Tx],
         data: BinaryData,
         check_validity: bool = True,
-    ) -> "Tx":
+    ) -> Tx:
         """Return a Tx by parsing binary data."""
 
         stream = bytesio_from_binarydata(data)

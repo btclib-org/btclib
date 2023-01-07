@@ -14,6 +14,7 @@ Most conversions from SEC 1 v.2 2.3 are included.
 
 https://www.secg.org/sec1-v2.pdf
 """
+from __future__ import annotations
 
 from collections.abc import Iterable as IterableCollection
 from io import BytesIO

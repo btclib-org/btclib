@@ -9,11 +9,12 @@
 # or distributed except according to the terms contained in the LICENSE file.
 
 """Elliptic curve classes and functions."""
+from __future__ import annotations
 
 import json
 from math import sqrt
 from os import path
-from typing import Dict, List, Optional, Sequence
+from typing import Sequence
 
 from btclib.alias import Integer, JacPoint, Point
 from btclib.ec import libsecp256k1
@@ -77,7 +78,7 @@ class Curve(CurveSubGroup):
         n: Integer,
         cofactor: int,
         weakness_check: bool = True,
-        name: Optional[str] = None,
+        name: str | None = None,
     ) -> None:
 
         super().__init__(p, a, b, G)
@@ -165,7 +166,7 @@ datadir = path.join(path.dirname(__file__), "_data")
 filename = path.join(datadir, "ec_Brainpool.json")
 with open(filename, encoding="ascii") as file_:
     Brainpool_params2 = json.load(file_)
-Brainpool: Dict[str, Curve] = {
+Brainpool: dict[str, Curve] = {
     ec_name: Curve(*Brainpool_params2[ec_name] + [True, ec_name])
     for ec_name in Brainpool_params2
 }
@@ -176,7 +177,7 @@ Brainpool: Dict[str, Curve] = {
 filename = path.join(datadir, "ec_NIST.json")
 with open(filename, encoding="ascii") as file_:
     NIST_params2 = json.load(file_)
-NIST: Dict[str, Curve] = {
+NIST: dict[str, Curve] = {
     ec_name: Curve(*NIST_params2[ec_name] + [True, ec_name]) for ec_name in NIST_params2
 }
 # SEC 2 v.1 curves, removed from SEC 2 v.2 as insecure ones
@@ -184,7 +185,7 @@ NIST: Dict[str, Curve] = {
 filename = path.join(datadir, "ec_SEC2v1_insecure.json")
 with open(filename, encoding="ascii") as file_:
     SEC2v1_params2 = json.load(file_)
-SEC2v1: Dict[str, Curve] = {
+SEC2v1: dict[str, Curve] = {
     ec_name: Curve(*SEC2v1_params2[ec_name] + [True, ec_name])
     for ec_name in SEC2v1_params2
 }
@@ -193,7 +194,7 @@ SEC2v1: Dict[str, Curve] = {
 filename = path.join(datadir, "ec_SEC2v2.json")
 with open(filename, encoding="ascii") as file_:
     SEC2v2_params2 = json.load(file_)
-SEC2v2: Dict[str, Curve] = {}
+SEC2v2: dict[str, Curve] = {}
 for ec_name in SEC2v2_params2:
     SEC2v2[ec_name] = Curve(*SEC2v2_params2[ec_name] + [True, ec_name])
     SEC2v1[ec_name] = Curve(*SEC2v2_params2[ec_name] + [True, ec_name])
@@ -207,7 +208,7 @@ CURVES.update(Brainpool)
 secp256k1 = CURVES["secp256k1"]
 
 
-def mult(m_int: Integer, Q: Optional[Point] = None, ec: Curve = secp256k1) -> Point:
+def mult(m_int: Integer, Q: Point | None = None, ec: Curve = secp256k1) -> Point:
     """Elliptic curve scalar multiplication."""
 
     m: int = int_from_integer(m_int) % ec.n
@@ -255,8 +256,8 @@ def multi_mult(
         err_msg += f"{len(scalars)} vs {len(points)}"
         raise BTClibValueError(err_msg)
 
-    jac_points: List[JacPoint] = []
-    ints: List[int] = []
+    jac_points: list[JacPoint] = []
+    ints: list[int] = []
     for Q, i in zip(points, scalars):
         i = int_from_integer(i) % ec.n
         if i == 0:  # early optimization, even if not strictly necessary

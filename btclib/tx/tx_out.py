@@ -14,13 +14,15 @@ Dataclass encapsulating value and script_pub_key
 (and network to convert script_pub_key to and from address).
 """
 
+from __future__ import annotations
+
 from dataclasses import dataclass
-from typing import Any, Dict, Mapping, Type, Union
+from typing import Any, Mapping
 
 from btclib import var_bytes
 from btclib.alias import BinaryData, Octets, String
 from btclib.amount import btc_from_sats, sats_from_btc, valid_sats_amount
-from btclib.script.script_pub_key import ScriptPubKey
+from btclib.script import ScriptPubKey
 from btclib.utils import bytes_from_octets, bytesio_from_binarydata
 
 
@@ -44,7 +46,7 @@ class TxOut:
     def __init__(
         self,
         value: int,
-        script_pub_key: Union[ScriptPubKey, Octets],
+        script_pub_key: ScriptPubKey | Octets,
         check_validity: bool = True,
     ) -> None:
 
@@ -62,7 +64,7 @@ class TxOut:
         # https://github.com/bitcoin/bitcoin/issues/320
         # self.script_pub_key.assert_valid()
 
-    def to_dict(self, check_validity: bool = True) -> Dict[str, Any]:
+    def to_dict(self, check_validity: bool = True) -> dict[str, Any]:
 
         if check_validity:
             self.assert_valid()
@@ -79,8 +81,8 @@ class TxOut:
 
     @classmethod
     def from_dict(
-        cls: Type["TxOut"], dict_: Mapping[str, Any], check_validity: bool = True
-    ) -> "TxOut":
+        cls: type[TxOut], dict_: Mapping[str, Any], check_validity: bool = True
+    ) -> TxOut:
 
         value = sats_from_btc(dict_["value"])
         script_bin = dict_["scriptPubKey"]
@@ -101,10 +103,10 @@ class TxOut:
 
     @classmethod
     def parse(
-        cls: Type["TxOut"],
+        cls: type[TxOut],
         data: BinaryData,
         check_validity: bool = True,
-    ) -> "TxOut":
+    ) -> TxOut:
         stream = bytesio_from_binarydata(data)
         value = int.from_bytes(stream.read(8), byteorder="little", signed=False)
         script = var_bytes.parse(stream)
@@ -117,6 +119,6 @@ class TxOut:
         )
 
     @classmethod
-    def from_address(cls: Type["TxOut"], value: int, address: String) -> "TxOut":
+    def from_address(cls: type[TxOut], value: int, address: String) -> TxOut:
         script_pub_key = ScriptPubKey.from_address(address)
         return cls(value, script_pub_key)

@@ -49,12 +49,13 @@ The signature size is p-size*n-size, where p-size is the field element
 For sepcp256k1 the resulting signature size is 64 bytes.
 """
 
+from __future__ import annotations
 
 import contextlib
 import secrets
 from dataclasses import InitVar, dataclass
 from hashlib import sha256
-from typing import List, Optional, Sequence, Tuple, Type, Union
+from typing import Sequence, Union
 
 from btclib.alias import BinaryData, HashF, Integer, JacPoint, Octets, Point
 from btclib.bip32 import BIP32Key
@@ -114,7 +115,7 @@ class Sig:
         return out
 
     @classmethod
-    def parse(cls: Type["Sig"], data: BinaryData, check_validity: bool = True) -> "Sig":
+    def parse(cls: type[Sig], data: BinaryData, check_validity: bool = True) -> Sig:
 
         stream = bytesio_from_binarydata(data)
         ec = secp256k1
@@ -159,8 +160,8 @@ def point_from_bip340pub_key(x_Q: BIP340PubKey, ec: Curve = secp256k1) -> Point:
 
 
 def gen_keys_(
-    prv_key: Optional[PrvKey] = None, ec: Curve = secp256k1
-) -> Tuple[int, int, JacPoint]:
+    prv_key: PrvKey | None = None, ec: Curve = secp256k1
+) -> tuple[int, int, JacPoint]:
     """Return a BIP340 private/public (int, JacPoint) key-pair."""
 
     if prv_key is None:
@@ -177,9 +178,7 @@ def gen_keys_(
     return q, x_Q, QJ
 
 
-def gen_keys(
-    prv_key: Optional[PrvKey] = None, ec: Curve = secp256k1
-) -> Tuple[int, int]:
+def gen_keys(prv_key: PrvKey | None = None, ec: Curve = secp256k1) -> tuple[int, int]:
     """Return a BIP340 private/public (int, int) key-pair."""
 
     q, x_Q, _ = gen_keys_(prv_key, ec)
@@ -233,7 +232,7 @@ def _det_nonce_(
 def det_nonce_(
     msg_hash: Octets,
     prv_key: PrvKey,
-    aux: Optional[Octets] = None,
+    aux: Octets | None = None,
     ec: Curve = secp256k1,
     hf: HashF = sha256,
 ) -> int:
@@ -289,7 +288,7 @@ def _sign_(c: int, q: int, nonce: int, r: int, ec: Curve) -> Sig:
 def sign_(
     msg_hash: Octets,
     prv_key: PrvKey,
-    nonce: Optional[PrvKey] = None,
+    nonce: PrvKey | None = None,
     ec: Curve = secp256k1,
     hf: HashF = sha256,
 ) -> Sig:
@@ -324,7 +323,7 @@ def sign_(
 def sign(
     msg: Octets,
     prv_key: PrvKey,
-    nonce: Optional[PrvKey] = None,
+    nonce: PrvKey | None = None,
     ec: Curve = secp256k1,
     hf: HashF = sha256,
 ) -> Sig:
@@ -368,7 +367,7 @@ def _assert_as_valid_(c: int, QJ: JacPoint, r: int, s: int, ec: Curve) -> None:
 
 
 def assert_as_valid_(
-    msg_hash: Octets, Q: BIP340PubKey, sig: Union[Sig, Octets], hf: HashF = sha256
+    msg_hash: Octets, Q: BIP340PubKey, sig: Sig | Octets, hf: HashF = sha256
 ) -> None:
     # Private function for test/dev purposes
     # It raises Errors, while verify should always return True or False
@@ -394,7 +393,7 @@ def assert_as_valid_(
 
 
 def assert_as_valid(
-    msg: Octets, Q: BIP340PubKey, sig: Union[Sig, Octets], hf: HashF = sha256
+    msg: Octets, Q: BIP340PubKey, sig: Sig | Octets, hf: HashF = sha256
 ) -> None:
 
     msg_hash = reduce_to_hlen(msg, hf)
@@ -402,7 +401,7 @@ def assert_as_valid(
 
 
 def verify_(
-    msg_hash: Octets, Q: BIP340PubKey, sig: Union[Sig, Octets], hf: HashF = sha256
+    msg_hash: Octets, Q: BIP340PubKey, sig: Sig | Octets, hf: HashF = sha256
 ) -> bool:
     """Verify the BIP340 signature of the provided message."""
 
@@ -416,9 +415,7 @@ def verify_(
         return True
 
 
-def verify(
-    msg: Octets, Q: BIP340PubKey, sig: Union[Sig, Octets], hf: HashF = sha256
-) -> bool:
+def verify(msg: Octets, Q: BIP340PubKey, sig: Sig | Octets, hf: HashF = sha256) -> bool:
     """Verify the BIP340 signature of the provided message."""
 
     msg_hash = reduce_to_hlen(msg, hf)
@@ -444,12 +441,12 @@ def _recover_pub_key_(c: int, r: int, s: int, ec: Curve) -> int:
 
 def crack_prv_key_(
     msg_hash1: Octets,
-    sig1: Union[Sig, Octets],
+    sig1: Sig | Octets,
     msg_hash2: Octets,
-    sig2: Union[Sig, Octets],
+    sig2: Sig | Octets,
     Q: BIP340PubKey,
     hf: HashF = sha256,
-) -> Tuple[int, int]:
+) -> tuple[int, int]:
 
     if isinstance(sig1, Sig):
         sig1.assert_valid()
@@ -482,12 +479,12 @@ def crack_prv_key_(
 
 def crack_prv_key(
     msg1: Octets,
-    sig1: Union[Sig, Octets],
+    sig1: Sig | Octets,
     msg2: Octets,
-    sig2: Union[Sig, Octets],
+    sig2: Sig | Octets,
     Q: BIP340PubKey,
     hf: HashF = sha256,
-) -> Tuple[int, int]:
+) -> tuple[int, int]:
 
     msg_hash1 = reduce_to_hlen(msg1, hf)
     msg_hash2 = reduce_to_hlen(msg2, hf)
@@ -495,7 +492,7 @@ def crack_prv_key(
     return crack_prv_key_(msg_hash1, sig1, msg_hash2, sig2, Q, hf)
 
 
-def _err_msg(size: int, msgs_or_sigs: str, arg2: Sequence[Union[Octets, Sig]]) -> str:
+def _err_msg(size: int, msgs_or_sigs: str, arg2: Sequence[Octets | Sig]) -> str:
     err_msg = f"mismatch between number of pub_keys ({size}) "
     return f"{err_msg} and number of {msgs_or_sigs} ({len(arg2)})"
 
@@ -523,8 +520,8 @@ def assert_batch_as_valid_(
     if any(sig.ec != ec for sig in sigs):
         raise BTClibValueError("not the same curve for all signatures")
     t = 0
-    scalars: List[int] = []
-    points: List[JacPoint] = []
+    scalars: list[int] = []
+    points: list[JacPoint] = []
     for i, (msg_hash, Q, sig) in enumerate(zip(m_hashes, Qs, sigs)):
         msg_hash = bytes_from_octets(msg_hash, hf().digest_size)
 

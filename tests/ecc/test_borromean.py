@@ -11,10 +11,7 @@
 """Tests for the `btclib.borromean` module."""
 
 import secrets
-from collections import defaultdict
-from typing import Dict, List
 
-from btclib.alias import Point
 from btclib.ecc import borromean, dsa
 
 
@@ -23,17 +20,16 @@ def test_borromean() -> None:
     ring_sizes = [1 + secrets.randbelow(7) for _ in range(nring)]
     sign_key_idx = [secrets.randbelow(size) for size in ring_sizes]
 
-    pubk_rings: Dict[int, List[Point]] = defaultdict(list)
-    sign_keys: List[int] = []
-    for i in range(nring):
-        for j in range(ring_sizes[i]):
-            priv_key, pub_key = dsa.gen_keys()
-            pubk_rings[i].append(pub_key)
-            if j == sign_key_idx[i]:
-                sign_keys.append(priv_key)
+    key_rings = [[dsa.gen_keys() for _ in range(ring_sizes[i])] for i in range(nring)]
+    sign_keys = [key_rings[i][sign_key_idx[i]][0] for i in range(nring)]
+    pubk_rings = [
+        [key_rings[i][j][1] for j in range(ring_sizes[i])] for i in range(nring)
+    ]
 
     msg = b"Borromean ring signature"
-    sig = borromean.sign(msg, list(range(1, 5)), sign_key_idx, sign_keys, pubk_rings)
+    sig = borromean.sign(
+        msg, list(range(1, nring + 1)), sign_key_idx, sign_keys, pubk_rings
+    )
 
     borromean.assert_as_valid(msg, sig[0], sig[1], pubk_rings)
     assert borromean.verify(msg, sig[0], sig[1], pubk_rings)

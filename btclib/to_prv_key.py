@@ -9,11 +9,10 @@
 # or distributed except according to the terms contained in the LICENSE file.
 
 """Functions for conversions between different private key formats."""
+from __future__ import annotations
 
 import contextlib
-from typing import Optional, Tuple, Union
-
-from typing_extensions import TypeAlias
+from typing import Tuple, Union
 
 from btclib.alias import String
 from btclib.base58 import b58decode
@@ -35,7 +34,7 @@ from btclib.utils import bytes_from_octets
 #
 # BIP32key and WIF also provide extra info about
 # network and (un)compressed-pub_key-derivation
-PrvKey: TypeAlias = Union[int, bytes, str, BIP32KeyData]
+PrvKey = Union[int, bytes, str, BIP32KeyData]
 
 
 def int_from_prv_key(prv_key: PrvKey, ec: Curve = secp256k1) -> int:
@@ -91,7 +90,7 @@ PrvkeyInfo = Tuple[int, str, bool]
 
 
 def _prv_keyinfo_from_wif(
-    wif: String, network: Optional[str] = None, compressed: Optional[bool] = None
+    wif: String, network: str | None = None, compressed: bool | None = None
 ) -> PrvkeyInfo:
     """Return private key tuple(int, compressed, network) from a WIF.
 
@@ -135,7 +134,7 @@ def _prv_keyinfo_from_wif(
 
 
 def _prv_keyinfo_from_xprv(
-    xprv: BIP32Key, network: Optional[str] = None, compressed: Optional[bool] = None
+    xprv: BIP32Key, network: str | None = None, compressed: bool | None = None
 ) -> PrvkeyInfo:
     """Return prv_key tuple (int, compressed, network) from BIP32 xprv.
 
@@ -171,7 +170,7 @@ def _prv_keyinfo_from_xprv(
 
 
 def _prv_keyinfo_from_xprvwif(
-    xprvwif: BIP32Key, network: Optional[str] = None, compressed: Optional[bool] = None
+    xprvwif: BIP32Key, network: str | None = None, compressed: bool | None = None
 ) -> PrvkeyInfo:
     """Return prv_key tuple (int, compressed, network) from WIF/BIP32.
 
@@ -186,7 +185,7 @@ def _prv_keyinfo_from_xprvwif(
 
 
 def prv_keyinfo_from_prv_key(
-    prv_key: PrvKey, network: Optional[str] = None, compressed: Optional[bool] = None
+    prv_key: PrvKey, network: str | None = None, compressed: bool | None = None
 ) -> PrvkeyInfo:
 
     compr = True if compressed is None else compressed

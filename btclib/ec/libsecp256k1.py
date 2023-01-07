@@ -11,11 +11,11 @@
 """Helper functions to use the libsecp256k1 python bindings."""
 
 try:
-    from btclib_libsecp256k1 import dsa, mult, ssa  # pylint: disable=unused-import
+    # pylint: disable=unused-import
+    from btclib_libsecp256k1 import dsa, mult, ssa  # noqa: F401
 
     LIBSECP256K1_AVAILABLE = True
 except ImportError:  # pragma: no cover
-    dsa, ssa, mult = None, None, None  # type: ignore
     LIBSECP256K1_AVAILABLE = False
 
 LIBSECP256K1_ENABLED = True

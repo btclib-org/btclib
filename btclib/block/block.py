@@ -10,12 +10,13 @@
 
 """Block dataclass.
 
-Dataclass encapsulating BlockHeader and List[Tx].
+Dataclass encapsulating BlockHeader and list[Tx].
 """
+from __future__ import annotations
 
 from dataclasses import dataclass
 from math import ceil
-from typing import Any, Dict, List, Mapping, Optional, Sequence, Type
+from typing import Any, Mapping, Sequence
 
 from btclib import var_bytes, var_int
 from btclib.alias import BinaryData
@@ -31,7 +32,7 @@ _HF = hash256
 @dataclass
 class Block:
     header: BlockHeader
-    transactions: List[Tx]
+    transactions: list[Tx]
 
     @property
     def size(self) -> int:
@@ -46,7 +47,7 @@ class Block:
         return ceil(self.weight / 4)
 
     @property
-    def height(self) -> Optional[int]:
+    def height(self) -> int | None:
         """Return the height committed into a BIP34 coinbase script_sig.
 
         Version 2 blocks commit block height into the coinbase script_sig.
@@ -71,7 +72,7 @@ class Block:
     def __init__(
         self,
         header: BlockHeader,
-        transactions: Optional[Sequence[Tx]] = None,
+        transactions: Sequence[Tx] | None = None,
         check_validity: bool = True,
     ) -> None:
 
@@ -83,7 +84,7 @@ class Block:
         if check_validity:
             self.assert_valid()
 
-    def to_dict(self, check_validity: bool = True) -> Dict[str, Any]:
+    def to_dict(self, check_validity: bool = True) -> dict[str, Any]:
 
         if check_validity:
             self.assert_valid()
@@ -95,8 +96,8 @@ class Block:
 
     @classmethod
     def from_dict(
-        cls: Type["Block"], dict_: Mapping[str, Any], check_validity: bool = True
-    ) -> "Block":
+        cls: type[Block], dict_: Mapping[str, Any], check_validity: bool = True
+    ) -> Block:
 
         return cls(
             BlockHeader.from_dict(dict_["header"], False),
@@ -143,9 +144,7 @@ class Block:
         )
 
     @classmethod
-    def parse(
-        cls: Type["Block"], data: BinaryData, check_validity: bool = True
-    ) -> "Block":
+    def parse(cls: type[Block], data: BinaryData, check_validity: bool = True) -> Block:
         """Return a Block by parsing binary data."""
 
         stream = bytesio_from_binarydata(data)

@@ -29,6 +29,6 @@ jobs:
           python-version: "3.11"
       - name: Check isort and black
         run: |
-          python -m pip install -U pip isort black
+          python -m pip install --upgrade pip isort black
           isort -c .
           black --check .

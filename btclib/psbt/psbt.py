@@ -12,10 +12,12 @@
 
 https://github.com/bitcoin/bips/blob/master/bip-0174.mediawiki
 """
+from __future__ import annotations
+
 import base64
 from copy import deepcopy
 from dataclasses import dataclass
-from typing import Any, Dict, List, Mapping, Optional, Sequence, Type, Union
+from typing import Any, Mapping, Sequence
 
 from btclib.alias import Octets, String
 from btclib.bip32 import (
@@ -71,11 +73,11 @@ def _assert_valid_version(version: int) -> None:
 @dataclass
 class Psbt:
     tx: Tx
-    inputs: List[PsbtIn]
-    outputs: List[PsbtOut]
+    inputs: list[PsbtIn]
+    outputs: list[PsbtOut]
     version: int
     hd_key_paths: HdKeyPaths
-    unknown: Dict[bytes, bytes]
+    unknown: dict[bytes, bytes]
 
     def __init__(
         self,
@@ -84,7 +86,7 @@ class Psbt:
         outputs: Sequence[PsbtOut],
         version: int,
         hd_key_paths: Mapping[Octets, BIP32KeyOrigin],
-        unknown: Optional[Mapping[Octets, Octets]] = None,
+        unknown: Mapping[Octets, Octets] | None = None,
         check_validity: bool = True,
     ) -> None:
 
@@ -175,7 +177,7 @@ class Psbt:
                 if payload != sha256(self.inputs[i].witness_script):
                     raise BTClibValueError("invalid witness script sha256")
 
-    def to_dict(self, check_validity: bool = True) -> Dict[str, Any]:
+    def to_dict(self, check_validity: bool = True) -> dict[str, Any]:
 
         if check_validity:
             self.assert_valid()
@@ -191,8 +193,8 @@ class Psbt:
 
     @classmethod
     def from_dict(
-        cls: Type["Psbt"], dict_: Mapping[str, Any], check_validity: bool = True
-    ) -> "Psbt":
+        cls: type[Psbt], dict_: Mapping[str, Any], check_validity: bool = True
+    ) -> Psbt:
 
         return cls(
             Tx.from_dict(dict_["tx"]),
@@ -210,7 +212,7 @@ class Psbt:
         if check_validity:
             self.assert_valid()
 
-        psbt_bin: List[bytes] = [PSBT_MAGIC_BYTES, PSBT_SEPARATOR]
+        psbt_bin: list[bytes] = [PSBT_MAGIC_BYTES, PSBT_SEPARATOR]
 
         temp = self.tx.serialize(include_witness=False)
         psbt_bin.append(serialize_bytes(PSBT_GLOBAL_UNSIGNED_TX, temp))
@@ -228,9 +230,7 @@ class Psbt:
         return b"".join(psbt_bin)
 
     @classmethod
-    def parse(
-        cls: Type["Psbt"], psbt_bin: Octets, check_validity: bool = True
-    ) -> "Psbt":
+    def parse(cls: type[Psbt], psbt_bin: Octets, check_validity: bool = True) -> Psbt:
         """Return a Psbt by parsing binary data."""
 
         # FIXME: psbt_bin should be BinaryData
@@ -240,8 +240,8 @@ class Psbt:
 
         tx = Tx(check_validity=False)
         version = 0
-        hd_key_paths: Dict[Octets, BIP32KeyOrigin] = {}
-        unknown: Dict[Octets, Octets] = {}
+        hd_key_paths: dict[Octets, BIP32KeyOrigin] = {}
+        unknown: dict[Octets, Octets] = {}
 
         # psbt_bin = bytes_from_octets(psbt_bin)
         stream = bytesio_from_binarydata(psbt_bin)
@@ -262,12 +262,12 @@ class Psbt:
             else:  # unknown
                 unknown[k] = v
 
-        inputs: List[PsbtIn] = []
+        inputs: list[PsbtIn] = []
         for _ in tx.vin:
             input_map, stream = deserialize_map(stream)
             inputs.append(PsbtIn.parse(input_map))
 
-        outputs: List[PsbtOut] = []
+        outputs: list[PsbtOut] = []
         for _ in tx.vout:
             output_map, stream = deserialize_map(stream)
             outputs.append(PsbtOut.parse(output_map))
@@ -288,8 +288,8 @@ class Psbt:
 
     @classmethod
     def b64decode(
-        cls: Type["Psbt"], psbt_str: String, check_validity: bool = True
-    ) -> "Psbt":
+        cls: type[Psbt], psbt_str: String, check_validity: bool = True
+    ) -> Psbt:
 
         if isinstance(psbt_str, str):
             psbt_str = psbt_str.strip()
@@ -299,7 +299,7 @@ class Psbt:
         return cls.parse(psbt_decoded, check_validity)
 
     @classmethod
-    def from_tx(cls: Type["Psbt"], tx: Tx, check_validity: bool = True) -> "Psbt":
+    def from_tx(cls: type[Psbt], tx: Tx, check_validity: bool = True) -> Psbt:
 
         for tx_in in tx.vin:
             tx_in.script_sig = b""
@@ -308,8 +308,8 @@ class Psbt:
         outputs = [PsbtOut() for _ in tx.vout]
 
         psbt_version = 0
-        hd_key_paths: Dict[Octets, BIP32KeyOrigin] = {}
-        unknown: Dict[Octets, Octets] = {}
+        hd_key_paths: dict[Octets, BIP32KeyOrigin] = {}
+        unknown: dict[Octets, Octets] = {}
 
         return cls(
             tx,
@@ -323,7 +323,7 @@ class Psbt:
 
 
 def _combine_field(
-    psbt_map: Union[PsbtIn, PsbtOut, Psbt], out: Union[PsbtIn, PsbtOut, Psbt], key: str
+    psbt_map: PsbtIn | PsbtOut | Psbt, out: PsbtIn | PsbtOut | Psbt, key: str
 ) -> None:
 
     item = getattr(psbt_map, key)
@@ -402,7 +402,7 @@ def finalize_psbt(psbt: Psbt) -> Psbt:
             raise BTClibValueError("missing signatures")
         sigs = psbt_in.partial_sigs.values()
         # https://github.com/bitcoin/bips/blob/master/bip-0147.mediawiki#motivation
-        cmds: List[bytes] = [b""] if len(sigs) > 1 else []
+        cmds: list[bytes] = [b""] if len(sigs) > 1 else []
         cmds += sigs
         if psbt_in.witness_script:
             psbt_in.final_script_sig = serialize([psbt_in.redeem_script])

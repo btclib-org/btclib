@@ -39,7 +39,7 @@ with the following modifications:
 - checked for raised exceptions instead of assertIsNone
 """
 
-from typing import List, Tuple
+from __future__ import annotations
 
 import pytest
 
@@ -47,8 +47,7 @@ from btclib import b32, b58
 from btclib.ec import bytes_from_point, point_from_octets
 from btclib.exceptions import BTClibValueError
 from btclib.hashes import hash160, sha256
-from btclib.script import Command, op_int, serialize
-from btclib.script.taproot import output_pubkey
+from btclib.script import Command, op_int, output_pubkey, serialize
 
 
 def test_has_segwit_prefix() -> None:
@@ -63,7 +62,7 @@ def test_has_segwit_prefix() -> None:
 def test_valid_address() -> None:
     """Test whether valid addresses decode to the correct output."""
 
-    valid_bc_addresses: List[Tuple[str, str]] = [
+    valid_bc_addresses: list[tuple[str, str]] = [
         (
             "BC1QW508D6QEJXTDG4Y5R3ZARVARY0C5XW7KV8F3T4",
             "0014751e76e8199196d454941c45d1b3a323f1433bd6",
@@ -82,7 +81,7 @@ def test_valid_address() -> None:
             "512079be667ef9dcbbac55a06295ce870b07029bfcdb2dce28d959f2815b16f81798",
         ),
     ]
-    valid_tb_addresses: List[Tuple[str, str]] = [
+    valid_tb_addresses: list[tuple[str, str]] = [
         (
             "tb1qrp33g0q5c5txsp9arysrx4k6zdkfs4nce4xj0gdcccefvpysxf3q0sl5k7",
             "00201863143c14c5166804bd19203356da136c985678cd4d27a1b8c6329604903262",
@@ -106,14 +105,14 @@ def test_valid_address() -> None:
         )
         assert addr == b32.address_from_witness(wit_ver, wit_prg, network)
 
-        script_pub_key: List[Command] = [op_int(wit_ver), wit_prg]
+        script_pub_key: list[Command] = [op_int(wit_ver), wit_prg]
         assert serialize(script_pub_key).hex() == hexscript
 
 
 def test_invalid_address() -> None:
     """Test whether invalid addresses fail to decode."""
 
-    invalid_addresses: List[Tuple[str, str]] = [
+    invalid_addresses: list[tuple[str, str]] = [
         ("tc1qw508d6qejxtdg4y5r3zarvary0c5xw7kg3g4ty", "invalid hrp: "),
         (
             "tc1p0xlxvlhemja6c4dqv22uapctqupfhlxm9h8z3k2e72q4k9hcz7vq5zuyut",
@@ -197,7 +196,7 @@ def test_invalid_address() -> None:
 def test_invalid_address_enc() -> None:
     """Test whether address encoding fails on invalid input."""
 
-    invalid_address_enc: List[Tuple[str, int, int, str]] = [
+    invalid_address_enc: list[tuple[str, int, int, str]] = [
         ("MAINNET", 0, 20, "'MAINNET'"),
         ("mainnet", 0, 21, "invalid size: "),
         ("mainnet", 17, 32, "invalid witness version: "),
@@ -291,7 +290,7 @@ def test_p2wsh_p2sh() -> None:
 
     # leading/trailing spaces should be tolerated
     pub = " 02 79BE667EF9DCBBAC55A06295CE870B07029BFCDB2DCE28D959F2815B16F81798"
-    script_pub_key: List[Command] = [pub, "OP_CHECKSIG"]
+    script_pub_key: list[Command] = [pub, "OP_CHECKSIG"]
     witness_script_bytes = serialize(script_pub_key)
     b58.p2wsh_p2sh(witness_script_bytes)
     b58.p2wsh_p2sh(witness_script_bytes, "testnet")
@@ -301,7 +300,7 @@ def test_p2wsh() -> None:
 
     # https://github.com/bitcoin/bips/blob/master/bip-0173.mediawiki
     pub = "02 79BE667EF9DCBBAC55A06295CE870B07029BFCDB2DCE28D959F2815B16F81798"
-    script_pub_key: List[Command] = [pub, "OP_CHECKSIG"]
+    script_pub_key: list[Command] = [pub, "OP_CHECKSIG"]
     witness_script_bytes = serialize(script_pub_key)
 
     addr = "tb1qrp33g0q5c5txsp9arysrx4k6zdkfs4nce4xj0gdcccefvpysxf3q0sl5k7"

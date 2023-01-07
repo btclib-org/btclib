@@ -15,12 +15,7 @@ import secrets
 import pytest
 
 from btclib.alias import INF, INFJ
-from btclib.ec import secp256k1
-from btclib.ec.curve_group import (
-    MAX_W,
-    _double_mult,
-    _mult,
-    _multi_mult,
+from btclib.ec import (
     cached_multiples,
     jac_from_aff,
     mult_aff,
@@ -32,7 +27,9 @@ from btclib.ec.curve_group import (
     mult_recursive_aff,
     mult_recursive_jac,
     multiples,
+    secp256k1,
 )
+from btclib.ec.curve_group import MAX_W, _double_mult, _mult, _multi_mult
 from btclib.ecc import second_generator
 from btclib.exceptions import BTClibValueError
 from tests.ec.test_curve import all_curves, low_card_curves

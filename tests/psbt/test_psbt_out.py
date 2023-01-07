@@ -9,10 +9,10 @@
 # or distributed except according to the terms contained in the LICENSE file.
 
 """Tests for the `btclib.psbt.psbt_out` module."""
+from __future__ import annotations
 
 import json
 from os import path
-from typing import Dict
 
 from btclib.alias import Octets
 from btclib.psbt import (
@@ -27,11 +27,11 @@ from btclib.psbt import (
 
 def test_unknown() -> None:
     # the json representation
-    encoded_data: Dict[Octets, Octets] = {
+    encoded_data: dict[Octets, Octets] = {
         "baad": "deadbeef",
         "abadbabe": "cafebabe",
     }
-    data: Dict[bytes, bytes] = decode_dict_bytes_bytes(encoded_data)
+    data = decode_dict_bytes_bytes(encoded_data)
     assert_valid_unknown(data)
     assert encoded_data == encode_dict_bytes_bytes(data)
 

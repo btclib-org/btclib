@@ -38,6 +38,13 @@ repos:
     hooks:
       - id: copyright-notice
         args: [--notice=COPYRIGHT]
+        files: python
+  - repo: https://github.com/asottile/pyupgrade
+    rev: v3.3.1
+    hooks:
+      - id: pyupgrade
+        args: [--py37-plus]
+        # exclude: *fixtures
   - repo: https://github.com/PyCQA/autoflake
     rev: v2.0.0
     hooks:
@@ -50,12 +57,6 @@ repos:
           - --remove-duplicate-keys
           - --remove-unused-variables
           - --remove-rhs-for-unused-variables
-  - repo: https://github.com/asottile/pyupgrade
-    rev: v3.3.1
-    hooks:
-      - id: pyupgrade
-        args: [--py37-plus]
-        # exclude: *fixtures
   - repo: https://github.com/pycqa/isort
     rev: 5.11.4
     hooks:
@@ -97,16 +98,15 @@ repos:
     hooks:
       - id: bandit
         name: bandit (tests)
-        # disable B101 (Test for use of assert) on tests folder
-        args: ["-s", "B101"]
+        # disable B101 (Test for use of assert) for the tests folder
+        args: ["--skip", "B101"]
         exclude: btclib
   - repo: https://github.com/pycqa/pylint
     rev: v2.15.9
     hooks:
       - id: pylint
         args: [
-            "-rn", # Only display messages
-            "-sn", # Don't display the score
+            "--score=false",
             "--disable=E0401", # import-error
           ]
   - repo: https://github.com/pre-commit/mirrors-mypy

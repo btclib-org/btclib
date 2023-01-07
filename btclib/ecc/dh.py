@@ -18,19 +18,17 @@ later utilized e.g. in symmetric cryptographic scheme.
 The two entities must agree on the elliptic curve and key derivation
 function to use.
 """
+from __future__ import annotations
 
 from hashlib import sha256
 from math import ceil
-from typing import Optional
 
 from btclib.alias import HashF, Point
 from btclib.ec import Curve, mult, secp256k1
 from btclib.exceptions import BTClibRuntimeError, BTClibValueError
 
 
-def ansi_x9_63_kdf(
-    z: bytes, size: int, hf: HashF, shared_info: Optional[bytes]
-) -> bytes:
+def ansi_x9_63_kdf(z: bytes, size: int, hf: HashF, shared_info: bytes | None) -> bytes:
     """Return keying data according to ANSI-X9.63-KDF.
 
     Return a keying data octet sequence of the requested size according
@@ -59,7 +57,7 @@ def diffie_hellman(
     dU: int,
     QV: Point,
     size: int,
-    shared_info: Optional[bytes] = None,
+    shared_info: bytes | None = None,
     ec: Curve = secp256k1,
     hf: HashF = sha256,
 ) -> bytes:

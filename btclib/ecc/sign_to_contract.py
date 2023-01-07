@@ -32,9 +32,9 @@ the verifier will check that
 
 with e = hash(R||commit_hash)) and W.x being known from the signature.
 """
+from __future__ import annotations
 
 from hashlib import sha256
-from typing import Optional, Tuple
 
 from btclib.alias import HashF, Octets, Point
 from btclib.ec import Curve, bytes_from_point, mult, secp256k1
@@ -72,11 +72,11 @@ def dsa_commit_sign_(
     commit_hash: Octets,
     msg_hash: Octets,
     prv_key: PrvKey,
-    nonce: Optional[PrvKey] = None,
+    nonce: PrvKey | None = None,
     lower_s: bool = True,
     ec: Curve = secp256k1,
     hf: HashF = sha256,
-) -> Tuple[dsa.Sig, Point]:
+) -> tuple[dsa.Sig, Point]:
     """Include a commitment inside an EC DSA signature."""
 
     nonce = (
@@ -96,10 +96,10 @@ def dsa_commit_sign(
     commit: Octets,
     msg: Octets,
     prv_key: PrvKey,
-    nonce: Optional[PrvKey] = None,
+    nonce: PrvKey | None = None,
     ec: Curve = secp256k1,
     hf: HashF = sha256,
-) -> Tuple[dsa.Sig, Point]:
+) -> tuple[dsa.Sig, Point]:
     """Include a commitment inside an EC DSA signature."""
 
     commit_hash = reduce_to_hlen(commit, hf)
@@ -146,10 +146,10 @@ def ssa_commit_sign_(
     commit_hash: Octets,
     msg_hash: Octets,
     prv_key: PrvKey,
-    nonce: Optional[PrvKey] = None,
+    nonce: PrvKey | None = None,
     ec: Curve = secp256k1,
     hf: HashF = sha256,
-) -> Tuple[ssa.Sig, Point]:
+) -> tuple[ssa.Sig, Point]:
     """Include a commitment inside an EC SSA signature."""
 
     nonce = (
@@ -169,10 +169,10 @@ def ssa_commit_sign(
     commit: Octets,
     msg: Octets,
     prv_key: PrvKey,
-    nonce: Optional[PrvKey] = None,
+    nonce: PrvKey | None = None,
     ec: Curve = secp256k1,
     hf: HashF = sha256,
-) -> Tuple[ssa.Sig, Point]:
+) -> tuple[ssa.Sig, Point]:
     """Include a commitment inside an EC SSA signature."""
 
     commit_hash = reduce_to_hlen(commit, hf)

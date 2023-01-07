@@ -12,9 +12,10 @@
 
 https://github.com/bitcoin/bips/blob/master/bip-0174.mediawiki
 """
+from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Any, Dict, List, Mapping, Optional, Type
+from typing import Any, Mapping
 
 from btclib.alias import Octets
 from btclib.bip32 import (
@@ -52,14 +53,14 @@ class PsbtOut:
     redeem_script: bytes
     witness_script: bytes
     hd_key_paths: HdKeyPaths
-    unknown: Dict[bytes, bytes]
+    unknown: dict[bytes, bytes]
 
     def __init__(
         self,
         redeem_script: Octets = b"",
         witness_script: Octets = b"",
-        hd_key_paths: Optional[Mapping[Octets, BIP32KeyOrigin]] = None,
-        unknown: Optional[Mapping[Octets, Octets]] = None,
+        hd_key_paths: Mapping[Octets, BIP32KeyOrigin] | None = None,
+        unknown: Mapping[Octets, Octets] | None = None,
         check_validity: bool = True,
     ) -> None:
 
@@ -78,7 +79,7 @@ class PsbtOut:
         assert_valid_hd_key_paths(self.hd_key_paths)
         assert_valid_unknown(self.unknown)
 
-    def to_dict(self, check_validity: bool = True) -> Dict[str, Any]:
+    def to_dict(self, check_validity: bool = True) -> dict[str, Any]:
 
         if check_validity:
             self.assert_valid()
@@ -94,8 +95,8 @@ class PsbtOut:
 
     @classmethod
     def from_dict(
-        cls: Type["PsbtOut"], dict_: Mapping[str, Any], check_validity: bool = True
-    ) -> "PsbtOut":
+        cls: type[PsbtOut], dict_: Mapping[str, Any], check_validity: bool = True
+    ) -> PsbtOut:
 
         return cls(
             dict_["redeem_script"],
@@ -111,7 +112,7 @@ class PsbtOut:
         if check_validity:
             self.assert_valid()
 
-        psbt_out_bin: List[bytes] = []
+        psbt_out_bin: list[bytes] = []
 
         if self.redeem_script:
             psbt_out_bin.append(
@@ -135,18 +136,18 @@ class PsbtOut:
 
     @classmethod
     def parse(
-        cls: Type["PsbtOut"],
+        cls: type[PsbtOut],
         output_map: Mapping[bytes, bytes],
         check_validity: bool = True,
-    ) -> "PsbtOut":
+    ) -> PsbtOut:
         """Return a PsbtOut by parsing binary data."""
 
         # FIX parse must use BinaryData
 
         redeem_script = b""
         witness_script = b""
-        hd_key_paths: Dict[Octets, BIP32KeyOrigin] = {}
-        unknown: Dict[Octets, Octets] = {}
+        hd_key_paths: dict[Octets, BIP32KeyOrigin] = {}
+        unknown: dict[Octets, Octets] = {}
 
         for k, v in output_map.items():
             if k[:1] == PSBT_OUT_REDEEM_SCRIPT:

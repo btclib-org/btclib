@@ -9,11 +9,10 @@
 # or distributed except according to the terms contained in the LICENSE file.
 
 """Functions for conversions between different public key formats."""
+from __future__ import annotations
 
 import contextlib
-from typing import Optional, Tuple, Union
-
-from typing_extensions import TypeAlias
+from typing import Tuple, Union
 
 from btclib.alias import Point
 from btclib.bip32 import BIP32Key, BIP32KeyData
@@ -31,11 +30,11 @@ from btclib.utils import bytes_from_octets
 
 # public key inputs:
 # elliptic curve point as Union[Octets, BIP32Key, Point]
-PubKey: TypeAlias = Union[bytes, str, BIP32KeyData, Point]
+PubKey = Union[bytes, str, BIP32KeyData, Point]
 
 # public or private key input,
 # usable wherever a PubKey is logically expected
-Key: TypeAlias = Union[int, bytes, str, BIP32KeyData, Point]
+Key = Union[int, bytes, str, BIP32KeyData, Point]
 
 
 def _point_from_xpub(xpub: BIP32Key, ec: Curve) -> Point:
@@ -112,7 +111,7 @@ PubkeyInfo = Tuple[bytes, str]
 
 
 def _pub_keyinfo_from_xpub(
-    xpub: BIP32Key, network: Optional[str] = None, compressed: Optional[bool] = None
+    xpub: BIP32Key, network: str | None = None, compressed: bool | None = None
 ) -> PubkeyInfo:
     """Return the pub_key tuple (SEC-bytes, network) from a BIP32 xpub.
 
@@ -147,7 +146,7 @@ def _pub_keyinfo_from_xpub(
 
 
 def pub_keyinfo_from_key(
-    key: Key, network: Optional[str] = None, compressed: Optional[bool] = None
+    key: Key, network: str | None = None, compressed: bool | None = None
 ) -> PubkeyInfo:
     """Return the pub key tuple (SEC-bytes, network) from a pub/prv key."""
 
@@ -165,7 +164,7 @@ def pub_keyinfo_from_key(
         raise BTClibValueError(err_msg) from e
 
 
-def _err_msg(key: Key, network: Optional[str], compressed: Optional[bool]) -> str:
+def _err_msg(key: Key, network: str | None, compressed: bool | None) -> str:
     err_msg = "not a private or"
     if compressed is not None:
         err_msg += " compressed" if compressed else " uncompressed"
@@ -176,7 +175,7 @@ def _err_msg(key: Key, network: Optional[str], compressed: Optional[bool]) -> st
 
 
 def pub_keyinfo_from_pub_key(
-    pub_key: PubKey, network: Optional[str] = None, compressed: Optional[bool] = None
+    pub_key: PubKey, network: str | None = None, compressed: bool | None = None
 ) -> PubkeyInfo:
     """Return the pub key tuple (SEC-bytes, network) from a public key."""
 
@@ -210,7 +209,7 @@ def pub_keyinfo_from_pub_key(
 
 
 def pub_keyinfo_from_prv_key(
-    prv_key: PrvKey, network: Optional[str] = None, compressed: Optional[bool] = None
+    prv_key: PrvKey, network: str | None = None, compressed: bool | None = None
 ) -> PubkeyInfo:
     """Return the pub key tuple (SEC-bytes, network) from a private key."""
 
@@ -220,7 +219,7 @@ def pub_keyinfo_from_prv_key(
     return bytes_from_point(pub_key, ec, compr), net
 
 
-def fingerprint(key: Key, network: Optional[str] = None) -> bytes:
+def fingerprint(key: Key, network: str | None = None) -> bytes:
     """Return the public key fingerprint from a private/public key.
 
     The fingerprint is the last four bytes

@@ -8,10 +8,12 @@
 # No part of btclib including this file, may be copied, modified, propagated,
 # or distributed except according to the terms contained in the LICENSE file.
 
-"""Witness (List[bytes]) class."""
+"""Witness (list[bytes]) class."""
+
+from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Dict, List, Mapping, Optional, Sequence, Type
+from typing import Mapping, Sequence
 
 from btclib import var_bytes, var_int
 from btclib.alias import BinaryData, Octets
@@ -20,10 +22,10 @@ from btclib.utils import bytes_from_octets, bytesio_from_binarydata
 
 @dataclass
 class Witness:
-    stack: List[bytes]
+    stack: list[bytes]
 
     def __init__(
-        self, stack: Optional[Sequence[Octets]] = None, check_validity: bool = True
+        self, stack: Sequence[Octets] | None = None, check_validity: bool = True
     ) -> None:
 
         # https://docs.python.org/3/tutorial/controlflow.html#default-argument-values
@@ -39,7 +41,7 @@ class Witness:
         for stack_element in self.stack:
             bytes(stack_element)
 
-    def to_dict(self, check_validity: bool = True) -> Dict[str, List[str]]:
+    def to_dict(self, check_validity: bool = True) -> dict[str, list[str]]:
 
         if check_validity:
             self.assert_valid()
@@ -48,10 +50,10 @@ class Witness:
 
     @classmethod
     def from_dict(
-        cls: Type["Witness"],
+        cls: type[Witness],
         dict_: Mapping[str, Sequence[Octets]],
         check_validity: bool = True,
-    ) -> "Witness":
+    ) -> Witness:
 
         return cls(dict_["stack"], check_validity)
 
@@ -66,8 +68,8 @@ class Witness:
 
     @classmethod
     def parse(
-        cls: Type["Witness"], data: BinaryData, check_validity: bool = True
-    ) -> "Witness":
+        cls: type[Witness], data: BinaryData, check_validity: bool = True
+    ) -> Witness:
         """Return a Witness by parsing binary data."""
 
         data = bytesio_from_binarydata(data)

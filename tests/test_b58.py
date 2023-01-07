@@ -10,7 +10,7 @@
 
 """Tests for the `btclib.b58` module."""
 
-from typing import List, Tuple
+from __future__ import annotations
 
 import pytest
 
@@ -40,7 +40,7 @@ def test_wif_from_prv_key() -> None:
     for alt_prv_key in wif_prv_keys:
         assert alt_prv_key.strip() == b58.wif_from_prv_key(alt_prv_key)
 
-    test_vectors: List[Tuple[str, str, bool]] = [
+    test_vectors: list[tuple[str, str, bool]] = [
         ("KwdMAjGmerYanjeui5SHS7JkmpZvVipYvB2LJGU1ZxJwYvP98617", "mainnet", True),
         ("cMzLdeGd5vEqxB8B6VFQoRopQ3sLAAvEzDAoQgvX54xwofSWj1fx", "testnet", True),
         ("5HueCGU8rMjxEXxiPuD5BDku4MkFqeZyd4dZ1jvhTVqvbTLvyTJ", "mainnet", False),
@@ -181,7 +181,7 @@ def test_p2sh() -> None:
     assert ("p2sh", script_hash, network) == b58.h160_from_address(f" {address} ")
 
     assert script_hash.hex() == "4266fc6f2c2861d7fe229b279a79803afca7ba34"
-    script_sig: List[Command] = ["OP_HASH160", script_hash.hex(), "OP_EQUAL"]
+    script_sig: list[Command] = ["OP_HASH160", script_hash.hex(), "OP_EQUAL"]
     serialize(script_sig)
 
 
@@ -204,7 +204,7 @@ def test_address_from_wif() -> None:
 
     q = 0x19E14A7B6A307F426A94F8114701E7C8E774E7F9A47E2C2035DB29A206321725
 
-    test_cases: List[Tuple[bool, str, str, str]] = [
+    test_cases: list[tuple[bool, str, str, str]] = [
         (
             False,
             "mainnet",
@@ -249,9 +249,9 @@ def test_address_from_wif() -> None:
         else:
             err_msg = "not a private or compressed public key: "
             with pytest.raises(BTClibValueError, match=err_msg):
-                b32.p2wpkh(wif)  # type: ignore[arg-type]
+                b32.p2wpkh(wif)
             with pytest.raises(BTClibValueError, match=err_msg):
-                b58.p2wpkh_p2sh(wif)  # type: ignore[arg-type]
+                b58.p2wpkh_p2sh(wif)
 
 
 def test_exceptions() -> None:

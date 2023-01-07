@@ -315,9 +315,7 @@ def test_valid_sign_2() -> None:
     )
     assert psbt.inputs[0].witness_utxo is not None
     # pylance cannot grok the following line, even considering the above line
-    transaction = Tx(
-        1, 2, [transaction_input], [psbt.inputs[0].witness_utxo]
-    )  # type: ignore
+    transaction = Tx(1, 2, [transaction_input], [psbt.inputs[0].witness_utxo])
     psbt.tx.vin[0].prev_out.tx_id = transaction.id
     psbt.inputs[0].non_witness_utxo = transaction
     psbt.assert_signable()

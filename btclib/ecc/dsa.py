@@ -18,13 +18,13 @@
    to avoid accepting malleable signatures.
 """
 
+from __future__ import annotations
 
 import contextlib
 import secrets
 from dataclasses import InitVar, dataclass
 from hashlib import sha256
 from io import BytesIO
-from typing import List, Optional, Tuple, Type, Union
 
 from btclib import var_bytes
 from btclib.alias import BinaryData, HashF, JacPoint, Octets, Point
@@ -163,7 +163,7 @@ class Sig:
         return _DER_SIG_MARKER + var_bytes.serialize(out)
 
     @classmethod
-    def parse(cls: Type["Sig"], data: BinaryData, check_validity: bool = True) -> "Sig":
+    def parse(cls: type[Sig], data: BinaryData, check_validity: bool = True) -> Sig:
         """Return a Sig by parsing binary data.
 
         Deserialize a strict ASN.1 DER representation of an ECDSA signature.
@@ -196,9 +196,7 @@ class Sig:
         return cls(r, s, ec, check_validity)
 
 
-def gen_keys(
-    prv_key: Optional[PrvKey] = None, ec: Curve = secp256k1
-) -> Tuple[int, Point]:
+def gen_keys(prv_key: PrvKey | None = None, ec: Curve = secp256k1) -> tuple[int, Point]:
     """Return a private/public (int, Point) key-pair."""
 
     if prv_key is None:
@@ -244,7 +242,7 @@ def _sign_(c: int, q: int, nonce: int, lower_s: bool, ec: Curve) -> Sig:
 def sign_(
     msg_hash: Octets,
     prv_key: PrvKey,
-    nonce: Optional[PrvKey] = None,
+    nonce: PrvKey | None = None,
     lower_s: bool = True,
     ec: Curve = secp256k1,
     hf: HashF = sha256,
@@ -288,7 +286,7 @@ def sign_(
 def sign(
     msg: Octets,
     prv_key: PrvKey,
-    nonce: Optional[PrvKey] = None,
+    nonce: PrvKey | None = None,
     lower_s: bool = True,
     ec: Curve = secp256k1,
     hf: HashF = sha256,
@@ -347,7 +345,7 @@ def _assert_as_valid_(
 def assert_as_valid_(
     msg_hash: Octets,
     key: Key,
-    sig: Union[Sig, Octets],
+    sig: Sig | Octets,
     lower_s: bool = True,
     hf: HashF = sha256,
 ) -> None:
@@ -378,7 +376,7 @@ def assert_as_valid_(
 def assert_as_valid(
     msg: Octets,
     key: Key,
-    sig: Union[Sig, Octets],
+    sig: Sig | Octets,
     lower_s: bool = True,
     hf: HashF = sha256,
 ) -> None:
@@ -392,7 +390,7 @@ def assert_as_valid(
 def verify_(
     msg_hash: Octets,
     key: Key,
-    sig: Union[Sig, Octets],
+    sig: Sig | Octets,
     lower_s: bool = True,
     hf: HashF = sha256,
 ) -> bool:
@@ -411,7 +409,7 @@ def verify_(
 def verify(
     msg: Octets,
     key: Key,
-    sig: Union[Sig, Octets],
+    sig: Sig | Octets,
     lower_s: bool = True,
     hf: HashF = sha256,
 ) -> bool:
@@ -424,14 +422,14 @@ def verify(
 # TODO: use _recover_pub_key_ to avoid code duplication
 def _recover_pub_keys_(
     c: int, r: int, s: int, lower_s: bool, ec: Curve
-) -> List[JacPoint]:
+) -> list[JacPoint]:
     # Private function provided for testing purposes only.
 
     # precomputations
     r_1 = mod_inv(r, ec.n)
     r1s = r_1 * s % ec.n
     r1e = -r_1 * c % ec.n
-    keys: List[JacPoint] = []
+    keys: list[JacPoint] = []
     # r = K[0] % ec.n
     # if ec.n < K[0] < ec.p (likely when cofactor ec.cofactor > 1)
     # then both x_K=r and x_K=r+ec.n must be tested
@@ -460,8 +458,8 @@ def _recover_pub_keys_(
 
 
 def recover_pub_keys_(
-    msg_hash: Octets, sig: Union[Sig, Octets], lower_s: bool = True, hf: HashF = sha256
-) -> List[Point]:
+    msg_hash: Octets, sig: Sig | Octets, lower_s: bool = True, hf: HashF = sha256
+) -> list[Point]:
     """ECDSA public key recovery (SEC 1 v.2 section 4.1.6).
 
     See also:
@@ -484,8 +482,8 @@ def recover_pub_keys_(
 
 
 def recover_pub_keys(
-    msg: Octets, sig: Union[Sig, Octets], lower_s: bool = True, hf: HashF = sha256
-) -> List[Point]:
+    msg: Octets, sig: Sig | Octets, lower_s: bool = True, hf: HashF = sha256
+) -> list[Point]:
     """ECDSA public key recovery (SEC 1 v.2 section 4.1.6).
 
     See also:
@@ -525,7 +523,7 @@ def _recover_pub_key_(
 def recover_pub_key_(
     key_id: int,
     msg_hash: Octets,
-    sig: Union[Sig, Octets],
+    sig: Sig | Octets,
     lower_s: bool = True,
     hf: HashF = sha256,
 ) -> Point:
@@ -553,7 +551,7 @@ def recover_pub_key_(
 def recover_pub_key(
     key_id: int,
     msg: Octets,
-    sig: Union[Sig, Octets],
+    sig: Sig | Octets,
     lower_s: bool = True,
     hf: HashF = sha256,
 ) -> Point:
@@ -569,11 +567,11 @@ def recover_pub_key(
 
 def crack_prv_key_(
     msg_hash1: Octets,
-    sig1: Union[Sig, Octets],
+    sig1: Sig | Octets,
     msg_hash2: Octets,
-    sig2: Union[Sig, Octets],
+    sig2: Sig | Octets,
     hf: HashF = sha256,
-) -> Tuple[int, int]:
+) -> tuple[int, int]:
 
     if isinstance(sig1, Sig):
         sig1.assert_valid()
@@ -603,11 +601,11 @@ def crack_prv_key_(
 
 def crack_prv_key(
     msg1: Octets,
-    sig1: Union[Sig, Octets],
+    sig1: Sig | Octets,
     msg2: Octets,
-    sig2: Union[Sig, Octets],
+    sig2: Sig | Octets,
     hf: HashF = sha256,
-) -> Tuple[int, int]:
+) -> tuple[int, int]:
 
     msg_hash1 = reduce_to_hlen(msg1, hf)
     msg_hash2 = reduce_to_hlen(msg2, hf)

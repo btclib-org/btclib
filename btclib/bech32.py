@@ -46,8 +46,9 @@ with the following modifications:
   and decoding ASCII bytes-like objects or ASCII strings to bytes.
 """
 
+from __future__ import annotations
 
-from typing import Iterable, List, Optional, Tuple
+from typing import Iterable
 
 from btclib.alias import String
 from btclib.exceptions import BTClibValueError
@@ -69,31 +70,31 @@ def _polymod(values: Iterable[int]) -> int:
     return chk
 
 
-def _hrp_expand(hrp: str) -> List[int]:
+def _hrp_expand(hrp: str) -> list[int]:
     """Expand the HRP into values for checksum computation."""
     return [ord(x) >> 5 for x in hrp] + [0] + [ord(x) & 31 for x in hrp]
 
 
-def _create_checksum(hrp: str, data: List[int], m: int) -> List[int]:
+def _create_checksum(hrp: str, data: list[int], m: int) -> list[int]:
     """Compute the checksum values given HRP and data."""
     values = _hrp_expand(hrp) + data
     polymod = _polymod(values + [0, 0, 0, 0, 0, 0]) ^ m
     return [(polymod >> 5 * (5 - i)) & 31 for i in range(6)]
 
 
-def _m_from_wit_ver(data: List[int]) -> int:
+def _m_from_wit_ver(data: list[int]) -> int:
     if not data:
         raise BTClibValueError("empty data in bech32 address")
     wit_ver = data[0]
     return _BECH32_1_CONST if wit_ver == 0 else _BECH32_M_CONST
 
 
-def _verify_checksum(hrp: str, data: List[int], m: int) -> bool:
+def _verify_checksum(hrp: str, data: list[int], m: int) -> bool:
     """Verify a checksum given HRP and converted data characters."""
     return _polymod(_hrp_expand(hrp) + data) == m
 
 
-def _decode(bech: String) -> Tuple[str, List[int], List[int]]:
+def _decode(bech: String) -> tuple[str, list[int], list[int]]:
     """Determine a bech32 string HRP, data and checksum."""
 
     if isinstance(bech, bytes):
@@ -131,7 +132,7 @@ def _decode(bech: String) -> Tuple[str, List[int], List[int]]:
     return hrp, data[:-6], data[-6:]
 
 
-def decode(bech: String, m: Optional[int] = None) -> Tuple[str, List[int]]:
+def decode(bech: String, m: int | None = None) -> tuple[str, list[int]]:
     hrp, data, checksum = _decode(bech)
     m = _m_from_wit_ver(data) if m is None else m
     if _verify_checksum(hrp, data + checksum, m):
@@ -139,7 +140,7 @@ def decode(bech: String, m: Optional[int] = None) -> Tuple[str, List[int]]:
     raise BTClibValueError(f"invalid checksum: {bech!r}")
 
 
-def encode(hrp: str, data: List[int], m: Optional[int] = None) -> bytes:
+def encode(hrp: str, data: list[int], m: int | None = None) -> bytes:
     """Compute a bech32 string given HRP and data values."""
     m = _m_from_wit_ver(data) if m is None else m
     combined = data + _create_checksum(hrp, data, m)

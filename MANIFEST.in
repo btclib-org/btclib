@@ -22,6 +22,7 @@ recursive-include btclib *.md
 recursive-include btclib *.txt
 recursive-include btclib *.bin
 recursive-include btclib *.typed
+recursive-include tests *.typed
 
 recursive-include tests *.bin
 recursive-include tests *.csv

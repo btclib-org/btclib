@@ -10,8 +10,9 @@
 
 """Tests for the `btclib.script.script` module."""
 
+from __future__ import annotations
+
 import warnings
-from typing import List
 
 import pytest
 
@@ -92,11 +93,11 @@ def test_add_and_eq() -> None:
     assert Script(script_1) + Script(script_2) == Script(script_1 + script_2)
 
     with pytest.raises(TypeError):
-        _ = Script(script_1) + script_2
+        _ = Script(script_1) + script_2  # type: ignore
 
 
 def test_simple_scripts() -> None:
-    script_list: List[List[Command]] = [
+    script_list: list[list[Command]] = [
         ["OP_2", "OP_3", "OP_ADD", "OP_5", "OP_EQUAL"],
         [0x1ADD, "OP_1ADD", 0x1ADE, "OP_EQUAL"],
         [26, "OP_1NEGATE", "OP_ADD", 26, "OP_EQUAL"],
@@ -115,7 +116,7 @@ def test_simple_scripts() -> None:
 
 def test_exceptions() -> None:
 
-    script_pub_key: List[Command] = ["OP_2", "OP_3", "OP_ADD", "OP_5", "OP_RETURN_244"]
+    script_pub_key: list[Command] = ["OP_2", "OP_3", "OP_ADD", "OP_5", "OP_RETURN_244"]
     err_msg = "invalid string command: OP_RETURN_244"
     with pytest.raises(BTClibValueError, match=err_msg):
         serialize(script_pub_key)
@@ -143,7 +144,7 @@ def test_exceptions() -> None:
 
 def test_nulldata() -> None:
 
-    scripts: List[List[Command]] = [["OP_RETURN", "1A" * 79], ["OP_RETURN", "0A" * 79]]
+    scripts: list[list[Command]] = [["OP_RETURN", "1A" * 79], ["OP_RETURN", "0A" * 79]]
     for script_pub_key in scripts:
         assert script_pub_key == parse(serialize(script_pub_key))
         assert script_pub_key == parse(serialize(script_pub_key).hex())
@@ -167,7 +168,7 @@ def test_opcode_length() -> None:
 
 
 def test_regressions() -> None:
-    script_list: List[List[Command]] = [
+    script_list: list[list[Command]] = [
         [1],
         ["OP_1"],
         [51],
@@ -195,7 +196,7 @@ def test_regressions() -> None:
 
 def test_null_serialization() -> None:
 
-    empty_script: List[Command] = []
+    empty_script: list[Command] = []
     assert empty_script == parse(b"")
     assert serialize(empty_script) == b""
 

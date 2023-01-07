@@ -27,5 +27,5 @@ jobs:
           python-version: 3.12-dev
       - name: Run pytest
         run: |
-          python -m pip install -U -rrequirements.txt -rrequirements-dev.txt
+          python -m pip install --upgrade -rrequirements.txt -rrequirements-dev.txt
           pytest

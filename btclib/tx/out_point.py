@@ -14,8 +14,10 @@ Dataclass encapsulating tx_id and vout.
 """
 
 
+from __future__ import annotations
+
 from dataclasses import dataclass
-from typing import Any, Dict, Mapping, Type, Union
+from typing import Any, Mapping
 
 from btclib.alias import BinaryData, Octets
 from btclib.exceptions import BTClibValueError
@@ -68,7 +70,7 @@ class OutPoint:
         if (self.tx_id == b"\x00" * 32) ^ (self.vout == 0xFFFFFFFF):
             raise BTClibValueError("invalid OutPoint")
 
-    def to_dict(self, check_validity: bool = True) -> Dict[str, Union[str, int]]:
+    def to_dict(self, check_validity: bool = True) -> dict[str, str | int]:
 
         if check_validity:
             self.assert_valid()
@@ -77,8 +79,8 @@ class OutPoint:
 
     @classmethod
     def from_dict(
-        cls: Type["OutPoint"], dict_: Mapping[str, Any], check_validity: bool = True
-    ) -> "OutPoint":
+        cls: type[OutPoint], dict_: Mapping[str, Any], check_validity: bool = True
+    ) -> OutPoint:
 
         return cls(dict_["txid"], dict_["vout"], check_validity)
 
@@ -94,8 +96,8 @@ class OutPoint:
 
     @classmethod
     def parse(
-        cls: Type["OutPoint"], data: BinaryData, check_validity: bool = True
-    ) -> "OutPoint":
+        cls: type[OutPoint], data: BinaryData, check_validity: bool = True
+    ) -> OutPoint:
         """Return an OutPoint from the first 36 bytes of the provided data."""
 
         data = bytesio_from_binarydata(data)

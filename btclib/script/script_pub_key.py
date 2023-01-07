@@ -10,7 +10,9 @@
 
 """ScriptPubKey class and functions."""
 
-from typing import Callable, List, Optional, Sequence, Tuple, Type
+from __future__ import annotations
+
+from typing import Callable, Sequence
 
 from btclib import b32, b58, var_bytes
 from btclib.alias import Octets, String
@@ -42,7 +44,7 @@ def address(script_pub_key: Octets, network: str = "mainnet") -> str:
     return ""
 
 
-def addresses(script_pub_key: Octets, network: str = "mainnet") -> List[str]:
+def addresses(script_pub_key: Octets, network: str = "mainnet") -> list[str]:
     """Return the p2pkh addresses of the pub_keys used in a p2ms script_pub_key."""
 
     script_pub_key = bytes_from_octets(script_pub_key)
@@ -235,7 +237,7 @@ def is_p2tr(script_pub_key: Octets) -> bool:
     return _is_funct(assert_p2tr, script_pub_key)
 
 
-def type_and_payload(script_pub_key: Octets) -> Tuple[str, bytes]:
+def type_and_payload(script_pub_key: Octets) -> tuple[str, bytes]:
     """Return (script_pub_key type, payload) from the input script_pub_key."""
 
     script_pub_key = bytes_from_octets(script_pub_key)
@@ -308,7 +310,7 @@ class ScriptPubKey(Script):
         return address(self.script, self.network)
 
     @property
-    def addresses(self) -> List[str]:
+    def addresses(self) -> list[str]:
         """Return the address, if any, or the p2pkh addresses for p2ms.
 
         Historically, a p2pkh address has been used to refer to a key.
@@ -346,9 +348,7 @@ class ScriptPubKey(Script):
             raise BTClibValueError(f"unknown network: {self.network}")
 
     @classmethod
-    def from_address(
-        cls: Type["ScriptPubKey"], addr: String, check_validity: bool = True
-    ) -> "ScriptPubKey":
+    def from_address(cls, addr: String, check_validity: bool = True) -> ScriptPubKey:
         """Return the ScriptPubKey of the input bech32/base58 address."""
 
         if b32.has_segwit_prefix(addr):
@@ -357,7 +357,7 @@ class ScriptPubKey(Script):
 
         script_type, h160, network = b58.h160_from_address(addr)
         if script_type == "p2sh":
-            commands: List[Command] = ["OP_HASH160", h160, "OP_EQUAL"]
+            commands: list[Command] = ["OP_HASH160", h160, "OP_EQUAL"]
         else:  # it must be "p2pkh"
             commands = [
                 "OP_DUP",
@@ -370,11 +370,11 @@ class ScriptPubKey(Script):
 
     @classmethod
     def p2pk(
-        cls: Type["ScriptPubKey"],
+        cls,
         key: Key,
-        network: Optional[str] = None,
+        network: str | None = None,
         check_validity: bool = True,
-    ) -> "ScriptPubKey":
+    ) -> ScriptPubKey:
         """Return the p2pk ScriptPubKey of the provided Key."""
         payload, network = pub_keyinfo_from_key(key, network)
         script = serialize([payload, "OP_CHECKSIG"])
@@ -382,14 +382,14 @@ class ScriptPubKey(Script):
 
     @classmethod
     def p2ms(
-        cls: Type["ScriptPubKey"],
+        cls,
         m: int,
         keys: Sequence[Key],
-        network: Optional[str] = None,
-        compressed: Optional[bool] = None,
+        network: str | None = None,
+        compressed: bool | None = None,
         lexi_sort: bool = True,
         check_validity: bool = True,
-    ) -> "ScriptPubKey":
+    ) -> ScriptPubKey:
         """Return the m-of-n multi-sig ScriptPubKey of the provided keys.
 
         BIP67 endorses lexicographica key sorting
@@ -420,10 +420,10 @@ class ScriptPubKey(Script):
 
     @classmethod
     def nulldata(
-        cls: Type["ScriptPubKey"],
+        cls,
         data: String,
         check_validity: bool = True,
-    ) -> "ScriptPubKey":
+    ) -> ScriptPubKey:
         """Return the nulldata ScriptPubKey of the provided data."""
 
         if isinstance(data, str):
@@ -439,12 +439,12 @@ class ScriptPubKey(Script):
 
     @classmethod
     def p2pkh(
-        cls: Type["ScriptPubKey"],
+        cls,
         key: Key,
-        compressed: Optional[bool] = None,
-        network: Optional[str] = None,
+        compressed: bool | None = None,
+        network: str | None = None,
         check_validity: bool = True,
-    ) -> "ScriptPubKey":
+    ) -> ScriptPubKey:
         """Return the p2pkh ScriptPubKey of the provided key."""
 
         pub_key, network = pub_keyinfo_from_key(key, network, compressed=compressed)
@@ -455,11 +455,11 @@ class ScriptPubKey(Script):
 
     @classmethod
     def p2sh(
-        cls: Type["ScriptPubKey"],
+        cls,
         redeem_script: Octets,
         network: str = "mainnet",
         check_validity: bool = True,
-    ) -> "ScriptPubKey":
+    ) -> ScriptPubKey:
         """Return the p2sh ScriptPubKey of the provided redeem script."""
 
         script_h160 = hash160(redeem_script)
@@ -468,10 +468,10 @@ class ScriptPubKey(Script):
 
     @classmethod
     def p2wpkh(
-        cls: Type["ScriptPubKey"],
+        cls,
         key: Key,
         check_validity: bool = True,
-    ) -> "ScriptPubKey":
+    ) -> ScriptPubKey:
         """Return the p2wpkh ScriptPubKey of the provided key.
 
         If the provided key is a public one, it must be compressed.
@@ -483,11 +483,11 @@ class ScriptPubKey(Script):
 
     @classmethod
     def p2wsh(
-        cls: Type["ScriptPubKey"],
+        cls,
         redeem_script: Octets,
         network: str = "mainnet",
         check_validity: bool = True,
-    ) -> "ScriptPubKey":
+    ) -> ScriptPubKey:
         """Return the p2wsh ScriptPubKey of the provided redeem script."""
 
         script_h256 = sha256(redeem_script)
@@ -496,12 +496,12 @@ class ScriptPubKey(Script):
 
     @classmethod
     def p2tr(
-        cls: Type["ScriptPubKey"],
-        internal_key: Optional[Key] = None,
-        script_path: Optional[TaprootScriptTree] = None,
+        cls,
+        internal_key: Key | None = None,
+        script_path: TaprootScriptTree | None = None,
         network: str = "mainnet",
         check_validity: bool = True,
-    ) -> "ScriptPubKey":
+    ) -> ScriptPubKey:
         """Return the p2tr ScriptPubKey of the provided script tree."""
 
         pub_key = output_pubkey(internal_key, script_path)[0]

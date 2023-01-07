@@ -19,11 +19,12 @@ are never considered redundant padding.
 
 Output entropy is always raw.
 """
+from __future__ import annotations
 
 import math
 import secrets
 from hashlib import sha512
-from typing import Iterable, List, Optional, Tuple, Union
+from typing import Iterable, Union
 
 from btclib.alias import Octets
 from btclib.exceptions import BTClibValueError
@@ -37,7 +38,7 @@ BinStr = str
 Entropy = Union[BinStr, int, bytes]
 
 
-def wordlist_indexes_from_bin_str_entropy(entropy: BinStr, base: int) -> List[int]:
+def wordlist_indexes_from_bin_str_entropy(entropy: BinStr, base: int) -> list[int]:
     """Return the digit indexes for the provided raw entropy.
 
     Return the list of integer indexes into a digit set,
@@ -62,7 +63,7 @@ def wordlist_indexes_from_bin_str_entropy(entropy: BinStr, base: int) -> List[in
     return list(reversed(indexes))
 
 
-def bin_str_entropy_from_wordlist_indexes(indexes: List[int], base: int) -> BinStr:
+def bin_str_entropy_from_wordlist_indexes(indexes: list[int], base: int) -> BinStr:
     """Return the raw entropy from a list of word-list indexes.
 
     Return the raw (i.e. binary 0/1 string) entropy
@@ -160,7 +161,7 @@ def bytes_entropy_from_str(bin_str_entropy: BinStr) -> bytes:
 
 
 def bin_str_entropy_from_int(
-    int_entropy: Union[int, str], bits: OneOrMoreInt = _bits
+    int_entropy: int | str, bits: OneOrMoreInt = _bits
 ) -> BinStr:
     """Return raw entropy from the input integer entropy.
 
@@ -235,7 +236,7 @@ def bin_str_entropy_from_str(str_entropy: str, bits: OneOrMoreInt = _bits) -> Bi
     return str_entropy
 
 
-def collect_rolls(bits: int) -> Tuple[int, List[int]]:
+def collect_rolls(bits: int) -> tuple[int, list[int]]:
 
     automate = False
     dice_sides = 0
@@ -263,7 +264,7 @@ def collect_rolls(bits: int) -> Tuple[int, List[int]]:
     if not automate:
         print(f"rolls are used only if in 1..{base}")
 
-    rolls: List[int] = []
+    rolls: list[int] = []
     min_roll_number = math.ceil(bits / bits_per_roll)
     for i in range(min_roll_number):
         roll = 0
@@ -283,7 +284,7 @@ def collect_rolls(bits: int) -> Tuple[int, List[int]]:
 
 
 def bin_str_entropy_from_rolls(
-    bits: int, dice_sides: int, rolls: List[int], shuffle: bool = True
+    bits: int, dice_sides: int, rolls: list[int], shuffle: bool = True
 ) -> BinStr:
     """Return raw entropy from the input dice rolls.
 
@@ -332,7 +333,7 @@ def bin_str_entropy_from_rolls(
 
 
 def bin_str_entropy_from_random(
-    bits: int, entropy: Optional[BinStr] = None, to_be_hashed: bool = True
+    bits: int, entropy: BinStr | None = None, to_be_hashed: bool = True
 ) -> BinStr:
     """Return CSPRNG raw entropy XOR-ed with input raw entropy.
 

@@ -10,8 +10,9 @@
 
 """Tests for the `btclib.amount` module."""
 
+from __future__ import annotations
+
 from decimal import Decimal, FloatOperation, localcontext
-from typing import List, Union
 
 import pytest
 
@@ -87,7 +88,7 @@ def test_self_consistency() -> None:
             # 8.50390625 * 100_000_000 is 850390625.0
             # 8.50492428 * 100_000_000 is 850492427.9999999
             btc_amounts = [0, 1, 8.50390625, 8.50492428]
-            cases: List[Union[int, float, str, Decimal]] = []
+            cases: list[int | float | str | Decimal] = []
             for num in btc_amounts:
                 cases += [num, float(num), str(num), f"{num:.7E}", Decimal(str(num))]
 

@@ -27,6 +27,8 @@ The functions in this module could be easily amended
 (in a backward compatible way) in the future if such a need arises.
 """
 
+from __future__ import annotations
+
 from decimal import Decimal, FloatOperation, getcontext
 from typing import Any
 

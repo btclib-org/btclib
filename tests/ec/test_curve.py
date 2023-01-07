@@ -15,9 +15,8 @@ import secrets
 import pytest
 
 from btclib.alias import INF, INFJ
-from btclib.ec import Curve, double_mult, mult, multi_mult, secp256k1
+from btclib.ec import Curve, double_mult, jac_from_aff, mult, multi_mult, secp256k1
 from btclib.ec.curve import CURVES
-from btclib.ec.curve_group import jac_from_aff
 from btclib.ecc import second_generator
 from btclib.exceptions import BTClibTypeError, BTClibValueError
 from btclib.number_theory import mod_sqrt
@@ -39,7 +38,7 @@ low_card_curves["ec19_23"] = Curve(19, 2, 9, (0, 16), 23, 1, False)
 low_card_curves["ec23_19"] = Curve(23, 9, 7, (5, 4), 19, 1, False)
 low_card_curves["ec23_31"] = Curve(23, 5, 1, (0, 1), 31, 1, False)
 
-# with python>=3.9 use Dict Union operator
+# with python>=3.9 use dict union operator
 # all_curves = low_card_curves | CURVES
 all_curves = low_card_curves.copy()
 all_curves.update(CURVES)
@@ -194,7 +193,7 @@ def test_ec_repr() -> None:
         ec_repr = repr(ec)
         if ec in low_card_curves.values() or ec.p_size < 24:
             ec_repr = f"{ec_repr[:-1]}, False)"
-        ec2 = eval(ec_repr)  # pylint: disable=eval-used # nosec B307
+        ec2 = eval(ec_repr)  # pylint: disable=eval-used # nosec eval
         assert str(ec) == str(ec2)
 
 

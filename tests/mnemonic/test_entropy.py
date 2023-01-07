@@ -162,7 +162,7 @@ def test_exceptions() -> None:
         bin_str_entropy_from_entropy(tuple())  # type: ignore[arg-type]
 
     with pytest.raises(ValueError):
-        bin_str_entropy_from_int("not an int")  # type: ignore[arg-type]
+        bin_str_entropy_from_int("not an int")
 
     with pytest.raises(TypeError):
         bin_str_entropy_from_str(3)  # type: ignore[arg-type]

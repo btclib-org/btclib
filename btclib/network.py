@@ -10,11 +10,12 @@
 
 """Network constants and associated functions."""
 
+from __future__ import annotations
 
 import json
 from dataclasses import dataclass
 from os import path
-from typing import Any, Dict, List, Mapping, Optional, Tuple, Type, Union
+from typing import Any, Mapping
 
 from btclib.alias import Octets
 from btclib.ec import Curve
@@ -22,7 +23,7 @@ from btclib.ec.curve import CURVES
 from btclib.exceptions import BTClibValueError
 from btclib.utils import bytes_from_octets
 
-_KEY_SIZE: List[Tuple[str, int]] = [
+_KEY_SIZE: list[tuple[str, int]] = [
     ("magic_bytes", 4),
     ("genesis_block", 32),
     ("wif", 1),
@@ -146,7 +147,7 @@ class Network:
         if check_validity:
             self.assert_valid()
 
-    def to_dict(self, check_validity: bool = True) -> Dict[str, Optional[str]]:
+    def to_dict(self, check_validity: bool = True) -> dict[str, str | None]:
 
         if check_validity:
             self.assert_valid()
@@ -173,8 +174,8 @@ class Network:
 
     @classmethod
     def from_dict(
-        cls: Type["Network"], dict_: Mapping[str, Any], check_validity: bool = True
-    ) -> "Network":
+        cls: type[Network], dict_: Mapping[str, Any], check_validity: bool = True
+    ) -> Network:
 
         return cls(
             CURVES[dict_["curve"]],
@@ -212,7 +213,7 @@ class Network:
                 raise BTClibValueError(err_msg)
 
 
-NETWORKS: Dict[str, Network] = {}
+NETWORKS: dict[str, Network] = {}
 datadir = path.join(path.dirname(__file__), "_data")
 for net in ("mainnet", "testnet", "regtest"):
     filename = path.join(datadir, f"{net}.json")
@@ -220,7 +221,7 @@ for net in ("mainnet", "testnet", "regtest"):
         NETWORKS[net] = Network.from_dict(json.load(f))
 
 
-def network_from_key_value(key: str, prefix: Union[str, bytes, Curve]) -> Optional[str]:
+def network_from_key_value(key: str, prefix: str | bytes | Curve) -> str | None:
     """Return network string from (key, value) pair.
 
     Warning: when used on 'regtest' it mostly returns 'testnet',
@@ -238,7 +239,7 @@ def network_from_key_value(key: str, prefix: Union[str, bytes, Curve]) -> Option
     )
 
 
-def xpubversions_from_network(network: str = "mainnet") -> List[bytes]:
+def xpubversions_from_network(network: str = "mainnet") -> list[bytes]:
     network = network.strip().lower()
     return [
         NETWORKS[network].bip32_pub,
@@ -249,7 +250,7 @@ def xpubversions_from_network(network: str = "mainnet") -> List[bytes]:
     ]
 
 
-def xprvversions_from_network(network: str = "mainnet") -> List[bytes]:
+def xprvversions_from_network(network: str = "mainnet") -> list[bytes]:
     network = network.strip().lower()
     return [
         NETWORKS[network].bip32_prv,

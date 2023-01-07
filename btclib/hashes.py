@@ -9,9 +9,10 @@
 # or distributed except according to the terms contained in the LICENSE file.
 
 """Hash based helper functions."""
+from __future__ import annotations
 
 import hashlib
-from typing import Callable, List, Tuple, Union
+from typing import Callable, Tuple
 
 from btclib.alias import HashF, Octets
 from btclib.ec import Curve, secp256k1
@@ -90,7 +91,7 @@ def challenge_(
     return int_from_bits(msg_hash, ec.nlen) % ec.n
 
 
-def merkle_root(data: List[bytes], hf: Callable[[Union[bytes, str]], bytes]) -> bytes:
+def merkle_root(data: list[bytes], hf: Callable[[bytes | str], bytes]) -> bytes:
     """Return the Merkel tree root of a list of binary hashes.
 
     The Merkel tree is a binary tree constructed

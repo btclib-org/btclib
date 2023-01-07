@@ -25,6 +25,7 @@ from btclib.mnemonic.entropy import (
     wordlist_indexes_from_bin_str_entropy,
 )
 from btclib.mnemonic.mnemonic import (
+    WORDLISTS,
     Mnemonic,
     indexes_from_mnemonic,
     mnemonic_from_indexes,
@@ -46,4 +47,5 @@ __all__ = [
     "Mnemonic",
     "indexes_from_mnemonic",
     "mnemonic_from_indexes",
+    "WORDLISTS",
 ]

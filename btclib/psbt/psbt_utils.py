@@ -12,9 +12,10 @@
 
 https://github.com/bitcoin/bips/blob/master/bip-0174.mediawiki
 """
+from __future__ import annotations
 
 from io import BytesIO
-from typing import Dict, Mapping, Optional, Tuple
+from typing import Mapping
 
 from btclib import var_bytes, var_int
 from btclib.alias import BinaryData, Octets
@@ -24,13 +25,13 @@ from btclib.tx import Tx
 from btclib.utils import bytes_from_octets, bytesio_from_binarydata
 
 
-def deserialize_map(data: BinaryData) -> Tuple[Dict[bytes, bytes], BytesIO]:
+def deserialize_map(data: BinaryData) -> tuple[dict[bytes, bytes], BytesIO]:
     stream = bytesio_from_binarydata(data)
     if (
         len(stream.getbuffer()) == stream.tell()
     ):  # we are at the end of the stream buffer
         raise BTClibValueError("malformed psbt: at least a map is missing")
-    partial_map: Dict[bytes, bytes] = {}
+    partial_map: dict[bytes, bytes] = {}
     while True:
         if stream.read(1)[0] == 0:
             return partial_map, stream
@@ -68,15 +69,13 @@ def deserialize_int(k: bytes, v: bytes, type_: str) -> int:
     return int.from_bytes(v, byteorder="little", signed=False)
 
 
-def encode_dict_bytes_bytes(dict_: Mapping[bytes, bytes]) -> Dict[str, str]:
+def encode_dict_bytes_bytes(dict_: Mapping[bytes, bytes]) -> dict[str, str]:
     """Return the json representation of the dataclass element."""
     # unknown could be sorted, partial_sigs cannot
     return {k.hex(): v.hex() for k, v in dict_.items()}
 
 
-def decode_dict_bytes_bytes(
-    map_: Optional[Mapping[Octets, Octets]]
-) -> Dict[bytes, bytes]:
+def decode_dict_bytes_bytes(map_: Mapping[Octets, Octets] | None) -> dict[bytes, bytes]:
     """Return the dataclass element from its json representation."""
     # unknown could be sorted, partial_sigs cannot
     if map_ is None:
@@ -132,7 +131,7 @@ def assert_valid_unknown(data: Mapping[bytes, bytes]) -> None:
 
 
 def deserialize_tx(
-    k: bytes, v: bytes, type_: str, include_witness: Optional[bool] = True
+    k: bytes, v: bytes, type_: str, include_witness: bool | None = True
 ) -> Tx:
     """Return the dataclass element from its binary representation."""
 

@@ -12,9 +12,10 @@
 
 https://github.com/bitcoin/bips/blob/master/bip-0174.mediawiki
 """
+from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Any, Dict, List, Mapping, Optional, Type
+from typing import Any, Mapping
 
 from btclib.alias import Octets
 from btclib.bip32 import (
@@ -140,20 +141,20 @@ def _assert_valid_hash256_preimages(hash256_preimages: Mapping[bytes, bytes]) ->
 
 @dataclass
 class PsbtIn:
-    non_witness_utxo: Optional[Tx]
-    witness_utxo: Optional[TxOut]
-    partial_sigs: Dict[bytes, bytes]
-    sig_hash_type: Optional[int]
+    non_witness_utxo: Tx | None
+    witness_utxo: TxOut | None
+    partial_sigs: dict[bytes, bytes]
+    sig_hash_type: int | None
     redeem_script: bytes
     witness_script: bytes
     hd_key_paths: HdKeyPaths
     final_script_sig: bytes
     final_script_witness: Witness
-    ripemd160_preimages: Dict[bytes, bytes]
-    sha256_preimages: Dict[bytes, bytes]
-    hash160_preimages: Dict[bytes, bytes]
-    hash256_preimages: Dict[bytes, bytes]
-    unknown: Dict[bytes, bytes]
+    ripemd160_preimages: dict[bytes, bytes]
+    sha256_preimages: dict[bytes, bytes]
+    hash160_preimages: dict[bytes, bytes]
+    hash256_preimages: dict[bytes, bytes]
+    unknown: dict[bytes, bytes]
 
     @property
     def sig_hash(self) -> int:
@@ -162,20 +163,20 @@ class PsbtIn:
 
     def __init__(
         self,
-        non_witness_utxo: Optional[Tx] = None,
-        witness_utxo: Optional[TxOut] = None,
-        partial_sigs: Optional[Mapping[Octets, Octets]] = None,
-        sig_hash_type: Optional[int] = None,
+        non_witness_utxo: Tx | None = None,
+        witness_utxo: TxOut | None = None,
+        partial_sigs: Mapping[Octets, Octets] | None = None,
+        sig_hash_type: int | None = None,
         redeem_script: Octets = b"",
         witness_script: Octets = b"",
-        hd_key_paths: Optional[Mapping[Octets, BIP32KeyOrigin]] = None,
+        hd_key_paths: Mapping[Octets, BIP32KeyOrigin] | None = None,
         final_script_sig: Octets = b"",
         final_script_witness: Witness = Witness(),
-        ripemd160_preimages: Optional[Mapping[Octets, Octets]] = None,
-        sha256_preimages: Optional[Mapping[Octets, Octets]] = None,
-        hash160_preimages: Optional[Mapping[Octets, Octets]] = None,
-        hash256_preimages: Optional[Mapping[Octets, Octets]] = None,
-        unknown: Optional[Mapping[Octets, Octets]] = None,
+        ripemd160_preimages: Mapping[Octets, Octets] | None = None,
+        sha256_preimages: Mapping[Octets, Octets] | None = None,
+        hash160_preimages: Mapping[Octets, Octets] | None = None,
+        hash256_preimages: Mapping[Octets, Octets] | None = None,
+        unknown: Mapping[Octets, Octets] | None = None,
         check_validity: bool = True,
     ) -> None:
 
@@ -225,7 +226,7 @@ class PsbtIn:
 
         assert_valid_unknown(self.unknown)
 
-    def to_dict(self, check_validity: bool = True) -> Dict[str, Any]:
+    def to_dict(self, check_validity: bool = True) -> dict[str, Any]:
 
         if check_validity:
             self.assert_valid()
@@ -256,8 +257,8 @@ class PsbtIn:
 
     @classmethod
     def from_dict(
-        cls: Type["PsbtIn"], dict_: Mapping[str, Any], check_validity: bool = True
-    ) -> "PsbtIn":
+        cls: type[PsbtIn], dict_: Mapping[str, Any], check_validity: bool = True
+    ) -> PsbtIn:
 
         return cls(
             Tx.from_dict(dict_["non_witness_utxo"], False)
@@ -287,7 +288,7 @@ class PsbtIn:
         if check_validity:
             self.assert_valid()
 
-        psbt_in_bin: List[bytes] = []
+        psbt_in_bin: list[bytes] = []
 
         if self.non_witness_utxo:
             temp = self.non_witness_utxo.serialize(include_witness=True)
@@ -364,10 +365,10 @@ class PsbtIn:
 
     @classmethod
     def parse(
-        cls: Type["PsbtIn"],
+        cls: type[PsbtIn],
         input_map: Mapping[bytes, bytes],
         check_validity: bool = True,
-    ) -> "PsbtIn":
+    ) -> PsbtIn:
         """Return a PsbtIn by parsing binary data."""
         # sourcery skip: low-code-quality
 
@@ -375,18 +376,18 @@ class PsbtIn:
 
         non_witness_utxo = None
         witness_utxo = None
-        partial_sigs: Dict[Octets, Octets] = {}
+        partial_sigs: dict[Octets, Octets] = {}
         sig_hash_type = None
         redeem_script = b""
         witness_script = b""
-        hd_key_paths: Dict[Octets, BIP32KeyOrigin] = {}
+        hd_key_paths: dict[Octets, BIP32KeyOrigin] = {}
         final_script_sig = b""
         final_script_witness = Witness()
-        ripemd160_preimages: Dict[Octets, Octets] = {}
-        sha256_preimages: Dict[Octets, Octets] = {}
-        hash160_preimages: Dict[Octets, Octets] = {}
-        hash256_preimages: Dict[Octets, Octets] = {}
-        unknown: Dict[Octets, Octets] = {}
+        ripemd160_preimages: dict[Octets, Octets] = {}
+        sha256_preimages: dict[Octets, Octets] = {}
+        hash160_preimages: dict[Octets, Octets] = {}
+        hash256_preimages: dict[Octets, Octets] = {}
+        unknown: dict[Octets, Octets] = {}
 
         for k, v in input_map.items():
             if k[:1] == PSBT_IN_NON_WITNESS_UTXO:
