@@ -40,7 +40,7 @@ class CurveSubGroup(CurveGroup):
         # 2. check that xG and yG are integers in the interval [0, p−1]
         # 4. Check that yG^2 = xG^3 + a*xG + b (mod p)
         if len(G) != 2:
-            raise BTClibValueError("Generator must a be a sequence[int, int]")
+            raise BTClibValueError("generator must a be a sequence[int, int]")
         self.G = (int_from_integer(G[0]), int_from_integer(G[1]))
         if not self.is_on_curve(self.G):
             raise BTClibValueError("Generator is not on the curve")

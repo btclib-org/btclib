@@ -60,7 +60,7 @@ def output_pubkey(
     ec: Curve = secp256k1,
 ) -> tuple[bytes, int]:
     if not internal_pubkey and not script_tree:
-        raise BTClibValueError("Missing data")
+        raise BTClibValueError("missing data")
     if internal_pubkey:
         pubkey = pub_keyinfo_from_key(internal_pubkey, compressed=True)[0][1:]
     else:
@@ -124,10 +124,10 @@ def check_output_pubkey(
     script = bytes_from_octets(script)
     control = bytes_from_octets(control)
     if len(control) > 4129:  # 33 + 32 * 128
-        raise BTClibValueError("Control block too long")
+        raise BTClibValueError("control block too long")
     m = (len(control) - 33) // 32
     if len(control) != 33 + 32 * m:
-        raise BTClibValueError("Invalid control block length")
+        raise BTClibValueError("invalid control block length")
     leaf_version = control[0] & 0xFE
     preimage = leaf_version.to_bytes(1, "big") + var_bytes.serialize(script)
     k = tagged_hash(b"TapLeaf", preimage)

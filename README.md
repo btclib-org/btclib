@@ -1,34 +1,19 @@
 
 # A Python library for 'bitcoin cryptography'
 
-[![python](https://img.shields.io/pypi/pyversions/btclib.svg?logo=python)](https://pypi.python.org/pypi/btclib/)
-[![calver: yyy.m.d](https://img.shields.io/badge/cal%20ver-yyyy.m.d-1674b1.svg?logo=calver)](https://calver.org/)
-[![pypi](https://img.shields.io/pypi/v/btclib.svg?logo=pypi)](https://pypi.python.org/pypi/btclib/)
-[![downloads](https://static.pepy.tech/badge/btclib)](https://pepy.tech/project/btclib)
-[![status](https://img.shields.io/pypi/status/btclib.svg)](https://pypi.python.org/pypi/btclib/)
-[![license](https://img.shields.io/github/license/btclib-org/btclib.svg)](https://github.com/btclib-org/btclib/blob/master/LICENSE)
-[![imports: isort](https://img.shields.io/badge/imports-isort-yellowgreen.svg?logo=isort)](https://pycqa.github.io/isort/)
-[![code style: black](https://img.shields.io/badge/code%20style-black-yellowgreen.svg?logo=black)](https://github.com/psf/black)
-[![lint: flake8](https://img.shields.io/badge/lint-flake8-yellowgreen.svg?logo=flake8)](https://flake8.pycqa.org)
-[![lint: pylint](https://img.shields.io/badge/lint-pylint-yellowgreen.svg?logo=pylint)](https://github.com/PyCQA/pylint)
-[![type-check: mypy](https://img.shields.io/badge/type--check-mypy-yellowgreen.svg?logo=mypy)](http://mypy-lang.org/)
-[![type-check: pyright](https://img.shields.io/badge/type--check-pyright-yellowgreen.svg)](https://github.com/microsoft/pyright)
-[![security: bandit](https://img.shields.io/badge/security-bandit-yellowgreen.svg?logo=bandit)](https://github.com/PyCQA/bandit)
-[![refactor: sourcery](https://img.shields.io/badge/refactor-sourcery-yellowgreen.svg?logo=sourcery)](https://sourcery.ai)
-[![pre-commit.ci status](https://results.pre-commit.ci/badge/github/btclib-org/btclib/master.svg)](https://results.pre-commit.ci/latest/github/btclib-org/btclib/master)
-[![lint](https://github.com/btclib-org/btclib/actions/workflows/lint.yml/badge.svg)](https://github.com/btclib-org/btclib/actions/workflows/lint.yml)
-[![test](https://github.com/btclib-org/btclib/actions/workflows/test.yml/badge.svg)](https://github.com/btclib-org/btclib/actions/workflows/test.yml)
-[![test-py312](https://github.com/btclib-org/btclib/actions/workflows/test-py312.yml/badge.svg)](https://github.com/btclib-org/btclib/actions/workflows/test-py312.yml)
-[![docs](https://img.shields.io/readthedocs/btclib.svg?logo=readthedocs)](https://btclib.readthedocs.io)
-[![coverage](https://coveralls.io/repos/github/btclib-org/btclib/badge.svg?logo=coveralls)](https://coveralls.io/github/btclib-org/btclib)
-
-[![Follow on Twitter](https://img.shields.io/twitter/follow/btclib?style=social&logo=twitter)](https://twitter.com/intent/follow?screen_name=btclib)
-
----
+<!-- markdownlint-disable MD013 -->
+| | |
+| --- | --- |
+| Package | [![python](https://img.shields.io/pypi/pyversions/btclib.svg?logo=python)](https://pypi.python.org/pypi/btclib/) [![calver: yyy.m.d](https://img.shields.io/badge/cal_ver-yyyy.m.d-1674b1.svg?logo=calver)](https://calver.org/) [![pypi](https://img.shields.io/pypi/v/btclib.svg?logo=pypi)](https://pypi.python.org/pypi/btclib/) [![downloads](https://static.pepy.tech/badge/btclib)](https://pepy.tech/project/btclib) [![status](https://img.shields.io/pypi/status/btclib.svg)](https://pypi.python.org/pypi/btclib/) [![license](https://img.shields.io/github/license/btclib-org/btclib.svg)](https://github.com/btclib-org/btclib/blob/master/LICENSE) |
+| Coding standards | [![lint: pydocstringformatter](https://img.shields.io/badge/lint-pydocstringformatter-yellowgreen.svg?logo=pydocstringformatter)](https://github.com/DanielNoord/pydocstringformatter) [![lint: pyupgrade](https://img.shields.io/badge/lint-pyupgrade-yellowgreen.svg?logo=pyupgrade)](https://github.com/asottile/pyupgrade) [![lint: isort](https://img.shields.io/badge/lint-isort-yellowgreen.svg?logo=isort)](https://github.com/PyCQA/isort) [![lint: black](https://img.shields.io/badge/lint-black-yellowgreen.svg?logo=black)](https://github.com/psf/black) [![lint: autoflake](https://img.shields.io/badge/lint-autoflake-yellowgreen.svg?logo=autoflake)](https://github.com/PyCQA/autoflake) [![lint: flake8](https://img.shields.io/badge/lint-flake8-yellowgreen.svg?logo=flake8)](<https://github.com/PyCQA/flake8>) [![lint: yesqa](https://img.shields.io/badge/lint-yesqa-yellowgreen.svg?logo=yesqa)](<https://github.com/asottile/yesqa>) [![lint: pylint](https://img.shields.io/badge/lint-pylint-yellowgreen.svg?logo=pylint)](https://github.com/PyCQA/pylint) [![type check: mypy](https://img.shields.io/badge/type_check-mypy-yellowgreen.svg?logo=mypy)](http://mypy-lang.org/) [![type check: pyright](https://img.shields.io/badge/type_check-pyright-yellowgreen.svg)](https://github.com/microsoft/pyright) [![lint: sourcery](https://img.shields.io/badge/lint-sourcery-yellowgreen.svg?logo=sourcery)](https://sourcery.ai) [![security: bandit](https://img.shields.io/badge/security-bandit-yellowgreen.svg?logo=bandit)](https://github.com/PyCQA/bandit) [![lint: markdownlint-cli2](https://img.shields.io/badge/lint-markdownlint--cli2-yellowgreen.svg?logo=sourcery)](https://github.com/DavidAnson/markdownlint-cli2) |
+| CI/CD | [![pre-commit.ci status](https://results.pre-commit.ci/badge/github/btclib-org/btclib/master.svg)](https://results.pre-commit.ci/latest/github/btclib-org/btclib/master) [![lint](https://github.com/btclib-org/btclib/actions/workflows/lint.yml/badge.svg)](https://github.com/btclib-org/btclib/actions/workflows/lint.yml) [![test](https://github.com/btclib-org/btclib/actions/workflows/test.yml/badge.svg)](https://github.com/btclib-org/btclib/actions/workflows/test.yml) [![test-py312](https://github.com/btclib-org/btclib/actions/workflows/test-py312.yml/badge.svg)](https://github.com/btclib-org/btclib/actions/workflows/test-py312.yml) [![coverage](https://coveralls.io/repos/github/btclib-org/btclib/badge.svg?logo=coveralls)](https://coveralls.io/github/btclib-org/btclib) | [![docs](https://img.shields.io/readthedocs/btclib.svg?logo=readthedocs)](https://btclib.readthedocs.io) |
+| Conversations | [![slack](https://img.shields.io/badge/slack-btclib_dev-white.svg?logo=slack)](https://bbt-training.slack.com/messages/C01CCJ85AES) [![Follow on Twitter](https://img.shields.io/twitter/follow/btclib?style=social&logo=twitter)](https://twitter.com/intent/follow?screen_name=btclib)|
+|
 
 [Browse GitHub Code Repository](https://github.com/btclib-org/btclib/)
 
 ---
+<!-- markdownlint-enable MD013 -->
 
 [btclib](https://btclib.org) is a
 Python3 [type annotated](https://docs.python.org/3/library/typing.html)
