@@ -69,7 +69,7 @@ def test_bech32() -> None:
         assert encode(*decoded, _BECH32_1_CONST).decode() == test.lower()
         pos = test.rfind("1")
         test = test[: pos + 1] + chr(ord(test[pos + 1]) ^ 1) + test[pos + 2 :]
-        with pytest.raises(BTClibValueError):
+        with pytest.raises(BTClibValueError):  # assorted error messages
             decode(test, _BECH32_1_CONST)
 
     invalid_checksum = [

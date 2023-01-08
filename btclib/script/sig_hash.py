@@ -248,7 +248,7 @@ def from_tx(prevouts: list[TxOut], tx: Tx, vin_i: int, hash_type: int) -> bytes:
     if is_p2sh(script):
         script = tx.vin[vin_i].script_sig
         if is_p2tr(script):
-            raise BTClibValueError("Taproot scripts cannot be wrapped in p2sh")
+            raise BTClibValueError("taproot scripts cannot be wrapped in p2sh")
 
     if is_p2wpkh(script):
         script_ = witness_v0_script(script)[0]
@@ -269,7 +269,7 @@ def _script_from_p2tr(
 
     witness = tx.vin[vin_i].script_witness
     if len(witness.stack) == 0:
-        raise BTClibValueError("Empty stack")
+        raise BTClibValueError("empty stack")
 
     annex = b""
     if len(witness.stack) >= 2 and witness.stack[-1][0] == 0x50:

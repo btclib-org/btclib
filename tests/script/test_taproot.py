@@ -85,17 +85,17 @@ def test_taproot_key_tweaking() -> None:
 
 def test_invalid_control_block() -> None:
 
-    err_msg = "Control block too long"
+    err_msg = "control block too long"
     with pytest.raises(BTClibValueError, match=err_msg):
         check_output_pubkey(b"\x00" * 32, b"\x00", b"\x00" * 4130)
 
-    err_msg = "Invalid control block length"
+    err_msg = "invalid control block length"
     with pytest.raises(BTClibValueError, match=err_msg):
         check_output_pubkey(b"\x00" * 32, b"\x00", b"\x00" * 100)
 
 
 def test_unspendable_script() -> None:
-    err_msg = "Missing data"
+    err_msg = "missing data"
     with pytest.raises(BTClibValueError, match=err_msg):
         output_pubkey()
 

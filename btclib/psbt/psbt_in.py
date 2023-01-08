@@ -115,28 +115,28 @@ def _assert_valid_ripemd160_preimages(
 
     for h, preimage in ripemd160_preimages.items():
         if ripemd160(preimage) != h:
-            raise BTClibValueError("Invalid RIPEMD160 preimage")
+            raise BTClibValueError("invalid RIPEMD160 preimage")
 
 
 def _assert_valid_sha256_preimages(sha256_preimages: Mapping[bytes, bytes]) -> None:
 
     for h, preimage in sha256_preimages.items():
         if sha256(preimage) != h:
-            raise BTClibValueError("Invalid SHA256 preimage")
+            raise BTClibValueError("invalid SHA256 preimage")
 
 
 def _assert_valid_hash160_preimages(hash160_preimages: Mapping[bytes, bytes]) -> None:
 
     for h, preimage in hash160_preimages.items():
         if hash160(preimage) != h:
-            raise BTClibValueError("Invalid HASH160 preimage")
+            raise BTClibValueError("invalid HASH160 preimage")
 
 
 def _assert_valid_hash256_preimages(hash256_preimages: Mapping[bytes, bytes]) -> None:
 
     for h, preimage in hash256_preimages.items():
         if hash256(preimage) != h:
-            raise BTClibValueError("Invalid HASH256 preimage")
+            raise BTClibValueError("invalid HASH256 preimage")
 
 
 @dataclass

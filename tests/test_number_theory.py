@@ -60,7 +60,7 @@ primes = [
 
 def test_mod_inv_prime() -> None:
     for p in primes:
-        with pytest.raises(BTClibValueError, match="No inverse for 0 mod"):
+        with pytest.raises(BTClibValueError, match="no inverse for 0 mod"):
             mod_inv(0, p)
         for a in range(1, min(p, 500)):  # exhausted only for small p
             inv = mod_inv(a, p)
@@ -81,7 +81,7 @@ def test_mod_inv() -> None:
                 inv = mod_inv(a + m, m)
                 assert a * inv % m == 1
             else:
-                err_msg = "No inverse for "
+                err_msg = "no inverse for "
                 with pytest.raises(BTClibValueError, match=err_msg):
                     mod_inv(a, m)
 

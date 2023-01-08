@@ -143,7 +143,7 @@ def test_exceptions() -> None:
     assert len(entropy) == 224
     assert int(entropy, 2) == int_entropy211
 
-    err_msg = "Negative entropy: "
+    err_msg = "negative entropy: "
     with pytest.raises(BTClibValueError, match=err_msg):
         bin_str_entropy_from_entropy(-1 * int_entropy211)
 
@@ -240,13 +240,13 @@ def test_bin_str_entropy_from_rolls() -> None:
     bin_str = bin_str_entropy_from_random(bits, bin_str_rolls)
 
     rolls = [secrets.randbelow(base) + 1 for _ in range(roll_number - 2)]
-    err_msg = "Too few rolls in the usable "  # [1-16] range, missing 2 rolls
+    err_msg = "too few rolls in the usable "  # [1-16] range, missing 2 rolls
     with pytest.raises(BTClibValueError, match=err_msg):
         bin_str_entropy_from_rolls(bits, dice_base, rolls)
 
     rolls = [secrets.randbelow(base) + 1 for _ in range(roll_number)]
     rolls[1] = base + 1
-    err_msg = "Too few rolls in the usable "  # [1-16] range, missing 1 rolls
+    err_msg = "too few rolls in the usable "  # [1-16] range, missing 1 rolls
     with pytest.raises(BTClibValueError, match=err_msg):
         bin_str_entropy_from_rolls(bits, dice_base, rolls)
 
@@ -289,6 +289,6 @@ def test_bin_str_entropy_from_random() -> None:
 
     bin_str = bin_str_entropy_from_random(1024, to_be_hashed=False)
     assert len(bin_str) == 1024
-    err_msg = "Too many bits required: "
+    err_msg = "too many bits required: "
     with pytest.raises(BTClibValueError, match=err_msg):
         bin_str_entropy_from_random(1024)

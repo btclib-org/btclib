@@ -339,13 +339,13 @@ def parse(stream: BinaryData, exit_on_op_success: bool = False) -> list[Command]
                     x = 4
                 y = s.read(x)
                 if len(y) != x:
-                    raise BTClibValueError("Not enough data for pushdata length")
+                    raise BTClibValueError("not enough data for pushdata length")
                 data_length = int.from_bytes(y, byteorder="little")
                 if data_length > 520:
-                    raise BTClibValueError(f"Invalid pushdata length: {data_length}")
+                    raise BTClibValueError(f"invalid pushdata length: {data_length}")
             data = s.read(data_length)
             if len(data) != data_length:
-                raise BTClibValueError("Not enough data for pushdata")
+                raise BTClibValueError("not enough data for pushdata")
             command = data.hex().upper()
         elif i in OP_CODE_NAME_FROM_INT:  # OP_CODE
             command = OP_CODE_NAME_FROM_INT[i]

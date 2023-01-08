@@ -186,7 +186,7 @@ def bin_str_entropy_from_int(
             int_entropy = int(int_entropy)
 
     if int_entropy < 0:
-        raise BTClibValueError(f"Negative entropy: {int_entropy}")
+        raise BTClibValueError(f"negative entropy: {int_entropy}")
 
     # if a single int, make it a tuple
     if isinstance(bits, int):
@@ -325,7 +325,7 @@ def bin_str_entropy_from_rolls(
             i += roll - 1
             min_roll_number -= 1
     if min_roll_number > 0:
-        msg = f"Too few rolls in the usable [1-{base}] range"
+        msg = f"too few rolls in the usable [1-{base}] range"
         msg += f", missing {min_roll_number} rolls"
         raise BTClibValueError(msg)
 
@@ -363,7 +363,7 @@ def bin_str_entropy_from_random(
         hf = sha512()
         max_bits = hf.digest_size * 8
         if bits > max_bits:
-            err_msg = f"Too many bits required: {bits}, max is {max_bits}"
+            err_msg = f"too many bits required: {bits}, max is {max_bits}"
             raise BTClibValueError(err_msg)
         n_bytes = math.ceil(i.bit_length() / 8)
         h512 = sha512(i.to_bytes(n_bytes, byteorder="big", signed=False)).digest()

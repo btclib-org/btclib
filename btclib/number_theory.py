@@ -54,7 +54,7 @@ def mod_inv(a: int, m: int) -> int:
     g, x, _ = xgcd(a, m)
     if g == 1:
         return x % m
-    err_msg = "No inverse for "
+    err_msg = "no inverse for "
     err_msg += f"{hex_string(a)}" if a > 0xFFFFFFFF else f"{a}"
     err_msg += " mod "
     err_msg += f"{hex_string(m)}" if m > 0xFFFFFFFF else f"{m}"
