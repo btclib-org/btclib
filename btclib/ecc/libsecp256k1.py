@@ -12,10 +12,13 @@ from __future__ import annotations
 
 import secrets
 
-from secp256k1._libsecp256k1 import ffi, lib
-
-from btclib.ec.libsecp256k1 import secp256k1_ctx
 from btclib.exceptions import BTClibRuntimeError
+
+try:
+    from btclib.ec.libsecp256k1 import ffi, lib, secp256k1_ctx
+
+except ImportError:  # pragma: no cover
+    pass
 
 
 def ecdsa_sign(

@@ -20,7 +20,7 @@ LIBSECP256K1_ENABLED = False
 try:
     from secp256k1._libsecp256k1 import ffi, lib
 
-    LIBSECP256K1_ENABLED = True
+    # LIBSECP256K1_ENABLED = True
     # Keeping a single one of these is most efficient.
     secp256k1_ctx = lib.secp256k1_context_create(
         lib.SECP256K1_CONTEXT_SIGN | lib.SECP256K1_CONTEXT_VERIFY
@@ -28,18 +28,6 @@ try:
 
 except ImportError:  # pragma: no cover
     LIBSECP256K1_AVAILABLE = False
-
-
-def enable() -> None:
-    global LIBSECP256K1_ENABLED  # pylint: disable=global-statement
-    if not LIBSECP256K1_AVAILABLE:
-        raise BTClibRuntimeError("libsecp256k1 is not available")  # pragma: no cover
-    LIBSECP256K1_ENABLED = True
-
-
-def disable() -> None:
-    global LIBSECP256K1_ENABLED  # pylint: disable=global-statement
-    LIBSECP256K1_ENABLED = False
 
 
 def is_enabled() -> bool:

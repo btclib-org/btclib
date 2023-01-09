@@ -35,8 +35,6 @@ from tests.ec.test_curve import low_card_curves
 def test_signature() -> None:
     msg = b"Satoshi Nakamoto"
 
-    libsecp256k1.disable()
-
     q, x_Q = ssa.gen_keys(0x01)
     sig = ssa.sign(msg, q)
     ssa.assert_as_valid(msg, x_Q, sig)
@@ -96,8 +94,6 @@ def test_signature() -> None:
         ssa.sign_(m_bytes, q, 0)
     with pytest.raises(BTClibValueError, match=err_msg):
         ssa.sign_(m_bytes, q, sig.ec.n)
-
-    libsecp256k1.enable()
 
 
 def test_bip340_vectors() -> None:
