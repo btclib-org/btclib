@@ -364,9 +364,19 @@ def test_join_txs() -> None:
     tx_bytes = "01000000016dbddb085b1d8af75184f0bc01fad58d1266e9b63b50881990e4b40d6aee3629000000008b483045022100f3581e1972ae8ac7c7367a7a253bc1135223adb9a468bb3a59233f45bc578380022059af01ca17d00e41837a1d58e97aa31bae584edec28d35bd96923690913bae9a0141049c02bfc97ef236ce6d8fe5d94013c721e915982acd2b12b65d9b7d59e20a842005f8fc4e02532e873d37b96f09d6d4511ada8f14042f46614a4c70c0f14beff5ffffffff02404b4c00000000001976a9141aa0cd1cbea6e7458a7abad512a9d9ea1afb225e88ac80fae9c7000000001976a9140eab5bea436a0484cfab12485efda0b78b4ecc5288ac00000000"
     tx2 = Tx.parse(tx_bytes)
 
-    joint_tx = join_txs(tx1, tx2)
+    joint_tx = join_txs(
+        [tx1, tx2],
+        enforce_same_version=True,
+        enforce_same_lock_time=True,
+        merge_out=False,
+        shuffle_inp=False,
+        shuffle_out=False,
+    )
 
     joint_tx.assert_valid()
+    assert joint_tx.version == tx1.version
+    assert joint_tx.lock_time == tx1.lock_time
+    assert len(joint_tx.vout) == len(tx1.vout) + len(tx2.vout)
     assert {v.serialize() for v in joint_tx.vin} == {
         v.serialize() for v in tx1.vin
     }.union({v.serialize() for v in tx2.vin})
@@ -374,30 +384,81 @@ def test_join_txs() -> None:
     assert {v.serialize() for v in joint_tx.vout} == {
         v.serialize() for v in tx1.vout
     }.union({v.serialize() for v in tx2.vout})
-    assert len(joint_tx.vout) == len(tx1.vout) + len(tx2.vout)
-    assert joint_tx.version == tx1.version
-    assert joint_tx.lock_time == tx1.lock_time
 
     # non-shuffled join is deterministic
-    assert join_txs(tx1, tx2, shuffle=False) == join_txs(tx1, tx2, shuffle=False)
-    # shuffling works at least once every 10 tries
-    # https://github.com/bitcoin/bitcoin/blob/6061eb6564105ad54703a7cf3282590d0e1a7f28/test/functional/rpc_psbt.py#L579
-    assert any(join_txs(tx1, tx2, shuffle=True) != joint_tx for _ in range(10))
-
-    # ERROR CASES
-    # FIXME: check against proper error messages
+    assert join_txs(
+        [tx1, tx2],
+        enforce_same_version=True,
+        enforce_same_lock_time=True,
+        merge_out=False,
+        shuffle_inp=False,
+        shuffle_out=False,
+    ) == join_txs(
+        [tx1, tx2],
+        enforce_same_version=True,
+        enforce_same_lock_time=True,
+        merge_out=False,
+        shuffle_inp=False,
+        shuffle_out=False,
+    )
+    # testing shuffle
+    # 10 attempts should be enough to reduce to zero the probability
+    # of having (all) shuffled ones identical to the original one
+    assert any(
+        join_txs(
+            [tx1, tx2],
+            enforce_same_version=True,
+            enforce_same_lock_time=True,
+            merge_out=False,
+            shuffle_inp=True,
+            shuffle_out=True,
+        )
+        != joint_tx
+        for _ in range(10)
+    )
 
     tx2.version = 2
     with pytest.raises(BTClibValueError, match="version numbers are not the same"):
-        join_txs(tx1, tx2)
-    tx2 = Tx.parse(tx_bytes)
+        join_txs(
+            [tx1, tx2],
+            enforce_same_version=True,
+            enforce_same_lock_time=True,
+            merge_out=False,
+            shuffle_inp=False,
+            shuffle_out=False,
+        )
 
+    tx2 = Tx.parse(tx_bytes)
     tx2.lock_time = 23526
     with pytest.raises(BTClibValueError, match="lock times are not the same"):
-        join_txs(tx1, tx2)
-    tx2 = Tx.parse(tx_bytes)
+        join_txs(
+            [tx1, tx2],
+            enforce_same_version=True,
+            enforce_same_lock_time=True,
+            merge_out=False,
+            shuffle_inp=False,
+            shuffle_out=False,
+        )
 
+    tx2 = Tx.parse(tx_bytes)
     tx2.vin.append(tx1.vin[0])
     with pytest.raises(BTClibValueError, match="common inputs"):
-        join_txs(tx1, tx2)
+        join_txs(
+            [tx1, tx2],
+            enforce_same_version=True,
+            enforce_same_lock_time=True,
+            merge_out=False,
+            shuffle_inp=False,
+            shuffle_out=False,
+        )
+
     tx2 = Tx.parse(tx_bytes)
+    with pytest.raises(BTClibValueError, match="output merge not implemented yet"):
+        join_txs(
+            [tx1, tx2],
+            enforce_same_version=True,
+            enforce_same_lock_time=True,
+            merge_out=True,
+            shuffle_inp=False,
+            shuffle_out=False,
+        )

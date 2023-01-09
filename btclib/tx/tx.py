@@ -262,14 +262,21 @@ class Tx:
         return cls(version, lock_time, vin, vout, check_validity)
 
 
-def join_txs(*txs: Tx, shuffle: bool = True) -> Tx:
+def join_txs(
+    txs: Sequence[Tx],
+    enforce_same_version: bool,
+    enforce_same_lock_time: bool,
+    merge_out: bool,
+    shuffle_inp: bool,
+    shuffle_out: bool,
+) -> Tx:
 
-    version = txs[0].version
-    if any(tx.version != version for tx in txs[1:]):
+    version = max(tx.version for tx in txs)
+    if enforce_same_version and any(tx.version != version for tx in txs):
         raise BTClibValueError("version numbers are not the same")
 
-    lock_time = txs[0].lock_time
-    if any(tx.lock_time != lock_time for tx in txs[1:]):
+    lock_time = max(tx.lock_time for tx in txs)
+    if enforce_same_lock_time and any(tx.lock_time != lock_time for tx in txs):
         raise BTClibValueError("lock times are not the same")
 
     if sum(len(tx.vin) for tx in txs) != len(
@@ -279,10 +286,15 @@ def join_txs(*txs: Tx, shuffle: bool = True) -> Tx:
     vin = [vin for tx in txs for vin in tx.vin]
 
     vout = [vout for tx in txs for vout in tx.vout]
+    if merge_out:
+        raise BTClibValueError("output merge not implemented yet")
 
     # avoid leaking matches between inputs and outputs
-    if shuffle:
+    if shuffle_inp:
         random.shuffle(vin)
+    if shuffle_out:
         random.shuffle(vout)
 
-    return Tx(version, lock_time, vin, vout)
+    tx = Tx(version, lock_time, vin, vout)
+    tx.assert_valid()
+    return tx

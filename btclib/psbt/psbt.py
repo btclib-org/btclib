@@ -18,7 +18,7 @@ import base64
 import random
 from copy import deepcopy
 from dataclasses import dataclass
-from typing import Any, Callable, Mapping, Sequence
+from typing import Any, Callable, Mapping, Sequence, TypeVar
 
 from btclib.alias import Octets, String
 from btclib.bip32 import (
@@ -457,12 +457,19 @@ def extract_tx(psbt: Psbt, check_validity: bool = True) -> Tx:
     return tx
 
 
-def _sort_or_shuffle_together(
-    sequence_a: Sequence[Any],
-    sequence_b: Sequence[Any],
-    ordering_func: Callable[[Any], int] | None = None,
-) -> tuple[list[Any], list[Any]]:
+TypeA = TypeVar("TypeA")
+TypeB = TypeVar("TypeB")
 
+
+def _sort_or_shuffle_together(
+    sequence_a: Sequence[TypeA],
+    sequence_b: Sequence[TypeB],
+    ordering_func: Callable[[TypeA], int] | None = None,
+) -> tuple[list[TypeA], list[TypeB]]:
+    """Sort together with ordering_func if provided, else shuffle together.
+
+    Sort is on TypeA, both sequences must have same length.
+    """
     if len(sequence_a) != len(sequence_b):
         raise BTClibValueError("sequences must have same length")
 
@@ -491,8 +498,12 @@ def _ensure_consistency(psbts: Sequence[Psbt]) -> None:
 
 
 def join_psbts(
-    *psbts: Psbt,
-    shuffle: bool = True,
+    psbts: Sequence[Psbt],
+    enforce_same_tx_version: bool,
+    enforce_same_tx_lock_time: bool,
+    merge_out: bool,
+    shuffle_inp: bool,
+    shuffle_out: bool,
     sort_inputs: Callable[[PsbtIn], int] | None = None,
     sort_outputs: Callable[[PsbtOut], int] | None = None,
 ) -> Psbt:
@@ -514,13 +525,23 @@ def join_psbts(
     }
     version = max(psbt.version for psbt in psbts)
 
-    merged_tx = join_txs(*(psbt.tx for psbt in psbts), shuffle=False)
+    merged_tx = join_txs(
+        [psbt.tx for psbt in psbts],
+        enforce_same_version=enforce_same_tx_version,
+        enforce_same_lock_time=enforce_same_tx_lock_time,
+        merge_out=False,
+        shuffle_inp=False,
+        shuffle_out=False,
+    )
 
-    if shuffle or sort_inputs:
+    if merge_out:
+        raise BTClibValueError("output merge not implemented yet")
+
+    if shuffle_inp or sort_inputs:
         inputs, merged_tx.vin = _sort_or_shuffle_together(
             inputs, merged_tx.vin, sort_inputs
         )
-    if shuffle or sort_outputs:
+    if shuffle_out or sort_outputs:
         outputs, merged_tx.vout = _sort_or_shuffle_together(
             outputs, merged_tx.vout, sort_outputs
         )

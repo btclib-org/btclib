@@ -599,47 +599,114 @@ def test_join_psbts() -> None:
     psbt2_str = "cHNidP8BAIkCAAAAAQKRPRGG7prm5Q6O5UJleyh9L9mmTPInNsVHnHzOS+ouAAAAAAAAAAAAAkBCDwAAAAAAIgAg1CyIdLnm/VxeOpIrt1Cvd2pVfTIgBuhGjqY7NVWGNgNDZAMAAAAAACIAIIUkJZx27tj1ukl5cN1lACHcJpd+XYVHg3XdxlGGJaRGAAAAAAABASslqRIAAAAAACIAIIUkJZx27tj1ukl5cN1lACHcJpd+XYVHg3XdxlGGJaRGIgICAO+hDq7He+h19gglhqAwUuruSCtWpIXFyEkj53crNh1IMEUCIQDiB1FrWN+TYztVhZTo7T7OJzQXTDz5dOhMG9+2ydm8+AIgb6pEEFSXYa9bAOExy4VQ3R3hpbi94l4doBBqLHQIh1ABIgIDxpfu3Y+krSVPw26m5LwhdoYVyRf7xWBL+P5WUbdO2etHMEQCIC/gN9WvBgebfiLJoNGXL6VPtblmo09Yr9bkjmCdMVIfAiBKJu4UTYVPkun4Whq8YKlddlRp95nzzInN4MnPx0N7ZQEBBf2oAVIhAgDvoQ6ux3vodfYIJYagMFLq7kgrVqSFxchJI+d3KzYdIQKtPKqcpvfFHCIaEGlHiX2kBTvZ+sZa8dtXLz6eErPsWyEDxpfu3Y+krSVPw26m5LwhdoYVyRf7xWBL+P5WUbdO2etTrmRSIQJAg8IBrMPT1XzBOuatwoVRObsgDKywIO/hTXX5BLqJ2yECWDeYBx2nVYYUPeICE2IgZ32CtqldcbZWrhmncmX7fxIhAs/eanomSWEuQFlCjry6HTmZcZ03c12wzMe6+jFMZFjYU68CkACyZ1MhA2HwlTuHQ7vQzuBibvN/r36m4MaIP6p1CEypK06o02pyIQNlG153o/5ni/xXlHgDAsD8sjOmvfh8E3s8XoQr8kBj7SEDahsw8dKvYjcoyrLfr+kWiXBRmG8cr0EBhDoslO3JgF0hA34ELbQa8gKi0ju2YUck4PSOLtfJ+QWAREM9Zmn4zAcjIQOnrP8c7MWRPaVi8ew06516BidH/65MoqblLYUp4+3KwSEDw2+64TPFicHXuZ1HYJWxEQ5v6iKmuTdgDvwIndMCfI9WrmgiBgIA76EOrsd76HX2CCWGoDBS6u5IK1akhcXISSPndys2HRj8i5WHKgAAgAAAAIAAAACAAQAAAAEAAAAiBgKtPKqcpvfFHCIaEGlHiX2kBTvZ+sZa8dtXLz6eErPsWxgN8rafKgAAgAAAAIAAAACAAQAAAAEAAAAiBgNh8JU7h0O70M7gYm7zf69+puDGiD+qdQhMqStOqNNqchg/h1X2LAAAgAAAAIAAAACAAQAAAAEAAAAiBgNlG153o/5ni/xXlHgDAsD8sjOmvfh8E3s8XoQr8kBj7RgmqLvwLAAAgAAAAIAAAACAAQAAAAEAAAAiBgNqGzDx0q9iNyjKst+v6RaJcFGYbxyvQQGEOiyU7cmAXRgQqVSnLAAAgAAAAIAAAACAAQAAAAEAAAAiBgN+BC20GvICotI7tmFHJOD0ji7XyfkFgERDPWZp+MwHIxgZXhf6LAAAgAAAAIAAAACAAQAAAAEAAAAiBgOnrP8c7MWRPaVi8ew06516BidH/65MoqblLYUp4+3KwRhm/AUgLAAAgAAAAIAAAACAAQAAAAEAAAAiBgPDb7rhM8WJwde5nUdglbERDm/qIqa5N2AO/Aid0wJ8jxg2/ys6LAAAgAAAAIAAAACAAQAAAAEAAAAiBgPGl+7dj6StJU/DbqbkvCF2hhXJF/vFYEv4/lZRt07Z6xiTeMdTKgAAgAAAAIAAAACAAQAAAAEAAAAAAAA="
     psbt2 = Psbt.b64decode(psbt2_str)
     psbt2.tx.lock_time = psbt1.tx.lock_time
-    joint_psbt = join_psbts(psbt1, psbt2)
+    joint_psbt = join_psbts(
+        [psbt1, psbt2],
+        enforce_same_tx_version=True,
+        enforce_same_tx_lock_time=True,
+        merge_out=False,
+        shuffle_inp=False,
+        shuffle_out=False,
+    )
 
     joint_psbt.assert_valid()
     assert all(i in joint_psbt.inputs for i in psbt1.inputs + psbt2.inputs)
     assert all(i in joint_psbt.outputs for i in psbt1.outputs + psbt2.outputs)
 
     # non-shuffled join is deterministic
-    assert join_psbts(psbt1, psbt2, shuffle=False) == join_psbts(
-        psbt1, psbt2, shuffle=False
+    assert join_psbts(
+        [psbt1, psbt2],
+        enforce_same_tx_version=True,
+        enforce_same_tx_lock_time=True,
+        merge_out=False,
+        shuffle_inp=False,
+        shuffle_out=False,
+    ) == join_psbts(
+        [psbt1, psbt2],
+        enforce_same_tx_version=True,
+        enforce_same_tx_lock_time=True,
+        merge_out=False,
+        shuffle_inp=False,
+        shuffle_out=False,
     )
     # Check that joining with shuffle=True does really shuffle inputs and outputs
     # 10 attempts should be enough to get at least a shuffled join that is different
     # from the unshuffled one
-    assert any(join_psbts(psbt1, psbt2, shuffle=True) != joint_psbt for _ in range(10))
+    assert any(
+        join_psbts(
+            [psbt1, psbt2],
+            enforce_same_tx_version=True,
+            enforce_same_tx_lock_time=True,
+            merge_out=False,
+            shuffle_inp=True,
+            shuffle_out=True,
+        )
+        != joint_psbt
+        for _ in range(10)
+    )
 
     # failure: different locktimes
     psbt2.tx.lock_time = psbt1.tx.lock_time ^ 12345678
     with pytest.raises(BTClibValueError, match="lock times are not the same"):
-        join_psbts(psbt1, psbt2)
-    psbt2 = Psbt.b64decode(psbt2_str)
+        join_psbts(
+            [psbt1, psbt2],
+            enforce_same_tx_version=True,
+            enforce_same_tx_lock_time=True,
+            merge_out=False,
+            shuffle_inp=False,
+            shuffle_out=False,
+        )
 
     # failure: common inputs
-    psbt2.inputs.append(psbt2.inputs[0])
-    with pytest.raises(BTClibValueError, match="sequences must have same length"):
-        join_psbts(psbt1, psbt2)
     psbt2 = Psbt.b64decode(psbt2_str)
+    psbt2.inputs.append(psbt2.inputs[0])
+    err_msg = "mismatched number of psb.tx.vin and psb.inputs: "
+    with pytest.raises(BTClibValueError, match=err_msg):
+        join_psbts(
+            [psbt1, psbt2],
+            enforce_same_tx_version=True,
+            enforce_same_tx_lock_time=True,
+            merge_out=False,
+            shuffle_inp=False,
+            shuffle_out=False,
+        )
 
-    # failure: Incompatible hd_key_paths
+    psbt2 = Psbt.b64decode(psbt2_str)
     fingerprint = b"beef"
     psbt1.hd_key_paths[fingerprint] = BIP32KeyOrigin(fingerprint, "m/42/0/0/1")
     psbt2.hd_key_paths[fingerprint] = BIP32KeyOrigin(fingerprint, "m/42/0/0/2")
     with pytest.raises(BTClibValueError, match="inconsistent hd_key_paths"):
-        join_psbts(psbt1, psbt2)
-    psbt2 = Psbt.b64decode(psbt2_str)
+        join_psbts(
+            [psbt1, psbt2],
+            enforce_same_tx_version=True,
+            enforce_same_tx_lock_time=True,
+            merge_out=False,
+            shuffle_inp=False,
+            shuffle_out=False,
+        )
 
-    # failure: Incompatible 'unknown' fields
+    psbt2 = Psbt.b64decode(psbt2_str)
     psbt1.unknown[b"foo"] = b"321"
     psbt2.unknown[b"foo"] = b"123"
     with pytest.raises(BTClibValueError, match="inconsistent custom fields"):
-        join_psbts(psbt1, psbt2)
+        join_psbts(
+            [psbt1, psbt2],
+            enforce_same_tx_version=True,
+            enforce_same_tx_lock_time=True,
+            merge_out=False,
+            shuffle_inp=False,
+            shuffle_out=False,
+        )
+
     psbt2 = Psbt.b64decode(psbt2_str)
+    with pytest.raises(BTClibValueError, match="output merge not implemented yet"):
+        join_psbts(
+            [psbt1, psbt2],
+            enforce_same_tx_version=True,
+            enforce_same_tx_lock_time=True,
+            merge_out=True,
+            shuffle_inp=False,
+            shuffle_out=False,
+        )
 
 
 def test_shuffle_sort_inp_out() -> None:
@@ -676,3 +743,7 @@ def test_shuffle_sort() -> None:
         and list_b == ["b", "a", "d", "c"]
         for _ in range(10)
     )
+
+    list_a.append(list_a[0])
+    with pytest.raises(BTClibValueError, match="sequences must have same length"):
+        _sort_or_shuffle_together(list_a, list_b)
