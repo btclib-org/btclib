@@ -487,21 +487,27 @@ def _sort_or_shuffle_together(
 
 
 def _ensure_consistency(psbts: Sequence[Psbt]) -> None:
-    hd_key_paths = psbts[0].hd_key_paths
-    if any(
-        pub_key in hd_key_paths and key_origin != hd_key_paths[pub_key]
-        for psbt in psbts
-        for pub_key, key_origin in psbt.hd_key_paths.items()
-    ):
-        raise BTClibValueError("hd_key_paths: same pub_key, different key_origin")
 
-    psbt_ = psbts[0]
-    if any(
-        key in psbt_.unknown and value != psbt_.unknown[key]
-        for psbt in psbts
-        for key, value in psbt.unknown.items()
-    ):
-        raise BTClibValueError("unknown: same key, different value")
+    for psbt in psbts:
+        psbt.assert_valid()
+
+    for i, psbt_ in enumerate(psbts):
+        hd_key_paths = psbt_.hd_key_paths
+        if any(
+            pub_key in hd_key_paths and key_origin != hd_key_paths[pub_key]
+            for psbt in psbts[i + 1 :]
+            for pub_key, key_origin in psbt.hd_key_paths.items()
+        ):
+            raise BTClibValueError("hd_key_paths: same pub_key, different key_origin")
+
+        # FIXME: test also for same key_origin, different pub_key
+
+        if any(
+            key in psbt_.unknown and value != psbt_.unknown[key]
+            for psbt in psbts[i + 1 :]
+            for key, value in psbt.unknown.items()
+        ):
+            raise BTClibValueError("unknown: same key, different value")
 
 
 def join_psbts(
