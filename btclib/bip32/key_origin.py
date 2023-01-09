@@ -107,6 +107,7 @@ class BIP32KeyOrigin:
         return cls(data[:8], data[9:], check_validity)
 
 
+# MutableMapping[pub_key, [fingerprint, derivation_path]]
 HdKeyPaths = MutableMapping[bytes, BIP32KeyOrigin]
 
 

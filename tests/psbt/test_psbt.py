@@ -674,7 +674,9 @@ def test_join_psbts() -> None:
     fingerprint = b"beef"
     psbt1.hd_key_paths[fingerprint] = BIP32KeyOrigin(fingerprint, "m/42/0/0/1")
     psbt2.hd_key_paths[fingerprint] = BIP32KeyOrigin(fingerprint, "m/42/0/0/2")
-    with pytest.raises(BTClibValueError, match="inconsistent hd_key_paths"):
+    with pytest.raises(
+        BTClibValueError, match="hd_key_paths: same pub_key, different key_origin"
+    ):
         join_psbts(
             [psbt1, psbt2],
             enforce_same_tx_version=True,

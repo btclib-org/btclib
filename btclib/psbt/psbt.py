@@ -346,6 +346,10 @@ def _combine_field(
 
 
 def combine_psbts(psbts: Sequence[Psbt]) -> Psbt:
+    """Merge Psbt data from multiple Psbts with same TxId.
+
+    Basically used to merge signatures.
+    """
     final_psbt = psbts[0]
     tx_id = psbts[0].tx.id
     for psbt in psbts[1:]:
@@ -483,18 +487,21 @@ def _sort_or_shuffle_together(
 
 
 def _ensure_consistency(psbts: Sequence[Psbt]) -> None:
+    hd_key_paths = psbts[0].hd_key_paths
     if any(
-        k in psbts[0].hd_key_paths and v != psbts[0].hd_key_paths[k]
+        pub_key in hd_key_paths and key_origin != hd_key_paths[pub_key]
         for psbt in psbts
-        for k, v in psbt.hd_key_paths.items()
+        for pub_key, key_origin in psbt.hd_key_paths.items()
     ):
-        raise BTClibValueError("inconsistent hd_key_paths")
+        raise BTClibValueError("hd_key_paths: same pub_key, different key_origin")
+
+    psbt_ = psbts[0]
     if any(
-        k in psbts[0].unknown and v != psbts[0].unknown[k]
+        key in psbt_.unknown and value != psbt_.unknown[key]
         for psbt in psbts
-        for k, v in psbt.unknown.items()
+        for key, value in psbt.unknown.items()
     ):
-        raise BTClibValueError("inconsistent custom fields")
+        raise BTClibValueError("unknown: same key, different value")
 
 
 def join_psbts(
@@ -546,4 +553,6 @@ def join_psbts(
             outputs, merged_tx.vout, sort_outputs
         )
 
-    return Psbt(merged_tx, inputs, outputs, version, hd_key_paths, unknown)
+    psbt = Psbt(merged_tx, inputs, outputs, version, hd_key_paths, unknown)
+    psbt.assert_valid()
+    return psbt
