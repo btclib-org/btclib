@@ -609,8 +609,9 @@ def test_join_psbts() -> None:
     assert join_psbts(psbt1, psbt2, shuffle=False) == join_psbts(
         psbt1, psbt2, shuffle=False
     )
-    # shuffling works at least once every 10 tries
-    # https://github.com/bitcoin/bitcoin/blob/6061eb6564105ad54703a7cf3282590d0e1a7f28/test/functional/rpc_psbt.py#L579
+    # Check that joining with shuffle=True does really shuffle inputs and outputs
+    # 10 attempts should be enough to get at least a shuffled join that is different
+    # from the unshuffled one
     assert any(join_psbts(psbt1, psbt2, shuffle=True) != joint_psbt for _ in range(10))
 
     # failure: different locktimes
@@ -655,16 +656,23 @@ def test_shuffle_sort() -> None:
     list_a = [2, 1, 4, 3]
     list_b = ["b", "a", "d", "c"]
 
-    list_a_sorted, list_b_sorted = _sort_or_shuffle_together(
-        list_a, list_b, lambda t: t
+    # testing sort
+    assert (
+        _sort_or_shuffle_together(list_a, list_b, lambda t: t)
+        == (
+            [1, 2, 3, 4],
+            ["a", "b", "c", "d"],
+        )
+        and list_a == [2, 1, 4, 3]
+        and list_b == ["b", "a", "d", "c"]
     )
-    assert list_a == [2, 1, 4, 3]
-    assert list_b == ["b", "a", "d", "c"]
-    assert list_a_sorted == [1, 2, 3, 4]
-    assert list_b_sorted == ["a", "b", "c", "d"]
 
-    list_a_shuffled, list_b_shuffled = _sort_or_shuffle_together(list_a, list_b)
-    assert list_a == [2, 1, 4, 3]
-    assert list_b == ["b", "a", "d", "c"]
-    assert list_a_shuffled != [1, 2, 3, 4]
-    assert list_b_shuffled != ["a", "b", "c", "d"]
+    # testing shuffle
+    # 10 attempts should be enough to reduce to zero the probability
+    # of having (all) shuffled ones identical to the original one
+    assert any(
+        _sort_or_shuffle_together(list_a, list_b) != (list_a, list_b)
+        and list_a == [2, 1, 4, 3]
+        and list_b == ["b", "a", "d", "c"]
+        for _ in range(10)
+    )
