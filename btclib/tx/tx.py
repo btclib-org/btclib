@@ -273,7 +273,7 @@ def join_txs(
 
     version = max(tx.version for tx in txs)
     if enforce_same_version and any(tx.version != version for tx in txs):
-        raise BTClibValueError("version numbers are not the same")
+        raise BTClibValueError("Version numbers are not the same")
 
     lock_time = max(tx.lock_time for tx in txs)
     if enforce_same_lock_time and any(tx.lock_time != lock_time for tx in txs):

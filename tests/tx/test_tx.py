@@ -418,7 +418,7 @@ def test_join_txs() -> None:
     )
 
     tx2.version = 2
-    with pytest.raises(BTClibValueError, match="version numbers are not the same"):
+    with pytest.raises(BTClibValueError, match="Version numbers are not the same"):
         join_txs(
             [tx1, tx2],
             enforce_same_version=True,
@@ -430,7 +430,7 @@ def test_join_txs() -> None:
 
     tx2 = Tx.parse(tx_bytes)
     tx2.lock_time = 23526
-    with pytest.raises(BTClibValueError, match="lock times are not the same"):
+    with pytest.raises(BTClibValueError, match="Lock times are not the same"):
         join_txs(
             [tx1, tx2],
             enforce_same_version=True,

@@ -646,7 +646,7 @@ def test_join_psbts() -> None:
 
     # failure: different locktimes
     psbt2.tx.lock_time = psbt1.tx.lock_time ^ 12345678
-    with pytest.raises(BTClibValueError, match="lock times are not the same"):
+    with pytest.raises(BTClibValueError, match="Lock times are not the same"):
         join_psbts(
             [psbt1, psbt2],
             enforce_same_tx_version=True,
