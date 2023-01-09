@@ -690,6 +690,28 @@ def test_join_psbts() -> None:
         )
 
     psbt2 = Psbt.b64decode(psbt2_str)
+    fingerprint = b"beef"
+    pubkey1 = bytes.fromhex(
+        "023add904f3d6dcf59ddb906b0dee23529b7ffb9ed50e5e86151926860221f0e73"
+    )
+    pubkey2 = bytes.fromhex(
+        "03089dc10c7ac6db54f91329af617333db388cead0c231f723379d1b99030b02dc"
+    )
+    psbt1.hd_key_paths[pubkey1] = BIP32KeyOrigin(fingerprint, "m/42/0/0/1")
+    psbt2.hd_key_paths[pubkey2] = BIP32KeyOrigin(fingerprint, "m/42/0/0/1")
+    with pytest.raises(
+        BTClibValueError, match="hd_key_paths: same key_origin, different pub_key"
+    ):
+        join_psbts(
+            [psbt1, psbt2],
+            enforce_same_tx_version=True,
+            enforce_same_tx_lock_time=True,
+            merge_out=False,
+            shuffle_inp=False,
+            shuffle_out=False,
+        )
+
+    psbt2 = Psbt.b64decode(psbt2_str)
     psbt1.unknown[b"foo"] = b"321"
     psbt2.unknown[b"foo"] = b"123"
     with pytest.raises(BTClibValueError, match="unknown: same key, different value"):

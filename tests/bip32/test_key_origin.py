@@ -129,3 +129,21 @@ def test_bip32_derivs() -> None:
     assert bip32_derivs == encode_to_bip32_derivs(hd_key_paths)
 
     assert_valid_hd_key_paths(hd_key_paths)
+
+    bip32_derivs = [
+        {
+            "pub_key": "029583bf39ae0a609747ad199addd634fa6108559d6c5cd39b4c2183f1ab96e07f",
+            "master_fingerprint": "d90c6a4f",
+            "path": f"m/0{_HARDENING}/0/0",
+        },
+        {
+            "pub_key": "02dab61ff49a14db6a7d02b0cd1fbb78fc4b18312b5b4e54dae4dba2fbfef536d7",
+            "master_fingerprint": "d90c6a4f",
+            "path": f"m/0{_HARDENING}/0/0",
+        },
+    ]
+    hd_key_paths = decode_from_bip32_derivs(bip32_derivs)
+    with pytest.raises(
+        BTClibValueError, match="Duplicated key origin values in hd_key_paths"
+    ):
+        assert_valid_hd_key_paths(hd_key_paths)
