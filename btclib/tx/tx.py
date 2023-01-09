@@ -26,6 +26,7 @@ https://en.bitcoin.it/wiki/Timelock
 
 from __future__ import annotations
 
+import random
 from dataclasses import dataclass
 from io import SEEK_CUR
 from math import ceil
@@ -259,3 +260,41 @@ class Tx:
         lock_time = int.from_bytes(stream.read(4), byteorder="little", signed=False)
 
         return cls(version, lock_time, vin, vout, check_validity)
+
+
+def join_txs(
+    txs: Sequence[Tx],
+    enforce_same_version: bool,
+    enforce_same_lock_time: bool,
+    merge_out: bool,
+    shuffle_inp: bool,
+    shuffle_out: bool,
+) -> Tx:
+
+    version = max(tx.version for tx in txs)
+    if enforce_same_version and any(tx.version != version for tx in txs):
+        raise BTClibValueError("Version numbers are not the same")
+
+    lock_time = max(tx.lock_time for tx in txs)
+    if enforce_same_lock_time and any(tx.lock_time != lock_time for tx in txs):
+        raise BTClibValueError("Lock times are not the same")
+
+    if sum(len(tx.vin) for tx in txs) != len(
+        {vin.serialize() for tx in txs for vin in tx.vin}
+    ):
+        raise BTClibValueError("common inputs")
+    vin = [vin for tx in txs for vin in tx.vin]
+
+    vout = [vout for tx in txs for vout in tx.vout]
+    if merge_out:
+        raise BTClibValueError("output merge not implemented yet")
+
+    # avoid leaking matches between inputs and outputs
+    if shuffle_inp:
+        random.shuffle(vin)
+    if shuffle_out:
+        random.shuffle(vout)
+
+    tx = Tx(version, lock_time, vin, vout)
+    tx.assert_valid()
+    return tx
