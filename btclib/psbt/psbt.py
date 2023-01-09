@@ -487,27 +487,35 @@ def _sort_or_shuffle_together(
 
 
 def _ensure_consistency(psbts: Sequence[Psbt]) -> None:
-
+    """Check that each psbt is valid and there are no conflicts in hd_key_paths or unknown."""
+    key_paths: dict[bytes, BIP32KeyOrigin] = {}
+    r_key_paths: dict[BIP32KeyOrigin, bytes] = {}
+    unknown: dict[bytes, bytes] = {}
     for psbt in psbts:
         psbt.assert_valid()
 
-    for i, psbt_ in enumerate(psbts):
-        hd_key_paths = psbt_.hd_key_paths
         if any(
-            pub_key in hd_key_paths and key_origin != hd_key_paths[pub_key]
-            for psbt in psbts[i + 1 :]
+            pub_key in key_paths and key_origin != key_paths[pub_key]
             for pub_key, key_origin in psbt.hd_key_paths.items()
         ):
             raise BTClibValueError("hd_key_paths: same pub_key, different key_origin")
-
-        # FIXME: test also for same key_origin, different pub_key
+        key_paths.update(psbt.hd_key_paths)
 
         if any(
-            key in psbt_.unknown and value != psbt_.unknown[key]
-            for psbt in psbts[i + 1 :]
+            key_origin in r_key_paths and pub_key != r_key_paths[key_origin]
+            for pub_key, key_origin in psbt.hd_key_paths.items()
+        ):
+            raise BTClibValueError("hd_key_paths: same key_origin, different pub_key")
+        r_key_paths.update(
+            {key_origin: pub_key for pub_key, key_origin in psbt.hd_key_paths.items()}
+        )
+
+        if any(
+            key in unknown and value != unknown[key]
             for key, value in psbt.unknown.items()
         ):
             raise BTClibValueError("unknown: same key, different value")
+        unknown.update(psbt.unknown)
 
 
 def join_psbts(

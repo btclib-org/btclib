@@ -277,7 +277,7 @@ def join_txs(
 
     lock_time = max(tx.lock_time for tx in txs)
     if enforce_same_lock_time and any(tx.lock_time != lock_time for tx in txs):
-        raise BTClibValueError("lock times are not the same")
+        raise BTClibValueError("Lock times are not the same")
 
     if sum(len(tx.vin) for tx in txs) != len(
         {vin.serialize() for tx in txs for vin in tx.vin}
