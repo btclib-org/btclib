@@ -689,7 +689,7 @@ def test_join_psbts() -> None:
     psbt2 = Psbt.b64decode(psbt2_str)
     psbt1.unknown[b"foo"] = b"321"
     psbt2.unknown[b"foo"] = b"123"
-    with pytest.raises(BTClibValueError, match="inconsistent custom fields"):
+    with pytest.raises(BTClibValueError, match="unknown: same key, different value"):
         join_psbts(
             [psbt1, psbt2],
             enforce_same_tx_version=True,
