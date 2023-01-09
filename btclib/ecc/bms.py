@@ -170,7 +170,6 @@ class Sig:
             raise BTClibValueError(f"invalid curve: {self.dsa_sig.ec.name}")
 
     def serialize(self, check_validity: bool = True) -> bytes:
-
         if check_validity:
             self.assert_valid()
 
@@ -187,16 +186,15 @@ class Sig:
     def b64encode(self, check_validity: bool = True) -> str:
         """Return the BMS address-based signature as base64-encoding.
 
-        First off, the signature is serialized in the
-        [1-byte rf][32-bytes r][32-bytes s] compact format,
-        then it is base64-encoded.
+        First off, the signature is serialized in the [1-byte
+        rf][32-bytes r][32-bytes s] compact format, then it is
+        base64-encoded.
         """
         data_binary = self.serialize(check_validity)
         return base64.b64encode(data_binary).decode("ascii")
 
     @classmethod
     def parse(cls: type[Sig], data: BinaryData, check_validity: bool = True) -> Sig:
-
         stream = bytesio_from_binarydata(data)
         sig_bin = stream.read(_REQUIRED_LENGHT)
 
@@ -218,11 +216,10 @@ class Sig:
     def b64decode(cls: type[Sig], data: String, check_validity: bool = True) -> Sig:
         """Return the verified components of the provided BMS signature.
 
-        The address-based BMS signature can be represented
-        as (rf, r, s) tuple or as base64-encoding of the compact format
-        [1-byte rf][32-bytes r][32-bytes s].
+        The address-based BMS signature can be represented as (rf, r, s)
+        tuple or as base64-encoding of the compact format [1-byte
+        rf][32-bytes r][32-bytes s].
         """
-
         if isinstance(data, str):
             data = data.strip()
 
@@ -239,7 +236,6 @@ def gen_keys(
 
     The private key is a WIF, the public key is a base58 P2PKH address.
     """
-
     if prv_key is None:
         if network is None:
             network = "mainnet"
@@ -253,7 +249,6 @@ def gen_keys(
 
 def sign(msg: Octets, prv_key: PrvKey, addr: String | None = None) -> Sig:
     """Generate address-based compact signature for the provided message."""
-
     # first sign the message
     magic_msg = magic_message(msg)
     q, network, compressed = prv_keyinfo_from_prv_key(prv_key)
@@ -294,7 +289,6 @@ def assert_as_valid(
 ) -> None:
     # Private function for test/dev purposes
     # It raises Errors, while verify should always return True or False
-
     if isinstance(sig, Sig):
         sig.assert_valid()
     else:
@@ -342,7 +336,6 @@ def assert_as_valid(
 
 def verify(msg: Octets, addr: String, sig: Sig | String, lower_s: bool = True) -> bool:
     """Verify address-based compact signature for the provided message."""
-
     # all kind of Exceptions are catched because
     # verify must always return a bool
     try:

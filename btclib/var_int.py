@@ -36,7 +36,6 @@ from btclib.utils import bytesio_from_binarydata, hex_string
 
 def parse(stream: BinaryData) -> int:
     """Return the variable-length integer read from a stream."""
-
     stream = bytesio_from_binarydata(stream)
 
     i = stream.read(1)[0]
@@ -55,7 +54,6 @@ def parse(stream: BinaryData) -> int:
 
 def serialize(i: int) -> bytes:
     """Return the var_int bytes encoding of an integer."""
-
     if i < 0x00:
         raise BTClibValueError(f"negative integer: {i}")
     if i < 0xFD:  # 1 byte

@@ -85,7 +85,6 @@ class Block:
             self.assert_valid()
 
     def to_dict(self, check_validity: bool = True) -> dict[str, Any]:
-
         if check_validity:
             self.assert_valid()
 
@@ -120,7 +119,6 @@ class Block:
             raise BTClibValueError(err_msg)
 
     def assert_valid(self) -> None:
-
         self.header.assert_valid()
 
         if not self.transactions[0].is_coinbase():
@@ -146,7 +144,6 @@ class Block:
     @classmethod
     def parse(cls: type[Block], data: BinaryData, check_validity: bool = True) -> Block:
         """Return a Block by parsing binary data."""
-
         stream = bytesio_from_binarydata(data)
         header = BlockHeader.parse(stream, check_validity)
         n = var_int.parse(stream)

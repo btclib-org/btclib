@@ -28,7 +28,6 @@ _HARDENING = "h"
 
 
 def int_from_index_str(s: str) -> int:
-
     s.strip().lower()
     hardened = False
     if s[-1] in ("'", "h"):
@@ -42,7 +41,6 @@ def int_from_index_str(s: str) -> int:
 
 
 def str_from_index_int(i: int, hardening: str = _HARDENING) -> str:
-
     if hardening not in ("'", "h", "H"):
         raise BTClibValueError(f"invalid hardening symbol: {hardening}")
     if not 0 <= i <= 0xFFFFFFFF:
@@ -51,7 +49,6 @@ def str_from_index_int(i: int, hardening: str = _HARDENING) -> str:
 
 
 def _indexes_from_bip32_path_str(der_path: str, skip_m: bool = True) -> list[int]:
-
     steps = [x.strip().lower() for x in der_path.split("/")]
     if skip_m and steps[0] == "m":
         steps = steps[1:]
@@ -69,7 +66,6 @@ BIP32DerPath = Union[str, Sequence[int], int, bytes]
 
 # FIXME bip32_path should be der_path, BIP32DerPath DerPath, etc
 def indexes_from_bip32_path(der_path: BIP32DerPath) -> list[int]:
-
     if isinstance(der_path, str):
         return _indexes_from_bip32_path_str(der_path)
 

@@ -52,7 +52,6 @@ def test_indexes() -> None:
 
 
 def test_conversions() -> None:
-
     test_vectors = [
         "10101011" * 32,
         "00101011" * 32,
@@ -182,7 +181,6 @@ inputs.append(StringIO("120\npluto\n" + "64\n" * 43))
 
 
 def test_collect_rolls(monkeypatch: pytest.MonkeyPatch) -> None:
-
     bits = 256
     for i, sides in enumerate((6, 120, 120)):
         monkeypatch.setattr("sys.stdin", inputs[i])

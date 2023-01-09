@@ -65,7 +65,6 @@ def diffie_hellman(
 
     http://www.secg.org/sec1-v2.pdf, section 6.1
     """
-
     shared_secret_point = mult(dU, QV, ec)
     # edge case that cannot be reproduced in the test suite
     if shared_secret_point[1] == 0:

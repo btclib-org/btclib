@@ -17,7 +17,6 @@ from btclib.exceptions import BTClibValueError
 
 
 def test_var_int_conversion() -> None:
-
     int_ = -1
     with pytest.raises(BTClibValueError, match="negative integer: "):
         var_int.serialize(int_)

@@ -39,6 +39,7 @@ TODO:
     - Joint sparse form (JSF) for double mult
     -  Interleaving with NAFs
 """
+
 from __future__ import annotations
 
 from math import ceil
@@ -50,7 +51,6 @@ from btclib.exceptions import BTClibValueError
 
 def mods(m: int, w: int) -> int:
     """Signed modulo function."""
-
     w2: int = pow(2, w)
     M = m % w2
     return M - w2 if M >= (w2 / 2) else M
@@ -71,7 +71,6 @@ def wNAF_of_m(m: int, w: int) -> list[int]:
     For complete reference see:
     D. Hankerson, 'Guide to Elliptic Curve Cryptography' chapter 3
     """
-
     i = 0
 
     M: list[int] = []
@@ -104,7 +103,6 @@ def mult_sliding_window(m: int, Q: JacPoint, ec: CurveGroup, w: int = 4) -> JacP
     the m coefficient is assumed to have been reduced mod n
     if appropriate (e.g. cyclic groups of order n).
     """
-
     if m < 0:
         raise BTClibValueError(f"negative m: {hex(m)}")
 
@@ -167,7 +165,6 @@ def mult_w_NAF(m: int, Q: JacPoint, ec: CurveGroup, w: int = 4) -> JacPoint:
     - Make it constant time (if necessary)
     - Try to avoid exception in negation for w=1
     """
-
     if m < 0:
         raise BTClibValueError(f"negative m: {hex(m)}")
 
@@ -210,7 +207,6 @@ def multiplier_decomposer(m: int, ec: CurveGroup) -> tuple[int, int]:
     D. Hankerson, 'Guide to Elliptic Curve Cryptography'.
     Values computed for secp256k1.
     """
-
     if m < 0:
         raise ValueError(f"negative m: {hex(m)}")
 
@@ -234,8 +230,7 @@ def multiplier_decomposer(m: int, ec: CurveGroup) -> tuple[int, int]:
 
 
 def mult_endomorphism_secp256k1(m: int, Q: JacPoint, ec: CurveGroup) -> JacPoint:
-    """Scalar multiplication in Jacobian coordinates using efficient endomorphism."""
-
+    """Scalar multiplication in Jacobian coordinates using endomorphism."""
     m1, m2 = multiplier_decomposer(m, ec)
 
     # Values for the efficient endomorphism multiplication

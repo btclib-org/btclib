@@ -32,7 +32,6 @@ def xgcd(a: int, b: int) -> tuple[int, int, int]:
     based on Extended Euclidean Algorithm, see
     https://en.wikibooks.org/wiki/Algorithm_Implementation/Mathematics/Extended_Euclidean_algorithm
     """
-
     x0, x1, y0, y1 = 0, 1, 1, 0
     while a != 0:
         q, b, a = b // a, a, b % a
@@ -49,7 +48,6 @@ def mod_inv(a: int, m: int) -> int:
     Based on Extended Euclidean Algorithm, see:
     https://en.wikibooks.org/wiki/Algorithm_Implementation/Mathematics/Extended_Euclidean_algorithm
     """
-
     a %= m
     g, x, _ = xgcd(a, m)
     if g == 1:
@@ -70,7 +68,6 @@ def legendre_symbol(a: int, p: int) -> int:
 
     https://codereview.stackexchange.com/questions/43210/tonelli-shanks-algorithm-implementation-of-prime-modular-square-root/43267
     """
-
     ls = pow(a, p >> 1, p)
     return -1 if ls == p - 1 else ls
 
@@ -88,7 +85,6 @@ def mod_sqrt(a: int, p: int) -> int:
 
     https://codereview.stackexchange.com/questions/43210/tonelli-shanks-algorithm-implementation-of-prime-modular-square-root/43267
     """
-
     a %= p
 
     if p % 4 == 3:  # secp256k1 case
@@ -120,7 +116,6 @@ def tonelli(a: int, p: int) -> int:
 
     https://codereview.stackexchange.com/questions/43210/tonelli-shanks-algorithm-implementation-of-prime-modular-square-root/43267
     """
-
     a %= p
     if a == 0 or p == 2:
         return a

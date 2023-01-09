@@ -10,12 +10,12 @@
 
 """Elliptic Curve Digital Signature Algorithm (ECDSA).
 
-   Implementation according to SEC 1 v.2:
+Implementation according to SEC 1 v.2:
 
-   http://www.secg.org/sec1-v2.pdf
+http://www.secg.org/sec1-v2.pdf
 
-   specialized with bitcoin canonical 'lower-s' form
-   to avoid accepting malleable signatures.
+specialized with bitcoin canonical 'lower-s' form
+to avoid accepting malleable signatures.
 """
 
 from __future__ import annotations
@@ -50,7 +50,6 @@ def _serialize_scalar(scalar: int) -> bytes:
 
 
 def _deserialize_scalar(sig_data_stream: BytesIO) -> int:
-
     marker = sig_data_stream.read(1)
     if marker != _DER_SCALAR_MARKER:
         err_msg = f"invalid value header: {marker.hex()}"
@@ -154,7 +153,6 @@ class Sig:
 
     def serialize(self, check_validity: bool = True) -> bytes:
         """Serialize an ECDSA signature to strict ASN.1 DER representation."""
-
         if check_validity:
             self.assert_valid()
 
@@ -166,9 +164,9 @@ class Sig:
     def parse(cls: type[Sig], data: BinaryData, check_validity: bool = True) -> Sig:
         """Return a Sig by parsing binary data.
 
-        Deserialize a strict ASN.1 DER representation of an ECDSA signature.
+        Deserialize a strict ASN.1 DER representation of an ECDSA
+        signature.
         """
-
         stream = bytesio_from_binarydata(data)
         ec = secp256k1
 
@@ -198,7 +196,6 @@ class Sig:
 
 def gen_keys(prv_key: PrvKey | None = None, ec: Curve = secp256k1) -> tuple[int, Point]:
     """Return a private/public (int, Point) key-pair."""
-
     if prv_key is None:
         # q in the range [1, ec.n-1]
         q = 1 + secrets.randbelow(ec.n - 1)
@@ -214,9 +211,7 @@ def _sign_(c: int, q: int, nonce: int, lower_s: bool, ec: Curve) -> Sig:
     # Private function for testing purposes: it allows to explore all
     # possible value of the challenge c (for low-cardinality curves).
     # It assume that c is in [0, n-1], while q and nonce are in [1, n-1]
-
     # Steps numbering follows SEC 1 v.2 section 4.1.3
-
     KJ = _mult(nonce, ec.GJ, ec)  # 1
 
     # affine x_K-coordinate of K (field element)
@@ -249,10 +244,9 @@ def sign_(
 ) -> Sig:
     """Sign a hf_len bytes message according to ECDSA signature algorithm.
 
-    If the deterministic nonce is not provided,
-    the RFC6979 specification is used.
+    If the deterministic nonce is not provided, the RFC6979
+    specification is used.
     """
-
     # the message msg_hash: a hf_len array
     hf_len = hf().digest_size
     msg_hash = bytes_from_octets(msg_hash, hf_len)
@@ -310,7 +304,6 @@ def sign(
 
     See https://tools.ietf.org/html/rfc6979#section-3.2
     """
-
     msg_hash = reduce_to_hlen(msg, hf)
     return sign_(msg_hash, prv_key, nonce, lower_s, ec, hf)
 
@@ -351,7 +344,6 @@ def assert_as_valid_(
 ) -> None:
     # Private function for test/dev purposes
     # It raises Errors, while verify should always return True or False
-
     if isinstance(sig, Sig):
         sig.assert_valid()
     else:
@@ -382,7 +374,6 @@ def assert_as_valid(
 ) -> None:
     # Private function for test/dev purposes
     # It raises Errors, while verify should always return True or False
-
     msg_hash = reduce_to_hlen(msg, hf)
     assert_as_valid_(msg_hash, key, sig, lower_s, hf)
 
@@ -395,7 +386,6 @@ def verify_(
     hf: HashF = sha256,
 ) -> bool:
     """ECDSA signature verification (SEC 1 v.2 section 4.1.4)."""
-
     # all kind of Exceptions are catched because
     # verify must always return a bool
     try:
@@ -414,7 +404,6 @@ def verify(
     hf: HashF = sha256,
 ) -> bool:
     """ECDSA signature verification (SEC 1 v.2 section 4.1.4)."""
-
     msg_hash = reduce_to_hlen(msg, hf)
     return verify_(msg_hash, key, sig, lower_s, hf)
 
@@ -463,9 +452,8 @@ def recover_pub_keys_(
     """ECDSA public key recovery (SEC 1 v.2 section 4.1.6).
 
     See also:
-    https://crypto.stackexchange.com/questions/18105/how-does-recovering-the-public-key-from-an-ecdsa-signature-work/18106#18106
+    - https://crypto.stackexchange.com/questions/18105/how-does-recovering-the-public-key-from-an-ecdsa-signature-work/18106#18106
     """
-
     if isinstance(sig, Sig):
         sig.assert_valid()
     else:
@@ -487,9 +475,8 @@ def recover_pub_keys(
     """ECDSA public key recovery (SEC 1 v.2 section 4.1.6).
 
     See also:
-    https://crypto.stackexchange.com/questions/18105/how-does-recovering-the-public-key-from-an-ecdsa-signature-work/18106#18106
+    - https://crypto.stackexchange.com/questions/18105/how-does-recovering-the-public-key-from-an-ecdsa-signature-work/18106#18106
     """
-
     msg_hash = reduce_to_hlen(msg, hf)
     return recover_pub_keys_(msg_hash, sig, lower_s, hf)
 
@@ -530,9 +517,8 @@ def recover_pub_key_(
     """ECDSA public key recovery (SEC 1 v.2 section 4.1.6).
 
     See also:
-    https://crypto.stackexchange.com/questions/18105/how-does-recovering-the-public-key-from-an-ecdsa-signature-work/18106#18106
+    - https://crypto.stackexchange.com/questions/18105/how-does-recovering-the-public-key-from-an-ecdsa-signature-work/18106#18106
     """
-
     if isinstance(sig, Sig):
         sig.assert_valid()
     else:
@@ -558,9 +544,8 @@ def recover_pub_key(
     """ECDSA public key recovery (SEC 1 v.2 section 4.1.6).
 
     See also:
-    https://crypto.stackexchange.com/questions/18105/how-does-recovering-the-public-key-from-an-ecdsa-signature-work/18106#18106
+    - https://crypto.stackexchange.com/questions/18105/how-does-recovering-the-public-key-from-an-ecdsa-signature-work/18106#18106
     """
-
     msg_hash = reduce_to_hlen(msg, hf)
     return recover_pub_key_(key_id, msg_hash, sig, lower_s, hf)
 

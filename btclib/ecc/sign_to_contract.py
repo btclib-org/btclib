@@ -48,7 +48,6 @@ from btclib.utils import bytes_from_octets, int_from_bits
 
 def _tweak(commit_hash: Octets, R: Point, ec: Curve, hf: HashF) -> int:
     """Return the hash(R||commit_hash) tweak for the provided R."""
-
     t = bytes_from_point(R, ec) + bytes_from_octets(commit_hash)
     while True:
         h = hf()
@@ -78,7 +77,6 @@ def dsa_commit_sign_(
     hf: HashF = sha256,
 ) -> tuple[dsa.Sig, Point]:
     """Include a commitment inside an EC DSA signature."""
-
     nonce = (
         rfc6979_(msg_hash, prv_key, ec, hf)
         if nonce is None
@@ -101,7 +99,6 @@ def dsa_commit_sign(
     hf: HashF = sha256,
 ) -> tuple[dsa.Sig, Point]:
     """Include a commitment inside an EC DSA signature."""
-
     commit_hash = reduce_to_hlen(commit, hf)
     msg_hash = reduce_to_hlen(msg, hf)
     return dsa_commit_sign_(
@@ -119,7 +116,6 @@ def dsa_verify_commit_(
     hf: HashF = sha256,
 ) -> bool:
     """Open the commitment associated to an EC DSA signature."""
-
     tweak = _tweak(commit_hash, R, sig.ec, hf)
     W = sig.ec.add(R, mult(tweak, sig.ec.G, sig.ec))
 
@@ -151,7 +147,6 @@ def ssa_commit_sign_(
     hf: HashF = sha256,
 ) -> tuple[ssa.Sig, Point]:
     """Include a commitment inside an EC SSA signature."""
-
     nonce = (
         ssa.det_nonce_(msg_hash, prv_key, aux=None, ec=ec, hf=hf)
         if nonce is None
@@ -174,7 +169,6 @@ def ssa_commit_sign(
     hf: HashF = sha256,
 ) -> tuple[ssa.Sig, Point]:
     """Include a commitment inside an EC SSA signature."""
-
     commit_hash = reduce_to_hlen(commit, hf)
     msg_hash = reduce_to_hlen(msg, hf)
     return ssa_commit_sign_(commit_hash, msg_hash, prv_key, nonce, ec, hf)
@@ -189,7 +183,6 @@ def ssa_verify_commit_(
     hf: HashF = sha256,
 ) -> bool:
     """Open the commitment associated to an EC SSA signature."""
-
     tweak = _tweak(commit_hash, R, sig.ec, hf)
     W = sig.ec.add(R, mult(tweak, sig.ec.G, sig.ec))
 

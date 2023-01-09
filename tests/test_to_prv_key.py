@@ -42,7 +42,6 @@ from tests.test_to_key import (
 
 
 def test_from_prv_key() -> None:
-
     secp256r1 = CURVES["secp256r1"]
     m_c = (q, "mainnet", True)
     m_unc = (q, "mainnet", False)

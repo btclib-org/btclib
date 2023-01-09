@@ -41,12 +41,10 @@ Entropy = Union[BinStr, int, bytes]
 def wordlist_indexes_from_bin_str_entropy(entropy: BinStr, base: int) -> list[int]:
     """Return the digit indexes for the provided raw entropy.
 
-    Return the list of integer indexes into a digit set,
-    usually a language word-list,
-    for the provided raw (i.e. binary 0/1 string) entropy;
-    leading zeros are not considered redundant padding.
+    Return the list of integer indexes into a digit set, usually a
+    language word-list, for the provided raw (i.e. binary 0/1 string)
+    entropy; leading zeros are not considered redundant padding.
     """
-
     # entropy = bin_str_entropy_from_entropy(entropy)
     bits = len(entropy)
     int_entropy = int(entropy, 2)
@@ -66,11 +64,9 @@ def wordlist_indexes_from_bin_str_entropy(entropy: BinStr, base: int) -> list[in
 def bin_str_entropy_from_wordlist_indexes(indexes: list[int], base: int) -> BinStr:
     """Return the raw entropy from a list of word-list indexes.
 
-    Return the raw (i.e. binary 0/1 string) entropy
-    from the provided list of integer indexes into
-    a given language word-list.
+    Return the raw (i.e. binary 0/1 string) entropy from the provided
+    list of integer indexes into a given language word-list.
     """
-
     entropy = 0
     for index in indexes:
         entropy = entropy * base + index
@@ -107,7 +103,6 @@ def bin_str_entropy_from_entropy(entr: Entropy, bits: OneOrMoreInt = _bits) -> B
 
     Default bit-sizes are 128, 160, 192, 224, 256, or 512 bits.
     """
-
     if isinstance(entr, str):
         return bin_str_entropy_from_str(entr, bits)
     if isinstance(entr, int):
@@ -129,7 +124,6 @@ def bin_str_entropy_from_bytes(
 
     Default bit-sizes are 128, 160, 192, 224, 256, or 512 bits.
     """
-
     bytes_entropy = bytes_from_octets(bytes_entropy)
 
     # if a single int, make it a tuple
@@ -175,7 +169,6 @@ def bin_str_entropy_from_int(
 
     Default bit-sizes are 128, 160, 192, 224, 256, or 512 bits.
     """
-
     if isinstance(int_entropy, str):
         int_entropy = int_entropy.strip().lower()
         if int_entropy[:2] == "0b":
@@ -217,7 +210,6 @@ def bin_str_entropy_from_str(str_entropy: str, bits: OneOrMoreInt = _bits) -> Bi
 
     Default bit-sizes are 128, 160, 192, 224, 256, or 512 bits.
     """
-
     int(str_entropy, 2)
 
     # if a single int, make it a tuple
@@ -237,7 +229,6 @@ def bin_str_entropy_from_str(str_entropy: str, bits: OneOrMoreInt = _bits) -> Bi
 
 
 def collect_rolls(bits: int) -> tuple[int, list[int]]:
-
     automate = False
     dice_sides = 0
     _dice_sides = (4, 6, 8, 12, 20, 24, 30, 48, 60, 120)
@@ -300,7 +291,6 @@ def bin_str_entropy_from_rolls(
     If more bits than required are provided,
     the leftmost ones are retained.
     """
-
     if dice_sides < 2:
         raise BTClibValueError(f"invalid dice base: {dice_sides}, must be >= 2")
     bits_per_roll = math.floor(math.log2(dice_sides))
@@ -346,7 +336,6 @@ def bin_str_entropy_from_random(
     - XOR-ed with CSPRNG system entropy
     - possibly hashed (if requested)
     """
-
     if entropy is None or entropy == "":
         i = secrets.randbits(bits)
     else:

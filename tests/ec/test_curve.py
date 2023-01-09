@@ -47,7 +47,6 @@ ec23_31 = low_card_curves["ec23_31"]
 
 
 def test_exceptions() -> None:
-
     # good curve
     Curve(13, 0, 2, (1, 9), 19, 1, False)
 

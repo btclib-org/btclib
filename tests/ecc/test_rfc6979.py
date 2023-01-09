@@ -48,7 +48,6 @@ def test_rfc6979_example() -> None:
 
 
 def test_rfc6979_tv() -> None:
-
     fname = "rfc6979.json"
     filename = path.join(path.dirname(__file__), "_data", fname)
     with open(filename, encoding="ascii") as file_:

@@ -193,7 +193,6 @@ def test_low_cardinality() -> None:
 
 
 def test_pub_key_recovery() -> None:
-
     ec = CURVES["secp112r2"]
 
     q = 0x10
@@ -212,7 +211,6 @@ def test_pub_key_recovery() -> None:
 
 
 def test_crack_prv_key() -> None:
-
     ec = CURVES["secp256k1"]
 
     q, _ = dsa.gen_keys(1)
@@ -293,7 +291,6 @@ def test_sign_input_type() -> None:
 
 
 def test_libsecp256k1() -> None:
-
     try:
         import btclib_libsecp256k1.dsa  # pylint: disable=import-outside-toplevel
     except ImportError:  # pragma: no cover

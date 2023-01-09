@@ -10,8 +10,8 @@
 
 """Base58 address and WIF functions.
 
-Base58 encoding of public keys and scripts as addresses,
-private keys as WIFs
+Base58 encoding of public keys and scripts as addresses, private keys as
+WIFs
 """
 from __future__ import annotations
 
@@ -31,7 +31,6 @@ def wif_from_prv_key(
     prv_key: PrvKey, network: str | None = None, compressed: bool | None = None
 ) -> str:
     """Return the WIF encoding of a private key."""
-
     q, net, compr = prv_keyinfo_from_prv_key(prv_key)
 
     # the private key might provide network and compressed informations
@@ -58,7 +57,6 @@ def wif_from_prv_key(
 
 def address_from_h160(script_type: str, h160: Octets, network: str = "mainnet") -> str:
     """Return a base58 address from the payload."""
-
     if script_type == "p2sh":
         prefix = NETWORKS[network].p2sh
     elif script_type == "p2pkh":
@@ -72,7 +70,6 @@ def address_from_h160(script_type: str, h160: Octets, network: str = "mainnet") 
 
 def h160_from_address(b58addr: String) -> tuple[str, bytes, str]:
     """Return the payload from a base58 address."""
-
     if isinstance(b58addr, str):
         b58addr = b58addr.strip()
     payload = b58decode(b58addr, 21)
@@ -110,7 +107,6 @@ def p2sh(script_pub_key: Octets, network: str = "mainnet") -> str:
 
 def _address_from_v0_witness(wit_prg: Octets, network: str = "mainnet") -> str:
     """Return the legacy base58 p2sh-wrapped SegWit v0 address."""
-
     # check witness program
     wit_prg = b32.check_witness(0, wit_prg)
     redeem_script = serialize(["OP_0", wit_prg])
@@ -121,13 +117,13 @@ def _address_from_v0_witness(wit_prg: Octets, network: str = "mainnet") -> str:
 
 
 def p2wpkh_p2sh(key: Key, network: str | None = None) -> str:
-    """Return the p2wpkh-p2sh base58 address corresponding to a public key."""
+    """Return the base58 p2sh-wrapped address of a p2wpkh."""
     pub_key, network = pub_keyinfo_from_key(key, network, compressed=True)
     witness_program = hash160(pub_key)
     return _address_from_v0_witness(witness_program, network)
 
 
 def p2wsh_p2sh(redeem_script: Octets, network: str = "mainnet") -> str:
-    """Return the p2wsh-p2sh base58 address corresponding to a reedem script."""
+    """Return the base58 p2sh-wrapped address of a p2wsh."""
     witness_program = sha256(redeem_script)
     return _address_from_v0_witness(witness_program, network)

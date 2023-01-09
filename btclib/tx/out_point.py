@@ -71,7 +71,6 @@ class OutPoint:
             raise BTClibValueError("invalid OutPoint")
 
     def to_dict(self, check_validity: bool = True) -> dict[str, str | int]:
-
         if check_validity:
             self.assert_valid()
 
@@ -86,7 +85,6 @@ class OutPoint:
 
     def serialize(self, check_validity: bool = True) -> bytes:
         """Return the 36 bytes serialization of the OutPoint."""
-
         if check_validity:
             self.assert_valid()
 
@@ -99,7 +97,6 @@ class OutPoint:
         cls: type[OutPoint], data: BinaryData, check_validity: bool = True
     ) -> OutPoint:
         """Return an OutPoint from the first 36 bytes of the provided data."""
-
         data = bytesio_from_binarydata(data)
         tx_id = data.read(32)[::-1]
         vout = int.from_bytes(data.read(4), "little", signed=False)

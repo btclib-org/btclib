@@ -97,11 +97,14 @@ def test_bech32_insertion_issue() -> None:
     """Test documented bech32 insertion issue.
 
     https://github.com/sipa/bech32/issues/51
-    https://lists.linuxfoundation.org/pipermail/bitcoin-dev/2019-November/017443.html
+    https://lists.linuxfoundation.org/pipermail/bitcoin-
+    dev/2019-November/017443.html
     https://gist.github.com/sipa/a9845b37c1b298a7301c33a04090b2eb
     https://gist.github.com/sipa/a9845b37c1b298a7301c33a04090b2eb
-    https://lists.linuxfoundation.org/pipermail/bitcoin-dev/2020-October/018236.html
-    https://lists.linuxfoundation.org/pipermail/bitcoin-dev/2020-December/018292.html
+    https://lists.linuxfoundation.org/pipermail/bitcoin-
+    dev/2020-October/018236.html
+    https://lists.linuxfoundation.org/pipermail/bitcoin-
+    dev/2020-December/018292.html
     https://gist.github.com/sipa/14c248c288c3880a3b191f978a34508e
     """
     strings = ("ii2134hk2xmat79tp", "eyg5bsz1l2mrq5ypl40hp")
@@ -110,7 +113,6 @@ def test_bech32_insertion_issue() -> None:
 
 
 def test_bech32m() -> None:
-
     valid_checksum = [
         "A1LQFN3A",
         "a1lqfn3a",

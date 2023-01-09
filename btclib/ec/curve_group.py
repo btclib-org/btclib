@@ -10,10 +10,9 @@
 
 """Elliptic CurveGroup class and functions.
 
-Note that CurveGroup does not have to be a cyclic subgroup.
-For the cyclic subgroup class CurveSubGroup and
-the cyclic subgroup class of prime order Curve,
-see the btclib.curve module.
+Note that CurveGroup does not have to be a cyclic subgroup. For the
+cyclic subgroup class CurveSubGroup and the cyclic subgroup class of
+prime order Curve, see the btclib.curve module.
 """
 from __future__ import annotations
 
@@ -53,7 +52,6 @@ class CurveGroup:
 
     def __init__(self, p: Integer, a: Integer, b: Integer) -> None:
         # Parameters are checked according to SEC 1 v.2 3.1.1.2.1
-
         p = int_from_integer(p)
         a = int_from_integer(a)
         b = int_from_integer(b)
@@ -197,7 +195,6 @@ class CurveGroup:
 
         The input points must be on the curve.
         """
-
         self.require_on_curve(Q1)
         self.require_on_curve(Q2)
         # no Jacobian coordinates here as aff_from_jac would cost 2 mod_inv
@@ -206,7 +203,6 @@ class CurveGroup:
 
     def add_jac(self, Q: JacPoint, R: JacPoint) -> JacPoint:
         # points are assumed to be on curve
-
         # to have this funtion constant time,
         # Q or R equal to INFJ is not handled has a special case here
         # but it taken care of at the end,
@@ -254,7 +250,6 @@ class CurveGroup:
 
     def double_jac(self, Q: JacPoint) -> JacPoint:
         # point is assumed to be on curve
-
         QZ2 = Q[2] * Q[2]
         return self._double_jac_helper(Q, QZ2)
 
@@ -269,7 +264,6 @@ class CurveGroup:
 
     def add_aff(self, Q: Point, R: Point) -> Point:
         # points are assumed to be on curve
-
         # FIXME: it would be better if INF handling was not a special case
         if R[1] == 0:  # Infinity point in affine coordinates
             return Q
@@ -286,7 +280,6 @@ class CurveGroup:
 
     def double_aff(self, Q: Point) -> Point:
         # point is assumed to be on curve
-
         if Q[1] == 0:  # Infinity point in affine coordinates
             return INF
 
@@ -348,7 +341,6 @@ class CurveGroup:
 
     def y_quadratic_residue(self, x: int) -> int:
         """Return the quadratic residue affine y-coordinate."""
-
         if not self.p_is_3_mod_4:
             err_msg = "field prime is not equal to 3 mod 4: "
             err_msg += (
@@ -371,7 +363,6 @@ def mult_recursive_aff(m: int, Q: Point, ec: CurveGroup) -> Point:
     the m coefficient is assumed to have been reduced mod n
     if appropriate (e.g. cyclic groups of order n).
     """
-
     if m < 0:
         raise BTClibValueError(f"negative m: {hex(m)}")
 
@@ -395,7 +386,6 @@ def mult_recursive_jac(m: int, Q: JacPoint, ec: CurveGroup) -> JacPoint:
     the m coefficient is assumed to have been reduced mod n
     if appropriate (e.g. cyclic groups of order n).
     """
-
     if m < 0:
         raise BTClibValueError(f"negative m: {hex(m)}")
 
@@ -420,7 +410,6 @@ def mult_aff(m: int, Q: Point, ec: CurveGroup) -> Point:
     the m coefficient is assumed to have been reduced mod n
     if appropriate (e.g. cyclic groups of order n).
     """
-
     if m < 0:
         raise BTClibValueError(f"negative m: {hex(m)}")
 
@@ -453,7 +442,6 @@ def mult_jac(m: int, Q: JacPoint, ec: CurveGroup) -> JacPoint:
     the m coefficient is assumed to have been reduced mod n
     if appropriate (e.g. cyclic groups of order n).
     """
-
     if m < 0:
         raise BTClibValueError(f"negative m: {hex(m)}")
 
@@ -475,7 +463,6 @@ def mult_jac(m: int, Q: JacPoint, ec: CurveGroup) -> JacPoint:
 
 def multiples(Q: JacPoint, size: int, ec: CurveGroup) -> list[JacPoint]:
     """Return {k_i * Q} for k_i in {0, ..., size-1)."""
-
     if size < 2:
         raise BTClibValueError(f"size too low: {size}")
 
@@ -496,7 +483,6 @@ MAX_W = 5
 
 @functools.lru_cache()  # least recently used cache
 def cached_multiples(Q: JacPoint, ec: CurveGroup) -> list[JacPoint]:
-
     T = [INFJ, Q]
     for i in range(3, 2**MAX_W, 2):
         T.append(ec.double_jac(T[(i - 1) // 2]))
@@ -510,10 +496,9 @@ def cached_multiples_fixwind(
 ) -> list[list[JacPoint]]:
     """Made to precompute values for mult_fixed_window_cached.
 
-    Do not use it for other functions.
-    Made to be used for w=4, do not use w.
+    Do not use it for other functions. Made to be used for w=4, do not
+    use w.
     """
-
     T = []
     K = Q
     for _ in range((ec.p_size * 8) // w + 1):
@@ -529,7 +514,6 @@ def cached_multiples_fixwind(
 
 def convert_number_to_base(i: int, base: int) -> list[int]:
     """Return the digits of an integer in the requested base."""
-
     digits: list[int] = []
     while i or not digits:
         i, idx = divmod(i, base)
@@ -553,7 +537,6 @@ def mult_mont_ladder(m: int, Q: JacPoint, ec: CurveGroup) -> JacPoint:
     the m coefficient is assumed to have been reduced mod n
     if appropriate (e.g. cyclic groups of order n).
     """
-
     if m < 0:
         raise BTClibValueError(f"negative m: {hex(m)}")
 
@@ -577,7 +560,6 @@ def mult_base_3(m: int, Q: JacPoint, ec: CurveGroup) -> JacPoint:
     the m coefficient is assumed to have been reduced mod n
     if appropriate (e.g. cyclic groups of order n).
     """
-
     if m < 0:
         raise BTClibValueError(f"negative m: {hex(m)}")
 
@@ -614,7 +596,6 @@ def mult_fixed_window(
     the m coefficient is assumed to have been reduced mod n
     if appropriate (e.g. cyclic groups of order n).
     """
-
     if m < 0:
         raise BTClibValueError(f"negative m: {hex(m)}")
 
@@ -657,7 +638,6 @@ def mult_fixed_window_cached(
     the m coefficient is assumed to have been reduced mod n
     if appropriate (e.g. cyclic groups of order n).
     """
-
     if m < 0:
         raise BTClibValueError(f"negative m: {hex(m)}")
 
@@ -705,7 +685,6 @@ def _double_mult(
     the u and v coefficients are assumed to have been reduced mod n
     if appropriate (e.g. cyclic groups of order n).
     """
-
     if u < 0:
         raise BTClibValueError(f"negative first coefficient: {hex(u)}")
     if v < 0:
@@ -741,7 +720,6 @@ def _multi_mult(
     if appropriate (e.g. cyclic groups of order n).
     """
     # source: https://cr.yp.to/badbatch/boscoster2.py
-
     if len(scalars) != len(jac_points):
         err_msg = "mismatch between number of scalars and points: "
         err_msg += f"{len(scalars)} vs {len(jac_points)}"

@@ -10,8 +10,8 @@
 
 """Transaction Output (TxOut) dataclass.
 
-Dataclass encapsulating value and script_pub_key
-(and network to convert script_pub_key to and from address).
+Dataclass encapsulating value and script_pub_key (and network to convert
+script_pub_key to and from address).
 """
 
 from __future__ import annotations
@@ -65,7 +65,6 @@ class TxOut:
         # self.script_pub_key.assert_valid()
 
     def to_dict(self, check_validity: bool = True) -> dict[str, Any]:
-
         if check_validity:
             self.assert_valid()
 
@@ -93,7 +92,6 @@ class TxOut:
     #     return is_witness(self.script_pub_key)
 
     def serialize(self, check_validity: bool = True) -> bytes:
-
         if check_validity:
             self.assert_valid()
 

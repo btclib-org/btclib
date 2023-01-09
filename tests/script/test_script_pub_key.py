@@ -62,7 +62,6 @@ def test_unknown_network() -> None:
 
 
 def test_nulldata() -> None:
-
     OP_RETURN = b"\x6a"  # pylint: disable=invalid-name
 
     # self-consistency
@@ -111,7 +110,6 @@ def test_nulldata() -> None:
 
 
 def test_nulldata2() -> None:
-
     for length in (0, 1, 16, 17, 74, 75, 76, 77, 78, 79, 80):
         payload = b"\x00" * length
         script_pub_key = serialize(["OP_RETURN", payload])
@@ -119,7 +117,6 @@ def test_nulldata2() -> None:
 
 
 def test_nulldata3() -> None:
-
     err_msg = "invalid nulldata payload length: "
     with pytest.raises(BTClibValueError, match=err_msg):
         payload = "0A" * 81
@@ -150,7 +147,6 @@ def test_nulldata3() -> None:
 
 
 def test_nulldata4() -> None:
-
     script_: list[Command] = [
         "OP_RETURN",
         "OP_RETURN",
@@ -171,7 +167,6 @@ def test_nulldata4() -> None:
 
 
 def test_p2pk() -> None:
-
     # self-consistency
     pub_key = "02 cc71eb30d653c0c3163990c47b976f3fb3f37cccdcbedb169a1dfef58bbfbfaf"
     script_pub_key = serialize([pub_key, "OP_CHECKSIG"])
@@ -211,7 +206,6 @@ def test_p2pk() -> None:
 
 
 def test_p2pkh() -> None:
-
     # self-consistency
     pub_key = (
         "04 "
@@ -259,7 +253,6 @@ def test_p2pkh() -> None:
 
 
 def test_p2wpkh() -> None:
-
     # self-consistency
     pub_key = "02 cc71eb30d653c0c3163990c47b976f3fb3f37cccdcbedb169a1dfef58bbfbfaf"
     payload = hash160(pub_key)
@@ -292,7 +285,6 @@ def test_p2wpkh() -> None:
 
 
 def test_p2sh() -> None:
-
     # self-consistency
     pub_key = "02 cc71eb30d653c0c3163990c47b976f3fb3f37cccdcbedb169a1dfef58bbfbfaf"
     redeem_script = ScriptPubKey.p2pkh(pub_key).script
@@ -335,7 +327,6 @@ def test_p2sh() -> None:
 
 
 def test_p2wsh() -> None:
-
     # self-consistency
     pub_key = "02 cc71eb30d653c0c3163990c47b976f3fb3f37cccdcbedb169a1dfef58bbfbfaf"
     redeem_script = ScriptPubKey.p2pkh(pub_key).script
@@ -369,14 +360,12 @@ def test_p2wsh() -> None:
 
 
 def test_unknown() -> None:
-
     script_pub_key = serialize(["OP_16", 20 * b"\x00"])
     assert address(script_pub_key) == ""
     assert type_and_payload(script_pub_key) == ("unknown", script_pub_key)
 
 
 def test_p2ms_1() -> None:
-
     # self-consistency
     # documented test case: https://learnmeabitcoin.com/guide/p2ms
     pub_key0 = "04 cc71eb30d653c0c3163990c47b976f3fb3f37cccdcbedb169a1dfef58bbfbfaf f7d8a473e7e2e6d317b87bafe8bde97e3cf8f065dec022b51d11fcdd0d348ac4"
@@ -467,7 +456,6 @@ def test_p2ms_1() -> None:
 
 
 def test_p2ms_2() -> None:
-
     m = 1
 
     # all uncompressed
@@ -549,7 +537,6 @@ def test_bip67() -> None:
 
 
 def test_non_standard_script_in_p2wsh() -> None:
-
     network = "mainnet"
 
     addr = "bc1qqst9un5sz8576fy2nnqkpm4rpfh0weveqwtt8zxgjp02g2mx5q7s2vresu"

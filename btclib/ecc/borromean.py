@@ -36,7 +36,6 @@ PubkeyRing = Sequence[Point]
 
 
 def _get_msg_format(msg: bytes, pubk_rings: Sequence[PubkeyRing]) -> bytes:
-
     t = b"".join(
         b"".join(bytes_from_point(Q, ec) for Q in pubk_ring) for pubk_ring in pubk_rings
     )
@@ -74,7 +73,6 @@ def sign(
     - pubk_rings: dictionary of sequences representing single rings of pub_keys
     """
     # sourcery skip: low-code-quality
-
     msg, m, e = _initialize(msg, pubk_rings)
     e0bytes = m
     s = [
@@ -130,7 +128,6 @@ def verify(
     - s: s-values, both real (one per ring) and forged
     - pubk_rings: sequence of PubKey rings
     """
-
     # all kind of Exceptions are catched because
     # verify must always return a bool
     try:
@@ -142,7 +139,6 @@ def verify(
 def assert_as_valid(
     msg: Octets, e0: bytes, s: SValues, pubk_rings: Sequence[PubkeyRing]
 ) -> bool:
-
     msg, m, e = _initialize(msg, pubk_rings)
     e0bytes = m
 

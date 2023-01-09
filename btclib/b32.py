@@ -59,7 +59,6 @@ from btclib.utils import bytes_from_octets
 
 
 def has_segwit_prefix(addr: String) -> bool:
-
     str_addr = addr.strip().lower() if isinstance(addr, str) else addr.decode("ascii")
     return any(str_addr.startswith(f"{net.hrp}1") for net in NETWORKS.values())
 
@@ -97,7 +96,6 @@ def power_of_2_base_conversion(
 
 
 def check_witness(wit_ver: int, wit_prg: Octets) -> bytes:
-
     if not 0 <= wit_ver < 17:
         err_msg = "invalid witness version: "
         err_msg += f"{wit_ver} not in 0..16"
@@ -126,7 +124,6 @@ def address_from_witness(
     wit_ver: int, wit_prg: Octets, network: str = "mainnet"
 ) -> str:
     """Encode a bech32 native SegWit address from the witness."""
-
     hrp = NETWORKS[network].hrp
     return _address_from_witness(wit_ver, wit_prg, hrp)
 
@@ -136,7 +133,6 @@ def witness_from_address(b32addr: String) -> tuple[int, bytes, str]:
 
     The returned data structure is: version, program, network.
     """
-
     if isinstance(b32addr, str):
         b32addr = b32addr.strip()
 

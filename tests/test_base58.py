@@ -49,7 +49,6 @@ def test_trailing_zeros() -> None:
 
 
 def test_exceptions() -> None:
-
     encoded = b58encode(b"hello world")
     b58decode(encoded, 11)
 

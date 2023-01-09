@@ -144,7 +144,6 @@ def test_valid_taproot_script_path() -> None:
 
 
 def test_valid_sighash_type() -> None:
-
     for hash_type in range(256):
         if hash_type in sig_hash.SIG_HASH_TYPES:
             sig_hash.assert_valid_hash_type(hash_type)
@@ -155,7 +154,6 @@ def test_valid_sighash_type() -> None:
 
 
 def test_empty_stack() -> None:
-
     utxo = TxOut(
         100000000,
         serialize(
@@ -171,7 +169,6 @@ def test_empty_stack() -> None:
 
 
 def test_wrapped_p2tr() -> None:
-
     script = [
         "OP_1",
         "cc71eb30d653c0c3163990c47b976f3fb3f37cccdcbedb169a1dfef58bbfbfaf",
@@ -188,7 +185,6 @@ def test_wrapped_p2tr() -> None:
 
 
 def test_bip_test_vector() -> None:
-
     fname = "taproot_test_vector.json"
     filename = path.join(path.dirname(__file__), "_data", fname)
     with open(filename, encoding="ascii") as file_:

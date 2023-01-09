@@ -84,7 +84,6 @@ def test_taproot_key_tweaking() -> None:
 
 
 def test_invalid_control_block() -> None:
-
     err_msg = "control block too long"
     with pytest.raises(BTClibValueError, match=err_msg):
         check_output_pubkey(b"\x00" * 32, b"\x00", b"\x00" * 4130)
@@ -101,7 +100,6 @@ def test_unspendable_script() -> None:
 
 
 def test_control_block() -> None:
-
     script_tree = [[(0xC0, ["OP_2"])], [(0xC0, ["OP_3"])]]
     pubkey = output_pubkey(None, script_tree)[0]
     script, control = input_script_sig(None, script_tree, 0)
@@ -124,7 +122,6 @@ def convert_script_tree(script_tree: TaprootScriptTree) -> TaprootScriptTree:
 
 
 def test_bip_test_vector() -> None:
-
     fname = "taproot_test_vector.json"
     filename = path.join(path.dirname(__file__), "_data", fname)
     with open(filename, encoding="ascii") as file_:

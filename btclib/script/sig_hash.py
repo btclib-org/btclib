@@ -10,9 +10,9 @@
 
 """Transaction hashes to be signed and their hash types.
 
-https://medium.com/@bitaps.com/exploring-bitcoin-signature-hash-types-15427766f0a9
-https://raghavsood.com/blog/2018/06/10/bitcoin-signature-types-sighash
-https://wiki.bitcoinsv.io/index.php/SIGHASH_flags
+- https://medium.com/@bitaps.com/exploring-bitcoin-signature-hash-types-15427766f0a9
+- https://raghavsood.com/blog/2018/06/10/bitcoin-signature-types-sighash
+- https://wiki.bitcoinsv.io/index.php/SIGHASH_flags
 """
 
 from __future__ import annotations
@@ -239,7 +239,6 @@ def taproot(
 
 
 def from_tx(prevouts: list[TxOut], tx: Tx, vin_i: int, hash_type: int) -> bytes:
-
     script = prevouts[vin_i].script_pub_key.script
 
     if is_p2tr(script):

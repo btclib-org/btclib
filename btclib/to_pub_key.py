@@ -39,7 +39,6 @@ Key = Union[int, bytes, str, BIP32KeyData, Point]
 
 def _point_from_xpub(xpub: BIP32Key, ec: Curve) -> Point:
     """Return an elliptic curve point tuple from a xpub key."""
-
     if isinstance(xpub, BIP32KeyData):
         xpub.assert_valid()
     else:
@@ -62,7 +61,6 @@ def point_from_key(key: Key, ec: Curve = secp256k1) -> Point:
     - SEC Octets (bytes or hex-string, with 02, 03, or 04 prefix)
     - native tuple
     """
-
     if isinstance(key, tuple):
         return point_from_pub_key(key, ec)
     if isinstance(key, int):
@@ -82,7 +80,6 @@ def point_from_key(key: Key, ec: Curve = secp256k1) -> Point:
 
 def point_from_pub_key(pub_key: PubKey, ec: Curve = secp256k1) -> Point:
     """Return an elliptic curve point tuple from a public key."""
-
     if isinstance(pub_key, tuple):
         if ec.is_on_curve(pub_key) and pub_key[1] != 0:
             return pub_key[0], pub_key[1]
@@ -115,11 +112,10 @@ def _pub_keyinfo_from_xpub(
 ) -> PubkeyInfo:
     """Return the pub_key tuple (SEC-bytes, network) from a BIP32 xpub.
 
-    BIP32Key is always compressed and includes network information:
-    here the 'network, compressed' input parameters are passed
-    only to allow consistency checks.
+    BIP32Key is always compressed and includes network information: here
+    the 'network, compressed' input parameters are passed only to allow
+    consistency checks.
     """
-
     compressed = True if compressed is None else compressed
     if not compressed:
         raise BTClibValueError("Uncompressed SEC / compressed BIP32 mismatch")
@@ -149,7 +145,6 @@ def pub_keyinfo_from_key(
     key: Key, network: str | None = None, compressed: bool | None = None
 ) -> PubkeyInfo:
     """Return the pub key tuple (SEC-bytes, network) from a pub/prv key."""
-
     if isinstance(key, tuple):
         return pub_keyinfo_from_pub_key(key, network, compressed)
     if isinstance(key, int):
@@ -178,7 +173,6 @@ def pub_keyinfo_from_pub_key(
     pub_key: PubKey, network: str | None = None, compressed: bool | None = None
 ) -> PubkeyInfo:
     """Return the pub key tuple (SEC-bytes, network) from a public key."""
-
     compr = True if compressed is None else compressed
     net = "mainnet" if network is None else network
     ec = NETWORKS[net].curve
@@ -212,7 +206,6 @@ def pub_keyinfo_from_prv_key(
     prv_key: PrvKey, network: str | None = None, compressed: bool | None = None
 ) -> PubkeyInfo:
     """Return the pub key tuple (SEC-bytes, network) from a private key."""
-
     q, net, compr = prv_keyinfo_from_prv_key(prv_key, network, compressed)
     ec = NETWORKS[net].curve
     pub_key = mult(q, ec.G, ec)
@@ -222,9 +215,8 @@ def pub_keyinfo_from_prv_key(
 def fingerprint(key: Key, network: str | None = None) -> bytes:
     """Return the public key fingerprint from a private/public key.
 
-    The fingerprint is the last four bytes
-    of the compressed public key HASH160.
+    The fingerprint is the last four bytes of the compressed public key
+    HASH160.
     """
-
     pub_key, _ = pub_keyinfo_from_key(key, network, compressed=True)
     return hash160(pub_key)[:4]

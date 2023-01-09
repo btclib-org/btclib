@@ -32,10 +32,9 @@ from btclib.network import (
 def address_from_xkey(xkey: BIP32Key) -> str:
     """Return the SLIP132 base58/bech32 address.
 
-    The address is always derived from the compressed public key,
-    as this is the default public key representation in BIP32.
+    The address is always derived from the compressed public key, as
+    this is the default public key representation in BIP32.
     """
-
     with contextlib.suppress(BTClibValueError):
         xkey = xpub_from_xprv(xkey)
     return address_from_xpub(xkey)
@@ -44,10 +43,9 @@ def address_from_xkey(xkey: BIP32Key) -> str:
 def address_from_xpub(xpub: BIP32Key) -> str:
     """Return the SLIP132 base58/bech32 address.
 
-    The address is always derived from the compressed public key,
-    as this is the default public key representation in BIP32.
+    The address is always derived from the compressed public key, as
+    this is the default public key representation in BIP32.
     """
-
     if not isinstance(xpub, BIP32KeyData):
         xpub = BIP32KeyData.b58decode(xpub)
 
@@ -88,8 +86,7 @@ def _helper_checks(
 def p2pkh_xkey(
     xkey: BIP32Key, der_path: BIP32DerPath = "m/44h/0h/0h", check_root_xkey: bool = True
 ) -> str:
-    """Return a p2pkh BIP32 xprv/xpub master key at the derivation path."""
-
+    """Return a p2pkh BIP32 xprv/xpub key at the derivation path."""
     xkey, network = _helper_checks(xkey, check_root_xkey)
     version = network.bip32_prv if xkey.is_private else network.bip32_pub
     return derive(xkey, der_path, version)
@@ -98,8 +95,7 @@ def p2pkh_xkey(
 def p2wpkh_p2sh_xkey(
     xkey: BIP32Key, der_path: BIP32DerPath = "m/49h/0h/0h", check_root_xkey: bool = True
 ) -> str:
-    """Return a p2wpkh-p2sh BIP32 yprv/ypub master key at the derivation path."""
-
+    """Return a p2wpkh-p2sh BIP32 yprv/ypub key at the derivation path."""
     xkey, network = _helper_checks(xkey, check_root_xkey)
     version = (
         network.slip132_p2wpkh_p2sh_prv
@@ -113,7 +109,6 @@ def p2wpkh_xkey(
     xkey: BIP32Key, der_path: BIP32DerPath = "m/84h/0h/0h", check_root_xkey: bool = True
 ) -> str:
     """Return a p2wpkh BIP32 zprv/zpub master key at the derivation path."""
-
     xkey, network = _helper_checks(xkey, check_root_xkey)
     version = (
         network.slip132_p2wpkh_prv if xkey.is_private else network.slip132_p2wpkh_pub

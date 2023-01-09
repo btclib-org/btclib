@@ -174,7 +174,6 @@ def test_standard() -> None:
 
 
 def test_coinbase_block_1() -> None:
-
     coinbase_out = "00f2052a0100000043410496b538e853519c726a2c91e61ec11600ae1390813a627c66fb8be7947be63c52da7589379515d4e0a604f8141781e62294721166bf621e73a82cbf2342c858eeac"
     tx_out = TxOut.parse(coinbase_out)
     assert tx_out.serialize().hex() == coinbase_out

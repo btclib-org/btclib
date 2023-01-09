@@ -59,7 +59,7 @@ _BECH32_M_CONST = 0x2BC830A3
 
 
 def _polymod(values: Iterable[int]) -> int:
-    """Internal function that computes the bech32 checksum."""
+    """Compute the bech32 checksum."""
     generator = [0x3B6A57B2, 0x26508E6D, 0x1EA119FA, 0x3D4233DD, 0x2A1462B3]
     chk = 1
     for value in values:
@@ -96,7 +96,6 @@ def _verify_checksum(hrp: str, data: list[int], m: int) -> bool:
 
 def _decode(bech: String) -> tuple[str, list[int], list[int]]:
     """Determine a bech32 string HRP, data and checksum."""
-
     if isinstance(bech, bytes):
         bech = bech.decode("ascii")
 

@@ -142,7 +142,6 @@ def test_slip132_test_vectors() -> None:
 
 
 def test_addresses() -> None:
-
     # data cross-checked with Electrum and
     # https://jlopp.github.io/xpub-converter/
 

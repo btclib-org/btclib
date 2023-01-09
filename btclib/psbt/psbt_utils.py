@@ -47,7 +47,6 @@ def serialize_hd_key_paths(
     type_: bytes, hd_key_paths: Mapping[bytes, BIP32KeyOrigin]
 ) -> bytes:
     """Return the binary representation of the dataclass element."""
-
     if len(type_) != 1:
         err_msg = f"invalid type marker lenght: {len(type_)}, instead of 1"
         raise BTClibValueError(err_msg)
@@ -62,7 +61,6 @@ def serialize_hd_key_paths(
 
 def deserialize_int(k: bytes, v: bytes, type_: str) -> int:
     """Return the dataclass element from its binary representation."""
-
     if len(k) != 1:
         err_msg = f"invalid {type_} key length: {len(k)}"
         raise BTClibValueError(err_msg)
@@ -87,7 +85,6 @@ def serialize_dict_bytes_bytes(
     type_: bytes, dictionary: Mapping[bytes, bytes]
 ) -> bytes:
     """Return the binary representation of the dataclass element."""
-
     return b"".join(
         [
             var_bytes.serialize(type_ + k) + var_bytes.serialize(v)
@@ -103,7 +100,6 @@ def serialize_bytes(type_: bytes, value: bytes) -> bytes:
 
 def deserialize_bytes(k: bytes, v: bytes, type_: str) -> bytes:
     """Return the dataclass element from its binary representation."""
-
     if len(k) != 1:
         err_msg = f"invalid {type_} key length: {len(k)}"
         raise BTClibValueError(err_msg)
@@ -124,7 +120,6 @@ def assert_valid_witness_script(witness_script: bytes) -> None:
 
 def assert_valid_unknown(data: Mapping[bytes, bytes]) -> None:
     """Raise an exception if the dataclass element is not valid."""
-
     for key, value in data.items():
         bytes(key)
         bytes(value)
@@ -134,7 +129,6 @@ def deserialize_tx(
     k: bytes, v: bytes, type_: str, include_witness: bool | None = True
 ) -> Tx:
     """Return the dataclass element from its binary representation."""
-
     if len(k) != 1:
         err_msg = f"invalid {type_} key length: {len(k)}"
         raise BTClibValueError(err_msg)

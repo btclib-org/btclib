@@ -28,7 +28,6 @@ from btclib.network import (
 
 
 def test_bad_network() -> None:
-
     with pytest.raises(BTClibValueError, match="invalid genesis_block length: "):
         Network(
             curve=CURVES["secp256k1"],

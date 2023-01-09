@@ -10,7 +10,8 @@
 
 """Transaction Input (TxIn) dataclass.
 
-Dataclass encapsulating prev_out, script_sig, sequence, and script_witness.
+Dataclass encapsulating prev_out, script_sig, sequence, and
+script_witness.
 """
 
 from __future__ import annotations
@@ -98,7 +99,6 @@ class TxIn:
             self.script_witness.assert_valid()
 
     def to_dict(self, check_validity: bool = True) -> dict[str, Any]:
-
         if check_validity:
             self.assert_valid()
 
@@ -124,7 +124,6 @@ class TxIn:
         )
 
     def serialize(self, check_validity: bool = True) -> bytes:
-
         if check_validity:
             self.assert_valid()
 
@@ -135,7 +134,6 @@ class TxIn:
 
     @classmethod
     def parse(cls: type[TxIn], data: BinaryData, check_validity: bool = True) -> TxIn:
-
         stream = bytesio_from_binarydata(data)
         prev_out = OutPoint.parse(stream, check_validity)
         script_sig = var_bytes.parse(stream)

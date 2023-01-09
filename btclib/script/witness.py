@@ -27,7 +27,6 @@ class Witness:
     def __init__(
         self, stack: Sequence[Octets] | None = None, check_validity: bool = True
     ) -> None:
-
         # https://docs.python.org/3/tutorial/controlflow.html#default-argument-values
         self.stack = [bytes_from_octets(element) for element in stack] if stack else []
 
@@ -42,7 +41,6 @@ class Witness:
             bytes(stack_element)
 
     def to_dict(self, check_validity: bool = True) -> dict[str, list[str]]:
-
         if check_validity:
             self.assert_valid()
 
@@ -54,12 +52,10 @@ class Witness:
         dict_: Mapping[str, Sequence[Octets]],
         check_validity: bool = True,
     ) -> Witness:
-
         return cls(dict_["stack"], check_validity)
 
     def serialize(self, check_validity: bool = True) -> bytes:
         """Return the serialization of the Witness."""
-
         if check_validity:
             self.assert_valid()
 
@@ -71,7 +67,6 @@ class Witness:
         cls: type[Witness], data: BinaryData, check_validity: bool = True
     ) -> Witness:
         """Return a Witness by parsing binary data."""
-
         data = bytesio_from_binarydata(data)
         n = var_int.parse(data)
         stack = [var_bytes.parse(data) for _ in range(n)]

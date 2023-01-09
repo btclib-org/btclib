@@ -20,7 +20,6 @@ ec = secp256k1
 
 
 def test_der_size() -> None:
-
     sig8 = 1, 1
     sig72 = ec.n - 2, ec.n - 1
     sig71 = 2**255 - 4, ec.n - 1
@@ -42,7 +41,6 @@ def test_der_size() -> None:
 
 
 def test_der_deserialize() -> None:
-
     err_msg = "non-hexadecimal number found "
     with pytest.raises(ValueError, match=err_msg):
         Sig.parse("not a sig")
@@ -97,7 +95,6 @@ def test_der_deserialize() -> None:
 
 
 def test_der_serialize() -> None:
-
     r = 2**247 - 1
     s = 2**247 - 1
     Sig(r, s)

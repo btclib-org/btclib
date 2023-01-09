@@ -47,7 +47,6 @@ __BASE = len(_ALPHABET)
 
 
 def _b58encode_from_int(i: int) -> bytes:
-
     result = b""
     while i or not result:
         i, idx = divmod(i, __BASE)
@@ -57,7 +56,6 @@ def _b58encode_from_int(i: int) -> bytes:
 
 
 def _b58encode(v: bytes) -> bytes:
-
     # preserve leading-0s
     # leading-0s become base58 leading-1s
     n_pad = len(v)
@@ -75,14 +73,12 @@ def _b58encode(v: bytes) -> bytes:
 
 def b58encode(v: Octets, in_size: int | None = None) -> bytes:
     """Encode a bytes-like object using Base58Check."""
-
     v = bytes_from_octets(v, in_size)
     h256 = hash256(v)
     return _b58encode(v + h256[:4])
 
 
 def _b58decode_to_int(v: bytes) -> int:
-
     i = 0
     for char in v:
         i *= __BASE
@@ -91,7 +87,6 @@ def _b58decode_to_int(v: bytes) -> int:
 
 
 def _b58decode(v: bytes) -> bytes:
-
     if any(x not in _ALPHABET for x in v):
         msg = "Base58 string contains invalid characters"
         raise BTClibValueError(msg)
@@ -117,7 +112,6 @@ def b58decode(v: String, out_size: int | None = None) -> bytes:
 
     Optionally, it also ensures required output size.
     """
-
     if isinstance(v, str):
         # do not trim spaces
         v = v.encode("ascii")

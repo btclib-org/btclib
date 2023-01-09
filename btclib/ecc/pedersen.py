@@ -54,7 +54,6 @@ def second_generator(ec: Curve = secp256k1, hf: HashF = sha256) -> Point:
     source:
     https://github.com/ElementsProject/secp256k1-zkp/blob/secp256k1-zkp/src/modules/rangeproof/main_impl.h
     """
-
     G_bytes = bytes_from_point(ec.G, ec, compressed=False)
     hash_ = hf()
     hash_.update(G_bytes)
@@ -75,7 +74,6 @@ def commit(r: int, v: int, ec: Curve = secp256k1, hf: HashF = sha256) -> Point:
     Commit to r, returning rG+vH. H is the second Nothing-Up-My-Sleeve
     (NUMS) generator of the curve.
     """
-
     H = second_generator(ec, hf)
     Q = double_mult(v, H, r, ec.G, ec)
     # edge case that cannot be reproduced in the test suite
@@ -89,7 +87,6 @@ def verify(
     r: int, v: int, commitment: Point, ec: Curve = secp256k1, hf: HashF = sha256
 ) -> bool:
     """Open the commitment and return True if valid."""
-
     # all kind of Exceptions are catched because
     # verify must always return a bool
     try:

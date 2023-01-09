@@ -49,7 +49,6 @@ def version_from_mnemonic(mnemonic: Mnemonic) -> tuple[str, str]:
     The clean mnemonic is free from spurious whitespace characters
     (extra spaces, tab, newline, return, formfeed, etc.)
     """
-
     # clean up mnemonic from spurious whitespaces
     mnemonic = " ".join(mnemonic.split())
     s = hmac.new(b"Seed version", mnemonic.encode(), sha512).hexdigest()
@@ -79,7 +78,6 @@ def mnemonic_from_entropy(
     In the case of binary 0/1 string and bytes-like,
     leading zeros are considered redundant padding.
     """
-
     if mnemonic_type not in _MNEMONIC_VERSIONS:
         err_msg = f"unknown electrum mnemonic version: '{mnemonic_type}'; "
         err_msg += f"not in {list(_MNEMONIC_VERSIONS.keys())}"
@@ -109,7 +107,6 @@ def mnemonic_from_entropy(
 
 def entropy_from_mnemonic(mnemonic: Mnemonic, lang: str = "en") -> BinStr:
     """Return the entropy from the Electrum versioned mnemonic sentence."""
-
     # verify that it is a valid Electrum mnemonic sentence
     version_from_mnemonic(mnemonic)
 
@@ -120,7 +117,6 @@ def entropy_from_mnemonic(mnemonic: Mnemonic, lang: str = "en") -> BinStr:
 
 def _seed_from_mnemonic(mnemonic: Mnemonic, passphrase: str) -> tuple[str, bytes]:
     """Return (version, seed) from the provided Electrum mnemonic."""
-
     # clean up mnemonic from spurious whitespaces
     version, mnemonic = version_from_mnemonic(mnemonic)
 
@@ -137,8 +133,8 @@ def mxprv_from_mnemonic(
 ) -> str:
     """Return BIP32 master extended private key from Electrum mnemonic.
 
-    Note that for a "standard" mnemonic the derivation path is "m",
-    for a "segwit" mnemonic it is "m/0h" instead.
+    Note that for a "standard" mnemonic the derivation path is "m", for
+    a "segwit" mnemonic it is "m/0h" instead.
     """
     version, seed = _seed_from_mnemonic(mnemonic, passphrase or "")
 

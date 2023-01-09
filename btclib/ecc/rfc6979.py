@@ -91,7 +91,6 @@ def rfc6979_(
 
     see https://tools.ietf.org/html/rfc6979 section 3.2
     """
-
     c = challenge_(msg_hash, ec, hf)
     q = int_from_prv_key(prv_key, ec)
 

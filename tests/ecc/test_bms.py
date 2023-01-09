@@ -78,7 +78,6 @@ def test_signature() -> None:
 
 
 def test_exceptions() -> None:
-
     msg = b"test"
     wif = "KwELaABegYxcKApCb3kJR9ymecfZZskL9BzVUkQhsqFiUKftb4tu"
     address = b58.p2pkh(wif)
@@ -159,7 +158,6 @@ def test_exceptions() -> None:
 
 
 def test_one_prv_key_multiple_addresses() -> None:
-
     msg = b"Paolo is afraid of ephemeral random numbers"
 
     # Compressed WIF
@@ -430,7 +428,6 @@ def test_verify_p2pkh() -> None:
 
 
 def test_segwit() -> None:
-
     msg = b"test"
     wif = "L4xAvhKR35zFcamyHME2ZHfhw5DEyeJvEMovQHQ7DttPTM8NLWCK"
     b58_p2pkh = b58.p2pkh(wif)
@@ -468,7 +465,6 @@ def test_segwit() -> None:
 
 
 def test_sign_strippable_message() -> None:
-
     wif = "Ky1XfDK2v6wHPazA6ECaD8UctEoShXdchgABjpU9GWGZDxVRDBMJ"
     address = "1DAag8qiPLHh6hMFVu9qJQm9ro1HtwuyK5"
 
@@ -530,7 +526,7 @@ def test_sign_strippable_message() -> None:
 def test_vector_python_bitcoinlib() -> None:
     """Test python-bitcoinlib test vectors.
 
-    https://github.com/petertodd/python-bitcoinlib/blob/master/bitcoin/tests/test_data/bms.json
+    - https://github.com/petertodd/python-bitcoinlib/blob/master/bitcoin/tests/test_data/bms.json
     """
 
     fname = "bms.json"

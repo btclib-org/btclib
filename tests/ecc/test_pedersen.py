@@ -23,11 +23,9 @@ secp384r1 = CURVES["secp384r1"]
 
 
 def test_second_generator() -> None:
-    """
-    Important remarks on secp256-zkp prefix for.
+    """Compressed encoding of the second generator.
 
-    compressed encoding of the second generator:
-    https://github.com/garyyu/rust-secp256k1-zkp/wiki/Pedersen-Commitment
+    - https://github.com/garyyu/rust-secp256k1-zkp/wiki/Pedersen-Commitment
     """
 
     H = (
@@ -41,7 +39,6 @@ def test_second_generator() -> None:
 
 
 def test_commitment() -> None:
-
     ec = secp256k1
     hf = sha256
 

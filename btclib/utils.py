@@ -34,10 +34,9 @@ NoneOneOrMoreInt = Optional[Union[int, Iterable[int]]]
 def bytes_from_octets(octets: Octets, out_size: NoneOneOrMoreInt = None) -> bytes:
     """Return bytes from a hex-string, stripping leading/trailing spaces.
 
-    If the input is not a string, then it goes untouched.
-    Optionally, it also ensures required output size.
+    If the input is not a string, then it goes untouched. Optionally, it
+    also ensures required output size.
     """
-
     if isinstance(octets, str):  # hex string
         octets = bytes.fromhex(octets)
 
@@ -57,10 +56,9 @@ def bytes_from_octets(octets: Octets, out_size: NoneOneOrMoreInt = None) -> byte
 def bytesio_from_binarydata(stream: BinaryData) -> BytesIO:
     """Return a BytesIO stream object from BinaryIO or Octets.
 
-    If the input is not Octets (i.e. str or bytes),
-    then it goes untouched.
+    If the input is not Octets (i.e. str or bytes), then it goes
+    untouched.
     """
-
     if isinstance(stream, str):  # hex string
         stream = bytes_from_octets(stream)
 
@@ -86,7 +84,6 @@ def int_from_bits(octets: Octets, nlen: int) -> int:
     nlen is a multiple of 8 and bit sequences already have length nlen.
     See https://tools.ietf.org/html/rfc6979#section-2.3.5.
     """
-
     octets = bytes_from_octets(octets)
     i = int.from_bytes(octets, byteorder="big", signed=False)
 
@@ -111,7 +108,6 @@ def int_from_integer(i: Integer) -> int:
     discriminate it from a valid hex-string
     (e.g. "0b11011110101011011011111011101111").
     """
-
     if isinstance(i, int):
         return i
 
@@ -133,7 +129,6 @@ def hex_string(i: Integer) -> str:
     The resulting hex-string has an even number of hex-digits and
     includes a space every four bytes (i.e. every eight hex-digits).
     """
-
     int_ = int_from_integer(i)
     if int_ < 0:
         raise BTClibValueError(f"negative integer: {int_}")
@@ -164,7 +159,6 @@ def decode_num(data: bytes) -> int:
     Positive zero is also represented by a null-length byte vector,
     which is considered the canonical one.
     """
-
     length = len(data)
     if length == 0:
         raise BTClibValueError("empty byte string")
@@ -194,7 +188,6 @@ def encode_num(i: int) -> bytes:
     Positive zero is also represented by a null-length byte vector,
     which is considered the canonical one.
     """
-
     # i.bit_length() bits, plus a sign bit
     n_bits = i.bit_length() + 1
     # The number of bytes necessary to accomodate n_bits
