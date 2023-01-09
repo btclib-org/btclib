@@ -315,6 +315,7 @@ class Psbt:
         )
 
     def sort_inputs(self, ordering_func: Callable[[PsbtIn], int] | None = None) -> None:
+        """Sort psbt inputs via ordering_func if present, suffle them otherwise."""
         self.inputs, self.tx.vin = _sort_or_shuffle_together(
             self.inputs, self.tx.vin, ordering_func
         )
@@ -322,6 +323,7 @@ class Psbt:
     def sort_outputs(
         self, ordering_func: Callable[[PsbtOut], int] | None = None
     ) -> None:
+        """Sort psbt outputs via ordering_func if present, suffle them otherwise."""
         self.outputs, self.tx.vout = _sort_or_shuffle_together(
             self.outputs, self.tx.vout, ordering_func
         )
@@ -525,14 +527,14 @@ def join_psbts(
     merge_out: bool,
     shuffle_inp: bool,
     shuffle_out: bool,
-    sort_inputs: Callable[[PsbtIn], int] | None = None,
-    sort_outputs: Callable[[PsbtOut], int] | None = None,
+    sort_inp: Callable[[PsbtIn], int] | None = None,
+    sort_out: Callable[[PsbtOut], int] | None = None,
 ) -> Psbt:
     """Join multiple psbts into a single one by merging inputs and outputs.
 
-    inputs/outputs are shuffled by default. If shuffle=False, they are simply
+    inputs/outputs are shuffled by default. If shuffle_{in|out}=False, they are simply
     concatenated in the same order as psbts are specified. A specific ordering can be
-    specified via sort_{inputs|outputs}, which overwrite shuffle when present.
+    specified via sort_{inp|out}, which overwrite shuffle when present.
     """
     _ensure_consistency(psbts)
 
@@ -548,25 +550,21 @@ def join_psbts(
 
     merged_tx = join_txs(
         [psbt.tx for psbt in psbts],
-        enforce_same_version=enforce_same_tx_version,
-        enforce_same_lock_time=enforce_same_tx_lock_time,
-        merge_out=False,
-        shuffle_inp=False,
-        shuffle_out=False,
+        enforce_same_tx_version,
+        enforce_same_tx_lock_time,
+        False,
+        False,
+        False,
     )
 
+    psbt = Psbt(merged_tx, inputs, outputs, version, hd_key_paths, unknown)
+    if shuffle_inp or sort_inp:
+        psbt.sort_inputs(sort_inp)
+    if shuffle_out or sort_out:
+        psbt.sort_outputs(sort_out)
     if merge_out:
+        # TODO: is it ok to merge outputs after sorting?
         raise BTClibValueError("output merge not implemented yet")
 
-    if shuffle_inp or sort_inputs:
-        inputs, merged_tx.vin = _sort_or_shuffle_together(
-            inputs, merged_tx.vin, sort_inputs
-        )
-    if shuffle_out or sort_outputs:
-        outputs, merged_tx.vout = _sort_or_shuffle_together(
-            outputs, merged_tx.vout, sort_outputs
-        )
-
-    psbt = Psbt(merged_tx, inputs, outputs, version, hd_key_paths, unknown)
     psbt.assert_valid()
     return psbt
