@@ -315,7 +315,10 @@ class Psbt:
         )
 
     def sort_inputs(self, ordering_func: Callable[[PsbtIn], int] | None = None) -> None:
-        """Sort psbt inputs via ordering_func if present, suffle them otherwise."""
+        """Sort psbt inputs.
+
+        sorting logic is ordering_func if present, shuffle otherwise.
+        """
         self.inputs, self.tx.vin = _sort_or_shuffle_together(
             self.inputs, self.tx.vin, ordering_func
         )
@@ -323,7 +326,10 @@ class Psbt:
     def sort_outputs(
         self, ordering_func: Callable[[PsbtOut], int] | None = None
     ) -> None:
-        """Sort psbt outputs via ordering_func if present, suffle them otherwise."""
+        """Sort psbt outputs.
+
+        sorting logic is ordering_func if present, shuffle otherwise.
+        """
         self.outputs, self.tx.vout = _sort_or_shuffle_together(
             self.outputs, self.tx.vout, ordering_func
         )
@@ -489,7 +495,7 @@ def _sort_or_shuffle_together(
 
 
 def _ensure_consistency(psbts: Sequence[Psbt]) -> None:
-    """Check that each psbt is valid and there are no conflicts in hd_key_paths or unknown."""
+    """Check validity of each psbt and conflicts in key_paths or unknown."""
     key_paths: dict[bytes, BIP32KeyOrigin] = {}
     r_key_paths: dict[BIP32KeyOrigin, bytes] = {}
     unknown: dict[bytes, bytes] = {}
@@ -532,9 +538,10 @@ def join_psbts(
 ) -> Psbt:
     """Join multiple psbts into a single one by merging inputs and outputs.
 
-    inputs/outputs are shuffled by default. If shuffle_{in|out}=False, they are simply
-    concatenated in the same order as psbts are specified. A specific ordering can be
-    specified via sort_{inp|out}, which overwrite shuffle when present.
+    inputs/outputs are shuffled by default. If shuffle_{in|out}=False,
+    they are simply concatenated in the same order as psbts are
+    specified. A specific ordering can be specified via sort_{inp|out},
+    which overwrite shuffle when present.
     """
     _ensure_consistency(psbts)
 
