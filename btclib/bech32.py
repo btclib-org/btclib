@@ -59,7 +59,7 @@ _BECH32_M_CONST = 0x2BC830A3
 
 
 def _polymod(values: Iterable[int]) -> int:
-    """Compute the bech32 checksum."""
+    """Return the bech32 checksum."""
     generator = [0x3B6A57B2, 0x26508E6D, 0x1EA119FA, 0x3D4233DD, 0x2A1462B3]
     chk = 1
     for value in values:

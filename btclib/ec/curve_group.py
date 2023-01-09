@@ -12,7 +12,7 @@
 
 Note that CurveGroup does not have to be a cyclic subgroup. For the
 cyclic subgroup class CurveSubGroup and the cyclic subgroup class of
-prime order Curve, see the btclib.curve module.
+prime order Curve, see the btclib.ec.curve module.
 """
 from __future__ import annotations
 
