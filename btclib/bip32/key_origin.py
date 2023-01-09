@@ -106,6 +106,9 @@ class BIP32KeyOrigin:
         data = data.strip()
         return cls(data[:8], data[9:], check_validity)
 
+    def __hash__(self: BIP32KeyOrigin) -> int:
+        return hash(self.serialize())
+
 
 # MutableMapping[pub_key, [fingerprint, derivation_path]]
 HdKeyPaths = MutableMapping[bytes, BIP32KeyOrigin]
@@ -113,9 +116,10 @@ HdKeyPaths = MutableMapping[bytes, BIP32KeyOrigin]
 
 def assert_valid_hd_key_paths(hd_key_paths: Mapping[bytes, BIP32KeyOrigin]) -> None:
     """Raise an exception if the dataclass element is not valid."""
-    if len(hd_key_paths.values()) > len(set(hd_key_paths.values())):
+    if len(hd_key_paths.values()) > len(
+        set(map(lambda der_path: der_path.serialize(), hd_key_paths.values()))
+    ):
         raise BTClibValueError("Duplicated key origin values in hd_key_paths")
-
     for pub_key, key_origin in hd_key_paths.items():
         # test vector 6 contains an invalid pubkey
         # point_from_pub_key(pub_key)
