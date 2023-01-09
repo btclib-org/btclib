@@ -24,6 +24,7 @@ from btclib.bip32 import BIP32KeyData
 from btclib.ec import bytes_from_point, double_mult, libsecp256k1, mult
 from btclib.ec.curve import CURVES
 from btclib.ecc import second_generator, ssa
+from btclib.ecc.libsecp256k1 import ecssa_sign, ecssa_verify
 from btclib.exceptions import BTClibRuntimeError, BTClibTypeError, BTClibValueError
 from btclib.hashes import reduce_to_hlen
 from btclib.number_theory import mod_inv
@@ -713,20 +714,16 @@ def test_threshold() -> None:
 
 
 def test_libsecp256k1() -> None:
-    try:
-        import btclib_libsecp256k1.ssa  # pylint: disable=import-outside-toplevel
-    except ImportError:  # pragma: no cover
-        pytest.skip()
+    if not libsecp256k1.is_enabled():
+        pytest.skip()  # pragma: no cover
 
     prvkey, X_Q = ssa.gen_keys(0x1)
     pubkey_bytes = X_Q.to_bytes(32, "big")
     msg = b"Satoshi Nakamoto"
     msg_hash = reduce_to_hlen(msg)
 
-    libsecp256k1_sig = btclib_libsecp256k1.ssa.sign(msg_hash, prvkey)
+    libsecp256k1_sig = ecssa_sign(msg_hash, prvkey)
     btclib_sig = ssa.sign_(msg_hash, prvkey)
 
-    assert btclib_libsecp256k1.ssa.verify(
-        msg_hash, pubkey_bytes, btclib_sig.serialize()
-    )
+    assert ecssa_verify(msg_hash, pubkey_bytes, btclib_sig.serialize())
     assert ssa.verify(msg, X_Q, libsecp256k1_sig)

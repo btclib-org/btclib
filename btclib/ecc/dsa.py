@@ -30,6 +30,7 @@ from btclib import var_bytes
 from btclib.alias import BinaryData, HashF, JacPoint, Octets, Point
 from btclib.ec import Curve, libsecp256k1, secp256k1
 from btclib.ec.curve_group import _double_mult, _mult
+from btclib.ecc.libsecp256k1 import ecdsa_sign, ecdsa_verify
 from btclib.ecc.rfc6979 import _rfc6979_
 from btclib.exceptions import BTClibRuntimeError, BTClibValueError
 from btclib.hashes import challenge_, reduce_to_hlen
@@ -255,9 +256,6 @@ def sign_(
     # SEC 1 v.2 section 3.2.1
     q = int_from_prv_key(prv_key, ec)
 
-    # the challenge
-    c = challenge_(msg_hash, ec, hf)  # 4, 5
-
     if (
         ec == secp256k1
         and nonce is None
@@ -265,7 +263,10 @@ def sign_(
         and hf == sha256
         and libsecp256k1.is_enabled()
     ):
-        return Sig.parse(libsecp256k1.dsa.sign(msg_hash, q))
+        return Sig.parse(ecdsa_sign(msg_hash, q))
+
+    # the challenge
+    c = challenge_(msg_hash, ec, hf)  # 4, 5
 
     # nonce: an integer in the range 1..n-1.
     if nonce is None:
@@ -349,18 +350,16 @@ def assert_as_valid_(
     else:
         sig = Sig.parse(sig)
 
-    c = challenge_(msg_hash, sig.ec, hf)  # 2, 3
-
-    Q = point_from_key(key, sig.ec)
-    QJ = Q[0], Q[1], 1
-
-    if libsecp256k1.is_enabled() and sig.ec == secp256k1 and lower_s and hf == sha256:
+    if sig.ec == secp256k1 and lower_s and hf == sha256 and libsecp256k1.is_enabled():
         msg_hash_bytes = bytes_from_octets(msg_hash)
         pubkey_bytes = pub_keyinfo_from_key(key)[0]
-        if not libsecp256k1.dsa.verify(msg_hash_bytes, pubkey_bytes, sig.serialize()):
-            raise BTClibRuntimeError("signature verification failed")
+        if not ecdsa_verify(msg_hash_bytes, pubkey_bytes, sig.serialize()):
+            raise BTClibRuntimeError("libsecp256k1.ecdsa_verify failed")
         return
 
+    c = challenge_(msg_hash, sig.ec, hf)  # 2, 3
+    Q = point_from_key(key, sig.ec)
+    QJ = Q[0], Q[1], 1
     # second part delegated to helper function
     _assert_as_valid_(c, QJ, sig.r, sig.s, lower_s, sig.ec)
 

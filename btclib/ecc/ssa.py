@@ -61,6 +61,7 @@ from btclib.alias import BinaryData, HashF, Integer, JacPoint, Octets, Point
 from btclib.bip32 import BIP32Key
 from btclib.ec import Curve, libsecp256k1, secp256k1
 from btclib.ec.curve_group import _double_mult, _mult, _multi_mult
+from btclib.ecc.libsecp256k1 import ecssa_sign, ecssa_verify
 from btclib.exceptions import BTClibRuntimeError, BTClibTypeError, BTClibValueError
 from btclib.hashes import reduce_to_hlen, tagged_hash
 from btclib.number_theory import mod_inv
@@ -295,7 +296,7 @@ def sign_(
     q, x_Q = gen_keys(prv_key, ec)
 
     if ec == secp256k1 and nonce is None and hf == sha256 and libsecp256k1.is_enabled():
-        return Sig.parse(libsecp256k1.ssa.sign(msg_hash, q))
+        return Sig.parse(ecssa_sign(msg_hash, q))
 
     # nonce: an integer in the range 1..n-1.
     if nonce is None:
@@ -366,16 +367,15 @@ def assert_as_valid_(
 
     x_Q, y_Q = point_from_bip340pub_key(Q, sig.ec)
 
-    # Let c = int(hf(bytes(r) || bytes(Q) || msg_hash)) mod n.
-    c = challenge_(msg_hash, x_Q, sig.r, sig.ec, hf)
-
     if libsecp256k1.is_enabled() and sig.ec == secp256k1 and hf == sha256:
         pubkey_bytes = x_Q.to_bytes(32, "big")
         msg_hash = bytes_from_octets(msg_hash)
-        if not libsecp256k1.ssa.verify(msg_hash, pubkey_bytes, sig.serialize()):
-            raise BTClibRuntimeError("signature verification failed")
+        if not ecssa_verify(msg_hash, pubkey_bytes, sig.serialize()):
+            raise BTClibRuntimeError("libsecp256k1.ecssa_verify failed")
         return
 
+    # Let c = int(hf(bytes(r) || bytes(Q) || msg_hash)) mod n.
+    c = challenge_(msg_hash, x_Q, sig.r, sig.ec, hf)
     _assert_as_valid_(c, (x_Q, y_Q, 1), sig.r, sig.s, sig.ec)
 
 

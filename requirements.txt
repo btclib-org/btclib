@@ -1,2 +1,2 @@
 #optional
-btclib_libsecp256k1
+secp256k1

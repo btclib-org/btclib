@@ -27,6 +27,7 @@ from btclib.ec import (
 from btclib.ec.curve import CURVES
 from btclib.ec.curve_group import _mult
 from btclib.ecc import dsa
+from btclib.ecc.libsecp256k1 import ecdsa_sign, ecdsa_verify
 from btclib.exceptions import BTClibRuntimeError, BTClibValueError
 from btclib.hashes import reduce_to_hlen
 from btclib.number_theory import mod_inv
@@ -291,20 +292,16 @@ def test_sign_input_type() -> None:
 
 
 def test_libsecp256k1() -> None:
-    try:
-        import btclib_libsecp256k1.dsa  # pylint: disable=import-outside-toplevel
-    except ImportError:  # pragma: no cover
-        pytest.skip()
+    if not libsecp256k1.is_enabled():
+        pytest.skip()  # pragma: no cover
 
     prvkey, Q = dsa.gen_keys(0x1)
     pubkey_bytes = bytes_from_point(Q)
     msg = b"Satoshi Nakamoto"
     msg_hash = reduce_to_hlen(msg)
 
-    libsecp256k1_sig = btclib_libsecp256k1.dsa.sign(msg_hash, prvkey)
+    libsecp256k1_sig = ecdsa_sign(msg_hash, prvkey)
     btclib_sig = dsa.sign_(msg_hash, prvkey)
 
-    assert btclib_libsecp256k1.dsa.verify(
-        msg_hash, pubkey_bytes, btclib_sig.serialize()
-    )
+    assert ecdsa_verify(msg_hash, pubkey_bytes, btclib_sig.serialize())
     assert dsa.verify(msg, prvkey, libsecp256k1_sig)

@@ -210,8 +210,8 @@ def mult(m_int: Integer, Q: Point | None = None, ec: Curve = secp256k1) -> Point
     """Elliptic curve scalar multiplication."""
     m: int = int_from_integer(m_int) % ec.n
 
-    if (Q == ec.G or Q is None) and ec == secp256k1 and libsecp256k1.is_enabled():
-        return libsecp256k1.mult.mult(m)
+    if ec == secp256k1 and (Q is None or Q == ec.G) and libsecp256k1.is_enabled():
+        return libsecp256k1.mult(m)
 
     if Q is None:
         QJ = ec.GJ
