@@ -95,7 +95,6 @@ class BIP32KeyData:
         key: Octets,
         check_validity: bool = True,
     ) -> None:
-
         self.version = bytes_from_octets(version)
         self.depth = depth
         self.parent_fingerprint = bytes_from_octets(parent_fingerprint)
@@ -107,7 +106,6 @@ class BIP32KeyData:
             self.assert_valid()
 
     def assert_valid(self) -> None:
-
         for key, size in _KEY_SIZE:
             value = bytes(getattr(self, key))
             setattr(self, key, value)
@@ -155,7 +153,6 @@ class BIP32KeyData:
             )
 
     def serialize(self, check_validity: bool = True) -> bytes:
-
         if check_validity:
             self.assert_valid()
 
@@ -179,7 +176,6 @@ class BIP32KeyData:
         cls: type[BIP32KeyData], xkey_bin: BinaryData, check_validity: bool = True
     ) -> BIP32KeyData:
         """Return a BIP32KeyData by parsing 73 bytes from binary data."""
-
         stream = bytesio_from_binarydata(xkey_bin)
         xkey_bin = stream.read(_REQUIRED_LENGHT)
 
@@ -202,7 +198,6 @@ class BIP32KeyData:
     def b58decode(
         cls: type[BIP32KeyData], address: String, check_validity: bool = True
     ) -> BIP32KeyData:
-
         if isinstance(address, str):
             address = address.strip()
 
@@ -214,7 +209,6 @@ def _rootxprv_from_seed(
     seed: Octets, version: Octets = NETWORKS["mainnet"].bip32_prv
 ) -> BIP32KeyData:
     """Return BIP32 root master extended private key from seed."""
-
     seed = bytes_from_octets(seed)
     bitlenght = len(seed) * 8
     if bitlenght < 128:
@@ -254,9 +248,9 @@ def _xpub_from_xprv(xprv: BIP32Key) -> BIP32KeyData:
     """Neutered Derivation (ND).
 
     Derivation of the extended public key corresponding to an extended
-    private key (“neutered” as it removes the ability to sign transactions).
+    private key (“neutered” as it removes the ability to sign
+    transactions).
     """
-
     if isinstance(xprv, BIP32KeyData):
         xkey = copy.copy(xprv)
     else:
@@ -280,7 +274,8 @@ def xpub_from_xprv(xprv: BIP32Key) -> str:
     """Neutered Derivation (ND).
 
     Derivation of the extended public key corresponding to an extended
-    private key (“neutered” as it removes the ability to sign transactions).
+    private key (“neutered” as it removes the ability to sign
+    transactions).
     """
     xkey = _xpub_from_xprv(xprv)
     return xkey.b58encode()
@@ -290,6 +285,7 @@ def xpub_from_xprv(xprv: BIP32Key) -> str:
 class _ExtendedBIP32KeyData(BIP32KeyData):
     # extensions used to cache intermediate results
     # in multi-level derivation: do not rely on them elsewhere
+
     prv_key_int: int  # non-zero for private key only
     pub_key_point: Point  # non-Infinity for public key only
 
@@ -320,7 +316,6 @@ class _ExtendedBIP32KeyData(BIP32KeyData):
 
 
 def __child_key_derivation(xkey: _ExtendedBIP32KeyData, index: int) -> None:
-
     xkey.depth += 1
     xkey.index = index
     if xkey.is_private:
@@ -371,7 +366,6 @@ def __public_key_derivation(xkey: _ExtendedBIP32KeyData, index: int) -> None:
 def _derive(
     xkey: BIP32Key, der_path: BIP32DerPath, forced_version: Octets | None = None
 ) -> BIP32KeyData:
-
     if not isinstance(xkey, BIP32KeyData):
         xkey = BIP32KeyData.b58decode(xkey)
 
@@ -434,7 +428,6 @@ def _derive_from_account(
     branches_0_1_only: bool = True,
     max_index: int = 0xFFFF,
 ) -> BIP32KeyData:
-
     if not isinstance(mxkey, BIP32KeyData):
         mxkey = BIP32KeyData.b58decode(mxkey)
 
@@ -465,18 +458,16 @@ def derive_from_account(
 ) -> str:
     """Derive a key with public derivation at the given branch and index.
 
-    It also ensures that the master key is hardened,
-    that the branch is a standard receive or change,
-    and that the index is not arbitrarily high.
+    It also ensures that the master key is hardened, that the branch is
+    a standard receive or change, and that the index is not arbitrarily
+    high.
     """
-
     return _derive_from_account(
         mxkey, branch, address_index, branches_0_1_only, max_index
     ).b58encode()
 
 
 def crack_prv_key(parent_xpub: BIP32Key, child_xprv: BIP32Key) -> str:
-
     if isinstance(parent_xpub, BIP32KeyData):
         p = copy.copy(parent_xpub)
     else:

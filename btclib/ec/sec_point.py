@@ -22,7 +22,6 @@ def bytes_from_point(Q: Point, ec: Curve = secp256k1, compressed: bool = True) -
     Return a point as compressed (0x02, 0x03) or uncompressed (0x04)
     octet sequence, according to SEC 1 v.2, section 2.3.3.
     """
-
     # check that Q is a point and that is on curve
     ec.require_on_curve(Q)
 
@@ -39,10 +38,9 @@ def bytes_from_point(Q: Point, ec: Curve = secp256k1, compressed: bool = True) -
 def point_from_octets(pub_key: Octets, ec: Curve = secp256k1) -> Point:
     """Return a tuple (x_Q, y_Q) that belongs to the curve.
 
-    Return a tuple (x_Q, y_Q) that belongs to the curve according to
-    SEC 1 v.2, section 2.3.4.
+    Return a tuple (x_Q, y_Q) that belongs to the curve according to SEC
+    1 v.2, section 2.3.4.
     """
-
     pub_key = bytes_from_octets(pub_key, (ec.p_size + 1, 2 * ec.p_size + 1))
 
     bsize = len(pub_key)  # bytes

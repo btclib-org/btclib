@@ -10,8 +10,8 @@
 
 """BlockHeader dataclass.
 
-Dataclass encapsulating
-version, previous block hash, merkle root, time, bits, and nonce.
+Dataclass encapsulating version, previous block hash, merkle root, time,
+bits, and nonce.
 """
 from __future__ import annotations
 
@@ -115,7 +115,6 @@ class BlockHeader:
             self.assert_valid()
 
     def to_dict(self, check_validity: bool = True) -> dict[str, int | float | str]:
-
         if check_validity:
             self.assert_valid()
 
@@ -147,14 +146,12 @@ class BlockHeader:
 
     def assert_valid_pow(self) -> None:
         """Assert whether the BlockHeader provides a valid proof-of-work."""
-
         if self.hash >= self.target:
             err_msg = f"invalid proof-of-work: {self.hash.hex()}"
             err_msg += f" >= {self.target.hex()}"
             raise BTClibValueError(err_msg)
 
     def assert_valid(self) -> None:
-
         # must be a 4-bytes _signed_ integer
         if not 0 < self.version <= 0x7FFFFFFF:
             raise BTClibValueError(f"invalid version: {hex(self.version)}")
@@ -182,7 +179,6 @@ class BlockHeader:
 
     def serialize(self, check_validity: bool = True) -> bytes:
         """Return a BlockHeader binary serialization."""
-
         if check_validity:
             self.assert_valid()
 
@@ -202,7 +198,6 @@ class BlockHeader:
         cls: type[BlockHeader], data: BinaryData, check_validity: bool = True
     ) -> BlockHeader:
         """Return a BlockHeader by parsing 80 bytes from binary data."""
-
         stream = bytesio_from_binarydata(data)
 
         # version is a signed int (int32_t, not uint32_t)

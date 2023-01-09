@@ -26,7 +26,6 @@ from btclib.exceptions import BTClibValueError
 
 
 def test_bip32_key_origin() -> None:
-
     with pytest.raises(BTClibValueError, match="invalid master fingerprint length: "):
         BIP32KeyOrigin("badbad", [0])
 
@@ -76,7 +75,6 @@ def test_bip32_key_origin() -> None:
 
 
 def test_dataclasses_json_dict_key_origin() -> None:
-
     key_origin = BIP32KeyOrigin.from_description("deadbeef//44h/0'/1H/0/10/")
 
     # BIP32KeyOrigin dataclass

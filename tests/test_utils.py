@@ -54,7 +54,6 @@ def test_hex_string() -> None:
 
 
 def test_encode_num() -> None:
-
     with pytest.raises(BTClibValueError, match="empty byte string"):
         decode_num(b"")
 

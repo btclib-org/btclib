@@ -61,11 +61,10 @@ from btclib.network import NETWORKS
 def _entropy_checksum(entropy: Entropy) -> tuple[BinStr, BinStr]:
     """Return the checksum of the binary string input entropy.
 
-    Entropy must be expressed as binary 0/1 string and
-    must be 128, 160, 192, 224, or 256 bits.
-    Leading zeros are considered genuine entropy, not redundant padding.
+    Entropy must be expressed as binary 0/1 string and must be 128, 160,
+    192, 224, or 256 bits. Leading zeros are considered genuine entropy,
+    not redundant padding.
     """
-
     bin_str_entropy = bin_str_entropy_from_entropy(entropy)
     bytes_entropy = bytes_entropy_from_str(bin_str_entropy)
 
@@ -97,7 +96,6 @@ def mnemonic_from_entropy(entropy: Entropy | None = None, lang: str = "en") -> M
     length; if the integer bit length is longer than the maximum
     length, then only the leftmost bits are retained.
     """
-
     if entropy is None or entropy == "":
         entropy = secrets.randbits(128)
     bin_str_entropy, checksum = _entropy_checksum(entropy)
@@ -108,7 +106,6 @@ def mnemonic_from_entropy(entropy: Entropy | None = None, lang: str = "en") -> M
 
 def entropy_from_mnemonic(mnemonic: Mnemonic, lang: str = "en") -> BinStr:
     """Return the entropy from the BIP39 checksummed mnemonic sentence."""
-
     indexes = indexes_from_mnemonic(mnemonic, lang)
     base = WORDLISTS.language_length(lang)
     cs_entropy = bin_str_entropy_from_wordlist_indexes(indexes, base)
@@ -131,7 +128,6 @@ def seed_from_mnemonic(
 
     The mnemonic checksum verification can be skipped if needed.
     """
-
     # clean up mnemonic from spurious whitespaces
     mnemonic = " ".join(mnemonic.split())
 
@@ -153,7 +149,6 @@ def mxprv_from_mnemonic(
     verify_checksum: bool = True,
 ) -> str:
     """Return BIP32 root master extended private key from BIP39 mnemonic."""
-
     seed = seed_from_mnemonic(mnemonic, passphrase or "", verify_checksum)
     version = NETWORKS[network].bip32_prv
     return rootxprv_from_seed(seed, version)

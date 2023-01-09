@@ -45,6 +45,8 @@ repos:
       - id: pyupgrade
         args: [--py37-plus]
         # exclude: *fixtures
+        language: python
+        types: [python]
   - repo: https://github.com/PyCQA/autoflake
     rev: v2.0.0
     hooks:
@@ -57,20 +59,43 @@ repos:
           - --remove-duplicate-keys
           - --remove-unused-variables
           - --remove-rhs-for-unused-variables
+        language: python
+        types: [python]
   - repo: https://github.com/pycqa/isort
     rev: 5.11.4
     hooks:
       - id: isort
         name: isort (black profile, in place fixes)
         args: ["--profile", "black", "--filter-files"]
+        language: python
+        types: [python]
+  - repo: https://github.com/myint/docformatter
+    rev: v1.5.0
+    hooks:
+      - id: docformatter
+        description: "Formats docstrings to follow PEP 257."
+        language: python
+        types: [python]
+        args: ["--in-place"]
   - repo: https://github.com/DanielNoord/pydocstringformatter
     rev: v0.7.3
     hooks:
       - id: pydocstringformatter
+        language: python
+        types: [python]
+  - repo: https://github.com/pycqa/pydocstyle
+    rev: 6.2.3
+    hooks:
+      - id: pydocstyle
+        additional_dependencies: [tomli]
+        language: python
+        types: [python]
   - repo: https://github.com/asottile/yesqa
     rev: v1.4.0
     hooks:
       - id: yesqa
+        language: python
+        types: [python]
   - repo: https://github.com/psf/black
     rev: 22.12.0
     hooks:
@@ -82,10 +107,14 @@ repos:
         # pre-commit's default_language_version, see
         # https://pre-commit.com/#top_level-default_language_version
         # language_version: python3.11
+        language: python
+        types: [python]
   - repo: https://github.com/PyCQA/flake8
     rev: 6.0.0
     hooks:
       - id: flake8
+        language: python
+        types: [python]
   - repo: https://github.com/PyCQA/bandit
     rev: 1.7.4
     hooks:
@@ -93,6 +122,8 @@ repos:
         name: bandit (btclib)
         args: []
         exclude: test_*
+        language: python
+        types: [python]
   - repo: https://github.com/PyCQA/bandit
     rev: 1.7.4
     hooks:
@@ -101,6 +132,8 @@ repos:
         # disable B101 (Test for use of assert) for the tests folder
         args: ["--skip", "B101"]
         exclude: btclib
+        language: python
+        types: [python]
   - repo: https://github.com/pycqa/pylint
     rev: v2.15.9
     hooks:
@@ -109,10 +142,14 @@ repos:
             "--score=false",
             "--disable=E0401", # import-error
           ]
+        language: python
+        types: [python]
   - repo: https://github.com/pre-commit/mirrors-mypy
     rev: v0.991
     hooks:
       - id: mypy
+        language: python
+        types: [python]
   - repo: https://github.com/mgedmin/check-manifest
     rev: "0.49"
     hooks:

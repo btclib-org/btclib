@@ -26,7 +26,6 @@ from btclib.exceptions import BTClibTypeError, BTClibValueError
 
 
 def test_conversions() -> None:
-
     for trap_float_operation in (True, False):
         with localcontext() as ctx:
             ctx.traps[FloatOperation] = trap_float_operation
@@ -47,7 +46,6 @@ def test_conversions() -> None:
 
 
 def test_exceptions() -> None:
-
     for trap_float_operation in (True, False):
         with localcontext() as ctx:
             ctx.traps[FloatOperation] = trap_float_operation
@@ -79,7 +77,6 @@ def test_exceptions() -> None:
 
 
 def test_self_consistency() -> None:
-
     for trap_float_operation in (True, False):
         with localcontext() as ctx:
             ctx.traps[FloatOperation] = trap_float_operation

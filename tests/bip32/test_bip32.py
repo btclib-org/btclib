@@ -33,7 +33,6 @@ from btclib.to_pub_key import pub_keyinfo_from_key
 
 
 def test_exceptions() -> None:
-
     with pytest.raises(BTClibValueError, match="not a private or public key: "):
         # invalid checksum
         xprv = "xppp9s21ZrQH143K2oxHiQ5f7D7WYgXD9h6HAXDBuMoozDGGiYHWsq7TLBj2yvGuHTLSPCaFmUyN1v3fJRiY2A4YuNSrqQMPVLZKt76goL6LP7L"
@@ -56,7 +55,6 @@ def test_exceptions() -> None:
 
 
 def test_assert_valid2() -> None:
-
     xkey = "xprv9s21ZrQH143K2ZP8tyNiUtgoezZosUkw9hhir2JFzDhcUWKz8qFYk3cxdgSFoCMzt8E2Ubi1nXw71TLhwgCfzqFHfM5Snv4zboSebePRmLS"
 
     xkey_data = BIP32KeyData.b58decode(xkey)
@@ -197,7 +195,6 @@ def test_invalid_bip32_xkeys() -> None:
 
 
 def test_derive() -> None:
-
     test_vectors = {
         "xprv9s21ZrQH143K2ZP8tyNiUtgoezZosUkw9hhir2JFzDhcUWKz8qFYk3cxdgSFoCMzt8E2Ubi1nXw71TLhwgCfzqFHfM5Snv4zboSebePRmLS": [
             ["m / 0 h / 0 h / 463 h", "1DyfBWxhVLmrJ7keyiHeMbt7N3UdeGU4G5"],
@@ -276,7 +273,6 @@ def test_derive_exceptions() -> None:
 
 
 def test_derive_from_account() -> None:
-
     seed = "bfc4cbaad0ff131aa97fa30a48d09ae7df914bcc083af1e07793cd0a7c61a03f65d622848209ad3366a419f4718a80ec9037df107d8d12c19b83202de00a40ad"
     rmxprv = rootxprv_from_seed(seed)
 

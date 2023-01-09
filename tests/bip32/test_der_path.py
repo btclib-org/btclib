@@ -25,7 +25,6 @@ from btclib.exceptions import BTClibValueError
 
 
 def test_from_bip32_path_str() -> None:
-
     test_reg_str_vectors = [
         # account 0, external branch, address_index 463
         (f"m/0{_HARDENING}/0/463", [0x80000000, 0, 463]),
@@ -96,7 +95,6 @@ def test_from_bip32_path_str() -> None:
 
 
 def test_index_int_to_from_str() -> None:
-
     for i in (0, 1, 0x80000000 - 1, 0x80000000, 0xFFFFFFFF):
         assert i == int_from_index_str(str_from_index_int(i))
 

@@ -12,8 +12,22 @@ exclude = [
 [tool.isort]
 profile = "black"
 
+[tool.docformatter]
+recursive = true
+blank = false
+in-place = true
+
+[tool.pydocstyle]
+ignore = [
+    "D101", "D102", "D103", "D105", "D107",
+    "D203", "D213",
+    "D301",
+    "D405", "D406", "D407", "D413"
+]
+
 [tool.pylint.master]
 jobs = 0
+score = false
 disable = [
     "invalid-name",  # C0103
     "missing-class-docstring",  # C0115

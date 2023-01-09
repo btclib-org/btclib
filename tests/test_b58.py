@@ -186,7 +186,6 @@ def test_p2sh() -> None:
 
 
 def test_p2w_p2sh() -> None:
-
     pub_key_str = "03 a1af804ac108a8a51782198c2d034b28bf90c8803f5a53f76276fa69a4eae77f"
     pub_key, network = pub_keyinfo_from_key(pub_key_str, compressed=True)
     witness_program = hash160(pub_key)
@@ -201,7 +200,6 @@ def test_p2w_p2sh() -> None:
 
 
 def test_address_from_wif() -> None:
-
     q = 0x19E14A7B6A307F426A94F8114701E7C8E774E7F9A47E2C2035DB29A206321725
 
     test_cases: list[tuple[bool, str, str, str]] = [
@@ -255,7 +253,6 @@ def test_address_from_wif() -> None:
 
 
 def test_exceptions() -> None:
-
     pub_key = "02 50863ad64a87ae8a2fe83c1af1a8403cb53f53e486d8511dad8a04887e5b2352"
     payload = b"\xf5" + hash160(pub_key)
     invalid_address = b58encode(payload)

@@ -32,7 +32,6 @@ class BIP32KeyOrigin:
 
     @property
     def description(self) -> str:
-
         return str_from_bip32_path(self.der_path, self.master_fingerprint)
 
     def __init__(
@@ -41,7 +40,6 @@ class BIP32KeyOrigin:
         der_path: BIP32DerPath,
         check_validity: bool = True,
     ) -> None:
-
         object.__setattr__(
             self, "master_fingerprint", bytes_from_octets(master_fingerprint)
         )
@@ -64,7 +62,6 @@ class BIP32KeyOrigin:
             raise BTClibValueError("invalid der_path element")
 
     def to_dict(self, check_validity: bool = True) -> dict[str, str]:
-
         if check_validity:
             self.assert_valid()
 
@@ -79,7 +76,6 @@ class BIP32KeyOrigin:
         dict_: Mapping[str, str],
         check_validity: bool = True,
     ) -> BIP32KeyOrigin:
-
         return cls(
             dict_["master_fingerprint"],
             dict_["path"],
@@ -87,7 +83,6 @@ class BIP32KeyOrigin:
         )
 
     def serialize(self, check_validity: bool = True) -> bytes:
-
         if check_validity:
             self.assert_valid()
 
@@ -98,7 +93,6 @@ class BIP32KeyOrigin:
         cls: type[BIP32KeyOrigin], data: Octets, check_validity: bool = True
     ) -> BIP32KeyOrigin:
         """Return a BIP32KeyOrigin by parsing binary data."""
-
         data = bytes_from_octets(data)
         master_fingerprint = data[:4]
         der_path = indexes_from_bip32_path(data[4:])
@@ -109,7 +103,6 @@ class BIP32KeyOrigin:
     def from_description(
         cls: type[BIP32KeyOrigin], data: str, check_validity: bool = True
     ) -> BIP32KeyOrigin:
-
         data = data.strip()
         return cls(data[:8], data[9:], check_validity)
 
@@ -119,7 +112,6 @@ HdKeyPaths = Mapping[bytes, BIP32KeyOrigin]
 
 def assert_valid_hd_key_paths(hd_key_paths: Mapping[bytes, BIP32KeyOrigin]) -> None:
     """Raise an exception if the dataclass element is not valid."""
-
     for pub_key, key_origin in hd_key_paths.items():
         # test vector 6 contains an invalid pubkey
         # point_from_pub_key(pub_key)
@@ -131,7 +123,6 @@ def assert_valid_hd_key_paths(hd_key_paths: Mapping[bytes, BIP32KeyOrigin]) -> N
 
 def decode_hd_key_paths(map_: Mapping[Octets, BIP32KeyOrigin] | None) -> HdKeyPaths:
     """Return the dataclass element from its json representation."""
-
     hd_key_paths = {bytes_from_octets(k): v for k, v in map_.items()} if map_ else {}
     return dict(sorted(hd_key_paths.items()))
 
@@ -143,7 +134,6 @@ def encode_to_bip32_derivs(
     hd_key_paths: Mapping[bytes, BIP32KeyOrigin]
 ) -> list[_BIP32Deriv]:
     """Return the json representation of the dataclass element."""
-
     return [
         {
             "pub_key": pub_key.hex(),
@@ -169,5 +159,4 @@ def decode_from_bip32_derivs(
     bip32_derivs: Sequence[Mapping[str, str]],
 ) -> HdKeyPaths:
     """Return the dataclass element from its json representation."""
-
     return dict(sorted([_decode_from_bip32_deriv(item) for item in bip32_derivs]))

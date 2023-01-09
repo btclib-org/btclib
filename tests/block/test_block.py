@@ -58,7 +58,6 @@ def test_block_1() -> None:
 
 
 def test_exceptions() -> None:
-
     fname = "block_1.bin"
     filename = path.join(path.dirname(__file__), "_data", fname)
     with open(filename, "rb") as file_:
@@ -158,7 +157,6 @@ def test_block_170() -> None:
 
 
 def test_block_200000() -> None:
-
     fname = "block_200000.bin"
     filename = path.join(path.dirname(__file__), "_data", fname)
     with open(filename, "rb") as file_:
@@ -246,7 +244,6 @@ def test_block_481824() -> None:
 
 
 def test_dataclasses_json_dict() -> None:
-
     fname = "block_481824.bin"
     filename = path.join(path.dirname(__file__), "_data", fname)
     with open(filename, "rb") as binfile_:

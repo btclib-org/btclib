@@ -148,7 +148,6 @@ class Network:
             self.assert_valid()
 
     def to_dict(self, check_validity: bool = True) -> dict[str, str | None]:
-
         if check_validity:
             self.assert_valid()
 
@@ -199,7 +198,6 @@ class Network:
         )
 
     def assert_valid(self) -> None:
-
         # no check on self.curve
 
         str(self.hrp)

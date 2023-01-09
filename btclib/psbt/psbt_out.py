@@ -8,8 +8,9 @@
 # No part of btclib including this file, may be copied, modified, propagated,
 # or distributed except according to the terms contained in the LICENSE file.
 
-"""Partially Signed Bitcoin Transaction Output (PsbtOut) dataclass and functions.
+"""Partially Signed Bitcoin Transaction Output (PsbtOut).
 
+Dataclass and functions.
 https://github.com/bitcoin/bips/blob/master/bip-0174.mediawiki
 """
 from __future__ import annotations
@@ -63,7 +64,6 @@ class PsbtOut:
         unknown: Mapping[Octets, Octets] | None = None,
         check_validity: bool = True,
     ) -> None:
-
         self.redeem_script = bytes_from_octets(redeem_script)
         self.witness_script = bytes_from_octets(witness_script)
         self.hd_key_paths = decode_hd_key_paths(hd_key_paths)
@@ -80,7 +80,6 @@ class PsbtOut:
         assert_valid_unknown(self.unknown)
 
     def to_dict(self, check_validity: bool = True) -> dict[str, Any]:
-
         if check_validity:
             self.assert_valid()
 
@@ -97,7 +96,6 @@ class PsbtOut:
     def from_dict(
         cls: type[PsbtOut], dict_: Mapping[str, Any], check_validity: bool = True
     ) -> PsbtOut:
-
         return cls(
             dict_["redeem_script"],
             dict_["witness_script"],
@@ -108,7 +106,6 @@ class PsbtOut:
         )
 
     def serialize(self, check_validity: bool = True) -> bytes:
-
         if check_validity:
             self.assert_valid()
 
@@ -141,9 +138,7 @@ class PsbtOut:
         check_validity: bool = True,
     ) -> PsbtOut:
         """Return a PsbtOut by parsing binary data."""
-
         # FIX parse must use BinaryData
-
         redeem_script = b""
         witness_script = b""
         hd_key_paths: dict[Octets, BIP32KeyOrigin] = {}

@@ -70,7 +70,6 @@ PSBT_IN_HASH256 = b"\x0d"
 
 def _deserialize_witness_utxo(k: bytes, v: bytes) -> TxOut:
     """Return the dataclass element from its binary representation."""
-
     if len(k) != 1:
         err_msg = f"invalid witness-utxo key length: {len(k)}"
         raise BTClibValueError(err_msg)
@@ -79,7 +78,6 @@ def _deserialize_witness_utxo(k: bytes, v: bytes) -> TxOut:
 
 def _assert_valid_partial_sigs(partial_sigs: Mapping[bytes, bytes]) -> None:
     """Raise an exception if the dataclass element is not valid."""
-
     for pub_key, sig in partial_sigs.items():
         try:
             # pub_key must be a valid secp256k1 Point in SEC representation
@@ -102,7 +100,6 @@ def _assert_valid_final_script_sig(final_script_sig: bytes) -> None:
 
 def _deserialize_final_script_witness(k: bytes, v: bytes) -> Witness:
     """Return the dataclass element from its binary representation."""
-
     if len(k) != 1:
         err_msg = f"invalid final script witness key length: {len(k)}"
         raise BTClibValueError(err_msg)
@@ -112,28 +109,24 @@ def _deserialize_final_script_witness(k: bytes, v: bytes) -> Witness:
 def _assert_valid_ripemd160_preimages(
     ripemd160_preimages: Mapping[bytes, bytes]
 ) -> None:
-
     for h, preimage in ripemd160_preimages.items():
         if ripemd160(preimage) != h:
             raise BTClibValueError("invalid RIPEMD160 preimage")
 
 
 def _assert_valid_sha256_preimages(sha256_preimages: Mapping[bytes, bytes]) -> None:
-
     for h, preimage in sha256_preimages.items():
         if sha256(preimage) != h:
             raise BTClibValueError("invalid SHA256 preimage")
 
 
 def _assert_valid_hash160_preimages(hash160_preimages: Mapping[bytes, bytes]) -> None:
-
     for h, preimage in hash160_preimages.items():
         if hash160(preimage) != h:
             raise BTClibValueError("invalid HASH160 preimage")
 
 
 def _assert_valid_hash256_preimages(hash256_preimages: Mapping[bytes, bytes]) -> None:
-
     for h, preimage in hash256_preimages.items():
         if hash256(preimage) != h:
             raise BTClibValueError("invalid HASH256 preimage")
@@ -158,7 +151,10 @@ class PsbtIn:
 
     @property
     def sig_hash(self) -> int:
-        """Return the sig_hash int for compatibility with PartiallySignedInput."""
+        """Return the sig_hash as int.
+
+        For compatibility with PartiallySignedInput.
+        """
         return self.sig_hash_type or 0
 
     def __init__(
@@ -179,7 +175,6 @@ class PsbtIn:
         unknown: Mapping[Octets, Octets] | None = None,
         check_validity: bool = True,
     ) -> None:
-
         self.non_witness_utxo = non_witness_utxo
         self.witness_utxo = witness_utxo
         # https://docs.python.org/3/tutorial/controlflow.html#default-argument-values
@@ -201,7 +196,6 @@ class PsbtIn:
 
     def assert_valid(self) -> None:
         """Assert logical self-consistency."""
-
         if self.non_witness_utxo:
             self.non_witness_utxo.assert_valid()
 
@@ -227,7 +221,6 @@ class PsbtIn:
         assert_valid_unknown(self.unknown)
 
     def to_dict(self, check_validity: bool = True) -> dict[str, Any]:
-
         if check_validity:
             self.assert_valid()
 
@@ -284,7 +277,6 @@ class PsbtIn:
         )
 
     def serialize(self, check_validity: bool = True) -> bytes:
-
         if check_validity:
             self.assert_valid()
 
@@ -371,9 +363,7 @@ class PsbtIn:
     ) -> PsbtIn:
         """Return a PsbtIn by parsing binary data."""
         # sourcery skip: low-code-quality
-
         # FIX parse must use BinaryData
-
         non_witness_utxo = None
         witness_utxo = None
         partial_sigs: dict[Octets, Octets] = {}

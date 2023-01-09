@@ -216,14 +216,12 @@ def test_mult_base_3() -> None:
 
 
 def test_cached_multiples() -> None:
-
     ec = secp256k1
     M = cached_multiples(ec.GJ, ec)
     assert len(M) == 2**MAX_W
 
 
 def test_multiples() -> None:
-
     ec = secp256k1
     with pytest.raises(BTClibValueError, match="size too low: "):
         multiples(ec.GJ, 1, ec)
@@ -404,7 +402,6 @@ def test_assorted_jac_mult() -> None:
 
 
 def test_jac_equality() -> None:
-
     ec = ec23_31
     assert ec.jac_equality(ec.GJ, jac_from_aff(ec.G))
 
@@ -418,7 +415,6 @@ def test_jac_equality() -> None:
 
 
 def test_INF() -> None:
-
     assert INF[1] == 0
 
     with pytest.raises(BTClibValueError, match="invalid x-coordinate: "):

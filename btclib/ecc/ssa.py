@@ -106,7 +106,6 @@ class Sig:
             raise BTClibValueError(err_msg)
 
     def serialize(self, check_validity: bool = True) -> bytes:
-
         if check_validity:
             self.assert_valid()
 
@@ -116,7 +115,6 @@ class Sig:
 
     @classmethod
     def parse(cls: type[Sig], data: BinaryData, check_validity: bool = True) -> Sig:
-
         stream = bytesio_from_binarydata(data)
         ec = secp256k1
         r = int.from_bytes(stream.read(ec.p_size), byteorder="big", signed=False)
@@ -141,7 +139,6 @@ def point_from_bip340pub_key(x_Q: BIP340PubKey, ec: Curve = secp256k1) -> Point:
     - BIP340 Octets (bytes or hex-string, p-size Point x-coordinate)
     - native tuple
     """
-
     # BIP 340 key as integer
     if isinstance(x_Q, int):
         return x_Q, ec.y_even(x_Q)
@@ -163,7 +160,6 @@ def gen_keys_(
     prv_key: PrvKey | None = None, ec: Curve = secp256k1
 ) -> tuple[int, int, JacPoint]:
     """Return a BIP340 private/public (int, JacPoint) key-pair."""
-
     if prv_key is None:
         q = 1 + secrets.randbelow(ec.n - 1)
     else:
@@ -180,7 +176,6 @@ def gen_keys_(
 
 def gen_keys(prv_key: PrvKey | None = None, ec: Curve = secp256k1) -> tuple[int, int]:
     """Return a BIP340 private/public (int, int) key-pair."""
-
     q, x_Q, _ = gen_keys_(prv_key, ec)
     return q, x_Q
 
@@ -188,7 +183,6 @@ def gen_keys(prv_key: PrvKey | None = None, ec: Curve = secp256k1) -> tuple[int,
 def _det_nonce_(
     msg_hash: bytes, q: int, Q: int, aux: bytes, ec: Curve, hf: HashF
 ) -> int:
-
     # assume the random oracle model for the hash function,
     # i.e. hash values can be considered uniformly random
 
@@ -200,7 +194,6 @@ def _det_nonce_(
     #
     # the unbiased implementation is provided here,
     # which works also for very-low-cardinality test curves
-
     randomizer = tagged_hash(b"BIP0340/aux", aux, hf)
     xor = q ^ int.from_bytes(randomizer, "big", signed=False)
     max_len = max(ec.n_size, hf().digest_size)
@@ -237,7 +230,6 @@ def det_nonce_(
     hf: HashF = sha256,
 ) -> int:
     """Return a BIP340 deterministic ephemeral key (nonce)."""
-
     # the message msg_hash: a hf_len array
     hf_len = hf().digest_size
     msg_hash = bytes_from_octets(msg_hash, hf_len)
@@ -251,7 +243,6 @@ def det_nonce_(
 
 
 def challenge_(msg_hash: Octets, x_Q: int, x_K: int, ec: Curve, hf: HashF) -> int:
-
     # the message msg_hash: a hf_len array
     hf_len = hf().digest_size
     msg_hash = bytes_from_octets(msg_hash, hf_len)
@@ -275,7 +266,6 @@ def _sign_(c: int, q: int, nonce: int, r: int, ec: Curve) -> Sig:
     # Private function for testing purposes: it allows to explore all
     # possible value of the challenge c (for low-cardinality curves).
     # It assume that c is in [1, n-1], while q and nonce are in [1, n-1]
-
     if c == 0:  # c≠0 required as it multiplies the private key
         raise BTClibRuntimeError("invalid zero challenge")
 
@@ -294,10 +284,9 @@ def sign_(
 ) -> Sig:
     """Sign a hf_len bytes message according to BIP340 signature algorithm.
 
-    If the deterministic nonce is not provided,
-    the BIP340 specification (not RFC6979) is used.
+    If the deterministic nonce is not provided, the BIP340 specification
+    (not RFC6979) is used.
     """
-
     # the message msg_hash: a hf_len array
     hf_len = hf().digest_size
     msg_hash = bytes_from_octets(msg_hash, hf_len)
@@ -343,7 +332,6 @@ def sign(
 
     The BIP340 deterministic nonce (not RFC6979) is used.
     """
-
     msg_hash = reduce_to_hlen(msg, hf)
     return sign_(msg_hash, prv_key, nonce, ec, hf)
 
@@ -371,7 +359,6 @@ def assert_as_valid_(
 ) -> None:
     # Private function for test/dev purposes
     # It raises Errors, while verify should always return True or False
-
     if isinstance(sig, Sig):
         sig.assert_valid()
     else:
@@ -395,7 +382,6 @@ def assert_as_valid_(
 def assert_as_valid(
     msg: Octets, Q: BIP340PubKey, sig: Sig | Octets, hf: HashF = sha256
 ) -> None:
-
     msg_hash = reduce_to_hlen(msg, hf)
     assert_as_valid_(msg_hash, Q, sig, hf)
 
@@ -404,7 +390,6 @@ def verify_(
     msg_hash: Octets, Q: BIP340PubKey, sig: Sig | Octets, hf: HashF = sha256
 ) -> bool:
     """Verify the BIP340 signature of the provided message."""
-
     # all kind of Exceptions are catched because
     # verify must always return a bool
     try:
@@ -417,14 +402,12 @@ def verify_(
 
 def verify(msg: Octets, Q: BIP340PubKey, sig: Sig | Octets, hf: HashF = sha256) -> bool:
     """Verify the BIP340 signature of the provided message."""
-
     msg_hash = reduce_to_hlen(msg, hf)
     return verify_(msg_hash, Q, sig, hf)
 
 
 def _recover_pub_key_(c: int, r: int, s: int, ec: Curve) -> int:
     # Private function provided for testing purposes only.
-
     if c == 0:
         raise BTClibRuntimeError("invalid zero challenge")
 
@@ -447,7 +430,6 @@ def crack_prv_key_(
     Q: BIP340PubKey,
     hf: HashF = sha256,
 ) -> tuple[int, int]:
-
     if isinstance(sig1, Sig):
         sig1.assert_valid()
     else:
@@ -485,7 +467,6 @@ def crack_prv_key(
     Q: BIP340PubKey,
     hf: HashF = sha256,
 ) -> tuple[int, int]:
-
     msg_hash1 = reduce_to_hlen(msg1, hf)
     msg_hash2 = reduce_to_hlen(msg2, hf)
 
@@ -503,7 +484,6 @@ def assert_batch_as_valid_(
     sigs: Sequence[Sig],
     hf: HashF = sha256,
 ) -> None:
-
     batch_size = len(Qs)
     if batch_size == 0:
         raise BTClibValueError("no signatures provided")
@@ -563,7 +543,6 @@ def assert_batch_as_valid(
     sigs: Sequence[Sig],
     hf: HashF = sha256,
 ) -> None:
-
     m_hashes = [reduce_to_hlen(msg, hf) for msg in ms]
     return assert_batch_as_valid_(m_hashes, Qs, sigs, hf)
 
@@ -574,7 +553,6 @@ def batch_verify_(
     sigs: Sequence[Sig],
     hf: HashF = sha256,
 ) -> bool:
-
     # all kind of Exceptions are catched because
     # verify must always return a bool
     try:
@@ -592,6 +570,5 @@ def batch_verify(
     hf: HashF = sha256,
 ) -> bool:
     """Batch verification of BIP340 signatures."""
-
     m_hashes = [reduce_to_hlen(msg, hf) for msg in ms]
     return batch_verify_(m_hashes, Qs, sigs, hf)

@@ -50,7 +50,6 @@ def int_from_prv_key(prv_key: PrvKey, ec: Curve = secp256k1) -> int:
     Network and compressed informations from the input key
     are not used.
     """
-
     if isinstance(prv_key, int):
         q = prv_key
     elif isinstance(prv_key, BIP32KeyData):
@@ -94,11 +93,10 @@ def _prv_keyinfo_from_wif(
 ) -> PrvkeyInfo:
     """Return private key tuple(int, compressed, network) from a WIF.
 
-    WIF is always compressed and includes network information:
-    here the 'network, compressed' input parameters are passed
-    only to allow consistency checks.
+    WIF is always compressed and includes network information: here the
+    'network, compressed' input parameters are passed only to allow
+    consistency checks.
     """
-
     if isinstance(wif, str):
         wif = wif.strip()
 
@@ -138,11 +136,10 @@ def _prv_keyinfo_from_xprv(
 ) -> PrvkeyInfo:
     """Return prv_key tuple (int, compressed, network) from BIP32 xprv.
 
-    BIP32Key is always compressed and includes network information:
-    here the 'network, compressed' input parameters are passed
-    only to allow consistency checks.
+    BIP32Key is always compressed and includes network information: here
+    the 'network, compressed' input parameters are passed only to allow
+    consistency checks.
     """
-
     compressed = True if compressed is None else compressed
     if not compressed:
         raise BTClibValueError("uncompressed SEC / compressed BIP32 mismatch")
@@ -176,7 +173,6 @@ def _prv_keyinfo_from_xprvwif(
 
     Support WIF or BIP32 xprv.
     """
-
     if not isinstance(xprvwif, BIP32KeyData):
         # FIXME: except the NotPrvKeyError only, let InvalidPrvKey go through
         with contextlib.suppress(BTClibValueError):
@@ -187,7 +183,6 @@ def _prv_keyinfo_from_xprvwif(
 def prv_keyinfo_from_prv_key(
     prv_key: PrvKey, network: str | None = None, compressed: bool | None = None
 ) -> PrvkeyInfo:
-
     compr = True if compressed is None else compressed
     net = "mainnet" if network is None else network
     ec = NETWORKS[net].curve

@@ -71,7 +71,6 @@ def test_dataclasses_json_dict_out_point() -> None:
 
 
 def test_invalid_outpoint() -> None:
-
     out_point = OutPoint(b"\x01" * 31, 18, check_validity=False)
     with pytest.raises(BTClibValueError, match="invalid OutPoint tx_id: "):
         out_point.assert_valid()

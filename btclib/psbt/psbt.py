@@ -61,7 +61,6 @@ PSBT_GLOBAL_VERSION = b"\xfb"
 
 
 def _assert_valid_version(version: int) -> None:
-
     # must be a 4-bytes int
     if not 0 <= version <= 0xFFFFFFFF:
         raise BTClibValueError(f"invalid version: {version}")
@@ -89,7 +88,6 @@ class Psbt:
         unknown: Mapping[Octets, Octets] | None = None,
         check_validity: bool = True,
     ) -> None:
-
         self.tx = tx
         self.inputs = list(inputs)
         self.outputs = list(outputs)
@@ -102,7 +100,6 @@ class Psbt:
 
     def assert_valid(self) -> None:
         """Assert logical self-consistency."""
-
         self.tx.assert_valid()
 
         # ensure a non-null tx has been included
@@ -142,7 +139,6 @@ class Psbt:
         assert_valid_unknown(self.unknown)
 
     def assert_signable(self) -> None:
-
         self.assert_valid()
 
         for i, tx_in in enumerate(self.tx.vin):
@@ -178,7 +174,6 @@ class Psbt:
                     raise BTClibValueError("invalid witness script sha256")
 
     def to_dict(self, check_validity: bool = True) -> dict[str, Any]:
-
         if check_validity:
             self.assert_valid()
 
@@ -208,7 +203,6 @@ class Psbt:
         )
 
     def serialize(self, check_validity: bool = True) -> bytes:
-
         if check_validity:
             self.assert_valid()
 
@@ -232,7 +226,6 @@ class Psbt:
     @classmethod
     def parse(cls: type[Psbt], psbt_bin: Octets, check_validity: bool = True) -> Psbt:
         """Return a Psbt by parsing binary data."""
-
         # FIXME: psbt_bin should be BinaryData
         # stream = bytesio_from_binarydata(psbt_bin)
         # and the deserialization should happen reading the stream
@@ -300,7 +293,6 @@ class Psbt:
 
     @classmethod
     def from_tx(cls: type[Psbt], tx: Tx, check_validity: bool = True) -> Psbt:
-
         for tx_in in tx.vin:
             tx_in.script_sig = b""
             tx_in.script_witness = Witness()
@@ -325,7 +317,6 @@ class Psbt:
 def _combine_field(
     psbt_map: PsbtIn | PsbtOut | Psbt, out: PsbtIn | PsbtOut | Psbt, key: str
 ) -> None:
-
     item = getattr(psbt_map, key)
     if not item:
         return
@@ -439,7 +430,6 @@ def extract_tx(psbt: Psbt, check_validity: bool = True) -> Tx:
     However it may be able to in order to validate
     the network serialized transaction at the same time.
     """
-
     if check_validity:
         psbt.assert_valid()
 

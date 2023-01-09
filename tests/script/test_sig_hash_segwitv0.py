@@ -10,7 +10,8 @@
 
 """Tests for the `btclib.sig_hash` module.
 
-test vector at https://github.com/bitcoin/bips/blob/master/bip-0143.mediawiki
+test vector at
+https://github.com/bitcoin/bips/blob/master/bip-0143.mediawiki
 """
 
 from btclib.script import Witness, sig_hash

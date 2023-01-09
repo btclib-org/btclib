@@ -214,7 +214,6 @@ def test_invalid_address_enc() -> None:
 
 
 def test_address_witness() -> None:
-
     wit_ver = 0
     wit_prg = 20 * b"\x05"
     for net in ("mainnet", "testnet"):
@@ -257,7 +256,6 @@ def test_p2wpkh_p2sh() -> None:
 
 
 def test_p2wpkh() -> None:
-
     # https://github.com/bitcoin/bips/blob/master/bip-0173.mediawiki
     # leading/trailing spaces should be tolerated
     pub = " 02 79BE667EF9DCBBAC55A06295CE870B07029BFCDB2DCE28D959F2815B16F81798"
@@ -287,7 +285,6 @@ def test_p2wpkh() -> None:
 
 
 def test_p2wsh_p2sh() -> None:
-
     # leading/trailing spaces should be tolerated
     pub = " 02 79BE667EF9DCBBAC55A06295CE870B07029BFCDB2DCE28D959F2815B16F81798"
     script_pub_key: list[Command] = [pub, "OP_CHECKSIG"]
@@ -297,7 +294,6 @@ def test_p2wsh_p2sh() -> None:
 
 
 def test_p2wsh() -> None:
-
     # https://github.com/bitcoin/bips/blob/master/bip-0173.mediawiki
     pub = "02 79BE667EF9DCBBAC55A06295CE870B07029BFCDB2DCE28D959F2815B16F81798"
     script_pub_key: list[Command] = [pub, "OP_CHECKSIG"]
@@ -319,7 +315,6 @@ def test_p2wsh() -> None:
 
 
 def test_p2tr() -> None:
-
     key = 1
     pubkey = output_pubkey(key)[0]
     addr = b32.p2tr(key)

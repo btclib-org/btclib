@@ -150,7 +150,6 @@ class Tx:
         )
 
     def to_dict(self, check_validity: bool = True) -> dict[str, str | int | list[Any]]:
-
         if check_validity:
             self.assert_valid()
 
@@ -180,7 +179,6 @@ class Tx:
         )
 
     def assert_standard(self) -> None:
-
         self.assert_valid()
 
         # should be a 4-bytes __signed__ integer
@@ -188,7 +186,6 @@ class Tx:
             raise BTClibValueError(f"invalid version: {self.version}")
 
     def assert_valid(self) -> None:
-
         # must be a 4-bytes integer
         if not 0 <= self.version <= 0xFFFFFFFF:
             raise BTClibValueError(f"invalid version: {self.version}")
@@ -204,7 +201,6 @@ class Tx:
             tx_out.assert_valid()
 
     def serialize(self, include_witness: bool, check_validity: bool = True) -> bytes:
-
         if check_validity:
             self.assert_valid()
 
@@ -234,7 +230,6 @@ class Tx:
         check_validity: bool = True,
     ) -> Tx:
         """Return a Tx by parsing binary data."""
-
         stream = bytesio_from_binarydata(data)
 
         # version is a signed int (int32_t) in bitcoin_core

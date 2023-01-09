@@ -10,8 +10,8 @@
 
 """CurveGroup explorer functions.
 
-These functions are meant to explore low-cardinality CurveGroup,
-for didactical (and fun) reason only.
+These functions are meant to explore low-cardinality CurveGroup, for
+didactical (and fun) reason only.
 """
 from __future__ import annotations
 
@@ -23,8 +23,7 @@ from btclib.exceptions import BTClibValueError
 def find_all_points(ec: CurveGroup) -> list[Point]:
     """Attemp to find all group points, if p is low.
 
-    Very unsofisticated walk-through approach,
-    for didactical sake only.
+    Very unsofisticated walk-through approach, for didactical sake only.
     """
     if ec.p > 10000:
         err_msg = f"p is too big to count all group points: {ec.p}"
@@ -47,8 +46,7 @@ def find_all_points(ec: CurveGroup) -> list[Point]:
 def find_subgroup_points(ec: CurveGroup, G: Point) -> list[Point]:
     """Attemp to count all G-generated subgroup points, if p is low.
 
-    Very unsofisticated walk-through approach,
-    for didactical sake only.
+    Very unsofisticated walk-through approach, for didactical sake only.
     """
     if ec.p > 10000:
         err_msg = f"p is too big to count all subgroup points: {ec.p}"

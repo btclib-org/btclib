@@ -115,7 +115,6 @@ def test_simple_scripts() -> None:
 
 
 def test_exceptions() -> None:
-
     script_pub_key: list[Command] = ["OP_2", "OP_3", "OP_ADD", "OP_5", "OP_RETURN_244"]
     err_msg = "invalid string command: OP_RETURN_244"
     with pytest.raises(BTClibValueError, match=err_msg):
@@ -143,7 +142,6 @@ def test_exceptions() -> None:
 
 
 def test_nulldata() -> None:
-
     scripts: list[list[Command]] = [["OP_RETURN", "1A" * 79], ["OP_RETURN", "0A" * 79]]
     for script_pub_key in scripts:
         assert script_pub_key == parse(serialize(script_pub_key))
@@ -195,7 +193,6 @@ def test_regressions() -> None:
 
 
 def test_null_serialization() -> None:
-
     empty_script: list[Command] = []
     assert empty_script == parse(b"")
     assert serialize(empty_script) == b""
@@ -224,7 +221,6 @@ def test_null_serialization() -> None:
 
 
 def test_op_int_serialization() -> None:
-
     for i in range(-1, 17):
         op_int_str = f"OP_{i}" if i > -1 else "OP_1NEGATE"
         serialized_op_int = serialize([op_int_str])
@@ -233,7 +229,6 @@ def test_op_int_serialization() -> None:
 
 
 def test_integer_serialization() -> None:
-
     assert ["OP_0"] == parse(b"\x00")
 
     with warnings.catch_warnings():
@@ -252,7 +247,6 @@ def test_integer_serialization() -> None:
 
 
 def test_single_byte_serialization() -> None:
-
     for i in range(256):
         hex_str = hex_string(i)  # e.g., "1A"
         serialized_byte = serialize([hex_str])

@@ -34,32 +34,27 @@ except ValueError:  # pragma: no cover
 
 def ripemd160(octets: Octets) -> bytes:
     """Return the RIPEMD160(*) of the input octet sequence."""
-
     octets = bytes_from_octets(octets)
     return hashlib.new("ripemd160", octets).digest()
 
 
 def sha256(octets: Octets) -> bytes:
     """Return the SHA256(*) of the input octet sequence."""
-
     octets = bytes_from_octets(octets)
     return hashlib.sha256(octets).digest()
 
 
 def hash160(octets: Octets) -> bytes:
     """Return the HASH160=RIPEMD160(SHA256) of the input octet sequence."""
-
     return ripemd160(sha256(octets))
 
 
 def hash256(octets: Octets) -> bytes:
     """Return the SHA256(SHA256(*)) of the input octet sequence."""
-
     return sha256(sha256(octets))
 
 
 def reduce_to_hlen(msg: Octets, hf: HashF = hashlib.sha256) -> bytes:
-
     msg = bytes_from_octets(msg)
     # Step 4 of SEC 1 v.2 section 4.1.3
     h = hf()
@@ -68,7 +63,6 @@ def reduce_to_hlen(msg: Octets, hf: HashF = hashlib.sha256) -> bytes:
 
 
 def magic_message(msg: Octets) -> bytes:
-
     msg = bytes_from_octets(msg)
     t = (
         b"\x18Bitcoin Signed Message:\n"
@@ -94,13 +88,11 @@ def challenge_(
 def merkle_root(data: list[bytes], hf: Callable[[bytes | str], bytes]) -> bytes:
     """Return the Merkel tree root of a list of binary hashes.
 
-    The Merkel tree is a binary tree constructed
-    with the provided list of binary data as bottom level,
-    then recursively going up one level
-    by hashing every hash value pair in the current level,
-    until a single value (root) is obtained.
+    The Merkel tree is a binary tree constructed with the provided list
+    of binary data as bottom level, then recursively going up one level
+    by hashing every hash value pair in the current level, until a
+    single value (root) is obtained.
     """
-
     data = [hf(item) for item in data]
     while len(data) != 1:
         parent_level = []
@@ -114,7 +106,6 @@ def merkle_root(data: list[bytes], hf: Callable[[bytes | str], bytes]) -> bytes:
 
 
 def tagged_hash(tag: bytes, m: bytes, hf: HashF = hashlib.sha256) -> bytes:
-
     h1 = hf()
     h1.update(tag)
     tag_hash = h1.digest()

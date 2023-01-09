@@ -279,11 +279,10 @@ def _serialize_str_command(command: str) -> bytes:
 def _serialize_bytes_command(command: bytes) -> bytes:
     """Convert to canonical push: OP_PUSHDATA (if needed) | length | command.
 
-    According to standardness rules (BIP-62) the
-    minimum possible PUSHDATA operator must be used.
-    Byte vectors on the stack are not allowed to be more than 520 bytes long.
+    According to standardness rules (BIP-62) the minimum possible
+    PUSHDATA operator must be used. Byte vectors on the stack are not
+    allowed to be more than 520 bytes long.
     """
-
     out: list[bytes] = []
     length = len(command)
     if length < 76:  # 1-byte-length
@@ -319,7 +318,6 @@ def serialize(script: Sequence[Command]) -> bytes:
 
 
 def parse(stream: BinaryData, exit_on_op_success: bool = False) -> list[Command]:
-
     s = bytesio_from_binarydata(stream)
     r: list[Command] = []  # initialize the result list
 
@@ -377,7 +375,6 @@ class Script:
         return parse(self.script)
 
     def __add__(self, other: Script) -> Script:
-
         return (
             Script(self.script + other.script)
             if isinstance(other, Script)

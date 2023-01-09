@@ -10,7 +10,7 @@
 
 """Tests for the `btclib.sig_hash` module.
 
-test vector at https://github.com/bitcoin/bitcoin/blob/master/src/test/data/sighash.json
+- https://github.com/bitcoin/bitcoin/blob/master/src/test/data/sighash.json
 """
 
 import json

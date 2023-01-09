@@ -138,7 +138,6 @@ def test_bip340_vectors() -> None:
 
 
 def test_point_from_bip340pub_key() -> None:
-
     q, x_Q = ssa.gen_keys()
     Q = mult(q)
     # Integer (int)
@@ -231,7 +230,6 @@ def test_low_cardinality() -> None:
 
 
 def test_crack_prv_key() -> None:
-
     q, x_Q = ssa.gen_keys(19)  # remove any randomness
 
     msg1 = b"Paolo is afraid of ephemeral random numbers"
@@ -265,7 +263,6 @@ def test_crack_prv_key() -> None:
 
 
 def test_batch_validation() -> None:
-
     ms: list[String] = []
     Qs: list[int] = []
     sigs: list[ssa.Sig] = []
@@ -716,7 +713,6 @@ def test_threshold() -> None:
 
 
 def test_libsecp256k1() -> None:
-
     try:
         import btclib_libsecp256k1.ssa  # pylint: disable=import-outside-toplevel
     except ImportError:  # pragma: no cover
