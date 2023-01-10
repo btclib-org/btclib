@@ -65,17 +65,17 @@ def test_signature() -> None:
 
     msg_fake = b"Craig Wright"
     assert not dsa.verify(msg_fake, Q, sig)
-    err_msg = "signature verification failed"
+    err_msg = "signature verification failed|libsecp256k1.ecdsa_verify failed"
     with pytest.raises(BTClibRuntimeError, match=err_msg):
         dsa.assert_as_valid(msg_fake, Q, sig)
 
     _, Q_fake = dsa.gen_keys()
     assert not dsa.verify(msg, Q_fake, sig)
-    err_msg = "signature verification failed"
+    err_msg = "signature verification failed|libsecp256k1.ecdsa_verify failed"
     with pytest.raises(BTClibRuntimeError, match=err_msg):
         dsa.assert_as_valid(msg, Q_fake, sig)
 
-    err_msg = "not a valid public key: "
+    err_msg = "not a valid public key: |no bytes representation for infinity point"
     with pytest.raises(BTClibValueError, match=err_msg):
         dsa.assert_as_valid(msg, INF, sig)
 
@@ -288,17 +288,17 @@ def test_sign_input_type() -> None:
 
 
 def test_libsecp256k1() -> None:
-    if not libsecp256k1.is_enabled():
-        pytest.skip()  # pragma: no cover
-
     msg = b"Satoshi Nakamoto"
-    msg_hash = reduce_to_hlen(msg)
+    prvkey_int, pubkey_point = dsa.gen_keys(0x1)
+    btclib_sig = dsa.sign(msg, prvkey_int)
+    pubkey = bytes_from_point(pubkey_point)
+    assert dsa.verify(msg, pubkey, btclib_sig)
+    assert dsa.verify(msg, pubkey, btclib_sig.serialize())
 
-    prvkey_int, pubkey_int = dsa.gen_keys(0x1)
-    libsecp256k1_sig = ecdsa_sign(msg_hash, prvkey_int)
-    btclib_sig = dsa.sign_(msg_hash, prvkey_int)
-    assert btclib_sig.serialize() == libsecp256k1_sig
-
-    pubkey = bytes_from_point(pubkey_int)
-    assert ecdsa_verify(msg_hash, pubkey, libsecp256k1_sig)
-    assert dsa.verify(msg, pubkey, libsecp256k1_sig)
+    if libsecp256k1.is_enabled():
+        msg_hash = reduce_to_hlen(msg)
+        libsecp256k1_sig = ecdsa_sign(msg_hash, prvkey_int)
+        assert btclib_sig.serialize() == libsecp256k1_sig
+        assert ecdsa_verify(msg_hash, pubkey, btclib_sig.serialize())
+        assert ecdsa_verify(msg_hash, pubkey, libsecp256k1_sig)
+        assert dsa.verify(msg, pubkey, libsecp256k1_sig)

@@ -44,17 +44,25 @@ def test_signature() -> None:
 
     msg_fake = b"Craig Wright"
     assert not ssa.verify(msg_fake, x_Q, sig)
-    err_msg = r"y_K is odd|signature verification failed"
+    err_msg = (
+        r"signature verification failed|y_K is odd|libsecp256k1.ecssa_verify failed"
+    )
     with pytest.raises(BTClibRuntimeError, match=err_msg):
         ssa.assert_as_valid(msg_fake, x_Q, sig)
 
     _, x_Q_fake = ssa.gen_keys(0x02)
     assert not ssa.verify(msg, x_Q_fake, sig)
+    err_msg = (
+        r"signature verification failed|y_K is odd|libsecp256k1.ecssa_verify failed"
+    )
     with pytest.raises(BTClibRuntimeError, match=err_msg):
         ssa.assert_as_valid(msg, x_Q_fake, sig)
 
     _, x_Q_fake = ssa.gen_keys(0x4)
     assert not ssa.verify(msg, x_Q_fake, sig)
+    err_msg = (  # FIXME 2 error messages for the case without libsecp256k1?!?
+        r"signature verification failed|y_K is odd|libsecp256k1.ecssa_verify failed"
+    )
     with pytest.raises(BTClibRuntimeError, match=err_msg):
         ssa.assert_as_valid(msg, x_Q_fake, sig)
 
@@ -77,8 +85,8 @@ def test_signature() -> None:
         ssa.assert_as_valid(msg, x_Q, sig_invalid)
 
     m_bytes = reduce_to_hlen(msg, hf)
-    err_msg = "invalid size: 31 bytes instead of 32"
-    with pytest.raises(BTClibValueError, match=err_msg):
+    err_msg = "invalid size: 31 bytes instead of 32|libsecp256k1.ecssa_verify failed"
+    with pytest.raises((BTClibValueError, BTClibRuntimeError), match=err_msg):
         ssa.assert_as_valid_(m_bytes[:31], x_Q, sig)
 
     with pytest.raises(BTClibValueError, match=err_msg):
@@ -710,19 +718,17 @@ def test_threshold() -> None:
 
 
 def test_libsecp256k1() -> None:
-    if not libsecp256k1.is_enabled():
-        pytest.skip()  # pragma: no cover
-
     msg = b"Satoshi Nakamoto"
-    msg_hash = reduce_to_hlen(msg)
-
     prvkey_int, pubkey_int = ssa.gen_keys(0x1)
-    libsecp256k1_sig = ecssa_sign(msg_hash, prvkey_int)
-    btclib_sig = ssa.sign_(msg_hash, prvkey_int)
-    # assert btclib_sig.serialize() == libsecp256k1_sig
-
+    btclib_sig = ssa.sign(msg, prvkey_int)
     pubkey = pubkey_int.to_bytes(32, "big")
-    assert ecssa_verify(msg_hash, pubkey, btclib_sig.serialize())
-    assert ecssa_verify(msg_hash, pubkey, libsecp256k1_sig)
     assert ssa.verify(msg, pubkey, btclib_sig.serialize())
-    assert ssa.verify(msg, pubkey, libsecp256k1_sig)
+    assert ssa.verify(msg, pubkey, btclib_sig)
+
+    if libsecp256k1.is_enabled():
+        msg_hash = reduce_to_hlen(msg)
+        libsecp256k1_sig = ecssa_sign(msg_hash, prvkey_int)
+        # assert btclib_sig.serialize() == libsecp256k1_sig
+        assert ecssa_verify(msg_hash, pubkey, btclib_sig.serialize())
+        assert ecssa_verify(msg_hash, pubkey, libsecp256k1_sig)
+        assert ssa.verify(msg, pubkey, libsecp256k1_sig)

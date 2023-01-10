@@ -46,8 +46,7 @@ def ecdsa_verify(msg_hash: bytes, pubkey: bytes, sig: bytes) -> int:
     sig_ptr = ffi.new("secp256k1_ecdsa_signature *")
     if not lib.secp256k1_ecdsa_signature_parse_der(ctx, sig_ptr, sig, len(sig)):
         raise BTClibRuntimeError("secp256k1_ecdsa_signature_parse_der failed")
-    if not lib.secp256k1_ecdsa_signature_normalize(ctx, sig_ptr, sig_ptr):
-        raise BTClibRuntimeError("secp256k1_ecdsa_signature_normalize failed")
+    lib.secp256k1_ecdsa_signature_normalize(ctx, sig_ptr, sig_ptr)
 
     pubkey_ptr = ffi.new("secp256k1_pubkey *")
     if not lib.secp256k1_ec_pubkey_parse(ctx, pubkey_ptr, pubkey, len(pubkey)):
