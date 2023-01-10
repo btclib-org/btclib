@@ -22,7 +22,7 @@ try:
 
     LIBSECP256K1_ENABLED = True
     # Keeping a single one of these is most efficient.
-    secp256k1_ctx = lib.secp256k1_context_create(
+    ctx = lib.secp256k1_context_create(
         lib.SECP256K1_CONTEXT_SIGN | lib.SECP256K1_CONTEXT_VERIFY
     )
 
@@ -42,12 +42,12 @@ def mult(num: bytes | int) -> Point:
     """Multiply the generator point."""
     privkey = num.to_bytes(32, "big") if isinstance(num, int) else num
     pubkey_ptr = ffi.new("secp256k1_pubkey *")
-    if not lib.secp256k1_ec_pubkey_create(secp256k1_ctx, pubkey_ptr, privkey):
+    if not lib.secp256k1_ec_pubkey_create(ctx, pubkey_ptr, privkey):
         raise BTClibRuntimeError("secp256k1_ec_pubkey_create failure")
     serialized_pubkey_ptr = ffi.new("char[65]")
     length = ffi.new("size_t *", 65)
     if not lib.secp256k1_ec_pubkey_serialize(
-        secp256k1_ctx, serialized_pubkey_ptr, length, pubkey_ptr, 2
+        ctx, serialized_pubkey_ptr, length, pubkey_ptr, 2
     ):
         raise BTClibRuntimeError(
             "secp256k1_ec_pubkey_serialize failure"
