@@ -22,7 +22,7 @@ import pytest
 from btclib.alias import INF, Point, String
 from btclib.bip32 import BIP32KeyData
 from btclib.ec import bytes_from_point, double_mult, libsecp256k1, mult
-from btclib.ec.curve import CURVES
+from btclib.ec.curve import CURVES, secp256k1
 from btclib.ecc import second_generator, ssa
 from btclib.ecc.libsecp256k1 import ecssa_sign, ecssa_verify
 from btclib.exceptions import BTClibRuntimeError, BTClibTypeError, BTClibValueError
@@ -728,7 +728,18 @@ def test_libsecp256k1() -> None:
     if libsecp256k1.is_enabled():
         msg_hash = reduce_to_hlen(msg)
         libsecp256k1_sig = ecssa_sign(msg_hash, prvkey_int)
-        # assert btclib_sig.serialize() == libsecp256k1_sig
+        assert len(libsecp256k1_sig) == 64
+        assert len(btclib_sig.serialize()) == 64
+        # assert btclib_sig.serialize() == libsecp256k1_sig  # FIXME
         assert ecssa_verify(msg_hash, pubkey, btclib_sig.serialize())
         assert ecssa_verify(msg_hash, pubkey, libsecp256k1_sig)
         assert ssa.verify(msg, pubkey, libsecp256k1_sig)
+
+        invalid_prvkey = secp256k1.p
+        err_msg = "secp256k1_keypair_create failed"
+        with pytest.raises(BTClibRuntimeError, match=err_msg):
+            ecssa_sign(msg_hash, invalid_prvkey)
+
+        err_msg = "secp256k1_ec_pubkey_parse failed"
+        with pytest.raises(BTClibRuntimeError, match=err_msg):
+            ecssa_verify(msg_hash, pubkey[1:], libsecp256k1_sig)

@@ -33,15 +33,17 @@ def ecdsa_sign(
     if not lib.secp256k1_ecdsa_sign(ctx, sig_ptr, msg_hash, prvkey, noncefc, ndata):
         raise BTClibRuntimeError("secp256k1_ecdsa_sign failed")
 
-    sig_der = ffi.new("char[73]")
+    sig_der = ffi.new("char[73]")  # FIXME shouldn't be 72?
     length = ffi.new("size_t *", 73)
     if not lib.secp256k1_ecdsa_signature_serialize_der(ctx, sig_der, length, sig_ptr):
-        raise BTClibRuntimeError("secp256k1_ecdsa_signature_serialize_der failed")
+        raise BTClibRuntimeError(  # pragma: no cover
+            "secp256k1_ecdsa_signature_serialize_der failed"
+        )
 
     return ffi.unpack(sig_der, length[0])
 
 
-def ecdsa_verify(msg_hash: bytes, pubkey: bytes, sig_der: bytes) -> int:
+def ecdsa_verify(msg_hash: bytes, pubkey: bytes, sig_der: bytes) -> bool:
     """Verify a ECDSA signature."""
     sig_ptr = ffi.new("secp256k1_ecdsa_signature *")
     if not lib.secp256k1_ecdsa_signature_parse_der(ctx, sig_ptr, sig_der, len(sig_der)):
@@ -72,10 +74,10 @@ def ecssa_sign(
     if lib.secp256k1_schnorrsig_sign(ctx, sig, msg_hash, keypair_ptr, aux_rand32):
         return ffi.unpack(sig, 64)
 
-    raise BTClibRuntimeError("secp256k1_schnorrsig_sign failed")
+    raise BTClibRuntimeError("secp256k1_schnorrsig_sign failed")  # pragma: no cover
 
 
-def ecssa_verify(msg_hash: bytes, pubkey: bytes, sig: bytes) -> int:
+def ecssa_verify(msg_hash: bytes, pubkey: bytes, sig: bytes) -> bool:
     """Verify a Schhnorr signature."""
     if len(pubkey) == 32:
         pubkey = b"\x02" + pubkey
@@ -88,7 +90,9 @@ def ecssa_verify(msg_hash: bytes, pubkey: bytes, sig: bytes) -> int:
     if not lib.secp256k1_xonly_pubkey_from_pubkey(
         ctx, xonly_pubkey_ptr, ffi.new("int *"), pubkey_ptr
     ):
-        raise BTClibRuntimeError("secp256k1_xonly_pubkey_from_pubkey failed")
+        raise BTClibRuntimeError(
+            "secp256k1_xonly_pubkey_from_pubkey failed"
+        )  # pragma: no cover
 
     return lib.secp256k1_schnorrsig_verify(
         ctx, sig, msg_hash, len(msg_hash), xonly_pubkey_ptr

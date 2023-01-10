@@ -305,4 +305,12 @@ def test_libsecp256k1() -> None:
 
         invalid_prvkey = secp256k1.p
         with pytest.raises(BTClibRuntimeError, match="secp256k1_ecdsa_sign failed"):
-            ecdsa_sign(b"\x00" * 32, invalid_prvkey, None)
+            ecdsa_sign(b"\x00" * 32, invalid_prvkey)
+
+        err_msg = "secp256k1_ecdsa_signature_parse_der failed"
+        with pytest.raises(BTClibRuntimeError, match=err_msg):
+            ecdsa_verify(msg_hash, pubkey, libsecp256k1_sig[1:])
+
+        err_msg = "secp256k1_ec_pubkey_parse failed"
+        with pytest.raises(BTClibRuntimeError, match=err_msg):
+            ecdsa_verify(msg_hash, pubkey[1:], libsecp256k1_sig)
