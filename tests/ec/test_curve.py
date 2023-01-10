@@ -29,7 +29,7 @@ from btclib.ecc import second_generator
 from btclib.exceptions import BTClibTypeError, BTClibValueError
 from btclib.number_theory import mod_sqrt
 
-# FIXME Curve repr should use "dedbeef 00000000", not "0xdedbeef00000000"
+# FIXME Curve repr should use "deadbeef 00000000", not "0xdeadbeef00000000"
 # FIXME test curves when n>p
 
 # test curves: very low cardinality
