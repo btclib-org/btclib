@@ -109,7 +109,8 @@ def test_signature() -> None:
 def test_gec() -> None:
     """GEC 2: Test Vectors for SEC 1, section 2.
 
-    http://read.pudn.com/downloads168/doc/772358/TestVectorsforSEC%201-gec2.pdf
+    http://read.pudn.com/downloads168/doc/772358/TestVectorsforSEC%201-
+    gec2.pdf
     """
     # 2.1.1 Scheme setup
     ec = CURVES["secp160r1"]

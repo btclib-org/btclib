@@ -102,7 +102,8 @@ def test_signature() -> None:
 def test_bip340_vectors() -> None:
     """BIP340 (Schnorr) test vectors.
 
-    https://github.com/bitcoin/bips/blob/master/bip-0340/test-vectors.csv
+    https://github.com/bitcoin/bips/blob/master/bip-0340/test-
+    vectors.csv
     """
     fname = "bip340_test_vectors.csv"
     filename = path.join(path.dirname(__file__), "_data", fname)
@@ -332,11 +333,13 @@ def test_batch_validation() -> None:
 def test_musig() -> None:
     """Testing 3-of-3 MuSig.
 
-    https://github.com/ElementsProject/secp256k1-zkp/blob/secp256k1-zkp/src/modules/musig/musig.md
-    https://blockstream.com/2019/02/18/musig-a-new-multisignature-standard/
-    https://eprint.iacr.org/2018/068
-    https://blockstream.com/2018/01/23/musig-key-aggregation-schnorr-signatures.html
-    https://medium.com/@snigirev.stepan/how-schnorr-signatures-may-improve-bitcoin-91655bcb4744
+    https://github.com/ElementsProject/secp256k1-zkp/blob/secp256k1-
+    zkp/src/modules/musig/musig.md
+    https://blockstream.com/2019/02/18/musig-a-new-multisignature-
+    standard/ https://eprint.iacr.org/2018/068
+    https://blockstream.com/2018/01/23/musig-key-aggregation-schnorr-
+    signatures.html https://medium.com/@snigirev.stepan/how-schnorr-
+    signatures-may-improve-bitcoin-91655bcb4744
     """
 
     ec = CURVES["secp256k1"]

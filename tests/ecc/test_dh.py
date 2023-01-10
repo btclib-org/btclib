@@ -62,7 +62,8 @@ def test_ecdh() -> None:
 def test_gec_2() -> None:
     """GEC 2: Test Vectors for SEC 1, section 4.1.
 
-    http://read.pudn.com/downloads168/doc/772358/TestVectorsforSEC%201-gec2.pdf
+    http://read.pudn.com/downloads168/doc/772358/TestVectorsforSEC%201-
+    gec2.pdf
     """
 
     # 4.1.1
@@ -118,8 +119,11 @@ def test_gec_2() -> None:
 def test_capv() -> None:
     """Component testing of the Cryptographic Algorithm Validation Program.
 
-    https://csrc.nist.gov/projects/cryptographic-algorithm-validation-program/component-testing
-    https://csrc.nist.gov/CSRC/media/Projects/Cryptographic-Algorithm-Validation-Program/documents/components/800-135testvectors/ansx963_2001.zip
+    https://csrc.nist.gov/projects/cryptographic-algorithm-validation-
+    program/component-testing
+    https://csrc.nist.gov/CSRC/media/Projects/Cryptographic-Algorithm-
+    Validation-
+    Program/documents/components/800-135testvectors/ansx963_2001.zip
     """
 
     # fmt: off
