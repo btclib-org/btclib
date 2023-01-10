@@ -295,6 +295,7 @@ def sign_(
     # private and public keys
     q, x_Q = gen_keys(prv_key, ec)
 
+    # FIXME relax nonce condition
     if ec == secp256k1 and nonce is None and hf == sha256 and libsecp256k1.is_enabled():
         return Sig.parse(ecssa_sign(msg_hash, q))
 

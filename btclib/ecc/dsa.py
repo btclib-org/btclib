@@ -258,8 +258,8 @@ def sign_(
 
     if (
         ec == secp256k1
-        and nonce is None
-        and lower_s
+        and nonce is None  # FIXME relax this one
+        and lower_s  # FIXME relax this one
         and hf == sha256
         and libsecp256k1.is_enabled()
     ):
@@ -350,10 +350,10 @@ def assert_as_valid_(
     else:
         sig = Sig.parse(sig)
 
-    if sig.ec == secp256k1 and lower_s and hf == sha256 and libsecp256k1.is_enabled():
+    if sig.ec == secp256k1 and hf == sha256 and libsecp256k1.is_enabled():
         msg_hash_bytes = bytes_from_octets(msg_hash)
         pubkey_bytes = pub_keyinfo_from_key(key)[0]
-        if not ecdsa_verify(msg_hash_bytes, pubkey_bytes, sig.serialize()):
+        if not ecdsa_verify(msg_hash_bytes, pubkey_bytes, sig.serialize(), lower_s):
             raise BTClibRuntimeError("libsecp256k1.ecdsa_verify failed")
         return
 
