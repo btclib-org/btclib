@@ -258,8 +258,8 @@ def sign_(
 
     if (
         ec == secp256k1
-        and nonce is None  # FIXME relax this one
-        and lower_s  # FIXME relax this one
+        and nonce is None  # FIXME manage nonce
+        and lower_s
         and hf == sha256
         and libsecp256k1.is_enabled()
     ):
