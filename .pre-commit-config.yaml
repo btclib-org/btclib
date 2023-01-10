@@ -69,8 +69,8 @@ repos:
         args: ["--profile", "black", "--filter-files"]
         language: python
         types: [python]
-  - repo: https://github.com/myint/docformatter
-    rev: v1.5.0
+  - repo: https://github.com/PyCQA/docformatter
+    rev: v1.5.1
     hooks:
       - id: docformatter
         description: "Formats docstrings to follow PEP 257."
@@ -135,7 +135,7 @@ repos:
         language: python
         types: [python]
   - repo: https://github.com/pycqa/pylint
-    rev: v2.15.9
+    rev: v2.15.10
     hooks:
       - id: pylint
         args: [
