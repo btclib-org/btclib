@@ -68,7 +68,7 @@ def test_mult_on_secp256k1() -> None:
         invalid_prvkey = secp256k1.p
         mult(invalid_prvkey)  # FIXME should throw
     else:
-        assert not libsecp256k1.is_available()
+        assert not libsecp256k1.is_available()  # pragma: no cover
 
 
 def test_exceptions() -> None:
