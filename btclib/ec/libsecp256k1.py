@@ -42,9 +42,9 @@ def is_available() -> bool:
 
 def mult(num: bytes | int) -> Point:
     """Multiply the generator point."""
-    privkey = num.to_bytes(32, "big") if isinstance(num, int) else num
+    prvkey = num.to_bytes(32, "big") if isinstance(num, int) else num
     pubkey_ptr = ffi.new("secp256k1_pubkey *")
-    if not lib.secp256k1_ec_pubkey_create(ctx, pubkey_ptr, privkey):
+    if not lib.secp256k1_ec_pubkey_create(ctx, pubkey_ptr, prvkey):
         raise BTClibRuntimeError("secp256k1_ec_pubkey_create failure")
     serialized_pubkey_ptr = ffi.new("char[65]")
     length = ffi.new("size_t *", 65)

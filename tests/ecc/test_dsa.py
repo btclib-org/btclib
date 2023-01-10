@@ -24,7 +24,7 @@ from btclib.ec import (
     mult,
     point_from_octets,
 )
-from btclib.ec.curve import CURVES
+from btclib.ec.curve import CURVES, secp256k1
 from btclib.ec.curve_group import _mult
 from btclib.ecc import dsa
 from btclib.ecc.libsecp256k1 import ecdsa_sign, ecdsa_verify
@@ -302,3 +302,7 @@ def test_libsecp256k1() -> None:
         assert ecdsa_verify(msg_hash, pubkey, btclib_sig.serialize())
         assert ecdsa_verify(msg_hash, pubkey, libsecp256k1_sig)
         assert dsa.verify(msg, pubkey, libsecp256k1_sig)
+
+        invalid_prvkey = secp256k1.p
+        with pytest.raises(BTClibRuntimeError, match="secp256k1_ecdsa_sign failed"):
+            ecdsa_sign(b"\x00" * 32, invalid_prvkey, None)

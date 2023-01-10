@@ -15,7 +15,15 @@ import secrets
 import pytest
 
 from btclib.alias import INF, INFJ
-from btclib.ec import Curve, double_mult, jac_from_aff, mult, multi_mult, secp256k1
+from btclib.ec import (
+    Curve,
+    double_mult,
+    jac_from_aff,
+    libsecp256k1,
+    mult,
+    multi_mult,
+    secp256k1,
+)
 from btclib.ec.curve import CURVES
 from btclib.ecc import second_generator
 from btclib.exceptions import BTClibTypeError, BTClibValueError
@@ -54,6 +62,11 @@ def test_mult_on_secp256k1() -> None:
     G_ = mult(secp256k1.n - 1)
     assert G_[0] == 0x79BE667EF9DCBBAC55A06295CE870B07029BFCDB2DCE28D959F2815B16F81798
     assert G_[1] == 0xB7C52588D95C3B9AA25B0403F1EEF75702E84BB7597AABE663B82F6F04EF2777
+
+    if libsecp256k1.is_enabled():
+        assert libsecp256k1.is_available()
+        invalid_prvkey = secp256k1.p
+        mult(invalid_prvkey)  # FIXME should throw
 
 
 def test_exceptions() -> None:
