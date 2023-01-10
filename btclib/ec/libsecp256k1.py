@@ -25,6 +25,8 @@ try:
     ctx = lib.secp256k1_context_create(
         lib.SECP256K1_CONTEXT_SIGN | lib.SECP256K1_CONTEXT_VERIFY
     )
+    EC_COMPRESSED = lib.SECP256K1_EC_COMPRESSED
+    EC_UNCOMPRESSED = lib.SECP256K1_EC_UNCOMPRESSED
 
 except ImportError:  # pragma: no cover
     LIBSECP256K1_AVAILABLE = False
@@ -46,11 +48,8 @@ def mult(num: bytes | int) -> Point:
         raise BTClibRuntimeError("secp256k1_ec_pubkey_create failure")
     serialized_pubkey_ptr = ffi.new("char[65]")
     length = ffi.new("size_t *", 65)
-    if not lib.secp256k1_ec_pubkey_serialize(
-        ctx, serialized_pubkey_ptr, length, pubkey_ptr, 2
-    ):
-        raise BTClibRuntimeError(
-            "secp256k1_ec_pubkey_serialize failure"
-        )  # pragma: no cover
+    lib.secp256k1_ec_pubkey_serialize(
+        ctx, serialized_pubkey_ptr, length, pubkey_ptr, EC_UNCOMPRESSED
+    )  # according to documentation, it always returns 1
     pubkey = ffi.unpack(serialized_pubkey_ptr, 65)
-    return int.from_bytes(pubkey[1:33], "big"), int.from_bytes(pubkey[34:], "big")
+    return int.from_bytes(pubkey[1:33], "big"), int.from_bytes(pubkey[33:], "big")

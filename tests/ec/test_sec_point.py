@@ -57,7 +57,8 @@ def test_octets2point() -> None:
         Q_bytes = b"\x03" if Q[1] & 1 else b"\x02"
         Q_bytes += Q[0].to_bytes(ec.p_size, byteorder="big", signed=False)
         Q_point = point_from_octets(Q_bytes, ec)
-        assert Q_point == Q
+        assert Q_point[0] == Q[0]
+        assert Q_point[1] == Q[1]
         assert bytes_from_point(Q_point, ec) == Q_bytes
 
         Q_hex_str = Q_bytes.hex()
