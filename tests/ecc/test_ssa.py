@@ -713,13 +713,16 @@ def test_libsecp256k1() -> None:
     if not libsecp256k1.is_enabled():
         pytest.skip()  # pragma: no cover
 
-    prvkey, X_Q = ssa.gen_keys(0x1)
-    pubkey_bytes = X_Q.to_bytes(32, "big")
     msg = b"Satoshi Nakamoto"
     msg_hash = reduce_to_hlen(msg)
 
-    libsecp256k1_sig = ecssa_sign(msg_hash, prvkey)
-    btclib_sig = ssa.sign_(msg_hash, prvkey)
+    prvkey_int, pubkey_int = ssa.gen_keys(0x1)
+    libsecp256k1_sig = ecssa_sign(msg_hash, prvkey_int)
+    btclib_sig = ssa.sign_(msg_hash, prvkey_int)
+    # assert btclib_sig.serialize() == libsecp256k1_sig
 
-    assert ecssa_verify(msg_hash, pubkey_bytes, btclib_sig.serialize())
-    assert ssa.verify(msg, X_Q, libsecp256k1_sig)
+    pubkey = pubkey_int.to_bytes(32, "big")
+    assert ecssa_verify(msg_hash, pubkey, btclib_sig.serialize())
+    assert ecssa_verify(msg_hash, pubkey, libsecp256k1_sig)
+    assert ssa.verify(msg, pubkey, btclib_sig.serialize())
+    assert ssa.verify(msg, pubkey, libsecp256k1_sig)
