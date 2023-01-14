@@ -20,13 +20,16 @@ LIBSECP256K1_ENABLED = False
 try:
     from secp256k1._libsecp256k1 import ffi, lib
 
+    # from btclib_libsecp256k1 import ffi, lib
+
     LIBSECP256K1_ENABLED = True
     # Keeping a single one of these is most efficient.
+    # ctx = lib.secp256k1_context_create(769)
     ctx = lib.secp256k1_context_create(
         lib.SECP256K1_CONTEXT_SIGN | lib.SECP256K1_CONTEXT_VERIFY
     )
-    EC_COMPRESSED = lib.SECP256K1_EC_COMPRESSED
-    EC_UNCOMPRESSED = lib.SECP256K1_EC_UNCOMPRESSED
+    EC_COMPRESSED = lib.SECP256K1_EC_COMPRESSED  # 258
+    EC_UNCOMPRESSED = lib.SECP256K1_EC_UNCOMPRESSED  # 2
 
 except ImportError:  # pragma: no cover
     LIBSECP256K1_AVAILABLE = False
