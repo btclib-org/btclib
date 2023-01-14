@@ -19,14 +19,11 @@ with contextlib.suppress(ImportError):
     from btclib.ec.libsecp256k1 import ctx, ffi, lib
 
 
-def ecdsa_sign(
-    msg_hash: bytes, prvkey_: bytes | int, ndata: bytes | None = None
-) -> bytes:
+def ecdsa_sign(msg_hash: bytes, prvkey_: bytes | int) -> bytes:
     """Create an ECDSA signature."""
     prv_key = prvkey_.to_bytes(32, "big") if isinstance(prvkey_, int) else prvkey_
-
     noncefc = ffi.NULL
-    ndata = b"\x00" * (32 - len(ndata)) + ndata if ndata else ffi.NULL
+    ndata = ffi.NULL
     sig_ptr = ffi.new("secp256k1_ecdsa_signature *")
     if not lib.secp256k1_ecdsa_sign(ctx, sig_ptr, msg_hash, prv_key, noncefc, ndata):
         raise BTClibRuntimeError("secp256k1_ecdsa_sign failed")

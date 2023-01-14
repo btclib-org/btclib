@@ -386,7 +386,10 @@ def test_p2ms_1() -> None:
     assert script_type == "p2ms"
     assert payload == script_pub_key[:-1]
     pub_keys: list[Key] = [pub_key0, pub_key1]
-    assert script_pub_key == ScriptPubKey.p2ms(1, pub_keys, lexi_sort=False).script
+    assert (
+        script_pub_key
+        == ScriptPubKey.p2ms(1, pub_keys, lexicographic_sorting=False).script
+    )
 
     err_msg = "invalid m in m-of-n: "
     with pytest.raises(BTClibValueError, match=err_msg):
@@ -470,8 +473,10 @@ def test_p2ms_2() -> None:
     mixed_pub_keys: list[Key] = [pub_key0, pub_key1, pub_key2]
 
     for pub_keys in (uncompressed_pub_keys, mixed_pub_keys):
-        for lexi_sort in (True, False):
-            script_pub_key = ScriptPubKey.p2ms(m, pub_keys, lexi_sort=lexi_sort).script
+        for lexicographic_sorting in (True, False):
+            script_pub_key = ScriptPubKey.p2ms(
+                m, pub_keys, lexicographic_sorting=lexicographic_sorting
+            ).script
             assert is_p2ms(script_pub_key)
             assert address(script_pub_key) == ""
             script_type, payload = type_and_payload(script_pub_key)
@@ -526,7 +531,7 @@ def test_bip67() -> None:
     for i in test_vectors:
         keys, addr = test_vectors[i]
 
-        script_pub_key = ScriptPubKey.p2ms(m, keys, lexi_sort=True).script
+        script_pub_key = ScriptPubKey.p2ms(m, keys, lexicographic_sorting=True).script
         assert is_p2ms(script_pub_key)
         assert address(script_pub_key) == ""
         script_type, payload = type_and_payload(script_pub_key)

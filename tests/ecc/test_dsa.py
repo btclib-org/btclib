@@ -319,7 +319,7 @@ def test_libsecp256k1() -> None:
             ecdsa_verify(msg_hash, pub_key[1:], libsecp256k1_sig)
 
 
-def test_libsecp256k1_py_vectors_ecda() -> None:
+def test_libsecp256k1_py_vectors_ecdsa() -> None:
     # https://github.com/rustyrussell/secp256k1-py/blob/master/tests/data/ecdsa_sig.json
 
     fname = "ecdsa_sig.json"
@@ -332,18 +332,43 @@ def test_libsecp256k1_py_vectors_ecda() -> None:
         msg_hash = bytes.fromhex(vector["msg"])
         assert len(msg_hash) == 32
         sig_raw = bytes.fromhex(vector["sig"])
-        assert len(sig_raw) in range(70, 73)
         prv_key = bytes.fromhex(vector["privkey"])
         assert len(prv_key) == 32
-
-        if libsecp256k1.is_enabled():
-            sig_der = ecdsa_sign(msg_hash, prv_key)
-            assert len(sig_der) + 1 == len(sig_raw)
-            assert sig_der == sig_raw[:-1]
-            pub_key = libsecp256k1.pubkey_from_prvkey(prv_key)
-            ecdsa_verify(msg_hash, pub_key, sig_der)
 
         sig = dsa.sign_(msg_hash, prv_key)
         assert sig.serialize() == sig_raw[:-1]
         pub_key = pub_keyinfo_from_prv_key(prv_key, compressed=True)[0]
         assert dsa.verify_(msg_hash, pub_key, sig)
+
+        if libsecp256k1.is_enabled():
+            sig_der = ecdsa_sign(msg_hash, prv_key)
+            assert sig_der == sig_raw[:-1]
+            pub_key = libsecp256k1.pubkey_from_prvkey(prv_key)
+            ecdsa_verify(msg_hash, pub_key, sig_der)
+
+
+def test_libsecp256k1_py_vectors_ecdsa_nonce() -> None:
+    # https://github.com/rustyrussell/secp256k1-py/blob/master/tests/data/ecdsa_custom_nonce_sig.json
+
+    fname = "ecdsa_custom_nonce_sig.json"
+    filename = path.join(path.dirname(__file__), "_data", fname)
+
+    with open(filename, encoding="ascii") as file_:
+        test_vectors = json.load(file_)["vectors"]
+
+    for vector in test_vectors:
+        msg_hash = bytes.fromhex(vector["msg"])
+        assert len(msg_hash) == 32
+        sig_raw = bytes.fromhex(vector["sig"])
+        nonce = bytes.fromhex(vector["nonce"])
+        prv_key = bytes.fromhex(vector["privkey"])
+        assert len(prv_key) == 32
+
+        sig = dsa.sign_(msg_hash, prv_key, nonce)
+        assert sig.serialize() == sig_raw
+        pub_key = pub_keyinfo_from_prv_key(prv_key, compressed=True)[0]
+        assert dsa.verify_(msg_hash, pub_key, sig)
+
+        if libsecp256k1.is_enabled():
+            pub_key = libsecp256k1.pubkey_from_prvkey(prv_key)
+            ecdsa_verify(msg_hash, pub_key, sig_raw)
