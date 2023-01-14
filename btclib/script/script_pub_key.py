@@ -385,12 +385,10 @@ class ScriptPubKey(Script):
     ) -> ScriptPubKey:
         """Return the m-of-n multi-sig ScriptPubKey of the provided keys.
 
-        BIP67 endorses lexicographic key sorting
-        of compressed key representation.
+        BIP67 endorses lexicographic sorting of compressed public keys.
 
-        Note that sorting uncompressed keys (leading 0x04 byte) results
-        in a different order than sorting the same keys in compressed
-        (leading 0x02 or 0x03 bytes) representation.
+        Note that sorting uncompressed keys (leading 0x04 byte) would
+        result in a different order.
 
         https://github.com/bitcoin/bips/blob/master/bip-0067.mediawiki
         """
