@@ -359,16 +359,17 @@ def test_libsecp256k1_py_vectors_ecdsa_nonce() -> None:
     for vector in test_vectors:
         msg_hash = bytes.fromhex(vector["msg"])
         assert len(msg_hash) == 32
-        sig_raw = bytes.fromhex(vector["sig"])
+        sig_der = bytes.fromhex(vector["sig"])
         nonce = bytes.fromhex(vector["nonce"])
+        assert len(nonce) == 32
         prv_key = bytes.fromhex(vector["privkey"])
         assert len(prv_key) == 32
 
         sig = dsa.sign_(msg_hash, prv_key, nonce)
-        assert sig.serialize() == sig_raw
+        assert sig.serialize() == sig_der
         pub_key = pub_keyinfo_from_prv_key(prv_key, compressed=True)[0]
-        assert dsa.verify_(msg_hash, pub_key, sig)
+        assert dsa.verify_(msg_hash, pub_key, sig_der)
 
         if libsecp256k1.is_enabled():
             pub_key = libsecp256k1.pubkey_from_prvkey(prv_key)
-            ecdsa_verify(msg_hash, pub_key, sig_raw)
+            ecdsa_verify(msg_hash, pub_key, sig_der)

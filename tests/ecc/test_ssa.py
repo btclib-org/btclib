@@ -45,24 +45,20 @@ def test_signature() -> None:
     msg_fake = b"Craig Wright"
     assert not ssa.verify(msg_fake, x_Q, sig)
     err_msg = (
-        r"signature verification failed|y_K is odd|libsecp256k1.ecssa_verify failed"
+        "libsecp256k1.ecssa_verify failed"
+        if libsecp256k1.is_enabled()
+        else "signature verification failed"
     )
     with pytest.raises(BTClibRuntimeError, match=err_msg):
         ssa.assert_as_valid(msg_fake, x_Q, sig)
 
     _, x_Q_fake = ssa.gen_keys(0x02)
     assert not ssa.verify(msg, x_Q_fake, sig)
-    err_msg = (
-        r"signature verification failed|y_K is odd|libsecp256k1.ecssa_verify failed"
-    )
     with pytest.raises(BTClibRuntimeError, match=err_msg):
         ssa.assert_as_valid(msg, x_Q_fake, sig)
 
     _, x_Q_fake = ssa.gen_keys(0x4)
     assert not ssa.verify(msg, x_Q_fake, sig)
-    err_msg = (  # FIXME 2 error messages for the case without libsecp256k1?!?
-        r"signature verification failed|y_K is odd|libsecp256k1.ecssa_verify failed"
-    )
     with pytest.raises(BTClibRuntimeError, match=err_msg):
         ssa.assert_as_valid(msg, x_Q_fake, sig)
 

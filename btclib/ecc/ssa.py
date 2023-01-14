@@ -346,14 +346,14 @@ def _assert_as_valid_(c: int, QJ: JacPoint, r: int, s: int, ec: Curve) -> None:
     # in Jacobian coordinates
     KJ = _double_mult(ec.n - c, QJ, s, ec.GJ, ec)
 
+    # Fail if x_K ≠ r
+    if KJ[0] != KJ[2] * KJ[2] * r % ec.p:
+        raise BTClibRuntimeError("signature verification failed")
+
     # Fail if infinite(KJ).
     # Fail if y_K is odd.
     if ec.y_aff_from_jac(KJ) % 2:
         raise BTClibRuntimeError("y_K is odd")
-
-    # Fail if x_K ≠ r
-    if KJ[0] != KJ[2] * KJ[2] * r % ec.p:
-        raise BTClibRuntimeError("signature verification failed")
 
 
 def assert_as_valid_(
