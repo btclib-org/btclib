@@ -380,13 +380,13 @@ class ScriptPubKey(Script):
         keys: Sequence[Key],
         network: str | None = None,
         compressed: bool | None = None,
-        lexi_sort: bool = True,
+        lexicographic_sorting: bool = True,
         check_validity: bool = True,
     ) -> ScriptPubKey:
         """Return the m-of-n multi-sig ScriptPubKey of the provided keys.
 
-        BIP67 endorses lexicographica key sorting
-        according to compressed key representation.
+        BIP67 endorses lexicographic key sorting
+        of compressed key representation.
 
         Note that sorting uncompressed keys (leading 0x04 byte) results
         in a different order than sorting the same keys in compressed
@@ -405,7 +405,7 @@ class ScriptPubKey(Script):
         pub_keys = [pub_key] + [
             pub_keyinfo_from_key(k, network, compressed)[0] for k in keys[1:]
         ]
-        if lexi_sort:
+        if lexicographic_sorting:
             pub_keys = sorted(pub_keys)
 
         script = serialize([op_int(m), *pub_keys, op_int(n), "OP_CHECKMULTISIG"])
