@@ -40,13 +40,13 @@ def is_available() -> bool:
     return LIBSECP256K1_AVAILABLE
 
 
-def pubkey_from_prvkey(prvkey: bytes | int, compressed: bool | None = None) -> Point:
+def pubkey_from_prvkey(prv_key: bytes | int, compressed: bool | None = None) -> bytes:
     """Derive public key from private key."""
-    prvkey = prvkey.to_bytes(32, "big") if isinstance(prvkey, int) else prvkey
+    prv_key = prv_key.to_bytes(32, "big") if isinstance(prv_key, int) else prv_key
     compressed = True if compressed is None else compressed
 
     pubkey_ptr = ffi.new("secp256k1_pubkey *")
-    if not lib.secp256k1_ec_pubkey_create(ctx, pubkey_ptr, prvkey):
+    if not lib.secp256k1_ec_pubkey_create(ctx, pubkey_ptr, prv_key):
         raise BTClibRuntimeError("secp256k1_ec_pubkey_create failure")
     length_ = 33 if compressed else 65
     serialized_pubkey_ptr = ffi.new(f"char[{length_}]")
@@ -63,5 +63,5 @@ def pubkey_from_prvkey(prvkey: bytes | int, compressed: bool | None = None) -> P
 
 def mult(num: bytes | int) -> Point:
     """Multiply the generator point."""
-    pubkey = pubkey_from_prvkey(num, compressed=False)
-    return int.from_bytes(pubkey[1:33], "big"), int.from_bytes(pubkey[33:], "big")
+    pub_key = pubkey_from_prvkey(num, compressed=False)
+    return int.from_bytes(pub_key[1:33], "big"), int.from_bytes(pub_key[33:], "big")

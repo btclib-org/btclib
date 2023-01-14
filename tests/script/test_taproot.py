@@ -67,8 +67,8 @@ def test_valid_script_path() -> None:
 
 
 def test_taproot_key_tweaking() -> None:
-    prvkey = 123456
-    pubkey = mult(prvkey)
+    prv_key = 123456
+    pub_key = mult(prv_key)
 
     script_trees = [
         None,
@@ -77,8 +77,8 @@ def test_taproot_key_tweaking() -> None:
     ]
 
     for script_tree in script_trees:
-        tweaked_prvkey = output_prvkey(prvkey, script_tree)
-        tweaked_pubkey = output_pubkey(pubkey, script_tree)[0]
+        tweaked_prvkey = output_prvkey(prv_key, script_tree)
+        tweaked_pubkey = output_pubkey(pub_key, script_tree)[0]
 
         assert tweaked_pubkey == mult(tweaked_prvkey)[0].to_bytes(32, "big")
 
@@ -101,16 +101,16 @@ def test_unspendable_script() -> None:
 
 def test_control_block() -> None:
     script_tree = [[(0xC0, ["OP_2"])], [(0xC0, ["OP_3"])]]
-    pubkey = output_pubkey(None, script_tree)[0]
+    pub_key = output_pubkey(None, script_tree)[0]
     script, control = input_script_sig(None, script_tree, 0)
-    assert check_output_pubkey(pubkey, serialize(script), control)
+    assert check_output_pubkey(pub_key, serialize(script), control)
 
-    prvkey = 123456
-    internal_pubkey = mult(prvkey)
+    prv_key = 123456
+    internal_pubkey = mult(prv_key)
     script_tree = [[(0xC0, ["OP_2"])], [(0xC0, ["OP_3"])]]
-    pubkey = output_pubkey(internal_pubkey, script_tree)[0]
+    pub_key = output_pubkey(internal_pubkey, script_tree)[0]
     script, control = input_script_sig(internal_pubkey, script_tree, 0)
-    assert check_output_pubkey(pubkey, serialize(script), control)
+    assert check_output_pubkey(pub_key, serialize(script), control)
 
 
 def convert_script_tree(script_tree: TaprootScriptTree) -> TaprootScriptTree:
@@ -128,11 +128,11 @@ def test_bip_test_vector() -> None:
         data = json.load(file_)["scriptPubKey"]
 
     for test in data:
-        pubkey = test["given"]["internalPubkey"]
+        pub_key = test["given"]["internalPubkey"]
         script_tree = convert_script_tree(test["given"]["scriptTree"])
 
-        tweaked_pubkey = output_pubkey(f"02{pubkey}", script_tree)[0]
-        address = b32.p2tr(f"02{pubkey}", script_tree)
+        tweaked_pubkey = output_pubkey(f"02{pub_key}", script_tree)[0]
+        address = b32.p2tr(f"02{pub_key}", script_tree)
 
         assert tweaked_pubkey.hex() == test["intermediary"]["tweakedPubkey"]
         assert address == test["expected"]["bip350Address"]

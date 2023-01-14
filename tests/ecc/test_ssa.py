@@ -721,9 +721,9 @@ def test_libsecp256k1() -> None:
     msg = b"Satoshi Nakamoto"
     prvkey_int, pubkey_int = ssa.gen_keys(0x1)
     btclib_sig = ssa.sign(msg, prvkey_int)
-    pubkey = pubkey_int.to_bytes(32, "big")
-    assert ssa.verify(msg, pubkey, btclib_sig.serialize())
-    assert ssa.verify(msg, pubkey, btclib_sig)
+    pub_key = pubkey_int.to_bytes(32, "big")
+    assert ssa.verify(msg, pub_key, btclib_sig.serialize())
+    assert ssa.verify(msg, pub_key, btclib_sig)
 
     if libsecp256k1.is_enabled():
         msg_hash = reduce_to_hlen(msg)
@@ -731,9 +731,9 @@ def test_libsecp256k1() -> None:
         assert len(libsecp256k1_sig) == 64
         assert len(btclib_sig.serialize()) == 64
         # assert btclib_sig.serialize() == libsecp256k1_sig  # FIXME
-        assert ecssa_verify(msg_hash, pubkey, btclib_sig.serialize())
-        assert ecssa_verify(msg_hash, pubkey, libsecp256k1_sig)
-        assert ssa.verify(msg, pubkey, libsecp256k1_sig)
+        assert ecssa_verify(msg_hash, pub_key, btclib_sig.serialize())
+        assert ecssa_verify(msg_hash, pub_key, libsecp256k1_sig)
+        assert ssa.verify(msg, pub_key, libsecp256k1_sig)
 
         invalid_prvkey = secp256k1.p
         err_msg = "secp256k1_keypair_create failed"
@@ -742,4 +742,4 @@ def test_libsecp256k1() -> None:
 
         err_msg = "secp256k1_ec_pubkey_parse failed"
         with pytest.raises(BTClibRuntimeError, match=err_msg):
-            ecssa_verify(msg_hash, pubkey[1:], libsecp256k1_sig)
+            ecssa_verify(msg_hash, pub_key[1:], libsecp256k1_sig)

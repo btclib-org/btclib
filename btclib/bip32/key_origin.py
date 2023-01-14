@@ -121,7 +121,7 @@ def assert_valid_hd_key_paths(hd_key_paths: Mapping[bytes, BIP32KeyOrigin]) -> N
     ):
         raise BTClibValueError("Duplicated key origin values in hd_key_paths")
     for pub_key, key_origin in hd_key_paths.items():
-        # test vector 6 contains an invalid pubkey
+        # test vector 6 contains an invalid pub_key
         # point_from_pub_key(pub_key)
         if len(pub_key) not in (78, 33, 65):
             err_msg = f"invalid public key length: {len(pub_key)}"

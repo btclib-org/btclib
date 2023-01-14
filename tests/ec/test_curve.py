@@ -80,36 +80,26 @@ def test_secp256k1_py_vectors() -> None:
     fname = "pubkey.json"
     filename = path.join(path.dirname(__file__), "_data", fname)
 
-    if libsecp256k1.is_enabled():
-        with open(filename, encoding="ascii") as file_:
-            test_vectors = json.load(file_)["vectors"]
-
-        for vector in test_vectors:
-            prvkey = bytes.fromhex(vector["seckey"])
-            assert len(prvkey) == 32
-            pubkey_uncp = bytes.fromhex(vector["pubkey"])
-            assert len(pubkey_uncp) == 65
-            pubkey_comp = bytes.fromhex(vector["compressed"])
-            assert len(pubkey_comp) == 33
-
-            assert (
-                libsecp256k1.pubkey_from_prvkey(prvkey, compressed=False) == pubkey_uncp
-            )
-            assert libsecp256k1.pubkey_from_prvkey(prvkey) == pubkey_comp
-
     with open(filename, encoding="ascii") as file_:
         test_vectors = json.load(file_)["vectors"]
 
     for vector in test_vectors:
-        prvkey = bytes.fromhex(vector["seckey"])
-        assert len(prvkey) == 32
+        prv_key = bytes.fromhex(vector["seckey"])
+        assert len(prv_key) == 32
         pubkey_uncp = bytes.fromhex(vector["pubkey"])
         assert len(pubkey_uncp) == 65
         pubkey_comp = bytes.fromhex(vector["compressed"])
         assert len(pubkey_comp) == 33
 
-        assert pub_keyinfo_from_prv_key(prvkey, compressed=False)[0] == pubkey_uncp
-        assert pub_keyinfo_from_prv_key(prvkey, compressed=True)[0] == pubkey_comp
+        if libsecp256k1.is_enabled():
+            assert (
+                libsecp256k1.pubkey_from_prvkey(prv_key, compressed=False)
+                == pubkey_uncp
+            )
+            assert libsecp256k1.pubkey_from_prvkey(prv_key) == pubkey_comp
+
+        assert pub_keyinfo_from_prv_key(prv_key, compressed=False)[0] == pubkey_uncp
+        assert pub_keyinfo_from_prv_key(prv_key, compressed=True)[0] == pubkey_comp
 
 
 def test_exceptions() -> None:

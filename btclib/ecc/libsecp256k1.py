@@ -23,12 +23,12 @@ def ecdsa_sign(
     msg_hash: bytes, prvkey_: bytes | int, ndata: bytes | None = None
 ) -> bytes:
     """Create an ECDSA signature."""
-    prvkey = prvkey_.to_bytes(32, "big") if isinstance(prvkey_, int) else prvkey_
+    prv_key = prvkey_.to_bytes(32, "big") if isinstance(prvkey_, int) else prvkey_
 
     noncefc = ffi.NULL
     ndata = b"\x00" * (32 - len(ndata)) + ndata if ndata else ffi.NULL
     sig_ptr = ffi.new("secp256k1_ecdsa_signature *")
-    if not lib.secp256k1_ecdsa_sign(ctx, sig_ptr, msg_hash, prvkey, noncefc, ndata):
+    if not lib.secp256k1_ecdsa_sign(ctx, sig_ptr, msg_hash, prv_key, noncefc, ndata):
         raise BTClibRuntimeError("secp256k1_ecdsa_sign failed")
 
     sig_der = ffi.new("char[73]")  # FIXME shouldn't be 72?
@@ -42,7 +42,7 @@ def ecdsa_sign(
 
 
 def ecdsa_verify(
-    msg_hash: bytes, pubkey: bytes, sig_der: bytes, lower_s: bool = True
+    msg_hash: bytes, pub_key: bytes, sig_der: bytes, lower_s: bool = True
 ) -> bool:
     """Verify a ECDSA signature."""
     sig_ptr = ffi.new("secp256k1_ecdsa_signature *")
@@ -53,7 +53,7 @@ def ecdsa_verify(
         lib.secp256k1_ecdsa_signature_normalize(ctx, sig_ptr, sig_ptr)
 
     pubkey_ptr = ffi.new("secp256k1_pubkey *")
-    if not lib.secp256k1_ec_pubkey_parse(ctx, pubkey_ptr, pubkey, len(pubkey)):
+    if not lib.secp256k1_ec_pubkey_parse(ctx, pubkey_ptr, pub_key, len(pub_key)):
         raise BTClibRuntimeError("secp256k1_ec_pubkey_parse failed")
 
     return lib.secp256k1_ecdsa_verify(ctx, sig_ptr, msg_hash, pubkey_ptr)
@@ -63,10 +63,10 @@ def ecssa_sign(
     msg_hash: bytes, prvkey_: bytes | int, aux_rand32: bytes | None = None
 ) -> bytes:
     """Create a Schnorr signature."""
-    prvkey = prvkey_.to_bytes(32, "big") if isinstance(prvkey_, int) else prvkey_
+    prv_key = prvkey_.to_bytes(32, "big") if isinstance(prvkey_, int) else prvkey_
 
     keypair_ptr = ffi.new("secp256k1_keypair *")
-    if not lib.secp256k1_keypair_create(ctx, keypair_ptr, prvkey):
+    if not lib.secp256k1_keypair_create(ctx, keypair_ptr, prv_key):
         raise BTClibRuntimeError("secp256k1_keypair_create failed")
 
     if not aux_rand32:
@@ -79,13 +79,13 @@ def ecssa_sign(
     raise BTClibRuntimeError("secp256k1_schnorrsig_sign failed")  # pragma: no cover
 
 
-def ecssa_verify(msg_hash: bytes, pubkey: bytes, sig: bytes) -> bool:
+def ecssa_verify(msg_hash: bytes, pub_key: bytes, sig: bytes) -> bool:
     """Verify a Schhnorr signature."""
-    if len(pubkey) == 32:
-        pubkey = b"\x02" + pubkey
+    if len(pub_key) == 32:
+        pub_key = b"\x02" + pub_key
 
     pubkey_ptr = ffi.new("secp256k1_pubkey *")
-    if not lib.secp256k1_ec_pubkey_parse(ctx, pubkey_ptr, pubkey, len(pubkey)):
+    if not lib.secp256k1_ec_pubkey_parse(ctx, pubkey_ptr, pub_key, len(pub_key)):
         raise BTClibRuntimeError("secp256k1_ec_pubkey_parse failed")
 
     xonly_pubkey_ptr = ffi.new("secp256k1_xonly_pubkey *")
