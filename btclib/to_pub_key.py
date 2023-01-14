@@ -103,7 +103,7 @@ def point_from_pub_key(pub_key: PubKey, ec: Curve = secp256k1) -> Point:
 #    ec = NETWORKS[net]['curve']
 #    return mult(q, ec.G, ec)
 
-
+# public key bytes representation, network
 PubkeyInfo = Tuple[bytes, str]
 
 

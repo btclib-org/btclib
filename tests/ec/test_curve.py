@@ -10,7 +10,9 @@
 
 """Tests for the `btclib.curve` module."""
 
+import json
 import secrets
+from os import path
 
 import pytest
 
@@ -28,6 +30,7 @@ from btclib.ec.curve import CURVES
 from btclib.ecc import second_generator
 from btclib.exceptions import BTClibTypeError, BTClibValueError
 from btclib.number_theory import mod_sqrt
+from btclib.to_pub_key import pub_keyinfo_from_key
 
 # FIXME Curve repr should use "deadbeef 00000000", not "0xdeadbeef00000000"
 # FIXME test curves when n>p
@@ -69,6 +72,68 @@ def test_mult_on_secp256k1() -> None:
         mult(invalid_prvkey)  # FIXME should throw
     else:
         assert not libsecp256k1.is_available()  # pragma: no cover
+
+
+def test_secp256k1_py_vectors() -> None:
+    # https://github.com/rustyrussell/secp256k1-py/blob/master/tests/data/pubkey.json
+
+    fname = "pubkey.json"
+    filename = path.join(path.dirname(__file__), "_data", fname)
+
+    if libsecp256k1.is_enabled():
+        with open(filename, encoding="ascii") as file_:
+            test_vectors = json.load(file_)["vectors"]
+
+        for vector in test_vectors:
+            prvkey = bytes.fromhex(vector["seckey"])
+            assert len(prvkey) == 32
+
+            pubkey_uncp = bytes.fromhex(vector["pubkey"])
+            assert len(pubkey_uncp) == 65
+            pubkey_comp = bytes.fromhex(vector["compressed"])
+            assert len(pubkey_comp) == 33
+
+            pubkey_ptr = libsecp256k1.ffi.new("secp256k1_pubkey *")
+            assert libsecp256k1.lib.secp256k1_ec_pubkey_create(
+                libsecp256k1.ctx, pubkey_ptr, prvkey
+            )
+
+            serialized_pubkey_ptr = libsecp256k1.ffi.new("char[65]")
+            length = libsecp256k1.ffi.new("size_t *", 65)
+            libsecp256k1.lib.secp256k1_ec_pubkey_serialize(
+                libsecp256k1.ctx,
+                serialized_pubkey_ptr,
+                length,
+                pubkey_ptr,
+                libsecp256k1.EC_UNCOMPRESSED,
+            )  # according to documentation, it always returns 1
+            assert libsecp256k1.ffi.unpack(serialized_pubkey_ptr, 65) == pubkey_uncp
+
+            serialized_pubkey_ptr = libsecp256k1.ffi.new("char[33]")
+            length = libsecp256k1.ffi.new("size_t *", 33)
+            libsecp256k1.lib.secp256k1_ec_pubkey_serialize(
+                libsecp256k1.ctx,
+                serialized_pubkey_ptr,
+                length,
+                pubkey_ptr,
+                libsecp256k1.EC_COMPRESSED,
+            )  # according to documentation, it always returns 1
+            assert libsecp256k1.ffi.unpack(serialized_pubkey_ptr, 33) == pubkey_comp
+
+    with open(filename, encoding="ascii") as file_:
+        test_vectors = json.load(file_)["vectors"]
+
+    for vector in test_vectors:
+        prvkey = bytes.fromhex(vector["seckey"])
+        assert len(prvkey) == 32
+
+        pubkey_uncp = bytes.fromhex(vector["pubkey"])
+        assert len(pubkey_uncp) == 65
+        pubkey_comp = bytes.fromhex(vector["compressed"])
+        assert len(pubkey_comp) == 33
+
+        assert pub_keyinfo_from_key(prvkey, compressed=False)[0] == pubkey_uncp
+        assert pub_keyinfo_from_key(prvkey, compressed=True)[0] == pubkey_comp
 
 
 def test_exceptions() -> None:
