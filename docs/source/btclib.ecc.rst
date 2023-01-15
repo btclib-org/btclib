@@ -44,10 +44,10 @@ btclib.ecc.pedersen module
    :undoc-members:
    :show-inheritance:
 
-btclib.ecc.rfc6979 module
+btclib.ecc.rfc6979_nonce module
 -------------------------
 
-.. automodule:: btclib.ecc.rfc6979
+.. automodule:: btclib.ecc.rfc6979_nonce
    :members:
    :undoc-members:
    :show-inheritance:

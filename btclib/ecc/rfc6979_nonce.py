@@ -24,7 +24,7 @@ to be a hindranceand and makes implementations harder to test.
 Moreover, reusing the same ephemeral key for a different message
 signed with the same private key reveal the private key!
 
-RFC6979 turns ECDSA into deterministic schemes by using a
+RFC6979 turns ECDSA and ECSSA into deterministic schemes by using a
 deterministic process for generating the nonce.
 The process fulfills the cryptographic characteristics in order to
 maintain the properties of verifiability and unforgeability
@@ -33,19 +33,34 @@ the signature private key, the mapping from input messages to the
 corresponding nonce values is computationally indistinguishable from
 what a randomly and uniformly chosen function (from the set of
 messages to the set of possible nonce values) would return.
+
+Please note that the Bitcoin protocol (BIP340) uses a different
+algorithm for the generation of the ephemeral key (see bip340_nonce.py).
 """
 
+import hashlib
 import hmac
 from hashlib import sha256
 
 from btclib.alias import HashF, Octets
 from btclib.ec import Curve, secp256k1
-from btclib.hashes import challenge_
 from btclib.to_prv_key import PrvKey, int_from_prv_key
-from btclib.utils import int_from_bits
+from btclib.utils import bytes_from_octets, int_from_bits
 
 
-def _rfc6979_(c: int, q: int, ec: Curve, hf: HashF) -> int:
+def challenge_(
+    msg_hash: Octets, ec: Curve = secp256k1, hf: HashF = hashlib.sha256
+) -> int:
+
+    # the message msg_hash: a hf_len array
+    hf_len = hf().digest_size
+    msg_hash = bytes_from_octets(msg_hash, hf_len)
+
+    # leftmost ec.nlen bits %= ec.n
+    return int_from_bits(msg_hash, ec.nlen) % ec.n
+
+
+def _rfc6979_nonce_(c: int, q: int, ec: Curve, hf: HashF) -> int:
     # https://tools.ietf.org/html/rfc6979 section 3.2
 
     # convert the private key q to an octet sequence of size n_size
@@ -69,29 +84,29 @@ def _rfc6979_(c: int, q: int, ec: Curve, hf: HashF) -> int:
             v = hmac.new(k, v, hf).digest()
             t += v
         # The following line would introduce a bias
-        # det_nonce = int.from_bytes(t, 'big') % ec.n
-        # det_nonce = int_from_bits(t, ec.nlen) % ec.n
+        # nonce = int.from_bytes(t, 'big') % ec.n
+        # nonce = int_from_bits(t, ec.nlen) % ec.n
         # In general, taking a uniformly random integer (like those
         # obtained from a hash function in the random oracle model)
         # modulo the curve order n would produce a biased result.
         # However, if the order n is sufficiently close to 2^hf_len,
         # then the bias is not observable: e.g.
         # for secp256k1 and sha256 1-n/2^256 it is about 1.27*2^-128
-        det_nonce = int_from_bits(t, ec.nlen)  # candidate det_nonce           # 3.2.h.3
-        if 0 < det_nonce < ec.n:  # acceptable values for det_nonce
-            return det_nonce  # successful candidate
+        nonce = int_from_bits(t, ec.nlen)  # candidate nonce           # 3.2.h.3
+        if 0 < nonce < ec.n:  # acceptable values for nonce
+            return nonce  # successful candidate
         k = hmac.new(k, v + b"\x00", hf).digest()
         v = hmac.new(k, v, hf).digest()
 
 
-def rfc6979_(
+def rfc6979_nonce_(
     msg_hash: Octets, prv_key: PrvKey, ec: Curve = secp256k1, hf: HashF = sha256
 ) -> int:
-    """Return a deterministic ephemeral key following RFC 6979.
+    """Return an RFC6979 deterministic ephemeral key (nonce).
 
     see https://tools.ietf.org/html/rfc6979 section 3.2
     """
     c = challenge_(msg_hash, ec, hf)
     q = int_from_prv_key(prv_key, ec)
 
-    return _rfc6979_(c, q, ec, hf)
+    return _rfc6979_nonce_(c, q, ec, hf)

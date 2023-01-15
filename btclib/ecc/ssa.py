@@ -14,10 +14,7 @@ This implementation is according to BIP340-Schnorr:
 
 https://github.com/bitcoin/bips/blob/master/bip-0340.mediawiki
 
-Differently from ECDSA, the BIP340-Schnorr scheme supports
-messages of size hf_size only.
-
-It also uses as public key the x-coordinate (field element)
+The BIP340-Schnorr scheme uses as public key the x-coordinate (field element)
 of the curve point associated to the private key 0 < q < n.
 Therefore, for sepcp256k1 the public key size is 32 bytes.
 Arguably, the knowledge of q as the discrete logarithm of Q
@@ -30,8 +27,8 @@ TaggedHash(tag, x) = SHA256(SHA256(tag)||SHA256(tag)||x)
 The rationale is to make BIP340 signatures invalid for anything else
 but Bitcoin and vice versa.
 
-TaggedHash is used for both the challenge (with tag 'BIPSchnorr')
-and the deterministic nonce (with tag 'BIPSchnorrDerive').
+TaggedHash is used for both the challenge (with tag 'BIP0340/challenge')
+and the deterministic nonce (with tag 'BIP0340/aux').
 
 To allow for secure batch verification of multiple signatures,
 BIP340-Schnorr uses a challenge that prevents public key recovery
@@ -39,7 +36,8 @@ from signature: c = TaggedHash('BIPSchnorr', x_k||x_Q||msg).
 
 A custom deterministic algorithm for the ephemeral key (nonce)
 is used for signing, instead of the RFC6979 standard:
-nonce = TaggedHash('BIPSchnorrDerive', q||msg)
+
+nonce = TaggedHash('BIP0340/aux', q||msg)
 
 Finally, BIP340-Schnorr adopts a robust [r][s] custom serialization
 format, instead of the loosely specified ASN.1 DER standard.
@@ -61,6 +59,7 @@ from btclib.alias import BinaryData, HashF, Integer, JacPoint, Octets, Point
 from btclib.bip32 import BIP32Key
 from btclib.ec import Curve, libsecp256k1, secp256k1
 from btclib.ec.curve_group import _double_mult, _mult, _multi_mult
+from btclib.ecc.bip340_nonce import _bip340_nonce_
 from btclib.ecc.libsecp256k1 import ecssa_sign, ecssa_verify
 from btclib.exceptions import BTClibRuntimeError, BTClibTypeError, BTClibValueError
 from btclib.hashes import reduce_to_hlen, tagged_hash
@@ -181,68 +180,6 @@ def gen_keys(prv_key: PrvKey | None = None, ec: Curve = secp256k1) -> tuple[int,
     return q, x_Q
 
 
-def _det_nonce_(
-    msg_hash: bytes, q: int, Q: int, aux: bytes, ec: Curve, hf: HashF
-) -> int:
-    # assume the random oracle model for the hash function,
-    # i.e. hash values can be considered uniformly random
-
-    # Note that in general, taking a uniformly random integer
-    # modulo the curve order n would produce a biased result.
-    # However, if the order n is sufficiently close to 2^hf_len,
-    # then the bias is not observable:
-    # e.g. for secp256k1 and sha256 1-n/2^256 it is about 1.27*2^-128
-    #
-    # the unbiased implementation is provided here,
-    # which works also for very-low-cardinality test curves
-    randomizer = tagged_hash(b"BIP0340/aux", aux, hf)
-    xor = q ^ int.from_bytes(randomizer, "big", signed=False)
-    max_len = max(ec.n_size, hf().digest_size)
-    t = b"".join(
-        [
-            xor.to_bytes(max_len, byteorder="big", signed=False),
-            Q.to_bytes(ec.p_size, byteorder="big", signed=False),
-            msg_hash,
-        ]
-    )
-
-    nonce_tag = b"BIP0340/nonce"
-    while True:
-        t = tagged_hash(nonce_tag, t, hf)
-        # The following lines would introduce a bias
-        # nonce = int.from_bytes(t, 'big') % ec.n
-        # nonce = int_from_bits(t, ec.nlen) % ec.n
-        # In general, taking a uniformly random integer (like those
-        # obtained from a hash function in the random oracle model)
-        # modulo the curve order n would produce a biased result.
-        # However, if the order n is sufficiently close to 2^hf_len,
-        # then the bias is not observable: e.g.
-        # for secp256k1 and sha256 1-n/2^256 it is about 1.27*2^-128
-        nonce = int_from_bits(t, ec.nlen)  # candidate nonce
-        if 0 < nonce < ec.n:  # acceptable value for nonce
-            return nonce  # successful candidate
-
-
-def det_nonce_(
-    msg_hash: Octets,
-    prv_key: PrvKey,
-    aux: Octets | None = None,
-    ec: Curve = secp256k1,
-    hf: HashF = sha256,
-) -> int:
-    """Return a BIP340 deterministic ephemeral key (nonce)."""
-    # the message msg_hash: a hf_len array
-    hf_len = hf().digest_size
-    msg_hash = bytes_from_octets(msg_hash, hf_len)
-
-    q, Q = gen_keys(prv_key, ec)
-
-    # the auxiliary random component
-    aux = secrets.token_bytes(hf_len) if aux is None else bytes_from_octets(aux)
-
-    return _det_nonce_(msg_hash, q, Q, aux, ec, hf)
-
-
 def challenge_(msg_hash: Octets, x_Q: int, x_K: int, ec: Curve, hf: HashF) -> int:
     # the message msg_hash: a hf_len array
     hf_len = hf().digest_size
@@ -301,7 +238,7 @@ def sign_(
 
     # nonce: an integer in the range 1..n-1.
     if nonce is None:
-        nonce = _det_nonce_(msg_hash, q, x_Q, secrets.token_bytes(hf_len), ec, hf)
+        nonce = _bip340_nonce_(msg_hash, q, x_Q, secrets.token_bytes(hf_len), ec, hf)
 
     nonce, x_K = gen_keys(nonce, ec)
 

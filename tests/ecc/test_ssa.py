@@ -23,7 +23,7 @@ from btclib.alias import INF, Point, String
 from btclib.bip32 import BIP32KeyData
 from btclib.ec import bytes_from_point, double_mult, libsecp256k1, mult
 from btclib.ec.curve import CURVES, secp256k1
-from btclib.ecc import second_generator, ssa
+from btclib.ecc import bip340_nonce_, second_generator, ssa
 from btclib.ecc.libsecp256k1 import ecssa_sign, ecssa_verify
 from btclib.exceptions import BTClibRuntimeError, BTClibTypeError, BTClibValueError
 from btclib.hashes import reduce_to_hlen
@@ -119,7 +119,7 @@ def test_bip340_vectors() -> None:
                     _, pub_key_actual = ssa.gen_keys(seckey)
                     assert pub_key == hex(pub_key_actual).upper()[2:], err_msg
 
-                    k = ssa.det_nonce_(m, seckey, aux_rand)
+                    k = bip340_nonce_(m, seckey, aux_rand)
                     sig_actual = ssa.sign_(m, seckey, k)
                     ssa.assert_as_valid_(m, pub_key, sig_actual)
                     assert ssa.Sig.parse(sig) == sig_actual, err_msg
@@ -241,7 +241,7 @@ def test_crack_prv_key() -> None:
 
     msg1 = b"Paolo is afraid of ephemeral random numbers"
     m_1 = reduce_to_hlen(msg1)
-    k = ssa.det_nonce_(m_1, q, aux=32 * b"\x01")  # remove any randomness
+    k = bip340_nonce_(m_1, q, aux=32 * b"\x01")  # remove any randomness
     sig1 = ssa.sign_(m_1, q, k)
 
     msg2 = b"and Paolo is right to be afraid"
@@ -597,8 +597,8 @@ def test_threshold() -> None:
     msg_hash = reduce_to_hlen(msg, hf)
 
     # 2.1 signer one acting as the dealer
-    k1 = ssa.det_nonce_(msg_hash, q1, None, ec, hf)
-    k1_prime = ssa.det_nonce_(msg_hash, q1_prime, None, ec, hf)
+    k1 = bip340_nonce_(msg_hash, q1, None, ec, hf)
+    k1_prime = bip340_nonce_(msg_hash, q1_prime, None, ec, hf)
     commits1 = [double_mult(k1_prime, H, k1, ec.G)]
     # sharing polynomials
     f1 = [k1]
@@ -621,8 +621,8 @@ def test_threshold() -> None:
     assert t == RHS, "signer one is cheating"
 
     # 2.2 signer three acting as the dealer
-    k3 = ssa.det_nonce_(msg_hash, q3, None, ec, hf)
-    k3_prime = ssa.det_nonce_(msg_hash, q3_prime, None, ec, hf)
+    k3 = bip340_nonce_(msg_hash, q3, None, ec, hf)
+    k3_prime = bip340_nonce_(msg_hash, q3_prime, None, ec, hf)
     commits3 = [double_mult(k3_prime, H, k3, ec.G)]
     # sharing polynomials
     f3 = [k3]

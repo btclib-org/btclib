@@ -31,9 +31,9 @@ from btclib.alias import BinaryData, HashF, JacPoint, Octets, Point
 from btclib.ec import Curve, libsecp256k1, secp256k1
 from btclib.ec.curve_group import _double_mult, _mult
 from btclib.ecc.libsecp256k1 import ecdsa_sign, ecdsa_verify
-from btclib.ecc.rfc6979 import _rfc6979_
+from btclib.ecc.rfc6979_nonce import _rfc6979_nonce_, challenge_
 from btclib.exceptions import BTClibRuntimeError, BTClibValueError
-from btclib.hashes import challenge_, reduce_to_hlen
+from btclib.hashes import reduce_to_hlen
 from btclib.number_theory import mod_inv
 from btclib.to_prv_key import PrvKey, int_from_prv_key
 from btclib.to_pub_key import Key, point_from_key, pub_keyinfo_from_key
@@ -270,7 +270,7 @@ def sign_(
 
     # nonce: an integer in the range 1..n-1.
     if nonce is None:
-        nonce = _rfc6979_(c, q, ec, hf)  # 1
+        nonce = _rfc6979_nonce_(c, q, ec, hf)  # 1
     else:
         nonce = int_from_prv_key(nonce, ec)
 

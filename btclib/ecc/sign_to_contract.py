@@ -39,7 +39,8 @@ from hashlib import sha256
 from btclib.alias import HashF, Octets, Point
 from btclib.ec import Curve, bytes_from_point, mult, secp256k1
 from btclib.ecc import dsa, ssa
-from btclib.ecc.rfc6979 import rfc6979_
+from btclib.ecc.bip340_nonce import bip340_nonce_
+from btclib.ecc.rfc6979_nonce import rfc6979_nonce_
 from btclib.hashes import reduce_to_hlen
 from btclib.to_prv_key import PrvKey, int_from_prv_key
 from btclib.to_pub_key import PubKey
@@ -78,7 +79,7 @@ def dsa_commit_sign_(
 ) -> tuple[dsa.Sig, Point]:
     """Include a commitment inside an EC DSA signature."""
     nonce = (
-        rfc6979_(msg_hash, prv_key, ec, hf)
+        rfc6979_nonce_(msg_hash, prv_key, ec, hf)
         if nonce is None
         else int_from_prv_key(nonce, ec)
     )
@@ -148,7 +149,7 @@ def ssa_commit_sign_(
 ) -> tuple[ssa.Sig, Point]:
     """Include a commitment inside an EC SSA signature."""
     nonce = (
-        ssa.det_nonce_(msg_hash, prv_key, aux=None, ec=ec, hf=hf)
+        bip340_nonce_(msg_hash, prv_key, aux=None, ec=ec, hf=hf)
         if nonce is None
         else int_from_prv_key(nonce, ec)
     )

@@ -12,9 +12,9 @@
 
 from __future__ import annotations
 
-from btclib.alias import INF, Integer, Point
+from btclib.alias import INF, Integer, Octets, Point
 from btclib.exceptions import BTClibRuntimeError
-from btclib.utils import int_from_integer
+from btclib.utils import bytes_from_octets, int_from_integer
 
 LIBSECP256K1_AVAILABLE = True
 LIBSECP256K1_ENABLED = False
@@ -44,9 +44,13 @@ def is_available() -> bool:
     return LIBSECP256K1_AVAILABLE
 
 
-def pubkey_from_prvkey(prv_key: bytes | int, compressed: bool | None = None) -> bytes:
+def pubkey_from_prvkey(prv_key: Octets | int, compressed: bool | None = None) -> bytes:
     """Derive public key from private key."""
-    prv_key = prv_key.to_bytes(32, "big") if isinstance(prv_key, int) else prv_key
+    prv_key = (
+        prv_key.to_bytes(32, "big")
+        if isinstance(prv_key, int)
+        else bytes_from_octets(prv_key, 32)
+    )
     compressed = True if compressed is None else compressed
 
     pubkey_ptr = ffi.new("secp256k1_pubkey *")
