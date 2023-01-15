@@ -58,6 +58,8 @@ ec23_31 = low_card_curves["ec23_31"]
 
 
 def test_mult_on_secp256k1() -> None:
+    assert mult(0) == INF
+
     G = mult(1)
     assert G[0] == 0x79BE667EF9DCBBAC55A06295CE870B07029BFCDB2DCE28D959F2815B16F81798
     assert G[1] == 0x483ADA7726A3C4655DA4FBFC0E1108A8FD17B448A68554199C47D08FFB10D4B8
@@ -430,7 +432,7 @@ def test_double_mult() -> None:
     assert double_mult(0, G, 0, H) == INF
     assert double_mult(1, G, 0, H) == G
     assert double_mult(0, G, 1, H) == H
-    for i in range(1, 3):
+    for i in range(-1, 3):
         for j in range(-1, 3):
             exp = secp256k1.add(mult(i), mult(j, H))
             assert exp == double_mult(i, G, j, H)
