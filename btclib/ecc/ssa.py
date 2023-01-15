@@ -346,6 +346,8 @@ def _assert_as_valid_(c: int, QJ: JacPoint, r: int, s: int, ec: Curve) -> None:
     # in Jacobian coordinates
     KJ = _double_mult(ec.n - c, QJ, s, ec.GJ, ec)
 
+    # The following check is prescribed by BIP340 but it is useless:
+    # if moved after 'Fail if x_K ≠ r' it would never be executed
     # Fail if infinite(KJ).
     # Fail if y_K is odd.
     if ec.y_aff_from_jac(KJ) % 2:

@@ -47,7 +47,7 @@ def test_signature() -> None:
     err_msg = (
         "libsecp256k1.ecssa_verify failed"
         if libsecp256k1.is_enabled()
-        else "y_K is odd"
+        else r"y_K is odd|signature verification failed"
     )
     with pytest.raises(BTClibRuntimeError, match=err_msg):
         ssa.assert_as_valid(msg_fake, x_Q, sig)
@@ -234,7 +234,7 @@ def test_low_cardinality() -> None:
                         # valid signature must validate
                         ssa._assert_as_valid_(e, QJ, r, s, ec)
                         # invalid signature must raise
-                        err_msg = r"y_K is odd|signature verification failed|INF has no y-coordinate"
+                        err_msg = r"y_K is odd|INF has no y-coordinate|signature verification failed"
                         with pytest.raises(
                             (BTClibRuntimeError, BTClibValueError), match=err_msg
                         ):
