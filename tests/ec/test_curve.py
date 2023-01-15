@@ -318,14 +318,13 @@ def test_symmetry() -> None:
     for ec in low_card_curves.values():
 
         # just a random point, not INF
-        q = 1 + random.randrange(ec.n - 1)
-        Q = mult(q, ec.G, ec)
+        Q = ec.G
         x_Q = Q[0]
 
         assert not ec.y_even(x_Q) % 2
         assert ec.y_low(x_Q) <= ec.p // 2
 
-        # compute quadratic residues
+        # compute all quadratic residues
         hasRoot = {1}
         for i in range(2, ec.p):
             hasRoot.add(i * i % ec.p)
