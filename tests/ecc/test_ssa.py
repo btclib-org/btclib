@@ -13,7 +13,7 @@
 from __future__ import annotations
 
 import csv
-import secrets
+import random
 from hashlib import sha256 as hf
 from os import path
 
@@ -31,12 +31,14 @@ from btclib.number_theory import mod_inv
 from btclib.utils import int_from_bits
 from tests.ec.test_curve import low_card_curves
 
+random.seed(42)
+
 
 def test_signature() -> None:
     msg = b"Satoshi Nakamoto"
-
+    aux = b"\x00" * 32
     q, x_Q = ssa.gen_keys(0x01)
-    sig = ssa.sign(msg, q)
+    sig = ssa.sign(msg, q, aux)
     ssa.assert_as_valid(msg, x_Q, sig)
     assert ssa.verify(msg, x_Q, sig)
     assert sig == ssa.Sig.parse(sig.serialize())
@@ -182,16 +184,18 @@ def test_low_cardinality() -> None:
         low_card_curves["ec23_31"],
     ]
 
+    aux = b"\x00" * 32
+    msg = b"\x01"
     # only low cardinality test curves or it would take forever
     for ec in test_curves:
         for q in range(1, ec.n // 2):  # all possible private keys
             q, x_Q, QJ = ssa.gen_keys_(q, ec)
             while True:
                 try:
-                    msg = secrets.token_bytes(32)
-                    sig = ssa.sign(msg, q, ec=ec)
+                    sig = ssa.sign(msg, q, aux, ec)
                     break
-                except BTClibRuntimeError:
+                except BTClibRuntimeError:  # invalid zero challenge
+                    msg += b"\x01"
                     continue
             ssa.assert_as_valid(msg, x_Q, sig)
             for k in range(1, ec.n // 2):  # all possible ephemeral keys
@@ -237,21 +241,22 @@ def test_batch_validation() -> None:
         ssa.assert_batch_as_valid(ms, Qs, sigs)
     assert not ssa.batch_verify(ms, Qs, sigs)
 
+    aux = b"\x00" * 32
     # valid size for String input to sign, not for Octets input to sign_
     msg_size = 16
-    ms.append(secrets.token_bytes(msg_size))
+    ms.append(random.randbytes(msg_size))
     q, Q = ssa.gen_keys()
     Qs.append(Q)
-    sigs.append(ssa.sign(ms[0], q))
+    sigs.append(ssa.sign(ms[0], q, aux))
     # test with only 1 sig
     ssa.assert_batch_as_valid(ms, Qs, sigs)
     assert ssa.batch_verify(ms, Qs, sigs)
     for _ in range(3):
-        m = secrets.token_bytes(msg_size)
+        m = random.randbytes(msg_size)
         ms.append(m)
         q, Q = ssa.gen_keys()
         Qs.append(Q)
-        sigs.append(ssa.sign(m, q))
+        sigs.append(ssa.sign(m, q, aux))
     ssa.assert_batch_as_valid(ms, Qs, sigs)
     assert ssa.batch_verify(ms, Qs, sigs)
 
@@ -681,19 +686,18 @@ def test_threshold() -> None:
 def test_libsecp256k1() -> None:
     msg = b"Satoshi Nakamoto"
     prvkey_int, pubkey_int = ssa.gen_keys(0x1)
-    btclib_sig = ssa.sign(msg, prvkey_int)
+    aux = b"\x00" * 32
+    btclib_sig = ssa.sign(msg, prvkey_int, aux)
     pub_key = pubkey_int.to_bytes(32, "big")
     assert ssa.verify(msg, pub_key, btclib_sig.serialize())
     assert ssa.verify(msg, pub_key, btclib_sig)
 
     if libsecp256k1.is_enabled():
         msg_hash = reduce_to_hlen(msg)
-        libsecp256k1_sig = ecssa_sign_(msg_hash, prvkey_int)
+        libsecp256k1_sig = ecssa_sign_(msg_hash, prvkey_int, aux)
         assert len(libsecp256k1_sig) == 64
         assert len(btclib_sig.serialize()) == 64
-        # FIXME secp256k1 ssa signature are not identical
-        # assert btclib_sig.serialize() == libsecp256k1_sig
-        assert ecssa_verify_(msg_hash, pub_key, btclib_sig.serialize())
+        assert btclib_sig.serialize() == libsecp256k1_sig
         assert ecssa_verify_(msg_hash, pub_key, libsecp256k1_sig)
         assert ssa.verify(msg, pub_key, libsecp256k1_sig)
 

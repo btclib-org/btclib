@@ -13,7 +13,7 @@
 
 import itertools
 import json
-import secrets
+import random
 from os import path
 
 import pytest
@@ -33,6 +33,8 @@ from btclib.ecc import second_generator
 from btclib.exceptions import BTClibRuntimeError, BTClibTypeError, BTClibValueError
 from btclib.number_theory import mod_sqrt
 from btclib.to_pub_key import pub_keyinfo_from_prv_key
+
+random.seed(42)
 
 # FIXME Curve repr should use "deadbeef 00000000", not "0xdeadbeef00000000"
 # FIXME test curves when n>p
@@ -171,7 +173,7 @@ def test_aff_jac_conversions() -> None:
     for ec in all_curves.values():
 
         # just a random point, not INF
-        q = 1 + secrets.randbelow(ec.n - 1)
+        q = 1 + random.randrange(ec.n - 1)
         Q = mult(q, ec.G, ec)
         QJ = jac_from_aff(Q)
         assert Q == ec.aff_from_jac(QJ)
@@ -240,7 +242,7 @@ def test_add_double_aff_jac() -> None:
     for ec in all_curves.values():
 
         # just a random point, not INF
-        q = 1 + secrets.randbelow(ec.n - 1)
+        q = 1 + random.randrange(ec.n - 1)
         Q = mult(q, ec.G, ec)
         QJ = jac_from_aff(Q)
 
@@ -276,7 +278,7 @@ def test_is_on_curve() -> None:
             ec.y(ec.p)
 
         # just a random point, not INF
-        q = 1 + secrets.randbelow(ec.n - 1)
+        q = 1 + random.randrange(ec.n - 1)
         Q = mult(q, ec.G, ec)
         with pytest.raises(BTClibValueError, match="y-coordinate not in 1..p-1: "):
             ec.is_on_curve((Q[0], ec.p))
@@ -286,7 +288,7 @@ def test_negate() -> None:
     for ec in all_curves.values():
 
         # just a random point, not INF
-        q = 1 + secrets.randbelow(ec.n - 1)
+        q = 1 + random.randrange(ec.n - 1)
         Q = mult(q, ec.G, ec)
         minus_Q = ec.negate(Q)
         assert ec.add(Q, minus_Q) == INF
@@ -316,7 +318,7 @@ def test_symmetry() -> None:
     for ec in low_card_curves.values():
 
         # just a random point, not INF
-        q = 1 + secrets.randbelow(ec.n - 1)
+        q = 1 + random.randrange(ec.n - 1)
         Q = mult(q, ec.G, ec)
         x_Q = Q[0]
 
@@ -402,7 +404,7 @@ def test_assorted_mult() -> None:
             K1K2 = ec.add(K1, K2)
             assert K1K2 == shamir
 
-            k3 = 1 + secrets.randbelow(ec.n - 1)
+            k3 = 1 + random.randrange(ec.n - 1)
             K3 = mult(k3, ec.G, ec)
             K1K2K3 = ec.add(K1K2, K3)
             assert ec.is_on_curve(K1K2K3)
@@ -410,7 +412,7 @@ def test_assorted_mult() -> None:
             assert ec.is_on_curve(boscoster)
             assert K1K2K3 == boscoster, k3
 
-            k4 = 1 + secrets.randbelow(ec.n - 1)
+            k4 = 1 + random.randrange(ec.n - 1)
             K4 = mult(k4, H, ec)
             K1K2K3K4 = ec.add(K1K2K3, K4)
             assert ec.is_on_curve(K1K2K3K4)

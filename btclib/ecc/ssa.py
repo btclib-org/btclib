@@ -358,57 +358,6 @@ def _recover_pub_key_(c: int, r: int, s: int, ec: Curve) -> int:
     return int(ec.x_aff_from_jac(QJ))
 
 
-def crack_prv_key_(
-    msg_hash1: Octets,
-    sig1: Sig | Octets,
-    msg_hash2: Octets,
-    sig2: Sig | Octets,
-    Q: BIP340PubKey,
-    hf: HashF = sha256,
-) -> tuple[int, int]:
-    if isinstance(sig1, Sig):
-        sig1.assert_valid()
-    else:
-        sig1 = Sig.parse(sig1)
-
-    if isinstance(sig2, Sig):
-        sig2.assert_valid()
-    else:
-        sig2 = Sig.parse(sig2)
-
-    ec = sig2.ec
-    if sig1.ec != ec:
-        raise BTClibValueError("not the same curve in signatures")
-    if sig1.r != sig2.r:
-        raise BTClibValueError("not the same r in signatures")
-    if sig1.s == sig2.s:
-        raise BTClibValueError("identical signatures")
-
-    x_Q = point_from_bip340pub_key(Q, ec)[0]
-
-    c_1 = challenge_(msg_hash1, x_Q, sig1.r, ec, hf)
-    c_2 = challenge_(msg_hash2, x_Q, sig2.r, ec, hf)
-    q = (sig1.s - sig2.s) * mod_inv(c_2 - c_1, ec.n) % ec.n
-    nonce = (sig1.s + c_1 * q) % ec.n
-    q, _ = gen_keys(q)
-    nonce, _ = gen_keys(nonce)
-    return q, nonce
-
-
-def crack_prv_key(
-    msg1: Octets,
-    sig1: Sig | Octets,
-    msg2: Octets,
-    sig2: Sig | Octets,
-    Q: BIP340PubKey,
-    hf: HashF = sha256,
-) -> tuple[int, int]:
-    msg_hash1 = reduce_to_hlen(msg1, hf)
-    msg_hash2 = reduce_to_hlen(msg2, hf)
-
-    return crack_prv_key_(msg_hash1, sig1, msg_hash2, sig2, Q, hf)
-
-
 def _err_msg(size: int, msgs_or_sigs: str, arg2: Sequence[Octets | Sig]) -> str:
     err_msg = f"mismatch between number of pub_keys ({size}) "
     return f"{err_msg} and number of {msgs_or_sigs} ({len(arg2)})"

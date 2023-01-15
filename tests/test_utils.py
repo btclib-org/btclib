@@ -10,20 +10,19 @@
 
 """Tests for the `btclib.utils` module."""
 
-# Standard library imports
-import secrets
+import random
 
-# Third party imports
 import pytest
 
-# Library imports
 from btclib.exceptions import BTClibValueError
 from btclib.utils import decode_num, encode_num, hex_string, int_from_integer
+
+random.seed(42)
 
 
 def test_int_from_integer() -> None:
     for i in (
-        secrets.randbits(256 - 8),
+        random.getrandbits(256 - 8),
         0x0B6CA75B7D3076C561958CCED813797F6D2275C7F42F3856D007D587769A90,
     ):
         assert i == int_from_integer(i)

@@ -129,8 +129,11 @@ repos:
     hooks:
       - id: bandit
         name: bandit (tests)
-        # disable B101 (Test for use of assert) for the tests folder
-        args: ["--skip", "B101"]
+        # for the test folder disable
+        # B101, Test for use of assert
+        # B311, Standard pseudo-random generators are not suitable
+        #       for security/cryptographic purposes
+        args: ["--skip", "B101,B311"]
         exclude: btclib
         language: python
         types: [python]

@@ -10,13 +10,15 @@
 
 """Tests for the `btclib.sign_to_contract` module."""
 
-import secrets
+import random
 from hashlib import sha1, sha256
 
 from btclib.ec import secp256k1
 from btclib.ec.curve import CURVES
 from btclib.ecc import dsa
 from btclib.ecc.sign_to_contract import dsa_commit_sign, dsa_verify_commit
+
+random.seed(42)
 
 
 def test_sign_to_contract_dsa() -> None:
@@ -34,7 +36,7 @@ def test_sign_to_contract_dsa() -> None:
                 commit_msg, receipt, msg, pub_key, dsa_sig, lower_s, hf
             )
 
-            nonce = 1 + secrets.randbelow(ec.n - 1)
+            nonce = 1 + random.randrange(ec.n - 1)
             dsa_sig, R = dsa_commit_sign(commit_msg, msg, prv_key, nonce, ec, hf)
             dsa.assert_as_valid(msg, pub_key, dsa_sig, lower_s, hf)
             assert dsa_verify_commit(commit_msg, R, msg, pub_key, dsa_sig, lower_s, hf)

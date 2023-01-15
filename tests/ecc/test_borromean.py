@@ -10,15 +10,17 @@
 
 """Tests for the `btclib.borromean` module."""
 
-import secrets
+import random
 
 from btclib.ecc import borromean, dsa
+
+random.seed(42)
 
 
 def test_borromean() -> None:
     nring = 4  # FIXME randomize; minimum number of rings?
-    ring_sizes = [1 + secrets.randbelow(7) for _ in range(nring)]
-    sign_key_idx = [secrets.randbelow(size) for size in ring_sizes]
+    ring_sizes = [1 + random.randrange(7) for _ in range(nring)]
+    sign_key_idx = [random.randrange(size) for size in ring_sizes]
 
     key_rings = [[dsa.gen_keys() for _ in range(ring_sizes[i])] for i in range(nring)]
     sign_keys = [key_rings[i][sign_key_idx[i]][0] for i in range(nring)]
