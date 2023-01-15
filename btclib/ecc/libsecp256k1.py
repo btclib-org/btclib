@@ -19,7 +19,7 @@ with contextlib.suppress(ImportError):
     from btclib.ec.libsecp256k1 import ctx, ffi, lib
 
 
-def ecdsa_sign(msg_hash: bytes, prvkey_: bytes | int) -> bytes:
+def ecdsa_sign_(msg_hash: bytes, prvkey_: bytes | int) -> bytes:
     """Create an ECDSA signature."""
     prv_key = prvkey_.to_bytes(32, "big") if isinstance(prvkey_, int) else prvkey_
     noncefc = ffi.NULL
@@ -39,7 +39,7 @@ def ecdsa_sign(msg_hash: bytes, prvkey_: bytes | int) -> bytes:
     return ffi.unpack(sig_der, length[0])
 
 
-def ecdsa_verify(
+def ecdsa_verify_(
     msg_hash: bytes, pub_key: bytes, sig_der: bytes, lower_s: bool = True
 ) -> bool:
     """Verify a ECDSA signature."""
@@ -57,7 +57,7 @@ def ecdsa_verify(
     return lib.secp256k1_ecdsa_verify(ctx, sig_ptr, msg_hash, pubkey_ptr)
 
 
-def ecssa_sign(
+def ecssa_sign_(
     msg_hash: bytes, prvkey_: bytes | int, aux_rand32: bytes | None = None
 ) -> bytes:
     """Create a Schnorr signature."""
@@ -77,7 +77,7 @@ def ecssa_sign(
     raise BTClibRuntimeError("secp256k1_schnorrsig_sign failed")  # pragma: no cover
 
 
-def ecssa_verify(msg_hash: bytes, pub_key: bytes, sig: bytes) -> bool:
+def ecssa_verify_(msg_hash: bytes, pub_key: bytes, sig: bytes) -> bool:
     """Verify a Schhnorr signature."""
     if len(pub_key) == 32:
         pub_key = b"\x02" + pub_key

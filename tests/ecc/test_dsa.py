@@ -29,7 +29,7 @@ from btclib.ec import (
 from btclib.ec.curve import CURVES, secp256k1
 from btclib.ec.curve_group import _mult
 from btclib.ecc import dsa
-from btclib.ecc.libsecp256k1 import ecdsa_sign, ecdsa_verify
+from btclib.ecc.libsecp256k1 import ecdsa_sign_, ecdsa_verify_
 from btclib.exceptions import BTClibRuntimeError, BTClibValueError
 from btclib.hashes import reduce_to_hlen
 from btclib.number_theory import mod_inv
@@ -68,13 +68,13 @@ def test_signature() -> None:
 
     msg_fake = b"Craig Wright"
     assert not dsa.verify(msg_fake, Q, sig)
-    err_msg = "signature verification failed|libsecp256k1.ecdsa_verify failed"
+    err_msg = "signature verification failed|libsecp256k1.ecdsa_verify_ failed"
     with pytest.raises(BTClibRuntimeError, match=err_msg):
         dsa.assert_as_valid(msg_fake, Q, sig)
 
     _, Q_fake = dsa.gen_keys()
     assert not dsa.verify(msg, Q_fake, sig)
-    err_msg = "signature verification failed|libsecp256k1.ecdsa_verify failed"
+    err_msg = "signature verification failed|libsecp256k1.ecdsa_verify_ failed"
     with pytest.raises(BTClibRuntimeError, match=err_msg):
         dsa.assert_as_valid(msg, Q_fake, sig)
 
@@ -300,23 +300,23 @@ def test_libsecp256k1() -> None:
 
     if libsecp256k1.is_enabled():
         msg_hash = reduce_to_hlen(msg)
-        libsecp256k1_sig = ecdsa_sign(msg_hash, prvkey_int)
+        libsecp256k1_sig = ecdsa_sign_(msg_hash, prvkey_int)
         assert btclib_sig.serialize() == libsecp256k1_sig
-        assert ecdsa_verify(msg_hash, pub_key, btclib_sig.serialize())
-        assert ecdsa_verify(msg_hash, pub_key, libsecp256k1_sig)
+        assert ecdsa_verify_(msg_hash, pub_key, btclib_sig.serialize())
+        assert ecdsa_verify_(msg_hash, pub_key, libsecp256k1_sig)
         assert dsa.verify_(msg_hash, pub_key, libsecp256k1_sig)
 
         invalid_prvkey = secp256k1.p
         with pytest.raises(BTClibRuntimeError, match="secp256k1_ecdsa_sign failed"):
-            ecdsa_sign(b"\x00" * 32, invalid_prvkey)
+            ecdsa_sign_(b"\x00" * 32, invalid_prvkey)
 
         err_msg = "secp256k1_ecdsa_signature_parse_der failed"
         with pytest.raises(BTClibRuntimeError, match=err_msg):
-            ecdsa_verify(msg_hash, pub_key, libsecp256k1_sig[1:])
+            ecdsa_verify_(msg_hash, pub_key, libsecp256k1_sig[1:])
 
         err_msg = "secp256k1_ec_pubkey_parse failed"
         with pytest.raises(BTClibRuntimeError, match=err_msg):
-            ecdsa_verify(msg_hash, pub_key[1:], libsecp256k1_sig)
+            ecdsa_verify_(msg_hash, pub_key[1:], libsecp256k1_sig)
 
 
 def test_libsecp256k1_py_vectors_ecdsa() -> None:
@@ -341,10 +341,10 @@ def test_libsecp256k1_py_vectors_ecdsa() -> None:
         assert dsa.verify_(msg_hash, pub_key, sig)
 
         if libsecp256k1.is_enabled():
-            sig_der = ecdsa_sign(msg_hash, prv_key)
+            sig_der = ecdsa_sign_(msg_hash, prv_key)
             assert sig_der == sig_raw[:-1]
             pub_key = libsecp256k1.pubkey_from_prvkey(prv_key)
-            ecdsa_verify(msg_hash, pub_key, sig_der)
+            ecdsa_verify_(msg_hash, pub_key, sig_der)
 
 
 def test_libsecp256k1_py_vectors_ecdsa_nonce() -> None:
@@ -372,4 +372,4 @@ def test_libsecp256k1_py_vectors_ecdsa_nonce() -> None:
 
         if libsecp256k1.is_enabled():
             pub_key = libsecp256k1.pubkey_from_prvkey(prv_key)
-            ecdsa_verify(msg_hash, pub_key, sig_der)
+            ecdsa_verify_(msg_hash, pub_key, sig_der)

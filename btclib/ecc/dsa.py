@@ -30,7 +30,7 @@ from btclib import var_bytes
 from btclib.alias import BinaryData, HashF, JacPoint, Octets, Point
 from btclib.ec import Curve, libsecp256k1, secp256k1
 from btclib.ec.curve_group import _double_mult, _mult
-from btclib.ecc.libsecp256k1 import ecdsa_sign, ecdsa_verify
+from btclib.ecc.libsecp256k1 import ecdsa_sign_, ecdsa_verify_
 from btclib.ecc.rfc6979_nonce import _rfc6979_nonce_, challenge_
 from btclib.exceptions import BTClibRuntimeError, BTClibValueError
 from btclib.hashes import reduce_to_hlen
@@ -263,7 +263,7 @@ def sign_(
         and hf == sha256
         and libsecp256k1.is_enabled()
     ):
-        return Sig.parse(ecdsa_sign(msg_hash, q))
+        return Sig.parse(ecdsa_sign_(msg_hash, q))
 
     # the challenge
     c = challenge_(msg_hash, ec, hf)  # 4, 5
@@ -353,8 +353,8 @@ def assert_as_valid_(
     if sig.ec == secp256k1 and hf == sha256 and libsecp256k1.is_enabled():
         msg_hash_bytes = bytes_from_octets(msg_hash)
         pubkey_bytes = pub_keyinfo_from_key(key)[0]
-        if not ecdsa_verify(msg_hash_bytes, pubkey_bytes, sig.serialize(), lower_s):
-            raise BTClibRuntimeError("libsecp256k1.ecdsa_verify failed")
+        if not ecdsa_verify_(msg_hash_bytes, pubkey_bytes, sig.serialize(), lower_s):
+            raise BTClibRuntimeError("libsecp256k1.ecdsa_verify_ failed")
         return
 
     c = challenge_(msg_hash, sig.ec, hf)  # 2, 3
