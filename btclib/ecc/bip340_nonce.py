@@ -83,7 +83,7 @@ def bip340_nonce_(
     aux: Octets | None = None,
     ec: Curve = secp256k1,
     hf: HashF = sha256,
-) -> int:
+) -> tuple[int, int, int, int]:
     """Return a BIP340 deterministic ephemeral key (nonce)."""
     # the message msg_hash: a hf_len array
     hf_len = hf().digest_size
@@ -95,7 +95,11 @@ def bip340_nonce_(
     if y_Q % 2:
         q = ec.n - q
 
-    # the auxiliary random component
     aux = secrets.token_bytes(hf_len) if aux is None else bytes_from_octets(aux, hf_len)
 
-    return _bip340_nonce_(msg_hash, q, x_Q, aux, ec, hf)
+    k = _bip340_nonce_(msg_hash, q, x_Q, aux, ec, hf)
+    x_K, y_K = mult(k, ec=ec)
+    if y_K % 2:
+        k = ec.n - k
+
+    return k, x_K, q, x_Q

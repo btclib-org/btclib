@@ -60,7 +60,7 @@ from btclib.bip32 import BIP32Key
 from btclib.ec import Curve, libsecp256k1, secp256k1
 from btclib.ec.curve import mult
 from btclib.ec.curve_group import _double_mult, _mult, _multi_mult
-from btclib.ecc.bip340_nonce import _bip340_nonce_
+from btclib.ecc.bip340_nonce import bip340_nonce_
 from btclib.ecc.libsecp256k1 import ecssa_sign_, ecssa_verify_
 from btclib.exceptions import BTClibRuntimeError, BTClibTypeError, BTClibValueError
 from btclib.hashes import reduce_to_hlen, tagged_hash
@@ -219,20 +219,19 @@ def sign_(
     # the message msg_hash: a hf_len array
     hf_len = hf().digest_size
     msg_hash = bytes_from_octets(msg_hash, hf_len)
-    q, x_Q = gen_keys(prv_key, ec)
+
     aux = secrets.token_bytes(hf_len) if aux is None else bytes_from_octets(aux, hf_len)
 
     if ec == secp256k1 and hf == sha256 and libsecp256k1.is_enabled():
-        return Sig.parse(ecssa_sign_(msg_hash, q, aux))
+        return Sig.parse(ecssa_sign_(msg_hash, prv_key, aux))
 
-    # nonce: an integer in the range 1..n-1.
-    nonce = _bip340_nonce_(msg_hash, q, x_Q, aux, ec, hf)
-    nonce, x_K = gen_keys(nonce, ec)
+    # k is the nonce: an integer in the range 1..n-1.
+    k, x_K, q, x_Q = bip340_nonce_(msg_hash, prv_key, aux, ec, hf)
 
     # the challenge
     c = challenge_(msg_hash, x_Q, x_K, ec, hf)
 
-    return _sign_(c, q, nonce, x_K, ec)
+    return _sign_(c, q, k, x_K, ec)
 
 
 def sign(

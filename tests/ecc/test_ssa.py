@@ -187,7 +187,7 @@ def test_low_cardinality() -> None:
     # only low cardinality test curves or it would take forever
     for ec in test_curves:
         for q in range(1, ec.n // 2):  # all possible private keys
-            q, x_Q = ssa.gen_keys(q, ec)
+            q_fixed, x_Q = ssa.gen_keys(q, ec)
             QJ = jac_from_aff((x_Q, ec.y_even(x_Q)))
             while True:
                 try:
@@ -198,14 +198,14 @@ def test_low_cardinality() -> None:
                     continue
             ssa.assert_as_valid(msg, x_Q, sig)
             for k in range(1, ec.n // 2):  # all possible ephemeral keys
-                k, r = ssa.gen_keys(k, ec)
+                k_fixed, r = ssa.gen_keys(k, ec)
                 for e in range(ec.n):  # all possible challenges
-                    s = (k + e * q) % ec.n
+                    s = (k_fixed + e * q_fixed) % ec.n
 
                     if e == 0:
                         err_msg = "invalid zero challenge"
                         with pytest.raises(BTClibRuntimeError, match=err_msg):
-                            ssa._sign_(e, q, k, r, ec)
+                            ssa._sign_(e, q_fixed, k_fixed, r, ec)
                         # no public key can be recovered
                         with pytest.raises(BTClibRuntimeError, match=err_msg):
                             ssa._recover_pub_key_(e, r, s, ec)
@@ -215,7 +215,7 @@ def test_low_cardinality() -> None:
                         #  for all {q, Q}
                         ssa._assert_as_valid_(e, ec.GJ, r, s, ec)
                     else:
-                        sig = ssa._sign_(e, q, k, r, ec)
+                        sig = ssa._sign_(e, q_fixed, k_fixed, r, ec)
                         # recover pub_key
                         assert x_Q == ssa._recover_pub_key_(e, r, s, ec)
 
@@ -559,8 +559,8 @@ def test_threshold() -> None:
     msg_hash = reduce_to_hlen(msg, hf)
 
     # 2.1 signer one acting as the dealer
-    k1 = bip340_nonce_(msg_hash, q1, None, ec, hf)
-    k1_prime = bip340_nonce_(msg_hash, q1_prime, None, ec, hf)
+    k1, _, _, _ = bip340_nonce_(msg_hash, q1, None, ec, hf)
+    k1_prime, _, _, _ = bip340_nonce_(msg_hash, q1_prime, None, ec, hf)
     commits1 = [double_mult(k1_prime, H, k1, ec.G)]
     # sharing polynomials
     f1 = [k1]
@@ -583,8 +583,8 @@ def test_threshold() -> None:
     assert t == RHS, "signer one is cheating"
 
     # 2.2 signer three acting as the dealer
-    k3 = bip340_nonce_(msg_hash, q3, None, ec, hf)
-    k3_prime = bip340_nonce_(msg_hash, q3_prime, None, ec, hf)
+    k3, _, _, _ = bip340_nonce_(msg_hash, q3, None, ec, hf)
+    k3_prime, _, _, _ = bip340_nonce_(msg_hash, q3_prime, None, ec, hf)
     commits3 = [double_mult(k3_prime, H, k3, ec.G)]
     # sharing polynomials
     f3 = [k3]
