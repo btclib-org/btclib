@@ -25,7 +25,7 @@ from btclib.to_prv_key import PrvKey, int_from_prv_key
 from btclib.to_pub_key import Key, pub_keyinfo_from_key
 from btclib.utils import bytes_from_octets
 
-# TODO: add type hinting to script_tree
+# TODO add type hinting to script_tree
 # unfortunately recursive type hinting is not supported
 # https://github.com/python/mypy/issues/731
 # TaprootLeaf = Tuple[int, Script]

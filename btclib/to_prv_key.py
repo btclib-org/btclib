@@ -174,7 +174,7 @@ def _prv_keyinfo_from_xprvwif(
     Support WIF or BIP32 xprv.
     """
     if not isinstance(xprvwif, BIP32KeyData):
-        # FIXME: except the NotPrvKeyError only, let InvalidPrvKey go through
+        # FIXME except the NotPrvKeyError only, let InvalidPrvKey go through
         with contextlib.suppress(BTClibValueError):
             return _prv_keyinfo_from_wif(xprvwif, network, compressed)
     return _prv_keyinfo_from_xprv(xprvwif, network, compressed)
@@ -192,7 +192,7 @@ def prv_keyinfo_from_prv_key(
     elif isinstance(prv_key, BIP32KeyData):
         return _prv_keyinfo_from_xprv(prv_key, network, compressed)
     else:
-        # FIXME: except the NotPrvKeyError only, let InvalidPrvKey go through
+        # FIXME except the NotPrvKeyError only, let InvalidPrvKey go through
         with contextlib.suppress(ValueError):
             return _prv_keyinfo_from_xprvwif(prv_key, network, compressed)
         # it must be octets

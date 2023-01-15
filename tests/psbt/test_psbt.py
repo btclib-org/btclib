@@ -108,7 +108,7 @@ def test_psbt_combination() -> None:
     # get the wrong tx_id
     psbt1.tx.lock_time = psbt1.tx.lock_time ^ 12345678
     err_msg = "mismatched psbt.tx.id: "
-    # TODO: add to test vectors
+    # TODO add to test vectors
     with pytest.raises(BTClibValueError, match=err_msg):
         combine_psbts([psbt1, psbt2])
 
@@ -125,7 +125,7 @@ def test_finalize() -> None:
 
     to_be_finalized_psbt.inputs[0].partial_sigs = {}
     err_msg = "missing signatures"
-    # TODO: add to test vectors
+    # TODO add to test vectors
     with pytest.raises(BTClibValueError, match=err_msg):
         finalize_psbt(to_be_finalized_psbt)
 
@@ -343,7 +343,7 @@ def test_sig_type1() -> None:
     assert psbt.inputs[0].partial_sigs[pk1] == sig1
 
 
-# TODO: add test case with non_witness_utxo and witness_utxo
+# TODO add test case with non_witness_utxo and witness_utxo
 
 
 def test_dataclasses_json_dict() -> None:
@@ -453,35 +453,35 @@ def test_exceptions() -> None:
     with pytest.raises(BTClibValueError, match=err_msg):
         psbt.serialize()
     psbt.version = 1
-    # TODO: add to test vectors
+    # TODO add to test vectors
     with pytest.raises(BTClibValueError, match="invalid non-zero version: "):
         psbt.serialize()
 
     psbt = Psbt.b64decode(psbt_str)
     psbt_bin = psbt.serialize()
     psbt_bin = psbt_bin.replace(PSBT_SEPARATOR, PSBT_DELIMITER)
-    # TODO: add to test vectors
+    # TODO add to test vectors
     with pytest.raises(BTClibValueError, match="malformed psbt: missing separator"):
         Psbt.parse(psbt_bin)
 
     psbt = Psbt.b64decode(psbt_str)
     psbt.inputs.pop()
     err_msg = "mismatched number of psb.tx.vin and psb.inputs: "
-    # TODO: add to test vectors
+    # TODO add to test vectors
     with pytest.raises(BTClibValueError, match=err_msg):
         psbt.serialize()
 
     psbt = Psbt.b64decode(psbt_str)
     psbt.tx.vin[0].script_witness = Witness([b""])
     err_msg = "non empty script_sig or witness"
-    # TODO: add to test vectors
+    # TODO add to test vectors
     with pytest.raises(BTClibValueError, match=err_msg):
         psbt.serialize()
 
     psbt = Psbt.b64decode(psbt_str)
     psbt.outputs.pop()
     err_msg = "mismatched number of psb.tx.vout and psbt.outputs: "
-    # TODO: add to test vectors
+    # TODO add to test vectors
     with pytest.raises(BTClibValueError, match=err_msg):
         psbt.serialize()
 

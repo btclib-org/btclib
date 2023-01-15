@@ -227,7 +227,7 @@ class Psbt:
     @classmethod
     def parse(cls: type[Psbt], psbt_bin: Octets, check_validity: bool = True) -> Psbt:
         """Return a Psbt by parsing binary data."""
-        # FIXME: psbt_bin should be BinaryData
+        # FIXME psbt_bin should be BinaryData
         # stream = bytesio_from_binarydata(psbt_bin)
         # and the deserialization should happen reading the stream
         # not slicing bytes
@@ -347,7 +347,7 @@ def _combine_field(
     elif attr != item:
         if isinstance(item, dict):
             attr.update(item)
-        # TODO: fails for final_script_witness
+        # TODO fails for final_script_witness
         # elif isinstance(item, list):
         #     additional_elements = [i for i in item if i not in attr]
         #     attr += additional_elements
@@ -411,7 +411,7 @@ def finalize_psbt(psbt: Psbt) -> Psbt:
     """
     psbt = deepcopy(psbt)
     psbt.assert_valid()
-    # TODO: finalizers must fail to finalize inputs
+    # TODO finalizers must fail to finalize inputs
     # which have signatures that do not match the specified sign_ type
     for psbt_in in psbt.inputs:
         if not psbt_in.partial_sigs:
@@ -570,7 +570,7 @@ def join_psbts(
     if shuffle_out or sort_out:
         psbt.sort_outputs(sort_out)
     if merge_out:
-        # TODO: is it ok to merge outputs after sorting?
+        # TODO is it ok to merge outputs after sorting?
         raise BTClibValueError("output merge not implemented yet")
 
     psbt.assert_valid()

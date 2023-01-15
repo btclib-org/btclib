@@ -737,7 +737,8 @@ def test_libsecp256k1() -> None:
         libsecp256k1_sig = ecssa_sign(msg_hash, prvkey_int)
         assert len(libsecp256k1_sig) == 64
         assert len(btclib_sig.serialize()) == 64
-        # assert btclib_sig.serialize() == libsecp256k1_sig  # FIXME
+        # FIXME secp256k1 ssa signature are not identical
+        # assert btclib_sig.serialize() == libsecp256k1_sig
         assert ecssa_verify(msg_hash, pub_key, btclib_sig.serialize())
         assert ecssa_verify(msg_hash, pub_key, libsecp256k1_sig)
         assert ssa.verify(msg, pub_key, libsecp256k1_sig)
