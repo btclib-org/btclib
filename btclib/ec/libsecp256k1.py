@@ -12,8 +12,9 @@
 
 from __future__ import annotations
 
-from btclib.alias import Point
+from btclib.alias import Integer, Point
 from btclib.exceptions import BTClibRuntimeError
+from btclib.utils import int_from_integer
 
 LIBSECP256K1_AVAILABLE = True
 LIBSECP256K1_ENABLED = False
@@ -64,7 +65,13 @@ def pubkey_from_prvkey(prv_key: bytes | int, compressed: bool | None = None) -> 
     return ffi.unpack(serialized_pubkey_ptr, length_)
 
 
-def mult(num: bytes | int) -> Point:
+def mult(num: Integer) -> Point:
     """Multiply the generator point."""
-    pub_key = pubkey_from_prvkey(num, compressed=False)
+    order = 0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFEBAAEDCE6AF48A03BBFD25E8CD0364141
+    m: int = int_from_integer(num) % order
+    if m == 0:
+        G_x = 0x79BE667EF9DCBBAC55A06295CE870B07029BFCDB2DCE28D959F2815B16F81798
+        G_y = 0x483ADA7726A3C4655DA4FBFC0E1108A8FD17B448A68554199C47D08FFB10D4B8
+        return G_x, G_y
+    pub_key = pubkey_from_prvkey(m, compressed=False)
     return int.from_bytes(pub_key[1:33], "big"), int.from_bytes(pub_key[33:], "big")

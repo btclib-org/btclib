@@ -68,8 +68,13 @@ def test_mult_on_secp256k1() -> None:
 
     if libsecp256k1.is_enabled():
         assert libsecp256k1.is_available()
-        invalid_prvkey = secp256k1.p
-        mult(invalid_prvkey)  # FIXME secp256k1 should throw
+        err_msg = (
+            r"can't convert negative int to unsigned|secp256k1_ec_pubkey_create failure"
+        )
+        for invalid_prvkey in (-1, 0, secp256k1.n, secp256k1.p):
+            with pytest.raises((OverflowError, BTClibRuntimeError), match=err_msg):
+                libsecp256k1.pubkey_from_prvkey(invalid_prvkey)
+            mult(invalid_prvkey)
     else:
         assert not libsecp256k1.is_available()  # pragma: no cover
 
@@ -372,9 +377,9 @@ def test_symmetry() -> None:
 def test_assorted_mult() -> None:
     ec = ec23_31
     H = second_generator(ec)
-    for k1 in range(-ec.n + 1, ec.n):
+    for k1 in range(-2, ec.n):
         K1 = mult(k1, ec.G, ec)
-        for k2 in range(ec.n):
+        for k2 in range(-2, ec.n):
             K2 = mult(k2, H, ec)
 
             shamir = double_mult(k1, ec.G, k2, ec.G, ec)
