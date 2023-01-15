@@ -13,15 +13,19 @@ from __future__ import annotations
 import contextlib
 import secrets
 
+from btclib.alias import Octets
 from btclib.exceptions import BTClibRuntimeError
+from btclib.to_prv_key import PrvKey, int_from_prv_key
+from btclib.utils import bytes_from_octets
 
 with contextlib.suppress(ImportError):
     from btclib.ec.libsecp256k1 import ctx, ffi, lib
 
 
-def ecdsa_sign_(msg_hash: bytes, prvkey_: bytes | int) -> bytes:
+def ecdsa_sign_(msg_hash: Octets, prvkey_: PrvKey, _: PrvKey | None = None) -> bytes:
     """Create an ECDSA signature."""
-    prv_key = prvkey_.to_bytes(32, "big") if isinstance(prvkey_, int) else prvkey_
+    msg_hash = bytes_from_octets(msg_hash, 32)
+    prv_key = int_from_prv_key(prvkey_).to_bytes(32, "big")
     noncefc = ffi.NULL
     ndata = ffi.NULL
     sig_ptr = ffi.new("secp256k1_ecdsa_signature *")
@@ -40,9 +44,13 @@ def ecdsa_sign_(msg_hash: bytes, prvkey_: bytes | int) -> bytes:
 
 
 def ecdsa_verify_(
-    msg_hash: bytes, pub_key: bytes, sig_der: bytes, lower_s: bool = True
+    msg_hash: Octets, pub_key: Octets, sig: Octets, lower_s: bool = True
 ) -> bool:
     """Verify a ECDSA signature."""
+    msg_hash = bytes_from_octets(msg_hash, 32)
+    pub_key = bytes_from_octets(pub_key)
+    sig_der = bytes_from_octets(sig)
+
     sig_ptr = ffi.new("secp256k1_ecdsa_signature *")
     if not lib.secp256k1_ecdsa_signature_parse_der(ctx, sig_ptr, sig_der, len(sig_der)):
         raise BTClibRuntimeError("secp256k1_ecdsa_signature_parse_der failed")
@@ -87,12 +95,8 @@ def ecssa_verify_(msg_hash: bytes, pub_key: bytes, sig: bytes) -> bool:
         raise BTClibRuntimeError("secp256k1_ec_pubkey_parse failed")
 
     xonly_pubkey_ptr = ffi.new("secp256k1_xonly_pubkey *")
-    if not lib.secp256k1_xonly_pubkey_from_pubkey(
-        ctx, xonly_pubkey_ptr, ffi.new("int *"), pubkey_ptr
-    ):
-        raise BTClibRuntimeError(
-            "secp256k1_xonly_pubkey_from_pubkey failed"
-        )  # pragma: no cover
+    # negated = ffi.new("int *")
+    lib.secp256k1_xonly_pubkey_from_pubkey(ctx, xonly_pubkey_ptr, ffi.NULL, pubkey_ptr)
 
     return lib.secp256k1_schnorrsig_verify(
         ctx, sig, msg_hash, len(msg_hash), xonly_pubkey_ptr

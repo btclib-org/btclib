@@ -307,7 +307,7 @@ def test_libsecp256k1() -> None:
         assert dsa.verify_(msg_hash, pub_key, libsecp256k1_sig)
 
         invalid_prvkey = secp256k1.p
-        with pytest.raises(BTClibRuntimeError, match="secp256k1_ecdsa_sign failed"):
+        with pytest.raises(BTClibValueError, match="private key not in 1..n-1"):
             ecdsa_sign_(b"\x00" * 32, invalid_prvkey)
 
         err_msg = "secp256k1_ecdsa_signature_parse_der failed"
