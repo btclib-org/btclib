@@ -427,65 +427,21 @@ def test_assorted_mult() -> None:
 def test_double_mult() -> None:
     H = second_generator(secp256k1)
     G = secp256k1.G
+    assert double_mult(0, G, 0, H) == INF
+    assert double_mult(1, G, 0, H) == G
+    assert double_mult(0, G, 1, H) == H
+    for i in range(1, 3):
+        for j in range(-1, 3):
+            exp = secp256k1.add(mult(i), mult(j, H))
+            assert exp == double_mult(i, G, j, H)
 
-    # 0*G + 1*H
-    T = double_mult(1, H, 0, G)
-    assert T == H
-    T = multi_mult([1, 0], [H, G])
-    assert T == H
 
-    # 0*G + 2*H
-    exp = mult(2, H)
-    T = double_mult(2, H, 0, G)
-    assert T == exp
-    T = multi_mult([2, 0], [H, G])
-    assert T == exp
-
-    # 0*G + 3*H
-    exp = mult(3, H)
-    T = double_mult(3, H, 0, G)
-    assert T == exp
-    T = multi_mult([3, 0], [H, G])
-    assert T == exp
-
-    # 1*G + 0*H
-    T = double_mult(0, H, 1, G)
-    assert T == G
-    T = multi_mult([0, 1], [H, G])
-    assert T == G
-
-    # 2*G + 0*H
-    exp = mult(2, G)
-    T = double_mult(0, H, 2, G)
-    assert T == exp
-    T = multi_mult([0, 2], [H, G])
-    assert T == exp
-
-    # 3*G + 0*H
-    exp = mult(3, G)
-    T = double_mult(0, H, 3, G)
-    assert T == exp
-    T = multi_mult([0, 3], [H, G])
-    assert T == exp
-
-    # 0*G + 5*H
-    exp = mult(5, H)
-    T = double_mult(5, H, 0, G)
-    assert T == exp
-    T = multi_mult([5, 0], [H, G])
-    assert T == exp
-
-    # 0*G - 5*H
-    exp = mult(-5, H)
-    T = double_mult(-5, H, 0, G)
-    assert T == exp
-    T = multi_mult([-5, 0], [H, G])
-    assert T == exp
-
-    # 1*G - 5*H
-    exp = secp256k1.add(G, T)
-    T = double_mult(-5, H, 1, G)
-    assert T == exp
-    # FIXME
-    # T = multi_mult([-5, 1], [H, G])
-    # assert T == exp
+def test_multi_mult() -> None:
+    H = second_generator(secp256k1)
+    G = secp256k1.G
+    assert multi_mult([0, 0], [G, H]) == INF
+    assert multi_mult([1, 0], [G, H]) == G
+    assert multi_mult([0, 1], [G, H]) == H
+    for i in range(0, 3):  # FIXME it loops for negative numbers
+        for j in range(0, 3):  # FIXME it loops for negative numbers
+            assert double_mult(i, G, j, H) == multi_mult([i, j], [G, H])

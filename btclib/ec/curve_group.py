@@ -725,6 +725,9 @@ def _multi_mult(
         err_msg += f"{len(scalars)} vs {len(jac_points)}"
         raise BTClibValueError(err_msg)
 
+    if len(scalars) < 2:
+        raise BTClibValueError("not a multi_mult")
+
     # x = list(zip([-n for n in scalars], jac_points))
     x: list[tuple[int, JacPoint]] = []
     for n, PJ in zip(scalars, jac_points):

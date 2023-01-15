@@ -16,7 +16,7 @@ from math import sqrt
 from os import path
 from typing import Sequence
 
-from btclib.alias import Integer, JacPoint, Point
+from btclib.alias import Integer, Point
 from btclib.ec import libsecp256k1
 from btclib.ec.curve_group import (
     HEX_THRESHOLD,
@@ -251,15 +251,10 @@ def multi_mult(
         err_msg += f"{len(scalars)} vs {len(points)}"
         raise BTClibValueError(err_msg)
 
-    jac_points: list[JacPoint] = []
-    ints: list[int] = []
-    for Q, i in zip(points, scalars):
-        i = int_from_integer(i) % ec.n
-        if i == 0:  # early optimization, even if not strictly necessary
-            continue
-        ints.append(i)
+    ints = [int_from_integer(s) % ec.n for s in scalars]
+    for Q in points:
         ec.require_on_curve(Q)
-        jac_points.append(jac_from_aff(Q))
+    jac_points = [jac_from_aff(Q) for Q in points]
 
     R = _multi_mult(ints, jac_points, ec)
     return ec.aff_from_jac(R)
