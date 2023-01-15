@@ -59,11 +59,6 @@ def test_signature() -> None:
 
     _, x_Q_fake = ssa.gen_keys(0x4)
     assert not ssa.verify(msg, x_Q_fake, sig)
-    err_msg = (
-        "libsecp256k1.ecssa_verify failed"
-        if libsecp256k1.is_enabled()
-        else "signature verification failed"
-    )
     with pytest.raises(BTClibRuntimeError, match=err_msg):
         ssa.assert_as_valid(msg, x_Q_fake, sig)
 
