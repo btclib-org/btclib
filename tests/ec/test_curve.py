@@ -10,6 +10,8 @@
 
 """Tests for the `btclib.curve` module."""
 
+
+import itertools
 import json
 import secrets
 from os import path
@@ -432,18 +434,27 @@ def test_double_mult() -> None:
     assert double_mult(0, G, 0, H) == INF
     assert double_mult(1, G, 0, H) == G
     assert double_mult(0, G, 1, H) == H
-    for i in range(-1, 3):
-        for j in range(-1, 3):
-            exp = secp256k1.add(mult(i), mult(j, H))
-            assert exp == double_mult(i, G, j, H)
+    for i, j in itertools.product(range(-1, 3), range(-1, 3)):
+        exp = secp256k1.add(mult(i), mult(j, H))
+        assert exp == double_mult(i, G, j, H)
 
 
 def test_multi_mult() -> None:
+    with pytest.raises(BTClibValueError, match="not a multi_mult"):
+        multi_mult([1], [secp256k1.G])
+
     H = second_generator(secp256k1)
     G = secp256k1.G
     assert multi_mult([0, 0], [G, H]) == INF
     assert multi_mult([1, 0], [G, H]) == G
     assert multi_mult([0, 1], [G, H]) == H
-    for i in range(0, 3):  # FIXME it loops for negative numbers
-        for j in range(0, 3):  # FIXME it loops for negative numbers
-            assert double_mult(i, G, j, H) == multi_mult([i, j], [G, H])
+
+    # FIXME it loop for negative coefficients
+    # assert multi_mult([-1, 1], [G, H]) != INF
+    # assert multi_mult([1, -1], [G, H]) != INF
+    assert multi_mult([-1, 0], [G, H]) != INF
+    assert multi_mult([0, -1], [G, H]) != INF
+
+    for i, j in itertools.product(range(3), range(3)):
+        exp = double_mult(i, G, j, H)
+        assert exp == multi_mult([i, j], [G, H])
