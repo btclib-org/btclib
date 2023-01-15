@@ -28,7 +28,7 @@ from btclib.ec import (
 )
 from btclib.ec.curve import CURVES
 from btclib.ecc import second_generator
-from btclib.exceptions import BTClibTypeError, BTClibValueError
+from btclib.exceptions import BTClibRuntimeError, BTClibTypeError, BTClibValueError
 from btclib.number_theory import mod_sqrt
 from btclib.to_pub_key import pub_keyinfo_from_prv_key
 
@@ -91,6 +91,9 @@ def test_secp256k1_py_vectors() -> None:
         pubkey_comp = bytes.fromhex(vector["compressed"])
         assert len(pubkey_comp) == 33
 
+        assert pub_keyinfo_from_prv_key(prv_key, compressed=False)[0] == pubkey_uncp
+        assert pub_keyinfo_from_prv_key(prv_key, compressed=True)[0] == pubkey_comp
+
         if libsecp256k1.is_enabled():
             assert (
                 libsecp256k1.pubkey_from_prvkey(prv_key, compressed=False)
@@ -98,8 +101,10 @@ def test_secp256k1_py_vectors() -> None:
             )
             assert libsecp256k1.pubkey_from_prvkey(prv_key) == pubkey_comp
 
-        assert pub_keyinfo_from_prv_key(prv_key, compressed=False)[0] == pubkey_uncp
-        assert pub_keyinfo_from_prv_key(prv_key, compressed=True)[0] == pubkey_comp
+    if libsecp256k1.is_enabled():
+        err_msg = "secp256k1_ec_pubkey_create failure"
+        with pytest.raises(BTClibRuntimeError, match=err_msg):
+            libsecp256k1.pubkey_from_prvkey(secp256k1.n)
 
 
 def test_exceptions() -> None:
