@@ -37,7 +37,9 @@ random.seed(42)
 def test_signature() -> None:
     msg = b"Satoshi Nakamoto"
     aux = b"\x00" * 32
-    q, x_Q = ssa.gen_keys(0x01)
+    q = 6
+    q_fixed, x_Q = ssa.gen_keys(q)
+    assert q_fixed != q
     sig = ssa.sign(msg, q, aux)
     ssa.assert_as_valid(msg, x_Q, sig)
     assert ssa.verify(msg, x_Q, sig)
@@ -54,12 +56,7 @@ def test_signature() -> None:
     with pytest.raises(BTClibRuntimeError, match=err_msg):
         ssa.assert_as_valid(msg_fake, x_Q, sig)
 
-    _, x_Q_fake = ssa.gen_keys(0x02)
-    assert not ssa.verify(msg, x_Q_fake, sig)
-    with pytest.raises(BTClibRuntimeError, match=err_msg):
-        ssa.assert_as_valid(msg, x_Q_fake, sig)
-
-    _, x_Q_fake = ssa.gen_keys(0x4)
+    _, x_Q_fake = ssa.gen_keys(q + 2)
     assert not ssa.verify(msg, x_Q_fake, sig)
     with pytest.raises(BTClibRuntimeError, match=err_msg):
         ssa.assert_as_valid(msg, x_Q_fake, sig)
