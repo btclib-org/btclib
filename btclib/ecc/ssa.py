@@ -58,6 +58,7 @@ from typing import Sequence, Union
 from btclib.alias import BinaryData, HashF, Integer, JacPoint, Octets, Point
 from btclib.bip32 import BIP32Key
 from btclib.ec import Curve, libsecp256k1, secp256k1
+from btclib.ec.curve import mult
 from btclib.ec.curve_group import _double_mult, _mult, _multi_mult
 from btclib.ecc.bip340_nonce import _bip340_nonce_
 from btclib.ecc.libsecp256k1 import ecssa_sign_, ecssa_verify_
@@ -156,27 +157,17 @@ def point_from_bip340pub_key(x_Q: BIP340PubKey, ec: Curve = secp256k1) -> Point:
     raise BTClibTypeError("not a BIP340 public key")
 
 
-def gen_keys_(
-    prv_key: PrvKey | None = None, ec: Curve = secp256k1
-) -> tuple[int, int, JacPoint]:
-    """Return a BIP340 private/public (int, JacPoint) key-pair."""
+def gen_keys(prv_key: PrvKey | None = None, ec: Curve = secp256k1) -> tuple[int, int]:
+    """Return a BIP340 private/public (int, int) key-pair."""
     if prv_key is None:
         q = 1 + secrets.randbelow(ec.n - 1)
     else:
         q = int_from_prv_key(prv_key, ec)
 
-    QJ = _mult(q, ec.GJ, ec)
-    x_Q, y_Q = ec.aff_from_jac(QJ)
+    x_Q, y_Q = mult(q, ec=ec)
     if y_Q % 2:
         q = ec.n - q
-        QJ = ec.negate_jac(QJ)
 
-    return q, x_Q, QJ
-
-
-def gen_keys(prv_key: PrvKey | None = None, ec: Curve = secp256k1) -> tuple[int, int]:
-    """Return a BIP340 private/public (int, int) key-pair."""
-    q, x_Q, _ = gen_keys_(prv_key, ec)
     return q, x_Q
 
 

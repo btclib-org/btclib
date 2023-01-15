@@ -23,6 +23,7 @@ from btclib.alias import INF, Point, String
 from btclib.bip32 import BIP32KeyData
 from btclib.ec import bytes_from_point, double_mult, libsecp256k1, mult
 from btclib.ec.curve import CURVES, secp256k1
+from btclib.ec.curve_group import jac_from_aff
 from btclib.ecc import bip340_nonce_, second_generator, ssa
 from btclib.ecc.libsecp256k1 import ecssa_sign_, ecssa_verify_
 from btclib.exceptions import BTClibRuntimeError, BTClibTypeError, BTClibValueError
@@ -186,7 +187,8 @@ def test_low_cardinality() -> None:
     # only low cardinality test curves or it would take forever
     for ec in test_curves:
         for q in range(1, ec.n // 2):  # all possible private keys
-            q, x_Q, QJ = ssa.gen_keys_(q, ec)
+            q, x_Q = ssa.gen_keys(q, ec)
+            QJ = jac_from_aff((x_Q, ec.y_even(x_Q)))
             while True:
                 try:
                     sig = ssa.sign(msg, q, aux, ec)
@@ -211,8 +213,7 @@ def test_low_cardinality() -> None:
                         # if e == 0 then the sig is always valid
                         ssa._assert_as_valid_(e, QJ, r, s, ec)
                         #  for all {q, Q}
-                        _, _, new_QJ = ssa.gen_keys_(None, ec)
-                        ssa._assert_as_valid_(e, new_QJ, r, s, ec)
+                        ssa._assert_as_valid_(e, ec.GJ, r, s, ec)
                     else:
                         sig = ssa._sign_(e, q, k, r, ec)
                         # recover pub_key
