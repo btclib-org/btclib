@@ -11,7 +11,6 @@
 from __future__ import annotations
 
 import contextlib
-import secrets
 
 from btclib.alias import Octets
 from btclib.ec.sec_point import bytes_from_point
@@ -24,10 +23,10 @@ with contextlib.suppress(ImportError):
     from btclib.ec.libsecp256k1 import ctx, ffi, lib
 
 
-def ecdsa_sign_(msg_hash: Octets, prvkey_: PrvKey, _: PrvKey | None = None) -> bytes:
+def ecdsa_sign_(msg_hash: Octets, prv_key_: PrvKey, _: PrvKey | None = None) -> bytes:
     """Create an ECDSA signature."""
     msg_hash = bytes_from_octets(msg_hash, 32)
-    prv_key = int_from_prv_key(prvkey_).to_bytes(32, "big")
+    prv_key = int_from_prv_key(prv_key_).to_bytes(32, "big")
     noncefc = ffi.NULL
     ndata = ffi.NULL
     sig_ptr = ffi.new("secp256k1_ecdsa_signature *")
@@ -68,18 +67,19 @@ def ecdsa_verify_(
 
 
 def ecssa_sign_(
-    msg_hash: bytes, prvkey_: bytes | int, aux_rand32: bytes | None = None
+    msg_hash: Octets, prv_key_: PrvKey | int, aux_rand32: Octets | None = None
 ) -> bytes:
     """Create a Schnorr signature."""
-    prv_key = prvkey_.to_bytes(32, "big") if isinstance(prvkey_, int) else prvkey_
+    msg_hash = bytes_from_octets(msg_hash, 32)
+    prv_key = int_from_prv_key(prv_key_).to_bytes(32, "big")
+    aux_rand32 = (
+        b"\x00" * 32 if aux_rand32 is None else bytes_from_octets(aux_rand32, 32)
+    )
 
     keypair_ptr = ffi.new("secp256k1_keypair *")
     if not lib.secp256k1_keypair_create(ctx, keypair_ptr, prv_key):
         raise BTClibRuntimeError("secp256k1_keypair_create failed")
 
-    if not aux_rand32:
-        aux_rand32 = secrets.token_bytes(32)
-    aux_rand32 = b"\x00" * (32 - len(aux_rand32)) + aux_rand32
     sig = ffi.new("char[64]")
     if lib.secp256k1_schnorrsig_sign(ctx, sig, msg_hash, keypair_ptr, aux_rand32):
         return ffi.unpack(sig, 64)
@@ -87,10 +87,13 @@ def ecssa_sign_(
     raise BTClibRuntimeError("secp256k1_schnorrsig_sign failed")  # pragma: no cover
 
 
-def ecssa_verify_(msg_hash: bytes, pub_key: bytes, sig: bytes) -> bool:
+def ecssa_verify_(msg_hash: Octets, pub_key: Octets, sig: Octets) -> bool:
     """Verify a Schhnorr signature."""
+    msg_hash = bytes_from_octets(msg_hash, 32)
+    pub_key = bytes_from_octets(pub_key, (32, 33))
     if len(pub_key) == 32:
         pub_key = b"\x02" + pub_key
+    sig = bytes_from_octets(sig)
 
     pubkey_ptr = ffi.new("secp256k1_pubkey *")
     if not lib.secp256k1_ec_pubkey_parse(ctx, pubkey_ptr, pub_key, len(pub_key)):

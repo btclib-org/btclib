@@ -739,10 +739,10 @@ def test_libsecp256k1() -> None:
         assert ssa.verify(msg, pub_key, libsecp256k1_sig)
 
         invalid_prvkey = secp256k1.p
-        err_msg = "secp256k1_keypair_create failed"
-        with pytest.raises(BTClibRuntimeError, match=err_msg):
+        err_msg = "private key not in 1..n-1"
+        with pytest.raises(BTClibValueError, match=err_msg):
             ecssa_sign_(msg_hash, invalid_prvkey)
 
-        err_msg = "secp256k1_ec_pubkey_parse failed"
-        with pytest.raises(BTClibRuntimeError, match=err_msg):
+        err_msg = "invalid size: "
+        with pytest.raises(BTClibValueError, match=err_msg):
             ecssa_verify_(msg_hash, pub_key[1:], libsecp256k1_sig)
