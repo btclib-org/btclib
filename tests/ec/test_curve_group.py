@@ -10,8 +10,6 @@
 
 """Tests for the `btclib.curve_group` module."""
 
-import random
-
 import pytest
 
 from btclib.alias import INF, INFJ
@@ -34,7 +32,6 @@ from btclib.ecc import second_generator
 from btclib.exceptions import BTClibValueError
 from tests.ec.test_curve import all_curves, low_card_curves
 
-random.seed(42)
 ec23_31 = low_card_curves["ec23_31"]
 
 
@@ -365,7 +362,7 @@ def test_assorted_jac_mult() -> None:
             K1JK2J = ec.add_jac(K1J, K2J)
             assert ec.jac_equality(K1JK2J, shamir)
 
-            k3 = 1 + random.randrange(ec.n - 1)
+            k3 = ec.n // 3  # just a point, not INF
             K3J = _mult(k3, ec.GJ, ec)
             K1JK2JK3J = ec.add_jac(K1JK2J, K3J)
             assert ec.is_on_curve(ec.aff_from_jac(K1JK2JK3J))
@@ -374,7 +371,7 @@ def test_assorted_jac_mult() -> None:
             assert ec.aff_from_jac(K1JK2JK3J) == ec.aff_from_jac(boscoster), k3
             assert ec.jac_equality(K1JK2JK3J, boscoster)
 
-            k4 = 1 + random.randrange(ec.n - 1)
+            k4 = ec.n // 4  # just a point, not INF
             K4J = _mult(k4, HJ, ec)
             K1JK2JK3JK4J = ec.add_jac(K1JK2JK3J, K4J)
             assert ec.is_on_curve(ec.aff_from_jac(K1JK2JK3JK4J))
@@ -407,7 +404,7 @@ def test_jac_equality() -> None:
     assert ec.jac_equality(ec.GJ, jac_from_aff(ec.G))
 
     # q in [2, n-1], as the difference with ec.GJ is checked below
-    q = 2 + random.randrange(ec.n - 2)
+    q = 2
     Q = mult_aff(q, ec.G, ec)
     QJ = _mult(q, ec.GJ, ec)
     assert ec.jac_equality(QJ, jac_from_aff(Q))

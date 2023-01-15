@@ -13,7 +13,6 @@
 
 import itertools
 import json
-import random
 from os import path
 
 import pytest
@@ -33,8 +32,6 @@ from btclib.ecc import second_generator
 from btclib.exceptions import BTClibRuntimeError, BTClibTypeError, BTClibValueError
 from btclib.number_theory import mod_sqrt
 from btclib.to_pub_key import pub_keyinfo_from_prv_key
-
-random.seed(42)
 
 # FIXME Curve repr should use "deadbeef 00000000", not "0xdeadbeef00000000"
 # FIXME test curves when n>p
@@ -172,9 +169,8 @@ def test_exceptions() -> None:
 def test_aff_jac_conversions() -> None:
     for ec in all_curves.values():
 
-        # just a random point, not INF
-        q = 1 + random.randrange(ec.n - 1)
-        Q = mult(q, ec.G, ec)
+        # just a point, not INF
+        Q = ec.G
         QJ = jac_from_aff(Q)
         assert Q == ec.aff_from_jac(QJ)
         x_Q = ec.x_aff_from_jac(QJ)
@@ -241,9 +237,8 @@ def test_add_double_aff_jac() -> None:
     """Test consistency between affine and Jacobian add/double methods."""
     for ec in all_curves.values():
 
-        # just a random point, not INF
-        q = 1 + random.randrange(ec.n - 1)
-        Q = mult(q, ec.G, ec)
+        # just a point, not INF
+        Q = ec.G
         QJ = jac_from_aff(Q)
 
         # add Q and G
@@ -277,9 +272,8 @@ def test_is_on_curve() -> None:
         with pytest.raises(BTClibValueError, match="x-coordinate not in 0..p-1: "):
             ec.y(ec.p)
 
-        # just a random point, not INF
-        q = 1 + random.randrange(ec.n - 1)
-        Q = mult(q, ec.G, ec)
+        # just a point, not INF
+        Q = ec.G
         with pytest.raises(BTClibValueError, match="y-coordinate not in 1..p-1: "):
             ec.is_on_curve((Q[0], ec.p))
 
@@ -287,9 +281,8 @@ def test_is_on_curve() -> None:
 def test_negate() -> None:
     for ec in all_curves.values():
 
-        # just a random point, not INF
-        q = 1 + random.randrange(ec.n - 1)
-        Q = mult(q, ec.G, ec)
+        # just a point, not INF
+        Q = ec.G
         minus_Q = ec.negate(Q)
         assert ec.add(Q, minus_Q) == INF
 
@@ -317,7 +310,7 @@ def test_symmetry() -> None:
     """Methods to break simmetry: quadratic residue, even/odd, low/high."""
     for ec in low_card_curves.values():
 
-        # just a random point, not INF
+        # just a point, not INF
         Q = ec.G
         x_Q = Q[0]
 
@@ -403,7 +396,7 @@ def test_assorted_mult() -> None:
             K1K2 = ec.add(K1, K2)
             assert K1K2 == shamir
 
-            k3 = 1 + random.randrange(ec.n - 1)
+            k3 = ec.n // 3  # just a random ponit, not INF
             K3 = mult(k3, ec.G, ec)
             K1K2K3 = ec.add(K1K2, K3)
             assert ec.is_on_curve(K1K2K3)
@@ -411,7 +404,7 @@ def test_assorted_mult() -> None:
             assert ec.is_on_curve(boscoster)
             assert K1K2K3 == boscoster, k3
 
-            k4 = 1 + random.randrange(ec.n - 1)
+            k4 = ec.n // 4  # just a random ponit, not INF
             K4 = mult(k4, H, ec)
             K1K2K3K4 = ec.add(K1K2K3, K4)
             assert ec.is_on_curve(K1K2K3K4)
