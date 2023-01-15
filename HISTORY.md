@@ -15,6 +15,8 @@ Major changes include:
 - added pre-commit hooks
 - adopted _mypy --strict_ and _from \_\_future\_\_ import annotations_
 - improved integration of libsecp256k1
+- refactored bip340_nonce
+- added secp256k1-py test vectors
 
 ## v2022.12.31
 
