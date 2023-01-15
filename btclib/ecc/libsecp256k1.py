@@ -14,8 +14,10 @@ import contextlib
 import secrets
 
 from btclib.alias import Octets
+from btclib.ec.sec_point import bytes_from_point
 from btclib.exceptions import BTClibRuntimeError
 from btclib.to_prv_key import PrvKey, int_from_prv_key
+from btclib.to_pub_key import PubKey, point_from_pub_key
 from btclib.utils import bytes_from_octets
 
 with contextlib.suppress(ImportError):
@@ -44,11 +46,11 @@ def ecdsa_sign_(msg_hash: Octets, prvkey_: PrvKey, _: PrvKey | None = None) -> b
 
 
 def ecdsa_verify_(
-    msg_hash: Octets, pub_key: Octets, sig: Octets, lower_s: bool = True
+    msg_hash: Octets, pub_key: PubKey, sig: Octets, lower_s: bool = True
 ) -> bool:
     """Verify a ECDSA signature."""
     msg_hash = bytes_from_octets(msg_hash, 32)
-    pub_key = bytes_from_octets(pub_key)
+    pub_key = bytes_from_point(point_from_pub_key(pub_key))
     sig_der = bytes_from_octets(sig)
 
     sig_ptr = ffi.new("secp256k1_ecdsa_signature *")

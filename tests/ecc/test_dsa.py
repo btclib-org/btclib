@@ -314,8 +314,8 @@ def test_libsecp256k1() -> None:
         with pytest.raises(BTClibRuntimeError, match=err_msg):
             ecdsa_verify_(msg_hash, pub_key, libsecp256k1_sig[1:])
 
-        err_msg = "secp256k1_ec_pubkey_parse failed"
-        with pytest.raises(BTClibRuntimeError, match=err_msg):
+        err_msg = "not a public key: "
+        with pytest.raises(BTClibValueError, match=err_msg):
             ecdsa_verify_(msg_hash, pub_key[1:], libsecp256k1_sig)
 
 
