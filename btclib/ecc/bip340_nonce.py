@@ -96,6 +96,6 @@ def bip340_nonce_(
         q = ec.n - q
 
     # the auxiliary random component
-    aux = secrets.token_bytes(hf_len) if aux is None else bytes_from_octets(aux)
+    aux = secrets.token_bytes(hf_len) if aux is None else bytes_from_octets(aux, hf_len)
 
     return _bip340_nonce_(msg_hash, q, x_Q, aux, ec, hf)

@@ -92,13 +92,6 @@ def test_signature() -> None:
     with pytest.raises(BTClibValueError, match=err_msg):
         ssa.sign(msg, 0)
 
-    # ephemeral key not in 1..n-1
-    err_msg = "private key not in 1..n-1: "
-    with pytest.raises(BTClibValueError, match=err_msg):
-        ssa.sign_(m_bytes, q, 0)
-    with pytest.raises(BTClibValueError, match=err_msg):
-        ssa.sign_(m_bytes, q, sig.ec.n)
-
 
 def test_bip340_vectors() -> None:
     """BIP340 (Schnorr) test vectors.
@@ -119,8 +112,7 @@ def test_bip340_vectors() -> None:
                     _, pub_key_actual = ssa.gen_keys(seckey)
                     assert pub_key == hex(pub_key_actual).upper()[2:], err_msg
 
-                    k = bip340_nonce_(m, seckey, aux_rand)
-                    sig_actual = ssa.sign_(m, seckey, k)
+                    sig_actual = ssa.sign_(m, seckey, aux_rand)
                     ssa.assert_as_valid_(m, pub_key, sig_actual)
                     assert ssa.Sig.parse(sig) == sig_actual, err_msg
 
@@ -234,39 +226,6 @@ def test_low_cardinality() -> None:
                             (BTClibRuntimeError, BTClibValueError), match=err_msg
                         ):
                             ssa._assert_as_valid_(e, QJ, r, (s - 1) % ec.n, ec)
-
-
-def test_crack_prv_key() -> None:
-    q, x_Q = ssa.gen_keys(19)  # remove any randomness
-
-    msg1 = b"Paolo is afraid of ephemeral random numbers"
-    m_1 = reduce_to_hlen(msg1)
-    k = bip340_nonce_(m_1, q, aux=32 * b"\x01")  # remove any randomness
-    sig1 = ssa.sign_(m_1, q, k)
-
-    msg2 = b"and Paolo is right to be afraid"
-    m_2 = reduce_to_hlen(msg2)
-    # reuse same k
-    sig2 = ssa.sign_(m_2, q, k)
-
-    qc, kc = ssa.crack_prv_key(msg1, sig1, msg2, sig2, x_Q)
-    assert q == qc
-    assert k in (kc, sig1.ec.n - kc)
-
-    qc, kc = ssa.crack_prv_key(msg1, sig1.serialize(), msg2, sig2.serialize(), x_Q)
-    assert q == qc
-    assert k in (kc, sig1.ec.n - kc)
-
-    sig = ssa.Sig(16, sig2.s, sig2.ec)
-    with pytest.raises(BTClibValueError, match="not the same r in signatures"):
-        ssa.crack_prv_key_(m_1, sig1, m_2, sig, x_Q)
-
-    with pytest.raises(BTClibValueError, match="identical signatures"):
-        ssa.crack_prv_key_(m_1, sig1, m_1, sig1, x_Q)
-
-    sig = ssa.Sig(sig1.r, sig1.s, CURVES["secp256r1"])
-    with pytest.raises(BTClibValueError, match="not the same curve in signatures"):
-        ssa.crack_prv_key_(m_1, sig, m_2, sig2, x_Q)
 
 
 def test_batch_validation() -> None:

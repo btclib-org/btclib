@@ -11,6 +11,7 @@
 from __future__ import annotations
 
 import contextlib
+import secrets
 
 from btclib.alias import Octets
 from btclib.ec.sec_point import bytes_from_point
@@ -67,21 +68,19 @@ def ecdsa_verify_(
 
 
 def ecssa_sign_(
-    msg_hash: Octets, prv_key_: PrvKey | int, aux_rand32: Octets | None = None
+    msg_hash: Octets, prv_key_: PrvKey | int, aux: Octets | None = None
 ) -> bytes:
     """Create a Schnorr signature."""
     msg_hash = bytes_from_octets(msg_hash, 32)
     prv_key = int_from_prv_key(prv_key_).to_bytes(32, "big")
-    aux_rand32 = (
-        b"\x00" * 32 if aux_rand32 is None else bytes_from_octets(aux_rand32, 32)
-    )
+    aux = secrets.token_bytes(32) if aux is None else bytes_from_octets(aux, 32)
 
     keypair_ptr = ffi.new("secp256k1_keypair *")
     if not lib.secp256k1_keypair_create(ctx, keypair_ptr, prv_key):
         raise BTClibRuntimeError("secp256k1_keypair_create failed")
 
     sig = ffi.new("char[64]")
-    if lib.secp256k1_schnorrsig_sign(ctx, sig, msg_hash, keypair_ptr, aux_rand32):
+    if lib.secp256k1_schnorrsig_sign(ctx, sig, msg_hash, keypair_ptr, aux):
         return ffi.unpack(sig, 64)
 
     raise BTClibRuntimeError("secp256k1_schnorrsig_sign failed")  # pragma: no cover

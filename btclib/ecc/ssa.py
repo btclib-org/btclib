@@ -216,7 +216,7 @@ def _sign_(c: int, q: int, nonce: int, r: int, ec: Curve) -> Sig:
 def sign_(
     msg_hash: Octets,
     prv_key: PrvKey,
-    nonce: PrvKey | None = None,
+    aux: Octets | None = None,
     ec: Curve = secp256k1,
     hf: HashF = sha256,
 ) -> Sig:
@@ -228,18 +228,14 @@ def sign_(
     # the message msg_hash: a hf_len array
     hf_len = hf().digest_size
     msg_hash = bytes_from_octets(msg_hash, hf_len)
-
-    # private and public keys
     q, x_Q = gen_keys(prv_key, ec)
+    aux = secrets.token_bytes(hf_len) if aux is None else bytes_from_octets(aux, hf_len)
 
-    # FIXME secp256k1 manage nonce
-    if ec == secp256k1 and nonce is None and hf == sha256 and libsecp256k1.is_enabled():
-        return Sig.parse(ecssa_sign_(msg_hash, q))
+    if ec == secp256k1 and hf == sha256 and libsecp256k1.is_enabled():
+        return Sig.parse(ecssa_sign_(msg_hash, q, aux))
 
     # nonce: an integer in the range 1..n-1.
-    if nonce is None:
-        nonce = _bip340_nonce_(msg_hash, q, x_Q, secrets.token_bytes(hf_len), ec, hf)
-
+    nonce = _bip340_nonce_(msg_hash, q, x_Q, aux, ec, hf)
     nonce, x_K = gen_keys(nonce, ec)
 
     # the challenge
@@ -251,7 +247,7 @@ def sign_(
 def sign(
     msg: Octets,
     prv_key: PrvKey,
-    nonce: PrvKey | None = None,
+    aux: Octets | None = None,
     ec: Curve = secp256k1,
     hf: HashF = sha256,
 ) -> Sig:
@@ -272,7 +268,7 @@ def sign(
     The BIP340 deterministic nonce (not RFC6979) is used.
     """
     msg_hash = reduce_to_hlen(msg, hf)
-    return sign_(msg_hash, prv_key, nonce, ec, hf)
+    return sign_(msg_hash, prv_key, aux, ec, hf)
 
 
 def _assert_as_valid_(c: int, QJ: JacPoint, r: int, s: int, ec: Curve) -> None:
