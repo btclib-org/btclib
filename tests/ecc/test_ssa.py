@@ -13,7 +13,6 @@
 from __future__ import annotations
 
 import csv
-import random
 from hashlib import sha256 as hf
 from os import path
 
@@ -31,8 +30,6 @@ from btclib.hashes import reduce_to_hlen
 from btclib.number_theory import mod_inv
 from btclib.utils import int_from_bits
 from tests.ec.test_curve import low_card_curves
-
-random.seed(42)
 
 
 def test_signature() -> None:
@@ -240,23 +237,16 @@ def test_batch_validation() -> None:
     assert not ssa.batch_verify(ms, Qs, sigs)
 
     aux = b"\x00" * 32
-    # valid size for String input to sign, not for Octets input to sign_
+    # not the size of the msg_hash, just an arbitrary size for the msg
     msg_size = 16
-    ms.append(random.randbytes(msg_size))
-    q, Q = ssa.gen_keys()
-    Qs.append(Q)
-    sigs.append(ssa.sign(ms[0], q, aux))
-    # test with only 1 sig
-    ssa.assert_batch_as_valid(ms, Qs, sigs)
-    assert ssa.batch_verify(ms, Qs, sigs)
-    for _ in range(3):
-        m = random.randbytes(msg_size)
+    for i in range(1, 4):
+        m = bytes(i) * msg_size
         ms.append(m)
-        q, Q = ssa.gen_keys()
+        q, Q = ssa.gen_keys(i)
         Qs.append(Q)
         sigs.append(ssa.sign(m, q, aux))
-    ssa.assert_batch_as_valid(ms, Qs, sigs)
-    assert ssa.batch_verify(ms, Qs, sigs)
+        ssa.assert_batch_as_valid(ms, Qs, sigs)
+        assert ssa.batch_verify(ms, Qs, sigs)
 
     ms.append(ms[0])
     sigs.append(sigs[1])
