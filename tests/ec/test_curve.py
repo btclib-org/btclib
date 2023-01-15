@@ -442,6 +442,6 @@ def test_multi_mult() -> None:
     assert multi_mult([0, 0], [G, H]) == INF
     assert multi_mult([1, 0], [G, H]) == G
     assert multi_mult([0, 1], [G, H]) == H
-    for i in range(0, 3):  # FIXME it loops for negative numbers
-        for j in range(0, 3):  # FIXME it loops for negative numbers
+    for i in range(3):  # FIXME it loops for negative numbers
+        for j in range(3):  # FIXME it loops for negative numbers
             assert double_mult(i, G, j, H) == multi_mult([i, j], [G, H])
