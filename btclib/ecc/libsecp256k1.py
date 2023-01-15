@@ -28,8 +28,9 @@ def ecdsa_sign(msg_hash: bytes, prvkey_: bytes | int) -> bytes:
     if not lib.secp256k1_ecdsa_sign(ctx, sig_ptr, msg_hash, prv_key, noncefc, ndata):
         raise BTClibRuntimeError("secp256k1_ecdsa_sign failed")
 
-    sig_der = ffi.new("char[73]")  # FIXME secp256k1 shouldn't be 72?
-    length = ffi.new("size_t *", 73)
+    length_der = 72  # signature being low-s, 72 is enough
+    sig_der = ffi.new(f"char[{length_der}]")
+    length = ffi.new("size_t *", length_der)
     if not lib.secp256k1_ecdsa_signature_serialize_der(ctx, sig_der, length, sig_ptr):
         raise BTClibRuntimeError(  # pragma: no cover
             "secp256k1_ecdsa_signature_serialize_der failed"
