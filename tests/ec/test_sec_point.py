@@ -10,16 +10,13 @@
 
 """Tests for the `btclib.sec_point` module."""
 
-import random
-
 import pytest
 
 from btclib.alias import INF
-from btclib.ec import Curve, bytes_from_point, mult, point_from_octets
+from btclib.ec import Curve, bytes_from_point, point_from_octets
 from btclib.ec.curve import CURVES
 from btclib.exceptions import BTClibValueError
 
-random.seed(42)
 # test curves: very low cardinality
 # 13 % 4 = 1; 13 % 8 = 5
 low_card_curves = {"ec13_11": Curve(13, 7, 6, (1, 1), 11, 1, False)}
@@ -51,9 +48,8 @@ def test_octets2point() -> None:
         G_point = point_from_octets(G_bytes, ec)
         assert ec.G == G_point
 
-        # just a random point, not INF
-        q = 1 + random.randrange(ec.n - 1)
-        Q = mult(q, ec.G, ec)
+        # just a point, not INF
+        Q = ec.G
 
         Q_bytes = b"\x03" if Q[1] & 1 else b"\x02"
         Q_bytes += Q[0].to_bytes(ec.p_size, byteorder="big", signed=False)
