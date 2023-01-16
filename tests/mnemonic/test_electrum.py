@@ -27,7 +27,7 @@ def test_mnemonic() -> None:
 
     entropy = 0x110AAAA03974D093EDA670121023CD0772
     mnemonic_type = "standard"
-    # FIXME: is the following mnemonic obtained in Electrum
+    # FIXME is the following mnemonic obtained in Electrum
     # from the above entropy?
     mnemonic = "ability awful fetch liberty company spatial panda hat then canal ball crouch bunker"
     mnemonic2 = electrum.mnemonic_from_entropy(mnemonic_type, entropy, lang)

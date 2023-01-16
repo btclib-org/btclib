@@ -240,5 +240,5 @@ def mult_endomorphism_secp256k1(m: int, Q: JacPoint, ec: CurveGroup) -> JacPoint
 
     K = ((Q[0] * beta) % ec.p), Q[1], Q[2]  # K = lambda*Q, direct calculation
 
-    # FIXME: Change double mult (?) with alghoritm 3.77
+    # FIXME Change double mult (?) with alghoritm 3.77
     return _double_mult(m1, Q, m2, K, ec)

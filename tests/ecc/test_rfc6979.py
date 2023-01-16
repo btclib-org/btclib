@@ -17,7 +17,7 @@ from os import path
 from btclib.ec import mult
 from btclib.ec.curve import CURVES
 from btclib.ecc import dsa
-from btclib.ecc.rfc6979 import rfc6979_
+from btclib.ecc.rfc6979_nonce import rfc6979_nonce_
 from btclib.hashes import reduce_to_hlen
 
 
@@ -27,11 +27,11 @@ def test_rfc6979() -> None:
     msg_hash = hashlib.sha256(msg).digest()
     x = 0x1
     k = 0x8F8A276C19F4149656B280621E358CCE24F5F52542772691EE69063B74F15D15
-    k2 = rfc6979_(msg_hash, x, hf=hashlib.sha256)
+    k2 = rfc6979_nonce_(msg_hash, x, hf=hashlib.sha256)
     assert k == k2
 
 
-def test_rfc6979_example() -> None:
+def test_rfc6979_nonce_example() -> None:
     class _helper:  # pylint: disable=too-few-public-methods
         def __init__(self, n: int) -> None:
             self.n = n
@@ -44,10 +44,10 @@ def test_rfc6979_example() -> None:
     msg = b"sample"
     msg_hash = hashlib.sha256(msg).digest()
     k = 0x23AF4074C90A02B3FE61D286D5C87F425E6BDD81B
-    assert k == rfc6979_(msg_hash, x, fake_ec)  # type: ignore[arg-type]
+    assert k == rfc6979_nonce_(msg_hash, x, fake_ec)  # type: ignore[arg-type]
 
 
-def test_rfc6979_tv() -> None:
+def test_rfc6979_nonce_tv() -> None:
     fname = "rfc6979.json"
     filename = path.join(path.dirname(__file__), "_data", fname)
     with open(filename, encoding="ascii") as file_:
@@ -62,7 +62,7 @@ def test_rfc6979_tv() -> None:
             msg = msg.encode()
             m = reduce_to_hlen(msg, hf=getattr(hashlib, hf))
             # test RFC6979 implementation
-            k2 = rfc6979_(m, x, ec, getattr(hashlib, hf))
+            k2 = rfc6979_nonce_(m, x, ec, getattr(hashlib, hf))
             assert int(k, 16) == k2
             # test RFC6979 usage in DSA
             sig = dsa.sign_(m, x, k2, lower_s, ec=ec, hf=getattr(hashlib, hf))

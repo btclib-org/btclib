@@ -10,6 +10,10 @@ full year, short month, short day (YYYY-M-D)
 Major changes include:
 
 - exported names per module (bip32, block, ec, ecc, mnemonic, psbt, script, tx)
+- added join_psbts and join_txs
+- refactored bip340_nonce
+- improved integration of libsecp256k1
+- added secp256k1-py test vectors
 - improved typing
 - added SECURITY, CONTRIBUTING, bug report and feature request templates
 - added pre-commit hooks
@@ -217,7 +221,7 @@ Major changes includes:
 - The Bitcoin Message Signing module btcmsg.py has been rename bms.py
 - refactored address/scriptPubKey
 - consolidated wif_from_* in wif_from_prvkey
-- removed ambigous functions going from prvkey to address
+- removed ambigous functions going from prv_key to address
 - refactored to_pub and to_prv functions
 - added network <-> prefix <-> curve functions in network module
 - removed trailing _scriptPubKey suffix from the function names

@@ -12,7 +12,7 @@
 from __future__ import annotations
 
 import secrets
-from hashlib import sha256 as hf  # FIXME: any hf
+from hashlib import sha256 as hf  # FIXME any hf
 from typing import List, Sequence
 
 from btclib.alias import Octets, Point
@@ -20,9 +20,9 @@ from btclib.ec import bytes_from_point, double_mult, mult, secp256k1
 from btclib.exceptions import BTClibRuntimeError
 from btclib.utils import bytes_from_octets, int_from_bits
 
-ec = secp256k1  # FIXME: any curve
+ec = secp256k1  # FIXME any curve
 
-# TODO: test corner case on low-cardinality curves
+# TODO test corner case on low-cardinality curves
 
 
 def _hash(m: bytes, R: bytes, i: int, j: int) -> bytes:

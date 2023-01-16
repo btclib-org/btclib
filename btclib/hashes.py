@@ -15,8 +15,7 @@ import hashlib
 from typing import Callable, Tuple
 
 from btclib.alias import HashF, Octets
-from btclib.ec import Curve, secp256k1
-from btclib.utils import bytes_from_octets, int_from_bits
+from btclib.utils import bytes_from_octets
 
 H160_Net = Tuple[bytes, str]
 
@@ -70,19 +69,6 @@ def magic_message(msg: Octets) -> bytes:
         + msg
     )
     return sha256(t)
-
-
-# FIXME move into ecc folder
-def challenge_(
-    msg_hash: Octets, ec: Curve = secp256k1, hf: HashF = hashlib.sha256
-) -> int:
-
-    # the message msg_hash: a hf_len array
-    hf_len = hf().digest_size
-    msg_hash = bytes_from_octets(msg_hash, hf_len)
-
-    # leftmost ec.nlen bits %= ec.n
-    return int_from_bits(msg_hash, ec.nlen) % ec.n
 
 
 def merkle_root(data: list[bytes], hf: Callable[[bytes | str], bytes]) -> bytes:

@@ -159,7 +159,7 @@ def test_test_vectors() -> None:
     data = data[1:]  # skip column headers
     for raw_tx, raw_script, input_index, hash_type, exp_hash in data:
         script_ = sig_hash.legacy_script(raw_script)[0]
-        # FIXME: separate invalid transaction from the valid ones
+        # FIXME separate invalid transaction from the valid ones
         tx = Tx.parse(raw_tx, check_validity=False)
         if hash_type < 0:
             hash_type += 0xFFFFFFFF + 1

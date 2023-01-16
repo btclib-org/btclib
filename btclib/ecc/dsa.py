@@ -30,9 +30,10 @@ from btclib import var_bytes
 from btclib.alias import BinaryData, HashF, JacPoint, Octets, Point
 from btclib.ec import Curve, libsecp256k1, secp256k1
 from btclib.ec.curve_group import _double_mult, _mult
-from btclib.ecc.rfc6979 import _rfc6979_
+from btclib.ecc.libsecp256k1 import ecdsa_sign_, ecdsa_verify_
+from btclib.ecc.rfc6979_nonce import _rfc6979_nonce_, challenge_
 from btclib.exceptions import BTClibRuntimeError, BTClibValueError
-from btclib.hashes import challenge_, reduce_to_hlen
+from btclib.hashes import reduce_to_hlen
 from btclib.number_theory import mod_inv
 from btclib.to_prv_key import PrvKey, int_from_prv_key
 from btclib.to_pub_key import Key, point_from_key, pub_keyinfo_from_key
@@ -255,21 +256,21 @@ def sign_(
     # SEC 1 v.2 section 3.2.1
     q = int_from_prv_key(prv_key, ec)
 
+    if (
+        ec == secp256k1
+        and nonce is None  # FIXME secp256k1 manage nonce
+        and lower_s
+        and hf == sha256
+        and libsecp256k1.is_available()
+    ):
+        return Sig.parse(ecdsa_sign_(msg_hash, q))
+
     # the challenge
     c = challenge_(msg_hash, ec, hf)  # 4, 5
 
-    if (
-        ec == secp256k1
-        and nonce is None
-        and lower_s
-        and hf == sha256
-        and libsecp256k1.is_enabled()
-    ):
-        return Sig.parse(libsecp256k1.dsa.sign(msg_hash, q))
-
     # nonce: an integer in the range 1..n-1.
     if nonce is None:
-        nonce = _rfc6979_(c, q, ec, hf)  # 1
+        nonce = _rfc6979_nonce_(c, q, ec, hf)  # 1
     else:
         nonce = int_from_prv_key(nonce, ec)
 
@@ -349,18 +350,16 @@ def assert_as_valid_(
     else:
         sig = Sig.parse(sig)
 
-    c = challenge_(msg_hash, sig.ec, hf)  # 2, 3
-
-    Q = point_from_key(key, sig.ec)
-    QJ = Q[0], Q[1], 1
-
-    if libsecp256k1.is_enabled() and sig.ec == secp256k1 and lower_s and hf == sha256:
+    if sig.ec == secp256k1 and hf == sha256 and libsecp256k1.is_available():
         msg_hash_bytes = bytes_from_octets(msg_hash)
         pubkey_bytes = pub_keyinfo_from_key(key)[0]
-        if not libsecp256k1.dsa.verify(msg_hash_bytes, pubkey_bytes, sig.serialize()):
-            raise BTClibRuntimeError("signature verification failed")
+        if not ecdsa_verify_(msg_hash_bytes, pubkey_bytes, sig.serialize(), lower_s):
+            raise BTClibRuntimeError("libsecp256k1.ecdsa_verify_ failed")
         return
 
+    c = challenge_(msg_hash, sig.ec, hf)  # 2, 3
+    Q = point_from_key(key, sig.ec)
+    QJ = Q[0], Q[1], 1
     # second part delegated to helper function
     _assert_as_valid_(c, QJ, sig.r, sig.s, lower_s, sig.ec)
 
@@ -408,7 +407,7 @@ def verify(
     return verify_(msg_hash, key, sig, lower_s, hf)
 
 
-# TODO: use _recover_pub_key_ to avoid code duplication
+# TODO use _recover_pub_key_ to avoid code duplication
 def _recover_pub_keys_(
     c: int, r: int, s: int, lower_s: bool, ec: Curve
 ) -> list[JacPoint]:

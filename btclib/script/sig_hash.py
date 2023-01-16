@@ -69,7 +69,7 @@ def legacy_script(script_pub_key: Octets) -> list[bytes]:
     return script_s[::-1]
 
 
-# FIXME: remove OP_CODESEPARATOR only if executed
+# FIXME remove OP_CODESEPARATOR only if executed
 def witness_v0_script(script_pub_key: Octets) -> list[bytes]:
     script_type, payload = type_and_payload(script_pub_key)
 
@@ -95,7 +95,7 @@ def legacy(script_: Octets, tx: Tx, vin_i: int, hash_type: int) -> bytes:
     new_tx = deepcopy(tx)
     for txin in new_tx.vin:
         txin.script_sig = b""
-    # TODO: delete sig from script_ (even if non standard)
+    # TODO delete sig from script_ (even if non standard)
     new_tx.vin[vin_i].script_sig = script_
     if hash_type & 0x1F is NONE:
         new_tx.vout = []

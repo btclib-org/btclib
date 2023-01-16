@@ -161,7 +161,7 @@ class BlockHeader:
             date = datetime.fromtimestamp(self.time.timestamp(), timezone.utc)
             err_msg += f": {date}"
             raise BTClibValueError(err_msg)
-        # TODO: check for max 4-bytes timestamp
+        # TODO check for max 4-bytes timestamp
 
         for key, size in _KEY_SIZE:
             value = bytes(getattr(self, key))

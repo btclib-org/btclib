@@ -219,7 +219,7 @@ class CurveGroup:
         T = Q[1] * RZ3
         U = R[1] * QZ3
 
-        # FIXME: it would be better if doubling was not a special case
+        # FIXME it would be better if doubling was not a special case
         # if same affine x and same affine y, then point doubling
         if M % self.p == N % self.p and T % self.p == U % self.p:
             return self._double_jac_helper(Q, QZ2)
@@ -264,13 +264,13 @@ class CurveGroup:
 
     def add_aff(self, Q: Point, R: Point) -> Point:
         # points are assumed to be on curve
-        # FIXME: it would be better if INF handling was not a special case
+        # FIXME it would be better if INF handling was not a special case
         if R[1] == 0:  # Infinity point in affine coordinates
             return Q
         if Q[1] == 0:  # Infinity point in affine coordinates
             return R
 
-        # FIXME: it would be better if doubling was checked before INF handling
+        # FIXME it would be better if doubling was checked before INF handling
         if R[0] == Q[0]:
             return self.double_aff(R) if R[1] == Q[1] else INF
         lam = (R[1] - Q[1]) * mod_inv(R[0] - Q[0], self.p)
@@ -724,6 +724,9 @@ def _multi_mult(
         err_msg = "mismatch between number of scalars and points: "
         err_msg += f"{len(scalars)} vs {len(jac_points)}"
         raise BTClibValueError(err_msg)
+
+    if len(scalars) < 2:
+        raise BTClibValueError("not a multi_mult")
 
     # x = list(zip([-n for n in scalars], jac_points))
     x: list[tuple[int, JacPoint]] = []

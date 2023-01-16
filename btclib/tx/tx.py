@@ -58,7 +58,7 @@ class Tx:
     vin: list[TxIn]
     vout: list[TxOut]
 
-    # TODO: add fee property when a tx fetcher will be available
+    # TODO add fee property when a tx fetcher will be available
 
     @property
     def nVersion(self) -> int:  # pylint: disable=invalid-name

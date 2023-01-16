@@ -10,7 +10,8 @@
 
 """Module btclib.ecc."""
 
+from btclib.ecc.bip340_nonce import bip340_nonce_
 from btclib.ecc.dh import ansi_x9_63_kdf, diffie_hellman
 from btclib.ecc.pedersen import second_generator
 
-__all__ = ["second_generator", "ansi_x9_63_kdf", "diffie_hellman"]
+__all__ = ["bip340_nonce_", "second_generator", "ansi_x9_63_kdf", "diffie_hellman"]

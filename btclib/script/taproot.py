@@ -25,7 +25,7 @@ from btclib.to_prv_key import PrvKey, int_from_prv_key
 from btclib.to_pub_key import Key, pub_keyinfo_from_key
 from btclib.utils import bytes_from_octets
 
-# TODO: add type hinting to script_tree
+# TODO add type hinting to script_tree
 # unfortunately recursive type hinting is not supported
 # https://github.com/python/mypy/issues/731
 # TaprootLeaf = Tuple[int, Script]
@@ -62,29 +62,29 @@ def output_pubkey(
     if not internal_pubkey and not script_tree:
         raise BTClibValueError("missing data")
     if internal_pubkey:
-        pubkey = pub_keyinfo_from_key(internal_pubkey, compressed=True)[0][1:]
+        pub_key = pub_keyinfo_from_key(internal_pubkey, compressed=True)[0][1:]
     else:
         h_str = "50929b74c1a04954b78b4b6035e97a5e078a5a0f28ec96d547bfee9ace803ac0"
-        pubkey = bytes.fromhex(h_str)
+        pub_key = bytes.fromhex(h_str)
     if script_tree:
         _, h = tree_helper(script_tree)
     else:
         h = b""
-    t = int.from_bytes(tagged_hash(b"TapTweak", pubkey + h), "big")
+    t = int.from_bytes(tagged_hash(b"TapTweak", pub_key + h), "big")
     # edge case that cannot be reproduced in the test suite
     if t >= ec.n:
         raise BTClibValueError("Invalid script tree hash")  # pragma: no cover
-    P_x = int.from_bytes(pubkey, "big")
+    P_x = int.from_bytes(pub_key, "big")
     Q = ec.add((P_x, ec.y_even(P_x)), mult(t))
     return Q[0].to_bytes(32, "big"), Q[1] % 2
 
 
 def output_prvkey(
-    prvkey: PrvKey,
+    prv_key: PrvKey,
     script_tree: TaprootScriptTree | None = None,
     ec: Curve = secp256k1,
 ) -> int:
-    internal_prvkey: int = int_from_prv_key(prvkey)
+    internal_prvkey: int = int_from_prv_key(prv_key)
     P = mult(internal_prvkey)
     if script_tree:
         _, h = tree_helper(script_tree)

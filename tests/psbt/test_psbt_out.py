@@ -36,7 +36,7 @@ def test_unknown() -> None:
     assert encoded_data == encode_dict_bytes_bytes(data)
 
     _ = serialize_dict_bytes_bytes(b"", data)
-    # TODO: check deserialization
+    # TODO check deserialization
 
 
 def test_psbt_out() -> None:

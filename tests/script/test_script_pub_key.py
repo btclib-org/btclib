@@ -156,12 +156,12 @@ def test_nulldata4() -> None:
         "OP_0",
         "OP_3",
     ]
-    # FIXME: serialization is not 0x6A{1 byte data-length}{data 6 bytes)}
+    # FIXME serialization is not 0x6A{1 byte data-length}{data 6 bytes)}
     script_pub_key = serialize(script_)
     assert len(script_pub_key) == 7
     assert parse(script_pub_key) == script_
     script_type, _ = type_and_payload(script_pub_key)
-    # FIXME: it should be "nulldata"
+    # FIXME it should be "nulldata"
     assert script_type == "unknown"
     # assert is_nulldata(script_pub_key)
 
@@ -386,7 +386,10 @@ def test_p2ms_1() -> None:
     assert script_type == "p2ms"
     assert payload == script_pub_key[:-1]
     pub_keys: list[Key] = [pub_key0, pub_key1]
-    assert script_pub_key == ScriptPubKey.p2ms(1, pub_keys, lexi_sort=False).script
+    assert (
+        script_pub_key
+        == ScriptPubKey.p2ms(1, pub_keys, lexicographic_sorting=False).script
+    )
 
     err_msg = "invalid m in m-of-n: "
     with pytest.raises(BTClibValueError, match=err_msg):
@@ -470,8 +473,10 @@ def test_p2ms_2() -> None:
     mixed_pub_keys: list[Key] = [pub_key0, pub_key1, pub_key2]
 
     for pub_keys in (uncompressed_pub_keys, mixed_pub_keys):
-        for lexi_sort in (True, False):
-            script_pub_key = ScriptPubKey.p2ms(m, pub_keys, lexi_sort=lexi_sort).script
+        for lexicographic_sorting in (True, False):
+            script_pub_key = ScriptPubKey.p2ms(
+                m, pub_keys, lexicographic_sorting=lexicographic_sorting
+            ).script
             assert is_p2ms(script_pub_key)
             assert address(script_pub_key) == ""
             script_type, payload = type_and_payload(script_pub_key)
@@ -510,7 +515,7 @@ def test_p2ms_3() -> None:
     # parse(serialize(*)) is to enforce same string case convention
     assert script.asm == parse(serialize(cmds_sig + cmds))
 
-    # TODO: evaluate
+    # TODO evaluate
 
 
 def test_bip67() -> None:
@@ -526,7 +531,7 @@ def test_bip67() -> None:
     for i in test_vectors:
         keys, addr = test_vectors[i]
 
-        script_pub_key = ScriptPubKey.p2ms(m, keys, lexi_sort=True).script
+        script_pub_key = ScriptPubKey.p2ms(m, keys, lexicographic_sorting=True).script
         assert is_p2ms(script_pub_key)
         assert address(script_pub_key) == ""
         script_type, payload = type_and_payload(script_pub_key)

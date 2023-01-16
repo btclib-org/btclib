@@ -13,7 +13,6 @@
 from __future__ import annotations
 
 import csv
-import secrets
 from hashlib import sha256 as hf
 from os import path
 
@@ -22,8 +21,10 @@ import pytest
 from btclib.alias import INF, Point, String
 from btclib.bip32 import BIP32KeyData
 from btclib.ec import bytes_from_point, double_mult, libsecp256k1, mult
-from btclib.ec.curve import CURVES
-from btclib.ecc import second_generator, ssa
+from btclib.ec.curve import CURVES, secp256k1
+from btclib.ec.curve_group import jac_from_aff
+from btclib.ecc import bip340_nonce_, second_generator, ssa
+from btclib.ecc.libsecp256k1 import ecssa_sign_, ecssa_verify_
 from btclib.exceptions import BTClibRuntimeError, BTClibTypeError, BTClibValueError
 from btclib.hashes import reduce_to_hlen
 from btclib.number_theory import mod_inv
@@ -33,11 +34,11 @@ from tests.ec.test_curve import low_card_curves
 
 def test_signature() -> None:
     msg = b"Satoshi Nakamoto"
-
-    libsecp256k1.disable()
-
-    q, x_Q = ssa.gen_keys(0x01)
-    sig = ssa.sign(msg, q)
+    aux = b"\x00" * 32
+    q = 6
+    q_fixed, x_Q = ssa.gen_keys(q)
+    assert q_fixed != q
+    sig = ssa.sign(msg, q, aux)
     ssa.assert_as_valid(msg, x_Q, sig)
     assert ssa.verify(msg, x_Q, sig)
     assert sig == ssa.Sig.parse(sig.serialize())
@@ -45,16 +46,15 @@ def test_signature() -> None:
 
     msg_fake = b"Craig Wright"
     assert not ssa.verify(msg_fake, x_Q, sig)
-    err_msg = r"y_K is odd|signature verification failed"
+    err_msg = (
+        "libsecp256k1.ecssa_verify_ failed"
+        if libsecp256k1.is_available()
+        else r"y_K is odd|signature verification failed"
+    )
     with pytest.raises(BTClibRuntimeError, match=err_msg):
         ssa.assert_as_valid(msg_fake, x_Q, sig)
 
-    _, x_Q_fake = ssa.gen_keys(0x02)
-    assert not ssa.verify(msg, x_Q_fake, sig)
-    with pytest.raises(BTClibRuntimeError, match=err_msg):
-        ssa.assert_as_valid(msg, x_Q_fake, sig)
-
-    _, x_Q_fake = ssa.gen_keys(0x4)
+    _, x_Q_fake = ssa.gen_keys(q + 2)
     assert not ssa.verify(msg, x_Q_fake, sig)
     with pytest.raises(BTClibRuntimeError, match=err_msg):
         ssa.assert_as_valid(msg, x_Q_fake, sig)
@@ -78,8 +78,8 @@ def test_signature() -> None:
         ssa.assert_as_valid(msg, x_Q, sig_invalid)
 
     m_bytes = reduce_to_hlen(msg, hf)
-    err_msg = "invalid size: 31 bytes instead of 32"
-    with pytest.raises(BTClibValueError, match=err_msg):
+    err_msg = "invalid size: 31 bytes instead of 32|libsecp256k1.ecssa_verify_ failed"
+    with pytest.raises((BTClibValueError, BTClibRuntimeError), match=err_msg):
         ssa.assert_as_valid_(m_bytes[:31], x_Q, sig)
 
     with pytest.raises(BTClibValueError, match=err_msg):
@@ -89,20 +89,11 @@ def test_signature() -> None:
     with pytest.raises(BTClibValueError, match=err_msg):
         ssa.sign(msg, 0)
 
-    # ephemeral key not in 1..n-1
-    err_msg = "private key not in 1..n-1: "
-    with pytest.raises(BTClibValueError, match=err_msg):
-        ssa.sign_(m_bytes, q, 0)
-    with pytest.raises(BTClibValueError, match=err_msg):
-        ssa.sign_(m_bytes, q, sig.ec.n)
-
-    libsecp256k1.enable()
-
 
 def test_bip340_vectors() -> None:
     """BIP340 (Schnorr) test vectors.
 
-    https://github.com/bitcoin/bips/blob/master/bip-0340/test-vectors.csv
+    - https://github.com/bitcoin/bips/blob/master/bip-0340/test-vectors.csv
     """
     fname = "bip340_test_vectors.csv"
     filename = path.join(path.dirname(__file__), "_data", fname)
@@ -118,8 +109,7 @@ def test_bip340_vectors() -> None:
                     _, pub_key_actual = ssa.gen_keys(seckey)
                     assert pub_key == hex(pub_key_actual).upper()[2:], err_msg
 
-                    k = ssa.det_nonce_(m, seckey, aux_rand)
-                    sig_actual = ssa.sign_(m, seckey, k)
+                    sig_actual = ssa.sign_(m, seckey, aux_rand)
                     ssa.assert_as_valid_(m, pub_key, sig_actual)
                     assert ssa.Sig.parse(sig) == sig_actual, err_msg
 
@@ -189,27 +179,30 @@ def test_low_cardinality() -> None:
         low_card_curves["ec23_31"],
     ]
 
+    aux = b"\x00" * 32
+    msg = b"\x01"
     # only low cardinality test curves or it would take forever
     for ec in test_curves:
         for q in range(1, ec.n // 2):  # all possible private keys
-            q, x_Q, QJ = ssa.gen_keys_(q, ec)
+            q_fixed, x_Q = ssa.gen_keys(q, ec)
+            QJ = jac_from_aff((x_Q, ec.y_even(x_Q)))
             while True:
                 try:
-                    msg = secrets.token_bytes(32)
-                    sig = ssa.sign(msg, q, ec=ec)
+                    sig = ssa.sign(msg, q, aux, ec)
                     break
-                except BTClibRuntimeError:
+                except BTClibRuntimeError:  # invalid zero challenge
+                    msg += b"\x01"
                     continue
             ssa.assert_as_valid(msg, x_Q, sig)
             for k in range(1, ec.n // 2):  # all possible ephemeral keys
-                k, r = ssa.gen_keys(k, ec)
+                k_fixed, r = ssa.gen_keys(k, ec)
                 for e in range(ec.n):  # all possible challenges
-                    s = (k + e * q) % ec.n
+                    s = (k_fixed + e * q_fixed) % ec.n
 
                     if e == 0:
                         err_msg = "invalid zero challenge"
                         with pytest.raises(BTClibRuntimeError, match=err_msg):
-                            ssa._sign_(e, q, k, r, ec)
+                            ssa._sign_(e, q_fixed, k_fixed, r, ec)
                         # no public key can be recovered
                         with pytest.raises(BTClibRuntimeError, match=err_msg):
                             ssa._recover_pub_key_(e, r, s, ec)
@@ -217,49 +210,21 @@ def test_low_cardinality() -> None:
                         # if e == 0 then the sig is always valid
                         ssa._assert_as_valid_(e, QJ, r, s, ec)
                         #  for all {q, Q}
-                        _, _, new_QJ = ssa.gen_keys_(None, ec)
-                        ssa._assert_as_valid_(e, new_QJ, r, s, ec)
+                        ssa._assert_as_valid_(e, ec.GJ, r, s, ec)
                     else:
-                        sig = ssa._sign_(e, q, k, r, ec)
+                        sig = ssa._sign_(e, q_fixed, k_fixed, r, ec)
                         # recover pub_key
                         assert x_Q == ssa._recover_pub_key_(e, r, s, ec)
 
                         assert ssa.Sig(r, s, ec) == sig
                         # valid signature must validate
                         ssa._assert_as_valid_(e, QJ, r, s, ec)
-
-
-def test_crack_prv_key() -> None:
-    q, x_Q = ssa.gen_keys(19)  # remove any randomness
-
-    msg1 = b"Paolo is afraid of ephemeral random numbers"
-    m_1 = reduce_to_hlen(msg1)
-    k = ssa.det_nonce_(m_1, q, aux=32 * b"\x01")  # remove any randomness
-    sig1 = ssa.sign_(m_1, q, k)
-
-    msg2 = b"and Paolo is right to be afraid"
-    m_2 = reduce_to_hlen(msg2)
-    # reuse same k
-    sig2 = ssa.sign_(m_2, q, k)
-
-    qc, kc = ssa.crack_prv_key(msg1, sig1, msg2, sig2, x_Q)
-    assert q == qc
-    assert k in (kc, sig1.ec.n - kc)
-
-    qc, kc = ssa.crack_prv_key(msg1, sig1.serialize(), msg2, sig2.serialize(), x_Q)
-    assert q == qc
-    assert k in (kc, sig1.ec.n - kc)
-
-    sig = ssa.Sig(16, sig2.s, sig2.ec)
-    with pytest.raises(BTClibValueError, match="not the same r in signatures"):
-        ssa.crack_prv_key_(m_1, sig1, m_2, sig, x_Q)
-
-    with pytest.raises(BTClibValueError, match="identical signatures"):
-        ssa.crack_prv_key_(m_1, sig1, m_1, sig1, x_Q)
-
-    sig = ssa.Sig(sig1.r, sig1.s, CURVES["secp256r1"])
-    with pytest.raises(BTClibValueError, match="not the same curve in signatures"):
-        ssa.crack_prv_key_(m_1, sig, m_2, sig2, x_Q)
+                        # invalid signature must raise
+                        err_msg = r"y_K is odd|INF has no y-coordinate|signature verification failed"
+                        with pytest.raises(
+                            (BTClibRuntimeError, BTClibValueError), match=err_msg
+                        ):
+                            ssa._assert_as_valid_(e, QJ, r, (s - 1) % ec.n, ec)
 
 
 def test_batch_validation() -> None:
@@ -271,23 +236,17 @@ def test_batch_validation() -> None:
         ssa.assert_batch_as_valid(ms, Qs, sigs)
     assert not ssa.batch_verify(ms, Qs, sigs)
 
-    # valid size for String input to sign, not for Octets input to sign_
+    aux = b"\x00" * 32
+    # not the size of the msg_hash, just an arbitrary size for the msg
     msg_size = 16
-    ms.append(secrets.token_bytes(msg_size))
-    q, Q = ssa.gen_keys()
-    Qs.append(Q)
-    sigs.append(ssa.sign(ms[0], q))
-    # test with only 1 sig
-    ssa.assert_batch_as_valid(ms, Qs, sigs)
-    assert ssa.batch_verify(ms, Qs, sigs)
-    for _ in range(3):
-        m = secrets.token_bytes(msg_size)
+    for i in range(1, 4):
+        m = bytes(i) * msg_size
         ms.append(m)
-        q, Q = ssa.gen_keys()
+        q, Q = ssa.gen_keys(i)
         Qs.append(Q)
-        sigs.append(ssa.sign(m, q))
-    ssa.assert_batch_as_valid(ms, Qs, sigs)
-    assert ssa.batch_verify(ms, Qs, sigs)
+        sigs.append(ssa.sign(m, q, aux))
+        ssa.assert_batch_as_valid(ms, Qs, sigs)
+        assert ssa.batch_verify(ms, Qs, sigs)
 
     ms.append(ms[0])
     sigs.append(sigs[1])
@@ -332,11 +291,11 @@ def test_batch_validation() -> None:
 def test_musig() -> None:
     """Testing 3-of-3 MuSig.
 
-    https://github.com/ElementsProject/secp256k1-zkp/blob/secp256k1-zkp/src/modules/musig/musig.md
-    https://blockstream.com/2019/02/18/musig-a-new-multisignature-standard/
-    https://eprint.iacr.org/2018/068
-    https://blockstream.com/2018/01/23/musig-key-aggregation-schnorr-signatures.html
-    https://medium.com/@snigirev.stepan/how-schnorr-signatures-may-improve-bitcoin-91655bcb4744
+    - https://github.com/ElementsProject/secp256k1-zkp/blob/secp256k1-zkp/src/modules/musig/musig.md
+    - https://blockstream.com/2019/02/18/musig-a-new-multisignature-standard/
+    - https://eprint.iacr.org/2018/068
+    - https://blockstream.com/2018/01/23/musig-key-aggregation-schnorr-signatures.html
+    - https://medium.com/@snigirev.stepan/how-schnorr-signatures-may-improve-bitcoin-91655bcb4744
     """
 
     ec = CURVES["secp256k1"]
@@ -590,8 +549,8 @@ def test_threshold() -> None:
     msg_hash = reduce_to_hlen(msg, hf)
 
     # 2.1 signer one acting as the dealer
-    k1 = ssa.det_nonce_(msg_hash, q1, None, ec, hf)
-    k1_prime = ssa.det_nonce_(msg_hash, q1_prime, None, ec, hf)
+    k1, _, _, _ = bip340_nonce_(msg_hash, q1, None, ec, hf)
+    k1_prime, _, _, _ = bip340_nonce_(msg_hash, q1_prime, None, ec, hf)
     commits1 = [double_mult(k1_prime, H, k1, ec.G)]
     # sharing polynomials
     f1 = [k1]
@@ -614,8 +573,8 @@ def test_threshold() -> None:
     assert t == RHS, "signer one is cheating"
 
     # 2.2 signer three acting as the dealer
-    k3 = ssa.det_nonce_(msg_hash, q3, None, ec, hf)
-    k3_prime = ssa.det_nonce_(msg_hash, q3_prime, None, ec, hf)
+    k3, _, _, _ = bip340_nonce_(msg_hash, q3, None, ec, hf)
+    k3_prime, _, _, _ = bip340_nonce_(msg_hash, q3_prime, None, ec, hf)
     commits3 = [double_mult(k3_prime, H, k3, ec.G)]
     # sharing polynomials
     f3 = [k3]
@@ -713,20 +672,28 @@ def test_threshold() -> None:
 
 
 def test_libsecp256k1() -> None:
-    try:
-        import btclib_libsecp256k1.ssa  # pylint: disable=import-outside-toplevel
-    except ImportError:  # pragma: no cover
-        pytest.skip()
-
-    prvkey, X_Q = ssa.gen_keys(0x1)
-    pubkey_bytes = X_Q.to_bytes(32, "big")
     msg = b"Satoshi Nakamoto"
-    msg_hash = reduce_to_hlen(msg)
+    prvkey_int, pubkey_int = ssa.gen_keys(0x1)
+    aux = b"\x00" * 32
+    btclib_sig = ssa.sign(msg, prvkey_int, aux)
+    pub_key = pubkey_int.to_bytes(32, "big")
+    assert ssa.verify(msg, pub_key, btclib_sig.serialize())
+    assert ssa.verify(msg, pub_key, btclib_sig)
 
-    libsecp256k1_sig = btclib_libsecp256k1.ssa.sign(msg_hash, prvkey)
-    btclib_sig = ssa.sign_(msg_hash, prvkey)
+    if libsecp256k1.is_available():
+        msg_hash = reduce_to_hlen(msg)
+        libsecp256k1_sig = ecssa_sign_(msg_hash, prvkey_int, aux)
+        assert len(libsecp256k1_sig) == 64
+        assert len(btclib_sig.serialize()) == 64
+        assert btclib_sig.serialize() == libsecp256k1_sig
+        assert ecssa_verify_(msg_hash, pub_key, libsecp256k1_sig)
+        assert ssa.verify(msg, pub_key, libsecp256k1_sig)
 
-    assert btclib_libsecp256k1.ssa.verify(
-        msg_hash, pubkey_bytes, btclib_sig.serialize()
-    )
-    assert ssa.verify(msg, X_Q, libsecp256k1_sig)
+        invalid_prvkey = secp256k1.p
+        err_msg = "private key not in 1..n-1"
+        with pytest.raises(BTClibValueError, match=err_msg):
+            ecssa_sign_(msg_hash, invalid_prvkey)
+
+        err_msg = "invalid size: "
+        with pytest.raises(BTClibValueError, match=err_msg):
+            ecssa_verify_(msg_hash, pub_key[1:], libsecp256k1_sig)

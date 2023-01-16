@@ -10,12 +10,10 @@
 
 """Tests for the `btclib.sec_point` module."""
 
-import secrets
-
 import pytest
 
 from btclib.alias import INF
-from btclib.ec import Curve, bytes_from_point, mult, point_from_octets
+from btclib.ec import Curve, bytes_from_point, point_from_octets
 from btclib.ec.curve import CURVES
 from btclib.exceptions import BTClibValueError
 
@@ -50,14 +48,14 @@ def test_octets2point() -> None:
         G_point = point_from_octets(G_bytes, ec)
         assert ec.G == G_point
 
-        # just a random point, not INF
-        q = 1 + secrets.randbelow(ec.n - 1)
-        Q = mult(q, ec.G, ec)
+        # just a point, not INF
+        Q = ec.G
 
         Q_bytes = b"\x03" if Q[1] & 1 else b"\x02"
         Q_bytes += Q[0].to_bytes(ec.p_size, byteorder="big", signed=False)
         Q_point = point_from_octets(Q_bytes, ec)
-        assert Q_point == Q
+        assert Q_point[0] == Q[0]
+        assert Q_point[1] == Q[1]
         assert bytes_from_point(Q_point, ec) == Q_bytes
 
         Q_hex_str = Q_bytes.hex()

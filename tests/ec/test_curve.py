@@ -10,18 +10,30 @@
 
 """Tests for the `btclib.curve` module."""
 
-import secrets
+
+import itertools
+import json
+from os import path
 
 import pytest
 
 from btclib.alias import INF, INFJ
-from btclib.ec import Curve, double_mult, jac_from_aff, mult, multi_mult, secp256k1
+from btclib.ec import (
+    Curve,
+    double_mult,
+    jac_from_aff,
+    libsecp256k1,
+    mult,
+    multi_mult,
+    secp256k1,
+)
 from btclib.ec.curve import CURVES
 from btclib.ecc import second_generator
-from btclib.exceptions import BTClibTypeError, BTClibValueError
+from btclib.exceptions import BTClibRuntimeError, BTClibTypeError, BTClibValueError
 from btclib.number_theory import mod_sqrt
+from btclib.to_pub_key import pub_keyinfo_from_prv_key
 
-# FIXME Curve repr should use "dedbeef 00000000", not "0xdedbeef00000000"
+# FIXME Curve repr should use "deadbeef 00000000", not "0xdeadbeef00000000"
 # FIXME test curves when n>p
 
 # test curves: very low cardinality
@@ -44,6 +56,60 @@ all_curves = low_card_curves.copy()
 all_curves.update(CURVES)
 
 ec23_31 = low_card_curves["ec23_31"]
+
+
+def test_mult_on_secp256k1() -> None:
+    assert mult(0) == INF
+
+    G = mult(1)
+    assert G[0] == 0x79BE667EF9DCBBAC55A06295CE870B07029BFCDB2DCE28D959F2815B16F81798
+    assert G[1] == 0x483ADA7726A3C4655DA4FBFC0E1108A8FD17B448A68554199C47D08FFB10D4B8
+
+    G_ = mult(secp256k1.n - 1)
+    assert G_[0] == 0x79BE667EF9DCBBAC55A06295CE870B07029BFCDB2DCE28D959F2815B16F81798
+    assert G_[1] == 0xB7C52588D95C3B9AA25B0403F1EEF75702E84BB7597AABE663B82F6F04EF2777
+
+    if libsecp256k1.is_available():
+        err_msg = (
+            r"can't convert negative int to unsigned|secp256k1_ec_pubkey_create failure"
+        )
+        for invalid_prvkey in (-1, 0, secp256k1.n, secp256k1.p):
+            with pytest.raises((OverflowError, BTClibRuntimeError), match=err_msg):
+                libsecp256k1.pubkey_from_prvkey(invalid_prvkey)
+            mult(invalid_prvkey)
+
+
+def test_secp256k1_py_vectors() -> None:
+    # https://github.com/rustyrussell/secp256k1-py/blob/master/tests/data/pubkey.json
+
+    fname = "pubkey.json"
+    filename = path.join(path.dirname(__file__), "_data", fname)
+
+    with open(filename, encoding="ascii") as file_:
+        test_vectors = json.load(file_)["vectors"]
+
+    for vector in test_vectors:
+        prv_key = bytes.fromhex(vector["seckey"])
+        assert len(prv_key) == 32
+        pubkey_uncp = bytes.fromhex(vector["pubkey"])
+        assert len(pubkey_uncp) == 65
+        pubkey_comp = bytes.fromhex(vector["compressed"])
+        assert len(pubkey_comp) == 33
+
+        assert pub_keyinfo_from_prv_key(prv_key, compressed=False)[0] == pubkey_uncp
+        assert pub_keyinfo_from_prv_key(prv_key, compressed=True)[0] == pubkey_comp
+
+        if libsecp256k1.is_available():
+            assert (
+                libsecp256k1.pubkey_from_prvkey(prv_key, compressed=False)
+                == pubkey_uncp
+            )
+            assert libsecp256k1.pubkey_from_prvkey(prv_key) == pubkey_comp
+
+    if libsecp256k1.is_available():
+        err_msg = "secp256k1_ec_pubkey_create failure"
+        with pytest.raises(BTClibRuntimeError, match=err_msg):
+            libsecp256k1.pubkey_from_prvkey(secp256k1.n)
 
 
 def test_exceptions() -> None:
@@ -100,9 +166,8 @@ def test_exceptions() -> None:
 def test_aff_jac_conversions() -> None:
     for ec in all_curves.values():
 
-        # just a random point, not INF
-        q = 1 + secrets.randbelow(ec.n - 1)
-        Q = mult(q, ec.G, ec)
+        # just a point, not INF
+        Q = ec.G
         QJ = jac_from_aff(Q)
         assert Q == ec.aff_from_jac(QJ)
         x_Q = ec.x_aff_from_jac(QJ)
@@ -169,9 +234,8 @@ def test_add_double_aff_jac() -> None:
     """Test consistency between affine and Jacobian add/double methods."""
     for ec in all_curves.values():
 
-        # just a random point, not INF
-        q = 1 + secrets.randbelow(ec.n - 1)
-        Q = mult(q, ec.G, ec)
+        # just a point, not INF
+        Q = ec.G
         QJ = jac_from_aff(Q)
 
         # add Q and G
@@ -205,9 +269,8 @@ def test_is_on_curve() -> None:
         with pytest.raises(BTClibValueError, match="x-coordinate not in 0..p-1: "):
             ec.y(ec.p)
 
-        # just a random point, not INF
-        q = 1 + secrets.randbelow(ec.n - 1)
-        Q = mult(q, ec.G, ec)
+        # just a point, not INF
+        Q = ec.G
         with pytest.raises(BTClibValueError, match="y-coordinate not in 1..p-1: "):
             ec.is_on_curve((Q[0], ec.p))
 
@@ -215,9 +278,8 @@ def test_is_on_curve() -> None:
 def test_negate() -> None:
     for ec in all_curves.values():
 
-        # just a random point, not INF
-        q = 1 + secrets.randbelow(ec.n - 1)
-        Q = mult(q, ec.G, ec)
+        # just a point, not INF
+        Q = ec.G
         minus_Q = ec.negate(Q)
         assert ec.add(Q, minus_Q) == INF
 
@@ -245,15 +307,14 @@ def test_symmetry() -> None:
     """Methods to break simmetry: quadratic residue, even/odd, low/high."""
     for ec in low_card_curves.values():
 
-        # just a random point, not INF
-        q = 1 + secrets.randbelow(ec.n - 1)
-        Q = mult(q, ec.G, ec)
+        # just a point, not INF
+        Q = ec.G
         x_Q = Q[0]
 
         assert not ec.y_even(x_Q) % 2
         assert ec.y_low(x_Q) <= ec.p // 2
 
-        # compute quadratic residues
+        # compute all quadratic residues
         hasRoot = {1}
         for i in range(2, ec.p):
             hasRoot.add(i * i % ec.p)
@@ -311,9 +372,9 @@ def test_symmetry() -> None:
 def test_assorted_mult() -> None:
     ec = ec23_31
     H = second_generator(ec)
-    for k1 in range(-ec.n + 1, ec.n):
+    for k1 in range(-2, ec.n):
         K1 = mult(k1, ec.G, ec)
-        for k2 in range(ec.n):
+        for k2 in range(-2, ec.n):
             K2 = mult(k2, H, ec)
 
             shamir = double_mult(k1, ec.G, k2, ec.G, ec)
@@ -332,7 +393,7 @@ def test_assorted_mult() -> None:
             K1K2 = ec.add(K1, K2)
             assert K1K2 == shamir
 
-            k3 = 1 + secrets.randbelow(ec.n - 1)
+            k3 = ec.n // 3  # just a random ponit, not INF
             K3 = mult(k3, ec.G, ec)
             K1K2K3 = ec.add(K1K2, K3)
             assert ec.is_on_curve(K1K2K3)
@@ -340,7 +401,7 @@ def test_assorted_mult() -> None:
             assert ec.is_on_curve(boscoster)
             assert K1K2K3 == boscoster, k3
 
-            k4 = 1 + secrets.randbelow(ec.n - 1)
+            k4 = ec.n // 4  # just a random ponit, not INF
             K4 = mult(k4, H, ec)
             K1K2K3K4 = ec.add(K1K2K3, K4)
             assert ec.is_on_curve(K1K2K3K4)
@@ -361,65 +422,30 @@ def test_assorted_mult() -> None:
 def test_double_mult() -> None:
     H = second_generator(secp256k1)
     G = secp256k1.G
+    assert double_mult(0, G, 0, H) == INF
+    assert double_mult(1, G, 0, H) == G
+    assert double_mult(0, G, 1, H) == H
+    for i, j in itertools.product(range(-1, 3), range(-1, 3)):
+        exp = secp256k1.add(mult(i), mult(j, H))
+        assert exp == double_mult(i, G, j, H)
 
-    # 0*G + 1*H
-    T = double_mult(1, H, 0, G)
-    assert T == H
-    T = multi_mult([1, 0], [H, G])
-    assert T == H
 
-    # 0*G + 2*H
-    exp = mult(2, H)
-    T = double_mult(2, H, 0, G)
-    assert T == exp
-    T = multi_mult([2, 0], [H, G])
-    assert T == exp
+def test_multi_mult() -> None:
+    with pytest.raises(BTClibValueError, match="not a multi_mult"):
+        multi_mult([1], [secp256k1.G])
 
-    # 0*G + 3*H
-    exp = mult(3, H)
-    T = double_mult(3, H, 0, G)
-    assert T == exp
-    T = multi_mult([3, 0], [H, G])
-    assert T == exp
+    H = second_generator(secp256k1)
+    G = secp256k1.G
+    assert multi_mult([0, 0], [G, H]) == INF
+    assert multi_mult([1, 0], [G, H]) == G
+    assert multi_mult([0, 1], [G, H]) == H
 
-    # 1*G + 0*H
-    T = double_mult(0, H, 1, G)
-    assert T == G
-    T = multi_mult([0, 1], [H, G])
-    assert T == G
+    # FIXME it loop for negative coefficients
+    # assert multi_mult([-1, 1], [G, H]) != INF
+    # assert multi_mult([1, -1], [G, H]) != INF
+    assert multi_mult([-1, 0], [G, H]) != INF
+    assert multi_mult([0, -1], [G, H]) != INF
 
-    # 2*G + 0*H
-    exp = mult(2, G)
-    T = double_mult(0, H, 2, G)
-    assert T == exp
-    T = multi_mult([0, 2], [H, G])
-    assert T == exp
-
-    # 3*G + 0*H
-    exp = mult(3, G)
-    T = double_mult(0, H, 3, G)
-    assert T == exp
-    T = multi_mult([0, 3], [H, G])
-    assert T == exp
-
-    # 0*G + 5*H
-    exp = mult(5, H)
-    T = double_mult(5, H, 0, G)
-    assert T == exp
-    T = multi_mult([5, 0], [H, G])
-    assert T == exp
-
-    # 0*G - 5*H
-    exp = mult(-5, H)
-    T = double_mult(-5, H, 0, G)
-    assert T == exp
-    T = multi_mult([-5, 0], [H, G])
-    assert T == exp
-
-    # 1*G - 5*H
-    exp = secp256k1.add(G, T)
-    T = double_mult(-5, H, 1, G)
-    assert T == exp
-    # FIXME
-    # T = multi_mult([-5, 1], [H, G])
-    # assert T == exp
+    for i, j in itertools.product(range(3), range(3)):
+        exp = double_mult(i, G, j, H)
+        assert exp == multi_mult([i, j], [G, H])

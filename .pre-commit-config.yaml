@@ -69,8 +69,8 @@ repos:
         args: ["--profile", "black", "--filter-files"]
         language: python
         types: [python]
-  - repo: https://github.com/myint/docformatter
-    rev: v1.5.0
+  - repo: https://github.com/PyCQA/docformatter
+    rev: v1.5.1
     hooks:
       - id: docformatter
         description: "Formats docstrings to follow PEP 257."
@@ -129,13 +129,16 @@ repos:
     hooks:
       - id: bandit
         name: bandit (tests)
-        # disable B101 (Test for use of assert) for the tests folder
-        args: ["--skip", "B101"]
+        # for the test folder disable
+        # B101, Test for use of assert
+        # B311, Standard pseudo-random generators are not suitable
+        #       for security/cryptographic purposes
+        args: ["--skip", "B101,B311"]
         exclude: btclib
         language: python
         types: [python]
   - repo: https://github.com/pycqa/pylint
-    rev: v2.15.9
+    rev: v2.15.10
     hooks:
       - id: pylint
         args: [
