@@ -44,14 +44,13 @@ def is_available() -> bool:
     return LIBSECP256K1_AVAILABLE
 
 
-def pubkey_from_prvkey(prv_key: Octets | int, compressed: bool | None = None) -> bytes:
+def pubkey_from_prvkey(prv_key: Octets | int, compressed: bool = True) -> bytes:
     """Derive public key from private key."""
     prv_key = (
         prv_key.to_bytes(32, "big")
         if isinstance(prv_key, int)
         else bytes_from_octets(prv_key, 32)
     )
-    compressed = True if compressed is None else compressed
 
     pubkey_ptr = ffi.new("secp256k1_pubkey *")
     if not lib.secp256k1_ec_pubkey_create(ctx, pubkey_ptr, prv_key):
