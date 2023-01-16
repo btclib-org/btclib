@@ -33,7 +33,7 @@ project_copyright = "2017-2023 The btclib developers"
 author = "The btclib developers"
 
 # The full version, including alpha/beta/rc tags
-release = "2023.1.16"
+release = "2023.1.17"
 
 
 # -- General configuration ---------------------------------------------------
