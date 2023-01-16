@@ -3,7 +3,7 @@
 1. Run tox to verify that your code pass all tests
    (at least on your OS with your python version)
 
-1. Set appropriate version inside btclib/__init__.py and docs/source/conf.py
+1. Set appropriate version inside btclib/\_\_init\_\_.py and docs/source/conf.py
 
 1. Follow docs/README.rst and test that
    the documentation builds without problems
