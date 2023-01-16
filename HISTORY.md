@@ -10,7 +10,7 @@ full year, short month, short day (YYYY-M-D)
 Major changes include:
 
 - exported names per module (bip32, block, ec, ecc, mnemonic, psbt, script, tx)
-- added joint_psbt and join_tx
+- added join_psbts and join_txs
 - refactored bip340_nonce
 - improved integration of libsecp256k1
 - added secp256k1-py test vectors
