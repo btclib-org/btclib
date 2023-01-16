@@ -69,8 +69,7 @@ def test_mult_on_secp256k1() -> None:
     assert G_[0] == 0x79BE667EF9DCBBAC55A06295CE870B07029BFCDB2DCE28D959F2815B16F81798
     assert G_[1] == 0xB7C52588D95C3B9AA25B0403F1EEF75702E84BB7597AABE663B82F6F04EF2777
 
-    if libsecp256k1.is_enabled():
-        assert libsecp256k1.is_available()
+    if libsecp256k1.is_available():
         err_msg = (
             r"can't convert negative int to unsigned|secp256k1_ec_pubkey_create failure"
         )
@@ -78,8 +77,6 @@ def test_mult_on_secp256k1() -> None:
             with pytest.raises((OverflowError, BTClibRuntimeError), match=err_msg):
                 libsecp256k1.pubkey_from_prvkey(invalid_prvkey)
             mult(invalid_prvkey)
-    else:
-        assert not libsecp256k1.is_available()  # pragma: no cover
 
 
 def test_secp256k1_py_vectors() -> None:
@@ -102,14 +99,14 @@ def test_secp256k1_py_vectors() -> None:
         assert pub_keyinfo_from_prv_key(prv_key, compressed=False)[0] == pubkey_uncp
         assert pub_keyinfo_from_prv_key(prv_key, compressed=True)[0] == pubkey_comp
 
-        if libsecp256k1.is_enabled():
+        if libsecp256k1.is_available():
             assert (
                 libsecp256k1.pubkey_from_prvkey(prv_key, compressed=False)
                 == pubkey_uncp
             )
             assert libsecp256k1.pubkey_from_prvkey(prv_key) == pubkey_comp
 
-    if libsecp256k1.is_enabled():
+    if libsecp256k1.is_available():
         err_msg = "secp256k1_ec_pubkey_create failure"
         with pytest.raises(BTClibRuntimeError, match=err_msg):
             libsecp256k1.pubkey_from_prvkey(secp256k1.n)

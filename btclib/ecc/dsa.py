@@ -261,7 +261,7 @@ def sign_(
         and nonce is None  # FIXME secp256k1 manage nonce
         and lower_s
         and hf == sha256
-        and libsecp256k1.is_enabled()
+        and libsecp256k1.is_available()
     ):
         return Sig.parse(ecdsa_sign_(msg_hash, q))
 
@@ -350,7 +350,7 @@ def assert_as_valid_(
     else:
         sig = Sig.parse(sig)
 
-    if sig.ec == secp256k1 and hf == sha256 and libsecp256k1.is_enabled():
+    if sig.ec == secp256k1 and hf == sha256 and libsecp256k1.is_available():
         msg_hash_bytes = bytes_from_octets(msg_hash)
         pubkey_bytes = pub_keyinfo_from_key(key)[0]
         if not ecdsa_verify_(msg_hash_bytes, pubkey_bytes, sig.serialize(), lower_s):

@@ -222,7 +222,7 @@ def sign_(
 
     aux = secrets.token_bytes(hf_len) if aux is None else bytes_from_octets(aux, hf_len)
 
-    if ec == secp256k1 and hf == sha256 and libsecp256k1.is_enabled():
+    if ec == secp256k1 and hf == sha256 and libsecp256k1.is_available():
         return Sig.parse(ecssa_sign_(msg_hash, prv_key, aux))
 
     # k is the nonce: an integer in the range 1..n-1.
@@ -293,7 +293,7 @@ def assert_as_valid_(
 
     x_Q, y_Q = point_from_bip340pub_key(Q, sig.ec)
 
-    if libsecp256k1.is_enabled() and sig.ec == secp256k1 and hf == sha256:
+    if libsecp256k1.is_available() and sig.ec == secp256k1 and hf == sha256:
         pubkey_bytes = x_Q.to_bytes(32, "big")
         msg_hash = bytes_from_octets(msg_hash)
         if not ecssa_verify_(msg_hash, pubkey_bytes, sig.serialize()):

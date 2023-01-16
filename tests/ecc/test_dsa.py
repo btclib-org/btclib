@@ -298,7 +298,7 @@ def test_libsecp256k1() -> None:
     assert dsa.verify(msg, pub_key, btclib_sig)
     assert dsa.verify(msg, pub_key, btclib_sig.serialize())
 
-    if libsecp256k1.is_enabled():
+    if libsecp256k1.is_available():
         msg_hash = reduce_to_hlen(msg)
         libsecp256k1_sig = ecdsa_sign_(msg_hash, prvkey_int)
         assert btclib_sig.serialize() == libsecp256k1_sig
@@ -340,7 +340,7 @@ def test_libsecp256k1_py_vectors_ecdsa() -> None:
         pub_key = pub_keyinfo_from_prv_key(prv_key, compressed=True)[0]
         assert dsa.verify_(msg_hash, pub_key, sig)
 
-        if libsecp256k1.is_enabled():
+        if libsecp256k1.is_available():
             sig_der = ecdsa_sign_(msg_hash, prv_key)
             assert sig_der == sig_raw[:-1]
             pub_key = libsecp256k1.pubkey_from_prvkey(prv_key)
@@ -370,6 +370,6 @@ def test_libsecp256k1_py_vectors_ecdsa_nonce() -> None:
         pub_key = pub_keyinfo_from_prv_key(prv_key, compressed=True)[0]
         assert dsa.verify_(msg_hash, pub_key, sig_der)
 
-        if libsecp256k1.is_enabled():
+        if libsecp256k1.is_available():
             pub_key = libsecp256k1.pubkey_from_prvkey(prv_key)
             ecdsa_verify_(msg_hash, pub_key, sig_der)
