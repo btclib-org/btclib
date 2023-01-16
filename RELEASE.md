@@ -3,7 +3,7 @@
 1. Run tox to verify that your code pass all tests
    (at least on your OS with your python version)
 
-1. Set appropriate version inside btclib/__init__.py and docs/source/conf.py
+1. Set appropriate version inside btclib/\_\_init\_\_.py and docs/source/conf.py
 
 1. Follow docs/README.rst and test that
    the documentation builds without problems
@@ -22,16 +22,16 @@
 
 1. Build the package distribution files:
 
-```shell
-rm -r btclib.egg-info/ build/ dist/
-python setup.py sdist bdist_wheel
-```
+   ```shell
+   rm -r btclib.egg-info/ build/ dist/
+   python setup.py sdist bdist_wheel
+   ```
 
 1. Push the package files to PyPi:
 
-```shell
-twine upload dist/*
-```
+   ```shell
+   twine upload dist/*
+   ```
 
 1. Create a new release on GitHub:
 
