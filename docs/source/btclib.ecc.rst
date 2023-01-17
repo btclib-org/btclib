@@ -4,6 +4,14 @@ btclib.ecc package
 Submodules
 ----------
 
+btclib.ecc.bip340\_nonce module
+-------------------------------
+
+.. automodule:: btclib.ecc.bip340_nonce
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
 btclib.ecc.bms module
 ---------------------
 
@@ -36,6 +44,14 @@ btclib.ecc.dsa module
    :undoc-members:
    :show-inheritance:
 
+btclib.ecc.libsecp256k1 module
+------------------------------
+
+.. automodule:: btclib.ecc.libsecp256k1
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
 btclib.ecc.pedersen module
 --------------------------
 
@@ -44,8 +60,8 @@ btclib.ecc.pedersen module
    :undoc-members:
    :show-inheritance:
 
-btclib.ecc.rfc6979_nonce module
--------------------------
+btclib.ecc.rfc6979\_nonce module
+--------------------------------
 
 .. automodule:: btclib.ecc.rfc6979_nonce
    :members:
