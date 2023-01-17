@@ -95,7 +95,7 @@ python -m pip install --upgrade btclib
 You might want to install btclib into a
 python virtual environment; e.g. from the root folder:
 
-Shell
+Shell:
 
 ```shell
 python -m venv venv_btclib
@@ -108,16 +108,6 @@ Windows CMD or PowerShell:
 ```cmd
 python -m venv venv_btclib
 .\venv_btclib\Scripts\activate
-python -m pip install --upgrade btclib
-```
-
-Windows Git bash shell:
-
-```bash
-python -m venv venv_btclib
-cd ./venv_btclib/Scripts
-. activate
-cd ../..
 python -m pip install --upgrade btclib
 ```
 
