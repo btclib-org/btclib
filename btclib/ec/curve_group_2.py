@@ -37,7 +37,7 @@ TODO:
     - Peter Dettman's field inverses and square roots using a sliding window over blocks of 1s
         -https://briansmith.org/ecc-inversion-addition-chains-01
     - Joint sparse form (JSF) for double mult
-    -  Interleaving with NAFs
+    - Interleaving with NAFs
 """
 
 from __future__ import annotations
