@@ -66,5 +66,6 @@ setup(
         "Topic :: Scientific/Engineering",
         "Topic :: Security :: Cryptography",
         "Topic :: Software Development :: Libraries :: Python Modules",
+        "Typing :: Typed",
     ],
 )
