@@ -98,7 +98,6 @@ def test_mnemonic_from_entropy() -> None:
 
 def test_p2wpkh_p2sh() -> None:
     """Test generation of a p2wpkh-p2sh wallet."""
-
     # https://bitcoinelectrum.com/creating-a-p2sh-segwit-wallet-with-electrum/
     # https://www.youtube.com/watch?v=-1DBJWwA2Cw
 

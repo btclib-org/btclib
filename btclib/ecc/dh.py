@@ -34,7 +34,8 @@ def ansi_x9_63_kdf(z: bytes, size: int, hf: HashF, shared_info: bytes | None) ->
     Return a keying data octet sequence of the requested size according
     to ANSI-X9.63-KDF specifications for the key derivation function.
 
-    http://www.secg.org/sec1-v2.pdf, section 3.6.1
+    http://www.secg.org/sec1-v2.pdf,
+    section 3.6.1
     """
     hf_size = hf().digest_size
     max_size = hf_size * (2**32 - 1)

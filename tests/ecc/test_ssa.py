@@ -297,7 +297,6 @@ def test_musig() -> None:
     - https://blockstream.com/2018/01/23/musig-key-aggregation-schnorr-signatures.html
     - https://medium.com/@snigirev.stepan/how-schnorr-signatures-may-improve-bitcoin-91655bcb4744
     """
-
     ec = CURVES["secp256k1"]
 
     msg_hash = hf(b"message to sign").digest()

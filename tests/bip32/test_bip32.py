@@ -184,7 +184,6 @@ def test_invalid_bip32_xkeys() -> None:
 
     https://github.com/bitcoin/bips/pull/921
     """
-
     filename = path.join(data_folder, "bip32_invalid_keys.json")
     with open(filename, encoding="ascii") as file_:
         test_vectors = json.load(file_)
@@ -356,7 +355,6 @@ def test_crack() -> None:
 
 def test_bips_pr905() -> None:
     """Https://github.com/bitcoin/bips/pull/905."""
-
     seed = "57fb1e450b8afb95c62afbcd49e4100d6790e0822b8905608679180ac34ca0bd45bf7ccc6c5f5218236d0eb93afc78bd117b9f02a6b7df258ea182dfaef5aad7"
     xroot = rootxprv_from_seed(seed)
     der_path = "m/44H/60H/0H"
