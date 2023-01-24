@@ -70,7 +70,7 @@ repos:
         language: python
         types: [python]
   - repo: https://github.com/PyCQA/docformatter
-    rev: v1.5.1
+    rev: v1.6.0.rc1
     hooks:
       - id: docformatter
         description: "Formats docstrings to follow PEP 257."
@@ -84,7 +84,7 @@ repos:
         language: python
         types: [python]
   - repo: https://github.com/pycqa/pydocstyle
-    rev: 6.2.3
+    rev: 6.3.0
     hooks:
       - id: pydocstyle
         additional_dependencies: [tomli]
@@ -138,7 +138,7 @@ repos:
         language: python
         types: [python]
   - repo: https://github.com/pycqa/pylint
-    rev: v2.15.10
+    rev: v2.16.0b1
     hooks:
       - id: pylint
         args: [
