@@ -50,7 +50,21 @@ _MAX_BITCOIN = Decimal("20_999_999.9769")
 
 
 def valid_btc_amount(amount: Any, dust: Decimal = Decimal("0")) -> Decimal:
-    """Return the BTC amount as Decimal, if valid and not less than dust."""
+    """Return the BTC amount as Decimal, if valid and not less than dust.
+
+    Args:
+        amount (Any): The BTC amount. Assumed to be zero if None.
+        dust (Decimal, optional): The minum threshould for a valid amount.
+                                  Defaults to Decimal("0").
+
+    Raises:
+        BTClibValueError: If the amount is below dust or above max
+                          number of bitcoin ever available.
+        BTClibValueError: If the amount has too many (>8) decimals.
+
+    Returns:
+        Decimal: The BTC amount converted to Decimal.
+    """
     # any input that can be converted to str is fine
     amount = "0" if amount is None else str(amount)
     # using str in the Decimal constructor avoids the

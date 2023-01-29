@@ -1,6 +1,14 @@
 {
+
+  // rules https://github.com/DavidAnson/markdownlint
+
   // See https://github.com/DavidAnson/markdownlint-cli2 and
   // https://github.com/DavidAnson/markdownlint/blob/main/schema/.markdownlint.jsonc
+
+  // To locally disable a single error, e.g. MD013:
+  // <!-- markdownlint-disable MD013 -->
+  // and after the offending block
+  // <!-- markdownlint-enable MD013 -->
 
   // MD007/ul-indent - Unordered list indentation
   "MD007": {

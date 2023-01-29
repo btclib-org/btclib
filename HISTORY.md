@@ -2,7 +2,7 @@
 
 Notable changes to the codebase are documented here.
 
-Release names follow [_calendar versioning_](https://calver.org/):
+Release names follow *[calendar versioning](https://calver.org/)*:
 full year, short month, short day (YYYY-M-D)
 
 ## v2023.1.17
@@ -17,7 +17,7 @@ Major changes include:
 - improved typing
 - added SECURITY, CONTRIBUTING, bug report and feature request templates
 - added pre-commit hooks
-- adopted _mypy --strict_ and _from \_\_future\_\_ import annotations_
+- adopted *mypy --strict* and *from \_\_future\_\_ import annotations*
 
 ## v2022.12.31
 
