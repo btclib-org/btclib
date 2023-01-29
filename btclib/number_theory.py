@@ -46,8 +46,7 @@ def mod_inv(a: int, m: int) -> int:
     m does not have to be a prime.
 
     Based on Extended Euclidean Algorithm, see:
-
-    https://en.wikibooks.org/wiki/Algorithm_Implementation/Mathematics/Extended_Euclidean_algorithm
+    - https://en.wikibooks.org/wiki/Algorithm_Implementation/Mathematics/Extended_Euclidean_algorithm
     """
     a %= m
     g, x, _ = xgcd(a, m)

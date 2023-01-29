@@ -342,5 +342,5 @@ def verify(msg: Octets, addr: String, sig: Sig | String, lower_s: bool = True) -
         assert_as_valid(msg, addr, sig, lower_s)
     except Exception:  # pylint: disable=broad-except
         return False
-    else:
-        return True
+
+    return True

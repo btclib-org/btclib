@@ -322,8 +322,8 @@ def verify_(
         assert_as_valid_(msg_hash, Q, sig, hf)
     except Exception:  # pylint: disable=broad-except
         return False
-    else:
-        return True
+
+    return True
 
 
 def verify(msg: Octets, Q: BIP340PubKey, sig: Sig | Octets, hf: HashF = sha256) -> bool:
