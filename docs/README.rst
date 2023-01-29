@@ -19,7 +19,7 @@ Move into the btclib project root folder and autogenerate docs:
 .. sourcecode:: bash
 
     $ cd /path/to/btclibrootfolder
-    $ sphinx-apidoc -f -o ./docs/source ./btclib
+    $ sphinx-apidoc -f -o docs/source btclib/
 
 Perform the above sphinx-apidoc step everytime files are added/removed.
 
@@ -28,7 +28,7 @@ Then, move into the docs directory and build the docs to see how they look:
 .. sourcecode:: bash
 
     $ cd docs
-    $ make html
+    $ make clean html
 
 Your ``index.rst`` has been built into ``index.html``
 in the output subdirectory (``build/html/index.html``).

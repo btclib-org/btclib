@@ -35,6 +35,7 @@ recursive-include tests *.txt
 recursive-exclude docs/build *
 recursive-include docs *.bat
 recursive-include docs *.py
+recursive-include docs *.md
 recursive-include docs *.rst
 recursive-include docs *.txt
 recursive-include docs Makefile
