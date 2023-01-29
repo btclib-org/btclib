@@ -37,10 +37,10 @@ without care for backward compatibility; moreover,
 some of its algorithms could be broken using side-channel attacks.
 
 The library is not limited to the bitcon elliptic curve secp256k1;
-anyway, for this curve FFI bindings to
+anyway, FFI bindings to
 [libsecp256k1](https://github.com/bitcoin-core/secp256k1)
 (the optimized C library used by Bitcoin Core)
-are available and used by default.
+are available for this curve and used by default.
 
 Included features are:
 
