@@ -13,15 +13,15 @@
 Dataclass encapsulating version, lock_time,
 vin (list[TxIn]), and vout (list[TxOut]).
 
-https://en.bitcoin.it/wiki/Transaction
- https://learnmeabitcoin.com/guide/coinbase-transaction
-https://bitcoin.stackexchange.com/questions/20721/what-is-the-format-of-the-coinbase-transaction
+- https://en.bitcoin.it/wiki/Transaction
+- https://learnmeabitcoin.com/guide/coinbase-transaction
+- https://bitcoin.stackexchange.com/questions/20721/what-is-the-format-of-the-coinbase-transaction
 
 For TxIn.sequence and TX.lock_time see:
-https://developer.bitcoin.org/devguide/transactions.html
- https://medium.com/summa-technology/bitcoins-time-locks-27e0c362d7a1
-https://bitcoin.stackexchange.com/questions/40764/is-my-understanding-of-locktime-correct
-https://en.bitcoin.it/wiki/Timelock
+- https://developer.bitcoin.org/devguide/transactions.html
+- https://medium.com/summa-technology/bitcoins-time-locks-27e0c362d7a1
+- https://bitcoin.stackexchange.com/questions/40764/is-my-understanding-of-locktime-correct
+- https://en.bitcoin.it/wiki/Timelock
 """
 
 from __future__ import annotations
