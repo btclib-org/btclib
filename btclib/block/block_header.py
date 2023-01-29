@@ -70,7 +70,8 @@ class BlockHeader:
 
         It represents the average number of hash function evaluations
         required to satisfy the BlockHeader target,
-        expressed as multiple of the genesis block difficulty used as unit.
+        expressed as multiple of the genesis block difficulty used as
+        unit.
 
         The difficulty of the genesis block is 2^32 (4*2^30),
         i.e. 4 GigaHash function evaluations.

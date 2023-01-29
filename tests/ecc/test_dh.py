@@ -64,7 +64,6 @@ def test_gec_2() -> None:
 
     - http://read.pudn.com/downloads168/doc/772358/TestVectorsforSEC%201-gec2.pdf
     """
-
     # 4.1.1
     ec = CURVES["secp160r1"]
     hf = sha1
@@ -121,7 +120,6 @@ def test_capv() -> None:
     - https://csrc.nist.gov/projects/cryptographic-algorithm-validation-program/component-testing
     - https://csrc.nist.gov/CSRC/media/Projects/Cryptographic-Algorithm-Validation-Program/documents/components/800-135testvectors/ansx963_2001.zip
     """
-
     # fmt: off
     test_vectors = [
         (sha1, 128, "1c7d7b5f0597b03d06a018466ed1a93e30ed4b04dc64ccdd", None, "bf71dffd8f4d99223936beb46fee8ccc"),

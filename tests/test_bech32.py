@@ -50,7 +50,6 @@ from btclib.exceptions import BTClibValueError
 
 def test_bech32() -> None:
     """Test bech32 checksum."""
-
     valid_checksum = [
         "A12UEL5L",
         "a12uel5l",

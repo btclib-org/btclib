@@ -50,10 +50,10 @@ class Block:
     def height(self) -> int | None:
         """Return the height committed into a BIP34 coinbase script_sig.
 
-        Version 2 blocks commit block height into the coinbase script_sig.
+        Version 2 blocks commit block height into the coinbase
+        script_sig.
 
         https://github.com/bitcoin/bips/blob/master/bip-0034.mediawiki
-
         Block 227,835 (2013-03-24 15:49:13 GMT) was the last version 1 block.
         """
         if not self.transactions[0].is_coinbase():

@@ -30,7 +30,6 @@ from btclib.tx import OutPoint, Tx, TxIn, TxOut
 
 def test_vectors_bip174() -> None:
     """Test https://github.com/bitcoin/bips/blob/master/bip-0174.mediawiki."""
-
     data_folder = path.join(path.dirname(__file__), "_data")
     filename = path.join(data_folder, "bip174_test_vectors.json")
     with open(filename, encoding="ascii") as file_:

@@ -439,7 +439,8 @@ def extract_tx(psbt: Psbt, check_validity: bool = True) -> Tx:
     The Transaction Extractor must only accept a PSBT.
     It checks whether all inputs have complete scriptSigs
     and scriptWitnesses by checking for the presence of
-    0x07 Finalized scriptSig and 0x08 Finalized scriptWitness typed records.
+    0x07 Finalized scriptSig and 0x08 Finalized scriptWitness typed
+    records.
 
     If they do, the Transaction Extractor should construct
     complete scriptSigs and scriptWitnesses and encode them
