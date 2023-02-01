@@ -40,7 +40,6 @@ def test_valid_script_path() -> None:
         data = json.load(file_)
 
     for x in data:
-
         prevouts = [TxOut.parse(prevout) for prevout in x["prevouts"]]
         index = x["index"]
 

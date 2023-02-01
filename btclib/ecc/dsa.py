@@ -556,7 +556,6 @@ def crack_prv_key_(
     sig2: Sig | Octets,
     hf: HashF = sha256,
 ) -> tuple[int, int]:
-
     if isinstance(sig1, Sig):
         sig1.assert_valid()
     else:
@@ -590,7 +589,6 @@ def crack_prv_key(
     sig2: Sig | Octets,
     hf: HashF = sha256,
 ) -> tuple[int, int]:
-
     msg_hash1 = reduce_to_hlen(msg1, hf)
     msg_hash2 = reduce_to_hlen(msg2, hf)
 

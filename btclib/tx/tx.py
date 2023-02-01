@@ -125,7 +125,6 @@ class Tx:
         vout: Sequence[TxOut] | None = None,
         check_validity: bool = True,
     ) -> None:
-
         self.version = version
         self.lock_time = lock_time
         # https://docs.python.org/3/tutorial/controlflow.html#default-argument-values
@@ -170,7 +169,6 @@ class Tx:
     def from_dict(
         cls: type[Tx], dict_: Mapping[str, Any], check_validity: bool = True
     ) -> Tx:
-
         return cls(
             dict_["version"],
             dict_["locktime"],
@@ -270,7 +268,6 @@ def join_txs(
     shuffle_inp: bool,
     shuffle_out: bool,
 ) -> Tx:
-
     version = max(tx.version for tx in txs)
     if enforce_same_version and any(tx.version != version for tx in txs):
         raise BTClibValueError("Version numbers are not the same")

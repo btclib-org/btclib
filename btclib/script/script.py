@@ -322,7 +322,6 @@ def parse(stream: BinaryData, exit_on_op_success: bool = False) -> list[Command]
     r: list[Command] = []  # initialize the result list
 
     while True:
-
         t = s.read(1)  # get one byte
         if not t:
             break

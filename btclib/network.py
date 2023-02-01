@@ -101,7 +101,6 @@ class Network:
         slip132_p2wsh_p2sh_pub: Octets,
         check_validity: bool = True,
     ) -> None:
-
         object.__setattr__(self, "curve", curve)
         object.__setattr__(self, "magic_bytes", bytes_from_octets(magic_bytes))
         object.__setattr__(self, "genesis_block", bytes_from_octets(genesis_block))
@@ -175,7 +174,6 @@ class Network:
     def from_dict(
         cls: type[Network], dict_: Mapping[str, Any], check_validity: bool = True
     ) -> Network:
-
         return cls(
             CURVES[dict_["curve"]],
             dict_["magic_bytes"],

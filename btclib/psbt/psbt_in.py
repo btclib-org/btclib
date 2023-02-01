@@ -252,7 +252,6 @@ class PsbtIn:
     def from_dict(
         cls: type[PsbtIn], dict_: Mapping[str, Any], check_validity: bool = True
     ) -> PsbtIn:
-
         return cls(
             Tx.from_dict(dict_["non_witness_utxo"], False)
             if dict_["non_witness_utxo"]
@@ -292,7 +291,6 @@ class PsbtIn:
             )
 
         if not self.final_script_sig and not self.final_script_witness:
-
             if self.partial_sigs:
                 psbt_in_bin.append(
                     serialize_dict_bytes_bytes(PSBT_IN_PARTIAL_SIG, self.partial_sigs)

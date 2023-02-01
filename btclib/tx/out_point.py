@@ -48,7 +48,6 @@ class OutPoint:
         vout: int = 0xFFFFFFFF,
         check_validity: bool = True,
     ) -> None:
-
         object.__setattr__(self, "tx_id", bytes_from_octets(tx_id))
         object.__setattr__(self, "vout", vout)
 
@@ -80,7 +79,6 @@ class OutPoint:
     def from_dict(
         cls: type[OutPoint], dict_: Mapping[str, Any], check_validity: bool = True
     ) -> OutPoint:
-
         return cls(dict_["txid"], dict_["vout"], check_validity)
 
     def serialize(self, check_validity: bool = True) -> bytes:

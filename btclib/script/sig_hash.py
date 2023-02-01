@@ -183,7 +183,6 @@ def taproot(
     annex: bytes,
     message_extension: bytes,
 ) -> bytes:
-
     if hashtype not in SIG_HASH_TYPES:
         raise BTClibValueError(f"Unknown hash type: {hashtype}")
     if hashtype & 0x03 == SINGLE and input_index >= len(transaction.vout):
@@ -265,7 +264,6 @@ def from_tx(prevouts: list[TxOut], tx: Tx, vin_i: int, hash_type: int) -> bytes:
 def _script_from_p2tr(
     prevouts: list[TxOut], tx: Tx, vin_i: int, hash_type: int
 ) -> bytes:
-
     witness = tx.vin[vin_i].script_witness
     if len(witness.stack) == 0:
         raise BTClibValueError("empty stack")
