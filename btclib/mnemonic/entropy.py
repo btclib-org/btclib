@@ -24,7 +24,7 @@ from __future__ import annotations
 import math
 import secrets
 from hashlib import sha512
-from typing import Iterable, Union
+from typing import Iterable, Sequence, Union
 
 from btclib.alias import Octets
 from btclib.exceptions import BTClibValueError
@@ -61,7 +61,7 @@ def wordlist_indexes_from_bin_str_entropy(entropy: BinStr, base: int) -> list[in
     return list(reversed(indexes))
 
 
-def bin_str_entropy_from_wordlist_indexes(indexes: list[int], base: int) -> BinStr:
+def bin_str_entropy_from_wordlist_indexes(indexes: Sequence[int], base: int) -> BinStr:
     """Return the raw entropy from a list of word-list indexes.
 
     Return the raw (i.e. binary 0/1 string) entropy from the provided

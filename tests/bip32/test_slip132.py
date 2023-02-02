@@ -87,7 +87,7 @@ def test_slip132_test_vectors() -> None:
     """
     mnemonic = "abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about"
     kpath = "m/0/0"
-    test_vectors: list[tuple[bytes, str, str, str, str]] = [
+    test_vectors = [
         (
             NETWORKS["mainnet"].bip32_prv,
             "m / 44h / 0h / 0h",

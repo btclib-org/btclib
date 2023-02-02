@@ -39,7 +39,6 @@ from btclib.script import (
     serialize,
     type_and_payload,
 )
-from btclib.to_pub_key import Key
 
 
 def test_eq() -> None:
@@ -385,7 +384,7 @@ def test_p2ms_1() -> None:
     script_type, payload = type_and_payload(script_pub_key)
     assert script_type == "p2ms"
     assert payload == script_pub_key[:-1]
-    pub_keys: list[Key] = [pub_key0, pub_key1]
+    pub_keys = [pub_key0, pub_key1]
     assert (
         script_pub_key
         == ScriptPubKey.p2ms(1, pub_keys, lexicographic_sorting=False).script
@@ -465,12 +464,12 @@ def test_p2ms_2() -> None:
     pub_key0 = "04 cc71eb30d653c0c3163990c47b976f3fb3f37cccdcbedb169a1dfef58bbfbfaf f7d8a473e7e2e6d317b87bafe8bde97e3cf8f065dec022b51d11fcdd0d348ac4"
     pub_key1 = "04 61cbdcc5409fb4b4d42b51d33381354d80e550078cb532a34bfa2fcfdeb7d765 19aecc62770f5b0e4ef8551946d8a540911abe3e7854a26f39f58b25c15342af"
     pub_key2 = "04 79BE667EF9DCBBAC55A06295CE870B07029BFCDB2DCE28D959F2815B16F81798 483ADA7726A3C4655DA4FBFC0E1108A8FD17B448A68554199C47D08FFB10D4B8"
-    uncompressed_pub_keys: list[Key] = [pub_key0, pub_key1, pub_key2]
+    uncompressed_pub_keys = [pub_key0, pub_key1, pub_key2]
     # mixed compressed / uncompressed public keys
     pub_key0 = "04 cc71eb30d653c0c3163990c47b976f3fb3f37cccdcbedb169a1dfef58bbfbfaf f7d8a473e7e2e6d317b87bafe8bde97e3cf8f065dec022b51d11fcdd0d348ac4"
     pub_key1 = "03 61cbdcc5409fb4b4d42b51d33381354d80e550078cb532a34bfa2fcfdeb7d765"
     pub_key2 = "02 79BE667EF9DCBBAC55A06295CE870B07029BFCDB2DCE28D959F2815B16F81798"
-    mixed_pub_keys: list[Key] = [pub_key0, pub_key1, pub_key2]
+    mixed_pub_keys = [pub_key0, pub_key1, pub_key2]
 
     for pub_keys in (uncompressed_pub_keys, mixed_pub_keys):
         for lexicographic_sorting in (True, False):

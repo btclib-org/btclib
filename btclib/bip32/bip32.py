@@ -50,12 +50,7 @@ from btclib.utils import bytes_from_octets, bytesio_from_binarydata, hex_string
 ec = secp256k1
 
 
-_KEY_SIZE: list[tuple[str, int]] = [
-    ("version", 4),
-    ("parent_fingerprint", 4),
-    ("chain_code", 32),
-    ("key", 33),
-]
+_KEY_SIZE = [("version", 4), ("parent_fingerprint", 4), ("chain_code", 32), ("key", 33)]
 _REQUIRED_LENGHT = 78
 
 
