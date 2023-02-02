@@ -12,7 +12,7 @@
 from __future__ import annotations
 
 import hashlib
-from typing import Callable, Tuple
+from typing import Callable, Sequence, Tuple
 
 from btclib.alias import HashF, Octets
 from btclib.utils import bytes_from_octets
@@ -71,7 +71,7 @@ def magic_message(msg: Octets) -> bytes:
     return sha256(t)
 
 
-def merkle_root(data: list[bytes], hf: Callable[[bytes | str], bytes]) -> bytes:
+def merkle_root(data: Sequence[bytes], hf: Callable[[bytes | str], bytes]) -> bytes:
     """Return the Merkel tree root of a list of binary hashes.
 
     The Merkel tree is a binary tree constructed with the provided list

@@ -40,7 +40,7 @@ def test_wif_from_prv_key() -> None:
     for alt_prv_key in wif_prv_keys:
         assert alt_prv_key.strip() == b58.wif_from_prv_key(alt_prv_key)
 
-    test_vectors: list[tuple[str, str, bool]] = [
+    test_vectors = [
         ("KwdMAjGmerYanjeui5SHS7JkmpZvVipYvB2LJGU1ZxJwYvP98617", "mainnet", True),
         ("cMzLdeGd5vEqxB8B6VFQoRopQ3sLAAvEzDAoQgvX54xwofSWj1fx", "testnet", True),
         ("5HueCGU8rMjxEXxiPuD5BDku4MkFqeZyd4dZ1jvhTVqvbTLvyTJ", "mainnet", False),
@@ -202,7 +202,7 @@ def test_p2w_p2sh() -> None:
 def test_address_from_wif() -> None:
     q = 0x19E14A7B6A307F426A94F8114701E7C8E774E7F9A47E2C2035DB29A206321725
 
-    test_cases: list[tuple[bool, str, str, str]] = [
+    test_cases = [
         (
             False,
             "mainnet",

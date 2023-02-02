@@ -61,7 +61,7 @@ def test_has_segwit_prefix() -> None:
 
 def test_valid_address() -> None:
     """Test whether valid addresses decode to the correct output."""
-    valid_bc_addresses: list[tuple[str, str]] = [
+    valid_bc_addresses = [
         (
             "BC1QW508D6QEJXTDG4Y5R3ZARVARY0C5XW7KV8F3T4",
             "0014751e76e8199196d454941c45d1b3a323f1433bd6",
@@ -80,7 +80,7 @@ def test_valid_address() -> None:
             "512079be667ef9dcbbac55a06295ce870b07029bfcdb2dce28d959f2815b16f81798",
         ),
     ]
-    valid_tb_addresses: list[tuple[str, str]] = [
+    valid_tb_addresses = [
         (
             "tb1qrp33g0q5c5txsp9arysrx4k6zdkfs4nce4xj0gdcccefvpysxf3q0sl5k7",
             "00201863143c14c5166804bd19203356da136c985678cd4d27a1b8c6329604903262",
@@ -110,7 +110,7 @@ def test_valid_address() -> None:
 
 def test_invalid_address() -> None:
     """Test whether invalid addresses fail to decode."""
-    invalid_addresses: list[tuple[str, str]] = [
+    invalid_addresses = [
         ("tc1qw508d6qejxtdg4y5r3zarvary0c5xw7kg3g4ty", "invalid hrp: "),
         (
             "tc1p0xlxvlhemja6c4dqv22uapctqupfhlxm9h8z3k2e72q4k9hcz7vq5zuyut",
@@ -193,7 +193,7 @@ def test_invalid_address() -> None:
 
 def test_invalid_address_enc() -> None:
     """Test whether address encoding fails on invalid input."""
-    invalid_address_enc: list[tuple[str, int, int, str]] = [
+    invalid_address_enc = [
         ("MAINNET", 0, 20, "'MAINNET'"),
         ("mainnet", 0, 21, "invalid size: "),
         ("mainnet", 17, 32, "invalid witness version: "),

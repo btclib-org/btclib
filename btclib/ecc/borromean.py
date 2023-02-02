@@ -42,7 +42,7 @@ def _get_msg_format(msg: bytes, pubk_rings: Sequence[PubkeyRing]) -> bytes:
     return hf(msg + t).digest()
 
 
-SValues = List[List[int]]
+SValues = Sequence[List[int]]
 
 
 def _initialize(

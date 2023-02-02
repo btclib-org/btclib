@@ -18,6 +18,7 @@
 from __future__ import annotations
 
 from copy import deepcopy
+from typing import Sequence
 
 from btclib import var_bytes
 from btclib.alias import Octets
@@ -176,8 +177,8 @@ def segwit_v0(
 def taproot(
     transaction: Tx,
     input_index: int,
-    amounts: list[int],
-    scriptpubkeys: list[ScriptPubKey],
+    amounts: Sequence[int],
+    scriptpubkeys: Sequence[ScriptPubKey],
     hashtype: int,
     ext_flag: int,
     annex: bytes,
@@ -262,7 +263,7 @@ def from_tx(prevouts: list[TxOut], tx: Tx, vin_i: int, hash_type: int) -> bytes:
 
 
 def _script_from_p2tr(
-    prevouts: list[TxOut], tx: Tx, vin_i: int, hash_type: int
+    prevouts: Sequence[TxOut], tx: Tx, vin_i: int, hash_type: int
 ) -> bytes:
     witness = tx.vin[vin_i].script_witness
     if len(witness.stack) == 0:

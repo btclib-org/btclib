@@ -52,7 +52,7 @@ def find_subgroup_points(ec: CurveGroup, G: Point) -> list[Point]:
         err_msg = f"p is too big to count all subgroup points: {ec.p}"
         raise BTClibValueError(err_msg)
 
-    points: list[Point] = [G]
+    points = [G]
     while points[-1] != INF:
         Q = ec.add(points[-1], G)
         points.append(Q)

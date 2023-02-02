@@ -52,11 +52,7 @@ def address_from_xpub(xpub: BIP32Key) -> str:
     if xpub.key[0] not in (2, 3):
         raise BTClibValueError(f"not a public key: {xpub.b58encode()}")
 
-    version_list: list[str] = [
-        "bip32_pub",
-        "slip132_p2wpkh_pub",
-        "slip132_p2wpkh_p2sh_pub",
-    ]
+    version_list = ["bip32_pub", "slip132_p2wpkh_pub", "slip132_p2wpkh_p2sh_pub"]
     function_list: list[Callable[[Any, str], str]] = [
         b58.p2pkh,
         b32.p2wpkh,

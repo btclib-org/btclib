@@ -26,11 +26,7 @@ from btclib.utils import bytes_from_octets, bytesio_from_binarydata
 
 _HF = hash256
 _HF_LEN = 32  # should be _HF().digest_size
-_KEY_SIZE: list[tuple[str, int]] = [
-    ("previous_block_hash", _HF_LEN),
-    ("merkle_root", 32),
-    ("bits", 4),
-]
+_KEY_SIZE = [("previous_block_hash", _HF_LEN), ("merkle_root", 32), ("bits", 4)]
 
 
 @dataclass
