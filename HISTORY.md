@@ -5,6 +5,15 @@ Notable changes to the codebase are documented here.
 Release names follow *[calendar versioning](https://calver.org/)*:
 full year, short month, short day (YYYY-M-D)
 
+## v2023.2.3
+
+Major changes include:
+
+- enabled libsecp256k1 by default
+- improved documentation
+- used generic containers (Sequence instead of list, Mapping instead of dict)
+  where possible
+
 ## v2023.1.17
 
 Major changes include:
