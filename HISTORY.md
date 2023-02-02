@@ -5,6 +5,12 @@ Notable changes to the codebase are documented here.
 Release names follow *[calendar versioning](https://calver.org/)*:
 full year, short month, short day (YYYY-M-D)
 
+## v2023.3 (work in progress, not released yet)
+
+Major changes include:
+
+- TBD
+
 ## v2023.2.3
 
 Major changes include:
