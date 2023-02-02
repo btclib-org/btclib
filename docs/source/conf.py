@@ -21,7 +21,7 @@ doc.org/en/master/usage/configuration.html
 project = "btclib"
 project_copyright = "2017-2023 The btclib developers"
 author = "The btclib developers"
-release = "2023.2.3"
+release = "2023.3"
 
 # -- General configuration ---------------------------------------------------
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#general-configuration
