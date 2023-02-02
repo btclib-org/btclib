@@ -299,7 +299,6 @@ class _ExtendedBIP32KeyData(BIP32KeyData):
         key: Octets,
         check_validity: bool = True,
     ) -> None:
-
         super().__init__(
             version, depth, parent_fingerprint, index, chain_code, key, False
         )

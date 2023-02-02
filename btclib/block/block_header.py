@@ -104,7 +104,6 @@ class BlockHeader:
         nonce: int = 0,
         check_validity: bool = True,
     ) -> None:
-
         self.version = version
         self.previous_block_hash = bytes_from_octets(previous_block_hash)
         self.merkle_root = bytes_from_octets(merkle_root_)
@@ -134,7 +133,6 @@ class BlockHeader:
     def from_dict(
         cls: type[BlockHeader], dict_: Mapping[str, Any], check_validity: bool = True
     ) -> BlockHeader:
-
         return cls(
             dict_["version"],
             dict_["previous_block_hash"],

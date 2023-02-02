@@ -51,7 +51,6 @@ from btclib.utils import bytes_from_octets, int_from_bits
 def challenge_(
     msg_hash: Octets, ec: Curve = secp256k1, hf: HashF = hashlib.sha256
 ) -> int:
-
     # the message msg_hash: a hf_len array
     hf_len = hf().digest_size
     msg_hash = bytes_from_octets(msg_hash, hf_len)

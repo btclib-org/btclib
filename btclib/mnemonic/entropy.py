@@ -303,7 +303,6 @@ def bin_str_entropy_from_rolls(
     min_roll_number = math.ceil(bits / bits_per_roll)
     i = 0
     for roll in rolls:
-
         # reject invalid rolls not in [1-dice_sides]
         if not 0 < roll <= dice_sides:
             msg = f"invalid roll: {roll} is not in [1-{dice_sides}]"

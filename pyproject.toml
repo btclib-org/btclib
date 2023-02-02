@@ -13,8 +13,6 @@ exclude = [
 profile = "black"
 
 [tool.docformatter]
-recursive = true
-blank = false
 in-place = true
 
 [tool.pydocstyle]

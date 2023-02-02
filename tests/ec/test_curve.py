@@ -165,7 +165,6 @@ def test_exceptions() -> None:
 
 def test_aff_jac_conversions() -> None:
     for ec in all_curves.values():
-
         # just a point, not INF
         Q = ec.G
         QJ = jac_from_aff(Q)
@@ -187,7 +186,6 @@ def test_aff_jac_conversions() -> None:
 def test_add_double_aff() -> None:
     """Test self-consistency of add and double in affine coordinates."""
     for ec in all_curves.values():
-
         # add G and the infinity point
         assert ec.add_aff(ec.G, INF) == ec.G
         assert ec.add_aff(INF, ec.G) == ec.G
@@ -210,7 +208,6 @@ def test_add_double_aff() -> None:
 def test_add_double_jac() -> None:
     """Test self-consistency of add and double in Jacobian coordinates."""
     for ec in all_curves.values():
-
         # add G and the infinity point
         assert ec.jac_equality(ec.add_jac(ec.GJ, INFJ), ec.GJ)
         assert ec.jac_equality(ec.add_jac(INFJ, ec.GJ), ec.GJ)
@@ -233,7 +230,6 @@ def test_add_double_jac() -> None:
 def test_add_double_aff_jac() -> None:
     """Test consistency between affine and Jacobian add/double methods."""
     for ec in all_curves.values():
-
         # just a point, not INF
         Q = ec.G
         QJ = jac_from_aff(Q)
@@ -262,7 +258,6 @@ def test_ec_repr() -> None:
 
 def test_is_on_curve() -> None:
     for ec in all_curves.values():
-
         with pytest.raises(BTClibValueError, match="point must be a tuple"):
             ec.is_on_curve("not a point")  # type: ignore[arg-type]
 
@@ -277,7 +272,6 @@ def test_is_on_curve() -> None:
 
 def test_negate() -> None:
     for ec in all_curves.values():
-
         # just a point, not INF
         Q = ec.G
         minus_Q = ec.negate(Q)
@@ -306,7 +300,6 @@ def test_negate() -> None:
 def test_symmetry() -> None:
     """Methods to break simmetry: quadratic residue, even/odd, low/high."""
     for ec in low_card_curves.values():
-
         # just a point, not INF
         Q = ec.G
         x_Q = Q[0]

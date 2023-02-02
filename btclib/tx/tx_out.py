@@ -49,7 +49,6 @@ class TxOut:
         script_pub_key: ScriptPubKey | Octets,
         check_validity: bool = True,
     ) -> None:
-
         object.__setattr__(self, "value", value)
         if not isinstance(script_pub_key, ScriptPubKey):
             script_bytes = bytes_from_octets(script_pub_key)
@@ -82,7 +81,6 @@ class TxOut:
     def from_dict(
         cls: type[TxOut], dict_: Mapping[str, Any], check_validity: bool = True
     ) -> TxOut:
-
         value = sats_from_btc(dict_["value"])
         script_bin = dict_["scriptPubKey"]
         network = dict_.get("network", "mainnet")

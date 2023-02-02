@@ -75,7 +75,6 @@ class Block:
         transactions: Sequence[Tx] | None = None,
         check_validity: bool = True,
     ) -> None:
-
         self.header = header
 
         # https://docs.python.org/3/tutorial/controlflow.html#default-argument-values
@@ -97,7 +96,6 @@ class Block:
     def from_dict(
         cls: type[Block], dict_: Mapping[str, Any], check_validity: bool = True
     ) -> Block:
-
         return cls(
             BlockHeader.from_dict(dict_["header"], False),
             [Tx.from_dict(tx, False) for tx in dict_["transactions"]],

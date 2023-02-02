@@ -143,7 +143,6 @@ class Psbt:
         self.assert_valid()
 
         for i, tx_in in enumerate(self.tx.vin):
-
             non_witness_utxo = self.inputs[i].non_witness_utxo
             redeem_script = self.inputs[i].redeem_script
             # with python>=3.8 use walrus operator
@@ -191,7 +190,6 @@ class Psbt:
     def from_dict(
         cls: type[Psbt], dict_: Mapping[str, Any], check_validity: bool = True
     ) -> Psbt:
-
         return cls(
             Tx.from_dict(dict_["tx"]),
             [PsbtIn.from_dict(psbt_in, False) for psbt_in in dict_["inputs"]],
@@ -284,7 +282,6 @@ class Psbt:
     def b64decode(
         cls: type[Psbt], psbt_str: String, check_validity: bool = True
     ) -> Psbt:
-
         if isinstance(psbt_str, str):
             psbt_str = psbt_str.strip()
 
@@ -366,7 +363,6 @@ def combine_psbts(psbts: Sequence[Psbt]) -> Psbt:
 
     final_psbt.version = max(psbt.version for psbt in psbts)
     for psbt in psbts[1:]:
-
         for i, inp in enumerate(final_psbt.inputs):
             _combine_field(psbt.inputs[i], inp, "non_witness_utxo")
             _combine_field(psbt.inputs[i], inp, "witness_utxo")

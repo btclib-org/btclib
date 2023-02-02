@@ -39,16 +39,8 @@ repos:
       - id: copyright-notice
         args: [--notice=COPYRIGHT]
         files: python
-  - repo: https://github.com/asottile/pyupgrade
-    rev: v3.3.1
-    hooks:
-      - id: pyupgrade
-        args: [--py37-plus]
-        # exclude: *fixtures
-        language: python
-        types: [python]
   - repo: https://github.com/PyCQA/autoflake
-    rev: v2.0.0
+    rev: v2.0.1
     hooks:
       - id: autoflake
         args:
@@ -61,8 +53,16 @@ repos:
           - --remove-rhs-for-unused-variables
         language: python
         types: [python]
+  - repo: https://github.com/asottile/pyupgrade
+    rev: v3.3.1
+    hooks:
+      - id: pyupgrade
+        args: [--py37-plus]
+        # exclude: *fixtures
+        language: python
+        types: [python]
   - repo: https://github.com/pycqa/isort
-    rev: 5.11.4
+    rev: 5.12.0
     hooks:
       - id: isort
         name: isort (black profile, in place fixes)
@@ -96,8 +96,14 @@ repos:
       - id: yesqa
         language: python
         types: [python]
+  - repo: https://github.com/PyCQA/flake8
+    rev: 6.0.0
+    hooks:
+      - id: flake8
+        language: python
+        types: [python]
   - repo: https://github.com/psf/black
-    rev: 22.12.0
+    rev: 23.1.0
     hooks:
       - id: black
         name: black (in place fixes)
@@ -107,12 +113,6 @@ repos:
         # pre-commit's default_language_version, see
         # https://pre-commit.com/#top_level-default_language_version
         # language_version: python3.11
-        language: python
-        types: [python]
-  - repo: https://github.com/PyCQA/flake8
-    rev: 6.0.0
-    hooks:
-      - id: flake8
         language: python
         types: [python]
   - repo: https://github.com/PyCQA/bandit
@@ -142,7 +142,6 @@ repos:
     hooks:
       - id: pylint
         args: [
-            "--score=false",
             "--disable=E0401", # import-error
           ]
         language: python

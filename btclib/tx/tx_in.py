@@ -70,7 +70,6 @@ class TxIn:
         script_witness: Witness = Witness(),
         check_validity: bool = True,
     ) -> None:
-
         self.prev_out = prev_out
         self.script_sig = bytes_from_octets(script_sig)
         self.sequence = sequence
@@ -114,7 +113,6 @@ class TxIn:
     def from_dict(
         cls: type[TxIn], dict_: Mapping[str, Any], check_validity: bool = True
     ) -> TxIn:
-
         return cls(
             OutPoint.from_dict(dict_["prev_out"], False),
             dict_["scriptSig"],
