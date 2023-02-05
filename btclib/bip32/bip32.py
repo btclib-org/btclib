@@ -34,7 +34,6 @@ A BIP32 extended key is 78 bytes:
 from __future__ import annotations
 
 import copy
-import functools
 import hmac
 from dataclasses import dataclass
 from typing import Union
@@ -309,12 +308,6 @@ class _BIP32KeyData(BIP32KeyData):
         if check_validity:
             self.assert_valid()
 
-    def __tuple(self) -> tuple[bytes, int, bytes, bytes]:
-        return (self.parent_fingerprint, self.index, self.chain_code, self.key)
-
-    def __hash__(self) -> int:
-        return hash(self.__tuple())
-
 
 def __prv_key_derivation(xkey: _BIP32KeyData, index: int) -> None:
     xkey.index = index
@@ -340,7 +333,6 @@ def __prv_key_derivation(xkey: _BIP32KeyData, index: int) -> None:
     xkey.pub_key_point = INF
 
 
-@functools.lru_cache()  # results are cached to increase efficiency
 def __pub_key_derivation(xkey: _BIP32KeyData, index: int) -> None:
     xkey.index = index
     xkey.parent_fingerprint = hash160(xkey.key)[:4]
