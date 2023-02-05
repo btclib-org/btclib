@@ -16,7 +16,7 @@ from __future__ import annotations
 from typing import Any
 
 from btclib import var_bytes
-from btclib.alias import Octets
+from btclib.alias import Octets, TaprootScriptTree
 from btclib.ec import Curve, mult, secp256k1
 from btclib.exceptions import BTClibValueError
 from btclib.hashes import tagged_hash
@@ -24,13 +24,6 @@ from btclib.script.script import serialize
 from btclib.to_prv_key import PrvKey, int_from_prv_key
 from btclib.to_pub_key import Key, pub_keyinfo_from_key
 from btclib.utils import bytes_from_octets
-
-# TODO add type hinting to script_tree
-# unfortunately recursive type hinting is not supported
-# https://github.com/python/mypy/issues/731
-# TaprootLeaf = Tuple[int, Script]
-# TaprootScriptTree = List[Union[Any, TaprootLeaf]]
-TaprootScriptTree = Any
 
 
 def tree_helper(script_tree: TaprootScriptTree) -> tuple[Any, bytes]:
