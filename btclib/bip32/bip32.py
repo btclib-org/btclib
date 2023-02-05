@@ -444,7 +444,7 @@ def _derive_from_account(
     if address_index >= 0x80000000:
         raise BTClibValueError("invalid private derivation at address index level")
     if address_index > max_index:
-        raise BTClibValueError(f"too high address index: {branch}")
+        raise BTClibValueError(f"too high address index: {address_index}")
 
     return _derive(mxkey, f"m/{branch}/{address_index}")
 
