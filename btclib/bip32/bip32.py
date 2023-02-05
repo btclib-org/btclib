@@ -277,7 +277,7 @@ def xpub_from_xprv(xprv: BIP32Key) -> str:
 
 
 @dataclass
-class _ExtendedBIP32KeyData(BIP32KeyData):
+class _BIP32KeyData(BIP32KeyData):
     # extensions used to cache intermediate results
     # in multi-level derivation: do not rely on them elsewhere
 
@@ -309,16 +309,8 @@ class _ExtendedBIP32KeyData(BIP32KeyData):
             self.assert_valid()
 
 
-def __child_key_derivation(xkey: _ExtendedBIP32KeyData, index: int) -> None:
-    xkey.depth += 1
+def __prv_key_derivation(xkey: _BIP32KeyData, index: int) -> None:
     xkey.index = index
-    if xkey.is_private:
-        __private_key_derivation(xkey, index)
-    else:
-        __public_key_derivation(xkey, index)
-
-
-def __private_key_derivation(xkey: _ExtendedBIP32KeyData, index: int) -> None:
     Q_bytes = bytes_from_point(mult(xkey.prv_key_int))
     xkey.parent_fingerprint = hash160(Q_bytes)[:4]
     hmac_ = (
@@ -341,10 +333,9 @@ def __private_key_derivation(xkey: _ExtendedBIP32KeyData, index: int) -> None:
     xkey.pub_key_point = INF
 
 
-def __public_key_derivation(xkey: _ExtendedBIP32KeyData, index: int) -> None:
+def __pub_key_derivation(xkey: _BIP32KeyData, index: int) -> None:
+    xkey.index = index
     xkey.parent_fingerprint = hash160(xkey.key)[:4]
-    if xkey.is_hardened:
-        raise BTClibValueError("invalid hardened derivation from public key")
     hmac_ = hmac.new(
         xkey.chain_code,
         xkey.key + index.to_bytes(4, byteorder="big", signed=False),
@@ -370,16 +361,14 @@ def _derive(
         err_msg = f"final depth greater than 255: {final_depth}"
         raise BTClibValueError(err_msg)
 
-    xkey = _ExtendedBIP32KeyData(
+    xkey = _BIP32KeyData(
         version=xkey.version,
-        depth=xkey.depth,
+        depth=final_depth,
         parent_fingerprint=xkey.parent_fingerprint,
         index=xkey.index,
         chain_code=xkey.chain_code,
         key=xkey.key,
     )
-    for index in indexes:
-        __child_key_derivation(xkey, index)
 
     if forced_version:
         if xkey.version in XPRV_VERSIONS_ALL:
@@ -392,6 +381,15 @@ def _derive(
             err_msg += f"{hex_string(fversion)}"
             raise BTClibValueError(err_msg)
         xkey.version = fversion
+
+    if xkey.is_private:
+        for index in indexes:
+            __prv_key_derivation(xkey, index)
+    else:
+        if any(index >= 0x80000000 for index in indexes):
+            raise BTClibValueError("invalid hardened derivation from public key")
+        for index in indexes:
+            __pub_key_derivation(xkey, index)
 
     return xkey
 
@@ -438,7 +436,7 @@ def _derive_from_account(
     if address_index >= 0x80000000:
         raise BTClibValueError("invalid private derivation at address index level")
     if address_index > max_index:
-        raise BTClibValueError(f"too high address index: {branch}")
+        raise BTClibValueError(f"too high address index: {address_index}")
 
     return _derive(mxkey, f"m/{branch}/{address_index}")
 
