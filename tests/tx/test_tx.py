@@ -22,7 +22,7 @@ from btclib.tx import OutPoint, Tx, TxIn, TxOut, join_txs
 
 def test_tx() -> None:
     # default constructor
-    tx = Tx()
+    tx = Tx(check_validity=False)
     assert not tx.is_segwit()
     assert not any(bool(w) for w in tx.vwitness)
     assert not any(bool(tx_in.script_witness) for tx_in in tx.vin)
@@ -40,15 +40,22 @@ def test_tx() -> None:
     assert tx.vsize == tx.size
     assert tx.weight == tx.size * 4
 
-    tx_2 = Tx.from_dict(tx.to_dict())
+    with pytest.raises(BTClibValueError, match="Missing inputs"):
+        tx.assert_valid()
+
+    tx_2 = Tx.from_dict(tx.to_dict(check_validity=False), check_validity=False)
     assert tx_2.is_segwit() == tx.is_segwit()
     assert tx_2 == tx
 
-    tx_2 = Tx.parse(tx.serialize(include_witness=True))
+    tx_2 = Tx.parse(
+        tx.serialize(include_witness=True, check_validity=False), check_validity=False
+    )
     assert tx_2.is_segwit() == tx.is_segwit()
     assert tx_2 == tx
 
-    tx_2 = Tx.parse(tx.serialize(include_witness=False))
+    tx_2 = Tx.parse(
+        tx.serialize(include_witness=False, check_validity=False), check_validity=False
+    )
     assert not tx_2.is_segwit()
     assert tx_2 == tx
 
@@ -59,6 +66,10 @@ def test_tx() -> None:
     script_sig = b""
     sequence = 0xFFFFFFFF
     tx_in = TxIn(prev_out, script_sig, sequence)
+
+    tx.vin = [tx_in]
+    with pytest.raises(BTClibValueError, match="Missing outputs"):
+        tx.assert_valid()
 
     tx_out1 = TxOut(2500000, "a914f987c321394968be164053d352fc49763b2be55c87")
     tx_out2 = TxOut(
