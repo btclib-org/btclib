@@ -296,19 +296,19 @@ def test_derive_from_account() -> None:
     with pytest.raises(BTClibValueError, match=err_msg):
         derive_from_account(mxpub, 0x80000000, 0, True)
 
-    err_msg = "too high branch: "
+    err_msg = "invalid branch number: 65536"
     with pytest.raises(BTClibValueError, match=err_msg):
-        derive_from_account(mxpub, 0xFFFF + 1, 0)
+        derive_from_account(mxpub, 0xFFFF + 1, 0, branches_0_1_only=False)
 
-    err_msg = "invalid branch: 2"
+    err_msg = "invalid branch number: 2"
     with pytest.raises(BTClibValueError, match=err_msg):
         derive_from_account(mxpub, 2, 0)
 
     err_msg = "invalid private derivation at address index level"
     with pytest.raises(BTClibValueError, match=err_msg):
-        derive_from_account(mxpub, 0, 0x80000000)
+        derive_from_account(mxpub, 0, 0x80000000, max_index=0xFFFFFFFF)
 
-    err_msg = "too high address index: 65536"
+    err_msg = "invalid address index: 65536"
     with pytest.raises(BTClibValueError, match=err_msg):
         derive_from_account(mxpub, 0, 0xFFFF + 1)
 
