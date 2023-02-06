@@ -36,7 +36,7 @@ from btclib import var_int
 from btclib.alias import BinaryData
 from btclib.exceptions import BTClibValueError
 from btclib.hashes import hash256
-from btclib.script import Witness
+from btclib.script.witness import Witness
 from btclib.tx.tx_in import TX_IN_COMPARES_WITNESS, TxIn
 from btclib.tx.tx_out import TxOut
 from btclib.utils import bytesio_from_binarydata
@@ -193,9 +193,13 @@ class Tx:
         if not 0 <= self.lock_time <= 0xFFFFFFFF:
             raise BTClibValueError(f"invalid lock time: {self.lock_time}")
 
+        if not self.vin:
+            raise BTClibValueError("Missing inputs")
         for tx_in in self.vin:
             tx_in.assert_valid()
 
+        if not self.vout:
+            raise BTClibValueError("Missing outputs")
         for tx_out in self.vout:
             tx_out.assert_valid()
 

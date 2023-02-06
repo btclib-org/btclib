@@ -12,12 +12,10 @@
 from __future__ import annotations
 
 import hashlib
-from typing import Callable, Sequence, Tuple
+from typing import Callable, Sequence
 
 from btclib.alias import HashF, Octets
 from btclib.utils import bytes_from_octets
-
-H160_Net = Tuple[bytes, str]
 
 # see https://bugs.python.org/issue47101
 # With OpenSSL 3.x, hashlib still includes ripemd160

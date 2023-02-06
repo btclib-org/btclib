@@ -73,6 +73,7 @@ Integer = Union[bytes, str, int]
 # Hash digest constructor: it may be any name suitable to hashlib.new()
 HashF = Callable[[], Any]
 # HashF = Callable[[Any], Any]
+H160_Net = Tuple[bytes, str]
 
 # Elliptic curve point in affine coordinates.
 # Warning: to make Point a NamedTuple would slow down the code
@@ -97,3 +98,10 @@ JacPoint = Tuple[int, int, int]
 # of the INF Point
 # QJ = Q[0], Q[1], 1 if Q[1] else 0
 INFJ = 7, 0, 0
+
+# TODO add type hinting to script_tree
+# unfortunately recursive type hinting is not supported
+# https://github.com/python/mypy/issues/731
+# TaprootLeaf = Tuple[int, Script]
+# TaprootScriptTree = List[Union[Any, TaprootLeaf]]
+TaprootScriptTree = Any

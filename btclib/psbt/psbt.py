@@ -101,11 +101,11 @@ class Psbt:
 
     def assert_valid(self) -> None:
         """Assert logical self-consistency."""
-        self.tx.assert_valid()
-
         # ensure a non-null tx has been included
         if not (self.tx.vin and self.tx.vout):
             raise BTClibValueError("null transaction")
+
+        self.tx.assert_valid()
 
         # ensure the tx is unsigned
         if any(tx_in.script_sig or tx_in.script_witness for tx_in in self.tx.vin):
