@@ -9,7 +9,7 @@ full year, short month, short day (YYYY-M-D)
 
 Major changes include:
 
-- TBD
+- add descriptor util functions
 
 ## v2023.5.30
 
