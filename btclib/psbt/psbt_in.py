@@ -171,7 +171,7 @@ class PsbtIn:
     taproot_key_spend_signature: bytes
     taproot_script_spend_signatures: dict[bytes, bytes]
     taproot_leaf_scripts: dict[bytes, tuple[bytes, int]]
-    taproot_hd_key_paths:dict[bytes, tuple[list[bytes], BIP32KeyOrigin]]
+    taproot_hd_key_paths: dict[bytes, tuple[list[bytes], BIP32KeyOrigin]]
     taproot_internal_key: bytes
     taproot_merkle_root: bytes
     unknown: dict[bytes, bytes]
@@ -198,11 +198,12 @@ class PsbtIn:
         ripemd160_preimages: Mapping[Octets, Octets] | None = None,
         sha256_preimages: Mapping[Octets, Octets] | None = None,
         hash160_preimages: Mapping[Octets, Octets] | None = None,
-        hash256_preimages: Mapping[Octets, Octets] | None = None,,
+        hash256_preimages: Mapping[Octets, Octets] | None = None,
         taproot_key_spend_signature: Octets = b"",
         taproot_script_spend_signatures: Mapping[Octets, Octets] | None = None,
         taproot_leaf_scripts: Mapping[Octets, tuple[Octets, int]] | None = None,
-        taproot_hd_key_paths: Mapping[Octets, tuple[list[Octets], BIP32KeyOrigin]] | None = None,
+        taproot_hd_key_paths: Mapping[Octets, tuple[list[Octets], BIP32KeyOrigin]]
+        | None = None,
         taproot_internal_key: Octets = b"",
         taproot_merkle_root: Octets = b"",
         unknown: Mapping[Octets, Octets] | None = None,
@@ -526,7 +527,7 @@ class PsbtIn:
             elif k[:1] == PSBT_IN_TAP_LEAF_SCRIPT:
                 taproot_leaf_scripts[k[1:]] = parse_leaf_script(v)
             elif k[:1] == PSBT_IN_TAP_BIP32_DERIVATION:
-                taproot_hd_key_paths[k[1:]] = parse_taproot_bip32(v)
+                taproot_hd_key_paths[k[1:]] = parse_taproot_bip32(v)  # type: ignore
             elif k[:1] == PSBT_IN_TAP_INTERNAL_KEY:
                 taproot_internal_key = deserialize_bytes(k, v, "taproot internal key")
             elif k[:1] == PSBT_IN_TAP_MERKLE_ROOT:

@@ -44,6 +44,7 @@ Major changes include:
 
 Major changes include:
 
+- add support for PSBT's taproot fields (bip370)
 - added support for Python 3.11
 - fixed the OpenSSL 3.x RIPEMD160 issue in btclib/hashes.py
 - added CONTRIBUTING and SECURITY

@@ -15,14 +15,14 @@ https://github.com/bitcoin/bips/blob/master/bip-0174.mediawiki
 from __future__ import annotations
 
 from io import BytesIO
-from typing import Mapping
+from typing import Any, Mapping, Sequence
 
 from btclib import var_bytes, var_int
 from btclib.alias import BinaryData, Octets
 from btclib.bip32 import BIP32KeyOrigin
 from btclib.bip32.der_path import indexes_from_bip32_path, str_from_bip32_path
-from btclib.bip32.key_origin import BIP32KeyOrigin
 from btclib.exceptions import BTClibValueError
+from btclib.script.taproot import assert_valid_control_block
 from btclib.tx import Tx
 from btclib.utils import bytes_from_octets, bytesio_from_binarydata
 
@@ -96,14 +96,14 @@ def serialize_dict_bytes_bytes(
 
 
 def encode_leaf_scripts(
-    dict_: Mapping[bytes, Tuple[bytes, int]]
-) -> Dict[str, Tuple[str, int]]:
+    dict_: Mapping[bytes, tuple[bytes, int]]
+) -> dict[str, tuple[str, int]]:
     return {k.hex(): (v[0].hex(), v[1]) for k, v in dict_.items()}
 
 
 def decode_leaf_scripts(
-    map_: Optional[Mapping[Octets, Tuple[Octets, int]]]
-) -> Dict[bytes, Tuple[bytes, int]]:
+    map_: Mapping[Octets, tuple[Octets, int]] | None
+) -> dict[bytes, tuple[bytes, int]]:
     if map_ is None:
         return {}
     return {
@@ -112,7 +112,7 @@ def decode_leaf_scripts(
 
 
 def serialize_leaf_scripts(
-    type_: bytes, dictionary: Dict[bytes, Tuple[bytes, int]]
+    type_: bytes, dictionary: dict[bytes, tuple[bytes, int]]
 ) -> bytes:
     return b"".join(
         [
@@ -123,25 +123,25 @@ def serialize_leaf_scripts(
     )
 
 
-def parse_leaf_script(v: bytes) -> Tuple[bytes, int]:
+def parse_leaf_script(v: bytes) -> tuple[bytes, int]:
     return (v[:-1], v[-1])
 
 
 def encode_taproot_tree(
-    list_: List[Tuple[int, int, bytes]]
-) -> List[Tuple[int, int, str]]:
+    list_: list[tuple[int, int, bytes]]
+) -> list[tuple[int, int, str]]:
     return [(v[0], v[1], v[2].hex()) for v in list_]
 
 
 def decode_taproot_tree(
-    list_: Optional[Sequence[Tuple[int, int, Octets]]]
-) -> List[Tuple[int, int, bytes]]:
+    list_: Sequence[tuple[int, int, Octets]] | None
+) -> list[tuple[int, int, bytes]]:
     if list_ is None:
         return []
     return [(v[0], v[1], bytes_from_octets(v[2])) for v in list_]
 
 
-def serialize_taproot_tree(type_: bytes, list_: List[Tuple[int, int, bytes]]) -> bytes:
+def serialize_taproot_tree(type_: bytes, list_: list[tuple[int, int, bytes]]) -> bytes:
     return var_bytes.serialize(type_) + var_bytes.serialize(
         b"".join(
             [v[0].to_bytes(1, "big") + v[1].to_bytes(1, "big") + v[2] for v in list_]
@@ -149,8 +149,8 @@ def serialize_taproot_tree(type_: bytes, list_: List[Tuple[int, int, bytes]]) ->
     )
 
 
-def parse_taproot_tree(v: bytes) -> List[Tuple[int, int, bytes]]:
-    out: List[Tuple[int, int, bytes]] = []
+def parse_taproot_tree(v: bytes) -> list[tuple[int, int, bytes]]:
+    out: list[tuple[int, int, bytes]] = []
 
     stream = bytesio_from_binarydata(v)
     while True:
@@ -164,8 +164,8 @@ def parse_taproot_tree(v: bytes) -> List[Tuple[int, int, bytes]]:
 
 
 def taproot_bip32_to_dict(
-    taproot_hd_key_paths: Dict[bytes, Tuple[List[bytes], BIP32KeyOrigin]]
-) -> List[Dict[str, Any]]:
+    taproot_hd_key_paths: dict[bytes, tuple[list[bytes], BIP32KeyOrigin]]
+) -> list[dict[str, Any]]:
     return [
         {
             "pub_key": pub_key.hex(),
@@ -178,8 +178,8 @@ def taproot_bip32_to_dict(
 
 
 def taproot_bip32_from_dict(
-    taproot_hd_key_paths: List[Dict[str, str]]
-) -> Dict[bytes, Tuple[List[bytes], BIP32KeyOrigin]]:
+    taproot_hd_key_paths: list[dict[str, str]]
+) -> dict[bytes, tuple[list[bytes], BIP32KeyOrigin]]:
     return {
         bytes_from_octets(bip32_deriv["pub_key"], 4): (
             [bytes_from_octets(x) for x in bip32_deriv["leaf_hashes"]],
@@ -193,8 +193,8 @@ def taproot_bip32_from_dict(
 
 
 def decode_taproot_bip32(
-    dict_: Optional[Mapping[Octets, Tuple[Sequence[Octets], BIP32KeyOrigin]]]
-) -> Dict[bytes, Tuple[List[bytes], BIP32KeyOrigin]]:
+    dict_: Mapping[Octets, tuple[Sequence[Octets], BIP32KeyOrigin]] | None
+) -> dict[bytes, tuple[list[bytes], BIP32KeyOrigin]]:
     if dict_ is None:
         return {}
     taproot_bip32 = {
@@ -205,7 +205,7 @@ def decode_taproot_bip32(
 
 
 def serialize_taproot_bip32(
-    type_: bytes, dict_: Dict[bytes, Tuple[List[bytes], BIP32KeyOrigin]]
+    type_: bytes, dict_: dict[bytes, tuple[list[bytes], BIP32KeyOrigin]]
 ) -> bytes:
     return b"".join(
         [
@@ -218,7 +218,7 @@ def serialize_taproot_bip32(
     )
 
 
-def parse_taproot_bip32(v: bytes) -> Tuple[List[bytes], BIP32KeyOrigin]:
+def parse_taproot_bip32(v: bytes) -> tuple[list[bytes], BIP32KeyOrigin]:
     stream = bytesio_from_binarydata(v)
     len_ = var_int.parse(stream)
     leafs = [stream.read(4) for x in range(len_)]
@@ -263,25 +263,25 @@ def assert_valid_taproot_internal_key(key: bytes) -> None:
         raise BTClibValueError("invalid taproot internal key length")
 
 
-def assert_valid_taproot_script_keys(keys: List[bytes], err_msg: str) -> None:
+def assert_valid_taproot_script_keys(keys: list[bytes], err_msg: str) -> None:
     if any(key and len(key) != 64 for key in keys):
         raise BTClibValueError(err_msg)
 
 
-def assert_valid_taproot_signatures(signatures: List[bytes], err_msg: str) -> None:
+def assert_valid_taproot_signatures(signatures: list[bytes], err_msg: str) -> None:
     if any(signature and len(signature) != 64 for signature in signatures):
         raise BTClibValueError(err_msg)
 
 
 def assert_valid_taproot_bip32_derivation(
-    derivations: Dict[bytes, Tuple[List[bytes], BIP32KeyOrigin]]
+    derivations: dict[bytes, tuple[list[bytes], BIP32KeyOrigin]]
 ) -> None:
     for pubkey in derivations.keys():
         if len(pubkey) != 32:
             raise BTClibValueError("invalid taproot bip32 derivation")
 
 
-def assert_valid_leaf_scripts(leaf_scripts: Dict[bytes, Tuple[bytes, int]]) -> None:
+def assert_valid_leaf_scripts(leaf_scripts: dict[bytes, tuple[bytes, int]]) -> None:
     for control_block in leaf_scripts.keys():
         assert_valid_control_block(control_block)
 
