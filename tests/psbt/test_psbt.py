@@ -62,11 +62,11 @@ def test_vectors_bip174() -> None:
 
 
 def test_vectors_bip371() -> None:
-    "Test https://github.com/bitcoin/bips/blob/master/bip-0371.mediawiki"
+    """Test https://github.com/bitcoin/bips/blob/master/bip-0371.mediawiki."""
 
     data_folder = path.join(path.dirname(__file__), "_data")
     filename = path.join(data_folder, "bip371_test_vectors.json")
-    with open(filename, "r", encoding="ascii") as file_:
+    with open(filename, encoding="ascii") as file_:
         # json.dump(test_vectors, f, indent=4)
         test_vectors = json.load(file_)
 

@@ -16,7 +16,7 @@ https://github.com/bitcoin/bips/blob/master/bip-0174.mediawiki
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Any, Mapping
+from typing import Any, Mapping, Sequence
 
 from btclib.alias import Octets
 from btclib.bip32 import (
@@ -80,7 +80,8 @@ class PsbtOut:
         hd_key_paths: Mapping[Octets, BIP32KeyOrigin] | None = None,
         taproot_internal_key: Octets = b"",
         taproot_tree: Sequence[tuple[int, int, Octets]] | None = None,
-        taproot_hd_key_paths: Mapping[Octets, BIP32KeyOrigin] | None = None,
+        taproot_hd_key_paths: Mapping[Octets, tuple[list[bytes], BIP32KeyOrigin]]
+        | None = None,
         unknown: Mapping[Octets, Octets] | None = None,
         check_validity: bool = True,
     ) -> None:
@@ -192,9 +193,9 @@ class PsbtOut:
         witness_script = b""
         hd_key_paths: dict[Octets, BIP32KeyOrigin] = {}
         taproot_internal_key = b""
-        taproot_tree: List[Tuple[int, int, bytes]] = []
+        taproot_tree: list[tuple[int, int, bytes]] = []
         taproot_hd_key_paths: dict[Octets, tuple[list[Octets], BIP32KeyOrigin]] = {}
-        unknown: Dict[Octets, Octets] = {}
+        unknown: dict[Octets, Octets] = {}
 
         for k, v in output_map.items():
             if k[:1] == PSBT_OUT_REDEEM_SCRIPT:
@@ -210,7 +211,7 @@ class PsbtOut:
                 taproot_tree = parse_taproot_tree(v)
             elif k[:1] == PSBT_OUT_TAP_BIP32_DERIVATION:
                 #  parse just one hd key path at time :-(
-                taproot_hd_key_paths[k[1:]] = parse_taproot_bip32(v)
+                taproot_hd_key_paths[k[1:]] = parse_taproot_bip32(v)  # type: ignore
             else:  # unknown
                 unknown[k] = v
 
@@ -220,7 +221,7 @@ class PsbtOut:
             hd_key_paths,
             taproot_internal_key,
             taproot_tree,
-            taproot_hd_key_paths,
+            taproot_hd_key_paths,  # type: ignore
             unknown,
             check_validity,
         )

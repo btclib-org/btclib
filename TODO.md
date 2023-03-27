@@ -40,6 +40,6 @@
 - SSA: ask about benefit of removing 02/03 from pub_key
 - SSA: suggest better k
 
-- compare of dsa.rfc6979_ and ssa.det_nonce_
+- compare of dsa.rfc6979_and ssa.det_nonce_
 
 - refactor Psbt
