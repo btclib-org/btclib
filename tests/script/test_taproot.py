@@ -28,10 +28,9 @@ from btclib.script import (
     is_p2tr,
     output_prvkey,
     output_pubkey,
-    parse,
-    serialize,
     type_and_payload,
 )
+from btclib.script.taproot import parse, serialize
 from btclib.tx import TxOut
 
 
@@ -140,14 +139,12 @@ def test_bip_test_vector() -> None:
 
 
 def test_serialize_op_success() -> None:
-
     assert parse(b"\x01\x00\x7e", exit_on_op_success=True) == ["OP_SUCCESS"]
 
     assert parse(b"\x7e\x02\x01") == ["OP_SUCCESS126", b"\x02\x01"]
 
 
 def test_invalid_serialization() -> None:
-
     with pytest.raises(BTClibValueError):
         serialize(["AAA"])
 
@@ -161,7 +158,6 @@ def test_invalid_serialization() -> None:
 
 
 def test_serialization() -> None:
-
     script: ScriptList = ["OP_SUCCESS80", b"\x01\x01\x01"]
     assert parse(serialize(script)) == script
 

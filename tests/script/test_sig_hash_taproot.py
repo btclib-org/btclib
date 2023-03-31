@@ -15,11 +15,10 @@
 
 import json
 from os import path
-from typing import List
 
 import pytest
 
-from btclib.alias import Command
+from btclib.alias import ScriptList
 from btclib.ecc import ssa
 from btclib.exceptions import BTClibRuntimeError, BTClibValueError
 from btclib.hashes import hash160
@@ -166,8 +165,7 @@ def test_empty_stack() -> None:
 
 
 def test_wrapped_p2tr() -> None:
-
-    script: list[Command] = [
+    script: ScriptList = [
         "OP_1",
         "cc71eb30d653c0c3163990c47b976f3fb3f37cccdcbedb169a1dfef58bbfbfaf",
     ]

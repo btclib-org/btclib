@@ -8,11 +8,9 @@
 # No part of btclib including this file, may be copied, modified, propagated,
 # or distributed except according to the terms contained in the LICENSE file.
 
-"""
-Bitcoin Script engine
-"""
+"""Bitcoin Script engine."""
 
-from typing import Callable, List, Mapping
+from typing import Callable, Mapping
 
 try:
     from btclib_libsecp256k1.ssa import verify as ssa_verify
@@ -46,7 +44,7 @@ def get_hashtype(signature: bytes) -> int:
 
 
 def op_checksigadd(
-    stack: List[bytes], altstack: List[bytes], flags: List[str]
+    stack: list[bytes], altstack: list[bytes], flags: list[str]
 ) -> ScriptList:
     stack[-2], stack[-3] = stack[-3], stack[-2]
     return ["OP_CHECKSIG", "OP_ADD"]
@@ -54,13 +52,12 @@ def op_checksigadd(
 
 def verify_key_path(
     script_pub_key: bytes,
-    stack: List[bytes],
-    prevouts: List[TxOut],
+    stack: list[bytes],
+    prevouts: list[TxOut],
     tx: Tx,
     i: int,
     annex: bytes,
 ) -> None:
-
     sighash_type = get_hashtype(stack[0])
     signature = stack[0][:64]
     pub_key = type_and_payload(script_pub_key)[1]
@@ -71,12 +68,12 @@ def verify_key_path(
 
 
 def op_checksig(
-    stack: List[bytes],
+    stack: list[bytes],
     script_bytes: bytes,
     codesep_pos: int,
     tx: Tx,
     i: int,
-    prevouts: List[TxOut],
+    prevouts: list[TxOut],
     annex: bytes,
     budget: int,
 ) -> int:
@@ -103,15 +100,14 @@ def op_checksig(
 
 def verify_script_path_vc0(
     script_bytes: bytes,
-    stack: List[bytes],
-    prevouts: List[TxOut],
+    stack: list[bytes],
+    prevouts: list[TxOut],
     tx: Tx,
     i: int,
     annex: bytes,
     sigops_budget: int,
-    flags: List[str],
+    flags: list[str],
 ) -> None:
-
     if any(len(x) > 520 for x in stack):
         raise BTClibValueError()
 
@@ -181,8 +177,8 @@ def verify_script_path_vc0(
         "OP_2SWAP": script_op_codes.op_2swap,
     }
 
-    altstack: List[bytes] = []
-    condition_stack: List[bool] = [True]
+    altstack: list[bytes] = []
+    condition_stack: list[bool] = [True]
 
     script_index = -1
 
@@ -190,7 +186,6 @@ def verify_script_path_vc0(
 
     s = bytesio_from_binarydata(script_bytes)
     while True:
-
         script_index += 1
 
         skip_execution = not all(condition_stack)
@@ -222,7 +217,6 @@ def verify_script_path_vc0(
         op = OP_CODE_NAMES[t]
 
         if op == "OP_CHECKSIG":
-
             sigops_budget = op_checksig(
                 stack,
                 script_bytes,

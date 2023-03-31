@@ -36,8 +36,7 @@ def ripemd160(octets: Octets) -> bytes:
 
 
 def sha1(octets: Octets) -> bytes:
-    "Return the SHA1(*) of the input octet sequence."
-
+    """Return the SHA1(*) of the input octet sequence."""
     octets = bytes_from_octets(octets)
     return hashlib.sha1(octets).digest()  # nosec
 

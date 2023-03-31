@@ -12,7 +12,7 @@
 
 https://en.bitcoin.it/wiki/Script
 
-Scripts are represented by list[Command], where Command = Union[int, str, bytes]
+Scripts are represented by List[Command], where Command = Union[int, str, bytes]
 
 * ascii string are for opcodes (e.g. 'OP_HASH160', 'OP_1', 'OP_1NEGATE', etc.)
 * hex-string or bytes (i.e., Octets) are for data
@@ -21,10 +21,10 @@ Scripts are represented by list[Command], where Command = Union[int, str, bytes]
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import list, Sequence
+from typing import Sequence
 from warnings import warn
 
-from btclib.alias import BinaryData, Command, Octets
+from btclib.alias import BinaryData, Command, Octets, ScriptList
 from btclib.exceptions import BTClibValueError
 from btclib.utils import bytes_from_octets, bytesio_from_binarydata, encode_num
 
@@ -315,10 +315,9 @@ def serialize(script: Sequence[Command]) -> bytes:
     return b"".join(r)
 
 
-def parse(stream: BinaryData, accept_unknown: bool = False) -> list[Command]:
-
+def parse(stream: BinaryData, accept_unknown: bool = False) -> ScriptList:
     s = bytesio_from_binarydata(stream)
-    r: list[Command] = []  # initialize the result list
+    r: ScriptList = []  # initialize the result list
 
     while True:
         t = s.read(1)  # get one byte
@@ -364,13 +363,13 @@ def parse(stream: BinaryData, accept_unknown: bool = False) -> list[Command]:
 
 @dataclass
 class Script:
-    # Bitcoin script expressed as list[Command]
+    # Bitcoin script expressed as ScriptList
     # e.g. [OP_HASH160, script_h160, OP_EQUAL]
     # or Octets of its byte-encoded representation
     script: bytes
 
     @property
-    def asm(self) -> list[Command]:
+    def asm(self) -> ScriptList:
         return parse(self.script, accept_unknown=True)
 
     def __add__(self, other: Script) -> Script:

@@ -15,7 +15,7 @@ mypy aliases, documenting also coding input conventions.
 from __future__ import annotations
 
 from io import BytesIO
-from typing import Any, Callable, List, Tuple, Union
+from typing import Any, Callable, Tuple, Union
 
 # Octets are a sequence of eight-bit bytes or a hex-string (not text string)
 #
@@ -103,8 +103,8 @@ INFJ = 7, 0, 0
 # unfortunately recursive type hinting is not supported
 # https://github.com/python/mypy/issues/731
 # TaprootLeaf = Tuple[int, Script]
-# TaprootScriptTree = List[Union[Any, TaprootLeaf]]
+# TaprootScriptTree = list[TaprootLeaf | Any]
 TaprootScriptTree = Any
 
 Command = Union[int, str, bytes]
-ScriptList = List[Command]
+ScriptList = list[Command]

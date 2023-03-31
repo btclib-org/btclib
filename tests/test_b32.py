@@ -44,11 +44,11 @@ from __future__ import annotations
 import pytest
 
 from btclib import b32, b58
-from btclib.alias import Command
+from btclib.alias import ScriptList
 from btclib.ec import bytes_from_point, point_from_octets
 from btclib.exceptions import BTClibValueError
 from btclib.hashes import hash160, sha256
-from btclib.script import Command, op_int, output_pubkey, serialize
+from btclib.script import op_int, output_pubkey, serialize
 
 
 def test_has_segwit_prefix() -> None:
@@ -105,7 +105,7 @@ def test_valid_address() -> None:
         )
         assert addr == b32.address_from_witness(wit_ver, wit_prg, network)
 
-        script_pub_key: list[Command] = [op_int(wit_ver), wit_prg]
+        script_pub_key: ScriptList = [op_int(wit_ver), wit_prg]
         assert serialize(script_pub_key).hex() == hexscript
 
 
@@ -285,7 +285,7 @@ def test_p2wpkh() -> None:
 def test_p2wsh_p2sh() -> None:
     # leading/trailing spaces should be tolerated
     pub = " 02 79BE667EF9DCBBAC55A06295CE870B07029BFCDB2DCE28D959F2815B16F81798"
-    script_pub_key: list[Command] = [pub, "OP_CHECKSIG"]
+    script_pub_key: ScriptList = [pub, "OP_CHECKSIG"]
     witness_script_bytes = serialize(script_pub_key)
     b58.p2wsh_p2sh(witness_script_bytes)
     b58.p2wsh_p2sh(witness_script_bytes, "testnet")
@@ -294,7 +294,7 @@ def test_p2wsh_p2sh() -> None:
 def test_p2wsh() -> None:
     # https://github.com/bitcoin/bips/blob/master/bip-0173.mediawiki
     pub = "02 79BE667EF9DCBBAC55A06295CE870B07029BFCDB2DCE28D959F2815B16F81798"
-    script_pub_key: list[Command] = [pub, "OP_CHECKSIG"]
+    script_pub_key: ScriptList = [pub, "OP_CHECKSIG"]
     witness_script_bytes = serialize(script_pub_key)
 
     addr = "tb1qrp33g0q5c5txsp9arysrx4k6zdkfs4nce4xj0gdcccefvpysxf3q0sl5k7"

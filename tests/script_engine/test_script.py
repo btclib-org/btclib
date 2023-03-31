@@ -8,7 +8,7 @@
 # No part of btclib including this file, may be copied, modified, propagated,
 # or distributed except according to the terms contained in the LICENSE file.
 
-"Tests for the `btclib.script.engine` module."
+"""Tests for the `btclib.script.engine` module."""
 
 import json
 import warnings
@@ -26,10 +26,9 @@ from tests.script_engine import parse_script
 
 
 def test_script() -> None:
-
     fname = "script_tests.json"
     filename = path.join(path.dirname(__file__), "_data", fname)
-    with open(filename, "r", encoding="ascii") as file_:
+    with open(filename, encoding="ascii") as file_:
         data = json.load(file_)
 
     def test(stack, amount, script_sig_str, script_pub_key_str, flags, result):

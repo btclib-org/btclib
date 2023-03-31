@@ -8,19 +8,17 @@
 # No part of btclib including this file, may be copied, modified, propagated,
 # or distributed except according to the terms contained in the LICENSE file.
 
-"""
-Bitcoin Script engine
-"""
+"""Bitcoin Script engine."""
 
-from typing import Callable, List, MutableMapping
+from typing import Callable, MutableMapping
 
 try:
     from btclib_libsecp256k1.dsa import verify as dsa_verify
 except ImportError:
     from btclib.ecc.dsa import verify_ as dsa_verify  # type: ignore
 
-from btclib.alias import Command
-from btclib.ecc.der import Sig
+from btclib.alias import ScriptList
+from btclib.ecc.dsa import Sig
 from btclib.exceptions import BTClibRuntimeError, BTClibValueError
 from btclib.script import sig_hash
 from btclib.script.engine import script_op_codes
@@ -32,7 +30,7 @@ from btclib.tx.tx import Tx
 from btclib.utils import bytesio_from_binarydata
 
 
-def fix_signature(signature: bytes, flags: List[str]) -> bytes:
+def fix_signature(signature: bytes, flags: list[str]) -> bytes:
     signature_suffix = signature[-1:]
     if "STRICTENC" in flags and signature_suffix[0] not in SIG_HASH_TYPES:
         raise BTClibValueError()
@@ -47,7 +45,7 @@ def fix_signature(signature: bytes, flags: List[str]) -> bytes:
     return signature + signature_suffix
 
 
-def check_pub_key(pub_key: bytes, segwit: bool, flags: List[str]) -> bool:
+def check_pub_key(pub_key: bytes, segwit: bool, flags: list[str]) -> bool:
     if not pub_key:
         return False
     if pub_key[0] in [4, 6, 7]:
@@ -64,11 +62,10 @@ def check_pub_key(pub_key: bytes, segwit: bool, flags: List[str]) -> bool:
 def calculate_script_code(
     script_bytes: bytes,
     separator_index: int,
-    signatures: List[bytes],
+    signatures: list[bytes],
     const_scriptcode: bool,
     segwit: bool,
 ) -> bytes:
-
     script_code = parse(script_bytes, accept_unknown=True)
     # We only take the bytes from the last executed OP_CODESEPARATOR
     # we can't serialize the script_pub_key from the last executed
@@ -98,17 +95,16 @@ def calculate_script_code(
 
 def op_checksig(
     signature: bytes,
-    signatures: List[bytes],
+    signatures: list[bytes],
     pub_key: bytes,
     script_bytes: bytes,
     codesep_index: int,
     prevout_value: int,
     tx: Tx,
     i: int,
-    flags: List[str],
+    flags: list[str],
     segwit: bool,
 ) -> bool:
-
     if not signature:
         return False
     try:
@@ -140,7 +136,7 @@ def script_op_count(count: int, increment: int):
     return count
 
 
-def prepare_script(script: List[Command], flags: List[str], segwit: bool) -> None:
+def prepare_script(script: ScriptList, flags: list[str], segwit: bool) -> None:
     if "OP_CODESEPARATOR" in script and "CONST_SCRIPTCODE" in flags and not segwit:
         raise BTClibValueError()
 
@@ -148,22 +144,21 @@ def prepare_script(script: List[Command], flags: List[str], segwit: bool) -> Non
         raise BTClibValueError()
 
 
-def check_balanced_if(script: List[Command]) -> None:
+def check_balanced_if(script: ScriptList) -> None:
     if script.count("OP_IF") + script.count("OP_NOTIF") - script.count("OP_ENDIF"):
         raise BTClibValueError()
 
 
 def verify_script(
     script_bytes: bytes,
-    stack: List[bytes],
+    stack: list[bytes],
     prevout_value: int,
     tx: Tx,
     i: int,
-    flags: List[str],
+    flags: list[str],
     segwit: bool,
     final: bool = False,
 ) -> None:
-
     if len(script_bytes) > 10000:
         raise BTClibValueError()
 
@@ -232,8 +227,8 @@ def verify_script(
         "OP_2SWAP": script_op_codes.op_2swap,
     }
 
-    altstack: List[bytes] = []
-    condition_stack: List[bool] = [True]
+    altstack: list[bytes] = []
+    condition_stack: list[bool] = [True]
 
     op_code_num = 0
 
@@ -241,7 +236,6 @@ def verify_script(
 
     s = bytesio_from_binarydata(script_bytes)
     while True:
-
         script_index += 1
 
         if len(stack) + len(altstack) > 1000:
@@ -277,7 +271,6 @@ def verify_script(
         op = OP_CODE_NAME_FROM_INT[t]
 
         if op == "OP_CHECKSIG":
-
             pub_key = stack.pop()
             signature = stack.pop()
             result = op_checksig(
