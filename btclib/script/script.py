@@ -334,7 +334,7 @@ def parse(stream: BinaryData, accept_unknown: bool = False) -> ScriptList:
                     x = 4
                 y = s.read(x)
                 if len(y) != x:
-                    raise BTClibValueError("not enough data for pushdata length")
+                    raise BTClibValueError("Not enough data for pushdata length")
                 data_length = int.from_bytes(y, byteorder="little")
             if data_length > 520:
                 raise BTClibValueError(f"Invalid pushdata length: {data_length}")
