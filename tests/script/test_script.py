@@ -18,11 +18,7 @@ import pytest
 from btclib.alias import ScriptList
 from btclib.exceptions import BTClibValueError
 from btclib.script import Script, op_int, parse, serialize
-from btclib.script.script import (
-    BYTE_FROM_OP_CODE_NAME,
-    OP_CODE_NAME_FROM_INT,
-    _serialize_str_command,
-)
+from btclib.script.script import BYTE_FROM_OP_CODE_NAME, OP_CODE_NAME_FROM_INT
 from btclib.utils import hex_string
 
 
@@ -76,17 +72,6 @@ def test_serialize_bytes_command() -> None:
     assert len(serialize([b])) == (length + 1) + 3
 
 
-def test_invalid_op_success() -> None:
-    err_msg = "invalid OP_SUCCESS number: "
-    with pytest.raises(BTClibValueError, match=err_msg):
-        _serialize_str_command("OP_SUCCESS1")
-    err_msg = "invalid OP_SUCCESS number: "
-    with pytest.raises(BTClibValueError, match=err_msg):
-        _serialize_str_command("OP_SUCCESS173")
-
-    assert _serialize_str_command("OP_SUCCESS80") == b"\x50"
-
-
 def test_add_and_eq() -> None:
     script_1 = serialize(["OP_2", "OP_3", "OP_ADD", "OP_5"])
     script_2 = serialize(["OP_EQUAL"])
@@ -130,7 +115,7 @@ def test_exceptions() -> None:
 
     # A script_pub_key with OP_PUSHDATA4 can't be decoded
     script_bytes = "4e09020000" + "0A" * 521 + "75"  # ['0A'*521, 'OP_DROP']
-    err_msg = "invalid pushdata length: "
+    err_msg = "Invalid pushdata length: "
     with pytest.raises(BTClibValueError, match=err_msg):
         parse(script_bytes)
 
@@ -154,10 +139,10 @@ def test_encoding() -> None:
 
 
 def test_opcode_length() -> None:
-    err_msg = "not enough data for pushdata length"
+    err_msg = "Not enough data for pushdata length"
     with pytest.raises(BTClibValueError, match=err_msg):
         parse(b"\x4e\x00")
-    err_msg = "not enough data for pushdata"
+    err_msg = "Not enough data for pushdata"
     with pytest.raises(BTClibValueError, match=err_msg):
         parse(b"\x40\x00")
 

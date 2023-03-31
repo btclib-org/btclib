@@ -16,8 +16,6 @@
 
 from __future__ import annotations
 
-from typing import Sequence
-
 from btclib import var_bytes
 from btclib.alias import Octets, ScriptList
 from btclib.exceptions import BTClibValueError
@@ -87,6 +85,29 @@ def witness_v0_script(script_pub_key: Octets) -> list[bytes]:
         current_script.append(token)
     script_s.append(serialize(current_script[::-1]))
     return script_s[::-1]
+
+
+def taproot_annex_and_ext(
+    tx: Tx, prevouts: list[TxOut], vin_i: int
+) -> tuple[bytes, bytes]:
+    witness = tx.vin[vin_i].script_witness
+    if len(witness.stack) == 0:
+        raise BTClibValueError("Empty stack")
+
+    annex = b""
+    if len(witness.stack) >= 2 and witness.stack[-1][0] == 0x50:
+        annex = witness.stack[-1]
+        witness.stack = witness.stack[:-1]
+
+    ext = b""
+    if len(witness.stack) > 1:
+        leaf_version = witness.stack[-1][0] & 0xFE
+        preimage = leaf_version.to_bytes(1, "big")
+        preimage += var_bytes.serialize(witness.stack[-2])
+        tapleaf_hash = tagged_hash(b"TapLeaf", preimage)
+        ext = tapleaf_hash + b"\x00\xff\xff\xff\xff"
+
+    return annex, ext
 
 
 def legacy(script_code: Octets, tx: Tx, vin_i: int, hash_type: int) -> bytes:
@@ -266,33 +287,20 @@ def taproot(
 
     preimage += message_extension
 
-    return tagged_hash(b"TapSighash", preimage)
+    sig_hash = tagged_hash(b"TapSighash", preimage)
+    return sig_hash
 
 
 def from_tx(prevouts: list[TxOut], tx: Tx, vin_i: int, hash_type: int) -> bytes:
     script = prevouts[vin_i].script_pub_key.script
 
     if is_p2tr(script):
-        return _script_from_p2tr(prevouts, tx, vin_i, hash_type)
-
-        if len(witness.stack) == 0:
-            raise BTClibValueError("Empty stack")
-
-        ext = b""
-        if len(witness.stack) > 1:
-            leaf_version = witness.stack[-1][0] & 0xFE
-            preimage = leaf_version.to_bytes(1, "big")
-            preimage += var_bytes.serialize(witness.stack[-2])
-            tapleaf_hash = tagged_hash(b"TapLeaf", preimage)
-            ext = tapleaf_hash + b"\x00\xff\xff\xff\xff"
-
+        annex, ext = taproot_annex_and_ext(tx, prevouts, vin_i)
         return taproot(tx, vin_i, prevouts, hash_type, int(bool(ext)), annex, ext)
 
     # handle all p2sh-wrapped scripts
     if is_p2sh(script):
         script = tx.vin[vin_i].script_sig
-        if is_p2tr(script):
-            raise BTClibValueError("taproot scripts cannot be wrapped in p2sh")
 
     if is_p2wpkh(script):
         script_code = witness_v0_script(script)[0]
@@ -308,35 +316,3 @@ def from_tx(prevouts: list[TxOut], tx: Tx, vin_i: int, hash_type: int) -> bytes:
 
     script_code = legacy_script(script)[0]
     return legacy(script_code, tx, vin_i, hash_type)
-
-
-def _script_from_p2tr(
-    prevouts: Sequence[TxOut], tx: Tx, vin_i: int, hash_type: int
-) -> bytes:
-    witness = tx.vin[vin_i].script_witness
-    if len(witness.stack) == 0:
-        raise BTClibValueError("empty stack")
-
-    annex = b""
-    if len(witness.stack) >= 2 and witness.stack[-1][0] == 0x50:
-        annex = witness.stack[-1]
-        witness.stack = witness.stack[:-1]
-
-    ext = b""
-    if len(witness.stack) > 1:
-        leaf_version = witness.stack[-1][0] & 0xFE
-        preimage = leaf_version.to_bytes(1, "big")
-        preimage += var_bytes.serialize(witness.stack[-2])
-        tapleaf_hash = tagged_hash(b"TapLeaf", preimage)
-        ext = tapleaf_hash + b"\x00\xff\xff\xff\xff"
-
-    return taproot(
-        tx,
-        vin_i,
-        [x.value for x in prevouts],
-        [x.script_pub_key for x in prevouts],
-        hash_type,
-        int(bool(ext)),
-        annex,
-        ext,
-    )
