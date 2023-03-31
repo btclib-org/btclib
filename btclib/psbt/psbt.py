@@ -18,9 +18,9 @@ import base64
 import random
 from copy import deepcopy
 from dataclasses import dataclass
-from typing import Any, Callable, Mapping, Sequence, TypeVar
+from typing import Any, Callable, Mapping, Sequence, TypeVar, cast
 
-from btclib.alias import Octets, String
+from btclib.alias import Octets, ScriptList, String
 from btclib.bip32 import (
     BIP32KeyOrigin,
     HdKeyPaths,

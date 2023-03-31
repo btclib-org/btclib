@@ -15,7 +15,7 @@ from __future__ import annotations
 from typing import Callable, Sequence
 
 from btclib import b32, b58, var_bytes
-from btclib.alias import Octets, String
+from btclib.alias import Octets, ScriptList, String
 from btclib.ec import point_from_octets
 from btclib.exceptions import BTClibValueError
 from btclib.hashes import hash160, sha256
@@ -365,7 +365,7 @@ class ScriptPubKey(Script):
 
         script_type, h160, network = b58.h160_from_address(addr)
         if script_type == "p2sh":
-            commands: list[Command] = ["OP_HASH160", h160, "OP_EQUAL"]
+            commands: ScriptList = ["OP_HASH160", h160, "OP_EQUAL"]
         else:  # it must be "p2pkh"
             commands = [
                 "OP_DUP",

@@ -18,11 +18,10 @@ from os import path
 import pytest
 
 from btclib import b32, b58, var_bytes
-from btclib.alias import Command
+from btclib.alias import ScriptList
 from btclib.exceptions import BTClibValueError
 from btclib.hashes import hash160, sha256
 from btclib.script import (
-    Command,
     Script,
     ScriptPubKey,
     address,
@@ -147,7 +146,7 @@ def test_nulldata3() -> None:
 
 
 def test_nulldata4() -> None:
-    script_: list[Command] = [
+    script_: ScriptList = [
         "OP_RETURN",
         "OP_RETURN",
         "OP_3",
@@ -409,7 +408,7 @@ def test_p2ms_1() -> None:
     with pytest.raises(BTClibValueError, match=err_msg):
         ScriptPubKey.p2ms(1, [f"{pub_key0}00", pub_key1])
 
-    script_: list[Command] = [
+    script_: ScriptList = [
         "OP_1",
         f"{pub_key0}00",
         pub_key1,
@@ -487,11 +486,11 @@ def test_p2ms_2() -> None:
 def test_p2ms_3() -> None:
     # tx_id 33ac2af1a6f894276713b59ed09ce1a20fed5b36d169f20a3fe831dc45564d57
     # output n 0
-    keys: list[Command] = [
+    keys: ScriptList = [
         "036D568125A969DC78B963B494FA7ED5F20EE9C2F2FC2C57F86C5DF63089F2ED3A",
         "03FE4E6231D614D159741DF8371FA3B31AB93B3D28A7495CDAA0CD63A2097015C7",
     ]
-    cmds: list[Command] = ["OP_1", *keys, "OP_2", "OP_CHECKMULTISIG"]
+    cmds: ScriptList = ["OP_1", *keys, "OP_2", "OP_CHECKMULTISIG"]
     script_pub_key = ScriptPubKey(serialize(cmds))
     assert script_pub_key == ScriptPubKey.p2ms(1, keys)
 
@@ -506,7 +505,7 @@ def test_p2ms_3() -> None:
 
     # tx 56214420a7c4dcc4832944298d169a75e93acf9721f00656b2ee0e4d194f9970
     # input n 1
-    cmds_sig: list[Command] = [
+    cmds_sig: ScriptList = [
         "OP_0",
         "3045022100dba1e9b1c8477fd364edcc1f81845928202daf465a1e2d92904c13c88761cbd002200add6af863dfdb7efb95f334baec041e90811ae9d81624f9f87f33a56761f29401",
     ]
@@ -547,7 +546,7 @@ def test_non_standard_script_in_p2wsh() -> None:
     script_pub_key = ScriptPubKey.from_address(addr)
     assert addr == address(script_pub_key.script, network)
 
-    fed_pub_keys: list[Command] = [
+    fed_pub_keys: ScriptList = [
         "03356aeda9c56586fe1e4a63d5118ffa3bf29bd91c6323e31de113a500a1ffe441".upper(),
         "0339f970e066a3efe1787722bd9cd59f69f1cf5cd29cb39fdec845415d8dbcb7a6".upper(),
         "0346f1233885981cc50b4064b6ed27174a149ac0842a25941f280302ddd7d2153d".upper(),
@@ -556,14 +555,14 @@ def test_non_standard_script_in_p2wsh() -> None:
         "03a88488e5ab6ae35c7d22d76efb9578e4a71b59c2ff0bd3cc3277e3a60717f3d6".upper(),
     ]
 
-    rec_pub_keys: list[Command] = [
+    rec_pub_keys: ScriptList = [
         "02219c3f199942fdd37a88065a8a8333189aadb5667a7c27681f66952fddf0eea4".upper(),
         "034c52cdf0125e50a53556c3f7586245f3f556bf26a80a4dae0ea6d0c81c11ebef".upper(),
         "03e8abfc4e3dcd5be461e79c9fa68a4d657b344391d7fd65ed40aaa56f584c7711".upper(),
     ]
 
     # fmt: off
-    redeem_script_cmds: list[Command] = [
+    redeem_script_cmds: ScriptList = [
         "OP_IF",
             "OP_3", *fed_pub_keys, "OP_6", "OP_CHECKMULTISIG",  # noqa E131
         "OP_ELSE",

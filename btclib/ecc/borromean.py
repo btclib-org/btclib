@@ -13,7 +13,7 @@ from __future__ import annotations
 
 import secrets
 from hashlib import sha256 as hf  # FIXME any hf
-from typing import List, Sequence
+from typing import Sequence
 
 from btclib.alias import Octets, Point
 from btclib.ec import bytes_from_point, double_mult, mult, secp256k1
@@ -42,7 +42,7 @@ def _get_msg_format(msg: bytes, pubk_rings: Sequence[PubkeyRing]) -> bytes:
     return hf(msg + t).digest()
 
 
-SValues = Sequence[List[int]]
+SValues = Sequence[list[int]]
 
 
 def _initialize(
