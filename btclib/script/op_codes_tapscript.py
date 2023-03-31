@@ -8,7 +8,7 @@
 # No part of btclib including this file, may be copied, modified, propagated,
 # or distributed except according to the terms contained in the LICENSE file.
 
-"""Tapscript OP_CODES"""
+"""Tapscript OP_CODES."""
 
 from btclib.exceptions import BTClibValueError
 from btclib.script.script import (  # noqa pylint: disable=unused-import

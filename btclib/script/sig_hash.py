@@ -16,11 +16,10 @@
 
 from __future__ import annotations
 
-from copy import deepcopy
 from typing import Sequence
 
 from btclib import var_bytes
-from btclib.alias import Command, Octets
+from btclib.alias import Octets, ScriptList
 from btclib.exceptions import BTClibValueError
 from btclib.hashes import hash256, sha256, tagged_hash
 from btclib.script.script import parse, serialize
@@ -60,7 +59,7 @@ def assert_valid_hash_type(hash_type: int) -> None:
 # TODO: should remove signature even if not standard
 def legacy_script(script_pub_key: Octets) -> list[bytes]:
     script_s: list[bytes] = []
-    current_script: list[Command] = []
+    current_script: ScriptList = []
     for token in parse(script_pub_key)[::-1]:
         if token == "OP_CODESEPARATOR":  # nosec required for python < 3.8
             script_s.append(serialize(current_script[::-1]))
@@ -81,7 +80,7 @@ def witness_v0_script(script_pub_key: Octets) -> list[bytes]:
         return [script]
 
     script_s: list[bytes] = []
-    current_script: list[Command] = []
+    current_script: ScriptList = []
     for token in parse(script_pub_key)[::-1]:
         if token == "OP_CODESEPARATOR":  # nosec required for python < 3.8
             script_s.append(serialize(current_script[::-1]))
@@ -213,7 +212,6 @@ def taproot(
     annex: bytes,
     message_extension: bytes,
 ) -> bytes:
-
     amounts = [x.value for x in prevouts]
     scriptpubkeys = [x.script_pub_key for x in prevouts]
 
@@ -310,6 +308,7 @@ def from_tx(prevouts: list[TxOut], tx: Tx, vin_i: int, hash_type: int) -> bytes:
 
     script_code = legacy_script(script)[0]
     return legacy(script_code, tx, vin_i, hash_type)
+
 
 def _script_from_p2tr(
     prevouts: Sequence[TxOut], tx: Tx, vin_i: int, hash_type: int

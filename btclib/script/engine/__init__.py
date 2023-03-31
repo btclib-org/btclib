@@ -8,13 +8,11 @@
 # No part of btclib including this file, may be copied, modified, propagated,
 # or distributed except according to the terms contained in the LICENSE file.
 
-"""
-Bitcoin Script engine
-"""
+"""Bitcoin Script engine."""
 
-from typing import List, Optional, Tuple, cast
+from typing import Optional, Tuple, cast
 
-from btclib.alias import Command
+from btclib.alias import Command, ScriptList
 from btclib.exceptions import BTClibValueError
 from btclib.hashes import sha256
 from btclib.script.engine import tapscript
@@ -29,9 +27,8 @@ from btclib.tx.tx_out import TxOut
 
 
 def taproot_unwrap_script(
-    script: bytes, stack: List[bytes]
-) -> Tuple[bytes, List[bytes], int]:
-
+    script: bytes, stack: list[bytes]
+) -> Tuple[bytes, list[bytes], int]:
     pub_key = type_and_payload(script)[1]
     script_bytes = stack[-2]
     control = stack[-1]
@@ -52,7 +49,7 @@ def taproot_get_annex(witness: Witness) -> bytes:
     return annex
 
 
-def validate_redeem_script(redeem_script: List[Command]) -> None:
+def validate_redeem_script(redeem_script: ScriptList) -> None:
     for c in redeem_script:
         if isinstance(c, str):
             if c == "OP_1NEGATE":
@@ -86,8 +83,7 @@ ALL_FLAGS = [
 ]
 
 
-def verify_input(prevouts: List[TxOut], tx: Tx, i: int, flags: List[str]) -> None:
-
+def verify_input(prevouts: list[TxOut], tx: Tx, i: int, flags: list[str]) -> None:
     script_sig = tx.vin[i].script_sig
     parsed_script_sig = parse(script_sig, accept_unknown=True)
     if "SIGPUSHONLY" in flags:
@@ -102,7 +98,7 @@ def verify_input(prevouts: List[TxOut], tx: Tx, i: int, flags: List[str]) -> Non
             ]
             if x in op_checks:
                 raise BTClibValueError()
-    stack: List[bytes] = []
+    stack: list[bytes] = []
     verify_script_legacy(
         script_sig, stack, prevouts[i].value, tx, i, flags, False, False
     )
@@ -188,7 +184,7 @@ def verify_input(prevouts: List[TxOut], tx: Tx, i: int, flags: List[str]) -> Non
 
 
 def verify_transaction(
-    prevouts: List[TxOut], tx: Tx, flags: Optional[List] = None
+    prevouts: list[TxOut], tx: Tx, flags: Optional[list] = None
 ) -> None:
     if flags is None:
         flags = ALL_FLAGS[:]

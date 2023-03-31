@@ -15,18 +15,13 @@ import warnings
 
 import pytest
 
+from btclib.alias import ScriptList
 from btclib.exceptions import BTClibValueError
-from btclib.script import Command, Script, op_int, parse, serialize
+from btclib.script import Script, op_int, parse, serialize
 from btclib.script.script import (
     BYTE_FROM_OP_CODE_NAME,
     OP_CODE_NAME_FROM_INT,
     _serialize_str_command,
-    BTClibValueError,
-    Command,
-    Script,
-    op_int,
-    parse,
-    serialize,
 )
 from btclib.utils import hex_string
 
@@ -102,7 +97,7 @@ def test_add_and_eq() -> None:
 
 
 def test_simple_scripts() -> None:
-    script_list: list[list[Command]] = [
+    script_list: list[ScriptList] = [
         ["OP_2", "OP_3", "OP_ADD", "OP_5", "OP_EQUAL"],
         [0x1ADD, "OP_1ADD", 0x1ADE, "OP_EQUAL"],
         [26, "OP_1NEGATE", "OP_ADD", 26, "OP_EQUAL"],
@@ -120,7 +115,7 @@ def test_simple_scripts() -> None:
 
 
 def test_exceptions() -> None:
-    script_pub_key: list[Command] = ["OP_2", "OP_3", "OP_ADD", "OP_5", "OP_RETURN_244"]
+    script_pub_key: ScriptList = ["OP_2", "OP_3", "OP_ADD", "OP_5", "OP_RETURN_244"]
     err_msg = "invalid string command: OP_RETURN_244"
     with pytest.raises(BTClibValueError, match=err_msg):
         serialize(script_pub_key)
@@ -140,14 +135,14 @@ def test_exceptions() -> None:
         parse(script_bytes)
 
     # and can't be encoded
-    script_pub_key_: List[Command] = ["00" * 521, "OP_DROP"]
+    script_pub_key_: ScriptList = ["00" * 521, "OP_DROP"]
     err_msg = "too many bytes for OP_PUSHDATA: "
     with pytest.raises(BTClibValueError, match=err_msg):
         serialize(script_pub_key_)
 
 
 def test_nulldata() -> None:
-    scripts: list[list[Command]] = [["OP_RETURN", "1A" * 79], ["OP_RETURN", "0A" * 79]]
+    scripts: list[ScriptList] = [["OP_RETURN", "1A" * 79], ["OP_RETURN", "0A" * 79]]
     for script_pub_key in scripts:
         assert script_pub_key == parse(serialize(script_pub_key))
         assert script_pub_key == parse(serialize(script_pub_key).hex())
@@ -172,7 +167,7 @@ def test_opcode_length() -> None:
 
 
 def test_regressions() -> None:
-    script_list: list[list[Command]] = [
+    script_list: list[ScriptList] = [
         [1],
         ["OP_1"],
         [51],
@@ -199,7 +194,7 @@ def test_regressions() -> None:
 
 
 def test_null_serialization() -> None:
-    empty_script: list[Command] = []
+    empty_script: ScriptList = []
     assert empty_script == parse(b"")
     assert serialize(empty_script) == b""
 

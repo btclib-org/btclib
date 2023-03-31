@@ -14,7 +14,7 @@ from __future__ import annotations
 from typing import Any
 
 from btclib import var_bytes
-from btclib.alias import Octets, TaprootScriptTree
+from btclib.alias import BinaryData, Octets, ScriptList, TaprootScriptTree
 from btclib.ec import Curve, mult, secp256k1
 from btclib.exceptions import BTClibValueError
 from btclib.hashes import tagged_hash
@@ -30,8 +30,8 @@ from btclib.to_pub_key import Key, pub_keyinfo_from_key
 from btclib.utils import bytes_from_octets, bytesio_from_binarydata
 
 
-def serialize(script: List[Command]) -> bytes:
-    r: List[bytes] = []
+def serialize(script: ScriptList) -> bytes:
+    r: list[bytes] = []
     script = script[::-1]
     while script:
         command = script.pop()
@@ -48,14 +48,12 @@ def serialize(script: List[Command]) -> bytes:
     return b"".join(r)
 
 
-def parse(stream: BinaryData, exit_on_op_success: bool = False) -> List[Command]:
-
+def parse(stream: BinaryData, exit_on_op_success: bool = False) -> ScriptList:
     s = bytesio_from_binarydata(stream)
-    r: List[Command] = []  # initialize the result list
+    r: ScriptList = []  # initialize the result list
     invalid_element_size = False
 
     while True:
-
         t = s.read(1)  # get one byte
         if not t:
             break
@@ -92,7 +90,6 @@ def parse(stream: BinaryData, exit_on_op_success: bool = False) -> List[Command]
     if invalid_element_size:
         raise BTClibValueError("Invalid pushdata length")
     return r
-
 
 
 def tree_helper(script_tree: TaprootScriptTree) -> tuple[Any, bytes]:
@@ -165,7 +162,7 @@ def output_prvkey(
 
 def input_script_sig(
     internal_pubkey: Key | None, script_tree: TaprootScriptTree, script_num: int
-) -> tuple[list[Command], bytes]:
+) -> tuple[ScriptList, bytes]:
     parity_bit = output_pubkey(internal_pubkey, script_tree)[1]
     if internal_pubkey:
         pub_key_bytes = pub_keyinfo_from_key(internal_pubkey, compressed=True)[0][1:]

@@ -157,8 +157,8 @@ Major changes includes:
   now it is xkey_dict.index < 0x80000000
 - bip32: local "./" derivation, opposed to absolute "m/" derivation,
   is not available anymore
-- bip32: indexes_from_bip32_path now returns List[int] instead of
-  Tuple[List[bytes], bool] losing the "absolute derivation" bool
+- bip32: indexes_from_bip32_path now returns list[int] instead of
+  Tuple[list[bytes], bool] losing the "absolute derivation" bool
 - bms: serialize/deserialize have been renamed encode/decode as they
   include the base64 (de)encoding, not jut the plain (de)serialization
 - Block: fixed bug in difficulty calculation

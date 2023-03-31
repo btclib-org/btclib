@@ -8,7 +8,7 @@
 # No part of btclib including this file, may be copied, modified, propagated,
 # or distributed except according to the terms contained in the LICENSE file.
 
-"Tests for the `btclib.script.engine` module."
+"""Tests for the `btclib.script.engine` module."""
 
 import json
 import warnings
@@ -28,11 +28,10 @@ def test_valid_taproot() -> None:
     fname = "tapscript_test_vector.json"
     filename = path.join(path.dirname(path.dirname(__file__)), "script", "_data", fname)
 
-    with open(filename, "r", encoding="ascii") as file_:
+    with open(filename, encoding="ascii") as file_:
         data = json.load(file_)
 
     for x in filter(lambda x: "TAPROOT" in x["flags"], data):
-
         tx = Tx.parse(x["tx"])
 
         prevouts = [TxOut.parse(prevout) for prevout in x["prevouts"]]
@@ -50,11 +49,10 @@ def test_valid_taproot() -> None:
 def test_invalid_taproot() -> None:
     fname = "tapscript_test_vector.json"
     filename = path.join(path.dirname(path.dirname(__file__)), "script", "_data", fname)
-    with open(filename, "r", encoding="ascii") as file_:
+    with open(filename, encoding="ascii") as file_:
         data = json.load(file_)
 
     for x in filter(lambda x: "TAPROOT" in x["flags"] and "failure" in x.keys(), data):
-
         tx = Tx.parse(x["tx"])
 
         prevouts = [TxOut.parse(prevout) for prevout in x["prevouts"]]
@@ -72,7 +70,7 @@ def test_invalid_taproot() -> None:
 def test_valid_legacy() -> None:
     fname = "tx_valid_legacy.json"
     filename = path.join(path.dirname(__file__), "_data", fname)
-    with open(filename, "r", encoding="ascii") as file_:
+    with open(filename, encoding="ascii") as file_:
         data = json.load(file_)
 
     for x in data:
@@ -122,7 +120,7 @@ def test_valid_legacy() -> None:
 def test_invalid_legacy() -> None:
     fname = "tx_invalid_legacy.json"
     filename = path.join(path.dirname(__file__), "_data", fname)
-    with open(filename, "r", encoding="ascii") as file_:
+    with open(filename, encoding="ascii") as file_:
         data = json.load(file_)
 
     for x in data:
