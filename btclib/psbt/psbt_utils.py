@@ -221,7 +221,7 @@ def serialize_taproot_bip32(
 def parse_taproot_bip32(v: bytes) -> tuple[list[bytes], BIP32KeyOrigin]:
     stream = bytesio_from_binarydata(v)
     len_ = var_int.parse(stream)
-    leafs = [stream.read(4) for x in range(len_)]
+    leafs = [stream.read(4) for _ in range(len_)]
     bip32keyorigin = BIP32KeyOrigin.parse(stream.read())
     return (leafs, bip32keyorigin)
 
@@ -276,13 +276,13 @@ def assert_valid_taproot_signatures(signatures: list[bytes], err_msg: str) -> No
 def assert_valid_taproot_bip32_derivation(
     derivations: dict[bytes, tuple[list[bytes], BIP32KeyOrigin]]
 ) -> None:
-    for pubkey in derivations.keys():
+    for pubkey in derivations:
         if len(pubkey) != 32:
             raise BTClibValueError("invalid taproot bip32 derivation")
 
 
 def assert_valid_leaf_scripts(leaf_scripts: dict[bytes, tuple[bytes, int]]) -> None:
-    for control_block in leaf_scripts.keys():
+    for control_block in leaf_scripts:
         assert_valid_control_block(control_block)
 
 

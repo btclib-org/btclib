@@ -164,7 +164,7 @@ def test_serialization() -> None:
     with warnings.catch_warnings():
         warnings.simplefilter("ignore")
         assert parse(serialize([-1])) == ["81"]
-        for x in range(0, 17):
+        for x in range(17):
             assert parse(serialize([x])) == [f"{x:02X}"]
 
     for x in range(17, 100):

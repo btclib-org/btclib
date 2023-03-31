@@ -24,7 +24,7 @@ def parse_script(bitcoin_core_script):
             script_pub_key += serialize([bytes(y[1:-1], "ascii")]).hex()
         else:
             if y[:3] != "OP_":
-                y = "OP_" + y
+                y = f"OP_{y}"
             script_pub_key += BYTE_FROM_OP_CODE_NAME[y].hex()
     return script_pub_key
 

@@ -30,18 +30,14 @@ def _to_num(element: bytes, flags: list[str], max_size: int = 4) -> int:
 
 
 def _from_num(x: int) -> bytes:
-    if x == 0:
-        return b""
-    return encode_num(x)
+    return b"" if x == 0 else encode_num(x)
 
 
 def _to_bool(element: bytes):
-    for x in element[:-1]:
-        if x != 0:
-            return True
-    if not element or element[-1] in (0x00, 0x80):  # positive or negative 0
-        return False
-    return True
+    return next(
+        (True for x in element[:-1] if x != 0),
+        bool(element and element[-1] not in (0x00, 0x80)),
+    )
 
 
 def op_if(
@@ -50,16 +46,11 @@ def op_if(
     flags: list[str],
     segwit_version: int,
 ) -> None:
-    if any(not x for x in condition_stack):
+    if not all(condition_stack):
         condition_stack.append(False)
         return
 
-    minimalif = False
-    if segwit_version == 1:
-        minimalif = True
-    elif segwit_version == 0 and "MINIMALIF" in flags:
-        minimalif = True
-
+    minimalif = segwit_version == 1 or segwit_version == 0 and "MINIMALIF" in flags
     if minimalif and stack[-1] not in [b"", b"\x01"]:
         raise BTClibValueError()
     condition = _to_bool(stack.pop())
@@ -73,16 +64,11 @@ def op_notif(
     flags: list[str],
     segwit_version: int,
 ) -> None:
-    if any(not x for x in condition_stack):
+    if not all(condition_stack):
         condition_stack.append(False)
         return
 
-    minimalif = False
-    if segwit_version == 1:
-        minimalif = True
-    elif segwit_version == 0 and "MINIMALIF" in flags:
-        minimalif = True
-
+    minimalif = segwit_version == 1 or segwit_version == 0 and "MINIMALIF" in flags
     if minimalif and stack[-1] not in [b"", b"\x01"]:
         raise BTClibValueError()
     condition = _to_bool(stack.pop())
