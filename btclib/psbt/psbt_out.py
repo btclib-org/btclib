@@ -31,6 +31,7 @@ from btclib.psbt.psbt_utils import (
     assert_valid_redeem_script,
     assert_valid_taproot_bip32_derivation,
     assert_valid_taproot_internal_key,
+    assert_valid_taproot_tree,
     assert_valid_unknown,
     assert_valid_witness_script,
     decode_dict_bytes_bytes,
@@ -102,6 +103,7 @@ class PsbtOut:
         assert_valid_witness_script(self.witness_script)
         assert_valid_hd_key_paths(self.hd_key_paths)
         assert_valid_taproot_internal_key(self.taproot_internal_key)
+        assert_valid_taproot_tree(self.taproot_tree)
         assert_valid_taproot_bip32_derivation(self.taproot_hd_key_paths)
         assert_valid_unknown(self.unknown)
 
