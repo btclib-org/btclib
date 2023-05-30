@@ -131,7 +131,7 @@ def test_bip_test_vector() -> None:
         script_tree = convert_script_tree(test["given"]["scriptTree"])
 
         tweaked_pubkey = output_pubkey(f"02{pub_key}", script_tree)[0]
-        address = b32.p2tr(f"02{pub_key}", script_tree)
+        address = b32.p2tr(tweaked_pubkey)
 
         assert tweaked_pubkey.hex() == test["intermediary"]["tweakedPubkey"]
         assert address == test["expected"]["bip350Address"]

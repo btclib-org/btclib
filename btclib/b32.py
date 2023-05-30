@@ -46,12 +46,11 @@ from __future__ import annotations
 
 from typing import Iterable
 
-from btclib.alias import Octets, String, TaprootScriptTree
+from btclib.alias import Octets, String
 from btclib.bech32 import decode, encode
 from btclib.exceptions import BTClibValueError
 from btclib.hashes import hash160, sha256
 from btclib.network import NETWORKS, network_from_key_value
-from btclib.script import output_pubkey
 from btclib.to_pub_key import Key, pub_keyinfo_from_key
 from btclib.utils import bytes_from_octets
 
@@ -170,11 +169,6 @@ def p2wsh(script_pub_key: Octets, network: str = "mainnet") -> str:
     return address_from_witness(0, h256, network)
 
 
-def p2tr(
-    internal_key: Key | None = None,
-    script_path: TaprootScriptTree | None = None,
-    network: str = "mainnet",
-) -> str:
+def p2tr(output_key: Octets, network: str = "mainnet") -> str:
     """Return the p2tr bech32 address corresponding to a taproot output key."""
-    pub_key = output_pubkey(internal_key, script_path)[0]
-    return address_from_witness(1, pub_key, network)
+    return address_from_witness(1, output_key, network)
