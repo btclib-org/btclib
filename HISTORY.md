@@ -14,8 +14,8 @@ Major changes include:
 ## v2023.5.30
 
 Major changes include:
-  - Fix circular import between ``script`` and ``b32``
 
+- Fix circular import between ``script`` and ``b32``
 
 ## v2023.2.3
 
