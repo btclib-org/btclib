@@ -5,11 +5,17 @@ Notable changes to the codebase are documented here.
 Release names follow *[calendar versioning](https://calver.org/)*:
 full year, short month, short day (YYYY-M-D)
 
-## v2023.3 (work in progress, not released yet)
+## v2023.6 (work in progress, not released yet)
 
 Major changes include:
 
 - TBD
+
+## v2023.5.30
+
+Major changes include:
+  - Fix circular import between ``script`` and ``b32``
+
 
 ## v2023.2.3
 
