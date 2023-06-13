@@ -11,17 +11,7 @@
 """Module btclib.script."""
 
 from btclib.script.script import Command, Script, op_int, parse, serialize
-from btclib.script.taproot import (
-    TaprootScriptTree,
-    check_output_pubkey,
-    input_script_sig,
-    output_prvkey,
-    output_pubkey,
-)
-from btclib.script.witness import Witness
-
-# hack to prevent circular import
-from btclib.script.script_pub_key import (  # isort:skip
+from btclib.script.script_pub_key import (
     ScriptPubKey,
     address,
     assert_nulldata,
@@ -41,7 +31,14 @@ from btclib.script.script_pub_key import (  # isort:skip
     is_p2wsh,
     type_and_payload,
 )
-
+from btclib.script.taproot import (
+    TaprootScriptTree,
+    check_output_pubkey,
+    input_script_sig,
+    output_prvkey,
+    output_pubkey,
+)
+from btclib.script.witness import Witness
 
 __all__ = [
     "Command",

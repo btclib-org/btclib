@@ -314,7 +314,7 @@ def test_p2wsh() -> None:
 def test_p2tr() -> None:
     key = 1
     pub_key = output_pubkey(key)[0]
-    addr = b32.p2tr(key)
+    addr = b32.p2tr(pub_key)
     _, wit_prg, _ = b32.witness_from_address(addr)
 
     assert wit_prg == pub_key

@@ -580,13 +580,13 @@ def test_non_standard_script_in_p2wsh() -> None:
 
 def test_p2tr() -> None:
     pub_key = "cc71eb30d653c0c3163990c47b976f3fb3f37cccdcbedb169a1dfef58bbfbfaf"
-    payload = output_pubkey(pub_key)[0]
-    script_pub_key = serialize(["OP_1", payload])
+    out_pubkey = output_pubkey(pub_key)[0]
+    script_pub_key = serialize(["OP_1", out_pubkey])
     assert_p2tr(script_pub_key)
-    assert ("p2tr", payload) == type_and_payload(script_pub_key)
+    assert ("p2tr", out_pubkey) == type_and_payload(script_pub_key)
 
     network = "mainnet"
-    addr = b32.p2tr(pub_key, network=network)
+    addr = b32.p2tr(out_pubkey, network=network)
     assert addr == address(script_pub_key, network)
 
     assert script_pub_key == ScriptPubKey.from_address(addr).script
