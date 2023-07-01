@@ -8,6 +8,8 @@
 
 """Bitcoin Script legacy op codes."""
 
+from __future__ import annotations
+
 from btclib.alias import ScriptList
 from btclib.exceptions import BTClibValueError
 from btclib.hashes import hash160, hash256, ripemd160, sha1, sha256

@@ -10,7 +10,9 @@
 
 """Bitcoin Script engine."""
 
-from typing import Optional, Tuple, cast
+from __future__ import annotations
+
+from typing import cast
 
 from btclib.alias import Command, ScriptList
 from btclib.exceptions import BTClibValueError
@@ -28,7 +30,7 @@ from btclib.tx.tx_out import TxOut
 
 def taproot_unwrap_script(
     script: bytes, stack: list[bytes]
-) -> Tuple[bytes, list[bytes], int]:
+) -> tuple[bytes, list[bytes], int]:
     pub_key = type_and_payload(script)[1]
     script_bytes = stack[-2]
     control = stack[-1]
@@ -184,7 +186,7 @@ def verify_input(prevouts: list[TxOut], tx: Tx, i: int, flags: list[str]) -> Non
 
 
 def verify_transaction(
-    prevouts: list[TxOut], tx: Tx, flags: Optional[list] = None
+    prevouts: list[TxOut], tx: Tx, flags: list | None = None
 ) -> None:
     if flags is None:
         flags = ALL_FLAGS[:]
