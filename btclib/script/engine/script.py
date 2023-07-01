@@ -10,6 +10,8 @@
 
 """Bitcoin Script engine."""
 
+from __future__ import annotations
+
 from typing import Callable, MutableMapping
 
 try:
