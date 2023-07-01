@@ -251,7 +251,7 @@ def _serialize_str_command(command: str) -> bytes:
     command = command.strip().upper()
     if command in OP_CODES:
         return OP_CODES[command]
-    if command[:10] == "OP_SUCCESS":
+    if command.startswith("OP_SUCCESS"):
         x = int(command[10:])
         if x not in OP_SUCCESS:
             raise BTClibValueError(f"invalid OP_SUCCESS number: {x}")

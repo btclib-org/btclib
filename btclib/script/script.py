@@ -350,12 +350,12 @@ def parse(stream: BinaryData, accept_unknown: bool = False) -> ScriptList:
             # t = r[-1]
             # if isinstance(t, bytes) and len(t) <= 4:
             #    r[-1] = decode_num(t)
-        else:
-            if not accept_unknown:
-                raise BTClibValueError("Unknown op code")
+        elif accept_unknown:
             # https://bitcoin.stackexchange.com/a/98652/111488
             command = f"UNKNOWN_OP_CODE_{i}"
 
+        else:
+            raise BTClibValueError("Unknown op code")
         r.append(command)
 
     return r

@@ -56,9 +56,7 @@ def check_pub_key(pub_key: bytes, segwit: bool, flags: list[str]) -> bool:
         if segwit and "WITNESS_PUBKEYTYPE" in flags:
             raise BTClibValueError()  # uncompressed pubkeys are not possible with segwit
         return len(pub_key) == 65
-    if pub_key[0] in [2, 3]:
-        return len(pub_key) == 33
-    return False
+    return len(pub_key) == 33 if pub_key[0] in [2, 3] else False
 
 
 def calculate_script_code(
@@ -293,9 +291,9 @@ def verify_script(
 
         elif op == "OP_CHECKMULTISIG":
             pub_key_num = _to_num(stack.pop(), flags)
-            pub_keys = [stack.pop() for x in range(pub_key_num)]
+            pub_keys = [stack.pop() for _ in range(pub_key_num)]
             signature_num = _to_num(stack.pop(), flags)
-            signatures = [stack.pop() for x in range(signature_num)]
+            signatures = [stack.pop() for _ in range(signature_num)]
 
             op_code_num = script_op_count(op_code_num, pub_key_num)
 
@@ -329,9 +327,9 @@ def verify_script(
 
             if signature_index == signature_num:
                 stack.append(b"\x01")
+            elif "NULLFAIL" in flags and signatures != [b""] * signature_num:
+                raise BTClibValueError()
             else:
-                if "NULLFAIL" in flags and signatures != [b""] * signature_num:
-                    raise BTClibValueError()
                 stack.append(b"")
 
         elif op == "OP_CHECKLOCKTIMEVERIFY":
