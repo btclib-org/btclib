@@ -309,8 +309,12 @@ class _BIP32KeyData(BIP32KeyData):
             self.assert_valid()
 
 
-def __prv_key_derivation(xkey: _BIP32KeyData, index: int) -> None:
-    xb = xkey.key if index >= 0x80000000 else bytes_from_point(mult(xkey.prv_key_int))
+def __prv_key_derivation(xkey: _BIP32KeyData, index: int, pub_key: bytes = b"") -> None:
+    xb = (
+        xkey.key
+        if index >= 0x80000000
+        else pub_key or bytes_from_point(mult(xkey.prv_key_int))
+    )
     xb += index.to_bytes(4, byteorder="big", signed=False)
     hmac_ = hmac.new(xkey.chain_code, xb, "sha512").digest()
     xkey.chain_code = hmac_[32:]
@@ -366,9 +370,9 @@ def _derive(
         if xkey.is_private:
             for index in indexes[:-1]:
                 __prv_key_derivation(xkey, index)
-            Q_bytes = bytes_from_point(mult(xkey.prv_key_int))
-            xkey.parent_fingerprint = hash160(Q_bytes)[:4]
-            __prv_key_derivation(xkey, indexes[-1])
+            pub_key = bytes_from_point(mult(xkey.prv_key_int))
+            xkey.parent_fingerprint = hash160(pub_key)[:4]
+            __prv_key_derivation(xkey, indexes[-1], pub_key)
         else:
             if any(index >= 0x80000000 for index in indexes):
                 raise BTClibValueError("invalid hardened derivation from public key")
