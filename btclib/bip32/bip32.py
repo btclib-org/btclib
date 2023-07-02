@@ -310,42 +310,22 @@ class _BIP32KeyData(BIP32KeyData):
 
 
 def __prv_key_derivation(xkey: _BIP32KeyData, index: int) -> None:
-    xkey.index = index
-    Q_bytes = bytes_from_point(mult(xkey.prv_key_int))
-    xkey.parent_fingerprint = hash160(Q_bytes)[:4]
-    hmac_ = (
-        hmac.new(
-            xkey.chain_code,
-            xkey.key + index.to_bytes(4, byteorder="big", signed=False),
-            "sha512",
-        ).digest()
-        if xkey.is_hardened
-        else hmac.new(
-            xkey.chain_code,
-            Q_bytes + index.to_bytes(4, byteorder="big", signed=False),
-            "sha512",
-        ).digest()
-    )
+    xb = xkey.key if index >= 0x80000000 else bytes_from_point(mult(xkey.prv_key_int))
+    xb += index.to_bytes(4, byteorder="big", signed=False)
+    hmac_ = hmac.new(xkey.chain_code, xb, "sha512").digest()
     xkey.chain_code = hmac_[32:]
     offset = int.from_bytes(hmac_[:32], byteorder="big", signed=False)
     xkey.prv_key_int = (xkey.prv_key_int + offset) % ec.n
     xkey.key = b"\x00" + xkey.prv_key_int.to_bytes(32, byteorder="big", signed=False)
-    xkey.pub_key_point = INF
 
 
 def __pub_key_derivation(xkey: _BIP32KeyData, index: int) -> None:
-    xkey.index = index
-    xkey.parent_fingerprint = hash160(xkey.key)[:4]
-    hmac_ = hmac.new(
-        xkey.chain_code,
-        xkey.key + index.to_bytes(4, byteorder="big", signed=False),
-        "sha512",
-    ).digest()
+    xb = xkey.key + index.to_bytes(4, byteorder="big", signed=False)
+    hmac_ = hmac.new(xkey.chain_code, xb, "sha512").digest()
     xkey.chain_code = hmac_[32:]
     offset = int.from_bytes(hmac_[:32], byteorder="big", signed=False)
     xkey.pub_key_point = ec.add(xkey.pub_key_point, mult(offset))
     xkey.key = bytes_from_point(xkey.pub_key_point)
-    xkey.prv_key_int = 0
 
 
 def _derive(
@@ -382,14 +362,22 @@ def _derive(
             raise BTClibValueError(err_msg)
         xkey.version = fversion
 
-    if xkey.is_private:
-        for index in indexes:
-            __prv_key_derivation(xkey, index)
-    else:
-        if any(index >= 0x80000000 for index in indexes):
-            raise BTClibValueError("invalid hardened derivation from public key")
-        for index in indexes:
-            __pub_key_derivation(xkey, index)
+    if indexes:
+        if xkey.is_private:
+            for index in indexes[:-1]:
+                __prv_key_derivation(xkey, index)
+            Q_bytes = bytes_from_point(mult(xkey.prv_key_int))
+            xkey.parent_fingerprint = hash160(Q_bytes)[:4]
+            __prv_key_derivation(xkey, indexes[-1])
+        else:
+            if any(index >= 0x80000000 for index in indexes):
+                raise BTClibValueError("invalid hardened derivation from public key")
+            for index in indexes[:-1]:
+                __pub_key_derivation(xkey, index)
+            xkey.parent_fingerprint = hash160(xkey.key)[:4]
+            __pub_key_derivation(xkey, indexes[-1])
+
+        xkey.index = indexes[-1]
 
     return xkey
 
