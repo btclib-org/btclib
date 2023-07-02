@@ -309,7 +309,7 @@ class _BIP32KeyData(BIP32KeyData):
             self.assert_valid()
 
 
-def __prv_key_derivation(xkey: _BIP32KeyData, index: int, pub_key: bytes = b"") -> None:
+def __prv_key_derivation(xkey: _BIP32KeyData, index: int, pub_key: bytes) -> None:
     xb = (
         xkey.key
         if index >= 0x80000000
@@ -369,7 +369,7 @@ def _derive(
     if indexes:
         if xkey.is_private:
             for index in indexes[:-1]:
-                __prv_key_derivation(xkey, index)
+                __prv_key_derivation(xkey, index, b"")
             pub_key = bytes_from_point(mult(xkey.prv_key_int))
             xkey.parent_fingerprint = hash160(pub_key)[:4]
             __prv_key_derivation(xkey, indexes[-1], pub_key)
