@@ -7,7 +7,6 @@
 #
 # No part of btclib including this file, may be copied, modified, propagated,
 # or distributed except according to the terms contained in the LICENSE file.
-
 """Varbytes encoding and decoding functions."""
 
 from btclib import var_int

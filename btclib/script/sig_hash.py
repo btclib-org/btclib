@@ -7,7 +7,6 @@
 #
 # No part of btclib including this file, may be copied, modified, propagated,
 # or distributed except according to the terms contained in the LICENSE file.
-
 """Transaction hashes to be signed and their hash types.
 
 - https://medium.com/@bitaps.com/exploring-bitcoin-signature-hash-types-15427766f0a9

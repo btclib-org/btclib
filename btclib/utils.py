@@ -7,7 +7,6 @@
 #
 # No part of btclib including this file, may be copied, modified, propagated,
 # or distributed except according to the terms contained in the LICENSE file.
-
 """Assorted conversion utilities.
 
 Most conversions from SEC 1 v.2 2.3 are included.

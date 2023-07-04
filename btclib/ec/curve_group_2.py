@@ -7,7 +7,6 @@
 #
 # No part of btclib including this file, may be copied, modified, propagated,
 # or distributed except according to the terms contained in the LICENSE file.
-
 """Elliptic curve point multiplication functions.
 
 The implemented algorithms are:
@@ -94,14 +93,13 @@ def wNAF_of_m(m: int, w: int) -> list[int]:
 def mult_sliding_window(m: int, Q: JacPoint, ec: CurveGroup, w: int = 4) -> JacPoint:
     """Scalar multiplication using "sliding window".
 
-    It has the benefit that the pre-computation stage
-    is roughly half as complex as the normal windowed method.
-    It is not constant time.
-    For 256-bit scalars choose w=4 or w=5.
+    It has the benefit that the pre-computation stage is roughly half as
+    complex as the normal windowed method. It is not constant time. For
+    256-bit scalars choose w=4 or w=5.
 
-    The input point is assumed to be on curve and
-    the m coefficient is assumed to have been reduced mod n
-    if appropriate (e.g. cyclic groups of order n).
+    The input point is assumed to be on curve and the m coefficient is
+    assumed to have been reduced mod n if appropriate (e.g. cyclic
+    groups of order n).
     """
     if m < 0:
         raise BTClibValueError(f"negative m: {hex(m)}")
@@ -201,11 +199,11 @@ def mult_w_NAF(m: int, Q: JacPoint, ec: CurveGroup, w: int = 4) -> JacPoint:
 def multiplier_decomposer(m: int, ec: CurveGroup) -> tuple[int, int]:
     """Decompose m in two integers m1 e m2 so that mP = m1*P + m2*lambda*P.
 
-    Used for point multiplication with efficiently computable endomorphisms.
+    Used for point multiplication with efficiently computable
+    endomorphisms.
 
-    Based on alghoritm 3.74 of
-    D. Hankerson, 'Guide to Elliptic Curve Cryptography'.
-    Values computed for secp256k1.
+    Based on alghoritm 3.74 of D. Hankerson, 'Guide to Elliptic Curve
+    Cryptography'. Values computed for secp256k1.
     """
     if m < 0:
         raise ValueError(f"negative m: {hex(m)}")

@@ -7,7 +7,6 @@
 #
 # No part of btclib including this file, may be copied, modified, propagated,
 # or distributed except according to the terms contained in the LICENSE file.
-
 """Elliptic Curve Digital Signature Algorithm (ECDSA).
 
 Implementation according to SEC 1 v.2:
@@ -288,10 +287,10 @@ def sign(
 ) -> Sig:
     """ECDSA signature with canonical low-s preference.
 
-    Implemented according to SEC 1 v.2
-    The message msg is first processed by hf, yielding the value
+    Implemented according to SEC 1 v.2 The message msg is first
+    processed by hf, yielding the value
 
-        msg_hash = hf(msg),
+    msg_hash = hf(msg),
 
     a sequence of bits of length *hf_len*.
 
@@ -303,7 +302,8 @@ def sign(
 
     RFC6979 is used for deterministic nonce.
 
-    See https://tools.ietf.org/html/rfc6979#section-3.2
+    See
+    https://tools.ietf.org/html/rfc6979#section-3.2
     """
     msg_hash = reduce_to_hlen(msg, hf)
     return sign_(msg_hash, prv_key, nonce, lower_s, ec, hf)

@@ -7,7 +7,6 @@
 #
 # No part of btclib including this file, may be copied, modified, propagated,
 # or distributed except according to the terms contained in the LICENSE file.
-
 """Number theory and modular arithmetic functions.
 
 Implementations originally from
@@ -62,9 +61,8 @@ def mod_inv(a: int, m: int) -> int:
 def legendre_symbol(a: int, p: int) -> int:
     """Compute the Legendre symbol a|p using Euler's criterion.
 
-    p is a prime, a is relatively prime to p (if p divides a,
-    then a|p = 0).
-    It returns 1 if a has a square root modulo p, -1 otherwise.
+    p is a prime, a is relatively prime to p (if p divides a, then a|p =
+    0). It returns 1 if a has a square root modulo p, -1 otherwise.
 
     https://codereview.stackexchange.com/questions/43210/tonelli-shanks-algorithm-implementation-of-prime-modular-square-root/43267
     """

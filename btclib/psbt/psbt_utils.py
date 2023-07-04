@@ -7,7 +7,6 @@
 #
 # No part of btclib including this file, may be copied, modified, propagated,
 # or distributed except according to the terms contained in the LICENSE file.
-
 """Partially Signed Bitcoin Transaction (Psbt) helper functions.
 
 https://github.com/bitcoin/bips/blob/master/bip-0174.mediawiki

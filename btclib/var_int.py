@@ -7,7 +7,6 @@
 #
 # No part of btclib including this file, may be copied, modified, propagated,
 # or distributed except according to the terms contained in the LICENSE file.
-
 """Varint encoding and decoding functions.
 
 A var_int (variable integer) is variable-length quantity that uses an

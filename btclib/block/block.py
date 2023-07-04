@@ -7,7 +7,6 @@
 #
 # No part of btclib including this file, may be copied, modified, propagated,
 # or distributed except according to the terms contained in the LICENSE file.
-
 """Block dataclass.
 
 Dataclass encapsulating BlockHeader and list[Tx].
@@ -54,7 +53,8 @@ class Block:
         script_sig.
 
         https://github.com/bitcoin/bips/blob/master/bip-0034.mediawiki
-        Block 227,835 (2013-03-24 15:49:13 GMT) was the last version 1 block.
+         Block 227,835 (2013-03-24 15
+        :49: 13 GMT) was the last version 1 block.
         """
         if not self.transactions[0].is_coinbase():
             raise BTClibValueError("first transaction is not a coinbase")
