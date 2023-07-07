@@ -7,7 +7,6 @@
 #
 # No part of btclib including this file, may be copied, modified, propagated,
 # or distributed except according to the terms contained in the LICENSE file.
-
 """BlockHeader dataclass.
 
 Dataclass encapsulating version, previous block hash, merkle root, time,
@@ -61,16 +60,15 @@ class BlockHeader:
     def difficulty(self) -> float:
         """Return the BlockHeader difficulty.
 
-        Difficulty is the ratio of the genesis block target
-        over the BlockHeader target.
+        Difficulty is the ratio of the genesis block target over the
+        BlockHeader target.
 
         It represents the average number of hash function evaluations
-        required to satisfy the BlockHeader target,
-        expressed as multiple of the genesis block difficulty used as
-        unit.
+        required to satisfy the BlockHeader target, expressed as
+        multiple of the genesis block difficulty used as unit.
 
-        The difficulty of the genesis block is 2^32 (4*2^30),
-        i.e. 4 GigaHash function evaluations.
+        The difficulty of the genesis block is 2^32 (4*2^30), i.e. 4
+        GigaHash function evaluations.
         """
         # genesis block target
         genesis_significand = 0x00FFFF

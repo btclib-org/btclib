@@ -7,28 +7,27 @@
 #
 # No part of btclib including this file, may be copied, modified, propagated,
 # or distributed except according to the terms contained in the LICENSE file.
-
 """Include a commitment inside an elliptic curve DSA/SSA signature.
 
 Let commit_hash be the commitment value and R a curve point, then
 
-    e = hash(R||commit_hash)
+e = hash(R||commit_hash)
 
 is a commitment operation.
 
 When signing, an ephemeral secret key k is generated and its
-corresponding curve point R = kG is used. Here, instead of
-using (k, R), compute the commitment to commit_hash
+corresponding curve point R = kG is used. Here, instead of using (k, R),
+compute the commitment to commit_hash
 
-    e = hash(R||commit_hash),
+e = hash(R||commit_hash),
 
-tweak k with e and consequently substitute R with W = (k+e)G = R+eG,
-the proceed signing in the standard way, using (k+e, W).
+tweak k with e and consequently substitute R with W = (k+e)G = R+eG, the
+proceed signing in the standard way, using (k+e, W).
 
-When the committer/signer will reveal R and commit_hash,
-the verifier will check that
+When the committer/signer will reveal R and commit_hash, the verifier
+will check that
 
-    W.x = (R+eG).x
+W.x = (R+eG).x
 
 with e = hash(R||commit_hash)) and W.x being known from the signature.
 """

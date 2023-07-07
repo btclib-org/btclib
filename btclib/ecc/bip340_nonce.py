@@ -7,7 +7,6 @@
 #
 # No part of btclib including this file, may be copied, modified, propagated,
 # or distributed except according to the terms contained in the LICENSE file.
-
 """Deterministic generation of the ephemeral key following BIP340.
 
 https://github.com/bitcoin/bips/blob/master/bip-0340.mediawiki

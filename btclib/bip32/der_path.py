@@ -7,7 +7,6 @@
 #
 # No part of btclib including this file, may be copied, modified, propagated,
 # or distributed except according to the terms contained in the LICENSE file.
-
 """BIP32 derivation path and key origin.
 
 A BIP 32 derivation path can be represented as:

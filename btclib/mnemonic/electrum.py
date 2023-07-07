@@ -7,7 +7,6 @@
 #
 # No part of btclib including this file, may be copied, modified, propagated,
 # or distributed except according to the terms contained in the LICENSE file.
-
 """Electrum entropy / mnemonic / seed functions.
 
 Electrum mnemonic is versioned, conveying BIP32 derivation rule too.
@@ -72,11 +71,11 @@ def mnemonic_from_entropy(
 ) -> Mnemonic:
     """Convert input entropy to Electrum versioned mnemonic sentence.
 
-    Input entropy can be expressed as
-    binary 0/1 string, bytes-like, or integer.
+    Input entropy can be expressed as binary 0/1 string, bytes-like, or
+    integer.
 
-    In the case of binary 0/1 string and bytes-like,
-    leading zeros are considered redundant padding.
+    In the case of binary 0/1 string and bytes-like, leading zeros are
+    considered redundant padding.
     """
     if mnemonic_type not in _MNEMONIC_VERSIONS:
         err_msg = f"unknown electrum mnemonic version: '{mnemonic_type}'; "

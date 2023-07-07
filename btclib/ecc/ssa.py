@@ -7,7 +7,6 @@
 #
 # No part of btclib including this file, may be copied, modified, propagated,
 # or distributed except according to the terms contained in the LICENSE file.
-
 """Elliptic Curve Schnorr Signature Algorithm (ECSSA).
 
 This implementation is according to BIP340-Schnorr:
@@ -245,15 +244,15 @@ def sign(
 
     The message msg is first processed by hf, yielding the value
 
-        msg_hash = hf(msg),
+    msg_hash = hf(msg),
 
     a sequence of bits of length *hf_len*.
 
     Normally, hf is chosen such that its output length *hf_len* is
     roughly equal to *nlen*, the bit-length of the group order *n*,
     since the overall security of the signature scheme will depend on
-    the smallest of *hf_len* and *nlen*; however, ECSSA
-    supports all combinations of *hf_len* and *nlen*.
+    the smallest of *hf_len* and *nlen*; however, ECSSA supports all
+    combinations of *hf_len* and *nlen*.
 
     The BIP340 deterministic nonce (not RFC6979) is used.
     """

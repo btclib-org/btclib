@@ -7,7 +7,6 @@
 #
 # No part of btclib including this file, may be copied, modified, propagated,
 # or distributed except according to the terms contained in the LICENSE file.
-
 """BIP39 entropy / mnemonic / seed functions.
 
 https://github.com/bitcoin/bips/blob/master/bip-0039.mediawiki.
@@ -83,18 +82,17 @@ def _entropy_checksum(entropy: Entropy) -> tuple[BinStr, BinStr]:
 def mnemonic_from_entropy(entropy: Entropy | None = None, lang: str = "en") -> Mnemonic:
     """Convert input entropy to BIP39 checksummed mnemonic sentence.
 
-    Input entropy can be expressed as
-    binary 0/1 string, bytes-like, or integer;
-    it must be 128, 160, 192, 224, or 256 bits.
+    Input entropy can be expressed as binary 0/1 string, bytes-like, or
+    integer; it must be 128, 160, 192, 224, or 256 bits.
 
-    In the case of binary 0/1 string and bytes-like,
-    leading zeros are not considered redundant padding.
+    In the case of binary 0/1 string and bytes-like, leading zeros are
+    not considered redundant padding.
 
     In the case of integer, where leading zeros cannot be represented,
     if the bit length is not an allowed value, then the binary 0/1
     string is padded with leading zeros up to the next allowed bit
-    length; if the integer bit length is longer than the maximum
-    length, then only the leftmost bits are retained.
+    length; if the integer bit length is longer than the maximum length,
+    then only the leftmost bits are retained.
     """
     if entropy is None or entropy == "":
         entropy = secrets.randbits(128)

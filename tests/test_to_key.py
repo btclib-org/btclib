@@ -7,7 +7,6 @@
 #
 # No part of btclib including this file, may be copied, modified, propagated,
 # or distributed except according to the terms contained in the LICENSE file.
-
 """Test vectors of valid and invalid keys.
 
 Used by `btclib.tests.to_pub_key` and `btclib.tests.to_pub_key` modules.
