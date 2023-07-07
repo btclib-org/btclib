@@ -11,7 +11,7 @@
 
 https://en.bitcoin.it/wiki/Script
 
-Scripts are represented by list[Command], where Command = Union[int, str, bytes]
+Scripts are represented by List[Command], where Command = Union[int, str, bytes]
 
 * ascii string are for opcodes (e.g. 'OP_HASH160', 'OP_1', 'OP_1NEGATE', etc.)
 * hex-string or bytes (i.e., Octets) are for data
@@ -20,10 +20,10 @@ Scripts are represented by list[Command], where Command = Union[int, str, bytes]
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Sequence, Union
+from typing import Sequence
 from warnings import warn
 
-from btclib.alias import BinaryData, Octets
+from btclib.alias import BinaryData, Command, Octets, ScriptList
 from btclib.exceptions import BTClibValueError
 from btclib.utils import bytes_from_octets, bytesio_from_binarydata, encode_num
 
@@ -35,6 +35,7 @@ BYTE_FROM_OP_CODE_NAME = {
     "OP_PUSHDATA2": b"\x4d",
     "OP_PUSHDATA4": b"\x4e",
     "OP_1NEGATE": b"\x4f",
+    "OP_RESERVED": b"\x50",
     "OP_1": b"\x51",
     "OP_TRUE": b"\x51",
     "OP_2": b"\x52",
@@ -140,12 +141,14 @@ BYTE_FROM_OP_CODE_NAME = {
     "OP_CHECKSIGADD": b"\xba",
 }
 
+
 OP_CODE_NAME_FROM_INT = {
     0: "OP_0",
     76: "OP_PUSHDATA1",
     77: "OP_PUSHDATA2",
     78: "OP_PUSHDATA4",
     79: "OP_1NEGATE",
+    80: "OP_RESERVED",
     81: "OP_1",
     82: "OP_2",
     83: "OP_3",
@@ -250,9 +253,6 @@ def op_int(i: int) -> str:
     raise BTClibValueError(f"invalid OP_INT: {i}")
 
 
-Command = Union[int, str, bytes]
-
-
 def _serialize_int_command(command: int) -> bytes:
     if -1 <= command <= 16:
         warn(f"consider using OP_{command} instead")
@@ -263,11 +263,6 @@ def _serialize_str_command(command: str) -> bytes:
     command = command.strip().upper()
     if command in BYTE_FROM_OP_CODE_NAME:
         return BYTE_FROM_OP_CODE_NAME[command]
-    if command.startswith("OP_SUCCESS"):
-        x = int(command[10:])
-        if x in OP_CODE_NAME_FROM_INT or 0 < x < 76:
-            raise BTClibValueError(f"invalid OP_SUCCESS number: {x}")
-        return x.to_bytes(1, "little")
     try:
         data = bytes.fromhex(command)
     except ValueError as e:
@@ -310,15 +305,18 @@ def serialize(script: Sequence[Command]) -> bytes:
         if isinstance(command, int):
             r.append(_serialize_int_command(command))
         elif isinstance(command, str):
-            r.append(_serialize_str_command(command))
+            if "UNKNOWN_OP_CODE_" in command:
+                r.append(int(command[16:]).to_bytes(1, "big"))
+            else:
+                r.append(_serialize_str_command(command))
         else:  # must be bytes
             r.append(_serialize_bytes_command(command))
     return b"".join(r)
 
 
-def parse(stream: BinaryData, exit_on_op_success: bool = False) -> list[Command]:
+def parse(stream: BinaryData, accept_unknown: bool = False) -> ScriptList:
     s = bytesio_from_binarydata(stream)
-    r: list[Command] = []  # initialize the result list
+    r: ScriptList = []  # initialize the result list
 
     while True:
         t = s.read(1)  # get one byte
@@ -335,13 +333,13 @@ def parse(stream: BinaryData, exit_on_op_success: bool = False) -> list[Command]
                     x = 4
                 y = s.read(x)
                 if len(y) != x:
-                    raise BTClibValueError("not enough data for pushdata length")
+                    raise BTClibValueError("Not enough data for pushdata length")
                 data_length = int.from_bytes(y, byteorder="little")
-                if data_length > 520:
-                    raise BTClibValueError(f"invalid pushdata length: {data_length}")
+            if data_length > 520:
+                raise BTClibValueError(f"Invalid pushdata length: {data_length}")
             data = s.read(data_length)
             if len(data) != data_length:
-                raise BTClibValueError("not enough data for pushdata")
+                raise BTClibValueError("Not enough data for pushdata")
             command = data.hex().upper()
         elif i in OP_CODE_NAME_FROM_INT:  # OP_CODE
             command = OP_CODE_NAME_FROM_INT[i]
@@ -351,11 +349,12 @@ def parse(stream: BinaryData, exit_on_op_success: bool = False) -> list[Command]
             # t = r[-1]
             # if isinstance(t, bytes) and len(t) <= 4:
             #    r[-1] = decode_num(t)
-        else:  # OP_SUCCESSx
-            command = f"OP_SUCCESS{i}"
-            if exit_on_op_success:
-                return ["OP_SUCCESS"]
+        elif accept_unknown:
+            # https://bitcoin.stackexchange.com/a/98652/111488
+            command = f"UNKNOWN_OP_CODE_{i}"
 
+        else:
+            raise BTClibValueError("Unknown op code")
         r.append(command)
 
     return r
@@ -363,14 +362,14 @@ def parse(stream: BinaryData, exit_on_op_success: bool = False) -> list[Command]
 
 @dataclass
 class Script:
-    # Bitcoin script expressed as list[Command]
+    # Bitcoin script expressed as ScriptList
     # e.g. [OP_HASH160, script_h160, OP_EQUAL]
     # or Octets of its byte-encoded representation
     script: bytes
 
     @property
-    def asm(self) -> list[Command]:
-        return parse(self.script)
+    def asm(self) -> ScriptList:
+        return parse(self.script, accept_unknown=True)
 
     def __add__(self, other: Script) -> Script:
         return (

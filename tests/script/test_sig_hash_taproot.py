@@ -17,6 +17,7 @@ from os import path
 
 import pytest
 
+from btclib.alias import ScriptList
 from btclib.ecc import ssa
 from btclib.exceptions import BTClibRuntimeError, BTClibValueError
 from btclib.hashes import hash160
@@ -154,16 +155,16 @@ def test_empty_stack() -> None:
             ["OP_1", "cc71eb30d653c0c3163990c47b976f3fb3f37cccdcbedb169a1dfef58bbfbfaf"]
         ),
     )
-    tx_in = TxIn(OutPoint(), "", 1, Witness([]))
+    tx_in = TxIn(OutPoint(), "5151", 1, Witness([]))
     tx = Tx(vin=[tx_in], vout=[TxOut(100000000, "")])
 
-    err_msg = "empty stack"
+    err_msg = "Empty stack"
     with pytest.raises(BTClibValueError, match=err_msg):
         sig_hash.from_tx([utxo], tx, 0, 0)
 
 
 def test_wrapped_p2tr() -> None:
-    script = [
+    script: ScriptList = [
         "OP_1",
         "cc71eb30d653c0c3163990c47b976f3fb3f37cccdcbedb169a1dfef58bbfbfaf",
     ]
@@ -173,7 +174,7 @@ def test_wrapped_p2tr() -> None:
     tx_in = TxIn(OutPoint(), serialize(script), 1, Witness(["0A" * 32]))
     tx = Tx(vin=[tx_in], vout=[TxOut(100000000, "")])
 
-    err_msg = "taproot scripts cannot be wrapped in p2sh"
+    err_msg = "Taproot scripts cannot be wrapped in p2sh"
     with pytest.raises(BTClibValueError, match=err_msg):
         sig_hash.from_tx([utxo], tx, 0, 0)
 

@@ -17,9 +17,9 @@ import base64
 import random
 from copy import deepcopy
 from dataclasses import dataclass
-from typing import Any, Callable, Mapping, Sequence, TypeVar
+from typing import Any, Callable, Mapping, Sequence, TypeVar, cast
 
-from btclib.alias import Octets, String
+from btclib.alias import Octets, ScriptList, String
 from btclib.bip32 import (
     BIP32KeyOrigin,
     HdKeyPaths,
@@ -417,7 +417,9 @@ def finalize_psbt(psbt: Psbt) -> Psbt:
             psbt_in.final_script_sig = serialize([psbt_in.redeem_script])
             psbt_in.final_script_witness = Witness(cmds + [psbt_in.witness_script])
         else:
-            psbt_in.final_script_sig = serialize(cmds + [psbt_in.redeem_script])
+            psbt_in.final_script_sig = serialize(
+                cast(ScriptList, cmds + [psbt_in.redeem_script])
+            )
         psbt_in.partial_sigs = {}
         psbt_in.sig_hash_type = None
         psbt_in.redeem_script = b""

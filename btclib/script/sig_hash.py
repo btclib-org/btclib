@@ -16,14 +16,11 @@
 
 from __future__ import annotations
 
-from copy import deepcopy
-from typing import Sequence
-
 from btclib import var_bytes
-from btclib.alias import Octets
+from btclib.alias import Octets, ScriptList
 from btclib.exceptions import BTClibValueError
 from btclib.hashes import hash256, sha256, tagged_hash
-from btclib.script.script import Command, parse, serialize
+from btclib.script.script import parse, serialize
 from btclib.script.script_pub_key import (
     ScriptPubKey,
     is_p2sh,
@@ -32,7 +29,7 @@ from btclib.script.script_pub_key import (
     is_p2wsh,
     type_and_payload,
 )
-from btclib.tx import Tx, TxOut
+from btclib.tx import Tx, TxIn, TxOut
 from btclib.utils import bytes_from_octets
 
 DEFAULT = 0
@@ -57,19 +54,20 @@ def assert_valid_hash_type(hash_type: int) -> None:
         raise BTClibValueError(f"invalid sig_hash type: {hex(hash_type)}")
 
 
+# TODO: should remove signature even if not standard
 def legacy_script(script_pub_key: Octets) -> list[bytes]:
     script_s: list[bytes] = []
-    current_script: list[Command] = []
-    for cmd in parse(script_pub_key)[::-1]:
-        if cmd == "OP_CODESEPARATOR":
+    current_script: ScriptList = []
+    for token in parse(script_pub_key)[::-1]:
+        if token == "OP_CODESEPARATOR":  # nosec required for python < 3.8
             script_s.append(serialize(current_script[::-1]))
         else:
-            current_script.append(cmd)
+            current_script.append(token)
     script_s.append(serialize(current_script[::-1]))
     return script_s[::-1]
 
 
-# FIXME remove OP_CODESEPARATOR only if executed
+# FIXME: remove OP_CODESEPARATOR only if executed
 def witness_v0_script(script_pub_key: Octets) -> list[bytes]:
     script_type, payload = type_and_payload(script_pub_key)
 
@@ -80,23 +78,68 @@ def witness_v0_script(script_pub_key: Octets) -> list[bytes]:
         return [script]
 
     script_s: list[bytes] = []
-    current_script: list[Command] = []
-    for cmd in parse(script_pub_key)[::-1]:
-        if cmd == "OP_CODESEPARATOR":
+    current_script: ScriptList = []
+    for token in parse(script_pub_key)[::-1]:
+        if token == "OP_CODESEPARATOR":  # nosec required for python < 3.8
             script_s.append(serialize(current_script[::-1]))
-        current_script.append(cmd)
+        current_script.append(token)
     script_s.append(serialize(current_script[::-1]))
     return script_s[::-1]
 
 
-def legacy(script_: Octets, tx: Tx, vin_i: int, hash_type: int) -> bytes:
-    script_ = bytes_from_octets(script_)
+def taproot_annex_and_ext(
+    tx: Tx, prevouts: list[TxOut], vin_i: int
+) -> tuple[bytes, bytes]:
+    witness = tx.vin[vin_i].script_witness
+    if len(witness.stack) == 0:
+        raise BTClibValueError("Empty stack")
 
-    new_tx = deepcopy(tx)
-    for txin in new_tx.vin:
-        txin.script_sig = b""
-    # TODO delete sig from script_ (even if non standard)
-    new_tx.vin[vin_i].script_sig = script_
+    annex = b""
+    if len(witness.stack) >= 2 and witness.stack[-1][0] == 0x50:
+        annex = witness.stack[-1]
+        witness.stack = witness.stack[:-1]
+
+    ext = b""
+    if len(witness.stack) > 1:
+        leaf_version = witness.stack[-1][0] & 0xFE
+        preimage = leaf_version.to_bytes(1, "big")
+        preimage += var_bytes.serialize(witness.stack[-2])
+        tapleaf_hash = tagged_hash(b"TapLeaf", preimage)
+        ext = tapleaf_hash + b"\x00\xff\xff\xff\xff"
+
+    return annex, ext
+
+
+def legacy(script_code: Octets, tx: Tx, vin_i: int, hash_type: int) -> bytes:
+    script_code = bytes_from_octets(script_code)
+
+    new_tx = Tx(
+        version=tx.version,
+        lock_time=tx.lock_time,
+        vin=[],
+        vout=[],
+        check_validity=False,
+    )
+
+    for txin in tx.vin:
+        new_tx.vin.append(
+            TxIn(
+                prev_out=txin.prev_out,
+                script_sig=b"",
+                sequence=txin.sequence,
+                check_validity=False,
+            )
+        )
+    for txout in tx.vout:
+        new_tx.vout.append(
+            TxOut(
+                value=txout.value,
+                script_pub_key=txout.script_pub_key,
+                check_validity=False,
+            )
+        )
+    new_tx.vin[vin_i].script_sig = script_code
+
     if hash_type & 0x1F is NONE:
         new_tx.vout = []
         for i, txin in enumerate(new_tx.vin):
@@ -126,13 +169,19 @@ def legacy(script_: Octets, tx: Tx, vin_i: int, hash_type: int) -> bytes:
 
 # https://github.com/bitcoin/bitcoin/blob/4b30c41b4ebf2eb70d8a3cd99cf4d05d405eec81/test/functional/test_framework/script.py#L673
 def segwit_v0(
-    script_: Octets, tx: Tx, vin_i: int, hash_type: int, amount: int
+    script_code: Octets,
+    tx: Tx,
+    vin_i: int,
+    hash_type: int,
+    amount: int,
 ) -> bytes:
-    script_ = bytes_from_octets(script_)
+    script_code = bytes_from_octets(script_code)
 
     hash_prev_outs = b"\x00" * 32
     if not hash_type & ANYONECANPAY:
-        hash_prev_outs = b"".join([vin.prev_out.serialize() for vin in tx.vin])
+        hash_prev_outs = b"".join(
+            [vin.prev_out.serialize(check_validity=False) for vin in tx.vin]
+        )
         hash_prev_outs = hash256(hash_prev_outs)
 
     hash_seqs = b"\x00" * 32
@@ -151,18 +200,20 @@ def segwit_v0(
 
     hash_outputs = b"\x00" * 32
     if hash_type & 0x1F not in (SINGLE, NONE):
-        hash_outputs = b"".join([vout.serialize() for vout in tx.vout])
+        hash_outputs = b"".join(
+            [vout.serialize(check_validity=False) for vout in tx.vout]
+        )
         hash_outputs = hash256(hash_outputs)
     elif (hash_type & 0x1F) == SINGLE and vin_i < len(tx.vout):
-        hash_outputs = hash256(tx.vout[vin_i].serialize())
+        hash_outputs = hash256(tx.vout[vin_i].serialize(check_validity=False))
 
     preimage = b"".join(
         [
             tx.version.to_bytes(4, byteorder="little", signed=False),
             hash_prev_outs,
             hash_seqs,
-            tx.vin[vin_i].prev_out.serialize(),
-            var_bytes.serialize(script_),
+            tx.vin[vin_i].prev_out.serialize(check_validity=False),
+            var_bytes.serialize(script_code),
             amount.to_bytes(8, byteorder="little", signed=False),  # value
             tx.vin[vin_i].sequence.to_bytes(4, byteorder="little", signed=False),
             hash_outputs,
@@ -176,13 +227,15 @@ def segwit_v0(
 def taproot(
     transaction: Tx,
     input_index: int,
-    amounts: Sequence[int],
-    scriptpubkeys: Sequence[ScriptPubKey],
+    prevouts: list[TxOut],
     hashtype: int,
     ext_flag: int,
     annex: bytes,
     message_extension: bytes,
 ) -> bytes:
+    amounts = [x.value for x in prevouts]
+    scriptpubkeys = [x.script_pub_key for x in prevouts]
+
     if hashtype not in SIG_HASH_TYPES:
         raise BTClibValueError(f"Unknown hash type: {hashtype}")
     if hashtype & 0x03 == SINGLE and input_index >= len(transaction.vout):
@@ -241,53 +294,24 @@ def from_tx(prevouts: list[TxOut], tx: Tx, vin_i: int, hash_type: int) -> bytes:
     script = prevouts[vin_i].script_pub_key.script
 
     if is_p2tr(script):
-        return _script_from_p2tr(prevouts, tx, vin_i, hash_type)
+        annex, ext = taproot_annex_and_ext(tx, prevouts, vin_i)
+        return taproot(tx, vin_i, prevouts, hash_type, int(bool(ext)), annex, ext)
 
+    # handle all p2sh-wrapped scripts
     if is_p2sh(script):
         script = tx.vin[vin_i].script_sig
-        if is_p2tr(script):
-            raise BTClibValueError("taproot scripts cannot be wrapped in p2sh")
 
     if is_p2wpkh(script):
-        script_ = witness_v0_script(script)[0]
-        return segwit_v0(script_, tx, vin_i, hash_type, prevouts[vin_i].value)
+        script_code = witness_v0_script(script)[0]
+        return segwit_v0(script_code, tx, vin_i, hash_type, prevouts[vin_i].value)
 
     if is_p2wsh(script):
         # the real script is contained in the witness
-        script_ = witness_v0_script(tx.vin[vin_i].script_witness.stack[-1])[0]
-        return segwit_v0(script_, tx, vin_i, hash_type, prevouts[vin_i].value)
+        script_code = witness_v0_script(tx.vin[vin_i].script_witness.stack[-1])[0]
+        return segwit_v0(script_code, tx, vin_i, hash_type, prevouts[vin_i].value)
 
-    script_ = legacy_script(script)[0]
-    return legacy(script_, tx, vin_i, hash_type)
+    if is_p2tr(script):
+        raise BTClibValueError("Taproot scripts cannot be wrapped in p2sh")
 
-
-def _script_from_p2tr(
-    prevouts: Sequence[TxOut], tx: Tx, vin_i: int, hash_type: int
-) -> bytes:
-    witness = tx.vin[vin_i].script_witness
-    if len(witness.stack) == 0:
-        raise BTClibValueError("empty stack")
-
-    annex = b""
-    if len(witness.stack) >= 2 and witness.stack[-1][0] == 0x50:
-        annex = witness.stack[-1]
-        witness.stack = witness.stack[:-1]
-
-    ext = b""
-    if len(witness.stack) > 1:
-        leaf_version = witness.stack[-1][0] & 0xFE
-        preimage = leaf_version.to_bytes(1, "big")
-        preimage += var_bytes.serialize(witness.stack[-2])
-        tapleaf_hash = tagged_hash(b"TapLeaf", preimage)
-        ext = tapleaf_hash + b"\x00\xff\xff\xff\xff"
-
-    return taproot(
-        tx,
-        vin_i,
-        [x.value for x in prevouts],
-        [x.script_pub_key for x in prevouts],
-        hash_type,
-        int(bool(ext)),
-        annex,
-        ext,
-    )
+    script_code = legacy_script(script)[0]
+    return legacy(script_code, tx, vin_i, hash_type)

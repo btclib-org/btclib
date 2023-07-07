@@ -15,7 +15,7 @@ from os import path
 import pytest
 
 from btclib.exceptions import BTClibValueError
-from btclib.script import Witness
+from btclib.script import ScriptPubKey, Witness
 from btclib.tx import OutPoint, Tx, TxIn, TxOut, join_txs
 
 
@@ -40,7 +40,9 @@ def test_tx() -> None:
     assert tx.weight == tx.size * 4
 
     with pytest.raises(BTClibValueError, match="Missing inputs"):
-        tx.assert_valid()
+        Tx(vout=[TxOut(0, ScriptPubKey(""))])
+    with pytest.raises(BTClibValueError, match="Missing outputs"):
+        Tx(vin=[TxIn(script_sig="0000")])
 
     tx_2 = Tx.from_dict(tx.to_dict(check_validity=False), check_validity=False)
     assert tx_2.is_segwit() == tx.is_segwit()

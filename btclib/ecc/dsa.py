@@ -49,7 +49,7 @@ def _serialize_scalar(scalar: int) -> bytes:
     return _DER_SCALAR_MARKER + var_bytes.serialize(scalar_bytes)
 
 
-def _deserialize_scalar(sig_data_stream: BytesIO) -> int:
+def _deserialize_scalar(sig_data_stream: BytesIO, strict: bool = True) -> int:
     marker = sig_data_stream.read(1)
     if marker != _DER_SCALAR_MARKER:
         err_msg = f"invalid value header: {marker.hex()}"
@@ -57,12 +57,15 @@ def _deserialize_scalar(sig_data_stream: BytesIO) -> int:
         raise BTClibValueError(err_msg)
 
     r_bytes = var_bytes.parse(sig_data_stream, forbid_zero_size=True)
-    if r_bytes[0] == 0 and r_bytes[1] < 0x80:
+    if r_bytes[0] == 0 and r_bytes[1] < 0x80 and strict:
         raise BTClibValueError("invalid 'highest bit set' padding")
-    if r_bytes[0] >= 0x80:
+
+    scalar = int.from_bytes(r_bytes, byteorder="big", signed=False)
+
+    if r_bytes[0] >= 0x80 and strict:
         raise BTClibValueError("invalid negative scalar")
 
-    return int.from_bytes(r_bytes, byteorder="big", signed=False)
+    return abs(scalar)
 
 
 @dataclass(frozen=True)
@@ -161,7 +164,12 @@ class Sig:
         return _DER_SIG_MARKER + var_bytes.serialize(out)
 
     @classmethod
-    def parse(cls: type[Sig], data: BinaryData, check_validity: bool = True) -> Sig:
+    def parse(
+        cls: type[Sig],
+        data: BinaryData,
+        check_validity: bool = True,
+        strict: bool = True,
+    ) -> Sig:
         """Return a Sig by parsing binary data.
 
         Deserialize a strict ASN.1 DER representation of an ECDSA
@@ -182,8 +190,8 @@ class Sig:
 
         # [0x02][r-size][r][0x02][s-size][s]
         sig_data_substream = bytesio_from_binarydata(sig_data)
-        r = _deserialize_scalar(sig_data_substream)
-        s = _deserialize_scalar(sig_data_substream)
+        r = _deserialize_scalar(sig_data_substream, strict)
+        s = _deserialize_scalar(sig_data_substream, strict)
 
         # to prevent malleability
         # the sig_data_substream must have been consumed entirely

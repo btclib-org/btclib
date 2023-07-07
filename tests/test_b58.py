@@ -14,12 +14,13 @@ from __future__ import annotations
 import pytest
 
 from btclib import b32, b58
+from btclib.alias import ScriptList
 from btclib.base58 import b58encode
 from btclib.bip32 import bip32, slip132
 from btclib.ec import bytes_from_point, point_from_octets, secp256k1
 from btclib.exceptions import BTClibValueError
 from btclib.hashes import hash160
-from btclib.script import Command, serialize
+from btclib.script.script import serialize
 from btclib.to_prv_key import prv_keyinfo_from_prv_key
 from btclib.to_pub_key import pub_keyinfo_from_key, pub_keyinfo_from_prv_key
 
@@ -180,7 +181,7 @@ def test_p2sh() -> None:
     assert ("p2sh", script_hash, network) == b58.h160_from_address(f" {address} ")
 
     assert script_hash.hex() == "4266fc6f2c2861d7fe229b279a79803afca7ba34"
-    script_sig: list[Command] = ["OP_HASH160", script_hash.hex(), "OP_EQUAL"]
+    script_sig: ScriptList = ["OP_HASH160", script_hash.hex(), "OP_EQUAL"]
     serialize(script_sig)
 
 

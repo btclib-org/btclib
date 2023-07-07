@@ -14,12 +14,12 @@ from __future__ import annotations
 from typing import Callable, Sequence
 
 from btclib import b32, b58, var_bytes
-from btclib.alias import Octets, String
+from btclib.alias import Octets, ScriptList, String
 from btclib.ec import point_from_octets
 from btclib.exceptions import BTClibValueError
 from btclib.hashes import hash160, sha256
 from btclib.network import NETWORKS
-from btclib.script.script import Command, Script, op_int, serialize
+from btclib.script.script import Script, op_int, serialize
 from btclib.script.taproot import TaprootScriptTree, output_pubkey
 from btclib.to_pub_key import Key, pub_keyinfo_from_key
 from btclib.utils import bytes_from_octets, bytesio_from_binarydata
@@ -177,6 +177,21 @@ def assert_nulldata(script_pub_key: Octets) -> None:
 
 def is_nulldata(script_pub_key: Octets) -> bool:
     return _is_funct(assert_nulldata, script_pub_key)
+
+
+def assert_segwit(script_pub_key: Octets) -> None:
+    # doesn't check if script_pub_key is a valid script
+    script_pub_key = bytes_from_octets(script_pub_key)
+    if not (script_pub_key[0] == 0 or 0x51 <= script_pub_key[0] <= 0x60):
+        raise BTClibValueError()
+    if len(script_pub_key) == 1 or not 2 <= script_pub_key[1] <= 40:
+        raise BTClibValueError()
+    if len(script_pub_key) != script_pub_key[1] + 2:
+        raise BTClibValueError()
+
+
+def is_segwit(script_pub_key: Octets) -> bool:
+    return _is_funct(assert_segwit, script_pub_key)
 
 
 def assert_p2wpkh(script_pub_key: Octets) -> None:
@@ -349,7 +364,7 @@ class ScriptPubKey(Script):
 
         script_type, h160, network = b58.h160_from_address(addr)
         if script_type == "p2sh":
-            commands: list[Command] = ["OP_HASH160", h160, "OP_EQUAL"]
+            commands: ScriptList = ["OP_HASH160", h160, "OP_EQUAL"]
         else:  # it must be "p2pkh"
             commands = [
                 "OP_DUP",

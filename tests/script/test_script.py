@@ -15,13 +15,10 @@ import warnings
 
 import pytest
 
+from btclib.alias import ScriptList
 from btclib.exceptions import BTClibValueError
-from btclib.script import Command, Script, op_int, parse, serialize
-from btclib.script.script import (
-    BYTE_FROM_OP_CODE_NAME,
-    OP_CODE_NAME_FROM_INT,
-    _serialize_str_command,
-)
+from btclib.script import Script, op_int, parse, serialize
+from btclib.script.script import BYTE_FROM_OP_CODE_NAME, OP_CODE_NAME_FROM_INT
 from btclib.utils import hex_string
 
 
@@ -75,17 +72,6 @@ def test_serialize_bytes_command() -> None:
     assert len(serialize([b])) == (length + 1) + 3
 
 
-def test_invalid_op_success() -> None:
-    err_msg = "invalid OP_SUCCESS number: "
-    with pytest.raises(BTClibValueError, match=err_msg):
-        _serialize_str_command("OP_SUCCESS1")
-    err_msg = "invalid OP_SUCCESS number: "
-    with pytest.raises(BTClibValueError, match=err_msg):
-        _serialize_str_command("OP_SUCCESS173")
-
-    assert _serialize_str_command("OP_SUCCESS80") == b"\x50"
-
-
 def test_add_and_eq() -> None:
     script_1 = serialize(["OP_2", "OP_3", "OP_ADD", "OP_5"])
     script_2 = serialize(["OP_EQUAL"])
@@ -96,7 +82,7 @@ def test_add_and_eq() -> None:
 
 
 def test_simple_scripts() -> None:
-    script_list: list[list[Command]] = [
+    script_list: list[ScriptList] = [
         ["OP_2", "OP_3", "OP_ADD", "OP_5", "OP_EQUAL"],
         [0x1ADD, "OP_1ADD", 0x1ADE, "OP_EQUAL"],
         [26, "OP_1NEGATE", "OP_ADD", 26, "OP_EQUAL"],
@@ -114,7 +100,7 @@ def test_simple_scripts() -> None:
 
 
 def test_exceptions() -> None:
-    script_pub_key: list[Command] = ["OP_2", "OP_3", "OP_ADD", "OP_5", "OP_RETURN_244"]
+    script_pub_key: ScriptList = ["OP_2", "OP_3", "OP_ADD", "OP_5", "OP_RETURN_244"]
     err_msg = "invalid string command: OP_RETURN_244"
     with pytest.raises(BTClibValueError, match=err_msg):
         serialize(script_pub_key)
@@ -129,19 +115,19 @@ def test_exceptions() -> None:
 
     # A script_pub_key with OP_PUSHDATA4 can't be decoded
     script_bytes = "4e09020000" + "0A" * 521 + "75"  # ['0A'*521, 'OP_DROP']
-    err_msg = "invalid pushdata length: "
+    err_msg = "Invalid pushdata length: "
     with pytest.raises(BTClibValueError, match=err_msg):
         parse(script_bytes)
 
     # and can't be encoded
-    script_pub_key_ = ["0A" * 521, "OP_DROP"]
+    script_pub_key_: ScriptList = ["00" * 521, "OP_DROP"]
     err_msg = "too many bytes for OP_PUSHDATA: "
     with pytest.raises(BTClibValueError, match=err_msg):
         serialize(script_pub_key_)
 
 
 def test_nulldata() -> None:
-    scripts: list[list[Command]] = [["OP_RETURN", "1A" * 79], ["OP_RETURN", "0A" * 79]]
+    scripts: list[ScriptList] = [["OP_RETURN", "1A" * 79], ["OP_RETURN", "0A" * 79]]
     for script_pub_key in scripts:
         assert script_pub_key == parse(serialize(script_pub_key))
         assert script_pub_key == parse(serialize(script_pub_key).hex())
@@ -153,19 +139,20 @@ def test_encoding() -> None:
 
 
 def test_opcode_length() -> None:
-    err_msg = "not enough data for pushdata length"
+    err_msg = "Not enough data for pushdata length"
     with pytest.raises(BTClibValueError, match=err_msg):
         parse(b"\x4e\x00")
-    err_msg = "not enough data for pushdata"
+    err_msg = "Not enough data for pushdata"
     with pytest.raises(BTClibValueError, match=err_msg):
         parse(b"\x40\x00")
 
-    assert parse(b"\x01\x00\x50")[1] == "OP_SUCCESS80"
-    assert parse(b"\x01\x00\x50", exit_on_op_success=True) == ["OP_SUCCESS"]
+    err_msg = "Unknown op code"
+    with pytest.raises(BTClibValueError, match=err_msg):
+        assert parse(b"\x01\x00\x7e")
 
 
 def test_regressions() -> None:
-    script_list: list[list[Command]] = [
+    script_list: list[ScriptList] = [
         [1],
         ["OP_1"],
         [51],
@@ -192,7 +179,7 @@ def test_regressions() -> None:
 
 
 def test_null_serialization() -> None:
-    empty_script: list[Command] = []
+    empty_script: ScriptList = []
     assert empty_script == parse(b"")
     assert serialize(empty_script) == b""
 

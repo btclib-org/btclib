@@ -10,11 +10,13 @@
 """Tests for the `btclib.script.taproot` module."""
 
 import json
+import warnings
 from os import path
 
 import pytest
 
 from btclib import b32
+from btclib.alias import ScriptList
 from btclib.ec import mult
 from btclib.exceptions import BTClibValueError
 from btclib.script import (
@@ -25,10 +27,9 @@ from btclib.script import (
     is_p2tr,
     output_prvkey,
     output_pubkey,
-    parse,
-    serialize,
     type_and_payload,
 )
+from btclib.script.taproot import parse, serialize
 from btclib.tx import TxOut
 
 
@@ -134,3 +135,36 @@ def test_bip_test_vector() -> None:
 
         assert tweaked_pubkey.hex() == test["intermediary"]["tweakedPubkey"]
         assert address == test["expected"]["bip350Address"]
+
+
+def test_serialize_op_success() -> None:
+    assert parse(b"\x01\x00\x7e", exit_on_op_success=True) == ["OP_SUCCESS"]
+
+    assert parse(b"\x7e\x02\x01") == ["OP_SUCCESS126", b"\x02\x01"]
+
+
+def test_invalid_serialization() -> None:
+    with pytest.raises(BTClibValueError):
+        serialize(["AAA"])
+
+    with pytest.raises(BTClibValueError):
+        serialize(["OP_SUCCESS80"])
+
+    with pytest.raises(BTClibValueError):
+        serialize(["OP_SUCCESS80", 1])
+    with pytest.raises(BTClibValueError):
+        serialize(["OP_SUCCESS80", "00"])
+
+
+def test_serialization() -> None:
+    script: ScriptList = ["OP_SUCCESS80", b"\x01\x01\x01"]
+    assert parse(serialize(script)) == script
+
+    with warnings.catch_warnings():
+        warnings.simplefilter("ignore")
+        assert parse(serialize([-1])) == ["81"]
+        for x in range(0, 17):
+            assert parse(serialize([x])) == [f"{x:02X}"]
+
+    for x in range(17, 100):
+        assert parse(serialize([x])) == [f"{x:02X}"]

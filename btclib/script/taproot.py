@@ -14,14 +14,82 @@ from __future__ import annotations
 from typing import Any
 
 from btclib import var_bytes
-from btclib.alias import Octets, TaprootScriptTree
+from btclib.alias import BinaryData, Octets, ScriptList, TaprootScriptTree
 from btclib.ec import Curve, mult, secp256k1
 from btclib.exceptions import BTClibValueError
 from btclib.hashes import tagged_hash
-from btclib.script.script import serialize
+from btclib.script.op_codes_tapscript import (
+    OP_CODE_NAMES,
+    OP_SUCCESS,
+    _serialize_bytes_command,
+    _serialize_int_command,
+    _serialize_str_command,
+)
 from btclib.to_prv_key import PrvKey, int_from_prv_key
 from btclib.to_pub_key import Key, pub_keyinfo_from_key
-from btclib.utils import bytes_from_octets
+from btclib.utils import bytes_from_octets, bytesio_from_binarydata
+
+
+def serialize(script: ScriptList) -> bytes:
+    r: list[bytes] = []
+    script = script[::-1]
+    while script:
+        command = script.pop()
+        if isinstance(command, int):
+            r.append(_serialize_int_command(command))
+        elif isinstance(command, str):
+            r.append(_serialize_str_command(command))
+            if "OP_SUCCESS" in command:
+                if len(script) != 1 or not isinstance(script[0], bytes):
+                    raise BTClibValueError()
+                return b"".join(r) + script[0]
+        else:  # must be bytes
+            r.append(_serialize_bytes_command(command))
+    return b"".join(r)
+
+
+def parse(stream: BinaryData, exit_on_op_success: bool = False) -> ScriptList:
+    s = bytesio_from_binarydata(stream)
+    r: ScriptList = []  # initialize the result list
+    invalid_element_size = False
+
+    while True:
+        t = s.read(1)  # get one byte
+        if not t:
+            break
+        i = t[0]  # convert the byte to an integer
+        if 0 < i <= 78:  # push
+            if 0 < i < 76:  # 1-byte-data-length | data
+                data_length = i
+            if 76 <= i <= 78:
+                if i == 76:  # OP_PUSHDATA1 | 1-byte-data-length | data
+                    x = 1
+                elif i == 77:  # OP_PUSHDATA2 | 2-byte-data-length | data
+                    x = 2
+                elif i == 78:  # OP_PUSHDATA4 | 4-byte-data-length | data
+                    x = 4
+                y = s.read(x)
+                if len(y) != x:
+                    raise BTClibValueError("Invalid pushdata length")
+                data_length = int.from_bytes(y, byteorder="little")
+            if data_length > 520:
+                invalid_element_size = True
+            data = s.read(data_length)
+            if len(data) != data_length:
+                raise BTClibValueError("Invalid pushdata length")
+            new_op_code = data.hex().upper()
+        elif i in OP_SUCCESS:  # OP_SUCCESSx
+            if exit_on_op_success:
+                return ["OP_SUCCESS"]
+            r.append(f"OP_SUCCESS{i}")
+            r.append(s.read())
+            return r
+        else:  # OP_CODE
+            new_op_code = OP_CODE_NAMES[i]
+        r.append(new_op_code)
+    if invalid_element_size:
+        raise BTClibValueError("Invalid pushdata length")
+    return r
 
 
 def tree_helper(script_tree: TaprootScriptTree) -> tuple[Any, bytes]:
@@ -94,7 +162,7 @@ def output_prvkey(
 
 def input_script_sig(
     internal_pubkey: Key | None, script_tree: TaprootScriptTree, script_num: int
-) -> tuple[bytes, bytes]:
+) -> tuple[ScriptList, bytes]:
     parity_bit = output_pubkey(internal_pubkey, script_tree)[1]
     if internal_pubkey:
         pub_key_bytes = pub_keyinfo_from_key(internal_pubkey, compressed=True)[0][1:]

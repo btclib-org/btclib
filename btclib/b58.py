@@ -20,7 +20,7 @@ from btclib.base58 import b58decode, b58encode
 from btclib.exceptions import BTClibValueError
 from btclib.hashes import hash160, sha256
 from btclib.network import NETWORKS, network_from_key_value
-from btclib.script import serialize
+from btclib.script.script import serialize
 from btclib.to_prv_key import PrvKey, prv_keyinfo_from_prv_key
 from btclib.to_pub_key import Key, pub_keyinfo_from_key
 from btclib.utils import bytes_from_octets

@@ -1,6 +1,14 @@
 [tool.pytest.ini_options]
 addopts = "--durations=8 -n auto"
 
+[tool.coverage.run]
+omit = ["*/site-packages/*"]
+
+[tool.coverage.report]
+show_missing = true
+skip_covered = true
+precision = 2
+
 [tool.mypy]
 strict = false
 show_column_numbers = true
@@ -38,6 +46,8 @@ disable = [
     "too-many-locals",   # R0914
     "too-many-statements",  # R0915
     "fixme",  # W0511
+    "unsubscriptable-object",  # E1136 python3.9-only pylint bug
+    "unused-argument", # W0613
 ]
 
 [tool.pylint.logging]
