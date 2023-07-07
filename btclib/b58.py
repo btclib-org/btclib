@@ -75,10 +75,7 @@ def h160_from_address(b58addr: String) -> tuple[str, bytes, str]:
     prefix = payload[:1]
 
     for script_type in ("p2pkh", "p2sh"):
-        # with python>=3.8 use walrus operator
-        # if network := network_from_key_value(script_type, prefix):
-        network = network_from_key_value(script_type, prefix)
-        if network:
+        if network := network_from_key_value(script_type, prefix):
             return script_type, payload[1:], network
 
     err_msg = f"invalid base58 address prefix: 0x{prefix.hex()}"
