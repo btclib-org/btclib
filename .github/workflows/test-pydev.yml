@@ -17,7 +17,7 @@ jobs:
       fail-fast: false
       matrix:
         # as of 2023-01-01 windows-latest does crash
-        os: [ubuntu-latest, macos-latest]
+        os: [ubuntu-latest, macos-latest, windows-latest]
     steps:
       - name: Checkout code
         uses: actions/checkout@v3
