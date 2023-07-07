@@ -158,7 +158,7 @@ def test_exceptions() -> None:
         bin_str_entropy_from_entropy(bytes_entropy216, 224)
 
     with pytest.raises(BTClibValueError, match=err_msg):
-        bin_str_entropy_from_entropy(tuple())  # type: ignore[arg-type]
+        bin_str_entropy_from_entropy(())  # type: ignore[arg-type]
 
     with pytest.raises(ValueError):
         bin_str_entropy_from_int("not an int")
