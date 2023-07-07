@@ -7,15 +7,14 @@
 #
 # No part of btclib including this file, may be copied, modified, propagated,
 # or distributed except according to the terms contained in the LICENSE file.
-
 """Entropy conversion functions.
 
-Depending on the function, input entropy can be expressed
-as raw (i.e. binary 0/1 string), bytes, or integer
-and their equivalent representations.
+Depending on the function, input entropy can be expressed as raw (i.e.
+binary 0/1 string), bytes, or integer and their equivalent
+representations.
 
-Leading zeros in raw or bytes entropy
-are never considered redundant padding.
+Leading zeros in raw or bytes entropy are never considered redundant
+padding.
 
 Output entropy is always raw.
 """
@@ -116,11 +115,11 @@ def bin_str_entropy_from_bytes(
 ) -> BinStr:
     """Return raw entropy from the input Octets entropy.
 
-    Input entropy can be expressed as hex-string or bytes;
-    it is never padded to satisfy the bit-size requirement.
+    Input entropy can be expressed as hex-string or bytes; it is never
+    padded to satisfy the bit-size requirement.
 
-    If more bits than required are provided,
-    the leftmost ones are retained.
+    If more bits than required are provided, the leftmost ones are
+    retained.
 
     Default bit-sizes are 128, 160, 192, 224, 256, or 512 bits.
     """
@@ -159,13 +158,12 @@ def bin_str_entropy_from_int(
 ) -> BinStr:
     """Return raw entropy from the input integer entropy.
 
-    Input entropy can be expressed as int
-    or string starting with "0x"/"0b";
-    it is front-padded with zeros digits
-    as much as necessary to satisfy the bit-size requirement.
+    Input entropy can be expressed as int or string starting with
+    "0x"/"0b"; it is front-padded with zeros digits as much as necessary
+    to satisfy the bit-size requirement.
 
-    If more bits than required are provided,
-    the leftmost ones are retained.
+    If more bits than required are provided, the leftmost ones are
+    retained.
 
     Default bit-sizes are 128, 160, 192, 224, 256, or 512 bits.
     """
@@ -202,11 +200,11 @@ def bin_str_entropy_from_int(
 def bin_str_entropy_from_str(str_entropy: str, bits: OneOrMoreInt = _bits) -> BinStr:
     """Return raw entropy from the input raw entropy.
 
-    Input entropy must be expressed as raw entropy;
-    it is never padded to satisfy the bit-size requirement.
+    Input entropy must be expressed as raw entropy; it is never padded
+    to satisfy the bit-size requirement.
 
-    If more bits than required are provided,
-    the leftmost ones are retained.
+    If more bits than required are provided, the leftmost ones are
+    retained.
 
     Default bit-sizes are 128, 160, 192, 224, 256, or 512 bits.
     """
@@ -282,14 +280,14 @@ def bin_str_entropy_from_rolls(
     Dice rolls are represented by integers in the [1-dice_sides] range;
     there must be enough rolls to satisfy the bit-size requirement.
 
-    Only rolls having value in the [1-base] range are used,
-    with base being the highest power of 2 that is lower than the
-    dice_sides (e.g. for a traditional D6 dice, only rolls having value
-    in [1-4] are used; for a D20 dice, only rolls having value in
-    [1-16] are used; etc.). Rolls can also be shuffled.
+    Only rolls having value in the [1-base] range are used, with base
+    being the highest power of 2 that is lower than the dice_sides (e.g.
+    for a traditional D6 dice, only rolls having value in [1-4] are
+    used; for a D20 dice, only rolls having value in [1-16] are used;
+    etc.). Rolls can also be shuffled.
 
-    If more bits than required are provided,
-    the leftmost ones are retained.
+    If more bits than required are provided, the leftmost ones are
+    retained.
     """
     if dice_sides < 2:
         raise BTClibValueError(f"invalid dice base: {dice_sides}, must be >= 2")

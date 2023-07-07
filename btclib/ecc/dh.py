@@ -7,13 +7,12 @@
 #
 # No part of btclib including this file, may be copied, modified, propagated,
 # or distributed except according to the terms contained in the LICENSE file.
-
 """Diffie-Hellman elliptic curve key agreement scheme.
 
-Implementation of the Diffie-Hellman key agreement scheme using
-elliptic curve cryptography. A key agreement scheme is used
-by two entities to establish shared keying data, which will be
-later utilized e.g. in symmetric cryptographic scheme.
+Implementation of the Diffie-Hellman key agreement scheme using elliptic
+curve cryptography. A key agreement scheme is used by two entities to
+establish shared keying data, which will be later utilized e.g. in
+symmetric cryptographic scheme.
 
 The two entities must agree on the elliptic curve and key derivation
 function to use.

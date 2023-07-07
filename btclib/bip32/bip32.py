@@ -7,7 +7,6 @@
 #
 # No part of btclib including this file, may be copied, modified, propagated,
 # or distributed except according to the terms contained in the LICENSE file.
-
 """BIP32 Hierarchical Deterministic Wallet functions.
 
 A deterministic wallet is a hash-chain of private/public key pairs that

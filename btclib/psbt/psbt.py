@@ -7,7 +7,6 @@
 #
 # No part of btclib including this file, may be copied, modified, propagated,
 # or distributed except according to the terms contained in the LICENSE file.
-
 """Partially Signed Bitcoin Transaction (Psbt) dataclass and functions.
 
 https://github.com/bitcoin/bips/blob/master/bip-0174.mediawiki
@@ -393,17 +392,15 @@ def finalize_psbt(psbt: Psbt) -> Psbt:
 
     The Input Finalizer must only accept a PSBT.
 
-    For each input, the Input Finalizer determines
-    if the input has enough data to pass validation.
-    If it does, it must construct the
-    0x07 Finalized scriptSig and
-    0x08 Finalized scriptWitness
-    and place them into the input key-value map.
+    For each input, the Input Finalizer determines if the input has
+    enough data to pass validation. If it does, it must construct the
+    0x07 Finalized scriptSig and 0x08 Finalized scriptWitness and place
+    them into the input key-value map.
 
-    All other data except the UTXO and unknown fields
-    in the input key-value map should be cleared from the PSBT.
-    The UTXO should be kept to allow Transaction Extractors
-    to verify the final network serialized transaction.
+    All other data except the UTXO and unknown fields in the input key-
+    value map should be cleared from the PSBT. The UTXO should be kept
+    to allow Transaction Extractors to verify the final network
+    serialized transaction.
     """
     psbt = deepcopy(psbt)
     psbt.assert_valid()
@@ -432,25 +429,23 @@ def finalize_psbt(psbt: Psbt) -> Psbt:
 def extract_tx(psbt: Psbt, check_validity: bool = True) -> Tx:
     """Extract the Tx fro the Psbt.
 
-    The Transaction Extractor must only accept a PSBT.
-    It checks whether all inputs have complete scriptSigs
-    and scriptWitnesses by checking for the presence of
-    0x07 Finalized scriptSig and 0x08 Finalized scriptWitness typed
-    records.
+    The Transaction Extractor must only accept a PSBT. It checks whether
+    all inputs have complete scriptSigs and scriptWitnesses by checking
+    for the presence of 0x07 Finalized scriptSig and 0x08 Finalized
+    scriptWitness typed records.
 
-    If they do, the Transaction Extractor should construct
-    complete scriptSigs and scriptWitnesses and encode them
-    into network serialized transactions.
-    Otherwise the Extractor must not modify the PSBT.
+    If they do, the Transaction Extractor should construct complete
+    scriptSigs and scriptWitnesses and encode them into network
+    serialized transactions. Otherwise the Extractor must not modify the
+    PSBT.
 
-    The Extractor should produce a fully valid,
-    network serialized transaction if all inputs are complete.
+    The Extractor should produce a fully valid, network serialized
+    transaction if all inputs are complete.
 
-    The Transaction Extractor does not need to know
-    how to interpret scripts in order to extract
-    the network serialized transaction.
-    However it may be able to in order to validate
-    the network serialized transaction at the same time.
+    The Transaction Extractor does not need to know how to interpret
+    scripts in order to extract the network serialized transaction.
+    However it may be able to in order to validate the network
+    serialized transaction at the same time.
     """
     if check_validity:
         psbt.assert_valid()

@@ -7,7 +7,6 @@
 #
 # No part of btclib including this file, may be copied, modified, propagated,
 # or distributed except according to the terms contained in the LICENSE file.
-
 """Tests for the `btclib.block` module."""
 
 import json
@@ -200,6 +199,9 @@ def test_block_200000() -> None:
 
 def test_block_481824() -> None:
     """Test first block with segwit transaction as seen from legacy nodes."""
+    prev_block = "000000000000000000cbeff0b533f8e1189cf09dfbebf57a8ebe349362811b80"
+    merkle_root = "6438250cad442b982801ae6994edb8a9ec63c0a0ba117779fbe7ef7f07cad140"
+    hash_ = "0000000000000000001c8018d9cb3b742ef25114f27563e3fc4a1902167f9893"
     for i, fname in enumerate(["block_481824.bin", "block_481824_complete.bin"]):
         filename = path.join(path.dirname(__file__), "_data", fname)
         with open(filename, "rb") as file_:
@@ -213,16 +215,13 @@ def test_block_481824() -> None:
 
         header = block.header
         assert header.version == 0x20000002
-        prev_block = "000000000000000000cbeff0b533f8e1189cf09dfbebf57a8ebe349362811b80"
         assert header.previous_block_hash.hex() == prev_block
-        merkle_root = "6438250cad442b982801ae6994edb8a9ec63c0a0ba117779fbe7ef7f07cad140"
         assert header.merkle_root.hex() == merkle_root
         timestamp = datetime(2017, 8, 24, 1, 57, 37, tzinfo=timezone.utc)
         assert header.time == timestamp
         assert header.bits.hex() == "18013ce9"
         assert header.nonce == 0x2254FF22
 
-        hash_ = "0000000000000000001c8018d9cb3b742ef25114f27563e3fc4a1902167f9893"
         assert header.hash.hex() == hash_
         assert 0 <= header.difficulty - 888_171_856_257 < 1
         assert header == BlockHeader.parse(header.serialize())

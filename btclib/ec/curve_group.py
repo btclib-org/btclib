@@ -7,7 +7,6 @@
 #
 # No part of btclib including this file, may be copied, modified, propagated,
 # or distributed except according to the terms contained in the LICENSE file.
-
 """Elliptic CurveGroup class and functions.
 
 Note that CurveGroup does not have to be a cyclic subgroup. For the
@@ -40,12 +39,10 @@ def jac_from_aff(Q: Point) -> JacPoint:
 class CurveGroup:
     """Finite group of the points of an elliptic curve over Fp.
 
-    The elliptic curve is the set of points (x, y)
-    that are solutions to a Weierstrass equation y^2 = x^3 + a*x + b,
-    with x, y, a, and b in Fp (p being a prime),
-    together with a point at infinity INF.
-    The constants a, b must satisfy the relationship
-    4 a^3 + 27 b^2 ≠ 0.
+    The elliptic curve is the set of points (x, y) that are solutions to
+    a Weierstrass equation y^2 = x^3 + a*x + b, with x, y, a, and b in
+    Fp (p being a prime), together with a point at infinity INF. The
+    constants a, b must satisfy the relationship 4 a^3 + 27 b^2 ≠ 0.
 
     The group is defined by the point addition group law.
     """
@@ -355,13 +352,12 @@ class CurveGroup:
 def mult_recursive_aff(m: int, Q: Point, ec: CurveGroup) -> Point:
     """Scalar multiplication of a curve point in affine coordinates.
 
-    This implementation uses
-    a recursive version of 'double & add',
+    This implementation uses a recursive version of 'double & add',
     affine coordinates.
 
-    The input point is assumed to be on curve and
-    the m coefficient is assumed to have been reduced mod n
-    if appropriate (e.g. cyclic groups of order n).
+    The input point is assumed to be on curve and the m coefficient is
+    assumed to have been reduced mod n if appropriate (e.g. cyclic
+    groups of order n).
     """
     if m < 0:
         raise BTClibValueError(f"negative m: {hex(m)}")
@@ -378,13 +374,12 @@ def mult_recursive_aff(m: int, Q: Point, ec: CurveGroup) -> Point:
 def mult_recursive_jac(m: int, Q: JacPoint, ec: CurveGroup) -> JacPoint:
     """Scalar multiplication of a curve point in affine coordinates.
 
-    This implementation uses
-    a recursive version of 'double & add',
+    This implementation uses a recursive version of 'double & add',
     jacobian coordinates.
 
-    The input point is assumed to be on curve and
-    the m coefficient is assumed to have been reduced mod n
-    if appropriate (e.g. cyclic groups of order n).
+    The input point is assumed to be on curve and the m coefficient is
+    assumed to have been reduced mod n if appropriate (e.g. cyclic
+    groups of order n).
     """
     if m < 0:
         raise BTClibValueError(f"negative m: {hex(m)}")
@@ -401,14 +396,12 @@ def mult_recursive_jac(m: int, Q: JacPoint, ec: CurveGroup) -> JacPoint:
 def mult_aff(m: int, Q: Point, ec: CurveGroup) -> Point:
     """Scalar multiplication of a curve point in affine coordinates.
 
-    This implementation uses
-    'double & add' algorithm,
-    'right-to-left' binary decomposition of the m coefficient,
-    affine coordinates.
+    This implementation uses 'double & add' algorithm, 'right-to-left'
+    binary decomposition of the m coefficient, affine coordinates.
 
-    The input point is assumed to be on curve and
-    the m coefficient is assumed to have been reduced mod n
-    if appropriate (e.g. cyclic groups of order n).
+    The input point is assumed to be on curve and the m coefficient is
+    assumed to have been reduced mod n if appropriate (e.g. cyclic
+    groups of order n).
     """
     if m < 0:
         raise BTClibValueError(f"negative m: {hex(m)}")
@@ -433,14 +426,12 @@ def mult_aff(m: int, Q: Point, ec: CurveGroup) -> Point:
 def mult_jac(m: int, Q: JacPoint, ec: CurveGroup) -> JacPoint:
     """Scalar multiplication of a curve point in Jacobian coordinates.
 
-    This implementation uses
-    'double & add' algorithm,
-    'right-to-left' binary decomposition of the m coefficient,
-    Jacobian coordinates.
+    This implementation uses 'double & add' algorithm, 'right-to-left'
+    binary decomposition of the m coefficient, Jacobian coordinates.
 
-    The input point is assumed to be on curve and
-    the m coefficient is assumed to have been reduced mod n
-    if appropriate (e.g. cyclic groups of order n).
+    The input point is assumed to be on curve and the m coefficient is
+    assumed to have been reduced mod n if appropriate (e.g. cyclic
+    groups of order n).
     """
     if m < 0:
         raise BTClibValueError(f"negative m: {hex(m)}")
@@ -552,14 +543,12 @@ def mult_mont_ladder(m: int, Q: JacPoint, ec: CurveGroup) -> JacPoint:
 def mult_base_3(m: int, Q: JacPoint, ec: CurveGroup) -> JacPoint:
     """Scalar multiplication using ternary decomposition of the scalar.
 
-    This implementation uses
-    'triple & add' algorithm,
-    'left-to-right' ternary decomposition of the m coefficient,
-    Jacobian coordinates.
+    This implementation uses 'triple & add' algorithm, 'left-to-right'
+    ternary decomposition of the m coefficient, Jacobian coordinates.
 
-    The input point is assumed to be on curve and
-    the m coefficient is assumed to have been reduced mod n
-    if appropriate (e.g. cyclic groups of order n).
+    The input point is assumed to be on curve and the m coefficient is
+    assumed to have been reduced mod n if appropriate (e.g. cyclic
+    groups of order n).
     """
     if m < 0:
         raise BTClibValueError(f"negative m: {hex(m)}")
@@ -586,16 +575,15 @@ def mult_fixed_window(
 ) -> JacPoint:
     """Scalar multiplication using "fixed window".
 
-    This implementation uses
-    'multiple-double & add' algorithm,
-    'left-to-right' window decomposition of the m coefficient,
-    Jacobian coordinates.
+    This implementation uses 'multiple-double & add' algorithm, 'left-
+    to-right' window decomposition of the m coefficient, Jacobian
+    coordinates.
 
     For 256-bit scalars it is suggested to choose w=4 or w=5.
 
-    The input point is assumed to be on curve and
-    the m coefficient is assumed to have been reduced mod n
-    if appropriate (e.g. cyclic groups of order n).
+    The input point is assumed to be on curve and the m coefficient is
+    assumed to have been reduced mod n if appropriate (e.g. cyclic
+    groups of order n).
     """
     if m < 0:
         raise BTClibValueError(f"negative m: {hex(m)}")
@@ -627,17 +615,16 @@ def mult_fixed_window_cached(
 ) -> JacPoint:
     """Scalar multiplication using "fixed window" & cached values.
 
-    This implementation uses
-    'multiple-double & add' algorithm,
-    'left-to-right' window decomposition of the m coefficient,
-    Jacobian coordinates.
+    This implementation uses 'multiple-double & add' algorithm, 'left-
+    to-right' window decomposition of the m coefficient, Jacobian
+    coordinates.
 
-    For 256-bit scalars it is suggested to choose w=4.
-    Thanks to the pre-computed values, it just needs addictions.
+    For 256-bit scalars it is suggested to choose w=4. Thanks to the
+    pre-computed values, it just needs addictions.
 
-    The input point is assumed to be on curve and
-    the m coefficient is assumed to have been reduced mod n
-    if appropriate (e.g. cyclic groups of order n).
+    The input point is assumed to be on curve and the m coefficient is
+    assumed to have been reduced mod n if appropriate (e.g. cyclic
+    groups of order n).
     """
     if m < 0:
         raise BTClibValueError(f"negative m: {hex(m)}")
@@ -669,13 +656,13 @@ def _double_mult(
 ) -> JacPoint:
     """Double scalar multiplication (u*H + v*Q).
 
-    This implementation uses the Shamir-Strauss algorithm,
-    'left-to-right' binary decomposition of the u and v coefficients,
-    Jacobian coordinates.
+    This implementation uses the Shamir-Strauss algorithm, 'left-to-
+    right' binary decomposition of the u and v coefficients, Jacobian
+    coordinates.
 
-    Strauss algorithm consists of a single 'double & add' loop
-    for the parallel calculation of u*H and v*Q, efficiently
-    using a single 'doubling' for both scalar multiplications (see
+    Strauss algorithm consists of a single 'double & add' loop for the
+    parallel calculation of u*H and v*Q, efficiently using a single
+    'doubling' for both scalar multiplications (see
 
     https://stackoverflow.com/questions/50993471/ec-scalar-multiplication-with-strauss-shamir-method).
     The Shamir trick adds the precomputation of H+Q,

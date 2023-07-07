@@ -7,7 +7,6 @@
 #
 # No part of btclib including this file, may be copied, modified, propagated,
 # or distributed except according to the terms contained in the LICENSE file.
-
 """Tests for the `btclib.dh` module."""
 
 from hashlib import sha1, sha224, sha256, sha384, sha512

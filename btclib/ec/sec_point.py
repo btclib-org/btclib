@@ -7,7 +7,6 @@
 #
 # No part of btclib including this file, may be copied, modified, propagated,
 # or distributed except according to the terms contained in the LICENSE file.
-
 """SEC compressed/uncompressed point representation."""
 
 from btclib.alias import Octets, Point
