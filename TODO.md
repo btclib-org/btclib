@@ -39,3 +39,7 @@
 - SSA: ask about why e=e(k), making impossible to select e, k indipendently
 - SSA: ask about benefit of removing 02/03 from pub_key
 - SSA: suggest better k
+
+- compare of dsa.rfc6979_and ssa.det_nonce_
+
+- refactor Psbt

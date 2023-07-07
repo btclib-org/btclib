@@ -71,5 +71,11 @@
     "sha256_preimages": {},
     "hash160_preimages": {},
     "hash256_preimages": {},
+    "taproot_key_spend_signature": "",
+    "taproot_script_spend_signatures": {},
+    "taproot_leaf_scripts": {},
+    "taproot_hd_key_paths": [],
+    "taproot_internal_key": "",
+    "taproot_merkle_root": "",
     "unknown": {}
 }

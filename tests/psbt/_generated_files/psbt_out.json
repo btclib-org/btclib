@@ -8,5 +8,8 @@
             "path": "m/0h/0h/4h"
         }
     ],
+    "taproot_internal_key": "",
+    "taproot_tree": [],
+    "taproot_hd_key_paths": [],
     "unknown": {}
 }
