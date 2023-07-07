@@ -16,7 +16,7 @@ from os import path
 
 import pytest
 
-from btclib import base58, hashes
+from btclib import base58
 from btclib.b58 import p2pkh  # FIXME why it is needed here
 from btclib.bip32 import (
     BIP32KeyData,
@@ -29,6 +29,7 @@ from btclib.bip32 import (
 from btclib.bip32.bip32 import _derive
 from btclib.bip32.der_path import _indexes_from_bip32_path_str
 from btclib.exceptions import BTClibValueError
+from btclib.hashes import hash160
 from btclib.to_pub_key import pub_keyinfo_from_key
 
 
@@ -78,7 +79,7 @@ def test_assert_valid2() -> None:
         xkey_data.assert_valid()
 
     xkey_data = BIP32KeyData.b58decode(xkey)
-    xkey_data.depth = tuple()  # type: ignore[assignment]
+    xkey_data.depth = ()  # type: ignore[assignment]
     with pytest.raises(TypeError):
         xkey_data.assert_valid()
 
@@ -103,7 +104,7 @@ def test_assert_valid2() -> None:
         xkey_data.assert_valid()
 
     xkey_data = BIP32KeyData.b58decode(xkey)
-    xkey_data.index = tuple()  # type: ignore[assignment]
+    xkey_data.index = ()  # type: ignore[assignment]
     with pytest.raises(TypeError):
         xkey_data.assert_valid()
 
@@ -224,7 +225,7 @@ def test_derive_exceptions() -> None:
     assert rootmxprv == derive(xprv, "m")
     assert rootmxprv == derive(xprv, "")
 
-    fingerprint = hashes.hash160(pub_keyinfo_from_key(xprv)[0])[:4]
+    fingerprint = hash160(pub_keyinfo_from_key(xprv)[0])[:4]
     assert fingerprint == _derive(xprv, bytes.fromhex("80000000")).parent_fingerprint
 
     for der_path in ("/1", "800000", "80000000"):
@@ -362,3 +363,17 @@ def test_bips_pr905() -> None:
     assert derive(xroot, der_path) == xprv
     xpub = "xpub6CpsfWjghR6XdCB8yDq7jQRpRKEDP2LT3ZRUgURF9g5xevB7YoTpogkFRqq5nQtVSN8YCMZo2CD8u4zCaxRv85ctCWmzEi9gQ5DBhBFaTNo"
     assert xpub_from_xprv(xprv) == xpub
+
+
+def test_pub_key_derivation() -> None:
+    parent_xpub = "xpub6CpsfWjghR6XdCB8yDq7jQRpRKEDP2LT3ZRUgURF9g5xevB7YoTpogkFRqq5nQtVSN8YCMZo2CD8u4zCaxRv85ctCWmzEi9gQ5DBhBFaTNo"
+    proper_child = "xpub6FCCuDg6j52SWRVZ1TugkjrnGkqPcDuNNKDzohU2mmd4dxiGJypZa535iqYT8KcN2oouRF7A6tXEGAX6HCSjQe7HVSDR4LQ4yUT3HwF1Tqi"
+    assert derive(parent_xpub, "m/0") == proper_child
+    parent_key = BIP32KeyData.b58decode(parent_xpub).key
+    parent_fingerprint = hash160(parent_key)[:4]
+    assert BIP32KeyData.b58decode(proper_child).parent_fingerprint == parent_fingerprint
+
+    orphan_child_key = BIP32KeyData.b58decode(proper_child)
+    orphan_child_key.parent_fingerprint = b"\x00" * 4
+    orphan_child = "xpub6DXuQW1FgeHbhsSchbuDWE9Bj8mPiPUpiroAmAvRdRqYbGHXHTyEkttkxSvtCac64QzpasL1Tvd5Znvn5GQMswQUrpRBsPRz7npvyZ8ExWi"
+    assert orphan_child_key.b58encode() == orphan_child
