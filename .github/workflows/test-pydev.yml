@@ -26,7 +26,6 @@ jobs:
         with:
           python-version: 3.12-dev
       - name: Run pytest
-        # do not install requirements.txt to avoid building secp256k1
         run: |
           python -m pip install --upgrade -rrequirements.txt
           python -m pip install --upgrade -rrequirements-dev.txt
