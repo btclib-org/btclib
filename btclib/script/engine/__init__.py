@@ -121,9 +121,7 @@ def verify_input(prevouts: list[TxOut], tx: Tx, i: int, flags: list[str]) -> Non
         )
         script_type, payload = type_and_payload(script)
 
-    segwit_version = -1
-    if is_segwit(script):
-        segwit_version = _to_num(stack[-1], [])
+    segwit_version = _to_num(stack[-1], []) if is_segwit(script) else -1
     supported_segwit_version = -1
     if "WITNESS" in flags:
         supported_segwit_version = 0
@@ -190,7 +188,7 @@ def verify_transaction(
 ) -> None:
     if flags is None:
         flags = ALL_FLAGS[:]
-    if not len(prevouts) == len(tx.vin):
+    if len(prevouts) != len(tx.vin):
         raise BTClibValueError()
     for i in range(len(prevouts)):
         verify_input(prevouts, tx, i, flags)
