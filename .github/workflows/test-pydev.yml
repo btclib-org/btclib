@@ -16,7 +16,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        # as of 2023-01-01 windows-latest does crash
+        # as of 2023-07-01 windows-latest does crash
         os: [ubuntu-latest, macos-latest]
     steps:
       - name: Checkout code
@@ -26,7 +26,7 @@ jobs:
         with:
           python-version: 3.12-dev
       - name: Run pytest
-        # do not install requirements.txt to avoid building secp256k1
         run: |
+          python -m pip install --upgrade -rrequirements.txt
           python -m pip install --upgrade -rrequirements-dev.txt
           pytest
