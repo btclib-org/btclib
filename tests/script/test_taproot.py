@@ -143,6 +143,20 @@ def test_serialize_op_success() -> None:
     assert parse(b"\x7e\x02\x01") == ["OP_SUCCESS126", b"\x02\x01"]
 
 
+def test_serialize_bytes_command() -> None:
+    length = 75
+    b = b"\x0A" * length
+    assert len(serialize([b])) == length + 1
+    b = b"\x0A" * (length + 1)
+    assert len(serialize([b])) == (length + 1) + 2
+
+    length = 255
+    b = b"\x0A" * length
+    assert len(serialize([b])) == length + 2
+    b = b"\x0A" * (length + 1)
+    assert len(serialize([b])) == (length + 1) + 3
+
+
 def test_invalid_serialization() -> None:
     with pytest.raises(BTClibValueError):
         serialize(["AAA"])
