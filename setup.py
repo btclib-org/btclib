@@ -9,7 +9,7 @@
 # or distributed except according to the terms contained in the LICENSE file.
 """Build script for setuptools."""
 
-from setuptools import find_packages, setup  # type: ignore
+from setuptools import find_namespace_packages, setup  # type: ignore[import]
 
 import btclib
 
@@ -34,7 +34,7 @@ setup(
     description="A library for 'bitcoin cryptography'",
     long_description=longdescription,
     long_description_content_type="text/markdown",
-    packages=find_packages(exclude=["tests", "tests.*"]),
+    packages=find_namespace_packages(exclude=["tests", "tests.*"]),
     include_package_data=True,
     # test_suite="btclib.tests",
     install_requires=["btclib_libsecp256k1"],

@@ -189,13 +189,16 @@ class Psbt:
     def from_dict(
         cls: type[Psbt], dict_: Mapping[str, Any], check_validity: bool = True
     ) -> Psbt:
+        hd_key_paths = cast(
+            Mapping[Octets, BIP32KeyOrigin],
+            decode_from_bip32_derivs(dict_["bip32_derivs"]),
+        )
         return cls(
             Tx.from_dict(dict_["tx"]),
             [PsbtIn.from_dict(psbt_in, False) for psbt_in in dict_["inputs"]],
             [PsbtOut.from_dict(psbt_out, False) for psbt_out in dict_["outputs"]],
             dict_["version"],
-            # FIXME
-            decode_from_bip32_derivs(dict_["bip32_derivs"]),  # type: ignore[arg-type]
+            hd_key_paths,
             dict_["unknown"],
             check_validity,
         )
@@ -483,7 +486,7 @@ def _sort_or_shuffle_together(
     if ordering_func is None:
         random.shuffle(tmp)
     else:
-        tmp.sort(key=lambda t: ordering_func(t[0]))  # type: ignore
+        tmp.sort(key=lambda t: ordering_func(t[0]))  # type: ignore[misc]
     tuple_a, tuple_b = zip(*tmp)
     return list(tuple_a), list(tuple_b)
 

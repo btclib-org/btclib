@@ -118,9 +118,9 @@ def test_from_key() -> None:
 
     for invalid_pub_key in [INF, INF_xpub_data, *invalid_pub_keys]:
         with pytest.raises(BTClibValueError):
-            point_from_pub_key(invalid_pub_key)  # type: ignore
+            point_from_pub_key(invalid_pub_key)  # type: ignore[arg-type]
         with pytest.raises(BTClibValueError):
-            pub_keyinfo_from_pub_key(invalid_pub_key)  # type: ignore
+            pub_keyinfo_from_pub_key(invalid_pub_key)  # type: ignore[arg-type]
 
     for not_a_pub_key in [
         INF,
@@ -137,9 +137,9 @@ def test_from_key() -> None:
         *uncompressed_prv_keys,
     ]:
         with pytest.raises(BTClibValueError):
-            point_from_pub_key(not_a_pub_key)  # type: ignore
+            point_from_pub_key(not_a_pub_key)  # type: ignore[arg-type]
         with pytest.raises(BTClibValueError):
-            pub_keyinfo_from_pub_key(not_a_pub_key)  # type: ignore
+            pub_keyinfo_from_pub_key(not_a_pub_key)  # type: ignore[arg-type]
 
     for key in [Q, *plain_pub_keys, q, *plain_prv_keys]:
         assert Q == point_from_key(key)
@@ -205,9 +205,9 @@ def test_from_key() -> None:
         *invalid_prv_keys,
     ]:
         with pytest.raises(BTClibValueError):
-            point_from_key(invalid_key)  # type: ignore
+            point_from_key(invalid_key)  # type: ignore[arg-type]
         with pytest.raises(BTClibValueError):
-            pub_keyinfo_from_key(invalid_key)  # type: ignore
+            pub_keyinfo_from_key(invalid_key)  # type: ignore[arg-type]
 
     for not_a_key in [
         q0,

@@ -64,7 +64,7 @@ def verify_key_path(
     pub_key = type_and_payload(script_pub_key)[1]
     msg_hash = sig_hash.taproot(tx, i, prevouts, sighash_type, 0, annex, b"")
 
-    if not ssa_verify(msg_hash, pub_key, signature[:64]):  # type: ignore
+    if not ssa_verify(msg_hash, pub_key, signature[:64]):
         raise BTClibValueError()
 
 
@@ -93,7 +93,7 @@ def op_checksig(
         tapleaf_hash = tagged_hash(b"TapLeaf", preimage)
         ext = tapleaf_hash + b"\x00" + codesep_pos.to_bytes(4, "little")
         msg_hash = sig_hash.taproot(tx, i, prevouts, sighash_type, 1, annex, ext)
-        if not ssa_verify(msg_hash, pub_key, signature[:64]):  # type: ignore
+        if not ssa_verify(msg_hash, pub_key, signature[:64]):
             raise BTClibValueError()
     stack.append(_from_num(int(bool(signature))))
     return budget

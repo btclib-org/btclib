@@ -15,7 +15,7 @@ https://github.com/bitcoin/bips/blob/master/bip-0174.mediawiki
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Any, Mapping, Sequence
+from typing import Any, List, Mapping, Sequence, Tuple, cast
 
 from btclib.alias import Octets
 from btclib.bip32 import (
@@ -126,15 +126,21 @@ class PsbtOut:
     def from_dict(
         cls: type[PsbtOut], dict_: Mapping[str, Any], check_validity: bool = True
     ) -> PsbtOut:
+        hd_key_paths = cast(
+            Mapping[Octets, BIP32KeyOrigin],
+            decode_from_bip32_derivs(dict_["bip32_derivs"]),
+        )
+        taproot_hd_key_paths = cast(
+            Mapping[Octets, Tuple[List[bytes], BIP32KeyOrigin]],
+            taproot_bip32_from_dict(dict_["taproot_hd_key_paths"]),
+        )
         return cls(
             dict_["redeem_script"],
             dict_["witness_script"],
-            # FIXME
-            decode_from_bip32_derivs(dict_["bip32_derivs"]),  # type: ignore
+            hd_key_paths,
             dict_["taproot_internal_key"],
             dict_["taproot_tree"],
-            # FIXME
-            taproot_bip32_from_dict(dict_["taproot_hd_key_paths"]),  # type: ignore
+            taproot_hd_key_paths,
             dict_["unknown"],
             check_validity,
         )
@@ -195,7 +201,7 @@ class PsbtOut:
         hd_key_paths: dict[Octets, BIP32KeyOrigin] = {}
         taproot_internal_key = b""
         taproot_tree: list[tuple[int, int, bytes]] = []
-        taproot_hd_key_paths: dict[Octets, tuple[list[Octets], BIP32KeyOrigin]] = {}
+        taproot_hd_key_paths: dict[Octets, tuple[list[bytes], BIP32KeyOrigin]] = {}
         unknown: dict[Octets, Octets] = {}
 
         for k, v in output_map.items():
@@ -212,7 +218,7 @@ class PsbtOut:
                 taproot_tree = parse_taproot_tree(v)
             elif k[:1] == PSBT_OUT_TAP_BIP32_DERIVATION:
                 #  parse just one hd key path at time :-(
-                taproot_hd_key_paths[k[1:]] = parse_taproot_bip32(v)  # type: ignore
+                taproot_hd_key_paths[k[1:]] = parse_taproot_bip32(v)
             else:  # unknown
                 unknown[k] = v
 
@@ -222,7 +228,7 @@ class PsbtOut:
             hd_key_paths,
             taproot_internal_key,
             taproot_tree,
-            taproot_hd_key_paths,  # type: ignore
+            taproot_hd_key_paths,
             unknown,
             check_validity,
         )

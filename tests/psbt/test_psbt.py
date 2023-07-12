@@ -424,22 +424,22 @@ def test_exceptions() -> None:
     psbt_str = "cHNidP8BAJoCAAAAAljoeiG1ba8MI76OcHBFbDNvfLqlyHV5JPVFiHuyq911AAAAAAD/////g40EJ9DsZQpoqka7CwmK6kQiwHGyyng1Kgd5WdB86h0BAAAAAP////8CcKrwCAAAAAAWABTYXCtx0AYLCcmIauuBXlCZHdoSTQDh9QUAAAAAFgAUAK6pouXw+HaliN9VRuh0LR2HAI8AAAAAAAAAAAA="
 
     psbt = Psbt.b64decode(psbt_str)
-    psbt.outputs[0].redeem_script = "bad script"  # type: ignore
+    psbt.outputs[0].redeem_script = "bad script"  # type: ignore[assignment]
     with pytest.raises(TypeError):
         psbt.serialize()
 
     psbt = Psbt.b64decode(psbt_str)
-    psbt.inputs[0].witness_script = "bad script"  # type: ignore
+    psbt.inputs[0].witness_script = "bad script"  # type: ignore[assignment]
     with pytest.raises(TypeError):
         psbt.serialize()
 
     psbt = Psbt.b64decode(psbt_str)
-    psbt.outputs[0].unknown = {"bad key": b""}  # type: ignore
+    psbt.outputs[0].unknown = {"bad key": b""}  # type: ignore[dict-item]
     with pytest.raises(TypeError):
         psbt.serialize()
 
     psbt = Psbt.b64decode(psbt_str)
-    psbt.outputs[0].unknown = {b"deadbeef": "bad value"}  # type: ignore
+    psbt.outputs[0].unknown = {b"deadbeef": "bad value"}  # type: ignore[dict-item]
     with pytest.raises(TypeError):
         psbt.serialize()
 
@@ -449,7 +449,7 @@ def test_exceptions() -> None:
         psbt.serialize()
 
     psbt = Psbt.b64decode(psbt_str)
-    psbt.inputs[0].final_script_sig = "bad script"  # type: ignore
+    psbt.inputs[0].final_script_sig = "bad script"  # type: ignore[assignment]
     with pytest.raises(TypeError):
         psbt.serialize()
 

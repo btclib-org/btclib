@@ -15,7 +15,7 @@ from __future__ import annotations
 
 # Standard library imports
 from dataclasses import dataclass
-from typing import Any, Mapping
+from typing import Any, List, Mapping, Tuple, cast
 
 from btclib.alias import Octets
 from btclib.bip32.key_origin import (
@@ -54,7 +54,6 @@ from btclib.psbt.psbt_utils import (
     serialize_hd_key_paths,
     serialize_leaf_scripts,
     serialize_taproot_bip32,
-    taproot_bip32_from_dict,
     taproot_bip32_to_dict,
 )
 from btclib.script import Witness
@@ -319,6 +318,14 @@ class PsbtIn:
     def from_dict(
         cls: type[PsbtIn], dict_: Mapping[str, Any], check_validity: bool = True
     ) -> PsbtIn:
+        hd_key_paths = cast(
+            Mapping[Octets, BIP32KeyOrigin],
+            decode_from_bip32_derivs(dict_["bip32_derivs"]),
+        )
+        taproot_hd_key_paths = cast(
+            Mapping[Octets, Tuple[List[Octets], BIP32KeyOrigin]],
+            decode_from_bip32_derivs(dict_["taproot_hd_key_paths"]),
+        )
         return cls(
             Tx.from_dict(dict_["non_witness_utxo"], False)
             if dict_["non_witness_utxo"]
@@ -330,8 +337,7 @@ class PsbtIn:
             dict_["sig_hash"],
             dict_["redeem_script"],
             dict_["witness_script"],
-            # FIXME
-            decode_from_bip32_derivs(dict_["bip32_derivs"]),  # type: ignore
+            hd_key_paths,
             dict_["final_script_sig"],
             Witness.from_dict(dict_["final_script_witness"], False),
             dict_["ripemd160_preimages"],
@@ -341,7 +347,7 @@ class PsbtIn:
             dict_["taproot_key_spend_signature"],
             dict_["taproot_script_spend_signatures"],
             dict_["taproot_leaf_scripts"],
-            taproot_bip32_from_dict(dict_["taproot_hd_key_paths"]),  # type: ignore
+            taproot_hd_key_paths,
             dict_["taproot_internal_key"],
             dict_["taproot_merkle_root"],
             dict_["unknown"],
@@ -526,7 +532,10 @@ class PsbtIn:
             elif k[:1] == PSBT_IN_TAP_LEAF_SCRIPT:
                 taproot_leaf_scripts[k[1:]] = parse_leaf_script(v)
             elif k[:1] == PSBT_IN_TAP_BIP32_DERIVATION:
-                taproot_hd_key_paths[k[1:]] = parse_taproot_bip32(v)  # type: ignore
+                taproot_hd_key_path = cast(
+                    Tuple[List[Octets], BIP32KeyOrigin], parse_taproot_bip32(v)
+                )
+                taproot_hd_key_paths[k[1:]] = taproot_hd_key_path
             elif k[:1] == PSBT_IN_TAP_INTERNAL_KEY:
                 taproot_internal_key = deserialize_bytes(k, v, "taproot internal key")
             elif k[:1] == PSBT_IN_TAP_MERKLE_ROOT:

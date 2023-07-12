@@ -14,7 +14,7 @@ import json
 from os import path
 
 from btclib.ec import mult
-from btclib.ec.curve import CURVES
+from btclib.ec.curve import CURVES, Curve
 from btclib.ecc import dsa
 from btclib.ecc.rfc6979_nonce import rfc6979_nonce_
 from btclib.hashes import reduce_to_hlen
@@ -31,7 +31,9 @@ def test_rfc6979() -> None:
 
 
 def test_rfc6979_nonce_example() -> None:
-    class _helper:  # pylint: disable=too-few-public-methods
+    class _helper(
+        Curve
+    ):  # pylint: disable=too-few-public-methods, super-init-not-called
         def __init__(self, n: int) -> None:
             self.n = n
             self.nlen = n.bit_length()
@@ -43,7 +45,7 @@ def test_rfc6979_nonce_example() -> None:
     msg = b"sample"
     msg_hash = hashlib.sha256(msg).digest()
     k = 0x23AF4074C90A02B3FE61D286D5C87F425E6BDD81B
-    assert k == rfc6979_nonce_(msg_hash, x, fake_ec)  # type: ignore[arg-type]
+    assert k == rfc6979_nonce_(msg_hash, x, fake_ec)
 
 
 def test_rfc6979_nonce_tv() -> None:

@@ -53,7 +53,7 @@ class Block:
         script_sig.
 
         https://github.com/bitcoin/bips/blob/master/bip-0034.mediawiki
-         Block 227,835 (2013-03-24 15
+        Block 227,835 (2013-03-24 15
         :49: 13 GMT) was the last version 1 block.
         """
         if not self.transactions[0].is_coinbase():

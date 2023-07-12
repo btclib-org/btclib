@@ -78,7 +78,7 @@ def test_add_and_eq() -> None:
     assert Script(script_1) + Script(script_2) == Script(script_1 + script_2)
 
     with pytest.raises(TypeError):
-        _ = Script(script_1) + script_2  # type: ignore
+        _ = Script(script_1) + script_2  # type: ignore[operator]
 
 
 def test_simple_scripts() -> None:
