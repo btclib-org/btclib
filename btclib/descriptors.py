@@ -7,8 +7,7 @@
 #
 # No part of btclib including this file, may be copied, modified, propagated,
 # or distributed except according to the terms contained in the LICENSE file.
-
-"""Descriptors util functions
+"""Descriptors util functions.
 
 BIP 380: https://github.com/bitcoin/bips/blob/master/bip-0380.mediawiki
 """
@@ -21,7 +20,6 @@ GENERATOR = [0xF5DEE51989, 0xA9FDCA3312, 0x1BAB10E32D, 0x3706B1677A, 0x644D626FF
 
 
 def __descsum_polymod(symbols):
-    """Internal function that computes the descriptor checksum."""
     chk = 1
     for value in symbols:
         top = chk >> 35
@@ -32,7 +30,7 @@ def __descsum_polymod(symbols):
 
 
 def __descsum_expand(descriptor_string: str):
-    """Internal function that does the character to symbol expansion"""
+    """Perform the character to symbol expansion."""
     groups = []
     symbols = []
     for char in descriptor_string:
@@ -52,7 +50,7 @@ def __descsum_expand(descriptor_string: str):
 
 
 def descriptor_checksum(descriptor: str) -> str:
-    """Compute the descriptor checksum"""
+    """Compute the descriptor checksum."""
     symbols = __descsum_expand(descriptor) + [0, 0, 0, 0, 0, 0, 0, 0]
     checksum = __descsum_polymod(symbols) ^ 1
     return "".join(CHECKSUM_CHARSET[(checksum >> (5 * (7 - i))) & 31] for i in range(8))

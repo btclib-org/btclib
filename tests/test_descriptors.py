@@ -7,8 +7,7 @@
 #
 # No part of btclib including this file, may be copied, modified, propagated,
 # or distributed except according to the terms contained in the LICENSE file.
-
-"Tests for the `btclib.descriptors` module."
+"""Tests for the `btclib.descriptors` module."""
 
 import json
 from pathlib import Path
@@ -26,9 +25,8 @@ from btclib.exceptions import BTClibValueError
 # descriptors taken from https://github.com/bitcoin/bitcoin/blob/master/doc/descriptors.md
 # checksum calculated using https://docs.rs/bdk/latest/bdk/descriptor/checksum/fn.get_checksum.html
 def test_checksum():
-
     filename = Path(__file__).parent / "_data" / "descriptor_checksums.json"
-    with open(filename, "r", encoding="utf-8") as file:
+    with open(filename, encoding="utf-8") as file:
         data = json.load(file)
 
     for descriptor_data in data:
@@ -38,13 +36,11 @@ def test_checksum():
 
 
 def test_invalid_charset():
-
     with pytest.raises(BTClibValueError):
         __descsum_expand("è")
 
 
 def test_addr():
-
     address = "bc1qnehtvnd4fedkwjq6axfgsrxgllwne3k58rhdh0"
     descriptor = "addr(bc1qnehtvnd4fedkwjq6axfgsrxgllwne3k58rhdh0)#s2y3vepm"
     assert descriptor_from_address(address) == descriptor
