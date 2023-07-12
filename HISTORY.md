@@ -5,6 +5,12 @@ Notable changes to the codebase are documented here.
 Release names follow *[calendar versioning](https://calver.org/)*:
 full year, short month, short day (YYYY-M-D)
 
+## v2023.8 (work in progress, not released yet)
+
+Major changes includes:
+
+- dropped python 3.7 support
+
 ## v2023.7.12
 
 This is the last release supporting py37.
