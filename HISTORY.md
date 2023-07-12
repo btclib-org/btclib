@@ -5,11 +5,18 @@ Notable changes to the codebase are documented here.
 Release names follow *[calendar versioning](https://calver.org/)*:
 full year, short month, short day (YYYY-M-D)
 
-## v2023.6 (work in progress, not released yet)
+## v2023.7.12
+
+This is the last release supporting py37.
 
 Major changes include:
 
-- add descriptor util functions
+- added first draft implementation of descriptors
+- added first draft implementation of script engine
+- added taproot psbt fields
+- improved bip32 derivation (speeded-up, added one more test)
+- supported py3.12 with btclib_libsecp256k1
+- updated toolchain
 
 ## v2023.5.30
 
