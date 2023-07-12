@@ -1,8 +1,24 @@
 btclib.script package
 =====================
 
+Subpackages
+-----------
+
+.. toctree::
+   :maxdepth: 4
+
+   btclib.script.engine
+
 Submodules
 ----------
+
+btclib.script.op\_codes\_tapscript module
+-----------------------------------------
+
+.. automodule:: btclib.script.op_codes_tapscript
+   :members:
+   :undoc-members:
+   :show-inheritance:
 
 btclib.script.script module
 ---------------------------
