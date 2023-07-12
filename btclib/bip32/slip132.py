@@ -58,10 +58,7 @@ def address_from_xpub(xpub: BIP32Key) -> str:
         b58.p2wpkh_p2sh,
     ]
     for version, function in zip(version_list, function_list):
-        # with python>=3.8 use walrus operator
-        # if network := network_from_key_value(version, xpub.version):
-        network = network_from_key_value(version, xpub.version)
-        if network:
+        if network := network_from_key_value(version, xpub.version):
             return function(xpub, network)
     err_msg = f"unknown xpub version: {xpub.version.hex()}"  # pragma: no cover
     raise BTClibValueError(err_msg)  # pragma: no cover

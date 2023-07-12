@@ -144,10 +144,7 @@ class Psbt:
         for i, tx_in in enumerate(self.tx.vin):
             non_witness_utxo = self.inputs[i].non_witness_utxo
             redeem_script = self.inputs[i].redeem_script
-            # with python>=3.8 use walrus operator
-            # if witness_utxo := self.inputs[i].witness_utxo:
-            witness_utxo = self.inputs[i].witness_utxo
-            if witness_utxo:
+            if witness_utxo := self.inputs[i].witness_utxo:
                 script_pub_key = witness_utxo.script_pub_key
                 script_type, payload = type_and_payload(script_pub_key.script)
                 if script_type == "p2sh":

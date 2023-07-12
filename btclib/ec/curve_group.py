@@ -472,7 +472,7 @@ def multiples(Q: JacPoint, size: int, ec: CurveGroup) -> list[JacPoint]:
 MAX_W = 5
 
 
-@functools.lru_cache()  # results are cached to increase efficiency
+@functools.lru_cache  # results are cached to increase efficiency
 def cached_multiples(Q: JacPoint, ec: CurveGroup) -> list[JacPoint]:
     T = [INFJ, Q]
     for i in range(3, 2**MAX_W, 2):
@@ -481,7 +481,7 @@ def cached_multiples(Q: JacPoint, ec: CurveGroup) -> list[JacPoint]:
     return T
 
 
-@functools.lru_cache()  # results are cached to increase efficiency
+@functools.lru_cache  # results are cached to increase efficiency
 def cached_multiples_fixwind(
     Q: JacPoint, ec: CurveGroup, w: int = 4
 ) -> list[list[JacPoint]]:
