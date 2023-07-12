@@ -70,7 +70,7 @@ repos:
         language: python
         types: [python]
   - repo: https://github.com/PyCQA/docformatter
-    rev: v1.7.4
+    rev: v1.7.5
     hooks:
       - id: docformatter
         description: "Formats docstrings to follow PEP 257."
