@@ -58,4 +58,4 @@ def descriptor_checksum(descriptor: str) -> str:
 
 def descriptor_from_address(address: str) -> str:
     descriptor = f"addr({address})"
-    return descriptor + "#" + descriptor_checksum(descriptor)
+    return f"{descriptor}#{descriptor_checksum(descriptor)}"
