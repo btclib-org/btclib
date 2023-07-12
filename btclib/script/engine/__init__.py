@@ -11,8 +11,6 @@
 
 from __future__ import annotations
 
-from typing import cast
-
 from btclib.alias import Command, ScriptList
 from btclib.exceptions import BTClibValueError
 from btclib.hashes import sha256

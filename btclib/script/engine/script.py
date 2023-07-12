@@ -125,7 +125,7 @@ def op_checksig(
         msg_hash = sig_hash.segwit_v0(script_code, tx, i, signature[-1], prevout_value)
     else:
         msg_hash = sig_hash.legacy(script_code, tx, i, signature[-1])
-    return dsa_verify(msg_hash, pub_key, signature[:-1])  # type: ignore[return-value]
+    return bool(dsa_verify(msg_hash, pub_key, signature[:-1]))
 
 
 def script_op_count(count: int, increment: int):
