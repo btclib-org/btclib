@@ -331,7 +331,7 @@ class PsbtIn:
             dict_["redeem_script"],
             dict_["witness_script"],
             # FIXME
-            decode_from_bip32_derivs(dict_["bip32_derivs"]),  # type: ignore
+            decode_from_bip32_derivs(dict_["bip32_derivs"]),  # type: ignore[arg-type]
             dict_["final_script_sig"],
             Witness.from_dict(dict_["final_script_witness"], False),
             dict_["ripemd160_preimages"],
@@ -341,7 +341,7 @@ class PsbtIn:
             dict_["taproot_key_spend_signature"],
             dict_["taproot_script_spend_signatures"],
             dict_["taproot_leaf_scripts"],
-            taproot_bip32_from_dict(dict_["taproot_hd_key_paths"]),  # type: ignore
+            taproot_bip32_from_dict(dict_["taproot_hd_key_paths"]),  # type: ignore[arg-type]
             dict_["taproot_internal_key"],
             dict_["taproot_merkle_root"],
             dict_["unknown"],
@@ -526,7 +526,7 @@ class PsbtIn:
             elif k[:1] == PSBT_IN_TAP_LEAF_SCRIPT:
                 taproot_leaf_scripts[k[1:]] = parse_leaf_script(v)
             elif k[:1] == PSBT_IN_TAP_BIP32_DERIVATION:
-                taproot_hd_key_paths[k[1:]] = parse_taproot_bip32(v)  # type: ignore
+                taproot_hd_key_paths[k[1:]] = parse_taproot_bip32(v)  # type: ignore[assignment]
             elif k[:1] == PSBT_IN_TAP_INTERNAL_KEY:
                 taproot_internal_key = deserialize_bytes(k, v, "taproot internal key")
             elif k[:1] == PSBT_IN_TAP_MERKLE_ROOT:

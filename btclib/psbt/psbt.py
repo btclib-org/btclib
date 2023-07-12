@@ -494,7 +494,7 @@ def _ensure_consistency(psbts: Sequence[Psbt]) -> None:
     r_key_paths: dict[BIP32KeyOrigin, bytes] = {}
     unknown: dict[bytes, bytes] = {}
     for psbt in psbts:
-        psbt.assert_valid()
+        psbt.assert_valid()  # type: ignore
 
         if any(
             pub_key in key_paths and key_origin != key_paths[pub_key]

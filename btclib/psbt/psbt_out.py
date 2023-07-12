@@ -130,11 +130,11 @@ class PsbtOut:
             dict_["redeem_script"],
             dict_["witness_script"],
             # FIXME
-            decode_from_bip32_derivs(dict_["bip32_derivs"]),  # type: ignore
+            decode_from_bip32_derivs(dict_["bip32_derivs"]),  # type: ignore[arg-type]
             dict_["taproot_internal_key"],
             dict_["taproot_tree"],
             # FIXME
-            taproot_bip32_from_dict(dict_["taproot_hd_key_paths"]),  # type: ignore
+            taproot_bip32_from_dict(dict_["taproot_hd_key_paths"]),  # type: ignore[arg-type]
             dict_["unknown"],
             check_validity,
         )
@@ -212,7 +212,7 @@ class PsbtOut:
                 taproot_tree = parse_taproot_tree(v)
             elif k[:1] == PSBT_OUT_TAP_BIP32_DERIVATION:
                 #  parse just one hd key path at time :-(
-                taproot_hd_key_paths[k[1:]] = parse_taproot_bip32(v)  # type: ignore
+                taproot_hd_key_paths[k[1:]] = parse_taproot_bip32(v)  # type: ignore[assignment]
             else:  # unknown
                 unknown[k] = v
 
@@ -222,7 +222,7 @@ class PsbtOut:
             hd_key_paths,
             taproot_internal_key,
             taproot_tree,
-            taproot_hd_key_paths,  # type: ignore
+            taproot_hd_key_paths,  # type: ignore[arg-type]
             unknown,
             check_validity,
         )

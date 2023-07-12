@@ -16,7 +16,7 @@ from typing import Callable, MutableMapping
 try:
     from btclib_libsecp256k1.dsa import verify as dsa_verify
 except ImportError:
-    from btclib.ecc.dsa import verify_ as dsa_verify  # type: ignore
+    from btclib.ecc.dsa import verify_ as dsa_verify  # type: ignore[assignment]
 
 from btclib.alias import ScriptList
 from btclib.ecc.dsa import Sig
@@ -125,7 +125,7 @@ def op_checksig(
         msg_hash = sig_hash.segwit_v0(script_code, tx, i, signature[-1], prevout_value)
     else:
         msg_hash = sig_hash.legacy(script_code, tx, i, signature[-1])
-    return dsa_verify(msg_hash, pub_key, signature[:-1])  # type: ignore
+    return dsa_verify(msg_hash, pub_key, signature[:-1])  # type: ignore[return-value]
 
 
 def script_op_count(count: int, increment: int):

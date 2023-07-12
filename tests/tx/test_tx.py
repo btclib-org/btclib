@@ -339,7 +339,7 @@ def test_dataclasses_json_dict() -> None:
     # Tx dataclass to dict
     tx_dict = tx.to_dict()
     assert isinstance(tx_dict, dict)
-    assert tx_dict["vin"][0]["txinwitness"]["stack"]  # type: ignore
+    assert tx_dict["vin"][0]["txinwitness"]["stack"]  # type: ignore[index]
 
     # Tx dataclass dict to file
     datadir = path.join(path.dirname(__file__), "_generated_files")
