@@ -16,9 +16,9 @@ from os import path
 import pytest
 
 from btclib.exceptions import BTClibValueError
-from btclib.script.engine import verify_input, verify_transaction
+from btclib.script.engine import verify_amounts, verify_input, verify_transaction
 from btclib.script.witness import Witness
-from btclib.tx.tx import Tx
+from btclib.tx import OutPoint, Tx, TxIn
 from btclib.tx.tx_out import ScriptPubKey, TxOut
 from tests.script_engine import parse_script
 
@@ -107,13 +107,19 @@ def test_valid_legacy() -> None:
             if f in flags:
                 flags.remove(f)
 
+        check_amounts = True
+
         prevouts = []
         for i in x[0]:
             amount = 0 if len(i) == 3 else i[3]
+            if not amount:
+                check_amounts = False
             script_pub_key = parse_script(i[2])
             prevouts.append(TxOut(amount, ScriptPubKey(script_pub_key)))
 
-        verify_transaction(prevouts, tx, flags if flags != ["NONE"] else None)
+        verify_transaction(
+            prevouts, tx, flags if flags != ["NONE"] else None, check_amounts
+        )
 
 
 def test_invalid_legacy() -> None:
@@ -136,13 +142,29 @@ def test_invalid_legacy() -> None:
 
         flags = x[2].split(",")  # different flags handling
 
+        check_amounts = True
+
         prevouts = []
         for i in x[0]:
             amount = 0 if len(i) == 3 else i[3]
+            if not amount:
+                check_amounts = False
             with warnings.catch_warnings():
                 warnings.simplefilter("ignore")
                 script_pub_key = parse_script(i[2])
             prevouts.append(TxOut(amount, ScriptPubKey(script_pub_key)))
 
         with pytest.raises((BTClibValueError, IndexError, KeyError)):
-            verify_transaction(prevouts, tx, flags if flags != ["NONE"] else None)
+            verify_transaction(
+                prevouts, tx, flags if flags != ["NONE"] else None, check_amounts
+            )
+
+
+def test_invalid_amount() -> None:
+    prevout = TxOut(0, ScriptPubKey(""))
+
+    tx = Tx(vin=[TxIn(OutPoint(b"1" * 32, 1))], vout=[TxOut(10, ScriptPubKey(""))])
+
+    # Output amount greater than sum of inputs
+    with pytest.raises(BTClibValueError):
+        verify_amounts([prevout], tx)
