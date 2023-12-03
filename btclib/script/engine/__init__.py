@@ -180,12 +180,19 @@ def verify_input(prevouts: list[TxOut], tx: Tx, i: int, flags: list[str]) -> Non
         raise BTClibValueError()
 
 
+def verify_amounts(prevouts: list[TxOut], tx: Tx) -> None:
+    if sum(x.value for x in tx.vout) > sum(x.value for x in prevouts):
+        raise BTClibValueError("Invalid transaction amounts")
+
+
 def verify_transaction(
-    prevouts: list[TxOut], tx: Tx, flags: list | None = None
+    prevouts: list[TxOut], tx: Tx, flags: list | None = None, check_amounts=True
 ) -> None:
     if flags is None:
         flags = ALL_FLAGS[:]
     if len(prevouts) != len(tx.vin):
         raise BTClibValueError()
+    if check_amounts:
+        verify_amounts(prevouts, tx)
     for i in range(len(prevouts)):
         verify_input(prevouts, tx, i, flags)
