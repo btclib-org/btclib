@@ -200,8 +200,9 @@ class PsbtIn:
         taproot_key_spend_signature: Octets = b"",
         taproot_script_spend_signatures: Mapping[Octets, Octets] | None = None,
         taproot_leaf_scripts: Mapping[Octets, tuple[Octets, int]] | None = None,
-        taproot_hd_key_paths: Mapping[Octets, tuple[list[Octets], BIP32KeyOrigin]]
-        | None = None,
+        taproot_hd_key_paths: (
+            Mapping[Octets, tuple[list[Octets], BIP32KeyOrigin]] | None
+        ) = None,
         taproot_internal_key: Octets = b"",
         taproot_merkle_root: Octets = b"",
         unknown: Mapping[Octets, Octets] | None = None,
@@ -283,12 +284,12 @@ class PsbtIn:
             self.assert_valid()
 
         return {
-            "non_witness_utxo": self.non_witness_utxo.to_dict(False)
-            if self.non_witness_utxo
-            else None,
-            "witness_utxo": self.witness_utxo.to_dict(False)
-            if self.witness_utxo
-            else None,
+            "non_witness_utxo": (
+                self.non_witness_utxo.to_dict(False) if self.non_witness_utxo else None
+            ),
+            "witness_utxo": (
+                self.witness_utxo.to_dict(False) if self.witness_utxo else None
+            ),
             "partial_signatures": encode_dict_bytes_bytes(self.partial_sigs),
             "sig_hash": self.sig_hash_type,
             # TODO make it { "asm": "", "hex": "" }
@@ -327,12 +328,16 @@ class PsbtIn:
             decode_from_bip32_derivs(dict_["taproot_hd_key_paths"]),
         )
         return cls(
-            Tx.from_dict(dict_["non_witness_utxo"], False)
-            if dict_["non_witness_utxo"]
-            else None,
-            TxOut.from_dict(dict_["witness_utxo"], False)
-            if dict_["witness_utxo"]
-            else None,
+            (
+                Tx.from_dict(dict_["non_witness_utxo"], False)
+                if dict_["non_witness_utxo"]
+                else None
+            ),
+            (
+                TxOut.from_dict(dict_["witness_utxo"], False)
+                if dict_["witness_utxo"]
+                else None
+            ),
             dict_["partial_signatures"],
             dict_["sig_hash"],
             dict_["redeem_script"],
