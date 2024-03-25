@@ -224,11 +224,14 @@ class Tx:
                 b"".join(tx_in.serialize(check_validity) for tx_in in self.vin),
                 var_int.serialize(len(self.vout)),
                 b"".join(tx_out.serialize(check_validity) for tx_out in self.vout),
-                b"".join(
-                    tx_in.script_witness.serialize(check_validity) for tx_in in self.vin
-                )
-                if segwit
-                else b"",
+                (
+                    b"".join(
+                        tx_in.script_witness.serialize(check_validity)
+                        for tx_in in self.vin
+                    )
+                    if segwit
+                    else b""
+                ),
                 self.lock_time.to_bytes(4, byteorder="little", signed=False),
             ]
         )

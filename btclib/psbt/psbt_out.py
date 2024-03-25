@@ -80,8 +80,9 @@ class PsbtOut:
         hd_key_paths: Mapping[Octets, BIP32KeyOrigin] | None = None,
         taproot_internal_key: Octets = b"",
         taproot_tree: Sequence[tuple[int, int, Octets]] | None = None,
-        taproot_hd_key_paths: Mapping[Octets, tuple[list[bytes], BIP32KeyOrigin]]
-        | None = None,
+        taproot_hd_key_paths: (
+            Mapping[Octets, tuple[list[bytes], BIP32KeyOrigin]] | None
+        ) = None,
         unknown: Mapping[Octets, Octets] | None = None,
         check_validity: bool = True,
     ) -> None:
