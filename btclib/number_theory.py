@@ -19,6 +19,7 @@ with the following modifications:
 * minor improvements
 * added extensive unit test
 """
+
 from __future__ import annotations
 
 from btclib.exceptions import BTClibValueError

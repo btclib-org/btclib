@@ -18,6 +18,7 @@ padding.
 
 Output entropy is always raw.
 """
+
 from __future__ import annotations
 
 import math

@@ -38,7 +38,6 @@ with the following modifications:
 - checked for raised exceptions instead of assertIsNone
 """
 
-
 import itertools
 
 import pytest
@@ -72,7 +71,7 @@ def test_bech32() -> None:
 
     invalid_checksum = [
         ["\x20" + " 1nwldj5", r"HRP character out of range: *"],
-        ["\x7F" + "1axkwrx", r"HRP character out of range: *"],
+        ["\x7f" + "1axkwrx", r"HRP character out of range: *"],
         ["\x80" + "1eym55h", r"HRP character out of range: *"],
         ["pzry9x0s0muk", r"no separator character: *"],
         ["1pzry9x0s0muk", r"empty HRP: *"],
@@ -129,7 +128,7 @@ def test_bech32m() -> None:
 
     invalid_checksum = [
         ["\x20" + "1xj0phk", r"HRP character out of range: *"],
-        ["\x7F" + "1g6xzxy", r"HRP character out of range: *"],
+        ["\x7f" + "1g6xzxy", r"HRP character out of range: *"],
         ["\x80" + "1vctc34", r"HRP character out of range: *"],
         ["qyrz8wqd2c9m", r"no separator character: *"],
         ["1qyrz8wqd2c9m", r"empty HRP: *"],

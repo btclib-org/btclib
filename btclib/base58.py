@@ -34,6 +34,7 @@ https://github.com/keis/base58, with the following modifications:
   it supports encoding bytes-like objects to ASCII bytes,
   and decoding ASCII bytes-like objects or ASCII strings to bytes.
 """
+
 from __future__ import annotations
 
 from btclib.alias import Octets, String

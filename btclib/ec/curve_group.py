@@ -13,6 +13,7 @@ Note that CurveGroup does not have to be a cyclic subgroup. For the
 cyclic subgroup class CurveSubGroup and the cyclic subgroup class of
 prime order Curve, see the btclib.ec.curve module.
 """
+
 from __future__ import annotations
 
 import functools
@@ -699,13 +700,14 @@ def _double_mult(
 def _multi_mult(
     scalars: Sequence[int], jac_points: Sequence[JacPoint], ec: CurveGroup
 ) -> JacPoint:
-    """Return the multi scalar multiplication u1*Q1 + ... + un*Qn.
+    """Return the multi scalar multiplication u1*Q1 + ...
 
-    Use Bos-Coster's algorithm for efficient computation.
+    + un*Qn.
+        Use Bos-Coster's algorithm for efficient computation.
 
-    The input points are assumed to be on curve, the scalar coefficients
-    are assumed to have been reduced mod n if appropriate (e.g. cyclic
-    groups of order n).
+        The input points are assumed to be on curve, the scalar coefficients
+        are assumed to have been reduced mod n if appropriate (e.g. cyclic
+        groups of order n).
     """
     # source: https://cr.yp.to/badbatch/boscoster2.py
     if len(scalars) != len(jac_points):

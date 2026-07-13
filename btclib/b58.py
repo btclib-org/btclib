@@ -12,6 +12,7 @@
 Base58 encoding of public keys and scripts as addresses, private keys as
 WIFs
 """
+
 from __future__ import annotations
 
 from btclib import b32

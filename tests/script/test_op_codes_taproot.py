@@ -9,7 +9,6 @@
 # or distributed except according to the terms contained in the LICENSE file.
 """Tests for the `btclib.script.op_codes_tapscript` module."""
 
-
 import pytest
 
 from btclib.exceptions import BTClibValueError

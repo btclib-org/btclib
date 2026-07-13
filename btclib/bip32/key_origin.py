@@ -8,6 +8,7 @@
 # No part of btclib including this file, may be copied, modified, propagated,
 # or distributed except according to the terms contained in the LICENSE file.
 """BIP32 key origin."""
+
 from __future__ import annotations
 
 from dataclasses import dataclass
@@ -138,7 +139,7 @@ _BIP32Deriv = Mapping[str, str]
 
 
 def encode_to_bip32_derivs(
-    hd_key_paths: Mapping[bytes, BIP32KeyOrigin]
+    hd_key_paths: Mapping[bytes, BIP32KeyOrigin],
 ) -> list[_BIP32Deriv]:
     """Return the json representation of the dataclass element."""
     return [
@@ -152,7 +153,7 @@ def encode_to_bip32_derivs(
 
 
 def _decode_from_bip32_deriv(
-    bip32_deriv: Mapping[str, str]
+    bip32_deriv: Mapping[str, str],
 ) -> tuple[bytes, BIP32KeyOrigin]:
     # FIXME remove size checks to allow
     # the instantiation of invalid master_fingerprint and pub_key

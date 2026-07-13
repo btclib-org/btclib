@@ -101,7 +101,7 @@ def test_bip340_vectors() -> None:
         # skip column headers while checking that there are 7 columns
         next(reader)
         for row in reader:
-            (index, seckey, pub_key, aux_rand, m, sig, result, comment) = row
+            index, seckey, pub_key, aux_rand, m, sig, result, comment = row
             err_msg = f"Test vector #{int(index)}"
             try:
                 if seckey != "":

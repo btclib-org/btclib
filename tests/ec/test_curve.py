@@ -9,7 +9,6 @@
 # or distributed except according to the terms contained in the LICENSE file.
 """Tests for the `btclib.curve` module."""
 
-
 import itertools
 import json
 from os import path

@@ -30,6 +30,7 @@ A BIP32 extended key is 78 bytes:
 - [13:45] chain code
 - [45:78] compressed pub_key or [0x00][prv_key]
 """
+
 from __future__ import annotations
 
 import copy

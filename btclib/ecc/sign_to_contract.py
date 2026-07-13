@@ -31,6 +31,7 @@ W.x = (R+eG).x
 
 with e = hash(R||commit_hash)) and W.x being known from the signature.
 """
+
 from __future__ import annotations
 
 from hashlib import sha256

@@ -11,6 +11,7 @@
 
 mypy aliases, documenting also coding input conventions.
 """
+
 from __future__ import annotations
 
 from io import BytesIO

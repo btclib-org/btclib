@@ -12,6 +12,7 @@
 Dataclass encapsulating version, previous block hash, merkle root, time,
 bits, and nonce.
 """
+
 from __future__ import annotations
 
 from dataclasses import dataclass
