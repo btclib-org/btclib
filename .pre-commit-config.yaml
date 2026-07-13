@@ -7,7 +7,7 @@
 
 repos:
   - repo: https://github.com/pre-commit/pre-commit-hooks
-    rev: v4.4.0
+    rev: v6.0.0
     hooks:
       - id: trailing-whitespace
       - id: end-of-file-fixer
@@ -40,7 +40,7 @@ repos:
         args: [--notice=COPYRIGHT]
         files: python
   - repo: https://github.com/PyCQA/autoflake
-    rev: v2.2.0
+    rev: v2.3.3
     hooks:
       - id: autoflake
         args:
@@ -54,7 +54,7 @@ repos:
         language: python
         types: [python]
   - repo: https://github.com/asottile/pyupgrade
-    rev: v3.9.0
+    rev: v3.21.2
     hooks:
       - id: pyupgrade
         args: [--py38-plus]
@@ -62,7 +62,7 @@ repos:
         language: python
         types: [python]
   - repo: https://github.com/PyCQA/isort
-    rev: 5.12.0
+    rev: 9.0.0b1
     hooks:
       - id: isort
         name: isort (black profile, in place fixes)
@@ -70,7 +70,7 @@ repos:
         language: python
         types: [python]
   - repo: https://github.com/PyCQA/docformatter
-    rev: v1.7.5
+    rev: v1.7.8
     hooks:
       - id: docformatter
         description: "Formats docstrings to follow PEP 257."
@@ -78,7 +78,7 @@ repos:
         types: [python]
         args: ["--in-place"]
   - repo: https://github.com/DanielNoord/pydocstringformatter
-    rev: v0.7.3
+    rev: v1.0.0
     hooks:
       - id: pydocstringformatter
         language: python
@@ -97,13 +97,13 @@ repos:
         language: python
         types: [python]
   - repo: https://github.com/PyCQA/flake8
-    rev: 6.0.0
+    rev: 7.3.0
     hooks:
       - id: flake8
         language: python
         types: [python]
-  - repo: https://github.com/psf/black
-    rev: 23.7.0
+  - repo: https://github.com/psf/black-pre-commit-mirror
+    rev: 26.5.1
     hooks:
       - id: black
         name: black (in place fixes)
@@ -116,7 +116,7 @@ repos:
         language: python
         types: [python]
   - repo: https://github.com/PyCQA/bandit
-    rev: 1.7.5
+    rev: 1.9.4
     hooks:
       - id: bandit
         name: bandit (btclib)
@@ -125,7 +125,7 @@ repos:
         language: python
         types: [python]
   - repo: https://github.com/PyCQA/bandit
-    rev: 1.7.5
+    rev: 1.9.4
     hooks:
       - id: bandit
         name: bandit (tests)
@@ -138,7 +138,7 @@ repos:
         language: python
         types: [python]
   - repo: https://github.com/PyCQA/pylint
-    rev: v3.0.0a6
+    rev: v4.0.6
     hooks:
       - id: pylint
         args: [
@@ -147,13 +147,13 @@ repos:
         language: python
         types: [python]
   - repo: https://github.com/pre-commit/mirrors-mypy
-    rev: v1.4.1
+    rev: v2.3.0
     hooks:
       - id: mypy
         language: python
         types: [python]
   - repo: https://github.com/mgedmin/check-manifest
-    rev: "0.49"
+    rev: "0.51"
     hooks:
       - id: check-manifest
         description: Check the completeness of MANIFEST.in for Python packages.
@@ -161,6 +161,6 @@ repos:
         pass_filenames: false
         always_run: true
   - repo: https://github.com/regebro/pyroma
-    rev: "4.2"
+    rev: "5.1b1"
     hooks:
       - id: pyroma
