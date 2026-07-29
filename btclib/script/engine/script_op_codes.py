@@ -9,7 +9,7 @@
 
 from __future__ import annotations
 
-from typing import Callable
+from typing import Callable, Optional
 
 from btclib.alias import ScriptList
 from btclib.exceptions import BTClibValueError
@@ -45,8 +45,11 @@ def _to_bool(element: bytes) -> bool:
 
 # what every operation in the mappings of script.py and tapscript.py is.
 # The op codes taking anything else, op_if and its condition stack among
-# them, are driven by those modules directly instead
-ScriptOp = Callable[[list[bytes], list[bytes], list[str]], ScriptList | None]
+# them, are driven by those modules directly instead.
+# Optional, not "| None": this is an assignment, which python evaluates
+# whatever the __future__ import above defers, and PEP 604 unions are a
+# TypeError until 3.10
+ScriptOp = Callable[[list[bytes], list[bytes], list[str]], Optional[ScriptList]]
 
 
 def op_if(
