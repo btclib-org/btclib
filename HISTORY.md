@@ -25,8 +25,9 @@ Major changes includes:
   always declared: the import is no longer guarded, and secp256k1
   signing, verification, and generator multiplication always go through
   the bindings. The python implementation is not going anywhere: it
-  serves every other curve, a hash function other than sha256, a
-  caller-imposed nonce, and remains the reference implementation
+  serves every other curve, a hash function other than sha256, and a
+  caller-imposed nonce, and the test suite keeps validating it against
+  the bindings, libsecp256k1 being the authority on the answer
 - moved the project management to [uv](https://docs.astral.sh/uv/):
   dependencies, dependency groups, and packaging metadata are declared in
   pyproject.toml (setup.py, requirements.txt, requirements-dev.txt, and

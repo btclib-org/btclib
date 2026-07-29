@@ -45,7 +45,9 @@ FFI bindings to
 they are a required dependency, not an optional accelerator, so
 installing btclib needs either one of their wheels or a C toolchain to
 build them. The python implementation is what every other curve uses,
-and remains the reference the test suite checks the bindings against.
+and the test suite validates it against the bindings: it is libsecp256k1
+that says what the right answer is, being the implementation bitcoin
+consensus itself relies on.
 
 Included features are:
 
