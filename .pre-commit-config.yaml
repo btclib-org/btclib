@@ -69,12 +69,13 @@ repos:
         language: python
         pass_filenames: false
         always_run: true
-        # check-manifest builds an sdist with "python -m build": pre-commit.ci
-        # installs hook environments with uv, so they have no pip and their
-        # interpreter has no ensurepip either; with pip available build creates
-        # the isolated environment without ensurepip, installing into it from
-        # the outer pip (pip --python)
-        additional_dependencies: [pip]
+        # check-manifest builds an sdist with "python -m build"; on
+        # pre-commit.ci build cannot create its isolated environment (no
+        # ensurepip in the interpreter, read-only virtualenv app data), so
+        # build the sdist in the hook environment itself, which just needs
+        # the build requirements (setuptools) to be available
+        args: [--no-build-isolation]
+        additional_dependencies: [setuptools]
   - repo: https://github.com/regebro/pyroma
     rev: "5.0.1"
     hooks:
