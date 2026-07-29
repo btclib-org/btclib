@@ -1,0 +1,159 @@
+name: release
+
+# one pipeline, two targets:
+# - pushing a v<version> tag runs the full test matrix, builds and
+#   checks the distribution files, publishes them to PyPI, and turns
+#   the tag into a GitHub release whose notes come from HISTORY.md
+# - workflow_dispatch is the rehearsal: the same pipeline from any
+#   branch, publishing to TestPyPI under a unique .dev<N> version.
+#   A rehearsal is never tagged
+# Both indices trust this workflow directly (PyPI Trusted Publishing,
+# see RELEASING.md): there is no API token to store or leak
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  # the whole build/test matrix, exactly as a pull request runs it
+  test:
+    uses: ./.github/workflows/test.yml
+
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v7
+      - name: Setup uv
+        uses: astral-sh/setup-uv@v9.0.0
+        with:
+          enable-cache: true
+      # rehearsed here so a mismatch cannot wait for release day to
+      # surface; the tag comparison below is the release-only half
+      - name: Check that the two declared versions agree
+        run: |
+          version=$(sed -n 's/^__version__ = "\(.*\)"$/\1/p' btclib/__init__.py)
+          docs=$(sed -n 's/^release = "\(.*\)"$/\1/p' docs/source/conf.py)
+          echo "btclib.__version__ = $version"
+          if [ "$docs" != "$version" ]; then
+            echo "::error::docs/source/conf.py declares $docs, btclib/__init__.py declares $version"
+            exit 1
+          fi
+      - name: Check that the tag matches the declared version (release only)
+        if: github.event_name == 'push'
+        run: |
+          version=$(sed -n 's/^__version__ = "\(.*\)"$/\1/p' btclib/__init__.py)
+          if [ "v$version" != "$GITHUB_REF_NAME" ]; then
+            echo "::error::tag $GITHUB_REF_NAME does not match btclib.__version__ = $version"
+            exit 1
+          fi
+      # TestPyPI refuses a version it has already seen: the rehearsal
+      # appends .dev<run number>, unique per dispatch and sorted before
+      # the release it rehearses (PEP 440). Re-running a finished
+      # rehearsal would reuse its run number and collide on TestPyPI:
+      # dispatch a fresh run instead
+      - name: Make the version unique for TestPyPI (rehearsal only)
+        if: github.event_name == 'workflow_dispatch'
+        run: |
+          sed -i "s/^__version__ = \"\(.*\)\"$/__version__ = \"\1.dev$GITHUB_RUN_NUMBER\"/" btclib/__init__.py
+          grep "^__version__" btclib/__init__.py
+      - name: Check that the sdist will be complete
+        run: uv run --frozen --only-group build check-manifest
+      - name: Check the packaging metadata
+        run: uv run --frozen --only-group build pyroma --min 10 .
+      - name: Build the distribution files
+        run: uv build
+      # from an empty directory, so the import resolves to the wheel
+      # and not to the btclib/ source tree. Unlike the test matrix,
+      # which follows tool.uv.sources to the bindings' dev branch, this
+      # resolves btclib_libsecp256k1 from PyPI: it fails, and must,
+      # whenever the published bindings cannot satisfy the declared pin
+      - name: Smoke-test the wheel, with its dependencies from PyPI
+        run: |
+          cd "$RUNNER_TEMP"
+          uv run --isolated --no-project --with "$GITHUB_WORKSPACE"/dist/*.whl \
+            python -c "import btclib; print(btclib.__version__)"
+      - name: Upload the distribution files
+        uses: actions/upload-artifact@v7
+        with:
+          name: dist
+          path: dist/
+
+  publish-testpypi:
+    needs: [test, build]
+    if: github.event_name == 'workflow_dispatch' && github.repository == 'btclib-org/btclib'
+    runs-on: ubuntu-latest
+    environment:
+      name: testpypi
+      url: https://test.pypi.org/project/btclib/
+    permissions:
+      # OIDC: this is what lets TestPyPI trust the workflow itself
+      id-token: write
+    steps:
+      - name: Download the distribution files
+        uses: actions/download-artifact@v8
+        with:
+          name: dist
+          path: dist/
+      - name: Publish to TestPyPI
+        uses: pypa/gh-action-pypi-publish@release/v1
+        with:
+          repository-url: https://test.pypi.org/legacy/
+
+  publish-pypi:
+    needs: [test, build]
+    if: github.event_name == 'push' && github.repository == 'btclib-org/btclib'
+    runs-on: ubuntu-latest
+    environment:
+      name: pypi
+      url: https://pypi.org/project/btclib/
+    permissions:
+      # OIDC: this is what lets PyPI trust the workflow itself
+      id-token: write
+    steps:
+      - name: Download the distribution files
+        uses: actions/download-artifact@v8
+        with:
+          name: dist
+          path: dist/
+      - name: Publish to PyPI
+        uses: pypa/gh-action-pypi-publish@release/v1
+
+  # only after PyPI has accepted the files: a GitHub release announces
+  # what users can already install
+  github-release:
+    needs: publish-pypi
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v7
+      - name: Download the distribution files
+        uses: actions/download-artifact@v8
+        with:
+          name: dist
+          path: dist/
+      - name: Create the GitHub release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        # the release notes are the tag's own section of HISTORY.md;
+        # if the section is missing the release still happens, with
+        # notes generated from the merged pull requests instead
+        run: |
+          awk -v tag="$GITHUB_REF_NAME" '
+            $0 ~ "^## " tag "( |$)" {found=1; next}
+            /^## / && found {exit}
+            found {print}
+          ' HISTORY.md > "$RUNNER_TEMP/notes.md"
+          if [ -s "$RUNNER_TEMP/notes.md" ]; then
+            gh release create "$GITHUB_REF_NAME" dist/* \
+              --title "$GITHUB_REF_NAME" --notes-file "$RUNNER_TEMP/notes.md"
+          else
+            echo "::warning::HISTORY.md has no $GITHUB_REF_NAME section"
+            gh release create "$GITHUB_REF_NAME" dist/* \
+              --title "$GITHUB_REF_NAME" --generate-notes
+          fi
