@@ -1,0 +1,42 @@
+# two of the four ecosystems this repo has, deliberately:
+# - the Gemfile is left out: GitHub builds the pages site on its own
+#   side, so github-pages is only ever resolved for a local preview
+# - the pre-commit hook revs are left out because dependabot has no
+#   pre-commit ecosystem; pre-commit.ci updates them instead, weekly,
+#   which is its default when the config declares no ci: block
+#
+# every pull request here runs the whole test matrix, so both ecosystems
+# group their updates into a single pull request and ask monthly rather
+# than weekly: nothing either of them tracks is security-critical
+version: 2
+updates:
+  # four of the six actions are on a floating major tag and one is on a
+  # branch, so they already move on their own; what this buys is the
+  # exact pin, astral-sh/setup-uv, which never will, and a heads-up when
+  # a major tag is the one that changed
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: monthly
+    groups:
+      actions:
+        patterns: ["*"]
+
+  # uv.lock is committed and the workflows install from it with --frozen,
+  # while the dependency groups declare no version at all: the whole
+  # drift of ruff, mypy, pytest and sphinx lives in the lock file, and
+  # nothing moves it today. The uv-lock pre-commit hook only re-locks
+  # what pyproject.toml changed, it does not upgrade
+  - package-ecosystem: uv
+    directory: /
+    schedule:
+      interval: monthly
+    groups:
+      dev-tooling:
+        patterns: ["*"]
+    ignore:
+      # the only runtime dependency, and tool.uv.sources pins it to a
+      # commit of the bindings' dev branch: left to dependabot it would
+      # open a pull request every time that branch moves. It is bumped
+      # by re-locking, when the bindings are ready to be tracked
+      - dependency-name: btclib-libsecp256k1
