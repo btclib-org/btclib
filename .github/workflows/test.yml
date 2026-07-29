@@ -32,7 +32,7 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v7
       - name: Setup uv
-        uses: astral-sh/setup-uv@v9
+        uses: astral-sh/setup-uv@v9.0.0
         with:
           # btclib_libsecp256k1 is built from source (see tool.uv.sources):
           # the cache keeps that to once per commit of the bindings
@@ -55,7 +55,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Setup uv
-        uses: astral-sh/setup-uv@v9
+        uses: astral-sh/setup-uv@v9.0.0
       - name: Upload to coveralls.io
         run: uvx coveralls --finish
         env:
