@@ -189,7 +189,7 @@ test = [
 [[package]]
 name = "btclib-libsecp256k1"
 version = "0.7.1rc1"
-source = { git = "https://github.com/btclib-org/btclib_libsecp256k1?branch=dev#b6ebc5e4867aac147df0dec043b890a864fd65fc" }
+source = { git = "https://github.com/btclib-org/btclib_libsecp256k1?branch=dev#cfcaa72f49e70253a34dda59bfc4abb9686fc82c" }
 dependencies = [
     { name = "cffi", version = "2.0.0", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.10'" },
     { name = "cffi", version = "2.1.0", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.10'" },

@@ -28,7 +28,13 @@ jobs:
   # what the matrix buys: btclib_libsecp256k1 is built from source (see
   # tool.uv.sources), so every (os, architecture, interpreter) triple is a
   # distinct C toolchain, and the pure python code meets a distinct
-  # hashlib and OpenSSL. windows-11-arm is a job of its own, below
+  # hashlib and OpenSSL.
+  # windows-11-arm needs no special handling, and that is worth a word,
+  # because it used to: which architecture the interpreter targets there
+  # is up to the runner image, native arm64 for the versions it caches
+  # and emulated x86-64 for the ones uv has to download, and the bindings
+  # now build the vendored library for the interpreter rather than for
+  # the host, so either one links
   test-py:
     runs-on: ${{ matrix.os }}
     strategy:
@@ -41,6 +47,7 @@ jobs:
             macos-26-intel,
             macos-latest,
             windows-latest,
+            windows-11-arm,
           ]
         python:
           ["3.9", "3.10", "3.11", "3.12", "3.13", "3.14", "pypy3.10", "pypy3.11"]
@@ -54,31 +61,6 @@ jobs:
           # once per commit of the bindings
           enable-cache: true
           python-version: ${{ matrix.python }}
-      - name: Run pytest
-        run: uv run --frozen --no-default-groups --group test pytest
-
-  # windows on arm64 cannot join the matrix above, on two counts.
-  # A bare "3.13" request gets an emulated x86-64 interpreter, because uv
-  # still considers the native aarch64 distribution immature; cmake then
-  # builds libsecp256k1 with the native arm64 cl.exe, and linking the
-  # arm64 static library into an x86-64 extension leaves every secp256k1
-  # symbol unresolved (LNK2001). Asking for the native interpreter
-  # explicitly makes both sides arm64, and the suite passes.
-  # That interpreter only exists from 3.11 on, and not at all for pypy
-  test-py-windows-arm64:
-    runs-on: windows-11-arm
-    strategy:
-      fail-fast: false
-      matrix:
-        python: ["3.11", "3.12", "3.13", "3.14"]
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v7
-      - name: Setup uv
-        uses: astral-sh/setup-uv@v9.0.0
-        with:
-          enable-cache: true
-          python-version: cpython-${{ matrix.python }}-windows-aarch64
       - name: Run pytest
         run: uv run --frozen --no-default-groups --group test pytest
 
