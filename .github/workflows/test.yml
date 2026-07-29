@@ -19,6 +19,11 @@ on:
   # request is not open yet
   workflow_dispatch:
 
+# cancel superseded runs on the same branch/PR
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   # what the matrix buys: btclib_libsecp256k1 is built from source (see
   # tool.uv.sources), so every (os, architecture, interpreter) triple is a
