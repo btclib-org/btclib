@@ -20,16 +20,19 @@ from btclib.ec import (
     Curve,
     double_mult,
     jac_from_aff,
-    libsecp256k1,
     mult,
     multi_mult,
     secp256k1,
 )
-from btclib.ec.curve import CURVES
+from btclib.ec.curve import CURVES, LIBSECP256K1_AVAILABLE
 from btclib.ecc import second_generator
-from btclib.exceptions import BTClibRuntimeError, BTClibTypeError, BTClibValueError
+from btclib.exceptions import BTClibTypeError, BTClibValueError
 from btclib.number_theory import mod_sqrt
 from btclib.to_pub_key import pub_keyinfo_from_prv_key
+
+if LIBSECP256K1_AVAILABLE:
+    from btclib_libsecp256k1.keys import parse, serialize
+    from btclib_libsecp256k1.mult import mult_ as libsecp256k1_mult_
 
 # FIXME Curve repr should use "deadbeef 00000000", not "0xdeadbeef00000000"
 # FIXME test curves when n>p
@@ -67,13 +70,13 @@ def test_mult_on_secp256k1() -> None:
     assert G_[0] == 0x79BE667EF9DCBBAC55A06295CE870B07029BFCDB2DCE28D959F2815B16F81798
     assert G_[1] == 0xB7C52588D95C3B9AA25B0403F1EEF75702E84BB7597AABE663B82F6F04EF2777
 
-    if libsecp256k1.is_available():
-        err_msg = (
-            r"can't convert negative int to unsigned|secp256k1_ec_pubkey_create failure"
-        )
+    if LIBSECP256K1_AVAILABLE:
+        err_msg = r"the scalar must fit in 32 bytes|invalid scalar: not in \[1, n-1\]"
         for invalid_prvkey in (-1, 0, secp256k1.n, secp256k1.p):
-            with pytest.raises((OverflowError, BTClibRuntimeError), match=err_msg):
-                libsecp256k1.pubkey_from_prvkey(invalid_prvkey)
+            with pytest.raises(ValueError, match=err_msg):
+                libsecp256k1_mult_(invalid_prvkey)
+            # mult reduces the scalar modulo n, and the infinity point
+            # never reaches the bindings
             mult(invalid_prvkey)
 
 
@@ -97,17 +100,14 @@ def test_secp256k1_py_vectors() -> None:
         assert pub_keyinfo_from_prv_key(prv_key, compressed=False)[0] == pubkey_uncp
         assert pub_keyinfo_from_prv_key(prv_key, compressed=True)[0] == pubkey_comp
 
-        if libsecp256k1.is_available():
-            assert (
-                libsecp256k1.pubkey_from_prvkey(prv_key, compressed=False)
-                == pubkey_uncp
-            )
-            assert libsecp256k1.pubkey_from_prvkey(prv_key) == pubkey_comp
+        if LIBSECP256K1_AVAILABLE:
+            assert libsecp256k1_mult_(prv_key) == pubkey_uncp
+            assert serialize(parse(pubkey_uncp)) == pubkey_comp
 
-    if libsecp256k1.is_available():
-        err_msg = "secp256k1_ec_pubkey_create failure"
-        with pytest.raises(BTClibRuntimeError, match=err_msg):
-            libsecp256k1.pubkey_from_prvkey(secp256k1.n)
+    if LIBSECP256K1_AVAILABLE:
+        err_msg = r"invalid scalar: not in \[1, n-1\]"
+        with pytest.raises(ValueError, match=err_msg):
+            libsecp256k1_mult_(secp256k1.n)
 
 
 def test_exceptions() -> None:

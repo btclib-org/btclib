@@ -19,16 +19,19 @@ import pytest
 
 from btclib.alias import INF, Point, String
 from btclib.bip32 import BIP32KeyData
-from btclib.ec import bytes_from_point, double_mult, libsecp256k1, mult
+from btclib.ec import bytes_from_point, double_mult, mult
 from btclib.ec.curve import CURVES, secp256k1
 from btclib.ec.curve_group import jac_from_aff
 from btclib.ecc import bip340_nonce_, second_generator, ssa
-from btclib.ecc.libsecp256k1 import ecssa_sign_, ecssa_verify_
+from btclib.ecc.ssa import LIBSECP256K1_AVAILABLE
 from btclib.exceptions import BTClibRuntimeError, BTClibTypeError, BTClibValueError
 from btclib.hashes import reduce_to_hlen
 from btclib.number_theory import mod_inv
 from btclib.utils import int_from_bits
 from tests.ec.test_curve import low_card_curves
+
+if LIBSECP256K1_AVAILABLE:
+    from btclib_libsecp256k1 import ssa as libsecp256k1_ssa
 
 
 def test_signature() -> None:
@@ -45,11 +48,7 @@ def test_signature() -> None:
 
     msg_fake = b"Craig Wright"
     assert not ssa.verify(msg_fake, x_Q, sig)
-    err_msg = (
-        "libsecp256k1.ecssa_verify_ failed"
-        if libsecp256k1.is_available()
-        else r"y_K is odd|signature verification failed"
-    )
+    err_msg = r"y_K is odd|signature verification failed"
     with pytest.raises(BTClibRuntimeError, match=err_msg):
         ssa.assert_as_valid(msg_fake, x_Q, sig)
 
@@ -77,7 +76,7 @@ def test_signature() -> None:
         ssa.assert_as_valid(msg, x_Q, sig_invalid)
 
     m_bytes = reduce_to_hlen(msg, hf)
-    err_msg = "invalid size: 31 bytes instead of 32|libsecp256k1.ecssa_verify_ failed"
+    err_msg = "invalid size: 31 bytes instead of 32"
     with pytest.raises((BTClibValueError, BTClibRuntimeError), match=err_msg):
         ssa.assert_as_valid_(m_bytes[:31], x_Q, sig)
 
@@ -677,20 +676,18 @@ def test_libsecp256k1() -> None:
     assert ssa.verify(msg, pub_key, btclib_sig.serialize())
     assert ssa.verify(msg, pub_key, btclib_sig)
 
-    if libsecp256k1.is_available():
+    if LIBSECP256K1_AVAILABLE:
         msg_hash = reduce_to_hlen(msg)
-        libsecp256k1_sig = ecssa_sign_(msg_hash, prvkey_int, aux)
+        libsecp256k1_sig = libsecp256k1_ssa.sign(msg_hash, prvkey_int, aux)
         assert len(libsecp256k1_sig) == 64
         assert len(btclib_sig.serialize()) == 64
         assert btclib_sig.serialize() == libsecp256k1_sig
-        assert ecssa_verify_(msg_hash, pub_key, libsecp256k1_sig)
+        assert libsecp256k1_ssa.verify(msg_hash, pub_key, libsecp256k1_sig)
         assert ssa.verify(msg, pub_key, libsecp256k1_sig)
 
         invalid_prvkey = secp256k1.p
-        err_msg = "private key not in 1..n-1"
-        with pytest.raises(BTClibValueError, match=err_msg):
-            ecssa_sign_(msg_hash, invalid_prvkey)
+        with pytest.raises(ValueError, match="invalid private key"):
+            libsecp256k1_ssa.sign(msg_hash, invalid_prvkey)
 
-        err_msg = "invalid size: "
-        with pytest.raises(BTClibValueError, match=err_msg):
-            ecssa_verify_(msg_hash, pub_key[1:], libsecp256k1_sig)
+        with pytest.raises(ValueError, match="invalid public key"):
+            libsecp256k1_ssa.verify(msg_hash, pub_key[1:], libsecp256k1_sig)

@@ -16,6 +16,11 @@ Major changes includes:
 - the script engine treats a signature or public key that libsecp256k1
   refuses to parse as a failed verification: the new bindings raise a
   ValueError where the old ones returned false
+- removed btclib.ec.libsecp256k1 and btclib.ecc.libsecp256k1, the two
+  hand-written cffi wrappers: signing, verification, and generator
+  multiplication now call the bindings, whose context is created once
+  with SECP256K1_CONTEXT_NONE and randomized, as libsecp256k1 asks
+  (issue #125)
 - moved the project management to [uv](https://docs.astral.sh/uv/):
   dependencies, dependency groups, and packaging metadata are declared in
   pyproject.toml (setup.py, requirements.txt, requirements-dev.txt, and

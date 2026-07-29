@@ -57,11 +57,10 @@ from typing import Union
 
 from btclib.alias import BinaryData, HashF, Integer, JacPoint, Octets, Point
 from btclib.bip32 import BIP32Key
-from btclib.ec import Curve, libsecp256k1, secp256k1
+from btclib.ec import Curve, secp256k1
 from btclib.ec.curve import mult
 from btclib.ec.curve_group import _double_mult, _mult, _multi_mult
 from btclib.ecc.bip340_nonce import bip340_nonce_
-from btclib.ecc.libsecp256k1 import ecssa_sign_, ecssa_verify_
 from btclib.exceptions import BTClibRuntimeError, BTClibTypeError, BTClibValueError
 from btclib.hashes import reduce_to_hlen, tagged_hash
 from btclib.number_theory import mod_inv
@@ -73,6 +72,14 @@ from btclib.utils import (
     hex_string,
     int_from_bits,
 )
+
+# the bindings are an optional accelerator: their absence only means
+# falling back to the pure python implementation
+LIBSECP256K1_AVAILABLE = False
+with contextlib.suppress(ImportError):
+    from btclib_libsecp256k1 import ssa as libsecp256k1_ssa
+
+    LIBSECP256K1_AVAILABLE = True
 
 
 @dataclass(frozen=True)
@@ -222,8 +229,11 @@ def sign_(
 
     aux = secrets.token_bytes(hf_len) if aux is None else bytes_from_octets(aux, hf_len)
 
-    if ec == secp256k1 and hf == sha256 and libsecp256k1.is_available():
-        return Sig.parse(ecssa_sign_(msg_hash, prv_key, aux))
+    if ec == secp256k1 and hf == sha256 and LIBSECP256K1_AVAILABLE:
+        # the bindings take a scalar, not the many representations of a
+        # private key btclib accepts
+        q = int_from_prv_key(prv_key, ec)
+        return Sig.parse(libsecp256k1_ssa.sign(msg_hash, q, aux))
 
     # k is the nonce: an integer in the range 1..n-1.
     k, x_K, q, x_Q = bip340_nonce_(msg_hash, prv_key, aux, ec, hf)
@@ -293,11 +303,11 @@ def assert_as_valid_(
 
     x_Q, y_Q = point_from_bip340pub_key(Q, sig.ec)
 
-    if libsecp256k1.is_available() and sig.ec == secp256k1 and hf == sha256:
+    if LIBSECP256K1_AVAILABLE and sig.ec == secp256k1 and hf == sha256:
         pubkey_bytes = x_Q.to_bytes(32, "big")
-        msg_hash = bytes_from_octets(msg_hash)
-        if not ecssa_verify_(msg_hash, pubkey_bytes, sig.serialize()):
-            raise BTClibRuntimeError("libsecp256k1.ecssa_verify_ failed")
+        msg_hash = bytes_from_octets(msg_hash, 32)
+        if not libsecp256k1_ssa.verify(msg_hash, pubkey_bytes, sig.serialize()):
+            raise BTClibRuntimeError("libsecp256k1 signature verification failed")
         return
 
     # Let c = int(hf(bytes(r) || bytes(Q) || msg_hash)) mod n.

@@ -11,13 +11,13 @@
 
 from __future__ import annotations
 
+import contextlib
 import json
 from collections.abc import Sequence
 from math import sqrt
 from os import path
 
 from btclib.alias import Integer, Point
-from btclib.ec import libsecp256k1
 from btclib.ec.curve_group import (
     HEX_THRESHOLD,
     CurveGroup,
@@ -28,6 +28,14 @@ from btclib.ec.curve_group import (
 )
 from btclib.exceptions import BTClibValueError
 from btclib.utils import hex_string, int_from_integer
+
+# the bindings are an optional accelerator: their absence only means
+# falling back to the pure python implementation
+LIBSECP256K1_AVAILABLE = False
+with contextlib.suppress(ImportError):
+    from btclib_libsecp256k1.mult import mult as libsecp256k1_mult
+
+    LIBSECP256K1_AVAILABLE = True
 
 
 class CurveSubGroup(CurveGroup):
@@ -210,8 +218,9 @@ def mult(m_int: Integer, Q: Point | None = None, ec: Curve = secp256k1) -> Point
     """Elliptic curve scalar multiplication."""
     m: int = int_from_integer(m_int) % ec.n
 
-    if ec == secp256k1 and (Q is None or Q == ec.G) and libsecp256k1.is_available():
-        return libsecp256k1.mult(m)
+    # m == 0 is the infinity point, which the bindings reject as a scalar
+    if m and ec == secp256k1 and (Q is None or Q == ec.G) and LIBSECP256K1_AVAILABLE:
+        return libsecp256k1_mult(m)
 
     if Q is None:
         QJ = ec.GJ

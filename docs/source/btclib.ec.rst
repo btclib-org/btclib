@@ -36,14 +36,6 @@ btclib.ec.curve\_group\_f module
    :undoc-members:
    :show-inheritance:
 
-btclib.ec.libsecp256k1 module
------------------------------
-
-.. automodule:: btclib.ec.libsecp256k1
-   :members:
-   :undoc-members:
-   :show-inheritance:
-
 btclib.ec.sec\_point module
 ---------------------------
 
