@@ -61,10 +61,11 @@ def second_generator(ec: Curve = secp256k1, hf: HashF = sha256) -> Point:
     while True:
         try:
             y_H = ec.y_even(x_H)
-            return x_H, y_H
         except BTClibValueError:
             x_H += 1
             x_H %= ec.p
+        else:
+            return x_H, y_H
 
 
 def commit(r: int, v: int, ec: Curve = secp256k1, hf: HashF = sha256) -> Point:
@@ -90,6 +91,6 @@ def verify(
     # verify must always return a bool
     try:
         Q = commit(r, v, ec, hf)
-    except Exception:  # pylint: disable=broad-except
+    except Exception:
         return False
     return commitment == Q

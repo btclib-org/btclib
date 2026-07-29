@@ -117,9 +117,7 @@ def test_gec() -> None:
     # 2.1.2 Key Deployment for U
     dU = 971761939728640320549601132085879836204587084162
     dU, QU = dsa.gen_keys(dU, ec)
-    assert (
-        format(dU, f"{str(ec.n_size)}x") == "aa374ffc3ce144e6b073307972cb6d57b2a4e982"
-    )
+    assert format(dU, f"{ec.n_size!s}x") == "aa374ffc3ce144e6b073307972cb6d57b2a4e982"
     assert QU == (
         466448783855397898016055842232266600516272889280,
         1110706324081757720403272427311003102474457754220,
@@ -144,7 +142,6 @@ def test_gec() -> None:
 
 def test_low_cardinality() -> None:
     """Test low-cardinality curves for all msg/key pairs."""
-    # pylint: disable=protected-access
 
     # ec.n has to be prime to sign
     test_curves = [
@@ -239,8 +236,8 @@ def test_crack_prv_key() -> None:
     with pytest.raises(BTClibValueError, match="identical signatures"):
         dsa.crack_prv_key(msg1, sig1, msg1, sig1)
 
-    a = ec._a  # pylint: disable=protected-access
-    b = ec._b  # pylint: disable=protected-access
+    a = ec._a
+    b = ec._b
     alt_ec = Curve(ec.p, a, b, ec.double_aff(ec.G), ec.n, ec.cofactor)
     sig = dsa.Sig(sig1.r, sig1.s, alt_ec)
     with pytest.raises(BTClibValueError, match="not the same curve in signatures"):
@@ -249,7 +246,6 @@ def test_crack_prv_key() -> None:
 
 def test_forge_hash_sig() -> None:
     """Forging valid hash signatures."""
-    # pylint: disable=protected-access
 
     ec = CURVES["secp256k1"]
 

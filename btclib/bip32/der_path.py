@@ -15,9 +15,11 @@ A BIP 32 derivation path can be represented as:
 - sequence of integer indexes (even a single int)
 - bytes (multiples of 4-bytes index)
 """
+
 from __future__ import annotations
 
-from typing import Sequence, Union
+from collections.abc import Sequence
+from typing import Union
 
 from btclib.alias import Octets
 from btclib.exceptions import BTClibValueError

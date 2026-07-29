@@ -60,15 +60,15 @@ def test_op_int() -> None:
 
 def test_serialize_bytes_command() -> None:
     length = 75
-    b = b"\x0A" * length
+    b = b"\x0a" * length
     assert len(serialize([b])) == length + 1
-    b = b"\x0A" * (length + 1)
+    b = b"\x0a" * (length + 1)
     assert len(serialize([b])) == (length + 1) + 2
 
     length = 255
-    b = b"\x0A" * length
+    b = b"\x0a" * length
     assert len(serialize([b])) == length + 2
-    b = b"\x0A" * (length + 1)
+    b = b"\x0a" * (length + 1)
     assert len(serialize([b])) == (length + 1) + 3
 
 
@@ -106,7 +106,7 @@ def test_exceptions() -> None:
         serialize(script_pub_key)
 
     with pytest.raises(TypeError):
-        serialize(["OP_2", "OP_3", "OP_ADD", "OP_5", serialize])  # type: ignore
+        serialize(["OP_2", "OP_3", "OP_ADD", "OP_5", serialize])  # type: ignore[list-item]
 
     err_msg = "too many bytes for OP_PUSHDATA: "
     with pytest.raises(BTClibValueError, match=err_msg):

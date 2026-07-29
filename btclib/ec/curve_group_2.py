@@ -189,7 +189,7 @@ def mult_w_NAF(m: int, Q: JacPoint, ec: CurveGroup, w: int = 4) -> JacPoint:
                 R = ec.add_jac(R, T[(M[j] - 1) // 2])
             elif w == 1:
                 # Case w=1 must be studied on its own for now
-                R = R = ec.add_jac(R, T[1])
+                R = ec.add_jac(R, T[1])
             else:
                 # In this case it adds the opposite, ie -jQ
                 R = ec.add_jac(R, T[(b // 4) - ((M[j] + 1) // 2)])

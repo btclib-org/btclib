@@ -8,12 +8,13 @@
 # No part of btclib including this file, may be copied, modified, propagated,
 # or distributed except according to the terms contained in the LICENSE file.
 """Elliptic curve classes and functions."""
+
 from __future__ import annotations
 
 import json
+from collections.abc import Sequence
 from math import sqrt
 from os import path
-from typing import Sequence
 
 from btclib.alias import Integer, Point
 from btclib.ec import libsecp256k1

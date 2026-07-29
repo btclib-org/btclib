@@ -51,7 +51,7 @@ def test_invalid_taproot() -> None:
     with open(filename, encoding="ascii") as file_:
         data = json.load(file_)
 
-    for x in filter(lambda x: "TAPROOT" in x["flags"] and "failure" in x.keys(), data):
+    for x in filter(lambda x: "TAPROOT" in x["flags"] and "failure" in x, data):
         tx = Tx.parse(x["tx"])
 
         prevouts = [TxOut.parse(prevout) for prevout in x["prevouts"]]

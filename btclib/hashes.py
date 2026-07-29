@@ -8,10 +8,12 @@
 # No part of btclib including this file, may be copied, modified, propagated,
 # or distributed except according to the terms contained in the LICENSE file.
 """Hash based helper functions."""
+
 from __future__ import annotations
 
 import hashlib
-from typing import Callable, Sequence
+from collections.abc import Sequence
+from typing import Callable
 
 from btclib.alias import HashF, Octets
 from btclib.utils import bytes_from_octets
@@ -37,7 +39,7 @@ def ripemd160(octets: Octets) -> bytes:
 def sha1(octets: Octets) -> bytes:
     """Return the SHA1(*) of the input octet sequence."""
     octets = bytes_from_octets(octets)
-    return hashlib.sha1(octets).digest()  # nosec
+    return hashlib.sha1(octets).digest()  # noqa: S324
 
 
 def sha256(octets: Octets) -> bytes:

@@ -26,10 +26,11 @@ For TxIn.sequence and TX.lock_time see:
 from __future__ import annotations
 
 import random
+from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
 from io import SEEK_CUR
 from math import ceil
-from typing import Any, Mapping, Sequence
+from typing import Any
 
 from btclib import var_int
 from btclib.alias import BinaryData
@@ -60,12 +61,12 @@ class Tx:
     # TODO add fee property when a tx fetcher will be available
 
     @property
-    def nVersion(self) -> int:  # pylint: disable=invalid-name
+    def nVersion(self) -> int:
         """Return the nVersion int for compatibility with CTransaction."""
         return self.version
 
     @property
-    def nLockTime(self) -> int:  # pylint: disable=invalid-name
+    def nLockTime(self) -> int:
         """Return the nLockTime int for compatibility with CTransaction."""
         return self.lock_time
 

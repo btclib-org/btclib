@@ -43,7 +43,7 @@ with the following modifications:
 
 from __future__ import annotations
 
-from typing import Iterable
+from collections.abc import Iterable
 
 from btclib.alias import Octets, String
 from btclib.bech32 import decode, encode
@@ -83,7 +83,7 @@ def power_of_2_base_conversion(
         if bits:
             ret.append((acc << (to_bits - bits)) & maxv)
     elif bits >= from_bits:
-        err_msg = f"zero padding of more than {from_bits-1} bits"
+        err_msg = f"zero padding of more than {from_bits - 1} bits"
         err_msg += f" in {from_bits}-to-{to_bits} conversion"
         raise BTClibValueError(err_msg)
     elif (acc << (to_bits - bits)) & maxv:
@@ -113,7 +113,7 @@ def check_witness(wit_ver: int, wit_prg: Octets) -> bytes:
 
 def _address_from_witness(wit_ver: int, wit_prg: Octets, hrp: str) -> str:
     wit_prg = check_witness(wit_ver, wit_prg)
-    data = [wit_ver] + power_of_2_base_conversion(wit_prg, 8, 5)
+    data = [wit_ver, *power_of_2_base_conversion(wit_prg, 8, 5)]
     bytes_ = encode(hrp, data)
     return bytes_.decode("ascii")
 

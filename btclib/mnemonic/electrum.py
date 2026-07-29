@@ -11,6 +11,7 @@
 
 Electrum mnemonic is versioned, conveying BIP32 derivation rule too.
 """
+
 from __future__ import annotations
 
 import hmac

@@ -11,7 +11,8 @@
 
 from __future__ import annotations
 
-from typing import Callable, Sequence
+from collections.abc import Sequence
+from typing import Callable
 
 from btclib import b32, b58, var_bytes
 from btclib.alias import Octets, ScriptList, String
@@ -72,7 +73,7 @@ def _is_funct(assert_funct: Callable[[Octets], None], script_pub_key: Octets) ->
         # if the assert function detects a problem, it must rise an Exception
         assert_funct(script_pub_key)
     # must always return a bool: all Exceptions are catched
-    except Exception:  # pylint: disable=broad-except
+    except Exception:
         return False
     return True
 
@@ -93,11 +94,10 @@ def assert_p2pk(script_pub_key: Octets) -> None:
             err_msg = f"invalid pub_key length marker: {len_marker}"
             err_msg += " instead of 33"
             raise BTClibValueError(err_msg)
-    elif length == 67:
-        if len_marker != 0x41:
-            err_msg = f"invalid pub_key length marker: {len_marker}"
-            err_msg += " instead of 65"
-            raise BTClibValueError(err_msg)
+    elif length == 67 and len_marker != 0x41:
+        err_msg = f"invalid pub_key length marker: {len_marker}"
+        err_msg += " instead of 65"
+        raise BTClibValueError(err_msg)
 
     pub_key = script_pub_key[1:-1]
     point_from_octets(pub_key)

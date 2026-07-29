@@ -48,7 +48,7 @@ _MAX_SATOSHI = 2_099_999_997_690_000
 _MAX_BITCOIN = Decimal("20_999_999.9769")
 
 
-def valid_btc_amount(amount: Any, dust: Decimal = Decimal("0")) -> Decimal:
+def valid_btc_amount(amount: Any, dust: Decimal = Decimal(0)) -> Decimal:
     """Return the BTC amount as Decimal, if valid and not less than dust.
 
     Args:

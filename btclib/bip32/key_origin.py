@@ -8,10 +8,11 @@
 # No part of btclib including this file, may be copied, modified, propagated,
 # or distributed except according to the terms contained in the LICENSE file.
 """BIP32 key origin."""
+
 from __future__ import annotations
 
+from collections.abc import Mapping, MutableMapping, Sequence
 from dataclasses import dataclass
-from typing import Mapping, MutableMapping, Sequence
 
 from btclib.alias import Octets
 from btclib.bip32.der_path import (
@@ -116,7 +117,7 @@ HdKeyPaths = MutableMapping[bytes, BIP32KeyOrigin]
 def assert_valid_hd_key_paths(hd_key_paths: Mapping[bytes, BIP32KeyOrigin]) -> None:
     """Raise an exception if the dataclass element is not valid."""
     if len(hd_key_paths.values()) > len(
-        set(map(lambda der_path: der_path.serialize(), hd_key_paths.values()))
+        {der_path.serialize() for der_path in hd_key_paths.values()}
     ):
         raise BTClibValueError("Duplicated key origin values in hd_key_paths")
     for pub_key, key_origin in hd_key_paths.items():
@@ -138,7 +139,7 @@ _BIP32Deriv = Mapping[str, str]
 
 
 def encode_to_bip32_derivs(
-    hd_key_paths: Mapping[bytes, BIP32KeyOrigin]
+    hd_key_paths: Mapping[bytes, BIP32KeyOrigin],
 ) -> list[_BIP32Deriv]:
     """Return the json representation of the dataclass element."""
     return [
@@ -152,7 +153,7 @@ def encode_to_bip32_derivs(
 
 
 def _decode_from_bip32_deriv(
-    bip32_deriv: Mapping[str, str]
+    bip32_deriv: Mapping[str, str],
 ) -> tuple[bytes, BIP32KeyOrigin]:
     # FIXME remove size checks to allow
     # the instantiation of invalid master_fingerprint and pub_key

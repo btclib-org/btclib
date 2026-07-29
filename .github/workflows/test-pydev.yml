@@ -1,4 +1,4 @@
-name: test-py312
+name: test-pydev
 
 on:
   push:
@@ -11,7 +11,7 @@ on:
       - dev
 
 jobs:
-  test-py312-dev:
+  test-pydev:
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
@@ -20,13 +20,14 @@ jobs:
         os: [ubuntu-latest, macos-latest]
     steps:
       - name: Checkout code
-        uses: actions/checkout@v3
-      - name: Setup Python
-        uses: actions/setup-python@v4
+        uses: actions/checkout@v7
+      - name: Setup uv
+        uses: astral-sh/setup-uv@v9
         with:
-          python-version: 3.12-dev
+          enable-cache: true
+          # the interpreter is downloaded by uv, no matter how new it is
+          python-version: "3.15"
       - name: Run pytest
-        run: |
-          python -m pip install --upgrade -rrequirements.txt
-          python -m pip install --upgrade -rrequirements-dev.txt
-          pytest
+        # --upgrade instead of --frozen: this workflow is the canary for
+        # the next python, so it must not be pinned by uv.lock
+        run: uv run --upgrade --no-default-groups --group test pytest

@@ -45,10 +45,8 @@ def test_valid_taproot_key_path() -> None:
         witness = Witness(x["success"]["witness"])
         tx.vin[index].script_witness = witness
 
-        if (
-            len(witness.stack) == 1
-            or len(witness.stack) == 2
-            and witness.stack[-1][0] == 0x50
+        if len(witness.stack) == 1 or (
+            len(witness.stack) == 2 and witness.stack[-1][0] == 0x50
         ):
             sighash_type = 0  # all
             signature = witness.stack[0][:64]
@@ -69,7 +67,7 @@ def test_invalid_taproot_key_path() -> None:
     with open(filename, encoding="ascii") as file_:
         data = json.load(file_)
 
-    for x in filter(lambda x: "failure" in x.keys(), data):
+    for x in filter(lambda x: "failure" in x, data):
         tx = Tx.parse(x["tx"])
         prevouts = [TxOut.parse(prevout) for prevout in x["prevouts"]]
         index = x["index"]
@@ -81,10 +79,8 @@ def test_invalid_taproot_key_path() -> None:
         tx.vin[index].script_witness = witness
 
         # check only key paths
-        if (
-            len(witness.stack) == 1
-            or len(witness.stack) == 2
-            and witness.stack[-1][0] == 0x50
+        if len(witness.stack) == 1 or (
+            len(witness.stack) == 2 and witness.stack[-1][0] == 0x50
         ):
             with pytest.raises((BTClibRuntimeError, BTClibValueError, AssertionError)):
                 assert not x["failure"]["scriptSig"]

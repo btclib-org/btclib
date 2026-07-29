@@ -121,9 +121,9 @@ def test_bip340_vectors() -> None:
                     assert ssa.verify_(m, pub_key, sig), err_msg
                 else:
                     assert not ssa.verify_(m, pub_key, sig), err_msg
-            except Exception as e:  # pragma: no cover # pylint: disable=broad-except
+            except Exception:  # pragma: no cover
                 print(err_msg)  # pragma: no cover
-                raise e  # pragma: no cover
+                raise  # pragma: no cover
 
 
 def test_point_from_bip340pub_key() -> None:
@@ -164,7 +164,6 @@ def test_point_from_bip340pub_key() -> None:
 
 def test_low_cardinality() -> None:
     """Test low-cardinality curves for all msg/key pairs."""
-    # pylint: disable=protected-access
 
     # ec.n has to be prime to sign
     test_curves = [

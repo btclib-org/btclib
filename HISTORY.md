@@ -9,7 +9,20 @@ full year, short month, short day (YYYY-M-D)
 
 Major changes includes:
 
-- dropped python 3.7 support
+- dropped python 3.7 and 3.8 support, added 3.13 and 3.14
+- development and CI now track the btclib_libsecp256k1 bindings under
+  development (built from source), instead of the released ones; the
+  published btclib still depends on btclib_libsecp256k1 from PyPI
+- the script engine treats a signature or public key that libsecp256k1
+  refuses to parse as a failed verification: the new bindings raise a
+  ValueError where the old ones returned false
+- moved the project management to [uv](https://docs.astral.sh/uv/):
+  dependencies, dependency groups, and packaging metadata are declared in
+  pyproject.toml (setup.py, requirements.txt, requirements-dev.txt, and
+  tox.ini are gone), with uv.lock pinning the development environment
+- replaced autoflake, bandit, black, docformatter, flake8, isort,
+  pydocstringformatter, pydocstyle, pylint, pyupgrade, and yesqa
+  with [ruff](https://docs.astral.sh/ruff/)
 
 ## v2023.7.12
 

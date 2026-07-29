@@ -11,10 +11,11 @@
 
 mypy aliases, documenting also coding input conventions.
 """
+
 from __future__ import annotations
 
 from io import BytesIO
-from typing import Any, Callable, List, Tuple, Union
+from typing import Any, Callable, Union
 
 # Octets are a sequence of eight-bit bytes or a hex-string (not text string)
 #
@@ -72,11 +73,11 @@ Integer = Union[bytes, str, int]
 # Hash digest constructor: it may be any name suitable to hashlib.new()
 HashF = Callable[[], Any]
 # HashF = Callable[[Any], Any]
-H160_Net = Tuple[bytes, str]
+H160_Net = tuple[bytes, str]
 
 # Elliptic curve point in affine coordinates.
 # Warning: to make Point a NamedTuple would slow down the code
-Point = Tuple[int, int]
+Point = tuple[int, int]
 
 # Note that the infinity point in affine coordinates is INF = (int, 0)
 # (no affine point has y=0 coordinate in a group of prime order).
@@ -87,7 +88,7 @@ Point = Tuple[int, int]
 INF = 5, 0
 
 # Elliptic curve point in Jacobian coordinates.
-JacPoint = Tuple[int, int, int]
+JacPoint = tuple[int, int, int]
 
 # Infinity point in Jacobian coordinates is INF = (int, int, 0).
 # It can be checked with 'INF[2] == 0'
@@ -106,4 +107,4 @@ INFJ = 7, 0, 0
 TaprootScriptTree = Any
 
 Command = Union[int, str, bytes]
-ScriptList = List[Command]
+ScriptList = list[Command]

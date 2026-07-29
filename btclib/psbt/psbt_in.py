@@ -11,11 +11,14 @@
 
 https://github.com/bitcoin/bips/blob/master/bip-0174.mediawiki
 """
+
 from __future__ import annotations
+
+from collections.abc import Mapping
 
 # Standard library imports
 from dataclasses import dataclass
-from typing import Any, List, Mapping, Tuple, cast
+from typing import Any, cast
 
 from btclib.alias import Octets
 from btclib.bip32.key_origin import (
@@ -126,7 +129,7 @@ def _deserialize_final_script_witness(k: bytes, v: bytes) -> Witness:
 
 
 def _assert_valid_ripemd160_preimages(
-    ripemd160_preimages: Mapping[bytes, bytes]
+    ripemd160_preimages: Mapping[bytes, bytes],
 ) -> None:
     for h, preimage in ripemd160_preimages.items():
         if ripemd160(preimage) != h:
@@ -323,7 +326,7 @@ class PsbtIn:
             decode_from_bip32_derivs(dict_["bip32_derivs"]),
         )
         taproot_hd_key_paths = cast(
-            Mapping[Octets, Tuple[List[Octets], BIP32KeyOrigin]],
+            Mapping[Octets, tuple[list[Octets], BIP32KeyOrigin]],
             decode_from_bip32_derivs(dict_["taproot_hd_key_paths"]),
         )
         return cls(
@@ -533,7 +536,7 @@ class PsbtIn:
                 taproot_leaf_scripts[k[1:]] = parse_leaf_script(v)
             elif k[:1] == PSBT_IN_TAP_BIP32_DERIVATION:
                 taproot_hd_key_path = cast(
-                    Tuple[List[Octets], BIP32KeyOrigin], parse_taproot_bip32(v)
+                    tuple[list[Octets], BIP32KeyOrigin], parse_taproot_bip32(v)
                 )
                 taproot_hd_key_paths[k[1:]] = taproot_hd_key_path
             elif k[:1] == PSBT_IN_TAP_INTERNAL_KEY:

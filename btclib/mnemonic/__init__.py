@@ -31,8 +31,10 @@ from btclib.mnemonic.mnemonic import (
 )
 
 __all__ = [
+    "WORDLISTS",
     "BinStr",
     "Entropy",
+    "Mnemonic",
     "bin_str_entropy_from_bytes",
     "bin_str_entropy_from_entropy",
     "bin_str_entropy_from_int",
@@ -42,9 +44,7 @@ __all__ = [
     "bin_str_entropy_from_wordlist_indexes",
     "bytes_entropy_from_str",
     "collect_rolls",
-    "wordlist_indexes_from_bin_str_entropy",
-    "Mnemonic",
     "indexes_from_mnemonic",
     "mnemonic_from_indexes",
-    "WORDLISTS",
+    "wordlist_indexes_from_bin_str_entropy",
 ]

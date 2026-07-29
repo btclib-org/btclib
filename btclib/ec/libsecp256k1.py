@@ -9,7 +9,6 @@
 # or distributed except according to the terms contained in the LICENSE file.
 """Helper functions to use the libsecp256k1 python bindings."""
 
-
 from __future__ import annotations
 
 import contextlib

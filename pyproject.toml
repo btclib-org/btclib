@@ -1,3 +1,91 @@
+[build-system]
+requires = ["setuptools>=64"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "btclib"
+dynamic = ["version"]
+description = "A library for 'bitcoin cryptography'"
+readme = "README.md"
+license = { text = "MIT License" }
+authors = [{ name = "The btclib developers", email = "devs@btclib.org" }]
+# btclib_libsecp256k1 requires >=3.9, and python 3.8 is end-of-life
+requires-python = ">=3.9"
+dependencies = ["btclib_libsecp256k1"]
+keywords = [
+    "bitcoin",
+    "cryptography",
+    "elliptic-curves",
+    "ecdsa",
+    "schnorr",
+    "RFC-6979",
+    "bip32",
+    "bip39",
+    "electrum",
+    "base58",
+    "bech32",
+    "segwit",
+    "message-signing",
+    "bip340",
+]
+classifiers = [
+    "Programming Language :: Python :: 3 :: Only",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Programming Language :: Python :: 3.14",
+    "Programming Language :: Python :: Implementation :: CPython",
+    "Programming Language :: Python :: Implementation :: PyPy",
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Developers",
+    "Intended Audience :: Education",
+    "License :: OSI Approved :: MIT License",
+    "Natural Language :: English",
+    "Operating System :: OS Independent",
+    "Topic :: Scientific/Engineering",
+    "Topic :: Security :: Cryptography",
+    "Topic :: Software Development :: Libraries :: Python Modules",
+    "Typing :: Typed",
+]
+
+[project.urls]
+Homepage = "https://btclib.org"
+Download = "https://github.com/btclib-org/btclib/releases"
+Documentation = "https://btclib.readthedocs.io/"
+GitHub = "https://github.com/btclib-org/btclib"
+Issues = "https://github.com/btclib-org/btclib/issues"
+"Pull Requests" = "https://github.com/btclib-org/btclib/pulls"
+
+[dependency-groups]
+# packages required to develop, build, and test btclib
+test = ["coverage", "pytest", "pytest-cov", "pytest-xdist"]
+lint = ["mypy", "pre-commit", "ruff"]
+# the distribution files are built and published by uv itself
+build = ["check-manifest", "pyroma"]
+docs = ["myst-parser", "sphinx", "sphinx_rtd_theme"]
+dev = [
+    { include-group = "test" },
+    { include-group = "lint" },
+    { include-group = "build" },
+    { include-group = "docs" },
+]
+
+[tool.uv.sources]
+# development and CI track the bindings under development, not the
+# released ones: this is uv-only metadata, so the published btclib keeps
+# depending on plain btclib_libsecp256k1 from PyPI
+btclib_libsecp256k1 = { git = "https://github.com/btclib-org/btclib_libsecp256k1", branch = "dev" }
+
+[tool.setuptools.dynamic]
+version = { attr = "btclib.__version__" }
+
+[tool.setuptools.packages.find]
+include = ["btclib*"]
+namespaces = true
+
 [tool.pytest.ini_options]
 addopts = "--durations=8 -n auto"
 
@@ -17,58 +105,84 @@ exclude = [
     "build",
 ]
 
-[tool.isort]
-profile = "black"
+[tool.ruff]
+# target-version is inferred from project.requires-python
 
-[tool.docformatter]
-in-place = true
-
-[tool.pydocstyle]
+[tool.ruff.lint]
+select = [
+    "B",    # flake8-bugbear
+    "C4",   # flake8-comprehensions
+    "D",    # pydocstyle
+    "E",    # pycodestyle errors
+    "F",    # pyflakes
+    "FURB", # refurb
+    "I",    # isort
+    "ISC",  # flake8-implicit-str-concat
+    "PGH",  # pygrep-hooks
+    "PIE",  # flake8-pie
+    "PL",   # pylint
+    "PT",   # flake8-pytest-style
+    "RET",  # flake8-return
+    "RUF",  # ruff-specific rules
+    "S",    # flake8-bandit
+    "SIM",  # flake8-simplify
+    "TRY",  # tryceratops
+    "UP",   # pyupgrade
+    "W",    # pycodestyle warnings
+]
 ignore = [
-    "D101", "D102", "D103", "D105", "D107",
-    "D203", "D213",
-    "D301",
-    "D405", "D406", "D407", "D413"
+    # docstrings: only modules and public classes/functions are documented
+    "D101", # undocumented-public-class
+    "D102", # undocumented-public-method
+    "D103", # undocumented-public-function
+    "D105", # undocumented-magic-method
+    "D107", # undocumented-public-init
+    "D203", # incorrect-blank-line-before-class (conflicts with D211)
+    "D213", # multi-line-summary-second-line (conflicts with D212)
+    "D301", # escape-sequence-in-docstring
+    "D405", # capitalize-section-name, and the other section rules
+    "D406", # new-line-after-section-name
+    "D407", # dashed-underline-after-section
+    "D413", # blank-line-after-last-section
+    # line length is enforced by the formatter
+    "E501", # line-too-long
+    # uppercase math symbols (M, R, Q, ...) are variables, not constants:
+    # ruff mistakes comparisons against them for Yoda conditions
+    "SIM300", # yoda-condition
+    # ambiguous unicode (−, non-breaking space) in comments is intentional
+    "RUF003",
+    # rebinding the loop variable is used throughout the code base
+    "PLW2901", # redefined-loop-name
+    # dataclasses define __eq__ without __hash__ on purpose
+    "PLW1641", # eq-without-hash
+    # pre-existing public API: default arguments are built by calling
+    # OutPoint(), Witness(), datetime.fromtimestamp(0), ...
+    "B008", # function-call-in-default-argument
+    # complexity metrics: not enforced on this codebase
+    "PLR0904", # too-many-public-methods
+    "PLR0911", # too-many-return-statements
+    "PLR0912", # too-many-branches
+    "PLR0913", # too-many-arguments
+    "PLR0914", # too-many-locals
+    "PLR0915", # too-many-statements
+    "PLR0917", # too-many-positional-arguments
+    "PLR2004", # magic-value-comparison
+    # exception messages are built inline, on purpose
+    "TRY003", # raise-vanilla-args
 ]
 
-[tool.pylint.master]
-jobs = 0
-score = false
-disable = [
-    "invalid-name",  # C0103
-    "missing-class-docstring",  # C0115
-    "missing-function-docstring",  # C0116
-    "duplicate-code",  # R0801
-    "too-many-instance-attributes",  # R0902
-    "too-many-return-statements",  # R0911
-    "too-many-branches",  # R0912
-    "too-many-arguments",   # R0913
-    "too-many-locals",   # R0914
-    "too-many-statements",  # R0915
-    "fixme",  # W0511
-    "unsubscriptable-object",  # E1136 python3.9-only pylint bug
-    "unused-argument", # W0613
+[tool.ruff.lint.per-file-ignores]
+"**/__init__.py" = ["F401"] # re-exported imports
+"tests/**" = [
+    "D",      # docstrings are not required in tests
+    "S101",   # assert
+    "S311",   # non-cryptographic random: fine in tests
+    "B017",   # assert-raises-exception
+    "PT011",  # pytest-raises-too-broad
+    "PT012",  # pytest-raises-with-multiple-statements
+    "PT018",  # pytest-composite-assertion
+    "RUF043", # pytest-raises-ambiguous-pattern
 ]
 
-[tool.pylint.logging]
-logging-format-style = "new"
-logging-modules = "logging"
-
-[tool.pylint.spelling]
-max-spelling-suggestions = 4
-
-[tool.pylint.basic]
-good-names = [
-    "c", "e", "i", "j", "k", "m", "n", "p", "q", "r", "s", "t", "u", "v", "w",
-    "G", "H", "Q", "K", "R",
-    "x_G", "x_H", "x_Q", "x_K", "x_R",
-    "y_G", "y_H", "y_Q", "y_K", "y_R",
-    "GJ", "HJ", "QJ", "KJ", "RJ",
-    "QJs", "KJs", "RJs",
-    "G_bytes", "H_bytes", "Q_bytes", "K_bytes", "R_bytes",
-    "rf", "hf", "ec",
-    "tx"
-]
-
-[tool.pylint.format]
-max-line-length = 2000
+[tool.ruff.lint.pydocstyle]
+convention = "pep257"

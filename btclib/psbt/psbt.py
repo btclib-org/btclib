@@ -11,13 +11,15 @@
 
 https://github.com/bitcoin/bips/blob/master/bip-0174.mediawiki
 """
+
 from __future__ import annotations
 
 import base64
 import random
+from collections.abc import Mapping, Sequence
 from copy import deepcopy
 from dataclasses import dataclass
-from typing import Any, Callable, Mapping, Sequence, TypeVar, cast
+from typing import Any, Callable, TypeVar, cast
 
 from btclib.alias import Octets, ScriptList, String
 from btclib.bip32 import (
@@ -340,9 +342,8 @@ def _combine_field(
     attr = getattr(out, key)
     if not attr:
         setattr(out, key, item)
-    elif attr != item:
-        if isinstance(item, dict):
-            attr.update(item)
+    elif attr != item and isinstance(item, dict):
+        attr.update(item)
         # TODO fails for final_script_witness
         # elif isinstance(item, list):
         #     additional_elements = [i for i in item if i not in attr]
@@ -415,10 +416,10 @@ def finalize_psbt(psbt: Psbt) -> Psbt:
         cmds += sigs
         if psbt_in.witness_script:
             psbt_in.final_script_sig = serialize([psbt_in.redeem_script])
-            psbt_in.final_script_witness = Witness(cmds + [psbt_in.witness_script])
+            psbt_in.final_script_witness = Witness([*cmds, psbt_in.witness_script])
         else:
             psbt_in.final_script_sig = serialize(
-                cast(ScriptList, cmds + [psbt_in.redeem_script])
+                cast(ScriptList, [*cmds, psbt_in.redeem_script])
             )
         psbt_in.partial_sigs = {}
         psbt_in.sig_hash_type = None

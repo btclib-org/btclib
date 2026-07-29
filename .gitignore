@@ -46,7 +46,6 @@ pip-delete-this-directory.txt
 
 # Unit test / coverage reports
 htmlcov/
-.tox/
 .coverage
 .coverage.*
 .cache
@@ -79,9 +78,6 @@ target/
 # Jupyter Notebook
 .ipynb_checkpoints
 
-# pyenv
-.python-version
-
 # celery beat schedule file
 celerybeat-schedule
 
@@ -108,6 +104,9 @@ ENV/
 
 # mypy
 .mypy_cache/
+
+# ruff
+.ruff_cache/
 
 # vscode
 .vscode/

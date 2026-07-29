@@ -52,7 +52,7 @@ def __descsum_expand(descriptor_string: str):
 
 def descriptor_checksum(descriptor: str) -> str:
     """Compute the descriptor checksum."""
-    symbols = __descsum_expand(descriptor) + [0, 0, 0, 0, 0, 0, 0, 0]
+    symbols = [*__descsum_expand(descriptor), 0, 0, 0, 0, 0, 0, 0, 0]
     checksum = __descsum_polymod(symbols) ^ 1
     return "".join(CHECKSUM_CHARSET[(checksum >> (5 * (7 - i))) & 31] for i in range(8))
 

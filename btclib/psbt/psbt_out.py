@@ -12,10 +12,12 @@
 Dataclass and functions.
 https://github.com/bitcoin/bips/blob/master/bip-0174.mediawiki
 """
+
 from __future__ import annotations
 
+from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
-from typing import Any, List, Mapping, Sequence, Tuple, cast
+from typing import Any, cast
 
 from btclib.alias import Octets
 from btclib.bip32 import (
@@ -131,7 +133,7 @@ class PsbtOut:
             decode_from_bip32_derivs(dict_["bip32_derivs"]),
         )
         taproot_hd_key_paths = cast(
-            Mapping[Octets, Tuple[List[bytes], BIP32KeyOrigin]],
+            Mapping[Octets, tuple[list[bytes], BIP32KeyOrigin]],
             taproot_bip32_from_dict(dict_["taproot_hd_key_paths"]),
         )
         return cls(

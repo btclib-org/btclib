@@ -11,11 +11,13 @@
 
 Dataclass encapsulating BlockHeader and list[Tx].
 """
+
 from __future__ import annotations
 
+from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
 from math import ceil
-from typing import Any, Mapping, Sequence
+from typing import Any
 
 from btclib import var_bytes, var_int
 from btclib.alias import BinaryData

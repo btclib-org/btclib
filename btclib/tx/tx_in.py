@@ -15,8 +15,9 @@ script_witness.
 
 from __future__ import annotations
 
+from collections.abc import Mapping
 from dataclasses import dataclass, field
-from typing import Any, Mapping
+from typing import Any
 
 from btclib import var_bytes
 from btclib.alias import BinaryData, Octets
@@ -52,12 +53,12 @@ class TxIn:
         return self.prev_out
 
     @property
-    def scriptSig(self) -> bytes:  # pylint: disable=invalid-name
+    def scriptSig(self) -> bytes:
         """Return the scriptSig bytes for compatibility with CTxIn."""
         return self.script_sig
 
     @property
-    def nSequence(self) -> int:  # pylint: disable=invalid-name
+    def nSequence(self) -> int:
         """Return the nSequence int for compatibility with CTxIn."""
         return self.sequence
 

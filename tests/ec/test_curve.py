@@ -9,7 +9,6 @@
 # or distributed except according to the terms contained in the LICENSE file.
 """Tests for the `btclib.curve` module."""
 
-
 import itertools
 import json
 from os import path
@@ -251,7 +250,7 @@ def test_ec_repr() -> None:
         ec_repr = repr(ec)
         if ec in low_card_curves.values() or ec.p_size < 24:
             ec_repr = f"{ec_repr[:-1]}, False)"
-        ec2 = eval(ec_repr)  # pylint: disable=eval-used # nosec eval
+        ec2 = eval(ec_repr)  # noqa: S307
         assert str(ec) == str(ec2)
 
 

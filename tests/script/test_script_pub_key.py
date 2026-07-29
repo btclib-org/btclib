@@ -60,7 +60,7 @@ def test_unknown_network() -> None:
 
 
 def test_nulldata() -> None:
-    OP_RETURN = b"\x6a"  # pylint: disable=invalid-name
+    OP_RETURN = b"\x6a"
 
     # self-consistency
     string = "time-stamped data"
@@ -79,7 +79,7 @@ def test_nulldata() -> None:
     # documented test cases: https://learnmeabitcoin.com/guide/nulldata
     string = "hello world"
     payload = string.encode()
-    assert payload.hex() == "68656c6c6f20776f726c64"  # pylint: disable=no-member
+    assert payload.hex() == "68656c6c6f20776f726c64"
     script_pub_key = OP_RETURN + var_bytes.serialize(payload)
     assert script_pub_key == ScriptPubKey.nulldata(string).script
     assert ("nulldata", payload) == type_and_payload(script_pub_key)
@@ -87,10 +87,7 @@ def test_nulldata() -> None:
     # documented test cases: https://learnmeabitcoin.com/guide/nulldata
     string = "charley loves heidi"
     payload = string.encode()
-    assert (
-        payload.hex()  # pylint: disable=no-member
-        == "636861726c6579206c6f766573206865696469"
-    )
+    assert payload.hex() == "636861726c6579206c6f766573206865696469"
     script_pub_key = OP_RETURN + var_bytes.serialize(payload)
     assert script_pub_key == ScriptPubKey.nulldata(string).script
     assert ("nulldata", payload) == type_and_payload(script_pub_key)
@@ -99,7 +96,7 @@ def test_nulldata() -> None:
     string = "家族も友達もみんなが笑顔の毎日がほしい"
     payload = string.encode()
     assert (
-        payload.hex()  # pylint: disable=no-member
+        payload.hex()
         == "e5aeb6e6978fe38282e58f8be98194e38282e381bfe38293e381aae3818ce7ac91e9a194e381aee6af8ee697a5e3818ce381bbe38197e38184"
     )
     script_pub_key = OP_RETURN + var_bytes.serialize(payload)
@@ -563,7 +560,7 @@ def test_non_standard_script_in_p2wsh() -> None:
     # fmt: off
     redeem_script_cmds: ScriptList = [
         "OP_IF",
-            "OP_3", *fed_pub_keys, "OP_6", "OP_CHECKMULTISIG",  # noqa E131
+            "OP_3", *fed_pub_keys, "OP_6", "OP_CHECKMULTISIG",
         "OP_ELSE",
             5184, "OP_CHECKSEQUENCEVERIFY", "OP_DROP",  # E131
             "OP_2", *rec_pub_keys, "OP_3", "OP_CHECKMULTISIG",  # E131

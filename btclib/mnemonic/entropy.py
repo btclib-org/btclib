@@ -18,12 +18,14 @@ padding.
 
 Output entropy is always raw.
 """
+
 from __future__ import annotations
 
 import math
 import secrets
+from collections.abc import Iterable, Sequence
 from hashlib import sha512
-from typing import Iterable, Sequence, Union
+from typing import Union
 
 from btclib.alias import Octets
 from btclib.exceptions import BTClibValueError
@@ -53,7 +55,7 @@ def wordlist_indexes_from_bin_str_entropy(entropy: BinStr, base: int) -> list[in
         indexes.append(index)
 
     # do not lose leading zeros entropy
-    bits_per_digit = int(math.log(base, 2))
+    bits_per_digit = int(math.log2(base))
     nwords = math.ceil(bits / bits_per_digit)
     indexes += [0] * (nwords - len(indexes))
 
@@ -70,10 +72,10 @@ def bin_str_entropy_from_wordlist_indexes(indexes: Sequence[int], base: int) -> 
     for index in indexes:
         entropy = entropy * base + index
 
-    binentropy = bin(entropy)[2:]  # remove '0b'
+    binentropy = f"{entropy:b}"
 
     # do not lose leading zeros entropy
-    bits_per_digit = int(math.log(base, 2))
+    bits_per_digit = int(math.log2(base))
     bits = len(indexes) * bits_per_digit
     return binentropy.zfill(bits)
 
@@ -185,8 +187,8 @@ def bin_str_entropy_from_int(
     # ascending unique sorting of allowed bits
     bits = sorted(set(bits))
 
-    # convert to binary string and remove leading '0b'
-    bin_str = bin(int_entropy)[2:]
+    # convert to binary string
+    bin_str = f"{int_entropy:b}"
     n_bits = len(bin_str)
     if n_bits > bits[-1]:
         # only the leftmost bits are retained
@@ -231,7 +233,7 @@ def collect_rolls(bits: int) -> tuple[int, list[int]]:
     dice_sides = 0
     _dice_sides = (4, 6, 8, 12, 20, 24, 30, 48, 60, 120)
     while dice_sides not in _dice_sides:
-        msg = f'dice sides {f"{_dice_sides}"[:-1]}'
+        msg = f"dice sides {f'{_dice_sides}'[:-1]}"
         msg += "; prefix with 'a' to automate rolls, hit enter for 'a6'): "
         dice_sides_str = input(msg)
         dice_sides_str = dice_sides_str.lower()
@@ -262,7 +264,7 @@ def collect_rolls(bits: int) -> tuple[int, list[int]]:
                 if automate:
                     roll_str = str(1 + secrets.randbelow(dice_sides))
                 else:
-                    roll_str = input(f"roll #{i+1}/{min_roll_number}: ")
+                    roll_str = input(f"roll #{i + 1}/{min_roll_number}: ")
                 roll = int(roll_str)
             except ValueError:
                 roll = 0

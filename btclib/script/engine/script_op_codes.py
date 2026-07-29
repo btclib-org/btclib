@@ -51,7 +51,7 @@ def op_if(
         condition_stack.append(False)
         return
 
-    minimalif = segwit_version == 1 or segwit_version == 0 and "MINIMALIF" in flags
+    minimalif = segwit_version == 1 or (segwit_version == 0 and "MINIMALIF" in flags)
     if minimalif and stack[-1] not in [b"", b"\x01"]:
         raise BTClibValueError()
     condition = _to_bool(stack.pop())
@@ -69,7 +69,7 @@ def op_notif(
         condition_stack.append(False)
         return
 
-    minimalif = segwit_version == 1 or segwit_version == 0 and "MINIMALIF" in flags
+    minimalif = segwit_version == 1 or (segwit_version == 0 and "MINIMALIF" in flags)
     if minimalif and stack[-1] not in [b"", b"\x01"]:
         raise BTClibValueError()
     condition = _to_bool(stack.pop())

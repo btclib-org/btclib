@@ -72,7 +72,7 @@ def _entropy_checksum(entropy: Entropy) -> tuple[BinStr, BinStr]:
     # integer checksum (leading zeros are lost)
     int_checksum = int.from_bytes(bytes_checksum, byteorder="big", signed=False)
     # convert checksum to binary '01' string
-    checksum = bin(int_checksum)[2:]  # remove '0b'
+    checksum = f"{int_checksum:b}"
     checksum = checksum.zfill(256)  # pad with leading lost zeros
     # leftmost bits
     checksum_bits = len(bytes_entropy) // 4

@@ -8,10 +8,11 @@
 # No part of btclib including this file, may be copied, modified, propagated,
 # or distributed except according to the terms contained in the LICENSE file.
 """Functions for conversions between different private key formats."""
+
 from __future__ import annotations
 
 import contextlib
-from typing import Tuple, Union
+from typing import Union
 
 from btclib.alias import String
 from btclib.base58 import b58decode
@@ -84,7 +85,7 @@ def _q_if_network_and_ec_match(q: int, network: str, ec: Curve) -> int:
     return q
 
 
-PrvkeyInfo = Tuple[int, str, bool]
+PrvkeyInfo = tuple[int, str, bool]
 
 
 def _prv_keyinfo_from_wif(

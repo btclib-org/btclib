@@ -50,9 +50,10 @@ from __future__ import annotations
 
 import contextlib
 import secrets
+from collections.abc import Sequence
 from dataclasses import InitVar, dataclass
 from hashlib import sha256
-from typing import Sequence, Union
+from typing import Union
 
 from btclib.alias import BinaryData, HashF, Integer, JacPoint, Octets, Point
 from btclib.bip32 import BIP32Key
@@ -319,7 +320,7 @@ def verify_(
     # verify must always return a bool
     try:
         assert_as_valid_(msg_hash, Q, sig, hf)
-    except Exception:  # pylint: disable=broad-except
+    except Exception:
         return False
 
     return True
@@ -368,7 +369,7 @@ def assert_batch_as_valid_(
         raise BTClibValueError(_err_msg(batch_size, "signatures", sigs))
     if batch_size == 1:
         assert_as_valid_(m_hashes[0], Qs[0], sigs[0], hf)
-        return None
+        return
 
     ec = sigs[0].ec
     if any(sig.ec != ec for sig in sigs):
@@ -408,7 +409,7 @@ def assert_batch_as_valid_(
         TJ[1] * RHSZ2 * RHSJ[2] % ec.p != RHSJ[1] * TZ2 * TJ[2] % ec.p
     ):
         raise BTClibRuntimeError("signature verification failed")
-    return None
+    return
 
 
 def assert_batch_as_valid(
@@ -431,7 +432,7 @@ def batch_verify_(
     # verify must always return a bool
     try:
         assert_batch_as_valid_(m_hashes, Qs, sigs, hf)
-    except Exception:  # pylint: disable=broad-except
+    except Exception:
         return False
 
     return True

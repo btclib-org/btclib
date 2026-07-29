@@ -1,6 +1,6 @@
 # TODO
 
-- enable flake8 max-complexity
+- enable the ruff C901 (mccabe complexity) rule
 - improve sphinx documentation
 - network as global variable
 - synch (ec, hf) according to network

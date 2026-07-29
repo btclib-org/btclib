@@ -47,7 +47,7 @@ with the following modifications:
 
 from __future__ import annotations
 
-from typing import Iterable
+from collections.abc import Iterable
 
 from btclib.alias import String
 from btclib.exceptions import BTClibValueError
@@ -77,7 +77,7 @@ def _hrp_expand(hrp: str) -> list[int]:
 def _create_checksum(hrp: str, data: list[int], m: int) -> list[int]:
     """Compute the checksum values given HRP and data."""
     values = _hrp_expand(hrp) + data
-    polymod = _polymod(values + [0, 0, 0, 0, 0, 0]) ^ m
+    polymod = _polymod([*values, 0, 0, 0, 0, 0, 0]) ^ m
     return [(polymod >> 5 * (5 - i)) & 31 for i in range(6)]
 
 

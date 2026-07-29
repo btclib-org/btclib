@@ -12,6 +12,7 @@
 These functions are meant to explore low-cardinality CurveGroup, for
 didactical (and fun) reason only.
 """
+
 from __future__ import annotations
 
 from btclib.alias import INF, Point

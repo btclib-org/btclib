@@ -12,8 +12,8 @@
 from __future__ import annotations
 
 import secrets
+from collections.abc import Sequence
 from hashlib import sha256 as hf  # FIXME any hf
-from typing import List, Sequence
 
 from btclib.alias import Octets, Point
 from btclib.ec import bytes_from_point, double_mult, mult, secp256k1
@@ -42,7 +42,7 @@ def _get_msg_format(msg: bytes, pubk_rings: Sequence[PubkeyRing]) -> bytes:
     return hf(msg + t).digest()
 
 
-SValues = Sequence[List[int]]
+SValues = Sequence[list[int]]
 
 
 def _initialize(
@@ -132,7 +132,7 @@ def verify(
     # verify must always return a bool
     try:
         return assert_as_valid(msg, e0, s, pubk_rings)
-    except Exception:  # pylint: disable=broad-except
+    except Exception:
         return False
 
 

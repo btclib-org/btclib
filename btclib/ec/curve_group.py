@@ -13,12 +13,13 @@ Note that CurveGroup does not have to be a cyclic subgroup. For the
 cyclic subgroup class CurveSubGroup and the cyclic subgroup class of
 prime order Curve, see the btclib.ec.curve module.
 """
+
 from __future__ import annotations
 
 import functools
 import heapq
+from collections.abc import Sequence
 from math import ceil
-from typing import Sequence
 
 from btclib.alias import INF, INFJ, Integer, JacPoint, Point
 from btclib.exceptions import BTClibTypeError, BTClibValueError
@@ -534,7 +535,7 @@ def mult_mont_ladder(m: int, Q: JacPoint, ec: CurveGroup) -> JacPoint:
 
     # R[0] is the running resultR[1] = R[0] + Q is an ancillary variable
     R = [INFJ, Q]
-    for i in [int(i) for i in bin(m)[2:]]:
+    for i in [int(i) for i in f"{m:b}"]:
         R[not i] = ec.add_jac(R[i], R[not i])
         R[i] = ec.double_jac(R[i])
     return R[0]
@@ -681,8 +682,8 @@ def _double_mult(
     # at each step one of the following points will be added
     T = [INFJ, HJ, QJ, ec.add_jac(HJ, QJ)]
     # which one depends on binary digit for that step
-    ui = bin(u)[2:]
-    vi = bin(v)[2:].zfill(len(ui))
+    ui = f"{u:b}"
+    vi = f"{v:b}".zfill(len(ui))
     ui = ui.zfill(len(vi))
     digits = [int(j) + 2 * int(k) for j, k in zip(ui, vi)]
     # R[0] is the running result, R[1] = R[0] + T[*] is an ancillary variable

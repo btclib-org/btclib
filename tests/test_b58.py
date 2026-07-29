@@ -49,7 +49,7 @@ def test_wif_from_prv_key() -> None:
         ("KwdMAjGmerYanjeui5SHS7JkmpZvVipYvB2LJGU1ZxJwYvP98617 ", "mainnet", True),
     ]
     for v in test_vectors:
-        for prv_key in [q_prv_key] + wif_prv_keys:
+        for prv_key in [q_prv_key, *wif_prv_keys]:
             assert v[0].strip() == b58.wif_from_prv_key(prv_key, v[1], v[2])
             q, network, compressed = prv_keyinfo_from_prv_key(v[0])
             assert q == int(q_prv_key, 16)

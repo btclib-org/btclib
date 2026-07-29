@@ -31,9 +31,7 @@ def test_rfc6979() -> None:
 
 
 def test_rfc6979_nonce_example() -> None:
-    class _helper(
-        Curve
-    ):  # pylint: disable=too-few-public-methods, super-init-not-called
+    class _helper(Curve):
         def __init__(self, n: int) -> None:
             self.n = n
             self.nlen = n.bit_length()

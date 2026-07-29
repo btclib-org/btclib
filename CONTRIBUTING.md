@@ -29,31 +29,36 @@ Here are some resources to help you get started with open source contributions:
 
 ## Getting started
 
-Development tools are required to develop and test btclib;
-they can be installed with:
+btclib is managed with [uv](https://docs.astral.sh/uv/), the only tool that
+must be installed on the development machine: see the
+[uv installation instructions](https://docs.astral.sh/uv/getting-started/installation/).
+
+A virtual environment with btclib (in editable way) and all the development
+tools, including those needed to build the documentation, is then created with:
 
 ```shell
-python -m pip install --upgrade -r requirements-dev.txt
+uv sync
 ```
 
-Developers might also consider installing btclib in editable way:
+Development tracks the
+[btclib_libsecp256k1](https://github.com/btclib-org/btclib_libsecp256k1)
+bindings under development, not the released ones: see tool.uv.sources in
+pyproject.toml. They are compiled from source, so a C toolchain is required
+(cmake comes as a build dependency); the released btclib keeps depending on
+the plain btclib_libsecp256k1 wheels from PyPI.
 
-```shell
-python -m pip install --upgrade -e ./
-```
+Every command is run inside that environment prefixing it with `uv run`
+(e.g., `uv run pytest`); alternatively, activate the environment once with
+`source .venv/bin/activate` (`.venv\Scripts\activate` on Windows).
 
-Finally, additional packages are needed to build the documentation:
-
-```shell
-python -m pip install --upgrade -r docs/requirements.txt
-```
+The dependency groups defined in pyproject.toml can also be installed
+individually, e.g. `uv sync --no-default-groups --group test`.
 
 As an annotated python3 project, btclib is very strict on code formatting
-([isort](https://pycqa.github.io/isort/),
-[black](https://github.com/psf/black),
-[pylint](https://pylint.pycqa.org/en/latest/),
-[bandit](https://github.com/PyCQA/bandit),
-[flake8](https://flake8.pycqa.org/en/latest/),
+and linting
+([ruff](https://docs.astral.sh/ruff/),
+which replaces autoflake, bandit, black, docformatter, flake8, isort,
+pydocstyle, pylint, pyupgrade, and yesqa;
 and [sourcery](https://pypi.org/project/sourcery-cli/))
 and proper type definition
 ([mypy](https://mypy-lang.org/)):
@@ -70,8 +75,20 @@ must pass at any time with
 of both the library and the test suite.
 See [Tests, code coverage, and profiling](./tests/README.md).
 
-These requirements are easily checked (and partially fixed) if you test
-the impact of your contribution with [tox](https://tox.wiki/).
+These requirements are easily checked (and partially fixed) with:
+
+```shell
+uv run ruff check --fix
+uv run ruff format
+uv run mypy btclib tests
+uv run pytest
+```
+
+or, in one go, with [pre-commit](https://pre-commit.com/):
+
+```shell
+uv run pre-commit run --all-files
+```
 
 Finally, even when it comes to mark-down (i.e., *.md files),
 please use [markdownlint-cli2](https://github.com/DavidAnson/markdownlint-cli2).
@@ -108,8 +125,8 @@ If you find an issue to work on, you are welcome to open a PR with a fix.
 ### Make Changes
 
 Work locally on your fork of btclib,
-until you are satisfied. Ensure that tox has no issue
-with your modified codebase.
+until you are satisfied. Ensure that pre-commit and pytest
+have no issue with your modified codebase.
 
 ### Commit your update
 

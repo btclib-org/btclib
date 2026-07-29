@@ -44,7 +44,7 @@ def test_exceptions() -> None:
 
     seed = "5b56c417303faa3fcba7e57400e120a0"
     with pytest.raises(BTClibValueError, match="unknown extended key version: "):
-        version = b"\x04\x88\xAD\xE5"
+        version = b"\x04\x88\xad\xe5"
         rootxprv_from_seed(seed, version)
 
     with pytest.raises(BTClibValueError, match="too many bits for seed: "):

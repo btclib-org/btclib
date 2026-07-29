@@ -14,4 +14,4 @@ from btclib.tx.tx import Tx, join_txs
 from btclib.tx.tx_in import TxIn
 from btclib.tx.tx_out import TxOut
 
-__all__ = ["OutPoint", "TxOut", "TxIn", "Tx", "join_txs"]
+__all__ = ["OutPoint", "Tx", "TxIn", "TxOut", "join_txs"]

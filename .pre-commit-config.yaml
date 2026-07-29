@@ -1,13 +1,13 @@
 # Skip execution of one or more hooks using the SKIP environment variable:
-# $ SKIP=pylint git commit -m "foo"
-# $ SKIP=mypy,pylint pre-commit run --all-files
+# $ SKIP=mypy git commit -m "foo"
+# $ SKIP=mypy,ruff-check pre-commit run --all-files
 #
 # If want to disable all hooks while committing, use the --no-verify/-n option:
 # $ git commit -n -m "foo"
 
 repos:
   - repo: https://github.com/pre-commit/pre-commit-hooks
-    rev: v4.4.0
+    rev: v6.0.0
     hooks:
       - id: trailing-whitespace
       - id: end-of-file-fixer
@@ -24,136 +24,45 @@ repos:
       - id: check-vcs-permalinks
       - id: detect-private-key
       - id: debug-statements
-      - id: requirements-txt-fixer
       - id: check-docstring-first
       # - id: name-tests-test
       - id: check-toml
   - repo: https://github.com/DavidAnson/markdownlint-cli2
-    rev: v0.8.1
+    rev: v0.23.2
     hooks:
-      - id: markdownlint-cli2-fix
-        name: markdownlint-cli2-fix (in place fixes)
+      # the markdownlint-cli2-fix hook is gone: --fix is now an argument
+      - id: markdownlint-cli2
+        name: markdownlint-cli2 (in place fixes)
+        args: [--fix]
   - repo: https://github.com/leoll2/copyright_notice_precommit
     rev: 0.1.1
     hooks:
       - id: copyright-notice
         args: [--notice=COPYRIGHT]
-        files: python
-  - repo: https://github.com/PyCQA/autoflake
-    rev: v2.2.0
+        files: \.py$
+  # ruff replaces autoflake, bandit, black, docformatter, flake8, isort,
+  # pydocstringformatter, pydocstyle, pylint, pyupgrade, and yesqa
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: v0.16.0
     hooks:
-      - id: autoflake
-        args:
-          - --in-place
-          - --expand-star-imports
-          - --remove-all-unused-imports
-          - --ignore-init-module-imports
-          - --remove-duplicate-keys
-          - --remove-unused-variables
-          - --remove-rhs-for-unused-variables
-        language: python
-        types: [python]
-  - repo: https://github.com/asottile/pyupgrade
-    rev: v3.9.0
-    hooks:
-      - id: pyupgrade
-        args: [--py38-plus]
-        # exclude: *fixtures
-        language: python
-        types: [python]
-  - repo: https://github.com/PyCQA/isort
-    rev: 5.12.0
-    hooks:
-      - id: isort
-        name: isort (black profile, in place fixes)
-        args: ["--profile", "black", "--filter-files"]
-        language: python
-        types: [python]
-  - repo: https://github.com/PyCQA/docformatter
-    rev: v1.7.5
-    hooks:
-      - id: docformatter
-        description: "Formats docstrings to follow PEP 257."
-        language: python
-        types: [python]
-        args: ["--in-place"]
-  - repo: https://github.com/DanielNoord/pydocstringformatter
-    rev: v0.7.3
-    hooks:
-      - id: pydocstringformatter
-        language: python
-        types: [python]
-  - repo: https://github.com/PyCQA/pydocstyle
-    rev: 6.3.0
-    hooks:
-      - id: pydocstyle
-        additional_dependencies: [tomli]
-        language: python
-        types: [python]
-  - repo: https://github.com/asottile/yesqa
-    rev: v1.5.0
-    hooks:
-      - id: yesqa
-        language: python
-        types: [python]
-  - repo: https://github.com/PyCQA/flake8
-    rev: 6.0.0
-    hooks:
-      - id: flake8
-        language: python
-        types: [python]
-  - repo: https://github.com/psf/black
-    rev: 23.7.0
-    hooks:
-      - id: black
-        name: black (in place fixes)
-        # args: [--diff, --check]
-        # It is recommended to specify the latest version of Python
-        # supported by your project here, or alternatively use
-        # pre-commit's default_language_version, see
-        # https://pre-commit.com/#top_level-default_language_version
-        # language_version: python3.11
-        language: python
-        types: [python]
-  - repo: https://github.com/PyCQA/bandit
-    rev: 1.7.5
-    hooks:
-      - id: bandit
-        name: bandit (btclib)
-        args: []
-        exclude: test_*
-        language: python
-        types: [python]
-  - repo: https://github.com/PyCQA/bandit
-    rev: 1.7.5
-    hooks:
-      - id: bandit
-        name: bandit (tests)
-        # for the test folder disable
-        # B101, Test for use of assert
-        # B311, Standard pseudo-random generators are not suitable
-        #       for security/cryptographic purposes
-        args: ["--skip", "B101,B311"]
-        exclude: btclib
-        language: python
-        types: [python]
-  - repo: https://github.com/PyCQA/pylint
-    rev: v3.0.0a6
-    hooks:
-      - id: pylint
-        args: [
-            "--disable=E0401", # import-error
-          ]
-        language: python
-        types: [python]
+      - id: ruff-check
+        name: ruff check (in place fixes)
+        args: [--fix]
+      - id: ruff-format
+        name: ruff format (in place fixes)
   - repo: https://github.com/pre-commit/mirrors-mypy
-    rev: v1.4.1
+    rev: v2.3.0
     hooks:
       - id: mypy
         language: python
         types: [python]
+  - repo: https://github.com/astral-sh/uv-pre-commit
+    rev: 0.12.0
+    hooks:
+      # keep uv.lock in sync with pyproject.toml
+      - id: uv-lock
   - repo: https://github.com/mgedmin/check-manifest
-    rev: "0.49"
+    rev: "0.51"
     hooks:
       - id: check-manifest
         description: Check the completeness of MANIFEST.in for Python packages.
@@ -161,6 +70,6 @@ repos:
         pass_filenames: false
         always_run: true
   - repo: https://github.com/regebro/pyroma
-    rev: "4.2"
+    rev: "5.0.1"
     hooks:
       - id: pyroma

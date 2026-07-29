@@ -11,12 +11,26 @@
 
 from __future__ import annotations
 
-from typing import Callable, Mapping
+from collections.abc import Mapping
+from typing import Callable
 
 try:
-    from btclib_libsecp256k1.ssa import verify as ssa_verify
+    from btclib_libsecp256k1.ssa import verify as _libsecp256k1_ssa_verify
+
+    def ssa_verify(msg_hash: bytes, pub_key: bytes, sig: bytes) -> bool:
+        """Verify a BIP340 signature, returning False if it is malformed.
+
+        The bindings raise a ValueError on a signature or x-only public
+        key that libsecp256k1 refuses to parse, while the caller treats
+        it as a failed verification and raises BTClibValueError itself.
+        """
+        try:
+            return bool(_libsecp256k1_ssa_verify(msg_hash, pub_key, sig))
+        except ValueError:
+            return False
+
 except ImportError:
-    from btclib.ecc.ssa import verify_ as ssa_verify  # type: ignore
+    from btclib.ecc.ssa import verify_ as ssa_verify  # type: ignore[assignment]
 
 from btclib import var_bytes
 from btclib.alias import ScriptList
@@ -207,7 +221,7 @@ def verify_script_path_vc0(
             if skip_execution:
                 continue
             if "MINIMALDATA" in flags:
-                if len(a) == 1 and (a[0] == 129 or 0 < a[0] <= 16) or len(a) == 0:
+                if (len(a) == 1 and (a[0] == 129 or 0 < a[0] <= 16)) or len(a) == 0:
                     raise BTClibValueError()
                 if serialize_script([a])[0] != t:
                     raise BTClibValueError()

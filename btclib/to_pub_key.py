@@ -8,10 +8,11 @@
 # No part of btclib including this file, may be copied, modified, propagated,
 # or distributed except according to the terms contained in the LICENSE file.
 """Functions for conversions between different public key formats."""
+
 from __future__ import annotations
 
 import contextlib
-from typing import Tuple, Union
+from typing import Union
 
 from btclib.alias import Point
 from btclib.bip32 import BIP32Key, BIP32KeyData
@@ -103,7 +104,7 @@ def point_from_pub_key(pub_key: PubKey, ec: Curve = secp256k1) -> Point:
 #    return mult(q, ec.G, ec)
 
 # public key bytes representation, network
-PubkeyInfo = Tuple[bytes, str]
+PubkeyInfo = tuple[bytes, str]
 
 
 def _pub_keyinfo_from_xpub(

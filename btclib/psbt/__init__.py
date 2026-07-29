@@ -25,6 +25,9 @@ from btclib.psbt.psbt_utils import (
 )
 
 __all__ = [
+    "Psbt",
+    "PsbtIn",
+    "PsbtOut",
     "assert_valid_unknown",
     "combine_psbts",
     "decode_dict_bytes_bytes",
@@ -32,13 +35,9 @@ __all__ = [
     "deserialize_map",
     "deserialize_tx",
     "encode_dict_bytes_bytes",
-    "encode_dict_bytes_bytes",
     "extract_tx",
     "finalize_psbt",
     "join_psbts",
-    "Psbt",
-    "PsbtIn",
-    "PsbtOut",
     "serialize_bytes",
     "serialize_dict_bytes_bytes",
     "serialize_hd_key_paths",

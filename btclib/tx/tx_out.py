@@ -15,8 +15,9 @@ script_pub_key to and from address).
 
 from __future__ import annotations
 
+from collections.abc import Mapping
 from dataclasses import dataclass
-from typing import Any, Mapping
+from typing import Any
 
 from btclib import var_bytes
 from btclib.alias import BinaryData, Octets, String
@@ -33,12 +34,12 @@ class TxOut:
     script_pub_key: ScriptPubKey
 
     @property
-    def nValue(self) -> int:  # pylint: disable=invalid-name
+    def nValue(self) -> int:
         """Return the nValue int for compatibility with CTxOut."""
         return self.value
 
     @property
-    def scriptPubKey(self) -> bytes:  # pylint: disable=invalid-name
+    def scriptPubKey(self) -> bytes:
         """Return the scriptPubKey bytes for compatibility with CTxOut."""
         return self.script_pub_key.script
 

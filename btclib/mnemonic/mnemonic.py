@@ -8,10 +8,11 @@
 # No part of btclib including this file, may be copied, modified, propagated,
 # or distributed except according to the terms contained in the LICENSE file.
 """Mnemonic sentence conversion from/to sequence of integer indexes."""
+
 from __future__ import annotations
 
+from collections.abc import Sequence
 from os import path
-from typing import Sequence
 
 from btclib.exceptions import BTClibValueError
 

@@ -1,6 +1,7 @@
 # Release
 
-1. Run tox to verify that your code pass all tests
+1. Run `uv run pre-commit run --all-files` and `uv run pytest` to verify that
+   your code pass all checks and tests
    (at least on your OS with your python version)
 
 1. Set appropriate version inside btclib/\_\_init\_\_.py and docs/source/conf.py
@@ -24,13 +25,13 @@
 
    ```shell
    rm -r btclib.egg-info/ build/ dist/
-   python setup.py sdist bdist_wheel
+   uv build
    ```
 
 1. Push the package files to PyPi:
 
    ```shell
-   twine upload dist/*
+   uv publish
    ```
 
 1. Create a new release on GitHub:

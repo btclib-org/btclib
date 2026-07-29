@@ -133,27 +133,26 @@ def verify_input(prevouts: list[TxOut], tx: Tx, i: int, flags: list[str]) -> Non
             raise BTClibValueError()
         return
 
-    if segwit_version == 1:
-        if script_type == "p2tr":
-            if p2sh:
-                return  # remains unencumbered
-            witness = tx.vin[i].script_witness
-            budget = 50 + len(witness.serialize())
-            annex = taproot_get_annex(witness)
-            stack = witness.stack
-            if len(stack) == 0:
-                raise BTClibValueError()
-            if len(stack) == 1:
-                tapscript.verify_key_path(script, stack, prevouts, tx, i, annex)
-                stack = []
+    if segwit_version == 1 and script_type == "p2tr":
+        if p2sh:
+            return  # remains unencumbered
+        witness = tx.vin[i].script_witness
+        budget = 50 + len(witness.serialize())
+        annex = taproot_get_annex(witness)
+        stack = witness.stack
+        if len(stack) == 0:
+            raise BTClibValueError()
+        if len(stack) == 1:
+            tapscript.verify_key_path(script, stack, prevouts, tx, i, annex)
+            stack = []
+        else:
+            script_bytes, stack, leaf_version = taproot_unwrap_script(script, stack)
+            if leaf_version == 0xC0:
+                tapscript.verify_script_path_vc0(
+                    script_bytes, stack, prevouts, tx, i, annex, budget, flags
+                )
             else:
-                script_bytes, stack, leaf_version = taproot_unwrap_script(script, stack)
-                if leaf_version == 0xC0:
-                    tapscript.verify_script_path_vc0(
-                        script_bytes, stack, prevouts, tx, i, annex, budget, flags
-                    )
-                else:
-                    return  # unknown program, passes validation
+                return  # unknown program, passes validation
 
     if segwit_version == 0:
         if script_type == "p2wpkh":

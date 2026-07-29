@@ -11,10 +11,12 @@
 
 https://github.com/bitcoin/bips/blob/master/bip-0174.mediawiki
 """
+
 from __future__ import annotations
 
+from collections.abc import Mapping, Sequence
 from io import BytesIO
-from typing import Any, Mapping, Sequence
+from typing import Any
 
 from btclib import var_bytes, var_int
 from btclib.alias import BinaryData, Octets
@@ -96,7 +98,7 @@ def serialize_dict_bytes_bytes(
 
 
 def encode_leaf_scripts(
-    dict_: Mapping[bytes, tuple[bytes, int]]
+    dict_: Mapping[bytes, tuple[bytes, int]],
 ) -> dict[str, tuple[str, int]]:
     """Return the json representation of a tap_leaf_script.
 
@@ -107,7 +109,7 @@ def encode_leaf_scripts(
 
 
 def decode_leaf_scripts(
-    map_: Mapping[Octets, tuple[Octets, int]] | None
+    map_: Mapping[Octets, tuple[Octets, int]] | None,
 ) -> dict[bytes, tuple[bytes, int]]:
     """Return a tap_leaf_script from its json representation."""
     if map_ is None:
@@ -136,7 +138,7 @@ def parse_leaf_script(v: bytes) -> tuple[bytes, int]:
 
 
 def encode_taproot_tree(
-    list_: list[tuple[int, int, bytes]]
+    list_: list[tuple[int, int, bytes]],
 ) -> list[tuple[int, int, str]]:
     """Return the json representation of a tap_tree.
 
@@ -146,7 +148,7 @@ def encode_taproot_tree(
 
 
 def decode_taproot_tree(
-    list_: Sequence[tuple[int, int, Octets]] | None
+    list_: Sequence[tuple[int, int, Octets]] | None,
 ) -> list[tuple[int, int, bytes]]:
     """Return a tap_tree from its json representation."""
     if list_ is None:
@@ -184,7 +186,7 @@ def parse_taproot_tree(v: bytes) -> list[tuple[int, int, bytes]]:
 
 
 def taproot_bip32_to_dict(
-    taproot_hd_key_paths: dict[bytes, tuple[list[bytes], BIP32KeyOrigin]]
+    taproot_hd_key_paths: dict[bytes, tuple[list[bytes], BIP32KeyOrigin]],
 ) -> list[dict[str, Any]]:
     """Return the json representation of a tap_bip32_derivation.
 
@@ -203,7 +205,7 @@ def taproot_bip32_to_dict(
 
 
 def taproot_bip32_from_dict(
-    taproot_hd_key_paths: list[dict[str, str]]
+    taproot_hd_key_paths: list[dict[str, str]],
 ) -> dict[bytes, tuple[list[bytes], BIP32KeyOrigin]]:
     """Return a tap_bip32_derivation from its json representation."""
     return {
@@ -219,7 +221,7 @@ def taproot_bip32_from_dict(
 
 
 def decode_taproot_bip32(
-    dict_: Mapping[Octets, tuple[Sequence[Octets], BIP32KeyOrigin]] | None
+    dict_: Mapping[Octets, tuple[Sequence[Octets], BIP32KeyOrigin]] | None,
 ) -> dict[bytes, tuple[list[bytes], BIP32KeyOrigin]]:
     """Parse correctly the tap_bip32_derivation init arguments."""
     if dict_ is None:
@@ -315,7 +317,7 @@ def assert_valid_taproot_tree(tree: list[tuple[int, int, bytes]]) -> None:
 
 
 def assert_valid_taproot_bip32_derivation(
-    derivations: dict[bytes, tuple[list[bytes], BIP32KeyOrigin]]
+    derivations: dict[bytes, tuple[list[bytes], BIP32KeyOrigin]],
 ) -> None:
     """Fails when the public keys have not the correct length."""
     for pubkey in derivations:

@@ -4,10 +4,10 @@ include *.md
 include *.txt
 include *.yml
 include *.yaml
-include .flake8
-include tox.ini
 include *.jsonc
 include pyproject.toml
+include uv.lock
+include .python-version
 
 exclude Gemfile
 exclude CNAME

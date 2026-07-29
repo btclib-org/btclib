@@ -10,7 +10,7 @@
 """Tapscript OP_CODES."""
 
 from btclib.exceptions import BTClibValueError
-from btclib.script.script import (  # noqa pylint: disable=unused-import
+from btclib.script.script import (  # noqa: F401
     _serialize_bytes_command,
     _serialize_int_command,
     op_int,

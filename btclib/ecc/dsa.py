@@ -397,7 +397,7 @@ def verify_(
     # verify must always return a bool
     try:
         assert_as_valid_(msg_hash, key, sig, lower_s, hf)
-    except Exception:  # pylint: disable=broad-except
+    except Exception:
         return False
 
     return True

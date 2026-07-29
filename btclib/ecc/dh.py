@@ -17,6 +17,7 @@ symmetric cryptographic scheme.
 The two entities must agree on the elliptic curve and key derivation
 function to use.
 """
+
 from __future__ import annotations
 
 from hashlib import sha256

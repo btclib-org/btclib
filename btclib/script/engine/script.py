@@ -11,10 +11,25 @@
 
 from __future__ import annotations
 
-from typing import Callable, MutableMapping
+from collections.abc import MutableMapping
+from typing import Callable
 
 try:
-    from btclib_libsecp256k1.dsa import verify as dsa_verify
+    from btclib_libsecp256k1.dsa import verify as _libsecp256k1_dsa_verify
+
+    def dsa_verify(msg_hash: bytes, pub_key: bytes, sig: bytes) -> bool:
+        """Verify an ECDSA signature, returning False if it is malformed.
+
+        The bindings raise a ValueError on a signature or public key that
+        libsecp256k1 refuses to parse, while the engine treats it as a
+        failed verification: DER strictness is enforced upstream, by
+        fix_signature, according to the DERSIG and STRICTENC flags.
+        """
+        try:
+            return bool(_libsecp256k1_dsa_verify(msg_hash, pub_key, sig))
+        except ValueError:
+            return False
+
 except ImportError:
     from btclib.ecc.dsa import verify_ as dsa_verify  # type: ignore[assignment]
 
@@ -108,9 +123,9 @@ def op_checksig(
         return False
     try:
         signature = fix_signature(signature, flags)
-    except (BTClibValueError, BTClibRuntimeError) as e:
+    except (BTClibValueError, BTClibRuntimeError):
         if "DERSIG" in flags or "STRICTENC" in flags:
-            raise e
+            raise
         return False
 
     if not check_pub_key(pub_key, segwit, flags):
@@ -255,7 +270,7 @@ def verify_script(
             if skip_execution:
                 continue
             if "MINIMALDATA" in flags:
-                if len(a) == 1 and (a[0] == 129 or 0 < a[0] <= 16) or len(a) == 0:
+                if (len(a) == 1 and (a[0] == 129 or 0 < a[0] <= 16)) or len(a) == 0:
                     raise BTClibValueError()
                 if serialize_script([a])[0] != t:
                     raise BTClibValueError()

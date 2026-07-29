@@ -145,15 +145,15 @@ def test_serialize_op_success() -> None:
 
 def test_serialize_bytes_command() -> None:
     length = 75
-    b = b"\x0A" * length
+    b = b"\x0a" * length
     assert len(serialize([b])) == length + 1
-    b = b"\x0A" * (length + 1)
+    b = b"\x0a" * (length + 1)
     assert len(serialize([b])) == (length + 1) + 2
 
     length = 255
-    b = b"\x0A" * length
+    b = b"\x0a" * length
     assert len(serialize([b])) == length + 2
-    b = b"\x0A" * (length + 1)
+    b = b"\x0a" * (length + 1)
     assert len(serialize([b])) == (length + 1) + 3
 
 
@@ -177,7 +177,7 @@ def test_serialization() -> None:
     with warnings.catch_warnings():
         warnings.simplefilter("ignore")
         assert parse(serialize([-1])) == ["81"]
-        for x in range(0, 17):
+        for x in range(17):
             assert parse(serialize([x])) == [f"{x:02X}"]
 
     for x in range(17, 100):

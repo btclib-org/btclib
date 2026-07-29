@@ -129,6 +129,7 @@ https://github.com/bitcoin/bitcoin/pull/524
 
 https://github.com/bitcoin/bips/blob/master/bip-0137.mediawiki
 """
+
 from __future__ import annotations
 
 import base64
@@ -339,7 +340,7 @@ def verify(msg: Octets, addr: String, sig: Sig | String, lower_s: bool = True) -
     # verify must always return a bool
     try:
         assert_as_valid(msg, addr, sig, lower_s)
-    except Exception:  # pylint: disable=broad-except
+    except Exception:
         return False
 
     return True

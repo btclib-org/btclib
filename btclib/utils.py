@@ -13,11 +13,13 @@ Most conversions from SEC 1 v.2 2.3 are included.
 
 https://www.secg.org/sec1-v2.pdf
 """
+
 from __future__ import annotations
 
+from collections.abc import Iterable
 from collections.abc import Iterable as IterableCollection
 from io import BytesIO
-from typing import Iterable, Optional, Union
+from typing import Optional, Union
 
 from btclib.alias import BinaryData, Integer, Octets
 from btclib.exceptions import BTClibValueError
@@ -41,10 +43,8 @@ def bytes_from_octets(octets: Octets, out_size: NoneOneOrMoreInt = None) -> byte
 
     if (
         out_size is None
-        or isinstance(out_size, int)
-        and len(octets) == out_size
-        or isinstance(out_size, IterableCollection)
-        and len(octets) in out_size
+        or (isinstance(out_size, int) and len(octets) == out_size)
+        or (isinstance(out_size, IterableCollection) and len(octets) in out_size)
     ):
         return octets
 
@@ -113,7 +113,7 @@ def int_from_integer(i: Integer) -> int:
 
     if isinstance(i, str):
         i = i.strip().lower()
-        if i.startswith("0x") or i.startswith("-0x"):
+        if i.startswith(("0x", "-0x")):
             return int(i, 16)
         i = bytes.fromhex(i)
 
@@ -132,7 +132,7 @@ def hex_string(i: Integer) -> str:
     int_ = int_from_integer(i)
     if int_ < 0:
         raise BTClibValueError(f"negative integer: {int_}")
-    a_str = hex(int_)[2:]
+    a_str = f"{int_:x}"
     if len(a_str) % 2 != 0:
         a_str = f"0{a_str}"
 

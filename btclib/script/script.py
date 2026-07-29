@@ -19,8 +19,8 @@ Scripts are represented by List[Command], where Command = Union[int, str, bytes]
 
 from __future__ import annotations
 
+from collections.abc import Sequence
 from dataclasses import dataclass
-from typing import Sequence
 from warnings import warn
 
 from btclib.alias import BinaryData, Command, Octets, ScriptList
@@ -255,7 +255,7 @@ def op_int(i: int) -> str:
 
 def _serialize_int_command(command: int) -> bytes:
     if -1 <= command <= 16:
-        warn(f"consider using OP_{command} instead")
+        warn(f"consider using OP_{command} instead", stacklevel=2)
     return _serialize_bytes_command(encode_num(command))
 
 
