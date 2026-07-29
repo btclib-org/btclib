@@ -270,9 +270,13 @@ def sign_(
     # SEC 1 v.2 section 3.2.1
     q = int_from_prv_key(prv_key, ec)
 
+    # a nonce provided by the caller is the nonce, while what
+    # libsecp256k1 takes is extra entropy for the RFC6979 nonce it
+    # derives itself: the two cannot be the same argument, so a
+    # requested nonce is for the python implementation below to use
     if (
         ec == secp256k1
-        and nonce is None  # FIXME secp256k1 manage nonce
+        and nonce is None
         and lower_s
         and hf == sha256
         and LIBSECP256K1_AVAILABLE
