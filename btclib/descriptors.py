@@ -20,6 +20,7 @@ GENERATOR = [0xF5DEE51989, 0xA9FDCA3312, 0x1BAB10E32D, 0x3706B1677A, 0x644D626FF
 
 
 def __descsum_polymod(symbols):
+    """Compute the descriptor checksum polymod."""
     chk = 1
     for value in symbols:
         top = chk >> 35
