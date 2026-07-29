@@ -20,12 +20,23 @@ on:
   workflow_dispatch:
 
 jobs:
-  test-cov-py:
+  # what the matrix buys: btclib_libsecp256k1 is built from source (see
+  # tool.uv.sources), so every (os, architecture, interpreter) triple is a
+  # distinct C toolchain, and the pure python code meets a distinct
+  # hashlib and OpenSSL. windows-11-arm is a job of its own, below
+  test-py:
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-latest, macos-latest, windows-latest]
+        os:
+          [
+            ubuntu-latest,
+            ubuntu-24.04-arm,
+            macos-26-intel,
+            macos-latest,
+            windows-latest,
+          ]
         python:
           ["3.9", "3.10", "3.11", "3.12", "3.13", "3.14", "pypy3.10", "pypy3.11"]
     steps:
@@ -34,29 +45,63 @@ jobs:
       - name: Setup uv
         uses: astral-sh/setup-uv@v9.0.0
         with:
-          # btclib_libsecp256k1 is built from source (see tool.uv.sources):
-          # the cache keeps that to once per commit of the bindings
+          # the bindings are built from source: the cache keeps that to
+          # once per commit of the bindings
           enable-cache: true
           python-version: ${{ matrix.python }}
       - name: Run pytest
+        run: uv run --frozen --no-default-groups --group test pytest
+
+  # windows on arm64 cannot join the matrix above, on two counts.
+  # A bare "3.13" request gets an emulated x86-64 interpreter, because uv
+  # still considers the native aarch64 distribution immature; cmake then
+  # builds libsecp256k1 with the native arm64 cl.exe, and linking the
+  # arm64 static library into an x86-64 extension leaves every secp256k1
+  # symbol unresolved (LNK2001). Asking for the native interpreter
+  # explicitly makes both sides arm64, and the suite passes.
+  # That interpreter only exists from 3.11 on, and not at all for pypy
+  test-py-windows-arm64:
+    runs-on: windows-11-arm
+    strategy:
+      fail-fast: false
+      matrix:
+        python: ["3.11", "3.12", "3.13", "3.14"]
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v7
+      - name: Setup uv
+        uses: astral-sh/setup-uv@v9.0.0
+        with:
+          enable-cache: true
+          python-version: cpython-${{ matrix.python }}-windows-aarch64
+      - name: Run pytest
+        run: uv run --frozen --no-default-groups --group test pytest
+
+  # coverage is measured once, not once per matrix job: the code base has
+  # no platform- or version-conditional branch (no sys.platform, no
+  # sys.version_info, no import fallback that is not "pragma: no cover")
+  # and no conditional skip, so every job walks the very same lines. The
+  # per-job measurement only bought the instrumentation overhead, one
+  # upload per job, and the parallel/--finish handshake that stitched the
+  # uploads back together
+  coverage-py:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v7
+      - name: Setup uv
+        uses: astral-sh/setup-uv@v9.0.0
+        with:
+          enable-cache: true
+          python-version: "3.13"
+      - name: Run pytest under coverage
         run: >
           uv run --frozen --no-default-groups --group test
           pytest --cov-report term-missing:skip-covered --cov=btclib --cov=tests
-      - name: Coveralls
-        run: uvx coveralls --service=github
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          COVERALLS_FLAG_NAME: ${{ matrix.python }}-${{ matrix.os }}
-          COVERALLS_PARALLEL: true
-
-  coveralls-py:
-    if: "github.repository == 'btclib-org/btclib' && github.base_ref == 'master'"
-    needs: test-cov-py
-    runs-on: ubuntu-latest
-    steps:
-      - name: Setup uv
-        uses: astral-sh/setup-uv@v9.0.0
+      # the guard the --finish job used to carry, so coverage still lands
+      # on coveralls.io exactly when it used to
       - name: Upload to coveralls.io
-        run: uvx coveralls --finish
+        if: "github.repository == 'btclib-org/btclib' && github.base_ref == 'master'"
+        run: uvx coveralls --service=github
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
