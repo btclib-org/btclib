@@ -16,10 +16,11 @@ from os import path
 import pytest
 
 from btclib.exceptions import BTClibValueError
+from btclib.script import ScriptPubKey
 from btclib.script.engine import verify_amounts, verify_input, verify_transaction
 from btclib.script.witness import Witness
 from btclib.tx import OutPoint, Tx, TxIn
-from btclib.tx.tx_out import ScriptPubKey, TxOut
+from btclib.tx.tx_out import TxOut
 from tests.script_engine import parse_script
 
 

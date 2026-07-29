@@ -185,7 +185,10 @@ def verify_amounts(prevouts: list[TxOut], tx: Tx) -> None:
 
 
 def verify_transaction(
-    prevouts: list[TxOut], tx: Tx, flags: list | None = None, check_amounts=True
+    prevouts: list[TxOut],
+    tx: Tx,
+    flags: list[str] | None = None,
+    check_amounts: bool = True,
 ) -> None:
     if flags is None:
         flags = ALL_FLAGS[:]

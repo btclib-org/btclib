@@ -118,9 +118,9 @@ def test_from_key() -> None:
 
     for invalid_pub_key in [INF, INF_xpub_data, *invalid_pub_keys]:
         with pytest.raises(BTClibValueError):
-            point_from_pub_key(invalid_pub_key)  # type: ignore[arg-type]
+            point_from_pub_key(invalid_pub_key)
         with pytest.raises(BTClibValueError):
-            pub_keyinfo_from_pub_key(invalid_pub_key)  # type: ignore[arg-type]
+            pub_keyinfo_from_pub_key(invalid_pub_key)
 
     for not_a_pub_key in [
         INF,
@@ -205,9 +205,9 @@ def test_from_key() -> None:
         *invalid_prv_keys,
     ]:
         with pytest.raises(BTClibValueError):
-            point_from_key(invalid_key)  # type: ignore[arg-type]
+            point_from_key(invalid_key)
         with pytest.raises(BTClibValueError):
-            pub_keyinfo_from_key(invalid_key)  # type: ignore[arg-type]
+            pub_keyinfo_from_key(invalid_key)
 
     for not_a_key in [
         q0,
@@ -219,9 +219,9 @@ def test_from_key() -> None:
         *not_a_pub_keys,
     ]:
         with pytest.raises(BTClibValueError):
-            point_from_key(not_a_key)  # type: ignore[arg-type]
+            point_from_key(not_a_key)
         with pytest.raises(BTClibValueError):
-            pub_keyinfo_from_key(not_a_key)  # type: ignore[arg-type]
+            pub_keyinfo_from_key(not_a_key)
 
 
 def test_fingerprint() -> None:

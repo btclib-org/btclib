@@ -15,13 +15,13 @@ from collections.abc import Sequence
 from typing import Callable
 
 from btclib import b32, b58, var_bytes
-from btclib.alias import Octets, ScriptList, String
+from btclib.alias import Octets, ScriptList, String, TaprootScriptTree
 from btclib.ec import point_from_octets
 from btclib.exceptions import BTClibValueError
 from btclib.hashes import hash160, sha256
 from btclib.network import NETWORKS
 from btclib.script.script import Script, op_int, serialize
-from btclib.script.taproot import TaprootScriptTree, output_pubkey
+from btclib.script.taproot import output_pubkey
 from btclib.to_pub_key import Key, pub_keyinfo_from_key
 from btclib.utils import bytes_from_octets, bytesio_from_binarydata
 

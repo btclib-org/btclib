@@ -15,12 +15,13 @@ from os import path
 
 import pytest
 
+from btclib.script import ScriptPubKey
 from btclib.script.engine import verify_input
 from btclib.script.witness import Witness
 from btclib.tx.out_point import OutPoint
 from btclib.tx.tx import Tx
 from btclib.tx.tx_in import TxIn
-from btclib.tx.tx_out import ScriptPubKey, TxOut
+from btclib.tx.tx_out import TxOut
 from tests.script_engine import parse_script
 
 
@@ -30,7 +31,14 @@ def test_script() -> None:
     with open(filename, encoding="ascii") as file_:
         data = json.load(file_)
 
-    def test(stack, amount, script_sig_str, script_pub_key_str, flags, result):
+    def test(
+        stack: list[str],
+        amount: int,
+        script_sig_str: str,
+        script_pub_key_str: str,
+        flags: list[str],
+        result: bool,
+    ) -> None:
         coinbase_input = TxIn(
             sequence=0xFFFFFFFF, prev_out=OutPoint(), script_sig=b"\x00\x00"
         )

@@ -9,7 +9,8 @@
 # or distributed except according to the terms contained in the LICENSE file.
 """Module btclib.script."""
 
-from btclib.script.script import Command, Script, op_int, parse, serialize
+from btclib.alias import Command, TaprootScriptTree
+from btclib.script.script import Script, op_int, parse, serialize
 from btclib.script.script_pub_key import (
     ScriptPubKey,
     address,
@@ -31,7 +32,6 @@ from btclib.script.script_pub_key import (
     type_and_payload,
 )
 from btclib.script.taproot import (
-    TaprootScriptTree,
     check_output_pubkey,
     input_script_sig,
     output_prvkey,

@@ -484,7 +484,7 @@ def _sort_or_shuffle_together(
     if ordering_func is None:
         random.shuffle(tmp)
     else:
-        tmp.sort(key=lambda t: ordering_func(t[0]))  # type: ignore[misc]
+        tmp.sort(key=lambda t: ordering_func(t[0]))
     tuple_a, tuple_b = zip(*tmp)
     return list(tuple_a), list(tuple_b)
 

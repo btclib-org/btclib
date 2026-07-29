@@ -12,7 +12,6 @@
 from __future__ import annotations
 
 from collections.abc import Mapping
-from typing import Callable
 
 from btclib_libsecp256k1.ssa import verify as _libsecp256k1_ssa_verify
 
@@ -23,7 +22,7 @@ from btclib.hashes import tagged_hash
 from btclib.script import sig_hash
 from btclib.script.engine import script_op_codes
 from btclib.script.engine.script import check_balanced_if
-from btclib.script.engine.script_op_codes import _from_num
+from btclib.script.engine.script_op_codes import ScriptOp, _from_num
 from btclib.script.op_codes_tapscript import OP_CODE_NAMES
 from btclib.script.script_pub_key import type_and_payload
 from btclib.script.taproot import parse
@@ -132,14 +131,12 @@ def verify_script_path_vc0(
 
     codesep_pos = 0xFFFFFFFF
 
-    operations: Mapping[str, Callable] = {
+    operations: Mapping[str, ScriptOp] = {
         "OP_DUP": script_op_codes.op_dup,
         "OP_2DUP": script_op_codes.op_2dup,
         "OP_DROP": script_op_codes.op_drop,
         "OP_2DROP": script_op_codes.op_2drop,
         "OP_SWAP": script_op_codes.op_swap,
-        "OP_IF": script_op_codes.op_if,
-        "OP_NOTIF": script_op_codes.op_notif,
         "OP_1NEGATE": script_op_codes.op_1negate,
         "OP_VERIFY": script_op_codes.op_verify,
         "OP_EQUAL": script_op_codes.op_equal,

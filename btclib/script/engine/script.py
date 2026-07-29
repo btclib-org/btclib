@@ -12,7 +12,6 @@
 from __future__ import annotations
 
 from collections.abc import MutableMapping
-from typing import Callable
 
 from btclib_libsecp256k1.dsa import verify as _libsecp256k1_dsa_verify
 
@@ -21,7 +20,7 @@ from btclib.ecc.dsa import Sig
 from btclib.exceptions import BTClibRuntimeError, BTClibValueError
 from btclib.script import sig_hash
 from btclib.script.engine import script_op_codes
-from btclib.script.engine.script_op_codes import _from_num, _to_num
+from btclib.script.engine.script_op_codes import ScriptOp, _from_num, _to_num
 from btclib.script.script import OP_CODE_NAME_FROM_INT, parse
 from btclib.script.script import serialize as serialize_script
 from btclib.script.sig_hash import SIG_HASH_TYPES
@@ -140,7 +139,7 @@ def op_checksig(
     return bool(dsa_verify(msg_hash, pub_key, signature[:-1]))
 
 
-def script_op_count(count: int, increment: int):
+def script_op_count(count: int, increment: int) -> int:
     count += increment
     if count > 201:
         raise BTClibValueError()
@@ -183,7 +182,7 @@ def verify_script(
 
     script_index = -1
 
-    operations: MutableMapping[str, Callable] = {
+    operations: MutableMapping[str, ScriptOp] = {
         "OP_DUP": script_op_codes.op_dup,
         "OP_2DUP": script_op_codes.op_2dup,
         "OP_DROP": script_op_codes.op_drop,

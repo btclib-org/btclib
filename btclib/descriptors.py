@@ -19,7 +19,7 @@ CHECKSUM_CHARSET = "qpzry9x8gf2tvdw0s3jn54khce6mua7l"
 GENERATOR = [0xF5DEE51989, 0xA9FDCA3312, 0x1BAB10E32D, 0x3706B1677A, 0x644D626FFD]
 
 
-def __descsum_polymod(symbols):
+def __descsum_polymod(symbols: list[int]) -> int:
     """Compute the descriptor checksum polymod."""
     chk = 1
     for value in symbols:
@@ -30,10 +30,10 @@ def __descsum_polymod(symbols):
     return chk
 
 
-def __descsum_expand(descriptor_string: str):
+def __descsum_expand(descriptor_string: str) -> list[int]:
     """Perform the character to symbol expansion."""
-    groups = []
-    symbols = []
+    groups: list[int] = []
+    symbols: list[int] = []
     for char in descriptor_string:
         if char not in INPUT_CHARSET:
             raise BTClibValueError()

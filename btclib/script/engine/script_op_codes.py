@@ -9,6 +9,8 @@
 
 from __future__ import annotations
 
+from typing import Callable
+
 from btclib.alias import ScriptList
 from btclib.exceptions import BTClibValueError
 from btclib.hashes import hash160, hash256, ripemd160, sha1, sha256
@@ -34,11 +36,17 @@ def _from_num(x: int) -> bytes:
     return b"" if x == 0 else encode_num(x)
 
 
-def _to_bool(element: bytes):
+def _to_bool(element: bytes) -> bool:
     return next(
         (True for x in element[:-1] if x != 0),
         bool(element and element[-1] not in (0x00, 0x80)),
     )
+
+
+# what every operation in the mappings of script.py and tapscript.py is.
+# The op codes taking anything else, op_if and its condition stack among
+# them, are driven by those modules directly instead
+ScriptOp = Callable[[list[bytes], list[bytes], list[str]], ScriptList | None]
 
 
 def op_if(

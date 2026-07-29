@@ -11,7 +11,7 @@
 
 from __future__ import annotations
 
-from typing import Any
+from typing import Any, cast
 
 from btclib import var_bytes
 from btclib.alias import BinaryData, Octets, ScriptList, TaprootScriptTree
@@ -21,10 +21,9 @@ from btclib.hashes import tagged_hash
 from btclib.script.op_codes_tapscript import (
     OP_CODE_NAMES,
     OP_SUCCESS,
-    _serialize_bytes_command,
-    _serialize_int_command,
     _serialize_str_command,
 )
+from btclib.script.script import _serialize_bytes_command, _serialize_int_command
 from btclib.to_prv_key import PrvKey, int_from_prv_key
 from btclib.to_pub_key import Key, pub_keyinfo_from_key
 from btclib.utils import bytes_from_octets, bytesio_from_binarydata
@@ -94,7 +93,7 @@ def parse(stream: BinaryData, exit_on_op_success: bool = False) -> ScriptList:
 
 def tree_helper(script_tree: TaprootScriptTree) -> tuple[Any, bytes]:
     if len(script_tree) == 1:
-        return _tree_helper(script_tree)
+        return cast("tuple[Any, bytes]", _tree_helper(script_tree))
     left, left_h = tree_helper(script_tree[0])
     right, right_h = tree_helper(script_tree[1])
     info = [(leaf, c + right_h) for leaf, c in left]

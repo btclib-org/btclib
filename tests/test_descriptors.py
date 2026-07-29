@@ -24,7 +24,7 @@ from btclib.exceptions import BTClibValueError
 
 # descriptors taken from https://github.com/bitcoin/bitcoin/blob/master/doc/descriptors.md
 # checksum calculated using https://docs.rs/bdk/latest/bdk/descriptor/checksum/fn.get_checksum.html
-def test_checksum():
+def test_checksum() -> None:
     filename = Path(__file__).parent / "_data" / "descriptor_checksums.json"
     with open(filename, encoding="utf-8") as file:
         data = json.load(file)
@@ -35,12 +35,12 @@ def test_checksum():
         assert descriptor_checksum(descriptor) == checksum
 
 
-def test_invalid_charset():
+def test_invalid_charset() -> None:
     with pytest.raises(BTClibValueError):
         __descsum_expand("è")
 
 
-def test_addr():
+def test_addr() -> None:
     address = "bc1qnehtvnd4fedkwjq6axfgsrxgllwne3k58rhdh0"
     descriptor = "addr(bc1qnehtvnd4fedkwjq6axfgsrxgllwne3k58rhdh0)#s2y3vepm"
     assert descriptor_from_address(address) == descriptor
