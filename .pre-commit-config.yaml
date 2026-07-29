@@ -69,6 +69,10 @@ repos:
         language: python
         pass_filenames: false
         always_run: true
+        # check-manifest builds an sdist with "python -m build": build creates
+        # the isolated environment with venv+ensurepip, which is not available
+        # on pre-commit.ci; with virtualenv installed, build uses it instead
+        additional_dependencies: [virtualenv]
   - repo: https://github.com/regebro/pyroma
     rev: "5.0.1"
     hooks:
