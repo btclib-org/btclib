@@ -25,6 +25,8 @@ from dataclasses import InitVar, dataclass
 from hashlib import sha256
 from io import BytesIO
 
+from btclib_libsecp256k1 import dsa as libsecp256k1_dsa
+
 from btclib import var_bytes
 from btclib.alias import BinaryData, HashF, JacPoint, Octets, Point
 from btclib.ec import Curve, secp256k1
@@ -36,14 +38,6 @@ from btclib.number_theory import mod_inv
 from btclib.to_prv_key import PrvKey, int_from_prv_key
 from btclib.to_pub_key import Key, point_from_key, pub_keyinfo_from_key
 from btclib.utils import bytes_from_octets, bytesio_from_binarydata, hex_string
-
-# the bindings are an optional accelerator: their absence only means
-# falling back to the pure python implementation
-LIBSECP256K1_AVAILABLE = False
-with contextlib.suppress(ImportError):
-    from btclib_libsecp256k1 import dsa as libsecp256k1_dsa
-
-    LIBSECP256K1_AVAILABLE = True
 
 _DER_SCALAR_MARKER = b"\x02"
 _DER_SIG_MARKER = b"\x30"
@@ -274,13 +268,7 @@ def sign_(
     # libsecp256k1 takes is extra entropy for the RFC6979 nonce it
     # derives itself: the two cannot be the same argument, so a
     # requested nonce is for the python implementation below to use
-    if (
-        ec == secp256k1
-        and nonce is None
-        and lower_s
-        and hf == sha256
-        and LIBSECP256K1_AVAILABLE
-    ):
+    if ec == secp256k1 and nonce is None and lower_s and hf == sha256:
         return Sig.parse(libsecp256k1_dsa.sign(msg_hash, q))
 
     # the challenge
@@ -369,7 +357,7 @@ def assert_as_valid_(
     else:
         sig = Sig.parse(sig)
 
-    if sig.ec == secp256k1 and hf == sha256 and LIBSECP256K1_AVAILABLE:
+    if sig.ec == secp256k1 and hf == sha256:
         msg_hash_bytes = bytes_from_octets(msg_hash, 32)
         pubkey_bytes = pub_keyinfo_from_key(key)[0]
         sig_bytes = sig.serialize()

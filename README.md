@@ -37,10 +37,15 @@ without care for backward compatibility; moreover,
 some of its algorithms could be broken using side-channel attacks.
 
 The library is not limited to the bitcon elliptic curve secp256k1;
-anyway, FFI bindings to
+for that curve, though, it always relies on
+[btclib_libsecp256k1](https://github.com/btclib-org/btclib_libsecp256k1),
+FFI bindings to
 [libsecp256k1](https://github.com/bitcoin-core/secp256k1)
-(the optimized C library used by Bitcoin Core)
-are available for this curve and used by default.
+(the optimized C library used by Bitcoin Core):
+they are a required dependency, not an optional accelerator, so
+installing btclib needs either one of their wheels or a C toolchain to
+build them. The python implementation is what every other curve uses,
+and remains the reference the test suite checks the bindings against.
 
 Included features are:
 

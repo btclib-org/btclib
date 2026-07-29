@@ -21,6 +21,12 @@ Major changes includes:
   multiplication now call the bindings, whose context is created once
   with SECP256K1_CONTEXT_NONE and randomized, as libsecp256k1 asks
   (issue #125)
+- btclib_libsecp256k1 is a required dependency, as pyproject.toml has
+  always declared: the import is no longer guarded, and secp256k1
+  signing, verification, and generator multiplication always go through
+  the bindings. The python implementation is not going anywhere: it
+  serves every other curve, a hash function other than sha256, a
+  caller-imposed nonce, and remains the reference implementation
 - moved the project management to [uv](https://docs.astral.sh/uv/):
   dependencies, dependency groups, and packaging metadata are declared in
   pyproject.toml (setup.py, requirements.txt, requirements-dev.txt, and

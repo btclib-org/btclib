@@ -15,6 +15,7 @@ from hashlib import sha1
 from os import path
 
 import pytest
+from btclib_libsecp256k1 import dsa as libsecp256k1_dsa
 
 from btclib.alias import INF
 from btclib.ec import (
@@ -27,14 +28,10 @@ from btclib.ec import (
 from btclib.ec.curve import CURVES, secp256k1
 from btclib.ec.curve_group import _mult
 from btclib.ecc import dsa
-from btclib.ecc.dsa import LIBSECP256K1_AVAILABLE
 from btclib.exceptions import BTClibRuntimeError, BTClibValueError
 from btclib.hashes import reduce_to_hlen
 from btclib.number_theory import mod_inv
 from btclib.to_pub_key import pub_keyinfo_from_prv_key
-
-if LIBSECP256K1_AVAILABLE:
-    from btclib_libsecp256k1 import dsa as libsecp256k1_dsa
 from tests.ec.test_curve import low_card_curves
 
 
@@ -295,23 +292,22 @@ def test_libsecp256k1() -> None:
     assert dsa.verify(msg, pub_key, btclib_sig)
     assert dsa.verify(msg, pub_key, btclib_sig.serialize())
 
-    if LIBSECP256K1_AVAILABLE:
-        msg_hash = reduce_to_hlen(msg)
-        libsecp256k1_sig = libsecp256k1_dsa.sign(msg_hash, prvkey_int)
-        assert btclib_sig.serialize() == libsecp256k1_sig
-        assert libsecp256k1_dsa.verify(msg_hash, pub_key, btclib_sig.serialize())
-        assert libsecp256k1_dsa.verify(msg_hash, pub_key, libsecp256k1_sig)
-        assert dsa.verify_(msg_hash, pub_key, libsecp256k1_sig)
+    msg_hash = reduce_to_hlen(msg)
+    libsecp256k1_sig = libsecp256k1_dsa.sign(msg_hash, prvkey_int)
+    assert btclib_sig.serialize() == libsecp256k1_sig
+    assert libsecp256k1_dsa.verify(msg_hash, pub_key, btclib_sig.serialize())
+    assert libsecp256k1_dsa.verify(msg_hash, pub_key, libsecp256k1_sig)
+    assert dsa.verify_(msg_hash, pub_key, libsecp256k1_sig)
 
-        invalid_prvkey = secp256k1.p
-        with pytest.raises(ValueError, match="invalid private key"):
-            libsecp256k1_dsa.sign(b"\x00" * 32, invalid_prvkey)
+    invalid_prvkey = secp256k1.p
+    with pytest.raises(ValueError, match="invalid private key"):
+        libsecp256k1_dsa.sign(b"\x00" * 32, invalid_prvkey)
 
-        with pytest.raises(ValueError, match="invalid DER signature"):
-            libsecp256k1_dsa.verify(msg_hash, pub_key, libsecp256k1_sig[1:])
+    with pytest.raises(ValueError, match="invalid DER signature"):
+        libsecp256k1_dsa.verify(msg_hash, pub_key, libsecp256k1_sig[1:])
 
-        with pytest.raises(ValueError, match="invalid public key"):
-            libsecp256k1_dsa.verify(msg_hash, pub_key[1:], libsecp256k1_sig)
+    with pytest.raises(ValueError, match="invalid public key"):
+        libsecp256k1_dsa.verify(msg_hash, pub_key[1:], libsecp256k1_sig)
 
 
 def test_libsecp256k1_py_vectors_ecdsa() -> None:
@@ -335,11 +331,10 @@ def test_libsecp256k1_py_vectors_ecdsa() -> None:
         pub_key = pub_keyinfo_from_prv_key(prv_key, compressed=True)[0]
         assert dsa.verify_(msg_hash, pub_key, sig)
 
-        if LIBSECP256K1_AVAILABLE:
-            sig_der = libsecp256k1_dsa.sign(msg_hash, prv_key)
-            assert sig_der == sig_raw[:-1]
-            pub_key = pub_keyinfo_from_prv_key(prv_key)[0]
-            assert libsecp256k1_dsa.verify(msg_hash, pub_key, sig_der)
+        sig_der = libsecp256k1_dsa.sign(msg_hash, prv_key)
+        assert sig_der == sig_raw[:-1]
+        pub_key = pub_keyinfo_from_prv_key(prv_key)[0]
+        assert libsecp256k1_dsa.verify(msg_hash, pub_key, sig_der)
 
 
 def test_libsecp256k1_py_vectors_ecdsa_nonce() -> None:
@@ -365,6 +360,5 @@ def test_libsecp256k1_py_vectors_ecdsa_nonce() -> None:
         pub_key = pub_keyinfo_from_prv_key(prv_key, compressed=True)[0]
         assert dsa.verify_(msg_hash, pub_key, sig_der)
 
-        if LIBSECP256K1_AVAILABLE:
-            pub_key = pub_keyinfo_from_prv_key(prv_key)[0]
-            assert libsecp256k1_dsa.verify(msg_hash, pub_key, sig_der)
+        pub_key = pub_keyinfo_from_prv_key(prv_key)[0]
+        assert libsecp256k1_dsa.verify(msg_hash, pub_key, sig_der)

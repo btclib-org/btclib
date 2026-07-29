@@ -14,23 +14,7 @@ from __future__ import annotations
 from collections.abc import Mapping
 from typing import Callable
 
-try:
-    from btclib_libsecp256k1.ssa import verify as _libsecp256k1_ssa_verify
-
-    def ssa_verify(msg_hash: bytes, pub_key: bytes, sig: bytes) -> bool:
-        """Verify a BIP340 signature, returning False if it is malformed.
-
-        The bindings raise a ValueError on a signature or x-only public
-        key that libsecp256k1 refuses to parse, while the caller treats
-        it as a failed verification and raises BTClibValueError itself.
-        """
-        try:
-            return bool(_libsecp256k1_ssa_verify(msg_hash, pub_key, sig))
-        except ValueError:
-            return False
-
-except ImportError:
-    from btclib.ecc.ssa import verify_ as ssa_verify  # type: ignore[assignment]
+from btclib_libsecp256k1.ssa import verify as _libsecp256k1_ssa_verify
 
 from btclib import var_bytes
 from btclib.alias import ScriptList
@@ -47,6 +31,19 @@ from btclib.script.taproot import serialize as serialize_script
 from btclib.tx.tx import Tx
 from btclib.tx.tx_out import TxOut
 from btclib.utils import bytesio_from_binarydata
+
+
+def ssa_verify(msg_hash: bytes, pub_key: bytes, sig: bytes) -> bool:
+    """Verify a BIP340 signature, returning False if it is malformed.
+
+    The bindings raise a ValueError on a signature or x-only public key
+    that libsecp256k1 refuses to parse, while the caller treats it as a
+    failed verification and raises BTClibValueError itself.
+    """
+    try:
+        return bool(_libsecp256k1_ssa_verify(msg_hash, pub_key, sig))
+    except ValueError:
+        return False
 
 
 def get_hashtype(signature: bytes) -> int:

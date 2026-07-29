@@ -14,24 +14,7 @@ from __future__ import annotations
 from collections.abc import MutableMapping
 from typing import Callable
 
-try:
-    from btclib_libsecp256k1.dsa import verify as _libsecp256k1_dsa_verify
-
-    def dsa_verify(msg_hash: bytes, pub_key: bytes, sig: bytes) -> bool:
-        """Verify an ECDSA signature, returning False if it is malformed.
-
-        The bindings raise a ValueError on a signature or public key that
-        libsecp256k1 refuses to parse, while the engine treats it as a
-        failed verification: DER strictness is enforced upstream, by
-        fix_signature, according to the DERSIG and STRICTENC flags.
-        """
-        try:
-            return bool(_libsecp256k1_dsa_verify(msg_hash, pub_key, sig))
-        except ValueError:
-            return False
-
-except ImportError:
-    from btclib.ecc.dsa import verify_ as dsa_verify  # type: ignore[assignment]
+from btclib_libsecp256k1.dsa import verify as _libsecp256k1_dsa_verify
 
 from btclib.alias import ScriptList
 from btclib.ecc.dsa import Sig
@@ -44,6 +27,20 @@ from btclib.script.script import serialize as serialize_script
 from btclib.script.sig_hash import SIG_HASH_TYPES
 from btclib.tx.tx import Tx
 from btclib.utils import bytesio_from_binarydata
+
+
+def dsa_verify(msg_hash: bytes, pub_key: bytes, sig: bytes) -> bool:
+    """Verify an ECDSA signature, returning False if it is malformed.
+
+    The bindings raise a ValueError on a signature or public key that
+    libsecp256k1 refuses to parse, while the engine treats it as a failed
+    verification: DER strictness is enforced upstream, by fix_signature,
+    according to the DERSIG and STRICTENC flags.
+    """
+    try:
+        return bool(_libsecp256k1_dsa_verify(msg_hash, pub_key, sig))
+    except ValueError:
+        return False
 
 
 def fix_signature(signature: bytes, flags: list[str]) -> bytes:
