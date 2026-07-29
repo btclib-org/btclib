@@ -34,7 +34,12 @@ jobs:
       - name: Check ruff formatting
         run: uv run --frozen --no-default-groups --group lint ruff format --check
       # pre-commit.ci runs mypy too, but from the rev pinned in its own
-      # config: this runs the version the project itself pins, and keeps
-      # the check from resting on a third party alone
+      # config, and through a hook that defaults to
+      # --ignore-missing-imports: this runs the version the project itself
+      # pins, and against the real pytest, which the test group is here to
+      # provide. Without it every "import pytest" under tests/ is an
+      # import-not-found
       - name: Check mypy types
-        run: uv run --frozen --no-default-groups --group lint mypy btclib tests
+        run: >
+          uv run --frozen --no-default-groups --group lint --group test
+          mypy btclib tests

@@ -34,9 +34,3 @@ updates:
     groups:
       dev-tooling:
         patterns: ["*"]
-    ignore:
-      # the only runtime dependency, and tool.uv.sources pins it to a
-      # commit of the bindings' dev branch: left to dependabot it would
-      # open a pull request every time that branch moves. It is bumped
-      # by re-locking, when the bindings are ready to be tracked
-      - dependency-name: btclib-libsecp256k1
