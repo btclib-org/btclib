@@ -11,7 +11,7 @@ license = { text = "MIT License" }
 authors = [{ name = "The btclib developers", email = "devs@btclib.org" }]
 # btclib_libsecp256k1 requires >=3.9, and python 3.8 is end-of-life
 requires-python = ">=3.9"
-dependencies = ["btclib_libsecp256k1"]
+dependencies = ["btclib_libsecp256k1>=0.7.1rc1"]
 keywords = [
     "bitcoin",
     "cryptography",
