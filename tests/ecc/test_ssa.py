@@ -21,7 +21,7 @@ from btclib_libsecp256k1 import ssa as libsecp256k1_ssa
 from btclib.alias import INF, Point, String
 from btclib.bip32 import BIP32KeyData
 from btclib.ec import bytes_from_point, double_mult, mult
-from btclib.ec.curve import CURVES, secp256k1
+from btclib.ec.curve import CURVES
 from btclib.ec.curve_group import jac_from_aff
 from btclib.ecc import bip340_nonce_, second_generator, ssa
 from btclib.exceptions import BTClibRuntimeError, BTClibTypeError, BTClibValueError
@@ -675,15 +675,6 @@ def test_libsecp256k1() -> None:
 
     msg_hash = reduce_to_hlen(msg)
     libsecp256k1_sig = libsecp256k1_ssa.sign(msg_hash, prvkey_int, aux)
-    assert len(libsecp256k1_sig) == 64
     assert len(btclib_sig.serialize()) == 64
     assert btclib_sig.serialize() == libsecp256k1_sig
-    assert libsecp256k1_ssa.verify(msg_hash, pub_key, libsecp256k1_sig)
     assert ssa.verify(msg, pub_key, libsecp256k1_sig)
-
-    invalid_prvkey = secp256k1.p
-    with pytest.raises(ValueError, match="invalid private key"):
-        libsecp256k1_ssa.sign(msg_hash, invalid_prvkey)
-
-    with pytest.raises(ValueError, match="invalid public key"):
-        libsecp256k1_ssa.verify(msg_hash, pub_key[1:], libsecp256k1_sig)

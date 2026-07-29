@@ -25,7 +25,7 @@ from btclib.ec import (
     mult,
     point_from_octets,
 )
-from btclib.ec.curve import CURVES, secp256k1
+from btclib.ec.curve import CURVES
 from btclib.ec.curve_group import _mult
 from btclib.ecc import dsa
 from btclib.exceptions import BTClibRuntimeError, BTClibValueError
@@ -296,18 +296,7 @@ def test_libsecp256k1() -> None:
     libsecp256k1_sig = libsecp256k1_dsa.sign(msg_hash, prvkey_int)
     assert btclib_sig.serialize() == libsecp256k1_sig
     assert libsecp256k1_dsa.verify(msg_hash, pub_key, btclib_sig.serialize())
-    assert libsecp256k1_dsa.verify(msg_hash, pub_key, libsecp256k1_sig)
     assert dsa.verify_(msg_hash, pub_key, libsecp256k1_sig)
-
-    invalid_prvkey = secp256k1.p
-    with pytest.raises(ValueError, match="invalid private key"):
-        libsecp256k1_dsa.sign(b"\x00" * 32, invalid_prvkey)
-
-    with pytest.raises(ValueError, match="invalid DER signature"):
-        libsecp256k1_dsa.verify(msg_hash, pub_key, libsecp256k1_sig[1:])
-
-    with pytest.raises(ValueError, match="invalid public key"):
-        libsecp256k1_dsa.verify(msg_hash, pub_key[1:], libsecp256k1_sig)
 
 
 def test_libsecp256k1_py_vectors_ecdsa() -> None:

@@ -301,7 +301,7 @@ def assert_as_valid_(
         pubkey_bytes = x_Q.to_bytes(32, "big")
         msg_hash = bytes_from_octets(msg_hash, 32)
         if not libsecp256k1_ssa.verify(msg_hash, pubkey_bytes, sig.serialize()):
-            raise BTClibRuntimeError("libsecp256k1 signature verification failed")
+            raise BTClibRuntimeError("signature verification failed")
         return
 
     # Let c = int(hf(bytes(r) || bytes(Q) || msg_hash)) mod n.

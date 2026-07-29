@@ -366,7 +366,7 @@ def assert_as_valid_(
         if not lower_s:
             sig_bytes = libsecp256k1_dsa.normalize(sig_bytes)
         if not libsecp256k1_dsa.verify(msg_hash_bytes, pubkey_bytes, sig_bytes):
-            raise BTClibRuntimeError("libsecp256k1 signature verification failed")
+            raise BTClibRuntimeError("signature verification failed")
         return
 
     c = challenge_(msg_hash, sig.ec, hf)  # 2, 3

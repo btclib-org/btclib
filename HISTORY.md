@@ -28,6 +28,11 @@ Major changes includes:
   serves every other curve, a hash function other than sha256, and a
   caller-imposed nonce, and the test suite keeps validating it against
   the bindings, libsecp256k1 being the authority on the answer
+- `dsa.assert_as_valid_` and `ssa.assert_as_valid_` raise "signature
+  verification failed" whichever of the two implementations verified: the
+  message used to name an internal helper (`libsecp256k1.ecdsa_verify_
+  failed`), telling the caller which backend ran instead of what went
+  wrong
 - moved the project management to [uv](https://docs.astral.sh/uv/):
   dependencies, dependency groups, and packaging metadata are declared in
   pyproject.toml (setup.py, requirements.txt, requirements-dev.txt, and
