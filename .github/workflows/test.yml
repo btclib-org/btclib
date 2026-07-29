@@ -87,8 +87,12 @@ jobs:
   # sys.version_info, no import fallback that is not "pragma: no cover")
   # and no conditional skip, so every job walks the very same lines. The
   # per-job measurement only bought the instrumentation overhead, one
-  # upload per job, and the parallel/--finish handshake that stitched the
-  # uploads back together
+  # coveralls.io upload per job, and the parallel/--finish handshake that
+  # stitched the uploads back together.
+  # The number is now a gate rather than a report: fail_under, in
+  # tool.coverage.report, fails this job on a regression. It needs no
+  # secret and no third party, and it applies to every run, where the
+  # upload only ever happened on pull requests targeting master
   coverage-py:
     runs-on: ubuntu-latest
     steps:
@@ -103,10 +107,3 @@ jobs:
         run: >
           uv run --frozen --no-default-groups --group test
           pytest --cov-report term-missing:skip-covered --cov=btclib --cov=tests
-      # the guard the --finish job used to carry, so coverage still lands
-      # on coveralls.io exactly when it used to
-      - name: Upload to coveralls.io
-        if: "github.repository == 'btclib-org/btclib' && github.base_ref == 'master'"
-        run: uvx coveralls --service=github
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

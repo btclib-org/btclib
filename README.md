@@ -10,7 +10,7 @@
 | Coding standards | [![lint: ruff](https://img.shields.io/badge/lint-ruff-yellowgreen.svg?logo=ruff)](https://docs.astral.sh/ruff/) [![lint: sourcery](https://img.shields.io/badge/lint-sourcery-yellowgreen.svg?logo=sourcery)](https://sourcery.ai) |
 | Type checking | [![type check: mypy](https://img.shields.io/badge/type_check-mypy-yellowgreen.svg?logo=mypy)](http://mypy-lang.org/) [![type check: pyright](https://img.shields.io/badge/type_check-pyright-yellowgreen.svg)](https://github.com/microsoft/pyright) |
 | Documentation | [![docs](https://readthedocs.org/projects/btclib/badge/?version=latest)](https://btclib.readthedocs.io) [![lint: ruff](https://img.shields.io/badge/docstrings-ruff-yellowgreen.svg?logo=ruff)](https://docs.astral.sh/ruff/rules/#pydocstyle-d) |
-| CI/CD | [![pre-commit](https://img.shields.io/badge/pre--commit-enabled-brightgreen?logo=pre-commit)](https://github.com/pre-commit/pre-commit) [![pre-commit.ci status](https://results.pre-commit.ci/badge/github/btclib-org/btclib/master.svg)](https://results.pre-commit.ci/latest/github/btclib-org/btclib/master) [![lint](https://github.com/btclib-org/btclib/actions/workflows/lint.yml/badge.svg)](https://github.com/btclib-org/btclib/actions/workflows/lint.yml) [![test](https://github.com/btclib-org/btclib/actions/workflows/test.yml/badge.svg)](https://github.com/btclib-org/btclib/actions/workflows/test.yml) [![coverage](https://coveralls.io/repos/github/btclib-org/btclib/badge.svg?logo=coveralls)](https://coveralls.io/github/btclib-org/btclib) |
+| CI/CD | [![pre-commit](https://img.shields.io/badge/pre--commit-enabled-brightgreen?logo=pre-commit)](https://github.com/pre-commit/pre-commit) [![pre-commit.ci status](https://results.pre-commit.ci/badge/github/btclib-org/btclib/master.svg)](https://results.pre-commit.ci/latest/github/btclib-org/btclib/master) [![lint](https://github.com/btclib-org/btclib/actions/workflows/lint.yml/badge.svg)](https://github.com/btclib-org/btclib/actions/workflows/lint.yml) [![test](https://github.com/btclib-org/btclib/actions/workflows/test.yml/badge.svg)](https://github.com/btclib-org/btclib/actions/workflows/test.yml) |
 | Conversations | [![slack](https://img.shields.io/badge/slack-btclib_dev-white.svg?logo=slack)](https://bbt-training.slack.com/messages/C01CCJ85AES) [![Follow on Twitter](https://img.shields.io/twitter/follow/btclib?style=social&logo=twitter)](https://twitter.com/intent/follow?screen_name=btclib) |
 
 [Browse GitHub Code Repository](https://github.com/btclib-org/btclib/)
@@ -23,10 +23,9 @@ Python3 [type annotated](https://docs.python.org/3/library/typing.html)
 library intended for teaching, learning, and using bitcoin;
 the focus is on elliptic curve cryptography and bitcoin's blockchain.
 
-It is rigorously and extensively tested: the test suite
-[covers 100%](https://coveralls.io/github/btclib-org/btclib)
-of the code base and reproduces results from both informal
-and major reference sources.
+It is rigorously and extensively tested: the test suite covers
+virtually the whole code base, a floor the build enforces, and
+reproduces results from both informal and major reference sources.
 
 Originally developed for the
 _[Bitcoin and Blockchain Technology](https://www.ametrano.net/bbt/)_

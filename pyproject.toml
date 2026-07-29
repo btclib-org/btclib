@@ -96,6 +96,14 @@ omit = ["*/site-packages/*"]
 show_missing = true
 skip_covered = true
 precision = 2
+# the gate that replaced coveralls.io: a local threshold, with no secret
+# and no third party service, enforced on every run instead of only on
+# pull requests targeting master.
+# The comparison is against the total rounded to precision above, so with
+# 12033 statements this allows 18 of them to go uncovered, against the 9
+# uncovered today: enough slack not to trip over a line, tight enough
+# that a regression cannot hide
+fail_under = 99.85
 
 [tool.mypy]
 strict = false
