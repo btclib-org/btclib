@@ -206,6 +206,20 @@ Major changes includes:
   `point_from_key` / `pub_keyinfo_from_key` helpers are unchanged, and so
   are the address and script builders that take one, where deriving from
   one's own private key is what the caller means (issue #143)
+- `sig_hash.from_tx` dispatches a p2sh input on its redeem script, not on
+  the script_sig that carries it. It used to test the whole script_sig for
+  p2wpkh and p2wsh, and the push opcode alone makes those tests false — a
+  p2sh-p2wpkh redeem script is 23 bytes on the wire where p2wpkh wants
+  exactly 22 — so a wrapped segwit input silently fell through to the
+  legacy branch and the caller signed a hash committing to no amount, the
+  very thing BIP-143 introduced. Legacy p2sh was wrong in the same way,
+  its script code being the script_sig rather than the redeem script. The
+  new `sig_hash.redeem_script` takes the last data push of the script_sig
+  and checks it against the hash in the script_pub_key, so a script_sig
+  disagreeing with the output it spends now raises BTClibValueError
+  instead of returning a hash no verifier will reproduce; code that used
+  to hand `from_tx` a bare redeem script as script_sig must push it —
+  `serialize([redeem_script])` (issue #136)
 - moved the project management to [uv](https://docs.astral.sh/uv/):
   dependencies, dependency groups, and packaging metadata are declared in
   pyproject.toml (setup.py, requirements.txt, requirements-dev.txt, and

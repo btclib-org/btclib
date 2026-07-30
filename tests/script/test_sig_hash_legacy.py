@@ -15,8 +15,14 @@
 import json
 from os import path
 
+import pytest
+
 from btclib.ecc import dsa
+from btclib.exceptions import BTClibValueError
+from btclib.hashes import hash160
 from btclib.script import serialize, sig_hash
+from btclib.script.engine import verify_transaction
+from btclib.to_pub_key import pub_keyinfo_from_prv_key
 from btclib.tx import OutPoint, Tx, TxIn, TxOut
 
 
@@ -148,6 +154,59 @@ def test_sig_hashsingle_bug() -> None:
     tx = Tx.parse(tx_bytes)
     hash_ = sig_hash.from_tx([TxOut(0, ""), utxo], tx, 1, sig_hash.SINGLE)
     assert dsa.verify_(hash_, pub_key, bytes.fromhex(signature)[:-1])
+
+
+def test_wrapped_p2pkh() -> None:
+    """The script code of a p2sh input is the redeem script.
+
+    Not the script_sig that carries it: signing the script_sig would
+    commit to the very signature being computed, and no verifier would
+    ever reproduce that hash (issue #136). The signature is checked with
+    the script engine, which derives its script code by executing the
+    script rather than through `from_tx`.
+    """
+    prv_key = 0x9E5C7B3D5A0F0E4A9F1E3D2C1B0A99887766554433221100FFEEDDCCBBAA9988
+    pub_key = pub_keyinfo_from_prv_key(prv_key)[0]
+    redeem_script = serialize(
+        ["OP_DUP", "OP_HASH160", hash160(pub_key), "OP_EQUALVERIFY", "OP_CHECKSIG"]
+    )
+    script_pub_key = serialize(["OP_HASH160", hash160(redeem_script), "OP_EQUAL"])
+    utxo = TxOut(100000000, script_pub_key)
+
+    tx_in = TxIn(OutPoint(b"\x01" * 32, 0), serialize([redeem_script]), 0xFFFFFFFF)
+    tx = Tx(1, 0, [tx_in], [TxOut(90000000, script_pub_key)])
+
+    hash_ = sig_hash.from_tx([utxo], tx, 0, sig_hash.ALL)
+    assert hash_ == sig_hash.legacy(redeem_script, tx, 0, sig_hash.ALL)
+
+    signature = dsa.sign_(hash_, prv_key).serialize() + b"\x01"
+    tx.vin[0].script_sig = serialize([signature, pub_key, redeem_script])
+    verify_transaction([utxo], tx)
+
+
+def test_missing_redeem_script() -> None:
+    prv_key = 0x9E5C7B3D5A0F0E4A9F1E3D2C1B0A99887766554433221100FFEEDDCCBBAA9988
+    pub_key = pub_keyinfo_from_prv_key(prv_key)[0]
+    redeem_script = serialize(
+        ["OP_DUP", "OP_HASH160", hash160(pub_key), "OP_EQUALVERIFY", "OP_CHECKSIG"]
+    )
+    script_pub_key = serialize(["OP_HASH160", hash160(redeem_script), "OP_EQUAL"])
+    utxo = TxOut(100000000, script_pub_key)
+
+    tx_in = TxIn(OutPoint(b"\x01" * 32, 0), b"", 0xFFFFFFFF)
+    tx = Tx(1, 0, [tx_in], [TxOut(90000000, script_pub_key)])
+    with pytest.raises(BTClibValueError, match="empty script_sig for a p2sh input"):
+        sig_hash.from_tx([utxo], tx, 0, sig_hash.ALL)
+
+    # a script_sig ending in an op code has no redeem script to push
+    tx.vin[0].script_sig = serialize([redeem_script, "OP_EQUAL"])
+    with pytest.raises(BTClibValueError, match="missing redeem script"):
+        sig_hash.from_tx([utxo], tx, 0, sig_hash.ALL)
+
+    # a redeem script the script_pub_key does not commit to
+    tx.vin[0].script_sig = serialize([serialize(["OP_1"])])
+    with pytest.raises(BTClibValueError, match="invalid redeem script hash"):
+        sig_hash.from_tx([utxo], tx, 0, sig_hash.ALL)
 
 
 def test_test_vectors() -> None:

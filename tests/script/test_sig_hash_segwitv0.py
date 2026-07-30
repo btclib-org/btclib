@@ -36,7 +36,11 @@ def test_native_p2wpkh() -> None:
 def test_wrapped_p2wpkh() -> None:
     tx_bytes = "0100000001db6b1b20aa0fd7b23880be2ecbd4a98130974cf4748fb66092ac4d3ceb1a54770100000000feffffff02b8b4eb0b000000001976a914a457b684d7f0d539a46a45bbc043f35b59d0d96388ac0008af2f000000001976a914fd270b1ee6abcaea97fea7ad0402e8bd8ad6d77c88ac92040000"
     tx = Tx.parse(tx_bytes)
-    tx.vin[0].script_sig = bytes.fromhex("001479091972186c449eb1ded22b78e40d009bdf0089")
+    # the script_sig as it goes on the wire: the 0x16 push of the 22-byte
+    # redeem script, not the bare redeem script (issue #136)
+    tx.vin[0].script_sig = bytes.fromhex(
+        "16001479091972186c449eb1ded22b78e40d009bdf0089"
+    )
 
     utxo = TxOut(1000000000, "a9144733f37cf4db86fbc2efed2500b4f4e49f31202387")
 
@@ -126,11 +130,12 @@ def test_wrapped_p2wsh() -> None:
         "56210307b8ae49ac90a048e9b53357a2354b3334e9c8bee813ecb98e99a7e07e8c3ba32103b28f0c28bfab54554ae8c658ac5c3e0ce6e79ad336331f78c428dd43eea8449b21034b8113d703413d57761b8b9781957b8c0ac1dfe69f492580ca4195f50376ba4a21033400f6afecb833092a9a21cfdf1ed1376e58c5d1f47de74683123987e967a8f42103a6d48b1131e94ba04d9737d61acdaa1322008af9602b3b14862c07a1789aac162102d8b661b0b3302ee2f162b09e07a55ad5dfbe673a9f01d9f0c19617681024306b56ae"
     ]
     tx.vin[0].script_witness = Witness(stack)
-
-    utxo = TxOut(
-        987654321,
-        "0020a16b5755f7f6f96dbd65f5f0d6ab9418b89af4b1f14a1bb8a09062c35f0dcb54",
+    # again the wire form: the 0x22 push of the p2wsh redeem script
+    tx.vin[0].script_sig = bytes.fromhex(
+        "220020a16b5755f7f6f96dbd65f5f0d6ab9418b89af4b1f14a1bb8a09062c35f0dcb54"
     )
+
+    utxo = TxOut(987654321, "a9149993a429037b5d912407a71c252019287b8d27a587")
 
     hash_ = sig_hash.from_tx([utxo], tx, 0, sig_hash.ALL)
     assert hash_ == bytes.fromhex(

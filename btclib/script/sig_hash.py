@@ -19,7 +19,7 @@ from __future__ import annotations
 from btclib import var_bytes
 from btclib.alias import Octets, ScriptList
 from btclib.exceptions import BTClibValueError
-from btclib.hashes import hash256, sha256, tagged_hash
+from btclib.hashes import hash160, hash256, sha256, tagged_hash
 from btclib.script.script import parse, serialize
 from btclib.script.script_pub_key import (
     ScriptPubKey,
@@ -295,6 +295,41 @@ def taproot(
     return tagged_hash(b"TapSighash", preimage)
 
 
+def redeem_script(script_sig: Octets, script_pub_key: Octets) -> bytes:
+    """Return the redeem script of a p2sh input, checked against its hash.
+
+    BIP-16 has it as the last command of the script_sig, and what the
+    sig_hash must dispatch on is the redeem script itself, never the push
+    that carries it: serialized, a p2sh-p2wpkh redeem script is 23 bytes
+    where p2wpkh wants exactly 22, so every is_p2w* test on the script_sig
+    is false and the input would silently take the legacy branch, signing
+    a hash that does not commit to the amount.
+
+    The hash is checked here rather than left to the script engine: a
+    script_sig disagreeing with the script_pub_key it spends can only give
+    a sig_hash for a script no one will ever run.
+    """
+    # unknown op codes are accepted to reject them below with a message
+    # naming the offender, rather than with parse's bare "Unknown op code"
+    commands = parse(script_sig, accept_unknown=True)
+    if not commands:
+        raise BTClibValueError("empty script_sig for a p2sh input")
+    # parse spells op codes as their OP_/UNKNOWN_OP_CODE_ name and data
+    # pushes as a hex string: only the latter can be a redeem script
+    command = commands[-1]
+    if not isinstance(command, str) or command.startswith(("OP_", "UNKNOWN_OP_CODE_")):
+        err_msg = f"missing redeem script in the p2sh script_sig: {command!r}"
+        raise BTClibValueError(err_msg)
+
+    script = bytes.fromhex(command)
+    _, payload = type_and_payload(script_pub_key)
+    if hash160(script) != payload:
+        err_msg = "invalid redeem script hash: "
+        err_msg += f"{hash160(script).hex()} instead of {payload.hex()}"
+        raise BTClibValueError(err_msg)
+    return script
+
+
 def from_tx(prevouts: list[TxOut], tx: Tx, vin_i: int, hash_type: int) -> bytes:
     script = prevouts[vin_i].script_pub_key.script
 
@@ -304,7 +339,7 @@ def from_tx(prevouts: list[TxOut], tx: Tx, vin_i: int, hash_type: int) -> bytes:
 
     # handle all p2sh-wrapped scripts
     if is_p2sh(script):
-        script = tx.vin[vin_i].script_sig
+        script = redeem_script(tx.vin[vin_i].script_sig, script)
 
     if is_p2wpkh(script):
         script_code = witness_v0_script(script)[0]
