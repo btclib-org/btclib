@@ -65,6 +65,17 @@ Major changes includes:
   the `None` sentinel spelling the library already used for `Tx.vin`,
   `Tx.vout`, and `Witness.stack`, and ruff's B008 is no longer ignored,
   so the pattern cannot come back (issue #139)
+- `sig_hash.from_tx` and the script engine no longer strip the annex from
+  the transaction they are handed: `taproot_annex_and_ext` and
+  `taproot_get_annex` assigned the trimmed stack back to the caller's
+  witness, so a second sighash of the same input hashed a different
+  preimage, and `tx.serialize()` and `tx.hash` changed under the caller —
+  `verify_transaction` rewrote the very transaction it was validating.
+  The two now work on a local copy, `taproot_get_annex` returning the
+  trimmed stack instead of writing it; the p2wpkh and p2wsh branches of
+  `verify_input` hand the interpreter a copy too, it popping what it
+  consumes. `taproot_annex_and_ext` also loses its unused `prevouts`
+  parameter (issue #140)
 - `dsa.assert_as_valid_` and `ssa.assert_as_valid_` raise "signature
   verification failed" whichever of the two implementations verified: the
   message used to name an internal helper (`libsecp256k1.ecdsa_verify_

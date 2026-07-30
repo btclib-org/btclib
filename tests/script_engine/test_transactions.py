@@ -17,7 +17,12 @@ import pytest
 
 from btclib.exceptions import BTClibValueError
 from btclib.script import ScriptPubKey
-from btclib.script.engine import verify_amounts, verify_input, verify_transaction
+from btclib.script.engine import (
+    ALL_FLAGS,
+    verify_amounts,
+    verify_input,
+    verify_transaction,
+)
 from btclib.script.witness import Witness
 from btclib.tx import OutPoint, Tx, TxIn
 from btclib.tx.tx_out import TxOut
@@ -65,6 +70,91 @@ def test_invalid_taproot() -> None:
         flags = x["flags"].split(",")
         with pytest.raises((BTClibValueError, IndexError, KeyError)):
             verify_input(prevouts, tx, index, flags)
+
+
+def test_verify_input_does_not_touch_the_tx() -> None:
+    """Verifying an input must leave the witness of the caller's Tx alone.
+
+    `taproot_get_annex` used to assign the trimmed stack back to the witness,
+    and the segwit v0 branches handed the interpreter the witness stack itself,
+    which pops what it consumes: `verify_transaction` rewrote the very Tx it
+    was validating (issue #140).
+    """
+    fname = "tapscript_test_vector.json"
+    filename = path.join(path.dirname(path.dirname(__file__)), "script", "_data", fname)
+
+    with open(filename, encoding="ascii") as file_:
+        data = json.load(file_)
+
+    annexed = 0
+    for x in filter(lambda x: "TAPROOT" in x["flags"], data):
+        prevouts = [TxOut.parse(prevout) for prevout in x["prevouts"]]
+        index = x["index"]
+
+        stack = Witness(x["success"]["witness"]).stack
+        if len(stack) >= 2 and stack[-1][0] == 0x50:
+            annexed += 1
+
+        tx = Tx.parse(x["tx"])
+        tx.vin[index].script_witness = Witness(stack)
+        tx.vin[index].script_sig = bytes.fromhex(x["success"]["scriptSig"])
+        serialized = tx.serialize(include_witness=True, check_validity=False)
+
+        verify_input(prevouts, tx, index, x["flags"].split(","))
+
+        assert tx.vin[index].script_witness.stack == stack
+        assert tx.serialize(include_witness=True, check_validity=False) == serialized
+
+    assert annexed, "no annex in the test vectors: the test proves nothing"
+
+
+def test_verify_transaction_does_not_touch_witness_v0() -> None:
+    """The same, for the p2wpkh and p2wsh branches of verify_input."""
+    fname = "tx_valid_legacy.json"
+    filename = path.join(path.dirname(__file__), "_data", fname)
+    with open(filename, encoding="ascii") as file_:
+        data = json.load(file_)
+
+    witnessed = 0
+    for x in data:
+        if isinstance(x[0], str):
+            continue
+
+        try:
+            tx = Tx.parse(x[1])
+        except BTClibValueError as e:
+            if "invalid satoshi amount:" in str(e):
+                continue
+
+        if not any(vin.script_witness.stack for vin in tx.vin):
+            continue
+
+        flags = ALL_FLAGS[:]
+        for f in x[2].split(","):
+            if f in flags:
+                flags.remove(f)
+
+        check_amounts = True
+        prevouts = []
+        for i in x[0]:
+            amount = 0 if len(i) == 3 else i[3]
+            if not amount:
+                check_amounts = False
+            prevouts.append(TxOut(amount, ScriptPubKey(parse_script(i[2]))))
+
+        if len(prevouts) != len(tx.vin):
+            continue
+
+        witnessed += 1
+        stacks = [vin.script_witness.stack[:] for vin in tx.vin]
+        serialized = tx.serialize(include_witness=True, check_validity=False)
+
+        verify_transaction(prevouts, tx, flags or None, check_amounts)
+
+        assert [vin.script_witness.stack for vin in tx.vin] == stacks
+        assert tx.serialize(include_witness=True, check_validity=False) == serialized
+
+    assert witnessed, "no witness in the test vectors: the test proves nothing"
 
 
 def test_valid_legacy() -> None:

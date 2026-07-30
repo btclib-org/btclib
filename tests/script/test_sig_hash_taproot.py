@@ -175,6 +175,45 @@ def test_wrapped_p2tr() -> None:
         sig_hash.from_tx([utxo], tx, 0, 0)
 
 
+def test_from_tx_does_not_touch_the_tx() -> None:
+    """Computing a taproot sighash must not strip the annex from the Tx.
+
+    `taproot_annex_and_ext` used to assign the trimmed stack back to the
+    witness it was handed, so a second call on the same Tx saw no annex and
+    hashed a different preimage, while `tx.serialize()` and `tx.hash` changed
+    under the caller (issue #140).
+    """
+    fname = "tapscript_test_vector.json"
+    filename = path.join(path.dirname(__file__), "_data", fname)
+    with open(filename, encoding="ascii") as file_:
+        data = json.load(file_)
+
+    annexed = 0
+    for x in filter(lambda x: "TAPROOT" in x["flags"], data):
+        prevouts = [TxOut.parse(prevout) for prevout in x["prevouts"]]
+        index = x["index"]
+
+        if not is_p2tr(prevouts[index].script_pub_key.script):
+            continue
+
+        stack = Witness(x["success"]["witness"]).stack
+        if len(stack) < 2 or stack[-1][0] != 0x50:
+            continue  # no annex, nothing to strip
+        annexed += 1
+
+        tx = Tx.parse(x["tx"])
+        tx.vin[index].script_witness = Witness(stack)
+        serialized = tx.serialize(include_witness=True, check_validity=False)
+
+        msg_hash = sig_hash.from_tx(prevouts, tx, index, 0)
+
+        assert sig_hash.from_tx(prevouts, tx, index, 0) == msg_hash
+        assert tx.vin[index].script_witness.stack == stack
+        assert tx.serialize(include_witness=True, check_validity=False) == serialized
+
+    assert annexed, "no annex in the test vectors: the test proves nothing"
+
+
 def test_bip_test_vector() -> None:
     fname = "taproot_test_vector.json"
     filename = path.join(path.dirname(__file__), "_data", fname)

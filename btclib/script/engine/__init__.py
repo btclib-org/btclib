@@ -40,12 +40,13 @@ def taproot_unwrap_script(
     return script_bytes, stack[:-2], leaf_version
 
 
-def taproot_get_annex(witness: Witness) -> bytes:
-    annex = b""
+def taproot_get_annex(witness: Witness) -> tuple[bytes, list[bytes]]:
+    # the trimmed stack is returned, never written back: a get_ function must
+    # not write, and verifying a transaction must not rewrite it. A copy in
+    # either branch, the stack being popped by the script interpreter
     if len(witness.stack) >= 2 and witness.stack[-1][0] == 0x50:
-        annex = witness.stack[-1]
-        witness.stack = witness.stack[:-1]
-    return annex
+        return witness.stack[-1], witness.stack[:-1]
+    return b"", witness.stack[:]
 
 
 def validate_redeem_script(redeem_script: ScriptList) -> None:
@@ -138,8 +139,8 @@ def verify_input(prevouts: list[TxOut], tx: Tx, i: int, flags: list[str]) -> Non
             return  # remains unencumbered
         witness = tx.vin[i].script_witness
         budget = 50 + len(witness.serialize())
-        annex = taproot_get_annex(witness)
-        stack = witness.stack
+        # the annex counts towards the budget, hence the order (bip 342)
+        annex, stack = taproot_get_annex(witness)
         if len(stack) == 0:
             raise BTClibValueError()
         if len(stack) == 1:
@@ -155,12 +156,14 @@ def verify_input(prevouts: list[TxOut], tx: Tx, i: int, flags: list[str]) -> Non
                 return  # unknown program, passes validation
 
     if segwit_version == 0:
+        # a copy: the interpreter pops what it consumes, and verifying a
+        # transaction must not rewrite the caller's witness
         if script_type == "p2wpkh":
-            stack = tx.vin[i].script_witness.stack
+            stack = tx.vin[i].script_witness.stack[:]
             # serialization of ["OP_DUP", "OP_HASH160", payload, "OP_EQUALVERIFY", "OP_CHECKSIG"]
             script = b"v\xa9\x14" + payload + b"\x88\xac"
         elif script_type == "p2wsh":
-            stack = tx.vin[i].script_witness.stack
+            stack = tx.vin[i].script_witness.stack[:]
             if any(len(x) > 520 for x in stack[:-1]):
                 raise BTClibValueError()
             script = stack[-1]
