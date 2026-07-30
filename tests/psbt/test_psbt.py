@@ -28,20 +28,6 @@ from tests.conftest import JsonGolden
 # first tests are part of the official BIP174 test vectors
 
 
-# the BIP174 valid psbts whose unsigned tx has no inputs. deserialize_tx
-# parses the global unsigned tx with validation on, so it must satisfy
-# Tx.assert_valid, which wants at least one input and one output -- of a
-# transaction that is incomplete by construction. BIP174 has carried the
-# first of these since the revision btclib transcribed the file from, and
-# leaving it out is what hid the gap (issue 170)
-NO_INPUT_PSBTS = frozenset(
-    {
-        "PSBT with global unsigned tx that has 0 inputs and 0 outputs",
-        "PSBT with 0 inputs",
-    }
-)
-
-
 def psbt_vectors(fname: str, kind: str) -> list[Any]:
     """The `kind` cases of a BIP test vector file, each named by its description.
 
@@ -49,21 +35,14 @@ def psbt_vectors(fname: str, kind: str) -> list[Any]:
     around the decode, and interpolated into the message of every
     assert, because a bare "case 7 failed" is not a report. As a test id
     it is there for free, and for the cases that pass as well.
+
+    Two of the valid ones used to be xfail -- the psbts whose unsigned
+    transaction has no inputs, which btclib refused for the reasons issue
+    170 sets out. They pass.
     """
     return [
         pytest.param(
-            test_vector,
-            id=vectors.vector_id(index, test_vector["description"]),
-            marks=(
-                [
-                    pytest.mark.xfail(
-                        raises=BTClibValueError,
-                        reason="unsigned tx with no inputs, issue 170",
-                    )
-                ]
-                if test_vector["description"] in NO_INPUT_PSBTS
-                else []
-            ),
+            test_vector, id=vectors.vector_id(index, test_vector["description"])
         )
         for index, test_vector in enumerate(
             vectors.load("psbt", "_data", fname)[kind], 1
@@ -832,3 +811,70 @@ def test_shuffle_sort() -> None:
     list_a.append(list_a[0])
     with pytest.raises(BTClibValueError, match="sequences must have same length"):
         _sort_or_shuffle_together(list_a, list_b)
+
+
+def test_a_psbt_may_have_no_inputs() -> None:
+    """BIP174 lists two such psbts as valid, and btclib refused both.
+
+    A PSBT's global unsigned transaction is incomplete by construction --
+    that is the whole point of the format -- so the two rules that make an
+    empty vin or vout invalid in a *transaction* do not apply to it. They
+    were being applied in three places: deserialize_tx on the way in,
+    Psbt.assert_valid's "null transaction", and Tx.serialize on the way
+    back out (issue 170).
+    """
+    # "PSBT with global unsigned tx that has 0 inputs and 0 outputs"
+    empty = "cHNidP8BAAoAAAAAAAAAAAAAAA=="
+    psbt = Psbt.b64decode(empty)
+    assert not psbt.tx.vin
+    assert not psbt.tx.vout
+    assert not psbt.inputs
+    assert not psbt.outputs
+    psbt.assert_valid()
+    assert psbt.b64encode() == empty
+    assert Psbt.from_dict(psbt.to_dict()) == psbt
+
+    # the transaction on its own is still not a valid transaction: the two
+    # rules are dropped for the template, not for Tx
+    with pytest.raises(BTClibValueError, match="Missing inputs"):
+        psbt.tx.assert_valid()
+
+    # assert_signable passes, vacuously: every check in it is per input and
+    # there are none. It used to raise, but only through assert_valid's
+    # "null transaction" -- i.e. by refusing a psbt BIP174 calls valid, and
+    # deliberately not replaced by a rule of our own here. Valid and
+    # signable are different questions, and BIP174 answers only the first
+    psbt.assert_signable()
+
+
+def test_the_global_unsigned_tx_is_mandatory() -> None:
+    """Dropping "null transaction" would otherwise have let this through.
+
+    That check was doing two jobs: refusing a psbt with no
+    PSBT_GLOBAL_UNSIGNED_TX at all, which BIP174 requires, and refusing one
+    whose transaction has no inputs, which BIP174 allows. Psbt.parse tracks
+    whether the key was seen, so the two answers are now different.
+    """
+    # "PSBT where inputs and outputs are provided but without an unsigned tx"
+    no_tx = (
+        "cHNidP8AAQBpAgAAAAGe/8Ee1KsvBiepWx6Kcs97VBcYtNMbrN+iUwLtGyRoNQAAAAAA/////"
+        "wJhLQEAAAAAABl2qRQ0Sg9IyhUOwrkDgXZgubaLE6ZwJoisAAAAAAAAAAAJagUpZ2FCcm9tAA"
+        "AAAAABABYAFA0lQfhqxdgm7O5vlIhc2yEbGF+wAAA="
+    )
+    err_msg = "malformed psbt: missing global unsigned tx"
+    with pytest.raises(BTClibValueError, match=err_msg):
+        Psbt.b64decode(no_tx)
+
+
+def test_a_value_that_is_not_the_stated_size_says_so() -> None:
+    """The check existed and was unreachable.
+
+    deserialize_tx has always compared the re-serialized transaction
+    against the value it came from, but Tx.parse validated on the way in,
+    so a value the parse rejected never reached the comparison. This vector
+    was therefore reported as "Missing inputs", which is true of it and not
+    what is wrong with it: 51 bytes whose transaction is 10.
+    """
+    bad_size = "cHNidP8BADN0Af8HAAEAAAABAP8BAApzMXQo/wAAAAAB/wEDAQAAAQAAAAAAAAAAdgEAAABBAAkAAAAAAA=="
+    with pytest.raises(BTClibValueError, match="wrong tx serialization format"):
+        Psbt.b64decode(bad_size)

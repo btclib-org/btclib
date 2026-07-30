@@ -376,13 +376,38 @@ def assert_valid_leaf_scripts(leaf_scripts: dict[bytes, tuple[bytes, int]]) -> N
 
 
 def deserialize_tx(
-    k: bytes, v: bytes, type_: str, include_witness: bool | None = True
+    k: bytes,
+    v: bytes,
+    type_: str,
+    include_witness: bool | None = True,
+    *,
+    unsigned_template: bool = False,
 ) -> Tx:
-    """Return the dataclass element from its binary representation."""
+    """Return the dataclass element from its binary representation.
+
+    unsigned_template=True for a PSBT's global unsigned transaction, which
+    is incomplete by construction and so cannot satisfy the "at least one
+    input" and "at least one output" of Tx.assert_valid; see the docstring
+    there. The other caller is a non-witness utxo, which is a complete
+    transaction and gets the full check.
+
+    The parse itself is unvalidated and assert_valid called afterwards, so
+    that the serialization comparison below can run at all. Tx.parse used
+    to validate on the way in, which made that comparison unreachable for
+    a value the parse rejected -- and the BIP174 vector named "an invalid
+    value data due to its size being not the stated size" is exactly such
+    a value: 51 bytes whose transaction re-serializes to 10. It was being
+    rejected for having no inputs, which is a true statement about it and
+    not the fault.
+    """
     if len(k) != 1:
         err_msg = f"invalid {type_} key length: {len(k)}"
         raise BTClibValueError(err_msg)
-    tx = Tx.parse(v)
-    if not include_witness and tx.serialize(include_witness=False) != v:
+    tx = Tx.parse(v, check_validity=False)
+    if (
+        not include_witness
+        and tx.serialize(include_witness=False, check_validity=False) != v
+    ):
         raise BTClibValueError("wrong tx serialization format")
+    tx.assert_valid(unsigned_template=unsigned_template)
     return tx

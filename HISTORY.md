@@ -564,6 +564,24 @@ Major changes includes:
   and `"9"` raises for being of odd length rather than being nine. The
   behaviour is unchanged and deliberate — a decimal representation is what
   `int` itself is for — and now the docstring says so
+- **A PSBT whose unsigned transaction has no inputs is accepted**, as BIP174
+  says it must be: two of its valid vectors are such PSBTs and btclib refused
+  both. The unsigned transaction is incomplete by construction, so
+  `Tx.assert_valid` takes an `unsigned_template` flag that drops the two rules
+  it cannot satisfy — at least one input, at least one output — and only
+  those; everything else still applies, and a plain `Tx` is unchanged. Four
+  places were applying them: `deserialize_tx` on the way in,
+  `Psbt.assert_valid`'s `null transaction`, `Tx.serialize` on the way back
+  out, and `Psbt.from_dict`. Two consequences worth naming. `Psbt.parse` now
+  requires the `PSBT_GLOBAL_UNSIGNED_TX` key, which BIP174 does too: the
+  dropped `null transaction` check was doing that job as well, since a
+  missing key left an empty `Tx` indistinguishable from a parsed zero-input
+  one, and it answers `malformed psbt: missing global unsigned tx`. And the
+  vector named "an invalid value data due to its size being not the stated
+  size" is now reported as `wrong tx serialization format`: `deserialize_tx`
+  had always compared the re-serialized transaction against the value it came
+  from — 51 bytes whose transaction is 10 — and validating on the way in was
+  what made that comparison unreachable (issue #170)
 - **`Script` and `ScriptPubKey` are frozen, and `Script.asm` is cached.**
   `Script` was the one dataclass left unfrozen after issue #139, which is
   what let `tx_out.script_pub_key.script = b""` reach *through* a frozen

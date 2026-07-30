@@ -188,7 +188,21 @@ class Tx:
         if not 0 < self.version <= 0x7FFFFFFF:
             raise BTClibValueError(f"invalid version: {self.version}")
 
-    def assert_valid(self) -> None:
+    def assert_valid(self, *, unsigned_template: bool = False) -> None:
+        """Assert that this is a valid transaction.
+
+        unsigned_template=True drops the two rules a PSBT's global unsigned
+        transaction cannot satisfy, and only those: at least one input and
+        at least one output. Everything else still applies -- the version
+        and lock time ranges, each input and output on its own, the
+        MAX_MONEY bound on their sum.
+
+        Those two rules are right for a transaction, Core's
+        CheckTransaction rejecting an empty vin or vout, and wrong for a
+        PSBT's: that one is incomplete by construction, which is the whole
+        point of the format. BIP174 lists two zero-input PSBTs as valid
+        and btclib refused both (issue 170).
+        """
         if self.is_coinbase():
             if not 2 <= len(self.vin[0].script_sig) <= 100:
                 raise BTClibValueError("Invalid coinbase script size")
@@ -207,12 +221,12 @@ class Tx:
         if not 0 <= self.lock_time <= 0xFFFFFFFF:
             raise BTClibValueError(f"invalid lock time: {self.lock_time}")
 
-        if not self.vin:
+        if not unsigned_template and not self.vin:
             raise BTClibValueError("Missing inputs")
         for tx_in in self.vin:
             tx_in.assert_valid()
 
-        if not self.vout:
+        if not unsigned_template and not self.vout:
             raise BTClibValueError("Missing outputs")
         for tx_out in self.vout:
             tx_out.assert_valid()

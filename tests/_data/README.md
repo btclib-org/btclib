@@ -243,11 +243,26 @@ this file was transcribed from, and were simply not taken. Only `PSBT with
 an invalid value data due to its size being not the stated size` is new
 (`97885721`, 2025-09-18).
 
-The two zero-input psbts are valid per the BIP and btclib refuses both, so
-they are `xfail` in `tests/psbt/test_psbt.py` — issue 170, one cause:
-`deserialize_tx` validates the global unsigned tx as if it were a complete
-transaction. Leaving them out had hidden that for five years, which is the
-argument for holding a vector you fail.
+The two zero-input psbts are valid per the BIP and btclib refused both, so
+they were `xfail` in `tests/psbt/test_psbt.py` for a day — issue 170, fixed:
+the global unsigned transaction is checked as the template it is, not as a
+complete transaction. Leaving them out had hidden that for five years, which
+is the argument for holding a vector you fail.
+
+Two `error message` fields changed with that fix, and both were recording
+what btclib answered rather than what the vector is about, which is what
+made them worth holding:
+
+- *"PSBT with an invalid value data due to its size being not the stated
+  size"* said `Missing inputs`. It says `wrong tx serialization format` now
+  — the value is 51 bytes whose transaction re-serializes to 10, and
+  `deserialize_tx` had always carried that comparison; validating on the way
+  in is what made it unreachable.
+- *"PSBT where inputs and outputs are provided but without an unsigned tx"*
+  said `null transaction`, a check that also refused the two valid
+  zero-input psbts. `Psbt.parse` now requires the
+  `PSBT_GLOBAL_UNSIGNED_TX` key, as BIP174 does, and answers
+  `malformed psbt: missing global unsigned tx`.
 
 The earlier pin, `754b77a9` (2021-04-08), was not the revision current
 when the file was first vendored either: two of our psbts are absent from
@@ -694,7 +709,8 @@ changed:
 Three btclib defects came out of it, all three of them things the missing
 vectors had been hiding rather than new: issue 169 (BIP340 messages of
 arbitrary size), issue 170 (a PSBT whose unsigned tx has no inputs), and
-the note in issue 170 about the value-size check that does not exist.
+the note in issue 170 about the value-size check that does not exist. The
+second and third are fixed; the first is still `xfail`.
 
 And three citations in the test modules named the wrong upstream, all now
 corrected in the module that carries them:

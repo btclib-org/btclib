@@ -103,11 +103,13 @@ class Psbt:
 
     def assert_valid(self) -> None:
         """Assert logical self-consistency."""
-        # ensure a non-null tx has been included
-        if not (self.tx.vin and self.tx.vout):
-            raise BTClibValueError("null transaction")
-
-        self.tx.assert_valid()
+        # the global unsigned tx is incomplete by construction, so it is
+        # checked as a template: no "at least one input", no "at least one
+        # output". This used to raise BTClibValueError("null transaction")
+        # for exactly the two psbts BIP174 lists as valid with no inputs,
+        # which is the same rule deserialize_tx was applying on the way in
+        # -- both are issue 170
+        self.tx.assert_valid(unsigned_template=True)
 
         # ensure the tx is unsigned
         if any(tx_in.script_sig or tx_in.script_witness for tx_in in self.tx.vin):
@@ -177,7 +179,9 @@ class Psbt:
             self.assert_valid()
 
         return {
-            "tx": self.tx.to_dict(),
+            # check_validity=False for the same reason as in serialize:
+            # a template, already validated by assert_valid above
+            "tx": self.tx.to_dict(check_validity=False),
             "inputs": [
                 psbt_in.to_dict(check_validity=False) for psbt_in in self.inputs
             ],
@@ -198,7 +202,12 @@ class Psbt:
             decode_from_bip32_derivs(dict_["bip32_derivs"]),
         )
         return cls(
-            Tx.from_dict(dict_["tx"]),
+            # check_validity=False, as for every other element here: the
+            # global unsigned tx is a template, and Psbt.assert_valid below
+            # checks it as one. Validating it here as a complete transaction
+            # refused the two zero-input psbts BIP174 lists as valid, which
+            # is the fourth place issue 170 turned up
+            Tx.from_dict(dict_["tx"], check_validity=False),
             [
                 PsbtIn.from_dict(psbt_in, check_validity=False)
                 for psbt_in in dict_["inputs"]
@@ -219,7 +228,11 @@ class Psbt:
 
         psbt_bin: list[bytes] = [PSBT_MAGIC_BYTES, PSBT_SEPARATOR]
 
-        temp = self.tx.serialize(include_witness=False)
+        # check_validity=False: Psbt.assert_valid above has already
+        # validated it, as the template it is, and Tx.serialize would
+        # otherwise re-check it as a complete transaction and refuse the
+        # two zero-input psbts BIP174 lists as valid (issue 170)
+        temp = self.tx.serialize(include_witness=False, check_validity=False)
         psbt_bin.append(serialize_bytes(PSBT_GLOBAL_UNSIGNED_TX, temp))
         if self.version:
             temp = self.version.to_bytes(4, byteorder="little", signed=False)
@@ -244,7 +257,14 @@ class Psbt:
         # and the deserialization should happen reading the stream
         # not slicing bytes
 
-        tx = Tx(check_validity=False)
+        # None until the global map yields one, which BIP174 requires it to:
+        # "The unsigned transaction must be provided". It used to start as
+        # Tx(check_validity=False), an empty transaction indistinguishable
+        # from a *parsed* one with no inputs, and what rejected a psbt
+        # missing the key was Psbt.assert_valid's "null transaction" -- the
+        # same check that refused the two zero-input psbts BIP174 lists as
+        # valid. Separating the two questions is what issue 170 needed
+        tx: Tx | None = None
         version = 0
         hd_key_paths: dict[Octets, BIP32KeyOrigin] = {}
         unknown: dict[Octets, Octets] = {}
@@ -259,13 +279,18 @@ class Psbt:
         global_map, stream = deserialize_map(stream)
         for k, v in global_map.items():
             if k[:1] == PSBT_GLOBAL_UNSIGNED_TX:
-                tx = deserialize_tx(k, v, "global unsigned tx", False)
+                tx = deserialize_tx(
+                    k, v, "global unsigned tx", False, unsigned_template=True
+                )
             elif k[:1] == PSBT_GLOBAL_VERSION:
                 version = deserialize_int(k, v, "global version")
             elif k[:1] == PSBT_GLOBAL_XPUB:
                 hd_key_paths[k[1:]] = BIP32KeyOrigin.parse(v)
             else:  # unknown
                 unknown[k] = v
+
+        if tx is None:
+            raise BTClibValueError("malformed psbt: missing global unsigned tx")
 
         inputs: list[PsbtIn] = []
         for _ in tx.vin:
