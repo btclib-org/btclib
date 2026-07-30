@@ -30,6 +30,7 @@ from btclib_libsecp256k1 import dsa as libsecp256k1_dsa
 from btclib import var_bytes
 from btclib.alias import BinaryData, HashF, JacPoint, Octets, Point
 from btclib.ec import Curve, secp256k1
+from btclib.ec.curve import _libsecp256k1_applicable
 from btclib.ec.curve_group import _double_mult, _mult
 from btclib.ecc.rfc6979_nonce import _rfc6979_nonce_, challenge_
 from btclib.exceptions import BTClibRuntimeError, BTClibValueError
@@ -289,7 +290,7 @@ def sign_(
     # libsecp256k1 takes is extra entropy for the RFC6979 nonce it
     # derives itself: the two cannot be the same argument, so a
     # requested nonce is for the python implementation below to use
-    if ec == secp256k1 and nonce is None and lower_s and hf == sha256:
+    if _libsecp256k1_applicable(ec, hf) and nonce is None and lower_s:
         return Sig.parse(libsecp256k1_dsa.sign(msg_hash, q))
 
     # the challenge
@@ -389,7 +390,7 @@ def assert_as_valid_(
     else:
         sig = Sig.parse(sig)
 
-    if sig.ec == secp256k1 and hf == sha256:
+    if _libsecp256k1_applicable(sig.ec, hf):
         msg_hash_bytes = bytes_from_octets(msg_hash, 32)
         pubkey_bytes = pub_keyinfo_from_pub_key(key)[0]
         sig_bytes = sig.serialize()

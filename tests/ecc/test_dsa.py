@@ -24,6 +24,7 @@ from btclib.ec import (
     double_mult,
     mult,
     point_from_octets,
+    secp256k1,
 )
 from btclib.ec.curve import CURVES
 from btclib.ec.curve_group import _mult
@@ -32,7 +33,7 @@ from btclib.exceptions import BTClibRuntimeError, BTClibValueError
 from btclib.hashes import reduce_to_hlen
 from btclib.number_theory import mod_inv
 from btclib.to_pub_key import pub_keyinfo_from_prv_key
-from tests.ec.test_curve import low_card_curves
+from tests.ec.test_curve import low_card_curves, secp256k1_bis
 from tests.test_to_key import Q as pub_key_point
 from tests.test_to_key import Q_compressed as pub_key_compressed
 from tests.test_to_key import q as prv_key_int
@@ -45,6 +46,21 @@ from tests.test_to_key import (
     xpub_data,
     xpub_string,
 )
+
+
+def test_signature_on_an_equal_curve() -> None:
+    """A curve equal to secp256k1 is secp256k1, bindings included."""
+    # the dispatch used to compare identities, so signing with any other
+    # object holding the secp256k1 parameters took the python path in
+    # silence: the answer must be the one the singleton gives, and
+    # RFC6979 makes it deterministic, hence comparable (issue #142)
+    msg = b"Satoshi Nakamoto"
+
+    q, Q = dsa.gen_keys(0x1, secp256k1_bis)
+    sig = dsa.sign(msg, q, ec=secp256k1_bis)
+    assert sig.ec == secp256k1
+    assert sig == dsa.sign(msg, q)
+    assert dsa.verify(msg, Q, sig)
 
 
 def test_signature() -> None:

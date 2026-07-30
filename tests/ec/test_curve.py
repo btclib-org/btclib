@@ -11,6 +11,8 @@
 
 import itertools
 import json
+from functools import partial
+from hashlib import sha256, sha512
 from os import path
 
 import pytest
@@ -18,13 +20,21 @@ import pytest
 from btclib.alias import INF, INFJ
 from btclib.ec import (
     Curve,
+    CurveGroup,
+    cached_multiples,
     double_mult,
     jac_from_aff,
     mult,
     multi_mult,
     secp256k1,
 )
-from btclib.ec.curve import CURVES
+from btclib.ec.curve import (
+    CURVES,
+    CurveSubGroup,
+    SEC2v1,
+    SEC2v2,
+    _libsecp256k1_applicable,
+)
 from btclib.ecc import second_generator
 from btclib.exceptions import BTClibTypeError, BTClibValueError
 from btclib.number_theory import mod_sqrt
@@ -53,6 +63,11 @@ all_curves = low_card_curves.copy()
 all_curves.update(CURVES)
 
 ec23_31 = low_card_curves["ec23_31"]
+
+# the very same curve as secp256k1, in another object: nothing that
+# dispatches to the libsecp256k1 bindings may tell the two apart, and
+# the ecc tests import this one to check that none of them does
+secp256k1_bis: Curve = eval(repr(secp256k1))  # noqa: S307
 
 
 def test_mult_on_secp256k1() -> None:
@@ -235,6 +250,61 @@ def test_ec_repr() -> None:
             ec_repr = f"{ec_repr[:-1]}, False)"
         ec2 = eval(ec_repr)  # noqa: S307
         assert str(ec) == str(ec2)
+        assert ec == ec2
+
+
+def test_curve_equality() -> None:
+    """A curve is its parameters, not the object that holds them."""
+    # the dispatch to the libsecp256k1 bindings compares ec against
+    # secp256k1: with the identity comparison inherited from object, any
+    # other object holding the very same parameters silently took the
+    # python path, twelve times slower and saying nothing about it
+    assert secp256k1_bis is not secp256k1
+    assert secp256k1_bis == secp256k1
+    assert hash(secp256k1_bis) == hash(secp256k1)
+    assert _libsecp256k1_applicable(secp256k1_bis)
+    assert mult(3, None, secp256k1_bis) == mult(3)
+
+    # equal curves are equal lru_cache keys, so they share the entries
+    assert cached_multiples(secp256k1.GJ, secp256k1_bis) is cached_multiples(
+        secp256k1.GJ, secp256k1
+    )
+
+    # the name is not a parameter: SEC 2 and NIST catalogue one curve
+    assert CURVES["secp256r1"] == CURVES["nistp256"]
+    assert CURVES["secp256r1"] != secp256k1
+    assert secp256k1 != "not a curve"
+
+    # the parent classes are not the curve, whatever they share with it
+    group = CurveGroup(secp256k1.p, 0, 7)
+    subgroup = CurveSubGroup(secp256k1.p, 0, 7, secp256k1.G)
+    assert group == CurveGroup(secp256k1.p, 0, 7)
+    assert subgroup == CurveSubGroup(secp256k1.p, 0, 7, secp256k1.G)
+    assert group != subgroup
+    assert group != secp256k1
+    assert subgroup != secp256k1
+    # the generator is part of what defines the subgroup
+    assert subgroup != CurveSubGroup(secp256k1.p, 0, 7, mult(2))
+
+
+def test_sec2_catalogues_share_one_curve() -> None:
+    # the eight curves of SEC 2 v.2 are in v.1 too, and used to be built
+    # twice: only one of the two objects was the secp256k1 the dispatch
+    # compares against, and SEC2v2 held the other one
+    for ec_name, ec in SEC2v2.items():
+        assert SEC2v1[ec_name] is ec
+    assert SEC2v2["secp256k1"] is secp256k1
+
+
+def test_libsecp256k1_applicable() -> None:
+    assert _libsecp256k1_applicable(secp256k1)
+    assert _libsecp256k1_applicable(secp256k1, sha256)
+    assert not _libsecp256k1_applicable(CURVES["secp256r1"])
+    assert not _libsecp256k1_applicable(CURVES["secp256r1"], sha256)
+    assert not _libsecp256k1_applicable(secp256k1, sha512)
+    # hf is compared by identity, deliberately: a wrapper around sha256
+    # takes the python path, which is slower and never wrong
+    assert not _libsecp256k1_applicable(secp256k1, partial(sha256))
 
 
 def test_is_on_curve() -> None:

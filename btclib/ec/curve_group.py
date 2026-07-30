@@ -122,6 +122,38 @@ class CurveGroup:
         result += ")"
         return result
 
+    def _eq_key(self) -> tuple[int, ...]:
+        """Return the parameters that define the group, and nothing else.
+
+        Subclasses append their own parameters, the way __str__ and
+        __repr__ chain: the tuple is flat so that a subclass cannot be
+        equal to its parent by having a shorter key compare equal.
+        """
+        return self.p, self._a, self._b
+
+    def __eq__(self, other: object) -> bool:
+        # a curve is its parameters: two objects built from the same ones
+        # are the same curve, whatever the catalogue they came from. This
+        # is not cosmetic, as the libsecp256k1 dispatch tests ec against
+        # secp256k1, and the default identity comparison silently sent
+        # every other object holding the secp256k1 parameters -- one is
+        # built by ec/curve.py itself -- down the slow python path
+        if self is other:
+            return True
+        # an exact type test, not isinstance alone: a CurveSubGroup is
+        # not a Curve even when it has the same p, a, b and G, and
+        # returning NotImplemented lets the reflected operand have its
+        # say before python falls back to identity
+        if not isinstance(other, CurveGroup) or type(self) is not type(other):
+            return NotImplemented
+        return self._eq_key() == other._eq_key()
+
+    def __hash__(self) -> int:
+        # __eq__ without __hash__ would set __hash__ to None, and curves
+        # are lru_cache keys in cached_multiples below; equal curves now
+        # share those cache entries rather than each filling its own
+        return hash(self._eq_key())
+
     # methods using p: they could become functions
 
     def negate(self, Q: Point) -> Point:

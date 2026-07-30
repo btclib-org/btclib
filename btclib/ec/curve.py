@@ -13,12 +13,13 @@ from __future__ import annotations
 
 import json
 from collections.abc import Sequence
+from hashlib import sha256
 from math import sqrt
 from os import path
 
 from btclib_libsecp256k1.mult import mult as libsecp256k1_mult
 
-from btclib.alias import Integer, Point
+from btclib.alias import HashF, Integer, Point
 from btclib.ec.curve_group import (
     HEX_THRESHOLD,
     CurveGroup,
@@ -64,6 +65,9 @@ class CurveSubGroup(CurveGroup):
             result += f", ({self.G[0]}, {self.G[1]})"
         result += ")"
         return result
+
+    def _eq_key(self) -> tuple[int, ...]:
+        return super()._eq_key() + self.G
 
 
 class Curve(CurveSubGroup):
@@ -156,6 +160,12 @@ class Curve(CurveSubGroup):
         result += ")"
         return result
 
+    def _eq_key(self) -> tuple[int, ...]:
+        # name is not part of the curve: the same curve is catalogued as
+        # secp256r1 by SEC 2 and as P-256 by NIST, and weakness_check is
+        # a construction-time option, not a parameter
+        return (*super()._eq_key(), self.n, self.cofactor)
+
 
 datadir = path.join(path.dirname(__file__), "_data")
 
@@ -195,8 +205,12 @@ with open(filename, encoding="ascii") as file_:
     SEC2v2_params2 = json.load(file_)
 SEC2v2: dict[str, Curve] = {}
 for ec_name in SEC2v2_params2:
+    # one object in both catalogues, not two: building the curve twice
+    # used to hand out two objects, and only one of them is the
+    # secp256k1 the libsecp256k1 dispatch below compares against. It also
+    # halves the n*G check these eight curves pay at import time
     SEC2v2[ec_name] = Curve(*SEC2v2_params2[ec_name] + [True, ec_name])
-    SEC2v1[ec_name] = Curve(*SEC2v2_params2[ec_name] + [True, ec_name])
+    SEC2v1[ec_name] = SEC2v2[ec_name]
 
 # with python>=3.9 use dictionary union operators
 # CURVES = SEC2v1 | NIST | Brainpool
@@ -207,12 +221,31 @@ CURVES.update(Brainpool)
 secp256k1 = CURVES["secp256k1"]
 
 
+def _libsecp256k1_applicable(ec: Curve, hf: HashF | None = None) -> bool:
+    """Return True if the libsecp256k1 bindings can serve ec and hf.
+
+    Every dispatch to the bindings asks here, so that the predicates
+    cannot drift apart the way five hand-written copies did; a caller
+    with a further condition of its own -- mult, whose bindings take the
+    generator and a non-zero scalar alone -- ands it on top.
+
+    hf is compared by identity, deliberately: nothing short of running
+    the two functions tells sha256 from a look-alike, so a wrapper such
+    as functools.partial(sha256) falls back to the python path. That is
+    the conservative direction -- slower, never wrong -- and the reason
+    the curve had to be fixed while this stays as it is.
+    """
+    if ec != secp256k1:
+        return False
+    return hf is None or hf is sha256
+
+
 def mult(m_int: Integer, Q: Point | None = None, ec: Curve = secp256k1) -> Point:
     """Elliptic curve scalar multiplication."""
     m: int = int_from_integer(m_int) % ec.n
 
     # m == 0 is the infinity point, which the bindings reject as a scalar
-    if m and ec == secp256k1 and (Q is None or Q == ec.G):
+    if m and _libsecp256k1_applicable(ec) and (Q is None or Q == ec.G):
         return libsecp256k1_mult(m)
 
     if Q is None:

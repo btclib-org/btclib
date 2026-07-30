@@ -20,7 +20,7 @@ from btclib_libsecp256k1 import ssa as libsecp256k1_ssa
 
 from btclib.alias import INF, Point, String
 from btclib.bip32 import BIP32KeyData
-from btclib.ec import bytes_from_point, double_mult, mult
+from btclib.ec import bytes_from_point, double_mult, mult, secp256k1
 from btclib.ec.curve import CURVES
 from btclib.ec.curve_group import jac_from_aff
 from btclib.ecc import bip340_nonce_, second_generator, ssa
@@ -28,7 +28,23 @@ from btclib.exceptions import BTClibRuntimeError, BTClibTypeError, BTClibValueEr
 from btclib.hashes import reduce_to_hlen
 from btclib.number_theory import mod_inv
 from btclib.utils import int_from_bits
-from tests.ec.test_curve import low_card_curves
+from tests.ec.test_curve import low_card_curves, secp256k1_bis
+
+
+def test_signature_on_an_equal_curve() -> None:
+    """A curve equal to secp256k1 is secp256k1, bindings included."""
+    # the dispatch used to compare identities, so signing with any other
+    # object holding the secp256k1 parameters took the python path in
+    # silence: with aux fixed the BIP340 nonce is deterministic, so the
+    # two paths have one answer to agree on (issue #142)
+    msg = b"Satoshi Nakamoto"
+    aux = b"\x00" * 32
+    q, x_Q = ssa.gen_keys(6, secp256k1_bis)
+
+    sig = ssa.sign(msg, q, aux, secp256k1_bis)
+    assert sig.ec == secp256k1
+    assert sig == ssa.sign(msg, q, aux)
+    assert ssa.verify(msg, x_Q, sig)
 
 
 def test_signature() -> None:

@@ -60,7 +60,7 @@ from btclib_libsecp256k1 import ssa as libsecp256k1_ssa
 from btclib.alias import BinaryData, HashF, Integer, JacPoint, Octets, Point
 from btclib.bip32 import BIP32Key
 from btclib.ec import Curve, secp256k1
-from btclib.ec.curve import mult
+from btclib.ec.curve import _libsecp256k1_applicable, mult
 from btclib.ec.curve_group import _double_mult, _mult, _multi_mult
 from btclib.ecc.bip340_nonce import bip340_nonce_
 from btclib.exceptions import BTClibRuntimeError, BTClibTypeError, BTClibValueError
@@ -223,7 +223,7 @@ def sign_(
 
     aux = secrets.token_bytes(hf_len) if aux is None else bytes_from_octets(aux, hf_len)
 
-    if ec == secp256k1 and hf == sha256:
+    if _libsecp256k1_applicable(ec, hf):
         # the bindings take a scalar, not the many representations of a
         # private key btclib accepts
         q = int_from_prv_key(prv_key, ec)
@@ -297,7 +297,7 @@ def assert_as_valid_(
 
     x_Q, y_Q = point_from_bip340pub_key(Q, sig.ec)
 
-    if sig.ec == secp256k1 and hf == sha256:
+    if _libsecp256k1_applicable(sig.ec, hf):
         pubkey_bytes = x_Q.to_bytes(32, "big")
         msg_hash = bytes_from_octets(msg_hash, 32)
         if not libsecp256k1_ssa.verify(msg_hash, pubkey_bytes, sig.serialize()):
