@@ -127,7 +127,7 @@ def legacy_vectors(fname: str) -> list[Any]:
 
     The files keep Core's names because they are Core's files entire: the
     `_legacy` they used to carry read as a subsetting that never happened
-    -- 119 valid and 93 invalid vectors here, 119 and 93 upstream -- and
+    -- 121 valid and 93 invalid vectors here, 121 and 93 upstream -- and
     the content is not legacy either, 2 valid and 14 invalid vectors
     naming WITNESS in their flags (issue 168). The `legacy` of the test
     names below is another matter and stays: it distinguishes the pre-
@@ -135,8 +135,8 @@ def legacy_vectors(fname: str) -> list[Any]:
     above, and issue 129 cites `test_invalid_legacy` by name.
 
     Nothing is filtered here any more. The loop this replaces skipped
-    whatever `Tx.parse` refused -- 2 of the 119 valid vectors and 8 of
-    the 93 invalid ones -- and the two it dropped from the valid file
+    whatever `Tx.parse` refused -- 2 of the then 119 valid vectors and 8
+    of the 93 invalid ones -- and the two it dropped from the valid file
     were a genuine refusal it was hiding: btclib bounded an amount by the
     issued supply rather than by MAX_MONEY, and could not parse the two
     `MAX_MONEY output` transactions (issue 167). A valid vector btclib

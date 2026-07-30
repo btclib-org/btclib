@@ -30,6 +30,20 @@ from tests import vectors
 # first tests are part of the official BIP174 test vectors
 
 
+# the BIP174 valid psbts whose unsigned tx has no inputs. deserialize_tx
+# parses the global unsigned tx with validation on, so it must satisfy
+# Tx.assert_valid, which wants at least one input and one output -- of a
+# transaction that is incomplete by construction. BIP174 has carried the
+# first of these since the revision btclib transcribed the file from, and
+# leaving it out is what hid the gap (issue 170)
+NO_INPUT_PSBTS = frozenset(
+    {
+        "PSBT with global unsigned tx that has 0 inputs and 0 outputs",
+        "PSBT with 0 inputs",
+    }
+)
+
+
 def psbt_vectors(fname: str, kind: str) -> list[Any]:
     """The `kind` cases of a BIP test vector file, each named by its description.
 
@@ -40,7 +54,18 @@ def psbt_vectors(fname: str, kind: str) -> list[Any]:
     """
     return [
         pytest.param(
-            test_vector, id=vectors.vector_id(index, test_vector["description"])
+            test_vector,
+            id=vectors.vector_id(index, test_vector["description"]),
+            marks=(
+                [
+                    pytest.mark.xfail(
+                        raises=BTClibValueError,
+                        reason="unsigned tx with no inputs, issue 170",
+                    )
+                ]
+                if test_vector["description"] in NO_INPUT_PSBTS
+                else []
+            ),
         )
         for index, test_vector in enumerate(
             vectors.load("psbt", "_data", fname)[kind], 1
@@ -61,6 +86,16 @@ def test_valid_psbt_bip174(test_vector: dict[str, str]) -> None:
     "test_vector", psbt_vectors("bip174_test_vectors.json", "invalid psbts")
 )
 def test_invalid_psbt_bip174(test_vector: dict[str, str]) -> None:
+    """Each case must be refused, with the message this file records.
+
+    The message is btclib's, not the BIP's, so the assert is what pins a
+    rejection to its reason -- and one of the twenty is pinned to the
+    wrong one: the `invalid value data` case answers "Missing inputs"
+    because its unsigned tx has none, while btclib's map parser accepts
+    the malformed value itself. Lifting the input check of issue 170
+    turns this case red, which is where the missing size check gets
+    written.
+    """
     with pytest.raises(BTClibValueError) as excinfo:
         Psbt.b64decode(test_vector["encoded psbt"])
     assert test_vector["error message"] in str(excinfo.value)

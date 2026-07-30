@@ -34,6 +34,11 @@ Where a file was vendored earlier and later refreshed, both dates appear.
 staleness figure, not a defect: a vector file is a fixed set of cases and
 refreshing it is a decision, not a chore.
 
+Every entry here was re-checked against its upstream on 2026-07-30 and
+everything that had drifted was refreshed, so `behind` is 0 wherever a
+refresh was possible at all. What that took, and the three btclib defects
+it turned up, is in the entries and in the list at the end.
+
 ## Re-checking a pin
 
 ```shell
@@ -119,7 +124,7 @@ repo    bitcoin/bips
 path    bip-0032.mediawiki
 commit  b0521f076c0b40208e82208f5476c48071aab785  2020-11-04
 pulled  2020-05-08, vector 4 added 2021-08-25
-behind  16 revisions, none of which touches the vectors
+behind  14 revisions, none of which touches the vectors
 ```
 
 Verdict: **transcribed**. BIP32 ships its vectors as prose, so there is
@@ -132,6 +137,13 @@ current when btclib transcribed it: it is the earliest revision holding
 all 34 keys, and the parent holds 28, which makes the pin checkable
 rather than merely plausible.
 
+Re-checked on 2026-07-30 against the tip of the path,
+`c0644a054fd1568ecbfc9c2b656ad5200b16ff74` (2026-03-05): the BIP still
+carries test vectors 1 to 5 and no sixth, and every extended key in it is
+one of ours — 48 match the key pattern, our 34 valid plus 14 of the 16
+invalid, the other 2 being the zero-prefix keys of test vector 5, which
+serialize outside it. Nothing to refresh.
+
 ### `tests/bip32/_data/bip32_invalid_keys.json`
 
 ```text
@@ -139,7 +151,7 @@ repo    bitcoin/bips
 path    bip-0032.mediawiki
 commit  ee2e0598206b8b8a16555a14b8f0c0a70105f93e  2020-05-16
 pulled  2020-05-16, error strings last changed 2026-07-30
-behind  the 16 keys are unchanged on master
+behind  13 revisions; the 16 keys are unchanged on master
 ```
 
 Verdict: **transcribed**. All 16 invalid extended keys are exactly the 16
@@ -159,22 +171,37 @@ messages.
 ```text
 repo    bitcoin/bips
 path    bip-0174.mediawiki
-commit  754b77a915007e96fca3b9440e7ddd4498ccae83  2021-04-08
-pulled  2020-11-15, extended 2021-08-03
-behind  53 revisions, mostly prose
+commit  8c369ac8e60629ac6c032ffe21bb5ec5b35213d7  2026-07-16
+pulled  2020-11-15, extended 2021-08-03, refreshed 2026-07-30
+behind  0 revisions; that commit is the tip of the path
 ```
 
-Verdict: **transcribed**, subset. All 31 psbts we hold — 19 invalid, 8
-valid, 4 signer check failures — appear verbatim in the pinned text,
-which holds about 42 in all: the walk-through psbts of the creator,
-updater, signer and finalizer roles are not vendored.
+Verdict: **transcribed**, and now complete for the cases. The BIP's Test
+Vectors section is 34 `* Case:` entries — 20 invalid, 10 valid, 4 signer
+check failures — and all 34 are here, each with the base64 the prose gives
+and cross-checked against the hex the prose gives beside it. What is still
+not vendored, deliberately, is the role walk-through: the creator,
+updater, signer, combiner, finalizer and extractor psbts of the worked
+example, which are prose steps rather than cases.
 
-The pin is not the revision current when the file was first vendored.
-Two of our psbts are absent from that one (`c12af49c`, 2020-11-15) and
-from every revision up to 2021-04-08, which is when "BIP 174: Add test
-vectors for additional unsigned tx serialization" landed; the btclib
-commit that added them is 8391925f, 2021-08-03. So the file was
-transcribed twice, and only the second pin covers all of it.
+Until 2026-07-30 the file held 31 of the 34, and the gap was not upstream
+drift: of the three missing, `PSBT with global unsigned tx that has 0
+inputs and 0 outputs` and `PSBT with 0 inputs` were both in the revision
+this file was transcribed from, and were simply not taken. Only `PSBT with
+an invalid value data due to its size being not the stated size` is new
+(`97885721`, 2025-09-18).
+
+The two zero-input psbts are valid per the BIP and btclib refuses both, so
+they are `xfail` in `tests/psbt/test_psbt.py` — issue 170, one cause:
+`deserialize_tx` validates the global unsigned tx as if it were a complete
+transaction. Leaving them out had hidden that for five years, which is the
+argument for holding a vector you fail.
+
+The earlier pin, `754b77a9` (2021-04-08), was not the revision current
+when the file was first vendored either: two of our psbts are absent from
+that one (`c12af49c`, 2020-11-15) and from every revision up to 2021-04-08,
+when "BIP 174: Add test vectors for additional unsigned tx serialization"
+landed; the btclib commit that added them is 8391925f, 2021-08-03.
 
 ### `tests/psbt/_data/bip371_test_vectors.json`
 
@@ -183,11 +210,14 @@ repo    bitcoin/bips
 path    bip-0371.mediawiki
 commit  4ab7faad749856bfc8178f9a12f4c1a8d40f632f  2023-02-15
 pulled  2023-07-07
-behind  8 revisions
+behind  8 revisions, none of which touches the cases
 ```
 
 Verdict: **transcribed**, complete. All 17 psbts in the pinned text are
 in our file and all 17 of ours are in the text — 11 invalid, 6 valid.
+Re-checked on 2026-07-30 against the tip of the path,
+`24e96e870fffaa257b465ce1f0370c14aac588e8` (2026-01-12): still 17 cases,
+still the same 17. Nothing to refresh.
 
 ### `tests/script/_data/bip67_test_vectors.json`
 
@@ -196,11 +226,13 @@ repo    bitcoin/bips
 path    bip-0067.mediawiki
 commit  b7090922b5e364409e4ddcd1558d85f2dd434c16  2020-04-28
 pulled  2020-05-31
-behind  10 revisions
+behind  10 revisions, none of which touches the vectors
 ```
 
-Verdict: **transcribed**. All five groups — their 15 public keys and
-their five p2sh addresses — appear verbatim in the pinned text.
+Verdict: **transcribed**, complete. All five groups — their 15 public keys
+and their five p2sh addresses — appear verbatim in the pinned text, and
+re-checking against the tip `24e96e87` (2026-01-12) on 2026-07-30 found no
+sixth group. Nothing to refresh.
 
 The test module cites `en.bitcoin.it/wiki/BIP_0067`, a wiki page that is
 neither versioned nor authoritative. The BIP itself is, so the pin is
@@ -257,32 +289,40 @@ wrong reason.
 ```text
 repo    bitcoin/bitcoin
 path    src/test/data/tx_valid.json
-commit  8cac2923f57ac33848ff41b74c3be520b75936df  2021-03-31
-blob    b874f6f26ca776f1e644e56637389d5d07ebe580
-pulled  2023-07-08, renamed 2026-07-30
-behind  3 revisions
+commit  5fa81e239a39d161a6d5aba7bcc7e1f22a5be777  2025-07-08
+blob    ac25f8149b4b39b4a82c2809e2d4b6f74a05c0e2
+pulled  2023-07-08, renamed and refreshed 2026-07-30
+behind  0 revisions; that commit is the tip of the path
 ```
 
-Verdict: **identical**, 119 vectors. It was vendored as
-`tx_valid_legacy.json`, and the `_legacy` claimed a subsetting that never
-happened: the file is Core's entire, every vector of it is collected, and
-2 of the 119 name WITNESS in their flags, so the content is not legacy
-either. Core's name says what the file is; the directory it sits in
-already says which engine the vectors feed (issue 168).
+Verdict: **identical**, 121 vectors. The 2026-07-30 refresh brought three
+revisions: an `http` to `https` fix in a comment line, a vector spending
+the shortest valid DER signature (`3006020101020101`, from testnet3
+`c6c232a3`), and a CHECKSEQUENCEVERIFY vector with a negative transaction
+version. Both new vectors pass.
+
+It was vendored as `tx_valid_legacy.json`, and the `_legacy` claimed a
+subsetting that never happened: the file is Core's entire, every vector of
+it is collected, and 2 of the 121 name WITNESS in their flags, so the
+content is not legacy either. Core's name says what the file is; the
+directory it sits in already says which engine the vectors feed (issue
+168).
 
 ### `tests/script_engine/_data/tx_invalid.json`
 
 ```text
 repo    bitcoin/bitcoin
 path    src/test/data/tx_invalid.json
-commit  fa80a11c3bb995ee15d4b0b9ad64148f6332ad42  2021-05-01
-blob    a47bc8f3666d7bf5d14b704943d383f06040c657
-pulled  2023-07-08, renamed 2026-07-30
-behind  1 revision
+commit  429ec1aaaaafab150f11e27fcf132a99b57c4fc7  2024-06-07
+blob    486469ddefb36333c78cb8986508f98e31385a21
+pulled  2023-07-08, renamed and refreshed 2026-07-30
+behind  0 revisions; that commit is the tip of the path
 ```
 
 Verdict: **identical**, 93 vectors. Same rename, and the WITNESS count is
-14 of the 93 here.
+14 of the 93 here. The one revision the refresh brought changes a comment
+line and nothing else — "insufficient tx.nVersion" became "insufficient
+tx.version" — so the vector set is the one vendored in 2023.
 
 ### `tests/_data/descriptor_checksums.json`
 
@@ -304,6 +344,15 @@ would void the test.
 Nothing to refresh from upstream. A new descriptor needs a checksum from
 somewhere other than btclib.
 
+Checked again on 2026-07-30, against the current document rather than the
+pin: all 18 of ours are still in it, and it still carries no checksum at
+all — not one `descriptor#checksum` pair in the file. It has grown three
+concrete descriptors we do not hold (a `tr(musig(...))`, a
+`wsh(sortedmulti(...))` and a `wsh(thresh(...))`, the rest of what it shows
+being syntax templates like `sh(SCRIPT)`), and each would need a checksum
+computed by something that is not btclib. That is a decision to take with
+a tool at hand, not a refresh.
+
 ## bitcoin-core/qa-assets
 
 ### `tests/script/_data/tapscript_test_vector.json`
@@ -311,14 +360,18 @@ somewhere other than btclib.
 ```text
 repo    bitcoin-core/qa-assets
 path    unit_test_data/script_assets_test.json
-commit  1af2e9ae7c80f2c91e94f08466f1356cc79a713f  2025-07-23
-blob    b7428daa8fcc85cc3e7261c2fdc1425d00ad5c83
-pulled  2021-08-03
+commit  b33d85102d169b54d966ea315ad81a636680aefa  2025-07-23
+blob    6a69755a5e53f4212f265374e14f590dcbf86496
+pulled  2021-08-03, refreshed 2026-07-30
+behind  0 revisions; that commit is the tip of the path
 ```
 
-Verdict: **identical but for a trailing newline** — our 9,242,563 bytes
-are that blob's 9,242,562 plus the `\n` the `end-of-file-fixer` hook
-added. 2243 vectors, in the same order.
+Verdict: **identical but for a trailing newline** — our 9,243,521 bytes
+are that blob's 9,243,520 plus the `\n` the `end-of-file-fixer` hook
+added, so our blob is `601a40db`. 2244 vectors, in the same order. The
+2026-07-30 refresh was the append it was expected to be: the 2243 vectors
+we held were upstream's first 2243, verbatim and in order, and
+`output/invalid_x` is the 2244th.
 
 Two caveats, and the second is the one that matters.
 
@@ -331,10 +384,8 @@ The commit is a weak pin. The whole visible history of that path is three
 commits, all stamped within a second of `2025-07-23T19:45:18Z`, which
 cannot be when a 2021 dump was added: qa-assets prunes its history — the
 visible commits are the prune, not the additions — and the SHA will not
-survive the next prune. The blob SHA-1 above will. Current tip of the
-path, `b33d85102d169b54d966ea315ad81a636680aefa`, holds our 2243 vectors
-verbatim and in order plus one appended (`output/invalid_x`), so a
-refresh is an append.
+survive the next prune. The blob SHA-1 above will, and it is what a
+re-check should compare.
 
 ## Other projects
 
@@ -350,7 +401,8 @@ behind  0 revisions; still the blob on master
 ```
 
 Verdict: **reformatted**. 349 vectors, JSON-equal to the upstream blob;
-ours is pretty-printed at four spaces.
+ours is pretty-printed at four spaces. Re-checked on 2026-07-30: still
+JSON-equal, and that blob is still the one on master.
 
 ### `tests/ecc/_data/ecdsa_sig.json`
 
@@ -419,6 +471,13 @@ not changed in any revision — so the pin is the earliest revision that
 provides it, and the five revisions of drift are irrelevant to us. Only
 the English vectors were ever taken; `english.txt` is the only wordlist
 `btclib/mnemonic/mnemonic.py` ships.
+
+Re-checked on 2026-07-30 against the tip of the path, `b57a5ad7`
+(2024-08-27, blob `d362a5d4`, and its message is "normalize the words in
+the wordlist according to NFKD"): upstream's 24 English vectors are still
+ours value for value, that normalisation having touched other languages
+only. Nothing to refresh, and the eleven other languages stay out for as
+long as one wordlist is shipped.
 
 ## Chain data, not a repository
 
@@ -548,20 +607,41 @@ No upstream blob exists for the rest:
   file is `bitcoin/tests/data/signmessage.json`.
   `tests/script/test_script_pub_key.py` cites `en.bitcoin.it` for BIP67
   rather than the BIP.
-- **`tapscript_test_vector.json` is one vector behind**, appended
-  upstream.
-- **`tx_valid.json` is 3 revisions behind and `tx_invalid.json` 1**, both
-  from 2021. Not decided either way here: the rename was, and a refresh is
-  a separate reading of the two files.
+- **Three descriptors of Core's `doc/descriptors.md` are not vendored**,
+  and cannot be without a checksum from a third implementation. See that
+  entry.
+- **Vendored but not exercised**: 190 of `bms.json`'s 200 vectors, which
+  `PYTHON_BITCOINLIB_VECTORS` slices away with `[:10]`. A coverage
+  question rather than a provenance one, so only noted here.
 
-### Decided on 2026-07-30, issue 168
+### Refreshed on 2026-07-30, issues 168 to 170
+
+Everything with an upstream is now at that upstream's tip. What the sweep
+changed:
 
 - `tx_valid_legacy.json` and `tx_invalid_legacy.json` took Core's names,
-  which is what they hold.
-- `script_tests.json` was refreshed from 19 revisions back to Core's tip,
-  which needed the tapscript placeholders generated rather than parsed.
-- `bip340_test_vectors.csv` was refreshed from four vectors back to the
-  tip of the path, and the four are `xfail` until issue 169 is fixed.
+  which is what they hold, and then Core's current bytes: 119 vectors
+  became 121.
+- `script_tests.json`, 19 revisions back, is at Core's tip: 1203 vectors
+  became 1233, and the five new TAPSCRIPT ones needed their placeholders
+  generated rather than parsed.
+- `bip340_test_vectors.csv`, four vectors back, is at the tip of the path:
+  15 became 19, and the four new ones are `xfail` — issue 169.
+- `tapscript_test_vector.json` gained the one appended vector, 2243 to
+  2244.
+- `bip174_test_vectors.json` gained the three `* Case:` entries it had
+  never held, 31 to 34, two of which are `xfail` — issue 170.
+- `bip32_test_vectors.json`, `bip32_invalid_keys.json`,
+  `bip371_test_vectors.json`, `bip67_test_vectors.json`,
+  `bip39_test_vectors.json`, `english.txt`, `taproot_test_vector.json`,
+  `sig_hash_legacy_test_vectors.json`, `pubkey.json`, `ecdsa_sig.json`,
+  `ecdsa_custom_nonce_sig.json` and `bms.json` were re-checked and needed
+  nothing: each entry says against which revision.
 
-Each entry above records what changed; this list is the index of the
-decisions, so a later reader can tell a deliberate refresh from drift.
+Three btclib defects came out of it, all three of them things the missing
+vectors had been hiding rather than new: issue 169 (BIP340 messages of
+arbitrary size), issue 170 (a PSBT whose unsigned tx has no inputs), and
+the note in issue 170 about the value-size check that does not exist.
+
+Each entry above records what changed; this list is the index, so a later
+reader can tell a deliberate refresh from drift.
