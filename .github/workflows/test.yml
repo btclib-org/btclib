@@ -133,7 +133,8 @@ jobs:
   # PyPI, which is the other thing worth checking about metadata: that step
   # stays in the release workflow because it cannot pass until the pinned
   # btclib_libsecp256k1 is published, and a check that is red for a reason
-  # nobody can fix in this repository is not a gate, it is noise
+  # nobody can fix in this repository is not a gate, it is noise.
+  # Moving it here once that upload happens is issue #131
   dist-py:
     runs-on: ubuntu-latest
     timeout-minutes: 15

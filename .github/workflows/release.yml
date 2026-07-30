@@ -114,7 +114,9 @@ jobs:
       # and not to the btclib/ source tree. Unlike the test matrix,
       # which follows tool.uv.sources to the bindings' dev branch, this
       # resolves btclib_libsecp256k1 from PyPI: it fails, and must,
-      # whenever the published bindings cannot satisfy the declared pin
+      # whenever the published bindings cannot satisfy the declared pin.
+      # It is the one packaging check that did not move to the dist-py job
+      # of the test workflow, for that reason: see issue #131
       - name: Smoke-test the wheel, with its dependencies from PyPI
         run: |
           cd "$RUNNER_TEMP"
