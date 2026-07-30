@@ -23,9 +23,18 @@ Already done for btclib-org/btclib; kept here for the record.
    publisher, with environment `testpypi`.
 
 1. In the GitHub repository settings, create the `pypi` and `testpypi`
-   environments. Protect `pypi`: restrict it to `v*` tags and, if
-   desired, add required reviewers so a release waits for a human
-   approval before uploading.
+   environments. Both require a review from `fametrano`, so neither
+   index is uploaded to without a human approving that run; the two
+   `publish-*` jobs are the only holders of `id-token: write`, and this
+   is the gate in front of them. `pypi` is additionally restricted to
+   `v*` tags, which is the only ref its job runs on anyway — the
+   restriction is what makes that true of the environment and not just
+   of an `if:` in a file a pull request could change.
+
+   Self-review stays allowed on purpose: the maintainer who pushes the
+   tag is the reviewer, and forbidding it would deadlock a one-maintainer
+   release. The approval is a confirmation step, not a second pair of
+   eyes; it becomes one as soon as there is a second reviewer to add.
 
 ## Rehearse on TestPyPI
 

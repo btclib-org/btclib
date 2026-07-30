@@ -180,3 +180,37 @@ jobs:
       # being 10 today
       - name: Rate the packaging metadata
         run: uv run --locked --only-group build pyroma --min 10 dist/*.tar.gz
+
+  # the single check master's branch protection requires from this
+  # workflow, and it exists because that rule names its checks as literal
+  # strings, stored outside the repository. The matrix above produces 54
+  # of them, each spelling out a runner label and an interpreter version:
+  # naming those directly means every matrix edit has to be mirrored in a
+  # setting no pull request can review, and a name that stops being
+  # produced -- macos-latest moving on, 3.9 aging out -- becomes a
+  # required check that never reports, which blocks every merge until
+  # someone remembers where the rule lives.
+  # This job depends on the others instead, so the rule names one thing
+  # that never changes and adding a job here is enough to gate on it
+  tests-passed:
+    needs: [test-py, coverage-py, dist-py]
+    # not success(): a job whose dependencies failed is skipped, and a
+    # skipped check reports "skipped", which branch protection counts as
+    # satisfied. The gate has to run to be able to fail
+    if: always()
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      # the condition reads the whole needs context rather than testing
+      # each job by name, so a job added to needs above is covered
+      # without touching this. "skipped" is a failure here too: nothing
+      # in this workflow is conditional, so a skip means something
+      # upstream did not run
+      - name: Fail unless every job above succeeded
+        if: >-
+          contains(needs.*.result, 'failure') ||
+          contains(needs.*.result, 'cancelled') ||
+          contains(needs.*.result, 'skipped')
+        run: |
+          echo "::error::a job this gate depends on did not succeed"
+          exit 1

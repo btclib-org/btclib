@@ -58,6 +58,22 @@ type aliases the public API accepts, and much of the surface takes
   `btclib.__version__` reads it back with `importlib.metadata`, and
   `docs/source/conf.py` parses the file (not the metadata, which would
   need the package installed).
+- **`master` requires three checks**, and only three: `tests-passed`,
+  `Lint and type-check`, `CodeQL`. `tests-passed` is an aggregate job at
+  the end of `test.yml` that `needs` the matrix — never name matrix
+  contexts in the branch rule, because the rule lives outside the
+  repository and a context that stops being produced blocks every merge.
+  A new job in `test.yml` belongs in that job's `needs`, or it gates
+  nothing.
+- **The default `GITHUB_TOKEN` is read-only repository-wide**, so a job
+  needing more must declare it (only `release.yml`'s `github-release`
+  does, `contents: write`, plus `id-token: write` on the two publish
+  jobs). The workflow-level `permissions: contents: read` is now belt and
+  braces; keep it, it is what makes the intent readable in the file.
+- **Publishing waits for an approval**: the `pypi` and `testpypi`
+  environments both require a review, and `pypi` is restricted to `v*`
+  tags. `RELEASING.md` records the reasoning, including why self-review
+  stays allowed.
 - **Some plan-gated settings cannot be enabled**: secret scanning's
   non-provider patterns and validity checks need paid Secret Protection,
   and the API answers a PATCH with 200 while leaving them disabled. The
