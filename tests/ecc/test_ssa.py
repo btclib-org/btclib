@@ -677,3 +677,54 @@ def test_libsecp256k1() -> None:
     assert len(btclib_sig.serialize()) == 64
     assert btclib_sig.serialize() == libsecp256k1_sig
     assert ssa.verify(msg, pub_key, libsecp256k1_sig)
+
+
+def test_libsecp256k1_x_only_conversion() -> None:
+    """The x-only key handed to the bindings is btclib's to derive.
+
+    The bindings' x-only surface takes 32 bytes and nothing else: a
+    compressed key there is a ValueError, and used to be silently read
+    as its even-y point — a different key whenever y is odd. btclib
+    never relied on that leniency, because
+    point_from_bip340pub_key normalizes first, so the odd-y key below
+    verifies through the same even-y point in whatever representation
+    it is handed in. This test is what keeps that true: a refactor that
+    starts passing a compressed key straight through would fail here
+    rather than at the cffi boundary, where ssa_verify swallows the
+    ValueError and only a failed script is left to read.
+    """
+    msg = b"Satoshi Nakamoto"
+    q = 6  # gen_keys negates it, so mult(q) is the odd-y point
+    q_fixed, x_Q = ssa.gen_keys(q)
+    assert q_fixed != q
+    sig = ssa.sign(msg, q, b"\x00" * 32)
+
+    x_only = x_Q.to_bytes(32, "big")
+    assert len(x_only) == 32  # what assert_as_valid_ passes to the bindings
+    assert ssa.verify(msg, x_only, sig)
+
+    Q = mult(q)
+    assert Q[1] % 2  # y is odd, so the parity byte is the one dropped
+    for pub_key in (bytes_from_point(Q), bytes_from_point(Q, compressed=False)):
+        assert len(pub_key) in (33, 65)
+        assert ssa.verify(msg, pub_key, sig)
+
+
+def test_sign_aux_size() -> None:
+    """Nonce entropy is 32 bytes, or omitted.
+
+    bytes_from_octets enforces it at btclib's own boundary, ahead of the
+    bindings — where a short aux used to be left-padded with zeros and
+    is now a ValueError — so callers get a BTClibValueError, and b"" is
+    a size error rather than a request for fresh randomness.
+    """
+    msg_hash = reduce_to_hlen(b"Satoshi Nakamoto")
+    q, x_Q = ssa.gen_keys(0x1)
+
+    assert ssa.verify_(msg_hash, x_Q, ssa.sign_(msg_hash, q))  # aux omitted
+    assert ssa.verify_(msg_hash, x_Q, ssa.sign_(msg_hash, q, b"\x00" * 32))
+
+    for aux in (b"", b"\x00" * 31, b"\x00" * 33):
+        err_msg = f"invalid size: {len(aux)} bytes instead of 32"
+        with pytest.raises(BTClibValueError, match=err_msg):
+            ssa.sign_(msg_hash, q, aux)
