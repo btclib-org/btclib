@@ -28,6 +28,15 @@ Major changes includes:
   serves every other curve, a hash function other than sha256, and a
   caller-imposed nonce, and the test suite keeps validating it against
   the bindings, libsecp256k1 being the authority on the answer
+- `borromean.assert_as_valid` raises BTClibRuntimeError("signature
+  verification failed") and returns None, as its `dsa`, `ssa`, and `bms`
+  counterparts do; it used to return a bool, so a caller following the
+  library's own convention and calling it as a statement accepted forged
+  ring signatures in silence
+- new `pedersen.assert_as_valid`, raising BTClibRuntimeError("commitment
+  verification failed"): `pedersen` was the one module with a `verify`
+  and no assert_as_valid beside it, leaving no way to learn why opening
+  a commitment failed
 - `dsa.assert_as_valid_` and `ssa.assert_as_valid_` raise "signature
   verification failed" whichever of the two implementations verified: the
   message used to name an internal helper (`libsecp256k1.ecdsa_verify_

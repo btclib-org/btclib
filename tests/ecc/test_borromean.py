@@ -9,7 +9,10 @@
 # or distributed except according to the terms contained in the LICENSE file.
 """Tests for the `btclib.borromean` module."""
 
+import pytest
+
 from btclib.ecc import borromean, dsa
+from btclib.exceptions import BTClibRuntimeError
 
 
 def test_borromean() -> None:
@@ -33,5 +36,15 @@ def test_borromean() -> None:
 
     borromean.assert_as_valid(msg, sig[0], sig[1], pubk_rings)
     assert borromean.verify(msg, sig[0], sig[1], pubk_rings)
-    assert not borromean.verify("another message", sig[0], sig[1], pubk_rings)
+    # bytes, not str: a str msg is taken as hex, so "another message"
+    # would fail to parse and never reach the ring verification
+    assert not borromean.verify(b"another message", sig[0], sig[1], pubk_rings)
+    # a msg that is neither bytes nor hex-str: the catched exception path
     assert not borromean.verify(0, sig[0], sig[1], pubk_rings)  # type: ignore[arg-type]
+
+    # a forged signature must raise, not merely return a falsy value:
+    # assert_as_valid is called as a statement, so a return value
+    # would be silently discarded
+    err_msg = "signature verification failed"
+    with pytest.raises(BTClibRuntimeError, match=err_msg):
+        borromean.assert_as_valid(b"another message", sig[0], sig[1], pubk_rings)

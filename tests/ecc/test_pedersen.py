@@ -16,6 +16,7 @@ import pytest
 from btclib.ec import secp256k1
 from btclib.ec.curve import CURVES
 from btclib.ecc import pedersen
+from btclib.exceptions import BTClibRuntimeError
 
 secp256r1 = CURVES["secp256r1"]
 secp384r1 = CURVES["secp384r1"]
@@ -57,6 +58,16 @@ def test_commitment() -> None:
     # Commit(r_1, v1) + Commit(r_2, v2) = Commit(r_1+r_2, v1+r_2)
     R = pedersen.commit(r_1 + r_2, v1 + v2, ec, hf)
     assert ec.add(C1, C2) == R
+
+    pedersen.assert_as_valid(r_1, v1, C1, ec, hf)
+
+    # a commitment that opens to something else must raise, not merely
+    # return a falsy value: assert_as_valid is called as a statement, so
+    # a return value would be silently discarded
+    err_msg = "commitment verification failed"
+    with pytest.raises(BTClibRuntimeError, match=err_msg):
+        pedersen.assert_as_valid(r_1, v1, C2, ec, hf)
+    assert not pedersen.verify(r_1, v1, C2, ec, hf)
 
     # commit does not verify (with catched exception)
     assert not pedersen.verify(sha256, v1, C2, ec, hf)  # type: ignore[arg-type]

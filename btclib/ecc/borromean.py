@@ -130,14 +130,18 @@ def verify(
     # all kind of Exceptions are catched because
     # verify must always return a bool
     try:
-        return assert_as_valid(msg, e0, s, pubk_rings)
+        assert_as_valid(msg, e0, s, pubk_rings)
     except Exception:
         return False
+
+    return True
 
 
 def assert_as_valid(
     msg: Octets, e0: bytes, s: SValues, pubk_rings: Sequence[PubkeyRing]
-) -> bool:
+) -> None:
+    # Private function for test/dev purposes
+    # It raises Errors, while verify should always return True or False
     msg, m, e = _initialize(msg, pubk_rings)
     e0bytes = m
 
@@ -162,4 +166,5 @@ def assert_as_valid(
             else:
                 e0bytes += r
     e0_prime = hf(e0bytes).digest()
-    return e0_prime == e0
+    if e0_prime != e0:
+        raise BTClibRuntimeError("signature verification failed")
