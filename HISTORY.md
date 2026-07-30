@@ -45,6 +45,15 @@ Major changes includes:
   also makes them behave the same in a thread created elsewhere: the
   current context is thread-local, so the process-wide trap was absent
   there
+- a hand-built BlockHeader no longer serializes differently on machines
+  in different time zones: the `time` default is now the epoch as an
+  aware datetime (it was naive, i.e. read back as local time by the
+  `timestamp()` call in `serialize`), and `assert_valid` rejects a naive
+  datetime instead of guessing its instant. `parse` was already correct,
+  producing UTC
+- the third BlockHeader parameter is named `merkle_root`, as the field
+  is: it was `merkle_root_`, which made `BlockHeader(merkle_root=...)`
+  a TypeError
 - `dsa.assert_as_valid_` and `ssa.assert_as_valid_` raise "signature
   verification failed" whichever of the two implementations verified: the
   message used to name an internal helper (`libsecp256k1.ecdsa_verify_

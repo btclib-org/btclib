@@ -10,7 +10,7 @@
 """Tests for the `btclib.block` module."""
 
 import json
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from os import path
 
 import pytest
@@ -109,6 +109,14 @@ def test_exceptions() -> None:
         header.assert_valid()
 
     header = BlockHeader.parse(header_bytes)
+    # naive: timestamp() would read it as local time, so both the
+    # genesis check and the serialization would depend on the machine
+    header.time = header.time.replace(tzinfo=None)
+    err_msg = "naive timestamp \\(no time zone\\): "
+    with pytest.raises(BTClibValueError, match=err_msg):
+        header.assert_valid()
+
+    header = BlockHeader.parse(header_bytes)
     header.nonce = 0
     with pytest.raises(BTClibValueError, match="invalid nonce: "):
         header.assert_valid()
@@ -117,6 +125,30 @@ def test_exceptions() -> None:
     header.nonce += 1
     with pytest.raises(BTClibValueError, match="invalid proof-of-work: "):
         header.assert_valid()
+
+
+def test_block_header_keywords() -> None:
+    """Test that every BlockHeader field is a valid keyword argument."""
+    fname = "block_1.bin"
+    filename = path.join(path.dirname(__file__), "_data", fname)
+    with open(filename, "rb") as file_:
+        header_bytes = file_.read()[:80]
+
+    header = BlockHeader.parse(header_bytes)
+    assert header == BlockHeader(
+        version=header.version,
+        previous_block_hash=header.previous_block_hash,
+        merkle_root=header.merkle_root,
+        time=header.time,
+        bits=header.bits,
+        nonce=header.nonce,
+    )
+
+    # the same instant in another time zone is the same header
+    other_zone = header.time.astimezone(timezone(timedelta(hours=14)))
+    assert other_zone.hour != header.time.hour
+    header.time = other_zone
+    assert header.serialize() == header_bytes
 
 
 def test_block_170() -> None:

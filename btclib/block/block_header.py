@@ -94,15 +94,19 @@ class BlockHeader:
         self,
         version: int = 1,
         previous_block_hash: Octets = b"",
-        merkle_root_: Octets = b"",
-        time: datetime = datetime.fromtimestamp(0),
+        merkle_root: Octets = b"",
+        # aware, as the serialization is in seconds since the epoch:
+        # datetime.fromtimestamp(0) would be naive, i.e. read back as
+        # local time, and the header would serialize differently on
+        # machines in different time zones
+        time: datetime = datetime.fromtimestamp(0, timezone.utc),
         bits: Octets = b"",
         nonce: int = 0,
         check_validity: bool = True,
     ) -> None:
         self.version = version
         self.previous_block_hash = bytes_from_octets(previous_block_hash)
-        self.merkle_root = bytes_from_octets(merkle_root_)
+        self.merkle_root = bytes_from_octets(merkle_root)
         self.time = time
         self.bits = bytes_from_octets(bits)
         self.nonce = nonce
@@ -151,6 +155,13 @@ class BlockHeader:
         if not 0 < self.version <= 0x7FFFFFFF:
             raise BTClibValueError(f"invalid version: {hex(self.version)}")
 
+        # a naive datetime has no instant attached to it: timestamp()
+        # would assume the local time zone, so both this check and the
+        # serialization would depend on the machine
+        if self.time.tzinfo is None or self.time.tzinfo.utcoffset(self.time) is None:
+            err_msg = f"naive timestamp (no time zone): {self.time}"
+            raise BTClibValueError(err_msg)
+
         if self.time.timestamp() < 1231006505:
             err_msg = "invalid timestamp (before genesis)"
             date = datetime.fromtimestamp(self.time.timestamp(), timezone.utc)
@@ -198,7 +209,7 @@ class BlockHeader:
         # version is a signed int (int32_t, not uint32_t)
         version = int.from_bytes(stream.read(4), byteorder="little", signed=True)
         previous_block_hash = stream.read(_HF_LEN)[::-1]
-        merkle_root_ = stream.read(_HF_LEN)[::-1]
+        merkle_root = stream.read(_HF_LEN)[::-1]
         t = int.from_bytes(stream.read(4), byteorder="little", signed=False)
         time = datetime.fromtimestamp(t, timezone.utc)
         bits = stream.read(4)[::-1]
@@ -207,7 +218,7 @@ class BlockHeader:
         return cls(
             version,
             previous_block_hash,
-            merkle_root_,
+            merkle_root,
             time,
             bits,
             nonce,
