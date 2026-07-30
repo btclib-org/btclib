@@ -556,7 +556,7 @@ def mult_mont_ladder(m: int, Q: JacPoint, ec: CurveGroup) -> JacPoint:
     It is constant-time and resistant to the FLUSH+RELOAD attack,
     as it prevents branch prediction avoiding any if.
     See:
-    - https://eprint.iacr.org/2014/140.pdf
+    - https://eprint.iacr.org/2014/140
 
     The input point is assumed to be on curve and
     the m coefficient is assumed to have been reduced mod n

@@ -1,14 +1,20 @@
 # URLs the links workflow does not check, each with the reason it cannot
-# be checked rather than the reason it is inconvenient. Anything that is
-# merely slow or occasionally throttled belongs in that workflow's
-# --max-retries and --accept, not here.
+# be checked rather than the reason it is inconvenient. Anything merely
+# slow or occasionally throttled belongs in that workflow's --max-retries
+# and --accept, not here.
+#
+# One entry, and it took a wrong one to arrive at it. The list first held
+# eprint.iacr.org, on the assumption that a 403 there meant a bot filter a
+# browser would pass; measured, that host answers the .pdf path with
+# Cloudflare's "Just a moment..." challenge and 403 to every HTTP client,
+# browser user-agent or not, while the landing page without .pdf is 200.
+# So it was not unverifiable, it was the wrong URL: the citations now name
+# eprint.iacr.org/<year>/<id>, which is the canonical form anyway, and
+# need no exception.
 
-# 403 to any client without a browser fingerprint, and 200 in a browser:
-# the IACR eprint archive rejects the request, not the URL. Verified by
-# hand; the paper is Borromean ring signatures, cited by ecc/borromean.py
-https://eprint\.iacr\.org/.*
-
-# a Slack workspace invite, which answers only to a signed-in member: a
-# checker sees the sign-in redirect and cannot tell a live invite from a
-# dead one
-https://bbt-training\.slack\.com/.*
+# 403 from a GitHub runner and 200 from a developer machine, serving a
+# 524 KB PDF: Cloudflare judging the caller's address, not the URL. There
+# is no alternative form of this one -- a CHES 2006 presentation, cited by
+# ec/curve_group_2.py -- so it is excluded, on the workflow's own evidence
+# rather than on an assumption about it.
+https://iacr\.org/workshops/.*
