@@ -6,11 +6,26 @@
 #   onto dev, as configured in the ci: block of .pre-commit-config.yaml
 #
 # every pull request here runs the whole test matrix, so both ecosystems
-# group their updates into a single pull request and ask monthly rather
-# than weekly: nothing either of them tracks is security-critical.
-# Both target dev: master only receives merges from it, and both wait a
-# week before offering a version: a compromised release is usually yanked
-# within days, and asking monthly means the delay costs nothing
+# group their updates into a single pull request; both target dev, master
+# only receiving merges from it.
+#
+# Weekly, where it used to be monthly. What changed is the latest
+# workflow: it upgrades everything uv resolves and runs the suite, the
+# lint gate and the packaging checks against it, on a schedule, off the
+# critical path. A month of drift arriving in one diff was defensible
+# while nothing exercised that drift beforehand -- it is now a diff whose
+# result is already known, and a smaller one is easier to read and to
+# revert. The github-actions ecosystem gets the same interval for
+# symmetry rather than for evidence: nothing pre-validates an action bump,
+# but actions move rarely, and a week where none did produces no pull
+# request at all.
+#
+# The seven day cooldown stays, and is what the interval is really
+# trading against: a compromised release is usually yanked within days.
+# Weekly plus cooldown still means nothing is ever offered before it has
+# been public a week -- it means the offer comes at most a week after
+# that, rather than at most a month. Neither ecosystem tracks anything
+# security-critical, so nothing here wants to be faster than that
 version: 2
 updates:
   # every action is now pinned to a commit SHA, which nothing but this
@@ -19,7 +34,12 @@ updates:
   - package-ecosystem: github-actions
     directory: /
     schedule:
-      interval: monthly
+      interval: weekly
+      # friday, where the latest workflow runs thursday: the sentinel has
+      # just reported when the pull requests are opened. It buys the
+      # actions ecosystem nothing, which the sentinel does not cover, but
+      # two schedules a day apart are one thing to remember instead of two
+      day: friday
     target-branch: dev
     groups:
       actions:
@@ -30,12 +50,14 @@ updates:
   # uv.lock is committed and the workflows install from it with --locked,
   # while the dependency groups declare no version at all: the whole
   # drift of ruff, mypy, pytest and sphinx lives in the lock file, and
-  # nothing moves it today. The uv-lock pre-commit hook only re-locks
-  # what pyproject.toml changed, it does not upgrade
+  # this is the only thing that moves it. The uv-lock pre-commit hook
+  # only re-locks what pyproject.toml changed, it does not upgrade, and
+  # the latest workflow tests an upgrade it deliberately never commits
   - package-ecosystem: uv
     directory: /
     schedule:
-      interval: monthly
+      interval: weekly
+      day: friday
     target-branch: dev
     groups:
       dev-tooling:
