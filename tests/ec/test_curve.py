@@ -30,9 +30,13 @@ from btclib.ec import (
 )
 from btclib.ec.curve import (
     CURVES,
+    Brainpool_params2,
     CurveSubGroup,
+    NIST_params2,
     SEC2v1,
+    SEC2v1_params2,
     SEC2v2,
+    SEC2v2_params2,
     _libsecp256k1_applicable,
 )
 from btclib.ecc import second_generator
@@ -149,6 +153,10 @@ def test_exceptions() -> None:
     with pytest.raises(BTClibValueError, match="n is not the group order: "):
         Curve(13, 0, 2, (1, 9), 17, 1, False)
 
+    # the same curve, with the group order check turned off: everything
+    # else about it checks out, which is why the check has to exist
+    Curve(13, 0, 2, (1, 9), 17, 1, False, order_check=False)
+
     with pytest.raises(BTClibValueError, match="invalid cofactor: "):
         Curve(13, 0, 2, (1, 9), 19, 2, False)
 
@@ -157,6 +165,26 @@ def test_exceptions() -> None:
 
     with pytest.raises(UserWarning, match="weak curve"):
         Curve(11, 2, 7, (6, 9), 7, 2, True)
+
+
+def test_catalogued_curves() -> None:
+    """Rebuild the catalogue from its json data, with every check on.
+
+    btclib.ec.curve builds it with order_check=False, the n*G check being
+    70% of the cost of importing the module; here the whole catalogue
+    pays for it once, so a wrong n in the json data fails a test instead
+    of going unnoticed. This is where that check lives now: not the only
+    place it happens -- test_ec_repr rebuilds each curve from its repr,
+    and test_curve_group and test_curve_group_2 assert n*G == INF through
+    ten distinct mult implementations -- but the one that is about it.
+    """
+    catalogues = (Brainpool_params2, NIST_params2, SEC2v1_params2, SEC2v2_params2)
+    checked = set()
+    for params2 in catalogues:
+        for name, (p, a, b, G, n, cofactor) in params2.items():
+            assert Curve(p, a, b, G, n, cofactor, name=name) == CURVES[name]
+            checked.add(name)
+    assert checked == set(CURVES)
 
 
 def test_aff_jac_conversions() -> None:

@@ -16,6 +16,7 @@ from collections.abc import Sequence
 from hashlib import sha256
 from math import sqrt
 from os import path
+from typing import Any
 
 from btclib_libsecp256k1.mult import mult as libsecp256k1_mult
 
@@ -82,6 +83,7 @@ class Curve(CurveSubGroup):
         n: Integer,
         cofactor: int,
         weakness_check: bool = True,
+        order_check: bool = True,
         name: str | None = None,
     ) -> None:
         super().__init__(p, a, b, G)
@@ -114,8 +116,22 @@ class Curve(CurveSubGroup):
         if self.G[1] == 0:
             err_msg = "INF point cannot be a generator"
             raise BTClibValueError(err_msg)
-        jac_inf = _mult(n, self.GJ, self)
-        if jac_inf[2] != 0:
+        # n*G is by far the most expensive check here -- a python
+        # double-and-add over nlen bits -- and it dominates the cost of
+        # building a curve: ~118 ms of the ~168 ms the 27 catalogued
+        # curves used to spend at import time, against ~2 ms for the
+        # primality of n. The catalogue therefore passes
+        # order_check=False: its parameters are constants, and the test
+        # suite verifies them, tests/ec/test_curve_group.py and
+        # test_curve_group_2.py asserting n*G == INF for every curve of
+        # CURVES through ten distinct mult implementations, while
+        # test_catalogued_curves rebuilds each of them from the json data
+        # with the check on. It stays on by default all the same, and is not
+        # merely a test-time luxury: a caller-defined curve whose n is
+        # not the order of G is accepted by every other check here and
+        # then fails silently downstream, mult and sign returning
+        # answers in a group nobody asked for
+        if order_check and _mult(n, self.GJ, self)[2] != 0:
             err_msg = "n is not the group order: "
             err_msg += f"{hex_string(n)}" if n > HEX_THRESHOLD else f"{n}"
             raise BTClibValueError(err_msg)
@@ -162,12 +178,29 @@ class Curve(CurveSubGroup):
 
     def _eq_key(self) -> tuple[int, ...]:
         # name is not part of the curve: the same curve is catalogued as
-        # secp256r1 by SEC 2 and as P-256 by NIST, and weakness_check is
-        # a construction-time option, not a parameter
+        # secp256r1 by SEC 2 and as P-256 by NIST, and weakness_check and
+        # order_check are construction-time options, not parameters
         return (*super()._eq_key(), self.n, self.cofactor)
 
 
 datadir = path.join(path.dirname(__file__), "_data")
+
+
+def _catalogued_curve(params: list[Any], name: str) -> Curve:
+    """Build one curve of the shipped catalogue, from its json parameters.
+
+    One function for the four catalogues, so that the flags cannot drift
+    apart: order_check=False, because these parameters are standardized
+    constants the test suite verifies -- see the comment on the check in
+    Curve.__init__ -- and paying for it here made it 70% of the cost of
+    importing this module. weakness_check stays on, being cheap: it is
+    100 modular exponentiations, not a scalar multiplication.
+    """
+    p, a, b, G, n, cofactor = params
+    return Curve(
+        p, a, b, G, n, cofactor, weakness_check=True, order_check=False, name=name
+    )
+
 
 # Elliptic Curve Cryptography (ECC)
 # Brainpool Standard Curves and Curve Generation
@@ -176,7 +209,7 @@ filename = path.join(datadir, "ec_Brainpool.json")
 with open(filename, encoding="ascii") as file_:
     Brainpool_params2 = json.load(file_)
 Brainpool: dict[str, Curve] = {
-    ec_name: Curve(*Brainpool_params2[ec_name] + [True, ec_name])
+    ec_name: _catalogued_curve(Brainpool_params2[ec_name], ec_name)
     for ec_name in Brainpool_params2
 }
 # FIPS PUB 186-4
@@ -187,7 +220,8 @@ filename = path.join(datadir, "ec_NIST.json")
 with open(filename, encoding="ascii") as file_:
     NIST_params2 = json.load(file_)
 NIST: dict[str, Curve] = {
-    ec_name: Curve(*NIST_params2[ec_name] + [True, ec_name]) for ec_name in NIST_params2
+    ec_name: _catalogued_curve(NIST_params2[ec_name], ec_name)
+    for ec_name in NIST_params2
 }
 # SEC 2 v.1 curves, removed from SEC 2 v.2 as insecure ones
 # http://www.secg.org/SEC2-Ver-1.0.pdf
@@ -195,7 +229,7 @@ filename = path.join(datadir, "ec_SEC2v1_insecure.json")
 with open(filename, encoding="ascii") as file_:
     SEC2v1_params2 = json.load(file_)
 SEC2v1: dict[str, Curve] = {
-    ec_name: Curve(*SEC2v1_params2[ec_name] + [True, ec_name])
+    ec_name: _catalogued_curve(SEC2v1_params2[ec_name], ec_name)
     for ec_name in SEC2v1_params2
 }
 # curves included in both SEC 2 v.1 and SEC 2 v.2
@@ -207,9 +241,8 @@ SEC2v2: dict[str, Curve] = {}
 for ec_name in SEC2v2_params2:
     # one object in both catalogues, not two: building the curve twice
     # used to hand out two objects, and only one of them is the
-    # secp256k1 the libsecp256k1 dispatch below compares against. It also
-    # halves the n*G check these eight curves pay at import time
-    SEC2v2[ec_name] = Curve(*SEC2v2_params2[ec_name] + [True, ec_name])
+    # secp256k1 the libsecp256k1 dispatch below compares against
+    SEC2v2[ec_name] = _catalogued_curve(SEC2v2_params2[ec_name], ec_name)
     SEC2v1[ec_name] = SEC2v2[ec_name]
 
 # with python>=3.9 use dictionary union operators

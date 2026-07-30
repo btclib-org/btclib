@@ -334,12 +334,22 @@ Major changes includes:
   python path, twelve times slower and silent about it, and
   `to_prv_key`/`to_pub_key` raised "curve mismatch" between two objects
   describing the same curve. The eight curves shared by the two
-  catalogues are now one object each, which also halves the n*G check they
-  pay at import time, and the five hand-written dispatch predicates are
-  one `_libsecp256k1_applicable(ec, hf)`. `hf` is still compared by
-  identity, deliberately: nothing short of running them tells sha256 from
-  a look-alike, so a wrapper such as `functools.partial(sha256)` keeps
-  taking the python path — slower, never wrong (issue #142)
+  catalogues are now one object each, and the five hand-written dispatch
+  predicates are one `_libsecp256k1_applicable(ec, hf)`. `hf` is still
+  compared by identity, deliberately: nothing short of running them tells
+  sha256 from a look-alike, so a wrapper such as
+  `functools.partial(sha256)` keeps taking the python path — slower, never
+  wrong (issue #142)
+- importing btclib is 120 ms faster: `Curve` takes a new `order_check`
+  argument, and the 27 catalogued curves pass `order_check=False`. The
+  n\*G ≟ INF check it gates is a python double-and-add over the bit length
+  of the order, and it was 70% of the cost of importing `btclib.ec.curve`
+  (168 ms, against 2 ms for the primality of n) — paid to re-derive a
+  property of published constants at every interpreter start. The check
+  defaults to on, because a caller-defined curve whose n is not the order
+  of the generator passes every other check and then misbehaves silently;
+  for the catalogue, the new `test_catalogued_curves` rebuilds each curve
+  from the json data with all the checks on
 
 ## v2023.7.12
 
