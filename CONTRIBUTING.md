@@ -99,6 +99,22 @@ packaging metadata and on `uv.lock`).
 
 \[To do: document how to do it in VS Code\]
 
+One of those hooks needs maintenance, and only one. The test vectors under
+`tests/ecc/_data/` and `tests/script/_data/` are private keys by the
+hundred, so they are recorded in `.secrets.baseline` as already reviewed —
+rather than excluded from the scan, which would leave those files unwatched
+for a credential that has no business being there. Adding a vector to one
+of them means regenerating the baseline:
+
+```shell
+uvx --from detect-secrets detect-secrets scan --baseline .secrets.baseline
+```
+
+That preserves the plugin selection the file already carries, which is
+deliberate: the two entropy plugins are off, because in vectors made of
+64-character hex strings a new high-entropy string is what a legitimate
+addition looks like.
+
 ### Reproducing what CI runs
 
 Every job of every workflow is a `uv` command, and `uv` fetches what it

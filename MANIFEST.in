@@ -8,6 +8,8 @@ include *.jsonc
 include pyproject.toml
 include uv.lock
 include .python-version
+# the sdist already carries .pre-commit-config.yaml, which points at this
+include .secrets.baseline
 
 exclude Gemfile
 exclude CNAME

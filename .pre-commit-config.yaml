@@ -61,25 +61,23 @@ repos:
     hooks:
       - id: detect-secrets
         name: detect-secrets (credentials of other systems)
-        # the two entropy plugins are off and three vector files excluded,
-        # for one reason: the test data of a signing library is private
-        # keys by the hundred, published upstream and vendored to be
-        # compared against. With every plugin on, this tree yields 36306
-        # findings; with the entropy plugins off, 412, all of them in the
-        # three files below; with those excluded, none.
-        # What still fails is what should: a planted PEM key, AWS key and
-        # password are all caught, while a file of WIF keys and extended
-        # private keys, i.e. what this library legitimately carries, is not
-        args:
-          - --disable-plugin
-          - HexHighEntropyString
-          - --disable-plugin
-          - Base64HighEntropyString
-        exclude: |
-          (?x)^tests/(
-            ecc/_data/ecdsa(_custom_nonce)?_sig|
-            script/_data/taproot_test_vector
-          )\.json$
+        # the test data of a signing library is private keys by the
+        # hundred, published upstream and vendored to be compared against,
+        # so three json vector files account for 412 findings on their own.
+        # They are recorded in .secrets.baseline as already reviewed rather
+        # than excluded from the scan: an exclusion makes a file blind for
+        # good, and the difference is not theoretical -- an AWS key planted
+        # in one of them is not seen while it is excluded and is seen now.
+        # The baseline was generated with the two entropy plugins off, and
+        # it is the baseline that decides which plugins run. That is a
+        # deliberate limit: with them on this tree yields 36306 findings,
+        # and every new hex constant would fail the hook until someone
+        # regenerated the file -- in vectors made of 64-character hex
+        # strings, a new one is what a legitimate addition looks like, so
+        # the check would report the work rather than the risk.
+        # Adding a vector to those files means regenerating the baseline;
+        # CONTRIBUTING.md has the command
+        args: [--baseline, .secrets.baseline]
   - repo: https://github.com/DavidAnson/markdownlint-cli2
     rev: v0.23.2
     hooks:
@@ -128,6 +126,13 @@ repos:
     rev: v1.28.0
     hooks:
       - id: zizmor
+        # offline is what it does by default, said out loud: it warns about
+        # the implicit choice on every run, and the choice is the right one.
+        # Two audits can query GitHub for the actions a workflow pins --
+        # impostor-commit and known-vulnerable-actions -- which would make
+        # the hook want a token and report differently on a machine that
+        # has none. Those two therefore stay unrun, here and in CI
+        args: [--offline]
   - repo: https://github.com/leoll2/copyright_notice_precommit
     rev: 0.1.1
     hooks:
