@@ -116,7 +116,11 @@ Major changes includes:
   that is installed, not the one a source tree carries) and the
   documentation reads it from the file. It used to be a literal in
   btclib/\_\_init\_\_.py that setuptools imported, repeated by
-  docs/source/conf.py, with the release workflow comparing the two
+  docs/source/conf.py, with the release workflow comparing the two.
+  `btclib.__version__` is `"unknown"` where there is no metadata to read
+  it from, instead of the import raising PackageNotFoundError: cloning
+  the repository and importing works again, as it did before the version
+  moved (issue #150)
 
 ## v2023.7.12
 

@@ -106,8 +106,11 @@ jobs:
 
   # coverage is measured once, not once per matrix job: the code base has
   # no platform- or version-conditional branch (no sys.platform, no
-  # sys.version_info, no import fallback that is not "pragma: no cover")
-  # and no conditional skip, so every job walks the very same lines. The
+  # sys.version_info) and no conditional skip, so every job walks the very
+  # same lines. The one fallback, btclib.__version__ when no metadata is
+  # installed, is not conditional on the job: every one of them installs
+  # the package, and a test reaches the other branch by making the lookup
+  # raise, which is why it needs no "pragma: no cover" either. The
   # per-job measurement only bought the instrumentation overhead, one
   # coveralls.io upload per job, and the parallel/--finish handshake that
   # stitched the uploads back together.
