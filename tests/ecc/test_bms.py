@@ -562,7 +562,11 @@ PYTHON_BITCOINLIB_VECTORS = [
 def test_vector_python_bitcoinlib(vector: dict[str, Any]) -> None:
     """Test python-bitcoinlib test vectors.
 
-    - https://github.com/petertodd/python-bitcoinlib/blob/master/bitcoin/tests/test_data/bms.json
+    The vendored copy is `bms.json`, renamed on the way in; upstream is
+    `bitcoin/tests/data/signmessage.json`, and the path this docstring
+    used to name -- `bitcoin/tests/test_data/bms.json` -- is neither the
+    directory nor the file upstream has. tests/_data/README.md pins the
+    revision.
     """
     msg = vector["address"].encode()
 

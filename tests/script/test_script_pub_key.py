@@ -521,7 +521,12 @@ BIP67_VECTORS = vectors.load("script", "_data", "bip67_test_vectors.json")
     ],
 )
 def test_bip67(keys: list[str], addr: str) -> None:
-    """BIP67 test vectors https://en.bitcoin.it/wiki/BIP_0067."""
+    """BIP67 test vectors, from bip-0067.mediawiki in bitcoin/bips.
+
+    The citation was en.bitcoin.it/wiki/BIP_0067, a wiki page that is
+    neither versioned nor authoritative; tests/_data/README.md pins the
+    BIP revision the vectors were transcribed from.
+    """
     m = 2
     script_pub_key = ScriptPubKey.p2ms(m, keys, lexicographic_sorting=True).script
     assert is_p2ms(script_pub_key)
