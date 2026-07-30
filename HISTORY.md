@@ -273,6 +273,48 @@ Major changes includes:
   only on the tag that ships it: twine, check-wheel-contents and pyroma
   moved from the release workflow to a job of the test workflow, which
   the release workflow calls
+- the published documentation has an API in it again. Read the docs
+  installed the sphinx of docs/requirements.txt and not btclib, so every
+  `automodule` directive failed to import its module and rendered as a
+  bare heading: btclib.readthedocs.io was 15 module titles with nothing
+  under them, silently, a failed import being a warning nobody read.
+  `.readthedocs.yaml` now drives uv, which is the only tool that can
+  resolve the bindings (pip does not read tool.uv.sources), builds with
+  `-W`, and retires docs/requirements.txt — the docs dependency group in
+  pyproject.toml is the single declaration and uv.lock pins it, where
+  that file was unpinned and kept in step by a header asking a human to
+  do it
+- `btclib.descriptors` is documented, the one top-level module missing
+  from docs/source; `tests/test_docs.py` now compares the modules under
+  btclib/ against the directives in docs/source and fails naming
+  whichever is missing, in either direction
+- `psbt_utils.serialize_hd_key_paths` raises "invalid type marker
+  length", where the last word used to be misspelled — and was pinned
+  verbatim by the test asserting it, which is what made the typo an
+  interface: code matching on the old message needs updating.
+  A codespell hook now guards the prose, having found 63 typos, four of
+  them in the README — misspellings of *bitcoin*, *symmetry*,
+  *commitment* and *development* — which is the btclib.org homepage and
+  the PyPI long description at once. The BIP-39 wordlists and the
+  vendored vectors are skipped rather than corrected, being normative:
+  one English wordlist entry is a misspelling upstream, and correcting
+  it would change every mnemonic derived from that list
+- tests/_data/README.md records where each of the 28 vendored vector
+  files came from, pinned to an upstream commit and, where an upstream
+  file exists, compared blob by blob: 7 are byte-identical, 6 diverge
+  in ways the file characterizes, and 15 have no upstream file to
+  compare -- 6 transcribed from a BIP's prose, 6 chain data identified
+  by block hash or txid, 3 btclib's own. The citations in the test
+  modules named mutable `blob/master` paths, so "which revision of
+  BIP-341 does this match" had no answer. Two of them were also wrong,
+  and are corrected
+- a `links` workflow checks the documentation links weekly and on
+  demand, and gates nothing: CONTRIBUTING.md carried six
+  markdown-link-check-disable/enable comment pairs for a hook that does
+  not exist, suppressing a tool that was not running around links that
+  were fine, while the ones that had rotted were outside every pair.
+  The tools.ietf.org citations now name rfc-editor.org, which is where
+  they were redirecting
 - a scheduled workflow runs the test suite against the *published*
   btclib_libsecp256k1, resolved from PyPI by the declared pin, where every
   other job follows tool.uv.sources to the bindings under development: what
