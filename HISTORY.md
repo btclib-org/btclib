@@ -551,6 +551,26 @@ Major changes includes:
   and `"9"` raises for being of odd length rather than being nine. The
   behaviour is unchanged and deliberate — a decimal representation is what
   `int` itself is for — and now the docstring says so
+- **A private key in a recognised format that is wrong is reported, not
+  retried.** `int_from_prv_key` and `prv_keyinfo_from_prv_key` work out
+  which of WIF, BIP32 xprv, octets and int they were handed by trying them
+  in turn, and they swallowed every failure of the earlier attempts: a WIF
+  with one wrong character was not reported as the bad checksum it is, it
+  was retried as a hex-string and the caller told "not a private key". Two
+  new `BTClibValueError` subclasses draw the line the FIXMEs asked for —
+  `NotAPrvKeyError` (wrong format, keep guessing) and `InvalidPrvKeyError`
+  (format recognised, content wrong, stop) — so a WIF whose `0x80` prefix
+  and checksum are right now reports its own fault: `private key not in
+  1..n-1`, `not a compressed WIF: missing trailing 0x01`, `wrong WIF size:
+  35`, and an xpub reports `not a private key: prefix 0x03`. When the format
+  really is unrecognised the reasons are accumulated rather than discarded,
+  so the mistyped WIF above raises `not a private key: not a WIF (invalid
+  checksum: 0xa62019d3 instead of 0xa62019d2); not a BIP32 xkey (invalid
+  checksum: ...); not octets (non-hexadecimal number ...)`. The input itself
+  is still never echoed, being candidate key material; a checksum, a prefix
+  and a size are not secret. Both classes are `BTClibValueError`s, so code
+  catching that is unaffected. `to_pub_key` still guesses the same way and
+  is untouched
 - **`ScriptPubKey` is a dataclass**, as the `Script` it extends is. It was a
   plain subclass of one, so `network` was a bare annotation rather than a
   field: `dataclasses.fields` reported only `script`, and

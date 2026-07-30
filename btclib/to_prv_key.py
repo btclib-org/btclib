@@ -11,14 +11,17 @@
 
 from __future__ import annotations
 
-import contextlib
 from typing import Union
 
 from btclib.alias import String
 from btclib.base58 import b58decode
 from btclib.bip32 import BIP32Key, BIP32KeyData
 from btclib.ec import Curve, secp256k1
-from btclib.exceptions import BTClibValueError
+from btclib.exceptions import (
+    BTClibValueError,
+    InvalidPrvKeyError,
+    NotAPrvKeyError,
+)
 from btclib.network import (
     NETWORKS,
     network_from_key_value,
@@ -57,10 +60,14 @@ def int_from_prv_key(prv_key: PrvKey, ec: Curve = secp256k1) -> int:
         # q has been validated on the xprv/wif network
         return _q_if_network_and_ec_match(q, network, ec)
     else:
+        reasons = []
         try:
             q, network, _ = _prv_keyinfo_from_xprvwif(prv_key)
-        except ValueError:
-            pass
+        except NotAPrvKeyError as e:
+            # an InvalidPrvKeyError is not caught: the format was
+            # recognised, so trying the input as octets and reporting "not
+            # a private key" would replace the answer with a worse one
+            reasons.append(str(e))
         else:
             # q has been validated on the xprv/wif network
             return _q_if_network_and_ec_match(q, network, ec)
@@ -69,9 +76,12 @@ def int_from_prv_key(prv_key: PrvKey, ec: Curve = secp256k1) -> int:
             prv_key = bytes_from_octets(prv_key, ec.n_size)
             q = int.from_bytes(prv_key, "big")
         except ValueError as e:
-            # never echo the input: it is candidate key material;
-            # the chained exception carries the parsing reason
-            raise BTClibValueError("not a private key") from e
+            # never echo the input: it is candidate key material. What the
+            # reasons carry is why each format rejected it -- a checksum, a
+            # prefix, a size -- none of which is secret, and all of which
+            # used to be discarded in favour of "not a private key" alone
+            reasons.append(f"not octets ({e})")
+            raise NotAPrvKeyError("not a private key: " + "; ".join(reasons)) from e
 
     if not 0 < q < ec.n:
         raise BTClibValueError("private key not in 1..n-1")
@@ -102,35 +112,51 @@ def _prv_keyinfo_from_wif(
     if isinstance(wif, str):
         wif = wif.strip()
 
-    payload = b58decode(wif)
+    # base58 or not is the first question, and a negative answer leaves the
+    # input free to be octets or an int: NotAPrvKeyError, carrying the
+    # reason, so a mistyped WIF is reported as the bad checksum it is
+    # instead of being swallowed. None of the messages in this function
+    # echoes the input, which is candidate key material -- a checksum, a
+    # prefix and a size are not secret.
+    #
+    # ValueError and not BTClibValueError: b58decode leaks a plain one,
+    # "byte must be in range(0, 256)", for an input that is neither str nor
+    # bytes -- a Point tuple, say. That leak is base58's to fix; whatever
+    # it is, it means this input is not a WIF
+    try:
+        payload = b58decode(wif)
+    except ValueError as e:
+        raise NotAPrvKeyError(f"not a WIF ({e})") from e
 
     net = network_from_key_value("wif", payload[:1])
     if net is None:
-        raise BTClibValueError(f"invalid wif prefix: {payload[:1]!r}")
+        raise NotAPrvKeyError(f"not a WIF (invalid prefix 0x{payload[:1].hex()})")
+
+    # from here the version prefix says WIF, so a fault in what follows is
+    # a fault in a WIF: InvalidPrvKeyError, which the format-guessing
+    # callers let through instead of trying the input as something else
     if network is not None and net != network:
-        # never echo the WIF, which is a private key:
-        # the prefix is the mismatching, non-secret, part
-        raise BTClibValueError(f"not a {network} wif: prefix 0x{payload[:1].hex()}")
+        raise InvalidPrvKeyError(f"not a {network} wif: prefix 0x{payload[:1].hex()}")
 
     ec = NETWORKS[net].curve
 
     if len(payload) == ec.n_size + 2:  # compressed WIF
         compr = True
         if payload[-1] != 0x01:  # must have a trailing 0x01
-            raise BTClibValueError("not a compressed WIF: missing trailing 0x01")
+            raise InvalidPrvKeyError("not a compressed WIF: missing trailing 0x01")
         prv_key = payload[1:-1]
     elif len(payload) == ec.n_size + 1:  # uncompressed WIF
         compr = False
         prv_key = payload[1:]
     else:
-        raise BTClibValueError(f"wrong WIF size: {len(payload)}")
+        raise InvalidPrvKeyError(f"wrong WIF size: {len(payload)}")
 
     if compressed is not None and compr != compressed:
-        raise BTClibValueError("compression requirement mismatch")
+        raise InvalidPrvKeyError("compression requirement mismatch")
 
     q = int.from_bytes(prv_key, byteorder="big")
     if not 0 < q < ec.n:
-        raise BTClibValueError("private key not in 1..n-1")
+        raise InvalidPrvKeyError("private key not in 1..n-1")
 
     return q, net, compr
 
@@ -144,20 +170,33 @@ def _prv_keyinfo_from_xprv(
     the 'network, compressed' input parameters are passed only to allow
     consistency checks.
     """
-    compressed = True if compressed is None else compressed
-    if not compressed:
-        raise BTClibValueError("uncompressed SEC / compressed BIP32 mismatch")
-
     if isinstance(xprv, BIP32KeyData):
+        # the caller has already committed to the format by building one
         xprv.assert_valid()
     else:
-        xprv = BIP32KeyData.b58decode(xprv)
+        # base58, 78 bytes, and a known xkey version or not: a negative
+        # answer leaves the input free to be octets or an int, so it is
+        # NotAPrvKeyError, carrying the reason rather than discarding it
+        try:
+            xprv = BIP32KeyData.b58decode(xprv)
+        except ValueError as e:
+            raise NotAPrvKeyError(f"not a BIP32 xkey ({e})") from e
 
+    # a BIP32 key is always compressed, so a caller asking for uncompressed
+    # is asking about another format. This follows the decode rather than
+    # preceding it, as it used to: for a str or bytes input the decode is
+    # what decides whether there is an xkey here at all, and 32 raw bytes
+    # with compressed=False are octets -- which the guessing callers must
+    # stay free to try, or every uncompressed SEC key stops resolving
+    if compressed is not None and not compressed:
+        raise InvalidPrvKeyError("uncompressed SEC / compressed BIP32 mismatch")
+
+    # from here it is an xkey, so what follows is a fault in one
     if xprv.key[0] != 0:
         # the offending key is public here, but never echo a
         # serialized xkey: the prefix already says what is wrong
         err_msg = f"not a private key: prefix 0x{xprv.key[:1].hex()}"
-        raise BTClibValueError(err_msg)
+        raise InvalidPrvKeyError(err_msg)
 
     if network is None:
         network = network_from_xkeyversion(xprv.version)
@@ -167,7 +206,7 @@ def _prv_keyinfo_from_xprv(
         # never echo the xprv, which is a private key:
         # the version is the mismatching, non-secret, part
         err_msg = f"not a {network} key: version 0x{xprv.version.hex()}"
-        raise BTClibValueError(err_msg)
+        raise InvalidPrvKeyError(err_msg)
 
     q = int.from_bytes(xprv.key[1:], byteorder="big")
     return q, network, True
@@ -180,11 +219,22 @@ def _prv_keyinfo_from_xprvwif(
 
     Support WIF or BIP32 xprv.
     """
+    reasons = []
     if not isinstance(xprvwif, BIP32KeyData):
-        # FIXME except the NotPrvKeyError only, let InvalidPrvKey go through
-        with contextlib.suppress(BTClibValueError):
+        # NotAPrvKeyError only, letting an InvalidPrvKeyError through: a
+        # WIF whose prefix and checksum are right and whose payload is the
+        # wrong size is not something the xprv branch might accept
+        try:
             return _prv_keyinfo_from_wif(xprvwif, network, compressed)
-    return _prv_keyinfo_from_xprv(xprvwif, network, compressed)
+        except NotAPrvKeyError as e:
+            reasons.append(str(e))
+    try:
+        return _prv_keyinfo_from_xprv(xprvwif, network, compressed)
+    except NotAPrvKeyError as e:
+        # both reasons, not the last one: which format the caller meant is
+        # exactly what is unknown here, so guessing would drop the answer
+        reasons.append(str(e))
+        raise NotAPrvKeyError("; ".join(reasons)) from e
 
 
 def prv_keyinfo_from_prv_key(
@@ -199,17 +249,22 @@ def prv_keyinfo_from_prv_key(
     elif isinstance(prv_key, BIP32KeyData):
         return _prv_keyinfo_from_xprv(prv_key, network, compressed)
     else:
-        # FIXME except the NotPrvKeyError only, let InvalidPrvKey go through
-        with contextlib.suppress(ValueError):
+        reasons = []
+        # NotAPrvKeyError only, letting an InvalidPrvKeyError through
+        try:
             return _prv_keyinfo_from_xprvwif(prv_key, network, compressed)
+        except NotAPrvKeyError as e:
+            reasons.append(str(e))
         # it must be octets
         try:
             prv_key = bytes_from_octets(prv_key, ec.n_size)
             q = int.from_bytes(prv_key, byteorder="big", signed=False)
         except ValueError as e:
-            # never echo the input: it is candidate key material;
-            # the chained exception carries the parsing reason
-            raise BTClibValueError("not a private key") from e
+            # never echo the input: it is candidate key material. The
+            # reasons say why each format rejected it, and none of them is
+            # secret
+            reasons.append(f"not octets ({e})")
+            raise NotAPrvKeyError("not a private key: " + "; ".join(reasons)) from e
 
     if not 0 < q < ec.n:
         raise BTClibValueError("private key not in 1..n-1")

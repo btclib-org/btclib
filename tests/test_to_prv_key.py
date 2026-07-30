@@ -14,8 +14,13 @@ import pytest
 
 # Library imports
 from btclib.alias import INF
+from btclib.base58 import b58encode
 from btclib.ec.curve import CURVES
-from btclib.exceptions import BTClibValueError
+from btclib.exceptions import (
+    BTClibValueError,
+    InvalidPrvKeyError,
+    NotAPrvKeyError,
+)
 from btclib.to_prv_key import (
     _prv_keyinfo_from_wif,
     int_from_prv_key,
@@ -169,3 +174,76 @@ def test_no_key_material_in_exceptions() -> None:
     with pytest.raises(BTClibValueError, match="not a private key") as excinfo:
         int_from_prv_key("02" * 33)
     assert "0202" not in str(excinfo.value)
+
+
+def test_a_mistyped_wif_is_reported_as_one() -> None:
+    """The headline case: one wrong character in a WIF.
+
+    The checksum failure used to be swallowed, the string retried as a
+    hex-string, and the caller told "not a private key" -- which is true
+    and useless. Every reason travels with the exception now.
+    """
+    good = "KwdMAjGmerYanjeui5SHS7JkmpZvVipYvB2LJGU1ZxJwYvP98617"
+    assert prv_keyinfo_from_prv_key(good)[1] == "mainnet"
+
+    mistyped = f"{good[:-1]}8"
+    for func in (int_from_prv_key, prv_keyinfo_from_prv_key):
+        with pytest.raises(NotAPrvKeyError, match="not a private key") as exc_info:
+            func(mistyped)
+        message = str(exc_info.value)
+        assert "invalid checksum" in message
+        assert "not a WIF" in message
+        assert "not a BIP32 xkey" in message
+        assert "not octets" in message
+        # never the input itself, which is candidate key material
+        assert mistyped not in message
+
+
+def test_a_recognised_format_stops_the_guessing() -> None:
+    """InvalidPrvKeyError propagates; NotAPrvKeyError moves on.
+
+    Which is the whole of the split. A WIF whose prefix and checksum are
+    right is a WIF: what is wrong with it is worth more than the news that
+    it is not a hex-string either.
+    """
+    # 0x80, right checksum, right size, trailing byte 0x00 instead of 0x01
+    payload = b"\x80" + 32 * b"\x02" + b"\x00"
+    with pytest.raises(InvalidPrvKeyError, match="missing trailing 0x01") as info:
+        prv_keyinfo_from_prv_key(b58encode(payload))
+    # the reason, not an accumulation: the guessing stopped
+    assert "not octets" not in str(info.value)
+    assert "not a BIP32 xkey" not in str(info.value)
+
+    # an xpub is an xkey, so "not a private key" is the answer and not a
+    # step on the way to one
+    xpub = "xpub661MyMwAqRbcFtXgS5sYJABqqG9YLmC4Q1Rdap9gSE8NqtwybGhePY2gZ29ESFjqJoCu1Rupje8YtGqsefD265TMg7usUDFdp6W1EGMcet8"
+    with pytest.raises(InvalidPrvKeyError, match="not a private key: prefix 0x03"):
+        prv_keyinfo_from_prv_key(xpub)
+
+    # both are BTClibValueError, so code catching that is unaffected
+    for bad in (b58encode(payload), xpub):
+        with pytest.raises(BTClibValueError):
+            prv_keyinfo_from_prv_key(bad)
+
+
+def test_an_uncompressed_sec_key_still_resolves() -> None:
+    """The compressed check follows the xkey decode, not precedes it.
+
+    A BIP32 key is always compressed, so the check has to be there; before
+    the decode it rejected 32 raw bytes asked for uncompressed, which are
+    octets and have nothing to do with BIP32.
+    """
+    q_hex = "0C28FCA386C7A227600B2FE50B7CAE11EC86D3BF1FBE471BE89827E19D72AA1D"
+    q_int = int(q_hex, 16)
+    assert prv_keyinfo_from_prv_key(bytes.fromhex(q_hex), compressed=False) == (
+        q_int,
+        "mainnet",
+        False,
+    )
+    assert int_from_prv_key(bytes.fromhex(q_hex)) == q_int
+
+    # and a real xprv asked for uncompressed is still the conflict it was
+    xprv = "xprv9s21ZrQH143K3QTDL4LXw2F7HEK3wJUD2nW2nRk4stbPy6cq3jPPqjiChkVvvNKmPGJxWUtg6LnF5kejMRNNU3TGtRBeJgk33yuGBxrMPHi"
+    err_msg = "uncompressed SEC / compressed BIP32 mismatch"
+    with pytest.raises(InvalidPrvKeyError, match=err_msg):
+        prv_keyinfo_from_prv_key(xprv, compressed=False)

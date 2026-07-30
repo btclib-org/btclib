@@ -20,7 +20,11 @@ from btclib.alias import ScriptList
 from btclib.base58 import b58encode
 from btclib.bip32 import bip32, slip132
 from btclib.ec import bytes_from_point, point_from_octets, secp256k1
-from btclib.exceptions import BTClibValueError
+from btclib.exceptions import (
+    BTClibValueError,
+    InvalidPrvKeyError,
+    NotAPrvKeyError,
+)
 from btclib.hashes import hash160, sha256
 from btclib.script.script import serialize
 from btclib.to_prv_key import prv_keyinfo_from_prv_key
@@ -64,7 +68,11 @@ def test_wif_from_prv_key() -> None:
 
     payload = b"\x80" + bad_q
     badwif = b58encode(payload)
-    with pytest.raises(BTClibValueError, match="not a private key"):
+    # a well-formed WIF -- base58, checksum, 0x80 prefix, right size --
+    # carrying a scalar equal to n. The format is recognised, so the fault
+    # in it is reported: this used to be swallowed, the string retried as a
+    # hex-string, and the caller told "not a private key"
+    with pytest.raises(InvalidPrvKeyError, match="private key not in 1..n-1"):
         prv_keyinfo_from_prv_key(badwif)
 
     # not a private key: 33 bytes
@@ -73,26 +81,35 @@ def test_wif_from_prv_key() -> None:
         b58.wif_from_prv_key(bad_q, "mainnet", True)
     payload = b"\x80" + bad_q
     badwif = b58encode(payload)
-    with pytest.raises(BTClibValueError, match="not a private key"):
+    # 34 bytes is the compressed-WIF size, so the trailing byte is what is
+    # wrong with it, and 0x80 makes it a fault in a WIF rather than a
+    # reason to try the string as something else
+    err_msg = "not a compressed WIF: missing trailing 0x01"
+    with pytest.raises(InvalidPrvKeyError, match=err_msg):
         prv_keyinfo_from_prv_key(badwif)
 
-    # Not a WIF: missing leading 0x80
+    # Not a WIF: missing leading 0x80. Nothing says WIF about it, so the
+    # guessing goes on, and what the caller gets is every reason together
     good_q = 32 * b"\x02"
     payload = b"\x81" + good_q
     badwif = b58encode(payload)
-    with pytest.raises(BTClibValueError, match="not a private key"):
+    with pytest.raises(NotAPrvKeyError, match="not a private key") as exc_info:
         prv_keyinfo_from_prv_key(badwif)
+    message = str(exc_info.value)
+    assert "not a WIF (invalid prefix 0x81)" in message
+    assert "not a BIP32 xkey" in message
+    assert "not octets" in message
 
     # Not a compressed WIF: missing trailing 0x01
     payload = b"\x80" + good_q + b"\x00"
     badwif = b58encode(payload)
-    with pytest.raises(BTClibValueError, match="not a private key"):
+    with pytest.raises(InvalidPrvKeyError, match=err_msg):
         prv_keyinfo_from_prv_key(badwif)
 
     # Not a WIF: wrong size (35)
     payload = b"\x80" + good_q + b"\x01\x00"
     badwif = b58encode(payload)
-    with pytest.raises(BTClibValueError, match="not a private key"):
+    with pytest.raises(InvalidPrvKeyError, match="wrong WIF size: 35"):
         prv_keyinfo_from_prv_key(badwif)
 
 

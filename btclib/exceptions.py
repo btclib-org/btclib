@@ -38,6 +38,30 @@ class ScriptError(BTClibValueError):
         super().__init__(f"{message} (command {index}, stack depth {stack_depth})")
 
 
+class NotAPrvKeyError(BTClibValueError):
+    """The input is not in this private key format at all: try the next one.
+
+    The library accepts a private key as a WIF, a BIP32 xprv, octets, or an
+    int, and works out which by trying them in turn. That only reads well
+    when a failed attempt says which kind of failure it was, and this is
+    the kind that means "wrong format, keep going".
+
+    A BTClibValueError, so code catching that keeps catching this.
+    """
+
+
+class InvalidPrvKeyError(BTClibValueError):
+    """The format was recognised and the content is wrong: stop here.
+
+    The counterpart of NotAPrvKeyError. A WIF whose version prefix says
+    mainnet but whose payload is the wrong size is not something another
+    format might accept: reporting it is more use than trying the input as
+    a hex string and telling the caller it was not a private key.
+
+    A BTClibValueError, so code catching that keeps catching this.
+    """
+
+
 class BTClibTypeError(TypeError):
     pass
 
