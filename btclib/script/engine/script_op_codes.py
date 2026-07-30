@@ -1,4 +1,4 @@
-# Copyright (C) 2017-2021 The btclib developers
+# Copyright (C) The btclib developers
 #
 # This file is part of btclib. It is subject to the license terms in the
 # LICENSE file found in the top-level directory of this distribution.

@@ -19,5 +19,10 @@ name = "btclib"
 __version__ = version("btclib")
 __author__ = "The btclib developers"
 __author_email__ = "devs@btclib.org"
-__copyright__ = "Copyright (C) 2017-2023 The btclib developers"
+# the one place the years are written. The notice at the head of every
+# source file carries none, by design: it comes from the COPYRIGHT file,
+# which the copyright-notice hook enforces, so it never needs editing.
+# docs/source/conf.py reads this line rather than importing it, read the
+# docs not installing this package into the environment it builds in
+__copyright__ = "Copyright (C) 2017-2026 The btclib developers"
 __license__ = "MIT License"

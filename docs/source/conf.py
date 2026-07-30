@@ -14,6 +14,7 @@ documentation: https://www.sphinx-
 doc.org/en/master/usage/configuration.html
 """
 
+import re
 from pathlib import Path
 
 import tomllib
@@ -22,7 +23,14 @@ import tomllib
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#project-information
 
 project = "btclib"
-project_copyright = "2017-2023 The btclib developers"
+# from btclib/__init__.py, where the years are declared once, minus the
+# "Copyright (C) " that sphinx prepends itself. Read from the file rather
+# than imported, for the same reason as the version below
+project_copyright = re.search(
+    r'^__copyright__ = "Copyright \(C\) (.+)"$',
+    (Path(__file__).parents[2] / "btclib" / "__init__.py").read_text(encoding="utf-8"),
+    re.MULTILINE,
+).group(1)
 author = "The btclib developers"
 # read from pyproject.toml, the one place the version is declared, and not
 # from importlib.metadata: that would need btclib installed in the

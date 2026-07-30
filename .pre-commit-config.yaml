@@ -145,7 +145,7 @@ repos:
     rev: 0.1.1
     hooks:
       - id: copyright-notice
-        args: [--notice=COPYRIGHT]
+        args: [--notice=COPYRIGHT, --enforce-all]
         files: \.py$
   # ruff replaces autoflake, bandit, black, docformatter, flake8, isort,
   # pydocstringformatter, pydocstyle, pylint, pyupgrade, and yesqa
