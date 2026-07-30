@@ -384,6 +384,11 @@ Major changes includes:
   IndexError: BIP-371 writes a PSBT_IN_TAP_LEAF_SCRIPT as the script
   followed by the one byte of its leaf version, so an empty one is a
   record missing the only field it must carry (issue #159)
+- `Block.assert_valid` rejects a block carrying no transaction instead of
+  raising IndexError on `transactions[0]`: every block has a coinbase, so
+  an empty list is not a block that happens to be empty, and a var_int of
+  zero where the transaction count goes is all it takes to serialize one
+  (issue #159)
 - `BlockHeader.target` raises BTClibValueError for a compact `bits` that
   denotes more than 32 bytes can hold, where `to_bytes` used to raise
   OverflowError out of `assert_valid`; Core rejects the same headers,

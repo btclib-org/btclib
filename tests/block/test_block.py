@@ -452,3 +452,24 @@ def test_target_from_compact_bits() -> None:
         err_msg = "invalid proof-of-work target: "
         with pytest.raises(BTClibValueError, match=err_msg):
             _ = header.target
+
+
+def test_block_without_transactions() -> None:
+    """A block with no coinbase is not a block with nothing in it.
+
+    One byte is all it takes: a var_int of zero where the transaction
+    count goes, which transactions[0] used to answer with an IndexError.
+    """
+    fname = "block_1.bin"
+    filename = path.join(path.dirname(__file__), "_data", fname)
+    with open(filename, "rb") as file_:
+        block_bytes = file_.read()
+
+    # the count follows the 80 bytes of the header
+    emptied = block_bytes[:80] + b"\x00"
+    with pytest.raises(BTClibValueError, match="block with no transactions"):
+        Block.parse(emptied)
+
+    header = Block.parse(block_bytes).header
+    with pytest.raises(BTClibValueError, match="block with no transactions"):
+        Block(header, [])

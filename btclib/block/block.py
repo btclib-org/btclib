@@ -214,6 +214,13 @@ class Block:
     def assert_valid(self) -> None:
         self.header.assert_valid()
 
+        # every block carries a coinbase, so an empty list is not a block
+        # that happens to be empty: it is not a block. transactions[0]
+        # used to answer one with an IndexError, and a var_int of zero
+        # where the transaction count goes is all it takes to serialize
+        if not self.transactions:
+            raise BTClibValueError("block with no transactions")
+
         if not self.transactions[0].is_coinbase():
             raise BTClibValueError("first transaction is not a coinbase")
 

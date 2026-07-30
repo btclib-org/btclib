@@ -24,12 +24,17 @@ from hypothesis import settings
 # native x86. A timing flake in one of 54 jobs is a red build nobody can
 # reproduce locally, and none of these tests is a benchmark -- what they
 # assert is the answer, not how long it took to reach it.
-# The example count is left at the hypothesis default of 100: the suite
-# runs on every commit of a six-interpreter matrix, and the parsers are
-# cheap enough that 100 inputs each cost about a second in total.
-settings.register_profile("btclib", deadline=None)
+#
+# 500 examples against the hypothesis default of 100: measured at 1.4
+# seconds for the whole suite over the default, which is worth five
+# times the input on a run that happens at every commit. It is not the
+# number that finds a latent defect, though -- the empty block of
+# test_block_without_transactions took 2000 to turn up, and once turned
+# up it belongs in a vector test rather than in a search that may or may
+# not repeat it. Deep exploration is what the profile below is for.
+settings.register_profile("btclib", deadline=None, max_examples=500)
 
-# What to run when a parser is being changed, rather than on every
+# What to run when a parser is being changed, rather than at every
 # commit: HYPOTHESIS_PROFILE=thorough uv run pytest
 settings.register_profile("thorough", deadline=None, max_examples=2_000)
 
