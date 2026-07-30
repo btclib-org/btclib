@@ -102,6 +102,21 @@ repos:
     hooks:
       - id: actionlint
         name: actionlint (github workflows)
+        # actionlint delegates the body of a run: step to shellcheck, and
+        # of a "shell: python" step to pyflakes, if it finds them on the
+        # PATH: without them it validates the yaml around a shell script
+        # and not the script. Declared here rather than installed by hand,
+        # so that every machine and pre-commit.ci check what CI checks --
+        # the runner image happens to carry shellcheck, so leaving it to
+        # chance meant CI checking more than a commit did.
+        # Pinned, unlike the setuptools below, because nothing bumps an
+        # additional dependency: pre-commit.ci moves rev, dependabot has no
+        # pre-commit ecosystem. That is the point rather than the cost -- a
+        # shellcheck release adding a check would otherwise turn a pull
+        # request red for having changed nothing
+        additional_dependencies:
+          - shellcheck-py==0.11.0.1
+          - pyflakes==3.4.0
   - repo: https://github.com/leoll2/copyright_notice_precommit
     rev: 0.1.1
     hooks:
