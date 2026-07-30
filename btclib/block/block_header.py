@@ -29,6 +29,17 @@ _HF = hash256
 _HF_LEN = 32  # should be _HF().digest_size
 _KEY_SIZE = [("previous_block_hash", _HF_LEN), ("merkle_root", 32), ("bits", 4)]
 
+# aware, as the serialization is in seconds since the epoch:
+# datetime.fromtimestamp(0) would be naive, i.e. read back as local time,
+# and the header would serialize differently on machines in different
+# time zones.
+#
+# A module-level singleton, not a call in the default argument: datetime
+# is immutable, so sharing it is harmless, but keeping the call out of
+# the signature is what lets ruff's B008 stay enabled to catch the
+# mutable defaults that are not.
+_EPOCH = datetime.fromtimestamp(0, timezone.utc)
+
 
 @dataclass
 class BlockHeader:
@@ -95,11 +106,7 @@ class BlockHeader:
         version: int = 1,
         previous_block_hash: Octets = b"",
         merkle_root: Octets = b"",
-        # aware, as the serialization is in seconds since the epoch:
-        # datetime.fromtimestamp(0) would be naive, i.e. read back as
-        # local time, and the header would serialize differently on
-        # machines in different time zones
-        time: datetime = datetime.fromtimestamp(0, timezone.utc),
+        time: datetime = _EPOCH,
         bits: Octets = b"",
         nonce: int = 0,
         check_validity: bool = True,

@@ -195,7 +195,7 @@ class PsbtIn:
         witness_script: Octets = b"",
         hd_key_paths: Mapping[Octets, BIP32KeyOrigin] | None = None,
         final_script_sig: Octets = b"",
-        final_script_witness: Witness = Witness(),
+        final_script_witness: Witness | None = None,
         ripemd160_preimages: Mapping[Octets, Octets] | None = None,
         sha256_preimages: Mapping[Octets, Octets] | None = None,
         hash160_preimages: Mapping[Octets, Octets] | None = None,
@@ -219,7 +219,11 @@ class PsbtIn:
         self.witness_script = bytes_from_octets(witness_script)
         self.hd_key_paths = decode_hd_key_paths(hd_key_paths)
         self.final_script_sig = bytes_from_octets(final_script_sig)
-        self.final_script_witness = final_script_witness
+        # a Witness() default would be one object shared by every PsbtIn
+        # built without it, mutable through any of them
+        self.final_script_witness = (
+            Witness() if final_script_witness is None else final_script_witness
+        )
         self.ripemd160_preimages = decode_dict_bytes_bytes(ripemd160_preimages)
         self.sha256_preimages = decode_dict_bytes_bytes(sha256_preimages)
         self.hash160_preimages = decode_dict_bytes_bytes(hash160_preimages)

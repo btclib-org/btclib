@@ -54,6 +54,17 @@ Major changes includes:
 - the third BlockHeader parameter is named `merkle_root`, as the field
   is: it was `merkle_root_`, which made `BlockHeader(merkle_root=...)`
   a TypeError
+- a default-constructed `TxIn` no longer shares its `prev_out` and
+  `script_witness` with every other one, nor a `PsbtIn` its
+  `final_script_witness`: the defaults were `OutPoint()` and `Witness()`
+  calls in the signature, evaluated once at definition time, so
+  appending to the witness stack of one input added that element to
+  inputs built later, and assigning `prev_out.vout` left the constructor
+  raising BTClibValueError("invalid OutPoint") for every subsequent
+  default-constructed TxIn in the process. They are now built per call,
+  the `None` sentinel spelling the library already used for `Tx.vin`,
+  `Tx.vout`, and `Witness.stack`, and ruff's B008 is no longer ignored,
+  so the pattern cannot come back (issue #139)
 - `dsa.assert_as_valid_` and `ssa.assert_as_valid_` raise "signature
   verification failed" whichever of the two implementations verified: the
   message used to name an internal helper (`libsecp256k1.ecdsa_verify_

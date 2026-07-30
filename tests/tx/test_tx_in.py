@@ -91,6 +91,21 @@ def test_tx_in() -> None:
         tx_in.assert_valid()
 
 
+def test_default_arguments_are_not_shared() -> None:
+    # the defaults used to be built once, at definition time: mutating
+    # them through one TxIn corrupted every other one, the vout
+    # assignment below even leaving the constructor unable to build a
+    # valid TxIn for the rest of the process
+    tx_in = TxIn()
+    assert tx_in.prev_out is not TxIn().prev_out
+    assert tx_in.script_witness is not TxIn().script_witness
+
+    tx_in.script_witness.stack.append(b"\x01")
+    tx_in.prev_out.vout = 0
+    assert not TxIn().script_witness.stack
+    assert TxIn().prev_out.vout == 0xFFFFFFFF
+
+
 def test_dataclasses_json_dict() -> None:
     fname = "d4f3c2c3c218be868c77ae31bedb497e2f908d6ee5bbbe91e4933e6da680c970.bin"
     filename = path.join(path.dirname(__file__), "_data", fname)

@@ -64,16 +64,21 @@ class TxIn:
 
     def __init__(
         self,
-        prev_out: OutPoint = OutPoint(),
+        prev_out: OutPoint | None = None,
         script_sig: Octets = b"",
         sequence: int = 0,
-        script_witness: Witness = Witness(),
+        script_witness: Witness | None = None,
         check_validity: bool = True,
     ) -> None:
-        self.prev_out = prev_out
+        # a default argument is evaluated once, at definition time: an
+        # OutPoint() or Witness() default would be one object shared by
+        # every TxIn built without them, and mutating it through any of
+        # them would corrupt all the others
+        # https://docs.python.org/3/tutorial/controlflow.html#default-argument-values
+        self.prev_out = OutPoint() if prev_out is None else prev_out
         self.script_sig = bytes_from_octets(script_sig)
         self.sequence = sequence
-        self.script_witness = script_witness
+        self.script_witness = Witness() if script_witness is None else script_witness
 
         if check_validity:
             self.assert_valid()
