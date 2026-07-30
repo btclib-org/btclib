@@ -82,7 +82,11 @@ dev = [
 [tool.uv.sources]
 # development and CI track the bindings under development, not the
 # released ones: this is uv-only metadata, so the published btclib keeps
-# depending on plain btclib_libsecp256k1 from PyPI
+# depending on plain btclib_libsecp256k1 from PyPI.
+# The branch is where a re-lock looks, not something uv.lock follows: a
+# lock entry always records the commit it resolved, so tracking the head
+# is `uv lock --upgrade-package btclib_libsecp256k1`, deliberately, and
+# every CI command passes --locked to get the commit that was tested
 btclib_libsecp256k1 = { git = "https://github.com/btclib-org/btclib_libsecp256k1", branch = "dev" }
 
 [tool.setuptools.packages.find]
