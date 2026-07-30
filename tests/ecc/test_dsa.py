@@ -166,7 +166,7 @@ def test_low_cardinality() -> None:
                 for e in range(ec.n):  # all possible challenges
                     s = k_inv * (e + q * r) % ec.n
                     # bitcoin canonical 'low-s' encoding for ECDSA
-                    if lower_s and s > ec.n / 2:
+                    if lower_s and s > ec.n // 2:
                         s = ec.n - s
                     if r == 0 or s == 0:
                         err_msg = "failed to sign: "

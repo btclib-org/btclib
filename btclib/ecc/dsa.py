@@ -237,7 +237,7 @@ def _sign_(c: int, q: int, nonce: int, lower_s: bool, ec: Curve) -> Sig:
     # bitcoin canonical 'low-s' encoding for ECDSA signatures
     # it removes signature malleability as cause of transaction malleability
     # see https://github.com/bitcoin/bitcoin/pull/6769
-    if lower_s and s > ec.n / 2:
+    if lower_s and s > ec.n // 2:
         s = ec.n - s  # s = - s % ec.n
 
     return Sig(r, s, ec)
@@ -321,7 +321,7 @@ def _assert_as_valid_(
 ) -> None:
     # Private function for test/dev purposes
 
-    if lower_s and s > ec.n / 2:
+    if lower_s and s > ec.n // 2:
         raise BTClibValueError("not a low s")
 
     w = mod_inv(s, ec.n)
