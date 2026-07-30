@@ -34,6 +34,7 @@ from typing import Any
 
 from btclib import var_int
 from btclib.alias import BinaryData
+from btclib.amount import _MAX_SATOSHI
 from btclib.exceptions import BTClibValueError
 from btclib.hashes import hash256
 from btclib.script.witness import Witness
@@ -212,6 +213,16 @@ class Tx:
             raise BTClibValueError("Missing outputs")
         for tx_out in self.vout:
             tx_out.assert_valid()
+
+        # CheckTransaction bounds the outputs one by one and then their
+        # sum, and the second check is not implied by the first: every
+        # output can be within MoneyRange while the total is above it.
+        # Only the sum of the outputs, as there, and not the fee: what
+        # the inputs are worth is not in the transaction, and comparing
+        # the two is verify_amounts' job, with the prevouts in hand
+        total = sum(tx_out.value for tx_out in self.vout)
+        if total > _MAX_SATOSHI:
+            raise BTClibValueError(f"invalid total output amount: {total}")
 
     def serialize(self, include_witness: bool, check_validity: bool = True) -> bytes:
         if check_validity:

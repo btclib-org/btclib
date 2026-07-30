@@ -123,22 +123,27 @@ def test_verify_input_does_not_touch_the_tx(vector: dict[str, Any]) -> None:
 
 
 def legacy_vectors(fname: str) -> list[Any]:
-    """The vectors of a Bitcoin Core tx_*_legacy.json whose tx parses.
+    """Every vector of a Bitcoin Core tx_*_legacy.json, comments aside.
 
-    A vector whose raw tx btclib rejects outright was a `continue` in the
-    loop -- 2 of the 119 valid ones, for a satoshi amount out of range, 8
-    of the 93 invalid ones -- and is now simply not collected: the report
-    counts what ran instead of counting the file.
+    Nothing is filtered here any more. The loop this replaces skipped
+    whatever `Tx.parse` refused -- 2 of the 119 valid vectors and 8 of
+    the 93 invalid ones -- and the two it dropped from the valid file
+    were a genuine refusal it was hiding: btclib bounded an amount by the
+    issued supply rather than by MAX_MONEY, and could not parse the two
+    `MAX_MONEY output` transactions (issue 167). A valid vector btclib
+    cannot parse must fail, and an invalid one refused at parse time is
+    refused, which is all its test asks.
     """
     params = []
+    comment = ""
     for index, x in enumerate(vectors.load("script_engine", "_data", fname)):
         if isinstance(x[0], str):
-            continue  # a comment line between two vectors
-        try:
-            Tx.parse(x[1])
-        except BTClibValueError:
+            # a comment line, and it describes the vectors that follow:
+            # "MAX_MONEY output", "Coinbase of size 2". The flags field
+            # was the id before, which named a dozen vectors "41-P2SH"
+            comment = x[0]
             continue
-        params.append(pytest.param(x, id=vectors.vector_id(index, x[2])))
+        params.append(pytest.param(x, id=vectors.vector_id(index, comment, x[2])))
     return params
 
 
@@ -162,20 +167,14 @@ def witness_v0_vectors() -> list[Any]:
     the vector lists cannot be verified at all.
     """
     params = []
-    for index, x in enumerate(
-        vectors.load("script_engine", "_data", "tx_valid_legacy.json")
-    ):
-        if isinstance(x[0], str):
-            continue
-        try:
-            tx = Tx.parse(x[1])
-        except BTClibValueError:
-            continue
+    for param in legacy_vectors("tx_valid_legacy.json"):
+        x = param.values[0]
+        tx = Tx.parse(x[1])
         if not any(vin.script_witness.stack for vin in tx.vin):
             continue
         if len(x[0]) != len(tx.vin):
             continue
-        params.append(pytest.param(x, id=vectors.vector_id(index, x[2])))
+        params.append(param)
     return params
 
 
@@ -252,13 +251,16 @@ def test_valid_legacy(vector: list[Any]) -> None:
 
 @pytest.mark.parametrize("vector", legacy_vectors("tx_invalid_legacy.json"))
 def test_invalid_legacy(vector: list[Any]) -> None:
-    tx = Tx.parse(vector[1])
-
     flags = vector[2].split(",")  # different flags handling
 
     prevouts, check_amounts = prevouts_of(vector)
 
+    # Tx.parse inside the raises block, not before it: 8 of these
+    # transactions are malformed enough that btclib refuses them there,
+    # and refusing them there is refusing them. The loop parsed first and
+    # skipped what raised, so those 8 asserted nothing at all
     with pytest.raises((BTClibValueError, IndexError, KeyError)):
+        tx = Tx.parse(vector[1])
         verify_transaction(
             prevouts, tx, flags if flags != ["NONE"] else None, check_amounts
         )

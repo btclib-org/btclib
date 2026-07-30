@@ -411,6 +411,22 @@ Major changes includes:
   tests. The power term is also computed by shifting, as SetCompact does:
   `pow(256, -1)` is a float in python, so an exponent below 3 used to send
   a 256-bit target through float arithmetic (issue #159)
+- an amount is bounded by MAX_MONEY, 2_100_000_000_000_000 satoshi and
+  inclusive, where `valid_sats_amount` and `valid_btc_amount` used to
+  bound it by 2_099_999_997_690_000, the supply the halving schedule
+  actually issues. The 2_310_000 satoshi between the two are what the
+  subsidy loses to integer division, a fact about issuance and not a
+  validity rule, and the difference was not academic: `TxOut.assert_valid`
+  runs from the constructor, so `Tx.parse` refused the two `MAX_MONEY
+  output` transactions of Bitcoin Core's tx_valid.json outright, and a
+  transaction the network considers valid was one btclib could not so
+  much as read (issue #167)
+- `Tx.assert_valid` bounds the sum of the outputs by MAX_MONEY too, as
+  CheckTransaction does: the per-output check does not imply it, every
+  output being able to sit inside MoneyRange while the total is twice the
+  money there will ever be. Only the outputs, as there — what the inputs
+  are worth is not in the transaction, and comparing the two is
+  `verify_amounts`' job (issue #167)
 
 ## v2023.7.12
 

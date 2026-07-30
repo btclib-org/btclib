@@ -88,11 +88,11 @@ def test_exceptions() -> None:
 
             err_msg = "invalid satoshi amount: "
             with pytest.raises(BTClibValueError, match=err_msg):
-                btc_from_sats(2_099_999_997_690_001)
+                btc_from_sats(2_100_000_000_000_001)
 
             err_msg = "invalid BTC amount: "
             with pytest.raises(BTClibValueError, match=err_msg):
-                sats_from_btc(Decimal("20_999_999.97690001"))
+                sats_from_btc(Decimal("21_000_000.00000001"))
 
             err_msg = "too many decimals for a BTC amount: "
             with pytest.raises(BTClibValueError, match=err_msg):
@@ -110,6 +110,31 @@ def test_exceptions() -> None:
             err_msg = "non-integer satoshi amount: "
             with pytest.raises(BTClibTypeError, match=err_msg):
                 btc_from_sats(Decimal("2.5"))  # type: ignore[arg-type]
+
+
+def test_max_money_is_the_consensus_bound() -> None:
+    """The bound is MAX_MONEY, inclusive, and not the issued supply.
+
+    It used to be 2_099_999_997_690_000, what the halving schedule
+    actually pays out: 2_310_000 satoshi below MoneyRange's bound, and
+    enough to make `Tx.parse` refuse the two `MAX_MONEY output` vectors
+    of Bitcoin Core's tx_valid.json (issue 167).
+    """
+    max_money = 2_100_000_000_000_000
+    assert valid_sats_amount(max_money) == max_money
+    assert valid_btc_amount(Decimal(21_000_000)) == 21_000_000
+    assert btc_from_sats(max_money) == 21_000_000
+    assert sats_from_btc(Decimal(21_000_000)) == max_money
+
+    # the supply that will be issued is inside the range, not its end
+    issued = 2_099_999_997_690_000
+    assert valid_sats_amount(issued) == issued
+    assert issued < max_money
+
+    with pytest.raises(BTClibValueError, match="invalid satoshi amount: "):
+        valid_sats_amount(max_money + 1)
+    with pytest.raises(BTClibValueError, match="invalid BTC amount: "):
+        valid_btc_amount(Decimal("21_000_000.00000001"))
 
 
 def test_self_consistency() -> None:
