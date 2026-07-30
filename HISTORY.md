@@ -551,6 +551,26 @@ Major changes includes:
   and `"9"` raises for being of odd length rather than being nine. The
   behaviour is unchanged and deliberate — a decimal representation is what
   `int` itself is for — and now the docstring says so
+- **The boolean APIs no longer answer a caller error with `False`.** All
+  seven `except Exception` blocks behind a `verify`-style bool are narrowed:
+  `dsa.verify`/`verify_`, `ssa.verify`/`verify_`/`batch_verify_`,
+  `bms.verify`, `pedersen.verify`, `borromean.verify`, and the `_is_funct`
+  behind every `is_p2*`. An input that is not a valid signature is still
+  `False`, and so is a verification that failed, but a `TypeError` is
+  neither: `dsa.verify(msg, Q, sig, hf=sha256())` — a digest object where a
+  constructor goes — used to be reported as an invalid signature, and
+  `is_p2sh(None)` as "not a p2sh script". The catch is `(ValueError,
+  BTClibRuntimeError)`, naming `BTClibRuntimeError` rather than
+  `RuntimeError` **because `RecursionError` is a `RuntimeError`** and is not
+  an answer about a signature. Two latent `IndexError`s the broad catch was
+  hiding had to be fixed first, both reachable and both outside the
+  library's exception contract: `assert_nulldata(b"\x6a")`, a lone
+  OP_RETURN with no data length marker to read, and `assert_segwit(b"")`,
+  an empty script with no witness version byte. `is_nulldata(b"\x6a")` and
+  `is_segwit(b"")` are still `False`
+- **`btclib.script` exports `is_p2pkh`**, which was the one missing from the
+  eight assert/is pairs — `assert_p2pkh` was there, and so were the other
+  seven of each
 - **A private key in a recognised format that is wrong is reported, not
   retried.** `int_from_prv_key` and `prv_keyinfo_from_prv_key` work out
   which of WIF, BIP32 xprv, octets and int they were handed by trying them

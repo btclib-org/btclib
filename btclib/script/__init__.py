@@ -25,6 +25,9 @@ from btclib.script.script_pub_key import (
     is_nulldata,
     is_p2ms,
     is_p2pk,
+    # is_p2pkh was the one missing, where assert_p2pkh was not: the other
+    # seven assert/is pairs are both here
+    is_p2pkh,
     is_p2sh,
     is_p2tr,
     is_p2wpkh,
@@ -62,6 +65,7 @@ __all__ = [
     "is_nulldata",
     "is_p2ms",
     "is_p2pk",
+    "is_p2pkh",
     "is_p2sh",
     "is_p2tr",
     "is_p2wpkh",

@@ -71,10 +71,17 @@ def addresses(script_pub_key: Octets, network: str = "mainnet") -> list[str]:
 
 def _is_funct(assert_funct: Callable[[Octets], None], script_pub_key: Octets) -> bool:
     try:
-        # if the assert function detects a problem, it must rise an Exception
+        # if the assert function detects a problem, it must raise
         assert_funct(script_pub_key)
-    # must always return a bool: all Exceptions are caught
-    except Exception:
+    # ValueError, not Exception: these bool functions answer "are these
+    # bytes a p2sh script", so bytes that are not are False. A TypeError is
+    # a different answer -- is_p2sh(None) is not a p2sh script the way
+    # b"\x00" is not one, it is a caller passing the wrong thing -- and so
+    # are AttributeError, RecursionError and MemoryError. Catching Exception
+    # made every one of them a plausible False.
+    # BTClibValueError is a ValueError, and so is what bytes.fromhex raises
+    # on a bad hex-string, which is why plain ValueError is the catch
+    except ValueError:
         return False
     return True
 
@@ -161,6 +168,13 @@ def assert_nulldata(script_pub_key: Octets) -> None:
     if script_pub_key[0] != 0x6A:
         raise BTClibValueError("missing leading OP_RETURN")
 
+    # a lone OP_RETURN has no data length marker to read: script_pub_key[1]
+    # below used to answer it with an IndexError, from outside the
+    # library's exception contract, which _is_funct then turned into a
+    # plain False by catching Exception
+    if length == 1:
+        raise BTClibValueError("missing data length marker")
+
     if length == 78 or length >= 84:
         raise BTClibValueError(f"invalid length {length}")
 
@@ -183,6 +197,11 @@ def is_nulldata(script_pub_key: Octets) -> bool:
 def assert_segwit(script_pub_key: Octets) -> None:
     # doesn't check if script_pub_key is a valid script
     script_pub_key = bytes_from_octets(script_pub_key)
+    # an empty script has no version byte to read: script_pub_key[0] used
+    # to answer it with an IndexError, from outside the exception contract,
+    # which _is_funct then turned into a plain False
+    if not script_pub_key:
+        raise BTClibValueError("null length")
     if not (script_pub_key[0] == 0 or 0x51 <= script_pub_key[0] <= 0x60):
         raise BTClibValueError(f"invalid witness version: {hex(script_pub_key[0])}")
     if len(script_pub_key) == 1 or not 2 <= script_pub_key[1] <= 40:

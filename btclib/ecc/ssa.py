@@ -327,11 +327,15 @@ def verify_(
     msg_hash: Octets, Q: BIP340PubKey, sig: Sig | Octets, hf: HashF = sha256
 ) -> bool:
     """Verify the BIP340 signature of the provided message."""
-    # all kind of Exceptions are caught because
-    # verify must always return a bool
+    # ValueError and BTClibRuntimeError, not Exception: an input that is not
+    # a valid signature is False, and so is a verification that failed, but
+    # a TypeError is neither -- an hf passed as sha256() instead of sha256
+    # is a caller error, and it used to be reported as an invalid signature.
+    # BTClibRuntimeError by name and not RuntimeError, because
+    # RecursionError is one and is not an answer about a signature
     try:
         assert_as_valid_(msg_hash, Q, sig, hf)
-    except Exception:
+    except (ValueError, BTClibRuntimeError):
         return False
 
     return True
@@ -439,11 +443,15 @@ def batch_verify_(
     sigs: Sequence[Sig],
     hf: HashF = sha256,
 ) -> bool:
-    # all kind of Exceptions are caught because
-    # verify must always return a bool
+    # ValueError and BTClibRuntimeError, not Exception: an input that is not
+    # a valid signature is False, and so is a verification that failed, but
+    # a TypeError is neither -- an hf passed as sha256() instead of sha256
+    # is a caller error, and it used to be reported as an invalid signature.
+    # BTClibRuntimeError by name and not RuntimeError, because
+    # RecursionError is one and is not an answer about a signature
     try:
         assert_batch_as_valid_(m_hashes, Qs, sigs, hf)
-    except Exception:
+    except (ValueError, BTClibRuntimeError):
         return False
 
     return True

@@ -10,7 +10,7 @@
 """Tests for the `btclib.dsa` module."""
 
 import secrets
-from hashlib import sha1
+from hashlib import sha1, sha256
 from typing import Any
 
 import pytest
@@ -432,3 +432,33 @@ def test_verify_infinity_point() -> None:
     err_msg = r"invalid \(INF\) key"
     with pytest.raises(BTClibRuntimeError, match=err_msg):
         dsa._assert_as_valid_(ec.n - 1, ec.GJ, 1, 1, True, ec)
+
+
+def test_verify_answers_about_signatures_not_about_types() -> None:
+    """A caller error is not an invalid signature.
+
+    verify and verify_ caught Exception, so an hf passed as sha256()
+    instead of sha256 -- a digest object where a constructor goes -- was
+    reported as a signature that does not verify. So were AttributeError,
+    RecursionError and MemoryError.
+    """
+    msg = b"a message to sign"
+    q, Q = dsa.gen_keys(0x12345678)
+    sig = dsa.sign(msg, q)
+    assert dsa.verify(msg, Q, sig)
+
+    # still False: these are answers about the signature
+    assert not dsa.verify(b"another message", Q, sig)
+    assert not dsa.verify(msg, Q, b"")
+    assert not dsa.verify(msg, Q, b"\x30\x06\x02\x01\x80\x02\x01\x80")
+
+    # a TypeError now says so, where it used to mean "invalid signature"
+    with pytest.raises(TypeError, match="not callable"):
+        dsa.verify(msg, Q, sig, hf=sha256())  # type: ignore[arg-type]
+    with pytest.raises(TypeError, match="not callable"):
+        dsa.verify_(reduce_to_hlen(msg), Q, sig, hf="sha256")  # type: ignore[arg-type]
+
+    # BTClibRuntimeError is caught by name and not as RuntimeError, so a
+    # RecursionError -- which is a RuntimeError -- is not swallowed either
+    assert issubclass(RecursionError, RuntimeError)
+    assert not issubclass(RecursionError, BTClibRuntimeError)

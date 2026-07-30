@@ -132,11 +132,15 @@ def verify(
     - s: s-values, both real (one per ring) and forged
     - pubk_rings: sequence of PubKey rings
     """
-    # all kind of Exceptions are caught because
-    # verify must always return a bool
+    # ValueError and BTClibRuntimeError, not Exception: an input that is not
+    # a valid signature is False, and so is a verification that failed, but
+    # a TypeError is neither -- an hf passed as sha256() instead of sha256
+    # is a caller error, and it used to be reported as an invalid signature.
+    # BTClibRuntimeError by name and not RuntimeError, because
+    # RecursionError is one and is not an answer about a signature
     try:
         assert_as_valid(msg, e0, s, pubk_rings)
-    except Exception:
+    except (ValueError, BTClibRuntimeError):
         return False
 
     return True

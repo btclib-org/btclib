@@ -142,7 +142,7 @@ from btclib.b32 import has_segwit_prefix, p2wpkh, witness_from_address
 from btclib.b58 import h160_from_address, p2pkh, p2wpkh_p2sh, wif_from_prv_key
 from btclib.ec import bytes_from_point, mult, secp256k1
 from btclib.ecc import dsa
-from btclib.exceptions import BTClibValueError
+from btclib.exceptions import BTClibRuntimeError, BTClibValueError
 from btclib.hashes import hash160, magic_message
 from btclib.network import NETWORKS
 from btclib.to_prv_key import PrvKey, prv_keyinfo_from_prv_key
@@ -362,11 +362,15 @@ def assert_as_valid(
 
 def verify(msg: Octets, addr: String, sig: Sig | String, lower_s: bool = True) -> bool:
     """Verify address-based compact signature for the provided message."""
-    # all kind of Exceptions are caught because
-    # verify must always return a bool
+    # ValueError and BTClibRuntimeError, not Exception: an input that is not
+    # a valid signature is False, and so is a verification that failed, but
+    # a TypeError is neither -- an hf passed as sha256() instead of sha256
+    # is a caller error, and it used to be reported as an invalid signature.
+    # BTClibRuntimeError by name and not RuntimeError, because
+    # RecursionError is one and is not an answer about a signature
     try:
         assert_as_valid(msg, addr, sig, lower_s)
-    except Exception:
+    except (ValueError, BTClibRuntimeError):
         return False
 
     return True

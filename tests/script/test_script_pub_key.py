@@ -33,12 +33,23 @@ from btclib.script import (
     assert_p2wsh,
     is_nulldata,
     is_p2ms,
+    is_p2pk,
+    is_p2pkh,
+    is_p2sh,
+    is_p2tr,
+    is_p2wpkh,
+    is_p2wsh,
     output_pubkey,
     parse,
     serialize,
     type_and_payload,
 )
 from btclib.script import script as script_module
+from btclib.script.script_pub_key import (
+    assert_nulldata,
+    assert_segwit,
+    is_segwit,
+)
 from tests import vectors
 
 
@@ -693,3 +704,57 @@ def test_script_assert_valid_is_a_parse_not_a_round_trip() -> None:
     unknown = bytes([0xBB])
     assert Script(unknown).asm == ["UNKNOWN_OP_CODE_187"]
     assert serialize(Script(unknown).asm) == unknown
+
+
+def test_is_p2_functions_answer_about_bytes_not_about_types() -> None:
+    """A wrong type is a caller error, not "not a p2sh script".
+
+    _is_funct caught Exception, so every one of the thirteen is_p2* answered
+    False for a TypeError as readily as for bytes that really were not the
+    script asked about.
+    """
+    is_functions = [
+        is_nulldata,
+        is_p2ms,
+        is_p2pk,
+        is_p2pkh,
+        is_p2sh,
+        is_p2tr,
+        is_p2wpkh,
+        is_p2wsh,
+    ]
+
+    # bytes that are not the script asked about: still False
+    for func in is_functions:
+        assert func(b"\x00" * 3) is False
+
+    # and a caller passing the wrong thing hears about it
+    for func in is_functions:
+        with pytest.raises(TypeError):
+            func(None)  # type: ignore[arg-type]
+        with pytest.raises(TypeError):
+            func(42)  # type: ignore[arg-type]
+
+    # a bad hex-string is a ValueError, so it stays False: the question is
+    # about bytes, and those are not bytes anyone could have meant
+    for func in is_functions:
+        assert func("not hex at all") is False
+
+
+def test_the_two_index_errors_the_broad_catch_was_hiding() -> None:
+    """assert_nulldata and assert_segwit indexed past the end.
+
+    Both were reachable, both left the library as IndexError -- outside its
+    exception contract -- and _is_funct turned both into a plain False by
+    catching Exception. Narrowing the catch to ValueError needed them fixed
+    first, or is_nulldata(b"\\x6a") would have started raising.
+    """
+    # a lone OP_RETURN: no data length marker to read
+    with pytest.raises(BTClibValueError, match="missing data length marker"):
+        assert_nulldata(b"\x6a")
+    assert is_nulldata(b"\x6a") is False
+
+    # an empty script: no witness version byte to read
+    with pytest.raises(BTClibValueError, match="null length"):
+        assert_segwit(b"")
+    assert is_segwit(b"") is False
