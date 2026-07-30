@@ -21,7 +21,7 @@ from btclib.base58 import b58encode
 from btclib.bip32 import bip32, slip132
 from btclib.ec import bytes_from_point, point_from_octets, secp256k1
 from btclib.exceptions import BTClibValueError
-from btclib.hashes import hash160
+from btclib.hashes import hash160, sha256
 from btclib.script.script import serialize
 from btclib.to_prv_key import prv_keyinfo_from_prv_key
 from btclib.to_pub_key import pub_keyinfo_from_key, pub_keyinfo_from_prv_key
@@ -199,6 +199,27 @@ def test_p2w_p2sh() -> None:
     )
     b58addr = b58.p2wsh_p2sh(script_pub_key, network)
     assert b58addr == "3QHRam4Hvp1GZVkgjoKWUC1GEd8ck8e4WX"
+
+
+def test_v0_witness_redeem_script() -> None:
+    """The p2sh-wrapped redeem script is the one script.serialize builds.
+
+    b58 spells [OP_0, witness program] out rather than calling serialize,
+    which would import btclib.script and close the cycle of issue #147.
+    This is what keeps the two spellings from drifting apart, and it covers
+    both witness program sizes v0 admits: it is their being below the 76
+    bytes at which a push grows an OP_PUSHDATA that makes the short form
+    right.
+    """
+    pub_key = "03 a1af804ac108a8a51782198c2d034b28bf90c8803f5a53f76276fa69a4eae77f"
+    wit_prg = hash160(pub_key)
+    assert len(wit_prg) == 20
+    assert b58.p2wpkh_p2sh(pub_key) == b58.p2sh(serialize(["OP_0", wit_prg]))
+
+    redeem_script = serialize(["OP_1", "OP_CHECKSIG"])
+    wit_prg = sha256(redeem_script)
+    assert len(wit_prg) == 32
+    assert b58.p2wsh_p2sh(redeem_script) == b58.p2sh(serialize(["OP_0", wit_prg]))
 
 
 def test_address_from_wif() -> None:
