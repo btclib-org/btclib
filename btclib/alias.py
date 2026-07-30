@@ -29,7 +29,7 @@ one.
 from __future__ import annotations
 
 from io import BytesIO
-from typing import Any, Callable, Union
+from typing import Any, Callable, Protocol, Union
 
 # Octets are a sequence of eight-bit bytes or a hex-string (not text string)
 #
@@ -90,9 +90,61 @@ BinaryData = Union[BytesIO, Octets]
 # Integer = Union[Octets, int]
 Integer = Union[bytes, str, int]
 
-# Hash digest constructor: it may be any name suitable to hashlib.new()
-HashF = Callable[[], Any]
-# HashF = Callable[[Any], Any]
+
+# What a HashF returns: as much of the hashlib object as this library uses,
+# and no more. A Protocol rather than Any, which is what HashF used to
+# return -- so hf().digest() was Any, hf().digest_size was Any, and every
+# expression downstream of a hash function was unchecked. Eleven sites read
+# digest_size and nine build a digest through update(); with Any, a typo in
+# either was a runtime AttributeError in a mypy-strict code base.
+#
+# Not hashlib._Hash, which is what typeshed calls it: a private name, and
+# structural typing is the right tool for "whatever hashlib.new returns"
+class HashObject(Protocol):
+    @property
+    def digest_size(self) -> int: ...
+
+    @property
+    def block_size(self) -> int: ...
+
+    @property
+    def name(self) -> str: ...
+
+    # Any, alone in this Protocol, and not for want of trying: hmac.new
+    # takes a digestmod whose update() accepts typeshed's ReadableBuffer,
+    # a union this library cannot spell on python 3.9 (collections.abc.
+    # Buffer is 3.12), and a narrower parameter here makes the whole
+    # Protocol unassignable to hmac's -- rfc6979 passes hf to hmac.new
+    # eight times. The two members that are actually read, digest() and
+    # digest_size, stay exact, which is the point of the Protocol
+    def update(self, data: Any, /) -> None: ...
+
+    def digest(self) -> bytes: ...
+
+    def hexdigest(self) -> str: ...
+
+    def copy(self) -> HashObject: ...
+
+
+# Hash digest constructor: it may be any name suitable to hashlib.new().
+# Called with no argument and then fed through update(), which is how every
+# hf parameter in the package is used: hf(data) does not type check here,
+# and hashlib.sha256 accepting it anyway is what made the distinction below
+# invisible
+HashF = Callable[[], HashObject]
+
+# A one-shot digest: hf(data) returns the digest, where a HashF returns an
+# object to update. The merkle functions of btclib.hashes take this one --
+# hash256, not hashlib.sha256 -- and they used to spell it out inline while
+# every other hf in the library was a HashF, so two incompatible things
+# went by one name with nothing to tell them apart.
+#
+# Naming it makes a swap a type error rather than a runtime one, and the
+# type is load-bearing in both directions: hashlib.sha256 satisfies HashF's
+# arity but returns a HASH and not bytes, so it is rejected here, and
+# hash256 takes an argument, so it is rejected as a HashF
+HashDigestF = Callable[[Octets], bytes]
+
 H160_Net = tuple[bytes, str]
 
 # Elliptic curve point in affine coordinates.

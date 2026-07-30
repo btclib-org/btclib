@@ -36,9 +36,9 @@ def _hash(m: bytes, R: bytes, i: int, j: int, hf: HashF) -> bytes:
     # hf() then update(), which is how HashF is spelled everywhere else in
     # the package: the alias is Callable[[], Any], a constructor, so hf(temp)
     # does not type check even though hashlib.sha256 accepts it
-    h = hf()
-    h.update(temp)
-    return bytes(h.digest())
+    hasher = hf()
+    hasher.update(temp)
+    return bytes(hasher.digest())
 
 
 PubkeyRing = Sequence[Point]
@@ -50,9 +50,9 @@ def _get_msg_format(
     t = b"".join(
         b"".join(bytes_from_point(Q, ec) for Q in pubk_ring) for pubk_ring in pubk_rings
     )
-    h = hf()
-    h.update(msg + t)
-    return bytes(h.digest())
+    hasher = hf()
+    hasher.update(msg + t)
+    return bytes(hasher.digest())
 
 
 SValues = Sequence[list[int]]
@@ -114,9 +114,9 @@ def sign(
                 t = double_mult(-e[i][j], pubk_ring[j], s[i][j], ec.G)
                 r = bytes_from_point(t, ec)
         e0bytes += r
-    h = hf()
-    h.update(e0bytes)
-    e0 = bytes(h.digest())
+    hasher = hf()
+    hasher.update(e0bytes)
+    e0 = bytes(hasher.digest())
     # step 2
     for i, (j_star, k) in enumerate(zip(sign_key_idx, ks)):
         e[i][0] = int_from_bits(_hash(m, e0, i, 0, hf), ec.nlen) % ec.n
@@ -201,8 +201,8 @@ def assert_as_valid(
                     raise BTClibRuntimeError(err_msg)  # pragma: no cover
             else:
                 e0bytes += r
-    h = hf()
-    h.update(e0bytes)
-    e0_prime = bytes(h.digest())
+    hasher = hf()
+    hasher.update(e0bytes)
+    e0_prime = bytes(hasher.digest())
     if e0_prime != e0:
         raise BTClibRuntimeError("signature verification failed")

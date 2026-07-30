@@ -551,6 +551,28 @@ Major changes includes:
   and `"9"` raises for being of odd length rather than being nine. The
   behaviour is unchanged and deliberate — a decimal representation is what
   `int` itself is for — and now the docstring says so
+- **The library's two notions of "hash function" have two names.** `HashF` is
+  a hashlib-style *constructor*, called with no argument and fed through
+  `update()`; the merkle functions of `btclib.hashes` take a *one-shot
+  digest* instead — `hash256`, not `hashlib.sha256` — and spelled it out
+  inline as `Callable[[bytes | str], bytes]` while everything else in the
+  library called its parameter `hf` too. That second notion is
+  `alias.HashDigestF` now, so the distinction is stated where the aliases
+  live rather than reinvented at three call sites, and the stale
+  commented-out `# HashF = Callable[[Any], Any]` beside it is gone
+- **`HashF` returns a `HashObject` Protocol, not `Any`**, which was the real
+  gap: `hf().digest()` and `hf().digest_size` were `Any`, so every
+  expression downstream of a hash function went unchecked in a mypy-strict
+  code base — eleven sites read `digest_size` and nine build a digest
+  through `update()`. Measured over four probe functions, mypy went from
+  four `Returning Any` complaints — one of them against the **correct**
+  function, and none naming the actual mistake — to naming each fault:
+  `"HashObject" has no attribute "digets"; maybe "digest"?`, `got "bytes",
+  expected "int"`. It caught a real one on the spot: `borromean` bound `h`
+  to a digest inside its loops and to a hash object after them. Only
+  `update`'s parameter stays `Any`, because `hmac.new`'s `digestmod` wants a
+  buffer union python 3.9 cannot spell and `rfc6979` passes `hf` to it eight
+  times
 - **`btclib.ec` exports the curve API, not a benchmark.** Its `__all__` held
   24 names, fourteen of which were one operation written fourteen ways: the
   eleven `mult_*` variants of `curve_group` and `curve_group_2` — `mult_aff`,

@@ -13,11 +13,10 @@ from __future__ import annotations
 
 import hashlib
 from collections.abc import Sequence
-from typing import Callable
 
 from btclib import var_int
 from btclib._ripemd160 import ripemd160 as pure_python_ripemd160
-from btclib.alias import HashF, Octets
+from btclib.alias import HashDigestF, HashF, Octets
 from btclib.exceptions import BTClibValueError
 from btclib.utils import bytes_from_octets
 
@@ -117,7 +116,7 @@ def magic_message(msg: Octets) -> bytes:
 
 
 def merkle_root_and_mutated_from_hashes(
-    hashes: Sequence[bytes], hf: Callable[[bytes | str], bytes]
+    hashes: Sequence[bytes], hf: HashDigestF
 ) -> tuple[bytes, bool]:
     """Return the Merkle tree root, and whether the tree is mutated.
 
@@ -156,7 +155,7 @@ def merkle_root_and_mutated_from_hashes(
 
 
 def merkle_root_and_mutated(
-    data: Sequence[bytes], hf: Callable[[bytes | str], bytes]
+    data: Sequence[bytes], hf: HashDigestF
 ) -> tuple[bytes, bool]:
     """Return the Merkle tree root, and whether the tree is mutated.
 
@@ -171,7 +170,7 @@ def merkle_root_and_mutated(
     return merkle_root_and_mutated_from_hashes([hf(item) for item in data], hf)
 
 
-def merkle_root(data: Sequence[bytes], hf: Callable[[bytes | str], bytes]) -> bytes:
+def merkle_root(data: Sequence[bytes], hf: HashDigestF) -> bytes:
     """Return the Merkle tree root of a list of binary hashes.
 
     The Merkle tree is a binary tree constructed with the provided list
