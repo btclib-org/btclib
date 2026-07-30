@@ -1,0 +1,71 @@
+name: published
+
+# btclib is developed and tested against the bindings under development:
+# tool.uv.sources points the whole test matrix at the dev branch of
+# btclib_libsecp256k1, built from source. Nothing there tests btclib
+# against the bindings a user installs, which is what --no-sources
+# resolves: the published package, from PyPI, by the pin in pyproject.toml.
+#
+# A pull request is the wrong place for this, and not only because it would
+# be slow: what it guards against is not a change in this repository, it is
+# a release in the other one. Nothing here has to change for this to start
+# failing, which is exactly why it runs on a schedule.
+#
+# It fails today, and must, for the same reason the wheel smoke test of the
+# release workflow does: PyPI carries btclib_libsecp256k1 0.4.0, and the
+# declared pin is >=0.7.1rc1, so the resolution has no solution. It turns
+# green with the first upload that satisfies the pin -- see issue #131,
+# which tracks the other half of this
+
+on:
+  schedule:
+    # weekly, on a minute that is not the hour: everything scheduled on
+    # the hour is queued together, and a run that waits is a run whose
+    # failure is noticed later.
+    # Only the default branch schedules workflows, so on any other branch
+    # this is reachable through the dispatch below alone
+    - cron: "17 5 * * 1"
+  workflow_dispatch:
+
+# least privilege for the GITHUB_TOKEN: everything running in a job
+# (actions, dependencies) can read the token, so it must not be able to
+# write to the repository
+permissions:
+  contents: read
+
+concurrency:
+  group: published-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  # narrower than the test matrix on purpose. There, every (os, arch,
+  # interpreter) triple is a distinct C toolchain, because the bindings are
+  # compiled; here nothing is compiled, and what varies is which published
+  # wheel of the bindings the platform and the interpreter select. The two
+  # ends of the supported range are what a sentinel needs
+  test-published:
+    name: "Test ${{ matrix.python }} on ${{ matrix.os }}, bindings from PyPI"
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+        python: ["3.9", "3.14"]
+    timeout-minutes: 20
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Setup uv
+        uses: astral-sh/setup-uv@c771a70e6277c0a99b617c7a806ffedaca235ff9 # v9.0.0
+        with:
+          enable-cache: true
+          python-version: ${{ matrix.python }}
+      # --no-sources ignores the tool.uv.sources table, so the bindings are
+      # resolved from the index by the pin in pyproject.toml, as they are
+      # for anyone installing btclib. It cannot be --locked or --frozen:
+      # uv.lock was resolved with the sources, and resolving without them
+      # is the whole point, so this re-resolves and may rewrite uv.lock --
+      # harmless on an ephemeral checkout, worth knowing before running the
+      # same command in a working tree
+      - name: Run pytest against the published bindings
+        run: uv run --no-sources --no-default-groups --group test pytest

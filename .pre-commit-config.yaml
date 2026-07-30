@@ -87,6 +87,21 @@ repos:
       - id: markdownlint-cli2
         name: markdownlint-cli2 (in place fixes)
         args: [--fix]
+  # the workflows are 3, 6 and 8 KB of yaml with expressions in it, and
+  # nothing validated them: an unknown key, a typo in a context reference,
+  # an action input that does not exist, a job depending on a job that is
+  # not there are all things a run discovers by failing.
+  # The python packaging of actionlint rather than the upstream hook, whose
+  # only non-docker id is language: golang, i.e. a go toolchain on every
+  # machine that commits and on pre-commit.ci
+  - repo: https://github.com/Mateusz-Grzelinski/actionlint-py
+    # not below actionlint 1.7.12: its list of runner labels is compiled
+    # in, and 1.7.9 does not know macos-26-intel, which the test matrix has
+    # been running on all along
+    rev: v1.7.12.24
+    hooks:
+      - id: actionlint
+        name: actionlint (github workflows)
   - repo: https://github.com/leoll2/copyright_notice_precommit
     rev: 0.1.1
     hooks:

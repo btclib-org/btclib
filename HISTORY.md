@@ -59,6 +59,10 @@ Major changes includes:
   only on the tag that ships it: twine, check-wheel-contents and pyroma
   moved from the release workflow to a job of the test workflow, which
   the release workflow calls
+- a scheduled workflow runs the test suite against the *published*
+  btclib_libsecp256k1, resolved from PyPI by the declared pin, where every
+  other job follows tool.uv.sources to the bindings under development: what
+  it watches for is not a change here but a release there
 - the version is declared once, in pyproject.toml: `btclib.__version__`
   reads it back from the installed metadata (so it reports the version
   that is installed, not the one a source tree carries) and the
