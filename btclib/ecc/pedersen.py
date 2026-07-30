@@ -76,10 +76,11 @@ def commit(r: int, v: int, ec: Curve = secp256k1, hf: HashF = sha256) -> Point:
     """
     H = second_generator(ec, hf)
     Q = double_mult(v, H, r, ec.G, ec)
-    # edge case that cannot be reproduced in the test suite
+    # r and v both zero mod n commit here; anything else would need
+    # the discrete log of H
     if Q[1] == 0:
-        err_msg = "invalid (INF) key"  # pragma: no cover
-        raise BTClibRuntimeError(err_msg)  # pragma: no cover
+        err_msg = "invalid (INF) key"
+        raise BTClibRuntimeError(err_msg)
     return Q
 
 

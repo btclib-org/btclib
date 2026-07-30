@@ -335,6 +335,11 @@ def test_musig() -> None:
     Q2 = mult(q2)
     Q3 = mult(q3)
     Q = ec.add(double_mult(a1, Q1, a2, Q2), mult(a3, Q3))
+    # the parity of the aggregated key is a coin flip on every run, so
+    # the negation executes in half of them: the pragmas keep the
+    # coverage gate deterministic. Keys pinned offline for an odd
+    # parity would cover the lines instead, trading away the fresh
+    # randomness that makes this protocol demo worth running
     if Q[1] % 2:
         # print("Q has been negated")
         a1 = ec.n - a1  # pragma: no cover
@@ -359,6 +364,7 @@ def test_musig() -> None:
 
     # same for all signers
     K = ec.add(ec.add(K1, K2), K3)
+    # the same coin flip as above, on the aggregated nonce
     if K[1] % 2:
         k1 = ec.n - k1  # pragma: no cover
         k2 = ec.n - k2  # pragma: no cover
@@ -540,6 +546,7 @@ def test_threshold() -> None:
     A = [ec.add(A1[i], ec.add(A2[i], A3[i])) for i in range(m)]
     # aggregated public key
     Q = A[0]
+    # the same coin flip as in test_musig: fresh keys, random parity
     if Q[1] % 2:
         # print('Q has been negated')
         A[1] = ec.negate(A[1])  # pragma: no cover
@@ -633,6 +640,9 @@ def test_threshold() -> None:
     B = [ec.add(B1[i], B3[i]) for i in range(m)]
     # aggregated public nonce
     K = B[0]
+    # the same coin flip again, and here pinning the keys would not
+    # even help: k1 and k3 come from bip340_nonce_ with aux=None, i.e.
+    # fresh OS randomness, so the aux would need pinning too
     if K[1] % 2:
         # print('K has been negated')
         B[1] = ec.negate(B[1])  # pragma: no cover
@@ -742,3 +752,29 @@ def test_sign_aux_size() -> None:
         err_msg = f"invalid size: {len(aux)} bytes instead of 32"
         with pytest.raises(BTClibValueError, match=err_msg):
             ssa.sign_(msg_hash, q, aux)
+
+
+def test_zero_challenge() -> None:
+    """A tagged hash that is zero mod n must raise.
+
+    For secp256k1 that is a 2**-256 accident; on ec13_11 one msg_hash
+    in eleven does it, and this one is the first big-endian counter
+    value that does (x_Q = x_K = 1, the generator).
+    """
+    ec = low_card_curves["ec13_11"]
+    msg_hash = (11).to_bytes(32, "big")
+    with pytest.raises(BTClibRuntimeError, match="invalid zero challenge"):
+        ssa.challenge_(msg_hash, 1, 1, ec, hf)
+
+
+def test_recover_infinity_pub_key() -> None:
+    """The recovered Q = e1*(s*G - K) is INF whenever s*G equals K.
+
+    G's y-coordinate is even, so r = G.x picks K = G, and s = 1 then
+    makes the recovered key INF whatever the challenge. The
+    low-cardinality loop can never get here: its s comes from a real
+    signature, hence s*G - K = c*q*G with c and q both nonzero.
+    """
+    err_msg = r"invalid \(INF\) key"
+    with pytest.raises(BTClibRuntimeError, match=err_msg):
+        ssa._recover_pub_key_(1, secp256k1.G[0], 1, secp256k1)

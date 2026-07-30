@@ -243,3 +243,20 @@ def test_no_key_material_in_exceptions() -> None:
     with pytest.raises(BTClibValueError, match="not a root key: ") as excinfo:
         slip132.p2pkh_xkey(xprv)
     assert xprv not in str(excinfo.value)
+
+
+def test_unknown_xpub_version() -> None:
+    """The p2wsh versions decode fine but have no address to derive.
+
+    BIP32KeyData.b58decode accepts all five SLIP132 public versions,
+    while address_from_xpub handles the three whose address is a
+    function of the public key alone: p2wsh needs the script.
+    """
+    mnemonic = "enough regret erode news field main wild jar erupt bronze velvet ugly"
+    mxprv = bip39.mxprv_from_mnemonic(mnemonic)
+    xpub = bip32.xpub_from_xprv(slip132.p2pkh_xkey(mxprv))
+    xpub_data = bip32.BIP32KeyData.b58decode(xpub)
+    for version in ("slip132_p2wsh_pub", "slip132_p2wsh_p2sh_pub"):
+        xpub_data.version = getattr(NETWORKS["mainnet"], version)
+        with pytest.raises(BTClibValueError, match="unknown xpub version: "):
+            slip132.address_from_xpub(xpub_data)

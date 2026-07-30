@@ -353,10 +353,10 @@ def _assert_as_valid_(
     KJ = _double_mult(v, QJ, u, ec.GJ, ec)  # 5
 
     # Fail if infinite(K).
-    # edge case that cannot be reproduced in the test suite
+    # K = w*(c + r*q)*G is INF whenever c == -r*q (mod n)
     if KJ[2] == 0:  # 5
-        err_msg = "invalid (INF) key"  # pragma: no cover
-        raise BTClibRuntimeError(err_msg)  # pragma: no cover
+        err_msg = "invalid (INF) key"
+        raise BTClibRuntimeError(err_msg)
 
     # affine x_K-coordinate of K
     x_K = (KJ[0] * mod_inv(KJ[2] * KJ[2], ec.p)) % ec.p

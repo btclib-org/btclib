@@ -137,10 +137,10 @@ class Tx:
 
     def __eq__(self, other: object) -> bool:
         if not isinstance(other, Tx):
-            return NotImplemented  # pragma: no cover
+            return NotImplemented
 
         if not TX_IN_COMPARES_WITNESS and self.vwitness != other.vwitness:
-            return False  # pragma: no cover
+            return False
 
         # FIXME use super().__eq__
         return (self.version, self.lock_time, self.vin, self.vout) == (

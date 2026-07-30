@@ -500,3 +500,26 @@ def test_join_txs() -> None:
             shuffle_inp=False,
             shuffle_out=False,
         )
+
+
+def test_eq() -> None:
+    tx = Tx(check_validity=False)
+    # not a Tx: __eq__ answers NotImplemented and equality is False
+    assert tx != "not a Tx"
+
+
+def test_eq_witness(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Tx.__eq__ compares the witnesses only if TxIn.__eq__ does not.
+
+    With TX_IN_COMPARES_WITNESS the witness is part of the TxIn
+    comparison, baked into the dataclass at class creation: the
+    vwitness check in Tx.__eq__ only ever runs for the False setting,
+    which a monkeypatch is the only way to exercise.
+    """
+    segwit = Tx(vin=[TxIn(script_witness=Witness(["00"]))], check_validity=False)
+    stripped = Tx(vin=[TxIn()], check_validity=False)
+    monkeypatch.setattr("btclib.tx.tx.TX_IN_COMPARES_WITNESS", False)
+    assert segwit != stripped
+    assert segwit == Tx(
+        vin=[TxIn(script_witness=Witness(["00"]))], check_validity=False
+    )

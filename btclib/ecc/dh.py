@@ -67,10 +67,10 @@ def diffie_hellman(
     http://www.secg.org/sec1-v2.pdf, section 6.1
     """
     shared_secret_point = mult(dU, QV, ec)
-    # edge case that cannot be reproduced in the test suite
+    # a degenerate dU, zero mod n, maps every QV here
     if shared_secret_point[1] == 0:
-        err_msg = "invalid (INF) key"  # pragma: no cover
-        raise BTClibRuntimeError(err_msg)  # pragma: no cover
+        err_msg = "invalid (INF) key"
+        raise BTClibRuntimeError(err_msg)
     shared_secret_field_element = shared_secret_point[0]
     z = shared_secret_field_element.to_bytes(ec.p_size, byteorder="big", signed=False)
     return ansi_x9_63_kdf(z, size, hf, shared_info)

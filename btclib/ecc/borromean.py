@@ -87,7 +87,12 @@ def sign(
         if start_idx != 0:
             for j in range(start_idx, keys_size):
                 e[i][j] = int_from_bits(_hash(m, r, i, j), ec.nlen) % ec.n
-                # edge case that cannot be reproduced in the test suite
+                # e is already reduced mod n, so only zero can trip
+                # this, and zero is a 2**-255 accident: exactly two of
+                # the 256-bit sha256 outputs (0 and n) are 0 mod n.
+                # No toy-curve route to it either, unlike the twin
+                # check in ssa.challenge_: this module's curve is
+                # frozen at import
                 if not 0 < e[i][j] < ec.n:
                     err_msg = "implausibile signature failure"  # pragma: no cover
                     raise BTClibRuntimeError(err_msg)  # pragma: no cover
@@ -98,7 +103,7 @@ def sign(
     # step 2
     for i, (j_star, k) in enumerate(zip(sign_key_idx, ks)):
         e[i][0] = int_from_bits(_hash(m, e0, i, 0), ec.nlen) % ec.n
-        # edge case that cannot be reproduced in the test suite
+        # zero e again: the same 2**-255 accident documented above
         if not 0 < e[i][0] < ec.n:
             err_msg = "implausibile signature failure"  # pragma: no cover
             raise BTClibRuntimeError(err_msg)  # pragma: no cover
@@ -107,7 +112,7 @@ def sign(
             t = double_mult(-e[i][j - 1], pubk_rings[i][j - 1], s[i][j - 1], ec.G)
             r = bytes_from_point(t, ec)
             e[i][j] = int_from_bits(_hash(m, r, i, j), ec.nlen) % ec.n
-            # edge case that cannot be reproduced in the test suite
+            # zero e again: the same 2**-255 accident documented above
             if not 0 < e[i][j] < ec.n:
                 err_msg = "implausibile signature failure"  # pragma: no cover
                 raise BTClibRuntimeError(err_msg)  # pragma: no cover
@@ -148,7 +153,7 @@ def assert_as_valid(
     for i, pubk_ring in enumerate(pubk_rings):
         keys_size = len(pubk_ring)
         e[i][0] = int_from_bits(_hash(m, e0, i, 0), ec.nlen) % ec.n
-        # edge case that cannot be reproduced in the test suite
+        # a zero e: the same 2**-255 accident documented in sign
         if e[i][0] == 0:
             err_msg = "implausibile signature failure"  # pragma: no cover
             raise BTClibRuntimeError(err_msg)  # pragma: no cover
@@ -159,7 +164,7 @@ def assert_as_valid(
             if j != keys_size - 1:
                 h = _hash(m, r, i, j + 1)
                 e[i][j + 1] = int_from_bits(h, ec.nlen) % ec.n
-                # edge case that cannot be reproduced in the test suite
+                # a zero e: the same 2**-255 accident documented in sign
                 if e[i][j + 1] == 0:
                     err_msg = "implausibile signature failure"  # pragma: no cover
                     raise BTClibRuntimeError(err_msg)  # pragma: no cover

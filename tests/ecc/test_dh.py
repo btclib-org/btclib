@@ -16,7 +16,7 @@ import pytest
 from btclib.ec import bytes_from_point, mult
 from btclib.ec.curve import CURVES
 from btclib.ecc import ansi_x9_63_kdf, diffie_hellman, dsa
-from btclib.exceptions import BTClibValueError
+from btclib.exceptions import BTClibRuntimeError, BTClibValueError
 
 
 def test_ecdh() -> None:
@@ -241,3 +241,11 @@ def test_capv() -> None:
             None if shared_info is None else bytes.fromhex(shared_info),
         )
         assert result == bytes.fromhex(key_data)
+
+
+def test_infinity_shared_secret() -> None:
+    """A degenerate scalar, zero mod n, maps every public key to INF."""
+    ec = CURVES["secp256k1"]
+    err_msg = r"invalid \(INF\) key"
+    with pytest.raises(BTClibRuntimeError, match=err_msg):
+        diffie_hellman(0, ec.G, 32)

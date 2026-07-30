@@ -20,9 +20,17 @@ from btclib.alias import HashF, Octets
 from btclib.exceptions import BTClibValueError
 from btclib.utils import bytes_from_octets
 
-# see https://bugs.python.org/issue47101
-# With OpenSSL 3.x, hashlib still includes ripemd160
-# but it is not usable unless the legacy provider is loaded.
+# OpenSSL 3.0.0-3.0.6 ships ripemd160 only in the legacy provider, so
+# there hashlib.new raises ValueError unless that provider is loaded
+# first: https://bugs.python.org/issue47101. OpenSSL 3.0.7 put it back
+# in the default provider (openssl/openssl#19375), which is why the
+# fallback stays uncovered: no interpreter the suite runs under, local
+# or CI, links one of the seven affected releases, and covering the
+# branch would mean building one. The unversioned libssl.so also makes
+# the fallback Linux-only on purpose — it is the dev-package symlink,
+# not even the libssl.so.3 runtime name: the distro pythons linking
+# the affected OpenSSLs lived there, while macOS builds bundle their
+# own
 try:
     hashlib.new("ripemd160")
 except ValueError:  # pragma: no cover

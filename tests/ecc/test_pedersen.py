@@ -73,3 +73,13 @@ def test_commitment() -> None:
     assert not pedersen.verify(sha256, v1, C2, ec, hf)  # type: ignore[arg-type]
     with pytest.raises(TypeError):
         pedersen.commit(sha256, v1, ec, hf)  # type: ignore[arg-type]
+
+
+def test_commit_to_infinity() -> None:
+    """r and v both zero mod n commit to INF.
+
+    Any other opening of INF would need the discrete log of H.
+    """
+    err_msg = r"invalid \(INF\) key"
+    with pytest.raises(BTClibRuntimeError, match=err_msg):
+        pedersen.commit(0, 0, secp256k1, sha256)

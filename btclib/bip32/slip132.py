@@ -63,8 +63,10 @@ def address_from_xpub(xpub: BIP32Key) -> str:
     for version, function in zip(version_list, function_list):
         if network := network_from_key_value(version, xpub.version):
             return function(xpub, network)
-    err_msg = f"unknown xpub version: {xpub.version.hex()}"  # pragma: no cover
-    raise BTClibValueError(err_msg)  # pragma: no cover
+    # reachable: b58decode accepts the p2wsh versions too, and a p2wsh
+    # address is not a function of the public key alone
+    err_msg = f"unknown xpub version: {xpub.version.hex()}"
+    raise BTClibValueError(err_msg)
 
 
 def _helper_checks(

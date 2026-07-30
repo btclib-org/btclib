@@ -30,6 +30,7 @@ from btclib.script import (
 from btclib.script.taproot import parse, serialize
 from btclib.tx import TxOut
 from tests import vectors
+from tests.ec.test_curve import low_card_curves
 from tests.script import serialize_non_canonical
 
 
@@ -202,3 +203,24 @@ def test_serialization() -> None:
 
     for x in range(17, 100):
         assert parse(serialize([x])) == [f"{x:02X}"]
+
+
+def test_tweak_above_group_order() -> None:
+    """BIP341 rejects a tweak t that is not below the curve order.
+
+    With secp256k1 that is a 2**-128 tagged-hash accident; a toy curve
+    makes the same guard fire deterministically, since the 256-bit
+    tweak always exceeds its order. Not output_prvkey, though: there
+    the toy curve fails earlier, on the y parity of a secp256k1 point.
+    """
+    ec = low_card_curves["ec13_11"]
+    err_msg = "Invalid script tree hash"
+
+    script_tree = [(0xC0, ["OP_1"])]
+    with pytest.raises(BTClibValueError, match=err_msg):
+        output_pubkey(None, script_tree, ec)
+
+    q = bytes(31) + b"\x01"
+    control = b"\xc0" + bytes(32)
+    with pytest.raises(BTClibValueError, match=err_msg):
+        check_output_pubkey(q, "51", control, ec)

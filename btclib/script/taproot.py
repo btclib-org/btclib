@@ -133,9 +133,9 @@ def output_pubkey(
     else:
         h = b""
     t = int.from_bytes(tagged_hash(b"TapTweak", pub_key + h), "big")
-    # edge case that cannot be reproduced in the test suite
+    # BIP341: fail if t is not smaller than the group order
     if t >= ec.n:
-        raise BTClibValueError("Invalid script tree hash")  # pragma: no cover
+        raise BTClibValueError("Invalid script tree hash")
     P_x = int.from_bytes(pub_key, "big")
     Q = ec.add((P_x, ec.y_even(P_x)), mult(t))
     return Q[0].to_bytes(32, "big"), Q[1] % 2
@@ -157,7 +157,11 @@ def output_prvkey(
     t: int = int.from_bytes(
         tagged_hash(b"TapTweak", P[0].to_bytes(32, "big") + h), "big"
     )
-    # edge case that cannot be reproduced in the test suite
+    # BIP341: fail if t is not smaller than the group order.
+    # Unreachable in the suite, unlike its two siblings: P is a
+    # secp256k1 point whatever ec says, so a toy curve fails
+    # ec.y_even(P[0]) above before getting here, and for secp256k1
+    # itself a 256-bit tagged hash reaches n with probability 2**-128
     if t >= ec.n:
         raise BTClibValueError("Invalid script tree hash")  # pragma: no cover
     return (internal_prvkey + t) % ec.n
@@ -203,9 +207,9 @@ def check_output_pubkey(
     t_bytes = tagged_hash(b"TapTweak", p_bytes + k)
     p = int.from_bytes(p_bytes, "big")
     t = int.from_bytes(t_bytes, "big")
-    # edge case that cannot be reproduced in the test suite
+    # BIP341: fail if t is not smaller than the group order
     if t >= ec.n:
-        raise BTClibValueError("Invalid script tree hash")  # pragma: no cover
+        raise BTClibValueError("Invalid script tree hash")
     P = (p, secp256k1.y_even(p))
     Q = secp256k1.add(P, mult(t))
     return Q[0] == int.from_bytes(q, "big") and control[0] & 1 == Q[1] % 2

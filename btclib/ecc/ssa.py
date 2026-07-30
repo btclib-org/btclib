@@ -188,7 +188,7 @@ def challenge_(msg_hash: Octets, x_Q: int, x_K: int, ec: Curve, hf: HashF) -> in
 
     c: int = int_from_bits(t, ec.nlen) % ec.n
     if c == 0:
-        raise BTClibRuntimeError("invalid zero challenge")  # pragma: no cover
+        raise BTClibRuntimeError("invalid zero challenge")
     return c
 
 
@@ -345,10 +345,10 @@ def _recover_pub_key_(c: int, r: int, s: int, ec: Curve) -> int:
 
     e1 = mod_inv(c, ec.n)
     QJ = _double_mult(ec.n - e1, KJ, e1 * s, ec.GJ, ec)
-    # edge case that cannot be reproduced in the test suite
+    # QJ = e1*(s*G - K) is INF whenever r is the x of s*G, y even
     if QJ[2] == 0:
-        err_msg = "invalid (INF) key"  # pragma: no cover
-        raise BTClibRuntimeError(err_msg)  # pragma: no cover
+        err_msg = "invalid (INF) key"
+        raise BTClibRuntimeError(err_msg)
     return int(ec.x_aff_from_jac(QJ))
 
 

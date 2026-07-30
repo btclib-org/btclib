@@ -415,3 +415,17 @@ def test_libsecp256k1_py_vectors_ecdsa_nonce(vector: dict[str, str]) -> None:
 
     pub_key = pub_keyinfo_from_prv_key(prv_key)[0]
     assert libsecp256k1_dsa.verify(msg_hash, pub_key, sig_der)
+
+
+def test_verify_infinity_point() -> None:
+    """K = w*(c + r*q)*G is INF whenever c == -r*q (mod n).
+
+    For Q = G (q = 1) and r = s = 1: w = 1, u = n - 1, v = 1, so
+    K = u*G + v*Q is INF. The low-cardinality loop can never get here:
+    it only verifies signatures it just produced, whose K = k*G with
+    k nonzero.
+    """
+    ec = CURVES["secp256k1"]
+    err_msg = r"invalid \(INF\) key"
+    with pytest.raises(BTClibRuntimeError, match=err_msg):
+        dsa._assert_as_valid_(ec.n - 1, ec.GJ, 1, 1, True, ec)
