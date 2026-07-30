@@ -1,0 +1,92 @@
+name: links
+
+# the checker the repository only pretended to have. CONTRIBUTING.md
+# carried six markdown-link-check-disable/enable comment pairs for a hook
+# that does not exist and, going by the git history, never did in this
+# tree: they suppressed a tool that was not running, around links that were
+# fine, while the ones that had actually rotted -- tools.ietf.org, which
+# now redirects, and an http:// badge -- were outside every pair.
+# So: no directives, and a real check.
+#
+# Not a pull request gate, and that is the whole design. A link rots
+# without anybody touching the repository, so testing it per commit reports
+# the internet's weather on somebody else's branch; and a third party
+# returning 502 or throttling a runner would turn a red merge into a thing
+# to re-run rather than a thing to fix. Weekly, on demand, and red in the
+# Actions tab is where this belongs.
+# It therefore does not appear in master's required checks, and must not:
+# that rule lives outside the repository and names three contexts
+
+on:
+  schedule:
+    # Mondays, 04:17 UTC. Not on the hour: GitHub queues scheduled
+    # workflows across every repository that asked for the same minute, and
+    # the run can be dropped outright when the queue is long
+    - cron: "17 4 * * 1"
+  # the escape hatch, and the way to check a branch before merging a
+  # documentation change that adds links
+  workflow_dispatch:
+  # so a change to this file, or to the ignore list beside it, is checked
+  # by the thing it configures
+  pull_request:
+    paths:
+      - .github/workflows/links.yml
+      - .lycheeignore
+
+# least privilege for the GITHUB_TOKEN. lychee is given it for github.com
+# links only, where an unauthenticated runner is rate limited hard enough
+# to look like rot; contents: read is all that needs.
+# Deliberately not issues: write: an automatic "link rot" issue is the
+# usual next step here, and it would be the only workflow in this
+# repository that can write anything, to save a maintainer from reading a
+# failure notification they already get
+permissions:
+  contents: read
+
+# cancel superseded runs. Named literally rather than through
+# github.workflow, as everywhere else here: in a called workflow that
+# expression is the caller's name
+concurrency:
+  group: links-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  links:
+    name: Check the documentation links
+    runs-on: ubuntu-latest
+    # a few hundred requests with retries; a job past this is hung on one
+    timeout-minutes: 15
+    steps:
+      # every action pinned to a commit SHA with the tag in the comment: a
+      # tag, let alone a branch, is a name its owner can move
+      - name: Checkout code
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          # see the checkout of the test-py job in test.yml
+          persist-credentials: false
+      - name: Check the links
+        uses: lycheeverse/lychee-action@e7477775783ea5526144ba13e8db5eec57747ce8 # v2.9.0
+        with:
+          # the prose, not the code: the source files cite papers and RFCs
+          # in comments and docstrings by the hundred, and a citation is a
+          # reference rather than a link a reader clicks. What is checked
+          # is what a user is invited to follow -- the README, which is
+          # also the btclib.org homepage and the PyPI long description,
+          # the other root markdown files, and the documentation sources.
+          # --no-progress because the log is not a terminal; the retries
+          # and the cache are what keep a throttling host from being
+          # reported as a dead one
+          args: >-
+            --no-progress
+            --max-retries 3
+            --retry-wait-time 10
+            --cache
+            --max-cache-age 1d
+            --accept 200,206,429
+            "*.md" "docs/**/*.rst" "docs/**/*.md" "tests/**/*.md"
+          # fail the job, rather than only summarizing: a green run that
+          # found dead links is the state this workflow exists to end
+          fail: true
+        env:
+          # for github.com links only, per the permissions comment above
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

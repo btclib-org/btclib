@@ -9,7 +9,7 @@
 # or distributed except according to the terms contained in the LICENSE file.
 """Deterministic generation of the ephemeral key following RFC6979.
 
-https://tools.ietf.org/html/rfc6979
+https://www.rfc-editor.org/rfc/rfc6979.html
 
 ECDSA and ECSSA need to produce, for each signature generation,
 a fresh random value (ephemeral key, hereafter designated as nonce).
@@ -59,7 +59,7 @@ def challenge_(
 
 
 def _rfc6979_nonce_(c: int, q: int, ec: Curve, hf: HashF) -> int:
-    # https://tools.ietf.org/html/rfc6979 section 3.2
+    # https://www.rfc-editor.org/rfc/rfc6979.html section 3.2
 
     # convert the private key q to an octet sequence of size n_size
     q_bytes = q.to_bytes(ec.n_size, byteorder="big", signed=False)
@@ -102,7 +102,7 @@ def rfc6979_nonce_(
 ) -> int:
     """Return an RFC6979 deterministic ephemeral key (nonce).
 
-    see https://tools.ietf.org/html/rfc6979 section 3.2
+    see https://www.rfc-editor.org/rfc/rfc6979.html section 3.2
     """
     c = challenge_(msg_hash, ec, hf)
     q = int_from_prv_key(prv_key, ec)

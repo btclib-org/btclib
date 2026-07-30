@@ -8,7 +8,7 @@
 | Supported platforms | [![python](https://img.shields.io/pypi/pyversions/btclib.svg?logo=python)](https://pypi.python.org/pypi/btclib/) |
 | Formatting standards | [![format: ruff](https://img.shields.io/badge/format-ruff-yellowgreen.svg?logo=ruff)](https://docs.astral.sh/ruff/formatter/) [![lint: markdownlint-cli2](https://img.shields.io/badge/lint-markdownlint--cli2-yellowgreen.svg?logo=markdown)](https://github.com/DavidAnson/markdownlint-cli2) |
 | Coding standards | [![lint: ruff](https://img.shields.io/badge/lint-ruff-yellowgreen.svg?logo=ruff)](https://docs.astral.sh/ruff/) |
-| Type checking | [![type check: mypy](https://img.shields.io/badge/type_check-mypy-yellowgreen.svg?logo=mypy)](http://mypy-lang.org/) |
+| Type checking | [![type check: mypy](https://img.shields.io/badge/type_check-mypy-yellowgreen.svg?logo=mypy)](https://mypy-lang.org/) |
 | Documentation | [![docs](https://readthedocs.org/projects/btclib/badge/?version=latest)](https://btclib.readthedocs.io) [![lint: ruff](https://img.shields.io/badge/docstrings-ruff-yellowgreen.svg?logo=ruff)](https://docs.astral.sh/ruff/rules/#pydocstyle-d) |
 | CI/CD | [![pre-commit](https://img.shields.io/badge/pre--commit-enabled-brightgreen?logo=pre-commit)](https://github.com/pre-commit/pre-commit) [![pre-commit.ci status](https://results.pre-commit.ci/badge/github/btclib-org/btclib/master.svg)](https://results.pre-commit.ci/latest/github/btclib-org/btclib/master) [![lint](https://github.com/btclib-org/btclib/actions/workflows/lint.yml/badge.svg)](https://github.com/btclib-org/btclib/actions/workflows/lint.yml) [![test](https://github.com/btclib-org/btclib/actions/workflows/test.yml/badge.svg)](https://github.com/btclib-org/btclib/actions/workflows/test.yml) |
 | Conversations | [![slack](https://img.shields.io/badge/slack-btclib_dev-white.svg?logo=slack)](https://bbt-training.slack.com/messages/C01CCJ85AES) [![Follow on Twitter](https://img.shields.io/twitter/follow/btclib?style=social&logo=twitter)](https://twitter.com/intent/follow?screen_name=btclib) |
@@ -64,7 +64,7 @@ Included features are:
 - ECDSA signature with (message) compact encoding: standard p2pkh and
   [BIP137](https://github.com/bitcoin/bips/blob/master/bip-0137.mediawiki)/[Electrum](https://electrum.org/#home)
   extensions to p2wpkh and p2wpkh-p2sh
-- [RFC 6979](https://tools.ietf.org/html/rfc6979) for deterministic signature
+- [RFC 6979](https://www.rfc-editor.org/rfc/rfc6979.html) for deterministic signature
   schemes
 - EC Schnorr signature (according to
   [BIP340](https://github.com/bitcoin/bips/blob/master/bip-0340.mediawiki)

@@ -82,7 +82,7 @@ def int_from_bits(octets: Octets, nlen: int) -> int:
     right. i.to_bytes is the reverse of int_from_bits only when
     nlen is a multiple of 8 and bit sequences already have length nlen.
     See:
-    - https://tools.ietf.org/html/rfc6979#section-2.3.5
+    - https://www.rfc-editor.org/rfc/rfc6979.html#section-2.3.5
     """
     octets = bytes_from_octets(octets)
     i = int.from_bytes(octets, byteorder="big", signed=False)

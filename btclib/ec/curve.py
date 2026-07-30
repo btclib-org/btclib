@@ -221,7 +221,7 @@ def _catalogued_curve(params: list[Any], name: str) -> Curve:
 
 # Elliptic Curve Cryptography (ECC)
 # Brainpool Standard Curves and Curve Generation
-# https://tools.ietf.org/html/rfc5639
+# https://www.rfc-editor.org/rfc/rfc5639.html
 filename = path.join(datadir, "ec_Brainpool.json")
 with open(filename, encoding="ascii") as file_:
     Brainpool_params2 = json.load(file_)

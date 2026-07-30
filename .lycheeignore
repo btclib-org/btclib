@@ -1,0 +1,14 @@
+# URLs the links workflow does not check, each with the reason it cannot
+# be checked rather than the reason it is inconvenient. Anything that is
+# merely slow or occasionally throttled belongs in that workflow's
+# --max-retries and --accept, not here.
+
+# 403 to any client without a browser fingerprint, and 200 in a browser:
+# the IACR eprint archive rejects the request, not the URL. Verified by
+# hand; the paper is Borromean ring signatures, cited by ecc/borromean.py
+https://eprint\.iacr\.org/.*
+
+# a Slack workspace invite, which answers only to a signed-in member: a
+# checker sees the sign-in redirect and cannot tell a live invite from a
+# dead one
+https://bbt-training\.slack\.com/.*
