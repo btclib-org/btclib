@@ -11,6 +11,9 @@
 
 from __future__ import annotations
 
+import dataclasses
+from typing import Any
+
 import pytest
 
 from btclib import b32, b58, var_bytes
@@ -35,6 +38,7 @@ from btclib.script import (
     serialize,
     type_and_payload,
 )
+from btclib.script import script as script_module
 from tests import vectors
 
 
@@ -593,3 +597,99 @@ def test_p2tr() -> None:
     err_msg = "invalid redeem script hash length marker: "
     with pytest.raises(BTClibValueError, match=err_msg):
         assert_p2tr(script_pub_key[:1] + b"\x00" + script_pub_key[2:])
+
+
+def test_script_pub_key_is_a_dataclass() -> None:
+    """network is a field, so dataclasses sees it.
+
+    ScriptPubKey extended the Script dataclass without being one, so
+    network was a bare annotation: dataclasses.fields reported only
+    script, and dataclasses.replace rebuilt the instance through
+    ScriptPubKey(script=...) alone, returning a *mainnet* ScriptPubKey
+    from a testnet one, silently.
+    """
+    pub_key = "03a1af804ac108a8a51782198c2d034b28bf90c8803f5a53f76276fa69a4eae77f"
+    testnet = ScriptPubKey.p2pkh(pub_key, network="testnet")
+    assert testnet.network == "testnet"
+
+    assert [f.name for f in dataclasses.fields(testnet)] == ["script", "network"]
+
+    same = dataclasses.replace(testnet)
+    assert same.network == "testnet"
+    assert same == testnet
+    assert same.address == testnet.address
+
+    # and the network can be replaced, which was not expressible at all
+    mainnet = dataclasses.replace(testnet, network="mainnet")
+    assert mainnet.network == "mainnet"
+    assert mainnet.script == testnet.script
+    assert mainnet != testnet
+    assert mainnet.address != testnet.address
+
+    # the generated repr names both fields; it used to be Script's, which
+    # showed a testnet and a mainnet ScriptPubKey identically
+    assert "network='testnet'" in repr(testnet)
+
+
+def test_script_pub_key_parses_its_script_once() -> None:
+    """__init__ used to call assert_valid after super() had already.
+
+    Script.__init__ calls self.assert_valid(), which dispatches to the
+    override, which runs Script's check and the network one: the whole
+    validation. The extra call ran it a second time.
+    """
+    calls = []
+    real_parse = script_module.parse
+
+    def counting_parse(*args: Any, **kwargs: Any) -> ScriptList:
+        calls.append(1)
+        return real_parse(*args, **kwargs)
+
+    script = bytes.fromhex("76a91438971f73930f6c141d977ac4fd4a727c854935b388ac")
+    original = script_module.parse
+    script_module.parse = counting_parse
+    try:
+        ScriptPubKey(script, "testnet")
+    finally:
+        script_module.parse = original
+
+    assert len(calls) == 1
+
+    # and check_validity=False still parses nothing at all
+    calls.clear()
+    script_module.parse = counting_parse
+    try:
+        ScriptPubKey(script, "testnet", check_validity=False)
+    finally:
+        script_module.parse = original
+    assert not calls
+
+
+def test_script_assert_valid_is_a_parse_not_a_round_trip() -> None:
+    """It was serialize(self.asm) with the result discarded.
+
+    A round-trip check would be wrong rather than merely redundant: a
+    non-minimal push is consensus-legal and does not survive one.
+    """
+    # OP_PUSHDATA1 of a single byte: legal, and re-serializing it yields
+    # the minimal 01ff instead
+    non_minimal = bytes.fromhex("4c01ff")
+    script = Script(non_minimal)
+    assert script.script == non_minimal
+    assert script.asm == ["FF"]
+    assert serialize(script.asm) == bytes.fromhex("01ff")
+    script.assert_valid()
+
+    # what makes bytes not a script is that they do not parse
+    for bad, err_msg in (
+        (bytes.fromhex("0201"), "Not enough data for pushdata"),
+        (bytes.fromhex("4c05aabb"), "Not enough data for pushdata"),
+    ):
+        with pytest.raises(BTClibValueError, match=err_msg):
+            Script(bad)
+
+    # an op code with no name of its own parses as UNKNOWN_OP_CODE_n and
+    # serializes back to the same byte, so it is a valid script either way
+    unknown = bytes([0xBB])
+    assert Script(unknown).asm == ["UNKNOWN_OP_CODE_187"]
+    assert serialize(Script(unknown).asm) == unknown

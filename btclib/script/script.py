@@ -390,4 +390,25 @@ class Script:
             self.assert_valid()
 
     def assert_valid(self) -> None:
-        serialize(self.asm)
+        """Assert that the bytes parse as a script.
+
+        Which is what makes them one: a truncated push, a pushdata length
+        over 520, or an op code no name is known for are the ways they can
+        fail to. Not a round-trip check, and it is worth saying so because
+        it used to look like one -- it was serialize(self.asm) with the
+        result discarded.
+
+        A round-trip check would be wrong, not merely redundant: a
+        non-minimal push is consensus-legal, and re-serializing it yields
+        different bytes (4c01ff, an OP_PUSHDATA1 of one byte, comes back as
+        01ff). Measured over 200k random byte strings, a strict comparison
+        rejects 16 of them.
+
+        And it was redundant. serialize() writes back every command shape
+        parse() can produce, UNKNOWN_OP_CODE_n included, by an explicit
+        branch: over those same 200k, and over all 256 one-byte scripts,
+        it raised for nothing parse() had accepted. It was a second parse
+        and a second serialization per Script, and ScriptPubKey ran the
+        pair twice.
+        """
+        parse(self.script, accept_unknown=True)

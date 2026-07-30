@@ -12,6 +12,7 @@
 from __future__ import annotations
 
 from collections.abc import Sequence
+from dataclasses import dataclass
 from typing import Callable
 
 from btclib import b32, b58, var_bytes
@@ -303,6 +304,17 @@ def type_and_payload(script_pub_key: Octets) -> tuple[str, bytes]:
     return "unknown", script_pub_key
 
 
+# a dataclass, like the Script it extends, so that network is a *field*
+# and not merely an annotation on a plain subclass. It was the latter, so
+# dataclasses.fields(ScriptPubKey) reported only script, and
+# dataclasses.replace(testnet_spk) rebuilt it through ScriptPubKey(script=)
+# alone -- returning a mainnet ScriptPubKey, silently.
+#
+# init=False and eq=False keep the two written out below: __init__ takes
+# Octets and a check_validity flag the generated one would not, and __eq__
+# answers NotImplemented for a non-ScriptPubKey where the generated one
+# compares by exact class
+@dataclass(init=False, eq=False)
 class ScriptPubKey(Script):
     network: str
 
@@ -350,9 +362,13 @@ class ScriptPubKey(Script):
         check_validity: bool = True,
     ) -> None:
         self.network = network
+        # network first, then super(): Script.__init__ calls
+        # self.assert_valid(), which dispatches to the override below and
+        # so needs the field set. That call is also the whole validation,
+        # the override running Script's checks and the network one, which
+        # is why there is no second assert_valid() here -- there used to
+        # be, so every ScriptPubKey parsed its script twice
         super().__init__(script, check_validity=check_validity)
-        if check_validity:
-            self.assert_valid()
 
     def assert_valid(self) -> None:
         super().assert_valid()

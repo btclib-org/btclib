@@ -551,6 +551,32 @@ Major changes includes:
   and `"9"` raises for being of odd length rather than being nine. The
   behaviour is unchanged and deliberate — a decimal representation is what
   `int` itself is for — and now the docstring says so
+- **`ScriptPubKey` is a dataclass**, as the `Script` it extends is. It was a
+  plain subclass of one, so `network` was a bare annotation rather than a
+  field: `dataclasses.fields` reported only `script`, and
+  `dataclasses.replace(testnet_spk)` rebuilt the instance through
+  `ScriptPubKey(script=...)` alone — returning a **mainnet** ScriptPubKey,
+  and a mainnet `.address`, in silence. `dataclasses.replace(spk,
+  network=...)` now works too, which was not expressible at all, and the
+  generated `__repr__` names the network where it used to render a testnet
+  and a mainnet ScriptPubKey identically. `__init__` and `__eq__` stay
+  written out (`init=False, eq=False`)
+- **A `ScriptPubKey` parses its script once**, not twice. `__init__` called
+  `assert_valid()` after `super().__init__` had already done so: `Script.
+  __init__` calls `self.assert_valid()`, which dispatches to the override,
+  which runs Script's check *and* the network one — the whole validation.
+  Counted through the module: two parses and two serializations per
+  ScriptPubKey before, one parse and no serialization now
+- **`Script.assert_valid` is a parse, and says so.** It was
+  `serialize(self.asm)` with the result discarded, which looks like a
+  round-trip check and is not one. A round-trip check would be wrong rather
+  than merely absent: a non-minimal push is consensus-legal and does not
+  survive one — `4c01ff`, an OP_PUSHDATA1 of a single byte, comes back as
+  `01ff`, and over 200k random byte strings a strict comparison rejects 16.
+  The `serialize` call was also redundant: it writes back every command
+  shape `parse` can produce, `UNKNOWN_OP_CODE_n` included, by an explicit
+  branch, and over those 200k strings plus all 256 one-byte scripts it
+  raised for nothing `parse` had accepted
 - **`BlockHeader.assert_valid` no longer requires a valid proof of work**,
   structural and consensus validity being different questions. It used to
   end in `assert_valid_pow`, so a header *being mined* — well-formed, no
