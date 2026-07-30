@@ -55,10 +55,11 @@ def _is_public(parts: tuple[str, ...]) -> bool:
     """Whether a module path names something a user is meant to import.
 
     `__init__` is the package itself and not a private name, which is the
-    only reason this is not a one-line `startswith("_")`. Nothing under
-    `btclib/` is private today -- `_data` holds data and no python -- so
-    this returns True for every module in the tree, and the test below is
-    what exercises the other answer rather than a future rename.
+    only reason this is not a one-line `startswith("_")`. One module under
+    `btclib/` is private, `_ripemd160`, the pure python fallback
+    `btclib.hashes` reaches where hashlib has no RIPEMD-160: it is not
+    API, so it takes no automodule stanza, and the underscore is what says
+    so. `_data` holds data and no python.
     """
     return not any(part.startswith("_") for part in parts if part != "__init__")
 
@@ -74,12 +75,11 @@ def _shipped() -> set[str]:
     names = {"btclib"}
     for path in sorted(_PACKAGE_DIR.rglob("*.py")):
         parts = path.relative_to(_PACKAGE_DIR).with_suffix("").parts
-        # not reached by this tree, and kept: nothing under btclib/ is
-        # private today, so the day something is, it must not turn up as a
-        # module the documentation is missing. `_is_public` is unit tested
-        # for both answers below, which is the coverage that matters here
+        # `_ripemd160` is what this skips: a private module is not
+        # documentation the tree is missing. `_is_public` is unit tested
+        # for both answers below, and for the shapes the tree has none of
         if not _is_public(parts):
-            continue  # pragma: no cover
+            continue
         if parts[-1] == "__init__":
             parts = parts[:-1]
         names.add(".".join(("btclib", *parts)))
@@ -145,5 +145,9 @@ def test_shipped_module_is_a_dotted_btclib_name(name: str) -> None:
     ],
 )
 def test_is_public(parts: tuple[str, ...], public: bool) -> None:
-    """Both answers, which the tree itself only ever gives one of."""
+    """Both answers, and the two shapes the tree itself has none of.
+
+    A private module it has, `btclib/_ripemd160.py`; a private package and
+    a private module inside a package it does not.
+    """
     assert _is_public(parts) is public

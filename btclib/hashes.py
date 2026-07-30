@@ -16,34 +16,63 @@ from collections.abc import Sequence
 from typing import Callable
 
 from btclib import var_int
+from btclib._ripemd160 import ripemd160 as pure_python_ripemd160
 from btclib.alias import HashF, Octets
 from btclib.exceptions import BTClibValueError
 from btclib.utils import bytes_from_octets
 
-# OpenSSL 3.0.0-3.0.6 ships ripemd160 only in the legacy provider, so
-# there hashlib.new raises ValueError unless that provider is loaded
-# first: https://bugs.python.org/issue47101. OpenSSL 3.0.7 put it back
-# in the default provider (openssl/openssl#19375), which is why the
-# fallback stays uncovered: no interpreter the suite runs under, local
-# or CI, links one of the seven affected releases, and covering the
-# branch would mean building one. The unversioned libssl.so also makes
-# the fallback Linux-only on purpose — it is the dev-package symlink,
-# not even the libssl.so.3 runtime name: the distro pythons linking
-# the affected OpenSSLs lived there, while macOS builds bundle their
-# own
-try:
-    hashlib.new("ripemd160")
-except ValueError:  # pragma: no cover
-    import ctypes
 
-    ctypes.CDLL("libssl.so").OSSL_PROVIDER_load(None, b"legacy")
-    ctypes.CDLL("libssl.so").OSSL_PROVIDER_load(None, b"default")
+def _hashlib_has_ripemd160() -> bool:
+    """Whether this interpreter's hashlib can do RIPEMD-160 at all.
+
+    OpenSSL 3.0.0-3.0.6 ships ripemd160 in the legacy provider alone, so
+    there hashlib.new raises ValueError unless that provider has been
+    loaded: https://bugs.python.org/issue47101. OpenSSL 3.0.7 put it back
+    in the default provider (openssl/openssl#19375), and no interpreter
+    the suite runs under links one of the seven affected releases -- but
+    something still shipping does. Ubuntu 22.04 is on
+    openssl 3.0.2-0ubuntu1.26 as of 2026-07-30, no ripemd anywhere in its
+    changelog, supported to 2027-04 and under ESM to 2032; RHEL 9.0 and
+    9.1 are on 3.0.1. A host in FIPS mode is the other False, and there
+    no provider makes it True: RIPEMD-160 is not a FIPS algorithm, while
+    bitcoin addresses are RIPEMD-160 whatever a policy says.
+
+    Not a Linux question, contrary to what the code this replaced
+    assumed. It is a *distro python* question: the python.org installers
+    never bundled an affected OpenSSL (3.11 has 1.1.1q, 3.12 has 3.0.11,
+    3.13 has 3.0.15), macOS system python is LibreSSL, which has
+    ripemd160, and python-build-standalone is on 3.5.x.
+
+    What this replaced was `ctypes.CDLL("libssl.so")` loading the legacy
+    provider at import time, and it was wrong twice over. Unversioned
+    `libssl.so` is the dev-package symlink -- jammy's libssl3 ships
+    `libssl.so.3` and `ossl-modules/legacy.so`, and the symlink comes
+    with libssl-dev -- so it raised OSError on precisely the hosts that
+    needed it: a server, a container, a venv built from wheels. And it
+    re-enabled OpenSSL's deprecated algorithms for the whole process,
+    every other library in the interpreter included, as an import side
+    effect, which under FIPS is not even permitted. Issue 144.
+
+    The fallback below costs about 130x an OpenSSL digest (60 us against
+    0.45 us here, on 32 bytes), and is paid only where the alternative is
+    that `import btclib.hashes` raises.
+    """
+    try:
+        hashlib.new("ripemd160")
+    except ValueError:
+        return False
+    return True
+
+
+_RIPEMD160_IN_HASHLIB = _hashlib_has_ripemd160()
 
 
 def ripemd160(octets: Octets) -> bytes:
     """Return the RIPEMD160(*) of the input octet sequence."""
     octets = bytes_from_octets(octets)
-    return hashlib.new("ripemd160", octets).digest()
+    if _RIPEMD160_IN_HASHLIB:
+        return hashlib.new("ripemd160", octets).digest()
+    return pure_python_ripemd160(octets)
 
 
 def sha1(octets: Octets) -> bytes:

@@ -41,6 +41,21 @@ Major changes includes:
   verification failed"): `pedersen` was the one module with a `verify`
   and no assert_as_valid beside it, leaving no way to learn why opening
   a commitment failed
+- importing btclib no longer dies with OSError where hashlib has no
+  RIPEMD-160, and no longer re-enables OpenSSL's deprecated algorithms
+  process-wide to avoid it. `btclib.hashes.ripemd160` falls back to a pure
+  python RIPEMD-160 (`btclib._ripemd160`, vendored from Bitcoin Core),
+  which is what makes the library importable on a host linking an OpenSSL
+  between 3.0.0 and 3.0.6 — Ubuntu 22.04 still ships 3.0.2 — or one in
+  FIPS mode, where no provider offers RIPEMD-160 and bitcoin addresses
+  need it anyway. `btclib.hashes` used to load OpenSSL's legacy provider
+  at import time through `ctypes.CDLL("libssl.so")`, an unversioned name
+  that only the dev package installs, so the fallback raised OSError on
+  the very hosts that reached it — a server, a container, a venv built
+  from wheels — and changed the algorithms available to every other
+  library in the interpreter when it did work. Where hashlib has the
+  algorithm nothing changes: it is still what computes the digest
+  (issue #144)
 - importing btclib no longer traps decimal FloatOperation in the
   process-wide context: `btclib.amount` used to do it at import time,
   changing the Decimal semantics of the unrelated code of any application
