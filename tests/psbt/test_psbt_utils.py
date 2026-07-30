@@ -14,7 +14,11 @@ import pytest
 from btclib.bip32 import BIP32KeyOrigin
 from btclib.exceptions import BTClibValueError
 from btclib.psbt import serialize_hd_key_paths
-from btclib.psbt.psbt_utils import parse_taproot_bip32, serialize_taproot_bip32
+from btclib.psbt.psbt_utils import (
+    deserialize_map,
+    parse_taproot_bip32,
+    serialize_taproot_bip32,
+)
 
 
 def test_invalid_serialize_hd_key_paths() -> None:
@@ -51,3 +55,33 @@ def test_parse_taproot_bip32_hostile_count() -> None:
     # one leaf hash announced, one byte short of it
     with pytest.raises(BTClibValueError, match="invalid number of leaf hashes: "):
         parse_taproot_bip32(b"\x01" + b"\x00" * 31 + b"\xde\xad\xbe\xef")
+
+
+def test_deserialize_map_short_read() -> None:
+    """An announced size is bounded by the data, not taken on trust.
+
+    BytesIO.read hands back whatever is left rather than what was asked
+    for, so every buffer below used to deserialize to the very same map
+    -- {b"A": b"B"} -- and serialize back to only one of them.
+    """
+    assert deserialize_map(b"\x01A\x01B\x00")[0] == {b"A": b"B"}
+
+    err_msg = "malformed psbt: not enough data for the map value, "
+    for announced_size in (b"\x02", b"\x05", b"\x09"):
+        with pytest.raises(BTClibValueError, match=err_msg):
+            deserialize_map(b"\x01A" + announced_size + b"B")
+
+    err_msg = "malformed psbt: not enough data for the map key, "
+    with pytest.raises(BTClibValueError, match=err_msg):
+        deserialize_map(b"\x05AB")
+
+
+def test_deserialize_map_unterminated() -> None:
+    """Running out of buffer is not the 0x00 that ends a map.
+
+    Reading the separator without checking that there was one to read
+    answered a truncated psbt with an IndexError.
+    """
+    err_msg = "malformed psbt: unterminated map"
+    with pytest.raises(BTClibValueError, match=err_msg):
+        deserialize_map(b"\x01A\x01B")

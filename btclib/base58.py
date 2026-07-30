@@ -45,6 +45,19 @@ from btclib.utils import bytes_from_octets
 _ALPHABET = b"123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz"
 __BASE = len(_ALPHABET)
 
+# The longest string btclib legitimately decodes is a BIP32 extended
+# key: 78 bytes of payload plus 4 of checksum, which base58 writes in at
+# most 112 characters (an address takes 35, a WIF 52). The cap is what
+# keeps the quadratic accumulation of _b58decode_to_int away from
+# attacker-supplied text: measured 13 ms at 10k characters, 198 ms at
+# 40k and 3312 ms at 160k, four times the cost per doubling of the
+# input, and the checksum that would reject it is verified only once
+# the decoding has been paid for.
+# The encoder is deliberately left uncapped, being quadratic too: what
+# it is handed is data the caller already holds, not a string that
+# arrived from the network.
+MAX_LENGTH = 112
+
 
 def _b58encode_from_int(i: int) -> bytes:
     result = b""
@@ -115,6 +128,10 @@ def b58decode(v: String, out_size: int | None = None) -> bytes:
     if isinstance(v, str):
         # do not trim spaces
         v = v.encode("ascii")
+
+    if len(v) > MAX_LENGTH:
+        err_msg = f"too many base58 characters: {len(v)}, max is {MAX_LENGTH}"
+        raise BTClibValueError(err_msg)
 
     result = _b58decode(v)
     if len(result) < 4:

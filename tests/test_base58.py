@@ -12,6 +12,7 @@
 import pytest
 
 from btclib.base58 import (
+    MAX_LENGTH,
     _b58decode,
     _b58decode_to_int,
     _b58encode,
@@ -105,3 +106,24 @@ def test_integers() -> None:
     n = int(number, 16)
     assert _b58decode_to_int(digits) == n
     assert _b58encode_from_int(n) == digits[1:]
+
+
+def test_max_length() -> None:
+    """Decoding is quadratic, so the input is bounded first.
+
+    Measured 13 ms at 10k characters, 198 ms at 40k and 3312 ms at 160k,
+    four times the cost per doubling -- and the checksum that rejects
+    the string is verified only once the decoding has been paid for.
+    """
+    # the longest thing btclib encodes: a 78-byte BIP32 extended key,
+    # here the one whose 112 characters no payload can exceed
+    longest = b58encode(b"\xff" * 78)
+    assert len(longest) == MAX_LENGTH
+    assert b58decode(longest, 78) == b"\xff" * 78
+
+    err_msg = f"too many base58 characters: {MAX_LENGTH + 1}, max is {MAX_LENGTH}"
+    with pytest.raises(BTClibValueError, match=err_msg):
+        b58decode(b"1" * (MAX_LENGTH + 1))
+    # str and bytes take the same path
+    with pytest.raises(BTClibValueError, match=err_msg):
+        b58decode("1" * (MAX_LENGTH + 1))

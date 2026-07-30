@@ -328,6 +328,25 @@ class _BIP32KeyData(BIP32KeyData):
             self.assert_valid()
 
 
+def _invalid_child(index: int, reason: str) -> BTClibValueError:
+    """Return the error for a child BIP32 declares invalid.
+
+    BIP32 has three of these -- parse256(IL) >= n, a zero private child,
+    a public child at infinity -- and tells the caller to "proceed with
+    the next value for i". Raising says so rather than deriving that
+    next index silently: this code is asked for one index, and returning
+    the key of another is a substitution nothing downstream could
+    detect. Bitcoin Core answers the same way, CKDpriv returning false
+    and leaving the choice to whoever picked the path.
+
+    At odds of about 2^-127 none of the three is reachable, so what this
+    buys is a defined answer rather than a key no other wallet derives.
+    """
+    err_msg = f"invalid child index {index}: {reason}"
+    err_msg += "; BIP32 mandates deriving the next index instead"
+    return BTClibValueError(err_msg)
+
+
 def __prv_key_derivation(xkey: _BIP32KeyData, index: int, pub_key: bytes) -> None:
     xb = (
         xkey.key
@@ -336,19 +355,33 @@ def __prv_key_derivation(xkey: _BIP32KeyData, index: int, pub_key: bytes) -> Non
     )
     xb += index.to_bytes(4, byteorder="big", signed=False)
     hmac_ = hmac.new(xkey.chain_code, xb, "sha512").digest()
-    xkey.chain_code = hmac_[32:]
     offset = int.from_bytes(hmac_[:32], byteorder="big", signed=False)
-    xkey.prv_key_int = (xkey.prv_key_int + offset) % ec.n
-    xkey.key = b"\x00" + xkey.prv_key_int.to_bytes(32, byteorder="big", signed=False)
+    if offset >= ec.n:
+        raise _invalid_child(index, "the hmac left half is not a valid scalar")
+    prv_key_int = (xkey.prv_key_int + offset) % ec.n
+    if prv_key_int == 0:
+        raise _invalid_child(index, "the child private key is zero")
+
+    # xkey is mutated only past the checks, so a rejected index leaves
+    # it the key it was rather than half a derivation
+    xkey.chain_code = hmac_[32:]
+    xkey.prv_key_int = prv_key_int
+    xkey.key = b"\x00" + prv_key_int.to_bytes(32, byteorder="big", signed=False)
 
 
 def __pub_key_derivation(xkey: _BIP32KeyData, index: int) -> None:
     xb = xkey.key + index.to_bytes(4, byteorder="big", signed=False)
     hmac_ = hmac.new(xkey.chain_code, xb, "sha512").digest()
-    xkey.chain_code = hmac_[32:]
     offset = int.from_bytes(hmac_[:32], byteorder="big", signed=False)
-    xkey.pub_key_point = ec.add(xkey.pub_key_point, mult(offset))
-    xkey.key = bytes_from_point(xkey.pub_key_point)
+    if offset >= ec.n:
+        raise _invalid_child(index, "the hmac left half is not a valid scalar")
+    pub_key_point = ec.add(xkey.pub_key_point, mult(offset))
+    if pub_key_point[1] == 0:  # INF, the point at infinity, is (int, 0)
+        raise _invalid_child(index, "the child public key is the point at infinity")
+
+    xkey.chain_code = hmac_[32:]
+    xkey.pub_key_point = pub_key_point
+    xkey.key = bytes_from_point(pub_key_point)
 
 
 def _derive(

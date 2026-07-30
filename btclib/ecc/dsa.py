@@ -50,6 +50,20 @@ def _serialize_scalar(scalar: int) -> bytes:
     return _DER_SCALAR_MARKER + var_bytes.serialize(scalar_bytes)
 
 
+def _parse_der_value(stream: BytesIO) -> bytes:
+    """Return the [size][value] octets a DER element announced.
+
+    var_bytes reports a size that overruns the buffer, or a zero one, as
+    a BTClibRuntimeError; here both mean the DER is malformed, and the
+    callers that filter parse failures -- psbt_in._assert_valid_partial_sigs
+    among them -- catch BTClibValueError alone.
+    """
+    try:
+        return var_bytes.parse(stream, forbid_zero_size=True)
+    except BTClibRuntimeError as e:
+        raise BTClibValueError(f"invalid DER length: {e}") from e
+
+
 def _deserialize_scalar(sig_data_stream: BytesIO, strict: bool = True) -> int:
     marker = sig_data_stream.read(1)
     if marker != _DER_SCALAR_MARKER:
@@ -57,16 +71,23 @@ def _deserialize_scalar(sig_data_stream: BytesIO, strict: bool = True) -> int:
         err_msg += f", instead of integer element {_DER_SCALAR_MARKER.hex()}"
         raise BTClibValueError(err_msg)
 
-    r_bytes = var_bytes.parse(sig_data_stream, forbid_zero_size=True)
-    if r_bytes[0] == 0 and r_bytes[1] < 0x80 and strict:
-        raise BTClibValueError("invalid 'highest bit set' padding")
+    scalar_bytes = _parse_der_value(sig_data_stream)
 
-    scalar = int.from_bytes(r_bytes, byteorder="big", signed=False)
+    if strict:
+        # a leading zero byte is legal only to keep a value whose highest
+        # bit is set from reading as negative: any other one is a
+        # non-minimal encoding, which BIP66 rejects.
+        # The length test has to come first, and so does strict: with the
+        # three conditions in the other order a one-byte scalar -- the
+        # zero of 020100 -- indexed past the end of the buffer, raising
+        # the IndexError that no caller of a parser thinks to catch
+        if len(scalar_bytes) > 1 and scalar_bytes[0] == 0 and scalar_bytes[1] < 0x80:
+            raise BTClibValueError("invalid 'highest bit set' padding")
+        if scalar_bytes[0] >= 0x80:
+            raise BTClibValueError("invalid negative scalar")
 
-    if r_bytes[0] >= 0x80 and strict:
-        raise BTClibValueError("invalid negative scalar")
-
-    return abs(scalar)
+    # unsigned, so never negative: the abs() this used to take was a no-op
+    return int.from_bytes(scalar_bytes, byteorder="big", signed=False)
 
 
 @dataclass(frozen=True)
@@ -187,7 +208,7 @@ class Sig:
             raise BTClibValueError(err_msg)
 
         # [data-size][0x02][r-size][r][0x02][s-size][s]
-        sig_data = var_bytes.parse(stream, forbid_zero_size=True)
+        sig_data = _parse_der_value(stream)
 
         # [0x02][r-size][r][0x02][s-size][s]
         sig_data_substream = bytesio_from_binarydata(sig_data)

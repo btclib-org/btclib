@@ -9,6 +9,7 @@
 # or distributed except according to the terms contained in the LICENSE file.
 """Tests for the `btclib.bip32` module."""
 
+import hmac
 import json
 import re
 from os import path
@@ -27,6 +28,7 @@ from btclib.bip32 import (
 )
 from btclib.bip32.bip32 import _derive
 from btclib.bip32.der_path import _indexes_from_bip32_path_str
+from btclib.ec import secp256k1 as ec
 from btclib.exceptions import BTClibValueError
 from btclib.hashes import hash160
 from btclib.to_pub_key import pub_keyinfo_from_key
@@ -413,3 +415,61 @@ def test_no_key_material_in_repr_or_exceptions() -> None:
     with pytest.raises(BTClibValueError, match="not a public key: ") as excinfo:
         crack_prv_key(xprv, child_xprv)
     assert xprv not in str(excinfo.value)
+
+
+class _ForcedHmac:
+    """An hmac whose digest is chosen rather than computed."""
+
+    def __init__(self, digest: bytes) -> None:
+        self._digest = digest
+
+    def digest(self) -> bytes:
+        return self._digest
+
+
+def _force_hmac(monkeypatch: pytest.MonkeyPatch, il: int, chain_code: bytes) -> None:
+    """Make every derivation see il as the left half of its hmac.
+
+    The three children BIP32 calls invalid are unreachable at odds of
+    about 2^-127, which is exactly why the branches rejecting them can
+    only be tested by dictating the hmac. bip32 calls hmac.new through
+    the module, so patching it there is what the derivation sees.
+    """
+    digest = il.to_bytes(32, byteorder="big", signed=False) + chain_code
+    monkeypatch.setattr(hmac, "new", lambda *args, **kwargs: _ForcedHmac(digest))
+
+
+def test_invalid_child_prv_key(monkeypatch: pytest.MonkeyPatch) -> None:
+    rootxprv = "xprv9s21ZrQH143K3QTDL4LXw2F7HEK3wJUD2nW2nRk4stbPy6cq3jPPqjiChkVvvNKmPGJxWUtg6LnF5kejMRNNU3TGtRBeJgk33yuGBxrMPHi"
+    xkey = BIP32KeyData.b58decode(rootxprv)
+    prv_key_int = int.from_bytes(xkey.key[1:], byteorder="big", signed=False)
+
+    # parse256(IL) >= n: no valid scalar to offset the parent key by
+    err_msg = "invalid child index 0: the hmac left half is not a valid scalar"
+    _force_hmac(monkeypatch, ec.n, xkey.chain_code)
+    with pytest.raises(BTClibValueError, match=err_msg):
+        derive(rootxprv, "m/0")
+
+    # ki = 0: the one offset that cancels the parent key out
+    err_msg = "invalid child index 0: the child private key is zero"
+    _force_hmac(monkeypatch, ec.n - prv_key_int, xkey.chain_code)
+    with pytest.raises(BTClibValueError, match=err_msg):
+        derive(rootxprv, "m/0")
+
+
+def test_invalid_child_pub_key(monkeypatch: pytest.MonkeyPatch) -> None:
+    rootxprv = "xprv9s21ZrQH143K3QTDL4LXw2F7HEK3wJUD2nW2nRk4stbPy6cq3jPPqjiChkVvvNKmPGJxWUtg6LnF5kejMRNNU3TGtRBeJgk33yuGBxrMPHi"
+    rootxpub = xpub_from_xprv(rootxprv)
+    xkey = BIP32KeyData.b58decode(rootxprv)
+    prv_key_int = int.from_bytes(xkey.key[1:], byteorder="big", signed=False)
+
+    err_msg = "invalid child index 0: the hmac left half is not a valid scalar"
+    _force_hmac(monkeypatch, ec.n, xkey.chain_code)
+    with pytest.raises(BTClibValueError, match=err_msg):
+        derive(rootxpub, "m/0")
+
+    # offset * G is the parent point negated, so their sum is infinity
+    err_msg = "invalid child index 0: the child public key is the point at infinity"
+    _force_hmac(monkeypatch, ec.n - prv_key_int, xkey.chain_code)
+    with pytest.raises(BTClibValueError, match=err_msg):
+        derive(rootxpub, "m/0")

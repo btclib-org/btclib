@@ -9,6 +9,7 @@
 # or distributed except according to the terms contained in the LICENSE file.
 """Tests for the `btclib.bms` module."""
 
+import base64
 import json
 from hashlib import sha256
 from os import path
@@ -107,8 +108,19 @@ def test_exceptions() -> None:
     with pytest.raises(BTClibValueError, match=err_msg):
         bms.Sig(26, bms_sig.dsa_sig)
 
+    # 84 base64 characters and then a padding one, i.e. a pad following
+    # a complete group. b64decode used to discard it, as it discarded
+    # anything out of the alphabet, and hand over the 63 bytes left
     exp_sig = "IHdKsFF1bUrapA8GMoQUbgI+Ad0ZXyX1c/yAZHmJn5hNBi7J+TrI1615FG3g9JEOPGVvcfDWIFWrg2exLoVc="
-    err_msg = "invalid decoded length: "
+    err_msg = "invalid base64 encoding: "
+    with pytest.raises(BTClibValueError, match=err_msg):
+        bms.assert_as_valid(msg, address, exp_sig)
+    assert not bms.verify(msg, address, exp_sig)
+
+    # well formed base64 this time, but 60 bytes: too few for the
+    # [1-byte rf][32-bytes r][32-bytes s] the slices below assume
+    exp_sig = "IHdKsFF1bUrapA8GMoQUbgI+Ad0ZXyX1c/yAZHmJn5hSNBi7J+TrI1615FG3g9JEOPGVvcfDWIFWrg2e"
+    err_msg = "invalid decoded length: 60"
     with pytest.raises(BTClibValueError, match=err_msg):
         bms.assert_as_valid(msg, address, exp_sig)
     assert not bms.verify(msg, address, exp_sig)
@@ -679,3 +691,69 @@ def test_recover_pub_key_input_type() -> None:
     )
     Q2 = dsa.recover_pub_key(key_id, magic_msg, bms_sig.dsa_sig, True, sha256)
     assert Q == Q2
+
+
+def test_parse_length_is_not_a_validity_opinion() -> None:
+    """65 bytes is what makes the [rf][r][s] slices mean anything.
+
+    Skipped under check_validity=False, a short buffer still produced a
+    Sig, r and s coming from truncated slices: every input sharing a
+    prefix collapsed onto the same signature.
+    """
+    wif, _ = bms.gen_keys()
+    sig_bin = bms.sign(b"test", wif).serialize()
+
+    for length in (0, 1, 33, 64):
+        err_msg = f"invalid decoded length: {length} instead of 65"
+        for check_validity in (True, False):
+            with pytest.raises(BTClibValueError, match=err_msg):
+                bms.Sig.parse(sig_bin[:length], check_validity=check_validity)
+
+
+def test_b64decode_rejects_what_is_not_base64() -> None:
+    """b64decode used to discard whatever was not in the alphabet.
+
+    Which made a signature reachable from unboundedly many strings, the
+    one thing a signature encoding must not allow.
+    """
+    wif, _ = bms.gen_keys()
+    b64_sig = bms.sign(b"test", wif).b64encode()
+    assert bms.Sig.b64decode(b64_sig).b64encode() == b64_sig
+
+    # surrounding whitespace stays tolerated, being what a copied and
+    # pasted signature carries
+    assert bms.Sig.b64decode(f"  {b64_sig}\n").b64encode() == b64_sig
+    assert bms.Sig.b64decode(f" {b64_sig} ".encode()).b64encode() == b64_sig
+
+    err_msg = "invalid base64 encoding: "
+    for junk in ("!", "-", " ", "\n"):
+        # inserted mid-string, where a strip cannot reach it
+        bad_sig = b64_sig[:40] + junk + b64_sig[40:]
+        with pytest.raises(BTClibValueError, match=err_msg):
+            bms.Sig.b64decode(bad_sig)
+
+
+def test_b64decode_requires_the_canonical_encoding() -> None:
+    """One signature, one string.
+
+    65 bytes take 88 base64 characters, the last data one carrying 4
+    significant bits and 2 that are discarded: four distinct strings
+    used to decode to the very same signature. validate=True does not
+    see that, and what it makes of padding varies with the interpreter
+    -- 3.9 takes an excess pad that 3.11 refuses -- so what settles it
+    everywhere is requiring the encoding b64encode gives back.
+    """
+    alphabet = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/"
+    wif, _ = bms.gen_keys()
+    b64_sig = bms.sign(b"test", wif).b64encode()
+    assert len(b64_sig) == 88
+
+    err_msg = "invalid base64 encoding: not canonical"
+    i = alphabet.index(b64_sig[86])
+    for discarded_bits in (1, 2, 3):
+        malleated = b64_sig[:86] + alphabet[i ^ discarded_bits] + b64_sig[87:]
+        assert malleated != b64_sig
+        # the same signature, spelled otherwise
+        assert base64.b64decode(malleated) == base64.b64decode(b64_sig)
+        with pytest.raises(BTClibValueError, match=err_msg):
+            bms.Sig.b64decode(malleated)

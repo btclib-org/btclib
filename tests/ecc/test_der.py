@@ -13,7 +13,7 @@ import pytest
 
 from btclib.ec import secp256k1
 from btclib.ecc.dsa import Sig
-from btclib.exceptions import BTClibRuntimeError, BTClibValueError
+from btclib.exceptions import BTClibValueError
 
 ec = secp256k1
 
@@ -53,9 +53,13 @@ def test_der_deserialize() -> None:
     with pytest.raises(BTClibValueError, match=err_msg):
         Sig.parse(bad_sig_bin)
 
+    # a length overrunning the buffer is the DER being malformed, so it
+    # is a BTClibValueError: var_bytes calls it a BTClibRuntimeError, and
+    # a caller filtering parse failures on BTClibValueError -- as
+    # psbt_in._assert_valid_partial_sigs does -- would not have caught it
     bad_sig_bin = sig_bin[:1] + b"\x41" + sig_bin[2:]
-    err_msg = "not enough binary data"
-    with pytest.raises(BTClibRuntimeError, match=err_msg):
+    err_msg = "invalid DER length: not enough binary data"
+    with pytest.raises(BTClibValueError, match=err_msg):
         Sig.parse(bad_sig_bin)
 
     # r and s scalars
@@ -66,13 +70,13 @@ def test_der_deserialize() -> None:
             Sig.parse(bad_sig_bin)
 
         bad_sig_bin = sig_bin[: offset - 1] + b"\x00" + sig_bin[offset:]
-        err_msg = "zero size"
-        with pytest.raises(BTClibRuntimeError, match=err_msg):
+        err_msg = "invalid DER length: zero size"
+        with pytest.raises(BTClibValueError, match=err_msg):
             Sig.parse(bad_sig_bin)
 
         bad_sig_bin = sig_bin[: offset - 1] + b"\x80" + sig_bin[offset:]
-        err_msg = "not enough binary data"
-        with pytest.raises(BTClibRuntimeError, match=err_msg):
+        err_msg = "invalid DER length: not enough binary data"
+        with pytest.raises(BTClibValueError, match=err_msg):
             Sig.parse(bad_sig_bin)
 
         bad_sig_bin = sig_bin[:offset] + b"\x80" + sig_bin[offset + 1 :]
@@ -91,6 +95,34 @@ def test_der_deserialize() -> None:
     err_msg = "invalid DER sequence length"
     with pytest.raises(BTClibValueError, match=err_msg):
         Sig.parse(bad_sig_bin)
+
+
+def test_der_one_byte_scalar() -> None:
+    """A one-byte DER scalar used to index past the end of its buffer.
+
+    3006020100020100 is r = s = 0, each written in the one byte that is
+    minimal DER for zero. The 'highest bit set' test read the second
+    byte of a value having none, and strict being the last of its three
+    conditions did not spare it: the IndexError escaped Sig.parse
+    whatever the flags, and IndexError is not what a caller filtering
+    parse failures catches.
+    """
+    for strict in (True, False):
+        err_msg = "scalar r not in 1..n-1: "
+        with pytest.raises(BTClibValueError, match=err_msg):
+            Sig.parse("3006020100020100", strict=strict)
+
+        # check_validity=False asks for the numbers those bytes spell,
+        # whatever they are, and what they spell is zero
+        sig = Sig.parse("3006020100020100", check_validity=False, strict=strict)
+        assert (sig.r, sig.s) == (0, 0)
+
+    # a single byte with the highest bit set is still a negative scalar
+    err_msg = "invalid negative scalar"
+    with pytest.raises(BTClibValueError, match=err_msg):
+        Sig.parse("3006020180020180")
+    sig = Sig.parse("3006020180020180", check_validity=False, strict=False)
+    assert (sig.r, sig.s) == (0x80, 0x80)
 
 
 def test_der_serialize() -> None:

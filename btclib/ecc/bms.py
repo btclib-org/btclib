@@ -198,7 +198,12 @@ class Sig:
         stream = bytesio_from_binarydata(data)
         sig_bin = stream.read(_REQUIRED_LENGHT)
 
-        if check_validity and len(sig_bin) != _REQUIRED_LENGHT:
+        # the length is checked whatever check_validity says: it is not
+        # an opinion about the signature, it is what makes the slices
+        # below mean anything. Skipped, a short buffer still yielded a
+        # Sig, r and s coming from truncated slices -- so every input
+        # sharing a prefix mapped to the same signature
+        if len(sig_bin) != _REQUIRED_LENGHT:
             err_msg = f"invalid decoded length: {len(sig_bin)}"
             err_msg += f" instead of {_REQUIRED_LENGHT}"
             raise BTClibValueError(err_msg)
@@ -220,10 +225,25 @@ class Sig:
         tuple or as base64-encoding of the compact format [1-byte
         rf][32-bytes r][32-bytes s].
         """
-        if isinstance(data, str):
-            data = data.strip()
-
-        data_decoded = base64.b64decode(data)
+        # b64decode discards whatever is not in the base64 alphabet, so
+        # a signature used to be reachable from unboundedly many
+        # strings. validate=True rejects that junk, but it is not enough
+        # on its own: what it makes of padding depends on the
+        # interpreter (3.9 takes an excess pad that 3.11 refuses), and
+        # every version discards the bits a non-final group leaves over.
+        # What settles it everywhere is requiring the canonical
+        # encoding, the one b64encode gives back.
+        # Stripping stays, and now covers bytes as well as str: the
+        # whitespace around a copied and pasted signature is the one
+        # thing that was silently discarded and is worth tolerating
+        data = data.strip()
+        try:
+            data_bin = data.encode("ascii") if isinstance(data, str) else data
+            data_decoded = base64.b64decode(data_bin, validate=True)
+        except ValueError as e:  # binascii.Error and UnicodeEncodeError
+            raise BTClibValueError(f"invalid base64 encoding: {e}") from e
+        if base64.b64encode(data_decoded) != data_bin:
+            raise BTClibValueError("invalid base64 encoding: not canonical")
         return cls.parse(data_decoded, check_validity)
 
 

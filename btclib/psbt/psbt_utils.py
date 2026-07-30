@@ -35,6 +35,23 @@ LEAF_HASH_SIZE = 32
 FINGERPRINT_SIZE = 4
 
 
+def _read_exactly(stream: BytesIO, size: int, what: str) -> bytes:
+    """Return size octets, or raise: a short read is a truncated psbt.
+
+    BytesIO.read returns what is left when the buffer holds less than
+    was asked for. Taken at face value that is malleability, not just a
+    missing check: the announced size is what distinguishes two inputs
+    that would otherwise deserialize to the same object and serialize
+    back to only one of them.
+    """
+    data = stream.read(size)
+    if len(data) != size:
+        err_msg = f"malformed psbt: not enough data for the {what}, "
+        err_msg += f"{len(data)} bytes instead of {size}"
+        raise BTClibValueError(err_msg)
+    return data
+
+
 def deserialize_map(data: BinaryData) -> tuple[dict[bytes, bytes], BytesIO]:
     stream = bytesio_from_binarydata(data)
     if (
@@ -43,11 +60,16 @@ def deserialize_map(data: BinaryData) -> tuple[dict[bytes, bytes], BytesIO]:
         raise BTClibValueError("malformed psbt: at least a map is missing")
     partial_map: dict[bytes, bytes] = {}
     while True:
-        if stream.read(1)[0] == 0:
+        # a map ends at its 0x00 separator; running out of buffer before
+        # one is a truncated psbt, not the end of the map
+        marker = stream.read(1)
+        if not marker:
+            raise BTClibValueError("malformed psbt: unterminated map")
+        if marker[0] == 0:
             return partial_map, stream
         stream.seek(-1, 1)  # reset stream position
-        key = stream.read(var_int.parse(stream))
-        value = stream.read(var_int.parse(stream))
+        key = _read_exactly(stream, var_int.parse(stream), "map key")
+        value = _read_exactly(stream, var_int.parse(stream), "map value")
         if key in partial_map:
             raise BTClibValueError(f"duplicated key in psbt map: 0x{key.hex()}")
         partial_map[key] = value

@@ -140,7 +140,7 @@ def legacy(script_code: Octets, tx: Tx, vin_i: int, hash_type: int) -> bytes:
         )
     new_tx.vin[vin_i].script_sig = script_code
 
-    if hash_type & 0x1F is NONE:
+    if hash_type & 0x1F == NONE:
         new_tx.vout = []
         for i, txin in enumerate(new_tx.vin):
             if i != vin_i:

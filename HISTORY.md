@@ -282,6 +282,64 @@ Major changes includes:
   it from, instead of the import raising PackageNotFoundError: cloning
   the repository and importing works again, as it did before the version
   moved (issue #150)
+- `dsa.Sig.parse` no longer raises IndexError on a one-byte DER scalar:
+  `3006020100020100` is r = s = 0, each written in the single byte that
+  is minimal DER for zero, and the "highest bit set" padding test read
+  the second byte of a value having none. `strict` being the last of its
+  three conditions did not spare it, so the IndexError escaped whatever
+  the flags. A DER length overrunning its buffer is now a
+  BTClibValueError too, where var_bytes calls it a BTClibRuntimeError:
+  `psbt_in._assert_valid_partial_sigs` filters parse failures on
+  BTClibValueError, so both used to escape `Psbt.parse` (issue #138)
+- `psbt_utils.deserialize_map` checks that its reads returned the number
+  of bytes announced. They can come back short, so a truncated psbt used
+  to yield short keys and values: distinct inputs deserialized to the
+  same object and serialized back to only one of them. Running out of
+  buffer before a map's 0x00 separator is a "malformed psbt: unterminated
+  map" as well, where it used to be an IndexError (issue #138)
+- `b58decode` refuses more than 112 characters, the longest a legitimate
+  payload takes — a 78-byte BIP32 extended key plus its 4-byte checksum.
+  Decoding is quadratic and the checksum is verified only once it has
+  been paid for: 160k characters of an address field cost 3.3 seconds
+  before being rejected. `b58encode` is deliberately left uncapped, what
+  it is handed being data the caller already holds (issue #138)
+- `bms.Sig.parse` checks the 65-byte length whatever `check_validity`
+  says: it is not an opinion about the signature but what makes the
+  `[rf][r][s]` slices mean anything, and skipped it let every input
+  sharing a prefix collapse onto one signature. `bms.Sig.b64decode`
+  requires the canonical base64 encoding, so a signature is reachable
+  from exactly one string: it used to discard anything outside the
+  alphabet, and `validate=True` alone would not do, both because the
+  padding it accepts varies with the interpreter and because the bits a
+  non-final group leaves over are discarded everywhere. Surrounding
+  whitespace stays tolerated, now for bytes as well as str (issue #138)
+- BIP32 derivation raises on the three children the specification calls
+  invalid — `parse256(IL) >= n`, a zero private child, a public child at
+  infinity — instead of returning a key no other wallet derives. It says
+  so rather than deriving the next index silently, as Core's CKDpriv
+  does: the caller asked for one index, and the choice of another is
+  theirs. At odds of about 2^-127 this is a defined answer, not a
+  reachable one (issue #138)
+- `sig_hash.legacy` compares `hash_type & 0x1F` to SIGHASH_NONE with
+  `==`, not `is`. It worked only through CPython's small-integer
+  interning, and pypy is supported; were the identity ever to fail,
+  SIGHASH_NONE would be hashed with SIGHASH_ALL semantics (issue #138)
+- a curve is now compared by its parameters. `CurveGroup`, `CurveSubGroup`
+  and `Curve` define `__eq__` and `__hash__` over `(p, a, b)`, the
+  generator, and `(n, cofactor)` — the name is not one of them, so SEC 2's
+  secp256r1 equals NIST's nistp256 — where they used to inherit the
+  identity comparison of `object`. That comparison is what dispatches to
+  libsecp256k1, and `ec/curve.py` itself built *two* secp256k1 objects,
+  one per SEC 2 catalogue: code holding `SEC2v2["secp256k1"]` got the pure
+  python path, twelve times slower and silent about it, and
+  `to_prv_key`/`to_pub_key` raised "curve mismatch" between two objects
+  describing the same curve. The eight curves shared by the two
+  catalogues are now one object each, which also halves the n*G check they
+  pay at import time, and the five hand-written dispatch predicates are
+  one `_libsecp256k1_applicable(ec, hf)`. `hf` is still compared by
+  identity, deliberately: nothing short of running them tells sha256 from
+  a look-alike, so a wrapper such as `functools.partial(sha256)` keeps
+  taking the python path — slower, never wrong (issue #142)
 
 ## v2023.7.12
 
