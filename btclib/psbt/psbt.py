@@ -15,7 +15,7 @@ https://github.com/bitcoin/bips/blob/master/bip-0174.mediawiki
 from __future__ import annotations
 
 import base64
-import random
+import secrets
 from collections.abc import Mapping, Sequence
 from copy import deepcopy
 from dataclasses import dataclass
@@ -482,7 +482,7 @@ def _sort_or_shuffle_together(
 
     tmp = list(zip(sequence_a, sequence_b))
     if ordering_func is None:
-        random.shuffle(tmp)
+        secrets.SystemRandom().shuffle(tmp)
     else:
         tmp.sort(key=lambda t: ordering_func(t[0]))
     tuple_a, tuple_b = zip(*tmp)

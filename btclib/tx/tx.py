@@ -25,7 +25,7 @@ For TxIn.sequence and TX.lock_time see:
 
 from __future__ import annotations
 
-import random
+import secrets
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
 from io import SEEK_CUR
@@ -300,9 +300,9 @@ def join_txs(
 
     # avoid leaking matches between inputs and outputs
     if shuffle_inp:
-        random.shuffle(vin)
+        secrets.SystemRandom().shuffle(vin)
     if shuffle_out:
-        random.shuffle(vout)
+        secrets.SystemRandom().shuffle(vout)
 
     tx = Tx(version, lock_time, vin, vout)
     tx.assert_valid()
