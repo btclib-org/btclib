@@ -166,6 +166,19 @@ Major changes includes:
   used the Mersenne Twister, whose state — and with it every permutation
   it has produced and will produce — is recoverable from enough observed
   output. Being unable to undo those shuffles is the whole point of them
+- no more private key material in exception messages and reprs. A
+  routine network mismatch used to put the full xprv — master private
+  key plus chain code — into the BTClibValueError text, which is where
+  it ends up in logs and bug reports; a WIF on the wrong network, the
+  seed, an out-of-range scalar, and an xprv handed to a function
+  expecting public material were echoed the same way, and the generated
+  BIP32KeyData repr printed `key` and `chain_code` in the clear. The
+  messages now carry the non-secret part that is actually wrong — the
+  version or prefix bytes, or just the size — and the repr masks `key`
+  and `chain_code` when the key is private (an xpub stays in the clear,
+  it is public material). The internal derivation subclass opts out of
+  the generated repr too, which would have printed its cached private
+  scalar (issue #137)
 - moved the project management to [uv](https://docs.astral.sh/uv/):
   dependencies, dependency groups, and packaging metadata are declared in
   pyproject.toml (setup.py, requirements.txt, requirements-dev.txt, and

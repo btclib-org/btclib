@@ -69,10 +69,12 @@ def int_from_prv_key(prv_key: PrvKey, ec: Curve = secp256k1) -> int:
             prv_key = bytes_from_octets(prv_key, ec.n_size)
             q = int.from_bytes(prv_key, "big")
         except ValueError as e:
-            raise BTClibValueError(f"not a private key: {prv_key!r}") from e
+            # never echo the input: it is candidate key material;
+            # the chained exception carries the parsing reason
+            raise BTClibValueError("not a private key") from e
 
     if not 0 < q < ec.n:
-        raise BTClibValueError(f"private key not in 1..n-1: {hex(q).upper()}")
+        raise BTClibValueError("private key not in 1..n-1")
 
     return q
 
@@ -106,7 +108,9 @@ def _prv_keyinfo_from_wif(
     if net is None:
         raise BTClibValueError(f"invalid wif prefix: {payload[:1]!r}")
     if network is not None and net != network:
-        raise BTClibValueError(f"not a {network} wif: {wif!r}")
+        # never echo the WIF, which is a private key:
+        # the prefix is the mismatching, non-secret, part
+        raise BTClibValueError(f"not a {network} wif: prefix 0x{payload[:1].hex()}")
 
     ec = NETWORKS[net].curve
 
@@ -126,7 +130,7 @@ def _prv_keyinfo_from_wif(
 
     q = int.from_bytes(prv_key, byteorder="big")
     if not 0 < q < ec.n:
-        raise BTClibValueError(f"private key {hex(q)} not in [1, n-1]")
+        raise BTClibValueError("private key not in 1..n-1")
 
     return q, net, compr
 
@@ -150,7 +154,9 @@ def _prv_keyinfo_from_xprv(
         xprv = BIP32KeyData.b58decode(xprv)
 
     if xprv.key[0] != 0:
-        err_msg = f"not a private key: {xprv.b58encode()}"
+        # the offending key is public here, but never echo a
+        # serialized xkey: the prefix already says what is wrong
+        err_msg = f"not a private key: prefix 0x{xprv.key[:1].hex()}"
         raise BTClibValueError(err_msg)
 
     if network is None:
@@ -158,8 +164,9 @@ def _prv_keyinfo_from_xprv(
 
     allowed_versions = xprvversions_from_network(network)
     if xprv.version not in allowed_versions:
-        err_msg = f"not a {network} key: "
-        err_msg += f"{xprv.b58encode()}"
+        # never echo the xprv, which is a private key:
+        # the version is the mismatching, non-secret, part
+        err_msg = f"not a {network} key: version 0x{xprv.version.hex()}"
         raise BTClibValueError(err_msg)
 
     q = int.from_bytes(xprv.key[1:], byteorder="big")
@@ -200,9 +207,11 @@ def prv_keyinfo_from_prv_key(
             prv_key = bytes_from_octets(prv_key, ec.n_size)
             q = int.from_bytes(prv_key, byteorder="big", signed=False)
         except ValueError as e:
-            raise BTClibValueError(f"not a private key: {prv_key!r}") from e
+            # never echo the input: it is candidate key material;
+            # the chained exception carries the parsing reason
+            raise BTClibValueError("not a private key") from e
 
     if not 0 < q < ec.n:
-        raise BTClibValueError(f"private key not in 1..n-1: {hex(q).upper()}")
+        raise BTClibValueError("private key not in 1..n-1")
 
     return q, net, compr

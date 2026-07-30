@@ -225,3 +225,21 @@ def test_addresses() -> None:
         bip32.derive(mxpub, "m", pub_version)
         with pytest.raises(BTClibValueError, match=err_msg):
             bip32.derive(mxpub, "m", version)
+
+
+def test_no_key_material_in_exceptions() -> None:
+    """Private key material must not reach exception messages.
+
+    https://github.com/btclib-org/btclib/issues/137
+    """
+    mnemonic = "enough regret erode news field main wild jar erupt bronze velvet ugly"
+    mxprv = bip39.mxprv_from_mnemonic(mnemonic)
+    xprv = slip132.p2pkh_xkey(mxprv)
+
+    with pytest.raises(BTClibValueError, match="not a public key: ") as excinfo:
+        slip132.address_from_xpub(xprv)
+    assert xprv not in str(excinfo.value)
+
+    with pytest.raises(BTClibValueError, match="not a root key: ") as excinfo:
+        slip132.p2pkh_xkey(xprv)
+    assert xprv not in str(excinfo.value)

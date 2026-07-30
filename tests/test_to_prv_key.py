@@ -16,7 +16,11 @@ import pytest
 from btclib.alias import INF
 from btclib.ec.curve import CURVES
 from btclib.exceptions import BTClibValueError
-from btclib.to_prv_key import int_from_prv_key, prv_keyinfo_from_prv_key
+from btclib.to_prv_key import (
+    _prv_keyinfo_from_wif,
+    int_from_prv_key,
+    prv_keyinfo_from_prv_key,
+)
 from tests.test_to_key import (
     INF_xpub_data,
     Q,
@@ -33,8 +37,10 @@ from tests.test_to_key import (
     qn,
     uncompressed_prv_keys,
     uncompressed_pub_keys,
+    wif_compressed_string,
     xprv0_data,
     xprv_data,
+    xprv_string,
     xprvn_data,
     xpub_data,
 )
@@ -137,3 +143,29 @@ def test_from_prv_key() -> None:
             int_from_prv_key(not_a_prv_key)  # type: ignore[arg-type]
         with pytest.raises(BTClibValueError):
             prv_keyinfo_from_prv_key(not_a_prv_key)  # type: ignore[arg-type]
+
+
+def test_no_key_material_in_exceptions() -> None:
+    """Private key material must not reach exception messages.
+
+    https://github.com/btclib-org/btclib/issues/137
+    """
+    # network mismatch on a valid xprv
+    with pytest.raises(BTClibValueError, match="not a testnet key: ") as excinfo:
+        prv_keyinfo_from_prv_key(xprv_data, "testnet")
+    assert xprv_string not in str(excinfo.value)
+
+    # network mismatch on a valid WIF
+    with pytest.raises(BTClibValueError, match="not a testnet wif: ") as excinfo:
+        _prv_keyinfo_from_wif(wif_compressed_string, "testnet")
+    assert wif_compressed_string not in str(excinfo.value)
+
+    # out-of-range scalar
+    with pytest.raises(BTClibValueError, match="not in 1..n-1") as excinfo:
+        int_from_prv_key(qn)
+    assert f"{qn:x}" not in str(excinfo.value).lower()
+
+    # unparsable octets
+    with pytest.raises(BTClibValueError, match="not a private key") as excinfo:
+        int_from_prv_key("02" * 33)
+    assert "0202" not in str(excinfo.value)

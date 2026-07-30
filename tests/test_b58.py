@@ -57,40 +57,40 @@ def test_wif_from_prv_key() -> None:
             assert compressed == v[2]
 
     bad_q = ec.n.to_bytes(ec.n_size, byteorder="big", signed=False)
-    with pytest.raises(BTClibValueError, match="private key not in 1..n-1: "):
+    with pytest.raises(BTClibValueError, match="private key not in 1..n-1"):
         b58.wif_from_prv_key(bad_q, "mainnet", True)
 
     payload = b"\x80" + bad_q
     badwif = b58encode(payload)
-    with pytest.raises(BTClibValueError, match="not a private key: "):
+    with pytest.raises(BTClibValueError, match="not a private key"):
         prv_keyinfo_from_prv_key(badwif)
 
     # not a private key: 33 bytes
     bad_q = 33 * b"\x02"
-    with pytest.raises(BTClibValueError, match="not a private key: "):
+    with pytest.raises(BTClibValueError, match="not a private key"):
         b58.wif_from_prv_key(bad_q, "mainnet", True)
     payload = b"\x80" + bad_q
     badwif = b58encode(payload)
-    with pytest.raises(BTClibValueError, match="not a private key: "):
+    with pytest.raises(BTClibValueError, match="not a private key"):
         prv_keyinfo_from_prv_key(badwif)
 
     # Not a WIF: missing leading 0x80
     good_q = 32 * b"\x02"
     payload = b"\x81" + good_q
     badwif = b58encode(payload)
-    with pytest.raises(BTClibValueError, match="not a private key: "):
+    with pytest.raises(BTClibValueError, match="not a private key"):
         prv_keyinfo_from_prv_key(badwif)
 
     # Not a compressed WIF: missing trailing 0x01
     payload = b"\x80" + good_q + b"\x00"
     badwif = b58encode(payload)
-    with pytest.raises(BTClibValueError, match="not a private key: "):
+    with pytest.raises(BTClibValueError, match="not a private key"):
         prv_keyinfo_from_prv_key(badwif)
 
     # Not a WIF: wrong size (35)
     payload = b"\x80" + good_q + b"\x01\x00"
     badwif = b58encode(payload)
-    with pytest.raises(BTClibValueError, match="not a private key: "):
+    with pytest.raises(BTClibValueError, match="not a private key"):
         prv_keyinfo_from_prv_key(badwif)
 
 
@@ -120,7 +120,7 @@ def test_p2pkh_from_wif() -> None:
     xpub = bip32.xpub_from_xprv(xprv)
     assert address == slip132.address_from_xpub(xpub)
 
-    err_msg = "not a private key: "
+    err_msg = "not a private key"
     with pytest.raises(BTClibValueError, match=err_msg):
         b58.wif_from_prv_key(xpub)
 
@@ -147,11 +147,11 @@ def test_p2pkh_from_pub_key() -> None:
     _, uncompr_h160, _ = b58.h160_from_address(uncompr_address)
     assert uncompr_h160 == hash160(uncompr_pub_key)
 
-    err_msg = "not a private or uncompressed public key: "
+    err_msg = "not a private or uncompressed public key"
     with pytest.raises(BTClibValueError, match=err_msg):
         assert uncompr_address == b58.p2pkh(pub_key, compressed=False)
 
-    err_msg = "not a private or compressed public key: "
+    err_msg = "not a private or compressed public key"
     with pytest.raises(BTClibValueError, match=err_msg):
         assert address == b58.p2pkh(uncompr_pub_key, compressed=True)
 
@@ -245,7 +245,7 @@ def test_address_from_wif() -> None:
             assert ("p2sh", script_bin, net) == b58.h160_from_address(b58_address)
 
         else:
-            err_msg = "not a private or compressed public key: "
+            err_msg = "not a private or compressed public key"
             with pytest.raises(BTClibValueError, match=err_msg):
                 b32.p2wpkh(wif)
             with pytest.raises(BTClibValueError, match=err_msg):
@@ -259,5 +259,5 @@ def test_exceptions() -> None:
     with pytest.raises(BTClibValueError, match="invalid base58 address prefix: "):
         b58.h160_from_address(invalid_address)
 
-    with pytest.raises(BTClibValueError, match="not a private or public key: "):
+    with pytest.raises(BTClibValueError, match="not a private or public key"):
         b58.p2pkh(f"{pub_key}0A")

@@ -68,6 +68,23 @@ class BIP32KeyData:
     def is_private(self) -> bool:
         return self.key[0] == 0
 
+    def __repr__(self) -> str:
+        # never echo private key material: mask key and chain_code
+        # (key[:1], not is_private, so that repr cannot raise on an
+        # invalid instance with an empty key)
+        private = self.key[:1] == b"\x00"
+        chain_code = "***" if private else self.chain_code.hex()
+        key = "***" if private else self.key.hex()
+        return (
+            f"{type(self).__name__}("
+            f"version={self.version.hex()}, "
+            f"depth={self.depth}, "
+            f"parent_fingerprint={self.parent_fingerprint.hex()}, "
+            f"index={self.index}, "
+            f"chain_code={chain_code}, "
+            f"key={key})"
+        )
+
     @property
     def is_hardened(self) -> bool:
         return self.index >= 0x80000000
@@ -132,7 +149,8 @@ class BIP32KeyData:
                 )
             q = int.from_bytes(self.key[1:], byteorder="big", signed=False)
             if not 0 < q < ec.n:
-                raise BTClibValueError(f"invalid private key not in 1..n-1: {hex(q)}")
+                # never echo the scalar: it is (attempted) key material
+                raise BTClibValueError("invalid private key not in 1..n-1")
         elif self.version in XPUB_VERSIONS_ALL:
             if self.key[0] not in (2, 3):
                 err_msg = f"invalid public key prefix not in (0x02, 0x03): 0x{self.key[:1].hex()}"
@@ -206,14 +224,11 @@ def _rootxprv_from_seed(
     """Return BIP32 root master extended private key from seed."""
     seed = bytes_from_octets(seed)
     bitlenght = len(seed) * 8
+    # the bit count is diagnostic enough: never echo the seed itself
     if bitlenght < 128:
-        raise BTClibValueError(
-            f"too few bits for seed: {bitlenght} in '{hex_string(seed)}'"
-        )
+        raise BTClibValueError(f"too few bits for seed: {bitlenght}")
     if bitlenght > 512:
-        raise BTClibValueError(
-            f"too many bits for seed: {bitlenght} in '{hex_string(seed)}'"
-        )
+        raise BTClibValueError(f"too many bits for seed: {bitlenght}")
     hmac_ = hmac.new(b"Bitcoin seed", seed, "sha512").digest()
     k = b"\x00" + hmac_[:32]
     v = bytes_from_octets(version, 4)
@@ -252,7 +267,9 @@ def _xpub_from_xprv(xprv: BIP32Key) -> BIP32KeyData:
         xkey = BIP32KeyData.b58decode(xprv)
 
     if xkey.key[0] != 0:
-        err_msg = f"not a private key: {xkey.b58encode()}"
+        # the offending key is public here, but never echo a
+        # serialized xkey: the prefix already says what is wrong
+        err_msg = f"not a private key: prefix 0x{xkey.key[:1].hex()}"
         raise BTClibValueError(err_msg)
 
     i = XPRV_VERSIONS_ALL.index(xkey.version)
@@ -276,7 +293,9 @@ def xpub_from_xprv(xprv: BIP32Key) -> str:
     return xkey.b58encode()
 
 
-@dataclass
+# repr=False: a generated __repr__ would print prv_key_int, the very
+# scalar the inherited masking __repr__ exists to hide
+@dataclass(repr=False)
 class _BIP32KeyData(BIP32KeyData):
     # extensions used to cache intermediate results
     # in multi-level derivation: do not rely on them elsewhere
@@ -497,4 +516,9 @@ def crack_prv_key(parent_xpub: BIP32Key, child_xprv: BIP32Key) -> str:
 def _err_msg(
     child_or_parent: str, not_a_private_or_public: str, key: BIP32KeyData
 ) -> str:
-    return f"extended {child_or_parent} key is {not_a_private_or_public} key: {key.b58encode()}"
+    # the "not a public" branch is reached with an xprv:
+    # never echo a serialized xkey, the prefix says what is wrong
+    return (
+        f"extended {child_or_parent} key is {not_a_private_or_public} key: "
+        f"prefix 0x{key.key[:1].hex()}"
+    )

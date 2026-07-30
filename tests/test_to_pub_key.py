@@ -44,6 +44,7 @@ from tests.test_to_key import (
     uncompressed_pub_keys,
     xprv0_data,
     xprv_data,
+    xprv_string,
     xprvn_data,
     xpub_data,
 )
@@ -231,3 +232,28 @@ def test_fingerprint() -> None:
     child_key = derive(xprv, 0x80000000)
     pf2 = BIP32KeyData.b58decode(child_key).parent_fingerprint
     assert pf == pf2
+
+
+def test_no_key_material_in_exceptions() -> None:
+    """Private key material must not reach exception messages.
+
+    https://github.com/btclib-org/btclib/issues/137
+    """
+    # an xprv passed where a public key is expected must not be echoed
+    with pytest.raises(BTClibValueError) as excinfo:
+        pub_keyinfo_from_pub_key(xprv_string)
+    assert xprv_string not in str(excinfo.value)
+
+    with pytest.raises(BTClibValueError) as excinfo:
+        point_from_pub_key(xprv_string)
+    assert xprv_string not in str(excinfo.value)
+
+    # nor an xprv on the wrong network
+    with pytest.raises(BTClibValueError) as excinfo:
+        pub_keyinfo_from_key(xprv_string, "testnet")
+    assert xprv_string not in str(excinfo.value)
+
+    # nor the 0x00-prefixed key field of an xprv, which is a private key
+    with pytest.raises(BTClibValueError) as excinfo:
+        point_from_pub_key(xprv_data.key)
+    assert xprv_data.key.hex() not in str(excinfo.value)

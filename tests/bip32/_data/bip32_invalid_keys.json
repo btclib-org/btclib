@@ -49,11 +49,11 @@
     ],
     [
         "xprv9s21ZrQH143K24Mfq5zL5MhWK9hUhhGbd45hLXo2Pq2oqzMMo63oStZzF93Y5wvzdUayhgkkFoicQZcP3y52uPPxFnfoLZB21Teqt1VvEHx",
-        "invalid private key not in 1..n-1: 0x0"
+        "invalid private key not in 1..n-1"
     ],
     [
         "xprv9s21ZrQH143K24Mfq5zL5MhWK9hUhhGbd45hLXo2Pq2oqzMMo63oStZzFAzHGBP2UuGCqWLTAPLcMtD5SDKr24z3aiUvKr9bJpdrcLg1y3G",
-        "invalid private key not in 1..n-1: 0xfffffffffffffffffffffffffffffffebaaedce6af48a03bbfd25e8cd0364141"
+        "invalid private key not in 1..n-1"
     ],
     [
         "xpub661MyMwAqRbcEYS8w7XLSVeEsBXy79zSzH1J8vCdxAZningWLdN3zgtU6Q5JXayek4PRsn35jii4veMimro1xefsM58PgBMrvdYre8QyULY",

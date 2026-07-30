@@ -195,7 +195,7 @@ def test_p2pk() -> None:
 
     # invalid size: 34 bytes instead of (33, 65)
     pub_key = "03 ae1a62fe09c5f51b13905f07f06b99a2f7159b2225f374cd378d71302fa28414 14"
-    err_msg = "not a private or public key: "
+    err_msg = "not a private or public key"
     with pytest.raises(BTClibValueError, match=err_msg):
         ScriptPubKey.p2pk(pub_key)
 
@@ -399,7 +399,7 @@ def test_p2ms_1() -> None:
     with pytest.raises(BTClibValueError, match=err_msg):
         ScriptPubKey.p2ms(17, pub_keys)
 
-    err_msg = "not a private or public key: "
+    err_msg = "not a private or public key"
     with pytest.raises(BTClibValueError, match=err_msg):
         ScriptPubKey.p2ms(1, [f"{pub_key0}00", pub_key1])
 

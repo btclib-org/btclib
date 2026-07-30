@@ -92,12 +92,12 @@ def test_signature() -> None:
     with pytest.raises(BTClibValueError, match=err_msg):
         dsa.assert_as_valid(msg, Q, sig_invalid)
 
-    err_msg = "private key not in 1..n-1: "
+    err_msg = "private key not in 1..n-1"
     with pytest.raises(BTClibValueError, match=err_msg):
         dsa.sign(msg, 0)
 
     # ephemeral key not in 1..n-1
-    err_msg = "private key not in 1..n-1: "
+    err_msg = "private key not in 1..n-1"
     with pytest.raises(BTClibValueError, match=err_msg):
         dsa.sign_(reduce_to_hlen(msg), q, 0)
     with pytest.raises(BTClibValueError, match=err_msg):

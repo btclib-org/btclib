@@ -33,12 +33,12 @@ from btclib.to_pub_key import pub_keyinfo_from_key
 
 
 def test_exceptions() -> None:
-    with pytest.raises(BTClibValueError, match="not a private or public key: "):
+    with pytest.raises(BTClibValueError, match="not a private or public key"):
         # invalid checksum
         xprv = "xppp9s21ZrQH143K2oxHiQ5f7D7WYgXD9h6HAXDBuMoozDGGiYHWsq7TLBj2yvGuHTLSPCaFmUyN1v3fJRiY2A4YuNSrqQMPVLZKt76goL6LP7L"
         p2pkh(xprv)
 
-    with pytest.raises(BTClibValueError, match="not a private key: "):
+    with pytest.raises(BTClibValueError, match="not a private key"):
         xpub = "xpub6H1LXWLaKsWFhvm6RVpEL9P4KfRZSW7abD2ttkWP3SSQvnyA8FSVqNTEcYFgJS2UaFcxupHiYkro49S8yGasTvXEYBVPamhGW6cFJodrTHy"
         xpub_from_xprv(xpub)
 
@@ -376,3 +376,40 @@ def test_pub_key_derivation() -> None:
     orphan_child_key.parent_fingerprint = b"\x00" * 4
     orphan_child = "xpub6DXuQW1FgeHbhsSchbuDWE9Bj8mPiPUpiroAmAvRdRqYbGHXHTyEkttkxSvtCac64QzpasL1Tvd5Znvn5GQMswQUrpRBsPRz7npvyZ8ExWi"
     assert orphan_child_key.b58encode() == orphan_child
+
+
+def test_no_key_material_in_repr_or_exceptions() -> None:
+    """Private key material must not reach reprs or exception messages.
+
+    https://github.com/btclib-org/btclib/issues/137
+    """
+    xprv = "xprv9s21ZrQH143K2ZP8tyNiUtgoezZosUkw9hhir2JFzDhcUWKz8qFYk3cxdgSFoCMzt8E2Ubi1nXw71TLhwgCfzqFHfM5Snv4zboSebePRmLS"
+    xprv_data = BIP32KeyData.b58decode(xprv)
+
+    # the dataclass-generated repr used to print key and chain code
+    for secret in (xprv_data.key, xprv_data.chain_code):
+        assert secret.hex() not in repr(xprv_data)
+        assert repr(secret) not in repr(xprv_data)
+    # while the non-secret fields remain readable
+    assert xprv_data.version.hex() in repr(xprv_data)
+
+    # the derivation cache must not print the private scalar either
+    prv_int = int.from_bytes(xprv_data.key, byteorder="big", signed=False)
+    assert str(prv_int) not in repr(_derive(xprv_data, "m"))
+
+    # public material is not masked
+    xpub_data = BIP32KeyData.b58decode(xpub_from_xprv(xprv))
+    assert xpub_data.key.hex() in repr(xpub_data)
+    assert xpub_data.chain_code.hex() in repr(xpub_data)
+
+    # the seed must not reach the exception message
+    seed = "5b56c417303faa3fcba7e57400e120"
+    with pytest.raises(BTClibValueError, match="too few bits for seed: ") as excinfo:
+        rootxprv_from_seed(seed)
+    assert seed not in str(excinfo.value)
+
+    # an xprv passed where an xpub is expected must not be echoed
+    child_xprv = derive(xprv, "m/0")
+    with pytest.raises(BTClibValueError, match="not a public key: ") as excinfo:
+        crack_prv_key(xprv, child_xprv)
+    assert xprv not in str(excinfo.value)

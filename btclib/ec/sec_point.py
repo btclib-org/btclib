@@ -68,4 +68,6 @@ def point_from_octets(pub_key: Octets, ec: Curve = secp256k1) -> Point:
             return Q
         raise BTClibValueError(f"point not on curve: {Q}")
     else:
-        raise BTClibValueError(f"not a point: {pub_key!r}")
+        # never echo the octets: a 33-byte 0x00-prefixed input
+        # is the key field of an xprv, i.e. a private key
+        raise BTClibValueError(f"not a point: prefix 0x{pub_key[:1].hex()}")

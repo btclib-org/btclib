@@ -50,7 +50,9 @@ def address_from_xpub(xpub: BIP32Key) -> str:
         xpub = BIP32KeyData.b58decode(xpub)
 
     if xpub.key[0] not in (2, 3):
-        raise BTClibValueError(f"not a public key: {xpub.b58encode()}")
+        # this branch is reached with an xprv: never echo it,
+        # the prefix already says what is wrong
+        raise BTClibValueError(f"not a public key: prefix 0x{xpub.key[:1].hex()}")
 
     version_list = ["bip32_pub", "slip132_p2wpkh_pub", "slip132_p2wpkh_p2sh_pub"]
     function_list: list[Callable[[Any, str], str]] = [
@@ -71,7 +73,11 @@ def _helper_checks(
     if not isinstance(xkey, BIP32KeyData):
         xkey = BIP32KeyData.b58decode(xkey)
     if check_root_xkey and not xkey.is_root:
-        raise BTClibValueError(f"not a root key: {xkey.b58encode()}")
+        # xkey may be an xprv: never echo it; depth and
+        # parent fingerprint are the non-root, non-secret, parts
+        err_msg = f"not a root key: depth {xkey.depth}"
+        err_msg += f", parent fingerprint 0x{xkey.parent_fingerprint.hex()}"
+        raise BTClibValueError(err_msg)
     network = NETWORKS[network_from_xkeyversion(xkey.version)]
     return xkey, network
 

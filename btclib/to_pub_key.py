@@ -45,7 +45,9 @@ def _point_from_xpub(xpub: BIP32Key, ec: Curve) -> Point:
         xpub = BIP32KeyData.b58decode(xpub)
 
     if xpub.is_private:
-        raise BTClibValueError(f"not a public key: {xpub.key.hex()}")
+        # never echo the key, which is private here:
+        # the prefix already says what is wrong
+        raise BTClibValueError(f"not a public key: prefix 0x{xpub.key[:1].hex()}")
     ec2 = curve_from_xkeyversion(xpub.version)
     if ec != ec2:
         raise BTClibValueError(f"ec/xpub version ({xpub.version.hex()}) mismatch")
@@ -92,7 +94,9 @@ def point_from_pub_key(pub_key: PubKey, ec: Curve = secp256k1) -> Point:
     try:
         return point_from_octets(pub_key, ec)
     except (TypeError, ValueError) as e:
-        raise BTClibValueError(f"not a public key: {pub_key!r}") from e
+        # never echo the input: it may be private material passed by
+        # mistake; the chained exception carries the parsing reason
+        raise BTClibValueError("not a public key") from e
 
 
 # not used so far, probably useless
@@ -126,7 +130,9 @@ def _pub_keyinfo_from_xpub(
         xpub = BIP32KeyData.b58decode(xpub)
 
     if xpub.key[0] not in (2, 3):
-        err_msg = f"not a public key: {xpub.b58encode()}"
+        # this branch is reached with an xprv: never echo it,
+        # the prefix already says what is wrong
+        err_msg = f"not a public key: prefix 0x{xpub.key[:1].hex()}"
         raise BTClibValueError(err_msg)
 
     if network is None:
@@ -134,8 +140,9 @@ def _pub_keyinfo_from_xpub(
 
     allowed_versions = xpubversions_from_network(network)
     if xpub.version not in allowed_versions:
-        err_msg = f"Not a {network} key: "
-        err_msg += f"{xpub.b58encode()}"
+        # an xpub is not funds-critical, but it derives all child pub
+        # keys: keep it out of exception messages (and logs) too
+        err_msg = f"Not a {network} key: version 0x{xpub.version.hex()}"
         raise BTClibValueError(err_msg)
 
     return xpub.key, network
@@ -160,13 +167,15 @@ def pub_keyinfo_from_key(
 
 
 def _err_msg(key: Key, network: str | None, compressed: bool | None) -> str:
+    # never echo the key: it may well be private material
+    # (e.g. an xprv or WIF on the wrong network)
     err_msg = "not a private or"
     if compressed is not None:
         err_msg += " compressed" if compressed else " uncompressed"
     err_msg += " public key"
     if network is not None:
         err_msg += f" for {network}"
-    return f"{err_msg}: {key!r}"
+    return err_msg
 
 
 def pub_keyinfo_from_pub_key(
@@ -193,8 +202,9 @@ def pub_keyinfo_from_pub_key(
             pub_key = bytes_from_octets(pub_key, size)
             compr = compressed
     except (TypeError, ValueError) as e:
-        err_msg = f"not a public key: {pub_key!r}"
-        raise BTClibValueError(err_msg) from e
+        # never echo the input: it may be private material passed by
+        # mistake; the chained exception carries the parsing reason
+        raise BTClibValueError("not a public key") from e
 
     # verify that it is a valid point
     Q = point_from_octets(pub_key, ec)

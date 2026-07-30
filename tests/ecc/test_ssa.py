@@ -80,7 +80,7 @@ def test_signature() -> None:
     with pytest.raises(BTClibValueError, match=err_msg):
         ssa.sign_(m_bytes[:31], q)
 
-    err_msg = "private key not in 1..n-1: "
+    err_msg = "private key not in 1..n-1"
     with pytest.raises(BTClibValueError, match=err_msg):
         ssa.sign(msg, 0)
 

@@ -270,7 +270,7 @@ def test_p2wpkh() -> None:
     assert wit_prg == hash160(pub)
 
     uncompr_pub = bytes_from_point(point_from_octets(pub), compressed=False)
-    err_msg = "not a private or compressed public key: "
+    err_msg = "not a private or compressed public key"
     with pytest.raises(BTClibValueError, match=err_msg):
         b32.p2wpkh(uncompr_pub)
     with pytest.raises(BTClibValueError, match=err_msg):
