@@ -551,6 +551,18 @@ Major changes includes:
   and `"9"` raises for being of odd length rather than being nine. The
   behaviour is unchanged and deliberate — a decimal representation is what
   `int` itself is for — and now the docstring says so
+- **mypy is aimed at python 3.10**, not at whatever interpreter runs it.
+  `[tool.mypy]` set no `python_version`, so the strict check used the 3.14 of
+  `.python-version` while `requires-python` says `>=3.9`, and a typing
+  construct absent from an older interpreter was invisible: `typing.Self`,
+  3.11 and later, type checked. Ruff was already targeted correctly, inferring
+  py39 from `requires-python`. Not 3.9, which is what would match: mypy
+  refuses it outright, having followed 3.9 out of support, and `d284d0b7`
+  had already recorded that. What covers the rest is the test matrix, which
+  still runs 3.9 — a type *alias* is an ordinary assignment, so
+  `ScriptList | None` at module level is a TypeError before 3.10 and every
+  3.9 runner dies collecting, which is how that commit's bug was found
+  (issue #155)
 - **btclib.org**, which GitHub Pages serves from this repository's `master`
   root, is now documented as such — CONTRIBUTING.md has a "The website"
   section naming the files that are website sources, and `_config.yml` says

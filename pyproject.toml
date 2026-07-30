@@ -192,6 +192,31 @@ fail_under = 99.9
 strict = true
 show_column_numbers = true
 show_error_codes = true
+# the oldest interpreter mypy can be aimed at, which is not the oldest this
+# package supports. Without this key mypy targets whatever runs it, i.e.
+# the 3.14 of .python-version, and a typing construct that does not exist
+# on an older interpreter is then invisible: ruff is targeted correctly,
+# inferring py39 from requires-python, and mypy was not.
+#
+# Not "3.9", which is what requires-python says and what the issue asked
+# for: mypy refuses it outright -- "Python 3.9 is not supported (must be
+# 3.10 or higher)" -- having followed 3.9 out of support. When mypy drops
+# 3.10 too this pin will fail the same way, with the same clear message,
+# which is the right way for it to come up for review.
+#
+# What covers the remaining gap is the test matrix, and it covers it well:
+# an annotation is not evaluated under "from __future__ import
+# annotations", but a type *alias* is an ordinary assignment, so
+# "ScriptList | None" at module level is a TypeError before 3.10 and every
+# 3.9 runner dies collecting. That is exactly how d284d0b7 was found -- by
+# the matrix, nothing static -- and the matrix still runs 3.9.
+#
+# One run, not two. A second pass at 3.14 would check the same code: there
+# is no sys.version_info branch anywhere in btclib or tests, so no source
+# is conditional on the interpreter, and what differs between the two
+# targets is only stdlib stub semantics. An stdlib API removed in 3.14 is a
+# runtime failure the matrix reports, at 99.9% statement coverage
+python_version = "3.10"
 exclude = [
     "build",
 ]
