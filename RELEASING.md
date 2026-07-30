@@ -100,8 +100,8 @@ pyroma), build, wheel smoke test — and publishes to
 1. Tag the release commit and push the tag:
 
    ```shell
-   git tag -a v2023.8 -m "release v2023.8"
-   git push origin v2023.8
+   git tag -a v2026.8 -m "release v2026.8"
+   git push origin v2026.8
    ```
 
 1. The workflow does the rest: full matrix, build and checks, PyPI
@@ -110,7 +110,7 @@ pyroma), build, wheel smoke test — and publishes to
    read once it lands.
 
 1. Open the next cycle: set a generic next version without the day
-   (e.g. after 2023.8.4, use 2023.9) in pyproject.toml, and start a new
+   (e.g. after 2026.8.4, use 2026.9) in pyproject.toml, and start a new
    "work in progress" section in HISTORY.md.
 
 ## If something goes wrong
@@ -119,13 +119,13 @@ pyroma), build, wheel smoke test — and publishes to
   uploaded. Delete the tag, fix, and tag again:
 
   ```shell
-  git tag -d v2023.8
-  git push origin :refs/tags/v2023.8
+  git tag -d v2026.8
+  git push origin :refs/tags/v2026.8
   ```
 
 - The upload succeeded but the release is broken: PyPI never accepts a
   file name twice, even after deletion. Yank the bad release on PyPI
-  and publish a new patch version (`2023.8` → `2023.8.1`).
+  and publish a new patch version (`2026.8` → `2026.8.1`).
 
 - Only the `github-release` job failed: the PyPI upload is already
   done; re-run the failed job, or create the release by hand from the

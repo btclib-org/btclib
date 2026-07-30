@@ -41,7 +41,7 @@ body:
       label: btclib version
       description: >
         `python -c "import btclib; print(btclib.__version__)"`
-      placeholder: "2023.8"
+      placeholder: "2026.8"
     validations:
       required: true
 

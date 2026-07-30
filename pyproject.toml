@@ -9,7 +9,7 @@ name = "btclib"
 # file. It used to be the other way round, a literal in btclib/__init__.py
 # that setuptools imported and conf.py repeated, which is why the release
 # workflow had to compare two declarations before trusting either
-version = "2023.8"
+version = "2026.8"
 description = "A library for 'bitcoin cryptography'"
 readme = "README.md"
 license = { text = "MIT License" }
