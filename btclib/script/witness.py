@@ -7,7 +7,7 @@
 #
 # No part of btclib including this file, may be copied, modified, propagated,
 # or distributed except according to the terms contained in the LICENSE file.
-"""Witness (list[bytes]) class."""
+"""Witness (tuple[bytes, ...]) class."""
 
 from __future__ import annotations
 
@@ -19,16 +19,17 @@ from btclib.alias import BinaryData, Octets
 from btclib.utils import bytes_from_octets, bytesio_from_binarydata
 
 
-# frozen: replacing the whole stack of a witness held by someone else is
-# what issue #140 was, two functions doing it to the Tx they were merely
-# reading. Shallow, though — `stack` is a list, so `witness.stack.append`
-# still mutates in place, which is why a shared default Witness had to be
-# fixed by not sharing it (issue #139) rather than by freezing. Being
-# frozen also generates a __hash__, and calling it raises TypeError on
-# that same list: Witness is not hashable, whatever the decorator claims
+# frozen, and a tuple rather than a list of bytes, which makes a Witness
+# immutable all the way down: replacing the whole stack of a witness held
+# by someone else was issue #140, and mutating one in place through a
+# shared default was issue #139. Neither is expressible now, and the
+# generated __hash__ works, every element being immutable too.
+#
+# A witness is built once — parsed, or handed a signature and a script —
+# and then read, so the interpreter's popping is done on a list of its own
 @dataclass(frozen=True)
 class Witness:
-    stack: list[bytes]
+    stack: tuple[bytes, ...]
 
     def __init__(
         self, stack: Sequence[Octets] | None = None, check_validity: bool = True
@@ -37,7 +38,7 @@ class Witness:
         object.__setattr__(
             self,
             "stack",
-            [bytes_from_octets(element) for element in stack] if stack else [],
+            tuple(bytes_from_octets(element) for element in stack) if stack else (),
         )
 
         if check_validity:

@@ -227,7 +227,8 @@ def test_bip_test_vector() -> None:
         for utxo in data["given"]["utxosSpent"]
     ]
     for vin in unsigned_tx.vin:
-        vin.script_witness.stack.append(b"00")
+        # a new Witness, the stack being an immutable tuple
+        vin.script_witness = Witness([*vin.script_witness.stack, b"00"])
 
     for test in data["inputSpending"]:
         index = test["given"]["txinIndex"]

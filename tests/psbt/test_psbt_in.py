@@ -10,7 +10,10 @@
 """Tests for the `btclib.psbt.psbt_in` module."""
 
 import json
+from dataclasses import FrozenInstanceError
 from os import path
+
+import pytest
 
 from btclib.psbt import Psbt, PsbtIn
 
@@ -30,10 +33,14 @@ def test_compatibility() -> None:
 def test_default_arguments_are_not_shared() -> None:
     # the final_script_witness default used to be built once, at
     # definition time, and shared by every PsbtIn built without it
+    # (issue #139)
     psbt_in = PsbtIn()
     assert psbt_in.final_script_witness is not PsbtIn().final_script_witness
 
-    psbt_in.final_script_witness.stack.append(b"\x01")
+    # a Witness is immutable all the way down now, so sharing one would no
+    # longer corrupt anything; it is still built per call
+    with pytest.raises(FrozenInstanceError):
+        psbt_in.final_script_witness.stack = ()  # type: ignore[misc]
     assert not PsbtIn().final_script_witness.stack
 
 

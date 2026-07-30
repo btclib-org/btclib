@@ -86,14 +86,25 @@ Major changes includes:
   must build a new instance instead; `TxIn.prev_out` and
   `TxIn.script_witness` stay settable, TxIn not being frozen, and
   `sig_hash.from_tx` rebuilds the outputs SIGHASH_SINGLE blanks rather
-  than assigning into them. Frozen is shallow, so it does not replace the
-  fix for issue #139: `witness.stack.append(...)` still mutates in place,
-  a stack being a list, and `script_pub_key.script` can still be rebound
-  through a frozen TxOut, Script not being frozen. A frozen OutPoint is
-  hashable, both its fields being immutable, so it can serve as the dict
-  key or set member an utxo set wants; TxOut and Witness are not, holding
-  a ScriptPubKey and a list respectively, and hashing one raises
-  TypeError (issue #139)
+  than assigning into them. Freezing a dataclass is shallow, though, so it
+  is not by itself the fix for issue #139: `script_pub_key.script` can
+  still be rebound through a frozen TxOut, Script not being frozen. An
+  OutPoint is immutable all the way down, both its fields being immutable
+  too, so the generated `__hash__` works and it can serve as the dict key
+  or set member an utxo set wants; a TxOut holds a ScriptPubKey, which is
+  unhashable, so hashing one raises TypeError (issue #139)
+- `Witness.stack` is a `tuple[bytes, ...]`, no longer a `list[bytes]`,
+  which is what makes a frozen Witness immutable all the way down rather
+  than only on the surface: `witness.stack.append(...)` used to reach
+  every holder of that witness, the shared default of issue #139
+  included, and there is no in-place mutation left to reach them with.
+  A Witness is hashable now, alone among these dataclasses. Code
+  appending to a stack must build a new Witness — `Witness([*w.stack,
+  element])` — and code comparing one against a list must compare against
+  a tuple; the constructor still accepts any sequence, so `Witness([...])`
+  and `Witness.from_dict` are unchanged, and `to_dict` still yields a
+  list, being json. The script interpreter pops from a list of its own,
+  which `verify_input` and `taproot_get_annex` hand it (issue #139)
 - `var_int.parse` rejects what Bitcoin Core rejects. It used to accept a
   non-shortest encoding (`fd0100` read as 1), which gave the same
   transaction two serializations and so two txids, and it did not check

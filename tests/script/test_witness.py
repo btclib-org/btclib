@@ -43,18 +43,22 @@ def test_witness() -> None:
 
 def test_frozen() -> None:
     witness = Witness(["00", "01"])
+    assert witness.stack == (b"\x00", b"\x01")
 
     # replacing the whole stack of a witness held by someone else was
     # issue #140; it is a FrozenInstanceError now
     with pytest.raises(FrozenInstanceError):
-        witness.stack = []  # type: ignore[misc]
+        witness.stack = ()  # type: ignore[misc]
 
-    # shallow, though: the stack is a list, and frozen says nothing about
-    # what a list lets you do. Hashing fails on that same list
-    witness.stack.append(b"\x02")
-    assert len(witness) == 3
-    with pytest.raises(TypeError, match="unhashable type"):
-        hash(witness)
+    # and the stack is a tuple of bytes, so there is no in-place mutation
+    # left either: immutable all the way down
+    assert not hasattr(witness.stack, "append")
+    with pytest.raises(TypeError, match="does not support item assignment"):
+        witness.stack[0] = b"\x02"  # type: ignore[index]
+
+    # which makes it hashable, unlike every other dataclass here
+    assert hash(witness) == hash(Witness(["00", "01"]))
+    assert len({witness, Witness(["00", "01"])}) == 1
 
 
 def test_dataclasses_json_dict() -> None:

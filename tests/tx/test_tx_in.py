@@ -96,20 +96,21 @@ def test_default_arguments_are_not_shared() -> None:
     # the defaults used to be built once, at definition time, so mutating
     # them through one TxIn corrupted every other one; assigning
     # prev_out.vout even left the constructor unable to build a valid TxIn
-    # for the rest of the process, which is now a FrozenInstanceError
-    # instead, OutPoint being frozen
+    # for the rest of the process (issue #139)
     tx_in = TxIn()
     assert tx_in.prev_out is not TxIn().prev_out
     assert tx_in.script_witness is not TxIn().script_witness
 
-    # the stack of a frozen Witness is still a mutable list: not sharing
-    # the default is what keeps this from reaching every other TxIn
-    tx_in.script_witness.stack.append(b"\x01")
-    assert not TxIn().script_witness.stack
-
+    # OutPoint and Witness are immutable all the way down now, so sharing
+    # them would no longer corrupt anything; building them per call is
+    # still what the library does, and B008 keeps it that way
     with pytest.raises(FrozenInstanceError):
         tx_in.prev_out.vout = 0  # type: ignore[misc]
+    with pytest.raises(FrozenInstanceError):
+        tx_in.script_witness.stack = ()  # type: ignore[misc]
+
     assert TxIn().prev_out.vout == 0xFFFFFFFF
+    assert not TxIn().script_witness.stack
 
 
 def test_dataclasses_json_dict() -> None:

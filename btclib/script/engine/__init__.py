@@ -42,11 +42,11 @@ def taproot_unwrap_script(
 
 def taproot_get_annex(witness: Witness) -> tuple[bytes, list[bytes]]:
     # the trimmed stack is returned, never written back: a get_ function must
-    # not write, and verifying a transaction must not rewrite it. A copy in
+    # not write, and verifying a transaction must not rewrite it. A list in
     # either branch, the stack being popped by the script interpreter
     if len(witness.stack) >= 2 and witness.stack[-1][0] == 0x50:
-        return witness.stack[-1], witness.stack[:-1]
-    return b"", witness.stack[:]
+        return witness.stack[-1], list(witness.stack[:-1])
+    return b"", list(witness.stack)
 
 
 def validate_redeem_script(redeem_script: ScriptList) -> None:
@@ -156,14 +156,14 @@ def verify_input(prevouts: list[TxOut], tx: Tx, i: int, flags: list[str]) -> Non
                 return  # unknown program, passes validation
 
     if segwit_version == 0:
-        # a copy: the interpreter pops what it consumes, and verifying a
-        # transaction must not rewrite the caller's witness
+        # a list of its own: the interpreter pops what it consumes, and the
+        # witness stack is an immutable tuple anyway
         if script_type == "p2wpkh":
-            stack = tx.vin[i].script_witness.stack[:]
+            stack = list(tx.vin[i].script_witness.stack)
             # serialization of ["OP_DUP", "OP_HASH160", payload, "OP_EQUALVERIFY", "OP_CHECKSIG"]
             script = b"v\xa9\x14" + payload + b"\x88\xac"
         elif script_type == "p2wsh":
-            stack = tx.vin[i].script_witness.stack[:]
+            stack = list(tx.vin[i].script_witness.stack)
             if any(len(x) > 520 for x in stack[:-1]):
                 raise BTClibValueError()
             script = stack[-1]
