@@ -33,6 +33,18 @@ from btclib.hashes import reduce_to_hlen
 from btclib.number_theory import mod_inv
 from btclib.to_pub_key import pub_keyinfo_from_prv_key
 from tests.ec.test_curve import low_card_curves
+from tests.test_to_key import Q as pub_key_point
+from tests.test_to_key import Q_compressed as pub_key_compressed
+from tests.test_to_key import q as prv_key_int
+from tests.test_to_key import q_hexstring as prv_key_hexstring
+from tests.test_to_key import (
+    wif_compressed_string,
+    wif_uncompressed_string,
+    xprv_data,
+    xprv_string,
+    xpub_data,
+    xpub_string,
+)
 
 
 def test_signature() -> None:
@@ -282,6 +294,48 @@ def test_sign_input_type() -> None:
     sig = dsa.sign(msg, q)
     dsa.assert_as_valid(msg, Q, sig)
     dsa.assert_as_valid(msg, Q, sig.serialize())
+
+
+def test_prv_key_is_not_a_pub_key() -> None:
+    """Verification must reject a private key, in any representation.
+
+    https://github.com/btclib-org/btclib/issues/143
+    """
+    msg = b"Satoshi Nakamoto"
+    sig = dsa.sign(msg, prv_key_int)
+    # a hash function other than sha256 takes the python implementation,
+    # which converts the key on its own
+    sig_sha1 = dsa.sign(msg, prv_key_int, hf=sha1)
+
+    for prv_key in (
+        prv_key_int,
+        prv_key_hexstring,
+        wif_compressed_string,
+        wif_uncompressed_string,
+        xprv_string,
+        xprv_data,
+    ):
+        assert not dsa.verify(msg, prv_key, sig)  # type: ignore[arg-type]
+        assert not dsa.verify(msg, prv_key, sig_sha1, hf=sha1)  # type: ignore[arg-type]
+        with pytest.raises(BTClibValueError, match="not a public key"):
+            dsa.assert_as_valid(msg, prv_key, sig)  # type: ignore[arg-type]
+        with pytest.raises(BTClibValueError, match="not a public key"):
+            dsa.assert_as_valid(msg, prv_key, sig_sha1, hf=sha1)  # type: ignore[arg-type]
+        # neither the rejection nor its message may echo the secret
+        with pytest.raises(BTClibValueError) as excinfo:
+            dsa.assert_as_valid(msg, prv_key, sig)  # type: ignore[arg-type]
+        assert str(prv_key) not in str(excinfo.value)
+
+    # the very same key, in its public representations, still verifies
+    for pub_key in (
+        pub_key_point,
+        pub_key_compressed,
+        pub_key_compressed.hex(),
+        xpub_string,
+        xpub_data,
+    ):
+        assert dsa.verify(msg, pub_key, sig)
+        assert dsa.verify(msg, pub_key, sig_sha1, hf=sha1)
 
 
 def test_libsecp256k1() -> None:

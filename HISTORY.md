@@ -179,6 +179,19 @@ Major changes includes:
   it is public material). The internal derivation subclass opts out of
   the generated repr too, which would have printed its cached private
   scalar (issue #137)
+- `dsa.verify`, `dsa.verify_`, `dsa.assert_as_valid`, and
+  `dsa.assert_as_valid_` take a `PubKey`, not a `Key`: a private key is no
+  longer accepted where a public one is expected. `verify(msg, prv_key,
+  sig)` used to silently derive the public key from the secret handed in
+  and return True, checking a signature against a key the caller had just
+  proved it owns — which proves nothing about the signer, and put a secret
+  through a code path documented as public. It now returns False, and
+  assert_as_valid raises BTClibValueError, for an int scalar, a WIF, and
+  an xprv alike: the narrowing is a runtime one, mypy having no way to
+  tell a WIF string from a SEC hex-string. The `Key` union and its
+  `point_from_key` / `pub_keyinfo_from_key` helpers are unchanged, and so
+  are the address and script builders that take one, where deriving from
+  one's own private key is what the caller means (issue #143)
 - moved the project management to [uv](https://docs.astral.sh/uv/):
   dependencies, dependency groups, and packaging metadata are declared in
   pyproject.toml (setup.py, requirements.txt, requirements-dev.txt, and

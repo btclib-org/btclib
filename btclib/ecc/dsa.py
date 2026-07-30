@@ -36,7 +36,7 @@ from btclib.exceptions import BTClibRuntimeError, BTClibValueError
 from btclib.hashes import reduce_to_hlen
 from btclib.number_theory import mod_inv
 from btclib.to_prv_key import PrvKey, int_from_prv_key
-from btclib.to_pub_key import Key, point_from_key, pub_keyinfo_from_key
+from btclib.to_pub_key import PubKey, point_from_pub_key, pub_keyinfo_from_pub_key
 from btclib.utils import bytes_from_octets, bytesio_from_binarydata, hex_string
 
 _DER_SCALAR_MARKER = b"\x02"
@@ -345,13 +345,24 @@ def _assert_as_valid_(
 
 def assert_as_valid_(
     msg_hash: Octets,
-    key: Key,
+    key: PubKey,
     sig: Sig | Octets,
     lower_s: bool = True,
     hf: HashF = sha256,
 ) -> None:
     # Private function for test/dev purposes
     # It raises Errors, while verify should always return True or False
+    #
+    # key is a PubKey, not a Key: verification is where a private key
+    # accepted for a public one does real harm, silently checking a
+    # signature against a public key derived from the very secret handed
+    # in — a check that proves nothing about the signer. The Key union
+    # and its point_from_key/pub_keyinfo_from_key helpers keep the
+    # convenience for address and script builders, where deriving from
+    # one's own private key is what the caller asked for. The narrowing
+    # is not just an annotation: the helpers called below reject a WIF
+    # and an xprv too, which a PubKey annotation cannot rule out, both
+    # being strings
     if isinstance(sig, Sig):
         sig.assert_valid()
     else:
@@ -359,7 +370,7 @@ def assert_as_valid_(
 
     if sig.ec == secp256k1 and hf == sha256:
         msg_hash_bytes = bytes_from_octets(msg_hash, 32)
-        pubkey_bytes = pub_keyinfo_from_key(key)[0]
+        pubkey_bytes = pub_keyinfo_from_pub_key(key)[0]
         sig_bytes = sig.serialize()
         # libsecp256k1 rejects what is not in the lower-s form: if it is
         # not to be enforced, then normalize
@@ -370,7 +381,7 @@ def assert_as_valid_(
         return
 
     c = challenge_(msg_hash, sig.ec, hf)  # 2, 3
-    Q = point_from_key(key, sig.ec)
+    Q = point_from_pub_key(key, sig.ec)
     QJ = Q[0], Q[1], 1
     # second part delegated to helper function
     _assert_as_valid_(c, QJ, sig.r, sig.s, lower_s, sig.ec)
@@ -378,7 +389,7 @@ def assert_as_valid_(
 
 def assert_as_valid(
     msg: Octets,
-    key: Key,
+    key: PubKey,
     sig: Sig | Octets,
     lower_s: bool = True,
     hf: HashF = sha256,
@@ -391,7 +402,7 @@ def assert_as_valid(
 
 def verify_(
     msg_hash: Octets,
-    key: Key,
+    key: PubKey,
     sig: Sig | Octets,
     lower_s: bool = True,
     hf: HashF = sha256,
@@ -409,7 +420,7 @@ def verify_(
 
 def verify(
     msg: Octets,
-    key: Key,
+    key: PubKey,
     sig: Sig | Octets,
     lower_s: bool = True,
     hf: HashF = sha256,

@@ -611,9 +611,11 @@ def test_ledger() -> None:
     key_id = dersig[0]
     dsa_sig = dsa.Sig.parse(b"\x30" + dersig[1:])
 
-    # ECDSA signature verification of the patched dersig
-    dsa.assert_as_valid(magic_msg, xprv, dsa_sig)
-    assert dsa.verify(magic_msg, xprv, dsa_sig)
+    # ECDSA signature verification of the patched dersig;
+    # the xpub, verification taking public keys alone
+    xpub = bip32.xpub_from_xprv(xprv)
+    dsa.assert_as_valid(magic_msg, xpub, dsa_sig)
+    assert dsa.verify(magic_msg, xpub, dsa_sig)
 
     # compressed address
     addr = b58.p2pkh(xprv)
@@ -646,9 +648,11 @@ def test_ledger() -> None:
     key_id = dersig[0]
     dsa_sig = dsa.Sig.parse(b"\x30" + dersig[1:])
 
-    # ECDSA signature verification of the patched dersig
-    dsa.assert_as_valid(magic_msg, xprv, dsa_sig, lower_s=True)
-    assert dsa.verify(magic_msg, xprv, dsa_sig)
+    # ECDSA signature verification of the patched dersig;
+    # the xpub, verification taking public keys alone
+    xpub = bip32.xpub_from_xprv(xprv)
+    dsa.assert_as_valid(magic_msg, xpub, dsa_sig, lower_s=True)
+    assert dsa.verify(magic_msg, xpub, dsa_sig)
 
     # compressed address
     addr = b58.p2pkh(xprv)
