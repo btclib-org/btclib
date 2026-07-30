@@ -23,7 +23,7 @@ from btclib import var_bytes, var_int
 from btclib.alias import BinaryData
 from btclib.block.block_header import BlockHeader
 from btclib.exceptions import BTClibValueError
-from btclib.hashes import hash256, merkle_root
+from btclib.hashes import hash256, merkle_root_and_mutated
 from btclib.tx import Tx
 from btclib.utils import bytesio_from_binarydata, decode_num
 
@@ -112,11 +112,21 @@ class Block:
             tx.serialize(include_witness=False, check_validity=False)
             for tx in self.transactions
         ]
-        merkle_root_ = merkle_root(data, _HF)[::-1]
+        root, mutated = merkle_root_and_mutated(data, _HF)
+        merkle_root_ = root[::-1]
         if merkle_root_ != self.header.merkle_root:
             err_msg = f"invalid merkle root: {self.header.merkle_root.hex()}"
             err_msg += f" instead of: {merkle_root_.hex()}"
             raise BTClibValueError(err_msg)
+        if mutated:
+            # CVE-2012-2459: two equal siblings mean a shorter transaction
+            # list has this very same root, so the header does not commit
+            # to the list at hand and the block hash can be kept while its
+            # content changes. Core checks the same flag, right after
+            # comparing the root, and rejects the block as
+            # bad-txns-duplicate; the order is kept so that a block failing
+            # both reports the same reason it does.
+            raise BTClibValueError("duplicate transaction")
 
     def assert_valid(self) -> None:
         self.header.assert_valid()

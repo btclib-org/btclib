@@ -17,6 +17,7 @@ from typing import Callable
 
 from btclib import var_int
 from btclib.alias import HashF, Octets
+from btclib.exceptions import BTClibValueError
 from btclib.utils import bytes_from_octets
 
 # see https://bugs.python.org/issue47101
@@ -78,24 +79,57 @@ def magic_message(msg: Octets) -> bytes:
     return sha256(t)
 
 
-def merkle_root(data: Sequence[bytes], hf: Callable[[bytes | str], bytes]) -> bytes:
-    """Return the Merkel tree root of a list of binary hashes.
+def merkle_root_and_mutated(
+    data: Sequence[bytes], hf: Callable[[bytes | str], bytes]
+) -> tuple[bytes, bool]:
+    """Return the Merkle tree root, and whether the tree is mutated.
 
-    The Merkel tree is a binary tree constructed with the provided list
+    The Merkle tree is a binary tree constructed with the provided list
     of binary data as bottom level, then recursively going up one level
     by hashing every hash value pair in the current level, until a
     single value (root) is obtained.
+
+    The second returned value flags CVE-2012-2459: a level holding two
+    equal siblings has the same root as the shorter list carrying only
+    one of them, so the root does not commit to the list it was computed
+    from. Bitcoin Core computes the same flag (the `mutated` out
+    parameter of BlockMerkleRoot) and rejects such a block.
     """
-    data = [hf(item) for item in data]
-    while len(data) != 1:
-        parent_level = []
-        if len(data) % 2:
-            data.append(data[-1])
-        for i in range(0, len(data), 2):
-            parent = hf(data[i] + data[i + 1])
-            parent_level.append(parent)
-        data = parent_level[:]
-    return data[0]
+    level = [hf(item) for item in data]
+    if not level:
+        # the loop below would never reduce an empty level to a root
+        raise BTClibValueError("empty merkle tree")
+
+    mutated = False
+    while len(level) != 1:
+        # The pairs are read before an odd level is padded, because the
+        # padding hashes the last value with itself: that is Bitcoin's
+        # algorithm, not a mutation, and flagging it would reject every
+        # block having an odd level anywhere in its tree, i.e. almost
+        # every block (block 200,000 has five of them). What is flagged
+        # is two *distinct* siblings that are equal, at any level: a
+        # duplicated trailing subtree surfaces as an equal pair at the
+        # level it was duplicated from, not necessarily at the leaves.
+        mutated |= any(level[i] == level[i + 1] for i in range(0, len(level) - 1, 2))
+        if len(level) % 2:
+            level.append(level[-1])
+        level = [hf(level[i] + level[i + 1]) for i in range(0, len(level), 2)]
+    return level[0], mutated
+
+
+def merkle_root(data: Sequence[bytes], hf: Callable[[bytes | str], bytes]) -> bytes:
+    """Return the Merkle tree root of a list of binary hashes.
+
+    The Merkle tree is a binary tree constructed with the provided list
+    of binary data as bottom level, then recursively going up one level
+    by hashing every hash value pair in the current level, until a
+    single value (root) is obtained.
+
+    The root alone does not tell whether the list is the CVE-2012-2459
+    mutation of a shorter one; whoever validates a block must use
+    merkle_root_and_mutated and reject a mutated tree.
+    """
+    return merkle_root_and_mutated(data, hf)[0]
 
 
 def tagged_hash(tag: bytes, m: bytes, hf: HashF = hashlib.sha256) -> bytes:

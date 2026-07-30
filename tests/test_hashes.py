@@ -11,7 +11,16 @@
 
 from hashlib import sha256
 
-from btclib.hashes import hash160, hash256, magic_message
+import pytest
+
+from btclib.exceptions import BTClibValueError
+from btclib.hashes import (
+    hash160,
+    hash256,
+    magic_message,
+    merkle_root,
+    merkle_root_and_mutated,
+)
 from tests.test_to_key import (
     net_unaware_compressed_pub_keys,
     net_unaware_uncompressed_pub_keys,
@@ -53,3 +62,39 @@ def test_magic_message_length_prefix() -> None:
     for length, prefix in test_vectors:
         msg = b"a" * length
         assert magic_message(msg) == sha256(magic + prefix + msg).digest()
+
+
+def test_merkle_root_mutation() -> None:
+    """A duplicated trailing subtree is flagged, padding is not.
+
+    CVE-2012-2459: duplicating the trailing subtree of a level leaves the
+    root unchanged, so the root alone does not commit to the list. The
+    expected flags are spelled out per list rather than derived, because
+    the failure being guarded against is exactly a wrong rule: flagging
+    the padding of an odd level would reject the honest lists here.
+    """
+    a, b, c, d, e, f = (bytes([i]) * 32 for i in range(6))
+    test_vectors = (
+        ([a], False),
+        ([a, b], False),
+        ([a, b, c], False),  # c is padded with itself: honest
+        ([a, b, c, c], True),  # ...and here duplicated: mutated
+        ([a, b, c, d, e], False),
+        ([a, b, c, d, e, f], False),
+        # duplicating two leaves shows up one level up, not at the leaves
+        ([a, b, c, d, e, f, e, f], True),
+    )
+    for data, mutated in test_vectors:
+        assert merkle_root_and_mutated(data, hash256)[1] is mutated
+
+    # the root cannot tell the mutation from the list it was built on
+    assert merkle_root([a, b, c], hash256) == merkle_root([a, b, c, c], hash256)
+    assert merkle_root([a, b, c, d, e, f], hash256) == merkle_root(
+        [a, b, c, d, e, f, e, f], hash256
+    )
+
+
+def test_merkle_root_empty() -> None:
+    # it used to loop forever, never reducing an empty level to a root
+    with pytest.raises(BTClibValueError, match="empty merkle tree"):
+        merkle_root([], hash256)

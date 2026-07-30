@@ -117,6 +117,20 @@ Major changes includes:
   and the reason a nine-byte var_int can no longer ask a parser for 2^64-1
   elements; the new `max_size` parameter raises it for a var_int that is
   neither a length nor a count (issue #135)
+- `Block.assert_valid` rejects the CVE-2012-2459 block mutation, as Core
+  does. Duplicating the trailing subtree of any level of the merkle tree
+  leaves the root unchanged — appending a copy of the last four
+  transactions of block 200,000 yields its very own merkle root — so the
+  header of an honest block commits to the mutated list too, and btclib
+  accepted both while the network accepts one. The new
+  `hashes.merkle_root_and_mutated` returns the root together with Core's
+  `mutated` flag, set when two *distinct* siblings are equal at any
+  level, and the block raises BTClibValueError("duplicate transaction"),
+  Core's bad-txns-duplicate, after the root comparison. Padding an odd
+  level by hashing its last value with itself is the algorithm, not a
+  mutation, and is not flagged: flagging it would reject almost every
+  block. `merkle_root` is unchanged for every other use, beyond raising
+  on an empty list instead of looping forever (issue #134)
 - a script verification failure says what went wrong, and where. The 76
   bare `BTClibValueError()` raises — 70 of them under `script/engine/` —
   carried an empty message, so a wrong public key encoding, an unbalanced

@@ -232,6 +232,29 @@ def test_block_200000() -> None:
         _ = block.height
 
 
+def test_block_merkle_mutation() -> None:
+    """A block duplicating a trailing subtree is rejected (CVE-2012-2459).
+
+    Block 200,000 has 388 transactions, so the level of 97 nodes is the
+    first odd one; appending a copy of the last four transactions makes
+    the tree hash the two identical subtrees rooted there and yields the
+    very same merkle root, i.e. the header of the honest block also
+    commits to this one. Core rejects it as bad-txns-duplicate.
+    """
+    fname = "block_200000.bin"
+    filename = path.join(path.dirname(__file__), "_data", fname)
+    with open(filename, "rb") as file_:
+        block_bytes = file_.read()
+
+    block = Block.parse(block_bytes)
+    block.transactions += block.transactions[-4:]
+
+    # the header is untouched: the root does not tell the two apart
+    err_msg = "duplicate transaction"
+    with pytest.raises(BTClibValueError, match=err_msg):
+        block.assert_valid()
+
+
 def test_block_481824() -> None:
     """Test first block with segwit transaction as seen from legacy nodes."""
     prev_block = "000000000000000000cbeff0b533f8e1189cf09dfbebf57a8ebe349362811b80"
