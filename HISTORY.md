@@ -63,6 +63,13 @@ Major changes includes:
   btclib_libsecp256k1, resolved from PyPI by the declared pin, where every
   other job follows tool.uv.sources to the bindings under development: what
   it watches for is not a change here but a release there
+- `hashes.magic_message` prefixes the message length as a var_int, as
+  Bitcoin Core and Electrum do, instead of as a single byte: a Bitcoin
+  message signature over 252 bytes now agrees with every other
+  implementation. It used to diverge silently from 253 bytes on, so
+  `bms.sign` produced (and `bms.verify` accepted) signatures nobody else
+  agreed with while rejecting the valid ones, and from 256 bytes on
+  signing raised OverflowError instead of signing
 - the version is declared once, in pyproject.toml: `btclib.__version__`
   reads it back from the installed metadata (so it reports the version
   that is installed, not the one a source tree carries) and the

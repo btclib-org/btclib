@@ -15,6 +15,7 @@ import hashlib
 from collections.abc import Sequence
 from typing import Callable
 
+from btclib import var_int
 from btclib.alias import HashF, Octets
 from btclib.utils import bytes_from_octets
 
@@ -68,11 +69,12 @@ def reduce_to_hlen(msg: Octets, hf: HashF = hashlib.sha256) -> bytes:
 
 def magic_message(msg: Octets) -> bytes:
     msg = bytes_from_octets(msg)
-    t = (
-        b"\x18Bitcoin Signed Message:\n"
-        + len(msg).to_bytes(1, byteorder="big", signed=False)
-        + msg
-    )
+    # Both strings are length-prefixed as var_int (CompactSize), as Core
+    # does by serializing them with CDataStream; the 0x18 prefix of the
+    # magic string is the var_int of its own 24 bytes.
+    # A fixed one-byte length would agree with Core up to 252 bytes only,
+    # silently diverge from 253 to 255, and overflow above that.
+    t = b"\x18Bitcoin Signed Message:\n" + var_int.serialize(len(msg)) + msg
     return sha256(t)
 
 

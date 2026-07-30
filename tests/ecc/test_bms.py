@@ -76,6 +76,21 @@ def test_signature() -> None:
         bms_sig = bms.Sig(bms_sig.rf, dsa_sig)
 
 
+def test_long_message() -> None:
+    """Sign and verify across the one-byte length boundary.
+
+    The message length is prefixed as a var_int, so a message of 253
+    bytes or more is signable and verifiable; a fixed one-byte length
+    used to make signing raise OverflowError from 256 bytes on.
+    """
+    wif, addr = bms.gen_keys()
+    for length in (252, 253, 255, 256, 0x10000):
+        msg = b"a" * length
+        bms_sig = bms.sign(msg, wif)
+        bms.assert_as_valid(msg, addr, bms_sig)
+        assert bms.verify(msg, addr, bms_sig)
+
+
 def test_exceptions() -> None:
     msg = b"test"
     wif = "KwELaABegYxcKApCb3kJR9ymecfZZskL9BzVUkQhsqFiUKftb4tu"
