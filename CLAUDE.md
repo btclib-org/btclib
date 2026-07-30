@@ -63,7 +63,6 @@ type aliases the public API accepts, and much of the surface takes
   and the API answers a PATCH with 200 while leaving them disabled. The
   `detect-secrets` hook is the compensating control.
 - `uv run --no-sources` rewrites `uv.lock`; restore it before committing.
-- `sourcery` is named in CONTRIBUTING.md but gates nothing.
 
 ## Conventions to match
 

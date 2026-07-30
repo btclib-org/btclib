@@ -365,7 +365,6 @@ def test_p2ms_1() -> None:
     # documented test case: https://learnmeabitcoin.com/guide/p2ms
     pub_key0 = "04 cc71eb30d653c0c3163990c47b976f3fb3f37cccdcbedb169a1dfef58bbfbfaf f7d8a473e7e2e6d317b87bafe8bde97e3cf8f065dec022b51d11fcdd0d348ac4"
     pub_key1 = "04 61cbdcc5409fb4b4d42b51d33381354d80e550078cb532a34bfa2fcfdeb7d765 19aecc62770f5b0e4ef8551946d8a540911abe3e7854a26f39f58b25c15342af"
-    # sourcery skip: move-assign-in-block
     script_pub_key = bytes.fromhex(
         "51"  # OP_1
         "41"  # canonical 65-bytes push

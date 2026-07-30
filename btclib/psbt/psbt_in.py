@@ -476,7 +476,6 @@ class PsbtIn:
         check_validity: bool = True,
     ) -> PsbtIn:
         """Return a PsbtIn by parsing binary data."""
-        # sourcery skip: low-code-quality
         # FIX parse must use BinaryData
         non_witness_utxo = None
         witness_utxo = None

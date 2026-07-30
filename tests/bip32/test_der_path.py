@@ -100,7 +100,6 @@ def test_index_int_to_from_str() -> None:
         with pytest.raises(BTClibValueError, match="invalid index: "):
             str_from_index_int(i)
 
-    # sourcery skip: simplify-fstring-formatting
     for s in ("-1", "-1h", f"{0x80000000}h", f"{0xFFFFFFFF + 1}"):
         with pytest.raises(BTClibValueError, match="invalid index: "):
             int_from_index_str(s)

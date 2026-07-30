@@ -29,7 +29,6 @@ def test_conversions() -> None:
         with localcontext() as ctx:
             ctx.traps[FloatOperation] = trap_float_operation
 
-            # sourcery skip: simplify-numeric-comparison
             assert 1.1 + 2.2 != 3.3
             assert Decimal("1.1") + Decimal("2.2") == Decimal("3.3")
 

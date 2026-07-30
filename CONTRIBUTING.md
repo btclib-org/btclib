@@ -58,8 +58,7 @@ As an annotated python3 project, btclib is very strict on code formatting
 and linting
 ([ruff](https://docs.astral.sh/ruff/),
 which replaces autoflake, bandit, black, docformatter, flake8, isort,
-pydocstyle, pylint, pyupgrade, and yesqa;
-and [sourcery](https://pypi.org/project/sourcery-cli/))
+pydocstyle, pylint, pyupgrade, and yesqa)
 and proper type definition
 ([mypy](https://mypy-lang.org/)):
 warnings are not tolerated and should be taken care of.
