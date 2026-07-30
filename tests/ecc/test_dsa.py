@@ -378,6 +378,8 @@ def signature_vectors(fname: str) -> list[Any]:
 
 
 # https://github.com/rustyrussell/secp256k1-py/blob/master/tests/data/ecdsa_sig.json
+# 199 vectors, JSON-equal to upstream and reformatted on the way in;
+# tests/_data/README.md pins the revision, for this and the file below
 @pytest.mark.parametrize("vector", signature_vectors("ecdsa_sig.json"))
 def test_libsecp256k1_py_vectors_ecdsa(vector: dict[str, str]) -> None:
     msg_hash = bytes.fromhex(vector["msg"])
@@ -398,6 +400,7 @@ def test_libsecp256k1_py_vectors_ecdsa(vector: dict[str, str]) -> None:
 
 
 # https://github.com/rustyrussell/secp256k1-py/blob/master/tests/data/ecdsa_custom_nonce_sig.json
+# 199 vectors, same upstream, same reformatting
 @pytest.mark.parametrize("vector", signature_vectors("ecdsa_custom_nonce_sig.json"))
 def test_libsecp256k1_py_vectors_ecdsa_nonce(vector: dict[str, str]) -> None:
     msg_hash = bytes.fromhex(vector["msg"])

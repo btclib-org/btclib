@@ -7,7 +7,14 @@
 #
 # No part of btclib including this file, may be copied, modified, propagated,
 # or distributed except according to the terms contained in the LICENSE file.
-"""Tests for the `btclib.tx` module."""
+"""Tests for the `btclib.tx` module.
+
+`_data/<txid>.bin` is consensus bytes rather than a vendored vector: the
+file is named after the txid `Tx.parse` recomputes from it, so a corrupted
+copy announces itself, and `bitcoin-cli getrawtransaction <txid>` returns
+those bytes given a node with the transaction index.
+tests/_data/README.md has its size and wtxid.
+"""
 
 import json
 from os import path

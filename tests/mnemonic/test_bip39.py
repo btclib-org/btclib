@@ -56,6 +56,13 @@ def test_vectors(entr: str, mnemonic: str, seed: str, xprv: str) -> None:
     """BIP39 test vectors.
 
     https://github.com/trezor/python-mnemonic/blob/master/vectors.json
+
+    Upstream's 24 English vectors, in order and value for value, plus a
+    25th that is btclib's own: the last one repeated with tabs, newlines
+    and doubled spaces through the mnemonic, which is what the
+    `" ".join(mnemonic.split())` below is there to normalise. Only the
+    English array was ever taken, `english.txt` being the one wordlist
+    shipped; tests/_data/README.md pins the revision.
     """
     lang = "en"
     entropy = bytes.fromhex(entr)

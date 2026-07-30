@@ -79,6 +79,15 @@ ELECTRUM_VECTORS = [
 def test_vectors(
     mnemonic: str, passphrase: str, rmxprv: str, rmxpub: str, address: str
 ) -> None:
+    """Electrum vectors, and the only vendored file with no upstream at all.
+
+    They are in no repository -- not in spesmilo/electrum's `tests/`, and a
+    code search for the first mnemonic returns btclib and a fork of btclib
+    -- so they were produced by running the application, and which version
+    produced them is not recorded anywhere. Treat them as btclib's own:
+    nothing upstream will ever refresh them. tests/_data/README.md says the
+    same at greater length.
+    """
     lang = "en"
     if mnemonic != "":
         assert rmxprv == electrum.mxprv_from_mnemonic(mnemonic, passphrase)

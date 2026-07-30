@@ -10,6 +10,9 @@
 """Tests for the `btclib.sig_hash` module.
 
 - https://github.com/bitcoin/bitcoin/blob/master/src/test/data/sighash.json
+
+Vendored as `sig_hash_legacy_test_vectors.json`, renamed on the way in and
+otherwise Core's file untouched; tests/_data/README.md pins the revision.
 """
 
 import pytest

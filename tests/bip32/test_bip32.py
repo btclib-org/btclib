@@ -203,6 +203,13 @@ def test_invalid_bip32_xkeys(xkey: str, err_msg: str) -> None:
     """BIP32 test vectors #5.
 
     https://github.com/bitcoin/bips/pull/921
+
+    btclib is the upstream of these: that pull request is Ferdinando
+    Ametrano's, and it landed the day the file was vendored. The 16 keys
+    are the BIP's; the second column is btclib's own, holding btclib error
+    messages the BIP does not and should not carry, so a refresh from
+    upstream refreshes the keys and never the messages.
+    tests/_data/README.md pins the revision.
     """
     with pytest.raises(BTClibValueError, match=re.escape(err_msg)):
         BIP32KeyData.b58decode(xkey)

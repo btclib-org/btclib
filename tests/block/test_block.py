@@ -7,7 +7,17 @@
 #
 # No part of btclib including this file, may be copied, modified, propagated,
 # or distributed except according to the terms contained in the LICENSE file.
-"""Tests for the `btclib.block` module."""
+"""Tests for the `btclib.block` module.
+
+The `_data/block_*.bin` files are consensus bytes, so there is no upstream
+repository to cite: `bitcoin-cli getblock <hash> 0` returns each of them,
+except `block_481824.bin`, which is that block serialized *without*
+witness data as a pre-segwit node sees it and which no RPC hands over --
+`Block.parse(complete).serialize(include_witness=False)` reproduces it.
+`Block.parse` recomputes the hash from the bytes on every run, so these
+files verify themselves. tests/_data/README.md lists the heights, hashes
+and sizes.
+"""
 
 import json
 from copy import deepcopy

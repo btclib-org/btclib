@@ -91,6 +91,8 @@ def test_mult_on_secp256k1() -> None:
 
 
 # https://github.com/rustyrussell/secp256k1-py/blob/master/tests/data/pubkey.json
+# 349 vectors, JSON-equal to upstream and pretty-printed at four
+# spaces on the way in; tests/_data/README.md pins the revision
 @pytest.mark.parametrize(
     "vector",
     [

@@ -12,6 +12,12 @@ Those say what a vector *is*; this says which revision of it we hold —
 and for six files the answer is "no revision of it, byte for byte",
 which the verdict then accounts for.
 
+The two halves are kept in agreement in one direction only: a test module
+names its upstream and points here for the revision, and this file does not
+restate what a vector tests. Where a citation named the wrong upstream it
+was corrected in the module — three of them so far, listed at the end —
+and this file is not where that correction lives.
+
 ## Reading an entry
 
 Each entry gives the upstream repository, the path in it, the commit the
@@ -541,8 +547,10 @@ Pulled 2020-05-08.
 their root keys and addresses are in no upstream repository: a GitHub
 code search for the first mnemonic returns btclib and one fork of btclib,
 and they are not in spesmilo/electrum's `tests/`. They were produced by
-running Electrum, which is what `tests/mnemonic/test_electrum.py` implies
-with its "FIXME is the following mnemonic obtained in Electrum".
+running Electrum — suggestively, `tests/mnemonic/test_electrum.py` asks
+"FIXME is the following mnemonic obtained in Electrum" of a mnemonic
+written inline in `test_mnemonic`, so that FIXME is about a different
+value than these and is evidence of the habit rather than of this file.
 
 So they are btclib's, cross-checked against an application rather than
 copied from a project, and the honest record is that we cannot say which
@@ -602,11 +610,6 @@ No upstream blob exists for the rest:
 
 ### Left for a maintainer to decide
 
-- **Two citations in the test modules are wrong.**
-  `tests/ecc/test_bms.py` names `bitcoin/tests/test_data/bms.json`; the
-  file is `bitcoin/tests/data/signmessage.json`.
-  `tests/script/test_script_pub_key.py` cites `en.bitcoin.it` for BIP67
-  rather than the BIP.
 - **Three descriptors of Core's `doc/descriptors.md` are not vendored**,
   and cannot be without a checksum from a third implementation. See that
   entry.
@@ -642,6 +645,24 @@ Three btclib defects came out of it, all three of them things the missing
 vectors had been hiding rather than new: issue 169 (BIP340 messages of
 arbitrary size), issue 170 (a PSBT whose unsigned tx has no inputs), and
 the note in issue 170 about the value-size check that does not exist.
+
+And three citations in the test modules named the wrong upstream, all now
+corrected in the module that carries them:
+
+- `tests/ecc/test_bms.py` named `bitcoin/tests/test_data/bms.json`, which
+  is upstream's path for neither the directory nor the file: it is
+  `bitcoin/tests/data/signmessage.json`.
+- `tests/script/test_script_pub_key.py` cited `en.bitcoin.it/wiki/BIP_0067`,
+  a wiki page that is neither versioned nor authoritative, for vectors
+  transcribed from the BIP.
+- `tests/script/test_sig_hash_taproot.py` and `tests/script/test_taproot.py`
+  cited bip-0341 for both of the two files they load, and
+  `tapscript_test_vector.json` is not in any BIP: it is a Core dump kept in
+  qa-assets. `tests/script_engine/test_transactions.py` loads it too and
+  cited nothing.
+
+Each of those modules now names its upstream and points here for the
+revision, which is the division of labour the top of this file describes.
 
 Each entry above records what changed; this list is the index, so a later
 reader can tell a deliberate refresh from drift.

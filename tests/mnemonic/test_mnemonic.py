@@ -45,7 +45,11 @@ def test_wordlist_2() -> None:
     with pytest.raises(BTClibValueError, match=err_msg):
         WORDLISTS.load_lang(lang)
 
-    # dictionary length (must be a power of two
+    # dictionary length (must be a power of two.
+    # fakeenglish.txt is btclib's own and deliberately broken: bip-0039's
+    # english.txt with `abandon` deleted, so 2047 words. Regenerate it from
+    # english.txt if that ever changes, which it has not since 2014;
+    # tests/_data/README.md records both
     fname = "fakeenglish.txt"
     filename = path.join(path.dirname(__file__), "_data", fname)
     err_msg = "invalid wordlist length: "
