@@ -30,6 +30,11 @@ repos:
       - id: trailing-whitespace
       - id: end-of-file-fixer
       - id: mixed-line-ending
+        # not the default --fix=auto, which normalizes a file to its own
+        # most frequent ending: a file entirely in CRLF is consistent by
+        # that measure, so it stays, and the LF lines added to it are
+        # converted the wrong way. This repository is LF throughout
+        args: [--fix=lf]
       - id: check-case-conflict
       # - id: check-executables-have-shebangs
       # - id: check-shebang-scripts-are-executable
