@@ -14,13 +14,22 @@ documentation: https://www.sphinx-
 doc.org/en/master/usage/configuration.html
 """
 
+from pathlib import Path
+
+import tomllib
+
 # -- Project information -----------------------------------------------------
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#project-information
 
 project = "btclib"
 project_copyright = "2017-2023 The btclib developers"
 author = "The btclib developers"
-release = "2023.8"
+# read from pyproject.toml, the one place the version is declared, and not
+# from importlib.metadata: that would need btclib installed in the
+# environment building the documentation, which read the docs does not do
+release = tomllib.loads(
+    (Path(__file__).parents[2] / "pyproject.toml").read_text(encoding="utf-8")
+)["project"]["version"]
 
 # -- General configuration ---------------------------------------------------
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#general-configuration

@@ -136,6 +136,7 @@ wheels = [
 
 [[package]]
 name = "btclib"
+version = "2023.8"
 source = { editable = "." }
 dependencies = [
     { name = "btclib-libsecp256k1" },

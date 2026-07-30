@@ -4,7 +4,12 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "btclib"
-dynamic = ["version"]
+# the one place the version is declared: btclib.__version__ reads it back
+# from the installed metadata, and docs/source/conf.py reads it from this
+# file. It used to be the other way round, a literal in btclib/__init__.py
+# that setuptools imported and conf.py repeated, which is why the release
+# workflow had to compare two declarations before trusting either
+version = "2023.8"
 description = "A library for 'bitcoin cryptography'"
 readme = "README.md"
 license = { text = "MIT License" }
@@ -79,9 +84,6 @@ dev = [
 # released ones: this is uv-only metadata, so the published btclib keeps
 # depending on plain btclib_libsecp256k1 from PyPI
 btclib_libsecp256k1 = { git = "https://github.com/btclib-org/btclib_libsecp256k1", branch = "dev" }
-
-[tool.setuptools.dynamic]
-version = { attr = "btclib.__version__" }
 
 [tool.setuptools.packages.find]
 include = ["btclib*"]

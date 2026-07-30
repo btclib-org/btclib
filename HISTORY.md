@@ -59,6 +59,12 @@ Major changes includes:
   only on the tag that ships it: twine, check-wheel-contents and pyroma
   moved from the release workflow to a job of the test workflow, which
   the release workflow calls
+- the version is declared once, in pyproject.toml: `btclib.__version__`
+  reads it back from the installed metadata (so it reports the version
+  that is installed, not the one a source tree carries) and the
+  documentation reads it from the file. It used to be a literal in
+  btclib/\_\_init\_\_.py that setuptools imported, repeated by
+  docs/source/conf.py, with the release workflow comparing the two
 
 ## v2023.7.12
 

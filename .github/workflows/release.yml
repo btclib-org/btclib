@@ -48,21 +48,19 @@ jobs:
       # nothing installed it
       - name: Check that uv.lock is up to date
         run: uv lock --check
-      - name: Check that the two declared versions agree
-        run: |
-          version=$(sed -n 's/^__version__ = "\(.*\)"$/\1/p' btclib/__init__.py)
-          docs=$(sed -n 's/^release = "\(.*\)"$/\1/p' docs/source/conf.py)
-          echo "btclib.__version__ = $version"
-          if [ "$docs" != "$version" ]; then
-            echo "::error::docs/source/conf.py declares $docs, btclib/__init__.py declares $version"
-            exit 1
-          fi
+      # one comparison, where there used to be two: pyproject.toml is the
+      # only place the version is declared, btclib.__version__ reads it
+      # back from the installed metadata and docs/source/conf.py reads it
+      # from the file, so there is no second declaration to disagree with.
+      # uv.lock carries the project version too, which is what the check
+      # above covers
       - name: Check that the tag matches the declared version (release only)
         if: github.event_name == 'push'
         run: |
-          version=$(sed -n 's/^__version__ = "\(.*\)"$/\1/p' btclib/__init__.py)
+          version=$(uv version --short)
+          echo "pyproject.toml declares $version"
           if [ "v$version" != "$GITHUB_REF_NAME" ]; then
-            echo "::error::tag $GITHUB_REF_NAME does not match btclib.__version__ = $version"
+            echo "::error::tag $GITHUB_REF_NAME does not match the declared version $version"
             exit 1
           fi
 
@@ -95,9 +93,32 @@ jobs:
       # dispatch a fresh run instead
       - name: Make the version unique for TestPyPI (rehearsal only)
         if: github.event_name == 'workflow_dispatch'
+        # python and tomllib, not sed: the value is parsed and only then
+        # located in the text, because a regex for a version key on its own
+        # line would find whichever table came first. The assignment is
+        # rewritten whole, which leaves its spelling as the file had it.
+        # The interpreter comes from uv, --no-project so that nothing is
+        # installed and no lock is consulted: this job sets up no python of
+        # its own, and tomllib needs 3.11
         run: |
-          sed -i "s/^__version__ = \"\(.*\)\"$/__version__ = \"\1.dev$GITHUB_RUN_NUMBER\"/" btclib/__init__.py
-          grep "^__version__" btclib/__init__.py
+          uv run --no-project --python 3.13 python - <<'PY'
+          import os
+          import re
+          import tomllib
+          from pathlib import Path
+
+          path = Path("pyproject.toml")
+          text = path.read_text(encoding="utf-8")
+          declared = tomllib.loads(text)["project"]["version"]
+          match = re.search(rf'(?m)^version\s*=\s*"{re.escape(declared)}"\s*$', text)
+          if match is None:
+              msg = f"pyproject.toml declares {declared}, which is not a literal in it"
+              raise SystemExit(msg)
+          suffixed = declared + ".dev" + os.environ["GITHUB_RUN_NUMBER"]
+          line = match.group().replace(declared, suffixed, 1)
+          path.write_text(text[: match.start()] + line + text[match.end() :], encoding="utf-8")
+          PY
+          grep -m1 '^version' pyproject.toml
       # uv build builds the sdist first and then the wheel from it, not
       # both from the source tree: the packaging path a user installing
       # from source takes is therefore the one that produced the wheel,

@@ -29,8 +29,9 @@ Already done for btclib-org/btclib; kept here for the record.
 
 ## Rehearse on TestPyPI
 
-A rehearsal runs the identical pipeline — test matrix, version checks,
-check-manifest, pyroma, build, wheel smoke test — and publishes to
+A rehearsal runs the identical pipeline — lint gate, test matrix, the
+packaging checks of the `dist-py` job (twine, check-wheel-contents,
+pyroma), build, wheel smoke test — and publishes to
 [TestPyPI](https://test.pypi.org/project/btclib/) instead of PyPI.
 
 1. On GitHub, Actions → release → Run workflow, and pick the branch to
@@ -62,8 +63,12 @@ check-manifest, pyroma, build, wheel smoke test — and publishes to
    rehearsal catches it.
 
 1. Set the release version (calendar versioning, `YYYY.M.D`) in
-   btclib/\_\_init\_\_.py and docs/source/conf.py — the workflow fails
-   if the two disagree, or if either disagrees with the tag.
+   pyproject.toml, the only place it is declared, and re-lock (the
+   `uv-lock` pre-commit hook does it, uv.lock carrying the project
+   version too). btclib.\_\_version\_\_ reads it back from the installed
+   metadata and docs/source/conf.py reads it from the file, so there is
+   nothing else to keep in step; the workflow fails if it disagrees with
+   the tag, or if uv.lock was not re-locked.
 
 1. Retitle the "work in progress" section of HISTORY.md as
    `## v<version>` and make sure it covers every major change: the
@@ -92,9 +97,8 @@ check-manifest, pyroma, build, wheel smoke test — and publishes to
    read once it lands.
 
 1. Open the next cycle: set a generic next version without the day
-   (e.g. after 2023.8.4, use 2023.9) in btclib/\_\_init\_\_.py and
-   docs/source/conf.py, and start a new "work in progress" section in
-   HISTORY.md.
+   (e.g. after 2023.8.4, use 2023.9) in pyproject.toml, and start a new
+   "work in progress" section in HISTORY.md.
 
 ## If something goes wrong
 
