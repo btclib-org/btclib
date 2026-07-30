@@ -73,7 +73,10 @@ def test_exceptions() -> None:
     with pytest.raises(BTClibValueError, match="invalid nonce: "):
         BlockHeader.parse(header_bytes)
 
-    with pytest.raises(IndexError, match="list index out of range"):
+    # a 0xff prefix announcing eight bytes that are not there: the
+    # truncation is now caught, rather than read as a transaction count of
+    # zero and surfaced as an IndexError from outside the library contract
+    with pytest.raises(BTClibValueError, match="not enough binary data for var_int"):
         Block.parse(block_bytes[:80] + b"\xff")
 
     header_bytes = block_bytes[:80]

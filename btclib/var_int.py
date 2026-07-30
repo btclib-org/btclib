@@ -26,29 +26,65 @@ Up to 0xfc, a var_int is just 1 byte; however, if the integer is greater than
 * prefix 0xfd markes the next two bytes as the number;
 * prefix 0xfe markes the next four bytes as the number;
 * prefix 0xff markes the next eight bytes as the number.
+
+Only the shortest encoding of a given number is valid: Bitcoin Core
+rejects the others as "non-canonical ReadCompactSize()". Were they
+accepted, the same transaction would have two serializations, hence two
+txids.
 """
+
+from io import BytesIO
 
 from btclib.alias import BinaryData
 from btclib.exceptions import BTClibValueError
 from btclib.utils import bytesio_from_binarydata, hex_string
 
+# The MAX_SIZE of Bitcoin Core (serialize.h), i.e. the range check its
+# ReadCompactSize applies by default. Every var_int btclib parses is a
+# length or a count, so it cannot legitimately exceed it; without a cap,
+# nine hostile bytes ask a parser to allocate up to 2^64-1 elements.
+MAX_SIZE = 0x02000000
 
-def parse(stream: BinaryData) -> int:
-    """Return the variable-length integer read from a stream."""
+
+def _parse_number(stream: BytesIO, size: int, minimum: int) -> int:
+    """Return the little-endian number the prefix announced."""
+    data = stream.read(size)
+    if len(data) != size:
+        raise BTClibValueError("not enough binary data for var_int")
+    i = int.from_bytes(data, byteorder="little", signed=False)
+    if i < minimum:
+        err_msg = f"non-canonical var_int: {i} encoded in {size + 1} bytes"
+        raise BTClibValueError(err_msg)
+    return i
+
+
+def parse(stream: BinaryData, max_size: int = MAX_SIZE) -> int:
+    """Return the variable-length integer read from a stream.
+
+    max_size is the range check of Bitcoin Core's ReadCompactSize; raise
+    it only for a var_int that is neither a length nor a count.
+    """
     stream = bytesio_from_binarydata(stream)
 
-    i = stream.read(1)[0]
-    if i < 0xFD:
-        # one byte integer
-        return i
+    data = stream.read(1)
+    if not data:
+        raise BTClibValueError("not enough binary data for var_int")
+    i = data[0]
     if i == 0xFD:
         # 0xfd marks the next two bytes as the number
-        return int.from_bytes(stream.read(2), byteorder="little", signed=False)
-    if i == 0xFE:
+        i = _parse_number(stream, 2, 0xFD)
+    elif i == 0xFE:
         # 0xfe marks the next four bytes as the number
-        return int.from_bytes(stream.read(4), byteorder="little", signed=False)
-    # 0xff marks the next eight bytes as the number
-    return int.from_bytes(stream.read(8), byteorder="little", signed=False)
+        i = _parse_number(stream, 4, 0x0001_0000)
+    elif i == 0xFF:
+        # 0xff marks the next eight bytes as the number
+        i = _parse_number(stream, 8, 0x0001_0000_0000)
+    # else it is a one byte integer, which is canonical by construction
+
+    if i > max_size:
+        err_msg = f"var_int too big: {hex_string(i)}, max is {hex_string(max_size)}"
+        raise BTClibValueError(err_msg)
+    return i
 
 
 def serialize(i: int) -> bytes:

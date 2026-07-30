@@ -94,6 +94,34 @@ Major changes includes:
   key or set member an utxo set wants; TxOut and Witness are not, holding
   a ScriptPubKey and a list respectively, and hashing one raises
   TypeError (issue #139)
+- `var_int.parse` rejects what Bitcoin Core rejects. It used to accept a
+  non-shortest encoding (`fd0100` read as 1), which gave the same
+  transaction two serializations and so two txids, and it did not check
+  that its reads returned the announced number of bytes, so a truncated
+  `fd01` read as 1 and a bare `fd` as 0 — `int.from_bytes(b"")` being 0,
+  and `stream.read` returning short without raising. Both are
+  BTClibValueError now, as is the end of the stream, which used to escape
+  the library's own exception contract as IndexError. There is also a
+  `MAX_SIZE` cap of 32 MiB, the range check of Core's `ReadCompactSize`
+  and the reason a nine-byte var_int can no longer ask a parser for 2^64-1
+  elements; the new `max_size` parameter raises it for a var_int that is
+  neither a length nor a count (issue #135)
+- `parse_taproot_bip32` bounds its allocation by the data it was handed
+  rather than by the count a counterparty declared: five bytes of a
+  hostile PSBT used to cost gigabytes, reachable from `Psbt.parse` and
+  `Psbt.b64decode` through `PSBT_IN_TAP_BIP32_DERIVATION` and
+  `PSBT_OUT_TAP_BIP32_DERIVATION`, because `stream.read` past the end of
+  the stream returns `b""` without raising and the comprehension ran the
+  full count regardless. The var_int cap alone would not have closed it, a
+  count under 32 MiB still being an expensive list (issue #133)
+- `parse_taproot_bip32` reads a 32-byte leaf hash, the length BIP-371
+  gives it, instead of 4 bytes. The BIP-371 test vectors exercise this,
+  and the four bytes silently split every leaf hash they contain: the
+  remaining 28 were parsed as the master fingerprint and seven more
+  derivation indexes, so a script-path input reported a fingerprint taken
+  from the middle of a hash and a twelve-element path where the wallet had
+  derived `m/86h/1h/2h/0/0`. Re-serialization concatenated the same bytes
+  back, which is why a roundtrip test never saw it
 - `dsa.assert_as_valid_` and `ssa.assert_as_valid_` raise "signature
   verification failed" whichever of the two implementations verified: the
   message used to name an internal helper (`libsecp256k1.ecdsa_verify_

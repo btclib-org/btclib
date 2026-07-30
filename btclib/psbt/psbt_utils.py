@@ -28,6 +28,12 @@ from btclib.script.taproot import assert_valid_control_block
 from btclib.tx import Tx
 from btclib.utils import bytes_from_octets, bytesio_from_binarydata
 
+# BIP-371 defines the tap_bip32_derivation value as a compact size number
+# of 32-byte leaf hashes, followed by the 4-byte master fingerprint and
+# the derivation path
+LEAF_HASH_SIZE = 32
+FINGERPRINT_SIZE = 4
+
 
 def deserialize_map(data: BinaryData) -> tuple[dict[bytes, bytes], BytesIO]:
     stream = bytesio_from_binarydata(data)
@@ -252,7 +258,15 @@ def parse_taproot_bip32(v: bytes) -> tuple[list[bytes], BIP32KeyOrigin]:
     """Return a tap_bip32_derivation from its bytes representation."""
     stream = bytesio_from_binarydata(v)
     len_ = var_int.parse(stream)
-    leafs = [stream.read(4) for _ in range(len_)]
+    # bound the allocation by the data actually available, not by the
+    # count a counterparty declared: stream.read returns b"" past the end
+    # of the stream without raising, so the comprehension below would
+    # otherwise run len_ times whatever v is
+    available = len(v) - stream.tell()
+    if len_ * LEAF_HASH_SIZE + FINGERPRINT_SIZE > available:
+        err_msg = f"invalid number of leaf hashes: {len_}"
+        raise BTClibValueError(err_msg)
+    leafs = [stream.read(LEAF_HASH_SIZE) for _ in range(len_)]
     bip32keyorigin = BIP32KeyOrigin.parse(stream.read())
     return (leafs, bip32keyorigin)
 
