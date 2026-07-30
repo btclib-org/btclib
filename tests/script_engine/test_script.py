@@ -15,8 +15,10 @@ import pytest
 
 from btclib.exceptions import BTClibValueError, ScriptError
 from btclib.script import ScriptPubKey
-from btclib.script.engine import verify_input
+from btclib.script.engine import ALL_FLAGS, verify_input
 from btclib.script.engine.script import verify_script
+from btclib.script.script import serialize
+from btclib.script.taproot import input_script_sig, output_pubkey
 from btclib.script.witness import Witness
 from btclib.tx.out_point import OutPoint
 from btclib.tx.tx import Tx
@@ -159,3 +161,75 @@ def test_unbalanced_conditional_message() -> None:
     tx = Tx(check_validity=False)
     with pytest.raises(BTClibValueError, match="unbalanced conditional"):
         verify_script(b"\x63", [], 0, tx, 0, [], False)
+
+
+def taproot_script_spend(
+    script: list[Any], lock_time: int, sequence: int
+) -> tuple[list[TxOut], Tx]:
+    """A script-path spend of the given tapscript, no signature involved.
+
+    The internal key is the BIP341 NUMS point, the default of
+    output_pubkey and input_script_sig, so the key path cannot sign;
+    the script path needs no signature unless the script asks for one,
+    which is what lets a timelock op code run alone.
+    """
+    script_tree = [(0xC0, script)]
+    q, _ = output_pubkey(None, script_tree)
+    tap_script, control = input_script_sig(None, script_tree, 0)
+    prevout = TxOut(1000, ScriptPubKey(serialize(["OP_1", q])))
+    tx_in = TxIn(
+        OutPoint(b"\x01" * 32, 0),
+        b"",
+        sequence,
+        Witness([serialize(tap_script).hex(), control.hex()]),
+    )
+    tx = Tx(2, lock_time, [tx_in], [TxOut(1000, ScriptPubKey(""))], False)
+    return [prevout], tx
+
+
+def test_tapscript_checklocktimeverify() -> None:
+    """OP_CHECKLOCKTIMEVERIFY spent through a taproot script path.
+
+    The BIP341 vectors carry no timelock op code, so the tapscript
+    dispatch of OP_CLTV ran on no vector; this spend is the synthetic
+    one that runs it: operand 1 against lock_time 100, same time kind,
+    sequence not final.
+    """
+    prevouts, tx = taproot_script_spend(
+        ["OP_1", "OP_CHECKLOCKTIMEVERIFY"], lock_time=100, sequence=1
+    )
+    verify_input(prevouts, tx, 0, ALL_FLAGS)
+
+
+def test_tapscript_checksequenceverify() -> None:
+    """OP_CHECKSEQUENCEVERIFY spent through a taproot script path.
+
+    Same reason as OP_CLTV above. The passing spend: operand 1 against
+    an input sequence of 1, both with bit 31 clear and the same unit
+    bit, on a version 2 transaction. The failing one: bit 31 set on the
+    input sequence disables its relative lock time, so an OP_CSV that
+    still asks for one must fail -- the one raise of the op code no
+    Core vector reaches, legacy or tapscript.
+    """
+    prevouts, tx = taproot_script_spend(
+        ["OP_1", "OP_CHECKSEQUENCEVERIFY"], lock_time=0, sequence=1
+    )
+    verify_input(prevouts, tx, 0, ALL_FLAGS)
+
+    prevouts, tx = taproot_script_spend(
+        ["OP_1", "OP_CHECKSEQUENCEVERIFY"], lock_time=0, sequence=1 << 31
+    )
+    with pytest.raises(BTClibValueError, match="relative lock time disabled"):
+        verify_input(prevouts, tx, 0, ALL_FLAGS)
+
+
+def test_tapscript_upgradable_nop() -> None:
+    """An upgradable OP_NOPx in a tapscript is a no-op.
+
+    BIP342 leaves OP_NOP1 and OP_NOP4-OP_NOP10 with their NOP
+    semantics, and no vector spends one: this covers the dispatch, and
+    ALL_FLAGS deliberately omits DISCOURAGE_UPGRADABLE_NOPS, which is
+    policy rather than consensus, so op_nop stays silent.
+    """
+    prevouts, tx = taproot_script_spend(["OP_1", "OP_NOP4"], lock_time=0, sequence=1)
+    verify_input(prevouts, tx, 0, ALL_FLAGS)

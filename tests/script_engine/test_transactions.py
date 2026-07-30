@@ -172,8 +172,12 @@ def witness_v0_vectors() -> list[Any]:
         tx = Tx.parse(x[1])
         if not any(vin.script_witness.stack for vin in tx.vin):
             continue
+        # no vector in today's tx_valid_legacy.json lists prevouts that
+        # do not match its inputs: this guard waits for the upstream
+        # refresh that brings one, and a synthetic vector written to
+        # cover it would test the vendored data, not btclib
         if len(x[0]) != len(tx.vin):
-            continue
+            continue  # pragma: no cover
         params.append(param)
     return params
 
@@ -193,8 +197,13 @@ def test_verify_transaction_does_not_touch_witness_v0(vector: list[Any]) -> None
 
     flags = ALL_FLAGS[:]
     for f in vector[2].split(","):
+        # unreached with today's data: the witness-v0 vectors name
+        # NONE, LOW_S and DISCOURAGE_UPGRADABLE_WITNESS_PROGRAM, and
+        # the last two are commented out of ALL_FLAGS. The removal
+        # starts running the day one of them is enforced there, or a
+        # vector shows up carrying a flag the engine does enforce
         if f in flags:
-            flags.remove(f)
+            flags.remove(f)  # pragma: no cover
 
     prevouts, check_amounts = prevouts_of(vector)
 
