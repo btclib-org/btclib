@@ -18,26 +18,34 @@ permissions:
   contents: read
 
 jobs:
-  # the whole build/test matrix, exactly as a pull request runs it
-  test:
-    uses: ./.github/workflows/test.yml
-
-  # and the same checks a pull request lints with: without this, a tag
-  # push could publish code that ruff or mypy rejects
-  lint:
-    uses: ./.github/workflows/lint.yml
-
-  build:
+  # what a version cannot survive being wrong about, checked before
+  # anything is built and long before anything is uploaded: a version is
+  # consumed by the upload that carries it, and can then only be yanked.
+  # A minute of checking, ahead of an hour of building.
+  # The rehearsal runs this too, so a mismatch cannot wait for release day
+  # to surface; only the tag comparison is release-only, there being no
+  # tag to compare against otherwise
+  version-check:
+    name: Check the declared versions
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     steps:
+      # every action is pinned to a commit SHA, the tag in the comment: a
+      # tag, let alone a branch, is a name its owner can move, and these
+      # run in a job that can read the workflow token. It matters most in
+      # this workflow, where a job holds an OIDC token PyPI accepts
       - name: Checkout code
-        uses: actions/checkout@v7
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - name: Setup uv
-        uses: astral-sh/setup-uv@v9.0.0
+        uses: astral-sh/setup-uv@c771a70e6277c0a99b617c7a806ffedaca235ff9 # v9.0.0
         with:
           enable-cache: true
-      # rehearsed here so a mismatch cannot wait for release day to
-      # surface; the tag comparison below is the release-only half
+      # every workflow installs with --frozen, which uses uv.lock as it
+      # finds it and does not check it: a dependency added to
+      # pyproject.toml without a re-lock would go unnoticed here, while
+      # nothing would install it
+      - name: Check that uv.lock is up to date
+        run: uv lock --check
       - name: Check that the two declared versions agree
         run: |
           version=$(sed -n 's/^__version__ = "\(.*\)"$/\1/p' btclib/__init__.py)
@@ -55,6 +63,29 @@ jobs:
             echo "::error::tag $GITHUB_REF_NAME does not match btclib.__version__ = $version"
             exit 1
           fi
+
+  # the whole build/test matrix, exactly as a pull request runs it
+  test:
+    needs: version-check
+    uses: ./.github/workflows/test.yml
+
+  # and the same checks a pull request lints with: without this, a tag
+  # push could publish code the pre-commit hooks reject. Not gated on
+  # version-check: this is the cheap one, and it runs in parallel with it
+  lint:
+    uses: ./.github/workflows/lint.yml
+
+  build:
+    needs: version-check
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Setup uv
+        uses: astral-sh/setup-uv@c771a70e6277c0a99b617c7a806ffedaca235ff9 # v9.0.0
+        with:
+          enable-cache: true
       # TestPyPI refuses a version it has already seen: the rehearsal
       # appends .dev<run number>, unique per dispatch and sorted before
       # the release it rehearses (PEP 440). Re-running a finished
@@ -67,10 +98,28 @@ jobs:
           grep "^__version__" btclib/__init__.py
       - name: Check that the sdist will be complete
         run: uv run --frozen --only-group build check-manifest
-      - name: Check the packaging metadata
-        run: uv run --frozen --only-group build pyroma --min 10 .
+      # uv build builds the sdist first and then the wheel from it, not
+      # both from the source tree: the packaging path a user installing
+      # from source takes is therefore the one that produced the wheel,
+      # which is why no separate "install from the sdist" job is needed
       - name: Build the distribution files
         run: uv build
+      # the same validation PyPI applies on upload, run before this
+      # workflow reaches the point of no return: broken metadata, or a
+      # README that does not render, cannot be fixed by reuploading
+      - name: Check the metadata and the long description
+        run: uv run --frozen --only-group build twine check --strict dist/*
+      # what twine does not look at: where the files land once installed,
+      # a test package shipped by accident, a stray top-level module
+      - name: Check the wheel contents
+        run: uv run --frozen --only-group build check-wheel-contents dist/*.whl
+      # and what twine cannot see either: metadata that is valid but poor,
+      # a missing classifier or url, a version PyPI would sort in a way
+      # nobody meant. Run on the sdist rather than on the source tree, so
+      # it rates the metadata that was actually built and shipped;
+      # --min 10 is a ratchet, the score being 10 today
+      - name: Rate the packaging metadata
+        run: uv run --frozen --only-group build pyroma --min 10 dist/*.tar.gz
       # from an empty directory, so the import resolves to the wheel
       # and not to the btclib/ source tree. Unlike the test matrix,
       # which follows tool.uv.sources to the bindings' dev branch, this
@@ -82,7 +131,7 @@ jobs:
           uv run --isolated --no-project --with "$GITHUB_WORKSPACE"/dist/*.whl \
             python -c "import btclib; print(btclib.__version__)"
       - name: Upload the distribution files
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: dist
           path: dist/
@@ -91,6 +140,7 @@ jobs:
     needs: [test, lint, build]
     if: github.event_name == 'workflow_dispatch' && github.repository == 'btclib-org/btclib'
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     environment:
       name: testpypi
       url: https://test.pypi.org/project/btclib/
@@ -99,12 +149,13 @@ jobs:
       id-token: write
     steps:
       - name: Download the distribution files
-        uses: actions/download-artifact@v8
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
         with:
           name: dist
           path: dist/
+      # generates PEP 740 attestations by default
       - name: Publish to TestPyPI
-        uses: pypa/gh-action-pypi-publish@release/v1
+        uses: pypa/gh-action-pypi-publish@dc37677b2e1c63e2034f94d8a5b11f265b73ba33 # v1.14.2
         with:
           repository-url: https://test.pypi.org/legacy/
 
@@ -112,6 +163,9 @@ jobs:
     needs: [test, lint, build]
     if: github.event_name == 'push' && github.repository == 'btclib-org/btclib'
     runs-on: ubuntu-latest
+    timeout-minutes: 15
+    # deployment gate: configure required reviewers on the "pypi"
+    # environment to require a manual approval before publishing
     environment:
       name: pypi
       url: https://pypi.org/project/btclib/
@@ -120,25 +174,29 @@ jobs:
       id-token: write
     steps:
       - name: Download the distribution files
-        uses: actions/download-artifact@v8
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
         with:
           name: dist
           path: dist/
+      # generates PEP 740 attestations by default
       - name: Publish to PyPI
-        uses: pypa/gh-action-pypi-publish@release/v1
+        uses: pypa/gh-action-pypi-publish@dc37677b2e1c63e2034f94d8a5b11f265b73ba33 # v1.14.2
 
   # only after PyPI has accepted the files: a GitHub release announces
   # what users can already install
   github-release:
     needs: publish-pypi
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     permissions:
+      # the one job that writes to the repository, and what it writes is a
+      # release
       contents: write
     steps:
       - name: Checkout code
-        uses: actions/checkout@v7
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - name: Download the distribution files
-        uses: actions/download-artifact@v8
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
         with:
           name: dist
           path: dist/

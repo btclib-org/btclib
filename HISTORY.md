@@ -40,6 +40,17 @@ Major changes includes:
 - replaced autoflake, bandit, black, docformatter, flake8, isort,
   pydocstringformatter, pydocstyle, pylint, pyupgrade, and yesqa
   with [ruff](https://docs.astral.sh/ruff/)
+- the lint workflow runs .pre-commit-config.yaml itself, instead of a
+  second list of the same tools: CI now enforces exactly what a commit
+  enforces, hooks that only pre-commit.ci used to run included. The mypy
+  hook is a local one, running the strict check against the project
+  environment: the mirrors-mypy hook injects `--ignore-missing-imports`,
+  which turned every btclib_libsecp256k1 import into `Any`
+- every action is pinned to a commit SHA and every workflow declares a
+  read-only token; the release pipeline checks the declared versions (and
+  that uv.lock is in sync) before the test matrix rather than beside it,
+  and validates what it built with twine, check-wheel-contents, and
+  pyroma on the sdist, before an upload consumes the version
 
 ## v2023.7.12
 

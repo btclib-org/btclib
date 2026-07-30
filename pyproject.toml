@@ -63,8 +63,9 @@ Issues = "https://github.com/btclib-org/btclib/issues"
 # packages required to develop, build, and test btclib
 test = ["coverage", "pytest", "pytest-cov", "pytest-xdist"]
 lint = ["mypy", "pre-commit", "ruff"]
-# the distribution files are built and published by uv itself
-build = ["check-manifest", "pyroma"]
+# the distribution files are built and published by uv itself: what this
+# group holds is what inspects them, before an upload consumes the version
+build = ["check-manifest", "check-wheel-contents", "pyroma", "twine"]
 docs = ["myst-parser", "sphinx", "sphinx_rtd_theme"]
 dev = [
     { include-group = "test" },
