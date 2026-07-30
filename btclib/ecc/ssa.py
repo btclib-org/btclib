@@ -339,8 +339,13 @@ def assert_as_valid(
 ) -> None:
     """Verify the BIP340 signature of hf(msg).
 
-    The other spelling, assert_as_valid_, takes the BIP340 message itself,
-    of any size. This one reduces msg with hf first and is unchanged.
+    The other spelling, ``assert_as_valid_``, takes the BIP340 message
+    itself, of any size. This one reduces msg with hf first.
+
+    Double backticks because rst reads a trailing underscore as a link
+    reference: bare, this name made sphinx -W fail with 'Unknown target
+    name: "assert_as_valid"', which is the second time that has happened
+    here and the reason lint.yml now builds the docs (issue 151).
     """
     assert_as_valid_(reduce_to_hlen(msg, hf), Q, sig, hf)
 

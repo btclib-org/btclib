@@ -165,13 +165,16 @@ needs: no interpreter, no linter, no packaging tool has to be installed by
 hand, and even the `cmake` that builds the bindings arrives as a build
 requirement.
 
-The `lint` workflow, in full — the same pre-commit the lock pins, which is
-what `uv run` above gives you too:
+The `Lint and type-check` job of the `lint` workflow, in full — the same
+pre-commit the lock pins, which is what `uv run` above gives you too:
 
 ```shell
 uv run --locked --only-group lint \
     pre-commit run --all-files --show-diff-on-failure
 ```
+
+That workflow has a second job, `Build the documentation`, whose command is
+the one below under "The documentation".
 
 One cell of the `test-py` matrix. The interpreter is chosen with
 `--python`, which accepts any of the ones the matrix lists, `3.14t` and
@@ -230,9 +233,14 @@ repository, so a red merge would be somebody else's weather — and a
 failing run is read in the Actions tab. `.lycheeignore` holds the URLs a
 checker cannot judge, each with the reason.
 
-The documentation, which no workflow builds. Read the docs builds it, with
-this same command, and `-W` is what makes an `automodule` whose module
-does not import a failure rather than an empty page:
+The documentation, which the `Build the documentation` job of `lint.yml`
+runs with this same command, as read the docs does. `-W` is what makes an
+`automodule` whose module does not import a failure rather than an empty
+page — and what catches invalid reStructuredText in a docstring, which no
+hook can: markdownlint does not read `.rst`, and ruff's pydocstyle rules
+check the form of a docstring rather than whether its body parses. A name
+ending in an underscore is the trap to know about, rst reading it as a link
+reference, so write it in double backticks:
 
 ```shell
 uv run --locked --no-default-groups --group docs \

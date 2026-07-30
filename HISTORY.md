@@ -564,6 +564,18 @@ Major changes includes:
   and `"9"` raises for being of odd length rather than being nine. The
   behaviour is unchanged and deliberate — a decimal representation is what
   `int` itself is for — and now the docstring says so
+- **CI builds the documentation**, which it never did: read the docs did, with
+  `-W`, so invalid reStructuredText in a docstring failed after the merge on a
+  service whose failure is not a check on the pull request. `lint.yml` gains a
+  `Build the documentation` job running the same command `.readthedocs.yaml`
+  runs and CONTRIBUTING.md documents. A second job rather than more steps in
+  the first, because the branch rule names `Lint and type-check`: a new job
+  gates nothing until someone adds it to the rule. It caught a defect the hour
+  it was written, in the commit before it — a docstring naming
+  `assert_as_valid_`, whose trailing underscore rst reads as a link reference.
+  No hook can take this over: markdownlint does not read `.rst`, and ruff's
+  pydocstyle rules check the form of a docstring rather than whether its body
+  parses (issue #151)
 - **BIP340 messages of arbitrary size**, which the BIP allowed in 2023-04
   ("the restriction to 32-byte messages has been lifted") and btclib refused:
   the four vectors `bitcoin/bips` added for it — 0, 1, 17 and 100 bytes, all
