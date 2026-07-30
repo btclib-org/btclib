@@ -228,6 +228,64 @@ uv run --locked --no-default-groups --group docs \
 The only check with no local equivalent is CodeQL, which GitHub runs on
 its side; its findings appear under the Security tab.
 
+### The website
+
+**btclib.org is this repository.** GitHub Pages serves it from `master`'s
+root, so a set of files at the top level are website sources rather than
+Jekyll leftovers, which is the opposite of the natural first assumption:
+
+```shell
+gh api repos/btclib-org/btclib/pages
+# {"cname": "btclib.org", "build_type": "legacy",
+#  "source": {"branch": "master", "path": "/"}}
+```
+
+What that makes live:
+
+| file | role |
+| --- | --- |
+| `README.md` | **the homepage**: there is no `index.md` |
+| `_config.yml` | the site title, description, logo, theme and exclude list |
+| `_layouts/default.html` | the page template, header and footer |
+| `assets/` | the logo, the stylesheet and `scale.fix.js` |
+| `CNAME` | the custom domain; Pages reads it from the built site |
+| `Gemfile` | the `github-pages` gem, for a local `bundle exec jekyll serve` |
+
+Three consequences worth knowing before editing any of them:
+
+- **every README edit is a website deploy.** The README is also the PyPI
+  long description, so a typo in it is visible in three places: GitHub,
+  btclib.org and the PyPI project page.
+- **every other file in master's root is a URL under btclib.org** unless
+  `_config.yml`'s `exclude:` says otherwise. Before that list existed,
+  `btclib.org/TODO` was a live page carrying the open questions of
+  `TODO.md`, and the site served the library itself —
+  `btclib.org/pyproject.toml` and `btclib.org/btclib/alias.py` both
+  answered with their own contents. A new top-level file is published by
+  default; add it to `exclude:` if it should not be.
+- **the build is the classic Pages builder** (`build_type: legacy`), so
+  there are no build logs and no control over the Jekyll or theme version.
+  A broken template fails silently: the layout served
+  `<script src="/%20/assets/js/scale.fix.js">` for as long as it took
+  someone to fetch the page and read the HTML.
+
+Because Pages serves from `master`, a website-only commit there also
+triggers the full test matrix; `test.yml`'s `push` trigger carries a
+`paths-ignore` for these files so that it does not. The `pull_request`
+trigger deliberately does not: those checks are required on `master`, and a
+required check that produces no run blocks the merge.
+
+To preview locally, with Ruby and Bundler installed:
+
+```shell
+bundle install
+bundle exec jekyll serve
+```
+
+That is the one part of this project not driven by `uv`, and it is only a
+preview: what btclib.org serves is whatever the classic builder makes of
+`master`.
+
 ### Issues
 
 #### Create a new issue

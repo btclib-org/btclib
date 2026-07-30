@@ -12,6 +12,21 @@ on:
     # that is not the one the pull request tested, and nothing else would
     # ever test it. Tag pushes are covered by the release workflow
     branches: [master]
+    # GitHub Pages serves btclib.org from master's root, so a
+    # website-only commit lands here and used to run the whole matrix.
+    # None of these files is imported by the library or read by a test --
+    # README.md is the homepage, not a doctest source; CONTRIBUTING.md is
+    # checked by markdownlint, which is the lint workflow's business.
+    # Only on push: the same list on pull_request would be wrong, because
+    # tests-passed is a required check on master and a required check that
+    # produces no run at all blocks the merge instead of passing it
+    paths-ignore:
+      - _config.yml
+      - _layouts/**
+      - assets/**
+      - CNAME
+      - Gemfile
+      - "*.md"
   pull_request:
   # allows the release workflow to reuse the whole build/test pipeline
   workflow_call:

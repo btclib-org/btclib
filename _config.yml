@@ -1,12 +1,73 @@
+# The btclib.org website, served by GitHub Pages from master's root.
+#
+#   $ gh api repos/btclib-org/btclib/pages
+#   {"cname": "btclib.org", "build_type": "legacy",
+#    "source": {"branch": "master", "path": "/"}}
+#
+# So this file, CNAME, Gemfile, _layouts/ and assets/ are website sources
+# and not Jekyll leftovers, and every other file in master's root is a URL
+# under btclib.org whether it was meant to be one or not. CONTRIBUTING.md
+# has the section that says so.
 title: btclib
 description: A Python library for 'bitcoin cryptography'
 logo: assets/img/btclib-logo.jpg
 
 show_downloads: false
 github:
-  owner_url: https://github.com/fametrano
-  owner_name: Ferdinando Ametrano
+  # the organization, which is where the repository, the PyPI project and
+  # every URL in pyproject.toml live. This was a personal account, so the
+  # site footer read "Maintained by" one developer while everything it
+  # links to is owned by the org
+  owner_url: https://github.com/btclib-org
+  owner_name: The btclib developers
 
 google_analytics:
 
 theme: jekyll-theme-minimal
+
+# There is no index.md, so Jekyll renders README.md as the homepage: a
+# README edit is a website deploy. Everything else in master's root was
+# published too, which is what this list stops -- btclib.org/TODO was a
+# live page carrying the open questions of TODO.md, and btclib.org served
+# the package itself: /pyproject.toml and /btclib/alias.py both answered
+# with their own contents.
+#
+# The first block repeats Jekyll's own default exclude, because this key
+# replaces that default rather than adding to it: without those entries
+# back, declaring this list would *publish* the Gemfile, which is excluded
+# today -- btclib.org/Gemfile is a 404, which is how the default was
+# confirmed to be in effect.
+#
+# Not excluded, deliberately: README.md is the homepage; assets/ and
+# _layouts/ are the site; CNAME is what Pages reads for the custom domain;
+# LICENSE, CODE_OF_CONDUCT.md, CONTRIBUTING.md, SECURITY.md, AUTHORS.md
+# and HISTORY.md are documents a visitor may reasonably want.
+exclude:
+  # Jekyll's defaults, restored
+  - .sass-cache
+  - .jekyll-cache
+  - gemfiles
+  - Gemfile
+  - Gemfile.lock
+  - node_modules
+  - vendor/bundle/
+  - vendor/cache/
+  - vendor/gems/
+  - vendor/ruby/
+  # the library and its tests: on the website by accident
+  - btclib/
+  - tests/
+  - docs/
+  # packaging and tooling, likewise
+  - pyproject.toml
+  - uv.lock
+  - MANIFEST.in
+  - COPYRIGHT
+  # repository process rather than pages for a visitor: agent instructions,
+  # the release procedure, and a task list whose open questions were live
+  # at btclib.org/TODO. RELEASE.md is master's name for RELEASING.md, and
+  # both are listed so that the rename can land in either order
+  - CLAUDE.md
+  - RELEASING.md
+  - RELEASE.md
+  - TODO.md

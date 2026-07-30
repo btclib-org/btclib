@@ -551,6 +551,23 @@ Major changes includes:
   and `"9"` raises for being of odd length rather than being nine. The
   behaviour is unchanged and deliberate — a decimal representation is what
   `int` itself is for — and now the docstring says so
+- **btclib.org**, which GitHub Pages serves from this repository's `master`
+  root, is now documented as such — CONTRIBUTING.md has a "The website"
+  section naming the files that are website sources, and `_config.yml` says
+  it too. Three defects came with the documenting. The page template asked
+  for `/%20/assets/js/scale.fix.js` and got a 404, because a space inserted
+  inside a Liquid string reached `relative_url`; the same space made the
+  site serve `<html lang=" en-US">`; and `<img img height="80">` repeated the
+  tag name as an attribute. `_config.yml` also gained the `exclude:` list it
+  never had, so the root of the repository is no longer published wholesale:
+  `btclib.org/TODO` was a live page carrying the open questions of
+  `TODO.md`, and the site served the library itself —
+  `btclib.org/pyproject.toml` and `btclib.org/btclib/alias.py` both answered
+  with their own contents. The site footer credits the organization that
+  owns the repository, the PyPI project and every URL in `pyproject.toml`,
+  where it named a personal account. And `test.yml`'s `push` trigger carries
+  a `paths-ignore` for the website files, so a website-only commit to
+  `master` no longer runs the whole matrix (issue #160)
 - **Typos in visible surfaces.** `_REQUIRED_LENGHT` is `_REQUIRED_LENGTH` in
   `bip32` and `bms`, `bitlenght` is `bit_length`, and the `BIP32KeyData.parse`
   docstring says 78 bytes, where it said 73 and the constant is 78. Five
