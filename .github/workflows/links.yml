@@ -27,7 +27,14 @@ on:
   # documentation change that adds links
   workflow_dispatch:
   # so a change to this file, or to the ignore list beside it, is checked
-  # by the thing it configures
+  # by the thing it configures.
+  # This runs more often than the paths list suggests, and the difference is
+  # worth knowing: the filter is evaluated against the pull request's whole
+  # diff against its base, not against the push that triggered the run, so
+  # once a pull request touches either file every later push to that branch
+  # runs this too. Harmless -- it is a couple of hundred requests and gates
+  # nothing -- but it does mean a transient failure shows up on pushes that
+  # changed no link at all
   pull_request:
     paths:
       - .github/workflows/links.yml
@@ -73,13 +80,24 @@ jobs:
           # is what a user is invited to follow -- the README, which is
           # also the btclib.org homepage and the PyPI long description,
           # the other root markdown files, and the documentation sources.
-          # --no-progress because the log is not a terminal; the retries
-          # and the cache are what keep a throttling host from being
-          # reported as a dead one
+          # --no-progress because the log is not a terminal; the retries,
+          # the timeout and the cache are what keep a slow or throttling
+          # host from being reported as a dead one.
+          # --timeout 45, against lychee's default of 20, is not a guess:
+          # www.esat.kuleuven.be timed out three times in one run -- 20
+          # seconds each, so the retries did happen -- while answering in
+          # 0.6 s from a developer machine, and the three runs before and
+          # after that one reached it with no timeout at all. A live host
+          # unreachable for one minute is the failure mode this workflow was
+          # built not to gate on, and 45 seconds is the cheapest way to stop
+          # reporting it. If a URL times out run after run it belongs in
+          # .lycheeignore with that measurement, as the iacr.org entries do,
+          # and not here
           args: >-
             --no-progress
             --max-retries 3
             --retry-wait-time 10
+            --timeout 45
             --cache
             --max-cache-age 1d
             --accept 200,206,429
