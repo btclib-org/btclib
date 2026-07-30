@@ -10,10 +10,8 @@
 """Tests for the `btclib.curve` module."""
 
 import itertools
-import json
 from functools import partial
 from hashlib import sha256, sha512
-from os import path
 
 import pytest
 
@@ -43,6 +41,7 @@ from btclib.ecc import second_generator
 from btclib.exceptions import BTClibTypeError, BTClibValueError
 from btclib.number_theory import mod_sqrt
 from btclib.to_pub_key import pub_keyinfo_from_prv_key
+from tests import vectors
 
 # FIXME Curve repr should use "deadbeef 00000000", not "0xdeadbeef00000000"
 # FIXME test curves when n>p
@@ -91,25 +90,26 @@ def test_mult_on_secp256k1() -> None:
         mult(invalid_prvkey)
 
 
-def test_secp256k1_py_vectors() -> None:
-    # https://github.com/rustyrussell/secp256k1-py/blob/master/tests/data/pubkey.json
+# https://github.com/rustyrussell/secp256k1-py/blob/master/tests/data/pubkey.json
+@pytest.mark.parametrize(
+    "vector",
+    [
+        pytest.param(vector, id=vectors.vector_id(index, vector["seckey"][:16]))
+        for index, vector in enumerate(
+            vectors.load("ec", "_data", "pubkey.json")["vectors"]
+        )
+    ],
+)
+def test_secp256k1_py_vectors(vector: dict[str, str]) -> None:
+    prv_key = bytes.fromhex(vector["seckey"])
+    assert len(prv_key) == 32
+    pubkey_uncp = bytes.fromhex(vector["pubkey"])
+    assert len(pubkey_uncp) == 65
+    pubkey_comp = bytes.fromhex(vector["compressed"])
+    assert len(pubkey_comp) == 33
 
-    fname = "pubkey.json"
-    filename = path.join(path.dirname(__file__), "_data", fname)
-
-    with open(filename, encoding="ascii") as file_:
-        test_vectors = json.load(file_)["vectors"]
-
-    for vector in test_vectors:
-        prv_key = bytes.fromhex(vector["seckey"])
-        assert len(prv_key) == 32
-        pubkey_uncp = bytes.fromhex(vector["pubkey"])
-        assert len(pubkey_uncp) == 65
-        pubkey_comp = bytes.fromhex(vector["compressed"])
-        assert len(pubkey_comp) == 33
-
-        assert pub_keyinfo_from_prv_key(prv_key, compressed=False)[0] == pubkey_uncp
-        assert pub_keyinfo_from_prv_key(prv_key, compressed=True)[0] == pubkey_comp
+    assert pub_keyinfo_from_prv_key(prv_key, compressed=False)[0] == pubkey_uncp
+    assert pub_keyinfo_from_prv_key(prv_key, compressed=True)[0] == pubkey_comp
 
 
 def test_exceptions() -> None:

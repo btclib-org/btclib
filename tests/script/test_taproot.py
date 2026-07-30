@@ -9,8 +9,7 @@
 # or distributed except according to the terms contained in the LICENSE file.
 """Tests for the `btclib.script.taproot` module."""
 
-import json
-from os import path
+from typing import Any
 
 import pytest
 
@@ -30,39 +29,49 @@ from btclib.script import (
 )
 from btclib.script.taproot import parse, serialize
 from btclib.tx import TxOut
+from tests import vectors
 from tests.script import serialize_non_canonical
 
 
-def test_valid_script_path() -> None:
-    fname = "tapscript_test_vector.json"
-    filename = path.join(path.dirname(__file__), "_data", fname)
-    with open(filename, encoding="ascii") as file_:
-        data = json.load(file_)
+def script_path_vectors() -> list[Any]:
+    """The vectors spending a p2tr prevout through a script path.
 
-    for x in data:
+    The two `continue` of the loop: a prevout that is not p2tr, and a
+    witness with nothing but a signature on it once the annex is off.
+    """
+    params = []
+    for index, x in enumerate(
+        vectors.load("script", "_data", "tapscript_test_vector.json")
+    ):
         prevouts = [TxOut.parse(prevout) for prevout in x["prevouts"]]
-        index = x["index"]
-
-        if not is_p2tr(prevouts[index].script_pub_key.script):
+        if not is_p2tr(prevouts[x["index"]].script_pub_key.script):
             continue
-
-        script_sig = x["success"]["scriptSig"]
-        assert not script_sig
-
-        witness = Witness(x["success"]["witness"])
-        if len(witness.stack) >= 2 and witness.stack[-1][0] == 0x50:
-            witness = Witness(witness.stack[:-1])  # drop the annex
-
-        # check script paths
-        if len(witness.stack) < 2:
+        stack = Witness(x["success"]["witness"]).stack
+        if len(stack) >= 2 and stack[-1][0] == 0x50:
+            stack = stack[:-1]  # drop the annex
+        if len(stack) < 2:
             continue
+        params.append(pytest.param(x, id=vectors.vector_id(index, x["comment"])))
+    return params
 
-        Q = type_and_payload(prevouts[index].script_pub_key.script)[1]
 
-        script = witness.stack[-2]
-        control = witness.stack[-1]
+@pytest.mark.parametrize("vector", script_path_vectors())
+def test_valid_script_path(vector: dict[str, Any]) -> None:
+    prevouts = [TxOut.parse(prevout) for prevout in vector["prevouts"]]
+    index = vector["index"]
 
-        assert check_output_pubkey(Q, script, control)
+    assert not vector["success"]["scriptSig"]
+
+    witness = Witness(vector["success"]["witness"])
+    if len(witness.stack) >= 2 and witness.stack[-1][0] == 0x50:
+        witness = Witness(witness.stack[:-1])  # drop the annex
+
+    Q = type_and_payload(prevouts[index].script_pub_key.script)[1]
+
+    script = witness.stack[-2]
+    control = witness.stack[-1]
+
+    assert check_output_pubkey(Q, script, control)
 
 
 def test_taproot_key_tweaking() -> None:
@@ -120,21 +129,26 @@ def convert_script_tree(script_tree: TaprootScriptTree) -> TaprootScriptTree:
     return []
 
 
-def test_bip_test_vector() -> None:
-    fname = "taproot_test_vector.json"
-    filename = path.join(path.dirname(__file__), "_data", fname)
-    with open(filename, encoding="ascii") as file_:
-        data = json.load(file_)["scriptPubKey"]
+@pytest.mark.parametrize(
+    "test",
+    [
+        pytest.param(
+            test, id=vectors.vector_id(index, test["given"]["internalPubkey"][:16])
+        )
+        for index, test in enumerate(
+            vectors.load("script", "_data", "taproot_test_vector.json")["scriptPubKey"]
+        )
+    ],
+)
+def test_bip_test_vector(test: dict[str, Any]) -> None:
+    pub_key = test["given"]["internalPubkey"]
+    script_tree = convert_script_tree(test["given"]["scriptTree"])
 
-    for test in data:
-        pub_key = test["given"]["internalPubkey"]
-        script_tree = convert_script_tree(test["given"]["scriptTree"])
+    tweaked_pubkey = output_pubkey(f"02{pub_key}", script_tree)[0]
+    address = b32.p2tr(tweaked_pubkey)
 
-        tweaked_pubkey = output_pubkey(f"02{pub_key}", script_tree)[0]
-        address = b32.p2tr(tweaked_pubkey)
-
-        assert tweaked_pubkey.hex() == test["intermediary"]["tweakedPubkey"]
-        assert address == test["expected"]["bip350Address"]
+    assert tweaked_pubkey.hex() == test["intermediary"]["tweakedPubkey"]
+    assert address == test["expected"]["bip350Address"]
 
 
 def test_serialize_op_success() -> None:
