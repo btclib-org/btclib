@@ -47,7 +47,10 @@ from btclib.hashes import hash160
 from btclib.network import NETWORKS, XPRV_VERSIONS_ALL, XPUB_VERSIONS_ALL
 from btclib.utils import bytes_from_octets, bytesio_from_binarydata, hex_string
 
-ec = secp256k1
+# secp256k1 is written out at each use rather than aliased to a module
+# global "ec": BIP32 is defined for secp256k1 and for nothing else, so
+# the alias was not configuration, and rebinding btclib.bip32.bip32.ec
+# changed key validation for every caller in the process
 
 
 _KEY_SIZE = [("version", 4), ("parent_fingerprint", 4), ("chain_code", 32), ("key", 33)]
@@ -166,7 +169,7 @@ class BIP32KeyData:
                     f"invalid private key prefix: 0x{self.key[:1].hex()}"
                 )
             q = int.from_bytes(self.key[1:], byteorder="big", signed=False)
-            if not 0 < q < ec.n:
+            if not 0 < q < secp256k1.n:
                 # never echo the scalar: it is (attempted) key material
                 raise BTClibValueError("invalid private key not in 1..n-1")
         elif self.version in XPUB_VERSIONS_ALL:
@@ -174,7 +177,7 @@ class BIP32KeyData:
                 err_msg = f"invalid public key prefix not in (0x02, 0x03): 0x{self.key[:1].hex()}"
                 raise BTClibValueError(err_msg)
             try:
-                ec.y(int.from_bytes(self.key[1:], byteorder="big", signed=False))
+                secp256k1.y(int.from_bytes(self.key[1:], byteorder="big", signed=False))
             except BTClibValueError as e:
                 err_msg = f"invalid public key: 0x{self.key.hex()}"
                 raise BTClibValueError(err_msg) from e
@@ -347,7 +350,7 @@ class _BIP32KeyData(BIP32KeyData):
             self.pub_key_point = INF
         else:
             self.prv_key_int = 0
-            self.pub_key_point = point_from_octets(self.key, ec)
+            self.pub_key_point = point_from_octets(self.key, secp256k1)
 
         if check_validity:
             self.assert_valid()
@@ -381,9 +384,9 @@ def __prv_key_derivation(xkey: _BIP32KeyData, index: int, pub_key: bytes) -> Non
     xb += index.to_bytes(4, byteorder="big", signed=False)
     hmac_ = hmac.new(xkey.chain_code, xb, "sha512").digest()
     offset = int.from_bytes(hmac_[:32], byteorder="big", signed=False)
-    if offset >= ec.n:
+    if offset >= secp256k1.n:
         raise _invalid_child(index, "the hmac left half is not a valid scalar")
-    prv_key_int = (xkey.prv_key_int + offset) % ec.n
+    prv_key_int = (xkey.prv_key_int + offset) % secp256k1.n
     if prv_key_int == 0:
         raise _invalid_child(index, "the child private key is zero")
 
@@ -398,9 +401,9 @@ def __pub_key_derivation(xkey: _BIP32KeyData, index: int) -> None:
     xb = xkey.key + index.to_bytes(4, byteorder="big", signed=False)
     hmac_ = hmac.new(xkey.chain_code, xb, "sha512").digest()
     offset = int.from_bytes(hmac_[:32], byteorder="big", signed=False)
-    if offset >= ec.n:
+    if offset >= secp256k1.n:
         raise _invalid_child(index, "the hmac left half is not a valid scalar")
-    pub_key_point = ec.add(xkey.pub_key_point, mult(offset))
+    pub_key_point = secp256k1.add(xkey.pub_key_point, mult(offset))
     if pub_key_point[1] == 0:  # INF, the point at infinity, is (int, 0)
         raise _invalid_child(index, "the child public key is the point at infinity")
 
@@ -565,7 +568,7 @@ def crack_prv_key(parent_xpub: BIP32Key, child_xprv: BIP32Key) -> str:
     ).digest()
     child_q = int.from_bytes(c.key[1:], byteorder="big", signed=False)
     offset = int.from_bytes(hmac_[:32], byteorder="big", signed=False)
-    parent_q = (child_q - offset) % ec.n
+    parent_q = (child_q - offset) % secp256k1.n
     p.key = b"\x00" + parent_q.to_bytes(32, byteorder="big", signed=False)
 
     return p.b58encode()

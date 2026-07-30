@@ -13,43 +13,56 @@ from __future__ import annotations
 
 import secrets
 from collections.abc import Sequence
-from hashlib import sha256 as hf  # FIXME any hf
+from hashlib import sha256
 
-from btclib.alias import Octets, Point
-from btclib.ec import bytes_from_point, double_mult, mult, secp256k1
+from btclib.alias import HashF, Octets, Point
+from btclib.ec import Curve, bytes_from_point, double_mult, mult, secp256k1
 from btclib.exceptions import BTClibRuntimeError
 from btclib.utils import bytes_from_octets, int_from_bits
 
-ec = secp256k1  # FIXME any curve
+# the curve and the hash function are parameters, as they are in dsa, ssa
+# and pedersen, and as the two FIXMEs here asked. They used to be module
+# globals -- "ec = secp256k1" and "from hashlib import sha256 as hf" -- so
+# selecting either meant rebinding an attribute of this module, which
+# changes the algorithm for every other caller in the process
 
 # TODO test corner case on low-cardinality curves
 
 
-def _hash(m: bytes, R: bytes, i: int, j: int) -> bytes:
+def _hash(m: bytes, R: bytes, i: int, j: int, hf: HashF) -> bytes:
     temp = b"".join(
         [m, R, i.to_bytes(4, "big", signed=False), j.to_bytes(4, "big", signed=False)]
     )
-    return hf(temp).digest()
+    # hf() then update(), which is how HashF is spelled everywhere else in
+    # the package: the alias is Callable[[], Any], a constructor, so hf(temp)
+    # does not type check even though hashlib.sha256 accepts it
+    h = hf()
+    h.update(temp)
+    return bytes(h.digest())
 
 
 PubkeyRing = Sequence[Point]
 
 
-def _get_msg_format(msg: bytes, pubk_rings: Sequence[PubkeyRing]) -> bytes:
+def _get_msg_format(
+    msg: bytes, pubk_rings: Sequence[PubkeyRing], ec: Curve, hf: HashF
+) -> bytes:
     t = b"".join(
         b"".join(bytes_from_point(Q, ec) for Q in pubk_ring) for pubk_ring in pubk_rings
     )
-    return hf(msg + t).digest()
+    h = hf()
+    h.update(msg + t)
+    return bytes(h.digest())
 
 
 SValues = Sequence[list[int]]
 
 
 def _initialize(
-    msg: Octets, pubk_rings: Sequence[PubkeyRing]
+    msg: Octets, pubk_rings: Sequence[PubkeyRing], ec: Curve, hf: HashF
 ) -> tuple[bytes, bytes, SValues]:
     msg_ = bytes_from_octets(msg)
-    m = _get_msg_format(msg_, pubk_rings)
+    m = _get_msg_format(msg_, pubk_rings, ec, hf)
     e = [[0] * len(pubk_ring) for pubk_ring in pubk_rings]
     return msg_, m, e
 
@@ -60,6 +73,8 @@ def sign(
     sign_key_idx: Sequence[int],
     sign_keys: Sequence[int],
     pubk_rings: Sequence[PubkeyRing],
+    ec: Curve = secp256k1,
+    hf: HashF = sha256,
 ) -> tuple[bytes, SValues]:
     """Borromean ring signature - signing algorithm.
 
@@ -72,7 +87,7 @@ def sign(
     - sign_keys: list containing the whole set of signing keys (one per ring)
     - pubk_rings: dictionary of sequences representing single rings of pub_keys
     """
-    msg, m, e = _initialize(msg, pubk_rings)
+    msg, m, e = _initialize(msg, pubk_rings, ec, hf)
     e0bytes = m
     s = [
         [secrets.randbits(256) for _ in range(len(pubk_ring))]
@@ -86,23 +101,25 @@ def sign(
         r = bytes_from_point(mult(k), ec)
         if start_idx != 0:
             for j in range(start_idx, keys_size):
-                e[i][j] = int_from_bits(_hash(m, r, i, j), ec.nlen) % ec.n
-                # e is already reduced mod n, so only zero can trip
-                # this, and zero is a 2**-255 accident: exactly two of
-                # the 256-bit sha256 outputs (0 and n) are 0 mod n.
-                # No toy-curve route to it either, unlike the twin
-                # check in ssa.challenge_: this module's curve is
-                # frozen at import
+                e[i][j] = int_from_bits(_hash(m, r, i, j, hf), ec.nlen) % ec.n
+                # e is already reduced mod n, so only zero can trip this,
+                # and for secp256k1 with sha256 zero is a 2**-255
+                # accident: exactly two of the 256-bit outputs (0 and n)
+                # are 0 mod n. A low-cardinality curve is a different
+                # matter, which is what the TODO at the top of the module
+                # is about, and what made ec a parameter worth having
                 if not 0 < e[i][j] < ec.n:
                     err_msg = "implausibile signature failure"  # pragma: no cover
                     raise BTClibRuntimeError(err_msg)  # pragma: no cover
                 t = double_mult(-e[i][j], pubk_ring[j], s[i][j], ec.G)
                 r = bytes_from_point(t, ec)
         e0bytes += r
-    e0 = hf(e0bytes).digest()
+    h = hf()
+    h.update(e0bytes)
+    e0 = bytes(h.digest())
     # step 2
     for i, (j_star, k) in enumerate(zip(sign_key_idx, ks)):
-        e[i][0] = int_from_bits(_hash(m, e0, i, 0), ec.nlen) % ec.n
+        e[i][0] = int_from_bits(_hash(m, e0, i, 0, hf), ec.nlen) % ec.n
         # zero e again: the same 2**-255 accident documented above
         if not 0 < e[i][0] < ec.n:
             err_msg = "implausibile signature failure"  # pragma: no cover
@@ -111,7 +128,7 @@ def sign(
             s[i][j - 1] = secrets.randbits(256)
             t = double_mult(-e[i][j - 1], pubk_rings[i][j - 1], s[i][j - 1], ec.G)
             r = bytes_from_point(t, ec)
-            e[i][j] = int_from_bits(_hash(m, r, i, j), ec.nlen) % ec.n
+            e[i][j] = int_from_bits(_hash(m, r, i, j, hf), ec.nlen) % ec.n
             # zero e again: the same 2**-255 accident documented above
             if not 0 < e[i][j] < ec.n:
                 err_msg = "implausibile signature failure"  # pragma: no cover
@@ -121,7 +138,12 @@ def sign(
 
 
 def verify(
-    msg: Octets, e0: bytes, s: SValues, pubk_rings: Sequence[PubkeyRing]
+    msg: Octets,
+    e0: bytes,
+    s: SValues,
+    pubk_rings: Sequence[PubkeyRing],
+    ec: Curve = secp256k1,
+    hf: HashF = sha256,
 ) -> bool:
     """Borromean ring signature - verification algorithm.
 
@@ -139,7 +161,7 @@ def verify(
     # BTClibRuntimeError by name and not RuntimeError, because
     # RecursionError is one and is not an answer about a signature
     try:
-        assert_as_valid(msg, e0, s, pubk_rings)
+        assert_as_valid(msg, e0, s, pubk_rings, ec, hf)
     except (ValueError, BTClibRuntimeError):
         return False
 
@@ -147,16 +169,21 @@ def verify(
 
 
 def assert_as_valid(
-    msg: Octets, e0: bytes, s: SValues, pubk_rings: Sequence[PubkeyRing]
+    msg: Octets,
+    e0: bytes,
+    s: SValues,
+    pubk_rings: Sequence[PubkeyRing],
+    ec: Curve = secp256k1,
+    hf: HashF = sha256,
 ) -> None:
     # Private function for test/dev purposes
     # It raises Errors, while verify should always return True or False
-    msg, m, e = _initialize(msg, pubk_rings)
+    msg, m, e = _initialize(msg, pubk_rings, ec, hf)
     e0bytes = m
 
     for i, pubk_ring in enumerate(pubk_rings):
         keys_size = len(pubk_ring)
-        e[i][0] = int_from_bits(_hash(m, e0, i, 0), ec.nlen) % ec.n
+        e[i][0] = int_from_bits(_hash(m, e0, i, 0, hf), ec.nlen) % ec.n
         # a zero e: the same 2**-255 accident documented in sign
         if e[i][0] == 0:
             err_msg = "implausibile signature failure"  # pragma: no cover
@@ -166,7 +193,7 @@ def assert_as_valid(
             t = double_mult(-e[i][j], pubk_ring[j], s[i][j], ec.G)
             r = bytes_from_point(t, ec)
             if j != keys_size - 1:
-                h = _hash(m, r, i, j + 1)
+                h = _hash(m, r, i, j + 1, hf)
                 e[i][j + 1] = int_from_bits(h, ec.nlen) % ec.n
                 # a zero e: the same 2**-255 accident documented in sign
                 if e[i][j + 1] == 0:
@@ -174,6 +201,8 @@ def assert_as_valid(
                     raise BTClibRuntimeError(err_msg)  # pragma: no cover
             else:
                 e0bytes += r
-    e0_prime = hf(e0bytes).digest()
+    h = hf()
+    h.update(e0bytes)
+    e0_prime = bytes(h.digest())
     if e0_prime != e0:
         raise BTClibRuntimeError("signature verification failed")

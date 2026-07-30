@@ -11,6 +11,7 @@
 
 from __future__ import annotations
 
+import threading
 from collections.abc import Sequence
 from os import path
 
@@ -30,9 +31,26 @@ class WordLists:
     More word-lists can be added using the load_lang method.
 
     Word-lists are loaded only if needed and read only once from disk.
+
+    The loading is under a lock, and the reason is not merely that two
+    threads might read the same file twice. load_lang recorded the word
+    count before the words -- "self._language_length[lang] = nwords" and
+    then "self._wordlist[lang] = ..." -- and it treats a non-zero count as
+    "already loaded". A second thread arriving between those two statements
+    therefore skipped the load and got an *empty* word-list back, so
+    mnemonic_from_indexes raised IndexError and indexes_from_mnemonic
+    reported every word as unknown. The lock closes that, and the two
+    assignments are also ordered the other way round now, so that the
+    published count is never ahead of the words it counts.
+
+    The module-level WORDLISTS is a singleton, and load_lang mutating it
+    affects every caller in the process: adding a language, or pointing an
+    existing one at another file, is a process-wide decision. Callers
+    wanting a private set can build their own WordLists().
     """
 
     def __init__(self) -> None:
+        self._lock = threading.Lock()
         path_to_filename = path.join(path.dirname(__file__), "_data")
         self.language_files = {
             "en": path.join(path_to_filename, "english.txt"),
@@ -54,23 +72,29 @@ class WordLists:
         The language file has to be provided for adding new languages
         beyond those already provided.
         """
-        # a new language, unknown before
-        if lang not in self.languages:
-            self._init_new_lang(lang, filename)
-        # language has not been loaded yet
-        if self._language_length[lang] == 0:
-            with open(self.language_files[lang], encoding="ascii") as file_:
-                lines = file_.readlines()
+        with self._lock:
+            # a new language, unknown before
+            if lang not in self.languages:
+                self._init_new_lang(lang, filename)
+            # language has not been loaded yet
+            if self._language_length[lang] == 0:
+                with open(self.language_files[lang], encoding="ascii") as file_:
+                    lines = file_.readlines()
 
-            nwords = len(lines)
-            # http://www.graphics.stanford.edu/~seander/bithacks.html
-            if nwords & (nwords - 1) != 0:
-                err_msg = f"invalid wordlist length: {nwords}, not a power of two"
-                raise BTClibValueError(err_msg)
+                nwords = len(lines)
+                # http://www.graphics.stanford.edu/~seander/bithacks.html
+                if nwords & (nwords - 1) != 0:
+                    err_msg = f"invalid wordlist length: {nwords}, not a power of two"
+                    raise BTClibValueError(err_msg)
 
-            self._language_length[lang] = nwords
-            # clean up and normalization are missing, but removal of \n
-            self._wordlist[lang] = [line[:-1] for line in lines]
+                # the words first and the count second: the count is what
+                # marks the language loaded, so publishing it before the
+                # words it counts is what let a concurrent reader see an
+                # empty list. Belt and braces beside the lock, which is
+                # what actually closes it
+                # clean up and normalization are missing, but removal of \n
+                self._wordlist[lang] = [line[:-1] for line in lines]
+                self._language_length[lang] = nwords
 
     def _init_new_lang(self, lang: str, filename: str | None) -> None:
         if filename is None:

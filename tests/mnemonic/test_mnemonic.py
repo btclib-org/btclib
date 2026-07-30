@@ -9,12 +9,16 @@
 # or distributed except according to the terms contained in the LICENSE file.
 """Tests for the `btclib.mnemonic` module."""
 
+import builtins
+import threading
 from os import path
+from typing import Any
 
 import pytest
 
 from btclib.exceptions import BTClibValueError
 from btclib.mnemonic import WORDLISTS, indexes_from_mnemonic, mnemonic_from_indexes
+from btclib.mnemonic.mnemonic import WordLists
 
 
 def test_mnemonic() -> None:
@@ -63,3 +67,74 @@ def test_wordlist_2() -> None:
     WORDLISTS.load_lang(lang, filename)
     length = WORDLISTS.language_length(lang)
     assert length == 2048
+
+
+def test_load_lang_is_not_a_race() -> None:
+    """A concurrent reader used to get an empty word-list.
+
+    load_lang recorded the word count before the words, and treats a
+    non-zero count as "already loaded". A second thread arriving between
+    the two assignments therefore skipped the load and got back the empty
+    list the constructor had put there. Forcing that interleaving, the
+    second caller saw 0 words instead of 2048.
+    """
+    word_lists = WordLists()
+    paused = threading.Event()
+    release = threading.Event()
+
+    class BlockingDict(dict):  # type: ignore[type-arg]
+        """Block inside the assignment the race needed to interleave."""
+
+        def __setitem__(self, key: str, value: list[str]) -> None:
+            if key == "en" and value:
+                paused.set()
+                release.wait(10)
+            super().__setitem__(key, value)
+
+    word_lists._wordlist = BlockingDict(word_lists._wordlist)
+
+    loaded: list[int] = []
+
+    def load_in_thread() -> None:
+        loaded.append(len(word_lists.wordlist("en")))
+
+    thread = threading.Thread(target=load_in_thread)
+    thread.start()
+    try:
+        assert paused.wait(10), "the blocking assignment was never reached"
+        # the other thread is mid-load; a second caller must not see the
+        # empty list it has not filled in yet. Without the lock this
+        # returns immediately with 0 words
+        second = threading.Thread(target=load_in_thread)
+        second.start()
+        second.join(0.5)
+        assert second.is_alive(), (
+            "the second caller did not wait for the load to finish"
+        )
+    finally:
+        release.set()
+        thread.join(10)
+        second.join(10)
+
+    assert loaded == [2048, 2048]
+
+
+def test_load_lang_is_idempotent_and_reads_once() -> None:
+    """Still loaded lazily, and still read from disk only once."""
+    word_lists = WordLists()
+    reads = []
+    real_open = builtins.open
+
+    def counting_open(*args: Any, **kwargs: Any) -> Any:
+        reads.append(args[0])
+        return real_open(*args, **kwargs)
+
+    builtins.open = counting_open
+    try:
+        assert word_lists.language_length("en") == 2048
+        assert len(word_lists.wordlist("en")) == 2048
+        assert word_lists.language_length("en") == 2048
+    finally:
+        builtins.open = real_open
+
+    assert len(reads) == 1

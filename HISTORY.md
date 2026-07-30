@@ -551,6 +551,27 @@ Major changes includes:
   and `"9"` raises for being of odd length rather than being nine. The
   behaviour is unchanged and deliberate — a decimal representation is what
   `int` itself is for — and now the docstring says so
+- **`borromean.sign`, `verify` and `assert_as_valid` take `ec` and `hf`**, with
+  the same defaults and in the same position as `dsa`, `ssa` and `pedersen`,
+  which is what the module's two FIXMEs ("any hf", "any curve") asked for.
+  They were module globals — `ec = secp256k1` and `from hashlib import
+  sha256 as hf` — so selecting either meant rebinding an attribute of
+  `btclib.ecc.borromean`, i.e. changing the algorithm for every other caller
+  in the process
+- **`btclib.bip32.bip32.ec` is gone**, `secp256k1` being written out at each
+  of the seven uses. BIP32 is defined for secp256k1 and for nothing else, so
+  the alias was never configuration — but rebinding it changed BIP32 key
+  validation process-wide
+- **`WordLists.load_lang` holds a lock**, and the bug it closes is not the
+  double file read. It recorded the word count before the words, and treats
+  a non-zero count as "already loaded", so a second thread arriving between
+  the two assignments skipped the load and got back the **empty** list the
+  constructor had put there. Forcing that interleaving, the second caller
+  saw 0 words where 2048 were expected; there is now a test that does
+  exactly that. The two assignments are also ordered the other way round, so
+  the published count is never ahead of the words it counts, and the
+  docstring says that the module-level `WORDLISTS` is a singleton whose
+  `load_lang` is a process-wide decision
 - **The boolean APIs no longer answer a caller error with `False`.** All
   seven `except Exception` blocks behind a `verify`-style bool are narrowed:
   `dsa.verify`/`verify_`, `ssa.verify`/`verify_`/`batch_verify_`,
