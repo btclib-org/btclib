@@ -10,6 +10,8 @@
 """Tests for the `btclib.var_int` module."""
 
 import pytest
+from hypothesis import given
+from hypothesis import strategies as st
 
 from btclib import var_int
 from btclib.exceptions import BTClibValueError
@@ -121,3 +123,46 @@ def test_var_int_truncated() -> None:
             BTClibValueError, match="not enough binary data for var_int"
         ):
             var_int.parse(encoding)
+
+
+@given(i=st.integers(min_value=0, max_value=var_int.MAX_SIZE))
+def test_round_trip(i: int) -> None:
+    """Every length and count a parser can meet survives the encoding."""
+    assert var_int.parse(var_int.serialize(i)) == i
+
+
+@given(i=st.integers(min_value=0, max_value=0xFFFFFFFFFFFFFFFF))
+def test_round_trip_past_max_size(i: int) -> None:
+    """The cap is a range check on parse, not a limit of the encoding."""
+    encoded = var_int.serialize(i)
+    assert len(encoded) in (1, 3, 5, 9)
+    assert var_int.parse(encoded, max_size=0xFFFFFFFFFFFFFFFF) == i
+
+
+@given(i=st.integers(min_value=0, max_value=0xFFFFFFFF))
+def test_non_canonical_encoding_is_rejected(i: int) -> None:
+    """A number has one encoding, which is the shortest one.
+
+    Were a longer one accepted the same transaction would have two
+    serializations, hence two txids; Bitcoin Core calls it a
+    "non-canonical ReadCompactSize()".
+    """
+    canonical = var_int.serialize(i)
+    for prefix, size in ((b"\xfd", 2), (b"\xfe", 4), (b"\xff", 8)):
+        if i.bit_length() > 8 * size or 1 + size <= len(canonical):
+            continue
+        longer = prefix + i.to_bytes(size, byteorder="little", signed=False)
+        with pytest.raises(BTClibValueError, match="non-canonical var_int: "):
+            var_int.parse(longer)
+
+
+@given(i=st.integers(min_value=0, max_value=0xFFFFFFFFFFFFFFFF))
+def test_truncated_encoding_is_rejected(i: int) -> None:
+    """A prefix announcing more bytes than follow is not a smaller number."""
+    encoded = var_int.serialize(i)
+    if len(encoded) == 1:
+        return
+    for length in range(1, len(encoded)):
+        err_msg = "not enough binary data for var_int"
+        with pytest.raises(BTClibValueError, match=err_msg):
+            var_int.parse(encoded[:length], max_size=0xFFFFFFFFFFFFFFFF)

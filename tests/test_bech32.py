@@ -41,8 +41,16 @@ with the following modifications:
 import itertools
 
 import pytest
+from hypothesis import given
+from hypothesis import strategies as st
 
-from btclib.bech32 import _BECH32_1_CONST, _BECH32_M_CONST, decode, encode
+from btclib.bech32 import (
+    _ALPHABET,
+    _BECH32_1_CONST,
+    _BECH32_M_CONST,
+    decode,
+    encode,
+)
 from btclib.exceptions import BTClibValueError
 
 
@@ -145,3 +153,36 @@ def test_bech32m() -> None:
     for addr, err_msg in invalid_checksum:
         with pytest.raises(BTClibValueError, match=err_msg):
             decode(addr, _BECH32_M_CONST)
+
+
+# lowercase only: encode writes the data part in lowercase, and a
+# string mixing the two cases is rejected outright. "1" is left in on
+# purpose -- it is the separator, and the hrp is delimited by the *last*
+# one, which is the only thing that makes an hrp containing it work
+HRP = st.text(alphabet="0123456789abcdefghijklmnopqrstuvwxyz", min_size=1, max_size=10)
+# non-empty: the constant to checksum with is chosen by the first value,
+# which is the witness version when the payload is an address
+DATA = st.lists(st.integers(min_value=0, max_value=31), min_size=1, max_size=80)
+
+
+@given(hrp=HRP, data=DATA)
+def test_round_trip(hrp: str, data: list[int]) -> None:
+    """A bech32 string decodes to the hrp and data it was built from."""
+    assert decode(encode(hrp, data)) == (hrp, data)
+
+
+@given(hrp=HRP, data=DATA, position=st.integers(min_value=0), value=st.integers(0, 31))
+def test_a_changed_character_fails_the_checksum(
+    hrp: str, data: list[int], position: int, value: int
+) -> None:
+    """What the checksum is for, over the whole space rather than a vector."""
+    encoded = encode(hrp, data).decode("ascii")
+    # only the data part: changing the hrp is a different address, not a
+    # corrupted one, and the separator would move
+    body = encoded[len(hrp) + 1 :]
+    i = position % len(body)
+    mutated = body[:i] + _ALPHABET[value] + body[i + 1 :]
+    if mutated == body:
+        return
+    with pytest.raises(BTClibValueError, match="invalid checksum: "):
+        decode(f"{hrp}1{mutated}")

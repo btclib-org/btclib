@@ -10,6 +10,8 @@
 """Tests for the `btclib.base58` module."""
 
 import pytest
+from hypothesis import given
+from hypothesis import strategies as st
 
 from btclib.base58 import (
     MAX_LENGTH,
@@ -60,8 +62,10 @@ def test_exceptions() -> None:
     with pytest.raises(BTClibValueError, match="invalid checksum: "):
         b58decode(invalid_checksum, 4)
 
-    err_msg = "'ascii' codec can't encode character "
-    with pytest.raises(UnicodeEncodeError, match=err_msg):
+    # a character outside ascii is an invalid base58 character like any
+    # other, and used to come back as a UnicodeEncodeError instead
+    err_msg = "non-ascii character in base58 string: "
+    with pytest.raises(BTClibValueError, match=err_msg):
         b58decode("hèllo world")
 
     err_msg = "not enough bytes for checksum, invalid base58 decoded size: "
@@ -127,3 +131,20 @@ def test_max_length() -> None:
     # str and bytes take the same path
     with pytest.raises(BTClibValueError, match=err_msg):
         b58decode("1" * (MAX_LENGTH + 1))
+
+
+@given(payload=st.binary(max_size=78))
+def test_round_trip(payload: bytes) -> None:
+    """Whatever goes in comes back, checksum and leading zeros included.
+
+    78 bytes is the largest payload MAX_LENGTH leaves room for, a BIP32
+    extended key; the leading zero bytes the strategy produces are the
+    case the encoding writes as leading '1' characters rather than
+    carrying through the base conversion, and has to count back.
+    """
+    encoded = b58encode(payload)
+    assert len(encoded) <= MAX_LENGTH
+    assert b58decode(encoded) == payload
+    assert b58decode(encoded, len(payload)) == payload
+    # str and bytes are the same string to the decoder
+    assert b58decode(encoded.decode("ascii")) == payload

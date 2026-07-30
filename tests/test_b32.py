@@ -41,6 +41,8 @@ with the following modifications:
 from __future__ import annotations
 
 import pytest
+from hypothesis import given
+from hypothesis import strategies as st
 
 from btclib import b32, b58
 from btclib.alias import ScriptList
@@ -318,3 +320,61 @@ def test_p2tr() -> None:
     _, wit_prg, _ = b32.witness_from_address(addr)
 
     assert wit_prg == pub_key
+
+
+# every network, unlike the base58 addresses of test_b58.py: the hrp
+# tells the three apart, where the version bytes of testnet and regtest
+# do not
+NETWORK = st.sampled_from(["mainnet", "testnet", "regtest"])
+
+
+@given(
+    wit_ver=st.integers(min_value=1, max_value=16),
+    wit_prg=st.binary(min_size=2, max_size=40),
+    network=NETWORK,
+)
+def test_round_trip_witness(wit_ver: int, wit_prg: bytes, network: str) -> None:
+    """The witness of an address is the witness it was built from.
+
+    The 8-to-5 bit conversion in the middle is the part worth generating
+    input for: it pads, and the padding has to be zero and has to be
+    dropped again, which a program length that is not a multiple of 5
+    bits is what exercises.
+    """
+    address = b32.address_from_witness(wit_ver, wit_prg, network)
+    assert b32.witness_from_address(address) == (wit_ver, wit_prg, network)
+
+
+@given(
+    wit_prg=st.integers(min_value=0, max_value=1).flatmap(
+        lambda i: st.binary(min_size=(20, 32)[i], max_size=(20, 32)[i])
+    ),
+    network=NETWORK,
+)
+def test_round_trip_witness_v0(wit_prg: bytes, network: str) -> None:
+    """Version 0 takes a 20-byte or a 32-byte program, and nothing else."""
+    address = b32.address_from_witness(0, wit_prg, network)
+    assert b32.witness_from_address(address) == (0, wit_prg, network)
+
+
+@given(
+    wit_ver=st.integers(min_value=0, max_value=16),
+    wit_prg=st.binary(min_size=2, max_size=40),
+    position=st.integers(min_value=0),
+    value=st.integers(min_value=0, max_value=31),
+)
+def test_a_changed_character_is_not_an_address(
+    wit_ver: int, wit_prg: bytes, position: int, value: int
+) -> None:
+    """A typo in an address is caught, not paid to a stranger."""
+    if wit_ver == 0 and len(wit_prg) not in (20, 32):
+        return
+    address = b32.address_from_witness(wit_ver, wit_prg)
+    # the hrp is left alone: changing it makes a different address
+    body = address[len("bc1") :]
+    i = position % len(body)
+    mutated = body[:i] + "qpzry9x8gf2tvdw0s3jn54khce6mua7l"[value] + body[i + 1 :]
+    if mutated == body:
+        return
+    with pytest.raises(BTClibValueError):
+        b32.witness_from_address(f"bc1{mutated}")

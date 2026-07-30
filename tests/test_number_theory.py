@@ -9,10 +9,14 @@
 # or distributed except according to the terms contained in the LICENSE file.
 """Tests for the `btclib.number_theory` module."""
 
+import math
+
 import pytest
+from hypothesis import given
+from hypothesis import strategies as st
 
 from btclib.exceptions import BTClibValueError
-from btclib.number_theory import mod_inv, mod_sqrt, tonelli
+from btclib.number_theory import legendre_symbol, mod_inv, mod_sqrt, tonelli, xgcd
 
 primes = [
     2,
@@ -131,3 +135,63 @@ def test_minus_one_quadr_res() -> None:
             assert p == 2 or p % 4 == 1, "something is badly broken"
             root = mod_sqrt(p - 1, p)
             assert p - 1 == root * root % p
+
+
+# the primes above are small enough to be exhaustive over, which is what
+# the vector tests already do; these are the fields the library actually
+# computes in, where only a generated argument reaches anything
+FIELD_PRIMES = st.sampled_from(
+    [
+        7,
+        97,
+        (1 << 31) - 1,
+        (1 << 61) - 1,
+        # secp256k1's p and n, the two the whole library runs on
+        0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFEFFFFFC2F,
+        0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFEBAAEDCE6AF48A03BBFD25E8CD0364141,
+    ]
+)
+
+
+@given(a=st.integers(), b=st.integers())
+def test_xgcd_is_bezout(a: int, b: int) -> None:
+    """What xgcd returns is the identity it is named after."""
+    g, x, y = xgcd(a, b)
+    assert a * x + b * y == g
+    assert g == math.gcd(a, b) or -g == math.gcd(a, b)
+
+
+@given(a=st.integers(), m=st.integers(min_value=2))
+def test_mod_inv_inverts(a: int, m: int) -> None:
+    """The inverse multiplies back to one, or there is no inverse.
+
+    m is not required to be prime, so the second outcome is reachable
+    and is half of what the function promises.
+    """
+    if math.gcd(a % m, m) != 1:
+        with pytest.raises(BTClibValueError, match="no inverse"):
+            mod_inv(a, m)
+        return
+    inverse = mod_inv(a, m)
+    assert 0 <= inverse < m
+    assert a * inverse % m == 1
+
+
+@given(a=st.integers(), p=FIELD_PRIMES)
+def test_mod_sqrt_squares_back(a: int, p: int) -> None:
+    """A root squares back to what it is the root of, when there is one.
+
+    legendre_symbol is what says whether there is: 1 for a residue, -1
+    for a non-residue, 0 for a multiple of p. The three cases together
+    are the whole domain, which is the point of generating a.
+    """
+    symbol = legendre_symbol(a, p)
+    assert symbol in (-1, 0, 1)
+    if symbol == -1:
+        with pytest.raises(BTClibValueError, match="no root for "):
+            mod_sqrt(a, p)
+        return
+    root = mod_sqrt(a, p)
+    assert root * root % p == a % p
+    # the other root, p - root, is a root too: a square has two
+    assert (p - root) * (p - root) % p == a % p

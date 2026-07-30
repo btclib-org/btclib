@@ -415,3 +415,40 @@ def test_dataclasses_json_dict() -> None:
         json.dump(block_header_d, file_, indent=4)
         file_.write("\n")  # end-of-file-fixer
     assert block_header_data == BlockHeader.from_dict(block_header_d)
+
+
+def test_target_from_compact_bits() -> None:
+    """The compact form of a target, over the range nBits can express.
+
+    Core's SetCompact is the reference: it shifts rather than
+    multiplying, and it flags as an overflow what does not fit, which
+    CheckProofOfWork then rejects the header for. btclib used to raise
+    OverflowError out of to_bytes for the second, and to compute the
+    first through float arithmetic, pow(256, -1) being a float.
+    """
+    header = BlockHeader(check_validity=False)
+
+    # exponent above 3: the significand shifted up, which is the case
+    # every real header takes
+    header.bits = bytes.fromhex("1d00ffff")  # the genesis block target
+    assert header.target.hex() == f"{'00' * 4}{'ff' * 2}{'00' * 26}"
+
+    # exponent below 3: the significand shifted *down*, discarding the
+    # low bytes rather than multiplying by a fractional power of 256
+    header.bits = bytes.fromhex("0200ffff")
+    assert int.from_bytes(header.target, "big") == 0xFFFF >> 8
+    header.bits = bytes.fromhex("0100ffff")
+    assert int.from_bytes(header.target, "big") == 0xFFFF >> 16
+    header.bits = bytes.fromhex("0000ffff")
+    assert int.from_bytes(header.target, "big") == 0
+
+    # exponent 3 exactly: neither shift
+    header.bits = bytes.fromhex("0300ffff")
+    assert int.from_bytes(header.target, "big") == 0xFFFF
+
+    # and what 32 bytes cannot hold
+    for bits in ("22ffffff", "ff000001", "fdffffff"):
+        header.bits = bytes.fromhex(bits)
+        err_msg = "invalid proof-of-work target: "
+        with pytest.raises(BTClibValueError, match=err_msg):
+            _ = header.target

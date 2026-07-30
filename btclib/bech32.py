@@ -96,7 +96,14 @@ def _verify_checksum(hrp: str, data: list[int], m: int) -> bool:
 def _decode(bech: String) -> tuple[str, list[int], list[int]]:
     """Determine a bech32 string HRP, data and checksum."""
     if isinstance(bech, bytes):
-        bech = bech.decode("ascii")
+        # bech32 is an ascii encoding, so a byte outside it is an
+        # invalid character like any other and gets the same answer:
+        # decode used to let the UnicodeDecodeError out instead, past
+        # every caller written to catch BTClibValueError
+        try:
+            bech = bech.decode("ascii")
+        except UnicodeDecodeError as e:
+            raise BTClibValueError(f"non-ascii character in bech32 string: {e}") from e
 
     # it is fine to limit bech32 _bitcoin_addresses_ at 90 chars,
     # but it should be enforced when working with addresses,

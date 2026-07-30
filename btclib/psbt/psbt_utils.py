@@ -161,7 +161,15 @@ def serialize_leaf_scripts(
 
 
 def parse_leaf_script(v: bytes) -> tuple[bytes, int]:
-    """Split the script and the leaf version."""
+    """Split the script and the leaf version.
+
+    BIP-371 writes the value of a PSBT_IN_TAP_LEAF_SCRIPT as the script
+    followed by the one byte of its leaf version, so an empty value is
+    not a zero-length script: it is a record without the only field it
+    is required to carry, and v[-1] used to answer it with an IndexError.
+    """
+    if not v:
+        raise BTClibValueError("empty leaf script: no room for the leaf version")
     return (v[:-1], v[-1])
 
 

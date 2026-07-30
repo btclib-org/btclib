@@ -126,8 +126,16 @@ def b58decode(v: String, out_size: int | None = None) -> bytes:
     Optionally, it also ensures required output size.
     """
     if isinstance(v, str):
-        # do not trim spaces
-        v = v.encode("ascii")
+        # do not trim spaces.
+        # A character outside ascii cannot be in the base58 alphabet
+        # either, so it is the same error as any other invalid one and
+        # gets the same answer: this used to let the UnicodeEncodeError
+        # out, so an address carrying a smart quote or an accented
+        # letter escaped every caller written to catch BTClibValueError
+        try:
+            v = v.encode("ascii")
+        except UnicodeEncodeError as e:
+            raise BTClibValueError(f"non-ascii character in base58 string: {e}") from e
 
     if len(v) > MAX_LENGTH:
         err_msg = f"too many base58 characters: {len(v)}, max is {MAX_LENGTH}"

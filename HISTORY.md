@@ -362,6 +362,35 @@ Major changes includes:
   of the generator passes every other check and then misbehaves silently;
   for the catalogue, the new `test_catalogued_curves` rebuilds each curve
   from the json data with all the checks on
+- the test suite is property-based as well as vector-based: `hypothesis`
+  generates the input nobody wrote down, and `tests/test_fuzz.py` asserts
+  that every parse entry point answers it within the exception contract
+  of btclib/exceptions.py rather than with an IndexError or an
+  OverflowError. Round-trip and checksum properties come with it, for
+  base58, bech32, b32, b58, var_int, var_bytes and the descriptor
+  checksum, and algebraic invariants for number_theory. The vectors are
+  what conformance needs and are going nowhere; what they cannot cover is
+  the malformed input that never makes it into a specification's test
+  section, which is where issues #133, #135 and #138 all came from
+  (issue #159)
+- `b58decode` and `bech32.decode` answer a character outside ascii with
+  BTClibValueError, not with the UnicodeEncodeError and UnicodeDecodeError
+  that used to come out of the codec: a character that is not in ascii is
+  not in the base58 or bech32 alphabet either, so it is an invalid
+  character like any other, and an address carrying a smart quote or an
+  accented letter used to escape every caller written to catch
+  BTClibValueError (issue #159)
+- `psbt_utils.parse_leaf_script` rejects an empty value instead of raising
+  IndexError: BIP-371 writes a PSBT_IN_TAP_LEAF_SCRIPT as the script
+  followed by the one byte of its leaf version, so an empty one is a
+  record missing the only field it must carry (issue #159)
+- `BlockHeader.target` raises BTClibValueError for a compact `bits` that
+  denotes more than 32 bytes can hold, where `to_bytes` used to raise
+  OverflowError out of `assert_valid`; Core rejects the same headers,
+  through the fOverflow flag its SetCompact sets and CheckProofOfWork
+  tests. The power term is also computed by shifting, as SetCompact does:
+  `pow(256, -1)` is a float in python, so an exponent below 3 used to send
+  a 256-bit target through float arithmetic (issue #159)
 
 ## v2023.7.12
 

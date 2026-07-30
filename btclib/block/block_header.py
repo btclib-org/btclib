@@ -65,9 +65,26 @@ class BlockHeader:
         """
         # significand (also known as mantissa or coefficient)
         significand = int.from_bytes(self.bits[1:], byteorder="big", signed=False)
-        # power term, also called characteristics
-        power_term = pow(256, (self.bits[0] - 3))
-        return int(significand * power_term).to_bytes(_HF_LEN, "big", signed=False)
+        # power term, also called characteristics. Core's SetCompact
+        # shifts rather than multiplying by a power of 256, and so does
+        # this: pow(256, -1) is a float in python, so an exponent below
+        # 3 used to send a 256-bit number through float arithmetic
+        exponent = self.bits[0]
+        if exponent < 3:
+            value = significand >> (8 * (3 - exponent))
+        else:
+            value = significand << (8 * (exponent - 3))
+
+        # the compact form can denote what 32 bytes cannot hold, and
+        # to_bytes answered that with an OverflowError. Core raises the
+        # same objection through the fOverflow flag of SetCompact, on
+        # which CheckProofOfWork rejects the header
+        if value >= 256**_HF_LEN:
+            err_msg = f"invalid proof-of-work target: 0x{self.bits.hex()}"
+            err_msg += f" overflows {_HF_LEN} bytes"
+            raise BTClibValueError(err_msg)
+
+        return value.to_bytes(_HF_LEN, "big", signed=False)
 
     @property
     def difficulty(self) -> float:

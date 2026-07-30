@@ -12,6 +12,8 @@
 from __future__ import annotations
 
 import pytest
+from hypothesis import given
+from hypothesis import strategies as st
 
 from btclib import b32, b58
 from btclib.alias import ScriptList
@@ -261,3 +263,28 @@ def test_exceptions() -> None:
 
     with pytest.raises(BTClibValueError, match="not a private or public key"):
         b58.p2pkh(f"{pub_key}0A")
+
+
+@given(
+    script_type=st.sampled_from(["p2pkh", "p2sh"]),
+    h160=st.binary(min_size=20, max_size=20),
+    network=st.sampled_from(["mainnet", "testnet"]),
+)
+def test_round_trip_address(script_type: str, h160: bytes, network: str) -> None:
+    """The payload and its script type survive the encoding.
+
+    regtest is not among the networks: it shares testnet's version
+    bytes, so a base58 address does not carry which of the two it is and
+    h160_from_address answers testnet for both. The bech32 addresses of
+    test_b32.py have no such ambiguity, their hrp being distinct, and
+    are round-tripped over all three.
+    """
+    address = b58.address_from_h160(script_type, h160, network)
+    assert b58.h160_from_address(address) == (script_type, h160, network)
+
+
+@given(prv_key=st.integers(min_value=1, max_value=ec.n - 1), compressed=st.booleans())
+def test_round_trip_wif(prv_key: int, compressed: bool) -> None:
+    """A WIF decodes to the key it was made from, and to its compression."""
+    wif = b58.wif_from_prv_key(prv_key, "mainnet", compressed)
+    assert prv_keyinfo_from_prv_key(wif) == (prv_key, "mainnet", compressed)
