@@ -45,6 +45,41 @@ repos:
       - id: check-docstring-first
       # - id: name-tests-test
       - id: check-toml
+  # the credentials of other systems, which is the half of secret scanning
+  # GitHub's free plan does not cover: partner and provider tokens are
+  # scanned server-side, the generic patterns (PEM keys, connection
+  # strings, authentication headers) belong to Secret Protection, and the
+  # API accepts that setting with a 200 and leaves it disabled.
+  # detect-private-key above covers the PEM case, and the lint workflow
+  # runs these hooks on every pull request, a fork's included, so this is
+  # not only a local gate.
+  # Not gitleaks, which was the first candidate: all of its hook ids
+  # invoke it with --staged, so under "pre-commit run --all-files", which
+  # is what CI runs, it scans an empty staged set and passes
+  - repo: https://github.com/Yelp/detect-secrets
+    rev: v1.5.0
+    hooks:
+      - id: detect-secrets
+        name: detect-secrets (credentials of other systems)
+        # the two entropy plugins are off and three vector files excluded,
+        # for one reason: the test data of a signing library is private
+        # keys by the hundred, published upstream and vendored to be
+        # compared against. With every plugin on, this tree yields 36306
+        # findings; with the entropy plugins off, 412, all of them in the
+        # three files below; with those excluded, none.
+        # What still fails is what should: a planted PEM key, AWS key and
+        # password are all caught, while a file of WIF keys and extended
+        # private keys, i.e. what this library legitimately carries, is not
+        args:
+          - --disable-plugin
+          - HexHighEntropyString
+          - --disable-plugin
+          - Base64HighEntropyString
+        exclude: |
+          (?x)^tests/(
+            ecc/_data/ecdsa(_custom_nonce)?_sig|
+            script/_data/taproot_test_vector
+          )\.json$
   - repo: https://github.com/DavidAnson/markdownlint-cli2
     rev: v0.23.2
     hooks:
