@@ -36,7 +36,7 @@ def __descsum_expand(descriptor_string: str) -> list[int]:
     symbols: list[int] = []
     for char in descriptor_string:
         if char not in INPUT_CHARSET:
-            raise BTClibValueError()
+            raise BTClibValueError(f"invalid descriptor character: {char!r}")
         index = INPUT_CHARSET.find(char)
         symbols.append(index & 31)
         groups.append(index >> 5)

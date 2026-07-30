@@ -15,8 +15,10 @@ from os import path
 
 import pytest
 
+from btclib.exceptions import BTClibValueError, ScriptError
 from btclib.script import ScriptPubKey
 from btclib.script.engine import verify_input
+from btclib.script.engine.script import verify_script
 from btclib.script.witness import Witness
 from btclib.tx.out_point import OutPoint
 from btclib.tx.tx import Tx
@@ -94,3 +96,54 @@ def test_script() -> None:
                     test(
                         stack, amount, script_sig_str, script_pub_key_str, flags, result
                     )
+
+
+def test_script_error_says_what_and_where() -> None:
+    """A verification failure names the failure and its position.
+
+    The op code implementations are handed the stack alone and cannot
+    know either; the interpreter loop adds the command index and the
+    stack depth on the way out.
+    """
+    tx = Tx(check_validity=False)
+
+    # OP_1, OP_1, OP_RETURN
+    with pytest.raises(ScriptError, match="OP_RETURN") as exc_info:
+        verify_script(b"\x51\x51\x6a", [], 0, tx, 0, [], False)
+    assert exc_info.value.index == 2
+    assert exc_info.value.stack_depth == 2
+    assert "command 2" in str(exc_info.value)
+    assert "stack depth 2" in str(exc_info.value)
+
+    # a ScriptError is a BTClibValueError: catching that keeps working
+    with pytest.raises(BTClibValueError):
+        verify_script(b"\x51\x51\x6a", [], 0, tx, 0, [], False)
+
+
+def test_script_error_stack_underflow() -> None:
+    """An empty stack is an underflow, not a bare IndexError."""
+    tx = Tx(check_validity=False)
+
+    # OP_DUP on nothing
+    with pytest.raises(ScriptError, match="stack underflow") as exc_info:
+        verify_script(b"\x76", [], 0, tx, 0, [], False)
+    assert exc_info.value.index == 0
+    assert exc_info.value.stack_depth == 0
+
+    # OP_1, OP_EQUAL: the second pop is the one that underflows
+    with pytest.raises(ScriptError, match="stack underflow") as exc_info:
+        verify_script(b"\x51\x87", [], 0, tx, 0, [], False)
+    assert exc_info.value.index == 1
+
+
+def test_unknown_op_code_is_not_a_key_error() -> None:
+    tx = Tx(check_validity=False)
+    with pytest.raises(ScriptError, match="unknown op code: 0xff"):
+        verify_script(b"\xff", [], 0, tx, 0, [], False)
+
+
+def test_unbalanced_conditional_message() -> None:
+    """Raised before the loop starts, so with no position to report."""
+    tx = Tx(check_validity=False)
+    with pytest.raises(BTClibValueError, match="unbalanced conditional"):
+        verify_script(b"\x63", [], 0, tx, 0, [], False)

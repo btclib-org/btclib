@@ -21,14 +21,14 @@ from btclib.utils import decode_num, encode_num
 def _to_num(element: bytes, flags: list[str], max_size: int = 4) -> int:
     minimaldata = "MINIMALDATA" in flags
     if minimaldata and element == b"\x80":
-        raise BTClibValueError()
+        raise BTClibValueError("non-minimal encoding of zero")
     if len(element) > max_size:
-        raise BTClibValueError()
+        raise BTClibValueError(f"number longer than {max_size} bytes: {len(element)}")
     if element == b"":
         return 0
     x = decode_num(element)
     if minimaldata and _from_num(x) != element:
-        raise BTClibValueError()
+        raise BTClibValueError(f"non-minimal encoding of {x}: {element.hex()}")
     return x
 
 
@@ -64,7 +64,7 @@ def op_if(
 
     minimalif = segwit_version == 1 or (segwit_version == 0 and "MINIMALIF" in flags)
     if minimalif and stack[-1] not in [b"", b"\x01"]:
-        raise BTClibValueError()
+        raise BTClibValueError(f"non-minimal OP_IF condition: {stack[-1].hex()}")
     condition = _to_bool(stack.pop())
 
     condition_stack.append(condition)
@@ -82,7 +82,7 @@ def op_notif(
 
     minimalif = segwit_version == 1 or (segwit_version == 0 and "MINIMALIF" in flags)
     if minimalif and stack[-1] not in [b"", b"\x01"]:
-        raise BTClibValueError()
+        raise BTClibValueError(f"non-minimal OP_NOTIF condition: {stack[-1].hex()}")
     condition = _to_bool(stack.pop())
 
     condition_stack.append(not condition)
@@ -90,7 +90,7 @@ def op_notif(
 
 def op_else(condition_stack: list[bool]) -> None:
     if len(condition_stack) == 1:
-        raise BTClibValueError()
+        raise BTClibValueError("OP_ELSE without OP_IF or OP_NOTIF")
     condition_stack[-1] = not condition_stack[-1]
 
 
@@ -100,7 +100,7 @@ def op_endif(condition_stack: list[bool]) -> None:
 
 def op_nop(flags: list[str]) -> None:
     if "DISCOURAGE_UPGRADABLE_NOPS" in flags:
-        raise BTClibValueError()
+        raise BTClibValueError("upgradable NOP")
 
 
 def op_dup(stack: list[bytes], altstack: list[bytes], flags: list[str]) -> None:
@@ -109,7 +109,7 @@ def op_dup(stack: list[bytes], altstack: list[bytes], flags: list[str]) -> None:
 
 def op_2dup(stack: list[bytes], altstack: list[bytes], flags: list[str]) -> None:
     if len(stack) < 2:
-        raise BTClibValueError()
+        raise BTClibValueError("OP_2DUP on a stack of less than 2 elements")
     stack.extend(stack[-2:])
 
 
@@ -132,11 +132,11 @@ def op_1negate(stack: list[bytes], altstack: list[bytes], flags: list[str]) -> N
 
 def op_verify(stack: list[bytes], altstack: list[bytes], flags: list[str]) -> None:
     if not _to_bool(stack.pop()):
-        raise BTClibValueError()
+        raise BTClibValueError("false top stack element")
 
 
 def op_return(stack: list[bytes], altstack: list[bytes], flags: list[str]) -> None:
-    raise BTClibValueError()
+    raise BTClibValueError("OP_RETURN")
 
 
 def op_equal(stack: list[bytes], altstack: list[bytes], flags: list[str]) -> None:
@@ -373,16 +373,16 @@ def op_over(stack: list[bytes], altstack: list[bytes], flags: list[str]) -> None
 def op_pick(stack: list[bytes], altstack: list[bytes], flags: list[str]) -> None:
     n = _to_num(stack.pop(), flags)
     if n < 0:
-        raise BTClibValueError()
+        raise BTClibValueError(f"negative OP_PICK depth: {n}")
     stack.append(stack[-n - 1])
 
 
 def op_roll(stack: list[bytes], altstack: list[bytes], flags: list[str]) -> None:
     n = _to_num(stack.pop(), flags)
     if n < 0:
-        raise BTClibValueError()
+        raise BTClibValueError(f"negative OP_ROLL depth: {n}")
     if len(stack) < n + 1:
-        raise BTClibValueError()
+        raise BTClibValueError(f"OP_ROLL depth {n} on a stack of {len(stack)} elements")
     if n == 0:
         return
     new_stack = stack[: -n - 1] + stack[-n:] + [stack[-n - 1]]
@@ -409,19 +409,19 @@ def op_tuck(stack: list[bytes], altstack: list[bytes], flags: list[str]) -> None
 
 def op_3dup(stack: list[bytes], altstack: list[bytes], flags: list[str]) -> None:
     if len(stack) < 3:
-        raise BTClibValueError()
+        raise BTClibValueError("OP_3DUP on a stack of less than 3 elements")
     stack.extend(stack[-3:])
 
 
 def op_2over(stack: list[bytes], altstack: list[bytes], flags: list[str]) -> None:
     if len(stack) < 4:
-        raise BTClibValueError()
+        raise BTClibValueError("OP_2OVER on a stack of less than 4 elements")
     stack.extend(stack[-4:-2])
 
 
 def op_2rot(stack: list[bytes], altstack: list[bytes], flags: list[str]) -> None:
     if len(stack) < 6:
-        raise BTClibValueError()
+        raise BTClibValueError("OP_2ROT on a stack of less than 6 elements")
     x6 = stack.pop()
     x5 = stack.pop()
     x4 = stack.pop()
@@ -447,21 +447,27 @@ def op_checklocktimeverify(
     if "CHECKLOCKTIMEVERIFY" not in flags:
         return
     if not stack:
-        raise BTClibValueError()
+        raise BTClibValueError("OP_CHECKLOCKTIMEVERIFY on an empty stack")
     lock_time = _to_num(stack[-1], flags, max_size=5)
     if lock_time < 0:
-        raise BTClibValueError()
+        raise BTClibValueError(f"negative lock time: {lock_time}")
 
     # different lock time type
     if tx.lock_time >= 500000000 > lock_time:
-        raise BTClibValueError()
+        raise BTClibValueError(
+            f"block height lock time {lock_time} against "
+            f"the timestamp lock time {tx.lock_time} of the transaction"
+        )
     if lock_time >= 500000000 > tx.lock_time:
-        raise BTClibValueError()
+        raise BTClibValueError(
+            f"timestamp lock time {lock_time} against "
+            f"the block height lock time {tx.lock_time} of the transaction"
+        )
 
     if lock_time > tx.lock_time:
-        raise BTClibValueError()
+        raise BTClibValueError(f"lock time {lock_time} > {tx.lock_time}")
     if tx.vin[i].sequence == 0xFFFFFFFF:
-        raise BTClibValueError()
+        raise BTClibValueError(f"final sequence for input {i}")
 
 
 def op_checksequenceverify(
@@ -470,16 +476,22 @@ def op_checksequenceverify(
     if "CHECKSEQUENCEVERIFY" not in flags:
         return
     if not stack:
-        raise BTClibValueError()
+        raise BTClibValueError("OP_CHECKSEQUENCEVERIFY on an empty stack")
     sequence = _to_num(stack[-1], flags, max_size=5)
     if sequence < 0:
-        raise BTClibValueError()
+        raise BTClibValueError(f"negative sequence: {sequence}")
     if not sequence & (1 << 31):
         if tx.version < 2:
-            raise BTClibValueError()
+            raise BTClibValueError(f"transaction version {tx.version} < 2")
         if tx.vin[i].sequence & (1 << 31):
-            raise BTClibValueError()
+            raise BTClibValueError(f"relative lock time disabled for input {i}")
         if sequence & (1 << 22) != tx.vin[i].sequence & (1 << 22):
-            raise BTClibValueError()
+            raise BTClibValueError(
+                f"relative lock time unit mismatch: {hex(sequence)} against "
+                f"the sequence {hex(tx.vin[i].sequence)} of input {i}"
+            )
         if sequence & 0x0000FFFF > tx.vin[i].sequence & 0x0000FFFF:
-            raise BTClibValueError()
+            raise BTClibValueError(
+                f"relative lock time {sequence & 0x0000FFFF} > "
+                f"{tx.vin[i].sequence & 0x0000FFFF}"
+            )

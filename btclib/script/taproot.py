@@ -40,7 +40,9 @@ def serialize(script: ScriptList) -> bytes:
             r.append(_serialize_str_command(command))
             if "OP_SUCCESS" in command:
                 if len(script) != 1 or not isinstance(script[0], bytes):
-                    raise BTClibValueError()
+                    raise BTClibValueError(
+                        "OP_SUCCESS must be followed by a single bytes command"
+                    )
                 return b"".join(r) + script[0]
         else:  # must be bytes
             r.append(_serialize_bytes_command(command))
@@ -84,6 +86,8 @@ def parse(stream: BinaryData, exit_on_op_success: bool = False) -> ScriptList:
             r.append(s.read())
             return r
         else:  # OP_CODE
+            if i not in OP_CODE_NAMES:
+                raise BTClibValueError(f"unknown op code: {hex(i)}")
             new_op_code = OP_CODE_NAMES[i]
         r.append(new_op_code)
     if invalid_element_size:

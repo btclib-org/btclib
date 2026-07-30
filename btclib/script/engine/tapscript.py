@@ -17,7 +17,7 @@ from btclib_libsecp256k1.ssa import verify as _libsecp256k1_ssa_verify
 
 from btclib import var_bytes
 from btclib.alias import ScriptList
-from btclib.exceptions import BTClibValueError
+from btclib.exceptions import BTClibValueError, ScriptError
 from btclib.hashes import tagged_hash
 from btclib.script import sig_hash
 from btclib.script.engine import script_op_codes
@@ -50,7 +50,9 @@ def get_hashtype(signature: bytes) -> int:
     if len(signature) == 65:
         sighash_type = signature[-1]
         if sighash_type == 0:
-            raise BTClibValueError()
+            raise BTClibValueError(
+                "explicit SIGHASH_DEFAULT: a 64-byte signature is required"
+            )
     return sighash_type
 
 
@@ -75,7 +77,7 @@ def verify_key_path(
     msg_hash = sig_hash.taproot(tx, i, prevouts, sighash_type, 0, annex, b"")
 
     if not ssa_verify(msg_hash, pub_key, signature[:64]):
-        raise BTClibValueError()
+        raise BTClibValueError("invalid signature for the taproot key path")
 
 
 def op_checksig(
@@ -91,11 +93,11 @@ def op_checksig(
     pub_key = stack.pop()
     signature = stack.pop()
     if len(pub_key) == 0:
-        raise BTClibValueError()
+        raise BTClibValueError("empty public key")
     if signature:
         budget -= 50
         if budget < 0:
-            raise BTClibValueError()
+            raise BTClibValueError("exhausted sigops budget")
     if len(pub_key) == 32 and signature:
         sighash_type = get_hashtype(signature)
         preimage = b"\xc0"
@@ -104,7 +106,7 @@ def op_checksig(
         ext = tapleaf_hash + b"\x00" + codesep_pos.to_bytes(4, "little")
         msg_hash = sig_hash.taproot(tx, i, prevouts, sighash_type, 1, annex, ext)
         if not ssa_verify(msg_hash, pub_key, signature[:64]):
-            raise BTClibValueError()
+            raise BTClibValueError("invalid signature for the taproot script path")
     stack.append(_from_num(int(bool(signature))))
     return budget
 
@@ -120,7 +122,7 @@ def verify_script_path_vc0(
     flags: list[str],
 ) -> None:
     if any(len(x) > 520 for x in stack):
-        raise BTClibValueError()
+        raise BTClibValueError("witness stack element longer than 520 bytes")
 
     script = parse(script_bytes, exit_on_op_success=True)
 
@@ -194,78 +196,97 @@ def verify_script_path_vc0(
     op_conditions = [99, 100, 103, 104]  # ["OP_IF", "OP_NOTIF", "OP_ELSE", "OP_ENDIF"]
 
     s = bytesio_from_binarydata(script_bytes)
-    while True:
-        script_index += 1
+    try:
+        while True:
+            script_index += 1
 
-        skip_execution = not all(condition_stack)
+            skip_execution = not all(condition_stack)
 
-        if len(stack) + len(altstack) > 1000:
-            raise BTClibValueError()
+            if len(stack) + len(altstack) > 1000:
+                raise BTClibValueError(
+                    f"more than 1000 stack elements: {len(stack)} + {len(altstack)}"
+                )
 
-        b = s.read(1)
-        if not b:
-            break
-        t = b[0]
-        if 0 < t <= 78:  # pushdata
-            if t < 76:
-                data_length = t
-            else:
-                data_length = int.from_bytes(s.read(2 ** (t - 76)), byteorder="little")
-            a = s.read(data_length)
-            if skip_execution:
+            b = s.read(1)
+            if not b:
+                break
+            t = b[0]
+            if 0 < t <= 78:  # pushdata
+                if t < 76:
+                    data_length = t
+                else:
+                    data_length = int.from_bytes(
+                        s.read(2 ** (t - 76)), byteorder="little"
+                    )
+                a = s.read(data_length)
+                if skip_execution:
+                    continue
+                if "MINIMALDATA" in flags:
+                    if (len(a) == 1 and (a[0] == 129 or 0 < a[0] <= 16)) or len(a) == 0:
+                        raise BTClibValueError(
+                            f"non-minimal push: OP_0, OP_1NEGATE, or OP_1-OP_16 "
+                            f"should have been used for {a.hex()!r}"
+                        )
+                    if serialize_script([a])[0] != t:
+                        raise BTClibValueError(
+                            f"non-minimal push of {len(a)} bytes with op code {hex(t)}"
+                        )
+                stack.append(a)
                 continue
-            if "MINIMALDATA" in flags:
-                if (len(a) == 1 and (a[0] == 129 or 0 < a[0] <= 16)) or len(a) == 0:
-                    raise BTClibValueError()
-                if serialize_script([a])[0] != t:
-                    raise BTClibValueError()
-            stack.append(a)
-            continue
-        if skip_execution and t not in op_conditions:
-            continue
-        op = OP_CODE_NAMES[t]
+            if skip_execution and t not in op_conditions:
+                continue
+            op = OP_CODE_NAMES[t]
 
-        if op == "OP_CHECKSIG":
-            sigops_budget = op_checksig(
-                stack,
-                script_bytes,
-                codesep_pos,
-                tx,
-                i,
-                prevouts,
-                annex,
-                sigops_budget,
-            )
+            if op == "OP_CHECKSIG":
+                sigops_budget = op_checksig(
+                    stack,
+                    script_bytes,
+                    codesep_pos,
+                    tx,
+                    i,
+                    prevouts,
+                    annex,
+                    sigops_budget,
+                )
 
-        elif op == "OP_CHECKLOCKTIMEVERIFY":
-            script_op_codes.op_checklocktimeverify(stack, tx, i, flags)
-        elif op == "OP_CHECKSEQUENCEVERIFY":
-            script_op_codes.op_checksequenceverify(stack, tx, i, flags)
-        elif op[3:].isdigit():
-            stack.append(_from_num(int(op[3:])))
-        elif op == "OP_CODESEPARATOR":
-            codesep_pos = script_index
-        elif op == "OP_IF":
-            script_op_codes.op_if(stack, condition_stack, flags, 1)
-        elif op == "OP_NOTIF":
-            script_op_codes.op_notif(stack, condition_stack, flags, 1)
-        elif op == "OP_ELSE":
-            script_op_codes.op_else(condition_stack)
-        elif op == "OP_ENDIF":
-            script_op_codes.op_endif(condition_stack)
-        elif op == "OP_NOP":
-            pass
-        elif "OP_NOP" in op:
-            script_op_codes.op_nop(flags)
-        elif op in operations:
-            r = operations[op](stack, altstack, flags)
-            if r:
-                script_index -= len(r)
-                s = bytesio_from_binarydata(serialize_script(r) + s.read())
-        else:
-            raise BTClibValueError()
+            elif op == "OP_CHECKLOCKTIMEVERIFY":
+                script_op_codes.op_checklocktimeverify(stack, tx, i, flags)
+            elif op == "OP_CHECKSEQUENCEVERIFY":
+                script_op_codes.op_checksequenceverify(stack, tx, i, flags)
+            elif op[3:].isdigit():
+                stack.append(_from_num(int(op[3:])))
+            elif op == "OP_CODESEPARATOR":
+                codesep_pos = script_index
+            elif op == "OP_IF":
+                script_op_codes.op_if(stack, condition_stack, flags, 1)
+            elif op == "OP_NOTIF":
+                script_op_codes.op_notif(stack, condition_stack, flags, 1)
+            elif op == "OP_ELSE":
+                script_op_codes.op_else(condition_stack)
+            elif op == "OP_ENDIF":
+                script_op_codes.op_endif(condition_stack)
+            elif op == "OP_NOP":
+                pass
+            elif "OP_NOP" in op:
+                script_op_codes.op_nop(flags)
+            elif op in operations:
+                r = operations[op](stack, altstack, flags)
+                if r:
+                    script_index -= len(r)
+                    s = bytesio_from_binarydata(serialize_script(r) + s.read())
+            else:
+                raise BTClibValueError(f"unknown op code: {op}")
+    except BTClibValueError as e:
+        raise ScriptError(str(e), script_index, len(stack)) from e
+    except IndexError as e:
+        # what the loop indexes and pops is the stack and the altstack,
+        # so an IndexError out of it is an underflow; the chained
+        # exception is there for the cases in which it is not
+        raise ScriptError("stack underflow", script_index, len(stack)) from e
 
+    if not stack:
+        raise BTClibValueError("empty stack at the end of the script")
     script_op_codes.op_verify(stack, [], flags)
 
     if stack:
-        raise BTClibValueError()
+        raise BTClibValueError(f"{len(stack)} elements left on the stack")

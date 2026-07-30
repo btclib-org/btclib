@@ -183,11 +183,14 @@ def assert_segwit(script_pub_key: Octets) -> None:
     # doesn't check if script_pub_key is a valid script
     script_pub_key = bytes_from_octets(script_pub_key)
     if not (script_pub_key[0] == 0 or 0x51 <= script_pub_key[0] <= 0x60):
-        raise BTClibValueError()
+        raise BTClibValueError(f"invalid witness version: {hex(script_pub_key[0])}")
     if len(script_pub_key) == 1 or not 2 <= script_pub_key[1] <= 40:
-        raise BTClibValueError()
+        raise BTClibValueError("invalid witness program length")
     if len(script_pub_key) != script_pub_key[1] + 2:
-        raise BTClibValueError()
+        raise BTClibValueError(
+            f"invalid segwit script length: {len(script_pub_key)}, "
+            f"{script_pub_key[1] + 2} expected"
+        )
 
 
 def is_segwit(script_pub_key: Octets) -> bool:

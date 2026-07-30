@@ -117,6 +117,19 @@ Major changes includes:
   and the reason a nine-byte var_int can no longer ask a parser for 2^64-1
   elements; the new `max_size` parameter raises it for a var_int that is
   neither a length nor a count (issue #135)
+- a script verification failure says what went wrong, and where. The 76
+  bare `BTClibValueError()` raises — 70 of them under `script/engine/` —
+  carried an empty message, so a wrong public key encoding, an unbalanced
+  OP_IF, and a stack underflow were one exception with one (empty) text.
+  Each carries a short message now, and the two interpreter loops re-raise
+  it as the new `ScriptError(BTClibValueError)`, adding the command index
+  and the stack depth that an op code implementation, handed the stack
+  alone, cannot know: `OP_RETURN (command 2, stack depth 2)`. Code
+  catching BTClibValueError keeps catching these, ScriptError being one.
+  A stack underflow used to escape the library's exception contract as
+  IndexError, and an op code with no name as KeyError, from the legacy
+  engine and from `taproot.parse` alike: all are BTClibValueError now
+  (issue #141)
 - `parse_taproot_bip32` bounds its allocation by the data it was handed
   rather than by the count a counterparty declared: five bytes of a
   hostile PSBT used to cost gigabytes, reachable from `Psbt.parse` and

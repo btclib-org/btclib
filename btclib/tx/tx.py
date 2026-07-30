@@ -191,7 +191,9 @@ class Tx:
         else:
             for tx_in in self.vin:
                 if tx_in.is_coinbase():
-                    raise BTClibValueError()
+                    raise BTClibValueError(
+                        "coinbase input in a non-coinbase transaction"
+                    )
 
         # must be a 4-bytes integer
         if not 0 <= self.version <= 0xFFFFFFFF:

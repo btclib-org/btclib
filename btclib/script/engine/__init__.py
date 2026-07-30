@@ -33,7 +33,7 @@ def taproot_unwrap_script(
     control = stack[-1]
 
     if not check_output_pubkey(pub_key, script_bytes, control):
-        raise BTClibValueError()
+        raise BTClibValueError("invalid taproot control block")
 
     leaf_version = stack[-1][0] & 0xFE
 
@@ -55,7 +55,7 @@ def validate_redeem_script(redeem_script: ScriptList) -> None:
             if c == "OP_1NEGATE":
                 continue
             if c[:2] == "OP" and not c[3:].isdigit():
-                raise BTClibValueError()
+                raise BTClibValueError(f"non-push command in the script_sig: {c}")
 
 
 ALL_FLAGS = [
@@ -97,7 +97,7 @@ def verify_input(prevouts: list[TxOut], tx: Tx, i: int, flags: list[str]) -> Non
                 "OP_CHECKSIGVERIFY",
             ]
             if x in op_checks:
-                raise BTClibValueError()
+                raise BTClibValueError(f"signature check in the script_sig: {x}")
     stack: list[bytes] = []
     verify_script_legacy(
         script_sig, stack, prevouts[i].value, tx, i, flags, False, False
@@ -126,12 +126,12 @@ def verify_input(prevouts: list[TxOut], tx: Tx, i: int, flags: list[str]) -> Non
     if "TAPROOT" in flags:
         supported_segwit_version = 1
     if segwit_version + 1 and tx.vin[i].script_sig and not p2sh:
-        raise BTClibValueError()
+        raise BTClibValueError("non-empty script_sig for a native segwit input")
     if not (segwit_version + 1) and tx.vin[i].script_witness:
-        raise BTClibValueError()  # witness without witness script
+        raise BTClibValueError("witness for a non-segwit input")
     if segwit_version > supported_segwit_version:
         if segwit_version + 1 and "DISCOURAGE_UPGRADABLE_WITNESS_PROGRAM" in flags:
-            raise BTClibValueError()
+            raise BTClibValueError(f"unsupported segwit version: {segwit_version}")
         return
 
     if segwit_version == 1 and script_type == "p2tr":
@@ -142,7 +142,7 @@ def verify_input(prevouts: list[TxOut], tx: Tx, i: int, flags: list[str]) -> Non
         # the annex counts towards the budget, hence the order (bip 342)
         annex, stack = taproot_get_annex(witness)
         if len(stack) == 0:
-            raise BTClibValueError()
+            raise BTClibValueError("empty taproot witness stack")
         if len(stack) == 1:
             tapscript.verify_key_path(script, stack, prevouts, tx, i, annex)
             stack = []
@@ -165,13 +165,13 @@ def verify_input(prevouts: list[TxOut], tx: Tx, i: int, flags: list[str]) -> Non
         elif script_type == "p2wsh":
             stack = list(tx.vin[i].script_witness.stack)
             if any(len(x) > 520 for x in stack[:-1]):
-                raise BTClibValueError()
+                raise BTClibValueError("witness stack element longer than 520 bytes")
             script = stack[-1]
             if payload != sha256(script):
-                raise BTClibValueError()
+                raise BTClibValueError("invalid witness script sha256")
             stack = stack[:-1]
         else:
-            raise BTClibValueError()
+            raise BTClibValueError(f"invalid segwit v0 script type: {script_type}")
 
         if "OP_CODESEPARATOR" in parse(script):
             return
@@ -179,7 +179,7 @@ def verify_input(prevouts: list[TxOut], tx: Tx, i: int, flags: list[str]) -> Non
         verify_script_legacy(script, stack, prevouts[i].value, tx, i, flags, True, True)
 
     if stack and ("CLEANSTACK" in flags or segwit_version == 0):
-        raise BTClibValueError()
+        raise BTClibValueError(f"{len(stack)} elements left on the stack")
 
 
 def verify_amounts(prevouts: list[TxOut], tx: Tx) -> None:
@@ -196,7 +196,9 @@ def verify_transaction(
     if flags is None:
         flags = ALL_FLAGS[:]
     if len(prevouts) != len(tx.vin):
-        raise BTClibValueError()
+        raise BTClibValueError(
+            f"{len(prevouts)} prevouts for {len(tx.vin)} transaction inputs"
+        )
     if check_amounts:
         verify_amounts(prevouts, tx)
     for i in range(len(prevouts)):

@@ -161,13 +161,19 @@ def test_invalid_serialization() -> None:
     with pytest.raises(BTClibValueError):
         serialize(["AAA"])
 
-    with pytest.raises(BTClibValueError):
+    with pytest.raises(BTClibValueError, match="OP_SUCCESS must be followed"):
         serialize(["OP_SUCCESS80"])
 
-    with pytest.raises(BTClibValueError):
+    with pytest.raises(BTClibValueError, match="OP_SUCCESS must be followed"):
         serialize(["OP_SUCCESS80", 1])
-    with pytest.raises(BTClibValueError):
+    with pytest.raises(BTClibValueError, match="OP_SUCCESS must be followed"):
         serialize(["OP_SUCCESS80", "00"])
+
+
+def test_parse_unknown_op_code() -> None:
+    """0xff is neither an OP_SUCCESS nor a named op code."""
+    with pytest.raises(BTClibValueError, match="unknown op code: 0xff"):
+        parse(b"\xff")
 
 
 def test_serialization() -> None:
