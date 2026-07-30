@@ -70,9 +70,12 @@ Type definition improves code readability and helps in spotting bugs.
 
 Moreover,
 the [pytest](https://pytest.org) unit tests
-must pass at any time with
-100% [coverage](https://coverage.readthedocs.io/)
-of both the library and the test suite.
+must pass at any time, with
+[coverage](https://coverage.readthedocs.io/)
+of both the library and the test suite above the `fail_under` ratchet in
+pyproject.toml — 99.85% against the 99.93% of today, which is 9 statements
+uncovered out of 12037: slack enough not to trip over a line, tight enough
+that a regression cannot hide.
 See [Tests, code coverage, and profiling](./tests/README.md).
 
 These requirements are easily checked (and partially fixed) with:

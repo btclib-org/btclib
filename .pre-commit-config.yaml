@@ -164,13 +164,19 @@ repos:
   # them there would mean building libsecp256k1 for the hook, and from
   # PyPI at that, where the version this project requires is not yet
   # published. This is the very command the lint workflow runs, against
-  # the project environment and the real pytest
+  # the project environment and the real pytest.
+  # --locked, as everywhere else: it was --frozen, which takes uv.lock as
+  # it finds it, so a dependency added to pyproject.toml without a re-lock
+  # left mypy type checking a stale environment and saying nothing about
+  # it. The uv-lock hook below catches the stale lock in the same run, but
+  # only after this one has already produced a verdict on the wrong
+  # environment, and the lint workflow runs this file, so CI inherited that
   - repo: local
     hooks:
       - id: mypy
         name: mypy (strict, in the project environment)
         entry: >
-          uv run --frozen --no-default-groups --group lint --group test
+          uv run --locked --no-default-groups --group lint --group test
           mypy btclib tests
         language: system
         types: [python]
