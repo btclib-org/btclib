@@ -72,17 +72,17 @@ def test_exceptions() -> None:
     with open(filename, "rb") as file_:
         block_bytes = file_.read()
 
-    header_bytes = block_bytes[:68]  # no timestamp
-    with pytest.raises(BTClibValueError, match="invalid timestamp "):
-        BlockHeader.parse(header_bytes)
-
-    header_bytes = block_bytes[:74]  # bits is missing two bytes
-    with pytest.raises(BTClibValueError, match="invalid bits length: "):
-        BlockHeader.parse(header_bytes)
-
-    header_bytes = block_bytes[:76]  # nonce is missing
-    with pytest.raises(BTClibValueError, match="invalid nonce: "):
-        BlockHeader.parse(header_bytes)
+    # a truncated header is reported as truncated, whichever field the
+    # missing bytes fall in. Read past the end of a stream returns what
+    # there was without raising, so these three used to be diagnosed by
+    # accident: "invalid timestamp (before genesis)" for a time read from
+    # no bytes at all, "invalid bits length" for a short slice, and
+    # "invalid nonce" only because the bound was 0 < nonce and a short
+    # read is zero -- which is why relaxing that bound needed this check
+    for truncated in (68, 74, 76, 79):
+        err_msg = f"invalid decoded length: {truncated} instead of 80"
+        with pytest.raises(BTClibValueError, match=err_msg):
+            BlockHeader.parse(block_bytes[:truncated])
 
     # a 0xff prefix announcing eight bytes that are not there: the
     # truncation is now caught, rather than read as a transaction count of
@@ -131,14 +131,14 @@ def test_exceptions() -> None:
         header.assert_valid()
 
     header = BlockHeader.parse(header_bytes)
-    header.nonce = 0
+    header.nonce = 0x100000000
     with pytest.raises(BTClibValueError, match="invalid nonce: "):
         header.assert_valid()
 
     header = BlockHeader.parse(header_bytes)
     header.nonce += 1
     with pytest.raises(BTClibValueError, match="invalid proof-of-work: "):
-        header.assert_valid()
+        header.assert_valid_pow()
 
 
 def test_block_header_keywords() -> None:
@@ -534,3 +534,69 @@ def test_assert_valid_does_not_rewrite_the_header() -> None:
     assert isinstance(coerced.nonce, int)
     assert isinstance(coerced.version, int)
     assert coerced.serialize() == header_bytes
+
+
+def test_a_candidate_header_can_be_built() -> None:
+    """Structural validity and proof-of-work are different questions.
+
+    assert_valid used to end in assert_valid_pow, so a header being mined
+    -- structurally valid, no work found yet -- could not be built,
+    serialized, or hashed through the ordinary API. Hashing it is mining.
+    """
+    fname = "block_1.bin"
+    filename = path.join(path.dirname(__file__), "_data", fname)
+    with open(filename, "rb") as file_:
+        header_bytes = file_.read()[:80]
+
+    mined = BlockHeader.parse(header_bytes)
+
+    # the same header with the nonce not yet found: the constructor used
+    # to raise BTClibValueError("invalid proof-of-work") on both of these
+    for nonce in (0, mined.nonce + 1):
+        candidate = BlockHeader(
+            version=mined.version,
+            previous_block_hash=mined.previous_block_hash,
+            merkle_root=mined.merkle_root,
+            time=mined.time,
+            bits=mined.bits,
+            nonce=nonce,
+        )
+        candidate.assert_valid()
+        assert len(candidate.serialize()) == 80
+        assert len(candidate.hash) == 32
+        # and the work is still asked for, when it is asked for
+        with pytest.raises(BTClibValueError, match="invalid proof-of-work: "):
+            candidate.assert_valid_pow()
+
+    # a nonce of zero is a nonce: consensus places no lower bound on it,
+    # and it is where mining starts. It used to be rejected, which also
+    # meant btclib could not read a consensus-valid block that had one
+    zero_nonce = header_bytes[:76] + bytes(4)
+    parsed = BlockHeader.parse(zero_nonce)
+    assert parsed.nonce == 0
+    assert parsed.serialize() == zero_nonce
+
+    # the round trip still works for the mined header, work and all
+    assert mined.serialize() == header_bytes
+    mined.assert_valid_pow()
+
+
+def test_a_block_still_requires_the_work() -> None:
+    """Block.assert_valid asserts it, as Core's CheckBlock does.
+
+    That is what keeps the vendored block_*.bin files self-verifying:
+    Block.parse recomputes the hash from the bytes on every run.
+    """
+    fname = "block_1.bin"
+    filename = path.join(path.dirname(__file__), "_data", fname)
+    with open(filename, "rb") as file_:
+        block_bytes = file_.read()
+
+    block = Block.parse(block_bytes)
+    block.assert_valid()
+
+    # one bit of the nonce flipped is a block whose work no longer holds
+    forged = bytearray(block_bytes)
+    forged[76] ^= 0x01
+    with pytest.raises(BTClibValueError, match="invalid proof-of-work: "):
+        Block.parse(bytes(forged))

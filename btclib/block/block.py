@@ -216,6 +216,15 @@ class Block:
 
     def assert_valid(self) -> None:
         self.header.assert_valid()
+        # the header alone does not assert this: a header being mined is
+        # structurally valid and has no proof-of-work yet, so requiring one
+        # left no way to build a candidate. A Block is not a candidate --
+        # it carries the transactions the work commits to -- and Bitcoin
+        # Core draws the line in the same place, CheckBlock calling
+        # CheckProofOfWork with fCheckPOW defaulted to true.
+        # It is also what makes the vendored block_*.bin files verify
+        # themselves: Block.parse recomputes the hash from the bytes
+        self.header.assert_valid_pow()
 
         # every block carries a coinbase, so an empty list is not a block
         # that happens to be empty: it is not a block. transactions[0]

@@ -28,6 +28,8 @@ from btclib.utils import bytes_from_octets, bytesio_from_binarydata
 _HF = hash256
 _HF_LEN = 32  # should be _HF().digest_size
 _KEY_SIZE = [("previous_block_hash", _HF_LEN), ("merkle_root", 32), ("bits", 4)]
+# version, previous block hash, merkle root, time, bits, nonce
+_REQUIRED_LENGTH = 4 + _HF_LEN + 32 + 4 + 4 + 4
 
 # aware, as the serialization is in seconds since the epoch:
 # datetime.fromtimestamp(0) would be naive, i.e. read back as local time,
@@ -175,7 +177,18 @@ class BlockHeader:
         )
 
     def assert_valid_pow(self) -> None:
-        """Assert whether the BlockHeader provides a valid proof-of-work."""
+        """Assert whether the BlockHeader provides a valid proof-of-work.
+
+        Not called by assert_valid, which answers the other question:
+        whether the eighty bytes are a well-formed header. A header being
+        mined is structurally valid and has no proof-of-work yet, so a
+        candidate could not otherwise be built, serialized, or hashed
+        through the ordinary API -- and hashing it is what mining is.
+
+        Block.assert_valid does call this, as Bitcoin Core's CheckBlock
+        calls CheckProofOfWork by default: a Block is a block, and the
+        proof-of-work is what its transactions are committed by.
+        """
         if self.hash >= self.target:
             err_msg = f"invalid proof-of-work: {self.hash.hex()}"
             err_msg += f" >= {self.target.hex()}"
@@ -223,10 +236,13 @@ class BlockHeader:
                 err_msg += f" instead of {size}"
                 raise BTClibValueError(err_msg)
 
-        if not 0 < self.nonce <= 0xFFFFFFFF:
+        # any 4-byte value, zero included: consensus places no lower bound
+        # on the nonce, Core does not look at it at all, and a header being
+        # mined starts at zero. The bound used to be 0 < nonce, which also
+        # served as parse()'s truncation check -- a short read yields zero
+        # -- and that is now a length check in parse(), where it belongs
+        if not 0 <= self.nonce <= 0xFFFFFFFF:
             raise BTClibValueError(f"invalid nonce: {hex(self.nonce)}")
-
-        self.assert_valid_pow()
 
     def serialize(self, *, check_validity: bool = True) -> bytes:
         """Return a BlockHeader binary serialization."""
@@ -250,15 +266,29 @@ class BlockHeader:
     ) -> BlockHeader:
         """Return a BlockHeader by parsing 80 bytes from binary data."""
         stream = bytesio_from_binarydata(data)
+        header_bin = stream.read(_REQUIRED_LENGTH)
+
+        # read past the end of a stream returns what there was, without
+        # raising, so a truncated header used to be reported by whichever
+        # field the missing bytes happened to fall in: eight bytes short
+        # was "invalid nonce", four short "invalid bits length", and
+        # twelve short "invalid timestamp (before genesis)" -- the epoch,
+        # read from no bytes at all. Reported as truncation now, as
+        # BIP32KeyData.parse reports it
+        if check_validity and len(header_bin) != _REQUIRED_LENGTH:
+            err_msg = f"invalid decoded length: {len(header_bin)}"
+            err_msg += f" instead of {_REQUIRED_LENGTH}"
+            raise BTClibValueError(err_msg)
 
         # version is a signed int (int32_t, not uint32_t)
-        version = int.from_bytes(stream.read(4), byteorder="little", signed=True)
-        previous_block_hash = stream.read(_HF_LEN)[::-1]
-        merkle_root = stream.read(_HF_LEN)[::-1]
-        t = int.from_bytes(stream.read(4), byteorder="little", signed=False)
+        version = int.from_bytes(header_bin[:4], byteorder="little", signed=True)
+        previous_block_hash = header_bin[4 : 4 + _HF_LEN][::-1]
+        merkle_root = header_bin[4 + _HF_LEN : 4 + 2 * _HF_LEN][::-1]
+        rest = header_bin[4 + 2 * _HF_LEN :]
+        t = int.from_bytes(rest[:4], byteorder="little", signed=False)
         time = datetime.fromtimestamp(t, timezone.utc)
-        bits = stream.read(4)[::-1]
-        nonce = int.from_bytes(stream.read(4), byteorder="little", signed=False)
+        bits = rest[4:8][::-1]
+        nonce = int.from_bytes(rest[8:12], byteorder="little", signed=False)
 
         return cls(
             version,

@@ -551,6 +551,24 @@ Major changes includes:
   and `"9"` raises for being of odd length rather than being nine. The
   behaviour is unchanged and deliberate — a decimal representation is what
   `int` itself is for — and now the docstring says so
+- **`BlockHeader.assert_valid` no longer requires a valid proof of work**,
+  structural and consensus validity being different questions. It used to
+  end in `assert_valid_pow`, so a header *being mined* — well-formed, no
+  work found yet — could not be built, serialized, or hashed through the
+  ordinary API, and hashing it is what mining is. `assert_valid_pow` is
+  still there and still asserts the work; `Block.assert_valid` calls it, as
+  Bitcoin Core's `CheckBlock` calls `CheckProofOfWork` with `fCheckPOW`
+  defaulted to true — a Block carries the transactions the work commits to
+  — which is also what keeps the vendored `block_*.bin` files
+  self-verifying. The nonce bound drops to `0 <= nonce <= 0xFFFFFFFF`:
+  consensus places no lower bound on it, Core does not look at it at all,
+  mining starts at zero, and btclib could not read a consensus-valid block
+  that happened to have one. That bound was doubling as `parse`'s
+  truncation check, a short read being zero, so `parse` now checks that it
+  read 80 bytes, the way `BIP32KeyData.parse` does. Truncation is reported
+  as truncation for it: eight bytes short used to be "invalid nonce", four
+  short "invalid bits length", and twelve short "invalid timestamp (before
+  genesis)" — a time read from no bytes at all
 - **`assert_valid` no longer rewrites what it validates.**
   `BIP32KeyData.assert_valid` coerced six fields in place — `bytes()` over
   `version`, `parent_fingerprint`, `chain_code` and `key`, `int()` over
