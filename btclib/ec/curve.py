@@ -262,11 +262,14 @@ for ec_name in SEC2v2_params2:
     SEC2v2[ec_name] = _catalogued_curve(SEC2v2_params2[ec_name], ec_name)
     SEC2v1[ec_name] = SEC2v2[ec_name]
 
-# with python>=3.9 use dictionary union operators
-# CURVES = SEC2v1 | NIST | Brainpool
-CURVES = SEC2v1
-CURVES.update(NIST)
-CURVES.update(Brainpool)
+# the union operator the comment here asked for, python 3.9 being the
+# minimum this package supports. It is not only tidier: "CURVES = SEC2v1"
+# bound the same dict, so the two update() calls that followed poured NIST
+# and Brainpool into the SEC 2 v.1 catalogue -- SEC2v1 ended up with 27
+# entries instead of its own 15, and SEC2v1["nistp256"] answered a curve
+# that is not in SEC 2 v.1 at all. CURVES is a new dict now, and each
+# catalogue holds what it is named after
+CURVES = SEC2v1 | NIST | Brainpool
 
 secp256k1 = CURVES["secp256k1"]
 

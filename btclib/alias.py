@@ -87,7 +87,6 @@ BinaryData = Union[BytesIO, Octets]
 # resolve by convention here -- a decimal representation is what int itself
 # is for, and int("1234") costs the caller nothing -- so the ambiguity is
 # resolved the way every other str in this file resolves it
-# Integer = Union[Octets, int]
 Integer = Union[bytes, str, int]
 
 

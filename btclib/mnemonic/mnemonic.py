@@ -63,7 +63,6 @@ class WordLists:
         self._wordlist = dict(zip(self.languages, wordlists))
 
         zeros = len(self.languages) * [0]
-        self._bits_per_word = dict(zip(self.languages, zeros))
         self._language_length = dict(zip(self.languages, zeros))
 
     def load_lang(self, lang: str, filename: str | None = None) -> None:
@@ -103,7 +102,6 @@ class WordLists:
         self.languages.append(lang)
         self.language_files[lang] = filename
         self._wordlist[lang] = []
-        self._bits_per_word[lang] = 0
         self._language_length[lang] = 0
 
     def wordlist(self, lang: str) -> WordList:

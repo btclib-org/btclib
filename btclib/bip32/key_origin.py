@@ -157,8 +157,9 @@ def encode_to_bip32_derivs(
 def _decode_from_bip32_deriv(
     bip32_deriv: Mapping[str, str],
 ) -> tuple[bytes, BIP32KeyOrigin]:
-    # FIXME remove size checks to allow
-    # the instantiation of invalid master_fingerprint and pub_key
+    # issue 173: the size checks here cannot be switched off, so an invalid
+    # master_fingerprint or pub_key cannot be instantiated even deliberately
+    # -- a check_validity question, now that the flag is keyword-only
     master_fingerprint = bytes_from_octets(bip32_deriv["master_fingerprint"], 4)
     der_path = indexes_from_bip32_path(bip32_deriv["path"])
     key_origin = BIP32KeyOrigin(master_fingerprint, der_path)

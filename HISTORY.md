@@ -551,6 +551,34 @@ Major changes includes:
   and `"9"` raises for being of odd length rather than being nine. The
   behaviour is unchanged and deliberate — a decimal representation is what
   `int` itself is for — and now the docstring says so
+- **`SEC2v1` holds the SEC 2 v.1 curves, and nothing else.** `CURVES =
+  SEC2v1` bound the same dict, so the two `update()` calls that followed
+  poured NIST and Brainpool into it: `SEC2v1` had 27 entries instead of its
+  own 15, and `SEC2v1["nistp256"]` answered a curve that is not in SEC 2 v.1
+  at all. Found by acting on the stale `# with python>=3.9 use dictionary
+  union operators` beside it — 3.9 is the minimum this package supports, and
+  `SEC2v1 | NIST | Brainpool` builds a new dict, which is what keeps the
+  catalogues apart. `CURVES` is unchanged in content
+- **`Network.assert_valid` checks the hrp.** It was `str(self.hrp)` with the
+  result discarded, which cannot fail: `str()` accepts every object there is.
+  It now raises `BTClibTypeError` for a field that is not a `str`, which is
+  what the `bytes()` calls beside it have always done for the rest
+- **Dead code and stale markers.** `WordLists._bits_per_word`, written in two
+  places and read in none, is gone; so are seven commented-out leftovers with
+  nothing said about why they were kept (alternative `T = multiples(...)`
+  lines in `curve_group`, a superseded `zip` in `multi_mult`, a stray
+  `bytes_from_octets` in `Psbt.parse`, an unused conversion in
+  `entropy.py`, and `# Integer = Union[Octets, int]` in `alias.py`). The
+  commented-out code that *is* the explanation around it stays — the biased
+  `nonce = int.from_bytes(t, 'big') % ec.n` of the three nonce modules, the
+  `PSBT_*_PROPRIETARY` values deliberately not implemented, the
+  `_pushdata(4, ...)` the 520-byte limit makes unnecessary. Sixteen
+  load-bearing TODO/FIXME markers now name a tracked issue instead of a
+  wish: #171 (the three point-addition special cases, on the inner loop of
+  every scalar multiplication), #172 (rendering a script as `{"asm":
+  ..., "hex": ...}`, seven identical markers), #173 (four unfinished PSBT
+  behaviours — combining a witness, the Finalizer's sighash check, output
+  merging, and a partial signature never checked against its key)
 - **The library's two notions of "hash function" have two names.** `HashF` is
   a hashlib-style *constructor*, called with no argument and fed through
   `update()`; the merkle functions of `btclib.hashes` take a *one-shot

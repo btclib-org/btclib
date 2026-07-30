@@ -249,7 +249,6 @@ class Psbt:
         hd_key_paths: dict[Octets, BIP32KeyOrigin] = {}
         unknown: dict[Octets, Octets] = {}
 
-        # psbt_bin = bytes_from_octets(psbt_bin)
         stream = bytesio_from_binarydata(psbt_bin)
 
         if stream.read(4) != PSBT_MAGIC_BYTES:
@@ -357,7 +356,8 @@ def _combine_field(
         setattr(out, key, item)
     elif attr != item and isinstance(item, dict):
         attr.update(item)
-        # TODO fails for final_script_witness
+        # issue 173: no list branch, so a final_script_witness present in
+        # one psbt and absent from the other does not survive the combine
         # elif isinstance(item, list):
         #     additional_elements = [i for i in item if i not in attr]
         #     attr += additional_elements
@@ -418,8 +418,8 @@ def finalize_psbt(psbt: Psbt) -> Psbt:
     """
     psbt = deepcopy(psbt)
     psbt.assert_valid()
-    # TODO finalizers must fail to finalize inputs
-    # which have signatures that do not match the specified sign_ type
+    # issue 173: BIP-174 requires a Finalizer to refuse an input whose
+    # signatures do not match the sighash type it asks for
     for psbt_in in psbt.inputs:
         if not psbt_in.partial_sigs:
             raise BTClibValueError("missing signatures")
@@ -578,7 +578,9 @@ def join_psbts(
     if shuffle_out or sort_out:
         psbt.sort_outputs(sort_out)
     if merge_out:
-        # TODO is it ok to merge outputs after sorting?
+        # issue 173: merging two outputs paying the same script changes the
+        # output count, so it invalidates any signature already committed to
+        # the previous set -- and after a sort the result depends on the sort
         raise BTClibValueError("output merge not implemented yet")
 
     psbt.assert_valid()

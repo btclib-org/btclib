@@ -19,6 +19,8 @@ from btclib.alias import INF, INFJ, Integer
 from btclib.ec import Curve, CurveGroup, double_mult, mult, multi_mult, secp256k1
 from btclib.ec.curve import (
     CURVES,
+    NIST,
+    Brainpool,
     Brainpool_params2,
     CurveSubGroup,
     NIST_params2,
@@ -337,6 +339,35 @@ def test_sec2_catalogues_share_one_curve() -> None:
     for ec_name, ec in SEC2v2.items():
         assert SEC2v1[ec_name] is ec
     assert SEC2v2["secp256k1"] is secp256k1
+
+
+def test_each_catalogue_holds_what_it_is_named_after() -> None:
+    """CURVES was SEC2v1, and the two update() calls filled both.
+
+    "CURVES = SEC2v1" bound the same dict, so CURVES.update(NIST) and
+    CURVES.update(Brainpool) poured those catalogues into the SEC 2 v.1 one:
+    SEC2v1 ended up with 27 entries instead of its own 15, and
+    SEC2v1["nistp256"] answered a curve that is not in SEC 2 v.1 at all.
+    The union operator the stale "with python>=3.9" comment asked for builds
+    a new dict, which is what keeps them apart.
+    """
+    assert CURVES is not SEC2v1
+
+    assert set(CURVES) == set(SEC2v1) | set(NIST) | set(Brainpool)
+    assert len(CURVES) == len(SEC2v1) + len(NIST) + len(Brainpool)
+
+    # no catalogue holds a name from another
+    assert not set(SEC2v1) & set(NIST)
+    assert not set(SEC2v1) & set(Brainpool)
+    assert not set(NIST) & set(Brainpool)
+
+    # SEC 2 v.2 is the one overlap there really is, being a subset of v.1
+    assert set(SEC2v2) <= set(SEC2v1)
+
+    # and the curves are still all reachable through CURVES
+    for catalogue in (SEC2v1, NIST, Brainpool):
+        for ec_name, ec in catalogue.items():
+            assert CURVES[ec_name] is ec
 
 
 def test_libsecp256k1_applicable() -> None:

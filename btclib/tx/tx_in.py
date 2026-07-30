@@ -109,7 +109,7 @@ class TxIn:
 
         return {
             "prev_out": self.prev_out.to_dict(check_validity=False),
-            # TODO make it { "asm": "", "hex": "" }
+            # issue 172: Core renders a script as {"asm": ..., "hex": ...}
             "scriptSig": self.script_sig.hex(),
             "sequence": self.sequence,
             "txinwitness": self.script_witness.to_dict(check_validity=False),

@@ -20,7 +20,7 @@ from typing import Any
 from btclib.alias import Octets
 from btclib.ec import Curve
 from btclib.ec.curve import CURVES
-from btclib.exceptions import BTClibValueError
+from btclib.exceptions import BTClibTypeError, BTClibValueError
 from btclib.utils import bytes_from_octets
 
 _KEY_SIZE: list[tuple[str, int]] = [
@@ -199,7 +199,15 @@ class Network:
     def assert_valid(self) -> None:
         # no check on self.curve
 
-        str(self.hrp)
+        # the hrp is the human-readable part of every bech32 address of this
+        # network, so it has to be a str. This was "str(self.hrp)" with the
+        # result discarded, which is not a check of anything: str() accepts
+        # every object there is. The bytes() calls below are the same idea
+        # actually working, TypeError being what they raise for a field
+        # rebound to something else
+        if not isinstance(self.hrp, str):
+            err_msg = f"invalid hrp type: {type(self.hrp).__name__}"
+            raise BTClibTypeError(err_msg)
 
         for key, size in _KEY_SIZE:
             value = bytes(getattr(self, key))

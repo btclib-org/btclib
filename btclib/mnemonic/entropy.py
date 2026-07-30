@@ -46,7 +46,6 @@ def wordlist_indexes_from_bin_str_entropy(entropy: BinStr, base: int) -> list[in
     language word-list, for the provided raw (i.e. binary 0/1 string)
     entropy; leading zeros are not considered redundant padding.
     """
-    # entropy = bin_str_entropy_from_entropy(entropy)
     bits = len(entropy)
     int_entropy = int(entropy, 2)
     indexes = []

@@ -77,7 +77,9 @@ class TxOut:
             "value": str(btc_from_sats(self.value)),
             "scriptPubKey": script.hex(),
             "type": self.script_pub_key.type,
-            "reqSigs": None,  # FIXME
+            # issue 172: Core removed reqSigs from getrawtransaction in v22,
+            # so the answer here may be to drop the key rather than fill it
+            "reqSigs": None,
             "addresses": self.script_pub_key.addresses,
             "network": self.script_pub_key.network,
         }

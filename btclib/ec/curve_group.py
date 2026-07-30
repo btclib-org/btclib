@@ -249,7 +249,9 @@ class CurveGroup:
         T = Q[1] * RZ3
         U = R[1] * QZ3
 
-        # FIXME it would be better if doubling was not a special case
+        # issue 171: it would be better if doubling was not a special case.
+        # Four multiplications and two reductions on every addition, in the
+        # inner loop of every scalar multiplication, to detect one case
         # if same affine x and same affine y, then point doubling
         if M % self.p == N % self.p and T % self.p == U % self.p:
             return self._double_jac_helper(Q, QZ2)
@@ -294,13 +296,14 @@ class CurveGroup:
 
     def add_aff(self, Q: Point, R: Point) -> Point:
         # points are assumed to be on curve
-        # FIXME it would be better if INF handling was not a special case
+        # issue 171: it would be better if INF handling was not a special
+        # case, nor come before the doubling check below
         if R[1] == 0:  # Infinity point in affine coordinates
             return Q
         if Q[1] == 0:  # Infinity point in affine coordinates
             return R
 
-        # FIXME it would be better if doubling was checked before INF handling
+        # issue 171, with the INF handling above
         if R[0] == Q[0]:
             return self.double_aff(R) if R[1] == Q[1] else INF
         lam = (R[1] - Q[1]) * mod_inv(R[0] - Q[0], self.p)
@@ -588,8 +591,6 @@ def mult_base_3(m: int, Q: JacPoint, ec: CurveGroup) -> JacPoint:
 
     # at each step one of the points in T will be added
     T = [INFJ, Q, ec.double_jac(Q)]
-    # T = multiples(Q, 3, ec)
-    # T = cached_multiples(Q, ec)
 
     digits = convert_number_to_base(m, 3)
 
@@ -626,9 +627,6 @@ def mult_fixed_window(
         raise BTClibValueError(f"non positive w: {w}")
 
     # at each step one of the points in T will be added
-    # T = cached_multiples(Q, ec)
-    # T = multiples(Q, 2 ** w, ec)
-
     T = cached_multiples(Q, ec) if cached else multiples(Q, 2**w, ec)
 
     digits = convert_number_to_base(m, 2**w)
@@ -749,7 +747,6 @@ def _multi_mult(
     if len(scalars) < 2:
         raise BTClibValueError("not a multi_mult")
 
-    # x = list(zip([-n for n in scalars], jac_points))
     x: list[tuple[int, JacPoint]] = []
     for n, PJ in zip(scalars, jac_points):
         if n == 0:  # mandatory check to avoid infinite loop

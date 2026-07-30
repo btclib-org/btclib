@@ -112,7 +112,9 @@ def _assert_valid_partial_sigs(partial_sigs: Mapping[bytes, bytes]) -> None:
         except BTClibValueError as e:
             err_msg = f"invalid partial signature: {sig!r}"
             raise BTClibValueError(err_msg) from e
-        # TODO should we check that pub_key is recoverable from sig?
+        # issue 173: the key is not checked against the signature. Doing so
+        # needs the sighash, i.e. the whole transaction, which a per-field
+        # validator does not have -- so the question is where it belongs
 
 
 def _assert_valid_final_script_sig(final_script_sig: bytes) -> None:
@@ -299,12 +301,12 @@ class PsbtIn:
             else None,
             "partial_signatures": encode_dict_bytes_bytes(self.partial_sigs),
             "sig_hash": self.sig_hash_type,
-            # TODO make it { "asm": "", "hex": "" }
+            # issue 172: Core renders a script as {"asm": ..., "hex": ...}
             "redeem_script": self.redeem_script.hex(),
-            # TODO make it { "asm": "", "hex": "" }
+            # issue 172: Core renders a script as {"asm": ..., "hex": ...}
             "witness_script": self.witness_script.hex(),
             "bip32_derivs": encode_to_bip32_derivs(self.hd_key_paths),
-            # TODO make it { "asm": "", "hex": "" }
+            # issue 172: Core renders a script as {"asm": ..., "hex": ...}
             "final_script_sig": self.final_script_sig.hex(),
             "final_script_witness": self.final_script_witness.to_dict(
                 check_validity=False
@@ -436,7 +438,7 @@ class PsbtIn:
                 serialize_dict_bytes_bytes(PSBT_IN_HASH256, self.hash256_preimages)
             )
 
-        # FIXME: we should put conditions on serializations
+        # issue 173: no conditions on the serializations below
 
         if self.taproot_key_spend_signature:
             psbt_in_bin.append(
