@@ -12,6 +12,7 @@
 from __future__ import annotations
 
 from hashlib import sha256 as hf
+from typing import Any
 
 import pytest
 from btclib_libsecp256k1 import ssa as libsecp256k1_ssa
@@ -100,10 +101,40 @@ def test_signature() -> None:
         ssa.sign(msg, 0)
 
 
-BIP340_VECTORS = [
-    pytest.param(row, id=vectors.vector_id(int(row[0]), row[7]))
-    for row in vectors.load_csv("ecc", "_data", "bip340_test_vectors.csv")
-]
+def bip340_vectors() -> list[Any]:
+    """One case per BIP340 vector, the arbitrary-size messages marked.
+
+    BIP340 lifted its 32-byte message restriction in 2023-04 and gained
+    four vectors for it, of 0, 1, 17 and 100 bytes. btclib still takes the
+    message as a hf_len array, in five places and in the bindings too, so
+    it refuses all four: `sign_` raises and `verify_` answers False on a
+    valid signature (issue 169).
+
+    They are vendored and marked rather than left out of the file, which
+    is what makes the gap measured instead of merely described; and
+    xfail_strict turns the four red the day the support lands, so the fix
+    cannot forget them.
+    """
+    params = []
+    for row in vectors.load_csv("ecc", "_data", "bip340_test_vectors.csv"):
+        # column 4 is the message, hex, so 32 bytes is 64 characters
+        marks = (
+            []
+            if len(row[4]) == 64
+            else [
+                pytest.mark.xfail(
+                    raises=BTClibValueError,
+                    reason="BIP340 messages of arbitrary size, issue 169",
+                )
+            ]
+        )
+        params.append(
+            pytest.param(row, id=vectors.vector_id(int(row[0]), row[7]), marks=marks)
+        )
+    return params
+
+
+BIP340_VECTORS = bip340_vectors()
 
 
 @pytest.mark.parametrize("row", BIP340_VECTORS)

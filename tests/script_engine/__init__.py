@@ -26,8 +26,8 @@ def parse_script(bitcoin_core_script: str) -> str:
             # the same, so the suggestion serialize() emits is noise
             # here. It is silenced at the one call that provokes it, and
             # by category: with filterwarnings = ["error"] anything else
-            # any of the 1254 vectors raises still fails the suite,
-            # which a simplefilter("ignore") around the loop did not
+            # any vector raises still fails the suite, which a
+            # simplefilter("ignore") around the loop did not
             with warnings.catch_warnings():
                 warnings.simplefilter("ignore", BTClibUserWarning)
                 script_pub_key += serialize([int(y)]).hex()

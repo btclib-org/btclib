@@ -123,7 +123,16 @@ def test_verify_input_does_not_touch_the_tx(vector: dict[str, Any]) -> None:
 
 
 def legacy_vectors(fname: str) -> list[Any]:
-    """Every vector of a Bitcoin Core tx_*_legacy.json, comments aside.
+    """Every vector of a Bitcoin Core tx_valid/tx_invalid.json, comments aside.
+
+    The files keep Core's names because they are Core's files entire: the
+    `_legacy` they used to carry read as a subsetting that never happened
+    -- 119 valid and 93 invalid vectors here, 119 and 93 upstream -- and
+    the content is not legacy either, 2 valid and 14 invalid vectors
+    naming WITNESS in their flags (issue 168). The `legacy` of the test
+    names below is another matter and stays: it distinguishes the pre-
+    taproot validation path these vectors drive from the BIP341 ones
+    above, and issue 129 cites `test_invalid_legacy` by name.
 
     Nothing is filtered here any more. The loop this replaces skipped
     whatever `Tx.parse` refused -- 2 of the 119 valid vectors and 8 of
@@ -167,15 +176,15 @@ def witness_v0_vectors() -> list[Any]:
     the vector lists cannot be verified at all.
     """
     params = []
-    for param in legacy_vectors("tx_valid_legacy.json"):
+    for param in legacy_vectors("tx_valid.json"):
         x = param.values[0]
         tx = Tx.parse(x[1])
         if not any(vin.script_witness.stack for vin in tx.vin):
             continue
-        # no vector in today's tx_valid_legacy.json lists prevouts that
-        # do not match its inputs: this guard waits for the upstream
-        # refresh that brings one, and a synthetic vector written to
-        # cover it would test the vendored data, not btclib
+        # no vector in today's tx_valid.json lists prevouts that do not
+        # match its inputs: this guard waits for the upstream refresh
+        # that brings one, and a synthetic vector written to cover it
+        # would test the vendored data, not btclib
         if len(x[0]) != len(tx.vin):
             continue  # pragma: no cover
         params.append(param)
@@ -242,7 +251,7 @@ CONSENSUS_FLAGS = [
 ]
 
 
-@pytest.mark.parametrize("vector", legacy_vectors("tx_valid_legacy.json"))
+@pytest.mark.parametrize("vector", legacy_vectors("tx_valid.json"))
 def test_valid_legacy(vector: list[Any]) -> None:
     tx = Tx.parse(vector[1])
 
@@ -258,7 +267,7 @@ def test_valid_legacy(vector: list[Any]) -> None:
     )
 
 
-@pytest.mark.parametrize("vector", legacy_vectors("tx_invalid_legacy.json"))
+@pytest.mark.parametrize("vector", legacy_vectors("tx_invalid.json"))
 def test_invalid_legacy(vector: list[Any]) -> None:
     flags = vector[2].split(",")  # different flags handling
 

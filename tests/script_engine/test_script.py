@@ -19,6 +19,7 @@ from btclib.script.engine import ALL_FLAGS, verify_input
 from btclib.script.engine.script import verify_script
 from btclib.script.script import serialize
 from btclib.script.taproot import input_script_sig, output_pubkey
+from btclib.script.taproot import parse as parse_tapscript
 from btclib.script.witness import Witness
 from btclib.tx.out_point import OutPoint
 from btclib.tx.tx import Tx
@@ -35,6 +36,44 @@ class ScriptVector(NamedTuple):
     script_pub_key: str
     flags: list[str]
     valid: bool
+
+
+SCRIPT_FLAG = "#SCRIPT#"
+
+
+def taproot_placeholders(
+    stack: list[Any], script_pub_key: str
+) -> tuple[list[Any], str]:
+    """Fill in what a tapscript vector leaves to the harness.
+
+    The five TAPSCRIPT vectors carry three placeholders that Core's
+    `script_tests.cpp` generates rather than storing: `#SCRIPT# <script>`
+    is a witness element written in the vector's own script language
+    instead of hex, `#CONTROLBLOCK#` is the control block spending the
+    element pushed before it, and `0x51 0x20 #TAPROOTOUTPUT#` is the
+    output key committing to that script.
+
+    The internal key is Core's `key0` there and the BIP341 NUMS point
+    here, which no vector can tell apart: all three values come from the
+    same tree, and none of the five spends the key path. Left alone, the
+    tokens reach `parse_script` as op code names -- three vectors then
+    fail on `OP_#TAPROOTOUTPUT#`, and the two expecting a failure get one
+    for the wrong reason, which is worse.
+    """
+    out: list[Any] = []
+    q = b""
+    for element in stack:
+        if isinstance(element, str) and element.startswith(SCRIPT_FLAG):
+            out.append(parse_script(element[len(SCRIPT_FLAG) :]))
+        elif element == "#CONTROLBLOCK#":
+            # the tapscript is the element before it, and parsing it back
+            # is faithful for all five: serialize(parse(bytes)) == bytes
+            script_tree = [(0xC0, parse_tapscript(bytes.fromhex(out[-1])))]
+            q = output_pubkey(None, script_tree)[0]
+            out.append(input_script_sig(None, script_tree, 0)[1].hex())
+        else:
+            out.append(element)
+    return out, script_pub_key.replace("#TAPROOTOUTPUT#", f"0x{q.hex()}")
 
 
 def script_vectors() -> list[Any]:
@@ -63,7 +102,10 @@ def script_vectors() -> list[Any]:
                 amount = int(stack[-1] * 10**8)
                 stack = stack[:-1]
 
-        vector = ScriptVector(stack, amount, x[i], x[i + 1], x[i + 2], x[i + 3] == "OK")
+        stack, script_pub_key = taproot_placeholders(stack, x[i + 1])
+        vector = ScriptVector(
+            stack, amount, x[i], script_pub_key, x[i + 2], x[i + 3] == "OK"
+        )
         # the trailing comment of the vector says what it is testing, and
         # two thirds of them have one; the script itself for the rest
         comment = x[i + 4] if len(x) > i + 4 else ""

@@ -37,15 +37,20 @@ refreshing it is a decision, not a chore.
 ## Re-checking a pin
 
 ```shell
-git hash-object tests/ecc/_data/bip340_test_vectors.csv
-gh api repos/bitcoin/bips/git/trees/<commit>:bip-0340 \
-    --jq '.tree[] | select(.path == "test-vectors.csv") | .sha'
+git hash-object tests/script_engine/_data/script_tests.json
+gh api repos/bitcoin/bitcoin/git/trees/<commit>:src/test/data \
+    --jq '.tree[] | select(.path == "script_tests.json") | .sha'
 ```
 
 The comparison is on git blob SHA-1, not sha256: it is what a tree entry
 already carries, so nothing has to be downloaded, and `git hash-object`
 reproduces it locally. Not the contents API, which is the obvious
 alternative and caps out — `script_assets_test.json` is 9 MB.
+
+The two hashes match for every file whose verdict is **identical**. Where
+upstream is CRLF they cannot, this repository being LF throughout, and the
+entry says so with our own blob alongside: `bip340_test_vectors.csv` is
+the one case.
 
 ## bitcoin/bips
 
@@ -68,25 +73,31 @@ changed, so this is the one pin that cannot go stale.
 ```text
 repo    bitcoin/bips
 path    bip-0340/test-vectors.csv
-commit  afa13249ed45826c2d7086714026c9bc1ccbf963  2020-08-20
-blob    a1a63e1283362255e84a36198d45f95c3e7c90ce
-pulled  2020-04-04, refreshed 2020-11-22, edited 2020-12-08
-behind  1 revision
+commit  200f9b26fe0a2f235a2af8b30c4be9f12f6bc9cb  2023-04-20
+blob    672339129a844a060591bb22f444158ff45438ed
+pulled  2020-04-04, refreshed 2020-11-22 and 2026-07-30
+behind  0 revisions; that commit is the tip of the path
 ```
 
-Verdict: **edited**. Columns 1 to 7 — every value the test asserts on —
-are identical to the pinned blob. Two things differ:
+Verdict: **identical but for line endings** — upstream is CRLF and this
+repository is LF throughout, which `mixed-line-ending` enforces with
+`--fix=lf`, so our blob is `aa317a3b` rather than the one above. All 19
+vectors, all eight columns.
 
-- line endings: upstream is CRLF, our copy LF.
-- the comment column of vectors 11, 12 and 13, where our copy reads
-  `sig[:32]`, `sig[:32]`, `sig[32:]` against upstream's `sig[0:32]`,
-  `sig[0:32]`, `sig[32:64]`. Not an older upstream revision: btclib
-  commit ca48c151, "replaced `[0:` with `[:`", was a repository-wide
-  substitution that reached into the vendored file. The comment column is
-  only the test id, so nothing is being asserted wrongly.
+Four of the 19 are the arbitrary-size messages BIP340 gained in 2023-04
+(0, 1, 17 and 100 bytes), and btclib refuses all four: it still takes the
+message as a `hf_len` array, as do the bindings. They are held here and
+marked `xfail` in `tests/ecc/test_ssa.py` rather than left out of the
+file — issue 169 has the measurement, and `xfail_strict` turns the four
+red the day the support lands.
 
-The one revision since, `200f9b26fe0a2f235a2af8b30c4be9f12f6bc9cb`
-(2023-04-20), adds four vectors we do not have: 15 cases against 19.
+The 2026-07-30 refresh also reverted a local edit worth recording: the
+comment column of vectors 11, 12 and 13 read `sig[:32]`, `sig[:32]`,
+`sig[32:]` against upstream's `sig[0:32]`, `sig[0:32]`, `sig[32:64]`, not
+because we held an older revision but because btclib commit ca48c151,
+"replaced `[0:` with `[:`", was a repository-wide substitution that
+reached into the vendored file. That column is only the test id, so
+nothing had been asserted wrongly, and it is upstream's spelling again.
 
 ### `tests/script/_data/taproot_test_vector.json`
 
@@ -216,47 +227,62 @@ the way in; the content is Core's `sighash.json` untouched.
 ```text
 repo    bitcoin/bitcoin
 path    src/test/data/script_tests.json
-commit  facd7dd3d1f9d51e1133974ff69eeb48f5ae282b  2020-07-11
-blob    724789bbf9f9cc08de0e92820b74468bc6213576
-pulled  2023-07-08
-behind  19 revisions
+commit  c4068cf37b6674417c77ce1f295b51dd49a57e81  2026-07-08
+blob    b88c641547289b75f3dd760e73ba858f81ad5d85
+pulled  2023-07-08, refreshed 2026-07-30
+behind  0 revisions; that commit is the tip of the path
 ```
 
-Verdict: **identical** to that blob — but note the three-year gap
-between the upstream revision and the day btclib committed it. Upstream
-had moved on to `34d0e07e` (2022-02-10) by then, so the copy was not
-taken from Core's tip at vendoring time; it came from an older snapshot,
-carried along in the branch that became PR #83.
+Verdict: **identical**. 1288 entries, 1233 vectors once the comment lines
+are dropped, against 1254 and 1203 before the refresh.
 
-### `tests/script_engine/_data/tx_valid_legacy.json`
+Until 2026-07-30 this was Core's blob at `facd7dd3` (2020-07-11) — 19
+revisions back, and already three years old on the day btclib committed
+it, upstream having moved on to `34d0e07e` (2022-02-10) by then. It was
+not taken from Core's tip at vendoring time; it came from an older
+snapshot carried along in the branch that became PR #83.
+
+Five of the 30 vectors the refresh brings are TAPSCRIPT cases whose
+witness and output script are placeholders — `#SCRIPT#`,
+`#CONTROLBLOCK#`, `#TAPROOTOUTPUT#` — that Core's `script_tests.cpp`
+generates at run time. `taproot_placeholders` in
+`tests/script_engine/test_script.py` generates them here, from the BIP341
+NUMS point rather than Core's `key0`, which no vector can tell apart. The
+refresh is not a data-only change without it: three of the five fail on
+`OP_#TAPROOTOUTPUT#`, and the two expecting a failure get one for the
+wrong reason.
+
+### `tests/script_engine/_data/tx_valid.json`
 
 ```text
 repo    bitcoin/bitcoin
 path    src/test/data/tx_valid.json
 commit  8cac2923f57ac33848ff41b74c3be520b75936df  2021-03-31
 blob    b874f6f26ca776f1e644e56637389d5d07ebe580
-pulled  2023-07-08
+pulled  2023-07-08, renamed 2026-07-30
 behind  3 revisions
 ```
 
-Verdict: **identical**. The `_legacy` in the name is not a subsetting:
-the file is Core's `tx_valid.json` entire. It names the engine the
-vectors feed — `tests/script_engine/test_transactions.py` filters by
-flags at collection time — and reads as a promise about the contents that
-the file does not keep.
+Verdict: **identical**, 119 vectors. It was vendored as
+`tx_valid_legacy.json`, and the `_legacy` claimed a subsetting that never
+happened: the file is Core's entire, every vector of it is collected, and
+2 of the 119 name WITNESS in their flags, so the content is not legacy
+either. Core's name says what the file is; the directory it sits in
+already says which engine the vectors feed (issue 168).
 
-### `tests/script_engine/_data/tx_invalid_legacy.json`
+### `tests/script_engine/_data/tx_invalid.json`
 
 ```text
 repo    bitcoin/bitcoin
 path    src/test/data/tx_invalid.json
 commit  fa80a11c3bb995ee15d4b0b9ad64148f6332ad42  2021-05-01
 blob    a47bc8f3666d7bf5d14b704943d383f06040c657
-pulled  2023-07-08
+pulled  2023-07-08, renamed 2026-07-30
 behind  1 revision
 ```
 
-Verdict: **identical**. Same naming remark as above.
+Verdict: **identical**, 93 vectors. Same rename, and the WITNESS count is
+14 of the 93 here.
 
 ### `tests/_data/descriptor_checksums.json`
 
@@ -497,13 +523,12 @@ Pulled 2018-06-01.
 
 - 6 identical byte for byte: `english.txt`,
   `taproot_test_vector.json`, `sig_hash_legacy_test_vectors.json`,
-  `script_tests.json`, `tx_valid_legacy.json`, `tx_invalid_legacy.json`.
+  `script_tests.json`, `tx_valid.json`, `tx_invalid.json`.
 - 1 identical but for a trailing newline:
   `tapscript_test_vector.json`.
+- 1 identical but for CRLF against LF: `bip340_test_vectors.csv`.
 - 4 JSON-equal, reformatted: `pubkey.json`, `ecdsa_sig.json`,
   `ecdsa_custom_nonce_sig.json`, `bms.json`.
-- 1 data-equal with a locally edited comment column and LF endings:
-  `bip340_test_vectors.csv`.
 - 1 upstream plus one btclib case: `bip39_test_vectors.json`.
 
 No upstream blob exists for the rest:
@@ -523,13 +548,20 @@ No upstream blob exists for the rest:
   file is `bitcoin/tests/data/signmessage.json`.
   `tests/script/test_script_pub_key.py` cites `en.bitcoin.it` for BIP67
   rather than the BIP.
-- **`tx_valid_legacy.json` and `tx_invalid_legacy.json` are not
-  subsets**, so their names mislead. Renaming them touches one test
-  module, `tests/script_engine/test_transactions.py`.
-- **`bip340_test_vectors.csv` is four vectors behind** and its comment
-  column was altered by a repository-wide substitution. Refreshing from
-  `200f9b26` fixes both and reverts the `sig[:32]` spelling.
-- **`script_tests.json` is 19 revisions behind** and was already three
-  years old when vendored.
 - **`tapscript_test_vector.json` is one vector behind**, appended
   upstream.
+- **`tx_valid.json` is 3 revisions behind and `tx_invalid.json` 1**, both
+  from 2021. Not decided either way here: the rename was, and a refresh is
+  a separate reading of the two files.
+
+### Decided on 2026-07-30, issue 168
+
+- `tx_valid_legacy.json` and `tx_invalid_legacy.json` took Core's names,
+  which is what they hold.
+- `script_tests.json` was refreshed from 19 revisions back to Core's tip,
+  which needed the tapscript placeholders generated rather than parsed.
+- `bip340_test_vectors.csv` was refreshed from four vectors back to the
+  tip of the path, and the four are `xfail` until issue 169 is fixed.
+
+Each entry above records what changed; this list is the index of the
+decisions, so a later reader can tell a deliberate refresh from drift.
