@@ -54,7 +54,7 @@ from btclib.utils import bytes_from_octets, bytesio_from_binarydata, hex_string
 
 
 _KEY_SIZE = [("version", 4), ("parent_fingerprint", 4), ("chain_code", 32), ("key", 33)]
-_REQUIRED_LENGHT = 78
+_REQUIRED_LENGTH = 78
 
 
 @dataclass
@@ -209,13 +209,13 @@ class BIP32KeyData:
     def parse(
         cls: type[BIP32KeyData], xkey_bin: BinaryData, *, check_validity: bool = True
     ) -> BIP32KeyData:
-        """Return a BIP32KeyData by parsing 73 bytes from binary data."""
+        """Return a BIP32KeyData by parsing 78 bytes from binary data."""
         stream = bytesio_from_binarydata(xkey_bin)
-        xkey_bin = stream.read(_REQUIRED_LENGHT)
+        xkey_bin = stream.read(_REQUIRED_LENGTH)
 
-        if check_validity and len(xkey_bin) != _REQUIRED_LENGHT:
+        if check_validity and len(xkey_bin) != _REQUIRED_LENGTH:
             err_msg = f"invalid decoded length: {len(xkey_bin)}"
-            err_msg += f" instead of {_REQUIRED_LENGHT}"
+            err_msg += f" instead of {_REQUIRED_LENGTH}"
             raise BTClibValueError(err_msg)
 
         return cls(
@@ -244,12 +244,12 @@ def _rootxprv_from_seed(
 ) -> BIP32KeyData:
     """Return BIP32 root master extended private key from seed."""
     seed = bytes_from_octets(seed)
-    bitlenght = len(seed) * 8
+    bit_length = len(seed) * 8
     # the bit count is diagnostic enough: never echo the seed itself
-    if bitlenght < 128:
-        raise BTClibValueError(f"too few bits for seed: {bitlenght}")
-    if bitlenght > 512:
-        raise BTClibValueError(f"too many bits for seed: {bitlenght}")
+    if bit_length < 128:
+        raise BTClibValueError(f"too few bits for seed: {bit_length}")
+    if bit_length > 512:
+        raise BTClibValueError(f"too many bits for seed: {bit_length}")
     hmac_ = hmac.new(b"Bitcoin seed", seed, "sha512").digest()
     k = b"\x00" + hmac_[:32]
     v = bytes_from_octets(version, 4)

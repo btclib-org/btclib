@@ -551,6 +551,24 @@ Major changes includes:
   and `"9"` raises for being of odd length rather than being nine. The
   behaviour is unchanged and deliberate — a decimal representation is what
   `int` itself is for — and now the docstring says so
+- **Typos in visible surfaces.** `_REQUIRED_LENGHT` is `_REQUIRED_LENGTH` in
+  `bip32` and `bms`, `bitlenght` is `bit_length`, and the `BIP32KeyData.parse`
+  docstring says 78 bytes, where it said 73 and the constant is 78. Five
+  exception messages read `implausibile signature failure`. One read
+  `generator must a be a sequence[int, int]` and one `script type not it
+  ('p2wpkh', 'p2wsh')`; both were pinned verbatim, the first by a test and the
+  second by the `error message` field of `bip174_test_vectors.json` — which
+  `tests/_data/README.md` now records as btclib's own annotation and not
+  upstream's, the BIP specifying no messages. `exceptions.py`, the file a user
+  reads first about error handling, no longer opens with "This are only meant
+  to discriminate ... from those raised by other codebase". `multiples`'
+  docstring closes its set with a brace rather than a parenthesis.
+  The `codespell` hook of #161 caught none of these, and the reason is worth
+  recording: it matches whole words, so a misspelling inside an identifier —
+  `_REQUIRED_LENGHT`, `bitlenght` — is invisible to it, and `implausibile` is
+  simply not in the `clear` dictionary. Splitting every identifier in the
+  package into words and spell-checking those, 592 distinct words, now finds
+  nothing
 - **`SEC2v1` holds the SEC 2 v.1 curves, and nothing else.** `CURVES =
   SEC2v1` bound the same dict, so the two `update()` calls that followed
   poured NIST and Brainpool into it: `SEC2v1` had 27 entries instead of its

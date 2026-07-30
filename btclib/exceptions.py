@@ -9,11 +9,12 @@
 # or distributed except according to the terms contained in the LICENSE file.
 """Exception classes.
 
-This are only meant to discriminate between Exceptions being raised by
-btclib from those raised by other codebase.
+These exist only to tell an exception raised by btclib from one raised by
+any other code: each derives from the built-in that says what kind of
+failure it is, and adds nothing to it.
 
-Users are usually better off just dealing with the regular ValueError,
-TypeError, and RuntimeError from which the btclib versions are derived.
+So a caller is usually better off catching the regular ValueError,
+TypeError or RuntimeError, and does not lose anything by doing so.
 """
 
 

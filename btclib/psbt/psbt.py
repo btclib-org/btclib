@@ -153,7 +153,7 @@ class Psbt:
                 if script_type == "p2sh":
                     script_type, _ = type_and_payload(redeem_script)
                 if script_type not in ("p2wpkh", "p2wsh"):
-                    raise BTClibValueError("script type not it ('p2wpkh', 'p2wsh')")
+                    raise BTClibValueError("script type not in ('p2wpkh', 'p2wsh')")
             elif non_witness_utxo:
                 script_pub_key = non_witness_utxo.vout[
                     tx_in.prev_out.vout

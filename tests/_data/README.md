@@ -220,6 +220,14 @@ not vendored, deliberately, is the role walk-through: the creator,
 updater, signer, combiner, finalizer and extractor psbts of the worked
 example, which are prose steps rather than cases.
 
+The `description` and `encoded psbt` of each entry are upstream's. The
+`error message` of a signer check failure is **not**: the BIP says only
+that these four psbts must fail the check, so that field is btclib's own
+expectation of btclib's own message, and correcting a message means
+correcting it here too. One of the four read `script type not it` for
+`not in` until issue 149; a typo pinned in vendored-looking data is
+exactly the hazard that made the pin worth writing down.
+
 Until 2026-07-30 the file held 31 of the 34, and the gap was not upstream
 drift: of the three missing, `PSBT with global unsigned tx that has 0
 inputs and 0 outputs` and `PSBT with 0 inputs` were both in the revision

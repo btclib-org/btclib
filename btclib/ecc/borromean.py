@@ -109,7 +109,7 @@ def sign(
                 # matter, which is what the TODO at the top of the module
                 # is about, and what made ec a parameter worth having
                 if not 0 < e[i][j] < ec.n:
-                    err_msg = "implausibile signature failure"  # pragma: no cover
+                    err_msg = "implausible signature failure"  # pragma: no cover
                     raise BTClibRuntimeError(err_msg)  # pragma: no cover
                 t = double_mult(-e[i][j], pubk_ring[j], s[i][j], ec.G)
                 r = bytes_from_point(t, ec)
@@ -122,7 +122,7 @@ def sign(
         e[i][0] = int_from_bits(_hash(m, e0, i, 0, hf), ec.nlen) % ec.n
         # zero e again: the same 2**-255 accident documented above
         if not 0 < e[i][0] < ec.n:
-            err_msg = "implausibile signature failure"  # pragma: no cover
+            err_msg = "implausible signature failure"  # pragma: no cover
             raise BTClibRuntimeError(err_msg)  # pragma: no cover
         for j in range(1, j_star + 1):
             s[i][j - 1] = secrets.randbits(256)
@@ -131,7 +131,7 @@ def sign(
             e[i][j] = int_from_bits(_hash(m, r, i, j, hf), ec.nlen) % ec.n
             # zero e again: the same 2**-255 accident documented above
             if not 0 < e[i][j] < ec.n:
-                err_msg = "implausibile signature failure"  # pragma: no cover
+                err_msg = "implausible signature failure"  # pragma: no cover
                 raise BTClibRuntimeError(err_msg)  # pragma: no cover
         s[i][j_star] = k + sign_keys[i] * e[i][j_star]
     return e0, s
@@ -186,7 +186,7 @@ def assert_as_valid(
         e[i][0] = int_from_bits(_hash(m, e0, i, 0, hf), ec.nlen) % ec.n
         # a zero e: the same 2**-255 accident documented in sign
         if e[i][0] == 0:
-            err_msg = "implausibile signature failure"  # pragma: no cover
+            err_msg = "implausible signature failure"  # pragma: no cover
             raise BTClibRuntimeError(err_msg)  # pragma: no cover
         r = b"\0x00"
         for j in range(keys_size):
@@ -197,7 +197,7 @@ def assert_as_valid(
                 e[i][j + 1] = int_from_bits(h, ec.nlen) % ec.n
                 # a zero e: the same 2**-255 accident documented in sign
                 if e[i][j + 1] == 0:
-                    err_msg = "implausibile signature failure"  # pragma: no cover
+                    err_msg = "implausible signature failure"  # pragma: no cover
                     raise BTClibRuntimeError(err_msg)  # pragma: no cover
             else:
                 e0bytes += r

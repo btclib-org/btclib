@@ -489,7 +489,7 @@ def mult_jac(m: int, Q: JacPoint, ec: CurveGroup) -> JacPoint:
 
 
 def multiples(Q: JacPoint, size: int, ec: CurveGroup) -> list[JacPoint]:
-    """Return {k_i * Q} for k_i in {0, ..., size-1)."""
+    """Return {k_i * Q} for k_i in {0, ..., size-1}."""
     if size < 2:
         raise BTClibValueError(f"size too low: {size}")
 

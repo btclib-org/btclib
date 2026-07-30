@@ -134,7 +134,7 @@ def test_exceptions() -> None:
     with pytest.raises(BTClibValueError, match="zero discriminant"):
         Curve(11, 7, 7, (1, 9), 19, 1, False)
 
-    err_msg = "generator must a be a sequence\\[int, int\\]"
+    err_msg = "generator must be a sequence\\[int, int\\]"
     with pytest.raises(BTClibValueError, match=err_msg):
         Curve(13, 0, 2, (1, 9, 1), 19, 1, False)  # type: ignore[arg-type]
 

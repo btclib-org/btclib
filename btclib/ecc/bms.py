@@ -148,7 +148,7 @@ from btclib.network import NETWORKS
 from btclib.to_prv_key import PrvKey, prv_keyinfo_from_prv_key
 from btclib.utils import bytesio_from_binarydata
 
-_REQUIRED_LENGHT = 65
+_REQUIRED_LENGTH = 65
 
 
 @dataclass(frozen=True, init=False)
@@ -202,16 +202,16 @@ class Sig:
     @classmethod
     def parse(cls: type[Sig], data: BinaryData, *, check_validity: bool = True) -> Sig:
         stream = bytesio_from_binarydata(data)
-        sig_bin = stream.read(_REQUIRED_LENGHT)
+        sig_bin = stream.read(_REQUIRED_LENGTH)
 
         # the length is checked whatever check_validity says: it is not
         # an opinion about the signature, it is what makes the slices
         # below mean anything. Skipped, a short buffer still yielded a
         # Sig, r and s coming from truncated slices -- so every input
         # sharing a prefix mapped to the same signature
-        if len(sig_bin) != _REQUIRED_LENGHT:
+        if len(sig_bin) != _REQUIRED_LENGTH:
             err_msg = f"invalid decoded length: {len(sig_bin)}"
-            err_msg += f" instead of {_REQUIRED_LENGHT}"
+            err_msg += f" instead of {_REQUIRED_LENGTH}"
             raise BTClibValueError(err_msg)
 
         rf = sig_bin[0]
