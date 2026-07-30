@@ -9,16 +9,15 @@
 # or distributed except according to the terms contained in the LICENSE file.
 """Tests for the `btclib.bip39` module."""
 
-import json
 import secrets
 from math import ceil
-from os import path
 
 import pytest
 
 from btclib.bip32 import bip32
 from btclib.exceptions import BTClibValueError
 from btclib.mnemonic import bip39
+from tests import vectors
 
 
 def test_bip39() -> None:
@@ -44,28 +43,31 @@ def test_bip39() -> None:
         bip39.entropy_from_mnemonic(wr_m, lang)
 
 
-def test_vectors() -> None:
+BIP39_VECTORS = [
+    pytest.param(*vector, id=vectors.vector_id(index, vector[0]))
+    for index, vector in enumerate(
+        vectors.load("mnemonic", "_data", "bip39_test_vectors.json")["english"]
+    )
+]
+
+
+@pytest.mark.parametrize(("entr", "mnemonic", "seed", "xprv"), BIP39_VECTORS)
+def test_vectors(entr: str, mnemonic: str, seed: str, xprv: str) -> None:
     """BIP39 test vectors.
 
     https://github.com/trezor/python-mnemonic/blob/master/vectors.json
     """
-    fname = "bip39_test_vectors.json"
-    filename = path.join(path.dirname(__file__), "_data", fname)
-    with open(filename, encoding="ascii") as file_:
-        bip39_test_vectors = json.load(file_)["english"]
-
     lang = "en"
-    for entr, mnemonic, seed, xprv in bip39_test_vectors:
-        entropy = bytes.fromhex(entr)
-        # clean up mnemonic from spurious whitespaces
-        mnemonic = " ".join(mnemonic.split())
-        assert mnemonic == bip39.mnemonic_from_entropy(entropy, lang)
-        assert seed == bip39.seed_from_mnemonic(mnemonic, "TREZOR").hex()
+    entropy = bytes.fromhex(entr)
+    # clean up mnemonic from spurious whitespaces
+    mnemonic = " ".join(mnemonic.split())
+    assert mnemonic == bip39.mnemonic_from_entropy(entropy, lang)
+    assert seed == bip39.seed_from_mnemonic(mnemonic, "TREZOR").hex()
 
-        raw_entr = bip39.entropy_from_mnemonic(mnemonic, lang)
-        size = (len(raw_entr) + 7) // 8
-        assert entropy == int(raw_entr, 2).to_bytes(size, byteorder="big", signed=False)
-        assert bip32.rootxprv_from_seed(seed) == xprv
+    raw_entr = bip39.entropy_from_mnemonic(mnemonic, lang)
+    size = (len(raw_entr) + 7) // 8
+    assert entropy == int(raw_entr, 2).to_bytes(size, byteorder="big", signed=False)
+    assert bip32.rootxprv_from_seed(seed) == xprv
 
 
 def test_mnemonic_from_entropy() -> None:

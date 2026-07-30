@@ -9,10 +9,9 @@
 # or distributed except according to the terms contained in the LICENSE file.
 """Tests for the `btclib.dsa` module."""
 
-import json
 import secrets
 from hashlib import sha1
-from os import path
+from typing import Any
 
 import pytest
 from btclib_libsecp256k1 import dsa as libsecp256k1_dsa
@@ -33,6 +32,7 @@ from btclib.exceptions import BTClibRuntimeError, BTClibValueError
 from btclib.hashes import reduce_to_hlen
 from btclib.number_theory import mod_inv
 from btclib.to_pub_key import pub_keyinfo_from_prv_key
+from tests import vectors
 from tests.ec.test_curve import low_card_curves, secp256k1_bis
 from tests.test_to_key import Q as pub_key_point
 from tests.test_to_key import Q_compressed as pub_key_compressed
@@ -369,55 +369,49 @@ def test_libsecp256k1() -> None:
     assert dsa.verify_(msg_hash, pub_key, libsecp256k1_sig)
 
 
-def test_libsecp256k1_py_vectors_ecdsa() -> None:
-    # https://github.com/rustyrussell/secp256k1-py/blob/master/tests/data/ecdsa_sig.json
-
-    fname = "ecdsa_sig.json"
-    filename = path.join(path.dirname(__file__), "_data", fname)
-
-    with open(filename, encoding="ascii") as file_:
-        test_vectors = json.load(file_)["vectors"]
-
-    for vector in test_vectors:
-        msg_hash = bytes.fromhex(vector["msg"])
-        assert len(msg_hash) == 32
-        sig_raw = bytes.fromhex(vector["sig"])
-        prv_key = bytes.fromhex(vector["privkey"])
-        assert len(prv_key) == 32
-
-        sig = dsa.sign_(msg_hash, prv_key)
-        assert sig.serialize() == sig_raw[:-1]
-        pub_key = pub_keyinfo_from_prv_key(prv_key, compressed=True)[0]
-        assert dsa.verify_(msg_hash, pub_key, sig)
-
-        sig_der = libsecp256k1_dsa.sign(msg_hash, prv_key)
-        assert sig_der == sig_raw[:-1]
-        pub_key = pub_keyinfo_from_prv_key(prv_key)[0]
-        assert libsecp256k1_dsa.verify(msg_hash, pub_key, sig_der)
+def signature_vectors(fname: str) -> list[Any]:
+    """One case per signature vector, named by the message it signs."""
+    return [
+        pytest.param(vector, id=vectors.vector_id(index, vector["msg"][:16]))
+        for index, vector in enumerate(vectors.load("ecc", "_data", fname)["vectors"])
+    ]
 
 
-def test_libsecp256k1_py_vectors_ecdsa_nonce() -> None:
-    # https://github.com/rustyrussell/secp256k1-py/blob/master/tests/data/ecdsa_custom_nonce_sig.json
+# https://github.com/rustyrussell/secp256k1-py/blob/master/tests/data/ecdsa_sig.json
+@pytest.mark.parametrize("vector", signature_vectors("ecdsa_sig.json"))
+def test_libsecp256k1_py_vectors_ecdsa(vector: dict[str, str]) -> None:
+    msg_hash = bytes.fromhex(vector["msg"])
+    assert len(msg_hash) == 32
+    sig_raw = bytes.fromhex(vector["sig"])
+    prv_key = bytes.fromhex(vector["privkey"])
+    assert len(prv_key) == 32
 
-    fname = "ecdsa_custom_nonce_sig.json"
-    filename = path.join(path.dirname(__file__), "_data", fname)
+    sig = dsa.sign_(msg_hash, prv_key)
+    assert sig.serialize() == sig_raw[:-1]
+    pub_key = pub_keyinfo_from_prv_key(prv_key, compressed=True)[0]
+    assert dsa.verify_(msg_hash, pub_key, sig)
 
-    with open(filename, encoding="ascii") as file_:
-        test_vectors = json.load(file_)["vectors"]
+    sig_der = libsecp256k1_dsa.sign(msg_hash, prv_key)
+    assert sig_der == sig_raw[:-1]
+    pub_key = pub_keyinfo_from_prv_key(prv_key)[0]
+    assert libsecp256k1_dsa.verify(msg_hash, pub_key, sig_der)
 
-    for vector in test_vectors:
-        msg_hash = bytes.fromhex(vector["msg"])
-        assert len(msg_hash) == 32
-        sig_der = bytes.fromhex(vector["sig"])
-        nonce = bytes.fromhex(vector["nonce"])
-        assert len(nonce) == 32
-        prv_key = bytes.fromhex(vector["privkey"])
-        assert len(prv_key) == 32
 
-        sig = dsa.sign_(msg_hash, prv_key, nonce)
-        assert sig.serialize() == sig_der
-        pub_key = pub_keyinfo_from_prv_key(prv_key, compressed=True)[0]
-        assert dsa.verify_(msg_hash, pub_key, sig_der)
+# https://github.com/rustyrussell/secp256k1-py/blob/master/tests/data/ecdsa_custom_nonce_sig.json
+@pytest.mark.parametrize("vector", signature_vectors("ecdsa_custom_nonce_sig.json"))
+def test_libsecp256k1_py_vectors_ecdsa_nonce(vector: dict[str, str]) -> None:
+    msg_hash = bytes.fromhex(vector["msg"])
+    assert len(msg_hash) == 32
+    sig_der = bytes.fromhex(vector["sig"])
+    nonce = bytes.fromhex(vector["nonce"])
+    assert len(nonce) == 32
+    prv_key = bytes.fromhex(vector["privkey"])
+    assert len(prv_key) == 32
 
-        pub_key = pub_keyinfo_from_prv_key(prv_key)[0]
-        assert libsecp256k1_dsa.verify(msg_hash, pub_key, sig_der)
+    sig = dsa.sign_(msg_hash, prv_key, nonce)
+    assert sig.serialize() == sig_der
+    pub_key = pub_keyinfo_from_prv_key(prv_key, compressed=True)[0]
+    assert dsa.verify_(msg_hash, pub_key, sig_der)
+
+    pub_key = pub_keyinfo_from_prv_key(prv_key)[0]
+    assert libsecp256k1_dsa.verify(msg_hash, pub_key, sig_der)

@@ -11,9 +11,7 @@
 
 from __future__ import annotations
 
-import csv
 from hashlib import sha256 as hf
-from os import path
 
 import pytest
 from btclib_libsecp256k1 import ssa as libsecp256k1_ssa
@@ -28,6 +26,7 @@ from btclib.exceptions import BTClibRuntimeError, BTClibTypeError, BTClibValueEr
 from btclib.hashes import reduce_to_hlen
 from btclib.number_theory import mod_inv
 from btclib.utils import int_from_bits
+from tests import vectors
 from tests.ec.test_curve import low_card_curves, secp256k1_bis
 
 
@@ -101,41 +100,40 @@ def test_signature() -> None:
         ssa.sign(msg, 0)
 
 
-def test_bip340_vectors() -> None:
+BIP340_VECTORS = [
+    pytest.param(row, id=vectors.vector_id(int(row[0]), row[7]))
+    for row in vectors.load_csv("ecc", "_data", "bip340_test_vectors.csv")
+]
+
+
+@pytest.mark.parametrize("row", BIP340_VECTORS)
+def test_bip340_vectors(row: list[str]) -> None:
     """BIP340 (Schnorr) test vectors.
 
     - https://github.com/bitcoin/bips/blob/master/bip-0340/test-vectors.csv
+
+    The `except Exception: print(err_msg); raise` that used to wrap the
+    body is gone with the loop that made it necessary: the vector index
+    and its comment are the test id, which pytest prints on failure
+    without being asked, and on every other vector too.
     """
-    fname = "bip340_test_vectors.csv"
-    filename = path.join(path.dirname(__file__), "_data", fname)
-    with open(filename, newline="", encoding="ascii") as csvfile:
-        reader = csv.reader(csvfile)
-        # skip column headers while checking that there are 7 columns
-        next(reader)
-        for row in reader:
-            (index, seckey, pub_key, aux_rand, m, sig, result, comment) = row
-            err_msg = f"Test vector #{int(index)}"
-            try:
-                if seckey != "":
-                    _, pub_key_actual = ssa.gen_keys(seckey)
-                    assert pub_key == hex(pub_key_actual).upper()[2:], err_msg
+    (_index, seckey, pub_key, aux_rand, m, sig, result, _comment) = row
 
-                    sig_actual = ssa.sign_(m, seckey, aux_rand)
-                    ssa.assert_as_valid_(m, pub_key, sig_actual)
-                    assert ssa.Sig.parse(sig) == sig_actual, err_msg
+    if seckey != "":
+        _, pub_key_actual = ssa.gen_keys(seckey)
+        assert pub_key == hex(pub_key_actual).upper()[2:]
 
-                if comment:
-                    err_msg += f": {comment}"
-                # TODO what's wrong with xor-ing ?
-                # assert (result == "TRUE") ^ ssa.verify_(m, pub_key, sig), err_msg
-                if result == "TRUE":
-                    ssa.assert_as_valid_(m, pub_key, sig)
-                    assert ssa.verify_(m, pub_key, sig), err_msg
-                else:
-                    assert not ssa.verify_(m, pub_key, sig), err_msg
-            except Exception:  # pragma: no cover
-                print(err_msg)  # pragma: no cover
-                raise  # pragma: no cover
+        sig_actual = ssa.sign_(m, seckey, aux_rand)
+        ssa.assert_as_valid_(m, pub_key, sig_actual)
+        assert ssa.Sig.parse(sig) == sig_actual
+
+    # TODO what's wrong with xor-ing ?
+    # assert (result == "TRUE") ^ ssa.verify_(m, pub_key, sig)
+    if result == "TRUE":
+        ssa.assert_as_valid_(m, pub_key, sig)
+        assert ssa.verify_(m, pub_key, sig)
+    else:
+        assert not ssa.verify_(m, pub_key, sig)
 
 
 def test_point_from_bip340pub_key() -> None:

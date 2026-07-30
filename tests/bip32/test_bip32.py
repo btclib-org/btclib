@@ -10,9 +10,8 @@
 """Tests for the `btclib.bip32` module."""
 
 import hmac
-import json
 import re
-from os import path
+from typing import Any
 
 import pytest
 
@@ -32,6 +31,7 @@ from btclib.ec import secp256k1 as ec
 from btclib.exceptions import BTClibValueError
 from btclib.hashes import hash160
 from btclib.to_pub_key import pub_keyinfo_from_key
+from tests import vectors
 
 
 def test_exceptions() -> None:
@@ -162,37 +162,50 @@ def test_serialization() -> None:
     assert xpub == xpub2
 
 
-data_folder = path.join(path.dirname(__file__), "_data")
+def bip32_vectors() -> list[Any]:
+    """One case per derivation of BIP32 test vectors #1 to #4.
+
+    The file groups the derivations by seed, and the seed is the id of
+    the vector it belongs to: "vector 3, m/0h" rather than a number that
+    says nothing, and the four vectors no longer share one exit.
+    """
+    test_vectors = vectors.load("bip32", "_data", "bip32_test_vectors.json")
+    return [
+        pytest.param(
+            seed, der_path, xpub, xprv, id=vectors.vector_id(index, seed[:16], der_path)
+        )
+        for index, seed in enumerate(test_vectors)
+        for der_path, xpub, xprv in test_vectors[seed]
+    ]
 
 
-def test_bip32_vectors() -> None:
+@pytest.mark.parametrize(("seed", "der_path", "xpub", "xprv"), bip32_vectors())
+def test_bip32_vectors(seed: str, der_path: str, xpub: str, xprv: str) -> None:
     """BIP32 test vectors #1, #2, #3, and #4.
 
     https://github.com/bitcoin/bips/blob/master/bip-0032.mediawiki
     """
-    filename = path.join(data_folder, "bip32_test_vectors.json")
-    with open(filename, encoding="ascii") as file_:
-        test_vectors = json.load(file_)
-
-    for seed in test_vectors:
-        mxprv = rootxprv_from_seed(seed)
-        for der_path, xpub, xprv in test_vectors[seed]:
-            assert xprv == derive(mxprv, der_path)
-            assert xpub == xpub_from_xprv(xprv)
+    mxprv = rootxprv_from_seed(seed)
+    assert xprv == derive(mxprv, der_path)
+    assert xpub == xpub_from_xprv(xprv)
 
 
-def test_invalid_bip32_xkeys() -> None:
+@pytest.mark.parametrize(
+    ("xkey", "err_msg"),
+    [
+        pytest.param(xkey, err_msg, id=vectors.vector_id(index, err_msg))
+        for index, (xkey, err_msg) in enumerate(
+            vectors.load("bip32", "_data", "bip32_invalid_keys.json")
+        )
+    ],
+)
+def test_invalid_bip32_xkeys(xkey: str, err_msg: str) -> None:
     """BIP32 test vectors #5.
 
     https://github.com/bitcoin/bips/pull/921
     """
-    filename = path.join(data_folder, "bip32_invalid_keys.json")
-    with open(filename, encoding="ascii") as file_:
-        test_vectors = json.load(file_)
-
-    for xkey, err_msg in test_vectors:
-        with pytest.raises(BTClibValueError, match=re.escape(err_msg)):
-            BIP32KeyData.b58decode(xkey)
+    with pytest.raises(BTClibValueError, match=re.escape(err_msg)):
+        BIP32KeyData.b58decode(xkey)
 
 
 def test_derive() -> None:

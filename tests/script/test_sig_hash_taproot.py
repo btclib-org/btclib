@@ -12,8 +12,7 @@
 - test vector https://github.com/bitcoin/bips/blob/master/bip-0341.mediawiki
 """
 
-import json
-from os import path
+from typing import Any
 
 import pytest
 
@@ -23,82 +22,91 @@ from btclib.exceptions import BTClibRuntimeError, BTClibValueError
 from btclib.hashes import hash160
 from btclib.script import Witness, is_p2tr, parse, serialize, sig_hash, type_and_payload
 from btclib.tx import OutPoint, Tx, TxIn, TxOut
+from tests import vectors
+
+TAPSCRIPT = vectors.load("script", "_data", "tapscript_test_vector.json")
 
 
-def test_valid_taproot_key_path() -> None:
-    fname = "tapscript_test_vector.json"
-    filename = path.join(path.dirname(__file__), "_data", fname)
-    with open(filename, encoding="ascii") as file_:
-        data = json.load(file_)
+def is_key_path(witness: Witness) -> bool:
+    """A key path spend: the signature alone, or the signature and an annex."""
+    stack = witness.stack
+    return len(stack) == 1 or (len(stack) == 2 and stack[-1][0] == 0x50)
 
-    for x in filter(lambda x: "TAPROOT" in x["flags"], data):
-        tx = Tx.parse(x["tx"])
 
-        prevouts = [TxOut.parse(prevout) for prevout in x["prevouts"]]
-        index = x["index"]
+def key_path_vectors(outcome: str, taproot_flag: bool) -> list[Any]:
+    """The vectors of `outcome` that spend a p2tr prevout through the key path.
 
-        if not is_p2tr(prevouts[index].script_pub_key.script):
+    Selecting them here rather than skipping the others with `continue`
+    inside the test is what makes the count in the report the count of
+    what ran: of the 2243 vectors in the file, three quarters are not
+    key path spends, and the loop used to report 1 test either way.
+
+    The parse of every prevout is the price, paid once per worker at
+    collection: 3 ms for the file.
+    """
+    params = []
+    for index, x in enumerate(TAPSCRIPT):
+        if outcome not in x or (taproot_flag and "TAPROOT" not in x["flags"]):
             continue
-
-        assert not x["success"]["scriptSig"]
-
-        witness = Witness(x["success"]["witness"])
-        tx.vin[index].script_witness = witness
-
-        if len(witness.stack) == 1 or (
-            len(witness.stack) == 2 and witness.stack[-1][0] == 0x50
-        ):
-            sighash_type = 0  # all
-            signature = witness.stack[0][:64]
-            if len(witness.stack[0]) == 65:
-                sighash_type = witness.stack[0][-1]
-                assert sighash_type != 0
-
-            msg_hash = sig_hash.from_tx(prevouts, tx, index, sighash_type)
-
-            pub_key = type_and_payload(prevouts[index].script_pub_key.script)[1]
-
-            ssa.assert_as_valid_(msg_hash, pub_key, signature)
-
-
-def test_invalid_taproot_key_path() -> None:
-    fname = "tapscript_test_vector.json"
-    filename = path.join(path.dirname(__file__), "_data", fname)
-    with open(filename, encoding="ascii") as file_:
-        data = json.load(file_)
-
-    for x in filter(lambda x: "failure" in x, data):
-        tx = Tx.parse(x["tx"])
         prevouts = [TxOut.parse(prevout) for prevout in x["prevouts"]]
-        index = x["index"]
-
-        if not is_p2tr(prevouts[index].script_pub_key.script):
+        if not is_p2tr(prevouts[x["index"]].script_pub_key.script):
             continue
+        if not is_key_path(Witness(x[outcome]["witness"])):
+            continue
+        params.append(pytest.param(x, id=vectors.vector_id(index, x["comment"])))
+    return params
 
-        witness = Witness(x["failure"]["witness"])
-        tx.vin[index].script_witness = witness
 
-        # check only key paths
-        if len(witness.stack) == 1 or (
-            len(witness.stack) == 2 and witness.stack[-1][0] == 0x50
-        ):
-            with pytest.raises((BTClibRuntimeError, BTClibValueError, AssertionError)):
-                assert not x["failure"]["scriptSig"]
+@pytest.mark.parametrize("vector", key_path_vectors("success", taproot_flag=True))
+def test_valid_taproot_key_path(vector: dict[str, Any]) -> None:
+    tx = Tx.parse(vector["tx"])
+    prevouts = [TxOut.parse(prevout) for prevout in vector["prevouts"]]
+    index = vector["index"]
 
-                sighash_type = 0  # all
-                signature = witness.stack[0][:64]
-                if len(witness.stack[0]) == 65:
-                    sighash_type = witness.stack[0][-1]
-                    if sighash_type == 0:
-                        raise BTClibValueError(
-                            "invalid sighash 0 in 65 bytes signature"
-                        )
+    assert not vector["success"]["scriptSig"]
 
-                msg_hash = sig_hash.from_tx(prevouts, tx, index, sighash_type)
+    witness = Witness(vector["success"]["witness"])
+    tx.vin[index].script_witness = witness
 
-                pub_key = type_and_payload(prevouts[index].script_pub_key.script)[1]
+    sighash_type = 0  # all
+    signature = witness.stack[0][:64]
+    if len(witness.stack[0]) == 65:
+        sighash_type = witness.stack[0][-1]
+        assert sighash_type != 0
 
-                ssa.assert_as_valid_(msg_hash, pub_key, signature)
+    msg_hash = sig_hash.from_tx(prevouts, tx, index, sighash_type)
+
+    pub_key = type_and_payload(prevouts[index].script_pub_key.script)[1]
+
+    ssa.assert_as_valid_(msg_hash, pub_key, signature)
+
+
+# the failure vectors are taken whatever their flags, as they were: a
+# vector that does not ask for TAPROOT still must not verify
+@pytest.mark.parametrize("vector", key_path_vectors("failure", taproot_flag=False))
+def test_invalid_taproot_key_path(vector: dict[str, Any]) -> None:
+    tx = Tx.parse(vector["tx"])
+    prevouts = [TxOut.parse(prevout) for prevout in vector["prevouts"]]
+    index = vector["index"]
+
+    witness = Witness(vector["failure"]["witness"])
+    tx.vin[index].script_witness = witness
+
+    with pytest.raises((BTClibRuntimeError, BTClibValueError, AssertionError)):
+        assert not vector["failure"]["scriptSig"]
+
+        sighash_type = 0  # all
+        signature = witness.stack[0][:64]
+        if len(witness.stack[0]) == 65:
+            sighash_type = witness.stack[0][-1]
+            if sighash_type == 0:
+                raise BTClibValueError("invalid sighash 0 in 65 bytes signature")
+
+        msg_hash = sig_hash.from_tx(prevouts, tx, index, sighash_type)
+
+        pub_key = type_and_payload(prevouts[index].script_pub_key.script)[1]
+
+        ssa.assert_as_valid_(msg_hash, pub_key, signature)
 
 
 def test_valid_taproot_script_path() -> None:
@@ -177,7 +185,37 @@ def test_wrapped_p2tr() -> None:
         sig_hash.from_tx([utxo], tx, 0, 0)
 
 
-def test_from_tx_does_not_touch_the_tx() -> None:
+def annex_vectors() -> list[Any]:
+    """The vectors whose witness carries an annex: nothing else can strip one."""
+    params = []
+    for index, x in enumerate(TAPSCRIPT):
+        if "TAPROOT" not in x["flags"]:
+            continue
+        prevouts = [TxOut.parse(prevout) for prevout in x["prevouts"]]
+        if not is_p2tr(prevouts[x["index"]].script_pub_key.script):
+            continue
+        stack = Witness(x["success"]["witness"]).stack
+        if len(stack) < 2 or stack[-1][0] != 0x50:
+            continue  # no annex, nothing to strip
+        params.append(pytest.param(x, id=vectors.vector_id(index, x["comment"])))
+    return params
+
+
+ANNEX_VECTORS = annex_vectors()
+
+
+def test_annex_vectors_exist() -> None:
+    """The test below proves nothing on an empty set of vectors.
+
+    It was the `assert annexed` at the end of the loop; a parametrized
+    test over no parameter is reported as one green skip, so the count
+    is asserted here rather than not at all.
+    """
+    assert ANNEX_VECTORS
+
+
+@pytest.mark.parametrize("vector", ANNEX_VECTORS)
+def test_from_tx_does_not_touch_the_tx(vector: dict[str, Any]) -> None:
     """Computing a taproot sighash must not strip the annex from the Tx.
 
     `taproot_annex_and_ext` used to assign the trimmed stack back to the
@@ -185,55 +223,62 @@ def test_from_tx_does_not_touch_the_tx() -> None:
     hashed a different preimage, while `tx.serialize()` and `tx.hash` changed
     under the caller (issue #140).
     """
-    fname = "tapscript_test_vector.json"
-    filename = path.join(path.dirname(__file__), "_data", fname)
-    with open(filename, encoding="ascii") as file_:
-        data = json.load(file_)
+    prevouts = [TxOut.parse(prevout) for prevout in vector["prevouts"]]
+    index = vector["index"]
+    stack = Witness(vector["success"]["witness"]).stack
 
-    annexed = 0
-    for x in filter(lambda x: "TAPROOT" in x["flags"], data):
-        prevouts = [TxOut.parse(prevout) for prevout in x["prevouts"]]
-        index = x["index"]
+    tx = Tx.parse(vector["tx"])
+    tx.vin[index].script_witness = Witness(stack)
+    serialized = tx.serialize(include_witness=True, check_validity=False)
 
-        if not is_p2tr(prevouts[index].script_pub_key.script):
-            continue
+    msg_hash = sig_hash.from_tx(prevouts, tx, index, 0)
 
-        stack = Witness(x["success"]["witness"]).stack
-        if len(stack) < 2 or stack[-1][0] != 0x50:
-            continue  # no annex, nothing to strip
-        annexed += 1
-
-        tx = Tx.parse(x["tx"])
-        tx.vin[index].script_witness = Witness(stack)
-        serialized = tx.serialize(include_witness=True, check_validity=False)
-
-        msg_hash = sig_hash.from_tx(prevouts, tx, index, 0)
-
-        assert sig_hash.from_tx(prevouts, tx, index, 0) == msg_hash
-        assert tx.vin[index].script_witness.stack == stack
-        assert tx.serialize(include_witness=True, check_validity=False) == serialized
-
-    assert annexed, "no annex in the test vectors: the test proves nothing"
+    assert sig_hash.from_tx(prevouts, tx, index, 0) == msg_hash
+    assert tx.vin[index].script_witness.stack == stack
+    assert tx.serialize(include_witness=True, check_validity=False) == serialized
 
 
-def test_bip_test_vector() -> None:
-    fname = "taproot_test_vector.json"
-    filename = path.join(path.dirname(__file__), "_data", fname)
-    with open(filename, encoding="ascii") as file_:
-        data = json.load(file_)["keyPathSpending"][0]
+KEY_PATH_SPENDING = vectors.load("script", "_data", "taproot_test_vector.json")[
+    "keyPathSpending"
+][0]
 
-    unsigned_tx = Tx.parse(data["given"]["rawUnsignedTx"])
 
+def unsigned_tx_and_utxos() -> tuple[Tx, list[TxOut]]:
+    """The BIP341 key path spending case, rebuilt for each of its inputs.
+
+    Rebuilt rather than shared: a parameter is one object handed to every
+    test that takes it, and this Tx is the argument of the very calls the
+    module tests for mutating it.
+    """
+    tx = Tx.parse(KEY_PATH_SPENDING["given"]["rawUnsignedTx"])
     utxos = [
         TxOut(utxo["amountSats"], utxo["scriptPubKey"])
-        for utxo in data["given"]["utxosSpent"]
+        for utxo in KEY_PATH_SPENDING["given"]["utxosSpent"]
     ]
-    for vin in unsigned_tx.vin:
+    for vin in tx.vin:
         # a new Witness, the stack being an immutable tuple
         vin.script_witness = Witness([*vin.script_witness.stack, b"00"])
+    return tx, utxos
 
-    for test in data["inputSpending"]:
-        index = test["given"]["txinIndex"]
-        hash_type = test["given"]["hashType"]
-        signature_hash = sig_hash.from_tx(utxos, unsigned_tx, index, hash_type)
-        assert signature_hash.hex() == test["intermediary"]["sigHash"]
+
+@pytest.mark.parametrize(
+    "spending",
+    [
+        pytest.param(
+            spending,
+            id=vectors.vector_id(
+                index,
+                f"input{spending['given']['txinIndex']}",
+                f"hashtype{spending['given']['hashType']}",
+            ),
+        )
+        for index, spending in enumerate(KEY_PATH_SPENDING["inputSpending"])
+    ],
+)
+def test_bip_test_vector(spending: dict[str, Any]) -> None:
+    unsigned_tx, utxos = unsigned_tx_and_utxos()
+
+    index = spending["given"]["txinIndex"]
+    hash_type = spending["given"]["hashType"]
+    signature_hash = sig_hash.from_tx(utxos, unsigned_tx, index, hash_type)
+    assert signature_hash.hex() == spending["intermediary"]["sigHash"]

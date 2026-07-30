@@ -11,6 +11,7 @@
 
 import json
 from os import path
+from typing import Any
 
 import pytest
 
@@ -23,70 +24,74 @@ from btclib.psbt import Psbt, combine_psbts, extract_tx, finalize_psbt, join_psb
 from btclib.psbt.psbt import PSBT_DELIMITER, PSBT_SEPARATOR, _sort_or_shuffle_together
 from btclib.script import ScriptPubKey, Witness
 from btclib.tx import OutPoint, Tx, TxIn, TxOut
+from tests import vectors
 
 # first tests are part of the official BIP174 test vectors
 
 
-def test_vectors_bip174() -> None:
+def psbt_vectors(fname: str, kind: str) -> list[Any]:
+    """The `kind` cases of a BIP test vector file, each named by its description.
+
+    The description used to be printed by an `except: print(); raise`
+    around the decode, and interpolated into the message of every
+    assert, because a bare "case 7 failed" is not a report. As a test id
+    it is there for free, and for the cases that pass as well.
+    """
+    return [
+        pytest.param(
+            test_vector, id=vectors.vector_id(index, test_vector["description"])
+        )
+        for index, test_vector in enumerate(
+            vectors.load("psbt", "_data", fname)[kind], 1
+        )
+    ]
+
+
+@pytest.mark.parametrize(
+    "test_vector", psbt_vectors("bip174_test_vectors.json", "valid psbts")
+)
+def test_valid_psbt_bip174(test_vector: dict[str, str]) -> None:
     """Test https://github.com/bitcoin/bips/blob/master/bip-0174.mediawiki."""
-    data_folder = path.join(path.dirname(__file__), "_data")
-    filename = path.join(data_folder, "bip174_test_vectors.json")
-    with open(filename, encoding="ascii") as file_:
-        # json.dump(test_vectors, f, indent=4)
-        test_vectors = json.load(file_)
-
-    for i, test_vector in enumerate(test_vectors["valid psbts"]):
-        try:
-            psbt_decoded = Psbt.b64decode(test_vector["encoded psbt"])
-        except Exception:  # pragma: no cover
-            print(
-                f"valid case {i + 1}: {test_vector['description']}"
-            )  # pragma: no cover
-            raise  # pragma: no cover
-        assert test_vector["encoded psbt"] == Psbt.b64encode(psbt_decoded)
-
-    for i, test_vector in enumerate(test_vectors["invalid psbts"]):
-        with pytest.raises(BTClibValueError) as excinfo:
-            Psbt.b64decode(test_vector["encoded psbt"])
-        assert test_vector["error message"] in str(excinfo.value), (
-            f"invalid case {i + 1}: {test_vector['description']}\n{excinfo.value}"
-        )
-
-    for i, test_vector in enumerate(test_vectors["signer check failures"]):
-        psbt_decoded = Psbt.b64decode(test_vector["encoded psbt"])
-        with pytest.raises(BTClibValueError) as excinfo:
-            psbt_decoded.assert_signable()
-        assert test_vector["error message"] in str(excinfo.value), (
-            f"signer check failure {i + 1}: {test_vector['description']}\n{excinfo.value}"
-        )
-        assert test_vector["encoded psbt"] == Psbt.b64encode(psbt_decoded)
+    psbt_decoded = Psbt.b64decode(test_vector["encoded psbt"])
+    assert test_vector["encoded psbt"] == Psbt.b64encode(psbt_decoded)
 
 
-def test_vectors_bip371() -> None:
+@pytest.mark.parametrize(
+    "test_vector", psbt_vectors("bip174_test_vectors.json", "invalid psbts")
+)
+def test_invalid_psbt_bip174(test_vector: dict[str, str]) -> None:
+    with pytest.raises(BTClibValueError) as excinfo:
+        Psbt.b64decode(test_vector["encoded psbt"])
+    assert test_vector["error message"] in str(excinfo.value)
+
+
+@pytest.mark.parametrize(
+    "test_vector", psbt_vectors("bip174_test_vectors.json", "signer check failures")
+)
+def test_signer_check_failure_bip174(test_vector: dict[str, str]) -> None:
+    psbt_decoded = Psbt.b64decode(test_vector["encoded psbt"])
+    with pytest.raises(BTClibValueError) as excinfo:
+        psbt_decoded.assert_signable()
+    assert test_vector["error message"] in str(excinfo.value)
+    assert test_vector["encoded psbt"] == Psbt.b64encode(psbt_decoded)
+
+
+@pytest.mark.parametrize(
+    "test_vector", psbt_vectors("bip371_test_vectors.json", "valid psbts")
+)
+def test_valid_psbt_bip371(test_vector: dict[str, str]) -> None:
     """Test https://github.com/bitcoin/bips/blob/master/bip-0371.mediawiki."""
+    psbt_decoded = Psbt.b64decode(test_vector["encoded psbt"])
+    assert test_vector["encoded psbt"] == Psbt.b64encode(psbt_decoded)
 
-    data_folder = path.join(path.dirname(__file__), "_data")
-    filename = path.join(data_folder, "bip371_test_vectors.json")
-    with open(filename, encoding="ascii") as file_:
-        # json.dump(test_vectors, f, indent=4)
-        test_vectors = json.load(file_)
 
-    for i, test_vector in enumerate(test_vectors["valid psbts"]):
-        try:
-            psbt_decoded = Psbt.b64decode(test_vector["encoded psbt"])
-        except Exception:  # pragma: no cover
-            print(
-                f"valid case {i + 1}: {test_vector['description']}"
-            )  # pragma: no cover
-            raise  # pragma: no cover
-        assert test_vector["encoded psbt"] == Psbt.b64encode(psbt_decoded)
-
-    for i, test_vector in enumerate(test_vectors["invalid psbts"]):
-        with pytest.raises(BTClibValueError) as excinfo:
-            Psbt.b64decode(test_vector["encoded psbt"])
-        assert test_vector["error message"] in str(excinfo.value), (
-            f"invalid case {i + 1}: {test_vector['description']}\n{excinfo.value}"
-        )
+@pytest.mark.parametrize(
+    "test_vector", psbt_vectors("bip371_test_vectors.json", "invalid psbts")
+)
+def test_invalid_psbt_bip371(test_vector: dict[str, str]) -> None:
+    with pytest.raises(BTClibValueError) as excinfo:
+        Psbt.b64decode(test_vector["encoded psbt"])
+    assert test_vector["error message"] in str(excinfo.value)
 
 
 def test_creation() -> None:

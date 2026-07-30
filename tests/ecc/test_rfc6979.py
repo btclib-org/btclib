@@ -10,14 +10,16 @@
 """Tests for the `btclib.rfc6979` module."""
 
 import hashlib
-import json
-from os import path
+from typing import Any
+
+import pytest
 
 from btclib.ec import mult
 from btclib.ec.curve import CURVES, Curve
 from btclib.ecc import dsa
 from btclib.ecc.rfc6979_nonce import rfc6979_nonce_
 from btclib.hashes import reduce_to_hlen
+from tests import vectors
 
 
 def test_rfc6979() -> None:
@@ -46,33 +48,49 @@ def test_rfc6979_nonce_example() -> None:
     assert k == rfc6979_nonce_(msg_hash, x, fake_ec)
 
 
-def test_rfc6979_nonce_tv() -> None:
-    fname = "rfc6979.json"
-    filename = path.join(path.dirname(__file__), "_data", fname)
-    with open(filename, encoding="ascii") as file_:
-        test_dict = json.load(file_)
+def rfc6979_vectors() -> list[Any]:
+    """One case per (curve, vector) pair of RFC6979's appendix A.2.
 
+    The file groups the vectors by curve, so the two nested loops become
+    one flat list: the curve name belongs in the id, where a failure on
+    NIST P-521 with sha512 says so, and not in an outer loop that stops
+    the inner one from ever reaching the next curve.
+    """
+    test_dict = vectors.load("ecc", "_data", "rfc6979.json")
+    return [
+        pytest.param(
+            CURVES[ec_name],
+            *vector,
+            id=vectors.vector_id(index, ec_name, vector[3], vector[4]),
+        )
+        for ec_name in test_dict
+        for index, vector in enumerate(test_dict[ec_name])
+    ]
+
+
+@pytest.mark.parametrize(
+    ("ec", "x", "x_U", "y_U", "hf", "msg", "k", "r", "s"), rfc6979_vectors()
+)
+def test_rfc6979_nonce_tv(
+    ec: Curve, x: str, x_U: str, y_U: str, hf: str, msg: str, k: str, r: str, s: str
+) -> None:
     lower_s = False
-    for ec_name in test_dict:
-        ec = CURVES[ec_name]
-        test_vectors = test_dict[ec_name]
-        for x, x_U, y_U, hf, msg, k, r, s in test_vectors:
-            x = int(x, 16)
-            msg = msg.encode()
-            m = reduce_to_hlen(msg, hf=getattr(hashlib, hf))
-            # test RFC6979 implementation
-            k2 = rfc6979_nonce_(m, x, ec, getattr(hashlib, hf))
-            assert int(k, 16) == k2
-            # test RFC6979 usage in DSA
-            sig = dsa.sign_(m, x, k2, lower_s, ec=ec, hf=getattr(hashlib, hf))
-            assert int(r, 16) == sig.r
-            assert int(s, 16) == sig.s
-            # test that RFC6979 is the default nonce for DSA
-            sig = dsa.sign_(m, x, None, lower_s, ec=ec, hf=getattr(hashlib, hf))
-            assert int(r, 16) == sig.r
-            assert int(s, 16) == sig.s
-            # test key-pair coherence
-            U = mult(x, ec.G, ec)
-            assert (int(x_U, 16), int(y_U, 16)) == U
-            # test signature validity
-            dsa.assert_as_valid(msg, U, sig, lower_s, getattr(hashlib, hf))
+    prv_key = int(x, 16)
+    msg_bytes = msg.encode()
+    m = reduce_to_hlen(msg_bytes, hf=getattr(hashlib, hf))
+    # test RFC6979 implementation
+    k2 = rfc6979_nonce_(m, prv_key, ec, getattr(hashlib, hf))
+    assert int(k, 16) == k2
+    # test RFC6979 usage in DSA
+    sig = dsa.sign_(m, prv_key, k2, lower_s, ec=ec, hf=getattr(hashlib, hf))
+    assert int(r, 16) == sig.r
+    assert int(s, 16) == sig.s
+    # test that RFC6979 is the default nonce for DSA
+    sig = dsa.sign_(m, prv_key, None, lower_s, ec=ec, hf=getattr(hashlib, hf))
+    assert int(r, 16) == sig.r
+    assert int(s, 16) == sig.s
+    # test key-pair coherence
+    U = mult(prv_key, ec.G, ec)
+    assert (int(x_U, 16), int(y_U, 16)) == U
+    # test signature validity
+    dsa.assert_as_valid(msg_bytes, U, sig, lower_s, getattr(hashlib, hf))

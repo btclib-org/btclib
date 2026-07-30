@@ -11,9 +11,6 @@
 
 from __future__ import annotations
 
-import json
-from os import path
-
 import pytest
 
 from btclib import b32, b58, var_bytes
@@ -38,6 +35,7 @@ from btclib.script import (
     serialize,
     type_and_payload,
 )
+from tests import vectors
 
 
 def test_eq() -> None:
@@ -512,26 +510,26 @@ def test_p2ms_3() -> None:
     # TODO evaluate
 
 
-def test_bip67() -> None:
+BIP67_VECTORS = vectors.load("script", "_data", "bip67_test_vectors.json")
+
+
+@pytest.mark.parametrize(
+    ("keys", "addr"),
+    [
+        pytest.param(keys, addr, id=vectors.vector_id(int(i), addr))
+        for i, (keys, addr) in BIP67_VECTORS.items()
+    ],
+)
+def test_bip67(keys: list[str], addr: str) -> None:
     """BIP67 test vectors https://en.bitcoin.it/wiki/BIP_0067."""
-    data_folder = path.join(path.dirname(__file__), "_data")
-    filename = path.join(data_folder, "bip67_test_vectors.json")
-    with open(filename, encoding="ascii") as file_:
-        # json.dump(test_vectors, f, indent=4)
-        test_vectors = json.load(file_)
-
     m = 2
-    for i in test_vectors:
-        keys, addr = test_vectors[i]
-
-        script_pub_key = ScriptPubKey.p2ms(m, keys, lexicographic_sorting=True).script
-        assert is_p2ms(script_pub_key)
-        assert address(script_pub_key) == ""
-        script_type, payload = type_and_payload(script_pub_key)
-        assert script_type == "p2ms"
-        assert payload == script_pub_key[:-1]
-        errmsg = f"Test vector #{i}"
-        assert addr == b58.p2sh(script_pub_key), errmsg
+    script_pub_key = ScriptPubKey.p2ms(m, keys, lexicographic_sorting=True).script
+    assert is_p2ms(script_pub_key)
+    assert address(script_pub_key) == ""
+    script_type, payload = type_and_payload(script_pub_key)
+    assert script_type == "p2ms"
+    assert payload == script_pub_key[:-1]
+    assert addr == b58.p2sh(script_pub_key)
 
 
 def test_non_standard_script_in_p2wsh() -> None:

@@ -9,9 +9,7 @@
 # or distributed except according to the terms contained in the LICENSE file.
 """Tests for the `btclib.electrum` module."""
 
-import json
 import secrets
-from os import path
 
 import pytest
 
@@ -19,6 +17,7 @@ from btclib.bip32 import bip32, slip132
 from btclib.exceptions import BTClibValueError
 from btclib.mnemonic import bip39, electrum
 from btclib.network import NETWORKS
+from tests import vectors
 
 
 def test_mnemonic() -> None:
@@ -66,26 +65,33 @@ def test_mnemonic() -> None:
     assert electrum.version_from_mnemonic(mnemonic)[0] == "2fa"
 
 
-def test_vectors() -> None:
-    fname = "electrum_test_vectors.json"
-    filename = path.join(path.dirname(__file__), "_data", fname)
-    with open(filename, encoding="ascii") as file_:
-        electrum_test_vectors = json.load(file_)
+ELECTRUM_VECTORS = [
+    pytest.param(*vector, id=vectors.vector_id(index, vector[4]))
+    for index, vector in enumerate(
+        vectors.load("mnemonic", "_data", "electrum_test_vectors.json")
+    )
+]
 
+
+@pytest.mark.parametrize(
+    ("mnemonic", "passphrase", "rmxprv", "rmxpub", "address"), ELECTRUM_VECTORS
+)
+def test_vectors(
+    mnemonic: str, passphrase: str, rmxprv: str, rmxpub: str, address: str
+) -> None:
     lang = "en"
-    for mnemonic, passphrase, rmxprv, rmxpub, address in electrum_test_vectors:
-        if mnemonic != "":
-            assert rmxprv == electrum.mxprv_from_mnemonic(mnemonic, passphrase)
+    if mnemonic != "":
+        assert rmxprv == electrum.mxprv_from_mnemonic(mnemonic, passphrase)
 
-            mnemonic_type, mnemonic = electrum.version_from_mnemonic(mnemonic)
-            entr = int(electrum.entropy_from_mnemonic(mnemonic, lang), 2)
-            mnem = electrum.mnemonic_from_entropy(mnemonic_type, entr, lang)
-            assert mnem == mnemonic
+        mnemonic_type, mnemonic = electrum.version_from_mnemonic(mnemonic)
+        entr = int(electrum.entropy_from_mnemonic(mnemonic, lang), 2)
+        mnem = electrum.mnemonic_from_entropy(mnemonic_type, entr, lang)
+        assert mnem == mnemonic
 
-        assert rmxpub == bip32.xpub_from_xprv(rmxprv)
+    assert rmxpub == bip32.xpub_from_xprv(rmxprv)
 
-        xprv = bip32.derive(rmxprv, "m/0h/0")
-        assert address == slip132.address_from_xkey(xprv)
+    xprv = bip32.derive(rmxprv, "m/0h/0")
+    assert address == slip132.address_from_xkey(xprv)
 
 
 def test_mnemonic_from_entropy() -> None:

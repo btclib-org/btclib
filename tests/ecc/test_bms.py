@@ -10,9 +10,8 @@
 """Tests for the `btclib.bms` module."""
 
 import base64
-import json
 from hashlib import sha256
-from os import path
+from typing import Any
 
 import pytest
 
@@ -25,6 +24,7 @@ from btclib.exceptions import BTClibValueError
 from btclib.hashes import magic_message
 from btclib.mnemonic import bip39
 from btclib.to_prv_key import prv_keyinfo_from_prv_key
+from tests import vectors
 
 ec = secp256k1
 
@@ -549,55 +549,59 @@ def test_sign_strippable_message() -> None:
     assert bms_sig.b64encode() == exp_sig
 
 
-def test_vector_python_bitcoinlib() -> None:
+# the first 10 of the file, as the loop this replaces did: the vectors
+# after them cost a signature each and prove the same thing again. The
+# slice is a decision, and the count in the report is now what it runs
+PYTHON_BITCOINLIB_VECTORS = [
+    pytest.param(vector, id=vectors.vector_id(index, vector["address"]))
+    for index, vector in enumerate(vectors.load("ecc", "_data", "bms.json")[:10])
+]
+
+
+@pytest.mark.parametrize("vector", PYTHON_BITCOINLIB_VECTORS)
+def test_vector_python_bitcoinlib(vector: dict[str, Any]) -> None:
     """Test python-bitcoinlib test vectors.
 
     - https://github.com/petertodd/python-bitcoinlib/blob/master/bitcoin/tests/test_data/bms.json
     """
-    fname = "bms.json"
-    filename = path.join(path.dirname(__file__), "_data", fname)
-    with open(filename, encoding="ascii") as file_:
-        test_vectors = json.load(file_)
+    msg = vector["address"].encode()
 
-    for vector in test_vectors[:10]:
-        msg = vector["address"].encode()
+    # btclib self-consistency check
+    bms_sig = bms.sign(msg, vector["wif"])
+    assert bms.verify(msg, vector["address"], bms_sig)
+    bms_sig_encoded = bms_sig.b64encode()
+    assert bms.verify(msg, vector["address"], bms_sig_encoded)
 
-        # btclib self-consistency check
-        bms_sig = bms.sign(msg, vector["wif"])
-        assert bms.verify(msg, vector["address"], bms_sig)
-        bms_sig_encoded = bms_sig.b64encode()
-        assert bms.verify(msg, vector["address"], bms_sig_encoded)
+    # Core/Electrum/btclib provide identical signature
+    # they use "low-s" canonical signature
+    assert bms_sig.dsa_sig.s < ec.n - bms_sig.dsa_sig.s
+    assert bms.verify(msg, vector["address"], bms_sig_encoded, lower_s=True)
 
-        # Core/Electrum/btclib provide identical signature
-        # they use "low-s" canonical signature
-        assert bms_sig.dsa_sig.s < ec.n - bms_sig.dsa_sig.s
-        assert bms.verify(msg, vector["address"], bms_sig_encoded, lower_s=True)
+    # python-bitcoinlib provides a valid signature
+    # but does not respect low-s
+    assert bms.verify(msg, vector["address"], vector["signature"], lower_s=False)
 
-        # python-bitcoinlib provides a valid signature
-        # but does not respect low-s
-        assert bms.verify(msg, vector["address"], vector["signature"], lower_s=False)
+    # python-bitcoinlib has a signature different from Core/Electrum/btclib
+    assert bms_sig_encoded != vector["signature"]
 
-        # python-bitcoinlib has a signature different from Core/Electrum/btclib
-        assert bms_sig_encoded != vector["signature"]
+    # but the reason is not the low-s
+    # here's the malleated Core/Electrum/btclib signature
+    s = ec.n - bms_sig.dsa_sig.s
+    dsa_sig = dsa.Sig(bms_sig.dsa_sig.r, s, bms_sig.dsa_sig.ec)
+    # properly malleated fixing also rf
+    i = 1 if bms_sig.rf % 2 else -1
+    bms_sig_malleated = bms.Sig(bms_sig.rf + i, dsa_sig)
+    assert bms.verify(msg, vector["address"], bms_sig_malleated, lower_s=False)
+    bms_sig_encoded = bms_sig_malleated.b64encode()
+    assert bms.verify(msg, vector["address"], bms_sig_encoded, lower_s=False)
 
-        # but the reason is not the low-s
-        # here's the malleated Core/Electrum/btclib signature
-        s = ec.n - bms_sig.dsa_sig.s
-        dsa_sig = dsa.Sig(bms_sig.dsa_sig.r, s, bms_sig.dsa_sig.ec)
-        # properly malleated fixing also rf
-        i = 1 if bms_sig.rf % 2 else -1
-        bms_sig_malleated = bms.Sig(bms_sig.rf + i, dsa_sig)
-        assert bms.verify(msg, vector["address"], bms_sig_malleated, lower_s=False)
-        bms_sig_encoded = bms_sig_malleated.b64encode()
-        assert bms.verify(msg, vector["address"], bms_sig_encoded, lower_s=False)
+    # the malleated signature is still not equal to the python-bitcoinlib one
+    assert bms_sig_encoded != vector["signature"]
 
-        # the malleated signature is still not equal to the python-bitcoinlib one
-        assert bms_sig_encoded != vector["signature"]
-
-        # python-bitcoinlib does not use RFC6979 deterministic nonce
-        # as proved by different r compared to Core/Electrum/btclib
-        test_vector_sig = bms.Sig.b64decode(vector["signature"])
-        assert bms_sig.dsa_sig.r != test_vector_sig.dsa_sig.r
+    # python-bitcoinlib does not use RFC6979 deterministic nonce
+    # as proved by different r compared to Core/Electrum/btclib
+    test_vector_sig = bms.Sig.b64decode(vector["signature"])
+    assert bms_sig.dsa_sig.r != test_vector_sig.dsa_sig.r
 
 
 def test_ledger() -> None:

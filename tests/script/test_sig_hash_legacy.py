@@ -12,9 +12,6 @@
 - https://github.com/bitcoin/bitcoin/blob/master/src/test/data/sighash.json
 """
 
-import json
-from os import path
-
 import pytest
 
 from btclib.ecc import dsa
@@ -24,6 +21,7 @@ from btclib.script import serialize, sig_hash
 from btclib.script.engine import verify_transaction
 from btclib.to_pub_key import pub_keyinfo_from_prv_key
 from btclib.tx import OutPoint, Tx, TxIn, TxOut
+from tests import vectors
 
 
 # block 170
@@ -209,17 +207,25 @@ def test_missing_redeem_script() -> None:
         sig_hash.from_tx([utxo], tx, 0, sig_hash.ALL)
 
 
-def test_test_vectors() -> None:
-    fname = "sig_hash_legacy_test_vectors.json"
-    filename = path.join(path.dirname(__file__), "_data", fname)
-    with open(filename, encoding="ascii") as file_:
-        data = json.load(file_)
-    data = data[1:]  # skip column headers
-    for raw_tx, raw_script, input_index, hash_type, exp_hash in data:
-        script_ = sig_hash.legacy_script(raw_script)[0]
-        # FIXME separate invalid transaction from the valid ones
-        tx = Tx.parse(raw_tx, check_validity=False)
-        if hash_type < 0:
-            hash_type += 0xFFFFFFFF + 1
-        actual_hash = sig_hash.legacy(script_, tx, input_index, hash_type)
-        assert actual_hash == bytes.fromhex(exp_hash)[::-1]
+# [1:] skips the column headers, which are a row of the file
+SIG_HASH_VECTORS = [
+    pytest.param(*vector, id=vectors.vector_id(index, vector[4][:16]))
+    for index, vector in enumerate(
+        vectors.load("script", "_data", "sig_hash_legacy_test_vectors.json")[1:], 1
+    )
+]
+
+
+@pytest.mark.parametrize(
+    ("raw_tx", "raw_script", "input_index", "hash_type", "exp_hash"), SIG_HASH_VECTORS
+)
+def test_test_vectors(
+    raw_tx: str, raw_script: str, input_index: int, hash_type: int, exp_hash: str
+) -> None:
+    script_ = sig_hash.legacy_script(raw_script)[0]
+    # FIXME separate invalid transaction from the valid ones
+    tx = Tx.parse(raw_tx, check_validity=False)
+    if hash_type < 0:
+        hash_type += 0xFFFFFFFF + 1
+    actual_hash = sig_hash.legacy(script_, tx, input_index, hash_type)
+    assert actual_hash == bytes.fromhex(exp_hash)[::-1]
