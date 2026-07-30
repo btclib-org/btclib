@@ -101,7 +101,8 @@ please use [markdownlint-cli2](https://github.com/DavidAnson/markdownlint-cli2).
 
 Did you find a bug?
 *Do not open up a GitHub issue if the bug is a security vulnerability*,
-and instead refer to our [security policy](README.md).
+and instead refer to our [security policy](./SECURITY.md), which asks for
+a private advisory, or an email if you would rather not open one.
 
 <!-- markdown-link-check-disable -->
 

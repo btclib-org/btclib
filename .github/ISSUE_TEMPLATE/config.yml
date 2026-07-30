@@ -8,8 +8,11 @@
 blank_issues_enabled: false
 contact_links:
   - name: Security vulnerability
-    url: https://github.com/btclib-org/btclib/security/policy
-    about: Do not open an issue. Disclose it by email, as SECURITY.md asks.
+    url: https://github.com/btclib-org/btclib/security/advisories/new
+    about: >
+      Never a public issue. This opens a private advisory, visible to the
+      maintainers alone; SECURITY.md gives an email address for anyone who
+      would rather not use it.
   - name: Bug in the libsecp256k1 bindings
     url: https://github.com/btclib-org/btclib_libsecp256k1/issues
     about: Signing, verification and curve arithmetic are delegated there.
