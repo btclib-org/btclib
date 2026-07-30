@@ -19,7 +19,14 @@ from btclib.alias import BinaryData, Octets
 from btclib.utils import bytes_from_octets, bytesio_from_binarydata
 
 
-@dataclass
+# frozen: replacing the whole stack of a witness held by someone else is
+# what issue #140 was, two functions doing it to the Tx they were merely
+# reading. Shallow, though — `stack` is a list, so `witness.stack.append`
+# still mutates in place, which is why a shared default Witness had to be
+# fixed by not sharing it (issue #139) rather than by freezing. Being
+# frozen also generates a __hash__, and calling it raises TypeError on
+# that same list: Witness is not hashable, whatever the decorator claims
+@dataclass(frozen=True)
 class Witness:
     stack: list[bytes]
 
@@ -27,7 +34,11 @@ class Witness:
         self, stack: Sequence[Octets] | None = None, check_validity: bool = True
     ) -> None:
         # https://docs.python.org/3/tutorial/controlflow.html#default-argument-values
-        self.stack = [bytes_from_octets(element) for element in stack] if stack else []
+        object.__setattr__(
+            self,
+            "stack",
+            [bytes_from_octets(element) for element in stack] if stack else [],
+        )
 
         if check_validity:
             self.assert_valid()

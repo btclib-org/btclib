@@ -26,8 +26,12 @@ from btclib.script import ScriptPubKey
 from btclib.utils import bytes_from_octets, bytesio_from_binarydata
 
 
-# FIXME make it frozen
-@dataclass
+# frozen, as the FIXME here asked. Shallow: `value` is immutable, but
+# ScriptPubKey extends the plain dataclass Script, so `script_pub_key.script`
+# can still be rebound through a frozen TxOut. Freezing Script is a change
+# of its own. Its being unhashable also makes the generated TxOut.__hash__
+# raise TypeError, so a frozen TxOut is not a hashable one
+@dataclass(frozen=True)
 class TxOut:
     # 8 bytes, unsigned little endian
     value: int  # denominated in satoshi

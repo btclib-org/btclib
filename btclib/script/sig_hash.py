@@ -150,10 +150,15 @@ def legacy(script_code: Octets, tx: Tx, vin_i: int, hash_type: int) -> bytes:
         # sig_hash single bug
         if vin_i >= len(new_tx.vout):
             return (256**31).to_bytes(32, byteorder="big", signed=False)
-        new_tx.vout = new_tx.vout[: vin_i + 1]
-        for txout in new_tx.vout[:-1]:
-            txout.script_pub_key = ScriptPubKey(b"")
-            txout.value = 0xFFFFFFFFFFFFFFFF
+        # every output before the signed one is blanked: value -1 as an
+        # unsigned 8-bytes int, and an empty script_pub_key. Rebuilt one by
+        # one rather than assigned into, TxOut being frozen — and one
+        # instance each, a single blanked TxOut repeated being the aliasing
+        # that issue #139 was about
+        new_tx.vout = [
+            TxOut(0xFFFFFFFFFFFFFFFF, ScriptPubKey(b""), check_validity=False)
+            for _ in range(vin_i)
+        ] + [new_tx.vout[vin_i]]
         for i, txin in enumerate(new_tx.vin):
             if i != vin_i:
                 txin.sequence = 0

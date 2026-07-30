@@ -51,7 +51,7 @@ def test_valid_script_path() -> None:
 
         witness = Witness(x["success"]["witness"])
         if len(witness.stack) >= 2 and witness.stack[-1][0] == 0x50:
-            witness.stack = witness.stack[:-1]
+            witness = Witness(witness.stack[:-1])  # drop the annex
 
         # check script paths
         if len(witness.stack) < 2:

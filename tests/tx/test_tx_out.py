@@ -10,11 +10,13 @@
 """Tests for the `btclib.tx_out` module."""
 
 import json
+from dataclasses import FrozenInstanceError
 from os import path
 
 import pytest
 
 from btclib.exceptions import BTClibValueError
+from btclib.script import ScriptPubKey
 from btclib.tx import Tx, TxOut
 
 
@@ -46,6 +48,23 @@ def test_tx_out() -> None:
     assert tx_out == TxOut.from_address(
         tx_out.value, tx_out.script_pub_key.addresses[0]
     )
+
+
+def test_frozen() -> None:
+    tx_out = TxOut(1, "0014751e76e8199196d454941c45d1b3a323f1433bd6")
+
+    with pytest.raises(FrozenInstanceError):
+        tx_out.value = 2  # type: ignore[misc]
+    with pytest.raises(FrozenInstanceError):
+        tx_out.script_pub_key = ScriptPubKey(b"")  # type: ignore[misc]
+
+    # only skin-deep: ScriptPubKey extends the plain dataclass Script, so
+    # the script can still be rebound through a frozen TxOut, and that
+    # same unhashable ScriptPubKey makes hashing a TxOut a TypeError
+    tx_out.script_pub_key.script = b""
+    assert tx_out.script_pub_key.script == b""
+    with pytest.raises(TypeError, match="unhashable type"):
+        hash(tx_out)
 
 
 def test_invalid_tx_out() -> None:

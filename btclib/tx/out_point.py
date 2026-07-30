@@ -23,8 +23,11 @@ from btclib.exceptions import BTClibValueError
 from btclib.utils import bytes_from_octets, bytesio_from_binarydata
 
 
-# FIXME make it frozen
-@dataclass
+# frozen, as the FIXME here asked: both fields are immutable, so this one
+# is frozen all the way down, and the generated __hash__ makes an OutPoint
+# usable as the dict key or set member an utxo set wants it to be.
+# __init__ already went through object.__setattr__, in wait for this
+@dataclass(frozen=True)
 class OutPoint:
     tx_id: bytes
     vout: int

@@ -76,6 +76,24 @@ Major changes includes:
   `verify_input` hand the interpreter a copy too, it popping what it
   consumes. `taproot_annex_and_ext` also loses its unused `prevouts`
   parameter (issue #140)
+- `OutPoint`, `TxOut`, and `Witness` are frozen dataclasses, as the FIXME
+  on the first two asked. Assigning to a field raises FrozenInstanceError
+  now, where it used to corrupt whatever else held the same object: the
+  two entries above are both that bug, and the second one —
+  `witness.stack = witness.stack[:-1]` on the caller's transaction — is
+  the assignment freezing would have refused. Code doing
+  `out_point.tx_id = ...`, `tx_out.value = ...`, or `witness.stack = ...`
+  must build a new instance instead; `TxIn.prev_out` and
+  `TxIn.script_witness` stay settable, TxIn not being frozen, and
+  `sig_hash.from_tx` rebuilds the outputs SIGHASH_SINGLE blanks rather
+  than assigning into them. Frozen is shallow, so it does not replace the
+  fix for issue #139: `witness.stack.append(...)` still mutates in place,
+  a stack being a list, and `script_pub_key.script` can still be rebound
+  through a frozen TxOut, Script not being frozen. A frozen OutPoint is
+  hashable, both its fields being immutable, so it can serve as the dict
+  key or set member an utxo set wants; TxOut and Witness are not, holding
+  a ScriptPubKey and a list respectively, and hashing one raises
+  TypeError (issue #139)
 - `dsa.assert_as_valid_` and `ssa.assert_as_valid_` raise "signature
   verification failed" whichever of the two implementations verified: the
   message used to name an internal helper (`libsecp256k1.ecdsa_verify_

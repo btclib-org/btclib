@@ -10,6 +10,7 @@
 """Tests for the `btclib.tx_in` module."""
 
 import json
+from dataclasses import FrozenInstanceError
 from os import path
 
 import pytest
@@ -38,6 +39,24 @@ def test_out_point() -> None:
     assert not out_point.is_coinbase()
     assert out_point == OutPoint.parse(out_point.serialize())
     assert out_point == OutPoint.from_dict(out_point.to_dict())
+
+
+def test_frozen() -> None:
+    out_point = OutPoint(
+        "d5b5982254eebca64e4b42a3092a10bfb76ab430455b2bf0cf7c4f7f32db1c2e", 0
+    )
+
+    with pytest.raises(FrozenInstanceError):
+        out_point.tx_id = b"\x00" * 32  # type: ignore[misc]
+    with pytest.raises(FrozenInstanceError):
+        out_point.vout = 1  # type: ignore[misc]
+
+    # both fields being immutable too, a frozen OutPoint is hashable: the
+    # dict key or set member an utxo set wants
+    assert hash(out_point) == hash(
+        OutPoint("d5b5982254eebca64e4b42a3092a10bfb76ab430455b2bf0cf7c4f7f32db1c2e", 0)
+    )
+    assert len({out_point, OutPoint(out_point.tx_id, out_point.vout)}) == 1
 
 
 def test_dataclasses_json_dict_out_point() -> None:

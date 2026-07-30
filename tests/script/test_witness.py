@@ -10,7 +10,10 @@
 """Tests for the `btclib.script.witness` module."""
 
 import json
+from dataclasses import FrozenInstanceError
 from os import path
+
+import pytest
 
 from btclib.script import Witness
 
@@ -36,6 +39,22 @@ def test_witness() -> None:
     witness.assert_valid()
     assert witness == Witness.parse(witness.serialize())
     assert witness == Witness.from_dict(witness.to_dict())
+
+
+def test_frozen() -> None:
+    witness = Witness(["00", "01"])
+
+    # replacing the whole stack of a witness held by someone else was
+    # issue #140; it is a FrozenInstanceError now
+    with pytest.raises(FrozenInstanceError):
+        witness.stack = []  # type: ignore[misc]
+
+    # shallow, though: the stack is a list, and frozen says nothing about
+    # what a list lets you do. Hashing fails on that same list
+    witness.stack.append(b"\x02")
+    assert len(witness) == 3
+    with pytest.raises(TypeError, match="unhashable type"):
+        hash(witness)
 
 
 def test_dataclasses_json_dict() -> None:
