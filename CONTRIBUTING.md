@@ -115,6 +115,11 @@ deliberate: the two entropy plugins are off, because in vectors made of
 64-character hex strings a new high-entropy string is what a legitimate
 addition looks like.
 
+Read the resulting diff before committing it. That is the whole point of a
+baseline rather than an exclusion: what appears in it is what nobody has
+looked at yet, so regenerating without reading turns the review into a
+rubber stamp and the hook into decoration.
+
 ### Reproducing what CI runs
 
 Every job of every workflow is a `uv` command, and `uv` fetches what it

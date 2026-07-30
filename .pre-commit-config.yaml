@@ -131,8 +131,16 @@ repos:
         # Two audits can query GitHub for the actions a workflow pins --
         # impostor-commit and known-vulnerable-actions -- which would make
         # the hook want a token and report differently on a machine that
-        # has none. Those two therefore stay unrun, here and in CI
-        args: [--offline]
+        # has none. Those two therefore stay unrun, here and in CI.
+        # --no-progress is repeated rather than added: args replaces what
+        # the hook declares, and that flag is the whole of what it declares,
+        # so passing --offline alone dropped it. Measured here, piping the
+        # output, the two are byte for byte identical: zizmor sees there is
+        # no terminal. The hook declares it for the environment where that
+        # detection fails and the progress bar lands in the log, which is
+        # pre-commit.ci (zizmor issue 582) -- not reproducible from here,
+        # and not a reason to drop a flag its author put there
+        args: [--offline, --no-progress]
   - repo: https://github.com/leoll2/copyright_notice_precommit
     rev: 0.1.1
     hooks:
