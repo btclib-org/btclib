@@ -65,14 +65,43 @@ jobs:
           # the wheels of the lint group, pre-commit itself among them, and
           # the project environment the mypy hook type checks against
           enable-cache: true
+      # what the cache key has to distinguish, and why a step computes it.
+      # ImageOS is set by the runner image ("ubuntu24"), not by this
+      # workflow, and the env context holds only what a workflow, job or
+      # step declares -- so "${{ env.ImageOS }}" in the key below would
+      # interpolate to the empty string and the comment claiming otherwise
+      # would be the only thing distinguishing the images. Read here, in a
+      # shell, where it is an ordinary environment variable.
+      # ImageOS and not ImageVersion: the version moves every week or two
+      # for patches no hook environment depends on, and putting it in the
+      # key would mean rebuilding all of them that often
+      - name: Identify the runner image
+        id: image
+        run: echo "os=${ImageOS:-unknown}" >> "$GITHUB_OUTPUT"
       # the hook environments are the slow part, node for markdownlint
       # above all; they only change when the revisions pinned in
-      # .pre-commit-config.yaml change
+      # .pre-commit-config.yaml change.
+      # The key carries the runner image and the interpreter as well as that
+      # file, because what is cached is virtualenvs: a hook environment is
+      # built against whatever python pre-commit runs under, which here is
+      # the one .python-version pins, and against the runner's node and go.
+      # The key used to be the config hash alone, so an ubuntu-latest
+      # rotation -- 22.04 to 24.04, and the next one -- restored
+      # environments built on the previous image under the same key.
+      # restore-keys then makes a revision bump cheap rather than a cold
+      # start: pre-commit rebuilds the hooks whose rev moved and reuses the
+      # rest, and it health-checks each restored environment against the
+      # interpreter it finds, so a stale one is rebuilt rather than run --
+      # which is what makes a partial restore safe to want
       - name: Cache the pre-commit hook environments
         uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: ~/.cache/pre-commit
-          key: pre-commit-${{ hashFiles('.pre-commit-config.yaml') }}
+          key: >-
+            pre-commit-${{ runner.os }}-${{ steps.image.outputs.os }}-${{
+            hashFiles('.pre-commit-config.yaml', '.python-version') }}
+          restore-keys: |
+            pre-commit-${{ runner.os }}-${{ steps.image.outputs.os }}-
       # pre-commit from the lint group of pyproject.toml, pinned by uv.lock,
       # rather than from uvx, which fetched whatever the index held that
       # morning. This is the gate, and a developer runs the locked version,
