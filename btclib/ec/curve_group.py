@@ -64,7 +64,7 @@ class CurveGroup:
         plen = p.bit_length()
         # byte-length
         self.p_size = ceil(plen / 8)
-        # must be true to break simmetry using quadratic residue
+        # must be true to break symmetry using quadratic residue
         self.p_is_3_mod_4 = p % 4 == 3
         self.p = p
 
@@ -233,7 +233,7 @@ class CurveGroup:
 
     def add_jac(self, Q: JacPoint, R: JacPoint) -> JacPoint:
         # points are assumed to be on curve
-        # to have this funtion constant time,
+        # to have this function constant time,
         # Q or R equal to INFJ is not handled has a special case here
         # but it taken care of at the end,
         # after having performed all calculation, even if useless

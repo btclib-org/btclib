@@ -23,9 +23,9 @@ upcoming field.
 Up to 0xfc, a var_int is just 1 byte; however, if the integer is greater than
 0xfc, then it is expanded as [1 byte prefix][number]:
 
-* prefix 0xfd markes the next two bytes as the number;
-* prefix 0xfe markes the next four bytes as the number;
-* prefix 0xff markes the next eight bytes as the number.
+* prefix 0xfd marks the next two bytes as the number;
+* prefix 0xfe marks the next four bytes as the number;
+* prefix 0xff marks the next eight bytes as the number.
 
 Only the shortest encoding of a given number is valid: Bitcoin Core
 rejects the others as "non-canonical ReadCompactSize()". Were they

@@ -244,7 +244,7 @@ def taproot(
     if hashtype not in SIG_HASH_TYPES:
         raise BTClibValueError(f"Unknown hash type: {hashtype}")
     if hashtype & 0x03 == SINGLE and input_index >= len(transaction.vout):
-        raise BTClibValueError("Sighash single wihout a corresponding output")
+        raise BTClibValueError("Sighash single without a corresponding output")
 
     preimage = b"\x00"
     preimage += hashtype.to_bytes(1, "little")

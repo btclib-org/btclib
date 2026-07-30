@@ -69,7 +69,7 @@ def test_commitment() -> None:
         pedersen.assert_as_valid(r_1, v1, C2, ec, hf)
     assert not pedersen.verify(r_1, v1, C2, ec, hf)
 
-    # commit does not verify (with catched exception)
+    # commit does not verify (with caught exception)
     assert not pedersen.verify(sha256, v1, C2, ec, hf)  # type: ignore[arg-type]
     with pytest.raises(TypeError):
         pedersen.commit(sha256, v1, ec, hf)  # type: ignore[arg-type]

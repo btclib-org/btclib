@@ -47,7 +47,7 @@ def int_from_prv_key(prv_key: PrvKey, ec: Curve = secp256k1) -> int:
     - SEC Octets (bytes or hex-string, with 02, 03, or 04 prefix)
     - integer (native int or hex-strin)
 
-    Network and compressed informations from the input key
+    Network and compressed information from the input key
     are not used.
     """
     if isinstance(prv_key, int):

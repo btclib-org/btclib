@@ -72,7 +72,7 @@ def _is_funct(assert_funct: Callable[[Octets], None], script_pub_key: Octets) ->
     try:
         # if the assert function detects a problem, it must rise an Exception
         assert_funct(script_pub_key)
-    # must always return a bool: all Exceptions are catched
+    # must always return a bool: all Exceptions are caught
     except Exception:
         return False
     return True

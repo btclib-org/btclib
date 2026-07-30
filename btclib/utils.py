@@ -136,8 +136,8 @@ def hex_string(i: Integer) -> str:
     if len(a_str) % 2 != 0:
         a_str = f"0{a_str}"
 
-    indx = list(reversed(range(len(a_str), 0, -8)))
-    lresult = [(a_str[max(0, i - 8) : i]) for i in indx]
+    indexes = list(reversed(range(len(a_str), 0, -8)))
+    lresult = [(a_str[max(0, i - 8) : i]) for i in indexes]
     result = " ".join(lresult)
     return result.upper()
 
@@ -190,7 +190,7 @@ def encode_num(i: int) -> bytes:
     """
     # i.bit_length() bits, plus a sign bit
     n_bits = i.bit_length() + 1
-    # The number of bytes necessary to accomodate n_bits
+    # The number of bytes necessary to accommodate n_bits
     n_bytes = (n_bits + 7) // 8
     # Convert the input number to absolute value + sign in top bit
     encoded_i = abs(i) | ((i < 0) << (n_bytes * 8 - 1))

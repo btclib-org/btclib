@@ -57,7 +57,7 @@ Included features are:
     - double scalar multiplication (Straus's algorithm, also known as
       Shamir's trick)
     - multi scalar multiplication (Bos-coster's algorithm)
-    - point simmetry solution: odd/even, low/high, and quadratic residue
+    - point symmetry solution: odd/even, low/high, and quadratic residue
     - elliptic curves: SEC 1 v1 and v2, NIST, Brainpool, and
       low cardinality test curves
 - ECDSA signature with (transaction) DER encoding
@@ -75,7 +75,7 @@ Included features are:
 - Borromean ring signature
 - Sign-to-contract commitment
 - Diffie-Hellman
-- Pedersen committment
+- Pedersen commitment
 - Base58 encoding/decoding
 - p2pkh/p2sh addresses and WIFs
 - Bech32 encoding/decoding
@@ -136,6 +136,6 @@ python -m pip install --upgrade btclib
 ```
 
 See [CONTRIBUTING](./CONTRIBUTING.md) if you are interested
-in btclib develoment.
+in btclib development.
 
 See [SECURITY](./SECURITY.md) if you have found a security vulnerability.

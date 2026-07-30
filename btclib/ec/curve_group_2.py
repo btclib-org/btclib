@@ -27,7 +27,7 @@ References:
 
 TODO:
     - Computational cost of the different multiplications
-    - New alghoritms at the state-of-art:
+    - New algorithms at the state-of-art:
         -https://hal.archives-ouvertes.fr/hal-00932199/document
         -https://iacr.org/workshops/ches/ches2006/presentations/Douglas%20Stebila.pdf
         -1-s_2.0-S1071579704000395-main
@@ -58,10 +58,10 @@ def mods(m: int, w: int) -> int:
 def wNAF_of_m(m: int, w: int) -> list[int]:
     """WNAF (width-w Non-adjacent form) of number m.
 
-    Given an integer m, wNAF is a method of rapresentation
+    Given an integer m, wNAF is a method of representation
     with powers of 2, where the coefficients are odd or 0,
     and where at most one of any w consecutive digits is nonzero.
-    It has the following propreties:
+    It has the following properties:
     - m has a unique width-w NAF.
     -The length of wNAF(m) is at most one more than the length of the binary
     representation of k.
@@ -202,7 +202,7 @@ def multiplier_decomposer(m: int, ec: CurveGroup) -> tuple[int, int]:
     Used for point multiplication with efficiently computable
     endomorphisms.
 
-    Based on alghoritm 3.74 of D. Hankerson, 'Guide to Elliptic Curve
+    Based on algorithm 3.74 of D. Hankerson, 'Guide to Elliptic Curve
     Cryptography'. Values computed for secp256k1.
     """
     if m < 0:
@@ -238,5 +238,5 @@ def mult_endomorphism_secp256k1(m: int, Q: JacPoint, ec: CurveGroup) -> JacPoint
 
     K = ((Q[0] * beta) % ec.p), Q[1], Q[2]  # K = lambda*Q, direct calculation
 
-    # FIXME Change double mult (?) with alghoritm 3.77
+    # FIXME Change double mult (?) with algorithm 3.77
     return _double_mult(m1, Q, m2, K, ec)

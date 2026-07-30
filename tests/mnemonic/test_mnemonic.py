@@ -22,10 +22,10 @@ def test_mnemonic() -> None:
     mnem = (
         "ozone drill grab fiber curtain grace pudding thank cruise elder eight picnic"
     )
-    indx = [1268, 535, 810, 685, 433, 811, 1385, 1790, 421, 570, 567, 1313]
+    expected = [1268, 535, 810, 685, 433, 811, 1385, 1790, 421, 570, 567, 1313]
     indexes = indexes_from_mnemonic(mnem, lang)
-    assert indexes == indx
-    mnemonic = mnemonic_from_indexes(indx, lang)
+    assert indexes == expected
+    mnemonic = mnemonic_from_indexes(expected, lang)
     assert mnemonic == mnem
 
 
@@ -52,7 +52,7 @@ def test_wordlist_2() -> None:
     with pytest.raises(BTClibValueError, match=err_msg):
         WORDLISTS.load_lang(lang, filename)
 
-    # dinamically add a new language
+    # dynamically add a new language
     lang = "en2"
     fname = "english.txt"
     filename = path.join(path.dirname(__file__), "_data", fname)

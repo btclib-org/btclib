@@ -32,7 +32,7 @@ class OutPoint:
     tx_id: bytes
     vout: int
 
-    # TODO add value and script_pub_key proprties when tx fetcher will be available
+    # TODO add value and script_pub_key properties when tx fetcher will be available
 
     @property
     def hash(self) -> int:

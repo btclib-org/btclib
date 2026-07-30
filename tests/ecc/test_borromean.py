@@ -39,7 +39,7 @@ def test_borromean() -> None:
     # bytes, not str: a str msg is taken as hex, so "another message"
     # would fail to parse and never reach the ring verification
     assert not borromean.verify(b"another message", sig[0], sig[1], pubk_rings)
-    # a msg that is neither bytes nor hex-str: the catched exception path
+    # a msg that is neither bytes nor hex-str: the caught exception path
     assert not borromean.verify(0, sig[0], sig[1], pubk_rings)  # type: ignore[arg-type]
 
     # a forged signature must raise, not merely return a falsy value:

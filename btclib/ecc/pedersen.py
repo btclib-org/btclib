@@ -97,7 +97,7 @@ def verify(
     r: int, v: int, commitment: Point, ec: Curve = secp256k1, hf: HashF = sha256
 ) -> bool:
     """Open the commitment and return True if valid."""
-    # all kind of Exceptions are catched because
+    # all kind of Exceptions are caught because
     # verify must always return a bool
     try:
         assert_as_valid(r, v, commitment, ec, hf)

@@ -394,7 +394,7 @@ def test_negate() -> None:
 
 
 def test_symmetry() -> None:
-    """Methods to break simmetry: quadratic residue, even/odd, low/high."""
+    """Methods to break symmetry: quadratic residue, even/odd, low/high."""
     for ec in low_card_curves.values():
         # just a point, not INF
         Q = ec.G
@@ -482,7 +482,7 @@ def test_assorted_mult() -> None:
             K1K2 = ec.add(K1, K2)
             assert K1K2 == shamir
 
-            k3 = ec.n // 3  # just a random ponit, not INF
+            k3 = ec.n // 3  # just a random point, not INF
             K3 = mult(k3, ec.G, ec)
             K1K2K3 = ec.add(K1K2, K3)
             assert ec.is_on_curve(K1K2K3)
@@ -490,7 +490,7 @@ def test_assorted_mult() -> None:
             assert ec.is_on_curve(boscoster)
             assert K1K2K3 == boscoster, k3
 
-            k4 = ec.n // 4  # just a random ponit, not INF
+            k4 = ec.n // 4  # just a random point, not INF
             K4 = mult(k4, H, ec)
             K1K2K3K4 = ec.add(K1K2K3, K4)
             assert ec.is_on_curve(K1K2K3K4)

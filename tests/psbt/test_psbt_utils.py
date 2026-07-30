@@ -22,7 +22,7 @@ from btclib.psbt.psbt_utils import (
 
 
 def test_invalid_serialize_hd_key_paths() -> None:
-    with pytest.raises(BTClibValueError, match="invalid type marker lenght: "):
+    with pytest.raises(BTClibValueError, match="invalid type marker length: "):
         serialize_hd_key_paths(b"\x01\x01", [])  # type: ignore[arg-type]
 
 

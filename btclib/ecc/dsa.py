@@ -332,7 +332,7 @@ def sign(
     RFC6979 is used for deterministic nonce.
 
     See
-    https://tools.ietf.org/html/rfc6979#section-3.2
+    https://www.rfc-editor.org/rfc/rfc6979.html#section-3.2
     """
     msg_hash = reduce_to_hlen(msg, hf)
     return sign_(msg_hash, prv_key, nonce, lower_s, ec, hf)
@@ -430,7 +430,7 @@ def verify_(
     hf: HashF = sha256,
 ) -> bool:
     """ECDSA signature verification (SEC 1 v.2 section 4.1.4)."""
-    # all kind of Exceptions are catched because
+    # all kind of Exceptions are caught because
     # verify must always return a bool
     try:
         assert_as_valid_(msg_hash, key, sig, lower_s, hf)

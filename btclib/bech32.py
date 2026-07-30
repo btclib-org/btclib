@@ -35,7 +35,7 @@ This implementation of bech32 is originally from
 https://github.com/sipa/bech32/tree/master/ref/python,
 with the following modifications:
 
-* splitted the original segwit_addr.py file in bech32.py and segwitaddress.py
+* split the original segwit_addr.py file in bech32.py and segwitaddress.py
 * type annotated python3
 * avoided returning (None, None), throwing Exceptions instead
 * removed the 90-chars limit for bech32 string, enforced by segwitaddr instead

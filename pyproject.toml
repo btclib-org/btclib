@@ -126,6 +126,27 @@ xfail_strict = true
 # dropped
 filterwarnings = ["error"]
 
+[tool.codespell]
+# the vendored data is skipped rather than corrected, and the distinction
+# matters in both directions. The BIP-39 wordlists are normative: "sting"
+# is word 1712 of the English list, and correcting it to "string" changes
+# every mnemonic ever derived from it. The test vectors have to stay byte
+# for byte what upstream published, so a typo inside a Bitcoin Core
+# comment or a signed message is part of the vector; tests/_data/README.md
+# pins them, and this list is what keeps a spell checker from unpinning
+# them. _generated_files holds committed output, rewritten by the tests
+# themselves, and .secrets.baseline and uv.lock are hashes
+# by extension rather than by directory, so that tests/_data/README.md --
+# which records where each of those files came from -- is still spell
+# checked, being prose about the data and not the data
+skip = "*/_data/*.json,*/_data/*.csv,*/_data/*.txt,*/_data/*.bin,*/_generated_files/*,.secrets.baseline,uv.lock"
+# identifiers, not misspellings: "wit" is a transaction's witness, and
+# "nd" is the Neutered Derivation the bip32 docstrings spell out. Both are
+# real words to codespell's dictionary, so neither can be fixed by writing
+# it differently -- unlike the rest of what this hook found, which was
+# corrected instead of listed here
+ignore-words-list = "wit,nd"
+
 [tool.coverage.run]
 omit = ["*/site-packages/*"]
 

@@ -132,7 +132,7 @@ def verify(
     - s: s-values, both real (one per ring) and forged
     - pubk_rings: sequence of PubKey rings
     """
-    # all kind of Exceptions are catched because
+    # all kind of Exceptions are caught because
     # verify must always return a bool
     try:
         assert_as_valid(msg, e0, s, pubk_rings)

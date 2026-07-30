@@ -83,6 +83,30 @@ repos:
         # Adding a vector to those files means regenerating the baseline;
         # CONTRIBUTING.md has the command
         args: [--baseline, .secrets.baseline]
+  # a typo in a comment is cosmetic; the same typo in the README is the
+  # shop window, that file being both the btclib.org homepage and the PyPI
+  # long description, and in an exception message it is an interface --
+  # "invalid type marker lenght" was pinned verbatim by a test, so nothing
+  # could correct it without noticing the test too.
+  # Configured in pyproject.toml ([tool.codespell]) rather than in args
+  # here: the skip list needs a paragraph of justification, and a hook
+  # invocation is the wrong place for one
+  - repo: https://github.com/codespell-project/codespell
+    rev: v2.4.1
+    hooks:
+      - id: codespell
+        name: codespell (prose and comments)
+        # the "clear" dictionary alone, where codespell's default is
+        # "clear,rare": measured over this tree, the other four builtins add
+        # 13 findings and one of them is a typo. "rare" reports "lets" (as
+        # in "lets the release workflow gate publication") and "falsy";
+        # "usage" is not a spell checker at all, flagging "master" -- 17
+        # times here, every one of them a bip32 master key or a github url;
+        # "code" and "names" add nothing this code base contains. A hook
+        # whose findings are mostly wrong gets an ignore list long enough to
+        # hide a real typo, so the one it did find, "fro" for "from", was
+        # corrected by hand instead
+        args: [--builtin, clear]
   - repo: https://github.com/DavidAnson/markdownlint-cli2
     rev: v0.23.2
     hooks:
@@ -125,7 +149,8 @@ repos:
   # restored into the job that builds what gets published, an expression
   # interpolated into a shell script, a trigger that runs a fork's code
   # with write access. The default persona is the gate; --persona=auditor
-  # adds advice (11 notes today, none of them a defect) and is worth
+  # adds advice (12 notes today, none of them a defect: 8 in release.yml
+  # and 4 in test.yml, all of them unnamed jobs) and is worth
   # running by hand rather than on every commit
   - repo: https://github.com/zizmorcore/zizmor-pre-commit
     rev: v1.28.0

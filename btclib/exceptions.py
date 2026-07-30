@@ -7,9 +7,9 @@
 #
 # No part of btclib including this file, may be copied, modified, propagated,
 # or distributed except according to the terms contained in the LICENSE file.
-"""Expception classes.
+"""Exception classes.
 
-This are only meant to dicriminate between Exceptions being raised by
+This are only meant to discriminate between Exceptions being raised by
 btclib from those raised by other codebase.
 
 Users are usually better off just dealing with the regular ValueError,

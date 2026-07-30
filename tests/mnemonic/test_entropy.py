@@ -44,10 +44,10 @@ def test_indexes() -> None:
         [0, 0, 2047, 2047, 2047, 2047, 2047, 2047, 2047, 2047, 2047, 0],
         [0, 0, 2047, 2047, 2047, 2047, 2047, 2047, 2047, 2047, 2047, 0],
     ]
-    for indx in test_vector:
-        entropy = bin_str_entropy_from_wordlist_indexes(indx, 2048)
+    for expected in test_vector:
+        entropy = bin_str_entropy_from_wordlist_indexes(expected, 2048)
         indexes = wordlist_indexes_from_bin_str_entropy(entropy, 2048)
-        assert indexes == indx
+        assert indexes == expected
 
 
 def test_conversions() -> None:

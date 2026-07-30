@@ -8,7 +8,7 @@
 - descriptors
 - miniscript (?)
 - block creation (toy mining)
-- hash rate extimation
+- hash rate estimation
 - difficulty adjustment
 - add wallet infrastructure
 - add sign(address, msg) using wallet infrastrucure
@@ -36,7 +36,7 @@
 - report trailing/leading blank trimming in Electrum message signing
 - report BIP39 whitespaces
 - SSA: ask about checking e=0
-- SSA: ask about why e=e(k), making impossible to select e, k indipendently
+- SSA: ask about why e=e(k), making impossible to select e, k independently
 - SSA: ask about benefit of removing 02/03 from pub_key
 - SSA: suggest better k
 

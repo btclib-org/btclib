@@ -673,7 +673,7 @@ Major changes includes:
 - The Bitcoin Message Signing module btcmsg.py has been rename bms.py
 - refactored address/scriptPubKey
 - consolidated wif_from_* in wif_from_prvkey
-- removed ambigous functions going from prv_key to address
+- removed ambiguous functions going from prv_key to address
 - refactored to_pub and to_prv functions
 - added network <-> prefix <-> curve functions in network module
 - removed trailing _scriptPubKey suffix from the function names

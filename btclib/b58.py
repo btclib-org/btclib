@@ -33,7 +33,7 @@ def wif_from_prv_key(
     """Return the WIF encoding of a private key."""
     q, net, compr = prv_keyinfo_from_prv_key(prv_key)
 
-    # the private key might provide network and compressed informations
+    # the private key might provide network and compressed information
     # e.g., wif or xprv
     network = net if network is None else network
     compressed = compr if compressed is None else compressed

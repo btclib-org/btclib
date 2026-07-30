@@ -356,7 +356,7 @@ def assert_as_valid(
 
 def verify(msg: Octets, addr: String, sig: Sig | String, lower_s: bool = True) -> bool:
     """Verify address-based compact signature for the provided message."""
-    # all kind of Exceptions are catched because
+    # all kind of Exceptions are caught because
     # verify must always return a bool
     try:
         assert_as_valid(msg, addr, sig, lower_s)

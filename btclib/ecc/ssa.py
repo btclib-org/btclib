@@ -320,7 +320,7 @@ def verify_(
     msg_hash: Octets, Q: BIP340PubKey, sig: Sig | Octets, hf: HashF = sha256
 ) -> bool:
     """Verify the BIP340 signature of the provided message."""
-    # all kind of Exceptions are catched because
+    # all kind of Exceptions are caught because
     # verify must always return a bool
     try:
         assert_as_valid_(msg_hash, Q, sig, hf)
@@ -432,7 +432,7 @@ def batch_verify_(
     sigs: Sequence[Sig],
     hf: HashF = sha256,
 ) -> bool:
-    # all kind of Exceptions are catched because
+    # all kind of Exceptions are caught because
     # verify must always return a bool
     try:
         assert_batch_as_valid_(m_hashes, Qs, sigs, hf)

@@ -62,8 +62,8 @@ Octets = Union[bytes, str]
 # as b58decode/b32decode/etc. will take care of that
 String = Union[bytes, str]
 
-# binary data, usually to be cosumed as byte stream,
-# but possibily provided as Octets too
+# binary data, usually to be consumed as byte stream,
+# but possibly provided as Octets too
 BinaryData = Union[BytesIO, Octets]
 
 # hex-string or bytes representation of an int

@@ -294,7 +294,7 @@ def _serialize_bytes_command(command: bytes) -> bytes:
     else:
         # because of the 520 bytes limit
         # there is no need to use OP_PUSHDATA4
-        # _pushdata(4, lenght, out)
+        # _pushdata(4, length, out)
         raise BTClibValueError(f"too many bytes for OP_PUSHDATA: {length}")
     out.append(command)
     return b"".join(out)
