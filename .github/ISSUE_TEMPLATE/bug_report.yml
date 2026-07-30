@@ -1,0 +1,76 @@
+name: Bug report
+description: Something in btclib does not work as documented
+labels: [bug]
+
+body:
+  - type: markdown
+    attributes:
+      value: >
+        Not every bug reachable from btclib is a btclib bug: the elliptic
+        curve operations are delegated to
+        [btclib_libsecp256k1](https://github.com/btclib-org/btclib_libsecp256k1/issues),
+        the python bindings, and through them to
+        [bitcoin-core/secp256k1](https://github.com/bitcoin-core/secp256k1/issues).
+        A traceback ending in either belongs there. If in doubt, report it
+        here.
+
+  - type: textarea
+    id: what
+    attributes:
+      label: What happens
+      description: What you observed, and what you expected instead.
+    validations:
+      required: true
+
+  - type: textarea
+    id: repro
+    attributes:
+      label: How to reproduce it
+      description: >
+        The shortest python that shows it, and the full traceback if there
+        is one. The values that trigger it matter: paste the actual keys,
+        addresses, transactions or messages, in hex, and never a mainnet
+        private key you still use.
+      render: python
+    validations:
+      required: true
+
+  - type: input
+    id: version
+    attributes:
+      label: btclib version
+      description: >
+        `python -c "import btclib; print(btclib.__version__)"`
+      placeholder: "2023.8"
+    validations:
+      required: true
+
+  - type: input
+    id: bindings-version
+    attributes:
+      label: btclib_libsecp256k1 version
+      description: >
+        `python -c "import btclib_libsecp256k1 as m; print(m.__version__)"`.
+        Anything signing or verifying goes through it, so which one is
+        installed is part of the report.
+      placeholder: "0.7.1"
+    validations:
+      required: true
+
+  - type: input
+    id: platform
+    attributes:
+      label: Platform and interpreter
+      description: >
+        `python -VV` and the operating system, architecture included.
+      placeholder: "CPython 3.13.5, macOS 15.6 arm64"
+    validations:
+      required: true
+
+  - type: textarea
+    id: context
+    attributes:
+      label: Anything else
+      description: >
+        The BIP or specification the behaviour should follow, a test
+        vector it disagrees with, the version this last worked on.

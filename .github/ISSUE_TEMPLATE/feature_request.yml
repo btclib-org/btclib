@@ -1,0 +1,50 @@
+name: Feature request
+description: Add something to btclib, or change how it works
+labels: [enhancement]
+
+body:
+  - type: markdown
+    attributes:
+      value: >
+        btclib is a library for bitcoin cryptography, aimed at teaching
+        and prototyping as much as at production use: what belongs here is
+        what a specification describes. Wrapping something libsecp256k1
+        offers belongs in
+        [btclib_libsecp256k1](https://github.com/btclib-org/btclib_libsecp256k1/issues)
+        instead.
+
+  - type: textarea
+    id: what
+    attributes:
+      label: What is missing
+      description: >
+        What it would let a caller do, and how the call would read.
+    validations:
+      required: true
+
+  - type: input
+    id: reference
+    attributes:
+      label: Specification
+      description: >
+        The BIP, RFC, or reference implementation that defines it. What has
+        no specification has no test vectors either, which is the harder
+        half of adding it.
+      placeholder: "BIP340, https://github.com/bitcoin/bips/blob/master/bip-0340.mediawiki"
+
+  - type: textarea
+    id: why
+    attributes:
+      label: Why it belongs in btclib
+      description: >
+        What cannot be done today with what the library already exposes.
+    validations:
+      required: true
+
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives considered
+      description: >
+        Other spellings of the same feature, and what an existing caller
+        would have to change if this were added.

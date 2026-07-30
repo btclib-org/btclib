@@ -1,0 +1,15 @@
+# the forms above are the two kinds of issue this repository handles;
+# everything else has a better address than a blank issue, and the links
+# below are those addresses. A vulnerability in particular must not be
+# filed as an issue at all, which is why SECURITY.md is the first of them
+blank_issues_enabled: false
+contact_links:
+  - name: Security vulnerability
+    url: https://github.com/btclib-org/btclib/security/policy
+    about: Do not open an issue. Disclose it by email, as SECURITY.md asks.
+  - name: Bug in the libsecp256k1 bindings
+    url: https://github.com/btclib-org/btclib_libsecp256k1/issues
+    about: Signing, verification and curve arithmetic are delegated there.
+  - name: Question, or help with using btclib
+    url: https://bbt-training.slack.com/archives/C01CCJ85AES
+    about: The Slack channel, as CONTRIBUTING.md points out.
