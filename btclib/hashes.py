@@ -79,15 +79,16 @@ def magic_message(msg: Octets) -> bytes:
     return sha256(t)
 
 
-def merkle_root_and_mutated(
-    data: Sequence[bytes], hf: Callable[[bytes | str], bytes]
+def merkle_root_and_mutated_from_hashes(
+    hashes: Sequence[bytes], hf: Callable[[bytes | str], bytes]
 ) -> tuple[bytes, bool]:
     """Return the Merkle tree root, and whether the tree is mutated.
 
-    The Merkle tree is a binary tree constructed with the provided list
-    of binary data as bottom level, then recursively going up one level
-    by hashing every hash value pair in the current level, until a
-    single value (root) is obtained.
+    The bottom level is the provided list of hashes, taken as they are:
+    this is the tree over values that are hashes already, as the witness
+    tree of a block is (its coinbase leaf, all zeros, is the hash of
+    nothing at all). Core's ComputeMerkleRoot is the same function;
+    merkle_root_and_mutated is the one hashing the leaves first.
 
     The second returned value flags CVE-2012-2459: a level holding two
     equal siblings has the same root as the shorter list carrying only
@@ -95,7 +96,7 @@ def merkle_root_and_mutated(
     from. Bitcoin Core computes the same flag (the `mutated` out
     parameter of BlockMerkleRoot) and rejects such a block.
     """
-    level = [hf(item) for item in data]
+    level = list(hashes)
     if not level:
         # the loop below would never reduce an empty level to a root
         raise BTClibValueError("empty merkle tree")
@@ -115,6 +116,22 @@ def merkle_root_and_mutated(
             level.append(level[-1])
         level = [hf(level[i] + level[i + 1]) for i in range(0, len(level), 2)]
     return level[0], mutated
+
+
+def merkle_root_and_mutated(
+    data: Sequence[bytes], hf: Callable[[bytes | str], bytes]
+) -> tuple[bytes, bool]:
+    """Return the Merkle tree root, and whether the tree is mutated.
+
+    The Merkle tree is a binary tree constructed with the provided list
+    of binary data as bottom level, then recursively going up one level
+    by hashing every hash value pair in the current level, until a
+    single value (root) is obtained.
+
+    See merkle_root_and_mutated_from_hashes for the mutation flag, and
+    for the variant taking a bottom level of hashes.
+    """
+    return merkle_root_and_mutated_from_hashes([hf(item) for item in data], hf)
 
 
 def merkle_root(data: Sequence[bytes], hf: Callable[[bytes | str], bytes]) -> bytes:

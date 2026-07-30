@@ -20,6 +20,7 @@ from btclib.hashes import (
     magic_message,
     merkle_root,
     merkle_root_and_mutated,
+    merkle_root_and_mutated_from_hashes,
 )
 from tests.test_to_key import (
     net_unaware_compressed_pub_keys,
@@ -91,6 +92,20 @@ def test_merkle_root_mutation() -> None:
     assert merkle_root([a, b, c], hash256) == merkle_root([a, b, c, c], hash256)
     assert merkle_root([a, b, c, d, e, f], hash256) == merkle_root(
         [a, b, c, d, e, f, e, f], hash256
+    )
+
+
+def test_merkle_root_from_hashes() -> None:
+    """The bottom level is taken as it is, the leaves being hashes already."""
+    a, b, c = (bytes([i]) * 32 for i in range(3))
+    leaves = [hash256(item) for item in (a, b, c)]
+    assert merkle_root_and_mutated_from_hashes(leaves, hash256) == (
+        merkle_root_and_mutated([a, b, c], hash256)
+    )
+    # a leaf no preimage hashes to, as the coinbase one of a witness tree
+    assert merkle_root_and_mutated_from_hashes([b"\x00" * 32], hash256) == (
+        b"\x00" * 32,
+        False,
     )
 
 

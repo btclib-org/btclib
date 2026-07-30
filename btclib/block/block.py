@@ -23,11 +23,20 @@ from btclib import var_bytes, var_int
 from btclib.alias import BinaryData
 from btclib.block.block_header import BlockHeader
 from btclib.exceptions import BTClibValueError
-from btclib.hashes import hash256, merkle_root_and_mutated
+from btclib.hashes import (
+    hash256,
+    merkle_root_and_mutated,
+    merkle_root_and_mutated_from_hashes,
+)
 from btclib.tx import Tx
 from btclib.utils import bytesio_from_binarydata, decode_num
 
 _HF = hash256
+
+# BIP141: OP_RETURN, a 36-byte push, and the aa21a9ed header of it; the
+# 32 bytes that follow are the commitment.
+_COMMITMENT_PREFIX = bytes.fromhex("6a24aa21a9ed")
+_COMMITMENT_LENGTH = len(_COMMITMENT_PREFIX) + 32
 
 
 @dataclass
@@ -128,6 +137,80 @@ class Block:
             # both reports the same reason it does.
             raise BTClibValueError("duplicate transaction")
 
+    @property
+    def witness_commitment(self) -> bytes | None:
+        """Return the BIP141 witness commitment, if the coinbase has one.
+
+        It is the 32 bytes following the 6a24aa21a9ed prefix in the
+        *last* coinbase output carrying it, as Core's
+        GetWitnessCommitmentIndex does: were the first one to win, an
+        output appended to the coinbase could not be told from one the
+        miner meant, and the rule has to be the same one everybody else
+        applies anyway.
+        """
+        commitments = [
+            script[len(_COMMITMENT_PREFIX) : _COMMITMENT_LENGTH]
+            for script in (
+                out.script_pub_key.script for out in self.transactions[0].vout
+            )
+            if len(script) >= _COMMITMENT_LENGTH
+            and script.startswith(_COMMITMENT_PREFIX)
+        ]
+        return commitments[-1] if commitments else None
+
+    def assert_valid_witness_commitment(self) -> None:
+        """Assert that the coinbase commits to the witness data (BIP141).
+
+        The merkle root of the header is computed over txids, which by
+        segwit's design leave every witness out: without this check the
+        witnesses of a block can be replaced wholesale, header and root
+        untouched, and the signatures they carry are worth nothing.
+        """
+        if not self.has_segwit_tx():
+            # Nothing to commit to, and nothing to check it against: this
+            # is a block as a legacy node sees it, witnesses stripped by
+            # the serialization, which btclib parses and this library
+            # must keep accepting. Not a hole an attacker can climb into
+            # by stripping the witnesses of a segwit block: strip some
+            # and the check below runs on the rest, whose wtxids no
+            # longer match; strip them all and there is no witness left
+            # to be taken on trust.
+            return
+
+        commitment = self.witness_commitment
+        if commitment is None:
+            # Core's unexpected-witness: witness data in a block that
+            # does not commit to it is unverifiable, hence not allowed.
+            raise BTClibValueError("unexpected witness")
+
+        # The other half of the commitment preimage, a 32-byte nonce the
+        # miner chooses, lives in the coinbase witness. Core checks the
+        # size (bad-witness-nonce-size) because a shorter one would make
+        # the preimage ambiguous.
+        witness_stack = self.transactions[0].vin[0].script_witness.stack
+        if len(witness_stack) != 1 or len(witness_stack[0]) != 32:
+            sizes = [len(element) for element in witness_stack]
+            err_msg = f"invalid witness nonce: {sizes} stack element size(s)"
+            err_msg += " instead of: [32]"
+            raise BTClibValueError(err_msg)
+
+        # The coinbase leaf is all zeros, its own wtxid being unknowable
+        # here: it would have to commit to the very value it contains.
+        hashes = [b"\x00" * 32] + [
+            _HF(tx.serialize(include_witness=True, check_validity=False))
+            for tx in self.transactions[1:]
+        ]
+        # The mutation flag of the witness tree is redundant, as Core
+        # notes: the tree has the shape of the txid one, and two equal
+        # wtxids mean two equal transactions, hence two equal txids that
+        # assert_valid_merkle_root has already rejected.
+        witness_root = merkle_root_and_mutated_from_hashes(hashes, _HF)[0]
+        witness_commitment_ = _HF(witness_root + witness_stack[0])
+        if witness_commitment_ != commitment:
+            err_msg = f"invalid witness commitment: {commitment.hex()}"
+            err_msg += f" instead of: {witness_commitment_.hex()}"
+            raise BTClibValueError(err_msg)
+
     def assert_valid(self) -> None:
         self.header.assert_valid()
 
@@ -138,6 +221,7 @@ class Block:
             transaction.assert_valid()
 
         self.assert_valid_merkle_root()
+        self.assert_valid_witness_commitment()
 
     def serialize(
         self, include_witness: bool = True, check_validity: bool = True

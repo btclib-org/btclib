@@ -131,6 +131,21 @@ Major changes includes:
   mutation, and is not flagged: flagging it would reject almost every
   block. `merkle_root` is unchanged for every other use, beyond raising
   on an empty list instead of looping forever (issue #134)
+- `Block.assert_valid` checks the BIP141 witness commitment. The merkle
+  root of a header commits to txids, which by segwit's design leave every
+  witness out, and nothing else looked at the `aa21a9ed` coinbase output:
+  the witnesses of a block — every signature in it — could be replaced
+  wholesale, header and merkle root untouched, and btclib said the block
+  was valid. It now computes the witness merkle root over wtxids, hashes
+  it with the nonce of the coinbase witness, and compares, raising
+  BTClibValueError on a mismatch (Core's bad-witness-merkle-match), on a
+  coinbase witness that is not one 32-byte element (bad-witness-nonce-size)
+  and on witness data in a block carrying no commitment
+  (unexpected-witness). A block with no witness data at all is still
+  accepted with no commitment: that is what a legacy node sees, and there
+  is nothing left in it to be taken on trust. `merkle_root_and_mutated`
+  gained a `_from_hashes` variant, the tree over leaves that are hashes
+  already (issue #163)
 - a script verification failure says what went wrong, and where. The 76
   bare `BTClibValueError()` raises — 70 of them under `script/engine/` —
   carried an empty message, so a wrong public key encoding, an unbalanced

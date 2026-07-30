@@ -10,6 +10,7 @@
 """Tests for the `btclib.block` module."""
 
 import json
+from copy import deepcopy
 from datetime import datetime, timedelta, timezone
 from os import path
 
@@ -18,6 +19,7 @@ import pytest
 from btclib.block import Block, BlockHeader
 from btclib.exceptions import BTClibValueError
 from btclib.network import NETWORKS
+from btclib.script.witness import Witness
 
 datadir = path.join(path.dirname(__file__), "_generated_files")
 
@@ -295,6 +297,89 @@ def test_block_481824() -> None:
             assert block.size == 988_519
             assert block.weight == 3_953_744
             assert block.vsize == 988_436
+
+
+def test_block_witness_commitment() -> None:
+    """A block whose witness data was replaced is rejected (BIP141).
+
+    Block 481,824 is the first segwit one; the signature tampered with
+    below belongs to a transaction whose txid, and hence the merkle root
+    of the header, is unchanged by the edit. Only the coinbase
+    commitment tells the two apart, as Core does with
+    bad-witness-merkle-match.
+    """
+    fname = "block_481824_complete.bin"
+    filename = path.join(path.dirname(__file__), "_data", fname)
+    with open(filename, "rb") as file_:
+        block_bytes = file_.read()
+
+    block = Block.parse(block_bytes)
+    commitment = "6c3c4dff76b5760d58694147264d208689ee07823e5694c4872f856eacf5a5d8"
+    assert block.witness_commitment is not None
+    assert block.witness_commitment.hex() == commitment
+
+    tx = block.transactions[12]
+    tx_id = tx.id
+    stack = tx.vin[0].script_witness.stack
+    signature = bytearray(stack[0])
+    signature[-2] ^= 0xFF
+    tx.vin[0].script_witness = Witness([bytes(signature), *stack[1:]])
+    assert tx.id == tx_id  # the txid tree is blind to it
+    with pytest.raises(BTClibValueError, match="invalid witness commitment: "):
+        block.assert_valid()
+
+    # the last commitment output is the one that counts, so appending
+    # another cannot pass a stale one off as valid; the merkle root is
+    # not recomputed here, the coinbase txid having changed
+    block = Block.parse(block_bytes)
+    coinbase = block.transactions[0]
+    coinbase.vout.append(deepcopy(coinbase.vout[1]))
+    coinbase.vout[-1].script_pub_key.script = (
+        bytes.fromhex("6a24aa21a9ed") + b"\x00" * 32
+    )
+    assert block.witness_commitment == b"\x00" * 32
+    with pytest.raises(BTClibValueError, match="invalid witness commitment: "):
+        block.assert_valid_witness_commitment()
+
+
+def test_block_witness_nonce() -> None:
+    """The coinbase witness must hold the 32-byte nonce, and nothing else.
+
+    The coinbase witness is not covered by the txid it is part of, so
+    these blocks have the merkle root of the honest one; Core rejects
+    them as bad-witness-nonce-size.
+    """
+    fname = "block_481824_complete.bin"
+    filename = path.join(path.dirname(__file__), "_data", fname)
+    with open(filename, "rb") as file_:
+        block_bytes = file_.read()
+
+    for stack in ([], [b"\x00" * 31], [b"\x00" * 32] * 2):
+        block = Block.parse(block_bytes)
+        block.transactions[0].vin[0].script_witness = Witness(stack)
+        with pytest.raises(BTClibValueError, match="invalid witness nonce: "):
+            block.assert_valid()
+
+
+def test_block_unexpected_witness() -> None:
+    """Witness data is not allowed in a block that does not commit to it.
+
+    Block 170 predates segwit, so its coinbase carries no commitment
+    output: the witness handed to its second transaction could be
+    replaced by anyone, the merkle root never having seen it. Core
+    rejects the block as unexpected-witness.
+    """
+    fname = "block_170.bin"
+    filename = path.join(path.dirname(__file__), "_data", fname)
+    with open(filename, "rb") as file_:
+        block_bytes = file_.read()
+
+    block = Block.parse(block_bytes)
+    assert block.witness_commitment is None
+
+    block.transactions[1].vin[0].script_witness = Witness([b"\x00" * 32])
+    with pytest.raises(BTClibValueError, match="unexpected witness"):
+        block.assert_valid()
 
 
 def test_dataclasses_json_dict() -> None:
