@@ -9,8 +9,7 @@
 # or distributed except according to the terms contained in the LICENSE file.
 """Tests for the `btclib.script.engine` module."""
 
-import json
-from os import path
+from typing import Any, NamedTuple
 
 import pytest
 
@@ -23,53 +22,33 @@ from btclib.tx.out_point import OutPoint
 from btclib.tx.tx import Tx
 from btclib.tx.tx_in import TxIn
 from btclib.tx.tx_out import TxOut
+from tests import vectors
 from tests.script_engine import parse_script
 
 
-def test_script() -> None:
-    fname = "script_tests.json"
-    filename = path.join(path.dirname(__file__), "_data", fname)
-    with open(filename, encoding="ascii") as file_:
-        data = json.load(file_)
+class ScriptVector(NamedTuple):
+    stack: list[str]
+    amount: int
+    script_sig: str
+    script_pub_key: str
+    flags: list[str]
+    valid: bool
 
-    def test(
-        stack: list[str],
-        amount: int,
-        script_sig_str: str,
-        script_pub_key_str: str,
-        flags: list[str],
-        result: bool,
-    ) -> None:
-        coinbase_input = TxIn(
-            sequence=0xFFFFFFFF, prev_out=OutPoint(), script_sig=b"\x00\x00"
-        )
-        script_pub_key = parse_script(script_pub_key_str)
-        coinbase_output = TxOut(
-            value=amount, script_pub_key=ScriptPubKey(script_pub_key)
-        )
-        coinbase = Tx(
-            version=1, lock_time=0, vin=[coinbase_input], vout=[coinbase_output]
-        )
 
-        script_sig = parse_script(script_sig_str)
-        spending_input = TxIn(
-            sequence=0xFFFFFFFF,
-            prev_out=OutPoint(tx_id=coinbase.id, vout=0),
-            script_sig=script_sig,
-            script_witness=Witness(stack),
-        )
-        spending = Tx(
-            version=1,
-            lock_time=0,
-            vin=[spending_input],
-            vout=[TxOut(amount, ScriptPubKey(""))],
-        )
+def script_vectors() -> list[Any]:
+    """One case per vector of Bitcoin Core's script_tests.json.
 
-        verify_input([coinbase_output], spending, 0, flags)
-
-    for x in data:
+    A vector is [[witness..., amount]?, scriptSig, scriptPubKey, flags,
+    expected_scripterror, comment?], interleaved with comment lines that
+    are a one element array of text. The optional leading witness stack
+    shifts the rest by one, and the amount is the last entry of that
+    stack when it is a number.
+    """
+    params = []
+    data = vectors.load("script_engine", "_data", "script_tests.json")
+    for index, x in enumerate(data):
         if len(x) == 1 and isinstance(x[0], str):
-            continue
+            continue  # a comment line between two vectors
 
         amount = 0
         if isinstance(x[0], str):
@@ -81,16 +60,54 @@ def test_script() -> None:
             if isinstance(stack[-1], (int, float)):
                 amount = int(stack[-1] * 10**8)
                 stack = stack[:-1]
-        script_sig_str = x[i]
-        script_pub_key_str = x[i + 1]
-        flags = x[i + 2]
-        result = x[i + 3] == "OK"
 
-        if result:
-            test(stack, amount, script_sig_str, script_pub_key_str, flags, result)
-        else:
-            with pytest.raises(Exception):
-                test(stack, amount, script_sig_str, script_pub_key_str, flags, result)
+        vector = ScriptVector(stack, amount, x[i], x[i + 1], x[i + 2], x[i + 3] == "OK")
+        # the trailing comment of the vector says what it is testing, and
+        # two thirds of them have one; the script itself for the rest
+        comment = x[i + 4] if len(x) > i + 4 else ""
+        params.append(
+            pytest.param(
+                vector, id=vectors.vector_id(index, comment or vector.script_pub_key)
+            )
+        )
+    return params
+
+
+@pytest.mark.parametrize("vector", script_vectors())
+def test_script(vector: ScriptVector) -> None:
+    def verify() -> None:
+        coinbase_input = TxIn(
+            sequence=0xFFFFFFFF, prev_out=OutPoint(), script_sig=b"\x00\x00"
+        )
+        script_pub_key = parse_script(vector.script_pub_key)
+        coinbase_output = TxOut(
+            value=vector.amount, script_pub_key=ScriptPubKey(script_pub_key)
+        )
+        coinbase = Tx(
+            version=1, lock_time=0, vin=[coinbase_input], vout=[coinbase_output]
+        )
+
+        script_sig = parse_script(vector.script_sig)
+        spending_input = TxIn(
+            sequence=0xFFFFFFFF,
+            prev_out=OutPoint(tx_id=coinbase.id, vout=0),
+            script_sig=script_sig,
+            script_witness=Witness(vector.stack),
+        )
+        spending = Tx(
+            version=1,
+            lock_time=0,
+            vin=[spending_input],
+            vout=[TxOut(vector.amount, ScriptPubKey(""))],
+        )
+
+        verify_input([coinbase_output], spending, 0, vector.flags)
+
+    if vector.valid:
+        verify()
+    else:
+        with pytest.raises(Exception):
+            verify()
 
 
 def test_script_error_says_what_and_where() -> None:

@@ -9,8 +9,7 @@
 # or distributed except according to the terms contained in the LICENSE file.
 """Tests for the `btclib.script.engine` module."""
 
-import json
-from os import path
+from typing import Any
 
 import pytest
 
@@ -25,53 +24,81 @@ from btclib.script.engine import (
 from btclib.script.witness import Witness
 from btclib.tx import OutPoint, Tx, TxIn
 from btclib.tx.tx_out import TxOut
+from tests import vectors
 from tests.script_engine import parse_script
 
+TAPSCRIPT = vectors.load("script", "_data", "tapscript_test_vector.json")
 
-def test_valid_taproot() -> None:
-    fname = "tapscript_test_vector.json"
-    filename = path.join(path.dirname(path.dirname(__file__)), "script", "_data", fname)
 
-    with open(filename, encoding="ascii") as file_:
-        data = json.load(file_)
+def taproot_vectors(outcome: str) -> list[Any]:
+    """The TAPROOT vectors carrying a `success` or a `failure` witness."""
+    return [
+        pytest.param(x, id=vectors.vector_id(index, x["comment"]))
+        for index, x in enumerate(TAPSCRIPT)
+        if "TAPROOT" in x["flags"] and outcome in x
+    ]
 
-    for x in filter(lambda x: "TAPROOT" in x["flags"], data):
-        tx = Tx.parse(x["tx"])
 
-        prevouts = [TxOut.parse(prevout) for prevout in x["prevouts"]]
-        index = x["index"]
+@pytest.mark.parametrize("vector", taproot_vectors("success"))
+def test_valid_taproot(vector: dict[str, Any]) -> None:
+    tx = Tx.parse(vector["tx"])
 
-        witness = Witness(x["success"]["witness"])
-        tx.vin[index].script_witness = witness
-        tx.vin[index].script_sig = bytes.fromhex(x["success"]["scriptSig"])
+    prevouts = [TxOut.parse(prevout) for prevout in vector["prevouts"]]
+    index = vector["index"]
 
-        flags = x["flags"].split(",")
+    witness = Witness(vector["success"]["witness"])
+    tx.vin[index].script_witness = witness
+    tx.vin[index].script_sig = bytes.fromhex(vector["success"]["scriptSig"])
 
+    flags = vector["flags"].split(",")
+
+    verify_input(prevouts, tx, index, flags)
+
+
+@pytest.mark.parametrize("vector", taproot_vectors("failure"))
+def test_invalid_taproot(vector: dict[str, Any]) -> None:
+    tx = Tx.parse(vector["tx"])
+
+    prevouts = [TxOut.parse(prevout) for prevout in vector["prevouts"]]
+    index = vector["index"]
+
+    witness = Witness(vector["failure"]["witness"])
+    tx.vin[index].script_witness = witness
+    tx.vin[index].script_sig = bytes.fromhex(vector["failure"]["scriptSig"])
+
+    flags = vector["flags"].split(",")
+    with pytest.raises((BTClibValueError, IndexError, KeyError)):
         verify_input(prevouts, tx, index, flags)
 
 
-def test_invalid_taproot() -> None:
-    fname = "tapscript_test_vector.json"
-    filename = path.join(path.dirname(path.dirname(__file__)), "script", "_data", fname)
-    with open(filename, encoding="ascii") as file_:
-        data = json.load(file_)
-
-    for x in filter(lambda x: "TAPROOT" in x["flags"] and "failure" in x, data):
-        tx = Tx.parse(x["tx"])
-
-        prevouts = [TxOut.parse(prevout) for prevout in x["prevouts"]]
-        index = x["index"]
-
-        witness = Witness(x["failure"]["witness"])
-        tx.vin[index].script_witness = witness
-        tx.vin[index].script_sig = bytes.fromhex(x["failure"]["scriptSig"])
-
-        flags = x["flags"].split(",")
-        with pytest.raises((BTClibValueError, IndexError, KeyError)):
-            verify_input(prevouts, tx, index, flags)
+def annex_vectors() -> list[Any]:
+    """The TAPROOT vectors whose witness carries an annex to be stripped."""
+    params = []
+    for index, x in enumerate(TAPSCRIPT):
+        if "TAPROOT" not in x["flags"]:
+            continue
+        stack = Witness(x["success"]["witness"]).stack
+        if len(stack) < 2 or stack[-1][0] != 0x50:
+            continue
+        params.append(pytest.param(x, id=vectors.vector_id(index, x["comment"])))
+    return params
 
 
-def test_verify_input_does_not_touch_the_tx() -> None:
+ANNEX_VECTORS = annex_vectors()
+
+
+def test_annex_vectors_exist() -> None:
+    """`test_verify_input_does_not_touch_the_tx` needs an annex to strip.
+
+    It was the `assert annexed` at the end of the loop; a parametrized
+    test over no parameter is one green skip, so the count is asserted
+    here rather than not at all.
+    """
+    assert ANNEX_VECTORS
+
+
+@pytest.mark.parametrize("vector", ANNEX_VECTORS)
+def test_verify_input_does_not_touch_the_tx(vector: dict[str, Any]) -> None:
     """Verifying an input must leave the witness of the caller's Tx alone.
 
     `taproot_get_annex` used to assign the trimmed stack back to the witness,
@@ -79,173 +106,162 @@ def test_verify_input_does_not_touch_the_tx() -> None:
     which pops what it consumes: `verify_transaction` rewrote the very Tx it
     was validating (issue #140).
     """
-    fname = "tapscript_test_vector.json"
-    filename = path.join(path.dirname(path.dirname(__file__)), "script", "_data", fname)
+    prevouts = [TxOut.parse(prevout) for prevout in vector["prevouts"]]
+    index = vector["index"]
 
-    with open(filename, encoding="ascii") as file_:
-        data = json.load(file_)
+    stack = Witness(vector["success"]["witness"]).stack
 
-    annexed = 0
-    for x in filter(lambda x: "TAPROOT" in x["flags"], data):
-        prevouts = [TxOut.parse(prevout) for prevout in x["prevouts"]]
-        index = x["index"]
+    tx = Tx.parse(vector["tx"])
+    tx.vin[index].script_witness = Witness(stack)
+    tx.vin[index].script_sig = bytes.fromhex(vector["success"]["scriptSig"])
+    serialized = tx.serialize(include_witness=True, check_validity=False)
 
-        stack = Witness(x["success"]["witness"]).stack
-        if len(stack) >= 2 and stack[-1][0] == 0x50:
-            annexed += 1
+    verify_input(prevouts, tx, index, vector["flags"].split(","))
 
-        tx = Tx.parse(x["tx"])
-        tx.vin[index].script_witness = Witness(stack)
-        tx.vin[index].script_sig = bytes.fromhex(x["success"]["scriptSig"])
-        serialized = tx.serialize(include_witness=True, check_validity=False)
-
-        verify_input(prevouts, tx, index, x["flags"].split(","))
-
-        assert tx.vin[index].script_witness.stack == stack
-        assert tx.serialize(include_witness=True, check_validity=False) == serialized
-
-    assert annexed, "no annex in the test vectors: the test proves nothing"
+    assert tx.vin[index].script_witness.stack == stack
+    assert tx.serialize(include_witness=True, check_validity=False) == serialized
 
 
-def test_verify_transaction_does_not_touch_witness_v0() -> None:
-    """The same, for the p2wpkh and p2wsh branches of verify_input."""
-    fname = "tx_valid_legacy.json"
-    filename = path.join(path.dirname(__file__), "_data", fname)
-    with open(filename, encoding="ascii") as file_:
-        data = json.load(file_)
+def legacy_vectors(fname: str) -> list[Any]:
+    """The vectors of a Bitcoin Core tx_*_legacy.json whose tx parses.
 
-    witnessed = 0
-    for x in data:
+    A vector whose raw tx btclib rejects outright was a `continue` in the
+    loop -- 2 of the 119 valid ones, for a satoshi amount out of range, 8
+    of the 93 invalid ones -- and is now simply not collected: the report
+    counts what ran instead of counting the file.
+    """
+    params = []
+    for index, x in enumerate(vectors.load("script_engine", "_data", fname)):
+        if isinstance(x[0], str):
+            continue  # a comment line between two vectors
+        try:
+            Tx.parse(x[1])
+        except BTClibValueError:
+            continue
+        params.append(pytest.param(x, id=vectors.vector_id(index, x[2])))
+    return params
+
+
+def prevouts_of(vector: list[Any]) -> tuple[list[TxOut], bool]:
+    """The spent outputs of a legacy vector, and whether they carry amounts."""
+    check_amounts = True
+    prevouts = []
+    for i in vector[0]:
+        amount = 0 if len(i) == 3 else i[3]
+        if not amount:
+            check_amounts = False
+        prevouts.append(TxOut(amount, ScriptPubKey(parse_script(i[2]))))
+    return prevouts, check_amounts
+
+
+def witness_v0_vectors() -> list[Any]:
+    """The valid legacy vectors that spend a witness v0 output.
+
+    The two further `continue` of the loop: a tx with no witness has none
+    to leave alone, and one whose input count does not match the prevouts
+    the vector lists cannot be verified at all.
+    """
+    params = []
+    for index, x in enumerate(
+        vectors.load("script_engine", "_data", "tx_valid_legacy.json")
+    ):
         if isinstance(x[0], str):
             continue
-
         try:
             tx = Tx.parse(x[1])
-        except BTClibValueError as e:
-            if "invalid satoshi amount:" in str(e):
-                continue
-
+        except BTClibValueError:
+            continue
         if not any(vin.script_witness.stack for vin in tx.vin):
             continue
-
-        flags = ALL_FLAGS[:]
-        for f in x[2].split(","):
-            if f in flags:
-                flags.remove(f)
-
-        check_amounts = True
-        prevouts = []
-        for i in x[0]:
-            amount = 0 if len(i) == 3 else i[3]
-            if not amount:
-                check_amounts = False
-            prevouts.append(TxOut(amount, ScriptPubKey(parse_script(i[2]))))
-
-        if len(prevouts) != len(tx.vin):
+        if len(x[0]) != len(tx.vin):
             continue
-
-        witnessed += 1
-        stacks = [vin.script_witness.stack[:] for vin in tx.vin]
-        serialized = tx.serialize(include_witness=True, check_validity=False)
-
-        verify_transaction(prevouts, tx, flags or None, check_amounts)
-
-        assert [vin.script_witness.stack for vin in tx.vin] == stacks
-        assert tx.serialize(include_witness=True, check_validity=False) == serialized
-
-    assert witnessed, "no witness in the test vectors: the test proves nothing"
+        params.append(pytest.param(x, id=vectors.vector_id(index, x[2])))
+    return params
 
 
-def test_valid_legacy() -> None:
-    fname = "tx_valid_legacy.json"
-    filename = path.join(path.dirname(__file__), "_data", fname)
-    with open(filename, encoding="ascii") as file_:
-        data = json.load(file_)
+WITNESS_V0_VECTORS = witness_v0_vectors()
 
-    for x in data:
-        if isinstance(x[0], str):
-            continue
 
-        try:
-            tx = Tx.parse(x[1])
-        except BTClibValueError as e:
-            if "invalid satoshi amount:" in str(e):
-                continue
+def test_witness_v0_vectors_exist() -> None:
+    """The test below proves nothing without a witness to leave alone."""
+    assert WITNESS_V0_VECTORS
 
-        flags = [
-            "P2SH",
-            "SIGPUSHONLY",
-            "LOW_S",
-            "STRICTENC",
-            "DERSIG",
-            "CONST_SCRIPTCODE",
-            "NULLDUMMY",
-            "CLEANSTACK",
-            "MINIMALDATA",
-            # only standard, not consensus
-            # "NULLFAIL",
-            # "MINMALIF",
-            # "DISCOURAGE_UPGRADABLE_NOPS",
-            # "DISCOURAGE_UPGRADABLE_WITNESS_PROGRAM",
-            "CHECKLOCKTIMEVERIFY",
-            "CHECKSEQUENCEVERIFY",
-            "WITNESS",
-            "WITNESS_PUBKEYTYPE",
-            "TAPROOT",
-        ]
-        for f in x[2].split(","):
-            if f in flags:
-                flags.remove(f)
 
-        check_amounts = True
+@pytest.mark.parametrize("vector", WITNESS_V0_VECTORS)
+def test_verify_transaction_does_not_touch_witness_v0(vector: list[Any]) -> None:
+    """The same, for the p2wpkh and p2wsh branches of verify_input."""
+    tx = Tx.parse(vector[1])
 
-        prevouts = []
-        for i in x[0]:
-            amount = 0 if len(i) == 3 else i[3]
-            if not amount:
-                check_amounts = False
-            script_pub_key = parse_script(i[2])
-            prevouts.append(TxOut(amount, ScriptPubKey(script_pub_key)))
+    flags = ALL_FLAGS[:]
+    for f in vector[2].split(","):
+        if f in flags:
+            flags.remove(f)
 
+    prevouts, check_amounts = prevouts_of(vector)
+
+    stacks = [vin.script_witness.stack[:] for vin in tx.vin]
+    serialized = tx.serialize(include_witness=True, check_validity=False)
+
+    verify_transaction(prevouts, tx, flags or None, check_amounts)
+
+    assert [vin.script_witness.stack for vin in tx.vin] == stacks
+    assert tx.serialize(include_witness=True, check_validity=False) == serialized
+
+
+# the consensus flags, i.e. all of them but the ones that are policy: a
+# vector switching one off names it in its own flags field, and the test
+# takes it out of this list
+CONSENSUS_FLAGS = [
+    "P2SH",
+    "SIGPUSHONLY",
+    "LOW_S",
+    "STRICTENC",
+    "DERSIG",
+    "CONST_SCRIPTCODE",
+    "NULLDUMMY",
+    "CLEANSTACK",
+    "MINIMALDATA",
+    # only standard, not consensus
+    # "NULLFAIL",
+    # "MINMALIF",
+    # "DISCOURAGE_UPGRADABLE_NOPS",
+    # "DISCOURAGE_UPGRADABLE_WITNESS_PROGRAM",
+    "CHECKLOCKTIMEVERIFY",
+    "CHECKSEQUENCEVERIFY",
+    "WITNESS",
+    "WITNESS_PUBKEYTYPE",
+    "TAPROOT",
+]
+
+
+@pytest.mark.parametrize("vector", legacy_vectors("tx_valid_legacy.json"))
+def test_valid_legacy(vector: list[Any]) -> None:
+    tx = Tx.parse(vector[1])
+
+    flags = CONSENSUS_FLAGS[:]
+    for f in vector[2].split(","):
+        if f in flags:
+            flags.remove(f)
+
+    prevouts, check_amounts = prevouts_of(vector)
+
+    verify_transaction(
+        prevouts, tx, flags if flags != ["NONE"] else None, check_amounts
+    )
+
+
+@pytest.mark.parametrize("vector", legacy_vectors("tx_invalid_legacy.json"))
+def test_invalid_legacy(vector: list[Any]) -> None:
+    tx = Tx.parse(vector[1])
+
+    flags = vector[2].split(",")  # different flags handling
+
+    prevouts, check_amounts = prevouts_of(vector)
+
+    with pytest.raises((BTClibValueError, IndexError, KeyError)):
         verify_transaction(
             prevouts, tx, flags if flags != ["NONE"] else None, check_amounts
         )
-
-
-def test_invalid_legacy() -> None:
-    fname = "tx_invalid_legacy.json"
-    filename = path.join(path.dirname(__file__), "_data", fname)
-    with open(filename, encoding="ascii") as file_:
-        data = json.load(file_)
-
-    for x in data:
-        if isinstance(x[0], str):
-            continue
-
-        try:
-            tx = Tx.parse(x[1])
-        except BTClibValueError as e:
-            if "invalid satoshi amount:" not in str(e):
-                continue
-            if "missing outputs" not in str(e):
-                continue
-
-        flags = x[2].split(",")  # different flags handling
-
-        check_amounts = True
-
-        prevouts = []
-        for i in x[0]:
-            amount = 0 if len(i) == 3 else i[3]
-            if not amount:
-                check_amounts = False
-            script_pub_key = parse_script(i[2])
-            prevouts.append(TxOut(amount, ScriptPubKey(script_pub_key)))
-
-        with pytest.raises((BTClibValueError, IndexError, KeyError)):
-            verify_transaction(
-                prevouts, tx, flags if flags != ["NONE"] else None, check_amounts
-            )
 
 
 def test_invalid_amount() -> None:

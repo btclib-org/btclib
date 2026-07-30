@@ -9,9 +9,6 @@
 # or distributed except according to the terms contained in the LICENSE file.
 """Tests for the `btclib.descriptors` module."""
 
-import json
-from pathlib import Path
-
 import pytest
 from hypothesis import given
 from hypothesis import strategies as st
@@ -22,19 +19,25 @@ from btclib.descriptors import (
     descriptor_from_address,
 )
 from btclib.exceptions import BTClibValueError
+from tests import vectors
+
+CHECKSUM_VECTORS = [
+    pytest.param(
+        descriptor_data["desc"],
+        descriptor_data["checksum"],
+        id=vectors.vector_id(index, descriptor_data["desc"]),
+    )
+    for index, descriptor_data in enumerate(
+        vectors.load("_data", "descriptor_checksums.json", encoding="utf-8")
+    )
+]
 
 
 # descriptors taken from https://github.com/bitcoin/bitcoin/blob/master/doc/descriptors.md
 # checksum calculated using https://docs.rs/bdk/latest/bdk/descriptor/checksum/fn.get_checksum.html
-def test_checksum() -> None:
-    filename = Path(__file__).parent / "_data" / "descriptor_checksums.json"
-    with open(filename, encoding="utf-8") as file:
-        data = json.load(file)
-
-    for descriptor_data in data:
-        descriptor = descriptor_data["desc"]
-        checksum = descriptor_data["checksum"]
-        assert descriptor_checksum(descriptor) == checksum
+@pytest.mark.parametrize(("descriptor", "checksum"), CHECKSUM_VECTORS)
+def test_checksum(descriptor: str, checksum: str) -> None:
+    assert descriptor_checksum(descriptor) == checksum
 
 
 def test_invalid_charset() -> None:
