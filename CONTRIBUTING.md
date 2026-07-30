@@ -43,12 +43,38 @@ pyproject.toml. They are compiled from source, so a C toolchain is required
 (cmake comes as a build dependency); the released btclib keeps depending on
 the plain btclib_libsecp256k1 wheels from PyPI.
 
+**`pip install -e .` does not work here, and the error will not say why.**
+tool.uv.sources is uv-only metadata: pip does not read it, so it resolves
+btclib_libsecp256k1 from PyPI, where the newest release is older than the
+`>=0.7.1rc1` this project pins. The constraint is satisfiable only from
+git, so pip reports an unsatisfiable requirement and nothing points at the
+table that would have satisfied it. Use `uv sync`. If you need a
+pip-installed tree anyway, install the bindings from git yourself and then
+the project without its dependencies:
+
+```shell
+pip install git+https://github.com/btclib-org/btclib_libsecp256k1@dev
+pip install -e . --no-deps
+```
+
+Read the docs hits this same wall, which is why `.readthedocs.yaml` drives
+uv rather than pip.
+
 Every command is run inside that environment prefixing it with `uv run`
 (e.g., `uv run pytest`); alternatively, activate the environment once with
 `source .venv/bin/activate` (`.venv\Scripts\activate` on Windows).
 
 The dependency groups defined in pyproject.toml can also be installed
 individually, e.g. `uv sync --no-default-groups --group test`.
+
+`.python-version` pins 3.14, so that is the interpreter `uv sync` picks and
+the one `uv run` uses. To reproduce a failure that only one cell of the
+matrix shows, name the interpreter instead of editing that file:
+
+```shell
+uv sync --python 3.9
+uv run --python 3.9 pytest
+```
 
 As an annotated python3 project, btclib is very strict on code formatting
 and linting
@@ -69,7 +95,7 @@ must pass at any time, with
 [coverage](https://coverage.readthedocs.io/)
 of both the library and the test suite above the `fail_under` ratchet in
 pyproject.toml — 99.9% against the 100% of today, which is 0 statements
-uncovered out of 13215: slack for 13, enough not to trip over a line,
+uncovered out of 13263: slack for 13, enough not to trip over a line,
 tight enough that a regression cannot hide.
 See [Tests, code coverage, and profiling](./tests/README.md).
 
@@ -189,6 +215,15 @@ the action. It gates nothing — a link rots without anybody touching the
 repository, so a red merge would be somebody else's weather — and a
 failing run is read in the Actions tab. `.lycheeignore` holds the URLs a
 checker cannot judge, each with the reason.
+
+The documentation, which no workflow builds. Read the docs builds it, with
+this same command, and `-W` is what makes an `automodule` whose module
+does not import a failure rather than an empty page:
+
+```shell
+uv run --locked --no-default-groups --group docs \
+    sphinx-build -W --keep-going -b html docs/source docs/build/html
+```
 
 The only check with no local equivalent is CodeQL, which GitHub runs on
 its side; its findings appear under the Security tab.

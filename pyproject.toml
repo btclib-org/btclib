@@ -180,7 +180,7 @@ precision = 2
 # and no third party service, enforced on every run instead of only on
 # pull requests targeting master.
 # The comparison is against the total rounded to precision above, so with
-# the 13215 statements the coverage-py job measures this allows 13 of them
+# the 13263 statements the coverage-py job measures this allows 13 of them
 # to go uncovered, against the 0 uncovered today: enough slack not to trip
 # over a line, tight enough that a regression cannot hide.
 # Both figures are that job's interpreter, 3.13, and not any other: the

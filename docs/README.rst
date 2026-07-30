@@ -7,35 +7,61 @@ has many great features for writing technical documentation.
 Quick start
 -----------
 
-Assuming you have Python already, `install Sphinx`_:
+uv installs sphinx, the theme, and btclib itself. That last part is the
+one that matters: every directive under ``source/`` is an ``automodule``,
+so sphinx imports the library in order to document it, and produces a bare
+heading for every module it cannot import.
 
 .. sourcecode:: bash
 
-    $ python -m pip install --upgrade -r docs/requirements.txt
+    $ uv sync
 
-
-Move into the btclib project root folder and autogenerate docs:
+Build from the project root, exactly as ``.readthedocs.yaml`` does:
 
 .. sourcecode:: bash
 
-    $ cd /path/to/btclibrootfolder
-    $ sphinx-apidoc -f -o docs/source btclib/
+    $ uv run --locked --no-default-groups --group docs \
+          sphinx-build -W --keep-going -b html docs/source docs/build/html
 
-Perform the above sphinx-apidoc step everytime files are added/removed.
-
-Then, move into the docs directory and build the docs to see how they look:
+Open ``docs/build/html/index.html`` in a browser to see the result. The
+``Makefile`` and ``make.bat`` here drive the same build, from within this
+directory and without the flags:
 
 .. sourcecode:: bash
 
     $ cd docs
-    $ make clean html
+    $ uv run --locked --no-default-groups --group docs make clean html
 
-Your ``index.rst`` has been built into ``index.html``
-in the output subdirectory (``build/html/index.html``).
-Open this file in your web browser to see your docs.
+``-W`` is not decoration. A module that fails to import is a warning, and
+for a long time that warning was the only sign that the published
+documentation had no API in it at all; read the docs now builds with the
+same flag, so a build that is green here is green there.
 
-Edit your files and rebuild until you like what you see, then commit
-your changes and push to your public repository.
+Adding or removing a module
+---------------------------
+
+Edit the ``rst`` file by hand. Do **not** run ``sphinx-apidoc -f -o
+docs/source btclib/``, which this file used to recommend: ``-f``
+regenerates every page from the template, discarding the hand-tuned
+``index.rst`` and ``modules.rst`` and the ``myst`` links to README,
+HISTORY, CONTRIBUTING and SECURITY. Point it at a scratch directory if you
+want the boilerplate for a new module, then copy the stanza across.
+
+Forgetting the edit is what ``tests/test_docs.py`` is for: it compares the
+modules under ``btclib/`` against the directives in ``docs/source/`` and
+fails naming whichever is missing. This note is the convenience; the test
+is the guarantee.
+
+Dependencies
+------------
+
+There is no ``docs/requirements.txt``. It used to exist, unpinned, with a
+header asking whoever changed the ``docs`` dependency group in
+``pyproject.toml`` to remember this second copy — while read the docs read
+only that file, so the sphinx that built the published documentation was
+whatever PyPI served that morning. The dependency group is now the single
+declaration, ``uv.lock`` pins it, and ``.readthedocs.yaml`` drives uv with
+``--locked``.
 
 External resources
 ------------------
@@ -47,9 +73,7 @@ Here are some external resources to help you learn more about Sphinx.
 * `An introduction to Sphinx and Read the Docs for technical writers`_
 * `Read the docs`_
 
-.. _install Sphinx: http://sphinx-doc.org/install.html
-.. _reStructuredText: http://sphinx-doc.org/rest.html
-.. _Sphinx documentation: http://www.sphinx-doc.org/
-.. _RestructuredText primer: http://www.sphinx-doc.org/en/master/usage/restructuredtext/basics.html
-.. _An introduction to Sphinx and Read the Docs for technical writers: http://ericholscher.com/blog/2016/jul/1/sphinx-and-rtd-for-writers/
+.. _Sphinx documentation: https://www.sphinx-doc.org/
+.. _RestructuredText primer: https://www.sphinx-doc.org/en/master/usage/restructuredtext/basics.html
+.. _An introduction to Sphinx and Read the Docs for technical writers: https://ericholscher.com/blog/2016/jul/1/sphinx-and-rtd-for-writers/
 .. _Read the docs: https://docs.readthedocs.io/en/latest/intro/getting-started-with-sphinx.html

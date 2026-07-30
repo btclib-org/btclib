@@ -1,6 +1,0 @@
-# Read the Docs installs the documentation dependencies with pip;
-# keep this file in sync with the "docs" dependency group in pyproject.toml
-# m2r2
-myst-parser
-sphinx
-sphinx_rtd_theme

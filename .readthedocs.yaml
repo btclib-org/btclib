@@ -1,0 +1,53 @@
+# Read the Docs configuration file
+# See https://docs.readthedocs.io/en/stable/config-file/v2.html for details
+#
+# The dotted name is the canonical one; this file used to be
+# readthedocs.yml, which read the docs still honors but documents as
+# deprecated, and which "include *.yml" then dragged into the sdist beside
+# the Jekyll configuration.
+#
+# What it builds is not what it used to build. The install step was
+# "requirements: docs/requirements.txt", which installs sphinx and not
+# btclib, so every autodoc directive in docs/source failed to import its
+# module and rendered as a bare heading: the published documentation was
+# 15 module titles with no API beneath them. It had been that way
+# silently, because a failed import is a sphinx warning and nothing turned
+# warnings into errors. The same build with btclib importable emits 89
+# signatures, measured on this tree.
+
+# Required
+version: 2
+
+# the interpreter is declared rather than left to whatever read the docs
+# defaults to: conf.py reads the version out of pyproject.toml with
+# tomllib, which is standard library from 3.11 on
+build:
+  os: ubuntu-24.04
+  tools:
+    python: "3.13"
+  # build.commands rather than the sphinx: and python: keys, which cannot
+  # express this and are rejected when it is present.
+  # autodoc has to import btclib, so btclib has to be installed, and
+  # installing it means resolving btclib_libsecp256k1, whose pin is
+  # satisfiable only from git -- see tool.uv.sources in pyproject.toml.
+  # What read the docs can express natively is "pip install .", and pip
+  # does not read tool.uv.sources, so that install fails on the one
+  # dependency the library is built around. uv is therefore the only thing
+  # that can build these docs, which is also what retired
+  # docs/requirements.txt: the docs dependency group in pyproject.toml is
+  # now the single declaration, and uv.lock pins it, where that file was
+  # unpinned and kept in step by a header asking a human to do it.
+  # uv itself is not pinned, deliberately: no dependabot ecosystem watches
+  # this file, so a pin here is a version nobody bumps, and --locked makes
+  # the uv version irrelevant to what gets installed -- uv.lock decides
+  # that, and a uv too old to read the lock fails loudly rather than
+  # resolving something else.
+  # -W turns a failed import back into a failed build, which is the point
+  # of the whole file; --keep-going comes first so one broken module
+  # reports every other problem in the same run instead of one per push
+  commands:
+    - pip install uv
+    - uv sync --locked --no-default-groups --group docs
+    - >-
+      uv run --locked --no-default-groups --group docs
+      sphinx-build -W --keep-going -b html docs/source $READTHEDOCS_OUTPUT/html
