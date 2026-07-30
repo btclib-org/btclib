@@ -564,6 +564,26 @@ Major changes includes:
   and `"9"` raises for being of odd length rather than being nine. The
   behaviour is unchanged and deliberate — a decimal representation is what
   `int` itself is for — and now the docstring says so
+- **BIP340 messages of arbitrary size**, which the BIP allowed in 2023-04
+  ("the restriction to 32-byte messages has been lifted") and btclib refused:
+  the four vectors `bitcoin/bips` added for it — 0, 1, 17 and 100 bytes, all
+  four `TRUE` — were `xfail`. All four verify now, and `ssa.sign_` reproduces
+  each signature byte for byte. Nothing about the algorithm changed: the nonce
+  and challenge tagged hashes absorb any length unambiguously, `x_K` and `x_Q`
+  being fixed at `p_size` each, so what changed is five size checks and what
+  the two spellings mean. `ssa.sign_`, `verify_`, `assert_as_valid_`,
+  `challenge_`, `batch_verify_` and `bip340_nonce_` take the BIP340 message
+  itself, of any size, and their `msg_hash`/`m_hashes` parameters are `msg`
+  and `msgs`; `sign`, `verify` and `assert_as_valid` reduce with `hf` first
+  and are unchanged, which is what btclib's trailing underscore has always
+  distinguished. The bindings still answer "the message hash must be 32
+  bytes", so the delegation condition gains a length clause: 32 bytes go to
+  libsecp256k1 as before, anything else takes the python path — the pattern
+  already in place for a caller-supplied nonce and for every other curve, and
+  now the only path that can verify four of BIP340's own vectors. Two tests
+  changed with it, both for the better: truncating a message by one byte is no
+  longer `invalid size: 31 bytes instead of 32` but a *different message*,
+  which the signature does not sign (issue #169)
 - **A PSBT whose unsigned transaction has no inputs is accepted**, as BIP174
   says it must be: two of its valid vectors are such PSBTs and btclib refused
   both. The unsigned transaction is incomplete by construction, so

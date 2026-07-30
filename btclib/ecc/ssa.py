@@ -179,16 +179,18 @@ def gen_keys(prv_key: PrvKey | None = None, ec: Curve = secp256k1) -> tuple[int,
     return q, x_Q
 
 
-def challenge_(msg_hash: Octets, x_Q: int, x_K: int, ec: Curve, hf: HashF) -> int:
-    # the message msg_hash: a hf_len array
-    hf_len = hf().digest_size
-    msg_hash = bytes_from_octets(msg_hash, hf_len)
+def challenge_(msg: Octets, x_Q: int, x_K: int, ec: Curve, hf: HashF) -> int:
+    # the message, of any size: BIP340 lifted the 32-byte restriction in
+    # 2023-04 ("Messages of Arbitrary Size"), and the tagged hash below
+    # absorbs any length unambiguously, x_K and x_Q being fixed at p_size
+    # each. This used to be bytes_from_octets(msg_hash, hf_len)
+    msg = bytes_from_octets(msg)
 
     t = b"".join(
         [
             x_K.to_bytes(ec.p_size, byteorder="big", signed=False),
             x_Q.to_bytes(ec.p_size, byteorder="big", signed=False),
-            msg_hash,
+            msg,
         ]
     )
     t = tagged_hash(b"BIP0340/challenge", t, hf)
@@ -213,34 +215,45 @@ def _sign_(c: int, q: int, nonce: int, r: int, ec: Curve) -> Sig:
 
 
 def sign_(
-    msg_hash: Octets,
+    msg: Octets,
     prv_key: PrvKey,
     aux: Octets | None = None,
     ec: Curve = secp256k1,
     hf: HashF = sha256,
 ) -> Sig:
-    """Sign a hf_len bytes message according to BIP340 signature algorithm.
+    """Sign a message of any size according to BIP340 signature algorithm.
+
+    The message is signed as it is: BIP340 lifted its 32-byte restriction
+    in 2023-04, so this takes the BIP340 message itself, of any length,
+    where it used to insist on a hf_len array. `sign` is the other
+    spelling, unchanged: it reduces its argument with hf first, which is
+    what btclib's trailing underscore has always distinguished -- whether
+    the caller prepared the input or the library does it.
 
     If the deterministic nonce is not provided, the BIP340 specification
     (not RFC6979) is used.
     """
-    # the message msg_hash: a hf_len array
-    hf_len = hf().digest_size
-    msg_hash = bytes_from_octets(msg_hash, hf_len)
+    msg = bytes_from_octets(msg)
 
+    hf_len = hf().digest_size
     aux = secrets.token_bytes(hf_len) if aux is None else bytes_from_octets(aux, hf_len)
 
-    if _libsecp256k1_applicable(ec, hf):
+    # len(msg) == 32 as well as the curve and the hash function: the
+    # bindings enforce the earlier revision of the BIP -- "the message hash
+    # must be 32 bytes", measured on 0.7.1rc1 -- so anything else takes the
+    # python path, which is the pattern already in place for a
+    # caller-supplied nonce and for every other curve
+    if len(msg) == 32 and _libsecp256k1_applicable(ec, hf):
         # the bindings take a scalar, not the many representations of a
         # private key btclib accepts
         q = int_from_prv_key(prv_key, ec)
-        return Sig.parse(libsecp256k1_ssa.sign(msg_hash, q, aux))
+        return Sig.parse(libsecp256k1_ssa.sign(msg, q, aux))
 
     # k is the nonce: an integer in the range 1..n-1.
-    k, x_K, q, x_Q = bip340_nonce_(msg_hash, prv_key, aux, ec, hf)
+    k, x_K, q, x_Q = bip340_nonce_(msg, prv_key, aux, ec, hf)
 
     # the challenge
-    c = challenge_(msg_hash, x_Q, x_K, ec, hf)
+    c = challenge_(msg, x_Q, x_K, ec, hf)
 
     return _sign_(c, q, k, x_K, ec)
 
@@ -293,7 +306,7 @@ def _assert_as_valid_(c: int, QJ: JacPoint, r: int, s: int, ec: Curve) -> None:
 
 
 def assert_as_valid_(
-    msg_hash: Octets, Q: BIP340PubKey, sig: Sig | Octets, hf: HashF = sha256
+    msg: Octets, Q: BIP340PubKey, sig: Sig | Octets, hf: HashF = sha256
 ) -> None:
     # Private function for test/dev purposes
     # It raises Errors, while verify should always return True or False
@@ -303,30 +316,43 @@ def assert_as_valid_(
         sig = Sig.parse(sig)
 
     x_Q, y_Q = point_from_bip340pub_key(Q, sig.ec)
+    msg = bytes_from_octets(msg)
 
-    if _libsecp256k1_applicable(sig.ec, hf):
+    # len(msg) == 32 as well as the curve and the hash function: see sign_.
+    # Reporting a message the bindings cannot take as a *failed
+    # verification* was the worse half of issue 169 -- four of BIP340's own
+    # vectors are TRUE and answered False -- so the length decides which
+    # implementation runs, not whether the answer is no
+    if len(msg) == 32 and _libsecp256k1_applicable(sig.ec, hf):
         pubkey_bytes = x_Q.to_bytes(32, "big")
-        msg_hash = bytes_from_octets(msg_hash, 32)
-        if not libsecp256k1_ssa.verify(msg_hash, pubkey_bytes, sig.serialize()):
+        if not libsecp256k1_ssa.verify(msg, pubkey_bytes, sig.serialize()):
             raise BTClibRuntimeError("signature verification failed")
         return
 
-    # Let c = int(hf(bytes(r) || bytes(Q) || msg_hash)) mod n.
-    c = challenge_(msg_hash, x_Q, sig.r, sig.ec, hf)
+    # Let c = int(hf(bytes(r) || bytes(Q) || msg)) mod n.
+    c = challenge_(msg, x_Q, sig.r, sig.ec, hf)
     _assert_as_valid_(c, (x_Q, y_Q, 1), sig.r, sig.s, sig.ec)
 
 
 def assert_as_valid(
     msg: Octets, Q: BIP340PubKey, sig: Sig | Octets, hf: HashF = sha256
 ) -> None:
-    msg_hash = reduce_to_hlen(msg, hf)
-    assert_as_valid_(msg_hash, Q, sig, hf)
+    """Verify the BIP340 signature of hf(msg).
+
+    The other spelling, assert_as_valid_, takes the BIP340 message itself,
+    of any size. This one reduces msg with hf first and is unchanged.
+    """
+    assert_as_valid_(reduce_to_hlen(msg, hf), Q, sig, hf)
 
 
 def verify_(
-    msg_hash: Octets, Q: BIP340PubKey, sig: Sig | Octets, hf: HashF = sha256
+    msg: Octets, Q: BIP340PubKey, sig: Sig | Octets, hf: HashF = sha256
 ) -> bool:
-    """Verify the BIP340 signature of the provided message."""
+    """Verify the BIP340 signature of a message of any size.
+
+    The message is taken as it is; `verify` is the spelling that reduces it
+    with hf first.
+    """
     # ValueError and BTClibRuntimeError, not Exception: an input that is not
     # a valid signature is False, and so is a verification that failed, but
     # a TypeError is neither -- an hf passed as sha256() instead of sha256
@@ -334,7 +360,7 @@ def verify_(
     # BTClibRuntimeError by name and not RuntimeError, because
     # RecursionError is one and is not an answer about a signature
     try:
-        assert_as_valid_(msg_hash, Q, sig, hf)
+        assert_as_valid_(msg, Q, sig, hf)
     except (ValueError, BTClibRuntimeError):
         return False
 
@@ -342,9 +368,8 @@ def verify_(
 
 
 def verify(msg: Octets, Q: BIP340PubKey, sig: Sig | Octets, hf: HashF = sha256) -> bool:
-    """Verify the BIP340 signature of the provided message."""
-    msg_hash = reduce_to_hlen(msg, hf)
-    return verify_(msg_hash, Q, sig, hf)
+    """Verify the BIP340 signature of hf(msg)."""
+    return verify_(reduce_to_hlen(msg, hf), Q, sig, hf)
 
 
 def _recover_pub_key_(c: int, r: int, s: int, ec: Curve) -> int:
@@ -369,7 +394,7 @@ def _err_msg(size: int, msgs_or_sigs: str, arg2: Sequence[Octets | Sig]) -> str:
 
 
 def assert_batch_as_valid_(
-    m_hashes: Sequence[Octets],
+    msgs: Sequence[Octets],
     Qs: Sequence[BIP340PubKey],
     sigs: Sequence[Sig],
     hf: HashF = sha256,
@@ -378,12 +403,12 @@ def assert_batch_as_valid_(
     if batch_size == 0:
         raise BTClibValueError("no signatures provided")
 
-    if len(m_hashes) != batch_size:
-        raise BTClibValueError(_err_msg(batch_size, "messages", m_hashes))
+    if len(msgs) != batch_size:
+        raise BTClibValueError(_err_msg(batch_size, "messages", msgs))
     if len(sigs) != batch_size:
         raise BTClibValueError(_err_msg(batch_size, "signatures", sigs))
     if batch_size == 1:
-        assert_as_valid_(m_hashes[0], Qs[0], sigs[0], hf)
+        assert_as_valid_(msgs[0], Qs[0], sigs[0], hf)
         return
 
     ec = sigs[0].ec
@@ -392,15 +417,16 @@ def assert_batch_as_valid_(
     t = 0
     scalars: list[int] = []
     points: list[JacPoint] = []
-    for i, (msg_hash, Q, sig) in enumerate(zip(m_hashes, Qs, sigs)):
-        msg_hash = bytes_from_octets(msg_hash, hf().digest_size)
+    for i, (msg, Q, sig) in enumerate(zip(msgs, Qs, sigs)):
+        # any size, as in sign_ and assert_as_valid_
+        msg = bytes_from_octets(msg)
 
         KJ = sig.r, ec.y_even(sig.r), 1
 
         x_Q, y_Q = point_from_bip340pub_key(Q, ec)
         QJ = x_Q, y_Q, 1
 
-        c = challenge_(msg_hash, x_Q, sig.r, ec, hf)
+        c = challenge_(msg, x_Q, sig.r, ec, hf)
 
         # rand in [1, n-1]
         # deterministically generated using a CSPRNG seeded by a
@@ -433,12 +459,12 @@ def assert_batch_as_valid(
     sigs: Sequence[Sig],
     hf: HashF = sha256,
 ) -> None:
-    m_hashes = [reduce_to_hlen(msg, hf) for msg in ms]
-    return assert_batch_as_valid_(m_hashes, Qs, sigs, hf)
+    msgs = [reduce_to_hlen(msg, hf) for msg in ms]
+    return assert_batch_as_valid_(msgs, Qs, sigs, hf)
 
 
 def batch_verify_(
-    m_hashes: Sequence[Octets],
+    msgs: Sequence[Octets],
     Qs: Sequence[BIP340PubKey],
     sigs: Sequence[Sig],
     hf: HashF = sha256,
@@ -450,7 +476,7 @@ def batch_verify_(
     # BTClibRuntimeError by name and not RuntimeError, because
     # RecursionError is one and is not an answer about a signature
     try:
-        assert_batch_as_valid_(m_hashes, Qs, sigs, hf)
+        assert_batch_as_valid_(msgs, Qs, sigs, hf)
     except (ValueError, BTClibRuntimeError):
         return False
 
@@ -464,5 +490,5 @@ def batch_verify(
     hf: HashF = sha256,
 ) -> bool:
     """Batch verification of BIP340 signatures."""
-    m_hashes = [reduce_to_hlen(msg, hf) for msg in ms]
-    return batch_verify_(m_hashes, Qs, sigs, hf)
+    msgs = [reduce_to_hlen(msg, hf) for msg in ms]
+    return batch_verify_(msgs, Qs, sigs, hf)

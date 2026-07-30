@@ -134,11 +134,13 @@ repository is LF throughout, which `mixed-line-ending` enforces with
 vectors, all eight columns.
 
 Four of the 19 are the arbitrary-size messages BIP340 gained in 2023-04
-(0, 1, 17 and 100 bytes), and btclib refuses all four: it still takes the
-message as a `hf_len` array, as do the bindings. They are held here and
+(0, 1, 17 and 100 bytes), and btclib refused all four: it took the message
+as a `hf_len` array, as the bindings still do. They were held here and
 marked `xfail` in `tests/ecc/test_ssa.py` rather than left out of the
-file — issue 169 has the measurement, and `xfail_strict` turns the four
-red the day the support lands.
+file — which is what made issue 169 measured rather than described, and
+what `xfail_strict` then turned red the day the support landed. All four
+pass: `verify_` accepts each, and `sign_` reproduces each signature byte
+for byte. The bindings are unchanged, so those four take the python path.
 
 The 2026-07-30 refresh also reverted a local edit worth recording: the
 comment column of vectors 11, 12 and 13 read `sig[:32]`, `sig[:32]`,
@@ -709,8 +711,8 @@ changed:
 Three btclib defects came out of it, all three of them things the missing
 vectors had been hiding rather than new: issue 169 (BIP340 messages of
 arbitrary size), issue 170 (a PSBT whose unsigned tx has no inputs), and
-the note in issue 170 about the value-size check that does not exist. The
-second and third are fixed; the first is still `xfail`.
+the note in issue 170 about the value-size check that does not exist. All
+three are fixed, and no vector of this suite is `xfail` any more.
 
 And three citations in the test modules named the wrong upstream, all now
 corrected in the module that carries them:

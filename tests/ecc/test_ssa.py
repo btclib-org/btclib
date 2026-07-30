@@ -88,13 +88,21 @@ def test_signature() -> None:
     with pytest.raises(BTClibValueError, match=err_msg):
         ssa.assert_as_valid(msg, x_Q, sig_invalid)
 
+    # a 31-byte message is a legal BIP340 message since 2023-04, so
+    # truncating one is not a size error any more: it is a *different*
+    # message, which this signature does not sign (issue 169). Both of
+    # these used to be "invalid size: 31 bytes instead of 32"
     m_bytes = reduce_to_hlen(msg, hf)
-    err_msg = "invalid size: 31 bytes instead of 32"
-    with pytest.raises((BTClibValueError, BTClibRuntimeError), match=err_msg):
+    assert not ssa.verify_(m_bytes[:31], x_Q, sig)
+    err_msg = r"y_K is odd|signature verification failed"
+    with pytest.raises(BTClibRuntimeError, match=err_msg):
         ssa.assert_as_valid_(m_bytes[:31], x_Q, sig)
 
-    with pytest.raises(BTClibValueError, match=err_msg):
-        ssa.sign_(m_bytes[:31], q)
+    # and signing it works, giving a signature over those 31 bytes and no
+    # other: the python path serves it, the bindings taking 32 bytes only
+    sig_31 = ssa.sign_(m_bytes[:31], q)
+    assert ssa.verify_(m_bytes[:31], x_Q, sig_31)
+    assert not ssa.verify_(m_bytes, x_Q, sig_31)
 
     err_msg = "private key not in 1..n-1"
     with pytest.raises(BTClibValueError, match=err_msg):
@@ -102,36 +110,18 @@ def test_signature() -> None:
 
 
 def bip340_vectors() -> list[Any]:
-    """One case per BIP340 vector, the arbitrary-size messages marked.
+    """One case per BIP340 vector.
 
-    BIP340 lifted its 32-byte message restriction in 2023-04 and gained
-    four vectors for it, of 0, 1, 17 and 100 bytes. btclib still takes the
-    message as a hf_len array, in five places and in the bindings too, so
-    it refuses all four: `sign_` raises and `verify_` answers False on a
-    valid signature (issue 169).
-
-    They are vendored and marked rather than left out of the file, which
-    is what makes the gap measured instead of merely described; and
-    xfail_strict turns the four red the day the support lands, so the fix
-    cannot forget them.
+    Four of the nineteen are the arbitrary-size messages BIP340 gained in
+    2023-04, of 0, 1, 17 and 100 bytes. They were `xfail` while btclib took
+    the message as a hf_len array -- `sign_` raised and `verify_` answered
+    False on a valid signature -- and they pass since issue 169. Holding a
+    vector one fails is what made that gap measured rather than described.
     """
-    params = []
-    for row in vectors.load_csv("ecc", "_data", "bip340_test_vectors.csv"):
-        # column 4 is the message, hex, so 32 bytes is 64 characters
-        marks = (
-            []
-            if len(row[4]) == 64
-            else [
-                pytest.mark.xfail(
-                    raises=BTClibValueError,
-                    reason="BIP340 messages of arbitrary size, issue 169",
-                )
-            ]
-        )
-        params.append(
-            pytest.param(row, id=vectors.vector_id(int(row[0]), row[7]), marks=marks)
-        )
-    return params
+    return [
+        pytest.param(row, id=vectors.vector_id(int(row[0]), row[7]))
+        for row in vectors.load_csv("ecc", "_data", "bip340_test_vectors.csv")
+    ]
 
 
 BIP340_VECTORS = bip340_vectors()
@@ -319,10 +309,14 @@ def test_batch_validation() -> None:
     assert not ssa.batch_verify(ms, Qs, sigs)
     sigs[0] = ssa.Sig(sigs[0].r, sigs[0].s, CURVES["secp256k1"])  # same curve again
 
+    # dropping a byte from a message is not a size error any more but a
+    # different message, so the batch fails to verify rather than refusing
+    # to look (issue 169)
     ms = [reduce_to_hlen(m, hf) for m in ms]
+    assert ssa.batch_verify_(ms, Qs, sigs)
     ms[0] = ms[0][:-1]
-    err_msg = "invalid size: 31 bytes instead of 32"
-    with pytest.raises(BTClibValueError, match=err_msg):
+    err_msg = "signature verification failed"
+    with pytest.raises(BTClibRuntimeError, match=err_msg):
         ssa.assert_batch_as_valid_(ms, Qs, sigs)
     assert not ssa.batch_verify_(ms, Qs, sigs)
 

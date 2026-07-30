@@ -34,9 +34,7 @@ from btclib.to_prv_key import PrvKey, int_from_prv_key
 from btclib.utils import bytes_from_octets, int_from_bits
 
 
-def _bip340_nonce_(
-    msg_hash: bytes, q: int, Q: int, aux: bytes, ec: Curve, hf: HashF
-) -> int:
+def _bip340_nonce_(msg: bytes, q: int, Q: int, aux: bytes, ec: Curve, hf: HashF) -> int:
     # assume the random oracle model for the hash function,
     # i.e. hash values can be considered uniformly random
 
@@ -55,7 +53,7 @@ def _bip340_nonce_(
         [
             xor.to_bytes(max_len, byteorder="big", signed=False),
             Q.to_bytes(ec.p_size, byteorder="big", signed=False),
-            msg_hash,
+            msg,
         ]
     )
 
@@ -77,16 +75,20 @@ def _bip340_nonce_(
 
 
 def bip340_nonce_(
-    msg_hash: Octets,
+    msg: Octets,
     prv_key: PrvKey,
     aux: Octets | None = None,
     ec: Curve = secp256k1,
     hf: HashF = sha256,
 ) -> tuple[int, int, int, int]:
-    """Return a BIP340 deterministic ephemeral key (nonce)."""
-    # the message msg_hash: a hf_len array
+    """Return a BIP340 deterministic ephemeral key (nonce).
+
+    The message is of any size: BIP340 lifted its 32-byte restriction in
+    2023-04, and the nonce tagged hash absorbs any length just as the
+    challenge does. This used to be bytes_from_octets(msg, hf_len).
+    """
     hf_len = hf().digest_size
-    msg_hash = bytes_from_octets(msg_hash, hf_len)
+    msg = bytes_from_octets(msg)
 
     q = int_from_prv_key(prv_key, ec)
 
@@ -96,7 +98,7 @@ def bip340_nonce_(
 
     aux = secrets.token_bytes(hf_len) if aux is None else bytes_from_octets(aux, hf_len)
 
-    k = _bip340_nonce_(msg_hash, q, x_Q, aux, ec, hf)
+    k = _bip340_nonce_(msg, q, x_Q, aux, ec, hf)
     x_K, y_K = mult(k, ec=ec)
     if y_K % 2:
         k = ec.n - k
