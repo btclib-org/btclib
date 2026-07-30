@@ -10,6 +10,10 @@ full year, short month, short day (YYYY-M-D)
 Major changes includes:
 
 - dropped python 3.7 and 3.8 support, added 3.13 and 3.14
+- dropped pypy3.10 from the test matrix; pypy3.11 stays, so PyPy is still
+  covered. hypothesis ships compiled wheels from 6.160 on and publishes
+  none for pypy3.10, whose sdist build needs a PyO3 requiring PyPy 3.11 or
+  newer
 - development and CI now track the btclib_libsecp256k1 bindings under
   development (built from source), instead of the released ones; the
   published btclib still depends on btclib_libsecp256k1 from PyPI

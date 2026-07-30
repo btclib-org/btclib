@@ -64,7 +64,15 @@ jobs:
         # ship a py3-none dynamic wheel for it, and nothing else here
         # exercises a build without the GIL. python-build-standalone has a
         # freethreaded build for all six platforms below, so it needs no
-        # exclusion
+        # exclusion.
+        # pypy3.10 is gone, and PyPy is still tested: hypothesis ships
+        # compiled wheels from 6.160 on and publishes none for pypy3.10, so
+        # uv falls back to its sdist, whose maturin build needs a PyO3 that
+        # requires PyPy 3.11 or newer. Pinning hypothesis below 6.160 behind
+        # an implementation marker was the alternative, and it buys a suite
+        # generating its inputs with a version nobody else runs, on the older
+        # of the two PyPy releases; pypy3.11 stays and covers the
+        # implementation
         python:
           [
             "3.9",
@@ -74,7 +82,6 @@ jobs:
             "3.13",
             "3.14",
             "3.14t",
-            "pypy3.10",
             "pypy3.11",
           ]
     # the bindings are compiled here, so this is not instantaneous; what
