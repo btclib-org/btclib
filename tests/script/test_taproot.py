@@ -87,7 +87,7 @@ def test_taproot_key_tweaking() -> None:
     prv_key = 123456
     pub_key = mult(prv_key)
 
-    script_trees = [
+    script_trees: list[TaprootScriptTree | None] = [
         None,
         [(0xC0, ["OP_1"])],
         [[(0xC0, ["OP_2"])], [(0xC0, ["OP_3"])]],
@@ -117,7 +117,7 @@ def test_unspendable_script() -> None:
 
 
 def test_control_block() -> None:
-    script_tree = [[(0xC0, ["OP_2"])], [(0xC0, ["OP_3"])]]
+    script_tree: TaprootScriptTree = [[(0xC0, ["OP_2"])], [(0xC0, ["OP_3"])]]
     pub_key = output_pubkey(None, script_tree)[0]
     script, control = input_script_sig(None, script_tree, 0)
     assert check_output_pubkey(pub_key, serialize(script), control)
@@ -130,11 +130,17 @@ def test_control_block() -> None:
     assert check_output_pubkey(pub_key, serialize(script), control)
 
 
-def convert_script_tree(script_tree: TaprootScriptTree) -> TaprootScriptTree:
+# the vector's scriptTree, not a tree: nested json lists of
+# {"leafVersion": ..., "script": ...} objects, hence Any in and a real
+# TaprootScriptTree out. It used to be annotated TaprootScriptTree both
+# ways, which said nothing while the alias was Any -- and it built each
+# leaf as a two-element list, where every other caller writes the pair as
+# a tuple. Both shapes unpack, so nothing failed; the alias now picks one
+def convert_script_tree(script_tree: Any) -> TaprootScriptTree:
     if isinstance(script_tree, list):
         return [convert_script_tree(x) for x in script_tree]
     if isinstance(script_tree, dict):
-        return [[script_tree["leafVersion"], parse(script_tree["script"])]]
+        return [(script_tree["leafVersion"], parse(script_tree["script"]))]
     return []
 
 
@@ -224,7 +230,7 @@ def test_tweak_above_group_order() -> None:
     ec = low_card_curves["ec13_11"]
     err_msg = "Invalid script tree hash"
 
-    script_tree = [(0xC0, ["OP_1"])]
+    script_tree: TaprootScriptTree = [(0xC0, ["OP_1"])]
     with pytest.raises(BTClibValueError, match=err_msg):
         output_pubkey(None, script_tree, ec)
 

@@ -9,7 +9,7 @@
 # or distributed except according to the terms contained in the LICENSE file.
 """Module btclib.script."""
 
-from btclib.alias import Command, TaprootScriptTree
+from btclib.alias import Command, TaprootLeaf, TaprootScriptTree
 from btclib.script.script import Script, op_int, parse, serialize
 from btclib.script.script_pub_key import (
     ScriptPubKey,
@@ -43,6 +43,9 @@ __all__ = [
     "Command",
     "Script",
     "ScriptPubKey",
+    # the pair a leaf of a TaprootScriptTree holds, worth naming beside the
+    # tree now that the tree is a type and not Any
+    "TaprootLeaf",
     "TaprootScriptTree",
     "Witness",
     "address",

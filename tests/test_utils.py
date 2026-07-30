@@ -31,6 +31,20 @@ def test_int_from_integer() -> None:
         assert i == int_from_integer(i.to_bytes(32, byteorder="big", signed=False))
 
 
+def test_int_from_integer_reads_a_str_as_hex() -> None:
+    # a decimal-looking str is a hex-string like any other, which the
+    # docstring now says out loud: 0x1234, not one thousand two hundred
+    # and thirty-four
+    assert int_from_integer("1234") == 4660
+    assert int_from_integer("1234") == int_from_integer("0x1234")
+    assert int_from_integer(1234) == 1234
+
+    # and an odd number of digits is not a one-digit decimal either
+    # (python 3.14 rephrased the message bytes.fromhex raises)
+    with pytest.raises(ValueError, match="fromhex"):
+        int_from_integer("9")
+
+
 def test_hex_string() -> None:
     int_ = 34492435054806958080
     assert hex_string(int_) == "01 DEADBEEF 00000000"

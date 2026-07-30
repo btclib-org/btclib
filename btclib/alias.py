@@ -10,6 +10,20 @@
 """Aliases.
 
 mypy aliases, documenting also coding input conventions.
+
+Octets and String below are both Union[bytes, str], so mypy cannot tell
+one from the other: passing a text string where a hex-string is expected
+is a type error this file names but no checker can catch. The distinction
+is enforced at run time instead, by the converter each function calls on
+its way in -- bytes_from_octets for Octets, encode() for String -- and it
+is documented here because that is the only place it can be read as one
+piece.
+
+Making them NewTypes would let mypy separate them, at the cost of every
+caller having to wrap its literals: Octets("deadbeef") instead of
+"deadbeef", throughout a public API whose whole style is to accept
+whatever is convertible. That is a different library, not a fix to this
+one.
 """
 
 from __future__ import annotations
@@ -67,6 +81,12 @@ String = Union[bytes, str]
 BinaryData = Union[BytesIO, Octets]
 
 # hex-string or bytes representation of an int
+#
+# a str is read as a hex-string, always: int_from_integer("1234") is 4660,
+# not 1234, and "9" raises rather than being nine. There is no ambiguity to
+# resolve by convention here -- a decimal representation is what int itself
+# is for, and int("1234") costs the caller nothing -- so the ambiguity is
+# resolved the way every other str in this file resolves it
 # Integer = Union[Octets, int]
 Integer = Union[bytes, str, int]
 
@@ -99,12 +119,29 @@ JacPoint = tuple[int, int, int]
 # QJ = Q[0], Q[1], 1 if Q[1] else 0
 INFJ = 7, 0, 0
 
-# TODO add type hinting to script_tree
-# unfortunately recursive type hinting is not supported
-# https://github.com/python/mypy/issues/731
-# TaprootLeaf = Tuple[int, Script]
-# TaprootScriptTree = List[Union[Any, TaprootLeaf]]
-TaprootScriptTree = Any
-
 Command = Union[int, str, bytes]
 ScriptList = list[Command]
+
+# A BIP341 taproot script tree: a leaf is a one-element list holding a
+# (leaf_version, script) pair, a branch a two-element list of subtrees.
+# The nesting is what makes the alias recursive, and recursion is why this
+# used to be a bare Any behind a TODO citing mypy issue 731 -- which was
+# closed by mypy 0.990, recursive aliases being on by default since 1.0.
+# So the alias is written out, and the taproot surface is checked.
+#
+# list, and not the Sequence mypy's variance note suggests when a caller's
+# list[tuple[int, list[str]]] does not fit: str is itself a Sequence[str],
+# so under Sequence the recursion accepts any str as an entire tree --
+# output_pubkey(None, "hello") type checks -- and a (leaf_version, script)
+# tuple with a str version passes as a branch of two subtrees. Measured
+# over five malformed trees, list rejects five and Sequence three.
+# Invariance is the cost and the point: it is what makes a str not a tree.
+# It is paid wherever a tree is built into a variable instead of passed as
+# a literal, by annotating that variable with this alias
+TaprootLeaf = tuple[int, ScriptList]
+TaprootScriptTree = list[Union[TaprootLeaf, "TaprootScriptTree"]]
+
+# what tree_helper returns beside the merkle root: every leaf of the tree
+# paired with the concatenated sibling hashes that prove it, i.e. the tail
+# of the control block input_script_sig builds
+TaprootLeafPaths = list[tuple[TaprootLeaf, bytes]]

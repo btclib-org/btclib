@@ -104,6 +104,12 @@ def int_from_integer(i: Integer) -> int:
     * "deadbeef"
     * b'\xde\xad\xbe\xef'
 
+    A str is always read as a hex-string, with or without the "0x" prefix:
+    int_from_integer("1234") is 4660, not one thousand two hundred and
+    thirty-four, and "9" raises ValueError for being a hex-string of odd
+    length rather than evaluating to nine. A decimal representation is
+    what int itself is for, so pass int("1234").
+
     The binary representation is not allowed because there is no way to
     discriminate it from a valid hex-string
     (e.g. "0b11011110101011011011111011101111").

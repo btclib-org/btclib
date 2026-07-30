@@ -11,10 +11,17 @@
 
 from __future__ import annotations
 
-from typing import Any, cast
+from typing import cast
 
 from btclib import var_bytes
-from btclib.alias import BinaryData, Octets, ScriptList, TaprootScriptTree
+from btclib.alias import (
+    BinaryData,
+    Octets,
+    ScriptList,
+    TaprootLeaf,
+    TaprootLeafPaths,
+    TaprootScriptTree,
+)
 from btclib.ec import Curve, mult, secp256k1
 from btclib.exceptions import BTClibValueError
 from btclib.hashes import tagged_hash
@@ -95,11 +102,13 @@ def parse(stream: BinaryData, exit_on_op_success: bool = False) -> ScriptList:
     return r
 
 
-def tree_helper(script_tree: TaprootScriptTree) -> tuple[Any, bytes]:
+def tree_helper(script_tree: TaprootScriptTree) -> tuple[TaprootLeafPaths, bytes]:
     if len(script_tree) == 1:
-        return cast("tuple[Any, bytes]", _tree_helper(script_tree))
-    left, left_h = tree_helper(script_tree[0])
-    right, right_h = tree_helper(script_tree[1])
+        return _tree_helper(script_tree)
+    # a branch: both elements are subtrees, and the alias says only that
+    # an element may also be a leaf, so the narrowing is ours to assert
+    left, left_h = tree_helper(cast("TaprootScriptTree", script_tree[0]))
+    right, right_h = tree_helper(cast("TaprootScriptTree", script_tree[1]))
     info = [(leaf, c + right_h) for leaf, c in left]
     info += [(leaf, c + left_h) for leaf, c in right]
     if right_h < left_h:
@@ -107,8 +116,8 @@ def tree_helper(script_tree: TaprootScriptTree) -> tuple[Any, bytes]:
     return (info, tagged_hash(b"TapBranch", left_h + right_h))
 
 
-def _tree_helper(script_tree: TaprootScriptTree) -> TaprootScriptTree:
-    leaf_version, script = script_tree[0]
+def _tree_helper(script_tree: TaprootScriptTree) -> tuple[TaprootLeafPaths, bytes]:
+    leaf_version, script = cast("TaprootLeaf", script_tree[0])
     leaf_version = leaf_version & 0xFE
     preimage = leaf_version.to_bytes(1, "big")
     preimage += var_bytes.serialize(serialize(script))

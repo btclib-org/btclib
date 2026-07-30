@@ -514,6 +514,34 @@ Major changes includes:
   tests/test_imports.py imports every module of the package first, with no
   other in sys.modules: that is the order no other test reaches, and the
   one a cycle hides behind (issue #147)
+- `alias.TaprootScriptTree` is a type. It was `Any`, behind a TODO citing
+  mypy issue 731 — recursive type aliases — which mypy closed in 0.990 and
+  has had on by default since 1.0, so the whole taproot script-tree
+  surface was unchecked: `output_pubkey`, `output_prvkey`,
+  `input_script_sig`, and `ScriptPubKey.p2tr` accepted anything at all.
+  It is now the recursive `list[Union[TaprootLeaf, TaprootScriptTree]]`,
+  with the leaf pair named as `TaprootLeaf` beside it and exported from
+  `btclib.script`, and `tree_helper` returns the new `TaprootLeafPaths`
+  rather than `tuple[Any, bytes]`. `list` and not the `Sequence` mypy's
+  variance note suggests: `str` is a `Sequence[str]`, so under `Sequence`
+  the recursion admits any string as an entire tree —
+  `output_pubkey(None, "hello")` type checks — and a `(leaf_version,
+  script)` tuple whose version is a string passes as a branch of two
+  subtrees. Measured over five malformed trees, `list` rejects five and
+  `Sequence` three. The cost of invariance is that a tree built into a
+  variable rather than passed as a literal wants the annotation, which is
+  the documentation anyway
+- `int_from_integer` documents that a `str` argument is read as a
+  hex-string whatever it looks like: `int_from_integer("1234")` is 4660,
+  and `"9"` raises for being of odd length rather than being nine. The
+  behaviour is unchanged and deliberate — a decimal representation is what
+  `int` itself is for — and now the docstring says so
+- `alias.py` says at the top that `Octets` and `String` are the same type
+  to mypy, both being `Union[bytes, str]`, so the hex-string versus text
+  string distinction the file documents is enforced at run time by the
+  converter each function calls and by nothing else. `NewType` would let a
+  checker separate them at the cost of every caller wrapping its literals,
+  which is a different library
 
 ## v2023.7.12
 

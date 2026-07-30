@@ -17,6 +17,7 @@ from typing import Any, NamedTuple
 
 import pytest
 
+from btclib.alias import TaprootScriptTree
 from btclib.exceptions import BTClibValueError, ScriptError
 from btclib.script import ScriptPubKey
 from btclib.script.engine import ALL_FLAGS, verify_input
@@ -72,7 +73,9 @@ def taproot_placeholders(
         elif element == "#CONTROLBLOCK#":
             # the tapscript is the element before it, and parsing it back
             # is faithful for all five: serialize(parse(bytes)) == bytes
-            script_tree = [(0xC0, parse_tapscript(bytes.fromhex(out[-1])))]
+            script_tree: TaprootScriptTree = [
+                (0xC0, parse_tapscript(bytes.fromhex(out[-1])))
+            ]
             q = output_pubkey(None, script_tree)[0]
             out.append(input_script_sig(None, script_tree, 0)[1].hex())
         else:
@@ -219,7 +222,7 @@ def taproot_script_spend(
     the script path needs no signature unless the script asks for one,
     which is what lets a timelock op code run alone.
     """
-    script_tree = [(0xC0, script)]
+    script_tree: TaprootScriptTree = [(0xC0, script)]
     q, _ = output_pubkey(None, script_tree)
     tap_script, control = input_script_sig(None, script_tree, 0)
     prevout = TxOut(1000, ScriptPubKey(serialize(["OP_1", q])))
