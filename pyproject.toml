@@ -111,9 +111,14 @@ xfail_strict = true
 # a deprecation warning is the early form of a break, emitted years before
 # the removal that will fail the suite: on a 3.9 to 3.14 spread, plus
 # pypy, there is time to act on it only if it is not silent.
-# The list carries no ignore because the suite emits nothing to ignore:
-# checked on 3.9, 3.14, 3.14t and pypy3.11. One added here should name the
-# warning, not a module, and say what would let it be dropped
+# The list carries no ignore, and no test silences a warning wholesale:
+# the one btclib emits, BTClibUserWarning, is asserted with pytest.warns
+# where a test provokes it deliberately, and silenced by category alone at
+# the single call in tests/script_engine that provokes it incidentally.
+# A blanket simplefilter("ignore") would defeat this table, which is why
+# there is none: checked on 3.9, 3.14, 3.14t and pypy3.11. An ignore added
+# here should name the warning, not a module, and say what would let it be
+# dropped
 filterwarnings = ["error"]
 
 [tool.coverage.run]

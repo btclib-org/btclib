@@ -10,7 +10,6 @@
 """Tests for the `btclib.script.engine` module."""
 
 import json
-import warnings
 from os import path
 
 import pytest
@@ -240,9 +239,7 @@ def test_invalid_legacy() -> None:
             amount = 0 if len(i) == 3 else i[3]
             if not amount:
                 check_amounts = False
-            with warnings.catch_warnings():
-                warnings.simplefilter("ignore")
-                script_pub_key = parse_script(i[2])
+            script_pub_key = parse_script(i[2])
             prevouts.append(TxOut(amount, ScriptPubKey(script_pub_key)))
 
         with pytest.raises((BTClibValueError, IndexError, KeyError)):

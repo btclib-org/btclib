@@ -11,8 +11,6 @@
 
 from __future__ import annotations
 
-import warnings
-
 import pytest
 
 from btclib.alias import ScriptList
@@ -20,6 +18,7 @@ from btclib.exceptions import BTClibValueError
 from btclib.script import Script, op_int, parse, serialize
 from btclib.script.script import BYTE_FROM_OP_CODE_NAME, OP_CODE_NAME_FROM_INT
 from btclib.utils import hex_string
+from tests.script import serialize_non_canonical
 
 
 def test_operators() -> None:
@@ -153,7 +152,6 @@ def test_opcode_length() -> None:
 
 def test_regressions() -> None:
     script_list: list[ScriptList] = [
-        [1],
         ["OP_1"],
         [51],
         [b"\x01"],
@@ -161,21 +159,25 @@ def test_regressions() -> None:
         ["AA"],
         ["aa"],
         ["AAAA"],
-        [0],
         [""],
         [b""],
         ["OP_0"],
-        [-1],
         ["OP_1NEGATE"],
         [0x81],
         ["81"],
     ]
-    with warnings.catch_warnings():
-        warnings.simplefilter("ignore")
+    for s in script_list:
+        serialized = serialize(s)
+        assert serialize(parse(serialized)) == serialized
 
-        for s in script_list:
-            serialized = serialize(s)
-            assert serialize(parse(serialized)) == serialized
+    # the three regressions that serialize() warns about, kept apart from
+    # the others so that the warning is asserted rather than ignored: a
+    # simplefilter("ignore") around the loop above used to hide it, and
+    # with it any other warning the loop raised
+    non_canonical: list[ScriptList] = [[1], [0], [-1]]
+    for s in non_canonical:
+        serialized = serialize_non_canonical(s)
+        assert serialize(parse(serialized)) == serialized
 
 
 def test_null_serialization() -> None:
@@ -188,16 +190,16 @@ def test_null_serialization() -> None:
     assert parse(serialize([b""])) == ["OP_0"]
     assert parse(serialize([b" "])) == ["20"]
 
-    with warnings.catch_warnings():
-        warnings.simplefilter("ignore")
+    # 0 and 16 have a one-byte op code, so pushing them as data warns
+    assert serialize_non_canonical([0]) == b"\x01\x00"
+    assert parse(serialize_non_canonical([0])) == ["00"]
 
-        assert serialize([0]) == b"\x01\x00"
-        assert parse(serialize([0])) == ["00"]
+    assert serialize_non_canonical([16]) == b"\x01\x10"
+    assert parse(serialize_non_canonical([16])) == ["10"]
 
-        assert serialize([16]) == b"\x01\x10"
-        assert serialize([17]) == b"\x01\x11"
-        assert parse(serialize([16])) == ["10"]
-        assert parse(serialize([17])) == ["11"]
+    # 17 has none, and warns not
+    assert serialize([17]) == b"\x01\x11"
+    assert parse(serialize([17])) == ["11"]
 
     assert serialize(["10"]) == b"\x01\x10"
     assert serialize(["11"]) == b"\x01\x11"
@@ -217,12 +219,12 @@ def test_op_int_serialization() -> None:
 def test_integer_serialization() -> None:
     assert ["OP_0"] == parse(b"\x00")
 
-    with warnings.catch_warnings():
-        warnings.simplefilter("ignore")
-        assert serialize([0]) != b"\x00"
-        for i in range(1, 17):
-            serialized_int = serialize([i])
-            assert [hex_string(i)] == parse(serialized_int)
+    # [0, 16] is exactly the range with a shorter op code form, so every
+    # serialize() below warns; from 17 on, none does
+    assert serialize_non_canonical([0]) != b"\x00"
+    for i in range(1, 17):
+        serialized_int = serialize_non_canonical([i])
+        assert [hex_string(i)] == parse(serialized_int)
 
     for i in range(17, 128):
         serialized_int = serialize([i])  # e.g., i = 26

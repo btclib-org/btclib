@@ -10,7 +10,6 @@
 """Tests for the `btclib.script.taproot` module."""
 
 import json
-import warnings
 from os import path
 
 import pytest
@@ -31,6 +30,7 @@ from btclib.script import (
 )
 from btclib.script.taproot import parse, serialize
 from btclib.tx import TxOut
+from tests.script import serialize_non_canonical
 
 
 def test_valid_script_path() -> None:
@@ -180,11 +180,11 @@ def test_serialization() -> None:
     script: ScriptList = ["OP_SUCCESS80", b"\x01\x01\x01"]
     assert parse(serialize(script)) == script
 
-    with warnings.catch_warnings():
-        warnings.simplefilter("ignore")
-        assert parse(serialize([-1])) == ["81"]
-        for x in range(17):
-            assert parse(serialize([x])) == [f"{x:02X}"]
+    # -1 and [0, 16] are the integers with a one-byte op code, so every
+    # serialize() below pushes data where an op code would do and warns
+    assert parse(serialize_non_canonical([-1], serialize)) == ["81"]
+    for x in range(17):
+        assert parse(serialize_non_canonical([x], serialize)) == [f"{x:02X}"]
 
     for x in range(17, 100):
         assert parse(serialize([x])) == [f"{x:02X}"]

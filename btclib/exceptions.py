@@ -44,3 +44,19 @@ class BTClibTypeError(TypeError):
 
 class BTClibRuntimeError(RuntimeError):
     pass
+
+
+class BTClibUserWarning(UserWarning):
+    """A btclib warning: the call worked, but not the way it should have.
+
+    A plain `warn(...)` defaults to UserWarning, which is also what any
+    other library and the application itself emit: a caller wanting to
+    silence btclib alone, or to promote it to an error, then has nothing
+    to name but the message text or the module. This category is that
+    name, and it stays a UserWarning so that code filtering that keeps
+    filtering this.
+
+    The test suite relies on it too: `filterwarnings = ["error"]` is only
+    worth having if the places that provoke a btclib warning silence that
+    warning and nothing else.
+    """

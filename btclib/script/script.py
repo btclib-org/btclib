@@ -24,7 +24,7 @@ from dataclasses import dataclass
 from warnings import warn
 
 from btclib.alias import BinaryData, Command, Octets, ScriptList
-from btclib.exceptions import BTClibValueError
+from btclib.exceptions import BTClibUserWarning, BTClibValueError
 from btclib.utils import bytes_from_octets, bytesio_from_binarydata, encode_num
 
 BYTE_FROM_OP_CODE_NAME = {
@@ -255,7 +255,13 @@ def op_int(i: int) -> str:
 
 def _serialize_int_command(command: int) -> bytes:
     if -1 <= command <= 16:
-        warn(f"consider using OP_{command} instead", stacklevel=2)
+        # not a DeprecationWarning: nothing is going away, the push is
+        # merely one byte longer than the op code that means the same
+        warn(
+            f"consider using OP_{command} instead",
+            BTClibUserWarning,
+            stacklevel=2,
+        )
     return _serialize_bytes_command(encode_num(command))
 
 

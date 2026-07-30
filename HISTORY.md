@@ -159,6 +159,18 @@ Major changes includes:
   IndexError, and an op code with no name as KeyError, from the legacy
   engine and from `taproot.parse` alike: all are BTClibValueError now
   (issue #141)
+- the "consider using OP_x instead" warning `script.serialize` emits for a
+  number in [-1, 16] pushed as data is a new `BTClibUserWarning`, not a
+  bare UserWarning: an application could not silence it, or promote it to
+  an error, without naming btclib's module or the message text. It stays a
+  UserWarning, so a filter on that still catches it. The test suite is the
+  first beneficiary: `filterwarnings = ["error"]` used to be defeated by
+  six blanket `simplefilter("ignore")` blocks — wrapped around the
+  1254-vector script loop, among others — which hid any *other* warning
+  raised in there, a new interpreter's DeprecationWarning included. Those
+  are gone: a test that provokes the warning deliberately now asserts it
+  with `pytest.warns`, and the vector loops silence that one category at
+  the single call that provokes it incidentally (issue #153)
 - `parse_taproot_bip32` bounds its allocation by the data it was handed
   rather than by the count a counterparty declared: five bytes of a
   hostile PSBT used to cost gigabytes, reachable from `Psbt.parse` and
