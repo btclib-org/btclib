@@ -5,6 +5,24 @@
 # If want to disable all hooks while committing, use the --no-verify/-n option:
 # $ git commit -n -m "foo"
 
+# these hooks are the lint gate: the lint workflow runs this very file, so
+# what CI enforces is exactly what a commit enforces, with no second list
+# of tools and versions to keep in step. What pre-commit.ci provides on
+# top of that, and what it is kept for, is the periodic pull request
+# bumping the revisions pinned below
+ci:
+  # a bot committing to a branch is at odds with the rest of this setup,
+  # where no workflow token can write and every action is pinned to a
+  # commit SHA: a failing hook is fixed by its author
+  autofix_prs: false
+  # onto dev, as dependabot does: master only receives merges from it
+  autoupdate_branch: dev
+  autoupdate_commit_msg: "Update the pinned pre-commit hook revisions"
+  autoupdate_schedule: weekly
+  # the hooks pre-commit.ci cannot run: they shell out to uv, which is not
+  # installed there, and the lint workflow covers them
+  skip: [mypy]
+
 repos:
   - repo: https://github.com/pre-commit/pre-commit-hooks
     rev: v6.0.0
@@ -50,12 +68,25 @@ repos:
         args: [--fix]
       - id: ruff-format
         name: ruff format (in place fixes)
-  - repo: https://github.com/pre-commit/mirrors-mypy
-    rev: v2.3.0
+  # not the mirrors-mypy hook: it injects --ignore-missing-imports, which
+  # turns an unresolved (or misspelled) import into Any, the opposite of
+  # strict, and it type checks in an isolated environment, where every
+  # import of the btclib_libsecp256k1 bindings is exactly that. Declaring
+  # them there would mean building libsecp256k1 for the hook, and from
+  # PyPI at that, where the version this project requires is not yet
+  # published. This is the very command the lint workflow runs, against
+  # the project environment and the real pytest
+  - repo: local
     hooks:
       - id: mypy
-        language: python
+        name: mypy (strict, in the project environment)
+        entry: >
+          uv run --frozen --no-default-groups --group lint --group test
+          mypy btclib tests
+        language: system
         types: [python]
+        pass_filenames: false
+        require_serial: true
   - repo: https://github.com/astral-sh/uv-pre-commit
     rev: 0.12.0
     hooks:

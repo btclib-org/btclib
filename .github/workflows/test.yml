@@ -19,9 +19,19 @@ on:
   # request is not open yet
   workflow_dispatch:
 
-# cancel superseded runs on the same branch/PR
+# least privilege for the GITHUB_TOKEN: everything running in a job
+# (actions, dependencies, build scripts) can read the token, so it must
+# not be able to write to the repository
+permissions:
+  contents: read
+
+# cancel superseded runs on the same branch/PR.
+# The group is named literally rather than with github.workflow, which in
+# a called workflow is the caller's name: the release workflow calls both
+# this and lint.yml, and with that expression the two would share a group
+# and cancel each other
 concurrency:
-  group: ${{ github.workflow }}-${{ github.ref }}
+  group: test-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
@@ -51,11 +61,17 @@ jobs:
           ]
         python:
           ["3.9", "3.10", "3.11", "3.12", "3.13", "3.14", "pypy3.10", "pypy3.11"]
+    # the bindings are compiled here, so this is not instantaneous; what
+    # it bounds is a hung job holding a runner for six hours
+    timeout-minutes: 30
     steps:
+      # every action is pinned to a commit SHA, the tag in the comment: a
+      # tag, let alone a branch, is a name its owner can move, and these
+      # run in a job that can read the workflow token
       - name: Checkout code
-        uses: actions/checkout@v7
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - name: Setup uv
-        uses: astral-sh/setup-uv@v9.0.0
+        uses: astral-sh/setup-uv@c771a70e6277c0a99b617c7a806ffedaca235ff9 # v9.0.0
         with:
           # the bindings are built from source: the cache keeps that to
           # once per commit of the bindings
@@ -77,11 +93,12 @@ jobs:
   # upload only ever happened on pull requests targeting master
   coverage-py:
     runs-on: ubuntu-latest
+    timeout-minutes: 30
     steps:
       - name: Checkout code
-        uses: actions/checkout@v7
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - name: Setup uv
-        uses: astral-sh/setup-uv@v9.0.0
+        uses: astral-sh/setup-uv@c771a70e6277c0a99b617c7a806ffedaca235ff9 # v9.0.0
         with:
           enable-cache: true
           python-version: "3.13"

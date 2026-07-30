@@ -2,22 +2,23 @@
 # - the Gemfile is left out: GitHub builds the pages site on its own
 #   side, so github-pages is only ever resolved for a local preview
 # - the pre-commit hook revs are left out because dependabot has no
-#   pre-commit ecosystem; pre-commit.ci updates them instead, weekly,
-#   which is its default when the config declares no ci: block
+#   pre-commit ecosystem; pre-commit.ci updates them instead, weekly and
+#   onto dev, as configured in the ci: block of .pre-commit-config.yaml
 #
 # every pull request here runs the whole test matrix, so both ecosystems
 # group their updates into a single pull request and ask monthly rather
-# than weekly: nothing either of them tracks is security-critical
+# than weekly: nothing either of them tracks is security-critical.
+# Both target dev: master only receives merges from it
 version: 2
 updates:
-  # four of the six actions are on a floating major tag and one is on a
-  # branch, so they already move on their own; what this buys is the
-  # exact pin, astral-sh/setup-uv, which never will, and a heads-up when
-  # a major tag is the one that changed
+  # every action is now pinned to a commit SHA, which nothing but this
+  # moves: without it a pin is frozen forever, and a fix (or a security
+  # advisory) upstream would never reach this repository
   - package-ecosystem: github-actions
     directory: /
     schedule:
       interval: monthly
+    target-branch: dev
     groups:
       actions:
         patterns: ["*"]
@@ -31,6 +32,7 @@ updates:
     directory: /
     schedule:
       interval: monthly
+    target-branch: dev
     groups:
       dev-tooling:
         patterns: ["*"]

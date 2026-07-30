@@ -1,45 +1,74 @@
 name: lint
 
+# the fast gate, kept apart from the test workflow: a style error is not
+# worth discovering at the end of a matrix, and two workflows mean two
+# badges and two lines in the checks list, so a lint failure no longer
+# reads as "the build is red".
+# What runs here is .pre-commit-config.yaml itself rather than a second
+# list of the same tools: CI therefore enforces exactly what a commit
+# enforces, and the hooks that only pre-commit.ci used to run (the
+# copyright notice, the private key detector, check-manifest, pyroma, the
+# uv.lock sync) are now gated by this repository's own CI
+
 on:
   push:
-    branches:
-      - master
-      - dev
+    # master only: a push to a branch that has an open pull request would
+    # run this workflow twice, once per event, and the two runs land in
+    # different concurrency groups (refs/heads/dev against
+    # refs/pull/N/merge) so neither cancels the other. The pull_request
+    # run is the one worth keeping, because it lints the merge commit and
+    # is the only run a fork's pull request produces at all.
+    # master keeps a trigger of its own because a merge creates a commit
+    # that is not the one the pull request linted, and nothing else would
+    # ever lint it. Tag pushes are covered by the release workflow
+    branches: [master]
   pull_request:
-    branches:
-      - master
-      - dev
   # lets the release workflow gate publication on these same checks
   workflow_call:
+  # the escape hatch: a run on demand for a branch whose pull request is
+  # not open yet
+  workflow_dispatch:
+
+# least privilege for the GITHUB_TOKEN: everything running in a job
+# (actions, dependencies, hooks) can read the token, so it must not be
+# able to write to the repository
+permissions:
+  contents: read
+
+# cancel superseded runs on the same branch/PR.
+# The group is named literally rather than with github.workflow, which in
+# a called workflow is the caller's name: the release workflow calls both
+# this and test.yml, and with that expression the two would share a group
+# and cancel each other
+concurrency:
+  group: lint-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
   lint:
+    name: Lint and type-check
     runs-on: ubuntu-latest
+    # nothing here takes minutes; a job that does is hung
+    timeout-minutes: 20
     steps:
+      # every action is pinned to a commit SHA, the tag in the comment: a
+      # tag, let alone a branch, is a name its owner can move, and these
+      # run in a job that can read the workflow token
       - name: Checkout code
-        uses: actions/checkout@v7
-      - name: Check linted md
-        uses: DavidAnson/markdownlint-cli2-action@v24
-        with:
-          command: config
-          globs: |
-            .markdownlint.jsonc
-            **/*.md
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - name: Setup uv
-        uses: astral-sh/setup-uv@v9.0.0
+        uses: astral-sh/setup-uv@c771a70e6277c0a99b617c7a806ffedaca235ff9 # v9.0.0
         with:
+          # pre-commit itself, which uvx fetches, and the project
+          # environment the mypy hook type checks against
           enable-cache: true
-      - name: Check ruff lint rules
-        run: uv run --frozen --no-default-groups --group lint ruff check
-      - name: Check ruff formatting
-        run: uv run --frozen --no-default-groups --group lint ruff format --check
-      # pre-commit.ci runs mypy too, but from the rev pinned in its own
-      # config, and through a hook that defaults to
-      # --ignore-missing-imports: this runs the version the project itself
-      # pins, and against the real pytest, which the test group is here to
-      # provide. Without it every "import pytest" under tests/ is an
-      # import-not-found
-      - name: Check mypy types
-        run: >
-          uv run --frozen --no-default-groups --group lint --group test
-          mypy btclib tests
+      # the hook environments are the slow part, node for markdownlint
+      # above all; they only change when the revisions pinned in
+      # .pre-commit-config.yaml change
+      - name: Cache the pre-commit hook environments
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ~/.cache/pre-commit
+          key: pre-commit-${{ hashFiles('.pre-commit-config.yaml') }}
+      - name: Run the pre-commit hooks
+        run: uvx pre-commit run --all-files --show-diff-on-failure
