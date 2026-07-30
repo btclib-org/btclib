@@ -177,6 +177,16 @@ cannot pass `--locked`, and it rewrites uv.lock: restore that with
 uv run --no-sources --no-default-groups --group test pytest
 ```
 
+The `latest` workflow, which upgrades every dependency uv resolves before
+running the suite, the lint gate and the packaging checks. The upgrade
+rewrites uv.lock, and here too `git checkout uv.lock` restores it; the
+commands after it are the ones already listed above, so only the first is
+worth repeating:
+
+```shell
+uv lock --upgrade
+```
+
 The only check with no local equivalent is CodeQL, which GitHub runs on
 its side; its findings appear under the Security tab.
 
