@@ -16,7 +16,7 @@ didactic (and fun) reason only.
 from __future__ import annotations
 
 from btclib.alias import INF, Point
-from btclib.ec.curve_group import CurveGroup
+from btclib.curves.curve_group import CurveGroup
 from btclib.exceptions import BTClibValueError
 
 

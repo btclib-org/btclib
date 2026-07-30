@@ -28,7 +28,7 @@ import secrets
 from hashlib import sha256
 
 from btclib.alias import HashF, Octets
-from btclib.ec import Curve, mult, secp256k1
+from btclib.curves import Curve, mult, secp256k1
 from btclib.hashes import tagged_hash
 from btclib.to_prv_key import PrvKey, int_from_prv_key
 from btclib.utils import bytes_from_octets, int_from_bits

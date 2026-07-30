@@ -17,7 +17,7 @@ from hashlib import sha256
 import pytest
 
 from btclib.alias import Point
-from btclib.ec import secp256k1
+from btclib.curves import secp256k1
 from btclib.ecc import borromean, dsa
 from btclib.exceptions import BTClibRuntimeError
 

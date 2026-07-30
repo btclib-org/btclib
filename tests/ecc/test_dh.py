@@ -13,8 +13,8 @@ from hashlib import sha1, sha224, sha256, sha384, sha512
 
 import pytest
 
-from btclib.ec import bytes_from_point, mult
-from btclib.ec.curve import CURVES
+from btclib.curves import bytes_from_point, mult
+from btclib.curves.curve import CURVES
 from btclib.ecc import ansi_x9_63_kdf, diffie_hellman, dsa
 from btclib.exceptions import BTClibRuntimeError, BTClibValueError
 

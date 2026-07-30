@@ -16,7 +16,7 @@ from typing import Union
 
 from btclib.alias import Point
 from btclib.bip32 import BIP32Key, BIP32KeyData
-from btclib.ec import Curve, bytes_from_point, mult, point_from_octets, secp256k1
+from btclib.curves import Curve, bytes_from_point, mult, point_from_octets, secp256k1
 from btclib.exceptions import BTClibValueError
 from btclib.hashes import hash160
 from btclib.network import (

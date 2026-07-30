@@ -29,13 +29,22 @@
 # THE SOFTWARE.
 """Bech32(m) encoding and decoding functions.
 
+**The codec.** This module is bech32 and bech32m themselves, with no bitcoin
+in them: data in, a checksummed string out, and nothing that knows what a
+witness program is. What gives it meaning is btclib.b32 -- p2wpkh, p2wsh,
+p2tr, the witness version and the network prefixes -- and the rule between
+the two is that direction: b32 imports bech32, never the other way round.
+`base58` and `b58` are the same pair for the base58 address encoding.
+
 BIP173: https://github.com/bitcoin/bips/blob/master/bip-0173.mediawiki
 
 This implementation of bech32 is originally from
 https://github.com/sipa/bech32/tree/master/ref/python,
 with the following modifications:
 
-* split the original segwit_addr.py file in bech32.py and segwitaddress.py
+* split the original segwit_addr.py file in bech32.py and b32.py, the
+  codec and the bitcoin semantics (b32.py was segwitaddress.py when this
+  list was written)
 * type annotated python3
 * avoided returning (None, None), throwing Exceptions instead
 * removed the 90-chars limit for bech32 string, enforced by segwitaddr instead

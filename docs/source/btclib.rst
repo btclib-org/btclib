@@ -9,7 +9,7 @@ Subpackages
 
    btclib.bip32
    btclib.block
-   btclib.ec
+   btclib.curves
    btclib.ecc
    btclib.mnemonic
    btclib.psbt

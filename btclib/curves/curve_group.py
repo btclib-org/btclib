@@ -11,7 +11,7 @@
 
 Note that CurveGroup does not have to be a cyclic subgroup. For the
 cyclic subgroup class CurveSubGroup and the cyclic subgroup class of
-prime order Curve, see the btclib.ec.curve module.
+prime order Curve, see the btclib.curves.curve module.
 """
 
 from __future__ import annotations
@@ -137,7 +137,7 @@ class CurveGroup:
         # is not cosmetic, as the libsecp256k1 dispatch tests ec against
         # secp256k1, and the default identity comparison silently sent
         # every other object holding the secp256k1 parameters -- one is
-        # built by ec/curve.py itself -- down the slow python path
+        # built by curves/curve.py itself -- down the slow python path
         if self is other:
             return True
         # an exact type test, not isinstance alone: a CurveSubGroup is

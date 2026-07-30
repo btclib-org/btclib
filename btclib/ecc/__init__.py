@@ -9,12 +9,26 @@
 # or distributed except according to the terms contained in the LICENSE file.
 """Module btclib.ecc.
 
-The signature schemes are what this package is for, and none of them was
-exported: `__all__` held ansi_x9_63_kdf, bip340_nonce_, diffie_hellman and
-second_generator, and not dsa, ssa or bms. So `import btclib.ecc` followed
-by `btclib.ecc.dsa.sign(...)` raised AttributeError until something else in
-the process happened to import the submodule, and what the package
-advertised was four helpers instead of the six schemes behind them.
+**The schemes.** btclib.ecc holds what is built *on* an elliptic curve:
+dsa, ssa, bms and borromean signatures, pedersen commitments, the
+Diffie-Hellman key agreement, the RFC6979 and BIP340 nonces, and
+sign-to-contract. The curve arithmetic underneath is btclib.curves, and the
+rule between the two is that direction: ecc imports curves, never the other
+way round.
+
+That package used to be called btclib.ec, one character from this one, and
+"btclib.ec" against "btclib.ecc" is not a distinction anybody can hold --
+`from btclib.ecc import dsa` against `from btclib.ec import mult` was a coin
+flip for a newcomer. The split itself was right and is unchanged; only the
+name is.
+
+The signature schemes are also what this package is for, and none of them
+was exported: ``__all__`` held ``ansi_x9_63_kdf``, ``bip340_nonce_``,
+``diffie_hellman`` and ``second_generator``, and not dsa, ssa or bms. So
+`import btclib.ecc` followed by `btclib.ecc.dsa.sign(...)` raised
+AttributeError until something else in the process happened to import the
+submodule, and what the package advertised was four helpers instead of the
+six schemes behind them.
 
 bms and sign_to_contract do `from btclib.ecc import dsa`, i.e. they import
 a name from the package that is importing them, and the order of the line

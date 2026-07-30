@@ -9,6 +9,19 @@ full year, short month, short day (YYYY-M-D)
 
 Major changes includes:
 
+- **`btclib.ec` is now `btclib.curves`**, which is a breaking rename and the
+  only one here: every name the package exports is the name it exported
+  before, and the split between curve arithmetic and the schemes built on it
+  is unchanged. What was wrong was the name — `btclib.ec` and `btclib.ecc`
+  differ by one character, and `from btclib.ec import mult` against
+  `from btclib.ecc import dsa` is a coin flip for anyone who has not read
+  both. Code importing `btclib.ec` has to be updated; that is the whole cost.
+  The three pairs that are one idea split in two now each say so, in a
+  "Module layout" table in the README and in all six docstrings:
+  `curves`/`ecc`, `base58`/`b58`, `bech32`/`b32`, the codec or the arithmetic
+  on the left and the bitcoin semantics on the right, importing rightwards
+  only. `bech32.py` also stops citing `segwitaddress.py`, a file renamed to
+  `b32.py` several releases ago (issue #148)
 - dropped python 3.7 and 3.8 support, added 3.13 and 3.14
 - dropped pypy3.10 from the test matrix; pypy3.11 stays, so PyPy is still
   covered. hypothesis ships compiled wheels from 6.160 on and publishes

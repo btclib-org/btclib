@@ -10,7 +10,7 @@
 """SEC compressed/uncompressed point representation."""
 
 from btclib.alias import Octets, Point
-from btclib.ec.curve import Curve, secp256k1
+from btclib.curves.curve import Curve, secp256k1
 from btclib.exceptions import BTClibValueError
 from btclib.utils import bytes_from_octets, hex_string
 

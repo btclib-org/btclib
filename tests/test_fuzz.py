@@ -38,7 +38,7 @@ from btclib.bip32.bip32 import BIP32KeyData
 from btclib.bip32.key_origin import BIP32KeyOrigin
 from btclib.block.block import Block
 from btclib.block.block_header import BlockHeader
-from btclib.ec.sec_point import point_from_octets
+from btclib.curves.sec_point import point_from_octets
 from btclib.ecc import bms, dsa, ssa
 from btclib.exceptions import BTClibRuntimeError, BTClibTypeError, BTClibValueError
 from btclib.psbt import psbt_utils

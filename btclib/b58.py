@@ -9,8 +9,14 @@
 # or distributed except according to the terms contained in the LICENSE file.
 """Base58 address and WIF functions.
 
-Base58 encoding of public keys and scripts as addresses, private keys as
-WIFs
+**The bitcoin semantics.** Base58 encoding of public keys and scripts as
+addresses, and of private keys as WIFs: the version prefixes, the networks,
+p2pkh, p2sh, and the p2sh-wrapped segwit forms.
+
+The encoding itself is btclib.base58, which knows nothing about bitcoin, and
+the rule between the two is that direction: this module imports base58, never
+the other way round. `bech32` and `b32` are the same pair for the segwit
+address encoding.
 """
 
 from __future__ import annotations

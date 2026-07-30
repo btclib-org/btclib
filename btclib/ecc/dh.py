@@ -24,7 +24,7 @@ from hashlib import sha256
 from math import ceil
 
 from btclib.alias import HashF, Point
-from btclib.ec import Curve, mult, secp256k1
+from btclib.curves import Curve, mult, secp256k1
 from btclib.exceptions import BTClibRuntimeError, BTClibValueError
 
 

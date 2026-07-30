@@ -14,8 +14,8 @@ from typing import Any
 
 import pytest
 
-from btclib.ec import mult
-from btclib.ec.curve import CURVES, Curve
+from btclib.curves import mult
+from btclib.curves.curve import CURVES, Curve
 from btclib.ecc import dsa
 from btclib.ecc.rfc6979_nonce import rfc6979_nonce_
 from btclib.hashes import reduce_to_hlen

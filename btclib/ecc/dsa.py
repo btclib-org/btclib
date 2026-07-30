@@ -29,9 +29,9 @@ from btclib_libsecp256k1 import dsa as libsecp256k1_dsa
 
 from btclib import var_bytes
 from btclib.alias import BinaryData, HashF, JacPoint, Octets, Point
-from btclib.ec import Curve, secp256k1
-from btclib.ec.curve import _libsecp256k1_applicable
-from btclib.ec.curve_group import _double_mult, _mult
+from btclib.curves import Curve, secp256k1
+from btclib.curves.curve import _libsecp256k1_applicable
+from btclib.curves.curve_group import _double_mult, _mult
 from btclib.ecc.rfc6979_nonce import _rfc6979_nonce_, challenge_
 from btclib.exceptions import BTClibRuntimeError, BTClibValueError
 from btclib.hashes import reduce_to_hlen

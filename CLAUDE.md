@@ -13,7 +13,7 @@ uv run pytest                                   # the suite
 uv run pytest tests/ecc/test_dsa.py             # one file
 uv run pytest -k test_low_cardinality           # one test
 uv run pre-commit run --all-files               # every gate, see below
-uv run pre-commit run mypy --files btclib/ec/curve.py   # one hook
+uv run pre-commit run mypy --files btclib/curves/curve.py   # one hook
 uv run --python 3.9 pytest                      # another interpreter
 ```
 
@@ -25,11 +25,11 @@ if a workflow changes.
 Pure-python bitcoin cryptography, with secp256k1 arithmetic delegated to
 the `btclib_libsecp256k1` cffi bindings — and delegated conditionally,
 which is the single most important thing to know before touching
-`btclib/ec/` or `btclib/ecc/`:
+`btclib/curves/` or `btclib/ecc/`:
 
-- `ec.curve.mult` calls the bindings for secp256k1 and the generator
+- `curves.curve.mult` calls the bindings for secp256k1 and the generator
   alone; anything else runs the python double-and-add of
-  `ec/curve_group.py`
+  `curves/curve_group.py`
 - `ecc.dsa.sign` calls them for secp256k1 with sha256, lower-s, and no
   caller-imposed nonce; `ecc.ssa.sign` for secp256k1 with sha256
 - the python path is not dead code and not constant-time: it serves every
@@ -37,12 +37,21 @@ which is the single most important thing to know before touching
   test suite validates it *against* the bindings, which are the authority
   on the answer. `SECURITY.md` states this as a limitation; keep it true
 
-Layers, roughly bottom-up: `ec/` (curve arithmetic) → `ecc/` (dsa, ssa,
-bms, rfc6979/bip340 nonces) → keys and encodings (`to_prv_key`,
-`to_pub_key`, `b58`, `b32`, `bech32`, `base58`) → `bip32/`, `mnemonic/` →
-`script/`, `tx/`, `block/`, `psbt/`, `descriptors`. `alias.py` holds the
-type aliases the public API accepts, and much of the surface takes
-"anything convertible" rather than one type.
+Layers, roughly bottom-up: `curves/` (curve arithmetic) → `ecc/` (dsa, ssa,
+bms, borromean, pedersen, rfc6979/bip340 nonces) → keys and encodings
+(`to_prv_key`, `to_pub_key`, `b58`, `b32`, `bech32`, `base58`) → `bip32/`,
+`mnemonic/` → `script/`, `tx/`, `block/`, `psbt/`, `descriptors`.
+`alias.py` holds the type aliases the public API accepts, and much of the
+surface takes "anything convertible" rather than one type.
+
+Three of those pairs are one idea split in two, and each split runs one
+way only: `curves/` is arithmetic and `ecc/` is what is built on it;
+`base58` and `bech32` are codecs with no bitcoin in them, `b58` and `b32`
+the bitcoin semantics on top. `ecc` imports `curves`, `b58` imports
+`base58`, `b32` imports `bech32`, and never the reverse. `curves/` was
+`ec/` until issue 148, one character from `ecc/`; the README has the
+layout as a table, and each of the six modules says it in its own
+docstring.
 
 ## Non-obvious facts that will otherwise waste a session
 

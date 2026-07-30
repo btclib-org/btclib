@@ -42,7 +42,7 @@ import hmac
 from hashlib import sha256
 
 from btclib.alias import HashF, Octets
-from btclib.ec import Curve, secp256k1
+from btclib.curves import Curve, secp256k1
 from btclib.to_prv_key import PrvKey, int_from_prv_key
 from btclib.utils import bytes_from_octets, int_from_bits
 

@@ -17,7 +17,7 @@ import pytest
 from btclib_libsecp256k1 import dsa as libsecp256k1_dsa
 
 from btclib.alias import INF
-from btclib.ec import (
+from btclib.curves import (
     Curve,
     bytes_from_point,
     double_mult,
@@ -25,15 +25,15 @@ from btclib.ec import (
     point_from_octets,
     secp256k1,
 )
-from btclib.ec.curve import CURVES
-from btclib.ec.curve_group import _mult
+from btclib.curves.curve import CURVES
+from btclib.curves.curve_group import _mult
 from btclib.ecc import dsa
 from btclib.exceptions import BTClibRuntimeError, BTClibValueError
 from btclib.hashes import reduce_to_hlen
 from btclib.number_theory import mod_inv
 from btclib.to_pub_key import pub_keyinfo_from_prv_key
 from tests import vectors
-from tests.ec.test_curve import low_card_curves, secp256k1_bis
+from tests.curves.test_curve import low_card_curves, secp256k1_bis
 from tests.test_to_key import Q as pub_key_point
 from tests.test_to_key import Q_compressed as pub_key_compressed
 from tests.test_to_key import q as prv_key_int

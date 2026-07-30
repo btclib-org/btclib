@@ -24,7 +24,7 @@ import pathlib
 
 import pytest
 
-from btclib.ec import secp256k1
+from btclib.curves import secp256k1
 from btclib.ecc import dsa
 from btclib.exceptions import BTClibValueError
 from btclib.script.script_pub_key import ScriptPubKey

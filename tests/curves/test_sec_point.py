@@ -12,8 +12,8 @@
 import pytest
 
 from btclib.alias import INF
-from btclib.ec import Curve, bytes_from_point, point_from_octets
-from btclib.ec.curve import CURVES
+from btclib.curves import Curve, bytes_from_point, point_from_octets
+from btclib.curves.curve import CURVES
 from btclib.exceptions import BTClibValueError
 
 # test curves: very low cardinality

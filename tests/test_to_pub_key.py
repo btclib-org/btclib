@@ -13,8 +13,8 @@ import pytest
 
 from btclib.alias import INF
 from btclib.bip32 import BIP32KeyData, derive, rootxprv_from_seed
-from btclib.ec import bytes_from_point
-from btclib.ec.curve import CURVES
+from btclib.curves import bytes_from_point
+from btclib.curves.curve import CURVES
 from btclib.exceptions import BTClibValueError
 from btclib.to_pub_key import (
     fingerprint,

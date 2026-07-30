@@ -16,7 +16,7 @@ from collections.abc import Sequence
 from hashlib import sha256
 
 from btclib.alias import HashF, Octets, Point
-from btclib.ec import Curve, bytes_from_point, double_mult, mult, secp256k1
+from btclib.curves import Curve, bytes_from_point, double_mult, mult, secp256k1
 from btclib.exceptions import BTClibRuntimeError
 from btclib.utils import bytes_from_octets, int_from_bits
 

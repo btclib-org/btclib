@@ -136,11 +136,11 @@ def test_shipped_module_is_a_dotted_btclib_name(name: str) -> None:
     ("parts", "public"),
     [
         (("curve",), True),
-        (("ec", "curve"), True),
+        (("curves", "curve"), True),
         (("__init__",), True),
-        (("ec", "__init__"), True),
+        (("curves", "__init__"), True),
         (("_internal",), False),
-        (("ec", "_helpers"), False),
+        (("curves", "_helpers"), False),
         (("_internal", "curve"), False),
     ],
 )

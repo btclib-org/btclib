@@ -7,11 +7,27 @@
 #
 # No part of btclib including this file, may be copied, modified, propagated,
 # or distributed except according to the terms contained in the LICENSE file.
-"""Module btclib.ec.
+"""Module btclib.curves.
+
+**The arithmetic.** btclib.curves holds the elliptic curve itself: the field
+and group operations of `curve_group`, the `Curve` and `CurveSubGroup` built
+on them, the catalogued curves (secp256k1 among 26 others), and the SEC
+encoding of a point. Nothing here knows what a signature is.
+
+What is built *on* a curve lives in btclib.ecc -- dsa, ssa, bms, borromean,
+pedersen, Diffie-Hellman, the nonces -- and the rule between the two is that
+direction: ecc imports curves, never the other way round.
+
+This package was btclib.ec until issue 148, one character from btclib.ecc.
+The split was right and is unchanged; the names were not telling anyone what
+it was, and `from btclib.ec import mult` against `from btclib.ecc import dsa`
+was a coin flip for a newcomer. Code importing btclib.ec has to be updated,
+which is the cost of the rename and the whole of it: every name this package
+exports is the name it exported before.
 
 What this package exports is the curve API: a Curve, the three scalar
 multiplications, and the SEC point codec. The eleven other mult_* of
-btclib.ec.curve_group and btclib.ec.curve_group_2 -- mult_aff, mult_jac,
+btclib.curves.curve_group and btclib.curves.curve_group_2 -- mult_aff, mult_jac,
 mult_base_3, mult_mont_ladder, the two mult_recursive_*, the two
 mult_fixed_window*, mult_sliding_window, mult_w_NAF and
 mult_endomorphism_secp256k1 -- used to be exported alongside them, and so
@@ -19,17 +35,17 @@ did the multiples, cached_multiples and jac_from_aff they are built on.
 
 They are implementations of one operation, kept side by side to be measured
 against each other, and exporting them made a menu out of a benchmark: a
-caller reading btclib.ec had fourteen ways to multiply a point and nothing
+caller reading btclib.curves had fourteen ways to multiply a point and nothing
 to say that mult is the one to use, that it dispatches to libsecp256k1 for
 secp256k1 and the generator, and that mult_jac is not the faster
 alternative its name suggests. Each is still importable from the module
 that defines it, which is where the test suite takes them from.
 """
 
-from btclib.ec.curve import Curve, double_mult, mult, multi_mult, secp256k1
-from btclib.ec.curve_group import CurveGroup
-from btclib.ec.curve_group_f import find_all_points, find_subgroup_points
-from btclib.ec.sec_point import bytes_from_point, point_from_octets
+from btclib.curves.curve import Curve, double_mult, mult, multi_mult, secp256k1
+from btclib.curves.curve_group import CurveGroup
+from btclib.curves.curve_group_f import find_all_points, find_subgroup_points
+from btclib.curves.sec_point import bytes_from_point, point_from_octets
 
 __all__ = [
     "Curve",

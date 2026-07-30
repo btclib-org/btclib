@@ -16,8 +16,8 @@ from hashlib import sha256, sha512
 import pytest
 
 from btclib.alias import INF, INFJ, Integer
-from btclib.ec import Curve, CurveGroup, double_mult, mult, multi_mult, secp256k1
-from btclib.ec.curve import (
+from btclib.curves import Curve, CurveGroup, double_mult, mult, multi_mult, secp256k1
+from btclib.curves.curve import (
     CURVES,
     NIST,
     Brainpool,
@@ -32,9 +32,9 @@ from btclib.ec.curve import (
 )
 
 # cached_multiples and jac_from_aff are implementation helpers of
-# curve_group, not part of what btclib.ec exports: they are taken from the
+# curve_group, not part of what btclib.curves exports: they are taken from the
 # module that defines them
-from btclib.ec.curve_group import cached_multiples, jac_from_aff
+from btclib.curves.curve_group import cached_multiples, jac_from_aff
 from btclib.ecc import second_generator
 from btclib.exceptions import BTClibTypeError, BTClibValueError
 from btclib.number_theory import mod_sqrt
@@ -96,7 +96,7 @@ def test_mult_on_secp256k1() -> None:
     [
         pytest.param(vector, id=vectors.vector_id(index, vector["seckey"][:16]))
         for index, vector in enumerate(
-            vectors.load("ec", "_data", "pubkey.json")["vectors"]
+            vectors.load("curves", "_data", "pubkey.json")["vectors"]
         )
     ],
 )
@@ -182,7 +182,7 @@ def test_anomalous_curve(p: Integer) -> None:
 def test_catalogued_curves() -> None:
     """Rebuild the catalogue from its json data, with every check on.
 
-    btclib.ec.curve builds it with order_check=False and
+    btclib.curves.curve builds it with order_check=False and
     weakness_check=False, the two being 123 ms of the 168 ms importing
     the module used to take; this is where they happen instead, and both
     default to on, so constructing the curves here is what runs them. A

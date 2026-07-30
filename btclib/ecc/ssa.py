@@ -59,9 +59,9 @@ from btclib_libsecp256k1 import ssa as libsecp256k1_ssa
 
 from btclib.alias import BinaryData, HashF, Integer, JacPoint, Octets, Point
 from btclib.bip32 import BIP32Key
-from btclib.ec import Curve, secp256k1
-from btclib.ec.curve import _libsecp256k1_applicable, mult
-from btclib.ec.curve_group import _double_mult, _mult, _multi_mult
+from btclib.curves import Curve, secp256k1
+from btclib.curves.curve import _libsecp256k1_applicable, mult
+from btclib.curves.curve_group import _double_mult, _mult, _multi_mult
 from btclib.ecc.bip340_nonce import bip340_nonce_
 from btclib.exceptions import BTClibRuntimeError, BTClibTypeError, BTClibValueError
 from btclib.hashes import reduce_to_hlen, tagged_hash

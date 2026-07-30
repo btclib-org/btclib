@@ -10,7 +10,7 @@
 """Tests for what the packages export.
 
 `__all__` is a decision about the public surface, and it had drifted: it
-carried a benchmark's worth of multiplication implementations in `btclib.ec`
+carried a benchmark's worth of multiplication implementations in `btclib.curves`
 while `btclib.ecc` advertised four helpers and none of the six signature
 schemes behind them, and `btclib.mnemonic` neither of its two schemes.
 
@@ -20,10 +20,10 @@ deliberate addition is one line here and an accidental one is a failure.
 
 from __future__ import annotations
 
-import btclib.ec
+import btclib.curves
 import btclib.ecc
 import btclib.mnemonic
-from btclib.ec import curve_group, curve_group_2
+from btclib.curves import curve_group, curve_group_2
 
 
 def test_ec_exports_the_curve_api_not_the_benchmark() -> None:
@@ -33,7 +33,7 @@ def test_ec_exports_the_curve_api_not_the_benchmark() -> None:
     is exactly what a caller choosing mult_jac from the same namespace --
     on the strength of its name -- gives up.
     """
-    assert sorted(btclib.ec.__all__) == [
+    assert sorted(btclib.curves.__all__) == [
         "Curve",
         "CurveGroup",
         "bytes_from_point",
@@ -65,7 +65,7 @@ def test_ec_exports_the_curve_api_not_the_benchmark() -> None:
     ]
     for module, name in variants:
         assert hasattr(module, name), f"{module.__name__}.{name} went missing"
-        assert name not in btclib.ec.__all__
+        assert name not in btclib.curves.__all__
 
 
 def test_ecc_exports_the_signature_schemes() -> None:
@@ -105,6 +105,6 @@ def test_mnemonic_exports_its_two_schemes() -> None:
 
 def test_every_exported_name_exists() -> None:
     """An `__all__` entry that names nothing is a broken `import *`."""
-    for package in (btclib.ec, btclib.ecc, btclib.mnemonic):
+    for package in (btclib.curves, btclib.ecc, btclib.mnemonic):
         for name in package.__all__:
             assert hasattr(package, name), f"{package.__name__}.{name} is not there"

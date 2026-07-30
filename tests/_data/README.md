@@ -441,7 +441,7 @@ re-check should compare.
 
 ## Other projects
 
-### `tests/ec/_data/pubkey.json`
+### `tests/curves/_data/pubkey.json`
 
 ```text
 repo    rustyrussell/secp256k1-py

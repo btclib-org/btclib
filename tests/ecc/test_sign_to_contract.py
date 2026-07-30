@@ -12,8 +12,8 @@
 import random
 from hashlib import sha1, sha256
 
-from btclib.ec import secp256k1
-from btclib.ec.curve import CURVES
+from btclib.curves import secp256k1
+from btclib.curves.curve import CURVES
 from btclib.ecc import dsa
 from btclib.ecc.sign_to_contract import dsa_commit_sign, dsa_verify_commit
 

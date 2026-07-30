@@ -23,7 +23,7 @@ import pytest
 
 from btclib import b32
 from btclib.alias import ScriptList
-from btclib.ec import mult
+from btclib.curves import mult
 from btclib.exceptions import BTClibValueError
 from btclib.script import (
     TaprootScriptTree,
@@ -38,7 +38,7 @@ from btclib.script import (
 from btclib.script.taproot import parse, serialize
 from btclib.tx import TxOut
 from tests import vectors
-from tests.ec.test_curve import low_card_curves
+from tests.curves.test_curve import low_card_curves
 from tests.script import serialize_non_canonical
 
 

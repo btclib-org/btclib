@@ -100,6 +100,37 @@ Included features are:
 
 ---
 
+## Module layout
+
+Three pairs of modules are one idea split in two, and each split runs one
+way only. Knowing which half is which is most of finding your way around:
+
+| the codec / the arithmetic | the bitcoin semantics on top |
+| --- | --- |
+| `btclib.curves` — `Curve`, `mult` | `btclib.ecc` — `dsa`, `ssa`, `bms` |
+| `btclib.base58` — the encoding | `btclib.b58` — WIF, p2pkh, p2sh |
+| `btclib.bech32` — the encoding | `btclib.b32` — p2wpkh, p2wsh, p2tr |
+
+The right column imports the left one; the left never imports the right.
+
+So `from btclib.ecc import dsa` for a signature and
+`from btclib.curves import mult` for a point multiplication; `btclib.b58`
+for an address and `btclib.base58` only if you want the encoding on its
+own. It is the split the standard library draws between `base64` and
+whatever uses it. Each of the six modules repeats the rule in its own
+docstring.
+
+`btclib.curves` was `btclib.ec` up to and including 2023.7.12 — one
+character from `btclib.ecc`, which is why it was renamed. Nothing else
+about it changed: every name it exports is the name it exported before.
+
+The rest, roughly bottom-up: `to_prv_key` and `to_pub_key` accept any key
+representation and hand back one; `bip32` and `mnemonic` derive keys;
+`script`, `tx`, `block` and `psbt` build and validate what goes on the
+chain.
+
+---
+
 To install (and/or upgrade) btclib:
 
 ```shell

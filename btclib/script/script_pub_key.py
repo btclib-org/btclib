@@ -17,7 +17,7 @@ from typing import Callable
 
 from btclib import b32, b58, var_bytes
 from btclib.alias import Octets, ScriptList, String, TaprootScriptTree
-from btclib.ec import point_from_octets
+from btclib.curves import point_from_octets
 from btclib.exceptions import BTClibValueError
 from btclib.hashes import hash160, sha256
 from btclib.network import NETWORKS

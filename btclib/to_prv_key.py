@@ -16,7 +16,7 @@ from typing import Union
 from btclib.alias import String
 from btclib.base58 import b58decode
 from btclib.bip32 import BIP32Key, BIP32KeyData
-from btclib.ec import Curve, secp256k1
+from btclib.curves import Curve, secp256k1
 from btclib.exceptions import (
     BTClibValueError,
     InvalidPrvKeyError,

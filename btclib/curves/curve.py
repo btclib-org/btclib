@@ -21,7 +21,7 @@ from typing import Any
 from btclib_libsecp256k1.mult import mult as libsecp256k1_mult
 
 from btclib.alias import HashF, Integer, Point
-from btclib.ec.curve_group import (
+from btclib.curves.curve_group import (
     HEX_THRESHOLD,
     CurveGroup,
     _double_mult,
@@ -124,7 +124,7 @@ class Curve(CurveSubGroup):
         # order_check=False, as it does weakness_check=False below: its
         # parameters are constants, and test_catalogued_curves rebuilds
         # every one of them from the json data with both checks on, while
-        # tests/ec/test_curve_group.py and test_curve_group_2.py assert
+        # tests/curves/test_curve_group.py and test_curve_group_2.py assert
         # n*G == INF for every curve of CURVES through ten distinct mult
         # implementations. It stays on by default all the same, and is not
         # merely a test-time luxury: a caller-defined curve whose n is

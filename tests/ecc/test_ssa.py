@@ -19,16 +19,16 @@ from btclib_libsecp256k1 import ssa as libsecp256k1_ssa
 
 from btclib.alias import INF, Point, String
 from btclib.bip32 import BIP32KeyData
-from btclib.ec import bytes_from_point, double_mult, mult, secp256k1
-from btclib.ec.curve import CURVES
-from btclib.ec.curve_group import jac_from_aff
+from btclib.curves import bytes_from_point, double_mult, mult, secp256k1
+from btclib.curves.curve import CURVES
+from btclib.curves.curve_group import jac_from_aff
 from btclib.ecc import bip340_nonce_, second_generator, ssa
 from btclib.exceptions import BTClibRuntimeError, BTClibTypeError, BTClibValueError
 from btclib.hashes import reduce_to_hlen
 from btclib.number_theory import mod_inv
 from btclib.utils import int_from_bits
 from tests import vectors
-from tests.ec.test_curve import low_card_curves, secp256k1_bis
+from tests.curves.test_curve import low_card_curves, secp256k1_bis
 
 
 def test_signature_on_an_equal_curve() -> None:

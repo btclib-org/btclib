@@ -14,7 +14,7 @@ from typing import Any
 import pytest
 
 from btclib.bip32 import BIP32KeyOrigin
-from btclib.ec import sec_point
+from btclib.curves import sec_point
 from btclib.ecc import dsa
 from btclib.exceptions import BTClibValueError
 from btclib.hashes import hash160, hash256, ripemd160, sha256

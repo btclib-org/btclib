@@ -29,6 +29,15 @@
 # THE SOFTWARE.
 """SegWit address functions.
 
+**The bitcoin semantics.** p2wpkh, p2wsh and p2tr addresses: the witness
+version, the human-readable part of each network, and the length rules a
+witness program has to satisfy.
+
+The encoding itself is btclib.bech32, which knows nothing about bitcoin, and
+the rule between the two is that direction: this module imports bech32, never
+the other way round. `base58` and `b58` are the same pair for the base58
+address encoding.
+
 Some of these functions were originally from
 https://github.com/sipa/bech32/tree/master/ref/python,
 with the following modifications:

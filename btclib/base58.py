@@ -9,6 +9,17 @@
 # or distributed except according to the terms contained in the LICENSE file.
 """Base58 encoding and decoding functions.
 
+**The codec.** This module is base58 itself, with no bitcoin in it: bytes in,
+ascii out, a checksum, and nothing that knows what the bytes mean. What gives
+them meaning is btclib.b58 -- WIF, p2pkh, p2sh, the version prefixes and the
+networks -- and the rule between the two is that direction: b58 imports
+base58, never the other way round.
+
+The split is the one the standard library draws between `base64` and whatever
+uses it, and the two names are meant to be read as a pair: `base58` the
+encoding, `b58` the bitcoin semantics. `bech32` and `b32` are the same pair
+for the segwit address encoding.
+
 Binary-to-text encoding schemes are used to transport binary data across
 channels designed to deal with textual data. In Bitcoin they are mostly
 used to represent large integers as alphanumeric text.

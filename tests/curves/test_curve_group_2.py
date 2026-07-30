@@ -12,18 +12,18 @@
 import pytest
 
 from btclib.alias import INFJ
-from btclib.ec import secp256k1
-from btclib.ec.curve_group import _mult
+from btclib.curves import secp256k1
+from btclib.curves.curve_group import _mult
 
-# from the module that defines them: btclib.ec no longer exports the
+# from the module that defines them: btclib.curves no longer exports the
 # individual multiplication implementations
-from btclib.ec.curve_group_2 import (
+from btclib.curves.curve_group_2 import (
     mult_endomorphism_secp256k1,
     mult_sliding_window,
     mult_w_NAF,
 )
 from btclib.exceptions import BTClibValueError
-from tests.ec.test_curve import low_card_curves
+from tests.curves.test_curve import low_card_curves
 
 ec23_31 = low_card_curves["ec23_31"]
 

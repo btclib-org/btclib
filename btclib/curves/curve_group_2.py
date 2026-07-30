@@ -44,7 +44,7 @@ from __future__ import annotations
 from math import ceil
 
 from btclib.alias import INFJ, JacPoint
-from btclib.ec.curve_group import CurveGroup, _double_mult, convert_number_to_base
+from btclib.curves.curve_group import CurveGroup, _double_mult, convert_number_to_base
 from btclib.exceptions import BTClibValueError
 
 

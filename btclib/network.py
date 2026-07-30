@@ -18,8 +18,8 @@ from os import path
 from typing import Any
 
 from btclib.alias import Octets
-from btclib.ec import Curve
-from btclib.ec.curve import CURVES
+from btclib.curves import Curve
+from btclib.curves.curve import CURVES
 from btclib.exceptions import BTClibTypeError, BTClibValueError
 from btclib.utils import bytes_from_octets
 

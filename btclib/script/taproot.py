@@ -22,7 +22,7 @@ from btclib.alias import (
     TaprootLeafPaths,
     TaprootScriptTree,
 )
-from btclib.ec import Curve, mult, secp256k1
+from btclib.curves import Curve, mult, secp256k1
 from btclib.exceptions import BTClibValueError
 from btclib.hashes import tagged_hash
 from btclib.script.op_codes_tapscript import (

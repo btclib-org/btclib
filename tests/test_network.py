@@ -11,7 +11,7 @@
 
 import pytest
 
-from btclib.ec.curve import CURVES
+from btclib.curves.curve import CURVES
 from btclib.exceptions import BTClibValueError
 from btclib.network import (
     NETWORKS,

@@ -20,7 +20,7 @@ import copy
 from btclib.alias import INF
 from btclib.base58 import b58encode
 from btclib.bip32 import BIP32KeyData
-from btclib.ec import mult, secp256k1
+from btclib.curves import mult, secp256k1
 
 ec = secp256k1
 

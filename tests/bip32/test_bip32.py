@@ -27,7 +27,7 @@ from btclib.bip32 import (
 )
 from btclib.bip32.bip32 import _derive
 from btclib.bip32.der_path import _indexes_from_bip32_path_str
-from btclib.ec import secp256k1 as ec
+from btclib.curves import secp256k1 as ec
 from btclib.exceptions import BTClibTypeError, BTClibValueError
 from btclib.hashes import hash160
 from btclib.to_pub_key import pub_keyinfo_from_key

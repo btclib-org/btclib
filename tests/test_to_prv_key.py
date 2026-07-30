@@ -15,7 +15,7 @@ import pytest
 # Library imports
 from btclib.alias import INF
 from btclib.base58 import b58encode
-from btclib.ec.curve import CURVES
+from btclib.curves.curve import CURVES
 from btclib.exceptions import (
     BTClibValueError,
     InvalidPrvKeyError,

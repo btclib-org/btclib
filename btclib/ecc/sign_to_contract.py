@@ -37,7 +37,7 @@ from __future__ import annotations
 from hashlib import sha256
 
 from btclib.alias import HashF, Octets, Point
-from btclib.ec import Curve, bytes_from_point, mult, secp256k1
+from btclib.curves import Curve, bytes_from_point, mult, secp256k1
 from btclib.ecc import dsa
 from btclib.ecc.rfc6979_nonce import rfc6979_nonce_
 from btclib.hashes import reduce_to_hlen
