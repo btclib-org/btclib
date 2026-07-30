@@ -117,6 +117,17 @@ repos:
         additional_dependencies:
           - shellcheck-py==0.11.0.1
           - pyflakes==3.4.0
+  # actionlint asks whether a workflow is correct, zizmor whether it is
+  # safe: a token persisted where a later step can read it, a cache
+  # restored into the job that builds what gets published, an expression
+  # interpolated into a shell script, a trigger that runs a fork's code
+  # with write access. The default persona is the gate; --persona=auditor
+  # adds advice (11 notes today, none of them a defect) and is worth
+  # running by hand rather than on every commit
+  - repo: https://github.com/zizmorcore/zizmor-pre-commit
+    rev: v1.28.0
+    hooks:
+      - id: zizmor
   - repo: https://github.com/leoll2/copyright_notice_precommit
     rev: 0.1.1
     hooks:

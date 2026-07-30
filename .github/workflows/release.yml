@@ -36,10 +36,21 @@ jobs:
       # this workflow, where a job holds an OIDC token PyPI accepts
       - name: Checkout code
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          # see the checkout of the test-py job in test.yml
+          persist-credentials: false
+      # caching off in this workflow, unlike every other: a cache entry is
+      # written by whichever run populated it, and read here through the
+      # scoping that gives a tag push the caches of the default branch. This
+      # is the workflow that builds what gets uploaded and whose jobs hold
+      # an OIDC token PyPI accepts, so it downloads its dependencies afresh
+      # every time. It costs seconds, once per release.
+      # Spelled out rather than left off: the input defaults to "auto",
+      # which means enabled on a GitHub-hosted runner
       - name: Setup uv
         uses: astral-sh/setup-uv@c771a70e6277c0a99b617c7a806ffedaca235ff9 # v9.0.0
         with:
-          enable-cache: true
+          enable-cache: false
       # every other uv command in these workflows now passes --locked,
       # which asserts the same thing, so this is the named early gate
       # rather than the only one: --frozen, which they all used to pass,
@@ -82,10 +93,14 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      # caching off, for the reason given in the version-check job: this is
+      # the job whose output is published
       - name: Setup uv
         uses: astral-sh/setup-uv@c771a70e6277c0a99b617c7a806ffedaca235ff9 # v9.0.0
         with:
-          enable-cache: true
+          enable-cache: false
       # TestPyPI refuses a version it has already seen: the rehearsal
       # appends .dev<run number>, unique per dispatch and sorted before
       # the release it rehearses (PEP 440). Re-running a finished
@@ -208,6 +223,8 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
       - name: Download the distribution files
         uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
         with:

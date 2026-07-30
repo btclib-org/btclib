@@ -8,7 +8,9 @@
 # every pull request here runs the whole test matrix, so both ecosystems
 # group their updates into a single pull request and ask monthly rather
 # than weekly: nothing either of them tracks is security-critical.
-# Both target dev: master only receives merges from it
+# Both target dev: master only receives merges from it, and both wait a
+# week before offering a version: a compromised release is usually yanked
+# within days, and asking monthly means the delay costs nothing
 version: 2
 updates:
   # every action is now pinned to a commit SHA, which nothing but this
@@ -22,8 +24,10 @@ updates:
     groups:
       actions:
         patterns: ["*"]
+    cooldown:
+      default-days: 7
 
-  # uv.lock is committed and the workflows install from it with --frozen,
+  # uv.lock is committed and the workflows install from it with --locked,
   # while the dependency groups declare no version at all: the whole
   # drift of ruff, mypy, pytest and sphinx lives in the lock file, and
   # nothing moves it today. The uv-lock pre-commit hook only re-locks
@@ -36,3 +40,5 @@ updates:
     groups:
       dev-tooling:
         patterns: ["*"]
+    cooldown:
+      default-days: 7
