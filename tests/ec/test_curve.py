@@ -170,19 +170,24 @@ def test_exceptions() -> None:
 def test_catalogued_curves() -> None:
     """Rebuild the catalogue from its json data, with every check on.
 
-    btclib.ec.curve builds it with order_check=False, the n*G check being
-    70% of the cost of importing the module; here the whole catalogue
-    pays for it once, so a wrong n in the json data fails a test instead
-    of going unnoticed. This is where that check lives now: not the only
-    place it happens -- test_ec_repr rebuilds each curve from its repr,
-    and test_curve_group and test_curve_group_2 assert n*G == INF through
-    ten distinct mult implementations -- but the one that is about it.
+    btclib.ec.curve builds it with order_check=False and
+    weakness_check=False, the two being 123 ms of the 168 ms importing
+    the module used to take; this is where they happen instead, and both
+    default to on, so constructing the curves here is what runs them. A
+    wrong n in the json data, or a curve whose embedding degree is small,
+    fails a test rather than nothing at all.
+
+    Not the only place either check happens -- test_ec_repr rebuilds each
+    curve from its repr, and test_curve_group and test_curve_group_2
+    assert n*G == INF through ten distinct mult implementations -- but the
+    one that is about them.
     """
     catalogues = (Brainpool_params2, NIST_params2, SEC2v1_params2, SEC2v2_params2)
     checked = set()
     for params2 in catalogues:
         for name, (p, a, b, G, n, cofactor) in params2.items():
-            assert Curve(p, a, b, G, n, cofactor, name=name) == CURVES[name]
+            rebuilt = Curve(p, a, b, G, n, cofactor, name=name)
+            assert rebuilt == CURVES[name]
             checked.add(name)
     assert checked == set(CURVES)
 

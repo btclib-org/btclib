@@ -117,16 +117,16 @@ class Curve(CurveSubGroup):
             err_msg = "INF point cannot be a generator"
             raise BTClibValueError(err_msg)
         # n*G is by far the most expensive check here -- a python
-        # double-and-add over nlen bits -- and it dominates the cost of
+        # double-and-add over nlen bits -- and it dominated the cost of
         # building a curve: ~118 ms of the ~168 ms the 27 catalogued
         # curves used to spend at import time, against ~2 ms for the
         # primality of n. The catalogue therefore passes
-        # order_check=False: its parameters are constants, and the test
-        # suite verifies them, tests/ec/test_curve_group.py and
-        # test_curve_group_2.py asserting n*G == INF for every curve of
-        # CURVES through ten distinct mult implementations, while
-        # test_catalogued_curves rebuilds each of them from the json data
-        # with the check on. It stays on by default all the same, and is not
+        # order_check=False, as it does weakness_check=False below: its
+        # parameters are constants, and test_catalogued_curves rebuilds
+        # every one of them from the json data with both checks on, while
+        # tests/ec/test_curve_group.py and test_curve_group_2.py assert
+        # n*G == INF for every curve of CURVES through ten distinct mult
+        # implementations. It stays on by default all the same, and is not
         # merely a test-time luxury: a caller-defined curve whose n is
         # not the order of G is accepted by every other check here and
         # then fails silently downstream, mult and sign returning
@@ -151,6 +151,13 @@ class Curve(CurveSubGroup):
 
         if weakness_check:
             # 8. Check that p^i % n ≠ 1 for all 1≤i<100
+            # 99 modular exponentiations, the second cost of building a
+            # curve once n*G is gated: 5.2 ms of the 9.7 ms the catalogue
+            # spends at import time. Skipped for it on the same grounds,
+            # and re-run by test_catalogued_curves; on by default, since
+            # what it rejects is a curve whose embedding degree makes the
+            # MOV attack carry the discrete logarithm into a field where
+            # it is easy -- and nothing downstream would notice
             for i in range(1, 100):
                 if pow(self.p, i, n) == 1:
                     raise UserWarning("weak curve")
@@ -190,15 +197,18 @@ def _catalogued_curve(params: list[Any], name: str) -> Curve:
     """Build one curve of the shipped catalogue, from its json parameters.
 
     One function for the four catalogues, so that the flags cannot drift
-    apart: order_check=False, because these parameters are standardized
-    constants the test suite verifies -- see the comment on the check in
-    Curve.__init__ -- and paying for it here made it 70% of the cost of
-    importing this module. weakness_check stays on, being cheap: it is
-    100 modular exponentiations, not a scalar multiplication.
+    apart. Both expensive checks are off: these parameters are the
+    standardized constants of SEC 2, FIPS 186-4 and RFC 5639, and
+    re-deriving from them at every interpreter start that n is the order
+    of G, and that the curve is not MOV-weak, cost 118 ms and 5 ms of the
+    168 ms importing this module used to take. What is verified once, by
+    test_catalogued_curves rebuilding each curve from the same json data
+    with both checks on, does not have to be verified again on the way to
+    every signature.
     """
     p, a, b, G, n, cofactor = params
     return Curve(
-        p, a, b, G, n, cofactor, weakness_check=True, order_check=False, name=name
+        p, a, b, G, n, cofactor, weakness_check=False, order_check=False, name=name
     )
 
 

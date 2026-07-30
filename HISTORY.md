@@ -352,16 +352,20 @@ Major changes includes:
   sha256 from a look-alike, so a wrapper such as
   `functools.partial(sha256)` keeps taking the python path — slower, never
   wrong (issue #142)
-- importing btclib is 120 ms faster: `Curve` takes a new `order_check`
-  argument, and the 27 catalogued curves pass `order_check=False`. The
-  n\*G ≟ INF check it gates is a python double-and-add over the bit length
-  of the order, and it was 70% of the cost of importing `btclib.ec.curve`
-  (168 ms, against 2 ms for the primality of n) — paid to re-derive a
-  property of published constants at every interpreter start. The check
-  defaults to on, because a caller-defined curve whose n is not the order
-  of the generator passes every other check and then misbehaves silently;
-  for the catalogue, the new `test_catalogued_curves` rebuilds each curve
-  from the json data with all the checks on
+- importing btclib is 140 ms faster: `Curve` takes a new `order_check`
+  argument, and the 27 catalogued curves pass `order_check=False` and
+  `weakness_check=False`. The n\*G ≟ INF check the first one gates is a
+  python double-and-add over the bit length of the order, 118 ms of the
+  168 ms importing `btclib.ec.curve` used to take; the 99 modular
+  exponentiations of the second are another 5 ms. Both were paid to
+  re-derive, at every interpreter start, a property of the constants
+  standardized by SEC 2, FIPS 186-4 and RFC 5639. `btclib.ec.curve` now
+  imports in ~29 ms. Both checks default to on, because what they reject —
+  a curve whose n is not the order of its generator, one whose embedding
+  degree carries the discrete logarithm into a field where it is easy — is
+  accepted by every other check and then misbehaves where nothing is
+  looking; for the catalogue, the new `test_catalogued_curves` rebuilds
+  each curve from the same json data with both checks on
 - the test suite is property-based as well as vector-based: `hypothesis`
   generates the input nobody wrote down, and `tests/test_fuzz.py` asserts
   that every parse entry point answers it within the exception contract
