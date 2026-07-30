@@ -146,6 +146,28 @@ jobs:
           path.write_text(text[: match.start()] + line + text[match.end() :], encoding="utf-8")
           PY
           grep -m1 '^version' pyproject.toml
+          # uv.lock carries the project version, so patching pyproject.toml
+          # leaves the two disagreeing, and every uv command that passes
+          # --locked -- which is all of them, by convention -- then fails
+          # with "the lockfile needs to be updated". Measured: without this
+          # re-lock, "uv run --locked --only-group build" on a patched tree
+          # exits non-zero. Nothing after this step in this job happens to
+          # pass --locked today, so the rehearsal worked by the arrangement
+          # of the jobs rather than by construction, and moving a packaging
+          # check back in here would have broken it silently -- silently
+          # because the rehearsal runs by hand, rarely.
+          # The re-lock is also what makes the sdist coherent: it ships
+          # uv.lock, which otherwise declared the unsuffixed version inside
+          # a distribution named for the suffixed one
+          uv lock
+      # one thing the rehearsal does not cover, deliberately: dist-py, in
+      # the workflow this one calls, validates the tree as committed, while
+      # this job ships the suffixed version, so twine and pyroma never see
+      # the metadata that reaches TestPyPI. What they judge is metadata
+      # syntax, README rendering and metadata quality, and a .dev<N> suffix
+      # is valid PEP 440 that changes none of them. Should a packaging check
+      # ever become version-sensitive, the suffix has to be plumbed into
+      # test.yml as a workflow_call input instead
       # uv build builds the sdist first and then the wheel from it, not
       # both from the source tree: the packaging path a user installing
       # from source takes is therefore the one that produced the wheel,
