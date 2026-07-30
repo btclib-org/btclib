@@ -551,6 +551,24 @@ Major changes includes:
   and `"9"` raises for being of odd length rather than being nine. The
   behaviour is unchanged and deliberate — a decimal representation is what
   `int` itself is for — and now the docstring says so
+- **The test suite writes nothing.** Eleven modules serialized a dataclass to
+  `tests/**/_generated_files/*.json` on every run, and the point of committing
+  those files was to notice a change to a serialized form. The check ran the
+  wrong way round for that: the suite was not hermetic, so it failed on a
+  read-only checkout or from an installed sdist — measured, nine
+  `PermissionError` failures — and it depended on a human running the suite
+  and then looking at `git status`, which **CI never does**: no workflow
+  inspects the working tree after pytest, so in CI the file was rewritten and
+  discarded and the drift was invisible exactly where it mattered. The files
+  are read and compared now, by a `json_golden` fixture that fails with a
+  unified diff, so a change to `to_dict` is a red test. Regenerating one is
+  deliberate and asked for: `BTCLIB_REGENERATE_GOLDEN=1 uv run pytest`, which
+  the failure message names. The on-disk round trip those tests did — dump,
+  load, compare to the dict just dumped — is gone with it: it could only fail
+  if `json.dump` and `json.load` were not each other's inverse, and each of
+  those tests already asserted `from_dict(to_dict()) == obj` in memory beside
+  it. So are the twelve `file_.write("\n")  # end-of-file-fixer` lines, tests
+  shaped to placate a lint hook (issue #154)
 - **mypy is aimed at python 3.10**, not at whatever interpreter runs it.
   `[tool.mypy]` set no `python_version`, so the strict check used the 3.14 of
   `.python-version` while `requires-python` says `>=3.9`, and a typing

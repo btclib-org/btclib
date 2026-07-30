@@ -9,10 +9,6 @@
 # or distributed except according to the terms contained in the LICENSE file.
 """Tests for the `btclib.network` module."""
 
-import json
-from os import path
-from pathlib import Path
-
 import pytest
 
 from btclib.ec.curve import CURVES
@@ -25,6 +21,7 @@ from btclib.network import (
     xprvversions_from_network,
     xpubversions_from_network,
 )
+from tests.conftest import JsonGolden
 
 
 def test_bad_network() -> None:
@@ -74,11 +71,8 @@ def test_numbers_of_networks() -> None:
     assert len(NETWORKS) == 3
 
 
-def test_dataclasses_json_dict(generated_files_dir: Path) -> None:
+def test_dataclasses_json_dict(json_golden: JsonGolden) -> None:
     for network_name, net in NETWORKS.items():
         assert net == Network.from_dict(net.to_dict())
 
-        filename = path.join(generated_files_dir, f"{network_name}.json")
-        with open(filename, "w", encoding="ascii") as file_:
-            json.dump(net.to_dict(), file_, indent=4)
-            file_.write("\n")  # end-of-file-fixer
+        json_golden(f"{network_name}.json", net.to_dict())

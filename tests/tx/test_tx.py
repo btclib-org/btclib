@@ -16,15 +16,14 @@ those bytes given a node with the transaction index.
 tests/_data/README.md has its size and wtxid.
 """
 
-import json
 from os import path
-from pathlib import Path
 
 import pytest
 
 from btclib.exceptions import BTClibValueError
 from btclib.script import ScriptPubKey, Witness
 from btclib.tx import OutPoint, Tx, TxIn, TxOut, join_txs
+from tests.conftest import JsonGolden
 
 
 def test_tx() -> None:
@@ -356,7 +355,7 @@ def test_double_witness() -> None:
     assert not tx.is_coinbase()
 
 
-def test_dataclasses_json_dict(generated_files_dir: Path) -> None:
+def test_dataclasses_json_dict(json_golden: JsonGolden) -> None:
     fname = "d4f3c2c3c218be868c77ae31bedb497e2f908d6ee5bbbe91e4933e6da680c970.bin"
     filename = path.join(path.dirname(__file__), "_data", fname)
     with open(filename, "rb") as binary_file_:
@@ -375,19 +374,8 @@ def test_dataclasses_json_dict(generated_files_dir: Path) -> None:
     assert isinstance(tx_dict, dict)
     assert tx_dict["vin"][0]["txinwitness"]["stack"]  # type: ignore[index]
 
-    # Tx dataclass dict to file
-    filename = path.join(generated_files_dir, "tx.json")
-    with open(filename, "w", encoding="ascii") as file_:
-        json.dump(tx_dict, file_, indent=4)
-        file_.write("\n")  # end-of-file-fixer
-
-    # Tx dataclass dict from file
-    with open(filename, encoding="ascii") as file_:
-        tx_dict2 = json.load(file_)
-    assert isinstance(tx_dict2, dict)
-    assert tx_dict2["vin"][0]["txinwitness"]["stack"]
-
-    assert tx_dict == tx_dict2
+    # against the json committed beside this module, not written to it
+    json_golden("tx.json", tx_dict)
 
     # Tx dataclass from dict
     tx2 = Tx.from_dict(tx_dict)

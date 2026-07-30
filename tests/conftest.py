@@ -14,8 +14,12 @@ profile is process-wide, and a decorator repeating it on every property
 test is one more place to forget it.
 """
 
+import difflib
+import json
 import os
+from collections.abc import Callable
 from pathlib import Path
+from typing import Any
 
 import pytest
 from hypothesis import settings
@@ -47,15 +51,92 @@ settings.load_profile(os.environ.get("HYPOTHESIS_PROFILE", "btclib"))
 def generated_files_dir(request: pytest.FixtureRequest) -> Path:
     """The `_generated_files` directory beside the test module asking.
 
-    Eleven modules serialize a dataclass to json on disk and read it back,
-    and the file is committed rather than discarded: a change to what
-    `to_dict` writes then shows up as a diff to review, which is the point
-    of writing it to the repository instead of to `tmp_path`.
-
-    Each of those modules used to open the test with the same line,
+    Each of the modules using it used to open the test with the same line,
     `path.join(path.dirname(__file__), "_generated_files")`, which is a
     directory layout restated eleven times -- and restated in terms of
     `__file__`, so it moved with the test rather than with the data. Here
     it is stated once, and `request.path` is the same module's file.
     """
     return Path(request.path).parent / "_generated_files"
+
+
+# What the json_golden fixture hands a test: named here so that the eleven
+# modules taking it can annotate the parameter without restating the type
+JsonGolden = Callable[[str, Any], None]
+
+# the escape hatch, and the only thing that writes into the source tree
+REGENERATE = "BTCLIB_REGENERATE_GOLDEN"
+
+
+@pytest.fixture
+def json_golden(
+    request: pytest.FixtureRequest, generated_files_dir: Path
+) -> JsonGolden:
+    """Compare a `to_dict()` against the json committed beside the module.
+
+    The point of keeping these files in the repository is to notice when
+    what `to_dict` writes changes: they are the output of eleven dataclasses
+    over fixed input, so a diff to one of them is a change to a serialized
+    form somebody may be storing.
+
+    Eleven modules used to get that by *writing* the file on every run and
+    leaving `git status` to report the difference. Three things were wrong
+    with it. The suite was not hermetic, so it failed on a read-only
+    checkout or when run from an installed sdist. The check depended on a
+    human running the suite and then remembering to look, and CI never
+    looks: no workflow inspects the working tree after pytest, so in CI the
+    file was rewritten and thrown away, and the drift it exists to catch was
+    invisible exactly where it matters. And each of those writes ended in
+    `file_.write("\\n")  # end-of-file-fixer`, a test shaped to placate a
+    lint hook.
+
+    So the comparison runs the other way round now: the file is read, the
+    difference fails the test, and nothing is written. To update a golden on
+    purpose, when a change to `to_dict` is the intended change:
+
+        BTCLIB_REGENERATE_GOLDEN=1 uv run pytest
+
+    then read the diff, which is the review this was always meant to get.
+
+    The round trip these tests used to do on disk -- dump, load, compare to
+    the dict just dumped -- is not kept: it could only fail if json.dump and
+    json.load were not each other's inverse, which is a test of the standard
+    library. What they assert about btclib is `from_dict(to_dict()) == obj`,
+    in memory, which every one of them already did beside it.
+    """
+
+    def check(name: str, value: Any) -> None:
+        # what the writes produced, byte for byte, so that regenerating
+        # leaves no diff of its own
+        text = json.dumps(value, indent=4) + "\n"
+        path = generated_files_dir / name
+
+        if os.environ.get(REGENERATE):
+            path.parent.mkdir(parents=True, exist_ok=True)
+            path.write_text(text, encoding="ascii")
+            return
+
+        if not path.exists():
+            pytest.fail(
+                f"missing golden file {path}\n"
+                f"run: {REGENERATE}=1 uv run pytest {request.path.name}"
+            )
+
+        committed = path.read_text(encoding="ascii")
+        if committed != text:
+            diff = "".join(
+                difflib.unified_diff(
+                    committed.splitlines(keepends=True),
+                    text.splitlines(keepends=True),
+                    fromfile=f"{name} (committed)",
+                    tofile=f"{name} (this run)",
+                )
+            )
+            pytest.fail(
+                f"{name} does not match what to_dict() produces now.\n"
+                f"If the change is intended, regenerate and review the diff:\n"
+                f"  {REGENERATE}=1 uv run pytest {request.path.name}\n\n"
+                f"{diff}"
+            )
+
+    return check

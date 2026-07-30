@@ -19,11 +19,9 @@ files verify themselves. tests/_data/README.md lists the heights, hashes
 and sizes.
 """
 
-import json
 from copy import deepcopy
 from datetime import datetime, timedelta, timezone
 from os import path
-from pathlib import Path
 
 import pytest
 
@@ -31,6 +29,7 @@ from btclib.block import Block, BlockHeader
 from btclib.exceptions import BTClibTypeError, BTClibValueError
 from btclib.network import NETWORKS
 from btclib.script.witness import Witness
+from tests.conftest import JsonGolden
 
 
 def test_block_1() -> None:
@@ -391,7 +390,7 @@ def test_block_unexpected_witness() -> None:
         block.assert_valid()
 
 
-def test_dataclasses_json_dict(generated_files_dir: Path) -> None:
+def test_dataclasses_json_dict(json_golden: JsonGolden) -> None:
     fname = "block_481824.bin"
     filename = path.join(path.dirname(__file__), "_data", fname)
     with open(filename, "rb") as binfile_:
@@ -404,10 +403,7 @@ def test_dataclasses_json_dict(generated_files_dir: Path) -> None:
     # dict
     block_dict = block_data.to_dict()
     assert isinstance(block_dict, dict)
-    filename = path.join(generated_files_dir, "block_481824.json")
-    with open(filename, "w", encoding="ascii") as file_:
-        json.dump(block_dict, file_, indent=4)
-        file_.write("\n")  # end-of-file-fixer
+    json_golden("block_481824.json", block_dict)
     assert block_data == Block.from_dict(block_dict)
 
     block_header = block_data.header.serialize()
@@ -419,10 +415,7 @@ def test_dataclasses_json_dict(generated_files_dir: Path) -> None:
     # dict
     block_header_d = block_header_data.to_dict()
     assert isinstance(block_header_d, dict)
-    filename = path.join(generated_files_dir, "block_header_481824.json")
-    with open(filename, "w", encoding="ascii") as file_:
-        json.dump(block_header_d, file_, indent=4)
-        file_.write("\n")  # end-of-file-fixer
+    json_golden("block_header_481824.json", block_header_d)
     assert block_header_data == BlockHeader.from_dict(block_header_d)
 
 

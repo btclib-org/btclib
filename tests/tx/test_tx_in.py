@@ -9,10 +9,8 @@
 # or distributed except according to the terms contained in the LICENSE file.
 """Tests for the `btclib.tx_in` module."""
 
-import json
 from dataclasses import FrozenInstanceError
 from os import path
-from pathlib import Path
 
 import pytest
 
@@ -20,6 +18,7 @@ from btclib.exceptions import BTClibValueError
 from btclib.script import Witness
 from btclib.tx import OutPoint, Tx, TxIn
 from btclib.tx.tx_in import TX_IN_COMPARES_WITNESS
+from tests.conftest import JsonGolden
 
 
 def test_tx_in() -> None:
@@ -114,7 +113,7 @@ def test_default_arguments_are_not_shared() -> None:
     assert not TxIn().script_witness.stack
 
 
-def test_dataclasses_json_dict(generated_files_dir: Path) -> None:
+def test_dataclasses_json_dict(json_golden: JsonGolden) -> None:
     fname = "d4f3c2c3c218be868c77ae31bedb497e2f908d6ee5bbbe91e4933e6da680c970.bin"
     filename = path.join(path.dirname(__file__), "_data", fname)
     with open(filename, "rb") as binary_file_:
@@ -129,18 +128,8 @@ def test_dataclasses_json_dict(generated_files_dir: Path) -> None:
     tx_in_dict = tx_in.to_dict()
     assert isinstance(tx_in_dict, dict)
 
-    # TxIn dataclass dict to file
-    filename = path.join(generated_files_dir, "tx_in.json")
-    with open(filename, "w", encoding="ascii") as file_:
-        json.dump(tx_in_dict, file_, indent=4)
-        file_.write("\n")  # end-of-file-fixer
-
-    # TxIn dataclass dict from file
-    with open(filename, encoding="ascii") as file_:
-        tx_dict2 = json.load(file_)
-    assert isinstance(tx_dict2, dict)
-
-    assert tx_in_dict == tx_dict2
+    # against the json committed beside this module, not written to it
+    json_golden("tx_in.json", tx_in_dict)
 
     # TxIn dataclass from dict
     tx_in2 = TxIn.from_dict(tx_in_dict)

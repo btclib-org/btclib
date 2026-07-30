@@ -11,10 +11,6 @@
 
 from __future__ import annotations
 
-import json
-from os import path
-from pathlib import Path
-
 from btclib.alias import Octets
 from btclib.psbt import (
     Psbt,
@@ -24,6 +20,7 @@ from btclib.psbt import (
     encode_dict_bytes_bytes,
     serialize_dict_bytes_bytes,
 )
+from tests.conftest import JsonGolden
 
 
 def test_unknown() -> None:
@@ -47,7 +44,7 @@ def test_psbt_out() -> None:
     assert psbt_out == PsbtOut.from_dict(psbt_out.to_dict())
 
 
-def test_dataclasses_json_dict(generated_files_dir: Path) -> None:
+def test_dataclasses_json_dict(json_golden: JsonGolden) -> None:
     psbt_str = "cHNidP8BAJoCAAAAAljoeiG1ba8MI76OcHBFbDNvfLqlyHV5JPVFiHuyq911AAAAAAD/////g40EJ9DsZQpoqka7CwmK6kQiwHGyyng1Kgd5WdB86h0BAAAAAP////8CcKrwCAAAAAAWABTYXCtx0AYLCcmIauuBXlCZHdoSTQDh9QUAAAAAFgAUAK6pouXw+HaliN9VRuh0LR2HAI8AAAAAAAEAuwIAAAABqtc5MQGL0l+ErkALaISL4J23BurCrBgpi6vucatlb4sAAAAASEcwRAIgWPb8fGoz4bMVSNSByCbAFb0wE1qtQs1neQ2rZtKtJDsCIEoc7SYExnNbY5PltBaR3XiwDwxZQvufdRhW+qk4FX26Af7///8CgPD6AgAAAAAXqRQPuUY0IWlrgsgzryQceMF9295JNIfQ8gonAQAAABepFCnKdPigj4GZlCgYXJe12FLkBj9hh2UAAAAiAgKVg785rgpgl0etGZrd1jT6YQhVnWxc05tMIYPxq5bgf0cwRAIgdAGK1BgAl7hzMjwAFXILNoTMgSOJEEjn282bVa1nnJkCIHPTabdA4+tT3O+jOCPIBwUUylWn3ZVE8VfBZ5EyYRGMASICAtq2H/SaFNtqfQKwzR+7ePxLGDErW05U2uTbovv+9TbXSDBFAiEA9hA4swjcHahlo0hSdG8BV3KTQgjG0kRUOTzZm98iF3cCIAVuZ1pnWm0KArhbFOXikHTYolqbV2C+ooFvZhkQoAbqAQEDBAEAAAABBEdSIQKVg785rgpgl0etGZrd1jT6YQhVnWxc05tMIYPxq5bgfyEC2rYf9JoU22p9ArDNH7t4/EsYMStbTlTa5Nui+/71NtdSriIGApWDvzmuCmCXR60Zmt3WNPphCFWdbFzTm0whg/GrluB/ENkMak8AAACAAAAAgAAAAIAiBgLath/0mhTban0CsM0fu3j8SxgxK1tOVNrk26L7/vU21xDZDGpPAAAAgAAAAIABAACAAAEBIADC6wsAAAAAF6kUt/X69A49QKWkWbHbNTXyty+pIeiHIgIDCJ3BDHrG21T5EymvYXMz2ziM6tDCMfcjN50bmQMLAtxHMEQCIGLrelVhB6fHP0WsSrWh3d9vcHX7EnWWmn84Pv/3hLyyAiAMBdu3Rw2/LwhVfdNWxzJcHtMJE+mWzThAlF2xIijaXwEiAgI63ZBPPW3PWd25BrDe4jUpt/+57VDl6GFRkmhgIh8Oc0cwRAIgZfRbpZmLWaJ//hp77QFq8fH5DVSzqo90UKpfVqJRA70CIH9yRwOtHtuWaAsoS1bU/8uI9/t1nqu+CKow8puFE4PSAQEDBAEAAAABBCIAIIwjUxc3Q7WV37Sge3K6jkLjeX2nTof+fZ10l+OyAokDAQVHUiEDCJ3BDHrG21T5EymvYXMz2ziM6tDCMfcjN50bmQMLAtwhAjrdkE89bc9Z3bkGsN7iNSm3/7ntUOXoYVGSaGAiHw5zUq4iBgI63ZBPPW3PWd25BrDe4jUpt/+57VDl6GFRkmhgIh8OcxDZDGpPAAAAgAAAAIADAACAIgYDCJ3BDHrG21T5EymvYXMz2ziM6tDCMfcjN50bmQMLAtwQ2QxqTwAAAIAAAACAAgAAgAAiAgOppMN/WZbTqiXbrGtXCvBlA5RJKUJGCzVHU+2e7KWHcRDZDGpPAAAAgAAAAIAEAACAACICAn9jmXV9Lv9VoTatAsaEsYOLZVbl8bazQoKpS2tQBRCWENkMak8AAACAAAAAgAUAAIAA"
     psbt = Psbt.b64decode(psbt_str)
 
@@ -63,22 +60,8 @@ def test_dataclasses_json_dict(generated_files_dir: Path) -> None:
     assert psbt_out_dict["bip32_derivs"]
     assert psbt_out_dict["unknown"] == {}
 
-    # PsbtOut dataclass dict to file
-    filename = path.join(generated_files_dir, "psbt_out.json")
-    with open(filename, "w", encoding="ascii") as file_:
-        json.dump(psbt_out_dict, file_, indent=4)
-        file_.write("\n")  # end-of-file-fixer
-
-    # PsbtOut dataclass dict from file
-    with open(filename, encoding="ascii") as file_:
-        psbt_out_dict2 = json.load(file_)
-    assert isinstance(psbt_out_dict2, dict)
-    assert psbt_out_dict2["redeem_script"] == ""
-    assert psbt_out_dict2["witness_script"] == ""
-    assert psbt_out_dict2["bip32_derivs"]
-    assert psbt_out_dict2["unknown"] == {}
-
-    assert psbt_out_dict == psbt_out_dict2
+    # against the json committed beside this module, not written to it
+    json_golden("psbt_out.json", psbt_out_dict)
 
     # PsbtOut dataclass from dict
     psbt_out2 = PsbtOut.from_dict(psbt_out_dict)

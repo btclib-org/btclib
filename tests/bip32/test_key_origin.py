@@ -9,10 +9,6 @@
 # or distributed except according to the terms contained in the LICENSE file.
 """Tests for the `btclib.bip32_path` module."""
 
-import json
-from os import path
-from pathlib import Path
-
 import pytest
 
 from btclib.bip32 import (
@@ -23,6 +19,7 @@ from btclib.bip32 import (
 )
 from btclib.bip32.der_path import _HARDENING
 from btclib.exceptions import BTClibValueError
+from tests.conftest import JsonGolden
 
 
 def test_bip32_key_origin() -> None:
@@ -74,7 +71,7 @@ def test_bip32_key_origin() -> None:
     assert len(key_origin) == 5
 
 
-def test_dataclasses_json_dict_key_origin(generated_files_dir: Path) -> None:
+def test_dataclasses_json_dict_key_origin(json_golden: JsonGolden) -> None:
     key_origin = BIP32KeyOrigin.from_description("deadbeef//44h/0'/1H/0/10/")
 
     # BIP32KeyOrigin dataclass
@@ -87,20 +84,8 @@ def test_dataclasses_json_dict_key_origin(generated_files_dir: Path) -> None:
     assert key_origin_dict["master_fingerprint"]
     assert key_origin_dict["path"]
 
-    # BIP32KeyOrigin dict to file
-    filename = path.join(generated_files_dir, "key_origin.json")
-    with open(filename, "w", encoding="ascii") as file_:
-        json.dump(key_origin_dict, file_, indent=4)
-        file_.write("\n")  # end-of-file-fixer
-
-    # BIP32KeyOrigin dict from file
-    with open(filename, encoding="ascii") as file_:
-        key_origin_dict2 = json.load(file_)
-    assert isinstance(key_origin_dict2, dict)
-    assert key_origin_dict["master_fingerprint"]
-    assert key_origin_dict["path"]
-
-    assert key_origin_dict == key_origin_dict2
+    # against the json committed beside this module, not written to it
+    json_golden("key_origin.json", key_origin_dict)
 
     # BIP32KeyOrigin dataclass from dict
     key_origin2 = BIP32KeyOrigin.from_dict(key_origin_dict)

@@ -114,6 +114,20 @@ or, in one go, with [pre-commit](https://pre-commit.com/):
 uv run pre-commit run --all-files
 ```
 
+The suite writes nothing: it runs against a read-only checkout, and from an
+installed sdist. The one exception is deliberate and has to be asked for.
+Eleven modules compare a dataclass's `to_dict()` against a json file
+committed beside them, under `tests/**/_generated_files/`, so that a change
+to a serialized form is a failing test rather than something to notice in a
+`git diff`. When such a change is the intended one:
+
+```shell
+BTCLIB_REGENERATE_GOLDEN=1 uv run pytest
+```
+
+rewrites those files, and the diff it leaves is the review the change wants.
+The failure message names the command, so there is nothing to remember.
+
 That second command is not a convenience: it is the lint gate itself.
 The lint workflow runs this very configuration, so what CI enforces is
 what a commit enforces, mark-down included

@@ -1,5 +1,13 @@
 # Vendored test vectors
 
+This file is about `tests/**/_data/` only. The other directory holding json
+beside the tests, `tests/**/_generated_files/`, is the opposite kind of
+thing and has no entry here: those fifteen files are btclib's own output,
+`to_dict()` over fixed input, committed as golden files so that a change to
+a serialized form fails a test instead of passing unnoticed. Nothing
+upstream to pin, and nothing to compare against but ourselves —
+`BTCLIB_REGENERATE_GOLDEN=1 uv run pytest` rewrites them on purpose.
+
 Where every file under a `tests/**/_data/` directory came from, and
 whether our copy still matches it. The test modules already cite their
 sources, but against `master`: a citation like
