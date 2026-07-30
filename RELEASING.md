@@ -77,7 +77,11 @@ pyroma), build, wheel smoke test — and publishes to
    version too). btclib.\_\_version\_\_ reads it back from the installed
    metadata and docs/source/conf.py reads it from the file, so there is
    nothing else to keep in step; the workflow fails if it disagrees with
-   the tag, or if uv.lock was not re-locked.
+   the tag, or if uv.lock was not re-locked. It also refuses a version
+   that is not final: a tag is the trigger that publishes to PyPI itself,
+   so an `rc`, a `.dev` or a `.post` reaching it would burn a real
+   version. Trial runs go to TestPyPI through workflow_dispatch, above,
+   and are never tagged.
 
 1. Retitle the "work in progress" section of HISTORY.md as
    `## v<version>` and make sure it covers every major change: the

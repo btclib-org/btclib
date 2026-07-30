@@ -74,6 +74,18 @@ jobs:
             echo "::error::tag $GITHUB_REF_NAME does not match the declared version $version"
             exit 1
           fi
+          # the trigger decides the index, so a tagged pre-release goes to
+          # PyPI itself: a v2023.8rc1 tag on a tree declaring 2023.8rc1
+          # passes the comparison above and burns a version that a --pre
+          # install would then resolve. RELEASING.md sends a trial run to
+          # TestPyPI through workflow_dispatch and says never to tag one;
+          # this is the check for it. Digits and dots only, which is the
+          # calendar scheme of YYYY.M.D and its patch number, and nothing
+          # PEP 440 reads as a pre-release, a dev build or a post release
+          if ! echo "$version" | grep -Eq '^[0-9]+(\.[0-9]+)*$'; then
+            echo "::error::$version is not a final version; rehearse on TestPyPI via workflow_dispatch instead"
+            exit 1
+          fi
 
   # the whole build/test matrix, exactly as a pull request runs it
   test:

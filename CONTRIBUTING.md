@@ -129,10 +129,12 @@ needs: no interpreter, no linter, no packaging tool has to be installed by
 hand, and even the `cmake` that builds the bindings arrives as a build
 requirement.
 
-The `lint` workflow, in full:
+The `lint` workflow, in full — the same pre-commit the lock pins, which is
+what `uv run` above gives you too:
 
 ```shell
-uvx pre-commit run --all-files --show-diff-on-failure
+uv run --locked --only-group lint \
+    pre-commit run --all-files --show-diff-on-failure
 ```
 
 One cell of the `test-py` matrix. The interpreter is chosen with
