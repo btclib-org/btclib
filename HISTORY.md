@@ -551,6 +551,31 @@ Major changes includes:
   and `"9"` raises for being of odd length rather than being nine. The
   behaviour is unchanged and deliberate — a decimal representation is what
   `int` itself is for — and now the docstring says so
+- **`btclib.ec` exports the curve API, not a benchmark.** Its `__all__` held
+  24 names, fourteen of which were one operation written fourteen ways: the
+  eleven `mult_*` variants of `curve_group` and `curve_group_2` — `mult_aff`,
+  `mult_jac`, `mult_base_3`, `mult_mont_ladder`, the two `mult_recursive_*`,
+  the two `mult_fixed_window*`, `mult_sliding_window`, `mult_w_NAF`,
+  `mult_endomorphism_secp256k1` — plus the `multiples`, `cached_multiples`
+  and `jac_from_aff` they are built on. They are kept side by side to be
+  measured against each other, and exporting them made a menu out of it,
+  with nothing to say that `mult` is the one to use, that it dispatches to
+  libsecp256k1 for secp256k1 and the generator, or that `mult_jac` is not
+  the faster alternative its name suggests. `__all__` is now `Curve`,
+  `CurveGroup`, `secp256k1`, `mult`, `double_mult`, `multi_mult`,
+  `bytes_from_point`, `point_from_octets`, `find_all_points`,
+  `find_subgroup_points`; each variant is still importable from the module
+  that defines it, which is where the four affected test modules now take
+  them from
+- **`btclib.ecc` exports the signature schemes.** `__all__` was
+  `ansi_x9_63_kdf`, `bip340_nonce_`, `diffie_hellman`, `second_generator` —
+  four helpers, and not one of the schemes behind them — so `import
+  btclib.ecc` followed by `btclib.ecc.dsa.sign(...)` raised AttributeError
+  until something else in the process happened to import the submodule. It
+  now exports `dsa`, `ssa`, `bms`, `borromean`, `pedersen` and
+  `sign_to_contract` beside the four
+- **`btclib.mnemonic` exports `bip39` and `electrum`**, its two schemes,
+  which were reachable on the same accidental terms
 - **`borromean.sign`, `verify` and `assert_as_valid` take `ec` and `hf`**, with
   the same defaults and in the same position as `dsa`, `ssa` and `pedersen`,
   which is what the module's two FIXMEs ("any hf", "any curve") asked for.

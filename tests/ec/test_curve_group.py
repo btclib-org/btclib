@@ -12,7 +12,16 @@
 import pytest
 
 from btclib.alias import INF, INFJ
-from btclib.ec import (
+from btclib.ec import secp256k1
+
+# the eight mult_* variants under test, and the helpers they are built on,
+# come from the module that defines them: btclib.ec exports mult,
+# double_mult and multi_mult, and no longer a menu of implementations
+from btclib.ec.curve_group import (
+    MAX_W,
+    _double_mult,
+    _mult,
+    _multi_mult,
     cached_multiples,
     jac_from_aff,
     mult_aff,
@@ -24,9 +33,7 @@ from btclib.ec import (
     mult_recursive_aff,
     mult_recursive_jac,
     multiples,
-    secp256k1,
 )
-from btclib.ec.curve_group import MAX_W, _double_mult, _mult, _multi_mult
 from btclib.ecc import second_generator
 from btclib.exceptions import BTClibValueError
 from tests.ec.test_curve import all_curves, low_card_curves

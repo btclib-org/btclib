@@ -16,16 +16,7 @@ from hashlib import sha256, sha512
 import pytest
 
 from btclib.alias import INF, INFJ, Integer
-from btclib.ec import (
-    Curve,
-    CurveGroup,
-    cached_multiples,
-    double_mult,
-    jac_from_aff,
-    mult,
-    multi_mult,
-    secp256k1,
-)
+from btclib.ec import Curve, CurveGroup, double_mult, mult, multi_mult, secp256k1
 from btclib.ec.curve import (
     CURVES,
     Brainpool_params2,
@@ -37,6 +28,11 @@ from btclib.ec.curve import (
     SEC2v2_params2,
     _libsecp256k1_applicable,
 )
+
+# cached_multiples and jac_from_aff are implementation helpers of
+# curve_group, not part of what btclib.ec exports: they are taken from the
+# module that defines them
+from btclib.ec.curve_group import cached_multiples, jac_from_aff
 from btclib.ecc import second_generator
 from btclib.exceptions import BTClibTypeError, BTClibValueError
 from btclib.number_theory import mod_sqrt
