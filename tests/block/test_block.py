@@ -13,6 +13,7 @@ import json
 from copy import deepcopy
 from datetime import datetime, timedelta, timezone
 from os import path
+from pathlib import Path
 
 import pytest
 
@@ -20,8 +21,6 @@ from btclib.block import Block, BlockHeader
 from btclib.exceptions import BTClibValueError
 from btclib.network import NETWORKS
 from btclib.script.witness import Witness
-
-datadir = path.join(path.dirname(__file__), "_generated_files")
 
 
 def test_block_1() -> None:
@@ -382,7 +381,7 @@ def test_block_unexpected_witness() -> None:
         block.assert_valid()
 
 
-def test_dataclasses_json_dict() -> None:
+def test_dataclasses_json_dict(generated_files_dir: Path) -> None:
     fname = "block_481824.bin"
     filename = path.join(path.dirname(__file__), "_data", fname)
     with open(filename, "rb") as binfile_:
@@ -395,7 +394,7 @@ def test_dataclasses_json_dict() -> None:
     # dict
     block_dict = block_data.to_dict()
     assert isinstance(block_dict, dict)
-    filename = path.join(datadir, "block_481824.json")
+    filename = path.join(generated_files_dir, "block_481824.json")
     with open(filename, "w", encoding="ascii") as file_:
         json.dump(block_dict, file_, indent=4)
         file_.write("\n")  # end-of-file-fixer
@@ -410,7 +409,7 @@ def test_dataclasses_json_dict() -> None:
     # dict
     block_header_d = block_header_data.to_dict()
     assert isinstance(block_header_d, dict)
-    filename = path.join(datadir, "block_header_481824.json")
+    filename = path.join(generated_files_dir, "block_header_481824.json")
     with open(filename, "w", encoding="ascii") as file_:
         json.dump(block_header_d, file_, indent=4)
         file_.write("\n")  # end-of-file-fixer

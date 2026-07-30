@@ -11,6 +11,7 @@
 
 import json
 from os import path
+from pathlib import Path
 
 import pytest
 
@@ -73,12 +74,11 @@ def test_numbers_of_networks() -> None:
     assert len(NETWORKS) == 3
 
 
-def test_dataclasses_json_dict() -> None:
+def test_dataclasses_json_dict(generated_files_dir: Path) -> None:
     for network_name, net in NETWORKS.items():
         assert net == Network.from_dict(net.to_dict())
 
-        datadir = path.join(path.dirname(__file__), "_generated_files")
-        filename = path.join(datadir, f"{network_name}.json")
+        filename = path.join(generated_files_dir, f"{network_name}.json")
         with open(filename, "w", encoding="ascii") as file_:
             json.dump(net.to_dict(), file_, indent=4)
             file_.write("\n")  # end-of-file-fixer

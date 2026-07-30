@@ -11,6 +11,7 @@
 
 import json
 from os import path
+from pathlib import Path
 
 import pytest
 
@@ -348,7 +349,7 @@ def test_double_witness() -> None:
     assert not tx.is_coinbase()
 
 
-def test_dataclasses_json_dict() -> None:
+def test_dataclasses_json_dict(generated_files_dir: Path) -> None:
     fname = "d4f3c2c3c218be868c77ae31bedb497e2f908d6ee5bbbe91e4933e6da680c970.bin"
     filename = path.join(path.dirname(__file__), "_data", fname)
     with open(filename, "rb") as binary_file_:
@@ -368,8 +369,7 @@ def test_dataclasses_json_dict() -> None:
     assert tx_dict["vin"][0]["txinwitness"]["stack"]  # type: ignore[index]
 
     # Tx dataclass dict to file
-    datadir = path.join(path.dirname(__file__), "_generated_files")
-    filename = path.join(datadir, "tx.json")
+    filename = path.join(generated_files_dir, "tx.json")
     with open(filename, "w", encoding="ascii") as file_:
         json.dump(tx_dict, file_, indent=4)
         file_.write("\n")  # end-of-file-fixer

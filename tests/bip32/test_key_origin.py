@@ -11,6 +11,7 @@
 
 import json
 from os import path
+from pathlib import Path
 
 import pytest
 
@@ -73,7 +74,7 @@ def test_bip32_key_origin() -> None:
     assert len(key_origin) == 5
 
 
-def test_dataclasses_json_dict_key_origin() -> None:
+def test_dataclasses_json_dict_key_origin(generated_files_dir: Path) -> None:
     key_origin = BIP32KeyOrigin.from_description("deadbeef//44h/0'/1H/0/10/")
 
     # BIP32KeyOrigin dataclass
@@ -87,8 +88,7 @@ def test_dataclasses_json_dict_key_origin() -> None:
     assert key_origin_dict["path"]
 
     # BIP32KeyOrigin dict to file
-    datadir = path.join(path.dirname(__file__), "_generated_files")
-    filename = path.join(datadir, "key_origin.json")
+    filename = path.join(generated_files_dir, "key_origin.json")
     with open(filename, "w", encoding="ascii") as file_:
         json.dump(key_origin_dict, file_, indent=4)
         file_.write("\n")  # end-of-file-fixer

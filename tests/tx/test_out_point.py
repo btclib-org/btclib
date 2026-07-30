@@ -12,6 +12,7 @@
 import json
 from dataclasses import FrozenInstanceError
 from os import path
+from pathlib import Path
 
 import pytest
 
@@ -59,7 +60,7 @@ def test_frozen() -> None:
     assert len({out_point, OutPoint(out_point.tx_id, out_point.vout)}) == 1
 
 
-def test_dataclasses_json_dict_out_point() -> None:
+def test_dataclasses_json_dict_out_point(generated_files_dir: Path) -> None:
     fname = "d4f3c2c3c218be868c77ae31bedb497e2f908d6ee5bbbe91e4933e6da680c970.bin"
     filename = path.join(path.dirname(__file__), "_data", fname)
     with open(filename, "rb") as binary_file_:
@@ -75,10 +76,8 @@ def test_dataclasses_json_dict_out_point() -> None:
     assert isinstance(out_point_dict, dict)
     assert out_point_data == OutPoint.from_dict(out_point_dict)
 
-    datadir = path.join(path.dirname(__file__), "_generated_files")
-
     # Tx dict to/from dict file
-    filename = path.join(datadir, "out_point.json")
+    filename = path.join(generated_files_dir, "out_point.json")
     with open(filename, "w", encoding="ascii") as file_:
         json.dump(out_point_dict, file_, indent=4)
         file_.write("\n")  # end-of-file-fixer

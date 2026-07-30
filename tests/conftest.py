@@ -7,7 +7,7 @@
 #
 # No part of btclib including this file, may be copied, modified, propagated,
 # or distributed except according to the terms contained in the LICENSE file.
-"""Hypothesis profiles for the whole suite.
+"""What the whole suite shares: hypothesis profiles, and one fixture.
 
 Registered once here rather than passed to each `@given`: a settings
 profile is process-wide, and a decorator repeating it on every property
@@ -15,7 +15,9 @@ test is one more place to forget it.
 """
 
 import os
+from pathlib import Path
 
+import pytest
 from hypothesis import settings
 
 # The deadline is a per-example time limit, measured on a run whose cost
@@ -39,3 +41,21 @@ settings.register_profile("btclib", deadline=None, max_examples=500)
 settings.register_profile("thorough", deadline=None, max_examples=2_000)
 
 settings.load_profile(os.environ.get("HYPOTHESIS_PROFILE", "btclib"))
+
+
+@pytest.fixture
+def generated_files_dir(request: pytest.FixtureRequest) -> Path:
+    """The `_generated_files` directory beside the test module asking.
+
+    Eleven modules serialize a dataclass to json on disk and read it back,
+    and the file is committed rather than discarded: a change to what
+    `to_dict` writes then shows up as a diff to review, which is the point
+    of writing it to the repository instead of to `tmp_path`.
+
+    Each of those modules used to open the test with the same line,
+    `path.join(path.dirname(__file__), "_generated_files")`, which is a
+    directory layout restated eleven times -- and restated in terms of
+    `__file__`, so it moved with the test rather than with the data. Here
+    it is stated once, and `request.path` is the same module's file.
+    """
+    return Path(request.path).parent / "_generated_files"
