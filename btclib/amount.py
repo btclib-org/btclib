@@ -28,12 +28,17 @@ The functions in this module could be easily amended
 
 from __future__ import annotations
 
-from decimal import Decimal, FloatOperation, getcontext
+from decimal import Decimal, FloatOperation, localcontext
 from typing import Any
 
 from btclib.exceptions import BTClibTypeError, BTClibValueError
 
-getcontext().traps[FloatOperation] = True
+# The two functions below doing Decimal algebra trap FloatOperation in a
+# local context, not in the process-wide one at import time:
+# getcontext().traps[FloatOperation] = True would change the Decimal
+# semantics of the unrelated code of any application merely importing
+# btclib; moreover, the current context is thread-local, so the trap the
+# functions rely on would be absent in any thread created elsewhere.
 
 # do not import _SATOSHI_PER_BITCOIN and _BITCOIN_PER_SATOSHI
 # instead, better use sats_from_btc and btc_from_sats
@@ -64,17 +69,18 @@ def valid_btc_amount(amount: Any, dust: Decimal = Decimal(0)) -> Decimal:
     Returns:
         Decimal: The BTC amount converted to Decimal.
     """
-    # any input that can be converted to str is fine
-    amount = "0" if amount is None else str(amount)
-    # using str in the Decimal constructor avoids the
-    # FloatOperation exception
-    # even if trapped by the context (which is the btclib default)
-    btc = Decimal(amount)
-    if not dust <= btc <= _MAX_BITCOIN:
-        raise BTClibValueError(f"invalid BTC amount: {amount}")
-    if btc == btc.quantize(_BITCOIN_PER_SATOSHI):
-        return btc
-    raise BTClibValueError(f"too many decimals for a BTC amount: {amount}")
+    with localcontext() as ctx:
+        ctx.traps[FloatOperation] = True
+        # any input that can be converted to str is fine
+        amount = "0" if amount is None else str(amount)
+        # using str in the Decimal constructor avoids the
+        # FloatOperation exception trapped just above
+        btc = Decimal(amount)
+        if not dust <= btc <= _MAX_BITCOIN:
+            raise BTClibValueError(f"invalid BTC amount: {amount}")
+        if btc == btc.quantize(_BITCOIN_PER_SATOSHI):
+            return btc
+        raise BTClibValueError(f"too many decimals for a BTC amount: {amount}")
 
 
 def sats_from_btc(amount: Decimal) -> int:
@@ -97,6 +103,8 @@ def valid_sats_amount(amount: Any, dust: int = 0) -> int:
 def btc_from_sats(amount: int) -> Decimal:
     """Return the BTC Decimal equivalent of the provided satoshi amount."""
     sats = valid_sats_amount(amount)
-    # normalize() strips the rightmost trailing zeros
-    # and produces canonical values for attributes of an equivalence class
-    return (sats * _BITCOIN_PER_SATOSHI).normalize()
+    with localcontext() as ctx:
+        ctx.traps[FloatOperation] = True
+        # normalize() strips the rightmost trailing zeros
+        # and produces canonical values for attributes of an equivalence class
+        return (sats * _BITCOIN_PER_SATOSHI).normalize()

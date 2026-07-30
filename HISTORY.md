@@ -37,6 +37,14 @@ Major changes includes:
   verification failed"): `pedersen` was the one module with a `verify`
   and no assert_as_valid beside it, leaving no way to learn why opening
   a commitment failed
+- importing btclib no longer traps decimal FloatOperation in the
+  process-wide context: `btclib.amount` used to do it at import time,
+  changing the Decimal semantics of the unrelated code of any application
+  merely importing, say, `btclib.tx`. The two functions doing Decimal
+  algebra now trap it in a `decimal.localcontext()` of their own, which
+  also makes them behave the same in a thread created elsewhere: the
+  current context is thread-local, so the process-wide trap was absent
+  there
 - `dsa.assert_as_valid_` and `ssa.assert_as_valid_` raise "signature
   verification failed" whichever of the two implementations verified: the
   message used to name an internal helper (`libsecp256k1.ecdsa_verify_

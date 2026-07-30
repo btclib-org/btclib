@@ -11,7 +11,8 @@
 
 from __future__ import annotations
 
-from decimal import Decimal, FloatOperation, localcontext
+from decimal import Decimal, FloatOperation, getcontext, localcontext
+from threading import Thread
 
 import pytest
 
@@ -41,6 +42,43 @@ def test_conversions() -> None:
 
             assert valid_btc_amount(None) == 0
             assert valid_sats_amount(None) == 0
+
+
+def test_caller_decimal_context() -> None:
+    # importing btclib must not trap FloatOperation process-wide:
+    # it would change the Decimal semantics of the unrelated code
+    # of the hosting application
+    assert not getcontext().traps[FloatOperation]
+    # what the trap forbids: building a Decimal from a float,
+    # and comparing a Decimal with one
+    assert Decimal(1 / 2) == Decimal("0.5")
+    assert Decimal("1.1") != 1.1
+
+    for trap_float_operation in (True, False):
+        with localcontext() as ctx:
+            ctx.traps[FloatOperation] = trap_float_operation
+            # the functions trap FloatOperation in a local context,
+            # leaving the caller one exactly as it was
+            btc_from_sats(sats_from_btc(valid_btc_amount("0.0001")))
+            assert getcontext().traps[FloatOperation] == trap_float_operation
+
+
+def test_other_thread() -> None:
+    # getcontext() is thread-local: a thread created elsewhere does not
+    # inherit any trap, so the amount functions must not rely on one
+    results: list[str] = []
+
+    def worker() -> None:
+        assert not getcontext().traps[FloatOperation]
+        sats = sats_from_btc(0.0001)  # type: ignore[arg-type]
+        results.append(str(btc_from_sats(sats)))
+        with pytest.raises(BTClibValueError, match="too many decimals"):
+            valid_btc_amount(0.123456789)
+
+    thread = Thread(target=worker)
+    thread.start()
+    thread.join()
+    assert results == ["0.0001"]
 
 
 def test_exceptions() -> None:
