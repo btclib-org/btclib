@@ -51,6 +51,10 @@ Major changes includes:
   that uv.lock is in sync) before the test matrix rather than beside it,
   and validates what it built with twine, check-wheel-contents, and
   pyroma on the sdist, before an upload consumes the version
+- the matrix covers 3.14t, the free-threaded interpreter, and pytest is
+  stricter: a warning is an error, an unregistered marker and a typo in
+  the pytest configuration are errors, and an xfail that passes is a
+  failure
 
 ## v2023.7.12
 

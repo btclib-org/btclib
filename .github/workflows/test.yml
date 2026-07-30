@@ -59,8 +59,24 @@ jobs:
             windows-latest,
             windows-11-arm,
           ]
+        # 3.14t is the free-threaded interpreter, and it is in the matrix
+        # for what it installs as much as for what it runs: the bindings
+        # ship a py3-none dynamic wheel for it, and nothing else here
+        # exercises a build without the GIL. python-build-standalone has a
+        # freethreaded build for all six platforms below, so it needs no
+        # exclusion
         python:
-          ["3.9", "3.10", "3.11", "3.12", "3.13", "3.14", "pypy3.10", "pypy3.11"]
+          [
+            "3.9",
+            "3.10",
+            "3.11",
+            "3.12",
+            "3.13",
+            "3.14",
+            "3.14t",
+            "pypy3.10",
+            "pypy3.11",
+          ]
     # the bindings are compiled here, so this is not instantaneous; what
     # it bounds is a hung job holding a runner for six hours
     timeout-minutes: 30
@@ -78,7 +94,7 @@ jobs:
           enable-cache: true
           python-version: ${{ matrix.python }}
       - name: Run pytest
-        run: uv run --frozen --no-default-groups --group test pytest
+        run: uv run --locked --no-default-groups --group test pytest
 
   # coverage is measured once, not once per matrix job: the code base has
   # no platform- or version-conditional branch (no sys.platform, no
@@ -104,5 +120,5 @@ jobs:
           python-version: "3.13"
       - name: Run pytest under coverage
         run: >
-          uv run --frozen --no-default-groups --group test
+          uv run --locked --no-default-groups --group test
           pytest --cov-report term-missing:skip-covered --cov=btclib --cov=tests

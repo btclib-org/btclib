@@ -40,10 +40,12 @@ jobs:
         uses: astral-sh/setup-uv@c771a70e6277c0a99b617c7a806ffedaca235ff9 # v9.0.0
         with:
           enable-cache: true
-      # every workflow installs with --frozen, which uses uv.lock as it
-      # finds it and does not check it: a dependency added to
-      # pyproject.toml without a re-lock would go unnoticed here, while
-      # nothing would install it
+      # every other uv command in these workflows now passes --locked,
+      # which asserts the same thing, so this is the named early gate
+      # rather than the only one: --frozen, which they all used to pass,
+      # takes uv.lock as it finds it and never checks it, so a dependency
+      # added to pyproject.toml without a re-lock went unnoticed while
+      # nothing installed it
       - name: Check that uv.lock is up to date
         run: uv lock --check
       - name: Check that the two declared versions agree
@@ -97,7 +99,7 @@ jobs:
           sed -i "s/^__version__ = \"\(.*\)\"$/__version__ = \"\1.dev$GITHUB_RUN_NUMBER\"/" btclib/__init__.py
           grep "^__version__" btclib/__init__.py
       - name: Check that the sdist will be complete
-        run: uv run --frozen --only-group build check-manifest
+        run: uv run --locked --only-group build check-manifest
       # uv build builds the sdist first and then the wheel from it, not
       # both from the source tree: the packaging path a user installing
       # from source takes is therefore the one that produced the wheel,
@@ -108,18 +110,18 @@ jobs:
       # workflow reaches the point of no return: broken metadata, or a
       # README that does not render, cannot be fixed by reuploading
       - name: Check the metadata and the long description
-        run: uv run --frozen --only-group build twine check --strict dist/*
+        run: uv run --locked --only-group build twine check --strict dist/*
       # what twine does not look at: where the files land once installed,
       # a test package shipped by accident, a stray top-level module
       - name: Check the wheel contents
-        run: uv run --frozen --only-group build check-wheel-contents dist/*.whl
+        run: uv run --locked --only-group build check-wheel-contents dist/*.whl
       # and what twine cannot see either: metadata that is valid but poor,
       # a missing classifier or url, a version PyPI would sort in a way
       # nobody meant. Run on the sdist rather than on the source tree, so
       # it rates the metadata that was actually built and shipped;
       # --min 10 is a ratchet, the score being 10 today
       - name: Rate the packaging metadata
-        run: uv run --frozen --only-group build pyroma --min 10 dist/*.tar.gz
+        run: uv run --locked --only-group build pyroma --min 10 dist/*.tar.gz
       # from an empty directory, so the import resolves to the wheel
       # and not to the btclib/ source tree. Unlike the test matrix,
       # which follows tool.uv.sources to the bindings' dev branch, this

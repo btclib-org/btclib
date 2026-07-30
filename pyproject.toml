@@ -88,7 +88,21 @@ include = ["btclib*"]
 namespaces = true
 
 [tool.pytest.ini_options]
-addopts = "--durations=8 -n auto"
+# --strict-config makes a typo in this very table an error rather than a
+# warning that scrolls past a hundred lines of dots, and --strict-markers
+# does the same for a marker nobody registered, which is how a misspelled
+# skipif silently stops skipping
+addopts = "--durations=8 -n auto --strict-config --strict-markers"
+# a test that was expected to fail and passed is a fixed bug still marked
+# as broken: strict turns it red instead of reporting xpass
+xfail_strict = true
+# a deprecation warning is the early form of a break, emitted years before
+# the removal that will fail the suite: on a 3.9 to 3.14 spread, plus
+# pypy, there is time to act on it only if it is not silent.
+# The list carries no ignore because the suite emits nothing to ignore:
+# checked on 3.9, 3.14, 3.14t and pypy3.11. One added here should name the
+# warning, not a module, and say what would let it be dropped
+filterwarnings = ["error"]
 
 [tool.coverage.run]
 omit = ["*/site-packages/*"]
