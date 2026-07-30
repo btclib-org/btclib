@@ -758,3 +758,64 @@ def test_the_two_index_errors_the_broad_catch_was_hiding() -> None:
     with pytest.raises(BTClibValueError, match="null length"):
         assert_segwit(b"")
     assert is_segwit(b"") is False
+
+
+def test_script_is_frozen_and_asm_is_cached() -> None:
+    """The two halves of issue 165 that outlived its first fix.
+
+    Script was the one dataclass left unfrozen after issue 139, which is
+    what let `tx_out.script_pub_key.script = b""` reach through a frozen
+    TxOut; and `asm` re-parsed on every read. Freezing is what makes the
+    cache correct, so they are one change.
+    """
+    script = Script("0014751e76e8199196d454941c45d1b3a323f1433bd6")
+
+    with pytest.raises(dataclasses.FrozenInstanceError):
+        script.script = b""  # type: ignore[misc]
+
+    spk = ScriptPubKey.p2pkh(
+        "03a1af804ac108a8a51782198c2d034b28bf90c8803f5a53f76276fa69a4eae77f",
+        network="testnet",
+    )
+    with pytest.raises(dataclasses.FrozenInstanceError):
+        spk.script = b""  # type: ignore[misc]
+    with pytest.raises(dataclasses.FrozenInstanceError):
+        spk.network = "mainnet"  # type: ignore[misc]
+
+    # frozen and eq, so Script gets a generated __hash__ and can be a dict
+    # key or a set member. ScriptPubKey cannot: it defines __eq__, which
+    # leaves __hash__ None
+    assert len({Script(script.script), Script(script.script)}) == 1
+    with pytest.raises(TypeError, match="unhashable type"):
+        hash(spk)
+
+    # and dataclasses.replace still works through the written-out __init__
+    assert dataclasses.replace(spk).network == "testnet"
+
+
+def test_asm_parses_once_per_script() -> None:
+    calls = []
+    real_parse = script_module.parse
+
+    def counting_parse(*args: Any, **kwargs: Any) -> ScriptList:
+        calls.append(1)
+        return real_parse(*args, **kwargs)
+
+    script = Script("0014751e76e8199196d454941c45d1b3a323f1433bd6")
+    original = script_module.parse
+    script_module.parse = counting_parse
+    try:
+        first = script.asm
+        second = script.asm
+        third = script.asm
+    finally:
+        script_module.parse = original
+
+    assert first == second == third
+    # one parse for three reads; it used to be three
+    assert len(calls) == 1
+
+    # the cache lives in the instance __dict__, which is how a frozen
+    # dataclass can hold one at all: cached_property writes there directly
+    # rather than through __setattr__
+    assert script.__dict__["asm"] == first

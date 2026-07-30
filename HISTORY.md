@@ -564,6 +564,21 @@ Major changes includes:
   and `"9"` raises for being of odd length rather than being nine. The
   behaviour is unchanged and deliberate — a decimal representation is what
   `int` itself is for — and now the docstring says so
+- **`Script` and `ScriptPubKey` are frozen, and `Script.asm` is cached.**
+  `Script` was the one dataclass left unfrozen after issue #139, which is
+  what let `tx_out.script_pub_key.script = b""` reach *through* a frozen
+  `TxOut` and rebind the script of whatever else held that ScriptPubKey —
+  the shallow-freeze hole that issue records. It raises `FrozenInstanceError`
+  now, and `Script` gains a generated `__hash__`, so it can be a dict key or
+  a set member; `ScriptPubKey` cannot, defining `__eq__`. Freezing is also
+  what makes the second half correct: `asm` was a plain property, so every
+  read re-parsed `self.script` — 57.9 µs for a 16.5 kB script, every time,
+  for a value that cannot change. A `functools.cached_property` makes the
+  second read 0.02 µs. The cache is deliberately *not* warmed by
+  `assert_valid`, so building a Script and then reading `.asm` still parses
+  twice: an instance holding the parse of that 16.5 kB script costs 55.4 kB
+  against 0.2 kB without it, 277 times the script's own bytes, and nothing
+  inside the library reads `.asm` at all (issue #165)
 - **The test suite writes nothing.** Eleven modules serialized a dataclass to
   `tests/**/_generated_files/*.json` on every run, and the point of committing
   those files was to notice a change to a serialized form. The check ran the

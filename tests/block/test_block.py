@@ -19,7 +19,6 @@ files verify themselves. tests/_data/README.md lists the heights, hashes
 and sizes.
 """
 
-from copy import deepcopy
 from datetime import datetime, timedelta, timezone
 from os import path
 
@@ -28,7 +27,9 @@ import pytest
 from btclib.block import Block, BlockHeader
 from btclib.exceptions import BTClibTypeError, BTClibValueError
 from btclib.network import NETWORKS
+from btclib.script import ScriptPubKey
 from btclib.script.witness import Witness
+from btclib.tx import TxOut
 from tests.conftest import JsonGolden
 
 
@@ -341,9 +342,14 @@ def test_block_witness_commitment() -> None:
     # not recomputed here, the coinbase txid having changed
     block = Block.parse(block_bytes)
     coinbase = block.transactions[0]
-    coinbase.vout.append(deepcopy(coinbase.vout[1]))
-    coinbase.vout[-1].script_pub_key.script = (
-        bytes.fromhex("6a24aa21a9ed") + b"\x00" * 32
+    # a new TxOut rather than a rebound script: ScriptPubKey is frozen
+    # (issue 165), which is what stops a mutation here reaching every other
+    # holder of that ScriptPubKey
+    coinbase.vout.append(
+        TxOut(
+            coinbase.vout[1].value,
+            ScriptPubKey(bytes.fromhex("6a24aa21a9ed") + b"\x00" * 32),
+        )
     )
     assert block.witness_commitment == b"\x00" * 32
     with pytest.raises(BTClibValueError, match="invalid witness commitment: "):

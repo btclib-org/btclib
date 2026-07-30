@@ -21,6 +21,7 @@ from __future__ import annotations
 
 from collections.abc import Sequence
 from dataclasses import dataclass
+from functools import cached_property
 from warnings import warn
 
 from btclib.alias import BinaryData, Command, Octets, ScriptList
@@ -366,15 +367,41 @@ def parse(stream: BinaryData, accept_unknown: bool = False) -> ScriptList:
     return r
 
 
-@dataclass
+# frozen, which OutPoint, TxOut and Witness became for issue 139 and this
+# one did not. That left the hole the same issue records: freezing a
+# dataclass is shallow, so `tx_out.script_pub_key.script = b""` reached
+# through a frozen TxOut and rebound the script of whatever else held that
+# ScriptPubKey. It raises FrozenInstanceError now.
+#
+# It is also what lets `asm` be cached. functools.cached_property writes
+# straight into the instance __dict__ rather than through __setattr__, so it
+# works on a frozen dataclass -- and caching a value derived from a field is
+# only correct if the field cannot change under it, which is the same
+# condition
+@dataclass(frozen=True)
 class Script:
     # Bitcoin script expressed as ScriptList
     # e.g. [OP_HASH160, script_h160, OP_EQUAL]
     # or Octets of its byte-encoded representation
     script: bytes
 
-    @property
+    @cached_property
     def asm(self) -> ScriptList:
+        """The parsed script, parsed once.
+
+        This was a plain property, so every read parsed self.script again:
+        57.9 us for a 16.5 kB script, on every access, for a value that
+        cannot change. Cached, a second read is 0.02 us.
+
+        The cache is not warmed by assert_valid, which parses the same
+        bytes at construction and throws the result away -- so building a
+        Script and then reading .asm parses twice. That is deliberate:
+        measured on that 16.5 kB script, an instance holding the parse
+        costs 55.4 kB against 0.2 kB without it, 277 times the script's own
+        bytes, and nothing inside the library reads .asm at all. Warming it
+        in __init__ would charge that to every Script ever validated to
+        save a parse for the few that are inspected.
+        """
         return parse(self.script, accept_unknown=True)
 
     def __add__(self, other: Script) -> Script:
@@ -385,7 +412,7 @@ class Script:
         )
 
     def __init__(self, script: Octets = b"", *, check_validity: bool = True) -> None:
-        self.script = bytes_from_octets(script)
+        object.__setattr__(self, "script", bytes_from_octets(script))
         if check_validity:
             self.assert_valid()
 

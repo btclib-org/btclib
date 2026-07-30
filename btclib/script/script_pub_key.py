@@ -332,8 +332,13 @@ def type_and_payload(script_pub_key: Octets) -> tuple[str, bytes]:
 # init=False and eq=False keep the two written out below: __init__ takes
 # Octets and a check_validity flag the generated one would not, and __eq__
 # answers NotImplemented for a non-ScriptPubKey where the generated one
-# compares by exact class
-@dataclass(init=False, eq=False)
+# compares by exact class.
+#
+# frozen because Script is: a dataclass cannot inherit frozen as non-frozen,
+# and the point of freezing Script was that `tx_out.script_pub_key.script =
+# b""` used to reach through a frozen TxOut. So __init__ assigns through
+# object.__setattr__, as Network's and the three Sig classes' do
+@dataclass(init=False, eq=False, frozen=True)
 class ScriptPubKey(Script):
     network: str
 
@@ -380,7 +385,7 @@ class ScriptPubKey(Script):
         *,
         check_validity: bool = True,
     ) -> None:
-        self.network = network
+        object.__setattr__(self, "network", network)
         # network first, then super(): Script.__init__ calls
         # self.assert_valid(), which dispatches to the override below and
         # so needs the field set. That call is also the whole validation,

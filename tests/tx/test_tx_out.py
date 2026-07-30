@@ -58,11 +58,17 @@ def test_frozen() -> None:
     with pytest.raises(FrozenInstanceError):
         tx_out.script_pub_key = ScriptPubKey(b"")  # type: ignore[misc]
 
-    # only skin-deep: ScriptPubKey extends the plain dataclass Script, so
-    # the script can still be rebound through a frozen TxOut, and that
-    # same unhashable ScriptPubKey makes hashing a TxOut a TypeError
-    tx_out.script_pub_key.script = b""
-    assert tx_out.script_pub_key.script == b""
+    # and no longer skin-deep. Freezing a dataclass is shallow, so while
+    # Script was a plain dataclass the script could be rebound *through* a
+    # frozen TxOut -- corrupting whatever else held that ScriptPubKey, which
+    # is the whole class of bug issue 139 was about. Script and ScriptPubKey
+    # are frozen too now (issue 165)
+    with pytest.raises(FrozenInstanceError):
+        tx_out.script_pub_key.script = b""  # type: ignore[misc]
+    assert tx_out.script_pub_key.script != b""
+
+    # a ScriptPubKey defines __eq__ and so is unhashable, which makes
+    # hashing the TxOut holding it a TypeError
     with pytest.raises(TypeError, match="unhashable type"):
         hash(tx_out)
 
