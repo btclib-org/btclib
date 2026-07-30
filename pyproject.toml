@@ -205,11 +205,6 @@ ignore = [
 
 [tool.ruff.lint.per-file-ignores]
 "**/__init__.py" = ["F401"] # re-exported imports
-# the two interpreter loops raise inside a try on purpose: the handler is
-# what turns a bare failure into a ScriptError carrying the command index
-# and the stack depth, and an inner function would know neither
-"btclib/script/engine/script.py" = ["TRY301"]
-"btclib/script/engine/tapscript.py" = ["TRY301"]
 "tests/**" = [
     "D",      # docstrings are not required in tests
     "S101",   # assert

@@ -139,6 +139,36 @@ def op_checksig(
     return bool(dsa_verify(msg_hash, pub_key, signature[:-1]))
 
 
+def op_code_name(op_code: int) -> str:
+    """Name an op code, rather than answer a missing key with a KeyError."""
+    if op_code not in OP_CODE_NAME_FROM_INT:
+        raise BTClibValueError(f"unknown op code: {hex(op_code)}")
+    return OP_CODE_NAME_FROM_INT[op_code]
+
+
+def check_nullfail(
+    flags: list[str], verified: bool, signatures: list[bytes], op: str
+) -> None:
+    """Reject a signature that failed to verify and was not empty."""
+    if "NULLFAIL" in flags and not verified and any(signatures):
+        raise BTClibValueError(f"non-empty signature for a failed {op}")
+
+
+def check_nulldummy(dummy: bytes, flags: list[str]) -> None:
+    """Reject a non-empty dummy, the element OP_CHECKMULTISIG pops too many."""
+    if dummy != b"" and "NULLDUMMY" in flags:
+        raise BTClibValueError("non-empty OP_CHECKMULTISIG dummy element")
+
+
+def check_multisig_counts(pub_key_num: int, signature_num: int) -> None:
+    if pub_key_num > 20:
+        raise BTClibValueError(f"more than 20 public keys: {pub_key_num}")
+    if signature_num > pub_key_num:
+        raise BTClibValueError(
+            f"{signature_num} signatures for {pub_key_num} public keys"
+        )
+
+
 def script_op_count(count: int, increment: int) -> int:
     count += increment
     if count > 201:
@@ -252,10 +282,7 @@ def verify_script(
         while True:
             script_index += 1
 
-            if len(stack) + len(altstack) > 1000:
-                raise BTClibValueError(
-                    f"more than 1000 stack elements: {len(stack)} + {len(altstack)}"
-                )
+            script_op_codes.check_stack_size(stack, altstack)
 
             skip_execution = not all(condition_stack)
 
@@ -273,16 +300,7 @@ def verify_script(
                 a = s.read(data_length)
                 if skip_execution:
                     continue
-                if "MINIMALDATA" in flags:
-                    if (len(a) == 1 and (a[0] == 129 or 0 < a[0] <= 16)) or len(a) == 0:
-                        raise BTClibValueError(
-                            f"non-minimal push: OP_0, OP_1NEGATE, or OP_1-OP_16 "
-                            f"should have been used for {a.hex()!r}"
-                        )
-                    if serialize_script([a])[0] != t:
-                        raise BTClibValueError(
-                            f"non-minimal push of {len(a)} bytes with op code {hex(t)}"
-                        )
+                script_op_codes.check_minimal_push(a, t, flags, serialize_script)
                 stack.append(a)
                 continue
 
@@ -291,9 +309,7 @@ def verify_script(
 
             if skip_execution and t not in op_conditions:
                 continue
-            if t not in OP_CODE_NAME_FROM_INT:
-                raise BTClibValueError(f"unknown op code: {hex(t)}")
-            op = OP_CODE_NAME_FROM_INT[t]
+            op = op_code_name(t)
 
             if op == "OP_CHECKSIG":
                 pub_key = stack.pop()
@@ -310,10 +326,7 @@ def verify_script(
                     flags,
                     segwit,
                 )
-                if "NULLFAIL" in flags and not result and signature != b"":
-                    raise BTClibValueError(
-                        "non-empty signature for a failed OP_CHECKSIG"
-                    )
+                check_nullfail(flags, result, [signature], "OP_CHECKSIG")
                 stack.append(_from_num(int(result)))
 
             elif op == "OP_CHECKMULTISIG":
@@ -324,15 +337,8 @@ def verify_script(
 
                 op_code_num = script_op_count(op_code_num, pub_key_num)
 
-                if pub_key_num > 20:
-                    raise BTClibValueError(f"more than 20 public keys: {pub_key_num}")
-                if signature_num > pub_key_num:
-                    raise BTClibValueError(
-                        f"{signature_num} signatures for {pub_key_num} public keys"
-                    )
-
-                if stack.pop() != b"" and "NULLDUMMY" in flags:  # dummy value
-                    raise BTClibValueError("non-empty OP_CHECKMULTISIG dummy element")
+                check_multisig_counts(pub_key_num, signature_num)
+                check_nulldummy(stack.pop(), flags)  # dummy value
                 signature_index = 0
                 for pub_key_index in range(pub_key_num):
                     if signature_index == signature_num:
@@ -356,11 +362,8 @@ def verify_script(
 
                 if signature_index == signature_num:
                     stack.append(b"\x01")
-                elif "NULLFAIL" in flags and signatures != [b""] * signature_num:
-                    raise BTClibValueError(
-                        "non-empty signature for a failed OP_CHECKMULTISIG"
-                    )
                 else:
+                    check_nullfail(flags, False, signatures, "OP_CHECKMULTISIG")
                     stack.append(b"")
 
             elif op == "OP_CHECKLOCKTIMEVERIFY":
@@ -390,7 +393,7 @@ def verify_script(
                     op_code_num -= len(r)
                     s = bytesio_from_binarydata(serialize_script(r) + s.read())
             else:
-                raise BTClibValueError(f"unknown op code: {op}")
+                script_op_codes.unknown_op_code(op)
     except BTClibValueError as e:
         raise ScriptError(str(e), script_index, len(stack)) from e
     except IndexError as e:
@@ -399,10 +402,7 @@ def verify_script(
         # exception is there for the cases in which it is not
         raise ScriptError("stack underflow", script_index, len(stack)) from e
 
-    if len(stack) + len(altstack) > 1000:
-        raise BTClibValueError(
-            f"more than 1000 stack elements: {len(stack)} + {len(altstack)}"
-        )
+    script_op_codes.check_stack_size(stack, altstack)
 
     if final:
         if not stack:

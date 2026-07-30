@@ -9,7 +9,7 @@
 
 from __future__ import annotations
 
-from typing import Callable, Optional
+from typing import Callable, NoReturn, Optional
 
 from btclib.alias import ScriptList
 from btclib.exceptions import BTClibValueError
@@ -50,6 +50,52 @@ def _to_bool(element: bytes) -> bool:
 # whatever the __future__ import above defers, and PEP 604 unions are a
 # TypeError until 3.10
 ScriptOp = Callable[[list[bytes], list[bytes], list[str]], Optional[ScriptList]]
+
+
+# What the two interpreter loops check as they go, as functions rather
+# than as the copies they were inline. Their bodies sit inside the try
+# that turns a failure into a ScriptError carrying the command index, so
+# a raise there is one inside a try — which is what TRY301 asks to be
+# abstracted into exactly this, and the index is what no callee could
+# supply itself. Shared as well: the stack size was checked in three
+# places and the minimal push in two, in identical words.
+
+
+def check_stack_size(stack: list[bytes], altstack: list[bytes]) -> None:
+    """Enforce the 1000-element limit on the two stacks together."""
+    if len(stack) + len(altstack) > 1000:
+        raise BTClibValueError(
+            f"more than 1000 stack elements: {len(stack)} + {len(altstack)}"
+        )
+
+
+def check_minimal_push(
+    data: bytes,
+    op_code: int,
+    flags: list[str],
+    serialize: Callable[[ScriptList], bytes],
+) -> None:
+    """Enforce MINIMALDATA on a pushdata command.
+
+    The serializer is the caller's: script.py pushes with the legacy
+    one, tapscript.py with the taproot one.
+    """
+    if "MINIMALDATA" not in flags:
+        return
+    if (len(data) == 1 and (data[0] == 129 or 0 < data[0] <= 16)) or len(data) == 0:
+        raise BTClibValueError(
+            f"non-minimal push: OP_0, OP_1NEGATE, or OP_1-OP_16 "
+            f"should have been used for {data.hex()!r}"
+        )
+    if serialize([data])[0] != op_code:
+        raise BTClibValueError(
+            f"non-minimal push of {len(data)} bytes with op code {hex(op_code)}"
+        )
+
+
+def unknown_op_code(op: str) -> NoReturn:
+    """Reject a named op code the interpreter does not implement."""
+    raise BTClibValueError(f"unknown op code: {op}")
 
 
 def op_if(

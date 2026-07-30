@@ -202,10 +202,7 @@ def verify_script_path_vc0(
 
             skip_execution = not all(condition_stack)
 
-            if len(stack) + len(altstack) > 1000:
-                raise BTClibValueError(
-                    f"more than 1000 stack elements: {len(stack)} + {len(altstack)}"
-                )
+            script_op_codes.check_stack_size(stack, altstack)
 
             b = s.read(1)
             if not b:
@@ -221,16 +218,7 @@ def verify_script_path_vc0(
                 a = s.read(data_length)
                 if skip_execution:
                     continue
-                if "MINIMALDATA" in flags:
-                    if (len(a) == 1 and (a[0] == 129 or 0 < a[0] <= 16)) or len(a) == 0:
-                        raise BTClibValueError(
-                            f"non-minimal push: OP_0, OP_1NEGATE, or OP_1-OP_16 "
-                            f"should have been used for {a.hex()!r}"
-                        )
-                    if serialize_script([a])[0] != t:
-                        raise BTClibValueError(
-                            f"non-minimal push of {len(a)} bytes with op code {hex(t)}"
-                        )
+                script_op_codes.check_minimal_push(a, t, flags, serialize_script)
                 stack.append(a)
                 continue
             if skip_execution and t not in op_conditions:
@@ -275,7 +263,7 @@ def verify_script_path_vc0(
                     script_index -= len(r)
                     s = bytesio_from_binarydata(serialize_script(r) + s.read())
             else:
-                raise BTClibValueError(f"unknown op code: {op}")
+                script_op_codes.unknown_op_code(op)
     except BTClibValueError as e:
         raise ScriptError(str(e), script_index, len(stack)) from e
     except IndexError as e:
