@@ -144,10 +144,17 @@ class Curve(CurveSubGroup):
         self.cofactor = cofactor
 
         # 8. Check that n ≠ p
-        if n == p:
-            raise BTClibValueError(
-                f"n=p weak curve: {hex_string(n)}"
-            )  # pragma: no cover
+        # self.p, not the p parameter: that one is still an Integer, and
+        # every curve of this library's own catalogue spells it as a hex
+        # string, so the comparison was int == str -- false whatever the
+        # curve, which is why this raise carried a "no cover" pragma and
+        # test_exceptions a "missing" comment. What it lets through is an
+        # anomalous curve, #E = p, whose logarithm transfers to addition
+        # in F_p and is polynomial-time (Smart, Semaev, Satoh-Araki), and
+        # the MOV check below cannot catch it either: pow(self.p, i, n)
+        # with n == p is 0, never 1 (issue #166)
+        if n == self.p:
+            raise BTClibValueError(f"n=p weak curve: {hex_string(n)}")
 
         if weakness_check:
             # 8. Check that p^i % n ≠ 1 for all 1≤i<100

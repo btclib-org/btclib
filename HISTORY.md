@@ -366,6 +366,17 @@ Major changes includes:
   accepted by every other check and then misbehaves where nothing is
   looking; for the catalogue, the new `test_catalogued_curves` rebuilds
   each curve from the same json data with both checks on
+- `Curve` rejects an anomalous curve, one whose order equals the field
+  prime, whatever the type the prime is spelled with. SEC 1's step 8
+  compared `n` against the still unconverted `p` parameter rather than
+  against `self.p`, so `Curve(13, 1, 6, (2, 9), 13, 1)` raised while
+  `Curve("0x0d", ...)` — the hex string every catalogued curve and every
+  json datum uses — was accepted, and nothing else caught it: the MOV
+  check computes `p^i mod n`, which for n = p is 0 and never 1. The
+  discrete logarithm on such a curve transfers to addition in F_p and is
+  polynomial-time, so what got through was a curve on which signing is
+  worthless. Nothing shipped is affected, none of the 27 catalogued curves
+  being anomalous (issue #166)
 - the test suite is property-based as well as vector-based: `hypothesis`
   generates the input nobody wrote down, and `tests/test_fuzz.py` asserts
   that every parse entry point answers it within the exception contract

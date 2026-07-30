@@ -15,7 +15,7 @@ from hashlib import sha256, sha512
 
 import pytest
 
-from btclib.alias import INF, INFJ
+from btclib.alias import INF, INFJ, Integer
 from btclib.ec import (
     Curve,
     CurveGroup,
@@ -160,11 +160,23 @@ def test_exceptions() -> None:
     with pytest.raises(BTClibValueError, match="invalid cofactor: "):
         Curve(13, 0, 2, (1, 9), 19, 2, False)
 
-    # n=p -> weak curve
-    # missing
-
     with pytest.raises(UserWarning, match="weak curve"):
         Curve(11, 2, 7, (6, 9), 7, 2, True)
+
+
+# y^2 = x^3 + x + 6 over F_13 has 13 points, cofactor 1: an anomalous
+# curve, and the smallest one this library will be asked about. Every
+# check but step 8 passes on it -- n is prime, Hasse holds, n*G is INF,
+# the cofactor is the expected one, and the MOV check computes
+# pow(p, i, p) = 0, never 1 -- while its logarithm transfers to addition
+# in F_p and is polynomial-time. Both spellings of p are tested because
+# comparing n against the unconverted parameter passed the int one and
+# accepted the hex string, which is how every catalogued curve, and the
+# json data behind it, writes a prime (issue #166)
+@pytest.mark.parametrize("p", [13, "0x0d", b"\x0d"], ids=["int", "str", "bytes"])
+def test_anomalous_curve(p: Integer) -> None:
+    with pytest.raises(BTClibValueError, match="n=p weak curve: "):
+        Curve(p, 1, 6, (2, 9), 13, 1)
 
 
 def test_catalogued_curves() -> None:
