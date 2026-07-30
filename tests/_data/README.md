@@ -18,6 +18,36 @@ restate what a vector tests. Where a citation named the wrong upstream it
 was corrected in the module — three of them so far, listed at the end —
 and this file is not where that correction lives.
 
+## Naming
+
+A vendored file carries the name its upstream publishes it under, wherever
+upstream publishes a file at all. That is not cosmetic: `bms.json` was
+named after this project's `ecc.bms` module instead, and the citation in
+the module that loads it drifted to a path upstream does not have --
+nobody comparing the two names would have caught it, because neither was
+upstream's. `tapscript_test_vector.json` was worse, describing what the
+vectors are for rather than what they are, in a file that is a generated
+Core dump.
+
+Four files keep a btclib name deliberately, and the reason is the same in
+each: there is no upstream file whose name they could take.
+
+- `bip32_test_vectors.json`, `bip32_invalid_keys.json`,
+  `bip174_test_vectors.json`, `bip371_test_vectors.json` and
+  `bip67_test_vectors.json` are transcribed from mediawiki prose. There is
+  no upstream file, so the name is ours by necessity.
+- `bip39_test_vectors.json` holds only the `english` array of trezor's
+  `vectors.json`, plus one btclib case. Taking the name `vectors.json`
+  would claim twelve languages we do not vendor.
+- `descriptor_checksums.json`, `rfc6979.json`,
+  `electrum_test_vectors.json` and `fakeenglish.txt` have no upstream file
+  either; the last two are btclib's own.
+
+`taproot_test_vector.json` and `sig_hash_legacy_test_vectors.json` do have
+an upstream file each -- bip-0341's `wallet-test-vectors.json` and Core's
+`sighash.json` -- and keep the btclib name for now. They are the
+outstanding half of this convention rather than an exception to it.
+
 ## Reading an entry
 
 Each entry gives the upstream repository, the path in it, the commit the
@@ -361,7 +391,7 @@ a tool at hand, not a refresh.
 
 ## bitcoin-core/qa-assets
 
-### `tests/script/_data/tapscript_test_vector.json`
+### `tests/script/_data/script_assets_test.json`
 
 ```text
 repo    bitcoin-core/qa-assets
@@ -436,7 +466,7 @@ behind  0 revisions; still the blob on master
 
 Verdict: **reformatted**. 199 vectors, JSON-equal.
 
-### `tests/ecc/_data/bms.json`
+### `tests/ecc/_data/signmessage.json`
 
 ```text
 repo    petertodd/python-bitcoinlib
@@ -447,10 +477,13 @@ pulled  2020-01-04
 behind  0 revisions; still the blob on master
 ```
 
-Verdict: **reformatted**. 200 vectors, JSON-equal; renamed on the way in.
-`tests/ecc/test_bms.py` cites `bitcoin/tests/test_data/bms.json`, which
-is upstream's path for neither the directory nor the file: it is
-`bitcoin/tests/data/signmessage.json`. The citation should be corrected.
+Verdict: **reformatted**. 200 vectors, JSON-equal.
+
+It was vendored as `bms.json`, named after this project's `ecc.bms` module
+rather than after its source, and now carries upstream's own name. What
+that cost while it lasted is on the record: the citation in
+`tests/ecc/test_bms.py` drifted to `bitcoin/tests/test_data/bms.json`, a
+path upstream has as neither the directory nor the file.
 
 Only the first ten vectors are exercised
 (`PYTHON_BITCOINLIB_VECTORS` slices `[:10]`), but all 200 are
@@ -572,7 +605,7 @@ Pulled 2018-06-01.
 
 - **`tests/mnemonic/_data/electrum_test_vectors.json`** has no upstream.
   Stated above rather than guessed at.
-- **`tests/script/_data/tapscript_test_vector.json`** has a commit, but
+- **`tests/script/_data/script_assets_test.json`** has a commit, but
   in a repository that rewrites its history. The blob SHA-1 is the pin
   that will still resolve next year.
 - **The six transcribed files** are pinned to a prose revision, not to a
@@ -592,10 +625,10 @@ Pulled 2018-06-01.
   `taproot_test_vector.json`, `sig_hash_legacy_test_vectors.json`,
   `script_tests.json`, `tx_valid.json`, `tx_invalid.json`.
 - 1 identical but for a trailing newline:
-  `tapscript_test_vector.json`.
+  `script_assets_test.json`.
 - 1 identical but for CRLF against LF: `bip340_test_vectors.csv`.
 - 4 JSON-equal, reformatted: `pubkey.json`, `ecdsa_sig.json`,
-  `ecdsa_custom_nonce_sig.json`, `bms.json`.
+  `ecdsa_custom_nonce_sig.json`, `signmessage.json`.
 - 1 upstream plus one btclib case: `bip39_test_vectors.json`.
 
 No upstream blob exists for the rest:
@@ -613,7 +646,8 @@ No upstream blob exists for the rest:
 - **Three descriptors of Core's `doc/descriptors.md` are not vendored**,
   and cannot be without a checksum from a third implementation. See that
   entry.
-- **Vendored but not exercised**: 190 of `bms.json`'s 200 vectors, which
+- **Vendored but not exercised**: 190 of `signmessage.json`'s 200
+  vectors, which
   `PYTHON_BITCOINLIB_VECTORS` slices away with `[:10]`. A coverage
   question rather than a provenance one, so only noted here.
 
@@ -630,15 +664,15 @@ changed:
   generated rather than parsed.
 - `bip340_test_vectors.csv`, four vectors back, is at the tip of the path:
   15 became 19, and the four new ones are `xfail` — issue 169.
-- `tapscript_test_vector.json` gained the one appended vector, 2243 to
-  2244.
+- `script_assets_test.json` gained the one appended vector, 2243 to 2244.
 - `bip174_test_vectors.json` gained the three `* Case:` entries it had
   never held, 31 to 34, two of which are `xfail` — issue 170.
 - `bip32_test_vectors.json`, `bip32_invalid_keys.json`,
   `bip371_test_vectors.json`, `bip67_test_vectors.json`,
   `bip39_test_vectors.json`, `english.txt`, `taproot_test_vector.json`,
   `sig_hash_legacy_test_vectors.json`, `pubkey.json`, `ecdsa_sig.json`,
-  `ecdsa_custom_nonce_sig.json` and `bms.json` were re-checked and needed
+  `ecdsa_custom_nonce_sig.json` and `signmessage.json` were re-checked and
+  needed
   nothing: each entry says against which revision.
 
 Three btclib defects came out of it, all three of them things the missing
@@ -657,7 +691,7 @@ corrected in the module that carries them:
   transcribed from the BIP.
 - `tests/script/test_sig_hash_taproot.py` and `tests/script/test_taproot.py`
   cited bip-0341 for both of the two files they load, and
-  `tapscript_test_vector.json` is not in any BIP: it is a Core dump kept in
+  `script_assets_test.json` is not in any BIP: it is a Core dump kept in
   qa-assets. `tests/script_engine/test_transactions.py` loads it too and
   cited nothing.
 

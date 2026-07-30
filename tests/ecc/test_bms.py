@@ -554,7 +554,9 @@ def test_sign_strippable_message() -> None:
 # slice is a decision, and the count in the report is now what it runs
 PYTHON_BITCOINLIB_VECTORS = [
     pytest.param(vector, id=vectors.vector_id(index, vector["address"]))
-    for index, vector in enumerate(vectors.load("ecc", "_data", "bms.json")[:10])
+    for index, vector in enumerate(
+        vectors.load("ecc", "_data", "signmessage.json")[:10]
+    )
 ]
 
 
@@ -562,11 +564,12 @@ PYTHON_BITCOINLIB_VECTORS = [
 def test_vector_python_bitcoinlib(vector: dict[str, Any]) -> None:
     """Test python-bitcoinlib test vectors.
 
-    The vendored copy is `bms.json`, renamed on the way in; upstream is
-    `bitcoin/tests/data/signmessage.json`, and the path this docstring
-    used to name -- `bitcoin/tests/test_data/bms.json` -- is neither the
-    directory nor the file upstream has. tests/_data/README.md pins the
-    revision.
+    `signmessage.json` is upstream's own name for it,
+    `bitcoin/tests/data/signmessage.json`. It was vendored as `bms.json`,
+    after this project's module rather than after its source, and the path
+    this docstring used to name -- `bitcoin/tests/test_data/bms.json` --
+    was neither the directory nor the file upstream has.
+    tests/_data/README.md pins the revision.
     """
     msg = vector["address"].encode()
 
