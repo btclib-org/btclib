@@ -150,6 +150,32 @@ Major changes includes:
   is nothing left in it to be taken on trust. `merkle_root_and_mutated`
   gained a `_from_hashes` variant, the tree over leaves that are hashes
   already (issue #163)
+- signing or verifying a transaction is linear in the number of its
+  inputs, where it was Θ(N²). `segwit_v0` and `taproot` rebuilt, for
+  every input, the hashes that depend on the whole transaction — its
+  prevouts, its sequences, its outputs, plus the amounts and
+  script_pub_keys being spent — so a transaction with N inputs hashed
+  each of them N times, and the cost *per input* grew with N: 15 µs at
+  one input against 414 µs at four hundred, where verifying the same 400
+  taproot signatures costs 98 ms through libsecp256k1. A consolidation
+  transaction is the ordinary case there, not a pathological one. The new
+  `sig_hash.PrecomputedTxData` computes them once, as Bitcoin Core's
+  PrecomputedTransactionData does, and `script_engine.verify_transaction`
+  builds one for its loop over the inputs; `sig_hash.from_tx`, `segwit_v0`
+  and `taproot` take one as an optional last argument, for a caller
+  driving the loop itself. Measured over 400 inputs: 57 ms to 1.9 ms for
+  p2wpkh, 164 ms to 0.4 ms for p2tr, and 5 µs and 1 µs per input
+  whichever N. It is a frozen snapshot holding no reference to the
+  transaction, deliberately: `Tx` is mutable, and caching on it is issue
+  #140 — a sig_hash that changed under the caller between two calls — so
+  it must be built for a loop and dropped with it. `taproot` also stops
+  re-validating every OutPoint and TxOut of the transaction once per
+  input, as `segwit_v0` and the rest of the library already did in an
+  inner loop, and builds its preimage with `b"".join` instead of `+=`:
+  that is most of the 164 ms to 81 ms the un-precomputed taproot path
+  gained. The legacy sig_hash stays quadratic, its preimage being the
+  transaction itself, blanked and re-serialized per input — there is no
+  transaction-wide part of it to share, here or in Core (issue #164)
 - a script verification failure says what went wrong, and where. The 76
   bare `BTClibValueError()` raises — 70 of them under `script/engine/` —
   carried an empty message, so a wrong public key encoding, an unbalanced
@@ -473,6 +499,21 @@ Major changes includes:
   money there will ever be. Only the outputs, as there — what the inputs
   are worth is not in the transaction, and comparing the two is
   `verify_amounts`' job (issue #167)
+- `btclib.b58` no longer imports `btclib.script`: importing an address
+  encoding stops pulling the whole script package in, and the cycle b58 ->
+  btclib.script -> script.script_pub_key -> b58 is gone. Importing any
+  script submodule executes the package `__init__`, which pulls
+  script_pub_key in, and script_pub_key imports b58 to render an address;
+  the library survived that only because it imported the modules rather
+  than their names, so the partially initialized b58 was never asked for
+  an attribute at import time. Nothing in the file said so, and a single
+  name import anywhere along the cycle was an ImportError. `serialize` was
+  all b58 wanted from there, for the p2sh-wrapped SegWit v0 redeem script
+  `[OP_0, witness program]`, which it now spells out — a test checks the
+  two agree, over both witness program sizes v0 admits. The new
+  tests/test_imports.py imports every module of the package first, with no
+  other in sys.modules: that is the order no other test reaches, and the
+  one a cycle hides behind (issue #147)
 
 ## v2023.7.12
 

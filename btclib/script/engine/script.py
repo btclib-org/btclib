@@ -23,7 +23,7 @@ from btclib.script.engine import script_op_codes
 from btclib.script.engine.script_op_codes import ScriptOp, _from_num, _to_num
 from btclib.script.script import OP_CODE_NAME_FROM_INT, parse
 from btclib.script.script import serialize as serialize_script
-from btclib.script.sig_hash import SIG_HASH_TYPES
+from btclib.script.sig_hash import SIG_HASH_TYPES, PrecomputedTxData
 from btclib.tx.tx import Tx
 from btclib.utils import bytesio_from_binarydata
 
@@ -114,6 +114,7 @@ def op_checksig(
     i: int,
     flags: list[str],
     segwit: bool,
+    precomputed: PrecomputedTxData | None = None,
 ) -> bool:
     if not signature:
         return False
@@ -133,8 +134,13 @@ def op_checksig(
         script_bytes, codesep_index, signatures, "CONST_SCRIPTCODE" in flags, segwit
     )
     if segwit:
-        msg_hash = sig_hash.segwit_v0(script_code, tx, i, signature[-1], prevout_value)
+        msg_hash = sig_hash.segwit_v0(
+            script_code, tx, i, signature[-1], prevout_value, precomputed
+        )
     else:
+        # the legacy sig_hash preimage is the transaction itself, blanked
+        # and re-serialized per input: there is no transaction-wide part of
+        # it to share, here or in Bitcoin Core
         msg_hash = sig_hash.legacy(script_code, tx, i, signature[-1])
     return bool(dsa_verify(msg_hash, pub_key, signature[:-1]))
 
@@ -201,6 +207,7 @@ def verify_script(
     flags: list[str],
     segwit: bool,
     final: bool = False,
+    precomputed: PrecomputedTxData | None = None,
 ) -> None:
     if len(script_bytes) > 10000:
         raise BTClibValueError(f"script longer than 10000 bytes: {len(script_bytes)}")
@@ -325,6 +332,7 @@ def verify_script(
                     i,
                     flags,
                     segwit,
+                    precomputed,
                 )
                 check_nullfail(flags, result, [signature], "OP_CHECKSIG")
                 stack.append(_from_num(int(result)))
@@ -358,6 +366,7 @@ def verify_script(
                         i,
                         flags,
                         segwit,
+                        precomputed,
                     )
 
                 if signature_index == signature_num:

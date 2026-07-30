@@ -19,6 +19,7 @@ from btclib.script.engine.script import verify_script as verify_script_legacy
 from btclib.script.engine.script_op_codes import _to_num
 from btclib.script.script import parse, serialize
 from btclib.script.script_pub_key import is_segwit, type_and_payload
+from btclib.script.sig_hash import PrecomputedTxData
 from btclib.script.taproot import check_output_pubkey
 from btclib.script.witness import Witness
 from btclib.tx.tx import Tx
@@ -83,7 +84,20 @@ ALL_FLAGS = [
 ]
 
 
-def verify_input(prevouts: list[TxOut], tx: Tx, i: int, flags: list[str]) -> None:
+def verify_input(
+    prevouts: list[TxOut],
+    tx: Tx,
+    i: int,
+    flags: list[str],
+    precomputed: PrecomputedTxData | None = None,
+) -> None:
+    """Verify one input of a transaction against the output it spends.
+
+    `precomputed` is the transaction-wide part of the segwit sig_hashes,
+    which `verify_transaction` builds once for its whole loop; verifying a
+    single input has nothing to share it with, so it defaults to None and
+    each sig_hash computes what it needs (issue #164).
+    """
     script_sig = tx.vin[i].script_sig
     parsed_script_sig = parse(script_sig, accept_unknown=True)
     if "SIGPUSHONLY" in flags:
@@ -144,13 +158,23 @@ def verify_input(prevouts: list[TxOut], tx: Tx, i: int, flags: list[str]) -> Non
         if len(stack) == 0:
             raise BTClibValueError("empty taproot witness stack")
         if len(stack) == 1:
-            tapscript.verify_key_path(script, stack, prevouts, tx, i, annex)
+            tapscript.verify_key_path(
+                script, stack, prevouts, tx, i, annex, precomputed
+            )
             stack = []
         else:
             script_bytes, stack, leaf_version = taproot_unwrap_script(script, stack)
             if leaf_version == 0xC0:
                 tapscript.verify_script_path_vc0(
-                    script_bytes, stack, prevouts, tx, i, annex, budget, flags
+                    script_bytes,
+                    stack,
+                    prevouts,
+                    tx,
+                    i,
+                    annex,
+                    budget,
+                    flags,
+                    precomputed,
                 )
             else:
                 return  # unknown program, passes validation
@@ -176,7 +200,9 @@ def verify_input(prevouts: list[TxOut], tx: Tx, i: int, flags: list[str]) -> Non
         if "OP_CODESEPARATOR" in parse(script):
             return
 
-        verify_script_legacy(script, stack, prevouts[i].value, tx, i, flags, True, True)
+        verify_script_legacy(
+            script, stack, prevouts[i].value, tx, i, flags, True, True, precomputed
+        )
 
     if stack and ("CLEANSTACK" in flags or segwit_version == 0):
         raise BTClibValueError(f"{len(stack)} elements left on the stack")
@@ -201,5 +227,14 @@ def verify_transaction(
         )
     if check_amounts:
         verify_amounts(prevouts, tx)
+    # once for the whole loop, this function owning it and holding the
+    # transaction still for its duration: it is what every input's segwit
+    # sig_hash commits to, and rebuilding it per input made verifying a
+    # transaction Θ(N²) in the number of inputs (issue #164). Built
+    # unconditionally, being O(N) against the Θ(N²) it removes: a predicate
+    # for "has a segwit input" would have to repeat verify_input's own
+    # dispatch, p2sh-wrapped cases and all, and would silently restore the
+    # quadratic the day the two disagreed
+    precomputed = PrecomputedTxData(tx, prevouts)
     for i in range(len(prevouts)):
-        verify_input(prevouts, tx, i, flags)
+        verify_input(prevouts, tx, i, flags, precomputed)

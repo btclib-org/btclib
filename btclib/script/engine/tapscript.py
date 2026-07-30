@@ -25,6 +25,7 @@ from btclib.script.engine.script import check_balanced_if
 from btclib.script.engine.script_op_codes import ScriptOp, _from_num
 from btclib.script.op_codes_tapscript import OP_CODE_NAMES
 from btclib.script.script_pub_key import type_and_payload
+from btclib.script.sig_hash import PrecomputedTxData
 from btclib.script.taproot import parse
 from btclib.script.taproot import serialize as serialize_script
 from btclib.tx.tx import Tx
@@ -70,11 +71,14 @@ def verify_key_path(
     tx: Tx,
     i: int,
     annex: bytes,
+    precomputed: PrecomputedTxData | None = None,
 ) -> None:
     sighash_type = get_hashtype(stack[0])
     signature = stack[0][:64]
     pub_key = type_and_payload(script_pub_key)[1]
-    msg_hash = sig_hash.taproot(tx, i, prevouts, sighash_type, 0, annex, b"")
+    msg_hash = sig_hash.taproot(
+        tx, i, prevouts, sighash_type, 0, annex, b"", precomputed
+    )
 
     if not ssa_verify(msg_hash, pub_key, signature[:64]):
         raise BTClibValueError("invalid signature for the taproot key path")
@@ -89,6 +93,7 @@ def op_checksig(
     prevouts: list[TxOut],
     annex: bytes,
     budget: int,
+    precomputed: PrecomputedTxData | None = None,
 ) -> int:
     pub_key = stack.pop()
     signature = stack.pop()
@@ -104,7 +109,9 @@ def op_checksig(
         preimage += var_bytes.serialize(script_bytes)
         tapleaf_hash = tagged_hash(b"TapLeaf", preimage)
         ext = tapleaf_hash + b"\x00" + codesep_pos.to_bytes(4, "little")
-        msg_hash = sig_hash.taproot(tx, i, prevouts, sighash_type, 1, annex, ext)
+        msg_hash = sig_hash.taproot(
+            tx, i, prevouts, sighash_type, 1, annex, ext, precomputed
+        )
         if not ssa_verify(msg_hash, pub_key, signature[:64]):
             raise BTClibValueError("invalid signature for the taproot script path")
     stack.append(_from_num(int(bool(signature))))
@@ -120,6 +127,7 @@ def verify_script_path_vc0(
     annex: bytes,
     sigops_budget: int,
     flags: list[str],
+    precomputed: PrecomputedTxData | None = None,
 ) -> None:
     if any(len(x) > 520 for x in stack):
         raise BTClibValueError("witness stack element longer than 520 bytes")
@@ -235,6 +243,7 @@ def verify_script_path_vc0(
                     prevouts,
                     annex,
                     sigops_budget,
+                    precomputed,
                 )
 
             elif op == "OP_CHECKLOCKTIMEVERIFY":

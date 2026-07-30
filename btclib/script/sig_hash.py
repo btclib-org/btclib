@@ -16,6 +16,8 @@
 
 from __future__ import annotations
 
+from dataclasses import dataclass
+
 from btclib import var_bytes
 from btclib.alias import Octets, ScriptList
 from btclib.exceptions import BTClibValueError
@@ -172,6 +174,108 @@ def legacy(script_code: Octets, tx: Tx, vin_i: int, hash_type: int) -> bytes:
     return hash256(preimage)
 
 
+# the five transaction-wide serializations the two segwit sig_hash
+# flavours commit to. Kept as the serializations and not as their hashes
+# because BIP-143 hashes them with hash256 and BIP-341 with sha256: one
+# definition each, applied twice, rather than two lists of five that have
+# to be checked against each other. Private, PrecomputedTxData below being
+# the supported way to compute them once for a whole transaction
+def _serialized_prevouts(tx: Tx) -> bytes:
+    return b"".join([vin.prev_out.serialize(check_validity=False) for vin in tx.vin])
+
+
+def _serialized_sequences(tx: Tx) -> bytes:
+    return b"".join(
+        [vin.sequence.to_bytes(4, byteorder="little", signed=False) for vin in tx.vin]
+    )
+
+
+def _serialized_outputs(tx: Tx) -> bytes:
+    return b"".join([vout.serialize(check_validity=False) for vout in tx.vout])
+
+
+def _serialized_amounts(prevouts: list[TxOut]) -> bytes:
+    return b"".join(
+        [
+            prevout.value.to_bytes(8, byteorder="little", signed=False)
+            for prevout in prevouts
+        ]
+    )
+
+
+def _serialized_script_pub_keys(prevouts: list[TxOut]) -> bytes:
+    return b"".join(
+        [var_bytes.serialize(prevout.script_pub_key.script) for prevout in prevouts]
+    )
+
+
+@dataclass(frozen=True)
+class PrecomputedTxData:
+    """The transaction-wide hashes every input of a transaction shares.
+
+    BIP-143 and BIP-341 commit each input to hashes of the whole
+    transaction — its prevouts, its sequences, its outputs — and BIP-341
+    to the amounts and script_pub_keys being spent as well. None of them
+    depends on which input is being signed, so a transaction with N inputs
+    needs them once and not N times: rebuilding them per input made
+    signing or verifying Θ(N²) in the number of inputs, and a
+    consolidation transaction is the ordinary case there rather than a
+    pathological one (issue #164). Bitcoin Core computes the same set into
+    its PrecomputedTransactionData and passes it down.
+
+    The `sha_` attributes are the BIP-341 hashes, spelled as that BIP
+    spells them but for script_pub_keys, which btclib does not write
+    `scriptpubkeys`. The `hash_` properties are the three BIP-143 ones,
+    and they are one further sha256 over the corresponding `sha_`
+    attribute rather than a second pass over the transaction: hash256 is
+    sha256 twice, and the two BIPs hash the very same serializations.
+
+    Everything is computed here, once, because this must be a snapshot of
+    the transaction and not a view onto it: `Tx` is mutable, and a hash
+    computed lazily out of the caller's transaction would be issue #140
+    again, a sig_hash that changed under the caller between two calls.
+    Build one, use it for a loop over the inputs, and throw it away with
+    the transaction it describes.
+    """
+
+    sha_prevouts: bytes
+    sha_amounts: bytes
+    sha_script_pub_keys: bytes
+    sha_sequences: bytes
+    sha_outputs: bytes
+
+    def __init__(self, tx: Tx, prevouts: list[TxOut]) -> None:
+        # a mismatch would silently hash the amounts and script_pub_keys of
+        # one transaction into the sig_hash of another; the same message as
+        # script_engine.verify_transaction, which checks it before this
+        if len(prevouts) != len(tx.vin):
+            raise BTClibValueError(
+                f"{len(prevouts)} prevouts for {len(tx.vin)} transaction inputs"
+            )
+        object.__setattr__(self, "sha_prevouts", sha256(_serialized_prevouts(tx)))
+        object.__setattr__(self, "sha_amounts", sha256(_serialized_amounts(prevouts)))
+        object.__setattr__(
+            self, "sha_script_pub_keys", sha256(_serialized_script_pub_keys(prevouts))
+        )
+        object.__setattr__(self, "sha_sequences", sha256(_serialized_sequences(tx)))
+        object.__setattr__(self, "sha_outputs", sha256(_serialized_outputs(tx)))
+
+    @property
+    def hash_prev_outs(self) -> bytes:
+        """Return BIP-143's hashPrevouts."""
+        return sha256(self.sha_prevouts)
+
+    @property
+    def hash_seqs(self) -> bytes:
+        """Return BIP-143's hashSequence."""
+        return sha256(self.sha_sequences)
+
+    @property
+    def hash_outputs(self) -> bytes:
+        """Return BIP-143's hashOutputs, the one that commits to them all."""
+        return sha256(self.sha_outputs)
+
+
 # https://github.com/bitcoin/bitcoin/blob/4b30c41b4ebf2eb70d8a3cd99cf4d05d405eec81/test/functional/test_framework/script.py#L673
 def segwit_v0(
     script_code: Octets,
@@ -179,15 +283,22 @@ def segwit_v0(
     vin_i: int,
     hash_type: int,
     amount: int,
+    precomputed: PrecomputedTxData | None = None,
 ) -> bytes:
     script_code = bytes_from_octets(script_code)
 
+    # precomputed, when given, must describe this very tx: it is the
+    # caller's business to build it from the transaction being signed and
+    # to drop it when that transaction changes. Without it each branch
+    # hashes what it needs and nothing else, which is what a single call
+    # wants and what a loop over the inputs pays Θ(N²) for
     hash_prev_outs = b"\x00" * 32
     if not hash_type & ANYONECANPAY:
-        hash_prev_outs = b"".join(
-            [vin.prev_out.serialize(check_validity=False) for vin in tx.vin]
+        hash_prev_outs = (
+            hash256(_serialized_prevouts(tx))
+            if precomputed is None
+            else precomputed.hash_prev_outs
         )
-        hash_prev_outs = hash256(hash_prev_outs)
 
     hash_seqs = b"\x00" * 32
     if (
@@ -195,21 +306,22 @@ def segwit_v0(
         and (hash_type & 0x1F) != SINGLE
         and (hash_type & 0x1F) != NONE
     ):
-        hash_seqs = b"".join(
-            [
-                vin.sequence.to_bytes(4, byteorder="little", signed=False)
-                for vin in tx.vin
-            ]
+        hash_seqs = (
+            hash256(_serialized_sequences(tx))
+            if precomputed is None
+            else precomputed.hash_seqs
         )
-        hash_seqs = hash256(hash_seqs)
 
     hash_outputs = b"\x00" * 32
     if hash_type & 0x1F not in (SINGLE, NONE):
-        hash_outputs = b"".join(
-            [vout.serialize(check_validity=False) for vout in tx.vout]
+        hash_outputs = (
+            hash256(_serialized_outputs(tx))
+            if precomputed is None
+            else precomputed.hash_outputs
         )
-        hash_outputs = hash256(hash_outputs)
     elif (hash_type & 0x1F) == SINGLE and vin_i < len(tx.vout):
+        # this one commits to the signed output alone, so it is per input
+        # by definition and no precomputation can serve it
         hash_outputs = hash256(tx.vout[vin_i].serialize(check_validity=False))
 
     preimage = b"".join(
@@ -237,62 +349,70 @@ def taproot(
     ext_flag: int,
     annex: bytes,
     message_extension: bytes,
+    precomputed: PrecomputedTxData | None = None,
 ) -> bytes:
-    amounts = [x.value for x in prevouts]
-    scriptpubkeys = [x.script_pub_key for x in prevouts]
-
     if hashtype not in SIG_HASH_TYPES:
         raise BTClibValueError(f"Unknown hash type: {hashtype}")
     if hashtype & 0x03 == SINGLE and input_index >= len(transaction.vout):
         raise BTClibValueError("Sighash single without a corresponding output")
 
-    preimage = b"\x00"
-    preimage += hashtype.to_bytes(1, "little")
-    preimage += transaction.nVersion.to_bytes(4, "little")
-    preimage += transaction.nLockTime.to_bytes(4, "little")
-
-    if hashtype & 0x80 != ANYONECANPAY:
-        sha_prevouts = b""
-        sha_amounts = b""
-        sha_scriptpubkeys = b""
-        sha_sequences = b""
-        for i, vin in enumerate(transaction.vin):
-            sha_prevouts += vin.prev_out.serialize()
-            sha_amounts += amounts[i].to_bytes(8, "little")
-            sha_scriptpubkeys += var_bytes.serialize(scriptpubkeys[i].script)
-            sha_sequences += vin.nSequence.to_bytes(4, "little")
-        preimage += sha256(sha_prevouts)
-        preimage += sha256(sha_amounts)
-        preimage += sha256(sha_scriptpubkeys)
-        preimage += sha256(sha_sequences)
-
-    if hashtype & 0x03 not in [NONE, SINGLE]:
-        sha_outputs = b""
-        for vout in transaction.vout:
-            sha_outputs += vout.serialize()
-        preimage += sha256(sha_outputs)
-
+    anyone_can_pay = hashtype & 0x80 == ANYONECANPAY
+    all_outputs = hashtype & 0x03 not in (NONE, SINGLE)
     annex_present = int(bool(annex))
-    preimage += (2 * ext_flag + annex_present).to_bytes(1, "little")
 
-    if hashtype & 0x80 == ANYONECANPAY:
-        preimage += transaction.vin[input_index].prev_out.serialize()
-        preimage += amounts[input_index].to_bytes(8, "little")
-        preimage += var_bytes.serialize(scriptpubkeys[input_index].script)
-        preimage += transaction.vin[input_index].nSequence.to_bytes(4, "little")
+    # b"".join of the parts, as the rest of the module does, rather than
+    # the += of a bytes that was copied whole at every one of a dozen steps
+    parts = [
+        b"\x00",
+        hashtype.to_bytes(1, "little"),
+        transaction.nVersion.to_bytes(4, "little"),
+        transaction.nLockTime.to_bytes(4, "little"),
+    ]
+
+    # the transaction-wide hashes, and only if this hash type commits to
+    # any of them: ANYONECANPAY with NONE or SINGLE commits to no part of
+    # the transaction beyond its own input, and building them there would
+    # be O(N) work for a sig_hash that hashes none of it
+    if not anyone_can_pay or all_outputs:
+        if precomputed is None:
+            precomputed = PrecomputedTxData(transaction, prevouts)
+        if not anyone_can_pay:
+            parts += [
+                precomputed.sha_prevouts,
+                precomputed.sha_amounts,
+                precomputed.sha_script_pub_keys,
+                precomputed.sha_sequences,
+            ]
+        if all_outputs:
+            parts.append(precomputed.sha_outputs)
+
+    parts.append((2 * ext_flag + annex_present).to_bytes(1, "little"))
+
+    if anyone_can_pay:
+        # check_validity=False, as segwit_v0 and the rest of the library do
+        # in an inner loop: re-validating every OutPoint and every TxOut of
+        # the transaction once per input is the same waste in miniature
+        prevout = prevouts[input_index]
+        parts += [
+            transaction.vin[input_index].prev_out.serialize(check_validity=False),
+            prevout.value.to_bytes(8, "little"),
+            var_bytes.serialize(prevout.script_pub_key.script),
+            transaction.vin[input_index].nSequence.to_bytes(4, "little"),
+        ]
     else:
-        preimage += input_index.to_bytes(4, "little")
+        parts.append(input_index.to_bytes(4, "little"))
 
     if annex_present:
-        sha_annex = var_bytes.serialize(annex)
-        preimage += sha256(sha_annex)
+        parts.append(sha256(var_bytes.serialize(annex)))
 
     if hashtype & 0x03 == SINGLE:
-        preimage += sha256(transaction.vout[input_index].serialize())
+        parts.append(
+            sha256(transaction.vout[input_index].serialize(check_validity=False))
+        )
 
-    preimage += message_extension
+    parts.append(message_extension)
 
-    return tagged_hash(b"TapSighash", preimage)
+    return tagged_hash(b"TapSighash", b"".join(parts))
 
 
 def redeem_script(script_sig: Octets, script_pub_key: Octets) -> bytes:
@@ -330,12 +450,29 @@ def redeem_script(script_sig: Octets, script_pub_key: Octets) -> bytes:
     return script
 
 
-def from_tx(prevouts: list[TxOut], tx: Tx, vin_i: int, hash_type: int) -> bytes:
+def from_tx(
+    prevouts: list[TxOut],
+    tx: Tx,
+    vin_i: int,
+    hash_type: int,
+    precomputed: PrecomputedTxData | None = None,
+) -> bytes:
+    """Return the hash to be signed for one input of a transaction.
+
+    `precomputed` is what makes a loop over the N inputs of a transaction
+    cost O(N) instead of Θ(N²): the transaction-wide hashes a segwit
+    sig_hash commits to are the same for every input, so computing them
+    once is the caller's to do — `PrecomputedTxData(tx, prevouts)` before
+    the loop, dropped with the transaction after it. It must describe this
+    very tx, and nothing here can tell whether it does.
+    """
     script = prevouts[vin_i].script_pub_key.script
 
     if is_p2tr(script):
         annex, ext = taproot_annex_and_ext(tx, vin_i)
-        return taproot(tx, vin_i, prevouts, hash_type, int(bool(ext)), annex, ext)
+        return taproot(
+            tx, vin_i, prevouts, hash_type, int(bool(ext)), annex, ext, precomputed
+        )
 
     # handle all p2sh-wrapped scripts
     if is_p2sh(script):
@@ -343,12 +480,16 @@ def from_tx(prevouts: list[TxOut], tx: Tx, vin_i: int, hash_type: int) -> bytes:
 
     if is_p2wpkh(script):
         script_code = witness_v0_script(script)[0]
-        return segwit_v0(script_code, tx, vin_i, hash_type, prevouts[vin_i].value)
+        return segwit_v0(
+            script_code, tx, vin_i, hash_type, prevouts[vin_i].value, precomputed
+        )
 
     if is_p2wsh(script):
         # the real script is contained in the witness
         script_code = witness_v0_script(tx.vin[vin_i].script_witness.stack[-1])[0]
-        return segwit_v0(script_code, tx, vin_i, hash_type, prevouts[vin_i].value)
+        return segwit_v0(
+            script_code, tx, vin_i, hash_type, prevouts[vin_i].value, precomputed
+        )
 
     if is_p2tr(script):
         raise BTClibValueError("Taproot scripts cannot be wrapped in p2sh")
