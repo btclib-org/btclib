@@ -90,10 +90,70 @@ or, in one go, with [pre-commit](https://pre-commit.com/):
 uv run pre-commit run --all-files
 ```
 
-Finally, even when it comes to mark-down (i.e., *.md files),
-please use [markdownlint-cli2](https://github.com/DavidAnson/markdownlint-cli2).
+That second command is not a convenience: it is the lint gate itself.
+The lint workflow runs this very configuration, so what CI enforces is
+what a commit enforces, mark-down included
+([markdownlint-cli2](https://github.com/DavidAnson/markdownlint-cli2) is
+one of the hooks, as are ruff, mypy, actionlint, and the checks on
+packaging metadata and on `uv.lock`).
 
 \[To do: document how to do it in VS Code\]
+
+### Reproducing what CI runs
+
+Every job of every workflow is a `uv` command, and `uv` fetches what it
+needs: no interpreter, no linter, no packaging tool has to be installed by
+hand, and even the `cmake` that builds the bindings arrives as a build
+requirement.
+
+The `lint` workflow, in full:
+
+```shell
+uvx pre-commit run --all-files --show-diff-on-failure
+```
+
+One cell of the `test-py` matrix. The interpreter is chosen with
+`--python`, which accepts any of the ones the matrix lists, `3.14t` and
+`pypy3.11` included, and downloads it if the machine has none:
+
+```shell
+uv run --locked --no-default-groups --group test --python 3.9 pytest
+```
+
+The `coverage-py` job, gated by `fail_under` in pyproject.toml:
+
+```shell
+uv run --locked --no-default-groups --group test \
+    pytest --cov=btclib --cov=tests
+```
+
+The `dist-py` job, which inspects what would be published:
+
+```shell
+uv build
+uv run --locked --only-group build twine check --strict dist/*
+uv run --locked --only-group build check-wheel-contents dist/*.whl
+uv run --locked --only-group build pyroma --min 10 dist/*.tar.gz
+```
+
+The checks the `release` workflow runs before building anything:
+
+```shell
+uv lock --check
+uv version --short
+```
+
+The `published` workflow, which resolves btclib_libsecp256k1 from PyPI by
+the declared pin instead of following `tool.uv.sources`. It therefore
+cannot pass `--locked`, and it rewrites uv.lock: restore that with
+`git checkout uv.lock` before committing.
+
+```shell
+uv run --no-sources --no-default-groups --group test pytest
+```
+
+The only check with no local equivalent is CodeQL, which GitHub runs on
+its side; its findings appear under the Security tab.
 
 ### Issues
 
