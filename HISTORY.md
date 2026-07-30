@@ -59,6 +59,21 @@ Major changes includes:
   message used to name an internal helper (`libsecp256k1.ecdsa_verify_
   failed`), telling the caller which backend ran instead of what went
   wrong
+- the low-s rule is decided by integer division. `dsa._sign_` and
+  `dsa._assert_as_valid_` compared `s` against `ec.n / 2`, which rounds
+  the order to the 53 significant bits of a float: for secp256k1 that
+  threshold sits 2^127 *above* the true midpoint, so signing left an `s`
+  in that window unflipped and verification accepted it as low — and
+  accepted `ec.n - s` too, the malleable pair the canonical encoding
+  exists to rule out. Landing in the window by chance takes some 2^129
+  signatures, so nothing in the wild was affected; the comparison is now
+  exact for every curve, whatever the size of its order
+- the shuffles that hide which input pays which output draw from
+  `secrets.SystemRandom` instead of the `random` module: `tx.join_txs`
+  (`shuffle_inp`, `shuffle_out`) and psbt's `_sort_or_shuffle_together`
+  used the Mersenne Twister, whose state — and with it every permutation
+  it has produced and will produce — is recoverable from enough observed
+  output. Being unable to undo those shuffles is the whole point of them
 - moved the project management to [uv](https://docs.astral.sh/uv/):
   dependencies, dependency groups, and packaging metadata are declared in
   pyproject.toml (setup.py, requirements.txt, requirements-dev.txt, and
