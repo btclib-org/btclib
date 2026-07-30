@@ -21,7 +21,7 @@ from datetime import datetime, timezone
 from typing import Any
 
 from btclib.alias import BinaryData, Octets
-from btclib.exceptions import BTClibValueError
+from btclib.exceptions import BTClibTypeError, BTClibValueError
 from btclib.hashes import hash256
 from btclib.utils import bytes_from_octets, bytesio_from_binarydata
 
@@ -129,12 +129,18 @@ class BlockHeader:
         *,
         check_validity: bool = True,
     ) -> None:
-        self.version = version
+        # int(), where the annotation already says int, for the same reason
+        # bytes_from_octets is called on the Octets fields: from_dict feeds
+        # this constructor a json object, where a whole number may arrive
+        # as a float. assert_valid used to coerce nonce, i.e. it rewrote
+        # the object it was asked to inspect -- and it is called by
+        # serialize() and to_dict(), so reading a header mutated it
+        self.version = int(version)
         self.previous_block_hash = bytes_from_octets(previous_block_hash)
         self.merkle_root = bytes_from_octets(merkle_root)
         self.time = time
         self.bits = bytes_from_octets(bits)
-        self.nonce = nonce
+        self.nonce = int(nonce)
 
         if check_validity:
             self.assert_valid()
@@ -176,6 +182,18 @@ class BlockHeader:
             raise BTClibValueError(err_msg)
 
     def assert_valid(self) -> None:
+        # the type check the bytes fields get from bytes() below, for the
+        # two int ones. assert_valid used to coerce nonce here instead,
+        # which repaired the mistake and rewrote the header to do it; the
+        # coercion moved to __init__, and what is left is the report. Not
+        # dropped altogether, which would have let a float reach to_bytes
+        # and leave the library through an AttributeError
+        for key in ("version", "nonce"):
+            value = getattr(self, key)
+            if not isinstance(value, int):
+                err_msg = f"invalid {key} type: {type(value).__name__}"
+                raise BTClibTypeError(err_msg)
+
         # must be a 4-bytes _signed_ integer
         if not 0 < self.version <= 0x7FFFFFFF:
             raise BTClibValueError(f"invalid version: {hex(self.version)}")
@@ -195,6 +213,9 @@ class BlockHeader:
         # TODO check for max 4-bytes timestamp
 
         for key, size in _KEY_SIZE:
+            # bytes() is the type check, not a coercion: it raises
+            # TypeError for a field rebound to a str. Unlike bip32's
+            # counterpart this loop never assigned the result back
             value = bytes(getattr(self, key))
             if len(value) != size:
                 err_msg = f"invalid {key} length: "
@@ -202,7 +223,6 @@ class BlockHeader:
                 err_msg += f" instead of {size}"
                 raise BTClibValueError(err_msg)
 
-        self.nonce = int(self.nonce)
         if not 0 < self.nonce <= 0xFFFFFFFF:
             raise BTClibValueError(f"invalid nonce: {hex(self.nonce)}")
 

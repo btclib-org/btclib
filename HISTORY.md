@@ -551,6 +551,22 @@ Major changes includes:
   and `"9"` raises for being of odd length rather than being nine. The
   behaviour is unchanged and deliberate — a decimal representation is what
   `int` itself is for — and now the docstring says so
+- **`assert_valid` no longer rewrites what it validates.**
+  `BIP32KeyData.assert_valid` coerced six fields in place — `bytes()` over
+  `version`, `parent_fingerprint`, `chain_code` and `key`, `int()` over
+  `index` and `depth` — and `BlockHeader.assert_valid` coerced `nonce`; both
+  are called from `serialize()`, `to_dict()` and `b58encode()`, so reading a
+  key or a header rewrote it. The coercion is in `__init__` now, which is
+  where the input that needs it arrives: `from_dict` is handed a json
+  object, and json has no integer type, so a whole number can reach the
+  constructor as a float. What is left in `assert_valid` is the *report*: a
+  field that is not an `int` raises `BTClibTypeError("invalid nonce type:
+  float")` instead of being silently repaired, and instead of the
+  `AttributeError` from `to_bytes` that simply dropping the coercion would
+  have produced — an exception from outside the library's contract. The
+  `bytes()` calls stay as the type check they also were, minus the
+  write-back. An `assert_valid` mutating `self` is now nothing the package
+  does anywhere: checked over every `assert_valid*` in it with `ast`
 - **`check_validity` is keyword-only**, in all 91 signatures that take it.
   It was positional-or-keyword and forwarded by hand from one signature to
   the next, often *positionally* — 100 call sites inside the package alone —

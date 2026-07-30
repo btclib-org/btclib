@@ -28,7 +28,7 @@ from btclib.bip32 import (
 from btclib.bip32.bip32 import _derive
 from btclib.bip32.der_path import _indexes_from_bip32_path_str
 from btclib.ec import secp256k1 as ec
-from btclib.exceptions import BTClibValueError
+from btclib.exceptions import BTClibTypeError, BTClibValueError
 from btclib.hashes import hash160
 from btclib.to_pub_key import pub_keyinfo_from_key
 from tests import vectors
@@ -493,3 +493,83 @@ def test_invalid_child_pub_key(monkeypatch: pytest.MonkeyPatch) -> None:
     _force_hmac(monkeypatch, ec.n - prv_key_int, xkey.chain_code)
     with pytest.raises(BTClibValueError, match=err_msg):
         derive(rootxpub, "m/0")
+
+
+XKEY = "xprv9s21ZrQH143K2ZP8tyNiUtgoezZosUkw9hhir2JFzDhcUWKz8qFYk3cxdgSFoCMzt8E2Ubi1nXw71TLhwgCfzqFHfM5Snv4zboSebePRmLS"
+
+
+def test_assert_valid_does_not_rewrite_the_key_data() -> None:
+    """A read is a read: assert_valid used to coerce six fields in place.
+
+    It wrote back bytes(version), bytes(parent_fingerprint),
+    bytes(chain_code), bytes(key), int(index) and int(depth), and it is
+    called by serialize() and b58encode(), so nominally read-only
+    operations rewrote the object. The coercion is in __init__ now, where
+    b58decode and a json object go through it.
+    """
+    xkey_data = BIP32KeyData.b58decode(XKEY)
+    # a bytearray is bytes-like, so it serializes and compares equal: what
+    # it is not is bytes, and assert_valid used to silently make it so.
+    #
+    # Every read of the field goes through an object-typed local before
+    # being asserted on: "isinstance(bytes, bytearray)" narrows to Never,
+    # the two having disjoint bases, and mypy then takes the rest of the
+    # function for unreachable and checks none of it -- warn_unreachable
+    # being off, in silence. Measured: with the assertion written directly
+    # on the attribute, a reveal_type below it prints nothing at all
+    xkey_data.chain_code = bytearray(xkey_data.chain_code)  # type: ignore[assignment]
+    chain_code: object = xkey_data.chain_code
+    assert isinstance(chain_code, bytearray)
+
+    xkey_data.assert_valid()
+    after_assert_valid: object = xkey_data.chain_code
+    assert isinstance(after_assert_valid, bytearray)
+
+
+def test_assert_valid_does_not_rewrite_on_a_read() -> None:
+    xkey_data = BIP32KeyData.b58decode(XKEY)
+    xkey_data.chain_code = bytearray(xkey_data.chain_code)  # type: ignore[assignment]
+
+    xkey_data.b58encode()
+    after_b58encode: object = xkey_data.chain_code
+    assert isinstance(after_b58encode, bytearray)
+
+    xkey_data.serialize()
+    after_serialize: object = xkey_data.chain_code
+    assert isinstance(after_serialize, bytearray)
+
+
+def test_assert_valid_reports_a_float_field_instead_of_coercing_it() -> None:
+    """Reported, not repaired behind the caller's back.
+
+    Dropping the check outright instead would have let the float reach
+    to_bytes and leave the library through an AttributeError.
+    """
+    xkey_data = BIP32KeyData.b58decode(XKEY)
+    xkey_data.index = float(xkey_data.index)  # type: ignore[assignment]
+    with pytest.raises(BTClibTypeError, match="invalid index type: float"):
+        xkey_data.assert_valid()
+    index: object = xkey_data.index
+    assert isinstance(index, float)
+
+    xkey_data = BIP32KeyData.b58decode(XKEY)
+    xkey_data.depth = float(xkey_data.depth)  # type: ignore[assignment]
+    with pytest.raises(BTClibTypeError, match="invalid depth type: float"):
+        xkey_data.assert_valid()
+
+
+def test_the_coercion_still_happens_in_init() -> None:
+    """from_dict is the reason it exists: json has no integer type."""
+    xkey_data = BIP32KeyData.b58decode(XKEY)
+    coerced = BIP32KeyData(
+        version=xkey_data.version,
+        depth=0.0,  # type: ignore[arg-type]
+        parent_fingerprint=xkey_data.parent_fingerprint,
+        index=0.0,  # type: ignore[arg-type]
+        chain_code=xkey_data.chain_code,
+        key=xkey_data.key,
+    )
+    assert isinstance(coerced.depth, int)
+    assert isinstance(coerced.index, int)
+    assert coerced.b58encode() == XKEY
+    assert BIP32KeyData.b58decode(coerced.b58encode()) == coerced

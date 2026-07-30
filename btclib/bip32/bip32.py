@@ -42,7 +42,7 @@ from btclib import base58
 from btclib.alias import INF, BinaryData, Octets, Point, String
 from btclib.bip32.der_path import BIP32DerPath, indexes_from_bip32_path
 from btclib.ec import bytes_from_point, mult, point_from_octets, secp256k1
-from btclib.exceptions import BTClibValueError
+from btclib.exceptions import BTClibTypeError, BTClibValueError
 from btclib.hashes import hash160
 from btclib.network import NETWORKS, XPRV_VERSIONS_ALL, XPUB_VERSIONS_ALL
 from btclib.utils import bytes_from_octets, bytesio_from_binarydata, hex_string
@@ -109,9 +109,15 @@ class BIP32KeyData:
         check_validity: bool = True,
     ) -> None:
         self.version = bytes_from_octets(version)
-        self.depth = depth
+        # int(), where the annotation already says int, for the same reason
+        # bytes_from_octets is called on the four Octets fields: from_dict
+        # feeds this constructor a json object, where a whole number may
+        # arrive as a float. assert_valid used to do the coercion, i.e. it
+        # rewrote the object it was asked to inspect -- and it is called by
+        # serialize() and to_dict(), so reading a key mutated it
+        self.depth = int(depth)
         self.parent_fingerprint = bytes_from_octets(parent_fingerprint)
-        self.index = index
+        self.index = int(index)
         self.chain_code = bytes_from_octets(chain_code)
         self.key = bytes_from_octets(key)
 
@@ -120,19 +126,30 @@ class BIP32KeyData:
 
     def assert_valid(self) -> None:
         for key, size in _KEY_SIZE:
+            # bytes() is the type check, not a coercion: it raises
+            # TypeError for a field rebound to a str, which would otherwise
+            # pass the length test below and fail later on .hex(). What
+            # this loop no longer does is assign the result back
             value = bytes(getattr(self, key))
-            setattr(self, key, value)
             if len(value) != size:
                 err_msg = f"invalid {key} length: "
                 err_msg += f"{len(value)} bytes"
                 err_msg += f" instead of {size}"
                 raise BTClibValueError(err_msg)
 
-        self.index = int(self.index)
+        # the same type check for the two int fields, which assert_valid
+        # used to coerce instead -- repairing the mistake, and rewriting
+        # the object to do it. Dropping it altogether would have let a
+        # float reach to_bytes and leave through an AttributeError
+        for key in ("depth", "index"):
+            value_ = getattr(self, key)
+            if not isinstance(value_, int):
+                err_msg = f"invalid {key} type: {type(value_).__name__}"
+                raise BTClibTypeError(err_msg)
+
         if not 0 <= self.index <= 0xFFFFFFFF:
             raise BTClibValueError(f"invalid index: {self.index}")
 
-        self.depth = int(self.depth)
         if not 0 <= self.depth <= 255:
             raise BTClibValueError(f"invalid depth: {self.depth}")
 

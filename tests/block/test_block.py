@@ -28,7 +28,7 @@ from pathlib import Path
 import pytest
 
 from btclib.block import Block, BlockHeader
-from btclib.exceptions import BTClibValueError
+from btclib.exceptions import BTClibTypeError, BTClibValueError
 from btclib.network import NETWORKS
 from btclib.script.witness import Witness
 
@@ -482,3 +482,55 @@ def test_block_without_transactions() -> None:
     header = Block.parse(block_bytes).header
     with pytest.raises(BTClibValueError, match="block with no transactions"):
         Block(header, [])
+
+
+def test_assert_valid_does_not_rewrite_the_header() -> None:
+    """A read is a read: assert_valid used to coerce nonce in place.
+
+    serialize() and to_dict() call assert_valid, so both nominally
+    read-only operations rewrote a field of the header they were reading.
+    The coercion is in __init__ now, where from_dict's json -- the reason
+    it exists -- goes through it.
+    """
+    fname = "block_1.bin"
+    filename = path.join(path.dirname(__file__), "_data", fname)
+    with open(filename, "rb") as file_:
+        header_bytes = file_.read()[:80]
+
+    header = BlockHeader.parse(header_bytes)
+    nonce = header.nonce
+
+    # a read leaves the header alone, which is the whole of the fix: the
+    # coercion used to run here, so a to_dict() rebound the field
+    assert header.to_dict()["nonce"] == nonce
+    assert header.nonce is nonce
+    assert header.serialize() == header_bytes
+    assert header.nonce is nonce
+
+    # a float nonce is reported instead of being repaired in place. It
+    # used to be coerced and the header serialized as if nothing had
+    # happened; dropping the coercion outright would have let the float
+    # reach to_bytes and leave through an AttributeError
+    header.nonce = float(nonce)  # type: ignore[assignment]
+    with pytest.raises(BTClibTypeError, match="invalid nonce type: float"):
+        header.assert_valid()
+    assert isinstance(header.nonce, float)
+
+    header = BlockHeader.parse(header_bytes)
+    header.version = "1"  # type: ignore[assignment]
+    with pytest.raises(BTClibTypeError, match="invalid version type: str"):
+        header.assert_valid()
+
+    # and the coercion still happens where it belongs: from_dict is the
+    # reason it exists, json having no integer type of its own
+    coerced = BlockHeader(
+        version=1.0,  # type: ignore[arg-type]
+        previous_block_hash=header.previous_block_hash,
+        merkle_root=header.merkle_root,
+        time=header.time,
+        bits=header.bits,
+        nonce=float(nonce),  # type: ignore[arg-type]
+    )
+    assert isinstance(coerced.nonce, int)
+    assert isinstance(coerced.version, int)
+    assert coerced.serialize() == header_bytes
