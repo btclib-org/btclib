@@ -4,6 +4,14 @@ btclib.script.engine package
 Submodules
 ----------
 
+btclib.script.engine.flags module
+---------------------------------
+
+.. automodule:: btclib.script.engine.flags
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
 btclib.script.engine.script module
 ----------------------------------
 

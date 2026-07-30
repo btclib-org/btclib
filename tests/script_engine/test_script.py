@@ -20,7 +20,7 @@ import pytest
 from btclib.alias import TaprootScriptTree
 from btclib.exceptions import BTClibValueError, ScriptError
 from btclib.script import ScriptPubKey
-from btclib.script.engine import ALL_FLAGS, verify_input
+from btclib.script.engine import ALL_FLAGS, NO_FLAGS, verify_input
 from btclib.script.engine.script import verify_script
 from btclib.script.script import serialize
 from btclib.script.taproot import input_script_sig, output_pubkey
@@ -39,7 +39,15 @@ class ScriptVector(NamedTuple):
     amount: int
     script_sig: str
     script_pub_key: str
-    flags: list[str]
+    # Core's comma-separated flags field, passed to verify_input as it is:
+    # to_script_flags splits it and looks every name up. It was annotated
+    # list[str] while holding that very string, and the engine's
+    # `"WITNESS" in flags` was then a substring test that "WITNESS_PUBKEYTYPE"
+    # and "DISCOURAGE_UPGRADABLE_WITNESS_PROGRAM" both satisfy -- no vector
+    # in today's file names either without also naming WITNESS, so nothing
+    # was misvalidated, which is exactly how long that would have lasted
+    # (issue #145)
+    flags: str
     valid: bool
 
 
@@ -172,7 +180,7 @@ def test_script_error_says_what_and_where() -> None:
 
     # OP_1, OP_1, OP_RETURN
     with pytest.raises(ScriptError, match="OP_RETURN") as exc_info:
-        verify_script(b"\x51\x51\x6a", [], 0, tx, 0, [], False)
+        verify_script(b"\x51\x51\x6a", [], 0, tx, 0, NO_FLAGS, False)
     assert exc_info.value.index == 2
     assert exc_info.value.stack_depth == 2
     assert "command 2" in str(exc_info.value)
@@ -180,7 +188,7 @@ def test_script_error_says_what_and_where() -> None:
 
     # a ScriptError is a BTClibValueError: catching that keeps working
     with pytest.raises(BTClibValueError):
-        verify_script(b"\x51\x51\x6a", [], 0, tx, 0, [], False)
+        verify_script(b"\x51\x51\x6a", [], 0, tx, 0, NO_FLAGS, False)
 
 
 def test_script_error_stack_underflow() -> None:
@@ -189,27 +197,27 @@ def test_script_error_stack_underflow() -> None:
 
     # OP_DUP on nothing
     with pytest.raises(ScriptError, match="stack underflow") as exc_info:
-        verify_script(b"\x76", [], 0, tx, 0, [], False)
+        verify_script(b"\x76", [], 0, tx, 0, NO_FLAGS, False)
     assert exc_info.value.index == 0
     assert exc_info.value.stack_depth == 0
 
     # OP_1, OP_EQUAL: the second pop is the one that underflows
     with pytest.raises(ScriptError, match="stack underflow") as exc_info:
-        verify_script(b"\x51\x87", [], 0, tx, 0, [], False)
+        verify_script(b"\x51\x87", [], 0, tx, 0, NO_FLAGS, False)
     assert exc_info.value.index == 1
 
 
 def test_unknown_op_code_is_not_a_key_error() -> None:
     tx = Tx(check_validity=False)
     with pytest.raises(ScriptError, match="unknown op code: 0xff"):
-        verify_script(b"\xff", [], 0, tx, 0, [], False)
+        verify_script(b"\xff", [], 0, tx, 0, NO_FLAGS, False)
 
 
 def test_unbalanced_conditional_message() -> None:
     """Raised before the loop starts, so with no position to report."""
     tx = Tx(check_validity=False)
     with pytest.raises(BTClibValueError, match="unbalanced conditional"):
-        verify_script(b"\x63", [], 0, tx, 0, [], False)
+        verify_script(b"\x63", [], 0, tx, 0, NO_FLAGS, False)
 
 
 def taproot_script_spend(

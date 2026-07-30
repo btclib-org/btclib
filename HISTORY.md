@@ -542,6 +542,21 @@ Major changes includes:
   converter each function calls and by nothing else. `NewType` would let a
   checker separate them at the cost of every caller wrapping its literals,
   which is a different library
+- the script verification flags are a `ScriptFlag`, an `enum.Flag` of the
+  new `btclib.script.engine.flags`, where they were a list of plain
+  strings the engine tested with `"P2SH" in flags`: a misspelled name was
+  a *disabled* consensus rule, silently, in a script verification engine.
+  `verify_input` and `verify_transaction` still take the names — a
+  `ScriptFlag`, Bitcoin Core's comma-separated spelling, or any iterable
+  of them, `None` still meaning the default set — but an unknown one now
+  raises instead of being ignored, and the engine's own checks are
+  `ScriptFlag.X in flags`, which a typo cannot make quietly false. The
+  twelve commented-out entries of `ALL_FLAGS`, one of them the
+  never-enablable `"MINMALIF"`, are members like the rest, and the
+  module-level list that had to be copied at every use is a value that
+  cannot be mutated at all. `SIG_HASH_TYPES` is a `frozenset` for the
+  same reason: it is a membership test in all of its uses, one of them
+  what the engine accepts as a signature's hash type (issue #145)
 
 ## v2023.7.12
 

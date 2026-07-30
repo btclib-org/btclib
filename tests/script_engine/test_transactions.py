@@ -25,6 +25,9 @@ from btclib.exceptions import BTClibValueError
 from btclib.script import ScriptPubKey
 from btclib.script.engine import (
     ALL_FLAGS,
+    NO_FLAGS,
+    ScriptFlag,
+    ScriptFlags,
     verify_amounts,
     verify_input,
     verify_transaction,
@@ -212,73 +215,88 @@ def test_verify_transaction_does_not_touch_witness_v0(vector: list[Any]) -> None
     """The same, for the p2wpkh and p2wsh branches of verify_input."""
     tx = Tx.parse(vector[1])
 
-    flags = ALL_FLAGS[:]
+    flags = ALL_FLAGS
     for f in vector[2].split(","):
         # unreached with today's data: the witness-v0 vectors name
         # NONE, LOW_S and DISCOURAGE_UPGRADABLE_WITNESS_PROGRAM, and
-        # the last two are commented out of ALL_FLAGS. The removal
-        # starts running the day one of them is enforced there, or a
-        # vector shows up carrying a flag the engine does enforce
-        if f in flags:
-            flags.remove(f)  # pragma: no cover
+        # neither of the last two is in ALL_FLAGS. The removal starts
+        # running the day one of them is enforced there, or a vector
+        # shows up carrying a flag the engine does enforce.
+        # NONE is not a member of the enum, hence the first test: it is
+        # how Core spells an empty flag field, not a rule to switch off
+        if f in ScriptFlag.__members__ and ScriptFlag[f] in flags:
+            flags &= ~ScriptFlag[f]  # pragma: no cover
 
     prevouts, check_amounts = prevouts_of(vector)
 
     stacks = [vin.script_witness.stack[:] for vin in tx.vin]
     serialized = tx.serialize(include_witness=True, check_validity=False)
 
-    verify_transaction(prevouts, tx, flags or None, check_amounts)
+    # flags, not `flags or None`: a ScriptFlag with nothing left in it is
+    # falsy, and the day the loop above empties it that would have asked
+    # for the default set instead of for no rule at all
+    verify_transaction(prevouts, tx, flags, check_amounts)
 
     assert [vin.script_witness.stack for vin in tx.vin] == stacks
     assert tx.serialize(include_witness=True, check_validity=False) == serialized
 
 
-# the consensus flags, i.e. all of them but the ones that are policy: a
-# vector switching one off names it in its own flags field, and the test
-# takes it out of this list
-CONSENSUS_FLAGS = [
-    "P2SH",
-    "SIGPUSHONLY",
-    "LOW_S",
-    "STRICTENC",
-    "DERSIG",
-    "CONST_SCRIPTCODE",
-    "NULLDUMMY",
-    "CLEANSTACK",
-    "MINIMALDATA",
-    # only standard, not consensus
-    # "NULLFAIL",
-    # "MINMALIF",
-    # "DISCOURAGE_UPGRADABLE_NOPS",
-    # "DISCOURAGE_UPGRADABLE_WITNESS_PROGRAM",
-    "CHECKLOCKTIMEVERIFY",
-    "CHECKSEQUENCEVERIFY",
-    "WITNESS",
-    "WITNESS_PUBKEYTYPE",
-    "TAPROOT",
-]
+# every rule but the four Core classifies as policy alone: a vector
+# switching one off names it in its own flags field, and the test takes it
+# out of this set. Spelled out rather than written as the complement of the
+# four, so that a member added to ScriptFlag does not silently join it.
+# The four were commented-out strings here too, "MINMALIF" among them --
+# misspelled, hence unenablable, which is the typo issue #145 is about
+CONSENSUS_FLAGS = (
+    ScriptFlag.P2SH
+    | ScriptFlag.SIGPUSHONLY
+    | ScriptFlag.LOW_S
+    | ScriptFlag.STRICTENC
+    | ScriptFlag.DERSIG
+    | ScriptFlag.CONST_SCRIPTCODE
+    | ScriptFlag.NULLDUMMY
+    | ScriptFlag.CLEANSTACK
+    | ScriptFlag.MINIMALDATA
+    | ScriptFlag.CHECKLOCKTIMEVERIFY
+    | ScriptFlag.CHECKSEQUENCEVERIFY
+    | ScriptFlag.WITNESS
+    | ScriptFlag.WITNESS_PUBKEYTYPE
+    | ScriptFlag.TAPROOT
+)
+
+
+def flags_of(vector: list[Any]) -> ScriptFlags:
+    """The flags field of a legacy vector, as verify_transaction takes it.
+
+    The field is Core's comma-separated one and needs no splitting here:
+    an empty field and its `"NONE"` spelling are both no rule at all.
+    `"BADTX"` is not a flag and is not treated as one -- it is Core's
+    marker for the nine tx_invalid vectors that must fail CheckTransaction
+    before a script runs, so those are verified with no rule enabled,
+    which is what naming no flag the engine knows did before.
+    """
+    return NO_FLAGS if vector[2] == "BADTX" else str(vector[2])
 
 
 @pytest.mark.parametrize("vector", legacy_vectors("tx_valid.json"))
 def test_valid_legacy(vector: list[Any]) -> None:
     tx = Tx.parse(vector[1])
 
-    flags = CONSENSUS_FLAGS[:]
+    flags = CONSENSUS_FLAGS
     for f in vector[2].split(","):
-        if f in flags:
-            flags.remove(f)
+        # `f in ScriptFlag.__members__` is the test the `f in flags` of a
+        # list of strings was: NONE, and no other name in the two files, is
+        # not a member
+        if f in ScriptFlag.__members__:
+            flags &= ~ScriptFlag[f]
 
     prevouts, check_amounts = prevouts_of(vector)
 
-    verify_transaction(
-        prevouts, tx, flags if flags != ["NONE"] else None, check_amounts
-    )
+    verify_transaction(prevouts, tx, flags, check_amounts)
 
 
 @pytest.mark.parametrize("vector", legacy_vectors("tx_invalid.json"))
 def test_invalid_legacy(vector: list[Any]) -> None:
-    flags = vector[2].split(",")  # different flags handling
-
     prevouts, check_amounts = prevouts_of(vector)
 
     # Tx.parse inside the raises block, not before it: 8 of these
@@ -287,9 +305,12 @@ def test_invalid_legacy(vector: list[Any]) -> None:
     # skipped what raised, so those 8 asserted nothing at all
     with pytest.raises((BTClibValueError, IndexError, KeyError)):
         tx = Tx.parse(vector[1])
-        verify_transaction(
-            prevouts, tx, flags if flags != ["NONE"] else None, check_amounts
-        )
+        # the vector's own flags, and only those: an invalid transaction
+        # must be refused by the rules its vector names. A "NONE" field
+        # used to be turned into the default set, i.e. into more rules than
+        # the vector asks for, which is the wrong direction for a vector
+        # that has to fail
+        verify_transaction(prevouts, tx, flags_of(vector), check_amounts)
 
 
 def test_invalid_amount() -> None:

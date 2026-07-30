@@ -20,6 +20,7 @@ from btclib.ecc.dsa import Sig
 from btclib.exceptions import BTClibRuntimeError, BTClibValueError, ScriptError
 from btclib.script import sig_hash
 from btclib.script.engine import script_op_codes
+from btclib.script.engine.flags import ScriptFlag
 from btclib.script.engine.script_op_codes import ScriptOp, _from_num, _to_num
 from btclib.script.script import OP_CODE_NAME_FROM_INT, parse
 from btclib.script.script import serialize as serialize_script
@@ -42,14 +43,14 @@ def dsa_verify(msg_hash: bytes, pub_key: bytes, sig: bytes) -> bool:
         return False
 
 
-def fix_signature(signature: bytes, flags: list[str]) -> bytes:
+def fix_signature(signature: bytes, flags: ScriptFlag) -> bytes:
     signature_suffix = signature[-1:]
-    if "STRICTENC" in flags and signature_suffix[0] not in SIG_HASH_TYPES:
+    if ScriptFlag.STRICTENC in flags and signature_suffix[0] not in SIG_HASH_TYPES:
         raise BTClibValueError(f"invalid sig hash type: {hex(signature_suffix[0])}")
     signature = signature[:-1]
-    if "DERSIG" not in flags or "STRICTENC" in flags:
+    if ScriptFlag.DERSIG not in flags or ScriptFlag.STRICTENC in flags:
         signature = Sig.parse(signature, strict=False).serialize()
-    if "LOW_S" not in flags:
+    if ScriptFlag.LOW_S not in flags:
         sig = Sig.parse(signature)
         if sig.s > sig.ec.n // 2:
             signature = Sig(sig.r, sig.ec.n - sig.s).serialize()
@@ -57,13 +58,13 @@ def fix_signature(signature: bytes, flags: list[str]) -> bytes:
     return signature + signature_suffix
 
 
-def check_pub_key(pub_key: bytes, segwit: bool, flags: list[str]) -> bool:
+def check_pub_key(pub_key: bytes, segwit: bool, flags: ScriptFlag) -> bool:
     if not pub_key:
         return False
     if pub_key[0] in [4, 6, 7]:
-        if pub_key[0] in [6, 7] and "STRICTENC" in flags:
+        if pub_key[0] in [6, 7] and ScriptFlag.STRICTENC in flags:
             raise BTClibValueError(f"hybrid public key prefix: {hex(pub_key[0])}")
-        if segwit and "WITNESS_PUBKEYTYPE" in flags:
+        if segwit and ScriptFlag.WITNESS_PUBKEYTYPE in flags:
             raise BTClibValueError("uncompressed public key in a segwit script")
         return len(pub_key) == 65
     return len(pub_key) == 33 if pub_key[0] in [2, 3] else False
@@ -112,7 +113,7 @@ def op_checksig(
     prevout_value: int,
     tx: Tx,
     i: int,
-    flags: list[str],
+    flags: ScriptFlag,
     segwit: bool,
     precomputed: PrecomputedTxData | None = None,
 ) -> bool:
@@ -121,17 +122,21 @@ def op_checksig(
     try:
         signature = fix_signature(signature, flags)
     except (BTClibValueError, BTClibRuntimeError):
-        if "DERSIG" in flags or "STRICTENC" in flags:
+        if ScriptFlag.DERSIG in flags or ScriptFlag.STRICTENC in flags:
             raise
         return False
 
     if not check_pub_key(pub_key, segwit, flags):
-        if "STRICTENC" in flags:
+        if ScriptFlag.STRICTENC in flags:
             raise BTClibValueError(f"invalid public key: {pub_key.hex()}")
         return False
 
     script_code = calculate_script_code(
-        script_bytes, codesep_index, signatures, "CONST_SCRIPTCODE" in flags, segwit
+        script_bytes,
+        codesep_index,
+        signatures,
+        ScriptFlag.CONST_SCRIPTCODE in flags,
+        segwit,
     )
     if segwit:
         msg_hash = sig_hash.segwit_v0(
@@ -153,16 +158,16 @@ def op_code_name(op_code: int) -> str:
 
 
 def check_nullfail(
-    flags: list[str], verified: bool, signatures: list[bytes], op: str
+    flags: ScriptFlag, verified: bool, signatures: list[bytes], op: str
 ) -> None:
     """Reject a signature that failed to verify and was not empty."""
-    if "NULLFAIL" in flags and not verified and any(signatures):
+    if ScriptFlag.NULLFAIL in flags and not verified and any(signatures):
         raise BTClibValueError(f"non-empty signature for a failed {op}")
 
 
-def check_nulldummy(dummy: bytes, flags: list[str]) -> None:
+def check_nulldummy(dummy: bytes, flags: ScriptFlag) -> None:
     """Reject a non-empty dummy, the element OP_CHECKMULTISIG pops too many."""
-    if dummy != b"" and "NULLDUMMY" in flags:
+    if dummy != b"" and ScriptFlag.NULLDUMMY in flags:
         raise BTClibValueError("non-empty OP_CHECKMULTISIG dummy element")
 
 
@@ -182,8 +187,12 @@ def script_op_count(count: int, increment: int) -> int:
     return count
 
 
-def prepare_script(script: ScriptList, flags: list[str], segwit: bool) -> None:
-    if "OP_CODESEPARATOR" in script and "CONST_SCRIPTCODE" in flags and not segwit:
+def prepare_script(script: ScriptList, flags: ScriptFlag, segwit: bool) -> None:
+    if (
+        "OP_CODESEPARATOR" in script
+        and ScriptFlag.CONST_SCRIPTCODE in flags
+        and not segwit
+    ):
         raise BTClibValueError("OP_CODESEPARATOR in a non-segwit script")
 
     if "OP_VERIF" in script or "OP_VERNOTIF" in script:
@@ -204,7 +213,7 @@ def verify_script(
     prevout_value: int,
     tx: Tx,
     i: int,
-    flags: list[str],
+    flags: ScriptFlag,
     segwit: bool,
     final: bool = False,
     precomputed: PrecomputedTxData | None = None,

@@ -15,6 +15,13 @@ from btclib.alias import Command, ScriptList
 from btclib.exceptions import BTClibValueError
 from btclib.hashes import sha256
 from btclib.script.engine import tapscript
+from btclib.script.engine.flags import (
+    ALL_FLAGS,
+    NO_FLAGS,
+    ScriptFlag,
+    ScriptFlags,
+    to_script_flags,
+)
 from btclib.script.engine.script import verify_script as verify_script_legacy
 from btclib.script.engine.script_op_codes import _to_num
 from btclib.script.script import parse, serialize
@@ -24,6 +31,27 @@ from btclib.script.taproot import check_output_pubkey
 from btclib.script.witness import Witness
 from btclib.tx.tx import Tx
 from btclib.tx.tx_out import TxOut
+
+# the flags live in flags.py, a module of their own because the three
+# modules that check them are imported here and cannot import back; they
+# are re-exported so that `from btclib.script.engine import ALL_FLAGS`
+# keeps working, and that re-export is what this list is for -- mypy's
+# strict mode treats an imported name as private unless __all__ names it.
+# The functions defined below are named too, __all__ being the public
+# surface of the module once it exists and not a second list beside it
+__all__ = [
+    "ALL_FLAGS",
+    "NO_FLAGS",
+    "ScriptFlag",
+    "ScriptFlags",
+    "taproot_get_annex",
+    "taproot_unwrap_script",
+    "to_script_flags",
+    "validate_redeem_script",
+    "verify_amounts",
+    "verify_input",
+    "verify_transaction",
+]
 
 
 def taproot_unwrap_script(
@@ -59,50 +87,33 @@ def validate_redeem_script(redeem_script: ScriptList) -> None:
                 raise BTClibValueError(f"non-push command in the script_sig: {c}")
 
 
-ALL_FLAGS = [
-    "P2SH",
-    # Bip 62, never finalized
-    # "SIGPUSHONLY",
-    # "LOW_S",
-    # "STRICTENC",
-    # "CONST_SCRIPTCODE",
-    # "CLEANSTACK",
-    # "MINIMALDATA",
-    "DERSIG",
-    # only standard, not consensus
-    # "NULLFAIL",
-    # "MINMALIF",
-    # "DISCOURAGE_UPGRADABLE_NOPS",
-    # "DISCOURAGE_UPGRADABLE_WITNESS_PROGRAM",
-    "CHECKLOCKTIMEVERIFY",
-    "CHECKSEQUENCEVERIFY",
-    "WITNESS",
-    "NULLDUMMY",
-    # only standard, not strictly consensus
-    # "WITNESS_PUBKEYTYPE",
-    "TAPROOT",
-]
-
-
 def verify_input(
     prevouts: list[TxOut],
     tx: Tx,
     i: int,
-    flags: list[str],
+    flags: ScriptFlags | None = None,
     precomputed: PrecomputedTxData | None = None,
 ) -> None:
     """Verify one input of a transaction against the output it spends.
+
+    `flags` are the rules to enforce, as a ScriptFlag or as the names of
+    one: `None` is btclib's default set, ALL_FLAGS, and an unknown name is
+    refused rather than ignored (issue #145). It used to be a required
+    argument, and every caller inside btclib passed something; a default
+    that says "the consensus rules" is what an outside caller wants, and
+    it is the default verify_transaction already had.
 
     `precomputed` is the transaction-wide part of the segwit sig_hashes,
     which `verify_transaction` builds once for its whole loop; verifying a
     single input has nothing to share it with, so it defaults to None and
     each sig_hash computes what it needs (issue #164).
     """
+    script_flags = to_script_flags(flags)
     script_sig = tx.vin[i].script_sig
     parsed_script_sig = parse(script_sig, accept_unknown=True)
-    if "SIGPUSHONLY" in flags:
+    if ScriptFlag.SIGPUSHONLY in script_flags:
         validate_redeem_script(parsed_script_sig)
-    if "CONST_SCRIPTCODE" in flags:
+    if ScriptFlag.CONST_SCRIPTCODE in script_flags:
         for x in parsed_script_sig:
             op_checks = [
                 "OP_CHECKSIG",
@@ -114,37 +125,45 @@ def verify_input(
                 raise BTClibValueError(f"signature check in the script_sig: {x}")
     stack: list[bytes] = []
     verify_script_legacy(
-        script_sig, stack, prevouts[i].value, tx, i, flags, False, False
+        script_sig, stack, prevouts[i].value, tx, i, script_flags, False, False
     )
     p2sh_script = stack[-1] if stack else b"\x00"
 
     script = prevouts[i].script_pub_key.script
-    verify_script_legacy(script, stack, prevouts[i].value, tx, i, flags, False, True)
+    verify_script_legacy(
+        script, stack, prevouts[i].value, tx, i, script_flags, False, True
+    )
 
     script_type, payload = type_and_payload(script)
 
     p2sh = False
-    if script_type == "p2sh" and "P2SH" in flags:
+    if script_type == "p2sh" and ScriptFlag.P2SH in script_flags:
         p2sh = True
         validate_redeem_script(parsed_script_sig)  # similar to SIGPUSHONLY
         script = p2sh_script
         verify_script_legacy(
-            script, stack, prevouts[i].value, tx, i, flags, False, True
+            script, stack, prevouts[i].value, tx, i, script_flags, False, True
         )
         script_type, payload = type_and_payload(script)
 
-    segwit_version = _to_num(stack[-1], []) if is_segwit(script) else -1
+    # NO_FLAGS: this reads the version out of a witness program, it does
+    # not execute a script, and MINIMALDATA is the only flag _to_num looks
+    # at. It was an empty list here for the same reason
+    segwit_version = _to_num(stack[-1], NO_FLAGS) if is_segwit(script) else -1
     supported_segwit_version = -1
-    if "WITNESS" in flags:
+    if ScriptFlag.WITNESS in script_flags:
         supported_segwit_version = 0
-    if "TAPROOT" in flags:
+    if ScriptFlag.TAPROOT in script_flags:
         supported_segwit_version = 1
     if segwit_version + 1 and tx.vin[i].script_sig and not p2sh:
         raise BTClibValueError("non-empty script_sig for a native segwit input")
     if not (segwit_version + 1) and tx.vin[i].script_witness:
         raise BTClibValueError("witness for a non-segwit input")
     if segwit_version > supported_segwit_version:
-        if segwit_version + 1 and "DISCOURAGE_UPGRADABLE_WITNESS_PROGRAM" in flags:
+        if (
+            segwit_version + 1
+            and ScriptFlag.DISCOURAGE_UPGRADABLE_WITNESS_PROGRAM in script_flags
+        ):
             raise BTClibValueError(f"unsupported segwit version: {segwit_version}")
         return
 
@@ -173,7 +192,7 @@ def verify_input(
                     i,
                     annex,
                     budget,
-                    flags,
+                    script_flags,
                     precomputed,
                 )
             else:
@@ -201,10 +220,18 @@ def verify_input(
             return
 
         verify_script_legacy(
-            script, stack, prevouts[i].value, tx, i, flags, True, True, precomputed
+            script,
+            stack,
+            prevouts[i].value,
+            tx,
+            i,
+            script_flags,
+            True,
+            True,
+            precomputed,
         )
 
-    if stack and ("CLEANSTACK" in flags or segwit_version == 0):
+    if stack and (ScriptFlag.CLEANSTACK in script_flags or segwit_version == 0):
         raise BTClibValueError(f"{len(stack)} elements left on the stack")
 
 
@@ -216,11 +243,16 @@ def verify_amounts(prevouts: list[TxOut], tx: Tx) -> None:
 def verify_transaction(
     prevouts: list[TxOut],
     tx: Tx,
-    flags: list[str] | None = None,
+    flags: ScriptFlags | None = None,
     check_amounts: bool = True,
 ) -> None:
-    if flags is None:
-        flags = ALL_FLAGS[:]
+    """Verify every input of a transaction against the outputs it spends.
+
+    `flags` is what verify_input takes, converted once here rather than
+    once per input; it was defaulted with a copy of a mutable ALL_FLAGS,
+    which a ScriptFlag makes unnecessary.
+    """
+    script_flags = to_script_flags(flags)
     if len(prevouts) != len(tx.vin):
         raise BTClibValueError(
             f"{len(prevouts)} prevouts for {len(tx.vin)} transaction inputs"
@@ -237,4 +269,4 @@ def verify_transaction(
     # quadratic the day the two disagreed
     precomputed = PrecomputedTxData(tx, prevouts)
     for i in range(len(prevouts)):
-        verify_input(prevouts, tx, i, flags, precomputed)
+        verify_input(prevouts, tx, i, script_flags, precomputed)

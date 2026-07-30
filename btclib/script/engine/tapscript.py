@@ -21,6 +21,7 @@ from btclib.exceptions import BTClibValueError, ScriptError
 from btclib.hashes import tagged_hash
 from btclib.script import sig_hash
 from btclib.script.engine import script_op_codes
+from btclib.script.engine.flags import ScriptFlag
 from btclib.script.engine.script import check_balanced_if
 from btclib.script.engine.script_op_codes import ScriptOp, _from_num
 from btclib.script.op_codes_tapscript import OP_CODE_NAMES
@@ -58,7 +59,7 @@ def get_hashtype(signature: bytes) -> int:
 
 
 def op_checksigadd(
-    stack: list[bytes], altstack: list[bytes], flags: list[str]
+    stack: list[bytes], altstack: list[bytes], flags: ScriptFlag
 ) -> ScriptList:
     stack[-2], stack[-3] = stack[-3], stack[-2]
     return ["OP_CHECKSIG", "OP_ADD"]
@@ -126,7 +127,7 @@ def verify_script_path_vc0(
     i: int,
     annex: bytes,
     sigops_budget: int,
-    flags: list[str],
+    flags: ScriptFlag,
     precomputed: PrecomputedTxData | None = None,
 ) -> None:
     if any(len(x) > 520 for x in stack):

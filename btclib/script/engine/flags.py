@@ -1,0 +1,141 @@
+#!/usr/bin/env python3
+
+# Copyright (C) The btclib developers
+#
+# This file is part of btclib. It is subject to the license terms in the
+# LICENSE file found in the top-level directory of this distribution.
+#
+# No part of btclib including this file, may be copied, modified, propagated,
+# or distributed except according to the terms contained in the LICENSE file.
+"""Bitcoin Script verification flags.
+
+A bitmask, where the engine used to take a list of plain strings and ask
+`"P2SH" in flags`. That check accepts any string at all, so a misspelled
+name -- `"DERSING"`, or the `"MINMALIF"` that sat in `ALL_FLAGS` for
+years, commented out -- silently *disabled* a consensus rule instead of
+failing, in a script verification engine (issue #145).
+
+Both spellings are now checked. A caller's name is looked up in the enum
+by `to_script_flags`, which refuses what it does not know, and every test
+the engine makes is `ScriptFlag.X in flags`, which a typo turns into an
+AttributeError rather than into a rule that never runs. A test asserts
+the two sets are the same: `tests/script_engine/test_flags.py` reads the
+engine's own source, and no member may go unchecked there and no name
+checked there may be missing here.
+
+Names and bit positions are Bitcoin Core's `SCRIPT_VERIFY_*` of
+src/script/interpreter.h, so a flag means here what it means there, and
+Core's vectors -- `script_tests.json` and `tx_valid.json` carry theirs as
+a comma-separated string -- can be passed as they are written.
+"""
+
+from __future__ import annotations
+
+from collections.abc import Iterable
+from enum import Flag
+from typing import Union
+
+from btclib.exceptions import BTClibValueError
+
+
+class ScriptFlag(Flag):
+    """A set of script verification rules to enforce.
+
+    One member per rule the engine implements, and none for a rule it does
+    not: Core's DISCOURAGE_UPGRADABLE_PUBKEYTYPE (1 << 18),
+    DISCOURAGE_OP_SUCCESS (1 << 19) and
+    DISCOURAGE_UPGRADABLE_TAPROOT_VERSION (1 << 20) have no branch here,
+    so asking for one is an error rather than a request quietly ignored --
+    which is the failure mode this enum exists to remove. They are the
+    holes in the bit positions below.
+    """
+
+    # consensus: what a node must enforce to stay on the chain, and what
+    # ALL_FLAGS turns on
+    P2SH = 1 << 0  # bip 16
+    DERSIG = 1 << 2  # bip 66
+    NULLDUMMY = 1 << 4  # bip 147
+    CHECKLOCKTIMEVERIFY = 1 << 9  # bip 65
+    CHECKSEQUENCEVERIFY = 1 << 10  # bip 112
+    WITNESS = 1 << 11  # bip 141
+    TAPROOT = 1 << 17  # bip 341, bip 342
+
+    # standardness: bip 62, which was never finalized, and the relay rules
+    # that outlived it. A block breaking one of these is valid, so
+    # ALL_FLAGS leaves them off and only a caller asking a policy question
+    # turns them on. Where a BIP made one of them consensus for a script
+    # version -- cleanstack and minimalif under segwit, minimalif under
+    # tapscript -- the engine enforces that part whatever the flags say,
+    # which is why these are still off by default
+    STRICTENC = 1 << 1
+    LOW_S = 1 << 3
+    SIGPUSHONLY = 1 << 5
+    MINIMALDATA = 1 << 6
+    DISCOURAGE_UPGRADABLE_NOPS = 1 << 7
+    CLEANSTACK = 1 << 8
+    DISCOURAGE_UPGRADABLE_WITNESS_PROGRAM = 1 << 12
+    MINIMALIF = 1 << 13
+    NULLFAIL = 1 << 14
+    WITNESS_PUBKEYTYPE = 1 << 15
+    CONST_SCRIPTCODE = 1 << 16
+
+
+# no rule at all, which is not the same as "the default rules": the two
+# were told apart by `flags is None` against `flags == []` before, and are
+# told apart by `None` against `NO_FLAGS` now
+NO_FLAGS = ScriptFlag(0)
+
+# what the engine enforces when a caller names nothing: the consensus soft
+# forks, i.e. seven of the eighteen members and not all of them. This was
+# a mutable module-level list whose absent entries were twelve
+# commented-out lines of strings, one of them ("MINMALIF") misspelled past
+# the point of ever being enabled by accident
+ALL_FLAGS = (
+    ScriptFlag.P2SH
+    | ScriptFlag.DERSIG
+    | ScriptFlag.NULLDUMMY
+    | ScriptFlag.CHECKLOCKTIMEVERIFY
+    | ScriptFlag.CHECKSEQUENCEVERIFY
+    | ScriptFlag.WITNESS
+    | ScriptFlag.TAPROOT
+)
+
+# what the entry points accept: the bitmask itself, Core's comma-separated
+# spelling of it, or any iterable of names.
+# Union, not "|": this is an assignment, which python evaluates whatever
+# the __future__ import above defers, and PEP 604 unions are a TypeError
+# until 3.10
+ScriptFlags = Union[ScriptFlag, str, Iterable[str]]
+
+
+def to_script_flags(flags: ScriptFlags | None) -> ScriptFlag:
+    """Return the rules to enforce, from any of the spellings accepted.
+
+    A `ScriptFlag` is returned as it is, a string is split on commas, and
+    anything else is taken as an iterable of names; an unknown name raises
+    rather than being skipped, which is the whole point of the enum.
+
+    `None` is `ALL_FLAGS`, the default set, while an empty string, an
+    empty iterable and Core's `"NONE"` are `NO_FLAGS`, no rule at all.
+    Those two must stay tellable apart -- the first says "whatever btclib
+    enforces by default", the second "check the script and nothing else"
+    -- so this does not collapse a falsy argument onto the default.
+    """
+    if flags is None:
+        return ALL_FLAGS
+    if isinstance(flags, ScriptFlag):
+        return flags
+
+    names = flags.split(",") if isinstance(flags, str) else list(flags)
+    # `""` is how Core's vectors spell an empty flag field and `"NONE"` is
+    # how they spell it when the field is not left empty; both are the
+    # whole field, so neither is a name to be looked up among others
+    if names in ([], [""], ["NONE"]):
+        return NO_FLAGS
+
+    script_flags = NO_FLAGS
+    for name in names:
+        if name not in ScriptFlag.__members__:
+            raise BTClibValueError(f"unknown script flag: {name!r}")
+        script_flags |= ScriptFlag[name]
+    return script_flags
