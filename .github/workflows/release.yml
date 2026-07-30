@@ -98,30 +98,18 @@ jobs:
         run: |
           sed -i "s/^__version__ = \"\(.*\)\"$/__version__ = \"\1.dev$GITHUB_RUN_NUMBER\"/" btclib/__init__.py
           grep "^__version__" btclib/__init__.py
-      - name: Check that the sdist will be complete
-        run: uv run --locked --only-group build check-manifest
       # uv build builds the sdist first and then the wheel from it, not
       # both from the source tree: the packaging path a user installing
       # from source takes is therefore the one that produced the wheel,
-      # which is why no separate "install from the sdist" job is needed
+      # which is why no separate "install from the sdist" job is needed.
+      # What this job does not do any more is inspect what it built: twine,
+      # check-wheel-contents and pyroma moved to the dist-py job of the
+      # test workflow, which this workflow calls, so they now gate every
+      # pull request as well as this one tag. check-manifest is a
+      # pre-commit hook, gated by the lint workflow, which this one calls
+      # too
       - name: Build the distribution files
         run: uv build
-      # the same validation PyPI applies on upload, run before this
-      # workflow reaches the point of no return: broken metadata, or a
-      # README that does not render, cannot be fixed by reuploading
-      - name: Check the metadata and the long description
-        run: uv run --locked --only-group build twine check --strict dist/*
-      # what twine does not look at: where the files land once installed,
-      # a test package shipped by accident, a stray top-level module
-      - name: Check the wheel contents
-        run: uv run --locked --only-group build check-wheel-contents dist/*.whl
-      # and what twine cannot see either: metadata that is valid but poor,
-      # a missing classifier or url, a version PyPI would sort in a way
-      # nobody meant. Run on the sdist rather than on the source tree, so
-      # it rates the metadata that was actually built and shipped;
-      # --min 10 is a ratchet, the score being 10 today
-      - name: Rate the packaging metadata
-        run: uv run --locked --only-group build pyroma --min 10 dist/*.tar.gz
       # from an empty directory, so the import resolves to the wheel
       # and not to the btclib/ source tree. Unlike the test matrix,
       # which follows tool.uv.sources to the bindings' dev branch, this

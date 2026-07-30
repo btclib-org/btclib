@@ -55,6 +55,10 @@ Major changes includes:
   stricter: a warning is an error, an unregistered marker and a typo in
   the pytest configuration are errors, and an xfail that passes is a
   failure
+- the packaging metadata is validated on every pull request rather than
+  only on the tag that ships it: twine, check-wheel-contents and pyroma
+  moved from the release workflow to a job of the test workflow, which
+  the release workflow calls
 
 ## v2023.7.12
 

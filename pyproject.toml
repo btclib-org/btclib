@@ -88,11 +88,17 @@ include = ["btclib*"]
 namespaces = true
 
 [tool.pytest.ini_options]
+# where the tests are, so a bare "pytest" from the root collects them and
+# nothing else, whatever else the tree grows
+testpaths = ["tests"]
+# -ra summarizes everything that was not a plain pass. On a matrix of 55
+# jobs a skip, an xfail or a warning is otherwise invisible: it is not a
+# failure, so nobody opens the log to find it.
 # --strict-config makes a typo in this very table an error rather than a
 # warning that scrolls past a hundred lines of dots, and --strict-markers
 # does the same for a marker nobody registered, which is how a misspelled
 # skipif silently stops skipping
-addopts = "--durations=8 -n auto --strict-config --strict-markers"
+addopts = "-ra --durations=8 -n auto --strict-config --strict-markers"
 # a test that was expected to fail and passed is a fixed bug still marked
 # as broken: strict turns it red instead of reporting xpass
 xfail_strict = true

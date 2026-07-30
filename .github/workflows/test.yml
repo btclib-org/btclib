@@ -122,3 +122,48 @@ jobs:
         run: >
           uv run --locked --no-default-groups --group test
           pytest --cov-report term-missing:skip-covered --cov=btclib --cov=tests
+
+  # the packaging metadata is checked on every pull request, not only on
+  # the tag that ships it. These checks used to live in the release
+  # workflow, which is the one place where finding a problem is too late:
+  # a version is consumed by the upload that carries it, and can then only
+  # be yanked. The release workflow calls this one, so it still runs them,
+  # and its build job now only builds what it publishes.
+  # The wheel is not installed here with its dependencies resolved from
+  # PyPI, which is the other thing worth checking about metadata: that step
+  # stays in the release workflow because it cannot pass until the pinned
+  # btclib_libsecp256k1 is published, and a check that is red for a reason
+  # nobody can fix in this repository is not a gate, it is noise
+  dist-py:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Setup uv
+        uses: astral-sh/setup-uv@c771a70e6277c0a99b617c7a806ffedaca235ff9 # v9.0.0
+        with:
+          enable-cache: true
+      # uv build builds the sdist first and then the wheel from it, not
+      # both from the source tree, so what is checked below is what a user
+      # installing from source would get. That the sdist is complete in the
+      # first place is check-manifest's job, a pre-commit hook, gated by
+      # the lint workflow
+      - name: Build the distribution files
+        run: uv build
+      # the same validation PyPI applies on upload: broken metadata, or a
+      # README that does not render, cannot be fixed by reuploading
+      - name: Check the metadata and the long description
+        run: uv run --locked --only-group build twine check --strict dist/*
+      # what twine does not look at: where the files land once installed,
+      # a test package shipped by accident, a stray top-level module
+      - name: Check the wheel contents
+        run: uv run --locked --only-group build check-wheel-contents dist/*.whl
+      # and what twine cannot see either: metadata that is valid but poor,
+      # a missing classifier or url, a version PyPI would sort in a way
+      # nobody meant. The pyroma pre-commit hook rates the source tree, for
+      # an answer before pushing; this rates the sdist, i.e. the metadata
+      # that would actually be shipped. --min 10 is a ratchet, the score
+      # being 10 today
+      - name: Rate the packaging metadata
+        run: uv run --locked --only-group build pyroma --min 10 dist/*.tar.gz
