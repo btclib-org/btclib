@@ -38,6 +38,7 @@ class BIP32KeyOrigin:
         self,
         master_fingerprint: Octets,
         der_path: BIP32DerPath,
+        *,
         check_validity: bool = True,
     ) -> None:
         object.__setattr__(
@@ -61,7 +62,7 @@ class BIP32KeyOrigin:
         if any(not 0 <= i <= 0xFFFFFFFF for i in self.der_path):
             raise BTClibValueError("invalid der_path element")
 
-    def to_dict(self, check_validity: bool = True) -> dict[str, str]:
+    def to_dict(self, *, check_validity: bool = True) -> dict[str, str]:
         if check_validity:
             self.assert_valid()
 
@@ -74,15 +75,16 @@ class BIP32KeyOrigin:
     def from_dict(
         cls: type[BIP32KeyOrigin],
         dict_: Mapping[str, str],
+        *,
         check_validity: bool = True,
     ) -> BIP32KeyOrigin:
         return cls(
             dict_["master_fingerprint"],
             dict_["path"],
-            check_validity,
+            check_validity=check_validity,
         )
 
-    def serialize(self, check_validity: bool = True) -> bytes:
+    def serialize(self, *, check_validity: bool = True) -> bytes:
         if check_validity:
             self.assert_valid()
 
@@ -90,21 +92,21 @@ class BIP32KeyOrigin:
 
     @classmethod
     def parse(
-        cls: type[BIP32KeyOrigin], data: Octets, check_validity: bool = True
+        cls: type[BIP32KeyOrigin], data: Octets, *, check_validity: bool = True
     ) -> BIP32KeyOrigin:
         """Return a BIP32KeyOrigin by parsing binary data."""
         data = bytes_from_octets(data)
         master_fingerprint = data[:4]
         der_path = indexes_from_bip32_path(data[4:])
 
-        return cls(master_fingerprint, der_path, check_validity)
+        return cls(master_fingerprint, der_path, check_validity=check_validity)
 
     @classmethod
     def from_description(
-        cls: type[BIP32KeyOrigin], data: str, check_validity: bool = True
+        cls: type[BIP32KeyOrigin], data: str, *, check_validity: bool = True
     ) -> BIP32KeyOrigin:
         data = data.strip()
-        return cls(data[:8], data[9:], check_validity)
+        return cls(data[:8], data[9:], check_validity=check_validity)
 
     def __hash__(self: BIP32KeyOrigin) -> int:
         return hash(self.serialize())

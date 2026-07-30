@@ -240,7 +240,9 @@ def taproot_script_spend(
         sequence,
         Witness([serialize(tap_script).hex(), control.hex()]),
     )
-    tx = Tx(2, lock_time, [tx_in], [TxOut(1000, ScriptPubKey(""))], False)
+    tx = Tx(
+        2, lock_time, [tx_in], [TxOut(1000, ScriptPubKey(""))], check_validity=False
+    )
     return [prevout], tx
 
 

@@ -85,6 +85,7 @@ class PsbtOut:
         taproot_hd_key_paths: Mapping[Octets, tuple[list[bytes], BIP32KeyOrigin]]
         | None = None,
         unknown: Mapping[Octets, Octets] | None = None,
+        *,
         check_validity: bool = True,
     ) -> None:
         self.redeem_script = bytes_from_octets(redeem_script)
@@ -108,7 +109,7 @@ class PsbtOut:
         assert_valid_taproot_bip32_derivation(self.taproot_hd_key_paths)
         assert_valid_unknown(self.unknown)
 
-    def to_dict(self, check_validity: bool = True) -> dict[str, Any]:
+    def to_dict(self, *, check_validity: bool = True) -> dict[str, Any]:
         if check_validity:
             self.assert_valid()
 
@@ -126,7 +127,7 @@ class PsbtOut:
 
     @classmethod
     def from_dict(
-        cls: type[PsbtOut], dict_: Mapping[str, Any], check_validity: bool = True
+        cls: type[PsbtOut], dict_: Mapping[str, Any], *, check_validity: bool = True
     ) -> PsbtOut:
         hd_key_paths = cast(
             Mapping[Octets, BIP32KeyOrigin],
@@ -144,10 +145,10 @@ class PsbtOut:
             dict_["taproot_tree"],
             taproot_hd_key_paths,
             dict_["unknown"],
-            check_validity,
+            check_validity=check_validity,
         )
 
-    def serialize(self, check_validity: bool = True) -> bytes:
+    def serialize(self, *, check_validity: bool = True) -> bytes:
         if check_validity:
             self.assert_valid()
 
@@ -194,6 +195,7 @@ class PsbtOut:
     def parse(
         cls: type[PsbtOut],
         output_map: Mapping[bytes, bytes],
+        *,
         check_validity: bool = True,
     ) -> PsbtOut:
         """Return a PsbtOut by parsing binary data."""
@@ -232,5 +234,5 @@ class PsbtOut:
             taproot_tree,
             taproot_hd_key_paths,
             unknown,
-            check_validity,
+            check_validity=check_validity,
         )

@@ -48,6 +48,7 @@ class OutPoint:
         self,
         tx_id: Octets = b"\x00" * 32,
         vout: int = 0xFFFFFFFF,
+        *,
         check_validity: bool = True,
     ) -> None:
         object.__setattr__(self, "tx_id", bytes_from_octets(tx_id))
@@ -71,7 +72,7 @@ class OutPoint:
         if (self.tx_id == b"\x00" * 32) ^ (self.vout == 0xFFFFFFFF):
             raise BTClibValueError("invalid OutPoint")
 
-    def to_dict(self, check_validity: bool = True) -> dict[str, str | int]:
+    def to_dict(self, *, check_validity: bool = True) -> dict[str, str | int]:
         if check_validity:
             self.assert_valid()
 
@@ -79,11 +80,11 @@ class OutPoint:
 
     @classmethod
     def from_dict(
-        cls: type[OutPoint], dict_: Mapping[str, Any], check_validity: bool = True
+        cls: type[OutPoint], dict_: Mapping[str, Any], *, check_validity: bool = True
     ) -> OutPoint:
-        return cls(dict_["txid"], dict_["vout"], check_validity)
+        return cls(dict_["txid"], dict_["vout"], check_validity=check_validity)
 
-    def serialize(self, check_validity: bool = True) -> bytes:
+    def serialize(self, *, check_validity: bool = True) -> bytes:
         """Return the 36 bytes serialization of the OutPoint."""
         if check_validity:
             self.assert_valid()
@@ -94,11 +95,11 @@ class OutPoint:
 
     @classmethod
     def parse(
-        cls: type[OutPoint], data: BinaryData, check_validity: bool = True
+        cls: type[OutPoint], data: BinaryData, *, check_validity: bool = True
     ) -> OutPoint:
         """Return an OutPoint from the first 36 bytes of the provided data."""
         data = bytesio_from_binarydata(data)
         tx_id = data.read(32)[::-1]
         vout = int.from_bytes(data.read(4), "little", signed=False)
 
-        return cls(tx_id, vout, check_validity)
+        return cls(tx_id, vout, check_validity=check_validity)

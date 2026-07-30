@@ -134,7 +134,7 @@ from __future__ import annotations
 
 import base64
 import secrets
-from dataclasses import InitVar, dataclass
+from dataclasses import dataclass
 from hashlib import sha256
 
 from btclib.alias import BinaryData, Octets, String
@@ -151,14 +151,20 @@ from btclib.utils import bytesio_from_binarydata
 _REQUIRED_LENGHT = 65
 
 
-@dataclass(frozen=True)
+@dataclass(frozen=True, init=False)
 class Sig:
     # 1 byte
     rf: int
     dsa_sig: dsa.Sig
-    check_validity: InitVar[bool] = True
 
-    def __post_init__(self, check_validity: bool) -> None:
+    # written out rather than an InitVar[bool] field and a __post_init__:
+    # see the comment on dsa.Sig.__init__
+    def __init__(
+        self, rf: int, dsa_sig: dsa.Sig, *, check_validity: bool = True
+    ) -> None:
+        object.__setattr__(self, "rf", rf)
+        object.__setattr__(self, "dsa_sig", dsa_sig)
+
         if check_validity:
             self.assert_valid()
 
@@ -169,7 +175,7 @@ class Sig:
         if self.dsa_sig.ec != secp256k1:
             raise BTClibValueError(f"invalid curve: {self.dsa_sig.ec.name}")
 
-    def serialize(self, check_validity: bool = True) -> bytes:
+    def serialize(self, *, check_validity: bool = True) -> bytes:
         if check_validity:
             self.assert_valid()
 
@@ -183,18 +189,18 @@ class Sig:
             ]
         )
 
-    def b64encode(self, check_validity: bool = True) -> str:
+    def b64encode(self, *, check_validity: bool = True) -> str:
         """Return the BMS address-based signature as base64-encoding.
 
         First off, the signature is serialized in the [1-byte
         rf][32-bytes r][32-bytes s] compact format, then it is
         base64-encoded.
         """
-        data_binary = self.serialize(check_validity)
+        data_binary = self.serialize(check_validity=check_validity)
         return base64.b64encode(data_binary).decode("ascii")
 
     @classmethod
-    def parse(cls: type[Sig], data: BinaryData, check_validity: bool = True) -> Sig:
+    def parse(cls: type[Sig], data: BinaryData, *, check_validity: bool = True) -> Sig:
         stream = bytesio_from_binarydata(data)
         sig_bin = stream.read(_REQUIRED_LENGHT)
 
@@ -215,10 +221,10 @@ class Sig:
         s = int.from_bytes(sig_bin[1 + n_size : 1 + 2 * n_size], "big", signed=False)
         dsa_sig = dsa.Sig(r, s, ec, check_validity=False)
 
-        return cls(rf, dsa_sig, check_validity)
+        return cls(rf, dsa_sig, check_validity=check_validity)
 
     @classmethod
-    def b64decode(cls: type[Sig], data: String, check_validity: bool = True) -> Sig:
+    def b64decode(cls: type[Sig], data: String, *, check_validity: bool = True) -> Sig:
         """Return the verified components of the provided BMS signature.
 
         The address-based BMS signature can be represented as (rf, r, s)
@@ -244,7 +250,7 @@ class Sig:
             raise BTClibValueError(f"invalid base64 encoding: {e}") from e
         if base64.b64encode(data_decoded) != data_bin:
             raise BTClibValueError("invalid base64 encoding: not canonical")
-        return cls.parse(data_decoded, check_validity)
+        return cls.parse(data_decoded, check_validity=check_validity)
 
 
 def gen_keys(

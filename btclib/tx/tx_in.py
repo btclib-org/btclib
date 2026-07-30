@@ -68,6 +68,7 @@ class TxIn:
         script_sig: Octets = b"",
         sequence: int = 0,
         script_witness: Witness | None = None,
+        *,
         check_validity: bool = True,
     ) -> None:
         # a default argument is evaluated once, at definition time: an
@@ -102,44 +103,48 @@ class TxIn:
         if self.script_witness:
             self.script_witness.assert_valid()
 
-    def to_dict(self, check_validity: bool = True) -> dict[str, Any]:
+    def to_dict(self, *, check_validity: bool = True) -> dict[str, Any]:
         if check_validity:
             self.assert_valid()
 
         return {
-            "prev_out": self.prev_out.to_dict(False),
+            "prev_out": self.prev_out.to_dict(check_validity=False),
             # TODO make it { "asm": "", "hex": "" }
             "scriptSig": self.script_sig.hex(),
             "sequence": self.sequence,
-            "txinwitness": self.script_witness.to_dict(False),
+            "txinwitness": self.script_witness.to_dict(check_validity=False),
         }
 
     @classmethod
     def from_dict(
-        cls: type[TxIn], dict_: Mapping[str, Any], check_validity: bool = True
+        cls: type[TxIn], dict_: Mapping[str, Any], *, check_validity: bool = True
     ) -> TxIn:
         return cls(
-            OutPoint.from_dict(dict_["prev_out"], False),
+            OutPoint.from_dict(dict_["prev_out"], check_validity=False),
             dict_["scriptSig"],
             dict_["sequence"],
-            Witness.from_dict(dict_["txinwitness"], False),
-            check_validity,
+            Witness.from_dict(dict_["txinwitness"], check_validity=False),
+            check_validity=check_validity,
         )
 
-    def serialize(self, check_validity: bool = True) -> bytes:
+    def serialize(self, *, check_validity: bool = True) -> bytes:
         if check_validity:
             self.assert_valid()
 
-        out = self.prev_out.serialize(check_validity)
+        out = self.prev_out.serialize(check_validity=check_validity)
         out += var_bytes.serialize(self.script_sig)
         out += self.sequence.to_bytes(4, byteorder="little", signed=False)
         return out
 
     @classmethod
-    def parse(cls: type[TxIn], data: BinaryData, check_validity: bool = True) -> TxIn:
+    def parse(
+        cls: type[TxIn], data: BinaryData, *, check_validity: bool = True
+    ) -> TxIn:
         stream = bytesio_from_binarydata(data)
-        prev_out = OutPoint.parse(stream, check_validity)
+        prev_out = OutPoint.parse(stream, check_validity=check_validity)
         script_sig = var_bytes.parse(stream)
         sequence = int.from_bytes(stream.read(4), byteorder="little", signed=False)
 
-        return cls(prev_out, script_sig, sequence, Witness(), check_validity)
+        return cls(
+            prev_out, script_sig, sequence, Witness(), check_validity=check_validity
+        )

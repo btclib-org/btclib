@@ -51,7 +51,7 @@ from __future__ import annotations
 import contextlib
 import secrets
 from collections.abc import Sequence
-from dataclasses import InitVar, dataclass
+from dataclasses import dataclass
 from hashlib import sha256
 from typing import Union
 
@@ -76,7 +76,7 @@ from btclib.utils import (
 )
 
 
-@dataclass(frozen=True)
+@dataclass(frozen=True, init=False)
 class Sig:
     """BIP340-Schnorr signature.
 
@@ -91,9 +91,16 @@ class Sig:
     # 32 bytes scalar
     s: int
     ec: Curve = secp256k1
-    check_validity: InitVar[bool] = True
 
-    def __post_init__(self, check_validity: bool) -> None:
+    # written out rather than an InitVar[bool] field and a __post_init__:
+    # see the comment on dsa.Sig.__init__
+    def __init__(
+        self, r: int, s: int, ec: Curve = secp256k1, *, check_validity: bool = True
+    ) -> None:
+        object.__setattr__(self, "r", r)
+        object.__setattr__(self, "s", s)
+        object.__setattr__(self, "ec", ec)
+
         if check_validity:
             self.assert_valid()
 
@@ -107,7 +114,7 @@ class Sig:
             err_msg += f"'{hex_string(self.s)}'" if self.s > 0xFFFFFFFF else f"{self.s}"
             raise BTClibValueError(err_msg)
 
-    def serialize(self, check_validity: bool = True) -> bytes:
+    def serialize(self, *, check_validity: bool = True) -> bytes:
         if check_validity:
             self.assert_valid()
 
@@ -116,12 +123,12 @@ class Sig:
         return out
 
     @classmethod
-    def parse(cls: type[Sig], data: BinaryData, check_validity: bool = True) -> Sig:
+    def parse(cls: type[Sig], data: BinaryData, *, check_validity: bool = True) -> Sig:
         stream = bytesio_from_binarydata(data)
         ec = secp256k1
         r = int.from_bytes(stream.read(ec.p_size), byteorder="big", signed=False)
         s = int.from_bytes(stream.read(ec.n_size), byteorder="big", signed=False)
-        return cls(r, s, ec, check_validity)
+        return cls(r, s, ec, check_validity=check_validity)
 
 
 # hex-string or bytes representation of an int

@@ -99,6 +99,7 @@ class Network:
         slip132_p2wsh_pub: Octets,
         slip132_p2wsh_p2sh_prv: Octets,
         slip132_p2wsh_p2sh_pub: Octets,
+        *,
         check_validity: bool = True,
     ) -> None:
         object.__setattr__(self, "curve", curve)
@@ -146,7 +147,7 @@ class Network:
         if check_validity:
             self.assert_valid()
 
-    def to_dict(self, check_validity: bool = True) -> dict[str, str | None]:
+    def to_dict(self, *, check_validity: bool = True) -> dict[str, str | None]:
         if check_validity:
             self.assert_valid()
 
@@ -172,7 +173,7 @@ class Network:
 
     @classmethod
     def from_dict(
-        cls: type[Network], dict_: Mapping[str, Any], check_validity: bool = True
+        cls: type[Network], dict_: Mapping[str, Any], *, check_validity: bool = True
     ) -> Network:
         return cls(
             CURVES[dict_["curve"]],
@@ -192,7 +193,7 @@ class Network:
             dict_["slip132_p2wsh_pub"],
             dict_["slip132_p2wsh_p2sh_prv"],
             dict_["slip132_p2wsh_p2sh_pub"],
-            check_validity,
+            check_validity=check_validity,
         )
 
     def assert_valid(self) -> None:

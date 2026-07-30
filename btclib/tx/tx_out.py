@@ -51,6 +51,7 @@ class TxOut:
         self,
         value: int,
         script_pub_key: ScriptPubKey | Octets,
+        *,
         check_validity: bool = True,
     ) -> None:
         object.__setattr__(self, "value", value)
@@ -67,7 +68,7 @@ class TxOut:
         # https://github.com/bitcoin/bitcoin/issues/320
         # self.script_pub_key.assert_valid()
 
-    def to_dict(self, check_validity: bool = True) -> dict[str, Any]:
+    def to_dict(self, *, check_validity: bool = True) -> dict[str, Any]:
         if check_validity:
             self.assert_valid()
 
@@ -83,17 +84,19 @@ class TxOut:
 
     @classmethod
     def from_dict(
-        cls: type[TxOut], dict_: Mapping[str, Any], check_validity: bool = True
+        cls: type[TxOut], dict_: Mapping[str, Any], *, check_validity: bool = True
     ) -> TxOut:
         value = sats_from_btc(dict_["value"])
         script_bin = dict_["scriptPubKey"]
         network = dict_.get("network", "mainnet")
-        return cls(value, ScriptPubKey(script_bin, network), check_validity)
+        return cls(
+            value, ScriptPubKey(script_bin, network), check_validity=check_validity
+        )
 
     # def is_witness(self) -> Tuple[bool, int, bytes]:
     #     return is_witness(self.script_pub_key)
 
-    def serialize(self, check_validity: bool = True) -> bytes:
+    def serialize(self, *, check_validity: bool = True) -> bytes:
         if check_validity:
             self.assert_valid()
 
@@ -105,6 +108,7 @@ class TxOut:
     def parse(
         cls: type[TxOut],
         data: BinaryData,
+        *,
         check_validity: bool = True,
     ) -> TxOut:
         stream = bytesio_from_binarydata(data)
@@ -115,7 +119,7 @@ class TxOut:
             ScriptPubKey(
                 script, "mainnet", check_validity=False
             ),  # https://github.com/bitcoin/bitcoin/issues/320
-            check_validity,
+            check_validity=check_validity,
         )
 
     @classmethod

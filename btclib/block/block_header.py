@@ -126,6 +126,7 @@ class BlockHeader:
         time: datetime = _EPOCH,
         bits: Octets = b"",
         nonce: int = 0,
+        *,
         check_validity: bool = True,
     ) -> None:
         self.version = version
@@ -138,7 +139,7 @@ class BlockHeader:
         if check_validity:
             self.assert_valid()
 
-    def to_dict(self, check_validity: bool = True) -> dict[str, int | float | str]:
+    def to_dict(self, *, check_validity: bool = True) -> dict[str, int | float | str]:
         if check_validity:
             self.assert_valid()
 
@@ -155,7 +156,7 @@ class BlockHeader:
 
     @classmethod
     def from_dict(
-        cls: type[BlockHeader], dict_: Mapping[str, Any], check_validity: bool = True
+        cls: type[BlockHeader], dict_: Mapping[str, Any], *, check_validity: bool = True
     ) -> BlockHeader:
         return cls(
             dict_["version"],
@@ -164,7 +165,7 @@ class BlockHeader:
             datetime.fromisoformat(dict_["time"]),
             dict_["bits"],
             dict_["nonce"],
-            check_validity,
+            check_validity=check_validity,
         )
 
     def assert_valid_pow(self) -> None:
@@ -207,7 +208,7 @@ class BlockHeader:
 
         self.assert_valid_pow()
 
-    def serialize(self, check_validity: bool = True) -> bytes:
+    def serialize(self, *, check_validity: bool = True) -> bytes:
         """Return a BlockHeader binary serialization."""
         if check_validity:
             self.assert_valid()
@@ -225,7 +226,7 @@ class BlockHeader:
 
     @classmethod
     def parse(
-        cls: type[BlockHeader], data: BinaryData, check_validity: bool = True
+        cls: type[BlockHeader], data: BinaryData, *, check_validity: bool = True
     ) -> BlockHeader:
         """Return a BlockHeader by parsing 80 bytes from binary data."""
         stream = bytesio_from_binarydata(data)
@@ -246,5 +247,5 @@ class BlockHeader:
             time,
             bits,
             nonce,
-            check_validity,
+            check_validity=check_validity,
         )

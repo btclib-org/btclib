@@ -84,6 +84,7 @@ class Block:
         self,
         header: BlockHeader,
         transactions: Sequence[Tx] | None = None,
+        *,
         check_validity: bool = True,
     ) -> None:
         self.header = header
@@ -94,23 +95,25 @@ class Block:
         if check_validity:
             self.assert_valid()
 
-    def to_dict(self, check_validity: bool = True) -> dict[str, Any]:
+    def to_dict(self, *, check_validity: bool = True) -> dict[str, Any]:
         if check_validity:
             self.assert_valid()
 
         return {
-            "header": self.header.to_dict(False),
-            "transactions": [tx.to_dict(False) for tx in self.transactions],
+            "header": self.header.to_dict(check_validity=False),
+            "transactions": [
+                tx.to_dict(check_validity=False) for tx in self.transactions
+            ],
         }
 
     @classmethod
     def from_dict(
-        cls: type[Block], dict_: Mapping[str, Any], check_validity: bool = True
+        cls: type[Block], dict_: Mapping[str, Any], *, check_validity: bool = True
     ) -> Block:
         return cls(
-            BlockHeader.from_dict(dict_["header"], False),
-            [Tx.from_dict(tx, False) for tx in dict_["transactions"]],
-            check_validity,
+            BlockHeader.from_dict(dict_["header"], check_validity=False),
+            [Tx.from_dict(tx, check_validity=False) for tx in dict_["transactions"]],
+            check_validity=check_validity,
         )
 
     def has_segwit_tx(self) -> bool:
@@ -231,24 +234,31 @@ class Block:
         self.assert_valid_witness_commitment()
 
     def serialize(
-        self, include_witness: bool = True, check_validity: bool = True
+        self, include_witness: bool = True, *, check_validity: bool = True
     ) -> bytes:
         if check_validity:
             self.assert_valid()
 
-        out = self.header.serialize(check_validity)
+        out = self.header.serialize(check_validity=check_validity)
         out += var_int.serialize(len(self.transactions))
         return out + b"".join(
-            [t.serialize(include_witness, check_validity) for t in self.transactions]
+            [
+                t.serialize(include_witness, check_validity=check_validity)
+                for t in self.transactions
+            ]
         )
 
     @classmethod
-    def parse(cls: type[Block], data: BinaryData, check_validity: bool = True) -> Block:
+    def parse(
+        cls: type[Block], data: BinaryData, *, check_validity: bool = True
+    ) -> Block:
         """Return a Block by parsing binary data."""
         stream = bytesio_from_binarydata(data)
-        header = BlockHeader.parse(stream, check_validity)
+        header = BlockHeader.parse(stream, check_validity=check_validity)
         n = var_int.parse(stream)
         # TODO is a block required to have a coinbase tx?
-        transactions = [Tx.parse(stream, check_validity) for _ in range(n)]
+        transactions = [
+            Tx.parse(stream, check_validity=check_validity) for _ in range(n)
+        ]
 
-        return cls(header, transactions, check_validity)
+        return cls(header, transactions, check_validity=check_validity)

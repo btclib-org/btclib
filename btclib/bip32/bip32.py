@@ -105,6 +105,7 @@ class BIP32KeyData:
         index: int,
         chain_code: Octets,
         key: Octets,
+        *,
         check_validity: bool = True,
     ) -> None:
         self.version = bytes_from_octets(version)
@@ -165,7 +166,7 @@ class BIP32KeyData:
                 f"unknown extended key version: 0x{self.version.hex()}"
             )
 
-    def serialize(self, check_validity: bool = True) -> bytes:
+    def serialize(self, *, check_validity: bool = True) -> bytes:
         if check_validity:
             self.assert_valid()
 
@@ -180,13 +181,13 @@ class BIP32KeyData:
             ]
         )
 
-    def b58encode(self, check_validity: bool = True) -> str:
-        data_binary = self.serialize(check_validity)
+    def b58encode(self, *, check_validity: bool = True) -> str:
+        data_binary = self.serialize(check_validity=check_validity)
         return base58.b58encode(data_binary).decode("ascii")
 
     @classmethod
     def parse(
-        cls: type[BIP32KeyData], xkey_bin: BinaryData, check_validity: bool = True
+        cls: type[BIP32KeyData], xkey_bin: BinaryData, *, check_validity: bool = True
     ) -> BIP32KeyData:
         """Return a BIP32KeyData by parsing 73 bytes from binary data."""
         stream = bytesio_from_binarydata(xkey_bin)
@@ -209,13 +210,13 @@ class BIP32KeyData:
 
     @classmethod
     def b58decode(
-        cls: type[BIP32KeyData], address: String, check_validity: bool = True
+        cls: type[BIP32KeyData], address: String, *, check_validity: bool = True
     ) -> BIP32KeyData:
         if isinstance(address, str):
             address = address.strip()
 
         xkey_bin = base58.b58decode(address)
-        return cls.parse(xkey_bin, check_validity)
+        return cls.parse(xkey_bin, check_validity=check_validity)
 
 
 def _rootxprv_from_seed(
@@ -311,10 +312,17 @@ class _BIP32KeyData(BIP32KeyData):
         index: int,
         chain_code: Octets,
         key: Octets,
+        *,
         check_validity: bool = True,
     ) -> None:
         super().__init__(
-            version, depth, parent_fingerprint, index, chain_code, key, False
+            version,
+            depth,
+            parent_fingerprint,
+            index,
+            chain_code,
+            key,
+            check_validity=False,
         )
 
         if self.is_private:

@@ -279,11 +279,16 @@ def test_explicit_version() -> None:
 
     psbt.version = 10
     assert_valid = False
-    assert Psbt.b64decode(psbt.b64encode(assert_valid), assert_valid) == psbt
+    assert (
+        Psbt.b64decode(
+            psbt.b64encode(check_validity=assert_valid), check_validity=assert_valid
+        )
+        == psbt
+    )
     with pytest.raises(BTClibValueError, match="invalid non-zero version: "):
-        psbt.b64encode(True)
+        psbt.b64encode(check_validity=True)
     with pytest.raises(BTClibValueError, match="invalid non-zero version: "):
-        Psbt.b64decode(psbt.b64encode(assert_valid), True)
+        Psbt.b64decode(psbt.b64encode(check_validity=assert_valid), check_validity=True)
 
 
 def test_global_unknown() -> None:

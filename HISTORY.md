@@ -551,6 +551,27 @@ Major changes includes:
   and `"9"` raises for being of odd length rather than being nine. The
   behaviour is unchanged and deliberate — a decimal representation is what
   `int` itself is for — and now the docstring says so
+- **`check_validity` is keyword-only**, in all 91 signatures that take it.
+  It was positional-or-keyword and forwarded by hand from one signature to
+  the next, often *positionally* — 100 call sites inside the package alone —
+  which is precisely how a flag ends up in another parameter's slot after a
+  signature grows a parameter in front of it, silently and with a plausible
+  value. `Tx(1, 0, vin, vout, False)` is a TypeError now; `Tx(1, 0, vin,
+  vout, check_validity=False)` is unchanged, so a caller already using the
+  keyword needs no edit. The 100 forwardings read better for it: a bare
+  `tx_in.to_dict(False)` said nothing about which flag it was setting.
+  `dsa.Sig`, `ssa.Sig`, and `bms.Sig` spell it as a written-out `__init__`
+  rather than the `InitVar[bool]` field and `__post_init__` they used to
+  share with the rest of the library, a dataclass field being made
+  keyword-only by `field(kw_only=True)`, which is python 3.10 where this
+  package supports 3.9; `dataclasses.fields`, `replace`, `==`, `hash`, and
+  `repr` are unaffected, and the three stay frozen. `dsa.Sig.parse` is the
+  one signature with a parameter *after* the flag, so `strict` becomes
+  keyword-only too: moving it in front of the star instead would have made
+  `Sig.parse(data, False)` mean `strict=False` where it used to mean
+  `check_validity=False`, which is the silent failure the whole change is
+  against. The new tests/test_check_validity.py asserts the rule over the
+  package's own source, so a new signature cannot reintroduce the hazard
 - `alias.py` says at the top that `Octets` and `String` are the same type
   to mypy, both being `Union[bytes, str]`, so the hex-string versus text
   string distinction the file documents is enforced at run time by the

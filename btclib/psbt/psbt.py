@@ -88,6 +88,7 @@ class Psbt:
         version: int,
         hd_key_paths: Mapping[Octets, BIP32KeyOrigin],
         unknown: Mapping[Octets, Octets] | None = None,
+        *,
         check_validity: bool = True,
     ) -> None:
         self.tx = tx
@@ -171,14 +172,18 @@ class Psbt:
                 if payload != sha256(self.inputs[i].witness_script):
                     raise BTClibValueError("invalid witness script sha256")
 
-    def to_dict(self, check_validity: bool = True) -> dict[str, Any]:
+    def to_dict(self, *, check_validity: bool = True) -> dict[str, Any]:
         if check_validity:
             self.assert_valid()
 
         return {
             "tx": self.tx.to_dict(),
-            "inputs": [psbt_in.to_dict(False) for psbt_in in self.inputs],
-            "outputs": [psbt_out.to_dict(False) for psbt_out in self.outputs],
+            "inputs": [
+                psbt_in.to_dict(check_validity=False) for psbt_in in self.inputs
+            ],
+            "outputs": [
+                psbt_out.to_dict(check_validity=False) for psbt_out in self.outputs
+            ],
             "version": self.version,
             "bip32_derivs": encode_to_bip32_derivs(self.hd_key_paths),
             "unknown": dict(sorted(encode_dict_bytes_bytes(self.unknown).items())),
@@ -186,7 +191,7 @@ class Psbt:
 
     @classmethod
     def from_dict(
-        cls: type[Psbt], dict_: Mapping[str, Any], check_validity: bool = True
+        cls: type[Psbt], dict_: Mapping[str, Any], *, check_validity: bool = True
     ) -> Psbt:
         hd_key_paths = cast(
             Mapping[Octets, BIP32KeyOrigin],
@@ -194,15 +199,21 @@ class Psbt:
         )
         return cls(
             Tx.from_dict(dict_["tx"]),
-            [PsbtIn.from_dict(psbt_in, False) for psbt_in in dict_["inputs"]],
-            [PsbtOut.from_dict(psbt_out, False) for psbt_out in dict_["outputs"]],
+            [
+                PsbtIn.from_dict(psbt_in, check_validity=False)
+                for psbt_in in dict_["inputs"]
+            ],
+            [
+                PsbtOut.from_dict(psbt_out, check_validity=False)
+                for psbt_out in dict_["outputs"]
+            ],
             dict_["version"],
             hd_key_paths,
             dict_["unknown"],
-            check_validity,
+            check_validity=check_validity,
         )
 
-    def serialize(self, check_validity: bool = True) -> bytes:
+    def serialize(self, *, check_validity: bool = True) -> bytes:
         if check_validity:
             self.assert_valid()
 
@@ -224,7 +235,9 @@ class Psbt:
         return b"".join(psbt_bin)
 
     @classmethod
-    def parse(cls: type[Psbt], psbt_bin: Octets, check_validity: bool = True) -> Psbt:
+    def parse(
+        cls: type[Psbt], psbt_bin: Octets, *, check_validity: bool = True
+    ) -> Psbt:
         """Return a Psbt by parsing binary data."""
         # FIXME psbt_bin should be BinaryData
         # stream = bytesio_from_binarydata(psbt_bin)
@@ -272,26 +285,26 @@ class Psbt:
             version,
             hd_key_paths,
             unknown,
-            check_validity,
+            check_validity=check_validity,
         )
 
-    def b64encode(self, check_validity: bool = True) -> str:
-        psbt_bin = self.serialize(check_validity)
+    def b64encode(self, *, check_validity: bool = True) -> str:
+        psbt_bin = self.serialize(check_validity=check_validity)
         return base64.b64encode(psbt_bin).decode("ascii")
 
     @classmethod
     def b64decode(
-        cls: type[Psbt], psbt_str: String, check_validity: bool = True
+        cls: type[Psbt], psbt_str: String, *, check_validity: bool = True
     ) -> Psbt:
         if isinstance(psbt_str, str):
             psbt_str = psbt_str.strip()
 
         psbt_decoded = base64.b64decode(psbt_str)
 
-        return cls.parse(psbt_decoded, check_validity)
+        return cls.parse(psbt_decoded, check_validity=check_validity)
 
     @classmethod
-    def from_tx(cls: type[Psbt], tx: Tx, check_validity: bool = True) -> Psbt:
+    def from_tx(cls: type[Psbt], tx: Tx, *, check_validity: bool = True) -> Psbt:
         for tx_in in tx.vin:
             tx_in.script_sig = b""
             tx_in.script_witness = Witness()
@@ -309,7 +322,7 @@ class Psbt:
             psbt_version,
             hd_key_paths,
             unknown,
-            check_validity,
+            check_validity=check_validity,
         )
 
     def sort_inputs(self, ordering_func: Callable[[PsbtIn], int] | None = None) -> None:
@@ -429,7 +442,7 @@ def finalize_psbt(psbt: Psbt) -> Psbt:
     return psbt
 
 
-def extract_tx(psbt: Psbt, check_validity: bool = True) -> Tx:
+def extract_tx(psbt: Psbt, *, check_validity: bool = True) -> Tx:
     """Extract the Tx fro the Psbt.
 
     The Transaction Extractor must only accept a PSBT. It checks whether

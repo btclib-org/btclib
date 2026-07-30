@@ -124,6 +124,7 @@ class Tx:
         lock_time: int = 0,
         vin: Sequence[TxIn] | None = None,
         vout: Sequence[TxOut] | None = None,
+        *,
         check_validity: bool = True,
     ) -> None:
         self.version = version
@@ -150,7 +151,9 @@ class Tx:
             other.vout,
         )
 
-    def to_dict(self, check_validity: bool = True) -> dict[str, str | int | list[Any]]:
+    def to_dict(
+        self, *, check_validity: bool = True
+    ) -> dict[str, str | int | list[Any]]:
         if check_validity:
             self.assert_valid()
 
@@ -162,20 +165,20 @@ class Tx:
             "vsize": self.vsize,
             "weight": self.weight,
             "locktime": self.lock_time,
-            "vin": [tx_in.to_dict(False) for tx_in in self.vin],
-            "vout": [tx_out.to_dict(False) for tx_out in self.vout],
+            "vin": [tx_in.to_dict(check_validity=False) for tx_in in self.vin],
+            "vout": [tx_out.to_dict(check_validity=False) for tx_out in self.vout],
         }
 
     @classmethod
     def from_dict(
-        cls: type[Tx], dict_: Mapping[str, Any], check_validity: bool = True
+        cls: type[Tx], dict_: Mapping[str, Any], *, check_validity: bool = True
     ) -> Tx:
         return cls(
             dict_["version"],
             dict_["locktime"],
-            [TxIn.from_dict(tx_in, False) for tx_in in dict_["vin"]],
-            [TxOut.from_dict(tx_out, False) for tx_out in dict_["vout"]],
-            check_validity,
+            [TxIn.from_dict(tx_in, check_validity=False) for tx_in in dict_["vin"]],
+            [TxOut.from_dict(tx_out, check_validity=False) for tx_out in dict_["vout"]],
+            check_validity=check_validity,
         )
 
     def assert_standard(self) -> None:
@@ -224,7 +227,7 @@ class Tx:
         if total > _MAX_SATOSHI:
             raise BTClibValueError(f"invalid total output amount: {total}")
 
-    def serialize(self, include_witness: bool, check_validity: bool = True) -> bytes:
+    def serialize(self, include_witness: bool, *, check_validity: bool = True) -> bytes:
         if check_validity:
             self.assert_valid()
 
@@ -235,11 +238,17 @@ class Tx:
                 self.version.to_bytes(4, byteorder="little", signed=False),
                 _SEGWIT_MARKER if segwit else b"",
                 var_int.serialize(len(self.vin)),
-                b"".join(tx_in.serialize(check_validity) for tx_in in self.vin),
-                var_int.serialize(len(self.vout)),
-                b"".join(tx_out.serialize(check_validity) for tx_out in self.vout),
                 b"".join(
-                    tx_in.script_witness.serialize(check_validity) for tx_in in self.vin
+                    tx_in.serialize(check_validity=check_validity) for tx_in in self.vin
+                ),
+                var_int.serialize(len(self.vout)),
+                b"".join(
+                    tx_out.serialize(check_validity=check_validity)
+                    for tx_out in self.vout
+                ),
+                b"".join(
+                    tx_in.script_witness.serialize(check_validity=check_validity)
+                    for tx_in in self.vin
                 )
                 if segwit
                 else b"",
@@ -251,6 +260,7 @@ class Tx:
     def parse(
         cls: type[Tx],
         data: BinaryData,
+        *,
         check_validity: bool = True,
     ) -> Tx:
         """Return a Tx by parsing binary data."""
@@ -271,18 +281,20 @@ class Tx:
             stream.seek(-2, SEEK_CUR)  # current position
 
         n = var_int.parse(stream)
-        vin = [TxIn.parse(stream, check_validity) for _ in range(n)]
+        vin = [TxIn.parse(stream, check_validity=check_validity) for _ in range(n)]
 
         n = var_int.parse(stream)
-        vout = [TxOut.parse(stream, check_validity) for _ in range(n)]
+        vout = [TxOut.parse(stream, check_validity=check_validity) for _ in range(n)]
 
         if segwit:
             for tx_in in vin:
-                tx_in.script_witness = Witness.parse(stream, check_validity)
+                tx_in.script_witness = Witness.parse(
+                    stream, check_validity=check_validity
+                )
 
         lock_time = int.from_bytes(stream.read(4), byteorder="little", signed=False)
 
-        return cls(version, lock_time, vin, vout, check_validity)
+        return cls(version, lock_time, vin, vout, check_validity=check_validity)
 
 
 def join_txs(

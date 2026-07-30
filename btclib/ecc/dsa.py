@@ -21,7 +21,7 @@ from __future__ import annotations
 
 import contextlib
 import secrets
-from dataclasses import InitVar, dataclass
+from dataclasses import dataclass
 from hashlib import sha256
 from io import BytesIO
 
@@ -91,7 +91,7 @@ def _deserialize_scalar(sig_data_stream: BytesIO, strict: bool = True) -> int:
     return int.from_bytes(scalar_bytes, byteorder="big", signed=False)
 
 
-@dataclass(frozen=True)
+@dataclass(frozen=True, init=False)
 class Sig:
     """ECDSA signature with strict ASN.1 DER serialization.
 
@@ -144,9 +144,20 @@ class Sig:
     # 32 bytes scalar, 0 < s < ec.n (ec.n is the curve order)
     s: int
     ec: Curve = secp256k1
-    check_validity: InitVar[bool] = True
 
-    def __post_init__(self, check_validity: bool) -> None:
+    # written out, where the rest of the library spells this as an
+    # InitVar[bool] field and a __post_init__: a dataclass field is made
+    # keyword-only by field(kw_only=True), which is python 3.10, and this
+    # package supports 3.9. init=False rather than relying on dataclasses
+    # leaving a hand-written __init__ alone, which it does but by way of an
+    # implementation detail of _set_new_attribute
+    def __init__(
+        self, r: int, s: int, ec: Curve = secp256k1, *, check_validity: bool = True
+    ) -> None:
+        object.__setattr__(self, "r", r)
+        object.__setattr__(self, "s", s)
+        object.__setattr__(self, "ec", ec)
+
         if check_validity:
             self.assert_valid()
 
@@ -177,7 +188,7 @@ class Sig:
             err_msg += f"'{hex_string(self.s)}'" if self.s > 0xFFFFFFFF else f"{self.s}"
             raise BTClibValueError(err_msg)
 
-    def serialize(self, check_validity: bool = True) -> bytes:
+    def serialize(self, *, check_validity: bool = True) -> bytes:
         """Serialize an ECDSA signature to strict ASN.1 DER representation."""
         if check_validity:
             self.assert_valid()
@@ -190,6 +201,7 @@ class Sig:
     def parse(
         cls: type[Sig],
         data: BinaryData,
+        *,
         check_validity: bool = True,
         strict: bool = True,
     ) -> Sig:
@@ -222,7 +234,7 @@ class Sig:
             err_msg = "invalid DER sequence length"
             raise BTClibValueError(err_msg)
 
-        return cls(r, s, ec, check_validity)
+        return cls(r, s, ec, check_validity=check_validity)
 
 
 def gen_keys(prv_key: PrvKey | None = None, ec: Curve = secp256k1) -> tuple[int, Point]:

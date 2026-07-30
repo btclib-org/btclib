@@ -208,6 +208,7 @@ class PsbtIn:
         taproot_internal_key: Octets = b"",
         taproot_merkle_root: Octets = b"",
         unknown: Mapping[Octets, Octets] | None = None,
+        *,
         check_validity: bool = True,
     ) -> None:
         self.non_witness_utxo = non_witness_utxo
@@ -285,15 +286,15 @@ class PsbtIn:
 
         assert_valid_unknown(self.unknown)
 
-    def to_dict(self, check_validity: bool = True) -> dict[str, Any]:
+    def to_dict(self, *, check_validity: bool = True) -> dict[str, Any]:
         if check_validity:
             self.assert_valid()
 
         return {
-            "non_witness_utxo": self.non_witness_utxo.to_dict(False)
+            "non_witness_utxo": self.non_witness_utxo.to_dict(check_validity=False)
             if self.non_witness_utxo
             else None,
-            "witness_utxo": self.witness_utxo.to_dict(False)
+            "witness_utxo": self.witness_utxo.to_dict(check_validity=False)
             if self.witness_utxo
             else None,
             "partial_signatures": encode_dict_bytes_bytes(self.partial_sigs),
@@ -305,7 +306,9 @@ class PsbtIn:
             "bip32_derivs": encode_to_bip32_derivs(self.hd_key_paths),
             # TODO make it { "asm": "", "hex": "" }
             "final_script_sig": self.final_script_sig.hex(),
-            "final_script_witness": self.final_script_witness.to_dict(False),
+            "final_script_witness": self.final_script_witness.to_dict(
+                check_validity=False
+            ),
             "ripemd160_preimages": encode_dict_bytes_bytes(self.ripemd160_preimages),
             "sha256_preimages": encode_dict_bytes_bytes(self.sha256_preimages),
             "hash160_preimages": encode_dict_bytes_bytes(self.hash160_preimages),
@@ -323,7 +326,7 @@ class PsbtIn:
 
     @classmethod
     def from_dict(
-        cls: type[PsbtIn], dict_: Mapping[str, Any], check_validity: bool = True
+        cls: type[PsbtIn], dict_: Mapping[str, Any], *, check_validity: bool = True
     ) -> PsbtIn:
         hd_key_paths = cast(
             Mapping[Octets, BIP32KeyOrigin],
@@ -334,10 +337,10 @@ class PsbtIn:
             decode_from_bip32_derivs(dict_["taproot_hd_key_paths"]),
         )
         return cls(
-            Tx.from_dict(dict_["non_witness_utxo"], False)
+            Tx.from_dict(dict_["non_witness_utxo"], check_validity=False)
             if dict_["non_witness_utxo"]
             else None,
-            TxOut.from_dict(dict_["witness_utxo"], False)
+            TxOut.from_dict(dict_["witness_utxo"], check_validity=False)
             if dict_["witness_utxo"]
             else None,
             dict_["partial_signatures"],
@@ -346,7 +349,7 @@ class PsbtIn:
             dict_["witness_script"],
             hd_key_paths,
             dict_["final_script_sig"],
-            Witness.from_dict(dict_["final_script_witness"], False),
+            Witness.from_dict(dict_["final_script_witness"], check_validity=False),
             dict_["ripemd160_preimages"],
             dict_["sha256_preimages"],
             dict_["hash160_preimages"],
@@ -358,10 +361,10 @@ class PsbtIn:
             dict_["taproot_internal_key"],
             dict_["taproot_merkle_root"],
             dict_["unknown"],
-            check_validity,
+            check_validity=check_validity,
         )
 
-    def serialize(self, check_validity: bool = True) -> bytes:
+    def serialize(self, *, check_validity: bool = True) -> bytes:
         if check_validity:
             self.assert_valid()
 
@@ -477,6 +480,7 @@ class PsbtIn:
     def parse(
         cls: type[PsbtIn],
         input_map: Mapping[bytes, bytes],
+        *,
         check_validity: bool = True,
     ) -> PsbtIn:
         """Return a PsbtIn by parsing binary data."""
@@ -570,5 +574,5 @@ class PsbtIn:
             taproot_internal_key,
             taproot_merkle_root,
             unknown,
-            check_validity,
+            check_validity=check_validity,
         )

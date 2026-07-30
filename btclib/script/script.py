@@ -384,7 +384,7 @@ class Script:
             else NotImplemented
         )
 
-    def __init__(self, script: Octets = b"", check_validity: bool = True) -> None:
+    def __init__(self, script: Octets = b"", *, check_validity: bool = True) -> None:
         self.script = bytes_from_octets(script)
         if check_validity:
             self.assert_valid()

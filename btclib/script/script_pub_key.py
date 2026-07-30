@@ -346,6 +346,7 @@ class ScriptPubKey(Script):
         self,
         script: Octets,
         network: str = "mainnet",
+        *,
         check_validity: bool = True,
     ) -> None:
         self.network = network
@@ -359,11 +360,15 @@ class ScriptPubKey(Script):
             raise BTClibValueError(f"unknown network: {self.network}")
 
     @classmethod
-    def from_address(cls, addr: String, check_validity: bool = True) -> ScriptPubKey:
+    def from_address(cls, addr: String, *, check_validity: bool = True) -> ScriptPubKey:
         """Return the ScriptPubKey of the input bech32/base58 address."""
         if b32.has_segwit_prefix(addr):
             wit_ver, wit_prg, network = b32.witness_from_address(addr)
-            return cls(serialize([op_int(wit_ver), wit_prg]), network, check_validity)
+            return cls(
+                serialize([op_int(wit_ver), wit_prg]),
+                network,
+                check_validity=check_validity,
+            )
 
         script_type, h160, network = b58.h160_from_address(addr)
         if script_type == "p2sh":
@@ -376,19 +381,20 @@ class ScriptPubKey(Script):
                 "OP_EQUALVERIFY",
                 "OP_CHECKSIG",
             ]
-        return cls(serialize(commands), network, check_validity)
+        return cls(serialize(commands), network, check_validity=check_validity)
 
     @classmethod
     def p2pk(
         cls,
         key: Key,
         network: str | None = None,
+        *,
         check_validity: bool = True,
     ) -> ScriptPubKey:
         """Return the p2pk ScriptPubKey of the provided Key."""
         payload, network = pub_keyinfo_from_key(key, network)
         script = serialize([payload, "OP_CHECKSIG"])
-        return cls(script, network, check_validity)
+        return cls(script, network, check_validity=check_validity)
 
     @classmethod
     def p2ms(
@@ -398,6 +404,7 @@ class ScriptPubKey(Script):
         network: str | None = None,
         compressed: bool | None = None,
         lexicographic_sorting: bool = True,
+        *,
         check_validity: bool = True,
     ) -> ScriptPubKey:
         """Return the m-of-n multi-sig ScriptPubKey of the provided keys.
@@ -424,12 +431,13 @@ class ScriptPubKey(Script):
             pub_keys = sorted(pub_keys)
 
         script = serialize([op_int(m), *pub_keys, op_int(n), "OP_CHECKMULTISIG"])
-        return cls(script, network, check_validity)
+        return cls(script, network, check_validity=check_validity)
 
     @classmethod
     def nulldata(
         cls,
         data: String,
+        *,
         check_validity: bool = True,
     ) -> ScriptPubKey:
         """Return the nulldata ScriptPubKey of the provided data."""
@@ -450,6 +458,7 @@ class ScriptPubKey(Script):
         key: Key,
         compressed: bool | None = None,
         network: str | None = None,
+        *,
         check_validity: bool = True,
     ) -> ScriptPubKey:
         """Return the p2pkh ScriptPubKey of the provided key."""
@@ -457,24 +466,26 @@ class ScriptPubKey(Script):
         script = serialize(
             ["OP_DUP", "OP_HASH160", hash160(pub_key), "OP_EQUALVERIFY", "OP_CHECKSIG"]
         )
-        return cls(script, network, check_validity)
+        return cls(script, network, check_validity=check_validity)
 
     @classmethod
     def p2sh(
         cls,
         redeem_script: Octets,
         network: str = "mainnet",
+        *,
         check_validity: bool = True,
     ) -> ScriptPubKey:
         """Return the p2sh ScriptPubKey of the provided redeem script."""
         script_h160 = hash160(redeem_script)
         script = serialize(["OP_HASH160", script_h160, "OP_EQUAL"])
-        return cls(script, network, check_validity)
+        return cls(script, network, check_validity=check_validity)
 
     @classmethod
     def p2wpkh(
         cls,
         key: Key,
+        *,
         check_validity: bool = True,
     ) -> ScriptPubKey:
         """Return the p2wpkh ScriptPubKey of the provided key.
@@ -483,19 +494,20 @@ class ScriptPubKey(Script):
         """
         pub_key, network = pub_keyinfo_from_key(key, compressed=True)
         script = serialize(["OP_0", hash160(pub_key)])
-        return cls(script, network, check_validity)
+        return cls(script, network, check_validity=check_validity)
 
     @classmethod
     def p2wsh(
         cls,
         redeem_script: Octets,
         network: str = "mainnet",
+        *,
         check_validity: bool = True,
     ) -> ScriptPubKey:
         """Return the p2wsh ScriptPubKey of the provided redeem script."""
         script_h256 = sha256(redeem_script)
         script = serialize(["OP_0", script_h256])
-        return cls(script, network, check_validity)
+        return cls(script, network, check_validity=check_validity)
 
     @classmethod
     def p2tr(
@@ -503,9 +515,10 @@ class ScriptPubKey(Script):
         internal_key: Key | None = None,
         script_path: TaprootScriptTree | None = None,
         network: str = "mainnet",
+        *,
         check_validity: bool = True,
     ) -> ScriptPubKey:
         """Return the p2tr ScriptPubKey of the provided script tree."""
         pub_key = output_pubkey(internal_key, script_path)[0]
         script = serialize(["OP_1", pub_key])
-        return cls(script, network, check_validity)
+        return cls(script, network, check_validity=check_validity)
