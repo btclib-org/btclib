@@ -98,6 +98,28 @@ btclib_libsecp256k1 = { git = "https://github.com/btclib-org/btclib_libsecp256k1
 include = ["btclib*"]
 namespaces = true
 
+[tool.check-manifest]
+# the website, not the package. btclib.org is served from this repository's
+# root, so the Jekyll sources sit beside the library: they are tracked, they
+# have no business in an sdist, and a tracked file the sdist omits is
+# exactly what check-manifest reports. Naming them here says that in the
+# configuration of the tool that asks the question -- MANIFEST.in used to
+# carry them as exclude rules, where they read as packaging decisions while
+# in fact matching nothing any include had added
+ignore = [
+    "CNAME",
+    "Gemfile",
+    "_config.yml",
+    "_layouts/**",
+    "assets/**",
+    # configuration of the links workflow, and check-manifest already
+    # ignores .github by default: an sdist that carries no workflow has no
+    # use for the ignore list of one. Unlike .pre-commit-config.yaml and
+    # .secrets.baseline, which it does carry, because the lint gate is
+    # runnable from an unpacked sdist
+    ".lycheeignore",
+]
+
 [tool.pytest.ini_options]
 # where the tests are, so a bare "pytest" from the root collects them and
 # nothing else, whatever else the tree grows
