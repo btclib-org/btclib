@@ -305,6 +305,49 @@ def test_key_id_is_j_above_the_parity_bit() -> None:
         assert cases == 288
 
 
+def test_key_id_is_the_j_zero_pair_when_n_is_above_p() -> None:
+    """The mirror of the case above, and issue 183's n > p box.
+
+    `r = x_K % ec.n` can only reduce while n < p, so on a curve whose order
+    is above the field prime -- four of the eight low-cardinality curves,
+    and six of the 27 catalogued ones, `secp224k1` among them -- r *is* x_K
+    and the signer is always named by the j = 0 pair, key_id 0 or 1. Which
+    makes the j >= 1 candidates spurious rather than merely unlikely: they
+    are the `(r + j*ec.n) % ec.p` wrap, and every one of them either misses
+    the curve or fails to verify. Over the 5832 signatures ec13_19 admits,
+    every one of them: 18 private keys, 18 nonces and 18 challenges, no r
+    of them zero -- which is itself the n > p property, x_K never reaching
+    a multiple of the order.
+    """
+    ec = low_card_curves["ec13_19"]
+    assert ec.n > ec.p
+    cases = 0
+    for q in range(1, ec.n):
+        Q = ec.aff_from_jac(_mult(q, ec.GJ, ec))
+        for k in range(1, ec.n):
+            r = ec.x_aff_from_jac(_mult(k, ec.GJ, ec)) % ec.n
+            if r == 0:
+                continue
+            k_inv = mod_inv(k, ec.n)
+            for e in range(ec.n):
+                s = k_inv * (e + q * r) % ec.n
+                if s == 0:
+                    continue
+                key_ids = []
+                for key_id in range(2 * (ec.cofactor + 1)):
+                    try:
+                        QJ = dsa._recover_pub_key_(key_id, e, r, s, False, ec)
+                    except (BTClibValueError, BTClibRuntimeError):
+                        continue
+                    if ec.aff_from_jac(QJ) == Q:
+                        key_ids.append(key_id)
+
+                assert key_ids, "the signer's own key is not recoverable"
+                assert all(key_id >> 1 == 0 for key_id in key_ids)
+                cases += 1
+    assert cases == 5832
+
+
 def test_crack_prv_key() -> None:
     ec = CURVES["secp256k1"]
 

@@ -17,9 +17,10 @@ from hashlib import sha256
 import pytest
 
 from btclib.alias import Point
-from btclib.curves import secp256k1
+from btclib.curves import mult, secp256k1
 from btclib.ecc import borromean, dsa
-from btclib.exceptions import BTClibRuntimeError
+from btclib.exceptions import BTClibRuntimeError, BTClibValueError
+from tests.curves.test_curve import low_card_curves
 
 
 def test_borromean() -> None:
@@ -114,3 +115,105 @@ def test_another_hash_function_gives_another_signature() -> None:
         msg, sig_256[0], sig_256[1], pub_keys, hf=hashlib.sha512
     )
     assert not borromean.verify(msg, sig_512[0], sig_512[1], pub_keys)
+
+
+# a message per curve, because a low-cardinality curve makes the corner
+# case below a one-in-n event rather than a 2**-255 one: on ec17_13 the
+# messages 0 and 1 hit a zero e and cannot be signed at all, which is the
+# next test
+ROUND_TRIP_MSG = {
+    "ec13_11": 0,
+    "ec13_19": 0,
+    "ec17_13": 2,
+    "ec17_23": 0,
+    "ec19_13": 0,
+    "ec19_23": 0,
+    "ec23_19": 0,
+    "ec23_31": 0,
+}
+
+
+@pytest.mark.parametrize("name", ROUND_TRIP_MSG)
+def test_another_curve_signs_and_verifies(name: str) -> None:
+    """The ec argument has to reach the arithmetic, not only the encodings.
+
+    It did not: `mult(k)` and `double_mult(-e, Q, s, ec.G)` were called
+    without ec, so every point was computed on secp256k1 -- ec.G being
+    merely a *point* argument -- and then encoded against ec. The first
+    bytes_from_point raised "y-coordinate not in 1..p-1" with a
+    secp256k1-sized coordinate in the message, so no curve but secp256k1
+    could sign at all, and the corner case issue 183 asked about was
+    unreachable rather than untested.
+    """
+    ec = low_card_curves[name]
+    msg = ROUND_TRIP_MSG[name].to_bytes(4, "big")
+    pubk_rings = [[mult(2, ec.G, ec)]]
+
+    e0, s = borromean.sign(msg, [3], [0], [2], pubk_rings, ec=ec)
+
+    borromean.assert_as_valid(msg, e0, s, pubk_rings, ec=ec)
+    assert borromean.verify(msg, e0, s, pubk_rings, ec=ec)
+    assert not borromean.verify(b"\xff\xff\xff\xff", e0, s, pubk_rings, ec=ec)
+    # and it is a signature on that curve, not on secp256k1
+    assert not borromean.verify(msg, e0, s, pubk_rings)
+
+
+def test_a_zero_e_is_a_one_in_n_event_on_a_low_cardinality_curve() -> None:
+    """The corner case issue 183 asked for: e = 0 mod n, and no signature.
+
+    `e = int_from_bits(hash, ec.nlen) % ec.n` is zero for about one message
+    in n, so on ec13_11 it is one in eleven where on secp256k1 it is one in
+    2**255. Each guard is reached with a single-key ring or a two-key ring
+    signed at index 0, both of which make `sign` deterministic: the s-values
+    it draws at random are either overwritten by the signer or used only
+    after the e that is being tested.
+    """
+    ec = low_card_curves["ec13_11"]
+    Q1, Q2 = mult(1, ec.G, ec), mult(2, ec.G, ec)
+    err_msg = "implausible signature failure"
+
+    # step 2, the e derived from e0
+    with pytest.raises(BTClibRuntimeError, match=err_msg):
+        borromean.sign(b"\x00\x00\x00\x00", [1], [0], [1], [[Q1]], ec=ec)
+
+    # step 1, the e derived from the nonce's own point
+    with pytest.raises(BTClibRuntimeError, match=err_msg):
+        borromean.sign(b"\x00\x00\x00\x01", [3], [0], [1], [[Q1, Q2]], ec=ec)
+
+    # and both guards in verification, where nothing is random: the first
+    # e of a ring, and one derived from a preceding r
+    with pytest.raises(BTClibRuntimeError, match=err_msg):
+        borromean.assert_as_valid(
+            b"\x00\x00\x00\x00", (8).to_bytes(32, "big"), [[1]], [[Q1]], ec=ec
+        )
+    with pytest.raises(BTClibRuntimeError, match=err_msg):
+        borromean.assert_as_valid(
+            b"\x00\x00\x00\x00", (0).to_bytes(32, "big"), [[1, 1]], [[Q1, Q2]], ec=ec
+        )
+    # verify answers False, as it does for any input that is not a valid
+    # signature: BTClibRuntimeError is one of the two it catches
+    assert not borromean.verify(
+        b"\x00\x00\x00\x00", (8).to_bytes(32, "big"), [[1]], [[Q1]], ec=ec
+    )
+
+
+def test_the_point_at_infinity_is_the_other_corner_case() -> None:
+    """`s*G - e*Q` can be INF, and the hash input has no encoding for it.
+
+    The one-in-n neighbour of a zero e, and unguarded on purpose: `r` is a
+    hash input, `bytes_from_point` is what produces it, and there is no
+    serialization of the point at infinity to hash. So it raises where a
+    zero e raises "implausible signature failure", and the caller's answer
+    is another nonce -- on secp256k1, a 2**-128 event nobody will see.
+    """
+    ec = low_card_curves["ec13_11"]
+    Q1 = mult(1, ec.G, ec)
+
+    with pytest.raises(BTClibValueError, match="no bytes representation"):
+        borromean.assert_as_valid(
+            b"\x00\x00\x00\x00", (21).to_bytes(32, "big"), [[1]], [[Q1]], ec=ec
+        )
+    # ValueError being the other exception verify catches
+    assert not borromean.verify(
+        b"\x00\x00\x00\x00", (21).to_bytes(32, "big"), [[1]], [[Q1]], ec=ec
+    )

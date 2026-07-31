@@ -136,3 +136,36 @@ def test_dataclasses_json_dict(json_golden: JsonGolden) -> None:
     assert isinstance(tx_in2, TxIn)
 
     assert tx_in == tx_in2
+
+
+def test_script_sig_is_not_validated_and_that_is_the_answer() -> None:
+    """An input's validity is not its script's (issue 183).
+
+    Three things a check here would have to be, and each belongs
+    elsewhere: a script_sig that does not parse still makes a valid input,
+    the 1650-byte and push-only limits of Core's IsStandardTx are relay
+    policy rather than validity, and the one consensus rule about a
+    script_sig at this level -- the coinbase's 2..100 bytes -- is
+    Tx.assert_valid's, a lone TxIn with the null prev_out being the
+    placeholder a builder starts from.
+    """
+    prev_out = OutPoint(b"\x01" * 32, 0)
+
+    # not a script at all: a bare OP_PUSHDATA1 with no length byte after it
+    TxIn(prev_out, b"\x4c").assert_valid()
+    # over the 1650 bytes IsStandardTx allows, and over the 10000 the
+    # interpreter allows the script it evaluates
+    TxIn(prev_out, b"\x00" * 20000).assert_valid()
+    # not push-only: OP_DUP
+    TxIn(prev_out, b"v").assert_valid()
+
+    # the placeholder every builder starts from, which a coinbase-input
+    # length check here would reject
+    TxIn().assert_valid()
+    assert TxIn().is_coinbase()
+    assert not TxIn().script_sig
+
+    # and the coinbase rule is enforced where the transaction is known
+    tx = Tx(vin=[TxIn()], vout=[], check_validity=False)
+    with pytest.raises(BTClibValueError, match="Invalid coinbase script size"):
+        tx.assert_valid()

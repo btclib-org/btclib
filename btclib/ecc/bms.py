@@ -133,6 +133,7 @@ https://github.com/bitcoin/bips/blob/master/bip-0137.mediawiki
 from __future__ import annotations
 
 import base64
+import contextlib
 import secrets
 from dataclasses import dataclass
 from hashlib import sha256
@@ -280,12 +281,40 @@ def sign(msg: Octets, prv_key: PrvKey, addr: String | None = None) -> Sig:
     q, network, compressed = prv_keyinfo_from_prv_key(prv_key)
     dsa_sig = dsa.sign(magic_msg, q)
 
-    # now calculate the key_id
-    pub_keys = dsa.recover_pub_keys(magic_msg, dsa_sig)
+    # now calculate the key_id: the candidate that is this key, named by
+    # the key_id that recovers it. key_id is in [0, 3], and the first two
+    # bits in rf are reserved for it
+    #
+    # one candidate at a time, stopping at the match, where it used to be
+    # dsa.recover_pub_keys(magic_msg, dsa_sig).index(Q) -- every candidate
+    # and then a search. Two things that bought: on secp256k1 the list is
+    # key_ids 0 and 1, since a signer's own key has j = 0, so key_ids 2
+    # and 3 are computed only to be dropped -- each a python _double_mult
+    # when r + ec.n - ec.p happens to be on the curve, about half the
+    # time; measured over 40 random (key, msg) pairs, 18.7 ms against
+    # 9.0 ms here, a factor of 2. And .index names the key_id only while
+    # no earlier candidate has dropped out of that list, which is exactly
+    # what the j = 1 case does: r + ec.n < ec.p with r not a coordinate on
+    # the curve leaves [key_id 2, key_id 3] and an index of 0 or 1
+    #
+    # a mod_inv per candidate is the price of comparing affine points, and
+    # the match could be made in Jacobian coordinates instead (issue 183);
+    # measured, it is not worth reaching into dsa's private layer for, the
+    # two inversions of an aff_from_jac being 37 us against the 5900 us of
+    # the recovery that produced the point
     Q = mult(q)
-    # key_id is in [0, 3]
-    # first two bits in rf are reserved for it
-    key_id = pub_keys.index(Q)
+    for key_id in range(2 * (secp256k1.cofactor + 1)):
+        # a candidate can fail either half of SEC 1 v.2 step 1.6, which
+        # means "not this one" and not "no key": see dsa._recover_pub_keys_
+        with contextlib.suppress(BTClibValueError, BTClibRuntimeError):
+            if dsa.recover_pub_key(key_id, magic_msg, dsa_sig) == Q:
+                break
+    else:
+        # unreachable: dsa_sig was just signed with q, so some key_id
+        # recovers mult(q)
+        err_msg = "no key_id recovers the public key"  # pragma: no cover
+        raise BTClibRuntimeError(err_msg)  # pragma: no cover
+
     pub_key = bytes_from_point(Q, compressed=compressed)
 
     if isinstance(addr, str):

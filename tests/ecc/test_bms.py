@@ -10,17 +10,19 @@
 """Tests for the `btclib.bms` module."""
 
 import base64
+import contextlib
 from hashlib import sha256
 from typing import Any
 
 import pytest
 
 from btclib import b32, b58
+from btclib.alias import Point
 from btclib.bip32 import bip32
 from btclib.curves import secp256k1
 from btclib.curves.curve import CURVES
 from btclib.ecc import bms, dsa
-from btclib.exceptions import BTClibValueError
+from btclib.exceptions import BTClibRuntimeError, BTClibValueError
 from btclib.hashes import magic_message
 from btclib.mnemonic import bip39
 from btclib.to_prv_key import prv_keyinfo_from_prv_key
@@ -706,6 +708,39 @@ def test_recover_pub_key_input_type() -> None:
     )
     Q2 = dsa.recover_pub_key(key_id, magic_msg, bms_sig.dsa_sig, True, sha256)
     assert Q == Q2
+
+
+def test_the_recovery_flag_carries_a_key_id_not_a_list_index() -> None:
+    """`sign` searches the key_ids; it used to index the recovered list.
+
+    `dsa.recover_pub_keys(...).index(Q)` is the key_id only while no
+    earlier candidate has dropped out of that list, and a candidate drops
+    whenever its x-coordinate is not on the curve. So the property to pin
+    is the round trip: the key_id read back out of rf recovers the signing
+    key, whatever else the recovery set holds.
+    """
+    for i in range(8):
+        msg = f"message {i}".encode()
+        prv_key, pub_key = dsa.gen_keys()
+        bms_sig = bms.sign(msg, prv_key)
+        magic_msg = magic_message(msg)
+        key_id = bms_sig.rf - 27 & 0b11
+        assert dsa.recover_pub_key(key_id, magic_msg, bms_sig.dsa_sig) == pub_key
+        # and it is the *first* key_id that does, which is what makes the
+        # flag reproducible: signing the same message twice with the same
+        # key gives the same rf only because the search order is fixed
+        earlier = [
+            k
+            for k in range(key_id)
+            if _recovers(k, magic_msg, bms_sig.dsa_sig) == pub_key
+        ]
+        assert not earlier
+
+
+def _recovers(key_id: int, magic_msg: bytes, dsa_sig: dsa.Sig) -> Point | None:
+    with contextlib.suppress(BTClibValueError, BTClibRuntimeError):
+        return dsa.recover_pub_key(key_id, magic_msg, dsa_sig)
+    return None
 
 
 def test_parse_length_is_not_a_validity_opinion() -> None:

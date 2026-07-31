@@ -94,6 +94,29 @@ class TxIn:
     def assert_valid(self) -> None:
         self.prev_out.assert_valid()
 
+        # script_sig is deliberately not looked at, and the marker asking
+        # for a check (issue 183) is answered by where the answers already
+        # are. An input's validity is not its script's:
+        #
+        # - a script_sig that does not parse is a valid input. It fails
+        #   *evaluation*, which is script_engine's answer to give, and the
+        #   only size limit consensus puts on it is the interpreter's
+        #   10000 bytes over the script being evaluated
+        # - the 1650 bytes and push-only of Core's IsStandardTx --
+        #   MAX_STANDARD_SCRIPTSIG_SIZE, "scriptsig-size" and
+        #   "scriptsig-not-pushonly" -- are relay policy. A transaction
+        #   breaking either is mined and valid, so refusing it here would
+        #   refuse a valid transaction, and policy is not what assert_valid
+        #   means anywhere else in the package
+        # - the one consensus rule at this level is the coinbase's 2..100
+        #   bytes, and Tx.assert_valid enforces it, which is the only place
+        #   that can: it takes a coinbase *transaction*, while a lone TxIn
+        #   with the null prev_out is the placeholder every builder starts
+        #   from -- TxIn() itself is one, with an empty script_sig
+        #
+        # TxOut made the same call for script_pub_key, for the reason in
+        # the comment there
+
         # must be a 4-bytes int
         if not 0 <= self.sequence <= 0xFFFFFFFF:
             raise BTClibValueError(f"invalid sequence: {self.sequence}")

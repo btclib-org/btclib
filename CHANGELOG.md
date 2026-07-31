@@ -578,6 +578,22 @@ source-breaking changes on their own.
 
 ### Curves, signatures and keys
 
+- **borromean ring signatures work on a curve other than secp256k1**, which
+  is what the `ec` parameter has been offering since it stopped being a
+  module global. It reached the encodings and the order — `bytes_from_point`,
+  `ec.nlen`, `ec.n`, `ec.G` — and not the arithmetic: `mult(k)` and
+  `double_mult(-e, Q, s, ec.G)` take the curve as a *last* argument
+  defaulted to secp256k1, so both type check, read as if they honoured
+  `ec`, and computed on secp256k1. Every point was then encoded against
+  `ec`, so the first `bytes_from_point` raised "y-coordinate not in
+  1..p-1" with a 256-bit coordinate in the message and no other curve
+  could sign at all. All eight low-cardinality test curves now sign and
+  verify, the cofactor-2 and the n > p ones included, and the corner case
+  the marker asked about is reachable rather than merely untested: a zero
+  `e` is one message in n where on secp256k1 it is one in 2^255, so three
+  of the four "implausible signature failure" guards lose their
+  `no cover` pragma, and `s*G - e*Q = INF` — the neighbour corner, which
+  has no hash input and so no guard — is pinned too (issue #183)
 - **`point_from_octets` takes the hybrid 0x06 and 0x07 prefixes when asked**:
   `point_from_octets(key, hybrid=True)`. They are SEC 1 v.2 section 2.3.4 like
   the other three, carry both coordinates as 0x04 does, and repeat the parity
@@ -992,6 +1008,21 @@ source-breaking changes on their own.
   gained. The legacy sig_hash stays quadratic, its preimage being the
   transaction itself, blanked and re-serialized per input — there is no
   transaction-wide part of it to share, here or in Core (issue #164)
+- **`bms.sign` is twice as fast**, and its recovery flag now names a
+  key_id rather than a position in a list. It read
+  `dsa.recover_pub_keys(magic_msg, dsa_sig).index(Q)`: every candidate
+  recovered, then searched. On secp256k1 the recovery set is key_ids 0 and
+  1 — a signer's own key has j = 0 — so key_ids 2 and 3 were computed only
+  to be dropped, each a python `_double_mult` whenever `r + ec.n - ec.p`
+  lands on the curve, about half the time. The search now runs one
+  candidate at a time and stops at the match: 18.7 ms to 9.0 ms, measured
+  over 40 random (key, msg) pairs. `.index` was also the wrong question by
+  a hair — it answers the key_id only while no earlier candidate has
+  dropped out, and the j = 1 case is exactly one that drops two, so a
+  signature with `r + ec.n < ec.p` and `r` not a coordinate on the curve
+  would have been flagged 0 or 1 where 2 or 3 recovers the key. That takes
+  some 2^-127 of signatures, and is now unreachable rather than unlikely
+  (issue #183)
 - importing btclib is 140 ms faster: `Curve` takes a new `order_check`
   argument, and the 27 catalogued curves pass `order_check=False` and
   `weakness_check=False`. The n\*G ≟ INF check the first one gates is a
@@ -1015,6 +1046,29 @@ source-breaking changes on their own.
 
 ### Tests
 
+- **a curve whose order is above its field prime is covered**, the
+  neighbour of the n == p check issue #166 found never fired (issue #183).
+  Hasse puts p and n within 2\*sqrt(p) of each other, so which is the
+  larger is a property of the curve: four of the eight low-cardinality test
+  curves have n > p, and so do six of the 27 catalogued ones —
+  `secp112r1`, `secp128r1`, `secp160k1`, `secp160r1`, `secp160r2`,
+  `secp224k1`. `test_curves_with_n_above_p` pins that spread, which was
+  nothing but an accident of the test data before, and
+  `test_key_id_is_the_j_zero_pair_when_n_is_above_p` draws the consequence
+  for key recovery: `r = x_K % ec.n` cannot reduce while p < n, so the
+  signer is always named by key_id 0 or 1 and the j >= 1 candidates are
+  spurious rather than merely unlikely — over the 5832 signatures ec13_19
+  admits, every one of them. It is the mirror of the cofactor-2 case
+  beside it, where n < p and only a j of 1 recovers the key
+- **`TxIn.assert_valid` not looking at `script_sig` is now a decision with
+  a test**, where it was a `# TODO check script_sig` (issue #183). An input
+  whose script does not parse is a valid input — evaluation is
+  `script_engine`'s answer to give — the 1650 bytes and push-only of Core's
+  `IsStandardTx` are relay policy rather than validity, and the one
+  consensus rule at this level, the coinbase's 2..100 bytes, is
+  `Tx.assert_valid`'s: it takes a coinbase *transaction*, while a lone
+  `TxIn` with the null prev_out is the placeholder a builder starts from.
+  `test_script_sig_is_not_validated_and_that_is_the_answer` pins all four
 - **the vendored consensus vectors are judged by the python implementation
   too**, in `tests/script_engine/test_python_path.py`: the two symbols the
   engine imports from the bindings are replaced by `btclib.ecc`, and

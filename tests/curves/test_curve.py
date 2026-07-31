@@ -34,14 +34,17 @@ from btclib.curves.curve import (
 # cached_multiples and jac_from_aff are implementation helpers of
 # curve_group, not part of what btclib.curves exports: they are taken from the
 # module that defines them
-from btclib.curves.curve_group import cached_multiples, jac_from_aff
+from btclib.curves.curve_group import cached_multiples, jac_from_aff, mult_jac
 from btclib.ecc import second_generator
 from btclib.exceptions import BTClibTypeError, BTClibValueError
 from btclib.number_theory import mod_sqrt
 from btclib.to_pub_key import pub_keyinfo_from_prv_key
 from tests import vectors
 
-# test curves: very low cardinality
+# test curves: very low cardinality. The name is p and n, in that order,
+# so the four with the larger second number are the n > p ones -- ec13_19,
+# ec17_23, ec19_23 and ec23_31 -- and test_curves_with_n_above_p below is
+# what keeps that spread from disappearing in an edit
 # 13 % 4 = 1; 13 % 8 = 5
 low_card_curves = {"ec13_11": Curve(13, 7, 6, (1, 1), 11, 1, False)}
 low_card_curves["ec13_19"] = Curve(13, 0, 2, (1, 9), 19, 1, False)
@@ -174,6 +177,48 @@ def test_exceptions() -> None:
 def test_anomalous_curve(p: Integer) -> None:
     with pytest.raises(BTClibValueError, match="n=p weak curve: "):
         Curve(p, 1, 6, (2, 9), 13, 1)
+
+
+def test_curves_with_n_above_p() -> None:
+    """Hasse admits n > p, and six catalogued curves take it up (issue 183).
+
+    The neighbour of the n == p check that issue #166 found never fired: p
+    and n are within 2*sqrt(p) of each other, so which is the larger is a
+    property of the curve and not of the library, and `secp112r1`,
+    `secp128r1`, `secp160k1`, `secp160r1`, `secp160r2` and `secp224k1` all
+    have the order above the field prime. Four of the eight
+    low-cardinality curves are on that side too, which is what makes the
+    case testable at all: every (private key, nonce, challenge) triple of a
+    curve of order 19 fits in a test.
+
+    What n > p decides is whether `r = x_K % ec.n` can reduce, and it
+    cannot: x_K < p < n. tests/ecc/test_dsa.py draws the consequence for
+    key recovery, next to the cofactor-2 case it is the mirror of.
+    """
+    above = {name for name, ec in low_card_curves.items() if ec.n > ec.p}
+    assert above == {"ec13_19", "ec17_23", "ec19_23", "ec23_31"}
+    below = {name for name, ec in low_card_curves.items() if ec.n < ec.p}
+    assert below == {"ec13_11", "ec17_13", "ec19_13", "ec23_19"}
+    # no curve has n == p: Curve refuses to build one, anomalous curves
+    # being weak (test_anomalous_curve)
+    assert not [ec for ec in all_curves.values() if ec.n == ec.p]
+
+    assert {name for name, ec in CURVES.items() if ec.n > ec.p} == {
+        "secp112r1",
+        "secp128r1",
+        "secp160k1",
+        "secp160r1",
+        "secp160r2",
+        "secp224k1",
+    }
+
+    for name in sorted(above):
+        ec = low_card_curves[name]
+        # every point of the curve, x below n, so nothing to reduce
+        for q in range(1, ec.n):
+            x_K = ec.x_aff_from_jac(mult_jac(q, ec.GJ, ec))
+            assert x_K < ec.n
+            assert x_K % ec.n == x_K
 
 
 def test_catalogued_curves() -> None:

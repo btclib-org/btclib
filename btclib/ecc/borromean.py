@@ -33,6 +33,13 @@ from btclib.utils import bytes_from_octets, int_from_bits
 # globals -- "ec = secp256k1" and "from hashlib import sha256 as hf" -- so
 # selecting either meant rebinding an attribute of this module, which
 # changes the algorithm for every other caller in the process
+#
+# ec has to be passed to mult and double_mult too, and that is easy to
+# miss: both take the curve as their *last* argument and default it to
+# secp256k1, so `mult(k)` and `double_mult(-e, Q, s, ec.G)` type check,
+# read as if they honoured ec, and compute on secp256k1. Every point was
+# then encoded against ec, so the first bytes_from_point rejected it and
+# no curve but secp256k1 could sign at all (issue 183)
 
 
 def _hash(m: bytes, R: bytes, i: int, j: int, hf: HashF) -> bytes:
@@ -104,20 +111,22 @@ def sign(
     for i, (pubk_ring, j_star, k) in enumerate(zip(pubk_rings, sign_key_idx, ks)):
         keys_size = len(pubk_ring)
         start_idx = (j_star + 1) % keys_size
-        r = bytes_from_point(mult(k), ec)
+        r = bytes_from_point(mult(k, ec.G, ec), ec)
         if start_idx != 0:
             for j in range(start_idx, keys_size):
                 e[i][j] = int_from_bits(_hash(m, r, i, j, hf), ec.nlen) % ec.n
                 # e is already reduced mod n, so only zero can trip this,
                 # and for secp256k1 with sha256 zero is a 2**-255
                 # accident: exactly two of the 256-bit outputs (0 and n)
-                # are 0 mod n. A low-cardinality curve is a different
-                # matter, which is what issue 183 is about, and what made
-                # ec a parameter worth having
+                # are 0 mod n. On a low-cardinality curve it is one message
+                # in n -- one in eleven on ec13_11 -- which is the corner
+                # case issue 183 asked for and what made ec a parameter
+                # worth having: tests/ecc/test_borromean.py reaches this
+                # raise, and the three below it, on that curve
                 if not 0 < e[i][j] < ec.n:
-                    err_msg = "implausible signature failure"  # pragma: no cover
-                    raise BTClibRuntimeError(err_msg)  # pragma: no cover
-                t = double_mult(-e[i][j], pubk_ring[j], s[i][j], ec.G)
+                    err_msg = "implausible signature failure"
+                    raise BTClibRuntimeError(err_msg)
+                t = double_mult(-e[i][j], pubk_ring[j], s[i][j], ec.G, ec)
                 r = bytes_from_point(t, ec)
         e0bytes += r
     hasher = hf()
@@ -126,16 +135,20 @@ def sign(
     # step 2
     for i, (j_star, k) in enumerate(zip(sign_key_idx, ks)):
         e[i][0] = int_from_bits(_hash(m, e0, i, 0, hf), ec.nlen) % ec.n
-        # zero e again: the same 2**-255 accident documented above
+        # zero e again: the same accident documented above
         if not 0 < e[i][0] < ec.n:
-            err_msg = "implausible signature failure"  # pragma: no cover
-            raise BTClibRuntimeError(err_msg)  # pragma: no cover
+            err_msg = "implausible signature failure"
+            raise BTClibRuntimeError(err_msg)
         for j in range(1, j_star + 1):
             s[i][j - 1] = secrets.randbits(256)
-            t = double_mult(-e[i][j - 1], pubk_rings[i][j - 1], s[i][j - 1], ec.G)
+            t = double_mult(-e[i][j - 1], pubk_rings[i][j - 1], s[i][j - 1], ec.G, ec)
             r = bytes_from_point(t, ec)
             e[i][j] = int_from_bits(_hash(m, r, i, j, hf), ec.nlen) % ec.n
-            # zero e again: the same 2**-255 accident documented above
+            # zero e again, and the one guard of the four that stays
+            # unreachable from a test: this e hashes an r built from
+            # s[i][j-1], drawn from secrets two lines up, so a
+            # low-cardinality curve makes it a one-in-n *accident* rather
+            # than something a chosen message can arrange
             if not 0 < e[i][j] < ec.n:
                 err_msg = "implausible signature failure"  # pragma: no cover
                 raise BTClibRuntimeError(err_msg)  # pragma: no cover
@@ -190,21 +203,23 @@ def assert_as_valid(
     for i, pubk_ring in enumerate(pubk_rings):
         keys_size = len(pubk_ring)
         e[i][0] = int_from_bits(_hash(m, e0, i, 0, hf), ec.nlen) % ec.n
-        # a zero e: the same 2**-255 accident documented in sign
+        # a zero e: the same accident documented in sign, and here
+        # nothing is random -- the whole signature is an argument -- so a
+        # chosen e0 reaches it on a low-cardinality curve
         if e[i][0] == 0:
-            err_msg = "implausible signature failure"  # pragma: no cover
-            raise BTClibRuntimeError(err_msg)  # pragma: no cover
+            err_msg = "implausible signature failure"
+            raise BTClibRuntimeError(err_msg)
         r = b"\0x00"
         for j in range(keys_size):
-            t = double_mult(-e[i][j], pubk_ring[j], s[i][j], ec.G)
+            t = double_mult(-e[i][j], pubk_ring[j], s[i][j], ec.G, ec)
             r = bytes_from_point(t, ec)
             if j != keys_size - 1:
                 h = _hash(m, r, i, j + 1, hf)
                 e[i][j + 1] = int_from_bits(h, ec.nlen) % ec.n
-                # a zero e: the same 2**-255 accident documented in sign
+                # a zero e: the same accident, one ring position later
                 if e[i][j + 1] == 0:
-                    err_msg = "implausible signature failure"  # pragma: no cover
-                    raise BTClibRuntimeError(err_msg)  # pragma: no cover
+                    err_msg = "implausible signature failure"
+                    raise BTClibRuntimeError(err_msg)
             else:
                 e0bytes += r
     hasher = hf()
