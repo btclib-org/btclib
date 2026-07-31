@@ -151,7 +151,16 @@ jobs:
         uses: astral-sh/setup-uv@c771a70e6277c0a99b617c7a806ffedaca235ff9 # v9.0.0
         with:
           enable-cache: true
-          python-version: "3.13"
+          # 3.14, i.e. what .python-version pins and what a bare `uv run`
+          # gives a maintainer locally: the number this job gates on is a
+          # ratio of statements, and the statement count moves between
+          # interpreters -- 15139 here against the 15145 of 3.13 -- so a
+          # threshold checked on one version is not the one another
+          # measures. Pinned rather than inherited from .python-version
+          # even so, because that coupling belongs where the gate runs:
+          # the fail_under comment in pyproject.toml names this version,
+          # and the two have to move together
+          python-version: "3.14"
       - name: Run pytest under coverage
         run: >
           uv run --locked --no-default-groups --group test

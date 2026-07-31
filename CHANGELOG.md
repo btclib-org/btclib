@@ -11,7 +11,7 @@ release-notes length in the first place, and are still in
 
 ## v2026.8 (work in progress, not released yet)
 
-A hundred and twenty-four entries, grouped. The order runs from what breaks a
+A hundred and twenty-five entries, grouped. The order runs from what breaks a
 caller to what only maintainers see; [HISTORY.md](./HISTORY.md) lists the
 fifteen source-breaking changes on their own.
 
@@ -1201,7 +1201,7 @@ fifteen source-breaking changes on their own.
   coverage special-cases 100 to mean exactly 100.00%, which would make
   one version-gated line a red build; the comparison is
   `round(total, precision) < fail_under`, so 99.99 allows two of the
-  15145 statements the coverage job measures on 3.13
+  15139 statements the coverage job measures
 - **`tests/ecc/test_bms.py` imports on python 3.9 again.** It annotates a
   helper `-> Point | None` without `from __future__ import annotations`,
   which 3.9 evaluates at def time and has no `|` for: the module was ten
@@ -1386,6 +1386,17 @@ fifteen source-breaking changes on their own.
   stricter: a warning is an error, an unregistered marker and a typo in
   the pytest configuration are errors, and an xfail that passes is a
   failure
+- **the two jobs that pin one interpreter pin 3.14**, where they pinned
+  3.13 — `coverage-py` in `test.yml` and the TestPyPI version-suffix step
+  in `release.yml`. 3.14 is what `.python-version` gives a bare `uv run`
+  and what the lint and docs jobs therefore already used, so 3.13 was a
+  version those two jobs alone singled out — the matrix tests it like
+  every other. It matters most for coverage, whose gate is a ratio of a
+  statement count that moves between interpreters, 15139 on 3.14 against
+  15145 on 3.13: the threshold and the interpreter now agree with what a
+  maintainer measures locally with a bare `uv run pytest --cov`. The
+  release step only needs a `tomllib`, i.e. 3.11 or newer, and now asks
+  for a version uv has already fetched for the other jobs
 - the packaging metadata is validated on every pull request rather than
   only on the tag that ships it: twine, check-wheel-contents and pyroma
   moved from the release workflow to a job of the test workflow, which

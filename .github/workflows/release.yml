@@ -172,9 +172,11 @@ jobs:
         # rewritten whole, which leaves its spelling as the file had it.
         # The interpreter comes from uv, --no-project so that nothing is
         # installed and no lock is consulted: this job sets up no python of
-        # its own, and tomllib needs 3.11
+        # its own, and tomllib needs 3.11. 3.14 is what .python-version
+        # pins, so this asks for a version uv has already fetched for the
+        # other jobs rather than a second one
         run: |
-          uv run --no-project --python 3.13 python - <<'PY'
+          uv run --no-project --python 3.14 python - <<'PY'
           import os
           import re
           import tomllib

@@ -95,10 +95,10 @@ must pass at any time, with
 [coverage](https://coverage.readthedocs.io/)
 of both the library and the test suite above the `fail_under` ratchet in
 pyproject.toml — 99.99% against the 100% of today, which is 0 statements
-uncovered out of 15145: slack for 2, enough not to trip over a
-version-gated line, tight enough that a regression cannot hide. It was
-99.9, and 12 of the 15 statements that bought had gone uncovered without
-anybody noticing.
+uncovered out of the 15139 python 3.14 measures: slack for 2, enough not
+to trip over a version-gated line, tight enough that a regression cannot
+hide. It was 99.9, and 12 of the 15 statements that bought had gone
+uncovered without anybody noticing.
 See [Tests, code coverage, and profiling](./tests/README.md).
 
 These requirements are easily checked (and partially fixed) with:
