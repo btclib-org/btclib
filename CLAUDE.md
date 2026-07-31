@@ -60,8 +60,33 @@ docstring.
 
 ## Non-obvious facts that will otherwise waste a session
 
+- **A session works in its own worktree, never in the shared checkout.**
+  Several sessions run against this repository at the same time, and one
+  working tree cannot hold two of them: a plain `git commit` (or `git add
+  -A`) picks up whatever another session has staged, and `git rebase`,
+  `git stash` and the `pre-commit` hooks that fix files in place rewrite
+  or shelve files that are not this session's. So `git worktree add
+  --detach <scratchpad>/wt<issue> dev`, `uv sync --locked` in it (a second
+  venv, about a minute), then edit, gate and commit *there*, `git push
+  origin HEAD:dev`, and `git worktree remove --force` at the end. Nothing
+  destructive then reaches a file another session holds, and the commit
+  cannot contain their work because their edits were never in it. Expect
+  the push to be rejected — `origin/dev` moves while you work — so `git
+  fetch && git rebase origin/dev` in the worktree, resolving in favour of
+  *both* sides (their change and yours, both HISTORY.md bullets).
+  Committing from the shared tree instead takes a throwaway index
+  (`GIT_INDEX_FILE`, `git read-tree HEAD`, `git update-index --add` for
+  your paths only, `git write-tree`, `git commit-tree`, then
+  `git update-ref` guarded by the old value); that is the measure of what
+  the worktree buys.
 - **Work happens on `dev`**; `master` is the default branch and receives
   merges from it. Dependabot and pre-commit.ci both target `dev`.
+- **A dev CI run is usually `cancelled`, not green.** `test.yml`'s
+  concurrency group is `test-${{ github.ref }}` with cancel-in-progress,
+  so the next session's push to `dev` kills the run for the previous
+  commit. The local gates below are the evidence; `cancelled` is not
+  `failure`, and waiting for a busy afternoon to settle is waiting for
+  nothing.
 - **`.pre-commit-config.yaml` is the lint gate**, and `lint.yml` runs
   exactly it. Never add a second list of the same tools to a workflow.
   mypy is a *local* hook shelling out to uv on purpose: the mirrors-mypy
