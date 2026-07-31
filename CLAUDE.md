@@ -79,24 +79,27 @@ docstring.
   repository and a context that stops being produced blocks every merge.
   A new job in `test.yml` belongs in that job's `needs`, or it gates
   nothing.
-- **`master` is protected and `dev` is not**, which is asymmetric on
-  purpose but is not written down anywhere the rules themselves can be
-  read, so here is the whole of it. `master`: those three checks with
-  `strict`, one approving review, `dismiss_stale_reviews`, **required
-  signatures**, linear history, no force pushes, no deletions,
-  `required_conversation_resolution`, and `enforce_admins` *off* — an
-  administrator can bypass all of it. `dev`: nothing at all
-  (`gh api repos/btclib-org/btclib/branches/dev/protection` is a 404),
-  while Dependabot targets it for both ecosystems, pre-commit.ci
-  autoupdates it, and Dependabot security updates are on. So bot-authored
-  changes reach `master` through a branch anyone with write access can push
-  to directly, which is issue #158.
-  Two things to know before copying `master`'s rules onto `dev`, both
-  measured rather than assumed: commits on `dev` are **unsigned**
-  (`git log --format='%G?'` prints `N`), so `required_signatures` would
-  reject every push including the bots'; and one approving review on a
-  solo-maintainer branch cannot be satisfied by the author, GitHub not
-  allowing self-approval. Whatever `dev` gets has to be chosen, not copied.
+- **Both branches are protected, and differently on purpose.** The rules
+  live outside the repository, so here is the whole of them. `master`:
+  those three checks with `strict`, one approving review,
+  `dismiss_stale_reviews`, **required signatures**, linear history, no
+  force pushes, no deletions, `required_conversation_resolution`, and
+  `enforce_admins` *off* — an administrator can bypass all of it. `dev`:
+  no force pushes, no deletions, linear history, and nothing else — no
+  required check, no review, no signature, so a direct push still works,
+  which is what `uv run` and both bots rely on.
+  That asymmetry is the answer to issue #158, and it is a choice rather
+  than a copy for two measured reasons. Commits on `dev` are **unsigned**
+  (`git log --format='%G?'` prints `N`), so `required_signatures` there
+  would reject every push, the bots' included. And one approving review
+  cannot be satisfied by the author, GitHub not allowing self-approval, so
+  on a solo-maintainer branch it is a stop rather than a speed bump. What
+  `dev` does now buy is the thing the issue was about: Dependabot targets
+  it for both ecosystems, pre-commit.ci autoupdates it, and Dependabot
+  security updates are on, so bot-authored commits reach `master` through
+  it — and that branch can no longer be rewritten or deleted under them.
+  Requiring the three checks on `dev` as well is the next step if one is
+  wanted, and it costs the direct push.
 - **The default `GITHUB_TOKEN` is read-only repository-wide**, so a job
   needing more must declare it (only `release.yml`'s `github-release`
   does, `contents: write`, plus `id-token: write` on the two publish
