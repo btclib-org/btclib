@@ -465,6 +465,15 @@ source-breaking changes on their own.
   are gone: a test that provokes the warning deliberately now asserts it
   with `pytest.warns`, and the vector loops silence that one category at
   the single call that provokes it incidentally (issue #153)
+- `bms.sign` answers an uncompressed key and an address that is not its
+  own with "mismatch between private key and address", the message the
+  symmetric case has always given. It used to raise "not a private or
+  compressed public key for mainnet", which names neither what was passed
+  — a private key, for mainnet — nor what failed: the error came out of
+  `p2wpkh_p2sh`, tried on the way to BIP137 with a key segwit has no
+  spelling for. Both BIP137 addresses are segwit, so an uncompressed key
+  can own a p2pkh address and nothing else, and the two comparisons are
+  now guarded by that (issue #178)
 - `dsa.assert_as_valid_` and `ssa.assert_as_valid_` raise "signature
   verification failed" whichever of the two implementations verified: the
   message used to name an internal helper (`libsecp256k1.ecdsa_verify_

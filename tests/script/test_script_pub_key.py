@@ -155,6 +155,25 @@ def test_nulldata3() -> None:
 
 
 def test_nulldata4() -> None:
+    """OP_RETURN followed by opcodes is not a nulldata (issue #178).
+
+    Two FIXME markers used to sit on the asserts below, and both were
+    mistaken -- recorded here so that the answer outlives them.
+
+    The first expected the serialization to be `0x6A{1 byte data-length}
+    {data 6 bytes}`: it is `6a6a5351650053`, because a script serializer
+    writes each token as itself, and six opcodes are six opcodes and not
+    six bytes of data. Wrapping them in a push would be a *different*
+    script -- one whose OP_RETURN is followed by data that happens to
+    spell them.
+
+    The second expected `type_and_payload` to answer "nulldata". Bitcoin
+    Core's Solver says otherwise, and it is the rule everybody else
+    applies: NULL_DATA is OP_RETURN followed by push-only bytes, and
+    `CScript::IsPushOnly` refuses any opcode above OP_16 -- both the
+    second OP_RETURN (0x6a) and OP_VERIF (0x65) are above it. "unknown"
+    is the right answer.
+    """
     script_: ScriptList = [
         "OP_RETURN",
         "OP_RETURN",
@@ -166,9 +185,16 @@ def test_nulldata4() -> None:
     ]
     script_pub_key = serialize(script_)
     assert len(script_pub_key) == 7
+    assert script_pub_key.hex() == "6a6a5351650053"
     assert parse(script_pub_key) == script_
     script_type, _ = type_and_payload(script_pub_key)
     assert script_type == "unknown"
+
+    # btclib is narrower than Core's classification, and deliberately so:
+    # assert_nulldata takes OP_RETURN and *one* push, which is the shape a
+    # wallet writes, while Solver would call this NULL_DATA -- two pushes
+    # of one byte each, push-only throughout
+    assert not is_nulldata(bytes.fromhex("6a0101010102"))
 
 
 def test_p2pk() -> None:

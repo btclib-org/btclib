@@ -298,10 +298,18 @@ def sign(msg: Octets, prv_key: PrvKey, addr: String | None = None) -> Sig:
         rf = key_id + 27
         # third bit in rf is reserved for the 'compressed' boolean
         rf += 4 if compressed else 0
-    # BIP137
-    elif addr == p2wpkh_p2sh(pub_key, network):
+    # BIP137, and only for a compressed key: both spellings are segwit,
+    # which has no uncompressed form, so an uncompressed key can own a
+    # p2pkh address and nothing else. Without the guard the two calls
+    # below were reached with an uncompressed pub_key and raised out of
+    # p2wpkh_p2sh -- "not a private or compressed public key for
+    # mainnet", which names neither what was passed (a private key, for
+    # mainnet) nor what failed (the address is not this key's). The
+    # symmetric case, a compressed key with an uncompressed address,
+    # reported the mismatch all along
+    elif compressed and addr == p2wpkh_p2sh(pub_key, network):
         rf = key_id + 35
-    elif addr == p2wpkh(pub_key, network):
+    elif compressed and addr == p2wpkh(pub_key, network):
         rf = key_id + 39
     else:
         raise BTClibValueError("mismatch between private key and address")

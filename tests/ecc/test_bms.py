@@ -142,10 +142,13 @@ def test_exceptions() -> None:
     with pytest.raises(BTClibValueError, match=err_msg):
         bms.sign(msg, wif, address)
 
-    # uncompressed wif, compressed address
+    # uncompressed wif, compressed address: the mismatch the case above
+    # reports, reported the same way. It used to answer "not a private or
+    # compressed public key for mainnet" -- raised out of p2wpkh_p2sh,
+    # tried with an uncompressed key on the way to BIP137
     wif = "5JDopdKaxz5bXVYXcAnfno6oeSL8dpipxtU1AhfKe3Z58X48srn"
     address = "1DAag8qiPLHh6hMFVu9qJQm9ro1HtwuyK5"
-    err_msg = "not a private or compressed public key for mainnet"
+    err_msg = "mismatch between private key and address"
     with pytest.raises(BTClibValueError, match=err_msg):
         bms.sign(msg, wif, address)
 
@@ -295,11 +298,14 @@ def test_one_prv_key_multiple_addresses() -> None:
         bms.assert_as_valid(msg, b32_p2wpkh, sig1)
     assert not bms.verify(msg, b32_p2wpkh, sig1)
 
-    err_msg = "not a private or compressed public key for mainnet"
+    # wif2 is the uncompressed spelling of wif, so neither address is the
+    # other key's: one mismatch, reported once. The uncompressed key used
+    # to answer "not a private or compressed public key for mainnet",
+    # raised out of the p2wpkh_p2sh BIP137 tries before giving up
+    err_msg = "mismatch between private key and address"
     with pytest.raises(BTClibValueError, match=err_msg):
         bms.sign(msg, wif2, b58_p2pkh_compressed)
 
-    err_msg = "mismatch between private key and address"
     with pytest.raises(BTClibValueError, match=err_msg):
         bms.sign(msg, wif, b58_p2pkh_uncompressed)
 
