@@ -10,10 +10,7 @@
 """Tapscript OP_CODES."""
 
 from btclib.exceptions import BTClibValueError
-from btclib.script.script import (  # noqa: F401
-    _serialize_bytes_command,
-    op_int,
-)
+from btclib.script.script import _serialize_bytes_command
 
 OP_CODES = {
     # Constants

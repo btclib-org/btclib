@@ -11,7 +11,7 @@ release-notes length in the first place, and are still in
 
 ## v2026.8 (work in progress, not released yet)
 
-Ninety-five entries, grouped. The order runs from what breaks a caller to
+A hundred and two entries, grouped. The order runs from what breaks a caller to
 what only maintainers see; [HISTORY.md](./HISTORY.md) lists the eleven
 source-breaking changes on their own.
 
@@ -744,6 +744,20 @@ source-breaking changes on their own.
 - **`btclib.script` exports `is_p2pkh`**, which was the one missing from the
   eight assert/is pairs — `assert_p2pkh` was there, and so were the other
   seven of each
+- `op_codes_tapscript` no longer re-exports `op_int`. The import at the top
+  of the module was the name's only occurrence in it, and the `# noqa: F401`
+  on the block is what kept ruff from saying so; nothing anywhere took the
+  name from there, every consumer using `btclib.script.script`, where it is
+  defined, or `btclib.script`, which declares it in `__all__`. It came to
+  light next to a neighbour that went first: turning mypy `strict` on made
+  `_serialize_int_command` dead in the same block and it was removed with
+  the change that killed it, where `op_int` had been dead before and was
+  left alone rather than folded into an unrelated commit. The surviving
+  import of `_serialize_bytes_command` is a real one, so the `noqa` goes
+  too. `from btclib.script.op_codes_tapscript import op_int` was legal on
+  v2023.7.12 and stops working, which is why it is written down here; it is
+  not in HISTORY.md's breaking list, because the public surface is what
+  `__all__` declares and this module is not in it (issue #130)
 - **`check_validity` is keyword-only**, in all 91 signatures that take it.
   It was positional-or-keyword and forwarded by hand from one signature to
   the next, often *positionally* — 100 call sites inside the package alone —
