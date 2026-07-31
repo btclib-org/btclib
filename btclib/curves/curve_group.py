@@ -734,6 +734,23 @@ def _multi_mult(
 
     Use Bos-Coster's algorithm for efficient computation.
 
+    A max-heap holds the (scalar, point) pairs still to be summed; each
+    step pops the two largest scalars and rewrites their contribution as
+
+        n1*P1 + n2*P2 = r*P1 + n2*(q*P1 + P2),  with n1 = q*n2 + r
+
+    an identity, so the sum over the heap never changes: it is the
+    invariant, and the single pair left at the end is the answer. The
+    step also terminates, because r < n2 <= n1 makes the largest scalar
+    strictly decrease, and r == 0 costs the heap an entry outright.
+
+    Bos-Coster is usually written with the q == 1 case of that identity,
+    n1*P1 + n2*P2 = (n1-n2)*P1 + n2*(P1+P2), which is Euclid by repeated
+    subtraction: n1/n2 steps to do what one divmod does. That is issue
+    175 -- multi_mult([10**6, 1], [G, H]) took 10.6 s, and both
+    multi_mult([n-1, 1], [G, H]) and multi_mult([-1, 1], [G, H]) never
+    finished, on scalars a caller has every right to pass.
+
     The input points are assumed to be on curve, the scalar coefficients
     are assumed to have been reduced mod n if appropriate (e.g. cyclic
     groups of order n).
@@ -749,7 +766,7 @@ def _multi_mult(
 
     x: list[tuple[int, JacPoint]] = []
     for n, PJ in zip(scalars, jac_points, strict=True):
-        if n == 0:  # mandatory check to avoid infinite loop
+        if n == 0:  # mandatory check: a zero would be a zero divisor below
             continue
         if n < 0:
             raise BTClibValueError(f"negative coefficient: {hex(n)}")
@@ -764,8 +781,15 @@ def _multi_mult(
         np2 = heapq.heappop(x)
         n_1, p_1 = -np1[0], np1[1]
         n_2, p_2 = -np2[0], np2[1]
-        p_2 = ec.add_jac(p_1, p_2)
-        n_1 -= n_2
+        # mult_jac, not the faster _mult: the quotient is 1 about 40% of
+        # the time (Gauss-Kuzmin), and _mult would rebuild its 16-entry
+        # table of multiples for each of those -- 10x slower over 128
+        # random scalars. mult_jac(1, P) is P at no cost, so this is the
+        # subtractive step precisely when the subtractive step is right;
+        # measured, spelling that case out as a branch buys nothing, and
+        # subtracting for q up to 4 or up to 16 costs 3% and 11%.
+        q, n_1 = divmod(n_1, n_2)
+        p_2 = ec.add_jac(mult_jac(q, p_1, ec), p_2)
         if n_1 > 0:
             heapq.heappush(x, (-n_1, p_1))
         heapq.heappush(x, (-n_2, p_2))

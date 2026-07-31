@@ -635,6 +635,13 @@ def test_multi_mult() -> None:
     assert multi_mult([-1, 0], [G, H]) != INF
     assert multi_mult([0, -1], [G, H]) != INF
 
-    for i, j in itertools.product(range(3), range(3)):
+    for i, j in itertools.product(range(-1, 3), range(-1, 3)):
         exp = double_mult(i, G, j, H)
         assert exp == multi_mult([i, j], [G, H])
+
+    # issue 175: a scalar pair of distant magnitude is what the
+    # subtractive Bos-Coster step could not finish, and a mixed sign is
+    # merely the worst instance of it -- -1 reduces to n-1, next to 1
+    n = secp256k1.n
+    for i, j in ((10**6, 1), (1, 10**6), (n - 1, 1), (n - 1, n - 2)):
+        assert double_mult(i, G, j, H) == multi_mult([i, j], [G, H])

@@ -639,6 +639,34 @@ fifteen source-breaking changes on their own.
   exporting the experimental multiplications (#148) — so no signature,
   key or address was ever affected; the module exists to measure such
   implementations against each other, which is how the bug was found
+- **`multi_mult` terminates on every scalar it accepts**, and is faster on
+  the small batches (issue #175). Bos-Coster's step subtracted the second
+  largest scalar from the largest and re-heaped, which is Euclid by
+  repeated subtraction, so a pair of distant magnitude cost `n1/n2` turns
+  of the heap: `multi_mult([10**6, 1], [G, H])` took 10.6 s and
+  `multi_mult([n-1, 1], [G, H])` never finished, on scalars a caller has
+  every right to pass. A mixed sign was the worst instance rather than the
+  cause — `-1` reduces mod n to `n-1`, which parks it next to `1` — and it
+  is how the test suite met it, as two assertions commented out under a
+  "FIXME it loop for negative coefficients". The step is now the whole of
+  Euclid, `q, r = divmod(n1, n2)` under
+  `n1*P1 + n2*P2 = r*P1 + n2*(q*P1 + P2)`: `r < n2 <= n1` makes the largest
+  scalar strictly decrease, so the loop terminates, and `q == 1` is
+  literally the step it replaces. It is not slower for being general.
+  Measured against the old step, interleaved call by call over random
+  256-bit scalars: 2.4x faster at 2 scalars, 1.3x at 3, 1.2x at 4, and
+  within 1% from 16 up, where the quotient is nearly always 1 and only the
+  `divmod` is new. End to end, BIP340 batch verification of 2 signatures
+  is 19% faster, of 4 3%, and of 8 or more unchanged. Two negative results
+  behind the five lines: `q*P1` uses `mult_jac` and not the faster `_mult`,
+  which would rebuild its 16-entry table of multiples at every step and
+  measured 10x slower over 128 scalars; and there is no threshold under
+  which the subtractive step is kept, because keeping it for q up to 4 or
+  up to 16 measured 3% and 11% *slower* — one binary multiplication beats
+  q point additions and their heap traffic for every q above 1, and at
+  q == 1 the two coincide, `mult_jac(1, P)` being P. Bos-Coster stays,
+  Strauss-wNAF and Pippenger (#212) or not: the library is didactic, and
+  the algorithm is worth reading
 - **borromean ring signatures work on a curve other than secp256k1**, which
   is what the `ec` parameter has been offering since it stopped being a
   module global. It reached the encodings and the order — `bytes_from_point`,

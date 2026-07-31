@@ -46,9 +46,10 @@ and it moved out of TODO.md so that it sits next to the code it is about:
         - https://crypto.stackexchange.com/questions/58506/what-is-the-curve-type-of-secp256k1
         - 1-s_2.0-S1071579704000395-main (the file name it was saved as; the
           paper it refers to has not been identified)
-    - Multi_mult: why the algorithm works, written down. Issue 175 is a
-      report that it does not terminate for a mixed-sign coefficient pair,
-      and an explanation of the invariant is what would have caught that
+    - Strauss-wNAF, and Pippenger above a measured threshold, as the
+      multi_mult libsecp256k1 dispatches between: issue 212. Bos-Coster
+      stays whichever of them lands, the library being didactic as well --
+      it is the one of the three that can be read in twenty lines
     - Peter Dettman's field inverses and square roots, a sliding window over
       blocks of 1s:
 
