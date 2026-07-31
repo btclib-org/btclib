@@ -11,7 +11,7 @@ release-notes length in the first place, and are still in
 
 ## v2026.8 (work in progress, not released yet)
 
-A hundred and two entries, grouped. The order runs from what breaks a caller to
+A hundred and four entries, grouped. The order runs from what breaks a caller to
 what only maintainers see; [HISTORY.md](./HISTORY.md) lists the eleven
 source-breaking changes on their own.
 
@@ -554,6 +554,27 @@ source-breaking changes on their own.
   verification failed"): `pedersen` was the one module with a `verify`
   and no assert_as_valid beside it, leaving no way to learn why opening
   a commitment failed
+- **a `key_id` of 2 or 3 recovers the key SEC 1 says it does.** In ECDSA
+  public key recovery a key_id is a y_K-coordinate parity bit with the
+  section 4.1.6 index `j` above it, and `dsa._recover_pub_key_` read
+  those bits *in place* — `key_id & 0b110`, making `j` 2, 4 or 6 where
+  the specification counts 1, 2, 3. So a key_id of 2 asked for
+  `x_K = r + 2n` and skipped the `r + n` that is the whole reason a
+  second candidate exists; libsecp256k1 spells the same two bits
+  `recid & 2` for the order to add and `recid & 1` for the parity, which
+  is the shift now used. Reaching it takes `r + n < p`, about 2^-127 of
+  secp256k1 signatures and never a signer's own output — `key_id =
+  pub_keys.index(Q)` cannot name a candidate that failed — but a key_id
+  also arrives from outside, in the recovery flag of a message
+  signature. `_recover_pub_keys_` is now that function over the range of
+  key_ids rather than a second copy of the arithmetic, which is what the
+  disagreement was hiding: the plural iterated `j` in `range(cofactor +
+  1)` correctly all along, and the two could not be folded together
+  until they agreed. Its output is unchanged, checked over the 116808
+  (curve, challenge, r, s, lower_s) combinations the eight
+  low-cardinality test curves admit; the mod_inv it no longer hoists out
+  of the loop costs 1.8 us against the 2600 us of the `_double_mult`
+  each candidate already runs (issue #183)
 - BIP32 derivation raises on the three children the specification calls
   invalid — `parse256(IL) >= n`, a zero private child, a public child at
   infinity — instead of returning a key no other wallet derives. It says
@@ -906,6 +927,20 @@ source-breaking changes on their own.
   script tree — and pins the two mistakes issue #124 walked into: `sign`
   reduces its argument with `hf` where `sign_` does not, and the key the
   script carries is the *tweaked* one (issue #124)
+- three tests say what the code only did. `Curve.__repr__` renders every
+  integer above `HEX_THRESHOLD` in `hex_string`'s `DEADBEEF 00000000`
+  grouping and never `0xdeadbeef00000000`, which the round-trip test
+  quietly depended on — a `0x` prefix would be a *number* in the repr
+  where the constructor is handed a string, and `Curve` takes it either
+  way — and is now asserted, decimal below the threshold included. The
+  500 legacy sig_hash vectors are parsed with validation *on*: they are
+  Core's randomly generated transactions, random and not malformed, and
+  all 500 are valid, where `check_validity=False` for the whole file
+  said the opposite without checking it. And what those vectors do not
+  cover is now asserted too — Core draws each hash type from
+  `InsecureRand32()`, so not one of the 500 is in `SIG_HASH_TYPES`, and
+  the defined types are covered by the hand-written tests beside them
+  (issue #183)
 - tests/_data/README.md records where each of the 28 vendored vector
   files came from, pinned to an upstream commit and, where an upstream
   file exists, compared blob by blob: 7 are byte-identical, 6 diverge

@@ -473,35 +473,27 @@ def _recover_pub_keys_(
 ) -> list[JacPoint]:
     # Private function provided for testing purposes only.
 
-    # precomputations
-    r_1 = mod_inv(r, ec.n)
-    r1s = r_1 * s % ec.n
-    r1e = -r_1 * c % ec.n
+    # every candidate is a key_id, so this is _recover_pub_key_ over the
+    # whole range of them and nothing else: a j in [0, ec.cofactor] (step
+    # 1 of SEC 1 v.2 section 4.1.6) and a y_K-coordinate parity, the even
+    # root first for bitcoin message signing compatibility. Which is the
+    # order key_id numbers them in, so range() is the loop.
+    #
+    # It costs a mod_inv per candidate where the precomputation used to be
+    # hoisted out of the loop, and that is not measurable: each candidate
+    # also runs a _double_mult, which on secp256k1 is 1500 times dearer
+    # (2600 us against 1.8 us, timeit).
     keys: list[JacPoint] = []
-    # r = K[0] % ec.n
-    # if ec.n < K[0] < ec.p (likely when cofactor ec.cofactor > 1)
-    # then both x_K=r and x_K=r+ec.n must be tested
-    for j in range(ec.cofactor + 1):  # 1
-        # affine x_K-coordinate of K (field element)
-        x_K = (r + j * ec.n) % ec.p  # 1.1
-        # two possible y_K-coordinates, i.e. two possible keys for each cycle
+    for key_id in range(2 * (ec.cofactor + 1)):
+        # a candidate can fail either half of step 1.6: x_K may not be on
+        # the curve at all -- r = K[0] % ec.n, so when ec.n < K[0] < ec.p,
+        # likely for cofactor > 1, it is x_K = r + ec.n that is -- or the
+        # key it yields may not verify the signature. Both mean "not this
+        # one", not "no key", so the list is dense and shorter than the
+        # range: it is what a caller indexes to name a key_id, which is
+        # only that key_id when no earlier candidate dropped out
         with contextlib.suppress(BTClibValueError, BTClibRuntimeError):
-            # even root first for bitcoin message signing compatibility
-            yodd = ec.y_even(x_K)
-            KJ = x_K, yodd, 1  # 1.2, 1.3, and 1.4
-            # 1.5 has been performed in the recover_pub_keys calling function
-            QJ = _double_mult(r1s, KJ, r1e, ec.GJ, ec)  # 1.6.1
-            with contextlib.suppress(BTClibValueError, BTClibRuntimeError):
-                _assert_as_valid_(c, QJ, r, s, lower_s, ec)  # 1.6.2
-                keys.append(QJ)  # 1.6.2
-            KJ = x_K, ec.p - yodd, 1  # 1.6.3
-            QJ = _double_mult(r1s, KJ, r1e, ec.GJ, ec)
-            try:
-                _assert_as_valid_(c, QJ, r, s, lower_s, ec)  # 1.6.2
-            except (BTClibValueError, BTClibRuntimeError):
-                pass
-            else:
-                keys.append(QJ)  # 1.6.2
+            keys.append(_recover_pub_key_(key_id, c, r, s, lower_s, ec))
     return keys
 
 
@@ -552,7 +544,18 @@ def _recover_pub_key_(
     # r = K[0] % ec.n
     # if ec.n < K[0] < ec.p (likely when cofactor ec.cofactor > 1)
     # then both x_K=r and x_K=r+ec.n must be tested
-    j = key_id & 0b110  # allow for key_id in [0, 7]
+    #
+    # key_id is the parity bit and the j above it, so j is a shift and not
+    # a mask: `key_id & 0b110` read the bits in place, making j 2, 4 or 6
+    # where SEC 1 counts 1, 2, 3 -- so key_id 2 asked for x_K = r + 2*ec.n
+    # and skipped the r + ec.n that is the whole point of a second
+    # candidate. libsecp256k1 spells the same two bits `recid & 2` for the
+    # order to add and `recid & 1` for the parity, i.e. this. Reaching it
+    # needs r + ec.n < ec.p, some 2^-127 of signatures on secp256k1 and
+    # no signer's own output -- `key_id = pub_keys.index(Q)` cannot name a
+    # candidate that failed -- but a key_id arrives from outside too, in
+    # the recovery flag of a message signature
+    j = key_id >> 1  # allow for key_id in [0, 7]
     x_K = (r + j * ec.n) % ec.p  # 1.1
 
     # even root first for Bitcoin Core compatibility

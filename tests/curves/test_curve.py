@@ -295,6 +295,37 @@ def test_ec_repr() -> None:
         assert ec == ec2
 
 
+def test_ec_repr_groups_its_hex() -> None:
+    """A curve integer is rendered `DEADBEEF 00000000`, not `0xdeadbeef00000000`.
+
+    Which is what `hex_string` produces everywhere else in the library,
+    and what the round-trip above quietly depends on: it is a literal in
+    the repr, so a `0x` prefix would be a *number* where the constructor
+    is handed a string, and `Curve` would take it either way.
+    """
+    for ec in all_curves.values():
+        assert "0x" not in repr(ec)
+
+    # a curve small enough to render in decimal renders in decimal
+    assert repr(low_card_curves["ec13_11"]) == "Curve(13, 7, 6, (1, 1), 11, 1)"
+
+    # above HEX_THRESHOLD it is grouped hex, in single quotes: four bytes
+    # a group, upper case, the shortest group first
+    p, x_G = (
+        "FFFFFFFF FFFFFFFF FFFFFFFF FFFFFFFF FFFFFFFF FFFFFFFF FFFFFFFE FFFFFC2F",
+        "79BE667E F9DCBBAC 55A06295 CE870B07 029BFCDB 2DCE28D9 59F2815B 16F81798",
+    )
+    assert repr(secp256k1).startswith(f"Curve('{p}', 0, 7, ('{x_G}', '")
+    # `a` and `b` are 0 and 7, below the threshold, so they stay decimal
+    # even here: the rule is the value's size, not the curve's
+
+    # and a size that is not a multiple of four bytes groups the remainder
+    # first rather than padding it
+    assert repr(CURVES["secp112r2"]).startswith(
+        "Curve('DB7C 2ABF62E3 5E668076 BEAD208B'"
+    )
+
+
 def test_curve_equality() -> None:
     """A curve is its parameters, not the object that holds them."""
     # the dispatch to the libsecp256k1 bindings compares ec against

@@ -232,6 +232,55 @@ def test_pub_key_recovery() -> None:
         assert dsa.verify(msg, Q, sig)
 
 
+def test_key_id_is_j_above_the_parity_bit() -> None:
+    """A key_id names SEC 1's j and a y_K-coordinate parity, in that order.
+
+    x_K is r, or r + ec.n when ec.n < K[0] < ec.p and r alone is not on
+    the curve; that second candidate is what a key_id of 2 or 3 asks for.
+    Reaching it on secp256k1 takes r + ec.n < ec.p, some 2^-127 of
+    signatures, so a low-cardinality curve is where it is expressible --
+    and it is what `_recover_pub_keys_` iterates, so the two functions
+    have to agree on it for the plural to be the singular over a range.
+    """
+    for ec in (low_card_curves["ec17_13"], low_card_curves["ec19_13"]):
+        assert ec.cofactor == 2
+        cases = 0
+        for q in range(1, ec.n):
+            Q = ec.aff_from_jac(_mult(q, ec.GJ, ec))
+            for k in range(1, ec.n):
+                x_K = ec.x_aff_from_jac(_mult(k, ec.GJ, ec))
+                if not ec.n < x_K < ec.p:  # else x_K is r itself
+                    continue
+                r = x_K % ec.n
+                k_inv = mod_inv(k, ec.n)
+                for e in range(ec.n):
+                    s = k_inv * (e + q * r) % ec.n
+                    if r == 0 or s == 0:
+                        continue
+                    recovered = []
+                    for key_id in range(2 * (ec.cofactor + 1)):
+                        # a candidate x_K off the curve, or a key that
+                        # does not verify, is "not this key_id"
+                        try:
+                            QJ = dsa._recover_pub_key_(key_id, e, r, s, False, ec)
+                        except (BTClibValueError, BTClibRuntimeError):
+                            continue
+                        recovered.append((key_id, ec.aff_from_jac(QJ)))
+
+                    key_ids = [key_id for key_id, Q_ in recovered if Q_ == Q]
+                    assert key_ids, "the signer's own key is not recoverable"
+                    # j = 1, never the j = 2 a mask in place would read
+                    assert all(key_id >> 1 == 1 for key_id in key_ids)
+
+                    # and the plural is that range, less what dropped out
+                    jac_keys = dsa._recover_pub_keys_(e, r, s, False, ec)
+                    assert [ec.aff_from_jac(QJ) for QJ in jac_keys] == [
+                        Q_ for _, Q_ in recovered
+                    ]
+                    cases += 1
+        assert cases == 288
+
+
 def test_crack_prv_key() -> None:
     ec = CURVES["secp256k1"]
 

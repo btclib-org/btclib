@@ -226,8 +226,42 @@ def test_test_vectors(
     raw_tx: str, raw_script: str, input_index: int, hash_type: int, exp_hash: str
 ) -> None:
     script_ = sig_hash.legacy_script(raw_script)[0]
-    tx = Tx.parse(raw_tx, check_validity=False)
+    # validation on, where this used to pass check_validity=False for the
+    # whole file: Core's generator makes these transactions *random*, not
+    # malformed, and every one of the 500 is valid. Turning the flag off
+    # said the opposite without ever checking it, and would have hidden a
+    # vector that stopped parsing
+    tx = Tx.parse(raw_tx)
     if hash_type < 0:
         hash_type += 0xFFFFFFFF + 1
     actual_hash = sig_hash.legacy(script_, tx, input_index, hash_type)
     assert actual_hash == bytes.fromhex(exp_hash)[::-1]
+
+
+def test_test_vectors_are_all_undefined_hash_types() -> None:
+    """What the vectors do *not* cover: any hash type a signer may use.
+
+    Core builds each vector's hash type with `InsecureRand32()`, a full
+    random 32-bit word, so not one of the 500 is in `SIG_HASH_TYPES` --
+    the file pins `legacy` over *undefined* flags, where the low five
+    bits and the ANYONECANPAY bit still choose the commitment and the
+    whole word still goes into the preimage. The seven defined types are
+    covered by the hand-written tests above and by the script engine's,
+    and this is the line between the two sides: a failure among the
+    vectors is about the historic behaviour, a failure above it is about
+    a signature a wallet would produce.
+
+    Asserted rather than described, so that refreshing Core's file --
+    tests/_data/README.md pins the revision, and it is 2014's -- cannot
+    move the line in silence.
+    """
+    rows = vectors.load("script", "_data", "sig_hash_legacy_test_vectors.json")[1:]
+    assert len(rows) == 500
+    hash_types = {
+        hash_type + 0xFFFFFFFF + 1 if hash_type < 0 else hash_type
+        for _, _, _, hash_type, _ in rows
+    }
+    assert not hash_types & sig_hash.SIG_HASH_TYPES
+    # and they are spread over every low-bit combination, the two the
+    # legacy rules single out included
+    assert {hash_type & 0x1F for hash_type in hash_types} == set(range(32))
