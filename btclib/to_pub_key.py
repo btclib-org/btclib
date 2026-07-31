@@ -15,7 +15,14 @@ import contextlib
 
 from btclib.alias import Point
 from btclib.bip32 import BIP32Key, BIP32KeyData
-from btclib.curves import Curve, bytes_from_point, mult, point_from_octets, secp256k1
+from btclib.curves import (
+    Curve,
+    bytes_from_point,
+    bytes_from_prv_key_int,
+    mult,
+    point_from_octets,
+    secp256k1,
+)
 from btclib.exceptions import BTClibValueError
 from btclib.hashes import hash160
 from btclib.network import (
@@ -217,8 +224,7 @@ def pub_keyinfo_from_prv_key(
     """Return the pub key tuple (SEC-bytes, network) from a private key."""
     q, net, compr = prv_keyinfo_from_prv_key(prv_key, network, compressed)
     ec = NETWORKS[net].curve
-    pub_key = mult(q, ec.G, ec)
-    return bytes_from_point(pub_key, ec, compr), net
+    return bytes_from_prv_key_int(q, ec, compr), net
 
 
 def fingerprint(key: Key, network: str | None = None) -> bytes:

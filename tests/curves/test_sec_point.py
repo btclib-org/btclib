@@ -10,9 +10,16 @@
 """Tests for the `btclib.sec_point` module."""
 
 import pytest
+from btclib_libsecp256k1.mult import mult_ as libsecp256k1_mult_
 
 from btclib.alias import INF
-from btclib.curves import Curve, bytes_from_point, point_from_octets
+from btclib.curves import (
+    Curve,
+    bytes_from_point,
+    bytes_from_prv_key_int,
+    mult,
+    point_from_octets,
+)
 from btclib.curves.curve import CURVES
 from btclib.exceptions import BTClibValueError
 
@@ -140,6 +147,65 @@ def test_hybrid_prefixes_are_admitted_only_when_asked() -> None:
     # and 0x04 does not acquire a parity rule it never had
     assert point_from_octets(b"\x04" + body, ec, hybrid=True) == Q
     assert point_from_octets(b"\x04" + body, ec) == Q
+
+
+def test_bytes_from_prv_key_int() -> None:
+    """It composes mult and bytes_from_point, so it must answer as they do.
+
+    For secp256k1 it does not: it slices the bindings' uncompressed
+    serialization instead (issue #127), which is why the equality is
+    asserted here scalar by scalar rather than taken as read.
+    """
+    ec = CURVES["secp256k1"]
+    prefixes = set()
+    for q in range(1, 13):
+        Q = mult(q, ec.G, ec)
+        assert bytes_from_prv_key_int(q) == bytes_from_point(Q, ec)
+        assert bytes_from_prv_key_int(q, ec, False) == bytes_from_point(Q, ec, False)
+        prefixes.add(bytes_from_prv_key_int(q)[0])
+    # 6G is the first odd y of the twelve, so both prefixes are covered,
+    # i.e. both answers of the parity rule and not one of them twice
+    assert prefixes == {0x02, 0x03}
+
+    # the edges of the scalar range, and the reduction mod n that mult
+    # applies and this has to keep applying
+    for q in (1, ec.n - 1):
+        assert bytes_from_prv_key_int(q) == bytes_from_point(mult(q, ec.G, ec), ec)
+        assert bytes_from_prv_key_int(q + ec.n) == bytes_from_prv_key_int(q)
+
+    # an Integer, not an int: the octets of a scalar are that scalar
+    q_bytes = (ec.n - 1).to_bytes(32, byteorder="big", signed=False)
+    assert bytes_from_prv_key_int(q_bytes) == bytes_from_prv_key_int(ec.n - 1)
+    assert bytes_from_prv_key_int(q_bytes.hex()) == bytes_from_prv_key_int(ec.n - 1)
+
+    # every other curve is the python path, which is the composition
+    for ec in (CURVES["secp256r1"], low_card_curves["ec13_11"]):
+        for q in range(1, min(ec.n, 13)):
+            Q = mult(q, ec.G, ec)
+            assert bytes_from_prv_key_int(q, ec) == bytes_from_point(Q, ec)
+            assert bytes_from_prv_key_int(q, ec, False) == bytes_from_point(
+                Q, ec, False
+            )
+
+    # a zero scalar is the infinity point, on either path, and the
+    # bindings reject it rather than answering a serialization of it
+    for ec in (CURVES["secp256k1"], low_card_curves["ec13_11"]):
+        for q in (0, ec.n):
+            with pytest.raises(
+                BTClibValueError, match="no bytes representation for infinity point"
+            ):
+                bytes_from_prv_key_int(q, ec)
+
+
+def test_the_bindings_answer_65_bytes() -> None:
+    """bytes_from_prv_key_int slices mult_ at 33 and reads its byte 64.
+
+    A 33-byte answer would raise IndexError there instead of taking a
+    byte of x for the parity of y, so the failure would be loud; this
+    pins the contract that makes the slice right in the first place.
+    """
+    assert len(libsecp256k1_mult_(1)) == 65
+    assert libsecp256k1_mult_(1)[0] == 0x04
 
 
 def test_infinity_point_bytes() -> None:

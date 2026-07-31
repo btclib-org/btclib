@@ -7,7 +7,7 @@ full year, short month, short day (YYYY-M-D)
 
 ## v2026.8 (work in progress, not released yet)
 
-The first release since 2023, and the largest: a hundred and twenty-six
+The first release since 2023, and the largest: a hundred and twenty-seven
 entries, in [CHANGELOG.md](./CHANGELOG.md). What follows is what a user has
 to act on and what a user gains.
 
@@ -110,8 +110,10 @@ and `verify` families now let a `TypeError` out where they used to answer
 - **Signing a transaction is linear in its inputs**, where it was Θ(N²):
   the new `sig_hash.PrecomputedTxData` takes 400 taproot inputs from 164 ms
   to 0.4 ms. `bms.sign` is twice as fast, recovering one candidate public key
-  at a time where it recovered all four and then searched them. Importing
-  btclib is 140 ms faster, and `Script.asm` is cached.
+  at a time where it recovered all four and then searched them. A public key
+  from a private key is 13% faster, its compressed serialization now sliced
+  out of the bindings' own answer instead of routed through a python point.
+  Importing btclib is 140 ms faster, and `Script.asm` is cached.
 - **Importing btclib changes nothing outside btclib.** It no longer dies
   where hashlib has no RIPEMD-160, no longer re-enables OpenSSL's
   deprecated algorithms process-wide, and no longer traps decimal

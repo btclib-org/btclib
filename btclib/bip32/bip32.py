@@ -40,7 +40,13 @@ from dataclasses import dataclass
 from btclib import base58
 from btclib.alias import INF, BinaryData, Octets, Point, String
 from btclib.bip32.der_path import BIP32DerPath, indexes_from_bip32_path
-from btclib.curves import bytes_from_point, mult, point_from_octets, secp256k1
+from btclib.curves import (
+    bytes_from_point,
+    bytes_from_prv_key_int,
+    mult,
+    point_from_octets,
+    secp256k1,
+)
 from btclib.exceptions import BTClibTypeError, BTClibValueError
 from btclib.hashes import hash160
 from btclib.network import NETWORKS, XPRV_VERSIONS_ALL, XPUB_VERSIONS_ALL
@@ -296,8 +302,7 @@ def _xpub_from_xprv(xprv: BIP32Key) -> BIP32KeyData:
     xkey.version = XPUB_VERSIONS_ALL[i]
 
     q = int.from_bytes(xkey.key[1:], byteorder="big", signed=False)
-    Q = mult(q)
-    xkey.key = bytes_from_point(Q)
+    xkey.key = bytes_from_prv_key_int(q)
 
     return xkey
 
@@ -378,7 +383,7 @@ def __prv_key_derivation(xkey: _BIP32KeyData, index: int, pub_key: bytes) -> Non
     xb = (
         xkey.key
         if index >= 0x80000000
-        else pub_key or bytes_from_point(mult(xkey.prv_key_int))
+        else pub_key or bytes_from_prv_key_int(xkey.prv_key_int)
     )
     xb += index.to_bytes(4, byteorder="big", signed=False)
     hmac_ = hmac.new(xkey.chain_code, xb, "sha512").digest()
@@ -449,7 +454,7 @@ def _derive(
         if xkey.is_private:
             for index in indexes[:-1]:
                 __prv_key_derivation(xkey, index, b"")
-            pub_key = bytes_from_point(mult(xkey.prv_key_int))
+            pub_key = bytes_from_prv_key_int(xkey.prv_key_int)
             xkey.parent_fingerprint = hash160(pub_key)[:4]
             __prv_key_derivation(xkey, indexes[-1], pub_key)
         else:

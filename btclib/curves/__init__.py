@@ -40,17 +40,27 @@ to say that mult is the one to use, that it dispatches to libsecp256k1 for
 secp256k1 and the generator, and that mult_jac is not the faster
 alternative its name suggests. Each is still importable from the module
 that defines it, which is where the test suite takes them from.
+
+The codec has a third function, bytes_from_prv_key_int: the composition of
+a multiplication and an encoding that every private-to-public conversion
+is, answered for secp256k1 out of the bindings' own serialization, without
+materializing the point (issue #127).
 """
 
 from btclib.curves.curve import Curve, double_mult, mult, multi_mult, secp256k1
 from btclib.curves.curve_group import CurveGroup
 from btclib.curves.curve_group_f import find_all_points, find_subgroup_points
-from btclib.curves.sec_point import bytes_from_point, point_from_octets
+from btclib.curves.sec_point import (
+    bytes_from_point,
+    bytes_from_prv_key_int,
+    point_from_octets,
+)
 
 __all__ = [
     "Curve",
     "CurveGroup",
     "bytes_from_point",
+    "bytes_from_prv_key_int",
     "double_mult",
     "find_all_points",
     "find_subgroup_points",

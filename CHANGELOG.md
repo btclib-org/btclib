@@ -11,7 +11,7 @@ release-notes length in the first place, and are still in
 
 ## v2026.8 (work in progress, not released yet)
 
-A hundred and twenty-six entries, grouped. The order runs from what breaks a
+A hundred and twenty-seven entries, grouped. The order runs from what breaks a
 caller to what only maintainers see; [HISTORY.md](./HISTORY.md) lists the
 fifteen source-breaking changes on their own.
 
@@ -1169,6 +1169,28 @@ fifteen source-breaking changes on their own.
   which runs Script's check *and* the network one — the whole validation.
   Counted through the module: two parses and two serializations per
   ScriptPubKey before, one parse and no serialization now
+- **A public key from a private key no longer builds the point**, and the
+  new `curves.bytes_from_prv_key_int` is what does it: 8.90 µs to 7.75 µs
+  per call, best of nine over 2000 random keys. For secp256k1 the bindings
+  answer `0x04 || x || y`, so the compressed form is the first 33 bytes of
+  that with the prefix rewritten to the parity of the y being dropped —
+  where the `bytes_from_point(mult(q))` it replaces turned 64 of those
+  bytes into two ints, re-proved on curve a point libsecp256k1 had just
+  created, and serialized it again. It serves the four sites that did the
+  composition: BIP32 neutering, non-hardened private derivation, the parent
+  fingerprint of the last derivation step, and
+  `to_pub_key.pub_keyinfo_from_prv_key`, i.e. every address and WIF from a
+  private key. `derive m/0/1/2/3` 66.1 µs to 61.8 µs,
+  `pub_keyinfo_from_prv_key` 8.9 µs to 7.9 µs, and the uncompressed form,
+  which used to pay the same round trip, is now the bindings' answer
+  verbatim. Every other curve still composes the two functions, and a zero
+  scalar still raises from `bytes_from_point`: the answer is the same
+  answer, the edges included. The alternative was a `pubkey_from_prvkey` of
+  the bindings' own (btclib_libsecp256k1#41), one
+  `secp256k1_ec_pubkey_create` plus one compressed serialize; dropped into
+  this same function it measures 7.67 µs, 0.8% below the slice, so what
+  argues for it upstream is the bindings' API convention that public keys
+  come out compressed, and not btclib's speed (issue #127)
 
 ### Tests
 
@@ -1201,7 +1223,7 @@ fifteen source-breaking changes on their own.
   coverage special-cases 100 to mean exactly 100.00%, which would make
   one version-gated line a red build; the comparison is
   `round(total, precision) < fail_under`, so 99.99 allows two of the
-  15139 statements the coverage job measures
+  15174 statements the coverage job measures
 - **`tests/ecc/test_bms.py` imports on python 3.9 again.** It annotates a
   helper `-> Point | None` without `from __future__ import annotations`,
   which 3.9 evaluates at def time and has no `|` for: the module was ten
@@ -1392,8 +1414,8 @@ fifteen source-breaking changes on their own.
   and what the lint and docs jobs therefore already used, so 3.13 was a
   version those two jobs alone singled out — the matrix tests it like
   every other. It matters most for coverage, whose gate is a ratio of a
-  statement count that moves between interpreters, 15139 on 3.14 against
-  15145 on 3.13: the threshold and the interpreter now agree with what a
+  statement count that moves between interpreters, 15174 on 3.14 against
+  15180 on 3.13: the threshold and the interpreter now agree with what a
   maintainer measures locally with a bare `uv run pytest --cov`. The
   release step only needs a `tomllib`, i.e. 3.11 or newer, and now asks
   for a version uv has already fetched for the other jobs
