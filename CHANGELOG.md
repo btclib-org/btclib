@@ -11,8 +11,8 @@ release-notes length in the first place, and are still in
 
 ## v2026.8 (work in progress, not released yet)
 
-A hundred and eight entries, grouped. The order runs from what breaks a caller to
-what only maintainers see; [HISTORY.md](./HISTORY.md) lists the eleven
+A hundred and eleven entries, grouped. The order runs from what breaks a caller
+to what only maintainers see; [HISTORY.md](./HISTORY.md) lists the twelve
 source-breaking changes on their own.
 
 ### Repository
@@ -230,6 +230,18 @@ source-breaking changes on their own.
 
 ### Malformed input and the exception contract
 
+- **`dsa.Sig.parse` rejects bytes after the DER sequence** under `strict`,
+  which is the default. It read the sequence and silently dropped whatever
+  followed, so `Sig.parse(der + b"\x01")` answered with the `Sig` of `der`
+  — which is how a two-byte hash type reached verification as a valid
+  signature. Core checks the whole element with one size equation,
+  `(lenR + lenS + 7) != sig.size()` in `IsValidSignatureEncoding`, and only
+  under the flags asking for canonical DER: hence `strict`, so the lenient
+  parse the script engine uses when DERSIG is off still takes it. A script
+  signature and a PSBT partial signature carry a sighash type byte and are
+  therefore not DER encodings — strip it, as `psbt_in` now does: that call
+  site worked only because of the laxity, and 29 PSBT tests fail without
+  the strip (issue #129)
 - `parse_taproot_bip32` bounds its allocation by the data it was handed
   rather than by the count a counterparty declared: five bytes of a
   hostile PSBT used to cost gigabytes, reachable from `Psbt.parse` and
@@ -566,6 +578,15 @@ source-breaking changes on their own.
 
 ### Curves, signatures and keys
 
+- **`point_from_octets` takes the hybrid 0x06 and 0x07 prefixes when asked**:
+  `point_from_octets(key, hybrid=True)`. They are SEC 1 v.2 section 2.3.4 like
+  the other three, carry both coordinates as 0x04 does, and repeat the parity
+  of y in the prefix — which is checked, a prefix disagreeing with its own
+  coordinate being no point at all, exactly as libsecp256k1's
+  `ec_pubkey_parse` decides it. Off by default because an address, a WIF and
+  a descriptor have no hybrid form to render and nothing in bitcoin produces
+  one; the script engine is the caller that needs them, Core rejecting hybrid
+  keys only under STRICTENC (issue #129)
 - the script engine treats a signature or public key that libsecp256k1
   refuses to parse as a failed verification: the new bindings raise a
   ValueError where the old ones returned false
@@ -994,6 +1015,20 @@ source-breaking changes on their own.
 
 ### Tests
 
+- **the vendored consensus vectors are judged by the python implementation
+  too**, in `tests/script_engine/test_python_path.py`: the two symbols the
+  engine imports from the bindings are replaced by `btclib.ecc`, and
+  `script_tests.json`, `tx_valid.json`, `tx_invalid.json` and the taproot
+  vectors — 4168 of them — run again through it. Until 23041e4b the engine
+  fell back to python when the bindings were absent, two vectors failed in
+  that configuration, and making the bindings mandatory turned the tests
+  green without fixing either defect: they had become unreachable.
+  Reintroducing either one now fails four vectors, two of which no issue had
+  named. A CI job installing without the bindings would have been the other
+  way, and it is not a job but a partial revert — all five bindings imports
+  are plain imports, so `import btclib` itself fails without them. Measured
+  cost: the suite goes from 11 s to 27 s, the eight `bigmulti` tapscript
+  vectors being most of it (issue #129)
 - **BIP341's key path spending vectors are signed, not only hashed.** Its
   seven `inputSpending` cases pinned the `sigHash` and stopped there, so
   `expected.witness` — the signature the BIP says that hash produces — went

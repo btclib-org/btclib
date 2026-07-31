@@ -110,6 +110,40 @@ def test_octets2point() -> None:
         bytes_from_point((x_Q, x_Q), ec, False)
 
 
+def test_hybrid_prefixes_are_admitted_only_when_asked() -> None:
+    """0x06 and 0x07 are SEC 1 too, and consensus takes them.
+
+    The bindings' ec_pubkey_parse takes all three 65-byte prefixes
+    (eckey_impl.h), and Core refuses the hybrid pair only under
+    STRICTENC, so a script spending to one must verify -- the
+    script_tests.json vector "P2PK NOT with hybrid pubkey but no
+    STRICTENC" is the generator with a 0x06 in front, and the python path
+    could not parse it at all (issue #129). Off by default because an
+    address, a WIF and a descriptor have no hybrid form to render.
+    """
+    ec = CURVES["secp256k1"]
+    Q = ec.G
+    body = Q[0].to_bytes(ec.p_size, byteorder="big", signed=False)
+    body += Q[1].to_bytes(ec.p_size, byteorder="big", signed=False)
+    prefix = b"\x07" if Q[1] & 1 else b"\x06"
+    mismatched = b"\x06" if Q[1] & 1 else b"\x07"
+
+    assert point_from_octets(prefix + body, ec, hybrid=True) == Q
+    assert point_from_octets((prefix + body).hex(), ec, hybrid=True) == Q
+
+    with pytest.raises(BTClibValueError, match="not a point: prefix "):
+        point_from_octets(prefix + body, ec)
+
+    # the prefix repeats the parity of the y that follows it, so the two
+    # can contradict each other, and then it is not a point
+    with pytest.raises(BTClibValueError, match="against the hybrid prefix "):
+        point_from_octets(mismatched + body, ec, hybrid=True)
+
+    # and 0x04 does not acquire a parity rule it never had
+    assert point_from_octets(b"\x04" + body, ec, hybrid=True) == Q
+    assert point_from_octets(b"\x04" + body, ec) == Q
+
+
 def test_infinity_point_bytes() -> None:
     with pytest.raises(
         BTClibValueError, match="no bytes representation for infinity point"

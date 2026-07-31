@@ -63,6 +63,30 @@ def test_signature_on_an_equal_curve() -> None:
     assert dsa.verify(msg, Q, sig)
 
 
+def test_parse_stops_at_the_end_of_the_sequence() -> None:
+    """A byte after the DER sequence is not part of the signature.
+
+    It used to be dropped, so `Sig.parse(der + b"\\x01")` answered with the
+    `Sig` of `der` -- which is how a two-byte hash type reached
+    verification as a valid signature (issue #129). Core rejects the
+    element with one size equation, `(lenR + lenS + 7) != sig.size()` in
+    IsValidSignatureEncoding, and only under the flags asking for
+    canonical DER: hence strict here, and hence the lenient parse the
+    engine uses when DERSIG is off still takes it.
+    """
+    q, _ = dsa.gen_keys(0x1)
+    der = dsa.sign(b"Satoshi Nakamoto", q).serialize()
+    assert dsa.Sig.parse(der).serialize() == der
+
+    err_msg = "trailing bytes after the DER sequence"
+    with pytest.raises(BTClibValueError, match=err_msg):
+        dsa.Sig.parse(der + b"\x01")
+    with pytest.raises(BTClibValueError, match=err_msg):
+        dsa.Sig.parse((der + b"\x01").hex())
+
+    assert dsa.Sig.parse(der + b"\x01", strict=False).serialize() == der
+
+
 def test_signature() -> None:
     msg = b"Satoshi Nakamoto"
 

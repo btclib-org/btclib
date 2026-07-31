@@ -209,6 +209,13 @@ class Sig:
 
         Deserialize a strict ASN.1 DER representation of an ECDSA
         signature.
+
+        strict says whether the encoding must be the canonical one, and it
+        now covers what comes *after* the sequence as well as what is in
+        it: a byte too many is not a DER signature either. What it does
+        not cover, and what a caller has to strip, is a sighash type byte
+        -- a script signature and a psbt partial signature both carry one,
+        and neither is a bare DER encoding.
         """
         stream = bytesio_from_binarydata(data)
         ec = secp256k1
@@ -233,6 +240,24 @@ class Sig:
         if sig_data_substream.read(1) != b"":
             err_msg = "invalid DER sequence length"
             raise BTClibValueError(err_msg)
+
+        # and so must the stream, which nothing used to check: bytes after
+        # the sequence were read as part of nothing and silently dropped,
+        # so Sig.parse(der + b"\x01") answered with the Sig of der. Core
+        # checks the whole element with one size equation --
+        # `(lenR + lenS + 7) != sig.size()` in IsValidSignatureEncoding --
+        # and a two-byte hash type is what leaves a byte behind once the
+        # engine has stripped one, which is the script_tests.json vector
+        # "P2PK with multi-byte hashtype, with DERSIG" (issue #129).
+        #
+        # Under strict alone, because that is where Core has it too:
+        # IsValidSignatureEncoding is called for DERSIG, STRICTENC and
+        # LOW_S and not otherwise, and fix_signature parses with
+        # strict=False for exactly the flags Core leaves it out for. A
+        # stream is held to the same rule as a bytes buffer, no caller in
+        # this library parsing a signature out of the middle of one
+        if strict and stream.read(1) != b"":
+            raise BTClibValueError("trailing bytes after the DER sequence")
 
         return cls(r, s, ec, check_validity=check_validity)
 

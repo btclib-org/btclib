@@ -108,7 +108,18 @@ def _assert_valid_partial_sigs(partial_sigs: Mapping[bytes, bytes]) -> None:
             err_msg = "invalid partial signature pub_key: {pub_key!r}"
             raise BTClibValueError(err_msg) from e
         try:
-            dsa.Sig.parse(sig)
+            # the DER signature alone: a partial signature is that plus a
+            # sighash type byte (bip 174), so it is not itself a DER
+            # encoding. Sig.parse used to be handed the whole element and
+            # took it only because it ignored whatever followed the
+            # sequence -- issue #129 closed that, and this is the call site
+            # the laxity was carrying. The trailing byte is not checked
+            # here: which hash types are admissible depends on the input
+            # being spent, which a per-field validator does not know, and
+            # issue #173 is where that belongs. Do not let a line of this
+            # comment begin with "# type:", which mypy reads as a PEP 484
+            # type comment and then calls the try block a syntax error
+            dsa.Sig.parse(sig[:-1])
         except BTClibValueError as e:
             err_msg = f"invalid partial signature: {sig!r}"
             raise BTClibValueError(err_msg) from e

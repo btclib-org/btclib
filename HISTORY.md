@@ -7,7 +7,7 @@ full year, short month, short day (YYYY-M-D)
 
 ## v2026.8 (work in progress, not released yet)
 
-The first release since 2023, and the largest: a hundred and eight entries, in
+The first release since 2023, and the largest: a hundred and eleven entries, in
 [CHANGELOG.md](./CHANGELOG.md). What follows is what a user has to act on
 and what a user gains.
 
@@ -19,7 +19,7 @@ CHANGELOG.md.
 
 ### Breaking changes
 
-Eleven changes break code that worked on v2023.7.12. Each is described in
+Twelve changes break code that worked on v2023.7.12. Each is described in
 full in [CHANGELOG.md](./CHANGELOG.md). Every "before" spelling was checked
 against the `v2023.7.12` tag.
 
@@ -55,6 +55,11 @@ against the `v2023.7.12` tag.
   `dsa`, `ssa` and `bms` counterparts do. It used to return a `bool`, so
   `if borromean.assert_as_valid(...)` accepted forged ring signatures in
   silence; `borromean.verify` is the one that answers a bool.
+- **`dsa.Sig.parse` rejects trailing bytes.** A script signature and a PSBT
+  partial signature are a DER encoding *plus* a sighash type byte, and the
+  parse used to ignore that byte instead of refusing it: `Sig.parse(sig[:-1])`
+  is the spelling now, and `strict=False` keeps the old leniency for a caller
+  that wants it.
 
 Two changes are deliberately *not* on that list, because what they change
 stays compatible. The new `BTClibTypeError`, `NotAPrvKeyError` and
