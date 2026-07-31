@@ -23,7 +23,7 @@ from btclib.exceptions import BTClibRuntimeError
 
 
 def test_borromean() -> None:
-    nring = 4  # FIXME minimum number of rings?
+    nring = 4
     # ring_sizes = [1 + random.randrange(7) for _ in range(nring)]
     # sign_key_idx = [random.randrange(size) for size in ring_sizes]
     # derandomize test to ensure code coverage

@@ -209,7 +209,6 @@ def test_low_cardinality() -> None:
                         dsa._assert_as_valid_(e, QJ, r, s, lower_s, ec)
 
                         jac_keys = dsa._recover_pub_keys_(e, r, s, lower_s, ec)
-                        # FIXME speed this up
                         Qs = [ec.aff_from_jac(key) for key in jac_keys]
                         assert ec.aff_from_jac(QJ) in Qs
                         assert len(jac_keys) in {2, 4}

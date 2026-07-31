@@ -281,7 +281,6 @@ def sign(msg: Octets, prv_key: PrvKey, addr: String | None = None) -> Sig:
     dsa_sig = dsa.sign(magic_msg, q)
 
     # now calculate the key_id
-    # TODO do the match in Jacobian coordinates avoiding mod_inv
     pub_keys = dsa.recover_pub_keys(magic_msg, dsa_sig)
     Q = mult(q)
     # key_id is in [0, 3]

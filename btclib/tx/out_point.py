@@ -32,8 +32,6 @@ class OutPoint:
     tx_id: bytes
     vout: int
 
-    # TODO add value and script_pub_key properties when tx fetcher will be available
-
     @property
     def hash(self) -> int:
         """Return the hash int for compatibility with COutPoint."""

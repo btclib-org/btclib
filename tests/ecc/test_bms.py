@@ -146,7 +146,6 @@ def test_exceptions() -> None:
     wif = "5JDopdKaxz5bXVYXcAnfno6oeSL8dpipxtU1AhfKe3Z58X48srn"
     address = "1DAag8qiPLHh6hMFVu9qJQm9ro1HtwuyK5"
     err_msg = "not a private or compressed public key for mainnet"
-    # FIXME puzzling error message
     with pytest.raises(BTClibValueError, match=err_msg):
         bms.sign(msg, wif, address)
 
@@ -296,7 +295,6 @@ def test_one_prv_key_multiple_addresses() -> None:
         bms.assert_as_valid(msg, b32_p2wpkh, sig1)
     assert not bms.verify(msg, b32_p2wpkh, sig1)
 
-    # FIXME puzzling error message
     err_msg = "not a private or compressed public key for mainnet"
     with pytest.raises(BTClibValueError, match=err_msg):
         bms.sign(msg, wif2, b58_p2pkh_compressed)

@@ -226,7 +226,6 @@ def test_test_vectors(
     raw_tx: str, raw_script: str, input_index: int, hash_type: int, exp_hash: str
 ) -> None:
     script_ = sig_hash.legacy_script(raw_script)[0]
-    # FIXME separate invalid transaction from the valid ones
     tx = Tx.parse(raw_tx, check_validity=False)
     if hash_type < 0:
         hash_type += 0xFFFFFFFF + 1

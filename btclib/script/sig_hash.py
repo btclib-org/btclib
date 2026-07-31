@@ -64,7 +64,6 @@ def assert_valid_hash_type(hash_type: int) -> None:
         raise BTClibValueError(f"invalid sig_hash type: {hex(hash_type)}")
 
 
-# TODO: should remove signature even if not standard
 def legacy_script(script_pub_key: Octets) -> list[bytes]:
     script_s: list[bytes] = []
     current_script: ScriptList = []
@@ -77,7 +76,6 @@ def legacy_script(script_pub_key: Octets) -> list[bytes]:
     return script_s[::-1]
 
 
-# FIXME: remove OP_CODESEPARATOR only if executed
 def witness_v0_script(script_pub_key: Octets) -> list[bytes]:
     script_type, payload = type_and_payload(script_pub_key)
 

@@ -26,8 +26,6 @@ from btclib.utils import bytes_from_octets, int_from_bits
 # selecting either meant rebinding an attribute of this module, which
 # changes the algorithm for every other caller in the process
 
-# TODO test corner case on low-cardinality curves
-
 
 def _hash(m: bytes, R: bytes, i: int, j: int, hf: HashF) -> bytes:
     temp = b"".join(
@@ -106,8 +104,8 @@ def sign(
                 # and for secp256k1 with sha256 zero is a 2**-255
                 # accident: exactly two of the 256-bit outputs (0 and n)
                 # are 0 mod n. A low-cardinality curve is a different
-                # matter, which is what the TODO at the top of the module
-                # is about, and what made ec a parameter worth having
+                # matter, which is what issue 183 is about, and what made
+                # ec a parameter worth having
                 if not 0 < e[i][j] < ec.n:
                     err_msg = "implausible signature failure"  # pragma: no cover
                     raise BTClibRuntimeError(err_msg)  # pragma: no cover

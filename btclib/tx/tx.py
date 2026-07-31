@@ -59,8 +59,6 @@ class Tx:
     vin: list[TxIn]
     vout: list[TxOut]
 
-    # TODO add fee property when a tx fetcher will be available
-
     @property
     def nVersion(self) -> int:
         """Return the nVersion int for compatibility with CTransaction."""
@@ -143,7 +141,6 @@ class Tx:
         if not TX_IN_COMPARES_WITNESS and self.vwitness != other.vwitness:
             return False
 
-        # FIXME use super().__eq__
         return (self.version, self.lock_time, self.vin, self.vout) == (
             other.version,
             other.lock_time,

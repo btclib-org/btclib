@@ -164,14 +164,11 @@ def test_nulldata4() -> None:
         "OP_0",
         "OP_3",
     ]
-    # FIXME serialization is not 0x6A{1 byte data-length}{data 6 bytes)}
     script_pub_key = serialize(script_)
     assert len(script_pub_key) == 7
     assert parse(script_pub_key) == script_
     script_type, _ = type_and_payload(script_pub_key)
-    # FIXME it should be "nulldata"
     assert script_type == "unknown"
-    # assert is_nulldata(script_pub_key)
 
 
 def test_p2pk() -> None:
@@ -521,8 +518,6 @@ def test_p2ms_3() -> None:
     script = script_sig + script_pub_key
     # parse(serialize(*)) is to enforce same string case convention
     assert script.asm == parse(serialize(cmds_sig + cmds))
-
-    # TODO evaluate
 
 
 BIP67_VECTORS = vectors.load("script", "_data", "bip67_test_vectors.json")

@@ -148,7 +148,6 @@ def test_bip340_vectors(row: list[str]) -> None:
         ssa.assert_as_valid_(m, pub_key, sig_actual)
         assert ssa.Sig.parse(sig) == sig_actual
 
-    # TODO what's wrong with xor-ing ?
     # assert (result == "TRUE") ^ ssa.verify_(m, pub_key, sig)
     if result == "TRUE":
         ssa.assert_as_valid_(m, pub_key, sig)

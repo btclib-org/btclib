@@ -153,7 +153,6 @@ def test_psbt_combination() -> None:
     # get the wrong tx_id
     psbt1.tx.lock_time = psbt1.tx.lock_time ^ 12345678
     err_msg = "mismatched psbt.tx.id: "
-    # TODO add to test vectors
     with pytest.raises(BTClibValueError, match=err_msg):
         combine_psbts([psbt1, psbt2])
 
@@ -170,7 +169,6 @@ def test_finalize() -> None:
 
     to_be_finalized_psbt.inputs[0].partial_sigs = {}
     err_msg = "missing signatures"
-    # TODO add to test vectors
     with pytest.raises(BTClibValueError, match=err_msg):
         finalize_psbt(to_be_finalized_psbt)
 
@@ -391,9 +389,6 @@ def test_sig_type1() -> None:
     assert psbt.inputs[0].partial_sigs[pk1] == sig1
 
 
-# TODO add test case with non_witness_utxo and witness_utxo
-
-
 def test_dataclasses_json_dict(json_golden: JsonGolden) -> None:
     psbt_str = "cHNidP8BAJoCAAAAAljoeiG1ba8MI76OcHBFbDNvfLqlyHV5JPVFiHuyq911AAAAAAD/////g40EJ9DsZQpoqka7CwmK6kQiwHGyyng1Kgd5WdB86h0BAAAAAP////8CcKrwCAAAAAAWABTYXCtx0AYLCcmIauuBXlCZHdoSTQDh9QUAAAAAFgAUAK6pouXw+HaliN9VRuh0LR2HAI8AAAAAAAEAuwIAAAABqtc5MQGL0l+ErkALaISL4J23BurCrBgpi6vucatlb4sAAAAASEcwRAIgWPb8fGoz4bMVSNSByCbAFb0wE1qtQs1neQ2rZtKtJDsCIEoc7SYExnNbY5PltBaR3XiwDwxZQvufdRhW+qk4FX26Af7///8CgPD6AgAAAAAXqRQPuUY0IWlrgsgzryQceMF9295JNIfQ8gonAQAAABepFCnKdPigj4GZlCgYXJe12FLkBj9hh2UAAAAiAgKVg785rgpgl0etGZrd1jT6YQhVnWxc05tMIYPxq5bgf0cwRAIgdAGK1BgAl7hzMjwAFXILNoTMgSOJEEjn282bVa1nnJkCIHPTabdA4+tT3O+jOCPIBwUUylWn3ZVE8VfBZ5EyYRGMASICAtq2H/SaFNtqfQKwzR+7ePxLGDErW05U2uTbovv+9TbXSDBFAiEA9hA4swjcHahlo0hSdG8BV3KTQgjG0kRUOTzZm98iF3cCIAVuZ1pnWm0KArhbFOXikHTYolqbV2C+ooFvZhkQoAbqAQEDBAEAAAABBEdSIQKVg785rgpgl0etGZrd1jT6YQhVnWxc05tMIYPxq5bgfyEC2rYf9JoU22p9ArDNH7t4/EsYMStbTlTa5Nui+/71NtdSriIGApWDvzmuCmCXR60Zmt3WNPphCFWdbFzTm0whg/GrluB/ENkMak8AAACAAAAAgAAAAIAiBgLath/0mhTban0CsM0fu3j8SxgxK1tOVNrk26L7/vU21xDZDGpPAAAAgAAAAIABAACAAAEBIADC6wsAAAAAF6kUt/X69A49QKWkWbHbNTXyty+pIeiHIgIDCJ3BDHrG21T5EymvYXMz2ziM6tDCMfcjN50bmQMLAtxHMEQCIGLrelVhB6fHP0WsSrWh3d9vcHX7EnWWmn84Pv/3hLyyAiAMBdu3Rw2/LwhVfdNWxzJcHtMJE+mWzThAlF2xIijaXwEiAgI63ZBPPW3PWd25BrDe4jUpt/+57VDl6GFRkmhgIh8Oc0cwRAIgZfRbpZmLWaJ//hp77QFq8fH5DVSzqo90UKpfVqJRA70CIH9yRwOtHtuWaAsoS1bU/8uI9/t1nqu+CKow8puFE4PSAQEDBAEAAAABBCIAIIwjUxc3Q7WV37Sge3K6jkLjeX2nTof+fZ10l+OyAokDAQVHUiEDCJ3BDHrG21T5EymvYXMz2ziM6tDCMfcjN50bmQMLAtwhAjrdkE89bc9Z3bkGsN7iNSm3/7ntUOXoYVGSaGAiHw5zUq4iBgI63ZBPPW3PWd25BrDe4jUpt/+57VDl6GFRkmhgIh8OcxDZDGpPAAAAgAAAAIADAACAIgYDCJ3BDHrG21T5EymvYXMz2ziM6tDCMfcjN50bmQMLAtwQ2QxqTwAAAIAAAACAAgAAgAAiAgOppMN/WZbTqiXbrGtXCvBlA5RJKUJGCzVHU+2e7KWHcRDZDGpPAAAAgAAAAIAEAACAACICAn9jmXV9Lv9VoTatAsaEsYOLZVbl8bazQoKpS2tQBRCWENkMak8AAACAAAAAgAUAAIAA"
     # let's sort it
@@ -489,35 +484,30 @@ def test_exceptions() -> None:
     with pytest.raises(BTClibValueError, match=err_msg):
         psbt.serialize()
     psbt.version = 1
-    # TODO add to test vectors
     with pytest.raises(BTClibValueError, match="invalid non-zero version: "):
         psbt.serialize()
 
     psbt = Psbt.b64decode(psbt_str)
     psbt_bin = psbt.serialize()
     psbt_bin = psbt_bin.replace(PSBT_SEPARATOR, PSBT_DELIMITER)
-    # TODO add to test vectors
     with pytest.raises(BTClibValueError, match="malformed psbt: missing separator"):
         Psbt.parse(psbt_bin)
 
     psbt = Psbt.b64decode(psbt_str)
     psbt.inputs.pop()
     err_msg = "mismatched number of psb.tx.vin and psb.inputs: "
-    # TODO add to test vectors
     with pytest.raises(BTClibValueError, match=err_msg):
         psbt.serialize()
 
     psbt = Psbt.b64decode(psbt_str)
     psbt.tx.vin[0].script_witness = Witness([b""])
     err_msg = "non empty script_sig or witness"
-    # TODO add to test vectors
     with pytest.raises(BTClibValueError, match=err_msg):
         psbt.serialize()
 
     psbt = Psbt.b64decode(psbt_str)
     psbt.outputs.pop()
     err_msg = "mismatched number of psb.tx.vout and psbt.outputs: "
-    # TODO add to test vectors
     with pytest.raises(BTClibValueError, match=err_msg):
         psbt.serialize()
 

@@ -19,7 +19,6 @@ from tests.conftest import JsonGolden
 
 def test_psbt_out() -> None:
     psbt_in = PsbtIn()
-    # FIXME
     # assert psbt_in == PsbtIn.parse(psbt_in.serialize())
     assert psbt_in == PsbtIn.from_dict(psbt_in.to_dict())
 

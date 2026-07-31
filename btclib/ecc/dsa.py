@@ -468,7 +468,6 @@ def verify(
     return verify_(msg_hash, key, sig, lower_s, hf)
 
 
-# TODO use _recover_pub_key_ to avoid code duplication
 def _recover_pub_keys_(
     c: int, r: int, s: int, lower_s: bool, ec: Curve
 ) -> list[JacPoint]:

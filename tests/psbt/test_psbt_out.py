@@ -34,12 +34,10 @@ def test_unknown() -> None:
     assert encoded_data == encode_dict_bytes_bytes(data)
 
     _ = serialize_dict_bytes_bytes(b"", data)
-    # TODO check deserialization
 
 
 def test_psbt_out() -> None:
     psbt_out = PsbtOut()
-    # FIXME
     # assert psbt_out == PsbtOut.parse(psbt_out.serialize())
     assert psbt_out == PsbtOut.from_dict(psbt_out.to_dict())
 

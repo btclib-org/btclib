@@ -94,8 +94,6 @@ class TxIn:
     def assert_valid(self) -> None:
         self.prev_out.assert_valid()
 
-        # TODO check script_sig
-
         # must be a 4-bytes int
         if not 0 <= self.sequence <= 0xFFFFFFFF:
             raise BTClibValueError(f"invalid sequence: {self.sequence}")

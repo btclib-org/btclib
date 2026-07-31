@@ -25,7 +25,7 @@ References:
     - https://bitcointalk.org/index.php?topic=3238.msg45565#msg45565
     - https://medium.com/@CoinExChain/acceleration-of-ecdsa-verification-with-endomorphism-mapping-of-secp256k1-126e77a51dba
 
-TODO:
+Further reading, and directions not taken here:
     - Computational cost of the different multiplications
     - New algorithms at the state-of-art:
         -https://hal.archives-ouvertes.fr/hal-00932199/document
@@ -159,9 +159,6 @@ def mult_w_NAF(m: int, Q: JacPoint, ec: CurveGroup, w: int = 4) -> JacPoint:
     if appropriate (e.g. cyclic groups of order n).
     'right-to-left' method.
 
-    FIXME:
-    - Make it constant time (if necessary)
-    - Try to avoid exception in negation for w=1
     """
     if m < 0:
         raise BTClibValueError(f"negative m: {hex(m)}")
@@ -238,5 +235,4 @@ def mult_endomorphism_secp256k1(m: int, Q: JacPoint, ec: CurveGroup) -> JacPoint
 
     K = ((Q[0] * beta) % ec.p), Q[1], Q[2]  # K = lambda*Q, direct calculation
 
-    # FIXME Change double mult (?) with algorithm 3.77
     return _double_mult(m1, Q, m2, K, ec)

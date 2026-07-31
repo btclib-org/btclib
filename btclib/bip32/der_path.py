@@ -65,7 +65,6 @@ def _indexes_from_bip32_path_str(der_path: str, skip_m: bool = True) -> list[int
 BIP32DerPath = Union[str, Sequence[int], int, bytes]
 
 
-# FIXME bip32_path should be der_path, BIP32DerPath DerPath, etc
 def indexes_from_bip32_path(der_path: BIP32DerPath) -> list[int]:
     if isinstance(der_path, str):
         return _indexes_from_bip32_path_str(der_path)

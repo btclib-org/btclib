@@ -613,10 +613,12 @@ Pulled 2020-05-08.
 their root keys and addresses are in no upstream repository: a GitHub
 code search for the first mnemonic returns btclib and one fork of btclib,
 and they are not in spesmilo/electrum's `tests/`. They were produced by
-running Electrum — suggestively, `tests/mnemonic/test_electrum.py` asks
-"FIXME is the following mnemonic obtained in Electrum" of a mnemonic
-written inline in `test_mnemonic`, so that FIXME is about a different
-value than these and is evidence of the habit rather than of this file.
+running Electrum — suggestively, `tests/mnemonic/test_electrum.py` used to
+carry a FIXME asking whether a mnemonic written inline in `test_mnemonic`
+had been obtained in Electrum. That marker was about a different value
+than these, so it is evidence of the habit rather than of this file; it
+was removed with the rest of the FIXME/TODO markers, and the evidence is
+recorded here instead.
 
 So they are btclib's, cross-checked against an application rather than
 copied from a project, and the honest record is that we cannot say which

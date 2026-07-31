@@ -271,11 +271,6 @@ class Psbt:
         cls: type[Psbt], psbt_bin: Octets, *, check_validity: bool = True
     ) -> Psbt:
         """Return a Psbt by parsing binary data."""
-        # FIXME psbt_bin should be BinaryData
-        # stream = bytesio_from_binarydata(psbt_bin)
-        # and the deserialization should happen reading the stream
-        # not slicing bytes
-
         # None until the global map yields one, which BIP174 requires it to:
         # "The unsigned transaction must be provided". It used to start as
         # Tx(check_validity=False), an empty transaction indistinguishable

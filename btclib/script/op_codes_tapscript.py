@@ -44,8 +44,8 @@ OP_CODES = {
     "OP_NOP": b"\x61",
     "OP_IF": b"\x63",
     "OP_NOTIF": b"\x64",
-    "OP_VERIF": b"\x65",  # TODO: should remove?
-    "OP_VERNOTIF": b"\x66",  # TODO: should remove?
+    "OP_VERIF": b"\x65",
+    "OP_VERNOTIF": b"\x66",
     "OP_ELSE": b"\x67",
     "OP_ENDIF": b"\x68",
     "OP_VERIFY": b"\x69",
@@ -150,8 +150,8 @@ OP_CODE_NAMES = {
     97: "OP_NOP",
     99: "OP_IF",
     100: "OP_NOTIF",
-    101: "OP_VERIF",  # TODO: should remove?
-    102: "OP_VERNOTIF",  # TODO: should remove?
+    101: "OP_VERIF",
+    102: "OP_VERNOTIF",
     103: "OP_ELSE",
     104: "OP_ENDIF",
     105: "OP_VERIFY",

@@ -41,9 +41,6 @@ from btclib.number_theory import mod_sqrt
 from btclib.to_pub_key import pub_keyinfo_from_prv_key
 from tests import vectors
 
-# FIXME Curve repr should use "deadbeef 00000000", not "0xdeadbeef00000000"
-# FIXME test curves when n>p
-
 # test curves: very low cardinality
 # 13 % 4 = 1; 13 % 8 = 5
 low_card_curves = {"ec13_11": Curve(13, 7, 6, (1, 1), 11, 1, False)}
@@ -558,9 +555,6 @@ def test_multi_mult() -> None:
     assert multi_mult([1, 0], [G, H]) == G
     assert multi_mult([0, 1], [G, H]) == H
 
-    # FIXME it loop for negative coefficients
-    # assert multi_mult([-1, 1], [G, H]) != INF
-    # assert multi_mult([1, -1], [G, H]) != INF
     assert multi_mult([-1, 0], [G, H]) != INF
     assert multi_mult([0, -1], [G, H]) != INF
 

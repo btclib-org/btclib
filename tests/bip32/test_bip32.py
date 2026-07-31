@@ -16,7 +16,7 @@ from typing import Any
 import pytest
 
 from btclib import base58
-from btclib.b58 import p2pkh  # FIXME why it is needed here
+from btclib.b58 import p2pkh
 from btclib.bip32 import (
     BIP32KeyData,
     crack_prv_key,
@@ -241,7 +241,6 @@ def test_derive_exceptions() -> None:
     # root key, zero depth
     rootmxprv = "xprv9s21ZrQH143K3QTDL4LXw2F7HEK3wJUD2nW2nRk4stbPy6cq3jPPqjiChkVvvNKmPGJxWUtg6LnF5kejMRNNU3TGtRBeJgk33yuGBxrMPHi"
     xprv = BIP32KeyData.b58decode(rootmxprv)
-    # FIXME
     # assert xprv == _derive(xprv, "m")
     assert rootmxprv == derive(xprv, "m")
     assert rootmxprv == derive(xprv, "")
