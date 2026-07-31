@@ -76,6 +76,30 @@ uv sync --python 3.10
 uv run --python 3.10 pytest
 ```
 
+**`--python` rebuilds `.venv`, and that has a consequence worth knowing
+before it bites.** An interpreter other than the one already there makes uv
+report `Removed virtual environment at: .venv` and create it again — so
+whatever groups the command asks for are the only ones installed
+afterwards. With the group-restricted commands under "Reproducing what CI
+runs" below, that leaves an environment of 15 packages where `uv sync`
+leaves 84, and pre-commit is not among them. The git hook pre-commit
+installs `exec`s `.venv/bin/python -mpre_commit` by absolute path, and
+that python does exist, so the hook's own "did you forget to activate your
+virtualenv" fallback never runs: the next `git commit` dies with
+`No module named pre_commit`. `uv sync` puts it back.
+
+To leave `.venv` alone in the first place, put the other interpreter's
+environment somewhere else:
+
+```shell
+UV_PROJECT_ENVIRONMENT=.venv-3.10 \
+    uv run --locked --no-default-groups --group test --python 3.10 pytest
+```
+
+`.gitignore` does not mention that directory and does not need to: uv
+writes a `.gitignore` of its own, holding `*`, inside every environment it
+creates, so the tree stays clean without a rule per interpreter.
+
 As an annotated python3 project, btclib is very strict on code formatting
 and linting
 ([ruff](https://docs.astral.sh/ruff/),
@@ -185,6 +209,12 @@ One cell of the `test-py` matrix. The interpreter is chosen with
 ```shell
 uv run --locked --no-default-groups --group test --python 3.10 pytest
 ```
+
+That one rebuilds `.venv` with the test group alone, which is what breaks
+the pre-commit hook until the next `uv sync`: see the note under "Getting
+started" above, and `UV_PROJECT_ENVIRONMENT` for running it without
+touching `.venv`. The command is what CI runs, verbatim, and CI has no
+`.venv` to lose.
 
 The `coverage-py` job, gated by `fail_under` in pyproject.toml:
 

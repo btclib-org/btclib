@@ -11,7 +11,7 @@ release-notes length in the first place, and are still in
 
 ## v2026.8 (work in progress, not released yet)
 
-A hundred and twenty-five entries, grouped. The order runs from what breaks a
+A hundred and twenty-six entries, grouped. The order runs from what breaks a
 caller to what only maintainers see; [HISTORY.md](./HISTORY.md) lists the
 fifteen source-breaking changes on their own.
 
@@ -1441,6 +1441,20 @@ fifteen source-breaking changes on their own.
 
 ### Documentation and the website
 
+- **CONTRIBUTING.md warns that `--python` rebuilds `.venv`.** Reproducing
+  one cell of the matrix with the documented command — `uv run --locked
+  --no-default-groups --group test --python 3.10 pytest` — removes and
+  recreates the environment for that interpreter with the test group
+  alone, 15 packages where `uv sync` leaves 84. pre-commit's git hook
+  `exec`s `.venv/bin/python -mpre_commit` by absolute path, so that
+  python exists, its "did you forget to activate your virtualenv"
+  fallback never fires, and the next `git commit` dies with `No module
+  named pre_commit` — which is a puzzle if the two facts are a hundred
+  lines apart, and a footnote if they are not. `uv sync` restores it, and
+  `UV_PROJECT_ENVIRONMENT` runs the command without touching `.venv`;
+  both spellings are in the file, next to both commands that trigger it.
+  Measured: without `--python` the same command prunes nothing, so it is
+  the interpreter and not the groups
 - **The release notes and the changelog are two files.** This one is the
   changelog, every entry of the release; HISTORY.md is the release notes,
   which say what an upgrader has to act on and point here for why. They

@@ -173,6 +173,19 @@ docstring.
   and the API answers a PATCH with 200 while leaving them disabled. The
   `detect-secrets` hook is the compensating control.
 - `uv run --no-sources` rewrites `uv.lock`; restore it before committing.
+- **`uv run --python <version>` rebuilds `.venv`, and a group-restricted
+  command then leaves pre-commit out of it.** Reproducing a matrix cell
+  (`uv run --locked --no-default-groups --group test --python 3.10
+  pytest`) removes and recreates the environment for that interpreter
+  with 15 packages where `uv sync` leaves 84 — and pre-commit's git hook
+  `exec`s `.venv/bin/python -mpre_commit` by absolute path, which exists
+  and lacks the module, so its "did you forget to activate your
+  virtualenv" fallback never fires and the next `git commit` dies with
+  `No module named pre_commit`. `uv sync` restores it; prefix the command
+  with `UV_PROJECT_ENVIRONMENT=.venv-3.10` to leave `.venv` alone.
+  Without `--python` the same command prunes nothing, so it is the
+  interpreter and not the groups that triggers it. CONTRIBUTING.md
+  carries this next to both commands.
 
 ## Conventions to match
 
