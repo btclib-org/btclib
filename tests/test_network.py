@@ -13,7 +13,7 @@ import pytest
 
 from btclib import var_bytes
 from btclib.curves.curve import CURVES
-from btclib.exceptions import BTClibValueError
+from btclib.exceptions import BTClibTypeError, BTClibValueError
 from btclib.hashes import hash256
 from btclib.network import (
     NETWORKS,
@@ -293,3 +293,18 @@ def test_the_network_type_default_is_test() -> None:
     with pytest.raises(BTClibValueError, match="invalid network type: 'mainnet'"):
         # the type is not a network name, and the json is what says it
         Network.from_dict({**NETWORKS["mainnet"].to_dict(), "network_type": "mainnet"})
+
+
+def test_a_non_str_hrp_is_a_type_error() -> None:
+    """The hrp is the human-readable part of an address, so it is a str.
+
+    Every other field goes through bytes_from_octets, which refuses what
+    is not convertible; the hrp is stored as given, so assert_valid is
+    where a bytes hrp -- the plausible mistake, every neighbouring field
+    being bytes -- is caught.
+    """
+    mainnet = NETWORKS["mainnet"].to_dict()
+    with pytest.raises(BTClibTypeError, match="invalid hrp type: bytes"):
+        Network.from_dict({**mainnet, "hrp": b"bc"})
+    with pytest.raises(BTClibTypeError, match="invalid hrp type: int"):
+        Network.from_dict({**mainnet, "hrp": 0})

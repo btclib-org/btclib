@@ -43,6 +43,7 @@ import pytest
 
 from btclib.curves import point_from_octets
 from btclib.ecc import dsa, ssa
+from btclib.exceptions import BTClibValueError
 from btclib.script.engine import script as engine_script
 from btclib.script.engine import tapscript as engine_tapscript
 
@@ -120,3 +121,29 @@ def test_valid_taproot_vectors(vector: dict[str, Any]) -> None:
 @pytest.mark.usefixtures("python_verification")
 def test_invalid_taproot_vectors(vector: dict[str, Any]) -> None:
     tx_vector_module.test_invalid_taproot(vector)
+
+
+def test_dsa_verify_answers_false_for_what_the_bindings_refuse() -> None:
+    """A malformed signature is a failed CHECKSIG, not an exception.
+
+    `engine_script.dsa_verify` wraps the bindings' verify in a
+    `try/except ValueError` for this, and the vectors never reach it: DER
+    strictness is enforced earlier, by `fix_signature` under DERSIG and
+    STRICTENC, so by the time the engine verifies, the encoding has
+    already been ruled on. What is left is the contract itself, which the
+    python substitute above is written to honour -- it raises where the
+    bindings raise -- and which the bindings do raise: measured, a
+    ValueError of "invalid DER signature" and one of "invalid public
+    key".
+    """
+    msg_hash = b"\x11" * 32
+    # a signature that is not DER at all
+    assert not engine_script.dsa_verify(msg_hash, b"\x02" + b"\x33" * 32, b"garbage")
+    # and a public key that is not a point: 0x02 with x = 0
+    minimal_der = bytes.fromhex("3006020101020101")
+    assert not engine_script.dsa_verify(msg_hash, b"\x02" + b"\x00" * 32, minimal_der)
+
+    # the same input through the python substitute raises instead, which
+    # is the asymmetry the wrapper exists to absorb
+    with pytest.raises(BTClibValueError):
+        python_dsa_verify(msg_hash, b"\x02" + b"\x00" * 32, minimal_der)

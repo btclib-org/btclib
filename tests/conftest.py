@@ -106,37 +106,50 @@ def json_golden(
     """
 
     def check(name: str, value: Any) -> None:
-        # what the writes produced, byte for byte, so that regenerating
-        # leaves no diff of its own
-        text = json.dumps(value, indent=4) + "\n"
-        path = generated_files_dir / name
-
-        if os.environ.get(REGENERATE):
-            path.parent.mkdir(parents=True, exist_ok=True)
-            path.write_text(text, encoding="ascii")
-            return
-
-        if not path.exists():
-            pytest.fail(
-                f"missing golden file {path}\n"
-                f"run: {REGENERATE}=1 uv run pytest {request.path.name}"
-            )
-
-        committed = path.read_text(encoding="ascii")
-        if committed != text:
-            diff = "".join(
-                difflib.unified_diff(
-                    committed.splitlines(keepends=True),
-                    text.splitlines(keepends=True),
-                    fromfile=f"{name} (committed)",
-                    tofile=f"{name} (this run)",
-                )
-            )
-            pytest.fail(
-                f"{name} does not match what to_dict() produces now.\n"
-                f"If the change is intended, regenerate and review the diff:\n"
-                f"  {REGENERATE}=1 uv run pytest {request.path.name}\n\n"
-                f"{diff}"
-            )
+        check_golden(generated_files_dir / name, name, value, request.path.name)
 
     return check
+
+
+def check_golden(path: Path, name: str, value: Any, module: str) -> None:
+    """Compare `value` against the json at `path`, or rewrite it.
+
+    The body of the fixture above, lifted out of the closure it used to
+    be: a closure over `request` cannot be called without a test to
+    build it from, so the regenerate, missing-file and mismatch paths --
+    the three that matter and the two that are failures -- were the only
+    lines of `tests/` a passing suite never ran. Here they take a path
+    and a module name, so `tests/test_conftest.py` exercises all three
+    against a tmp_path, hermetically and without writing into the source
+    tree, which is what this fixture exists to have stopped doing.
+    """
+    # what the writes produced, byte for byte, so that regenerating
+    # leaves no diff of its own
+    text = json.dumps(value, indent=4) + "\n"
+
+    if os.environ.get(REGENERATE):
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text(text, encoding="ascii")
+        return
+
+    if not path.exists():
+        pytest.fail(
+            f"missing golden file {path}\nrun: {REGENERATE}=1 uv run pytest {module}"
+        )
+
+    committed = path.read_text(encoding="ascii")
+    if committed != text:
+        diff = "".join(
+            difflib.unified_diff(
+                committed.splitlines(keepends=True),
+                text.splitlines(keepends=True),
+                fromfile=f"{name} (committed)",
+                tofile=f"{name} (this run)",
+            )
+        )
+        pytest.fail(
+            f"{name} does not match what to_dict() produces now.\n"
+            f"If the change is intended, regenerate and review the diff:\n"
+            f"  {REGENERATE}=1 uv run pytest {module}\n\n"
+            f"{diff}"
+        )

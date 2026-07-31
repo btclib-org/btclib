@@ -9,6 +9,12 @@
 # or distributed except according to the terms contained in the LICENSE file.
 """Tests for the `btclib.bms` module."""
 
+# `Point | None` below is evaluated at def time without this, and
+# py3.9 -- the floor in pyproject.toml -- has no `|` on types: the
+# module failed to import there, so the whole file was 10 collection
+# errors on the oldest supported interpreter and passed on every other
+from __future__ import annotations
+
 import base64
 import contextlib
 from hashlib import sha256
@@ -741,6 +747,31 @@ def _recovers(key_id: int, magic_msg: bytes, dsa_sig: dsa.Sig) -> Point | None:
     with contextlib.suppress(BTClibValueError, BTClibRuntimeError):
         return dsa.recover_pub_key(key_id, magic_msg, dsa_sig)
     return None
+
+
+def test_a_key_id_that_recovers_nothing() -> None:
+    """The dropped candidate, which is why the helper above returns None.
+
+    On secp256k1 the recovery set is key_ids 0 and 1: those take x = r,
+    while 2 and 3 take x = r + n, which exceeds p unless r < p - n --
+    about one r in 2^127 -- so they raise rather than answer. That is the
+    candidate `recover_pub_keys` drops from its list, and dropping it is
+    what made `.index` the wrong question for the recovery flag.
+    """
+    msg = b"a message"
+    prv_key, pub_key = dsa.gen_keys()
+    bms_sig = bms.sign(msg, prv_key)
+    magic_msg = magic_message(msg)
+
+    assert _recovers(bms_sig.rf - 27 & 0b11, magic_msg, bms_sig.dsa_sig) == pub_key
+    for key_id in (2, 3):
+        assert _recovers(key_id, magic_msg, bms_sig.dsa_sig) is None
+        # either exception, which is why the helper suppresses both: the
+        # wrapped x may miss the curve, and BTClibValueError comes out of
+        # y_even, or it may land on it and recover a key that does not
+        # verify, which is the BTClibRuntimeError
+        with pytest.raises((BTClibValueError, BTClibRuntimeError)):
+            dsa.recover_pub_key(key_id, magic_msg, bms_sig.dsa_sig)
 
 
 def test_parse_length_is_not_a_validity_opinion() -> None:

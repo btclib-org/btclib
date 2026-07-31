@@ -94,9 +94,11 @@ the [pytest](https://pytest.org) unit tests
 must pass at any time, with
 [coverage](https://coverage.readthedocs.io/)
 of both the library and the test suite above the `fail_under` ratchet in
-pyproject.toml — 99.9% against the 100% of today, which is 0 statements
-uncovered out of 13286: slack for 13, enough not to trip over a line,
-tight enough that a regression cannot hide.
+pyproject.toml — 99.99% against the 100% of today, which is 0 statements
+uncovered out of 15154: slack for 2, enough not to trip over a
+version-gated line, tight enough that a regression cannot hide. It was
+99.9, and 12 of the 15 statements that bought had gone uncovered without
+anybody noticing.
 See [Tests, code coverage, and profiling](./tests/README.md).
 
 These requirements are easily checked (and partially fixed) with:

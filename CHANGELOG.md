@@ -11,7 +11,7 @@ release-notes length in the first place, and are still in
 
 ## v2026.8 (work in progress, not released yet)
 
-A hundred and nineteen entries, grouped. The order runs from what breaks a
+A hundred and twenty-one entries, grouped. The order runs from what breaks a
 caller to what only maintainers see; [HISTORY.md](./HISTORY.md) lists the
 fifteen source-breaking changes on their own.
 
@@ -1146,6 +1146,42 @@ fifteen source-breaking changes on their own.
 
 ### Tests
 
+- **coverage is 100% and the ratchet is 99.99%**, where it was 99.9% and
+  the measured total 99.92%. That gap was not a rounding allowance being
+  used up: it was 12 uncovered statements, and 15 of slack is what let
+  them accumulate unremarked while both `CONTRIBUTING.md` and the
+  `fail_under` comment claimed "0 uncovered". Six were in
+  `tests/conftest.py` — the golden-file check's own regenerate,
+  missing-file and mismatch paths, which are the three that matter and
+  the only lines of `tests/` a passing suite never runs. They were
+  unreachable from a test because they lived in a closure over
+  `request`: the body is now `conftest.check_golden(path, name, value,
+  module)` and `tests/test_conftest.py` drives all three against a
+  `tmp_path`, hermetically, which is what that fixture exists to have
+  stopped doing to the source tree. Two more were
+  `engine.script.dsa_verify`'s `except ValueError`, the wrapper that
+  turns a signature libsecp256k1 refuses to parse into a failed
+  CHECKSIG rather than an exception — never reached by the vectors,
+  because `fix_signature` rules on the encoding first, and now tested
+  directly against both refusals the bindings raise. Two were
+  `Network.assert_valid`'s hrp type check. One was the `return None` of
+  `test_bms._recovers`, i.e. the recovery candidate that drops out of the
+  set, now asserted for key_ids 2 and 3. And one was `if r == 0:
+  continue` in `test_key_id_is_the_j_zero_pair_when_n_is_above_p`, a
+  branch no input can take: on ec13_19 the r values are
+  {1,2,3,4,5,6,9,10,12}, which is the n > p property the test's own
+  docstring names, so it is `assert r` now — a checked claim instead of a
+  possibility the curve does not have. 99.99 rather than 100 because
+  coverage special-cases 100 to mean exactly 100.00%, which would make
+  one version-gated line a red build; the comparison is
+  `round(total, precision) < fail_under`, so 99.99 allows two of the
+  15154 statements the coverage job measures on 3.13
+- **`tests/ecc/test_bms.py` imports on python 3.9 again.** It annotates a
+  helper `-> Point | None` without `from __future__ import annotations`,
+  which 3.9 evaluates at def time and has no `|` for: the module was ten
+  collection errors on the oldest supported interpreter and passed on
+  every other, so the `test-py` matrix was red for 3.9 alone. The future
+  import is what the rest of the tree uses
 - **a curve whose order is above its field prime is covered**, the
   neighbour of the n == p check issue #166 found never fired (issue #183).
   Hasse puts p and n within 2\*sqrt(p) of each other, so which is the

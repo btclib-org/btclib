@@ -326,8 +326,14 @@ def test_key_id_is_the_j_zero_pair_when_n_is_above_p() -> None:
         Q = ec.aff_from_jac(_mult(q, ec.GJ, ec))
         for k in range(1, ec.n):
             r = ec.x_aff_from_jac(_mult(k, ec.GJ, ec)) % ec.n
-            if r == 0:
-                continue
+            # asserted, not skipped: this is the n > p property the
+            # docstring names -- x_K < p < n, so x_K % n is x_K, and no
+            # multiple of G on this curve has x_K == 0 (measured: the r
+            # values are {1,2,3,4,5,6,9,10,12}). `if r == 0: continue`
+            # was a branch no input could take, so it read as a
+            # possibility this curve has, and a swapped curve would have
+            # skipped silently where this says so
+            assert r
             k_inv = mod_inv(k, ec.n)
             for e in range(ec.n):
                 s = k_inv * (e + q * r) % ec.n
