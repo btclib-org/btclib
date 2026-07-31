@@ -7,7 +7,7 @@ full year, short month, short day (YYYY-M-D)
 
 ## v2026.8 (work in progress, not released yet)
 
-The first release since 2023, and the largest: a hundred and eleven entries, in
+The first release since 2023, and the largest: a hundred and sixteen entries, in
 [CHANGELOG.md](./CHANGELOG.md). What follows is what a user has to act on
 and what a user gains.
 
@@ -19,7 +19,7 @@ CHANGELOG.md.
 
 ### Breaking changes
 
-Twelve changes break code that worked on v2023.7.12. Each is described in
+Thirteen changes break code that worked on v2023.7.12. Each is described in
 full in [CHANGELOG.md](./CHANGELOG.md). Every "before" spelling was checked
 against the `v2023.7.12` tag.
 
@@ -44,6 +44,13 @@ against the `v2023.7.12` tag.
 - **`ssa`'s `msg_hash` and `m_hashes` parameters are `msg` and `msgs`**, and
   take a BIP340 message of any size rather than a 32-byte array.
 - **`BlockHeader`'s third parameter is `merkle_root`**, not `merkle_root_`.
+- **`multiplier_decomposer` takes the scalar alone**:
+  `multiplier_decomposer(m)`, where it was `(m, ec)`. The curve is what the
+  bug was — it decomposed modulo `ec.p` where the congruence holds modulo
+  the group order, so `mult_endomorphism_secp256k1` answered the wrong point
+  for every scalar above ~2^127. The constants are secp256k1's and
+  `CurveGroup` has no `n` to offer, so the parameter is gone rather than
+  corrected.
 - **`OutPoint`, `TxOut`, `Witness`, `Script` and `ScriptPubKey` are frozen
   dataclasses.** Assigning to a field raises `FrozenInstanceError`; build a
   new instance, or use `dataclasses.replace`.
@@ -91,7 +98,9 @@ and `verify` families now let a `TypeError` out where they used to answer
   `btclib/exceptions.py`.
 - **Signing a transaction is linear in its inputs**, where it was Θ(N²):
   the new `sig_hash.PrecomputedTxData` takes 400 taproot inputs from 164 ms
-  to 0.4 ms. Importing btclib is 140 ms faster, and `Script.asm` is cached.
+  to 0.4 ms. `bms.sign` is twice as fast, recovering one candidate public key
+  at a time where it recovered all four and then searched them. Importing
+  btclib is 140 ms faster, and `Script.asm` is cached.
 - **Importing btclib changes nothing outside btclib.** It no longer dies
   where hashlib has no RIPEMD-160, no longer re-enables OpenSSL's
   deprecated algorithms process-wide, and no longer traps decimal
@@ -112,6 +121,10 @@ and `verify` families now let a `TypeError` out where they used to answer
 - **A psbt carries a taproot signature with its sig_hash type**, the
   65-byte form of BIP341 that BIP371 spells out and btclib refused, while
   its own script engine read it.
+- **Borromean ring signatures work on a curve other than secp256k1**, which
+  is what the `ec` parameter has been offering since it stopped being a module
+  global: the arithmetic ignored it and computed on secp256k1, so the first
+  point encoded against `ec` raised and no other curve could sign at all.
 - **Python 3.9 through 3.14**, free-threaded 3.14t included; 3.7 and 3.8 are
   gone. The project is managed with uv, the lint gate is
   `.pre-commit-config.yaml` and CI runs exactly it, and

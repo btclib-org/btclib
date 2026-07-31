@@ -11,9 +11,9 @@ release-notes length in the first place, and are still in
 
 ## v2026.8 (work in progress, not released yet)
 
-A hundred and eleven entries, grouped. The order runs from what breaks a caller
-to what only maintainers see; [HISTORY.md](./HISTORY.md) lists the twelve
-source-breaking changes on their own.
+A hundred and sixteen entries, grouped. The order runs from what breaks a
+caller to what only maintainers see; [HISTORY.md](./HISTORY.md) lists the
+thirteen source-breaking changes on their own.
 
 ### Repository
 
@@ -1281,7 +1281,7 @@ source-breaking changes on their own.
 ### Documentation and the website
 
 - **The release notes and the changelog are two files.** This one is the
-  changelog, ninety-odd entries deep; HISTORY.md is the release notes,
+  changelog, every entry of the release; HISTORY.md is the release notes,
   which say what an upgrader has to act on and point here for why. They
   used to be one file, and a v2026.8 section of 978 lines had made it
   unusable as either: the eleven changes that break a caller were

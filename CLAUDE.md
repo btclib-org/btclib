@@ -195,10 +195,29 @@ docstring.
   ratchet in `pyproject.toml`.
 - **CHANGELOG.md gets an entry for anything a user would notice**, in
   the group it belongs to; HISTORY.md is the release notes on top of it
-  and only moves for a change a user has to *act* on. The two are one
-  fact each, deliberately: the breaking-changes list lives in
+  and only moves for a change a user has to *act* on. The prose of the
+  two is one fact each, deliberately: the breaking-changes list lives in
   HISTORY.md and the detail behind it in CHANGELOG.md, so neither
-  restates the other and neither can drift.
+  restates the other.
+- **The entry count is the exception, and it is the thing that drifts.**
+  Both headers state it — CHANGELOG.md's "A hundred and N entries" and
+  HISTORY.md's "the largest: a hundred and N entries" — so an entry that
+  does not move both leaves two false claims behind. Move them in the
+  same commit, and do not estimate the number:
+
+  ```shell
+  grep -c '^- ' CHANGELOG.md   # == the count in both headers, exactly
+  ```
+
+  A source-breaking change costs three edits more: a bullet in
+  HISTORY.md's breaking-changes list with the "before" spelling checked
+  against the `v2023.7.12` tag, that list's own "N changes break code"
+  count, and the CHANGELOG header's cross-reference to it ("lists the N
+  source-breaking changes"). Written as a command because being written
+  as a habit did not work: f295aaaf and 1142e97b added five entries
+  under a header still reading "a hundred and eleven", and the drift is
+  invisible in review — nothing counts the bullets but the command
+  above.
 
 ## Verifying
 
