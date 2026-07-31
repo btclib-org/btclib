@@ -29,7 +29,7 @@ def test_der_size() -> None:
     sigs = [sig8, sig72, sig71, sig70, sig70b, sig69, sig68]
     lengths = [8, 72, 71, 70, 70, 69, 68]
 
-    for length, (r, s) in zip(lengths, sigs):
+    for length, (r, s) in zip(lengths, sigs, strict=True):
         sig = Sig(r, s)
         assert r == sig.r
         assert s == sig.s

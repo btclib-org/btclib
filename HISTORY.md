@@ -7,7 +7,7 @@ full year, short month, short day (YYYY-M-D)
 
 ## v2026.8 (work in progress, not released yet)
 
-The first release since 2023, and the largest: a hundred and twenty-one
+The first release since 2023, and the largest: a hundred and twenty-four
 entries, in [CHANGELOG.md](./CHANGELOG.md). What follows is what a user has
 to act on and what a user gains.
 
@@ -136,8 +136,12 @@ and `verify` families now let a `TypeError` out where they used to answer
   is what the `ec` parameter has been offering since it stopped being a module
   global: the arithmetic ignored it and computed on secp256k1, so the first
   point encoded against `ec` raised and no other curve could sign at all.
-- **Python 3.9 through 3.14**, free-threaded 3.14t included; 3.7 and 3.8 are
-  gone. The project is managed with uv, the lint gate is
+- **Python 3.10 through 3.14**, free-threaded 3.14t included; 3.7, 3.8 and
+  3.9 are gone. 3.9 went end-of-life in 2025-10, and it had become the only
+  interpreter pulling a second toolchain into the lock: 35 of 132 packages
+  resolved twice, mypy 1.19 beside 2.3 and pytest 8.4 beside 9.1, so the 3.9
+  jobs were testing against releases nobody else ran. The project is
+  managed with uv, the lint gate is
   `.pre-commit-config.yaml` and CI runs exactly it, and
   btclib.readthedocs.io has an API in it again — it had been fifteen module
   titles with nothing under them.

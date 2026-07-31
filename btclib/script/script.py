@@ -11,7 +11,7 @@
 
 https://en.bitcoin.it/wiki/Script
 
-Scripts are represented by List[Command], where Command = Union[int, str, bytes]
+Scripts are represented by list[Command], where Command = int | str | bytes
 
 * ascii string are for opcodes (e.g. 'OP_HASH160', 'OP_1', 'OP_1NEGATE', etc.)
 * hex-string or bytes (i.e., Octets) are for data

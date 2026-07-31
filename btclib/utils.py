@@ -19,7 +19,6 @@ from __future__ import annotations
 from collections.abc import Iterable
 from collections.abc import Iterable as IterableCollection
 from io import BytesIO
-from typing import Optional, Union
 
 from btclib.alias import BinaryData, Integer, Octets
 from btclib.exceptions import BTClibValueError
@@ -29,7 +28,7 @@ from btclib.exceptions import BTClibValueError
 #    return byte_str.hex()
 
 
-NoneOneOrMoreInt = Optional[Union[int, Iterable[int]]]
+NoneOneOrMoreInt = int | Iterable[int] | None
 
 
 def bytes_from_octets(octets: Octets, out_size: NoneOneOrMoreInt = None) -> bytes:

@@ -19,7 +19,6 @@ A BIP 32 derivation path can be represented as:
 from __future__ import annotations
 
 from collections.abc import Sequence
-from typing import Union
 
 from btclib.alias import Octets
 from btclib.exceptions import BTClibValueError
@@ -62,7 +61,7 @@ def _indexes_from_bip32_path_str(der_path: str, skip_m: bool = True) -> list[int
     return indexes
 
 
-BIP32DerPath = Union[str, Sequence[int], int, bytes]
+BIP32DerPath = str | Sequence[int] | int | bytes
 
 
 def indexes_from_bip32_path(der_path: BIP32DerPath) -> list[int]:

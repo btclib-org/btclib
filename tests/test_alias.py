@@ -23,7 +23,7 @@ from __future__ import annotations
 
 import hashlib
 import inspect
-from typing import Any, Union, get_args, get_type_hints
+from typing import Any, get_args, get_type_hints
 
 import pytest
 
@@ -74,7 +74,7 @@ def test_hash_f_returns_a_protocol_not_any() -> None:
     assert get_type_hints(HashObject.name.fget)["return"] is str  # type: ignore[attr-defined]
 
     # update alone is Any, and only because hmac.new's digestmod wants a
-    # parameter type this package cannot spell on python 3.9
+    # parameter type this package cannot spell before 3.12
     assert get_type_hints(HashObject.update)["data"] is Any
 
 
@@ -107,5 +107,5 @@ def test_the_aliases_are_distinct() -> None:
     # a one-shot digest: Octets in, bytes out. The arities alone make the
     # two unassignable to each other, which is what a checker acts on
     parameters, returns = get_args(HashDigestF)
-    assert parameters == [Union[bytes, str]]
+    assert parameters == [bytes | str]
     assert returns is bytes

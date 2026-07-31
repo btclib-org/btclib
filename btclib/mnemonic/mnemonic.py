@@ -60,10 +60,10 @@ class WordLists:
 
         # create dictionaries where each language has empty word-list
         wordlists: list[list[str]] = [[] for _ in self.languages]
-        self._wordlist = dict(zip(self.languages, wordlists))
+        self._wordlist = dict(zip(self.languages, wordlists, strict=True))
 
         zeros = len(self.languages) * [0]
-        self._language_length = dict(zip(self.languages, zeros))
+        self._language_length = dict(zip(self.languages, zeros, strict=True))
 
     def load_lang(self, lang: str, filename: str | None = None) -> None:
         """Load/add a language word-list if not loaded/added yet.

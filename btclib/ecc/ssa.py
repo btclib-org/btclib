@@ -53,7 +53,6 @@ import secrets
 from collections.abc import Sequence
 from dataclasses import dataclass
 from hashlib import sha256
-from typing import Union
 
 from btclib_libsecp256k1 import ssa as libsecp256k1_ssa
 
@@ -135,7 +134,7 @@ class Sig:
 # 33 or 65 bytes or hex-string
 # BIP32Key as dict or String
 # tuple Point
-BIP340PubKey = Union[Integer, Octets, BIP32Key, Point]
+BIP340PubKey = Integer | Octets | BIP32Key | Point
 
 
 def point_from_bip340pub_key(x_Q: BIP340PubKey, ec: Curve = secp256k1) -> Point:
@@ -422,7 +421,7 @@ def assert_batch_as_valid_(
     t = 0
     scalars: list[int] = []
     points: list[JacPoint] = []
-    for i, (msg, Q, sig) in enumerate(zip(msgs, Qs, sigs)):
+    for i, (msg, Q, sig) in enumerate(zip(msgs, Qs, sigs, strict=True)):
         # any size, as in sign_ and assert_as_valid_
         msg = bytes_from_octets(msg)
 

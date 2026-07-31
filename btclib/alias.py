@@ -11,7 +11,7 @@
 
 mypy aliases, documenting also coding input conventions.
 
-Octets and String below are both Union[bytes, str], so mypy cannot tell
+Octets and String below are both `bytes | str`, so mypy cannot tell
 one from the other: passing a text string where a hex-string is expected
 is a type error this file names but no checker can catch. The distinction
 is enforced at run time instead, by the converter each function calls on
@@ -28,8 +28,9 @@ one.
 
 from __future__ import annotations
 
+from collections.abc import Callable
 from io import BytesIO
-from typing import Any, Callable, Literal, Protocol, Union
+from typing import Any, Literal, Protocol, Union
 
 # Octets are a sequence of eight-bit bytes or a hex-string (not text string)
 #
@@ -48,7 +49,7 @@ from typing import Any, Callable, Literal, Protocol, Union
 # dsa.Sig (DER serialization of ECDSA signature),
 # ssa.Sig (BIP340 serialization of Schnorr signature)
 # etc.
-Octets = Union[bytes, str]
+Octets = bytes | str
 
 # bytes or text string (not hex-string)
 #
@@ -74,11 +75,11 @@ Octets = Union[bytes, str]
 #
 # In those cases often there is no need to encode() to bytes
 # as b58decode/b32decode/etc. will take care of that
-String = Union[bytes, str]
+String = bytes | str
 
 # binary data, usually to be consumed as byte stream,
 # but possibly provided as Octets too
-BinaryData = Union[BytesIO, Octets]
+BinaryData = BytesIO | Octets
 
 # hex-string or bytes representation of an int
 #
@@ -87,7 +88,7 @@ BinaryData = Union[BytesIO, Octets]
 # resolve by convention here -- a decimal representation is what int itself
 # is for, and int("1234") costs the caller nothing -- so the ambiguity is
 # resolved the way every other str in this file resolves it
-Integer = Union[bytes, str, int]
+Integer = bytes | str | int
 
 # What kind of chain a network is: the real one, or one of the test ones.
 #
@@ -134,8 +135,8 @@ class HashObject(Protocol):
 
     # Any, alone in this Protocol, and not for want of trying: hmac.new
     # takes a digestmod whose update() accepts typeshed's ReadableBuffer,
-    # a union this library cannot spell on python 3.9 (collections.abc.
-    # Buffer is 3.12), and a narrower parameter here makes the whole
+    # a union this library cannot spell before 3.12, collections.abc.Buffer
+    # being 3.12 and the floor 3.10, and a narrower parameter here makes the whole
     # Protocol unassignable to hmac's -- rfc6979 passes hf to hmac.new
     # eight times. The two members that are actually read, digest() and
     # digest_size, stay exact, which is the point of the Protocol
@@ -193,7 +194,7 @@ JacPoint = tuple[int, int, int]
 # QJ = Q[0], Q[1], 1 if Q[1] else 0
 INFJ = 7, 0, 0
 
-Command = Union[int, str, bytes]
+Command = int | str | bytes
 ScriptList = list[Command]
 
 # A BIP341 taproot script tree: a leaf is a one-element list holding a

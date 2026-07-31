@@ -23,7 +23,7 @@ except PackageNotFoundError:
     # read the docs, which builds without installing this package. Any
     # number here would be a guess, and reading pyproject.toml back is not
     # the way to stop guessing: tomllib is standard library from 3.11 only,
-    # this package supports 3.9, and the file is not in the wheel anyway.
+    # this package supports 3.10, and the file is not in the wheel anyway.
     # Importing has to keep working, so the version says it does not know
     __version__ = "unknown"
 __author__ = "The btclib developers"

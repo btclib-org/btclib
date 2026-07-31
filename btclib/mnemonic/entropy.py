@@ -25,7 +25,6 @@ import math
 import secrets
 from collections.abc import Iterable, Sequence
 from hashlib import sha512
-from typing import Union
 
 from btclib.alias import Octets
 from btclib.exceptions import BTClibValueError
@@ -36,7 +35,7 @@ _bits = 128, 160, 192, 224, 256, 512
 # the main internal representation of entropy is binary 0/1 string
 BinStr = str
 # but int or bytes are fine too
-Entropy = Union[BinStr, int, bytes]
+Entropy = BinStr | int | bytes
 
 
 def wordlist_indexes_from_bin_str_entropy(entropy: BinStr, base: int) -> list[int]:
@@ -79,7 +78,7 @@ def bin_str_entropy_from_wordlist_indexes(indexes: Sequence[int], base: int) -> 
     return binentropy.zfill(bits)
 
 
-OneOrMoreInt = Union[int, Iterable[int]]
+OneOrMoreInt = int | Iterable[int]
 
 
 def bin_str_entropy_from_entropy(entr: Entropy, bits: OneOrMoreInt = _bits) -> BinStr:

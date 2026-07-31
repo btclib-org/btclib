@@ -73,9 +73,11 @@ jobs:
   # toolchain for the bindings; here what varies is which release of each
   # dependency the interpreter selects, and the two ends of the supported
   # range are what a sentinel needs. The low end earns its place: a
-  # dependency dropping 3.9 does not fail to resolve, it resolves to an
-  # older version there and keeps the job green while 3.9 quietly stops
-  # being tested against what everybody else runs
+  # dependency dropping 3.10 does not fail to resolve, it resolves to an
+  # older version there and keeps the job green while 3.10 quietly stops
+  # being tested against what everybody else runs. That is not a
+  # hypothetical -- it is what 3.9 had been doing for 35 of the 132 locked
+  # packages by the time it was dropped
   test-latest:
     name: "Test ${{ matrix.python }} on ${{ matrix.os }}, deps at latest"
     runs-on: ${{ matrix.os }}
@@ -83,7 +85,7 @@ jobs:
       fail-fast: false
       matrix:
         os: [ubuntu-latest, macos-latest, windows-latest]
-        python: ["3.9", "3.14"]
+        python: ["3.10", "3.14"]
     # the bindings are compiled here too, and the upgrade below is what
     # moves them to the head of their dev branch
     timeout-minutes: 30

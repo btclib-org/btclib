@@ -58,10 +58,11 @@ low_card_curves["ec19_23"] = Curve(19, 2, 9, (0, 16), 23, 1, False)
 low_card_curves["ec23_19"] = Curve(23, 9, 7, (5, 4), 19, 1, False)
 low_card_curves["ec23_31"] = Curve(23, 5, 1, (0, 1), 31, 1, False)
 
-# with python>=3.9 use dict union operator
-# all_curves = low_card_curves | CURVES
-all_curves = low_card_curves.copy()
-all_curves.update(CURVES)
+# the union operator, as in curves.curve: it builds a new dict, where
+# copy() and update() built the same one in two statements. The "with
+# python>=3.9" comment that used to sit here asked for exactly this, and
+# 3.9 is no longer even the floor
+all_curves = low_card_curves | CURVES
 
 ec23_31 = low_card_curves["ec23_31"]
 

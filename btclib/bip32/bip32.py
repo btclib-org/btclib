@@ -36,7 +36,6 @@ from __future__ import annotations
 import copy
 import hmac
 from dataclasses import dataclass
-from typing import Union
 
 from btclib import base58
 from btclib.alias import INF, BinaryData, Octets, Point, String
@@ -272,7 +271,7 @@ def rootxprv_from_seed(
     return xkey.b58encode()
 
 
-BIP32Key = Union[BIP32KeyData, String]
+BIP32Key = BIP32KeyData | String
 
 
 def _xpub_from_xprv(xprv: BIP32Key) -> BIP32KeyData:

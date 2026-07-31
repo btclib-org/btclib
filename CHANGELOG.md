@@ -11,7 +11,7 @@ release-notes length in the first place, and are still in
 
 ## v2026.8 (work in progress, not released yet)
 
-A hundred and twenty-one entries, grouped. The order runs from what breaks a
+A hundred and twenty-four entries, grouped. The order runs from what breaks a
 caller to what only maintainers see; [HISTORY.md](./HISTORY.md) lists the
 fifteen source-breaking changes on their own.
 
@@ -351,6 +351,18 @@ fifteen source-breaking changes on their own.
   OP_RETURN with no data length marker to read, and `assert_segwit(b"")`,
   an empty script with no witness version byte. `is_nulldata(b"\x6a")` and
   `is_segwit(b"")` are still `False`
+- **`borromean.sign` refuses ring inputs of mismatched length** instead of
+  signing a subset. `ks`, `sign_key_idx` and `pubk_rings` take one entry per
+  ring and nothing validated that, so both loops zipped them and stopped at
+  the shortest: a short `ks` returned a signature over fewer rings than the
+  caller asked for, silently, which is the one thing a ring signature must
+  not do. `zip(..., strict=True)` raises `ValueError`, and
+  `BTClibValueError` is a `ValueError`, so a caller already catching this
+  package's errors catches this too. Every other `zip` in the library took
+  `strict=True` in the same pass — fourteen of them, where an explicit
+  length check or construction already guaranteed the pairing, so there the
+  argument documents an invariant rather than changing an outcome. Available
+  because `strict` is python 3.10
 
 ### Immutability and shared state
 
@@ -1044,13 +1056,27 @@ fifteen source-breaking changes on their own.
   `.python-version` while `requires-python` says `>=3.9`, and a typing
   construct absent from an older interpreter was invisible: `typing.Self`,
   3.11 and later, type checked. Ruff was already targeted correctly, inferring
-  py39 from `requires-python`. Not 3.9, which is what would match: mypy
-  refuses it outright, having followed 3.9 out of support, and `d284d0b7`
-  had already recorded that. What covers the rest is the test matrix, which
-  still runs 3.9 — a type *alias* is an ordinary assignment, so
-  `ScriptList | None` at module level is a TypeError before 3.10 and every
-  3.9 runner dies collecting, which is how that commit's bug was found
-  (issue #155)
+  py39 from `requires-python`. Not 3.9, which is what would have matched:
+  mypy refuses it outright, having followed 3.9 out of support, and
+  `d284d0b7` had already recorded that. What covered the rest was the test
+  matrix — a type *alias* is an ordinary assignment, so `ScriptList | None`
+  at module level is a TypeError before 3.10 and every 3.9 runner died
+  collecting, which is how that commit's bug was found (issue #155).
+  Dropping 3.9 closed the gap from the other end: the floor is 3.10 now, so
+  the pin says exactly what `requires-python` says, and that class of bug is
+  the type checker's again
+- **the public type aliases are PEP 604 unions**: `Octets = bytes | str`,
+  and the same for `String`, `BinaryData`, `Integer`, `Command`, `BIP32Key`,
+  `BIP32DerPath`, `BIP340PubKey`, `Entropy`, `OneOrMoreInt`, `ScriptFlags`,
+  `PrvKey`, `PubKey`, `Key` and `NoneOneOrMoreInt`. Fifteen of them, and they
+  were `Union[...]` for one reason: a type alias is an ordinary assignment,
+  not an annotation, so `from __future__ import annotations` does not reach
+  it and `bytes | str` at module level was a TypeError until 3.10 — the very
+  trap `d284d0b7` fell into. `typing.Union` and `|` compare equal, so
+  `get_args` and every annotation built on these aliases answer as before,
+  and `isinstance(x, Octets)` now works where `Union` refused it.
+  `TaprootScriptTree` keeps its `Union`, being recursive: the forward
+  reference is a string, and a string has no `|`
 - **The library's two notions of "hash function" have two names.** `HashF` is
   a hashlib-style *constructor*, called with no argument and fed through
   `update()`; the merkle functions of `btclib.hashes` take a *one-shot
@@ -1175,7 +1201,7 @@ fifteen source-breaking changes on their own.
   coverage special-cases 100 to mean exactly 100.00%, which would make
   one version-gated line a red build; the comparison is
   `round(total, precision) < fail_under`, so 99.99 allows two of the
-  15154 statements the coverage job measures on 3.13
+  15145 statements the coverage job measures on 3.13
 - **`tests/ecc/test_bms.py` imports on python 3.9 again.** It annotates a
   helper `-> Point | None` without `from __future__ import annotations`,
   which 3.9 evaluates at def time and has no `|` for: the module was ten
@@ -1308,6 +1334,18 @@ fifteen source-breaking changes on their own.
 ### Supported interpreters and dependencies
 
 - dropped python 3.7 and 3.8 support, added 3.13 and 3.14
+- **dropped python 3.9**, so `requires-python` is `>=3.10` and the matrix
+  runs 42 jobs instead of 48. 3.9 went end-of-life in 2025-10, and it was
+  costing more than a column: a fresh resolve at `>=3.9` split 35 of 132
+  locked packages into a current version and an older one reachable only
+  from 3.9 — mypy 1.19 beside 2.3, pytest 8.4 beside 9.1, hypothesis 6.141
+  beside 6.164, coverage 7.10 beside 7.15 — so the 3.9 jobs were the only
+  ones not testing against what everybody else runs, and the one generating
+  its hypothesis inputs with an engine nobody else had. At `>=3.10` the lock
+  holds 99 packages and 4 splits, all four at the 3.11 docs boundary. No
+  interpreter gained a newer dependency: what went away is the second
+  toolchain. `published.yml` and `latest.yml` sample 3.10 and 3.14 as the
+  ends of the supported range, where they sampled 3.9 and 3.14
 - dropped pypy3.10 from the test matrix; pypy3.11 stays, so PyPy is still
   covered. hypothesis ships compiled wheels from 6.160 on and publishes
   none for pypy3.10, whose sdist build needs a PyO3 requiring PyPy 3.11 or

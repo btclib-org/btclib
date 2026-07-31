@@ -124,7 +124,9 @@ def test_p2wpkh_p2sh() -> None:
         "38Ysa2TRwGAGLEE1pgV2HCX7MAw6XsP6BJ",
         "3A5u2RTjs3t33Kyc48zHA7Dfsr8Zsfwkoo",
     ]
-    for mnemonic, version, p2wpkh_p2sh_address in zip(mnemonics, versions, addresses):
+    for mnemonic, version, p2wpkh_p2sh_address in zip(
+        mnemonics, versions, addresses, strict=True
+    ):
         # this is an electrum mnemonic
         assert electrum.version_from_mnemonic(mnemonic)[0] == version
         # of course, it is invalid as BIP39 mnemonic

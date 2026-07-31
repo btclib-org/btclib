@@ -262,8 +262,9 @@ for ec_name in SEC2v2_params2:
     SEC2v2[ec_name] = _catalogued_curve(SEC2v2_params2[ec_name], ec_name)
     SEC2v1[ec_name] = SEC2v2[ec_name]
 
-# the union operator the comment here asked for, python 3.9 being the
-# minimum this package supports. It is not only tidier: "CURVES = SEC2v1"
+# the union operator the comment here asked for, available since 3.9 and
+# so on every interpreter this package supports. It is not only tidier:
+# "CURVES = SEC2v1"
 # bound the same dict, so the two update() calls that followed poured NIST
 # and Brainpool into the SEC 2 v.1 catalogue -- SEC2v1 ended up with 27
 # entries instead of its own 15, and SEC2v1["nistp256"] answered a curve

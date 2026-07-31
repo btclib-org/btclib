@@ -108,7 +108,17 @@ def sign(
     ]
 
     # step 1
-    for i, (pubk_ring, j_star, k) in enumerate(zip(pubk_rings, sign_key_idx, ks)):
+    # strict=True, and it is the one zip in this package that changes what
+    # an argument does rather than documenting an invariant already checked:
+    # nothing validates that ks, sign_key_idx and pubk_rings have one entry
+    # per ring, so a short ks used to truncate the loop silently and sign a
+    # subset of the rings -- a signature over fewer rings than the caller
+    # asked for, which is the one thing a ring signature must not do
+    # quietly. ValueError, and BTClibValueError is a ValueError, so a caller
+    # already catching this package's errors catches it
+    for i, (pubk_ring, j_star, k) in enumerate(
+        zip(pubk_rings, sign_key_idx, ks, strict=True)
+    ):
         keys_size = len(pubk_ring)
         start_idx = (j_star + 1) % keys_size
         r = bytes_from_point(mult(k, ec.G, ec), ec)
@@ -133,7 +143,8 @@ def sign(
     hasher.update(e0bytes)
     e0 = bytes(hasher.digest())
     # step 2
-    for i, (j_star, k) in enumerate(zip(sign_key_idx, ks)):
+    # strict=True: see step 1
+    for i, (j_star, k) in enumerate(zip(sign_key_idx, ks, strict=True)):
         e[i][0] = int_from_bits(_hash(m, e0, i, 0, hf), ec.nlen) % ec.n
         # zero e again: the same accident documented above
         if not 0 < e[i][0] < ec.n:

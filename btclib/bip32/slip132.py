@@ -15,7 +15,8 @@ https://github.com/satoshilabs/slips/blob/master/slip-0132.md
 from __future__ import annotations
 
 import contextlib
-from typing import Any, Callable
+from collections.abc import Callable
+from typing import Any
 
 from btclib import b32, b58
 from btclib.bip32.bip32 import BIP32Key, BIP32KeyData, derive, xpub_from_xprv
@@ -60,7 +61,7 @@ def address_from_xpub(xpub: BIP32Key) -> str:
         b32.p2wpkh,
         b58.p2wpkh_p2sh,
     ]
-    for version, function in zip(version_list, function_list):
+    for version, function in zip(version_list, function_list, strict=True):
         if network := network_from_key_value(version, xpub.version):
             return function(xpub, network)
     # reachable: b58decode accepts the p2wsh versions too, and a p2wsh

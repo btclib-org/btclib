@@ -715,7 +715,7 @@ def _double_mult(
     ui = f"{u:b}"
     vi = f"{v:b}".zfill(len(ui))
     ui = ui.zfill(len(vi))
-    digits = [int(j) + 2 * int(k) for j, k in zip(ui, vi)]
+    digits = [int(j) + 2 * int(k) for j, k in zip(ui, vi, strict=True)]
     # R[0] is the running result, R[1] = R[0] + T[*] is an ancillary variable
     R = T[digits[0]]
     for i in digits[1:]:
@@ -748,7 +748,7 @@ def _multi_mult(
         raise BTClibValueError("not a multi_mult")
 
     x: list[tuple[int, JacPoint]] = []
-    for n, PJ in zip(scalars, jac_points):
+    for n, PJ in zip(scalars, jac_points, strict=True):
         if n == 0:  # mandatory check to avoid infinite loop
             continue
         if n < 0:

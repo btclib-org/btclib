@@ -16,10 +16,10 @@ from __future__ import annotations
 
 import base64
 import secrets
-from collections.abc import Mapping, Sequence
+from collections.abc import Callable, Mapping, Sequence
 from copy import deepcopy
 from dataclasses import dataclass
-from typing import Any, Callable, TypeVar, cast
+from typing import Any, TypeVar, cast
 
 from btclib.alias import Octets, ScriptList, String
 from btclib.bip32 import (
@@ -126,7 +126,7 @@ class Psbt:
         if any(
             psbt_in.non_witness_utxo
             and psbt_in.non_witness_utxo.id != tx_in.prev_out.tx_id
-            for psbt_in, tx_in in zip(self.inputs, self.tx.vin)
+            for psbt_in, tx_in in zip(self.inputs, self.tx.vin, strict=True)
         ):
             err_msg = "mismatched non-witness utxo / outpoint tx_id"
             raise BTClibValueError(err_msg)
@@ -506,7 +506,7 @@ def extract_tx(psbt: Psbt, *, check_validity: bool = True) -> Tx:
         psbt.assert_valid()
 
     tx = psbt.tx
-    for tx_in, psbt_input in zip(tx.vin, psbt.inputs):
+    for tx_in, psbt_input in zip(tx.vin, psbt.inputs, strict=True):
         tx_in.script_sig = psbt_input.final_script_sig
         if psbt_input.final_script_witness:
             tx_in.script_witness = psbt_input.final_script_witness
@@ -532,12 +532,12 @@ def _sort_or_shuffle_together(
     if len(sequence_a) != len(sequence_b):
         raise BTClibValueError("sequences must have same length")
 
-    tmp = list(zip(sequence_a, sequence_b))
+    tmp = list(zip(sequence_a, sequence_b, strict=True))
     if ordering_func is None:
         secrets.SystemRandom().shuffle(tmp)
     else:
         tmp.sort(key=lambda t: ordering_func(t[0]))
-    tuple_a, tuple_b = zip(*tmp)
+    tuple_a, tuple_b = zip(*tmp, strict=True)
     return list(tuple_a), list(tuple_b)
 
 

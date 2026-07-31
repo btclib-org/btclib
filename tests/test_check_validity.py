@@ -105,9 +105,13 @@ def test_check_validity_keyword_still_works() -> None:
 def test_dsa_sig_is_still_a_dataclass() -> None:
     """The three Sig classes trade InitVar for a written-out __init__.
 
-    field(kw_only=True) is python 3.10 and this package supports 3.9, so
-    the InitVar and its __post_init__ are gone. What the dataclass
-    generates around them must not be.
+    The InitVar and its __post_init__ are gone -- from all 91 signatures
+    that take the flag, not only these three -- so what the dataclass
+    generates around them is all that is left to check, and it must not
+    go too. field(kw_only=True) would express the same thing in fewer
+    lines and is available now that 3.10 is the floor; it is not used,
+    because using it in three places out of 91 is the inconsistency the
+    written-out constructors removed.
     """
     r = 0x2B698A0F0A4041059B5C617F42B2B90D68F0F27F8B8F1CBA0D7D8F0B4D4B7C1A
     s = 0x1BE0DFEF2E4DAB1F4BFAF0C36F9E1DDA1E92BCEA6D8D9AFB0BE1DAF9E5BE3C57

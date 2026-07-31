@@ -1,10 +1,11 @@
 # The interpreter uv picks by default: the newest the test matrix covers,
-# not the oldest the package supports. requires-python is ">=3.9", and the
-# two linters are aimed at that end deliberately -- ruff infers py39 from
-# requires-python, and pyproject.toml pins mypy to python_version = "3.10",
-# the oldest mypy can be aimed at. So a bare "uv run" here means "the
-# newest", and checking the oldest is the matrix's job and the two
-# linters'. See the comment on [tool.mypy] for what that leaves uncovered.
+# not the oldest the package supports. requires-python is ">=3.10", and
+# both linters are aimed at that end deliberately -- ruff infers py310 from
+# requires-python, and pyproject.toml pins mypy to python_version = "3.10"
+# to match it. So a bare "uv run" here means "the newest", and checking the
+# oldest is the matrix's job and the two linters'. Since 3.9 was dropped
+# they aim at the same version the floor names, which is what the comment
+# on [tool.mypy] is about.
 #
 # A whole-line comment only: uv skips one of these, but a trailing comment
 # on the version line makes it ignore the file with "Ignoring unsupported

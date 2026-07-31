@@ -90,7 +90,6 @@ jobs:
         # implementation
         python:
           [
-            "3.9",
             "3.10",
             "3.11",
             "3.12",
@@ -209,13 +208,13 @@ jobs:
   # the single check master's branch protection requires from this
   # workflow, and it exists because that rule names its checks as literal
   # strings, stored outside the repository. The matrix above produces one
-  # per (runner label, interpreter) pair, 48 of them today -- a count that
-  # moves whenever the matrix does, pypy3.10 leaving having already taken
-  # it from 54: naming those directly means every matrix edit has to be
-  # mirrored in a setting no pull request can review, and a name that
-  # stops being produced -- macos-latest moving on, 3.9 aging out --
-  # becomes a required check that never reports, which blocks every merge
-  # until someone remembers where the rule lives.
+  # per (runner label, interpreter) pair, 42 of them today -- a count that
+  # moves whenever the matrix does, pypy3.10 leaving having taken it from
+  # 54 and 3.9 from 48: naming those directly means every matrix edit has
+  # to be mirrored in a setting no pull request can review, and a name that
+  # stops being produced -- macos-latest moving on, 3.10 aging out in its
+  # turn -- becomes a required check that never reports, which blocks every
+  # merge until someone remembers where the rule lives.
   # This job depends on the others instead, so the rule names one thing
   # that never changes and adding a job here is enough to gate on it
   tests-passed:

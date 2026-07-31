@@ -145,12 +145,20 @@ class Sig:
     s: int
     ec: Curve = secp256k1
 
-    # written out, where the rest of the library spells this as an
-    # InitVar[bool] field and a __post_init__: a dataclass field is made
-    # keyword-only by field(kw_only=True), which is python 3.10, and this
-    # package supports 3.9. init=False rather than relying on dataclasses
-    # leaving a hand-written __init__ alone, which it does but by way of an
-    # implementation detail of _set_new_attribute
+    # written out, as in every other constructor taking this flag. It was
+    # once an InitVar[bool] field and a __post_init__, and the reason for
+    # writing it out was that the generated __init__ took the flag
+    # positionally: field(kw_only=True) fixes that, but it is python 3.10,
+    # and back then this package supported 3.9.
+    #
+    # 3.10 is the floor now, so kw_only is available -- and the flag is not
+    # going back to being a field. 8c7f0bdd wrote out all 91 signatures that
+    # take check_validity, so InitVar appears nowhere in btclib any more;
+    # spelling three of the 91 differently would make these the exceptions,
+    # which is the opposite of what that commit was for.
+    # init=False rather than relying on dataclasses leaving a hand-written
+    # __init__ alone, which it does but by way of an implementation detail
+    # of _set_new_attribute
     def __init__(
         self, r: int, s: int, ec: Curve = secp256k1, *, check_validity: bool = True
     ) -> None:

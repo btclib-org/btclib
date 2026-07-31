@@ -11,9 +11,8 @@
 
 from __future__ import annotations
 
-from collections.abc import Sequence
+from collections.abc import Callable, Sequence
 from dataclasses import dataclass
-from typing import Callable
 
 from btclib import b32, b58, var_bytes
 from btclib.alias import Octets, ScriptList, String, TaprootScriptTree

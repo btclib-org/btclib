@@ -236,8 +236,13 @@ class Sig:
         # a signature used to be reachable from unboundedly many
         # strings. validate=True rejects that junk, but it is not enough
         # on its own: what it makes of padding depends on the
-        # interpreter (3.9 takes an excess pad that 3.11 refuses), and
-        # every version discards the bits a non-final group leaves over.
+        # interpreter, and not in one direction -- 3.11 takes the excess
+        # pad of "AAAA===" that 3.10 and 3.14 refuse, while 3.14 refuses
+        # the pad after a complete group in "QUJD=" that both of them
+        # take -- and every version discards the bits a non-final group
+        # leaves over. Dropping 3.9 changed none of this: 3.10 answers
+        # every one of those cases exactly as 3.9 did, and the live
+        # divergence has moved to the 3.14 end of the matrix.
         # What settles it everywhere is requiring the canonical
         # encoding, the one b64encode gives back.
         # Stripping stays, and now covers bytes as well as str: the

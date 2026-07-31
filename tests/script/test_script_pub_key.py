@@ -530,7 +530,7 @@ def test_p2ms_3() -> None:
         "1Ng4YU2e2H3E86syX2qrsmD9opBHZ42vCF",
         "14XufxyGiY6ZBJsFYHJm6awdzpJdtsP1i3",
     ]
-    for pub_key, key, exp_pub_key in zip(pub_keys, keys, exp_pub_keys):
+    for pub_key, key, exp_pub_key in zip(pub_keys, keys, exp_pub_keys, strict=True):
         assert pub_key == b58.p2pkh(key)
         assert pub_key == exp_pub_key
 

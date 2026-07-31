@@ -9,7 +9,8 @@
 
 from __future__ import annotations
 
-from typing import Callable, NoReturn, Optional
+from collections.abc import Callable
+from typing import NoReturn
 
 from btclib.alias import ScriptList
 from btclib.exceptions import BTClibValueError
@@ -50,7 +51,7 @@ def _to_bool(element: bytes) -> bool:
 # Optional, not "| None": this is an assignment, which python evaluates
 # whatever the __future__ import above defers, and PEP 604 unions are a
 # TypeError until 3.10
-ScriptOp = Callable[[list[bytes], list[bytes], ScriptFlag], Optional[ScriptList]]
+ScriptOp = Callable[[list[bytes], list[bytes], ScriptFlag], ScriptList | None]
 
 
 # What the two interpreter loops check as they go, as functions rather

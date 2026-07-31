@@ -72,8 +72,8 @@ the one `uv run` uses. To reproduce a failure that only one cell of the
 matrix shows, name the interpreter instead of editing that file:
 
 ```shell
-uv sync --python 3.9
-uv run --python 3.9 pytest
+uv sync --python 3.10
+uv run --python 3.10 pytest
 ```
 
 As an annotated python3 project, btclib is very strict on code formatting
@@ -95,7 +95,7 @@ must pass at any time, with
 [coverage](https://coverage.readthedocs.io/)
 of both the library and the test suite above the `fail_under` ratchet in
 pyproject.toml — 99.99% against the 100% of today, which is 0 statements
-uncovered out of 15154: slack for 2, enough not to trip over a
+uncovered out of 15145: slack for 2, enough not to trip over a
 version-gated line, tight enough that a regression cannot hide. It was
 99.9, and 12 of the 15 statements that bought had gone uncovered without
 anybody noticing.
@@ -183,7 +183,7 @@ One cell of the `test-py` matrix. The interpreter is chosen with
 `pypy3.11` included, and downloads it if the machine has none:
 
 ```shell
-uv run --locked --no-default-groups --group test --python 3.9 pytest
+uv run --locked --no-default-groups --group test --python 3.10 pytest
 ```
 
 The `coverage-py` job, gated by `fail_under` in pyproject.toml:

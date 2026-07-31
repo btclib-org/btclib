@@ -14,8 +14,17 @@ description = "A library for 'bitcoin cryptography'"
 readme = "README.md"
 license = { text = "MIT License" }
 authors = [{ name = "The btclib developers", email = "devs@btclib.org" }]
-# btclib_libsecp256k1 requires >=3.9, and python 3.8 is end-of-life
-requires-python = ">=3.9"
+# python 3.9 is end-of-life since 2025-10, and dropping it buys more than
+# one fewer column in the matrix. It was the only interpreter holding a
+# second development toolchain: a fresh resolve at ">=3.9" split 35 of the
+# 132 locked packages into a modern version and an older one reachable only
+# from 3.9 -- mypy 1.19 beside 2.3, pytest 8.4 beside 9.1, hypothesis 6.141
+# beside 6.164 -- so the 3.9 jobs were the only ones not testing against
+# what everybody else runs. At ">=3.10" the lock holds 99 packages and 4
+# splits, all four at the 3.11 docs boundary.
+# It also closes the gap tool.mypy documents below: 3.10 is the oldest mypy
+# can be aimed at, so the floor and the type checker's target now agree
+requires-python = ">=3.10"
 dependencies = ["btclib_libsecp256k1>=0.7.1rc1"]
 keywords = [
     "bitcoin",
@@ -36,7 +45,6 @@ keywords = [
 classifiers = [
     "Programming Language :: Python :: 3 :: Only",
     "Programming Language :: Python :: 3",
-    "Programming Language :: Python :: 3.9",
     "Programming Language :: Python :: 3.10",
     "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
@@ -68,9 +76,10 @@ Issues = "https://github.com/btclib-org/btclib/issues"
 # packages required to develop, build, and test btclib
 # hypothesis generates the input the fixed vectors cannot: the vectors
 # are the conformance suite, and a codec library needs the malformed
-# bytes nobody thought to write down as well. It caps at 6.141 on
-# python 3.9, which the universal lock resolves per interpreter, so the
-# matrix needs no exclusion
+# bytes nobody thought to write down as well. It used to cap at 6.141 on
+# python 3.9, so the lock carried that release beside the current one and
+# the 3.9 jobs generated their inputs with an engine nobody else ran;
+# requires-python >= 3.10 is what collapsed the pair to one entry
 test = ["coverage", "hypothesis", "pytest", "pytest-cov", "pytest-xdist"]
 lint = ["mypy", "pre-commit", "ruff"]
 # the distribution files are built and published by uv itself: what this
@@ -124,7 +133,7 @@ ignore = [
 # where the tests are, so a bare "pytest" from the root collects them and
 # nothing else, whatever else the tree grows
 testpaths = ["tests"]
-# -ra summarizes everything that was not a plain pass. On a matrix of 55
+# -ra summarizes everything that was not a plain pass. On a matrix of 49
 # jobs a skip, an xfail or a warning is otherwise invisible: it is not a
 # failure, so nobody opens the log to find it.
 # --strict-config makes a typo in this very table an error rather than a
@@ -136,14 +145,14 @@ addopts = "-ra --durations=8 -n auto --strict-config --strict-markers"
 # as broken: strict turns it red instead of reporting xpass
 xfail_strict = true
 # a deprecation warning is the early form of a break, emitted years before
-# the removal that will fail the suite: on a 3.9 to 3.14 spread, plus
+# the removal that will fail the suite: on a 3.10 to 3.14 spread, plus
 # pypy, there is time to act on it only if it is not silent.
 # The list carries no ignore, and no test silences a warning wholesale:
 # the one btclib emits, BTClibUserWarning, is asserted with pytest.warns
 # where a test provokes it deliberately, and silenced by category alone at
 # the single call in tests/script_engine that provokes it incidentally.
 # A blanket simplefilter("ignore") would defeat this table, which is why
-# there is none: checked on 3.9, 3.14, 3.14t and pypy3.11. An ignore added
+# there is none: checked on 3.10, 3.14, 3.14t and pypy3.11. An ignore added
 # here should name the warning, not a module, and say what would let it be
 # dropped
 filterwarnings = ["error"]
@@ -180,13 +189,13 @@ precision = 2
 # and no third party service, enforced on every run instead of only on
 # pull requests targeting master.
 # The comparison is `round(total, precision) < fail_under`, so with the
-# 15154 statements the coverage-py job measures this allows 2 of them to
+# 15145 statements the coverage-py job measures this allows 2 of them to
 # go uncovered, against the 0 uncovered today. It was 99.9, which allowed
 # 15 -- and 12 of them had been taken without anybody noticing, four in
 # tests/conftest.py's own failure paths and one in a wrapper around the
 # bindings, because slack that wide reports a regression as a pass.
 # Both figures are that job's interpreter, 3.13, and not any other: the
-# statement count moves between versions -- 3.14 measures 15148 of the
+# statement count moves between versions -- 3.14 measures 15139 of the
 # same tree -- so a number measured elsewhere would not be the one the
 # gate compares. Neither is 100 the setting: coverage special-cases it to
 # mean exactly 100.00%, which makes a single version-gated line a red
@@ -197,24 +206,26 @@ fail_under = 99.99
 strict = true
 show_column_numbers = true
 show_error_codes = true
-# the oldest interpreter mypy can be aimed at, which is not the oldest this
-# package supports. Without this key mypy targets whatever runs it, i.e.
-# the 3.14 of .python-version, and a typing construct that does not exist
-# on an older interpreter is then invisible: ruff is targeted correctly,
-# inferring py39 from requires-python, and mypy was not.
+# the oldest interpreter this package supports, and -- since 3.9 was
+# dropped -- also the oldest mypy can be aimed at. The two agree now, so
+# this key says exactly what requires-python says; it used to be the
+# nearest mypy would accept, "Python 3.9 is not supported (must be 3.10 or
+# higher)" being its answer to the real floor.
 #
-# Not "3.9", which is what requires-python says and what the issue asked
-# for: mypy refuses it outright -- "Python 3.9 is not supported (must be
-# 3.10 or higher)" -- having followed 3.9 out of support. When mypy drops
-# 3.10 too this pin will fail the same way, with the same clear message,
-# which is the right way for it to come up for review.
+# Keep the key. Without it mypy targets whatever runs it, i.e. the 3.14 of
+# .python-version, and a typing construct missing from the floor is then
+# invisible. Ruff needs no equivalent, inferring py310 from
+# requires-python.
 #
-# What covers the remaining gap is the test matrix, and it covers it well:
-# an annotation is not evaluated under "from __future__ import
-# annotations", but a type *alias* is an ordinary assignment, so
-# "ScriptList | None" at module level is a TypeError before 3.10 and every
-# 3.9 runner dies collecting. That is exactly how d284d0b7 was found -- by
-# the matrix, nothing static -- and the matrix still runs 3.9.
+# What the agreement buys is a whole class of bug moving from the matrix to
+# the type checker. An annotation is not evaluated under "from __future__
+# import annotations", but a type *alias* is an ordinary assignment, so
+# "ScriptList | None" at module level was a TypeError on 3.9 that no static
+# check could see: d284d0b7 was found by a 3.9 runner dying at collection,
+# nothing else. Aimed at the floor rather than above it, mypy now reports
+# that itself. When mypy drops 3.10 in turn this pin will fail with the same
+# clear message, and the answer will be to raise the floor -- not to
+# reopen the gap.
 #
 # One run, not two. A second pass at 3.14 would check the same code: there
 # is no sys.version_info branch anywhere in btclib or tests, so no source

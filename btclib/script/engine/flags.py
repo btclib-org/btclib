@@ -33,7 +33,6 @@ from __future__ import annotations
 
 from collections.abc import Iterable
 from enum import Flag
-from typing import Union
 
 from btclib.exceptions import BTClibValueError
 
@@ -105,7 +104,7 @@ ALL_FLAGS = (
 # Union, not "|": this is an assignment, which python evaluates whatever
 # the __future__ import above defers, and PEP 604 unions are a TypeError
 # until 3.10
-ScriptFlags = Union[ScriptFlag, str, Iterable[str]]
+ScriptFlags = ScriptFlag | str | Iterable[str]
 
 
 def to_script_flags(flags: ScriptFlags | None) -> ScriptFlag:

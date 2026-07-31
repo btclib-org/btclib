@@ -11,7 +11,6 @@
 
 import re
 from pathlib import Path
-from typing import Optional
 
 import pytest
 
@@ -96,7 +95,7 @@ def test_all_flags_is_the_consensus_set() -> None:
         (iter(["P2SH", "WITNESS"]), ScriptFlag.P2SH | ScriptFlag.WITNESS),
     ],
 )
-def test_to_script_flags(flags: Optional[ScriptFlags], expected: ScriptFlag) -> None:
+def test_to_script_flags(flags: ScriptFlags | None, expected: ScriptFlag) -> None:
     assert to_script_flags(flags) == expected
 
 
