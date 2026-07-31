@@ -273,7 +273,7 @@ class PsbtIn:
         assert_valid_taproot_internal_key(self.taproot_internal_key)
         assert_valid_taproot_signatures(
             [self.taproot_key_spend_signature],
-            "invalid taproot key path signature length",
+            "taproot key path signature",
         )
         assert_valid_taproot_script_keys(
             list(self.taproot_script_spend_signatures.keys()),
@@ -281,7 +281,7 @@ class PsbtIn:
         )
         assert_valid_taproot_signatures(
             list(self.taproot_script_spend_signatures.values()),
-            "invalid taproot script path signature length",
+            "taproot script path signature",
         )
         assert_valid_leaf_scripts(self.taproot_leaf_scripts)
         assert_valid_taproot_bip32_derivation(self.taproot_hd_key_paths)

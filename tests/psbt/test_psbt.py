@@ -107,6 +107,80 @@ def test_invalid_psbt_bip371(test_vector: dict[str, str]) -> None:
     assert test_vector["error message"] in str(excinfo.value)
 
 
+def test_taproot_signature_carries_its_sig_hash_type() -> None:
+    """A taproot signature is 64 bytes, or 65 with its hash type (issue #122).
+
+    BIP341 appends the sig_hash type when it is not the default one, and
+    BIP371 says "64 or 65 bytes" of both PSBT_IN_TAP_KEY_SIG and
+    PSBT_IN_TAP_SCRIPT_SIG. btclib required 64 here, while its own script
+    engine reads the 65-byte form: a signature Bitcoin Core accepts had no
+    psbt to travel in.
+
+    The vectors are BIP371's own valid ones, whose signatures are 64
+    bytes; what is exercised is the byte appended to them. Their invalid
+    counterparts are 63 and 66 bytes, so they stay invalid, and
+    test_invalid_psbt_bip371 is what says so.
+    """
+    valid = vectors.load("psbt", "_data", "bip371_test_vectors.json")["valid psbts"]
+    psbts = [Psbt.b64decode(test_vector["encoded psbt"]) for test_vector in valid]
+
+    psbt = next(p for p in psbts if p.inputs[0].taproot_key_spend_signature)
+    signature = psbt.inputs[0].taproot_key_spend_signature
+    assert len(signature) == 64
+
+    # ALL, appended: the 65-byte form, which used to be refused
+    psbt.inputs[0].taproot_key_spend_signature = signature + b"\x01"
+    psbt.assert_valid()
+    assert Psbt.b64decode(psbt.b64encode()) == psbt
+
+    # 0x00 is what the 64-byte form already means, so appending it is a
+    # second spelling of one signature: BIP341 refuses it, and so does
+    # the engine's get_hashtype
+    psbt.inputs[0].taproot_key_spend_signature = signature + b"\x00"
+    err_msg = "invalid taproot key path signature: explicit SIGHASH_DEFAULT"
+    with pytest.raises(BTClibValueError, match=err_msg):
+        psbt.assert_valid()
+
+    # not one of the seven values SIG_HASH_TYPES holds
+    psbt.inputs[0].taproot_key_spend_signature = signature + b"\x04"
+    err_msg = "invalid taproot key path signature sig_hash type: 0x4"
+    with pytest.raises(BTClibValueError, match=err_msg):
+        psbt.assert_valid()
+
+    # and the length that is neither of the two
+    psbt.inputs[0].taproot_key_spend_signature = signature + b"\x01\x01"
+    err_msg = "invalid taproot key path signature length: 66 bytes"
+    with pytest.raises(BTClibValueError, match=err_msg):
+        psbt.assert_valid()
+
+    # the script path field is a map, and gets the same treatment
+    psbt = next(p for p in psbts if p.inputs[0].taproot_script_spend_signatures)
+    signatures = psbt.inputs[0].taproot_script_spend_signatures
+    key, signature = next(iter(signatures.items()))
+    assert len(signature) == 64
+
+    # ANYONECANPAY | ALL this time
+    signatures[key] = signature + b"\x81"
+    psbt.assert_valid()
+    assert Psbt.b64decode(psbt.b64encode()) == psbt
+
+    signatures[key] = signature + b"\x00"
+    err_msg = "invalid taproot script path signature: explicit SIGHASH_DEFAULT"
+    with pytest.raises(BTClibValueError, match=err_msg):
+        psbt.assert_valid()
+
+    # 0x80 is ANYONECANPAY with DEFAULT, which BIP341 does not define
+    signatures[key] = signature + b"\x80"
+    err_msg = "invalid taproot script path signature sig_hash type: 0x80"
+    with pytest.raises(BTClibValueError, match=err_msg):
+        psbt.assert_valid()
+
+    signatures[key] = signature[:63]
+    err_msg = "invalid taproot script path signature length: 63 bytes"
+    with pytest.raises(BTClibValueError, match=err_msg):
+        psbt.assert_valid()
+
+
 def test_creation() -> None:
     psbt_str = "cHNidP8BAJoCAAAAAljoeiG1ba8MI76OcHBFbDNvfLqlyHV5JPVFiHuyq911AAAAAAD/////g40EJ9DsZQpoqka7CwmK6kQiwHGyyng1Kgd5WdB86h0BAAAAAP////8CcKrwCAAAAAAWABTYXCtx0AYLCcmIauuBXlCZHdoSTQDh9QUAAAAAFgAUAK6pouXw+HaliN9VRuh0LR2HAI8AAAAAAAAAAAA="
     psbt = Psbt.b64decode(psbt_str)

@@ -24,6 +24,7 @@ from btclib.bip32 import BIP32KeyOrigin
 from btclib.bip32.der_path import indexes_from_bip32_path, str_from_bip32_path
 from btclib.exceptions import BTClibValueError
 from btclib.script import parse as parse_script
+from btclib.script.sig_hash import DEFAULT, SIG_HASH_TYPES
 from btclib.script.taproot import assert_valid_control_block
 from btclib.tx import Tx
 from btclib.utils import bytes_from_octets, bytesio_from_binarydata
@@ -348,10 +349,46 @@ def assert_valid_taproot_script_keys(keys: list[bytes], err_msg: str) -> None:
         raise BTClibValueError(err_msg)
 
 
-def assert_valid_taproot_signatures(signatures: list[bytes], err_msg: str) -> None:
-    """Fails when the signatures have not the correct length."""
-    if any(signature and len(signature) != 64 for signature in signatures):
-        raise BTClibValueError(err_msg)
+def assert_valid_taproot_signatures(signatures: list[bytes], what: str) -> None:
+    """Fails when a signature is not a BIP340 signature and its hash type.
+
+    BIP341 spends a taproot output with 64 bytes of signature, or 65 when
+    the sig_hash type is not the default one: the extra byte is that type,
+    appended. BIP371 says "64 or 65 bytes" for both PSBT_IN_TAP_KEY_SIG
+    and PSBT_IN_TAP_SCRIPT_SIG, and the script engine's get_hashtype
+    already reads them that way -- this was the one place in btclib that
+    required 64, so a signature Bitcoin Core accepts could not be put in
+    a psbt (issue #122).
+
+    0x00 is refused as the appended byte, as BIP341 refuses it and the
+    engine does: SIGHASH_DEFAULT is what the 64-byte form means, so
+    spelling it out is a second encoding of one signature.
+    """
+    for signature in signatures:
+        if not signature:
+            continue
+
+        # 63 and 66 bytes are what BIP371's own two invalid vectors carry
+        # for each of the two fields, so widening 64 to (64, 65) leaves
+        # every one of them rejected
+        if len(signature) not in (64, 65):
+            err_msg = f"invalid {what} length: {len(signature)} bytes"
+            err_msg += " instead of 64 or 65"
+            raise BTClibValueError(err_msg)
+
+        if len(signature) == 65:
+            sig_hash_type = signature[-1]
+            if sig_hash_type == DEFAULT:
+                err_msg = f"invalid {what}: explicit SIGHASH_DEFAULT"
+                err_msg += "; the 64-byte signature is what means it"
+                raise BTClibValueError(err_msg)
+            # SIG_HASH_TYPES rather than a second list of the seven
+            # values: it is the set the script engine and sig_hash.taproot
+            # test against, and a psbt carrying what neither would accept
+            # is a signature nothing can spend with
+            if sig_hash_type not in SIG_HASH_TYPES:
+                err_msg = f"invalid {what} sig_hash type: {hex(sig_hash_type)}"
+                raise BTClibValueError(err_msg)
 
 
 def assert_valid_taproot_tree(tree: list[tuple[int, int, bytes]]) -> None:

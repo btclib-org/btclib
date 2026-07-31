@@ -629,6 +629,23 @@ source-breaking changes on their own.
 
 ### Transactions, blocks and PSBT
 
+- **A psbt can carry a taproot signature with its sig_hash type.** BIP341
+  spends with 64 bytes of signature, or 65 when the sig_hash type is not
+  the default one — the extra byte being that type — and BIP371 says "64
+  or 65 bytes" of both `PSBT_IN_TAP_KEY_SIG` and `PSBT_IN_TAP_SCRIPT_SIG`.
+  btclib required exactly 64, so a signature Bitcoin Core accepts had no
+  psbt to travel in, while btclib's *own* script engine reads the 65-byte
+  form (`get_hashtype`). The appended byte is checked, as BIP341 and that
+  engine check it: `0x00` is refused, being what the 64-byte form already
+  means, and so is anything outside `SIG_HASH_TYPES` — `0x80`,
+  ANYONECANPAY with DEFAULT, is the one that looks valid and is not. Every
+  BIP371 invalid vector stays invalid: the two "too short" carry 63 bytes
+  and the two "too long" 66. The second argument of
+  `psbt_utils.assert_valid_taproot_signatures` is now the *name* of what
+  is being validated rather than the whole message, there being three
+  things to report about one signature; the messages carry the length or
+  the offending type, where they used to be a bare "invalid ... length"
+  (issue #122)
 - a hand-built BlockHeader no longer serializes differently on machines
   in different time zones: the `time` default is now the epoch as an
   aware datetime (it was naive, i.e. read back as local time by the
