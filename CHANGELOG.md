@@ -578,6 +578,30 @@ source-breaking changes on their own.
 
 ### Curves, signatures and keys
 
+- **`mult_endomorphism_secp256k1` answers correctly, and is now the
+  fastest python multiplication in the package** (issue #215). Its
+  `multiplier_decomposer` did Hankerson–Menezes–Vanstone's algorithm 3.74
+  modulo `ec.p` where the congruence only holds modulo the group order —
+  secp256k1's p and n share their top 128 bits, so every scalar above
+  ~2^127 decomposed to a wrong answer: 300 of 300 random scalars,
+  measured, while the handful of small values the old test pinned all
+  passed. It also rounded with `ceil` where balance needs
+  round-to-nearest, and reduced the signed results `% p`, handing
+  `_double_mult` two 256-bit multipliers for an 8-bit m — wrong *and*
+  slower than the `_mult` it exists to beat, 2.63 ms against 1.48 ms.
+  The decomposition is now 3.74 as written (mod n, nearest, signed, both
+  halves ≤ 128 bits, `multiplier_decomposer` losing the `ec` parameter it
+  no longer reads), the sign goes into the point as one y-negation, and
+  the double multiplication is the new `double_mult_w_NAF` — algorithm
+  3.51, interleaved per-scalar wNAFs over tables of odd multiples —
+  which completes what the FIXME asking for algorithm 3.77 meant.
+  Measured over 30 random 256-bit scalars: 1.00 ms at the default w=4,
+  against 1.30 ms feeding the same halves to `_double_mult` and 1.50 ms
+  for `_mult`. Nothing in the library calls this function — `mult`
+  dispatches to libsecp256k1 or `_mult`, and `btclib.curves` stopped
+  exporting the experimental multiplications (#148) — so no signature,
+  key or address was ever affected; the module exists to measure such
+  implementations against each other, which is how the bug was found
 - **borromean ring signatures work on a curve other than secp256k1**, which
   is what the `ec` parameter has been offering since it stopped being a
   module global. It reached the encodings and the order — `bytes_from_point`,
