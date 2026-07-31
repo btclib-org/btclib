@@ -19,7 +19,13 @@ from btclib.network import (
     NETWORKS,
     Network,
     curve_from_xkeyversion,
+    network_from_key_value,
     network_from_xkeyversion,
+    network_type_from_key_value,
+    network_type_from_network,
+    network_type_from_xkeyversion,
+    networks_from_key_value,
+    networks_from_xkeyversion,
     xprvversions_from_network,
     xpubversions_from_network,
 )
@@ -55,14 +61,15 @@ def test_curve_from_xkeyversion() -> None:
         all_versions += xprvversions_from_network(net_str)
         for version in all_versions:
             # four of the five networks carry testnet's version bytes, so
-            # the reverse lookup answers "testnet" for all of them. That
-            # is the open half of issue #207 -- with the data for signet
-            # and testnet4 in, "which network is this xpub from" wants a
-            # decision -- and pinning today's answer is what makes the
-            # decision visible when it is taken
+            # the singular lookup answers with testnet, the oldest of
+            # them: the documented contract since issue #207, and the
+            # right network to re-encode with, all four agreeing on
+            # every version prefix
             expected = "mainnet" if net_str == "mainnet" else "testnet"
             assert expected == network_from_xkeyversion(version)
             assert net.curve == curve_from_xkeyversion(version)
+            # what the version bytes *can* say, and cannot get wrong
+            assert net.network_type == network_type_from_xkeyversion(version)
 
 
 def test_space_and_caps() -> None:
@@ -148,3 +155,141 @@ def test_the_test_networks_differ_from_testnet_in_two_fields() -> None:
     assert len(genesis) == len(NETWORKS)
     magics = {net.magic_bytes for net in NETWORKS.values()}
     assert len(magics) == len(NETWORKS)
+
+
+# the prefix fields, i.e. every field a reverse lookup is asked about:
+# the two chain-identity fields and the curve are not prefixes, and no
+# lookup in this library keys on them
+_PREFIX_FIELDS = (
+    "wif",
+    "p2pkh",
+    "p2sh",
+    "hrp",
+    "bip32_prv",
+    "bip32_pub",
+    "slip132_p2wpkh_prv",
+    "slip132_p2wpkh_pub",
+    "slip132_p2wpkh_p2sh_prv",
+    "slip132_p2wpkh_p2sh_pub",
+    "slip132_p2wsh_prv",
+    "slip132_p2wsh_pub",
+    "slip132_p2wsh_p2sh_prv",
+    "slip132_p2wsh_p2sh_pub",
+)
+
+
+def test_no_prefix_crosses_the_main_test_boundary() -> None:
+    """The invariant the network type rests on, checked rather than assumed.
+
+    A network *name* cannot be recovered from a prefix -- four networks
+    share one set of them -- but "main or test" always can, and only
+    because no test network prefix equals a mainnet prefix. Every field
+    against every field, not field against same field: the type would be
+    just as wrong if testnet's p2sh were mainnet's p2pkh, since a caller
+    asks the lookups one field at a time and a collision anywhere makes
+    an answer of "main" reachable from test bytes.
+    """
+    mainnet_prefixes = {getattr(NETWORKS["mainnet"], f) for f in _PREFIX_FIELDS}
+    for name, net in NETWORKS.items():
+        if net.network_type == "main":
+            assert name == "mainnet"
+            continue
+        for field in _PREFIX_FIELDS:
+            assert getattr(net, field) not in mainnet_prefixes, (name, field)
+
+    # so mainnet is the only network of its type, and the four test
+    # networks are the rest: the shape the type is a name for
+    types = [net.network_type for net in NETWORKS.values()]
+    assert types.count("main") == 1
+    assert types.count("test") == len(NETWORKS) - 1
+
+
+def test_the_three_lookups_answer_one_question_each() -> None:
+    """Candidates, canonical name, type -- and how they relate."""
+    # the shared test prefixes: four candidates on the base58 fields,
+    # three on the hrp, regtest's bcrt being its own
+    assert networks_from_key_value("wif", b"\xef") == [
+        "testnet",
+        "regtest",
+        "signet",
+        "testnet4",
+    ]
+    assert networks_from_key_value("hrp", "tb") == ["testnet", "signet", "testnet4"]
+    assert networks_from_key_value("hrp", "bcrt") == ["regtest"]
+    assert networks_from_key_value("hrp", "bc") == ["mainnet"]
+
+    # the singular lookup is the [0] of the plural one, everywhere
+    for field in _PREFIX_FIELDS:
+        for net in NETWORKS.values():
+            prefix = getattr(net, field)
+            candidates = networks_from_key_value(field, prefix)
+            assert candidates
+            assert network_from_key_value(field, prefix) == candidates[0]
+            # and the type is one answer for all the candidates, which is
+            # what makes taking the first of them sound
+            assert len({NETWORKS[c].network_type for c in candidates}) == 1
+            assert network_type_from_key_value(field, prefix) == net.network_type
+
+    # unknown bytes: None from both, and an empty list rather than a raise
+    assert networks_from_key_value("hrp", "nosuchhrp") == []
+    assert network_from_key_value("hrp", "nosuchhrp") is None
+    assert network_type_from_key_value("hrp", "nosuchhrp") is None
+
+
+def test_the_three_xkeyversion_lookups() -> None:
+    for name, net in NETWORKS.items():
+        for version in xprvversions_from_network(name) + xpubversions_from_network(
+            name
+        ):
+            candidates = networks_from_xkeyversion(version)
+            assert network_from_xkeyversion(version) == candidates[0]
+            assert network_type_from_xkeyversion(version) == net.network_type
+            expected = (
+                ["mainnet"]
+                if name == "mainnet"
+                else [
+                    "testnet",
+                    "regtest",
+                    "signet",
+                    "testnet4",
+                ]
+            )
+            assert candidates == expected
+
+    # an unknown version: a BTClibValueError, which is a ValueError, as
+    # the bare one list.index used to leak was
+    assert networks_from_xkeyversion(b"\x00\x00\x00\x00") == []
+    with pytest.raises(BTClibValueError, match="unknown xkey version: 0x00000000"):
+        network_from_xkeyversion(b"\x00\x00\x00\x00")
+    with pytest.raises(ValueError, match="unknown xkey version"):
+        network_type_from_xkeyversion(b"\xff\xff\xff\xff")
+
+
+def test_network_type_from_network() -> None:
+    assert network_type_from_network() == "main"
+    assert network_type_from_network("mainnet") == "main"
+    # the same space-and-caps tolerance as xpubversions_from_network
+    assert network_type_from_network(" MainNet ") == "main"
+    for name in ("testnet", "regtest", "signet", "testnet4"):
+        assert network_type_from_network(name) == "test"
+    with pytest.raises(KeyError):
+        network_type_from_network("nosuchnet")
+
+
+def test_the_network_type_default_is_test() -> None:
+    """A Network built without one is a test network, not the real chain.
+
+    Issue #207 filed this as the case that matters: a caller who needs a
+    custom signet builds a Network by hand, and a forgotten argument
+    must not let it claim to be mainnet.
+    """
+    mainnet = NETWORKS["mainnet"].to_dict()
+    del mainnet["network_type"]
+    assert Network.from_dict(mainnet).network_type == "test"
+
+    # every field of mainnet, so nothing but the default is at work here
+    assert Network.from_dict(mainnet).p2pkh == NETWORKS["mainnet"].p2pkh
+
+    with pytest.raises(BTClibValueError, match="invalid network type: 'mainnet'"):
+        # the type is not a network name, and the json is what says it
+        Network.from_dict({**NETWORKS["mainnet"].to_dict(), "network_type": "mainnet"})

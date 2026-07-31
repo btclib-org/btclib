@@ -128,8 +128,8 @@ The rest, roughly bottom-up: `to_prv_key` and `to_pub_key` accept any key
 representation and hand back one; `bip32` and `mnemonic` derive keys;
 `script`, `tx`, `block` and `psbt` build and validate what goes on the
 chain. `bip21` parses and builds `bitcoin:` payment URIs, and sits on top
-of everything: it imports `b58`, `b32` and `amount`, and nothing in the
-library imports it.
+of everything: it imports `b58`, `b32`, `amount` and `network`, and nothing
+in the library imports it.
 
 ---
 

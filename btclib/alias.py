@@ -29,7 +29,7 @@ one.
 from __future__ import annotations
 
 from io import BytesIO
-from typing import Any, Callable, Protocol, Union
+from typing import Any, Callable, Literal, Protocol, Union
 
 # Octets are a sequence of eight-bit bytes or a hex-string (not text string)
 #
@@ -88,6 +88,29 @@ BinaryData = Union[BytesIO, Octets]
 # is for, and int("1234") costs the caller nothing -- so the ambiguity is
 # resolved the way every other str in this file resolves it
 Integer = Union[bytes, str, int]
+
+# What kind of chain a network is: the real one, or one of the test ones.
+#
+# This is the distinction the version bytes were designed to draw --
+# Satoshi's 0x6f, BIP32's tpub, SLIP132, and SLIP44 giving every test
+# chain one coin type -- and it is the one they can still draw now that
+# five networks are known: no prefix of any test network equals any
+# prefix of mainnet, on any field, so "main or test" always has an
+# answer where "which chain" does not. testnet, regtest, signet and
+# testnet4 share one set of prefixes on purpose, Core copying testnet's
+# into the newer two, so a prefix cannot tell them apart. See issue #207
+# and btclib.network's three network_type_from_* functions.
+#
+# "main" is Core's own name for the chain (`chain=main` in getblockchain
+# info); "test" is SLIP44's testnet *family*, and deliberately not
+# Core's `chain=test`, which names testnet3 alone.
+#
+# A Literal and not an Enum: network names are plain str throughout this
+# library, so a lone enum here would be an island, and mypy strict
+# already rejects the typo an Enum would guard against. Whether btclib
+# should move to enums wholesale -- script types and network names
+# first -- is a real question, and a separate one
+NetworkType = Literal["main", "test"]
 
 
 # What a HashF returns: as much of the hashlib object as this library uses,

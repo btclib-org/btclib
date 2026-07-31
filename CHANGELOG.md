@@ -11,9 +11,9 @@ release-notes length in the first place, and are still in
 
 ## v2026.8 (work in progress, not released yet)
 
-A hundred and sixteen entries, grouped. The order runs from what breaks a
+A hundred and nineteen entries, grouped. The order runs from what breaks a
 caller to what only maintainers see; [HISTORY.md](./HISTORY.md) lists the
-thirteen source-breaking changes on their own.
+fifteen source-breaking changes on their own.
 
 ### Repository
 
@@ -230,6 +230,17 @@ thirteen source-breaking changes on their own.
 
 ### Malformed input and the exception contract
 
+- **a WIF is checked against the network the caller named**, not against
+  the reverse lookup's answer. `_prv_keyinfo_from_wif` compared the
+  network *name* the prefix mapped back to, and the four test networks
+  share `0xef`, which maps back to "testnet": so a signet WIF asked for
+  as signet raised `InvalidPrvKeyError("not a signet wif: prefix 0xef")`
+  — naming the very prefix signet asks for — and the same for regtest
+  and testnet4. The check is now membership, the forward direction
+  `_prv_keyinfo_from_xprv` has always used, which is why the xprv path
+  took signet correctly all along; the returned tuple carries the
+  network the caller declared. Wrong-network WIFs are refused exactly as
+  before, mainnet's `0x80` against a test network and back (issue #207)
 - **`dsa.Sig.parse` rejects bytes after the DER sequence** under `strict`,
   which is the default. It read the sequence and silently dropped whatever
   followed, so `Sig.parse(der + b"\x01")` answered with the `Sig` of `der`
@@ -867,24 +878,89 @@ thirteen source-breaking changes on their own.
   the test derives it too, from the challenge in `kernel/chainparams.cpp`
   — which also records the limitation, that a *custom* signet has a
   different challenge and so a different magic, and is a `Network` the
-  caller builds. `XPRV_VERSIONS_ALL`, `XPUB_VERSIONS_ALL` and
-  `_REPEATED_NETWORKS` are now built by iterating `NETWORKS` instead of
-  spelling out `testnet * 2` and three hand-indexed names, which said
-  "three networks" in two places and in neither of them said why.
-  What is deliberately *not* answered is the other half of issue #207:
-  with four networks behind one set of version bytes,
-  `network_from_key_value` and `network_from_xkeyversion` still return
-  "testnet" for all four, exactly as they returned it for regtest
-  before. The two docstring warnings now name all four and point at the
-  issue, and a test pins today's answer so that changing it — to the
-  canonical name, the list of candidates, or an error — is a visible
-  decision rather than a side effect of adding data (issue #207)
+  caller builds. `XPRV_VERSIONS_ALL` and `XPUB_VERSIONS_ALL` are now
+  built by iterating `NETWORKS` instead of spelling out `testnet * 2`,
+  which said "three networks" in two places and in neither of them said
+  why. The ambiguity that five networks behind one set of version bytes
+  creates is the entry below (issue #207)
+- **a network has a type, `"main"` or `"test"`**, and three new lookups
+  answer with it: `network_type_from_key_value`,
+  `network_type_from_xkeyversion` and `network_type_from_network`. This
+  is what a version prefix can still say now that five networks are
+  known, and the answer to "should the reverse lookups exist at all".
+  Measured first, both ways. The name they return feeds only fields the
+  test networks share — curve, wif, p2pkh, p2sh, hrp, xkey versions —
+  and nothing in the package reads `magic_bytes` or `genesis_block`, so
+  an ambiguous name never produced a wrong *byte*; and no prefix of any
+  test network equals any prefix of mainnet, on any field against any
+  field, which a test now asserts. So main-versus-test always has an
+  answer where "which chain" does not — it is the distinction the
+  version bytes were designed to draw, Satoshi's `0x6f`, BIP32's
+  `tpub`, SLIP132, and SLIP44 giving every test chain one coin type —
+  and it is the one that matters for funds. `"main"` is Core's own name
+  for the chain; `"test"` is SLIP44's testnet *family*, deliberately not
+  Core's `chain=test`, which names testnet3 alone.
+  The type is a `Network` field, declared in each `_data/*.json` and
+  defaulting to `"test"` in `from_dict`, so a caller building a custom
+  signet by hand — what issue #207 says callers do — cannot let a
+  forgotten argument claim the real chain; `assert_valid` refuses a
+  third value, `NetworkType` being a mypy `Literal` and not a runtime
+  check. A `Literal` and not an `Enum`: network names are `str`
+  throughout this library, so an enum here would be an island, and
+  strict mypy already rejects the typo. Whether btclib should move to
+  enums wholesale is a real question and a separate one.
+  `network_from_key_value` and `network_from_xkeyversion` keep their
+  names, signatures and answers, and their docstring warnings become a
+  contract: they return the *oldest* network carrying the prefix —
+  "testnet" for the shared ones, "regtest" for the `bcrt` hrp that is
+  regtest's alone — which is the right network to encode and re-encode
+  *with*, every candidate agreeing on every prefix, and is not an answer
+  to "which chain is this". New `networks_from_key_value` and
+  `networks_from_xkeyversion` return every candidate, oldest first: the
+  list is the ordinal the singular lookups hide, `[0]` the canonical
+  answer and `[n]` the nth network, and its length says how many there
+  are, which "testnet" alone could never say. What none of them
+  replaces is the forward check — a version among
+  `xprvversions_from_network(net)`, a prefix equal to
+  `NETWORKS[net].wif` — which is exact for all five networks and is what
+  a caller who *knows* the chain should use.
+  Removing the reverse lookups instead was evaluated and rejected:
+  Electrum can require the network of every call because it picks one at
+  startup, and btclib deliberately has no such global. The cost would
+  have been a mandatory `network` argument across `h160_from_address`,
+  `witness_from_address`, `ScriptPubKey.from_address`, `Bip21`,
+  `bms.sign` and the keyinfo functions, plus the functional end of
+  `slip132.address_from_xkey`, whose whole point is that the version
+  bytes encode the script type — a price paid mostly by mainnet users,
+  for whom the inference is sound, mainnet's prefixes being unique.
+  `n_versions` and `_REPEATED_NETWORKS` are gone with the index
+  arithmetic they served: the lookups ask each network whether it holds
+  the version, the position of a repeated entry having meant nothing. An
+  unknown xkey version now raises `BTClibValueError("unknown xkey
+  version: 0x...")` where `list.index` leaked a bare `ValueError` naming
+  the list; `BTClibValueError` is a `ValueError`, so an `except
+  ValueError` caller is unaffected (issue #207)
+- **`ScriptPubKey` equality compares the network type**, not the network
+  name. Four test networks share one set of address prefixes, so
+  `from_address` answers "testnet" for a signet address — and comparing
+  names made a signet `ScriptPubKey` unequal to the very address it
+  renders, identical script bytes and all. Regtest hid this before
+  signet and testnet4 arrived: its `bcrt` hrp is unique, so a bech32
+  regtest address round-tripped to the name it came from. Mainnet is
+  still not equal to any test network, which is the funds-relevant half;
+  `ScriptPubKey` has no `__hash__` to keep consistent with this, `Script`
+  defining `__eq__` without one, and `TxOut` equality inherits the fix
+  through its `script_pub_key` field (issue #207)
 - **new `btclib.bip21`**, the `bitcoin:` payment URI: the gap between
   what a user pastes or scans and the typed surface the library offers.
   `Bip21.parse`, `.serialize` and `.assert_valid`, with `address`,
-  `amount`, `label`, `message` and a `network` read off the address. It
-  adds no edge to the dependency graph the README draws — it imports
-  `b58`, `b32` and `amount`, and nothing in the library imports it.
+  `amount`, `label`, `message` and a `network_type` read off the address
+  — `"main"` or `"test"`, which is what an address carries: a `tb1` one
+  is testnet, signet and testnet4 at once, so the property cannot name a
+  chain, and a payer's question is whether the request is for real
+  bitcoin. It adds no edge to the dependency graph the README draws — it
+  imports `b58`, `b32`, `amount` and `network`, and nothing in the
+  library imports it.
   The four rules an implementation gets wrong are the content: an
   unknown `req-` parameter invalidates the URI and an unknown one
   without the prefix is ignored, which is the whole

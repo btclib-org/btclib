@@ -128,15 +128,28 @@ def _prv_keyinfo_from_wif(
     except ValueError as e:
         raise NotAPrvKeyError(f"not a WIF ({e})") from e
 
-    net = network_from_key_value("wif", payload[:1])
+    prefix = payload[:1]
+    net = network_from_key_value("wif", prefix)
     if net is None:
-        raise NotAPrvKeyError(f"not a WIF (invalid prefix 0x{payload[:1].hex()})")
+        raise NotAPrvKeyError(f"not a WIF (invalid prefix 0x{prefix.hex()})")
 
     # from here the version prefix says WIF, so a fault in what follows is
     # a fault in a WIF: InvalidPrvKeyError, which the format-guessing
     # callers let through instead of trying the input as something else
-    if network is not None and net != network:
-        raise InvalidPrvKeyError(f"not a {network} wif: prefix 0x{payload[:1].hex()}")
+    if network is not None:
+        # the forward check, and not `net != network` as this was: the
+        # reverse lookup answers "testnet" for the 0xef that testnet,
+        # regtest, signet and testnet4 all use, so comparing names
+        # rejected a signet WIF as "not a signet wif: prefix 0xef" --
+        # naming the very prefix signet asks for. _prv_keyinfo_from_xprv
+        # below has always checked membership instead, which is why it
+        # took signet correctly; issue #207
+        if prefix != NETWORKS[network].wif:
+            raise InvalidPrvKeyError(f"not a {network} wif: prefix 0x{prefix.hex()}")
+        # the declared network, not the lookup's guess: for a caller who
+        # said "signet" the answer is signet, and it is the one that ends
+        # up in the returned tuple
+        net = network
 
     ec = NETWORKS[net].curve
 

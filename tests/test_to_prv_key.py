@@ -14,6 +14,7 @@ import pytest
 
 # Library imports
 from btclib.alias import INF
+from btclib.b58 import wif_from_prv_key
 from btclib.base58 import b58encode
 from btclib.curves.curve import CURVES
 from btclib.exceptions import (
@@ -247,3 +248,34 @@ def test_an_uncompressed_sec_key_still_resolves() -> None:
     err_msg = "uncompressed SEC / compressed BIP32 mismatch"
     with pytest.raises(InvalidPrvKeyError, match=err_msg):
         prv_keyinfo_from_prv_key(xprv, compressed=False)
+
+
+def test_a_wif_on_a_network_sharing_its_prefix() -> None:
+    """A signet WIF declared as signet, which used to be refused.
+
+    The WIF path checked the caller's network against the reverse
+    lookup's answer, and that answer is "testnet" for the 0xef the four
+    test networks share -- so a signet WIF asked for as signet raised
+    "not a signet wif: prefix 0xef", naming the prefix signet asks for.
+    The check is now the forward one the xprv path always used, i.e.
+    membership rather than a name comparison: issue #207.
+    """
+    for network in ("testnet", "regtest", "signet", "testnet4"):
+        wif = wif_from_prv_key(q, network)
+        # the declared network is the one returned, not the lookup's guess
+        assert prv_keyinfo_from_prv_key(wif, network) == (q, network, True)
+        assert _prv_keyinfo_from_wif(wif, network) == (q, network, True)
+
+    # undeclared, the canonical name of the shared prefix is what it is
+    assert prv_keyinfo_from_prv_key(wif_from_prv_key(q, "signet")) == (
+        q,
+        "testnet",
+        True,
+    )
+
+    # and the check still refuses what it should: mainnet is a different
+    # prefix, so it is a different network type
+    with pytest.raises(InvalidPrvKeyError, match="not a signet wif: prefix 0x80"):
+        prv_keyinfo_from_prv_key(wif_from_prv_key(q, "mainnet"), "signet")
+    with pytest.raises(InvalidPrvKeyError, match="not a mainnet wif: prefix 0xef"):
+        prv_keyinfo_from_prv_key(wif_from_prv_key(q, "signet"), "mainnet")

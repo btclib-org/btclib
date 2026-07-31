@@ -20,7 +20,7 @@ from btclib.alias import Octets, ScriptList, String, TaprootScriptTree
 from btclib.curves import point_from_octets
 from btclib.exceptions import BTClibValueError
 from btclib.hashes import hash160, sha256
-from btclib.network import NETWORKS
+from btclib.network import NETWORKS, network_type_from_network
 from btclib.script.script import Script, op_int, serialize
 from btclib.script.taproot import output_pubkey
 from btclib.to_pub_key import Key, pub_keyinfo_from_key
@@ -376,7 +376,23 @@ class ScriptPubKey(Script):
         if not isinstance(other, ScriptPubKey):
             return NotImplemented
 
-        return False if self.network != other.network else super().__eq__(other)
+        # the network *type*, not the name. Four test networks share one
+        # set of address prefixes, so from_address answers "testnet" for
+        # a signet address too -- and comparing names made a signet
+        # ScriptPubKey unequal to the very address it renders, identical
+        # script bytes and all. Types keep the distinction that matters,
+        # mainnet against the rest, and drop the one the address cannot
+        # carry: issue #207.
+        #
+        # Two ScriptPubKey are still not equal across types, so this is
+        # not a loosening of the funds-relevant check. ScriptPubKey is
+        # unhashable (Script defines __eq__ without __hash__), so there
+        # is no __hash__ to keep consistent with it
+        if network_type_from_network(self.network) != network_type_from_network(
+            other.network
+        ):
+            return False
+        return super().__eq__(other)
 
     def __init__(
         self,

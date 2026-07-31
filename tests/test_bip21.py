@@ -53,7 +53,7 @@ def test_bip21_own_examples() -> None:
     assert uri.label is None
     assert uri.message is None
     assert not uri.others
-    assert uri.network == "mainnet"
+    assert uri.network_type == "main"
     assert uri.serialize() == f"bitcoin:{ADDR}"
 
     # with a label
@@ -176,7 +176,7 @@ def test_the_address_is_not_lowercased() -> None:
     upper = f"BITCOIN:{bech32.upper()}?AMOUNT=1".replace("AMOUNT", "amount")
     parsed = Bip21.parse(upper)
     assert parsed.address == bech32.upper()
-    assert parsed.network == "mainnet"
+    assert parsed.network_type == "main"
 
     # mixed case is what bech32 refuses, and it is refused here too
     with pytest.raises(BTClibValueError, match="mixed case"):
@@ -188,13 +188,23 @@ def test_the_address_is_not_lowercased() -> None:
 
 
 def test_networks_other_than_mainnet() -> None:
-    for address, network in (
-        ("tb1qw508d6qejxtdg4y5r3zarvary0c5xw7kxpjzsx", "testnet"),
-        ("mipcBbFg9gMiCh81Kj8tqqdgoZub1ZJRfn", "testnet"),
-        ("bcrt1qw508d6qejxtdg4y5r3zarvary0c5xw7kygt080", "regtest"),
-        ("2MzQwSSnBHWHqSAqtTVQ6v47XtaisrJa1Vc", "testnet"),
+    """What a non-mainnet address says, which is "test" and no more.
+
+    The property used to answer with a network name, and could not: the
+    first address below is testnet, signet and testnet4 at once, and the
+    second is those three and regtest. A payer needs to know the request
+    is not for real bitcoin, which is exactly what "test" says.
+    """
+    for address in (
+        "tb1qw508d6qejxtdg4y5r3zarvary0c5xw7kxpjzsx",
+        "mipcBbFg9gMiCh81Kj8tqqdgoZub1ZJRfn",
+        "bcrt1qw508d6qejxtdg4y5r3zarvary0c5xw7kygt080",
+        "2MzQwSSnBHWHqSAqtTVQ6v47XtaisrJa1Vc",
     ):
-        assert Bip21.parse(f"bitcoin:{address}").network == network
+        assert Bip21.parse(f"bitcoin:{address}").network_type == "test"
+
+    # and the whole point of the type: a test address is never "main"
+    assert Bip21.parse(f"bitcoin:{ADDR}").network_type == "main"
 
 
 def test_a_uri_that_is_not_one() -> None:

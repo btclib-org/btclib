@@ -7,7 +7,7 @@ full year, short month, short day (YYYY-M-D)
 
 ## v2026.8 (work in progress, not released yet)
 
-The first release since 2023, and the largest: a hundred and sixteen entries, in
+The first release since 2023, and the largest: a hundred and nineteen entries, in
 [CHANGELOG.md](./CHANGELOG.md). What follows is what a user has to act on
 and what a user gains.
 
@@ -19,7 +19,7 @@ CHANGELOG.md.
 
 ### Breaking changes
 
-Thirteen changes break code that worked on v2023.7.12. Each is described in
+Fifteen changes break code that worked on v2023.7.12. Each is described in
 full in [CHANGELOG.md](./CHANGELOG.md). Every "before" spelling was checked
 against the `v2023.7.12` tag.
 
@@ -67,6 +67,17 @@ against the `v2023.7.12` tag.
   parse used to ignore that byte instead of refusing it: `Sig.parse(sig[:-1])`
   is the spelling now, and `strict=False` keeps the old leniency for a caller
   that wants it.
+- **`ScriptPubKey` equality compares the network type**, `"main"` or
+  `"test"`, not the network name: a testnet `ScriptPubKey` is now equal to a
+  signet, regtest or testnet4 one with the same script, those four networks
+  sharing every address prefix, and mainnet is still equal to none of them.
+  Code asserting that two test networks differ has to compare `.network`
+  itself.
+- **`btclib.network.n_versions` is gone**, with the `_REPEATED_NETWORKS` list
+  it counted for: the version-prefix lookups no longer index a parallel list
+  of names, so the number of prefixes per network stopped being a fact about
+  anything. `len(xprvversions_from_network(net))` is the spelling if it is
+  wanted.
 
 Two changes are deliberately *not* on that list, because what they change
 stays compatible. The new `BTClibTypeError`, `NotAPrvKeyError` and

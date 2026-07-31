@@ -840,3 +840,38 @@ def test_asm_parses_once_per_script() -> None:
     # dataclass can hold one at all: cached_property writes there directly
     # rather than through __setattr__
     assert script.__dict__["asm"] == first
+
+
+def test_equality_is_by_network_type() -> None:
+    """A signet ScriptPubKey equals the address it renders.
+
+    from_address answers "testnet" for a `tb1` address, three chains
+    sharing that hrp, so comparing network *names* made a signet
+    ScriptPubKey unequal to its own address -- identical script bytes and
+    all. Comparing the network type keeps the distinction that matters,
+    mainnet against the test chains, and drops the one an address cannot
+    carry: issue #207.
+    """
+    addr = "tb1qw508d6qejxtdg4y5r3zarvary0c5xw7kxpjzsx"
+    decoded = ScriptPubKey.from_address(addr)
+    assert decoded.network == "testnet"
+
+    for network in ("testnet", "regtest", "signet", "testnet4"):
+        declared = ScriptPubKey(decoded.script, network)
+        assert declared == decoded
+        assert decoded == declared  # both directions, as equality goes
+
+    # mainnet is not among them: the funds-relevant comparison stands
+    mainnet = ScriptPubKey(decoded.script, "mainnet")
+    assert mainnet != decoded
+    assert decoded != mainnet
+
+    # a different script is still a different script, same network type
+    other = ScriptPubKey.from_address(
+        b32.p2wsh(b"\x51", "testnet")  # any other witness program
+    )
+    assert other != decoded
+    assert ScriptPubKey(other.script, "signet") != decoded
+
+    # and a non-ScriptPubKey is still NotImplemented, i.e. not equal
+    assert decoded != decoded.script

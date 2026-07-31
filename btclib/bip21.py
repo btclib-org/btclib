@@ -13,9 +13,9 @@ https://github.com/bitcoin/bips/blob/master/bip-0021.mediawiki
 
 The gap between what a user pastes or scans and the typed surface this
 library offers. It is pure string handling and it sits above the
-encodings: the address goes to `b32`/`b58` and the amount to `amount`,
-nothing else in btclib imports this module, so the dependency graph the
-README draws gains no edge.
+encodings: the address goes to `b32`/`b58`, the amount to `amount`, and
+the network type to `network`; nothing else in btclib imports this
+module, so the dependency graph the README draws gains no edge.
 
 Four rules carry the whole of it, and each is the thing an
 implementation gets wrong:
@@ -40,8 +40,10 @@ from typing import Any
 from urllib.parse import quote, unquote
 
 from btclib import b32, b58
+from btclib.alias import NetworkType
 from btclib.amount import valid_btc_amount
 from btclib.exceptions import BTClibValueError
+from btclib.network import network_type_from_network
 
 _SCHEME = "bitcoin"
 
@@ -100,9 +102,17 @@ class Bip21:
     others: Mapping[str, str] = field(default_factory=dict)
 
     @property
-    def network(self) -> str:
-        """Return the network the address belongs to."""
-        return _network_from_address(self.address)
+    def network_type(self) -> NetworkType:
+        """Return "main" or "test", what the address says about its chain.
+
+        Not the network, which this was called and could not deliver: a
+        `tb1` address is testnet, signet and testnet4 at once, and a
+        `0x6f` base58 one is those three and regtest. "main or test" is
+        the whole of what an address carries -- issue #207 -- and it is
+        the question a payment URI actually raises, a payer needing to
+        know that a request is not for real bitcoin.
+        """
+        return network_type_from_network(_network_from_address(self.address))
 
     def __init__(
         self,
