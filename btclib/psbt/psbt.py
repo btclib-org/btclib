@@ -144,7 +144,26 @@ class Psbt:
         assert_valid_unknown(self.unknown)
 
     def assert_signable(self) -> None:
+        """Assert that every input carries what a Signer needs.
+
+        Valid and signable are different questions, and BIP174 answers only
+        the first: it lists two psbts with no inputs as valid, and
+        assert_valid accepts them. This one is the Signer's pre-flight, so
+        it answers the second, and a psbt with nothing to sign is not
+        signable.
+
+        The check has to be explicit because every check below is per
+        input: without it an empty vin passes the loop vacuously, and a
+        caller doing assert_signable() and then looping over the inputs
+        signs none of them and is told nothing. It used to raise through
+        assert_valid's "null transaction" -- by refusing a psbt the BIP
+        calls valid, which is issue 170 -- and that is not a reason to let
+        this answer go silent.
+        """
         self.assert_valid()
+
+        if not self.tx.vin:
+            raise BTClibValueError("nothing to sign: no inputs")
 
         for i, tx_in in enumerate(self.tx.vin):
             non_witness_utxo = self.inputs[i].non_witness_utxo

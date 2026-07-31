@@ -613,7 +613,10 @@ Major changes includes:
   size" is now reported as `wrong tx serialization format`: `deserialize_tx`
   had always compared the re-serialized transaction against the value it came
   from — 51 bytes whose transaction is 10 — and validating on the way in was
-  what made that comparison unreachable (issue #170)
+  what made that comparison unreachable. `assert_signable` answers the other
+  question and refuses it: `nothing to sign: no inputs`. Every check in it is
+  per input, so without that line an empty `vin` passed the loop vacuously
+  and a caller signed nothing while being told nothing (issue #170)
 - **`Script` and `ScriptPubKey` are frozen, and `Script.asm` is cached.**
   `Script` was the one dataclass left unfrozen after issue #139, which is
   what let `tx_out.script_pub_key.script = b""` reach *through* a frozen

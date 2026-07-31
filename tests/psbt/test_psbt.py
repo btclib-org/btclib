@@ -839,12 +839,13 @@ def test_a_psbt_may_have_no_inputs() -> None:
     with pytest.raises(BTClibValueError, match="Missing inputs"):
         psbt.tx.assert_valid()
 
-    # assert_signable passes, vacuously: every check in it is per input and
-    # there are none. It used to raise, but only through assert_valid's
-    # "null transaction" -- i.e. by refusing a psbt BIP174 calls valid, and
-    # deliberately not replaced by a rule of our own here. Valid and
-    # signable are different questions, and BIP174 answers only the first
-    psbt.assert_signable()
+    # valid, and not signable: every check in assert_signable is per input,
+    # so without an explicit test an empty vin passes the loop vacuously
+    # and a caller signs nothing while being told nothing. It used to raise
+    # through assert_valid's "null transaction", i.e. by refusing a psbt
+    # BIP174 calls valid; the answer belongs here instead
+    with pytest.raises(BTClibValueError, match="nothing to sign: no inputs"):
+        psbt.assert_signable()
 
 
 def test_the_global_unsigned_tx_is_mandatory() -> None:
