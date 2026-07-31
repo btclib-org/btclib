@@ -60,25 +60,59 @@ docstring.
 
 ## Non-obvious facts that will otherwise waste a session
 
-- **A session works in its own worktree, never in the shared checkout.**
-  Several sessions run against this repository at the same time, and one
-  working tree cannot hold two of them: a plain `git commit` (or `git add
-  -A`) picks up whatever another session has staged, and `git rebase`,
-  `git stash` and the `pre-commit` hooks that fix files in place rewrite
-  or shelve files that are not this session's. So `git worktree add
-  --detach <scratchpad>/wt<issue> dev`, `uv sync --locked` in it (a second
-  venv, about a minute), then edit, gate and commit *there*, `git push
-  origin HEAD:dev`, and `git worktree remove --force` at the end. Nothing
-  destructive then reaches a file another session holds, and the commit
-  cannot contain their work because their edits were never in it. Expect
-  the push to be rejected — `origin/dev` moves while you work — so `git
-  fetch && git rebase origin/dev` in the worktree, resolving in favour of
-  *both* sides (their change and yours, both HISTORY.md bullets).
-  Committing from the shared tree instead takes a throwaway index
-  (`GIT_INDEX_FILE`, `git read-tree HEAD`, `git update-index --add` for
-  your paths only, `git write-tree`, `git commit-tree`, then
-  `git update-ref` guarded by the old value); that is the measure of what
-  the worktree buys.
+- **The shared checkout takes one session at a time, and a lock says
+  which.** Working in it is what lets the maintainer watch the edits as
+  they happen, so it is not reserved for the awkward cases — but only one
+  session can have it, because one working tree has one index and one
+  HEAD: a plain `git commit` (or `git add -A`) there picks up whatever
+  another session has staged, and `git rebase`, `git stash` and the
+  `pre-commit` hooks that fix files in place rewrite or shelve files that
+  are not this session's. So, before the first edit, take the lock:
+
+  ```shell
+  LOCK="$(git rev-parse --path-format=absolute \
+    --git-common-dir)/claude-shared-tree.lock"
+  ( set -C; printf 'session %s\npid %s\nsince %s\ntask %s\n' \
+    "$CLAUDE_CODE_SESSION_ID" "$CLAUDE_PID" "$(date -u +%FT%TZ)" \
+    "issue 149" > "$LOCK" ) 2>/dev/null \
+    && echo "shared tree: mine" || cat "$LOCK"
+  ```
+
+  `set -C` (noclobber) makes the redirection fail when the file is
+  already there, so testing and taking are one atomic step and two
+  sessions starting together cannot both win. The path is the *common*
+  dir on purpose: in a linked worktree `.git` is a file, and
+  `--git-common-dir` still answers with the shared `.git`, so every
+  session reads the same lock — a file in the repository root would be
+  per-worktree, i.e. invisible to exactly the sessions that have to see
+  it. Being outside the work tree it also needs no `.gitignore` entry and
+  cannot be committed by accident. `rm "$LOCK"` when the work is pushed:
+  releasing is part of finishing, like removing a worktree.
+- **Locked out means worktree**, which is the cheap side of the trade:
+  `git worktree add --detach <scratchpad>/wt<issue> dev`, `uv sync
+  --locked` in it (a second venv, about a minute), then edit, gate and
+  commit *there*, `git push origin HEAD:dev`, and `git worktree remove
+  --force` at the end. Nothing destructive then reaches a file the other
+  session holds, and the commit cannot contain their work because their
+  edits were never in it. Expect the push to be rejected — `origin/dev`
+  moves while you work — so `git fetch && git rebase origin/dev` in the
+  worktree, resolving in favour of *both* sides (their change and yours,
+  both CHANGELOG.md bullets). Two things not to do while their lock is
+  held: do not move `refs/heads/dev`, because `git update-ref` leaves
+  their files alone but moves the base under them, and their next commit,
+  built on the older copy, would revert what just landed; and if your
+  change is already sitting in the shared tree, carry it out as a patch
+  (`git diff -- <paths> | git -C <worktree> apply`), which refuses rather
+  than clobbers if they have touched the same file.
+- **A stale lock is a dead pid, and that is testable.** The file records
+  the holder's `CLAUDE_PID`, which is the Claude Code process itself and
+  not the shell of one command, so `kill -0 <pid>` answers whether the
+  holder still exists: dead, and the lock is yours to overwrite — say so;
+  alive, and a worktree costs a venv while taking their tree costs their
+  work. An idle session is not a dead one, and a pid can be recycled
+  across a reboot, so the lock stays advisory: keep using `git add
+  <paths>` rather than `git add -A`, since a session that never read this
+  file cannot honour any of it.
 - **Work happens on `dev`**; `master` is the default branch and receives
   merges from it. Dependabot and pre-commit.ci both target `dev`.
 - **A dev CI run is usually `cancelled`, not green.** `test.yml`'s
