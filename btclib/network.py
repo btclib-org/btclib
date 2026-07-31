@@ -220,7 +220,13 @@ class Network:
 
 NETWORKS: dict[str, Network] = {}
 datadir = path.join(path.dirname(__file__), "_data")
-for net in ("mainnet", "testnet", "regtest"):
+# order matters, and it is the order of the reverse lookups below: the
+# first network holding a version prefix is the one they answer with, so
+# testnet stays the answer it has always been for the four networks that
+# share its prefixes. mainnet first, then the test networks oldest to
+# newest -- signet.json and testnet4.json differ from testnet.json in
+# the genesis block and the p2p magic, and in nothing else
+for net in ("mainnet", "testnet", "regtest", "signet", "testnet4"):
     filename = path.join(datadir, f"{net}.json")
     with open(filename, encoding="ascii") as f:
         NETWORKS[net] = Network.from_dict(json.load(f))
@@ -229,10 +235,14 @@ for net in ("mainnet", "testnet", "regtest"):
 def network_from_key_value(key: str, prefix: str | bytes | Curve) -> str | None:
     """Return network string from (key, value) pair.
 
-    Warning: when used on 'regtest' it mostly returns 'testnet',
-    which is not a problem as long as it is used for
-    WIF/Base58Address/BIP32xkey
-    because the two networks share the same prefixes.
+    Warning: four of the five networks share one set of prefixes --
+    testnet, regtest, signet and testnet4 differ in their genesis block
+    and p2p magic and in nothing else -- so on any of them this mostly
+    returns 'testnet', the first of the four. Which is not a problem as
+    long as it is used for WIF/Base58Address/BIP32xkey, those being what
+    the four have in common; it is not an answer to "which chain is
+    this", and issue #207 is where deciding what it should return
+    instead is being tracked.
     """
     return next(
         (
@@ -266,27 +276,39 @@ def xprvversions_from_network(network: str = "mainnet") -> list[bytes]:
     ]
 
 
-XPRV_VERSIONS_ALL = (
-    xprvversions_from_network("mainnet") + xprvversions_from_network("testnet") * 2
-)
-XPUB_VERSIONS_ALL = (
-    xpubversions_from_network("mainnet") + xpubversions_from_network("testnet") * 2
-)
+# One block of version prefixes per network, in NETWORKS order, and
+# _REPEATED_NETWORKS names the network of each entry. Built from
+# NETWORKS rather than written out: this was `mainnet + testnet * 2` and
+# three names indexed by hand, which said "three networks" in two places
+# and in neither of them said why. Four of the five networks carry
+# testnet's prefixes, so the lists hold each of them four times over and
+# `.index()` finds the first -- which is testnet, the answer these
+# lookups have always given for regtest and now give for signet and
+# testnet4 too.
+#
+# That answer is the open half of issue #207 and is deliberately left
+# where it was: with five networks behind one set of version bytes,
+# "which network is this xpub from" wants a decision -- the canonical
+# name, the whole list of candidates, or an error -- and adding the data
+# is not the place to take it.
+XPRV_VERSIONS_ALL = [
+    version for network in NETWORKS for version in xprvversions_from_network(network)
+]
+XPUB_VERSIONS_ALL = [
+    version for network in NETWORKS for version in xpubversions_from_network(network)
+]
 n_versions = len(xprvversions_from_network("mainnet"))
 _NETWORKS = list(NETWORKS.keys())
-_REPEATED_NETWORKS = (
-    [_NETWORKS[0]] * n_versions
-    + [_NETWORKS[1]] * n_versions
-    + [_NETWORKS[2]] * n_versions
-)
+_REPEATED_NETWORKS = [network for network in _NETWORKS for _ in range(n_versions)]
 
 
 def network_from_xkeyversion(xkeyversion: bytes) -> str:
     """Return network string from the xkey version prefix.
 
-    Warning: when used on 'regtest' it returns 'testnet', which is not
-    a problem as long as it is used for WIF/Base58Address/BIP32Key
-    because the two networks share the same prefixes.
+    Warning: it returns 'testnet' for a testnet, regtest, signet or
+    testnet4 version prefix, those four being the same bytes. Not a
+    problem as long as it is used for WIF/Base58Address/BIP32Key, and
+    not an answer to "which chain is this": see issue #207.
     """
     try:
         index = XPRV_VERSIONS_ALL.index(xkeyversion)

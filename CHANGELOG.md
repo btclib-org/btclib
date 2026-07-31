@@ -11,7 +11,7 @@ release-notes length in the first place, and are still in
 
 ## v2026.8 (work in progress, not released yet)
 
-A hundred and seven entries, grouped. The order runs from what breaks a caller to
+A hundred and eight entries, grouped. The order runs from what breaks a caller to
 what only maintainers see; [HISTORY.md](./HISTORY.md) lists the eleven
 source-breaking changes on their own.
 
@@ -793,6 +793,31 @@ source-breaking changes on their own.
   `sign_to_contract` beside the four
 - **`btclib.mnemonic` exports `bip39` and `electrum`**, its two schemes,
   which were reachable on the same accidental terms
+- **`NETWORKS` describes signet and testnet4**, where it had mainnet,
+  testnet and regtest and a caller working on either of the other two
+  had to build a `Network` by hand. Signet has been in Core since 0.21
+  and is where most protocol work is demonstrated; testnet4 shipped in
+  28.0 and is what "testnet" increasingly means. The two JSON files
+  differ from `testnet.json` in the genesis block and the p2p magic and
+  in nothing else — the wif, p2pkh, p2sh, `tb` hrp and `tprv`/`tpub`
+  version bytes are testnet's, which a test asserts field by field.
+  Signet's magic is not a constant to copy: Core derives it as the first
+  four bytes of the sha256d of the length-prefixed signet challenge, so
+  the test derives it too, from the challenge in `kernel/chainparams.cpp`
+  — which also records the limitation, that a *custom* signet has a
+  different challenge and so a different magic, and is a `Network` the
+  caller builds. `XPRV_VERSIONS_ALL`, `XPUB_VERSIONS_ALL` and
+  `_REPEATED_NETWORKS` are now built by iterating `NETWORKS` instead of
+  spelling out `testnet * 2` and three hand-indexed names, which said
+  "three networks" in two places and in neither of them said why.
+  What is deliberately *not* answered is the other half of issue #207:
+  with four networks behind one set of version bytes,
+  `network_from_key_value` and `network_from_xkeyversion` still return
+  "testnet" for all four, exactly as they returned it for regtest
+  before. The two docstring warnings now name all four and point at the
+  issue, and a test pins today's answer so that changing it — to the
+  canonical name, the list of candidates, or an error — is a visible
+  decision rather than a side effect of adding data (issue #207)
 - **new `btclib.bip21`**, the `bitcoin:` payment URI: the gap between
   what a user pastes or scans and the typed surface the library offers.
   `Bip21.parse`, `.serialize` and `.assert_valid`, with `address`,
