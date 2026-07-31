@@ -11,7 +11,7 @@ release-notes length in the first place, and are still in
 
 ## v2026.8 (work in progress, not released yet)
 
-A hundred and twenty-eight entries, grouped. The order runs from what breaks a
+A hundred and thirty-one entries, grouped. The order runs from what breaks a
 caller to what only maintainers see; [HISTORY.md](./HISTORY.md) lists the
 fifteen source-breaking changes on their own.
 
@@ -241,6 +241,29 @@ fifteen source-breaking changes on their own.
   returns success at the first OP_SUCCESS whatever precedes it — the same
   reason both op codes keep their names in the tapscript tables, which is
   what Core's own `GetOpName` does (issue #182)
+- **the fifteen op codes disabled for CVE-2010-5137 are refused**, where
+  a script could carry one and still be spent. OP_CAT, OP_SUBSTR, OP_LEFT,
+  OP_RIGHT, OP_INVERT, OP_AND, OP_OR, OP_XOR, OP_2MUL, OP_2DIV, OP_MUL,
+  OP_DIV, OP_MOD, OP_LSHIFT and OP_RSHIFT had no name in btclib's tables,
+  so an executed one failed as "unknown op code: 0x7e" and an unexecuted
+  one was skipped outright: `OP_0 OP_IF OP_CAT OP_ENDIF OP_1` verified.
+  Core refuses them above the fExec test, earlier still than OP_VERIF —
+  one of them anywhere in a script, in a branch never taken or past an
+  OP_RETURN, makes it unspendable, and its error DISABLED_OPCODE rather
+  than BAD_OPCODE. They are named now, as Core names them in script.h and
+  GetOpName, and the legacy engine refuses them by name in that position;
+  tapscript needs no rule of its own, BIP342 having turned every one of
+  those bytes into an OP_SUCCESSx. Naming them also lets a script carrying
+  one round trip through `parse` and `serialize`, which the engine's
+  FindAndDelete depends on.
+  Bitcoin Core's vectors had covered this all along — twenty-four
+  DISABLED_OPCODE cases, seventeen of them in a branch never taken — and
+  not one of them ran: the harness cannot build a script whose op code has
+  no name, `pytest.raises(Exception)` took the resulting KeyError for the
+  expected failure, and all twenty-four passed against a rule that was not
+  there. A vector expecting a failure now has to get a BTClibValueError,
+  which is what the engine raises and what a broken harness does not
+  (issue #182)
 
 ### Malformed input and the exception contract
 
@@ -377,6 +400,13 @@ fifteen source-breaking changes on their own.
   length check or construction already guaranteed the pairing, so there the
   argument documents an invariant rather than changing an outcome. Available
   because `strict` is python 3.10
+- an empty P2WSH witness stack raises BTClibValueError("empty p2wsh witness
+  stack") rather than an `IndexError` out of `stack[-1]`, the witness script
+  being the last element of a stack that has none. Core calls it
+  WITNESS_PROGRAM_WITNESS_EMPTY and the taproot branch beside it already had
+  the guard. The vector that exercises it, `P2WSH with empty witness`, was
+  green throughout: `pytest.raises(Exception)` counts an IndexError as the
+  refusal it was waiting for (issue #182)
 
 ### Immutability and shared state
 
@@ -1265,7 +1295,7 @@ fifteen source-breaking changes on their own.
   coverage special-cases 100 to mean exactly 100.00%, which would make
   one version-gated line a red build; the comparison is
   `round(total, precision) < fail_under`, so 99.99 allows two of the
-  15174 statements the coverage job measures
+  15205 statements the coverage job measures
 - **`tests/ecc/test_bms.py` imports on python 3.9 again.** It annotates a
   helper `-> Point | None` without `from __future__ import annotations`,
   which 3.9 evaluates at def time and has no `|` for: the module was ten
@@ -1456,8 +1486,8 @@ fifteen source-breaking changes on their own.
   and what the lint and docs jobs therefore already used, so 3.13 was a
   version those two jobs alone singled out — the matrix tests it like
   every other. It matters most for coverage, whose gate is a ratio of a
-  statement count that moves between interpreters, 15174 on 3.14 against
-  15180 on 3.13: the threshold and the interpreter now agree with what a
+  statement count that moves between interpreters, 15205 on 3.14 against
+  15211 on 3.13: the threshold and the interpreter now agree with what a
   maintainer measures locally with a bare `uv run pytest --cov`. The
   release step only needs a `tomllib`, i.e. 3.11 or newer, and now asks
   for a version uv has already fetched for the other jobs

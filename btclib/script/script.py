@@ -15,6 +15,18 @@ Scripts are represented by list[Command], where Command = int | str | bytes
 
 * ascii string are for opcodes (e.g. 'OP_HASH160', 'OP_1', 'OP_1NEGATE', etc.)
 * hex-string or bytes (i.e., Octets) are for data
+
+The tables name op codes no valid script can execute, marked `# disabled`
+below: the fifteen splice, bitwise and multiplication op codes Satoshi
+switched off for CVE-2010-5137. Naming them is what lets the engine
+*reject* them by name -- a byte with no name reaches the interpreter as
+"unknown op code", and one that parse cannot name at all cannot be
+serialized back either, which the engine's FindAndDelete relies on. Core
+draws the same line: script.h defines them, GetOpName names them, GetOp
+reads them, and only the interpreter refuses -- there, before it even
+asks whether the branch executes. OP_RESERVED, OP_VER, OP_VERIF,
+OP_VERNOTIF, OP_RESERVED1 and OP_RESERVED2 are named for the same reason
+and refused by their own rules.
 """
 
 from __future__ import annotations
@@ -86,8 +98,16 @@ BYTE_FROM_OP_CODE_NAME = {
     "OP_2ROT": b"\x71",
     "OP_2SWAP": b"\x72",
     # Splice
+    "OP_CAT": b"\x7e",  # disabled
+    "OP_SUBSTR": b"\x7f",  # disabled
+    "OP_LEFT": b"\x80",  # disabled
+    "OP_RIGHT": b"\x81",  # disabled
     "OP_SIZE": b"\x82",
     # Bitwise logic
+    "OP_INVERT": b"\x83",  # disabled
+    "OP_AND": b"\x84",  # disabled
+    "OP_OR": b"\x85",  # disabled
+    "OP_XOR": b"\x86",  # disabled
     "OP_EQUAL": b"\x87",
     "OP_EQUALVERIFY": b"\x88",
     "OP_RESERVED1": b"\x89",
@@ -95,12 +115,19 @@ BYTE_FROM_OP_CODE_NAME = {
     # Arithmetic
     "OP_1ADD": b"\x8b",  # without OP_, 1ADD would be a number
     "OP_1SUB": b"\x8c",
+    "OP_2MUL": b"\x8d",  # disabled
+    "OP_2DIV": b"\x8e",  # disabled
     "OP_NEGATE": b"\x8f",
     "OP_ABS": b"\x90",
     "OP_NOT": b"\x91",
     "OP_0NOTEQUAL": b"\x92",
     "OP_ADD": b"\x93",
     "OP_SUB": b"\x94",
+    "OP_MUL": b"\x95",  # disabled
+    "OP_DIV": b"\x96",  # disabled
+    "OP_MOD": b"\x97",  # disabled
+    "OP_LSHIFT": b"\x98",  # disabled
+    "OP_RSHIFT": b"\x99",  # disabled
     "OP_BOOLAND": b"\x9a",
     "OP_BOOLOR": b"\x9b",
     "OP_NUMEQUAL": b"\x9c",
@@ -195,19 +222,34 @@ OP_CODE_NAME_FROM_INT = {
     123: "OP_ROT",
     124: "OP_SWAP",
     125: "OP_TUCK",
+    126: "OP_CAT",  # disabled
+    127: "OP_SUBSTR",  # disabled
+    128: "OP_LEFT",  # disabled
+    129: "OP_RIGHT",  # disabled
     130: "OP_SIZE",
+    131: "OP_INVERT",  # disabled
+    132: "OP_AND",  # disabled
+    133: "OP_OR",  # disabled
+    134: "OP_XOR",  # disabled
     135: "OP_EQUAL",
     136: "OP_EQUALVERIFY",
     137: "OP_RESERVED1",
     138: "OP_RESERVED2",
     139: "OP_1ADD",
     140: "OP_1SUB",
+    141: "OP_2MUL",  # disabled
+    142: "OP_2DIV",  # disabled
     143: "OP_NEGATE",
     144: "OP_ABS",
     145: "OP_NOT",
     146: "OP_0NOTEQUAL",
     147: "OP_ADD",
     148: "OP_SUB",
+    149: "OP_MUL",  # disabled
+    150: "OP_DIV",  # disabled
+    151: "OP_MOD",  # disabled
+    152: "OP_LSHIFT",  # disabled
+    153: "OP_RSHIFT",  # disabled
     154: "OP_BOOLAND",
     155: "OP_BOOLOR",
     156: "OP_NUMEQUAL",

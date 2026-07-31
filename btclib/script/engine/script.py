@@ -22,7 +22,11 @@ from btclib.script import sig_hash
 from btclib.script.engine import script_op_codes
 from btclib.script.engine.flags import ScriptFlag
 from btclib.script.engine.script_op_codes import ScriptOp, _from_num, _to_num
-from btclib.script.script import OP_CODE_NAME_FROM_INT, parse
+from btclib.script.script import (
+    BYTE_FROM_OP_CODE_NAME,
+    OP_CODE_NAME_FROM_INT,
+    parse,
+)
 from btclib.script.script import serialize as serialize_script
 from btclib.script.sig_hash import SIG_HASH_TYPES, PrecomputedTxData
 from btclib.tx.tx import Tx
@@ -202,6 +206,44 @@ def script_op_count(count: int, increment: int) -> int:
 # OP_SUCCESS80` is valid and must stay so (issue #182).
 EVALUATED_WHEN_UNEXECUTED = range(0x63, 0x69)  # OP_IF..OP_ENDIF
 
+# The op codes Satoshi switched off for CVE-2010-5137, which Core refuses
+# earlier still: `if (opcode == OP_CAT || ...) return DISABLED_OPCODE`
+# sits above the fExec test, so one of these anywhere in a script -- in a
+# branch never taken, after an OP_RETURN, wherever -- makes it unspendable
+# and its error DISABLED_OPCODE rather than BAD_OPCODE. Read from the
+# table by name, so that a name that stops existing fails at import rather
+# than leaving a rule that quietly stops matching.
+#
+# Only this engine needs them: BIP342 turns every one of these bytes into
+# an OP_SUCCESSx, so in tapscript they are the opposite of disabled and
+# the pre-scan answers before the interpreter sees one.
+DISABLED_OP_CODES = frozenset(
+    BYTE_FROM_OP_CODE_NAME[name][0]
+    for name in (
+        "OP_CAT",
+        "OP_SUBSTR",
+        "OP_LEFT",
+        "OP_RIGHT",
+        "OP_INVERT",
+        "OP_AND",
+        "OP_OR",
+        "OP_XOR",
+        "OP_2MUL",
+        "OP_2DIV",
+        "OP_MUL",
+        "OP_DIV",
+        "OP_MOD",
+        "OP_LSHIFT",
+        "OP_RSHIFT",
+    )
+)
+
+
+def check_not_disabled(op_code: int) -> None:
+    """Reject an op code disabled by CVE-2010-5137, executed or not."""
+    if op_code in DISABLED_OP_CODES:
+        raise BTClibValueError(f"disabled op code: {op_code_name(op_code)}")
+
 
 def prepare_script(script: ScriptList, flags: ScriptFlag, segwit: bool) -> None:
     if (
@@ -333,6 +375,8 @@ def verify_script(
 
             if t > 96:  # OP_16
                 op_code_num = script_op_count(op_code_num, 1)
+
+            check_not_disabled(t)
 
             if skip_execution and t not in EVALUATED_WHEN_UNEXECUTED:
                 continue

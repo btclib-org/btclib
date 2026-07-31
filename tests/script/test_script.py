@@ -145,9 +145,12 @@ def test_opcode_length() -> None:
     with pytest.raises(BTClibValueError, match=err_msg):
         parse(b"\x40\x00")
 
+    # 0xff, Core's OP_INVALIDOPCODE, which no soft fork can name: this
+    # read 0x7e until the tables learned it is OP_CAT, disabled and
+    # named like every other op code no valid script can execute
     err_msg = "Unknown op code"
     with pytest.raises(BTClibValueError, match=err_msg):
-        assert parse(b"\x01\x00\x7e")
+        assert parse(b"\x01\x00\xff")
 
 
 def test_regressions() -> None:

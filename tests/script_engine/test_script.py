@@ -21,8 +21,8 @@ from btclib.alias import TaprootScriptTree
 from btclib.exceptions import BTClibValueError, ScriptError
 from btclib.script import ScriptPubKey
 from btclib.script.engine import ALL_FLAGS, NO_FLAGS, verify_input
-from btclib.script.engine.script import verify_script
-from btclib.script.script import serialize
+from btclib.script.engine.script import DISABLED_OP_CODES, verify_script
+from btclib.script.script import OP_CODE_NAME_FROM_INT, parse, serialize
 from btclib.script.taproot import input_script_sig, output_pubkey
 from btclib.script.taproot import parse as parse_tapscript
 from btclib.script.taproot import serialize as serialize_tapscript
@@ -166,7 +166,15 @@ def test_script(vector: ScriptVector) -> None:
     if vector.valid:
         verify()
     else:
-        with pytest.raises(Exception):
+        # BTClibValueError, not Exception: a vector expecting a failure
+        # gets one from anything that raises, the harness included, and
+        # `parse_script` raises KeyError on an op code name btclib does
+        # not know. That is how the seventeen DISABLED_OPCODE vectors
+        # below passed while the rule they test was missing -- the names
+        # were unknown, the scripts were never built, and no engine ever
+        # saw them. Everything the engine refuses is a BTClibValueError,
+        # ScriptError included, so a KeyError is now a red test
+        with pytest.raises(BTClibValueError):
             verify()
 
 
@@ -326,6 +334,33 @@ def test_verif_in_an_unexecuted_branch(op_code: bytes) -> None:
     )
     with pytest.raises(ScriptError, match="unknown op code: OP_VER"):
         verify_input(prevouts, tx, 0, ALL_FLAGS)
+
+
+def test_disabled_op_codes() -> None:
+    """The fifteen op codes CVE-2010-5137 switched off, named and refused.
+
+    Core's own vectors cover the refusal — twenty-four DISABLED_OPCODE
+    cases, seventeen of them in a branch never taken — and not one of
+    them could reach the engine while the names were missing:
+    `parse_script` raised KeyError, `pytest.raises(Exception)` took it
+    for a verdict, and all twenty-four passed against a rule that was
+    not there. What is left to pin here is the property they assume,
+    which is also why the names are in the tables: every byte has one,
+    the name serializes back to the byte, and the engine refuses it
+    whatever the conditionals around it do.
+    """
+    assert len(DISABLED_OP_CODES) == 15
+
+    tx = Tx(check_validity=False)
+    for op_code in sorted(DISABLED_OP_CODES):
+        name = OP_CODE_NAME_FROM_INT[op_code]
+        assert serialize([name]) == bytes([op_code])
+        assert parse(bytes([op_code])) == [name]
+
+        # OP_0, OP_IF, <op code>, OP_ENDIF, OP_1: never executed
+        script_bytes = b"\x00\x63" + bytes([op_code]) + b"\x68\x51"
+        with pytest.raises(ScriptError, match=f"disabled op code: {name}"):
+            verify_script(script_bytes, [], 0, tx, 0, NO_FLAGS, False)
 
 
 def test_verif_before_an_op_success() -> None:

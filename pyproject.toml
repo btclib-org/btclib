@@ -189,13 +189,13 @@ precision = 2
 # and no third party service, enforced on every run instead of only on
 # pull requests targeting master.
 # The comparison is `round(total, precision) < fail_under`, so with the
-# 15174 statements the coverage-py job measures this allows 2 of them to
+# 15205 statements the coverage-py job measures this allows 2 of them to
 # go uncovered, against the 0 uncovered today. It was 99.9, which allowed
 # 15 -- and 12 of them had been taken without anybody noticing, four in
 # tests/conftest.py's own failure paths and one in a wrapper around the
 # bindings, because slack that wide reports a regression as a pass.
 # Both figures are that job's interpreter, 3.14, and not any other: the
-# statement count moves between versions -- 3.13 measures 15180 of the
+# statement count moves between versions -- 3.13 measures 15211 of the
 # same tree -- so a number measured elsewhere would not be the one the
 # gate compares. 3.14 because it is what .python-version pins, so a bare
 # `uv run pytest --cov` locally measures what CI does; the job names the

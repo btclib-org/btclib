@@ -207,6 +207,13 @@ def verify_input(
             script = b"v\xa9\x14" + payload + b"\x88\xac"
         elif script_type == "p2wsh":
             stack = list(tx.vin[i].script_witness.stack)
+            # the witness script is the last element, and there is none:
+            # Core's WITNESS_PROGRAM_WITNESS_EMPTY, and the guard the
+            # taproot branch above already has. Without it the empty stack
+            # was an IndexError out of `stack[-1]`, i.e. malformed input
+            # leaving through something other than BTClibValueError
+            if not stack:
+                raise BTClibValueError("empty p2wsh witness stack")
             if any(len(x) > 520 for x in stack[:-1]):
                 raise BTClibValueError("witness stack element longer than 520 bytes")
             script = stack[-1]
