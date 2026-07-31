@@ -86,6 +86,52 @@ jobs:
             echo "::error::$version is not a final version; rehearse on TestPyPI via workflow_dispatch instead"
             exit 1
           fi
+      # the release notes are HISTORY.md's section for the tag, lifted by
+      # the github-release job below, and its fallback fires only on an
+      # *empty* section: "## v2026.8 (work in progress, not released yet)"
+      # matches that job's heading regex, the tag being followed by a
+      # space, so a forgotten retitle publishes the work-in-progress text
+      # as the release notes, silently. This is the check for it, and it
+      # belongs here rather than in github-release because that job runs
+      # after PyPI has accepted the files, and a version cannot be
+      # unpublished.
+      # CHANGELOG.md is checked too: RELEASING.md retitles the two
+      # together, HISTORY.md's section points at CHANGELOG.md's for the
+      # detail, and a heading left as "work in progress" makes that a link
+      # into nothing.
+      # Release-only, like the comparison above, and for the same reason:
+      # a rehearsal is what runs *before* the retitle, so requiring it
+      # there would forbid the dry run it exists to be.
+      # String comparison rather than a regex, so that the dots of the
+      # version match dots and not any character, and awk rather than
+      # grep, one pass answering all three questions
+      - name: Check that the release notes are retitled for the tag (release only)
+        if: github.event_name == 'push'
+        run: |
+          version=$(uv version --short)
+          for file in HISTORY.md CHANGELOG.md; do
+            awk -v tag="v$version" -v file="$file" '
+              $0 == "## " tag {heading = NR; next}
+              index($0, "## " tag " ") == 1 {heading = NR; extra = $0; next}
+              /^## / && heading {exit}
+              heading && NF {body = 1}
+              END {
+                if (!heading) {
+                  printf "::error::%s has no \"## %s\" section\n", file, tag
+                  exit 1
+                }
+                if (extra) {
+                  printf "::error::%s:%d is \"%s\"; the heading must be \"## %s\" alone\n", file, heading, extra, tag
+                  exit 1
+                }
+                if (!body) {
+                  printf "::error::%s section \"## %s\" is empty\n", file, tag
+                  exit 1
+                }
+                printf "%s has a non-empty \"## %s\" section\n", file, tag
+              }
+            ' "$file"
+          done
 
   # the whole build/test matrix, exactly as a pull request runs it
   test:
@@ -274,7 +320,12 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         # the release notes are the tag's own section of HISTORY.md;
         # if the section is missing the release still happens, with
-        # notes generated from the merged pull requests instead
+        # notes generated from the merged pull requests instead.
+        # The fallback is the safety net for a tag pushed past a red
+        # version-check, not the check itself: version-check has already
+        # refused a tag whose HISTORY.md heading carries anything after
+        # the version -- "(work in progress, not released yet)" matches
+        # the regex below and is not empty, so nothing here would notice
         run: |
           awk -v tag="$GITHUB_REF_NAME" '
             $0 ~ "^## " tag "( |$)" {found=1; next}

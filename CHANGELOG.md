@@ -910,6 +910,14 @@ source-breaking changes on their own.
   that uv.lock is in sync) before the test matrix rather than beside it,
   and validates what it built with twine, check-wheel-contents, and
   pyroma on the sdist, before an upload consumes the version
+- `version-check` refuses a tag whose release notes were not retitled: the
+  GitHub release notes are HISTORY.md's `## v<version>` section, and the
+  extraction matches a heading that carries anything *after* the version
+  too, so `## v2026.8 (work in progress, not released yet)` would have been
+  published as the notes of v2026.8 — silently, the release job's fallback
+  firing only on an *empty* section. An empty section is refused as well,
+  and CHANGELOG.md's heading is checked beside HISTORY.md's, the two being
+  retitled together and the first linking to the second (issue #157)
 - the matrix covers 3.14t, the free-threaded interpreter, and pytest is
   stricter: a warning is an error, an unregistered marker and a typo in
   the pytest configuration are errors, and an xfail that passes is a

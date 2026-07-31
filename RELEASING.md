@@ -88,7 +88,12 @@ pyroma), build, wheel smoke test — and publishes to
    release notes from HISTORY.md's section alone, so that one has to
    read as the release notes it becomes; CHANGELOG.md is the detail it
    points at, and the two are retitled together or the link goes
-   nowhere.
+   nowhere. `version-check` refuses a tag whose heading still carries
+   anything after the version, in either file, or whose section is
+   empty: the extraction matches `## v<version>` followed by a space
+   too, so an unretitled HISTORY.md would have published "work in
+   progress, not released yet" as the release notes. A rehearsal is
+   exempt, being what runs before this step.
 
 1. Run `uv run pre-commit run --all-files` and `uv run pytest`, follow
    docs/README.rst to check that the documentation builds, and get the
