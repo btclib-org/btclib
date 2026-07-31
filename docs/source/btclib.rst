@@ -67,6 +67,14 @@ btclib.bech32 module
    :undoc-members:
    :show-inheritance:
 
+btclib.bip21 module
+-------------------
+
+.. automodule:: btclib.bip21
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
 btclib.descriptors module
 -------------------------
 

@@ -1,0 +1,234 @@
+#!/usr/bin/env python3
+
+# Copyright (C) The btclib developers
+#
+# This file is part of btclib. It is subject to the license terms in the
+# LICENSE file found in the top-level directory of this distribution.
+#
+# No part of btclib including this file, may be copied, modified, propagated,
+# or distributed except according to the terms contained in the LICENSE file.
+"""BIP21 payment URI: bitcoin:<address>[?amount=&label=&message=].
+
+https://github.com/bitcoin/bips/blob/master/bip-0021.mediawiki
+
+The gap between what a user pastes or scans and the typed surface this
+library offers. It is pure string handling and it sits above the
+encodings: the address goes to `b32`/`b58` and the amount to `amount`,
+nothing else in btclib imports this module, so the dependency graph the
+README draws gains no edge.
+
+Four rules carry the whole of it, and each is the thing an
+implementation gets wrong:
+
+- an unknown parameter whose name starts with `req-` makes the URI
+  invalid, and *only* those: an unknown parameter without the prefix is
+  ignored. That is the entire forward-compatibility story of the scheme
+- `amount` is decimal BTC, not satoshi and never a float
+- a repeated key is an error, not last-one-wins
+- `label` and `message` are percent-encoded, and a bech32 address is
+  legally uppercase -- the QR-code case -- so nothing here lowercases
+  what it hands to the address decoders
+"""
+
+from __future__ import annotations
+
+import re
+from collections.abc import Mapping
+from dataclasses import dataclass, field
+from decimal import Decimal
+from typing import Any
+from urllib.parse import quote, unquote
+
+from btclib import b32, b58
+from btclib.amount import valid_btc_amount
+from btclib.exceptions import BTClibValueError
+
+_SCHEME = "bitcoin"
+
+# BIP21's own grammar for the amount: `*digit [ "." *digit ]`, and the
+# reason to spell it out rather than hand the string straight to
+# valid_btc_amount is what Decimal() would otherwise take -- "1e5",
+# "+1", "Infinity", " 1 ". Two of those are refused downstream for being
+# out of range, and the other two would silently mean something the URI
+# does not say
+_AMOUNT = re.compile(r"\A(?:[0-9]+(?:\.[0-9]*)?|\.[0-9]+)\Z")
+
+# what percent-encoding must leave alone in a value this module writes.
+# "/" and ":" are legal in a query and common in a message; "&", "=",
+# "?" and "#" are the delimiters and must stay encoded
+_SAFE = "/:@!$'()*+,;"
+
+
+def _network_from_address(address: str) -> str:
+    """Return the network of an address, raising if it is not one."""
+    if b32.has_segwit_prefix(address):
+        return b32.witness_from_address(address)[2]
+    return b58.h160_from_address(address)[2]
+
+
+def _decode(value: str, what: str) -> str:
+    """Percent-decode a URI query value.
+
+    unquote and not unquote_plus: `+` means a plus sign here. Reading it
+    as a space is the HTML form convention, which a payment URI is not
+    -- a label of "Alice+Bob" is two names, and a space is "%20".
+    """
+    if "%" in value:
+        # errors="strict", because a mangled percent escape in a payment
+        # request is not a label with a replacement character in it
+        try:
+            return unquote(value, errors="strict")
+        except UnicodeDecodeError as e:
+            raise BTClibValueError(f"invalid percent-encoding in {what}") from e
+    return value
+
+
+@dataclass(frozen=True)
+class Bip21:
+    """A parsed `bitcoin:` payment URI.
+
+    `others` holds the parameters BIP21 says to ignore: kept rather than
+    dropped, because "ignore" is a rule about not *rejecting* them, and
+    a caller that recognises one is better served by being handed it.
+    Nothing here treats them as meaningful.
+    """
+
+    address: str
+    amount: Decimal | None
+    label: str | None
+    message: str | None
+    others: Mapping[str, str] = field(default_factory=dict)
+
+    @property
+    def network(self) -> str:
+        """Return the network the address belongs to."""
+        return _network_from_address(self.address)
+
+    def __init__(
+        self,
+        address: str,
+        amount: Any = None,
+        label: str | None = None,
+        message: str | None = None,
+        others: Mapping[str, str] | None = None,
+        *,
+        check_validity: bool = True,
+    ) -> None:
+        object.__setattr__(self, "address", address)
+        object.__setattr__(
+            self, "amount", None if amount is None else valid_btc_amount(amount)
+        )
+        object.__setattr__(self, "label", label)
+        object.__setattr__(self, "message", message)
+        object.__setattr__(self, "others", dict(others or {}))
+
+        if check_validity:
+            self.assert_valid()
+
+    def assert_valid(self) -> None:
+        if not isinstance(self.address, str) or not self.address:
+            raise BTClibValueError("missing address in the bip21 URI")
+        # the decoders *are* the validation, and each says what is wrong
+        # with the string it refused, which is more than this module
+        # could add. Which of the two applies is decided on the untouched
+        # address: a bech32 one may be uppercase and a base58 one may not
+        _network_from_address(self.address)
+
+        if self.amount is not None:
+            valid_btc_amount(self.amount)
+
+        for key in self.others:
+            if not key:
+                raise BTClibValueError("empty parameter name in the bip21 URI")
+            if key.lower().startswith("req-"):
+                raise BTClibValueError(f"unknown required parameter: {key}")
+
+    def serialize(self, *, check_validity: bool = True) -> str:
+        """Return the `bitcoin:` URI of this payment request."""
+        if check_validity:
+            self.assert_valid()
+
+        params = []
+        if self.amount is not None:
+            # never the exponent notation Decimal reaches for above 1e6
+            # digits or after normalize(): BIP21's amount is digits and
+            # at most one dot, so `1E+2` would not be a valid amount at
+            # all. The trailing zeros go, 0.10000000 and 0.1 being the
+            # same request
+            amount = f"{self.amount:f}"
+            if "." in amount:
+                amount = amount.rstrip("0").rstrip(".")
+            params.append(f"amount={amount or '0'}")
+        if self.label is not None:
+            params.append(f"label={quote(self.label, safe=_SAFE)}")
+        if self.message is not None:
+            params.append(f"message={quote(self.message, safe=_SAFE)}")
+        params.extend(
+            f"{quote(key, safe=_SAFE)}={quote(value, safe=_SAFE)}"
+            for key, value in self.others.items()
+        )
+
+        uri = f"{_SCHEME}:{self.address}"
+        return f"{uri}?{'&'.join(params)}" if params else uri
+
+    @classmethod
+    def parse(cls, uri: str, *, check_validity: bool = True) -> Bip21:
+        """Return the Bip21 of a `bitcoin:` URI."""
+        if not isinstance(uri, str):
+            raise BTClibValueError(f"not a string: {type(uri).__name__}")
+
+        scheme, separator, rest = uri.partition(":")
+        # RFC 3986 makes a scheme case-insensitive, and a QR code writes
+        # the whole URI uppercase to stay in alphanumeric mode
+        if not separator or scheme.lower() != _SCHEME:
+            raise BTClibValueError(f"not a bitcoin URI: {uri[:32]!r}")
+
+        address, _, query = rest.partition("?")
+        # a fragment is not part of BIP21 and is not a parameter either
+        query = query.partition("#")[0]
+
+        amount: str | None = None
+        label: str | None = None
+        message: str | None = None
+        others: dict[str, str] = {}
+        seen: set[str] = set()
+        for element in query.split("&") if query else []:
+            if not element:
+                # BIP21's bitcoinparam admits the empty element
+                continue
+            key, _, raw_value = element.partition("=")
+            key = _decode(key, "a parameter name")
+            if key in seen:
+                # not last-one-wins: two amounts are two requests, and
+                # picking one of them is picking for the payer
+                raise BTClibValueError(f"repeated parameter: {key}")
+            seen.add(key)
+
+            if key == "amount":
+                amount = _valid_amount_field(raw_value)
+            elif key == "label":
+                label = _decode(raw_value, "label")
+            elif key == "message":
+                message = _decode(raw_value, "message")
+            else:
+                others[key] = _decode(raw_value, f"the {key} parameter")
+
+        return cls(
+            # not percent-decoded: BIP21 spells the address as bare
+            # base58 or bech32, neither alphabet has a character needing
+            # an escape, and decoding one would turn a string that is
+            # not an address into something that might be
+            address,
+            amount,
+            label,
+            message,
+            others,
+            check_validity=check_validity,
+        )
+
+
+def _valid_amount_field(raw_value: str) -> str:
+    """Return the amount field, refused unless it is BIP21's own grammar."""
+    if not _AMOUNT.match(raw_value):
+        raise BTClibValueError(f"invalid bip21 amount: {raw_value[:32]!r}")
+    return raw_value

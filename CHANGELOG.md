@@ -11,7 +11,7 @@ release-notes length in the first place, and are still in
 
 ## v2026.8 (work in progress, not released yet)
 
-A hundred and six entries, grouped. The order runs from what breaks a caller to
+A hundred and seven entries, grouped. The order runs from what breaks a caller to
 what only maintainers see; [HISTORY.md](./HISTORY.md) lists the eleven
 source-breaking changes on their own.
 
@@ -793,6 +793,32 @@ source-breaking changes on their own.
   `sign_to_contract` beside the four
 - **`btclib.mnemonic` exports `bip39` and `electrum`**, its two schemes,
   which were reachable on the same accidental terms
+- **new `btclib.bip21`**, the `bitcoin:` payment URI: the gap between
+  what a user pastes or scans and the typed surface the library offers.
+  `Bip21.parse`, `.serialize` and `.assert_valid`, with `address`,
+  `amount`, `label`, `message` and a `network` read off the address. It
+  adds no edge to the dependency graph the README draws — it imports
+  `b58`, `b32` and `amount`, and nothing in the library imports it.
+  The four rules an implementation gets wrong are the content: an
+  unknown `req-` parameter invalidates the URI and an unknown one
+  without the prefix is ignored, which is the whole
+  forward-compatibility story of the scheme (and the prefix is read
+  case-insensitively and after percent-decoding, so `REQ-foo` and
+  `%72eq-foo` fail closed too); `amount` is decimal BTC and is held to
+  BIP21's own grammar of digits and at most one dot, so the `1e5`,
+  `+1`, `Infinity` and ` 1 ` that `Decimal` would otherwise accept are
+  refused before `valid_btc_amount` sees them; a repeated key is an
+  error, two amounts being two requests; and nothing lowercases the
+  address, a bech32 one being legally uppercase in the QR-code case
+  while a base58 one uppercased is a broken checksum. `label` and
+  `message` are percent-decoded with `unquote` and not `unquote_plus`,
+  a payment URI not being an HTML form, so `Alice+Bob` is two names.
+  Along the way: **the address BIP21 prints in every one of its
+  examples does not checksum.** Its payload is a sound mainnet p2pkh
+  hash160 and hash256 of it begins `8a9c6111` where the address carries
+  `8a9c6129`, so the last base58 character should be `6` where the BIP
+  writes `W`. The tests use the corrected address and pin the
+  divergence rather than paper over it (issue #203)
 - **`btclib.script` exports `is_p2pkh`**, which was the one missing from the
   eight assert/is pairs — `assert_p2pkh` was there, and so were the other
   seven of each
