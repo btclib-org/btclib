@@ -64,11 +64,11 @@ exclude:
   - uv.lock
   - MANIFEST.in
   - COPYRIGHT
-  # repository process rather than pages for a visitor: agent instructions,
-  # the release procedure, and a task list whose open questions were live
-  # at btclib.org/TODO. RELEASE.md is master's name for RELEASING.md, and
-  # both are listed so that the rename can land in either order
+  # repository process rather than pages for a visitor: agent instructions
+  # and the release procedure. RELEASE.md is master's name for RELEASING.md,
+  # and both are listed so that the rename can land in either order.
+  # TODO.md was here too, until every one of its lines became an issue and
+  # the file went with them
   - CLAUDE.md
   - RELEASING.md
   - RELEASE.md
-  - TODO.md

@@ -7,7 +7,15 @@
 #
 # No part of btclib including this file, may be copied, modified, propagated,
 # or distributed except according to the terms contained in the LICENSE file.
-"""Borromean signature functions."""
+"""Borromean ring signature functions.
+
+References:
+    - https://github.com/ElementsProject/borromean-signatures-writeup
+    - https://github.com/Blockstream/borromean_paper/blob/master/borromean_draft_0.01_9ade1e49.pdf
+
+Both were already cited inside `sign`, which is not where a reader looks
+first; they are here because the module is what one arrives at.
+"""
 
 from __future__ import annotations
 

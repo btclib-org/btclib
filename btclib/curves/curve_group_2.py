@@ -25,16 +25,28 @@ References:
     - https://bitcointalk.org/index.php?topic=3238.msg45565#msg45565
     - https://medium.com/@CoinExChain/acceleration-of-ecdsa-verification-with-endomorphism-mapping-of-secp256k1-126e77a51dba
 
-Further reading, and directions not taken here:
-    - Computational cost of the different multiplications
-    - New algorithms at the state-of-art:
-        -https://hal.archives-ouvertes.fr/hal-00932199/document
-        -https://iacr.org/workshops/ches/ches2006/presentations/Douglas%20Stebila.pdf
-        -1-s_2.0-S1071579704000395-main
-        -https://crypto.stackexchange.com/questions/58506/what-is-the-curve-type-of-secp256k1
-    - Multi_mult algorithm: why does it work?
-    - Peter Dettman's field inverses and square roots using a sliding window over blocks of 1s
-        -https://briansmith.org/ecc-inversion-addition-chains-01
+Further improvements, and the material for them. These are not
+bibliography: each is an improvement this module could take, with what
+would be needed to take it. Issue 171 tracks the point-addition special
+cases and issue 183 the smaller follow-ups; what is here is the rest,
+and it moved out of TODO.md so that it sits next to the code it is about:
+    - Computational cost of the different multiplications, measured rather
+      than assumed: which of the six is fastest, and at what scalar size
+    - New algorithms at the state of the art:
+        - https://hal.archives-ouvertes.fr/hal-00932199/document
+        - https://iacr.org/workshops/ches/ches2006/presentations/Douglas%20Stebila.pdf
+        - https://arxiv.org/abs/1801.08589
+        - https://eprint.iacr.org/2005/419
+        - https://www.esat.kuleuven.be/cosic/publications/article-2293.pdf
+        - https://crypto.stackexchange.com/questions/58506/what-is-the-curve-type-of-secp256k1
+        - 1-s_2.0-S1071579704000395-main (the file name it was saved as; the
+          paper it refers to has not been identified)
+    - Multi_mult: why the algorithm works, written down. Issue 175 is a
+      report that it does not terminate for a mixed-sign coefficient pair,
+      and an explanation of the invariant is what would have caught that
+    - Peter Dettman's field inverses and square roots, a sliding window over
+      blocks of 1s:
+        - https://briansmith.org/ecc-inversion-addition-chains-01
     - Joint sparse form (JSF) for double mult
     - Interleaving with NAFs
 """

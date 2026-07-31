@@ -15,6 +15,25 @@ Ninety-five entries, grouped. The order runs from what breaks a caller to
 what only maintainers see; [HISTORY.md](./HISTORY.md) lists the eleven
 source-breaking changes on their own.
 
+### Repository
+
+- `TODO.md` is gone, and every one of its lines is accounted for. Eighteen
+  became issues (#184 to #194, #196 to #202): the feature requests the file
+  had carried for years — a full-node RPC client, descriptors beyond the
+  checksum, miniscript, toy mining with difficulty and hash-rate arithmetic,
+  wallet infrastructure, MuSig and threshold primitives, Edwards curves, BLS —
+  plus the four BIP340 questions and the three "report upstream" items, which
+  carry a new `upstream-report` label saying that each needs verifying before
+  anything is sent anywhere. Two lines were already done and two were
+  superseded: "generalize ec, hf in borromean" landed with the module's
+  parameters, "refactor Psbt" is #173, and the two on making the network a
+  global variable are superseded by #149, which took configuration *out* of
+  module globals for the reason those lines would have put it back.
+  The optimization links moved into `curve_group_2`'s docstring as further
+  improvements with the material for each, and the borromean references into
+  that module's docstring, both next to the code they are about rather than in
+  a file nobody opened.
+
 ### Security
 
 - `borromean.assert_as_valid` raises BTClibRuntimeError("signature
