@@ -262,6 +262,17 @@ source-breaking changes on their own.
   an empty list is not a block that happens to be empty, and a var_int of
   zero where the transaction count goes is all it takes to serialize one
   (issue #159)
+- `BlockHeader.assert_valid` rejects a timestamp the header field cannot
+  hold: it bounded the time below, at the genesis block, and not above,
+  where four unsigned bytes end (2106-02-07 06:28:15Z is the last instant
+  one can carry). A later time passed validation and failed in `serialize`,
+  as `OverflowError: int too big to convert` — which names neither the
+  field nor the header the caller had just been told was valid. The bound
+  is on `int(time.timestamp())`, the value `serialize` writes, and the
+  message renders `time` itself rather than reading it back through
+  `fromtimestamp`: `datetime.max.timestamp()` rounds up to year 10000, so
+  rendering *that* would have raised the very kind of exception the check
+  replaces (issue #177)
 - `BlockHeader.target` raises BTClibValueError for a compact `bits` that
   denotes more than 32 bytes can hold, where `to_bytes` used to raise
   OverflowError out of `assert_valid`; Core rejects the same headers,

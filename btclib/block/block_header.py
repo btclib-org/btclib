@@ -218,10 +218,34 @@ class BlockHeader:
             err_msg = f"naive timestamp (no time zone): {self.time}"
             raise BTClibValueError(err_msg)
 
-        if self.time.timestamp() < 1231006505:
+        # int(), because that is the value serialize writes: timestamp()
+        # is a float, and truncation toward zero is what makes the bound
+        # below the exact one the four bytes have. The genesis bound is
+        # unchanged by it -- for a positive x and an integer n, int(x) < n
+        # exactly when x < n
+        timestamp = int(self.time.timestamp())
+
+        if timestamp < 1231006505:
             err_msg = "invalid timestamp (before genesis)"
-            date = datetime.fromtimestamp(self.time.timestamp(), timezone.utc)
+            date = datetime.fromtimestamp(timestamp, timezone.utc)
             err_msg += f": {date}"
+            raise BTClibValueError(err_msg)
+
+        # the header field is four unsigned bytes, so 2106-02-07 06:28:15Z
+        # is the last instant a header can carry. Without this, a later one
+        # passed assert_valid and failed in serialize, through the
+        # OverflowError of int.to_bytes -- which names neither the field nor
+        # the object, so the caller of Block.serialize was told "int too big
+        # to convert" about a header it had just been told was valid
+        # self.time, where the bound above renders the instant through
+        # fromtimestamp: this branch is the one that catches datetime.max,
+        # whose timestamp() is 253402300799.999999 rounded up to
+        # 253402300800.0 by the float, i.e. year 10000, and fromtimestamp
+        # answers that with a ValueError -- building the message would have
+        # thrown the very exception this check exists to replace
+        if timestamp > 0xFFFFFFFF:
+            err_msg = "invalid timestamp (after the last 4-bytes instant)"
+            err_msg += f": {self.time}"
             raise BTClibValueError(err_msg)
 
         for key, size in _KEY_SIZE:

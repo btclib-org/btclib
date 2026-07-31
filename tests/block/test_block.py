@@ -123,6 +123,24 @@ def test_exceptions() -> None:
         header.assert_valid()
 
     header = BlockHeader.parse(header_bytes)
+    # one second past the last instant four unsigned bytes can hold
+    header.time = datetime(2106, 2, 7, 6, 28, 16, tzinfo=timezone.utc)
+    err_msg = "invalid timestamp \\(after the last 4-bytes instant\\): "
+    with pytest.raises(BTClibValueError, match=err_msg):
+        header.assert_valid()
+    # that instant itself is valid, and serializes to the four 0xff the
+    # bound is about: it is serialize that used to raise OverflowError,
+    # one second later, for a header assert_valid had just accepted
+    header.time = datetime(2106, 2, 7, 6, 28, 15, tzinfo=timezone.utc)
+    assert header.serialize()[68:72] == b"\xff" * 4
+    # the far end of the range datetime itself can hold: its timestamp()
+    # is a float that rounds up to year 10000, so rendering it through
+    # fromtimestamp would raise ValueError out of assert_valid
+    header.time = datetime.max.replace(tzinfo=timezone.utc)
+    with pytest.raises(BTClibValueError, match=err_msg):
+        header.assert_valid()
+
+    header = BlockHeader.parse(header_bytes)
     # naive: timestamp() would read it as local time, so both the
     # genesis check and the serialization would depend on the machine
     header.time = header.time.replace(tzinfo=None)
