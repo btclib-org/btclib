@@ -322,9 +322,13 @@ def test_p2tr() -> None:
     assert wit_prg == pub_key
 
 
-# every network, unlike the base58 addresses of test_b58.py: the hrp
-# tells the three apart, where the version bytes of testnet and regtest
-# do not
+# the three networks a bech32 address round-trips through, which is more
+# than the base58 addresses of test_b58.py manage: the hrp tells these
+# three apart where the version bytes of testnet and regtest do not.
+# Signet and testnet4 are left out because they are the case the hrp
+# does *not* tell apart -- both are "tb", testnet's, so an address built
+# for either reads back as testnet and the round trip below would fail
+# on the name rather than on the encoding it is testing (issue #207)
 NETWORK = st.sampled_from(["mainnet", "testnet", "regtest"])
 
 
