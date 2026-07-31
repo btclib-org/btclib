@@ -104,6 +104,9 @@ and `verify` families now let a `TypeError` out where they used to answer
   consensus rule.
 - **BIP340 messages of any size**, as the BIP has allowed since 2023-04:
   the four vectors btclib used to `xfail` all verify.
+- **A psbt carries a taproot signature with its sig_hash type**, the
+  65-byte form of BIP341 that BIP371 spells out and btclib refused, while
+  its own script engine read it.
 - **Python 3.9 through 3.14**, free-threaded 3.14t included; 3.7 and 3.8 are
   gone. The project is managed with uv, the lint gate is
   `.pre-commit-config.yaml` and CI runs exactly it, and
