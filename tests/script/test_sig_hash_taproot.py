@@ -31,7 +31,17 @@ from btclib.alias import ScriptList
 from btclib.ecc import ssa
 from btclib.exceptions import BTClibRuntimeError, BTClibValueError
 from btclib.hashes import hash160
-from btclib.script import Witness, is_p2tr, parse, serialize, sig_hash, type_and_payload
+from btclib.script import (
+    ScriptPubKey,
+    Witness,
+    is_p2tr,
+    output_prvkey,
+    parse,
+    serialize,
+    sig_hash,
+    type_and_payload,
+)
+from btclib.script.engine import verify_transaction
 from btclib.tx import OutPoint, Tx, TxIn, TxOut
 from tests import vectors
 
@@ -293,3 +303,97 @@ def test_bip_test_vector(spending: dict[str, Any]) -> None:
     hash_type = spending["given"]["hashType"]
     signature_hash = sig_hash.from_tx(utxos, unsigned_tx, index, hash_type)
     assert signature_hash.hex() == spending["intermediary"]["sigHash"]
+
+    # and now sign it, which is the half of these vectors the suite used
+    # to leave on the table: the sigHash was checked and "expected", the
+    # witness the BIP says that hash signs to, was not. aux_rand of 32
+    # zero bytes is what BIP341 made them with, and pinning it is what
+    # makes a BIP340 signature reproducible at all
+    tweaked_prv_key = bytes.fromhex(spending["intermediary"]["tweakedPrivkey"])
+    signature = ssa.sign_(signature_hash, tweaked_prv_key, b"\x00" * 32)
+    witness_element = signature.serialize()
+    # SIGHASH_DEFAULT is the 64-byte form: the type is appended only when
+    # it is not the default one, and 0x00 appended is invalid (issue #122)
+    if hash_type != sig_hash.DEFAULT:
+        witness_element += hash_type.to_bytes(1, "big")
+    assert witness_element.hex() == spending["expected"]["witness"][0]
+
+    # verified the way issue 124 verified it, which is the correct way:
+    # the key is the x-only *output* key the script carries, and the
+    # message is the sig_hash itself -- hence assert_as_valid_ and sign_,
+    # the spellings that do not reduce their argument with hf
+    pub_key = type_and_payload(utxos[index].script_pub_key.script)[1]
+    ssa.assert_as_valid_(signature_hash, pub_key, signature)
+
+    # btclib's own tweak against the BIP's number, for the one input that
+    # commits to no script: output_prvkey takes the tree, and these
+    # vectors give a merkle root, so the six that have one are covered by
+    # the signature above rather than here
+    if spending["given"]["merkleRoot"] is None:
+        internal_prv_key = bytes.fromhex(spending["given"]["internalPrivkey"])
+        assert output_prvkey(internal_prv_key) == int.from_bytes(tweaked_prv_key, "big")
+
+
+@pytest.mark.parametrize(
+    "hash_type",
+    [
+        sig_hash.DEFAULT,
+        sig_hash.ALL,
+        sig_hash.NONE,
+        sig_hash.SINGLE,
+        sig_hash.ANYONECANPAY | sig_hash.ALL,
+    ],
+    ids=["default", "all", "none", "single", "anyonecanpay-all"],
+)
+@pytest.mark.parametrize(
+    "script_tree", [None, [(0xC0, ["OP_1"])]], ids=["key only", "script tree"]
+)
+def test_key_path_spend_round_trip(hash_type: int, script_tree: Any) -> None:
+    """Sign a key path spend with btclib and have btclib's engine accept it.
+
+    The BIP341 vectors above are signed and verified against numbers the
+    BIP provides; this builds the spend instead, so the tweak, the
+    sig_hash, the signature, the witness encoding and the script engine
+    are all btclib's. Issue 124 is the reason it exists: nothing here used
+    to sign a key path spend end to end, so a caller reading the suite for
+    the pattern found the verify half alone -- and the two mistakes below
+    are the ones that half invites.
+    """
+    prv_key = 0x4242424242424242424242424242424242424242424242424242424242424242
+    script_pub_key = ScriptPubKey.p2tr(prv_key, script_tree)
+    prevouts = [TxOut(100_000, script_pub_key)]
+
+    vin = TxIn(OutPoint(b"\x11" * 32, 0))
+    # from_tx reads the witness to tell a key path spend from a script
+    # path one, so an unsigned input still needs a placeholder in it
+    vin.script_witness = Witness([b"\x00" * 64])
+    tx = Tx(vin=[vin], vout=[TxOut(90_000, script_pub_key)])
+
+    msg = sig_hash.from_tx(prevouts, tx, 0, hash_type)
+    signature = ssa.sign_(msg, output_prvkey(prv_key, script_tree))
+    pub_key = type_and_payload(prevouts[0].script_pub_key.script)[1]
+    ssa.assert_as_valid_(msg, pub_key, signature)
+
+    witness_element = signature.serialize()
+    if hash_type != sig_hash.DEFAULT:
+        witness_element += hash_type.to_bytes(1, "big")
+    assert len(witness_element) == (64 if hash_type == sig_hash.DEFAULT else 65)
+
+    # the whole point: the engine, with every flag on, spends the output
+    tx.vin[0].script_witness = Witness([witness_element])
+    verify_transaction(prevouts, tx)
+
+    # the two ways issue 124 got a "signature verification failed", each
+    # on its own. sign reduces its argument with hf and sign_ does not, so
+    # the pair that verifies is sign_/assert_as_valid_ (or sign/
+    # assert_as_valid, which signs a hash of the sig_hash and is
+    # self-consistent rather than valid on the network)
+    wrong = ssa.sign(msg, output_prvkey(prv_key, script_tree))
+    with pytest.raises(BTClibRuntimeError, match="signature verification failed"):
+        ssa.assert_as_valid_(msg, pub_key, wrong)
+
+    # and the key from the script is the tweaked one, the internal key
+    # being what the tweak is computed from
+    wrong = ssa.sign_(msg, prv_key)
+    with pytest.raises(BTClibRuntimeError, match="signature verification failed"):
+        ssa.assert_as_valid_(msg, pub_key, wrong)

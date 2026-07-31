@@ -877,6 +877,21 @@ source-breaking changes on their own.
 
 ### Tests
 
+- **BIP341's key path spending vectors are signed, not only hashed.** Its
+  seven `inputSpending` cases pinned the `sigHash` and stopped there, so
+  `expected.witness` — the signature the BIP says that hash produces — went
+  unchecked, and the suite verified taproot signatures without ever making
+  one. Each case is signed now, with the vector's tweaked private key and an
+  aux_rand of 32 zero bytes (what those signatures were made with, and what
+  makes a BIP340 signature reproducible at all), and the witness element is
+  compared byte for byte, appended hash-type byte included; for the one
+  input that commits to no script, `output_prvkey` is checked against the
+  BIP's own tweak. A second test builds the spend instead of reading it —
+  tweak, sig_hash, signature, witness encoding and `verify_transaction`
+  with every flag on, over five sig_hash spellings with and without a
+  script tree — and pins the two mistakes issue #124 walked into: `sign`
+  reduces its argument with `hf` where `sign_` does not, and the key the
+  script carries is the *tweaked* one (issue #124)
 - tests/_data/README.md records where each of the 28 vendored vector
   files came from, pinned to an upstream commit and, where an upstream
   file exists, compared blob by blob: 7 are byte-identical, 6 diverge
