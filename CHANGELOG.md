@@ -11,7 +11,7 @@ release-notes length in the first place, and are still in
 
 ## v2026.8 (work in progress, not released yet)
 
-A hundred and five entries, grouped. The order runs from what breaks a caller to
+A hundred and six entries, grouped. The order runs from what breaks a caller to
 what only maintainers see; [HISTORY.md](./HISTORY.md) lists the eleven
 source-breaking changes on their own.
 
@@ -96,6 +96,37 @@ source-breaking changes on their own.
 
 ### Consensus rules
 
+- **btclib can check a Merkle proof, not only compute a root.** It had
+  the builder's side, `merkle_root_and_mutated_from_hashes`, and no
+  entry point for the verifier's: from a txid, a branch of siblings and
+  a leaf position, recompute the root and compare it with a header's
+  `merkle_root`. That is the arithmetic behind `gettxoutproof` /
+  `verifytxoutproof`, and behind every light client. It lands in two
+  pieces, on the one layering decision the feature poses. The arithmetic
+  is `hashes.merkle_root_from_branch`, beside the root functions it is
+  the inverse of; the hardening that has to know what a transaction
+  looks like is `btclib.block.merkle_proof`, because `hashes` must not
+  import `tx`. The seam between them is a `check_inner_node` callback,
+  so the loop is written once: `hashes` walks the branch and hands over
+  each 64-byte pair, `block` refuses the ones that parse.
+  What is refused, beyond the arithmetic: **CVE-2017-12842**, an inner
+  node that deserializes as a whole transaction — 64 bytes is a
+  reachable transaction size, and presented as a leaf it gets a proof
+  one level shorter than the tree really is, for a transaction that was
+  never in the block; **CVE-2012-2459** from the verifier's side, a
+  right-child step whose sibling equals the running hash, which is the
+  duplicated subtree the root does not commit to — the library already
+  flagged exactly this when *building* a tree, so it now knows the fact
+  from both directions, and the odd-level padding is not an instance of
+  it because padding duplicates a *left* child; and the three cheap
+  ones, a branch item that is not 32 bytes, a negative position, and a
+  position with bits still unspent once the branch is consumed, a branch
+  too short proving nothing at all. `assert_as_valid` says why it
+  refused and `verify` answers a bool, as the signature modules do.
+  Every transaction of blocks 1, 170 and 200000 is proved against the
+  real header, the branch built by the test rather than by the code
+  under test, plus eight positions of the segwit block 481824 — where
+  the tree is over txids, so a wtxid does not verify (issue #204)
 - `var_int.parse` rejects what Bitcoin Core rejects. It used to accept a
   non-shortest encoding (`fd0100` read as 1), which gave the same
   transaction two serializations and so two txids, and it did not check

@@ -20,6 +20,14 @@ btclib.block.block\_header module
    :undoc-members:
    :show-inheritance:
 
+btclib.block.merkle\_proof module
+---------------------------------
+
+.. automodule:: btclib.block.merkle_proof
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
 Module contents
 ---------------
 

@@ -12,7 +12,7 @@
 from __future__ import annotations
 
 import hashlib
-from collections.abc import Sequence
+from collections.abc import Callable, Sequence
 
 from btclib import var_int
 from btclib._ripemd160 import ripemd160 as pure_python_ripemd160
@@ -183,6 +183,72 @@ def merkle_root(data: Sequence[bytes], hf: HashDigestF) -> bytes:
     merkle_root_and_mutated and reject a mutated tree.
     """
     return merkle_root_and_mutated(data, hf)[0]
+
+
+def merkle_root_from_branch(
+    leaf: Octets,
+    branch: Sequence[Octets],
+    index: int,
+    hf: HashDigestF,
+    check_inner_node: Callable[[bytes], None] | None = None,
+) -> bytes:
+    """Return the Merkle root a branch proves, in internal byte order.
+
+    The verifier's side of merkle_root_and_mutated_from_hashes: given a
+    leaf, the siblings met on the way up and the leaf's position, this is
+    the root the tree must have had. Equal to a header's merkle_root, the
+    leaf was in that block -- the arithmetic behind Core's
+    verifytxoutproof, and behind every light client.
+
+    `index` is the leaf's position in the bottom level; its bits say
+    left child or right child at each step, lowest bit first. `branch`
+    holds one sibling per level, bottom-up. Both are what they are in the
+    tree, so both are in internal byte order, as this module's other
+    Merkle functions are: btclib.block.merkle_proof is the entry point
+    taking the reversed order that a txid and a header are displayed in.
+
+    A branch is evidence only together with the header that carries the
+    root, and only about the tree: proving that a leaf is *a
+    transaction* of the block needs one more check, which is
+    `check_inner_node`. It is called with the 64 bytes each level hashes,
+    and it is a parameter rather than code here because refusing them
+    means knowing what a transaction looks like -- a layer this module
+    sits below, and must not import.
+    """
+    if index < 0:
+        raise BTClibValueError(f"negative leaf index: {index}")
+
+    root = bytes_from_octets(leaf, 32)
+    for sibling_ in branch:
+        # a branch item that is not a hash cannot be a sibling
+        sibling = bytes_from_octets(sibling_, 32)
+        if index % 2:
+            # the running hash is a right child, and a left sibling equal
+            # to it is the CVE-2012-2459 duplication: a shorter list has
+            # this very same root, so the root does not commit to the one
+            # at hand. Padding an odd level duplicates its *last* node,
+            # which is a left child, so a legitimate tree never lands
+            # here -- the builder's side of the same fact is the
+            # `mutated` flag of merkle_root_and_mutated_from_hashes
+            if sibling == root:
+                err_msg = "mutated merkle branch: a right child equal to its sibling"
+                raise BTClibValueError(err_msg)
+            pair = sibling + root
+        else:
+            pair = root + sibling
+        if check_inner_node is not None:
+            check_inner_node(pair)
+        root = hf(pair)
+        index //= 2
+
+    # every bit of the position must have been spent on a step: an index
+    # still non-zero means the branch is too short for the leaf it claims
+    # to place, and a branch too short proves nothing at all
+    if index:
+        err_msg = f"leaf index too high for a {len(branch)}-step merkle branch"
+        raise BTClibValueError(err_msg)
+
+    return root
 
 
 def tagged_hash(tag: bytes, m: bytes, hf: HashF = hashlib.sha256) -> bytes:
