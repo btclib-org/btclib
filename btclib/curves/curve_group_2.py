@@ -10,6 +10,7 @@
 """Elliptic curve point multiplication functions.
 
 The implemented algorithms are:
+
     - Montgomery Ladder
     - Scalar multiplication on basis 3
     - Fixed window
@@ -30,9 +31,11 @@ bibliography: each is an improvement this module could take, with what
 would be needed to take it. Issue 171 tracks the point-addition special
 cases and issue 183 the smaller follow-ups; what is here is the rest,
 and it moved out of TODO.md so that it sits next to the code it is about:
+
     - Computational cost of the different multiplications, measured rather
       than assumed: which of the six is fastest, and at what scalar size
     - New algorithms at the state of the art:
+
         - https://hal.archives-ouvertes.fr/hal-00932199/document
         - https://iacr.org/workshops/ches/ches2006/presentations/Douglas%20Stebila.pdf
         - https://arxiv.org/abs/1801.08589
@@ -46,6 +49,7 @@ and it moved out of TODO.md so that it sits next to the code it is about:
       and an explanation of the invariant is what would have caught that
     - Peter Dettman's field inverses and square roots, a sliding window over
       blocks of 1s:
+
         - https://briansmith.org/ecc-inversion-addition-chains-01
     - Joint sparse form (JSF) for double mult
     - Interleaving with NAFs
