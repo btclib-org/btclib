@@ -11,7 +11,7 @@ release-notes length in the first place, and are still in
 
 ## v2026.8 (work in progress, not released yet)
 
-A hundred and twenty-seven entries, grouped. The order runs from what breaks a
+A hundred and twenty-eight entries, grouped. The order runs from what breaks a
 caller to what only maintainers see; [HISTORY.md](./HISTORY.md) lists the
 fifteen source-breaking changes on their own.
 
@@ -227,6 +227,20 @@ fifteen source-breaking changes on their own.
   as truncation for it: eight bytes short used to be "invalid nonce", four
   short "invalid bits length", and twelve short "invalid timestamp (before
   genesis)" — a time read from no bytes at all
+- **OP_VERIF and OP_VERNOTIF are invalid in a branch nothing takes**, and
+  the tapscript engine used to accept one: `OP_0 OP_IF OP_VERIF OP_ENDIF
+  OP_1` verified. Core reads an op code sitting in OP_IF..OP_ENDIF whether
+  or not the branch executes — `fExec || (OP_IF <= opcode && opcode <=
+  OP_ENDIF)` — and gives these two no case of their own, so they reach
+  `default: BAD_OPCODE` from a branch never taken. Both engines had that
+  range written out as the four conditionals in it and skipped the other
+  two; they now share Core's range, which is also the whole of the rule:
+  the legacy engine's separate pass over the parsed script is gone, one
+  rule instead of two, in the place Core has it. That placement is what
+  keeps `OP_VERIF OP_SUCCESS80` valid, as it is for Core, whose pre-scan
+  returns success at the first OP_SUCCESS whatever precedes it — the same
+  reason both op codes keep their names in the tapscript tables, which is
+  what Core's own `GetOpName` does (issue #182)
 
 ### Malformed input and the exception contract
 

@@ -187,6 +187,22 @@ def script_op_count(count: int, increment: int) -> int:
     return count
 
 
+# The op codes Core reads even inside an unexecuted branch: `fExec ||
+# (OP_IF <= opcode && opcode <= OP_ENDIF)` in interpreter.cpp. It is a
+# range and not the four conditionals in it, and that is the whole of
+# what makes OP_VERIF (0x65) and OP_VERNOTIF (0x66) invalid whether they
+# execute or not -- Core gives them no case of their own, so they fall
+# to `default: BAD_OPCODE` from inside a branch that is never taken.
+# Enumerating the four skipped them instead, and both engines then
+# accepted a script Core rejects.
+#
+# Rejecting them here rather than in a pass over the parsed script is
+# also what keeps tapscript faithful: Core's OP_SUCCESS pre-scan returns
+# success at the first OP_SUCCESS whatever precedes it, so `OP_VERIF
+# OP_SUCCESS80` is valid and must stay so (issue #182).
+EVALUATED_WHEN_UNEXECUTED = range(0x63, 0x69)  # OP_IF..OP_ENDIF
+
+
 def prepare_script(script: ScriptList, flags: ScriptFlag, segwit: bool) -> None:
     if (
         "OP_CODESEPARATOR" in script
@@ -194,9 +210,6 @@ def prepare_script(script: ScriptList, flags: ScriptFlag, segwit: bool) -> None:
         and not segwit
     ):
         raise BTClibValueError("OP_CODESEPARATOR in a non-segwit script")
-
-    if "OP_VERIF" in script or "OP_VERNOTIF" in script:
-        raise BTClibValueError("disabled op code: OP_VERIF or OP_VERNOTIF")
 
 
 def check_balanced_if(script: ScriptList) -> None:
@@ -291,8 +304,6 @@ def verify_script(
 
     op_code_num = 0
 
-    op_conditions = [99, 100, 103, 104]  # ["OP_IF", "OP_NOTIF", "OP_ELSE", "OP_ENDIF"]
-
     s = bytesio_from_binarydata(script_bytes)
     try:
         while True:
@@ -323,7 +334,7 @@ def verify_script(
             if t > 96:  # OP_16
                 op_code_num = script_op_count(op_code_num, 1)
 
-            if skip_execution and t not in op_conditions:
+            if skip_execution and t not in EVALUATED_WHEN_UNEXECUTED:
                 continue
             op = op_code_name(t)
 

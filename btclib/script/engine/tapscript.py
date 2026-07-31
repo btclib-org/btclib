@@ -22,7 +22,7 @@ from btclib.hashes import tagged_hash
 from btclib.script import sig_hash
 from btclib.script.engine import script_op_codes
 from btclib.script.engine.flags import ScriptFlag
-from btclib.script.engine.script import check_balanced_if
+from btclib.script.engine.script import EVALUATED_WHEN_UNEXECUTED, check_balanced_if
 from btclib.script.engine.script_op_codes import ScriptOp, _from_num
 from btclib.script.op_codes_tapscript import OP_CODE_NAMES
 from btclib.script.script_pub_key import type_and_payload
@@ -202,8 +202,6 @@ def verify_script_path_vc0(
 
     script_index = -1
 
-    op_conditions = [99, 100, 103, 104]  # ["OP_IF", "OP_NOTIF", "OP_ELSE", "OP_ENDIF"]
-
     s = bytesio_from_binarydata(script_bytes)
     try:
         while True:
@@ -230,7 +228,7 @@ def verify_script_path_vc0(
                 script_op_codes.check_minimal_push(a, t, flags, serialize_script)
                 stack.append(a)
                 continue
-            if skip_execution and t not in op_conditions:
+            if skip_execution and t not in EVALUATED_WHEN_UNEXECUTED:
                 continue
             op = OP_CODE_NAMES[t]
 

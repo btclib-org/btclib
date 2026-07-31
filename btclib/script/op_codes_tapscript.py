@@ -7,7 +7,19 @@
 #
 # No part of btclib including this file, may be copied, modified, propagated,
 # or distributed except according to the terms contained in the LICENSE file.
-"""Tapscript OP_CODES."""
+"""Tapscript OP_CODES.
+
+OP_VERIF (0x65) and OP_VERNOTIF (0x66) are named here although no script
+that executes them can be spent: BIP342 leaves both out of OP_SUCCESS,
+and the engine rejects them whether or not the branch they sit in is
+taken. Naming them is not endorsing them, and it is what Core does as
+well -- `GetOpName` has a case for each, `GetOp` reads them, and only the
+interpreter decides. Dropping them from the tables would go further than
+Core and reject a *spendable* script: `OP_VERIF OP_SUCCESS80` is valid,
+Core's pre-scan returning success at the first OP_SUCCESS whatever
+precedes it, while `parse` would have raised on the byte before ever
+reaching it (issue #182).
+"""
 
 from btclib.exceptions import BTClibValueError
 from btclib.script.script import _serialize_bytes_command
@@ -41,8 +53,8 @@ OP_CODES = {
     "OP_NOP": b"\x61",
     "OP_IF": b"\x63",
     "OP_NOTIF": b"\x64",
-    "OP_VERIF": b"\x65",
-    "OP_VERNOTIF": b"\x66",
+    "OP_VERIF": b"\x65",  # never valid: see the module docstring
+    "OP_VERNOTIF": b"\x66",  # never valid: see the module docstring
     "OP_ELSE": b"\x67",
     "OP_ENDIF": b"\x68",
     "OP_VERIFY": b"\x69",
@@ -147,8 +159,8 @@ OP_CODE_NAMES = {
     97: "OP_NOP",
     99: "OP_IF",
     100: "OP_NOTIF",
-    101: "OP_VERIF",
-    102: "OP_VERNOTIF",
+    101: "OP_VERIF",  # never valid: see the module docstring
+    102: "OP_VERNOTIF",  # never valid: see the module docstring
     103: "OP_ELSE",
     104: "OP_ENDIF",
     105: "OP_VERIFY",

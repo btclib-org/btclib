@@ -25,6 +25,7 @@ from btclib.script.engine.script import verify_script
 from btclib.script.script import serialize
 from btclib.script.taproot import input_script_sig, output_pubkey
 from btclib.script.taproot import parse as parse_tapscript
+from btclib.script.taproot import serialize as serialize_tapscript
 from btclib.script.witness import Witness
 from btclib.tx.out_point import OutPoint
 from btclib.tx.tx import Tx
@@ -238,7 +239,10 @@ def taproot_script_spend(
         OutPoint(b"\x01" * 32, 0),
         b"",
         sequence,
-        Witness([serialize(tap_script).hex(), control.hex()]),
+        # the tapscript serializer, which is the one output_pubkey and
+        # input_script_sig committed to above: the two agree on every op
+        # code both tables name, and only it knows OP_SUCCESSx
+        Witness([serialize_tapscript(tap_script).hex(), control.hex()]),
     )
     tx = Tx(
         2, lock_time, [tx_in], [TxOut(1000, ScriptPubKey(""))], check_validity=False
@@ -291,4 +295,49 @@ def test_tapscript_upgradable_nop() -> None:
     policy rather than consensus, so op_nop stays silent.
     """
     prevouts, tx = taproot_script_spend(["OP_1", "OP_NOP4"], lock_time=0, sequence=1)
+    verify_input(prevouts, tx, 0, ALL_FLAGS)
+
+
+@pytest.mark.parametrize("op_code", [b"\x65", b"\x66"], ids=["OP_VERIF", "OP_VERNOTIF"])
+def test_verif_in_an_unexecuted_branch(op_code: bytes) -> None:
+    """OP_VERIF and OP_VERNOTIF are invalid in a branch nothing takes.
+
+    Core reads an op code sitting in OP_IF..OP_ENDIF whether or not the
+    branch executes, and gives these two no case of their own, so they
+    reach `default: BAD_OPCODE` from a branch never taken. Both engines
+    listed the four conditionals of that range instead of the range, so
+    both skipped these two and accepted the script (issue #182).
+
+    Neither vendored set caught it, both being green before the fix:
+    the two vectors script_tests.json carries execute the op code, and
+    script_assets_test.json spends nothing that hides one in a branch it
+    does not take.
+    """
+    # OP_0, OP_IF, <op code>, OP_ENDIF, OP_1
+    script_bytes = b"\x00\x63" + op_code + b"\x68\x51"
+
+    tx = Tx(check_validity=False)
+    with pytest.raises(ScriptError, match="unknown op code: OP_VER") as exc_info:
+        verify_script(script_bytes, [], 0, tx, 0, NO_FLAGS, False)
+    assert exc_info.value.index == 2
+
+    prevouts, tx = taproot_script_spend(
+        parse_tapscript(script_bytes), lock_time=0, sequence=1
+    )
+    with pytest.raises(ScriptError, match="unknown op code: OP_VER"):
+        verify_input(prevouts, tx, 0, ALL_FLAGS)
+
+
+def test_verif_before_an_op_success() -> None:
+    """An OP_SUCCESS ahead of OP_VERIF makes the tapscript valid anyway.
+
+    Core's pre-scan returns success at the first OP_SUCCESS whatever
+    precedes it, so this spend is valid, and that is what keeps both op
+    codes in the tapscript tables: without a name for 0x65, `parse`
+    would raise on the byte before the pre-scan could answer, and btclib
+    would reject a spendable script (issue #182).
+    """
+    prevouts, tx = taproot_script_spend(
+        ["OP_VERIF", "OP_SUCCESS80", b""], lock_time=0, sequence=1
+    )
     verify_input(prevouts, tx, 0, ALL_FLAGS)
