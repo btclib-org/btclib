@@ -40,8 +40,9 @@ theme: jekyll-theme-minimal
 #
 # Not excluded, deliberately: README.md is the homepage; assets/ and
 # _layouts/ are the site; CNAME is what Pages reads for the custom domain;
-# LICENSE, CODE_OF_CONDUCT.md, CONTRIBUTING.md, SECURITY.md, AUTHORS.md
-# and HISTORY.md are documents a visitor may reasonably want.
+# LICENSE, CODE_OF_CONDUCT.md, CONTRIBUTING.md, SECURITY.md, AUTHORS.md,
+# HISTORY.md and CHANGELOG.md are documents a visitor may reasonably
+# want.
 exclude:
   # Jekyll's defaults, restored
   - .sass-cache

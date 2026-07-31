@@ -159,7 +159,12 @@ docstring.
 - pytest is strict: a warning is an error, an unregistered marker is an
   error, an xfail that passes is a failure. Coverage has a `fail_under`
   ratchet in `pyproject.toml`.
-- HISTORY.md gets a line for anything a user would notice.
+- **CHANGELOG.md gets an entry for anything a user would notice**, in
+  the group it belongs to; HISTORY.md is the release notes on top of it
+  and only moves for a change a user has to *act* on. The two are one
+  fact each, deliberately: the breaking-changes list lives in
+  HISTORY.md and the detail behind it in CHANGELOG.md, so neither
+  restates the other and neither can drift.
 
 ## Verifying
 

@@ -83,9 +83,12 @@ pyroma), build, wheel smoke test — and publishes to
    version. Trial runs go to TestPyPI through workflow_dispatch, above,
    and are never tagged.
 
-1. Retitle the "work in progress" section of HISTORY.md as
-   `## v<version>` and make sure it covers every major change: the
-   workflow lifts the GitHub release notes from that section.
+1. Retitle the "work in progress" section of **both** HISTORY.md and
+   CHANGELOG.md as `## v<version>`. The workflow lifts the GitHub
+   release notes from HISTORY.md's section alone, so that one has to
+   read as the release notes it becomes; CHANGELOG.md is the detail it
+   points at, and the two are retitled together or the link goes
+   nowhere.
 
 1. Run `uv run pre-commit run --all-files` and `uv run pytest`, follow
    docs/README.rst to check that the documentation builds, and get the
@@ -111,7 +114,7 @@ pyroma), build, wheel smoke test — and publishes to
 
 1. Open the next cycle: set a generic next version without the day
    (e.g. after 2026.8.4, use 2026.9) in pyproject.toml, and start a new
-   "work in progress" section in HISTORY.md.
+   "work in progress" section in HISTORY.md and CHANGELOG.md.
 
 ## If something goes wrong
 
