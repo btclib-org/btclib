@@ -7,7 +7,7 @@ full year, short month, short day (YYYY-M-D)
 
 ## v2026.8 (work in progress, not released yet)
 
-The first release since 2023, and the largest: a hundred and four entries, in
+The first release since 2023, and the largest: a hundred and five entries, in
 [CHANGELOG.md](./CHANGELOG.md). What follows is what a user has to act on
 and what a user gains.
 

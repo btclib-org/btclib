@@ -11,7 +11,7 @@ release-notes length in the first place, and are still in
 
 ## v2026.8 (work in progress, not released yet)
 
-A hundred and four entries, grouped. The order runs from what breaks a caller to
+A hundred and five entries, grouped. The order runs from what breaks a caller to
 what only maintainers see; [HISTORY.md](./HISTORY.md) lists the eleven
 source-breaking changes on their own.
 
@@ -927,6 +927,24 @@ source-breaking changes on their own.
   script tree — and pins the two mistakes issue #124 walked into: `sign`
   reduces its argument with `hf` where `sign_` does not, and the key the
   script carries is the *tweaked* one (issue #124)
+- the two deterministic nonce derivations are compared, in
+  tests/ecc/test_rfc6979.py, which is what TODO.md's "compare of
+  dsa.rfc6979_and ssa.det_nonce_" asked for. Four tests, over the same
+  inputs: that they never agree, which nothing in either scheme forces;
+  what each *reads*, which is the substantive difference — RFC6979 takes
+  the challenge, so two messages colliding modulo n get one nonce, and
+  it takes no auxiliary randomness, where BIP340 absorbs the whole
+  message, the public key and 32 bytes of aux, and then returns only the
+  k whose K has an even y-coordinate, half of [1, n-1] being unreachable
+  by construction; that neither reduces a candidate modulo n, which is
+  observable because the rejection loop costs another round and can be
+  counted through the `hf` both take as a parameter; and what each
+  costs, 12 sha256 objects against 6 on secp256k1, where the loop never
+  fires. A chi-square is deliberately *not* what settles the bias
+  question, and the test says why: RFC6979's whole input space on the
+  test curve is 342 (challenge, private key) pairs, and at that sample
+  size the statistic for a mod-n reduction sits inside the noise of an
+  unbiased derivation (issue #194)
 - three tests say what the code only did. `Curve.__repr__` renders every
   integer above `HEX_THRESHOLD` in `hex_string`'s `DEADBEEF 00000000`
   grouping and never `0xdeadbeef00000000`, which the round-trip test
