@@ -7,6 +7,53 @@ full year, short month, short day (YYYY-M-D)
 
 ## v2026.8 (work in progress, not released yet)
 
+### Breaking changes
+
+Ninety-odd entries follow, and eleven of them break code that worked on
+v2023.7.12. They are collected here so that nobody has to read the rest to
+find them; each is described in full further down. Every "before" spelling
+was checked against the `v2023.7.12` tag.
+
+- **`from btclib.ec import ...` is `from btclib.curves import ...`.** Every
+  name the package exports is the name it exported before.
+- **`btclib.curves` no longer exports the individual multiplications**: the
+  eleven `mult_*` variants, `multiples`, `cached_multiples` and
+  `jac_from_aff` come from `btclib.curves.curve_group`, or from
+  `curve_group_2` for `mult_sliding_window`, `mult_w_NAF` and
+  `mult_endomorphism_secp256k1`. `mult`, `double_mult` and `multi_mult` are
+  where they were.
+- **`btclib.ec.libsecp256k1` and `btclib.ecc.libsecp256k1` are gone.**
+  `mult`, `dsa.sign` and `ssa.sign` call the bindings themselves.
+- **`btclib.bip32.bip32.ec` is gone.** BIP32 is defined for secp256k1 and
+  for nothing else, so it was never configuration.
+- **`borromean.ec` and `borromean.hf` are gone**, and are `ec` and `hf`
+  parameters of `sign`, `verify` and `assert_as_valid`, with the same
+  defaults.
+- **`check_validity` is keyword-only**, in all 91 signatures that take it:
+  `f(..., check_validity=False)`, never positionally. `strict` of
+  `dsa.Sig.parse` follows it behind the same star.
+- **`ssa`'s `msg_hash` and `m_hashes` parameters are `msg` and `msgs`**, and
+  take a BIP340 message of any size rather than a 32-byte array.
+- **`BlockHeader`'s third parameter is `merkle_root`**, not `merkle_root_`.
+- **`OutPoint`, `TxOut`, `Witness`, `Script` and `ScriptPubKey` are frozen
+  dataclasses.** Assigning to a field raises `FrozenInstanceError`; build a
+  new instance, or use `dataclasses.replace`.
+- **`Witness.stack` is a `tuple[bytes, ...]`.** `Witness([*w.stack, element])`
+  replaces `append`, and code comparing a stack against a list has to compare
+  against a tuple. The constructor still takes any sequence, and `to_dict`
+  still yields a list.
+- **`borromean.assert_as_valid` returns `None`** and raises on failure, as its
+  `dsa`, `ssa` and `bms` counterparts do. It used to return a `bool`, so
+  `if borromean.assert_as_valid(...)` accepted forged ring signatures in
+  silence; `borromean.verify` is the one that answers a bool.
+
+Two changes are deliberately *not* on that list, because what they change
+stays compatible. The new `BTClibTypeError`, `NotAPrvKeyError` and
+`InvalidPrvKeyError` all derive from what was raised before, so `except
+BTClibValueError` and `except TypeError` keep catching them. And the `is_p2*`
+and `verify` families now let a `TypeError` out where they used to answer
+`False`: that is a caller error surfacing, not an interface moving.
+
 Major changes includes:
 
 - **`btclib.ec` is now `btclib.curves`**, which is a breaking rename and the
