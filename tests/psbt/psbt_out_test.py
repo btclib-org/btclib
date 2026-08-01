@@ -39,7 +39,7 @@ def test_unknown() -> None:
 def test_psbt_out() -> None:
     psbt_out = PsbtOut()
     # the dict round trip and not the bytes one, for the reason
-    # tests/psbt/test_psbt_in.py gives: serialize and parse are not
+    # tests/psbt/psbt_in_test.py gives: serialize and parse are not
     # inverses here, and issue #181 is where that lives
     assert psbt_out == PsbtOut.from_dict(psbt_out.to_dict())
 

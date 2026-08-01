@@ -142,7 +142,7 @@ testpaths = ["tests"]
 # skipif silently stops skipping
 # --dist worksteal rather than xdist's default `load`, because the cost
 # here is lopsided: half the suite's work sits in the taproot vectors of
-# tests/script_engine/test_python_path.py, whose slowest cases take ~3 s
+# tests/script_engine/python_path_test.py, whose slowest cases take ~3 s
 # each against a median test under a millisecond. `load` hands out the
 # queue in chunks and a worker that draws several of those finishes long
 # after the others; worksteal lets an idle worker take back what is

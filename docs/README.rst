@@ -47,7 +47,7 @@ regenerates every page from the template, discarding the hand-tuned
 HISTORY, CONTRIBUTING and SECURITY. Point it at a scratch directory if you
 want the boilerplate for a new module, then copy the stanza across.
 
-Forgetting the edit is what ``tests/test_docs.py`` is for: it compares the
+Forgetting the edit is what ``tests/docs_test.py`` is for: it compares the
 modules under ``btclib/`` against the directives in ``docs/source/`` and
 fails naming whichever is missing. This note is the convenience; the test
 is the guarantee.

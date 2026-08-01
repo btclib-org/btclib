@@ -7,7 +7,7 @@ full year, short month, short day (YYYY-M-D)
 
 ## v2026.8 (work in progress, not released yet)
 
-The first release since 2023, and the largest: a hundred and forty-four
+The first release since 2023, and the largest: a hundred and forty-five
 entries, in [CHANGELOG.md](./CHANGELOG.md). What follows is what a user has
 to act on and what a user gains.
 
@@ -112,7 +112,7 @@ and `verify` families now let a `TypeError` out where they used to answer
 - **Hostile input costs what it should.** Five bytes of a PSBT used to cost
   gigabytes, and 160k characters in an address field 3.3 seconds. Parsers
   bound their allocation by the data they were handed, `var_int` enforces
-  Core's shortest encoding and 32 MiB cap, and `tests/test_fuzz.py` holds
+  Core's shortest encoding and 32 MiB cap, and `tests/fuzz_test.py` holds
   every parse entry point to the exception contract of
   `btclib/exceptions.py`.
 - **Signing a transaction is linear in its inputs**, where it was Θ(N²):

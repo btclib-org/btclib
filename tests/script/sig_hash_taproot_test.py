@@ -43,9 +43,9 @@ from btclib.script import (
 )
 from btclib.script.engine import verify_transaction
 from btclib.tx import OutPoint, Tx, TxIn, TxOut
-from tests import vectors
+from tests import load, vector_id
 
-TAPSCRIPT = vectors.load("script", "_data", "script_assets_test.json")
+TAPSCRIPT = load("script", "_data", "script_assets_test.json")
 
 
 def is_key_path(witness: Witness) -> bool:
@@ -74,7 +74,7 @@ def key_path_vectors(outcome: str, taproot_flag: bool) -> list[Any]:
             continue
         if not is_key_path(Witness(x[outcome]["witness"])):
             continue
-        params.append(pytest.param(x, id=vectors.vector_id(index, x["comment"])))
+        params.append(pytest.param(x, id=vector_id(index, x["comment"])))
     return params
 
 
@@ -229,7 +229,7 @@ def annex_vectors() -> list[Any]:
         stack = Witness(x["success"]["witness"]).stack
         if len(stack) < 2 or stack[-1][0] != 0x50:
             continue  # no annex, nothing to strip
-        params.append(pytest.param(x, id=vectors.vector_id(index, x["comment"])))
+        params.append(pytest.param(x, id=vector_id(index, x["comment"])))
     return params
 
 
@@ -270,7 +270,7 @@ def test_from_tx_does_not_touch_the_tx(vector: dict[str, Any]) -> None:
     assert tx.serialize(include_witness=True, check_validity=False) == serialized
 
 
-KEY_PATH_SPENDING = vectors.load("script", "_data", "taproot_test_vector.json")[
+KEY_PATH_SPENDING = load("script", "_data", "taproot_test_vector.json")[
     "keyPathSpending"
 ][0]
 
@@ -298,7 +298,7 @@ def unsigned_tx_and_utxos() -> tuple[Tx, list[TxOut]]:
     [
         pytest.param(
             spending,
-            id=vectors.vector_id(
+            id=vector_id(
                 index,
                 f"input{spending['given']['txinIndex']}",
                 f"hashtype{spending['given']['hashType']}",

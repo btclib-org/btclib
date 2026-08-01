@@ -17,7 +17,7 @@ import pytest
 from btclib.bip32 import bip32
 from btclib.exceptions import BTClibValueError
 from btclib.mnemonic import bip39
-from tests import vectors
+from tests import load, vector_id
 
 
 def test_bip39() -> None:
@@ -44,9 +44,9 @@ def test_bip39() -> None:
 
 
 BIP39_VECTORS = [
-    pytest.param(*vector, id=vectors.vector_id(index, vector[0]))
+    pytest.param(*vector, id=vector_id(index, vector[0]))
     for index, vector in enumerate(
-        vectors.load("mnemonic", "_data", "bip39_test_vectors.json")["english"]
+        load("mnemonic", "_data", "bip39_test_vectors.json")["english"]
     )
 ]
 

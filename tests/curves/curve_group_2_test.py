@@ -29,7 +29,7 @@ from btclib.curves.curve_group_2 import (
     multiplier_decomposer,
 )
 from btclib.exceptions import BTClibValueError
-from tests.curves.test_curve import low_card_curves
+from tests.curves.curve_test import low_card_curves
 
 ec23_31 = low_card_curves["ec23_31"]
 

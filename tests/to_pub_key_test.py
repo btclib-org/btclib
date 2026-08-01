@@ -23,7 +23,7 @@ from btclib.to_pub_key import (
     pub_keyinfo_from_key,
     pub_keyinfo_from_pub_key,
 )
-from tests.test_to_key import (
+from tests.to_key_test import (
     INF_xpub_data,
     Q,
     compressed_prv_keys,

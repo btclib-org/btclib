@@ -19,7 +19,7 @@ Both spellings are now checked. A caller's name is looked up in the enum
 by `to_script_flags`, which refuses what it does not know, and every test
 the engine makes is `ScriptFlag.X in flags`, which a typo turns into an
 AttributeError rather than into a rule that never runs. A test asserts
-the two sets are the same: `tests/script_engine/test_flags.py` reads the
+the two sets are the same: `tests/script_engine/flags_test.py` reads the
 engine's own source, and no member may go unchecked there and no name
 checked there may be missing here.
 

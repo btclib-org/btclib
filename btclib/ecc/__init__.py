@@ -34,7 +34,7 @@ bms and sign_to_contract do `from btclib.ecc import dsa`, i.e. they import
 a name from the package that is importing them, and the order of the line
 below does not have to work around it: a `from package import name` whose
 name is not yet an attribute falls back to importing package.name as a
-submodule, which is what happens here. tests/test_imports.py imports every
+submodule, which is what happens here. tests/imports_test.py imports every
 module of the library with nothing else in sys.modules, which is the order
 that would find it if it did not.
 """

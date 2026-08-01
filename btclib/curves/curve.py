@@ -127,7 +127,7 @@ class Curve(CurveSubGroup):
         # order_check=False, as it does weakness_check=False below: its
         # parameters are constants, and test_catalogued_curves rebuilds
         # every one of them from the json data with both checks on, while
-        # tests/curves/test_curve_group.py and test_curve_group_2.py assert
+        # tests/curves/curve_group_test.py and curve_group_2_test.py assert
         # n*G == INF for every curve of CURVES through ten distinct mult
         # implementations. It stays on by default all the same, and is not
         # merely a test-time luxury: a caller-defined curve whose n is

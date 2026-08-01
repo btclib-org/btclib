@@ -36,7 +36,7 @@ from btclib.curves.curve_group import (
 )
 from btclib.ecc import second_generator
 from btclib.exceptions import BTClibValueError
-from tests.curves.test_curve import all_curves, low_card_curves
+from tests.curves.curve_test import all_curves, low_card_curves
 
 ec23_31 = low_card_curves["ec23_31"]
 

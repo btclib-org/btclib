@@ -33,8 +33,8 @@ These tests are originally from
 https://github.com/sipa/bech32/tree/master/ref/python,
 with the following modifications:
 
-- split the original tests.py file in test_bech32.py
-  and test_b32.py
+- split the original tests.py file in bech32_test.py
+  and b32_test.py
 - checked for raised exceptions instead of assertIsNone
 """
 

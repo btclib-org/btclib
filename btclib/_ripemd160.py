@@ -18,7 +18,7 @@ reviewable against an upstream that Core's own test suite exercises.
 
 The name is upstream's, as every vendored file's is (tests/_data/README.md
 says why); the leading underscore is what marks it private, and keeps
-tests/test_docs.py from asking for an automodule stanza. It is not API:
+tests/docs_test.py from asking for an automodule stanza. It is not API:
 `btclib.hashes.ripemd160` is, and it reaches this only where it must.
 
 Five deltas from upstream, every one of them a gate of this repository and
@@ -29,7 +29,7 @@ none of them arithmetic:
   S101 forbids assert outside tests, and the round number is worth naming
 - `if` in place of the `elif` after a return (ruff RET505)
 - the unittest.TestCase is dropped, its vectors moved to
-  tests/test_ripemd160.py: test code does not ship inside the package
+  tests/ripemd160_test.py: test code does not ship inside the package
 - `# fmt: off` around the six tables, which ruff format would otherwise
   print one index per line: 480 lines to hold 480 numbers, and the grid is
   how the tables are checked against the specification

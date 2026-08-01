@@ -136,7 +136,7 @@ vectors, all eight columns.
 Four of the 19 are the arbitrary-size messages BIP340 gained in 2023-04
 (0, 1, 17 and 100 bytes), and btclib refused all four: it took the message
 as a `hf_len` array, as the bindings still do. They were held here and
-marked `xfail` in `tests/ecc/test_ssa.py` rather than left out of the
+marked `xfail` in `tests/ecc/ssa_test.py` rather than left out of the
 file — which is what made issue 169 measured rather than described, and
 what `xfail_strict` then turned red the day the support landed. All four
 pass: `verify_` accepts each, and `sign_` reproduces each signature byte
@@ -246,7 +246,7 @@ an invalid value data due to its size being not the stated size` is new
 (`97885721`, 2025-09-18).
 
 The two zero-input psbts are valid per the BIP and btclib refused both, so
-they were `xfail` in `tests/psbt/test_psbt.py` for a day — issue 170, fixed:
+they were `xfail` in `tests/psbt/psbt_test.py` for a day — issue 170, fixed:
 the global unsigned transaction is checked as the template it is, not as a
 complete transaction. Leaving them out had hidden that for five years, which
 is the argument for holding a vector you fail.
@@ -347,7 +347,7 @@ Five of the 30 vectors the refresh brings are TAPSCRIPT cases whose
 witness and output script are placeholders — `#SCRIPT#`,
 `#CONTROLBLOCK#`, `#TAPROOTOUTPUT#` — that Core's `script_tests.cpp`
 generates at run time. `taproot_placeholders` in
-`tests/script_engine/test_script.py` generates them here, from the BIP341
+`tests/script_engine/script_test.py` generates them here, from the BIP341
 NUMS point rather than Core's `key0`, which no vector can tell apart. The
 refresh is not a data-only change without it: three of the five fail on
 `OP_#TAPROOTOUTPUT#`, and the two expecting a failure get one for the
@@ -406,7 +406,7 @@ Verdict: **composed locally**, not vendored. All 18 descriptors appear
 verbatim in the pinned document; none of the 18 checksums does, because
 Core's document does not list them. They were computed with a third
 implementation, `bdk`'s `descriptor::checksum::get_checksum`, as
-`tests/test_descriptors.py` records — which is the point of the file: the
+`tests/descriptors_test.py` records — which is the point of the file: the
 checksums are an independent oracle, so recomputing them with btclib
 would void the test.
 
@@ -447,7 +447,7 @@ Two caveats, and the second is the one that matters.
 The file is not in bitcoin/bitcoin: it is *generated*, by
 `test/functional/feature_taproot.py --dumptests`, and Core keeps the dump
 in qa-assets rather than in tree. That is why the citation in
-`tests/script/test_sig_hash_taproot.py` (bip-0341) does not lead to it.
+`tests/script/sig_hash_taproot_test.py` (bip-0341) does not lead to it.
 
 The commit is a weak pin. The whole visible history of that path is three
 commits, all stamped within a second of `2025-07-23T19:45:18Z`, which
@@ -515,7 +515,7 @@ Verdict: **reformatted**. 200 vectors, JSON-equal.
 It was vendored as `bms.json`, named after this project's `ecc.bms` module
 rather than after its source, and now carries upstream's own name. What
 that cost while it lasted is on the record: the citation in
-`tests/ecc/test_bms.py` drifted to `bitcoin/tests/test_data/bms.json`, a
+`tests/ecc/bms_test.py` drifted to `bitcoin/tests/test_data/bms.json`, a
 path upstream has as neither the directory nor the file.
 
 Only the first ten vectors are exercised
@@ -601,7 +601,7 @@ returns these bytes, given a node with the transaction index.
 ### `tests/ecc/_data/rfc6979.json`
 
 Appendix A.2 of RFC 6979, transcribed: 50 vectors, ten each for NIST
-P-192, P-224, P-256, P-384 and P-521, as `tests/ecc/test_rfc6979.py`
+P-192, P-224, P-256, P-384 and P-521, as `tests/ecc/rfc6979_test.py`
 says. An RFC number is already an immutable reference — there is no
 commit to pin, and `rfc-editor.org/rfc/rfc6979` is the document.
 
@@ -613,7 +613,7 @@ Pulled 2020-05-08.
 their root keys and addresses are in no upstream repository: a GitHub
 code search for the first mnemonic returns btclib and one fork of btclib,
 and they are not in spesmilo/electrum's `tests/`. They were produced by
-running Electrum — suggestively, `tests/mnemonic/test_electrum.py` used to
+running Electrum — suggestively, `tests/mnemonic/electrum_test.py` used to
 carry a FIXME asking whether a mnemonic written inline in `test_mnemonic`
 had been obtained in Electrum. That marker was about a different value
 than these, so it is evidence of the habit rather than of this file; it
@@ -689,7 +689,7 @@ only way to find out.
   `PYTHON_BITCOINLIB_VECTORS`; all 200 run now, and all 200 pass.
 - 1016 of `script_assets_test.json`'s 3737 cases never reached the
   engine: `taproot_vectors` in
-  `tests/script_engine/test_transactions.py` selected on `"TAPROOT" in
+  `tests/script_engine/transactions_test.py` selected on `"TAPROOT" in
   x["flags"]`, which drops the copy of each spend that Core's
   `feature_taproot.py` dumps with the soft fork *off*. All 1016 run now,
   685 accepted and 331 refused, as their vectors ask.
@@ -727,16 +727,16 @@ three are fixed, and no vector of this suite is `xfail` any more.
 And three citations in the test modules named the wrong upstream, all now
 corrected in the module that carries them:
 
-- `tests/ecc/test_bms.py` named `bitcoin/tests/test_data/bms.json`, which
+- `tests/ecc/bms_test.py` named `bitcoin/tests/test_data/bms.json`, which
   is upstream's path for neither the directory nor the file: it is
   `bitcoin/tests/data/signmessage.json`.
-- `tests/script/test_script_pub_key.py` cited `en.bitcoin.it/wiki/BIP_0067`,
+- `tests/script/script_pub_key_test.py` cited `en.bitcoin.it/wiki/BIP_0067`,
   a wiki page that is neither versioned nor authoritative, for vectors
   transcribed from the BIP.
-- `tests/script/test_sig_hash_taproot.py` and `tests/script/test_taproot.py`
+- `tests/script/sig_hash_taproot_test.py` and `tests/script/taproot_test.py`
   cited bip-0341 for both of the two files they load, and
   `script_assets_test.json` is not in any BIP: it is a Core dump kept in
-  qa-assets. `tests/script_engine/test_transactions.py` loads it too and
+  qa-assets. `tests/script_engine/transactions_test.py` loads it too and
   cited nothing.
 
 Each of those modules now names its upstream and points here for the

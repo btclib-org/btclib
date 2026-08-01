@@ -26,8 +26,8 @@ from btclib.ecc import dsa
 from btclib.ecc.bip340_nonce import _bip340_nonce_, bip340_nonce_
 from btclib.ecc.rfc6979_nonce import _rfc6979_nonce_, challenge_, rfc6979_nonce_
 from btclib.hashes import reduce_to_hlen
-from tests import vectors
-from tests.curves.test_curve import low_card_curves
+from tests import load, vector_id
+from tests.curves.curve_test import low_card_curves
 
 
 def test_rfc6979() -> None:
@@ -64,12 +64,12 @@ def rfc6979_vectors() -> list[Any]:
     NIST P-521 with sha512 says so, and not in an outer loop that stops
     the inner one from ever reaching the next curve.
     """
-    test_dict = vectors.load("ecc", "_data", "rfc6979.json")
+    test_dict = load("ecc", "_data", "rfc6979.json")
     return [
         pytest.param(
             CURVES[ec_name],
             *vector,
-            id=vectors.vector_id(index, ec_name, vector[3], vector[4]),
+            id=vector_id(index, ec_name, vector[3], vector[4]),
         )
         for ec_name in test_dict
         for index, vector in enumerate(test_dict[ec_name])

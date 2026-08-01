@@ -39,7 +39,7 @@ from btclib.ecc import second_generator
 from btclib.exceptions import BTClibTypeError, BTClibValueError
 from btclib.number_theory import mod_sqrt
 from btclib.to_pub_key import pub_keyinfo_from_prv_key
-from tests import vectors
+from tests import load, vector_id
 
 # test curves: very low cardinality. The name is p and n, in that order,
 # so the four with the larger second number are the n > p ones -- ec13_19,
@@ -95,9 +95,9 @@ def test_mult_on_secp256k1() -> None:
 @pytest.mark.parametrize(
     "vector",
     [
-        pytest.param(vector, id=vectors.vector_id(index, vector["seckey"][:16]))
+        pytest.param(vector, id=vector_id(index, vector["seckey"][:16]))
         for index, vector in enumerate(
-            vectors.load("curves", "_data", "pubkey.json")["vectors"]
+            load("curves", "_data", "pubkey.json")["vectors"]
         )
     ],
 )
@@ -193,7 +193,7 @@ def test_curves_with_n_above_p() -> None:
     curve of order 19 fits in a test.
 
     What n > p decides is whether `r = x_K % ec.n` can reduce, and it
-    cannot: x_K < p < n. tests/ecc/test_dsa.py draws the consequence for
+    cannot: x_K < p < n. tests/ecc/dsa_test.py draws the consequence for
     key recovery, next to the cofactor-2 case it is the mirror of.
     """
     above = {name for name, ec in low_card_curves.items() if ec.n > ec.p}

@@ -33,8 +33,8 @@ Some of these tests are originally from
 https://github.com/sipa/bech32/tree/master/ref/python,
 with the following modifications:
 
-- split the original tests.py file in test_bech32.py
-  and test_b32.py
+- split the original tests.py file in bech32_test.py
+  and b32_test.py
 - checked for raised exceptions instead of assertIsNone
 """
 
@@ -322,7 +322,7 @@ def test_p2tr() -> None:
 
 
 # the three networks a bech32 address round-trips through, which is more
-# than the base58 addresses of test_b58.py manage: the hrp tells these
+# than the base58 addresses of b58_test.py manage: the hrp tells these
 # three apart where the version bytes of testnet and regtest do not.
 # Signet and testnet4 are left out because they are the case the hrp
 # does *not* tell apart -- both are "tb", testnet's, so an address built

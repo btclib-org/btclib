@@ -27,7 +27,7 @@ from btclib.to_prv_key import (
     int_from_prv_key,
     prv_keyinfo_from_prv_key,
 )
-from tests.test_to_key import (
+from tests.to_key_test import (
     INF_xpub_data,
     Q,
     compressed_prv_keys,

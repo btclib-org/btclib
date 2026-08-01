@@ -131,7 +131,7 @@ def sign(
                 # are 0 mod n. On a low-cardinality curve it is one message
                 # in n -- one in eleven on ec13_11 -- which is the corner
                 # case issue 183 asked for and what made ec a parameter
-                # worth having: tests/ecc/test_borromean.py reaches this
+                # worth having: tests/ecc/borromean_test.py reaches this
                 # raise, and the three below it, on that curve
                 if not 0 < e[i][j] < ec.n:
                     err_msg = "implausible signature failure"

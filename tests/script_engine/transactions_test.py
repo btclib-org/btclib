@@ -35,10 +35,10 @@ from btclib.script.engine import (
 from btclib.script.witness import Witness
 from btclib.tx import OutPoint, Tx, TxIn
 from btclib.tx.tx_out import TxOut
-from tests import vectors
+from tests import load, vector_id
 from tests.script_engine import parse_script
 
-TAPSCRIPT = vectors.load("script", "_data", "script_assets_test.json")
+TAPSCRIPT = load("script", "_data", "script_assets_test.json")
 
 
 def taproot_vectors(outcome: str) -> list[Any]:
@@ -61,7 +61,7 @@ def taproot_vectors(outcome: str) -> list[Any]:
 
     """
     return [
-        pytest.param(x, id=vectors.vector_id(index, x["comment"]))
+        pytest.param(x, id=vector_id(index, x["comment"]))
         for index, x in enumerate(TAPSCRIPT)
         if outcome in x
     ]
@@ -123,7 +123,7 @@ def annex_vectors() -> list[Any]:
         stack = Witness(x["success"]["witness"]).stack
         if len(stack) < 2 or stack[-1][0] != 0x50:
             continue
-        params.append(pytest.param(x, id=vectors.vector_id(index, x["comment"])))
+        params.append(pytest.param(x, id=vector_id(index, x["comment"])))
     return params
 
 
@@ -188,14 +188,14 @@ def legacy_vectors(fname: str) -> list[Any]:
     """
     params = []
     comment = ""
-    for index, x in enumerate(vectors.load("script_engine", "_data", fname)):
+    for index, x in enumerate(load("script_engine", "_data", fname)):
         if isinstance(x[0], str):
             # a comment line, and it describes the vectors that follow:
             # "MAX_MONEY output", "Coinbase of size 2". The flags field
             # was the id before, which named a dozen vectors "41-P2SH"
             comment = x[0]
             continue
-        params.append(pytest.param(x, id=vectors.vector_id(index, comment, x[2])))
+        params.append(pytest.param(x, id=vector_id(index, comment, x[2])))
     return params
 
 

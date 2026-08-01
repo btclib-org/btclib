@@ -22,7 +22,7 @@ from btclib.psbt import Psbt, combine_psbts, extract_tx, finalize_psbt, join_psb
 from btclib.psbt.psbt import PSBT_DELIMITER, PSBT_SEPARATOR, _sort_or_shuffle_together
 from btclib.script import ScriptPubKey, Witness
 from btclib.tx import OutPoint, Tx, TxIn, TxOut
-from tests import vectors
+from tests import load, vector_id
 from tests.conftest import JsonGolden
 
 # first tests are part of the official BIP174 test vectors
@@ -41,12 +41,8 @@ def psbt_vectors(fname: str, kind: str) -> list[Any]:
     170 sets out. They pass.
     """
     return [
-        pytest.param(
-            test_vector, id=vectors.vector_id(index, test_vector["description"])
-        )
-        for index, test_vector in enumerate(
-            vectors.load("psbt", "_data", fname)[kind], 1
-        )
+        pytest.param(test_vector, id=vector_id(index, test_vector["description"]))
+        for index, test_vector in enumerate(load("psbt", "_data", fname)[kind], 1)
     ]
 
 
@@ -121,7 +117,7 @@ def test_taproot_signature_carries_its_sig_hash_type() -> None:
     counterparts are 63 and 66 bytes, so they stay invalid, and
     test_invalid_psbt_bip371 is what says so.
     """
-    valid = vectors.load("psbt", "_data", "bip371_test_vectors.json")["valid psbts"]
+    valid = load("psbt", "_data", "bip371_test_vectors.json")["valid psbts"]
     psbts = [Psbt.b64decode(test_vector["encoded psbt"]) for test_vector in valid]
 
     psbt = next(p for p in psbts if p.inputs[0].taproot_key_spend_signature)

@@ -28,9 +28,10 @@ repos:
   # environment to install. A `files` or `exclude` pattern that stops
   # matching anything is a hook that has quietly stopped running, which is
   # the shape of issue #145 one level up: the rule is still written down
-  # and no longer enforced. Two patterns to go stale today -- the
-  # `files: \.py$` on copyright-notice and the `exclude` on
-  # name-tests-test above -- and nothing else would say so
+  # and no longer enforced. One pattern to go stale today, the
+  # `files: \.py$` on copyright-notice, where there were two until
+  # name-tests-test below dropped its `exclude` -- and nothing else would
+  # say so
   - repo: meta
     hooks:
       - id: check-hooks-apply
@@ -111,17 +112,26 @@ repos:
       - id: detect-private-key
       - id: debug-statements
       - id: check-docstring-first
-      # --pytest-test-first, i.e. test_*.py: the hook's default is the
-      # other convention, *_test.py, which every test file here fails.
+      # the hook's default, *_test.py, with neither args nor exclude.
       # What it is for is the one failure mode a test suite cannot report
       # on itself -- a file named so that pytest never collects it is not
-      # a red test, it is no test, and the count in the report is the
-      # only thing that moves. conftest.py and the __init__.py files are
-      # skipped by the hook itself; tests/vectors.py is the loader the
-      # tests share and the one file that has to be named for what it is
+      # a red test, it is no test, and the count in the report is the only
+      # thing that moves.
+      # It ran as --pytest-test-first, i.e. test_*.py, until the 71 test
+      # modules were renamed. The two conventions guard the same thing and
+      # pytest's default `python_files` collects both, so what the rename
+      # bought is not a stronger check but one carve-out fewer: the
+      # `exclude` that stood here. That was tests/vectors.py, the loader
+      # the suite shares and the one file under tests/ holding no test.
+      # The hook exempts two basenames of its own, conftest.py and
+      # __init__.py, so the loaders moved into tests/__init__.py, beside
+      # the helpers already in the __init__ of tests/script and
+      # tests/script_engine -- shared test code now lives in the package
+      # __init__ at all three levels. Renaming it vectors_test.py was the
+      # alternative, and it is this hook's own failure mode written by
+      # hand: a name that says "test" to every reader, on the one module
+      # with none
       - id: name-tests-test
-        args: [--pytest-test-first]
-        exclude: ^tests/vectors\.py$
       - id: check-toml
       # only files being *added* are measured, the hook intersecting its
       # arguments with git's added set, so the 9 MB of

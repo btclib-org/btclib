@@ -119,7 +119,7 @@ def check_golden(path: Path, name: str, value: Any, module: str) -> None:
     build it from, so the regenerate, missing-file and mismatch paths --
     the three that matter and the two that are failures -- were the only
     lines of `tests/` a passing suite never ran. Here they take a path
-    and a module name, so `tests/test_conftest.py` exercises all three
+    and a module name, so `tests/conftest_test.py` exercises all three
     against a tmp_path, hermetically and without writing into the source
     tree, which is what this fixture exists to have stopped doing.
     """

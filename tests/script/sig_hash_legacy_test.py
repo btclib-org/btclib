@@ -24,7 +24,7 @@ from btclib.script import serialize, sig_hash
 from btclib.script.engine import verify_transaction
 from btclib.to_pub_key import pub_keyinfo_from_prv_key
 from btclib.tx import OutPoint, Tx, TxIn, TxOut
-from tests import vectors
+from tests import load, vector_id
 
 
 # block 170
@@ -212,9 +212,9 @@ def test_missing_redeem_script() -> None:
 
 # [1:] skips the column headers, which are a row of the file
 SIG_HASH_VECTORS = [
-    pytest.param(*vector, id=vectors.vector_id(index, vector[4][:16]))
+    pytest.param(*vector, id=vector_id(index, vector[4][:16]))
     for index, vector in enumerate(
-        vectors.load("script", "_data", "sig_hash_legacy_test_vectors.json")[1:], 1
+        load("script", "_data", "sig_hash_legacy_test_vectors.json")[1:], 1
     )
 ]
 
@@ -258,7 +258,7 @@ def test_test_vectors_are_all_undefined_hash_types() -> None:
     tests/_data/README.md pins the revision, and it is 2014's -- cannot
     move the line in silence.
     """
-    rows = vectors.load("script", "_data", "sig_hash_legacy_test_vectors.json")[1:]
+    rows = load("script", "_data", "sig_hash_legacy_test_vectors.json")[1:]
     assert len(rows) == 500
     hash_types = {
         hash_type + 0xFFFFFFFF + 1 if hash_type < 0 else hash_type

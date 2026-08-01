@@ -10,7 +10,7 @@ linters and packaging tools itself. `uv sync` creates the environment.
 
 ```shell
 uv run pytest                                   # the suite
-uv run pytest tests/ecc/test_dsa.py             # one file
+uv run pytest tests/ecc/dsa_test.py             # one file
 uv run pytest -k test_low_cardinality           # one test
 uv run pre-commit run --all-files               # every gate, see below
 uv run pre-commit run mypy --files btclib/curves/curve.py   # one hook

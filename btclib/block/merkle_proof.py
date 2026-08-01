@@ -65,7 +65,7 @@ def _assert_inner_node_is_not_a_tx(inner_node: bytes) -> None:
         is_a_tx = tx.serialize(include_witness=True, check_validity=False) == inner_node
     except (BTClibValueError, BTClibTypeError, BTClibRuntimeError):
         # the exception contract of btclib/exceptions.py, which is what
-        # tests/test_fuzz.py holds every parser to: these three mean "not
+        # tests/fuzz_test.py holds every parser to: these three mean "not
         # a transaction", the ordinary answer for every honest inner node
         # in every block, and anything else is a bug worth propagating
         return

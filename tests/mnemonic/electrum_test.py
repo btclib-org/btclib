@@ -17,7 +17,7 @@ from btclib.bip32 import bip32, slip132
 from btclib.exceptions import BTClibValueError
 from btclib.mnemonic import bip39, electrum
 from btclib.network import NETWORKS
-from tests import vectors
+from tests import load, vector_id
 
 
 def test_mnemonic() -> None:
@@ -65,9 +65,9 @@ def test_mnemonic() -> None:
 
 
 ELECTRUM_VECTORS = [
-    pytest.param(*vector, id=vectors.vector_id(index, vector[4]))
+    pytest.param(*vector, id=vector_id(index, vector[4]))
     for index, vector in enumerate(
-        vectors.load("mnemonic", "_data", "electrum_test_vectors.json")
+        load("mnemonic", "_data", "electrum_test_vectors.json")
     )
 ]
 

@@ -31,7 +31,7 @@ from btclib.curves import secp256k1 as ec
 from btclib.exceptions import BTClibTypeError, BTClibValueError
 from btclib.hashes import hash160
 from btclib.to_pub_key import pub_keyinfo_from_key
-from tests import vectors
+from tests import load, vector_id
 
 
 def test_exceptions() -> None:
@@ -169,10 +169,10 @@ def bip32_vectors() -> list[Any]:
     the vector it belongs to: "vector 3, m/0h" rather than a number that
     says nothing, and the four vectors no longer share one exit.
     """
-    test_vectors = vectors.load("bip32", "_data", "bip32_test_vectors.json")
+    test_vectors = load("bip32", "_data", "bip32_test_vectors.json")
     return [
         pytest.param(
-            seed, der_path, xpub, xprv, id=vectors.vector_id(index, seed[:16], der_path)
+            seed, der_path, xpub, xprv, id=vector_id(index, seed[:16], der_path)
         )
         for index, seed in enumerate(test_vectors)
         for der_path, xpub, xprv in test_vectors[seed]
@@ -193,9 +193,9 @@ def test_bip32_vectors(seed: str, der_path: str, xpub: str, xprv: str) -> None:
 @pytest.mark.parametrize(
     ("xkey", "err_msg"),
     [
-        pytest.param(xkey, err_msg, id=vectors.vector_id(index, err_msg))
+        pytest.param(xkey, err_msg, id=vector_id(index, err_msg))
         for index, (xkey, err_msg) in enumerate(
-            vectors.load("bip32", "_data", "bip32_invalid_keys.json")
+            load("bip32", "_data", "bip32_invalid_keys.json")
         )
     ],
 )

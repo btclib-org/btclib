@@ -32,13 +32,13 @@ from btclib.exceptions import BTClibRuntimeError, BTClibValueError
 from btclib.hashes import reduce_to_hlen
 from btclib.number_theory import mod_inv
 from btclib.to_pub_key import pub_keyinfo_from_prv_key
-from tests import vectors
-from tests.curves.test_curve import low_card_curves, secp256k1_bis
-from tests.test_to_key import Q as pub_key_point
-from tests.test_to_key import Q_compressed as pub_key_compressed
-from tests.test_to_key import q as prv_key_int
-from tests.test_to_key import q_hexstring as prv_key_hexstring
-from tests.test_to_key import (
+from tests import load, vector_id
+from tests.curves.curve_test import low_card_curves, secp256k1_bis
+from tests.to_key_test import Q as pub_key_point
+from tests.to_key_test import Q_compressed as pub_key_compressed
+from tests.to_key_test import q as prv_key_int
+from tests.to_key_test import q_hexstring as prv_key_hexstring
+from tests.to_key_test import (
     wif_compressed_string,
     wif_uncompressed_string,
     xprv_data,
@@ -493,8 +493,8 @@ def test_libsecp256k1() -> None:
 def signature_vectors(fname: str) -> list[Any]:
     """One case per signature vector, named by the message it signs."""
     return [
-        pytest.param(vector, id=vectors.vector_id(index, vector["msg"][:16]))
-        for index, vector in enumerate(vectors.load("ecc", "_data", fname)["vectors"])
+        pytest.param(vector, id=vector_id(index, vector["msg"][:16]))
+        for index, vector in enumerate(load("ecc", "_data", fname)["vectors"])
     ]
 
 

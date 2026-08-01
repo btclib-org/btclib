@@ -20,7 +20,7 @@ from btclib.alias import Point
 from btclib.curves import mult, secp256k1
 from btclib.ecc import borromean, dsa
 from btclib.exceptions import BTClibRuntimeError, BTClibValueError
-from tests.curves.test_curve import low_card_curves
+from tests.curves.curve_test import low_card_curves
 
 
 def test_borromean() -> None:

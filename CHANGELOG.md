@@ -11,7 +11,7 @@ release-notes length in the first place, and are still in
 
 ## v2026.8 (work in progress, not released yet)
 
-A hundred and forty-four entries, grouped. The order runs from what breaks
+A hundred and forty-five entries, grouped. The order runs from what breaks
 a caller to what only maintainers see; [HISTORY.md](./HISTORY.md) lists the
 sixteen source-breaking changes on their own.
 
@@ -312,13 +312,13 @@ sixteen source-breaking changes on their own.
   enforce. What let it sit there was the test: `test_invalid_taproot`
   named `IndexError` in its `pytest.raises` tuple and counted the crash
   as the refusal it was asking for, which is the failure
-  `test_script.py` narrowed its own tuple to stop. All three wide tuples
+  `script_test.py` narrowed its own tuple to stop. All three wide tuples
   are now the contract and nothing more, `test_invalid_legacy`'s included
   — measured, all 93 of its vectors leave through `BTClibValueError` — and
   `test_invalid_taproot_key_path` no longer lists `AssertionError`
   alongside a leading `assert` inside the block, which would have passed a
   vector without computing a sighash at all
-- **`tests/test_fuzz.py` reaches past the parsers.** It held 24 binary
+- **`tests/fuzz_test.py` reaches past the parsers.** It held 24 binary
   parse entry points and the text ones to the exception contract, and
   stopped where the bytes became an object: the code that *reads* a Tx
   that parsed cleanly was not in it, which is why a fuzzer had not found
@@ -995,7 +995,7 @@ sixteen source-breaking changes on their own.
   all b58 wanted from there, for the p2sh-wrapped SegWit v0 redeem script
   `[OP_0, witness program]`, which it now spells out — a test checks the
   two agree, over both witness program sizes v0 admits. The new
-  tests/test_imports.py imports every module of the package first, with no
+  tests/imports_test.py imports every module of the package first, with no
   other in sys.modules: that is the order no other test reaches, and the
   one a cycle hides behind (issue #147)
 - **`btclib.ec` exports the curve API, not a benchmark.** Its `__all__` held
@@ -1200,7 +1200,7 @@ sixteen source-breaking changes on their own.
   keyword-only too: moving it in front of the star instead would have made
   `Sig.parse(data, False)` mean `strict=False` where it used to mean
   `check_validity=False`, which is the silent failure the whole change is
-  against. The new tests/test_check_validity.py asserts the rule over the
+  against. The new tests/check_validity_test.py asserts the rule over the
   package's own source, so a new signature cannot reintroduce the hazard
 
 ### Types
@@ -1400,7 +1400,7 @@ sixteen source-breaking changes on their own.
   scheduler, where it ran on the default `load`: 17.2 s against 23.3 s,
   best of three runs each, same 14681 tests in the same order. The cost
   here is lopsided — the `tapscript-bigmulti` cases of
-  `tests/script_engine/test_python_path.py` take 3 s each against a
+  `tests/script_engine/python_path_test.py` take 3 s each against a
   median test under a millisecond — and `load` hands the queue out in
   chunks, so a worker that draws several of them is still going when the
   others have run out of work. Two changes that look like they should help
@@ -1409,7 +1409,7 @@ sixteen source-breaking changes on their own.
   other than `auto` is slower than `auto`
 - **every vendored vector is exercised**, where two filters used to hold
   1206 of them back. `taproot_vectors` in
-  `tests/script_engine/test_transactions.py` selected on `"TAPROOT" in
+  `tests/script_engine/transactions_test.py` selected on `"TAPROOT" in
   x["flags"]`, which drops 1016 of `script_assets_test.json`'s 3737
   cases: Core's `feature_taproot.py` dumps each spend twice, once with
   the soft fork enforced and once without, and the second copy is what
@@ -1437,7 +1437,7 @@ sixteen source-breaking changes on their own.
   the only lines of `tests/` a passing suite never runs. They were
   unreachable from a test because they lived in a closure over
   `request`: the body is now `conftest.check_golden(path, name, value,
-  module)` and `tests/test_conftest.py` drives all three against a
+  module)` and `tests/conftest_test.py` drives all three against a
   `tmp_path`, hermetically, which is what that fixture exists to have
   stopped doing to the source tree. Two more were
   `engine.script.dsa_verify`'s `except ValueError`, the wrapper that
@@ -1457,7 +1457,7 @@ sixteen source-breaking changes on their own.
   one version-gated line a red build; the comparison is
   `round(total, precision) < fail_under`, so 99.99 allows two of the
   15328 statements the coverage job measures
-- **`tests/ecc/test_bms.py` imports on python 3.9 again.** It annotates a
+- **`tests/ecc/bms_test.py` imports on python 3.9 again.** It annotates a
   helper `-> Point | None` without `from __future__ import annotations`,
   which 3.9 evaluates at def time and has no `|` for: the module was ten
   collection errors on the oldest supported interpreter and passed on
@@ -1487,7 +1487,7 @@ sixteen source-breaking changes on their own.
   `TxIn` with the null prev_out is the placeholder a builder starts from.
   `test_script_sig_is_not_validated_and_that_is_the_answer` pins all four
 - **the vendored consensus vectors are judged by the python implementation
-  too**, in `tests/script_engine/test_python_path.py`: the two symbols the
+  too**, in `tests/script_engine/python_path_test.py`: the two symbols the
   engine imports from the bindings are replaced by `btclib.ecc`, and
   `script_tests.json`, `tx_valid.json`, `tx_invalid.json` and the taproot
   vectors — 4168 of them — run again through it. Until 23041e4b the engine
@@ -1516,7 +1516,7 @@ sixteen source-breaking changes on their own.
   reduces its argument with `hf` where `sign_` does not, and the key the
   script carries is the *tweaked* one (issue #124)
 - the two deterministic nonce derivations are compared, in
-  tests/ecc/test_rfc6979.py, which is what TODO.md's "compare of
+  tests/ecc/rfc6979_test.py, which is what TODO.md's "compare of
   dsa.rfc6979_and ssa.det_nonce_" asked for. Four tests, over the same
   inputs: that they never agree, which nothing in either scheme forces;
   what each *reads*, which is the substantive difference — RFC6979 takes
@@ -1557,7 +1557,7 @@ sixteen source-breaking changes on their own.
   BIP-341 does this match" had no answer. Two of them were also wrong,
   and are corrected
 - the test suite is property-based as well as vector-based: `hypothesis`
-  generates the input nobody wrote down, and `tests/test_fuzz.py` asserts
+  generates the input nobody wrote down, and `tests/fuzz_test.py` asserts
   that every parse entry point answers it within the exception contract
   of btclib/exceptions.py rather than with an IndexError or an
   OverflowError. Round-trip and checksum properties come with it, for
@@ -1585,6 +1585,22 @@ sixteen source-breaking changes on their own.
   those tests already asserted `from_dict(to_dict()) == obj` in memory beside
   it. So are the twelve `file_.write("\n")  # end-of-file-fixer` lines, tests
   shaped to placate a lint hook (issue #154)
+- **Every test module is `<name>_test.py`**, where all 71 were
+  `test_<name>.py`: the `name-tests-test` hook runs at its default now, with
+  neither `args` nor `exclude`. The two conventions guard the same failure —
+  a test file named so that pytest never collects it, which no test suite can
+  report on itself — and pytest's default `python_files` collects both, so
+  what the rename buys is one local carve-out fewer rather than a stronger
+  check. That carve-out was `tests/vectors.py`, the loader the suite shares
+  and the one file under `tests/` holding no test: the hook exempts
+  `conftest.py` and `__init__.py` by basename, so `load`, `load_csv` and
+  `vector_id` moved into `tests/__init__.py`, beside the helpers already in
+  the `__init__` of `tests/script` and `tests/script_engine` — shared test
+  code lives in the package `__init__` at all three levels now, where it did
+  at two. Renaming it `vectors_test.py` was the alternative, and it is this
+  hook's own failure mode written by hand: a name that says "test" to every
+  reader, on the one module with none. The cost was 33 import lines and 53
+  references in prose and comments, eight of them in `btclib/` itself
 
 ### Supported interpreters and dependencies
 
@@ -1644,7 +1660,7 @@ sixteen source-breaking changes on their own.
   three prints, two of them the interface of the dice-roll entropy
   collector, which prompts with `input()` and is ignored per file, and one
   a debugging leftover inside a `pytest.raises` block in
-  `tests/test_b32.py` that printed an address on every invalid case and
+  `tests/b32_test.py` that printed an address on every invalid case and
   asserted nothing; it is gone. `C90` closes issue #184, which asked for
   C901 or for the decision not to have it: at ruff's default of 10 the
   tree has 17 functions over the line, and the top of the list is a script
@@ -1660,10 +1676,11 @@ sixteen source-breaking changes on their own.
   `.readthedocs.yaml` being 2.7 KB that nothing read as a build definition
 - **the six hooks commented out in `.pre-commit-config.yaml` are decided,
   four on and two off, and five more are added.** Each was measured
-  against this tree rather than argued about. On: `name-tests-test`, with
-  `--pytest-test-first` because the hook's default is the other
-  convention, guarding the one failure a test suite cannot report on
-  itself — a file pytest never collects is not a red test, it is no test;
+  against this tree rather than argued about. On: `name-tests-test`, at
+  its default and with no `exclude`, which is what the rename in the
+  Tests group above bought, guarding the one failure a test suite cannot
+  report on itself — a file pytest never collects is not a red test, it
+  is no test;
   `fix-byte-order-marker`, which finds nothing today and stops an editor
   on another platform adding three bytes tomorrow; and
   `pretty-format-json`, where the objection was its two defaults and not
@@ -1815,7 +1832,7 @@ sixteen source-breaking changes on their own.
   that file was unpinned and kept in step by a header asking a human to
   do it
 - `btclib.descriptors` is documented, the one top-level module missing
-  from docs/source; `tests/test_docs.py` now compares the modules under
+  from docs/source; `tests/docs_test.py` now compares the modules under
   btclib/ against the directives in docs/source and fails naming
   whichever is missing, in either direction
 - `int_from_integer` documents that a `str` argument is read as a
@@ -1857,7 +1874,7 @@ sixteen source-breaking changes on their own.
   since nearly doubled: every one of them had stopped being true, the
   slowest test included, and the conclusion moved with them. Bitcoin Core's
   vector files are still not the slow part, but
-  `tests/script_engine/test_python_path.py` is — it holds the slowest tests
+  `tests/script_engine/python_path_test.py` is — it holds the slowest tests
   in the suite and, on its own, more than half the wall clock. So a `slow`
   marker would save something real, where the section said there was nothing
   to put behind one; none is registered still, and the reason is now stated

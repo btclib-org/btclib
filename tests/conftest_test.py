@@ -23,7 +23,7 @@ import pytest
 
 from tests.conftest import REGENERATE, check_golden
 
-MODULE = "test_something.py"
+MODULE = "something_test.py"
 
 
 @pytest.fixture(autouse=True)

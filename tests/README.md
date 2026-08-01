@@ -51,7 +51,7 @@ files are the biggest thing in here and they are still not the slow part —
 parametrized case rather than one loop inside one function, which is what
 lets `pytest-xdist` spread them.
 
-What costs is `tests/script_engine/test_python_path.py`, which re-runs the
+What costs is `tests/script_engine/python_path_test.py`, which re-runs the
 vector sets through the python implementations of the two functions the
 engine takes from the bindings (issue #129). It holds the slowest tests in
 the suite — the `tapscript-bigmulti` cases, 3 s each — and 5185 tests

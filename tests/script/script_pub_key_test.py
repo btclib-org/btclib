@@ -50,7 +50,7 @@ from btclib.script.script_pub_key import (
     assert_segwit,
     is_segwit,
 )
-from tests import vectors
+from tests import load, vector_id
 
 
 def test_eq() -> None:
@@ -546,13 +546,13 @@ def test_p2ms_3() -> None:
     assert script.asm == parse(serialize(cmds_sig + cmds))
 
 
-BIP67_VECTORS = vectors.load("script", "_data", "bip67_test_vectors.json")
+BIP67_VECTORS = load("script", "_data", "bip67_test_vectors.json")
 
 
 @pytest.mark.parametrize(
     ("keys", "addr"),
     [
-        pytest.param(keys, addr, id=vectors.vector_id(int(i), addr))
+        pytest.param(keys, addr, id=vector_id(int(i), addr))
         for i, (keys, addr) in BIP67_VECTORS.items()
     ],
 )

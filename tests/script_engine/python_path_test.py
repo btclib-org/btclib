@@ -33,7 +33,7 @@ optional-bindings install would have to come back in order to be tested.
 This costs no packaging change and no fallback code in the library.
 
 The substitution is the one already used for ripemd160 in
-tests/test_hashes.py: a module-level name, swapped, to reach the second
+tests/hashes_test.py: a module-level name, swapped, to reach the second
 implementation of a primitive that has two.
 """
 
@@ -47,12 +47,12 @@ from btclib.exceptions import BTClibValueError
 from btclib.script.engine import script as engine_script
 from btclib.script.engine import tapscript as engine_tapscript
 
-# the modules, not the names in them: `from … import test_script` binds a
+# the modules, not the names in them: `from … import script_test` binds a
 # test function into this module too, and pytest then collects it here as
 # well -- with its own parametrize and without the fixture below, which
 # is 5184 vectors run a second time against the bindings for nothing
-from tests.script_engine import test_script as script_vector_module
-from tests.script_engine import test_transactions as tx_vector_module
+from tests.script_engine import script_test as script_vector_module
+from tests.script_engine import transactions_test as tx_vector_module
 
 
 def python_dsa_verify(msg_hash: bytes, pub_key: bytes, sig: bytes) -> bool:

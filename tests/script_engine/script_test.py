@@ -36,7 +36,7 @@ from btclib.tx.out_point import OutPoint
 from btclib.tx.tx import Tx
 from btclib.tx.tx_in import TxIn
 from btclib.tx.tx_out import TxOut
-from tests import vectors
+from tests import load, vector_id
 from tests.script_engine import parse_script
 
 
@@ -107,7 +107,7 @@ def script_vectors() -> list[Any]:
     stack when it is a number.
     """
     params = []
-    data = vectors.load("script_engine", "_data", "script_tests.json")
+    data = load("script_engine", "_data", "script_tests.json")
     for index, x in enumerate(data):
         if len(x) == 1 and isinstance(x[0], str):
             continue  # a comment line between two vectors
@@ -131,9 +131,7 @@ def script_vectors() -> list[Any]:
         # two thirds of them have one; the script itself for the rest
         comment = x[i + 4] if len(x) > i + 4 else ""
         params.append(
-            pytest.param(
-                vector, id=vectors.vector_id(index, comment or vector.script_pub_key)
-            )
+            pytest.param(vector, id=vector_id(index, comment or vector.script_pub_key))
         )
     return params
 

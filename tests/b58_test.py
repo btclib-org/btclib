@@ -314,7 +314,7 @@ def test_round_trip_address(script_type: str, h160: bytes, network: str) -> None
     regtest is not among the networks: it shares testnet's version
     bytes, so a base58 address does not carry which of the two it is and
     h160_from_address answers testnet for both. The bech32 addresses of
-    test_b32.py have no such ambiguity, their hrp being distinct, and
+    b32_test.py have no such ambiguity, their hrp being distinct, and
     are round-tripped over all three.
     """
     address = b58.address_from_h160(script_type, h160, network)

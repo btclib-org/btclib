@@ -36,7 +36,7 @@ from btclib.exceptions import BTClibRuntimeError, BTClibValueError
 from btclib.hashes import magic_message
 from btclib.mnemonic import bip39
 from btclib.to_prv_key import prv_keyinfo_from_prv_key
-from tests import vectors
+from tests import load, vector_id
 
 ec = secp256k1
 
@@ -572,8 +572,8 @@ def test_sign_strippable_message() -> None:
 # now, all 200 pass, and they cost a signature each -- which is the
 # price of a vendored vector being able to report a regression at all
 PYTHON_BITCOINLIB_VECTORS = [
-    pytest.param(vector, id=vectors.vector_id(index, vector["address"]))
-    for index, vector in enumerate(vectors.load("ecc", "_data", "signmessage.json"))
+    pytest.param(vector, id=vector_id(index, vector["address"]))
+    for index, vector in enumerate(load("ecc", "_data", "signmessage.json"))
 ]
 
 

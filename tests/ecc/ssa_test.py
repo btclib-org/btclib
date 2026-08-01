@@ -27,8 +27,8 @@ from btclib.exceptions import BTClibRuntimeError, BTClibTypeError, BTClibValueEr
 from btclib.hashes import reduce_to_hlen
 from btclib.number_theory import mod_inv
 from btclib.utils import int_from_bits
-from tests import vectors
-from tests.curves.test_curve import low_card_curves, secp256k1_bis
+from tests import load_csv, vector_id
+from tests.curves.curve_test import low_card_curves, secp256k1_bis
 
 
 def test_signature_on_an_equal_curve() -> None:
@@ -119,8 +119,8 @@ def bip340_vectors() -> list[Any]:
     vector one fails is what made that gap measured rather than described.
     """
     return [
-        pytest.param(row, id=vectors.vector_id(int(row[0]), row[7]))
-        for row in vectors.load_csv("ecc", "_data", "bip340_test_vectors.csv")
+        pytest.param(row, id=vector_id(int(row[0]), row[7]))
+        for row in load_csv("ecc", "_data", "bip340_test_vectors.csv")
     ]
 
 

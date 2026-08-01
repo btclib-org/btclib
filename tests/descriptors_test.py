@@ -19,16 +19,16 @@ from btclib.descriptors import (
     descriptor_from_address,
 )
 from btclib.exceptions import BTClibValueError
-from tests import vectors
+from tests import load, vector_id
 
 CHECKSUM_VECTORS = [
     pytest.param(
         descriptor_data["desc"],
         descriptor_data["checksum"],
-        id=vectors.vector_id(index, descriptor_data["desc"]),
+        id=vector_id(index, descriptor_data["desc"]),
     )
     for index, descriptor_data in enumerate(
-        vectors.load("_data", "descriptor_checksums.json", encoding="utf-8")
+        load("_data", "descriptor_checksums.json", encoding="utf-8")
     )
 ]
 
