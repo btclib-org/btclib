@@ -101,13 +101,27 @@ def _check_script_sig_policy(
     if ScriptFlag.SIGPUSHONLY in script_flags:
         validate_redeem_script(parsed_script_sig)
     if ScriptFlag.CONST_SCRIPTCODE in script_flags:
+        # the four op codes Core's CONST_SCRIPTCODE watches through
+        # FindAndDelete: a signature check carried in the script_sig
+        # takes the script_sig as its own script code, which is exactly
+        # where its signatures sit. Refused up front and as a class,
+        # wherever it sits and whether or not it executes, which is
+        # stricter than Core in one direction and short in another.
+        # Stricter: Core's error is inside the executed branch. Short:
+        # the in-loop rule closes nothing else, `op_checksig` returning
+        # early on an empty signature, on a lax encoding under no
+        # strict-DER flag and on a bad public key under no STRICTENC,
+        # all before it builds a script code to delete from -- where
+        # Core deletes and errors before reading the signature at all.
+        # So a script_pub_key of that shape keeps the gap this closes
+        # for the script_sig
+        op_checks = (
+            "OP_CHECKSIG",
+            "OP_CHECKSIGVERIFY",
+            "OP_CHECKMULTISIG",
+            "OP_CHECKMULTISIGVERIFY",
+        )
         for x in parsed_script_sig:
-            op_checks = [
-                "OP_CHECKSIG",
-                "OP_CHECKSIGVERIFY",
-                "OP_CHECKMULTISIG",
-                "OP_CHECKSIGVERIFY",
-            ]
             if x in op_checks:
                 raise BTClibValueError(f"signature check in the script_sig: {x}")
 

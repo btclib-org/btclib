@@ -342,6 +342,18 @@ nineteen source-breaking changes on their own.
   LOW_S and STRICTENC being standardness rules that ALL_FLAGS leaves off,
   and no vector could have caught either — script_tests.json names
   STRICTENC and DERSIG together in none of its cases
+- **CONST_SCRIPTCODE watches all four signature-check op codes.** The
+  engine refuses a signature check carried in the script_sig up front
+  and as a class, its script code being the script_sig itself: the
+  in-loop rule closes nothing else, `op_checksig` returning early on an
+  empty signature and on two malformed ones before it builds a script
+  code to delete from, where Core deletes and errors before reading the
+  signature at all. The list behind that refusal named
+  OP_CHECKSIGVERIFY twice and OP_CHECKMULTISIGVERIFY never, and no
+  vector could say so: the tx_invalid cases put only OP_CHECKSIG in a
+  script_sig under the flag. All four names now, each pinned by a test.
+  Consensus is untouched, CONST_SCRIPTCODE being a policy flag
+  ALL_FLAGS leaves off
 
 ### Malformed input and the exception contract
 

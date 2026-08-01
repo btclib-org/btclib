@@ -577,6 +577,33 @@ def test_unknown_v1_program_reaches_cleanstack() -> None:
         verify_input([prevout], tx, 0, ALL_FLAGS | ScriptFlag.CLEANSTACK)
 
 
+@pytest.mark.parametrize(
+    "op_code",
+    ["OP_CHECKSIG", "OP_CHECKSIGVERIFY", "OP_CHECKMULTISIG", "OP_CHECKMULTISIGVERIFY"],
+)
+def test_const_scriptcode_refuses_signature_checks(op_code: str) -> None:
+    """CONST_SCRIPTCODE refuses every signature-check op in a script_sig.
+
+    Core watches all four through one rule -- FindAndDelete of the
+    signature from the script code, an error on a match under the flag,
+    before the signature is read at all -- so the class is one list of
+    four names here. The vectors put only OP_CHECKSIG in a script_sig
+    under the flag: the other three names ran on nothing, which is how
+    OP_CHECKMULTISIGVERIFY could be missing from the list while
+    OP_CHECKSIGVERIFY sat in it twice (the C901 review caught it).
+    """
+    prevout = TxOut(1000, ScriptPubKey(""))
+    tx_in = TxIn(OutPoint(b"\x01" * 32, 0), serialize([op_code]), 1, Witness([]))
+    tx = Tx(2, 0, [tx_in], [TxOut(1000, ScriptPubKey(""))], check_validity=False)
+    with pytest.raises(BTClibValueError, match="signature check in the script_sig"):
+        verify_input([prevout], tx, 0, ScriptFlag.CONST_SCRIPTCODE)
+
+    # without the flag the same input reaches the interpreter and
+    # underflows the empty stack instead: the refusal above is the flag's
+    with pytest.raises(BTClibValueError, match="stack underflow"):
+        verify_input([prevout], tx, 0, NO_FLAGS)
+
+
 def test_find_and_delete_reads_op_codes() -> None:
     """A match inside the data of a push is not a match.
 
