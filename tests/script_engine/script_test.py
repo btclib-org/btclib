@@ -20,7 +20,7 @@ import pytest
 from btclib.alias import TaprootScriptTree
 from btclib.ecc.dsa import Sig
 from btclib.exceptions import BTClibValueError, ScriptError
-from btclib.hashes import sha256
+from btclib.hashes import hash160, sha256
 from btclib.script import ScriptPubKey
 from btclib.script.engine import ALL_FLAGS, NO_FLAGS, ScriptFlag, verify_input
 from btclib.script.engine.script import (
@@ -553,22 +553,110 @@ def test_op_success_leftover_passes_cleanstack() -> None:
 def test_unknown_v1_program_passes_cleanstack() -> None:
     """A v1 witness program that is not 32 bytes passes, CLEANSTACK or not.
 
-    Between "version too new", which returns before the flags can look,
-    and "p2tr", which hands the witness to the taproot arm, sits a third
-    case: a v1 program of the wrong size under flags that support v1.
-    Nothing executes -- upgradable within the supported versions, Core's
+    Between "version too new" and "p2tr", which hands the witness to the
+    taproot arm, sits a third case: a v1 program of the wrong size under
+    flags that support v1. Nothing executes -- upgrade room, Core's
     success with no script run -- and the version push the legacy run
     left is not CLEANSTACK's to see, the flag never looking at a witness
-    spend. What refuses such a program in Core is
-    DISCOURAGE_UPGRADABLE_WITNESS_PROGRAM, which btclib fires only for a
-    version above the supported ones. No vendored vector reaches this
-    fall-through with either flag on.
+    spend. What refuses it is the flag Core refuses it with, below.
+    CLEANSTACK is what no vendored vector pairs with a taproot-era
+    program: zero rows of script_assets_test.json carry it, and the five
+    TAPROOT rows of script_tests.json leave it off.
     """
     prevout = TxOut(1000, ScriptPubKey(serialize(["OP_1", b"\x99" * 20])))
     tx_in = TxIn(OutPoint(b"\x01" * 32, 0), b"", 1, Witness([]))
     tx = Tx(2, 0, [tx_in], [TxOut(1000, ScriptPubKey(""))], check_validity=False)
     verify_input([prevout], tx, 0, ALL_FLAGS)
     verify_input([prevout], tx, 0, ALL_FLAGS | ScriptFlag.CLEANSTACK)
+
+
+def test_discourage_reaches_every_upgradable_program() -> None:
+    """One branch of Core's, so one flag answers all three shapes.
+
+    A version above the two, a v1 program that is not 32 bytes, and a
+    32-byte v1 wrapped in p2sh are the same thing to a node that does
+    not know better -- valid, which is what makes them upgrade room --
+    and Core refuses all three in the one `else` of
+    VerifyWitnessProgram, under DISCOURAGE_UPGRADABLE_WITNESS_PROGRAM.
+    Two vendored rows of script_tests.json reach it, both with TAPROOT
+    off -- a v2 program and a v1 20-byte one -- so what is pinned here
+    is the same three shapes with TAPROOT on, and the p2sh-wrapped one
+    at all: no vector wraps a v1 program in p2sh.
+
+    Two shapes stay out of it. A v0 or taproot program spent by a
+    caller not enforcing that BIP is the anyone-can-spend its
+    script_pub_key makes it, and Core answers success rather than
+    discouragement -- BIP141 and BIP341 define those programs, so there
+    is nothing left to upgrade. And pay-to-anchor is standard, relayed
+    and exempt in Core, which is a arm of its own here too.
+    """
+    discourage = ALL_FLAGS | ScriptFlag.DISCOURAGE_UPGRADABLE_WITNESS_PROGRAM
+
+    def spend(script_pub_key: bytes, script_sig: bytes = b"") -> tuple[TxOut, Tx]:
+        prevout = TxOut(1000, ScriptPubKey(script_pub_key))
+        tx_in = TxIn(OutPoint(b"\x01" * 32, 0), script_sig, 1, Witness([]))
+        return prevout, Tx(
+            2, 0, [tx_in], [TxOut(1000, ScriptPubKey(""))], check_validity=False
+        )
+
+    # a version above the two
+    prevout, tx = spend(serialize(["OP_2", b"\x99" * 32]))
+    verify_input([prevout], tx, 0, ALL_FLAGS)
+    with pytest.raises(BTClibValueError, match="upgradable witness program"):
+        verify_input([prevout], tx, 0, discourage)
+
+    # v1, not 32 bytes
+    prevout, tx = spend(serialize(["OP_1", b"\x99" * 20]))
+    verify_input([prevout], tx, 0, ALL_FLAGS)
+    with pytest.raises(BTClibValueError, match="upgradable witness program"):
+        verify_input([prevout], tx, 0, discourage)
+
+    # a 32-byte v1 wrapped in p2sh: the redeem script is the program,
+    # the script_sig its single push, so nothing about it is taproot
+    redeem_script = serialize(["OP_1", b"\x99" * 32])
+    prevout, tx = spend(
+        serialize(["OP_HASH160", hash160(redeem_script), "OP_EQUAL"]),
+        serialize([redeem_script]),
+    )
+    verify_input([prevout], tx, 0, ALL_FLAGS)
+    with pytest.raises(BTClibValueError, match="upgradable witness program"):
+        verify_input([prevout], tx, 0, discourage)
+
+    # and the defined ones, spent without the rules for them: no raise.
+    # The v0 one carries a script_sig no BIP141 spend may have, so it
+    # also pins that the malleability rule went behind the flag with
+    # the verification it belongs to
+    prevout, tx = spend(serialize(["OP_1", b"\x99" * 32]))
+    verify_input([prevout], tx, 0, discourage & ~ScriptFlag.TAPROOT)
+    prevout, tx = spend(serialize(["OP_0", b"\x99" * 32]), serialize([b"\x01"]))
+    verify_input([prevout], tx, 0, discourage & ~ScriptFlag.WITNESS)
+    with pytest.raises(BTClibValueError, match="non-empty script_sig"):
+        verify_input([prevout], tx, 0, discourage)
+
+    # pay-to-anchor: OP_1 and the two bytes 0x4e73, standard since Core
+    # 28 and exempt from the discouragement there, so exempt here
+    prevout, tx = spend(b"\x51\x02\x4e\x73")
+    verify_input([prevout], tx, 0, discourage)
+
+
+def test_p2wsh_codeseparator_spend_is_run() -> None:
+    """A v0 script carrying OP_CODESEPARATOR is executed, not waved past.
+
+    The three BIP143 worked examples carrying one are valid spends, so
+    they cannot tell a verified verdict from a skipped one; this is the
+    invalid twin they lack, and tx_invalid.json has none -- a p2wsh
+    script whose OP_CHECKSIG is handed an empty signature, which cannot
+    verify, behind a separator that used to make the whole spend exempt.
+    """
+    # OP_CODESEPARATOR <33 bytes> OP_CHECKSIG, spent with an empty
+    # signature: the check pushes false whatever the key, and the script
+    # leaves it on the stack
+    witness_script = b"\xab\x21" + b"\x02" + b"\x99" * 32 + b"\xac"
+    prevout = TxOut(1000, ScriptPubKey(b"\x00\x20" + sha256(witness_script)))
+    tx_in = TxIn(OutPoint(b"\x01" * 32, 0), b"", 1, Witness(["", witness_script.hex()]))
+    tx = Tx(2, 0, [tx_in], [TxOut(1000, ScriptPubKey(""))], check_validity=False)
+    with pytest.raises(BTClibValueError, match="false top stack element"):
+        verify_input([prevout], tx, 0, ALL_FLAGS)
 
 
 def test_p2wsh_unknown_op_code_is_the_interpreter_s_to_judge() -> None:
@@ -578,10 +666,10 @@ def test_p2wsh_unknown_op_code_is_the_interpreter_s_to_judge() -> None:
     everywhere else: `EVALUATED_WHEN_UNEXECUTED` is OP_IF..OP_ENDIF and
     nothing besides, so a byte the tables do not name is refused when
     the interpreter reaches it and skipped inside a branch nothing
-    takes. What used to answer instead was the strict `parse` of the
-    OP_CODESEPARATOR guard, which ran over every v0 witness script and
-    refused the byte wherever it sat -- the guard is gone, so the
-    verdict for the unexecuted case moved with it.
+    takes. Nothing ahead of the interpreter may answer first: a pass
+    that parses the whole witness script strictly refuses the byte
+    wherever it sits, and there is no vector to say which verdict is
+    Core's.
     """
     for witness_script, ok in (
         (b"\x00\x63\xbb\x68\x51", True),
@@ -607,10 +695,10 @@ def test_const_scriptcode_refuses_signature_checks(op_code: str) -> None:
     Core watches all four through one rule -- FindAndDelete of the
     signature from the script code, an error on a match under the flag,
     before the signature is read at all -- so the class is one list of
-    four names here. The vectors put only OP_CHECKSIG in a script_sig
-    under the flag: the other three names ran on nothing, which is how
-    OP_CHECKMULTISIGVERIFY could be missing from the list while
-    OP_CHECKSIGVERIFY sat in it twice (the C901 review caught it).
+    four names here, and a name missing from it is a rule that does not
+    run rather than a rule that fails. Which is what the vectors cannot
+    say: they put only OP_CHECKSIG in a script_sig under the flag, so
+    three quarters of the list rest on this test alone.
     """
     prevout = TxOut(1000, ScriptPubKey(""))
     tx_in = TxIn(OutPoint(b"\x01" * 32, 0), serialize([op_code]), 1, Witness([]))

@@ -11,7 +11,7 @@ release-notes length in the first place, and are still in
 
 ## v2026.8 (work in progress, not released yet)
 
-A hundred and sixty entries, grouped. The order runs from what breaks
+A hundred and sixty-one entries, grouped. The order runs from what breaks
 a caller to what only maintainers see; [HISTORY.md](./HISTORY.md) lists the
 nineteen source-breaking changes on their own.
 
@@ -361,11 +361,13 @@ nineteen source-breaking changes on their own.
   semantics all along: the script code is cut at the last *executed*
   separator, by an op-code index kept correct across the \*VERIFY
   stream rebuilds. The guard is gone, and the three BIP143 worked
-  examples in tx_valid — P2WSH with OP_CODESEPARATOR executed,
-  unexecuted, and beside an out-of-range SIGHASH_SINGLE — verify for
-  real where they used to pass unexamined, through both signature
-  backends. An invalid spend of that shape was accepted, and is refused
-  now. The guard cut the other way as well, and that verdict moves too:
+  examples in tx_valid that carry a separator — executed, unexecuted,
+  and beside an out-of-range SIGHASH_SINGLE — verify for real where
+  they used to pass unexamined, through both signature backends. An
+  invalid spend of that shape was accepted, and is refused now: no
+  vector is one, all three of those being valid spends, so the p2wsh
+  script whose OP_CHECKSIG cannot succeed is a test. The guard cut the
+  other way as well, and that verdict moves too:
   it parsed *every* v0 witness script strictly, so an op-code byte no
   table names made the spend invalid wherever it sat, and it is now the
   interpreter that answers — unknown op codes refused when executed,
@@ -385,6 +387,32 @@ nineteen source-breaking changes on their own.
   DISCOURAGE_UPGRADABLE_WITNESS_PROGRAM. The witness arms hand no stack
   back at all now, and the two tests that pinned the stricter reading
   pin this one
+- **DISCOURAGE_UPGRADABLE_WITNESS_PROGRAM reaches every program Core
+  aims it at**, the witness dispatch being Core's chain of arms now: v0
+  of a defined size, the non-p2sh 32-byte v1, pay-to-anchor, and one
+  `else` for everything after them. What the flag refused before was
+  "a version higher than the flags enable", which is the same set only
+  while TAPROOT is off: with it on, a v1 program that is not 32 bytes
+  and a 32-byte v1 wrapped in p2sh reached no refusal at all, though to
+  a node that does not know better all three are the same thing —
+  valid, which is what makes them upgrade room. Standing beside them
+  and *not* refused is pay-to-anchor, `OP_1 0x4e73`, standard and
+  relayed since Core 28 and exempt there: the flag answers "would a
+  node relay this", so an arm of its own here too.
+  The other half of the rule came with the shape: a program of a
+  *defined* shape spent by a caller not enforcing that BIP is the
+  anyone-can-spend its script_pub_key makes it, so a taproot output
+  without TAPROOT is Core's plain success and not a discouragement, and
+  a witness program without WITNESS is not verified at all — where
+  btclib used to run the v0 arm whenever TAPROOT alone was set, and to
+  raise BIP141's two malleability rules whatever the flags said. Those
+  now sit behind WITNESS as well, Core keeping them inside it. The
+  refusal is spelled "upgradable witness program: version N" rather
+  than "unsupported segwit version: N", the branch no longer being
+  about the version alone. Two vendored vectors reach it, both with
+  TAPROOT off; the shapes they miss are a test. No consensus verdict
+  moves: every flag named here is outside ALL_FLAGS, save WITNESS and
+  TAPROOT, which move nothing when both are on
 
 ### Malformed input and the exception contract
 

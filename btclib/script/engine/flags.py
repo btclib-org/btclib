@@ -26,6 +26,13 @@ Names and bit positions are Bitcoin Core's `SCRIPT_VERIFY_*` of
 src/script/interpreter.h, so a flag means here what it means there, and
 Core's vectors -- `script_tests.json` and `tx_valid.json` carry theirs as
 a comma-separated string -- can be passed as they are written.
+
+One member is stricter than its name in Core, and it is named here
+because the rest of the file promises it is not: CONST_SCRIPTCODE
+refuses a signature check carried anywhere in the script_sig, executed
+or not, where Core errors only where its FindAndDelete finds the
+signature in an executed op. `engine/__init__.py` says why the class is
+refused up front.
 """
 
 from __future__ import annotations

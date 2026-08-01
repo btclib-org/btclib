@@ -94,6 +94,14 @@ def validate_redeem_script(redeem_script: ScriptList) -> None:
                 raise BTClibValueError(f"non-push command in the script_sig: {c}")
 
 
+# Core's IsPayToAnchor, spelled as the whole script because that is how
+# little of it there is: OP_1 followed by the two bytes 0x4e73. An
+# ephemeral-anchor output, standard and relayed since Core 28, and the
+# one witness program shape that is neither defined by a BIP this engine
+# implements nor upgrade room to be discouraged from
+PAY_TO_ANCHOR = b"\x51\x02\x4e\x73"
+
+
 def _check_script_sig_policy(
     parsed_script_sig: ScriptList, script_flags: ScriptFlag
 ) -> None:
@@ -223,31 +231,26 @@ def _verify_witness_program(
 ) -> None:
     """Dispatch a witness program: Core's VerifyWitnessProgram.
 
-    BIP141 and BIP341 each brought an arm. Nothing comes back: a witness
+    BIP141 and BIP341 each brought an arm, and this is Core's chain of
+    them: v0 of a known size, then the non-p2sh 32-byte v1, then
+    everything else -- every other version, size and p2sh combination
+    together, which is upgrade room and passes unless the caller asks
+    to be discouraged from spending it. Nothing comes back: a witness
     spend leaves nothing for the caller's CLEANSTACK check, which is
-    Core resizing the stack to one element behind VerifyWitnessProgram,
-    and each arm owns the end-of-stack rule its BIP makes consensus. A
-    v1 program that is not 32 bytes falls through whole: upgradable
-    within the supported versions, Core's success with no script run.
+    Core resizing the stack to one element behind this function, and
+    each arm owns the end-of-stack rule its BIP makes consensus.
     """
-    supported_segwit_version = -1
-    if ScriptFlag.WITNESS in script_flags:
-        supported_segwit_version = 0
-    if ScriptFlag.TAPROOT in script_flags:
-        supported_segwit_version = 1
-    if segwit_version > supported_segwit_version:
-        if ScriptFlag.DISCOURAGE_UPGRADABLE_WITNESS_PROGRAM in script_flags:
-            raise BTClibValueError(f"unsupported segwit version: {segwit_version}")
-        # a version this engine does not know passes validation outright
+    if ScriptFlag.WITNESS not in script_flags:
+        # Core reaches its VerifyWitnessProgram only under the flag, and
+        # the discouragement below lives inside it: to a caller not
+        # enforcing BIP141 a witness program is the anyone-can-spend its
+        # script_pub_key alone makes it, upgradable or not
         return
 
-    if segwit_version == 1 and script_type == "p2tr":
-        if p2sh:
-            return  # remains unencumbered
-        _verify_taproot(
-            script, tx.vin[i].script_witness, prevouts, tx, i, script_flags, precomputed
-        )
-    elif segwit_version == 0:
+    if segwit_version == 0:
+        # a v0 program of any other size raises in there, Core's
+        # WITNESS_PROGRAM_WRONG_LENGTH: v0 is defined, so a size it does
+        # not define is an error rather than upgrade room
         _verify_witness_v0(
             script_type,
             payload,
@@ -258,6 +261,38 @@ def _verify_witness_program(
             script_flags,
             precomputed,
         )
+        return
+
+    if segwit_version == 1 and script_type == "p2tr" and not p2sh:
+        # taproot is defined too, so a caller not enforcing it gets the
+        # anyone-can-spend and not the discouragement: Core answers
+        # success here rather than falling to the branch below
+        if ScriptFlag.TAPROOT in script_flags:
+            _verify_taproot(
+                script,
+                tx.vin[i].script_witness,
+                prevouts,
+                tx,
+                i,
+                script_flags,
+                precomputed,
+            )
+        return
+
+    if not p2sh and script == PAY_TO_ANCHOR:
+        # Core's arm before the else, and the reason it is not in the
+        # one below: the shape is standard and relayed, so a caller
+        # asking to be discouraged from an upgradable program must not
+        # be discouraged from this one
+        return
+
+    # Core's final else, and it is one branch on purpose: a version
+    # above the two, a v1 program that is not 32 bytes, and a 32-byte v1
+    # wrapped in p2sh are the same answer -- valid to a node that does
+    # not know better, which is what makes them upgrade room, and
+    # refused only where the caller says it does not want to relay one
+    if ScriptFlag.DISCOURAGE_UPGRADABLE_WITNESS_PROGRAM in script_flags:
+        raise BTClibValueError(f"upgradable witness program: version {segwit_version}")
 
 
 def verify_input(
@@ -318,10 +353,14 @@ def verify_input(
     # not execute a script, and MINIMALDATA is the only flag _to_num looks
     # at
     segwit_version = _to_num(stack[-1], NO_FLAGS) if is_segwit(script) else -1
-    if segwit_version + 1 and tx.vin[i].script_sig and not p2sh:
-        raise BTClibValueError("non-empty script_sig for a native segwit input")
-    if not (segwit_version + 1) and tx.vin[i].script_witness:
-        raise BTClibValueError("witness for a non-segwit input")
+    # both under the flag, where Core keeps them: they are the
+    # malleability rules BIP141 came with, so a caller not enforcing
+    # BIP141 is not owed them and reads the script_pub_key alone
+    if ScriptFlag.WITNESS in script_flags:
+        if segwit_version + 1 and tx.vin[i].script_sig and not p2sh:
+            raise BTClibValueError("non-empty script_sig for a native segwit input")
+        if not (segwit_version + 1) and tx.vin[i].script_witness:
+            raise BTClibValueError("witness for a non-segwit input")
 
     if segwit_version + 1:
         _verify_witness_program(
