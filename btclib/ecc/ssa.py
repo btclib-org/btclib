@@ -195,6 +195,14 @@ def challenge_(msg: Octets, x_Q: int, x_K: int, ec: Curve, hf: HashF) -> int:
     t = tagged_hash(b"BIP0340/challenge", t, hf)
 
     c: int = int_from_bits(t, ec.nlen) % ec.n
+    # c = 0 removes the public key from verification, which degenerates
+    # to s*G = K: anyone satisfies that with K = s*G, one signature
+    # valid under every key. BIP340 does not bother rejecting it, as on
+    # secp256k1 reaching c = 0 means finding a preimage of zero for the
+    # tagged hash; but this python path serves the low-cardinality test
+    # curves too, where c = 0 is one challenge in n and the exhaustive
+    # test shows the degenerate signature verifying under every key --
+    # so refuse it here, for signing and verification alike
     if c == 0:
         raise BTClibRuntimeError("invalid zero challenge")
     return c
