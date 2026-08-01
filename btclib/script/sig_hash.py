@@ -45,7 +45,7 @@ NONE = 2
 SINGLE = 3
 ANYONECANPAY = 0b10000000
 
-# frozenset, not the public mutable list this was: it is a membership test
+# frozenset, not a public mutable list: it is a membership test
 # in all three of its uses, one of them the STRICTENC check of the script
 # engine, and a caller that appended to it would widen what the engine
 # accepts as a signature (issue #145). ANYONECANPAY with DEFAULT is absent
@@ -114,9 +114,9 @@ def _without_op_codeseparators(script_code: bytes) -> bytes:
     same script code whole, which is why this is called by `legacy` and
     not by `segwit_v0`.
 
-    Copying byte ranges is what makes it the same preimage Core signs:
-    the elision used to be a parse, a list removal and a re-serialization,
-    which also rewrote every non-minimal push it passed over.
+    Copying byte ranges is what makes it the same preimage Core signs: a
+    parse, a list removal and a re-serialization would rewrite every
+    non-minimal push passed over.
     """
     if OP_CODESEPARATOR not in script_code:  # nothing to walk the script for
         return script_code
@@ -141,7 +141,7 @@ def taproot_annex_and_ext(tx: Tx, vin_i: int) -> tuple[bytes, bytes]:
     annex = b""
     # a slice and not stack[-1][0]: an element of the witness may be empty,
     # which is legal on the wire and has no first byte to read -- indexing
-    # it answered a caller who catches BTClibValueError with an IndexError,
+    # would answer a caller who catches BTClibValueError with an IndexError,
     # on a transaction 186 bytes long that Tx.parse accepts. BIP-341 says
     # the annex is the last element "if its first byte is 0x50", and an
     # empty element does not have one, so this is also what the BIP says
@@ -277,7 +277,7 @@ class PrecomputedTxData:
     transaction — its prevouts, its sequences, its outputs — and BIP-341
     to the amounts and script_pub_keys being spent as well. None of them
     depends on which input is being signed, so a transaction with N inputs
-    needs them once and not N times: rebuilding them per input made
+    needs them once and not N times: rebuilding them per input makes
     signing or verifying Θ(N²) in the number of inputs, and a
     consolidation transaction is the ordinary case there rather than a
     pathological one (issue #164). Bitcoin Core computes the same set into
@@ -421,7 +421,7 @@ def taproot(
     annex_present = int(bool(annex))
 
     # b"".join of the parts, as the rest of the module does, rather than
-    # the += of a bytes that was copied whole at every one of a dozen steps
+    # the += of a bytes copied whole at every one of a dozen steps
     parts = [
         b"\x00",
         hashtype.to_bytes(1, "little"),

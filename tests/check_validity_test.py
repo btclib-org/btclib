@@ -73,11 +73,11 @@ def test_check_validity_is_keyword_only() -> None:
 
 
 def test_check_validity_positional_is_a_type_error() -> None:
-    """The hazard the rule exists for, in the four shapes it took.
+    """The hazard the rule exists for, in four shapes.
 
-    Passing it positionally used to work, so a signature growing a
-    parameter before it silently moved the flag into another slot. It is a
-    TypeError now, at the call rather than wherever the wrong value landed.
+    Were the flag positional, a signature growing a parameter before it
+    would silently move it into another slot. As a TypeError it fails at
+    the call, rather than wherever the wrong value landed.
     """
     with pytest.raises(TypeError, match="positional argument"):
         Tx(1, 0, [], [], False)  # type: ignore[call-arg]
@@ -85,8 +85,8 @@ def test_check_validity_positional_is_a_type_error() -> None:
         OutPoint(b"\x00" * 32, 0xFFFFFFFF, False)  # type: ignore[call-arg]
     with pytest.raises(TypeError, match="positional argument"):
         ScriptPubKey("", "mainnet", False)  # type: ignore[call-arg]
-    # a dataclass: the flag was an InitVar field, so the generated
-    # __init__ took it positionally and no star could reach it
+    # a dataclass: a generated __init__ takes an InitVar positionally and
+    # no star can reach it, hence the written-out constructor
     with pytest.raises(TypeError, match="positional argument"):
         dsa.Sig(1, 1, secp256k1, False)  # type: ignore[call-arg]
 
@@ -123,7 +123,7 @@ def test_dsa_sig_is_still_a_dataclass() -> None:
     assert dataclasses.replace(sig, s=s) == sig
     assert "check_validity" not in repr(sig)
 
-    # frozen, as it was: the hand-written __init__ assigns through
+    # frozen: the hand-written __init__ assigns through
     # object.__setattr__, which must not leave the class writable
     with pytest.raises(dataclasses.FrozenInstanceError):
         sig.r = 1  # type: ignore[misc]
@@ -133,10 +133,9 @@ def test_strict_became_keyword_only_too() -> None:
     """dsa.Sig.parse is the one signature with a parameter after the flag.
 
     Starring check_validity makes `strict` keyword-only as well. The
-    alternative, moving `strict` in front of the star, would have made
-    `Sig.parse(data, False)` mean strict=False where it used to mean
-    check_validity=False -- silently, which is the failure mode this whole
-    change is against.
+    alternative, `strict` in front of the star, would silently turn a
+    caller's `Sig.parse(data, False)` from check_validity=False into
+    strict=False -- the failure mode this whole rule is against.
     """
     sig_bytes = "3006020180020180"
     assert dsa.Sig.parse(sig_bytes, check_validity=False, strict=False).r == 0x80
@@ -145,7 +144,7 @@ def test_strict_became_keyword_only_too() -> None:
 
 
 def test_a_parameter_before_the_flag_stays_positional() -> None:
-    """Only check_validity moved behind the star: what precedes it did not.
+    """Only check_validity sits behind the star: what precedes it does not.
 
     Tx.serialize is the case that shows it, include_witness being a
     positional parameter of a signature that carries the flag.

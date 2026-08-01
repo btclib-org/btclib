@@ -33,10 +33,10 @@ from tests.curves.curve_test import low_card_curves, secp256k1_bis
 
 def test_signature_on_an_equal_curve() -> None:
     """A curve equal to secp256k1 is secp256k1, bindings included."""
-    # the dispatch used to compare identities, so signing with any other
-    # object holding the secp256k1 parameters took the python path in
-    # silence: with aux fixed the BIP340 nonce is deterministic, so the
-    # two paths have one answer to agree on (issue #142)
+    # guards against the dispatch comparing identities, which sends any
+    # other object holding the secp256k1 parameters down the python path
+    # in silence: with aux fixed the BIP340 nonce is deterministic, so
+    # the two paths have one answer to agree on (issue #142)
     msg = b"Satoshi Nakamoto"
     aux = b"\x00" * 32
     q, x_Q = ssa.gen_keys(6, secp256k1_bis)
@@ -88,10 +88,10 @@ def test_signature() -> None:
     with pytest.raises(BTClibValueError, match=err_msg):
         ssa.assert_as_valid(msg, x_Q, sig_invalid)
 
-    # a 31-byte message is a legal BIP340 message since 2023-04, so
-    # truncating one is not a size error any more: it is a *different*
-    # message, which this signature does not sign (issue 169). Both of
-    # these used to be "invalid size: 31 bytes instead of 32"
+    # a 31-byte message is a legal BIP340 message (since 2023-04), so a
+    # truncated message is not a size error -- "invalid size: 31 bytes
+    # instead of 32" -- but a *different* message, which this signature
+    # does not sign (issue 169)
     m_bytes = reduce_to_hlen(msg, hf)
     assert not ssa.verify_(m_bytes[:31], x_Q, sig)
     err_msg = r"y_K is odd|signature verification failed"
@@ -113,10 +113,8 @@ def bip340_vectors() -> list[Any]:
     """One case per BIP340 vector.
 
     Four of the nineteen are the arbitrary-size messages BIP340 gained in
-    2023-04, of 0, 1, 17 and 100 bytes. They were `xfail` while btclib took
-    the message as a hf_len array -- `sign_` raised and `verify_` answered
-    False on a valid signature -- and they pass since issue 169. Holding a
-    vector one fails is what made that gap measured rather than described.
+    2023-04, of 0, 1, 17 and 100 bytes: only the python path can serve
+    them, the bindings taking a 32-byte message hash alone (issue 169).
     """
     return [
         pytest.param(row, id=vector_id(int(row[0]), row[7]))
@@ -133,10 +131,8 @@ def test_bip340_vectors(row: list[str]) -> None:
 
     - https://github.com/bitcoin/bips/blob/master/bip-0340/test-vectors.csv
 
-    The `except Exception: print(err_msg); raise` that used to wrap the
-    body is gone with the loop that made it necessary: the vector index
-    and its comment are the test id, which pytest prints on failure
-    without being asked, and on every other vector too.
+    The vector index and its comment are the test id, which pytest
+    prints on failure without being asked.
     """
     (_index, seckey, pub_key, aux_rand, m, sig, result, _comment) = row
 
@@ -727,9 +723,7 @@ def test_libsecp256k1_x_only_conversion() -> None:
     """The x-only key handed to the bindings is btclib's to derive.
 
     The bindings' x-only surface takes 32 bytes and nothing else: a
-    compressed key there is a ValueError, and used to be silently read
-    as its even-y point — a different key whenever y is odd. btclib
-    never relied on that leniency, because
+    compressed key there is a ValueError.
     point_from_bip340pub_key normalizes first, so the odd-y key below
     verifies through the same even-y point in whatever representation
     it is handed in. This test is what keeps that true: a refactor that
@@ -758,9 +752,8 @@ def test_sign_aux_size() -> None:
     """Nonce entropy is 32 bytes, or omitted.
 
     bytes_from_octets enforces it at btclib's own boundary, ahead of the
-    bindings — where a short aux used to be left-padded with zeros and
-    is now a ValueError — so callers get a BTClibValueError, and b"" is
-    a size error rather than a request for fresh randomness.
+    bindings' own ValueError, so callers get a BTClibValueError, and
+    b"" is a size error rather than a request for fresh randomness.
     """
     msg_hash = reduce_to_hlen(b"Satoshi Nakamoto")
     q, x_Q = ssa.gen_keys(0x1)

@@ -97,7 +97,7 @@ def test_exceptions() -> None:
             err_msg = "too many decimals for a BTC amount: "
             with pytest.raises(BTClibValueError, match=err_msg):
                 sats_from_btc(Decimal("0.123456789"))
-            # too many decimales, now with a float
+            # too many decimals, now with a float
             with pytest.raises(BTClibValueError, match=err_msg):
                 valid_btc_amount(0.123456789)
 
@@ -115,10 +115,11 @@ def test_exceptions() -> None:
 def test_max_money_is_the_consensus_bound() -> None:
     """The bound is MAX_MONEY, inclusive, and not the issued supply.
 
-    It used to be 2_099_999_997_690_000, what the halving schedule
-    actually pays out: 2_310_000 satoshi below MoneyRange's bound, and
-    enough to make `Tx.parse` refuse the two `MAX_MONEY output` vectors
-    of Bitcoin Core's tx_valid.json (issue 167).
+    Guards against the bound being 2_099_999_997_690_000, what the
+    halving schedule actually pays out: 2_310_000 satoshi below
+    MoneyRange's bound, and enough to make `Tx.parse` refuse the two
+    `MAX_MONEY output` vectors of Bitcoin Core's tx_valid.json
+    (issue 167).
     """
     max_money = 2_100_000_000_000_000
     assert valid_sats_amount(max_money) == max_money

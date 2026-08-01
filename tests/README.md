@@ -56,9 +56,8 @@ vector sets through the python implementations of the two functions the
 engine takes from the bindings (issue #129). It holds the slowest tests in
 the suite — the `tapscript-bigmulti` cases, 3 s each — and 5185 tests
 taking 11.2 s on their own: `--ignore` that one file and the remaining
-9496 run in 8.8 s. So the saving is no longer "a couple of seconds", and
-the case for the marker is a number rather than a shrug. What it would
-cost has not changed, and is why none is registered: a plain `uv run
+9496 run in 8.8 s. The case for the marker is a number rather than a
+shrug. What it would cost is why none is registered: a plain `uv run
 pytest` is the run that has looked at everything, and the file a
 `-m "not slow"` loop would skip is the one whose whole purpose is to catch
 the python path and the bindings disagreeing about a verdict.

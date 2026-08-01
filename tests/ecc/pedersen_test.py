@@ -70,8 +70,8 @@ def test_commitment() -> None:
     assert not pedersen.verify(r_1, v1, C2, ec, hf)
 
     # a hash function where a blinding factor goes is a caller error, and
-    # verify says so instead of answering False: it used to catch Exception,
-    # so "the commitment does not open" was the answer to passing sha256
+    # verify says so instead of answering False: catching Exception would
+    # answer "the commitment does not open" to passing sha256
     with pytest.raises(TypeError):
         pedersen.verify(sha256, v1, C2, ec, hf)  # type: ignore[arg-type]
     with pytest.raises(TypeError):

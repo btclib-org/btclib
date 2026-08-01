@@ -1,12 +1,9 @@
 name: links
 
-# the checker the repository only pretended to have. CONTRIBUTING.md
-# carried six markdown-link-check-disable/enable comment pairs for a hook
-# that does not exist and, going by the git history, never did in this
-# tree: they suppressed a tool that was not running, around links that were
-# fine, while the ones that had actually rotted -- tools.ietf.org, which
-# now redirects, and an http:// badge -- were outside every pair.
-# So: no directives, and a real check.
+# a real check, and no per-link suppression directives: disable/enable
+# comment pairs guard the links somebody once worried about, while the
+# ones that actually rot -- tools.ietf.org redirecting, an http:// badge
+# -- land outside every pair.
 #
 # Not a pull request gate, and that is the whole design. A link rots
 # without anybody touching the repository, so testing it per commit reports
@@ -15,7 +12,8 @@ name: links
 # to re-run rather than a thing to fix. Weekly, on demand, and red in the
 # Actions tab is where this belongs.
 # It therefore does not appear in master's required checks, and must not:
-# that rule lives outside the repository and names three contexts
+# that rule lives outside the repository and names its checks as literal
+# strings
 
 on:
   schedule:

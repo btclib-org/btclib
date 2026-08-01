@@ -51,11 +51,11 @@ settings.load_profile(os.environ.get("HYPOTHESIS_PROFILE", "btclib"))
 def generated_files_dir(request: pytest.FixtureRequest) -> Path:
     """The `_generated_files` directory beside the test module asking.
 
-    Each of the modules using it used to open the test with the same line,
-    `path.join(path.dirname(__file__), "_generated_files")`, which is a
-    directory layout restated eleven times -- and restated in terms of
-    `__file__`, so it moved with the test rather than with the data. Here
-    it is stated once, and `request.path` is the same module's file.
+    Stated once here rather than once per module: spelling
+    `path.join(path.dirname(__file__), "_generated_files")` in each test
+    restates the directory layout eleven times, in terms of `__file__`,
+    so it moves with the test rather than with the data. `request.path`
+    is the asking module's file.
     """
     return Path(request.path).parent / "_generated_files"
 
@@ -79,30 +79,24 @@ def json_golden(
     over fixed input, so a diff to one of them is a change to a serialized
     form somebody may be storing.
 
-    Eleven modules used to get that by *writing* the file on every run and
-    leaving `git status` to report the difference. Three things were wrong
-    with it. The suite was not hermetic, so it failed on a read-only
-    checkout or when run from an installed sdist. The check depended on a
-    human running the suite and then remembering to look, and CI never
-    looks: no workflow inspects the working tree after pytest, so in CI the
-    file was rewritten and thrown away, and the drift it exists to catch was
-    invisible exactly where it matters. And each of those writes ended in
-    `file_.write("\\n")  # end-of-file-fixer`, a test shaped to placate a
-    lint hook.
-
-    So the comparison runs the other way round now: the file is read, the
-    difference fails the test, and nothing is written. To update a golden on
-    purpose, when a change to `to_dict` is the intended change:
+    The comparison reads and never writes: the file is read, and a
+    difference fails the test. Writing the file on every run and leaving
+    `git status` to report the difference would not be hermetic (a
+    read-only checkout, an installed sdist), and it would depend on a
+    human running the suite and then remembering to look -- no workflow
+    inspects the working tree after pytest, so in CI the drift would be
+    invisible exactly where it matters. To update a golden on purpose,
+    when a change to `to_dict` is the intended change:
 
         BTCLIB_REGENERATE_GOLDEN=1 uv run pytest
 
-    then read the diff, which is the review this was always meant to get.
+    then read the diff, which is the review the change is meant to get.
 
-    The round trip these tests used to do on disk -- dump, load, compare to
-    the dict just dumped -- is not kept: it could only fail if json.dump and
-    json.load were not each other's inverse, which is a test of the standard
-    library. What they assert about btclib is `from_dict(to_dict()) == obj`,
-    in memory, which every one of them already did beside it.
+    There is no on-disk round trip -- dump, load, compare to the dict just
+    dumped -- because it could only fail if json.dump and json.load were
+    not each other's inverse, which is a test of the standard library.
+    What these tests assert about btclib is `from_dict(to_dict()) == obj`,
+    in memory, beside every golden check.
     """
 
     def check(name: str, value: Any) -> None:
@@ -114,14 +108,14 @@ def json_golden(
 def check_golden(path: Path, name: str, value: Any, module: str) -> None:
     """Compare `value` against the json at `path`, or rewrite it.
 
-    The body of the fixture above, lifted out of the closure it used to
-    be: a closure over `request` cannot be called without a test to
+    The body of the fixture above, a module-level function rather than a
+    closure: a closure over `request` cannot be called without a test to
     build it from, so the regenerate, missing-file and mismatch paths --
-    the three that matter and the two that are failures -- were the only
-    lines of `tests/` a passing suite never ran. Here they take a path
-    and a module name, so `tests/conftest_test.py` exercises all three
+    the three that matter and the two that are failures -- would be the
+    only lines of `tests/` a passing suite never runs. Taking a path and
+    a module name lets `tests/conftest_test.py` exercise all three
     against a tmp_path, hermetically and without writing into the source
-    tree, which is what this fixture exists to have stopped doing.
+    tree.
     """
     # what the writes produced, byte for byte, so that regenerating
     # leaves no diff of its own

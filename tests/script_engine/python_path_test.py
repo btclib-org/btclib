@@ -9,27 +9,26 @@
 # or distributed except according to the terms contained in the LICENSE file.
 """The vendored consensus vectors, judged by the python implementation.
 
-Until 23041e4b the engine imported its signature verification from the
-bindings when they were installed and from `btclib.ecc` when they were
-not, and in that second configuration two of these vectors failed: a
-transaction the data calls invalid was accepted. 23041e4b made the
-bindings a requirement and deleted the fallback, so the configuration
-stopped existing and the two tests went green without either defect
-having been fixed -- they had been made unreachable (issue #129).
+The engine imports its signature verification from the bindings, which
+are a required dependency, so the python implementations never face
+these vectors otherwise: a defect in them is unreachable rather than
+absent. Issue #129 found two hiding exactly there, each accepting a
+transaction the data calls invalid.
 
-This module is that configuration, without the packaging: the two symbols
-the engine imported from the bindings are replaced by the python
-implementations and the same vector sets run again through them, so a
-future disagreement between the two implementations about the *verdict*
-on a transaction is caught. Unit tests cannot do that job: neither defect
-was "this function is lax" -- one was `Sig.parse` dropping a byte, the
-other `point_from_octets` refusing a hybrid key -- and both only became
-visible as a whole engine accepting a whole transaction it must refuse.
+This module is the bindings-less configuration, without the packaging:
+the two symbols the engine imports from the bindings are replaced by the
+python implementations and the same vector sets run again through them,
+so a disagreement between the two implementations about the *verdict*
+on a transaction is caught. Unit tests cannot do that job: neither #129
+defect was "this function is lax" -- one was `Sig.parse` dropping a
+byte, the other `point_from_octets` refusing a hybrid key -- and both
+only became visible as a whole engine accepting a whole transaction it
+must refuse.
 
-The alternative was a CI job installing without the bindings, and it is
-not a job but a partial revert: all five bindings imports are plain
-imports, so `import btclib` itself fails without them and the
-optional-bindings install would have to come back in order to be tested.
+The alternative, a CI job installing without the bindings, is not a job
+but a partial revert: all five bindings imports are plain imports, so
+`import btclib` itself fails without them and the optional-bindings
+install would have to come back in order to be tested.
 This costs no packaging change and no fallback code in the library.
 
 The substitution is the one already used for ripemd160 in
@@ -56,11 +55,11 @@ from tests.script_engine import transactions_test as tx_vector_module
 
 
 def python_dsa_verify(msg_hash: bytes, pub_key: bytes, sig: bytes) -> bool:
-    """What the deleted fallback should have been.
+    """The python verify the fixture below installs in the engine.
 
-    It called `verify_` with the octets, which is the second half of issue
-    #129: `point_from_octets` takes the hybrid 0x06/0x07 prefixes only
-    when asked, `ec_pubkey_parse` takes them always (eckey_impl.h), and
+    `hybrid=True` is the second half of issue #129: `point_from_octets`
+    takes the hybrid 0x06/0x07 prefixes only when asked,
+    `ec_pubkey_parse` takes them always (eckey_impl.h), and
     consensus wants CHECKSIG to succeed for a hybrid key whenever
     STRICTENC is off. Raising rather than returning False is deliberate
     and is what the bindings do: `dsa_verify` catches ValueError, and

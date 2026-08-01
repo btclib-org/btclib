@@ -13,7 +13,8 @@ on:
     # ever test it. Tag pushes are covered by the release workflow
     branches: [master]
     # GitHub Pages serves btclib.org from master's root, so a
-    # website-only commit lands here and used to run the whole matrix.
+    # website-only commit lands here and would otherwise run the whole
+    # matrix.
     # None of these files is imported by the library or read by a test --
     # README.md is the homepage, not a doctest source; CONTRIBUTING.md is
     # checked by markdownlint, which is the lint workflow's business.
@@ -54,12 +55,12 @@ jobs:
   # tool.uv.sources), so every (os, architecture, interpreter) triple is a
   # distinct C toolchain, and the pure python code meets a distinct
   # hashlib and OpenSSL.
-  # windows-11-arm needs no special handling, and that is worth a word,
-  # because it used to: which architecture the interpreter targets there
-  # is up to the runner image, native arm64 for the versions it caches
-  # and emulated x86-64 for the ones uv has to download, and the bindings
-  # now build the vendored library for the interpreter rather than for
-  # the host, so either one links
+  # windows-11-arm needs no special handling, and that is worth a word:
+  # which architecture the interpreter targets there is up to the runner
+  # image, native arm64 for the versions it caches and emulated x86-64
+  # for the ones uv has to download, and the bindings build the vendored
+  # library for the interpreter rather than for the host, so either one
+  # links
   test-py:
     runs-on: ${{ matrix.os }}
     strategy:
@@ -80,14 +81,13 @@ jobs:
         # exercises a build without the GIL. python-build-standalone has a
         # freethreaded build for all six platforms below, so it needs no
         # exclusion.
-        # pypy3.10 is gone, and PyPy is still tested: hypothesis ships
+        # no pypy3.10, and PyPy is still tested: hypothesis ships
         # compiled wheels from 6.160 on and publishes none for pypy3.10, so
         # uv falls back to its sdist, whose maturin build needs a PyO3 that
-        # requires PyPy 3.11 or newer. Pinning hypothesis below 6.160 behind
-        # an implementation marker was the alternative, and it buys a suite
-        # generating its inputs with a version nobody else runs, on the older
-        # of the two PyPy releases; pypy3.11 stays and covers the
-        # implementation
+        # requires PyPy 3.11 or newer. Pinning hypothesis below 6.160
+        # behind an implementation marker buys a suite generating its
+        # inputs with a version nobody else runs, on the older of the two
+        # PyPy releases; pypy3.11 covers the implementation
         python:
           [
             "3.10",
@@ -131,14 +131,14 @@ jobs:
   # same lines. The one fallback, btclib.__version__ when no metadata is
   # installed, is not conditional on the job: every one of them installs
   # the package, and a test reaches the other branch by making the lookup
-  # raise, which is why it needs no "pragma: no cover" either. The
-  # per-job measurement only bought the instrumentation overhead, one
-  # coveralls.io upload per job, and the parallel/--finish handshake that
-  # stitched the uploads back together.
-  # The number is now a gate rather than a report: fail_under, in
+  # raise, which is why it needs no "pragma: no cover" either. Per-job
+  # measurement would buy only the instrumentation overhead, one
+  # coveralls.io upload per job, and the parallel/--finish handshake to
+  # stitch the uploads back together.
+  # The number is a gate rather than a report: fail_under, in
   # tool.coverage.report, fails this job on a regression. It needs no
-  # secret and no third party, and it applies to every run, where the
-  # upload only ever happened on pull requests targeting master
+  # secret and no third party, and it applies to every run, where a
+  # coveralls.io upload happens only on pull requests targeting master
   coverage-py:
     runs-on: ubuntu-latest
     timeout-minutes: 30
@@ -167,11 +167,11 @@ jobs:
           pytest --cov-report term-missing:skip-covered --cov=btclib --cov=tests
 
   # the packaging metadata is checked on every pull request, not only on
-  # the tag that ships it. These checks used to live in the release
-  # workflow, which is the one place where finding a problem is too late:
-  # a version is consumed by the upload that carries it, and can then only
-  # be yanked. The release workflow calls this one, so it still runs them,
-  # and its build job now only builds what it publishes.
+  # the tag that ships it: a release is the one place where finding a
+  # problem is too late, a version being consumed by the upload that
+  # carries it, and then only yankable. The release workflow calls this
+  # one, so it runs these checks too, and its build job builds only what
+  # it publishes.
   # The wheel is not installed here with its dependencies resolved from
   # PyPI, which is the other thing worth checking about metadata: that step
   # stays in the release workflow because it cannot pass until the pinned
@@ -218,12 +218,12 @@ jobs:
   # workflow, and it exists because that rule names its checks as literal
   # strings, stored outside the repository. The matrix above produces one
   # per (runner label, interpreter) pair, 42 of them today -- a count that
-  # moves whenever the matrix does, pypy3.10 leaving having taken it from
-  # 54 and 3.9 from 48: naming those directly means every matrix edit has
-  # to be mirrored in a setting no pull request can review, and a name that
-  # stops being produced -- macos-latest moving on, 3.10 aging out in its
-  # turn -- becomes a required check that never reports, which blocks every
-  # merge until someone remembers where the rule lives.
+  # moves whenever the matrix does: naming those directly means every
+  # matrix edit has to be mirrored in a setting no pull request can
+  # review, and a name that stops being produced -- macos-latest moving
+  # on, 3.10 aging out in its turn -- becomes a required check that never
+  # reports, which blocks every merge until someone remembers where the
+  # rule lives.
   # This job depends on the others instead, so the rule names one thing
   # that never changes and adding a job here is enough to gate on it
   tests-passed:

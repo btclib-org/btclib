@@ -74,18 +74,18 @@ def test_exceptions() -> None:
 
     # a truncated header is reported as truncated, whichever field the
     # missing bytes fall in. Read past the end of a stream returns what
-    # there was without raising, so these three used to be diagnosed by
-    # accident: "invalid timestamp (before genesis)" for a time read from
-    # no bytes at all, "invalid bits length" for a short slice, and
-    # "invalid nonce" only because the bound was 0 < nonce and a short
-    # read is zero -- which is why relaxing that bound needed this check
+    # there was without raising, so without this check the diagnosis is
+    # an accident of the field: "invalid timestamp (before genesis)" for
+    # a time read from no bytes at all, "invalid bits length" for a short
+    # slice -- and a truncated nonce reads as zero, which is a valid
+    # nonce, so it would not be diagnosed at all
     for truncated in (68, 74, 76, 79):
         err_msg = f"invalid decoded length: {truncated} instead of 80"
         with pytest.raises(BTClibValueError, match=err_msg):
             BlockHeader.parse(block_bytes[:truncated])
 
     # a 0xff prefix announcing eight bytes that are not there: the
-    # truncation is now caught, rather than read as a transaction count of
+    # truncation is caught, rather than read as a transaction count of
     # zero and surfaced as an IndexError from outside the library contract
     with pytest.raises(BTClibValueError, match="not enough binary data for var_int"):
         Block.parse(block_bytes[:80] + b"\xff")
@@ -129,8 +129,9 @@ def test_exceptions() -> None:
     with pytest.raises(BTClibValueError, match=err_msg):
         header.assert_valid()
     # that instant itself is valid, and serializes to the four 0xff the
-    # bound is about: it is serialize that used to raise OverflowError,
-    # one second later, for a header assert_valid had just accepted
+    # bound is about: without the bound, serialize would raise
+    # OverflowError one second later, for a header assert_valid had just
+    # accepted
     header.time = datetime(2106, 2, 7, 6, 28, 15, tzinfo=timezone.utc)
     assert header.serialize()[68:72] == b"\xff" * 4
     # the far end of the range datetime itself can hold: its timestamp()
@@ -448,9 +449,9 @@ def test_target_from_compact_bits() -> None:
 
     Core's SetCompact is the reference: it shifts rather than
     multiplying, and it flags as an overflow what does not fit, which
-    CheckProofOfWork then rejects the header for. btclib used to raise
-    OverflowError out of to_bytes for the second, and to compute the
-    first through float arithmetic, pow(256, -1) being a float.
+    CheckProofOfWork then rejects the header for. Guards against the
+    shift running through float arithmetic -- pow(256, -1) is a float --
+    and against the overflow escaping as OverflowError out of to_bytes.
     """
     header = BlockHeader(check_validity=False)
 
@@ -484,7 +485,8 @@ def test_block_without_transactions() -> None:
     """A block with no coinbase is not a block with nothing in it.
 
     One byte is all it takes: a var_int of zero where the transaction
-    count goes, which transactions[0] used to answer with an IndexError.
+    count goes, refused here rather than left for transactions[0] to
+    surface as an IndexError.
     """
     fname = "block_1.bin"
     filename = path.join(path.dirname(__file__), "_data", fname)
@@ -502,12 +504,12 @@ def test_block_without_transactions() -> None:
 
 
 def test_assert_valid_does_not_rewrite_the_header() -> None:
-    """A read is a read: assert_valid used to coerce nonce in place.
+    """A read is a read: assert_valid must not coerce nonce in place.
 
-    serialize() and to_dict() call assert_valid, so both nominally
-    read-only operations rewrote a field of the header they were reading.
-    The coercion is in __init__ now, where from_dict's json -- the reason
-    it exists -- goes through it.
+    serialize() and to_dict() call assert_valid, so a coercion there
+    lets nominally read-only operations rewrite a field of the header
+    they are reading. Coercion belongs in __init__, where from_dict's
+    json -- the reason it exists -- goes through it.
     """
     fname = "block_1.bin"
     filename = path.join(path.dirname(__file__), "_data", fname)
@@ -517,17 +519,16 @@ def test_assert_valid_does_not_rewrite_the_header() -> None:
     header = BlockHeader.parse(header_bytes)
     nonce = header.nonce
 
-    # a read leaves the header alone, which is the whole of the fix: the
-    # coercion used to run here, so a to_dict() rebound the field
+    # a read leaves the header alone: coercion here would let a plain
+    # to_dict() rebind the field
     assert header.to_dict()["nonce"] == nonce
     assert header.nonce is nonce
     assert header.serialize() == header_bytes
     assert header.nonce is nonce
 
-    # a float nonce is reported instead of being repaired in place. It
-    # used to be coerced and the header serialized as if nothing had
-    # happened; dropping the coercion outright would have let the float
-    # reach to_bytes and leave through an AttributeError
+    # a float nonce is reported: not repaired in place, the header then
+    # serializing as if nothing had happened, and not let through to
+    # to_bytes, which would surface it as an AttributeError
     header.nonce = float(nonce)  # type: ignore[assignment]
     with pytest.raises(BTClibTypeError, match="invalid nonce type: float"):
         header.assert_valid()
@@ -556,7 +557,7 @@ def test_assert_valid_does_not_rewrite_the_header() -> None:
 def test_a_candidate_header_can_be_built() -> None:
     """Structural validity and proof-of-work are different questions.
 
-    assert_valid used to end in assert_valid_pow, so a header being mined
+    Were assert_valid to end in assert_valid_pow, a header being mined
     -- structurally valid, no work found yet -- could not be built,
     serialized, or hashed through the ordinary API. Hashing it is mining.
     """
@@ -567,8 +568,8 @@ def test_a_candidate_header_can_be_built() -> None:
 
     mined = BlockHeader.parse(header_bytes)
 
-    # the same header with the nonce not yet found: the constructor used
-    # to raise BTClibValueError("invalid proof-of-work") on both of these
+    # the same header with the nonce not yet found: building it must not
+    # demand the proof-of-work
     for nonce in (0, mined.nonce + 1):
         candidate = BlockHeader(
             version=mined.version,
@@ -586,8 +587,7 @@ def test_a_candidate_header_can_be_built() -> None:
             candidate.assert_valid_pow()
 
     # a nonce of zero is a nonce: consensus places no lower bound on it,
-    # and it is where mining starts. It used to be rejected, which also
-    # meant btclib could not read a consensus-valid block that had one
+    # it is where mining starts, and a consensus-valid block can carry one
     zero_nonce = header_bytes[:76] + bytes(4)
     parsed = BlockHeader.parse(zero_nonce)
     assert parsed.nonce == 0

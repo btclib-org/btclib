@@ -76,8 +76,7 @@ def int_from_prv_key(prv_key: PrvKey, ec: Curve = secp256k1) -> int:
         except ValueError as e:
             # never echo the input: it is candidate key material. What the
             # reasons carry is why each format rejected it -- a checksum, a
-            # prefix, a size -- none of which is secret, and all of which
-            # used to be discarded in favour of "not a private key" alone
+            # prefix, a size -- none of which is secret
             reasons.append(f"not octets ({e})")
             raise NotAPrvKeyError("not a private key: " + "; ".join(reasons)) from e
 
@@ -135,13 +134,12 @@ def _prv_keyinfo_from_wif(
     # a fault in a WIF: InvalidPrvKeyError, which the format-guessing
     # callers let through instead of trying the input as something else
     if network is not None:
-        # the forward check, and not `net != network` as this was: the
-        # reverse lookup answers "testnet" for the 0xef that testnet,
-        # regtest, signet and testnet4 all use, so comparing names
-        # rejected a signet WIF as "not a signet wif: prefix 0xef" --
-        # naming the very prefix signet asks for. _prv_keyinfo_from_xprv
-        # below has always checked membership instead, which is why it
-        # took signet correctly; issue #207
+        # the forward check, and not a `net != network` name comparison:
+        # the reverse lookup answers "testnet" for the 0xef that testnet,
+        # regtest, signet and testnet4 all use, so comparing names would
+        # reject a signet WIF as "not a signet wif: prefix 0xef" --
+        # naming the very prefix signet asks for (issue #207).
+        # _prv_keyinfo_from_xprv below makes the same membership check
         if prefix != NETWORKS[network].wif:
             raise InvalidPrvKeyError(f"not a {network} wif: prefix 0x{prefix.hex()}")
         # the declared network, not the lookup's guess: for a caller who
@@ -195,9 +193,9 @@ def _prv_keyinfo_from_xprv(
 
     # a BIP32 key is always compressed, so a caller asking for uncompressed
     # is asking about another format. This follows the decode rather than
-    # preceding it, as it used to: for a str or bytes input the decode is
-    # what decides whether there is an xkey here at all, and 32 raw bytes
-    # with compressed=False are octets -- which the guessing callers must
+    # preceding it: for a str or bytes input the decode is what decides
+    # whether there is an xkey here at all, and 32 raw bytes with
+    # compressed=False are octets -- which the guessing callers must
     # stay free to try, or every uncompressed SEC key stops resolving
     if compressed is not None and not compressed:
         raise InvalidPrvKeyError("uncompressed SEC / compressed BIP32 mismatch")

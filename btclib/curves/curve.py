@@ -120,9 +120,9 @@ class Curve(CurveSubGroup):
             err_msg = "INF point cannot be a generator"
             raise BTClibValueError(err_msg)
         # n*G is by far the most expensive check here -- a python
-        # double-and-add over nlen bits -- and it dominated the cost of
-        # building a curve: ~118 ms of the ~168 ms the 27 catalogued
-        # curves used to spend at import time, against ~2 ms for the
+        # double-and-add over nlen bits -- and it dominates the cost of
+        # building a curve: at import time the 27 catalogued curves would
+        # spend ~118 ms of ~168 ms on it, against ~2 ms for the
         # primality of n. The catalogue therefore passes
         # order_check=False, as it does weakness_check=False below: its
         # parameters are constants, and test_catalogued_curves rebuilds
@@ -149,13 +149,12 @@ class Curve(CurveSubGroup):
         # 8. Check that n ≠ p
         # self.p, not the p parameter: that one is still an Integer, and
         # every curve of this library's own catalogue spells it as a hex
-        # string, so the comparison was int == str -- false whatever the
-        # curve, which is why this raise carried a "no cover" pragma and
-        # test_exceptions a "missing" comment. What it lets through is an
-        # anomalous curve, #E = p, whose logarithm transfers to addition
-        # in F_p and is polynomial-time (Smart, Semaev, Satoh-Araki), and
-        # the MOV check below cannot catch it either: pow(self.p, i, n)
-        # with n == p is 0, never 1 (issue #166)
+        # string, so the comparison would be int == str -- false whatever
+        # the curve. What it must reject is an anomalous curve, #E = p,
+        # whose logarithm transfers to addition in F_p and is
+        # polynomial-time (Smart, Semaev, Satoh-Araki), and the MOV check
+        # below cannot catch it either: pow(self.p, i, n) with n == p is
+        # 0, never 1 (issue #166)
         if n == self.p:
             raise BTClibValueError(f"n=p weak curve: {hex_string(n)}")
 
@@ -163,7 +162,7 @@ class Curve(CurveSubGroup):
             # 8. Check that p^i % n ≠ 1 for all 1≤i<100
             # 99 modular exponentiations, the second cost of building a
             # curve once n*G is gated: 5.2 ms of the 9.7 ms the catalogue
-            # spends at import time. Skipped for it on the same grounds,
+            # would spend at import time. Skipped for it on the same grounds,
             # and re-run by test_catalogued_curves; on by default, since
             # what it rejects is a curve whose embedding degree makes the
             # MOV attack carry the discrete logarithm into a field where
@@ -210,8 +209,8 @@ def _catalogued_curve(params: list[Any], name: str) -> Curve:
     apart. Both expensive checks are off: these parameters are the
     standardized constants of SEC 2, FIPS 186-4 and RFC 5639, and
     re-deriving from them at every interpreter start that n is the order
-    of G, and that the curve is not MOV-weak, cost 118 ms and 5 ms of the
-    168 ms importing this module used to take. What is verified once, by
+    of G, and that the curve is not MOV-weak, would cost 118 ms and 5 ms
+    of a ~168 ms module import. What is verified once, by
     test_catalogued_curves rebuilding each curve from the same json data
     with both checks on, does not have to be verified again on the way to
     every signature.
@@ -260,19 +259,16 @@ with open(filename, encoding="ascii") as file_:
 SEC2v2: dict[str, Curve] = {}
 for ec_name in SEC2v2_params2:
     # one object in both catalogues, not two: building the curve twice
-    # used to hand out two objects, and only one of them is the
-    # secp256k1 the libsecp256k1 dispatch below compares against
+    # would hand out two objects, and only one of them the secp256k1 the
+    # libsecp256k1 dispatch below compares against
     SEC2v2[ec_name] = _catalogued_curve(SEC2v2_params2[ec_name], ec_name)
     SEC2v1[ec_name] = SEC2v2[ec_name]
 
-# the union operator the comment here asked for, available since 3.9 and
-# so on every interpreter this package supports. It is not only tidier:
-# the name CURVES was assigned SEC2v1 itself, so both names bound the same
-# dict, and the two update() calls that followed poured NIST
-# and Brainpool into the SEC 2 v.1 catalogue -- SEC2v1 ended up with 27
-# entries instead of its own 15, and SEC2v1["nistp256"] answered a curve
-# that is not in SEC 2 v.1 at all. CURVES is a new dict now, and each
-# catalogue holds what it is named after
+# a new dict, deliberately: aliasing (CURVES = SEC2v1) followed by
+# update() calls would pour NIST and Brainpool into the SEC 2 v.1
+# catalogue -- SEC2v1 with 27 entries instead of its own 15, and
+# SEC2v1["nistp256"] answering a curve that is not in SEC 2 v.1 at all.
+# Each catalogue holds what it is named after
 CURVES = SEC2v1 | NIST | Brainpool
 
 secp256k1 = CURVES["secp256k1"]
@@ -282,15 +278,14 @@ def _libsecp256k1_applicable(ec: Curve, hf: HashF | None = None) -> bool:
     """Return True if the libsecp256k1 bindings can serve ec and hf.
 
     Every dispatch to the bindings asks here, so that the predicates
-    cannot drift apart the way five hand-written copies did; a caller
+    cannot drift apart the way hand-written copies would; a caller
     with a further condition of its own -- mult, whose bindings take the
     generator and a non-zero scalar alone -- ands it on top.
 
     hf is compared by identity, deliberately: nothing short of running
     the two functions tells sha256 from a look-alike, so a wrapper such
     as functools.partial(sha256) falls back to the python path. That is
-    the conservative direction -- slower, never wrong -- and the reason
-    the curve had to be fixed while this stays as it is.
+    the conservative direction -- slower, never wrong.
     """
     if ec != secp256k1:
         return False

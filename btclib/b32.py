@@ -38,16 +38,15 @@ the rule between the two is that direction: this module imports bech32, never
 the other way round. `base58` and `b58` are the same pair for the base58
 address encoding.
 
-Some of these functions were originally from
+Some of these functions are originally from
 https://github.com/sipa/bech32/tree/master/ref/python,
 with the following modifications:
 
-* moved bech32 stuff into bech32.py
 * type annotated python3
 * avoided returning None or (None, None), throwing Exceptions instead
 * detailed error messages and extended safety checks
-* check that bech32 addresses are not longer than 90 characters
-  (as this is not enforced by bech32.b32decode anymore)
+* check that bech32 addresses are not longer than 90 characters,
+  a bound bech32.decode deliberately leaves to this module
 """
 
 from __future__ import annotations
@@ -143,8 +142,8 @@ def witness_from_address(b32addr: String) -> tuple[int, bytes, str]:
     if isinstance(b32addr, str):
         b32addr = b32addr.strip()
 
-    # the following check was originally in b32decode
-    # but it does not pertain there
+    # the 90-character bound is address semantics, deliberately not
+    # enforced by the bech32 codec (Lightning strings exceed it)
     if len(b32addr) > 90:
         raise BTClibValueError(f"invalid bech32 address length: {len(b32addr)} > 90")
 

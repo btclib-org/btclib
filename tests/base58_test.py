@@ -63,7 +63,7 @@ def test_exceptions() -> None:
         b58decode(invalid_checksum, 4)
 
     # a character outside ascii is an invalid base58 character like any
-    # other, and used to come back as a UnicodeEncodeError instead
+    # other, not a UnicodeEncodeError
     err_msg = "non-ascii character in base58 string: "
     with pytest.raises(BTClibValueError, match=err_msg):
         b58decode("hèllo world")

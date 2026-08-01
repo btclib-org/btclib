@@ -21,23 +21,19 @@ and for six files the answer is "no revision of it, byte for byte",
 which the verdict then accounts for.
 
 The two halves are kept in agreement in one direction only: a test module
-names its upstream and points here for the revision, and this file does not
-restate what a vector tests. Where a citation named the wrong upstream it
-was corrected in the module — three of them so far, listed at the end —
-and this file is not where that correction lives.
+names its upstream and points here for the revision, and this file does
+not restate what a vector tests. A citation that names the wrong upstream
+is corrected in the module; this file is not where that correction lives.
 
 ## Naming
 
 A vendored file carries the name its upstream publishes it under, wherever
-upstream publishes a file at all. That is not cosmetic: `bms.json` was
-named after this project's `ecc.bms` module instead, and the citation in
-the module that loads it drifted to a path upstream does not have --
-nobody comparing the two names would have caught it, because neither was
-upstream's. `tapscript_test_vector.json` was worse, describing what the
-vectors are for rather than what they are, in a file that is a generated
-Core dump.
+upstream publishes a file at all. That is not cosmetic: a btclib name has
+no upstream name to be compared against, so the citation in the module
+that loads it can drift to a path upstream never had and nobody catches
+it — the byte comparison below is the only check the naming cannot fool.
 
-Four files keep a btclib name deliberately, and the reason is the same in
+Ten files keep a btclib name deliberately, and the reason is the same in
 each: there is no upstream file whose name they could take.
 
 - `bip32_test_vectors.json`, `bip32_invalid_keys.json`,
@@ -78,10 +74,13 @@ Where a file was vendored earlier and later refreshed, both dates appear.
 staleness figure, not a defect: a vector file is a fixed set of cases and
 refreshing it is a decision, not a chore.
 
-Every entry here was re-checked against its upstream on 2026-07-30 and
-everything that had drifted was refreshed, so `behind` is 0 wherever a
-refresh was possible at all. What that took, and the three btclib defects
-it turned up, is in the entries and in the list at the end.
+Every entry was last re-checked against its upstream on 2026-07-30, and
+whatever had drifted was refreshed, so `behind` is 0 wherever a refresh
+was possible at all.
+
+A vector btclib fails is vendored anyway and marked `xfail`, never left
+out: an absent vector hides the defect it would have shown, and
+`xfail_strict` turns the marker red the day the defect is fixed.
 
 ## Re-checking a pin
 
@@ -133,22 +132,10 @@ repository is LF throughout, which `mixed-line-ending` enforces with
 `--fix=lf`, so our blob is `aa317a3b` rather than the one above. All 19
 vectors, all eight columns.
 
-Four of the 19 are the arbitrary-size messages BIP340 gained in 2023-04
-(0, 1, 17 and 100 bytes), and btclib refused all four: it took the message
-as a `hf_len` array, as the bindings still do. They were held here and
-marked `xfail` in `tests/ecc/ssa_test.py` rather than left out of the
-file — which is what made issue 169 measured rather than described, and
-what `xfail_strict` then turned red the day the support landed. All four
-pass: `verify_` accepts each, and `sign_` reproduces each signature byte
-for byte. The bindings are unchanged, so those four take the python path.
-
-The 2026-07-30 refresh also reverted a local edit worth recording: the
-comment column of vectors 11, 12 and 13 read `sig[:32]`, `sig[:32]`,
-`sig[32:]` against upstream's `sig[0:32]`, `sig[0:32]`, `sig[32:64]`, not
-because we held an older revision but because btclib commit ca48c151,
-"replaced `[0:` with `[:`", was a repository-wide substitution that
-reached into the vendored file. That column is only the test id, so
-nothing had been asserted wrongly, and it is upstream's spelling again.
+Four of the 19 are messages of 0, 1, 17 and 100 bytes: BIP340 accepts a
+message of any size, the bindings still insist on a 32-byte hash, so
+these four take the python path (issue 169). All four pass: `verify_`
+accepts each, and `sign_` reproduces each signature byte for byte.
 
 ### `tests/script/_data/taproot_test_vector.json`
 
@@ -205,12 +192,10 @@ of BIP32 test vector 5 — no omissions, no local additions — both at the
 pinned commit and on master today.
 
 btclib is the upstream here, not the consumer: commit ee2e0598, "added
-invalid extended keys vectors", is Ferdinando Ametrano's, and landed in
-bitcoin/bips the same day btclib vendored the file. The second column is
-btclib's own: it holds btclib error messages, which the BIP does not and
-should not carry, and which change when the messages change — as on
-2026-07-30. Refreshing from upstream means refreshing the keys, never the
-messages.
+invalid extended keys vectors", is Ferdinando Ametrano's. The second
+column is btclib's own: it holds btclib error messages, which the BIP
+does not and should not carry, and which change when the messages change.
+Refreshing from upstream means refreshing the keys, never the messages.
 
 ### `tests/psbt/_data/bip174_test_vectors.json`
 
@@ -222,55 +207,19 @@ pulled  2020-11-15, extended 2021-08-03, refreshed 2026-07-30
 behind  0 revisions; that commit is the tip of the path
 ```
 
-Verdict: **transcribed**, and now complete for the cases. The BIP's Test
-Vectors section is 34 `* Case:` entries — 20 invalid, 10 valid, 4 signer
-check failures — and all 34 are here, each with the base64 the prose gives
-and cross-checked against the hex the prose gives beside it. What is still
-not vendored, deliberately, is the role walk-through: the creator,
-updater, signer, combiner, finalizer and extractor psbts of the worked
-example, which are prose steps rather than cases.
+Verdict: **transcribed**, complete for the cases. The BIP's Test Vectors
+section is 34 `* Case:` entries — 20 invalid, 10 valid, 4 signer check
+failures — and all 34 are here, each with the base64 the prose gives and
+cross-checked against the hex the prose gives beside it. What is not
+vendored, deliberately, is the role walk-through: the creator, updater,
+signer, combiner, finalizer and extractor psbts of the worked example,
+which are prose steps rather than cases.
 
 The `description` and `encoded psbt` of each entry are upstream's. The
 `error message` of a signer check failure is **not**: the BIP says only
 that these four psbts must fail the check, so that field is btclib's own
 expectation of btclib's own message, and correcting a message means
-correcting it here too. One of the four read `script type not it` for
-`not in` until issue 149; a typo pinned in vendored-looking data is
-exactly the hazard that made the pin worth writing down.
-
-Until 2026-07-30 the file held 31 of the 34, and the gap was not upstream
-drift: of the three missing, `PSBT with global unsigned tx that has 0
-inputs and 0 outputs` and `PSBT with 0 inputs` were both in the revision
-this file was transcribed from, and were simply not taken. Only `PSBT with
-an invalid value data due to its size being not the stated size` is new
-(`97885721`, 2025-09-18).
-
-The two zero-input psbts are valid per the BIP and btclib refused both, so
-they were `xfail` in `tests/psbt/psbt_test.py` for a day — issue 170, fixed:
-the global unsigned transaction is checked as the template it is, not as a
-complete transaction. Leaving them out had hidden that for five years, which
-is the argument for holding a vector you fail.
-
-Two `error message` fields changed with that fix, and both were recording
-what btclib answered rather than what the vector is about, which is what
-made them worth holding:
-
-- *"PSBT with an invalid value data due to its size being not the stated
-  size"* said `Missing inputs`. It says `wrong tx serialization format` now
-  — the value is 51 bytes whose transaction re-serializes to 10, and
-  `deserialize_tx` had always carried that comparison; validating on the way
-  in is what made it unreachable.
-- *"PSBT where inputs and outputs are provided but without an unsigned tx"*
-  said `null transaction`, a check that also refused the two valid
-  zero-input psbts. `Psbt.parse` now requires the
-  `PSBT_GLOBAL_UNSIGNED_TX` key, as BIP174 does, and answers
-  `malformed psbt: missing global unsigned tx`.
-
-The earlier pin, `754b77a9` (2021-04-08), was not the revision current
-when the file was first vendored either: two of our psbts are absent from
-that one (`c12af49c`, 2020-11-15) and from every revision up to 2021-04-08,
-when "BIP 174: Add test vectors for additional unsigned tx serialization"
-landed; the btclib commit that added them is 8391925f, 2021-08-03.
+correcting it here too.
 
 ### `tests/psbt/_data/bip371_test_vectors.json`
 
@@ -303,10 +252,6 @@ and their five p2sh addresses — appear verbatim in the pinned text, and
 re-checking against the tip `24e96e87` (2026-01-12) on 2026-07-30 found no
 sixth group. Nothing to refresh.
 
-The test module cites `en.bitcoin.it/wiki/BIP_0067`, a wiki page that is
-neither versioned nor authoritative. The BIP itself is, so the pin is
-against bitcoin/bips and the citation should follow.
-
 ## bitcoin/bitcoin
 
 ### `tests/script/_data/sig_hash_legacy_test_vectors.json`
@@ -335,23 +280,16 @@ behind  0 revisions; that commit is the tip of the path
 ```
 
 Verdict: **identical**. 1288 entries, 1233 vectors once the comment lines
-are dropped, against 1254 and 1203 before the refresh.
+are dropped.
 
-Until 2026-07-30 this was Core's blob at `facd7dd3` (2020-07-11) — 19
-revisions back, and already three years old on the day btclib committed
-it, upstream having moved on to `34d0e07e` (2022-02-10) by then. It was
-not taken from Core's tip at vendoring time; it came from an older
-snapshot carried along in the branch that became PR #83.
-
-Five of the 30 vectors the refresh brings are TAPSCRIPT cases whose
-witness and output script are placeholders — `#SCRIPT#`,
-`#CONTROLBLOCK#`, `#TAPROOTOUTPUT#` — that Core's `script_tests.cpp`
-generates at run time. `taproot_placeholders` in
-`tests/script_engine/script_test.py` generates them here, from the BIP341
-NUMS point rather than Core's `key0`, which no vector can tell apart. The
-refresh is not a data-only change without it: three of the five fail on
-`OP_#TAPROOTOUTPUT#`, and the two expecting a failure get one for the
-wrong reason.
+Five of the 1233 are TAPSCRIPT cases whose witness and output script are
+placeholders — `#SCRIPT#`, `#CONTROLBLOCK#`, `#TAPROOTOUTPUT#` — that
+Core's `script_tests.cpp` generates at run time. `taproot_placeholders`
+in `tests/script_engine/script_test.py` generates them here, from the
+BIP341 NUMS point rather than Core's `key0`, which no vector can tell
+apart. The generation is load-bearing: parsed literally, three of the
+five fail on `OP_#TAPROOTOUTPUT#`, and the two expecting a failure get
+one for the wrong reason.
 
 ### `tests/script_engine/_data/tx_valid.json`
 
@@ -364,18 +302,10 @@ pulled  2023-07-08, renamed and refreshed 2026-07-30
 behind  0 revisions; that commit is the tip of the path
 ```
 
-Verdict: **identical**, 121 vectors. The 2026-07-30 refresh brought three
-revisions: an `http` to `https` fix in a comment line, a vector spending
-the shortest valid DER signature (`3006020101020101`, from testnet3
-`c6c232a3`), and a CHECKSEQUENCEVERIFY vector with a negative transaction
-version. Both new vectors pass.
-
-It was vendored as `tx_valid_legacy.json`, and the `_legacy` claimed a
-subsetting that never happened: the file is Core's entire, every vector of
-it is collected, and 2 of the 121 name WITNESS in their flags, so the
-content is not legacy either. Core's name says what the file is; the
-directory it sits in already says which engine the vectors feed (issue
-168).
+Verdict: **identical**, 121 vectors — Core's entire file, nothing
+subsetted, and not only legacy: 2 of the 121 name WITNESS in their flags.
+Core's name says what the file is; the directory it sits in already says
+which engine the vectors feed (issue 168).
 
 ### `tests/script_engine/_data/tx_invalid.json`
 
@@ -388,10 +318,8 @@ pulled  2023-07-08, renamed and refreshed 2026-07-30
 behind  0 revisions; that commit is the tip of the path
 ```
 
-Verdict: **identical**, 93 vectors. Same rename, and the WITNESS count is
-14 of the 93 here. The one revision the refresh brought changes a comment
-line and nothing else — "insufficient tx.nVersion" became "insufficient
-tx.version" — so the vector set is the one vendored in 2023.
+Verdict: **identical**, 93 vectors — Core's entire file, here too, with
+14 of the 93 naming WITNESS in their flags.
 
 ### `tests/_data/descriptor_checksums.json`
 
@@ -437,10 +365,7 @@ behind  0 revisions; that commit is the tip of the path
 
 Verdict: **identical but for a trailing newline** — our 9,243,521 bytes
 are that blob's 9,243,520 plus the `\n` the `end-of-file-fixer` hook
-added, so our blob is `601a40db`. 2244 vectors, in the same order. The
-2026-07-30 refresh was the append it was expected to be: the 2243 vectors
-we held were upstream's first 2243, verbatim and in order, and
-`output/invalid_x` is the 2244th.
+added, so our blob is `601a40db`. 2244 vectors, in the same order.
 
 Two caveats, and the second is the one that matters.
 
@@ -510,17 +435,8 @@ pulled  2020-01-04
 behind  0 revisions; still the blob on master
 ```
 
-Verdict: **reformatted**. 200 vectors, JSON-equal.
-
-It was vendored as `bms.json`, named after this project's `ecc.bms` module
-rather than after its source, and now carries upstream's own name. What
-that cost while it lasted is on the record: the citation in
-`tests/ecc/bms_test.py` drifted to `bitcoin/tests/test_data/bms.json`, a
-path upstream has as neither the directory nor the file.
-
-Only the first ten vectors are exercised
-(`PYTHON_BITCOINLIB_VECTORS` slices `[:10]`), but all 200 are
-vendored.
+Verdict: **reformatted**. 200 vectors, JSON-equal, and all 200 are
+exercised by `tests/ecc/bms_test.py`.
 
 ### `tests/mnemonic/_data/bip39_test_vectors.json`
 
@@ -613,17 +529,11 @@ Pulled 2020-05-08.
 their root keys and addresses are in no upstream repository: a GitHub
 code search for the first mnemonic returns btclib and one fork of btclib,
 and they are not in spesmilo/electrum's `tests/`. They were produced by
-running Electrum — suggestively, `tests/mnemonic/electrum_test.py` used to
-carry a FIXME asking whether a mnemonic written inline in `test_mnemonic`
-had been obtained in Electrum. That marker was about a different value
-than these, so it is evidence of the habit rather than of this file; it
-was removed with the rest of the FIXME/TODO markers, and the evidence is
-recorded here instead.
+running Electrum, and no record says which version.
 
 So they are btclib's, cross-checked against an application rather than
-copied from a project, and the honest record is that we cannot say which
-Electrum version produced them. Treat them as ours: nothing upstream will
-ever refresh them.
+copied from a project. Treat them as ours: nothing upstream will ever
+refresh them.
 
 Pulled 2018-06-11.
 
@@ -681,66 +591,3 @@ No upstream blob exists for the rest:
 - **Three descriptors of Core's `doc/descriptors.md` are not vendored**,
   and cannot be without a checksum from a third implementation. See that
   entry.
-Decided on 2026-08-01: **every vendored vector is now exercised**. Two
-were not, and neither turned out to be hiding a failure — which is the
-only way to find out.
-
-- 190 of `signmessage.json`'s 200 were sliced away by a `[:10]` in
-  `PYTHON_BITCOINLIB_VECTORS`; all 200 run now, and all 200 pass.
-- 1016 of `script_assets_test.json`'s 3737 cases never reached the
-  engine: `taproot_vectors` in
-  `tests/script_engine/transactions_test.py` selected on `"TAPROOT" in
-  x["flags"]`, which drops the copy of each spend that Core's
-  `feature_taproot.py` dumps with the soft fork *off*. All 1016 run now,
-  685 accepted and 331 refused, as their vectors ask.
-
-### Refreshed on 2026-07-30, issues 168 to 170
-
-Everything with an upstream is now at that upstream's tip. What the sweep
-changed:
-
-- `tx_valid_legacy.json` and `tx_invalid_legacy.json` took Core's names,
-  which is what they hold, and then Core's current bytes: 119 vectors
-  became 121.
-- `script_tests.json`, 19 revisions back, is at Core's tip: 1203 vectors
-  became 1233, and the five new TAPSCRIPT ones needed their placeholders
-  generated rather than parsed.
-- `bip340_test_vectors.csv`, four vectors back, is at the tip of the path:
-  15 became 19, and the four new ones are `xfail` — issue 169.
-- `script_assets_test.json` gained the one appended vector, 2243 to 2244.
-- `bip174_test_vectors.json` gained the three `* Case:` entries it had
-  never held, 31 to 34, two of which are `xfail` — issue 170.
-- `bip32_test_vectors.json`, `bip32_invalid_keys.json`,
-  `bip371_test_vectors.json`, `bip67_test_vectors.json`,
-  `bip39_test_vectors.json`, `english.txt`, `taproot_test_vector.json`,
-  `sig_hash_legacy_test_vectors.json`, `pubkey.json`, `ecdsa_sig.json`,
-  `ecdsa_custom_nonce_sig.json` and `signmessage.json` were re-checked and
-  needed
-  nothing: each entry says against which revision.
-
-Three btclib defects came out of it, all three of them things the missing
-vectors had been hiding rather than new: issue 169 (BIP340 messages of
-arbitrary size), issue 170 (a PSBT whose unsigned tx has no inputs), and
-the note in issue 170 about the value-size check that does not exist. All
-three are fixed, and no vector of this suite is `xfail` any more.
-
-And three citations in the test modules named the wrong upstream, all now
-corrected in the module that carries them:
-
-- `tests/ecc/bms_test.py` named `bitcoin/tests/test_data/bms.json`, which
-  is upstream's path for neither the directory nor the file: it is
-  `bitcoin/tests/data/signmessage.json`.
-- `tests/script/script_pub_key_test.py` cited `en.bitcoin.it/wiki/BIP_0067`,
-  a wiki page that is neither versioned nor authoritative, for vectors
-  transcribed from the BIP.
-- `tests/script/sig_hash_taproot_test.py` and `tests/script/taproot_test.py`
-  cited bip-0341 for both of the two files they load, and
-  `script_assets_test.json` is not in any BIP: it is a Core dump kept in
-  qa-assets. `tests/script_engine/transactions_test.py` loads it too and
-  cited nothing.
-
-Each of those modules now names its upstream and points here for the
-revision, which is the division of labour the top of this file describes.
-
-Each entry above records what changed; this list is the index, so a later
-reader can tell a deliberate refresh from drift.

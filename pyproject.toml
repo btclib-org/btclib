@@ -6,24 +6,23 @@ build-backend = "setuptools.build_meta"
 name = "btclib"
 # the one place the version is declared: btclib.__version__ reads it back
 # from the installed metadata, and docs/source/conf.py reads it from this
-# file. It used to be the other way round, a literal in btclib/__init__.py
-# that setuptools imported and conf.py repeated, which is why the release
-# workflow had to compare two declarations before trusting either
+# file. Not a literal in btclib/__init__.py for setuptools to import and
+# conf.py to repeat: two declarations are two things a release workflow
+# has to compare before trusting either
 version = "2026.8"
 description = "A library for 'bitcoin cryptography'"
 readme = "README.md"
 license = { text = "MIT License" }
 authors = [{ name = "The btclib developers", email = "devs@btclib.org" }]
-# python 3.9 is end-of-life since 2025-10, and dropping it buys more than
-# one fewer column in the matrix. It was the only interpreter holding a
-# second development toolchain: a fresh resolve at ">=3.9" split 35 of the
-# 132 locked packages into a modern version and an older one reachable only
-# from 3.9 -- mypy 1.19 beside 2.3, pytest 8.4 beside 9.1, hypothesis 6.141
-# beside 6.164 -- so the 3.9 jobs were the only ones not testing against
-# what everybody else runs. At ">=3.10" the lock holds 99 packages and 4
-# splits, all four at the 3.11 docs boundary.
-# It also closes the gap tool.mypy documents below: 3.10 is the oldest mypy
-# can be aimed at, so the floor and the type checker's target now agree
+# python 3.9 is end-of-life since 2025-10, and keeping it out buys more
+# than one fewer column in the matrix: a fresh resolve at ">=3.9" splits
+# 35 of the 132 locked packages into a modern version and an older one
+# reachable only from 3.9 -- mypy 1.19 beside 2.3, pytest 8.4 beside 9.1,
+# hypothesis 6.141 beside 6.164 -- so 3.9 jobs would be the only ones not
+# testing against what everybody else runs. At ">=3.10" the lock holds 99
+# packages and 4 splits, all four at the 3.11 docs boundary.
+# 3.10 is also the oldest mypy can be aimed at (tool.mypy below), so the
+# floor and the type checker's target agree
 requires-python = ">=3.10"
 dependencies = ["btclib_libsecp256k1>=0.7.1rc1"]
 keywords = [
@@ -76,10 +75,7 @@ Issues = "https://github.com/btclib-org/btclib/issues"
 # packages required to develop, build, and test btclib
 # hypothesis generates the input the fixed vectors cannot: the vectors
 # are the conformance suite, and a codec library needs the malformed
-# bytes nobody thought to write down as well. It used to cap at 6.141 on
-# python 3.9, so the lock carried that release beside the current one and
-# the 3.9 jobs generated their inputs with an engine nobody else ran;
-# requires-python >= 3.10 is what collapsed the pair to one entry
+# bytes nobody thought to write down as well
 test = [
     "coverage",
     "hypothesis",
@@ -119,9 +115,9 @@ namespaces = true
 # root, so the Jekyll sources sit beside the library: they are tracked, they
 # have no business in an sdist, and a tracked file the sdist omits is
 # exactly what check-manifest reports. Naming them here says that in the
-# configuration of the tool that asks the question -- MANIFEST.in used to
-# carry them as exclude rules, where they read as packaging decisions while
-# in fact matching nothing any include had added
+# configuration of the tool that asks the question, not as MANIFEST.in
+# exclude rules, which read as packaging decisions while matching nothing
+# any include has added
 ignore = [
     "CNAME",
     "Gemfile",
@@ -140,7 +136,7 @@ ignore = [
 # where the tests are, so a bare "pytest" from the root collects them and
 # nothing else, whatever else the tree grows
 testpaths = ["tests"]
-# -ra summarizes everything that was not a plain pass. On a matrix of 49
+# -ra summarizes everything that was not a plain pass. On a matrix of 42
 # jobs a skip, an xfail or a warning is otherwise invisible: it is not a
 # failure, so nobody opens the log to find it.
 # --strict-config makes a typo in this very table an error rather than a
@@ -204,11 +200,11 @@ skip = "*/_data/*.json,*/_data/*.csv,*/_data/*.txt,*/_data/*.bin,*/_generated_fi
 # it differently -- unlike the rest of what this hook found, which was
 # corrected instead of listed here
 ignore-words-list = "wit,nd"
-# a misspelling written on purpose goes in backticks, and that is now a
+# a misspelling written on purpose goes in backticks, and that is a
 # convention of this repository rather than a preference: prose that
 # documents a spell checker has to name what it catches, and the paragraph
-# below cost codespell five findings in this very file before the rule
-# existed. codespell has no per-file configuration, so it holds everywhere
+# below costs codespell five findings in this very file without the rule.
+# codespell has no per-file configuration, so it holds everywhere
 # it reads; what the rule hides from it is what is written inside
 # backticks, i.e. identifiers, which are typos' half of the work and not
 # this hook's -- the two hook names say as much. typos honours the same
@@ -288,10 +284,9 @@ ands = "ands"
 # [tool.codespell] above, honoured on the files that need it rather than
 # on all of them: outside these three a backticked word is an identifier,
 # and identifiers are what this hook is here for.
-# Not a preference either: the first run of the hook, with --write-changes
-# and without this section, corrected three such quotations into
-# nonsense -- prose saying `lenght` is now `length` reads as prose saying
-# nothing. Narrow enough that `y-simmetry`, unquoted in HISTORY.md, was
+# Not a preference either: with --write-changes and without this section,
+# the hook corrects three such quotations into nonsense -- prose saying
+# `lenght` is now `length` reads as prose saying nothing. Narrow enough that `y-simmetry`, unquoted in HISTORY.md, was
 # still found and fixed with the rule already in place
 extend-glob = ["CHANGELOG.md", "HISTORY.md", ".pre-commit-config.yaml"]
 extend-ignore-re = ['`[^`]*`']
@@ -303,15 +298,15 @@ omit = ["*/site-packages/*"]
 show_missing = true
 skip_covered = true
 precision = 2
-# the gate that replaced coveralls.io: a local threshold, with no secret
-# and no third party service, enforced on every run instead of only on
+# a local threshold rather than a coveralls.io upload: no secret, no
+# third party service, and enforced on every run instead of only on
 # pull requests targeting master.
 # The comparison is `round(total, precision) < fail_under`, so with the
 # 15328 statements the coverage-py job measures this allows 2 of them to
-# go uncovered, against the 0 uncovered today. It was 99.9, which allowed
-# 15 -- and 12 of them had been taken without anybody noticing, four in
-# tests/conftest.py's own failure paths and one in a wrapper around the
-# bindings, because slack that wide reports a regression as a pass.
+# go uncovered, against the 0 uncovered today. Not 99.9, which allows 15:
+# slack that wide reports a regression as a pass -- measured, 12 of the
+# 15 were found already taken, four in tests/conftest.py's own failure
+# paths and one in a wrapper around the bindings.
 # Both figures are that job's interpreter, 3.14, and not any other: the
 # statement count moves between versions -- 3.13 measures 15334 of the
 # same tree -- so a number measured elsewhere would not be the one the
@@ -353,11 +348,10 @@ enable_error_code = [
     "truthy-iterable",
     "unimported-reveal",
 ]
-# the oldest interpreter this package supports, and -- since 3.9 was
-# dropped -- also the oldest mypy can be aimed at. The two agree now, so
-# this key says exactly what requires-python says; it used to be the
-# nearest mypy would accept, "Python 3.9 is not supported (must be 3.10 or
-# higher)" being its answer to the real floor.
+# the oldest interpreter this package supports, and also the oldest mypy
+# can be aimed at -- "Python 3.9 is not supported (must be 3.10 or
+# higher)" is its answer to anything lower. The two agree, so this key
+# says exactly what requires-python says.
 #
 # Keep the key. Without it mypy targets whatever runs it, i.e. the 3.14 of
 # .python-version, and a typing construct missing from the floor is then
@@ -369,7 +363,7 @@ enable_error_code = [
 # import annotations", but a type *alias* is an ordinary assignment, so
 # "ScriptList | None" at module level was a TypeError on 3.9 that no static
 # check could see: d284d0b7 was found by a 3.9 runner dying at collection,
-# nothing else. Aimed at the floor rather than above it, mypy now reports
+# nothing else. Aimed at the floor rather than above it, mypy reports
 # that itself. When mypy drops 3.10 in turn this pin will fail with the same
 # clear message, and the answer will be to raise the floor -- not to
 # reopen the gap.
@@ -388,9 +382,9 @@ exclude = [
 # target-version is inferred from project.requires-python
 
 [tool.ruff.lint]
-# A, BLE, C90, RSE, T20 and TID were added together, and the measurement
-# that chose them is the point: every unselected rule set was run over
-# btclib and tests, and these are the ones that either find nothing today
+# A, BLE, C90, RSE, T20 and TID are here by measurement: every
+# unselected rule set was run over btclib and tests, and these are the
+# ones that either find nothing today
 # -- a ratchet, costing no cleanup -- or find something worth removing.
 #
 # What the same survey rejected, with the count, so that nobody has to run
@@ -402,7 +396,7 @@ exclude = [
 # PTH 95, ARG 93, ANN 20 (all ANN401, the explicit Any of
 # the vector loaders), SLF 7 (tests reaching into private members on
 # purpose), PERF 3 (all PERF203, try/except in a retry loop).
-# ERA was on that list at 89 and is selected now: about half were genuine
+# ERA is selected despite surveying at 89: about half were genuine
 # dead code and the other half prose that ERA read as code, and the second
 # half did not need a single noqa -- a reworded comment reads as prose to
 # it, and a diagram belongs in the docstring, which it does not inspect.
@@ -480,8 +474,8 @@ ignore = [
 "**/__init__.py" = ["F401"] # re-exported imports
 # collecting entropy from dice is a conversation: the module prompts with
 # input() and prints how many rolls it needs and which ones count, so
-# these two prints are the interface and not a debugging leftover -- which
-# is the one T20 found elsewhere, and which is gone
+# these two prints are the interface, not a debugging leftover -- unlike
+# the one print T20 found elsewhere, which is deleted rather than ignored
 "btclib/mnemonic/entropy.py" = ["T201"]
 "tests/**" = [
     "D",      # docstrings are not required in tests

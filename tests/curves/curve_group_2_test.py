@@ -17,7 +17,7 @@ from btclib.alias import INFJ
 from btclib.curves import secp256k1
 from btclib.curves.curve_group import _double_mult, _mult
 
-# from the module that defines them: btclib.curves no longer exports the
+# from the module that defines them: btclib.curves does not export the
 # individual multiplication implementations
 from btclib.curves.curve_group_2 import (
     _LAM,

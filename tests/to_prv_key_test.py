@@ -180,9 +180,9 @@ def test_no_key_material_in_exceptions() -> None:
 def test_a_mistyped_wif_is_reported_as_one() -> None:
     """The headline case: one wrong character in a WIF.
 
-    The checksum failure used to be swallowed, the string retried as a
-    hex-string, and the caller told "not a private key" -- which is true
-    and useless. Every reason travels with the exception now.
+    The checksum failure must not be swallowed -- the string retried as
+    a hex-string, and the caller told "not a private key", which is true
+    and useless. Every reason travels with the exception.
     """
     good = "KwdMAjGmerYanjeui5SHS7JkmpZvVipYvB2LJGU1ZxJwYvP98617"
     assert prv_keyinfo_from_prv_key(good)[1] == "mainnet"
@@ -230,9 +230,9 @@ def test_a_recognised_format_stops_the_guessing() -> None:
 def test_an_uncompressed_sec_key_still_resolves() -> None:
     """The compressed check follows the xkey decode, not precedes it.
 
-    A BIP32 key is always compressed, so the check has to be there; before
-    the decode it rejected 32 raw bytes asked for uncompressed, which are
-    octets and have nothing to do with BIP32.
+    A BIP32 key is always compressed, so the check has to be there; ahead
+    of the decode it would reject 32 raw bytes asked for uncompressed,
+    which are octets and have nothing to do with BIP32.
     """
     q_hex = "0C28FCA386C7A227600B2FE50B7CAE11EC86D3BF1FBE471BE89827E19D72AA1D"
     q_int = int(q_hex, 16)
@@ -243,7 +243,7 @@ def test_an_uncompressed_sec_key_still_resolves() -> None:
     )
     assert int_from_prv_key(bytes.fromhex(q_hex)) == q_int
 
-    # and a real xprv asked for uncompressed is still the conflict it was
+    # and a real xprv asked for uncompressed is still a conflict
     xprv = "xprv9s21ZrQH143K3QTDL4LXw2F7HEK3wJUD2nW2nRk4stbPy6cq3jPPqjiChkVvvNKmPGJxWUtg6LnF5kejMRNNU3TGtRBeJgk33yuGBxrMPHi"
     err_msg = "uncompressed SEC / compressed BIP32 mismatch"
     with pytest.raises(InvalidPrvKeyError, match=err_msg):
@@ -251,14 +251,13 @@ def test_an_uncompressed_sec_key_still_resolves() -> None:
 
 
 def test_a_wif_on_a_network_sharing_its_prefix() -> None:
-    """A signet WIF declared as signet, which used to be refused.
+    """A signet WIF declared as signet is accepted (issue #207).
 
-    The WIF path checked the caller's network against the reverse
-    lookup's answer, and that answer is "testnet" for the 0xef the four
-    test networks share -- so a signet WIF asked for as signet raised
-    "not a signet wif: prefix 0xef", naming the prefix signet asks for.
-    The check is now the forward one the xprv path always used, i.e.
-    membership rather than a name comparison: issue #207.
+    A name comparison against the reverse lookup cannot do it: the lookup
+    answers "testnet" for the 0xef prefix the four test networks share,
+    so a signet WIF asked for as signet would be refused as "not a signet
+    wif: prefix 0xef" -- naming the very prefix signet asks for. The
+    check is the forward one the xprv path uses, i.e. membership.
     """
     for network in ("testnet", "regtest", "signet", "testnet4"):
         wif = wif_from_prv_key(q, network)

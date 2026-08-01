@@ -157,22 +157,17 @@ def test_nulldata3() -> None:
 def test_nulldata4() -> None:
     """OP_RETURN followed by opcodes is not a nulldata (issue #178).
 
-    Two FIXME markers used to sit on the asserts below, and both were
-    mistaken -- recorded here so that the answer outlives them.
+    The serialization is `6a6a5351650053`, not `0x6A{1 byte data-length}
+    {data 6 bytes}`: a script serializer writes each token as itself,
+    and six opcodes are six opcodes and not six bytes of data. Wrapping
+    them in a push would be a *different* script -- one whose OP_RETURN
+    is followed by data that happens to spell them.
 
-    The first expected the serialization to be `0x6A{1 byte data-length}
-    {data 6 bytes}`: it is `6a6a5351650053`, because a script serializer
-    writes each token as itself, and six opcodes are six opcodes and not
-    six bytes of data. Wrapping them in a push would be a *different*
-    script -- one whose OP_RETURN is followed by data that happens to
-    spell them.
-
-    The second expected `type_and_payload` to answer "nulldata". Bitcoin
-    Core's Solver says otherwise, and it is the rule everybody else
-    applies: NULL_DATA is OP_RETURN followed by push-only bytes, and
+    And `type_and_payload` answers "unknown", not "nulldata". Bitcoin
+    Core's Solver says so, and it is the rule everybody else applies:
+    NULL_DATA is OP_RETURN followed by push-only bytes, and
     `CScript::IsPushOnly` refuses any opcode above OP_16 -- both the
-    second OP_RETURN (0x6a) and OP_VERIF (0x65) are above it. "unknown"
-    is the right answer.
+    second OP_RETURN (0x6a) and OP_VERIF (0x65) are above it.
     """
     script_: ScriptList = [
         "OP_RETURN",
@@ -559,9 +554,9 @@ BIP67_VECTORS = load("script", "_data", "bip67_test_vectors.json")
 def test_bip67(keys: list[str], addr: str) -> None:
     """BIP67 test vectors, from bip-0067.mediawiki in bitcoin/bips.
 
-    The citation was en.bitcoin.it/wiki/BIP_0067, a wiki page that is
-    neither versioned nor authoritative; tests/_data/README.md pins the
-    BIP revision the vectors were transcribed from.
+    Not en.bitcoin.it/wiki/BIP_0067: a wiki page is neither versioned
+    nor authoritative. tests/_data/README.md pins the BIP revision the
+    vectors were transcribed from.
     """
     m = 2
     script_pub_key = ScriptPubKey.p2ms(m, keys, lexicographic_sorting=True).script
@@ -634,11 +629,11 @@ def test_p2tr() -> None:
 def test_script_pub_key_is_a_dataclass() -> None:
     """network is a field, so dataclasses sees it.
 
-    ScriptPubKey extended the Script dataclass without being one, so
-    network was a bare annotation: dataclasses.fields reported only
-    script, and dataclasses.replace rebuilt the instance through
-    ScriptPubKey(script=...) alone, returning a *mainnet* ScriptPubKey
-    from a testnet one, silently.
+    Guards against ScriptPubKey extending the Script dataclass without
+    being one: with network a bare annotation, dataclasses.fields would
+    report only script, and dataclasses.replace would rebuild the
+    instance through ScriptPubKey(script=...) alone — returning a
+    *mainnet* ScriptPubKey from a testnet one, silently.
     """
     pub_key = "03a1af804ac108a8a51782198c2d034b28bf90c8803f5a53f76276fa69a4eae77f"
     testnet = ScriptPubKey.p2pkh(pub_key, network="testnet")
@@ -651,24 +646,24 @@ def test_script_pub_key_is_a_dataclass() -> None:
     assert same == testnet
     assert same.address == testnet.address
 
-    # and the network can be replaced, which was not expressible at all
+    # and the network can be replaced
     mainnet = dataclasses.replace(testnet, network="mainnet")
     assert mainnet.network == "mainnet"
     assert mainnet.script == testnet.script
     assert mainnet != testnet
     assert mainnet.address != testnet.address
 
-    # the generated repr names both fields; it used to be Script's, which
-    # showed a testnet and a mainnet ScriptPubKey identically
+    # the generated repr names both fields; Script's would show a
+    # testnet and a mainnet ScriptPubKey identically
     assert "network='testnet'" in repr(testnet)
 
 
 def test_script_pub_key_parses_its_script_once() -> None:
-    """__init__ used to call assert_valid after super() had already.
+    """__init__ must not call assert_valid after super() already has.
 
     Script.__init__ calls self.assert_valid(), which dispatches to the
     override, which runs Script's check and the network one: the whole
-    validation. The extra call ran it a second time.
+    validation. An extra call runs it a second time.
     """
     calls = []
     real_parse = script_module.parse
@@ -698,10 +693,11 @@ def test_script_pub_key_parses_its_script_once() -> None:
 
 
 def test_script_assert_valid_is_a_parse_not_a_round_trip() -> None:
-    """It was serialize(self.asm) with the result discarded.
+    """A round-trip check would be wrong, not merely redundant.
 
-    A round-trip check would be wrong rather than merely redundant: a
-    non-minimal push is consensus-legal and does not survive one.
+    A non-minimal push is consensus-legal and does not survive
+    serialize(self.asm), so comparing the round-trip against the
+    original bytes would refuse a valid script.
     """
     # OP_PUSHDATA1 of a single byte: legal, and re-serializing it yields
     # the minimal 01ff instead
@@ -833,7 +829,7 @@ def test_asm_parses_once_per_script() -> None:
         script_module.parse = original
 
     assert first == second == third
-    # one parse for three reads; it used to be three
+    # one parse for three reads, not one per read
     assert len(calls) == 1
 
     # the cache lives in the instance __dict__, which is how a frozen
@@ -846,7 +842,7 @@ def test_equality_is_by_network_type() -> None:
     """A signet ScriptPubKey equals the address it renders.
 
     from_address answers "testnet" for a `tb1` address, three chains
-    sharing that hrp, so comparing network *names* made a signet
+    sharing that hrp, so comparing network *names* would make a signet
     ScriptPubKey unequal to its own address -- identical script bytes and
     all. Comparing the network type keeps the distinction that matters,
     mainnet against the test chains, and drops the one an address cannot

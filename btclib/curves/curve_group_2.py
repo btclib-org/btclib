@@ -30,9 +30,10 @@ References:
 
 Further improvements, and the material for them. These are not
 bibliography: each is an improvement this module could take, with what
-would be needed to take it. Issue 171 tracks the point-addition special
-cases and issue 183 the smaller follow-ups; what is here is the rest,
-and it moved out of TODO.md so that it sits next to the code it is about:
+would be needed to take it, kept here rather than in TODO.md so that it
+sits next to the code it is about. Issue 171 tracks the point-addition
+special cases and issue 183 the smaller follow-ups; what is here is the
+rest:
 
     - Computational cost of the different multiplications, measured rather
       than assumed: which of the six is fastest, and at what scalar size
@@ -55,9 +56,9 @@ and it moved out of TODO.md so that it sits next to the code it is about:
 
         - https://briansmith.org/ecc-inversion-addition-chains-01
     - Joint sparse form (JSF, HMV algorithm 3.50) for double mult: the
-      alternative to the interleaving double_mult_w_NAF now implements --
+      alternative to the interleaving double_mult_w_NAF implements --
       one joint recoding of both scalars instead of one NAF each, fewer
-      total additions in exchange for digit pairs that no longer index a
+      total additions in exchange for digit pairs that do not index a
       per-point table of odd multiples
 """
 
@@ -320,15 +321,15 @@ def multiplier_decomposer(m: int) -> tuple[int, int]:
     single one it replaces. Any integer decomposes, a negative or
     oversized m being reduced mod n first.
 
-    Signed and mod n are the whole of the algorithm, and this function
-    used to do neither (issue #215): it reduced mod ec.p -- the
+    Signed and mod n are the whole of the algorithm (issue #215): the
     congruence only holds mod the group order, and secp256k1's p and n
-    share their top 128 bits, so every scalar above ~2^127 decomposed to
-    a wrong answer -- and it rounded with ceil, whose bias costs the
-    balance: round-to-nearest is what makes c1, c2 the closest lattice
-    point and m1, m2 short. The results were then reduced mod p, which
-    threw away the sign that point negation is there to absorb, and
-    handed _double_mult two 256-bit multipliers for an 8-bit m.
+    share their top 128 bits, so reducing mod ec.p instead would send
+    every scalar above ~2^127 to a wrong answer. Rounding is to nearest,
+    not with ceil, whose bias costs the balance: round-to-nearest is
+    what makes c1, c2 the closest lattice point and m1, m2 short. The
+    results stay signed, since a final mod-p reduction would throw away
+    the sign that point negation is there to absorb, and hand
+    _double_mult two 256-bit multipliers for an 8-bit m.
     """
     m %= _N
 

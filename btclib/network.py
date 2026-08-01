@@ -217,10 +217,10 @@ class Network:
         # no check on self.curve
 
         # the hrp is the human-readable part of every bech32 address of this
-        # network, so it has to be a str. This was "str(self.hrp)" with the
-        # result discarded, which is not a check of anything: str() accepts
-        # every object there is. The bytes() calls below are the same idea
-        # actually working, TypeError being what they raise for a field
+        # network, so it has to be a str. An isinstance check, because
+        # str(self.hrp) would check nothing: str() accepts every object
+        # there is. The bytes() calls below are the same guard for the
+        # bytes fields, TypeError being what they raise for a field
         # rebound to something else
         if not isinstance(self.hrp, str):
             err_msg = f"invalid hrp type: {type(self.hrp).__name__}"
@@ -246,10 +246,11 @@ NETWORKS: dict[str, Network] = {}
 datadir = path.join(path.dirname(__file__), "_data")
 # order matters, and it is the order of the reverse lookups below: the
 # first network holding a version prefix is the one they answer with, so
-# testnet stays the answer it has always been for the four networks that
-# share its prefixes. mainnet first, then the test networks oldest to
-# newest -- signet.json and testnet4.json differ from testnet.json in
-# the genesis block and the p2p magic, and in nothing else
+# testnet, the oldest, answers for the four networks that share its
+# prefixes, and appending a newer network cannot change any answer.
+# mainnet first, then the test networks oldest to newest -- signet.json
+# and testnet4.json differ from testnet.json in the genesis block and
+# the p2p magic, and in nothing else
 for net in ("mainnet", "testnet", "regtest", "signet", "testnet4"):
     filename = path.join(datadir, f"{net}.json")
     with open(filename, encoding="ascii") as f:
@@ -353,9 +354,7 @@ def xprvversions_from_network(network: str = "mainnet") -> list[bytes]:
 # NETWORKS order. Four of the five networks carry testnet's, so each of
 # those appears four times over -- which is why the lookups below ask
 # each network whether it holds the version, rather than indexing a
-# parallel list of names as they used to: `_REPEATED_NETWORKS` and the
-# `n_versions` arithmetic that produced it are gone, the position of a
-# repeated entry having meant nothing
+# parallel list of names: the position of a repeated entry means nothing
 XPRV_VERSIONS_ALL = [
     version for network in NETWORKS for version in xprvversions_from_network(network)
 ]
@@ -385,9 +384,8 @@ def network_from_xkeyversion(xkeyversion: bytes) -> str:
     """
     networks = networks_from_xkeyversion(xkeyversion)
     if not networks:
-        # was a bare ValueError leaked by list.index, whose message named
-        # the list; BTClibValueError subclasses ValueError, so an `except
-        # ValueError` caller is unaffected
+        # BTClibValueError subclasses ValueError, so an `except
+        # ValueError` caller catches this too
         err_msg = f"unknown xkey version: 0x{xkeyversion.hex()}"
         raise BTClibValueError(err_msg)
     return networks[0]

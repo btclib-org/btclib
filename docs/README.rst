@@ -32,20 +32,20 @@ directory and without the flags:
     $ cd docs
     $ uv run --locked --no-default-groups --group docs make clean html
 
-``-W`` is not decoration. A module that fails to import is a warning, and
-for a long time that warning was the only sign that the published
-documentation had no API in it at all; read the docs now builds with the
-same flag, so a build that is green here is green there.
+``-W`` is not decoration: without it a module that fails to import is a
+warning and nothing more, and the published documentation silently has no
+API in it. Read the docs builds with the same flag, so a build that is
+green here is green there.
 
 Adding or removing a module
 ---------------------------
 
 Edit the ``rst`` file by hand. Do **not** run ``sphinx-apidoc -f -o
-docs/source btclib/``, which this file used to recommend: ``-f``
-regenerates every page from the template, discarding the hand-tuned
-``index.rst`` and ``modules.rst`` and the ``myst`` links to README,
-HISTORY, CONTRIBUTING and SECURITY. Point it at a scratch directory if you
-want the boilerplate for a new module, then copy the stanza across.
+docs/source btclib/``: ``-f`` regenerates every page from the template,
+discarding the hand-tuned ``index.rst`` and ``modules.rst`` and the
+``myst`` links to README, HISTORY, CONTRIBUTING and SECURITY. Point it at
+a scratch directory if you want the boilerplate for a new module, then
+copy the stanza across.
 
 Forgetting the edit is what ``tests/docs_test.py`` is for: it compares the
 modules under ``btclib/`` against the directives in ``docs/source/`` and
@@ -55,13 +55,11 @@ is the guarantee.
 Dependencies
 ------------
 
-There is no ``docs/requirements.txt``. It used to exist, unpinned, with a
-header asking whoever changed the ``docs`` dependency group in
-``pyproject.toml`` to remember this second copy — while read the docs read
-only that file, so the sphinx that built the published documentation was
-whatever PyPI served that morning. The dependency group is now the single
-declaration, ``uv.lock`` pins it, and ``.readthedocs.yaml`` drives uv with
-``--locked``.
+There is no ``docs/requirements.txt``, and there is no place for one: the
+build, locally and on read the docs alike, is uv with ``--locked``, so
+the ``docs`` dependency group in ``pyproject.toml`` is the single
+declaration and ``uv.lock`` pins it. A requirements file would be a
+second copy, kept in step by hand and read by nothing.
 
 External resources
 ------------------

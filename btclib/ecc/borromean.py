@@ -13,7 +13,7 @@ References:
     - https://github.com/ElementsProject/borromean-signatures-writeup
     - https://github.com/Blockstream/borromean_paper/blob/master/borromean_draft_0.01_9ade1e49.pdf
 
-Both were already cited inside `sign`, which is not where a reader looks
+Both are also cited inside `sign`, which is not where a reader looks
 first; they are here because the module is what one arrives at.
 """
 
@@ -29,17 +29,16 @@ from btclib.exceptions import BTClibRuntimeError
 from btclib.utils import bytes_from_octets, int_from_bits
 
 # the curve and the hash function are parameters, as they are in dsa, ssa
-# and pedersen, and as the two FIXMEs here asked. They used to be module
-# globals, one binding secp256k1 and one binding sha256, so
-# selecting either meant rebinding an attribute of this module, which
-# changes the algorithm for every other caller in the process
+# and pedersen -- not module globals: selecting either through a global
+# would mean rebinding an attribute of this module, which changes the
+# algorithm for every other caller in the process
 #
 # ec has to be passed to mult and double_mult too, and that is easy to
 # miss: both take the curve as their *last* argument and default it to
 # secp256k1, so `mult(k)` and `double_mult(-e, Q, s, ec.G)` type check,
-# read as if they honoured ec, and compute on secp256k1. Every point was
-# then encoded against ec, so the first bytes_from_point rejected it and
-# no curve but secp256k1 could sign at all (issue 183)
+# read as if they honoured ec, and compute on secp256k1 -- every point
+# then encoded against ec, so the first bytes_from_point rejects it and
+# no curve but secp256k1 can sign at all (issue 183)
 
 
 def _hash(m: bytes, R: bytes, i: int, j: int, hf: HashF) -> bytes:
@@ -111,7 +110,7 @@ def sign(
     # strict=True, and it is the one zip in this package that changes what
     # an argument does rather than documenting an invariant already checked:
     # nothing validates that ks, sign_key_idx and pubk_rings have one entry
-    # per ring, so a short ks used to truncate the loop silently and sign a
+    # per ring, so a short ks would truncate the loop silently and sign a
     # subset of the rings -- a signature over fewer rings than the caller
     # asked for, which is the one thing a ring signature must not do
     # quietly. ValueError, and BTClibValueError is a ValueError, so a caller
@@ -130,7 +129,7 @@ def sign(
                 # accident: exactly two of the 256-bit outputs (0 and n)
                 # are 0 mod n. On a low-cardinality curve it is one message
                 # in n -- one in eleven on ec13_11 -- which is the corner
-                # case issue 183 asked for and what made ec a parameter
+                # case issue 183 asked for and what makes ec a parameter
                 # worth having: tests/ecc/borromean_test.py reaches this
                 # raise, and the three below it, on that curve
                 if not 0 < e[i][j] < ec.n:
@@ -187,7 +186,7 @@ def verify(
     # ValueError and BTClibRuntimeError, not Exception: an input that is not
     # a valid signature is False, and so is a verification that failed, but
     # a TypeError is neither -- an hf passed as sha256() instead of sha256
-    # is a caller error, and it used to be reported as an invalid signature.
+    # is a caller error: raise, rather than report an invalid signature.
     # BTClibRuntimeError by name and not RuntimeError, because
     # RecursionError is one and is not an answer about a signature
     try:

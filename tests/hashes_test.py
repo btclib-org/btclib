@@ -36,10 +36,10 @@ from tests.to_key_test import (
 def test_ripemd160_wherever_hashlib_has_none(monkeypatch: pytest.MonkeyPatch) -> None:
     """The two implementations are one function, answering the same.
 
-    Both branches run here, on every host, which is the point: the one
-    they replaced was `pragma: no cover` and could not be reached without
-    building an OpenSSL between 3.0.0 and 3.0.6. Patching the flag reaches
-    the fallback instead, and the digest of "abc" is pinned so that the
+    Both branches run here, on every host, which is the point: reaching
+    the fallback naturally takes an OpenSSL between 3.0.0 and 3.0.6, i.e.
+    a `pragma: no cover` branch nothing ever exercises. Patching the flag
+    reaches it instead, and the digest of "abc" is pinned so that the
     assertion is not two calls into the same code on a host that has no
     hashlib ripemd160 to begin with.
     """
@@ -153,6 +153,7 @@ def test_merkle_root_from_hashes() -> None:
 
 
 def test_merkle_root_empty() -> None:
-    # it used to loop forever, never reducing an empty level to a root
+    # guards against looping forever, never reducing an empty level to a
+    # root
     with pytest.raises(BTClibValueError, match="empty merkle tree"):
         merkle_root([], hash256)

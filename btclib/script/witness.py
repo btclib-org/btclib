@@ -20,9 +20,9 @@ from btclib.utils import bytes_from_octets, bytesio_from_binarydata
 
 
 # frozen, and a tuple rather than a list of bytes, which makes a Witness
-# immutable all the way down: replacing the whole stack of a witness held
-# by someone else was issue #140, and mutating one in place through a
-# shared default was issue #139. Neither is expressible now, and the
+# immutable all the way down: neither replacing the whole stack of a
+# witness held by someone else (issue #140) nor mutating one in place
+# through a shared default (issue #139) is expressible, and the
 # generated __hash__ works, every element being immutable too.
 #
 # A witness is built once — parsed, or handed a signature and a script —

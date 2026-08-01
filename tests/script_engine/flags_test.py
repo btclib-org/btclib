@@ -47,8 +47,8 @@ def test_every_flag_is_checked_and_every_check_is_a_flag() -> None:
 
     The two halves of issue #145. A member the engine never looks at is a
     rule a caller can ask for and not get, and a name the engine looks at
-    that is not a member is the misspelling that used to read as a rule
-    switched off -- it is an AttributeError now, but only on the branch
+    that is not a member is a misspelling that would otherwise read as a
+    rule switched off -- it is an AttributeError, but only on the branch
     that runs, so this test is what makes it a failure on every run.
 
     Read out of the source and not out of the imported modules, there
@@ -103,7 +103,7 @@ def test_to_script_flags(flags: ScriptFlags | None, expected: ScriptFlag) -> Non
     "flags", ["DERSING", "P2SH,DERSING", ["DERSING"], "p2sh", "NONE,P2SH", " P2SH"]
 )
 def test_unknown_flag_name_raises(flags: ScriptFlags) -> None:
-    """A misspelled name is refused, where it used to disable a rule.
+    """A misspelled name is refused rather than disabling a rule.
 
     `"NONE,P2SH"` among them: NONE is Core's spelling of an empty field,
     the whole field, and not a name to be mixed with others.
@@ -115,10 +115,10 @@ def test_unknown_flag_name_raises(flags: ScriptFlags) -> None:
 def test_default_flags_cannot_be_mutated() -> None:
     """A caller cannot widen or narrow what the next one gets.
 
-    ALL_FLAGS was a module-level list, copied at every use -- one missed
-    copy away from a caller's `flags.remove("P2SH")` disabling bip 16 for
-    the rest of the process. SIG_HASH_TYPES was one too, and its
-    membership test is what the engine accepts as a signature's hash type.
+    A mutable module-level ALL_FLAGS is one missed copy away from a
+    caller's `flags.remove("P2SH")` disabling bip 16 for the rest of the
+    process; likewise SIG_HASH_TYPES, whose membership test is what the
+    engine accepts as a signature's hash type.
     """
     assert ALL_FLAGS & ~ScriptFlag.P2SH != ALL_FLAGS  # a new value, not a change
     assert ScriptFlag.P2SH in ALL_FLAGS

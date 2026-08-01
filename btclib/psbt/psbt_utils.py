@@ -167,7 +167,7 @@ def parse_leaf_script(v: bytes) -> tuple[bytes, int]:
     BIP-371 writes the value of a PSBT_IN_TAP_LEAF_SCRIPT as the script
     followed by the one byte of its leaf version, so an empty value is
     not a zero-length script: it is a record without the only field it
-    is required to carry, and v[-1] used to answer it with an IndexError.
+    is required to carry, which v[-1] would answer with an IndexError.
     """
     if not v:
         raise BTClibValueError("empty leaf script: no room for the leaf version")
@@ -356,9 +356,8 @@ def assert_valid_taproot_signatures(signatures: list[bytes], what: str) -> None:
     the sig_hash type is not the default one: the extra byte is that type,
     appended. BIP371 says "64 or 65 bytes" for both PSBT_IN_TAP_KEY_SIG
     and PSBT_IN_TAP_SCRIPT_SIG, and the script engine's get_hashtype
-    already reads them that way -- this was the one place in btclib that
-    required 64, so a signature Bitcoin Core accepts could not be put in
-    a psbt (issue #122).
+    already reads them that way -- requiring 64 alone here would keep a
+    signature Bitcoin Core accepts out of a psbt (issue #122).
 
     0x00 is refused as the appended byte, as BIP341 refuses it and the
     engine does: SIGHASH_DEFAULT is what the 64-byte form means, so
@@ -428,14 +427,13 @@ def deserialize_tx(
     there. The other caller is a non-witness utxo, which is a complete
     transaction and gets the full check.
 
-    The parse itself is unvalidated and assert_valid called afterwards, so
-    that the serialization comparison below can run at all. Tx.parse used
-    to validate on the way in, which made that comparison unreachable for
-    a value the parse rejected -- and the BIP174 vector named "an invalid
-    value data due to its size being not the stated size" is exactly such
-    a value: 51 bytes whose transaction re-serializes to 10. It was being
-    rejected for having no inputs, which is a true statement about it and
-    not the fault.
+    The parse itself is unvalidated and assert_valid called afterwards:
+    validating on the way in would make the serialization comparison below
+    unreachable for a value the parse rejects. The BIP174 vector named "an
+    invalid value data due to its size being not the stated size" is
+    exactly such a value -- 51 bytes whose transaction re-serializes to 10
+    -- to be refused for its size, not for having no inputs, which is true
+    of it but not the fault.
     """
     if len(k) != 1:
         err_msg = f"invalid {type_} key length: {len(k)}"

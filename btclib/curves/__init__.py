@@ -18,27 +18,24 @@ What is built *on* a curve lives in btclib.ecc -- dsa, ssa, bms, borromean,
 pedersen, Diffie-Hellman, the nonces -- and the rule between the two is that
 direction: ecc imports curves, never the other way round.
 
-This package was btclib.ec until issue 148, one character from btclib.ecc.
-The split was right and is unchanged; the names were not telling anyone what
-it was, and `from btclib.ec import mult` against `from btclib.ecc import dsa`
-was a coin flip for a newcomer. Code importing btclib.ec has to be updated,
-which is the cost of the rename and the whole of it: every name this package
-exports is the name it exported before.
+The two names are easy to conflate -- everything in ecc is also about
+curves -- so the anchor is worth stating: `from btclib.curves import mult`,
+`from btclib.ecc import dsa`.
 
 What this package exports is the curve API: a Curve, the three scalar
 multiplications, and the SEC point codec. The eleven other mult_* of
 btclib.curves.curve_group and btclib.curves.curve_group_2 -- mult_aff, mult_jac,
 mult_base_3, mult_mont_ladder, the two mult_recursive_*, the two
 mult_fixed_window*, mult_sliding_window, mult_w_NAF and
-mult_endomorphism_secp256k1 -- used to be exported alongside them, and so
-did the multiples, cached_multiples and jac_from_aff they are built on.
+mult_endomorphism_secp256k1 -- are deliberately not exported, nor are the
+multiples, cached_multiples and jac_from_aff they are built on.
 
 They are implementations of one operation, kept side by side to be measured
-against each other, and exporting them made a menu out of a benchmark: a
-caller reading btclib.curves had fourteen ways to multiply a point and nothing
-to say that mult is the one to use, that it dispatches to libsecp256k1 for
-secp256k1 and the generator, and that mult_jac is not the faster
-alternative its name suggests. Each is still importable from the module
+against each other, and exporting them would make a menu out of a benchmark:
+a caller reading btclib.curves would find fourteen ways to multiply a point
+and nothing to say that mult is the one to use, that it dispatches to
+libsecp256k1 for secp256k1 and the generator, and that mult_jac is not the
+faster alternative its name suggests. Each is importable from the module
 that defines it, which is where the test suite takes them from.
 
 The codec has a third function, bytes_from_prv_key_int: the composition of

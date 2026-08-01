@@ -33,7 +33,7 @@ def test_int_from_integer() -> None:
 
 def test_int_from_integer_reads_a_str_as_hex() -> None:
     # a decimal-looking str is a hex-string like any other, which the
-    # docstring now says out loud: 0x1234, not one thousand two hundred
+    # docstring says out loud: 0x1234, not one thousand two hundred
     # and thirty-four
     assert int_from_integer("1234") == 4660
     assert int_from_integer("1234") == int_from_integer("0x1234")

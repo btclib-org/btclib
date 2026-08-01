@@ -32,11 +32,11 @@ which is the single most important thing to know before touching
   `curves/curve_group.py`
 - `ecc.dsa.sign` calls them for secp256k1 with sha256, lower-s, and no
   caller-imposed nonce; `ecc.ssa.sign` for secp256k1 with sha256 **and a
-  32-byte message**. That last clause is issue 169: BIP340 lifted its
-  32-byte restriction in 2023-04, btclib takes a message of any size since,
-  and the bindings still answer "the message hash must be 32 bytes", so a
-  message of any other length takes the python path — which makes it the
-  only path that can verify four of BIP340's own vectors
+  32-byte message**. That last clause is issue 169: BIP340 accepts a
+  message of any size and so does btclib, but the bindings still answer
+  "the message hash must be 32 bytes", so any other length takes the
+  python path — which makes it the only path that can verify four of
+  BIP340's own vectors
 - the python path is not dead code and not constant-time: it serves every
   other curve, other hash functions, and caller-supplied nonces, and the
   test suite validates it *against* the bindings, which are the authority
@@ -53,9 +53,8 @@ Three of those pairs are one idea split in two, and each split runs one
 way only: `curves/` is arithmetic and `ecc/` is what is built on it;
 `base58` and `bech32` are codecs with no bitcoin in them, `b58` and `b32`
 the bitcoin semantics on top. `ecc` imports `curves`, `b58` imports
-`base58`, `b32` imports `bech32`, and never the reverse. `curves/` was
-`ec/` until issue 148, one character from `ecc/`; the README has the
-layout as a table, and each of the six modules says it in its own
+`base58`, `b32` imports `bech32`, and never the reverse. The README has
+the layout as a table, and each of the six modules says it in its own
 docstring.
 
 ## Non-obvious facts that will otherwise waste a session
@@ -74,7 +73,7 @@ docstring.
     --git-common-dir)/claude-shared-tree.lock"
   ( set -C; printf 'session %s\npid %s\nsince %s\ntask %s\n' \
     "$CLAUDE_CODE_SESSION_ID" "$CLAUDE_PID" "$(date -u +%FT%TZ)" \
-    "issue 149" > "$LOCK" ) 2>/dev/null \
+    "<the task, one line>" > "$LOCK" ) 2>/dev/null \
     && echo "shared tree: mine" || cat "$LOCK"
   ```
 
@@ -139,10 +138,9 @@ docstring.
       sphinx-build -W --keep-going -b html docs/source docs/build/html
   ```
 
-  It is a required check on `master` since 2026-08-01, and it was not
-  before: the rule named `Lint and type-check`, which is the first job
-  alone, so a red docs build left the required checks green — which is
-  how it stayed red for twelve commits.
+  It is one of the four required checks on `master`, named on its own: a
+  rule naming `Lint and type-check` alone would leave a red docs build
+  outside the required checks entirely.
 - **The version is declared once**, in `pyproject.toml`.
   `btclib.__version__` reads it back with `importlib.metadata`, and
   `docs/source/conf.py` parses the file (not the metadata, which would
@@ -153,10 +151,10 @@ docstring.
   `needs` the matrix — never name matrix contexts in the branch rule,
   because the rule lives outside the repository and a context that stops
   being produced blocks every merge. A new job in `test.yml` belongs in
-  that job's `needs`, or it gates nothing. The fourth was added on
-  2026-08-01, once checked against that same trap: `lint.yml` triggers on
-  `pull_request` with no branch and no `paths` filter, so both its jobs
-  report on every pull request, forks included. Each check is bound to
+  that job's `needs`, or it gates nothing. `Build the documentation`
+  clears that same trap: `lint.yml` triggers on `pull_request` with no
+  branch and no `paths` filter, so both its jobs report on every pull
+  request, forks included. Each check is bound to
   the app that produces it — `checks` with an `app_id` rather than the
   bare `contexts` list, 15368 for Actions and 57789 for CodeQL — so
   nothing else can satisfy one:
@@ -184,16 +182,16 @@ docstring.
   would reject every push, the bots' included. And one approving review
   cannot be satisfied by the author, GitHub not allowing self-approval, so
   on a solo-maintainer branch it is a stop rather than a speed bump. What
-  `dev` does now buy is the thing the issue was about: Dependabot targets
-  it for both ecosystems, pre-commit.ci autoupdates it, and Dependabot
+  `dev` does buy is the thing the issue was about: Dependabot targets it
+  for both ecosystems, pre-commit.ci autoupdates it, and Dependabot
   security updates are on, so bot-authored commits reach `master` through
-  it — and that branch can no longer be rewritten or deleted under them.
+  it — and the branch cannot be rewritten or deleted under them.
   Requiring the four checks on `dev` as well is the next step if one is
   wanted, and it costs the direct push.
 - **The default `GITHUB_TOKEN` is read-only repository-wide**, so a job
   needing more must declare it (only `release.yml`'s `github-release`
   does, `contents: write`, plus `id-token: write` on the two publish
-  jobs). The workflow-level `permissions: contents: read` is now belt and
+  jobs). The workflow-level `permissions: contents: read` is belt and
   braces; keep it, it is what makes the intent readable in the file.
 - **Publishing waits for an approval**: the `pypi` and `testpypi`
   environments both require a review, and `pypi` is restricted to `v*`
@@ -257,11 +255,8 @@ docstring.
   HISTORY.md's breaking-changes list with the "before" spelling checked
   against the `v2023.7.12` tag, that list's own "N changes break code"
   count, and the CHANGELOG header's cross-reference to it ("lists the N
-  source-breaking changes"). Written as a command because being written
-  as a habit did not work: f295aaaf and 1142e97b added five entries
-  under a header still reading "a hundred and eleven", and the drift is
-  invisible in review — nothing counts the bullets but the command
-  above.
+  source-breaking changes"). Written as a command because the drift is
+  invisible in review: nothing counts the bullets but the command above.
 
 ## Verifying
 

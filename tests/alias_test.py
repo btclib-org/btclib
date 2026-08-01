@@ -9,10 +9,9 @@
 # or distributed except according to the terms contained in the LICENSE file.
 """Tests for the type aliases of btclib.alias.
 
-Two of them were about hash functions and had the same parameter name: the
-HashF constructor that every hf in the library is, and the one-shot digest
-the merkle functions of btclib.hashes take, which was spelled out inline.
-The second is HashDigestF now, and HashF returns a Protocol rather than Any.
+Two of them are about hash functions: HashF, the constructor that every
+hf in the library is, and HashDigestF, the one-shot digest the merkle
+functions of btclib.hashes take. HashF returns a Protocol rather than Any.
 
 What a checker rejects cannot be asserted from inside the suite, so what is
 asserted here is the run-time incompatibility the types describe: swapping
@@ -32,7 +31,7 @@ from btclib.hashes import hash256, merkle_root, reduce_to_hlen, tagged_hash
 
 
 def test_the_two_hash_notions_are_not_interchangeable() -> None:
-    """Which is why they now have two names.
+    """Which is why they have two names.
 
     hashlib.sha256 is a constructor: called with data it returns an object,
     not a digest. hash256 is a one-shot digest: it cannot be called with no
@@ -57,11 +56,11 @@ def test_the_two_hash_notions_are_not_interchangeable() -> None:
 
 
 def test_hash_f_returns_a_protocol_not_any() -> None:
-    """The Any was the defect: everything downstream of it was unchecked.
+    """Returning Any would leave everything downstream of it unchecked.
 
     Eleven sites in the package read digest_size and nine build a digest
-    through update(). With HashF returning Any, a typo in either was a
-    run-time AttributeError in a mypy-strict code base -- and mypy reported
+    through update(). With HashF returning Any, a typo in either is a
+    run-time AttributeError in a mypy-strict code base -- and mypy reports
     even a *correct* hf().digest() as "Returning Any".
     """
     hints = get_type_hints(HashObject.digest)

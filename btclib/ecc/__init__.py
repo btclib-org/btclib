@@ -16,19 +16,16 @@ sign-to-contract. The curve arithmetic underneath is btclib.curves, and the
 rule between the two is that direction: ecc imports curves, never the other
 way round.
 
-That package used to be called btclib.ec, one character from this one, and
-"btclib.ec" against "btclib.ecc" is not a distinction anybody can hold --
-`from btclib.ecc import dsa` against `from btclib.ec import mult` was a coin
-flip for a newcomer. The split itself was right and is unchanged; only the
-name is.
+The two names are easy to conflate -- everything here is also about
+curves -- so the anchor is worth stating: `from btclib.curves import mult`,
+`from btclib.ecc import dsa`.
 
-The signature schemes are also what this package is for, and none of them
-was exported: ``__all__`` held ``ansi_x9_63_kdf``, ``bip340_nonce_``,
-``diffie_hellman`` and ``second_generator``, and not dsa, ssa or bms. So
-`import btclib.ecc` followed by `btclib.ecc.dsa.sign(...)` raised
+The schemes are what this package is for, so ``__all__`` names them and
+the import below binds each as a package attribute: without it, `import
+btclib.ecc` followed by `btclib.ecc.dsa.sign(...)` would raise
 AttributeError until something else in the process happened to import the
-submodule, and what the package advertised was four helpers instead of the
-six schemes behind them.
+submodule, and the package would advertise four helpers instead of the six
+schemes behind them.
 
 bms and sign_to_contract do `from btclib.ecc import dsa`, i.e. they import
 a name from the package that is importing them, and the order of the line

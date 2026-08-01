@@ -98,14 +98,14 @@ def test_der_deserialize() -> None:
 
 
 def test_der_one_byte_scalar() -> None:
-    """A one-byte DER scalar used to index past the end of its buffer.
+    """Guard against a one-byte DER scalar indexing past its buffer.
 
     3006020100020100 is r = s = 0, each written in the one byte that is
-    minimal DER for zero. The 'highest bit set' test read the second
-    byte of a value having none, and strict being the last of its three
-    conditions did not spare it: the IndexError escaped Sig.parse
-    whatever the flags, and IndexError is not what a caller filtering
-    parse failures catches.
+    minimal DER for zero. A 'highest bit set' test that reads the second
+    byte of a value having none lets IndexError escape Sig.parse
+    whatever the flags -- strict, the last of its three conditions, does
+    not spare it -- and IndexError is not what a caller filtering parse
+    failures catches.
     """
     for strict in (True, False):
         err_msg = "scalar r not in 1..n-1: "

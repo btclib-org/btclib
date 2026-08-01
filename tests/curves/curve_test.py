@@ -58,10 +58,8 @@ low_card_curves["ec19_23"] = Curve(19, 2, 9, (0, 16), 23, 1, False)
 low_card_curves["ec23_19"] = Curve(23, 9, 7, (5, 4), 19, 1, False)
 low_card_curves["ec23_31"] = Curve(23, 5, 1, (0, 1), 31, 1, False)
 
-# the union operator, as in curves.curve: it builds a new dict, where
-# copy() and update() built the same one in two statements. The "with
-# python>=3.9" comment that used to sit here asked for exactly this, and
-# 3.9 is no longer even the floor
+# the union operator, as in curves.curve: it builds a new dict, leaving
+# low_card_curves and CURVES untouched
 all_curves = low_card_curves | CURVES
 
 ec23_31 = low_card_curves["ec23_31"]
@@ -226,8 +224,8 @@ def test_catalogued_curves() -> None:
     """Rebuild the catalogue from its json data, with every check on.
 
     btclib.curves.curve builds it with order_check=False and
-    weakness_check=False, the two being 123 ms of the 168 ms importing
-    the module used to take; this is where they happen instead, and both
+    weakness_check=False, the two being 123 ms of a 168 ms module
+    import; this is where they happen instead, and both
     default to on, so constructing the curves here is what runs them. A
     wrong n in the json data, or a curve whose embedding degree is small,
     fails a test rather than nothing at all.
@@ -407,23 +405,22 @@ def test_curve_equality() -> None:
 
 
 def test_sec2_catalogues_share_one_curve() -> None:
-    # the eight curves of SEC 2 v.2 are in v.1 too, and used to be built
-    # twice: only one of the two objects was the secp256k1 the dispatch
-    # compares against, and SEC2v2 held the other one
+    # the eight curves of SEC 2 v.2 are in v.1 too; guards against them
+    # being built twice, where only one of the two objects is the
+    # secp256k1 the dispatch compares against and SEC2v2 holds the other
     for ec_name, ec in SEC2v2.items():
         assert SEC2v1[ec_name] is ec
     assert SEC2v2["secp256k1"] is secp256k1
 
 
 def test_each_catalogue_holds_what_it_is_named_after() -> None:
-    """CURVES was SEC2v1, and the two update() calls filled both.
+    """Guard against CURVES aliasing SEC2v1.
 
-    "CURVES = SEC2v1" bound the same dict, so CURVES.update(NIST) and
-    CURVES.update(Brainpool) poured those catalogues into the SEC 2 v.1 one:
-    SEC2v1 ended up with 27 entries instead of its own 15, and
-    SEC2v1["nistp256"] answered a curve that is not in SEC 2 v.1 at all.
-    The union operator the stale "with python>=3.9" comment asked for builds
-    a new dict, which is what keeps them apart.
+    "CURVES = SEC2v1" would bind the same dict, so CURVES.update(NIST) and
+    CURVES.update(Brainpool) would pour those catalogues into the SEC 2 v.1
+    one: SEC2v1 with 27 entries instead of its own 15, and
+    SEC2v1["nistp256"] answering a curve that is not in SEC 2 v.1 at all.
+    The union operator builds a new dict, which is what keeps them apart.
     """
     assert CURVES is not SEC2v1
 

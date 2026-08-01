@@ -207,9 +207,9 @@ class Sig:
 
         # the length is checked whatever check_validity says: it is not
         # an opinion about the signature, it is what makes the slices
-        # below mean anything. Skipped, a short buffer still yielded a
-        # Sig, r and s coming from truncated slices -- so every input
-        # sharing a prefix mapped to the same signature
+        # below mean anything. Skipped, a short buffer would still yield
+        # a Sig, r and s coming from truncated slices -- every input
+        # sharing a prefix mapping to the same signature
         if len(sig_bin) != _REQUIRED_LENGTH:
             err_msg = f"invalid decoded length: {len(sig_bin)}"
             err_msg += f" instead of {_REQUIRED_LENGTH}"
@@ -232,22 +232,18 @@ class Sig:
         tuple or as base64-encoding of the compact format [1-byte
         rf][32-bytes r][32-bytes s].
         """
-        # b64decode discards whatever is not in the base64 alphabet, so
-        # a signature used to be reachable from unboundedly many
+        # b64decode discards whatever is not in the base64 alphabet,
+        # which would make a signature reachable from unboundedly many
         # strings. validate=True rejects that junk, but it is not enough
         # on its own: what it makes of padding depends on the
         # interpreter, and not in one direction -- 3.11 takes the excess
         # pad of "AAAA===" that 3.10 and 3.14 refuse, while 3.14 refuses
         # the pad after a complete group in "QUJD=" that both of them
         # take -- and every version discards the bits a non-final group
-        # leaves over. Dropping 3.9 changed none of this: 3.10 answers
-        # every one of those cases exactly as 3.9 did, and the live
-        # divergence has moved to the 3.14 end of the matrix.
-        # What settles it everywhere is requiring the canonical
-        # encoding, the one b64encode gives back.
-        # Stripping stays, and now covers bytes as well as str: the
-        # whitespace around a copied and pasted signature is the one
-        # thing that was silently discarded and is worth tolerating
+        # leaves over. What settles it everywhere is requiring the
+        # canonical encoding, the one b64encode gives back.
+        # Stripping covers bytes as well as str: the whitespace around a
+        # copied and pasted signature is the one laxity worth tolerating
         data = data.strip()
         try:
             data_bin = data.encode("ascii") if isinstance(data, str) else data
@@ -290,17 +286,18 @@ def sign(msg: Octets, prv_key: PrvKey, addr: String | None = None) -> Sig:
     # the key_id that recovers it. key_id is in [0, 3], and the first two
     # bits in rf are reserved for it
     #
-    # one candidate at a time, stopping at the match, where it used to be
+    # one candidate at a time, stopping at the match, rather than
     # dsa.recover_pub_keys(magic_msg, dsa_sig).index(Q) -- every candidate
-    # and then a search. Two things that bought: on secp256k1 the list is
+    # and then a search. Two things this buys: on secp256k1 the list is
     # key_ids 0 and 1, since a signer's own key has j = 0, so key_ids 2
-    # and 3 are computed only to be dropped -- each a python _double_mult
-    # when r + ec.n - ec.p happens to be on the curve, about half the
-    # time; measured over 40 random (key, msg) pairs, 18.7 ms against
-    # 9.0 ms here, a factor of 2. And .index names the key_id only while
-    # no earlier candidate has dropped out of that list, which is exactly
-    # what the j = 1 case does: r + ec.n < ec.p with r not a coordinate on
-    # the curve leaves [key_id 2, key_id 3] and an index of 0 or 1
+    # and 3 would be computed only to be dropped -- each a python
+    # _double_mult when r + ec.n - ec.p happens to be on the curve, about
+    # half the time; measured over 40 random (key, msg) pairs, 18.7 ms
+    # against 9.0 ms here, a factor of 2. And .index names the key_id only
+    # while no earlier candidate has dropped out of that list, which is
+    # exactly what the j = 1 case does: r + ec.n < ec.p with r not a
+    # coordinate on the curve leaves [key_id 2, key_id 3] and an index of
+    # 0 or 1
     #
     # a mod_inv per candidate is the price of comparing affine points, and
     # the match could be made in Jacobian coordinates instead (issue 183);
@@ -335,12 +332,10 @@ def sign(msg: Octets, prv_key: PrvKey, addr: String | None = None) -> Sig:
     # BIP137, and only for a compressed key: both spellings are segwit,
     # which has no uncompressed form, so an uncompressed key can own a
     # p2pkh address and nothing else. Without the guard the two calls
-    # below were reached with an uncompressed pub_key and raised out of
-    # p2wpkh_p2sh -- "not a private or compressed public key for
+    # below would be reached with an uncompressed pub_key and raise out
+    # of p2wpkh_p2sh -- "not a private or compressed public key for
     # mainnet", which names neither what was passed (a private key, for
-    # mainnet) nor what failed (the address is not this key's). The
-    # symmetric case, a compressed key with an uncompressed address,
-    # reported the mismatch all along
+    # mainnet) nor what failed (the address is not this key's)
     elif compressed and addr == p2wpkh_p2sh(pub_key, network):
         rf = key_id + 35
     elif compressed and addr == p2wpkh(pub_key, network):
@@ -406,7 +401,7 @@ def verify(msg: Octets, addr: String, sig: Sig | String, lower_s: bool = True) -
     # ValueError and BTClibRuntimeError, not Exception: an input that is not
     # a valid signature is False, and so is a verification that failed, but
     # a TypeError is neither -- an hf passed as sha256() instead of sha256
-    # is a caller error, and it used to be reported as an invalid signature.
+    # is a caller error: raise, rather than report an invalid signature.
     # BTClibRuntimeError by name and not RuntimeError, because
     # RecursionError is one and is not an answer about a signature
     try:

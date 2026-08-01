@@ -116,9 +116,7 @@ def _address_from_v0_witness(wit_prg: Octets, network: str = "mainnet") -> str:
     # btclib.script, because script.script_pub_key imports this one to
     # render an address, and importing any script submodule executes the
     # package __init__, which pulls script_pub_key in — so the import
-    # closes a cycle. It used to, and was survived only because
-    # script_pub_key imported the modules rather than their names, an
-    # accident nothing in that file recorded (issue #147).
+    # would close a cycle (issue #147).
     # check_witness has just restricted a v0 program to 20 or 32 bytes,
     # and serialize pushes anything shorter than 76 bytes with a bare
     # length byte, so no OP_PUSHDATA can be needed here

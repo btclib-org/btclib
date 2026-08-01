@@ -120,9 +120,9 @@ class BIP32KeyData:
         # int(), where the annotation already says int, for the same reason
         # bytes_from_octets is called on the four Octets fields: from_dict
         # feeds this constructor a json object, where a whole number may
-        # arrive as a float. assert_valid used to do the coercion, i.e. it
-        # rewrote the object it was asked to inspect -- and it is called by
-        # serialize() and to_dict(), so reading a key mutated it
+        # arrive as a float. Coercing in assert_valid instead would rewrite
+        # the object it is asked to inspect -- and it is called by
+        # serialize() and to_dict(), so reading a key would mutate it
         self.depth = int(depth)
         self.parent_fingerprint = bytes_from_octets(parent_fingerprint)
         self.index = int(index)
@@ -136,8 +136,9 @@ class BIP32KeyData:
         for key, size in _KEY_SIZE:
             # bytes() is the type check, not a coercion: it raises
             # TypeError for a field rebound to a str, which would otherwise
-            # pass the length test below and fail later on .hex(). What
-            # this loop no longer does is assign the result back
+            # pass the length test below and fail later on .hex(). The
+            # result is never assigned back: validating must not rewrite
+            # the object
             value = bytes(getattr(self, key))
             if len(value) != size:
                 err_msg = f"invalid {key} length: "
@@ -145,10 +146,10 @@ class BIP32KeyData:
                 err_msg += f" instead of {size}"
                 raise BTClibValueError(err_msg)
 
-        # the same type check for the two int fields, which assert_valid
-        # used to coerce instead -- repairing the mistake, and rewriting
-        # the object to do it. Dropping it altogether would have let a
-        # float reach to_bytes and leave through an AttributeError
+        # the same type check for the two int fields. Not a coercion,
+        # which would repair the mistake by rewriting the object being
+        # inspected; not dropped either, which would let a float reach
+        # to_bytes and leave through an AttributeError
         for key in ("depth", "index"):
             value_ = getattr(self, key)
             if not isinstance(value_, int):
@@ -322,7 +323,7 @@ def xpub_from_xprv(xprv: BIP32Key) -> str:
 # scalar the inherited masking __repr__ exists to hide
 @dataclass(repr=False)
 class _BIP32KeyData(BIP32KeyData):
-    # extensions used to cache intermediate results
+    # extensions that cache intermediate results
     # in multi-level derivation: do not rely on them elsewhere
 
     prv_key_int: int  # non-zero for private key only

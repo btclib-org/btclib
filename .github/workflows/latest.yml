@@ -8,16 +8,16 @@ name: latest
 # all, so the whole drift of pytest, mypy, coverage and twine lives in
 # uv.lock, and every command in every other workflow passes --locked: what
 # CI runs is the resolution someone locked, not the one PyPI holds today.
-# uv.lock moves on a monthly dependabot pull request, and the commit of
+# uv.lock moves on a weekly dependabot pull request, and the commit of
 # btclib_libsecp256k1 it records -- the dev head, through tool.uv.sources
 # -- moves only when a re-lock asks for it. A break upstream therefore
-# surfaces a month later, inside a pull request that has to be reviewed
-# anyway, and its cause is one entry in a diff of many.
+# surfaces a week or more later, inside a pull request that has to be
+# reviewed anyway, and its cause is one entry in a diff of many.
 #
 # The obvious alternative, dropping --locked from test.yml and resolving
 # afresh on every run, is what this workflow exists instead of: a pull
 # request would go red for a release in somebody else's repository, with
-# master's three required checks in front of it, and the contributor
+# master's required checks in front of it, and the contributor
 # holding the branch cannot fix any of it. pytest runs with
 # filterwarnings = ["error"] and coverage with a fail_under ratchet, so
 # the ways an upstream release turns this tree red without touching it are
@@ -76,8 +76,8 @@ jobs:
   # dependency dropping 3.10 does not fail to resolve, it resolves to an
   # older version there and keeps the job green while 3.10 quietly stops
   # being tested against what everybody else runs. That is not a
-  # hypothetical -- it is what 3.9 had been doing for 35 of the 132 locked
-  # packages by the time it was dropped
+  # hypothetical: 3.9 left the floor resolving 35 of the 132 locked
+  # packages to older versions
   test-latest:
     name: "Test ${{ matrix.python }} on ${{ matrix.os }}, deps at latest"
     runs-on: ${{ matrix.os }}
@@ -162,8 +162,8 @@ jobs:
           uv run --locked --only-group lint
           pre-commit run --all-files --show-diff-on-failure
 
-  # the build group, for the same reason the packaging checks moved out of
-  # the release workflow and into test.yml: a release is the one place
+  # the build group, for the same reason the packaging checks live in
+  # test.yml rather than in the release workflow: a release is the one place
   # where finding a problem is too late, a version being consumed by the
   # upload that carries it. twine, check-wheel-contents and pyroma are
   # pinned by uv.lock like everything else, and a new pyroma with a

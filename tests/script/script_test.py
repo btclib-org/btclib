@@ -180,8 +180,8 @@ def test_regressions() -> None:
 
     # the three regressions that serialize() warns about, kept apart from
     # the others so that the warning is asserted rather than ignored: a
-    # simplefilter("ignore") around the loop above used to hide it, and
-    # with it any other warning the loop raised
+    # simplefilter("ignore") around the loop above would hide it, and
+    # with it any other warning the loop raises
     non_canonical: list[ScriptList] = [[1], [0], [-1]]
     for s in non_canonical:
         serialized = serialize_non_canonical(s)

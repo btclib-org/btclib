@@ -9,8 +9,7 @@
 # or distributed except according to the terms contained in the LICENSE file.
 """Tests for the `btclib.sig_hash` module.
 
-Two vendored files, from two upstreams, and the bip-0341 citation this
-docstring used to carry covered only one of them:
+Two vendored files, from two upstreams:
 
 - `taproot_test_vector.json` is bip-0341's `wallet-test-vectors.json`,
   https://github.com/bitcoin/bips/blob/master/bip-0341/wallet-test-vectors.json
@@ -60,7 +59,7 @@ def key_path_vectors(outcome: str, taproot_flag: bool) -> list[Any]:
     Selecting them here rather than skipping the others with `continue`
     inside the test is what makes the count in the report the count of
     what ran: of the 2243 vectors in the file, three quarters are not
-    key path spends, and the loop used to report 1 test either way.
+    key path spends.
 
     The parse of every prevout is the price, paid once per worker at
     collection: 3 ms for the file.
@@ -102,8 +101,8 @@ def test_valid_taproot_key_path(vector: dict[str, Any]) -> None:
     ssa.assert_as_valid_(msg_hash, pub_key, signature)
 
 
-# the failure vectors are taken whatever their flags, as they were: a
-# vector that does not ask for TAPROOT still must not verify
+# the failure vectors are taken whatever their flags: a vector that
+# does not ask for TAPROOT still must not verify
 @pytest.mark.parametrize("vector", key_path_vectors("failure", taproot_flag=False))
 def test_invalid_taproot_key_path(vector: dict[str, Any]) -> None:
     tx = Tx.parse(vector["tx"])
@@ -113,12 +112,11 @@ def test_invalid_taproot_key_path(vector: dict[str, Any]) -> None:
     witness = Witness(vector["failure"]["witness"])
     tx.vin[index].script_witness = witness
 
-    # outside the raises block, where it used to be the first statement
-    # inside it with AssertionError named in the tuple: a vector carrying a
-    # scriptSig would have satisfied the raises there and the test would
-    # have passed without computing a sighash at all. None of the 141 does
-    # today, so this is the same assertion made where it cannot be mistaken
-    # for the refusal being tested
+    # outside the raises block: inside it, with AssertionError named in
+    # the tuple, a vector carrying a scriptSig would satisfy the raises
+    # and the test would pass without computing a sighash at all. Made
+    # here, the assertion cannot be mistaken for the refusal being
+    # tested
     assert not vector["failure"]["scriptSig"]
 
     # the two of the contract this can legitimately leave through:
@@ -239,9 +237,8 @@ ANNEX_VECTORS = annex_vectors()
 def test_annex_vectors_exist() -> None:
     """The test below proves nothing on an empty set of vectors.
 
-    It was the `assert annexed` at the end of the loop; a parametrized
-    test over no parameter is reported as one green skip, so the count
-    is asserted here rather than not at all.
+    A parametrized test over no parameter is reported as one green
+    skip, so the count is asserted here rather than not at all.
     """
     assert ANNEX_VECTORS
 
@@ -250,10 +247,10 @@ def test_annex_vectors_exist() -> None:
 def test_from_tx_does_not_touch_the_tx(vector: dict[str, Any]) -> None:
     """Computing a taproot sighash must not strip the annex from the Tx.
 
-    `taproot_annex_and_ext` used to assign the trimmed stack back to the
-    witness it was handed, so a second call on the same Tx saw no annex and
-    hashed a different preimage, while `tx.serialize()` and `tx.hash` changed
-    under the caller (issue #140).
+    Guards against `taproot_annex_and_ext` assigning the trimmed stack
+    back to the witness it is handed: a second call on the same Tx then
+    sees no annex and hashes a different preimage, while `tx.serialize()`
+    and `tx.hash` change under the caller (issue #140).
     """
     prevouts = [TxOut.parse(prevout) for prevout in vector["prevouts"]]
     index = vector["index"]

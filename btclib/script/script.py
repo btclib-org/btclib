@@ -459,11 +459,11 @@ def op_code_spans(script: bytes) -> Iterator[tuple[int, int, int]]:
         start = stop
 
 
-# frozen, which OutPoint, TxOut and Witness became for issue 139 and this
-# one did not. That left the hole the same issue records: freezing a
-# dataclass is shallow, so `tx_out.script_pub_key.script = b""` reached
-# through a frozen TxOut and rebound the script of whatever else held that
-# ScriptPubKey. It raises FrozenInstanceError now.
+# frozen, as OutPoint, TxOut and Witness are (issue 139): freezing a
+# dataclass is shallow, so a mutable Script lets
+# `tx_out.script_pub_key.script = b""` reach through a frozen TxOut and
+# rebind the script of whatever else holds that ScriptPubKey; frozen, that
+# assignment raises FrozenInstanceError.
 #
 # It is also what lets `asm` be cached. functools.cached_property writes
 # straight into the instance __dict__ rather than through __setattr__, so it
@@ -481,9 +481,9 @@ class Script:
     def asm(self) -> ScriptList:
         """The parsed script, parsed once.
 
-        This was a plain property, so every read parsed self.script again:
-        57.9 us for a 16.5 kB script, on every access, for a value that
-        cannot change. Cached, a second read is 0.02 us.
+        A plain property would parse self.script again on every read:
+        57.9 us for a 16.5 kB script, for a value that cannot change.
+        Cached, a second read is 0.02 us.
 
         The cache is not warmed by assert_valid, which parses the same
         bytes at construction and throws the result away -- so building a
@@ -513,21 +513,18 @@ class Script:
 
         Which is what makes them one: a truncated push, a pushdata length
         over 520, or an op code no name is known for are the ways they can
-        fail to. Not a round-trip check, and it is worth saying so because
-        it used to look like one -- it was serialize(self.asm) with the
-        result discarded.
-
-        A round-trip check would be wrong, not merely redundant: a
-        non-minimal push is consensus-legal, and re-serializing it yields
-        different bytes (4c01ff, an OP_PUSHDATA1 of one byte, comes back as
-        01ff). Measured over 200k random byte strings, a strict comparison
+        fail to. Deliberately not a round-trip check, which would be
+        wrong, not merely redundant: a non-minimal push is
+        consensus-legal, and re-serializing it yields different bytes
+        (4c01ff, an OP_PUSHDATA1 of one byte, comes back as 01ff).
+        Measured over 200k random byte strings, a strict comparison
         rejects 16 of them.
 
-        And it was redundant. serialize() writes back every command shape
+        Redundant, because serialize() writes back every command shape
         parse() can produce, UNKNOWN_OP_CODE_n included, by an explicit
         branch: over those same 200k, and over all 256 one-byte scripts,
-        it raised for nothing parse() had accepted. It was a second parse
-        and a second serialization per Script, and ScriptPubKey ran the
-        pair twice.
+        it raises for nothing parse() has accepted. So serialize(self.asm)
+        with the result discarded would only add a second parse and a
+        second serialization per Script.
         """
         parse(self.script, accept_unknown=True)

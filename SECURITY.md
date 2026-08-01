@@ -66,11 +66,12 @@ used to teach and to prototype as much as to build:
 - not every operation crosses that boundary. `mult` reaches the bindings
     for secp256k1 and the generator alone; `dsa.sign` for secp256k1 with
     sha256, the lower-s form, and no caller-imposed nonce; `ssa.sign` for
-    secp256k1 with sha256. Anything else — another curve, another hash
-    function, a nonce of your own — runs the python implementation, whose
-    scalar multiplication is a double-and-add in Jacobian coordinates: it
-    is validated against the bindings, which are the authority on the
-    answer, but it is not constant-time and does not try to be. Using it
+    secp256k1 with sha256 and a 32-byte message. Anything else — another
+    curve, another hash function, another message size, a nonce of your
+    own — runs the python implementation, whose scalar multiplication is
+    a double-and-add in Jacobian coordinates: it is validated against the
+    bindings, which are the authority on the answer, but it is not
+    constant-time and does not try to be. Using it
     on key material that matters is a choice, and this is the notice of it
 - randomness comes from the operating system through the `secrets`
     module: the auxiliary randomness of BIP340 signing, the entropy of a

@@ -178,9 +178,9 @@ def test_output_total_is_bounded() -> None:
     """The outputs are bounded one by one and then as a sum.
 
     Two outputs of MAX_MONEY are two valid amounts, and a transaction
-    paying out twice the money there will ever be. CheckTransaction has
-    both checks and btclib had neither the second one nor, until issue
-    167, the right bound for the first.
+    paying out twice the money there will ever be: CheckTransaction has
+    both checks, so btclib needs both, each with the right bound
+    (issue 167).
     """
     max_money = 2_100_000_000_000_000
     tx_in = TxIn(OutPoint(b"\x01" * 32, 0))

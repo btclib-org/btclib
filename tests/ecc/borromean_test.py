@@ -25,9 +25,9 @@ from tests.curves.curve_test import low_card_curves
 
 def test_borromean() -> None:
     nring = 4
-    # fixed rather than drawn at random, which is what the sizes and the
-    # signing indices used to be: a ring the draw made short leaves some
-    # of the loop below unrun, and the coverage gate then moves on its own
+    # fixed rather than drawn at random: a ring the draw makes short
+    # leaves some of the loop below unrun, and the coverage gate then
+    # moves on its own
     ring_sizes = [3, 4, 6, 7]
     sign_key_idx = [2, 1, 0, 5]
 
@@ -48,8 +48,8 @@ def test_borromean() -> None:
     # would fail to parse and never reach the ring verification
     assert not borromean.verify(b"another message", sig[0], sig[1], pubk_rings)
     # a msg that is neither bytes nor a hex-str is a caller error, and
-    # verify says so instead of answering False: it used to catch Exception,
-    # so an int msg was reported as a failed ring signature
+    # verify says so instead of answering False: catching Exception would
+    # report an int msg as a failed ring signature
     with pytest.raises(TypeError):
         borromean.verify(0, sig[0], sig[1], pubk_rings)  # type: ignore[arg-type]
 
@@ -62,12 +62,11 @@ def test_borromean() -> None:
 
 
 def test_the_curve_and_the_hash_function_are_parameters() -> None:
-    """They were module globals, so selecting either was process-wide.
+    """As module globals, selecting either would be process-wide.
 
-    "ec = secp256k1  # FIXME any curve" and "from hashlib import sha256 as
-    hf  # FIXME any hf": choosing another meant rebinding an attribute of
+    Choosing another curve or hash would mean rebinding an attribute of
     btclib.ecc.borromean, which changes the algorithm for every other
-    caller in the process. They are arguments now, with the same defaults
+    caller in the process. They are arguments, with the same defaults
     and in the same position as in dsa, ssa and pedersen.
     """
     assert not hasattr(borromean, "ec")

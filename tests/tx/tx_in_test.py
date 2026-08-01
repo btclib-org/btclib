@@ -93,17 +93,17 @@ def test_tx_in() -> None:
 
 
 def test_default_arguments_are_not_shared() -> None:
-    # the defaults used to be built once, at definition time, so mutating
-    # them through one TxIn corrupted every other one; assigning
-    # prev_out.vout even left the constructor unable to build a valid TxIn
-    # for the rest of the process (issue #139)
+    # guards against the defaults being built once, at definition time:
+    # mutating a shared default through one TxIn corrupts every other one,
+    # and assigning prev_out.vout would even leave the constructor unable
+    # to build a valid TxIn for the rest of the process (issue #139)
     tx_in = TxIn()
     assert tx_in.prev_out is not TxIn().prev_out
     assert tx_in.script_witness is not TxIn().script_witness
 
-    # OutPoint and Witness are immutable all the way down now, so sharing
-    # them would no longer corrupt anything; building them per call is
-    # still what the library does, and B008 keeps it that way
+    # OutPoint and Witness are immutable all the way down, so a shared one
+    # could not be corrupted; building them per call is still what the
+    # library does, and B008 keeps it that way
     with pytest.raises(FrozenInstanceError):
         tx_in.prev_out.vout = 0  # type: ignore[misc]
     with pytest.raises(FrozenInstanceError):

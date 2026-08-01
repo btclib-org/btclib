@@ -36,21 +36,21 @@ def _hashlib_has_ripemd160() -> bool:
     no provider makes it True: RIPEMD-160 is not a FIPS algorithm, while
     bitcoin addresses are RIPEMD-160 whatever a policy says.
 
-    Not a Linux question, contrary to what the code this replaced
-    assumed. It is a *distro python* question: the python.org installers
-    never bundled an affected OpenSSL (3.11 has 1.1.1q, 3.12 has 3.0.11,
-    3.13 has 3.0.15), macOS system python is LibreSSL, which has
-    ripemd160, and python-build-standalone is on 3.5.x.
+    Not a Linux question but a *distro python* one: the python.org
+    installers never bundled an affected OpenSSL (3.11 has 1.1.1q, 3.12
+    has 3.0.11, 3.13 has 3.0.15), macOS system python is LibreSSL, which
+    has ripemd160, and python-build-standalone is on 3.5.x.
 
-    What this replaced was `ctypes.CDLL("libssl.so")` loading the legacy
-    provider at import time, and it was wrong twice over. Unversioned
-    `libssl.so` is the dev-package symlink -- jammy's libssl3 ships
-    `libssl.so.3` and `ossl-modules/legacy.so`, and the symlink comes
-    with libssl-dev -- so it raised OSError on precisely the hosts that
-    needed it: a server, a container, a venv built from wheels. And it
-    re-enabled OpenSSL's deprecated algorithms for the whole process,
-    every other library in the interpreter included, as an import side
-    effect, which under FIPS is not even permitted. Issue 144.
+    Loading the legacy provider at import time, via
+    `ctypes.CDLL("libssl.so")`, is the alternative, and it is wrong
+    twice over (issue 144). Unversioned `libssl.so` is the dev-package
+    symlink -- jammy's libssl3 ships `libssl.so.3` and
+    `ossl-modules/legacy.so`, and the symlink comes with libssl-dev --
+    so it raises OSError on precisely the hosts that need it: a server,
+    a container, a venv built from wheels. And it re-enables OpenSSL's
+    deprecated algorithms for the whole process, every other library in
+    the interpreter included, as an import side effect, which under FIPS
+    is not even permitted.
 
     The fallback below costs about 130x an OpenSSL digest (60 us against
     0.45 us here, on 32 bytes), and is paid only where the alternative is

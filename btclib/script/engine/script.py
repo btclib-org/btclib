@@ -144,7 +144,7 @@ def calculate_script_code(
             # Core's SCRIPT_ERR_SIG_FINDANDDELETE, and it errors on having
             # found rather than refusing to look: a script code that
             # carries the signature checked against it is the case the
-            # flag was added to make unspendable
+            # flag exists to make unspendable
             if found and const_scriptcode:
                 raise BTClibValueError("signature found in the script code")
 

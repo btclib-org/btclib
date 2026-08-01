@@ -88,7 +88,7 @@ def _deserialize_scalar(sig_data_stream: BytesIO, strict: bool = True) -> int:
         if scalar_bytes[0] >= 0x80:
             raise BTClibValueError("invalid negative scalar")
 
-    # unsigned, so never negative: the abs() this used to take was a no-op
+    # unsigned, never negative: abs() would be a no-op
     return int.from_bytes(scalar_bytes, byteorder="big", signed=False)
 
 
@@ -96,12 +96,9 @@ def _deserialize_scalar(sig_data_stream: BytesIO, strict: bool = True) -> int:
 class Sig:
     """ECDSA signature with strict ASN.1 DER serialization.
 
-    The original Bitcoin implementation used OpenSSL to verify
-    ECDSA signatures in ASN.1 DER representation.
-    However, OpenSSL does not do strict validation
-    (e.g. extra padding is ignored) and this changes the transaction
-    hash value, leading to transaction malleability.
-    This was fixed by BIP66, activated on block 363,724.
+    Strict, because BIP66 mandates it: lax DER validation (e.g. OpenSSL
+    ignores extra padding) leaves the encoding malleable, and with it
+    the transaction hash.
 
     source:
     https://github.com/bitcoin/bips/blob/master/bip-0066.mediawiki
@@ -146,17 +143,11 @@ class Sig:
     s: int
     ec: Curve = secp256k1
 
-    # written out, as in every other constructor taking this flag. It was
-    # once an InitVar[bool] field and a __post_init__, and the reason for
-    # writing it out was that the generated __init__ took the flag
-    # positionally: field(kw_only=True) fixes that, but it is python 3.10,
-    # and back then this package supported 3.9.
-    #
-    # 3.10 is the floor now, so kw_only is available -- and the flag is not
-    # going back to being a field. 8c7f0bdd wrote out all 91 signatures that
-    # take check_validity, so InitVar appears nowhere in btclib any more;
-    # spelling three of the 91 differently would make these the exceptions,
-    # which is the opposite of what that commit was for.
+    # written out, as in every other constructor taking this flag: an
+    # InitVar[bool] field with field(kw_only=True) and a __post_init__
+    # would also keep the flag keyword-only, but every signature taking
+    # check_validity is written out, and spelling a few differently would
+    # make them the exceptions.
     # init=False rather than relying on dataclasses leaving a hand-written
     # __init__ alone, which it does but by way of an implementation detail
     # of _set_new_attribute
@@ -219,8 +210,8 @@ class Sig:
         Deserialize a strict ASN.1 DER representation of an ECDSA
         signature.
 
-        strict says whether the encoding must be the canonical one, and it
-        now covers what comes *after* the sequence as well as what is in
+        strict says whether the encoding must be the canonical one,
+        covering what comes *after* the sequence as well as what is in
         it: a byte too many is not a DER signature either. What it does
         not cover, and what a caller has to strip, is a sighash type byte
         -- a script signature and a psbt partial signature both carry one,
@@ -250,9 +241,9 @@ class Sig:
             err_msg = "invalid DER sequence length"
             raise BTClibValueError(err_msg)
 
-        # and so must the stream, which nothing used to check: bytes after
-        # the sequence were read as part of nothing and silently dropped,
-        # so Sig.parse(der + b"\x01") answered with the Sig of der. Core
+        # and so must the stream: unchecked, bytes after the sequence
+        # would be read as part of nothing and silently dropped,
+        # Sig.parse(der + b"\x01") answering with the Sig of der. Core
         # checks the whole element with one size equation --
         # `(lenR + lenS + 7) != sig.size()` in IsValidSignatureEncoding --
         # and a two-byte hash type is what leaves a byte behind once the
@@ -479,7 +470,7 @@ def verify_(
     # ValueError and BTClibRuntimeError, not Exception: an input that is not
     # a valid signature is False, and so is a verification that failed, but
     # a TypeError is neither -- an hf passed as sha256() instead of sha256
-    # is a caller error, and it used to be reported as an invalid signature.
+    # is a caller error: raise, rather than report an invalid signature.
     # BTClibRuntimeError by name and not RuntimeError, because
     # RecursionError is one and is not an answer about a signature
     try:
@@ -513,12 +504,10 @@ def _recover_pub_keys_(
     # root first for bitcoin message signing compatibility. Which is the
     # order key_id numbers them in, so range() is the loop.
     #
-    # It costs a mod_inv per candidate where the precomputation used to be
-    # hoisted out of the loop, and that is not measurable: each candidate
-    # also runs a double_mult_w_NAF, which on secp256k1 is some eighty
-    # times dearer (1970 us against 23.6 us, timeit; the ratio was written
-    # as 1500 against a mod_inv of 1.8 us, which this extended-Euclid one
-    # is not).
+    # It costs a mod_inv per candidate rather than hoisting the
+    # precomputation out of the loop, and that is not measurable: each
+    # candidate also runs a double_mult_w_NAF, which on secp256k1 is some
+    # eighty times dearer (1970 us against 23.6 us, timeit).
     keys: list[JacPoint] = []
     for key_id in range(2 * (ec.cofactor + 1)):
         # a candidate can fail either half of step 1.6: x_K may not be on
@@ -582,15 +571,15 @@ def _recover_pub_key_(
     # then both x_K=r and x_K=r+ec.n must be tested
     #
     # key_id is the parity bit and the j above it, so j is a shift and not
-    # a mask: `key_id & 0b110` read the bits in place, making j 2, 4 or 6
-    # where SEC 1 counts 1, 2, 3 -- so key_id 2 asked for x_K = r + 2*ec.n
-    # and skipped the r + ec.n that is the whole point of a second
-    # candidate. libsecp256k1 spells the same two bits `recid & 2` for the
-    # order to add and `recid & 1` for the parity, i.e. this. Reaching it
-    # needs r + ec.n < ec.p, some 2^-127 of signatures on secp256k1 and
-    # no signer's own output -- `key_id = pub_keys.index(Q)` cannot name a
-    # candidate that failed -- but a key_id arrives from outside too, in
-    # the recovery flag of a message signature
+    # a mask: `key_id & 0b110` would read the bits in place, making j 2, 4
+    # or 6 where SEC 1 counts 1, 2, 3 -- key_id 2 asking for x_K =
+    # r + 2*ec.n and skipping the r + ec.n that is the whole point of a
+    # second candidate. libsecp256k1 spells the same two bits `recid & 2`
+    # for the order to add and `recid & 1` for the parity, i.e. this.
+    # Reaching it needs r + ec.n < ec.p, some 2^-127 of signatures on
+    # secp256k1 and no signer's own output -- `key_id = pub_keys.index(Q)`
+    # cannot name a candidate that failed -- but a key_id arrives from
+    # outside too, in the recovery flag of a message signature
     j = key_id >> 1  # allow for key_id in [0, 7]
     x_K = (r + j * ec.n) % ec.p  # 1.1
 

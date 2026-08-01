@@ -167,7 +167,7 @@ def bip32_vectors() -> list[Any]:
 
     The file groups the derivations by seed, and the seed is the id of
     the vector it belongs to: "vector 3, m/0h" rather than a number that
-    says nothing, and the four vectors no longer share one exit.
+    says nothing, and a failing derivation does not silence the rest.
     """
     test_vectors = load("bip32", "_data", "bip32_test_vectors.json")
     return [
@@ -241,11 +241,10 @@ def test_derive_exceptions() -> None:
     # root key, zero depth
     rootmxprv = "xprv9s21ZrQH143K3QTDL4LXw2F7HEK3wJUD2nW2nRk4stbPy6cq3jPPqjiChkVvvNKmPGJxWUtg6LnF5kejMRNNU3TGtRBeJgk33yuGBxrMPHi"
     xprv = BIP32KeyData.b58decode(rootmxprv)
-    # a commented-out `xprv == _derive(xprv, "m")` used to sit here, and it
-    # was not a check waiting to be switched on: `_derive` returns the
-    # private `_BIP32KeyData`, whose two caching fields the class tells the
-    # reader not to rely on, and a dataclass __eq__ answers False across
-    # classes however equal the six fields are. What it meant to assert --
+    # not `xprv == _derive(xprv, "m")`: `_derive` returns the private
+    # `_BIP32KeyData`, whose two caching fields the class tells the reader
+    # not to rely on, and a dataclass __eq__ answers False across classes
+    # however equal the six fields are. What that would mean to assert --
     # the empty path derives the key itself -- is the line below, in the
     # encoding that compares all six
     assert rootmxprv == derive(xprv, "m")
@@ -413,7 +412,7 @@ def test_no_key_material_in_repr_or_exceptions() -> None:
     xprv = "xprv9s21ZrQH143K2ZP8tyNiUtgoezZosUkw9hhir2JFzDhcUWKz8qFYk3cxdgSFoCMzt8E2Ubi1nXw71TLhwgCfzqFHfM5Snv4zboSebePRmLS"
     xprv_data = BIP32KeyData.b58decode(xprv)
 
-    # the dataclass-generated repr used to print key and chain code
+    # the dataclass-generated repr would print key and chain code
     for secret in (xprv_data.key, xprv_data.chain_code):
         assert secret.hex() not in repr(xprv_data)
         assert repr(secret) not in repr(xprv_data)
@@ -504,17 +503,17 @@ XKEY = "xprv9s21ZrQH143K2ZP8tyNiUtgoezZosUkw9hhir2JFzDhcUWKz8qFYk3cxdgSFoCMzt8E2
 
 
 def test_assert_valid_does_not_rewrite_the_key_data() -> None:
-    """A read is a read: assert_valid used to coerce six fields in place.
+    """A read is a read: assert_valid must not coerce fields in place.
 
-    It wrote back bytes(version), bytes(parent_fingerprint),
-    bytes(chain_code), bytes(key), int(index) and int(depth), and it is
-    called by serialize() and b58encode(), so nominally read-only
-    operations rewrote the object. The coercion is in __init__ now, where
+    Writing back bytes(version), bytes(parent_fingerprint),
+    bytes(chain_code), bytes(key), int(index) and int(depth) from a
+    method serialize() and b58encode() call lets nominally read-only
+    operations rewrite the object. Coercion belongs in __init__, where
     b58decode and a json object go through it.
     """
     xkey_data = BIP32KeyData.b58decode(XKEY)
     # a bytearray is bytes-like, so it serializes and compares equal: what
-    # it is not is bytes, and assert_valid used to silently make it so.
+    # it is not is bytes, and assert_valid must not silently make it so.
     #
     # Every read of the field goes through an object-typed local before
     # being asserted on: "isinstance(bytes, bytearray)" narrows to Never,
@@ -547,7 +546,7 @@ def test_assert_valid_does_not_rewrite_on_a_read() -> None:
 def test_assert_valid_reports_a_float_field_instead_of_coercing_it() -> None:
     """Reported, not repaired behind the caller's back.
 
-    Dropping the check outright instead would have let the float reach
+    Dropping the check outright instead would let the float reach
     to_bytes and leave the library through an AttributeError.
     """
     xkey_data = BIP32KeyData.b58decode(XKEY)

@@ -388,7 +388,7 @@ def test_find_and_delete_reads_op_codes() -> None:
     signature that a *push* happens to carry is left alone: this script
     is a 34-byte push whose data begins with a 33-byte push of the
     signature, and Core deletes nothing from it. Deleting by
-    `bytes.replace` took the inner copy out, which here leaves 0x22
+    `bytes.replace` would take the inner copy out, leaving 0x22
     claiming 34 bytes that are no longer there -- a script code that is
     not a script, from a transaction that is perfectly valid.
     """

@@ -10,10 +10,10 @@
 """Tests for the script code a sig_hash commits to (issue #176).
 
 The script code is a *slice of the script's own bytes*, and every test
-here pins some consequence of that. It used to be a re-serialization of
-part of a parse, which is a different thing whenever the two differ —
-and they differ for any push not written minimally, which consensus
-allows and `Script.assert_valid` already says it allows.
+here pins some consequence of that: a re-serialization of part of a
+parse is a different thing whenever the two differ — and they differ
+for any push not written minimally, which consensus allows and
+`Script.assert_valid` already says it allows.
 """
 
 from __future__ import annotations

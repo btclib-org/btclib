@@ -69,9 +69,9 @@ def test_wif_from_prv_key() -> None:
     payload = b"\x80" + bad_q
     badwif = b58encode(payload)
     # a well-formed WIF -- base58, checksum, 0x80 prefix, right size --
-    # carrying a scalar equal to n. The format is recognised, so the fault
-    # in it is reported: this used to be swallowed, the string retried as a
-    # hex-string, and the caller told "not a private key"
+    # carrying a scalar equal to n. The format is recognised, so the
+    # fault in it is reported rather than swallowed, the string retried
+    # as a hex-string, and the caller told "not a private key"
     with pytest.raises(InvalidPrvKeyError, match="private key not in 1..n-1"):
         prv_keyinfo_from_prv_key(badwif)
 

@@ -2,13 +2,12 @@ name: lint
 
 # the fast gate, kept apart from the test workflow: a style error is not
 # worth discovering at the end of a matrix, and two workflows mean two
-# badges and two lines in the checks list, so a lint failure no longer
-# reads as "the build is red".
+# badges and two lines in the checks list, so a lint failure does not
+# read as "the build is red".
 # What runs here is .pre-commit-config.yaml itself rather than a second
 # list of the same tools: CI therefore enforces exactly what a commit
-# enforces, and the hooks that only pre-commit.ci used to run (the
-# copyright notice, the private key detector, check-manifest, pyroma, the
-# uv.lock sync) are now gated by this repository's own CI
+# enforces, every hook included, and no hook is gated by pre-commit.ci
+# alone
 
 on:
   push:
@@ -85,9 +84,9 @@ jobs:
       # file, because what is cached is virtualenvs: a hook environment is
       # built against whatever python pre-commit runs under, which here is
       # the one .python-version pins, and against the runner's node and go.
-      # The key used to be the config hash alone, so an ubuntu-latest
-      # rotation -- 22.04 to 24.04, and the next one -- restored
-      # environments built on the previous image under the same key.
+      # The config hash alone would survive an ubuntu-latest rotation --
+      # 22.04 to 24.04, and the next one -- and restore environments built
+      # on the previous image under the same key.
       # restore-keys then makes a revision bump cheap rather than a cold
       # start: pre-commit rebuilds the hooks whose rev moved and reuses the
       # rest, and it health-checks each restored environment against the
@@ -103,9 +102,9 @@ jobs:
           restore-keys: |
             pre-commit-${{ runner.os }}-${{ steps.image.outputs.os }}-
       # pre-commit from the lint group of pyproject.toml, pinned by uv.lock,
-      # rather than from uvx, which fetched whatever the index held that
+      # rather than from uvx, which fetches whatever the index holds that
       # morning. This is the gate, and a developer runs the locked version,
-      # so it was the one place where the two could differ -- the tool
+      # so uvx is the one place where the two could differ -- the tool
       # deciding what "clean" means being the only one not pinned, while
       # every hook it runs is.
       # --only-group omits the project, so this still installs no bindings
@@ -115,12 +114,12 @@ jobs:
           uv run --locked --only-group lint
           pre-commit run --all-files --show-diff-on-failure
 
-  # The documentation was the one thing CI never built: read the docs did,
-  # with -W, so invalid reStructuredText in a docstring failed after the
-  # merge, on a service whose failure is not a check on the pull request.
-  # It had already happened twice -- a docstring naming bip340_nonce_, whose
-  # trailing underscore rst reads as a link reference, and four title
-  # underlines left too short by a rename (issues 148, 151, 174).
+  # Without this job nothing in CI builds the documentation, only read the
+  # docs does, with -W, so invalid reStructuredText in a docstring fails
+  # after the merge, on a service whose failure is not a check on the pull
+  # request -- a docstring naming bip340_nonce_, whose trailing underscore
+  # rst reads as a link reference, or a title underline left too short by
+  # a rename (issues 148, 151, 174).
   #
   # No hook can take this over: markdownlint does not read .rst, and ruff's
   # pydocstyle rules check the form of a docstring rather than whether its

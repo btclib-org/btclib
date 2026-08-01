@@ -135,9 +135,9 @@ class CurveGroup:
         # a curve is its parameters: two objects built from the same ones
         # are the same curve, whatever the catalogue they came from. This
         # is not cosmetic, as the libsecp256k1 dispatch tests ec against
-        # secp256k1, and the default identity comparison silently sent
-        # every other object holding the secp256k1 parameters -- one is
-        # built by curves/curve.py itself -- down the slow python path
+        # secp256k1, and the default identity comparison would silently
+        # send every other object holding the secp256k1 parameters down
+        # the slow python path
         if self is other:
             return True
         # an exact type test, not isinstance alone: a CurveSubGroup is
@@ -150,7 +150,7 @@ class CurveGroup:
 
     def __hash__(self) -> int:
         # __eq__ without __hash__ would set __hash__ to None, and curves
-        # are lru_cache keys in cached_multiples below; equal curves now
+        # are lru_cache keys in cached_multiples below; equal curves
         # share those cache entries rather than each filling its own
         return hash(self._eq_key())
 
@@ -233,10 +233,9 @@ class CurveGroup:
 
     def add_jac(self, Q: JacPoint, R: JacPoint) -> JacPoint:
         # points are assumed to be on curve
-        # to have this function constant time,
-        # Q or R equal to INFJ is not handled has a special case here
-        # but it taken care of at the end,
-        # after having performed all calculation, even if useless
+        # to keep this function constant time, Q or R equal to INFJ is
+        # not handled as a special case here but at the end, after all
+        # calculations have been performed, even if useless
 
         RZ2 = R[2] * R[2]
         RZ3 = RZ2 * R[2]
@@ -746,10 +745,10 @@ def _multi_mult(
 
     Bos-Coster is usually written with the q == 1 case of that identity,
     n1*P1 + n2*P2 = (n1-n2)*P1 + n2*(P1+P2), which is Euclid by repeated
-    subtraction: n1/n2 steps to do what one divmod does. That is issue
-    175 -- multi_mult([10**6, 1], [G, H]) took 10.6 s, and both
-    multi_mult([n-1, 1], [G, H]) and multi_mult([-1, 1], [G, H]) never
-    finished, on scalars a caller has every right to pass.
+    subtraction: n1/n2 steps to do what one divmod does (issue 175) --
+    multi_mult([10**6, 1], [G, H]) would take 10.6 s, and both
+    multi_mult([n-1, 1], [G, H]) and multi_mult([-1, 1], [G, H]) would
+    never finish, on scalars a caller has every right to pass.
 
     The input points are assumed to be on curve, the scalar coefficients
     are assumed to have been reduced mod n if appropriate (e.g. cyclic

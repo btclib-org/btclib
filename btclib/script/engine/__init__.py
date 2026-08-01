@@ -77,7 +77,7 @@ def taproot_get_annex(witness: Witness) -> tuple[bytes, list[bytes]]:
     # gives: an empty witness element has no first byte, and BIP-341 makes
     # the annex the element whose first byte is 0x50. Core's vectors carry
     # the case -- two `spendpath/truncshortcontrol`, whose control block is
-    # truncated to nothing -- and this used to leave through IndexError
+    # truncated to nothing -- which indexing would answer with an IndexError
     if len(witness.stack) >= 2 and witness.stack[-1][:1] == b"\x50":
         return witness.stack[-1], list(witness.stack[:-1])
     return b"", list(witness.stack)
@@ -103,10 +103,9 @@ def verify_input(
 
     `flags` are the rules to enforce, as a ScriptFlag or as the names of
     one: `None` is btclib's default set, ALL_FLAGS, and an unknown name is
-    refused rather than ignored (issue #145). It used to be a required
-    argument, and every caller inside btclib passed something; a default
-    that says "the consensus rules" is what an outside caller wants, and
-    it is the default verify_transaction already had.
+    refused rather than ignored (issue #145). A default that says "the
+    consensus rules" is what an outside caller wants, and it matches
+    verify_transaction's.
 
     `precomputed` is the transaction-wide part of the segwit sig_hashes,
     which `verify_transaction` builds once for its whole loop; verifying a
@@ -153,7 +152,7 @@ def verify_input(
 
     # NO_FLAGS: this reads the version out of a witness program, it does
     # not execute a script, and MINIMALDATA is the only flag _to_num looks
-    # at. It was an empty list here for the same reason
+    # at
     segwit_version = _to_num(stack[-1], NO_FLAGS) if is_segwit(script) else -1
     supported_segwit_version = -1
     if ScriptFlag.WITNESS in script_flags:
@@ -215,7 +214,7 @@ def verify_input(
             # the witness script is the last element, and there is none:
             # Core's WITNESS_PROGRAM_WITNESS_EMPTY, and the guard the
             # taproot branch above already has. Without it the empty stack
-            # was an IndexError out of `stack[-1]`, i.e. malformed input
+            # is an IndexError out of `stack[-1]`, i.e. malformed input
             # leaving through something other than BTClibValueError
             if not stack:
                 raise BTClibValueError("empty p2wsh witness stack")
@@ -261,8 +260,7 @@ def verify_transaction(
     """Verify every input of a transaction against the outputs it spends.
 
     `flags` is what verify_input takes, converted once here rather than
-    once per input; it was defaulted with a copy of a mutable ALL_FLAGS,
-    which a ScriptFlag makes unnecessary.
+    once per input.
     """
     script_flags = to_script_flags(flags)
     if len(prevouts) != len(tx.vin):
@@ -273,7 +271,7 @@ def verify_transaction(
         verify_amounts(prevouts, tx)
     # once for the whole loop, this function owning it and holding the
     # transaction still for its duration: it is what every input's segwit
-    # sig_hash commits to, and rebuilding it per input made verifying a
+    # sig_hash commits to, and rebuilding it per input makes verifying a
     # transaction Θ(N²) in the number of inputs (issue #164). Built
     # unconditionally, being O(N) against the Θ(N²) it removes: a predicate
     # for "has a segwit input" would have to repeat verify_input's own

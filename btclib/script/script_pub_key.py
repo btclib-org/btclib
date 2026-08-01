@@ -77,7 +77,7 @@ def _is_funct(assert_funct: Callable[[Octets], None], script_pub_key: Octets) ->
     # a different answer -- is_p2sh(None) is not a p2sh script the way
     # b"\x00" is not one, it is a caller passing the wrong thing -- and so
     # are AttributeError, RecursionError and MemoryError. Catching Exception
-    # made every one of them a plausible False.
+    # would make every one of them a plausible False.
     # BTClibValueError is a ValueError, and so is what bytes.fromhex raises
     # on a bad hex-string, which is why plain ValueError is the catch
     except ValueError:
@@ -168,9 +168,9 @@ def assert_nulldata(script_pub_key: Octets) -> None:
         raise BTClibValueError("missing leading OP_RETURN")
 
     # a lone OP_RETURN has no data length marker to read: script_pub_key[1]
-    # below used to answer it with an IndexError, from outside the
-    # library's exception contract, which _is_funct then turned into a
-    # plain False by catching Exception
+    # below would answer it with an IndexError, from outside the library's
+    # exception contract and not the ValueError _is_funct catches, so
+    # is_nulldata would raise rather than answer False
     if length == 1:
         raise BTClibValueError("missing data length marker")
 
@@ -196,9 +196,9 @@ def is_nulldata(script_pub_key: Octets) -> bool:
 def assert_segwit(script_pub_key: Octets) -> None:
     # doesn't check if script_pub_key is a valid script
     script_pub_key = bytes_from_octets(script_pub_key)
-    # an empty script has no version byte to read: script_pub_key[0] used
-    # to answer it with an IndexError, from outside the exception contract,
-    # which _is_funct then turned into a plain False
+    # an empty script has no version byte to read: script_pub_key[0] would
+    # answer it with an IndexError, from outside the exception contract
+    # and not the ValueError _is_funct catches
     if not script_pub_key:
         raise BTClibValueError("null length")
     if not (script_pub_key[0] == 0 or 0x51 <= script_pub_key[0] <= 0x60):
@@ -323,9 +323,9 @@ def type_and_payload(script_pub_key: Octets) -> tuple[str, bytes]:
 
 
 # a dataclass, like the Script it extends, so that network is a *field*
-# and not merely an annotation on a plain subclass. It was the latter, so
-# dataclasses.fields(ScriptPubKey) reported only script, and
-# dataclasses.replace(testnet_spk) rebuilt it through ScriptPubKey(script=)
+# and not merely an annotation on a plain subclass: with the latter,
+# dataclasses.fields(ScriptPubKey) reports only script, and
+# dataclasses.replace(testnet_spk) rebuilds it through ScriptPubKey(script=)
 # alone -- returning a mainnet ScriptPubKey, silently.
 #
 # init=False and eq=False keep the two written out below: __init__ takes
@@ -334,8 +334,8 @@ def type_and_payload(script_pub_key: Octets) -> tuple[str, bytes]:
 # compares by exact class.
 #
 # frozen because Script is: a dataclass cannot inherit frozen as non-frozen,
-# and the point of freezing Script was that `tx_out.script_pub_key.script =
-# b""` used to reach through a frozen TxOut. So __init__ assigns through
+# and Script is frozen so that `tx_out.script_pub_key.script = b""` cannot
+# reach through a frozen TxOut. So __init__ assigns through
 # object.__setattr__, as Network's and the three Sig classes' do
 @dataclass(init=False, eq=False, frozen=True)
 class ScriptPubKey(Script):
@@ -405,8 +405,8 @@ class ScriptPubKey(Script):
         # self.assert_valid(), which dispatches to the override below and
         # so needs the field set. That call is also the whole validation,
         # the override running Script's checks and the network one, which
-        # is why there is no second assert_valid() here -- there used to
-        # be, so every ScriptPubKey parsed its script twice
+        # is why there is no second assert_valid() here -- it would parse
+        # the script a second time
         super().__init__(script, check_validity=check_validity)
 
     def assert_valid(self) -> None:

@@ -29,9 +29,7 @@ repos:
   # matching anything is a hook that has quietly stopped running, which is
   # the shape of issue #145 one level up: the rule is still written down
   # and no longer enforced. One pattern to go stale today, the
-  # `files: \.py$` on copyright-notice, where there were two until
-  # name-tests-test below dropped its `exclude` -- and nothing else would
-  # say so
+  # `files: \.py$` on copyright-notice -- and nothing else would say so
   - repo: meta
     hooks:
       - id: check-hooks-apply
@@ -48,13 +46,12 @@ repos:
         # converted the wrong way. This repository is LF throughout
         args: [--fix=lf]
       - id: check-case-conflict
-      # check-executables-have-shebangs was added here and taken out
-      # again, by check-hooks-apply above: it selects on types
-      # [executable], nothing tracked here carries that bit, and a hook
-      # that matches no file is not a guard on the future but a line that
-      # reads as a rule while enforcing nothing. That is the whole reason
-      # the meta hooks are in this file, so overruling one of them the
-      # day it first fired would have been an odd way to start
+      # no check-executables-have-shebangs, by check-hooks-apply's own
+      # verdict: it selects on types [executable], nothing tracked here
+      # carries that bit, and a hook that matches no file is not a guard
+      # on the future but a line that reads as a rule while enforcing
+      # nothing. That is the whole reason the meta hooks are in this
+      # file, and overruling one of them would be an odd way to keep them
       #
       # its converse stays off too, and not by oversight: every module here
       # opens with "#!/usr/bin/env python3", which is the house header
@@ -74,16 +71,15 @@ repos:
       # - id: fix-encoding-pragma
       - id: check-yaml
       - id: check-json
-      # both of this hook's defaults are wrong for this tree, and that is
-      # the whole of why it was off: at --indent=2 it fails on 44 of the
-      # 45 json files, and with the key sort on, on 33. The golden-file
+      # both of this hook's defaults are wrong for this tree: at
+      # --indent=2 it fails on 44 of the 45 json files, and with the key
+      # sort on, on 33. The golden-file
       # fixture writes json.dumps(indent=4) (tests/conftest.py), so at
       # indent 2 the two would rewrite each other on every run; and
       # sorting the keys reorders a golden file against the insertion
       # order to_dict() emits, which the next run of the suite reports as
       # a mismatch -- the sort does not churn the diff, it breaks the
-      # tests. With both flags 39 of the 45 files already conform, so
-      # turning this on rewrote nothing.
+      # tests. With both flags 39 of the 45 files already conform.
       # --autofix because every other fixing hook here corrects rather
       # than reports
       - id: pretty-format-json
@@ -117,20 +113,16 @@ repos:
       # on itself -- a file named so that pytest never collects it is not
       # a red test, it is no test, and the count in the report is the only
       # thing that moves.
-      # It ran as --pytest-test-first, i.e. test_*.py, until the 71 test
-      # modules were renamed. The two conventions guard the same thing and
-      # pytest's default `python_files` collects both, so what the rename
-      # bought is not a stronger check but one carve-out fewer: the
-      # `exclude` that stood here. That was tests/vectors.py, the loader
-      # the suite shares and the one file under tests/ holding no test.
-      # The hook exempts two basenames of its own, conftest.py and
-      # __init__.py, so the loaders moved into tests/__init__.py, beside
-      # the helpers already in the __init__ of tests/script and
-      # tests/script_engine -- shared test code now lives in the package
-      # __init__ at all three levels. Renaming it vectors_test.py was the
-      # alternative, and it is this hook's own failure mode written by
-      # hand: a name that says "test" to every reader, on the one module
-      # with none
+      # test_*.py, i.e. --pytest-test-first, would guard the same thing,
+      # pytest's default `python_files` collecting both; *_test.py, the
+      # convention the 71 test modules follow, needs no args. No
+      # exclude, and the hook's own exemptions, conftest.py and
+      # __init__.py, are what keep it that way: shared test code lives in
+      # the package __init__ -- the vector loaders in tests/__init__.py,
+      # helpers in the __init__ of tests/script and tests/script_engine.
+      # Naming a loader module vectors_test.py instead would be this
+      # hook's failure mode written by hand: a name that says "test" to
+      # every reader, on the one module with none
       - id: name-tests-test
       - id: check-toml
       # only files being *added* are measured, the hook intersecting its
@@ -152,9 +144,9 @@ repos:
   # detect-private-key above covers the PEM case, and the lint workflow
   # runs these hooks on every pull request, a fork's included, so this is
   # not only a local gate.
-  # Not gitleaks, which was the first candidate: all of its hook ids
-  # invoke it with --staged, so under "pre-commit run --all-files", which
-  # is what CI runs, it scans an empty staged set and passes
+  # Not gitleaks: all of its hook ids invoke it with --staged, so under
+  # "pre-commit run --all-files", which is what CI runs, it scans an
+  # empty staged set and passes
   - repo: https://github.com/Yelp/detect-secrets
     rev: v1.5.0
     hooks:
@@ -225,7 +217,7 @@ repos:
   - repo: https://github.com/DavidAnson/markdownlint-cli2
     rev: v0.23.2
     hooks:
-      # the markdownlint-cli2-fix hook is gone: --fix is now an argument
+      # --fix: corrects in place, like every other fixing hook here
       - id: markdownlint-cli2
         name: markdownlint-cli2 (in place fixes)
         args: [--fix]
@@ -257,8 +249,8 @@ repos:
   # machine that commits and on pre-commit.ci
   - repo: https://github.com/Mateusz-Grzelinski/actionlint-py
     # not below actionlint 1.7.12: its list of runner labels is compiled
-    # in, and 1.7.9 does not know macos-26-intel, which the test matrix has
-    # been running on all along
+    # in, and 1.7.9 does not know macos-26-intel, which the test matrix
+    # runs on
     rev: v1.7.12.24
     hooks:
       - id: actionlint
@@ -298,7 +290,7 @@ repos:
         # has none. Those two therefore stay unrun, here and in CI.
         # --no-progress is repeated rather than added: args replaces what
         # the hook declares, and that flag is the whole of what it declares,
-        # so passing --offline alone dropped it. Measured here, piping the
+        # so passing --offline alone would drop it. Measured here, piping the
         # output, the two are byte for byte identical: zizmor sees there is
         # no terminal. The hook declares it for the environment where that
         # detection fails and the progress bar lands in the log, which is
@@ -329,12 +321,12 @@ repos:
   # PyPI at that, where the version this project requires is not yet
   # published. This is the very command the lint workflow runs, against
   # the project environment and the real pytest.
-  # --locked, as everywhere else: it was --frozen, which takes uv.lock as
-  # it finds it, so a dependency added to pyproject.toml without a re-lock
-  # left mypy type checking a stale environment and saying nothing about
+  # --locked, as everywhere else, and not --frozen, which takes uv.lock
+  # as it finds it: a dependency added to pyproject.toml without a re-lock
+  # leaves mypy type checking a stale environment and saying nothing about
   # it. The uv-lock hook below catches the stale lock in the same run, but
   # only after this one has already produced a verdict on the wrong
-  # environment, and the lint workflow runs this file, so CI inherited that
+  # environment, and the lint workflow runs this file, so CI inherits that
   - repo: local
     hooks:
       - id: mypy

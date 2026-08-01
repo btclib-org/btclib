@@ -50,9 +50,9 @@ from tests.to_key_test import (
 
 def test_signature_on_an_equal_curve() -> None:
     """A curve equal to secp256k1 is secp256k1, bindings included."""
-    # the dispatch used to compare identities, so signing with any other
-    # object holding the secp256k1 parameters took the python path in
-    # silence: the answer must be the one the singleton gives, and
+    # guards against the dispatch comparing identities, which sends any
+    # other object holding the secp256k1 parameters down the python path
+    # in silence: the answer must be the one the singleton gives, and
     # RFC6979 makes it deterministic, hence comparable (issue #142)
     msg = b"Satoshi Nakamoto"
 
@@ -66,9 +66,9 @@ def test_signature_on_an_equal_curve() -> None:
 def test_parse_stops_at_the_end_of_the_sequence() -> None:
     """A byte after the DER sequence is not part of the signature.
 
-    It used to be dropped, so `Sig.parse(der + b"\\x01")` answered with the
-    `Sig` of `der` -- which is how a two-byte hash type reached
-    verification as a valid signature (issue #129). Core rejects the
+    Guards against it being dropped: `Sig.parse(der + b"\\x01")`
+    answering with the `Sig` of `der` is how a two-byte hash type
+    reaches verification as a valid signature (issue #129). Core rejects the
     element with one size equation, `(lenR + lenS + 7) != sig.size()` in
     IsValidSignatureEncoding, and only under the flags asking for
     canonical DER: hence strict here, and hence the lenient parse the
@@ -558,10 +558,10 @@ def test_verify_infinity_point() -> None:
 def test_verify_answers_about_signatures_not_about_types() -> None:
     """A caller error is not an invalid signature.
 
-    verify and verify_ caught Exception, so an hf passed as sha256()
-    instead of sha256 -- a digest object where a constructor goes -- was
-    reported as a signature that does not verify. So were AttributeError,
-    RecursionError and MemoryError.
+    Guards against verify and verify_ catching Exception, which reports
+    an hf passed as sha256() instead of sha256 -- a digest object where
+    a constructor goes -- as a signature that does not verify, and does
+    the same to AttributeError, RecursionError and MemoryError.
     """
     msg = b"a message to sign"
     q, Q = dsa.gen_keys(0x12345678)
@@ -573,7 +573,7 @@ def test_verify_answers_about_signatures_not_about_types() -> None:
     assert not dsa.verify(msg, Q, b"")
     assert not dsa.verify(msg, Q, b"\x30\x06\x02\x01\x80\x02\x01\x80")
 
-    # a TypeError now says so, where it used to mean "invalid signature"
+    # a TypeError says so: raised, not folded into False
     with pytest.raises(TypeError, match="not callable"):
         dsa.verify(msg, Q, sig, hf=sha256())  # type: ignore[arg-type]
     with pytest.raises(TypeError, match="not callable"):

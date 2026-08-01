@@ -110,11 +110,11 @@ NetworkType = Literal["main", "test"]
 
 
 # What a HashF returns: as much of the hashlib object as this library uses,
-# and no more. A Protocol rather than Any, which is what HashF used to
-# return -- so hf().digest() was Any, hf().digest_size was Any, and every
-# expression downstream of a hash function was unchecked. Eleven sites read
-# digest_size and nine build a digest through update(); with Any, a typo in
-# either was a runtime AttributeError in a mypy-strict code base.
+# and no more. A Protocol rather than Any: under Any, hf().digest() and
+# hf().digest_size go unchecked, and with them every expression downstream
+# of a hash function. Eleven sites read digest_size and nine build a digest
+# through update(); with Any, a typo in either is a runtime AttributeError
+# in a mypy-strict code base.
 #
 # Not hashlib._Hash, which is what typeshed calls it: a private name, and
 # structural typing is the right tool for "whatever hashlib.new returns"
@@ -147,15 +147,13 @@ class HashObject(Protocol):
 # Hash digest constructor: it may be any name suitable to hashlib.new().
 # Called with no argument and then fed through update(), which is how every
 # hf parameter in the package is used: hf(data) does not type check here,
-# and hashlib.sha256 accepting it anyway is what made the distinction below
-# invisible
+# and hashlib.sha256 accepting it anyway is what makes the distinction
+# below invisible at run time
 HashF = Callable[[], HashObject]
 
 # A one-shot digest: hf(data) returns the digest, where a HashF returns an
 # object to update. The merkle functions of btclib.hashes take this one --
-# hash256, not hashlib.sha256 -- and they used to spell it out inline while
-# every other hf in the library was a HashF, so two incompatible things
-# went by one name with nothing to tell them apart.
+# hash256, not hashlib.sha256.
 #
 # Naming it makes a swap a type error rather than a runtime one, and the
 # type is load-bearing in both directions: hashlib.sha256 satisfies HashF's
@@ -193,11 +191,8 @@ Command = int | str | bytes
 ScriptList = list[Command]
 
 # A BIP341 taproot script tree: a leaf is a one-element list holding a
-# (leaf_version, script) pair, a branch a two-element list of subtrees.
-# The nesting is what makes the alias recursive, and recursion is why this
-# used to be a bare Any behind a TODO citing mypy issue 731 -- which was
-# closed by mypy 0.990, recursive aliases being on by default since 1.0.
-# So the alias is written out, and the taproot surface is checked.
+# (leaf_version, script) pair, a branch a two-element list of subtrees;
+# the nesting is what makes the alias recursive.
 #
 # list, and not the Sequence mypy's variance note suggests when a caller's
 # list[tuple[int, list[str]]] does not fit: str is itself a Sequence[str],

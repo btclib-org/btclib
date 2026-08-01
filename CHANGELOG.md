@@ -11,7 +11,7 @@ release-notes length in the first place, and are still in
 
 ## v2026.8 (work in progress, not released yet)
 
-A hundred and forty-eight entries, grouped. The order runs from what breaks
+A hundred and forty-nine entries, grouped. The order runs from what breaks
 a caller to what only maintainers see; [HISTORY.md](./HISTORY.md) lists the
 sixteen source-breaking changes on their own.
 
@@ -1835,6 +1835,16 @@ sixteen source-breaking changes on their own.
 
 ### Documentation and the website
 
+- **Comments and documentation state the present rationale, not the
+  story of how the code got here.** A comment that read "this used to be
+  X, which broke Y" reads "not X: it breaks Y" now — the rejected
+  alternative and its cost stay, the timeline goes, and pure change
+  chronicles (old names, refresh sagas, dates of fixes) are deleted;
+  regression tests say what they guard against rather than what once
+  happened. The sweep also corrected facts that had drifted stale, the
+  one a user should note being SECURITY.md's delegation conditions:
+  `ssa.sign` reaches the bindings only for a 32-byte message, and the
+  file now says so
 - **CONTRIBUTING.md warns that `--python` rebuilds `.venv`.** Reproducing
   one cell of the matrix with the documented command — `uv run --locked
   --no-default-groups --group test --python 3.10 pytest` — removes and

@@ -44,21 +44,16 @@ TAPSCRIPT = load("script", "_data", "script_assets_test.json")
 def taproot_vectors(outcome: str) -> list[Any]:
     """Every vector carrying an `outcome` witness, whatever its flags.
 
-    `"TAPROOT" in x["flags"]` used to stand here as well, and it dropped
-    1016 of the file's 3737 cases: 685 `success` and 331 `failure` whose
-    flags field stops at NULLDUMMY. Those are not off-topic vectors.
-    Core's `feature_taproot.py` dumps a spend twice, once with the soft
-    fork enforced and once without, and the second copy is what asserts
-    that a taproot output stays anyone-can-spend to a node that does not
-    know the rule -- the upgrade path, which the filter left untested
-    while testing the rule itself 2721 times.
-
-    Nothing was hidden behind it: all 1016 pass as they stand, 685
-    accepted and 331 refused, so this is a coverage change and not a fix.
-    Nor were they covered elsewhere -- 612 of them are reached by no other
-    test, and the remaining 73 only by `test_valid_script_path`, which
-    checks the taproot commitment and runs no script.
-
+    No `"TAPROOT" in x["flags"]` filter: it would drop 1016 of the
+    file's 3737 cases, 685 `success` and 331 `failure` whose flags field
+    stops at NULLDUMMY, and those are not off-topic vectors. Core's
+    `feature_taproot.py` dumps a spend twice, once with the soft fork
+    enforced and once without, and the second copy is what asserts that
+    a taproot output stays anyone-can-spend to a node that does not
+    know the rule -- the upgrade path. Nothing else covers them: 612 of
+    them are reached by no other test, and the remaining 73 only by
+    `test_valid_script_path`, which checks the taproot commitment and
+    runs no script.
     """
     return [
         pytest.param(x, id=vector_id(index, x["comment"]))
@@ -95,14 +90,13 @@ def test_invalid_taproot(vector: dict[str, Any]) -> None:
     tx.vin[index].script_sig = bytes.fromhex(vector["failure"]["scriptSig"])
 
     flags = vector["flags"].split(",")
-    # BTClibValueError alone, as `test_script` narrowed its own raises to
-    # and for the same reason: everything the engine refuses is one,
-    # ScriptError included, so a bare IndexError or KeyError is the
-    # library breaking the contract btclib/exceptions.py documents and not
-    # a refusal. The tuple used to name all three, and the IndexError in
-    # it was load-bearing: two `spendpath/truncshortcontrol` vectors left
-    # through `witness.stack[-1][0]` on an empty element, and this test
-    # counted the crash as the refusal it was asking for
+    # BTClibValueError alone, as in `test_script` and for the same
+    # reason: everything the engine refuses is one, ScriptError
+    # included, so a bare IndexError or KeyError is the library breaking
+    # the contract btclib/exceptions.py documents and not a refusal. A
+    # tuple naming them as well would count a crash as the refusal it is
+    # asking for: two `spendpath/truncshortcontrol` vectors once left
+    # through `witness.stack[-1][0]` on an empty element
     with pytest.raises(BTClibValueError):
         verify_input(prevouts, tx, index, flags)
 
@@ -110,9 +104,9 @@ def test_invalid_taproot(vector: dict[str, Any]) -> None:
 def annex_vectors() -> list[Any]:
     """The TAPROOT vectors whose witness carries an annex to be stripped.
 
-    The flags test `taproot_vectors` above no longer makes is kept here,
-    and selects the same 248 vectors with or without it: no vector whose
-    flags stop short of TAPROOT carries an annex, measured. It stays as
+    The flags test `taproot_vectors` above omits is made here, and
+    selects the same 248 vectors with or without it: no vector whose
+    flags stop short of TAPROOT carries an annex, measured. It stands as
     the statement that an annex is a taproot notion, which is what makes
     a future vector contradicting it worth looking at.
     """
@@ -133,9 +127,8 @@ ANNEX_VECTORS = annex_vectors()
 def test_annex_vectors_exist() -> None:
     """`test_verify_input_does_not_touch_the_tx` needs an annex to strip.
 
-    It was the `assert annexed` at the end of the loop; a parametrized
-    test over no parameter is one green skip, so the count is asserted
-    here rather than not at all.
+    A parametrized test over no parameter is one green skip, so the
+    count is asserted here rather than not at all.
     """
     assert ANNEX_VECTORS
 
@@ -144,10 +137,11 @@ def test_annex_vectors_exist() -> None:
 def test_verify_input_does_not_touch_the_tx(vector: dict[str, Any]) -> None:
     """Verifying an input must leave the witness of the caller's Tx alone.
 
-    `taproot_get_annex` used to assign the trimmed stack back to the witness,
-    and the segwit v0 branches handed the interpreter the witness stack itself,
-    which pops what it consumes: `verify_transaction` rewrote the very Tx it
-    was validating (issue #140).
+    Guards against `taproot_get_annex` assigning the trimmed stack back
+    to the witness, and against the segwit v0 branches handing the
+    interpreter the witness stack itself, which pops what it consumes:
+    either way `verify_transaction` rewrites the very Tx it is
+    validating (issue #140).
     """
     prevouts = [TxOut.parse(prevout) for prevout in vector["prevouts"]]
     index = vector["index"]
@@ -168,31 +162,29 @@ def test_verify_input_does_not_touch_the_tx(vector: dict[str, Any]) -> None:
 def legacy_vectors(fname: str) -> list[Any]:
     """Every vector of a Bitcoin Core tx_valid/tx_invalid.json, comments aside.
 
-    The files keep Core's names because they are Core's files entire: the
-    `_legacy` they used to carry read as a subsetting that never happened
-    -- 121 valid and 93 invalid vectors here, 121 and 93 upstream -- and
-    the content is not legacy either, 2 valid and 14 invalid vectors
+    The files keep Core's names because they are Core's files entire --
+    121 valid and 93 invalid vectors here, 121 and 93 upstream -- so a
+    `_legacy` in the file names would read as a subsetting that never
+    happens; nor is the content legacy, 2 valid and 14 invalid vectors
     naming WITNESS in their flags (issue 168). The `legacy` of the test
     names below is another matter and stays: it distinguishes the pre-
     taproot validation path these vectors drive from the BIP341 ones
     above, and issue 129 cites `test_invalid_legacy` by name.
 
-    Nothing is filtered here any more. The loop this replaces skipped
-    whatever `Tx.parse` refused -- 2 of the then 119 valid vectors and 8
-    of the 93 invalid ones -- and the two it dropped from the valid file
-    were a genuine refusal it was hiding: btclib bounded an amount by the
-    issued supply rather than by MAX_MONEY, and could not parse the two
-    `MAX_MONEY output` transactions (issue 167). A valid vector btclib
-    cannot parse must fail, and an invalid one refused at parse time is
-    refused, which is all its test asks.
+    Nothing is filtered here: skipping whatever `Tx.parse` refuses hides
+    genuine failures. It hid btclib bounding an amount by the issued
+    supply rather than by MAX_MONEY, which made the two `MAX_MONEY
+    output` transactions of the valid file unparsable (issue 167). A
+    valid vector btclib cannot parse must fail, and an invalid one
+    refused at parse time is refused, which is all its test asks.
     """
     params = []
     comment = ""
     for index, x in enumerate(load("script_engine", "_data", fname)):
         if isinstance(x[0], str):
             # a comment line, and it describes the vectors that follow:
-            # "MAX_MONEY output", "Coinbase of size 2". The flags field
-            # was the id before, which named a dozen vectors "41-P2SH"
+            # "MAX_MONEY output", "Coinbase of size 2" -- an id the
+            # flags field cannot give, naming a dozen vectors "41-P2SH"
             comment = x[0]
             continue
         params.append(pytest.param(x, id=vector_id(index, comment, x[2])))
@@ -277,8 +269,6 @@ def test_verify_transaction_does_not_touch_witness_v0(vector: list[Any]) -> None
 # switching one off names it in its own flags field, and the test takes it
 # out of this set. Spelled out rather than written as the complement of the
 # four, so that a member added to ScriptFlag does not silently join it.
-# The four were commented-out strings here too, "MINMALIF" among them --
-# misspelled, hence unenablable, which is the typo issue #145 is about
 CONSENSUS_FLAGS = (
     ScriptFlag.P2SH
     | ScriptFlag.SIGPUSHONLY
@@ -304,8 +294,7 @@ def flags_of(vector: list[Any]) -> ScriptFlags:
     an empty field and its `"NONE"` spelling are both no rule at all.
     `"BADTX"` is not a flag and is not treated as one -- it is Core's
     marker for the nine tx_invalid vectors that must fail CheckTransaction
-    before a script runs, so those are verified with no rule enabled,
-    which is what naming no flag the engine knows did before.
+    before a script runs, so those are verified with no rule enabled.
     """
     return NO_FLAGS if vector[2] == "BADTX" else str(vector[2])
 
@@ -316,9 +305,9 @@ def test_valid_legacy(vector: list[Any]) -> None:
 
     flags = CONSENSUS_FLAGS
     for f in vector[2].split(","):
-        # `f in ScriptFlag.__members__` is the test the `f in flags` of a
-        # list of strings was: NONE, and no other name in the two files, is
-        # not a member
+        # NONE, and no other name in the two files, is not a member: it
+        # is Core's spelling of an empty flags field, not a rule to
+        # switch off
         if f in ScriptFlag.__members__:
             flags &= ~ScriptFlag[f]
 
@@ -333,18 +322,18 @@ def test_invalid_legacy(vector: list[Any]) -> None:
 
     # Tx.parse inside the raises block, not before it: 8 of these
     # transactions are malformed enough that btclib refuses them there,
-    # and refusing them there is refusing them. The loop parsed first and
-    # skipped what raised, so those 8 asserted nothing at all.
-    # BTClibValueError alone, as above: all 93 leave through one, measured,
-    # so the IndexError and KeyError this used to name were width that
-    # bought nothing and would have hidden the next contract break
+    # and refusing them there is refusing them -- parsed first and
+    # skipped on failure, those 8 would assert nothing at all.
+    # BTClibValueError alone, as above: all 93 leave through one,
+    # measured, so naming IndexError and KeyError too is width that buys
+    # nothing and would hide the next contract break
     with pytest.raises(BTClibValueError):
         tx = Tx.parse(vector[1])
         # the vector's own flags, and only those: an invalid transaction
-        # must be refused by the rules its vector names. A "NONE" field
-        # used to be turned into the default set, i.e. into more rules than
-        # the vector asks for, which is the wrong direction for a vector
-        # that has to fail
+        # must be refused by the rules its vector names. Turning a "NONE"
+        # field into the default set would enable more rules than the
+        # vector asks for, the wrong direction for a vector that has to
+        # fail
         verify_transaction(prevouts, tx, flags_of(vector), check_amounts)
 
 

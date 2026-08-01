@@ -93,8 +93,8 @@ def test_long_message() -> None:
     """Sign and verify across the one-byte length boundary.
 
     The message length is prefixed as a var_int, so a message of 253
-    bytes or more is signable and verifiable; a fixed one-byte length
-    used to make signing raise OverflowError from 256 bytes on.
+    bytes or more is signable and verifiable; guards against a fixed
+    one-byte length making signing raise OverflowError from 256 bytes on.
     """
     wif, addr = bms.gen_keys()
     for length in (252, 253, 255, 256, 0x10000):
@@ -121,8 +121,8 @@ def test_exceptions() -> None:
         bms.Sig(26, bms_sig.dsa_sig)
 
     # 84 base64 characters and then a padding one, i.e. a pad following
-    # a complete group. b64decode used to discard it, as it discarded
-    # anything out of the alphabet, and hand over the 63 bytes left
+    # a complete group: guards against b64decode discarding it, as
+    # anything out of the alphabet, and handing over the 63 bytes left
     exp_sig = "IHdKsFF1bUrapA8GMoQUbgI+Ad0ZXyX1c/yAZHmJn5hNBi7J+TrI1615FG3g9JEOPGVvcfDWIFWrg2exLoVc="
     err_msg = "invalid base64 encoding: "
     with pytest.raises(BTClibValueError, match=err_msg):
@@ -155,8 +155,8 @@ def test_exceptions() -> None:
         bms.sign(msg, wif, address)
 
     # uncompressed wif, compressed address: the mismatch the case above
-    # reports, reported the same way. It used to answer "not a private or
-    # compressed public key for mainnet" -- raised out of p2wpkh_p2sh,
+    # reports, reported the same way -- not as "not a private or
+    # compressed public key for mainnet" leaking out of p2wpkh_p2sh,
     # tried with an uncompressed key on the way to BIP137
     wif = "5JDopdKaxz5bXVYXcAnfno6oeSL8dpipxtU1AhfKe3Z58X48srn"
     address = "1DAag8qiPLHh6hMFVu9qJQm9ro1HtwuyK5"
@@ -565,12 +565,10 @@ def test_sign_strippable_message() -> None:
     assert bms_sig.b64encode() == exp_sig
 
 
-# all 200 of the file, where a `[:10]` slice used to stand. "The vectors
-# after them prove the same thing again" was the reason given for it, and
-# it was an assertion nobody had measured: the file is the only place
-# those 190 addresses appear, so nothing else was proving it. Measured
-# now, all 200 pass, and they cost a signature each -- which is the
-# price of a vendored vector being able to report a regression at all
+# all 200 of the file, not a slice: the file is the only place these
+# addresses appear, so a vector left out is proved by nothing else. They
+# cost a signature each -- the price of a vendored vector being able to
+# report a regression at all
 PYTHON_BITCOINLIB_VECTORS = [
     pytest.param(vector, id=vector_id(index, vector["address"]))
     for index, vector in enumerate(load("ecc", "_data", "signmessage.json"))
@@ -582,11 +580,8 @@ def test_vector_python_bitcoinlib(vector: dict[str, Any]) -> None:
     """Test python-bitcoinlib test vectors.
 
     `signmessage.json` is upstream's own name for it,
-    `bitcoin/tests/data/signmessage.json`. It was vendored as `bms.json`,
-    after this project's module rather than after its source, and the path
-    this docstring used to name -- `bitcoin/tests/test_data/bms.json` --
-    was neither the directory nor the file upstream has.
-    tests/_data/README.md pins the revision.
+    `bitcoin/tests/data/signmessage.json`; tests/_data/README.md pins
+    the revision.
     """
     msg = vector["address"].encode()
 
@@ -722,7 +717,7 @@ def test_recover_pub_key_input_type() -> None:
 
 
 def test_the_recovery_flag_carries_a_key_id_not_a_list_index() -> None:
-    """`sign` searches the key_ids; it used to index the recovered list.
+    """`sign` searches the key_ids rather than indexing the recovered list.
 
     `dsa.recover_pub_keys(...).index(Q)` is the key_id only while no
     earlier candidate has dropped out of that list, and a candidate drops
@@ -761,7 +756,7 @@ def test_a_key_id_that_recovers_nothing() -> None:
     while 2 and 3 take x = r + n, which exceeds p unless r < p - n --
     about one r in 2^127 -- so they raise rather than answer. That is the
     candidate `recover_pub_keys` drops from its list, and dropping it is
-    what made `.index` the wrong question for the recovery flag.
+    what makes `.index` the wrong question for the recovery flag.
     """
     msg = b"a message"
     prv_key, pub_key = dsa.gen_keys()
@@ -782,9 +777,9 @@ def test_a_key_id_that_recovers_nothing() -> None:
 def test_parse_length_is_not_a_validity_opinion() -> None:
     """65 bytes is what makes the [rf][r][s] slices mean anything.
 
-    Skipped under check_validity=False, a short buffer still produced a
-    Sig, r and s coming from truncated slices: every input sharing a
-    prefix collapsed onto the same signature.
+    The check must hold under check_validity=False too: skipped, a short
+    buffer still produces a Sig, r and s coming from truncated slices,
+    and every input sharing a prefix collapses onto the same signature.
     """
     wif, _ = bms.gen_keys()
     sig_bin = bms.sign(b"test", wif).serialize()
@@ -797,10 +792,10 @@ def test_parse_length_is_not_a_validity_opinion() -> None:
 
 
 def test_b64decode_rejects_what_is_not_base64() -> None:
-    """b64decode used to discard whatever was not in the alphabet.
+    """Guard against b64decode discarding what is not in the alphabet.
 
-    Which made a signature reachable from unboundedly many strings, the
-    one thing a signature encoding must not allow.
+    That would make a signature reachable from unboundedly many strings,
+    the one thing a signature encoding must not allow.
     """
     wif, _ = bms.gen_keys()
     b64_sig = bms.sign(b"test", wif).b64encode()
@@ -824,7 +819,7 @@ def test_b64decode_requires_the_canonical_encoding() -> None:
 
     65 bytes take 88 base64 characters, the last data one carrying 4
     significant bits and 2 that are discarded: four distinct strings
-    used to decode to the very same signature. validate=True does not
+    decode to the very same signature. validate=True does not
     see that, and what it makes of padding varies with the interpreter
     in both directions -- 3.11 takes an excess pad that 3.10 and 3.14
     refuse, 3.14 refuses one that they take -- so what settles it

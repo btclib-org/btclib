@@ -227,9 +227,10 @@ class Block:
         self.header.assert_valid_pow()
 
         # every block carries a coinbase, so an empty list is not a block
-        # that happens to be empty: it is not a block. transactions[0]
-        # used to answer one with an IndexError, and a var_int of zero
-        # where the transaction count goes is all it takes to serialize
+        # that happens to be empty: it is not a block. Refused here, or
+        # transactions[0] below answers it with an IndexError -- and a
+        # var_int of zero where the transaction count goes is all it takes
+        # to serialize one
         if not self.transactions:
             raise BTClibValueError("block with no transactions")
 

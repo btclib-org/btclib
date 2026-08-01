@@ -130,10 +130,8 @@ def test_control_block() -> None:
 
 # the vector's scriptTree, not a tree: nested json lists of
 # {"leafVersion": ..., "script": ...} objects, hence Any in and a real
-# TaprootScriptTree out. It used to be annotated TaprootScriptTree both
-# ways, which said nothing while the alias was Any -- and it built each
-# leaf as a two-element list, where every other caller writes the pair as
-# a tuple. Both shapes unpack, so nothing failed; the alias now picks one
+# TaprootScriptTree out -- each leaf a tuple, the one shape the alias
+# names, not a two-element list that happens to unpack the same way
 def convert_script_tree(script_tree: Any) -> TaprootScriptTree:
     if isinstance(script_tree, list):
         return [convert_script_tree(x) for x in script_tree]

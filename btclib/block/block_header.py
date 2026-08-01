@@ -70,15 +70,15 @@ class BlockHeader:
         # power term, also called characteristics. Core's SetCompact
         # shifts rather than multiplying by a power of 256, and so does
         # this: pow(256, -1) is a float in python, so an exponent below
-        # 3 used to send a 256-bit number through float arithmetic
+        # 3 would send a 256-bit number through float arithmetic
         exponent = self.bits[0]
         if exponent < 3:
             value = significand >> (8 * (3 - exponent))
         else:
             value = significand << (8 * (exponent - 3))
 
-        # the compact form can denote what 32 bytes cannot hold, and
-        # to_bytes answered that with an OverflowError. Core raises the
+        # the compact form can denote what 32 bytes cannot hold, which
+        # to_bytes would answer with an OverflowError. Core raises the
         # same objection through the fOverflow flag of SetCompact, on
         # which CheckProofOfWork rejects the header
         if value >= 256**_HF_LEN:
@@ -134,9 +134,9 @@ class BlockHeader:
         # int(), where the annotation already says int, for the same reason
         # bytes_from_octets is called on the Octets fields: from_dict feeds
         # this constructor a json object, where a whole number may arrive
-        # as a float. assert_valid used to coerce nonce, i.e. it rewrote
-        # the object it was asked to inspect -- and it is called by
-        # serialize() and to_dict(), so reading a header mutated it
+        # as a float. Coercing in assert_valid instead would rewrite the
+        # object it is asked to inspect -- and it is called by serialize()
+        # and to_dict(), so reading a header would mutate it
         self.version = int(version)
         self.previous_block_hash = bytes_from_octets(previous_block_hash)
         self.merkle_root = bytes_from_octets(merkle_root)
@@ -196,11 +196,10 @@ class BlockHeader:
 
     def assert_valid(self) -> None:
         # the type check the bytes fields get from bytes() below, for the
-        # two int ones. assert_valid used to coerce nonce here instead,
-        # which repaired the mistake and rewrote the header to do it; the
-        # coercion moved to __init__, and what is left is the report. Not
-        # dropped altogether, which would have let a float reach to_bytes
-        # and leave the library through an AttributeError
+        # two int ones. Not a coercion, which would repair the mistake by
+        # rewriting the header being inspected (__init__ coerces, this
+        # reports); not dropped either, which would let a float reach
+        # to_bytes and leave the library through an AttributeError
         for key in ("version", "nonce"):
             value = getattr(self, key)
             if not isinstance(value, int):
@@ -233,16 +232,16 @@ class BlockHeader:
 
         # the header field is four unsigned bytes, so 2106-02-07 06:28:15Z
         # is the last instant a header can carry. Without this, a later one
-        # passed assert_valid and failed in serialize, through the
+        # passes assert_valid and fails in serialize, through the
         # OverflowError of int.to_bytes -- which names neither the field nor
-        # the object, so the caller of Block.serialize was told "int too big
-        # to convert" about a header it had just been told was valid
+        # the object, so the caller of Block.serialize is told "int too big
+        # to convert" about a header it has just been told is valid.
         # self.time, where the bound above renders the instant through
         # fromtimestamp: this branch is the one that catches datetime.max,
         # whose timestamp() is 253402300799.999999 rounded up to
         # 253402300800.0 by the float, i.e. year 10000, and fromtimestamp
-        # answers that with a ValueError -- building the message would have
-        # thrown the very exception this check exists to replace
+        # answers that with a ValueError -- building the message would
+        # throw the very exception this check exists to replace
         if timestamp > 0xFFFFFFFF:
             err_msg = "invalid timestamp (after the last 4-bytes instant)"
             err_msg += f": {self.time}"
@@ -250,8 +249,8 @@ class BlockHeader:
 
         for key, size in _KEY_SIZE:
             # bytes() is the type check, not a coercion: it raises
-            # TypeError for a field rebound to a str. Unlike bip32's
-            # counterpart this loop never assigned the result back
+            # TypeError for a field rebound to a str. The result is never
+            # assigned back: validating must not rewrite the header
             value = bytes(getattr(self, key))
             if len(value) != size:
                 err_msg = f"invalid {key} length: "
@@ -261,9 +260,9 @@ class BlockHeader:
 
         # any 4-byte value, zero included: consensus places no lower bound
         # on the nonce, Core does not look at it at all, and a header being
-        # mined starts at zero. The bound used to be 0 < nonce, which also
-        # served as parse()'s truncation check -- a short read yields zero
-        # -- and that is now a length check in parse(), where it belongs
+        # mined starts at zero. Excluding zero would only be a proxy for
+        # truncation -- a short read yields zero -- which parse() checks
+        # by length, where it belongs
         if not 0 <= self.nonce <= 0xFFFFFFFF:
             raise BTClibValueError(f"invalid nonce: {hex(self.nonce)}")
 
@@ -292,12 +291,12 @@ class BlockHeader:
         header_bin = stream.read(_REQUIRED_LENGTH)
 
         # read past the end of a stream returns what there was, without
-        # raising, so a truncated header used to be reported by whichever
-        # field the missing bytes happened to fall in: eight bytes short
-        # was "invalid nonce", four short "invalid bits length", and
-        # twelve short "invalid timestamp (before genesis)" -- the epoch,
-        # read from no bytes at all. Reported as truncation now, as
-        # BIP32KeyData.parse reports it
+        # raising: check the length up front, or a truncated header is
+        # reported by whichever field the missing bytes happen to fall in
+        # -- eight bytes short as "invalid nonce", four as "invalid bits
+        # length", twelve as "invalid timestamp (before genesis)", the
+        # epoch read from no bytes at all. Reported as truncation instead,
+        # as BIP32KeyData.parse reports it
         if check_validity and len(header_bin) != _REQUIRED_LENGTH:
             err_msg = f"invalid decoded length: {len(header_bin)}"
             err_msg += f" instead of {_REQUIRED_LENGTH}"

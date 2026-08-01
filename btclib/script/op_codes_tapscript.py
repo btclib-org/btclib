@@ -17,7 +17,7 @@ well -- `GetOpName` has a case for each, `GetOp` reads them, and only the
 interpreter decides. Dropping them from the tables would go further than
 Core and reject a *spendable* script: `OP_VERIF OP_SUCCESS80` is valid,
 Core's pre-scan returning success at the first OP_SUCCESS whatever
-precedes it, while `parse` would have raised on the byte before ever
+precedes it, while `parse` would raise on the byte before ever
 reaching it (issue #182).
 """
 

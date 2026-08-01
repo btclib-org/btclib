@@ -9,14 +9,13 @@
 # or distributed except according to the terms contained in the LICENSE file.
 """Every module btclib ships is documented.
 
-The pages under `docs/source/` are hand written, and `docs/README.rst`
-used to answer the drift that invites by telling contributors to re-run
-`sphinx-apidoc -f` whenever modules change. Nobody did, for good reason:
-`-f` regenerates every page from the template, discarding the hand-tuned
-index and the myst links to the markdown files. `btclib.descriptors` was
-the cost -- the one top-level module absent from the automodule
-directives, and therefore from the published documentation, with nothing
-anywhere to say so.
+The pages under `docs/source/` are hand written, which invites drift, and
+telling contributors to re-run `sphinx-apidoc -f` is no answer: `-f`
+regenerates every page from the template, discarding the hand-tuned index
+and the myst links to the markdown files. What drift costs is a module
+absent from the automodule directives -- and therefore from the published
+documentation -- with nothing anywhere to say so; this test is the thing
+that says so.
 
 A test rather than a workflow step. It needs no environment the suite does
 not already have, it runs on every interpreter of the matrix instead of on

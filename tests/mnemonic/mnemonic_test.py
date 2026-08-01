@@ -49,7 +49,7 @@ def test_wordlist_2() -> None:
     with pytest.raises(BTClibValueError, match=err_msg):
         WORDLISTS.load_lang(lang)
 
-    # dictionary length (must be a power of two.
+    # dictionary length must be a power of two.
     # fakeenglish.txt is btclib's own and deliberately broken: bip-0039's
     # english.txt with `abandon` deleted, so 2047 words. Regenerate it from
     # english.txt if that ever changes, which it has not since 2014;
@@ -70,13 +70,13 @@ def test_wordlist_2() -> None:
 
 
 def test_load_lang_is_not_a_race() -> None:
-    """A concurrent reader used to get an empty word-list.
+    """Guards against a concurrent reader getting an empty word-list.
 
-    load_lang recorded the word count before the words, and treats a
-    non-zero count as "already loaded". A second thread arriving between
-    the two assignments therefore skipped the load and got back the empty
-    list the constructor had put there. Forcing that interleaving, the
-    second caller saw 0 words instead of 2048.
+    load_lang treats a non-zero word count as "already loaded", so were
+    the count recorded before the words, a second thread arriving between
+    the two assignments would skip the load and get back the empty list
+    the constructor put there: 0 words instead of 2048. This test forces
+    that interleaving.
     """
     word_lists = WordLists()
     paused = threading.Event()
@@ -120,7 +120,7 @@ def test_load_lang_is_not_a_race() -> None:
 
 
 def test_load_lang_is_idempotent_and_reads_once() -> None:
-    """Still loaded lazily, and still read from disk only once."""
+    """Loaded lazily, and read from disk only once."""
     word_lists = WordLists()
     reads = []
     real_open = builtins.open

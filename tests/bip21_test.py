@@ -190,10 +190,10 @@ def test_the_address_is_not_lowercased() -> None:
 def test_networks_other_than_mainnet() -> None:
     """What a non-mainnet address says, which is "test" and no more.
 
-    The property used to answer with a network name, and could not: the
-    first address below is testnet, signet and testnet4 at once, and the
-    second is those three and regtest. A payer needs to know the request
-    is not for real bitcoin, which is exactly what "test" says.
+    A network name would over-answer: the first address below is testnet,
+    signet and testnet4 at once, and the second is those three and
+    regtest. A payer needs to know the request is not for real bitcoin,
+    which is exactly what "test" says.
     """
     for address in (
         "tb1qw508d6qejxtdg4y5r3zarvary0c5xw7kxpjzsx",

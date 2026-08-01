@@ -70,7 +70,7 @@ def test_ec_exports_the_curve_api_not_the_benchmark() -> None:
 
 
 def test_ecc_exports_the_signature_schemes() -> None:
-    """dsa, ssa and bms were the three names it did not export."""
+    """Guards against dsa, ssa and bms dropping out of the export list."""
     assert sorted(btclib.ecc.__all__) == [
         "ansi_x9_63_kdf",
         "bip340_nonce_",
@@ -85,8 +85,8 @@ def test_ecc_exports_the_signature_schemes() -> None:
     ]
 
     # importing the package is enough to reach them, which is the point:
-    # btclib.ecc.dsa used to raise AttributeError until something else in
-    # the process happened to import the submodule
+    # guards against btclib.ecc.dsa raising AttributeError until something
+    # else in the process happens to import the submodule
     for name in ("dsa", "ssa", "bms", "borromean", "pedersen", "sign_to_contract"):
         module = getattr(btclib.ecc, name)
         assert module.__name__ == f"btclib.ecc.{name}"

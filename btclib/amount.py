@@ -52,12 +52,12 @@ _BITCOIN_PER_SATOSHI = Decimal("0.00000001")
 # This is MAX_MONEY, the bound of Bitcoin Core's MoneyRange(), and it is
 # inclusive: a transaction with an output of exactly MAX_MONEY passes
 # CheckTransaction, and tx_valid.json carries two of them.
-# It used to be 2_099_999_997_690_000, the supply the halving schedule
-# actually issues -- 2_310_000 satoshi less, what the subsidy loses to
-# integer division on its way down. That is a fact about issuance and
-# not a validity rule: an amount above it is unfundable, not invalid,
-# and bounding by it made btclib refuse to so much as parse two
-# transactions the network considers valid (issue 167)
+# Not 2_099_999_997_690_000, the supply the halving schedule actually
+# issues -- 2_310_000 satoshi less, what the subsidy loses to integer
+# division on its way down: that is a fact about issuance and not a
+# validity rule, an amount above it being unfundable rather than
+# invalid, and bounding by it would make btclib refuse to so much as
+# parse two transactions the network considers valid (issue 167)
 _MAX_SATOSHI = 21_000_000 * _SATOSHI_PER_BITCOIN
 _MAX_BITCOIN = Decimal(21_000_000)
 

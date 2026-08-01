@@ -83,9 +83,9 @@ def bip340_nonce_(
 ) -> tuple[int, int, int, int]:
     """Return a BIP340 deterministic ephemeral key (nonce).
 
-    The message is of any size: BIP340 lifted its 32-byte restriction in
-    2023-04, and the nonce tagged hash absorbs any length just as the
-    challenge does. This used to be bytes_from_octets(msg, hf_len).
+    The message is of any size: BIP340 puts no size restriction on it,
+    and the nonce tagged hash absorbs any length just as the challenge
+    does.
     """
     hf_len = hf().digest_size
     msg = bytes_from_octets(msg)

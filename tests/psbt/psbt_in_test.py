@@ -21,9 +21,8 @@ def test_psbt_out() -> None:
     psbt_in = PsbtIn()
     # the dict round trip and not the bytes one: PsbtIn.serialize returns
     # bytes and PsbtIn.parse takes a decoded key-value map, so the two are
-    # not inverses and there is no bytes-to-object parse to call here.
-    # Issue #181 carries that, where a commented-out assert used to
-    # suggest a check that could never be switched on
+    # not inverses and there is no bytes-to-object parse to call here
+    # (issue #181)
     assert psbt_in == PsbtIn.from_dict(psbt_in.to_dict())
 
 
@@ -33,14 +32,14 @@ def test_compatibility() -> None:
 
 
 def test_default_arguments_are_not_shared() -> None:
-    # the final_script_witness default used to be built once, at
-    # definition time, and shared by every PsbtIn built without it
+    # guards against the final_script_witness default being built once,
+    # at definition time, and shared by every PsbtIn built without it
     # (issue #139)
     psbt_in = PsbtIn()
     assert psbt_in.final_script_witness is not PsbtIn().final_script_witness
 
-    # a Witness is immutable all the way down now, so sharing one would no
-    # longer corrupt anything; it is still built per call
+    # a Witness is immutable all the way down, so a shared one could not
+    # be corrupted; it is still built per call
     with pytest.raises(FrozenInstanceError):
         psbt_in.final_script_witness.stack = ()  # type: ignore[misc]
     assert not PsbtIn().final_script_witness.stack

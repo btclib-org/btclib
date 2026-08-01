@@ -61,8 +61,8 @@ def test_deserialize_map_short_read() -> None:
     """An announced size is bounded by the data, not taken on trust.
 
     BytesIO.read hands back whatever is left rather than what was asked
-    for, so every buffer below used to deserialize to the very same map
-    -- {b"A": b"B"} -- and serialize back to only one of them.
+    for, so an unchecked read deserializes every buffer below to the very
+    same map -- {b"A": b"B"} -- which serializes back to only one of them.
     """
     assert deserialize_map(b"\x01A\x01B\x00")[0] == {b"A": b"B"}
 
@@ -79,8 +79,8 @@ def test_deserialize_map_short_read() -> None:
 def test_deserialize_map_unterminated() -> None:
     """Running out of buffer is not the 0x00 that ends a map.
 
-    Reading the separator without checking that there was one to read
-    answered a truncated psbt with an IndexError.
+    Reading the separator without checking that there is one to read
+    answers a truncated psbt with an IndexError.
     """
     err_msg = "malformed psbt: unterminated map"
     with pytest.raises(BTClibValueError, match=err_msg):

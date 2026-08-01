@@ -219,14 +219,14 @@ def test_mutated_serialization_honors_the_exception_contract(
 # The consumers, not the parsers. Everything above hands bytes to
 # something that turns them into an object; what follows hands an object
 # that parsed *cleanly* to the code that reads it, which is a surface no
-# parser strategy reaches. It is where the contract broke last:
+# parser strategy reaches. The guarded case:
 # `sig_hash.taproot_annex_and_ext` and `engine.taproot_get_annex` both
 # read `stack[-1][0]` to test for the annex, and an empty witness element
 # is legal on the wire and has no first byte -- so a 186-byte transaction
-# `Tx.parse` accepts answered a caller catching BTClibValueError with an
-# IndexError, out of the public `sig_hash.from_tx`. Bitcoin Core's
-# `spendpath/truncshortcontrol` vectors carry the case and the engine
-# tests were accepting the crash as the refusal they asked for.
+# `Tx.parse` accepts would answer a caller catching BTClibValueError with
+# an IndexError, out of the public `sig_hash.from_tx`. Bitcoin Core's
+# `spendpath/truncshortcontrol` vectors carry the case, and a
+# fixed-vector test can take that crash for the refusal it asked for.
 #
 # The witness is the whole of what a peer chooses here, the rest of the
 # transaction being fixed: it is the one field of a valid spend that the

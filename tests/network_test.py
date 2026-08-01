@@ -62,9 +62,9 @@ def test_curve_from_xkeyversion() -> None:
         for version in all_versions:
             # four of the five networks carry testnet's version bytes, so
             # the singular lookup answers with testnet, the oldest of
-            # them: the documented contract since issue #207, and the
-            # right network to re-encode with, all four agreeing on
-            # every version prefix
+            # them: the contract issue #207 documents, and the right
+            # network to re-encode with, all four agreeing on every
+            # version prefix
             expected = "mainnet" if net_str == "mainnet" else "testnet"
             assert expected == network_from_xkeyversion(version)
             assert net.curve == curve_from_xkeyversion(version)
@@ -256,8 +256,8 @@ def test_the_three_xkeyversion_lookups() -> None:
             )
             assert candidates == expected
 
-    # an unknown version: a BTClibValueError, which is a ValueError, as
-    # the bare one list.index used to leak was
+    # an unknown version: a BTClibValueError, which is a ValueError, so a
+    # caller catching the bare ValueError still catches it
     assert networks_from_xkeyversion(b"\x00\x00\x00\x00") == []
     with pytest.raises(BTClibValueError, match="unknown xkey version: 0x00000000"):
         network_from_xkeyversion(b"\x00\x00\x00\x00")

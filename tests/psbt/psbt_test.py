@@ -31,14 +31,10 @@ from tests.conftest import JsonGolden
 def psbt_vectors(fname: str, kind: str) -> list[Any]:
     """The `kind` cases of a BIP test vector file, each named by its description.
 
-    The description used to be printed by an `except: print(); raise`
-    around the decode, and interpolated into the message of every
-    assert, because a bare "case 7 failed" is not a report. As a test id
-    it is there for free, and for the cases that pass as well.
-
-    Two of the valid ones used to be xfail -- the psbts whose unsigned
-    transaction has no inputs, which btclib refused for the reasons issue
-    170 sets out. They pass.
+    The description is the id because a bare "case 7 failed" is not a
+    report: as a test id it is there for free, with no print-and-raise
+    wrapper around the decode and no interpolation into the message of
+    every assert -- and for the cases that pass as well.
     """
     return [
         pytest.param(test_vector, id=vector_id(index, test_vector["description"]))
@@ -108,9 +104,9 @@ def test_taproot_signature_carries_its_sig_hash_type() -> None:
 
     BIP341 appends the sig_hash type when it is not the default one, and
     BIP371 says "64 or 65 bytes" of both PSBT_IN_TAP_KEY_SIG and
-    PSBT_IN_TAP_SCRIPT_SIG. btclib required 64 here, while its own script
-    engine reads the 65-byte form: a signature Bitcoin Core accepts had no
-    psbt to travel in.
+    PSBT_IN_TAP_SCRIPT_SIG. Requiring 64 here, while btclib's own script
+    engine reads the 65-byte form, would leave a signature Bitcoin Core
+    accepts no psbt to travel in.
 
     The vectors are BIP371's own valid ones, whose signatures are 64
     bytes; what is exercised is the byte appended to them. Their invalid
@@ -124,7 +120,7 @@ def test_taproot_signature_carries_its_sig_hash_type() -> None:
     signature = psbt.inputs[0].taproot_key_spend_signature
     assert len(signature) == 64
 
-    # ALL, appended: the 65-byte form, which used to be refused
+    # ALL, appended: the 65-byte form
     psbt.inputs[0].taproot_key_spend_signature = signature + b"\x01"
     psbt.assert_valid()
     assert Psbt.b64decode(psbt.b64encode()) == psbt
@@ -873,14 +869,13 @@ def test_shuffle_sort() -> None:
 
 
 def test_a_psbt_may_have_no_inputs() -> None:
-    """BIP174 lists two such psbts as valid, and btclib refused both.
+    """BIP174 lists two such psbts as valid, and btclib must take both.
 
     A PSBT's global unsigned transaction is incomplete by construction --
     that is the whole point of the format -- so the two rules that make an
-    empty vin or vout invalid in a *transaction* do not apply to it. They
-    were being applied in three places: deserialize_tx on the way in,
-    Psbt.assert_valid's "null transaction", and Tx.serialize on the way
-    back out (issue 170).
+    empty vin or vout invalid in a *transaction* do not apply to it,
+    anywhere on its path: deserialize_tx on the way in, Psbt.assert_valid,
+    and Tx.serialize on the way back out (issue 170).
     """
     # "PSBT with global unsigned tx that has 0 inputs and 0 outputs"
     empty = "cHNidP8BAAoAAAAAAAAAAAAAAA=="
@@ -900,20 +895,19 @@ def test_a_psbt_may_have_no_inputs() -> None:
 
     # valid, and not signable: every check in assert_signable is per input,
     # so without an explicit test an empty vin passes the loop vacuously
-    # and a caller signs nothing while being told nothing. It used to raise
-    # through assert_valid's "null transaction", i.e. by refusing a psbt
-    # BIP174 calls valid; the answer belongs here instead
+    # and a caller signs nothing while being told nothing. The answer
+    # belongs here, not in assert_valid, which would refuse a psbt BIP174
+    # calls valid
     with pytest.raises(BTClibValueError, match="nothing to sign: no inputs"):
         psbt.assert_signable()
 
 
 def test_the_global_unsigned_tx_is_mandatory() -> None:
-    """Dropping "null transaction" would otherwise have let this through.
+    """A psbt with no PSBT_GLOBAL_UNSIGNED_TX at all is refused (BIP174).
 
-    That check was doing two jobs: refusing a psbt with no
-    PSBT_GLOBAL_UNSIGNED_TX at all, which BIP174 requires, and refusing one
-    whose transaction has no inputs, which BIP174 allows. Psbt.parse tracks
-    whether the key was seen, so the two answers are now different.
+    Distinct from a psbt whose transaction has no inputs, which BIP174
+    allows: Psbt.parse tracks whether the key was seen, so the two get
+    different answers.
     """
     # "PSBT where inputs and outputs are provided but without an unsigned tx"
     no_tx = (
@@ -927,13 +921,13 @@ def test_the_global_unsigned_tx_is_mandatory() -> None:
 
 
 def test_a_value_that_is_not_the_stated_size_says_so() -> None:
-    """The check existed and was unreachable.
+    """The size mismatch is what is reported, and the check is reachable.
 
-    deserialize_tx has always compared the re-serialized transaction
-    against the value it came from, but Tx.parse validated on the way in,
-    so a value the parse rejected never reached the comparison. This vector
-    was therefore reported as "Missing inputs", which is true of it and not
-    what is wrong with it: 51 bytes whose transaction is 10.
+    deserialize_tx compares the re-serialized transaction against the
+    value it came from. Were Tx.parse to validate on the way in, a value
+    the parse rejects would never reach the comparison, and this vector
+    would be reported as "Missing inputs" -- true of it, and not what is
+    wrong with it: 51 bytes whose transaction is 10.
     """
     bad_size = "cHNidP8BADN0Af8HAAEAAAABAP8BAApzMXQo/wAAAAAB/wEDAQAAAQAAAAAAAAAAdgEAAABBAAkAAAAAAA=="
     with pytest.raises(BTClibValueError, match="wrong tx serialization format"):

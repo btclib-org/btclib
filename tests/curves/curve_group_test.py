@@ -16,7 +16,7 @@ from btclib.curves import secp256k1
 
 # the eight mult_* variants under test, and the helpers they are built on,
 # come from the module that defines them: btclib.curves exports mult,
-# double_mult and multi_mult, and no longer a menu of implementations
+# double_mult and multi_mult, not a menu of implementations
 from btclib.curves.curve_group import (
     MAX_W,
     _double_mult,

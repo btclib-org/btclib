@@ -180,10 +180,9 @@ def gen_keys(prv_key: PrvKey | None = None, ec: Curve = secp256k1) -> tuple[int,
 
 
 def challenge_(msg: Octets, x_Q: int, x_K: int, ec: Curve, hf: HashF) -> int:
-    # the message, of any size: BIP340 lifted the 32-byte restriction in
-    # 2023-04 ("Messages of Arbitrary Size"), and the tagged hash below
-    # absorbs any length unambiguously, x_K and x_Q being fixed at p_size
-    # each. This used to be bytes_from_octets(msg_hash, hf_len)
+    # the message, of any size ("Messages of Arbitrary Size" in BIP340):
+    # the tagged hash below absorbs any length unambiguously, x_K and x_Q
+    # being fixed at p_size each
     msg = bytes_from_octets(msg)
 
     t = b"".join(
@@ -223,12 +222,11 @@ def sign_(
 ) -> Sig:
     """Sign a message of any size according to BIP340 signature algorithm.
 
-    The message is signed as it is: BIP340 lifted its 32-byte restriction
-    in 2023-04, so this takes the BIP340 message itself, of any length,
-    where it used to insist on a hf_len array. `sign` is the other
-    spelling, unchanged: it reduces its argument with hf first, which is
-    what btclib's trailing underscore has always distinguished -- whether
-    the caller prepared the input or the library does it.
+    The message is signed as it is: BIP340 puts no size restriction on
+    it, so this takes the BIP340 message itself, of any length. `sign` is
+    the other spelling: it reduces its argument with hf first, which is
+    what btclib's trailing underscore distinguishes -- whether the caller
+    prepared the input or the library does it.
 
     If the deterministic nonce is not provided, the BIP340 specification
     (not RFC6979) is used.
@@ -238,11 +236,11 @@ def sign_(
     hf_len = hf().digest_size
     aux = secrets.token_bytes(hf_len) if aux is None else bytes_from_octets(aux, hf_len)
 
-    # len(msg) == 32 as well as the curve and the hash function: the
-    # bindings enforce the earlier revision of the BIP -- "the message hash
-    # must be 32 bytes", measured on 0.7.1rc1 -- so anything else takes the
-    # python path, which is the pattern already in place for a
-    # caller-supplied nonce and for every other curve
+    # len(msg) == 32 as well as the curve and the hash function: BIP340
+    # takes a message of any size, but the bindings require 32 bytes --
+    # "the message hash must be 32 bytes", measured on 0.7.1rc1 -- so
+    # anything else takes the python path, which is the pattern already in
+    # place for a caller-supplied nonce and for every other curve
     if len(msg) == 32 and _libsecp256k1_applicable(ec, hf):
         # the bindings take a scalar, not the many representations of a
         # private key btclib accepts
@@ -320,9 +318,9 @@ def assert_as_valid_(
 
     # len(msg) == 32 as well as the curve and the hash function: see sign_.
     # Reporting a message the bindings cannot take as a *failed
-    # verification* was the worse half of issue 169 -- four of BIP340's own
-    # vectors are TRUE and answered False -- so the length decides which
-    # implementation runs, not whether the answer is no
+    # verification* would answer False to four of BIP340's own TRUE
+    # vectors (issue 169), so the length decides which implementation
+    # runs, not whether the answer is no
     if len(msg) == 32 and _libsecp256k1_applicable(sig.ec, hf):
         pubkey_bytes = x_Q.to_bytes(32, "big")
         if not libsecp256k1_ssa.verify(msg, pubkey_bytes, sig.serialize()):
@@ -343,9 +341,8 @@ def assert_as_valid(
     itself, of any size. This one reduces msg with hf first.
 
     Double backticks because rst reads a trailing underscore as a link
-    reference: bare, this name made sphinx -W fail with 'Unknown target
-    name: "assert_as_valid"', which is the second time that has happened
-    here and the reason lint.yml now builds the docs (issue 151).
+    reference: bare, this name makes sphinx -W fail with 'Unknown target
+    name: "assert_as_valid"'.
     """
     assert_as_valid_(reduce_to_hlen(msg, hf), Q, sig, hf)
 
@@ -361,7 +358,7 @@ def verify_(
     # ValueError and BTClibRuntimeError, not Exception: an input that is not
     # a valid signature is False, and so is a verification that failed, but
     # a TypeError is neither -- an hf passed as sha256() instead of sha256
-    # is a caller error, and it used to be reported as an invalid signature.
+    # is a caller error: raise, rather than report an invalid signature.
     # BTClibRuntimeError by name and not RuntimeError, because
     # RecursionError is one and is not an answer about a signature
     try:
@@ -477,7 +474,7 @@ def batch_verify_(
     # ValueError and BTClibRuntimeError, not Exception: an input that is not
     # a valid signature is False, and so is a verification that failed, but
     # a TypeError is neither -- an hf passed as sha256() instead of sha256
-    # is a caller error, and it used to be reported as an invalid signature.
+    # is a caller error: raise, rather than report an invalid signature.
     # BTClibRuntimeError by name and not RuntimeError, because
     # RecursionError is one and is not an answer about a signature
     try:

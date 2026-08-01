@@ -15,12 +15,11 @@ module reaches its subject through whatever the modules imported before
 it have already pulled in, so a cycle that only bites the caller who
 happens to arrive from the other side stays invisible.
 
-Two of them did. HISTORY records "Fix circular import between script and
-b32" for v2023.5.30, and issue #147 found b58 -> btclib.script ->
-script.script_pub_key -> b58 still there, surviving only because
+The cycle this guards against is real: issue #147 found b58 ->
+btclib.script -> script.script_pub_key -> b58, surviving only because
 script_pub_key imported the modules rather than their names, so that the
 partially initialized b58 was never asked for an attribute at import
-time. Nothing in that file said so.
+time -- with nothing in that file to say so.
 """
 
 from __future__ import annotations

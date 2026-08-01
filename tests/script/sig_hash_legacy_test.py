@@ -229,11 +229,10 @@ def test_test_vectors(
     # itself, where Core elides them, and 210 of these 500 scripts carry
     # 290 between them -- Core's RandomScript draws from a list of nine
     # op codes and OP_CODESEPARATOR is one of them
-    # validation on, where this used to pass check_validity=False for the
-    # whole file: Core's generator makes these transactions *random*, not
-    # malformed, and every one of the 500 is valid. Turning the flag off
-    # said the opposite without ever checking it, and would have hidden a
-    # vector that stopped parsing
+    # validation on: Core's generator makes these transactions *random*,
+    # not malformed, and every one of the 500 is valid. Passing
+    # check_validity=False would say the opposite without ever checking
+    # it, and would hide a vector that stops parsing
     tx = Tx.parse(raw_tx)
     if hash_type < 0:
         hash_type += 0xFFFFFFFF + 1

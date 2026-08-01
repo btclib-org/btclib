@@ -42,12 +42,12 @@ This implementation of bech32 is originally from
 https://github.com/sipa/bech32/tree/master/ref/python,
 with the following modifications:
 
-* split the original segwit_addr.py file in bech32.py and b32.py, the
-  codec and the bitcoin semantics (b32.py was segwitaddress.py when this
-  list was written)
+* the reference's single segwit_addr.py file is split in two: the codec
+  here, the bitcoin semantics in b32.py
 * type annotated python3
 * avoided returning (None, None), throwing Exceptions instead
-* removed the 90-chars limit for bech32 string, enforced by segwitaddr instead
+* no 90-character string limit, a bitcoin address bound that b32
+  enforces instead
 * detailed error messages
 * interface mimics the native python3 base64 interface, i.e.
   it supports encoding bytes-like objects to ASCII bytes,
@@ -107,8 +107,8 @@ def _decode(bech: String) -> tuple[str, list[int], list[int]]:
     if isinstance(bech, bytes):
         # bech32 is an ascii encoding, so a byte outside it is an
         # invalid character like any other and gets the same answer:
-        # decode used to let the UnicodeDecodeError out instead, past
-        # every caller written to catch BTClibValueError
+        # a UnicodeDecodeError let out would fly past every caller
+        # written to catch BTClibValueError
         try:
             bech = bech.decode("ascii")
         except UnicodeDecodeError as e:

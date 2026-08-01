@@ -104,10 +104,9 @@ class Psbt:
         """Assert logical self-consistency."""
         # the global unsigned tx is incomplete by construction, so it is
         # checked as a template: no "at least one input", no "at least one
-        # output". This used to raise BTClibValueError("null transaction")
-        # for exactly the two psbts BIP174 lists as valid with no inputs,
-        # which is the same rule deserialize_tx was applying on the way in
-        # -- both are issue 170
+        # output", either of which would refuse the two psbts BIP174 lists
+        # as valid with no inputs (issue 170). deserialize_tx checks it
+        # the same way on the way in
         self.tx.assert_valid(unsigned_template=True)
 
         # ensure the tx is unsigned
@@ -154,10 +153,7 @@ class Psbt:
         The check has to be explicit because every check below is per
         input: without it an empty vin passes the loop vacuously, and a
         caller doing assert_signable() and then looping over the inputs
-        signs none of them and is told nothing. It used to raise through
-        assert_valid's "null transaction" -- by refusing a psbt the BIP
-        calls valid, which is issue 170 -- and that is not a reason to let
-        this answer go silent.
+        signs none of them and is told nothing.
         """
         self.assert_valid()
 
@@ -223,8 +219,8 @@ class Psbt:
             # check_validity=False, as for every other element here: the
             # global unsigned tx is a template, and Psbt.assert_valid below
             # checks it as one. Validating it here as a complete transaction
-            # refused the two zero-input psbts BIP174 lists as valid, which
-            # is the fourth place issue 170 turned up
+            # would refuse the two zero-input psbts BIP174 lists as valid
+            # (issue 170)
             Tx.from_dict(dict_["tx"], check_validity=False),
             [
                 PsbtIn.from_dict(psbt_in, check_validity=False)
@@ -271,12 +267,11 @@ class Psbt:
     ) -> Psbt:
         """Return a Psbt by parsing binary data."""
         # None until the global map yields one, which BIP174 requires it to:
-        # "The unsigned transaction must be provided". It used to start as
-        # Tx(check_validity=False), an empty transaction indistinguishable
-        # from a *parsed* one with no inputs, and what rejected a psbt
-        # missing the key was Psbt.assert_valid's "null transaction" -- the
-        # same check that refused the two zero-input psbts BIP174 lists as
-        # valid. Separating the two questions is what issue 170 needed
+        # "The unsigned transaction must be provided". Not a
+        # Tx(check_validity=False) placeholder: an empty transaction is
+        # indistinguishable from a *parsed* one with no inputs, so a check
+        # refusing the placeholder would also refuse the two zero-input
+        # psbts BIP174 lists as valid (issue 170)
         tx: Tx | None = None
         version = 0
         hd_key_paths: dict[Octets, BIP32KeyOrigin] = {}

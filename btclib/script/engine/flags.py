@@ -9,13 +9,12 @@
 # or distributed except according to the terms contained in the LICENSE file.
 """Bitcoin Script verification flags.
 
-A bitmask, where the engine used to take a list of plain strings and ask
-`"P2SH" in flags`. That check accepts any string at all, so a misspelled
-name -- `"DERSING"`, or the `"MINMALIF"` that sat in `ALL_FLAGS` for
-years, commented out -- silently *disabled* a consensus rule instead of
-failing, in a script verification engine (issue #145).
+A bitmask, not a list of plain strings asked `"P2SH" in flags`: that
+check accepts any string at all, so a misspelled name -- `"DERSING"`,
+`"MINMALIF"` -- silently *disables* a consensus rule instead of failing,
+in a script verification engine (issue #145).
 
-Both spellings are now checked. A caller's name is looked up in the enum
+Both spellings are checked. A caller's name is looked up in the enum
 by `to_script_flags`, which refuses what it does not know, and every test
 the engine makes is `ScriptFlag.X in flags`, which a typo turns into an
 AttributeError rather than into a rule that never runs. A test asserts
@@ -79,16 +78,12 @@ class ScriptFlag(Flag):
     CONST_SCRIPTCODE = 1 << 16
 
 
-# no rule at all, which is not the same as "the default rules": the two
-# were told apart by `flags is None` against `flags == []` before, and are
-# told apart by `None` against `NO_FLAGS` now
+# no rule at all, which is not the same as "the default rules": `None`
+# against `NO_FLAGS` is what tells the two apart
 NO_FLAGS = ScriptFlag(0)
 
 # what the engine enforces when a caller names nothing: the consensus soft
-# forks, i.e. seven of the eighteen members and not all of them. This was
-# a mutable module-level list whose absent entries were twelve
-# commented-out lines of strings, one of them ("MINMALIF") misspelled past
-# the point of ever being enabled by accident
+# forks, i.e. seven of the eighteen members and not all of them
 ALL_FLAGS = (
     ScriptFlag.P2SH
     | ScriptFlag.DERSIG
