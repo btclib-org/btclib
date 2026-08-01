@@ -20,7 +20,7 @@ from btclib_libsecp256k1 import ssa as libsecp256k1_ssa
 from btclib.alias import INF, Point, String
 from btclib.bip32 import BIP32KeyData
 from btclib.curves import bytes_from_point, double_mult, mult, secp256k1
-from btclib.curves.curve import CURVES
+from btclib.curves.curve import CURVES, Curve
 from btclib.curves.curve_group import jac_from_aff
 from btclib.ecc import bip340_nonce_, second_generator, ssa
 from btclib.exceptions import BTClibRuntimeError, BTClibTypeError, BTClibValueError
@@ -402,7 +402,84 @@ def test_musig() -> None:
     ssa.assert_as_valid_(msg_hash, Q[0], sig, hf)
 
 
-def test_threshold() -> None:  # noqa: C901 -- a whole 2-of-3 signing protocol: the phases mean nothing apart
+def _share(f: list[int], x: int, ec: Curve) -> int:
+    """The sharing polynomial f evaluated at x, f(x) = sum_i f[i] x**i.
+
+    Each term is reduced mod n and the sum is not: what every consumer
+    of a share needs is its value mod n, and mult, double_mult and the
+    Lagrange interpolation at the end each reduce again anyway.
+    """
+    return sum((f_i * pow(x, i)) % ec.n for i, f_i in enumerate(f))
+
+
+def _commitment(commits: list[Point], x: int, ec: Curve) -> Point:
+    """The commitment polynomial evaluated at x, sum_i x**i commits[i].
+
+    This is the same evaluation as _share, in the exponent: a share is
+    consistent with the commitments when the two agree, which is what
+    makes the sharing verifiable rather than trusted.
+    """
+    RHS = INF
+    for i, commit in enumerate(commits):
+        RHS = ec.add(RHS, mult(pow(x, i), commit))
+    return RHS
+
+
+def _deal(
+    secret: int,
+    secret_prime: int,
+    xs: list[int],
+    m: int,
+    ec: Curve,
+    H: Point,
+    dealer: str,
+) -> tuple[list[int], list[int]]:
+    """Deal shares of secret to each x, and let each x verify its own.
+
+    Pedersen VSS: two random degree m-1 polynomials through secret and
+    its blinding twin, one commitment per coefficient, one share of each
+    polynomial per recipient. The verification lives here rather than at
+    the call site because an unchecked share is just a number from a
+    dealer that may be cheating, and the protocol has no later moment to
+    catch it.
+
+    Neither the blinding polynomial nor the commitments outlive that
+    check, so only f and the shares of the secret come back.
+    """
+    f = [secret]
+    f_prime = [secret_prime]
+    commits = [double_mult(secret_prime, H, secret, ec.G)]
+    for _ in range(1, m):
+        f.append(ssa.gen_keys()[0])
+        f_prime.append(ssa.gen_keys()[0])
+        commits.append(double_mult(f_prime[-1], H, f[-1], ec.G))
+
+    shares: list[int] = []
+    for x in xs:
+        alpha = _share(f, x, ec)
+        t = double_mult(_share(f_prime, x, ec), H, alpha, ec.G)
+        assert t == _commitment(commits, x, ec), f"signer {dealer} is cheating"
+        shares.append(alpha)
+    return f, shares
+
+
+def _partial_sig_point(
+    x: int, e: int, Q: Point, K: Point, A: list[Point], B: list[Point], ec: Curve
+) -> Point:
+    """What signer x's partial signature must commit to: B(x) + e A(x).
+
+    Q and K are arguments instead of A[0] and B[0]: an odd y negates the
+    aggregates and the coefficient lists keep the sign they were built
+    with, so the constant term is only right when it is taken from the
+    negated points.
+    """
+    RHS = ec.add(K, mult(e, Q))
+    for i in range(1, len(A)):
+        RHS = ec.add(RHS, double_mult(pow(x, i), B[i], e * pow(x, i), A[i]))
+    return RHS
+
+
+def test_threshold() -> None:
     """Testing 2-of-3 threshold signature (Pedersen secret sharing)."""
 
     ec = CURVES["secp256k1"]
@@ -414,152 +491,43 @@ def test_threshold() -> None:  # noqa: C901 -- a whole 2-of-3 signing protocol: 
     # FIRST PHASE: key pair generation ###################################
 
     # 1.1 signer one acting as the dealer
-    commits1: list[Point] = []
     q1, _ = ssa.gen_keys()
     q1_prime, _ = ssa.gen_keys()
-    commits1.append(double_mult(q1_prime, H, q1, ec.G))
-    # sharing polynomials
-    f1 = [q1]
-    f1_prime = [q1_prime]
-    for i in range(1, m):
-        f1.append(ssa.gen_keys()[0])
-        f1_prime.append(ssa.gen_keys()[0])
-        commits1.append(double_mult(f1_prime[i], H, f1[i], ec.G))
-    # shares of the secret
-    alpha12 = 0  # share of q1 belonging to signer two
-    alpha12_prime = 0
-    alpha13 = 0  # share of q1 belonging to signer three
-    alpha13_prime = 0
-    for i in range(m):
-        alpha12 += (f1[i] * pow(2, i)) % ec.n
-        alpha12_prime += (f1_prime[i] * pow(2, i)) % ec.n
-        alpha13 += (f1[i] * pow(3, i)) % ec.n
-        alpha13_prime += (f1_prime[i] * pow(3, i)) % ec.n
-    # signer two verifies consistency of his share
-    RHS = INF
-    for i in range(m):
-        RHS = ec.add(RHS, mult(pow(2, i), commits1[i]))
-    t = double_mult(alpha12_prime, H, alpha12, ec.G)
-    assert t == RHS, "signer one is cheating"
-    # signer three verifies consistency of his share
-    RHS = INF
-    for i in range(m):
-        RHS = ec.add(RHS, mult(pow(3, i), commits1[i]))
-    t = double_mult(alpha13_prime, H, alpha13, ec.G)
-    assert t == RHS, "signer one is cheating"
+    # alpha12 is the share of q1 belonging to signer two, alpha13 the
+    # one belonging to signer three; signer one keeps no share of its
+    # own, evaluating f1 at 1 below instead
+    f1, (alpha12, alpha13) = _deal(q1, q1_prime, [2, 3], m, ec, H, "one")
 
     # 1.2 signer two acting as the dealer
-    commits2: list[Point] = []
     q2, _ = ssa.gen_keys()
     q2_prime, _ = ssa.gen_keys()
-    commits2.append(double_mult(q2_prime, H, q2, ec.G))
-    # sharing polynomials
-    f2 = [q2]
-    f2_prime = [q2_prime]
-    for i in range(1, m):
-        f2.append(ssa.gen_keys()[0])
-        f2_prime.append(ssa.gen_keys()[0])
-        commits2.append(double_mult(f2_prime[i], H, f2[i], ec.G))
-    # shares of the secret
-    alpha21 = 0  # share of q2 belonging to signer one
-    alpha21_prime = 0
-    alpha23 = 0  # share of q2 belonging to signer three
-    alpha23_prime = 0
-    for i in range(m):
-        alpha21 += (f2[i] * pow(1, i)) % ec.n
-        alpha21_prime += (f2_prime[i] * pow(1, i)) % ec.n
-        alpha23 += (f2[i] * pow(3, i)) % ec.n
-        alpha23_prime += (f2_prime[i] * pow(3, i)) % ec.n
-    # signer one verifies consistency of his share
-    RHS = INF
-    for i in range(m):
-        RHS = ec.add(RHS, mult(pow(1, i), commits2[i]))
-    t = double_mult(alpha21_prime, H, alpha21, ec.G)
-    assert t == RHS, "signer two is cheating"
-    # signer three verifies consistency of his share
-    RHS = INF
-    for i in range(m):
-        RHS = ec.add(RHS, mult(pow(3, i), commits2[i]))
-    t = double_mult(alpha23_prime, H, alpha23, ec.G)
-    assert t == RHS, "signer two is cheating"
+    f2, (alpha21, alpha23) = _deal(q2, q2_prime, [1, 3], m, ec, H, "two")
 
     # 1.3 signer three acting as the dealer
-    commits3: list[Point] = []
     q3, _ = ssa.gen_keys()
     q3_prime, _ = ssa.gen_keys()
-    commits3.append(double_mult(q3_prime, H, q3, ec.G))
-    # sharing polynomials
-    f3 = [q3]
-    f3_prime = [q3_prime]
-    for i in range(1, m):
-        f3.append(ssa.gen_keys()[0])
-        f3_prime.append(ssa.gen_keys()[0])
-        commits3.append(double_mult(f3_prime[i], H, f3[i], ec.G))
-    # shares of the secret
-    alpha31 = 0  # share of q3 belonging to signer one
-    alpha31_prime = 0
-    alpha32 = 0  # share of q3 belonging to signer two
-    alpha32_prime = 0
-    for i in range(m):
-        alpha31 += (f3[i] * pow(1, i)) % ec.n
-        alpha31_prime += (f3_prime[i] * pow(1, i)) % ec.n
-        alpha32 += (f3[i] * pow(2, i)) % ec.n
-        alpha32_prime += (f3_prime[i] * pow(2, i)) % ec.n
-    # signer one verifies consistency of his share
-    RHS = INF
-    for i in range(m):
-        RHS = ec.add(RHS, mult(pow(1, i), commits3[i]))
-    t = double_mult(alpha31_prime, H, alpha31, ec.G)
-    assert t == RHS, "signer three is cheating"
-    # signer two verifies consistency of his share
-    RHS = INF
-    for i in range(m):
-        RHS = ec.add(RHS, mult(pow(2, i), commits3[i]))
-    t = double_mult(alpha32_prime, H, alpha32, ec.G)
-    assert t == RHS, "signer three is cheating"
+    f3, (alpha31, alpha32) = _deal(q3, q3_prime, [1, 2], m, ec, H, "three")
+
     # shares of the secret key q = q1 + q2 + q3
-    alpha1 = (alpha21 + alpha31) % ec.n
-    alpha2 = (alpha12 + alpha32) % ec.n
-    alpha3 = (alpha13 + alpha23) % ec.n
-    for i in range(m):
-        alpha1 += (f1[i] * pow(1, i)) % ec.n
-        alpha2 += (f2[i] * pow(2, i)) % ec.n
-        alpha3 += (f3[i] * pow(3, i)) % ec.n
+    alpha1 = (alpha21 + alpha31) % ec.n + _share(f1, 1, ec)
+    alpha2 = (alpha12 + alpha32) % ec.n + _share(f2, 2, ec)
+    alpha3 = (alpha13 + alpha23) % ec.n + _share(f3, 3, ec)
 
     # 1.4 it's time to recover the public key
     # each participant i = 1, 2, 3 shares Qi as follows
     # Q = Q1 + Q2 + Q3 = (q1 + q2 + q3) G
-    A1: list[Point] = []
-    A2: list[Point] = []
-    A3: list[Point] = []
-    for i in range(m):
-        A1.append(mult(f1[i]))
-        A2.append(mult(f2[i]))
-        A3.append(mult(f3[i]))
+    A1 = [mult(f1_i) for f1_i in f1]
+    A2 = [mult(f2_i) for f2_i in f2]
+    A3 = [mult(f3_i) for f3_i in f3]
     # signer one checks others' values
-    RHS2 = INF
-    RHS3 = INF
-    for i in range(m):
-        RHS2 = ec.add(RHS2, mult(pow(1, i), A2[i]))
-        RHS3 = ec.add(RHS3, mult(pow(1, i), A3[i]))
-    assert mult(alpha21) == RHS2, "signer two is cheating"
-    assert mult(alpha31) == RHS3, "signer three is cheating"
+    assert mult(alpha21) == _commitment(A2, 1, ec), "signer two is cheating"
+    assert mult(alpha31) == _commitment(A3, 1, ec), "signer three is cheating"
     # signer two checks others' values
-    RHS1 = INF
-    RHS3 = INF
-    for i in range(m):
-        RHS1 = ec.add(RHS1, mult(pow(2, i), A1[i]))
-        RHS3 = ec.add(RHS3, mult(pow(2, i), A3[i]))
-    assert mult(alpha12) == RHS1, "signer one is cheating"
-    assert mult(alpha32) == RHS3, "signer three is cheating"
+    assert mult(alpha12) == _commitment(A1, 2, ec), "signer one is cheating"
+    assert mult(alpha32) == _commitment(A3, 2, ec), "signer three is cheating"
     # signer three checks others' values
-    RHS1 = INF
-    RHS2 = INF
-    for i in range(m):
-        RHS1 = ec.add(RHS1, mult(pow(3, i), A1[i]))
-        RHS2 = ec.add(RHS2, mult(pow(3, i), A2[i]))
-    assert mult(alpha13) == RHS1, "signer one is cheating"
-    assert mult(alpha23) == RHS2, "signer two is cheating"
+    assert mult(alpha13) == _commitment(A1, 3, ec), "signer one is cheating"
+    assert mult(alpha23) == _commitment(A2, 3, ec), "signer two is cheating"
     # commitment at the global sharing polynomial
     A = [ec.add(A1[i], ec.add(A2[i], A3[i])) for i in range(m)]
     # aggregated public key
@@ -581,77 +549,29 @@ def test_threshold() -> None:  # noqa: C901 -- a whole 2-of-3 signing protocol: 
     # 2.1 signer one acting as the dealer
     k1, _, _, _ = bip340_nonce_(msg_hash, q1, None, ec, hf)
     k1_prime, _, _, _ = bip340_nonce_(msg_hash, q1_prime, None, ec, hf)
-    commits1 = [double_mult(k1_prime, H, k1, ec.G)]
-    # sharing polynomials
-    f1 = [k1]
-    f1_prime = [k1_prime]
-    for i in range(1, m):
-        f1.append(ssa.gen_keys()[0])
-        f1_prime.append(ssa.gen_keys()[0])
-        commits1.append(double_mult(f1_prime[i], H, f1[i], ec.G))
-    # shares of the secret
-    beta13 = 0  # share of k1 belonging to signer three
-    beta13_prime = 0
-    for i in range(m):
-        beta13 += (f1[i] * pow(3, i)) % ec.n
-        beta13_prime += (f1_prime[i] * pow(3, i)) % ec.n
-    # signer three verifies consistency of his share
-    RHS = INF
-    for i in range(m):
-        RHS = ec.add(RHS, mult(pow(3, i), commits1[i]))
-    t = double_mult(beta13_prime, H, beta13, ec.G)
-    assert t == RHS, "signer one is cheating"
+    # the nonce is shared exactly as the key was, and with only signers
+    # one and three signing, each deals to the other alone
+    f1, (beta13,) = _deal(k1, k1_prime, [3], m, ec, H, "one")
 
     # 2.2 signer three acting as the dealer
     k3, _, _, _ = bip340_nonce_(msg_hash, q3, None, ec, hf)
     k3_prime, _, _, _ = bip340_nonce_(msg_hash, q3_prime, None, ec, hf)
-    commits3 = [double_mult(k3_prime, H, k3, ec.G)]
-    # sharing polynomials
-    f3 = [k3]
-    f3_prime = [k3_prime]
-    for i in range(1, m):
-        f3.append(ssa.gen_keys()[0])
-        f3_prime.append(ssa.gen_keys()[0])
-        commits3.append(double_mult(f3_prime[i], H, f3[i], ec.G))
-    # shares of the secret
-    beta31 = 0  # share of k3 belonging to signer one
-    beta31_prime = 0
-    for i in range(m):
-        beta31 += (f3[i] * pow(1, i)) % ec.n
-        beta31_prime += (f3_prime[i] * pow(1, i)) % ec.n
-    # signer one verifies consistency of his share
-    RHS = INF
-    for i in range(m):
-        RHS = ec.add(RHS, mult(pow(1, i), commits3[i]))
-    t = double_mult(beta31_prime, H, beta31, ec.G)
-    assert t == RHS, "signer three is cheating"
+    f3, (beta31,) = _deal(k3, k3_prime, [1], m, ec, H, "three")
 
     # 2.3 shares of the secret nonce
-    beta1 = beta31 % ec.n
-    beta3 = beta13 % ec.n
-    for i in range(m):
-        beta1 += (f1[i] * pow(1, i)) % ec.n
-        beta3 += (f3[i] * pow(3, i)) % ec.n
+    beta1 = beta31 % ec.n + _share(f1, 1, ec)
+    beta3 = beta13 % ec.n + _share(f3, 3, ec)
 
     # 2.4 it's time to recover the public nonce
     # each participant i = 1, 3 shares Qi as follows
-    B1: list[Point] = []
-    B3: list[Point] = []
-    for i in range(m):
-        B1.append(mult(f1[i]))
-        B3.append(mult(f3[i]))
+    B1 = [mult(f1_i) for f1_i in f1]
+    B3 = [mult(f3_i) for f3_i in f3]
 
     # signer one checks values from signer three
-    RHS3 = INF
-    for i in range(m):
-        RHS3 = ec.add(RHS3, mult(pow(1, i), B3[i]))
-    assert mult(beta31) == RHS3, "signer three is cheating"
+    assert mult(beta31) == _commitment(B3, 1, ec), "signer three is cheating"
 
     # signer three checks values from signer one
-    RHS1 = INF
-    for i in range(m):
-        RHS1 = ec.add(RHS1, mult(pow(3, i), B1[i]))
-    assert mult(beta13) == RHS1, "signer one is cheating"
+    assert mult(beta13) == _commitment(B1, 3, ec), "signer one is cheating"
 
     # commitment at the global sharing polynomial
     B = [ec.add(B1[i], B3[i]) for i in range(m)]
@@ -676,17 +596,11 @@ def test_threshold() -> None:  # noqa: C901 -- a whole 2-of-3 signing protocol: 
     # each participant verifies the other partial signatures
 
     # signer one
-    RHS3 = ec.add(K, mult(e, Q))
-    for i in range(1, m):
-        temp = double_mult(pow(3, i), B[i], e * pow(3, i), A[i])
-        RHS3 = ec.add(RHS3, temp)
+    RHS3 = _partial_sig_point(3, e, Q, K, A, B, ec)
     assert mult(gamma3) == RHS3, "signer three is cheating"
 
     # signer three
-    RHS1 = ec.add(K, mult(e, Q))
-    for i in range(1, m):
-        temp = double_mult(pow(1, i), B[i], e * pow(1, i), A[i])
-        RHS1 = ec.add(RHS1, temp)
+    RHS1 = _partial_sig_point(1, e, Q, K, A, B, ec)
     assert mult(gamma1) == RHS1, "signer one is cheating"
 
     # PHASE FOUR: aggregating the signature ###
