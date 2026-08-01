@@ -7,7 +7,7 @@ full year, short month, short day (YYYY-M-D)
 
 ## v2026.8 (work in progress, not released yet)
 
-The first release since 2023, and the largest: a hundred and seventy-five
+The first release since 2023, and the largest: a hundred and seventy-six
 entries, in [CHANGELOG.md](./CHANGELOG.md). What follows is what a user has
 to act on and what a user gains.
 
@@ -19,7 +19,7 @@ CHANGELOG.md.
 
 ### Breaking changes
 
-Twenty-eight changes break code that worked on v2023.7.12. Each is described in
+Twenty-nine changes break code that worked on v2023.7.12. Each is described in
 full in [CHANGELOG.md](./CHANGELOG.md). Every "before" spelling was checked
 against the `v2023.7.12` tag.
 
@@ -38,6 +38,13 @@ against the `v2023.7.12` tag.
 - **`borromean.ec` and `borromean.hf` are gone**, and are `ec` and `hf`
   parameters of `sign`, `verify` and `assert_as_valid`, with the same
   defaults.
+- **`btclib.ecc.sign_to_contract` is gone**, and the commitment is a
+  keyword-only parameter of `dsa.sign` and `ssa.sign`:
+  `dsa_commit_sign(commit, msg, prv_key)` is
+  `dsa.sign(msg, prv_key, commit=commit)`, returning the same
+  `(sig, receipt)`, and `dsa_verify_commit(commit, receipt, msg, key, sig)`
+  is `dsa.verify(msg, key, sig, commit=commit, receipt=receipt)`. ssa takes
+  a commitment now too, which the module never offered.
 - **`check_validity` is keyword-only**, in all 91 signatures that take it:
   `f(..., check_validity=False)`, never positionally. `strict` of
   `dsa.Sig.parse` follows it behind the same star.

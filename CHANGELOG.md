@@ -11,9 +11,9 @@ release-notes length in the first place, and are still in
 
 ## v2026.8 (work in progress, not released yet)
 
-A hundred and seventy-five entries, grouped. The order runs from what breaks
+A hundred and seventy-six entries, grouped. The order runs from what breaks
 a caller to what only maintainers see; [HISTORY.md](./HISTORY.md) lists the
-twenty-eight source-breaking changes on their own.
+twenty-nine source-breaking changes on their own.
 
 ### Repository
 
@@ -1334,13 +1334,46 @@ twenty-eight source-breaking changes on their own.
   `find_subgroup_points`; each variant is still importable from the module
   that defines it, which is where the four affected test modules now take
   them from
+- **`btclib.ecc.sign_to_contract` is gone, and the commitment is a
+  parameter of `dsa.sign` and `ssa.sign`.**
+  `dsa_commit_sign(commit, msg, prv_key, nonce, ec, hf)` is
+  `dsa.sign(msg, prv_key, nonce, lower_s, ec, hf, commit=commit)`, and
+  `dsa_verify_commit(commit, receipt, msg, key, sig, lower_s, hf)` is
+  `dsa.verify(msg, key, sig, lower_s, hf, commit=commit, receipt=receipt)`;
+  both return what they returned, the signature and the receipt from the
+  first and a bool from the second. The module duplicated the signing flow
+  to insert a commitment into the nonce, which is two paths that have to
+  stay in step: `dsa_commit_sign_` derived the RFC6979 nonce itself, so a
+  change to how a nonce is derived — or to which implementation derives
+  it — had to be made twice, and the libsecp256k1 dispatch of `dsa.sign_`
+  was not in the copy at all. What the commitment actually is, is a
+  substitution of the nonce, and the nonce is already a parameter of the
+  one signing path: `commit_hash` sits beside it, keyword-only, as the
+  only argument that changes what is returned. `btclib.ecc.commit_nonce`
+  is what is left, and it is a nonce derivation beside the RFC6979 and
+  BIP340 ones rather than a scheme beside dsa and ssa: `commit_nonce_`
+  returns the tweaked nonce and the receipt, `commit_point_` the point a
+  verifier recomputes, and the scheme is documented in that module's
+  docstring, which is where the name sign-to-contract now lives — a
+  `commit=` keyword does not say it. ssa gains the commitment on the way,
+  which the module never offered: BIP340 signs with the even-y nonce, so
+  it is the *tweaked* point whose parity has to be settled, and the
+  receipt stays the even-y point the tweak hashed. A commitment now also
+  keeps the bindings out, as a caller-supplied nonce does, for the same
+  reason: the nonce is theirs to derive and a tweaked one is not an
+  argument they take. A regression test pins the four vectors — the
+  signature and the receipt, for a fixed nonce and for the deterministic
+  one — against the answers of the implementation this replaces, because
+  nothing in a signature says that it commits and a verifier handed the
+  receipt of the same run would agree with any tweak whatsoever
+  (issue #193)
 - **`btclib.ecc` exports the signature schemes.** `__all__` was
   `ansi_x9_63_kdf`, `bip340_nonce_`, `diffie_hellman`, `second_generator` —
   four helpers, and not one of the schemes behind them — so `import
   btclib.ecc` followed by `btclib.ecc.dsa.sign(...)` raised AttributeError
   until something else in the process happened to import the submodule. It
-  now exports `dsa`, `ssa`, `bms`, `borromean`, `pedersen` and
-  `sign_to_contract` beside the four
+  now exports `dsa`, `ssa`, `bms`, `borromean` and `pedersen` beside the
+  four
 - **`btclib.mnemonic` exports `bip39` and `electrum`**, its two schemes,
   which were reachable on the same accidental terms
 - **`NETWORKS` describes signet and testnet4**, where it had mainnet,

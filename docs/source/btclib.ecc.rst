@@ -28,6 +28,14 @@ btclib.ecc.borromean module
    :undoc-members:
    :show-inheritance:
 
+btclib.ecc.commit\_nonce module
+-------------------------------
+
+.. automodule:: btclib.ecc.commit_nonce
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
 btclib.ecc.dh module
 --------------------
 
@@ -56,14 +64,6 @@ btclib.ecc.rfc6979\_nonce module
 --------------------------------
 
 .. automodule:: btclib.ecc.rfc6979_nonce
-   :members:
-   :undoc-members:
-   :show-inheritance:
-
-btclib.ecc.sign\_to\_contract module
-------------------------------------
-
-.. automodule:: btclib.ecc.sign_to_contract
    :members:
    :undoc-members:
    :show-inheritance:

@@ -60,6 +60,7 @@ import secrets
 from collections.abc import Sequence
 from dataclasses import dataclass
 from hashlib import sha256
+from typing import overload
 
 from btclib_libsecp256k1 import ssa as libsecp256k1_ssa
 
@@ -70,6 +71,7 @@ from btclib.curves.curve import _libsecp256k1_applicable, mult
 from btclib.curves.curve_group import _mult, _multi_mult
 from btclib.curves.curve_group_2 import double_mult_w_NAF
 from btclib.ecc.bip340_nonce import bip340_nonce_
+from btclib.ecc.commit_nonce import commit_nonce_, commit_point_
 from btclib.exceptions import BTClibRuntimeError, BTClibTypeError, BTClibValueError
 from btclib.hashes import reduce_to_hlen, tagged_hash
 from btclib.number_theory import mod_inv
@@ -231,13 +233,39 @@ def _sign_(c: int, q: int, nonce: int, r: int, ec: Curve) -> Sig:
     return Sig(r, s, ec)
 
 
+@overload
+def sign_(
+    msg: Octets,
+    prv_key: PrvKey,
+    aux: Octets | None = ...,
+    ec: Curve = ...,
+    hf: HashF = ...,
+    *,
+    commit_hash: None = None,
+) -> Sig: ...
+
+
+@overload
+def sign_(
+    msg: Octets,
+    prv_key: PrvKey,
+    aux: Octets | None = ...,
+    ec: Curve = ...,
+    hf: HashF = ...,
+    *,
+    commit_hash: Octets,
+) -> tuple[Sig, Point]: ...
+
+
 def sign_(
     msg: Octets,
     prv_key: PrvKey,
     aux: Octets | None = None,
     ec: Curve = secp256k1,
     hf: HashF = sha256,
-) -> Sig:
+    *,
+    commit_hash: Octets | None = None,
+) -> Sig | tuple[Sig, Point]:
     """Sign a message of any size according to BIP340 signature algorithm.
 
     The message is signed as it is: BIP340 puts no size restriction on
@@ -248,6 +276,12 @@ def sign_(
 
     If the deterministic nonce is not provided, the BIP340 specification
     (not RFC6979) is used.
+
+    commit_hash is a value to commit to inside the nonce, sign-to-contract
+    style: the signature is an ordinary BIP340 one, and the receipt
+    returned beside it is what opens the commitment (see
+    btclib.ecc.commit_nonce). Keyword-only, and the only argument that
+    changes what is returned, so that neither is easy to pass by accident.
     """
     msg = bytes_from_octets(msg)
 
@@ -258,8 +292,10 @@ def sign_(
     # takes a message of any size, but the bindings require 32 bytes --
     # "the message hash must be 32 bytes", measured on 0.7.1rc1 -- so
     # anything else takes the python path, which is the pattern already in
-    # place for a caller-supplied nonce and for every other curve
-    if len(msg) == 32 and _libsecp256k1_applicable(ec, hf):
+    # place for a caller-supplied nonce and for every other curve.
+    # A commitment joins them: it tweaks the nonce, and the nonce is the
+    # bindings' own to derive
+    if len(msg) == 32 and _libsecp256k1_applicable(ec, hf) and commit_hash is None:
         # the bindings take a scalar, not the many representations of a
         # private key btclib accepts
         q = int_from_prv_key(prv_key, ec)
@@ -268,10 +304,48 @@ def sign_(
     # k is the nonce: an integer in the range 1..n-1.
     k, x_K, q, x_Q = bip340_nonce_(msg, prv_key, aux, ec, hf)
 
-    # the challenge
+    if commit_hash is None:
+        # the challenge
+        c = challenge_(msg, x_Q, x_K, ec, hf)
+        return _sign_(c, q, k, x_K, ec)
+
+    # the tweak moves the nonce's point, and BIP340 signs with the
+    # even-y one: k comes back from bip340_nonce_ already normalized,
+    # so it is the tweaked point whose parity is still to be settled --
+    # and x_K, which the challenge commits to, is the tweaked one.
+    # The receipt keeps the even-y point the tweak hashed
+    k, receipt = commit_nonce_(commit_hash, k, ec, hf)
+    x_K, y_K = mult(k, ec=ec)
+    if y_K % 2:
+        k = ec.n - k
+
     c = challenge_(msg, x_Q, x_K, ec, hf)
 
-    return _sign_(c, q, k, x_K, ec)
+    return _sign_(c, q, k, x_K, ec), receipt
+
+
+@overload
+def sign(
+    msg: Octets,
+    prv_key: PrvKey,
+    aux: Octets | None = ...,
+    ec: Curve = ...,
+    hf: HashF = ...,
+    *,
+    commit: None = None,
+) -> Sig: ...
+
+
+@overload
+def sign(
+    msg: Octets,
+    prv_key: PrvKey,
+    aux: Octets | None = ...,
+    ec: Curve = ...,
+    hf: HashF = ...,
+    *,
+    commit: Octets,
+) -> tuple[Sig, Point]: ...
 
 
 def sign(
@@ -280,7 +354,9 @@ def sign(
     aux: Octets | None = None,
     ec: Curve = secp256k1,
     hf: HashF = sha256,
-) -> Sig:
+    *,
+    commit: Octets | None = None,
+) -> Sig | tuple[Sig, Point]:
     """Sign message according to BIP340 signature algorithm.
 
     The message msg is first processed by hf, yielding the value
@@ -296,9 +372,14 @@ def sign(
     combinations of *hf_len* and *nlen*.
 
     The BIP340 deterministic nonce (not RFC6979) is used.
+
+    commit is a value to commit to inside the nonce, and is reduced by hf
+    as msg is: `sign_` is the spelling that takes the two hashes.
     """
     msg_hash = reduce_to_hlen(msg, hf)
-    return sign_(msg_hash, prv_key, aux, ec, hf)
+    if commit is None:
+        return sign_(msg_hash, prv_key, aux, ec, hf)
+    return sign_(msg_hash, prv_key, aux, ec, hf, commit_hash=reduce_to_hlen(commit, hf))
 
 
 def _assert_as_valid_(c: int, QJ: JacPoint, r: int, s: int, ec: Curve) -> None:
@@ -321,8 +402,36 @@ def _assert_as_valid_(c: int, QJ: JacPoint, r: int, s: int, ec: Curve) -> None:
         raise BTClibRuntimeError("signature verification failed")
 
 
+def _assert_commitment_(
+    commit_hash: Octets | None, receipt: Point | None, sig: Sig, hf: HashF
+) -> None:
+    # the two come together or not at all, and a BTClibTypeError says so
+    # because verify answers False for anything that is merely an invalid
+    # signature: a commitment nobody can open, or a receipt for a
+    # commitment that was never named, is a caller error and has to be
+    # heard as one
+    if commit_hash is None:
+        if receipt is not None:
+            raise BTClibTypeError("receipt without the commitment it opens")
+    elif receipt is None:
+        raise BTClibTypeError("commitment without the receipt that opens it")
+    else:
+        # sig.r is a field element, the x-coordinate itself and not a
+        # scalar reduced modulo the group order, so the recomputed point
+        # is compared as it comes
+        W = commit_point_(commit_hash, receipt, sig.ec, hf)
+        if sig.r != W[0]:
+            raise BTClibRuntimeError("commitment verification failed")
+
+
 def assert_as_valid_(
-    msg: Octets, Q: BIP340PubKey, sig: Sig | Octets, hf: HashF = sha256
+    msg: Octets,
+    Q: BIP340PubKey,
+    sig: Sig | Octets,
+    hf: HashF = sha256,
+    *,
+    commit_hash: Octets | None = None,
+    receipt: Point | None = None,
 ) -> None:
     # Private function for test/dev purposes
     # It raises Errors, while verify should always return True or False
@@ -330,6 +439,12 @@ def assert_as_valid_(
         sig.assert_valid()
     else:
         sig = Sig.parse(sig)
+
+    # ahead of the dispatch below, which returns early: opening a
+    # commitment and verifying a signature are two independent checks of
+    # the same r, and both have to run whichever implementation answers
+    # the second one
+    _assert_commitment_(commit_hash, receipt, sig, hf)
 
     x_Q, y_Q = point_from_bip340pub_key(Q, sig.ec)
     msg = bytes_from_octets(msg)
@@ -351,27 +466,47 @@ def assert_as_valid_(
 
 
 def assert_as_valid(
-    msg: Octets, Q: BIP340PubKey, sig: Sig | Octets, hf: HashF = sha256
+    msg: Octets,
+    Q: BIP340PubKey,
+    sig: Sig | Octets,
+    hf: HashF = sha256,
+    *,
+    commit: Octets | None = None,
+    receipt: Point | None = None,
 ) -> None:
     """Verify the BIP340 signature of hf(msg).
 
     The other spelling, ``assert_as_valid_``, takes the BIP340 message
-    itself, of any size. This one reduces msg with hf first.
+    itself, of any size. This one reduces msg with hf first, and commit
+    with it.
 
     Double backticks because rst reads a trailing underscore as a link
     reference: bare, this name makes sphinx -W fail with 'Unknown target
     name: "assert_as_valid"'.
     """
-    assert_as_valid_(reduce_to_hlen(msg, hf), Q, sig, hf)
+    commit_hash = None if commit is None else reduce_to_hlen(commit, hf)
+    assert_as_valid_(
+        reduce_to_hlen(msg, hf), Q, sig, hf, commit_hash=commit_hash, receipt=receipt
+    )
 
 
 def verify_(
-    msg: Octets, Q: BIP340PubKey, sig: Sig | Octets, hf: HashF = sha256
+    msg: Octets,
+    Q: BIP340PubKey,
+    sig: Sig | Octets,
+    hf: HashF = sha256,
+    *,
+    commit_hash: Octets | None = None,
+    receipt: Point | None = None,
 ) -> bool:
     """Verify the BIP340 signature of a message of any size.
 
     The message is taken as it is; `verify` is the spelling that reduces it
     with hf first.
+
+    commit_hash and receipt open the commitment the nonce carries, and a
+    signature that does not commit to that value is False as a forged one
+    is: the answer is about this signature and this commitment, both.
     """
     # ValueError and BTClibRuntimeError, not Exception: an input that is not
     # a valid signature is False, and so is a verification that failed, but
@@ -380,16 +515,31 @@ def verify_(
     # BTClibRuntimeError by name and not RuntimeError, because
     # RecursionError is one and is not an answer about a signature
     try:
-        assert_as_valid_(msg, Q, sig, hf)
+        assert_as_valid_(msg, Q, sig, hf, commit_hash=commit_hash, receipt=receipt)
     except (ValueError, BTClibRuntimeError):
         return False
 
     return True
 
 
-def verify(msg: Octets, Q: BIP340PubKey, sig: Sig | Octets, hf: HashF = sha256) -> bool:
-    """Verify the BIP340 signature of hf(msg)."""
-    return verify_(reduce_to_hlen(msg, hf), Q, sig, hf)
+def verify(
+    msg: Octets,
+    Q: BIP340PubKey,
+    sig: Sig | Octets,
+    hf: HashF = sha256,
+    *,
+    commit: Octets | None = None,
+    receipt: Point | None = None,
+) -> bool:
+    """Verify the BIP340 signature of hf(msg).
+
+    commit is reduced by hf as msg is; `verify_` is the spelling that
+    takes the two hashes.
+    """
+    commit_hash = None if commit is None else reduce_to_hlen(commit, hf)
+    return verify_(
+        reduce_to_hlen(msg, hf), Q, sig, hf, commit_hash=commit_hash, receipt=receipt
+    )
 
 
 def _recover_pub_key_(c: int, r: int, s: int, ec: Curve) -> int:

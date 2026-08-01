@@ -24,6 +24,7 @@ import secrets
 from dataclasses import dataclass
 from hashlib import sha256
 from io import BytesIO
+from typing import overload
 
 from btclib_libsecp256k1 import dsa as libsecp256k1_dsa
 
@@ -33,8 +34,9 @@ from btclib.curves import Curve, secp256k1
 from btclib.curves.curve import _libsecp256k1_applicable
 from btclib.curves.curve_group import _mult
 from btclib.curves.curve_group_2 import double_mult_w_NAF
+from btclib.ecc.commit_nonce import commit_nonce_, commit_point_
 from btclib.ecc.rfc6979_nonce import _rfc6979_nonce_, challenge_
-from btclib.exceptions import BTClibRuntimeError, BTClibValueError
+from btclib.exceptions import BTClibRuntimeError, BTClibTypeError, BTClibValueError
 from btclib.hashes import reduce_to_hlen
 from btclib.number_theory import mod_inv
 from btclib.to_prv_key import PrvKey, int_from_prv_key
@@ -302,6 +304,32 @@ def _sign_(c: int, q: int, nonce: int, lower_s: bool, ec: Curve) -> Sig:
     return Sig(r, s, ec)
 
 
+@overload
+def sign_(
+    msg_hash: Octets,
+    prv_key: PrvKey,
+    nonce: PrvKey | None = ...,
+    lower_s: bool = ...,
+    ec: Curve = ...,
+    hf: HashF = ...,
+    *,
+    commit_hash: None = None,
+) -> Sig: ...
+
+
+@overload
+def sign_(
+    msg_hash: Octets,
+    prv_key: PrvKey,
+    nonce: PrvKey | None = ...,
+    lower_s: bool = ...,
+    ec: Curve = ...,
+    hf: HashF = ...,
+    *,
+    commit_hash: Octets,
+) -> tuple[Sig, Point]: ...
+
+
 def sign_(
     msg_hash: Octets,
     prv_key: PrvKey,
@@ -309,11 +337,19 @@ def sign_(
     lower_s: bool = True,
     ec: Curve = secp256k1,
     hf: HashF = sha256,
-) -> Sig:
+    *,
+    commit_hash: Octets | None = None,
+) -> Sig | tuple[Sig, Point]:
     """Sign a hf_len bytes message according to ECDSA signature algorithm.
 
     If the deterministic nonce is not provided, the RFC6979
     specification is used.
+
+    commit_hash is a value to commit to inside the nonce, sign-to-contract
+    style: the signature is an ordinary one, and the receipt returned
+    beside it is what opens the commitment (see
+    btclib.ecc.commit_nonce). Keyword-only, and the only argument that
+    changes what is returned, so that neither is easy to pass by accident.
     """
     # the message msg_hash: a hf_len array
     hf_len = hf().digest_size
@@ -326,8 +362,15 @@ def sign_(
     # a nonce provided by the caller is the nonce, while what
     # libsecp256k1 takes is extra entropy for the RFC6979 nonce it
     # derives itself: the two cannot be the same argument, so a
-    # requested nonce is for the python implementation below to use
-    if _libsecp256k1_applicable(ec, hf) and nonce is None and lower_s:
+    # requested nonce is for the python implementation below to use.
+    # A commitment is the same clause once removed: it tweaks the nonce,
+    # which is again not an argument the bindings have
+    if (
+        _libsecp256k1_applicable(ec, hf)
+        and nonce is None
+        and lower_s
+        and commit_hash is None
+    ):
         return Sig.parse(libsecp256k1_dsa.sign(msg_hash, q))
 
     # the challenge
@@ -339,8 +382,40 @@ def sign_(
     else:
         nonce = int_from_prv_key(nonce, ec)
 
-    # second part delegated to helper function
-    return _sign_(c, q, nonce, lower_s, ec)
+    if commit_hash is None:
+        # second part delegated to helper function
+        return _sign_(c, q, nonce, lower_s, ec)
+
+    # the challenge does not depend on the nonce, so committing is a
+    # substitution of the nonce and nothing else: one signing path
+    nonce, receipt = commit_nonce_(commit_hash, nonce, ec, hf)
+    return _sign_(c, q, nonce, lower_s, ec), receipt
+
+
+@overload
+def sign(
+    msg: Octets,
+    prv_key: PrvKey,
+    nonce: PrvKey | None = ...,
+    lower_s: bool = ...,
+    ec: Curve = ...,
+    hf: HashF = ...,
+    *,
+    commit: None = None,
+) -> Sig: ...
+
+
+@overload
+def sign(
+    msg: Octets,
+    prv_key: PrvKey,
+    nonce: PrvKey | None = ...,
+    lower_s: bool = ...,
+    ec: Curve = ...,
+    hf: HashF = ...,
+    *,
+    commit: Octets,
+) -> tuple[Sig, Point]: ...
 
 
 def sign(
@@ -350,7 +425,9 @@ def sign(
     lower_s: bool = True,
     ec: Curve = secp256k1,
     hf: HashF = sha256,
-) -> Sig:
+    *,
+    commit: Octets | None = None,
+) -> Sig | tuple[Sig, Point]:
     """ECDSA signature with canonical low-s preference.
 
     Implemented according to SEC 1 v.2 The message msg is first
@@ -368,11 +445,17 @@ def sign(
 
     RFC6979 is used for deterministic nonce.
 
+    commit is a value to commit to inside the nonce, and is reduced by hf
+    as msg is: `sign_` is the spelling that takes the two hashes.
+
     See
     https://www.rfc-editor.org/rfc/rfc6979.html#section-3.2
     """
     msg_hash = reduce_to_hlen(msg, hf)
-    return sign_(msg_hash, prv_key, nonce, lower_s, ec, hf)
+    if commit is None:
+        return sign_(msg_hash, prv_key, nonce, lower_s, ec, hf)
+    commit_hash = reduce_to_hlen(commit, hf)
+    return sign_(msg_hash, prv_key, nonce, lower_s, ec, hf, commit_hash=commit_hash)
 
 
 def _assert_as_valid_(
@@ -402,12 +485,37 @@ def _assert_as_valid_(
         raise BTClibRuntimeError("signature verification failed")
 
 
+def _assert_commitment_(
+    commit_hash: Octets | None, receipt: Point | None, sig: Sig, hf: HashF
+) -> None:
+    # the two come together or not at all, and a BTClibTypeError says so
+    # because verify answers False for anything that is merely an invalid
+    # signature: a commitment nobody can open, or a receipt for a
+    # commitment that was never named, is a caller error and has to be
+    # heard as one
+    if commit_hash is None:
+        if receipt is not None:
+            raise BTClibTypeError("receipt without the commitment it opens")
+    elif receipt is None:
+        raise BTClibTypeError("commitment without the receipt that opens it")
+    else:
+        # sig.r is the tweaked nonce's x-coordinate reduced modulo the
+        # group order, as signing left it, so the recomputed point is
+        # reduced too
+        W = commit_point_(commit_hash, receipt, sig.ec, hf)
+        if sig.r != W[0] % sig.ec.n:
+            raise BTClibRuntimeError("commitment verification failed")
+
+
 def assert_as_valid_(
     msg_hash: Octets,
     key: PubKey,
     sig: Sig | Octets,
     lower_s: bool = True,
     hf: HashF = sha256,
+    *,
+    commit_hash: Octets | None = None,
+    receipt: Point | None = None,
 ) -> None:
     # Private function for test/dev purposes
     # It raises Errors, while verify should always return True or False
@@ -426,6 +534,12 @@ def assert_as_valid_(
         sig.assert_valid()
     else:
         sig = Sig.parse(sig)
+
+    # ahead of the dispatch below, which returns early: opening a
+    # commitment and verifying a signature are two independent checks of
+    # the same r, and both have to run whichever implementation answers
+    # the second one
+    _assert_commitment_(commit_hash, receipt, sig, hf)
 
     if _libsecp256k1_applicable(sig.ec, hf):
         msg_hash_bytes = bytes_from_octets(msg_hash, 32)
@@ -452,11 +566,17 @@ def assert_as_valid(
     sig: Sig | Octets,
     lower_s: bool = True,
     hf: HashF = sha256,
+    *,
+    commit: Octets | None = None,
+    receipt: Point | None = None,
 ) -> None:
     # Private function for test/dev purposes
     # It raises Errors, while verify should always return True or False
     msg_hash = reduce_to_hlen(msg, hf)
-    assert_as_valid_(msg_hash, key, sig, lower_s, hf)
+    commit_hash = None if commit is None else reduce_to_hlen(commit, hf)
+    assert_as_valid_(
+        msg_hash, key, sig, lower_s, hf, commit_hash=commit_hash, receipt=receipt
+    )
 
 
 def verify_(
@@ -465,8 +585,16 @@ def verify_(
     sig: Sig | Octets,
     lower_s: bool = True,
     hf: HashF = sha256,
+    *,
+    commit_hash: Octets | None = None,
+    receipt: Point | None = None,
 ) -> bool:
-    """ECDSA signature verification (SEC 1 v.2 section 4.1.4)."""
+    """ECDSA signature verification (SEC 1 v.2 section 4.1.4).
+
+    commit_hash and receipt open the commitment the nonce carries, and a
+    signature that does not commit to that value is False as a forged one
+    is: the answer is about this signature and this commitment, both.
+    """
     # ValueError and BTClibRuntimeError, not Exception: an input that is not
     # a valid signature is False, and so is a verification that failed, but
     # a TypeError is neither -- an hf passed as sha256() instead of sha256
@@ -474,7 +602,9 @@ def verify_(
     # BTClibRuntimeError by name and not RuntimeError, because
     # RecursionError is one and is not an answer about a signature
     try:
-        assert_as_valid_(msg_hash, key, sig, lower_s, hf)
+        assert_as_valid_(
+            msg_hash, key, sig, lower_s, hf, commit_hash=commit_hash, receipt=receipt
+        )
     except (ValueError, BTClibRuntimeError):
         return False
 
@@ -487,10 +617,20 @@ def verify(
     sig: Sig | Octets,
     lower_s: bool = True,
     hf: HashF = sha256,
+    *,
+    commit: Octets | None = None,
+    receipt: Point | None = None,
 ) -> bool:
-    """ECDSA signature verification (SEC 1 v.2 section 4.1.4)."""
+    """ECDSA signature verification (SEC 1 v.2 section 4.1.4).
+
+    commit is reduced by hf as msg is; `verify_` is the spelling that
+    takes the two hashes.
+    """
     msg_hash = reduce_to_hlen(msg, hf)
-    return verify_(msg_hash, key, sig, lower_s, hf)
+    commit_hash = None if commit is None else reduce_to_hlen(commit, hf)
+    return verify_(
+        msg_hash, key, sig, lower_s, hf, commit_hash=commit_hash, receipt=receipt
+    )
 
 
 def _recover_pub_keys_(
