@@ -34,6 +34,7 @@ from __future__ import annotations
 from collections.abc import Iterator, Sequence
 from dataclasses import dataclass
 from functools import cached_property
+from io import BytesIO
 from warnings import warn
 
 from btclib.alias import BinaryData, Command, Octets, ScriptList
@@ -362,7 +363,34 @@ def serialize(script: Sequence[Command]) -> bytes:
     return b"".join(r)
 
 
-def parse(stream: BinaryData, accept_unknown: bool = False) -> ScriptList:  # noqa: C901 -- one branch per push width, and not taproot.parse's push helper: that one reads a push before measuring it, this refuses one over 520 without reading it
+def _parse_push(s: BytesIO, i: int) -> str:
+    """Read the data of the push whose first byte is i, as upper-case hex.
+
+    Not taproot's `_read_push_data`, which reads the same three widths
+    and stops there: the 520-byte element limit is enforced here and
+    cannot be there, an OP_SUCCESS making a tapscript valid whatever
+    else it holds. The limit is checked against the declared length, so
+    an oversized push is refused without being read.
+    """
+    data_length = i  # 0 < i < 76 -> 1-byte-data-length | data
+    if 75 < i < 79:
+        # i == 76 -> OP_PUSHDATA1 | 1-byte-data-length | data
+        # i == 77 -> OP_PUSHDATA2 | 2-byte-data-length | data
+        # i == 78 -> OP_PUSHDATA4 | 4-byte-data-length | data
+        x = 2 ** (i - 76)
+        y = s.read(x)
+        if len(y) != x:
+            raise BTClibValueError("Not enough data for pushdata length")
+        data_length = int.from_bytes(y, byteorder="little")
+    if data_length > 520:
+        raise BTClibValueError(f"Invalid pushdata length: {data_length}")
+    data = s.read(data_length)
+    if len(data) != data_length:
+        raise BTClibValueError("Not enough data for pushdata")
+    return data.hex().upper()
+
+
+def parse(stream: BinaryData, accept_unknown: bool = False) -> ScriptList:
     s = bytesio_from_binarydata(stream)
     r: ScriptList = []  # initialize the result list
 
@@ -372,23 +400,7 @@ def parse(stream: BinaryData, accept_unknown: bool = False) -> ScriptList:  # no
             break
         i = t[0]  # convert the first byte to an integer
         if 0 < i <= 78:  # push
-            data_length = i  # 0 < i < 76 -> 1-byte-data-length | data
-            if 75 < i < 79:
-                # i == 76 -> OP_PUSHDATA1 | 1-byte-data-length | data
-                # i == 77 -> OP_PUSHDATA2 | 2-byte-data-length | data
-                x = i - 75
-                if i == 78:  # OP_PUSHDATA4 | 4-byte-data-length | data
-                    x = 4
-                y = s.read(x)
-                if len(y) != x:
-                    raise BTClibValueError("Not enough data for pushdata length")
-                data_length = int.from_bytes(y, byteorder="little")
-            if data_length > 520:
-                raise BTClibValueError(f"Invalid pushdata length: {data_length}")
-            data = s.read(data_length)
-            if len(data) != data_length:
-                raise BTClibValueError("Not enough data for pushdata")
-            command = data.hex().upper()
+            command = _parse_push(s, i)
         elif i in OP_CODE_NAME_FROM_INT:  # OP_CODE
             command = OP_CODE_NAME_FROM_INT[i]
             # the operand before an op code is left as bytes, and is not

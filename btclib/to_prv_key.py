@@ -97,7 +97,62 @@ def _q_if_network_and_ec_match(q: int, network: str, ec: Curve) -> int:
 PrvkeyInfo = tuple[int, str, bool]
 
 
-def _prv_keyinfo_from_wif(  # noqa: C901 -- consistency checks in refusal order: not-a-WIF, then invalid WIF
+def _wif_network(prefix: bytes, network: str | None) -> str:
+    """Return the network a WIF version prefix belongs to.
+
+    NotAPrvKeyError for a prefix no network claims: the input is not a
+    WIF, and the format-guessing caller is free to try it as octets or
+    as an int. InvalidPrvKeyError once a network has claimed it and the
+    caller asked for another one: that is a WIF, and the wrong one.
+    """
+    net = network_from_key_value("wif", prefix)
+    if net is None:
+        raise NotAPrvKeyError(f"not a WIF (invalid prefix 0x{prefix.hex()})")
+
+    if network is None:
+        return net
+
+    # the forward check, and not a `net != network` name comparison:
+    # the reverse lookup answers "testnet" for the 0xef that testnet,
+    # regtest, signet and testnet4 all use, so comparing names would
+    # reject a signet WIF as "not a signet wif: prefix 0xef" --
+    # naming the very prefix signet asks for (issue #207).
+    # _prv_keyinfo_from_xprv below makes the same membership check
+    if prefix != NETWORKS[network].wif:
+        raise InvalidPrvKeyError(f"not a {network} wif: prefix 0x{prefix.hex()}")
+    # the declared network, not the lookup's guess: for a caller who
+    # said "signet" the answer is signet, and it is the one that ends
+    # up in the returned tuple
+    return network
+
+
+def _wif_prv_key_and_compression(
+    payload: bytes, n_size: int, compressed: bool | None
+) -> tuple[bytes, bool]:
+    """Return the key bytes of a WIF payload, and whether it is compressed.
+
+    The size is what says which of the two it is, the compressed
+    spelling carrying one byte more; the caller's `compressed`, if it
+    said anything, then has to agree with the answer.
+    """
+    if len(payload) == n_size + 2:  # compressed WIF
+        compr = True
+        if payload[-1] != 0x01:  # must have a trailing 0x01
+            raise InvalidPrvKeyError("not a compressed WIF: missing trailing 0x01")
+        prv_key = payload[1:-1]
+    elif len(payload) == n_size + 1:  # uncompressed WIF
+        compr = False
+        prv_key = payload[1:]
+    else:
+        raise InvalidPrvKeyError(f"wrong WIF size: {len(payload)}")
+
+    if compressed is not None and compr != compressed:
+        raise InvalidPrvKeyError("compression requirement mismatch")
+
+    return prv_key, compr
+
+
+def _prv_keyinfo_from_wif(
     wif: String, network: str | None = None, compressed: bool | None = None
 ) -> PrvkeyInfo:
     """Return private key tuple(int, compressed, network) from a WIF.
@@ -105,6 +160,11 @@ def _prv_keyinfo_from_wif(  # noqa: C901 -- consistency checks in refusal order:
     WIF is always compressed and includes network information: here the
     'network, compressed' input parameters are passed only to allow
     consistency checks.
+
+    The two helpers below are the two questions in refusal order, and
+    the order is what the error types are about: everything up to and
+    including the version prefix answers "is this a WIF at all", and
+    everything after it answers "is this WIF sound".
     """
     if isinstance(wif, str):
         wif = wif.strip()
@@ -125,43 +185,12 @@ def _prv_keyinfo_from_wif(  # noqa: C901 -- consistency checks in refusal order:
     except ValueError as e:
         raise NotAPrvKeyError(f"not a WIF ({e})") from e
 
-    prefix = payload[:1]
-    net = network_from_key_value("wif", prefix)
-    if net is None:
-        raise NotAPrvKeyError(f"not a WIF (invalid prefix 0x{prefix.hex()})")
-
-    # from here the version prefix says WIF, so a fault in what follows is
-    # a fault in a WIF: InvalidPrvKeyError, which the format-guessing
+    # from here on the version prefix says WIF, so a fault in what follows
+    # is a fault in a WIF: InvalidPrvKeyError, which the format-guessing
     # callers let through instead of trying the input as something else
-    if network is not None:
-        # the forward check, and not a `net != network` name comparison:
-        # the reverse lookup answers "testnet" for the 0xef that testnet,
-        # regtest, signet and testnet4 all use, so comparing names would
-        # reject a signet WIF as "not a signet wif: prefix 0xef" --
-        # naming the very prefix signet asks for (issue #207).
-        # _prv_keyinfo_from_xprv below makes the same membership check
-        if prefix != NETWORKS[network].wif:
-            raise InvalidPrvKeyError(f"not a {network} wif: prefix 0x{prefix.hex()}")
-        # the declared network, not the lookup's guess: for a caller who
-        # said "signet" the answer is signet, and it is the one that ends
-        # up in the returned tuple
-        net = network
-
+    net = _wif_network(payload[:1], network)
     ec = NETWORKS[net].curve
-
-    if len(payload) == ec.n_size + 2:  # compressed WIF
-        compr = True
-        if payload[-1] != 0x01:  # must have a trailing 0x01
-            raise InvalidPrvKeyError("not a compressed WIF: missing trailing 0x01")
-        prv_key = payload[1:-1]
-    elif len(payload) == ec.n_size + 1:  # uncompressed WIF
-        compr = False
-        prv_key = payload[1:]
-    else:
-        raise InvalidPrvKeyError(f"wrong WIF size: {len(payload)}")
-
-    if compressed is not None and compr != compressed:
-        raise InvalidPrvKeyError("compression requirement mismatch")
+    prv_key, compr = _wif_prv_key_and_compression(payload, ec.n_size, compressed)
 
     q = int.from_bytes(prv_key, byteorder="big")
     if not 0 < q < ec.n:

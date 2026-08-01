@@ -46,7 +46,7 @@ from btclib.psbt.psbt_utils import (
     serialize_hd_key_paths,
 )
 from btclib.script import Witness, serialize, type_and_payload
-from btclib.tx import Tx, join_txs
+from btclib.tx import Tx, TxIn, join_txs
 from btclib.utils import bytesio_from_binarydata
 
 PSBT_MAGIC_BYTES = b"psbt"
@@ -68,6 +68,58 @@ def _assert_valid_version(version: int) -> None:
     # actually the only version that is currently handled is zero
     if version != 0:
         raise BTClibValueError(f"invalid non-zero version: {version}")
+
+
+def _signable_payload(psbt_in: PsbtIn, tx_in: TxIn) -> bytes:
+    """Return the hash the input's script_pub_key commits to.
+
+    Which utxo the input carries is which kind of input it is. A
+    witness_utxo is the spent output itself, and it has to be a segwit
+    one: p2sh is accepted only as the wrapper, so what is typed then is
+    the redeem script, while the payload stays the p2sh one -- the
+    hash160 the caller checks that redeem script against. A
+    non_witness_utxo is the whole previous transaction, and the output
+    being spent is the one the outpoint names.
+    """
+    if witness_utxo := psbt_in.witness_utxo:
+        script_type, payload = type_and_payload(witness_utxo.script_pub_key.script)
+        if script_type == "p2sh":
+            script_type, _ = type_and_payload(psbt_in.redeem_script)
+        if script_type not in ("p2wpkh", "p2wsh"):
+            raise BTClibValueError("script type not in ('p2wpkh', 'p2wsh')")
+        return payload
+
+    if psbt_in.non_witness_utxo:
+        script_pub_key = psbt_in.non_witness_utxo.vout[
+            tx_in.prev_out.vout
+        ].script_pub_key
+        _, payload = type_and_payload(script_pub_key.script)
+        return payload
+
+    err_msg = "missing script_pub_key"
+    raise BTClibValueError(err_msg)
+
+
+def _assert_input_signable(psbt_in: PsbtIn, tx_in: TxIn) -> None:
+    """Raise an exception unless the input carries what a Signer needs.
+
+    Each script the input provides has to be the one the level above it
+    commits to: the redeem script the hash160 in the script_pub_key
+    names, and the witness script the sha256 in whichever of the two is
+    the level above *it* -- the redeem script when the input is wrapped,
+    the script_pub_key when it is native.
+    """
+    payload = _signable_payload(psbt_in, tx_in)
+    redeem_script = psbt_in.redeem_script
+
+    if redeem_script and payload != hash160(redeem_script):
+        raise BTClibValueError("invalid redeem script hash160")
+
+    if psbt_in.witness_script:
+        if redeem_script:
+            _, payload = type_and_payload(redeem_script)
+        if payload != sha256(psbt_in.witness_script):
+            raise BTClibValueError("invalid witness script sha256")
 
 
 @dataclass
@@ -141,7 +193,7 @@ class Psbt:
         assert_valid_hd_key_paths(self.hd_key_paths)
         assert_valid_unknown(self.unknown)
 
-    def assert_signable(self) -> None:  # noqa: C901 -- which script type is each input: the Signer's pre-flight
+    def assert_signable(self) -> None:
         """Assert that every input carries what a Signer needs.
 
         Valid and signable are different questions, and BIP174 answers only
@@ -160,33 +212,10 @@ class Psbt:
         if not self.tx.vin:
             raise BTClibValueError("nothing to sign: no inputs")
 
-        for i, tx_in in enumerate(self.tx.vin):
-            non_witness_utxo = self.inputs[i].non_witness_utxo
-            redeem_script = self.inputs[i].redeem_script
-            if witness_utxo := self.inputs[i].witness_utxo:
-                script_pub_key = witness_utxo.script_pub_key
-                script_type, payload = type_and_payload(script_pub_key.script)
-                if script_type == "p2sh":
-                    script_type, _ = type_and_payload(redeem_script)
-                if script_type not in ("p2wpkh", "p2wsh"):
-                    raise BTClibValueError("script type not in ('p2wpkh', 'p2wsh')")
-            elif non_witness_utxo:
-                script_pub_key = non_witness_utxo.vout[
-                    tx_in.prev_out.vout
-                ].script_pub_key
-                _, payload = type_and_payload(script_pub_key.script)
-            else:
-                err_msg = "missing script_pub_key"
-                raise BTClibValueError(err_msg)
-
-            if redeem_script and payload != hash160(redeem_script):
-                raise BTClibValueError("invalid redeem script hash160")
-
-            if self.inputs[i].witness_script:
-                if redeem_script:
-                    _, payload = type_and_payload(redeem_script)
-                if payload != sha256(self.inputs[i].witness_script):
-                    raise BTClibValueError("invalid witness script sha256")
+        # strict=True costs nothing here: assert_valid above has just
+        # refused a psbt whose inputs and vin are of different lengths
+        for psbt_in, tx_in in zip(self.inputs, self.tx.vin, strict=True):
+            _assert_input_signable(psbt_in, tx_in)
 
     def to_dict(self, *, check_validity: bool = True) -> dict[str, Any]:
         if check_validity:

@@ -111,7 +111,35 @@ def wNAF_of_m(m: int, w: int) -> list[int]:
     return M
 
 
-def mult_sliding_window(m: int, Q: JacPoint, ec: CurveGroup, w: int = 4) -> JacPoint:  # noqa: C901 -- the published algorithm, kept in its published shape
+def _sliding_window_table(Q: JacPoint, ec: CurveGroup, w: int) -> list[JacPoint]:
+    """Return the multiples a full window can name, 2^(w-1)*Q to (2^w - 1)*Q.
+
+    Half the table the fixed window needs, which is where "roughly half
+    as complex a pre-computation" comes from: a window is only ever
+    opened on a nonzero digit, so its value has its top bit set and no
+    multiple below 2^(w-1) is ever indexed.
+    """
+    P = Q
+    for _ in range(w - 1):
+        P = ec.double_jac(P)
+    T = [P]
+    for _ in range(1, pow(2, w - 1)):
+        T.append(ec.add_jac(T[-1], Q))
+    return T
+
+
+def _double_and_add(
+    R: JacPoint, Q: JacPoint, digits: list[int], ec: CurveGroup
+) -> JacPoint:
+    """Fold digits into R by the plain binary method, one bit at a time."""
+    for digit in digits:
+        R = ec.double_jac(R)
+        if digit == 1:
+            R = ec.add_jac(R, Q)
+    return R
+
+
+def mult_sliding_window(m: int, Q: JacPoint, ec: CurveGroup, w: int = 4) -> JacPoint:
     """Scalar multiplication using "sliding window".
 
     It has the benefit that the pre-computation stage is roughly half as
@@ -129,16 +157,9 @@ def mult_sliding_window(m: int, Q: JacPoint, ec: CurveGroup, w: int = 4) -> JacP
     if w <= 0:
         raise BTClibValueError(f"non positive w: {w}")
 
-    k = w - 1
-    p = pow(2, k)
-
     # at each step one of the points in T will be added
-    P = Q
-    for _ in range(k):
-        P = ec.double_jac(P)
-    T = [P]
-    for i in range(1, p):
-        T.append(ec.add_jac(T[i - 1], Q))
+    T = _sliding_window_table(Q, ec, w)
+    p = pow(2, w - 1)
 
     digits = convert_number_to_base(m, 2)
 
@@ -148,22 +169,22 @@ def mult_sliding_window(m: int, Q: JacPoint, ec: CurveGroup, w: int = 4) -> JacP
         if digits[i] == 0:
             R = ec.double_jac(R)
             i += 1
-        else:
-            j = min(len(digits) - i, w)
-            t = digits[i]
-            for a in range(1, j):
-                t = 2 * t + digits[i + a]
-
-            if j < w:
-                for b in range(i, (i + j)):
-                    R = ec.double_jac(R)
-                    if digits[b] == 1:
-                        R = ec.add_jac(R, Q)
-                return R
-            for _ in range(w):
-                R = ec.double_jac(R)
-            R = ec.add_jac(R, T[t - p])
-            i += j
+            continue
+        # a window opens here, and only a whole one indexes the table:
+        # with fewer than w digits left the remainder is folded in bit by
+        # bit instead, which is where the multiplication ends
+        if len(digits) - i < w:
+            return _double_and_add(R, Q, digits[i:], ec)
+        # the w digits as a binary number; its top digit being 1, it is at
+        # least 2^(w-1) and below 2^w, so entry t - 2^(w-1) of the table is
+        # the multiple t*Q to be added
+        t = 0
+        for a in range(w):
+            t = 2 * t + digits[i + a]
+        for _ in range(w):
+            R = ec.double_jac(R)
+        R = ec.add_jac(R, T[t - p])
+        i += w
 
     return R
 

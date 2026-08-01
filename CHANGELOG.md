@@ -1750,8 +1750,8 @@ seventeen source-breaking changes on their own.
   `tests/b32_test.py` that printed an address on every invalid case and
   asserted nothing; it is gone. `C90` closes issue #184, which asked for
   C901 or for the decision not to have it: `max-complexity` is ruff's
-  default 10, and the 10 functions over it — a script interpreter's
-  op-code dispatch, the legacy sighash quirks — each carry a
+  default 10, and the 3 functions over it — the script engine's
+  verifiers, an op-code dispatch each — carry a
   `# noqa: C901` naming its reason, never its number, which nothing would
   check. No exemption is permanent: RUF100 fails a noqa as unused the
   moment a refactor brings its function under the line, so the list only

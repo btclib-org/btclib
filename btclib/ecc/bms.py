@@ -346,7 +346,51 @@ def sign(msg: Octets, prv_key: PrvKey, addr: String | None = None) -> Sig:
     return Sig(rf, dsa_sig)
 
 
-def assert_as_valid(  # noqa: C901 -- one branch per address type, each with its recovery-flag range
+def _assert_p2wpkh(addr: String, rf: int, pub_key: bytes) -> None:
+    """Raise an exception unless the p2wpkh address is this key's.
+
+    The recovery flag has to be one that names a native segwit address,
+    which is two ranges and not one: 39..42, the spelling BIP137
+    assigns to p2wpkh, and 31..34, the compressed p2pkh spelling, which
+    is accepted because Electrum signs a native address with it.
+    """
+    wit_ver, h160, _ = witness_from_address(addr)
+    if wit_ver != 0 or len(h160) != 20:
+        raise BTClibValueError(f"not a p2wpkh address: {addr!r}")
+    if not (30 < rf < 35 or rf > 38):
+        raise BTClibValueError(f"invalid p2wpkh address recovery flag: {rf}")
+    if hash160(pub_key) != h160:
+        raise BTClibValueError(f"invalid p2wpkh address: {addr!r}")
+
+
+def _assert_p2pkh(addr: String, rf: int, pub_key: bytes, h160: bytes) -> None:
+    """Raise an exception unless the p2pkh address is this key's.
+
+    27..34, i.e. everything below the first segwit spelling: p2pkh is
+    the only address type an uncompressed key can own, so it is the only
+    one whose flags include the uncompressed 27..30.
+    """
+    if rf > 34:
+        raise BTClibValueError(f"invalid p2pkh address recovery flag: {rf}")
+    if hash160(pub_key) != h160:
+        raise BTClibValueError(f"invalid p2pkh address: {addr!r}")
+
+
+def _assert_p2wpkh_p2sh(addr: String, rf: int, pub_key: bytes, h160: bytes) -> None:
+    """Raise an exception unless the p2wpkh-p2sh address is this key's.
+
+    31..38: the 35..38 BIP137 assigns to the wrapped spelling, and again
+    the compressed p2pkh 31..34 that Electrum signs it with. Segwit
+    either way, so an uncompressed key cannot own one.
+    """
+    if not 30 < rf < 39:
+        raise BTClibValueError(f"invalid p2wpkh-p2sh address recovery flag: {rf}")
+    script_pk = b"\x00\x14" + hash160(pub_key)
+    if hash160(script_pk) != h160:
+        raise BTClibValueError(f"invalid p2wpkh-p2sh address: {addr!r}")
+
+
+def assert_as_valid(
     msg: Octets, addr: String, sig: Sig | String, lower_s: bool = True
 ) -> None:
     # Private function for test/dev purposes
@@ -369,31 +413,22 @@ def assert_as_valid(  # noqa: C901 -- one branch per address type, each with its
     # signature is valid only if the provided address is matched
     pub_key = bytes_from_point(Q, compressed=compressed)
 
+    # the address says which of the three checks applies, and each of them
+    # carries the recovery-flag range that belongs to its type: the flag
+    # is what the signer said the address was, so a flag outside the range
+    # is a signature for a different address type
     if has_segwit_prefix(addr):
-        wit_ver, h160, _ = witness_from_address(addr)
-        if wit_ver != 0 or len(h160) != 20:
-            raise BTClibValueError(f"not a p2wpkh address: {addr!r}")
-        if not (30 < sig.rf < 35 or sig.rf > 38):
-            raise BTClibValueError(f"invalid p2wpkh address recovery flag: {sig.rf}")
-        if hash160(pub_key) != h160:
-            raise BTClibValueError(f"invalid p2wpkh address: {addr!r}")
+        _assert_p2wpkh(addr, sig.rf, pub_key)
         return
 
     script_type, h160, _ = h160_from_address(addr)
 
     if script_type == "p2pkh":
-        if sig.rf > 34:
-            raise BTClibValueError(f"invalid p2pkh address recovery flag: {sig.rf}")
-        if hash160(pub_key) != h160:
-            raise BTClibValueError(f"invalid p2pkh address: {addr!r}")
+        _assert_p2pkh(addr, sig.rf, pub_key, h160)
         return
 
     # must be P2WPKH-P2SH
-    if not 30 < sig.rf < 39:
-        raise BTClibValueError(f"invalid p2wpkh-p2sh address recovery flag: {sig.rf}")
-    script_pk = b"\x00\x14" + hash160(pub_key)
-    if hash160(script_pk) != h160:
-        raise BTClibValueError(f"invalid p2wpkh-p2sh address: {addr!r}")
+    _assert_p2wpkh_p2sh(addr, sig.rf, pub_key, h160)
 
 
 def verify(msg: Octets, addr: String, sig: Sig | String, lower_s: bool = True) -> bool:

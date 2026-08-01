@@ -45,6 +45,29 @@ from btclib.utils import bytesio_from_binarydata
 _SEGWIT_MARKER = b"\x00\x01"
 
 
+def _assert_valid_coinbase(vin: Sequence[TxIn], *, is_coinbase: bool) -> None:
+    """Raise an exception if the inputs disagree with the coinbase rule.
+
+    The two cases are one check because a coinbase input -- the null
+    outpoint -- is what makes a transaction a coinbase: either the
+    transaction is one, and then its single input carries the block's
+    script_sig, whose size consensus bounds; or it is not, and then no
+    input may be a coinbase one.
+
+    is_coinbase is passed rather than recomputed: `Tx.is_coinbase` is
+    where "one input, and it is the null outpoint" is spelled, and a
+    second spelling here is one that can drift from it.
+    """
+    if is_coinbase:
+        if not 2 <= len(vin[0].script_sig) <= 100:
+            raise BTClibValueError("Invalid coinbase script size")
+        return
+
+    for tx_in in vin:
+        if tx_in.is_coinbase():
+            raise BTClibValueError("coinbase input in a non-coinbase transaction")
+
+
 @dataclass
 class Tx:
     # 4 bytes, _signed_ little endian
@@ -185,7 +208,7 @@ class Tx:
         if not 0 < self.version <= 0x7FFFFFFF:
             raise BTClibValueError(f"invalid version: {self.version}")
 
-    def assert_valid(self, *, unsigned_template: bool = False) -> None:  # noqa: C901 -- one check per transaction invariant, coinbase apart
+    def assert_valid(self, *, unsigned_template: bool = False) -> None:
         """Assert that this is a valid transaction.
 
         unsigned_template=True drops the two rules a PSBT's global unsigned
@@ -200,15 +223,7 @@ class Tx:
         point of the format. BIP174 lists two zero-input PSBTs as valid
         and btclib refused both (issue 170).
         """
-        if self.is_coinbase():
-            if not 2 <= len(self.vin[0].script_sig) <= 100:
-                raise BTClibValueError("Invalid coinbase script size")
-        else:
-            for tx_in in self.vin:
-                if tx_in.is_coinbase():
-                    raise BTClibValueError(
-                        "coinbase input in a non-coinbase transaction"
-                    )
+        _assert_valid_coinbase(self.vin, is_coinbase=self.is_coinbase())
 
         # must be a 4-bytes integer
         if not 0 <= self.version <= 0xFFFFFFFF:

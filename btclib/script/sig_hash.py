@@ -167,14 +167,14 @@ def taproot_annex_and_ext(tx: Tx, vin_i: int) -> tuple[bytes, bytes]:
     return annex, ext
 
 
-def legacy(script_code: Octets, tx: Tx, vin_i: int, hash_type: int) -> bytes:  # noqa: C901 -- the legacy quirks, the SIGHASH_SINGLE bug included
-    # the legacy preimage commits to the script code with its
-    # OP_CODESEPARATORs elided, and Core does that here rather than to the
-    # script code itself: SerializeScriptCode is part of the serializer,
-    # and the caller — its interpreter, and `sign.cpp` which truncates
-    # nothing at all — passes the script as it stands
-    script_code = _without_op_codeseparators(bytes_from_octets(script_code))
+def _legacy_tx_copy(tx: Tx, vin_i: int, script_code: bytes) -> Tx:
+    """Copy tx with every script_sig emptied but the signed input's.
 
+    A copy and not the caller's Tx: computing a hash must not rewrite the
+    transaction it is computed over, and everything the legacy preimage
+    does -- blanking the other inputs' scripts, dropping outputs,
+    dropping inputs -- is spelled as a mutation of this copy.
+    """
     new_tx = Tx(
         version=tx.version,
         lock_time=tx.lock_time,
@@ -201,12 +201,34 @@ def legacy(script_code: Octets, tx: Tx, vin_i: int, hash_type: int) -> bytes:  #
             )
         )
     new_tx.vin[vin_i].script_sig = script_code
+    return new_tx
+
+
+def _zero_other_sequences(new_tx: Tx, vin_i: int) -> None:
+    """Zero the sequence of every input but the signed one.
+
+    Both NONE and SINGLE do it, and for the same reason: neither commits
+    to the outputs the other inputs pay to, so leaving their sequences
+    signed would let them be replaced with no change to this signature.
+    """
+    for i, txin in enumerate(new_tx.vin):
+        if i != vin_i:
+            txin.sequence = 0
+
+
+def legacy(script_code: Octets, tx: Tx, vin_i: int, hash_type: int) -> bytes:
+    # the legacy preimage commits to the script code with its
+    # OP_CODESEPARATORs elided, and Core does that here rather than to the
+    # script code itself: SerializeScriptCode is part of the serializer,
+    # and the caller — its interpreter, and `sign.cpp` which truncates
+    # nothing at all — passes the script as it stands
+    script_code = _without_op_codeseparators(bytes_from_octets(script_code))
+
+    new_tx = _legacy_tx_copy(tx, vin_i, script_code)
 
     if hash_type & 0x1F == NONE:
         new_tx.vout = []
-        for i, txin in enumerate(new_tx.vin):
-            if i != vin_i:
-                txin.sequence = 0
+        _zero_other_sequences(new_tx, vin_i)
 
     if hash_type & 0x1F == SINGLE:
         # sig_hash single bug
@@ -221,9 +243,7 @@ def legacy(script_code: Octets, tx: Tx, vin_i: int, hash_type: int) -> bytes:  #
             TxOut(0xFFFFFFFFFFFFFFFF, ScriptPubKey(b""), check_validity=False)
             for _ in range(vin_i)
         ] + [new_tx.vout[vin_i]]
-        for i, txin in enumerate(new_tx.vin):
-            if i != vin_i:
-                txin.sequence = 0
+        _zero_other_sequences(new_tx, vin_i)
 
     if hash_type & 0x80:
         new_tx.vin = [new_tx.vin[vin_i]]
