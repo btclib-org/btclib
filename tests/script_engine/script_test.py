@@ -685,6 +685,43 @@ def test_p2wsh_unknown_op_code_is_the_interpreter_s_to_judge() -> None:
                 verify_input([prevout], tx, 0, ALL_FLAGS)
 
 
+def test_p2wsh_codeseparator_leaves_the_verdict_to_the_script() -> None:
+    """Past the separator the interpreter judges, and as itself.
+
+    The spend above earns the mildest verdict there is -- false left on
+    the stack, what any script that merely does not verify gets -- and a
+    guard reading the result rather than running the script could reach
+    it too. These two it could not: an OP_RETURN executed, and a
+    conditional left unbalanced, each of them a refusal only a run
+    produces, and each behind the OP_CODESEPARATOR that used to answer
+    for the whole script (#214).
+
+    The valid script beside them is the other half. Refusing the byte
+    outright would satisfy every case above and be the same bug facing
+    the other way, which is not hypothetical: the guard did exactly
+    that to an unknown op code, wherever it sat.
+    """
+
+    def spend(ops: list[str]) -> tuple[TxOut, Tx]:
+        witness_script = serialize(ops)
+        prevout = TxOut(1000, ScriptPubKey(b"\x00\x20" + sha256(witness_script)))
+        tx_in = TxIn(OutPoint(b"\x01" * 32, 0), b"", 1, Witness([witness_script.hex()]))
+        return prevout, Tx(
+            2, 0, [tx_in], [TxOut(1000, ScriptPubKey(""))], check_validity=False
+        )
+
+    for ops, message in (
+        (["OP_CODESEPARATOR", "OP_RETURN"], "OP_RETURN"),
+        (["OP_CODESEPARATOR", "OP_ELSE"], "OP_ELSE without OP_IF or OP_NOTIF"),
+    ):
+        prevout, tx = spend(ops)
+        with pytest.raises(ScriptError, match=message):
+            verify_input([prevout], tx, 0, ALL_FLAGS)
+
+    prevout, tx = spend(["OP_CODESEPARATOR", "OP_1"])
+    verify_input([prevout], tx, 0, ALL_FLAGS)
+
+
 @pytest.mark.parametrize(
     "op_code",
     ["OP_CHECKSIG", "OP_CHECKSIGVERIFY", "OP_CHECKMULTISIG", "OP_CHECKMULTISIGVERIFY"],
