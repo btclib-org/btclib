@@ -11,7 +11,7 @@ release-notes length in the first place, and are still in
 
 ## v2026.8 (work in progress, not released yet)
 
-A hundred and forty-five entries, grouped. The order runs from what breaks
+A hundred and forty-eight entries, grouped. The order runs from what breaks
 a caller to what only maintainers see; [HISTORY.md](./HISTORY.md) lists the
 sixteen source-breaking changes on their own.
 
@@ -1396,6 +1396,28 @@ sixteen source-breaking changes on their own.
 
 ### Tests
 
+- **the entry count of these two files is checked by the suite**, where
+  CLAUDE.md and CONTRIBUTING.md answered it with a command to run by
+  hand. Written as a habit it did not work: `f295aaaf` left CHANGELOG.md
+  at 115 entries under a header reading "a hundred and eleven",
+  `1142e97b` took it to 116 under the same header, and both survived
+  review because a wrong number looks exactly like a right one.
+  `tests/release_notes_test.py` counts the bullets and compares them
+  against what both headers state, and does the same for the
+  breaking-changes list — HISTORY.md states its size above it and
+  CHANGELOG.md cross-references it, so four numbers have to agree and not
+  two. The parser refuses a number word it cannot read rather than
+  returning zero, which would have compared every real count against
+  nothing
+- **the suite runs in a random order**, `pytest-randomly` being in the
+  test group; the seed is printed, and `-p no:randomly` puts the file
+  order back to reproduce a failure against it. It guards the one thing a
+  green suite cannot report about itself, whether a test passes because
+  of what ran before it — which is not hypothetical here, issues #139,
+  #140 and #165 having all been one object's mutation reaching another.
+  Three seeds were measured green before it went in, so this is a ratchet
+  and not a cleanup
+
 - **the test suite runs on `--dist worksteal`**, xdist's work-stealing
   scheduler, where it ran on the default `load`: 17.2 s against 23.3 s,
   best of three runs each, same 14681 tests in the same order. The cost
@@ -1626,6 +1648,22 @@ sixteen source-breaking changes on their own.
   published btclib still depends on btclib_libsecp256k1 from PyPI
 
 ### Packaging, linting and CI
+
+- **nine more mypy error codes**, surveyed the way the ruff sets were:
+  every optional code `strict` leaves off, run over btclib and tests.
+  These nine find nothing today, so each is a ratchet — and two carry
+  weight beyond that, `ignore-without-code` making every `type: ignore`
+  name the rule it silences, and `deprecated` reporting a stdlib API on
+  its way out, which across 3.10 to 3.14 is the early warning
+  `filterwarnings = ["error"]` already buys at runtime. Three codes are
+  deliberately absent and the survey says why: `redundant-expr`,
+  `warn_unreachable` and `possibly-undefined` all point at one idiom this
+  code base chose on purpose — a runtime `isinstance` guard on a field
+  mypy already believes is typed, because `from_dict` takes whatever the
+  json says. RELEASING.md gains a `griffe check` step against the
+  previous tag, which reads both revisions of the public API and answers
+  the question the new count test cannot: whether the breaking-changes
+  list is *complete*, not merely counted correctly
 
 - **the code that was commented out instead of deleted is gone, and `ERA`
   is on to keep it that way.** 89 findings, and the split was almost even.

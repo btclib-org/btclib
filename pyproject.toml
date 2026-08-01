@@ -80,7 +80,14 @@ Issues = "https://github.com/btclib-org/btclib/issues"
 # python 3.9, so the lock carried that release beside the current one and
 # the 3.9 jobs generated their inputs with an engine nobody else ran;
 # requires-python >= 3.10 is what collapsed the pair to one entry
-test = ["coverage", "hypothesis", "pytest", "pytest-cov", "pytest-xdist"]
+test = [
+    "coverage",
+    "hypothesis",
+    "pytest",
+    "pytest-cov",
+    "pytest-randomly",
+    "pytest-xdist",
+]
 lint = ["mypy", "pre-commit", "ruff"]
 # the distribution files are built and published by uv itself: what this
 # group holds is what inspects them, before an upload consumes the version
@@ -148,7 +155,18 @@ testpaths = ["tests"]
 # after the others; worksteal lets an idle worker take back what is
 # queued behind a busy one. Measured on the tree, best of three:
 # tests/README.md carries the numbers and the two things that do *not*
-# help -- reordering the slow module first, and any -n other than auto
+# help -- reordering the slow module first, and any -n other than auto.
+#
+# pytest-randomly is in the test group and needs no flag here: installed,
+# it shuffles the order and prints the seed, and `-p no:randomly` puts the
+# file order back when a failure has to be reproduced against it. What it
+# guards is the one thing a green suite cannot tell you about itself --
+# whether a test passes because of what ran before it. That is not
+# hypothetical here: issues #139, #140 and #165 were all one object's
+# mutation reaching another, and the answer to them was frozen
+# dataclasses, a tuple witness stack and per-call defaults, which this
+# re-checks on every run instead of at the tests written for each. Three
+# seeds were measured green before it went in
 addopts = "-ra --durations=8 -n auto --dist worksteal --strict-config --strict-markers"
 # a test that was expected to fail and passed is a fixed bug still marked
 # as broken: strict turns it red instead of reporting xpass
@@ -309,6 +327,32 @@ fail_under = 99.99
 strict = true
 show_column_numbers = true
 show_error_codes = true
+# the optional error codes strict does not turn on, surveyed one by one
+# over btclib and tests: these nine find nothing today, so each is a
+# ratchet and none is a cleanup. Two carry their own weight beyond that --
+# ignore-without-code makes every "type: ignore" name the rule it
+# silences, so a blanket one cannot creep in, and deprecated reports a
+# stdlib API on its way out, which on a 3.10 to 3.14 spread is the same
+# early warning filterwarnings = ["error"] buys at runtime.
+#
+# Three codes are deliberately absent, and the survey is why:
+# redundant-expr (2), warn_unreachable (1) and possibly-undefined (3) all
+# point at the same deliberate idiom -- a runtime isinstance guard on a
+# field mypy already believes is typed. btclib/network.py says it in a
+# comment: a Literal is a mypy fact and not a runtime one, and from_dict
+# takes whatever the json says. Turning them on would ask this code base
+# to stop checking what it decided to check
+enable_error_code = [
+    "deprecated",
+    "exhaustive-match",
+    "ignore-without-code",
+    "mutable-override",
+    "narrowed-type-not-subtype",
+    "redundant-self",
+    "truthy-bool",
+    "truthy-iterable",
+    "unimported-reveal",
+]
 # the oldest interpreter this package supports, and -- since 3.9 was
 # dropped -- also the oldest mypy can be aimed at. The two agree now, so
 # this key says exactly what requires-python says; it used to be the
