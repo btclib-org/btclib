@@ -80,7 +80,7 @@ def indexes_from_bip32_path(der_path: BIP32DerPath) -> list[int]:
             for n in range(0, len(der_path), 4)
         ]
 
-    # Iterable[int]
+    # an iterable of int
     return [int(i) for i in der_path]
 
 

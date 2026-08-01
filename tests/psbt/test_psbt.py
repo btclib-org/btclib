@@ -844,7 +844,6 @@ def test_shuffle_sort_inp_out() -> None:
     psbt1.sort_inputs()
     psbt1.sort_outputs()
     psbt1.assert_valid()
-    # psbt1.sort_inputs(lambda t: TxOut.value)
 
 
 def test_shuffle_sort() -> None:

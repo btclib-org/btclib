@@ -105,14 +105,6 @@ def point_from_pub_key(pub_key: PubKey, ec: Curve = secp256k1) -> Point:
         raise BTClibValueError("not a public key") from e
 
 
-# not used so far, probably useless
-# def point_from_prv_key(prv_key: PrvKey, network: Optional[str] = None)->Point:
-#    "Return an elliptic curve point tuple from a private key."
-#
-#    q, net, compr = prv_keyinfo_from_prv_key(prv_key, network)
-#    ec = NETWORKS[net]['curve']
-#    return mult(q, ec.G, ec)
-
 # public key bytes representation, network
 PubkeyInfo = tuple[bytes, str]
 

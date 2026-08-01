@@ -19,7 +19,11 @@ from tests.conftest import JsonGolden
 
 def test_psbt_out() -> None:
     psbt_in = PsbtIn()
-    # assert psbt_in == PsbtIn.parse(psbt_in.serialize())
+    # the dict round trip and not the bytes one: PsbtIn.serialize returns
+    # bytes and PsbtIn.parse takes a decoded key-value map, so the two are
+    # not inverses and there is no bytes-to-object parse to call here.
+    # Issue #181 carries that, where a commented-out assert used to
+    # suggest a check that could never be switched on
     assert psbt_in == PsbtIn.from_dict(psbt_in.to_dict())
 
 

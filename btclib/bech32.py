@@ -114,12 +114,11 @@ def _decode(bech: String) -> tuple[str, list[int], list[int]]:
         except UnicodeDecodeError as e:
             raise BTClibValueError(f"non-ascii character in bech32 string: {e}") from e
 
-    # it is fine to limit bech32 _bitcoin_addresses_ at 90 chars,
-    # but it should be enforced when working with addresses,
-    # not here at bech32 level.
-    # e.g. Lightning Network uses bech32 without such limitation
-    # if len(bech) > 90:
-    #     raise BTClibValueError(f"Bech32 string length ({len(bech)}) > 90")
+    # no 90-character limit here: that bound belongs to bitcoin
+    # addresses and not to bech32, which the Lightning Network uses
+    # without it. The deferral is carried out rather than merely
+    # intended -- b32.witness_from_address enforces it, and the module
+    # docstring there lists it among the rules b32 adds on top
 
     pos = bech.rfind("1")  # find the separator between hrp and data
     if pos == -1:

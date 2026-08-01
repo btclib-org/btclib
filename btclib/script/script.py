@@ -335,9 +335,8 @@ def _serialize_bytes_command(command: bytes) -> bytes:
     elif length < 521:  # OP_PUSHDATA2 | 2-byte-length
         _pushdata(2, length, out)
     else:
-        # because of the 520 bytes limit
-        # there is no need to use OP_PUSHDATA4
-        # _pushdata(4, length, out)
+        # because of the 520 bytes limit there is no need for
+        # OP_PUSHDATA4, so this is an error and not a fourth branch
         raise BTClibValueError(f"too many bytes for OP_PUSHDATA: {length}")
     out.append(command)
     return b"".join(out)
@@ -392,12 +391,11 @@ def parse(stream: BinaryData, accept_unknown: bool = False) -> ScriptList:
             command = data.hex().upper()
         elif i in OP_CODE_NAME_FROM_INT:  # OP_CODE
             command = OP_CODE_NAME_FROM_INT[i]
-            # Opcodes which take integers and bools off the stack require
-            # that they be no more than 4 bytes long.
-            # If this is the case, parse that command as int
-            # t = r[-1]
-            # if isinstance(t, bytes) and len(t) <= 4:
-            #    r[-1] = decode_num(t)
+            # the operand before an op code is left as bytes, and is not
+            # decoded to an int when it is four bytes or fewer. That rule
+            # belongs to the interpreter, which knows which op codes take a
+            # number off the stack; a parse cannot, and guessing here would
+            # change what round-trips
         elif accept_unknown:
             # https://bitcoin.stackexchange.com/a/98652/111488
             command = f"UNKNOWN_OP_CODE_{i}"

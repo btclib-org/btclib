@@ -194,14 +194,14 @@ def test_gec() -> None:
 def test_low_cardinality() -> None:
     """Test low-cardinality curves for all msg/key pairs."""
 
-    # ec.n has to be prime to sign
+    # five of the eight low-cardinality curves. All eight have a prime
+    # order, so that is not what selects them: the loop below is
+    # quadratic in n, and ec13_19, ec17_13 and ec19_23 are left out to
+    # bound the runtime rather than for any property they lack
     test_curves = [
         low_card_curves["ec13_11"],
-        # low_card_curves["ec13_19"],
-        # low_card_curves["ec17_13"],
         low_card_curves["ec17_23"],
         low_card_curves["ec19_13"],
-        # low_card_curves["ec19_23"],
         low_card_curves["ec23_19"],
         low_card_curves["ec23_31"],
     ]

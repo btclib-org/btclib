@@ -11,7 +11,7 @@ release-notes length in the first place, and are still in
 
 ## v2026.8 (work in progress, not released yet)
 
-A hundred and forty-three entries, grouped. The order runs from what breaks
+A hundred and forty-four entries, grouped. The order runs from what breaks
 a caller to what only maintainers see; [HISTORY.md](./HISTORY.md) lists the
 sixteen source-breaking changes on their own.
 
@@ -1611,6 +1611,29 @@ sixteen source-breaking changes on their own.
 
 ### Packaging, linting and CI
 
+- **the code that was commented out instead of deleted is gone, and `ERA`
+  is on to keep it that way.** 89 findings, and the split was almost even.
+  About half was dead code: a second copy of `parse_script` in
+  `tests/script_engine/__init__.py`, a `point_from_prv_key` marked
+  "probably useless", a `hexstr_from_bytes` marked "not needed!!", an
+  `is_witness` on `TxOut` calling a function that exists nowhere in
+  btclib, three `PSBT_*_PROPRIETARY` constants each already explained in
+  prose above itself, three `print("Q has been negated")` and a
+  CryptoHack answer that computed a sha1 and asserted nothing. Where the
+  dead lines carried the only copy of a reason, the reason stayed and
+  became a sentence — that the `0x` branch slices its token because
+  round-tripping through an int turns `0xbb` into `bb00`; that
+  `bech32.decode` leaves the 90-character limit to `b32`, which was
+  checked and does enforce it; that `TxOut.assert_valid` deliberately
+  does not parse its script_pub_key, because one on chain need not parse.
+  The other half was ERA reading prose as code, and none of it needed a
+  `noqa`: a reworded comment reads as prose to it — `# p2pk: pub_key
+  OP_CHECKSIG` where `# p2pk [pub_key, OP_CHECKSIG]` did not — and a
+  diagram belongs in a docstring, which ERA does not inspect. Two small
+  finds fell out on the way: a script-shape comment reading `p2wtr` for a
+  branch returning `p2tr`, and a "must be prime" note that selected five
+  low-cardinality curves out of eight whose orders are all prime, the
+  real reason being a loop quadratic in `n`
 - **six more ruff rule sets, chosen by running all of them**, and the
   counts for the ones not taken written down beside the ones that were.
   `A`, `BLE`, `RSE` and `TID` find nothing today and are ratchets: no

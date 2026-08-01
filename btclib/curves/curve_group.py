@@ -272,7 +272,7 @@ class CurveGroup:
 
         # possible return values are:
         ret_values = [(X, Y, Z), R, Q, INFJ]
-        #      Q==INFJ  +    R==INFJ  * 2
+        # the index is (Q is INFJ) plus (R is INFJ) times 2:
         #            0  +          0  * 2 = 0 → (X, Y, Z)
         #            1  +          0  * 2 = 1 → R
         #            0  +          1  * 2 = 2 → Q
@@ -795,6 +795,6 @@ def _multi_mult(
         heapq.heappush(x, (-n_2, p_2))
     np1 = heapq.heappop(x)
     n_1, p_1 = -np1[0], np1[1]
-    # assert n_1 < ec.n, "better to take the mod n"
-    # n_1 %= ec.n
+    # n_1 is left as it is rather than reduced mod n: _mult reduces, and
+    # the scalars reaching here are already below the order
     return _mult(n_1, p_1, ec)

@@ -148,7 +148,6 @@ def test_bip340_vectors(row: list[str]) -> None:
         ssa.assert_as_valid_(m, pub_key, sig_actual)
         assert ssa.Sig.parse(sig) == sig_actual
 
-    # assert (result == "TRUE") ^ ssa.verify_(m, pub_key, sig)
     if result == "TRUE":
         ssa.assert_as_valid_(m, pub_key, sig)
         assert ssa.verify_(m, pub_key, sig)
@@ -159,12 +158,12 @@ def test_bip340_vectors(row: list[str]) -> None:
 def test_point_from_bip340pub_key() -> None:
     q, x_Q = ssa.gen_keys()
     Q = mult(q)
-    # Integer (int)
+    # an int
     assert ssa.point_from_bip340pub_key(x_Q) == Q
-    # Integer (bytes)
+    # the same integer as bytes
     x_Q_bytes = x_Q.to_bytes(32, "big", signed=False)
     assert ssa.point_from_bip340pub_key(x_Q_bytes) == Q
-    # Integer (hex-str)
+    # the same integer as a hex string
     assert ssa.point_from_bip340pub_key(x_Q_bytes.hex()) == Q
     # tuple Point
     assert ssa.point_from_bip340pub_key(Q) == Q
@@ -365,7 +364,6 @@ def test_musig() -> None:
     # parity would cover the lines instead, trading away the fresh
     # randomness that makes this protocol demo worth running
     if Q[1] % 2:
-        # print("Q has been negated")
         a1 = ec.n - a1  # pragma: no cover
         a2 = ec.n - a2  # pragma: no cover
         a3 = ec.n - a3  # pragma: no cover
@@ -572,7 +570,6 @@ def test_threshold() -> None:
     Q = A[0]
     # the same coin flip as in test_musig: fresh keys, random parity
     if Q[1] % 2:
-        # print('Q has been negated')
         A[1] = ec.negate(A[1])  # pragma: no cover
         alpha1 = ec.n - alpha1  # pragma: no cover
         alpha2 = ec.n - alpha2  # pragma: no cover
@@ -668,7 +665,6 @@ def test_threshold() -> None:
     # even help: k1 and k3 come from bip340_nonce_ with aux=None, i.e.
     # fresh OS randomness, so the aux would need pinning too
     if K[1] % 2:
-        # print('K has been negated')
         B[1] = ec.negate(B[1])  # pragma: no cover
         beta1 = ec.n - beta1  # pragma: no cover
         beta3 = ec.n - beta3  # pragma: no cover

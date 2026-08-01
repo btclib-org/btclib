@@ -59,10 +59,9 @@ PSBT_OUT_BIP32_DERIVATION = b"\x02"
 PSBT_OUT_TAP_INTERNAL_KEY = b"\x05"
 PSBT_OUT_TAP_TREE = b"\x06"
 PSBT_OUT_TAP_BIP32_DERIVATION = b"\x07"
-# 0xfc is reserved for proprietary
-# explicit code support for proprietary (and por) is unnecessary
+# 0xfc is reserved for proprietary use, and needs no constant of its own:
+# explicit support for proprietary (and por) is unnecessary,
 # see https://github.com/bitcoin/bips/pull/1038
-# PSBT_OUT_PROPRIETARY = b"\xfc"
 
 
 @dataclass

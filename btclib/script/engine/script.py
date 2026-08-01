@@ -60,7 +60,6 @@ def fix_signature(signature: bytes, flags: ScriptFlag) -> bytes:
         sig = Sig.parse(signature)
         if sig.s > sig.ec.n // 2:
             signature = Sig(sig.r, sig.ec.n - sig.s).serialize()
-        # Sig.parse(signature)
     return signature + signature_suffix
 
 

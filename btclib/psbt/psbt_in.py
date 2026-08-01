@@ -84,10 +84,9 @@ PSBT_IN_TAP_BIP32_DERIVATION = b"\x16"
 PSBT_IN_TAP_INTERNAL_KEY = b"\x17"
 PSBT_IN_TAP_MERKLE_ROOT = b"\x18"
 
-# 0xfc is reserved for proprietary
-# explicit code support for proprietary (and por) is unnecessary
+# 0xfc is reserved for proprietary use, and needs no constant of its own:
+# explicit support for proprietary (and por) is unnecessary,
 # see https://github.com/bitcoin/bips/pull/1038
-# PSBT_IN_PROPRIETARY = b"\xfc"
 
 
 def _deserialize_witness_utxo(k: bytes, v: bytes) -> TxOut:

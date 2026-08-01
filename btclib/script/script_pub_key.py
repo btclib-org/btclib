@@ -39,14 +39,14 @@ def address(script_pub_key: Octets, network: str = "mainnet") -> str:
 
     # not script_pub_key
     # or
-    # script_type in ("p2pk", "p2ms", "nulldata", "unknown")
+    # a script_pub_key of type p2pk, p2ms, nulldata or unknown
     return ""
 
 
 def addresses(script_pub_key: Octets, network: str = "mainnet") -> list[str]:
     """Return the p2pkh addresses of the pub_keys in a p2ms script_pub_key."""
     script_pub_key = bytes_from_octets(script_pub_key)
-    # p2ms [m, pub_keys, n, OP_CHECKMULTISIG]
+    # p2ms: m pub_keys n OP_CHECKMULTISIG
     length = len(script_pub_key)
     if length < 37:
         raise BTClibValueError(f"invalid p2ms length {length}")
@@ -87,7 +87,7 @@ def _is_funct(assert_funct: Callable[[Octets], None], script_pub_key: Octets) ->
 
 def assert_p2pk(script_pub_key: Octets) -> None:
     script_pub_key = bytes_from_octets(script_pub_key, (35, 67))
-    # p2pk [pub_key, OP_CHECKSIG]
+    # p2pk: pub_key OP_CHECKSIG
     # 0x41{65-byte pub_key}AC
     # or
     # 0x21{33-byte pub_key}AC
@@ -160,7 +160,7 @@ def is_p2ms(script_pub_key: Octets) -> bool:
 
 def assert_nulldata(script_pub_key: Octets) -> None:
     script_pub_key = bytes_from_octets(script_pub_key)
-    # nulldata [OP_RETURN, data]
+    # nulldata: OP_RETURN data
     length = len(script_pub_key)
     if length == 0:
         raise BTClibValueError("null length")
@@ -275,41 +275,41 @@ def type_and_payload(script_pub_key: Octets) -> tuple[str, bytes]:
     script_pub_key = bytes_from_octets(script_pub_key)
 
     if is_p2pk(script_pub_key):
-        # p2pk [pub_key, OP_CHECKSIG]
+        # p2pk: pub_key OP_CHECKSIG
         # 0x41{65-byte pub_key}AC or 0x21{33-byte pub_key}AC
         return "p2pk", script_pub_key[1:-1]
 
     if is_p2ms(script_pub_key):
-        # p2ms [m, pub_keys, n, OP_CHECKMULTISIG]
+        # p2ms: m pub_keys n OP_CHECKMULTISIG
         return "p2ms", script_pub_key[:-1]
 
     if is_p2pkh(script_pub_key):
-        # p2pkh [OP_DUP, OP_HASH160, pub_key_hash, OP_EQUALVERIFY, OP_CHECKSIG]
+        # p2pkh: OP_DUP OP_HASH160 pub_key_hash OP_EQUALVERIFY OP_CHECKSIG
         # 0x76A914{20-byte pub_key_hash}88AC
         return "p2pkh", script_pub_key[3:-2]
 
     if is_p2sh(script_pub_key):
-        # p2sh [OP_HASH160, script_hash, OP_EQUAL]
+        # p2sh: OP_HASH160 script_hash OP_EQUAL
         # 0xA914{20-byte script_hash}87
         return "p2sh", script_pub_key[2:-1]
 
     if is_p2wpkh(script_pub_key):
-        # p2wpkh [OP_0, pub_key_hash]
+        # p2wpkh: OP_0 pub_key_hash
         # 0x0014{20-byte pub_key_hash}
         return "p2wpkh", script_pub_key[2:]
 
     if is_p2wsh(script_pub_key):
-        # p2wsh [OP_0, script_hash]
+        # p2wsh: OP_0 script_hash
         # 0x0020{32-byte script_hash}
         return "p2wsh", script_pub_key[2:]
 
     if is_p2tr(script_pub_key):
-        # p2wtr [OP_1, script_hash]
+        # p2tr: OP_1 output_key
         # 0x0120{32-byte script_hash}
         return "p2tr", script_pub_key[2:]
 
     if is_nulldata(script_pub_key):
-        # nulldata [OP_RETURN, data]
+        # nulldata: OP_RETURN data
         if len(script_pub_key) < 78:
             # OP_RETURN, data length, data up to 75 bytes max
             # 0x6A{1 byte data-length}{data (0-75 bytes)}

@@ -65,8 +65,9 @@ class TxOut:
 
     def assert_valid(self) -> None:
         valid_sats_amount(self.value)
-        # https://github.com/bitcoin/bitcoin/issues/320
-        # self.script_pub_key.assert_valid()
+        # the amount and not the script: a script_pub_key on chain need
+        # not parse, and validating it here would refuse transactions
+        # that are in blocks -- bitcoin/bitcoin#320, and issue #123
 
     def to_dict(self, *, check_validity: bool = True) -> dict[str, Any]:
         if check_validity:
@@ -94,9 +95,6 @@ class TxOut:
         return cls(
             value, ScriptPubKey(script_bin, network), check_validity=check_validity
         )
-
-    # def is_witness(self) -> Tuple[bool, int, bytes]:
-    #     return is_witness(self.script_pub_key)
 
     def serialize(self, *, check_validity: bool = True) -> bytes:
         if check_validity:

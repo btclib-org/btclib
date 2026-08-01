@@ -229,17 +229,17 @@ class Sig:
         stream = bytesio_from_binarydata(data)
         ec = secp256k1
 
-        # [0x30] [data-size][0x02][r-size][r][0x02][s-size][s]
+        # 0x30, then data-size, 0x02, r-size, r, 0x02, s-size, s
         marker = stream.read(1)
         if marker != _DER_SIG_MARKER:
             err_msg = f"invalid compound header: {marker.hex()}"
             err_msg += f", instead of DER sequence tag {_DER_SIG_MARKER.hex()}"
             raise BTClibValueError(err_msg)
 
-        # [data-size][0x02][r-size][r][0x02][s-size][s]
+        # then data-size, 0x02, r-size, r, 0x02, s-size, s
         sig_data = _parse_der_value(stream)
 
-        # [0x02][r-size][r][0x02][s-size][s]
+        # then 0x02, r-size, r, 0x02, s-size, s
         sig_data_substream = bytesio_from_binarydata(sig_data)
         r = _deserialize_scalar(sig_data_substream, strict)
         s = _deserialize_scalar(sig_data_substream, strict)
@@ -577,7 +577,7 @@ def _recover_pub_key_(
     r_1 = mod_inv(r, ec.n)
     r1s = r_1 * s % ec.n
     r1e = -r_1 * c % ec.n
-    # r = K[0] % ec.n
+    # r is x_K reduced mod n, so it does not determine x_K:
     # if ec.n < K[0] < ec.p (likely when cofactor ec.cofactor > 1)
     # then both x_K=r and x_K=r+ec.n must be tested
     #

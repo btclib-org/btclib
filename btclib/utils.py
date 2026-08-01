@@ -23,11 +23,6 @@ from io import BytesIO
 from btclib.alias import BinaryData, Integer, Octets
 from btclib.exceptions import BTClibValueError
 
-# hexstr_from_bytes is not needed!!
-# def hexstr_from_bytes(byte_str: bytes) -> str:
-#    return byte_str.hex()
-
-
 NoneOneOrMoreInt = int | Iterable[int] | None
 
 

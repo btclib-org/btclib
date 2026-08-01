@@ -433,7 +433,7 @@ def assert_batch_as_valid_(
 
         c = challenge_(msg, x_Q, sig.r, ec, hf)
 
-        # rand in [1, n-1]
+        # rand in 1..n-1
         # deterministically generated using a CSPRNG seeded by a
         # cryptographic hash (e.g., SHA256) of all inputs of the
         # algorithm, or randomly generated independently for each

@@ -40,18 +40,10 @@ def parse_script(bitcoin_core_script: str) -> str:
     return script_pub_key
 
 
-# def parse_script(bitcoin_core_script):
-#     script_pub_key = ""
-#     for y in bitcoin_core_script.split():
-#         if y[:2] == "0x":
-#             # Fixme: 0xbb becomes 'bb00' instead of 'bb'
-#             script_pub_key += serialize([int(y, 16)]).hex()
-#         elif y[1:].isdigit():
-#             script_pub_key += serialize([int(y)]).hex()
-#         elif y[0] == "'" and y[-1] == "'":
-#             script_pub_key += serialize([bytes(y[1:-1], "ascii")]).hex()
-#         else:
-#             if y[:3] != "OP_":
-#                 y = "OP_" + y
-#             script_pub_key += OP_CODES[y].hex()
-#     return script_pub_key
+# A second copy of the whole function used to sit here, commented out,
+# carrying the one thing worth keeping from it: a "Fixme" saying that its
+# `0x` branch turned 0xbb into "bb00" instead of "bb". That is the reason
+# the branch above slices the prefix off the token and takes the rest as
+# hex, rather than parsing it to an int and asking serialize() to write it
+# back -- a round trip through a number cannot preserve which byte width
+# the vector wrote, and Core's vectors mean exactly the bytes they spell.

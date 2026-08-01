@@ -355,11 +355,13 @@ exclude = [
 # documentation recommends against alongside the formatter), EM 343,
 # FBT 203, EXE 153 (all EXE001, i.e. the shebang-not-executable finding
 # that .pre-commit-config.yaml records the same decision about), TC 136,
-# PTH 95, ARG 93, ERA 89 (about half of them genuine commented-out code
-# and half type annotations written as prose, so a cleanup to decide
-# rather than a switch to flip), ANN 20 (all ANN401, the explicit Any of
+# PTH 95, ARG 93, ANN 20 (all ANN401, the explicit Any of
 # the vector loaders), SLF 7 (tests reaching into private members on
 # purpose), PERF 3 (all PERF203, try/except in a retry loop).
+# ERA was on that list at 89 and is selected now: about half were genuine
+# dead code and the other half prose that ERA read as code, and the second
+# half did not need a single noqa -- a reworded comment reads as prose to
+# it, and a diagram belongs in the docstring, which it does not inspect.
 # The zero-finding sets not taken are the ones for constructs this code
 # base does not contain -- DTZ without datetime, G and LOG without
 # logging, ASYNC, NPY -- because a rule that can never fire reads as an
@@ -372,6 +374,7 @@ select = [
     "C90",  # mccabe, bounded rather than enforced: see max-complexity
     "D",    # pydocstyle
     "E",    # pycodestyle errors
+    "ERA",  # eradicate: code that was commented out instead of deleted
     "F",    # pyflakes
     "FURB", # refurb
     "I",    # isort

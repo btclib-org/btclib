@@ -81,9 +81,9 @@ def _rfc6979_nonce_(c: int, q: int, ec: Curve, hf: HashF) -> int:
         while len(t) < ec.n_size:  # 3.2.h.2
             v = hmac.new(k, v, hf).digest()
             t += v
-        # The following line would introduce a bias
-        # nonce = int.from_bytes(t, 'big') % ec.n
-        # nonce = int_from_bits(t, ec.nlen) % ec.n
+        # reducing the hash mod n -- whether the whole of it or its
+        # leftmost nlen bits -- would introduce a bias, which is why
+        # neither is done here.
         # In general, taking a uniformly random integer (like those
         # obtained from a hash function in the random oracle model)
         # modulo the curve order n would produce a biased result.

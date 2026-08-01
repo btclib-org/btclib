@@ -25,9 +25,9 @@ from tests.curves.test_curve import low_card_curves
 
 def test_borromean() -> None:
     nring = 4
-    # ring_sizes = [1 + random.randrange(7) for _ in range(nring)]
-    # sign_key_idx = [random.randrange(size) for size in ring_sizes]
-    # derandomize test to ensure code coverage
+    # fixed rather than drawn at random, which is what the sizes and the
+    # signing indices used to be: a ring the draw made short leaves some
+    # of the loop below unrun, and the coverage gate then moves on its own
     ring_sizes = [3, 4, 6, 7]
     sign_key_idx = [2, 1, 0, 5]
 

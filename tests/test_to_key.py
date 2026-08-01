@@ -264,13 +264,6 @@ net_aware_uncompressed_inf_prv_keys: list[bytes | str] = [
 net_unaware_compressed_inf_prv_keys: list[bytes | str] = []
 net_unaware_uncompressed_inf_prv_keys: list[bytes | str] = []
 
-# compressed_inf_prv_keys = (
-#    net_aware_compressed_inf_prv_keys + net_unaware_compressed_inf_prv_keys
-# )
-# uncompressed_inf_prv_keys = (
-#    net_aware_uncompressed_inf_prv_keys + net_unaware_uncompressed_inf_prv_keys
-# )
-
 net_aware_inf_prv_keys: list[bytes | str] = (
     net_aware_compressed_inf_prv_keys + net_aware_uncompressed_inf_prv_keys
 )

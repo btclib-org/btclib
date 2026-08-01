@@ -112,7 +112,7 @@ class BIP32KeyOrigin:
         return hash(self.serialize())
 
 
-# MutableMapping[pub_key, [fingerprint, derivation_path]]
+# a mutable mapping from pub_key to fingerprint and derivation path
 HdKeyPaths = MutableMapping[bytes, BIP32KeyOrigin]
 
 
@@ -123,8 +123,9 @@ def assert_valid_hd_key_paths(hd_key_paths: Mapping[bytes, BIP32KeyOrigin]) -> N
     ):
         raise BTClibValueError("Duplicated key origin values in hd_key_paths")
     for pub_key, key_origin in hd_key_paths.items():
-        # test vector 6 contains an invalid pub_key
-        # point_from_pub_key(pub_key)
+        # the length and not the point: BIP-174 test vector 6 carries a
+        # pub_key that is not on the curve, so parsing it here would
+        # refuse a psbt the specification calls valid
         if len(pub_key) not in (78, 33, 65):
             err_msg = f"invalid public key length: {len(pub_key)}"
             raise BTClibValueError(err_msg)

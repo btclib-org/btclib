@@ -60,9 +60,9 @@ def _bip340_nonce_(msg: bytes, q: int, Q: int, aux: bytes, ec: Curve, hf: HashF)
     nonce_tag = b"BIP0340/nonce"
     while True:
         t = tagged_hash(nonce_tag, t, hf)
-        # The following lines would introduce a bias
-        # nonce = int.from_bytes(t, 'big') % ec.n
-        # nonce = int_from_bits(t, ec.nlen) % ec.n
+        # reducing the hash mod n -- whether the whole of it or its
+        # leftmost nlen bits -- would introduce a bias, which is why
+        # neither is done here.
         # In general, taking a uniformly random integer (like those
         # obtained from a hash function in the random oracle model)
         # modulo the curve order n would produce a biased result.

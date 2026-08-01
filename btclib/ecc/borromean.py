@@ -30,7 +30,7 @@ from btclib.utils import bytes_from_octets, int_from_bits
 
 # the curve and the hash function are parameters, as they are in dsa, ssa
 # and pedersen, and as the two FIXMEs here asked. They used to be module
-# globals -- "ec = secp256k1" and "from hashlib import sha256 as hf" -- so
+# globals, one binding secp256k1 and one binding sha256, so
 # selecting either meant rebinding an attribute of this module, which
 # changes the algorithm for every other caller in the process
 #

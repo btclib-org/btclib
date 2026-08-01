@@ -56,10 +56,9 @@ PSBT_DELIMITER = b"\x00"
 PSBT_GLOBAL_UNSIGNED_TX = b"\x00"
 PSBT_GLOBAL_XPUB = b"\x01"
 PSBT_GLOBAL_VERSION = b"\xfb"
-# 0xfc is reserved for proprietary
-# explicit code support for proprietary (and por) is unnecessary
+# 0xfc is reserved for proprietary use, and needs no constant of its own:
+# explicit support for proprietary (and por) is unnecessary,
 # see https://github.com/bitcoin/bips/pull/1038
-# PSBT_GLOBAL_PROPRIETARY = b"\xfc"
 
 
 def _assert_valid_version(version: int) -> None:
@@ -397,9 +396,6 @@ def _combine_field(
         attr.update(item)
         # issue 173: no list branch, so a final_script_witness present in
         # one psbt and absent from the other does not survive the combine
-        # elif isinstance(item, list):
-        #     additional_elements = [i for i in item if i not in attr]
-        #     attr += additional_elements
 
 
 def combine_psbts(psbts: Sequence[Psbt]) -> Psbt:

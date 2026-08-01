@@ -53,11 +53,8 @@ Octets = bytes | str
 
 # bytes or text string (not hex-string)
 #
-# this is for string that can be
-# converted to bytes using encode()
+# this is for a string that can be converted to bytes with encode(),
 # e.g. a message to be signed
-#    if isinstance(msg, str):
-#        msg = msg.encode()
 #
 # or 'ascii' strings like addresses (base58 or bech32),
 # WIFs, or BIP32 keys:
@@ -69,9 +66,7 @@ Octets = bytes | str
 # also bms.Sig (Bitcoin message compact signature serialization),
 #
 # In almost all cases (but messages to be signed)
-# leading/trailing blanks should always be stripped
-#     if isinstance(b58addr, str):
-#         b58addr = b58addr.strip()
+# leading and trailing blanks should always be stripped
 #
 # In those cases often there is no need to encode() to bytes
 # as b58decode/b32decode/etc. will take care of that
@@ -191,7 +186,7 @@ JacPoint = tuple[int, int, int]
 # 7, 0 are used because those are what one would obtain
 # from the generic affine to Jacobian transformation
 # of the INF Point
-# QJ = Q[0], Q[1], 1 if Q[1] else 0
+# which sends Q to its two coordinates followed by 1, or by 0 at infinity
 INFJ = 7, 0, 0
 
 Command = int | str | bytes
