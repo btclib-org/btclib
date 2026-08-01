@@ -20,7 +20,7 @@ from collections.abc import Callable, Mapping
 from dataclasses import dataclass
 from typing import Any, cast
 
-from btclib.alias import Octets
+from btclib.alias import BinaryData, Octets
 from btclib.bip32.key_origin import (
     BIP32KeyOrigin,
     HdKeyPaths,
@@ -34,6 +34,7 @@ from btclib.ecc import dsa
 from btclib.exceptions import BTClibValueError
 from btclib.hashes import hash160, hash256, ripemd160, sha256
 from btclib.psbt.psbt_utils import (
+    PSBT_DELIMITER,
     assert_valid_leaf_scripts,
     assert_valid_redeem_script,
     assert_valid_taproot_bip32_derivation,
@@ -47,6 +48,7 @@ from btclib.psbt.psbt_utils import (
     decode_taproot_bip32,
     deserialize_bytes,
     deserialize_int,
+    deserialize_map,
     deserialize_tx,
     encode_dict_bytes_bytes,
     encode_leaf_scripts,
@@ -540,17 +542,24 @@ class PsbtIn:
             value = getattr(self, field)
             if value:
                 psbt_in_bin.append(serialize_field(type_, value))
+
+        # the map ends itself, as it does in Bitcoin Core
+        # (PSBTInput::Serialize): a psbt is a sequence of maps with no
+        # count in front of it, so a map that leaves its terminator to the
+        # container cannot be read back on its own
+        psbt_in_bin.append(PSBT_DELIMITER)
         return b"".join(psbt_in_bin)
 
     @classmethod
     def parse(
-        cls: type[PsbtIn],
-        input_map: Mapping[bytes, bytes],
-        *,
-        check_validity: bool = True,
+        cls: type[PsbtIn], data: BinaryData, *, check_validity: bool = True
     ) -> PsbtIn:
-        """Return a PsbtIn by parsing binary data."""
-        # FIX parse must use BinaryData
+        """Return a PsbtIn by parsing binary data.
+
+        One map is read, its terminator included, which leaves the stream
+        on the input after this one.
+        """
+        input_map = deserialize_map(data)
         # the init keywords the map fills; whatever it does not carry keeps
         # the default __init__ gives it, which is what makes the two tables
         # above the whole of the mapping

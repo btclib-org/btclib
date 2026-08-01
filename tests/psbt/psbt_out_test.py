@@ -11,6 +11,8 @@
 
 from __future__ import annotations
 
+from io import BytesIO
+
 from btclib.alias import Octets
 from btclib.psbt import (
     Psbt,
@@ -20,6 +22,7 @@ from btclib.psbt import (
     encode_dict_bytes_bytes,
     serialize_dict_bytes_bytes,
 )
+from btclib.psbt.psbt_utils import PSBT_DELIMITER
 from tests.conftest import JsonGolden
 
 
@@ -38,10 +41,19 @@ def test_unknown() -> None:
 
 def test_psbt_out() -> None:
     psbt_out = PsbtOut()
-    # the dict round trip and not the bytes one, for the reason
-    # tests/psbt/psbt_in_test.py gives: serialize and parse are not
-    # inverses here, and issue #181 is where that lives
+    # an output carries its own terminator, as an input does: see
+    # tests/psbt/psbt_in_test.py for why the two maps are read that way
+    assert psbt_out.serialize() == PSBT_DELIMITER
+    assert psbt_out == PsbtOut.parse(psbt_out.serialize())
     assert psbt_out == PsbtOut.from_dict(psbt_out.to_dict())
+
+
+def test_parse_reads_one_output_from_the_stream() -> None:
+    psbt_out = PsbtOut(redeem_script=b"\x51")
+    stream = BytesIO(psbt_out.serialize() + PsbtOut().serialize() + b"nothing else")
+    assert PsbtOut.parse(stream) == psbt_out
+    assert PsbtOut.parse(stream) == PsbtOut()
+    assert stream.read() == b"nothing else"
 
 
 def test_a_leaf_that_cannot_execute_is_storable() -> None:

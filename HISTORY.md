@@ -7,7 +7,7 @@ full year, short month, short day (YYYY-M-D)
 
 ## v2026.8 (work in progress, not released yet)
 
-The first release since 2023, and the largest: a hundred and sixty-eight
+The first release since 2023, and the largest: a hundred and sixty-nine
 entries, in [CHANGELOG.md](./CHANGELOG.md). What follows is what a user has
 to act on and what a user gains.
 
@@ -19,7 +19,7 @@ CHANGELOG.md.
 
 ### Breaking changes
 
-Twenty-three changes break code that worked on v2023.7.12. Each is described in
+Twenty-six changes break code that worked on v2023.7.12. Each is described in
 full in [CHANGELOG.md](./CHANGELOG.md). Every "before" spelling was checked
 against the `v2023.7.12` tag.
 
@@ -100,6 +100,17 @@ against the `v2023.7.12` tag.
 - **`psbt_utils.deserialize_map` returns the map**, not the `(map, stream)`
   pair: `deserialize_map(data)[0]` is `deserialize_map(data)`, and a caller
   threading the stream through passes its own.
+- **`PsbtIn.parse` and `PsbtOut.parse` take `BinaryData`**, not a decoded
+  `Mapping[bytes, bytes]`: each reads one map from the stream, its
+  terminator included, and leaves the stream on the next one.
+- **`PsbtIn.serialize` and `PsbtOut.serialize` end with the `0x00`
+  delimiter** that `Psbt.serialize` used to append for them, as Bitcoin
+  Core's `PSBTInput::Serialize` does. A serialized psbt is unchanged;
+  code appending that byte itself has to stop.
+- **`PSBT_DELIMITER` is imported from `btclib.psbt.psbt_utils`**, not from
+  `btclib.psbt.psbt`: every kind of map writes it now, and `psbt_utils` is
+  the module all three can reach. `PSBT_SEPARATOR`, the `0xff` after the
+  magic bytes, stays where it was.
 - **`electrum.mnemonic_from_entropy` returns the mnemonic Electrum
   returns**, which is not the one btclib returned: the words run
   least-significant first and the search starts at `entropy + 1`, so the

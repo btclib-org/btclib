@@ -34,6 +34,13 @@ from btclib.utils import bytes_from_octets, bytesio_from_binarydata
 LEAF_HASH_SIZE = 32
 FINGERPRINT_SIZE = 4
 
+# what ends every map of a psbt: a key of length zero, which no real key
+# can be. It lives here, and not next to the magic bytes, because all
+# three kinds of map write it -- the global one, and each input and
+# output. Bitcoin Core calls this one PSBT_SEPARATOR and folds btclib's
+# PSBT_SEPARATOR, the 0xff, into its five magic bytes
+PSBT_DELIMITER = b"\x00"
+
 
 def _read_exactly(stream: BytesIO, size: int, what: str) -> bytes:
     """Return size octets, or raise: a short read is a truncated psbt.

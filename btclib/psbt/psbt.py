@@ -35,6 +35,7 @@ from btclib.hashes import hash160, sha256
 from btclib.psbt.psbt_in import PsbtIn
 from btclib.psbt.psbt_out import PsbtOut
 from btclib.psbt.psbt_utils import (
+    PSBT_DELIMITER,
     assert_valid_unknown,
     decode_dict_bytes_bytes,
     deserialize_int,
@@ -51,7 +52,6 @@ from btclib.utils import bytesio_from_binarydata
 
 PSBT_MAGIC_BYTES = b"psbt"
 PSBT_SEPARATOR = b"\xff"
-PSBT_DELIMITER = b"\x00"
 
 PSBT_GLOBAL_UNSIGNED_TX = b"\x00"
 PSBT_GLOBAL_XPUB = b"\x01"
@@ -285,9 +285,12 @@ class Psbt:
         if self.unknown:
             psbt_bin.append(serialize_dict_bytes_bytes(b"", self.unknown))
 
+        # the global map is the one with no dataclass of its own, so it is
+        # the only delimiter written here: an input and an output each end
+        # themselves, as they do in Bitcoin Core
         psbt_bin.append(PSBT_DELIMITER)
-        psbt_bin.extend(input_map.serialize() + b"\x00" for input_map in self.inputs)
-        psbt_bin.extend(output_map.serialize() + b"\x00" for output_map in self.outputs)
+        psbt_bin.extend(psbt_in.serialize() for psbt_in in self.inputs)
+        psbt_bin.extend(psbt_out.serialize() for psbt_out in self.outputs)
         return b"".join(psbt_bin)
 
     @classmethod
@@ -334,8 +337,8 @@ class Psbt:
         if tx is None:
             raise BTClibValueError("malformed psbt: missing global unsigned tx")
 
-        inputs = [PsbtIn.parse(deserialize_map(stream)) for _ in tx.vin]
-        outputs = [PsbtOut.parse(deserialize_map(stream)) for _ in tx.vout]
+        inputs = [PsbtIn.parse(stream) for _ in tx.vin]
+        outputs = [PsbtOut.parse(stream) for _ in tx.vout]
 
         return cls(
             tx,

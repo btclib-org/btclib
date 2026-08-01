@@ -10,6 +10,7 @@
 """Tests for the `btclib.psbt.psbt_in` module."""
 
 from dataclasses import FrozenInstanceError, fields
+from io import BytesIO
 
 import pytest
 
@@ -20,16 +21,31 @@ from btclib.psbt.psbt_in import (
     _SERIALIZED_FIELDS,
     _WHOLE_VALUE_FIELDS,
 )
+from btclib.psbt.psbt_utils import PSBT_DELIMITER
 from tests.conftest import JsonGolden
 
 
 def test_psbt_out() -> None:
     psbt_in = PsbtIn()
-    # the dict round trip and not the bytes one: PsbtIn.serialize returns
-    # bytes and PsbtIn.parse takes a decoded key-value map, so the two are
-    # not inverses and there is no bytes-to-object parse to call here
-    # (issue #181)
+    # an input carries its own terminator, so an empty one is that byte
+    # and nothing else, and serialize and parse are inverses
+    assert psbt_in.serialize() == PSBT_DELIMITER
+    assert psbt_in == PsbtIn.parse(psbt_in.serialize())
     assert psbt_in == PsbtIn.from_dict(psbt_in.to_dict())
+
+
+def test_parse_reads_one_input_from_the_stream() -> None:
+    """Inputs come one after another, with no count in front of them.
+
+    So each has to end itself and be read to its end, which is what lets
+    Psbt.parse loop over them the way Bitcoin Core does -- `s >> input`,
+    once per input of the unsigned transaction.
+    """
+    psbt_in = PsbtIn(redeem_script=b"\x51")
+    stream = BytesIO(psbt_in.serialize() + PsbtIn().serialize() + b"the outputs")
+    assert PsbtIn.parse(stream) == psbt_in
+    assert PsbtIn.parse(stream) == PsbtIn()
+    assert stream.read() == b"the outputs"
 
 
 def test_compatibility() -> None:

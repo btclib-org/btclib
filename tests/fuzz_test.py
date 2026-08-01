@@ -43,6 +43,8 @@ from btclib.ecc import bms, dsa, ssa
 from btclib.exceptions import BTClibRuntimeError, BTClibTypeError, BTClibValueError
 from btclib.psbt import psbt_utils
 from btclib.psbt.psbt import Psbt
+from btclib.psbt.psbt_in import PsbtIn
+from btclib.psbt.psbt_out import PsbtOut
 from btclib.script import script, sig_hash, taproot
 from btclib.script.engine import verify_input, verify_transaction
 from btclib.script.script_pub_key import ScriptPubKey
@@ -80,6 +82,8 @@ BINARY_PARSERS: dict[str, Callable[[bytes], Any]] = {
     "BlockHeader.parse": BlockHeader.parse,
     "Block.parse": Block.parse,
     "Psbt.parse": Psbt.parse,
+    "PsbtIn.parse": PsbtIn.parse,
+    "PsbtOut.parse": PsbtOut.parse,
     "psbt_utils.deserialize_map": psbt_utils.deserialize_map,
     "psbt_utils.parse_leaf_script": psbt_utils.parse_leaf_script,
     "psbt_utils.parse_taproot_tree": psbt_utils.parse_taproot_tree,

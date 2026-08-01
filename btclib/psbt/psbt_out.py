@@ -19,7 +19,7 @@ from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
 from typing import Any, cast
 
-from btclib.alias import Octets
+from btclib.alias import BinaryData, Octets
 from btclib.bip32 import (
     BIP32KeyOrigin,
     HdKeyPaths,
@@ -29,6 +29,7 @@ from btclib.bip32 import (
     encode_to_bip32_derivs,
 )
 from btclib.psbt.psbt_utils import (
+    PSBT_DELIMITER,
     assert_valid_redeem_script,
     assert_valid_taproot_bip32_derivation,
     assert_valid_taproot_internal_key,
@@ -38,6 +39,7 @@ from btclib.psbt.psbt_utils import (
     decode_taproot_bip32,
     decode_taproot_tree,
     deserialize_bytes,
+    deserialize_map,
     encode_dict_bytes_bytes,
     encode_taproot_tree,
     parse_taproot_bip32,
@@ -186,17 +188,21 @@ class PsbtOut:
         if self.unknown:
             psbt_out_bin.append(serialize_dict_bytes_bytes(b"", self.unknown))
 
+        # the map ends itself, as it does in Bitcoin Core
+        # (PSBTOutput::Serialize); PsbtIn.serialize says why
+        psbt_out_bin.append(PSBT_DELIMITER)
         return b"".join(psbt_out_bin)
 
     @classmethod
     def parse(
-        cls: type[PsbtOut],
-        output_map: Mapping[bytes, bytes],
-        *,
-        check_validity: bool = True,
+        cls: type[PsbtOut], data: BinaryData, *, check_validity: bool = True
     ) -> PsbtOut:
-        """Return a PsbtOut by parsing binary data."""
-        # FIX parse must use BinaryData
+        """Return a PsbtOut by parsing binary data.
+
+        One map is read, its terminator included, which leaves the stream
+        on the output after this one.
+        """
+        output_map = deserialize_map(data)
         redeem_script = b""
         witness_script = b""
         hd_key_paths: dict[Octets, BIP32KeyOrigin] = {}

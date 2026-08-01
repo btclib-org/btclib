@@ -20,7 +20,8 @@ from btclib.ecc import dsa
 from btclib.exceptions import BTClibValueError
 from btclib.hashes import hash160, hash256, ripemd160, sha256
 from btclib.psbt import Psbt, combine_psbts, extract_tx, finalize_psbt, join_psbts
-from btclib.psbt.psbt import PSBT_DELIMITER, PSBT_SEPARATOR, _sort_or_shuffle_together
+from btclib.psbt.psbt import PSBT_SEPARATOR, _sort_or_shuffle_together
+from btclib.psbt.psbt_utils import PSBT_DELIMITER
 from btclib.script import ScriptPubKey, Witness
 from btclib.tx import OutPoint, Tx, TxIn, TxOut
 from tests import load, vector_id

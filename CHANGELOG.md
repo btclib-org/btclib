@@ -11,9 +11,9 @@ release-notes length in the first place, and are still in
 
 ## v2026.8 (work in progress, not released yet)
 
-A hundred and sixty-eight entries, grouped. The order runs from what breaks
+A hundred and sixty-nine entries, grouped. The order runs from what breaks
 a caller to what only maintainers see; [HISTORY.md](./HISTORY.md) lists the
-twenty-three source-breaking changes on their own.
+twenty-six source-breaking changes on their own.
 
 ### Repository
 
@@ -1189,6 +1189,21 @@ twenty-three source-breaking changes on their own.
   from anyway. Slicing is also what made the truncation defects of #138
   possible, a short read being indistinguishable from a full one
   (issue #179)
+- **An input and an output of a psbt read and write their own map.**
+  `PsbtIn.parse` and `PsbtOut.parse` take `BinaryData` and read one map
+  from the stream, its terminator included, where they took a decoded
+  `Mapping[bytes, bytes]`; `PsbtIn.serialize` and `PsbtOut.serialize`
+  write that terminator, where `Psbt.serialize` appended it on their
+  behalf. That is Bitcoin Core's shape: `PSBTInput::Serialize` ends with
+  `s << PSBT_SEPARATOR` and `PSBTInput::Unserialize` refuses a map that
+  arrives without one — "Separator is missing at the end of an input map",
+  one message per kind of map — which is what leaves the container the
+  `s >> input` loop it is there. It is also what makes the two inverses:
+  `PsbtIn.parse(psbt_in.serialize())` is that `PsbtIn`, where there was no
+  bytes-to-object parse to call at all. A psbt is unchanged byte for byte;
+  what moved is which function writes the `0x00`, and `PSBT_DELIMITER`
+  with it: it is `btclib.psbt.psbt_utils`' now, that being the one module
+  all three kinds of map can reach (issue #179)
 
 ### The public API and the module layout
 
