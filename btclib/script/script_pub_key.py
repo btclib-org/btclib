@@ -159,6 +159,30 @@ def is_p2ms(script_pub_key: Octets) -> bool:
 
 
 def assert_nulldata(script_pub_key: Octets) -> None:
+    """Assert the standard nulldata shape: OP_RETURN and one minimal push.
+
+    A policy, and narrower than Bitcoin Core's classification on every
+    count. Core's `Solver` answers NULL_DATA for an OP_RETURN whose
+    remaining bytes pass `IsPushOnly`, which refuses only an opcode above
+    OP_16: any number of pushes qualifies, OP_1..OP_16 among them, and so
+    does the empty remainder of a bare OP_RETURN. The 83-byte bound is a
+    third thing again, `MAX_OP_RETURN_RELAY` being relay policy tested by
+    `IsStandardTx` and not by the classifier, and the length 78 refused
+    below is the non-minimal push of 75 bytes through OP_PUSHDATA1, which
+    consensus allows. So `6a`, `6a51`, `6a0101010102` and a nulldata of
+    any size are NULL_DATA there and unknown here (issue #211).
+
+    The narrowness is what lets `type_and_payload` answer at all: it
+    returns one payload, and OP_RETURN followed by push-only bytes has
+    none for a bare OP_RETURN and two for two pushes. It is also the one
+    shape `ScriptPubKey.nulldata` builds, so the classifier agrees with
+    the constructor. A caller wanting Core's answer wants a different
+    function, returning a list of payloads.
+
+    `6a00` is accepted, and by arithmetic rather than by Core's rule: the
+    `00` is read here as the length marker of a zero-length push, where
+    Core reads it as OP_0, a push like any other.
+    """
     script_pub_key = bytes_from_octets(script_pub_key)
     # nulldata: OP_RETURN data
     length = len(script_pub_key)

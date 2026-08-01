@@ -11,7 +11,7 @@ release-notes length in the first place, and are still in
 
 ## v2026.8 (work in progress, not released yet)
 
-A hundred and seventy-one entries, grouped. The order runs from what breaks
+A hundred and seventy-two entries, grouped. The order runs from what breaks
 a caller to what only maintainers see; [HISTORY.md](./HISTORY.md) lists the
 twenty-seven source-breaking changes on their own.
 
@@ -2277,3 +2277,20 @@ twenty-seven source-breaking changes on their own.
   marker would save something real, where the section said there was nothing
   to put behind one; none is registered still, and the reason is now stated
   in numbers the file carries and a run can check
+- **`assert_nulldata` says which question it answers** (issue #211). The
+  rule it applies — OP_RETURN and one minimal push, total length neither
+  78 nor above 83 — is standardness policy, and narrower than the
+  classification Bitcoin Core's `Solver` performs on every count: Core
+  answers NULL_DATA for an OP_RETURN whose remaining bytes pass
+  `IsPushOnly`, which refuses only an opcode above OP_16, so a bare
+  OP_RETURN, `6a51`, two pushes and a nulldata of any size are all
+  NULL_DATA there and `unknown` here. The 83-byte bound is
+  `MAX_OP_RETURN_RELAY`, relay policy tested by `IsStandardTx` and never
+  by that classifier. Nothing changed but the docstring and a test
+  pinning the six divergent shapes, the narrowness being what lets
+  `type_and_payload` return one payload at all — two pushes are two
+  payloads and a bare OP_RETURN is none — and being the one shape
+  `ScriptPubKey.nulldata` builds, so the classifier agrees with the
+  constructor. `6a00` is the row that agrees with Core by arithmetic
+  rather than by rule, the `00` read here as a zero-length push's marker
+  and there as OP_0

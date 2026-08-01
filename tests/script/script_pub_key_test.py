@@ -193,6 +193,34 @@ def test_nulldata4() -> None:
     assert not is_nulldata(bytes.fromhex("6a0101010102"))
 
 
+def test_nulldata_is_narrower_than_solver() -> None:
+    """Every shape Core calls NULL_DATA and btclib does not (issue #211).
+
+    The divergence is a decision -- `assert_nulldata`'s docstring says
+    which question it answers -- so it is pinned here rather than left to
+    be rediscovered by measurement. `Solver` classifies an OP_RETURN
+    whose remaining bytes pass `IsPushOnly`, which refuses only an opcode
+    above OP_16; the 83-byte cap btclib applies is `MAX_OP_RETURN_RELAY`,
+    relay policy that classifier never consults.
+    """
+    for hex_string in (
+        "6a",  # a bare OP_RETURN: push-only remainder, empty
+        "6a51",  # OP_1, a push to IsPushOnly and an opcode here
+        "6a0101010102",  # two pushes of one byte
+        "6a4b" + "99" * 75 + "0100",  # a push and a push
+        "6a4c50" + "99" * 80 + "00",  # 84 bytes, above MAX_OP_RETURN_RELAY
+        "6a4c4b" + "99" * 75,  # 78 bytes, a non-minimal OP_PUSHDATA1
+    ):
+        script_pub_key = bytes.fromhex(hex_string)
+        assert not is_nulldata(script_pub_key)
+        assert type_and_payload(script_pub_key) == ("unknown", script_pub_key)
+
+    # and the one that agrees by arithmetic rather than by rule: `00` is
+    # read here as a zero-length push's marker, by Core as OP_0
+    assert is_nulldata(bytes.fromhex("6a00"))
+    assert type_and_payload(bytes.fromhex("6a00")) == ("nulldata", b"")
+
+
 def test_p2pk() -> None:
     # self-consistency
     pub_key = "02 cc71eb30d653c0c3163990c47b976f3fb3f37cccdcbedb169a1dfef58bbfbfaf"
