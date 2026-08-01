@@ -109,9 +109,10 @@ against the `v2023.7.12` tag.
   reproduce a mnemonic from it has to store the mnemonic instead — which
   is the safe direction anyway, the seed deriving from the words alone.
   `version_from_mnemonic` also answers `"old"` now for a pre-2.0 Electrum
-  seed, where it raised or, worse, named one of the four new versions;
-  and it accepts what Electrum accepts, so an upper-cased or accented
-  mnemonic is read rather than refused.
+  seed, where it raised — or, for an old seed whose hash happened to
+  start with one of the four prefixes, named a new version and handed
+  back the wrong derivation; and it accepts what Electrum accepts, so an
+  upper-cased or accented mnemonic is read rather than refused.
 
 Two changes are deliberately *not* on that list, because what they change
 stays compatible. The new `BTClibTypeError`, `NotAPrvKeyError` and

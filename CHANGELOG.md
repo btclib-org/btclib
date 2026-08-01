@@ -866,9 +866,10 @@ twenty source-breaking changes on their own.
   before it is hashed and before it is stretched — NFKD, lower-case,
   accents dropped, whitespace collapsed, whitespace between CJK
   characters removed — where btclib only collapsed whitespace, so an
-  upper-cased Electrum seed was refused with "unknown electrum mnemonic
-  version" and an accented or Japanese one derived the wrong keys; the
-  passphrase is normalized too, as Electrum normalizes it. And the
+  upper-cased seed, an accented Spanish one and a Japanese one were all
+  refused with "unknown electrum mnemonic version", measured, each of
+  them a seed Electrum reads and derives a wallet from; the passphrase is
+  normalized too, as Electrum normalizes it. And the
   **pre-2.0 scheme is recognized**: `version_from_mnemonic` answers
   `"old"` for a 12- or 24-word seed from Electrum's 1626-word list or
   for a 16- or 32-byte hex string, tested before the four prefixes
