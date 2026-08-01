@@ -52,13 +52,19 @@ def test_default_arguments_are_not_shared() -> None:
 
 
 def test_key_type_tables_name_every_field() -> None:
-    # serialize and parse read the field out of a table by name, so a field
-    # renamed on the dataclass and not in the table would serialize as
-    # absent -- a psbt quietly missing a signature, and no error anywhere.
-    # This is the check that costs, the names being strings
+    # serialize and parse reach a field by the name a table holds, and the
+    # failure that has to be tested for is the silent one: a field no table
+    # names is serialized as absent and never parsed, and nothing says so.
+    # A stale name is loud on its own -- getattr raises AttributeError on
+    # every serialize, __init__ a TypeError on every parse -- so what this
+    # asks is that the tables and the dataclass name the same set, not that
+    # every name in them exists
     field_names = {field.name for field in fields(PsbtIn)}
 
     assert {name for _, name, _ in _SERIALIZED_FIELDS} == field_names
+    # a name here that is not a field is silent too: the drop would simply
+    # not happen, and a finalized input would carry what bip 174 says it
+    # must not
     assert _DROPPED_ONCE_FINALIZED < field_names
 
     parsed = {name for name, _, _ in _WHOLE_VALUE_FIELDS.values()}
