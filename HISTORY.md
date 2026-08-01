@@ -7,7 +7,7 @@ full year, short month, short day (YYYY-M-D)
 
 ## v2026.8 (work in progress, not released yet)
 
-The first release since 2023, and the largest: a hundred and thirty-two
+The first release since 2023, and the largest: a hundred and thirty-four
 entries, in [CHANGELOG.md](./CHANGELOG.md). What follows is what a user has
 to act on and what a user gains.
 
@@ -19,7 +19,7 @@ CHANGELOG.md.
 
 ### Breaking changes
 
-Fifteen changes break code that worked on v2023.7.12. Each is described in
+Sixteen changes break code that worked on v2023.7.12. Each is described in
 full in [CHANGELOG.md](./CHANGELOG.md). Every "before" spelling was checked
 against the `v2023.7.12` tag.
 
@@ -73,6 +73,14 @@ against the `v2023.7.12` tag.
   sharing every address prefix, and mainnet is still equal to none of them.
   Code asserting that two test networks differ has to compare `.network`
   itself.
+- **`sig_hash.legacy_script` and `sig_hash.witness_v0_script` are gone.**
+  Both returned the list of script codes for zero, one, two ...
+  OP_CODESEPARATORs executed, and both built each rung by re-serializing a
+  parse, which is not the bytes a signature commits to. `sig_hash.legacy`
+  now elides the separators itself, where Bitcoin Core elides them, so a
+  legacy script code is the script as it stands; a segwit v0 one keeps
+  them, as BIP-143 says; and `from_tx(..., codesep_index=k)` is how a
+  signer asks for the script code after the k-th of them.
 - **`btclib.network.n_versions` is gone**, with the `_REPEATED_NETWORKS` list
   it counted for: the version-prefix lookups no longer index a parallel list
   of names, so the number of prefixes per network stopped being a fact about

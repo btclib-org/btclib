@@ -25,7 +25,9 @@ from btclib.script.engine.script_op_codes import ScriptOp, _from_num, _to_num
 from btclib.script.script import (
     BYTE_FROM_OP_CODE_NAME,
     OP_CODE_NAME_FROM_INT,
+    op_code_spans,
     parse,
+    read_op_code,
 )
 from btclib.script.script import serialize as serialize_script
 from btclib.script.sig_hash import SIG_HASH_TYPES, PrecomputedTxData
@@ -74,38 +76,80 @@ def check_pub_key(pub_key: bytes, segwit: bool, flags: ScriptFlag) -> bool:
     return len(pub_key) == 33 if pub_key[0] in [2, 3] else False
 
 
+def find_and_delete(script: bytes, target: bytes) -> tuple[bytes, int]:
+    """Delete every occurrence of target from script: (result, how many).
+
+    Core's `FindAndDelete`, matched op code boundary by op code boundary
+    and in one left-to-right pass, both of which are load-bearing. A
+    `bytes.replace` loop is neither: it deletes a match lying inside the
+    data of a push, which Core's walk never reaches, and re-running it
+    over the result deletes matches that only exist because an earlier
+    deletion joined their halves. Either turns a script code Core leaves
+    alone into one that is shorter, differently signed, or no longer a
+    script at all.
+
+    Once a match is taken the walk resumes from just past it, wherever
+    that lands — Core resumes its GetOp there too, which is how a deletion
+    can leave the rest of the script read as something else. Bug for bug:
+    the script code is consensus, not taste.
+    """
+    if not target:  # Core returns early rather than delete forever
+        return script, 0
+    kept: list[bytes] = []
+    found = 0
+    pc = pc2 = 0
+    while True:
+        kept.append(script[pc2:pc])
+        while script[pc : pc + len(target)] == target:
+            pc += len(target)
+            found += 1
+        pc2 = pc
+        span = read_op_code(script, pc)
+        if span is None:
+            break
+        pc = span[1]
+    if not found:
+        return script, 0
+    kept.append(script[pc2:])
+    return b"".join(kept), found
+
+
 def calculate_script_code(
     script_bytes: bytes,
-    separator_index: int,
+    codesep_offset: int,
     signatures: list[bytes],
     const_scriptcode: bool,
     segwit: bool,
 ) -> bytes:
-    script_code = parse(script_bytes, accept_unknown=True)
-    # We only take the bytes from the last executed OP_CODESEPARATOR
-    # we can't serialize the script_pub_key from the last executed
-    # OP_CODESEPARATOR because this will hide away the pushdata prefix, and this
-    # will cause failure in some tests because FindAndDelete takes in account
-    # this prefix too
-    redeem_script = script_code[: separator_index + 1]
-    redeem_script_len = len(serialize_script(redeem_script))
-    script_bytes = script_bytes[redeem_script_len:]
+    """Return the script code the signature under check commits to.
+
+    Core's two steps and in its order: `CScript
+    scriptCode(pbegincodehash, pend)`, a slice of the script's own bytes
+    from just past the last executed OP_CODESEPARATOR, and then — for a
+    pre-segwit signature only — FindAndDelete of the signature itself,
+    which BIP-143 dropped for segwit v0 and which is why `segwit` is a
+    parameter rather than a fact about the script.
+
+    The OP_CODESEPARATORs left in the slice stay in it. Eliding them is
+    the legacy serializer's, `sig_hash.legacy` doing it there because
+    that is where Core does it, and doing it here as well would elide
+    them before FindAndDelete rather than after.
+    """
+    script_code = script_bytes[codesep_offset:]
 
     if not segwit:
-        for signature in signatures:  # find and delete
-            ser_signature = serialize_script([signature])
-            while ser_signature in script_bytes:
-                if const_scriptcode:
-                    raise BTClibValueError("signature found in the script code")
-                script_bytes = script_bytes.replace(ser_signature, b"")
+        for signature in signatures:
+            script_code, found = find_and_delete(
+                script_code, serialize_script([signature])
+            )
+            # Core's SCRIPT_ERR_SIG_FINDANDDELETE, and it errors on having
+            # found rather than refusing to look: a script code that
+            # carries the signature checked against it is the case the
+            # flag was added to make unspendable
+            if found and const_scriptcode:
+                raise BTClibValueError("signature found in the script code")
 
-    if const_scriptcode or segwit:
-        return script_bytes
-
-    script_code = parse(script_bytes, accept_unknown=True)
-    while "OP_CODESEPARATOR" in script_code:
-        script_code.remove("OP_CODESEPARATOR")
-    return serialize_script(script_code)
+    return script_code
 
 
 def op_checksig(
@@ -113,7 +157,7 @@ def op_checksig(
     signatures: list[bytes],
     pub_key: bytes,
     script_bytes: bytes,
-    codesep_index: int,
+    codesep_offset: int,
     prevout_value: int,
     tx: Tx,
     i: int,
@@ -137,7 +181,7 @@ def op_checksig(
 
     script_code = calculate_script_code(
         script_bytes,
-        codesep_index,
+        codesep_offset,
         signatures,
         ScriptFlag.CONST_SCRIPTCODE in flags,
         segwit,
@@ -282,7 +326,24 @@ def verify_script(
 
     segwit_version = 0 if segwit else -1
 
-    codesep_index = -1
+    # Core's pbegincodehash, an offset into script_bytes and not an index
+    # into the parse: a script code is a slice of the script's own bytes,
+    # and measuring where to cut it by re-serializing the op codes before
+    # the cut moved it by whatever a non-minimal push there lost in the
+    # round trip (issue #176). s.tell() cannot answer either — a *VERIFY
+    # op code below rebuilds the stream out of the two it stands for, so
+    # after one of those the stream is no longer the script. The op code
+    # index survives that rebuild, which winds it back by the two it
+    # injects, and neither of those two is ever an OP_CODESEPARATOR, so
+    # the index is the right one wherever it is read below. Hence this:
+    # the byte one past each op code, walked once and only for a script
+    # that has a separator to cut at
+    codesep_offset = 0
+    op_code_stops = (
+        [stop for _, _, stop in op_code_spans(script_bytes)]
+        if "OP_CODESEPARATOR" in script
+        else []
+    )
 
     script_index = -1
 
@@ -390,7 +451,7 @@ def verify_script(
                     [signature],
                     pub_key,
                     script_bytes,
-                    codesep_index,
+                    codesep_offset,
                     prevout_value,
                     tx,
                     i,
@@ -424,7 +485,7 @@ def verify_script(
                         signatures,
                         pub_key,
                         script_bytes,
-                        codesep_index,
+                        codesep_offset,
                         prevout_value,
                         tx,
                         i,
@@ -446,7 +507,7 @@ def verify_script(
             elif op[3:].isdigit():
                 stack.append(_from_num(int(op[3:])))
             elif op == "OP_CODESEPARATOR":
-                codesep_index = script_index
+                codesep_offset = op_code_stops[script_index]
             elif op == "OP_IF":
                 script_op_codes.op_if(stack, condition_stack, flags, segwit_version)
             elif op == "OP_NOTIF":

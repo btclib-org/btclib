@@ -154,7 +154,7 @@ jobs:
           # 3.14, i.e. what .python-version pins and what a bare `uv run`
           # gives a maintainer locally: the number this job gates on is a
           # ratio of statements, and the statement count moves between
-          # interpreters -- 15205 here against the 15211 of 3.13 -- so a
+          # interpreters -- 15319 here against the 15325 of 3.13 -- so a
           # threshold checked on one version is not the one another
           # measures. Pinned rather than inherited from .python-version
           # even so, because that coupling belongs where the gate runs:

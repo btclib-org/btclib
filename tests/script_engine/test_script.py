@@ -21,7 +21,12 @@ from btclib.alias import TaprootScriptTree
 from btclib.exceptions import BTClibValueError, ScriptError
 from btclib.script import ScriptPubKey
 from btclib.script.engine import ALL_FLAGS, NO_FLAGS, verify_input
-from btclib.script.engine.script import DISABLED_OP_CODES, verify_script
+from btclib.script.engine.script import (
+    DISABLED_OP_CODES,
+    calculate_script_code,
+    find_and_delete,
+    verify_script,
+)
 from btclib.script.script import OP_CODE_NAME_FROM_INT, parse, serialize
 from btclib.script.taproot import input_script_sig, output_pubkey
 from btclib.script.taproot import parse as parse_tapscript
@@ -376,3 +381,40 @@ def test_verif_before_an_op_success() -> None:
         ["OP_VERIF", "OP_SUCCESS80", b""], lock_time=0, sequence=1
     )
     verify_input(prevouts, tx, 0, ALL_FLAGS)
+
+
+def test_find_and_delete_reads_op_codes() -> None:
+    """A match inside the data of a push is not a match.
+
+    Core's FindAndDelete tests for one only where GetOp has arrived, so a
+    signature that a *push* happens to carry is left alone: this script
+    is a 34-byte push whose data begins with a 33-byte push of the
+    signature, and Core deletes nothing from it. Deleting by
+    `bytes.replace` took the inner copy out, which here leaves 0x22
+    claiming 34 bytes that are no longer there -- a script code that is
+    not a script, from a transaction that is perfectly valid.
+    """
+    signature = bytes(33 * [0xAA])
+    pushed = serialize([signature])
+    script = bytes([0x22, 0x00]) + pushed + b"\xac"
+    assert find_and_delete(script, pushed) == (script, 0)
+    assert calculate_script_code(script, 0, [signature], False, False) == script
+    # and where the same bytes do begin an op code, they go
+    assert find_and_delete(pushed + pushed + b"\xac", pushed) == (b"\xac", 2)
+
+
+def test_find_and_delete_takes_one_pass() -> None:
+    """Deleting cannot make a match that was not there.
+
+    Core walks the script left to right once and never looks at the
+    result again; a `bytes.replace` re-run until nothing matches does,
+    and takes out a copy that exists only because an earlier deletion
+    joined its halves. OP_1 OP_2 stands in for the signature push here
+    to lay the halves out in four bytes -- what is under test is the
+    walk, and it does not care what it is matching.
+    """
+    target = b"\x51\x52"  # OP_1 OP_2
+    script = b"\x51" + target + b"\x52"
+    assert find_and_delete(script, target) == (target, 1)
+    # the empty target: Core returns before it can delete forever
+    assert find_and_delete(script, b"") == (script, 0)

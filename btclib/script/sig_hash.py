@@ -19,10 +19,15 @@ from __future__ import annotations
 from dataclasses import dataclass
 
 from btclib import var_bytes
-from btclib.alias import Octets, ScriptList
+from btclib.alias import Octets
 from btclib.exceptions import BTClibValueError
 from btclib.hashes import hash160, hash256, sha256, tagged_hash
-from btclib.script.script import parse, serialize
+from btclib.script.script import (
+    BYTE_FROM_OP_CODE_NAME,
+    op_code_spans,
+    parse,
+    serialize,
+)
 from btclib.script.script_pub_key import (
     ScriptPubKey,
     is_p2sh,
@@ -64,35 +69,66 @@ def assert_valid_hash_type(hash_type: int) -> None:
         raise BTClibValueError(f"invalid sig_hash type: {hex(hash_type)}")
 
 
-def legacy_script(script_pub_key: Octets) -> list[bytes]:
-    script_s: list[bytes] = []
-    current_script: ScriptList = []
-    for token in parse(script_pub_key)[::-1]:
-        if token == "OP_CODESEPARATOR":  # noqa: S105
-            script_s.append(serialize(current_script[::-1]))
-        else:
-            current_script.append(token)
-    script_s.append(serialize(current_script[::-1]))
-    return script_s[::-1]
+# the op code a script code is measured from, read out of the table so
+# that a name that stops existing fails at import rather than leaving a
+# rule that quietly stops matching
+OP_CODESEPARATOR = BYTE_FROM_OP_CODE_NAME["OP_CODESEPARATOR"][0]
 
 
-def witness_v0_script(script_pub_key: Octets) -> list[bytes]:
-    script_type, payload = type_and_payload(script_pub_key)
+def _script_code_from(script: bytes, codesep_index: int) -> bytes:
+    """Return the script from just past the codesep_index-th OP_CODESEPARATOR.
 
-    if script_type == "p2wpkh":
-        script = serialize(
-            ["OP_DUP", "OP_HASH160", payload, "OP_EQUALVERIFY", "OP_CHECKSIG"]
-        )
-        return [script]
+    Core's `pbegincodehash`, which its interpreter advances to `pc` as it
+    *executes* an OP_CODESEPARATOR and hands to `CScript
+    scriptCode(pbegincodehash, pend)` — a byte pointer, so the script code
+    is the script's own bytes from a boundary on, never a re-serialization
+    of part of a parse (issue #176).
 
-    script_s: list[bytes] = []
-    current_script: ScriptList = []
-    for token in parse(script_pub_key)[::-1]:
-        if token == "OP_CODESEPARATOR":  # noqa: S105
-            script_s.append(serialize(current_script[::-1]))
-        current_script.append(token)
-    script_s.append(serialize(current_script[::-1]))
-    return script_s[::-1]
+    Index 0 is the whole script, i.e. no OP_CODESEPARATOR executed, and
+    the count is over *occurrences*: which of them will be the last one
+    executed when the signature is checked is a property of the run, not
+    of the script, and nothing here can know it. The signer does.
+    """
+    if codesep_index < 0:
+        raise BTClibValueError(f"negative OP_CODESEPARATOR index: {codesep_index}")
+    if codesep_index == 0:
+        return script
+    found = 0
+    for op_code, _, stop in op_code_spans(script):
+        if op_code == OP_CODESEPARATOR:
+            found += 1
+            if found == codesep_index:
+                return script[stop:]
+    err_msg = f"OP_CODESEPARATOR index {codesep_index}, but the script has {found}"
+    raise BTClibValueError(err_msg)
+
+
+def _without_op_codeseparators(script_code: bytes) -> bytes:
+    """Return the script code with its OP_CODESEPARATORs elided.
+
+    Core's `CTransactionSignatureSerializer::SerializeScriptCode`,
+    "Serialize the passed scriptCode, skipping OP_CODESEPARATORs": it
+    writes `scriptCode.size() - nCodeSeparators` and then copies the raw
+    bytes between the separators. So the elision belongs to the legacy
+    *serializer* and not to the script code — segwit v0 serializes the
+    same script code whole, which is why this is called by `legacy` and
+    not by `segwit_v0`.
+
+    Copying byte ranges is what makes it the same preimage Core signs:
+    the elision used to be a parse, a list removal and a re-serialization,
+    which also rewrote every non-minimal push it passed over.
+    """
+    if OP_CODESEPARATOR not in script_code:  # nothing to walk the script for
+        return script_code
+    kept: list[bytes] = []
+    walked = 0
+    for op_code, start, stop in op_code_spans(script_code):
+        if op_code != OP_CODESEPARATOR:
+            kept.append(script_code[start:stop])
+        walked = stop
+    # whatever no op code could be read from, kept verbatim as Core keeps it
+    kept.append(script_code[walked:])
+    return b"".join(kept)
 
 
 def taproot_annex_and_ext(tx: Tx, vin_i: int) -> tuple[bytes, bytes]:
@@ -119,7 +155,12 @@ def taproot_annex_and_ext(tx: Tx, vin_i: int) -> tuple[bytes, bytes]:
 
 
 def legacy(script_code: Octets, tx: Tx, vin_i: int, hash_type: int) -> bytes:
-    script_code = bytes_from_octets(script_code)
+    # the legacy preimage commits to the script code with its
+    # OP_CODESEPARATORs elided, and Core does that here rather than to the
+    # script code itself: SerializeScriptCode is part of the serializer,
+    # and the caller — its interpreter, and `sign.cpp` which truncates
+    # nothing at all — passes the script as it stands
+    script_code = _without_op_codeseparators(bytes_from_octets(script_code))
 
     new_tx = Tx(
         version=tx.version,
@@ -462,6 +503,8 @@ def from_tx(
     vin_i: int,
     hash_type: int,
     precomputed: PrecomputedTxData | None = None,
+    *,
+    codesep_index: int = 0,
 ) -> bytes:
     """Return the hash to be signed for one input of a transaction.
 
@@ -471,10 +514,28 @@ def from_tx(
     once is the caller's to do — `PrecomputedTxData(tx, prevouts)` before
     the loop, dropped with the transaction after it. It must describe this
     very tx, and nothing here can tell whether it does.
+
+    `codesep_index` is which OP_CODESEPARATOR the script code starts
+    after: 0, the default, is the whole script, i.e. none executed, and k
+    is the k-th *occurrence* in the script being signed for — the redeem
+    script of a p2sh input, the witness script of a p2wsh one. Whether
+    that occurrence is the one last executed when the signature is checked
+    depends on which branches the input takes, which is the signer's to
+    know: a script `OP_IF OP_CODESEPARATOR OP_ENDIF OP_CODESEPARATOR` run
+    down its false branch executes the second occurrence and not the
+    first. A verifier does not need the parameter and does not have the
+    problem — the interpreter advances Core's `pbegincodehash` as it goes.
     """
     script = prevouts[vin_i].script_pub_key.script
 
     if is_p2tr(script):
+        if codesep_index:
+            # BIP-341 commits to the *position* of the last executed
+            # OP_CODESEPARATOR rather than truncating the script, and
+            # taproot_annex_and_ext writes 0xffffffff, "none executed".
+            # Core's signer supports that case and no other either:
+            # "Only support non-OP_CODESEPARATOR BIP342 signing for now"
+            raise BTClibValueError("OP_CODESEPARATOR index for a taproot input")
         annex, ext = taproot_annex_and_ext(tx, vin_i)
         return taproot(
             tx, vin_i, prevouts, hash_type, int(bool(ext)), annex, ext, precomputed
@@ -485,14 +546,24 @@ def from_tx(
         script = redeem_script(tx.vin[vin_i].script_sig, script)
 
     if is_p2wpkh(script):
-        script_code = witness_v0_script(script)[0]
+        if codesep_index:
+            raise BTClibValueError("OP_CODESEPARATOR index for a p2wpkh input")
+        # BIP-143 signs a p2wpkh input against the p2pkh script for the
+        # same hash, which is built here and is in no transaction
+        _, payload = type_and_payload(script)
+        script_code = serialize(
+            ["OP_DUP", "OP_HASH160", payload, "OP_EQUALVERIFY", "OP_CHECKSIG"]
+        )
         return segwit_v0(
             script_code, tx, vin_i, hash_type, prevouts[vin_i].value, precomputed
         )
 
     if is_p2wsh(script):
-        # the real script is contained in the witness
-        script_code = witness_v0_script(tx.vin[vin_i].script_witness.stack[-1])[0]
+        # the real script is contained in the witness, and it is signed as
+        # it stands: BIP-143 elides no OP_CODESEPARATOR, where the legacy
+        # serializer elides those left after the truncation
+        witness_script = tx.vin[vin_i].script_witness.stack[-1]
+        script_code = _script_code_from(witness_script, codesep_index)
         return segwit_v0(
             script_code, tx, vin_i, hash_type, prevouts[vin_i].value, precomputed
         )
@@ -500,5 +571,5 @@ def from_tx(
     if is_p2tr(script):
         raise BTClibValueError("Taproot scripts cannot be wrapped in p2sh")
 
-    script_code = legacy_script(script)[0]
+    script_code = _script_code_from(script, codesep_index)
     return legacy(script_code, tx, vin_i, hash_type)

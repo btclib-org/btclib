@@ -11,9 +11,9 @@ release-notes length in the first place, and are still in
 
 ## v2026.8 (work in progress, not released yet)
 
-A hundred and thirty-two entries, grouped. The order runs from what breaks a
-caller to what only maintainers see; [HISTORY.md](./HISTORY.md) lists the
-fifteen source-breaking changes on their own.
+A hundred and thirty-four entries, grouped. The order runs from what breaks
+a caller to what only maintainers see; [HISTORY.md](./HISTORY.md) lists the
+sixteen source-breaking changes on their own.
 
 ### Repository
 
@@ -182,6 +182,35 @@ fifteen source-breaking changes on their own.
   instead of returning a hash no verifier will reproduce; code that used
   to hand `from_tx` a bare redeem script as script_sig must push it —
   `serialize([redeem_script])` (issue #136)
+- **The script code a signature commits to is a slice of the script's own
+  bytes**, where it was a re-serialization of part of a parse. The two
+  differ wherever a push is not written minimally, `4c0105ac` coming back
+  as `0105ac` — legal, a different script, and what `Script.assert_valid`
+  already declines to round-trip for exactly this reason — so a legacy
+  input whose script carried one was signed against a preimage no other
+  implementation computes, with no OP_CODESEPARATOR needed anywhere. Three
+  deviations, one cause. `legacy_script` and `witness_v0_script` built the
+  script code by parsing, slicing the token list and serializing it back.
+  The engine measured *where* to cut by serializing the op codes before the
+  cut and taking their length, so a non-minimal push ahead of an executed
+  OP_CODESEPARATOR moved the cut: `4c0105abac` gave the segwit v0 script
+  code `abac` where Core gives `ac`, the separator byte itself left in.
+  And FindAndDelete was a `bytes.replace` loop, which deletes a signature
+  lying inside the *data* of a push — Core tests for a match only where its
+  GetOp has arrived — and, re-run until nothing matches, deletes copies
+  that exist only because an earlier deletion joined their halves. A
+  34-byte push carrying a 33-byte signature push made btclib refuse a
+  transaction Core accepts: the deletion left a length claiming bytes that
+  were no longer there, and the script code stopped parsing.
+  Core's pieces now, in Core's places. Truncation is a byte offset, its
+  `pbegincodehash`, which the interpreter advances as it *executes* an
+  OP_CODESEPARATOR; eliding the separators left after it belongs to the
+  legacy serializer, `SerializeScriptCode`, so `sig_hash.legacy` does it
+  and `segwit_v0` does not, BIP-143 keeping them; and FindAndDelete stays
+  in the engine, Core having it in
+  `interpreter.cpp` alone and never in `sign.cpp`, there being no signature
+  to delete while signing. The walk all three need is `script.read_op_code`,
+  Core's `GetOp` (issue #176)
 - `hashes.magic_message` prefixes the message length as a var_int, as
   Bitcoin Core and Electrum do, instead of as a single byte: a Bitcoin
   message signature over 252 bytes now agrees with every other
@@ -1068,6 +1097,31 @@ fifteen source-breaking changes on their own.
 - **`btclib.script` exports `is_p2pkh`**, which was the one missing from the
   eight assert/is pairs — `assert_p2pkh` was there, and so were the other
   seven of each
+- **`sig_hash.legacy_script` and `sig_hash.witness_v0_script` are gone**,
+  and `from_tx` takes a `codesep_index`. The two returned a ladder — the
+  script code for zero OP_CODESEPARATORs executed, then for one, then for
+  two — of which `from_tx` took the first rung and nothing took the rest,
+  so the one case a caller could not ask for was the one the ladder was
+  built to answer. Their work is now where Core keeps it: the elision in
+  `sig_hash.legacy`, the truncation in whoever knows which separator ran.
+  For a signer that is `from_tx(..., codesep_index=k)`, keyword-only and 0
+  by default, which is the previous behaviour spelled out. k counts
+  *occurrences* in the script being signed for, because which one executes
+  last depends on the branches the input takes and the signer is who knows
+  them — `OP_IF OP_CODESEPARATOR OP_ENDIF OP_CODESEPARATOR` down its false
+  branch executes the second and not the first. A verifier never needs the
+  parameter, its interpreter carrying the offset. It is refused for a
+  taproot input, BIP-341 committing to the position rather than truncating
+  and `taproot_annex_and_ext` writing 0xffffffff, and for p2wpkh, whose
+  script code is built rather than read — the two cases Core's signer
+  declines as well, "Only support non-OP_CODESEPARATOR BIP342 signing for
+  now". The p2wsh branch also stops asking what *type* the witness script
+  resembles, an inherited habit that answered p2wpkh for a witness script
+  of `0014` and twenty bytes and signed the p2pkh script for that hash
+  instead of the witness script itself. `btclib.script` gains
+  `read_op_code` and `op_code_spans`, the op-code-by-op-code walk over a
+  script's bytes: Core's `GetOp`, and what a caller building a script code
+  needs in order not to re-serialize a parse (issue #176)
 - `op_codes_tapscript` no longer re-exports `op_int`. The import at the top
   of the module was the name's only occurrence in it, and the `# noqa: F401`
   on the block is what kept ruff from saying so; nothing anywhere took the
@@ -1295,7 +1349,7 @@ fifteen source-breaking changes on their own.
   coverage special-cases 100 to mean exactly 100.00%, which would make
   one version-gated line a red build; the comparison is
   `round(total, precision) < fail_under`, so 99.99 allows two of the
-  15205 statements the coverage job measures
+  15319 statements the coverage job measures
 - **`tests/ecc/test_bms.py` imports on python 3.9 again.** It annotates a
   helper `-> Point | None` without `from __future__ import annotations`,
   which 3.9 evaluates at def time and has no `|` for: the module was ten
@@ -1486,8 +1540,8 @@ fifteen source-breaking changes on their own.
   and what the lint and docs jobs therefore already used, so 3.13 was a
   version those two jobs alone singled out — the matrix tests it like
   every other. It matters most for coverage, whose gate is a ratio of a
-  statement count that moves between interpreters, 15205 on 3.14 against
-  15211 on 3.13: the threshold and the interpreter now agree with what a
+  statement count that moves between interpreters, 15319 on 3.14 against
+  15325 on 3.13: the threshold and the interpreter now agree with what a
   maintainer measures locally with a bare `uv run pytest --cov`. The
   release step only needs a `tomllib`, i.e. 3.11 or newer, and now asks
   for a version uv has already fetched for the other jobs

@@ -73,10 +73,21 @@ def test_native_p2wsh() -> None:
         "82dde6e4f1e94d02c2b7ad03d2115d691f48d064e9d52f58194a6637e4194391"
     )
 
-    script_ = sig_hash.witness_v0_script(tx.vin[1].script_witness.stack[-1])[1]
+    # the second signature of the same input, checked after the
+    # OP_CODESEPARATOR has executed: BIP-143 prints its script code, and
+    # it is the witness script from just past that byte -- separators
+    # kept, only the truncation applied
+    script_ = bytes.fromhex(
+        "210255a9626aebf5e29c0e6538428ba0d1dcf6ca98ffdf086aa8ced5e0d0215ea465ac"
+    )
+    assert tx.vin[1].script_witness.stack[-1].endswith(script_)
     hash_ = sig_hash.segwit_v0(script_, tx, 1, sig_hash.SINGLE, utxo_1.value)
     assert hash_ == bytes.fromhex(
         "fef7bd749cce710c5c052bd796df1af0d935e59cea63736268bcbe2d2134fc47"
+    )
+    # and asked of from_tx, which counts the occurrence for the caller
+    assert hash_ == sig_hash.from_tx(
+        [utxo_0, utxo_1], tx, 1, sig_hash.SINGLE, codesep_index=1
     )
 
 
@@ -110,7 +121,13 @@ def test_native_p2wsh_2() -> None:
         "e9071e75e25b8a1e298a72f0d2e9f4f95a0f5cdf86a533cda597eb402ed13b3a"
     )
 
-    script_ = sig_hash.witness_v0_script(tx.vin[1].script_witness.stack[-1])[1]
+    # input 1 takes the branch input 0 does not -- OP_1 against OP_0 --
+    # so the same OP_CODESEPARATOR occurrence executes here and not
+    # there, which is why the index is the caller's to give
+    script_ = bytes.fromhex(
+        "68210392972e2eb617b2388771abe27235fd5ac44af8e61693261550447a4c3e39da98ac"
+    )
+    assert tx.vin[1].script_witness.stack[-1].endswith(script_)
     hash_ = sig_hash.segwit_v0(
         script_,
         tx,
@@ -120,6 +137,13 @@ def test_native_p2wsh_2() -> None:
     )
     assert hash_ == bytes.fromhex(
         "cd72f1f1a433ee9df816857fad88d8ebd97e09a75cd481583eb841c330275e54"
+    )
+    assert hash_ == sig_hash.from_tx(
+        [previous_txout_1, previous_txout_2],
+        tx,
+        1,
+        sig_hash.ANYONECANPAY | sig_hash.SINGLE,
+        codesep_index=1,
     )
 
 

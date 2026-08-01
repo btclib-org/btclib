@@ -225,7 +225,10 @@ SIG_HASH_VECTORS = [
 def test_test_vectors(
     raw_tx: str, raw_script: str, input_index: int, hash_type: int, exp_hash: str
 ) -> None:
-    script_ = sig_hash.legacy_script(raw_script)[0]
+    # the script as it stands: `legacy` elides the OP_CODESEPARATORs
+    # itself, where Core elides them, and 210 of these 500 scripts carry
+    # 290 between them -- Core's RandomScript draws from a list of nine
+    # op codes and OP_CODESEPARATOR is one of them
     # validation on, where this used to pass check_validity=False for the
     # whole file: Core's generator makes these transactions *random*, not
     # malformed, and every one of the 500 is valid. Turning the flag off
@@ -234,7 +237,7 @@ def test_test_vectors(
     tx = Tx.parse(raw_tx)
     if hash_type < 0:
         hash_type += 0xFFFFFFFF + 1
-    actual_hash = sig_hash.legacy(script_, tx, input_index, hash_type)
+    actual_hash = sig_hash.legacy(raw_script, tx, input_index, hash_type)
     assert actual_hash == bytes.fromhex(exp_hash)[::-1]
 
 

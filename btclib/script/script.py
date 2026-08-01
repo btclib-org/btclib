@@ -31,7 +31,7 @@ and refused by their own rules.
 
 from __future__ import annotations
 
-from collections.abc import Sequence
+from collections.abc import Iterator, Sequence
 from dataclasses import dataclass
 from functools import cached_property
 from warnings import warn
@@ -407,6 +407,58 @@ def parse(stream: BinaryData, accept_unknown: bool = False) -> ScriptList:
         r.append(command)
 
     return r
+
+
+def read_op_code(script: bytes, start: int) -> tuple[int, int] | None:
+    """Read one op code: (the op code, the offset one past it and its data).
+
+    This is Bitcoin Core's `CScript::GetOp`, and it exists because a
+    script code is a *slice of the script's own bytes*: consensus commits
+    to the bytes as they were written, and `serialize(parse(script))` does
+    not give them back. A non-minimal push is legal and comes back
+    minimal — `4c01ff` as `01ff` — so a script code recovered by
+    re-serializing part of a parse is a different preimage than the one
+    Core signs (issue #176). Walking the bytes is the only way to find an
+    op code boundary without moving the bytes on either side of it.
+
+    None where nothing whole can be read: the end of the script, or a
+    push whose data or length runs past it. Core's GetOp returns false in
+    the same two cases, and its callers stop and keep the rest verbatim.
+    Truncation is all this refuses: the 520-byte push limit is a rule
+    about what reaches the stack, enforced where a push is executed, and
+    GetOp does not know it either.
+    """
+    if start >= len(script):
+        return None
+    op_code = script[start]
+    stop = start + 1
+    if 0 < op_code <= 78:  # a push, of its own length or of a declared one
+        data_length = op_code
+        if 75 < op_code:  # OP_PUSHDATA1, OP_PUSHDATA2, OP_PUSHDATA4
+            size = 2 ** (op_code - 76)  # 1, 2 or 4 bytes of little-endian length
+            if stop + size > len(script):
+                return None
+            data_length = int.from_bytes(script[stop : stop + size], "little")
+            stop += size
+        stop += data_length
+        if stop > len(script):
+            return None
+    return op_code, stop
+
+
+def op_code_spans(script: bytes) -> Iterator[tuple[int, int, int]]:
+    """Walk a script op code by op code: (op code, first byte, one past last).
+
+    The walk stops where `read_op_code` returns None, so the bytes from
+    the last yielded `stop` to the end of the script are whatever could
+    not be read as an op code — Core's GetOp loops end the same way, and
+    keep that tail.
+    """
+    start = 0
+    while (span := read_op_code(script, start)) is not None:
+        op_code, stop = span
+        yield op_code, start, stop
+        start = stop
 
 
 # frozen, which OutPoint, TxOut and Witness became for issue 139 and this

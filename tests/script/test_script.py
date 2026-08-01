@@ -16,7 +16,12 @@ import pytest
 from btclib.alias import ScriptList
 from btclib.exceptions import BTClibValueError
 from btclib.script import Script, op_int, parse, serialize
-from btclib.script.script import BYTE_FROM_OP_CODE_NAME, OP_CODE_NAME_FROM_INT
+from btclib.script.script import (
+    BYTE_FROM_OP_CODE_NAME,
+    OP_CODE_NAME_FROM_INT,
+    op_code_spans,
+    read_op_code,
+)
 from btclib.utils import hex_string
 from tests.script import serialize_non_canonical
 
@@ -244,3 +249,35 @@ def test_single_byte_serialization() -> None:
         assert len(serialized_byte) == 2
         assert serialized_byte[0] == 1
         assert [hex_str] == parse(serialized_byte)
+
+
+def test_read_op_code() -> None:
+    """The walk agrees with parse on where each op code ends.
+
+    Which is all that is asked of it, and what makes a script code a
+    slice: parse says what the op codes are, this says where they are.
+    """
+    for script, expected in (
+        (b"", []),
+        (b"\xac", [(0xAC, 0, 1)]),
+        (b"\x00\x51", [(0x00, 0, 1), (0x51, 1, 2)]),  # OP_0 is not a push
+        (b"\x01\xff\xac", [(0x01, 0, 2), (0xAC, 2, 3)]),
+        (b"\x4c\x01\xff", [(0x4C, 0, 3)]),  # OP_PUSHDATA1 of the same byte
+        (b"\x4d\x01\x00\xff", [(0x4D, 0, 4)]),  # OP_PUSHDATA2
+        (b"\x4e\x01\x00\x00\x00\xff", [(0x4E, 0, 6)]),  # OP_PUSHDATA4
+    ):
+        spans = list(op_code_spans(script))
+        assert spans == expected
+        # the spans tile the script, and there are as many of them as
+        # parse finds commands
+        assert b"".join(script[start:stop] for _, start, stop in spans) == script
+        assert len(spans) == len(parse(script))
+
+    # nothing whole to read: past the end, and three ways to be truncated
+    assert read_op_code(b"\xac", 1) is None
+    assert read_op_code(b"\x02\xff", 0) is None  # data short of its length
+    assert read_op_code(b"\x4c", 0) is None  # no length byte at all
+    assert read_op_code(b"\x4d\x01", 0) is None  # half a length
+    # a push over 520 bytes is not this walk's to refuse, as it is not
+    # Core's GetOp's: the limit is on what reaches the stack
+    assert read_op_code(b"\x4d\x09\x02" + b"\x00" * 521, 0) == (0x4D, 524)
