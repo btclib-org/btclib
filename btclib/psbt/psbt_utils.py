@@ -23,7 +23,6 @@ from btclib.alias import BinaryData, Octets
 from btclib.bip32 import BIP32KeyOrigin
 from btclib.bip32.der_path import indexes_from_bip32_path, str_from_bip32_path
 from btclib.exceptions import BTClibValueError
-from btclib.script import parse as parse_script
 from btclib.script.sig_hash import DEFAULT, SIG_HASH_TYPES
 from btclib.script.taproot import assert_valid_control_block
 from btclib.tx import Tx
@@ -396,12 +395,6 @@ def assert_valid_taproot_signatures(signatures: list[bytes], what: str) -> None:
             if sig_hash_type not in SIG_HASH_TYPES:
                 err_msg = f"invalid {what} sig_hash type: {hex(sig_hash_type)}"
                 raise BTClibValueError(err_msg)
-
-
-def assert_valid_taproot_tree(tree: list[tuple[int, int, bytes]]) -> None:
-    """Fails when the scripts are not valid."""
-    for _, _, tapscript in tree:
-        parse_script(tapscript, True)
 
 
 def assert_valid_taproot_bip32_derivation(

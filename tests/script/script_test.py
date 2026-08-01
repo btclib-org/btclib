@@ -18,6 +18,7 @@ from btclib.exceptions import BTClibValueError
 from btclib.script import Script, op_int, parse, serialize
 from btclib.script.script import (
     BYTE_FROM_OP_CODE_NAME,
+    ERROR_COMMAND,
     OP_CODE_NAME_FROM_INT,
     op_code_spans,
     read_op_code,
@@ -112,22 +113,30 @@ def test_exceptions() -> None:
     with pytest.raises(TypeError):
         serialize(["OP_2", "OP_3", "OP_ADD", "OP_5", serialize])  # type: ignore[list-item]
 
+
+def test_pushdata4_and_the_only_length_left_to_refuse() -> None:
+    """All four push widths are written, and read back.
+
+    A push over 520 bytes is one the stack cannot hold, i.e. a script
+    nobody can spend, and there are such scripts on chain (issue #123):
+    unspendable is not unencodable, so what serialize refuses is only a
+    length no length field can carry.
+    """
+    for length, op_code, head in ((65535, 0x4D, 3), (65536, 0x4E, 5)):
+        data = b"\x0a" * length
+        script = serialize([data])
+        assert script[0] == op_code
+        assert len(script) == length + head
+        assert parse(script) == [data.hex().upper()]
+
+    # __len__ lies rather than have the test allocate four gibibytes
+    class TooLong(bytes):
+        def __len__(self) -> int:
+            return 4294967296
+
     err_msg = "too many bytes for OP_PUSHDATA: "
     with pytest.raises(BTClibValueError, match=err_msg):
-        script_pub_key = ["1f" * 521, "OP_DROP"]
-        serialize(script_pub_key)
-
-    # A script_pub_key with OP_PUSHDATA4 can't be decoded
-    script_bytes = "4e09020000" + "0A" * 521 + "75"  # ['0A'*521, 'OP_DROP']
-    err_msg = "Invalid pushdata length: "
-    with pytest.raises(BTClibValueError, match=err_msg):
-        parse(script_bytes)
-
-    # and can't be encoded
-    script_pub_key_: ScriptList = ["00" * 521, "OP_DROP"]
-    err_msg = "too many bytes for OP_PUSHDATA: "
-    with pytest.raises(BTClibValueError, match=err_msg):
-        serialize(script_pub_key_)
+        serialize([TooLong()])
 
 
 def test_nulldata() -> None:
@@ -142,20 +151,33 @@ def test_encoding() -> None:
     assert serialize(parse(script_bytes)) == script_bytes
 
 
-def test_opcode_length() -> None:
-    err_msg = "Not enough data for pushdata length"
-    with pytest.raises(BTClibValueError, match=err_msg):
-        parse(b"\x4e\x00")
-    err_msg = "Not enough data for pushdata"
-    with pytest.raises(BTClibValueError, match=err_msg):
-        parse(b"\x40\x00")
+def test_truncated_push_ends_the_parse() -> None:
+    """A push running past the end stops the walk, and marks the place.
 
-    # 0xff, Core's OP_INVALIDOPCODE, which no soft fork can name: this
-    # read 0x7e until the tables learned it is OP_CAT, disabled and
-    # named like every other op code no valid script can execute
-    err_msg = "Unknown op code"
-    with pytest.raises(BTClibValueError, match=err_msg):
-        assert parse(b"\x01\x00\xff")
+    Core's GetOp returns false there and its ScriptToAsmStr appends the
+    literal "[error]"; both are the only refusal a decode has, and this
+    is that refusal. What follows the mark is not decoded, because there
+    is nothing to decode it as -- and Esplora prints "<push past end>"
+    at the same offset for the very scripts of issue #123.
+    """
+    # a length field cut short, and data short of its length
+    assert parse(b"\x4e\x00") == [ERROR_COMMAND]
+    assert parse(b"\x40\x00") == [ERROR_COMMAND]
+
+    # what came before it is kept, and the mark is terminal
+    assert parse(b"\x51\x4c\x05\xaa\xbb") == ["OP_1", ERROR_COMMAND]
+
+    # the mark cannot be serialized back: it is a place, not a command,
+    # where UNKNOWN_OP_CODE_n is a byte of an executable script and must
+    # round-trip
+    with pytest.raises(BTClibValueError, match=r"invalid string command: \[ERROR\]"):
+        serialize([ERROR_COMMAND])
+
+    # 0xff, Core's OP_INVALIDOPCODE, which no soft fork can name: an op
+    # code all the same, refused by the interpreter that executes it and
+    # named here so that serialize writes it back unchanged
+    assert parse(b"\x01\x00\xff") == ["00", "UNKNOWN_OP_CODE_255"]
+    assert serialize(parse(b"\x01\x00\xff")) == b"\x01\x00\xff"
 
 
 def test_regressions() -> None:

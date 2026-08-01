@@ -45,6 +45,7 @@ from btclib.script import (
     type_and_payload,
 )
 from btclib.script import script as script_module
+from btclib.script.script import ERROR_COMMAND
 from btclib.script.script_pub_key import (
     assert_nulldata,
     assert_segwit,
@@ -658,12 +659,14 @@ def test_script_pub_key_is_a_dataclass() -> None:
     assert "network='testnet'" in repr(testnet)
 
 
-def test_script_pub_key_parses_its_script_once() -> None:
-    """__init__ must not call assert_valid after super() already has.
+def test_script_pub_key_construction_parses_nothing() -> None:
+    """Validation does not parse, and .asm parses once.
 
-    Script.__init__ calls self.assert_valid(), which dispatches to the
-    override, which runs Script's check and the network one: the whole
-    validation. An extra call runs it a second time.
+    assert_valid asks whether the script is bytes and, here, whether the
+    network is known: whether the bytes can be executed is the
+    interpreter's question (issue #123), so no parse happens at
+    construction whatever check_validity says. The one that does is
+    `.asm`, cached.
     """
     calls = []
     real_parse = script_module.parse
@@ -673,31 +676,33 @@ def test_script_pub_key_parses_its_script_once() -> None:
         return real_parse(*args, **kwargs)
 
     script = bytes.fromhex("76a91438971f73930f6c141d977ac4fd4a727c854935b388ac")
-    original = script_module.parse
     script_module.parse = counting_parse
     try:
-        ScriptPubKey(script, "testnet")
+        for check_validity in (True, False):
+            calls.clear()
+            script_pub_key = ScriptPubKey(
+                script, "testnet", check_validity=check_validity
+            )
+            assert not calls
+            # and the parse .asm does is not repeated on a second read
+            assert script_pub_key.asm[0] == "OP_DUP"
+            assert script_pub_key.asm[0] == "OP_DUP"
+            assert len(calls) == 1
     finally:
-        script_module.parse = original
+        script_module.parse = real_parse
 
-    assert len(calls) == 1
-
-    # and check_validity=False still parses nothing at all
-    calls.clear()
-    script_module.parse = counting_parse
-    try:
-        ScriptPubKey(script, "testnet", check_validity=False)
-    finally:
-        script_module.parse = original
-    assert not calls
+    # what is left of the check, and the network half of it
+    with pytest.raises(BTClibValueError, match="unknown network: mainet"):
+        ScriptPubKey(script, "mainet")
 
 
-def test_script_assert_valid_is_a_parse_not_a_round_trip() -> None:
-    """A round-trip check would be wrong, not merely redundant.
+def test_script_assert_valid_asks_only_whether_it_is_bytes() -> None:
+    """A script is its bytes, and nothing about them makes it not a script.
 
-    A non-minimal push is consensus-legal and does not survive
-    serialize(self.asm), so comparing the round-trip against the
-    original bytes would refuse a valid script.
+    Core has no validity notion for a CScript either. A round-trip check
+    would be wrong rather than merely redundant -- a non-minimal push is
+    consensus-legal and comes back minimal -- and a parse was wrong too:
+    it refused pushes that are in blocks (issue #123).
     """
     # OP_PUSHDATA1 of a single byte: legal, and re-serializing it yields
     # the minimal 01ff instead
@@ -708,16 +713,12 @@ def test_script_assert_valid_is_a_parse_not_a_round_trip() -> None:
     assert serialize(script.asm) == bytes.fromhex("01ff")
     script.assert_valid()
 
-    # what makes bytes not a script is that they do not parse
-    for bad, err_msg in (
-        (bytes.fromhex("0201"), "Not enough data for pushdata"),
-        (bytes.fromhex("4c05aabb"), "Not enough data for pushdata"),
-    ):
-        with pytest.raises(BTClibValueError, match=err_msg):
-            Script(bad)
+    # a truncated push is a Script, and its asm says where it stopped
+    for bad in (bytes.fromhex("0201"), bytes.fromhex("4c05aabb")):
+        assert Script(bad).asm == [ERROR_COMMAND]
 
     # an op code with no name of its own parses as UNKNOWN_OP_CODE_n and
-    # serializes back to the same byte, so it is a valid script either way
+    # serializes back to the same byte
     unknown = bytes([0xBB])
     assert Script(unknown).asm == ["UNKNOWN_OP_CODE_187"]
     assert serialize(Script(unknown).asm) == unknown

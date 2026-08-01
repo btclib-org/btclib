@@ -23,7 +23,13 @@ from btclib.ecc.dsa import Sig
 from btclib.exceptions import BTClibValueError, ScriptError
 from btclib.hashes import hash160, sha256
 from btclib.script import ScriptPubKey
-from btclib.script.engine import ALL_FLAGS, NO_FLAGS, ScriptFlag, verify_input
+from btclib.script.engine import (
+    ALL_FLAGS,
+    NO_FLAGS,
+    ScriptFlag,
+    validate_redeem_script,
+    verify_input,
+)
 from btclib.script.engine.script import (
     DISABLED_OP_CODES,
     calculate_script_code,
@@ -750,6 +756,23 @@ def test_const_scriptcode_refuses_signature_checks(op_code: str) -> None:
     # underflows the empty stack instead: the refusal above is the flag's
     with pytest.raises(BTClibValueError, match="stack underflow"):
         verify_input([prevout], tx, 0, NO_FLAGS)
+
+
+def test_a_truncated_script_sig_is_not_push_only() -> None:
+    """Core's IsPushOnly answers false where GetOp fails, and so does this.
+
+    The parse marks the place a push runs past the end rather than
+    refusing the bytes (issue #123), and that mark is not a push: read as
+    one -- it is a str, and it does not begin with OP -- a script_sig
+    ending in a truncated push would have satisfied SIGPUSHONLY.
+    """
+    with pytest.raises(BTClibValueError, match="unreadable command"):
+        validate_redeem_script(parse(b"\x51\x4c\x05\xaa\xbb"))
+
+    # a push and OP_1NEGATE are push-only; an op code is not
+    validate_redeem_script(parse(b"\x01\xff\x4f"))
+    with pytest.raises(BTClibValueError, match="non-push command"):
+        validate_redeem_script(parse(b"\x01\xff\xac"))
 
 
 @pytest.mark.parametrize("skip_execution", [False, True])

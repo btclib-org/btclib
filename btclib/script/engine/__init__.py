@@ -25,7 +25,7 @@ from btclib.script.engine.flags import (
 from btclib.script.engine.script import verify_script as verify_script_legacy
 from btclib.script.engine.script_op_codes import _to_num
 from btclib.script.limits import MAX_SCRIPT_ELEMENT_SIZE
-from btclib.script.script import parse, serialize
+from btclib.script.script import ERROR_COMMAND, parse, serialize
 from btclib.script.script_pub_key import is_segwit, type_and_payload
 from btclib.script.sig_hash import PrecomputedTxData
 from btclib.script.taproot import check_output_pubkey
@@ -91,6 +91,13 @@ def validate_redeem_script(redeem_script: ScriptList) -> None:
         if isinstance(c, str):
             if c == "OP_1NEGATE":
                 continue
+            if c == ERROR_COMMAND:
+                # Core's IsPushOnly answers false when GetOp fails, so a
+                # script_sig whose last push runs past the end is not
+                # push-only: the parse marks that place instead of
+                # refusing the bytes (issue #123), and the mark is not a
+                # push
+                raise BTClibValueError("unreadable command in the script_sig")
             if c[:2] == "OP" and not c[3:].isdigit():
                 raise BTClibValueError(f"non-push command in the script_sig: {c}")
 
@@ -327,7 +334,7 @@ def verify_input(
     """
     script_flags = to_script_flags(flags)
     script_sig = tx.vin[i].script_sig
-    parsed_script_sig = parse(script_sig, accept_unknown=True)
+    parsed_script_sig = parse(script_sig)
     _check_script_sig_policy(parsed_script_sig, script_flags)
 
     stack: list[bytes] = []

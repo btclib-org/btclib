@@ -24,6 +24,7 @@ from btclib.exceptions import BTClibValueError
 from btclib.hashes import hash160, hash256, sha256, tagged_hash
 from btclib.script.script import (
     BYTE_FROM_OP_CODE_NAME,
+    ERROR_COMMAND,
     op_code_spans,
     parse,
     serialize,
@@ -509,15 +510,21 @@ def redeem_script(script_sig: Octets, script_pub_key: Octets) -> bytes:
     script_sig disagreeing with the script_pub_key it spends can only give
     a sig_hash for a script no one will ever run.
     """
-    # unknown op codes are accepted to reject them below with a message
-    # naming the offender, rather than with parse's bare "Unknown op code"
-    commands = parse(script_sig, accept_unknown=True)
+    commands = parse(script_sig)
     if not commands:
         raise BTClibValueError("empty script_sig for a p2sh input")
     # parse spells op codes as their OP_/UNKNOWN_OP_CODE_ name and data
-    # pushes as a hex string: only the latter can be a redeem script
+    # pushes as a hex string: only the latter can be a redeem script.
+    # ERROR_COMMAND is a str and neither, so it is named here rather than
+    # left to bytes.fromhex, which would answer a script_sig ending in a
+    # truncated push with a bare ValueError from outside the exception
+    # contract
     command = commands[-1]
-    if not isinstance(command, str) or command.startswith(("OP_", "UNKNOWN_OP_CODE_")):
+    if (
+        not isinstance(command, str)
+        or command == ERROR_COMMAND
+        or command.startswith(("OP_", "UNKNOWN_OP_CODE_"))
+    ):
         err_msg = f"missing redeem script in the p2sh script_sig: {command!r}"
         raise BTClibValueError(err_msg)
 

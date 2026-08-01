@@ -428,7 +428,7 @@ def verify_script(  # noqa: C901
         err_msg = f"script longer than {MAX_SCRIPT_SIZE} bytes: {len(script_bytes)}"
         raise BTClibValueError(err_msg)
 
-    script = parse(script_bytes, accept_unknown=True)
+    script = parse(script_bytes)
     prepare_script(script, flags, segwit)
 
     segwit_version = 0 if segwit else -1

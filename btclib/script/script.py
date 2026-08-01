@@ -39,7 +39,6 @@ from warnings import warn
 
 from btclib.alias import BinaryData, Command, Octets, ScriptList
 from btclib.exceptions import BTClibUserWarning, BTClibValueError
-from btclib.script.limits import MAX_SCRIPT_ELEMENT_SIZE
 from btclib.utils import bytes_from_octets, bytesio_from_binarydata, encode_num
 
 BYTE_FROM_OP_CODE_NAME = {
@@ -288,6 +287,17 @@ OP_CODE_NAME_FROM_INT = {
 }
 
 
+# What parse appends where the bytes stop being a script, spelled as
+# Bitcoin Core's ScriptToAsmStr spells it. Display-only, deliberately: it
+# marks a place in the script rather than an instruction, so serialize
+# refuses it -- "invalid string command: [ERROR]" -- where
+# UNKNOWN_OP_CODE_n must and does round-trip, being a legitimate byte of
+# an executable script. Nothing is lost by that: a Script is its bytes,
+# and Core's asm is not invertible either, printing a short push as a
+# decimal number and a non-minimal push as a minimal one.
+ERROR_COMMAND = "[error]"
+
+
 def op_int(i: int) -> str:
     # Short 1-byte op_codes exist
     # to push numbers in [-1, 16]
@@ -325,8 +335,14 @@ def _serialize_bytes_command(command: bytes) -> bytes:
     """Convert to canonical push: OP_PUSHDATA (if needed) | length | command.
 
     According to standardness rules (BIP-62) the minimum possible
-    PUSHDATA operator must be used. Byte vectors on the stack are not
-    allowed to be more than 520 bytes long.
+    PUSHDATA operator must be used.
+
+    All four widths, OP_PUSHDATA4 included, because what parse reads
+    serialize must be able to write back: a push over 520 bytes is one
+    the stack cannot hold, i.e. a script no one can spend, and not one
+    that cannot be encoded -- there are such pushes on chain (issue
+    #123). The last branch is Core's own bound, `CScript::operator<<`
+    having nothing wider than a four-byte length either.
     """
     out: list[bytes] = []
     length = len(command)
@@ -334,11 +350,11 @@ def _serialize_bytes_command(command: bytes) -> bytes:
         out.append(length.to_bytes(1, byteorder="little", signed=False))
     elif length < 256:  # OP_PUSHDATA1 | 1-byte-length
         _pushdata(1, length, out)
-    elif length < 521:  # OP_PUSHDATA2 | 2-byte-length
+    elif length < 65536:  # OP_PUSHDATA2 | 2-byte-length
         _pushdata(2, length, out)
+    elif length < 4294967296:  # OP_PUSHDATA4 | 4-byte-length
+        _pushdata(4, length, out)
     else:
-        # because of the 520 bytes limit there is no need for
-        # OP_PUSHDATA4, so this is an error and not a fourth branch
         raise BTClibValueError(f"too many bytes for OP_PUSHDATA: {length}")
     out.append(command)
     return b"".join(out)
@@ -364,14 +380,17 @@ def serialize(script: Sequence[Command]) -> bytes:
     return b"".join(r)
 
 
-def _parse_push(s: BytesIO, i: int) -> str:
+def _parse_push(s: BytesIO, i: int) -> str | None:
     """Read the data of the push whose first byte is i, as upper-case hex.
 
-    Not taproot's `_read_push_data`, which reads the same three widths
-    and stops there: the 520-byte element limit is enforced here and
-    cannot be there, an OP_SUCCESS making a tapscript valid whatever
-    else it holds. The limit is checked against the declared length, so
-    an oversized push is refused without being read.
+    None where nothing whole can be read -- a declared length cut short,
+    or data short of it -- which is where Core's GetOp returns false, and
+    it is all this refuses. No element limit: 520 bounds what reaches the
+    stack, so a longer push is a script no one can spend and not one that
+    cannot be read, which is issue #123 and the five transactions in it.
+    Taproot's `_read_push_data` reads the same three widths, and refuses
+    an oversized element at the end of its own walk instead: there an
+    OP_SUCCESSx met first makes the script valid whatever else it holds.
     """
     data_length = i  # 0 < i < 76 -> 1-byte-data-length | data
     if 75 < i < 79:
@@ -381,17 +400,27 @@ def _parse_push(s: BytesIO, i: int) -> str:
         x = 2 ** (i - 76)
         y = s.read(x)
         if len(y) != x:
-            raise BTClibValueError("Not enough data for pushdata length")
+            return None
         data_length = int.from_bytes(y, byteorder="little")
-    if data_length > MAX_SCRIPT_ELEMENT_SIZE:
-        raise BTClibValueError(f"Invalid pushdata length: {data_length}")
     data = s.read(data_length)
     if len(data) != data_length:
-        raise BTClibValueError("Not enough data for pushdata")
+        return None
     return data.hex().upper()
 
 
-def parse(stream: BinaryData, accept_unknown: bool = False) -> ScriptList:
+def parse(stream: BinaryData) -> ScriptList:
+    """Decode a script, as Bitcoin Core decodes one.
+
+    Which is to say: whatever the bytes are. Core's only decoder is
+    `GetScriptOp`, it reads one instruction at a time, and the sole thing
+    it refuses is a push running past the end of the script -- where the
+    walk stops, and ERROR_COMMAND is appended in the place Core's
+    `ScriptToAsmStr` writes the same "[error]". Every other question,
+    the element limit and the op codes no valid script may execute among
+    them, belongs to the interpreter and is asked there; a script it
+    would refuse still decodes, exactly as one that is in a block must
+    (issue #123).
+    """
     s = bytesio_from_binarydata(stream)
     r: ScriptList = []  # initialize the result list
 
@@ -401,7 +430,13 @@ def parse(stream: BinaryData, accept_unknown: bool = False) -> ScriptList:
             break
         i = t[0]  # convert the first byte to an integer
         if 0 < i <= 78:  # push
-            command = _parse_push(s, i)
+            data = _parse_push(s, i)
+            if data is None:
+                # the terminal sentinel: what follows is not a script,
+                # and there is nothing after it to decode
+                r.append(ERROR_COMMAND)
+                break
+            command = data
         elif i in OP_CODE_NAME_FROM_INT:  # OP_CODE
             command = OP_CODE_NAME_FROM_INT[i]
             # the operand before an op code is left as bytes, and is not
@@ -409,12 +444,12 @@ def parse(stream: BinaryData, accept_unknown: bool = False) -> ScriptList:
             # belongs to the interpreter, which knows which op codes take a
             # number off the stack; a parse cannot, and guessing here would
             # change what round-trips
-        elif accept_unknown:
-            # https://bitcoin.stackexchange.com/a/98652/111488
-            command = f"UNKNOWN_OP_CODE_{i}"
-
         else:
-            raise BTClibValueError("Unknown op code")
+            # https://bitcoin.stackexchange.com/a/98652/111488
+            # A byte no table names is an op code all the same, and one
+            # the interpreter refuses when it executes it; naming it here
+            # is what lets serialize write it back unchanged
+            command = f"UNKNOWN_OP_CODE_{i}"
         r.append(command)
 
     return r
@@ -498,16 +533,13 @@ class Script:
         57.9 us for a 16.5 kB script, for a value that cannot change.
         Cached, a second read is 0.02 us.
 
-        The cache is not warmed by assert_valid, which parses the same
-        bytes at construction and throws the result away -- so building a
-        Script and then reading .asm parses twice. That is deliberate:
+        Nothing warms the cache: construction no longer parses at all,
+        and __init__ filling it in would be the wrong trade anyway --
         measured on that 16.5 kB script, an instance holding the parse
-        costs 55.4 kB against 0.2 kB without it, 277 times the script's own
-        bytes, and nothing inside the library reads .asm at all. Warming it
-        in __init__ would charge that to every Script ever validated to
-        save a parse for the few that are inspected.
+        costs 55.4 kB against 0.2 kB without it, 277 times the script's
+        own bytes, and nothing inside the library reads .asm.
         """
-        return parse(self.script, accept_unknown=True)
+        return parse(self.script)
 
     def __add__(self, other: Script) -> Script:
         return (
@@ -522,22 +554,26 @@ class Script:
             self.assert_valid()
 
     def assert_valid(self) -> None:
-        """Assert that the bytes parse as a script.
+        """Assert that the script is bytes, which is all a script is.
 
-        Which is what makes them one: a truncated push, a pushdata length
-        over 520, or an op code no name is known for are the ways they can
-        fail to. Deliberately not a round-trip check, which would be
-        wrong, not merely redundant: a non-minimal push is
-        consensus-legal, and re-serializing it yields different bytes
-        (4c01ff, an OP_PUSHDATA1 of one byte, comes back as 01ff).
-        Measured over 200k random byte strings, a strict comparison
-        rejects 16 of them.
+        There is no other question to ask, and asking one was the bug:
+        Bitcoin Core has no validity notion for a script either -- a
+        CScript is a vector of bytes, and the only script-level predicate
+        it offers is IsUnspendable(), for pruning the UTXO set. Whether a
+        script can be *executed* is the interpreter's answer, given by
+        executing it, and the limits it enforces depend on the sigversion
+        the script is spent under: in tapscript an OP_SUCCESSx makes a
+        script valid however malformed the rest of it is, so no predicate
+        on the bytes alone could answer for both.
 
-        Redundant, because serialize() writes back every command shape
-        parse() can produce, UNKNOWN_OP_CODE_n included, by an explicit
-        branch: over those same 200k, and over all 256 one-byte scripts,
-        it raises for nothing parse() has accepted. So serialize(self.asm)
-        with the result discarded would only add a second parse and a
-        second serialization per Script.
+        This used to parse, and refuse what the parse refused: a push
+        over 520 bytes, a truncated push, an op code no table names.
+        Those are five transactions in blocks 251718 to 299571 that
+        Tx.parse could not read (issue #123), and a `.asm` that raised
+        for the scripts an explorer prints.
+
+        The coercion is the check, as it is in Witness.assert_valid: a
+        Script built through __init__ has been through bytes_from_octets
+        already, and this is what answers for one reached any other way.
         """
-        parse(self.script, accept_unknown=True)
+        bytes(self.script)
