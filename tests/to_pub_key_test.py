@@ -9,14 +9,18 @@
 # or distributed except according to the terms contained in the LICENSE file.
 """Tests for the `btclib.to_pub_key` module."""
 
+from collections.abc import Callable, Sequence
+
 import pytest
 
-from btclib.alias import INF
+from btclib.alias import INF, Point
 from btclib.bip32 import BIP32KeyData, derive, rootxprv_from_seed
 from btclib.curves import bytes_from_point
 from btclib.curves.curve import CURVES
 from btclib.exceptions import BTClibValueError
 from btclib.to_pub_key import (
+    Key,
+    PubkeyInfo,
     fingerprint,
     point_from_key,
     point_from_pub_key,
@@ -49,180 +53,220 @@ from tests.to_key_test import (
     xpub_data,
 )
 
+secp256r1 = CURVES["secp256r1"]
 
-def test_from_key() -> None:  # noqa: C901 -- every convertible pub-key form, crossed with network and compression
-    secp256r1 = CURVES["secp256r1"]
-    m_c = bytes_from_point(Q, compressed=True), "mainnet"
-    m_unc = bytes_from_point(Q, compressed=False), "mainnet"
-    t_c = bytes_from_point(Q, compressed=True), "testnet"
-    t_unc = bytes_from_point(Q, compressed=False), "testnet"
-    for pub_key in [Q, *plain_pub_keys]:
-        assert Q == point_from_pub_key(pub_key)
-        with pytest.raises(BTClibValueError):
-            point_from_pub_key(pub_key, secp256r1)
-        assert m_c == pub_keyinfo_from_pub_key(pub_key)
-        assert m_c == pub_keyinfo_from_pub_key(pub_key, "mainnet")
-        assert m_c == pub_keyinfo_from_pub_key(pub_key, "mainnet", compressed=True)
-        assert m_c == pub_keyinfo_from_pub_key(pub_key, compressed=True)
-        assert m_unc == pub_keyinfo_from_pub_key(pub_key, "mainnet", compressed=False)
-        assert m_unc == pub_keyinfo_from_pub_key(pub_key, compressed=False)
-        assert t_c == pub_keyinfo_from_pub_key(pub_key, "testnet")
-        assert t_c == pub_keyinfo_from_pub_key(pub_key, "testnet", compressed=True)
-        assert t_unc == pub_keyinfo_from_pub_key(pub_key, "testnet", compressed=False)
+# the four answers Q converts to, one per network and compression
+m_c = bytes_from_point(Q, compressed=True), "mainnet"
+m_unc = bytes_from_point(Q, compressed=False), "mainnet"
+t_c = bytes_from_point(Q, compressed=True), "testnet"
+t_unc = bytes_from_point(Q, compressed=False), "testnet"
 
-    for prv_key2 in [xpub_data, *compressed_pub_keys]:
-        assert Q == point_from_pub_key(prv_key2)
-        with pytest.raises(BTClibValueError):
-            point_from_pub_key(prv_key2, secp256r1)
-        assert m_c == pub_keyinfo_from_pub_key(prv_key2)
-        assert m_c == pub_keyinfo_from_pub_key(prv_key2, "mainnet")
-        assert m_c == pub_keyinfo_from_pub_key(prv_key2, "mainnet", compressed=True)
-        assert m_c == pub_keyinfo_from_pub_key(prv_key2, compressed=True)
-        with pytest.raises(BTClibValueError):
-            pub_keyinfo_from_pub_key(prv_key2, "mainnet", compressed=False)
-        with pytest.raises(BTClibValueError):
-            pub_keyinfo_from_pub_key(prv_key2, compressed=False)
-        with pytest.raises(BTClibValueError):
-            pub_keyinfo_from_pub_key(prv_key2, "testnet", compressed=False)
+# The two conversions under test, always as a pair: what converts to a
+# point converts to pub-key info too, and each check below is a question
+# about the key form rather than about which of the two answers it. That
+# is what lets one check serve both pairs -- the pub-key-only
+# point_from_pub_key/pub_keyinfo_from_pub_key, and point_from_key/
+# pub_keyinfo_from_key, which take a private key as well.
+#
+# The argument types are unchecked (`...`) because no single parameter
+# type accepts both pairs: the pub-key pair takes PubKey where the key
+# pair takes Key, an int prv key among them, and mypy checks a
+# callable's arguments contravariantly, so the wider Key would reject the
+# narrower pair.
+Conversions = tuple[Callable[..., Point], Callable[..., PubkeyInfo]]
 
-    for prv_key3 in uncompressed_pub_keys:
-        assert Q == point_from_pub_key(prv_key3)
-        with pytest.raises(BTClibValueError):
-            point_from_pub_key(prv_key3, secp256r1)
-        assert m_unc == pub_keyinfo_from_pub_key(prv_key3)
-        assert m_unc == pub_keyinfo_from_pub_key(prv_key3, "mainnet")
-        with pytest.raises(BTClibValueError):
-            pub_keyinfo_from_pub_key(prv_key3, "mainnet", compressed=True)
-        with pytest.raises(BTClibValueError):
-            pub_keyinfo_from_pub_key(prv_key3, compressed=True)
-        assert m_unc == pub_keyinfo_from_pub_key(prv_key3, "mainnet", compressed=False)
-        assert m_unc == pub_keyinfo_from_pub_key(prv_key3, compressed=False)
-        with pytest.raises(BTClibValueError):
-            pub_keyinfo_from_pub_key(prv_key3, "testnet", compressed=True)
 
-    for prv_key4 in [xpub_data, *net_aware_pub_keys]:
-        assert Q == point_from_pub_key(prv_key4)
-        with pytest.raises(BTClibValueError):
-            point_from_pub_key(prv_key4, secp256r1)
-        assert pub_keyinfo_from_pub_key(prv_key4) in (m_c, m_unc)
-        assert pub_keyinfo_from_pub_key(prv_key4, "mainnet") in (m_c, m_unc)
-        with pytest.raises(BTClibValueError):
-            pub_keyinfo_from_pub_key(prv_key4, "testnet")
+def _check_point(point_from: Callable[..., Point], key: Key) -> None:
+    """Q is the point behind the key, and it is a point on secp256k1 alone.
 
-    for prv_key5 in net_unaware_pub_keys:
-        assert Q == point_from_pub_key(prv_key5)
+    A public key *is* a point, so a curve that does not hold it has to
+    refuse it. An int private key is a scalar instead, and every curve
+    has that scalar: secp256r1 answers with the r1 point rather than
+    raising, which is why the int forms skip the check.
+    """
+    assert Q == point_from(key)
+    if not isinstance(key, int):
         with pytest.raises(BTClibValueError):
-            point_from_pub_key(prv_key5, secp256r1)
-        assert pub_keyinfo_from_pub_key(prv_key5) in (m_c, m_unc)
-        assert pub_keyinfo_from_pub_key(prv_key5, "mainnet") in (m_c, m_unc)
-        assert pub_keyinfo_from_pub_key(prv_key5, "testnet") in (t_c, t_unc)
+            point_from(key, secp256r1)
 
-    for invalid_pub_key in [INF, INF_xpub_data, *invalid_pub_keys]:
-        with pytest.raises(BTClibValueError):
-            point_from_pub_key(invalid_pub_key)
-        with pytest.raises(BTClibValueError):
-            pub_keyinfo_from_pub_key(invalid_pub_key)
 
-    for not_a_pub_key in [
-        INF,
-        INF_xpub_data,
-        *not_a_pub_keys,
-        q,
-        q0,
-        qn,
-        *plain_prv_keys,
-        xprv_data,
-        xprv0_data,
-        xprvn_data,
-        *compressed_prv_keys,
-        *uncompressed_prv_keys,
-    ]:
-        with pytest.raises(BTClibValueError):
-            point_from_pub_key(not_a_pub_key)  # type: ignore[arg-type]
-        with pytest.raises(BTClibValueError):
-            pub_keyinfo_from_pub_key(not_a_pub_key)  # type: ignore[arg-type]
+def _check_plain(api: Conversions, keys: Sequence[Key]) -> None:
+    """The form fixes neither network nor compression: all four answers.
 
-    for key in [Q, *plain_pub_keys, q, *plain_prv_keys]:
-        assert Q == point_from_key(key)
-        assert m_c == pub_keyinfo_from_key(key)
-        assert m_c == pub_keyinfo_from_key(key, "mainnet")
-        assert m_c == pub_keyinfo_from_key(key, "mainnet", compressed=True)
-        assert m_c == pub_keyinfo_from_key(key, compressed=True)
-        assert m_unc == pub_keyinfo_from_key(key, "mainnet", compressed=False)
-        assert m_unc == pub_keyinfo_from_key(key, compressed=False)
-        assert t_c == pub_keyinfo_from_key(key, "testnet")
-        assert t_c == pub_keyinfo_from_key(key, "testnet", compressed=True)
-        assert t_unc == pub_keyinfo_from_key(key, "testnet", compressed=False)
+    Nothing in the form can contradict the request, so every combination
+    is answered by re-encoding the point as asked, and the default is
+    compressed mainnet.
+    """
+    point_from, keyinfo_from = api
+    for key in keys:
+        _check_point(point_from, key)
+        assert m_c == keyinfo_from(key)
+        assert m_c == keyinfo_from(key, "mainnet")
+        assert m_c == keyinfo_from(key, "mainnet", compressed=True)
+        assert m_c == keyinfo_from(key, compressed=True)
+        assert m_unc == keyinfo_from(key, "mainnet", compressed=False)
+        assert m_unc == keyinfo_from(key, compressed=False)
+        assert t_c == keyinfo_from(key, "testnet")
+        assert t_c == keyinfo_from(key, "testnet", compressed=True)
+        assert t_unc == keyinfo_from(key, "testnet", compressed=False)
 
-    for key2 in [*compressed_pub_keys, xpub_data, xprv_data, *compressed_prv_keys]:
-        assert Q == point_from_key(key2)
-        with pytest.raises(BTClibValueError):
-            point_from_key(key2, secp256r1)
-        assert m_c == pub_keyinfo_from_key(key2)
-        assert m_c == pub_keyinfo_from_key(key2, "mainnet")
-        assert m_c == pub_keyinfo_from_key(key2, "mainnet", compressed=True)
-        assert m_c == pub_keyinfo_from_key(key2, compressed=True)
-        with pytest.raises(BTClibValueError):
-            pub_keyinfo_from_key(key2, "mainnet", compressed=False)
-        with pytest.raises(BTClibValueError):
-            pub_keyinfo_from_key(key2, compressed=False)
 
-    for key3 in [*uncompressed_pub_keys, *uncompressed_prv_keys]:
-        assert Q == point_from_key(key3)
-        with pytest.raises(BTClibValueError):
-            point_from_key(key3, secp256r1)
-        assert m_unc == pub_keyinfo_from_key(key3)
-        assert m_unc == pub_keyinfo_from_key(key3, "mainnet")
-        with pytest.raises(BTClibValueError):
-            pub_keyinfo_from_key(key3, "mainnet", compressed=True)
-        with pytest.raises(BTClibValueError):
-            pub_keyinfo_from_key(key3, compressed=True)
-        assert m_unc == pub_keyinfo_from_key(key3, "mainnet", compressed=False)
-        assert m_unc == pub_keyinfo_from_key(key3, compressed=False)
+def _check_compressed(api: Conversions, keys: Sequence[Key]) -> None:
+    """The form is compressed: an uncompressed answer is refused.
 
-    for key4 in [*net_aware_pub_keys, xpub_data, xprv_data, *net_aware_prv_keys]:
-        assert Q == point_from_key(key4)
+    An xpub or a compressed WIF carries the compression in the form
+    itself, and a request for the other one is a mismatch to report, not
+    a re-encoding to perform.
+    """
+    point_from, keyinfo_from = api
+    for key in keys:
+        _check_point(point_from, key)
+        assert m_c == keyinfo_from(key)
+        assert m_c == keyinfo_from(key, "mainnet")
+        assert m_c == keyinfo_from(key, "mainnet", compressed=True)
+        assert m_c == keyinfo_from(key, compressed=True)
         with pytest.raises(BTClibValueError):
-            point_from_key(key4, secp256r1)
-        assert pub_keyinfo_from_key(key4) in (m_c, m_unc)
-        assert pub_keyinfo_from_key(key4, "mainnet") in (m_c, m_unc)
+            keyinfo_from(key, "mainnet", compressed=False)
         with pytest.raises(BTClibValueError):
-            pub_keyinfo_from_key(key4, "testnet")
+            keyinfo_from(key, compressed=False)
+        with pytest.raises(BTClibValueError):
+            keyinfo_from(key, "testnet", compressed=False)
 
-    for key5 in [q, *net_unaware_prv_keys, *net_unaware_pub_keys]:
-        assert Q == point_from_key(key5)
-        assert pub_keyinfo_from_key(key5) in (m_c, m_unc)
-        assert pub_keyinfo_from_key(key5, "mainnet") in (m_c, m_unc)
-        assert pub_keyinfo_from_key(key5, "testnet") in (t_c, t_unc)
 
-    for invalid_key in [
-        INF,
-        INF_xpub_data,
-        *invalid_pub_keys,
-        q0,
-        qn,
-        xprv0_data,
-        xprvn_data,
-        *invalid_prv_keys,
-    ]:
-        with pytest.raises(BTClibValueError):
-            point_from_key(invalid_key)
-        with pytest.raises(BTClibValueError):
-            pub_keyinfo_from_key(invalid_key)
+def _check_uncompressed(api: Conversions, keys: Sequence[Key]) -> None:
+    """The form is uncompressed: a compressed answer is refused.
 
-    for not_a_key in [
-        q0,
-        qn,
-        xprv0_data,
-        xprvn_data,
-        INF,
-        INF_xpub_data,
-        *not_a_pub_keys,
-    ]:
+    The mirror of _check_compressed, and the default flips with it: an
+    uncompressed form asked for no compression in particular answers
+    uncompressed.
+
+    Only the compressed half of the testnet request is asked, because it
+    is the half both refuse: an uncompressed testnet answer is right for
+    a 04-prefixed SEC key, which names no network, and wrong for an
+    uncompressed WIF, which names mainnet. Which network each form
+    answers for is _check_net_aware and _check_net_unaware.
+    """
+    point_from, keyinfo_from = api
+    for key in keys:
+        _check_point(point_from, key)
+        assert m_unc == keyinfo_from(key)
+        assert m_unc == keyinfo_from(key, "mainnet")
         with pytest.raises(BTClibValueError):
-            point_from_key(not_a_key)
+            keyinfo_from(key, "mainnet", compressed=True)
         with pytest.raises(BTClibValueError):
-            pub_keyinfo_from_key(not_a_key)
+            keyinfo_from(key, compressed=True)
+        assert m_unc == keyinfo_from(key, "mainnet", compressed=False)
+        assert m_unc == keyinfo_from(key, compressed=False)
+        with pytest.raises(BTClibValueError):
+            keyinfo_from(key, "testnet", compressed=True)
+
+
+def _check_net_aware(api: Conversions, keys: Sequence[Key]) -> None:
+    """The form names mainnet: testnet is refused.
+
+    Whether the answer is compressed depends on the form, which is what
+    _check_compressed and _check_uncompressed pin down; here either one
+    will do.
+    """
+    point_from, keyinfo_from = api
+    for key in keys:
+        _check_point(point_from, key)
+        assert keyinfo_from(key) in (m_c, m_unc)
+        assert keyinfo_from(key, "mainnet") in (m_c, m_unc)
+        with pytest.raises(BTClibValueError):
+            keyinfo_from(key, "testnet")
+
+
+def _check_net_unaware(api: Conversions, keys: Sequence[Key]) -> None:
+    """The form names no network: both are answered, mainnet by default."""
+    point_from, keyinfo_from = api
+    for key in keys:
+        _check_point(point_from, key)
+        assert keyinfo_from(key) in (m_c, m_unc)
+        assert keyinfo_from(key, "mainnet") in (m_c, m_unc)
+        assert keyinfo_from(key, "testnet") in (t_c, t_unc)
+
+
+def _check_refused(api: Conversions, keys: Sequence[Key]) -> None:
+    """Neither conversion has an answer for these.
+
+    Each test asks it twice, of what is an invalid key and of what is no
+    key at all, and the second list contains the first: not_a_pub_keys is
+    the invalid private keys and the invalid public ones together. The
+    assertion is the same one either way, every refusal here being a
+    BTClibValueError, so the two calls name the two vocabularies rather
+    than expect two answers.
+    """
+    point_from, keyinfo_from = api
+    for key in keys:
+        with pytest.raises(BTClibValueError):
+            point_from(key)
+        with pytest.raises(BTClibValueError):
+            keyinfo_from(key)
+
+
+def test_from_pub_key() -> None:
+    """Every public-key form, crossed with network and compression."""
+    api: Conversions = point_from_pub_key, pub_keyinfo_from_pub_key
+    _check_plain(api, [Q, *plain_pub_keys])
+    _check_compressed(api, [xpub_data, *compressed_pub_keys])
+    _check_uncompressed(api, uncompressed_pub_keys)
+    _check_net_aware(api, [xpub_data, *net_aware_pub_keys])
+    _check_net_unaware(api, net_unaware_pub_keys)
+    _check_refused(api, [INF, INF_xpub_data, *invalid_pub_keys])
+    _check_refused(
+        api,
+        [
+            INF,
+            INF_xpub_data,
+            *not_a_pub_keys,
+            q,
+            q0,
+            qn,
+            *plain_prv_keys,
+            xprv_data,
+            xprv0_data,
+            xprvn_data,
+            *compressed_prv_keys,
+            *uncompressed_prv_keys,
+        ],
+    )
+
+
+def test_from_key() -> None:
+    """Every key form, private ones included, crossed the same way.
+
+    The private forms answer with the public key they derive, so each
+    check is the one its public counterpart above gets: an int and its
+    hex-string carry neither network nor compression, a compressed WIF
+    carries both.
+    """
+    api: Conversions = point_from_key, pub_keyinfo_from_key
+    _check_plain(api, [Q, *plain_pub_keys, q, *plain_prv_keys])
+    _check_compressed(
+        api, [*compressed_pub_keys, xpub_data, xprv_data, *compressed_prv_keys]
+    )
+    _check_uncompressed(api, [*uncompressed_pub_keys, *uncompressed_prv_keys])
+    _check_net_aware(
+        api, [*net_aware_pub_keys, xpub_data, xprv_data, *net_aware_prv_keys]
+    )
+    _check_net_unaware(api, [q, *net_unaware_prv_keys, *net_unaware_pub_keys])
+    _check_refused(
+        api,
+        [
+            INF,
+            INF_xpub_data,
+            *invalid_pub_keys,
+            q0,
+            qn,
+            xprv0_data,
+            xprvn_data,
+            *invalid_prv_keys,
+        ],
+    )
+    _check_refused(
+        api, [q0, qn, xprv0_data, xprvn_data, INF, INF_xpub_data, *not_a_pub_keys]
+    )
 
 
 def test_fingerprint() -> None:

@@ -489,7 +489,7 @@ ignore = [
 ]
 
 [tool.ruff.lint.mccabe]
-# ruff's default, and the 11 functions over it each carry a noqa naming
+# ruff's default, and the 10 functions over it each carry a noqa naming
 # its reason (issue #184). Not a global bound at the tree's worst, which
 # keeps the worst from growing but lets any new function reach it
 # unremarked; not per-file-ignores, which exempts the file: no file holds
