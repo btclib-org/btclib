@@ -11,6 +11,7 @@
 
 from __future__ import annotations
 
+from io import BytesIO
 from typing import cast
 
 from btclib import var_bytes
@@ -56,7 +57,31 @@ def serialize(script: ScriptList) -> bytes:
     return b"".join(r)
 
 
-def parse(stream: BinaryData, exit_on_op_success: bool = False) -> ScriptList:  # noqa: C901 -- one branch per push width, and OP_SUCCESS cuts the parse short
+def _read_push_data(s: BytesIO, i: int) -> bytes:
+    """Read the data of the push whose first byte is i, 0 < i <= 78.
+
+    The 520-byte element limit is not checked here, unlike in
+    script.parse: an OP_SUCCESS makes a tapscript valid whatever else it
+    holds, so only the caller -- which knows whether one has been met --
+    can turn an oversized element into a refusal.
+    """
+    data_length = i  # 0 < i < 76 -> 1-byte-data-length | data
+    if i > 75:
+        # i == 76 -> OP_PUSHDATA1 | 1-byte-data-length | data
+        # i == 77 -> OP_PUSHDATA2 | 2-byte-data-length | data
+        # i == 78 -> OP_PUSHDATA4 | 4-byte-data-length | data
+        size = 2 ** (i - 76)
+        y = s.read(size)
+        if len(y) != size:
+            raise BTClibValueError("Invalid pushdata length")
+        data_length = int.from_bytes(y, byteorder="little")
+    data = s.read(data_length)
+    if len(data) != data_length:
+        raise BTClibValueError("Invalid pushdata length")
+    return data
+
+
+def parse(stream: BinaryData, exit_on_op_success: bool = False) -> ScriptList:
     s = bytesio_from_binarydata(stream)
     r: ScriptList = []  # initialize the result list
     invalid_element_size = False
@@ -67,36 +92,25 @@ def parse(stream: BinaryData, exit_on_op_success: bool = False) -> ScriptList:  
             break
         i = t[0]  # convert the byte to an integer
         if 0 < i <= 78:  # push
-            if 0 < i < 76:  # 1-byte-data-length | data
-                data_length = i
-            if 76 <= i <= 78:
-                if i == 76:  # OP_PUSHDATA1 | 1-byte-data-length | data
-                    x = 1
-                elif i == 77:  # OP_PUSHDATA2 | 2-byte-data-length | data
-                    x = 2
-                elif i == 78:  # OP_PUSHDATA4 | 4-byte-data-length | data
-                    x = 4
-                y = s.read(x)
-                if len(y) != x:
-                    raise BTClibValueError("Invalid pushdata length")
-                data_length = int.from_bytes(y, byteorder="little")
-            if data_length > 520:
-                invalid_element_size = True
-            data = s.read(data_length)
-            if len(data) != data_length:
-                raise BTClibValueError("Invalid pushdata length")
-            new_op_code = data.hex().upper()
+            data = _read_push_data(s, i)
+            # BIP342: an element over 520 bytes is invalid, but an
+            # OP_SUCCESS anywhere makes the script valid without the rest
+            # of it being executed, so the refusal waits for a parse that
+            # ends without meeting one
+            invalid_element_size |= len(data) > 520
+            r.append(data.hex().upper())
         elif i in OP_SUCCESS:  # OP_SUCCESSx
             if exit_on_op_success:
                 return ["OP_SUCCESS"]
+            # what follows an OP_SUCCESS is returned unparsed: BIP342 does
+            # not require it to be a script at all
             r.append(f"OP_SUCCESS{i}")
             r.append(s.read())
             return r
-        else:  # OP_CODE
-            if i not in OP_CODE_NAMES:
-                raise BTClibValueError(f"unknown op code: {hex(i)}")
-            new_op_code = OP_CODE_NAMES[i]
-        r.append(new_op_code)
+        elif i in OP_CODE_NAMES:  # OP_CODE
+            r.append(OP_CODE_NAMES[i])
+        else:
+            raise BTClibValueError(f"unknown op code: {hex(i)}")
     if invalid_element_size:
         raise BTClibValueError("Invalid pushdata length")
     return r
