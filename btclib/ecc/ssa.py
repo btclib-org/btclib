@@ -21,6 +21,14 @@ also implies the knowledge of n-q as discrete logarithm of -Q.
 As such, {q, n-q} can be considered a single private key and
 {Q, -Q} the associated public key characterized by the shared x_Q.
 
+The dropped 02/03 prefix is implicit, not lost: verification needs an
+unambiguous Y, so BIP340 fixes it as even, and the x-only key is the
+compressed key 02||x with its prefix left unsaid. Halving the set of
+valid public keys costs no security -- whoever breaks an x-only key
+breaks the full key at the price of a negation -- and taking the bare
+x as the key refuses a malleability: a verifier that accepted a point
+and negated its odd Y would make every signature valid for two keys.
+
 Also, BIP340 advocates its own SHA256 modification as hash function:
 TaggedHash(tag, x) = SHA256(SHA256(tag)||SHA256(tag)||x)
 The rationale is to make BIP340 signatures invalid for anything else
