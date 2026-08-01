@@ -373,7 +373,10 @@ def test_fix_signature_high_s() -> None:
 
 
 def taproot_script_spend(
-    script: list[Any], lock_time: int, sequence: int
+    script: list[Any],
+    lock_time: int,
+    sequence: int,
+    extra_witness: tuple[str, ...] = (),
 ) -> tuple[list[TxOut], Tx]:
     """A script-path spend of the given tapscript, no signature involved.
 
@@ -381,6 +384,10 @@ def taproot_script_spend(
     output_pubkey and input_script_sig, so the key path cannot sign;
     the script path needs no signature unless the script asks for one,
     which is what lets a timelock op code run alone.
+
+    `extra_witness` sits under the script and the control block, which is
+    where the interpreter's initial stack comes from; the control block
+    commits to the script alone, so adding elements breaks nothing.
     """
     script_tree: TaprootScriptTree = [(0xC0, script)]
     q, _ = output_pubkey(None, script_tree)
@@ -393,7 +400,7 @@ def taproot_script_spend(
         # the tapscript serializer, which is the one output_pubkey and
         # input_script_sig committed to above: the two agree on every op
         # code both tables name, and only it knows OP_SUCCESSx
-        Witness([serialize_tapscript(tap_script).hex(), control.hex()]),
+        Witness([*extra_witness, serialize_tapscript(tap_script).hex(), control.hex()]),
     )
     tx = Tx(
         2, lock_time, [tx_in], [TxOut(1000, ScriptPubKey(""))], check_validity=False
@@ -519,6 +526,55 @@ def test_verif_before_an_op_success() -> None:
         ["OP_VERIF", "OP_SUCCESS80", b""], lock_time=0, sequence=1
     )
     verify_input(prevouts, tx, 0, ALL_FLAGS)
+
+
+def test_op_success_leftover_reaches_cleanstack() -> None:
+    """What an OP_SUCCESS spend leaves on the stack, CLEANSTACK still sees.
+
+    verify_script_path_vc0 answers OP_SUCCESS before running anything, so
+    it is the one success that leaves the witness stack as it came --
+    every executed script path empties it or fails. CLEANSTACK is the
+    only flag that can see that leftover, and nothing vendored turns it
+    on against a taproot spend: no script_assets case carries the flag,
+    and the five TAPROOT rows of script_tests.json leave it off. So the
+    contract is pinned here: the taproot dispatch hands CLEANSTACK the
+    stack vc0 saw, not an empty one. Core has no such raise -- its
+    witness verification bypasses cleanstack for every spend -- so this
+    is btclib's own reading of an opt-in policy flag, pinned so that it
+    stays a decision.
+    """
+    prevouts, tx = taproot_script_spend(
+        ["OP_SUCCESS80", b""], lock_time=0, sequence=1, extra_witness=("",)
+    )
+    verify_input(prevouts, tx, 0, ALL_FLAGS)
+    with pytest.raises(BTClibValueError, match="1 elements left on the stack"):
+        verify_input(prevouts, tx, 0, ALL_FLAGS | ScriptFlag.CLEANSTACK)
+
+    # the flag alone rejects nothing: the same spend with nothing under
+    # the script passes, OP_SUCCESS or not
+    prevouts, tx = taproot_script_spend(["OP_SUCCESS80", b""], lock_time=0, sequence=1)
+    verify_input(prevouts, tx, 0, ALL_FLAGS | ScriptFlag.CLEANSTACK)
+
+
+def test_unknown_v1_program_reaches_cleanstack() -> None:
+    """A v1 witness program that is not 32 bytes passes, stack and all.
+
+    Between "version too new", which returns before the flags can look,
+    and "p2tr", which replaces the stack with the witness, sits a third
+    case: a v1 program of the wrong size under flags that support v1.
+    Nothing more executes, so what CLEANSTACK sees is what the legacy
+    run of the script_pub_key left -- the version push. No vendored
+    vector looks: the script_assets cases that reach this fall-through
+    are success-only and flagless here too. Same caution as above: Core
+    answers this program with its upgradable-witness rule instead, so
+    the raise is btclib's own reading of the flag, pinned as such.
+    """
+    prevout = TxOut(1000, ScriptPubKey(serialize(["OP_1", b"\x99" * 20])))
+    tx_in = TxIn(OutPoint(b"\x01" * 32, 0), b"", 1, Witness([]))
+    tx = Tx(2, 0, [tx_in], [TxOut(1000, ScriptPubKey(""))], check_validity=False)
+    verify_input([prevout], tx, 0, ALL_FLAGS)
+    with pytest.raises(BTClibValueError, match="1 elements left on the stack"):
+        verify_input([prevout], tx, 0, ALL_FLAGS | ScriptFlag.CLEANSTACK)
 
 
 def test_find_and_delete_reads_op_codes() -> None:
