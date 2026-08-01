@@ -2,7 +2,7 @@
 
 This file is about `tests/**/_data/` only. The other directory holding json
 beside the tests, `tests/**/_generated_files/`, is the opposite kind of
-thing and has no entry here: those fifteen files are btclib's own output,
+thing and has no entry here: those seventeen files are btclib's own output,
 `to_dict()` over fixed input, committed as golden files so that a change to
 a serialized form fails a test instead of passing unnoticed. Nothing
 upstream to pin, and nothing to compare against but ourselves —

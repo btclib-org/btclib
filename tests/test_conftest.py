@@ -26,6 +26,23 @@ from tests.conftest import REGENERATE, check_golden
 MODULE = "test_something.py"
 
 
+@pytest.fixture(autouse=True)
+def _regenerate_unset(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Take REGENERATE out of the environment, for every test here.
+
+    `BTCLIB_REGENERATE_GOLDEN=1 uv run pytest` is the command the failure
+    message names and tests/_data/README.md documents, and running it
+    turned three of the tests below red: with the variable set,
+    `check_golden` takes the regenerate branch, so the missing and the
+    mismatch paths rewrite the file instead of failing and the
+    `pytest.raises` around them finds nothing to catch. The escape hatch
+    made the tests of the escape hatch fail, and it is the whole suite
+    that command is meant for, not the eleven golden modules alone.
+    The two tests that want the variable set still set it themselves.
+    """
+    monkeypatch.delenv(REGENERATE, raising=False)
+
+
 def test_a_matching_golden_passes(tmp_path: Path) -> None:
     path = tmp_path / "net.json"
     # four spaces of indent and a trailing newline: what the check writes
