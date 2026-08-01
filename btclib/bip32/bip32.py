@@ -62,6 +62,58 @@ _KEY_SIZE = [("version", 4), ("parent_fingerprint", 4), ("chain_code", 32), ("ke
 _REQUIRED_LENGTH = 78
 
 
+def _assert_valid_depth_and_index(
+    depth: int, index: int, parent_fingerprint: bytes
+) -> None:
+    """Raise an exception if depth, index and fingerprint disagree.
+
+    The three are one check and not three: depth zero is the root, and a
+    root has no parent, so it is the depth that decides what the index
+    and the fingerprint of the parent are allowed to be.
+    """
+    if not 0 <= index <= 0xFFFFFFFF:
+        raise BTClibValueError(f"invalid index: {index}")
+
+    if not 0 <= depth <= 255:
+        raise BTClibValueError(f"invalid depth: {depth}")
+
+    if depth == 0:
+        if parent_fingerprint != b"\x00" * 4:
+            err_msg = "zero depth with non-zero parent fingerprint: "
+            err_msg += f"0x{parent_fingerprint.hex()}"
+            raise BTClibValueError(err_msg)
+        if index != 0:
+            raise BTClibValueError(f"zero depth with non-zero index: {index}")
+
+
+def _assert_valid_key(version: bytes, key: bytes) -> None:
+    """Raise an exception if the key is not valid for its version.
+
+    The version is what says whether the 33 bytes are a private or a
+    public key, so an unknown version leaves nothing to check them
+    against and is the error itself.
+    """
+    if version in XPRV_VERSIONS_ALL:
+        if key[0] != 0:
+            raise BTClibValueError(f"invalid private key prefix: 0x{key[:1].hex()}")
+        q = int.from_bytes(key[1:], byteorder="big", signed=False)
+        if not 0 < q < secp256k1.n:
+            # never echo the scalar: it is (attempted) key material
+            raise BTClibValueError("invalid private key not in 1..n-1")
+    elif version in XPUB_VERSIONS_ALL:
+        if key[0] not in (2, 3):
+            err_msg = "invalid public key prefix not in (0x02, 0x03): "
+            err_msg += f"0x{key[:1].hex()}"
+            raise BTClibValueError(err_msg)
+        try:
+            secp256k1.y(int.from_bytes(key[1:], byteorder="big", signed=False))
+        except BTClibValueError as e:
+            err_msg = f"invalid public key: 0x{key.hex()}"
+            raise BTClibValueError(err_msg) from e
+    else:
+        raise BTClibValueError(f"unknown extended key version: 0x{version.hex()}")
+
+
 @dataclass
 class BIP32KeyData:
     version: bytes
@@ -132,7 +184,7 @@ class BIP32KeyData:
         if check_validity:
             self.assert_valid()
 
-    def assert_valid(self) -> None:  # noqa: C901 -- one check per BIP32 field, then the prv/pub split
+    def assert_valid(self) -> None:
         for key, size in _KEY_SIZE:
             # bytes() is the type check, not a coercion: it raises
             # TypeError for a field rebound to a str, which would otherwise
@@ -156,41 +208,11 @@ class BIP32KeyData:
                 err_msg = f"invalid {key} type: {type(value_).__name__}"
                 raise BTClibTypeError(err_msg)
 
-        if not 0 <= self.index <= 0xFFFFFFFF:
-            raise BTClibValueError(f"invalid index: {self.index}")
-
-        if not 0 <= self.depth <= 255:
-            raise BTClibValueError(f"invalid depth: {self.depth}")
-
-        if self.depth == 0:
-            if self.parent_fingerprint != b"\x00" * 4:
-                err_msg = f"zero depth with non-zero parent fingerprint: 0x{self.parent_fingerprint.hex()}"
-                raise BTClibValueError(err_msg)
-            if self.index != 0:
-                raise BTClibValueError(f"zero depth with non-zero index: {self.index}")
-
-        if self.version in XPRV_VERSIONS_ALL:
-            if self.key[0] != 0:
-                raise BTClibValueError(
-                    f"invalid private key prefix: 0x{self.key[:1].hex()}"
-                )
-            q = int.from_bytes(self.key[1:], byteorder="big", signed=False)
-            if not 0 < q < secp256k1.n:
-                # never echo the scalar: it is (attempted) key material
-                raise BTClibValueError("invalid private key not in 1..n-1")
-        elif self.version in XPUB_VERSIONS_ALL:
-            if self.key[0] not in (2, 3):
-                err_msg = f"invalid public key prefix not in (0x02, 0x03): 0x{self.key[:1].hex()}"
-                raise BTClibValueError(err_msg)
-            try:
-                secp256k1.y(int.from_bytes(self.key[1:], byteorder="big", signed=False))
-            except BTClibValueError as e:
-                err_msg = f"invalid public key: 0x{self.key.hex()}"
-                raise BTClibValueError(err_msg) from e
-        else:
-            raise BTClibValueError(
-                f"unknown extended key version: 0x{self.version.hex()}"
-            )
+        # after the two loops and not before: these read the fields as
+        # the bytes and the ints the loops have just established them to
+        # be, and .hex() on a str field would raise AttributeError here
+        _assert_valid_depth_and_index(self.depth, self.index, self.parent_fingerprint)
+        _assert_valid_key(self.version, self.key)
 
     def serialize(self, *, check_validity: bool = True) -> bytes:
         if check_validity:
@@ -417,7 +439,56 @@ def __pub_key_derivation(xkey: _BIP32KeyData, index: int) -> None:
     xkey.key = bytes_from_point(pub_key_point)
 
 
-def _derive(  # noqa: C901 -- the prv/pub derivation split, plus the forced-version check
+def __prv_key_path_derivation(xkey: _BIP32KeyData, indexes: list[int]) -> None:
+    """Derive xkey down the whole path, privately.
+
+    The last index is derived apart from the others because the
+    fingerprint a child carries is its parent's: it is taken from the
+    key as it stands one derivation short of the end. The public key
+    computed for it is then handed to that last derivation, which for an
+    unhardened index would otherwise compute it a second time.
+    """
+    for index in indexes[:-1]:
+        __prv_key_derivation(xkey, index, b"")
+    pub_key = bytes_from_prv_key_int(xkey.prv_key_int)
+    xkey.parent_fingerprint = hash160(pub_key)[:4]
+    __prv_key_derivation(xkey, indexes[-1], pub_key)
+
+
+def __pub_key_path_derivation(xkey: _BIP32KeyData, indexes: list[int]) -> None:
+    """Derive xkey down the whole path, publicly.
+
+    A hardened index needs the private key, so the whole path is refused
+    before any of it is walked: half a derivation would leave the caller
+    holding a key at neither end of the path.
+    """
+    if any(index >= 0x80000000 for index in indexes):
+        raise BTClibValueError("invalid hardened derivation from public key")
+    for index in indexes[:-1]:
+        __pub_key_derivation(xkey, index)
+    xkey.parent_fingerprint = hash160(xkey.key)[:4]
+    __pub_key_derivation(xkey, indexes[-1])
+
+
+def _force_version(version: bytes, forced_version: Octets) -> bytes:
+    """Return the forced version, which must be of the key's own kind.
+
+    xprv to yprv is the same key spelled for another script type, while
+    xprv to ypub would claim the key is public with the bytes still
+    private -- neutering is _xpub_from_xprv and not a relabelling.
+    """
+    allowed_versions = (
+        XPRV_VERSIONS_ALL if version in XPRV_VERSIONS_ALL else XPUB_VERSIONS_ALL
+    )
+    fversion = bytes_from_octets(forced_version, 4)
+    if fversion not in allowed_versions:
+        err_msg = "invalid version forced on the extended key"
+        err_msg += f"{hex_string(fversion)}"
+        raise BTClibValueError(err_msg)
+    return fversion
+
+
+def _derive(
     xkey: BIP32Key, der_path: BIP32DerPath, forced_version: Octets | None = None
 ) -> BIP32KeyData:
     if not isinstance(xkey, BIP32KeyData):
@@ -440,31 +511,13 @@ def _derive(  # noqa: C901 -- the prv/pub derivation split, plus the forced-vers
     )
 
     if forced_version:
-        if xkey.version in XPRV_VERSIONS_ALL:
-            allowed_versions = XPRV_VERSIONS_ALL
-        else:
-            allowed_versions = XPUB_VERSIONS_ALL
-        fversion = bytes_from_octets(forced_version, 4)
-        if fversion not in allowed_versions:
-            err_msg = "invalid version forced on the extended key"
-            err_msg += f"{hex_string(fversion)}"
-            raise BTClibValueError(err_msg)
-        xkey.version = fversion
+        xkey.version = _force_version(xkey.version, forced_version)
 
     if indexes:
         if xkey.is_private:
-            for index in indexes[:-1]:
-                __prv_key_derivation(xkey, index, b"")
-            pub_key = bytes_from_prv_key_int(xkey.prv_key_int)
-            xkey.parent_fingerprint = hash160(pub_key)[:4]
-            __prv_key_derivation(xkey, indexes[-1], pub_key)
+            __prv_key_path_derivation(xkey, indexes)
         else:
-            if any(index >= 0x80000000 for index in indexes):
-                raise BTClibValueError("invalid hardened derivation from public key")
-            for index in indexes[:-1]:
-                __pub_key_derivation(xkey, index)
-            xkey.parent_fingerprint = hash160(xkey.key)[:4]
-            __pub_key_derivation(xkey, indexes[-1])
+            __pub_key_path_derivation(xkey, indexes)
 
         xkey.index = indexes[-1]
 
