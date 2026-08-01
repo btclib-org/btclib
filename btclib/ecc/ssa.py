@@ -33,6 +33,13 @@ To allow for secure batch verification of multiple signatures,
 BIP340-Schnorr uses a challenge that prevents public key recovery
 from signature: c = TaggedHash('BIPSchnorr', x_k||x_Q||msg).
 
+The challenge commits to the nonce point as well, and that dependency
+is the Fiat-Shamir transform itself: hashing the commitment x_k
+replaces the fresh challenge that an interactive verifier would send
+only after receiving the commitment. Were c and the nonce chosen
+independently, no private key would be needed: K = s*G - c*Q
+satisfies verification for any Q.
+
 A custom deterministic algorithm for the ephemeral key (nonce)
 is used for signing, instead of the RFC6979 standard:
 
@@ -211,6 +218,9 @@ def challenge_(msg: Octets, x_Q: int, x_K: int, ec: Curve, hf: HashF) -> int:
 def _sign_(c: int, q: int, nonce: int, r: int, ec: Curve) -> Sig:
     # Private function for testing purposes: it allows to explore all
     # possible value of the challenge c (for low-cardinality curves).
+    # That freedom is what Fiat-Shamir forbids -- the public API derives
+    # c from the nonce point, committing before the challenge -- and it
+    # is why this function must stay private.
     # It assume that c is in [1, n-1], while q and nonce are in [1, n-1]
     if c == 0:  # c≠0 required as it multiplies the private key
         raise BTClibRuntimeError("invalid zero challenge")
