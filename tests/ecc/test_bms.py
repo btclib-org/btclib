@@ -565,14 +565,15 @@ def test_sign_strippable_message() -> None:
     assert bms_sig.b64encode() == exp_sig
 
 
-# the first 10 of the file, as the loop this replaces did: the vectors
-# after them cost a signature each and prove the same thing again. The
-# slice is a decision, and the count in the report is now what it runs
+# all 200 of the file, where a `[:10]` slice used to stand. "The vectors
+# after them prove the same thing again" was the reason given for it, and
+# it was an assertion nobody had measured: the file is the only place
+# those 190 addresses appear, so nothing else was proving it. Measured
+# now, all 200 pass, and they cost a signature each -- which is the
+# price of a vendored vector being able to report a regression at all
 PYTHON_BITCOINLIB_VECTORS = [
     pytest.param(vector, id=vectors.vector_id(index, vector["address"]))
-    for index, vector in enumerate(
-        vectors.load("ecc", "_data", "signmessage.json")[:10]
-    )
+    for index, vector in enumerate(vectors.load("ecc", "_data", "signmessage.json"))
 ]
 
 

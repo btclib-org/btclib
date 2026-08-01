@@ -681,10 +681,18 @@ No upstream blob exists for the rest:
 - **Three descriptors of Core's `doc/descriptors.md` are not vendored**,
   and cannot be without a checksum from a third implementation. See that
   entry.
-- **Vendored but not exercised**: 190 of `signmessage.json`'s 200
-  vectors, which
-  `PYTHON_BITCOINLIB_VECTORS` slices away with `[:10]`. A coverage
-  question rather than a provenance one, so only noted here.
+Decided on 2026-08-01: **every vendored vector is now exercised**. Two
+were not, and neither turned out to be hiding a failure — which is the
+only way to find out.
+
+- 190 of `signmessage.json`'s 200 were sliced away by a `[:10]` in
+  `PYTHON_BITCOINLIB_VECTORS`; all 200 run now, and all 200 pass.
+- 1016 of `script_assets_test.json`'s 3737 cases never reached the
+  engine: `taproot_vectors` in
+  `tests/script_engine/test_transactions.py` selected on `"TAPROOT" in
+  x["flags"]`, which drops the copy of each spend that Core's
+  `feature_taproot.py` dumps with the soft fork *off*. All 1016 run now,
+  685 accepted and 331 refused, as their vectors ask.
 
 ### Refreshed on 2026-07-30, issues 168 to 170
 

@@ -11,7 +11,7 @@ release-notes length in the first place, and are still in
 
 ## v2026.8 (work in progress, not released yet)
 
-A hundred and thirty-four entries, grouped. The order runs from what breaks
+A hundred and thirty-five entries, grouped. The order runs from what breaks
 a caller to what only maintainers see; [HISTORY.md](./HISTORY.md) lists the
 sixteen source-breaking changes on their own.
 
@@ -1323,6 +1323,26 @@ sixteen source-breaking changes on their own.
 
 ### Tests
 
+- **every vendored vector is exercised**, where two filters used to hold
+  1206 of them back. `taproot_vectors` in
+  `tests/script_engine/test_transactions.py` selected on `"TAPROOT" in
+  x["flags"]`, which drops 1016 of `script_assets_test.json`'s 3737
+  cases: Core's `feature_taproot.py` dumps each spend twice, once with
+  the soft fork enforced and once without, and the second copy is what
+  asserts that a taproot output stays anyone-can-spend to a node that
+  does not know the rule — so the filter tested the new rule 2721 times
+  and the upgrade path it is reached by never. The other was a `[:10]`
+  on `signmessage.json`'s 200 vectors, kept on the reasoning that the
+  ones after the tenth "prove the same thing again", which nothing had
+  measured and nothing else was proving: that file is the only place
+  those 190 addresses appear. Neither was hiding a failure — the 1016
+  pass, 685 accepted and 331 refused as their vectors ask, and so do the
+  190 — and neither was covered elsewhere: 943 of the 1016 were reached
+  by no other test at all, the other 73 only by `test_valid_script_path`,
+  which checks the taproot commitment and runs no script. 2222 more
+  cases, and the wall
+  clock does not move, xdist spreading them; the cost is the 190 extra
+  signatures, about 19 s of CPU across the workers
 - **coverage is 100% and the ratchet is 99.99%**, where it was 99.9% and
   the measured total 99.92%. That gap was not a rounding allowance being
   used up: it was 12 uncovered statements, and 15 of slack is what let

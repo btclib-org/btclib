@@ -50,7 +50,7 @@ from btclib.script.engine import tapscript as engine_tapscript
 # the modules, not the names in them: `from … import test_script` binds a
 # test function into this module too, and pytest then collects it here as
 # well -- with its own parametrize and without the fixture below, which
-# is 4168 vectors run a second time against the bindings for nothing
+# is 5184 vectors run a second time against the bindings for nothing
 from tests.script_engine import test_script as script_vector_module
 from tests.script_engine import test_transactions as tx_vector_module
 

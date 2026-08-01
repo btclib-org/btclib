@@ -42,11 +42,28 @@ TAPSCRIPT = vectors.load("script", "_data", "script_assets_test.json")
 
 
 def taproot_vectors(outcome: str) -> list[Any]:
-    """The TAPROOT vectors carrying a `success` or a `failure` witness."""
+    """Every vector carrying an `outcome` witness, whatever its flags.
+
+    `"TAPROOT" in x["flags"]` used to stand here as well, and it dropped
+    1016 of the file's 3737 cases: 685 `success` and 331 `failure` whose
+    flags field stops at NULLDUMMY. Those are not off-topic vectors.
+    Core's `feature_taproot.py` dumps a spend twice, once with the soft
+    fork enforced and once without, and the second copy is what asserts
+    that a taproot output stays anyone-can-spend to a node that does not
+    know the rule -- the upgrade path, which the filter left untested
+    while testing the rule itself 2721 times.
+
+    Nothing was hidden behind it: all 1016 pass as they stand, 685
+    accepted and 331 refused, so this is a coverage change and not a fix.
+    Nor were they covered elsewhere -- 612 of them are reached by no other
+    test, and the remaining 73 only by `test_valid_script_path`, which
+    checks the taproot commitment and runs no script.
+
+    """
     return [
         pytest.param(x, id=vectors.vector_id(index, x["comment"]))
         for index, x in enumerate(TAPSCRIPT)
-        if "TAPROOT" in x["flags"] and outcome in x
+        if outcome in x
     ]
 
 
@@ -83,7 +100,14 @@ def test_invalid_taproot(vector: dict[str, Any]) -> None:
 
 
 def annex_vectors() -> list[Any]:
-    """The TAPROOT vectors whose witness carries an annex to be stripped."""
+    """The TAPROOT vectors whose witness carries an annex to be stripped.
+
+    The flags test `taproot_vectors` above no longer makes is kept here,
+    and selects the same 248 vectors with or without it: no vector whose
+    flags stop short of TAPROOT carries an annex, measured. It stays as
+    the statement that an annex is a taproot notion, which is what makes
+    a future vector contradicting it worth looking at.
+    """
     params = []
     for index, x in enumerate(TAPSCRIPT):
         if "TAPROOT" not in x["flags"]:

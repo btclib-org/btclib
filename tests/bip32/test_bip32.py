@@ -241,7 +241,13 @@ def test_derive_exceptions() -> None:
     # root key, zero depth
     rootmxprv = "xprv9s21ZrQH143K3QTDL4LXw2F7HEK3wJUD2nW2nRk4stbPy6cq3jPPqjiChkVvvNKmPGJxWUtg6LnF5kejMRNNU3TGtRBeJgk33yuGBxrMPHi"
     xprv = BIP32KeyData.b58decode(rootmxprv)
-    # assert xprv == _derive(xprv, "m")
+    # a commented-out `xprv == _derive(xprv, "m")` used to sit here, and it
+    # was not a check waiting to be switched on: `_derive` returns the
+    # private `_BIP32KeyData`, whose two caching fields the class tells the
+    # reader not to rely on, and a dataclass __eq__ answers False across
+    # classes however equal the six fields are. What it meant to assert --
+    # the empty path derives the key itself -- is the line below, in the
+    # encoding that compares all six
     assert rootmxprv == derive(xprv, "m")
     assert rootmxprv == derive(xprv, "")
 
