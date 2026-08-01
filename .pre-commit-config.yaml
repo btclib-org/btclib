@@ -24,6 +24,17 @@ ci:
   skip: [mypy]
 
 repos:
+  # this file checking itself, and the only two hooks here with no
+  # environment to install. A `files` or `exclude` pattern that stops
+  # matching anything is a hook that has quietly stopped running, which is
+  # the shape of issue #145 one level up: the rule is still written down
+  # and no longer enforced. Two patterns to go stale today -- the
+  # `files: \.py$` on copyright-notice and the `exclude` on
+  # name-tests-test above -- and nothing else would say so
+  - repo: meta
+    hooks:
+      - id: check-hooks-apply
+      - id: check-useless-excludes
   - repo: https://github.com/pre-commit/pre-commit-hooks
     rev: v6.0.0
     hooks:
@@ -36,20 +47,70 @@ repos:
         # converted the wrong way. This repository is LF throughout
         args: [--fix=lf]
       - id: check-case-conflict
-      # - id: check-executables-have-shebangs
+      # check-executables-have-shebangs was added here and taken out
+      # again, by check-hooks-apply above: it selects on types
+      # [executable], nothing tracked here carries that bit, and a hook
+      # that matches no file is not a guard on the future but a line that
+      # reads as a rule while enforcing nothing. That is the whole reason
+      # the meta hooks are in this file, so overruling one of them the
+      # day it first fired would have been an odd way to start
+      #
+      # its converse stays off too, and not by oversight: every module here
+      # opens with "#!/usr/bin/env python3", which is the house header
+      # above the copyright notice the hook below enforces and not a
+      # claim that the file is a script. 154 files have one and none is
+      # executable, so enabling this means either chmod +x on a library
+      # or deleting a convention -- measured, not guessed
       # - id: check-shebang-scripts-are-executable
-      # - id: fix-byte-order-marker
+      # no byte order mark anywhere today, and the same kind of guard as
+      # check-executables-have-shebangs: what it costs is one line, what
+      # it buys is that an editor on another platform cannot quietly add
+      # three bytes in front of a python file
+      - id: fix-byte-order-marker
+      # this one *adds* "# -*- coding: utf-8 -*-" to every python file.
+      # UTF-8 has been the default source encoding since python 3 and the
+      # floor here is 3.10, so it is 155 dead lines
       # - id: fix-encoding-pragma
       - id: check-yaml
       - id: check-json
+      # 44 files fail it, and both halves of that number are reasons not
+      # to run it. 17 are _generated_files, written by the golden-file
+      # fixture with json.dumps(indent=4) against this hook's default of
+      # 2, so the two would rewrite each other on every run. The rest are
+      # the vendored vectors, six of which tests/_data/README.md declares
+      # "identical byte for byte" against an upstream blob SHA -- and a
+      # reformat voids the pin and the verdict together. check-json above
+      # already answers the question worth asking, which is whether they
+      # parse
       # - id: pretty-format-json
       - id: check-merge-conflict
       - id: check-vcs-permalinks
       - id: detect-private-key
       - id: debug-statements
       - id: check-docstring-first
-      # - id: name-tests-test
+      # --pytest-test-first, i.e. test_*.py: the hook's default is the
+      # other convention, *_test.py, which every test file here fails.
+      # What it is for is the one failure mode a test suite cannot report
+      # on itself -- a file named so that pytest never collects it is not
+      # a red test, it is no test, and the count in the report is the
+      # only thing that moves. conftest.py and the __init__.py files are
+      # skipped by the hook itself; tests/vectors.py is the loader the
+      # tests share and the one file that has to be named for what it is
+      - id: name-tests-test
+        args: [--pytest-test-first]
+        exclude: ^tests/vectors\.py$
       - id: check-toml
+      # only files being *added* are measured, the hook intersecting its
+      # arguments with git's added set, so the 9 MB of
+      # script_assets_test.json already vendored does not trip it and the
+      # next one that size does. The default 500 KB is left alone: it is
+      # the threshold at which a blob deserves a sentence in
+      # tests/_data/README.md saying where it came from
+      - id: check-added-large-files
+      # there are none, and a submodule is the one dependency that would
+      # not be in uv.lock, not be pinned by dependabot, and not be
+      # visible in an sdist
+      - id: forbid-submodules
   # the credentials of other systems, which is the half of secret scanning
   # GitHub's free plan does not cover: partner and provider tokens are
   # scanned server-side, the generic patterns (PEM keys, connection
@@ -135,6 +196,21 @@ repos:
       - id: markdownlint-cli2
         name: markdownlint-cli2 (in place fixes)
         args: [--fix]
+  # .github/dependabot.yml is validated by nothing else here: check-yaml
+  # above asks whether it is yaml, and actionlint below reads workflows
+  # and not this. A typo in a package-ecosystem or a directory is not an
+  # error to GitHub -- it silently updates nothing, and the evidence is a
+  # pull request that never arrives. That file is the whole of the answer
+  # to issue #158, both ecosystems targeting dev so that bot commits reach
+  # master through it, so "it stopped running and said nothing" is exactly
+  # the failure to guard against.
+  # check-github-workflows is not added beside it: actionlint already
+  # reads every workflow and goes further than the schema does, into
+  # expressions, contexts and runner labels
+  - repo: https://github.com/python-jsonschema/check-jsonschema
+    rev: 0.35.0
+    hooks:
+      - id: check-dependabot
   # the workflows are 3, 6 and 8 KB of yaml with expressions in it, and
   # nothing validated them: an unknown key, a typo in a context reference,
   # an action input that does not exist, a job depending on a job that is

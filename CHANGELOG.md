@@ -11,7 +11,7 @@ release-notes length in the first place, and are still in
 
 ## v2026.8 (work in progress, not released yet)
 
-A hundred and forty-one entries, grouped. The order runs from what breaks
+A hundred and forty-two entries, grouped. The order runs from what breaks
 a caller to what only maintainers see; [HISTORY.md](./HISTORY.md) lists the
 sixteen source-breaking changes on their own.
 
@@ -1611,6 +1611,35 @@ sixteen source-breaking changes on their own.
 
 ### Packaging, linting and CI
 
+- **the six hooks commented out in `.pre-commit-config.yaml` are decided,
+  three either way, and five more are added.** Each was measured against
+  this tree rather than argued about. On: `name-tests-test`, with
+  `--pytest-test-first` because the hook's default is the other
+  convention, guarding the one failure a test suite cannot report on
+  itself — a file pytest never collects is not a red test, it is no test;
+  `fix-byte-order-marker`, which finds nothing today and stops an editor
+  on another platform adding three bytes tomorrow. Off, with the
+  measurement written beside each: `check-shebang-scripts-are-executable`
+  fails on 154 files, every module opening with `#!/usr/bin/env python3`
+  as the house header and none of them a script;
+  `fix-encoding-pragma` would *add* 155 dead `# -*- coding: utf-8 -*-`
+  lines, UTF-8 being the default since python 3 against a floor of 3.10;
+  `pretty-format-json` fails on 44 files, 17 of them `_generated_files`
+  written at `indent=4` against the hook's default of 2 — the two would
+  rewrite each other every run — and the rest the vendored vectors, six of
+  which `tests/_data/README.md` declares identical byte for byte against
+  an upstream blob SHA that a reformat voids. Added: pre-commit's own
+  `check-hooks-apply` and `check-useless-excludes`, which are this file
+  checking itself — a `files` pattern matching nothing is a rule that has
+  stopped running, issue #145 one level up, and the first thing the hook
+  did was reject `check-executables-have-shebangs` from this very entry,
+  correctly, nothing here carrying that bit; `check-dependabot`, because
+  `.github/dependabot.yml` was validated by nothing and a typo there
+  updates nothing and says nothing, which is the whole of issue #158's
+  answer failing silently; `check-added-large-files`, which measures only
+  files being added, so the 9 MB already vendored passes and the next one
+  does not; and `forbid-submodules`, a submodule being the one dependency
+  that would be in neither uv.lock nor dependabot nor an sdist
 - moved the project management to [uv](https://docs.astral.sh/uv/):
   dependencies, dependency groups, and packaging metadata are declared in
   pyproject.toml (setup.py, requirements.txt, requirements-dev.txt, and
