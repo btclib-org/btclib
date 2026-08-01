@@ -1386,12 +1386,18 @@ twenty-nine source-breaking changes on their own.
   `s2c/ecdsa/point` for the tweak and `s2c/ecdsa/data` for the entropy,
   so a commitment made here opens under
   `secp256k1_ecdsa_s2c_verify_commit`. The two fixed vectors of that
-  module's test suite are the test, and they pin the whole derivation at
-  once — both tags, RFC6979's additional data, and the `key||msg||data`
-  seed layout — because the opening they expect is the untweaked nonce's
-  point and nothing else produces it. That replaces the vectors this
-  library generated for itself, which could only say that the scheme had
-  not changed, and the scheme *had* to change. ssa gains the commitment
+  module's test suite are the test, and they pin the derivation of the
+  untweaked nonce entire — the `s2c/ecdsa/data` tag, RFC6979's additional
+  data, and the `key||msg||data` seed layout — because the opening they
+  expect is that nonce's point and nothing else produces it. That
+  replaces the vectors this library generated for itself, which could
+  only say that the scheme had not changed, and the scheme *had* to
+  change. The tweak happens after the opening, so no vector reaches
+  `s2c/ecdsa/point`: mangle that tag and every vector still passes while
+  nothing btclib signs opens under the reference any more. It is pinned
+  instead by recomputing, from the tag strings themselves, the two SHA256
+  midstates the C source hardcodes — with the data tag as the control,
+  being the one the openings pin as well. ssa gains the commitment
   on the way, which the module never offered: BIP340 signs with the
   even-y nonce, so it is the *tweaked* point whose parity has to be
   settled, and the receipt stays the even-y point the tweak hashed. It is
