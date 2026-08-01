@@ -19,6 +19,7 @@ import secrets
 from collections.abc import Callable, Mapping, Sequence
 from copy import deepcopy
 from dataclasses import dataclass
+from io import BytesIO
 from typing import Any, TypeVar, cast
 
 from btclib.alias import BinaryData, Octets, ScriptList, String
@@ -299,9 +300,12 @@ class Psbt:
     ) -> Psbt:
         """Return a Psbt by parsing binary data.
 
-        A psbt ends at the separator of its last map, and the stream is
-        left right there: what follows is the caller's, so a psbt can be
-        read out of a stream that carries more than the psbt.
+        A psbt ends at the separator of its last map. A stream is left
+        right there, what follows in it being the caller's, so a psbt can
+        be read out of a stream that carries more than the psbt; octets
+        are the whole of one, so anything after it is refused. Bitcoin
+        Core splits the two the same way, between PSBTInput::Unserialize
+        and DecodeRawPSBT's "extra data after PSBT".
         """
         # None until the global map yields one, which BIP174 requires it to:
         # "The unsigned transaction must be provided". Not a
@@ -339,6 +343,15 @@ class Psbt:
 
         inputs = [PsbtIn.parse(stream) for _ in tx.vin]
         outputs = [PsbtOut.parse(stream) for _ in tx.vout]
+
+        # what is left in a caller's stream is the caller's; what is left
+        # in octets is malleability, two buffers deserializing to the one
+        # object that serializes back to only the shorter of them
+        if not isinstance(data, BytesIO):
+            trailing = stream.read()
+            if trailing:
+                err_msg = f"malformed psbt: {len(trailing)} bytes after the psbt"
+                raise BTClibValueError(err_msg)
 
         return cls(
             tx,

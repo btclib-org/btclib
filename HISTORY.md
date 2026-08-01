@@ -7,7 +7,7 @@ full year, short month, short day (YYYY-M-D)
 
 ## v2026.8 (work in progress, not released yet)
 
-The first release since 2023, and the largest: a hundred and sixty-nine
+The first release since 2023, and the largest: a hundred and seventy
 entries, in [CHANGELOG.md](./CHANGELOG.md). What follows is what a user has
 to act on and what a user gains.
 
@@ -19,7 +19,7 @@ CHANGELOG.md.
 
 ### Breaking changes
 
-Twenty-six changes break code that worked on v2023.7.12. Each is described in
+Twenty-seven changes break code that worked on v2023.7.12. Each is described in
 full in [CHANGELOG.md](./CHANGELOG.md). Every "before" spelling was checked
 against the `v2023.7.12` tag.
 
@@ -111,6 +111,10 @@ against the `v2023.7.12` tag.
   `btclib.psbt.psbt`: every kind of map writes it now, and `psbt_utils` is
   the module all three can reach. `PSBT_SEPARATOR`, the `0xff` after the
   magic bytes, stays where it was.
+- **`Psbt.parse` and `Psbt.b64decode` reject trailing bytes**, as
+  `dsa.Sig.parse` does: octets are a whole psbt, and `malformed psbt: N
+  bytes after the psbt` is the answer to anything after one. Handing a
+  `BytesIO` over is how a caller says the rest of the buffer is theirs.
 - **`electrum.mnemonic_from_entropy` returns the mnemonic Electrum
   returns**, which is not the one btclib returned: the words run
   least-significant first and the search starts at `entropy + 1`, so the

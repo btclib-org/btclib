@@ -11,9 +11,9 @@ release-notes length in the first place, and are still in
 
 ## v2026.8 (work in progress, not released yet)
 
-A hundred and sixty-nine entries, grouped. The order runs from what breaks
+A hundred and seventy entries, grouped. The order runs from what breaks
 a caller to what only maintainers see; [HISTORY.md](./HISTORY.md) lists the
-twenty-six source-breaking changes on their own.
+twenty-seven source-breaking changes on their own.
 
 ### Repository
 
@@ -1204,6 +1204,17 @@ twenty-six source-breaking changes on their own.
   what moved is which function writes the `0x00`, and `PSBT_DELIMITER`
   with it: it is `btclib.psbt.psbt_utils`' now, that being the one module
   all three kinds of map can reach (issue #179)
+- **A psbt given as octets is a whole psbt.** `Psbt.parse` refuses what
+  follows one — `malformed psbt: 3 bytes after the psbt` — where it read
+  to the last output map and ignored the rest, and `Psbt.b64decode`
+  refuses it through the same path. A tail is malleability rather than
+  slack: two buffers deserialize to one object, which serializes back to
+  only the shorter of them, and that is the same defect an unchecked read
+  length was in #138. A `BytesIO` is the case that keeps the leniency,
+  because there it means something else — the caller reads on from where
+  the psbt ended. Bitcoin Core draws the line in that very place: "extra
+  data after PSBT" is `DecodeRawPSBT`'s, the entry point taking a buffer,
+  and not the `Unserialize` that reads a stream (issue #179)
 
 ### The public API and the module layout
 

@@ -9,6 +9,7 @@
 # or distributed except according to the terms contained in the LICENSE file.
 """Tests for the `btclib.psbt.psbt` module."""
 
+import base64
 from io import BytesIO
 from typing import Any
 
@@ -341,6 +342,29 @@ def test_parse_reads_a_stream() -> None:
     # BinaryData is a superset of Octets: bytes and hex-string still parse
     assert Psbt.parse(psbt_bin) == psbt
     assert Psbt.parse(psbt_bin.hex()) == psbt
+
+
+def test_parse_refuses_what_follows_a_psbt_in_octets() -> None:
+    """Octets are a psbt whole, and a tail is malleability.
+
+    Accepting one means two buffers deserialize to the same object, and
+    that object serializes back to only the shorter of them -- the same
+    thing an unchecked read length would buy, which is what #138 was.
+    Bitcoin Core refuses it in DecodeRawPSBT, the entry point that takes
+    a buffer, and not in the Unserialize that reads a stream.
+    """
+    tx_in = TxIn(OutPoint(bytes(range(32)), 1), b"", 0xFFFFFFFF)
+    tx_out = TxOut(2500000, "a914f987c321394968be164053d352fc49763b2be55c87")
+    psbt_bin = Psbt.from_tx(Tx(1, 0, [tx_in], [tx_out])).serialize()
+
+    err_msg = "malformed psbt: 3 bytes after the psbt"
+    with pytest.raises(BTClibValueError, match=err_msg):
+        Psbt.parse(psbt_bin + b"abc")
+    with pytest.raises(BTClibValueError, match=err_msg):
+        Psbt.parse((psbt_bin + b"abc").hex())
+    # base64 is octets too, being decoded to them
+    with pytest.raises(BTClibValueError, match=err_msg):
+        Psbt.b64decode(base64.b64encode(psbt_bin + b"abc").decode("ascii"))
 
 
 def test_explicit_version() -> None:
