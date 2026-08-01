@@ -405,7 +405,10 @@ OPERATIONS: Mapping[str, ScriptOp] = {
 }
 
 
-def verify_script(  # noqa: C901 -- what the OPERATIONS table cannot hold, read against Core's EvalScript: the op codes needing the engine's own state, and the pushes matched by shape rather than by name
+# what the OPERATIONS table cannot hold, read against Core's EvalScript:
+# the op codes needing the engine's own state, and the pushes matched by
+# shape rather than by name
+def verify_script(  # noqa: C901
     script_bytes: bytes,
     stack: list[bytes],
     prevout_value: int,

@@ -180,7 +180,10 @@ OPERATIONS: Mapping[str, ScriptOp] = {
 }
 
 
-def verify_script_path_vc0(  # noqa: C901 -- what the OPERATIONS table cannot hold, read against Core's tapscript rules: the op codes needing the engine's own state, the sigops budget among it
+# what the OPERATIONS table cannot hold, read against Core's tapscript
+# rules: the op codes needing the engine's own state, the sigops budget
+# among it
+def verify_script_path_vc0(  # noqa: C901
     script_bytes: bytes,
     stack: list[bytes],
     prevouts: list[TxOut],
