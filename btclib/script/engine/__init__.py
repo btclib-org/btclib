@@ -11,7 +11,7 @@
 
 from __future__ import annotations
 
-from btclib.alias import Command, ScriptList
+from btclib.alias import Command
 from btclib.exceptions import BTClibValueError
 from btclib.hashes import sha256
 from btclib.script.engine import tapscript
@@ -25,7 +25,7 @@ from btclib.script.engine.flags import (
 from btclib.script.engine.script import verify_script as verify_script_legacy
 from btclib.script.engine.script_op_codes import _to_num
 from btclib.script.limits import MAX_SCRIPT_ELEMENT_SIZE
-from btclib.script.script import ERROR_COMMAND, parse, serialize
+from btclib.script.script import op_code_spans, parse, serialize
 from btclib.script.script_pub_key import is_segwit, type_and_payload
 from btclib.script.sig_hash import PrecomputedTxData
 from btclib.script.taproot import check_output_pubkey
@@ -50,7 +50,7 @@ __all__ = [
     "taproot_get_annex",
     "taproot_unwrap_script",
     "to_script_flags",
-    "validate_redeem_script",
+    "validate_push_only",
     "verify_amounts",
     "verify_input",
     "verify_transaction",
@@ -86,20 +86,42 @@ def taproot_get_annex(witness: Witness) -> tuple[bytes, list[bytes]]:
     return b"", list(witness.stack)
 
 
-def validate_redeem_script(redeem_script: ScriptList) -> None:
-    for c in redeem_script:
-        if isinstance(c, str):
-            if c == "OP_1NEGATE":
-                continue
-            if c == ERROR_COMMAND:
-                # Core's IsPushOnly answers false when GetOp fails, so a
-                # script_sig whose last push runs past the end is not
-                # push-only: the parse marks that place instead of
-                # refusing the bytes (issue #123), and the mark is not a
-                # push
-                raise BTClibValueError("unreadable command in the script_sig")
-            if c[:2] == "OP" and not c[3:].isdigit():
-                raise BTClibValueError(f"non-push command in the script_sig: {c}")
+def validate_push_only(script_sig: bytes) -> None:
+    """Refuse a script_sig that is not push-only: Core's CScript::IsPushOnly.
+
+    The rule the SIGPUSHONLY flag names and BIP16 makes consensus, and
+    Core writes it as a walk over the bytes: an op code at or below OP_16
+    pushes a value, every byte above it is an operator, and GetOp failing
+    ends the walk with a no -- so a script_sig whose last push runs past
+    the end is not push-only either, the parse marking that place rather
+    than refusing the bytes (issue #123).
+
+    Over the bytes and not over the parsed commands, because a scan of
+    the commands can only test the names, and the names do not draw
+    Core's line. The 69 bytes above OP_16 that no op-code table names
+    parse as `UNKNOWN_OP_CODE_n`, which no test for an `OP_` prefix takes
+    for an operator, and `OP_RESERVED` parses as a name where 0x50 is
+    below OP_16 and pushes nothing at all -- 70 bytes answered wrongly in
+    both directions (issue #220). Walking the bytes asks Core's question
+    of every byte, named or not.
+
+    No spend hangs on the difference today: the interpreter refuses every
+    unnamed byte the moment it executes one, and putting one where it
+    does not execute takes a conditional, which is named and refused
+    here. That agreement is a coincidence between two modules, though,
+    and a soft fork naming one of those 69 -- which is what they are
+    reserved for -- is what ends it.
+    """
+    consumed = 0
+    for op_code, start, stop in op_code_spans(script_sig):
+        if op_code > 0x60:  # OP_16
+            err_msg = (
+                f"non-push op code in the script_sig: {op_code:#04x} at byte {start}"
+            )
+            raise BTClibValueError(err_msg)
+        consumed = stop
+    if consumed != len(script_sig):
+        raise BTClibValueError(f"unreadable push in the script_sig at byte {consumed}")
 
 
 # Core's IsPayToAnchor, spelled as the whole script because that is how
@@ -110,12 +132,10 @@ def validate_redeem_script(redeem_script: ScriptList) -> None:
 PAY_TO_ANCHOR = b"\x51\x02\x4e\x73"
 
 
-def _check_script_sig_policy(
-    parsed_script_sig: ScriptList, script_flags: ScriptFlag
-) -> None:
+def _check_script_sig_policy(script_sig: bytes, script_flags: ScriptFlag) -> None:
     """Refuse the script_sig shapes SIGPUSHONLY and CONST_SCRIPTCODE ban."""
     if ScriptFlag.SIGPUSHONLY in script_flags:
-        validate_redeem_script(parsed_script_sig)
+        validate_push_only(script_sig)
     if ScriptFlag.CONST_SCRIPTCODE in script_flags:
         # the four op codes Core's CONST_SCRIPTCODE watches through
         # FindAndDelete: a signature check carried in the script_sig
@@ -137,7 +157,10 @@ def _check_script_sig_policy(
             "OP_CHECKMULTISIG",
             "OP_CHECKMULTISIGVERIFY",
         )
-        for x in parsed_script_sig:
+        # parsed here and only here: the push-only walk above reads the
+        # bytes, so under no flag but this one is a parse of the
+        # script_sig needed at all
+        for x in parse(script_sig):
             if x in op_checks:
                 raise BTClibValueError(f"signature check in the script_sig: {x}")
 
@@ -340,8 +363,7 @@ def verify_input(
     """
     script_flags = to_script_flags(flags)
     script_sig = tx.vin[i].script_sig
-    parsed_script_sig = parse(script_sig)
-    _check_script_sig_policy(parsed_script_sig, script_flags)
+    _check_script_sig_policy(script_sig, script_flags)
 
     stack: list[bytes] = []
     verify_script_legacy(
@@ -359,7 +381,7 @@ def verify_input(
     p2sh = False
     if script_type == "p2sh" and ScriptFlag.P2SH in script_flags:
         p2sh = True
-        validate_redeem_script(parsed_script_sig)  # similar to SIGPUSHONLY
+        validate_push_only(script_sig)  # BIP16 makes SIGPUSHONLY consensus here
         script = p2sh_script
         verify_script_legacy(
             script, stack, prevouts[i].value, tx, i, script_flags, False, True

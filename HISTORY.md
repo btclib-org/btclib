@@ -7,7 +7,7 @@ full year, short month, short day (YYYY-M-D)
 
 ## v2026.8 (work in progress, not released yet)
 
-The first release since 2023, and the largest: a hundred and seventy-three
+The first release since 2023, and the largest: a hundred and seventy-four
 entries, in [CHANGELOG.md](./CHANGELOG.md). What follows is what a user has
 to act on and what a user gains.
 
@@ -19,7 +19,7 @@ CHANGELOG.md.
 
 ### Breaking changes
 
-Twenty-seven changes break code that worked on v2023.7.12. Each is described in
+Twenty-eight changes break code that worked on v2023.7.12. Each is described in
 full in [CHANGELOG.md](./CHANGELOG.md). Every "before" spelling was checked
 against the `v2023.7.12` tag.
 
@@ -149,6 +149,13 @@ against the `v2023.7.12` tag.
   `Unknown op code`: Core reads it too, and it is the interpreter that
   refuses it. A caller passing it positionally or by keyword gets a
   TypeError.
+- **`script.engine.validate_redeem_script` is
+  `script.engine.validate_push_only`, and takes the script_sig bytes**:
+  `validate_push_only(tx.vin[i].script_sig)`, where it was
+  `validate_redeem_script(parse(tx.vin[i].script_sig))`. It is Core's
+  `CScript::IsPushOnly`, which compares each op code against OP_16 — and
+  the name says which script it is asked about, the script_sig, at both
+  call sites as in Core.
 - **`psbt_utils.assert_valid_taproot_tree` is gone**, with the leaf-script
   validation it performed: a PSBT tap tree is stored as it arrives, as
   Core's PSBT stores it. Nothing replaces the call — `PsbtOut.assert_valid`

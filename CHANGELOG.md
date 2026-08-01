@@ -11,9 +11,9 @@ release-notes length in the first place, and are still in
 
 ## v2026.8 (work in progress, not released yet)
 
-A hundred and seventy-three entries, grouped. The order runs from what breaks
+A hundred and seventy-four entries, grouped. The order runs from what breaks
 a caller to what only maintainers see; [HISTORY.md](./HISTORY.md) lists the
-twenty-seven source-breaking changes on their own.
+twenty-eight source-breaking changes on their own.
 
 ### Repository
 
@@ -1101,6 +1101,28 @@ twenty-seven source-breaking changes on their own.
   passing for the wrong reason until this landed — "520 byte push" and
   the same in a branch nothing takes, which `serialize` refused to build,
   so the harness raised before any engine ran
+- **`script.engine.validate_redeem_script` is `validate_push_only`, and
+  walks the script_sig bytes** where it scanned parsed commands (issue
+  #220). The rule is Core's `CScript::IsPushOnly`, a comparison of each
+  op code against OP_16, and a scan of the command *names* cannot be
+  that comparison: it answered 70 of the 256 bytes wrongly, in both
+  directions. The 69 above OP_16 that no op-code table names parse as
+  `UNKNOWN_OP_CODE_n`, which carries no `OP_` prefix to refuse, so they
+  passed as pushes; `OP_RESERVED` carries one where 0x50 is *below*
+  OP_16, so it was refused as an operator. No spend changed hands over
+  either — the interpreter refuses every unnamed byte the moment it
+  executes one, and putting one where it does not execute takes a
+  conditional, which is named — so what differed is which rule refuses,
+  Core's `SCRIPT_ERR_SIG_PUSHONLY` against btclib's "unknown op code",
+  and the agreement was a coincidence between two modules that a soft
+  fork naming one of those 69 would end. The function is public, and as
+  a predicate in its own right it was giving the wrong answer. Taking
+  the script_sig bytes — the script both SIGPUSHONLY and BIP16 are
+  about, which is what the new name says — also buys `GetOp`'s half of
+  Core's rule for nothing, a script_sig whose last push runs past the
+  end being not push-only, and leaves `verify_input` parsing the
+  script_sig only under CONST_SCRIPTCODE: one parse less per input. The
+  error names the offending byte and its offset
 - the script verification flags are a `ScriptFlag`, an `enum.Flag` of the
   new `btclib.script.engine.flags`, where they were a list of plain
   strings the engine tested with `"P2SH" in flags`: a misspelled name was

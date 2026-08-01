@@ -27,7 +27,7 @@ from btclib.script.engine import (
     ALL_FLAGS,
     NO_FLAGS,
     ScriptFlag,
-    validate_redeem_script,
+    validate_push_only,
     verify_input,
 )
 from btclib.script.engine.script import (
@@ -837,17 +837,78 @@ def test_a_truncated_script_sig_is_not_push_only() -> None:
     """Core's IsPushOnly answers false where GetOp fails, and so does this.
 
     The parse marks the place a push runs past the end rather than
-    refusing the bytes (issue #123), and that mark is not a push: read as
-    one -- it is a str, and it does not begin with OP -- a script_sig
-    ending in a truncated push would have satisfied SIGPUSHONLY.
+    refusing the bytes (issue #123), and the walk stops there: the bytes
+    it did not consume are not a push, so the script_sig is not
+    push-only.
     """
-    with pytest.raises(BTClibValueError, match="unreadable command"):
-        validate_redeem_script(parse(b"\x51\x4c\x05\xaa\xbb"))
+    with pytest.raises(BTClibValueError, match="unreadable push .* at byte 1"):
+        validate_push_only(b"\x51\x4c\x05\xaa\xbb")
 
     # a push and OP_1NEGATE are push-only; an op code is not
-    validate_redeem_script(parse(b"\x01\xff\x4f"))
-    with pytest.raises(BTClibValueError, match="non-push command"):
-        validate_redeem_script(parse(b"\x01\xff\xac"))
+    validate_push_only(b"\x01\xff\x4f")
+    with pytest.raises(BTClibValueError, match="non-push op code .*: 0xac at byte 2"):
+        validate_push_only(b"\x01\xff\xac")
+
+
+def _one_op_code_script(op_code: int) -> bytes:
+    """That op code alone, a push carrying the data it declares."""
+    if 0 < op_code < 0x4C:  # a push of its own length
+        return bytes([op_code]) + b"\x2a" * op_code
+    if op_code in (0x4C, 0x4D, 0x4E):  # OP_PUSHDATA1, OP_PUSHDATA2, OP_PUSHDATA4
+        return (
+            bytes([op_code]) + (1).to_bytes(2 ** (op_code - 0x4C), "little") + b"\x2a"
+        )
+    return bytes([op_code])
+
+
+def test_push_only_reads_the_op_code_and_not_its_name() -> None:
+    """Core's line, over all 256 bytes: OP_16 and below push, above do not.
+
+    The line is a comparison on the byte, and no scan of the parsed
+    commands draws it, the names not being the thing compared: the 69
+    bytes no op-code table names parse as `UNKNOWN_OP_CODE_n`, which
+    carries no `OP_` prefix to refuse, and 0x50 parses as `OP_RESERVED`,
+    which carries one where Core, 0x50 being below OP_16, takes it for a
+    push. Seventy bytes, wrong in both directions (issue #220).
+    """
+    named = [op for op in range(0x61, 0x100) if op in OP_CODE_NAME_FROM_INT]
+    assert len(named) == 256 - 0x61 - 69  # the other 69 are the unnamed ones
+    assert OP_CODE_NAME_FROM_INT[0x50] == "OP_RESERVED"
+
+    for op_code in range(0x100):
+        script = _one_op_code_script(op_code)
+        if op_code > 0x60:  # OP_16
+            with pytest.raises(BTClibValueError, match="non-push op code"):
+                validate_push_only(script)
+        else:
+            validate_push_only(script)
+
+
+def test_an_unnamed_op_code_in_a_script_sig_is_not_a_push() -> None:
+    """SIGPUSHONLY answers for 0xbb, where the interpreter would.
+
+    Core's error is SCRIPT_ERR_SIG_PUSHONLY and it comes before the
+    script_sig runs; a byte let through to the interpreter is refused as
+    an unknown op code instead, which is the same verdict by the wrong
+    rule -- and only until a soft fork names the byte, which is what the
+    69 unnamed ones are reserved for.
+
+    OP_RESERVED is the pair of it: push-only now says nothing about it,
+    and the interpreter refuses it where Core's does, executing it.
+    """
+    prevout = TxOut(1000, ScriptPubKey(""))
+
+    def spend_with(script_sig: bytes) -> Tx:
+        tx_in = TxIn(OutPoint(b"\x01" * 32, 0), script_sig, 1, Witness([]))
+        return Tx(2, 0, [tx_in], [TxOut(1000, ScriptPubKey(""))], check_validity=False)
+
+    tx = spend_with(b"\xbb")
+    with pytest.raises(BTClibValueError, match="non-push op code .*: 0xbb"):
+        verify_input([prevout], tx, 0, ScriptFlag.SIGPUSHONLY)
+
+    tx = spend_with(b"\x50")
+    with pytest.raises(ScriptError, match="unknown op code: OP_RESERVED"):
+        verify_input([prevout], tx, 0, ScriptFlag.SIGPUSHONLY)
 
 
 @pytest.mark.parametrize("skip_execution", [False, True])
