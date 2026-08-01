@@ -58,14 +58,20 @@ def challenge_(
     return int_from_bits(msg_hash, ec.nlen) % ec.n
 
 
-def _rfc6979_nonce_(c: int, q: int, ec: Curve, hf: HashF) -> int:
+def _rfc6979_nonce_(
+    c: int, q: int, ec: Curve, hf: HashF, extra_entropy: bytes = b""
+) -> int:
     # https://www.rfc-editor.org/rfc/rfc6979.html section 3.2
 
     # convert the private key q to an octet sequence of size n_size
     q_bytes = q.to_bytes(ec.n_size, byteorder="big", signed=False)
     # truncate and/or expand c: encoding size is driven by n_size
     c_bytes = c.to_bytes(ec.n_size, byteorder="big", signed=False)
-    bprvbm = q_bytes + c_bytes
+    # section 3.6 additional data k', appended to the key and the message
+    # rather than mixed in: the RFC leaves the encoding to the caller and
+    # libsecp256k1 appends its 32-byte ndata here, which is what makes the
+    # sign-to-contract vectors of commit_nonce reproducible
+    bprvbm = q_bytes + c_bytes + extra_entropy
 
     hf_size = hf().digest_size
     v = b"\x01" * hf_size  # 3.2.b
@@ -98,13 +104,24 @@ def _rfc6979_nonce_(c: int, q: int, ec: Curve, hf: HashF) -> int:
 
 
 def rfc6979_nonce_(
-    msg_hash: Octets, prv_key: PrvKey, ec: Curve = secp256k1, hf: HashF = sha256
+    msg_hash: Octets,
+    prv_key: PrvKey,
+    ec: Curve = secp256k1,
+    hf: HashF = sha256,
+    extra_entropy: Octets | None = None,
 ) -> int:
     """Return an RFC6979 deterministic ephemeral key (nonce).
 
     see https://www.rfc-editor.org/rfc/rfc6979.html section 3.2
+
+    extra_entropy is the section 3.6 additional data: two callers with
+    the same key and message reach different nonces by passing different
+    values, and the derivation stays deterministic in all of its inputs.
+    It is what a commitment travels through in commit_nonce, and what
+    libsecp256k1 calls ndata.
     """
     c = challenge_(msg_hash, ec, hf)
     q = int_from_prv_key(prv_key, ec)
+    extra = b"" if extra_entropy is None else bytes_from_octets(extra_entropy)
 
-    return _rfc6979_nonce_(c, q, ec, hf)
+    return _rfc6979_nonce_(c, q, ec, hf, extra)

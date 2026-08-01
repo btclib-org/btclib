@@ -40,8 +40,27 @@ R is the receipt, and it is the signer's to keep: nothing in the
 signature says what it was. `dsa.sign` and `ssa.sign` take the commitment
 as a parameter and return the receipt beside the signature, `dsa.verify`
 and `ssa.verify` take the two back to open the commitment, and this
-module is the nonce derivation behind all four -- beside the RFC6979 and
-BIP340 ones, which answer the same question when nothing is committed.
+module is the tweak behind all four.
+
+**The committed value must also reach the nonce derivation**, which is
+the half of the scheme that is easy to leave out and fatal to leave out.
+Tweaking alone leaves the untweaked k a function of the message and the
+key only, so two signatures over one message with two commitments have
+nonces differing by e2-e1 -- a value the openings make public. Two ECDSA
+signatures over one message with a known nonce difference are two
+equations in the two unknowns k and the private key, and the same holds
+for BIP340. libsecp256k1's own s2c module states it as the reason it
+refuses a custom nonce function: "an attacker can exfiltrate the secret
+key by signing the same message thrice with different commitments". So
+`commit_entropy_` is not optional garnish, and the two schemes each feed
+it to their nonce derivation before calling `commit_nonce_`: dsa through
+RFC6979's section 3.6 additional data, ssa through BIP340's auxiliary
+randomness.
+
+Both hashes are tagged, and the tags are the scheme's: they are what
+keeps a tweak from being read as a challenge, or an ECDSA commitment as a
+BIP340 one. Each caller passes its own, because they differ per scheme
+and a default would be the wrong one for somebody.
 """
 
 from __future__ import annotations
@@ -51,17 +70,30 @@ from hashlib import sha256
 from btclib.alias import HashF, Octets, Point
 from btclib.curves import Curve, bytes_from_point, mult, secp256k1
 from btclib.exceptions import BTClibRuntimeError
+from btclib.hashes import tagged_hash
 from btclib.to_prv_key import PrvKey, int_from_prv_key
 from btclib.utils import bytes_from_octets, int_from_bits
 
 
-def _tweak(commit_hash: Octets, receipt: Point, ec: Curve, hf: HashF) -> int:
-    """Return the hash(receipt||commit_hash) tweak for the provided receipt."""
+def commit_entropy_(commit_hash: Octets, tag: bytes, hf: HashF = sha256) -> bytes:
+    """Return the committed value as entropy for a nonce derivation.
+
+    Hashed, and not passed on as it is, so that a nonce can be derived by
+    someone who knows a hash of the value and not the value itself: that
+    is what lets a signing device commit to a host's randomness before
+    the host reveals it, which is the ordering the anti-exfil protocol is
+    built on.
+    """
+    return tagged_hash(tag, bytes_from_octets(commit_hash), hf)
+
+
+def _tweak(
+    commit_hash: Octets, receipt: Point, tag: bytes, ec: Curve, hf: HashF
+) -> int:
+    """Return the tagged hash(receipt||commit_hash) tweak for the receipt."""
     t = bytes_from_point(receipt, ec) + bytes_from_octets(commit_hash)
     while True:
-        h = hf()
-        h.update(t)
-        t = h.digest()
+        t = tagged_hash(tag, t, hf)
         # reducing the hash mod n -- whether the whole of it or its
         # leftmost nlen bits -- would introduce a bias, which is why
         # neither is done here
@@ -74,11 +106,17 @@ def _tweak(commit_hash: Octets, receipt: Point, ec: Curve, hf: HashF) -> int:
         tweak = int_from_bits(t, ec.nlen)  # candidate tweak
         if 0 < tweak < ec.n:  # acceptable value for tweak
             return tweak  # successful candidate
+        # libsecp256k1 fails here instead of asking the hash again, and
+        # on secp256k1 the two agree: the first candidate is out of range
+        # about once in 2^128. It is the low-cardinality curves that need
+        # a second candidate -- with nlen of 4 bits an out-of-range tweak
+        # is one in three -- and there the reference has no answer at all
 
 
 def commit_nonce_(
     commit_hash: Octets,
     nonce: PrvKey,
+    tag: bytes,
     ec: Curve = secp256k1,
     hf: HashF = sha256,
 ) -> tuple[int, Point]:
@@ -90,12 +128,12 @@ def commit_nonce_(
     """
     nonce = int_from_prv_key(nonce, ec)
     receipt = mult(nonce, ec.G, ec)
-    tweaked_nonce = (nonce + _tweak(commit_hash, receipt, ec, hf)) % ec.n
+    tweaked_nonce = (nonce + _tweak(commit_hash, receipt, tag, ec, hf)) % ec.n
     # the tweak is uniform in 1..n-1, so a zero sum is a one-in-n event
-    # and not a rejection to loop over: the nonce is either the caller's
-    # or the deterministic derivation's, and neither has a next candidate
-    # to offer. Refused here, because a nonce of zero has no point to sign
-    # with and mod_inv(0) is the error the caller would see instead
+    # and not a rejection to loop over: a second candidate would be a
+    # second tweak, and the tweak is what the verifier recomputes.
+    # Refused here, because a nonce of zero has no point to sign with and
+    # mod_inv(0) is the error the caller would see instead
     if tweaked_nonce == 0:
         raise BTClibRuntimeError("failed to sign: zero tweaked nonce")
     return tweaked_nonce, receipt
@@ -104,6 +142,7 @@ def commit_nonce_(
 def commit_point_(
     commit_hash: Octets,
     receipt: Point,
+    tag: bytes,
     ec: Curve = secp256k1,
     hf: HashF = sha256,
 ) -> Point:
@@ -114,4 +153,4 @@ def commit_point_(
     element -- so the comparison against r belongs to each scheme and not
     here.
     """
-    return ec.add(receipt, mult(_tweak(commit_hash, receipt, ec, hf), ec.G, ec))
+    return ec.add(receipt, mult(_tweak(commit_hash, receipt, tag, ec, hf), ec.G, ec))

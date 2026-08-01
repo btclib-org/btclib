@@ -80,7 +80,7 @@ from btclib.curves.curve import _libsecp256k1_applicable, mult
 from btclib.curves.curve_group import _mult, _multi_mult
 from btclib.curves.curve_group_2 import double_mult_w_NAF
 from btclib.ecc.bip340_nonce import bip340_nonce_
-from btclib.ecc.commit_nonce import commit_nonce_, commit_point_
+from btclib.ecc.commit_nonce import commit_entropy_, commit_nonce_, commit_point_
 from btclib.exceptions import BTClibRuntimeError, BTClibTypeError, BTClibValueError
 from btclib.hashes import reduce_to_hlen, tagged_hash
 from btclib.number_theory import mod_inv
@@ -92,6 +92,16 @@ from btclib.utils import (
     hex_string,
     int_from_bits,
 )
+
+# btclib's own sign-to-contract tags, and the only invented thing in the
+# scheme: libsecp256k1 has an ecdsa_s2c module and no schnorr one, and
+# BIP340 says nothing about commitments, so there is no upstream string
+# to copy and nothing to be interoperable with. Named for the standard
+# rather than for btclib's `ssa`, and not under BIP0340/, which would
+# claim the BIP defines this. Frozen all the same: a different string is
+# a different scheme, and every signature already made would stop opening
+_S2C_POINT_TAG = b"s2c/bip340/point"
+_S2C_DATA_TAG = b"s2c/bip340/data"
 
 
 @dataclass(frozen=True, init=False)
@@ -291,11 +301,23 @@ def sign_(
     returned beside it is what opens the commitment (see
     btclib.ecc.commit_nonce). Keyword-only, and the only argument that
     changes what is returned, so that neither is easy to pass by accident.
+    A commitment does not displace aux: it joins it, both of them
+    reaching the nonce as BIP340's auxiliary randomness.
     """
     msg = bytes_from_octets(msg)
 
     hf_len = hf().digest_size
     aux = secrets.token_bytes(hf_len) if aux is None else bytes_from_octets(aux, hf_len)
+
+    # the committed value has to reach the nonce derivation, or two
+    # commitments over one message hand out the private key -- see
+    # commit_nonce. BIP340 has the slot for it and dsa does not: `a` is
+    # whatever the signer wants mixed in, so aux and the commitment are
+    # hashed together into it and both still count. That is why ssa keeps
+    # taking its aux where dsa refuses a nonce beside a commitment: an
+    # aux is an input to the derivation, a nonce is its answer
+    if commit_hash is not None:
+        aux = commit_entropy_(aux + bytes_from_octets(commit_hash), _S2C_DATA_TAG, hf)
 
     # len(msg) == 32 as well as the curve and the hash function: BIP340
     # takes a message of any size, but the bindings require 32 bytes --
@@ -323,7 +345,7 @@ def sign_(
     # so it is the tweaked point whose parity is still to be settled --
     # and x_K, which the challenge commits to, is the tweaked one.
     # The receipt keeps the even-y point the tweak hashed
-    k, receipt = commit_nonce_(commit_hash, k, ec, hf)
+    k, receipt = commit_nonce_(commit_hash, k, _S2C_POINT_TAG, ec, hf)
     x_K, y_K = mult(k, ec=ec)
     if y_K % 2:
         k = ec.n - k
@@ -428,7 +450,7 @@ def _assert_commitment_(
         # sig.r is a field element, the x-coordinate itself and not a
         # scalar reduced modulo the group order, so the recomputed point
         # is compared as it comes
-        W = commit_point_(commit_hash, receipt, sig.ec, hf)
+        W = commit_point_(commit_hash, receipt, _S2C_POINT_TAG, sig.ec, hf)
         if sig.r != W[0]:
             raise BTClibRuntimeError("commitment verification failed")
 

@@ -7,7 +7,7 @@ full year, short month, short day (YYYY-M-D)
 
 ## v2026.8 (work in progress, not released yet)
 
-The first release since 2023, and the largest: a hundred and seventy-seven
+The first release since 2023, and the largest: a hundred and seventy-eight
 entries, in [CHANGELOG.md](./CHANGELOG.md). What follows is what a user has
 to act on and what a user gains.
 
@@ -44,7 +44,13 @@ against the `v2023.7.12` tag.
   `dsa.sign(msg, prv_key, commit=commit)`, returning the same
   `(sig, receipt)`, and `dsa_verify_commit(commit, receipt, msg, key, sig)`
   is `dsa.verify(msg, key, sig, commit=commit, receipt=receipt)`. ssa takes
-  a commitment now too, which the module never offered.
+  a commitment now too, which the module never offered. **The signature is
+  not the one v2023.7.12 produced**, and an opening kept from it no longer
+  opens: the scheme is libsecp256k1-zkp's `ecdsa_s2c` now, tagged hashes
+  and all, because the old one let two commitments over one message leak
+  the private key. Re-sign, and do not pass a nonce of your own beside a
+  commitment — that is refused, the commitment having to reach the nonce
+  derivation.
 - **`check_validity` is keyword-only**, in all 91 signatures that take it:
   `f(..., check_validity=False)`, never positionally. `strict` of
   `dsa.Sig.parse` follows it behind the same star.

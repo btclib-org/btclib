@@ -11,7 +11,7 @@ release-notes length in the first place, and are still in
 
 ## v2026.8 (work in progress, not released yet)
 
-A hundred and seventy-seven entries, grouped. The order runs from what breaks
+A hundred and seventy-eight entries, grouped. The order runs from what breaks
 a caller to what only maintainers see; [HISTORY.md](./HISTORY.md) lists the
 twenty-nine source-breaking changes on their own.
 
@@ -36,6 +36,31 @@ twenty-nine source-breaking changes on their own.
 
 ### Security
 
+- **a sign-to-contract commitment reaches the nonce derivation, and not
+  only the nonce.** `sign_to_contract` tweaked the nonce with the
+  commitment and derived that nonce from the message and the key alone,
+  as RFC6979 does when nothing is committed. Two signatures over one
+  message under one key then shared their untweaked nonce, so the nonces
+  actually used differed by `e2-e1` — a value the openings make public,
+  the openings being what a commitment is *for*. Two ECDSA signatures
+  over one message with a known nonce difference are two equations in
+  the two unknowns `k` and the private key, and it is solved with a
+  division: signing a message plainly and then committing to something
+  over the same message handed the key to anyone holding both. The
+  library's own `dsa.sign` was the first of those two signatures, since
+  it derives the same RFC6979 nonce. libsecp256k1's `ecdsa_s2c` module
+  states the attack where it refuses a custom nonce function — "an
+  attacker can exfiltrate the secret key by signing the same message
+  thrice with different commitments" — and two suffice. The committed
+  value now enters the derivation as well: through RFC6979's section 3.6
+  additional data for `dsa`, and through BIP340's auxiliary randomness
+  for `ssa`, whose `aux` is hashed together with it so that both still
+  count. A caller-supplied nonce is refused beside a commitment, because
+  a nonce is the derivation's answer and leaves nowhere to put the
+  commitment; `ssa` keeps taking its `aux`, which is an input to the
+  derivation and not its answer. What the tests pin is the property
+  itself, distinct receipts, the receipt being the untweaked nonce's
+  point (issue #193)
 - `borromean.assert_as_valid` raises BTClibRuntimeError("signature
   verification failed") and returns None, as its `dsa`, `ssa`, and `bms`
   counterparts do; it used to return a bool, so a caller following the
@@ -1346,27 +1371,39 @@ twenty-nine source-breaking changes on their own.
   stay in step: `dsa_commit_sign_` derived the RFC6979 nonce itself, so a
   change to how a nonce is derived — or to which implementation derives
   it — had to be made twice, and the libsecp256k1 dispatch of `dsa.sign_`
-  was not in the copy at all. What the commitment actually is, is a
-  substitution of the nonce, and the nonce is already a parameter of the
-  one signing path: `commit_hash` sits beside it, keyword-only, as the
-  only argument that changes what is returned. `btclib.ecc.commit_nonce`
-  is what is left, and it is a nonce derivation beside the RFC6979 and
-  BIP340 ones rather than a scheme beside dsa and ssa: `commit_nonce_`
-  returns the tweaked nonce and the receipt, `commit_point_` the point a
-  verifier recomputes, and the scheme is documented in that module's
-  docstring, which is where the name sign-to-contract now lives — a
-  `commit=` keyword does not say it. ssa gains the commitment on the way,
-  which the module never offered: BIP340 signs with the even-y nonce, so
-  it is the *tweaked* point whose parity has to be settled, and the
-  receipt stays the even-y point the tweak hashed. A commitment now also
-  keeps the bindings out, as a caller-supplied nonce does, for the same
-  reason: the nonce is theirs to derive and a tweaked one is not an
-  argument they take. A regression test pins the four vectors — the
-  signature and the receipt, for a fixed nonce and for the deterministic
-  one — against the answers of the implementation this replaces, because
-  nothing in a signature says that it commits and a verifier handed the
-  receipt of the same run would agree with any tweak whatsoever
-  (issue #193)
+  was not in the copy at all. What the commitment actually is, is an
+  input to the nonce — to its derivation and then to its value — and the
+  nonce is already a parameter of the one signing path: `commit_hash`
+  sits beside it, keyword-only, as the only argument that changes what is
+  returned. `btclib.ecc.commit_nonce` is what is left, and it is a nonce
+  derivation beside the RFC6979 and BIP340 ones rather than a scheme
+  beside dsa and ssa: `commit_entropy_` returns what the derivation takes,
+  `commit_nonce_` the tweaked nonce and the receipt, `commit_point_` the
+  point a verifier recomputes, and the scheme is documented in that
+  module's docstring, which is where the name sign-to-contract now lives
+  — a `commit=` keyword does not say it. **The dsa construction is
+  libsecp256k1-zkp's `ecdsa_s2c`, byte for byte**, tags included:
+  `s2c/ecdsa/point` for the tweak and `s2c/ecdsa/data` for the entropy,
+  so a commitment made here opens under
+  `secp256k1_ecdsa_s2c_verify_commit`. The two fixed vectors of that
+  module's test suite are the test, and they pin the whole derivation at
+  once — both tags, RFC6979's additional data, and the `key||msg||data`
+  seed layout — because the opening they expect is the untweaked nonce's
+  point and nothing else produces it. That replaces the vectors this
+  library generated for itself, which could only say that the scheme had
+  not changed, and the scheme *had* to change. ssa gains the commitment
+  on the way, which the module never offered: BIP340 signs with the
+  even-y nonce, so it is the *tweaked* point whose parity has to be
+  settled, and the receipt stays the even-y point the tweak hashed. It is
+  the one invented part — libsecp256k1 has an ecdsa s2c module and no
+  schnorr one, and BIP340 says nothing about commitments — so its
+  `s2c/bip340/point` and `s2c/bip340/data` are btclib's own, named for
+  the standard rather than under `BIP0340/`, which would claim the BIP
+  defines this. Both pairs are frozen: a different string is a different
+  scheme, and every signature already made would stop opening. A
+  commitment also keeps the bindings out, as a caller-supplied nonce
+  does, for the same reason: the nonce is theirs to derive, and neither a
+  tweak nor extra entropy is an argument their `sign` takes (issue #193)
 - **`btclib.ecc` exports the signature schemes.** `__all__` was
   `ansi_x9_63_kdf`, `bip340_nonce_`, `diffie_hellman`, `second_generator` —
   four helpers, and not one of the schemes behind them — so `import

@@ -34,7 +34,7 @@ from btclib.curves import Curve, secp256k1
 from btclib.curves.curve import _libsecp256k1_applicable
 from btclib.curves.curve_group import _mult
 from btclib.curves.curve_group_2 import double_mult_w_NAF
-from btclib.ecc.commit_nonce import commit_nonce_, commit_point_
+from btclib.ecc.commit_nonce import commit_entropy_, commit_nonce_, commit_point_
 from btclib.ecc.rfc6979_nonce import _rfc6979_nonce_, challenge_
 from btclib.exceptions import BTClibRuntimeError, BTClibTypeError, BTClibValueError
 from btclib.hashes import reduce_to_hlen
@@ -45,6 +45,15 @@ from btclib.utils import bytes_from_octets, bytesio_from_binarydata, hex_string
 
 _DER_SCALAR_MARKER = b"\x02"
 _DER_SIG_MARKER = b"\x30"
+
+# libsecp256k1's own sign-to-contract tags, byte for byte, so that a
+# commitment made here opens under secp256k1_ecdsa_s2c_verify_commit and
+# the two fixed vectors of its test suite are reproduced. They are what
+# makes this construction that one and not a lookalike, so they are
+# frozen: a different string is a different scheme, and every signature
+# already made would stop opening
+_S2C_POINT_TAG = b"s2c/ecdsa/point"
+_S2C_DATA_TAG = b"s2c/ecdsa/data"
 
 
 def _serialize_scalar(scalar: int) -> bytes:
@@ -350,6 +359,8 @@ def sign_(
     beside it is what opens the commitment (see
     btclib.ecc.commit_nonce). Keyword-only, and the only argument that
     changes what is returned, so that neither is easy to pass by accident.
+    A commitment derives its own nonce and cannot be given one: the
+    derivation is where half of the scheme's security is.
     """
     # the message msg_hash: a hf_len array
     hf_len = hf().digest_size
@@ -359,12 +370,22 @@ def sign_(
     # SEC 1 v.2 section 3.2.1
     q = int_from_prv_key(prv_key, ec)
 
+    # the committed value has to reach the nonce derivation, or the
+    # untweaked nonce is a function of the message and the key alone and
+    # two commitments over one message hand out the private key -- see
+    # commit_nonce. A nonce of the caller's leaves nowhere to put it, so
+    # it is refused rather than silently not committed to; libsecp256k1
+    # spells the same rule as a VERIFY_CHECK that s2c goes with the
+    # default nonce function and no other
+    if commit_hash is not None and nonce is not None:
+        raise BTClibValueError("a commitment derives its own nonce")
+
     # a nonce provided by the caller is the nonce, while what
     # libsecp256k1 takes is extra entropy for the RFC6979 nonce it
     # derives itself: the two cannot be the same argument, so a
     # requested nonce is for the python implementation below to use.
-    # A commitment is the same clause once removed: it tweaks the nonce,
-    # which is again not an argument the bindings have
+    # A commitment is that same entropy, and the bindings' sign() does
+    # not expose it either, so it is the python path that commits
     if (
         _libsecp256k1_applicable(ec, hf)
         and nonce is None
@@ -376,19 +397,22 @@ def sign_(
     # the challenge
     c = challenge_(msg_hash, ec, hf)  # 4, 5
 
-    # nonce: an integer in the range 1..n-1.
-    if nonce is None:
-        nonce = _rfc6979_nonce_(c, q, ec, hf)  # 1
-    else:
-        nonce = int_from_prv_key(nonce, ec)
-
     if commit_hash is None:
+        # nonce: an integer in the range 1..n-1.
+        if nonce is None:
+            nonce = _rfc6979_nonce_(c, q, ec, hf)  # 1
+        else:
+            nonce = int_from_prv_key(nonce, ec)
         # second part delegated to helper function
         return _sign_(c, q, nonce, lower_s, ec)
 
-    # the challenge does not depend on the nonce, so committing is a
-    # substitution of the nonce and nothing else: one signing path
-    nonce, receipt = commit_nonce_(commit_hash, nonce, ec, hf)
+    # the commitment enters twice: once as RFC6979 additional data, so
+    # that this nonce belongs to this commitment, and once as the tweak.
+    # The challenge does not depend on the nonce, so the second is a
+    # substitution and nothing else: one signing path
+    entropy = commit_entropy_(commit_hash, _S2C_DATA_TAG, hf)
+    nonce = _rfc6979_nonce_(c, q, ec, hf, entropy)
+    nonce, receipt = commit_nonce_(commit_hash, nonce, _S2C_POINT_TAG, ec, hf)
     return _sign_(c, q, nonce, lower_s, ec), receipt
 
 
@@ -502,7 +526,7 @@ def _assert_commitment_(
         # sig.r is the tweaked nonce's x-coordinate reduced modulo the
         # group order, as signing left it, so the recomputed point is
         # reduced too
-        W = commit_point_(commit_hash, receipt, sig.ec, hf)
+        W = commit_point_(commit_hash, receipt, _S2C_POINT_TAG, sig.ec, hf)
         if sig.r != W[0] % sig.ec.n:
             raise BTClibRuntimeError("commitment verification failed")
 

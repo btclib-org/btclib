@@ -65,14 +65,24 @@ used to teach and to prototype as much as to build:
     C side of the boundary, not to what happens before and after it
 - not every operation crosses that boundary. `mult` reaches the bindings
     for secp256k1 and the generator alone; `dsa.sign` for secp256k1 with
-    sha256, the lower-s form, and no caller-imposed nonce; `ssa.sign` for
-    secp256k1 with sha256 and a 32-byte message. Anything else — another
+    sha256, the lower-s form, no caller-imposed nonce and no commitment;
+    `ssa.sign` for secp256k1 with sha256, a 32-byte message and no
+    commitment. Anything else — another
     curve, another hash function, another message size, a nonce of your
     own — runs the python implementation, whose scalar multiplication is
     a double-and-add in Jacobian coordinates: it is validated against the
     bindings, which are the authority on the answer, but it is not
     constant-time and does not try to be. Using it
     on key material that matters is a choice, and this is the notice of it
+- a sign-to-contract commitment is the signer's to open, and opening it
+    twice over one message is safe only because the committed value
+    reaches the nonce derivation: that is what keeps two such signatures
+    from sharing an untweaked nonce and handing out the key. The
+    derivation is `btclib.ecc.commit_nonce`, and the property is worth
+    knowing about for anyone building the anti-exfil protocol on top,
+    which btclib does not yet offer: there, the ordering matters as
+    well — the signer must publish its `R` before learning the host's
+    randomness, and `sign` alone cannot enforce that
 - randomness comes from the operating system through the `secrets`
     module: the auxiliary randomness of BIP340 signing, the entropy of a
     generated mnemonic, and the private keys of the key generation
