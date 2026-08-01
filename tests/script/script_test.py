@@ -11,6 +11,8 @@
 
 from __future__ import annotations
 
+from typing import Any
+
 import pytest
 
 from btclib.alias import ScriptList
@@ -24,6 +26,7 @@ from btclib.script.script import (
     read_op_code,
 )
 from btclib.utils import hex_string
+from tests import load, vector_id
 from tests.script import serialize_non_canonical
 
 
@@ -178,6 +181,47 @@ def test_truncated_push_ends_the_parse() -> None:
     # named here so that serialize writes it back unchanged
     assert parse(b"\x01\x00\xff") == ["00", "UNKNOWN_OP_CODE_255"]
     assert serialize(parse(b"\x01\x00\xff")) == b"\x01\x00\xff"
+
+
+def unspendable_script_pub_key_vectors() -> list[Any]:
+    """The twelve on-chain script_pub_keys of issue #123, one case each.
+
+    tests/_data/README.md records where they come from. Real ones and not
+    a synthetic equivalent: what the issue reports is that these could
+    not be read, so anything else would exercise the code without closing
+    the report.
+    """
+    data = load("script", "_data", "unspendable_script_pub_keys.json")
+    return [
+        pytest.param(v, id=vector_id(v["height"], v["txid"][:8], f"vout{v['vout']}"))
+        for v in data
+    ]
+
+
+@pytest.mark.parametrize("vector", unspendable_script_pub_key_vectors())
+def test_an_unspendable_script_pub_key_still_decodes(vector: dict[str, Any]) -> None:
+    """A script no one can spend is a script all the same.
+
+    Five transactions in blocks 251718 to 299571 carry one, and every
+    Script built from them used to raise: two push more than the stack
+    can hold, ten declare a push longer than the bytes that follow it
+    (issue #123). Bitcoin Core reads all twelve, and so does btclib now
+    -- byte for byte where nothing is missing, and up to the place it
+    stops where something is.
+    """
+    script = bytes.fromhex(vector["script"])
+    asm = Script(script).asm
+
+    assert len(asm) == vector["commands"]
+    if vector["truncated"]:
+        # the mark is terminal, and it is the only one
+        assert asm[-1] == ERROR_COMMAND
+        assert asm.count(ERROR_COMMAND) == 1
+    else:
+        # nothing was lost, which for an oversized push means that
+        # serialize wrote the same OP_PUSHDATA back
+        assert ERROR_COMMAND not in asm
+        assert serialize(asm) == script
 
 
 def test_regressions() -> None:

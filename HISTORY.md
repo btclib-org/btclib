@@ -7,7 +7,7 @@ full year, short month, short day (YYYY-M-D)
 
 ## v2026.8 (work in progress, not released yet)
 
-The first release since 2023, and the largest: a hundred and sixty-two
+The first release since 2023, and the largest: a hundred and sixty-eight
 entries, in [CHANGELOG.md](./CHANGELOG.md). What follows is what a user has
 to act on and what a user gains.
 
@@ -19,7 +19,7 @@ CHANGELOG.md.
 
 ### Breaking changes
 
-Twenty changes break code that worked on v2023.7.12. Each is described in
+Twenty-three changes break code that worked on v2023.7.12. Each is described in
 full in [CHANGELOG.md](./CHANGELOG.md). Every "before" spelling was checked
 against the `v2023.7.12` tag.
 
@@ -113,6 +113,28 @@ against the `v2023.7.12` tag.
   start with one of the four prefixes, named a new version and handed
   back the wrong derivation; and it accepts what Electrum accepts, so an
   upper-cased or accented mnemonic is read rather than refused.
+- **`Script(script_bytes)` no longer raises for a script that cannot be
+  executed.** A push over 520 bytes and a push declaring more bytes than
+  follow it used to be `Invalid pushdata length` and `Not enough data for
+  pushdata` out of `Script`, `ScriptPubKey`, `.asm` and `script.parse`;
+  they are now decoded, the second as everything up to the place the
+  bytes stop being a script plus the marker `"[error]"` Bitcoin Core
+  writes there. Code that caught `BTClibValueError` around a `Script` to
+  sort scripts it could handle from scripts it could not has to ask the
+  question it meant: `"[error]" in Script(s).asm` for one that cannot be
+  read to the end, `script.engine.verify_input` for one that cannot be
+  spent. There are twelve such scripts in blocks 251718 to 299571.
+- **`script.parse(stream, accept_unknown)` is `script.parse(stream)`.**
+  The parameter's answer is fixed at what every caller passed, so a byte
+  no op-code table names is always `UNKNOWN_OP_CODE_n` and never
+  `Unknown op code`: Core reads it too, and it is the interpreter that
+  refuses it. A caller passing it positionally or by keyword gets a
+  TypeError.
+- **`psbt_utils.assert_valid_taproot_tree` is gone**, with the leaf-script
+  validation it performed: a PSBT tap tree is stored as it arrives, as
+  Core's PSBT stores it. Nothing replaces the call — `PsbtOut.assert_valid`
+  simply no longer parses the leaves — and a caller that wants to know
+  whether a leaf can be executed runs it.
 
 Two changes are deliberately *not* on that list, because what they change
 stays compatible. The new `BTClibTypeError`, `NotAPrvKeyError` and
@@ -142,6 +164,13 @@ and `verify` families now let a `TypeError` out where they used to answer
   Core's shortest encoding and 32 MiB cap, and `tests/fuzz_test.py` holds
   every parse entry point to the exception contract of
   `btclib/exceptions.py`.
+- **Every script that is on chain can be read.** Twelve `scriptPubKey`s in
+  blocks 251718 to 299571 raised out of `Script`, `ScriptPubKey` and
+  `.asm`, two of them for pushing more than the stack can hold and ten for
+  declaring a push longer than the bytes that follow it. Whether a script
+  can be *executed* is now the interpreter's answer, given by executing
+  it, which is where Bitcoin Core keeps it — and the five transactions
+  reported are vendored as vectors.
 - **Signing a transaction is linear in its inputs**, where it was Θ(N²):
   the new `sig_hash.PrecomputedTxData` takes 400 taproot inputs from 164 ms
   to 0.4 ms. `bms.sign` is twice as fast, recovering one candidate public key

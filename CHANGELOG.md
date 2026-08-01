@@ -11,9 +11,9 @@ release-notes length in the first place, and are still in
 
 ## v2026.8 (work in progress, not released yet)
 
-A hundred and sixty-two entries, grouped. The order runs from what breaks
+A hundred and sixty-eight entries, grouped. The order runs from what breaks
 a caller to what only maintainers see; [HISTORY.md](./HISTORY.md) lists the
-twenty source-breaking changes on their own.
+twenty-three source-breaking changes on their own.
 
 ### Repository
 
@@ -1066,16 +1066,41 @@ twenty source-breaking changes on their own.
   generated `__repr__` names the network where it used to render a testnet
   and a mainnet ScriptPubKey identically. `__init__` and `__eq__` stay
   written out (`init=False, eq=False`)
-- **`Script.assert_valid` is a parse, and says so.** It was
-  `serialize(self.asm)` with the result discarded, which looks like a
-  round-trip check and is not one. A round-trip check would be wrong rather
-  than merely absent: a non-minimal push is consensus-legal and does not
-  survive one — `4c01ff`, an OP_PUSHDATA1 of a single byte, comes back as
-  `01ff`, and over 200k random byte strings a strict comparison rejects 16.
-  The `serialize` call was also redundant: it writes back every command
-  shape `parse` can produce, `UNKNOWN_OP_CODE_n` included, by an explicit
-  branch, and over those 200k strings plus all 256 one-byte scripts it
-  raised for nothing `parse` had accepted
+- **A script no one can spend still decodes** (issue #123). Five
+  transactions in blocks 251718 to 299571 carry a `scriptPubKey` btclib
+  refused: two push more than 520 bytes, ten declare a push longer than
+  the bytes that follow it. `Script`, `ScriptPubKey` and `.asm` raised
+  `Invalid pushdata length` or `Not enough data for pushdata` on all
+  twelve, where Bitcoin Core reads every one of them. The rule is now
+  Core's — a script Core accepts is accepted here, and a script Core
+  cannot execute fails here the way Core fails it, by being executed —
+  so `parse` keeps the one refusal a decode has: a push running past the
+  end of the script stops the walk and appends `"[error]"`, the literal
+  Core's `ScriptToAsmStr` writes in the same place. The 520-byte limit is
+  a bound on the stack, so it moved into the two interpreters, which
+  refuse an oversized push and a truncated one where Core does, before
+  the test for whether the branch executes. Twelve on-chain scripts are
+  vendored as vectors
+- **`Script.assert_valid` asks whether the script is bytes**, which is
+  all a script is: Core has no validity notion for a `CScript` either,
+  and no predicate on the bytes alone could have one — in tapscript an
+  `OP_SUCCESSx` makes a script valid however malformed the rest of it is.
+  It was a parse, and before that `serialize(self.asm)` with the result
+  discarded, which looks like a round-trip check and is not one. A
+  round-trip check would be wrong rather than merely absent: a
+  non-minimal push is consensus-legal and does not survive one —
+  `4c01ff`, an OP_PUSHDATA1 of a single byte, comes back as `01ff`, and
+  over 200k random byte strings a strict comparison rejects 16
+- **`serialize` writes all four push widths.** Above 65535 bytes it
+  emits OP_PUSHDATA4, where it used to raise `too many bytes for
+  OP_PUSHDATA`, because what `parse` reads it has to write back: the
+  1443-byte push of issue #123 is a script nobody can spend, not one
+  that cannot be encoded. The minimal-push rule is unchanged, and what
+  is left to refuse is a length no length field can carry, which is
+  Core's own bound. Two of Core's own `script_tests.json` vectors were
+  passing for the wrong reason until this landed — "520 byte push" and
+  the same in a branch nothing takes, which `serialize` refused to build,
+  so the harness raised before any engine ran
 - the script verification flags are a `ScriptFlag`, an `enum.Flag` of the
   new `btclib.script.engine.flags`, where they were a list of plain
   strings the engine tested with `"P2SH" in flags`: a misspelled name was
@@ -1167,6 +1192,28 @@ twenty source-breaking changes on their own.
 
 ### The public API and the module layout
 
+- **`script.parse` has lost its `accept_unknown` parameter**, with the
+  answer fixed at what every caller in the library passed: a byte no
+  table names is an op code all the same, refused by the interpreter that
+  executes it, and named `UNKNOWN_OP_CODE_n` here so that `serialize`
+  writes it back unchanged. `parse(script, accept_unknown=True)` becomes
+  `parse(script)`; `parse(script)` used to raise `Unknown op code` for a
+  byte Core reads without complaint (issue #123)
+- **`psbt_utils.assert_valid_taproot_tree` is gone**, and `PsbtOut`
+  validation no longer looks at a leaf script at all — Core's PSBT does
+  not either. It parsed every leaf of the tap tree, so a leaf that cannot
+  be executed made the whole `PsbtOut` invalid; with the parse refusing
+  only truncation (issue #123) the check had nothing left to refuse, and
+  a vacuous validator reads as a guarantee it does not give. What cannot
+  execute is unspendable, which a signer learns by running it
+- **Core's five script limits are `btclib.script.limits`**, under Core's
+  own names: `MAX_SCRIPT_ELEMENT_SIZE`, `MAX_OPS_PER_SCRIPT`,
+  `MAX_PUBKEYS_PER_MULTISIG`, `MAX_SCRIPT_SIZE`, `MAX_STACK_SIZE`. They
+  were nine literals in five modules, and 520 alone was written four
+  times — in the two interpreters, in `taproot.parse` and in
+  `script.parse`, where reading an execution limit in a decoder is what
+  issue #123 was about. A module of its own rather than the top of
+  `script.py`, which is the encoding and has no reason to import them
 - **`btclib.ec` is now `btclib.curves`**, which is a breaking rename and the
   only one here: every name the package exports is the name it exported
   before, and the split between curve arithmetic and the schemes built on it
@@ -1593,6 +1640,15 @@ twenty source-breaking changes on their own.
 
 ### Tests
 
+- **the twelve on-chain scripts of issue #123 are vendored**, in
+  `tests/script/_data/unspendable_script_pub_keys.json`: the real
+  `scriptPubKey`s of the five transactions the issue lists, each with the
+  height and vout it sits at and what the decode must answer. A synthetic
+  equivalent would have exercised the same code without closing the
+  report. It is the one vendored file that cannot verify itself, a
+  `scriptPubKey` being a part of a transaction and no txid recomputable
+  from it, and `tests/_data/README.md` says so next to the command that
+  re-derives each one
 - **the entry count of these two files is checked by the suite**, where
   CLAUDE.md and CONTRIBUTING.md answered it with a command to run by
   hand. Written as a habit it did not work: `f295aaaf` left CHANGELOG.md
@@ -2077,9 +2133,8 @@ twenty source-breaking changes on their own.
   `bytes_from_octets` in `Psbt.parse`, an unused conversion in
   `entropy.py`, and `# Integer = Union[Octets, int]` in `alias.py`). The
   commented-out code that *is* the explanation around it stays — the biased
-  `nonce = int.from_bytes(t, 'big') % ec.n` of the three nonce modules, the
-  `PSBT_*_PROPRIETARY` values deliberately not implemented, the
-  `_pushdata(4, ...)` the 520-byte limit makes unnecessary. Sixteen
+  `nonce = int.from_bytes(t, 'big') % ec.n` of the three nonce modules, and
+  the `PSBT_*_PROPRIETARY` values deliberately not implemented. Sixteen
   load-bearing TODO/FIXME markers now name a tracked issue instead of a
   wish: #171 (the three point-addition special cases, on the inner loop of
   every scalar multiplication), #172 (rendering a script as `{"asm":

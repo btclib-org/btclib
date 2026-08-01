@@ -92,17 +92,19 @@ repos:
         # together. Excluded by directory rather than by name so that the
         # next file vendored into it is safe before anyone remembers this
         # line; check-json above still answers the question worth asking
-        # of them, which is whether they parse. The lookahead is the
-        # three files in there that are btclib's own and have no upstream
-        # to void -- by name because there are three, and because the
-        # default for anything else in that directory has to stay "not
-        # touched". (?x) is verbose mode, i.e. the newlines below are not
-        # part of the pattern
+        # of them, which is whether they parse. The lookahead is the four
+        # files in there that have no pinned blob for a reformat to void:
+        # three of btclib's own and one of chain data, whose provenance is
+        # a txid rather than a blob. By name because there are four, and
+        # because the default for anything else in that directory has to
+        # stay "not touched". (?x) is verbose mode, i.e. the newlines
+        # below are not part of the pattern
         exclude: |
           (?x)^tests/([^/]+/)?_data/
           (?!descriptor_checksums\.json
             |rfc6979\.json
-            |electrum_test_vectors\.json)
+            |electrum_test_vectors\.json
+            |unspendable_script_pub_keys\.json)
       - id: check-merge-conflict
       - id: check-vcs-permalinks
       - id: detect-private-key

@@ -473,8 +473,9 @@ These are consensus bytes. There is no upstream repository to pin and no
 commit to name: the authority is the chain, and any node or block
 explorer settles a dispute. The identifier is the block hash or the txid,
 which is what `Block.parse` and `Tx.parse` recompute from the bytes on
-every run — so these files verify themselves, and are the only vendored
-vectors that do.
+every run — so the first two entries verify themselves, and are the only
+vendored vectors that do. The third holds parts of transactions rather
+than whole ones, and says what that costs.
 
 ### `tests/block/_data/block_*.bin`
 
@@ -511,6 +512,43 @@ pulled 2020-12-02
 The file is named after the txid, and `Tx.parse` recomputes it, so a
 corrupted copy announces itself. `bitcoin-cli getrawtransaction <txid>`
 returns these bytes, given a node with the transaction index.
+
+### `tests/script/_data/unspendable_script_pub_keys.json`
+
+```text
+251718  77822fd6663c665104119cb7635352756dfc50da76a92d417ec1a12c518fad69
+        vout 0
+265458  ebc9fa1196a59e192352d76c0f6e73167046b9d37b8302b6bb6968dfd279b767
+        vout 0 to 7
+268060  d29c9c0e8e4d2a9790922af73f0b8d51f0bd4bb19940d9cf910ead8fbe85bc9b
+        vout 0
+293906  6f8a70aac37786b1f619d40250b8bca1a1f6da487146a7e81091f611068a23ef
+        vout 0
+299571  2ae22a393045a34ab634788117422607f092d061d39549c9b3e96259a5be0361
+        vout 2
+pulled  2026-08-01
+```
+
+The twelve `scriptPubKey`s reported in issue #123, the five transactions
+that carry them being the five the issue lists. Each entry holds the
+script, the height and vout it sits at, and what the decode must answer:
+how many commands, and whether the last of them is the mark that says the
+bytes stopped being a script.
+
+This is the one file here that does not verify itself. A `scriptPubKey`
+is a *part* of a transaction, so no txid can be recomputed from it; the
+txid says where it came from, and re-deriving it is what checks the copy:
+
+```shell
+bitcoin-cli getrawtransaction <txid> 2 \
+    | jq -r '.vout[<n>].scriptPubKey.hex'
+```
+
+Any explorer answers the same question — Esplora's
+`api/tx/<txid>` carries the same hex under `vout[n].scriptpubkey`, which
+is where this copy came from, no node with a transaction index being at
+hand. The heights are the issue's own, and `getblockhash`/`getblock`
+confirm them.
 
 ## Not vendored from anywhere
 
@@ -572,7 +610,7 @@ Pulled 2018-06-01.
 
 ## Summary
 
-28 files. Against a pinned upstream blob:
+29 files. Against a pinned upstream blob:
 
 - 6 identical byte for byte: `english.txt`,
   `taproot_test_vector.json`, `sig_hash_legacy_test_vectors.json`,
@@ -590,7 +628,10 @@ No upstream blob exists for the rest:
   `bip32_test_vectors.json`, `bip32_invalid_keys.json`,
   `bip174_test_vectors.json`, `bip371_test_vectors.json`,
   `bip67_test_vectors.json`, `descriptor_checksums.json`.
-- 6 chain data, identified by block hash or txid.
+- 7 chain data, identified by block hash or txid; the last of them,
+  `unspendable_script_pub_keys.json`, is scripts rather than whole
+  transactions and so is the one that cannot recompute its own
+  identifier.
 - 3 not vendored: `rfc6979.json` (an RFC),
   `electrum_test_vectors.json` and `fakeenglish.txt` (btclib's own).
 
