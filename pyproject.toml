@@ -140,7 +140,16 @@ testpaths = ["tests"]
 # warning that scrolls past a hundred lines of dots, and --strict-markers
 # does the same for a marker nobody registered, which is how a misspelled
 # skipif silently stops skipping
-addopts = "-ra --durations=8 -n auto --strict-config --strict-markers"
+# --dist worksteal rather than xdist's default `load`, because the cost
+# here is lopsided: half the suite's work sits in the taproot vectors of
+# tests/script_engine/test_python_path.py, whose slowest cases take ~3 s
+# each against a median test under a millisecond. `load` hands out the
+# queue in chunks and a worker that draws several of those finishes long
+# after the others; worksteal lets an idle worker take back what is
+# queued behind a busy one. Measured on the tree, best of three:
+# tests/README.md carries the numbers and the two things that do *not*
+# help -- reordering the slow module first, and any -n other than auto
+addopts = "-ra --durations=8 -n auto --dist worksteal --strict-config --strict-markers"
 # a test that was expected to fail and passed is a fixed bug still marked
 # as broken: strict turns it red instead of reporting xpass
 xfail_strict = true

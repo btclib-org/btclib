@@ -11,7 +11,7 @@ release-notes length in the first place, and are still in
 
 ## v2026.8 (work in progress, not released yet)
 
-A hundred and thirty-five entries, grouped. The order runs from what breaks
+A hundred and thirty-six entries, grouped. The order runs from what breaks
 a caller to what only maintainers see; [HISTORY.md](./HISTORY.md) lists the
 sixteen source-breaking changes on their own.
 
@@ -1323,6 +1323,17 @@ sixteen source-breaking changes on their own.
 
 ### Tests
 
+- **the test suite runs on `--dist worksteal`**, xdist's work-stealing
+  scheduler, where it ran on the default `load`: 20.3 s against 27.9 s,
+  best of three runs each, same 14681 tests in the same order. The cost
+  here is lopsided — the `tapscript-bigmulti` cases of
+  `tests/script_engine/test_python_path.py` take 5 to 6 s each against a
+  median test under a millisecond — and `load` hands the queue out in
+  chunks, so a worker that draws several of them is still going when the
+  others have run out of work. Two changes that look like they should help
+  do not, and tests/README.md records both with their numbers: scheduling
+  the slow module first is *worse* under either scheduler, and every `-n`
+  other than `auto` is slower than `auto`
 - **every vendored vector is exercised**, where two filters used to hold
   1206 of them back. `taproot_vectors` in
   `tests/script_engine/test_transactions.py` selected on `"TAPROOT" in
@@ -1685,14 +1696,12 @@ sixteen source-breaking changes on their own.
   a `paths-ignore` for the website files, so a website-only commit to
   `master` no longer runs the whole matrix (issue #160)
 - **tests/README.md's "no `slow` marker" section is a measurement again.**
-  Its numbers were taken when the suite was 7936 tests and it is 12449 now:
-  21.9 s across the cores against the 10.6 it claimed, 85.3 s on one against
-  21, and the slowest single test is a `tapscript-bigmulti` vector at 5 s
-  rather than `test_low_cardinality` at 1.4. The conclusion moved with them.
-  Bitcoin Core's vector files are still not the slow part — 7709 of those
-  tests in 4.4 s — but `tests/script_engine/test_python_path.py` is: it holds
-  the slowest six tests in the suite and half the wall clock, 4169 tests that
-  `--ignore` takes out to leave 8280 running in 10.4 s. So a `slow` marker
-  would now save something real, where the section said there was nothing to
-  put behind one; none is registered still, and the reason is stated in
-  today's numbers rather than in numbers that stopped being true
+  Its figures were taken when the suite was 7936 tests, and the suite has
+  since nearly doubled: every one of them had stopped being true, the
+  slowest test included, and the conclusion moved with them. Bitcoin Core's
+  vector files are still not the slow part, but
+  `tests/script_engine/test_python_path.py` is — it holds the slowest tests
+  in the suite and, on its own, more than half the wall clock. So a `slow`
+  marker would save something real, where the section said there was nothing
+  to put behind one; none is registered still, and the reason is now stated
+  in numbers the file carries and a run can check

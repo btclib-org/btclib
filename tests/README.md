@@ -44,29 +44,56 @@ flag is not idle for that — it is what turns a misspelled `skipif` into an
 error instead of into a test that silently stops skipping.
 
 The obvious thing to register would be `slow`, for a `-m "not slow"`
-developer loop. Measured on this tree: 12449 tests in 21.9 s across the
-cores and 85.3 s on one, best of three runs each. The Bitcoin Core vector
+developer loop. Measured on this tree: 14681 tests in 20.3 s across the
+cores and 96.4 s on one, best of three runs each. The Bitcoin Core vector
 files are the biggest thing in here and they are still not the slow part —
-7709 of those tests run in 4.4 s — because each vector is its own
+8917 of those tests run in 6.3 s — because each vector is its own
 parametrized case rather than one loop inside one function, which is what
 lets `pytest-xdist` spread them.
 
 What costs is `tests/script_engine/test_python_path.py`, which re-runs the
 vector sets through the python implementations of the two functions the
-engine takes from the bindings (issue #129). It holds the slowest six
-tests in the suite — `tapscript-bigmulti`, 3 to 5 s each — and 4169 tests
-taking 13.2 s on their own, which is half the wall clock: `--ignore` that
-one file and the remaining 8280 run in 10.4 s. So the saving is no longer
-"a couple of seconds", and the case for the marker is now a number rather
-than a shrug. What it would cost has not changed, and is why none is
-registered: a plain `uv run pytest` is the run that has looked at
-everything, and the file a `-m "not slow"` loop would skip is the one
-whose whole purpose is to catch the python path and the bindings
-disagreeing about a verdict.
+engine takes from the bindings (issue #129). It holds the slowest tests in
+the suite — the `tapscript-bigmulti` cases, 5 to 6 s each — and 5185 tests
+taking 14.7 s on their own: `--ignore` that one file and the remaining
+9496 run in 8.5 s. So the saving is no longer "a couple of seconds", and
+the case for the marker is a number rather than a shrug. What it would
+cost has not changed, and is why none is registered: a plain `uv run
+pytest` is the run that has looked at everything, and the file a
+`-m "not slow"` loop would skip is the one whose whole purpose is to catch
+the python path and the bindings disagreeing about a verdict.
 
 Register one when a test earns it, with the number in the commit message.
 The numbers above are this tree's, and they move: `--durations=8` is in
 `addopts`, so every run prints the current worst offenders.
+
+## `--dist worksteal`, and the two things that do not help
+
+That lopsidedness is also why `addopts` passes `--dist worksteal` instead
+of xdist's default `load`. `load` hands the queue out in chunks, so a
+worker that draws several `bigmulti` cases is still going when the others
+have nothing left; worksteal lets an idle worker take back what is queued
+behind a busy one. Best of three each: **20.3 s against 27.9 s**, the same
+14681 tests in the same order.
+
+Two changes that look like they should help, measured rather than assumed,
+and neither is in the configuration:
+
+- **scheduling the slow module first**, with a
+  `pytest_collection_modifyitems` hook: 26.6 s under worksteal and 41.6 s
+  under `load`, both *worse* than leaving collection order alone. Stealing
+  already balances the tail, and moving the heavy tests to the front only
+  denies it the small work it needs to fill the gaps with.
+- **a different `-n`**: 6 → 26.6 s, 8 → 24.2, 12 → 23.8, 16 → 26.7,
+  against `auto` (10 on this machine) at 20.3. Fewer workers than cores
+  leaves throughput unused; more than cores adds interpreters that only
+  compete for the same cores.
+
+One number to keep in mind before reading too much into a wall clock: the
+cores are not equivalent. On a 4+6 machine the same 413-test file takes
+2.74 s at normal QoS and 12.87 s pinned to the efficiency cores with
+`taskpolicy -b`, so ten workers are worth about five performance cores,
+not ten.
 
 ## Profiling
 
