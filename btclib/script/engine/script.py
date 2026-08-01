@@ -11,7 +11,7 @@
 
 from __future__ import annotations
 
-from collections.abc import MutableMapping
+from collections.abc import Mapping
 
 from btclib_libsecp256k1.dsa import verify as _libsecp256k1_dsa_verify
 
@@ -344,7 +344,68 @@ def prepare_script(script: ScriptList, flags: ScriptFlag, segwit: bool) -> None:
         raise BTClibValueError("OP_CODESEPARATOR in a non-segwit script")
 
 
-def verify_script(  # noqa: C901 -- what the table below cannot hold, read against Core's EvalScript: the op codes needing the engine's own state, and the pushes matched by shape rather than by name
+# what one signature can drive: every entry takes (stack, altstack,
+# flags) and nothing else, so the loop dispatches them blind and
+# verify_script holds only the op codes that need more. Module-level
+# because the loop reads it and never writes -- Mapping is what says so
+# -- and a copy per call buys nothing
+OPERATIONS: Mapping[str, ScriptOp] = {
+    "OP_DUP": script_op_codes.op_dup,
+    "OP_2DUP": script_op_codes.op_2dup,
+    "OP_DROP": script_op_codes.op_drop,
+    "OP_2DROP": script_op_codes.op_2drop,
+    "OP_SWAP": script_op_codes.op_swap,
+    "OP_1NEGATE": script_op_codes.op_1negate,
+    "OP_VERIFY": script_op_codes.op_verify,
+    "OP_EQUAL": script_op_codes.op_equal,
+    "OP_CHECKSIGVERIFY": script_op_codes.op_checksigverify,
+    "OP_EQUALVERIFY": script_op_codes.op_equalverify,
+    "OP_RETURN": script_op_codes.op_return,
+    "OP_SIZE": script_op_codes.op_size,
+    "OP_RIPEMD160": script_op_codes.op_ripemd160,
+    "OP_SHA1": script_op_codes.op_sha1,
+    "OP_SHA256": script_op_codes.op_sha256,
+    "OP_HASH160": script_op_codes.op_hash160,
+    "OP_HASH256": script_op_codes.op_hash256,
+    "OP_1ADD": script_op_codes.op_1add,
+    "OP_1SUB": script_op_codes.op_1sub,
+    "OP_NEGATE": script_op_codes.op_negate,
+    "OP_ABS": script_op_codes.op_abs,
+    "OP_NOT": script_op_codes.op_not,
+    "OP_0NOTEQUAL": script_op_codes.op_0notequal,
+    "OP_ADD": script_op_codes.op_add,
+    "OP_SUB": script_op_codes.op_sub,
+    "OP_BOOLAND": script_op_codes.op_booland,
+    "OP_BOOLOR": script_op_codes.op_boolor,
+    "OP_NUMEQUAL": script_op_codes.op_numequal,
+    "OP_NUMEQUALVERIFY": script_op_codes.op_numequalverify,
+    "OP_NUMNOTEQUAL": script_op_codes.op_numnotequal,
+    "OP_LESSTHAN": script_op_codes.op_lessthan,
+    "OP_GREATERTHAN": script_op_codes.op_greaterthan,
+    "OP_LESSTHANOREQUAL": script_op_codes.op_lessthanorequal,
+    "OP_GREATERTHANOREQUAL": script_op_codes.op_greaterthanorequal,
+    "OP_MIN": script_op_codes.op_min,
+    "OP_MAX": script_op_codes.op_max,
+    "OP_WITHIN": script_op_codes.op_within,
+    "OP_CHECKMULTISIGVERIFY": script_op_codes.op_checkmultisigverify,
+    "OP_TOALTSTACK": script_op_codes.op_toaltstack,
+    "OP_FROMALTSTACK": script_op_codes.op_fromaltstack,
+    "OP_IFDUP": script_op_codes.op_ifdup,
+    "OP_DEPTH": script_op_codes.op_depth,
+    "OP_NIP": script_op_codes.op_nip,
+    "OP_OVER": script_op_codes.op_over,
+    "OP_PICK": script_op_codes.op_pick,
+    "OP_ROLL": script_op_codes.op_roll,
+    "OP_ROT": script_op_codes.op_rot,
+    "OP_TUCK": script_op_codes.op_tuck,
+    "OP_3DUP": script_op_codes.op_3dup,
+    "OP_2OVER": script_op_codes.op_2over,
+    "OP_2ROT": script_op_codes.op_2rot,
+    "OP_2SWAP": script_op_codes.op_2swap,
+}
+
+
+def verify_script(  # noqa: C901 -- what the OPERATIONS table cannot hold, read against Core's EvalScript: the op codes needing the engine's own state, and the pushes matched by shape rather than by name
     script_bytes: bytes,
     stack: list[bytes],
     prevout_value: int,
@@ -383,61 +444,6 @@ def verify_script(  # noqa: C901 -- what the table below cannot hold, read again
     )
 
     script_index = -1
-
-    operations: MutableMapping[str, ScriptOp] = {
-        "OP_DUP": script_op_codes.op_dup,
-        "OP_2DUP": script_op_codes.op_2dup,
-        "OP_DROP": script_op_codes.op_drop,
-        "OP_2DROP": script_op_codes.op_2drop,
-        "OP_SWAP": script_op_codes.op_swap,
-        "OP_1NEGATE": script_op_codes.op_1negate,
-        "OP_VERIFY": script_op_codes.op_verify,
-        "OP_EQUAL": script_op_codes.op_equal,
-        "OP_CHECKSIGVERIFY": script_op_codes.op_checksigverify,
-        "OP_EQUALVERIFY": script_op_codes.op_equalverify,
-        "OP_RETURN": script_op_codes.op_return,
-        "OP_SIZE": script_op_codes.op_size,
-        "OP_RIPEMD160": script_op_codes.op_ripemd160,
-        "OP_SHA1": script_op_codes.op_sha1,
-        "OP_SHA256": script_op_codes.op_sha256,
-        "OP_HASH160": script_op_codes.op_hash160,
-        "OP_HASH256": script_op_codes.op_hash256,
-        "OP_1ADD": script_op_codes.op_1add,
-        "OP_1SUB": script_op_codes.op_1sub,
-        "OP_NEGATE": script_op_codes.op_negate,
-        "OP_ABS": script_op_codes.op_abs,
-        "OP_NOT": script_op_codes.op_not,
-        "OP_0NOTEQUAL": script_op_codes.op_0notequal,
-        "OP_ADD": script_op_codes.op_add,
-        "OP_SUB": script_op_codes.op_sub,
-        "OP_BOOLAND": script_op_codes.op_booland,
-        "OP_BOOLOR": script_op_codes.op_boolor,
-        "OP_NUMEQUAL": script_op_codes.op_numequal,
-        "OP_NUMEQUALVERIFY": script_op_codes.op_numequalverify,
-        "OP_NUMNOTEQUAL": script_op_codes.op_numnotequal,
-        "OP_LESSTHAN": script_op_codes.op_lessthan,
-        "OP_GREATERTHAN": script_op_codes.op_greaterthan,
-        "OP_LESSTHANOREQUAL": script_op_codes.op_lessthanorequal,
-        "OP_GREATERTHANOREQUAL": script_op_codes.op_greaterthanorequal,
-        "OP_MIN": script_op_codes.op_min,
-        "OP_MAX": script_op_codes.op_max,
-        "OP_WITHIN": script_op_codes.op_within,
-        "OP_CHECKMULTISIGVERIFY": script_op_codes.op_checkmultisigverify,
-        "OP_TOALTSTACK": script_op_codes.op_toaltstack,
-        "OP_FROMALTSTACK": script_op_codes.op_fromaltstack,
-        "OP_IFDUP": script_op_codes.op_ifdup,
-        "OP_DEPTH": script_op_codes.op_depth,
-        "OP_NIP": script_op_codes.op_nip,
-        "OP_OVER": script_op_codes.op_over,
-        "OP_PICK": script_op_codes.op_pick,
-        "OP_ROLL": script_op_codes.op_roll,
-        "OP_ROT": script_op_codes.op_rot,
-        "OP_TUCK": script_op_codes.op_tuck,
-        "OP_3DUP": script_op_codes.op_3dup,
-        "OP_2OVER": script_op_codes.op_2over,
-        "OP_2ROT": script_op_codes.op_2rot,
-        "OP_2SWAP": script_op_codes.op_2swap,
-    }
 
     altstack: list[bytes] = []
     condition_stack: list[bool] = [True]
@@ -560,8 +566,8 @@ def verify_script(  # noqa: C901 -- what the table below cannot hold, read again
                 pass
             elif "OP_NOP" in op:
                 script_op_codes.op_nop(flags)
-            elif op in operations:
-                r = operations[op](stack, altstack, flags)
+            elif op in OPERATIONS:
+                r = OPERATIONS[op](stack, altstack, flags)
                 if r:
                     script_index -= len(r)
                     op_code_num -= len(r)
