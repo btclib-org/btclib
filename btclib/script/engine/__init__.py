@@ -37,8 +37,10 @@ from btclib.tx.tx_out import TxOut
 # are re-exported so that `from btclib.script.engine import ALL_FLAGS`
 # keeps working, and that re-export is what this list is for -- mypy's
 # strict mode treats an imported name as private unless __all__ names it.
-# The functions defined below are named too, __all__ being the public
-# surface of the module once it exists and not a second list beside it
+# The functions defined below are named too -- saving the underscore
+# helpers of verify_input, whose names already say it -- __all__ being
+# the public surface of the module once it exists and not a second list
+# beside it
 __all__ = [
     "ALL_FLAGS",
     "NO_FLAGS",
@@ -92,7 +94,167 @@ def validate_redeem_script(redeem_script: ScriptList) -> None:
                 raise BTClibValueError(f"non-push command in the script_sig: {c}")
 
 
-def verify_input(  # noqa: C901 -- which script type is this prevout: BIP16, BIP141 and BIP341 each added a branch
+def _check_script_sig_policy(
+    parsed_script_sig: ScriptList, script_flags: ScriptFlag
+) -> None:
+    """Refuse the script_sig shapes SIGPUSHONLY and CONST_SCRIPTCODE ban."""
+    if ScriptFlag.SIGPUSHONLY in script_flags:
+        validate_redeem_script(parsed_script_sig)
+    if ScriptFlag.CONST_SCRIPTCODE in script_flags:
+        for x in parsed_script_sig:
+            op_checks = [
+                "OP_CHECKSIG",
+                "OP_CHECKSIGVERIFY",
+                "OP_CHECKMULTISIG",
+                "OP_CHECKSIGVERIFY",
+            ]
+            if x in op_checks:
+                raise BTClibValueError(f"signature check in the script_sig: {x}")
+
+
+def _verify_taproot(
+    script: bytes,
+    witness: Witness,
+    prevouts: list[TxOut],
+    tx: Tx,
+    i: int,
+    script_flags: ScriptFlag,
+    precomputed: PrecomputedTxData | None,
+) -> list[bytes]:
+    """Verify a p2tr spend: the v1 arm of Core's VerifyWitnessProgram.
+
+    One witness element is the key path, more are a script path, and
+    what comes back is the stack the CLEANSTACK check is to see.
+    """
+    budget = 50 + len(witness.serialize())
+    # the annex counts towards the budget, hence the order (bip 342)
+    annex, stack = taproot_get_annex(witness)
+    if len(stack) == 0:
+        raise BTClibValueError("empty taproot witness stack")
+    if len(stack) == 1:
+        tapscript.verify_key_path(script, stack, prevouts, tx, i, annex, precomputed)
+        return []
+    script_bytes, stack, leaf_version = taproot_unwrap_script(script, stack)
+    if leaf_version != 0xC0:
+        # an unknown leaf version passes validation: nothing runs, so
+        # nothing may be left over to reject
+        return []
+    tapscript.verify_script_path_vc0(
+        script_bytes, stack, prevouts, tx, i, annex, budget, script_flags, precomputed
+    )
+    # empty after a verified script path, vc0 enforcing its own
+    # end-of-script rules -- but as it came after an OP_SUCCESS
+    # short-circuit, and CLEANSTACK is owed that stack
+    return stack
+
+
+def _verify_witness_v0(
+    script_type: str,
+    payload: bytes,
+    witness: Witness,
+    prevouts: list[TxOut],
+    tx: Tx,
+    i: int,
+    script_flags: ScriptFlag,
+    precomputed: PrecomputedTxData | None,
+) -> list[bytes]:
+    """Verify a v0 spend: the v0 arm of Core's VerifyWitnessProgram.
+
+    The script is rebuilt from the program -- p2wpkh names it, p2wsh
+    carries it as the last witness element -- and runs against the rest
+    of the witness stack, which is what comes back: v0 is the one
+    version whose CLEANSTACK check is consensus.
+    """
+    # a list of its own: the interpreter pops what it consumes, and the
+    # witness stack is an immutable tuple anyway
+    stack = list(witness.stack)
+    if script_type == "p2wpkh":
+        # serialization of ["OP_DUP", "OP_HASH160", payload, "OP_EQUALVERIFY", "OP_CHECKSIG"]
+        script = b"v\xa9\x14" + payload + b"\x88\xac"
+    elif script_type == "p2wsh":
+        # the witness script is the last element, and there is none:
+        # Core's WITNESS_PROGRAM_WITNESS_EMPTY, and the guard the taproot
+        # arm already has. Without it the empty stack is an IndexError
+        # out of `stack[-1]`, i.e. malformed input leaving through
+        # something other than BTClibValueError
+        if not stack:
+            raise BTClibValueError("empty p2wsh witness stack")
+        if any(len(x) > 520 for x in stack[:-1]):
+            raise BTClibValueError("witness stack element longer than 520 bytes")
+        script = stack[-1]
+        if payload != sha256(script):
+            raise BTClibValueError("invalid witness script sha256")
+        stack = stack[:-1]
+    else:
+        raise BTClibValueError(f"invalid segwit v0 script type: {script_type}")
+
+    if "OP_CODESEPARATOR" in parse(script):
+        # what this engine does not verify: a v0 script carrying
+        # OP_CODESEPARATOR passes as it is, and the empty stack keeps
+        # CLEANSTACK out of a verdict that was never computed
+        return []
+
+    verify_script_legacy(
+        script, stack, prevouts[i].value, tx, i, script_flags, True, True, precomputed
+    )
+    return stack
+
+
+def _verify_witness_program(
+    script: bytes,
+    script_type: str,
+    payload: bytes,
+    segwit_version: int,
+    p2sh: bool,
+    stack: list[bytes],
+    prevouts: list[TxOut],
+    tx: Tx,
+    i: int,
+    script_flags: ScriptFlag,
+    precomputed: PrecomputedTxData | None,
+) -> list[bytes]:
+    """Dispatch a witness program: Core's VerifyWitnessProgram.
+
+    BIP141 and BIP341 each brought an arm, and the return value is the
+    stack the CLEANSTACK check is to see -- empty wherever validation
+    ends here, since to `if stack` an empty stack and a skipped check
+    are the same answer.
+    """
+    supported_segwit_version = -1
+    if ScriptFlag.WITNESS in script_flags:
+        supported_segwit_version = 0
+    if ScriptFlag.TAPROOT in script_flags:
+        supported_segwit_version = 1
+    if segwit_version > supported_segwit_version:
+        if ScriptFlag.DISCOURAGE_UPGRADABLE_WITNESS_PROGRAM in script_flags:
+            raise BTClibValueError(f"unsupported segwit version: {segwit_version}")
+        # a version this engine does not know passes validation outright
+        return []
+
+    if segwit_version == 1 and script_type == "p2tr":
+        if p2sh:
+            return []  # remains unencumbered
+        return _verify_taproot(
+            script, tx.vin[i].script_witness, prevouts, tx, i, script_flags, precomputed
+        )
+    if segwit_version == 0:
+        return _verify_witness_v0(
+            script_type,
+            payload,
+            tx.vin[i].script_witness,
+            prevouts,
+            tx,
+            i,
+            script_flags,
+            precomputed,
+        )
+    # a v1 program that is not 32 bytes, within the supported versions:
+    # nothing more executes, and what the legacy run left is what
+    # CLEANSTACK is owed
+    return stack
+
+
+def verify_input(
     prevouts: list[TxOut],
     tx: Tx,
     i: int,
@@ -111,22 +273,18 @@ def verify_input(  # noqa: C901 -- which script type is this prevout: BIP16, BIP
     which `verify_transaction` builds once for its whole loop; verifying a
     single input has nothing to share it with, so it defaults to None and
     each sig_hash computes what it needs (issue #164).
+
+    The split is Core's: this function is VerifyScript -- the two legacy
+    runs on one stack, the p2sh unwrap, the malleation checks, the
+    CLEANSTACK check -- and the witness arms live behind
+    ``_verify_witness_program``, as they live behind Core's
+    VerifyWitnessProgram.
     """
     script_flags = to_script_flags(flags)
     script_sig = tx.vin[i].script_sig
     parsed_script_sig = parse(script_sig, accept_unknown=True)
-    if ScriptFlag.SIGPUSHONLY in script_flags:
-        validate_redeem_script(parsed_script_sig)
-    if ScriptFlag.CONST_SCRIPTCODE in script_flags:
-        for x in parsed_script_sig:
-            op_checks = [
-                "OP_CHECKSIG",
-                "OP_CHECKSIGVERIFY",
-                "OP_CHECKMULTISIG",
-                "OP_CHECKSIGVERIFY",
-            ]
-            if x in op_checks:
-                raise BTClibValueError(f"signature check in the script_sig: {x}")
+    _check_script_sig_policy(parsed_script_sig, script_flags)
+
     stack: list[bytes] = []
     verify_script_legacy(
         script_sig, stack, prevouts[i].value, tx, i, script_flags, False, False
@@ -154,91 +312,23 @@ def verify_input(  # noqa: C901 -- which script type is this prevout: BIP16, BIP
     # not execute a script, and MINIMALDATA is the only flag _to_num looks
     # at
     segwit_version = _to_num(stack[-1], NO_FLAGS) if is_segwit(script) else -1
-    supported_segwit_version = -1
-    if ScriptFlag.WITNESS in script_flags:
-        supported_segwit_version = 0
-    if ScriptFlag.TAPROOT in script_flags:
-        supported_segwit_version = 1
     if segwit_version + 1 and tx.vin[i].script_sig and not p2sh:
         raise BTClibValueError("non-empty script_sig for a native segwit input")
     if not (segwit_version + 1) and tx.vin[i].script_witness:
         raise BTClibValueError("witness for a non-segwit input")
-    if segwit_version > supported_segwit_version:
-        if (
-            segwit_version + 1
-            and ScriptFlag.DISCOURAGE_UPGRADABLE_WITNESS_PROGRAM in script_flags
-        ):
-            raise BTClibValueError(f"unsupported segwit version: {segwit_version}")
-        return
 
-    if segwit_version == 1 and script_type == "p2tr":
-        if p2sh:
-            return  # remains unencumbered
-        witness = tx.vin[i].script_witness
-        budget = 50 + len(witness.serialize())
-        # the annex counts towards the budget, hence the order (bip 342)
-        annex, stack = taproot_get_annex(witness)
-        if len(stack) == 0:
-            raise BTClibValueError("empty taproot witness stack")
-        if len(stack) == 1:
-            tapscript.verify_key_path(
-                script, stack, prevouts, tx, i, annex, precomputed
-            )
-            stack = []
-        else:
-            script_bytes, stack, leaf_version = taproot_unwrap_script(script, stack)
-            if leaf_version == 0xC0:
-                tapscript.verify_script_path_vc0(
-                    script_bytes,
-                    stack,
-                    prevouts,
-                    tx,
-                    i,
-                    annex,
-                    budget,
-                    script_flags,
-                    precomputed,
-                )
-            else:
-                return  # unknown program, passes validation
-
-    if segwit_version == 0:
-        # a list of its own: the interpreter pops what it consumes, and the
-        # witness stack is an immutable tuple anyway
-        if script_type == "p2wpkh":
-            stack = list(tx.vin[i].script_witness.stack)
-            # serialization of ["OP_DUP", "OP_HASH160", payload, "OP_EQUALVERIFY", "OP_CHECKSIG"]
-            script = b"v\xa9\x14" + payload + b"\x88\xac"
-        elif script_type == "p2wsh":
-            stack = list(tx.vin[i].script_witness.stack)
-            # the witness script is the last element, and there is none:
-            # Core's WITNESS_PROGRAM_WITNESS_EMPTY, and the guard the
-            # taproot branch above already has. Without it the empty stack
-            # is an IndexError out of `stack[-1]`, i.e. malformed input
-            # leaving through something other than BTClibValueError
-            if not stack:
-                raise BTClibValueError("empty p2wsh witness stack")
-            if any(len(x) > 520 for x in stack[:-1]):
-                raise BTClibValueError("witness stack element longer than 520 bytes")
-            script = stack[-1]
-            if payload != sha256(script):
-                raise BTClibValueError("invalid witness script sha256")
-            stack = stack[:-1]
-        else:
-            raise BTClibValueError(f"invalid segwit v0 script type: {script_type}")
-
-        if "OP_CODESEPARATOR" in parse(script):
-            return
-
-        verify_script_legacy(
+    if segwit_version + 1:
+        stack = _verify_witness_program(
             script,
+            script_type,
+            payload,
+            segwit_version,
+            p2sh,
             stack,
-            prevouts[i].value,
+            prevouts,
             tx,
             i,
             script_flags,
-            True,
-            True,
             precomputed,
         )
 

@@ -1750,8 +1750,8 @@ seventeen source-breaking changes on their own.
   `tests/b32_test.py` that printed an address on every invalid case and
   asserted nothing; it is gone. `C90` closes issue #184, which asked for
   C901 or for the decision not to have it: `max-complexity` is ruff's
-  default 10, and the 3 functions over it — the script engine's
-  verifiers, an op-code dispatch each — carry a
+  default 10, and the 2 functions over it — the script engine's
+  interpreter loops, an op-code dispatch each — carry a
   `# noqa: C901` naming its reason, never its number, which nothing would
   check. No exemption is permanent: RUF100 fails a noqa as unused the
   moment a refactor brings its function under the line, so the list only
@@ -1767,7 +1767,12 @@ seventeen source-breaking changes on their own.
   bytes changed: every input map of the BIP174 and BIP371 vectors, the
   union of them with the four preimage types no vector carries, and a
   malformed key of every type, all serialize to the same bytes and answer
-  with the same message as before.
+  with the same message as before. `verify_input` is a third, at 6 where
+  it was 25: its reason named BIP16, BIP141 and BIP341 one branch each,
+  which is accretion Core answers by splitting, so the witness arms now
+  live behind a `VerifyWitnessProgram` of btclib's own and the residue
+  reads as Core's VerifyScript — while the two interpreter loops mirror
+  EvalScript, which Core itself keeps whole, and stay.
   The rejected sets are recorded with their counts in pyproject.toml, from
   `N` at 498 down to `PERF` at 3, and so is the reason the zero-finding
   ones for constructs this code base does not have — `DTZ` without
