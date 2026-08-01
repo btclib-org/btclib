@@ -11,7 +11,7 @@ release-notes length in the first place, and are still in
 
 ## v2026.8 (work in progress, not released yet)
 
-A hundred and fifty-seven entries, grouped. The order runs from what breaks
+A hundred and fifty-nine entries, grouped. The order runs from what breaks
 a caller to what only maintainers see; [HISTORY.md](./HISTORY.md) lists the
 nineteen source-breaking changes on their own.
 
@@ -354,6 +354,23 @@ nineteen source-breaking changes on their own.
   script_sig under the flag. All four names now, each pinned by a test.
   Consensus is untouched, CONST_SCRIPTCODE being a policy flag
   ALL_FLAGS leaves off
+- **A v0 script carrying OP_CODESEPARATOR is verified now.** Since the
+  interpreter landed (#83), `verify_input` answered such a spend
+  without running it — an early return, no reason recorded — while the
+  legacy loop it delegates to has carried BIP143's codeseparator
+  semantics all along: the script code is cut at the last *executed*
+  separator, by an op-code index kept correct across the \*VERIFY
+  stream rebuilds. The guard is gone, and the three BIP143 worked
+  examples in tx_valid — P2WSH with OP_CODESEPARATOR executed,
+  unexecuted, and beside an out-of-range SIGHASH_SINGLE — verify for
+  real where they used to pass unexamined, through both signature
+  backends. An invalid spend of that shape was accepted, and is refused
+  now. The guard cut the other way as well, and that verdict moves too:
+  it parsed *every* v0 witness script strictly, so an op-code byte no
+  table names made the spend invalid wherever it sat, and it is now the
+  interpreter that answers — unknown op codes refused when executed,
+  skipped inside a branch nothing takes, which is what Core does and
+  what the legacy engine already did everywhere else
 
 ### Malformed input and the exception contract
 

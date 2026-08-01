@@ -20,6 +20,7 @@ import pytest
 from btclib.alias import TaprootScriptTree
 from btclib.ecc.dsa import Sig
 from btclib.exceptions import BTClibValueError, ScriptError
+from btclib.hashes import sha256
 from btclib.script import ScriptPubKey
 from btclib.script.engine import ALL_FLAGS, NO_FLAGS, ScriptFlag, verify_input
 from btclib.script.engine.script import (
@@ -575,6 +576,32 @@ def test_unknown_v1_program_reaches_cleanstack() -> None:
     verify_input([prevout], tx, 0, ALL_FLAGS)
     with pytest.raises(BTClibValueError, match="1 elements left on the stack"):
         verify_input([prevout], tx, 0, ALL_FLAGS | ScriptFlag.CLEANSTACK)
+
+
+def test_p2wsh_unknown_op_code_is_the_interpreter_s_to_judge() -> None:
+    """An op-code byte no table names costs a v0 spend only if it runs.
+
+    Which is Core, and which is what the legacy engine already answered
+    everywhere else: `EVALUATED_WHEN_UNEXECUTED` is OP_IF..OP_ENDIF and
+    nothing besides, so a byte the tables do not name is refused when
+    the interpreter reaches it and skipped inside a branch nothing
+    takes. What used to answer instead was the strict `parse` of the
+    OP_CODESEPARATOR guard, which ran over every v0 witness script and
+    refused the byte wherever it sat -- the guard is gone, so the
+    verdict for the unexecuted case moved with it.
+    """
+    for witness_script, ok in (
+        (b"\x00\x63\xbb\x68\x51", True),
+        (b"\x51\x63\xbb\x68", False),
+    ):
+        prevout = TxOut(1000, ScriptPubKey(b"\x00\x20" + sha256(witness_script)))
+        tx_in = TxIn(OutPoint(b"\x01" * 32, 0), b"", 1, Witness([witness_script.hex()]))
+        tx = Tx(2, 0, [tx_in], [TxOut(1000, ScriptPubKey(""))], check_validity=False)
+        if ok:
+            verify_input([prevout], tx, 0, ALL_FLAGS)
+        else:
+            with pytest.raises(ScriptError, match="unknown op code"):
+                verify_input([prevout], tx, 0, ALL_FLAGS)
 
 
 @pytest.mark.parametrize(

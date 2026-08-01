@@ -203,12 +203,6 @@ def _verify_witness_v0(
     else:
         raise BTClibValueError(f"invalid segwit v0 script type: {script_type}")
 
-    if "OP_CODESEPARATOR" in parse(script):
-        # what this engine does not verify: a v0 script carrying
-        # OP_CODESEPARATOR passes as it is, and the empty stack keeps
-        # CLEANSTACK out of a verdict that was never computed
-        return []
-
     verify_script_legacy(
         script, stack, prevouts[i].value, tx, i, script_flags, True, True, precomputed
     )
