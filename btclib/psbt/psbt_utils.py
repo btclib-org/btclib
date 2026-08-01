@@ -37,10 +37,15 @@ FINGERPRINT_SIZE = 4
 # what ends every map of a psbt: a key of length zero, which no real key
 # can be. It lives here, and not next to the magic bytes, because all
 # three kinds of map write it -- the global one, and each input and
-# output. The name is Bitcoin Core's, and so is what it leaves unnamed:
-# BIP174 calls the 0xff of the header a separator too, in prose, while
-# spelling <magic> as the five bytes that include it, so a constant for
-# the 0xff alone would be a fourth reading of the word
+# output.
+#
+# The name is Bitcoin Core's, and it settles an ambiguity that is
+# BIP174's own: the spec spells <magic> as the five bytes 0x70 0x73 0x62
+# 0x74 0xFF, then calls the 0xff inside them a separator as well ("the
+# separator is part of the 5 byte header"), so the word names two
+# different bytes in one document. Here it names this one, and only this
+# one; the 0xff has no constant of its own, being part of
+# psbt.PSBT_MAGIC_BYTES, which is where the header says the rest
 PSBT_SEPARATOR = b"\x00"
 
 
