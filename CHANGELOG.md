@@ -1526,8 +1526,8 @@ seventeen source-breaking changes on their own.
   possibility the curve does not have. 99.99 rather than 100 because
   coverage special-cases 100 to mean exactly 100.00%, which would make
   one version-gated line a red build; the comparison is
-  `round(total, precision) < fail_under`, so 99.99 allows two of the
-  15328 statements the coverage job measures
+  `round(total, precision) < fail_under`, so 99.99 is one rounding step
+  of slack rather than none
 - **`tests/ecc/bms_test.py` imports on python 3.9 again.** It annotates a
   helper `-> Point | None` without `from __future__ import annotations`,
   which 3.9 evaluates at def time and has no `|` for: the module was ten
@@ -1849,11 +1849,11 @@ seventeen source-breaking changes on their own.
   and what the lint and docs jobs therefore already used, so 3.13 was a
   version those two jobs alone singled out — the matrix tests it like
   every other. It matters most for coverage, whose gate is a ratio of a
-  statement count that moves between interpreters, 15328 on 3.14 against
-  15334 on 3.13: the threshold and the interpreter now agree with what a
-  maintainer measures locally with a bare `uv run pytest --cov`. The
-  release step only needs a `tomllib`, i.e. 3.11 or newer, and now asks
-  for a version uv has already fetched for the other jobs
+  statement count that moves between interpreters: the threshold and the
+  interpreter now agree with what a maintainer measures locally with a
+  bare `uv run pytest --cov`. The release step only needs a `tomllib`,
+  i.e. 3.11 or newer, and now asks for a version uv has already fetched
+  for the other jobs
 - the packaging metadata is validated on every pull request rather than
   only on the tag that ships it: twine, check-wheel-contents and pyroma
   moved from the release workflow to a job of the test workflow, which

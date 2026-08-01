@@ -301,18 +301,21 @@ precision = 2
 # a local threshold rather than a coveralls.io upload: no secret, no
 # third party service, and enforced on every run instead of only on
 # pull requests targeting master.
-# The comparison is `round(total, precision) < fail_under`, so with the
-# 15328 statements the coverage-py job measures this allows 2 of them to
-# go uncovered, against the 0 uncovered today. Not 99.9, which allows 15:
-# slack that wide reports a regression as a pass -- measured, 12 of the
-# 15 were found already taken, four in tests/conftest.py's own failure
-# paths and one in a wrapper around the bindings.
-# Both figures are that job's interpreter, 3.14, and not any other: the
-# statement count moves between versions -- 3.13 measures 15334 of the
-# same tree -- so a number measured elsewhere would not be the one the
-# gate compares. 3.14 because it is what .python-version pins, so a bare
-# `uv run pytest --cov` locally measures what CI does; the job names the
-# version too, and the two have to move together.
+# The comparison is `round(total, precision) < fail_under`, so 99.99 is
+# not "everything covered": it is one rounding step of slack, enough not
+# to turn a single version-gated line into a red build, tight enough
+# that a regression cannot hide in it. Not 99.9, ten times as wide,
+# which is room for a whole handful of statements to go uncovered and be
+# reported as a pass. How many statements either allows is a division by
+# a total that moves with every commit, so it is not written down here:
+# `pytest --cov` prints the total and the percentage on every run.
+# The percentage is measured on that job's interpreter, 3.14, and on no
+# other: the statement count moves between versions, so the same tree
+# measures a different percentage elsewhere and a threshold checked on
+# one version is not the one another compares against. 3.14 because it
+# is what .python-version pins, so a bare `uv run pytest --cov` locally
+# measures what CI does; the job names the version too, and the two have
+# to move together.
 # Neither is 100 the setting: coverage special-cases it to mean exactly
 # 100.00%, which makes a single version-gated line a red build rather
 # than a thing to go and cover
