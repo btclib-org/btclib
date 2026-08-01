@@ -9,11 +9,17 @@
 # or distributed except according to the terms contained in the LICENSE file.
 """Tests for the `btclib.psbt.psbt_in` module."""
 
-from dataclasses import FrozenInstanceError
+from dataclasses import FrozenInstanceError, fields
 
 import pytest
 
 from btclib.psbt import Psbt, PsbtIn
+from btclib.psbt.psbt_in import (
+    _DROPPED_ONCE_FINALIZED,
+    _KEY_DATA_FIELDS,
+    _SERIALIZED_FIELDS,
+    _WHOLE_VALUE_FIELDS,
+)
 from tests.conftest import JsonGolden
 
 
@@ -43,6 +49,28 @@ def test_default_arguments_are_not_shared() -> None:
     with pytest.raises(FrozenInstanceError):
         psbt_in.final_script_witness.stack = ()  # type: ignore[misc]
     assert not PsbtIn().final_script_witness.stack
+
+
+def test_key_type_tables_name_every_field() -> None:
+    # serialize and parse read the field out of a table by name, so a field
+    # renamed on the dataclass and not in the table would serialize as
+    # absent -- a psbt quietly missing a signature, and no error anywhere.
+    # This is the check that costs, the names being strings
+    field_names = {field.name for field in fields(PsbtIn)}
+
+    assert {name for _, name, _ in _SERIALIZED_FIELDS} == field_names
+    assert _DROPPED_ONCE_FINALIZED < field_names
+
+    parsed = {name for name, _, _ in _WHOLE_VALUE_FIELDS.values()}
+    parsed |= {name for name, _ in _KEY_DATA_FIELDS.values()}
+    # unknown is what no key type claims, so it is in neither table
+    assert parsed | {"unknown"} == field_names
+
+    # one key type per entry, in both directions
+    assert len(_WHOLE_VALUE_FIELDS.keys() & _KEY_DATA_FIELDS.keys()) == 0
+    assert (
+        len(_SERIALIZED_FIELDS) == len(_WHOLE_VALUE_FIELDS) + len(_KEY_DATA_FIELDS) + 1
+    )
 
 
 def test_dataclasses_json_dict(json_golden: JsonGolden) -> None:

@@ -489,11 +489,11 @@ ignore = [
 ]
 
 [tool.ruff.lint.mccabe]
-# ruff's default, and the 15 functions over it each carry a noqa naming
+# ruff's default, and the 13 functions over it each carry a noqa naming
 # its reason (issue #184). Not a global bound at the tree's worst, which
 # keeps the worst from growing but lets any new function reach it
-# unremarked; not per-file-ignores, which exempts the file, so every
-# other function in psbt_in.py would lose the check its neighbours need.
+# unremarked; not per-file-ignores, which exempts the file, so every other
+# function in bip32.py would lose the check its two are the reason for.
 # The reasons carry no complexity number: nothing checks a number in a
 # comment, and it would drift into a false claim. No exemption is
 # permanent: RUF100 (unused-noqa, selected above) fails a noqa as unused

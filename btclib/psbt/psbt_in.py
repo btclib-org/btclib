@@ -14,7 +14,7 @@ https://github.com/bitcoin/bips/blob/master/bip-0174.mediawiki
 
 from __future__ import annotations
 
-from collections.abc import Mapping
+from collections.abc import Callable, Mapping
 
 # Standard library imports
 from dataclasses import dataclass
@@ -89,12 +89,11 @@ PSBT_IN_TAP_MERKLE_ROOT = b"\x18"
 # see https://github.com/bitcoin/bips/pull/1038
 
 
-def _deserialize_witness_utxo(k: bytes, v: bytes) -> TxOut:
+def _deserialize_witness_utxo(k: bytes, v: bytes, type_: str) -> TxOut:
     """Return the dataclass element from its binary representation."""
-    if len(k) != 1:
-        err_msg = f"invalid witness-utxo key length: {len(k)}"
-        raise BTClibValueError(err_msg)
-    return TxOut.parse(v)
+    # deserialize_bytes is the key-length check: the key of a field that
+    # occurs at most once per input is its type byte and nothing else
+    return TxOut.parse(deserialize_bytes(k, v, type_))
 
 
 def _assert_valid_partial_sigs(partial_sigs: Mapping[bytes, bytes]) -> None:
@@ -130,12 +129,9 @@ def _assert_valid_final_script_sig(final_script_sig: bytes) -> None:
     bytes(final_script_sig)
 
 
-def _deserialize_final_script_witness(k: bytes, v: bytes) -> Witness:
+def _deserialize_final_script_witness(k: bytes, v: bytes, type_: str) -> Witness:
     """Return the dataclass element from its binary representation."""
-    if len(k) != 1:
-        err_msg = f"invalid final script witness key length: {len(k)}"
-        raise BTClibValueError(err_msg)
-    return Witness.parse(v)
+    return Witness.parse(deserialize_bytes(k, v, type_))
 
 
 def _assert_valid_ripemd160_preimages(
@@ -162,6 +158,163 @@ def _assert_valid_hash256_preimages(hash256_preimages: Mapping[bytes, bytes]) ->
     for h, preimage in hash256_preimages.items():
         if hash256(preimage) != h:
             raise BTClibValueError("invalid HASH256 preimage")
+
+
+def _serialize_non_witness_utxo(type_: bytes, tx: Tx) -> bytes:
+    """Return the binary representation of the dataclass element."""
+    # include_witness=True: bip 174 carries the utxo being spent as the
+    # network serializes it, and "non-witness" names the input's kind, not
+    # a transaction with its witnesses stripped
+    return serialize_bytes(type_, tx.serialize(include_witness=True))
+
+
+def _serialize_witness_utxo(type_: bytes, tx_out: TxOut) -> bytes:
+    """Return the binary representation of the dataclass element."""
+    return serialize_bytes(type_, tx_out.serialize())
+
+
+def _serialize_sig_hash_type(type_: bytes, sig_hash_type: int) -> bytes:
+    """Return the binary representation of the dataclass element."""
+    # bip 174: four bytes, little endian, unsigned
+    return serialize_bytes(
+        type_, sig_hash_type.to_bytes(4, byteorder="little", signed=False)
+    )
+
+
+def _serialize_final_script_witness(type_: bytes, witness: Witness) -> bytes:
+    """Return the binary representation of the dataclass element."""
+    return serialize_bytes(type_, witness.serialize())
+
+
+# what serializing a field takes: its key type and its value, whatever the
+# value's shape is -- so the psbt_utils serializers and the four wrappers
+# above share one signature, which is what lets the table below be a table
+_Serializer = Callable[[bytes, Any], bytes]
+
+# what deserializing a whole value takes: the key, whose length is the
+# check, the value, and the name of the field to report in the message
+_Deserializer = Callable[[bytes, bytes, str], Any]
+
+# one entry per BIP174 input key type: the type byte, the attribute holding
+# the value, and the serializer for that value's shape. A table rather than
+# one `if` per field, because the fields differ in exactly these three
+# things and in nothing else, and because the order of emission -- which is
+# what a psbt's bytes are compared against -- is then a list to read
+# instead of a control flow to trace. Order is why it is a list.
+#
+# The attribute is the init keyword as well, __init__ taking one parameter
+# per field, so a field is named once here and once in the parse tables
+# below and nowhere else.
+#
+# A field is serialized only when its value is truthy, an absent field
+# being an absent key/value pair, so no serializer here has to answer what
+# an empty value would serialize to
+_SERIALIZED_FIELDS: list[tuple[bytes, str, _Serializer]] = [
+    (PSBT_IN_NON_WITNESS_UTXO, "non_witness_utxo", _serialize_non_witness_utxo),
+    (PSBT_IN_WITNESS_UTXO, "witness_utxo", _serialize_witness_utxo),
+    (PSBT_IN_PARTIAL_SIG, "partial_sigs", serialize_dict_bytes_bytes),
+    (PSBT_IN_SIG_HASH_TYPE, "sig_hash_type", _serialize_sig_hash_type),
+    (PSBT_IN_REDEEM_SCRIPT, "redeem_script", serialize_bytes),
+    (PSBT_IN_WITNESS_SCRIPT, "witness_script", serialize_bytes),
+    (PSBT_IN_BIP32_DERIVATION, "hd_key_paths", serialize_hd_key_paths),
+    (PSBT_IN_FINAL_SCRIPTSIG, "final_script_sig", serialize_bytes),
+    (
+        PSBT_IN_FINAL_SCRIPTWITNESS,
+        "final_script_witness",
+        _serialize_final_script_witness,
+    ),
+    # an unknown key is kept whole, its type byte included, so an empty
+    # type marker re-emits each of them exactly as it arrived
+    (b"", "unknown", serialize_dict_bytes_bytes),
+    (PSBT_IN_RIPEMD160, "ripemd160_preimages", serialize_dict_bytes_bytes),
+    (PSBT_IN_SHA256, "sha256_preimages", serialize_dict_bytes_bytes),
+    (PSBT_IN_HASH160, "hash160_preimages", serialize_dict_bytes_bytes),
+    (PSBT_IN_HASH256, "hash256_preimages", serialize_dict_bytes_bytes),
+    (PSBT_IN_TAP_KEY_SIG, "taproot_key_spend_signature", serialize_bytes),
+    (
+        PSBT_IN_TAP_SCRIPT_SIG,
+        "taproot_script_spend_signatures",
+        serialize_dict_bytes_bytes,
+    ),
+    (PSBT_IN_TAP_LEAF_SCRIPT, "taproot_leaf_scripts", serialize_leaf_scripts),
+    (PSBT_IN_TAP_BIP32_DERIVATION, "taproot_hd_key_paths", serialize_taproot_bip32),
+    (PSBT_IN_TAP_INTERNAL_KEY, "taproot_internal_key", serialize_bytes),
+    (PSBT_IN_TAP_MERKLE_ROOT, "taproot_merkle_root", serialize_bytes),
+]
+
+# bip 174: what a finalizer consumed is not carried beside what it
+# produced, so an input with a final script_sig or witness serializes
+# without these fields. They are still parsed: dropping what a
+# counterparty sent is the Finalizer role's decision, not a codec's.
+# Issue 173: the taproot fields have no such condition
+_DROPPED_ONCE_FINALIZED = frozenset(
+    {
+        "partial_sigs",
+        "sig_hash_type",
+        "redeem_script",
+        "witness_script",
+        "hd_key_paths",
+    }
+)
+
+# a BIP174 key is a one-byte type, plus key data for the fields that can
+# occur more than once per input -- a pub key, a hash, a control block.
+# Telling those two apart is the whole of a parse, so there is a table for
+# each: here the fields whose key is the type byte alone, mapped to the
+# init keyword they fill, the field name their error message reports, and
+# the deserializer of the whole value
+_WHOLE_VALUE_FIELDS: dict[bytes, tuple[str, str, _Deserializer]] = {
+    PSBT_IN_NON_WITNESS_UTXO: (
+        "non_witness_utxo",
+        "non-witness utxo",
+        deserialize_tx,
+    ),
+    PSBT_IN_WITNESS_UTXO: ("witness_utxo", "witness-utxo", _deserialize_witness_utxo),
+    PSBT_IN_SIG_HASH_TYPE: ("sig_hash_type", "sig_hash type", deserialize_int),
+    PSBT_IN_REDEEM_SCRIPT: ("redeem_script", "redeem script", deserialize_bytes),
+    PSBT_IN_WITNESS_SCRIPT: ("witness_script", "witness script", deserialize_bytes),
+    PSBT_IN_FINAL_SCRIPTSIG: (
+        "final_script_sig",
+        "final script_sig",
+        deserialize_bytes,
+    ),
+    PSBT_IN_FINAL_SCRIPTWITNESS: (
+        "final_script_witness",
+        "final script witness",
+        _deserialize_final_script_witness,
+    ),
+    PSBT_IN_TAP_KEY_SIG: (
+        "taproot_key_spend_signature",
+        "taproot key spend signature",
+        deserialize_bytes,
+    ),
+    PSBT_IN_TAP_INTERNAL_KEY: (
+        "taproot_internal_key",
+        "taproot internal key",
+        deserialize_bytes,
+    ),
+    PSBT_IN_TAP_MERKLE_ROOT: (
+        "taproot_merkle_root",
+        "taproot merkle root",
+        deserialize_bytes,
+    ),
+}
+
+# and here the fields whose key carries key data: the init keyword, and the
+# parser of one entry's value. bytes is the parser of a value that is
+# already bytes, which is the answer for the four preimage maps and the two
+# signature maps -- the key data is where those fields' meaning is
+_KEY_DATA_FIELDS: dict[bytes, tuple[str, Callable[[bytes], Any]]] = {
+    PSBT_IN_PARTIAL_SIG: ("partial_sigs", bytes),
+    PSBT_IN_BIP32_DERIVATION: ("hd_key_paths", BIP32KeyOrigin.parse),
+    PSBT_IN_RIPEMD160: ("ripemd160_preimages", bytes),
+    PSBT_IN_SHA256: ("sha256_preimages", bytes),
+    PSBT_IN_HASH160: ("hash160_preimages", bytes),
+    PSBT_IN_HASH256: ("hash256_preimages", bytes),
+    PSBT_IN_TAP_SCRIPT_SIG: ("taproot_script_spend_signatures", bytes),
+    PSBT_IN_TAP_LEAF_SCRIPT: ("taproot_leaf_scripts", parse_leaf_script),
+    PSBT_IN_TAP_BIP32_DERIVATION: ("taproot_hd_key_paths", parse_taproot_bip32),
+}
 
 
 @dataclass
@@ -374,120 +527,23 @@ class PsbtIn:
             check_validity=check_validity,
         )
 
-    def serialize(self, *, check_validity: bool = True) -> bytes:  # noqa: C901 -- one branch per BIP174 input key type
+    def serialize(self, *, check_validity: bool = True) -> bytes:
         if check_validity:
             self.assert_valid()
 
+        finalized = bool(self.final_script_sig or self.final_script_witness)
+
         psbt_in_bin: list[bytes] = []
-
-        if self.non_witness_utxo:
-            temp = self.non_witness_utxo.serialize(include_witness=True)
-            psbt_in_bin.append(serialize_bytes(PSBT_IN_NON_WITNESS_UTXO, temp))
-
-        if self.witness_utxo:
-            psbt_in_bin.append(
-                serialize_bytes(PSBT_IN_WITNESS_UTXO, self.witness_utxo.serialize())
-            )
-
-        if not self.final_script_sig and not self.final_script_witness:
-            if self.partial_sigs:
-                psbt_in_bin.append(
-                    serialize_dict_bytes_bytes(PSBT_IN_PARTIAL_SIG, self.partial_sigs)
-                )
-
-            if self.sig_hash_type:
-                temp = self.sig_hash_type.to_bytes(4, byteorder="little", signed=False)
-                psbt_in_bin.append(serialize_bytes(PSBT_IN_SIG_HASH_TYPE, temp))
-
-            if self.redeem_script:
-                psbt_in_bin.append(
-                    serialize_bytes(PSBT_IN_REDEEM_SCRIPT, self.redeem_script)
-                )
-
-            if self.witness_script:
-                psbt_in_bin.append(
-                    serialize_bytes(PSBT_IN_WITNESS_SCRIPT, self.witness_script)
-                )
-
-            if self.hd_key_paths:
-                psbt_in_bin.append(
-                    serialize_hd_key_paths(PSBT_IN_BIP32_DERIVATION, self.hd_key_paths)
-                )
-
-        if self.final_script_sig:
-            psbt_in_bin.append(
-                serialize_bytes(PSBT_IN_FINAL_SCRIPTSIG, self.final_script_sig)
-            )
-
-        if self.final_script_witness:
-            temp = self.final_script_witness.serialize()
-            psbt_in_bin.append(serialize_bytes(PSBT_IN_FINAL_SCRIPTWITNESS, temp))
-
-        if self.unknown:
-            psbt_in_bin.append(serialize_dict_bytes_bytes(b"", self.unknown))
-
-        if self.ripemd160_preimages:
-            psbt_in_bin.append(
-                serialize_dict_bytes_bytes(PSBT_IN_RIPEMD160, self.ripemd160_preimages)
-            )
-
-        if self.sha256_preimages:
-            psbt_in_bin.append(
-                serialize_dict_bytes_bytes(PSBT_IN_SHA256, self.sha256_preimages)
-            )
-
-        if self.hash160_preimages:
-            psbt_in_bin.append(
-                serialize_dict_bytes_bytes(PSBT_IN_HASH160, self.hash160_preimages)
-            )
-
-        if self.hash256_preimages:
-            psbt_in_bin.append(
-                serialize_dict_bytes_bytes(PSBT_IN_HASH256, self.hash256_preimages)
-            )
-
-        # issue 173: no conditions on the serializations below
-
-        if self.taproot_key_spend_signature:
-            psbt_in_bin.append(
-                serialize_bytes(PSBT_IN_TAP_KEY_SIG, self.taproot_key_spend_signature)
-            )
-
-        if self.taproot_script_spend_signatures:
-            psbt_in_bin.append(
-                serialize_dict_bytes_bytes(
-                    PSBT_IN_TAP_SCRIPT_SIG, self.taproot_script_spend_signatures
-                )
-            )
-
-        if self.taproot_leaf_scripts:
-            psbt_in_bin.append(
-                serialize_leaf_scripts(
-                    PSBT_IN_TAP_LEAF_SCRIPT, self.taproot_leaf_scripts
-                )
-            )
-
-        if self.taproot_hd_key_paths:
-            psbt_in_bin.append(
-                serialize_taproot_bip32(
-                    PSBT_IN_TAP_BIP32_DERIVATION, self.taproot_hd_key_paths
-                )
-            )
-
-        if self.taproot_internal_key:
-            psbt_in_bin.append(
-                serialize_bytes(PSBT_IN_TAP_INTERNAL_KEY, self.taproot_internal_key)
-            )
-
-        if self.taproot_merkle_root:
-            psbt_in_bin.append(
-                serialize_bytes(PSBT_IN_TAP_MERKLE_ROOT, self.taproot_merkle_root)
-            )
-
+        for type_, field, serialize_field in _SERIALIZED_FIELDS:
+            if finalized and field in _DROPPED_ONCE_FINALIZED:
+                continue
+            value = getattr(self, field)
+            if value:
+                psbt_in_bin.append(serialize_field(type_, value))
         return b"".join(psbt_in_bin)
 
     @classmethod
-    def parse(  # noqa: C901 -- one branch per BIP174 input key type
+    def parse(
         cls: type[PsbtIn],
         input_map: Mapping[bytes, bytes],
         *,
@@ -495,94 +551,24 @@ class PsbtIn:
     ) -> PsbtIn:
         """Return a PsbtIn by parsing binary data."""
         # FIX parse must use BinaryData
-        non_witness_utxo = None
-        witness_utxo = None
-        partial_sigs: dict[Octets, Octets] = {}
-        sig_hash_type = None
-        redeem_script = b""
-        witness_script = b""
-        hd_key_paths: dict[Octets, BIP32KeyOrigin] = {}
-        final_script_sig = b""
-        final_script_witness = Witness()
-        ripemd160_preimages: dict[Octets, Octets] = {}
-        sha256_preimages: dict[Octets, Octets] = {}
-        hash160_preimages: dict[Octets, Octets] = {}
-        hash256_preimages: dict[Octets, Octets] = {}
-        taproot_key_spend_signature = b""
-        taproot_script_spend_signatures: dict[Octets, Octets] = {}
-        taproot_leaf_scripts: dict[Octets, tuple[Octets, int]] = {}
-        taproot_hd_key_paths: dict[Octets, tuple[list[Octets], BIP32KeyOrigin]] = {}
-        taproot_internal_key = b""
-        taproot_merkle_root = b""
-        unknown: dict[Octets, Octets] = {}
+        # the init keywords the map fills; whatever it does not carry keeps
+        # the default __init__ gives it, which is what makes the two tables
+        # above the whole of the mapping
+        fields: dict[str, Any] = {}
 
         for k, v in input_map.items():
-            if k[:1] == PSBT_IN_NON_WITNESS_UTXO:
-                non_witness_utxo = deserialize_tx(k, v, "non-witness utxo")
-            elif k[:1] == PSBT_IN_WITNESS_UTXO:
-                witness_utxo = _deserialize_witness_utxo(k, v)
-            elif k[:1] == PSBT_IN_PARTIAL_SIG:
-                partial_sigs[k[1:]] = v
-            elif k[:1] == PSBT_IN_SIG_HASH_TYPE:
-                sig_hash_type = deserialize_int(k, v, "sig_hash type")
-            elif k[:1] == PSBT_IN_REDEEM_SCRIPT:
-                redeem_script = deserialize_bytes(k, v, "redeem script")
-            elif k[:1] == PSBT_IN_WITNESS_SCRIPT:
-                witness_script = deserialize_bytes(k, v, "witness script")
-            elif k[:1] == PSBT_IN_BIP32_DERIVATION:
-                hd_key_paths[k[1:]] = BIP32KeyOrigin.parse(v)
-            elif k[:1] == PSBT_IN_FINAL_SCRIPTSIG:
-                final_script_sig = deserialize_bytes(k, v, "final script_sig")
-            elif k[:1] == PSBT_IN_RIPEMD160:
-                ripemd160_preimages[k[1:]] = v
-            elif k[:1] == PSBT_IN_SHA256:
-                sha256_preimages[k[1:]] = v
-            elif k[:1] == PSBT_IN_HASH160:
-                hash160_preimages[k[1:]] = v
-            elif k[:1] == PSBT_IN_HASH256:
-                hash256_preimages[k[1:]] = v
-            elif k[:1] == PSBT_IN_FINAL_SCRIPTWITNESS:
-                final_script_witness = _deserialize_final_script_witness(k, v)
-            elif k[:1] == PSBT_IN_TAP_KEY_SIG:
-                taproot_key_spend_signature = deserialize_bytes(
-                    k, v, "taproot key spend signature"
-                )
-            elif k[:1] == PSBT_IN_TAP_SCRIPT_SIG:
-                taproot_script_spend_signatures[k[1:]] = v
-            elif k[:1] == PSBT_IN_TAP_LEAF_SCRIPT:
-                taproot_leaf_scripts[k[1:]] = parse_leaf_script(v)
-            elif k[:1] == PSBT_IN_TAP_BIP32_DERIVATION:
-                taproot_hd_key_path = cast(
-                    tuple[list[Octets], BIP32KeyOrigin], parse_taproot_bip32(v)
-                )
-                taproot_hd_key_paths[k[1:]] = taproot_hd_key_path
-            elif k[:1] == PSBT_IN_TAP_INTERNAL_KEY:
-                taproot_internal_key = deserialize_bytes(k, v, "taproot internal key")
-            elif k[:1] == PSBT_IN_TAP_MERKLE_ROOT:
-                taproot_merkle_root = deserialize_bytes(k, v, "taproot merkle root")
+            type_ = k[:1]
+            if type_ in _WHOLE_VALUE_FIELDS:
+                field, what, deserialize = _WHOLE_VALUE_FIELDS[type_]
+                fields[field] = deserialize(k, v, what)
+            elif type_ in _KEY_DATA_FIELDS:
+                field, parse_value = _KEY_DATA_FIELDS[type_]
+                # setdefault: such a field is as many map entries as it has
+                # key data, so it is accumulated and not assigned
+                fields.setdefault(field, {})[k[1:]] = parse_value(v)
             else:  # unknown
-                unknown[k] = v
+                # keyed by the whole key: what makes it unknown is its type
+                # byte, so that byte is part of what has to be given back
+                fields.setdefault("unknown", {})[k] = v
 
-        return cls(
-            non_witness_utxo,
-            witness_utxo,
-            partial_sigs,
-            sig_hash_type,
-            redeem_script,
-            witness_script,
-            hd_key_paths,
-            final_script_sig,
-            final_script_witness,
-            ripemd160_preimages,
-            sha256_preimages,
-            hash160_preimages,
-            hash256_preimages,
-            taproot_key_spend_signature,
-            taproot_script_spend_signatures,
-            taproot_leaf_scripts,
-            taproot_hd_key_paths,
-            taproot_internal_key,
-            taproot_merkle_root,
-            unknown,
-            check_validity=check_validity,
-        )
+        return cls(**fields, check_validity=check_validity)

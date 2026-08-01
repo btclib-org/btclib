@@ -1701,14 +1701,24 @@ sixteen source-breaking changes on their own.
   `tests/b32_test.py` that printed an address on every invalid case and
   asserted nothing; it is gone. `C90` closes issue #184, which asked for
   C901 or for the decision not to have it: `max-complexity` is ruff's
-  default 10, and the 15 functions over it — a script interpreter's
-  op-code dispatch, a PSBT's branch per key type — each carry a
+  default 10, and the 13 functions over it — a script interpreter's
+  op-code dispatch, the legacy sighash quirks — each carry a
   `# noqa: C901` naming its reason, never its number, which nothing would
   check. No exemption is permanent: RUF100 fails a noqa as unused the
   moment a refactor brings its function under the line, so the list only
   shrinks; a bound at the tree's worst would have let new functions grow
   to it unremarked, and per-file-ignores would have unguarded every
-  neighbour in the file.
+  neighbour in the file. `PsbtIn.serialize` and `PsbtIn.parse` are two
+  that left it, at 5 and 4 where they were 23 and 21: a branch per BIP174
+  input key type is a table with an entry per type, the fields differing
+  in the key type byte, the attribute and the codec and in nothing else,
+  so the order of emission — which is what a psbt's bytes are compared
+  against — is a list to read instead of eighty lines of `if` to trace,
+  and a new key type is a line rather than a branch. Nothing about the
+  bytes changed: every input map of the BIP174 and BIP371 vectors, the
+  union of them with the four preimage types no vector carries, and a
+  malformed key of every type, all serialize to the same bytes and answer
+  with the same message as before.
   The rejected sets are recorded with their counts in pyproject.toml, from
   `N` at 498 down to `PERF` at 3, and so is the reason the zero-finding
   ones for constructs this code base does not have — `DTZ` without
