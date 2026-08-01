@@ -535,6 +535,14 @@ So they are btclib's, cross-checked against an application rather than
 copied from a project. Treat them as ours: nothing upstream will ever
 refresh them.
 
+They are no longer the only Electrum vectors, and that is what makes the
+paragraph above bearable: `tests/mnemonic/electrum_test.py` now carries
+spesmilo/electrum's own, inline — the `SEED_TEST_CASES` seeds and the
+`Test_seeds` seed-type table of its `tests/test_mnemonic.py`, and the
+`UNICODE_HORROR` passphrase of its `tests/test_wallet_vertical.py`. Not
+vendored as files here: each block is small enough to read, and a
+citation two lines above the values is one that gets checked.
+
 Pulled 2018-06-11.
 
 ### `tests/mnemonic/_data/fakeenglish.txt`

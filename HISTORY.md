@@ -7,7 +7,7 @@ full year, short month, short day (YYYY-M-D)
 
 ## v2026.8 (work in progress, not released yet)
 
-The first release since 2023, and the largest: a hundred and sixty-one
+The first release since 2023, and the largest: a hundred and sixty-two
 entries, in [CHANGELOG.md](./CHANGELOG.md). What follows is what a user has
 to act on and what a user gains.
 
@@ -19,7 +19,7 @@ CHANGELOG.md.
 
 ### Breaking changes
 
-Nineteen changes break code that worked on v2023.7.12. Each is described in
+Twenty changes break code that worked on v2023.7.12. Each is described in
 full in [CHANGELOG.md](./CHANGELOG.md). Every "before" spelling was checked
 against the `v2023.7.12` tag.
 
@@ -100,6 +100,18 @@ against the `v2023.7.12` tag.
 - **`psbt_utils.deserialize_map` returns the map**, not the `(map, stream)`
   pair: `deserialize_map(data)[0]` is `deserialize_map(data)`, and a caller
   threading the stream through passes its own.
+- **`electrum.mnemonic_from_entropy` returns the mnemonic Electrum
+  returns**, which is not the one btclib returned: the words run
+  least-significant first and the search starts at `entropy + 1`, so the
+  same entropy now gives a different sentence, and
+  `electrum.entropy_from_mnemonic` reads the same sentence as a different
+  integer. Anyone who stored an entropy value expecting btclib to
+  reproduce a mnemonic from it has to store the mnemonic instead — which
+  is the safe direction anyway, the seed deriving from the words alone.
+  `version_from_mnemonic` also answers `"old"` now for a pre-2.0 Electrum
+  seed, where it raised or, worse, named one of the four new versions;
+  and it accepts what Electrum accepts, so an upper-cased or accented
+  mnemonic is read rather than refused.
 
 Two changes are deliberately *not* on that list, because what they change
 stays compatible. The new `BTClibTypeError`, `NotAPrvKeyError` and

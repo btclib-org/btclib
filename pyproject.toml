@@ -291,6 +291,21 @@ ands = "ands"
 extend-glob = ["CHANGELOG.md", "HISTORY.md", ".pre-commit-config.yaml"]
 extend-ignore-re = ['`[^`]*`']
 
+[tool.typos.type.mixed-case-vectors]
+# electrum's seed-type table quotes several of its mnemonics a second time
+# in mIxEd CaSe, that being exactly the normalization under test, and a
+# checker that splits camelCase reads the halves as words: `SqUeEzE` is an
+# `Ue` it offers to correct to "Use". With --write-changes that is a
+# rewrite of a vector electrum published, and the test would then be
+# measuring btclib against btclib.
+# Ignored by shape and not by file, as [tool.typos.default]'s literal rule
+# above is: a lower-case letter followed by an upper-case one inside one
+# word is the shape, so the prose and the identifiers of the same file stay
+# checked. Two words trip it today, and the rule covers the class because
+# which of the twelve trips it is a fact about a dictionary that updates
+extend-glob = ["electrum_test.py"]
+extend-ignore-re = ['\w*[a-z][A-Z]\w*']
+
 [tool.coverage.run]
 omit = ["*/site-packages/*"]
 

@@ -11,9 +11,9 @@ release-notes length in the first place, and are still in
 
 ## v2026.8 (work in progress, not released yet)
 
-A hundred and sixty-one entries, grouped. The order runs from what breaks
+A hundred and sixty-two entries, grouped. The order runs from what breaks
 a caller to what only maintainers see; [HISTORY.md](./HISTORY.md) lists the
-nineteen source-breaking changes on their own.
+twenty source-breaking changes on their own.
 
 ### Repository
 
@@ -839,6 +839,59 @@ nineteen source-breaking changes on their own.
 
 ### Curves, signatures and keys
 
+- **`btclib.mnemonic.electrum` is Electrum's scheme, both directions**
+  (issue #196). The module named the scheme and implemented five things
+  differently, and the worst of them was silent: the same entropy gave
+  btclib and Electrum *different* mnemonics, each passing the other's
+  version check, so a user who generated with one and restored with the
+  other got another wallet without an error anywhere. Measured against
+  `spesmilo/electrum` at master — `mnemonic.py`, `old_mnemonic.py`,
+  `version.py` and the wordlists — and now equal to it on 510 cases:
+  Electrum's whole published `calc_seed_type` table, its ten seed
+  vectors, and 420 generations from entropies of 120 to 133 bits.
+  Generating: the words run **least-significant first**, Electrum's
+  order, where they ran BIP39's — the same words the other way round, so
+  `entropy_from_mnemonic` returns a different integer too. The search
+  starts at `entropy + 1`, never at the entropy itself, and skips a
+  candidate that is a pre-2.0 Electrum seed or that is **also a valid
+  BIP39 mnemonic**: one 12-word sentence in sixteen has a valid BIP39
+  checksum by chance, so that skip alone moved one generated mnemonic in
+  sixteen. It closes as Electrum closes, by asking what it would read
+  the sentence back as, which is how a `"2fa"` request for 13 words'
+  worth of entropy now fails instead of returning a sentence Electrum
+  reads as nothing. With no entropy supplied the draw is **132 bits**
+  redrawn below 2^121 — twelve words always, and the leading one
+  uniformly distributed — where `secrets.randbits(128)` let the word
+  count follow the bit length. Reading: a mnemonic is **normalized**
+  before it is hashed and before it is stretched — NFKD, lower-case,
+  accents dropped, whitespace collapsed, whitespace between CJK
+  characters removed — where btclib only collapsed whitespace, so an
+  upper-cased Electrum seed was refused with "unknown electrum mnemonic
+  version" and an accented or Japanese one derived the wrong keys; the
+  passphrase is normalized too, as Electrum normalizes it. And the
+  **pre-2.0 scheme is recognized**: `version_from_mnemonic` answers
+  `"old"` for a 12- or 24-word seed from Electrum's 1626-word list or
+  for a 16- or 32-byte hex string, tested before the four prefixes
+  because an old seed can match one by chance and be handed back as
+  `"standard"` — the wrong derivation, in silence. Deriving from an old
+  seed is not implemented (#208); it is refused by name. The old
+  wordlist is vendored as `btclib/mnemonic/_data/electrum_old_english.txt`
+  (`electrum/old_mnemonic.py`, MIT, "Copyright (C) 2011
+  thomasv@gitorious"), and is not a `WORDLISTS` language: 1626 is not a
+  power of two, an index into it not being a whole number of bits.
+  Two things left alone on purpose. `entropy.py`'s index helpers still
+  end in `list(reversed(indexes))`, which is right for `bip39.py` and
+  what its vectors prove, so the reversal is `electrum.py`'s; and the
+  weakness of Electrum's own old-seed test is copied rather than improved
+  on, its comment saying it is deliberate (spesmilo/electrum#3149) — a
+  stricter test here would accept a seed Electrum refuses, which is the
+  divergence being closed. `test_electrum.py`'s round trip asserted
+  `entr - entropy < 0xFFF`, pinning a loose relation rather than
+  Electrum's answer; it is Electrum's vectors now, inline with the
+  citation above each block, plus the two no upstream has — an old-seed
+  collision and a BIP39 collision, each found by search because at one in
+  thirty thousand and one in sixteen neither is reachable by generating
+  and waiting
 - **`mult_endomorphism_secp256k1` answers correctly, and is now the
   fastest python multiplication in the package** (issue #215). Its
   `multiplier_decomposer` did Hankerson–Menezes–Vanstone's algorithm 3.74
