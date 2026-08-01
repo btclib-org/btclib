@@ -305,7 +305,7 @@ def check_balanced_if(script: ScriptList) -> None:
         )
 
 
-def verify_script(
+def verify_script(  # noqa: C901 -- op-code dispatch: one if/elif chain, read against Core's interpreter
     script_bytes: bytes,
     stack: list[bytes],
     prevout_value: int,

@@ -409,7 +409,7 @@ select = [
     "B",    # flake8-bugbear
     "BLE",  # flake8-blind-except
     "C4",   # flake8-comprehensions
-    "C90",  # mccabe, bounded rather than enforced: see max-complexity
+    "C90",  # mccabe, at ruff's default with noqa'd exceptions: see below
     "D",    # pydocstyle
     "E",    # pycodestyle errors
     "ERA",  # eradicate: code that was commented out instead of deleted
@@ -489,20 +489,17 @@ ignore = [
 ]
 
 [tool.ruff.lint.mccabe]
-# issue #184 asked for C901 or for the decision not to have it, and the
-# measurement is what answers it: at ruff's default of 10 the tree has 17
-# functions over the line, and the top of the list is not accidental
-# complexity. `verify_script` is 31 and `verify_script_path_vc0` 26 --
-# a script interpreter's dispatch is a long if/elif over op codes, and
-# splitting it to satisfy a counter would spread one decision across
-# several functions and make it harder to read against Bitcoin Core's,
-# not easier. `test_threshold` is 32 and is the whole tree's worst.
-#
-# So the rule is a bound and not a target: 32 is today's maximum, which
-# makes this a ratchet -- nothing has to be rewritten, and nothing may get
-# worse without saying so. Lowering it is a refactor, and a real one; the
-# library's own ceiling is `verify_script` at 31, one below this number
-max-complexity = 32
+# ruff's default, and the 17 functions over it each carry a noqa naming
+# its reason (issue #184). Not a global bound at the tree's worst, which
+# keeps the worst from growing but lets any new function reach it
+# unremarked; not per-file-ignores, which exempts the file, so every
+# other function in psbt_in.py would lose the check its neighbours need.
+# The reasons carry no complexity number: nothing checks a number in a
+# comment, and it would drift into a false claim. No exemption is
+# permanent: RUF100 (unused-noqa, selected above) fails a noqa as unused
+# the moment a refactor brings its function under the line, so the list
+# can only shrink
+max-complexity = 10
 
 [tool.ruff.lint.pydocstyle]
 convention = "pep257"

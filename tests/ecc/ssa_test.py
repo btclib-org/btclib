@@ -402,7 +402,7 @@ def test_musig() -> None:
     ssa.assert_as_valid_(msg_hash, Q[0], sig, hf)
 
 
-def test_threshold() -> None:
+def test_threshold() -> None:  # noqa: C901 -- a whole 2-of-3 signing protocol: the phases mean nothing apart
     """Testing 2-of-3 threshold signature (Pedersen secret sharing)."""
 
     ec = CURVES["secp256k1"]

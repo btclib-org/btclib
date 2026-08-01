@@ -119,7 +119,7 @@ def op_checksig(
     return budget
 
 
-def verify_script_path_vc0(
+def verify_script_path_vc0(  # noqa: C901 -- tapscript's op-code dispatch, read against Core's
     script_bytes: bytes,
     stack: list[bytes],
     prevouts: list[TxOut],

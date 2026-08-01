@@ -92,7 +92,7 @@ def validate_redeem_script(redeem_script: ScriptList) -> None:
                 raise BTClibValueError(f"non-push command in the script_sig: {c}")
 
 
-def verify_input(
+def verify_input(  # noqa: C901 -- which script type is this prevout: BIP16, BIP141 and BIP341 each added a branch
     prevouts: list[TxOut],
     tx: Tx,
     i: int,

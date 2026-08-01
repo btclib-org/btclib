@@ -1700,11 +1700,15 @@ sixteen source-breaking changes on their own.
   a debugging leftover inside a `pytest.raises` block in
   `tests/b32_test.py` that printed an address on every invalid case and
   asserted nothing; it is gone. `C90` closes issue #184, which asked for
-  C901 or for the decision not to have it: at ruff's default of 10 the
-  tree has 17 functions over the line, and the top of the list is a script
-  interpreter's op-code dispatch, so `max-complexity` is set to 32 — the
-  tree's current worst — making the rule a bound rather than a target.
-  Nothing had to be rewritten and nothing may now get worse in silence.
+  C901 or for the decision not to have it: `max-complexity` is ruff's
+  default 10, and the 17 functions over it — a script interpreter's
+  op-code dispatch, a PSBT's branch per key type — each carry a
+  `# noqa: C901` naming its reason, never its number, which nothing would
+  check. No exemption is permanent: RUF100 fails a noqa as unused the
+  moment a refactor brings its function under the line, so the list only
+  shrinks; a bound at the tree's worst would have let new functions grow
+  to it unremarked, and per-file-ignores would have unguarded every
+  neighbour in the file.
   The rejected sets are recorded with their counts in pyproject.toml, from
   `N` at 498 down to `PERF` at 3, and so is the reason the zero-finding
   ones for constructs this code base does not have — `DTZ` without

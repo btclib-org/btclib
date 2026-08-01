@@ -346,7 +346,7 @@ def sign(msg: Octets, prv_key: PrvKey, addr: String | None = None) -> Sig:
     return Sig(rf, dsa_sig)
 
 
-def assert_as_valid(
+def assert_as_valid(  # noqa: C901 -- one branch per address type, each with its recovery-flag range
     msg: Octets, addr: String, sig: Sig | String, lower_s: bool = True
 ) -> None:
     # Private function for test/dev purposes

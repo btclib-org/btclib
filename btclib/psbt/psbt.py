@@ -141,7 +141,7 @@ class Psbt:
         assert_valid_hd_key_paths(self.hd_key_paths)
         assert_valid_unknown(self.unknown)
 
-    def assert_signable(self) -> None:
+    def assert_signable(self) -> None:  # noqa: C901 -- which script type is each input: the Signer's pre-flight
         """Assert that every input carries what a Signer needs.
 
         Valid and signable are different questions, and BIP174 answers only

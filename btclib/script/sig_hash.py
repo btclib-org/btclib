@@ -167,7 +167,7 @@ def taproot_annex_and_ext(tx: Tx, vin_i: int) -> tuple[bytes, bytes]:
     return annex, ext
 
 
-def legacy(script_code: Octets, tx: Tx, vin_i: int, hash_type: int) -> bytes:
+def legacy(script_code: Octets, tx: Tx, vin_i: int, hash_type: int) -> bytes:  # noqa: C901 -- the legacy quirks, the SIGHASH_SINGLE bug included
     # the legacy preimage commits to the script code with its
     # OP_CODESEPARATORs elided, and Core does that here rather than to the
     # script code itself: SerializeScriptCode is part of the serializer,

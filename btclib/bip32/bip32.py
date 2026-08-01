@@ -132,7 +132,7 @@ class BIP32KeyData:
         if check_validity:
             self.assert_valid()
 
-    def assert_valid(self) -> None:
+    def assert_valid(self) -> None:  # noqa: C901 -- one check per BIP32 field, then the prv/pub split
         for key, size in _KEY_SIZE:
             # bytes() is the type check, not a coercion: it raises
             # TypeError for a field rebound to a str, which would otherwise
@@ -417,7 +417,7 @@ def __pub_key_derivation(xkey: _BIP32KeyData, index: int) -> None:
     xkey.key = bytes_from_point(pub_key_point)
 
 
-def _derive(
+def _derive(  # noqa: C901 -- the prv/pub derivation split, plus the forced-version check
     xkey: BIP32Key, der_path: BIP32DerPath, forced_version: Octets | None = None
 ) -> BIP32KeyData:
     if not isinstance(xkey, BIP32KeyData):

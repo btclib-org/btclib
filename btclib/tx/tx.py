@@ -185,7 +185,7 @@ class Tx:
         if not 0 < self.version <= 0x7FFFFFFF:
             raise BTClibValueError(f"invalid version: {self.version}")
 
-    def assert_valid(self, *, unsigned_template: bool = False) -> None:
+    def assert_valid(self, *, unsigned_template: bool = False) -> None:  # noqa: C901 -- one check per transaction invariant, coinbase apart
         """Assert that this is a valid transaction.
 
         unsigned_template=True drops the two rules a PSBT's global unsigned

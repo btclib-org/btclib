@@ -50,7 +50,7 @@ from tests.to_key_test import (
 )
 
 
-def test_from_key() -> None:
+def test_from_key() -> None:  # noqa: C901 -- every convertible pub-key form, crossed with network and compression
     secp256r1 = CURVES["secp256r1"]
     m_c = bytes_from_point(Q, compressed=True), "mainnet"
     m_unc = bytes_from_point(Q, compressed=False), "mainnet"

@@ -374,7 +374,7 @@ class PsbtIn:
             check_validity=check_validity,
         )
 
-    def serialize(self, *, check_validity: bool = True) -> bytes:
+    def serialize(self, *, check_validity: bool = True) -> bytes:  # noqa: C901 -- one branch per BIP174 input key type
         if check_validity:
             self.assert_valid()
 
@@ -487,7 +487,7 @@ class PsbtIn:
         return b"".join(psbt_in_bin)
 
     @classmethod
-    def parse(
+    def parse(  # noqa: C901 -- one branch per BIP174 input key type
         cls: type[PsbtIn],
         input_map: Mapping[bytes, bytes],
         *,

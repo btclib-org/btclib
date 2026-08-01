@@ -111,7 +111,7 @@ def wNAF_of_m(m: int, w: int) -> list[int]:
     return M
 
 
-def mult_sliding_window(m: int, Q: JacPoint, ec: CurveGroup, w: int = 4) -> JacPoint:
+def mult_sliding_window(m: int, Q: JacPoint, ec: CurveGroup, w: int = 4) -> JacPoint:  # noqa: C901 -- the published algorithm, kept in its published shape
     """Scalar multiplication using "sliding window".
 
     It has the benefit that the pre-computation stage is roughly half as

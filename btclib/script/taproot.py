@@ -56,7 +56,7 @@ def serialize(script: ScriptList) -> bytes:
     return b"".join(r)
 
 
-def parse(stream: BinaryData, exit_on_op_success: bool = False) -> ScriptList:
+def parse(stream: BinaryData, exit_on_op_success: bool = False) -> ScriptList:  # noqa: C901 -- one branch per push width, and OP_SUCCESS cuts the parse short
     s = bytesio_from_binarydata(stream)
     r: ScriptList = []  # initialize the result list
     invalid_element_size = False

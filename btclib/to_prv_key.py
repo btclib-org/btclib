@@ -97,7 +97,7 @@ def _q_if_network_and_ec_match(q: int, network: str, ec: Curve) -> int:
 PrvkeyInfo = tuple[int, str, bool]
 
 
-def _prv_keyinfo_from_wif(
+def _prv_keyinfo_from_wif(  # noqa: C901 -- consistency checks in refusal order: not-a-WIF, then invalid WIF
     wif: String, network: str | None = None, compressed: bool | None = None
 ) -> PrvkeyInfo:
     """Return private key tuple(int, compressed, network) from a WIF.
