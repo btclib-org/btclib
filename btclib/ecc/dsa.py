@@ -31,7 +31,8 @@ from btclib import var_bytes
 from btclib.alias import BinaryData, HashF, JacPoint, Octets, Point
 from btclib.curves import Curve, secp256k1
 from btclib.curves.curve import _libsecp256k1_applicable
-from btclib.curves.curve_group import _double_mult, _mult
+from btclib.curves.curve_group import _mult
+from btclib.curves.curve_group_2 import double_mult_w_NAF
 from btclib.ecc.rfc6979_nonce import _rfc6979_nonce_, challenge_
 from btclib.exceptions import BTClibRuntimeError, BTClibValueError
 from btclib.hashes import reduce_to_hlen
@@ -395,7 +396,7 @@ def _assert_as_valid_(
     u = c * w % ec.n
     v = r * w % ec.n  # 4
     # Let K = u*G + v*Q.
-    KJ = _double_mult(v, QJ, u, ec.GJ, ec)  # 5
+    KJ = double_mult_w_NAF(v, QJ, u, ec.GJ, ec)  # 5
 
     # Fail if infinite(K).
     # K = w*(c + r*q)*G is INF whenever c == -r*q (mod n)
@@ -514,8 +515,10 @@ def _recover_pub_keys_(
     #
     # It costs a mod_inv per candidate where the precomputation used to be
     # hoisted out of the loop, and that is not measurable: each candidate
-    # also runs a _double_mult, which on secp256k1 is 1500 times dearer
-    # (2600 us against 1.8 us, timeit).
+    # also runs a double_mult_w_NAF, which on secp256k1 is some eighty
+    # times dearer (1970 us against 23.6 us, timeit; the ratio was written
+    # as 1500 against a mod_inv of 1.8 us, which this extended-Euclid one
+    # is not).
     keys: list[JacPoint] = []
     for key_id in range(2 * (ec.cofactor + 1)):
         # a candidate can fail either half of step 1.6: x_K may not be on
@@ -597,7 +600,7 @@ def _recover_pub_key_(
     y_K = ec.p - y_even if i else y_even
     KJ = x_K, y_K, 1  # 1.2, 1.3, and 1.4
     # 1.5 has been performed in the recover_pub_keys calling function
-    QJ = _double_mult(r1s, KJ, r1e, ec.GJ, ec)  # 1.6.1
+    QJ = double_mult_w_NAF(r1s, KJ, r1e, ec.GJ, ec)  # 1.6.1
     _assert_as_valid_(c, QJ, r, s, lower_s, ec)  # 1.6.2
     return QJ
 

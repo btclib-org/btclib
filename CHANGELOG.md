@@ -11,7 +11,7 @@ release-notes length in the first place, and are still in
 
 ## v2026.8 (work in progress, not released yet)
 
-A hundred and thirty-six entries, grouped. The order runs from what breaks
+A hundred and thirty-seven entries, grouped. The order runs from what breaks
 a caller to what only maintainers see; [HISTORY.md](./HISTORY.md) lists the
 sixteen source-breaking changes on their own.
 
@@ -1237,6 +1237,25 @@ sixteen source-breaking changes on their own.
 
 ### Performance
 
+- **signature verification takes the interleaved-wNAF double
+  multiplication**, `curve_group_2.double_mult_w_NAF`, where it took the
+  Shamir-Strauss binary loop of `curve_group._double_mult`: 2.01 ms against
+  2.68 ms per double multiplication on secp256k1, best of seven over random
+  256-bit coefficients. `curves.double_mult`, `dsa` and `ssa` verification
+  and both public key recoveries reach it, so it is every signature the
+  bindings do not answer — another curve, another hash function, a
+  caller-supplied nonce — and the test suite's python path, which drops from
+  96.4 s to 79.3 s single-process, the module that holds it from 14.7 s to
+  11.2 s. Neither algorithm is new and neither moves: the wNAF one has been
+  in the tree with its own tests, and `_double_mult` stays as the reference
+  they compare it against.
+  It is not faster everywhere, and the docstring now carries the curve: the
+  tables of odd multiples are built per call, so a coefficient too short to
+  amortize them pays for them — 8 bits is 1.80x *slower*, 16 bits 1.20,
+  32 bits 0.95, 256 bits 0.73. Every curve with a real order is past that
+  crossover; what pays is the toy curves of the test suite, n = 11 and
+  n = 31, some 2 us a call, and a size guard would have bought a fraction of
+  a second back at the price of a branch inside signature verification
 - signing or verifying a transaction is linear in the number of its
   inputs, where it was Θ(N²). `segwit_v0` and `taproot` rebuilt, for
   every input, the hashes that depend on the whole transaction — its
@@ -1324,10 +1343,10 @@ sixteen source-breaking changes on their own.
 ### Tests
 
 - **the test suite runs on `--dist worksteal`**, xdist's work-stealing
-  scheduler, where it ran on the default `load`: 20.3 s against 27.9 s,
+  scheduler, where it ran on the default `load`: 17.2 s against 23.3 s,
   best of three runs each, same 14681 tests in the same order. The cost
   here is lopsided — the `tapscript-bigmulti` cases of
-  `tests/script_engine/test_python_path.py` take 5 to 6 s each against a
+  `tests/script_engine/test_python_path.py` take 3 s each against a
   median test under a millisecond — and `load` hands the queue out in
   chunks, so a worker that draws several of them is still going when the
   others have run out of work. Two changes that look like they should help
@@ -1383,7 +1402,7 @@ sixteen source-breaking changes on their own.
   coverage special-cases 100 to mean exactly 100.00%, which would make
   one version-gated line a red build; the comparison is
   `round(total, precision) < fail_under`, so 99.99 allows two of the
-  15325 statements the coverage job measures
+  15328 statements the coverage job measures
 - **`tests/ecc/test_bms.py` imports on python 3.9 again.** It annotates a
   helper `-> Point | None` without `from __future__ import annotations`,
   which 3.9 evaluates at def time and has no `|` for: the module was ten
@@ -1574,8 +1593,8 @@ sixteen source-breaking changes on their own.
   and what the lint and docs jobs therefore already used, so 3.13 was a
   version those two jobs alone singled out — the matrix tests it like
   every other. It matters most for coverage, whose gate is a ratio of a
-  statement count that moves between interpreters, 15325 on 3.14 against
-  15331 on 3.13: the threshold and the interpreter now agree with what a
+  statement count that moves between interpreters, 15328 on 3.14 against
+  15334 on 3.13: the threshold and the interpreter now agree with what a
   maintainer measures locally with a bare `uv run pytest --cov`. The
   release step only needs a `tomllib`, i.e. 3.11 or newer, and now asks
   for a version uv has already fetched for the other jobs

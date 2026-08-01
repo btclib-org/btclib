@@ -60,7 +60,8 @@ from btclib.alias import BinaryData, HashF, Integer, JacPoint, Octets, Point
 from btclib.bip32 import BIP32Key
 from btclib.curves import Curve, secp256k1
 from btclib.curves.curve import _libsecp256k1_applicable, mult
-from btclib.curves.curve_group import _double_mult, _mult, _multi_mult
+from btclib.curves.curve_group import _mult, _multi_mult
+from btclib.curves.curve_group_2 import double_mult_w_NAF
 from btclib.ecc.bip340_nonce import bip340_nonce_
 from btclib.exceptions import BTClibRuntimeError, BTClibTypeError, BTClibValueError
 from btclib.hashes import reduce_to_hlen, tagged_hash
@@ -290,7 +291,7 @@ def _assert_as_valid_(c: int, QJ: JacPoint, r: int, s: int, ec: Curve) -> None:
 
     # Let K = sG - eQ.
     # in Jacobian coordinates
-    KJ = _double_mult(ec.n - c, QJ, s, ec.GJ, ec)
+    KJ = double_mult_w_NAF(ec.n - c, QJ, s, ec.GJ, ec)
 
     # The following check is prescribed by BIP340 but it is useless:
     # if moved after 'Fail if x_K ≠ r' it would never be executed
@@ -384,7 +385,7 @@ def _recover_pub_key_(c: int, r: int, s: int, ec: Curve) -> int:
     KJ = r, ec.y_even(r), 1
 
     e1 = mod_inv(c, ec.n)
-    QJ = _double_mult(ec.n - e1, KJ, e1 * s, ec.GJ, ec)
+    QJ = double_mult_w_NAF(ec.n - e1, KJ, e1 * s, ec.GJ, ec)
     # QJ = e1*(s*G - K) is INF whenever r is the x of s*G, y even
     if QJ[2] == 0:
         err_msg = "invalid (INF) key"

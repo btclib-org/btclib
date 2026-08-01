@@ -227,6 +227,28 @@ def double_mult_w_NAF(
     additions drop from one per bit to ~2/(w+1) per bit, the negative
     digits costing only an on-the-fly negation.
 
+    This is the one the library calls: `curves.double_mult`, `dsa` and
+    `ssa` verification and public key recovery all reach it, which on
+    secp256k1 means every signature the bindings do not answer -- another
+    curve, another hash function, a caller-supplied nonce, or the test
+    suite holding the python path against them. Measured over random
+    256-bit coefficients, best of seven: 2.01 ms against the 2.68 ms of
+    curve_group's _double_mult, which stays as the reference the tests
+    compare this against. w=5 measures 1.95 ms and w=3 2.12, so the
+    default is within 3% of the best window and the table is half the
+    size of w=5's.
+
+    The tables are also why it is not faster everywhere: they are built
+    per call and per point, so a coefficient too short to amortize them
+    pays for them. Against _double_mult, by coefficient size on
+    secp256k1: 8 bits 1.80x *slower*, 16 bits 1.20, 32 bits 0.95, 64 bits
+    0.83, 128 bits 0.77, 256 bits 0.73. The crossover is around 32 bits,
+    so every curve with a real order is on the winning side and the toy
+    curves of the test suite -- n = 11, n = 31 -- are the ones paying,
+    about 2 us a call. Taken as it is rather than guarded by a size test:
+    the guard would buy back a fraction of a second of the suite and put
+    a branch in the middle of signature verification.
+
     The input points are assumed to be on curve, and the u and v
     coefficients are assumed to have been reduced mod n if appropriate
     (e.g. cyclic groups of order n).

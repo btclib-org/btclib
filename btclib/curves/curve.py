@@ -24,11 +24,11 @@ from btclib.alias import HashF, Integer, Point
 from btclib.curves.curve_group import (
     HEX_THRESHOLD,
     CurveGroup,
-    _double_mult,
     _mult,
     _multi_mult,
     jac_from_aff,
 )
+from btclib.curves.curve_group_2 import double_mult_w_NAF
 from btclib.exceptions import BTClibValueError
 from btclib.utils import hex_string, int_from_integer
 
@@ -324,7 +324,7 @@ def double_mult(
 
     u = int_from_integer(u) % ec.n
     v = int_from_integer(v) % ec.n
-    R = _double_mult(u, HJ, v, QJ, ec)
+    R = double_mult_w_NAF(u, HJ, v, QJ, ec)
     return ec.aff_from_jac(R)
 
 
