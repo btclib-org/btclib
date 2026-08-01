@@ -344,9 +344,32 @@ exclude = [
 # target-version is inferred from project.requires-python
 
 [tool.ruff.lint]
+# A, BLE, C90, RSE, T20 and TID were added together, and the measurement
+# that chose them is the point: every unselected rule set was run over
+# btclib and tests, and these are the ones that either find nothing today
+# -- a ratchet, costing no cleanup -- or find something worth removing.
+#
+# What the same survey rejected, with the count, so that nobody has to run
+# it again: N 498 (uppercase math symbols are the convention here, as the
+# PLR2004 note below already says), COM 417 (COM812, which ruff's own
+# documentation recommends against alongside the formatter), EM 343,
+# FBT 203, EXE 153 (all EXE001, i.e. the shebang-not-executable finding
+# that .pre-commit-config.yaml records the same decision about), TC 136,
+# PTH 95, ARG 93, ERA 89 (about half of them genuine commented-out code
+# and half type annotations written as prose, so a cleanup to decide
+# rather than a switch to flip), ANN 20 (all ANN401, the explicit Any of
+# the vector loaders), SLF 7 (tests reaching into private members on
+# purpose), PERF 3 (all PERF203, try/except in a retry loop).
+# The zero-finding sets not taken are the ones for constructs this code
+# base does not contain -- DTZ without datetime, G and LOG without
+# logging, ASYNC, NPY -- because a rule that can never fire reads as an
+# enforced invariant while enforcing nothing
 select = [
+    "A",    # flake8-builtins: a name that shadows a builtin
     "B",    # flake8-bugbear
+    "BLE",  # flake8-blind-except
     "C4",   # flake8-comprehensions
+    "C90",  # mccabe, bounded rather than enforced: see max-complexity
     "D",    # pydocstyle
     "E",    # pycodestyle errors
     "F",    # pyflakes
@@ -358,9 +381,12 @@ select = [
     "PL",   # pylint
     "PT",   # flake8-pytest-style
     "RET",  # flake8-return
+    "RSE",  # flake8-raise
     "RUF",  # ruff-specific rules
     "S",    # flake8-bandit
     "SIM",  # flake8-simplify
+    "T20",  # flake8-print: a library writes to no stream of its own
+    "TID",  # flake8-tidy-imports: absolute, so the layering is readable
     "TRY",  # tryceratops
     "UP",   # pyupgrade
     "W",    # pycodestyle warnings
@@ -405,6 +431,11 @@ ignore = [
 
 [tool.ruff.lint.per-file-ignores]
 "**/__init__.py" = ["F401"] # re-exported imports
+# collecting entropy from dice is a conversation: the module prompts with
+# input() and prints how many rolls it needs and which ones count, so
+# these two prints are the interface and not a debugging leftover -- which
+# is the one T20 found elsewhere, and which is gone
+"btclib/mnemonic/entropy.py" = ["T201"]
 "tests/**" = [
     "D",      # docstrings are not required in tests
     "S101",   # assert
@@ -415,6 +446,22 @@ ignore = [
     "PT018",  # pytest-composite-assertion
     "RUF043", # pytest-raises-ambiguous-pattern
 ]
+
+[tool.ruff.lint.mccabe]
+# issue #184 asked for C901 or for the decision not to have it, and the
+# measurement is what answers it: at ruff's default of 10 the tree has 17
+# functions over the line, and the top of the list is not accidental
+# complexity. `verify_script` is 31 and `verify_script_path_vc0` 26 --
+# a script interpreter's dispatch is a long if/elif over op codes, and
+# splitting it to satisfy a counter would spread one decision across
+# several functions and make it harder to read against Bitcoin Core's,
+# not easier. `test_threshold` is 32 and is the whole tree's worst.
+#
+# So the rule is a bound and not a target: 32 is today's maximum, which
+# makes this a ratchet -- nothing has to be rewritten, and nothing may get
+# worse without saying so. Lowering it is a refactor, and a real one; the
+# library's own ceiling is `verify_script` at 31, one below this number
+max-complexity = 32
 
 [tool.ruff.lint.pydocstyle]
 convention = "pep257"

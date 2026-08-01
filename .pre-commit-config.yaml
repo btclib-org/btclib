@@ -207,10 +207,14 @@ repos:
   # check-github-workflows is not added beside it: actionlint already
   # reads every workflow and goes further than the schema does, into
   # expressions, contexts and runner labels
+  # .readthedocs.yaml is the same argument again: 2.7 KB that check-yaml
+  # reads as yaml and nothing reads as a build definition, on a service
+  # whose failure mode is a docs build that stops happening
   - repo: https://github.com/python-jsonschema/check-jsonschema
     rev: 0.35.0
     hooks:
       - id: check-dependabot
+      - id: check-readthedocs
   # the workflows are 3, 6 and 8 KB of yaml with expressions in it, and
   # nothing validated them: an unknown key, a typo in a context reference,
   # an action input that does not exist, a job depending on a job that is

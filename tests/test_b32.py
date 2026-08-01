@@ -189,7 +189,6 @@ def test_invalid_address() -> None:
 
     for address, err_msg in invalid_addresses:
         with pytest.raises(BTClibValueError, match=err_msg):
-            print(address)
             b32.witness_from_address(address)
 
 

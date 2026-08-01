@@ -11,7 +11,7 @@ release-notes length in the first place, and are still in
 
 ## v2026.8 (work in progress, not released yet)
 
-A hundred and forty-two entries, grouped. The order runs from what breaks
+A hundred and forty-three entries, grouped. The order runs from what breaks
 a caller to what only maintainers see; [HISTORY.md](./HISTORY.md) lists the
 sixteen source-breaking changes on their own.
 
@@ -1611,6 +1611,30 @@ sixteen source-breaking changes on their own.
 
 ### Packaging, linting and CI
 
+- **six more ruff rule sets, chosen by running all of them**, and the
+  counts for the ones not taken written down beside the ones that were.
+  `A`, `BLE`, `RSE` and `TID` find nothing today and are ratchets: no
+  cleanup, and no shadowed builtin, blind `except Exception`, or relative
+  import can arrive unremarked — `BLE` is the one that would have caught
+  the annex `IndexError` being swallowed, and `TID` keeps the import
+  layering readable, `ecc` on `curves` and never the reverse. `T20` found
+  three prints, two of them the interface of the dice-roll entropy
+  collector, which prompts with `input()` and is ignored per file, and one
+  a debugging leftover inside a `pytest.raises` block in
+  `tests/test_b32.py` that printed an address on every invalid case and
+  asserted nothing; it is gone. `C90` closes issue #184, which asked for
+  C901 or for the decision not to have it: at ruff's default of 10 the
+  tree has 17 functions over the line, and the top of the list is a script
+  interpreter's op-code dispatch, so `max-complexity` is set to 32 — the
+  tree's current worst — making the rule a bound rather than a target.
+  Nothing had to be rewritten and nothing may now get worse in silence.
+  The rejected sets are recorded with their counts in pyproject.toml, from
+  `N` at 498 down to `PERF` at 3, and so is the reason the zero-finding
+  ones for constructs this code base does not have — `DTZ` without
+  datetime, `G` and `LOG` without logging — were left out: a rule that can
+  never fire reads as an enforced invariant while enforcing nothing.
+  `check-readthedocs` joins `check-dependabot` on the same argument,
+  `.readthedocs.yaml` being 2.7 KB that nothing read as a build definition
 - **the six hooks commented out in `.pre-commit-config.yaml` are decided,
   three either way, and five more are added.** Each was measured against
   this tree rather than argued about. On: `name-tests-test`, with
