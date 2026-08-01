@@ -121,12 +121,27 @@ docstring.
   commit. The local gates below are the evidence; `cancelled` is not
   `failure`, and waiting for a busy afternoon to settle is waiting for
   nothing.
-- **`.pre-commit-config.yaml` is the lint gate**, and `lint.yml` runs
-  exactly it. Never add a second list of the same tools to a workflow.
-  mypy is a *local* hook shelling out to uv on purpose: the mirrors-mypy
-  hook injects `--ignore-missing-imports`, which makes every bindings
-  import `Any` and strict mode then fails; and the bindings cannot be
-  declared in an isolated hook environment, not being on PyPI.
+- **`.pre-commit-config.yaml` is the lint gate**, and `lint.yml`'s first
+  job runs exactly it. Never add a second list of the same tools to a
+  workflow. mypy is a *local* hook shelling out to uv on purpose: the
+  mirrors-mypy hook injects `--ignore-missing-imports`, which makes every
+  bindings import `Any` and strict mode then fails; and the bindings
+  cannot be declared in an isolated hook environment, not being on PyPI.
+- **`lint.yml` has a second job, and `pre-commit` does not run it.**
+  `Build the documentation` runs sphinx with `-W`, so a docstring that
+  docutils cannot parse fails the workflow while every hook passes — a
+  name ending in an underscore is a reference to a link target
+  (``mult_``, and the fix is those very backticks). Reproduce it before
+  claiming the gate is green:
+
+  ```shell
+  uv run --locked --no-default-groups --group docs \
+      sphinx-build -W --keep-going -b html docs/source docs/build/html
+  ```
+
+  Note also what it does *not* gate: `master` requires the check named
+  `Lint and type-check`, which is the first job alone, so a red docs
+  build leaves the required checks green.
 - **The version is declared once**, in `pyproject.toml`.
   `btclib.__version__` reads it back with `importlib.metadata`, and
   `docs/source/conf.py` parses the file (not the metadata, which would

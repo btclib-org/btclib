@@ -60,9 +60,9 @@ def bytes_from_prv_key_int(
     against 8.90 for bytes_from_point(mult(...)), which turns 64 bytes
     into two ints, re-proves on curve a point libsecp256k1 has just
     created, and serializes it again; and 8.13 for
-    keys.serialize(keys.parse(mult_(...))), which pays a
+    keys.serialize(keys.parse(``mult_``(...))), which pays a
     secp256k1_ec_pubkey_parse to undo a serialization the same library had
-    just done. The floor is mult_ alone, 7.60.
+    just done. The floor is ``mult_`` alone, 7.60.
 
     That floor is the reason the decision here was btclib's to take and
     not the bindings'. A pubkey_from_prvkey of their own -- one
