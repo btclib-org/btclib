@@ -2015,13 +2015,16 @@ twenty-three source-breaking changes on their own.
   one, and 100 clears today's longest pin by enough that an action with
   a longer name cannot turn a dependabot pull request red for having no
   defect in it. Two lines were over 100, both shell in `release.yml`.
-  One rule of the twelve in the default set is on, and the three others
-  that fire are recorded in `.yamllint.yaml` with their counts, each
-  reporting a convention rather than a defect: `comments` wants two
-  spaces before the `#` on 33 pins where dependabot writes one, `truthy`
-  reads the 6 `on:` keys that open a workflow as the boolean they are in
-  yaml 1.1, and `document-start` wants a `---` on all 14 files, none of
-  which has one
+  `document-start` is on beside it, so every one of the 15 yaml files
+  here opens with a `---` on line 1, above its header comment: one line
+  each, and the files answer the question the same way instead of each
+  beginning however its author left it. The fourteen whose only change
+  is the marker parse to the value they parsed to before. The two rules
+  of the twelve that fire and stay off are recorded in `.yamllint.yaml`
+  with their counts, each reporting a convention rather than a defect:
+  `comments` wants two spaces before the `#` on 33 pins where dependabot
+  writes one, and `truthy` reads the 6 `on:` keys that open a workflow as
+  the boolean they are in yaml 1.1
 - **the six hooks commented out in `.pre-commit-config.yaml` are decided,
   four on and two off, and five more are added.** Each was measured
   against this tree rather than argued about. On: `name-tests-test`, at

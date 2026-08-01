@@ -1,3 +1,4 @@
+---
 # Skip execution of one or more hooks using the SKIP environment variable:
 # $ SKIP=mypy git commit -m "foo"
 # $ SKIP=mypy,ruff-check pre-commit run --all-files
@@ -228,16 +229,16 @@ repos:
   # docstrings to the same, and the workflows were the one place prose
   # could grow without a limit -- 117 columns at the worst.
   # Configured in .yamllint.yaml rather than in args here, as codespell
-  # and typos are configured in pyproject.toml: the one rule enabled and
-  # the three left off need a paragraph each, and the width is not 80
-  # for a reason that has to be written down.
+  # and typos are configured in pyproject.toml: the two rules enabled and
+  # the two left off need a paragraph each, and the width is not 80 for a
+  # reason that has to be written down.
   # No args, and the hook declares none either, so there is nothing here
   # to drop by omission -- unlike zizmor below
   - repo: https://github.com/adrienverge/yamllint
     rev: v1.38.0
     hooks:
       - id: yamllint
-        name: yamllint (line width)
+        name: yamllint (line width and document start)
   # .github/dependabot.yml is validated by nothing else here: check-yaml
   # above asks whether it is yaml, and actionlint below reads workflows
   # and not this. A typo in a package-ecosystem or a directory is not an

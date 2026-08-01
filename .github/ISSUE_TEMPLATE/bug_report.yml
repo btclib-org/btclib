@@ -1,3 +1,4 @@
+---
 name: Bug report
 description: Something in btclib does not work as documented
 labels: [bug]

@@ -1,3 +1,4 @@
+---
 # two of the four ecosystems this repo has, deliberately:
 # - the Gemfile is left out: GitHub builds the pages site on its own
 #   side, so github-pages is only ever resolved for a local preview

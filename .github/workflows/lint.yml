@@ -1,3 +1,4 @@
+---
 name: lint
 
 # the fast gate, kept apart from the test workflow: a style error is not

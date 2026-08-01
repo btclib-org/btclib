@@ -1,3 +1,4 @@
+---
 name: latest
 
 # the dependency sentinel: everything uv resolves, upgraded to the newest

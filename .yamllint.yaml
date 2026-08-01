@@ -1,3 +1,4 @@
+---
 # yamllint's configuration, in a file of its own because the reasoning
 # below needs more room than a hook argument has -- the same split as
 # codespell and typos, which are configured in pyproject.toml rather than
@@ -5,18 +6,16 @@
 # directory it runs from, which for a pre-commit hook is the repository
 # root, so the hook needs no -c.
 #
-# One rule of the twelve in the default set is enabled, and it is the
-# width of a line: ruff measures python and markdownlint measures
-# markdown, while nothing measured yaml. The other three that fire here
-# each report a convention rather than a defect, so each stays off, with
-# the count written down so that nobody has to run the survey again:
+# Two rules of the twelve in the default set are enabled: the width of a
+# line, which ruff measures for python and markdownlint for markdown and
+# nothing measured here, and the marker that opens a document. The other
+# two that fire report a convention rather than a defect, so each stays
+# off, with the count written down so that nobody has to run the survey
+# again:
 #   - comments, 33 findings, every one of them "too few spaces before
 #     comment" on a "uses: action@sha # v1.2.3" pin. One space is what
 #     dependabot writes when it bumps one, so the rule would report the
 #     bot's own output on every update
-#   - document-start, 14 findings, which is every yaml file here: no
-#     leading "---" is the house style, and adding fourteen of them
-#     changes nothing a parser sees
 #   - truthy, 6 findings, all of them the "on:" that opens a workflow,
 #     which yaml 1.1 reads as the boolean true. One per workflow, by
 #     construction
@@ -38,3 +37,10 @@ rules:
     # allow-non-breakable-words stays at its default, true: a line that
     # is one long token has nowhere to break, which is the exemption
     # MD013 already makes for a bare URL
+  # the "---" every one of the 15 yaml files here opens with, which is
+  # yamllint's default and one line each. What it buys is that the files
+  # answer the question the same way instead of each beginning however
+  # its author left it, and that the default set carries one exemption
+  # fewer to justify. On line 1, above the header comment rather than
+  # below it, so there is no second place to look for it
+  document-start: enable
