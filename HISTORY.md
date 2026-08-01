@@ -7,7 +7,7 @@ full year, short month, short day (YYYY-M-D)
 
 ## v2026.8 (work in progress, not released yet)
 
-The first release since 2023, and the largest: a hundred and forty-nine
+The first release since 2023, and the largest: a hundred and fifty-three
 entries, in [CHANGELOG.md](./CHANGELOG.md). What follows is what a user has
 to act on and what a user gains.
 
@@ -19,7 +19,7 @@ CHANGELOG.md.
 
 ### Breaking changes
 
-Sixteen changes break code that worked on v2023.7.12. Each is described in
+Seventeen changes break code that worked on v2023.7.12. Each is described in
 full in [CHANGELOG.md](./CHANGELOG.md). Every "before" spelling was checked
 against the `v2023.7.12` tag.
 
@@ -86,6 +86,13 @@ against the `v2023.7.12` tag.
   of names, so the number of prefixes per network stopped being a fact about
   anything. `len(xprvversions_from_network(net))` is the spelling if it is
   wanted.
+- **`script.engine.script.check_balanced_if(script)` is
+  `script.engine.script_op_codes.check_balanced_if(condition_stack)`**, and
+  it answers a different question: it was a pass over a parsed script
+  counting OP_IF, OP_NOTIF and OP_ENDIF, and it is now the check Bitcoin
+  Core makes once the interpreter loop is over, on the condition stack the
+  loop leaves behind. The count could not see a conditional closed before
+  it was opened, which is the script it let through.
 
 Two changes are deliberately *not* on that list, because what they change
 stays compatible. The new `BTClibTypeError`, `NotAPrvKeyError` and

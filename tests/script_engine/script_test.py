@@ -18,13 +18,15 @@ from typing import Any, NamedTuple
 import pytest
 
 from btclib.alias import TaprootScriptTree
+from btclib.ecc.dsa import Sig
 from btclib.exceptions import BTClibValueError, ScriptError
 from btclib.script import ScriptPubKey
-from btclib.script.engine import ALL_FLAGS, NO_FLAGS, verify_input
+from btclib.script.engine import ALL_FLAGS, NO_FLAGS, ScriptFlag, verify_input
 from btclib.script.engine.script import (
     DISABLED_OP_CODES,
     calculate_script_code,
     find_and_delete,
+    fix_signature,
     verify_script,
 )
 from btclib.script.script import OP_CODE_NAME_FROM_INT, parse, serialize
@@ -225,11 +227,149 @@ def test_unknown_op_code_is_not_a_key_error() -> None:
         verify_script(b"\xff", [], 0, tx, 0, NO_FLAGS, False)
 
 
-def test_unbalanced_conditional_message() -> None:
-    """Raised before the loop starts, so with no position to report."""
+def test_unbalanced_conditional() -> None:
+    """Both halves of the rule: a branch never closed, and one never opened.
+
+     Core has the two as two checks -- `vfExec.empty()` inside OP_ELSE and
+     OP_ENDIF, `!vfExec.empty()` once the loop is over -- and counting
+     OP_IF, OP_NOTIF and OP_ENDIF over the parsed script answers only the
+     second. The sum is the depth the script ends at, so a script that
+     closes a branch before opening one counts to zero, and popping the
+     sentinel left `all([])` True: the rest ran as if the OP_ENDIF had shut
+     the branch the OP_IF later opened, and the engine called valid a
+     script Core answers with SCRIPT_ERR_UNBALANCED_CONDITIONAL
+    .
+    """
     tx = Tx(check_validity=False)
+
+    # OP_1, OP_IF, OP_1: a branch left open
     with pytest.raises(BTClibValueError, match="unbalanced conditional"):
+        verify_script(b"\x51\x63\x51", [], 0, tx, 0, NO_FLAGS, False)
+
+    # OP_ENDIF, OP_1, OP_IF, OP_1: as many OP_ENDIF as OP_IF, wrongly ordered
+    with pytest.raises(ScriptError, match="OP_ENDIF without OP_IF") as exc_info:
+        verify_script(b"\x68\x51\x63\x51", [], 0, tx, 0, NO_FLAGS, False)
+    assert exc_info.value.index == 0
+
+    # OP_ELSE is the same rule and was already enforced
+    with pytest.raises(ScriptError, match="OP_ELSE without OP_IF"):
+        verify_script(b"\x67", [], 0, tx, 0, NO_FLAGS, False)
+
+    # and OP_IF alone is an underflow rather than an unbalanced conditional:
+    # Core reads the condition off the stack before it pushes to vfExec, so
+    # this is the position where the two rules are told apart
+    with pytest.raises(ScriptError, match="stack underflow"):
         verify_script(b"\x63", [], 0, tx, 0, NO_FLAGS, False)
+
+
+def test_ifdup_casts_to_bool() -> None:
+    """OP_IFDUP duplicates a *true* element, and `00` is not one.
+
+    Core's `if (CastToBool(vch))`. Testing for the empty element instead
+    duplicated a one-byte zero and a negative zero, which are false
+    without being empty, and left every op code after one of them reading
+    a stack an element deeper than Core's -- so btclib rejected a script
+    Core accepts, which is the direction that costs a spend. Neither
+    vendored set covers it: no vector feeds OP_IFDUP a non-empty false
+    element.
+    """
+    tx = Tx(check_validity=False)
+
+    for element in (b"\x00", b"\x80", b"\x00\x00", b"\x00\x80"):
+        # <element>, OP_IFDUP, OP_DEPTH, OP_1, OP_NUMEQUAL: nothing was duped
+        script_bytes = serialize(
+            [element, "OP_IFDUP", "OP_DEPTH", "OP_1", "OP_NUMEQUAL"]
+        )
+        verify_script(script_bytes, [], 0, tx, 0, NO_FLAGS, False, True)
+
+    # and a true element still is: OP_1, OP_IFDUP leaves a depth of two
+    script_bytes = serialize(["OP_1", "OP_IFDUP", "OP_DEPTH", "OP_2", "OP_NUMEQUAL"])
+    verify_script(script_bytes, [], 0, tx, 0, NO_FLAGS, False, True)
+
+
+@pytest.mark.parametrize(
+    ("script", "message"),
+    [
+        (
+            ["OP_0", "OP_1NEGATE", "OP_1NEGATE", "OP_CHECKMULTISIG"],
+            "invalid number of public keys",
+        ),
+        (
+            ["OP_0", "OP_1NEGATE", "OP_0", "OP_CHECKMULTISIG"],
+            "signatures for 0 public keys",
+        ),
+    ],
+    ids=["negative public keys", "negative signatures"],
+)
+def test_multisig_negative_counts(script: list[Any], message: str) -> None:
+    """A negative count ends the script, as Core's two range checks do.
+
+    SCRIPT_ERR_PUBKEY_COUNT is `nKeysCount < 0 || nKeysCount > 20` and
+    SCRIPT_ERR_SIG_COUNT is `nSigsCount < 0 || nSigsCount > nKeysCount`;
+    the lower bounds are the half that was missing, and a test for "more
+    than twenty" cannot stand in for them. A negative count reaches
+    `range` as an empty one, so nothing was popped, nothing underflowed,
+    and OP_CHECKMULTISIG pushed false and let the script run on -- which
+    an OP_NOT after it turns into a valid spend.
+    """
+    tx = Tx(check_validity=False)
+    with pytest.raises(ScriptError, match=message):
+        verify_script(serialize(script), [], 0, tx, 0, NO_FLAGS, False, True)
+
+
+def test_fix_signature_asks_for_strict_der_as_one_mask() -> None:
+    """DERSIG, LOW_S and STRICTENC each ask for strict DER, as in Core.
+
+    CheckSignatureEncoding gates IsValidSignatureEncoding on `flags &
+    (DERSIG | LOW_S | STRICTENC)`, one mask and not three rules. Gating it
+    on DERSIG while letting STRICTENC *disable* it accepted, under
+    STRICTENC alone, under LOW_S alone and under the two flags together,
+    encodings Core answers with SCRIPT_ERR_SIG_DER; no vector could catch
+    it, script_tests.json naming STRICTENC and DERSIG together in none of
+    its cases.
+    """
+    # the signature of "P2PK with too much R padding": one leading zero byte
+    # too many in r, which Core's lax parser still reads and BIP66 refuses
+    signature = bytes.fromhex(
+        "304402200060558477337b9022e70534f1fea71a318caf836812465a2509931c5e7c4987"
+        "022078ec32bd50ac9e03a349ba953dfd9fe1c8d2dd8bdb1d38ddca844d3d5c78c11801"
+    )
+    for flags in (
+        ScriptFlag.DERSIG,
+        ScriptFlag.LOW_S,
+        ScriptFlag.STRICTENC,
+        ScriptFlag.DERSIG | ScriptFlag.STRICTENC,
+        ScriptFlag.DERSIG | ScriptFlag.LOW_S,
+    ):
+        with pytest.raises(BTClibValueError, match="padding"):
+            fix_signature(signature, flags)
+
+    # with none of the three it is normalized instead, which is what stands
+    # in for Core's lax parser: one byte shorter, and the same signature
+    sig = Sig.parse(signature[:-1], strict=False)
+    assert fix_signature(signature, NO_FLAGS) == sig.serialize() + signature[-1:]
+
+
+def test_fix_signature_high_s() -> None:
+    """A high s is an error under LOW_S and negated away without it.
+
+    Core's SCRIPT_ERR_SIG_HIGH_S, and the reason it cannot be left to the
+    bindings: `CPubKey::Verify` normalizes s before verifying, so a high s
+    verifies there while libsecp256k1's own verify refuses it. Refusing it
+    for the flag and normalizing it otherwise is what makes both answers
+    Core's.
+    """
+    signature = bytes.fromhex(
+        "304402200060558477337b9022e70534f1fea71a318caf836812465a2509931c5e7c4987"
+        "022078ec32bd50ac9e03a349ba953dfd9fe1c8d2dd8bdb1d38ddca844d3d5c78c11801"
+    )
+    low = Sig.parse(signature[:-1], strict=False)
+    assert low.s < low.ec.n // 2
+    high_s = Sig(low.r, low.ec.n - low.s).serialize() + signature[-1:]
+
+    with pytest.raises(BTClibValueError, match="high s"):
+        fix_signature(high_s, ScriptFlag.LOW_S)
+    assert fix_signature(high_s, ScriptFlag.DERSIG) == low.serialize() + signature[-1:]
 
 
 def taproot_script_spend(

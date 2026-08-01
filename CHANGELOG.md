@@ -11,9 +11,9 @@ release-notes length in the first place, and are still in
 
 ## v2026.8 (work in progress, not released yet)
 
-A hundred and forty-nine entries, grouped. The order runs from what breaks
+A hundred and fifty-three entries, grouped. The order runs from what breaks
 a caller to what only maintainers see; [HISTORY.md](./HISTORY.md) lists the
-sixteen source-breaking changes on their own.
+seventeen source-breaking changes on their own.
 
 ### Repository
 
@@ -293,6 +293,55 @@ sixteen source-breaking changes on their own.
   there. A vector expecting a failure now has to get a BTClibValueError,
   which is what the engine raises and what a broken harness does not
   (issue #182)
+- **a conditional closed before it was opened made a script verifiable**,
+  where Core refuses it: `OP_ENDIF OP_1 OP_IF OP_1` verified. Core has the
+  rule as two SCRIPT_ERR_UNBALANCED_CONDITIONAL checks — `vfExec.empty()`
+  inside OP_ELSE and OP_ENDIF, `!vfExec.empty()` once the loop is over —
+  and both engines had them replaced by one pass counting OP_IF, OP_NOTIF
+  and OP_ENDIF over the parsed script. That sum is only the depth the
+  script *ends* at, so it cannot see an OP_ENDIF arriving first, which
+  popped the condition stack's sentinel and left `all([])` true: the rest
+  of the script then ran as if the branch had been shut. The count is gone
+  and both of Core's checks are in, in the positions Core has them. It was
+  sound in the other direction — a nonzero sum is a script Core rejects
+  too — so nothing spendable was being refused, and `check_balanced_if` is
+  now the second of the two checks rather than the pass, in
+  `script.engine.script_op_codes` beside the OP_IF it is about
+- **OP_CHECKMULTISIG accepted a negative number of keys or signatures**:
+  `OP_0 OP_1NEGATE OP_1NEGATE OP_CHECKMULTISIG` pushed false and let the
+  script carry on, so an OP_NOT after it verified an input Core ends with
+  SCRIPT_ERR_PUBKEY_COUNT. Core bounds each count on both sides —
+  `nKeysCount < 0 || nKeysCount > MAX_PUBKEYS_PER_MULTISIG` and
+  `nSigsCount < 0 || nSigsCount > nKeysCount` — where btclib checked the
+  upper bounds alone, and a negative count passes those: `range(-1)` is
+  empty, so nothing was popped, nothing underflowed, and -1 keys also
+  *credited* the 201 op-code budget by one. Both bounds are checked now,
+  and each before anything is popped with it, which is Core's order and
+  what makes the counts safe to build a `range` out of
+- **OP_IFDUP duplicated a false element that was not empty**, which cost a
+  spend rather than allowing one: `<00> OP_IFDUP` left two elements where
+  Core leaves one, and every op code after it read a stack an element
+  deeper, so btclib refused scripts Core accepts. Core's test is
+  `CastToBool`, under which a one-byte zero and a negative zero are both
+  false; btclib's was `!= b""`. It is `CastToBool`'s equivalent now, the
+  `_to_bool` the rest of both engines already used for exactly this. No
+  vector in either vendored set feeds OP_IFDUP a non-empty false element,
+  which is the whole reason the suite was green
+- **LOW_S and STRICTENC ask for strict DER too, not DERSIG alone.** Core's
+  CheckSignatureEncoding gates IsValidSignatureEncoding on `flags &
+  (SCRIPT_VERIFY_DERSIG | SCRIPT_VERIFY_LOW_S | SCRIPT_VERIFY_STRICTENC)`,
+  one mask, and `fix_signature` gated it on DERSIG and then *disabled* it
+  for STRICTENC: a non-canonical encoding was normalized and accepted
+  under STRICTENC alone, under LOW_S alone, and under the two together.
+  Three of Core's own vectors, rerun with those flags, verified where Core
+  answers SCRIPT_ERR_SIG_DER. A high s is an error under LOW_S now instead
+  of a signature that fails to verify, which is Core's
+  SCRIPT_ERR_SIG_HIGH_S and matters because `CPubKey::Verify` normalizes s
+  before verifying: leaving it to the bindings, which refuse it, reported
+  a failed check where Core reports a passing one. Consensus is untouched,
+  LOW_S and STRICTENC being standardness rules that ALL_FLAGS leaves off,
+  and no vector could have caught either — script_tests.json names
+  STRICTENC and DERSIG together in none of its cases
 
 ### Malformed input and the exception contract
 

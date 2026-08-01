@@ -41,7 +41,7 @@ def dsa_verify(msg_hash: bytes, pub_key: bytes, sig: bytes) -> bool:
     The bindings raise a ValueError on a signature or public key that
     libsecp256k1 refuses to parse, while the engine treats it as a failed
     verification: DER strictness is enforced upstream, by fix_signature,
-    according to the DERSIG and STRICTENC flags.
+    under the STRICT_DER_FLAGS below.
     """
     try:
         return bool(_libsecp256k1_dsa_verify(msg_hash, pub_key, sig))
@@ -49,17 +49,45 @@ def dsa_verify(msg_hash: bytes, pub_key: bytes, sig: bytes) -> bool:
         return False
 
 
+# the flags Core's CheckSignatureEncoding tests for as one mask, and the
+# reason it is a mask and not three rules: `flags & (SCRIPT_VERIFY_DERSIG |
+# SCRIPT_VERIFY_LOW_S | SCRIPT_VERIFY_STRICTENC)` gates
+# IsValidSignatureEncoding, so any one of the three asks for strict DER and
+# only their absence leaves ecdsa_signature_parse_der_lax to accept a
+# sloppy encoding
+STRICT_DER_FLAGS = ScriptFlag.DERSIG | ScriptFlag.LOW_S | ScriptFlag.STRICTENC
+
+
 def fix_signature(signature: bytes, flags: ScriptFlag) -> bytes:
+    """Return the signature the bindings can be asked to verify.
+
+    The bindings parse strict DER and refuse a high s, which is two rules
+    where Core has none: `CPubKey::Verify` parses laxly and normalizes s
+    before verifying, and it is CheckSignatureEncoding above it that
+    refuses either -- under the flags for it and not otherwise. So both
+    are answered here, each in the direction its flags ask for: a lax
+    encoding is re-serialized strict when no flag wants it refused, and a
+    high s is negated when no flag wants it refused.
+    """
     signature_suffix = signature[-1:]
     if ScriptFlag.STRICTENC in flags and signature_suffix[0] not in SIG_HASH_TYPES:
         raise BTClibValueError(f"invalid sig hash type: {hex(signature_suffix[0])}")
     signature = signature[:-1]
-    if ScriptFlag.DERSIG not in flags or ScriptFlag.STRICTENC in flags:
+    if not flags & STRICT_DER_FLAGS:
         signature = Sig.parse(signature, strict=False).serialize()
-    if ScriptFlag.LOW_S not in flags:
-        sig = Sig.parse(signature)
-        if sig.s > sig.ec.n // 2:
-            signature = Sig(sig.r, sig.ec.n - sig.s).serialize()
+    # strict, so that this is what enforces DER for the three flags above:
+    # a lax encoding was normalized already, and one that was not has to be
+    # refused here rather than reach the bindings, which answer a parse
+    # failure the way they answer a wrong signature
+    sig = Sig.parse(signature)
+    if sig.s > sig.ec.n // 2:
+        # Core's SCRIPT_ERR_SIG_HIGH_S, an error under LOW_S alone: without
+        # it a high s is not merely tolerated but normalized away, so
+        # leaving it for the bindings to refuse would report a signature
+        # that does not verify where Core reports one that does
+        if ScriptFlag.LOW_S in flags:
+            raise BTClibValueError(f"high s: {hex(sig.s)}")
+        signature = Sig(sig.r, sig.ec.n - sig.s).serialize()
     return signature + signature_suffix
 
 
@@ -169,7 +197,10 @@ def op_checksig(
     try:
         signature = fix_signature(signature, flags)
     except (BTClibValueError, BTClibRuntimeError):
-        if ScriptFlag.DERSIG in flags or ScriptFlag.STRICTENC in flags:
+        # under any of the three, CheckSignatureEncoding is what failed and
+        # Core ends the script; under none of them the lax parse failed,
+        # which is a signature that does not verify and nothing more
+        if flags & STRICT_DER_FLAGS:
             raise
         return False
 
@@ -218,10 +249,26 @@ def check_nulldummy(dummy: bytes, flags: ScriptFlag) -> None:
         raise BTClibValueError("non-empty OP_CHECKMULTISIG dummy element")
 
 
-def check_multisig_counts(pub_key_num: int, signature_num: int) -> None:
-    if pub_key_num > 20:
-        raise BTClibValueError(f"more than 20 public keys: {pub_key_num}")
-    if signature_num > pub_key_num:
+def check_pub_key_num(pub_key_num: int) -> None:
+    """Reject a public key count outside 0..20, before the keys are read.
+
+    Core's SCRIPT_ERR_PUBKEY_COUNT, and the lower bound is the half that
+    is not decoration: a negative count reaches `range` as an empty one,
+    so nothing is popped, nothing underflows, and a count of -1 sails
+    through a test for "more than twenty" -- which left
+    `-1 -1 OP_CHECKMULTISIG` pushing false and the script running on where
+    Core ends it.
+    """
+    if not 0 <= pub_key_num <= 20:
+        raise BTClibValueError(f"invalid number of public keys: {pub_key_num}")
+
+
+def check_signature_num(signature_num: int, pub_key_num: int) -> None:
+    """Reject a signature count outside 0..pub_key_num.
+
+    Core's SCRIPT_ERR_SIG_COUNT, negative for the same reason as above.
+    """
+    if not 0 <= signature_num <= pub_key_num:
         raise BTClibValueError(
             f"{signature_num} signatures for {pub_key_num} public keys"
         )
@@ -297,14 +344,6 @@ def prepare_script(script: ScriptList, flags: ScriptFlag, segwit: bool) -> None:
         raise BTClibValueError("OP_CODESEPARATOR in a non-segwit script")
 
 
-def check_balanced_if(script: ScriptList) -> None:
-    if script.count("OP_IF") + script.count("OP_NOTIF") - script.count("OP_ENDIF"):
-        raise BTClibValueError(
-            f"unbalanced conditional: {script.count('OP_IF')} OP_IF, "
-            f"{script.count('OP_NOTIF')} OP_NOTIF, {script.count('OP_ENDIF')} OP_ENDIF"
-        )
-
-
 def verify_script(  # noqa: C901 -- op-code dispatch: one if/elif chain, read against Core's interpreter
     script_bytes: bytes,
     stack: list[bytes],
@@ -320,7 +359,6 @@ def verify_script(  # noqa: C901 -- op-code dispatch: one if/elif chain, read ag
         raise BTClibValueError(f"script longer than 10000 bytes: {len(script_bytes)}")
 
     script = parse(script_bytes, accept_unknown=True)
-    check_balanced_if(script)
     prepare_script(script, flags, segwit)
 
     segwit_version = 0 if segwit else -1
@@ -462,14 +500,17 @@ def verify_script(  # noqa: C901 -- op-code dispatch: one if/elif chain, read ag
                 stack.append(_from_num(int(result)))
 
             elif op == "OP_CHECKMULTISIG":
+                # Core's order, and it is the order that makes the two
+                # counts safe to build a `range` out of: each is bounded
+                # before anything is popped with it
                 pub_key_num = _to_num(stack.pop(), flags)
+                check_pub_key_num(pub_key_num)
+                op_code_num = script_op_count(op_code_num, pub_key_num)
                 pub_keys = [stack.pop() for _ in range(pub_key_num)]
                 signature_num = _to_num(stack.pop(), flags)
+                check_signature_num(signature_num, pub_key_num)
                 signatures = [stack.pop() for _ in range(signature_num)]
 
-                op_code_num = script_op_count(op_code_num, pub_key_num)
-
-                check_multisig_counts(pub_key_num, signature_num)
                 check_nulldummy(stack.pop(), flags)  # dummy value
                 signature_index = 0
                 for pub_key_index in range(pub_key_num):
@@ -536,6 +577,7 @@ def verify_script(  # noqa: C901 -- op-code dispatch: one if/elif chain, read ag
         raise ScriptError("stack underflow", script_index, len(stack)) from e
 
     script_op_codes.check_stack_size(stack, altstack)
+    script_op_codes.check_balanced_if(condition_stack)
 
     if final:
         if not stack:

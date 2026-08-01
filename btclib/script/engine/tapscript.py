@@ -22,7 +22,7 @@ from btclib.hashes import tagged_hash
 from btclib.script import sig_hash
 from btclib.script.engine import script_op_codes
 from btclib.script.engine.flags import ScriptFlag
-from btclib.script.engine.script import EVALUATED_WHEN_UNEXECUTED, check_balanced_if
+from btclib.script.engine.script import EVALUATED_WHEN_UNEXECUTED
 from btclib.script.engine.script_op_codes import ScriptOp, _from_num
 from btclib.script.op_codes_tapscript import OP_CODE_NAMES
 from btclib.script.script_pub_key import type_and_payload
@@ -134,8 +134,6 @@ def verify_script_path_vc0(  # noqa: C901 -- tapscript's op-code dispatch, read 
         raise BTClibValueError("witness stack element longer than 520 bytes")
 
     script = parse(script_bytes, exit_on_op_success=True)
-
-    check_balanced_if(script)
 
     if script == ["OP_SUCCESS"]:
         return
@@ -279,6 +277,8 @@ def verify_script_path_vc0(  # noqa: C901 -- tapscript's op-code dispatch, read 
         # so an IndexError out of it is an underflow; the chained
         # exception is there for the cases in which it is not
         raise ScriptError("stack underflow", script_index, len(stack)) from e
+
+    script_op_codes.check_balanced_if(condition_stack)
 
     if not stack:
         raise BTClibValueError("empty stack at the end of the script")

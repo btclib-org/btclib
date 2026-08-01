@@ -127,9 +127,10 @@ def test_dsa_verify_answers_false_for_what_the_bindings_refuse() -> None:
 
     `engine_script.dsa_verify` wraps the bindings' verify in a
     `try/except ValueError` for this, and the vectors never reach it: DER
-    strictness is enforced earlier, by `fix_signature` under DERSIG and
-    STRICTENC, so by the time the engine verifies, the encoding has
-    already been ruled on. What is left is the contract itself, which the
+    strictness is enforced earlier, by `fix_signature` under any of
+    DERSIG, LOW_S and STRICTENC, so by the time the engine verifies, the
+    encoding has already been ruled on. What is left is the contract
+    itself, which the
     python substitute above is written to honour -- it raises where the
     bindings raise -- and which the bindings do raise: measured, a
     ValueError of "invalid DER signature" and one of "invalid public

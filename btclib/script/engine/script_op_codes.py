@@ -147,7 +147,30 @@ def op_else(condition_stack: list[bool]) -> None:
 
 
 def op_endif(condition_stack: list[bool]) -> None:
+    # Core's SCRIPT_ERR_UNBALANCED_CONDITIONAL on `vfExec.empty()`, which is
+    # this list holding the sentinel alone. Popping the sentinel instead
+    # leaves `all([])` True, so an OP_ENDIF arriving before its OP_IF let the
+    # rest of the script run as if the branch had closed
+    if len(condition_stack) == 1:
+        raise BTClibValueError("OP_ENDIF without OP_IF or OP_NOTIF")
     condition_stack.pop()
+
+
+def check_balanced_if(condition_stack: list[bool]) -> None:
+    """Reject a conditional the script never closed.
+
+    Core's `if (!vfExec.empty())` once the loop is over, and it is one of
+    the two halves of the rule: op_else and op_endif refuse a branch that
+    was never opened, this refuses one that was never shut. Counting
+    OP_IF, OP_NOTIF and OP_ENDIF over the parsed script instead answers
+    only the second half -- the sum is what the depth ends at, so a script
+    closing a branch before opening it (`OP_ENDIF OP_1 OP_IF OP_1`) counts
+    to zero and Core rejects it.
+    """
+    if len(condition_stack) != 1:
+        raise BTClibValueError(
+            f"unbalanced conditional: {len(condition_stack) - 1} left open"
+        )
 
 
 def op_nop(flags: ScriptFlag) -> None:
@@ -408,7 +431,11 @@ def op_fromaltstack(
 
 
 def op_ifdup(stack: list[bytes], altstack: list[bytes], flags: ScriptFlag) -> None:
-    if stack[-1] != b"":
+    # Core's `if (CastToBool(vch))`, not a test for the empty element: a
+    # one-byte zero and a negative zero are false without being empty, so
+    # `<00> OP_IFDUP` duplicates here and does not there, and every op code
+    # after it reads a stack one element deeper than Core's
+    if _to_bool(stack[-1]):
         stack.append(stack[-1])
 
 
