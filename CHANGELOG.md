@@ -11,7 +11,7 @@ release-notes length in the first place, and are still in
 
 ## v2026.8 (work in progress, not released yet)
 
-A hundred and fifty-three entries, grouped. The order runs from what breaks
+A hundred and fifty-four entries, grouped. The order runs from what breaks
 a caller to what only maintainers see; [HISTORY.md](./HISTORY.md) lists the
 seventeen source-breaking changes on their own.
 
@@ -966,6 +966,16 @@ seventeen source-breaking changes on their own.
   cannot be mutated at all. `SIG_HASH_TYPES` is a `frozenset` for the
   same reason: it is a membership test in all of its uses, one of them
   what the engine accepts as a signature's hash type (issue #145)
+- `hashes.sha1`, the digest `OP_SHA1` computes, is taken with
+  `usedforsecurity=False`. The algorithm is broken and the opcode is
+  consensus, so the weakness is not a choice btclib makes: a script that
+  hashes with SHA1 has exactly one correct answer, whatever a policy says
+  about the algorithm. The flag states that where it has an effect, being
+  hashlib's documented way to ask for a digest the caller is not relying
+  on for security — which is what a build restricting the weak algorithms
+  honours. It replaces a `# noqa: S324`, which said the same thing to the
+  linter and to nothing else; the hash object faked in
+  `tests/hashes_test.py` carried the second one
 
 ### Transactions, blocks and PSBT
 

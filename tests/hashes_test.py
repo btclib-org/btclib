@@ -68,7 +68,12 @@ def test_hashlib_ripemd160_probe(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(hashlib, "new", raising)
     assert not hashes._hashlib_has_ripemd160()
 
-    monkeypatch.setattr(hashlib, "new", lambda *_, **__: hashlib.sha1())  # noqa: S324
+    # the probe only cares that hashlib.new returned rather than raised,
+    # so any hash object does; usedforsecurity=False marks this one as
+    # the stand-in it is, no digest ever being taken from it
+    monkeypatch.setattr(
+        hashlib, "new", lambda *_, **__: hashlib.sha1(usedforsecurity=False)
+    )
     assert hashes._hashlib_has_ripemd160()
 
 

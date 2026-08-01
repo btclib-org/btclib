@@ -77,7 +77,14 @@ def ripemd160(octets: Octets) -> bytes:
 def sha1(octets: Octets) -> bytes:
     """Return the SHA1(*) of the input octet sequence."""
     octets = bytes_from_octets(octets)
-    return hashlib.sha1(octets).digest()  # noqa: S324
+    # OP_SHA1 is a consensus opcode: the script says SHA1, and the only
+    # correct answer is the one the network computes, so the weakness of
+    # the algorithm is not a choice made here. usedforsecurity=False
+    # states that to hashlib rather than to the linter alone, as a noqa
+    # would: it is the documented way to ask for a blocked digest in a
+    # restricted environment, so a host whose policy allows SHA1 for
+    # non-security use alone answers here instead of raising.
+    return hashlib.sha1(octets, usedforsecurity=False).digest()
 
 
 def sha256(octets: Octets) -> bytes:
