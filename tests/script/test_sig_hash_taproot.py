@@ -113,9 +113,20 @@ def test_invalid_taproot_key_path(vector: dict[str, Any]) -> None:
     witness = Witness(vector["failure"]["witness"])
     tx.vin[index].script_witness = witness
 
-    with pytest.raises((BTClibRuntimeError, BTClibValueError, AssertionError)):
-        assert not vector["failure"]["scriptSig"]
+    # outside the raises block, where it used to be the first statement
+    # inside it with AssertionError named in the tuple: a vector carrying a
+    # scriptSig would have satisfied the raises there and the test would
+    # have passed without computing a sighash at all. None of the 141 does
+    # today, so this is the same assertion made where it cannot be mistaken
+    # for the refusal being tested
+    assert not vector["failure"]["scriptSig"]
 
+    # the two of the contract this can legitimately leave through:
+    # BTClibValueError for a malformed input and BTClibRuntimeError for
+    # `ssa.assert_as_valid_` on a signature that does not verify. Neither
+    # derives from the other -- ValueError against RuntimeError -- so both
+    # are named, and nothing wider is
+    with pytest.raises((BTClibRuntimeError, BTClibValueError)):
         sighash_type = 0  # all
         signature = witness.stack[0][:64]
         if len(witness.stack[0]) == 65:

@@ -95,7 +95,15 @@ def test_invalid_taproot(vector: dict[str, Any]) -> None:
     tx.vin[index].script_sig = bytes.fromhex(vector["failure"]["scriptSig"])
 
     flags = vector["flags"].split(",")
-    with pytest.raises((BTClibValueError, IndexError, KeyError)):
+    # BTClibValueError alone, as `test_script` narrowed its own raises to
+    # and for the same reason: everything the engine refuses is one,
+    # ScriptError included, so a bare IndexError or KeyError is the
+    # library breaking the contract btclib/exceptions.py documents and not
+    # a refusal. The tuple used to name all three, and the IndexError in
+    # it was load-bearing: two `spendpath/truncshortcontrol` vectors left
+    # through `witness.stack[-1][0]` on an empty element, and this test
+    # counted the crash as the refusal it was asking for
+    with pytest.raises(BTClibValueError):
         verify_input(prevouts, tx, index, flags)
 
 
@@ -326,8 +334,11 @@ def test_invalid_legacy(vector: list[Any]) -> None:
     # Tx.parse inside the raises block, not before it: 8 of these
     # transactions are malformed enough that btclib refuses them there,
     # and refusing them there is refusing them. The loop parsed first and
-    # skipped what raised, so those 8 asserted nothing at all
-    with pytest.raises((BTClibValueError, IndexError, KeyError)):
+    # skipped what raised, so those 8 asserted nothing at all.
+    # BTClibValueError alone, as above: all 93 leave through one, measured,
+    # so the IndexError and KeyError this used to name were width that
+    # bought nothing and would have hidden the next contract break
+    with pytest.raises(BTClibValueError):
         tx = Tx.parse(vector[1])
         # the vector's own flags, and only those: an invalid transaction
         # must be refused by the rules its vector names. A "NONE" field

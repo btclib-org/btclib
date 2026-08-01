@@ -11,7 +11,7 @@ release-notes length in the first place, and are still in
 
 ## v2026.8 (work in progress, not released yet)
 
-A hundred and thirty-eight entries, grouped. The order runs from what breaks
+A hundred and forty entries, grouped. The order runs from what breaks
 a caller to what only maintainers see; [HISTORY.md](./HISTORY.md) lists the
 sixteen source-breaking changes on their own.
 
@@ -296,6 +296,37 @@ sixteen source-breaking changes on their own.
 
 ### Malformed input and the exception contract
 
+- **an empty witness element no longer reaches a caller as `IndexError`.**
+  BIP-341 makes the last witness element the annex "if its first byte is
+  0x50", and both readers of that rule tested it with `stack[-1][0]` — an
+  empty element is legal on the wire and has no first byte, so
+  `sig_hash.from_tx` answered a caller who catches `BTClibValueError`
+  with a bare `IndexError`, on a 186-byte transaction `Tx.parse` accepts.
+  Reachable from the network, and reachable through the public API: the
+  spend is Bitcoin Core's own `spendpath/truncshortcontrol` vector, whose
+  control block is truncated to nothing. Both sites take a slice now,
+  which is also what the BIP says, and the leaf-version byte read just
+  past the annex — `sig_hash` alone, the engine validating the control
+  block first — raises `BTClibValueError("empty taproot control block")`
+  rather than inventing the 33-byte minimum that is the engine's to
+  enforce. What let it sit there was the test: `test_invalid_taproot`
+  named `IndexError` in its `pytest.raises` tuple and counted the crash
+  as the refusal it was asking for, which is the failure
+  `test_script.py` narrowed its own tuple to stop. All three wide tuples
+  are now the contract and nothing more, `test_invalid_legacy`'s included
+  — measured, all 93 of its vectors leave through `BTClibValueError` — and
+  `test_invalid_taproot_key_path` no longer lists `AssertionError`
+  alongside a leading `assert` inside the block, which would have passed a
+  vector without computing a sighash at all
+- **`tests/test_fuzz.py` reaches past the parsers.** It held 24 binary
+  parse entry points and the text ones to the exception contract, and
+  stopped where the bytes became an object: the code that *reads* a Tx
+  that parsed cleanly was not in it, which is why a fuzzer had not found
+  the annex hole above. `sig_hash.from_tx`, `engine.verify_input` and
+  `engine.verify_transaction` now take a hypothesis-generated witness
+  stack on a fixed p2tr spend — empty elements included, that being the
+  point. Reverted against the old code the new test fails, shrunk to
+  `stack=[b'', b'']`
 - **a WIF is checked against the network the caller named**, not against
   the reverse lookup's answer. `_prv_keyinfo_from_wif` compared the
   network *name* the prefix mapped back to, and the four test networks

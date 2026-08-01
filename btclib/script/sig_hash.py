@@ -139,12 +139,25 @@ def taproot_annex_and_ext(tx: Tx, vin_i: int) -> tuple[bytes, bytes]:
         raise BTClibValueError("Empty stack")
 
     annex = b""
-    if len(stack) >= 2 and stack[-1][0] == 0x50:
+    # a slice and not stack[-1][0]: an element of the witness may be empty,
+    # which is legal on the wire and has no first byte to read -- indexing
+    # it answered a caller who catches BTClibValueError with an IndexError,
+    # on a transaction 186 bytes long that Tx.parse accepts. BIP-341 says
+    # the annex is the last element "if its first byte is 0x50", and an
+    # empty element does not have one, so this is also what the BIP says
+    if len(stack) >= 2 and stack[-1][:1] == b"\x50":
         annex = stack[-1]
         stack = stack[:-1]
 
     ext = b""
     if len(stack) > 1:
+        # the same hole, one element along: with the annex off, stack[-1]
+        # is the control block, whose first byte is the leaf version. There
+        # is no hash to compute without it, so this raises rather than
+        # inventing the 33-byte minimum BIP-341 states -- validating the
+        # control block is the engine's job, and it does it
+        if not stack[-1]:
+            raise BTClibValueError("empty taproot control block")
         leaf_version = stack[-1][0] & 0xFE
         preimage = leaf_version.to_bytes(1, "big")
         preimage += var_bytes.serialize(stack[-2])

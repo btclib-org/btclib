@@ -43,7 +43,9 @@ from btclib.ecc import bms, dsa, ssa
 from btclib.exceptions import BTClibRuntimeError, BTClibTypeError, BTClibValueError
 from btclib.psbt import psbt_utils
 from btclib.psbt.psbt import Psbt
-from btclib.script import script, taproot
+from btclib.script import script, sig_hash, taproot
+from btclib.script.engine import verify_input, verify_transaction
+from btclib.script.script_pub_key import ScriptPubKey
 from btclib.script.witness import Witness
 from btclib.tx.out_point import OutPoint
 from btclib.tx.tx import Tx
@@ -212,3 +214,60 @@ def test_mutated_serialization_honors_the_exception_contract(
     parse: Callable[[bytes], Any], sample: bytes, data: st.DataObject
 ) -> None:
     _assert_contract(parse, data.draw(_mutations(sample)))
+
+
+# The consumers, not the parsers. Everything above hands bytes to
+# something that turns them into an object; what follows hands an object
+# that parsed *cleanly* to the code that reads it, which is a surface no
+# parser strategy reaches. It is where the contract broke last:
+# `sig_hash.taproot_annex_and_ext` and `engine.taproot_get_annex` both
+# read `stack[-1][0]` to test for the annex, and an empty witness element
+# is legal on the wire and has no first byte -- so a 186-byte transaction
+# `Tx.parse` accepts answered a caller catching BTClibValueError with an
+# IndexError, out of the public `sig_hash.from_tx`. Bitcoin Core's
+# `spendpath/truncshortcontrol` vectors carry the case and the engine
+# tests were accepting the crash as the refusal they asked for.
+#
+# The witness is the whole of what a peer chooses here, the rest of the
+# transaction being fixed: it is the one field of a valid spend that the
+# consensus code indexes into before it has validated anything
+_P2TR_PRV_KEY = 0x4242424242424242424242424242424242424242424242424242424242424242
+_P2TR_SCRIPT_PUB_KEY = ScriptPubKey.p2tr(_P2TR_PRV_KEY)
+_P2TR_PREVOUTS = [TxOut(100_000, _P2TR_SCRIPT_PUB_KEY)]
+
+
+def _p2tr_spend(stack: list[bytes]) -> Tx:
+    """The one-input spend of a p2tr output, carrying `stack` as witness."""
+    vin = TxIn(OutPoint(b"\x11" * 32, 0))
+    vin.script_witness = Witness(stack)
+    return Tx(vin=[vin], vout=[TxOut(90_000, _P2TR_SCRIPT_PUB_KEY)])
+
+
+# up to five elements, empty ones included and on purpose: two is what
+# turns a key path spend into a script path one, three is what puts a
+# control block where the leaf version is read, and an annex is
+# recognized by the first byte of the last element, which an empty
+# element does not have
+WITNESS_STACKS = st.lists(st.binary(max_size=64), max_size=5)
+
+WITNESS_CONSUMERS: dict[str, Callable[[list[bytes]], Any]] = {
+    "sig_hash.from_tx": lambda stack: sig_hash.from_tx(
+        _P2TR_PREVOUTS, _p2tr_spend(stack), 0, sig_hash.DEFAULT
+    ),
+    "engine.verify_input": lambda stack: verify_input(
+        _P2TR_PREVOUTS, _p2tr_spend(stack), 0
+    ),
+    "engine.verify_transaction": lambda stack: verify_transaction(
+        _P2TR_PREVOUTS, _p2tr_spend(stack)
+    ),
+}
+
+
+@pytest.mark.parametrize(
+    "consume", WITNESS_CONSUMERS.values(), ids=list(WITNESS_CONSUMERS.keys())
+)
+@given(stack=WITNESS_STACKS)
+def test_witness_consumer_honors_the_exception_contract(
+    consume: Callable[[list[bytes]], Any], stack: list[bytes]
+) -> None:
+    _assert_contract(consume, stack)

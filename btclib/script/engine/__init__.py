@@ -72,8 +72,13 @@ def taproot_unwrap_script(
 def taproot_get_annex(witness: Witness) -> tuple[bytes, list[bytes]]:
     # the trimmed stack is returned, never written back: a get_ function must
     # not write, and verifying a transaction must not rewrite it. A list in
-    # either branch, the stack being popped by the script interpreter
-    if len(witness.stack) >= 2 and witness.stack[-1][0] == 0x50:
+    # either branch, the stack being popped by the script interpreter.
+    # A slice and not [-1][0], for the reason sig_hash.taproot_annex_and_ext
+    # gives: an empty witness element has no first byte, and BIP-341 makes
+    # the annex the element whose first byte is 0x50. Core's vectors carry
+    # the case -- two `spendpath/truncshortcontrol`, whose control block is
+    # truncated to nothing -- and this used to leave through IndexError
+    if len(witness.stack) >= 2 and witness.stack[-1][:1] == b"\x50":
         return witness.stack[-1], list(witness.stack[:-1])
     return b"", list(witness.stack)
 
