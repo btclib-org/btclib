@@ -7,7 +7,7 @@ full year, short month, short day (YYYY-M-D)
 
 ## v2026.8 (work in progress, not released yet)
 
-The first release since 2023, and the largest: a hundred and fifty-four
+The first release since 2023, and the largest: a hundred and fifty-five
 entries, in [CHANGELOG.md](./CHANGELOG.md). What follows is what a user has
 to act on and what a user gains.
 
@@ -19,7 +19,7 @@ CHANGELOG.md.
 
 ### Breaking changes
 
-Seventeen changes break code that worked on v2023.7.12. Each is described in
+Nineteen changes break code that worked on v2023.7.12. Each is described in
 full in [CHANGELOG.md](./CHANGELOG.md). Every "before" spelling was checked
 against the `v2023.7.12` tag.
 
@@ -93,6 +93,13 @@ against the `v2023.7.12` tag.
   Core makes once the interpreter loop is over, on the condition stack the
   loop leaves behind. The count could not see a conditional closed before
   it was opened, which is the script it let through.
+- **`Psbt.parse`'s parameter is `data: BinaryData`**, not `psbt_bin:
+  Octets`, so only a caller naming it by keyword has to change. Bytes and
+  hex strings parse as before; a `BytesIO` now does too, and is left
+  positioned right after the psbt.
+- **`psbt_utils.deserialize_map` returns the map**, not the `(map, stream)`
+  pair: `deserialize_map(data)[0]` is `deserialize_map(data)`, and a caller
+  threading the stream through passes its own.
 
 Two changes are deliberately *not* on that list, because what they change
 stays compatible. The new `BTClibTypeError`, `NotAPrvKeyError` and

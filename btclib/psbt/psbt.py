@@ -21,7 +21,7 @@ from copy import deepcopy
 from dataclasses import dataclass
 from typing import Any, TypeVar, cast
 
-from btclib.alias import Octets, ScriptList, String
+from btclib.alias import BinaryData, Octets, ScriptList, String
 from btclib.bip32 import (
     BIP32KeyOrigin,
     HdKeyPaths,
@@ -292,9 +292,14 @@ class Psbt:
 
     @classmethod
     def parse(
-        cls: type[Psbt], psbt_bin: Octets, *, check_validity: bool = True
+        cls: type[Psbt], data: BinaryData, *, check_validity: bool = True
     ) -> Psbt:
-        """Return a Psbt by parsing binary data."""
+        """Return a Psbt by parsing binary data.
+
+        A psbt ends at the separator of its last map, and the stream is
+        left right there: what follows is the caller's, so a psbt can be
+        read out of a stream that carries more than the psbt.
+        """
         # None until the global map yields one, which BIP174 requires it to:
         # "The unsigned transaction must be provided". Not a
         # Tx(check_validity=False) placeholder: an empty transaction is
@@ -306,14 +311,14 @@ class Psbt:
         hd_key_paths: dict[Octets, BIP32KeyOrigin] = {}
         unknown: dict[Octets, Octets] = {}
 
-        stream = bytesio_from_binarydata(psbt_bin)
+        stream = bytesio_from_binarydata(data)
 
         if stream.read(4) != PSBT_MAGIC_BYTES:
             raise BTClibValueError("malformed psbt: missing magic bytes")
         if stream.read(1) != PSBT_SEPARATOR:
             raise BTClibValueError("malformed psbt: missing separator")
 
-        global_map, stream = deserialize_map(stream)
+        global_map = deserialize_map(stream)
         for k, v in global_map.items():
             if k[:1] == PSBT_GLOBAL_UNSIGNED_TX:
                 tx = deserialize_tx(
@@ -329,15 +334,8 @@ class Psbt:
         if tx is None:
             raise BTClibValueError("malformed psbt: missing global unsigned tx")
 
-        inputs: list[PsbtIn] = []
-        for _ in tx.vin:
-            input_map, stream = deserialize_map(stream)
-            inputs.append(PsbtIn.parse(input_map))
-
-        outputs: list[PsbtOut] = []
-        for _ in tx.vout:
-            output_map, stream = deserialize_map(stream)
-            outputs.append(PsbtOut.parse(output_map))
+        inputs = [PsbtIn.parse(deserialize_map(stream)) for _ in tx.vin]
+        outputs = [PsbtOut.parse(deserialize_map(stream)) for _ in tx.vout]
 
         return cls(
             tx,

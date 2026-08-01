@@ -9,6 +9,7 @@
 # or distributed except according to the terms contained in the LICENSE file.
 """Tests for the `btclib.psbt.psbt` module."""
 
+from io import BytesIO
 from typing import Any
 
 import pytest
@@ -309,6 +310,36 @@ def test_psbt() -> None:
     psbt = Psbt.from_tx(tx)
     assert psbt == Psbt.parse(psbt.serialize())
     assert psbt == Psbt.from_dict(psbt.to_dict())
+
+
+def test_parse_reads_a_stream() -> None:
+    """A psbt is one record in a stream, not the whole of a buffer.
+
+    It ends at the separator of its last map, so a parse reading the
+    stream can leave what follows to the caller, and can start where the
+    caller has got to; a parse slicing bytes can do neither, which is
+    what taking BinaryData rather than Octets answers (issue 179).
+    """
+    tx_in = TxIn(OutPoint(bytes(range(32)), 1), b"", 0xFFFFFFFF)
+    tx_out = TxOut(2500000, "a914f987c321394968be164053d352fc49763b2be55c87")
+    psbt = Psbt.from_tx(Tx(1, 0, [tx_in], [tx_out]))
+    psbt_bin = psbt.serialize()
+
+    tail = b"whatever the caller reads next"
+    stream = BytesIO(psbt_bin + tail)
+    assert Psbt.parse(stream) == psbt
+    assert stream.read() == tail
+
+    # and the psbt need not be at the start of the buffer either: what
+    # says a map is missing is the position, not the size
+    head = b"whatever the caller has already read"
+    stream = BytesIO(head + psbt_bin)
+    stream.seek(len(head))
+    assert Psbt.parse(stream) == psbt
+
+    # BinaryData is a superset of Octets: bytes and hex-string still parse
+    assert Psbt.parse(psbt_bin) == psbt
+    assert Psbt.parse(psbt_bin.hex()) == psbt
 
 
 def test_explicit_version() -> None:

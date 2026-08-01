@@ -11,9 +11,9 @@ release-notes length in the first place, and are still in
 
 ## v2026.8 (work in progress, not released yet)
 
-A hundred and fifty-four entries, grouped. The order runs from what breaks
+A hundred and fifty-five entries, grouped. The order runs from what breaks
 a caller to what only maintainers see; [HISTORY.md](./HISTORY.md) lists the
-seventeen source-breaking changes on their own.
+nineteen source-breaking changes on their own.
 
 ### Repository
 
@@ -1026,6 +1026,19 @@ seventeen source-breaking changes on their own.
   question and refuses it: `nothing to sign: no inputs`. Every check in it is
   per input, so without that line an empty `vin` passed the loop vacuously
   and a caller signed nothing while being told nothing (issue #170)
+- **`Psbt.parse` reads a stream**, as every other parse in the library
+  does: its parameter is `data: BinaryData`, where it was `psbt_bin:
+  Octets`, so a `BytesIO` is accepted beside the bytes and the hex string
+  that were. A psbt ends at the separator of its last map, and the stream
+  is left right there — what follows belongs to the caller, which is what
+  makes a psbt one record among others rather than the whole of a buffer,
+  and what a caller reading a psbt out of a file or a socket needs.
+  `psbt_utils.deserialize_map` hands the map back alone, where it returned
+  the `(map, stream)` pair that slicing had needed: a caller passing a
+  stream already holds it, and one passing octets has nothing left to read
+  from anyway. Slicing is also what made the truncation defects of #138
+  possible, a short read being indistinguishable from a full one
+  (issue #179)
 
 ### The public API and the module layout
 

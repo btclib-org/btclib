@@ -9,6 +9,8 @@
 # or distributed except according to the terms contained in the LICENSE file.
 """Tests for the `btclib.psbt.psbt_utils` module."""
 
+from io import BytesIO
+
 import pytest
 
 from btclib.bip32 import BIP32KeyOrigin
@@ -64,7 +66,7 @@ def test_deserialize_map_short_read() -> None:
     for, so an unchecked read deserializes every buffer below to the very
     same map -- {b"A": b"B"} -- which serializes back to only one of them.
     """
-    assert deserialize_map(b"\x01A\x01B\x00")[0] == {b"A": b"B"}
+    assert deserialize_map(b"\x01A\x01B\x00") == {b"A": b"B"}
 
     err_msg = "malformed psbt: not enough data for the map value, "
     for announced_size in (b"\x02", b"\x05", b"\x09"):
@@ -74,6 +76,19 @@ def test_deserialize_map_short_read() -> None:
     err_msg = "malformed psbt: not enough data for the map key, "
     with pytest.raises(BTClibValueError, match=err_msg):
         deserialize_map(b"\x05AB")
+
+
+def test_deserialize_map_reads_one_map() -> None:
+    """The separator is consumed and nothing beyond it is.
+
+    A psbt is a sequence of maps with no count in front of it, so one
+    stream threaded through is the only thing that reads them in order:
+    each call has to leave the next one where the next map starts.
+    """
+    stream = BytesIO(b"\x01A\x01B\x00\x01C\x01D\x00 the psbt ends here")
+    assert deserialize_map(stream) == {b"A": b"B"}
+    assert deserialize_map(stream) == {b"C": b"D"}
+    assert stream.read() == b" the psbt ends here"
 
 
 def test_deserialize_map_unterminated() -> None:

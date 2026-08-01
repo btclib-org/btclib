@@ -53,7 +53,15 @@ def _read_exactly(stream: BytesIO, size: int, what: str) -> bytes:
     return data
 
 
-def deserialize_map(data: BinaryData) -> tuple[dict[bytes, bytes], BytesIO]:
+def deserialize_map(data: BinaryData) -> dict[bytes, bytes]:
+    """Return one map, read from the stream up to its 0x00 separator.
+
+    The separator is consumed, so the stream is left on whatever comes
+    after the map: threading one stream through is what reads the maps of
+    a psbt in order. The map alone is handed back, the stream not being
+    the function's to give -- a caller passing a stream already holds it,
+    and one passing octets has nothing left to read from anyway.
+    """
     stream = bytesio_from_binarydata(data)
     if (
         len(stream.getbuffer()) == stream.tell()
@@ -67,7 +75,7 @@ def deserialize_map(data: BinaryData) -> tuple[dict[bytes, bytes], BytesIO]:
         if not marker:
             raise BTClibValueError("malformed psbt: unterminated map")
         if marker[0] == 0:
-            return partial_map, stream
+            return partial_map
         stream.seek(-1, 1)  # reset stream position
         key = _read_exactly(stream, var_int.parse(stream), "map key")
         value = _read_exactly(stream, var_int.parse(stream), "map value")
