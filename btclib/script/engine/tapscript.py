@@ -119,7 +119,7 @@ def op_checksig(
     return budget
 
 
-def verify_script_path_vc0(  # noqa: C901 -- tapscript's op-code dispatch, read against Core's
+def verify_script_path_vc0(  # noqa: C901 -- what the table below cannot hold, read against Core's tapscript rules: the op codes needing the engine's own state, the sigops budget among it
     script_bytes: bytes,
     stack: list[bytes],
     prevouts: list[TxOut],

@@ -344,7 +344,7 @@ def prepare_script(script: ScriptList, flags: ScriptFlag, segwit: bool) -> None:
         raise BTClibValueError("OP_CODESEPARATOR in a non-segwit script")
 
 
-def verify_script(  # noqa: C901 -- op-code dispatch: one if/elif chain, read against Core's interpreter
+def verify_script(  # noqa: C901 -- what the table below cannot hold, read against Core's EvalScript: the op codes needing the engine's own state, and the pushes matched by shape rather than by name
     script_bytes: bytes,
     stack: list[bytes],
     prevout_value: int,
