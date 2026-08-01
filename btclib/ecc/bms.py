@@ -125,6 +125,22 @@ a P2WPKH-P2SH or P2WPKH address:
 in this case the signature will be valid only for that same
 address.
 
+The message is signed and verified byte-for-byte as provided:
+btclib does not strip whitespace, because the signature must commit
+to the exact bytes it names. Bitcoin Core behaves the same
+everywhere, its Sign/Verify Message gui dialog included, and so does
+the Electrum CLI; the Electrum gui instead deliberately strips
+leading and trailing blanks from the message
+(https://github.com/spesmilo/electrum/issues/4327), so on a
+whitespace-padded message it disagrees with all of the above: a
+signature it produces commits to the stripped text, and a signature
+over the exact bytes never verifies there. Two mutually exclusive
+pull requests put both resolutions in front of Electrum:
+https://github.com/spesmilo/electrum/pull/10787 (strip in the one
+gui path that misses it, qml signing) and
+https://github.com/spesmilo/electrum/pull/10788 (never strip,
+matching Core and btclib).
+
 https://github.com/bitcoin/bitcoin/pull/524
 
 https://github.com/bitcoin/bips/blob/master/bip-0137.mediawiki

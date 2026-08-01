@@ -11,7 +11,7 @@ release-notes length in the first place, and are still in
 
 ## v2026.8 (work in progress, not released yet)
 
-A hundred and seventy-six entries, grouped. The order runs from what breaks
+A hundred and seventy-seven entries, grouped. The order runs from what breaks
 a caller to what only maintainers see; [HISTORY.md](./HISTORY.md) lists the
 twenty-nine source-breaking changes on their own.
 
@@ -2278,6 +2278,18 @@ twenty-nine source-breaking changes on their own.
 
 ### Documentation and the website
 
+- **The `bms` docstring says the message is signed byte-for-byte, and
+  that Electrum's gui disagrees.** btclib does not strip whitespace
+  from the message — a signature must commit to the exact bytes — and
+  neither does Bitcoin Core, its gui included, nor the Electrum CLI;
+  the Electrum gui deliberately strips leading and trailing blanks
+  (spesmilo/electrum#4327, closed as intended), so a signature it
+  produces over a padded message commits to the stripped text and
+  never verifies elsewhere against the original. The docstring names
+  the two mutually exclusive pull requests that put both resolutions
+  in front of Electrum, spesmilo/electrum#10787 (strip in the one gui
+  path that misses it, qml signing) and spesmilo/electrum#10788
+  (never strip, matching Core and btclib)
 - **Comments and documentation state the present rationale, not the
   story of how the code got here.** A comment that read "this used to be
   X, which broke Y" reads "not X: it breaks Y" now — the rejected
