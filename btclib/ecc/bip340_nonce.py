@@ -7,19 +7,31 @@
 #
 # No part of btclib including this file, may be copied, modified, propagated,
 # or distributed except according to the terms contained in the LICENSE file.
-"""Deterministic generation of the ephemeral key following BIP340.
+"""Generation of the ephemeral key (nonce) following BIP340.
 
 https://github.com/bitcoin/bips/blob/master/bip-0340.mediawiki
 
-The BIP340-Schnorr scheme advocates a custom deterministic algorithm
-for the ephemeral key (nonce) used for signing,
-instead of the RFC6979 standard:
+BIP340 derives the nonce from the private key, the public key, and
+the message, all behind a tagged hash, plus auxiliary randomness a:
 
-nonce = TaggedHash('BIPSchnorrDerive', q||msg)
+nonce = TaggedHash('BIP0340/nonce', t||x_Q||msg)
+with t = q xor TaggedHash('BIP0340/aux', a)
 
 Where:
 
 TaggedHash(tag, x) = SHA256(SHA256(tag)||SHA256(tag)||x)
+
+This is the synthetic nonce: the deterministic derivation is the
+security floor -- with no randomness at signing time (a counter as a,
+even all zeros) a nonce still cannot repeat across different messages
+-- and fresh randomness is the hardening BIP340 recommends on top,
+against fault injection and side-channel attacks. The key is masked
+with the hashed randomness by xor, rather than hashed together with
+it, to keep the number of operations touching the actual secret low.
+The dedicated tag is domain separation: RFC6979 is not reused because
+sharing a derivation (and a key) with deterministic ECDSA could leak
+the key through nonce reuse across the two schemes. Any deterministic
+derivation, BIP340 warns, remains insecure in multi-party signing.
 """
 
 from __future__ import annotations
@@ -81,7 +93,7 @@ def bip340_nonce_(
     ec: Curve = secp256k1,
     hf: HashF = sha256,
 ) -> tuple[int, int, int, int]:
-    """Return a BIP340 deterministic ephemeral key (nonce).
+    """Return a BIP340 ephemeral key (nonce), synthetic by default.
 
     The message is of any size: BIP340 puts no size restriction on it,
     and the nonce tagged hash absorbs any length just as the challenge

@@ -39,7 +39,7 @@ and the deterministic nonce (with tag 'BIP0340/aux').
 
 To allow for secure batch verification of multiple signatures,
 BIP340-Schnorr uses a challenge that prevents public key recovery
-from signature: c = TaggedHash('BIPSchnorr', x_k||x_Q||msg).
+from signature: c = TaggedHash('BIP0340/challenge', x_k||x_Q||msg).
 
 The challenge commits to the nonce point as well, and that dependency
 is the Fiat-Shamir transform itself: hashing the commitment x_k
@@ -48,10 +48,11 @@ only after receiving the commitment. Were c and the nonce chosen
 independently, no private key would be needed: K = s*G - c*Q
 satisfies verification for any Q.
 
-A custom deterministic algorithm for the ephemeral key (nonce)
+A custom algorithm for the ephemeral key (nonce)
 is used for signing, instead of the RFC6979 standard:
 
-nonce = TaggedHash('BIP0340/aux', q||msg)
+nonce = TaggedHash('BIP0340/nonce', t||x_Q||msg)
+with t = q xor TaggedHash('BIP0340/aux', a), a the auxiliary randomness
 
 Finally, BIP340-Schnorr adopts a robust [r][s] custom serialization
 format, instead of the loosely specified ASN.1 DER standard.
