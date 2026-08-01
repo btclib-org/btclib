@@ -449,7 +449,12 @@ ignore = [
     "D406", # new-line-after-section-name
     "D407", # dashed-underline-after-section
     "D413", # blank-line-after-last-section
-    # line length is enforced by the formatter
+    # code length is enforced by the formatter, which reflows to its 88
+    # columns everything it is allowed to rewrite. What is left for E501
+    # to find is what no width can break: 267 lines today, almost all of
+    # them a test vector, an extended key or a base64 signature on one
+    # line. The prose the formatter never touches is measured instead by
+    # max-doc-length below
     "E501", # line-too-long
     # uppercase math symbols (M, R, Q, ...) are variables, not constants:
     # ruff mistakes comparisons against them for Yoda conditions
@@ -506,6 +511,19 @@ ignore = [
 # the moment a refactor brings its function under the line, so the list
 # can only shrink
 max-complexity = 10
+
+[tool.ruff.lint.pycodestyle]
+# 80 columns on the prose, where the code keeps the formatter's 88. Not a
+# compromise between two numbers: ruff-format reflows code and never a
+# comment or a docstring, so 88 is what it can enforce and this is the
+# rest -- the half of a file that carries the reasoning, held to the width
+# every markdown file here is already held to by MD013.
+# W505 is in the "W" set selected above and is inert without this line,
+# ruff having no default doc length; setting it is the whole of the
+# switch. A comment that ends in a URL is exempt, which is the amnesty
+# MD013 gives an unbreakable link: the 20 comments still over 80 columns
+# are every one of them a link, and none is a defect
+max-doc-length = 80
 
 [tool.ruff.lint.pydocstyle]
 convention = "pep257"

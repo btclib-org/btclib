@@ -30,7 +30,7 @@ from tests.conftest import JsonGolden
 
 
 def psbt_vectors(fname: str, kind: str) -> list[Any]:
-    """The `kind` cases of a BIP test vector file, each named by its description.
+    """The `kind` cases of a BIP test vector file, named by description.
 
     The description is the id because a bare "case 7 failed" is not a
     report: as a test id it is there for free, with no print-and-raise
@@ -752,9 +752,9 @@ def test_join_psbts() -> None:
         shuffle_inp=False,
         shuffle_out=False,
     )
-    # Check that joining with shuffle=True does really shuffle inputs and outputs
-    # 10 attempts should be enough to get at least a shuffled join that is different
-    # from the unshuffled one
+    # Check that joining with shuffle=True does really shuffle inputs and
+    # outputs. 10 attempts should be enough to get at least a shuffled
+    # join that is different from the unshuffled one
     assert any(
         join_psbts(
             [psbt1, psbt2],

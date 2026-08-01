@@ -169,7 +169,8 @@ def _verify_witness_v0(
     # witness stack is an immutable tuple anyway
     stack = list(witness.stack)
     if script_type == "p2wpkh":
-        # serialization of ["OP_DUP", "OP_HASH160", payload, "OP_EQUALVERIFY", "OP_CHECKSIG"]
+        # serialization of p2wpkh:
+        # OP_DUP OP_HASH160 payload OP_EQUALVERIFY OP_CHECKSIG
         script = b"v\xa9\x14" + payload + b"\x88\xac"
     elif script_type == "p2wsh":
         # the witness script is the last element, and there is none:

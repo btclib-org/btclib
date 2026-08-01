@@ -340,7 +340,7 @@ def test_ec_repr() -> None:
 
 
 def test_ec_repr_groups_its_hex() -> None:
-    """A curve integer is rendered `DEADBEEF 00000000`, not `0xdeadbeef00000000`.
+    """A curve integer reads `DEADBEEF 00000000`, not `0xdeadbeef00000000`.
 
     Which is what `hex_string` produces everywhere else in the library,
     and what the round-trip above quietly depends on: it is a literal in

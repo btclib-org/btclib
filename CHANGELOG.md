@@ -11,7 +11,7 @@ release-notes length in the first place, and are still in
 
 ## v2026.8 (work in progress, not released yet)
 
-A hundred and fifty-five entries, grouped. The order runs from what breaks
+A hundred and fifty-seven entries, grouped. The order runs from what breaks
 a caller to what only maintainers see; [HISTORY.md](./HISTORY.md) lists the
 nineteen source-breaking changes on their own.
 
@@ -1803,6 +1803,44 @@ nineteen source-breaking changes on their own.
   never fire reads as an enforced invariant while enforcing nothing.
   `check-readthedocs` joins `check-dependabot` on the same argument,
   `.readthedocs.yaml` being 2.7 KB that nothing read as a build definition
+- **80 columns on the prose, and the yaml measured for the first time.**
+  `ruff-format` reflows code to its 88 columns and never touches a
+  comment or a docstring, which is why `E501` is ignored and stays so:
+  what it finds is 267 lines no width can break, almost every one a test
+  vector, an extended key or a base64 signature. The half of a file the
+  formatter cannot reach is the half that carries the reasoning, and
+  `max-doc-length = 80` is what measures it — `W505` is already in the
+  `W` set and inert without that line, ruff having no default doc
+  length, so setting it is the whole of the switch. Fourteen lines were
+  over, nine in btclib and five in tests, and each was rewrapped rather
+  than exempted. Two of them are values no width holds: an uncompressed
+  public key written with blanks in it and a BIP32 extended key, 111
+  characters by construction, both in `alias.py`'s list of examples,
+  where a second quoted line would read as a second example — so each is
+  broken with its quotes left open, the one form that cannot be
+  misread as two. A comment ending in a URL is exempt, the amnesty MD013
+  gives an unbreakable link: the 20 comments still over 80 columns are
+  every one of them a link
+- **`yamllint`, and a limit of 100 rather than 80 for a measured
+  reason.** It is the third width gate beside ruff and markdownlint, and
+  the workflows were the one place a line could grow with nothing to say
+  so — 117 columns at the worst. Eighty is what markdown and the python
+  prose get, and the yaml cannot have it: an action pinned to a
+  40-character commit SHA with its tag in a trailing comment lands
+  between 77 and 92 columns on the length of its name alone, and 31 of
+  the 35 `uses:` lines here are at or past 80. That limit reports 27
+  lines, 18 of them such a pin, and would be bought with 18 `yamllint
+  disable-line` comments — a width rule does not get to break a security
+  one, and 100 clears today's longest pin by enough that an action with
+  a longer name cannot turn a dependabot pull request red for having no
+  defect in it. Two lines were over 100, both shell in `release.yml`.
+  One rule of the twelve in the default set is on, and the three others
+  that fire are recorded in `.yamllint.yaml` with their counts, each
+  reporting a convention rather than a defect: `comments` wants two
+  spaces before the `#` on 33 pins where dependabot writes one, `truthy`
+  reads the 6 `on:` keys that open a workflow as the boolean they are in
+  yaml 1.1, and `document-start` wants a `---` on all 14 files, none of
+  which has one
 - **the six hooks commented out in `.pre-commit-config.yaml` are decided,
   four on and two off, and five more are added.** Each was measured
   against this tree rather than argued about. On: `name-tests-test`, at

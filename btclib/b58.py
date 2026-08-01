@@ -124,7 +124,7 @@ def _address_from_v0_witness(wit_prg: Octets, network: str = "mainnet") -> str:
     return p2sh(redeem_script, network)
 
 
-# 1.+2b. = 3b. base58 (p2sh-wrapped) SegWit addresses from pub_key/script_pub_key
+# 1.+2b. = 3b. base58 (p2sh-wrapped) SegWit address from pub_key/script_pub_key
 
 
 def p2wpkh_p2sh(key: Key, network: str | None = None) -> str:

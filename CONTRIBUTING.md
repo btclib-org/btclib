@@ -160,8 +160,14 @@ That second command is not a convenience: it is the lint gate itself.
 The lint workflow runs this very configuration, so what CI enforces is
 what a commit enforces, mark-down included
 ([markdownlint-cli2](https://github.com/DavidAnson/markdownlint-cli2) is
-one of the hooks, as are ruff, mypy, actionlint, and the checks on
-packaging metadata and on `uv.lock`).
+one of the hooks, as are ruff, mypy, yamllint, actionlint, and the checks
+on packaging metadata and on `uv.lock`).
+
+Prose is held to 80 columns wherever it lives: markdown by MD013, python
+comments and docstrings by ruff's `max-doc-length`. Code is not — the
+formatter reflows it to 88 — and neither is yaml, at 100, an action
+pinned to a commit SHA being past 80 before anything else is said;
+`.yamllint.yaml` has that arithmetic.
 
 \[To do: document how to do it in VS Code\]
 

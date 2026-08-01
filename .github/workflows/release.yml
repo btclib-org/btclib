@@ -83,7 +83,8 @@ jobs:
           # calendar scheme of YYYY.M.D and its patch number, and nothing
           # PEP 440 reads as a pre-release, a dev build or a post release
           if ! echo "$version" | grep -Eq '^[0-9]+(\.[0-9]+)*$'; then
-            echo "::error::$version is not a final version; rehearse on TestPyPI via workflow_dispatch instead"
+            msg="rehearse on TestPyPI via workflow_dispatch instead"
+            echo "::error::$version is not a final version; $msg"
             exit 1
           fi
       # the release notes are HISTORY.md's section for the tag, lifted by
@@ -121,7 +122,8 @@ jobs:
                   exit 1
                 }
                 if (extra) {
-                  printf "::error::%s:%d is \"%s\"; the heading must be \"## %s\" alone\n", file, heading, extra, tag
+                  printf "::error::%s:%d is \"%s\"; the heading must be \"## %s\" alone\n",
+                    file, heading, extra, tag
                   exit 1
                 }
                 if (!body) {

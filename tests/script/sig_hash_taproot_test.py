@@ -216,7 +216,7 @@ def test_wrapped_p2tr() -> None:
 
 
 def annex_vectors() -> list[Any]:
-    """The vectors whose witness carries an annex: nothing else can strip one."""
+    """Vectors whose witness carries an annex: nothing else can strip one."""
     params = []
     for index, x in enumerate(TAPSCRIPT):
         if "TAPROOT" not in x["flags"]:

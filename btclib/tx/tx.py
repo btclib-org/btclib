@@ -75,8 +75,9 @@ class Tx:
     # 0	Not locked
     #  < 500000000	Block number at which this transaction is unlocked
     # >= 500000000	UNIX timestamp at which this transaction is unlocked
-    # If all TxIns have final (0xffffffff) sequence numbers then lock_time is irrelevant.
-    # Otherwise, the transaction may not be added to a block until after lock_time.
+    # If all TxIns have final (0xffffffff) sequence numbers then lock_time
+    # is irrelevant. Otherwise, the transaction may not be added to a
+    # block until after lock_time.
     # Set to the current block to prevent fee sniping.
     lock_time: int
     vin: list[TxIn]

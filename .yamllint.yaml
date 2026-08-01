@@ -1,0 +1,40 @@
+# yamllint's configuration, in a file of its own because the reasoning
+# below needs more room than a hook argument has -- the same split as
+# codespell and typos, which are configured in pyproject.toml rather than
+# in .pre-commit-config.yaml. yamllint finds this file by name in the
+# directory it runs from, which for a pre-commit hook is the repository
+# root, so the hook needs no -c.
+#
+# One rule of the twelve in the default set is enabled, and it is the
+# width of a line: ruff measures python and markdownlint measures
+# markdown, while nothing measured yaml. The other three that fire here
+# each report a convention rather than a defect, so each stays off, with
+# the count written down so that nobody has to run the survey again:
+#   - comments, 33 findings, every one of them "too few spaces before
+#     comment" on a "uses: action@sha # v1.2.3" pin. One space is what
+#     dependabot writes when it bumps one, so the rule would report the
+#     bot's own output on every update
+#   - document-start, 14 findings, which is every yaml file here: no
+#     leading "---" is the house style, and adding fourteen of them
+#     changes nothing a parser sees
+#   - truthy, 6 findings, all of them the "on:" that opens a workflow,
+#     which yaml 1.1 reads as the boolean true. One per workflow, by
+#     construction
+rules:
+  line-length:
+    # 100, where markdown and the python docstrings are held to 80, and
+    # the difference is the pinning convention. An action pinned to a
+    # 40-character commit SHA with its tag in a trailing comment lands
+    # between 77 and 92 columns on the length of its name alone, and 31
+    # of the 35 in this tree are at or past 80: a limit of 80 reports 27
+    # lines, 18 of them such a pin, and buys its 80 with 18 "yamllint
+    # disable-line" comments. A width rule does not get to break a
+    # security one. 100 clears today's longest pin, at 92, by enough
+    # room for an action with a longer name, so a dependabot pull
+    # request cannot go red for having no defect in it; what the rule
+    # still catches is prose, the two shell lines in release.yml at 111
+    # and 117 columns
+    max: 100
+    # allow-non-breakable-words stays at its default, true: a line that
+    # is one long token has nowhere to break, which is the exemption
+    # MD013 already makes for a bare URL

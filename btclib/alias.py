@@ -38,7 +38,8 @@ from typing import Any, Literal, Protocol, Union
 # e.g.:
 # "deadbeef"
 # "dead beef"
-# "04 cc71eb30d653c0c3163990c47b976f3fb3f37cccdcbedb169a1dfef58bbfbfaf f7d8a473e7e2e6d317b87bafe8bde97e3cf8f065dec022b51d11fcdd0d348ac4"
+# "04 cc71eb30d653c0c3163990c47b976f3fb3f37cccdcbedb169a1dfef58bbfbfaf
+#     f7d8a473e7e2e6d317b87bafe8bde97e3cf8f065dec022b51d11fcdd0d348ac4"
 # "02 cc71eb30d653c0c3163990c47b976f3fb3f37cccdcbedb169a1dfef58bbfbfaf"
 # "02cc71eb30d653c0c3163990c47b976f3fb3f37cccdcbedb169a1dfef58bbfbfaf"
 #
@@ -60,7 +61,8 @@ Octets = bytes | str
 # WIFs, or BIP32 keys:
 # "37k7toV1Nv4DfmQbmZ8KuZDQCYK9x5KpzP"
 # "KyLk7s6Z1FtgYEVp3bPckPVnXvLUWNCcVL6wNt3gaT96EmzTKZwP"
-# "xprv9s21ZrQH143K3QTDL4LXw2F7HEK3wJUD2nW2nRk4stbPy6cq3jPPqjiChkVvvNKmPGJxWUtg6LnF5kejMRNNU3TGtRBeJgk33yuGBxrMPHi"
+# "xprv9s21ZrQH143K3QTDL4LXw2F7HEK3wJUD2nW2nRk4stbPy6cq3jPPqjiChkVv
+#     vNKmPGJxWUtg6LnF5kejMRNNU3TGtRBeJgk33yuGBxrMPHi"
 # "bc1qg9stkxrszkdqsuj92lm4c7akvk36zvhqw7p6ck"
 #
 # also bms.Sig (Bitcoin message compact signature serialization),
@@ -131,10 +133,11 @@ class HashObject(Protocol):
     # Any, alone in this Protocol, and not for want of trying: hmac.new
     # takes a digestmod whose update() accepts typeshed's ReadableBuffer,
     # a union this library cannot spell before 3.12, collections.abc.Buffer
-    # being 3.12 and the floor 3.10, and a narrower parameter here makes the whole
-    # Protocol unassignable to hmac's -- rfc6979 passes hf to hmac.new
-    # eight times. The two members that are actually read, digest() and
-    # digest_size, stay exact, which is the point of the Protocol
+    # being 3.12 and the floor 3.10, and a narrower parameter here makes
+    # the whole Protocol unassignable to hmac's -- rfc6979 passes hf to
+    # hmac.new eight times. The two members that are actually read,
+    # digest() and digest_size, stay exact, which is the point of the
+    # Protocol
     def update(self, data: Any, /) -> None: ...
 
     def digest(self) -> bytes: ...
