@@ -139,23 +139,39 @@ docstring.
       sphinx-build -W --keep-going -b html docs/source docs/build/html
   ```
 
-  Note also what it does *not* gate: `master` requires the check named
-  `Lint and type-check`, which is the first job alone, so a red docs
-  build leaves the required checks green.
+  It is a required check on `master` since 2026-08-01, and it was not
+  before: the rule named `Lint and type-check`, which is the first job
+  alone, so a red docs build left the required checks green — which is
+  how it stayed red for twelve commits.
 - **The version is declared once**, in `pyproject.toml`.
   `btclib.__version__` reads it back with `importlib.metadata`, and
   `docs/source/conf.py` parses the file (not the metadata, which would
   need the package installed).
-- **`master` requires three checks**, and only three: `tests-passed`,
-  `Lint and type-check`, `CodeQL`. `tests-passed` is an aggregate job at
-  the end of `test.yml` that `needs` the matrix — never name matrix
-  contexts in the branch rule, because the rule lives outside the
-  repository and a context that stops being produced blocks every merge.
-  A new job in `test.yml` belongs in that job's `needs`, or it gates
-  nothing.
+- **`master` requires four checks**, and only four: `tests-passed`,
+  `Lint and type-check`, `CodeQL`, `Build the documentation`.
+  `tests-passed` is an aggregate job at the end of `test.yml` that
+  `needs` the matrix — never name matrix contexts in the branch rule,
+  because the rule lives outside the repository and a context that stops
+  being produced blocks every merge. A new job in `test.yml` belongs in
+  that job's `needs`, or it gates nothing. The fourth was added on
+  2026-08-01, once checked against that same trap: `lint.yml` triggers on
+  `pull_request` with no branch and no `paths` filter, so both its jobs
+  report on every pull request, forks included. Each check is bound to
+  the app that produces it — `checks` with an `app_id` rather than the
+  bare `contexts` list, 15368 for Actions and 57789 for CodeQL — so
+  nothing else can satisfy one:
+
+  ```shell
+  gh api repos/btclib-org/btclib/branches/master/protection \
+    --jq '.required_status_checks'   # PATCH that sub-endpoint to change
+  ```
+
+  PATCH it, never PUT the whole protection object: a partial PUT drops
+  the reviews, the signatures and the rest. And repeat `strict: true` in
+  the body, which replaces the object rather than merging into it.
 - **Both branches are protected, and differently on purpose.** The rules
   live outside the repository, so here is the whole of them. `master`:
-  those three checks with `strict`, one approving review,
+  those four checks with `strict`, one approving review,
   `dismiss_stale_reviews`, **required signatures**, linear history, no
   force pushes, no deletions, `required_conversation_resolution`, and
   `enforce_admins` *off* — an administrator can bypass all of it. `dev`:
@@ -172,7 +188,7 @@ docstring.
   it for both ecosystems, pre-commit.ci autoupdates it, and Dependabot
   security updates are on, so bot-authored commits reach `master` through
   it — and that branch can no longer be rewritten or deleted under them.
-  Requiring the three checks on `dev` as well is the next step if one is
+  Requiring the four checks on `dev` as well is the next step if one is
   wanted, and it costs the direct push.
 - **The default `GITHUB_TOKEN` is read-only repository-wide**, so a job
   needing more must declare it (only `release.yml`'s `github-release`
