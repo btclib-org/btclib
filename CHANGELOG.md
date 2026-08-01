@@ -11,7 +11,7 @@ release-notes length in the first place, and are still in
 
 ## v2026.8 (work in progress, not released yet)
 
-A hundred and forty entries, grouped. The order runs from what breaks
+A hundred and forty-one entries, grouped. The order runs from what breaks
 a caller to what only maintainers see; [HISTORY.md](./HISTORY.md) lists the
 sixteen source-breaking changes on their own.
 
@@ -681,6 +681,17 @@ sixteen source-breaking changes on their own.
   simply not in the `clear` dictionary. Splitting every identifier in the
   package into words and spell-checking those, 592 distinct words, now finds
   nothing
+- **A second spell checker, and six more typos.** The identifier split the
+  entry above did by hand is a hook now: `typos` splits hyphens, snake_case
+  and camelCase where codespell matches whole words, and the two
+  dictionaries differ as well, so neither subsumes the other and both run.
+  Six misspellings survived the first hook and not the second — the README
+  offered the `bitcon` elliptic curve, `amount` documented a `threshould`,
+  `to_prv_key` an integer as a hex-`strin`, `curve_group` and HISTORY.md a
+  `y-simmetry` tiebreaker, and `psbt_utils` read its leaf hashes into
+  `leafs`. It corrects in place, which makes one thing a convention rather
+  than a preference: a misspelling written on purpose, as this entry writes
+  five, goes in backticks
 - **`Network.assert_valid` checks the hrp.** It was `str(self.hrp)` with the
   result discarded, which cannot fail: `str()` accepts every object there is.
   It now raises `BTClibTypeError` for a field that is not a `str`, which is

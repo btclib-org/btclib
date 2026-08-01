@@ -186,6 +186,97 @@ skip = "*/_data/*.json,*/_data/*.csv,*/_data/*.txt,*/_data/*.bin,*/_generated_fi
 # it differently -- unlike the rest of what this hook found, which was
 # corrected instead of listed here
 ignore-words-list = "wit,nd"
+# a misspelling written on purpose goes in backticks, and that is now a
+# convention of this repository rather than a preference: prose that
+# documents a spell checker has to name what it catches, and the paragraph
+# below cost codespell five findings in this very file before the rule
+# existed. codespell has no per-file configuration, so it holds everywhere
+# it reads; what the rule hides from it is what is written inside
+# backticks, i.e. identifiers, which are typos' half of the work and not
+# this hook's -- the two hook names say as much. typos honours the same
+# convention where it needs to, in [tool.typos.type.verbatim] below
+ignore-regex = '`[^`]*`'
+
+# the second spell checker, and the pair is deliberate: the two are blind
+# in different places, so neither subsumes the other.
+# codespell matches whole words against a curated list of misspellings,
+# and its word regex keeps the hyphen inside the token: `y-simmetry` and
+# `hex-strin` are one word each, in no dictionary, and therefore silent --
+# measured, with every builtin enabled it reported nothing on the six
+# typos this hook found, while reporting a free-standing `simmetry` in the
+# same run. That is the blindness the #161 entry in CHANGELOG.md records
+# and worked around by splitting 592 identifiers by hand; typos splits
+# hyphens, snake_case and camelCase itself. Its dictionary also has
+# entries codespell's lacks, `bitcon` -- in README.md, which is both the
+# btclib.org homepage and the PyPI long description -- and `threshould`.
+# One thing typos does not read is this file: measured, pyproject.toml is
+# skipped even under --isolated, its own configuration not being something
+# a spell checker can sensibly check. Everything below is therefore
+# codespell's to keep honest
+[tool.typos.files]
+# the vendored data [tool.codespell] skips above, for the reasons given
+# there, and the list has to be written again rather than shared because
+# the glob syntax differs: "*/_data/*.json" matches at any depth for
+# codespell and one directory deep for typos. Spelled codespell's way it
+# left the normative BIP-39 italian wordlist in the scan, where 18 words
+# are "corrected" into English -- `tabacco` to tobacco, `normale` to
+# normal --
+# and the hook runs with --write-changes, so that is a rewrite of every
+# mnemonic derived from that list, not a report
+extend-exclude = [
+  "**/_data/*.json",
+  "**/_data/*.csv",
+  "**/_data/*.txt",
+  "**/_data/*.bin",
+  "**/_generated_files/*",
+  ".secrets.baseline",
+  "uv.lock",
+]
+
+[tool.typos.default]
+# addresses, keys and signatures written inline in the test sources, which
+# splitting into words turns into a spell checker's worst input: 34
+# findings, `SHS` inside a base58 address, `Owrk` inside a base64 psbt.
+# Ignored by shape rather than by file, unlike the vendored data above --
+# these literals sit next to prose that has to stay checked, and a skipped
+# tests/*.py would take the prose with it.
+# One rule and not four: a pattern per encoding (base58, bech32, hex,
+# base64) was written first and measured to be three rules of decoration,
+# because an unanchored base58 class matches inside a bech32 address and
+# inside a hash just as well. What is actually being said is "an unbroken
+# run of 26 characters or more is a literal, not a word", 26 being the
+# length of the shortest possible base58 address; the trailing = covers
+# base64 padding, and no English word comes close
+extend-ignore-re = ['[0-9A-Za-z+/]{26,}={0,2}']
+
+[tool.typos.default.extend-identifiers]
+# BIP-342 spells it so, and the x is the placeholder for the opcode number
+OP_SUCCESSx = "OP_SUCCESSx"
+# GitHub Pages' name-with-owner variable, read by the Jekyll layout
+repository_nwo = "repository_nwo"
+
+[tool.typos.default.extend-words]
+# "nd" is the Neutered Derivation of the bip32 docstrings, as for codespell
+# above; "ands" is the verb, mult's further condition anded onto the
+# bindings predicate. Neither can be written differently
+nd = "nd"
+ands = "ands"
+
+[tool.typos.type.verbatim]
+# the three files that quote misspellings on purpose: the #161 entry names
+# `_REQUIRED_LENGHT` and `implausibile signature failure` because those
+# were the spellings it corrected, and .pre-commit-config.yaml quotes the
+# exception message a test pins. This is the backtick convention of
+# [tool.codespell] above, honoured on the files that need it rather than
+# on all of them: outside these three a backticked word is an identifier,
+# and identifiers are what this hook is here for.
+# Not a preference either: the first run of the hook, with --write-changes
+# and without this section, corrected three such quotations into
+# nonsense -- prose saying `lenght` is now `length` reads as prose saying
+# nothing. Narrow enough that `y-simmetry`, unquoted in HISTORY.md, was
+# still found and fixed with the rule already in place
+extend-glob = ["CHANGELOG.md", "HISTORY.md", ".pre-commit-config.yaml"]
+extend-ignore-re = ['`[^`]*`']
 
 [tool.coverage.run]
 omit = ["*/site-packages/*"]

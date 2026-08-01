@@ -35,7 +35,7 @@ it is often refactored for improved clarity,
 without care for backward compatibility; moreover,
 some of its algorithms could be broken using side-channel attacks.
 
-The library is not limited to the bitcon elliptic curve secp256k1;
+The library is not limited to the bitcoin elliptic curve secp256k1;
 for that curve, though, it always relies on
 [btclib_libsecp256k1](https://github.com/btclib-org/btclib_libsecp256k1),
 FFI bindings to

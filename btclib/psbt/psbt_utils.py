@@ -297,9 +297,9 @@ def parse_taproot_bip32(v: bytes) -> tuple[list[bytes], BIP32KeyOrigin]:
     if len_ * LEAF_HASH_SIZE + FINGERPRINT_SIZE > available:
         err_msg = f"invalid number of leaf hashes: {len_}"
         raise BTClibValueError(err_msg)
-    leafs = [stream.read(LEAF_HASH_SIZE) for _ in range(len_)]
+    leaves = [stream.read(LEAF_HASH_SIZE) for _ in range(len_)]
     bip32keyorigin = BIP32KeyOrigin.parse(stream.read())
-    return (leafs, bip32keyorigin)
+    return (leaves, bip32keyorigin)
 
 
 def serialize_bytes(type_: bytes, value: bytes) -> bytes:

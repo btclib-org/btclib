@@ -86,7 +86,7 @@ repos:
   # a typo in a comment is cosmetic; the same typo in the README is the
   # shop window, that file being both the btclib.org homepage and the PyPI
   # long description, and in an exception message it is an interface --
-  # "invalid type marker lenght" was pinned verbatim by a test, so nothing
+  # `invalid type marker lenght` was pinned verbatim by a test, so nothing
   # could correct it without noticing the test too.
   # Configured in pyproject.toml ([tool.codespell]) rather than in args
   # here: the skip list needs a paragraph of justification, and a hook
@@ -107,6 +107,27 @@ repos:
         # hide a real typo, so the one it did find, "fro" for "from", was
         # corrected by hand instead
         args: [--builtin, clear]
+  # the second spell checker, and not a replacement for the one above:
+  # codespell matches whole words and keeps the hyphen inside the token, so
+  # `y-simmetry` and `hex-strin` were invisible to it with every builtin
+  # dictionary enabled, while typos splits hyphens, snake_case and
+  # camelCase. Between them they found six typos in shipped surfaces, the
+  # README's `bitcon` included. pyproject.toml ([tool.typos]) has the whole
+  # of the reasoning and the configuration, as for codespell
+  - repo: https://github.com/crate-ci/typos
+    rev: v1.48.0
+    hooks:
+      - id: typos
+        name: typos (identifiers and hyphenated words, in place fixes)
+        # what the hook declares, restated rather than inherited: both
+        # flags are choices this repository has to keep making. Dropping
+        # --write-changes would make it a report where every other fixing
+        # hook here corrects; dropping --force-exclude would make
+        # [tool.typos.files] silent, because pre-commit passes filenames
+        # and typos honours its own exclude list only under that flag --
+        # measured, without it the normative BIP-39 italian wordlist takes
+        # 18 corrections into English
+        args: [--write-changes, --force-exclude]
   - repo: https://github.com/DavidAnson/markdownlint-cli2
     rev: v0.23.2
     hooks:

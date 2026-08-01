@@ -7,7 +7,7 @@ full year, short month, short day (YYYY-M-D)
 
 ## v2026.8 (work in progress, not released yet)
 
-The first release since 2023, and the largest: a hundred and forty
+The first release since 2023, and the largest: a hundred and forty-one
 entries, in [CHANGELOG.md](./CHANGELOG.md). What follows is what a user has
 to act on and what a user gains.
 
@@ -292,7 +292,7 @@ Major changes includes:
 - ssa.det_nonce now returns an int
 - moved tagged_hash from ssa into hashes module
 - added CurveGroup._y_aff_from_jac and removed unused methods
-- discontinued y_odd in favor of y_even as y-simmetry tiebreaker criterium
+- discontinued y_odd in favor of y_even as y-symmetry tiebreaker criterium
 - removed nonce input from dsa.sign and ssa.sign (only available from _sign functions)
 - cleaned up Exception handling, avoided bare/broad except
 - introduced btclib Exceptions that can be discriminated from regular Exceptions

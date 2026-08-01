@@ -46,7 +46,7 @@ def int_from_prv_key(prv_key: PrvKey, ec: Curve = secp256k1) -> int:
     - WIF (bytes or string)
     - BIP32 extended keys (bytes, string, or BIP32KeyData)
     - SEC Octets (bytes or hex-string, with 02, 03, or 04 prefix)
-    - integer (native int or hex-strin)
+    - integer (native int or hex-string)
 
     Network and compressed information from the input key
     are not used.

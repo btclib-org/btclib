@@ -111,7 +111,7 @@ def test_mod_sqrt() -> None:
 
 def test_mod_sqrt2() -> None:
     # https://rosettacode.org/wiki/Tonelli-Shanks_algorithm#Python
-    ttest = [
+    test_vectors = [
         (10, 13),
         (56, 101),
         (1030, 10009),
@@ -120,7 +120,7 @@ def test_mod_sqrt2() -> None:
         (881398088036, 1000000000039),
         (41660815127637347468140745042827704103445750172002, 10**50 + 577),
     ]
-    for i, p in ttest:
+    for i, p in test_vectors:
         root = tonelli(i, p)
         assert i == (root * root) % p
 

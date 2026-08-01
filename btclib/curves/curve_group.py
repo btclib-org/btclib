@@ -359,7 +359,7 @@ class CurveGroup:
             raise BTClibValueError(f"y-coordinate not in 1..p-1: '{hex_string(Q[1])}'")
         return self._y2(Q[0]) == (Q[1] * Q[1] % self.p)
 
-    #  y-simmetry tiebreaker criteria: even/odd, low/high, or quadratic residue
+    #  y-symmetry tiebreaker criteria: even/odd, low/high, or quadratic residue
 
     def y_even(self, x: int) -> int:
         """Return the odd/even affine y-coordinate associated to x."""

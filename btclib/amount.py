@@ -67,7 +67,7 @@ def valid_btc_amount(amount: Any, dust: Decimal = Decimal(0)) -> Decimal:
 
     Args:
         amount (Any): The BTC amount. Assumed to be zero if None.
-        dust (Decimal, optional): The minimum threshould for a valid amount.
+        dust (Decimal, optional): The minimum threshold for a valid amount.
                                   Defaults to Decimal("0").
 
     Raises:
