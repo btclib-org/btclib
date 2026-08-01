@@ -46,13 +46,11 @@ from btclib.exceptions import BTClibValueError
 class ScriptFlag(Flag):
     """A set of script verification rules to enforce.
 
-    One member per rule the engine implements, and none for a rule it does
-    not: Core's DISCOURAGE_UPGRADABLE_PUBKEYTYPE (1 << 18),
-    DISCOURAGE_OP_SUCCESS (1 << 19) and
-    DISCOURAGE_UPGRADABLE_TAPROOT_VERSION (1 << 20) have no branch here,
-    so asking for one is an error rather than a request quietly ignored --
-    which is the failure mode this enum exists to remove. They are the
-    holes in the bit positions below.
+    One member per rule the engine implements, and none for a rule it
+    does not: asking for a member is asking for a branch, never a request
+    quietly ignored, which is the failure mode this enum exists to
+    remove. So every `SCRIPT_VERIFY_*` Core spells is a member here, bit
+    for bit and with no holes in the positions below.
     """
 
     # consensus: what a node must enforce to stay on the chain, and what
@@ -83,6 +81,14 @@ class ScriptFlag(Flag):
     NULLFAIL = 1 << 14
     WITNESS_PUBKEYTYPE = 1 << 15
     CONST_SCRIPTCODE = 1 << 16
+    # the three cases BIP342 left open for a future soft fork -- unknown,
+    # therefore successful -- which policy discourages relaying so that
+    # the fork stays deployable. Consensus is untouched by all three, and
+    # a spend refused under one of them is a spend a node still accepts
+    # in a block
+    DISCOURAGE_UPGRADABLE_PUBKEYTYPE = 1 << 18
+    DISCOURAGE_OP_SUCCESS = 1 << 19
+    DISCOURAGE_UPGRADABLE_TAPROOT_VERSION = 1 << 20
 
 
 # no rule at all, which is not the same as "the default rules": `None`
@@ -90,7 +96,7 @@ class ScriptFlag(Flag):
 NO_FLAGS = ScriptFlag(0)
 
 # what the engine enforces when a caller names nothing: the consensus soft
-# forks, i.e. seven of the eighteen members and not all of them
+# forks, i.e. seven of the twenty-one members and not all of them
 ALL_FLAGS = (
     ScriptFlag.P2SH
     | ScriptFlag.DERSIG

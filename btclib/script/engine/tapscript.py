@@ -95,6 +95,7 @@ def op_checksig(
     prevouts: list[TxOut],
     annex: bytes,
     budget: int,
+    flags: ScriptFlag,
     precomputed: PrecomputedTxData | None = None,
 ) -> int:
     pub_key = stack.pop()
@@ -105,17 +106,24 @@ def op_checksig(
         budget -= 50
         if budget < 0:
             raise BTClibValueError("exhausted sigops budget")
-    if len(pub_key) == 32 and signature:
-        sighash_type = get_hashtype(signature)
-        preimage = b"\xc0"
-        preimage += var_bytes.serialize(script_bytes)
-        tapleaf_hash = tagged_hash(b"TapLeaf", preimage)
-        ext = tapleaf_hash + b"\x00" + codesep_pos.to_bytes(4, "little")
-        msg_hash = sig_hash.taproot(
-            tx, i, prevouts, sighash_type, 1, annex, ext, precomputed
-        )
-        if not ssa_verify(msg_hash, pub_key, signature[:64]):
-            raise BTClibValueError("invalid signature for the taproot script path")
+    if len(pub_key) == 32:
+        if signature:
+            sighash_type = get_hashtype(signature)
+            preimage = b"\xc0"
+            preimage += var_bytes.serialize(script_bytes)
+            tapleaf_hash = tagged_hash(b"TapLeaf", preimage)
+            ext = tapleaf_hash + b"\x00" + codesep_pos.to_bytes(4, "little")
+            msg_hash = sig_hash.taproot(
+                tx, i, prevouts, sighash_type, 1, annex, ext, precomputed
+            )
+            if not ssa_verify(msg_hash, pub_key, signature[:64]):
+                raise BTClibValueError("invalid signature for the taproot script path")
+    # a key neither empty nor 32 bytes is a public key version BIP342 left
+    # to a future soft fork: nothing is verified and the check succeeds,
+    # which is the upgrade room, and the sigops budget was charged above
+    # because Core charges it for a passing upgradable key too
+    elif ScriptFlag.DISCOURAGE_UPGRADABLE_PUBKEYTYPE in flags:
+        raise BTClibValueError(f"upgradable public key type: {len(pub_key)} bytes")
     stack.append(_from_num(int(bool(signature))))
     return budget
 
@@ -202,6 +210,11 @@ def verify_script_path_vc0(  # noqa: C901
     script = parse(script_bytes, exit_on_op_success=True)
 
     if script == ["OP_SUCCESS"]:
+        # the op code BIP342 reserved for a future soft fork, and until
+        # then a spend of anything it appears in: refused only where the
+        # caller says it does not want to relay one
+        if ScriptFlag.DISCOURAGE_OP_SUCCESS in flags:
+            raise BTClibValueError("upgradable OP_SUCCESS op code")
         return
 
     codesep_pos = 0xFFFFFFFF
@@ -254,6 +267,7 @@ def verify_script_path_vc0(  # noqa: C901
                     prevouts,
                     annex,
                     sigops_budget,
+                    flags,
                     precomputed,
                 )
 

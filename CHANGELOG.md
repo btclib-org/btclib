@@ -11,7 +11,7 @@ release-notes length in the first place, and are still in
 
 ## v2026.8 (work in progress, not released yet)
 
-A hundred and seventy-two entries, grouped. The order runs from what breaks
+A hundred and seventy-three entries, grouped. The order runs from what breaks
 a caller to what only maintainers see; [HISTORY.md](./HISTORY.md) lists the
 twenty-seven source-breaking changes on their own.
 
@@ -1116,6 +1116,22 @@ twenty-seven source-breaking changes on their own.
   cannot be mutated at all. `SIG_HASH_TYPES` is a `frozenset` for the
   same reason: it is a membership test in all of its uses, one of them
   what the engine accepts as a signature's hash type (issue #145)
+- **`to_script_flags` takes every `SCRIPT_VERIFY_*` name Bitcoin Core
+  spells** (issue #217). `DISCOURAGE_UPGRADABLE_PUBKEYTYPE`,
+  `DISCOURAGE_OP_SUCCESS` and `DISCOURAGE_UPGRADABLE_TAPROOT_VERSION` are
+  members at Core's bit positions 18, 19 and 20, where they were the
+  three holes in them and where a caller passing one of Core's own
+  spellings got a `BTClibValueError` instead of an answer. Each is one
+  `raise` in a branch the engine already had — a tapscript public key
+  neither empty nor 32 bytes, an OP_SUCCESSx, a leaf version other than
+  0xc0 — the three "unknown, therefore successful" cases BIP342 left open
+  for a future soft fork, and what the flags ask is that such a spend not
+  be relayed, so that the fork stays deployable. Consensus is untouched:
+  all three are policy, off in `ALL_FLAGS`, and a spend refused under one
+  is a spend a node still accepts in a block. The enum's own promise —
+  that a flag means here what it means there — is what the omission cost,
+  and it is now true of every member. None of the four vendored vector
+  files names any of the three, so the test for each is written by hand
 - `hashes.sha1`, the digest `OP_SHA1` computes, is taken with
   `usedforsecurity=False`. The algorithm is broken and the opcode is
   consensus, so the weakness is not a choice btclib makes: a script that

@@ -168,7 +168,13 @@ def _verify_taproot(
         return
     script_bytes, stack, leaf_version = taproot_unwrap_script(script, stack)
     if leaf_version != 0xC0:
-        return  # an unknown leaf version passes validation
+        # an unknown leaf version passes validation, the control block
+        # having committed to the script whatever the version says about
+        # how to run it: BIP342's upgrade room, and refused only where
+        # the caller says it does not want to relay one
+        if ScriptFlag.DISCOURAGE_UPGRADABLE_TAPROOT_VERSION in script_flags:
+            raise BTClibValueError(f"upgradable taproot leaf version {leaf_version:#x}")
+        return
     tapscript.verify_script_path_vc0(
         script_bytes, stack, prevouts, tx, i, annex, budget, script_flags, precomputed
     )

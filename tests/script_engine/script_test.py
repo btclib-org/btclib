@@ -387,6 +387,7 @@ def taproot_script_spend(
     lock_time: int,
     sequence: int,
     extra_witness: tuple[str, ...] = (),
+    leaf_version: int = 0xC0,
 ) -> tuple[list[TxOut], Tx]:
     """A script-path spend of the given tapscript, no signature involved.
 
@@ -398,8 +399,14 @@ def taproot_script_spend(
     `extra_witness` sits under the script and the control block, which is
     where the interpreter's initial stack comes from; the control block
     commits to the script alone, so adding elements breaks nothing.
+
+    `leaf_version` other than 0xc0 is the version BIP342 left to a future
+    soft fork: the commitment is still checked and the script never runs,
+    so the script argument says what would have happened if it had. It
+    must be even, the low bit of a control block being the parity of the
+    output key rather than part of the version.
     """
-    script_tree: TaprootScriptTree = [(0xC0, script)]
+    script_tree: TaprootScriptTree = [(leaf_version, script)]
     q, _ = output_pubkey(None, script_tree)
     tap_script, control = input_script_sig(None, script_tree, 0)
     prevout = TxOut(1000, ScriptPubKey(serialize(["OP_1", q])))
@@ -646,6 +653,74 @@ def test_discourage_reaches_every_upgradable_program() -> None:
     # 28 and exempt from the discouragement there, so exempt here
     prevout, tx = spend(b"\x51\x02\x4e\x73")
     verify_input([prevout], tx, 0, discourage)
+
+
+def test_discourage_op_success() -> None:
+    """OP_SUCCESSx: valid, and refused by the caller who will not relay it.
+
+    Core's pre-scan answers success at the first OP_SUCCESSx whatever
+    else the script holds, and the flag turns that answer into a refusal
+    without touching what a block may carry -- which is the whole of
+    these three flags (issue #217). No vendored vector names it: the
+    eighteen members that had one are all a vector reaches, and
+    `script_assets_test.json` carries no flag outside the enum.
+    """
+    prevouts, tx = taproot_script_spend(["OP_SUCCESS80", b""], lock_time=0, sequence=1)
+    verify_input(prevouts, tx, 0, ALL_FLAGS)
+    with pytest.raises(BTClibValueError, match="upgradable OP_SUCCESS"):
+        verify_input(prevouts, tx, 0, ALL_FLAGS | ScriptFlag.DISCOURAGE_OP_SUCCESS)
+
+
+def test_discourage_upgradable_pubkey_type() -> None:
+    """A tapscript public key neither empty nor 32 bytes, signature or not.
+
+    BIP342 verifies nothing for such a key and OP_CHECKSIG succeeds on
+    it, which is the room a future key version has; the flag refuses the
+    spend, and it refuses it whichever way the check would have gone --
+    Core reaches its `else` before the signature is looked at, so an
+    empty signature earns the discouragement rather than the plain false
+    it would leave on the stack.
+    """
+    pub_key = b"\x02" + b"\x99" * 32  # 33 bytes: a key of no tapscript version
+    discourage = ALL_FLAGS | ScriptFlag.DISCOURAGE_UPGRADABLE_PUBKEYTYPE
+
+    # a non-empty signature, never verified: OP_CHECKSIG pushes true
+    prevouts, tx = taproot_script_spend(
+        [pub_key, "OP_CHECKSIG"], lock_time=0, sequence=1, extra_witness=("99" * 64,)
+    )
+    verify_input(prevouts, tx, 0, ALL_FLAGS)
+    with pytest.raises(ScriptError, match="upgradable public key type: 33 bytes"):
+        verify_input(prevouts, tx, 0, discourage)
+
+    # and an empty one, which fails either way and not for the same reason
+    prevouts, tx = taproot_script_spend(
+        [pub_key, "OP_CHECKSIG"], lock_time=0, sequence=1, extra_witness=("",)
+    )
+    with pytest.raises(BTClibValueError, match="false top stack element"):
+        verify_input(prevouts, tx, 0, ALL_FLAGS)
+    with pytest.raises(ScriptError, match="upgradable public key type: 33 bytes"):
+        verify_input(prevouts, tx, 0, discourage)
+
+
+def test_discourage_upgradable_taproot_version() -> None:
+    """A leaf version other than 0xc0: the commitment holds, nothing runs.
+
+    The script is an OP_RETURN, so a spend that reached the interpreter
+    could not pass; that it passes under ALL_FLAGS is what says the
+    version was answered before the script, and the flag is what turns
+    that answer into a refusal.
+    """
+    prevouts, tx = taproot_script_spend(
+        ["OP_RETURN"], lock_time=0, sequence=1, leaf_version=0xC2
+    )
+    verify_input(prevouts, tx, 0, ALL_FLAGS)
+    with pytest.raises(BTClibValueError, match="upgradable taproot leaf version 0xc2"):
+        verify_input(
+            prevouts,
+            tx,
+            0,
+            ALL_FLAGS | ScriptFlag.DISCOURAGE_UPGRADABLE_TAPROOT_VERSION,
+        )
 
 
 def test_p2wsh_codeseparator_spend_is_run() -> None:
