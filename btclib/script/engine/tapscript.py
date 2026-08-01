@@ -220,17 +220,9 @@ def verify_script_path_vc0(  # noqa: C901 -- what the OPERATIONS table cannot ho
                 break
             t = b[0]
             if 0 < t <= 78:  # pushdata
-                if t < 76:
-                    data_length = t
-                else:
-                    data_length = int.from_bytes(
-                        s.read(2 ** (t - 76)), byteorder="little"
-                    )
-                a = s.read(data_length)
-                if skip_execution:
-                    continue
-                script_op_codes.check_minimal_push(a, t, flags, serialize_script)
-                stack.append(a)
+                script_op_codes.read_push_data(
+                    t, s, stack, skip_execution, flags, serialize_script
+                )
                 continue
             if skip_execution and t not in EVALUATED_WHEN_UNEXECUTED:
                 continue

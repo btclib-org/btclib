@@ -10,6 +10,7 @@
 from __future__ import annotations
 
 from collections.abc import Callable
+from io import BytesIO
 from typing import NoReturn
 
 from btclib.alias import ScriptList
@@ -93,6 +94,33 @@ def check_minimal_push(
         raise BTClibValueError(
             f"non-minimal push of {len(data)} bytes with op code {hex(op_code)}"
         )
+
+
+def read_push_data(
+    op_code: int,
+    s: BytesIO,
+    stack: list[bytes],
+    skip_execution: bool,
+    flags: ScriptFlag,
+    serialize: Callable[[ScriptList], bytes],
+) -> None:
+    """Read a pushdata command from the stream and push its data.
+
+    The read comes before the skip: the stream must advance past the
+    data whether or not the branch executes, and only what executes is
+    measured for minimality and pushed. The serializer is a parameter
+    for check_minimal_push's reason, each engine measuring a push
+    against its own script language.
+    """
+    if op_code < 76:
+        data_length = op_code
+    else:
+        data_length = int.from_bytes(s.read(2 ** (op_code - 76)), byteorder="little")
+    data = s.read(data_length)
+    if skip_execution:
+        return
+    check_minimal_push(data, op_code, flags, serialize)
+    stack.append(data)
 
 
 def unknown_op_code(op: str) -> NoReturn:
