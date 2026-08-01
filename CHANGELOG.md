@@ -11,7 +11,7 @@ release-notes length in the first place, and are still in
 
 ## v2026.8 (work in progress, not released yet)
 
-A hundred and fifty-nine entries, grouped. The order runs from what breaks
+A hundred and sixty entries, grouped. The order runs from what breaks
 a caller to what only maintainers see; [HISTORY.md](./HISTORY.md) lists the
 nineteen source-breaking changes on their own.
 
@@ -371,6 +371,20 @@ nineteen source-breaking changes on their own.
   interpreter that answers — unknown op codes refused when executed,
   skipped inside a branch nothing takes, which is what Core does and
   what the legacy engine already did everywhere else
+- **CLEANSTACK means on a witness spend what it means in Core: nothing.**
+  Core resizes the stack to one element after VerifyWitnessProgram, so
+  the flag — policy, off in ALL_FLAGS — can only fail a pre-segwit
+  script; the clean-stack rules that are consensus live inside the
+  witness execution itself, BIP141's one-element rule in the v0 arm —
+  where Core's sits, in ExecuteWitnessScript — and tapscript's in
+  `verify_script_path_vc0`. btclib's reading was stricter: with the
+  flag on, the leftover stack of an OP_SUCCESS spend and the untouched
+  stack of a v1 program that is not 32 bytes were both refused,
+  refusals Core never issues — the upgrade path is a success whatever
+  the stack holds, and what refuses an upgradable program in Core is
+  DISCOURAGE_UPGRADABLE_WITNESS_PROGRAM. The witness arms hand no stack
+  back at all now, and the two tests that pinned the stricter reading
+  pin this one
 
 ### Malformed input and the exception contract
 

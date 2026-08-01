@@ -529,53 +529,46 @@ def test_verif_before_an_op_success() -> None:
     verify_input(prevouts, tx, 0, ALL_FLAGS)
 
 
-def test_op_success_leftover_reaches_cleanstack() -> None:
-    """What an OP_SUCCESS spend leaves on the stack, CLEANSTACK still sees.
+def test_op_success_leftover_passes_cleanstack() -> None:
+    """CLEANSTACK never fails a witness spend, which is Core's meaning.
 
-    verify_script_path_vc0 answers OP_SUCCESS before running anything, so
-    it is the one success that leaves the witness stack as it came --
-    every executed script path empties it or fails. CLEANSTACK is the
-    only flag that can see that leftover, and nothing vendored turns it
-    on against a taproot spend: no script_assets case carries the flag,
-    and the five TAPROOT rows of script_tests.json leave it off. So the
-    contract is pinned here: the taproot dispatch hands CLEANSTACK the
-    stack vc0 saw, not an empty one. Core has no such raise -- its
-    witness verification bypasses cleanstack for every spend -- so this
-    is btclib's own reading of an opt-in policy flag, pinned so that it
-    stays a decision.
+    Core resizes the stack to one element after VerifyWitnessProgram, so
+    the flag -- policy, off in ALL_FLAGS -- can only fail a pre-segwit
+    script; what is consensus about a clean stack lives inside the
+    witness execution itself. An OP_SUCCESS spend is the sharpest case:
+    it answers before anything runs, leaving the witness stack as it
+    came, and that leftover is the upgrade path, a success whatever sits
+    under the script. Pinned with the flag on because nothing vendored
+    turns it on against a taproot spend: no script_assets case carries
+    CLEANSTACK, and the five TAPROOT rows of script_tests.json leave it
+    off.
     """
     prevouts, tx = taproot_script_spend(
         ["OP_SUCCESS80", b""], lock_time=0, sequence=1, extra_witness=("",)
     )
     verify_input(prevouts, tx, 0, ALL_FLAGS)
-    with pytest.raises(BTClibValueError, match="1 elements left on the stack"):
-        verify_input(prevouts, tx, 0, ALL_FLAGS | ScriptFlag.CLEANSTACK)
-
-    # the flag alone rejects nothing: the same spend with nothing under
-    # the script passes, OP_SUCCESS or not
-    prevouts, tx = taproot_script_spend(["OP_SUCCESS80", b""], lock_time=0, sequence=1)
     verify_input(prevouts, tx, 0, ALL_FLAGS | ScriptFlag.CLEANSTACK)
 
 
-def test_unknown_v1_program_reaches_cleanstack() -> None:
-    """A v1 witness program that is not 32 bytes passes, stack and all.
+def test_unknown_v1_program_passes_cleanstack() -> None:
+    """A v1 witness program that is not 32 bytes passes, CLEANSTACK or not.
 
     Between "version too new", which returns before the flags can look,
-    and "p2tr", which replaces the stack with the witness, sits a third
+    and "p2tr", which hands the witness to the taproot arm, sits a third
     case: a v1 program of the wrong size under flags that support v1.
-    Nothing more executes, so what CLEANSTACK sees is what the legacy
-    run of the script_pub_key left -- the version push. No vendored
-    vector looks: the script_assets cases that reach this fall-through
-    are success-only and flagless here too. Same caution as above: Core
-    answers this program with its upgradable-witness rule instead, so
-    the raise is btclib's own reading of the flag, pinned as such.
+    Nothing executes -- upgradable within the supported versions, Core's
+    success with no script run -- and the version push the legacy run
+    left is not CLEANSTACK's to see, the flag never looking at a witness
+    spend. What refuses such a program in Core is
+    DISCOURAGE_UPGRADABLE_WITNESS_PROGRAM, which btclib fires only for a
+    version above the supported ones. No vendored vector reaches this
+    fall-through with either flag on.
     """
     prevout = TxOut(1000, ScriptPubKey(serialize(["OP_1", b"\x99" * 20])))
     tx_in = TxIn(OutPoint(b"\x01" * 32, 0), b"", 1, Witness([]))
     tx = Tx(2, 0, [tx_in], [TxOut(1000, ScriptPubKey(""))], check_validity=False)
     verify_input([prevout], tx, 0, ALL_FLAGS)
-    with pytest.raises(BTClibValueError, match="1 elements left on the stack"):
-        verify_input([prevout], tx, 0, ALL_FLAGS | ScriptFlag.CLEANSTACK)
+    verify_input([prevout], tx, 0, ALL_FLAGS | ScriptFlag.CLEANSTACK)
 
 
 def test_p2wsh_unknown_op_code_is_the_interpreter_s_to_judge() -> None:

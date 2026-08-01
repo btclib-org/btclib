@@ -134,11 +134,13 @@ def _verify_taproot(
     i: int,
     script_flags: ScriptFlag,
     precomputed: PrecomputedTxData | None,
-) -> list[bytes]:
+) -> None:
     """Verify a p2tr spend: the v1 arm of Core's VerifyWitnessProgram.
 
-    One witness element is the key path, more are a script path, and
-    what comes back is the stack the CLEANSTACK check is to see.
+    One witness element is the key path, more are a script path. What a
+    spend leaves on its stack stays here: an executed script path
+    enforces its own end-of-script rules, and an OP_SUCCESS leftover is
+    the upgrade path, which Core answers with success and no questions.
     """
     budget = 50 + len(witness.serialize())
     # the annex counts towards the budget, hence the order (bip 342)
@@ -147,19 +149,13 @@ def _verify_taproot(
         raise BTClibValueError("empty taproot witness stack")
     if len(stack) == 1:
         tapscript.verify_key_path(script, stack, prevouts, tx, i, annex, precomputed)
-        return []
+        return
     script_bytes, stack, leaf_version = taproot_unwrap_script(script, stack)
     if leaf_version != 0xC0:
-        # an unknown leaf version passes validation: nothing runs, so
-        # nothing may be left over to reject
-        return []
+        return  # an unknown leaf version passes validation
     tapscript.verify_script_path_vc0(
         script_bytes, stack, prevouts, tx, i, annex, budget, script_flags, precomputed
     )
-    # empty after a verified script path, vc0 enforcing its own
-    # end-of-script rules -- but as it came after an OP_SUCCESS
-    # short-circuit, and CLEANSTACK is owed that stack
-    return stack
 
 
 def _verify_witness_v0(
@@ -171,13 +167,14 @@ def _verify_witness_v0(
     i: int,
     script_flags: ScriptFlag,
     precomputed: PrecomputedTxData | None,
-) -> list[bytes]:
+) -> None:
     """Verify a v0 spend: the v0 arm of Core's VerifyWitnessProgram.
 
     The script is rebuilt from the program -- p2wpkh names it, p2wsh
     carries it as the last witness element -- and runs against the rest
-    of the witness stack, which is what comes back: v0 is the one
-    version whose CLEANSTACK check is consensus.
+    of the witness stack. The one-element rule at the end is BIP141
+    consensus, not the CLEANSTACK flag: it lives here as Core's lives in
+    ExecuteWitnessScript, whatever the caller's flags say.
     """
     # a list of its own: the interpreter pops what it consumes, and the
     # witness stack is an immutable tuple anyway
@@ -206,7 +203,10 @@ def _verify_witness_v0(
     verify_script_legacy(
         script, stack, prevouts[i].value, tx, i, script_flags, True, True, precomputed
     )
-    return stack
+    # final above popped the one element the script must leave, so any
+    # residue is Core's stack.size() != 1
+    if stack:
+        raise BTClibValueError(f"{len(stack)} elements left on the stack")
 
 
 def _verify_witness_program(
@@ -215,19 +215,20 @@ def _verify_witness_program(
     payload: bytes,
     segwit_version: int,
     p2sh: bool,
-    stack: list[bytes],
     prevouts: list[TxOut],
     tx: Tx,
     i: int,
     script_flags: ScriptFlag,
     precomputed: PrecomputedTxData | None,
-) -> list[bytes]:
+) -> None:
     """Dispatch a witness program: Core's VerifyWitnessProgram.
 
-    BIP141 and BIP341 each brought an arm, and the return value is the
-    stack the CLEANSTACK check is to see -- empty wherever validation
-    ends here, since to `if stack` an empty stack and a skipped check
-    are the same answer.
+    BIP141 and BIP341 each brought an arm. Nothing comes back: a witness
+    spend leaves nothing for the caller's CLEANSTACK check, which is
+    Core resizing the stack to one element behind VerifyWitnessProgram,
+    and each arm owns the end-of-stack rule its BIP makes consensus. A
+    v1 program that is not 32 bytes falls through whole: upgradable
+    within the supported versions, Core's success with no script run.
     """
     supported_segwit_version = -1
     if ScriptFlag.WITNESS in script_flags:
@@ -238,16 +239,16 @@ def _verify_witness_program(
         if ScriptFlag.DISCOURAGE_UPGRADABLE_WITNESS_PROGRAM in script_flags:
             raise BTClibValueError(f"unsupported segwit version: {segwit_version}")
         # a version this engine does not know passes validation outright
-        return []
+        return
 
     if segwit_version == 1 and script_type == "p2tr":
         if p2sh:
-            return []  # remains unencumbered
-        return _verify_taproot(
+            return  # remains unencumbered
+        _verify_taproot(
             script, tx.vin[i].script_witness, prevouts, tx, i, script_flags, precomputed
         )
-    if segwit_version == 0:
-        return _verify_witness_v0(
+    elif segwit_version == 0:
+        _verify_witness_v0(
             script_type,
             payload,
             tx.vin[i].script_witness,
@@ -257,10 +258,6 @@ def _verify_witness_program(
             script_flags,
             precomputed,
         )
-    # a v1 program that is not 32 bytes, within the supported versions:
-    # nothing more executes, and what the legacy run left is what
-    # CLEANSTACK is owed
-    return stack
 
 
 def verify_input(
@@ -327,21 +324,25 @@ def verify_input(
         raise BTClibValueError("witness for a non-segwit input")
 
     if segwit_version + 1:
-        stack = _verify_witness_program(
+        _verify_witness_program(
             script,
             script_type,
             payload,
             segwit_version,
             p2sh,
-            stack,
             prevouts,
             tx,
             i,
             script_flags,
             precomputed,
         )
+        # Core's stack.resize(1) after VerifyWitnessProgram: a witness
+        # spend leaves nothing for CLEANSTACK to see, and v0's own
+        # one-element rule lives in its arm, as Core's lives in
+        # ExecuteWitnessScript
+        return
 
-    if stack and (ScriptFlag.CLEANSTACK in script_flags or segwit_version == 0):
+    if stack and ScriptFlag.CLEANSTACK in script_flags:
         raise BTClibValueError(f"{len(stack)} elements left on the stack")
 
 
