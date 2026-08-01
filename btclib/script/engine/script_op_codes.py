@@ -17,6 +17,7 @@ from btclib.alias import ScriptList
 from btclib.exceptions import BTClibValueError
 from btclib.hashes import hash160, hash256, ripemd160, sha1, sha256
 from btclib.script.engine.flags import ScriptFlag
+from btclib.script.limits import MAX_STACK_SIZE
 from btclib.tx.tx import Tx
 from btclib.utils import decode_num, encode_num
 
@@ -65,10 +66,10 @@ ScriptOp = Callable[[list[bytes], list[bytes], ScriptFlag], ScriptList | None]
 
 
 def check_stack_size(stack: list[bytes], altstack: list[bytes]) -> None:
-    """Enforce the 1000-element limit on the two stacks together."""
-    if len(stack) + len(altstack) > 1000:
+    """Enforce Core's MAX_STACK_SIZE on the two stacks together."""
+    if len(stack) + len(altstack) > MAX_STACK_SIZE:
         raise BTClibValueError(
-            f"more than 1000 stack elements: {len(stack)} + {len(altstack)}"
+            f"more than {MAX_STACK_SIZE} stack elements: {len(stack)} + {len(altstack)}"
         )
 
 

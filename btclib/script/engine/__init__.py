@@ -24,6 +24,7 @@ from btclib.script.engine.flags import (
 )
 from btclib.script.engine.script import verify_script as verify_script_legacy
 from btclib.script.engine.script_op_codes import _to_num
+from btclib.script.limits import MAX_SCRIPT_ELEMENT_SIZE
 from btclib.script.script import parse, serialize
 from btclib.script.script_pub_key import is_segwit, type_and_payload
 from btclib.script.sig_hash import PrecomputedTxData
@@ -199,8 +200,11 @@ def _verify_witness_v0(
         # something other than BTClibValueError
         if not stack:
             raise BTClibValueError("empty p2wsh witness stack")
-        if any(len(x) > 520 for x in stack[:-1]):
-            raise BTClibValueError("witness stack element longer than 520 bytes")
+        if any(len(x) > MAX_SCRIPT_ELEMENT_SIZE for x in stack[:-1]):
+            err_msg = (
+                f"witness stack element longer than {MAX_SCRIPT_ELEMENT_SIZE} bytes"
+            )
+            raise BTClibValueError(err_msg)
         script = stack[-1]
         if payload != sha256(script):
             raise BTClibValueError("invalid witness script sha256")

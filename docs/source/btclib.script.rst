@@ -12,6 +12,14 @@ Subpackages
 Submodules
 ----------
 
+btclib.script.limits module
+---------------------------
+
+.. automodule:: btclib.script.limits
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
 btclib.script.op\_codes\_tapscript module
 -----------------------------------------
 

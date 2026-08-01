@@ -26,6 +26,7 @@ from btclib.alias import (
 from btclib.curves import Curve, mult, secp256k1
 from btclib.exceptions import BTClibValueError
 from btclib.hashes import tagged_hash
+from btclib.script.limits import MAX_SCRIPT_ELEMENT_SIZE
 from btclib.script.op_codes_tapscript import (
     OP_CODE_NAMES,
     OP_SUCCESS,
@@ -97,7 +98,7 @@ def parse(stream: BinaryData, exit_on_op_success: bool = False) -> ScriptList:
             # OP_SUCCESS anywhere makes the script valid without the rest
             # of it being executed, so the refusal waits for a parse that
             # ends without meeting one
-            invalid_element_size |= len(data) > 520
+            invalid_element_size |= len(data) > MAX_SCRIPT_ELEMENT_SIZE
             r.append(data.hex().upper())
         elif i in OP_SUCCESS:  # OP_SUCCESSx
             if exit_on_op_success:

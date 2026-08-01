@@ -24,6 +24,7 @@ from btclib.script.engine import script_op_codes
 from btclib.script.engine.flags import ScriptFlag
 from btclib.script.engine.script import EVALUATED_WHEN_UNEXECUTED
 from btclib.script.engine.script_op_codes import ScriptOp, _from_num
+from btclib.script.limits import MAX_SCRIPT_ELEMENT_SIZE
 from btclib.script.op_codes_tapscript import OP_CODE_NAMES
 from btclib.script.script_pub_key import type_and_payload
 from btclib.script.sig_hash import PrecomputedTxData
@@ -194,8 +195,9 @@ def verify_script_path_vc0(  # noqa: C901
     flags: ScriptFlag,
     precomputed: PrecomputedTxData | None = None,
 ) -> None:
-    if any(len(x) > 520 for x in stack):
-        raise BTClibValueError("witness stack element longer than 520 bytes")
+    if any(len(x) > MAX_SCRIPT_ELEMENT_SIZE for x in stack):
+        err_msg = f"witness stack element longer than {MAX_SCRIPT_ELEMENT_SIZE} bytes"
+        raise BTClibValueError(err_msg)
 
     script = parse(script_bytes, exit_on_op_success=True)
 

@@ -22,6 +22,11 @@ from btclib.script import sig_hash
 from btclib.script.engine import script_op_codes
 from btclib.script.engine.flags import ScriptFlag
 from btclib.script.engine.script_op_codes import ScriptOp, _from_num, _to_num
+from btclib.script.limits import (
+    MAX_OPS_PER_SCRIPT,
+    MAX_PUBKEYS_PER_MULTISIG,
+    MAX_SCRIPT_SIZE,
+)
 from btclib.script.script import (
     BYTE_FROM_OP_CODE_NAME,
     OP_CODE_NAME_FROM_INT,
@@ -259,7 +264,7 @@ def check_pub_key_num(pub_key_num: int) -> None:
     `-1 -1 OP_CHECKMULTISIG` pushing false and the script running on where
     Core ends it.
     """
-    if not 0 <= pub_key_num <= 20:
+    if not 0 <= pub_key_num <= MAX_PUBKEYS_PER_MULTISIG:
         raise BTClibValueError(f"invalid number of public keys: {pub_key_num}")
 
 
@@ -276,8 +281,8 @@ def check_signature_num(signature_num: int, pub_key_num: int) -> None:
 
 def script_op_count(count: int, increment: int) -> int:
     count += increment
-    if count > 201:
-        raise BTClibValueError(f"more than 201 op codes: {count}")
+    if count > MAX_OPS_PER_SCRIPT:
+        raise BTClibValueError(f"more than {MAX_OPS_PER_SCRIPT} op codes: {count}")
     return count
 
 
@@ -419,8 +424,9 @@ def verify_script(  # noqa: C901
     final: bool = False,
     precomputed: PrecomputedTxData | None = None,
 ) -> None:
-    if len(script_bytes) > 10000:
-        raise BTClibValueError(f"script longer than 10000 bytes: {len(script_bytes)}")
+    if len(script_bytes) > MAX_SCRIPT_SIZE:
+        err_msg = f"script longer than {MAX_SCRIPT_SIZE} bytes: {len(script_bytes)}"
+        raise BTClibValueError(err_msg)
 
     script = parse(script_bytes, accept_unknown=True)
     prepare_script(script, flags, segwit)

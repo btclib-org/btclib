@@ -39,6 +39,7 @@ from warnings import warn
 
 from btclib.alias import BinaryData, Command, Octets, ScriptList
 from btclib.exceptions import BTClibUserWarning, BTClibValueError
+from btclib.script.limits import MAX_SCRIPT_ELEMENT_SIZE
 from btclib.utils import bytes_from_octets, bytesio_from_binarydata, encode_num
 
 BYTE_FROM_OP_CODE_NAME = {
@@ -382,7 +383,7 @@ def _parse_push(s: BytesIO, i: int) -> str:
         if len(y) != x:
             raise BTClibValueError("Not enough data for pushdata length")
         data_length = int.from_bytes(y, byteorder="little")
-    if data_length > 520:
+    if data_length > MAX_SCRIPT_ELEMENT_SIZE:
         raise BTClibValueError(f"Invalid pushdata length: {data_length}")
     data = s.read(data_length)
     if len(data) != data_length:
