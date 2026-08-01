@@ -13,6 +13,7 @@ The vectors are Bitcoin Core's `src/test/data/script_tests.json`, entire
 and byte for byte; tests/_data/README.md pins the revision.
 """
 
+from io import BytesIO
 from typing import Any, NamedTuple
 
 import pytest
@@ -30,6 +31,8 @@ from btclib.script.engine.script import (
     fix_signature,
     verify_script,
 )
+from btclib.script.engine.script_op_codes import read_push_data
+from btclib.script.limits import MAX_SCRIPT_ELEMENT_SIZE
 from btclib.script.script import OP_CODE_NAME_FROM_INT, parse, serialize
 from btclib.script.taproot import input_script_sig, output_pubkey
 from btclib.script.taproot import parse as parse_tapscript
@@ -747,6 +750,46 @@ def test_const_scriptcode_refuses_signature_checks(op_code: str) -> None:
     # underflows the empty stack instead: the refusal above is the flag's
     with pytest.raises(BTClibValueError, match="stack underflow"):
         verify_input([prevout], tx, 0, NO_FLAGS)
+
+
+@pytest.mark.parametrize("skip_execution", [False, True])
+def test_read_push_data_measures_before_it_skips(skip_execution: bool) -> None:
+    """The interpreter refuses a push it cannot execute, branch or no branch.
+
+    Core's two checks at the top of EvalScript, both before the fExec
+    test: a push declaring more bytes than the script holds is
+    SCRIPT_ERR_BAD_OPCODE, GetOp having failed on it, and one over
+    MAX_SCRIPT_ELEMENT_SIZE is SCRIPT_ERR_PUSH_SIZE. Parametrized over
+    the skip because that is the half a check placed after it would
+    lose, and Core has a vector for exactly that shape ("520 byte push
+    in non-executed IF branch").
+
+    Called directly rather than through verify_script: the push sizes
+    below are what `script.parse` refuses on the way in, so a script
+    carrying one cannot reach the loop at all yet.
+    """
+    stack: list[bytes] = []
+    args = (stack, skip_execution, NO_FLAGS, serialize)
+
+    # OP_PUSHDATA2 of 521 bytes, all of them present
+    over = MAX_SCRIPT_ELEMENT_SIZE + 1
+    stream = BytesIO(over.to_bytes(2, "little") + b"\x00" * over)
+    err_msg = f"pushdata longer than {MAX_SCRIPT_ELEMENT_SIZE} bytes"
+    with pytest.raises(BTClibValueError, match=err_msg):
+        read_push_data(0x4D, stream, *args)
+
+    # the same push with the limit turned off, which is the tapscript arm
+    stream = BytesIO(over.to_bytes(2, "little") + b"\x00" * over)
+    read_push_data(0x4D, stream, *args, element_size_limit=None)
+    assert stack == ([] if skip_execution else [b"\x00" * over])
+
+    # a push of two bytes with one to read
+    with pytest.raises(BTClibValueError, match="pushdata of 2 bytes, 1 in the script"):
+        read_push_data(0x02, BytesIO(b"\xff"), *args)
+
+    # and a declared length that is itself cut short
+    with pytest.raises(BTClibValueError, match="pushdata length short of 2 bytes"):
+        read_push_data(0x4D, BytesIO(b"\x01"), *args)
 
 
 def test_find_and_delete_reads_op_codes() -> None:

@@ -226,7 +226,18 @@ def verify_script_path_vc0(  # noqa: C901
             t = b[0]
             if 0 < t <= 78:  # pushdata
                 script_op_codes.read_push_data(
-                    t, s, stack, skip_execution, flags, serialize_script
+                    # the element limit is taproot.parse's here, deferred
+                    # to the end of the walk so that an OP_SUCCESSx met
+                    # first forgives an oversized push, as Core's
+                    # pre-scan does. Measured again in the loop it would
+                    # refuse what that parse has already forgiven
+                    t,
+                    s,
+                    stack,
+                    skip_execution,
+                    flags,
+                    serialize_script,
+                    element_size_limit=None,
                 )
                 continue
             if skip_execution and t not in EVALUATED_WHEN_UNEXECUTED:

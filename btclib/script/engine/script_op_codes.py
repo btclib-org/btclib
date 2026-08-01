@@ -17,7 +17,7 @@ from btclib.alias import ScriptList
 from btclib.exceptions import BTClibValueError
 from btclib.hashes import hash160, hash256, ripemd160, sha1, sha256
 from btclib.script.engine.flags import ScriptFlag
-from btclib.script.limits import MAX_STACK_SIZE
+from btclib.script.limits import MAX_SCRIPT_ELEMENT_SIZE, MAX_STACK_SIZE
 from btclib.tx.tx import Tx
 from btclib.utils import decode_num, encode_num
 
@@ -104,6 +104,7 @@ def read_push_data(
     skip_execution: bool,
     flags: ScriptFlag,
     serialize: Callable[[ScriptList], bytes],
+    element_size_limit: int | None = MAX_SCRIPT_ELEMENT_SIZE,
 ) -> None:
     """Read a pushdata command from the stream and push its data.
 
@@ -112,12 +113,37 @@ def read_push_data(
     measured for minimality and pushed. The serializer is a parameter
     for check_minimal_push's reason, each engine measuring a push
     against its own script language.
+
+    The two refusals are Core's, at the top of its EvalScript loop and
+    both *before* the fExec test, which is why they sit before the skip
+    and not after it: a push declaring more bytes than the script holds
+    is SCRIPT_ERR_BAD_OPCODE, GetOp having failed to read it, and one
+    over the element limit is SCRIPT_ERR_PUSH_SIZE. Core rejects either
+    inside a branch nothing takes, and so does this.
+
+    The limit is a parameter, and None turns it off, because tapscript
+    cannot answer here: an OP_SUCCESSx anywhere makes the script valid
+    with the rest of it unexecuted, so `taproot.parse` defers the
+    refusal to the end of its walk and the loop has nothing left to
+    measure. Core defers it the same way, by scanning for OP_SUCCESSx
+    before it executes anything at all.
     """
     if op_code < 76:
         data_length = op_code
     else:
-        data_length = int.from_bytes(s.read(2 ** (op_code - 76)), byteorder="little")
+        size = 2 ** (op_code - 76)
+        length_bytes = s.read(size)
+        if len(length_bytes) != size:
+            err_msg = f"pushdata length short of {size} bytes: {len(length_bytes)}"
+            raise BTClibValueError(err_msg)
+        data_length = int.from_bytes(length_bytes, byteorder="little")
     data = s.read(data_length)
+    if len(data) != data_length:
+        err_msg = f"pushdata of {data_length} bytes, {len(data)} in the script"
+        raise BTClibValueError(err_msg)
+    if element_size_limit is not None and data_length > element_size_limit:
+        err_msg = f"pushdata longer than {element_size_limit} bytes: {data_length}"
+        raise BTClibValueError(err_msg)
     if skip_execution:
         return
     check_minimal_push(data, op_code, flags, serialize)
