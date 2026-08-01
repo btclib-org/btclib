@@ -28,7 +28,10 @@ from btclib.curves.curve_group import (
     _multi_mult,
     jac_from_aff,
 )
-from btclib.curves.curve_group_2 import double_mult_w_NAF
+from btclib.curves.curve_group_2 import (
+    double_mult_w_NAF,
+    mult_endomorphism_secp256k1,
+)
 from btclib.exceptions import BTClibValueError
 from btclib.utils import hex_string, int_from_integer
 
@@ -308,7 +311,16 @@ def mult(m_int: Integer, Q: Point | None = None, ec: Curve = secp256k1) -> Point
         ec.require_on_curve(Q)
         QJ = jac_from_aff(Q)
 
-    R = _mult(m, QJ, ec)
+    # past the check above, secp256k1 here means a point the bindings do
+    # not take -- any point but the generator -- which is exactly where
+    # the GLV endomorphism pays: 1.03 ms against the 1.52 of _mult, the
+    # decomposition being secp256k1's own lambda and beta. Same predicate
+    # as the bindings dispatch, so the two cannot drift apart
+    R = (
+        mult_endomorphism_secp256k1(m, QJ, ec)
+        if _libsecp256k1_applicable(ec)
+        else _mult(m, QJ, ec)
+    )
     return ec.aff_from_jac(R)
 
 

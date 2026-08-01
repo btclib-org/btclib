@@ -11,7 +11,7 @@ release-notes length in the first place, and are still in
 
 ## v2026.8 (work in progress, not released yet)
 
-A hundred and thirty-seven entries, grouped. The order runs from what breaks
+A hundred and thirty-eight entries, grouped. The order runs from what breaks
 a caller to what only maintainers see; [HISTORY.md](./HISTORY.md) lists the
 sixteen source-breaking changes on their own.
 
@@ -1237,6 +1237,18 @@ sixteen source-breaking changes on their own.
 
 ### Performance
 
+- **`mult` takes the GLV endomorphism on secp256k1** wherever the bindings
+  cannot answer: `curve_group_2.mult_endomorphism_secp256k1`, 1.03 ms
+  against the 1.52 of the generic `_mult`. The bindings take the generator
+  and a non-zero scalar, so what reaches the python path is every *other*
+  secp256k1 point — and the operation that means is ECDH:
+  `dh.diffie_hellman` measures 1.07 ms against 1.56, a third off, and so
+  does any caller multiplying a point of its own. The dispatch asks the
+  same `_libsecp256k1_applicable` the bindings dispatch asks, so the two
+  cannot drift apart, and every other curve still runs `_mult` untouched.
+  The algorithm is not new either: m as m1 + m2*lambda with both halves
+  short, the two multiplications interleaved by the wNAF above, in the
+  tree with its own tests
 - **signature verification takes the interleaved-wNAF double
   multiplication**, `curve_group_2.double_mult_w_NAF`, where it took the
   Shamir-Strauss binary loop of `curve_group._double_mult`: 2.01 ms against
