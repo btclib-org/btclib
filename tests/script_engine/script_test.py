@@ -19,10 +19,10 @@ from typing import Any, NamedTuple
 import pytest
 
 from btclib.alias import TaprootScriptTree
-from btclib.ecc.dsa import Sig
+from btclib.ecc.dsa import Sig, sign_
 from btclib.exceptions import BTClibValueError, ScriptError
 from btclib.hashes import hash160, sha256
-from btclib.script import ScriptPubKey
+from btclib.script import ScriptPubKey, sig_hash
 from btclib.script.engine import (
     ALL_FLAGS,
     NO_FLAGS,
@@ -44,6 +44,7 @@ from btclib.script.taproot import input_script_sig, output_pubkey
 from btclib.script.taproot import parse as parse_tapscript
 from btclib.script.taproot import serialize as serialize_tapscript
 from btclib.script.witness import Witness
+from btclib.to_pub_key import pub_keyinfo_from_prv_key
 from btclib.tx.out_point import OutPoint
 from btclib.tx.tx import Tx
 from btclib.tx.tx_in import TxIn
@@ -804,6 +805,139 @@ def test_p2wsh_codeseparator_leaves_the_verdict_to_the_script() -> None:
 
     prevout, tx = spend(["OP_CODESEPARATOR", "OP_1"])
     verify_input([prevout], tx, 0, ALL_FLAGS)
+
+
+# nothing about it is secret; the same key sig_hash_legacy_test.py signs
+# its wrapped p2pkh with
+CODESEP_PRV_KEY = 0x9E5C7B3D5A0F0E4A9F1E3D2C1B0A99887766554433221100FFEEDDCCBBAA9988
+
+
+def codeseparator_witness_script() -> tuple[bytes, bytes]:
+    """A p2wsh witness script with two separators, and its script code.
+
+    The script code is the second one's, i.e. what a spend executing both
+    signs: BIP-143 cuts at the last executed OP_CODESEPARATOR and keeps
+    the separators left in the slice, of which there are none here.
+
+    Each half carries a non-minimal push -- an OP_PUSHDATA1 of one byte,
+    which consensus allows -- so the cut is measurable twice over. The
+    one *inside* the script code is what tells a byte slice from a
+    re-serialization of a parse, the hazard of #176, and the one outside
+    it is what a cut off by one occurrence would take in.
+    """
+    pub_key = pub_keyinfo_from_prv_key(CODESEP_PRV_KEY)[0]
+    non_minimal = bytes.fromhex("4c01ff") + b"\x75"  # the push, then OP_DROP
+    before = b"\x51\x75" + b"\xab" + non_minimal + b"\xab"
+    script_code = non_minimal + b"\x21" + pub_key + b"\xac"
+    return before + script_code, script_code
+
+
+def p2wsh_codeseparator_spend(
+    witness_script: bytes, *, wrapped: bool
+) -> tuple[list[TxOut], Tx]:
+    """The spend of that script, native or wrapped in p2sh, unsigned."""
+    program = b"\x00\x20" + sha256(witness_script)
+    script_pub_key = program
+    script_sig = b""
+    if wrapped:
+        script_pub_key = serialize(["OP_HASH160", hash160(program), "OP_EQUAL"])
+        # the wire form: the push of the redeem script, which is the
+        # witness program itself
+        script_sig = serialize([program])
+    prevout = TxOut(1000, ScriptPubKey(script_pub_key))
+    tx_in = TxIn(
+        OutPoint(b"\x01" * 32, 0),
+        script_sig,
+        1,
+        Witness(["", witness_script.hex()]),
+    )
+    tx = Tx(2, 0, [tx_in], [TxOut(1000, ScriptPubKey(""))], check_validity=False)
+    return [prevout], tx
+
+
+def sign_codeseparator_spend(
+    prevouts: list[TxOut], tx: Tx, witness_script: bytes, codesep_index: int
+) -> bytes:
+    """Sign the input at the given occurrence, and return the sig hash."""
+    msg_hash = sig_hash.from_tx(
+        prevouts, tx, 0, sig_hash.ALL, codesep_index=codesep_index
+    )
+    signature = sign_(msg_hash, CODESEP_PRV_KEY).serialize() + b"\x01"
+    tx.vin[0].script_witness = Witness([signature.hex(), witness_script.hex()])
+    return msg_hash
+
+
+def test_p2wsh_codeseparator_cut_is_what_the_signature_commits_to() -> None:
+    """The invalid twin BIP-143's second rule never had (issue #221).
+
+    Its three worked examples are all valid spends of native P2WSH, so
+    nothing among them says what a *wrong* cut looks like -- where the
+    no-FindAndDelete rule beside it has Core's "wrong sighash with
+    FindAndDelete" vectors, which fail when the rule is not applied.
+
+    Hand-rolled, so what it proves is bounded and worth naming: that our
+    signer and our verifier agree on where the cut falls, and that a
+    signature committing to any other cut is refused. Whether the
+    preimage is Core's is what the three appendix vectors and the
+    byte-slice property of #176 answer, and an independent oracle
+    (#198) is what would settle it.
+    """
+    witness_script, script_code = codeseparator_witness_script()
+    prevouts, tx = p2wsh_codeseparator_spend(witness_script, wrapped=False)
+
+    # the cut is a slice of the script's own bytes, and the script code
+    # holds a push no re-serialization of a parse would write back
+    msg_hash = sign_codeseparator_spend(prevouts, tx, witness_script, 2)
+    assert msg_hash == sig_hash.segwit_v0(
+        script_code, tx, 0, sig_hash.ALL, prevouts[0].value
+    )
+    assert serialize(parse(script_code)) != script_code
+    verify_input(prevouts, tx, 0, ALL_FLAGS)
+
+    # the twin: signed at the first occurrence, which is the same cut one
+    # push and one separator too early
+    sign_codeseparator_spend(prevouts, tx, witness_script, 1)
+    with pytest.raises(BTClibValueError, match="false top stack element"):
+        verify_input(prevouts, tx, 0, ALL_FLAGS)
+
+    # and the whole script, the cut of a spend executing no separator
+    sign_codeseparator_spend(prevouts, tx, witness_script, 0)
+    with pytest.raises(BTClibValueError, match="false top stack element"):
+        verify_input(prevouts, tx, 0, ALL_FLAGS)
+
+
+def test_wrapped_p2wsh_codeseparator_cuts_the_same_script() -> None:
+    """A p2sh wrapper does not move the cut: it is the witness script's.
+
+    All three of BIP-143's separator examples are native, so which
+    script the code comes out of when there is a redeem script in the
+    way is untested. It comes out of the witness script, and the redeem
+    script -- the witness program, which a p2wsh spend commits to by
+    hashing it into the script_pub_key -- is not in the v0 preimage at
+    all: the same witness script signed the same way gives the same hash
+    wrapped and native, so the two spends differ in nothing but the
+    script_sig that carries the wrapper.
+    """
+    witness_script, script_code = codeseparator_witness_script()
+    prevouts, tx = p2wsh_codeseparator_spend(witness_script, wrapped=True)
+
+    msg_hash = sign_codeseparator_spend(prevouts, tx, witness_script, 2)
+    assert msg_hash == sig_hash.segwit_v0(
+        script_code, tx, 0, sig_hash.ALL, prevouts[0].value
+    )
+    verify_input(prevouts, tx, 0, ALL_FLAGS)
+
+    native_prevouts, native_tx = p2wsh_codeseparator_spend(
+        witness_script, wrapped=False
+    )
+    assert msg_hash == sign_codeseparator_spend(
+        native_prevouts, native_tx, witness_script, 2
+    )
+
+    # and the wrong cut is refused through the wrapper too
+    sign_codeseparator_spend(prevouts, tx, witness_script, 1)
+    with pytest.raises(BTClibValueError, match="false top stack element"):
+        verify_input(prevouts, tx, 0, ALL_FLAGS)
 
 
 @pytest.mark.parametrize(

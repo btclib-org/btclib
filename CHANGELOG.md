@@ -11,7 +11,7 @@ release-notes length in the first place, and are still in
 
 ## v2026.8 (work in progress, not released yet)
 
-A hundred and seventy-four entries, grouped. The order runs from what breaks
+A hundred and seventy-five entries, grouped. The order runs from what breaks
 a caller to what only maintainers see; [HISTORY.md](./HISTORY.md) lists the
 twenty-eight source-breaking changes on their own.
 
@@ -1952,6 +1952,28 @@ twenty-eight source-breaking changes on their own.
   hook's own failure mode written by hand: a name that says "test" to every
   reader, on the one module with none. The cost was 33 import lines and 53
   references in prose and comments, eight of them in `btclib/` itself
+- **BIP-143's OP_CODESEPARATOR cut has an invalid twin** (issue #221).
+  Its other script-code rule — no FindAndDelete of the signature — is
+  cornered by Core's own "wrong sighash with FindAndDelete" vectors,
+  which fail when the rule is not applied; the cut had three vectors,
+  all of them valid spends, all native P2WSH, all from the same
+  appendix, and nothing saying what a wrong cut looks like. Two spends
+  are hand-rolled instead: a P2WSH witness script with two separators,
+  signed by btclib at the second and verified by btclib's engine, and
+  the same spend signed at the first — one push and one separator too
+  early — which must fail, as must the whole-script cut of a spend
+  executing no separator. The witness script carries a non-minimal push
+  on each side of the second separator, so the one inside the script
+  code tells a byte slice from a re-serialization of a parse, which is
+  the hazard #176 fixed and which no signed spend exercised through the
+  engine before. The second spend is p2sh-wrapped, the shape none of the
+  three appendix vectors has: the cut is still the witness script's, and
+  the redeem script is not in the v0 preimage at all, so the two spends
+  commit to the same hash. What this buys is bounded and the test says
+  so — that btclib's signer and verifier agree on where the cut falls,
+  and that any other cut is refused. Whether the preimage is Bitcoin
+  Core's is still the appendix vectors and #176's byte-slice property,
+  and an independent oracle (#198) is what would settle it
 
 ### Supported interpreters and dependencies
 
