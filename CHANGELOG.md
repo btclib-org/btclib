@@ -1636,23 +1636,31 @@ sixteen source-breaking changes on their own.
   `check-readthedocs` joins `check-dependabot` on the same argument,
   `.readthedocs.yaml` being 2.7 KB that nothing read as a build definition
 - **the six hooks commented out in `.pre-commit-config.yaml` are decided,
-  three either way, and five more are added.** Each was measured against
-  this tree rather than argued about. On: `name-tests-test`, with
+  four on and two off, and five more are added.** Each was measured
+  against this tree rather than argued about. On: `name-tests-test`, with
   `--pytest-test-first` because the hook's default is the other
   convention, guarding the one failure a test suite cannot report on
   itself — a file pytest never collects is not a red test, it is no test;
   `fix-byte-order-marker`, which finds nothing today and stops an editor
-  on another platform adding three bytes tomorrow. Off, with the
-  measurement written beside each: `check-shebang-scripts-are-executable`
+  on another platform adding three bytes tomorrow; and
+  `pretty-format-json`, where the objection was its two defaults and not
+  the hook. At `--indent=2` it fails on 44 of the 45 json files, the
+  golden ones being written at `indent=4`, and with the key sort on it
+  reorders a golden file against the insertion order `to_dict()` emits —
+  which breaks the suite rather than churning a diff. At `--indent=4
+  --no-sort-keys` 39 of the 45 already conform and turning it on rewrote
+  nothing. It skips `tests/**/_data/`, the vendored directory, six of
+  whose vectors `tests/_data/README.md` declares identical byte for byte
+  against an upstream blob SHA that a reformat voids — excluded by
+  directory so that the next file vendored in is safe unremembered, bar a
+  lookahead for the three files in there that are btclib's own. Off, with
+  the measurement written beside each:
+  `check-shebang-scripts-are-executable`
   fails on 154 files, every module opening with `#!/usr/bin/env python3`
   as the house header and none of them a script;
   `fix-encoding-pragma` would *add* 155 dead `# -*- coding: utf-8 -*-`
-  lines, UTF-8 being the default since python 3 against a floor of 3.10;
-  `pretty-format-json` fails on 44 files, 17 of them `_generated_files`
-  written at `indent=4` against the hook's default of 2 — the two would
-  rewrite each other every run — and the rest the vendored vectors, six of
-  which `tests/_data/README.md` declares identical byte for byte against
-  an upstream blob SHA that a reformat voids. Added: pre-commit's own
+  lines, UTF-8 being the default since python 3 against a floor of 3.10.
+  Added: pre-commit's own
   `check-hooks-apply` and `check-useless-excludes`, which are this file
   checking itself — a `files` pattern matching nothing is a rule that has
   stopped running, issue #145 one level up, and the first thing the hook
