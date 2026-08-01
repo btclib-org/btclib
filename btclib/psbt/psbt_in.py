@@ -34,7 +34,7 @@ from btclib.ecc import dsa
 from btclib.exceptions import BTClibValueError
 from btclib.hashes import hash160, hash256, ripemd160, sha256
 from btclib.psbt.psbt_utils import (
-    PSBT_DELIMITER,
+    PSBT_SEPARATOR,
     assert_valid_leaf_scripts,
     assert_valid_redeem_script,
     assert_valid_taproot_bip32_derivation,
@@ -547,7 +547,7 @@ class PsbtIn:
         # (PSBTInput::Serialize): a psbt is a sequence of maps with no
         # count in front of it, so a map that leaves its terminator to the
         # container cannot be read back on its own
-        psbt_in_bin.append(PSBT_DELIMITER)
+        psbt_in_bin.append(PSBT_SEPARATOR)
         return b"".join(psbt_in_bin)
 
     @classmethod

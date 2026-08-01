@@ -22,7 +22,7 @@ from btclib.psbt import (
     encode_dict_bytes_bytes,
     serialize_dict_bytes_bytes,
 )
-from btclib.psbt.psbt_utils import PSBT_DELIMITER
+from btclib.psbt.psbt_utils import PSBT_SEPARATOR
 from tests.conftest import JsonGolden
 
 
@@ -43,7 +43,7 @@ def test_psbt_out() -> None:
     psbt_out = PsbtOut()
     # an output carries its own terminator, as an input does: see
     # tests/psbt/psbt_in_test.py for why the two maps are read that way
-    assert psbt_out.serialize() == PSBT_DELIMITER
+    assert psbt_out.serialize() == PSBT_SEPARATOR
     assert psbt_out == PsbtOut.parse(psbt_out.serialize())
     assert psbt_out == PsbtOut.from_dict(psbt_out.to_dict())
 

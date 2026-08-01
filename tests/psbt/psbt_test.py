@@ -21,8 +21,8 @@ from btclib.ecc import dsa
 from btclib.exceptions import BTClibValueError
 from btclib.hashes import hash160, hash256, ripemd160, sha256
 from btclib.psbt import Psbt, combine_psbts, extract_tx, finalize_psbt, join_psbts
-from btclib.psbt.psbt import PSBT_SEPARATOR, _sort_or_shuffle_together
-from btclib.psbt.psbt_utils import PSBT_DELIMITER
+from btclib.psbt.psbt import _sort_or_shuffle_together
+from btclib.psbt.psbt_utils import PSBT_SEPARATOR
 from btclib.script import ScriptPubKey, Witness
 from btclib.tx import OutPoint, Tx, TxIn, TxOut
 from tests import load, vector_id
@@ -609,10 +609,12 @@ def test_exceptions() -> None:
     with pytest.raises(BTClibValueError, match="invalid non-zero version: "):
         psbt.serialize()
 
+    # the 0xff is the fifth byte of the header, not a field of its own, so
+    # losing it is the header being wrong and nothing more specific
     psbt = Psbt.b64decode(psbt_str)
     psbt_bin = psbt.serialize()
-    psbt_bin = psbt_bin.replace(PSBT_SEPARATOR, PSBT_DELIMITER)
-    with pytest.raises(BTClibValueError, match="malformed psbt: missing separator"):
+    psbt_bin = psbt_bin[:4] + PSBT_SEPARATOR + psbt_bin[5:]
+    with pytest.raises(BTClibValueError, match="malformed psbt: missing magic bytes"):
         Psbt.parse(psbt_bin)
 
     psbt = Psbt.b64decode(psbt_str)

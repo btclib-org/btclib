@@ -29,7 +29,7 @@ from btclib.bip32 import (
     encode_to_bip32_derivs,
 )
 from btclib.psbt.psbt_utils import (
-    PSBT_DELIMITER,
+    PSBT_SEPARATOR,
     assert_valid_redeem_script,
     assert_valid_taproot_bip32_derivation,
     assert_valid_taproot_internal_key,
@@ -190,7 +190,7 @@ class PsbtOut:
 
         # the map ends itself, as it does in Bitcoin Core
         # (PSBTOutput::Serialize); PsbtIn.serialize says why
-        psbt_out_bin.append(PSBT_DELIMITER)
+        psbt_out_bin.append(PSBT_SEPARATOR)
         return b"".join(psbt_out_bin)
 
     @classmethod

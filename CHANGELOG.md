@@ -11,7 +11,7 @@ release-notes length in the first place, and are still in
 
 ## v2026.8 (work in progress, not released yet)
 
-A hundred and seventy entries, grouped. The order runs from what breaks
+A hundred and seventy-one entries, grouped. The order runs from what breaks
 a caller to what only maintainers see; [HISTORY.md](./HISTORY.md) lists the
 twenty-seven source-breaking changes on their own.
 
@@ -1201,9 +1201,7 @@ twenty-seven source-breaking changes on their own.
   `s >> input` loop it is there. It is also what makes the two inverses:
   `PsbtIn.parse(psbt_in.serialize())` is that `PsbtIn`, where there was no
   bytes-to-object parse to call at all. A psbt is unchanged byte for byte;
-  what moved is which function writes the `0x00`, and `PSBT_DELIMITER`
-  with it: it is `btclib.psbt.psbt_utils`' now, that being the one module
-  all three kinds of map can reach (issue #179)
+  what moved is which function writes the `0x00` (issue #179)
 - **A psbt given as octets is a whole psbt.** `Psbt.parse` refuses what
   follows one — `malformed psbt: 3 bytes after the psbt` — where it read
   to the last output map and ignored the rest, and `Psbt.b64decode`
@@ -1215,6 +1213,20 @@ twenty-seven source-breaking changes on their own.
   the psbt ended. Bitcoin Core draws the line in that very place: "extra
   data after PSBT" is `DecodeRawPSBT`'s, the entry point taking a buffer,
   and not the `Unserialize` that reads a stream (issue #179)
+- **The header is one constant and a separator is the `0x00`**, as in
+  Bitcoin Core: `PSBT_MAGIC_BYTES` is the five bytes `b"psbt\xff"`, where
+  it was the four of "psbt" with the `0xff` beside it as `PSBT_SEPARATOR`;
+  `PSBT_SEPARATOR` is the byte that ends a map, which btclib called
+  `PSBT_DELIMITER`; and `PSBT_DELIMITER` is gone, its constant living in
+  `btclib.psbt.psbt_utils`, the one module all three kinds of map can
+  reach. The word was doing two jobs because BIP174 uses it for both — it
+  spells `<magic>` as the five bytes, then calls the `0xff` inside them a
+  separator, next to the `0x00` separator of the maps — and Core resolves
+  it the way `PSBT_MAGIC_BYTES[5] = {'p','s','b','t',0xff}` does. One
+  header is one check, so `malformed psbt: missing separator` is gone with
+  the constant: a psbt whose fifth byte is not `0xff` answers `malformed
+  psbt: missing magic bytes`, which is Core's single "Invalid PSBT magic
+  bytes" (issue #179)
 
 ### The public API and the module layout
 

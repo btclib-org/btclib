@@ -37,9 +37,11 @@ FINGERPRINT_SIZE = 4
 # what ends every map of a psbt: a key of length zero, which no real key
 # can be. It lives here, and not next to the magic bytes, because all
 # three kinds of map write it -- the global one, and each input and
-# output. Bitcoin Core calls this one PSBT_SEPARATOR and folds btclib's
-# PSBT_SEPARATOR, the 0xff, into its five magic bytes
-PSBT_DELIMITER = b"\x00"
+# output. The name is Bitcoin Core's, and so is what it leaves unnamed:
+# BIP174 calls the 0xff of the header a separator too, in prose, while
+# spelling <magic> as the five bytes that include it, so a constant for
+# the 0xff alone would be a fourth reading of the word
+PSBT_SEPARATOR = b"\x00"
 
 
 def _read_exactly(stream: BytesIO, size: int, what: str) -> bytes:

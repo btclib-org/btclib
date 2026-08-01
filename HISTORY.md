@@ -7,7 +7,7 @@ full year, short month, short day (YYYY-M-D)
 
 ## v2026.8 (work in progress, not released yet)
 
-The first release since 2023, and the largest: a hundred and seventy
+The first release since 2023, and the largest: a hundred and seventy-one
 entries, in [CHANGELOG.md](./CHANGELOG.md). What follows is what a user has
 to act on and what a user gains.
 
@@ -107,10 +107,14 @@ against the `v2023.7.12` tag.
   delimiter** that `Psbt.serialize` used to append for them, as Bitcoin
   Core's `PSBTInput::Serialize` does. A serialized psbt is unchanged;
   code appending that byte itself has to stop.
-- **`PSBT_DELIMITER` is imported from `btclib.psbt.psbt_utils`**, not from
-  `btclib.psbt.psbt`: every kind of map writes it now, and `psbt_utils` is
-  the module all three can reach. `PSBT_SEPARATOR`, the `0xff` after the
-  magic bytes, stays where it was.
+- **The three psbt constants are Bitcoin Core's.**
+  `btclib.psbt.psbt.PSBT_MAGIC_BYTES` is the whole five-byte header,
+  `b"psbt\xff"`; `PSBT_SEPARATOR` is the `0x00` that ends a map and is
+  imported from `btclib.psbt.psbt_utils`, where it was the `0xff` and came
+  from `btclib.psbt.psbt`; `PSBT_DELIMITER`, which was that `0x00`, is
+  gone. `malformed psbt: missing separator` goes with it: one header is
+  one check, and a fifth byte that is not `0xff` is `malformed psbt:
+  missing magic bytes`.
 - **`Psbt.parse` and `Psbt.b64decode` reject trailing bytes**, as
   `dsa.Sig.parse` does: octets are a whole psbt, and `malformed psbt: N
   bytes after the psbt` is the answer to anything after one. Handing a

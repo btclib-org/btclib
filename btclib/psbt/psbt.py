@@ -36,7 +36,7 @@ from btclib.hashes import hash160, sha256
 from btclib.psbt.psbt_in import PsbtIn
 from btclib.psbt.psbt_out import PsbtOut
 from btclib.psbt.psbt_utils import (
-    PSBT_DELIMITER,
+    PSBT_SEPARATOR,
     assert_valid_unknown,
     decode_dict_bytes_bytes,
     deserialize_int,
@@ -51,8 +51,12 @@ from btclib.script import Witness, serialize, type_and_payload
 from btclib.tx import Tx, TxIn, join_txs
 from btclib.utils import bytesio_from_binarydata
 
-PSBT_MAGIC_BYTES = b"psbt"
-PSBT_SEPARATOR = b"\xff"
+# the whole of BIP174's <magic>, five bytes: the four of "psbt" and the
+# 0xff that makes a psbt fail to deserialize as a transaction. It is one
+# constant and one check because it is one header -- the 0xff is no more
+# optional than the "p" -- and because the alternative is a second thing
+# called a separator, which the 0x00 that ends a map already is
+PSBT_MAGIC_BYTES = b"psbt\xff"
 
 PSBT_GLOBAL_UNSIGNED_TX = b"\x00"
 PSBT_GLOBAL_XPUB = b"\x01"
@@ -270,7 +274,7 @@ class Psbt:
         if check_validity:
             self.assert_valid()
 
-        psbt_bin: list[bytes] = [PSBT_MAGIC_BYTES, PSBT_SEPARATOR]
+        psbt_bin: list[bytes] = [PSBT_MAGIC_BYTES]
 
         # check_validity=False: Psbt.assert_valid above has already
         # validated it, as the template it is, and Tx.serialize would
@@ -287,9 +291,9 @@ class Psbt:
             psbt_bin.append(serialize_dict_bytes_bytes(b"", self.unknown))
 
         # the global map is the one with no dataclass of its own, so it is
-        # the only delimiter written here: an input and an output each end
+        # the only separator written here: an input and an output each end
         # themselves, as they do in Bitcoin Core
-        psbt_bin.append(PSBT_DELIMITER)
+        psbt_bin.append(PSBT_SEPARATOR)
         psbt_bin.extend(psbt_in.serialize() for psbt_in in self.inputs)
         psbt_bin.extend(psbt_out.serialize() for psbt_out in self.outputs)
         return b"".join(psbt_bin)
@@ -320,10 +324,8 @@ class Psbt:
 
         stream = bytesio_from_binarydata(data)
 
-        if stream.read(4) != PSBT_MAGIC_BYTES:
+        if stream.read(5) != PSBT_MAGIC_BYTES:
             raise BTClibValueError("malformed psbt: missing magic bytes")
-        if stream.read(1) != PSBT_SEPARATOR:
-            raise BTClibValueError("malformed psbt: missing separator")
 
         global_map = deserialize_map(stream)
         for k, v in global_map.items():

@@ -21,7 +21,7 @@ from btclib.psbt.psbt_in import (
     _SERIALIZED_FIELDS,
     _WHOLE_VALUE_FIELDS,
 )
-from btclib.psbt.psbt_utils import PSBT_DELIMITER
+from btclib.psbt.psbt_utils import PSBT_SEPARATOR
 from tests.conftest import JsonGolden
 
 
@@ -29,7 +29,7 @@ def test_psbt_out() -> None:
     psbt_in = PsbtIn()
     # an input carries its own terminator, so an empty one is that byte
     # and nothing else, and serialize and parse are inverses
-    assert psbt_in.serialize() == PSBT_DELIMITER
+    assert psbt_in.serialize() == PSBT_SEPARATOR
     assert psbt_in == PsbtIn.parse(psbt_in.serialize())
     assert psbt_in == PsbtIn.from_dict(psbt_in.to_dict())
 
