@@ -435,7 +435,10 @@ sixteen source-breaking changes on their own.
   WITNESS_PROGRAM_WITNESS_EMPTY and the taproot branch beside it already had
   the guard. The vector that exercises it, `P2WSH with empty witness`, was
   green throughout: `pytest.raises(Exception)` counts an IndexError as the
-  refusal it was waiting for (issue #182)
+  refusal it was waiting for. In the script engine, and in
+  `sig_hash.from_tx`, which reads the witness script the same way and had
+  the same hole — no vector reaches it there, a sig_hash being asked for
+  rather than verified (issue #182)
 
 ### Immutability and shared state
 
@@ -1349,7 +1352,7 @@ sixteen source-breaking changes on their own.
   coverage special-cases 100 to mean exactly 100.00%, which would make
   one version-gated line a red build; the comparison is
   `round(total, precision) < fail_under`, so 99.99 allows two of the
-  15319 statements the coverage job measures
+  15325 statements the coverage job measures
 - **`tests/ecc/test_bms.py` imports on python 3.9 again.** It annotates a
   helper `-> Point | None` without `from __future__ import annotations`,
   which 3.9 evaluates at def time and has no `|` for: the module was ten
@@ -1540,8 +1543,8 @@ sixteen source-breaking changes on their own.
   and what the lint and docs jobs therefore already used, so 3.13 was a
   version those two jobs alone singled out — the matrix tests it like
   every other. It matters most for coverage, whose gate is a ratio of a
-  statement count that moves between interpreters, 15319 on 3.14 against
-  15325 on 3.13: the threshold and the interpreter now agree with what a
+  statement count that moves between interpreters, 15325 on 3.14 against
+  15331 on 3.13: the threshold and the interpreter now agree with what a
   maintainer measures locally with a bare `uv run pytest --cov`. The
   release step only needs a `tomllib`, i.e. 3.11 or newer, and now asks
   for a version uv has already fetched for the other jobs

@@ -559,11 +559,18 @@ def from_tx(
         )
 
     if is_p2wsh(script):
+        # the witness script is the last element, and there is none: the
+        # guard the engine has, Core's WITNESS_PROGRAM_WITNESS_EMPTY.
+        # Without it the empty stack was an IndexError out of `stack[-1]`,
+        # i.e. malformed input leaving through something other than
+        # BTClibValueError
+        stack = tx.vin[vin_i].script_witness.stack
+        if not stack:
+            raise BTClibValueError("empty p2wsh witness stack")
         # the real script is contained in the witness, and it is signed as
         # it stands: BIP-143 elides no OP_CODESEPARATOR, where the legacy
         # serializer elides those left after the truncation
-        witness_script = tx.vin[vin_i].script_witness.stack[-1]
-        script_code = _script_code_from(witness_script, codesep_index)
+        script_code = _script_code_from(stack[-1], codesep_index)
         return segwit_v0(
             script_code, tx, vin_i, hash_type, prevouts[vin_i].value, precomputed
         )

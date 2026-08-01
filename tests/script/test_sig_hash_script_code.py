@@ -121,6 +121,19 @@ def test_from_tx_takes_the_separator_occurrence() -> None:
         sig_hash.from_tx([prevout], tx, 0, sig_hash.ALL, codesep_index=-1)
 
 
+def test_a_p2wsh_input_with_no_witness_script() -> None:
+    """There is no script to take a script code from, and it says so.
+
+    `stack[-1]` on an empty stack was an IndexError, malformed input
+    leaving through something other than BTClibValueError; the engine
+    took the same guard in #182, Core calling it
+    WITNESS_PROGRAM_WITNESS_EMPTY.
+    """
+    p2wsh = TxOut(0, ScriptPubKey(bytes.fromhex("0020" + "00" * 32)))
+    with pytest.raises(BTClibValueError, match="empty p2wsh witness stack"):
+        sig_hash.from_tx([p2wsh], one_input_tx(), 0, sig_hash.ALL)
+
+
 def test_no_separator_index_where_there_is_no_script_to_cut() -> None:
     """A p2wpkh script code is built, not read, and taproot commits instead.
 
