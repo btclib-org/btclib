@@ -96,8 +96,11 @@ refreshing it is a decision, not a chore.
 Every entry was last re-checked against its upstream on 2026-07-30 -- the
 two SLIP-0039 entries on 2026-08-02, the day they were vendored -- and
 whatever had drifted was refreshed, so `behind` is 0 wherever a refresh
-was possible at all. The eight BIP327 files are the exception by date
-alone: they were vendored on 2026-08-02, at the tip of their path.
+was possible at all. The files vendored since are the exception by date
+alone, all of them taken at the tip of their path on 2026-08-02, which is
+what their `pulled` says: the eight BIP327 files, and the three Core
+files added here — `key_io_valid.json`, `key_io_invalid.json` and
+`base58_encode_decode.json`.
 
 A vector btclib fails is vendored anyway and marked `xfail`, never left
 out: an absent vector hides the defect it would have shown, and
@@ -391,6 +394,65 @@ behind  0 revisions; that commit is the tip of the path
 
 Verdict: **identical**, 93 vectors — Core's entire file, here too, with
 14 of the 93 naming WITNESS in their flags.
+
+### `tests/_data/key_io_valid.json`
+
+```text
+repo    bitcoin/bitcoin
+path    src/test/data/key_io_valid.json
+commit  7c200ece80575d399a552f5757c07ac2c8c7ec6c  2025-03-26
+blob    bff7ecff0993b7224301f07c8c624853832b61df
+pulled  2026-08-02
+behind  0 revisions; that commit is the tip of the path
+```
+
+Verdict: **identical**, 70 rows — 54 addresses and 16 WIFs, over the four
+chains Core names in the metadata: `main`, `testnet4`, `signet`,
+`regtest`, which are btclib networks under those very names but for
+`mainnet`. The `test` of Core's older revisions is gone from the file:
+the pinned commit is "test: use testnet4 in key_io_valid.json".
+
+Eight of the 54 are witness versions 2, 3 and 16.
+`ScriptPubKey.from_address` decodes each to Core's scriptPubKey and `b32`
+re-encodes each from its witness, but `ScriptPubKey.address` answers `""`
+for them: it renders the five types `type_and_payload` names and a future
+version is not one of them. `tests/key_io_test.py` asserts that answer
+rather than skipping the rows.
+
+### `tests/_data/key_io_invalid.json`
+
+```text
+repo    bitcoin/bitcoin
+path    src/test/data/key_io_invalid.json
+commit  fa506add25cbe5efbbabca647f5378c4128cf945  2022-04-06
+blob    8f55abfec731bf2dec806804bb4dd903487294dc
+pulled  2026-08-02
+behind  0 revisions; that commit is the tip of the path
+```
+
+Verdict: **identical**, 70 strings, each a one-element array. All 70 are
+refused by all four of the entry points that could be handed one —
+`b58.h160_from_address`, `b32.witness_from_address`,
+`ScriptPubKey.from_address` and `prv_keyinfo_from_prv_key` — every
+refusal a `BTClibValueError`.
+
+### `tests/_data/base58_encode_decode.json`
+
+```text
+repo    bitcoin/bitcoin
+path    src/test/data/base58_encode_decode.json
+commit  5dd3a0d8a899e4c7263d5b999135f4d7584e1244  2025-01-04
+blob    7255fd45c8003ad99ee95c507d8c54f49b50e4c2
+pulled  2026-08-02
+behind  0 revisions; that commit is the tip of the path
+```
+
+Verdict: **identical**, 21 rows of `[hex, base58]`. Core's
+`EncodeBase58`/`DecodeBase58`, i.e. the codec with no checksum on it, so
+what reads them is `base58._b58encode`/`_b58decode` and not the checked
+`b58encode`/`b58decode` — one row is 256 bytes, 348 base58 characters,
+which the checked decoder would refuse on `MAX_LENGTH` before looking at
+it.
 
 ### `tests/_data/descriptor_checksums.json`
 
@@ -822,12 +884,13 @@ Pulled 2018-06-01.
 
 ## Summary
 
-46 files. Against a pinned upstream blob:
+49 files. Against a pinned upstream blob:
 
-- 15 identical byte for byte: `english.txt`, `wordlist.txt`,
+- 18 identical byte for byte: `english.txt`, `wordlist.txt`,
   `taproot_test_vector.json`, `sig_hash_legacy_test_vectors.json`,
-  `script_tests.json`, `tx_valid.json`, `tx_invalid.json`, and the
-  eight BIP327 vector files.
+  `script_tests.json`, `tx_valid.json`, `tx_invalid.json`,
+  `key_io_valid.json`, `key_io_invalid.json`,
+  `base58_encode_decode.json`, and the eight BIP327 vector files.
 - 2 identical but for a trailing newline:
   `script_assets_test.json`, `vectors.json`.
 - 1 identical but for CRLF against LF: `bip340_test_vectors.csv`.
