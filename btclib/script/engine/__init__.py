@@ -11,7 +11,7 @@
 
 from __future__ import annotations
 
-from btclib.alias import Command
+from btclib.alias import Command, ScriptType
 from btclib.exceptions import BTClibValueError
 from btclib.hashes import sha256
 from btclib.script.engine import tapscript
@@ -204,7 +204,7 @@ def _verify_taproot(
 
 
 def _verify_witness_v0(
-    script_type: str,
+    script_type: ScriptType,
     payload: bytes,
     witness: Witness,
     prevouts: list[TxOut],
@@ -259,7 +259,7 @@ def _verify_witness_v0(
 
 def _verify_witness_program(
     script: bytes,
-    script_type: str,
+    script_type: ScriptType,
     payload: bytes,
     segwit_version: int,
     p2sh: bool,

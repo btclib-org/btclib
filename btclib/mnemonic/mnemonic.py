@@ -33,6 +33,11 @@ class WordLists:
 
     More word-lists can be added using the load_lang method.
 
+    The three above are what alias.MnemonicLang names, and load_lang is
+    why no lang parameter here or in bip39 and electrum is typed with
+    it: the set is open, so a Literal would reject the language a caller
+    has just loaded (issue #216).
+
     Word-lists are loaded only if needed and read only once from disk.
 
     The loading is under a lock, and the reason is not merely that two

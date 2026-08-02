@@ -16,7 +16,7 @@ from hypothesis import given
 from hypothesis import strategies as st
 
 from btclib import b32, b58
-from btclib.alias import ScriptList
+from btclib.alias import ScriptList, ScriptType
 from btclib.base58 import b58encode
 from btclib.bip32 import bip32, slip132
 from btclib.curves import bytes_from_point, point_from_octets, secp256k1
@@ -308,7 +308,7 @@ def test_exceptions() -> None:
     h160=st.binary(min_size=20, max_size=20),
     network=st.sampled_from(["mainnet", "testnet"]),
 )
-def test_round_trip_address(script_type: str, h160: bytes, network: str) -> None:
+def test_round_trip_address(script_type: ScriptType, h160: bytes, network: str) -> None:
     """The payload and its script type survive the encoding.
 
     regtest is not among the networks: it shares testnet's version

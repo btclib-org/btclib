@@ -12,10 +12,11 @@
 import builtins
 import threading
 from os import path
-from typing import Any
+from typing import Any, get_args
 
 import pytest
 
+from btclib.alias import MnemonicLang
 from btclib.exceptions import BTClibValueError
 from btclib.mnemonic import (
     WORDLISTS,
@@ -260,3 +261,14 @@ def test_load_lang_is_idempotent_and_reads_once() -> None:
         builtins.open = real_open
 
     assert len(reads) == 1
+
+
+def test_mnemonic_lang_names_the_shipped_word_lists() -> None:
+    """MnemonicLang is what a fresh WordLists knows, and no more.
+
+    A fresh one, not the WORDLISTS singleton the tests above add two
+    languages to: that openness is the reason no lang parameter is typed
+    with the alias (issue #216), and the reason the alias needs a check
+    of its own here rather than one from mypy.
+    """
+    assert set(get_args(MnemonicLang)) == set(WordLists().languages)

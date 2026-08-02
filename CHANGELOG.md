@@ -2153,6 +2153,33 @@ edit.
   converter each function calls and by nothing else. `NewType` would let a
   checker separate them at the cost of every caller wrapping its literals,
   which is a different library
+- **the closed vocabularies are `Literal` aliases**, and the open ones are
+  named without being imposed (issue #216). `alias.ScriptType` is the ten
+  values `type_and_payload` returns — `"unknown"` among them, an answer and
+  not an absence, and `"witness_unknown"` beside it, which is Core's own
+  name for a witness version this library cannot spend — and types that
+  function, `ScriptPubKey.type`,
+  `b58.address_from_h160`, `b58.h160_from_address` and the script engine's
+  two witness helpers. `alias.NetworkField` is the eighteen field names of
+  `Network` and types the `key` parameter of the three `*_from_key_value`
+  lookups, the most fragile of the four vocabularies: a misspelled field
+  name matches no network, so the lookup answers `None` — "no network
+  carries this prefix" — where a misspelled network *name* at least raises
+  `KeyError` at the indexing. `alias.NetworkName` and `alias.MnemonicLang`
+  name the five networks and three word-lists btclib ships and type no
+  parameter at all, because `NETWORKS` takes a caller's custom signet and
+  `WordLists.load_lang` a caller's word-list: a `Literal` on `network: str`
+  or `lang: str` would refuse a value the library itself accepts. No enum,
+  and the measurement is the issue's: `class Net(str, Enum)` formats a
+  member as `mainnet` on 3.10 and as `Net.MAINNET` on 3.11 and later, so the
+  six error messages that interpolate a network name — text some tests match
+  verbatim — would read differently on different interpreters, while
+  `enum.StrEnum`, which formats as the value everywhere, is 3.11+ against a
+  3.10 floor; and refusing strings breaks thirty-eight signatures. Nothing
+  here exists at run time, so the two data-derived aliases are checked
+  against the data instead: `network_test.py` against
+  `dataclasses.fields(Network)` and `NETWORKS`, `mnemonic_test.py` against a
+  fresh `WordLists`
 
 ### Performance
 
