@@ -12,7 +12,10 @@
                 "txid": "d5b5982254eebca64e4b42a3092a10bfb76ab430455b2bf0cf7c4f7f32db1c2e",
                 "vout": 0
             },
-            "scriptSig": "",
+            "scriptSig": {
+                "asm": "",
+                "hex": ""
+            },
             "sequence": 0,
             "txinwitness": {
                 "stack": [
@@ -30,7 +33,10 @@
                 "txid": "ff050cfb1b6997c53aa90c2522b5a5fb4e6d65b99fb790caa92f8d435d40114a",
                 "vout": 2
             },
-            "scriptSig": "",
+            "scriptSig": {
+                "asm": "",
+                "hex": ""
+            },
             "sequence": 0,
             "txinwitness": {
                 "stack": [
@@ -48,7 +54,10 @@
                 "txid": "dd2421cfe18a0a894a7ddff5d022c200e3282cc62f7b5629e723ff7c56ab1860",
                 "vout": 0
             },
-            "scriptSig": "",
+            "scriptSig": {
+                "asm": "",
+                "hex": ""
+            },
             "sequence": 0,
             "txinwitness": {
                 "stack": [
@@ -66,7 +75,10 @@
                 "txid": "773e0d4d833490476e39dd8325bb4ce5e684d568021f8706fdac319fef11df62",
                 "vout": 1
             },
-            "scriptSig": "",
+            "scriptSig": {
+                "asm": "",
+                "hex": ""
+            },
             "sequence": 0,
             "txinwitness": {
                 "stack": [
@@ -84,7 +96,10 @@
                 "txid": "4e206d9de87c01894dc494e2676179135b4f5a2b42433780b43e3695cd9a6172",
                 "vout": 2
             },
-            "scriptSig": "",
+            "scriptSig": {
+                "asm": "",
+                "hex": ""
+            },
             "sequence": 0,
             "txinwitness": {
                 "stack": [
@@ -102,7 +117,10 @@
                 "txid": "76af66784f2e6f7a5098574bbd60ef8078293de714b690da1c8db58da6f86477",
                 "vout": 1
             },
-            "scriptSig": "",
+            "scriptSig": {
+                "asm": "",
+                "hex": ""
+            },
             "sequence": 0,
             "txinwitness": {
                 "stack": [
@@ -120,7 +138,10 @@
                 "txid": "f56b4c64522a0c6ec8db5ea597c379fd71a6520774712d3a344400f4543c43bc",
                 "vout": 37
             },
-            "scriptSig": "",
+            "scriptSig": {
+                "asm": "",
+                "hex": ""
+            },
             "sequence": 0,
             "txinwitness": {
                 "stack": [
@@ -138,7 +159,10 @@
                 "txid": "e29e6d3061d4539f3cd13f3762054f03701b99100e7c4939cb67017d03c5d3f7",
                 "vout": 0
             },
-            "scriptSig": "",
+            "scriptSig": {
+                "asm": "",
+                "hex": ""
+            },
             "sequence": 0,
             "txinwitness": {
                 "stack": [
@@ -155,9 +179,11 @@
     "vout": [
         {
             "value": "32.5934337",
-            "scriptPubKey": "0020ed8e9600561000f722bd26e850be7d80f24d174fabeff98baef967325e2b5a86",
+            "scriptPubKey": {
+                "asm": "OP_0 ED8E9600561000F722BD26E850BE7D80F24D174FABEFF98BAEF967325E2B5A86",
+                "hex": "0020ed8e9600561000f722bd26e850be7d80f24d174fabeff98baef967325e2b5a86"
+            },
             "type": "p2wsh",
-            "reqSigs": null,
             "addresses": [
                 "bc1qak8fvqzkzqq0wg4aym59p0nasrey696040hlnzawl9nnyh3tt2rqzgmhmv"
             ],

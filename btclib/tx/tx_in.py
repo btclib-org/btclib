@@ -22,7 +22,7 @@ from typing import Any
 from btclib import var_bytes
 from btclib.alias import BinaryData, Octets
 from btclib.exceptions import BTClibValueError
-from btclib.script import Witness
+from btclib.script import Witness, script_from_dict, script_to_dict
 from btclib.tx.out_point import OutPoint
 from btclib.utils import bytes_from_octets, bytesio_from_binarydata
 
@@ -130,8 +130,7 @@ class TxIn:
 
         return {
             "prev_out": self.prev_out.to_dict(check_validity=False),
-            # issue 172: Core renders a script as {"asm": ..., "hex": ...}
-            "scriptSig": self.script_sig.hex(),
+            "scriptSig": script_to_dict(self.script_sig),
             "sequence": self.sequence,
             "txinwitness": self.script_witness.to_dict(check_validity=False),
         }
@@ -142,7 +141,7 @@ class TxIn:
     ) -> TxIn:
         return cls(
             OutPoint.from_dict(dict_["prev_out"], check_validity=False),
-            dict_["scriptSig"],
+            script_from_dict(dict_["scriptSig"]),
             dict_["sequence"],
             Witness.from_dict(dict_["txinwitness"], check_validity=False),
             check_validity=check_validity,

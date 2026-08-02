@@ -10,7 +10,14 @@
 """Module btclib.script."""
 
 from btclib.alias import Command, TaprootLeaf, TaprootScriptTree
-from btclib.script.script import Script, op_int, parse, serialize
+from btclib.script.script import (
+    Script,
+    op_int,
+    parse,
+    script_from_dict,
+    script_to_dict,
+    serialize,
+)
 from btclib.script.script_pub_key import (
     ScriptPubKey,
     address,
@@ -74,6 +81,8 @@ __all__ = [
     "output_prvkey",
     "output_pubkey",
     "parse",
+    "script_from_dict",
+    "script_to_dict",
     "serialize",
     "type_and_payload",
 ]

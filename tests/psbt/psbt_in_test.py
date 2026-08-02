@@ -16,6 +16,7 @@ from typing import Any
 import pytest
 
 from btclib.bip32 import BIP32KeyOrigin
+from btclib.exceptions import BTClibValueError
 from btclib.psbt import Psbt, PsbtIn
 from btclib.psbt.psbt_in import (
     _DROPPED_ONCE_FINALIZED,
@@ -194,7 +195,9 @@ def test_dataclasses_json_dict(json_golden: JsonGolden) -> None:
     # PsbtIn dataclass to dict
     psbt_in_dict = psbt_in.to_dict()
     assert isinstance(psbt_in_dict, dict)
-    assert psbt_in_dict["redeem_script"]
+    # the hex, not the dict: a {"asm": ..., "hex": ...} is truthy even for
+    # the empty script, so the bare dict would assert nothing
+    assert psbt_in_dict["redeem_script"]["hex"]
 
     # against the json committed beside this module, not written to it
     json_golden("psbt_in.json", psbt_in_dict)
@@ -204,3 +207,36 @@ def test_dataclasses_json_dict(json_golden: JsonGolden) -> None:
     assert isinstance(psbt_in2, PsbtIn)
 
     assert psbt_in == psbt_in2
+
+
+def test_scripts_are_rendered_as_asm_and_hex() -> None:
+    """The three scripts Bitcoin Core's decodepsbt renders as objects."""
+    redeem_script = "a914748284390f9e263a4b766a75d0633c50426eb87587"
+    witness_script = "0020" + "00" * 32
+    final_script_sig = "76a914751e76e8199196d454941c45d1b3a323f1433bd688ac"
+    psbt_in = PsbtIn(
+        redeem_script=redeem_script,
+        witness_script=witness_script,
+        final_script_sig=final_script_sig,
+    )
+
+    dict_ = psbt_in.to_dict()
+    assert dict_["redeem_script"]["hex"] == redeem_script
+    assert dict_["witness_script"]["hex"] == witness_script
+    assert dict_["final_script_sig"]["hex"] == final_script_sig
+    assert dict_["final_script_sig"]["asm"].startswith("OP_DUP OP_HASH160 ")
+    assert PsbtIn.from_dict(dict_) == psbt_in
+
+    # the shape to_dict wrote before it wrote that one
+    old = {
+        **dict_,
+        "redeem_script": redeem_script,
+        "witness_script": witness_script,
+        "final_script_sig": final_script_sig,
+    }
+    assert PsbtIn.from_dict(old) == psbt_in
+
+    with pytest.raises(BTClibValueError, match="asm does not match hex: "):
+        PsbtIn.from_dict(
+            {**dict_, "witness_script": {"asm": "OP_1", "hex": witness_script}}
+        )

@@ -132,6 +132,16 @@ against the `v2023.7.12` tag.
   `dsa.Sig.parse` does: octets are a whole psbt, and `malformed psbt: N
   bytes after the psbt` is the answer to anything after one. Handing a
   `BytesIO` over is how a caller says the rest of the buffer is theirs.
+- **`to_dict` renders a script as `{"asm": ..., "hex": ...}`**, where it
+  rendered the bare hex string: `TxIn`'s `scriptSig`, `TxOut`'s
+  `scriptPubKey`, `PsbtIn`'s `redeem_script`, `witness_script` and
+  `final_script_sig`, and `PsbtOut`'s `redeem_script` and `witness_script`.
+  `d["scriptSig"]` is `d["scriptSig"]["hex"]`, and so on for the seven.
+  `from_dict` still reads the old spelling, a stored dict staying readable,
+  and reads the `hex` in both — but an `asm` that the `hex` does not produce
+  is refused rather than ignored. `TxOut.to_dict` no longer emits `reqSigs`,
+  which was always `None`; Bitcoin Core dropped it in v22 for being an answer
+  only a bare multisig had.
 - **`electrum.mnemonic_from_entropy` returns the mnemonic Electrum
   returns**, which is not the one btclib returned: the words run
   least-significant first and the search starts at `entropy + 1`, so the

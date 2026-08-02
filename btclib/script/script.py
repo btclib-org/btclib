@@ -31,10 +31,11 @@ and refused by their own rules.
 
 from __future__ import annotations
 
-from collections.abc import Iterator, Sequence
+from collections.abc import Iterator, Mapping, Sequence
 from dataclasses import dataclass
 from functools import cached_property
 from io import BytesIO
+from typing import cast
 from warnings import warn
 
 from btclib.alias import BinaryData, Command, Octets, ScriptList
@@ -453,6 +454,65 @@ def parse(stream: BinaryData) -> ScriptList:
         r.append(command)
 
     return r
+
+
+def script_to_dict(script: bytes) -> dict[str, str]:
+    """Render a script as Bitcoin Core's RPC renders one: `asm` and `hex`.
+
+    The two renderings of the same bytes, which is what
+    `getrawtransaction` and `decodepsbt` hand back for every script they
+    report. `hex` is the script; `asm` is `parse` joined by spaces, i.e.
+    a reading aid, and the only thing `script_from_dict` will believe is
+    the `hex`.
+
+    Not Core's asm byte for byte, and it cannot be: btclib prints a push
+    as upper-case hex where Core prints one under 5 bytes as a decimal
+    number, and neither spelling is invertible -- see ERROR_COMMAND
+    above. What this is, exactly, is `Script.asm` with a space between
+    its commands.
+    """
+    # a cast rather than a str() per command: parse appends nothing but
+    # strings -- an op code name, upper-case hex, UNKNOWN_OP_CODE_n or
+    # ERROR_COMMAND -- and its return type is the wider ScriptList only
+    # because that alias is shared with serialize, which does take ints
+    # and bytes. str() would silently render a bytes command as "b'..'"
+    # instead, and an isinstance filter would be a branch no input takes
+    commands: list[str] = cast("list[str]", parse(script))
+    return {"asm": " ".join(commands), "hex": script.hex()}
+
+
+def script_from_dict(value: Mapping[str, str] | Octets) -> bytes:
+    """Read back what `script_to_dict` wrote: the `hex`, and only it.
+
+    `asm` is derived from `hex`, so there is nothing in it to read. It is
+    still not ignored: a dict carrying an `asm` that the `hex` does not
+    produce is refused, naming both. Ignoring it would let a hand-edited
+    `asm` sit in a stored dict describing a script that is not the one
+    the bytes hold, and every consumer that reads the human-readable
+    field -- a diff, a review, an explorer -- would then be reading a
+    lie, silently. Believing the `asm` instead is not on offer: it is
+    lossy (a non-minimal push comes back minimal, `[error]` comes back
+    not at all), so it cannot name every script `hex` can.
+
+    A bare hex string is accepted as well, which is the shape `to_dict`
+    emitted before it emitted this one. Every constructor downstream
+    already takes `Octets`, so accepting it costs one branch and keeps a
+    dict stored by an older btclib readable -- the emission is what
+    changed, and a reader that refused the old spelling would break
+    round trips that never had an `asm` to disagree with.
+    """
+    if not isinstance(value, Mapping):
+        return bytes_from_octets(value)
+
+    script = bytes_from_octets(value["hex"])
+    asm = value.get("asm")
+    # compared against what to_dict would emit, not against a second
+    # renderer: one function decides the spelling, so the check cannot
+    # drift away from what it checks
+    if asm is not None and asm != (expected := script_to_dict(script)["asm"]):
+        err_msg = f"asm does not match hex: {asm!r} instead of {expected!r}"
+        raise BTClibValueError(err_msg)
+    return script
 
 
 def read_op_code(script: bytes, start: int) -> tuple[int, int] | None:

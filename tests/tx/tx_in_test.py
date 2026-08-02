@@ -138,6 +138,24 @@ def test_dataclasses_json_dict(json_golden: JsonGolden) -> None:
     assert tx_in == tx_in2
 
 
+def test_script_sig_is_rendered_as_asm_and_hex() -> None:
+    """Core's shape on the way out, and both shapes on the way in."""
+    script_sig = "76a914751e76e8199196d454941c45d1b3a323f1433bd688ac"
+    tx_in = TxIn(OutPoint(b"\x01" * 32, 0), script_sig, 0)
+
+    dict_ = tx_in.to_dict()
+    assert dict_["scriptSig"]["hex"] == script_sig
+    assert dict_["scriptSig"]["asm"].startswith("OP_DUP OP_HASH160 ")
+    assert TxIn.from_dict(dict_) == tx_in
+
+    # the shape to_dict wrote before it wrote that one
+    old = {**dict_, "scriptSig": script_sig}
+    assert TxIn.from_dict(old) == tx_in
+
+    with pytest.raises(BTClibValueError, match="asm does not match hex: "):
+        TxIn.from_dict({**dict_, "scriptSig": {"asm": "OP_1", "hex": script_sig}})
+
+
 def test_script_sig_is_not_validated_and_that_is_the_answer() -> None:
     """An input's validity is not its script's (issue 183).
 

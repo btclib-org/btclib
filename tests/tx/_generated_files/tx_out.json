@@ -1,8 +1,10 @@
 {
     "value": "32.5934337",
-    "scriptPubKey": "0020ed8e9600561000f722bd26e850be7d80f24d174fabeff98baef967325e2b5a86",
+    "scriptPubKey": {
+        "asm": "OP_0 ED8E9600561000F722BD26E850BE7D80F24D174FABEFF98BAEF967325E2B5A86",
+        "hex": "0020ed8e9600561000f722bd26e850be7d80f24d174fabeff98baef967325e2b5a86"
+    },
     "type": "p2wsh",
-    "reqSigs": null,
     "addresses": [
         "bc1qak8fvqzkzqq0wg4aym59p0nasrey696040hlnzawl9nnyh3tt2rqzgmhmv"
     ],
