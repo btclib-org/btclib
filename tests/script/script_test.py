@@ -17,7 +17,14 @@ import pytest
 
 from btclib.alias import ScriptList
 from btclib.exceptions import BTClibValueError
-from btclib.script import Script, op_int, parse, serialize
+from btclib.script import (
+    Script,
+    op_int,
+    parse,
+    script_from_dict,
+    script_to_dict,
+    serialize,
+)
 from btclib.script.script import (
     BYTE_FROM_OP_CODE_NAME,
     ERROR_COMMAND,
@@ -347,3 +354,61 @@ def test_read_op_code() -> None:
     # a push over 520 bytes is not this walk's to refuse, as it is not
     # Core's GetOp's: the limit is on what reaches the stack
     assert read_op_code(b"\x4d\x09\x02" + b"\x00" * 521, 0) == (0x4D, 524)
+
+
+P2PKH = "76a914751e76e8199196d454941c45d1b3a323f1433bd688ac"
+P2PKH_ASM = (
+    "OP_DUP OP_HASH160 751E76E8199196D454941C45D1B3A323F1433BD6 "
+    "OP_EQUALVERIFY OP_CHECKSIG"
+)
+
+
+def test_script_to_dict() -> None:
+    """The two renderings Bitcoin Core's RPC gives of one script."""
+    assert script_to_dict(bytes.fromhex(P2PKH)) == {"asm": P2PKH_ASM, "hex": P2PKH}
+
+    # the empty script is empty in both, where Core omits the key: every
+    # btclib to_dict emits every field
+    assert script_to_dict(b"") == {"asm": "", "hex": ""}
+
+    # asm is Script.asm with a space between its commands, and nothing
+    # else, so the sentinel of a script that stops being one reaches it
+    assert script_to_dict(b"\x51\x02\xff") == {
+        "asm": f"OP_1 {ERROR_COMMAND}",
+        "hex": "5102ff",
+    }
+
+
+def test_script_from_dict() -> None:
+    """hex is the script; asm is checked against it, never believed."""
+    script = bytes.fromhex(P2PKH)
+
+    # the round trip, and the same answer with no asm to check
+    assert script_from_dict({"asm": P2PKH_ASM, "hex": P2PKH}) == script
+    assert script_from_dict({"hex": P2PKH}) == script
+
+    # the shape to_dict emitted before this one, still read: a stored
+    # dict from an older btclib carries the hex alone
+    assert script_from_dict(P2PKH) == script
+    assert script_from_dict(script) == script
+    assert script_from_dict("") == b""
+
+
+def test_script_from_dict_refuses_a_disagreeing_asm() -> None:
+    """A hand-edited asm is refused rather than ignored.
+
+    Ignoring it would leave a stored dict whose human-readable field
+    describes a script the bytes do not hold -- and every consumer of
+    that field, a diff or a review among them, reading it as if it did.
+    """
+    with pytest.raises(BTClibValueError, match="asm does not match hex: "):
+        script_from_dict({"asm": "OP_DUP OP_HASH160", "hex": P2PKH})
+
+    # the empty asm of a non-empty script is a disagreement too, and not
+    # an absent field: what is absent is what `to_dict` never wrote
+    with pytest.raises(BTClibValueError, match="asm does not match hex: "):
+        script_from_dict({"asm": "", "hex": P2PKH})
+
+    # and the message names both, the one given and the one hex decodes to
+    with pytest.raises(BTClibValueError, match=P2PKH_ASM):
+        script_from_dict({"asm": "OP_RETURN", "hex": P2PKH})

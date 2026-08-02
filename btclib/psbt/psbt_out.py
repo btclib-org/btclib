@@ -52,6 +52,7 @@ from btclib.psbt.psbt_utils import (
     taproot_bip32_from_dict,
     taproot_bip32_to_dict,
 )
+from btclib.script import script_from_dict, script_to_dict
 from btclib.utils import bytes_from_octets
 
 PSBT_OUT_REDEEM_SCRIPT = b"\x00"
@@ -113,10 +114,8 @@ class PsbtOut:
             self.assert_valid()
 
         return {
-            # issue 172: Core renders a script as {"asm": ..., "hex": ...}
-            "redeem_script": self.redeem_script.hex(),
-            # issue 172: Core renders a script as {"asm": ..., "hex": ...}
-            "witness_script": self.witness_script.hex(),
+            "redeem_script": script_to_dict(self.redeem_script),
+            "witness_script": script_to_dict(self.witness_script),
             "bip32_derivs": encode_to_bip32_derivs(self.hd_key_paths),
             "taproot_internal_key": self.taproot_internal_key.hex(),
             "taproot_tree": encode_taproot_tree(self.taproot_tree),
@@ -137,8 +136,8 @@ class PsbtOut:
             taproot_bip32_from_dict(dict_["taproot_hd_key_paths"]),
         )
         return cls(
-            dict_["redeem_script"],
-            dict_["witness_script"],
+            script_from_dict(dict_["redeem_script"]),
+            script_from_dict(dict_["witness_script"]),
             hd_key_paths,
             dict_["taproot_internal_key"],
             dict_["taproot_tree"],

@@ -1472,6 +1472,40 @@ edit.
   `Block.assert_valid` have the last word. The retarget is tested against
   the four mainnet vectors of Core's `pow_tests.cpp` and the round trip
   against the bits of every vendored block (issue #188)
+- **`to_dict` renders a script as `{"asm": ..., "hex": ...}`**, where Bitcoin
+  Core's RPC renders one: `TxIn`'s `scriptSig`, `TxOut`'s `scriptPubKey`,
+  `PsbtIn`'s `redeem_script`, `witness_script` and `final_script_sig`, and
+  `PsbtOut`'s `redeem_script` and `witness_script` — seven fields that each
+  used to be the bare hex string. `script.script_to_dict` writes the pair and
+  `script.script_from_dict` reads it, so the spelling is decided once:
+  `asm` is `parse` joined by spaces, which is `Script.asm` with a space
+  between its commands, and it is deliberately not Core's asm byte for byte —
+  btclib prints a push as upper-case hex where Core prints one under five
+  bytes as a decimal number, and neither spelling is invertible anyway, a
+  non-minimal push coming back minimal from both. The round trip is settled
+  the only way it can be: `hex` is the script and `asm` is derived from it, so
+  `from_dict` reads the `hex` and reconstructs from that alone. It does not
+  ignore the `asm`, though — one that the `hex` does not produce is refused,
+  `asm does not match hex: 'OP_1' instead of 'OP_DUP OP_HASH160 ...'`, naming
+  the one given and the one that would have been used. Ignoring it would let a
+  hand-edited `asm` sit in a stored dict describing a script the bytes do not
+  hold, and every consumer of the human-readable field — a diff, a review, an
+  explorer — would read it as if they did; believing it instead is not on
+  offer, asm being lossy. A bare hex string is still accepted on input, which
+  is what `to_dict` wrote before, so a dict stored by an older btclib still
+  loads: the emission is what changed, and the constructors downstream all
+  take `Octets` already. `TxOut.to_dict` also loses `reqSigs`, which was a
+  literal `None` in every case: Bitcoin Core removed it from every RPC
+  reporting a script in v22 (bitcoin/bitcoin#20286) because it only ever
+  answered for a bare multisig — the m of an m-of-n — so a consumer reading it
+  as "signatures needed to spend this" read a number that could not know, and
+  a p2sh or p2wsh output carries no script to count. `from_dict` never looked
+  at the key, so a dict that still has it loads unchanged. Not restyled:
+  `taproot_leaf_scripts`, which Core's `decodepsbt` reports as `script` and
+  `leaf_ver` rather than as an asm/hex pair, and the `type`, `addresses` and
+  `network` that `TxOut.to_dict` keeps beside `scriptPubKey` where Core nests
+  them inside it — that flattening is a question of its own, and Core answers
+  it with a singular `address` it introduced in the same v22 (issue #172)
 - **A psbt can carry a taproot signature with its sig_hash type.** BIP341
   spends with 64 bytes of signature, or 65 when the sig_hash type is not
   the default one — the extra byte being that type — and BIP371 says "64

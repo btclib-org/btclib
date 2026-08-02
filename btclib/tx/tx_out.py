@@ -22,7 +22,7 @@ from typing import Any
 from btclib import var_bytes
 from btclib.alias import BinaryData, Octets, String
 from btclib.amount import btc_from_sats, sats_from_btc, valid_sats_amount
-from btclib.script import ScriptPubKey
+from btclib.script import ScriptPubKey, script_from_dict, script_to_dict
 from btclib.utils import bytes_from_octets, bytesio_from_binarydata
 
 
@@ -73,14 +73,20 @@ class TxOut:
         if check_validity:
             self.assert_valid()
 
-        script = self.script_pub_key.script
+        # `reqSigs` is not here, and is not to be filled in: Bitcoin Core
+        # removed it from every RPC that reported a script in v22
+        # (bitcoin/bitcoin#20286), because it only ever answered for a bare
+        # multisig -- the m of an m-of-n -- and was 1 or null for every
+        # other script, so a consumer reading it as "signatures needed to
+        # spend this" read a number that could not know. btclib's was the
+        # null of that second case in *all* cases, a key whose value was a
+        # constant. Keeping it would be a promise of a fact nobody has:
+        # what spending takes is the redeem or witness script's business,
+        # and a p2sh or p2wsh output does not carry one
         return {
             "value": str(btc_from_sats(self.value)),
-            "scriptPubKey": script.hex(),
+            "scriptPubKey": script_to_dict(self.script_pub_key.script),
             "type": self.script_pub_key.type,
-            # issue 172: Core removed reqSigs from getrawtransaction in v22,
-            # so the answer here may be to drop the key rather than fill it
-            "reqSigs": None,
             "addresses": self.script_pub_key.addresses,
             "network": self.script_pub_key.network,
         }
@@ -90,7 +96,7 @@ class TxOut:
         cls: type[TxOut], dict_: Mapping[str, Any], *, check_validity: bool = True
     ) -> TxOut:
         value = sats_from_btc(dict_["value"])
-        script_bin = dict_["scriptPubKey"]
+        script_bin = script_from_dict(dict_["scriptPubKey"])
         network = dict_.get("network", "mainnet")
         return cls(
             value, ScriptPubKey(script_bin, network), check_validity=check_validity

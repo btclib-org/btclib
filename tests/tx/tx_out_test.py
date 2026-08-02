@@ -106,3 +106,42 @@ def test_dataclasses_json_dict(json_golden: JsonGolden) -> None:
 
     # against the json committed beside this module, not written to it
     json_golden("tx_out.json", tx_out_dict)
+
+
+def test_script_pub_key_is_rendered_as_asm_and_hex() -> None:
+    """Core's shape on the way out, and both shapes on the way in.
+
+    `scriptPubKey` gets the rendering `scriptSig` gets, because the two
+    are the two scripts of one transaction and `Tx.to_dict` would
+    otherwise print them in two different shapes.
+    """
+    script = "0014751e76e8199196d454941c45d1b3a323f1433bd6"
+    tx_out = TxOut(1, script)
+
+    dict_ = tx_out.to_dict()
+    assert dict_["scriptPubKey"] == {
+        "asm": "OP_0 751E76E8199196D454941C45D1B3A323F1433BD6",
+        "hex": script,
+    }
+    assert TxOut.from_dict(dict_) == tx_out
+
+    # the shape to_dict wrote before it wrote that one
+    assert TxOut.from_dict({**dict_, "scriptPubKey": script}) == tx_out
+
+    with pytest.raises(BTClibValueError, match="asm does not match hex: "):
+        TxOut.from_dict({**dict_, "scriptPubKey": {"asm": "OP_1", "hex": script}})
+
+
+def test_req_sigs_is_gone() -> None:
+    """As it is gone from Bitcoin Core, since v22 (bitcoin/bitcoin#20286).
+
+    It answered for a bare multisig and for nothing else, so btclib's was
+    a literal `None` in every case: a key whose value was a constant, read
+    as "signatures needed to spend this" by anyone who trusted the name.
+    """
+    tx_out = TxOut(1, "0014751e76e8199196d454941c45d1b3a323f1433bd6")
+    assert "reqSigs" not in tx_out.to_dict()
+
+    # a dict that still carries it is read all the same: from_dict never
+    # looked at the key, so dropping it breaks no stored dict
+    assert TxOut.from_dict({**tx_out.to_dict(), "reqSigs": None}) == tx_out

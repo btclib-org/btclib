@@ -176,8 +176,12 @@ One of those hooks needs maintenance, and only one. The test vectors under
 `tests/ecc/_data/` and `tests/script/_data/` are private keys by the
 hundred, so they are recorded in `.secrets.baseline` as already reviewed —
 rather than excluded from the scan, which would leave those files unwatched
-for a credential that has no business being there. Adding a vector to one
-of them means regenerating the baseline:
+for a credential that has no business being there.
+`tests/block/_generated_files/block_481824.json` is in the baseline for a
+narrower reason: `ACCA` is one of the AWS key prefixes and is also four hex
+digits, so the block's own signatures match the detector wherever a script
+is rendered as upper-case hex. Adding a vector to one of those files, or
+changing what a golden file holds, means regenerating the baseline:
 
 ```shell
 uvx --from detect-secrets detect-secrets scan --baseline .secrets.baseline

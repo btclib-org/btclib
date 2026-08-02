@@ -13,7 +13,10 @@ from __future__ import annotations
 
 from io import BytesIO
 
+import pytest
+
 from btclib.alias import Octets
+from btclib.exceptions import BTClibValueError
 from btclib.psbt import (
     Psbt,
     PsbtOut,
@@ -93,8 +96,10 @@ def test_dataclasses_json_dict(json_golden: JsonGolden) -> None:
     # PsbtOut dataclass to dict
     psbt_out_dict = psbt_out.to_dict()
     assert isinstance(psbt_out_dict, dict)
-    assert psbt_out_dict["redeem_script"] == ""
-    assert psbt_out_dict["witness_script"] == ""
+    # an absent script is the empty one in both renderings, where Bitcoin
+    # Core omits the key: every btclib to_dict emits every field
+    assert psbt_out_dict["redeem_script"] == {"asm": "", "hex": ""}
+    assert psbt_out_dict["witness_script"] == {"asm": "", "hex": ""}
     assert psbt_out_dict["bip32_derivs"]
     assert psbt_out_dict["unknown"] == {}
 
@@ -106,3 +111,29 @@ def test_dataclasses_json_dict(json_golden: JsonGolden) -> None:
     assert isinstance(psbt_out2, PsbtOut)
 
     assert psbt_out == psbt_out2
+
+
+def test_scripts_are_rendered_as_asm_and_hex() -> None:
+    """The two scripts Bitcoin Core's decodepsbt renders as objects."""
+    redeem_script = "a914748284390f9e263a4b766a75d0633c50426eb87587"
+    witness_script = "0020" + "00" * 32
+    psbt_out = PsbtOut(redeem_script=redeem_script, witness_script=witness_script)
+
+    dict_ = psbt_out.to_dict()
+    assert dict_["redeem_script"]["hex"] == redeem_script
+    assert dict_["redeem_script"]["asm"].startswith("OP_HASH160 ")
+    assert dict_["witness_script"]["hex"] == witness_script
+    assert PsbtOut.from_dict(dict_) == psbt_out
+
+    # the shape to_dict wrote before it wrote that one
+    old = {
+        **dict_,
+        "redeem_script": redeem_script,
+        "witness_script": witness_script,
+    }
+    assert PsbtOut.from_dict(old) == psbt_out
+
+    with pytest.raises(BTClibValueError, match="asm does not match hex: "):
+        PsbtOut.from_dict(
+            {**dict_, "redeem_script": {"asm": "OP_1", "hex": redeem_script}}
+        )

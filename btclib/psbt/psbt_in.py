@@ -61,7 +61,7 @@ from btclib.psbt.psbt_utils import (
     serialize_taproot_bip32,
     taproot_bip32_to_dict,
 )
-from btclib.script import Witness
+from btclib.script import Witness, script_from_dict, script_to_dict
 from btclib.script.sig_hash import assert_valid_hash_type
 from btclib.tx import Tx, TxOut
 from btclib.utils import bytes_from_octets
@@ -479,13 +479,10 @@ class PsbtIn:
             else None,
             "partial_signatures": encode_dict_bytes_bytes(self.partial_sigs),
             "sig_hash": self.sig_hash_type,
-            # issue 172: Core renders a script as {"asm": ..., "hex": ...}
-            "redeem_script": self.redeem_script.hex(),
-            # issue 172: Core renders a script as {"asm": ..., "hex": ...}
-            "witness_script": self.witness_script.hex(),
+            "redeem_script": script_to_dict(self.redeem_script),
+            "witness_script": script_to_dict(self.witness_script),
             "bip32_derivs": encode_to_bip32_derivs(self.hd_key_paths),
-            # issue 172: Core renders a script as {"asm": ..., "hex": ...}
-            "final_script_sig": self.final_script_sig.hex(),
+            "final_script_sig": script_to_dict(self.final_script_sig),
             "final_script_witness": self.final_script_witness.to_dict(
                 check_validity=False
             ),
@@ -525,10 +522,10 @@ class PsbtIn:
             else None,
             dict_["partial_signatures"],
             dict_["sig_hash"],
-            dict_["redeem_script"],
-            dict_["witness_script"],
+            script_from_dict(dict_["redeem_script"]),
+            script_from_dict(dict_["witness_script"]),
             hd_key_paths,
-            dict_["final_script_sig"],
+            script_from_dict(dict_["final_script_sig"]),
             Witness.from_dict(dict_["final_script_witness"], check_validity=False),
             dict_["ripemd160_preimages"],
             dict_["sha256_preimages"],
