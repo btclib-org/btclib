@@ -646,6 +646,69 @@ def convert_number_to_base(i: int, base: int) -> list[int]:
     return digits[::-1]
 
 
+def mods(m: int, w: int) -> int:
+    """Signed modulo function."""
+    w2: int = pow(2, w)
+    M = m % w2
+    return M - w2 if M >= (w2 // 2) else M
+
+
+def wNAF_of_m(m: int, w: int) -> list[int]:
+    """WNAF (width-w Non-adjacent form) of number m.
+
+    Given an integer m, wNAF is a method of representation
+    with powers of 2, where the coefficients are odd or 0,
+    and where at most one of any w consecutive digits is nonzero.
+    It has the following properties:
+    - m has a unique width-w NAF.
+    -The length of wNAF(m) is at most one more than the length of the binary
+    representation of k.
+    -The average density of nonzero digits is approximately 1/(w + 1).
+
+    This recoding sits here next to convert_number_to_base, the same kind
+    of integer-only helper, rather than with the wNAF multiplications of
+    curve_group_2: the interleaved _multi_mult_w_NAF below needs it, and
+    curve_group cannot import the module that imports it.
+
+    For complete reference see:
+    D. Hankerson, 'Guide to Elliptic Curve Cryptography' chapter 3
+    """
+    i = 0
+
+    M: list[int] = []
+    while m > 0:
+        if (m % 2) == 1:
+            if w == 1:
+                # Computing binary NAF of m
+                M.append(2 - (m % 4))
+            else:
+                # Computing wNAF of m
+                M.append(mods(m, w))
+            m -= M[i]
+        else:
+            M.append(0)
+        m //= 2
+        i += 1
+
+    return M
+
+
+def odd_multiples(Q: JacPoint, ec: CurveGroup, w: int) -> list[JacPoint]:
+    """Return the odd multiples 1*Q, 3*Q, ..., (2^(w-1) - 1)*Q.
+
+    The table a width-w NAF indexes: its digits are odd and smaller than
+    2^(w-1) in absolute value, so a digit d picks entry (abs(d) - 1) // 2,
+    to be negated on the fly when d is negative. For w of 1 or 2 the
+    digits are only +-1 and the table is the point itself.
+    """
+    T = [Q]
+    if w > 2:
+        Q2 = ec.double_jac(Q)
+        for _ in range(2 ** (w - 2) - 1):
+            T.append(ec.add_jac(T[-1], Q2))
+    return T
+
+
 def mult_mont_ladder(m: int, Q: JacPoint, ec: CurveGroup) -> JacPoint:
     """Scalar multiplication using 'Montgomery ladder' algorithm.
 
@@ -835,7 +898,98 @@ def _double_mult(
     return R
 
 
-def _multi_mult(
+def _multi_mult_pairs(
+    scalars: Sequence[int], jac_points: Sequence[JacPoint]
+) -> list[tuple[int, JacPoint]]:
+    """Check the arguments of a multi multiplication and drop the zeros.
+
+    Shared by the two implementations below so that they answer the same
+    errors to the same arguments: whichever of them _multi_mult calls is
+    a performance decision, and a caller must not be able to tell which
+    it got. A zero scalar contributes nothing to the sum and is dropped
+    rather than carried, which Bos-Coster needs -- it would be a zero
+    divisor in its Euclidean step -- and interleaved wNAF is glad of,
+    a scalar of zero costing a table it would never index.
+    """
+    if len(scalars) != len(jac_points):
+        err_msg = "mismatch between number of scalars and points: "
+        err_msg += f"{len(scalars)} vs {len(jac_points)}"
+        raise BTClibValueError(err_msg)
+
+    if len(scalars) < 2:
+        raise BTClibValueError("not a multi_mult")
+
+    pairs: list[tuple[int, JacPoint]] = []
+    for n, PJ in zip(scalars, jac_points, strict=True):
+        if n < 0:
+            raise BTClibValueError(f"negative coefficient: {hex(n)}")
+        if n:
+            pairs.append((n, PJ))
+    return pairs
+
+
+def _multi_mult_w_NAF(
+    scalars: Sequence[int], jac_points: Sequence[JacPoint], ec: CurveGroup, w: int = 5
+) -> JacPoint:
+    """Return the multi scalar multiplication u1*Q1 + ... + un*Qn.
+
+    Strauss' algorithm with interleaved wNAFs, the many-point form of
+    curve_group_2's double_mult_w_NAF (HMV algorithm 3.51): each scalar
+    gets its own width-w NAF and its own table of odd multiples, and a
+    single left-to-right loop shares one doubling per bit position among
+    all of them, adding a (possibly negated) table entry wherever a NAF
+    has a nonzero digit.
+
+    Sharing the doublings is the whole of the idea, and what the dispatch
+    of _multi_mult weighs: the ~256 doublings a 256-bit scalar needs are
+    paid once for the batch instead of once per point, leaving some 50
+    point operations per scalar of its own. Bos-Coster has no fixed cost
+    to share and settles at 44.5 per scalar, so few scalars is where the
+    sharing pays and many is where the per-scalar figure is all there is.
+
+    Cost here is a function of the bit length of the scalars and of
+    nothing else, so no pair of magnitudes is pathological the way
+    10**6 next to 1 is for a subtractive Bos-Coster step (issue 175).
+
+    w=5 by measurement, on random 256-bit scalars: the table costs
+    2^(w-2) - 1 additions and a doubling per point while the NAF has one
+    nonzero digit in w+1, so the total falls to w=5 and rises again at
+    w=6 (per scalar at 128 scalars: 57.7 operations at w=4, 53.3 at w=5,
+    55.1 at w=6). In milliseconds over 10 scalars: 7.81 at w=4, 7.27 at
+    w=5, 7.38 at w=6, 8.68 at w=7.
+
+    No GLV splitting of the scalars, which would halve the doublings on
+    secp256k1: the split is curve-specific, this function serves every
+    curve, and the doublings it would halve are already shared.
+
+    The input points are assumed to be on curve, the scalar coefficients
+    are assumed to have been reduced mod n if appropriate (e.g. cyclic
+    groups of order n).
+    """
+    # a number cannot be written in basis 1 (ie w=0)
+    if w <= 0:
+        raise BTClibValueError(f"non positive w: {w}")
+
+    pairs = _multi_mult_pairs(scalars, jac_points)
+    if not pairs:
+        return INFJ
+
+    nafs = [wNAF_of_m(n, w) for n, _ in pairs]
+    tables = [odd_multiples(PJ, ec, w) for _, PJ in pairs]
+
+    R = INFJ
+    for j in range(max(len(naf) for naf in nafs) - 1, -1, -1):
+        R = ec.double_jac(R)
+        for naf, T in zip(nafs, tables, strict=True):
+            # a scalar shorter than the longest one has run out of digits
+            if j < len(naf) and naf[j] != 0:
+                d = naf[j]
+                QJ = T[(d - 1) // 2] if d > 0 else ec.negate_jac(T[(-d - 1) // 2])
+                R = ec.add_jac(R, QJ)
+    return R
+
+
+def _multi_mult_bos_coster(
     scalars: Sequence[int], jac_points: Sequence[JacPoint], ec: CurveGroup
 ) -> JacPoint:
     """Return the multi scalar multiplication u1*Q1 + ... + un*Qn.
@@ -857,32 +1011,29 @@ def _multi_mult(
     subtraction: n1/n2 steps to do what one divmod does (issue 175) --
     multi_mult([10**6, 1], [G, H]) would take 10.6 s, and both
     multi_mult([n-1, 1], [G, H]) and multi_mult([-1, 1], [G, H]) would
-    never finish, on scalars a caller has every right to pass.
+    never finish, on scalars a caller has every right to pass. The whole
+    of Euclid is what makes this a live path rather than a reading
+    exercise: _multi_mult calls it above its threshold.
+
+    Where the interleaved wNAF above shares one doubling per bit among
+    all the points, this one has no fixed cost to amortize at all -- the
+    heap converges towards scalars of the same size, and the quotient is
+    1 about 40% of the time (Gauss-Kuzmin), so a step is usually one
+    addition. That is why it wins on many scalars and loses on few: 44.5
+    point operations per scalar over 128 random 256-bit scalars, against
+    267.5 over two.
 
     The input points are assumed to be on curve, the scalar coefficients
     are assumed to have been reduced mod n if appropriate (e.g. cyclic
     groups of order n).
     """
     # source: https://cr.yp.to/badbatch/boscoster2.py
-    if len(scalars) != len(jac_points):
-        err_msg = "mismatch between number of scalars and points: "
-        err_msg += f"{len(scalars)} vs {len(jac_points)}"
-        raise BTClibValueError(err_msg)
-
-    if len(scalars) < 2:
-        raise BTClibValueError("not a multi_mult")
-
-    x: list[tuple[int, JacPoint]] = []
-    for n, PJ in zip(scalars, jac_points, strict=True):
-        if n == 0:  # mandatory check: a zero would be a zero divisor below
-            continue
-        if n < 0:
-            raise BTClibValueError(f"negative coefficient: {hex(n)}")
-        x.append((-n, PJ))
-
-    if not x:
+    pairs = _multi_mult_pairs(scalars, jac_points)
+    if not pairs:
         return INFJ
 
+    # a max-heap, which python spells as a min-heap of negated scalars
+    x: list[tuple[int, JacPoint]] = [(-n, PJ) for n, PJ in pairs]
     heapq.heapify(x)
     while len(x) > 1:
         np1 = heapq.heappop(x)
@@ -906,3 +1057,53 @@ def _multi_mult(
     # n_1 is left as it is rather than reduced mod n: _mult reduces, and
     # the scalars reaching here are already below the order
     return _mult(n_1, p_1, ec)
+
+
+# the number of nonzero scalars from which Bos-Coster is the cheaper of
+# the two, measured here rather than borrowed: libsecp256k1 dispatches
+# at 88, but it dispatches between other algorithms, on machine words,
+# in C, and a number that has not been measured on python integers is
+# decoration.
+# Best of five interleaved reps, random 256-bit scalars on secp256k1,
+# python 3.14, macOS arm64, wNAF over Bos-Coster: 0.91 at 40 scalars,
+# 0.94 at 48, 1.000 at 56, 1.001 at 64, 1.04 at 72, 1.09 at 96. The two
+# meet at 56, so 56 it is; anywhere in 56..64 measures the same, and the
+# cost of being wrong by a dozen scalars either way is under 1%.
+BOS_COSTER_THRESHOLD = 56
+
+
+def _multi_mult(
+    scalars: Sequence[int], jac_points: Sequence[JacPoint], ec: CurveGroup
+) -> JacPoint:
+    """Return the multi scalar multiplication u1*Q1 + ... + un*Qn.
+
+    Interleaved wNAF up to BOS_COSTER_THRESHOLD nonzero scalars and
+    Bos-Coster from there on, the two crossing where the shared doublings
+    stop paying for themselves (issue 212). Both are kept, and not only to
+    be dispatched between: the library is didactic as much as it is a
+    library, and Bos-Coster is the one that can be read in twenty lines.
+
+    Pippenger, the third algorithm libsecp256k1 has, is *not* here, and
+    the measurement is the reason. Prototyped with sparse buckets and the
+    running-sum trick, best window per size, it lost at every size tried:
+    against Bos-Coster in ms, 162 vs 125 at 256 scalars, 284 vs 225 at
+    512, 500 vs 406 at 1024. Its bucket sums are additions of points that
+    cost the same as any other addition in python, where in C they are
+    the cheap part, so the crossover it has there is beyond any batch
+    btclib is asked to verify -- and a threshold nobody reaches is a
+    branch nobody takes.
+
+    The zeros are counted out before the dispatch rather than left to
+    len(), because a zero scalar is dropped downstream and the batch that
+    reaches either implementation is the nonzero one: 56 scalars of which
+    2 are nonzero is a batch of two, and sending it to Bos-Coster on its
+    length costs 1.81 ms against the wNAF's 1.02. The pass that counts
+    them is 0.8 us at that size, under a thousandth of either.
+
+    The input points are assumed to be on curve, the scalar coefficients
+    are assumed to have been reduced mod n if appropriate (e.g. cyclic
+    groups of order n).
+    """
+    if sum(1 for n in scalars if n) < BOS_COSTER_THRESHOLD:
+        return _multi_mult_w_NAF(scalars, jac_points, ec)
+    return _multi_mult_bos_coster(scalars, jac_points, ec)

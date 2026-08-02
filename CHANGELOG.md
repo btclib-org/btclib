@@ -1982,6 +1982,36 @@ edit.
   crossover; what pays is the toy curves of the test suite, n = 11 and
   n = 31, some 2 us a call, and a size guard would have bought a fraction of
   a second back at the price of a branch inside signature verification
+- **the multi multiplication behind batch verification picks its
+  algorithm by size**, and the small sizes are the ones that got faster.
+  `curve_group._multi_mult` was Bos-Coster whatever the batch; it is now
+  Strauss' interleaved wNAF — `_multi_mult_w_NAF`, the many-point form of
+  the double multiplication above — below fifty-six nonzero scalars, and
+  Bos-Coster from there on. Sharing one doubling per bit among all the
+  points is what wins on few scalars: on secp256k1, best of interleaved
+  reps over random 256-bit scalars, 1.99 ms against 3.91 at two scalars,
+  2.59 against 4.56 at three, 3.92 against 6.34 at five, 6.96 against
+  10.02 at ten. `ssa.assert_batch_as_valid_` spends two scalars per
+  signature and inherits the curve: 5.93 ms against 7.79 for two
+  signatures, 7.32 against 9.65 for three, 10.01 against 12.77 for five,
+  16.87 against 20.38 for ten, and the same 47.6 either way at
+  thirty-two, which is where the dispatch has already changed hands.
+  What does not win is the tail: the shared doublings amortize to nothing
+  and the per-scalar cost is all that is left, 50 point operations against
+  the 44.5 Bos-Coster settles at, so 56 is where the two measure the same
+  and the dispatch changes hands. Nonzero scalars, because a zero is
+  dropped before either algorithm sees it: 56 scalars of which 2 are
+  nonzero is a batch of two, and dispatching it on its length would cost
+  1.81 ms where the wNAF takes 1.02, against the 0.8 us of counting the
+  zeros out. Both implementations stay, tested against each other and
+  against the plain sum of scalar multiplications on every curve of the
+  catalogue; the threshold is a measurement, not libsecp256k1's 88, whose
+  algorithms and machine are not these. Pippenger is *not* in the tree
+  for the same reason: prototyped with sparse buckets and the running-sum
+  trick, best window per size, it lost at every size measured — 162 ms
+  against Bos-Coster's 125 at 256 scalars, 284 against 225 at 512, 500
+  against 406 at 1024 — because in python its bucket sums are additions
+  like any other, where in C they are the cheap part (issue #212)
 - signing or verifying a transaction is linear in the number of its
   inputs, where it was Θ(N²). `segwit_v0` and `taproot` rebuilt, for
   every input, the hashes that depend on the whole transaction — its

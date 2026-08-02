@@ -9,19 +9,24 @@
 # or distributed except according to the terms contained in the LICENSE file.
 """Tests for the `btclib.curve_group` module."""
 
+import random
+
 import pytest
 
-from btclib.alias import INF, INFJ
-from btclib.curves import Curve, secp256k1
+from btclib.alias import INF, INFJ, JacPoint
+from btclib.curves import Curve, CurveGroup, secp256k1
 
 # the eight mult_* variants under test, and the helpers they are built on,
 # come from the module that defines them: btclib.curves exports mult,
 # double_mult and multi_mult, not a menu of implementations
 from btclib.curves.curve_group import (
+    BOS_COSTER_THRESHOLD,
     MAX_W,
     _double_mult,
     _mult,
     _multi_mult,
+    _multi_mult_bos_coster,
+    _multi_mult_w_NAF,
     cached_multiples,
     jac_from_aff,
     mult_aff,
@@ -435,6 +440,156 @@ def test_mult_on_a_characteristic_7_curve() -> None:
         for j in range(ec.n):
             shamir = _double_mult(k, ec.GJ, j, ec.GJ, ec)
             assert ec.aff_from_jac(shamir) == mult_aff(k + j, ec.G, ec), (k, j)
+
+
+def _sum_of_mults(
+    scalars: list[int], jac_points: list[JacPoint], ec: CurveGroup
+) -> JacPoint:
+    """Return the sum the multi multiplications have to agree with.
+
+    One scalar multiplication per point and then the additions: the
+    answer no algorithm is clever about, and the one both of them are
+    checked against.
+    """
+    R = INFJ
+    for n, PJ in zip(scalars, jac_points, strict=True):
+        R = ec.add_jac(R, _mult(n, PJ, ec))
+    return R
+
+
+def test_multi_mult_w_NAF() -> None:
+    """Interleaved wNAF against Bos-Coster and the plain sum of mults.
+
+    Exhaustive over the scalar pairs of two low-cardinality curves, for
+    the widths where the table of odd multiples has one entry (w of 1 and
+    2, digits of +-1 only) and where it has more, and with the zero
+    scalar, the point at infinity and a scalar of one digit against one
+    of five -- the case where a wNAF runs out of digits before the loop
+    does.
+    """
+    for ec in (low_card_curves["ec13_11"], ec23_31):
+        HJ = jac_from_aff(second_generator(ec))
+        for w in (1, 2, 3, 5):
+            for k1 in range(ec.n):
+                for k2 in range(ec.n):
+                    scalars = [k1, k2, ec.n // 3]
+                    points = [ec.GJ, HJ, ec.GJ]
+                    expected = _sum_of_mults(scalars, points, ec)
+                    got = _multi_mult_w_NAF(scalars, points, ec, w)
+                    assert ec.jac_equality(got, expected), (k1, k2, w)
+                    assert ec.jac_equality(
+                        got, _multi_mult_bos_coster(scalars, points, ec)
+                    ), (k1, k2, w)
+
+            # a zero scalar, an INF point, and scalars of distant lengths
+            assert ec.jac_equality(_multi_mult_w_NAF([0, 0], [ec.GJ, HJ], ec, w), INFJ)
+            for scalars in ([0, 3], [3, 0], [1, ec.n - 1], [ec.n - 1, 1]):
+                for points in ([ec.GJ, HJ], [INFJ, HJ], [ec.GJ, INFJ]):
+                    expected = _sum_of_mults(scalars, points, ec)
+                    got = _multi_mult_w_NAF(scalars, points, ec, w)
+                    assert ec.jac_equality(got, expected), (scalars, w)
+
+        # a window wider than the order itself, where the table of odd
+        # multiples wraps past n and holds the point at infinity among
+        # its entries -- and where a scalar of this curve is one digit.
+        # Not in the exhaustive loop above: the table is 2^(w-2) entries
+        # and every pair would pay for it, for a case the digits below
+        # 2^(w-1) already cover
+        for w in (ec.n.bit_length() + 1, ec.n.bit_length() + 3):
+            for scalars in ([1, ec.n - 1], [ec.n // 2, 3], [0, ec.n - 1]):
+                points = [ec.GJ, HJ]
+                expected = _sum_of_mults(scalars, points, ec)
+                got = _multi_mult_w_NAF(scalars, points, ec, w)
+                assert ec.jac_equality(got, expected), (scalars, w)
+
+    ec = secp256k1
+    with pytest.raises(BTClibValueError, match="non positive w: "):
+        _multi_mult_w_NAF([1, 1], [ec.GJ, ec.GJ], ec, 0)
+
+
+def test_multi_mult_agrees_across_curves() -> None:
+    """Random scalars on every curve in the catalogue, not just secp256k1.
+
+    The two implementations and the sum of mults, on three points of
+    each: a fixed seed, so a failure is reproducible, and the curves that
+    are not secp256k1 are the ones only the python path ever answers.
+    """
+    rnd = random.Random(0x2AC0FFEE)
+    for ec in all_curves.values():
+        HJ = jac_from_aff(second_generator(ec))
+        points = [ec.GJ, HJ, _mult(3, ec.GJ, ec)]
+        scalars = [rnd.randrange(ec.n) for _ in points]
+        expected = _sum_of_mults(scalars, points, ec)
+        assert ec.jac_equality(_multi_mult_w_NAF(scalars, points, ec), expected)
+        assert ec.jac_equality(_multi_mult_bos_coster(scalars, points, ec), expected)
+
+
+def test_multi_mult_dispatch() -> None:
+    """Both sides of the threshold, and the errors they share.
+
+    The count of the nonzero scalars is what picks the implementation, so
+    the test is a batch one scalar short of BOS_COSTER_THRESHOLD and one
+    exactly on it: the two have to answer the same point, and the same
+    error to the same bad arguments. Scalars from 1 rather than from 0,
+    so that the batch is the size it is named: a zero among them would
+    move the dispatch to the other side of the threshold and the test
+    would still pass, testing the other branch twice.
+    """
+    ec = ec23_31
+    HJ = jac_from_aff(second_generator(ec))
+    rnd = random.Random(0x175212)
+    for size in (BOS_COSTER_THRESHOLD - 1, BOS_COSTER_THRESHOLD):
+        points = [ec.GJ if i % 2 else HJ for i in range(size)]
+        scalars = [rnd.randrange(1, ec.n) for _ in range(size)]
+        expected = _sum_of_mults(scalars, points, ec)
+        assert ec.jac_equality(_multi_mult(scalars, points, ec), expected)
+        assert ec.jac_equality(_multi_mult_w_NAF(scalars, points, ec), expected)
+        assert ec.jac_equality(_multi_mult_bos_coster(scalars, points, ec), expected)
+
+        # all zero, whatever the algorithm: nothing to sum. Asked of
+        # both by name, the dispatch no longer being able to reach
+        # Bos-Coster with it -- a batch of nothing but zeros is a batch
+        # of no nonzero scalars, which is below any threshold
+        assert ec.jac_equality(_multi_mult([0] * size, points, ec), INFJ)
+        assert ec.jac_equality(_multi_mult_w_NAF([0] * size, points, ec), INFJ)
+        assert ec.jac_equality(_multi_mult_bos_coster([0] * size, points, ec), INFJ)
+
+        # a batch of this length whose *work* is two scalars: the zeros
+        # are dropped downstream, so the count that dispatches counts
+        # them out first and this goes to the interleaved wNAF
+        sparse = [scalars[0], *([0] * (size - 2)), scalars[-1]]
+        assert ec.jac_equality(
+            _multi_mult(sparse, points, ec), _sum_of_mults(sparse, points, ec)
+        )
+
+        err_msg = "mismatch between number of scalars and points: "
+        with pytest.raises(BTClibValueError, match=err_msg):
+            _multi_mult(scalars, points[1:], ec)
+        with pytest.raises(BTClibValueError, match="negative coefficient: "):
+            _multi_mult([-1, *scalars[1:]], points, ec)
+
+    with pytest.raises(BTClibValueError, match="not a multi_mult"):
+        _multi_mult([1], [ec.GJ], ec)
+
+
+def test_multi_mult_distant_magnitudes() -> None:
+    """Issue 175, asked of the implementation that can still hang.
+
+    _multi_mult sends two scalars to the interleaved wNAF, which is
+    indifferent to their magnitudes, so the pathological pairs reach
+    Bos-Coster only inside a batch above the threshold -- where they are
+    the whole of the batch's cost. Euclid's quotient is what bounds it:
+    the subtractive step takes 10.6 s on the first pair and does not
+    finish on the third, and this test would say so by not returning.
+    """
+    ec = secp256k1
+    HJ = jac_from_aff(second_generator(ec))
+    for scalars in ([10**6, 1], [1, 10**6], [ec.n - 1, 1], [ec.n - 1, ec.n - 2]):
+        expected = _sum_of_mults(scalars, [ec.GJ, HJ], ec)
+        assert ec.jac_equality(_multi_mult(scalars, [ec.GJ, HJ], ec), expected)
+        assert ec.jac_equality(
+            _multi_mult_bos_coster(scalars, [ec.GJ, HJ], ec), expected
+        )
 
 
 def test_jac_equality() -> None:
