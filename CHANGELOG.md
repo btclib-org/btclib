@@ -2470,6 +2470,11 @@ edit.
   where the walk stopped, and where it stops at the very first byte
   that is the script code entire — reachable because 0xab can be in it
   as data of a push that overruns the end
+  rounding step `fail_under` still carried then, which is what made the
+  gate turn red for the next single uncovered line to appear anywhere in
+  the tree — and turn red without warning, the run before it having
+  already printed `FAIL` and passed. The ratchet is 100 now, so there is
+  no step left to eat
 - **the twelve on-chain scripts of issue #123 are vendored**, in
   `tests/script/_data/unspendable_script_pub_keys.json`: the real
   `scriptPubKey`s of the five transactions the issue lists, each with the
@@ -2533,7 +2538,7 @@ edit.
   cases, and the wall
   clock does not move, xdist spreading them; the cost is the 190 extra
   signatures, about 19 s of CPU across the workers
-- **coverage is 100% and the ratchet is 99.99%**, where it was 99.9% and
+- **coverage is 100% and the ratchet is 100%**, where it was 99.9% and
   the measured total 99.92%. That gap was not a rounding allowance being
   used up: it was 12 uncovered statements, and 15 of slack is what let
   them accumulate unremarked while both `CONTRIBUTING.md` and the
@@ -2558,11 +2563,21 @@ edit.
   branch no input can take: on ec13_19 the r values are
   {1,2,3,4,5,6,9,10,12}, which is the n > p property the test's own
   docstring names, so it is `assert r` now — a checked claim instead of a
-  possibility the curve does not have. 99.99 rather than 100 because
-  coverage special-cases 100 to mean exactly 100.00%, which would make
-  one version-gated line a red build; the comparison is
-  `round(total, precision) < fail_under`, so 99.99 is one rounding step
-  of slack rather than none
+  possibility the curve does not have. 100 rather than a percentage
+  below it, and coverage special-cases the value: the usual
+  `round(total, precision) < fail_under` does not apply, so 99.999% is a
+  red build where 99.99 passed everything above 99.985%. That is a
+  deliberate loss of the one rounding step of slack it used to carry,
+  because the slack cost more than it bought — it hid two uncovered
+  statements for a whole release and handed the red build to the next
+  pull request through, and pytest-cov's `FAIL` line fires on the
+  unrounded total while the exit code follows the rounded one, so inside
+  that step the report and the gate disagreed. At 100 both say "not
+  exactly 100" and the report can be read again. What it costs is a line
+  no run reaches: it is covered by patching what stands in the way, as
+  the ripemd160 fallback and electrum's check are, or it carries a
+  `pragma: no cover` with the reason, as borromean, bms and musig2 do.
+  `CONTRIBUTING.md` and the `fail_under` comment both say it
 - **`tests/ecc/bms_test.py` imports on Python 3.9 again.** It annotates a
   helper `-> Point | None` without `from __future__ import annotations`,
   which 3.9 evaluates at def time and has no `|` for: the module was ten

@@ -316,31 +316,37 @@ precision = 2
 # a local threshold rather than a coveralls.io upload: no secret, no
 # third party service, and enforced on every run instead of only on
 # pull requests targeting master.
-# The comparison is `round(total, precision) < fail_under`, so 99.99 is
-# not "everything covered": it is one rounding step of slack, enough not
-# to turn a single version-gated line into a red build, tight enough
-# that a regression cannot hide in it.
-# Read the exit code and not the report: pytest-cov prints `FAIL
-# Required test coverage of 99.99% not reached` on the *unrounded*
-# total, so a run inside that rounding step prints FAIL and exits 0 --
-# 99.9891% both said FAIL and passed, and 99.98% is where the exit code
-# turns 1. The line is a warning that the slack is spent, not the gate.
-# Not 99.9, ten times as wide,
-# which is room for a whole handful of statements to go uncovered and be
-# reported as a pass. How many statements either allows is a division by
-# a total that moves with every commit, so it is not written down here:
-# `pytest --cov` prints the total and the percentage on every run.
-# The percentage is measured on that job's interpreter, 3.14, and on no
-# other: the statement count moves between versions, so the same tree
-# measures a different percentage elsewhere and a threshold checked on
-# one version is not the one another compares against. 3.14 because it
-# is what .python-version pins, so a bare `uv run pytest --cov` locally
-# measures what CI does; the job names the version too, and the two have
-# to move together.
-# Neither is 100 the setting: coverage special-cases it to mean exactly
-# 100.00%, which makes a single version-gated line a red build rather
-# than a thing to go and cover
-fail_under = 99.99
+# 100 is not the same rule with the bar raised: coverage special-cases
+# it, so `round(total, precision) < fail_under` does not apply and
+# nothing short of an exact 100.00% passes -- 99.999% is a red build,
+# where 99.99 passed everything above 99.985%. The statements it allows
+# to go uncovered are therefore zero, and that is the whole of why. Any
+# threshold below 100 allows some; how many is a division by a total
+# that moves with every commit, so the gate cannot be read off the
+# setting, and 99.9 -- ten times as wide -- is a whole handful.
+# It also makes the report say what the exit code says, which 99.99 did
+# not: pytest-cov prints `FAIL Required test coverage ... not reached`
+# on `total < fail_under`, *unrounded*, while the exit code comes from
+# the rounded comparison, so a run inside the rounding step printed FAIL
+# and exited 0 -- 99.9891% said FAIL and passed, and only 99.98% turned
+# the code 1. Both conditions are now "not exactly 100", so FAIL again
+# means failed.
+# The price is that a line no ordinary run reaches -- a fallback for a
+# library that is installed, a guard the shipped data cannot trip --
+# no longer disappears into a rounding step. It is covered by patching
+# what stands in the way, which is what hashes_test and electrum_test
+# already do and say, or it carries a `pragma: no cover` with the reason
+# beside it, as borromean, bms and musig2 do for a branch arithmetic
+# rules out. Neither of those is a build left red.
+# Measured on one interpreter, 3.14, and that is still enough at 100:
+# btclib has no sys.version_info and no sys.platform branch, so every
+# job walks the same lines and a tree at 100.00% there is at 100.00%
+# anywhere -- which a percentage below 100 could not promise, the
+# statement count moving between versions. 3.14 because it is what
+# .python-version pins, so a bare `uv run pytest --cov` locally measures
+# what CI does; the job names the version too, and the two have to move
+# together
+fail_under = 100.0
 
 [tool.mypy]
 strict = true
@@ -396,7 +402,7 @@ enable_error_code = [
 # is no sys.version_info branch anywhere in btclib or tests, so no source
 # is conditional on the interpreter, and what differs between the two
 # targets is only stdlib stub semantics. An stdlib API removed in 3.14 is a
-# runtime failure the matrix reports, at 99.9% statement coverage
+# runtime failure the matrix reports, at 100% statement coverage
 python_version = "3.10"
 exclude = [
     "build",
