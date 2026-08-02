@@ -138,10 +138,12 @@ html_theme = "sphinx_rtd_theme"
 
 # a shim is one myst include fence, and the path on that line is the file
 # the shim renders
-INCLUDE = re.compile(r"^```\{include\}\s+(\S+)\s*$", re.MULTILINE)
+# match an include fence, capturing the path (which may contain spaces),
+# stopping before any inline options (e.g. " :start-line: 5")
+INCLUDE = re.compile(r"^```\{include\}\s+(.+?)(?=\s+:|$)", re.MULTILINE)
 # repository-relative path -> the docname whose page renders it
 INCLUDED = {
-    str((shim.parent / match.group(1)).resolve().relative_to(ROOT)): shim.stem
+    str((shim.parent / match.group(1).strip()).resolve().relative_to(ROOT)): shim.stem
     for shim in sorted(Path(__file__).parent.glob("*_link.md"))
     for match in INCLUDE.finditer(shim.read_text(encoding="utf-8"))
 }
