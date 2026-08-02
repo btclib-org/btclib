@@ -67,23 +67,12 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        # TEMPORARY, to be reverted on 2026-08-03: the two macOS entries
-        # are commented out, not deleted, because this is a throughput
-        # measure and not a decision about the platform. GitHub grants a
-        # public repository far fewer concurrent macOS runners than Linux
-        # or Windows ones, so those 14 jobs queue rather than run, and
-        # every pull request waits on tests-passed until they drain --
-        # which is the backlog this clears. What it costs while it is in
-        # place: the bindings are built from source, so macOS is a C
-        # toolchain nothing else in the matrix covers, and release.yml
-        # calls this workflow, so a release cut before the revert would
-        # ship untested there. Restore both lines before tagging one
         os:
           [
             ubuntu-latest,
             ubuntu-24.04-arm,
-            # macos-26-intel,
-            # macos-latest,
+            macos-26-intel,
+            macos-latest,
             windows-latest,
             windows-11-arm,
           ]
@@ -229,7 +218,7 @@ jobs:
   # the single check master's branch protection requires from this
   # workflow, and it exists because that rule names its checks as literal
   # strings, stored outside the repository. The matrix above produces one
-  # per (runner label, interpreter) pair, 28 of them today -- a count that
+  # per (runner label, interpreter) pair, 42 of them today -- a count that
   # moves whenever the matrix does: naming those directly means every
   # matrix edit has to be mirrored in a setting no pull request can
   # review, and a name that stops being produced -- macos-latest moving
