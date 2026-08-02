@@ -98,6 +98,11 @@ def _script_code_from(script: bytes, codesep_index: int) -> bytes:
     for op_code, _, stop in op_code_spans(script):
         if op_code == OP_CODESEPARATOR:
             found += 1
+            # `>=` here is an equivalent mutant: found rises by one and is
+            # read at each step, and codesep_index is at least 1 -- 0
+            # returned the whole script above -- so the first
+            # `found >= codesep_index` is the first `found ==`. A mutation
+            # run lists it as a survivor with nothing to add (issue #252)
             if found == codesep_index:
                 return script[stop:]
     err_msg = f"OP_CODESEPARATOR index {codesep_index}, but the script has {found}"
@@ -151,6 +156,11 @@ def taproot_annex_and_ext(tx: Tx, vin_i: int) -> tuple[bytes, bytes]:
         stack = stack[:-1]
 
     ext = b""
+    # `!= 1` here is an equivalent mutant: it differs on an empty stack
+    # alone, and there is none to be had -- the raise above refuses one,
+    # and the annex comes off a stack of two or more, which leaves at
+    # least one element. A mutation run lists it as a survivor with
+    # nothing to add (issue #252)
     if len(stack) > 1:
         # the same hole, one element along: with the annex off, stack[-1]
         # is the control block, whose first byte is the leaf version. There

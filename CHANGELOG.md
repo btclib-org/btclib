@@ -2437,6 +2437,39 @@ edit.
   distinct ASCII words each, so the test patches the decode to reach it,
   as the ripemd160 fallback test patches its flag; a `pragma: no cover`
   would have left the message unpinned. They had eaten the whole of the
+  `fail_under` rounding step, which is what made the gate turn red for
+  the next single uncovered line to appear anywhere in the tree —
+  and turn red without warning, because pytest-cov prints its `FAIL
+  Required test coverage ... not reached` on the *unrounded* total while
+  the exit code follows the rounded one, so the run before was already
+  printing FAIL and passing. pyproject.toml's comment now says so
+- **the three consensus branches no vector reached are reached**, each
+  by an input rather than by a reworded assertion (issue #252).
+  **The taproot annex on the script path**: `sig_hash.from_tx` was
+  never asked for a script path spend carrying one, so the branch that
+  strips it ran only where there was nothing to strip — a key path
+  spend cannot exercise it, its stack holding the signature alone once
+  the annex is off, which makes the leaf hash the same either way. 58
+  vectors of `script_assets_test.json` now go through it, 11 of them
+  with an annex, selected as the spends of a `<pub_key> OP_CHECKSIG`
+  leaf so that Core's own signature is the authority on the answer; and
+  a round trip signs a script path spend from the shape no vector can
+  carry, the signer's witness of script and control block with no
+  signature on it yet, for btclib's script engine — which strips the
+  annex in its own code and never calls `from_tx` — to accept.
+  **SIGHASH_SINGLE past the last output**: BIP-143's own example signs
+  an input whose index *equals* the output count, and so does every one
+  of the seven such spends in `script_assets_test.json`, so a bound
+  reading `!=` where it should read `<` passed everything there was.
+  Both paths now sign at an index two past the last output: the segwit
+  v0 one against a preimage the test builds from BIP-143's field list,
+  itself checked against the preimage and sigHash the BIP publishes,
+  and the taproot one against the refusal BIP341 requires, by the
+  message it gives. **A script code no op code can be read from at
+  all**: the walk that elides `OP_CODESEPARATOR` keeps whatever is left
+  where the walk stopped, and where it stops at the very first byte
+  that is the script code entire — reachable because 0xab can be in it
+  as data of a push that overruns the end
   rounding step `fail_under` still carried then, which is what made the
   gate turn red for the next single uncovered line to appear anywhere in
   the tree — and turn red without warning, the run before it having
