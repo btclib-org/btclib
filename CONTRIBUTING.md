@@ -117,14 +117,15 @@ Moreover,
 the [pytest](https://pytest.org) unit tests
 must pass at any time, with
 [coverage](https://coverage.readthedocs.io/)
-of both the library and the test suite above the `fail_under` ratchet in
-pyproject.toml — 99.99%, against the 100% the tree measures today. One
-rounding step of slack and no more: enough not to trip over a
-version-gated line, tight enough that a regression cannot hide, where
-the 99.9 it replaces was ten times as wide. The ratio is of a statement
-count that moves with every commit and again with the interpreter, so
-neither this file nor pyproject.toml writes one down; `pytest --cov`
-prints it, on the 3.14 the gate is checked on.
+of both the library and the test suite at the `fail_under` ratchet in
+pyproject.toml — 100%, and coverage takes that literally: it
+special-cases the value, so 99.999% is a red build where the 99.99 this
+replaces passed everything above 99.985%, and the 99.9 before it ten
+times as much again. No slack, so a statement no test reaches is either
+covered by patching what stands in the way, as the ripemd160 fallback
+and electrum's round-trip check are, or marked `pragma: no cover` with
+the reason beside it. `pytest --cov` prints the total on every run, on
+the 3.14 the gate is checked on.
 See [Tests, code coverage, and profiling](./tests/README.md).
 
 These requirements are easily checked (and partially fixed) with:
