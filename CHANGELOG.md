@@ -1429,7 +1429,7 @@ edit.
   derivation path were a BIP32-specific notion rather than the one SLIP132
   and the PSBT key origins hand to this very module. No alias is kept, as
   the `btclib.ec` → `btclib.curves` rename kept none: an old spelling left
-  reachable is a second name for one object, kept true release after
+  reachable is a second name for one object, kept through release after
   release for the sake of code that one search and replace fixes once
   (issue #180)
 - `btclib.b58` no longer imports `btclib.script`: importing an address
