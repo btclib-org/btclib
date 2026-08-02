@@ -28,6 +28,8 @@ class WordLists:
 
     * *en*: https://github.com/bitcoin/bips/blob/master/bip-0039/english.txt
     * *it*: https://github.com/bitcoin/bips/blob/master/bip-0039/italian.txt
+    * *slip39*:
+      https://github.com/satoshilabs/slips/blob/master/slip-0039/wordlist.txt
 
     More word-lists can be added using the load_lang method.
 
@@ -56,6 +58,18 @@ class WordLists:
         self.language_files = {
             "en": path.join(path_to_filename, "english.txt"),
             "it": path.join(path_to_filename, "italian.txt"),
+            # "slip39" is a scheme, not a language code, and the key says
+            # so: SLIP-0039 supports no localization at all, so there is
+            # no "en" of it to collide with BIP39's -- which is a
+            # different list of a different length, 1024 words of ten
+            # bits against 2048 of eleven. It is registered here rather
+            # than on a private WordLists built by slip39.py so that
+            # every word-list btclib ships is reachable from the one
+            # place that holds them. Sharing the registry is what lets a
+            # caller ask bip39 for lang="slip39", so bip39 refuses any
+            # list that is not 2048 words long rather than answer with a
+            # base-1024 sentence no BIP39 wallet reads
+            "slip39": path.join(path_to_filename, "wordlist.txt"),
         }
         self.languages = list(self.language_files)
 

@@ -17,7 +17,7 @@ import pytest
 
 from btclib.bip32 import bip32
 from btclib.exceptions import BTClibValueError
-from btclib.mnemonic import bip39, normalize_mnemonic
+from btclib.mnemonic import WORDLISTS, bip39, normalize_mnemonic
 from tests import load, vector_id
 from tests.mnemonic.mnemonic_test import fullwidth
 
@@ -211,3 +211,24 @@ def test_mxprv_from_mnemonic() -> None:
     rootxprv = bip39.mxprv_from_mnemonic(mnemonic, "")
     exp = "xprv9s21ZrQH143K3ZxBCax3Wu25iWt3yQJjdekBuGrVa5LDAvbLeCT99U59szPSFdnMe5szsWHbFyo8g5nAFowWJnwe8r6DiecBXTVGHG124G1"
     assert rootxprv == exp
+
+
+def test_the_wordlist_has_to_be_bip39_sized() -> None:
+    """WORDLISTS is shared, and only its 2048-word lists are BIP39's.
+
+    slip39 is registered on the same registry, so lang="slip39" is a
+    request bip39 can be given; 1024 words encode ten bits each, and
+    answering would be a base-1024 sentence no BIP39 wallet reads. The
+    power-of-two test inside load_lang does not catch it -- 1024 is one.
+    """
+    assert WORDLISTS.language_length("slip39") == 1024
+
+    err_msg = "invalid bip39 wordlist length: 1024; expected: 2048"
+    with pytest.raises(BTClibValueError, match=err_msg):
+        bip39.mnemonic_from_entropy(bytes.fromhex("00" * 16), "slip39")
+
+    # a sentence of slip39 words, so that the refusal is the word-list
+    # length and not an unknown word
+    mnemonic = " ".join(WORDLISTS.wordlist("slip39")[:12])
+    with pytest.raises(BTClibValueError, match=err_msg):
+        bip39.entropy_from_mnemonic(mnemonic, "slip39")

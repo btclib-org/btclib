@@ -260,6 +260,10 @@ and `verify` families now let a `TypeError` out where they used to answer
   is what the `ec` parameter has been offering since it stopped being a module
   global: the arithmetic ignored it and computed on secp256k1, so the first
   point encoded against `ec` raised and no other curve could sign at all.
+- **SLIP-0039 shares can be read and written.** `btclib.mnemonic.slip39`
+  is the third scheme beside BIP39 and Electrum, and until now btclib
+  could not read a single share of the Shamir backup every Trezor since
+  2019 offers.
 - **Python 3.10 through 3.14**, free-threaded 3.14t included; 3.7, 3.8 and
   3.9 are gone. 3.9 went end-of-life in 2025-10, and it had become the only
   interpreter pulling a second toolchain into the lock: 35 of 132 packages

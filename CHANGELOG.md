@@ -1998,6 +1998,42 @@ edit.
   in one sentence in 256, a valid BIP39 checksum in one in sixteen. The
   dispatcher normalizes nothing of its own, each scheme normalizing as it
   defines, which leaves issue #201 to decide that once for all of them
+- **`btclib.mnemonic.slip39` is the third mnemonic scheme**, SLIP-0039
+  Shamir backup: the split-into-shares format every Trezor since 2019
+  offers, and the one a hardware-wallet user is most likely to be
+  holding. `master_secret_from_mnemonics` reads a set of shares back into
+  the master secret, `mxprv_from_mnemonics` carries that to a BIP32 root
+  key — the master secret *is* the seed, so there is no stretching step
+  between them — `mnemonics_from_master_secret` produces the shares, and
+  `share_from_mnemonic`/`mnemonic_from_share` are the two halves of the
+  encoding, around a frozen `Share`. Underneath: Shamir's scheme over
+  GF(256) applied byte by byte with the secret at `f(255)` and a digest
+  of it at `f(254)`, an RS1024 checksum over the 10-bit word indexes, the
+  two-level group/member threshold structure, and a four-round Feistel
+  network over PBKDF2-HMAC-SHA256 encrypting the secret under the
+  passphrase. All 45 of SLIP-0039's own vectors are exercised, the 30
+  that must fail included, and the four 1-of-1 vectors are regenerated
+  word for word rather than only read.
+  Generation is here and not only recovery, which is where several
+  implementations stop: a wallet needs to restore, a library is asked
+  both questions, and generating is also what lets a round trip be
+  checked against something other than btclib's own reading of it. Every
+  random byte comes from one injectable `entropy_source`, defaulting to
+  `os.urandom`, because nothing else about a 2-of-3 backup is
+  reproducible enough to test against a fixed expectation. The extendable
+  backup flag is supported in both states: it decides whether the
+  identifier salts the Feistel rounds, so shares written before that
+  revision of the SLIP and after it both decrypt. SLIP-0039's 1024-word
+  list ships as `btclib/mnemonic/_data/wordlist.txt` and is a `WORDLISTS`
+  language keyed `slip39` — a scheme rather than a language code, the
+  SLIP supporting no localization at all.
+  Sharing the one registry is what makes `lang="slip39"` a request
+  `mnemonic.bip39` can be given, so **bip39 now refuses any word-list
+  that is not 2048 words long**, where before it answered with a
+  base-1024 sentence no BIP39 wallet reads. `load_lang`'s existing test
+  does not catch it — it asks for a power of two, and 1024 is one — and
+  the refusal reaches any custom list of the wrong length, not only
+  SLIP-0039's (issue #206)
 
 ### Types
 

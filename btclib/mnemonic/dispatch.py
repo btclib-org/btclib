@@ -66,9 +66,16 @@ BIP39 mnemonic. That is a difference between the two schemes as they
 stand, not a decision taken here; what btclib should normalize, once and
 for every scheme, is issue 201.
 
-SLIP-0039 is issue 206, and is the third member of the family. A share
-is not a mnemonic of either scheme here and is reported as unknown until
-that lands; the place it goes is the end of the chain, after BIP39.
+SLIP-0039 is the third member of the family, and mnemonic.slip39 reads
+and writes it -- but this dispatcher does not ask it yet, so a share is
+reported as unknown. Wiring it in is a decision and not an omission:
+what a share is claimed *as* has to be settled first, a single share
+being a share of a secret rather than a sentence that derives a wallet
+on its own. The place it goes is the end of the chain, after BIP39; a
+share carries none of the signals above -- its words come from
+SLIP-0039's own 1024-word list, so no Electrum prefix and no BIP39
+word-list test can match one -- which is why the order costs nothing
+either way.
 """
 
 from __future__ import annotations
@@ -138,7 +145,8 @@ def all_seed_types_from_mnemonic(mnemonic: Mnemonic, lang: str = "en") -> list[s
     if bip39_seed_type := _bip39_seed_type(mnemonic, lang):
         seed_types.append(bip39_seed_type)
 
-    # SLIP-0039 goes here, after BIP39 and last: issue 206
+    # SLIP-0039 goes here, after BIP39 and last; the module docstring has
+    # why mnemonic.slip39 is not asked yet
     return seed_types
 
 

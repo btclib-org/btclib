@@ -9,16 +9,18 @@
 # or distributed except according to the terms contained in the LICENSE file.
 """Module btclib.mnemonic.
 
-bip39 and electrum are the two mnemonic schemes this package is for, and
-neither was exported: `import btclib.mnemonic` followed by
-`btclib.mnemonic.bip39.mnemonic_from_entropy(...)` raised AttributeError
-until something else in the process happened to import the submodule.
+bip39, electrum and slip39 are the three mnemonic schemes this package
+is for, and none is exported by importing the package alone: `import
+btclib.mnemonic` followed by
+`btclib.mnemonic.bip39.mnemonic_from_entropy(...)` raises
+AttributeError until something else in the process happens to import
+the submodule, which is why all three are named here.
 dispatch is exported beside them: it is the entry point that answers
-which of the two a sentence belongs to, and it is of no use to anyone
-who has to import it by name after already knowing.
+which scheme a sentence belongs to, and it is of no use to anyone who
+has to import it by name after already knowing.
 """
 
-from btclib.mnemonic import bip39, dispatch, electrum
+from btclib.mnemonic import bip39, dispatch, electrum, slip39
 from btclib.mnemonic.entropy import (
     BinStr,
     Entropy,
@@ -61,5 +63,6 @@ __all__ = [
     "indexes_from_mnemonic",
     "mnemonic_from_indexes",
     "normalize_mnemonic",
+    "slip39",
     "wordlist_indexes_from_bin_str_entropy",
 ]
