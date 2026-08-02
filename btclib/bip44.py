@@ -43,6 +43,7 @@ from btclib.bip32.der_path import (
 from btclib.exceptions import BTClibValueError
 from btclib.network import network_from_xkeyversion, network_type_from_xkeyversion
 from btclib.script.taproot import output_pubkey
+from btclib.to_pub_key import Key
 
 # purpose, coin type, account, change, address index: BIP44 fixes the
 # meaning of each level, so a path of any other length is not one
@@ -76,7 +77,7 @@ with open(_PURPOSES_FILE, encoding="ascii") as _purposes:
 _NETWORK_TYPE_FROM_COIN_TYPE: dict[int, NetworkType] = {0: "main", 1: "test"}
 
 
-def _p2tr(key: str, network: str) -> str:
+def _p2tr(key: Key, network: str) -> str:
     """Return the p2tr address of a key, tweaked as BIP86 prescribes.
 
     BIP86 is BIP44 for taproot and the tweak is the whole of it: the
@@ -90,11 +91,16 @@ def _p2tr(key: str, network: str) -> str:
     return b32.p2tr(output_pubkey(key)[0], network)
 
 
-# the derived key and the network in, the address out: four encodings
-# that already exist, named by the script type the purpose resolves to.
-# Keyed by BIP44ScriptType, so the alias and this table are checked
-# against each other -- a fifth encoding is a key mypy does not know
-_ADDRESS_FROM_SCRIPT_TYPE: dict[BIP44ScriptType, Callable[[str, str], str]] = {
+# a key and the network in, the address out: four encodings that already
+# exist, named by the script type the purpose resolves to. Keyed by
+# BIP44ScriptType, so the alias and this table are checked against each
+# other -- a fifth encoding is a key mypy does not know.
+#
+# The key is a Key and not the str this module always passes, because
+# all four encoders take one and `keystore` reaches for this same table
+# with a key that has not been through b58: narrowing it here would make
+# the table this module's rather than the library's, for no check gained
+_ADDRESS_FROM_SCRIPT_TYPE: dict[BIP44ScriptType, Callable[[Key, str], str]] = {
     "p2pkh": b58.p2pkh,
     "p2wpkh-p2sh": b58.p2wpkh_p2sh,
     "p2wpkh": b32.p2wpkh,
