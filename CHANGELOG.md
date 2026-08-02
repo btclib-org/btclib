@@ -2587,6 +2587,40 @@ edit.
   the rest, `witness_unknown` being a type btclib names and `b32` writing
   any version 0 to 16 (issue #251); every one of the 54 addresses comes
   back from its scriptPubKey unchanged
+- **the seven psbt cases built inline are vectors**, in
+  `tests/psbt/_data/btclib_test_vectors.json`, where seven
+  `# TODO add to test vectors` markers had asked for them (issue #181).
+  The file name carries a convention rather than a label: the prefix of a
+  psbt vector file names the authority its cases answer to, so `btclib_`
+  beside `bip174_` and `bip371_` says these are ours, that no upstream
+  URL exists for them, and that no refresh will ever reach them. Their
+  raw material is upstream and pinned — five psbts of BIP174's 2-of-3
+  walk-through, the prose steps `bip174_test_vectors.json` deliberately
+  does not vendor — each carrying one edit that a parse, a serialize, a
+  combine or a finalize must refuse. Three of the seven name an edit
+  instead of holding invalid bytes, and that is a fact about the format
+  rather than a shortcut: `Psbt.parse` reads one input map per `vin` and
+  one output map per `vout`, so a psbt whose counts disagree has no
+  encoding to be parsed from, and the global unsigned transaction is
+  serialized without witnesses, so a witness on it survives no round
+  trip. `tests/_data/README.md` says where the psbts were read and that
+  the cases built on them are pinned to nothing
+- **an input carrying both UTXO types is tested**, which BIP174 calls out
+  twice and nothing exercised: "an input can have both
+  `PSBT_IN_NON_WITNESS_UTXO` and `PSBT_IN_WITNESS_UTXO`", for the wallets
+  that began requiring the full previous transaction after psbt was in
+  use. Both records survive a round trip, and the precedence the BIP's
+  signer algorithm states — `witness_utxo` first, `non_witness_utxo`
+  second — is read off a psbt where the two branches disagree: adding the
+  very output an outpoint already names, so that nothing about the psbt
+  becomes untrue, sends the signer down the witness branch and a p2pkh
+  output is not something a witness signature can spend
+- **an unknown key-value map is read back**, where
+  `tests/psbt/psbt_out_test.py` serialized one and dropped the result.
+  The separator has to be appended for the read: an unknown is one field
+  of a map among others, so the byte that ends the map belongs to
+  whichever of `PsbtIn`, `PsbtOut` or `Psbt.serialize` assembles the whole
+  of it
 - **the twelve on-chain scripts of issue #123 are vendored**, in
   `tests/script/_data/unspendable_script_pub_keys.json`: the real
   `scriptPubKey`s of the five transactions the issue lists, each with the

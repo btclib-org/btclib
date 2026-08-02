@@ -19,6 +19,7 @@ from btclib.psbt import (
     PsbtOut,
     assert_valid_unknown,
     decode_dict_bytes_bytes,
+    deserialize_map,
     encode_dict_bytes_bytes,
     serialize_dict_bytes_bytes,
 )
@@ -36,7 +37,14 @@ def test_unknown() -> None:
     assert_valid_unknown(data)
     assert encoded_data == encode_dict_bytes_bytes(data)
 
-    _ = serialize_dict_bytes_bytes(b"", data)
+    # the serialize read back, so that the two are a round trip rather
+    # than a call whose result is dropped. The separator is appended
+    # because serialize_dict_bytes_bytes writes the records of a map and
+    # not the byte that ends it: an unknown is one field of a map among
+    # others, so the terminator belongs to whichever of PsbtIn, PsbtOut or
+    # Psbt.serialize is assembling the whole of that map
+    serialized = serialize_dict_bytes_bytes(b"", data)
+    assert deserialize_map(serialized + PSBT_SEPARATOR) == data
 
 
 def test_psbt_out() -> None:
