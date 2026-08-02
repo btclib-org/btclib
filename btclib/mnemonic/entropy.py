@@ -72,9 +72,13 @@ def bin_str_entropy_from_wordlist_indexes(indexes: Sequence[int], base: int) -> 
 
     binentropy = f"{entropy:b}"
 
-    # do not lose leading zeros entropy
-    bits_per_digit = int(math.log2(base))
-    bits = len(indexes) * bits_per_digit
+    # do not lose leading zeros entropy. The width is that of the largest
+    # value the digits can spell, in integer arithmetic: for a base that
+    # is a power of two that is the bits per digit times the digit count,
+    # exactly as int(math.log2(base)) gave, and for electrum's 1626-word
+    # Portuguese -- 10.667 bits a word -- it is the 139 bits thirteen
+    # words hold rather than the 130 that rounding down claims
+    bits = (base ** len(indexes) - 1).bit_length()
     return binentropy.zfill(bits)
 
 

@@ -13,6 +13,7 @@ import builtins
 import threading
 from os import path
 from typing import Any, get_args
+from unicodedata import normalize
 
 import pytest
 
@@ -26,7 +27,7 @@ from btclib.mnemonic import (
     mnemonic_from_indexes,
     normalize_mnemonic,
 )
-from btclib.mnemonic.mnemonic import WordLists
+from btclib.mnemonic.mnemonic import WordLists, data_file
 
 
 def test_mnemonic() -> None:
@@ -166,11 +167,16 @@ def test_wordlist_1() -> None:
 
 
 def test_wordlist_2() -> None:
+    # a private WordLists and not the singleton: adding a language to that
+    # one is process-wide, so a test that did would leave every later test
+    # of language detection with a language it did not expect
+    word_lists = WordLists()
+
     lang = "fakeen"
     # missing file for language 'fakeen''
     err_msg = "Missing file for language 'fakeen'"
     with pytest.raises(BTClibValueError, match=err_msg):
-        WORDLISTS.load_lang(lang)
+        word_lists.load_lang(lang)
 
     # dictionary length must be a power of two.
     # fakeenglish.txt is btclib's own and deliberately broken: bip-0039's
@@ -181,15 +187,116 @@ def test_wordlist_2() -> None:
     filename = path.join(path.dirname(__file__), "_data", fname)
     err_msg = "invalid wordlist length: "
     with pytest.raises(BTClibValueError, match=err_msg):
-        WORDLISTS.load_lang(lang, filename)
+        word_lists.load_lang(lang, filename)
+    # and the language it could not read is not registered: asked again,
+    # it reads the file again and raises again, rather than answering as
+    # a language with no words
+    assert lang not in word_lists.languages
+    with pytest.raises(BTClibValueError, match=err_msg):
+        word_lists.load_lang(lang, filename)
 
     # dynamically add a new language
     lang = "en2"
     fname = "english.txt"
     filename = path.join(path.dirname(__file__), "_data", fname)
-    WORDLISTS.load_lang(lang, filename)
-    length = WORDLISTS.language_length(lang)
+    word_lists.load_lang(lang, filename)
+    length = word_lists.language_length(lang)
     assert length == 2048
+    assert word_lists.langs_of_words(["abandon", "zoo"]) == ["en", "en2"]
+
+
+def test_every_wordlist() -> None:
+    """Twelve BIP39 languages, and 2048 unique NFKD words in each.
+
+    A private WordLists rather than the singleton: test_wordlist_2 adds
+    two languages to that one, so a count taken from it would depend on
+    which test ran first.
+
+    Thirteen entries and twelve languages, because the registry holds
+    every word-list btclib ships: "slip39" is a scheme keyed beside them,
+    1024 words rather than 2048, and it is what bip39._base refuses.
+    """
+    bip39_languages = [
+        "cs",
+        "en",
+        "es",
+        "fr",
+        "it",
+        "ja",
+        "ko",
+        "pt",
+        "ru",
+        "tr",
+        "zh",
+        "zh_tw",
+    ]
+    word_lists = WordLists()
+    assert word_lists.languages == [*bip39_languages, "slip39"]
+    assert word_lists.language_length("slip39") == 1024
+    for lang in bip39_languages:
+        words = word_lists.wordlist(lang)
+        assert len(words) == 2048 == word_lists.language_length(lang)
+        assert len(set(words)) == 2048
+        # NFKD is what BIP39 publishes and what a lookup normalizes to;
+        # a word with whitespace around it would never be found
+        assert all(word == normalize("NFKD", word) for word in words)
+        assert all(word == word.strip() and word for word in words)
+
+
+def test_index() -> None:
+    """A word is looked up in any normalization, and named when unknown."""
+    word_lists = WordLists()
+    assert word_lists.index("abandon", "en") == 0
+    assert word_lists.index("zoo", "en") == 2047
+    # the spanish list is NFKD, so this is the composed spelling of a word
+    # that is in it
+    assert word_lists.index(normalize("NFC", "ábaco"), "es") == 0
+
+    with pytest.raises(BTClibValueError, match="unknown 'en' word: 'abaco'"):
+        word_lists.index("abaco", "en")
+
+
+def test_langs_of_words() -> None:
+    """The languages whose word-list holds every word, in registry order."""
+    word_lists = WordLists()
+    assert word_lists.langs_of_words(["abandon", "zoo"]) == ["en"]
+    # a hundred words are in both english and french
+    assert word_lists.langs_of_words(["abandon"]) == ["en", "fr"]
+    assert word_lists.langs_of_words(["btclib"]) == []
+
+
+def test_power_of_two() -> None:
+    """The word count must be a power of two, unless the caller says not.
+
+    BIP39 spends eleven bits on an index and so needs 2048 words;
+    electrum converts to base len(wordlist) and reads a 1626-word
+    Portuguese list, which is why the check is a policy of the registry
+    rather than of the loader.
+    """
+    fname = "fakeenglish.txt"
+    filename = path.join(path.dirname(__file__), "_data", fname)
+
+    with pytest.raises(BTClibValueError, match="invalid wordlist length: 2047"):
+        WordLists().load_lang("fakeen", filename)
+
+    word_lists = WordLists(power_of_two=False)
+    word_lists.load_lang("fakeen", filename)
+    assert word_lists.language_length("fakeen") == 2047
+
+
+def test_comments_are_not_words() -> None:
+    """A '#' starts a comment, which is what carries a licence header.
+
+    Electrum's Portuguese word-list opens with Monero's BSD-3 notice, and
+    electrum's own loader reads it the same way.
+    """
+    word_lists = WordLists(
+        {"pt": data_file("electrum_portuguese.txt")}, power_of_two=False
+    )
+    words = word_lists.wordlist("pt")
+    assert len(words) == 1626
+    assert not any(word.startswith("#") for word in words)
+    assert words[0] == "abaular"
 
 
 def test_load_lang_is_not_a_race() -> None:

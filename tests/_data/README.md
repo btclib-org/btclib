@@ -5,12 +5,13 @@ nothing else pins: `btclib/mnemonic/_data/wordlist.txt`, SLIP-0039's word
 list. It is here because a word list is the most load-bearing vendored
 file there is -- every share ever written with it decodes through it --
 and because, unlike `english.txt`, it has no byte-identical copy under
-`tests/` for an entry to name instead. The package's other three word
-lists have no entry because each is already pinned somewhere else or not
-at all: `english.txt` through the test copy below,
-`electrum_old_english.txt` through the pin `btclib/mnemonic/electrum.py`
-carries beside the constant naming it, and `italian.txt` nowhere, which
-is a gap rather than a statement about it.
+`tests/` for an entry to name instead. The package's other word lists
+have no entry because each is already pinned somewhere else or not at
+all: `english.txt` through the test copy below,
+`electrum_old_english.txt` and `electrum_portuguese.txt` through the
+pins `btclib/mnemonic/electrum.py` carries beside the constants naming
+them, and `italian.txt` and the eleven other BIP39 lists nowhere, which
+is a gap rather than a statement about them.
 
 The other directory holding json beside the tests,
 `tests/**/_generated_files/`, is the opposite kind of thing and has no
@@ -52,15 +53,15 @@ the same in each: there is no upstream file whose name they could take
   `bip174_test_vectors.json`, `bip371_test_vectors.json` and
   `bip67_test_vectors.json` are transcribed from mediawiki prose. There is
   no upstream file, so the name is ours by necessity.
-- `bip39_test_vectors.json` holds only the `english` array of trezor's
-  `vectors.json`, plus one btclib case. Taking the name `vectors.json`
-  would claim twelve languages we do not vendor -- and that name is now
-  taken in the very same directory, by SLIP-0039's own `vectors.json`,
-  which is a different upstream's file of the same name.
-- `descriptor_checksums.json`, `rfc6979.json`,
-  `electrum_test_vectors.json`, `btclib_test_vectors.json` and
-  `fakeenglish.txt` have no upstream file either; the last three are
-  btclib's own.
+- `bip39_test_vectors.json` holds all twelve language arrays of trezor's
+  `vectors.json`, plus one btclib case, and keeps the btclib name anyway:
+  `vectors.json` is taken in the very same directory, by SLIP-0039's own
+  file of that name, which is a different upstream's.
+- `descriptor_checksums.json` and `rfc6979.json` are transcribed from
+  prose, and `electrum_test_vectors.json`,
+  `electrum_language_vectors.json`, `btclib_test_vectors.json` and
+  `fakeenglish.txt` are btclib's own: no upstream file for any of them,
+  so no upstream name to take.
 - the seven under `tests/fetch/_data/` are response bodies, and a
   response has no name at all. Each takes the rpc method or the endpoint
   path that produces it, which is the closest thing to an upstream name
@@ -650,29 +651,72 @@ paths:
 ```text
 repo    trezor/python-mnemonic
 path    vectors.json
-commit  b502451a33a440783926e04428115e0bed87d01f  2015-12-24
-blob    c15add0e28ead51eb0d41fd73273531cc7aab922
-pulled  2018-06-01
-behind  5 revisions, all adding languages
+commit  b57a5ad77a981e743f4167ab2f7927a55c1e82a8  2024-08-27
+blob    d362a5d4eb1ba800a52aec30116915cd4576e1fd
+pulled  2018-06-01, refreshed 2026-08-02
+behind  0 revisions
 ```
 
-Verdict: **extended**, and reformatted. Upstream's 24 English vectors are
-ours, in order, value for value; ours has a 25th, the last one repeated
-with tabs, newlines and doubled spaces sprinkled through the mnemonic, to
-exercise whitespace normalisation. btclib's, not upstream's.
+Verdict: **extended**, and reformatted. All twelve language arrays are
+ours, in order, value for value; ours has one vector upstream does not,
+a 25th English case repeating the last with tabs, newlines and doubled
+spaces sprinkled through the mnemonic, to exercise whitespace
+normalisation. btclib's, not upstream's.
 
-Upstream has grown eleven more languages since, and its English array has
-not changed in any revision — so the pin is the earliest revision that
-provides it, and the five revisions of drift are irrelevant to us. Only
-the English vectors were ever taken; `english.txt` is the only wordlist
-`btclib/mnemonic/mnemonic.py` ships.
+Held to the `english` array alone until 2026-08-02, when the other eleven
+word-lists became languages btclib reads: the pin was the earliest
+revision providing that array, since it has not changed in any of them,
+and the pin is now the current revision because the arrays taken are all
+of them.
 
-Re-checked on 2026-07-30 against the tip of the path, `b57a5ad7`
-(2024-08-27, blob `d362a5d4`, and its message is "normalize the words in
-the wordlist according to NFKD"): upstream's 24 English vectors are still
-ours value for value, that normalisation having touched other languages
-only. Nothing to refresh, and the eleven other languages stay out for as
-long as one BIP39 wordlist is shipped.
+The name is btclib's rather than upstream's, and stays so now that all
+twelve arrays are here: `vectors.json` is taken in this very directory,
+by SLIP-0039's own file of that name, which is a different upstream's.
+
+### `tests/mnemonic/_data/test_JP_BIP39.json`
+
+```text
+repo    bip32JP/bip32JP.github.io
+path    test_JP_BIP39.json
+commit  360c05a6439e5c461bbe5e84c7567ec38eb4ac5f  2017-08-20
+blob    6d8c40b19e5d4b899f9f3c2addbf994d150b245b
+pulled  2026-08-02
+behind  0 revisions
+```
+
+Verdict: **reformatted**. 24 vectors, JSON-equal; upstream's indentation
+wanders by a space or two and ours is what `json.dumps(indent=4)` writes.
+
+bip-0039 cites this file by URL in its own Test vectors section, beside
+the reference implementation's, for the case that file does not cover:
+"Japanese wordlist test with heavily normalized symbols as passphrase".
+The passphrase is one string in NFC and another in NFKD, and the
+sentences are published composed against word-lists published
+decomposed, so these are the vectors that fail when normalisation is
+skipped anywhere.
+
+### `tests/mnemonic/_data/electrum_language_vectors.json`
+
+btclib's own, and the second file here cross-checked against an
+application rather than copied from a project. Electrum's `make_seed`
+run with `randrange` patched to a constant, once per language, which is
+the same starting point `mnemonic_from_entropy` takes: what it returned
+is the mnemonic, and `mnemonic_to_seed` of it is the seed. Electrum
+publishes no vector of that kind — its own `SEED_TEST_CASES` are
+sentences to read, not entropies to generate from — so there is nothing
+upstream to pin or to refresh against; regenerate them from electrum's
+`mnemonic.py` if they are ever doubted.
+
+The two Portuguese sentences beside them answer electrum's
+`bip39_is_checksum_valid` yes and no, over its own 1626-word list.
+
+In a file rather than inline like every other electrum vector in
+`tests/mnemonic/electrum_test.py`, and the reason is this directory: the
+lint gate's two spell checkers read a python source and skip `_data`, and
+`typos` runs with `--write-changes`. Measured, it corrected a word of the
+Portuguese sentence into the English word it is one letter away from.
+
+Pulled 2026-08-02.
 
 ### `btclib/mnemonic/_data/wordlist.txt`
 
@@ -989,6 +1033,11 @@ Composed 2026-08-02.
 
 - **`tests/mnemonic/_data/electrum_test_vectors.json`** has no upstream.
   Stated above rather than guessed at.
+- **`tests/mnemonic/_data/electrum_language_vectors.json`** has none
+  either, and for a reason that will not change: electrum publishes no
+  vector for the sentence it *generates* from a given entropy. Ours were
+  produced by running its code, which is a procedure to repeat rather
+  than a revision to pin, and the entry above gives it.
 - **`tests/script/_data/script_assets_test.json`** has a commit, but
   in a repository that rewrites its history. The blob SHA-1 is the pin
   that will still resolve next year.
@@ -1034,7 +1083,8 @@ Against a pinned upstream blob:
   `script_assets_test.json`, `vectors.json`.
 - identical but for CRLF against LF: `bip340_test_vectors.csv`.
 - JSON-equal, reformatted: `pubkey.json`, `ecdsa_sig.json`,
-  `ecdsa_custom_nonce_sig.json`, `signmessage.json`.
+  `ecdsa_custom_nonce_sig.json`, `signmessage.json`,
+  `test_JP_BIP39.json`.
 - upstream plus one btclib case: `bip39_test_vectors.json`.
 
 No upstream blob exists for the rest:
@@ -1052,9 +1102,10 @@ No upstream blob exists for the rest:
   composed from Core's and Esplora's own source and whose payload is
   chain data two of the entries above already hold.
 - not vendored: `rfc6979.json` (an RFC), `electrum_test_vectors.json`,
-  `fakeenglish.txt` and `btclib_test_vectors.json` (btclib's own). The
-  last is the only one composed rather than recorded: its cases were
-  built here, out of psbts BIP174 prints as prose.
+  `electrum_language_vectors.json`, `fakeenglish.txt` and
+  `btclib_test_vectors.json` (btclib's own). The last is the only one
+  composed rather than recorded: its cases were built here, out of psbts
+  BIP174 prints as prose.
 
 ### Left for a maintainer to decide
 
