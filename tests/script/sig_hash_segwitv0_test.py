@@ -13,8 +13,10 @@ test vector at
 https://github.com/bitcoin/bips/blob/master/bip-0143.mediawiki
 """
 
+from btclib import var_bytes
+from btclib.hashes import hash256
 from btclib.script import Witness, sig_hash
-from btclib.tx import Tx, TxOut
+from btclib.tx import OutPoint, Tx, TxIn, TxOut
 
 
 def test_native_p2wpkh() -> None:
@@ -184,4 +186,104 @@ def test_wrapped_p2wsh() -> None:
     hash_ = sig_hash.from_tx([utxo], tx, 0, sig_hash.ANYONECANPAY | sig_hash.SINGLE)
     assert hash_ == bytes.fromhex(
         "511e8e52ed574121fc1b654970395502128263f62662e076dc6baf05c2e6a99b"
+    )
+
+
+# issue 252: SIGHASH_SINGLE for an input past the last output
+
+
+# BIP-143's own out-of-range example, the one `test_native_p2wsh` signs:
+# two inputs and a single output, so input 1 has no output of its own
+_BIP143_TX = "0100000002fe3dc9208094f3ffd12645477b3dc56f60ec4fa8e6f5d67c565d1c6b9216b36e0000000000ffffffff0815cf020f013ed6cf91d29f4202e8a58726b1ac6c79da47c23d1bee0a6925f80000000000ffffffff0100f2052a010000001976a914a30741f8145e5acadf23f751864167f32e0963f788ac00000000"
+_WITNESS_SCRIPT = "21026dccc749adc2a9d0d89497ac511f760f45c47dc5ed9cf352a58ac706453880aeadab210255a9626aebf5e29c0e6538428ba0d1dcf6ca98ffdf086aa8ced5e0d0215ea465ac"
+_AMOUNT = 4900000000
+
+
+def _bip143_preimage(
+    tx: Tx, vin_i: int, script_code: bytes, amount: int, hash_outputs: bytes
+) -> bytes:
+    """BIP-143's field list, written out, for a SIGHASH_SINGLE input.
+
+    The rule under test is one field of it — "hashOutputs is a uint256
+    of 0x0000......0000" when the input index is beyond the last output
+    — so the field is a parameter and the other ten are spelled here
+    rather than asked of the code being checked. hashSequence is zero
+    because SINGLE says so, and hashPrevouts is the only one hashed.
+    """
+    prev_outs = b"".join(vin.prev_out.serialize() for vin in tx.vin)
+    return b"".join(
+        [
+            tx.version.to_bytes(4, "little"),
+            hash256(prev_outs),
+            b"\x00" * 32,
+            tx.vin[vin_i].prev_out.serialize(),
+            var_bytes.serialize(script_code),
+            amount.to_bytes(8, "little"),
+            tx.vin[vin_i].sequence.to_bytes(4, "little"),
+            hash_outputs,
+            tx.lock_time.to_bytes(4, "little"),
+            sig_hash.SINGLE.to_bytes(4, "little"),
+        ]
+    )
+
+
+def test_the_hand_built_preimage_is_the_one_bip143_publishes() -> None:
+    """The next test's authority, checked against a published number.
+
+    `_bip143_preimage` is what says the rule below is right, so it is
+    itself checked here — against BIP-143's own preimage for its
+    out-of-range example, printed in the BIP beside the sigHash that
+    `test_native_p2wsh` already pins.
+    """
+    tx = Tx.parse(_BIP143_TX)
+    script_code = bytes.fromhex(_WITNESS_SCRIPT)
+    preimage = _bip143_preimage(tx, 1, script_code, _AMOUNT, b"\x00" * 32)
+    assert preimage.hex() == (
+        "01000000ef546acf4a020de3898d1b8956176bb507e6211b5ed3619cd08b6ea7e2a09d41"
+        "0000000000000000000000000000000000000000000000000000000000000000"
+        "0815cf020f013ed6cf91d29f4202e8a58726b1ac6c79da47c23d1bee0a6925f800000000"
+        "47" + _WITNESS_SCRIPT + "0011102401000000ffffffff"
+        "0000000000000000000000000000000000000000000000000000000000000000"
+        "0000000003000000"
+    )
+    assert hash256(preimage).hex() == (
+        "82dde6e4f1e94d02c2b7ad03d2115d691f48d064e9d52f58194a6637e4194391"
+    )
+
+
+def test_sighash_single_past_the_last_output() -> None:
+    """hashOutputs is 32 zero bytes for every index past the last output.
+
+    BIP-143: "if the sighash type is SINGLE and the input index is
+    smaller than the number of outputs, hashOutputs is the double
+    SHA256 of the output amount with scriptPubKey of the same index as
+    the input; Otherwise, hashOutputs is a uint256 of 0x0000......0000".
+
+    *Every* index past it, which is the part no vector states. BIP-143's
+    own example signs input 1 of a transaction with one output, so it
+    pins the case where the index equals the output count and says
+    nothing about the ones beyond — and an implementation reading the
+    bound as `vin_i != len(tx.vout)` passes every vector there is
+    (issue #252). Here a third input carries the same spend two indices
+    past the last output.
+    """
+    tx = Tx.parse(_BIP143_TX)
+    script_code = bytes.fromhex(_WITNESS_SCRIPT)
+
+    # the index the BIP publishes, and the two beyond it
+    tx.vin.append(TxIn(OutPoint(b"\x11" * 32, 0), b"", 0xFFFFFFFF))
+    tx.vin.append(TxIn(OutPoint(b"\x22" * 32, 1), b"", 0xFFFFFFFF))
+    assert len(tx.vout) == 1
+    for vin_i in (1, 2, 3):
+        preimage = _bip143_preimage(tx, vin_i, script_code, _AMOUNT, b"\x00" * 32)
+        assert sig_hash.segwit_v0(
+            script_code, tx, vin_i, sig_hash.SINGLE, _AMOUNT
+        ) == hash256(preimage)
+
+    # and the index that does have an output of its own is the other
+    # branch: it commits to that output and to no other
+    hash_outputs = hash256(tx.vout[0].serialize())
+    preimage = _bip143_preimage(tx, 0, script_code, _AMOUNT, hash_outputs)
+    assert sig_hash.segwit_v0(script_code, tx, 0, sig_hash.SINGLE, _AMOUNT) == hash256(
+        preimage
     )

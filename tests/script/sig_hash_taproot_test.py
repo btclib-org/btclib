@@ -26,13 +26,14 @@ from typing import Any
 
 import pytest
 
-from btclib.alias import ScriptList
+from btclib.alias import ScriptList, TaprootScriptTree
 from btclib.ecc import ssa
 from btclib.exceptions import BTClibRuntimeError, BTClibValueError
 from btclib.hashes import hash160
 from btclib.script import (
     ScriptPubKey,
     Witness,
+    input_script_sig,
     is_p2tr,
     output_prvkey,
     parse,
@@ -41,6 +42,8 @@ from btclib.script import (
     type_and_payload,
 )
 from btclib.script.engine import verify_transaction
+from btclib.script.taproot import serialize as taproot_serialize
+from btclib.to_pub_key import pub_keyinfo_from_prv_key
 from btclib.tx import OutPoint, Tx, TxIn, TxOut
 from tests import load, vector_id
 
@@ -405,3 +408,183 @@ def test_key_path_spend_round_trip(hash_type: int, script_tree: Any) -> None:
     wrong = ssa.sign_(msg, prv_key)
     with pytest.raises(BTClibRuntimeError, match="signature verification failed"):
         ssa.assert_as_valid_(msg, pub_key, wrong)
+
+
+# issue 252: the script path through `from_tx`, annex and all
+
+
+def has_annex(witness: Witness) -> bool:
+    """BIP341's annex: a last element of at least two, starting with 0x50."""
+    stack = witness.stack
+    return len(stack) >= 2 and stack[-1][:1] == b"\x50"
+
+
+def script_path_vectors() -> list[Any]:
+    """The success vectors spending a leaf of `<pub_key> OP_CHECKSIG`.
+
+    The tapscript has to be one whose signature this test can check, so
+    the leaf is the simplest shape Core's dump carries and the witness
+    is the three elements of a bare script path spend -- signature,
+    script, control block -- with or without an annex after them. 58 of
+    the file's 2244 vectors qualify, 11 of them carrying an annex.
+
+    Nothing else drives `sig_hash.from_tx` down the script path with an
+    annex, which is what leaves the branch that strips one untested:
+    `test_valid_taproot_script_path` below is one spend and carries
+    none, and a key path spend cannot reach the branch at all -- with
+    the annex off its stack holds the signature alone, so the leaf hash
+    is not computed either way and dropping the wrong number of
+    elements changes no answer (issue #252).
+    """
+    params = []
+    for index, x in enumerate(TAPSCRIPT):
+        if "TAPROOT" not in x["flags"]:
+            continue
+        prevouts = [TxOut.parse(prevout) for prevout in x["prevouts"]]
+        if not is_p2tr(prevouts[x["index"]].script_pub_key.script):
+            continue
+        witness = Witness(x["success"]["witness"])
+        stack = witness.stack[:-1] if has_annex(witness) else witness.stack
+        # signature, script, control block: no leaf takes an input off
+        # the stack, so the script is always the last but one
+        if len(stack) != 3 or len(stack[0]) not in (64, 65):
+            continue
+        # <32-byte push> OP_CHECKSIG, and nothing else
+        if len(stack[1]) != 34 or stack[1][0] != 0x20 or stack[1][-1] != 0xAC:
+            continue
+        params.append(pytest.param(x, id=vector_id(index, x["comment"])))
+    return params
+
+
+SCRIPT_PATH_VECTORS = script_path_vectors()
+
+
+def test_script_path_vectors_carry_an_annex() -> None:
+    """The test below covers the annex only if some vector has one.
+
+    Both counts are asserted, not merely the total: a selector that
+    stopped matching the annex cases would leave the branch this was
+    written for untested again, and a green run of 47 vectors is what
+    that failure would look like.
+    """
+    annexed = [
+        vector
+        for vector in SCRIPT_PATH_VECTORS
+        if has_annex(Witness(vector.values[0]["success"]["witness"]))
+    ]
+    assert len(SCRIPT_PATH_VECTORS) == 58
+    assert len(annexed) == 11
+
+
+@pytest.mark.parametrize("vector", SCRIPT_PATH_VECTORS)
+def test_valid_taproot_script_path_vectors(vector: dict[str, Any]) -> None:
+    """Sign-side script path spends, which only these vectors exercise.
+
+    `from_tx` builds the BIP342 message extension for a script path
+    spend -- the leaf hash of the script under the control block -- and
+    strips the annex before reading either. The signature Core's dump
+    carries is the authority on the result: it verifies against the key
+    in the leaf if and only if the hash is the one Core computed.
+    """
+    tx = Tx.parse(vector["tx"])
+    prevouts = [TxOut.parse(prevout) for prevout in vector["prevouts"]]
+    index = vector["index"]
+
+    assert not vector["success"]["scriptSig"]
+
+    witness = Witness(vector["success"]["witness"])
+    tx.vin[index].script_witness = witness
+    stack = witness.stack[:-1] if has_annex(witness) else witness.stack
+
+    signature = stack[0]
+    hash_type = signature[-1] if len(signature) == 65 else 0
+
+    msg_hash = sig_hash.from_tx(prevouts, tx, index, hash_type)
+
+    # the selector pinned the leaf to <32-byte push> OP_CHECKSIG
+    pub_key = stack[1][1:33]
+    ssa.assert_as_valid_(msg_hash, pub_key, signature[:64])
+
+
+def test_taproot_sighash_single_past_the_last_output() -> None:
+    """Every index past the last output is refused, not merely the first.
+
+    BIP341 has no out-of-range rule to apply: "if hash_type & 3 equals
+    SIGHASH_SINGLE and the input index is equal to or greater than the
+    number of outputs, fail". Bitcoin Core's SignatureHashSchnorr
+    returns false there, and btclib raises.
+
+    Equal to *or greater than*, and it is the second half no vector
+    states: `script_assets_test.json` carries seven spends with
+    SIGHASH_SINGLE and no output of their own, and in every one of them
+    the index is exactly the output count -- so a bound written `==`
+    passes the whole file (issue #252).
+    """
+    prv_key = 0x4242424242424242424242424242424242424242424242424242424242424242
+    script_pub_key = ScriptPubKey.p2tr(prv_key)
+    prevouts = [TxOut(100_000, script_pub_key) for _ in range(3)]
+
+    vin = [TxIn(OutPoint(bytes([i + 1]) * 32, 0)) for i in range(3)]
+    for tx_in in vin:
+        # from_tx reads the witness to tell a key path spend from a
+        # script path one, so an unsigned input needs a placeholder
+        tx_in.script_witness = Witness([b"\x00" * 64])
+    tx = Tx(vin=vin, vout=[TxOut(90_000, script_pub_key)])
+
+    # the input that has an output of its own commits to it
+    assert sig_hash.from_tx(prevouts, tx, 0, sig_hash.SINGLE)
+
+    err_msg = "Sighash single without a corresponding output"
+    for vin_i in (1, 2):
+        with pytest.raises(BTClibValueError, match=err_msg):
+            sig_hash.from_tx(prevouts, tx, vin_i, sig_hash.SINGLE)
+        # ANYONECANPAY changes what else is committed to, not this
+        with pytest.raises(BTClibValueError, match=err_msg):
+            sig_hash.from_tx(
+                prevouts, tx, vin_i, sig_hash.ANYONECANPAY | sig_hash.SINGLE
+            )
+
+
+@pytest.mark.parametrize("annex", [b"", b"\x50" + b"\x99" * 8], ids=["bare", "annex"])
+def test_script_path_spend_round_trip(annex: bytes) -> None:
+    """Sign a script path spend with btclib and have btclib's engine take it.
+
+    The signer's witness is the shape no vector can carry: script and
+    control block, with no signature on the stack yet, because the
+    signature is what this call is for. Dropping the annex has to leave
+    two elements there, and the leaf hash the message extension commits
+    to is read off both of them -- so a bound that wanted three, as
+    `len(stack) > 2` would, computes a key path message instead and the
+    engine, which strips the annex in its own code, rejects what comes
+    back (issue #252).
+
+    The engine is the second implementation that makes this a check
+    rather than a restatement: it reaches the leaf through the control
+    block and the taproot commitment, and never calls `from_tx`.
+    """
+    internal_key = 0x4242424242424242424242424242424242424242424242424242424242424242
+    leaf_prv_key = 0x1234567890ABCDEF1234567890ABCDEF1234567890ABCDEF1234567890ABCDEF
+    leaf_pub_key = pub_keyinfo_from_prv_key(leaf_prv_key)[0][1:]
+
+    script_tree: TaprootScriptTree = [(0xC0, [leaf_pub_key.hex(), "OP_CHECKSIG"])]
+    script_pub_key = ScriptPubKey.p2tr(internal_key, script_tree)
+    leaf, control = input_script_sig(internal_key, script_tree, 0)
+    leaf_bytes = taproot_serialize(leaf)
+
+    prevouts = [TxOut(100_000, script_pub_key)]
+    vin = TxIn(OutPoint(b"\x11" * 32, 0))
+    # what the signer holds: the spend without its signature
+    unsigned_stack = [leaf_bytes, control, annex] if annex else [leaf_bytes, control]
+    vin.script_witness = Witness(unsigned_stack)
+    tx = Tx(vin=[vin], vout=[TxOut(90_000, script_pub_key)])
+
+    msg_hash = sig_hash.from_tx(prevouts, tx, 0, sig_hash.DEFAULT)
+    signature = ssa.sign_(msg_hash, leaf_prv_key)
+    ssa.assert_as_valid_(msg_hash, leaf_pub_key, signature)
+
+    tx.vin[0].script_witness = Witness([signature.serialize(), *unsigned_stack])
+    verify_transaction(prevouts, tx)
+
+    # the signature on the stack is not part of what is signed: the same
+    # message comes back out of the completed spend
+    assert sig_hash.from_tx(prevouts, tx, 0, sig_hash.DEFAULT) == msg_hash
