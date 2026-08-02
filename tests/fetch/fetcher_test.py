@@ -1,0 +1,197 @@
+#!/usr/bin/env python3
+
+# Copyright (C) The btclib developers
+#
+# This file is part of btclib. It is subject to the license terms in the
+# LICENSE file found in the top-level directory of this distribution.
+#
+# No part of btclib including this file, may be copied, modified, propagated,
+# or distributed except according to the terms contained in the LICENSE file.
+"""Tests for btclib.fetch.fetcher, the half no backend re-implements."""
+
+from __future__ import annotations
+
+import pytest
+
+from btclib.exceptions import BTClibRuntimeError, BTClibValueError, FetchError
+from btclib.fetch.fetcher import (
+    Fetcher,
+    fetch_errors,
+    tx_for_network,
+    tx_from_raw,
+    tx_id_hex,
+)
+from btclib.script import ScriptPubKey
+from btclib.tx import OutPoint, Tx, TxOut
+from tests.fetch import TIP_HEIGHT, TIP_ID, TX_ID, StubFetcher, recorded_body
+
+RAW = recorded_body("esplora_tx_hex.txt").decode().strip()
+# the coinbase of the same block, which is a different transaction with
+# the same provenance: what a backend answering the wrong question sends
+OTHER_ID = "b1fea52486ce0c62bb442b530a3f0132b826c74e473d1f2c220bfa78111c5082"
+
+
+@pytest.mark.parametrize(
+    "error",
+    [
+        ValueError("not a number"),
+        TypeError("nothing to index"),
+        # what the stream readers under Tx.parse raise, which is neither
+        BTClibRuntimeError("not enough binary data"),
+    ],
+)
+def test_fetch_errors_names_the_source(error: Exception) -> None:
+    with (
+        pytest.raises(FetchError, match=f"getblockcount: {error}"),
+        fetch_errors("getblockcount"),
+    ):
+        raise error
+
+
+def test_fetch_errors_lets_a_fetch_error_through() -> None:
+    """It is a RuntimeError, so a nested one is not re-wrapped."""
+    with (
+        pytest.raises(FetchError, match="^the node is down$"),
+        fetch_errors("getblockcount"),
+    ):
+        raise FetchError("the node is down")
+
+
+def test_fetch_errors_is_transparent_when_nothing_is_raised() -> None:
+    with fetch_errors("getblockcount"):
+        value = 481824
+    assert value == 481824
+
+
+def test_tx_id_hex_takes_whatever_octets_takes() -> None:
+    assert tx_id_hex(TX_ID) == TX_ID
+    assert tx_id_hex(bytes.fromhex(TX_ID)) == TX_ID
+    assert tx_id_hex(f"  {TX_ID}  ") == TX_ID
+
+
+@pytest.mark.parametrize("tx_id", ["", "00", TX_ID + "00", "not hex at all"])
+def test_tx_id_hex_refuses_what_is_not_an_id(tx_id: str) -> None:
+    """A mistyped id is the caller's error, not the remote host's 404."""
+    with pytest.raises(ValueError):
+        tx_id_hex(tx_id)
+
+
+def test_tx_for_network_leaves_mainnet_alone() -> None:
+    tx = Tx.parse(RAW)
+    assert tx_for_network(tx, "mainnet") is tx
+
+
+def test_tx_for_network_labels_the_outputs_and_touches_nothing_else() -> None:
+    """The label is what an address is rendered from, and nothing else."""
+    tx = Tx.parse(RAW)
+    testnet = tx_for_network(tx, "testnet")
+
+    assert [out.script_pub_key.network for out in testnet.vout] == ["testnet"] * 2
+    assert [out.script_pub_key.network for out in tx.vout] == ["mainnet"] * 2
+    # the serialization does not carry a network, so relabelling cannot
+    # change it: same bytes, same id, same amounts, same scripts
+    assert testnet.serialize(include_witness=True) == tx.serialize(include_witness=True)
+    assert testnet.id == tx.id
+    assert [out.value for out in testnet.vout] == [out.value for out in tx.vout]
+    # and the two are not equal, ScriptPubKey comparing the network type
+    assert testnet.vout[0].script_pub_key != tx.vout[0].script_pub_key
+
+
+def test_the_label_is_what_an_address_is_rendered_from() -> None:
+    """Which block 170 cannot show: both its outputs are p2pk.
+
+    A p2pk script pays a public key and not a hash, so it has no address
+    at all on either network -- `addresses` answers `[""]` for both, and
+    a test written on it would pass whatever the label said. The same
+    twenty bytes in a p2pkh script are a `1...` address on mainnet and an
+    `m` or `n` one on testnet, and the label is the only thing that
+    decides which.
+    """
+    tx = Tx.parse(RAW)
+    p2pkh = ScriptPubKey("76a914" + "ab" * 20 + "88ac")
+    tx.vout[0] = TxOut(tx.vout[0].value, p2pkh)
+
+    assert tx.vout[0].script_pub_key.address.startswith("1")
+    testnet = tx_for_network(tx, "testnet")
+    assert testnet.vout[0].script_pub_key.address.startswith(("m", "n"))
+
+
+def test_tx_from_raw_returns_the_transaction_asked_for() -> None:
+    tx = tx_from_raw(RAW, TX_ID, "mainnet")
+    assert tx.id.hex() == TX_ID
+    assert len(tx.vout) == 2
+
+
+def test_tx_from_raw_catches_the_answer_to_another_question() -> None:
+    """The one answer a backend cannot fake, checked for both backends."""
+    with pytest.raises(FetchError, match=f"transaction {OTHER_ID}: the answer is"):
+        tx_from_raw(RAW, OTHER_ID, "mainnet")
+
+
+@pytest.mark.parametrize(
+    "raw",
+    [
+        "not hex",
+        # a transaction truncated in transit
+        RAW[:100],
+        "",
+    ],
+)
+def test_tx_from_raw_reports_what_is_not_a_transaction(raw: str) -> None:
+    with pytest.raises(FetchError, match=f"transaction {TX_ID}:"):
+        tx_from_raw(raw, TX_ID, "mainnet")
+
+
+def test_the_interface_is_abstract() -> None:
+    """No answers here: a Fetcher is one of the backends, or nothing."""
+    with pytest.raises(TypeError, match="abstract"):
+        Fetcher()  # type: ignore[abstract]
+
+
+def test_an_unknown_network_is_refused_at_construction() -> None:
+    with pytest.raises(BTClibValueError, match="unknown network: mainnnet"):
+        StubFetcher(Tx.parse(RAW), "mainnnet")
+
+
+@pytest.mark.parametrize("network", ["mainnet", "testnet", "testnet4", "regtest"])
+def test_the_network_is_the_one_it_was_given(network: str) -> None:
+    assert StubFetcher(Tx.parse(RAW), network).network == network
+
+
+def test_the_stub_answers_all_three_questions() -> None:
+    """A Fetcher is the three or it is not one, so the stub must be one.
+
+    A subclass leaving one abstract could not be instantiated at all, and
+    the tests below would then be testing nothing -- which is what this
+    says out loud rather than leaving to the two lines never called.
+    """
+    fetcher = StubFetcher(Tx.parse(RAW))
+    assert fetcher.get_tx(TX_ID).id.hex() == TX_ID
+    assert fetcher.get_block_count() == TIP_HEIGHT
+    assert fetcher.get_best_block_id().hex() == TIP_ID
+
+
+def test_get_tx_out_derives_the_output_from_the_transaction() -> None:
+    """Every backend gets this one for free, and gets it from get_tx."""
+    fetcher = StubFetcher(Tx.parse(RAW))
+    out = fetcher.get_tx_out(OutPoint(TX_ID, 1))
+    assert out.value == 40_00000000
+    assert fetcher.asked == [TX_ID]
+    assert out == Tx.parse(RAW).vout[1]
+
+
+def test_get_tx_out_answers_for_an_output_already_spent() -> None:
+    """Which `gettxout` would not, and is why it is not what is called.
+
+    Both outputs of this transaction were spent years ago; a fee is the
+    inputs less the outputs, so an answer restricted to the utxo set
+    could never compute one.
+    """
+    fetcher = StubFetcher(Tx.parse(RAW))
+    assert fetcher.get_tx_out(OutPoint(TX_ID, 0)).value == 10_00000000
+
+
+def test_get_tx_out_refuses_a_vout_the_transaction_does_not_have() -> None:
+    fetcher = StubFetcher(Tx.parse(RAW))
+    with pytest.raises(FetchError, match="out of range vout: 2"):
+        fetcher.get_tx_out(OutPoint(TX_ID, 2))

@@ -115,6 +115,10 @@ Included features are:
   handed out, the derivation path of each, and the private key that signs
   for one — which is what `sign(address, msg)` needs and what a message
   signature by address had no way to find
+- a chain backend behind one interface — a transaction by id, the output
+  an outpoint names, the chain tip — over a full node's JSON-RPC or a
+  block explorer's HTTP api, written on the standard library so that it
+  adds no dependency
 
 ---
 
@@ -143,12 +147,15 @@ representation and hand back one; `bip32` and `mnemonic` derive keys;
 `script`, `tx`, `block` and `psbt` build and validate what goes on the
 chain. `bip21` parses and builds `bitcoin:` payment URIs, and sits on top
 of everything: it imports `b58`, `b32`, `amount` and `network`, and nothing
-in the library imports it. `bip44` is the other module up there, and for
-the same reason: an address from an extended key and a derivation path is
-`bip32` and `script.taproot` and both address encodings composed, so it
-imports all four and nothing imports it. `keystore` is one level above
-even that: it remembers which addresses `bip44` has handed out and signs
-for one with `ecc.bms`, so it imports `bip44` and nothing imports it.
+in the library imports it. `bip44` is up there as well, and for the same
+reason: an address from an extended key and a derivation path is `bip32`
+and `script.taproot` and both address encodings composed, so it imports
+all four and nothing imports it. `keystore` is one level above even that:
+it remembers which addresses `bip44` has handed out and signs for one
+with `ecc.bms`, so it imports `bip44` and nothing imports it. `fetch`
+sits up there too, and is the one package that goes out to the network:
+nothing below it imports it, so a user who never asks a node or an
+explorer anything never runs a line of it.
 
 ---
 

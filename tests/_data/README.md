@@ -45,8 +45,8 @@ no upstream name to be compared against, so the citation in the module
 that loads it can drift to a path upstream never had and nobody catches
 it — the byte comparison below is the only check the naming cannot fool.
 
-Ten files keep a btclib name deliberately, and the reason is the same in
-each: there is no upstream file whose name they could take.
+Seventeen files keep a btclib name deliberately, and the reason is the
+same in each: there is no upstream file whose name they could take.
 
 - `bip32_test_vectors.json`, `bip32_invalid_keys.json`,
   `bip174_test_vectors.json`, `bip371_test_vectors.json` and
@@ -60,6 +60,11 @@ each: there is no upstream file whose name they could take.
 - `descriptor_checksums.json`, `rfc6979.json`,
   `electrum_test_vectors.json` and `fakeenglish.txt` have no upstream file
   either; the last two are btclib's own.
+- the seven under `tests/fetch/_data/` are response bodies, and a
+  response has no name at all. Each takes the rpc method or the endpoint
+  path that produces it, which is the closest thing to an upstream name
+  they have and the one a re-check would type into `bitcoin-cli` or a
+  url.
 
 `taproot_test_vector.json` and `sig_hash_legacy_test_vectors.json` do have
 an upstream file each -- bip-0341's `wallet-test-vectors.json` and Core's
@@ -595,7 +600,10 @@ explorer settles a dispute. The identifier is the block hash or the txid,
 which is what `Block.parse` and `Tx.parse` recompute from the bytes on
 every run — so the first two entries verify themselves, and are the only
 vendored vectors that do. The third holds parts of transactions rather
-than whole ones, and says what that costs.
+than whole ones, and says what that costs. The fourth is chain data
+inside an envelope: bodies a node and an explorer send, carrying bytes
+the first entry already holds, and it is the one entry here that needs no
+node to re-derive.
 
 ### `tests/block/_data/block_*.bin`
 
@@ -669,6 +677,67 @@ Any explorer answers the same question — Esplora's
 is where this copy came from, no node with a transaction index being at
 hand. The heights are the issue's own, and `getblockhash`/`getblock`
 confirm them.
+
+### `tests/fetch/_data/*` — seven response bodies
+
+```text
+getrawtransaction.json        594 bytes
+getblockcount.json             48
+getbestblockhash.json         108
+getrawtransaction_error.json  216
+esplora_tx_hex.txt            551
+esplora_blocks_tip_height.txt   7
+esplora_blocks_tip_hash.txt    65
+pulled  2026-08-02
+```
+
+Verdict: **composed locally**, and the distinction between the envelope
+and what it carries is the whole of the entry.
+
+**The envelopes are not recorded.** They are what bitcoind and Esplora
+send, written here from the source that writes them rather than captured
+from a node: `JSONRPCReplyObj` in Core's `src/rpc/request.cpp` puts
+`jsonrpc`, `result` and `id` in that order, compact, and `WriteReply`
+appends the newline, which is why these files are one line each and why
+`pretty-format-json` must not touch them — the exclusion by directory
+already covers them. The error object of
+`getrawtransaction_error.json` is Core's too, code `-5` with the message
+`src/rpc/rawtransaction.cpp` builds for a node running without
+`-txindex`, verbatim including the trailing sentence `JSONRPCError`
+appends. Nothing here was invented; nothing here was captured either, and
+a node's answer is what settles a disagreement.
+
+**What they carry is chain data, and it verifies itself.** The hex in
+`getrawtransaction.json` and in `esplora_tx_hex.txt` is transaction 1 of
+block 170 —
+
+```text
+txid  f4184fc596403b9d638783cf57adfe4c75c605f6356fbc91338530e9831e9e16
+      275 bytes, 1 input, 2 outputs of 10 and 40 BTC
+```
+
+— the first bitcoin payment between two people, and it is not fetched
+from anywhere: it is read out of `tests/block/_data/block_170.bin`,
+already vendored above, so the two copies can be compared without a
+network and `Tx.parse` recomputes the id from the bytes on every run. The
+height and hash the other five carry are block 481824,
+
+```text
+0000000000000000001c8018d9cb3b742ef25114f27563e3fc4a1902167f9893
+```
+
+which is `tests/block/_data/block_481824_complete.bin`, so that pair is
+checkable here too — `BlockHeader.parse(...).hash` against the hash, the
+height against the BIP34 number in the coinbase.
+
+The `.txt` files end in a newline that Esplora does not send: the
+`end-of-file-fixer` hook adds it, as it did to `script_assets_test.json`
+above, and `EsploraFetcher.text` strips whitespace for the same reason a
+deployment behind a proxy may add some.
+
+Regenerating any of the seven is reading the two block files and writing
+the envelope around what comes out; nothing upstream will refresh them,
+and nothing should.
 
 ## Not vendored from anywhere
 
@@ -753,7 +822,7 @@ Pulled 2018-06-01.
 
 ## Summary
 
-39 files. Against a pinned upstream blob:
+46 files. Against a pinned upstream blob:
 
 - 15 identical byte for byte: `english.txt`, `wordlist.txt`,
   `taproot_test_vector.json`, `sig_hash_legacy_test_vectors.json`,
@@ -772,10 +841,13 @@ No upstream blob exists for the rest:
   `bip32_test_vectors.json`, `bip32_invalid_keys.json`,
   `bip174_test_vectors.json`, `bip371_test_vectors.json`,
   `bip67_test_vectors.json`, `descriptor_checksums.json`.
-- 7 chain data, identified by block hash or txid; the last of them,
-  `unspendable_script_pub_keys.json`, is scripts rather than whole
+- 7 chain data, identified by block hash or txid;
+  `unspendable_script_pub_keys.json` is scripts rather than whole
   transactions and so is the one that cannot recompute its own
   identifier.
+- 7 response bodies under `tests/fetch/_data/`, whose envelopes are
+  composed from Core's and Esplora's own source and whose payload is
+  chain data two of the entries above already hold.
 - 3 not vendored: `rfc6979.json` (an RFC),
   `electrum_test_vectors.json` and `fakeenglish.txt` (btclib's own).
 

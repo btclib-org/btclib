@@ -262,6 +262,12 @@ and `verify` families now let a `TypeError` out where they used to answer
 - **A psbt carries a taproot signature with its sig_hash type**, the
   65-byte form of BIP341 that BIP371 spells out and btclib refused, while
   its own script engine read it.
+- **btclib can go and ask the chain**, which it never could: `btclib.fetch`
+  is a transaction by id, the output an outpoint names and the chain tip,
+  behind one interface with two backends — a full node's JSON-RPC and a
+  block explorer's HTTP api — answering in `Tx` and `TxOut`. Nothing to
+  install for it: the client is `urllib.request`, and no other package
+  imports it.
 - **Borromean ring signatures work on a curve other than secp256k1**, which
   is what the `ec` parameter has been offering since it stopped being a module
   global: the arithmetic ignored it and computed on secp256k1, so the first
