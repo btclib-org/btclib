@@ -2470,11 +2470,6 @@ edit.
   where the walk stopped, and where it stops at the very first byte
   that is the script code entire — reachable because 0xab can be in it
   as data of a push that overruns the end
-  rounding step `fail_under` still carried then, which is what made the
-  gate turn red for the next single uncovered line to appear anywhere in
-  the tree — and turn red without warning, the run before it having
-  already printed `FAIL` and passed. The ratchet is 100 now, so there is
-  no step left to eat
 - **the twelve on-chain scripts of issue #123 are vendored**, in
   `tests/script/_data/unspendable_script_pub_keys.json`: the real
   `scriptPubKey`s of the five transactions the issue lists, each with the
