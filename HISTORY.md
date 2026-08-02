@@ -247,6 +247,12 @@ and `verify` families now let a `TypeError` out where they used to answer
   retried as another format; the script verification flags are an
   `enum.Flag`, where a misspelled name used to be a silently disabled
   consensus rule.
+- **A descriptor is now an address, not just a checksum.**
+  `descriptors.parse` reads BIP 380 to BIP 386 and BIP 389 — everything
+  but miniscript — and hands back the scripts and addresses a descriptor
+  pays to at any index, so one line of text is enough to watch a wallet.
+  Checked against Bitcoin Core's own vectors; miniscript and the four
+  functions left out say so by name rather than being read wrong.
 - **BIP340 messages of any size**, as the BIP has allowed since 2023-04:
   the four vectors btclib used to `xfail` all verify.
 - **MuSig2 is implemented**, `btclib.ecc.musig2` against all 56 cases of

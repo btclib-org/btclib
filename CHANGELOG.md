@@ -1566,6 +1566,29 @@ edit.
 
 ### The public API and the module layout
 
+- **`btclib.descriptors` reads a descriptor and derives its scripts**,
+  where it used to compute the checksum and nothing else. `parse` returns
+  a `Descriptor`, one class per grammar function, and
+  `script_pub_keys(index)` answers with the `ScriptPubKey` set that the
+  descriptor pays to at that index — with the address of each, where the
+  script has one. The grammar is BIP 380 to BIP 386 and BIP 389 minus
+  miniscript: `pk`, `pkh`, `wpkh`, `combo`, `sh`, `wsh`, `multi`,
+  `sortedmulti`, `addr`, `raw`, and `tr` with a key path and a tree of
+  `pk()` leaves; key expressions cover hex keys compressed, uncompressed
+  and x-only, WIF, xpub/xprv with a derivation path, key origin, the `/*`
+  and `/*h` wildcards and both hardened markers, and
+  `multipath_descriptors` expands the BIP 389 `<a;b>` form into the
+  descriptors it stands for. `strip_checksum` and `add_checksum` are the
+  two halves of the checksum a caller needs, and `parse` verifies one
+  that is there. Every position rule is enforced rather than assumed —
+  `sh()` at the top level only, no uncompressed key inside a witness
+  program, x-only only inside `tr()` — and what is not implemented raises
+  NotImplementedError naming what it is: miniscript is issue #187,
+  `multi_a` and `sortedmulti_a` are BIP 387, `rawtr` is BIP 386 and
+  `musig` is BIP 390. The derivation is checked against Bitcoin Core's
+  own `descriptor_tests.cpp` vectors, both spellings of each, so a WIF
+  and an xprv are checked to reach the script their public halves reach
+  (issue #186)
 - **`script.parse` has lost its `accept_unknown` parameter**, with the
   answer fixed at what every caller in the library passed: a byte no
   table names is an op code all the same, refused by the interpreter that
