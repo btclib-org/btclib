@@ -2494,3 +2494,22 @@ edit.
   constructor. `6a00` is the row that agrees with Core by arithmetic
   rather than by rule, the `00` read here as a zero-length push's marker
   and there as OP_0
+- **A link from one root markdown file to another reaches the page that
+  renders it** (issue #195). README.md, CONTRIBUTING.md, SECURITY.md,
+  HISTORY.md and CHANGELOG.md are included into the documentation
+  verbatim, and their `./FILE.md` links came out of the build as
+  `href="#./FILE.md"` — an anchor to an id no page has, eleven of them.
+  Neither tool that exists to find a broken link could see it: MyST turns
+  a target it cannot resolve into that anchor instead of reporting one, so
+  `sphinx -W` passed, and lychee reads the sources, where the path is
+  right. `docs/source/conf.py` now resolves them against the repository
+  rather than against a table — a file one of the `*_link.md` shims
+  includes becomes a reference to that page, CODE_OF_CONDUCT.md and
+  tests/README.md, which the documentation does not contain, become links
+  to the files on GitHub, and a path that exists nowhere is left to MyST,
+  whose `myst.xref_missing` suppression is gone, so `-W` fails on the next
+  link with no target. The `./FILE.md` spelling in the root files is
+  untouched, being what the GitHub file view, btclib.org and the PyPI long
+  description need. `lint.yml`'s `Build the documentation` job then greps
+  the built HTML for `href="#./`, which asks the same question where no
+  suppression can hide the answer

@@ -159,3 +159,25 @@ jobs:
         run: >
           uv run --locked --no-default-groups --group docs
           sphinx-build -W --keep-going -b html docs/source docs/build/html
+      # the one defect the build above cannot report on itself: a relative
+      # link myst cannot resolve is rendered as an anchor on the page it is
+      # already on -- href="#./CONTRIBUTING.md", an id nothing has -- so
+      # -W passes over a dead link (issue 195). conf.py resolves those
+      # links and no longer suppresses myst.xref_missing, which makes the
+      # build fail on the next one; this step is the same claim made about
+      # the artifact rather than about the configuration, and it is what
+      # would catch a suppression added back.
+      #
+      # Not lychee: links.yml reads the sources, where "./CONTRIBUTING.md"
+      # is a correct path, and pointing it at docs/build/html would mean
+      # building the documentation inside a workflow that gates nothing
+      # and re-requesting every external url these pages carry.
+      # Not a pre-commit hook either: it would have to build the
+      # documentation, which is the very reason this job exists apart from
+      # the lint one
+      - name: Check the built pages for unresolved links
+        run: |
+          if grep -rn 'href="#\./' docs/build/html --include='*.html'; then
+            echo "::error::the links above resolve to no page"
+            exit 1
+          fi
