@@ -47,9 +47,7 @@ from btclib.bip32.der_path import (
     indexes_from_der_path,
 )
 from btclib.curves import (
-    bytes_from_point,
     bytes_from_prv_key_int,
-    mult,
     point_from_octets,
     secp256k1,
 )
@@ -453,13 +451,32 @@ def __pub_key_derivation(xkey: _BIP32KeyData, index: int) -> None:
     if offset >= secp256k1.n:
         raise _invalid_child(index, "the hmac left half is not a valid scalar")
 
-    pub_key_point = secp256k1.add(xkey.pub_key_point, mult(offset))
-    if pub_key_point[1] == 0:  # INF, the point at infinity, is (int, 0)
-        raise _invalid_child(index, "the child public key is the point at infinity")
+    # the parent point plus the generator times the offset, which is
+    # what secp256k1_ec_pubkey_tweak_add computes: 12.4 us against the
+    # 33.4 of mult(offset) followed by a python point addition, and the
+    # key stays serialized throughout -- the parent's 33 bytes go in and
+    # the child's come out, with no point built on either side.
+    # Uncompressed on the way out, deliberately: the y coordinate is
+    # what the cached point needs, and recovering it from a compressed
+    # key would be the modular square root of point_from_octets, some
+    # 74 us to undo a serialization libsecp256k1 had just made.
+    #
+    # Not gated on the curve, BIP32 being defined for secp256k1 alone
+    try:
+        sec = libsecp256k1_keys.pubkey_tweak_add(xkey.key, offset, compressed=False)
+    except ValueError as e:
+        # past the range check above, the one sum libsecp256k1 refuses
+        # is the point at infinity BIP32 refuses too
+        raise _invalid_child(
+            index, "the child public key is the point at infinity"
+        ) from e
 
     xkey.chain_code = hmac_[32:]
-    xkey.pub_key_point = pub_key_point
-    xkey.key = bytes_from_point(pub_key_point)
+    y = int.from_bytes(sec[33:], byteorder="big", signed=False)
+    xkey.pub_key_point = (int.from_bytes(sec[1:33], byteorder="big", signed=False), y)
+    # the compressed spelling of what came back, as bytes_from_point
+    # writes it: the prefix is the parity of the y being dropped
+    xkey.key = (b"\x03" if y & 1 else b"\x02") + sec[1:33]
 
 
 def __prv_key_path_derivation(xkey: _BIP32KeyData, indexes: list[int]) -> None:

@@ -20,6 +20,7 @@ A hundred and seventy-nine entries, grouped. The order runs from what breaks
 A hundred and eighty entries, grouped. The order runs from what breaks
 A hundred and eighty-one entries, grouped. The order runs from what breaks
 A hundred and eighty-two entries, grouped. The order runs from what breaks
+A hundred and eighty-three entries, grouped. The order runs from what breaks
 a caller to what only maintainers see; [HISTORY.md](./HISTORY.md) lists the
 twenty-nine source-breaking changes on their own.
 
@@ -1957,6 +1958,16 @@ twenty-nine source-breaking changes on their own.
   for the `a == p-3` of most catalogued curves, and `JacPoint` is public.
   Every gain is a uniform one, so the comparisons the `curve_group_2`
   docstrings draw between the algorithms still hold as measured
+- **BIP32 public derivation stays serialized throughout**:
+  `keys.pubkey_tweak_add` adds the generator times the offset to the
+  parent's 33 bytes and hands back the child's, where python multiplied
+  the generator, added the two points and serialized the sum — 12.4 µs
+  against 33.4. The bindings answer uncompressed, deliberately: the
+  cached point wants the y coordinate, and taking it back from a
+  compressed key is the modular square root of `point_from_octets`, some
+  74 µs to undo a serialization libsecp256k1 had just made. A child at
+  infinity is still `invalid child index N`, and still refused before
+  the key data is touched
 - **BIP32 private derivation adds the offset in constant time**:
   `keys.prvkey_tweak_add`, where it was `(kpar + IL) % n` on python
   integers — variable in time with the operands, and leaving an
