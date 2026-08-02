@@ -30,6 +30,7 @@ from btclib.bip32 import (
 )
 from btclib.psbt.psbt_utils import (
     PSBT_SEPARATOR,
+    assert_not_a_v2_field,
     assert_valid_redeem_script,
     assert_valid_taproot_bip32_derivation,
     assert_valid_taproot_internal_key,
@@ -61,6 +62,14 @@ PSBT_OUT_BIP32_DERIVATION = b"\x02"
 PSBT_OUT_TAP_INTERNAL_KEY = b"\x05"
 PSBT_OUT_TAP_TREE = b"\x06"
 PSBT_OUT_TAP_BIP32_DERIVATION = b"\x07"
+
+# the output fields BIP370 defines, which a version 0 output must not
+# carry: the amount and the script_pub_key, which a v0 output reads from
+# the unsigned transaction. See psbt_utils.assert_not_a_v2_field
+_V2_FIELDS = {
+    b"\x03": "PSBT_OUT_AMOUNT",
+    b"\x04": "PSBT_OUT_SCRIPT",
+}
 # 0xfc is reserved for proprietary use, and needs no constant of its own:
 # explicit support for proprietary (and por) is unnecessary,
 # see https://github.com/bitcoin/bips/pull/1038
@@ -194,12 +203,21 @@ class PsbtOut:
 
     @classmethod
     def parse(
-        cls: type[PsbtOut], data: BinaryData, *, check_validity: bool = True
+        cls: type[PsbtOut],
+        data: BinaryData,
+        *,
+        psbt_version: int = 0,
+        check_validity: bool = True,
     ) -> PsbtOut:
         """Return a PsbtOut by parsing binary data.
 
         One map is read, its terminator included, which leaves the stream
         on the output after this one.
+
+        psbt_version is the version of the psbt the map belongs to, which
+        decides whether a BIP370 type byte is a field this version must
+        not carry or one nobody has defined; an output read on its own is
+        read as version 0, the version btclib writes.
         """
         output_map = deserialize_map(data)
         redeem_script = b""
@@ -226,6 +244,7 @@ class PsbtOut:
                 #  parse just one hd key path at time :-(
                 taproot_hd_key_paths[k[1:]] = parse_taproot_bip32(v)
             else:  # unknown
+                assert_not_a_v2_field(k[:1], psbt_version, _V2_FIELDS)
                 unknown[k] = v
 
         return cls(

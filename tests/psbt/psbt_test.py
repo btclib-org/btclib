@@ -23,7 +23,13 @@ from btclib.ecc import dsa
 from btclib.exceptions import BTClibValueError
 from btclib.hashes import hash160, hash256, ripemd160, sha256
 from btclib.psbt import Psbt, combine_psbts, extract_tx, finalize_psbt, join_psbts
-from btclib.psbt.psbt import _sig_hash_from_psbt_in, _sort_or_shuffle_together
+from btclib.psbt.psbt import (
+    _V2_GLOBAL_FIELDS,
+    _sig_hash_from_psbt_in,
+    _sort_or_shuffle_together,
+)
+from btclib.psbt.psbt_in import _V2_FIELDS as _V2_INPUT_FIELDS
+from btclib.psbt.psbt_out import _V2_FIELDS as _V2_OUTPUT_FIELDS
 from btclib.script import ScriptPubKey, Witness, serialize, sig_hash
 from btclib.script.engine import verify_transaction
 from btclib.to_pub_key import pub_keyinfo_from_prv_key
@@ -103,6 +109,115 @@ def test_invalid_psbt_bip371(test_vector: dict[str, str]) -> None:
     with pytest.raises(BTClibValueError) as excinfo:
         Psbt.b64decode(test_vector["encoded psbt"])
     assert test_vector["error message"] in str(excinfo.value)
+
+
+@pytest.mark.parametrize(
+    "test_vector", psbt_vectors("bip370_test_vectors.json", "invalid psbts")
+)
+def test_invalid_psbt_bip370(test_vector: dict[str, str]) -> None:
+    """Test https://github.com/bitcoin/bips/blob/master/bip-0370.mediawiki.
+
+    Half of the twenty-four are a version 0 psbt carrying one of the
+    twelve fields BIP370 defines, and each names the field it carries:
+    that is a rule a v0 parser can apply on its own, no version 2 needed
+    (issue #265).
+
+    The other half is a version 2 psbt, and those are refused for what
+    btclib cannot yet read rather than for what the BIP says is wrong
+    with them -- ten of them for the unsigned transaction a v2 psbt has
+    no field for, which is what the twenty-four *valid* ones below are
+    told as well. The message recorded beside each is btclib's own, so
+    the file says which reason each case is refused for, and the day
+    version 2 is read the wrong reasons are the ones that change.
+    """
+    with pytest.raises(BTClibValueError) as excinfo:
+        Psbt.b64decode(test_vector["encoded psbt"])
+    assert test_vector["error message"] in str(excinfo.value)
+
+
+@pytest.mark.parametrize(
+    "test_vector",
+    psbt_vectors("bip370_test_vectors.json", "valid psbts")
+    + psbt_vectors("bip370_test_vectors.json", "lock time psbts"),
+)
+@pytest.mark.xfail(
+    raises=BTClibValueError, strict=True, reason="PSBT v2 is not read (issue #265)"
+)
+def test_valid_psbt_bip370(test_vector: dict[str, str]) -> None:
+    """Every valid psbt of BIP370 is a v2 one, and btclib reads v0.
+
+    Vendored and marked rather than left out, which is what
+    tests/_data/README.md asks of a vector btclib fails: the marker is
+    strict, so these turn red the day v2 is read and the file is then
+    the acceptance criterion for it.
+
+    The `lock time` beside the second group is the value BIP370's
+    timelock determination must compute -- `null` for the one psbt whose
+    two kinds of locktime cannot be reconciled, which is invalid under
+    that algorithm. Nothing reads it yet, there being no computation to
+    hold it against.
+
+    One statement, where the tests above take two: the decode is what
+    raises, so a second line would never run and the coverage gate --
+    which is at 100 and counts test code too -- would fail on it.
+    """
+    encoded = test_vector["encoded psbt"]
+    assert Psbt.b64encode(Psbt.b64decode(encoded)) == encoded
+
+
+def test_the_v2_field_tables_hold_bip370s_twelve() -> None:
+    """The three tables are the whole of what version 0 must exclude.
+
+    A type byte no table names is filed under `unknown` and accepted, so
+    a field missing from them is a psbt accepted that the BIP calls
+    invalid -- which is what all twelve of these were. Derived from the
+    vector file rather than listed again here: each of those cases is
+    named after the one field it carries.
+    """
+    named_by_the_bip = {
+        test_vector["description"].removeprefix("PSBTv0 but with ")
+        for test_vector in load("psbt", "_data", "bip370_test_vectors.json")[
+            "invalid psbts"
+        ]
+        # not "PSBTv0 but with PSBT_GLOBAL_VERSION set to 2": that case is
+        # a v0 psbt claiming to be a v2 one, which the version check has
+        # always refused, rather than a v2 field in a v0 psbt
+        if test_vector["description"].startswith("PSBTv0 but with PSBT_")
+        and " set to " not in test_vector["description"]
+    }
+    tabulated = (
+        set(_V2_GLOBAL_FIELDS.values())
+        | set(_V2_INPUT_FIELDS.values())
+        | set(_V2_OUTPUT_FIELDS.values())
+    )
+    assert tabulated == named_by_the_bip
+
+
+def test_a_v2_field_is_refused_wherever_it_sits() -> None:
+    """The three maps each answer, and each says which field it found.
+
+    One psbt per map, taken from the vectors above, so that a table
+    wired into the wrong parser cannot pass on the strength of the other
+    two.
+    """
+    per_map = {
+        "PSBT_GLOBAL_INPUT_COUNT": "global",
+        "PSBT_IN_SEQUENCE": "input",
+        "PSBT_OUT_AMOUNT": "output",
+    }
+    encoded = {
+        test_vector["description"].removeprefix("PSBTv0 but with "): test_vector[
+            "encoded psbt"
+        ]
+        for test_vector in load("psbt", "_data", "bip370_test_vectors.json")[
+            "invalid psbts"
+        ]
+    }
+    for field in per_map:
+        with pytest.raises(
+            BTClibValueError, match=f"{field} is not allowed in a v0 psbt"
+        ):
+            Psbt.b64decode(encoded[field])
 
 
 # the cases below are btclib's own, and btclib_test_vectors.json is where
@@ -363,7 +478,11 @@ def test_merge() -> None:
 
 
 def test_missing_script_pub_key() -> None:
-    psbt_str = "cHNidP8BAD8CAAAAAf//////////////////////////////////////////AAAAAAD/////AQAAAAAAAAAAA2oBAAAAAAAKDwECAwQFBgcICQ8BAgMEBQYHCAkKCwwNDg8KDwECAwQFBgcIEA8BAgMEBQYHCAkKCwwNDg8ACg8BAgMEBQYHCAkPAQIDBAUGBwgJCgsMDQ4PCg8BAgMEBQYHCBAPAQIDBAUGBwgJCgsMDQ4PAAoPAQIDBAUGBwgJDwECAwQFBgcICQoLDA0ODwoPAQIDBAUGBwgQDwECAwQFBgcICQoLDA0ODwA="
+    # the unknown fields are typed 0xf0, as every other composed psbt in
+    # this module types them: 0x0f is PSBT_IN_OUTPUT_INDEX, which BIP370
+    # forbids in a version 0 psbt, so a fixture using it as a spare type
+    # byte is refused before it reaches the question being asked here
+    psbt_str = "cHNidP8BAD8CAAAAAf//////////////////////////////////////////AAAAAAD/////AQAAAAAAAAAAA2oBAAAAAAAK8AECAwQFBgcICQ8BAgMEBQYHCAkKCwwNDg8K8AECAwQFBgcIEA8BAgMEBQYHCAkKCwwNDg8ACvABAgMEBQYHCAkPAQIDBAUGBwgJCgsMDQ4PCvABAgMEBQYHCBAPAQIDBAUGBwgJCgsMDQ4PAArwAQIDBAUGBwgJDwECAwQFBgcICQoLDA0ODwrwAQIDBAUGBwgQDwECAwQFBgcICQoLDA0ODwA="
     psbt = Psbt.b64decode(psbt_str)
 
     with pytest.raises(BTClibValueError) as excinfo:

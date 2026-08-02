@@ -50,9 +50,10 @@ The files that keep a btclib name do so deliberately, and the reason is
 the same in each: there is no upstream file whose name they could take
 
 - `bip32_test_vectors.json`, `bip32_invalid_keys.json`,
-  `bip174_test_vectors.json`, `bip371_test_vectors.json` and
-  `bip67_test_vectors.json` are transcribed from mediawiki prose. There is
-  no upstream file, so the name is ours by necessity.
+  `bip174_test_vectors.json`, `bip370_test_vectors.json`,
+  `bip371_test_vectors.json` and `bip67_test_vectors.json` are transcribed
+  from mediawiki prose. There is no upstream file, so the name is ours by
+  necessity.
 - `bip39_test_vectors.json` holds all twelve language arrays of trezor's
   `vectors.json`, plus one btclib case, and keeps the btclib name anyway:
   `vectors.json` is taken in the very same directory, by SLIP-0039's own
@@ -70,9 +71,9 @@ the same in each: there is no upstream file whose name they could take
 
 `btclib_test_vectors.json` is where that convention says the most, and it
 is a naming rule of its own: the prefix of a psbt vector file names the
-authority the cases answer to — `bip174_`, `bip371_`, and `btclib_` for
-the ones btclib composed, which no BIP publishes and no refresh will ever
-reach. A file so named cannot be mistaken for a copy of something.
+authority the cases answer to — `bip174_`, `bip370_`, `bip371_`, and
+`btclib_` for the ones btclib composed, which no BIP publishes and no
+refresh will ever reach. A file so named cannot be mistaken for a copy of something.
 
 `taproot_test_vector.json` and `sig_hash_legacy_test_vectors.json` do have
 an upstream file each -- bip-0341's `wallet-test-vectors.json` and Core's
@@ -108,7 +109,8 @@ alone, all of them taken at the tip of their path on 2026-08-02, which is
 what their `pulled` says: the eight BIP327 files, the three Core files
 `key_io_valid.json`, `key_io_invalid.json` and `base58_encode_decode.json`,
 and the two python-bitcoinlib block files added here; Core's
-`blockfilters.json` followed on 2026-08-03, at the tip of its path too.
+`blockfilters.json` and BIP370's psbts followed on 2026-08-03, at the tip
+of their paths too.
 
 A vector btclib fails is vendored anyway and marked `xfail`, never left
 out: an absent vector hides the defect it would have shown, and
@@ -320,6 +322,37 @@ in our file and all 17 of ours are in the text — 11 invalid, 6 valid.
 Re-checked on 2026-07-30 against the tip of the path,
 `24e96e870fffaa257b465ce1f0370c14aac588e8` (2026-01-12): still 17 cases,
 still the same 17. Nothing to refresh.
+
+### `tests/psbt/_data/bip370_test_vectors.json`
+
+```text
+repo    bitcoin/bips
+path    bip-0370.mediawiki
+commit  e3874ca825bcd2d0975ffaffb97f1194b3661ad6  2026-04-07
+pulled  2026-08-03
+behind  0 revisions; that commit is the tip of the path
+```
+
+Verdict: **transcribed**, complete. Every psbt of the Test Vectors
+section is here: 24 invalid, 14 valid, and the 10 of the timelock
+determination algorithm, which keep the value that algorithm must
+compute beside them — `null` for the one whose two kinds of locktime
+cannot be reconciled. 48 base64 strings for 47 cases, one valid case
+publishing two serializations of itself.
+
+The base64 was taken and the hex checked against it, `b64decode(base64)
+== bytes.fromhex(hex)` for all of them but one: the "1 input, 2 output
+updated PSBTv2" case spells its label `Bytes in HEx`, so the pair cannot
+be found by the name the other 46 use. A refresh should read the labels
+case-insensitively rather than trust the count.
+
+The `error message` of an invalid case is btclib's own, as in the two
+files above, and here it says more than usual: half of the 24 are a
+version 0 psbt carrying one of BIP370's twelve fields, which btclib
+refuses by name, and the other half are version 2 psbts refused for the
+unsigned transaction btclib still requires. The valid ones are `xfail`,
+version 2 being unimplemented (issue #265), and the marker is strict, so
+this file is the acceptance criterion the day it lands.
 
 ### `tests/script/_data/bip67_test_vectors.json`
 
@@ -1124,8 +1157,9 @@ No upstream blob exists for the rest:
 
 - transcribed from a pinned prose revision, every value matched:
   `bip32_test_vectors.json`, `bip32_invalid_keys.json`,
-  `bip174_test_vectors.json`, `bip371_test_vectors.json`,
-  `bip67_test_vectors.json`, `descriptor_checksums.json`.
+  `bip174_test_vectors.json`, `bip370_test_vectors.json`,
+  `bip371_test_vectors.json`, `bip67_test_vectors.json`,
+  `descriptor_checksums.json`.
 - chain data, identified by block hash or txid: the blocks and
   transactions under `tests/block/_data/` and `tests/tx/_data/`, and
   `unspendable_script_pub_keys.json`, which is scripts rather than whole

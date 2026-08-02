@@ -35,6 +35,7 @@ from btclib.exceptions import BTClibValueError
 from btclib.hashes import hash160, hash256, ripemd160, sha256
 from btclib.psbt.psbt_utils import (
     PSBT_SEPARATOR,
+    assert_not_a_v2_field,
     assert_valid_leaf_scripts,
     assert_valid_redeem_script,
     assert_valid_taproot_bip32_derivation,
@@ -85,6 +86,18 @@ PSBT_IN_TAP_LEAF_SCRIPT = b"\x15"
 PSBT_IN_TAP_BIP32_DERIVATION = b"\x16"
 PSBT_IN_TAP_INTERNAL_KEY = b"\x17"
 PSBT_IN_TAP_MERKLE_ROOT = b"\x18"
+
+# the input fields BIP370 defines, which a version 0 input must not
+# carry: the outpoint and sequence a v0 input reads from the unsigned
+# transaction, and the two locktimes that transaction's own would be
+# computed from. See psbt_utils.assert_not_a_v2_field
+_V2_FIELDS = {
+    b"\x0e": "PSBT_IN_PREVIOUS_TXID",
+    b"\x0f": "PSBT_IN_OUTPUT_INDEX",
+    b"\x10": "PSBT_IN_SEQUENCE",
+    b"\x11": "PSBT_IN_REQUIRED_TIME_LOCKTIME",
+    b"\x12": "PSBT_IN_REQUIRED_HEIGHT_LOCKTIME",
+}
 
 # 0xfc is reserved for proprietary use, and needs no constant of its own:
 # explicit support for proprietary (and por) is unnecessary,
@@ -564,12 +577,21 @@ class PsbtIn:
 
     @classmethod
     def parse(
-        cls: type[PsbtIn], data: BinaryData, *, check_validity: bool = True
+        cls: type[PsbtIn],
+        data: BinaryData,
+        *,
+        psbt_version: int = 0,
+        check_validity: bool = True,
     ) -> PsbtIn:
         """Return a PsbtIn by parsing binary data.
 
         One map is read, its terminator included, which leaves the stream
         on the input after this one.
+
+        psbt_version is the version of the psbt the map belongs to, which
+        decides whether a BIP370 type byte is a field this version must
+        not carry or one nobody has defined; an input read on its own is
+        read as version 0, the version btclib writes.
         """
         input_map = deserialize_map(data)
         # the init keywords the map fills; whatever it does not carry keeps
@@ -588,6 +610,7 @@ class PsbtIn:
                 # key data, so it is accumulated and not assigned
                 fields.setdefault(field, {})[k[1:]] = parse_value(v)
             else:  # unknown
+                assert_not_a_v2_field(type_, psbt_version, _V2_FIELDS)
                 # keyed by the whole key: what makes it unknown is its type
                 # byte, so that byte is part of what has to be given back
                 fields.setdefault("unknown", {})[k] = v
