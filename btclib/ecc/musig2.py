@@ -11,7 +11,7 @@
 
 https://github.com/bitcoin/bips/blob/master/bip-0327.mediawiki
 
-MuSig2 turns u signers into one: their public keys aggregate into a
+MuSig2 turns many signers into one: their public keys aggregate into a
 single X-only key Q, and their partial signatures into a single BIP340
 signature that verifies under Q with `btclib.ecc.ssa` and with any other
 BIP340 verifier. A verifier -- and the chain -- sees an ordinary

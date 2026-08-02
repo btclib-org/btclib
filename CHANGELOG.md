@@ -1193,9 +1193,9 @@ edit.
   rebuild all three armors byte for byte, under an AES-128 that lives in
   the test file and is shipped to nobody
 - **MuSig2, one primitive per round** (issue #190). `btclib.ecc.musig2`
-  implements BIP327: u signers aggregate into one X-only key and their partial
-  signatures into one BIP340 signature, which `ssa.verify_` accepts as it
-  accepts any other — a verifier, and the chain, see a single-key Schnorr
+  implements BIP327: many signers aggregate into one X-only key and their
+  partial signatures into one BIP340 signature, which `ssa.verify_` accepts as
+  it accepts any other — a verifier, and the chain, see a single-key Schnorr
   signature. Key sorting and aggregation with plain and x-only tweaking
   (`key_sort`, `key_agg`, `apply_tweak`, `key_agg_and_tweak`, answering a
   `KeyAggContext` that carries the accumulated negation and tweak), the nonce
