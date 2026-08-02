@@ -415,9 +415,69 @@ def test_p2wsh() -> None:
 
 
 def test_unknown() -> None:
-    script_pub_key = serialize(["OP_16", 20 * b"\x00"])
+    """A script of no type at all: no address, and the whole of it back.
+
+    Not a witness program of an unnamed version, which is a type and
+    has an address -- see the two tests below. This one is OP_16
+    followed by 41 bytes, one past the longest program segwit defines,
+    so it is not a witness program at all and no address can carry it.
+    """
+    script_pub_key = serialize(["OP_16", 41 * b"\x00"])
     assert address(script_pub_key) == ""
     assert type_and_payload(script_pub_key) == ("unknown", script_pub_key)
+
+
+def test_a_witness_program_of_an_unnamed_version_has_an_address() -> None:
+    """Versions 2 to 16 round trip, as versions 0 and 1 do (issue #251).
+
+    Each address here is one btclib itself writes and reads; answering
+    "" for the script it decodes to broke the round trip in the middle,
+    and did so with a value indistinguishable from "this script has no
+    address" -- the right answer for a nulldata output and the wrong
+    one where the address exists and btclib can spell it. Bitcoin Core
+    renders them, `EncodeDestination` having a `WitnessUnknown` case,
+    and `witness_unknown` is Core's own name for the type.
+    """
+    program = bytes(range(2, 22))
+    for version in range(2, 17):
+        addr = b32.address_from_witness(version, program)
+        script_pub_key = ScriptPubKey.from_address(addr)
+        assert script_pub_key.type == "witness_unknown"
+        assert script_pub_key.address == addr
+        assert type_and_payload(script_pub_key.script) == (
+            "witness_unknown",
+            program,
+        )
+
+    # the version is the op code the program follows, and it is not
+    # implied by the type: the two extremes are told apart
+    assert address(serialize(["OP_2", program])) != address(
+        serialize(["OP_16", program])
+    )
+
+
+def test_where_witness_unknown_begins_and_ends() -> None:
+    """btclib draws Core's line, `Solver`'s (issue #251).
+
+    Any version but 0 that is not p2tr is `witness_unknown`, a v1
+    program that is not 32 bytes included. A version *0* program of an
+    unexpected length is not: `Solver` calls it NONSTANDARD, and there
+    is no upgrade room left in v0 for a spend to be defined for it, so
+    it has no address to render.
+    """
+    v1_not_32 = serialize(["OP_1", bytes(20)])
+    assert type_and_payload(v1_not_32) == ("witness_unknown", bytes(20))
+    assert address(v1_not_32) == b32.address_from_witness(1, bytes(20))
+
+    # the shortest and the longest program a witness address can carry
+    for length in (2, 40):
+        script_pub_key = serialize(["OP_2", bytes(length)])
+        assert type_and_payload(script_pub_key)[0] == "witness_unknown"
+        assert address(script_pub_key) == b32.address_from_witness(2, bytes(length))
+
+    v0_not_20_or_32 = serialize(["OP_0", bytes(21)])
+    assert type_and_payload(v0_not_20_or_32) == ("unknown", v0_not_20_or_32)
+    assert address(v0_not_20_or_32) == ""
 
 
 def test_p2ms_1() -> None:
