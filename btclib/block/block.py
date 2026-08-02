@@ -257,6 +257,22 @@ class Block:
             raise BTClibValueError("first transaction is not a coinbase")
 
         for transaction in self.transactions[1:]:
+            # Bitcoin Core's bad-cb-multiple, asked immediately after the
+            # same first-transaction question: a coinbase is a claim on
+            # the subsidy, so a second one is a second claim, and it is
+            # the *shape* of the block that is wrong rather than anything
+            # about that transaction on its own -- which is all
+            # assert_valid below can see.
+            # Unreachable from a serialized block, and added anyway: the
+            # proof-of-work checked above already refuses one from the
+            # wire, and a coinbase cannot be added to a real block
+            # without moving the merkle root the header commits to, so no
+            # well-formed vector can carry two. What has no work yet is a
+            # block being assembled -- the toy mining of issue #188, and
+            # any candidate-block path after it -- and that is exactly
+            # where nothing else says no
+            if transaction.is_coinbase():
+                raise BTClibValueError("more than one coinbase")
             transaction.assert_valid()
 
         self.assert_valid_merkle_root()

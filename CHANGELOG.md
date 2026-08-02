@@ -166,6 +166,20 @@ edit.
 
 ### Consensus rules
 
+- **A block carries one coinbase, and `Block.assert_valid` now says so.**
+  It asked whether the first transaction is a coinbase and never asked
+  the rest, where Bitcoin Core's `CheckBlock` asks both, the second as
+  `bad-cb-multiple`. The answer is `more than one coinbase`, raised
+  before the transaction is validated on its own terms: a second
+  coinbase is a second claim on the subsidy, so what is wrong is the
+  shape of the block rather than anything about that transaction. No
+  vector can state the rule — the proof-of-work is checked first, and
+  adding a coinbase to a real block moves the merkle root its header
+  commits to, so a well-formed block with valid work and two coinbases
+  cannot be built. That is the argument for the rule rather than
+  against it: what has no work yet is a block being *assembled*, and a
+  candidate-block path is exactly where nothing else refuses the shape
+  (issue #250)
 - **a hash equal to the target is a valid proof-of-work.**
   `BlockHeader.assert_valid_pow` rejected on `hash >= target`, where
   Core's `CheckProofOfWork` rejects on `hash > bnTarget`: the target is a
