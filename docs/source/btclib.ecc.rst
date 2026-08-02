@@ -52,6 +52,14 @@ btclib.ecc.dsa module
    :undoc-members:
    :show-inheritance:
 
+btclib.ecc.ecies module
+-----------------------
+
+.. automodule:: btclib.ecc.ecies
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
 btclib.ecc.pedersen module
 --------------------------
 

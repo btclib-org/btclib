@@ -116,3 +116,14 @@ used to teach and to prototype as much as to build:
     module: the auxiliary randomness of BIP340 signing, the entropy of a
     generated mnemonic, and the private keys of the key generation
     helpers. Nothing here seeds a generator of its own
+- `btclib.ecc.ecies` ships no block cipher and takes AES-128-CBC as two
+    callables, so the cipher's own resistance to timing and side-channel
+    attack is whatever the caller passed in — btclib neither provides it
+    nor can check it. That is the point of the parameter rather than a gap
+    in it: a pure-python AES here would be table-driven and would leak its
+    key through cache timing, and the caveat above about the python curve
+    arithmetic is exactly the one this design refuses to add a second of.
+    The MAC is verified before the cipher is called, and compared with
+    `hmac.compare_digest`, so what btclib does with the envelope does not
+    depend on the secret byte by byte; a caller wanting the same of the
+    decryption should bring a cipher that gives it

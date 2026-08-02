@@ -1167,6 +1167,31 @@ edit.
   changed with it, both for the better: truncating a message by one byte is no
   longer `invalid size: 31 bytes instead of 32` but a *different message*,
   which the signature does not sign (issue #169)
+- **`btclib.ecc.ecies` encrypts to a public key, with the block cipher
+  supplied by the caller** (issue #210). BIE1 is the ECIES the bitcoin
+  world converged on — Electrum's `encrypt` and `decrypt` commands,
+  bitcore, bitcoinjs — and it is the end `dh.py` was missing: that module
+  derived a shared secret and stopped there, with nothing in the library
+  using it to encrypt anything. `encrypt` and `decrypt` take a pair of
+  callables, `f(key, iv, data)`, and do everything on either side of them:
+  the ephemeral key pair, the ECDH, the sha512 of the compressed shared
+  point split `iv | key_e | key_m`, the `b"BIE1" + ephemeral pub key +
+  ciphertext` framing, the HMAC-SHA256 over it, and the base64 armor.
+  AES-128-CBC with PKCS#7 is the caller's to bring, which is the answer to
+  the question the issue asked before the code was written: btclib's whole
+  install story is "python plus the bindings", AES is not in the standard
+  library, and a pure-python one shipped here would be a timing-vulnerable
+  block cipher — a worse thing to ship than no block cipher at all. The
+  layers that need no cipher stand on their own and are tested without
+  one: `derive_keys` is the ECDH and the sha512 split, and `Envelope`
+  parses, validates, MAC-checks and re-serializes a message it cannot
+  read. Nothing is parameterized by curve or hash function, unlike the
+  rest of `btclib.ecc`, because interoperability is the only reason the
+  scheme exists and every implementation of it is secp256k1. BIE1 has no
+  specification either — its definition is Electrum's `crypto.py` — so the
+  tests decrypt three real ciphertexts from Electrum's own suite and
+  rebuild all three armors byte for byte, under an AES-128 that lives in
+  the test file and is shipped to nobody
 
 ### Script
 
