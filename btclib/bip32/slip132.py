@@ -19,6 +19,7 @@ from collections.abc import Callable
 from typing import Any
 
 from btclib import b32, b58
+from btclib.alias import NetworkField
 from btclib.bip32.bip32 import BIP32Key, BIP32KeyData, derive, xpub_from_xprv
 from btclib.bip32.der_path import DerPath
 from btclib.exceptions import BTClibValueError
@@ -55,7 +56,13 @@ def address_from_xpub(xpub: BIP32Key) -> str:
         # the prefix already says what is wrong
         raise BTClibValueError(f"not a public key: prefix 0x{xpub.key[:1].hex()}")
 
-    version_list = ["bip32_pub", "slip132_p2wpkh_pub", "slip132_p2wpkh_p2sh_pub"]
+    # NetworkField, where inference would widen the three to str: they
+    # are field names of Network, resolved with getattr by the lookup
+    version_list: list[NetworkField] = [
+        "bip32_pub",
+        "slip132_p2wpkh_pub",
+        "slip132_p2wpkh_p2sh_pub",
+    ]
     function_list: list[Callable[[Any, str], str]] = [
         b58.p2pkh,
         b32.p2wpkh,

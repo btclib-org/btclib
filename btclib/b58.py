@@ -21,8 +21,10 @@ address encoding.
 
 from __future__ import annotations
 
+from typing import Literal
+
 from btclib import b32
-from btclib.alias import Octets, String
+from btclib.alias import Octets, ScriptType, String
 from btclib.base58 import b58decode, b58encode
 from btclib.exceptions import BTClibValueError
 from btclib.hashes import hash160, sha256
@@ -60,8 +62,16 @@ def wif_from_prv_key(
 # 2. base58 address from HASH and vice versa
 
 
-def address_from_h160(script_type: str, h160: Octets, network: str = "mainnet") -> str:
+def address_from_h160(
+    script_type: ScriptType, h160: Octets, network: str = "mainnet"
+) -> str:
     """Return a base58 address from the payload."""
+    # the whole ScriptType and not a Literal of the two encoded here:
+    # base58 encodes a subset of the vocabulary, so the raise below is
+    # this function's answer to a caller holding the "p2tr"
+    # type_and_payload has just returned -- and a parameter that cannot
+    # spell it makes that a cast at every call site rather than a
+    # message from here
     if script_type == "p2sh":
         prefix = NETWORKS[network].p2sh
     elif script_type == "p2pkh":
@@ -73,14 +83,20 @@ def address_from_h160(script_type: str, h160: Octets, network: str = "mainnet") 
     return b58encode(payload).decode("ascii")
 
 
-def h160_from_address(b58addr: String) -> tuple[str, bytes, str]:
+def h160_from_address(b58addr: String) -> tuple[ScriptType, bytes, str]:
     """Return the payload from a base58 address."""
     if isinstance(b58addr, str):
         b58addr = b58addr.strip()
     payload = b58decode(b58addr, 21)
     prefix = payload[:1]
 
-    for script_type in ("p2pkh", "p2sh"):
+    # the two script types a base58 address encodes -- and, the same two
+    # spellings, the two Network fields holding their version prefixes,
+    # which is what lets one loop variable be both a script type and a
+    # lookup key. Annotated because inference widens a tuple of two
+    # str literals to tuple[str, str], and str is neither
+    script_types: tuple[Literal["p2pkh", "p2sh"], ...] = ("p2pkh", "p2sh")
+    for script_type in script_types:
         if network := network_from_key_value(script_type, prefix):
             return script_type, payload[1:], network
 

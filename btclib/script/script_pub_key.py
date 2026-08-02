@@ -15,7 +15,7 @@ from collections.abc import Callable, Sequence
 from dataclasses import dataclass
 
 from btclib import b32, b58, var_bytes
-from btclib.alias import Octets, ScriptList, String, TaprootScriptTree
+from btclib.alias import Octets, ScriptList, ScriptType, String, TaprootScriptTree
 from btclib.curves import point_from_octets
 from btclib.exceptions import BTClibValueError
 from btclib.hashes import hash160, sha256
@@ -309,7 +309,9 @@ def is_p2tr(script_pub_key: Octets) -> bool:
     return _is_funct(assert_p2tr, script_pub_key)
 
 
-def _witness_type_and_payload(script_pub_key: bytes) -> tuple[str, bytes] | None:
+def _witness_type_and_payload(
+    script_pub_key: bytes,
+) -> tuple[ScriptType, bytes] | None:
     """Name the witness program, or None if these bytes are not one.
 
     One function for the family, because the version is what tells them
@@ -349,8 +351,13 @@ def _witness_type_and_payload(script_pub_key: bytes) -> tuple[str, bytes] | None
     return None
 
 
-def type_and_payload(script_pub_key: Octets) -> tuple[str, bytes]:
-    """Return (script_pub_key type, payload) from the input script_pub_key."""
+def type_and_payload(script_pub_key: Octets) -> tuple[ScriptType, bytes]:
+    """Return (script_pub_key type, payload) from the input script_pub_key.
+
+    The returns here and in _witness_type_and_payload are the whole of
+    ScriptType between them, mypy checking each one against it: an
+    eleventh shape classified in either is a member added there.
+    """
     script_pub_key = bytes_from_octets(script_pub_key)
 
     if is_p2pk(script_pub_key):
@@ -409,7 +416,7 @@ class ScriptPubKey(Script):
     network: str
 
     @property
-    def type(self) -> str:
+    def type(self) -> ScriptType:
         return type_and_payload(self.script)[0]
 
     @property
