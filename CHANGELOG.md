@@ -1852,19 +1852,20 @@ edit.
   `scriptPubKey` being a part of a transaction and no txid recomputable
   from it, and `tests/_data/README.md` says so next to the command that
   re-derives each one
-- **the entry count of these two files is checked by the suite**, where
+- **a stated entry count in these two files is a failing test**, where
   CLAUDE.md and CONTRIBUTING.md answered it with a command to run by
   hand. Written as a habit it did not work: `f295aaaf` left CHANGELOG.md
   at 115 entries under a header reading "a hundred and eleven",
   `1142e97b` took it to 116 under the same header, and both survived
-  review because a wrong number looks exactly like a right one.
-  `tests/release_notes_test.py` counts the bullets and compares them
-  against what both headers state, and does the same for the
-  breaking-changes list — HISTORY.md states its size above it and
-  CHANGELOG.md cross-references it, so four numbers have to agree and not
-  two. The parser refuses a number word it cannot read rather than
-  returning zero, which would have compared every real count against
-  nothing
+  review because a wrong number looks exactly like a right one. Comparing
+  the number against the bullets answers that at the price of a line every
+  open branch has to edit, so neither file states one, and
+  `tests/release_notes_test.py` fails on an entry count, on a size for
+  HISTORY.md's breaking-changes list and on a cross-reference to it from
+  CHANGELOG.md — written by hand or restored by the `union` merge that
+  keeps these files from conflicting, which would itself say nothing. The
+  patterns are asserted against the lines they forbid, an assertion in the
+  negative passing for free the moment it matches nothing
 - **the suite runs in a random order**, `pytest-randomly` being in the
   test group; the seed is printed, and `-p no:randomly` puts the file
   order back to reproduce a failure against it. It guards the one thing a

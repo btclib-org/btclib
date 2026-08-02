@@ -269,8 +269,10 @@ docstring.
   nothing to decide, on rebases included. Its price is that these two
   files now never conflict at all, so two branches editing *the same*
   entry merge in silence, and a branch still carrying an edit to one of
-  the old count paragraphs puts the number back on rebase without a word.
-  Drop those edits while rebasing; nothing else will. A source-breaking
+  the old count paragraphs puts the number back on rebase without a word
+  — which is what `tests/release_notes_test.py` is for: it fails on a
+  stated count rather than on a wrong one, so drop those edits while
+  rebasing and the suite says whether you got them all. A source-breaking
   change costs one edit more: a bullet in HISTORY.md's breaking-changes
   list, with the "before" spelling checked against the `v2023.7.12` tag.
 

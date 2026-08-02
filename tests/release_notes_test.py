@@ -7,26 +7,30 @@
 #
 # No part of btclib including this file, may be copied, modified, propagated,
 # or distributed except according to the terms contained in the LICENSE file.
-"""The four counts CHANGELOG.md and HISTORY.md state about themselves.
+"""What CHANGELOG.md and HISTORY.md must not say about themselves.
 
-Both files open by saying how many entries they hold, and both name the
-number in words. That is the one fact in either file nothing derives:
-prose can be reviewed, a number cannot -- it is right or wrong, and which
-one is invisible unless somebody counts the bullets. Nobody did, twice.
-`f295aaaf` left the file at 115 entries under a header reading "a hundred
-and eleven", `1142e97b` took it to 116 under the same header, and the
-drift survived both reviews because there was nothing to notice.
+A count is the one fact in either file nothing derives: prose can be
+reviewed, a number cannot -- it is right or wrong, and which one is
+invisible unless somebody counts the bullets. `f295aaaf` left CHANGELOG.md
+at 115 entries under a header reading "a hundred and eleven", `1142e97b`
+took it to 116 under the same header, and the drift survived both reviews
+because there was nothing to notice.
 
-CONTRIBUTING.md and CLAUDE.md both answer this with a command to run by
-hand. Written as a habit it did not work, which is the whole argument for
-this module: the count is checked by the same run that checks everything
-else, and an entry added without moving the header is a red test rather
-than a claim nobody rereads.
+Checking the number against the bullets is one answer, and it costs what
+it fixes: the count is then a line every open branch has to edit, so it
+becomes the one conflict a pull request is guaranteed to have -- and two
+branches moving it to the same new number merge without a conflict into a
+number that is wrong. So neither file states it, and
+`grep -c '^- ' CHANGELOG.md` derives it whenever a release wants it.
 
-Four numbers, not two. The entry count appears in both files, and so does
-the size of the breaking-changes list -- HISTORY.md states it above the
-list and CHANGELOG.md cross-references it. A source-breaking change that
-moves one and not the other leaves the same kind of false claim behind.
+Which is what this module guards, the assertions running the other way
+round: a count anywhere in either file is a failure. Not only because one
+could be written by hand. `.gitattributes` marks both files `merge=union`
+so that two branches appending a bullet to the same group stop colliding,
+and the price of that driver is silence -- these files cannot conflict any
+more, so a branch still carrying an edit to one of the old count
+paragraphs restores it on rebase with nothing in the merge output to say
+so. Nothing but this.
 
 A test rather than a hook, for the reasons `docs_test.py` gives: no
 environment the suite does not already have, every interpreter of the
@@ -40,90 +44,61 @@ from pathlib import Path
 import pytest
 
 _ROOT = Path(__file__).parents[1]
-_CHANGELOG = _ROOT / "CHANGELOG.md"
-_HISTORY = _ROOT / "HISTORY.md"
+_FILES = (_ROOT / "CHANGELOG.md", _ROOT / "HISTORY.md")
 
-# a markdown bullet at the start of a line: what both files count as an
-# entry, and what `grep -c '^- '` counts in the command this replaces
-_BULLET = re.compile(r"^- ", re.MULTILINE)
+# The three claims the two files used to make, keyed on the number word
+# and not on the prose around it, `\s+` covering the 80-column wrap that
+# falls in a different place each time a paragraph is reflowed:
+# CHANGELOG.md's and HISTORY.md's entry count, the size of HISTORY.md's
+# breaking-changes list, and CHANGELOG.md's cross-reference to it. Three
+# patterns and not a general "no number words in prose": the entries
+# themselves say "eighteen became issues" and "the twelve on-chain
+# scripts of issue #123", which are facts about a change and not claims
+# about the file.
+_FORBIDDEN = (
+    r"(?i)a hundred and [a-z-]+\s+entries",
+    r"(?im)^[a-z-]+ changes break code",
+    r"(?i)lists the\s+[a-z-]+ source-breaking changes",
+)
 
-_UNITS = {
-    "one": 1, "two": 2, "three": 3, "four": 4, "five": 5, "six": 6,
-    "seven": 7, "eight": 8, "nine": 9, "ten": 10, "eleven": 11,
-    "twelve": 12, "thirteen": 13, "fourteen": 14, "fifteen": 15,
-    "sixteen": 16, "seventeen": 17, "eighteen": 18, "nineteen": 19,
-}  # fmt: skip
-_TENS = {
-    "twenty": 20, "thirty": 30, "forty": 40, "fifty": 50,
-    "sixty": 60, "seventy": 70, "eighty": 80, "ninety": 90,
-}  # fmt: skip
+# each of those patterns against the text it forbids, as the files spelled
+# it while they still stated a count: what `test_the_patterns_still_match`
+# compares them with.
+_RESURRECTED = (
+    "A hundred and eighty entries, grouped. The order runs from what breaks",
+    "The first release since 2023, and the largest: a hundred and eighty\nentries",
+    "Twenty-nine changes break code that worked on v2023.7.12.",
+    "[HISTORY.md](./HISTORY.md) lists the\ntwenty-nine source-breaking changes",
+)
 
 
-def int_from_words(words: str) -> int:
-    """Return the integer a spelled-out English number names.
+@pytest.mark.parametrize("path", _FILES, ids=lambda p: p.name)
+def test_neither_file_states_a_count(path: Path) -> None:
+    """No entry count, and no size of the breaking-changes list.
 
-    Enough of the language for what these two files say and no more: an
-    optional "a hundred and", then a ten and a unit joined by a hyphen.
-    Anything outside that raises rather than guessing, because a header
-    this cannot read is a header that stopped matching the pattern the
-    tests below look it up by -- which is itself worth a failure.
+    Written by hand or put back by a `union` merge that had nothing to
+    decide: either way the number is a claim nothing derives, and the
+    command in the header derives it instead.
     """
-    total = 0
-    text = words.strip().lower()
-    if text.startswith("a hundred and "):
-        total, text = 100, text[len("a hundred and ") :]
-    for part in text.split("-"):
-        if part in _TENS:
-            total += _TENS[part]
-        elif part in _UNITS:
-            total += _UNITS[part]
-        else:
-            msg = f"not a number this knows how to read: {words!r}"
-            raise ValueError(msg)
-    return total
+    text = path.read_text(encoding="utf-8")
+    for pattern in _FORBIDDEN:
+        match = re.search(pattern, text)
+        assert match is None, (
+            f"{path.name} states a count again: {match[0]!r}."
+            " Remove it -- `grep -c '^- ' CHANGELOG.md` answers on demand,"
+            " and a rebase restores such a paragraph in silence."
+        )
 
 
-def stated(path: Path, pattern: str) -> int:
-    """Return the number `pattern` captures in `path`, as an int."""
-    match = re.search(pattern, path.read_text(encoding="utf-8"), re.MULTILINE)
-    assert match is not None, f"{path.name} no longer states it: {pattern}"
-    return int_from_words(match[1])
+def test_the_patterns_still_match() -> None:
+    """The guard above passes for free if its patterns match nothing.
 
-
-def test_entry_count_is_what_both_files_say() -> None:
-    """The bullets of CHANGELOG.md, against the count in both headers."""
-    entries = len(_BULLET.findall(_CHANGELOG.read_text(encoding="utf-8")))
-    assert entries == stated(_CHANGELOG, r"^(A hundred and [a-z-]+) entries, grouped")
-    assert entries == stated(_HISTORY, r"the largest: (a hundred and [a-z-]+)\nentries")
-
-
-def test_breaking_change_count_is_what_both_files_say() -> None:
-    """The breaking-changes list, against the count above and beside it.
-
-    The list runs from its own heading to the paragraph that closes it,
-    which names the two changes deliberately left off; the bullets in
-    between are the changes it claims.
+    Which is the failure mode of every assertion written in the negative,
+    and the one the files it reads cannot reveal: a pattern reworded past
+    the text it forbids leaves a green test guarding an empty set.
     """
-    history = _HISTORY.read_text(encoding="utf-8")
-    start = history.index("### Breaking changes")
-    end = history.index("Two changes are deliberately", start)
-    listed = len(_BULLET.findall(history[start:end]))
+    for text in _RESURRECTED:
+        assert any(re.search(p, text) for p in _FORBIDDEN), text
 
-    assert listed == stated(_HISTORY, r"^([A-Z][a-z-]+) changes break code")
-    assert listed == stated(_CHANGELOG, r"lists the\n([a-z-]+) source-breaking changes")
-
-
-def test_int_from_words_refuses_what_it_cannot_read() -> None:
-    """The parser above raises rather than guessing.
-
-    `stated` calls it on whatever the header matched, so a header reworded
-    past the patterns must fail loudly: a silent 0 would make every
-    assertion above compare a real count against nothing.
-    """
-    for words in ("a hundred and umpteen", "several", "a thousand"):
-        with pytest.raises(ValueError, match="not a number this knows how to read"):
-            int_from_words(words)
-
-    # and it reads the two shapes the files actually use
-    assert int_from_words("sixteen") == 16
-    assert int_from_words("a hundred and forty-five") == 145
+    for pattern in _FORBIDDEN:
+        assert any(re.search(pattern, t) for t in _RESURRECTED), pattern
