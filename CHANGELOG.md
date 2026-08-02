@@ -1192,6 +1192,35 @@ edit.
   tests decrypt three real ciphertexts from Electrum's own suite and
   rebuild all three armors byte for byte, under an AES-128 that lives in
   the test file and is shipped to nobody
+- **MuSig2, one primitive per round** (issue #190). `btclib.ecc.musig2`
+  implements BIP327: u signers aggregate into one X-only key and their partial
+  signatures into one BIP340 signature, which `ssa.verify_` accepts as it
+  accepts any other — a verifier, and the chain, see a single-key Schnorr
+  signature. Key sorting and aggregation with plain and x-only tweaking
+  (`key_sort`, `key_agg`, `apply_tweak`, `key_agg_and_tweak`, answering a
+  `KeyAggContext` that carries the accumulated negation and tweak), the nonce
+  pair (`nonce_gen`, and `nonce_gen_` taking the randomness as an argument),
+  nonce aggregation, the `SessionContext` and the values every party derives
+  from it, partial signing (`sign`, and `deterministic_sign` for a signer with
+  no entropy source), `partial_sig_verify` to hold one signer to what it sent,
+  and `partial_sig_agg`. Primitives rather than a function that signs, which
+  is what "interactive" in the issue means: the signers exchange nonces and
+  then partial signatures, and each exchange is somebody else's network. All
+  56 cases of BIP327's eight vector files pass, the error half included — an
+  error case names which party contributed what, which is why an invalid
+  contribution raises `InvalidContributionError` carrying the signer index and
+  the field, a `BTClibRuntimeError` and deliberately not a `BTClibValueError`:
+  the caller's own bad argument and a peer's misbehaviour are what the
+  specification separates, and one base for both would put them beyond telling
+  apart by `except`. secp256k1 and sha256 are not parameters, unlike elsewhere
+  in `btclib.ecc`: BIP327 defines its tags and its serializations for that
+  pair alone, so a `Curve` argument would advertise a genericity no vector
+  could check. The message is of any size, which is what made #169 the
+  precondition — two of BIP327's own vectors are an empty message and a
+  38-byte one, and both take btclib's python path. `sign` zeroes the secnonce
+  bytearray it is given, because two signatures under one secret nonce hand
+  out the private key. Threshold signing, the neighbouring half of #190, is
+  not implemented and the issue stays open for it
 
 ### Script
 

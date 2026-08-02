@@ -60,6 +60,14 @@ btclib.ecc.ecies module
    :undoc-members:
    :show-inheritance:
 
+btclib.ecc.musig2 module
+------------------------
+
+.. automodule:: btclib.ecc.musig2
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
 btclib.ecc.pedersen module
 --------------------------
 

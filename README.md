@@ -71,7 +71,10 @@ Included features are:
   bitcoin standardization)
     - batch validation
     - threshold signature (see test-suite)
-    - MuSig multi-signature (see test-suite)
+    - [MuSig2](https://github.com/bitcoin/bips/blob/master/bip-0327.mediawiki)
+      multi-signature: key aggregation with plain and x-only tweaking,
+      nonce aggregation, partial signatures and their aggregation, one
+      primitive per round of the protocol
 - Borromean ring signature
 - Sign-to-contract commitment
 - Diffie-Hellman

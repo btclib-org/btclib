@@ -76,7 +76,8 @@ refreshing it is a decision, not a chore.
 
 Every entry was last re-checked against its upstream on 2026-07-30, and
 whatever had drifted was refreshed, so `behind` is 0 wherever a refresh
-was possible at all.
+was possible at all. The eight BIP327 files are the exception by date
+alone: they were vendored on 2026-08-02, at the tip of their path.
 
 A vector btclib fails is vendored anyway and marked `xfail`, never left
 out: an absent vector hides the defect it would have shown, and
@@ -136,6 +137,56 @@ Four of the 19 are messages of 0, 1, 17 and 100 bytes: BIP340 accepts a
 message of any size, the bindings still insist on a 32-byte hash, so
 these four take the python path (issue 169). All four pass: `verify_`
 accepts each, and `sign_` reproduces each signature byte for byte.
+
+### BIP327 (MuSig2): eight files under `tests/ecc/_data/`
+
+The vectors of `bip-0327/vectors/`, all eight of them, vendored whole
+and under upstream's own names: `key_sort_vectors.json`,
+`key_agg_vectors.json`, `nonce_gen_vectors.json`,
+`nonce_agg_vectors.json`, `sign_verify_vectors.json`,
+`tweak_vectors.json`, `det_sign_vectors.json` and
+`sig_agg_vectors.json`.
+
+One pin serves all eight, the entries below differing only in the blob:
+
+```text
+repo    bitcoin/bips
+path    bip-0327/vectors/<name>.json
+commit  1c6ac0c4cf1f39ea806b8594d6060b6d52fd1439  2024-07-19
+pulled  2026-08-02
+behind  0 revisions; that commit is the tip of the path, which has
+        three revisions in all
+```
+
+Verdict for every one of them: **identical**. The eight blobs are
+
+```text
+de088a746e27953614b9f5394553911fb2c86d59  key_sort_vectors.json
+b2e623de60f302c4004a6d656581bdba1f4e1e05  key_agg_vectors.json
+ced946f3efd9f80cb1a3819939f2b39de2061e42  nonce_gen_vectors.json
+1c04b8818f340a5fe2e10eaf73c17a2c9e020f46  nonce_agg_vectors.json
+f71c8dd9d935c8c5f398e6a3888943e1e68b729d  sign_verify_vectors.json
+d0a7cfe832bfe22375af0d64cd5d0dbb350592e0  tweak_vectors.json
+261669ccd01cd4098fa97045f3d32654f64a48af  det_sign_vectors.json
+519562c343b6e4bf686ba6e3eda8cee5c8e8b55d  sig_agg_vectors.json
+```
+
+56 cases between them, and `tests/ecc/musig2_test.py` runs every one:
+1 sorting, 4 + 5 aggregations valid and failing, 4 nonce derivations,
+2 + 3 nonce aggregations, 6 + 6 + 3 + 2 signatures (valid, refused at
+signing, false on verification, refused on verification), 5 + 1
+tweaked, 4 + 5 deterministic, 4 + 1 aggregated. An error case carries
+what should be raised — which party contributed what, or the text of a
+plain value error — and is checked against it, so the failing half of
+each file is as load-bearing as the valid half.
+
+What the files are measured against is `bip-0327/reference.py`, pinned
+separately at `9297c12729670d09f9149ec6d8bad967d8161bfe` (2025-10-03,
+the tip of that path): `btclib/ecc/musig2.py` follows it function for
+function, and copies four of its error message strings verbatim
+because the `error.message` field of a case is compared byte for byte.
+That file is not vendored — it is an implementation, not data, and
+btclib's is the one under test.
 
 ### `tests/script/_data/taproot_test_vector.json`
 
@@ -610,11 +661,12 @@ Pulled 2018-06-01.
 
 ## Summary
 
-29 files. Against a pinned upstream blob:
+37 files. Against a pinned upstream blob:
 
-- 6 identical byte for byte: `english.txt`,
+- 14 identical byte for byte: `english.txt`,
   `taproot_test_vector.json`, `sig_hash_legacy_test_vectors.json`,
-  `script_tests.json`, `tx_valid.json`, `tx_invalid.json`.
+  `script_tests.json`, `tx_valid.json`, `tx_invalid.json`, and the
+  eight BIP327 vector files.
 - 1 identical but for a trailing newline:
   `script_assets_test.json`.
 - 1 identical but for CRLF against LF: `bip340_test_vectors.csv`.

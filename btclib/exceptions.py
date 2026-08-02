@@ -71,6 +71,35 @@ class BTClibRuntimeError(RuntimeError):
     pass
 
 
+class InvalidContributionError(BTClibRuntimeError):
+    """A party to an interactive protocol sent a value that does not check out.
+
+    Which party, and which of its contributions: `signer` is the index
+    in the list the caller passed, None for the aggregator -- who has no
+    index, having no key -- and `contrib` names what was wrong, one of
+    "pubkey", "pubnonce", "aggnonce", "aggothernonce" or "psig". That is
+    the whole point of the class: a multi-round protocol that merely
+    fails leaves every participant a suspect, and the answer a caller
+    needs is who to hold accountable and to exclude from the next
+    attempt.
+
+    A BTClibRuntimeError and not a BTClibValueError, which is the other
+    obvious base and the one BIP327 keeps separate: its reference
+    implementation raises ValueError for an argument that breaks a
+    precondition -- the caller's own mistake, a 33-byte tweak -- and
+    this for a peer misbehaving, and the MuSig2 test vectors distinguish
+    the two case by case. Sharing a base would put the two beyond
+    telling apart by `except`, and would let every `except ValueError`
+    in the library swallow an accusation.
+    """
+
+    def __init__(self, signer: int | None, contrib: str) -> None:
+        self.signer = signer
+        self.contrib = contrib
+        who = "the aggregator" if signer is None else f"signer {signer}"
+        super().__init__(f"invalid {contrib} from {who}")
+
+
 class BTClibUserWarning(UserWarning):
     """A btclib warning: the call worked, but not the way it should have.
 
