@@ -85,6 +85,20 @@ test = [
     "pytest-xdist",
 ]
 lint = ["mypy", "pre-commit", "ruff"]
+# mutation testing, which asks the question coverage cannot: a line the
+# suite executes is not a line the suite checks. Its own group and not part
+# of test, because every cell of the matrix installs that one and none of
+# them runs this -- the scheduled mutation workflow is the only consumer,
+# and it asks for --group test as well, cosmic-ray shelling out to pytest.
+# cosmic-ray rather than mutmut, measured on this tree: mutmut 3.7 has to
+# copy an importable package, so a source_paths of one file leaves its
+# mutants/ copy without the module beside it (ModuleNotFoundError on
+# btclib.script.script) and scoping moves out of the configuration into a
+# name filter on the command line, while cosmic-ray's module-path is the
+# scope. It also runs the test command written in .github/mutation/*.toml
+# verbatim, which is what lets a run override the -n auto of
+# tool.pytest.ini_options and add -x
+mutation = ["cosmic-ray"]
 # the distribution files are built and published by uv itself: what this
 # group holds is what inspects them, before an upload consumes the version
 build = ["check-manifest", "check-wheel-contents", "pyroma", "twine"]
@@ -94,6 +108,7 @@ dev = [
     { include-group = "lint" },
     { include-group = "build" },
     { include-group = "docs" },
+    { include-group = "mutation" },
 ]
 
 [tool.uv.sources]

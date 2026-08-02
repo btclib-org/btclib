@@ -127,3 +127,10 @@ Gemfile.lock
 btclib-*
 
 .pytest_cache/
+
+# cosmic-ray sessions, written into the root by the commands CONTRIBUTING.md
+# gives: one row per mutant, so a finished sighash session is 727 verdicts
+# and megabytes of them. What is worth keeping is uploaded by the mutation
+# workflow as an artifact, where it expires; a session committed here would
+# be a snapshot of a suite that has moved on
+*.sqlite

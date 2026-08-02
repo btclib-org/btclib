@@ -3157,6 +3157,36 @@ edit.
   were fine, while the ones that had rotted were outside every pair.
   The tools.ietf.org citations now name rfc-editor.org, which is where
   they were redirecting
+- a `mutation` workflow asks what coverage cannot — not whether a line
+  ran, but whether the suite would notice if it were wrong — weekly, on
+  demand, and gating nothing (issue #219). Scoped to the consensus code,
+  `btclib/script/engine/` and `btclib/script/sig_hash.py`, which is where
+  all three of the defects that opened the issue lived, every one of them
+  inside a tree measuring 100%. cosmic-ray and not mutmut, measured on
+  this tree rather than chosen: mutmut 3.7 mutates a *copy* of an
+  importable package, so a `source_paths` naming one file leaves that copy
+  without the modules beside it — `ModuleNotFoundError: No module named
+  'btclib.script.script'` — and the scope then has to move out of the
+  configuration and into a name filter on the command line, with the whole
+  package mutated to get there; a 25-minute trial of it also returned
+  `check was interrupted by user` for 263 of the 603 verdicts it reached,
+  which is not a verdict. cosmic-ray's `module-path` is the scope, and its
+  `test-command` is run verbatim, which is what lets a session override
+  the `-n auto` of `tool.pytest.ini_options` and add `-x`. Two
+  configurations under `.github/mutation/` and not one, although
+  `module-path = "btclib/script"` with the six non-consensus modules
+  excluded was measured to enumerate exactly the same 3495 mutants: the
+  test command belongs to the configuration, and the two halves of the
+  scope cost 1.1 s and 7.2 s of cpu per mutant, so one shared command
+  would make every sighash mutant pay the engine's price. The first pass
+  is what the issue asked for and refused to guess at: 727 mutants in
+  `sig_hash.py` against 2768 in the engine, a survival rate measured on
+  the first of those, and a `timeout` of 300 s rather than 60 because at
+  60 the *unmutated* baseline timed out on a machine under load — a
+  timeout is a verdict of its own, so slack is survivors not reported as
+  noise. It is not a gate and is not among master's required checks: a
+  mutant survives because a test is missing, so a red merge would stop
+  whoever next touched the file for a hole somebody else left
 - a scheduled workflow runs the test suite against the *published*
   btclib_libsecp256k1, resolved from PyPI by the declared pin, where every
   other job follows tool.uv.sources to the bindings under development: what

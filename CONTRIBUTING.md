@@ -274,6 +274,46 @@ repository, so a red merge would be somebody else's weather — and a
 failing run is read in the Actions tab. `.lycheeignore` holds the URLs a
 checker cannot judge, each with the reason.
 
+The `mutation` workflow, weekly and on demand, which gates nothing either
+and for a different reason: it asks whether the suite would *notice* a
+wrong line, where coverage only says the line ran, and a surviving mutant
+is a test nobody has written rather than a regression somebody just
+caused. Scoped to the consensus code — `btclib/script/engine/` and
+`btclib/script/sig_hash.py` — by the two configurations under
+`.github/mutation/`, which is also what a local run reads, so there is one
+statement of what is mutated and what judges it:
+
+```shell
+uv run --locked --no-default-groups --group test --group mutation \
+    cosmic-ray baseline .github/mutation/sig_hash.toml
+uv run --locked --no-default-groups --group test --group mutation \
+    cosmic-ray init .github/mutation/sig_hash.toml sig_hash.sqlite
+uv run --locked --no-default-groups --group test --group mutation \
+    cosmic-ray exec .github/mutation/sig_hash.toml sig_hash.sqlite
+uv run --locked --no-default-groups --group test --group mutation \
+    cr-report --surviving-only --show-diff sig_hash.sqlite
+```
+
+`baseline` first, always: it runs the configured test command against the
+unmutated tree, and without it a stale path or a renamed test file fails
+every mutant identically and the session reports a perfect kill rate,
+which is the one failure mode of a mutation run that looks like good news.
+`engine.toml` in place of `sig_hash.toml` is the other scope, at 2768
+mutants against 727 and five and a half hours against half an hour of cpu;
+each configuration says what its own arithmetic is. The report is
+`--surviving-only`, which is the whole of what anybody acts on: a killed
+mutant is the suite doing its job, and printing all 727 of them buries the
+dozen that are not.
+
+Three things to know before starting one. The session mutates the source
+file in place and restores it afterwards, so nothing else may read the
+tree while it runs — no second session, no `pytest` in another shell, and
+a `git status` in the middle is a working tree with a mutant in it.
+`exec` is resumable, running whatever the session still has pending, so
+interrupting one costs only the mutant it was on. And the `.sqlite`
+sessions are the artifact the workflow uploads: `cr-report`, `cr-html` and
+`cr-rate` all read one, and a downloaded one can be finished locally.
+
 The documentation, which the `Build the documentation` job of `lint.yml`
 runs with this same command, as read the docs does. `-W` is what makes an
 `automodule` whose module does not import a failure rather than an empty
