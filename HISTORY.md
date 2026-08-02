@@ -12,6 +12,7 @@ The first release since 2023, and the largest; every entry of it is in
 and what a user gains.
 The first release since 2023, and the largest: a hundred and seventy-nine
 The first release since 2023, and the largest: a hundred and eighty
+The first release since 2023, and the largest: a hundred and eighty-one
 entries, in [CHANGELOG.md](./CHANGELOG.md). What follows is what a user has
 to act on and what a user gains.
 

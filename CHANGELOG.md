@@ -18,6 +18,7 @@ does that, whereas a stated number is a line every open branch has to
 edit.
 A hundred and seventy-nine entries, grouped. The order runs from what breaks
 A hundred and eighty entries, grouped. The order runs from what breaks
+A hundred and eighty-one entries, grouped. The order runs from what breaks
 a caller to what only maintainers see; [HISTORY.md](./HISTORY.md) lists the
 twenty-nine source-breaking changes on their own.
 
@@ -1955,6 +1956,18 @@ twenty-nine source-breaking changes on their own.
   for the `a == p-3` of most catalogued curves, and `JacPoint` is public.
   Every gain is a uniform one, so the comparisons the `curve_group_2`
   docstrings draw between the algorithms still hold as measured
+- **ECDH computes the shared point in libsecp256k1**, and in constant
+  time: `dh.diffie_hellman` calls `keys.pubkey_tweak_mul` on secp256k1,
+  13.7 µs against the 1.07 ms of `mult(dU, QV)` — some seventy-eight
+  times, this being the multiplication of a point that is *not* the
+  generator, the one case `mult` never delegated, with the private key
+  as the scalar. The derivation is unchanged and still ANSI-X9.63-KDF,
+  which is why the bindings' own `ecdh.shared_secret` is not a
+  substitute: that one hashes the compressed shared point with SHA256.
+  Every other curve keeps the python multiplication, GEC 2's secp160r1
+  vector now checked through `diffie_hellman` itself, and so does a
+  scalar that is zero mod n — the infinity point, which the bindings
+  have no scalar for and which is still `invalid (INF) key`
 - **the taproot output *private* key is tweaked by libsecp256k1 too**, and
   in constant time: `taproot.output_prvkey` calls
   `xonly.prvkey_tweak_add`, which is BIP341's tweaking of an x-only
@@ -1986,6 +1999,13 @@ twenty-nine source-breaking changes on their own.
   secp256k1 point — and the operation that means is ECDH:
   `dh.diffie_hellman` measures 0.56 ms against 0.87, a third off, and so
   does any caller multiplying a point of its own. The dispatch asks the
+  cannot answer: `curve_group_2.mult_endomorphism_secp256k1`, 1.03 ms
+  against the 1.52 of the generic `_mult`. The bindings take the generator
+  and a non-zero scalar, so what reaches the python path is every *other*
+  secp256k1 point: any caller multiplying a point of its own gains that
+  third. Not ECDH any more, which measured 1.07 ms against 1.56 until
+  `dh.diffie_hellman` began asking libsecp256k1 for the shared point
+  itself, and which reaches this only on another curve. The dispatch asks the
   same `_libsecp256k1_applicable` the bindings dispatch asks, so the two
   cannot drift apart, and every other curve still runs `_mult` untouched.
   The algorithm is not new either: m as m1 + m2*lambda with both halves

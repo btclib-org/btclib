@@ -67,8 +67,9 @@ used to teach and to prototype as much as to build:
     for secp256k1 and the generator alone; `dsa.sign` for secp256k1 with
     sha256, the lower-s form, no caller-imposed nonce and no commitment;
     `ssa.sign` for secp256k1 with sha256, a 32-byte message and no
-    commitment; `taproot.output_prvkey` for secp256k1, the tweaking of a
-    key being the one other place a secret meets the curve.
+    commitment; `taproot.output_prvkey` and `dh.diffie_hellman` for
+    secp256k1, the tweaking of a key and the shared point of a key
+    agreement being the two other places a secret meets the curve.
     Anything else — another
     curve, another hash function, another message size, a nonce of your
     own — runs the Python implementation, whose scalar multiplication is

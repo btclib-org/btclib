@@ -15,7 +15,7 @@ import pytest
 
 from btclib.curves import bytes_from_point, mult
 from btclib.curves.curve import CURVES
-from btclib.ecc import ansi_x9_63_kdf, diffie_hellman, dsa
+from btclib.ecc import ansi_x9_63_kdf, dh, diffie_hellman, dsa
 from btclib.exceptions import BTClibRuntimeError, BTClibValueError
 
 
@@ -103,6 +103,10 @@ def test_gec_2() -> None:
         z.to_bytes(ec.p_size, byteorder="big", signed=False), size, hf, None
     )
     assert keyingdata.hex() == "744ab703f5bc082e59185f6d049d2d367db245c2"
+    # the whole scheme, on the curve the bindings do not serve: this
+    # vector is what covers the python shared point, secp256k1 having
+    # been handed to libsecp256k1
+    assert diffie_hellman(dU, QV, size, None, ec, hf) == keyingdata
 
     # 4.1.5
     z, _ = mult(dV, QU, ec)  # x coordinate only
@@ -241,6 +245,27 @@ def test_capv() -> None:
             None if shared_info is None else bytes.fromhex(shared_info),
         )
         assert result == bytes.fromhex(key_data)
+
+
+def test_the_python_shared_point_is_the_bindings_one(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """One shared key, whoever multiplies the point.
+
+    Three ways to the same bytes: libsecp256k1 for each side of the
+    agreement, and the python endomorphism path for one of them. The
+    patch is how that path is reached on secp256k1 at all, `mult`
+    delegating every scalar but zero once the point is a public key
+    rather than the generator.
+    """
+    a, A = dsa.gen_keys()  # Alice
+    b, B = dsa.gen_keys()  # Bob
+
+    shared_key = diffie_hellman(a, B, 32)
+    assert diffie_hellman(b, A, 32) == shared_key
+    with monkeypatch.context() as no_bindings:
+        no_bindings.setattr(dh, "_libsecp256k1_applicable", lambda *_: False)
+        assert diffie_hellman(a, B, 32) == shared_key
 
 
 def test_infinity_shared_secret() -> None:
