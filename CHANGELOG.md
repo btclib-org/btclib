@@ -180,6 +180,16 @@ edit.
   against it: what has no work yet is a block being *assembled*, and a
   candidate-block path is exactly where nothing else refuses the shape
   (issue #250)
+- **a hash equal to the target is a valid proof-of-work.**
+  `BlockHeader.assert_valid_pow` rejected on `hash >= target`, where
+  Core's `CheckProofOfWork` rejects on `hash > bnTarget`: the target is a
+  bound the hash may reach, so the one hash that lands on it solved the
+  block for every node on the network and for btclib alone did not. The
+  error message says `>` rather than `>=` for the same reason. No vector
+  can exhibit it — equality asks a 256-bit hash for one exact value, and
+  the compact form cannot be nudged to meet a given hash either, its
+  significand holding three bytes — which is precisely why the comparison
+  has to be read off Core rather than tested against it
 - **btclib can check a Merkle proof, not only compute a root.** It had
   the builder's side, `merkle_root_and_mutated_from_hashes`, and no
   entry point for the verifier's: from a txid, a branch of siblings and
@@ -1274,6 +1284,26 @@ edit.
 
 ### Script
 
+- **A witness program of version 2 or higher has an address, and btclib
+  now renders it.** `type_and_payload` named five script types, none of
+  which a v2..v16 program is, so `ScriptPubKey.type` answered
+  `"unknown"` and `.address` the empty string — for a script built from
+  a valid bech32m address btclib itself writes and reads. The round trip
+  was broken in the middle, and broken with a value indistinguishable
+  from "this script has no address", which is the right answer for a
+  nulldata output and the wrong one here. The sixth answer is
+  `"witness_unknown"`, Bitcoin Core's own name for the type
+  (`TxoutType::WITNESS_UNKNOWN`), and `.address` is the bech32m one:
+  `EncodeDestination` renders these too, its `WitnessUnknown` case. The
+  line is Core's `Solver`'s — any version but 0 that is not p2tr,
+  including a v1 program that is not 32 bytes; a *version 0* program of
+  an unexpected length stays `"unknown"`, NONSTANDARD to Core, v0 having
+  no upgrade room left for a spend to be defined in. The payload is the
+  witness program, as it is for the three named witness types, and the
+  version is not implied by the answer — it is the op code the program
+  follows, which is where `address` reads it. Nothing changes for the
+  script engine, which dispatches on the version and reaches the same
+  upgrade-room arm it always did (issue #251)
 - **`ScriptPubKey` is a dataclass**, as the `Script` it extends is. It was a
   plain subclass of one, so `network` was a bare annotation rather than a
   field: `dataclasses.fields` reported only `script`, and
@@ -1385,6 +1415,34 @@ edit.
 
 ### Transactions, blocks and PSBT
 
+- **The difficulty retarget, the work behind a chain, the hash rate it
+  implies, and a toy miner.** `btclib.block.proof_of_work` holds the first
+  three as pure functions over the four `bits` bytes a header carries,
+  because "which of two competing chains is best" is a question asked of
+  both at once and answered by comparing their work, not their heights.
+  `next_bits` is Bitcoin Core's `CalculateNextWorkRequired`: the factor of
+  four clamped onto the measured timespan either way, the pow-limit clamp,
+  the 256-bit ring the multiplication happens in, and the compact
+  re-encoding, whose rounding down is part of the answer. Its window is
+  the one `retarget_first_height` names, 2015 intervals between the
+  timestamps of the 2016 blocks a period holds — the off-by-one Core keeps
+  for compatibility, and the reason blocks come out 0.05% faster than the
+  ten minutes aimed at. `bits_from_target` is the `GetCompact` that
+  `BlockHeader.target` had no inverse for, including the rule that shifts
+  a significand whose high bit would read as the sign; `block_work` and
+  `chain_work` are `GetBlockProof` and `nChainWork`, and `hash_rate` is
+  difficulty times 2^32 over the observed interval, with the variance that
+  makes it an estimate — 1/sqrt(n), still 2% over a whole window — in its
+  docstring. `btclib.block.mining` is the fourth:
+  `candidate_block_header` computes the merkle root over a transaction
+  list and leaves the nonce at zero, `mine` searches the four bytes up to
+  a bound and answers `None` rather than hanging. A toy at one Python hash
+  at a time, and not a toy about what it produces: the merkle root comes
+  from the function `Block.assert_valid_merkle_root` checks against, now
+  shared rather than written twice, and the tests mine a block and let
+  `Block.assert_valid` have the last word. The retarget is tested against
+  the four mainnet vectors of Core's `pow_tests.cpp` and the round trip
+  against the bits of every vendored block (issue #188)
 - **A psbt can carry a taproot signature with its sig_hash type.** BIP341
   spends with 64 bytes of signature, or 65 when the sig_hash type is not
   the default one — the extra byte being that type — and BIP371 says "64
@@ -1896,6 +1954,50 @@ edit.
   — the first three need a view of the chain btclib does not have, the
   last two a file format that would outlive the release choosing it
   (issue #189)
+- **pre-2.0 Electrum seeds are read, and a dispatcher says which scheme a
+  mnemonic belongs to** (issue #208). A wallet created before Electrum 2.0
+  was recognized and nothing more: `version_from_mnemonic` answered
+  `"old"` and every other function refused it. Four functions in
+  `mnemonic.electrum` now read it — `old_mnemonic_from_hex_seed` and
+  `hex_seed_from_old_mnemonic` for the encoding, three words to each
+  32-bit group over the 1626-word list, and
+  `old_master_prv_key_from_mnemonic` and
+  `old_master_pub_key_from_mnemonic` for the stretch, which is a hundred
+  thousand rounds of `sha256(digest + hex_seed)` over the hex
+  *characters*, not PBKDF2 and not the versioned scheme's 2048
+  iterations. **The passphrase is refused rather than defaulted**:
+  nothing but the seed enters the stretch, so accepting one and ignoring
+  it would hand back the wallet of a seed the caller did not ask for, and
+  Electrum's `keystore.from_seed` refuses it the same way. `None` and the
+  empty string are "no passphrase", as they are there. The scheme has no
+  specification — it predates the BIPs — so Electrum's implementation is
+  what correct means and every vector is Electrum's own: the
+  mnemonic-to-hex pair of its `Test_OldMnemonic`, two wallets of its
+  `test_wallet_vertical.py` with their master public keys, and a real
+  pre-2.0 wallet file from its `test_storage_upgrade.py`. Two of them
+  pin a weakness copied rather than fixed, because fixing it would
+  accept or refuse what Electrum does not: three words can carry a group
+  above `2**32`, so twelve words can decode to 33 or 34 hex characters
+  instead of 32, and one of Electrum's own published seeds does — 34,
+  still octets, so the master public key is derived and matches, while
+  the encoder cannot write those twelve words back out and Electrum's
+  `get_seed` cannot either.
+  The dispatcher is the new `mnemonic.dispatch`:
+  `seed_type_from_mnemonic` answers `"electrum_old"`,
+  `"electrum_standard"`, `"electrum_segwit"`, `"electrum_2fa"`,
+  `"electrum_2fa_segwit"`, `"bip39"`, `"bip39_wordlist"` — every word in
+  the list but no valid reading — or `""`, and
+  `all_seed_types_from_mnemonic` returns every scheme that claims the
+  sentence, because the schemes overlap and the collision is worth
+  seeing rather than resolving in silence. Within Electrum the order is
+  `calc_seed_type`'s, old before the four prefixes, so a pre-2.0 seed
+  that matches `"01"` by chance is not handed back as `"standard"`;
+  Electrum before BIP39 is btclib's, Electrum's wizard asking the user
+  which variant a sentence is instead of guessing, and the base rate is
+  the reason — a version prefix is a deliberate marker present by chance
+  in one sentence in 256, a valid BIP39 checksum in one in sixteen. The
+  dispatcher normalizes nothing of its own, each scheme normalizing as it
+  defines, which leaves issue #201 to decide that once for all of them
 
 ### Types
 
@@ -1995,13 +2097,72 @@ edit.
   for the `a == p-3` of most catalogued curves, and `JacPoint` is public.
   Every gain is a uniform one, so the comparisons the `curve_group_2`
   docstrings draw between the algorithms still hold as measured
+- **BIP32 public derivation stays serialized throughout**:
+  `keys.pubkey_tweak_add` adds the generator times the offset to the
+  parent's 33 bytes and hands back the child's, where Python multiplied
+  the generator, added the two points and serialized the sum — 12.4 µs
+  against 33.4. The bindings answer uncompressed, deliberately: the
+  cached point wants the y coordinate, and taking it back from a
+  compressed key is the modular square root of `point_from_octets`, some
+  74 µs to undo a serialization libsecp256k1 had just made. A child at
+  infinity is still `invalid child index N`, and still refused before
+  the key data is touched
+- **BIP32 private derivation adds the offset in constant time**:
+  `keys.prvkey_tweak_add`, where it was `(kpar + IL) % n` on Python
+  integers — variable in time with the operands, and leaving an
+  unzeroized copy of every intermediate behind. The parent key goes in
+  as the 32 bytes it is stored as, so no arithmetic on the secret
+  happens on this side of the call at all. It costs 0.55 µs against
+  0.03, on a derivation whose hmac and public key are some 15 µs of
+  their own. BIP32's three invalid children are unchanged, and still
+  `invalid child index N`: the range check on `parse256(IL)` stays in
+  Python, and the one sum libsecp256k1 refuses past it is the zero child
+  BIP32 refuses too. Not gated on the curve, unlike the library's other
+  delegations, there being no second curve BIP32 is defined over
+- **ECDH computes the shared point in libsecp256k1**, and in constant
+  time: `dh.diffie_hellman` calls `keys.pubkey_tweak_mul` on secp256k1,
+  15.2 µs against the 0.55 ms of `mult(dU, QV)` — some thirty-six
+  times, this being the multiplication of a point that is *not* the
+  generator, the one case `mult` never delegated, with the private key
+  as the scalar. The derivation is unchanged and still ANSI-X9.63-KDF,
+  which is why the bindings' own `ecdh.shared_secret` is not a
+  substitute: that one hashes the compressed shared point with SHA256.
+  Every other curve keeps the Python multiplication, GEC 2's secp160r1
+  vector now checked through `diffie_hellman` itself, and so does a
+  scalar that is zero mod n — the infinity point, which the bindings
+  have no scalar for and which is still `invalid (INF) key`
+- **the taproot output *private* key is tweaked by libsecp256k1 too**, and
+  in constant time: `taproot.output_prvkey` calls
+  `xonly.prvkey_tweak_add`, which is BIP341's tweaking of an x-only
+  private key — the negation of a key whose public point has an odd y
+  included — where Python negated with `ec.n - q` and added with a `%`.
+  Neither is constant time; the C one is, and it is a secret scalar. It
+  is faster as well, 32.0 µs against 82.3 over 2000 tweaks,
+  because the x-only public key the tweak commits to now comes from
+  `bytes_from_prv_key_int` instead of a point built in Python and a
+  square root taken to learn that point's parity. The Python arithmetic
+  stays, and is compared against the bindings over both parities
+- **the taproot output key is tweaked by libsecp256k1**, both where it is
+  built and where a control block is checked against it:
+  `taproot.output_pubkey` calls `xonly.tweak_add`, and
+  `check_output_pubkey` calls `xonly.tweak_add_check`, the dedicated
+  verification. Each of the two lifted the x-only key to a point with
+  `ec.y_even` and added `mult(t)` to it in Python: 12.0 µs against 109.3
+  for an output key over 2000 tweaks, of which the modular square
+  root alone was 74. The Python arithmetic stays, and the tests compute
+  every tweak twice to hold the two answers to each other — taproot has no
+  second curve to reach that path with, a toy curve failing BIP341's range
+  check on a 256-bit tweak before any arithmetic happens.
+  `check_output_pubkey` keeps answering the Python comparison for a q that
+  is not 32 bytes, which `tweak_add_check` refuses instead of answering
 - **`mult` takes the GLV endomorphism on secp256k1** wherever the bindings
   cannot answer: `curve_group_2.mult_endomorphism_secp256k1`, 0.53 ms
   against the 0.84 of the generic `_mult`. The bindings take the generator
   and a non-zero scalar, so what reaches the Python path is every *other*
-  secp256k1 point — and the operation that means is ECDH:
-  `dh.diffie_hellman` measures 0.56 ms against 0.87, a third off, and so
-  does any caller multiplying a point of its own. The dispatch asks the
+  secp256k1 point: any caller multiplying a point of its own gains that
+  third. Not ECDH any more, which measured 0.56 ms against 0.87 until
+  `dh.diffie_hellman` began asking libsecp256k1 for the shared point
+  itself, and which reaches this only on another curve. The dispatch asks the
   same `_libsecp256k1_applicable` the bindings dispatch asks, so the two
   cannot drift apart, and every other curve still runs `_mult` untouched.
   The algorithm is not new either: m as m1 + m2*lambda with both halves
@@ -2054,7 +2215,7 @@ edit.
   for the same reason: prototyped with sparse buckets and the running-sum
   trick, best window per size, it lost at every size measured — 162 ms
   against Bos-Coster's 125 at 256 scalars, 284 against 225 at 512, 500
-  against 406 at 1024 — because in python its bucket sums are additions
+  against 406 at 1024 — because in Python its bucket sums are additions
   like any other, where in C they are the cheap part (issue #212)
 - signing or verifying a transaction is linear in the number of its
   inputs, where it was Θ(N²). `segwit_v0` and `taproot` rebuilt, for

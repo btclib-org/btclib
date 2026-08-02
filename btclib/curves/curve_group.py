@@ -1032,7 +1032,7 @@ def _multi_mult_bos_coster(
     if not pairs:
         return INFJ
 
-    # a max-heap, which python spells as a min-heap of negated scalars
+    # a max-heap, which Python spells as a min-heap of negated scalars
     x: list[tuple[int, JacPoint]] = [(-n, PJ) for n, PJ in pairs]
     heapq.heapify(x)
     while len(x) > 1:
@@ -1062,10 +1062,10 @@ def _multi_mult_bos_coster(
 # the number of nonzero scalars from which Bos-Coster is the cheaper of
 # the two, measured here rather than borrowed: libsecp256k1 dispatches
 # at 88, but it dispatches between other algorithms, on machine words,
-# in C, and a number that has not been measured on python integers is
+# in C, and a number that has not been measured on Python integers is
 # decoration.
 # Best of five interleaved reps, random 256-bit scalars on secp256k1,
-# python 3.14, macOS arm64, wNAF over Bos-Coster: 0.91 at 40 scalars,
+# Python 3.14, macOS arm64, wNAF over Bos-Coster: 0.91 at 40 scalars,
 # 0.94 at 48, 1.000 at 56, 1.001 at 64, 1.04 at 72, 1.09 at 96. The two
 # meet at 56, so 56 it is; anywhere in 56..64 measures the same, and the
 # cost of being wrong by a dozen scalars either way is under 1%.
@@ -1088,7 +1088,7 @@ def _multi_mult(
     running-sum trick, best window per size, it lost at every size tried:
     against Bos-Coster in ms, 162 vs 125 at 256 scalars, 284 vs 225 at
     512, 500 vs 406 at 1024. Its bucket sums are additions of points that
-    cost the same as any other addition in python, where in C they are
+    cost the same as any other addition in Python, where in C they are
     the cheap part, so the crossover it has there is beyond any batch
     btclib is asked to verify -- and a threshold nobody reaches is a
     branch nobody takes.

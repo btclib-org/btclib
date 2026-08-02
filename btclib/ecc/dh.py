@@ -23,8 +23,11 @@ from __future__ import annotations
 from hashlib import sha256
 from math import ceil
 
+from btclib_libsecp256k1 import keys as libsecp256k1_keys
+
 from btclib.alias import HashF, Point
-from btclib.curves import Curve, mult, secp256k1
+from btclib.curves import Curve, bytes_from_point, mult, secp256k1
+from btclib.curves.curve import _libsecp256k1_applicable
 from btclib.exceptions import BTClibRuntimeError, BTClibValueError
 
 
@@ -65,7 +68,27 @@ def diffie_hellman(
     """Diffie-Hellman elliptic curve key agreement scheme.
 
     http://www.secg.org/sec1-v2.pdf, section 6.1
+
+    The shared point is the multiplication of a point that is not the
+    generator, which is the one case `mult` does not delegate: on
+    secp256k1 it is `secp256k1_ec_pubkey_tweak_mul` that computes it
+    here, 15.2 us against the 549 of the Python endomorphism path and,
+    dU being a secret, in constant time -- which that path is not.
+
+    `ecdh.shared_secret` of the bindings is a different function and not
+    a substitute: it hashes the compressed shared point with SHA256,
+    libsecp256k1's default, where this derives through ANSI-X9.63-KDF.
     """
+    d = dU % ec.n
+
+    # d == 0 is the infinity point, which the bindings reject as a
+    # scalar; so is a low-order QV on a curve with a cofactor, which
+    # they have no serialization for either. Both are the Python path's
+    # to answer, and it answers them below
+    if d and _libsecp256k1_applicable(ec):
+        sec = libsecp256k1_keys.pubkey_tweak_mul(bytes_from_point(QV, ec), d)
+        return ansi_x9_63_kdf(sec[1:], size, hf, shared_info)
+
     shared_secret_point = mult(dU, QV, ec)
     # a degenerate dU, zero mod n, maps every QV here
     if shared_secret_point[1] == 0:

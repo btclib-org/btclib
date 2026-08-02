@@ -30,6 +30,17 @@ btclib ships two (en, it). English is the shared one, byte for byte, so
 none of the above depends on the data; Italian is btclib's own
 extension, and an "electrum" mnemonic generated in Italian is one
 Electrum cannot read.
+
+The pre-2.0 scheme is here too, and it is a different thing wearing the
+same words. A wallet created before Electrum 2.0 has a twelve- or
+twenty-four-word mnemonic over a word-list of its own, 1626 words long;
+it decodes to a hex master seed rather than to entropy, three words to
+each 32-bit group; the master private key is that seed stretched by a
+hundred thousand rounds of SHA-256 rather than by PBKDF2; and it has no
+passphrase, so one supplied is refused rather than defaulted away. There
+is no specification to follow -- the scheme predates the BIPs and never
+had one -- so Electrum's implementation is what correct means, and every
+vector for it comes from Electrum's own tests.
 """
 
 from __future__ import annotations
@@ -40,11 +51,13 @@ import secrets
 import string
 import unicodedata
 from functools import cache
-from hashlib import pbkdf2_hmac, sha512
+from hashlib import pbkdf2_hmac, sha256, sha512
 from os import path
 
 from btclib.bip32 import derive, rootxprv_from_seed
 from btclib.bip32.der_path import _HARDENED_OFFSET
+from btclib.curves.curve import mult, secp256k1
+from btclib.curves.sec_point import bytes_from_point
 from btclib.exceptions import BTClibValueError
 from btclib.mnemonic import bip39
 from btclib.mnemonic.entropy import (
@@ -60,6 +73,7 @@ from btclib.mnemonic.mnemonic import (
     mnemonic_from_indexes,
 )
 from btclib.network import NETWORKS
+from btclib.to_prv_key import int_from_prv_key
 
 _MNEMONIC_VERSIONS = {
     "standard": "01",  # P2PKH and P2MS-P2SH wallets
@@ -111,9 +125,23 @@ _CJK_INTERVALS = (
     (0xA490, 0xA4CF),  # Yi Radicals
 )
 
+# the pre-2.0 word-list, transcribed from the _words tuple of
+# spesmilo/electrum's electrum/old_mnemonic.py -- MIT, "Copyright (C)
+# 2011 thomasv@gitorious" -- one word per line, in its order, all 1626 of
+# them. Pinned at commit 6be5bf96a89a72ac5b553493f7db385a0519ddb5
+# (2025-07-18), whose blob for that path is
+# c86634378e62935d4a68966ef19e2f6413066283. The order is load-bearing
+# and is not the alphabet's -- the list is a frequency list of
+# contemporary poetry -- so a re-sorted copy decodes every seed to
+# something else. There is no upstream file to compare bytes against,
+# the words living inside a python module rather than in a .txt
 _OLD_WORDLIST_FILE = path.join(
     path.dirname(__file__), "_data", "electrum_old_english.txt"
 )
+
+# the rounds of Old_KeyStore.stretch_key, which is what a pre-2.0 seed
+# has instead of the versioned scheme's 2048 PBKDF2 iterations
+_OLD_STRETCH_ROUNDS = 100_000
 
 
 def _is_cjk(char: str) -> bool:
@@ -155,17 +183,43 @@ def _normalize(text: str) -> str:
 
 
 @cache
-def _old_wordlist() -> frozenset[str]:
-    """Return electrum's pre-2.0 word-list, read once.
+def _old_wordlist() -> tuple[str, ...]:
+    """Return electrum's pre-2.0 word-list, read once, in its own order.
 
     Not a language of WORDLISTS: it has 1626 words, and load_lang rejects
     any count that is not a power of two, rightly -- an index into it is
-    not a whole number of bits, the pre-2.0 scheme not being a base
-    conversion. A set is enough because nothing here decodes an old seed:
-    the only question asked of it is membership.
+    not a whole number of bits, the pre-2.0 scheme being three words to
+    each 32-bit group rather than a base conversion.
     """
     with open(_OLD_WORDLIST_FILE, encoding="ascii") as file_:
-        return frozenset(line.rstrip("\n") for line in file_)
+        return tuple(line.rstrip("\n") for line in file_)
+
+
+@cache
+def _old_word_indexes() -> dict[str, int]:
+    """Return the word-to-index map of electrum's pre-2.0 word-list.
+
+    Electrum's Wordlist keeps the same map for the same reason: the
+    decoder asks for an index once per word and the recognizer asks for
+    membership once per word, and a 1626-tuple answers either by walking
+    itself.
+    """
+    return {word: index for index, word in enumerate(_old_wordlist())}
+
+
+def _is_hex_str(text: str) -> bool:
+    """Return True for a string of hex characters and nothing else.
+
+    Electrum's is_hex_str, and neither of the two shorter spellings:
+    bytes.fromhex skips ASCII whitespace between pairs, so "0123 4567"
+    would pass as four octets, and int(text, 16) takes a sign and
+    underscore separators besides. The length check is what closes both.
+    """
+    try:
+        octets = bytes.fromhex(text)
+    except ValueError:
+        return False
+    return len(text) == 2 * len(octets)
 
 
 def _is_old_mnemonic(mnemonic: Mnemonic) -> bool:
@@ -185,7 +239,7 @@ def _is_old_mnemonic(mnemonic: Mnemonic) -> bool:
     # triples, so a count that is not a multiple of three drops the tail
     # silently rather than complaining. Testing every word gives the same
     # answer wherever the answer is used, the count there being 12 or 24
-    uses_old_words = all(word in _old_wordlist() for word in words)
+    uses_old_words = all(word in _old_word_indexes() for word in words)
     try:
         is_hex = len(bytes.fromhex(mnemonic)) in (16, 32)
     except ValueError:
@@ -381,7 +435,8 @@ def entropy_from_mnemonic(mnemonic: Mnemonic, lang: str = "en") -> BinStr:
     """
     mnemonic_type, mnemonic = version_from_mnemonic(mnemonic)
     if mnemonic_type == "old":
-        err_msg = "pre-2.0 electrum mnemonic: entropy is not a base conversion"
+        err_msg = "pre-2.0 electrum mnemonic: entropy is not a base conversion; "
+        err_msg += "use hex_seed_from_old_mnemonic"
         raise BTClibValueError(err_msg)
     return _bin_str_entropy_from_mnemonic(mnemonic, lang)
 
@@ -417,4 +472,151 @@ def mxprv_from_mnemonic(
         xversion = NETWORKS[network].slip132_p2wpkh_prv
         rootxprv = rootxprv_from_seed(seed, xversion)
         return derive(rootxprv, _HARDENED_OFFSET)  # "m/0h"
-    raise BTClibValueError(f"unmanaged electrum mnemonic version: {version}")
+    err_msg = f"unmanaged electrum mnemonic version: {version}"
+    if version == "old":
+        # the pre-2.0 scheme has no BIP32 master key to return: its keys
+        # hang off the master public key by an addition of its own, not
+        # by a chain code, so there is no xprv this could answer with
+        err_msg += "; use old_master_prv_key_from_mnemonic"
+    raise BTClibValueError(err_msg)
+
+
+def old_mnemonic_from_hex_seed(hex_seed: str) -> Mnemonic:
+    """Return the pre-2.0 Electrum mnemonic of a hex master seed.
+
+    Electrum's old_mnemonic.mn_encode. Each group of eight hex characters
+    -- one 32-bit word -- becomes three words of the 1626-word list, and
+    the second and third are offsets from the one before rather than
+    digits of their own. Electrum's file names the reason: US patent
+    5892470 claims a scheme in which a word stands for a fixed digit, and
+    in this one the digit a word carries depends on the word before it.
+
+    Three words to a group is also why 1626 need not be a power of two,
+    and so why the list is not a WORDLISTS language.
+    """
+    if not _is_hex_str(hex_seed):
+        raise BTClibValueError("pre-2.0 electrum seed is not a hex string")
+    if len(hex_seed) % 8:
+        err_msg = f"invalid pre-2.0 electrum seed: {len(hex_seed)} hex "
+        err_msg += "characters, not a multiple of eight"
+        raise BTClibValueError(err_msg)
+
+    wordlist = _old_wordlist()
+    base = len(wordlist)
+    words = []
+    for i in range(len(hex_seed) // 8):
+        group = int(hex_seed[8 * i : 8 * i + 8], 16)
+        first = group % base
+        second = (group // base + first) % base
+        third = (group // base // base + second) % base
+        words += [wordlist[first], wordlist[second], wordlist[third]]
+    return " ".join(words)
+
+
+def hex_seed_from_old_mnemonic(mnemonic: Mnemonic) -> str:
+    """Return the hex master seed of a pre-2.0 Electrum mnemonic.
+
+    Electrum's Old_KeyStore.format_seed wrapped around
+    old_mnemonic.mn_decode: the sentence is normalized, a seed already
+    written as hex passes through -- pre-2.0 Electrum stored the seed
+    that way, so that is what a user may be holding -- and anything else
+    is decoded three words at a time.
+
+    The hex test here is the loose one, bytes.fromhex alone, because that
+    is the one format_seed uses; the strict test of _is_hex_str is the
+    one Electrum applies a step later, in stretch_key, and the gap
+    between them is upstream's rather than something to close here.
+
+    Whether the answer is a seed at all is a question this cannot answer,
+    and Electrum cannot either: three words can carry a group above
+    2**32, so twelve words can decode to 33 or 34 hex characters instead
+    of 32, and neither decoder notices. Deriving is where that fails, if
+    it fails at all -- 34 characters are still octets, and one of
+    Electrum's own published seeds is exactly that.
+    """
+    if not _is_old_mnemonic(mnemonic):
+        raise BTClibValueError("not a pre-2.0 electrum mnemonic")
+
+    mnemonic = _normalize(mnemonic)
+    try:
+        bytes.fromhex(mnemonic)
+    except ValueError:
+        pass
+    else:
+        return mnemonic
+
+    indexes = _old_word_indexes()
+    words = mnemonic.split()
+    base = len(_old_wordlist())
+    hex_seed = ""
+    # _is_old_mnemonic passed and the string is not hex, so every word is
+    # in the list and there are 12 or 24 of them: the lookups below
+    # cannot fail and no triple is left over
+    for i in range(len(words) // 3):
+        first, second, third = (indexes[word] for word in words[3 * i : 3 * i + 3])
+        group = first
+        group += base * ((second - first) % base)
+        group += base * base * ((third - second) % base)
+        hex_seed += f"{group:08x}"
+    return hex_seed
+
+
+def old_master_prv_key_from_mnemonic(
+    mnemonic: Mnemonic, passphrase: str | None = None
+) -> int:
+    """Return the pre-2.0 Electrum master private key, as an integer.
+
+    Electrum's Old_KeyStore.stretch_key: a hundred thousand rounds of
+    sha256 over the digest so far followed by the seed, where the seed is
+    the hex *characters* and not the octets they spell, and the last
+    digest read as a big-endian integer. Iterated sha256, not PBKDF2, and
+    not the versioned scheme's 2048 iterations of it: that is the fact
+    only a vector pins, and the vectors here are Electrum's own.
+
+    The passphrase is refused rather than defaulted. Nothing but the seed
+    enters the stretch, so there is nowhere for one to go, and accepting
+    it silently would hand back the wallet of a seed the caller did not
+    ask for. Electrum refuses it the same way in keystore.from_seed --
+    "'old'-type electrum seed cannot have passphrase" -- and its
+    can_seed_have_passphrase answers False for this scheme alone; None
+    and the empty string are "no passphrase" there and here.
+    """
+    if passphrase:
+        raise BTClibValueError("pre-2.0 electrum mnemonic cannot have a passphrase")
+
+    hex_seed = hex_seed_from_old_mnemonic(mnemonic)
+    if not _is_hex_str(hex_seed):
+        # electrum asserts is_hex_str here and this is the assertion that
+        # fires: a decode that overflowed 32 bits leaves an odd number of
+        # hex characters, which bytes.fromhex refuses. Neither
+        # implementation can derive from such a seed, and refusing is
+        # what agreeing with electrum means
+        err_msg = f"pre-2.0 electrum mnemonic decodes to {len(hex_seed)} hex "
+        err_msg += "characters, which are not octets"
+        raise BTClibValueError(err_msg)
+
+    encoded = hex_seed.encode("ascii")
+    digest = encoded
+    for _ in range(_OLD_STRETCH_ROUNDS):
+        digest = sha256(digest + encoded).digest()
+    return int.from_bytes(digest, "big")
+
+
+def old_master_pub_key_from_mnemonic(
+    mnemonic: Mnemonic, passphrase: str | None = None
+) -> str:
+    """Return the pre-2.0 Electrum master public key, as Electrum writes it.
+
+    Electrum's Old_KeyStore.mpk_from_seed: the uncompressed SEC point of
+    the stretched key with its 04 prefix cut off, so 128 hex characters
+    of x and then y. That string is what a pre-2.0 wallet file holds
+    under "master_public_key", which is what makes it the value a vector
+    can be taken from.
+    """
+    prv_key = old_master_prv_key_from_mnemonic(mnemonic, passphrase)
+    # int_from_prv_key and not mult alone: mult reduces the scalar mod n
+    # and would answer for a stretch that landed outside 1..n-1, where
+    # electrum's ECPrivkey raises. A 2**-128 disagreement, and refusing
+    # is the side that costs nothing
+    point = mult(int_from_prv_key(prv_key, secp256k1), secp256k1.G, secp256k1)
+    return bytes_from_point(point, secp256k1, compressed=False)[1:].hex()
