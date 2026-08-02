@@ -126,6 +126,13 @@ def _normalize(text: str) -> str:
     and whitespace between two CJK characters removed. It applies to the
     passphrase as well as to the mnemonic, which is why it takes a plain
     string rather than a Mnemonic.
+
+    Not mnemonic.py's normalize_mnemonic, which is BIP39's reading of the
+    same question and agrees with this one on the whitespace alone. The
+    two cannot be merged: dropping the combining characters undoes the
+    decomposition BIP39 requires, and joining the words either side of a
+    CJK space would hand PBKDF2 one long word where BIP39's japanese
+    vectors expect twelve.
     """
     text = unicodedata.normalize("NFKD", text)
     text = text.lower()

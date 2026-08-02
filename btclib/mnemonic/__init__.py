@@ -35,6 +35,7 @@ from btclib.mnemonic.mnemonic import (
     Mnemonic,
     indexes_from_mnemonic,
     mnemonic_from_indexes,
+    normalize_mnemonic,
 )
 
 __all__ = [
@@ -55,5 +56,6 @@ __all__ = [
     "electrum",
     "indexes_from_mnemonic",
     "mnemonic_from_indexes",
+    "normalize_mnemonic",
     "wordlist_indexes_from_bin_str_entropy",
 ]

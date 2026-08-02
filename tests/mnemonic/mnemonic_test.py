@@ -17,7 +17,14 @@ from typing import Any
 import pytest
 
 from btclib.exceptions import BTClibValueError
-from btclib.mnemonic import WORDLISTS, indexes_from_mnemonic, mnemonic_from_indexes
+from btclib.mnemonic import (
+    WORDLISTS,
+    bip39,
+    electrum,
+    indexes_from_mnemonic,
+    mnemonic_from_indexes,
+    normalize_mnemonic,
+)
 from btclib.mnemonic.mnemonic import WordLists
 
 
@@ -31,6 +38,121 @@ def test_mnemonic() -> None:
     assert indexes == expected
     mnemonic = mnemonic_from_indexes(expected, lang)
     assert mnemonic == mnem
+
+
+def fullwidth(text: str) -> str:
+    # ASCII lower-case as a japanese IME types it, U+FF41 upwards. Built
+    # rather than written out: the fullwidth letters are indistinguishable
+    # from the ASCII ones in a diff, which is the whole reason NFKD has to
+    # reach them
+    return "".join(chr(ord(char) - ord("a") + 0xFF41) for char in text)
+
+
+def test_normalize_mnemonic() -> None:
+    # the ideographic space BIP39's japanese vectors separate words with
+    # is a separator because NFKD says so, not because btclib says so
+    assert normalize_mnemonic("\u3000a\u3000b\u3000") == "a b"
+    # and so is every other run of unicode whitespace
+    assert normalize_mnemonic(" \ta\r\n\v\fb\u00a0\u1680") == "a b"
+    # fullwidth latin decomposes: an IME types the same sentence
+    assert normalize_mnemonic(fullwidth("abandon")) == "abandon"
+    # NFKD before the collapse and not after: U+00A8 decomposes to a
+    # space plus a combining diaeresis, so the other order hands PBKDF2
+    # two adjacent spaces
+    assert normalize_mnemonic("x \u00a8y") == "x \u0308y"
+    # zero-width characters carry no White_Space property and survive
+    # NFKD, so a word holding one stays one unknown word -- a refusal,
+    # which is safe, rather than a silently different seed
+    assert normalize_mnemonic("a\u200bb") == "a\u200bb"
+    assert normalize_mnemonic("a\ufeffb") == "a\ufeffb"
+    # idempotent, so normalizing twice is not a second answer
+    assert normalize_mnemonic(normalize_mnemonic(" a\tb ")) == "a b"
+
+
+# every shape a mnemonic's whitespace plausibly arrives in: a paper
+# backup transcribed over two lines, a sentence pasted out of a mail
+# client, the leading space a double-click selection picks up, the
+# ideographic space a japanese keyboard produces. btclib's answer is the
+# canonical sentence's answer in all of them, whichever scheme reads it
+WHITESPACE_SHAPES = [
+    pytest.param("", " ", "", id="canonical"),
+    pytest.param(" ", " ", "", id="leading-space"),
+    pytest.param("", " ", " ", id="trailing-space"),
+    pytest.param("\n\t", " ", " \n", id="leading-and-trailing"),
+    pytest.param("", "  ", "", id="doubled-space"),
+    pytest.param("", "\t", "", id="tab"),
+    pytest.param("", "\n", "", id="newline"),
+    pytest.param("", "\r\n", "", id="crlf"),
+    pytest.param("", "\v", "", id="vertical-tab"),
+    pytest.param("", "\f", "", id="form-feed"),
+    pytest.param("", "\x85", "", id="next-line"),
+    pytest.param("", "\u00a0", "", id="no-break-space"),
+    pytest.param("", "\u1680", "", id="ogham-space-mark"),
+    pytest.param("", "\u2003", "", id="em-space"),
+    pytest.param("", "\u2028", "", id="line-separator"),
+    pytest.param("", "\u202f", "", id="narrow-no-break-space"),
+    pytest.param("", "\u205f", "", id="medium-mathematical-space"),
+    pytest.param("", "\u3000", "", id="ideographic-space"),
+    pytest.param(" \t\n", " \u3000\t\u00a0 ", "\u3000 ", id="all-at-once"),
+]
+
+BIP39_MNEMONIC = (
+    "abandon abandon atom trust ankle walnut oil across awake bunker divorce abstract"
+)
+
+# electrum's own "standard" vector, from tests/mnemonic/electrum_test.py:
+# mxprv_from_mnemonic answers for it, which "segwit" and the two "2fa"
+# versions do not, so one mnemonic covers all three entry points
+ELECTRUM_MNEMONIC = (
+    "diagram crouch ball canal then hat panda spatial company "
+    "liberty fetch awful ability"
+)
+
+
+def respace(mnemonic: str, prefix: str, separator: str, suffix: str) -> str:
+    return prefix + separator.join(mnemonic.split()) + suffix
+
+
+@pytest.mark.parametrize(("prefix", "separator", "suffix"), WHITESPACE_SHAPES)
+def test_bip39_whitespace(prefix: str, separator: str, suffix: str) -> None:
+    mnemonic = respace(BIP39_MNEMONIC, prefix, separator, suffix)
+    assert normalize_mnemonic(mnemonic) == BIP39_MNEMONIC
+    assert bip39.entropy_from_mnemonic(mnemonic) == bip39.entropy_from_mnemonic(
+        BIP39_MNEMONIC
+    )
+    assert bip39.seed_from_mnemonic(mnemonic, "") == bip39.seed_from_mnemonic(
+        BIP39_MNEMONIC, ""
+    )
+    assert bip39.mxprv_from_mnemonic(mnemonic) == bip39.mxprv_from_mnemonic(
+        BIP39_MNEMONIC
+    )
+
+
+@pytest.mark.parametrize(("prefix", "separator", "suffix"), WHITESPACE_SHAPES)
+def test_electrum_whitespace(prefix: str, separator: str, suffix: str) -> None:
+    mnemonic = respace(ELECTRUM_MNEMONIC, prefix, separator, suffix)
+    assert electrum.version_from_mnemonic(mnemonic) == electrum.version_from_mnemonic(
+        ELECTRUM_MNEMONIC
+    )
+    assert electrum.entropy_from_mnemonic(mnemonic) == electrum.entropy_from_mnemonic(
+        ELECTRUM_MNEMONIC
+    )
+    assert electrum.mxprv_from_mnemonic(mnemonic) == electrum.mxprv_from_mnemonic(
+        ELECTRUM_MNEMONIC
+    )
+
+
+@pytest.mark.parametrize(("prefix", "separator", "suffix"), WHITESPACE_SHAPES)
+def test_indexes_from_mnemonic_whitespace(
+    prefix: str, separator: str, suffix: str
+) -> None:
+    # the shared layer answers the same question the two schemes do:
+    # str.split() with no argument is already a split on any run of
+    # unicode whitespace, which is half of normalize_mnemonic
+    mnemonic = respace(BIP39_MNEMONIC, prefix, separator, suffix)
+    assert indexes_from_mnemonic(mnemonic, "en") == indexes_from_mnemonic(
+        BIP39_MNEMONIC, "en"
+    )
 
 
 def test_wordlist_1() -> None:

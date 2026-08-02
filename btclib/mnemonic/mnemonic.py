@@ -12,6 +12,7 @@
 from __future__ import annotations
 
 import threading
+import unicodedata
 from collections.abc import Sequence
 from os import path
 
@@ -119,6 +120,51 @@ class WordLists:
 WORDLISTS = WordLists()
 
 Mnemonic = str
+
+
+def normalize_mnemonic(mnemonic: Mnemonic) -> Mnemonic:
+    r"""Return the mnemonic as btclib reads it, whatever separates its words.
+
+    NFKD first, then every run of unicode whitespace becomes one space,
+    so that `" abandon  abandon\tabandon "` and
+    `"abandon abandon abandon"` are the same sentence and reach the same
+    seed. That is btclib's answer for every mnemonic scheme: BIP39
+    mandates the NFKD and describes words separated by spaces, but says
+    nothing about a doubled space, a tab, or the newline a mnemonic
+    wrapped across two lines of a paper backup carries.
+
+    The NFKD comes first, and not merely because BIP39 asks for it.
+    U+3000, the ideographic space BIP39's own Japanese vectors separate
+    words with, decomposes to U+0020, so the separator question is
+    answered by the normalization the spec already requires rather than
+    by a rule of btclib's; and normalizing first leaves no run of
+    whitespace for the collapse to miss, which the other order does --
+    U+00A8 decomposes to a space plus a combining diaeresis, so
+    collapsing before normalizing hands PBKDF2 two adjacent spaces.
+
+    Refusing anything but a single space is the other defensible
+    position, and it is what the reference implementation reads: trezor's
+    python-mnemonic splits on `" "`, so a doubled space is an empty word
+    and an error. It is not taken here because that implementation is
+    strict only where it checks a mnemonic -- its `to_seed` applies NFKD
+    and nothing else, so a leading space or a trailing newline stretches
+    into a *different seed* with no complaint, and an unreadable wallet
+    is the one outcome worse than a refusal. Collapsing cannot do that,
+    and it refuses nothing a wallet, a mail client or an editor can
+    plausibly produce.
+
+    Zero-width characters stay: U+200B and U+FEFF carry no White_Space
+    property and survive NFKD, so a word holding one is an unknown word
+    rather than two words -- which is a refusal, the safe answer, and not
+    a silently different seed.
+
+    This is not electrum's normalization, and cannot be: `electrum.py`
+    lower-cases, drops the combining characters and joins words that NFKD
+    left either side of a space between two CJK characters. Dropping
+    combining characters undoes the very decomposition BIP39 requires, so
+    the two schemes need two functions, and electrum keeps its own.
+    """
+    return " ".join(unicodedata.normalize("NFKD", mnemonic).split())
 
 
 def mnemonic_from_indexes(indexes: Sequence[int], lang: str) -> Mnemonic:
