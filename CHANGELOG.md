@@ -17,6 +17,7 @@ changes on their own. Neither file counts its entries: `grep -c '^- '`
 does that, whereas a stated number is a line every open branch has to
 edit.
 A hundred and eighty-one entries, grouped. The order runs from what breaks
+A hundred and eighty-two entries, grouped. The order runs from what breaks
 a caller to what only maintainers see; [HISTORY.md](./HISTORY.md) lists the
 twenty-nine source-breaking changes on their own.
 
@@ -1646,6 +1647,20 @@ twenty-nine source-breaking changes on their own.
   body — and nothing below it imports it, so a user who never fetches
   never runs a line of it. `Tx.fee` and `OutPoint.value` were dropped
   pending this and are not restored by it (issue #185)
+- **`tx_or_psbt_from_any` parses whatever the caller has**: hex, base64
+  or bytes, answering with a `Tx` or a `Psbt`. Which of `Tx.parse`,
+  `Psbt.parse` and `Psbt.b64decode` applies was something a caller
+  holding one of them had to know first, and it is a question with an
+  unambiguous answer — BIP174's five-byte `<magic>` is what a psbt
+  begins with and what a transaction cannot, which is the whole reason
+  the `0xff` is in it. The new `btclib.tx_or_psbt` sniffs and delegates,
+  reading no byte either parser reads: hex before base64, because a
+  hex-string whose length is divisible by four is also base64 of
+  something else, and bytes are text when they are ascii and decode as
+  either, so that `Path.read_bytes` needs no encoding argument to go
+  with it. A top-level module rather than one inside `psbt/`, its answer
+  being one or the other and `tx` not being allowed to import `psbt`
+  (issue #209)
 - **`script.parse` has lost its `accept_unknown` parameter**, with the
   answer fixed at what every caller in the library passed: a byte no
   table names is an op code all the same, refused by the interpreter that
