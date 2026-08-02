@@ -2040,7 +2040,7 @@ edit.
   for the same reason: prototyped with sparse buckets and the running-sum
   trick, best window per size, it lost at every size measured — 162 ms
   against Bos-Coster's 125 at 256 scalars, 284 against 225 at 512, 500
-  against 406 at 1024 — because in python its bucket sums are additions
+  against 406 at 1024 — because in Python its bucket sums are additions
   like any other, where in C they are the cheap part (issue #212)
 - signing or verifying a transaction is linear in the number of its
   inputs, where it was Θ(N²). `segwit_v0` and `taproot` rebuilt, for
