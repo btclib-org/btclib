@@ -101,7 +101,7 @@ Included features are:
 - legacy, segwit_v0 and taproot transaction hash signatures
 - [BIP174](https://github.com/bitcoin/bips/blob/master/bip-0174.mediawiki)
   partially signed bitcoin transactions (PSBT):
-  PsbtIn, PbstOut, and Psbt data classes
+  PsbtIn, PsbtOut, and Psbt data classes
 - fee rates carrying their unit (sat/kvB and sat/vB), the fee a virtual
   size owes at one, and the dust threshold of any output type — computed
   the way Bitcoin Core computes it, rather than tabulated
