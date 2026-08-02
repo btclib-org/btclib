@@ -99,6 +99,14 @@ btclib.exceptions module
    :undoc-members:
    :show-inheritance:
 
+btclib.fee module
+-----------------
+
+.. automodule:: btclib.fee
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
 btclib.hashes module
 --------------------
 
