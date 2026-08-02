@@ -182,6 +182,13 @@ against the `v2023.7.12` tag.
   Core's PSBT stores it. Nothing replaces the call — `PsbtOut.assert_valid`
   simply no longer parses the leaves — and a caller that wants to know
   whether a leaf can be executed runs it.
+- **`BIP32DerPath` is `DerPath`, and the three `*_from_bip32_path`
+  converters are `*_from_der_path`.** `indexes_from_bip32_path`,
+  `str_from_bip32_path` and `bytes_from_bip32_path` answer as they did
+  under `indexes_from_der_path`, `str_from_der_path` and
+  `bytes_from_der_path`, so a search and replace for `bip32_path` and
+  `BIP32DerPath` is the whole cost. No alias is kept, as the `btclib.ec`
+  rename kept none.
 
 Two changes are deliberately *not* on that list, because what they change
 stays compatible. The new `BTClibTypeError`, `NotAPrvKeyError` and

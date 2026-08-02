@@ -20,7 +20,7 @@ from typing import Any
 
 from btclib import b32, b58
 from btclib.bip32.bip32 import BIP32Key, BIP32KeyData, derive, xpub_from_xprv
-from btclib.bip32.der_path import BIP32DerPath
+from btclib.bip32.der_path import DerPath
 from btclib.exceptions import BTClibValueError
 from btclib.network import (
     NETWORKS,
@@ -86,7 +86,7 @@ def _helper_checks(
 
 
 def p2pkh_xkey(
-    xkey: BIP32Key, der_path: BIP32DerPath = "m/44h/0h/0h", check_root_xkey: bool = True
+    xkey: BIP32Key, der_path: DerPath = "m/44h/0h/0h", check_root_xkey: bool = True
 ) -> str:
     """Return a p2pkh BIP32 xprv/xpub key at the derivation path."""
     xkey, network = _helper_checks(xkey, check_root_xkey)
@@ -95,7 +95,7 @@ def p2pkh_xkey(
 
 
 def p2wpkh_p2sh_xkey(
-    xkey: BIP32Key, der_path: BIP32DerPath = "m/49h/0h/0h", check_root_xkey: bool = True
+    xkey: BIP32Key, der_path: DerPath = "m/49h/0h/0h", check_root_xkey: bool = True
 ) -> str:
     """Return a p2wpkh-p2sh BIP32 yprv/ypub key at the derivation path."""
     xkey, network = _helper_checks(xkey, check_root_xkey)
@@ -108,7 +108,7 @@ def p2wpkh_p2sh_xkey(
 
 
 def p2wpkh_xkey(
-    xkey: BIP32Key, der_path: BIP32DerPath = "m/84h/0h/0h", check_root_xkey: bool = True
+    xkey: BIP32Key, der_path: DerPath = "m/84h/0h/0h", check_root_xkey: bool = True
 ) -> str:
     """Return a p2wpkh BIP32 zprv/zpub master key at the derivation path."""
     xkey, network = _helper_checks(xkey, check_root_xkey)

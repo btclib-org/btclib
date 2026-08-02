@@ -26,7 +26,7 @@ from btclib.bip32 import (
     xpub_from_xprv,
 )
 from btclib.bip32.bip32 import _derive
-from btclib.bip32.der_path import _indexes_from_bip32_path_str
+from btclib.bip32.der_path import _indexes_from_der_path_str
 from btclib.curves import secp256k1 as ec
 from btclib.exceptions import BTClibTypeError, BTClibValueError
 from btclib.hashes import hash160
@@ -231,7 +231,7 @@ def test_derive() -> None:
         for der_path, address in value:
             assert address == p2pkh(derive(rootxprv, der_path))
 
-            indexes = _indexes_from_bip32_path_str(der_path)
+            indexes = _indexes_from_der_path_str(der_path)
             assert address == p2pkh(derive(rootxprv, indexes))
 
         assert derive(rootxprv, "m") == rootxprv

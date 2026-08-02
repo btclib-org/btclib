@@ -41,8 +41,8 @@ from btclib import base58
 from btclib.alias import INF, BinaryData, Octets, Point, String
 from btclib.bip32.der_path import (
     _HARDENED_OFFSET,
-    BIP32DerPath,
-    indexes_from_bip32_path,
+    DerPath,
+    indexes_from_der_path,
 )
 from btclib.curves import (
     bytes_from_point,
@@ -493,12 +493,12 @@ def _force_version(version: bytes, forced_version: Octets) -> bytes:
 
 
 def _derive(
-    xkey: BIP32Key, der_path: BIP32DerPath, forced_version: Octets | None = None
+    xkey: BIP32Key, der_path: DerPath, forced_version: Octets | None = None
 ) -> BIP32KeyData:
     if not isinstance(xkey, BIP32KeyData):
         xkey = BIP32KeyData.b58decode(xkey)
 
-    indexes = indexes_from_bip32_path(der_path)
+    indexes = indexes_from_der_path(der_path)
 
     final_depth = xkey.depth + len(indexes)
     if final_depth > 255:
@@ -529,18 +529,18 @@ def _derive(
 
 
 def derive(
-    xkey: BIP32Key, der_path: BIP32DerPath, forced_version: Octets | None = None
+    xkey: BIP32Key, der_path: DerPath, forced_version: Octets | None = None
 ) -> str:
     """Derive a BIP32 key across a path spanning multiple depth levels.
 
-    Valid BIP32DerPath examples:
+    Valid DerPath examples:
 
     - string like "m/44h/0'/1H/0/10"
     - iterable integer indexes
     - one single integer index
     - bytes in multiples of the 4-bytes index
 
-    BIP32DerPath is case/blank/extra-slash insensitive
+    DerPath is case/blank/extra-slash insensitive
     (e.g. "M /44h / 0' /1H // 0/ 10 / ").
     """
     xkey = _derive(xkey, der_path, forced_version)

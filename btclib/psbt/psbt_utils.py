@@ -21,7 +21,7 @@ from typing import Any
 from btclib import var_bytes, var_int
 from btclib.alias import BinaryData, Octets
 from btclib.bip32 import BIP32KeyOrigin
-from btclib.bip32.der_path import indexes_from_bip32_path, str_from_bip32_path
+from btclib.bip32.der_path import indexes_from_der_path, str_from_der_path
 from btclib.exceptions import BTClibValueError
 from btclib.script.sig_hash import DEFAULT, SIG_HASH_TYPES
 from btclib.script.taproot import assert_valid_control_block
@@ -256,7 +256,7 @@ def taproot_bip32_to_dict(
             "pub_key": pub_key.hex(),
             "leaf_hashes": [x.hex() for x in leaf_hashes],
             "master_fingerprint": key_origin.master_fingerprint.hex(),
-            "path": str_from_bip32_path(key_origin.der_path),
+            "path": str_from_der_path(key_origin.der_path),
         }
         for pub_key, (leaf_hashes, key_origin) in sorted(taproot_hd_key_paths.items())
     ]
@@ -271,7 +271,7 @@ def taproot_bip32_from_dict(
             [bytes_from_octets(x) for x in bip32_deriv["leaf_hashes"]],
             BIP32KeyOrigin(
                 bytes_from_octets(bip32_deriv["master_fingerprint"], 4),
-                indexes_from_bip32_path(bip32_deriv["path"]),
+                indexes_from_der_path(bip32_deriv["path"]),
             ),
         )
         for bip32_deriv in taproot_hd_key_paths

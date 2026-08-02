@@ -36,8 +36,8 @@ from btclib.alias import BIP44ScriptType, NetworkType
 from btclib.bip32.bip32 import BIP32Key, BIP32KeyData, derive
 from btclib.bip32.der_path import (
     _HARDENED_OFFSET,
-    BIP32DerPath,
-    indexes_from_bip32_path,
+    DerPath,
+    indexes_from_der_path,
     str_from_index_int,
 )
 from btclib.exceptions import BTClibValueError
@@ -207,7 +207,7 @@ def _indexes_left_to_derive(xkey: BIP32KeyData, indexes: list[int]) -> list[int]
 
 
 def address_from_der_path(
-    xkey: BIP32Key, der_path: BIP32DerPath, script_type: BIP44ScriptType | None = None
+    xkey: BIP32Key, der_path: DerPath, script_type: BIP44ScriptType | None = None
 ) -> str:
     """Return the address of a BIP44 derivation path.
 
@@ -230,7 +230,7 @@ def address_from_der_path(
     if not isinstance(xkey, BIP32KeyData):
         xkey = BIP32KeyData.b58decode(xkey)
 
-    indexes = indexes_from_bip32_path(der_path)
+    indexes = indexes_from_der_path(der_path)
     _assert_valid_path(indexes)
 
     if script_type is None:

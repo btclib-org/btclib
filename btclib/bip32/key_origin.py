@@ -16,10 +16,10 @@ from dataclasses import dataclass
 
 from btclib.alias import Octets
 from btclib.bip32.der_path import (
-    BIP32DerPath,
-    bytes_from_bip32_path,
-    indexes_from_bip32_path,
-    str_from_bip32_path,
+    DerPath,
+    bytes_from_der_path,
+    indexes_from_der_path,
+    str_from_der_path,
 )
 from btclib.exceptions import BTClibValueError
 from btclib.utils import bytes_from_octets
@@ -32,19 +32,19 @@ class BIP32KeyOrigin:
 
     @property
     def description(self) -> str:
-        return str_from_bip32_path(self.der_path, self.master_fingerprint)
+        return str_from_der_path(self.der_path, self.master_fingerprint)
 
     def __init__(
         self,
         master_fingerprint: Octets,
-        der_path: BIP32DerPath,
+        der_path: DerPath,
         *,
         check_validity: bool = True,
     ) -> None:
         object.__setattr__(
             self, "master_fingerprint", bytes_from_octets(master_fingerprint)
         )
-        object.__setattr__(self, "der_path", indexes_from_bip32_path(der_path))
+        object.__setattr__(self, "der_path", indexes_from_der_path(der_path))
 
         if check_validity:
             self.assert_valid()
@@ -68,7 +68,7 @@ class BIP32KeyOrigin:
 
         return {
             "master_fingerprint": self.master_fingerprint.hex(),
-            "path": str_from_bip32_path(self.der_path),
+            "path": str_from_der_path(self.der_path),
         }
 
     @classmethod
@@ -88,7 +88,7 @@ class BIP32KeyOrigin:
         if check_validity:
             self.assert_valid()
 
-        return self.master_fingerprint + bytes_from_bip32_path(self.der_path)
+        return self.master_fingerprint + bytes_from_der_path(self.der_path)
 
     @classmethod
     def parse(
@@ -97,7 +97,7 @@ class BIP32KeyOrigin:
         """Return a BIP32KeyOrigin by parsing binary data."""
         data = bytes_from_octets(data)
         master_fingerprint = data[:4]
-        der_path = indexes_from_bip32_path(data[4:])
+        der_path = indexes_from_der_path(data[4:])
 
         return cls(master_fingerprint, der_path, check_validity=check_validity)
 
@@ -149,7 +149,7 @@ def encode_to_bip32_derivs(
         {
             "pub_key": pub_key.hex(),
             "master_fingerprint": key_origin.master_fingerprint.hex(),
-            "path": str_from_bip32_path(key_origin.der_path),
+            "path": str_from_der_path(key_origin.der_path),
         }
         for pub_key, key_origin in sorted(hd_key_paths.items())
     ]
@@ -162,7 +162,7 @@ def _decode_from_bip32_deriv(
     # master_fingerprint or pub_key cannot be instantiated even deliberately
     # -- a check_validity question, now that the flag is keyword-only
     master_fingerprint = bytes_from_octets(bip32_deriv["master_fingerprint"], 4)
-    der_path = indexes_from_bip32_path(bip32_deriv["path"])
+    der_path = indexes_from_der_path(bip32_deriv["path"])
     key_origin = BIP32KeyOrigin(master_fingerprint, der_path)
     return bytes_from_octets(bip32_deriv["pub_key"]), key_origin
 

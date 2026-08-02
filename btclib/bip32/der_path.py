@@ -60,7 +60,7 @@ def str_from_index_int(i: int, hardening: str = _HARDENING) -> str:
     return str(i - _HARDENED_OFFSET) + hardening
 
 
-def _indexes_from_bip32_path_str(der_path: str, skip_m: bool = True) -> list[int]:
+def _indexes_from_der_path_str(der_path: str, skip_m: bool = True) -> list[int]:
     steps = [x.strip().lower() for x in der_path.split("/")]
     if skip_m and steps[0] == "m":
         steps = steps[1:]
@@ -73,12 +73,12 @@ def _indexes_from_bip32_path_str(der_path: str, skip_m: bool = True) -> list[int
     return indexes
 
 
-BIP32DerPath = str | Sequence[int] | int | bytes
+DerPath = str | Sequence[int] | int | bytes
 
 
-def indexes_from_bip32_path(der_path: BIP32DerPath) -> list[int]:
+def indexes_from_der_path(der_path: DerPath) -> list[int]:
     if isinstance(der_path, str):
-        return _indexes_from_bip32_path_str(der_path)
+        return _indexes_from_der_path_str(der_path)
 
     if isinstance(der_path, int):
         return [der_path]
@@ -96,17 +96,17 @@ def indexes_from_bip32_path(der_path: BIP32DerPath) -> list[int]:
     return [int(i) for i in der_path]
 
 
-def _str_from_bip32_path(der_path: BIP32DerPath, hardening: str = _HARDENING) -> str:
-    indexes = indexes_from_bip32_path(der_path)
+def _str_from_der_path(der_path: DerPath, hardening: str = _HARDENING) -> str:
+    indexes = indexes_from_der_path(der_path)
     return "/".join(str_from_index_int(i, hardening) for i in indexes)
 
 
-def str_from_bip32_path(
-    der_path: BIP32DerPath,
+def str_from_der_path(
+    der_path: DerPath,
     master_fingerprint: Octets | None = None,
     hardening: str = _HARDENING,
 ) -> str:
-    result = _str_from_bip32_path(der_path, hardening)
+    result = _str_from_der_path(der_path, hardening)
     if master_fingerprint:
         if isinstance(master_fingerprint, str):
             first_element = master_fingerprint.strip()
@@ -121,7 +121,7 @@ def str_from_bip32_path(
     return first_element + (f"/{result}" if result else "")
 
 
-def bytes_from_bip32_path(der_path: BIP32DerPath) -> bytes:
-    indexes = indexes_from_bip32_path(der_path)
+def bytes_from_der_path(der_path: DerPath) -> bytes:
+    indexes = indexes_from_der_path(der_path)
     result = [i.to_bytes(4, byteorder="little", signed=False) for i in indexes]
     return b"".join(result)
