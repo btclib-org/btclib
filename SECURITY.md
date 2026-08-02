@@ -72,6 +72,12 @@ used to teach and to prototype as much as to build:
     commitment; `taproot.output_prvkey` and `dh.diffie_hellman` for
     secp256k1, the tweaking of a key and the shared point of a key
     agreement being the two other places a secret meets the curve.
+    A signature the bindings decline is not all Python for that:
+    `dsa.gen_keys` and the nonce point of `dsa._sign_` go through `mult`,
+    so those two multiplications are delegated whatever else the
+    signature asks for. The rest of that signature is not — the
+    inversion of the nonce and the arithmetic on the key around it are
+    Python integers.
     Anything else — another
     curve, another hash function, another message size, a nonce of your
     own — runs the Python implementation, whose scalar multiplication is

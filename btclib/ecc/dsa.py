@@ -38,7 +38,6 @@ from btclib import var_bytes
 from btclib.alias import BinaryData, HashF, JacPoint, Octets, Point
 from btclib.curves import Curve, mult, secp256k1
 from btclib.curves.curve import _libsecp256k1_applicable
-from btclib.curves.curve_group import _mult
 from btclib.curves.curve_group_2 import double_mult_w_NAF
 from btclib.ecc.commit_nonce import commit_entropy_, commit_nonce_, commit_point_
 from btclib.ecc.rfc6979_nonce import _rfc6979_nonce_, challenge_
@@ -287,9 +286,11 @@ def gen_keys(prv_key: PrvKey | None = None, ec: Curve = secp256k1) -> tuple[int,
     else:
         q = int_from_prv_key(prv_key, ec)
 
-    QJ = _mult(q, ec.GJ, ec)
-    Q = ec.aff_from_jac(QJ)
-    return q, Q
+    # mult, not the _mult under it: the scalar is the private key and the
+    # point is the generator, which is the one multiplication libsecp256k1
+    # is dispatched to -- constant time there, and 8.1 us against 862.
+    # ssa.gen_keys computes this very point the same way
+    return q, mult(q, ec=ec)
 
 
 def _sign_(c: int, q: int, nonce: int, lower_s: bool, ec: Curve) -> Sig:
@@ -297,10 +298,14 @@ def _sign_(c: int, q: int, nonce: int, lower_s: bool, ec: Curve) -> Sig:
     # possible value of the challenge c (for low-cardinality curves).
     # It assume that c is in [0, n-1], while q and nonce are in [1, n-1]
     # Steps numbering follows SEC 1 v.2 section 4.1.3
-    KJ = _mult(nonce, ec.GJ, ec)  # 1
-
-    # affine x_K-coordinate of K (field element)
-    x_K = (KJ[0] * mod_inv(KJ[2] * KJ[2], ec.p)) % ec.p
+    # affine x_K-coordinate of K (field element); mult dispatches the
+    # generator to libsecp256k1 on secp256k1, which is where this
+    # function is reached from whenever the bindings decline the whole
+    # signature -- another hash function, another curve, a nonce the
+    # caller imposed, a sign-to-contract commitment. The nonce is secret
+    # and the Python fixed window is not constant time; the affine
+    # conversion the Jacobian form would have saved is one mod_inv
+    x_K = mult(nonce, ec=ec)[0]  # 1
     # mod n makes it a scalar
     r = x_K % ec.n  # 2, 3
     if r == 0:  # r≠0 required as it multiplies the public key
