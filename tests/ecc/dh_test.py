@@ -104,7 +104,7 @@ def test_gec_2() -> None:
     )
     assert keyingdata.hex() == "744ab703f5bc082e59185f6d049d2d367db245c2"
     # the whole scheme, on the curve the bindings do not serve: this
-    # vector is what covers the python shared point, secp256k1 having
+    # vector is what covers the Python shared point, secp256k1 having
     # been handed to libsecp256k1
     assert diffie_hellman(dU, QV, size, None, ec, hf) == keyingdata
 
@@ -253,7 +253,7 @@ def test_the_python_shared_point_is_the_bindings_one(
     """One shared key, whoever multiplies the point.
 
     Three ways to the same bytes: libsecp256k1 for each side of the
-    agreement, and the python endomorphism path for one of them. The
+    agreement, and the Python endomorphism path for one of them. The
     patch is how that path is reached on secp256k1 at all, `mult`
     delegating every scalar but zero once the point is a public key
     rather than the generator.

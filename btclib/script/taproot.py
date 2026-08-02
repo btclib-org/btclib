@@ -178,7 +178,7 @@ def output_pubkey(
     # secp256k1_xonly_pubkey_tweak_add is this very operation, parity
     # included, and it answers the pair this function returns. 12.0 us
     # against 109.3 for the three lines below, over 2000 tweaks: the
-    # python path lifts the x-only key to a point with
+    # Python path lifts the x-only key to a point with
     # ec.y_even, i.e. a modular square root, which is 74 us of that on
     # its own -- while libsecp256k1 needs no such lift, having the
     # y coordinate as it goes
@@ -204,7 +204,7 @@ def output_prvkey(
     # secp256k1_keypair_xonly_tweak_add is the whole of this function
     # below the tweak: it negates the key whose public point has an odd
     # y, as BIP341 requires, and adds the tweak to it -- in constant
-    # time, which the python `%` on a secret scalar is not. The x-only
+    # time, which the Python `%` on a secret scalar is not. The x-only
     # public key the tweak commits to comes from the bindings too, and
     # the parity byte dropped from it is the one they will decide again
     # for themselves: 32.0 us against 82.3 over 2000 tweaks, the
@@ -269,14 +269,14 @@ def check_output_pubkey(
     # Only for a 32-byte q, which is what it takes: a q of any other
     # length is not a taproot output key, but it is not necessarily
     # unequal either -- b"\x00" + 32 bytes reads as the same integer the
-    # comparison below makes -- so the answer for it stays the python
+    # comparison below makes -- so the answer for it stays the Python
     # one rather than becoming an exception
     if _libsecp256k1_applicable(ec) and len(q) == 32:
         try:
             return libsecp256k1_xonly.tweak_add_check(q, control[0] & 1, p_bytes, t)
         except ValueError as e:
             # an internal key that is not a point leaves the bindings
-            # through a plain ValueError and the python path below
+            # through a plain ValueError and the Python path below
             # through the BTClibValueError of ec.y_even. The engine
             # catches the library's own error, so the two must agree on
             # what they raise as well as on what they answer

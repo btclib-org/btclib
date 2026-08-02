@@ -420,7 +420,7 @@ def __prv_key_derivation(xkey: _BIP32KeyData, index: int, pub_key: bytes) -> Non
 
     # the sum of two scalars, one of them the parent private key:
     # secp256k1_ec_seckey_tweak_add computes it in constant time, where
-    # python's own `(a + b) % n` is variable in time with the operands
+    # Python's own `(a + b) % n` is variable in time with the operands
     # and leaves an unzeroized copy of each intermediate behind. The key
     # goes in as the 32 bytes it is stored as rather than as
     # xkey.prv_key_int, so that no arithmetic on the secret happens
@@ -453,7 +453,7 @@ def __pub_key_derivation(xkey: _BIP32KeyData, index: int) -> None:
 
     # the parent point plus the generator times the offset, which is
     # what secp256k1_ec_pubkey_tweak_add computes: 12.4 us against the
-    # 33.4 of mult(offset) followed by a python point addition, and the
+    # 33.4 of mult(offset) followed by a Python point addition, and the
     # key stays serialized throughout -- the parent's 33 bytes go in and
     # the child's come out, with no point built on either side.
     # Uncompressed on the way out, deliberately: the y coordinate is

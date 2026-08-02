@@ -72,7 +72,7 @@ def diffie_hellman(
     The shared point is the multiplication of a point that is not the
     generator, which is the one case `mult` does not delegate: on
     secp256k1 it is `secp256k1_ec_pubkey_tweak_mul` that computes it
-    here, 13.7 us against the 1066 of the python endomorphism path and,
+    here, 15.2 us against the 549 of the Python endomorphism path and,
     dU being a secret, in constant time -- which that path is not.
 
     `ecdh.shared_secret` of the bindings is a different function and not
@@ -83,7 +83,7 @@ def diffie_hellman(
 
     # d == 0 is the infinity point, which the bindings reject as a
     # scalar; so is a low-order QV on a curve with a cofactor, which
-    # they have no serialization for either. Both are the python path's
+    # they have no serialization for either. Both are the Python path's
     # to answer, and it answers them below
     if d and _libsecp256k1_applicable(ec):
         sec = libsecp256k1_keys.pubkey_tweak_mul(bytes_from_point(QV, ec), d)

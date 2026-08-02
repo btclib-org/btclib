@@ -108,10 +108,10 @@ def test_the_python_tweak_is_the_bindings_tweak(
 ) -> None:
     """Both output keys, computed twice, are the same keys on secp256k1.
 
-    The bindings are the authority on the answer and the python
+    The bindings are the authority on the answer and the Python
     arithmetic is the reference implementation of it, so what has to be
     asserted is that the two are one answer. It takes the patch because
-    there is no second curve to reach the python path with: a toy curve
+    there is no second curve to reach the Python path with: a toy curve
     fails the BIP341 range check on a 256-bit tweak before any
     arithmetic happens, and taproot is defined over secp256k1 alone.
 
@@ -161,7 +161,7 @@ def test_check_output_pubkey_of_a_key_that_is_not_32_bytes() -> None:
 
     `tweak_add_check` takes 32 bytes and raises for anything else, so
     the dispatch asks for that size and leaves every other q to the
-    python comparison. Which is not a length test but an integer one:
+    Python comparison. Which is not a length test but an integer one:
     it says no to a truncated key and yes to a zero-padded one, and
     that second answer is why the dispatch falls through here instead
     of turning the size into a refusal.

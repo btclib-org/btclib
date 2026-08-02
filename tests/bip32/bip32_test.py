@@ -470,7 +470,7 @@ def _force_hmac(monkeypatch: pytest.MonkeyPatch, il: int, chain_code: bytes) -> 
 
 
 def test_derivation_is_the_arithmetic_bip32_defines() -> None:
-    """Both derivations, against the scalar and point arithmetic in python.
+    """Both derivations, against the scalar and point arithmetic in Python.
 
     libsecp256k1 adds the offset to the key, privately and publicly, and
     BIP32 is defined for secp256k1 alone: there is no other curve for a
