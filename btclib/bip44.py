@@ -1,0 +1,246 @@
+#!/usr/bin/env python3
+
+# Copyright (C) The btclib developers
+#
+# This file is part of btclib. It is subject to the license terms in the
+# LICENSE file found in the top-level directory of this distribution.
+#
+# No part of btclib including this file, may be copied, modified, propagated,
+# or distributed except according to the terms contained in the LICENSE file.
+"""BIP44 address: an extended key and m/purpose/coin/account/change/index.
+
+https://github.com/bitcoin/bips/blob/master/bip-0044.mediawiki
+
+The composition every wallet performs and no single call here did:
+`bip32.derive` walks the path, `b58` and `b32` encode the address, and
+the purpose level -- BIP43's, the first of the five -- says which of the
+four encodings the path means. Nothing in this module derives or encodes
+anything itself; what it adds is the mapping that makes a path
+unambiguous, and the two checks that keep it honest.
+
+The module sits above `script` rather than beside `bip32.slip132`, and
+taproot is the reason: a p2tr address encodes the *tweaked* output key of
+BIP341, which `script.taproot.output_pubkey` computes, and `bip32` is
+below `script` and may not import it. Nothing in the library imports this
+module.
+"""
+
+from __future__ import annotations
+
+import json
+from collections.abc import Callable
+from os import path
+
+from btclib import b32, b58
+from btclib.alias import NetworkType
+from btclib.bip32.bip32 import BIP32Key, BIP32KeyData, derive
+from btclib.bip32.der_path import (
+    BIP32DerPath,
+    indexes_from_bip32_path,
+    str_from_index_int,
+)
+from btclib.exceptions import BTClibValueError
+from btclib.network import network_from_xkeyversion, network_type_from_xkeyversion
+from btclib.script.taproot import output_pubkey
+
+_HARDENED = 0x80000000
+
+# purpose, coin type, account, change, address index: BIP44 fixes the
+# meaning of each level, so a path of any other length is not one
+_LEVELS = 5
+
+# the mapping is data and lives with the network data, not in this file:
+# it is the canonical row of the wallet-format table electrum ships as
+# bip39_wallet_formats.json (sourced from walletsrecovery.org) and uses
+# to scan a seed for the derivations wallets actually use. What a
+# recovery helper wants next -- per-wallet rows, with the xpub version
+# each writes -- is more of this file and no more of this module, and
+# that list tracks the wallet ecosystem rather than the library
+_PURPOSES_FILE = path.join(path.dirname(__file__), "_data", "bip44_purposes.json")
+with open(_PURPOSES_FILE, encoding="ascii") as _purposes:
+    # json object keys are strings; a purpose is an int, as it is in a
+    # derivation path
+    SCRIPT_TYPE_FROM_PURPOSE: dict[int, str] = {
+        int(purpose): script_type
+        for purpose, script_type in json.load(_purposes).items()
+    }
+
+# BIP44's registered coin types, and the only two it registers: 0 is
+# Bitcoin and 1 is "Bitcoin Testnet", which SLIP44 widens to the test
+# chain of every coin. That is why what they are checked against is the
+# network *type* of the extended key and not its name: btclib's four test
+# networks share one set of version bytes, so an xkey cannot say which of
+# them it is, and coin type 1 does not distinguish them either
+_NETWORK_TYPE_FROM_COIN_TYPE: dict[int, NetworkType] = {0: "main", 1: "test"}
+
+
+def _p2tr(key: str, network: str) -> str:
+    """Return the p2tr address of a key, tweaked as BIP86 prescribes.
+
+    BIP86 is BIP44 for taproot and the tweak is the whole of it: the
+    output key commits to the internal key and to no script path, so what
+    the address encodes is not the derived key but `output_pubkey` of it
+    with an empty merkle root. The other three encoders take the derived
+    key as it comes, which is why this one is a function here and
+    `b32.p2tr` -- which expects the output key already tweaked -- is not
+    in the table below.
+    """
+    return b32.p2tr(output_pubkey(key)[0], network)
+
+
+# the derived key and the network in, the address out: four encodings
+# that already exist, named by the script type the purpose resolves to
+_ADDRESS_FROM_SCRIPT_TYPE: dict[str, Callable[[str, str], str]] = {
+    "p2pkh": b58.p2pkh,
+    "p2wpkh-p2sh": b58.p2wpkh_p2sh,
+    "p2wpkh": b32.p2wpkh,
+    "p2tr": _p2tr,
+}
+
+
+def _assert_valid_path(indexes: list[int]) -> None:
+    """Raise unless the indexes are the five levels BIP44 defines.
+
+    The hardening is checked and not merely documented because the
+    purpose is read off the first index: `m/84/0h/0h/0/0` derives a key
+    no BIP84 wallet has, and reading 84 out of it would answer that key
+    with a p2wpkh address as if it were the right one.
+    """
+    if len(indexes) != _LEVELS:
+        err_msg = f"invalid BIP44 path: {len(indexes)} levels instead of {_LEVELS}"
+        raise BTClibValueError(err_msg)
+
+    if any(index < _HARDENED for index in indexes[:3]):
+        err_msg = "invalid BIP44 path: purpose, coin type and account must be hardened"
+        raise BTClibValueError(err_msg)
+
+    if any(index >= _HARDENED for index in indexes[3:]):
+        err_msg = "invalid BIP44 path: change and address index must not be hardened"
+        raise BTClibValueError(err_msg)
+
+
+def _script_type_from_purpose(purpose: int) -> str:
+    """Return the script type of a purpose, refusing the ones unknown.
+
+    Refusing is the answer because the alternative is to guess: a purpose
+    the mapping does not name says the path was written for a scheme this
+    module has never been told about, and answering it with p2pkh --
+    BIP44's own encoding, the tempting default -- would be an address the
+    wallet that wrote the path does not watch. The caller who knows what
+    the scheme is says so with the script_type argument, which is the
+    override, and gets no guess either way.
+    """
+    script_type = SCRIPT_TYPE_FROM_PURPOSE.get(purpose)
+    if script_type is None:
+        known = ", ".join(str(known) for known in sorted(SCRIPT_TYPE_FROM_PURPOSE))
+        err_msg = f"unknown BIP44 purpose: {purpose} not in ({known});"
+        err_msg += " pass script_type to say what it means"
+        raise BTClibValueError(err_msg)
+    return script_type
+
+
+def _assert_valid_coin_type(coin_type: int, xkey: BIP32KeyData) -> None:
+    """Raise unless the coin type agrees with the key's own network.
+
+    The address is minted on the network of the key, never on the one the
+    path claims: the version bytes are what an xprv, a tpub or a zprv
+    *is*, while the coin type is a claim about where the key was meant to
+    live. When the two disagree, one of them is a mistake and nothing
+    here can tell which, so neither is silently preferred -- taking the
+    key's network alone would answer `m/44h/1h/0h/0/0` under a mainnet
+    xprv with a real-money address, from a path that says testnet.
+
+    An unregistered coin type is refused for the same reason and not as
+    an extra rule: coin type 2 is Litecoin, and the address this module
+    would hand back is a bitcoin one, computed from a key the path says
+    belongs to another chain.
+
+    There is no override, where an unknown purpose has one, because an
+    override here would mean "encode another chain's key as a bitcoin
+    address" -- the very mistake this level of the path exists to
+    prevent. A caller who wants exactly that is one b58 or b32 call away.
+    """
+    network_type = _NETWORK_TYPE_FROM_COIN_TYPE.get(coin_type)
+    if network_type is None:
+        registered = ", ".join(str(coin) for coin in _NETWORK_TYPE_FROM_COIN_TYPE)
+        err_msg = f"unregistered BIP44 coin type: {coin_type} not in ({registered})"
+        raise BTClibValueError(err_msg)
+
+    key_network_type = network_type_from_xkeyversion(xkey.version)
+    if network_type != key_network_type:
+        err_msg = f"coin type {coin_type} is {network_type},"
+        err_msg += f" the extended key is {key_network_type}"
+        raise BTClibValueError(err_msg)
+
+
+def _indexes_left_to_derive(xkey: BIP32KeyData, indexes: list[int]) -> list[int]:
+    """Return the tail of the path the key has not walked yet.
+
+    The path is always the whole of it, from the master key down, because
+    that is where the purpose is; the key may be anywhere along it. An
+    account xpub is the case that matters -- it is what a wallet exports,
+    and the two levels left below it are the unhardened ones public
+    derivation can walk -- and its depth says which levels are already
+    behind it.
+
+    What the key can be checked against is its own index, which is the
+    path element at its depth. That catches the account xpub paired with
+    the path of another account; it cannot catch a key from another
+    purpose or another coin, nothing in an extended key recording where
+    it came from, so the caller's word is taken for the levels above.
+    """
+    if xkey.depth > _LEVELS:
+        err_msg = f"invalid key depth: {xkey.depth} is past the {_LEVELS}"
+        err_msg += " levels of a BIP44 path"
+        raise BTClibValueError(err_msg)
+
+    if xkey.depth and xkey.index != indexes[xkey.depth - 1]:
+        err_msg = f"key index {str_from_index_int(xkey.index)} at depth {xkey.depth}"
+        err_msg += f" is not the path's {str_from_index_int(indexes[xkey.depth - 1])}"
+        raise BTClibValueError(err_msg)
+
+    return indexes[xkey.depth :]
+
+
+def address_from_der_path(
+    xkey: BIP32Key, der_path: BIP32DerPath, script_type: str | None = None
+) -> str:
+    """Return the address of a BIP44 derivation path.
+
+    der_path is the whole five-level path,
+    m/purpose'/coin_type'/account'/change/address_index, in any spelling
+    `bip32.derive` accepts; xkey is the extended key it starts from,
+    which may be the master key or any key already partway down it -- an
+    account xpub, typically, the depth saying how much of the path is
+    behind it.
+
+    The purpose selects the encoding: 44 is p2pkh, 49 p2wpkh-p2sh, 84
+    p2wpkh, 86 p2tr. A purpose outside that mapping raises, unless
+    script_type names one of those four encodings, which then overrides
+    the mapping for known purposes too.
+
+    The network is the extended key's own; the coin type has to agree
+    with it, 0 for mainnet and 1 for any test network, or the path and
+    the key are describing different chains and neither wins.
+    """
+    if not isinstance(xkey, BIP32KeyData):
+        xkey = BIP32KeyData.b58decode(xkey)
+
+    indexes = indexes_from_bip32_path(der_path)
+    _assert_valid_path(indexes)
+
+    if script_type is None:
+        script_type = _script_type_from_purpose(indexes[0] - _HARDENED)
+    address_funct = _ADDRESS_FROM_SCRIPT_TYPE.get(script_type)
+    if address_funct is None:
+        known = ", ".join(sorted(_ADDRESS_FROM_SCRIPT_TYPE))
+        err_msg = f"unknown script type: {script_type} not in ({known})"
+        raise BTClibValueError(err_msg)
+
+    _assert_valid_coin_type(indexes[1] - _HARDENED, xkey)
+
+    # derive returns the b58-encoded key, which is what every encoder in
+    # the table takes: the composition is the whole point, so nothing
+    # reaches for the _derive that would keep it decoded
+    key = derive(xkey, _indexes_left_to_derive(xkey, indexes))
+    return address_funct(key, network_from_xkeyversion(xkey.version))

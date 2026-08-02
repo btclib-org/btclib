@@ -86,6 +86,11 @@ Included features are:
   key versions (xprv, yprv, zprv, Yprv, Zprv, tprv, uprv, vprv, and Uprv)
   with corresponding mapping to
   p2pkh/p2sh, p2wpkh-p2sh, p2wpkh, p2wsh-p2sh, p2wsh and p2tr addresses
+- [BIP44](https://github.com/bitcoin/bips/blob/master/bip-0044.mediawiki)
+  address from an extended key and a
+  `m/purpose'/coin_type'/account'/change/address_index` path, the purpose
+  selecting the encoding: 44 p2pkh, 49 p2wpkh-p2sh, 84 p2wpkh (BIP84),
+  86 p2tr (BIP86)
 - [BIP39](https://github.com/bitcoin/bips/blob/master/bip-0039.mediawiki)
   wordlists and mnemonic for generating deterministic keys
 - [Electrum](https://electrum.org/#home) standard for mnemonic
@@ -125,7 +130,10 @@ representation and hand back one; `bip32` and `mnemonic` derive keys;
 `script`, `tx`, `block` and `psbt` build and validate what goes on the
 chain. `bip21` parses and builds `bitcoin:` payment URIs, and sits on top
 of everything: it imports `b58`, `b32`, `amount` and `network`, and nothing
-in the library imports it.
+in the library imports it. `bip44` is the other module up there, and for
+the same reason: an address from an extended key and a derivation path is
+`bip32` and `script.taproot` and both address encodings composed, so it
+imports all four and nothing imports it.
 
 ---
 

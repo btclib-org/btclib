@@ -1627,6 +1627,30 @@ edit.
   `check_validity=False`, which is the silent failure the whole change is
   against. The new tests/check_validity_test.py asserts the rule over the
   package's own source, so a new signature cannot reintroduce the hazard
+- **`btclib.bip44` turns an extended key and a derivation path into an
+  address**, which is the composition every caller had to write by hand:
+  `address_from_der_path(xkey, "m/84h/0h/0h/0/0")` walks the path with
+  `bip32.derive` and encodes with `b58`/`b32`, the purpose level choosing
+  which — 44 p2pkh, 49 p2wpkh-p2sh, 84 p2wpkh, 86 p2tr. Every address
+  entry point before it took a hash or a witness program, so "the third
+  receiving address of account 0" meant deriving, hashing and picking the
+  encoding, and picking it wrong is an address the wallet does not watch.
+  The key may be the master or any key partway down the path — an account
+  xpub, which is what a wallet exports — and its own index is checked
+  against the path element at its depth. The mapping is
+  `_data/bip44_purposes.json`, beside the network data: it is the
+  canonical row of the wallet-format table electrum ships, and the
+  per-wallet rows a seed-scanning recovery helper would want next are more
+  of that file and no more of the module. A purpose the mapping does not
+  name is refused rather than guessed at, with a `script_type` argument to
+  say what it means; the coin type has to agree with the network of the
+  key, which is where the address is minted, and that one has no override
+  — encoding another chain's key as a bitcoin address is the mistake the
+  level exists to prevent. The module sits above `script` and not beside
+  `bip32.slip132` because a p2tr address is the *tweaked* output key of
+  BIP341 and `bip32` may not import `script`. The vectors are BIP49's,
+  BIP84's and BIP86's own, and SLIP132's for purpose 44, which publishes
+  no address of its own (issue #197)
 
 ### Types
 
