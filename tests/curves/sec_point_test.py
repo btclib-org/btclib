@@ -122,7 +122,7 @@ def test_hybrid_prefixes_are_admitted_only_when_asked() -> None:
     (eckey_impl.h), and Core refuses the hybrid pair only under
     STRICTENC, so a script spending to one must verify -- the
     script_tests.json vector "P2PK NOT with hybrid pubkey but no
-    STRICTENC" is the generator with a 0x06 in front, and the python path
+    STRICTENC" is the generator with a 0x06 in front, and the Python path
     could not parse it at all (issue #129). Off by default because an
     address, a WIF and a descriptor have no hybrid form to render.
     """
@@ -178,7 +178,7 @@ def test_bytes_from_prv_key_int() -> None:
     assert bytes_from_prv_key_int(q_bytes) == bytes_from_prv_key_int(ec.n - 1)
     assert bytes_from_prv_key_int(q_bytes.hex()) == bytes_from_prv_key_int(ec.n - 1)
 
-    # every other curve is the python path, which is the composition
+    # every other curve is the Python path, which is the composition
     for ec in (CURVES["secp256r1"], low_card_curves["ec13_11"]):
         for q in range(1, min(ec.n, 13)):
             Q = mult(q, ec.G, ec)

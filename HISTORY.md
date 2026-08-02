@@ -230,7 +230,7 @@ and `verify` families now let a `TypeError` out where they used to answer
   to 0.4 ms. `bms.sign` is twice as fast, recovering one candidate public key
   at a time where it recovered all four and then searched them. A public key
   from a private key is 13% faster, its compressed serialization now sliced
-  out of the bindings' own answer instead of routed through a python point.
+  out of the bindings' own answer instead of routed through a Python point.
   Importing btclib is 140 ms faster, and `Script.asm` is cached.
 - **Importing btclib changes nothing outside btclib.** It no longer dies
   where hashlib has no RIPEMD-160, no longer re-enables OpenSSL's
@@ -335,7 +335,7 @@ Major changes include:
 
 Major changes includes:
 
-- dropped python 3.6 support
+- dropped Python 3.6 support
 - added support for btclib_libsecp256k1
 - the hashes.fingerprint function, removed in the previous version,
   has been reinstated in the to_pub_key module
@@ -351,7 +351,7 @@ Major changes includes:
 
 ## v2022.2.9
 
-This is the latest release to support python 3.6
+This is the latest release to support Python 3.6
 
 Major changes includes:
 
@@ -402,7 +402,7 @@ Major changes includes:
   as per the latest changes in bitcoin core
 - refactored PsbtIn, PsbtOut, and Psbt
 - added legacy sighash
-- made btclib compatible with python 3.6
+- made btclib compatible with Python 3.6
 - ssa.det_nonce now returns an int
 - moved tagged_hash from ssa into hashes module
 - added CurveGroup._y_aff_from_jac and removed unused methods
@@ -416,7 +416,7 @@ Major changes includes:
 Major changes includes:
 
 - removed TypedDict in favor of dataclass;
-  this also restored the ability of using btclib with python 3.7
+  this also restored the ability of using btclib with Python 3.7
 - introduced dataclasses_json as requirement, used to
   serialize to file the json representation of dataclasses
 - Network is now a dataclass
@@ -536,7 +536,7 @@ Major changes includes:
 ## v2020.4.7
 
 This is a major release that complete the far-reaching refactoring
-initiated with v2020.3.20; it requires python>=3.8 as we use TypedDict.
+initiated with v2020.3.20; it requires Python>=3.8 as we use TypedDict.
 
 Chances are this release might break most projects using btclib,
 but the changes were long overdue and should be stable in time.

@@ -51,7 +51,7 @@ from tests.to_key_test import (
 def test_signature_on_an_equal_curve() -> None:
     """A curve equal to secp256k1 is secp256k1, bindings included."""
     # guards against the dispatch comparing identities, which sends any
-    # other object holding the secp256k1 parameters down the python path
+    # other object holding the secp256k1 parameters down the Python path
     # in silence: the answer must be the one the singleton gives, and
     # RFC6979 makes it deterministic, hence comparable (issue #142)
     msg = b"Satoshi Nakamoto"
@@ -440,7 +440,7 @@ def test_prv_key_is_not_a_pub_key() -> None:
     """
     msg = b"Satoshi Nakamoto"
     sig = dsa.sign(msg, prv_key_int)
-    # a hash function other than sha256 takes the python implementation,
+    # a hash function other than sha256 takes the Python implementation,
     # which converts the key on its own
     sig_sha1 = dsa.sign(msg, prv_key_int, hf=sha1)
 

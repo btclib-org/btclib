@@ -255,7 +255,7 @@ def double_mult_w_NAF(
     `ssa` verification and public key recovery all reach it, which on
     secp256k1 means every signature the bindings do not answer -- another
     curve, another hash function, a caller-supplied nonce, or the test
-    suite holding the python path against them. Measured over random
+    suite holding the Python path against them. Measured over random
     256-bit coefficients, best of seven: 1.03 ms against the 1.53 ms of
     curve_group's _double_mult, which stays as the reference the tests
     compare this against. w=5 measures 0.99 ms and w=3 1.10, so the
@@ -363,7 +363,7 @@ def multiplier_decomposer(m: int) -> tuple[int, int]:
     m %= _N
 
     # round-to-nearest as (2*x + n) // (2*n), spelled with the shared
-    # n // 2 offset: python floor division makes (x + n//2) // n exact,
+    # n // 2 offset: Python floor division makes (x + n//2) // n exact,
     # where round(b2 * m / _N) would go through a float
     c1 = (_B2 * m + _N // 2) // _N
     c2 = (-_B1 * m + _N // 2) // _N
@@ -383,7 +383,7 @@ def mult_endomorphism_secp256k1(m: int, Q: JacPoint, ec: CurveGroup) -> JacPoint
     their wNAFs. Measured over 30 random 256-bit scalars: 0.53 ms at the
     default w=4, against 0.80 ms feeding the same halves to curve_group's
     _double_mult and 0.84 ms for the _mult this exists to beat -- the
-    fastest python multiplication in the package, and the w=4 default is
+    fastest Python multiplication in the package, and the w=4 default is
     that measurement, the same halves interleaved at w=3 giving 0.57 ms
     and at w=5 0.52, which is the default's own noise.
     """

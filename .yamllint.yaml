@@ -7,7 +7,7 @@
 # root, so the hook needs no -c.
 #
 # Two rules of the twelve in the default set are enabled: the width of a
-# line, which ruff measures for python and markdownlint for markdown and
+# line, which ruff measures for Python and markdownlint for markdown and
 # nothing measured here, and the marker that opens a document. The other
 # two that fire report a convention rather than a defect, so each stays
 # off, with the count written down so that nobody has to run the survey
@@ -21,7 +21,7 @@
 #     construction
 rules:
   line-length:
-    # 100, where markdown and the python docstrings are held to 80, and
+    # 100, where markdown and the Python docstrings are held to 80, and
     # the difference is the pinning convention. An action pinned to a
     # 40-character commit SHA with its tag in a trailing comment lands
     # between 77 and 92 columns on the length of its name alone, and 31

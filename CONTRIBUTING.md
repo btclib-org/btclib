@@ -100,7 +100,7 @@ UV_PROJECT_ENVIRONMENT=.venv-3.10 \
 writes a `.gitignore` of its own, holding `*`, inside every environment it
 creates, so the tree stays clean without a rule per interpreter.
 
-As an annotated python3 project, btclib is very strict on code formatting
+As an annotated Python3 project, btclib is very strict on code formatting
 and linting
 ([ruff](https://docs.astral.sh/ruff/),
 which replaces autoflake, bandit, black, docformatter, flake8, isort,
@@ -163,7 +163,7 @@ what a commit enforces, mark-down included
 one of the hooks, as are ruff, mypy, yamllint, actionlint, and the checks
 on packaging metadata and on `uv.lock`).
 
-Prose is held to 80 columns wherever it lives: markdown by MD013, python
+Prose is held to 80 columns wherever it lives: markdown by MD013, Python
 comments and docstrings by ruff's `max-doc-length`. Code is not — the
 formatter reflows it to 88 — and neither is yaml, at 100, an action
 pinned to a commit SHA being past 80 before anything else is said;

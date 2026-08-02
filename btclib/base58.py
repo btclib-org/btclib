@@ -38,10 +38,10 @@ at the decoding stage the checksum validity ensure data integrity.
 This implementation of Base58 and Base58Check is originally from
 https://github.com/keis/base58, with the following modifications:
 
-* type annotated python3
-* using native python3 int.from_bytes() and i.to_bytes()
+* type annotated Python3
+* using native Python3 int.from_bytes() and i.to_bytes()
 * added optional check on output size for b58decode()
-* interface mimics the native python3 base64 interface, i.e.
+* interface mimics the native Python3 base64 interface, i.e.
   it supports encoding bytes-like objects to ASCII bytes,
   and decoding ASCII bytes-like objects or ASCII strings to bytes.
 """

@@ -69,7 +69,7 @@ class BlockHeader:
         significand = int.from_bytes(self.bits[1:], byteorder="big", signed=False)
         # power term, also called characteristics. Core's SetCompact
         # shifts rather than multiplying by a power of 256, and so does
-        # this: pow(256, -1) is a float in python, so an exponent below
+        # this: pow(256, -1) is a float in Python, so an exponent below
         # 3 would send a 256-bit number through float arithmetic
         exponent = self.bits[0]
         if exponent < 3:

@@ -119,7 +119,7 @@ class Curve(CurveSubGroup):
         if self.G[1] == 0:
             err_msg = "INF point cannot be a generator"
             raise BTClibValueError(err_msg)
-        # n*G is by far the most expensive check here -- a python
+        # n*G is by far the most expensive check here -- a Python
         # double-and-add over nlen bits -- and it dominates the cost of
         # building a curve: at import time the 27 catalogued curves would
         # spend ~118 ms of ~168 ms on it, against ~2 ms for the
@@ -284,7 +284,7 @@ def _libsecp256k1_applicable(ec: Curve, hf: HashF | None = None) -> bool:
 
     hf is compared by identity, deliberately: nothing short of running
     the two functions tells sha256 from a look-alike, so a wrapper such
-    as functools.partial(sha256) falls back to the python path. That is
+    as functools.partial(sha256) falls back to the Python path. That is
     the conservative direction -- slower, never wrong.
     """
     if ec != secp256k1:

@@ -54,7 +54,7 @@ concurrency:
 jobs:
   # what the matrix buys: btclib_libsecp256k1 is built from source (see
   # tool.uv.sources), so every (os, architecture, interpreter) triple is a
-  # distinct C toolchain, and the pure python code meets a distinct
+  # distinct C toolchain, and the pure Python code meets a distinct
   # hashlib and OpenSSL.
   # windows-11-arm needs no special handling, and that is worth a word:
   # which architecture the interpreter targets there is up to the runner

@@ -21,10 +21,10 @@ the first one and reports nothing about the rest.
 Not a `pytest_generate_tests` hook, the other half of the suggestion in
 issue 152: the hook lives in a conftest, away from the test it feeds, and
 buys nothing here -- what each of these tests needs is a list built by a
-few lines of python, which parametrize takes directly.
+few lines of Python, which parametrize takes directly.
 
 Here rather than in a `tests/vectors.py`: name-tests-test runs at its
-default, so every python file under `tests/` is a test file except the
+default, so every Python file under `tests/` is a test file except the
 two basenames the hook exempts, `__init__.py` and `conftest.py`. A
 `vectors_test.py` would name the one module here that holds no test as
 though it held tests, so the loaders live in the package `__init__`,

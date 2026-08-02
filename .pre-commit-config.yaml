@@ -64,10 +64,10 @@ repos:
       # no byte order mark anywhere today, and the same kind of guard as
       # check-executables-have-shebangs: what it costs is one line, what
       # it buys is that an editor on another platform cannot quietly add
-      # three bytes in front of a python file
+      # three bytes in front of a Python file
       - id: fix-byte-order-marker
-      # this one *adds* "# -*- coding: utf-8 -*-" to every python file.
-      # UTF-8 has been the default source encoding since python 3 and the
+      # this one *adds* "# -*- coding: utf-8 -*-" to every Python file.
+      # UTF-8 has been the default source encoding since Python 3 and the
       # floor here is 3.10, so it is 155 dead lines
       # - id: fix-encoding-pragma
       - id: check-yaml
@@ -225,7 +225,7 @@ repos:
         name: markdownlint-cli2 (in place fixes)
         args: [--fix]
   # the width of a yaml line, which nothing else here measured: the hook
-  # above holds markdown to 80 columns and ruff holds python comments and
+  # above holds markdown to 80 columns and ruff holds Python comments and
   # docstrings to the same, and the workflows were the one place prose
   # could grow without a limit -- 117 columns at the worst.
   # Configured in .yamllint.yaml rather than in args here, as codespell
@@ -262,7 +262,7 @@ repos:
   # nothing validated them: an unknown key, a typo in a context reference,
   # an action input that does not exist, a job depending on a job that is
   # not there are all things a run discovers by failing.
-  # The python packaging of actionlint rather than the upstream hook, whose
+  # The Python packaging of actionlint rather than the upstream hook, whose
   # only non-docker id is language: golang, i.e. a go toolchain on every
   # machine that commits and on pre-commit.ci
   - repo: https://github.com/Mateusz-Grzelinski/actionlint-py

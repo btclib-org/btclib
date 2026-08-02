@@ -145,13 +145,13 @@ class CurveGroup:
         # is not cosmetic, as the libsecp256k1 dispatch tests ec against
         # secp256k1, and the default identity comparison would silently
         # send every other object holding the secp256k1 parameters down
-        # the slow python path
+        # the slow Python path
         if self is other:
             return True
         # an exact type test, not isinstance alone: a CurveSubGroup is
         # not a Curve even when it has the same p, a, b and G, and
         # returning NotImplemented lets the reflected operand have its
-        # say before python falls back to identity
+        # say before Python falls back to identity
         if not isinstance(other, CurveGroup) or type(self) is not type(other):
             return NotImplemented
         return self._eq_key() == other._eq_key()
@@ -257,7 +257,7 @@ class CurveGroup:
         # zero digit against 0.55 ms with 63.
         #
         # So no branch on infinity, and no arithmetic on it either: a
-        # python integer costs what its size costs, and the zero
+        # Python integer costs what its size costs, and the zero
         # coordinates of infinity send half the products to zero. A
         # stand-in of full size takes its place, the table at the end
         # answers for it, and an addition with no infinity in it pays two
@@ -276,7 +276,7 @@ class CurveGroup:
         # this the fast path rather than a transcription of the formula:
         # left to grow, V3 and M*V2 reach p^9 and the products that close
         # X and Y reach p^12 -- three thousand bits on secp256k1 -- and
-        # python multiplies whatever it is handed. Worth between 2.0 and
+        # Python multiplies whatever it is handed. Worth between 2.0 and
         # 3.0 times over every mult_* variant in the package, measured
         # against the unreduced spelling on secp256k1 and secp256r1
         RZ2 = RS[2] * RS[2] % p

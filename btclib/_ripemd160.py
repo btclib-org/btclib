@@ -7,7 +7,7 @@
 #
 # No part of btclib including this file, may be copied, modified, propagated,
 # or distributed except according to the terms contained in the LICENSE file.
-"""Pure python RIPEMD-160, for an interpreter whose hashlib has none.
+"""Pure Python RIPEMD-160, for an interpreter whose hashlib has none.
 
 Vendored from bitcoin/bitcoin at 08a4a56c, where the file is
 test/functional/test_framework/crypto/ripemd160.py: Copyright (c) 2021

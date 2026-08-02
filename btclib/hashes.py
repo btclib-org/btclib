@@ -36,9 +36,9 @@ def _hashlib_has_ripemd160() -> bool:
     no provider makes it True: RIPEMD-160 is not a FIPS algorithm, while
     bitcoin addresses are RIPEMD-160 whatever a policy says.
 
-    Not a Linux question but a *distro python* one: the python.org
+    Not a Linux question but a *distro Python* one: the python.org
     installers never bundled an affected OpenSSL (3.11 has 1.1.1q, 3.12
-    has 3.0.11, 3.13 has 3.0.15), macOS system python is LibreSSL, which
+    has 3.0.11, 3.13 has 3.0.15), macOS system Python is LibreSSL, which
     has ripemd160, and python-build-standalone is on 3.5.x.
 
     Loading the legacy provider at import time, via

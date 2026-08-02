@@ -27,9 +27,9 @@ key carried in the envelope, so nothing but the envelope has to travel.
 
 **Why the cipher is a parameter.** btclib has no cryptographic dependency:
 hashlib and the secp256k1 bindings are the whole of it, and its install
-story is "python plus the bindings". AES is not in the standard library,
+story is "Python plus the bindings". AES is not in the standard library,
 so shipping BIE1 whole would mean taking `cryptography` or `pycryptodome`
-for one convenience function, on every user, forever. A pure-python AES
+for one convenience function, on every user, forever. A pure-Python AES
 inside btclib is the worse answer rather than the cheaper one: a
 table-driven block cipher leaks its key through cache timing, and a
 timing-vulnerable cipher is a worse thing to ship than no cipher at all.

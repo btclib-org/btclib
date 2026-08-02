@@ -10,7 +10,7 @@ body:
         Not every bug reachable from btclib is a btclib bug: the elliptic
         curve operations are delegated to
         [btclib_libsecp256k1](https://github.com/btclib-org/btclib_libsecp256k1/issues),
-        the python bindings, and through them to
+        the Python bindings, and through them to
         [bitcoin-core/secp256k1](https://github.com/bitcoin-core/secp256k1/issues).
         A traceback ending in either belongs there. If in doubt, report it
         here.
@@ -28,7 +28,7 @@ body:
     attributes:
       label: How to reproduce it
       description: >
-        The shortest python that shows it, and the full traceback if there
+        The shortest Python that shows it, and the full traceback if there
         is one. The values that trigger it matter: paste the actual keys,
         addresses, transactions or messages, in hex, and never a mainnet
         private key you still use.

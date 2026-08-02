@@ -11,7 +11,7 @@
 
 **There is an AES-128 in this file, and it is here because tests are not
 shipped.** btclib takes no cipher dependency and will not ship a
-pure-python block cipher: a table-driven AES leaks its key through cache
+pure-Python block cipher: a table-driven AES leaks its key through cache
 timing, which is the whole reason `btclib.ecc.ecies` takes the cipher as a
 parameter. None of that argument reaches this file. The wheel and the sdist
 carry no tests, so nothing here is installed on a user's machine; the keys

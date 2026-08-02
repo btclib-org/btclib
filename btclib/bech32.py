@@ -44,12 +44,12 @@ with the following modifications:
 
 * the reference's single segwit_addr.py file is split in two: the codec
   here, the bitcoin semantics in b32.py
-* type annotated python3
+* type annotated Python3
 * avoided returning (None, None), throwing Exceptions instead
 * no 90-character string limit, a bitcoin address bound that b32
   enforces instead
 * detailed error messages
-* interface mimics the native python3 base64 interface, i.e.
+* interface mimics the native Python3 base64 interface, i.e.
   it supports encoding bytes-like objects to ASCII bytes,
   and decoding ASCII bytes-like objects or ASCII strings to bytes.
 """

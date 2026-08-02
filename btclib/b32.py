@@ -42,7 +42,7 @@ Some of these functions are originally from
 https://github.com/sipa/bech32/tree/master/ref/python,
 with the following modifications:
 
-* type annotated python3
+* type annotated Python3
 * avoided returning None or (None, None), throwing Exceptions instead
 * detailed error messages and extended safety checks
 * check that bech32 addresses are not longer than 90 characters,

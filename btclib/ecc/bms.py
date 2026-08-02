@@ -306,7 +306,7 @@ def sign(msg: Octets, prv_key: PrvKey, addr: String | None = None) -> Sig:
     # dsa.recover_pub_keys(magic_msg, dsa_sig).index(Q) -- every candidate
     # and then a search. Two things this buys: on secp256k1 the list is
     # key_ids 0 and 1, since a signer's own key has j = 0, so key_ids 2
-    # and 3 would be computed only to be dropped -- each a python
+    # and 3 would be computed only to be dropped -- each a Python
     # _double_mult when r + ec.n - ec.p happens to be on the curve, about
     # half the time; measured over 40 random (key, msg) pairs, 18.7 ms
     # against 9.0 ms here, a factor of 2. And .index names the key_id only

@@ -109,7 +109,7 @@ ALL_FLAGS = (
 
 # what the entry points accept: the bitmask itself, Core's comma-separated
 # spelling of it, or any iterable of names.
-# Union, not "|": this is an assignment, which python evaluates whatever
+# Union, not "|": this is an assignment, which Python evaluates whatever
 # the __future__ import above defers, and PEP 604 unions are a TypeError
 # until 3.10
 ScriptFlags = ScriptFlag | str | Iterable[str]

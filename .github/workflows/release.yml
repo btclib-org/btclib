@@ -169,12 +169,12 @@ jobs:
       # dispatch a fresh run instead
       - name: Make the version unique for TestPyPI (rehearsal only)
         if: github.event_name == 'workflow_dispatch'
-        # python and tomllib, not sed: the value is parsed and only then
+        # Python and tomllib, not sed: the value is parsed and only then
         # located in the text, because a regex for a version key on its own
         # line would find whichever table came first. The assignment is
         # rewritten whole, which leaves its spelling as the file had it.
         # The interpreter comes from uv, --no-project so that nothing is
-        # installed and no lock is consulted: this job sets up no python of
+        # installed and no lock is consulted: this job sets up no Python of
         # its own, and tomllib needs 3.11. 3.14 is what .python-version
         # pins, so this asks for a version uv has already fetched for the
         # other jobs rather than a second one

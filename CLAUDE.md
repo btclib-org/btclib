@@ -22,22 +22,22 @@ if a workflow changes.
 
 ## Architecture
 
-Pure-python bitcoin cryptography, with secp256k1 arithmetic delegated to
+Pure-Python bitcoin cryptography, with secp256k1 arithmetic delegated to
 the `btclib_libsecp256k1` cffi bindings — and delegated conditionally,
 which is the single most important thing to know before touching
 `btclib/curves/` or `btclib/ecc/`:
 
 - `curves.curve.mult` calls the bindings for secp256k1 and the generator
-  alone; anything else runs the python double-and-add of
+  alone; anything else runs the Python double-and-add of
   `curves/curve_group.py`
 - `ecc.dsa.sign` calls them for secp256k1 with sha256, lower-s, and no
   caller-imposed nonce; `ecc.ssa.sign` for secp256k1 with sha256 **and a
   32-byte message**. That last clause is issue 169: BIP340 accepts a
   message of any size and so does btclib, but the bindings still answer
   "the message hash must be 32 bytes", so any other length takes the
-  python path — which makes it the only path that can verify four of
+  Python path — which makes it the only path that can verify four of
   BIP340's own vectors
-- the python path is not dead code and not constant-time: it serves every
+- the Python path is not dead code and not constant-time: it serves every
   other curve, other hash functions, and caller-supplied nonces, and the
   test suite validates it *against* the bindings, which are the authority
   on the answer. `SECURITY.md` states this as a limitation; keep it true

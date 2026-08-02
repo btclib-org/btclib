@@ -43,7 +43,7 @@ FFI bindings to
 (the optimized C library used by Bitcoin Core):
 they are a required dependency, not an optional accelerator, so
 installing btclib needs either one of their wheels or a C toolchain to
-build them. The python implementation is what every other curve uses,
+build them. The Python implementation is what every other curve uses,
 and the test suite validates it against the bindings: it is libsecp256k1
 that says what the right answer is, being the implementation bitcoin
 consensus itself relies on.
@@ -150,7 +150,7 @@ python -m pip install --upgrade btclib
 ```
 
 You might want to install btclib into a
-python virtual environment; e.g. from the root folder:
+Python virtual environment; e.g. from the root folder:
 
 Shell:
 

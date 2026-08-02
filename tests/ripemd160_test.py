@@ -15,7 +15,7 @@ upstream carries them in its own unittest -- bitcoin/bitcoin at 08a4a56c,
 test/functional/test_framework/crypto/ripemd160.py.
 
 Eight of that upstream's nine. The ninth is 10^6 times "a", and in pure
-python it takes 1.5 s, which would make it the slowest test in this suite
+Python it takes 1.5 s, which would make it the slowest test in this suite
 (the slowest today is 1.47 s) for the one property it has over the others,
 that the input spans many blocks. `test_matches_hashlib` covers that
 property over 138 lengths, 4096 bytes among them, in some 5 ms.

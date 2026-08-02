@@ -52,7 +52,7 @@ parametrized case rather than one loop inside one function, which is what
 lets `pytest-xdist` spread them.
 
 What costs is `tests/script_engine/python_path_test.py`, which re-runs the
-vector sets through the python implementations of the two functions the
+vector sets through the Python implementations of the two functions the
 engine takes from the bindings (issue #129). It holds the slowest tests in
 the suite — the `tapscript-bigmulti` cases, 3 s each — and 5185 tests
 taking 11.2 s on their own: `--ignore` that one file and the remaining
@@ -60,7 +60,7 @@ taking 11.2 s on their own: `--ignore` that one file and the remaining
 shrug. What it would cost is why none is registered: a plain `uv run
 pytest` is the run that has looked at everything, and the file a
 `-m "not slow"` loop would skip is the one whose whole purpose is to catch
-the python path and the bindings disagreeing about a verdict.
+the Python path and the bindings disagreeing about a verdict.
 
 Register one when a test earns it, with the number in the commit message.
 The numbers above are this tree's, and they move: `--durations=8` is in

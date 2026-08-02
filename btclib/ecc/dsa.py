@@ -389,9 +389,9 @@ def sign_(
     # a nonce provided by the caller is the nonce, while what
     # libsecp256k1 takes is extra entropy for the RFC6979 nonce it
     # derives itself: the two cannot be the same argument, so a
-    # requested nonce is for the python implementation below to use.
+    # requested nonce is for the Python implementation below to use.
     # A commitment is that same entropy, and the bindings' sign() does
-    # not expose it either, so it is the python path that commits
+    # not expose it either, so it is the Python path that commits
     if (
         _libsecp256k1_applicable(ec, hf)
         and nonce is None

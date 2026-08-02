@@ -83,7 +83,7 @@ jobs:
       # .pre-commit-config.yaml change.
       # The key carries the runner image and the interpreter as well as that
       # file, because what is cached is virtualenvs: a hook environment is
-      # built against whatever python pre-commit runs under, which here is
+      # built against whatever Python pre-commit runs under, which here is
       # the one .python-version pins, and against the runner's node and go.
       # The config hash alone would survive an ubuntu-latest rotation --
       # 22.04 to 24.04, and the next one -- and restore environments built

@@ -432,7 +432,7 @@ class _CountedInt(int):
 
     Counting rather than timing: what an early return on a special case
     changes is the operations performed, and that is an assertion, where
-    the time they take is a measurement -- and a noisy one, python
+    the time they take is a measurement -- and a noisy one, Python
     integers costing what their size costs. The count is a class
     attribute because the operands of an operation are two.
     """
@@ -489,7 +489,7 @@ def test_add_jac_does_the_same_arithmetic_around_infinity() -> None:
     The count does not see the values, only the operations, so what it
     holds is the shape of the code -- an early return, a case that skips
     a multiplication. That the stand-ins are the size of a real
-    coordinate, which is the other half of it and the half that python
+    coordinate, which is the other half of it and the half that Python
     integers make necessary, is a measurement and lives in the comments
     of add_jac.
     """
@@ -610,7 +610,7 @@ def test_curve_equality() -> None:
     # the dispatch to the libsecp256k1 bindings compares ec against
     # secp256k1: with the identity comparison inherited from object, any
     # other object holding the very same parameters silently took the
-    # python path, twelve times slower and saying nothing about it
+    # Python path, twelve times slower and saying nothing about it
     assert secp256k1_bis is not secp256k1
     assert secp256k1_bis == secp256k1
     assert hash(secp256k1_bis) == hash(secp256k1)
@@ -683,7 +683,7 @@ def test_libsecp256k1_applicable() -> None:
     assert not _libsecp256k1_applicable(CURVES["secp256r1"], sha256)
     assert not _libsecp256k1_applicable(secp256k1, sha512)
     # hf is compared by identity, deliberately: a wrapper around sha256
-    # takes the python path, which is slower and never wrong
+    # takes the Python path, which is slower and never wrong
     assert not _libsecp256k1_applicable(secp256k1, partial(sha256))
 
 

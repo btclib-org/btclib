@@ -227,7 +227,7 @@ def challenge_(msg: Octets, x_Q: int, x_K: int, ec: Curve, hf: HashF) -> int:
     # to s*G = K: anyone satisfies that with K = s*G, one signature
     # valid under every key. BIP340 does not bother rejecting it, as on
     # secp256k1 reaching c = 0 means finding a preimage of zero for the
-    # tagged hash; but this python path serves the low-cardinality test
+    # tagged hash; but this Python path serves the low-cardinality test
     # curves too, where c = 0 is one challenge in n and the exhaustive
     # test shows the degenerate signature verifying under every key --
     # so refuse it here, for signing and verification alike
@@ -322,7 +322,7 @@ def sign_(
     # len(msg) == 32 as well as the curve and the hash function: BIP340
     # takes a message of any size, but the bindings require 32 bytes --
     # "the message hash must be 32 bytes", measured on 0.7.1rc1 -- so
-    # anything else takes the python path, which is the pattern already in
+    # anything else takes the Python path, which is the pattern already in
     # place for a caller-supplied nonce and for every other curve.
     # A commitment joins them: it tweaks the nonce, and the nonce is the
     # bindings' own to derive

@@ -142,7 +142,7 @@ edit.
   one with 63, and `mult_jac` 1.56 ms on a random scalar against 0.79 ms
   on one whose low 192 bits are zero. Infinity now reaches neither a
   branch nor the arithmetic: a full-size stand-in takes its place and a
-  four-entry table answers for it, because a python integer costs what
+  four-entry table answers for it, because a Python integer costs what
   its size costs and the zero coordinates would time the case as well as
   the branch did — with the early returns gone but no stand-ins, `P +
   INFJ` still cost 1.8 us against 5.4. An addition with an infinity in it
@@ -155,10 +155,10 @@ edit.
   bookkeeping, and reaching it inside a multiplication needs the
   accumulator to land on a table entry — 2^-250 on a curve with a real
   order, where the toy curves of the test suite take it constantly and
-  keep it covered. What is left is out of reach from pure python, and
+  keep it covered. What is left is out of reach from pure Python, and
   `SECURITY.md` now lists it: the loop runs once per bit, so a scalar's
   size is not hidden; the windowed variants index their table with a
-  secret digit; python arithmetic costs what its operand sizes cost; the
+  secret digit; Python arithmetic costs what its operand sizes cost; the
   affine law, `aff_from_jac` and the wNAF recoding each spend something
   whose iteration count is its input; and the wNAF loops skip the
   addition of a zero digit outright, which is the next thing to fix
@@ -619,7 +619,7 @@ edit.
   OverflowError out of `assert_valid`; Core rejects the same headers,
   through the fOverflow flag its SetCompact sets and CheckProofOfWork
   tests. The power term is also computed by shifting, as SetCompact does:
-  `pow(256, -1)` is a float in python, so an exponent below 3 used to send
+  `pow(256, -1)` is a float in Python, so an exponent below 3 used to send
   a 256-bit target through float arithmetic (issue #159)
 - **The boolean APIs no longer answer a caller error with `False`.** All
   seven `except Exception` blocks behind a `verify`-style bool are narrowed:
@@ -649,7 +649,7 @@ edit.
   `strict=True` in the same pass — fourteen of them, where an explicit
   length check or construction already guaranteed the pairing, so there the
   argument documents an invariant rather than changing an outcome. Available
-  because `strict` is python 3.10
+  because `strict` is Python 3.10
 - an empty P2WSH witness stack raises BTClibValueError("empty p2wsh witness
   stack") rather than an `IndexError` out of `stack[-1]`, the witness script
   being the last element of a stack that has none. Core calls it
@@ -751,7 +751,7 @@ edit.
 - importing btclib no longer dies with OSError where hashlib has no
   RIPEMD-160, and no longer re-enables OpenSSL's deprecated algorithms
   process-wide to avoid it. `btclib.hashes.ripemd160` falls back to a pure
-  python RIPEMD-160 (`btclib._ripemd160`, vendored from Bitcoin Core),
+  Python RIPEMD-160 (`btclib._ripemd160`, vendored from Bitcoin Core),
   which is what makes the library importable on a host linking an OpenSSL
   between 3.0.0 and 3.0.6 — Ubuntu 22.04 still ships 3.0.2 — or one in
   FIPS mode, where no provider offers RIPEMD-160 and bitcoin addresses
@@ -1008,7 +1008,7 @@ edit.
   thirty thousand and one in sixteen neither is reachable by generating
   and waiting
 - **`mult_endomorphism_secp256k1` answers correctly, and is now the
-  fastest python multiplication in the package** (issue #215). Its
+  fastest Python multiplication in the package** (issue #215). Its
   `multiplier_decomposer` did Hankerson–Menezes–Vanstone's algorithm 3.74
   modulo `ec.p` where the congruence only holds modulo the group order —
   secp256k1's p and n share their top 128 bits, so every scalar above
@@ -1095,7 +1095,7 @@ edit.
 - btclib_libsecp256k1 is a required dependency, as pyproject.toml has
   always declared: the import is no longer guarded, and secp256k1
   signing, verification, and generator multiplication always go through
-  the bindings. The python implementation is not going anywhere: it
+  the bindings. The Python implementation is not going anywhere: it
   serves every other curve, a hash function other than sha256, and a
   caller-imposed nonce, and the test suite keeps validating it against
   the bindings, libsecp256k1 being the authority on the answer
@@ -1138,14 +1138,14 @@ edit.
   identity comparison of `object`. That comparison is what dispatches to
   libsecp256k1, and `ec/curve.py` itself built *two* secp256k1 objects,
   one per SEC 2 catalogue: code holding `SEC2v2["secp256k1"]` got the pure
-  python path, twelve times slower and silent about it, and
+  Python path, twelve times slower and silent about it, and
   `to_prv_key`/`to_pub_key` raised "curve mismatch" between two objects
   describing the same curve. The eight curves shared by the two
   catalogues are now one object each, and the five hand-written dispatch
   predicates are one `_libsecp256k1_applicable(ec, hf)`. `hf` is still
   compared by identity, deliberately: nothing short of running them tells
   sha256 from a look-alike, so a wrapper such as
-  `functools.partial(sha256)` keeps taking the python path — slower, never
+  `functools.partial(sha256)` keeps taking the Python path — slower, never
   wrong (issue #142)
 - **BIP340 messages of arbitrary size**, which the BIP allowed in 2023-04
   ("the restriction to 32-byte messages has been lifted") and btclib refused:
@@ -1161,7 +1161,7 @@ edit.
   and are unchanged, which is what btclib's trailing underscore has always
   distinguished. The bindings still answer "the message hash must be 32
   bytes", so the delegation condition gains a length clause: 32 bytes go to
-  libsecp256k1 as before, anything else takes the python path — the pattern
+  libsecp256k1 as before, anything else takes the Python path — the pattern
   already in place for a caller-supplied nonce and for every other curve, and
   now the only path that can verify four of BIP340's own vectors. Two tests
   changed with it, both for the better: truncating a message by one byte is no
@@ -1179,8 +1179,8 @@ edit.
   ciphertext` framing, the HMAC-SHA256 over it, and the base64 armor.
   AES-128-CBC with PKCS#7 is the caller's to bring, which is the answer to
   the question the issue asked before the code was written: btclib's whole
-  install story is "python plus the bindings", AES is not in the standard
-  library, and a pure-python one shipped here would be a timing-vulnerable
+  install story is "Python plus the bindings", AES is not in the standard
+  library, and a pure-Python one shipped here would be a timing-vulnerable
   block cipher — a worse thing to ship than no block cipher at all. The
   layers that need no cipher stand on their own and are tested without
   one: `derive_keys` is the ECDH and the sha512 split, and `Envelope`
@@ -1217,7 +1217,7 @@ edit.
   pair alone, so a `Curve` argument would advertise a genericity no vector
   could check. The message is of any size, which is what made #169 the
   precondition — two of BIP327's own vectors are an empty message and a
-  38-byte one, and both take btclib's python path. `sign` zeroes the secnonce
+  38-byte one, and both take btclib's Python path. `sign` zeroes the secnonce
   bytearray it is given, because two signatures under one secret nonce hand
   out the private key. Threshold signing, the neighbouring half of #190, is
   not implemented and the issue stays open for it
@@ -1783,7 +1783,7 @@ edit.
   `dsa.Sig`, `ssa.Sig`, and `bms.Sig` spell it as a written-out `__init__`
   rather than the `InitVar[bool]` field and `__post_init__` they used to
   share with the rest of the library, a dataclass field being made
-  keyword-only by `field(kw_only=True)`, which is python 3.10 where this
+  keyword-only by `field(kw_only=True)`, which is Python 3.10 where this
   package supports 3.9; `dataclasses.fields`, `replace`, `==`, `hash`, and
   `repr` are unaffected, and the three stay frozen. `dsa.Sig.parse` is the
   one signature with a parameter *after* the flag, so `strict` becomes
@@ -1872,7 +1872,7 @@ edit.
   `Sequence` three. The cost of invariance is that a tree built into a
   variable rather than passed as a literal wants the annotation, which is
   the documentation anyway
-- **mypy is aimed at python 3.10**, not at whatever interpreter runs it.
+- **mypy is aimed at Python 3.10**, not at whatever interpreter runs it.
   `[tool.mypy]` set no `python_version`, so the strict check used the 3.14 of
   `.python-version` while `requires-python` says `>=3.9`, and a typing
   construct absent from an older interpreter was invisible: `typing.Self`,
@@ -1918,7 +1918,7 @@ edit.
   expected "int"`. It caught a real one on the spot: `borromean` bound `h`
   to a digest inside its loops and to a hash object after them. Only
   `update`'s parameter stays `Any`, because `hmac.new`'s `digestmod` wants a
-  buffer union python 3.9 cannot spell and `rfc6979` passes `hf` to it eight
+  buffer union Python 3.9 cannot spell and `rfc6979` passes `hf` to it eight
   times
 - `alias.py` says at the top that `Octets` and `String` are the same type
   to mypy, both being `Union[bytes, str]`, so the hex-string versus text
@@ -1939,7 +1939,7 @@ edit.
   changed is that `add_jac` and the doubling helper let `V3` and `M*V2`
   grow to `p^9`, and the products that close `X` and `Y` to `p^12` —
   three thousand bits for secp256k1 — before a single reduction at the
-  end, and python multiplies whatever it is handed. Reducing also makes
+  end, and Python multiplies whatever it is handed. Reducing also makes
   the doubling test free, `V` and `W` being the differences the formula
   needs anyway: issue #171 counted four multiplications for that test,
   and they were never its cost. `add_aff` and `double_aff` take the same
@@ -1954,7 +1954,7 @@ edit.
 - **`mult` takes the GLV endomorphism on secp256k1** wherever the bindings
   cannot answer: `curve_group_2.mult_endomorphism_secp256k1`, 0.53 ms
   against the 0.84 of the generic `_mult`. The bindings take the generator
-  and a non-zero scalar, so what reaches the python path is every *other*
+  and a non-zero scalar, so what reaches the Python path is every *other*
   secp256k1 point — and the operation that means is ECDH:
   `dh.diffie_hellman` measures 0.56 ms against 0.87, a third off, and so
   does any caller multiplying a point of its own. The dispatch asks the
@@ -1970,7 +1970,7 @@ edit.
   256-bit coefficients. `curves.double_mult`, `dsa` and `ssa` verification
   and both public key recoveries reach it, so it is every signature the
   bindings do not answer — another curve, another hash function, a
-  caller-supplied nonce — and the test suite's python path, which drops from
+  caller-supplied nonce — and the test suite's Python path, which drops from
   96.4 s to 79.3 s single-process, the module that holds it from 14.7 s to
   11.2 s. Neither algorithm is new and neither moves: the wNAF one has been
   in the tree with its own tests, and `_double_mult` stays as the reference
@@ -2013,7 +2013,7 @@ edit.
   `dsa.recover_pub_keys(magic_msg, dsa_sig).index(Q)`: every candidate
   recovered, then searched. On secp256k1 the recovery set is key_ids 0 and
   1 — a signer's own key has j = 0 — so key_ids 2 and 3 were computed only
-  to be dropped, each a python `_double_mult` whenever `r + ec.n - ec.p`
+  to be dropped, each a Python `_double_mult` whenever `r + ec.n - ec.p`
   lands on the curve, about half the time. The search now runs one
   candidate at a time and stops at the match: 18.7 ms to 9.0 ms, measured
   over 40 random (key, msg) pairs. `.index` was also the wrong question by
@@ -2026,7 +2026,7 @@ edit.
 - importing btclib is 140 ms faster: `Curve` takes a new `order_check`
   argument, and the 27 catalogued curves pass `order_check=False` and
   `weakness_check=False`. The n\*G ≟ INF check the first one gates is a
-  python double-and-add over the bit length of the order, 118 ms of the
+  Python double-and-add over the bit length of the order, 118 ms of the
   168 ms importing `btclib.ec.curve` used to take; the 99 modular
   exponentiations of the second are another 5 ms. Both were paid to
   re-derive, at every interpreter start, a property of the constants
@@ -2161,7 +2161,7 @@ edit.
   one version-gated line a red build; the comparison is
   `round(total, precision) < fail_under`, so 99.99 is one rounding step
   of slack rather than none
-- **`tests/ecc/bms_test.py` imports on python 3.9 again.** It annotates a
+- **`tests/ecc/bms_test.py` imports on Python 3.9 again.** It annotates a
   helper `-> Point | None` without `from __future__ import annotations`,
   which 3.9 evaluates at def time and has no `|` for: the module was ten
   collection errors on the oldest supported interpreter and passed on
@@ -2190,12 +2190,12 @@ edit.
   `Tx.assert_valid`'s: it takes a coinbase *transaction*, while a lone
   `TxIn` with the null prev_out is the placeholder a builder starts from.
   `test_script_sig_is_not_validated_and_that_is_the_answer` pins all four
-- **the vendored consensus vectors are judged by the python implementation
+- **the vendored consensus vectors are judged by the Python implementation
   too**, in `tests/script_engine/python_path_test.py`: the two symbols the
   engine imports from the bindings are replaced by `btclib.ecc`, and
   `script_tests.json`, `tx_valid.json`, `tx_invalid.json` and the taproot
   vectors — 4168 of them — run again through it. Until 23041e4b the engine
-  fell back to python when the bindings were absent, two vectors failed in
+  fell back to Python when the bindings were absent, two vectors failed in
   that configuration, and making the bindings mandatory turned the tests
   green without fixing either defect: they had become unreachable.
   Reintroducing either one now fails four vectors, two of which no issue had
@@ -2330,8 +2330,8 @@ edit.
 
 ### Supported interpreters and dependencies
 
-- dropped python 3.7 and 3.8 support, added 3.13 and 3.14
-- **dropped python 3.9**, so `requires-python` is `>=3.10` and the matrix
+- dropped Python 3.7 and 3.8 support, added 3.13 and 3.14
+- **dropped Python 3.9**, so `requires-python` is `>=3.10` and the matrix
   runs 42 jobs instead of 48. 3.9 went end-of-life in 2025-10, and it was
   costing more than a column: a fresh resolve at `>=3.9` split 35 of 132
   locked packages into a current version and an older one reachable only
@@ -2456,7 +2456,7 @@ edit.
 - **`yamllint`, and a limit of 100 rather than 80 for a measured
   reason.** It is the third width gate beside ruff and markdownlint, and
   the workflows were the one place a line could grow with nothing to say
-  so — 117 columns at the worst. Eighty is what markdown and the python
+  so — 117 columns at the worst. Eighty is what markdown and the Python
   prose get, and the yaml cannot have it: an action pinned to a
   40-character commit SHA with its tag in a trailing comment lands
   between 77 and 92 columns on the length of its name alone, and 31 of
@@ -2501,7 +2501,7 @@ edit.
   fails on 154 files, every module opening with `#!/usr/bin/env python3`
   as the house header and none of them a script;
   `fix-encoding-pragma` would *add* 155 dead `# -*- coding: utf-8 -*-`
-  lines, UTF-8 being the default since python 3 against a floor of 3.10.
+  lines, UTF-8 being the default since Python 3 against a floor of 3.10.
   Added: pre-commit's own
   `check-hooks-apply` and `check-useless-excludes`, which are this file
   checking itself — a `files` pattern matching nothing is a rule that has
@@ -2738,3 +2738,14 @@ edit.
   description need. `lint.yml`'s `Build the documentation` job then greps
   the built HTML for `href="#./`, which asks the same question where no
   suppression can hide the answer
+- **Prose spells the language Python.** The name is a proper noun, and the
+  tree had it lowercase in 125 lines of prose — docstrings, comments,
+  README.md, SECURITY.md, CONTRIBUTING.md and this file — beside the two
+  dozen lines that already capitalized it. What stays lowercase is what is
+  typed rather than named: the `python` command and the
+  `.venv/bin/python` it resolves to, the `python3` of a shebang, a yaml
+  value a tool parses (`render:`, `language:`, `shell:`), and every
+  identifier the spelling belongs to — `.python-version`,
+  `requires-python`, `python_version`, `python_files`, the `python.org`
+  host, and the packages whose own name carries it, `python-bitcoinlib`,
+  `python-mnemonic` and `python-build-standalone`

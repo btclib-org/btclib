@@ -50,7 +50,7 @@ def _to_bool(element: bytes) -> bool:
 # what every operation in the mappings of script.py and tapscript.py is.
 # The op codes taking anything else, op_if and its condition stack among
 # them, are driven by those modules directly instead.
-# Optional, not "| None": this is an assignment, which python evaluates
+# Optional, not "| None": this is an assignment, which Python evaluates
 # whatever the __future__ import above defers, and PEP 604 unions are a
 # TypeError until 3.10
 ScriptOp = Callable[[list[bytes], list[bytes], ScriptFlag], ScriptList | None]

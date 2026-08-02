@@ -40,7 +40,7 @@ def test_int_from_integer_reads_a_str_as_hex() -> None:
     assert int_from_integer(1234) == 1234
 
     # and an odd number of digits is not a one-digit decimal either
-    # (python 3.14 rephrased the message bytes.fromhex raises)
+    # (Python 3.14 rephrased the message bytes.fromhex raises)
     with pytest.raises(ValueError, match="fromhex"):
         int_from_integer("9")
 
@@ -56,7 +56,7 @@ def test_hex_string() -> None:
     assert hex_string(a_bytes) == "01 DEADBEEF 00000000"
 
     # invalid hex-string: odd number of hex digits
-    # (python 3.14 rephrased the message bytes.fromhex raises)
+    # (Python 3.14 rephrased the message bytes.fromhex raises)
     a_str = "1deadbeef00000000"
     with pytest.raises(ValueError, match="fromhex"):
         hex_string(a_str)

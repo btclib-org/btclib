@@ -14,7 +14,7 @@ description = "A library for 'bitcoin cryptography'"
 readme = "README.md"
 license = { text = "MIT License" }
 authors = [{ name = "The btclib developers", email = "devs@btclib.org" }]
-# python 3.9 is end-of-life since 2025-10, and keeping it out buys more
+# Python 3.9 is end-of-life since 2025-10, and keeping it out buys more
 # than one fewer column in the matrix: a fresh resolve at ">=3.9" splits
 # 35 of the 132 locked packages into a modern version and an older one
 # reachable only from 3.9 -- mypy 1.19 beside 2.3, pytest 8.4 beside 9.1,

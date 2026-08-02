@@ -7,17 +7,17 @@
 #
 # No part of btclib including this file, may be copied, modified, propagated,
 # or distributed except according to the terms contained in the LICENSE file.
-"""The vendored consensus vectors, judged by the python implementation.
+"""The vendored consensus vectors, judged by the Python implementation.
 
 The engine imports its signature verification from the bindings, which
-are a required dependency, so the python implementations never face
+are a required dependency, so the Python implementations never face
 these vectors otherwise: a defect in them is unreachable rather than
 absent. Issue #129 found two hiding exactly there, each accepting a
 transaction the data calls invalid.
 
 This module is the bindings-less configuration, without the packaging:
 the two symbols the engine imports from the bindings are replaced by the
-python implementations and the same vector sets run again through them,
+Python implementations and the same vector sets run again through them,
 so a disagreement between the two implementations about the *verdict*
 on a transaction is caught. Unit tests cannot do that job: neither #129
 defect was "this function is lax" -- one was `Sig.parse` dropping a
@@ -55,7 +55,7 @@ from tests.script_engine import transactions_test as tx_vector_module
 
 
 def python_dsa_verify(msg_hash: bytes, pub_key: bytes, sig: bytes) -> bool:
-    """The python verify the fixture below installs in the engine.
+    """The Python verify the fixture below installs in the engine.
 
     `hybrid=True` is the second half of issue #129: `point_from_octets`
     takes the hybrid 0x06/0x07 prefixes only when asked,
@@ -76,12 +76,12 @@ def python_ssa_verify(msg_hash: bytes, pub_key: bytes, sig: bytes) -> bool:
 
 @pytest.fixture
 def python_verification(monkeypatch: pytest.MonkeyPatch) -> None:
-    """Route the engine's signature verification through python.
+    """Route the engine's signature verification through Python.
 
     Two patches per algorithm, and both are needed: the engine holds its
     own reference to the bindings' verify, and `btclib.ecc` would hand
     secp256k1 with sha256 straight back to them -- the very dispatch that
-    makes the python path unreachable in the first place.
+    makes the Python path unreachable in the first place.
     """
     monkeypatch.setattr(dsa, "_libsecp256k1_applicable", lambda *_: False)
     monkeypatch.setattr(ssa, "_libsecp256k1_applicable", lambda *_: False)
@@ -131,7 +131,7 @@ def test_dsa_verify_answers_false_for_what_the_bindings_refuse() -> None:
     DERSIG, LOW_S and STRICTENC, so by the time the engine verifies, the
     encoding has already been ruled on. What is left is the contract
     itself, which the
-    python substitute above is written to honour -- it raises where the
+    Python substitute above is written to honour -- it raises where the
     bindings raise -- and which the bindings do raise: measured, a
     ValueError of "invalid DER signature" and one of "invalid public
     key".
@@ -143,7 +143,7 @@ def test_dsa_verify_answers_false_for_what_the_bindings_refuse() -> None:
     minimal_der = bytes.fromhex("3006020101020101")
     assert not engine_script.dsa_verify(msg_hash, b"\x02" + b"\x00" * 32, minimal_der)
 
-    # the same input through the python substitute raises instead, which
+    # the same input through the Python substitute raises instead, which
     # is the asymmetry the wrapper exists to absorb
     with pytest.raises(BTClibValueError):
         python_dsa_verify(msg_hash, b"\x02" + b"\x00" * 32, minimal_der)

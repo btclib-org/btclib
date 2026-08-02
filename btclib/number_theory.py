@@ -15,7 +15,7 @@ and
 https://codereview.stackexchange.com/questions/43210/tonelli-shanks-algorithm-implementation-of-prime-modular-square-root/43267
 with the following modifications:
 
-* type annotated python3
+* type annotated Python3
 * minor improvements
 * added extensive unit test
 """

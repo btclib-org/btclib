@@ -34,7 +34,7 @@ from tests.curves.curve_test import low_card_curves, secp256k1_bis
 def test_signature_on_an_equal_curve() -> None:
     """A curve equal to secp256k1 is secp256k1, bindings included."""
     # guards against the dispatch comparing identities, which sends any
-    # other object holding the secp256k1 parameters down the python path
+    # other object holding the secp256k1 parameters down the Python path
     # in silence: with aux fixed the BIP340 nonce is deterministic, so
     # the two paths have one answer to agree on (issue #142)
     msg = b"Satoshi Nakamoto"
@@ -99,7 +99,7 @@ def test_signature() -> None:
         ssa.assert_as_valid_(m_bytes[:31], x_Q, sig)
 
     # and signing it works, giving a signature over those 31 bytes and no
-    # other: the python path serves it, the bindings taking 32 bytes only
+    # other: the Python path serves it, the bindings taking 32 bytes only
     sig_31 = ssa.sign_(m_bytes[:31], q)
     assert ssa.verify_(m_bytes[:31], x_Q, sig_31)
     assert not ssa.verify_(m_bytes, x_Q, sig_31)
@@ -113,7 +113,7 @@ def bip340_vectors() -> list[Any]:
     """One case per BIP340 vector.
 
     Four of the nineteen are the arbitrary-size messages BIP340 gained in
-    2023-04, of 0, 1, 17 and 100 bytes: only the python path can serve
+    2023-04, of 0, 1, 17 and 100 bytes: only the Python path can serve
     them, the bindings taking a 32-byte message hash alone (issue 169).
     """
     return [

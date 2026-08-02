@@ -21,7 +21,7 @@ equally welcome.
 Signing, verification and generator multiplication on secp256k1 are
 delegated to
 [btclib_libsecp256k1](https://github.com/btclib-org/btclib_libsecp256k1/security/advisories/new),
-the python bindings, and through them to
+the Python bindings, and through them to
 [libsecp256k1](https://github.com/bitcoin-core/secp256k1/security/advisories/new)
 itself, which has its own security policy and its own address. A flaw in
 the elliptic curve arithmetic, or in how the bindings drive it, most
@@ -34,7 +34,7 @@ What belongs here is everything btclib does around them:
     validation that decides what is accepted
 - the derivation paths: BIP32, BIP39, Electrum mnemonics, SLIP132
 - the script engine, and the taproot construction it validates against
-- the pure python implementations, which are what runs whenever the
+- the pure Python implementations, which are what runs whenever the
     conditions below are not met
 - the distributions published to PyPI and their provenance
 
@@ -58,7 +58,7 @@ the commit it was built from.
 These are known and inherent. They are worth stating because btclib is
 used to teach and to prototype as much as to build:
 
-- secret material handed to btclib lives in python objects, which are
+- secret material handed to btclib lives in Python objects, which are
     immutable and not zeroized: it stays in the process memory until
     garbage collection, and may have been copied by the interpreter
     meanwhile. The constant-time properties of libsecp256k1 apply to the
@@ -69,13 +69,13 @@ used to teach and to prototype as much as to build:
     `ssa.sign` for secp256k1 with sha256, a 32-byte message and no
     commitment. Anything else — another
     curve, another hash function, another message size, a nonce of your
-    own — runs the python implementation, whose scalar multiplication is
+    own — runs the Python implementation, whose scalar multiplication is
     a double-and-add in Jacobian coordinates: it is validated against the
     bindings, which are the authority on the answer, but it is not
     constant-time. It tries, which is not the same claim. The Jacobian
     group law neither branches on the point at infinity nor lets it reach
     the arithmetic: a full-size stand-in takes its place and a table
-    answers for it, because a python integer costs what its size costs
+    answers for it, because a Python integer costs what its size costs
     and the zero coordinates of infinity would time the case as well as a
     branch would. That is the case that matters, infinity being the
     identity and so the accumulator every multiplication starts from and
@@ -86,7 +86,7 @@ used to teach and to prototype as much as to build:
     land on a table entry, 2^-250 on a curve with a real order, and a
     caller spelling out `P + P` knows it did.
 
-    What is left is out of reach from pure python, and is enough to
+    What is left is out of reach from pure Python, and is enough to
     matter: the loop runs once per digit of the scalar, so the size of a
     secret is not hidden, only its bits; the wNAF multiplications, which
     are the ones `mult`, `double_mult` and verification reach, skip the
@@ -120,8 +120,8 @@ used to teach and to prototype as much as to build:
     callables, so the cipher's own resistance to timing and side-channel
     attack is whatever the caller passed in — btclib neither provides it
     nor can check it. That is the point of the parameter rather than a gap
-    in it: a pure-python AES here would be table-driven and would leak its
-    key through cache timing, and the caveat above about the python curve
+    in it: a pure-Python AES here would be table-driven and would leak its
+    key through cache timing, and the caveat above about the Python curve
     arithmetic is exactly the one this design refuses to add a second of.
     The MAC is verified before the cipher is called, and compared with
     `hmac.compare_digest`, so what btclib does with the envelope does not
