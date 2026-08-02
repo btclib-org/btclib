@@ -82,7 +82,7 @@ def test_load_lang_is_not_a_race() -> None:
     paused = threading.Event()
     release = threading.Event()
 
-    class BlockingDict(dict):  # type: ignore[type-arg]
+    class BlockingDict(dict[str, list[str]]):
         """Block inside the assignment the race needed to interleave."""
 
         def __setitem__(self, key: str, value: list[str]) -> None:
