@@ -37,6 +37,8 @@ import copy
 import hmac
 from dataclasses import dataclass
 
+from btclib_libsecp256k1 import keys as libsecp256k1_keys
+
 from btclib import base58
 from btclib.alias import INF, BinaryData, Octets, Point, String
 from btclib.bip32.der_path import (
@@ -417,15 +419,31 @@ def __prv_key_derivation(xkey: _BIP32KeyData, index: int, pub_key: bytes) -> Non
     offset = int.from_bytes(hmac_[:32], byteorder="big", signed=False)
     if offset >= secp256k1.n:
         raise _invalid_child(index, "the hmac left half is not a valid scalar")
-    prv_key_int = (xkey.prv_key_int + offset) % secp256k1.n
-    if prv_key_int == 0:
-        raise _invalid_child(index, "the child private key is zero")
+
+    # the sum of two scalars, one of them the parent private key:
+    # secp256k1_ec_seckey_tweak_add computes it in constant time, where
+    # python's own `(a + b) % n` is variable in time with the operands
+    # and leaves an unzeroized copy of each intermediate behind. The key
+    # goes in as the 32 bytes it is stored as rather than as
+    # xkey.prv_key_int, so that no arithmetic on the secret happens
+    # here; it costs 0.55 us against 0.03, on a derivation whose hmac
+    # and public key are some 15 us of their own.
+    #
+    # BIP32 is defined for secp256k1 and for nothing else, so this is
+    # not gated on the curve as the rest of the library's dispatches
+    # are: there is no other curve for a fallback to serve
+    try:
+        key = libsecp256k1_keys.prvkey_tweak_add(xkey.key[1:], offset)
+    except ValueError as e:
+        # past the range check above, the one sum libsecp256k1 refuses
+        # is the zero BIP32 refuses too
+        raise _invalid_child(index, "the child private key is zero") from e
 
     # xkey is mutated only past the checks, so a rejected index leaves
     # it the key it was rather than half a derivation
     xkey.chain_code = hmac_[32:]
-    xkey.prv_key_int = prv_key_int
-    xkey.key = b"\x00" + prv_key_int.to_bytes(32, byteorder="big", signed=False)
+    xkey.prv_key_int = int.from_bytes(key, byteorder="big", signed=False)
+    xkey.key = b"\x00" + key
 
 
 def __pub_key_derivation(xkey: _BIP32KeyData, index: int) -> None:
@@ -434,6 +452,7 @@ def __pub_key_derivation(xkey: _BIP32KeyData, index: int) -> None:
     offset = int.from_bytes(hmac_[:32], byteorder="big", signed=False)
     if offset >= secp256k1.n:
         raise _invalid_child(index, "the hmac left half is not a valid scalar")
+
     pub_key_point = secp256k1.add(xkey.pub_key_point, mult(offset))
     if pub_key_point[1] == 0:  # INF, the point at infinity, is (int, 0)
         raise _invalid_child(index, "the child public key is the point at infinity")

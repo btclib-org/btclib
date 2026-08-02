@@ -19,6 +19,7 @@ edit.
 A hundred and seventy-nine entries, grouped. The order runs from what breaks
 A hundred and eighty entries, grouped. The order runs from what breaks
 A hundred and eighty-one entries, grouped. The order runs from what breaks
+A hundred and eighty-two entries, grouped. The order runs from what breaks
 a caller to what only maintainers see; [HISTORY.md](./HISTORY.md) lists the
 twenty-nine source-breaking changes on their own.
 
@@ -1956,6 +1957,18 @@ twenty-nine source-breaking changes on their own.
   for the `a == p-3` of most catalogued curves, and `JacPoint` is public.
   Every gain is a uniform one, so the comparisons the `curve_group_2`
   docstrings draw between the algorithms still hold as measured
+- **BIP32 private derivation adds the offset in constant time**:
+  `keys.prvkey_tweak_add`, where it was `(kpar + IL) % n` on python
+  integers — variable in time with the operands, and leaving an
+  unzeroized copy of every intermediate behind. The parent key goes in
+  as the 32 bytes it is stored as, so no arithmetic on the secret
+  happens on this side of the call at all. It costs 0.55 µs against
+  0.03, on a derivation whose hmac and public key are some 15 µs of
+  their own. BIP32's three invalid children are unchanged, and still
+  `invalid child index N`: the range check on `parse256(IL)` stays in
+  python, and the one sum libsecp256k1 refuses past it is the zero child
+  BIP32 refuses too. Not gated on the curve, unlike the library's other
+  delegations, there being no second curve BIP32 is defined over
 - **ECDH computes the shared point in libsecp256k1**, and in constant
   time: `dh.diffie_hellman` calls `keys.pubkey_tweak_mul` on secp256k1,
   13.7 µs against the 1.07 ms of `mult(dU, QV)` — some seventy-eight
