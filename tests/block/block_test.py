@@ -481,6 +481,39 @@ def test_target_from_compact_bits() -> None:
             _ = header.target
 
 
+@pytest.mark.parametrize(
+    ("height", "nbits", "difficulty"),
+    [
+        (0, 486604799, 1.000),
+        (33_333, 486594666, 1.183),
+        (74_000, 469809688, 352.161),
+        (105_000, 453179945, 22012.381),
+        (210_000, 436527338, 3438908.960),
+        (250_000, 426957810, 37392766.136),
+    ],
+)
+def test_difficulty_from_compact_bits(
+    height: int, nbits: int, difficulty: float
+) -> None:
+    """The nBits of six blocks against the difficulty each stands for.
+
+    petertodd/python-bitcoinlib's `Test_CBlockHeader.test_calc_difficulty`,
+    in `bitcoin/tests/test_core.py`, is where the six pairs come from
+    (issue 199); tests/_data/README.md pins the revision. Upstream's
+    decimal spelling of nBits is kept and converted here, rather than
+    written as the hex the field holds: a vector has to be readable
+    against the source it is quoted from, and rewriting the base puts a
+    hand conversion between the two.
+
+    The four blocks this suite parses reach two distinct difficulties and
+    one of the two is 1. Here the exponent of nBits moves over five
+    values, which is the range the ratio of two powers of 256 has to be
+    checked over.
+    """
+    header = BlockHeader(bits=nbits.to_bytes(4, "big"), check_validity=False)
+    assert round(header.difficulty, 3) == difficulty
+
+
 def test_block_without_transactions() -> None:
     """A block with no coinbase is not a block with nothing in it.
 

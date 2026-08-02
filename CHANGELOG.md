@@ -2630,6 +2630,21 @@ edit.
   `scriptPubKey` being a part of a transaction and no txid recomputable
   from it, and `tests/_data/README.md` says so next to the command that
   re-derives each one
+- **python-bitcoinlib's block-validity vectors are vendored**, in
+  `tests/block/_data/checkblock_valid.json` and `checkblock_invalid.json`
+  (issue #199): four real blocks and seven consensus refuses, byte for
+  byte, and the only negative block vectors here that btclib did not build
+  by mutating a block of its own. One of the seven is `xfail`, and it is a
+  finding rather than bookkeeping: btclib takes no `cur_time`, so a block
+  two hours ahead of the clock is accepted. The same survey took two
+  blocks of values inline, upstream publishing no file for either: the
+  five secp256k1 RFC6979 vectors, which pin the signature and not only the
+  nonce btclib had for one of them, and six nBits-to-difficulty pairs.
+  What was left upstream is in the issue — their bech32 vectors predate
+  BIP350, and their script and transaction files are subsets of Core's,
+  which this suite already holds at Core's tip. Four defects the survey
+  found in their vectors are reported to them as
+  petertodd/python-bitcoinlib#323
 - **a stated entry count in these two files is a failing test**, where
   CLAUDE.md and CONTRIBUTING.md answered it with a command to run by
   hand. Written as a habit it did not work: `f295aaaf` left CHANGELOG.md
