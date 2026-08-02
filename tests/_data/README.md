@@ -100,14 +100,13 @@ Where a file was vendored earlier and later refreshed, both dates appear.
 staleness figure, not a defect: a vector file is a fixed set of cases and
 refreshing it is a decision, not a chore.
 
-Every entry was last re-checked against its upstream on 2026-07-30 -- the
-two SLIP-0039 entries on 2026-08-02, the day they were vendored -- and
+Every entry was last re-checked against its upstream on 2026-07-30, and
 whatever had drifted was refreshed, so `behind` is 0 wherever a refresh
 was possible at all. The files vendored since are the exception by date
 alone, all of them taken at the tip of their path on 2026-08-02, which is
-what their `pulled` says: the eight BIP327 files, and the three Core
-files added here — `key_io_valid.json`, `key_io_invalid.json` and
-`base58_encode_decode.json`.
+what their `pulled` says: the eight BIP327 files, the three Core files
+`key_io_valid.json`, `key_io_invalid.json` and `base58_encode_decode.json`,
+and the two python-bitcoinlib block files added here.
 
 A vector btclib fails is vendored anyway and marked `xfail`, never left
 out: an absent vector hides the defect it would have shown, and
@@ -580,6 +579,72 @@ behind  0 revisions; still the blob on master
 Verdict: **reformatted**. 200 vectors, JSON-equal, and all 200 are
 exercised by `tests/ecc/bms_test.py`.
 
+### `tests/block/_data/checkblock_valid.json`
+
+```text
+repo    petertodd/python-bitcoinlib
+path    bitcoin/tests/data/checkblock_valid.json
+commit  46314961bd7d8d0d6069c766c9cb7bfc41c299f4  2014-02-22
+blob    eeca0aa43d8c3cd75d3c98d497f39edb2f722dff
+pulled  2026-08-02
+behind  0 revisions; that commit is the only one to touch the path
+```
+
+Verdict: **identical**. Four blocks — genesis twice, 99,960 and 99,993 —
+which `tests/block/checkblock_test.py` parses with the full validity
+check. Genesis is the merkle tree btclib had no vector for: one leaf, so
+the root is the coinbase txid and nothing is hashed.
+
+The two genesis entries differ only in the `cur_time` beside them, which
+btclib has no use for: it answers "is this timestamp too far in the
+future", and that takes a clock.
+
+### `tests/block/_data/checkblock_invalid.json`
+
+```text
+repo    petertodd/python-bitcoinlib
+path    bitcoin/tests/data/checkblock_invalid.json
+commit  46314961bd7d8d0d6069c766c9cb7bfc41c299f4  2014-02-22
+blob    16a9b3cafea17fb55057c1bb5eac572b524b27d5
+pulled  2026-08-02
+behind  0 revisions; that commit is the only one to touch the path
+```
+
+Verdict: **identical**. Seven blocks consensus refuses, and the only
+vendored negative block vectors there are: what `block_test.py` rejects,
+it rejects from blocks it mutates itself.
+
+btclib rejects six of the seven. The seventh is the genesis block two
+hours and one second ahead of its `cur_time`, and `xfail` is what that
+gets: no clock, no contextual check. Three of the six are rejected for
+the proof-of-work rather than the rule they name, upstream's `fCheckPoW`
+being a switch `Block.assert_valid` does not have; each of those three
+rules is asserted in `block_test.py` instead, from a block mutated for
+the purpose.
+
+One of the seven is misnamed, and the file is vendored with the name
+anyway: "Duplicate transaction" is refused for its merkle root, the
+duplicate never being reached, which is reported upstream along with
+three other findings as petertodd/python-bitcoinlib#323. Renaming it
+here would break the pin.
+
+### Not vendored as files, from the same repository
+
+Two blocks of values are cited inline instead, each small enough to read
+where it is used, both pinned to `fbbe9245` (2023-04-27), the tip of both
+paths:
+
+- the five secp256k1 RFC6979 vectors of `Test_RFC6979`, in
+  `bitcoin/tests/test_wallet.py`, read by `tests/ecc/rfc6979_test.py`.
+  Private key, message, nonce and signature; the s values are the low
+  ones, and four of the five differ from what RFC6979 arrives at before
+  that normalization.
+- the six nBits-to-difficulty pairs of
+  `Test_CBlockHeader.test_calc_difficulty`, in
+  `bitcoin/tests/test_core.py`, read by `tests/block/block_test.py`.
+  btclib holds them as the hex the header field carries rather than the
+  int upstream reads them as.
+
 ### `tests/mnemonic/_data/bip39_test_vectors.json`
 
 ```text
@@ -943,13 +1008,14 @@ Composed 2026-08-02.
 
 ## Summary
 
-50 files. Against a pinned upstream blob:
+52 files. Against a pinned upstream blob:
 
-- 18 identical byte for byte: `english.txt`, `wordlist.txt`,
+- 20 identical byte for byte: `english.txt`, `wordlist.txt`,
   `taproot_test_vector.json`, `sig_hash_legacy_test_vectors.json`,
   `script_tests.json`, `tx_valid.json`, `tx_invalid.json`,
   `key_io_valid.json`, `key_io_invalid.json`,
-  `base58_encode_decode.json`, and the eight BIP327 vector files.
+  `base58_encode_decode.json`, `checkblock_valid.json`,
+  `checkblock_invalid.json`, and the eight BIP327 vector files.
 - 2 identical but for a trailing newline:
   `script_assets_test.json`, `vectors.json`.
 - 1 identical but for CRLF against LF: `bip340_test_vectors.csv`.
