@@ -893,6 +893,31 @@ edit.
   every low-cardinality curve — the whole group, in two Jacobian frames
   and three infinity spellings, against a textbook group law written the
   other way round — and every multiplication of a `p == 7` curve
+- **BIP39 normalizes NFKD, and every mnemonic path reads whitespace the
+  same way** (issue #201). `bip39.seed_from_mnemonic` collapsed the
+  whitespace of the sentence and normalized nothing, where BIP39 asks for
+  the opposite: "a mnemonic sentence (in UTF-8 NFKD) used as the password
+  and the string `mnemonic` + passphrase (again in UTF-8 NFKD) used as
+  the salt". All twenty-four of BIP39's own Japanese vectors were wrong
+  seeds, measured, and every English one passed throughout — `TREZOR` and
+  `english.txt` are ASCII, which is NFKD already, so nothing in the suite
+  could see it. The two are now both done, in the order the spec implies:
+  the new `mnemonic.normalize_mnemonic` decomposes and *then* treats any
+  run of unicode whitespace as one separator, so `abandon  abandon` and
+  `abandon abandon` reach one seed, a mnemonic typed in fullwidth latin
+  is read rather than refused, and U+3000 — the ideographic space those
+  Japanese vectors separate words with — is a separator because NFKD says
+  so and not because btclib says so. The passphrase is decomposed and
+  otherwise untouched: its whitespace is content the user chose, so
+  collapsing a doubled space there would open another wallet. Refusing
+  anything but a single space is the other defensible answer and is what
+  trezor's `python-mnemonic` reads, but only where it *checks* a
+  mnemonic — its `to_seed` normalizes and stops, so a trailing newline
+  there stretches into a different seed in silence, which is the one
+  outcome worse than a refusal. `electrum.py` already collapsed
+  whitespace and keeps its own stronger normalization, which cannot be
+  shared: it drops the combining characters, undoing the very
+  decomposition BIP39 requires
 - **`btclib.mnemonic.electrum` is Electrum's scheme, both directions**
   (issue #196). The module named the scheme and implemented five things
   differently, and the worst of them was silent: the same entropy gave

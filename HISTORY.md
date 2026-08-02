@@ -145,6 +145,14 @@ against the `v2023.7.12` tag.
   start with one of the four prefixes, named a new version and handed
   back the wrong derivation; and it accepts what Electrum accepts, so an
   upper-cased or accented mnemonic is read rather than refused.
+- **`bip39.seed_from_mnemonic` normalizes NFKD, so a non-ASCII mnemonic or
+  passphrase derives another wallet than it used to.** BIP39 stretches the
+  sentence and the passphrase in UTF-8 NFKD and btclib normalized neither,
+  which made all twenty-four of BIP39's Japanese vectors wrong seeds.
+  ASCII is NFKD already, so an English mnemonic with an ASCII passphrase
+  is untouched; anyone whose passphrase or mnemonic holds a character
+  outside ASCII was deriving a wallet no other implementation agrees with,
+  and has to re-derive from the same words to reach the right one.
 - **`Script(script_bytes)` no longer raises for a script that cannot be
   executed.** A push over 520 bytes and a push declaring more bytes than
   follow it used to be `Invalid pushdata length` and `Not enough data for

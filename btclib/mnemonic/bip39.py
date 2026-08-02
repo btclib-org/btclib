@@ -36,6 +36,7 @@ Checksummed entropy (**ENT+CS**) is converted from/to mnemonic.
 from __future__ import annotations
 
 import secrets
+import unicodedata
 from hashlib import pbkdf2_hmac, sha256
 
 from btclib.bip32 import rootxprv_from_seed
@@ -53,6 +54,7 @@ from btclib.mnemonic.mnemonic import (
     Mnemonic,
     indexes_from_mnemonic,
     mnemonic_from_indexes,
+    normalize_mnemonic,
 )
 from btclib.network import NETWORKS
 
@@ -103,8 +105,14 @@ def mnemonic_from_entropy(entropy: Entropy | None = None, lang: str = "en") -> M
 
 
 def entropy_from_mnemonic(mnemonic: Mnemonic, lang: str = "en") -> BinStr:
-    """Return the entropy from the BIP39 checksummed mnemonic sentence."""
-    indexes = indexes_from_mnemonic(mnemonic, lang)
+    """Return the entropy from the BIP39 checksummed mnemonic sentence.
+
+    The sentence is normalized first, so that the word looked up in the
+    word-list is the NFKD one the word-list holds: a mnemonic typed on a
+    japanese IME arrives in fullwidth latin, and U+FF41 is not "a" until
+    it is decomposed.
+    """
+    indexes = indexes_from_mnemonic(normalize_mnemonic(mnemonic), lang)
     base = WORDLISTS.language_length(lang)
     cs_entropy = bin_str_entropy_from_wordlist_indexes(indexes, base)
 
@@ -125,12 +133,25 @@ def seed_from_mnemonic(
     """Return the seed from the provided BIP39 mnemonic sentence.
 
     The mnemonic checksum verification can be skipped if needed.
+
+    Both the sentence and the passphrase are normalized NFKD, which is
+    what BIP39 stretches: "a mnemonic sentence (in UTF-8 NFKD) used as
+    the password and the string 'mnemonic' + passphrase (again in UTF-8
+    NFKD) used as the salt". Without it the twenty-four japanese vectors
+    are twenty-four wrong seeds, and every english one still passes --
+    "TREZOR" and the english word-list being ASCII, which is NFKD
+    already.
     """
-    # clean up mnemonic from spurious whitespaces
-    mnemonic = " ".join(mnemonic.split())
+    mnemonic = normalize_mnemonic(mnemonic)
 
     if verify_checksum:
         entropy_from_mnemonic(mnemonic)
+
+    # the passphrase is decomposed and otherwise left alone: its
+    # whitespace is content the user chose, not a separator between
+    # words, so collapsing a doubled space there would stretch a
+    # passphrase nobody typed and lose the wallet it opens
+    passphrase = unicodedata.normalize("NFKD", passphrase)
 
     hf_name = "sha512"
     password = mnemonic.encode()
