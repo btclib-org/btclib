@@ -15,7 +15,7 @@ from hashlib import sha256, sha512
 
 import pytest
 
-from btclib.alias import INF, INFJ, Integer
+from btclib.alias import INF, INFJ, Integer, JacPoint, Point
 from btclib.curves import Curve, CurveGroup, double_mult, mult, multi_mult, secp256k1
 from btclib.curves.curve import (
     CURVES,
@@ -37,7 +37,7 @@ from btclib.curves.curve import (
 from btclib.curves.curve_group import cached_multiples, jac_from_aff, mult_jac
 from btclib.ecc import second_generator
 from btclib.exceptions import BTClibTypeError, BTClibValueError
-from btclib.number_theory import mod_sqrt
+from btclib.number_theory import mod_inv, mod_sqrt
 from btclib.to_pub_key import pub_keyinfo_from_prv_key
 from tests import load, vector_id
 
@@ -327,6 +327,119 @@ def test_add_double_aff_jac() -> None:
         assert R == ec.aff_from_jac(RJ)
         assert R == ec.add_aff(Q, Q)
         assert ec.jac_equality(RJ, ec.add_jac(QJ, QJ))
+
+
+def _textbook_add(ec: CurveGroup, P: Point | None, Q: Point | None) -> Point | None:
+    """The chord-and-tangent law, with infinity spelled as None.
+
+    The reference the two library routines are held against below, and
+    deliberately not written the way they are: infinity is a value of its
+    own here rather than the y == 0 of `alias`, so no ordering of the
+    special cases can hide inside it.
+    """
+    if P is None:
+        return Q
+    if Q is None:
+        return P
+    if P[0] == Q[0] and (P[1] + Q[1]) % ec.p == 0:
+        return None
+    if P == Q:
+        lam = (3 * P[0] * P[0] + ec._a) * mod_inv(2 * P[1], ec.p) % ec.p
+    else:
+        lam = (Q[1] - P[1]) * mod_inv(Q[0] - P[0], ec.p) % ec.p
+    x = (lam * lam - P[0] - Q[0]) % ec.p
+    return x, (lam * (P[0] - x) - P[1]) % ec.p
+
+
+def _jac_spellings(ec: CurveGroup, P: Point | None) -> list[JacPoint]:
+    """Two Jacobian frames of a point, or three spellings of infinity.
+
+    (x*z^2, y*z^3, z) is the same affine point for every z != 0, and
+    add_jac compares coordinates that only a common frame makes
+    comparable, so one frame would not exercise the comparison. Infinity
+    is any Z == 0 triple: the INFJ constant, what `jac_from_aff` turns
+    the affine INF into, and the all-zero triple that `jac_equality`
+    reads as equal to everything.
+    """
+    if P is None:
+        return [INFJ, jac_from_aff(INF), (0, 0, 0)]
+    return [(P[0] * z * z % ec.p, P[1] * z**3 % ec.p, z) for z in (1, 2)]
+
+
+def test_point_addition_exhaustive() -> None:
+    """Every pair of points of every low-cardinality curve, both routines.
+
+    All of the group, not the prime-order subgroup: what the tiny curves
+    are for is that "every point plus every point" fits in a test, and
+    the special cases -- infinity on either side, doubling, P + (-P) --
+    are then reached by construction rather than by being named one at a
+    time, in every Jacobian frame rather than in the one the caller
+    happened to hand over.
+    """
+    for name, ec in low_card_curves.items():
+        # no curve in the table has a point with y == 0, which is the one
+        # affine coordinates cannot tell from INF. Asserted rather than
+        # worked around, so that a curve added to the table cannot
+        # quietly weaken the affine half below
+        assert all(ec._y2(x) for x in range(ec.p)), name
+
+        points: list[Point | None] = [None]
+        points.extend(
+            (x, y)
+            for x in range(ec.p)
+            for y in range(ec.p)
+            if ec._y2(x) == y * y % ec.p
+        )
+        for P in points:
+            for Q in points:
+                expected = _textbook_add(ec, P, Q)
+                for PJ in _jac_spellings(ec, P):
+                    for QJ in _jac_spellings(ec, Q):
+                        RJ = ec.add_jac(PJ, QJ)
+                        got = None if RJ[2] == 0 else ec.aff_from_jac(RJ)
+                        assert got == expected, f"{name}: {PJ} + {QJ}"
+                R = ec.add_aff(INF if P is None else P, INF if Q is None else Q)
+                assert R == (INF if expected is None else expected), (
+                    f"{name}: {P} + {Q}"
+                )
+
+
+def test_add_jac_infinity_is_not_a_doubling() -> None:
+    """P + infinity is P, whatever Z == 0 triple infinity arrives as.
+
+    add_jac's doubling test compares affine coordinates, and Z == 0
+    leaves X and Y free to be anything at all: INFJ is (7, 0, 0) and
+    `jac_from_aff(INF)` is (5, 0, 0), those x-coordinates picked for
+    being invalid rather than for being zero. On a curve of
+    characteristic 7 or 5 they reduce to zero, the test reads "same x,
+    same y" and doubles -- issue 171, where P + INFJ answered 2*P. The
+    all-zero triple does it on every curve, secp256k1 included.
+    """
+    for ec in (
+        Curve(7, 1, 6, (1, 1), 11, 1, False),
+        Curve(5, 2, 1, (0, 1), 7, 1, False),
+        secp256k1,
+    ):
+        for infinity in (INFJ, jac_from_aff(INF), (0, 0, 0)):
+            assert ec.aff_from_jac(ec.add_jac(ec.GJ, infinity)) == ec.G
+            assert ec.aff_from_jac(ec.add_jac(infinity, ec.GJ)) == ec.G
+            assert ec.add_jac(infinity, infinity)[2] == 0
+
+
+def test_add_aff_takes_infinity_before_doubling() -> None:
+    """The order of add_aff's two special cases is the working one.
+
+    Not an inelegance to be tidied by testing for doubling first (issue
+    171): INF is (5, 0) and its x-coordinate is arbitrary, so a doubling
+    test reading it would answer "same x, different y, hence INF" for
+    INF + P whenever P has x == 5. ec23_19 is generated by (5, 4), which
+    is exactly that point, and every curve whose generator shares an
+    x-coordinate with INF is.
+    """
+    ec = low_card_curves["ec23_19"]
+    assert ec.G[0] == INF[0]
+    assert ec.add_aff(INF, ec.G) == ec.G
+    assert ec.add_aff(ec.G, INF) == ec.G
 
 
 def test_ec_repr() -> None:
