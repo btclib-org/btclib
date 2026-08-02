@@ -185,6 +185,16 @@ HashF = Callable[[], HashObject]
 # hash256 takes an argument, so it is rejected as a HashF
 HashDigestF = Callable[[Octets], bytes]
 
+# A block cipher under a key and an initialization vector: (key, iv, data)
+# to the transformed data. btclib.ecc.ecies takes one of these in each
+# direction because it ships no cipher of its own; that module's docstring
+# has the contract the two callables must honour, which this name cannot
+# carry -- padding and block size are not in the signature.
+#
+# The three parameters are positional here and passed positionally, so a
+# caller's own names for them do not have to match
+CipherF = Callable[[bytes, bytes, bytes], bytes]
+
 H160_Net = tuple[bytes, str]
 
 # Elliptic curve point in affine coordinates.
