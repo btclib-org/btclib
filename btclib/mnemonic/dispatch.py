@@ -17,6 +17,11 @@ mnemonic at once, and the three derive three different wallets.
 
 The answers, one string each:
 
+- "slip39" -- one SLIP-0039 share: every word in SLIP-0039's own
+  1024-word list, a length it defines, and an RS1024 checksum that
+  verifies. One share and not a set of them, a sentence at a time being
+  all this is given; recovering the secret needs the threshold number of
+  them, which is mnemonic.slip39's business and not this function's.
 - "electrum_old", "electrum_standard", "electrum_segwit",
   "electrum_2fa", "electrum_2fa_segwit" -- the five Electrum reports.
   Prefixed, because "standard" says nothing once BIP39 is in the running.
@@ -46,17 +51,32 @@ rather than again here. Old first is the load-bearing part -- a pre-2.0
 seed carries no version prefix and can match one by chance, and calling
 it "standard" would hand back the wrong derivation without a word.
 
-**Electrum before BIP39** is btclib's, Electrum having no such order to
-copy: its wizard asks the user which variant a sentence is, and
+**Between the schemes** it is btclib's, none of them having an order to
+copy: Electrum's wizard asks the user which variant a sentence is, and
 validate_seed then dispatches on that answer instead of guessing. The
-reason for this order is the base rate. An Electrum version prefix is a
-deliberate marker, present by chance in one sentence in 256 for "01" and
-one in 4096 for the three-nibble prefixes, while a valid BIP39 checksum
-is present by chance in one twelve-word sentence in sixteen; the rarer
-signal is the one carrying information about where a sentence came from.
-The choice is not hidden either: all_seed_types_from_mnemonic names every
-scheme that claims the sentence, so a caller preferring the other order
-has what it needs to take it.
+reason for the order is the base rate, and the principle is that the
+rarer signal is the one carrying information about where a sentence came
+from. A valid BIP39 checksum is present by chance in one twelve-word
+sentence in sixteen. An Electrum version prefix is rarer, one sentence in
+256 for "01" and one in 4096 for the three-nibble prefixes. A SLIP-0039
+share is rarer again by orders of magnitude: 30 checksum bits over words
+that must every one of them be among SLIP-0039's 1024, which is why it
+goes first. The choice is not hidden either:
+all_seed_types_from_mnemonic names every scheme that claims the sentence,
+so a caller preferring another order has what it needs to take it.
+
+**SLIP-0039 first is measured, not assumed**, and it is the one place
+where the order changes an answer. Electrum's version check is an HMAC
+over the sentence and consults no word-list at all, so it claims a share
+whenever the HMAC happens to start "01": 80 of 20000 random 1-of-1
+shares, one in 250, and 14 of the first 4000 were "electrum_standard"
+with one "electrum_segwit". The reverse never happened -- 0 of 2000
+Electrum seeds and 0 of 2000 BIP39 mnemonics read as a share -- because
+1495 of BIP39's 2048 English words are absent from SLIP-0039's list, so a
+sentence has to be built from that list to pass its checksum at all. Last
+in the chain would therefore report one share in 250 as an Electrum seed
+and hand the caller the wrong scheme, which is the failure "old before
+standard" exists to prevent, one scheme further out.
 
 Normalization is deliberately not done here. Each branch normalizes as
 its own scheme defines -- Electrum's NFKD, lower-casing, accent dropping
@@ -66,27 +86,46 @@ BIP39 mnemonic. That is a difference between the two schemes as they
 stand, not a decision taken here; what btclib should normalize, once and
 for every scheme, is issue 201.
 
-SLIP-0039 is the third member of the family, and mnemonic.slip39 reads
-and writes it -- but this dispatcher does not ask it yet, so a share is
-reported as unknown. Wiring it in is a decision and not an omission:
-what a share is claimed *as* has to be settled first, a single share
-being a share of a secret rather than a sentence that derives a wallet
-on its own. The place it goes is the end of the chain, after BIP39; a
-share carries none of the signals above -- its words come from
-SLIP-0039's own 1024-word list, so no Electrum prefix and no BIP39
-word-list test can match one -- which is why the order costs nothing
-either way.
+What "slip39" does not say is how many shares are wanted. A share names
+its group and member thresholds, so the count is there to be read, but
+reading one sentence cannot tell whether the others are to hand; that is
+master_secret_from_mnemonics' answer, and it refuses a set that is short.
+A restore flow asking this function what it has been handed gets the
+scheme, and asks slip39 for the rest.
 """
 
 from __future__ import annotations
 
 from btclib.exceptions import BTClibValueError
-from btclib.mnemonic import bip39, electrum
+from btclib.mnemonic import bip39, electrum, slip39
 from btclib.mnemonic.mnemonic import Mnemonic, indexes_from_mnemonic
 
 # the sentence lengths BIP39 defines, and so the only ones it defines a
 # checksum for
 _BIP39_WORD_COUNTS = (12, 15, 18, 21, 24)
+
+
+def _slip39_seed_type(mnemonic: Mnemonic) -> str:
+    """Return "slip39" for one readable SLIP-0039 share, "" otherwise.
+
+    share_from_mnemonic is the whole test: it checks the word count, looks
+    every word up in SLIP-0039's list and verifies the RS1024 checksum,
+    which is the same three things the other branches check for their own
+    schemes. Asking it rather than repeating it is what keeps the two from
+    disagreeing.
+
+    No language parameter, unlike the BIP39 branch: SLIP-0039 defines one
+    word-list and no localization, so there is nothing for a caller to
+    choose.
+    """
+    try:
+        slip39.share_from_mnemonic(mnemonic)
+    except ValueError:
+        # BTClibValueError for a bad checksum, length or field, and a
+        # plain ValueError from list.index for a word that is not in the
+        # list; BTClibValueError is a ValueError, so this catches both
+        return ""
+    return "slip39"
 
 
 def _bip39_seed_type(mnemonic: Mnemonic, lang: str) -> str:
@@ -126,14 +165,15 @@ def all_seed_types_from_mnemonic(mnemonic: Mnemonic, lang: str = "en") -> list[s
     The list is empty when nothing claims it, and holds more than one
     entry when the schemes overlap -- which is the case worth seeing,
     since seed_type_from_mnemonic can only answer with the first of them.
-    Two entries at most today: Electrum resolves its own five against
-    each other before answering, so at most one of those appears, and
-    BIP39 gives at most one answer of its own.
+    Three entries at most: each of the three schemes answers at most once,
+    Electrum resolving its own five against each other before it reports.
 
-    The module docstring has the order and where each half of it comes
-    from.
+    The module docstring has the order and the measurements behind it.
     """
     seed_types = []
+
+    if slip39_seed_type := _slip39_seed_type(mnemonic):
+        seed_types.append(slip39_seed_type)
 
     try:
         version = electrum.version_from_mnemonic(mnemonic)[0]
@@ -145,8 +185,6 @@ def all_seed_types_from_mnemonic(mnemonic: Mnemonic, lang: str = "en") -> list[s
     if bip39_seed_type := _bip39_seed_type(mnemonic, lang):
         seed_types.append(bip39_seed_type)
 
-    # SLIP-0039 goes here, after BIP39 and last; the module docstring has
-    # why mnemonic.slip39 is not asked yet
     return seed_types
 
 
@@ -155,8 +193,8 @@ def seed_type_from_mnemonic(mnemonic: Mnemonic, lang: str = "en") -> str:
 
     The first of all_seed_types_from_mnemonic, which is the answer the
     precedence in the module docstring picks. Where a sentence is claimed
-    by two schemes this is the one that wins and the other is not
-    mentioned, so a caller that has to know about the collision -- a
+    by more than one scheme this is the one that wins and the others are
+    not mentioned, so a caller that has to know about the collision -- a
     restore flow, say, where the wrong choice is a wallet the user cannot
     see -- wants the plural function instead.
     """

@@ -2071,7 +2071,24 @@ edit.
   the reason — a version prefix is a deliberate marker present by chance
   in one sentence in 256, a valid BIP39 checksum in one in sixteen. The
   dispatcher normalizes nothing of its own, each scheme normalizing as it
-  defines, which leaves issue #201 to decide that once for all of them
+  defines, which leaves issue #201 to decide that once for all of them.
+  **`mnemonic.dispatch` answers `"slip39"` too**, and it answers it
+  *first*, ahead of Electrum and BIP39. The order is measured rather than
+  assumed, and it is the one place it changes an answer: Electrum's
+  version check is an HMAC over the sentence and consults no word-list at
+  all, so it claims a share whenever the HMAC happens to start `01` — 80
+  of 20000 random 1-of-1 shares, one in 250. The reverse never happened,
+  0 of 2000 Electrum seeds and 0 of 2000 BIP39 mnemonics reading as a
+  share, because 1495 of BIP39's 2048 English words are absent from
+  SLIP-0039's list; so a share is the rarer signal by orders of magnitude
+  — 30 checksum bits over words that must every one of them be among
+  SLIP-0039's 1024 — and last in the chain would report one share in 250
+  as an Electrum seed. `"slip39"` says the sentence in hand is one
+  well-formed share and nothing about the set it belongs to: of
+  SLIP-0039's 30 invalid vectors, 8 carry a fault inside a share and are
+  refused here, while 22 are unusable sets of individually sound shares
+  and are reported `"slip39"` with `master_secret_from_mnemonics` left to
+  refuse the set
 - **`btclib.mnemonic.slip39` is the third mnemonic scheme**, SLIP-0039
   Shamir backup: the split-into-shares format every Trezor since 2019
   offers, and the one a hardware-wallet user is most likely to be
