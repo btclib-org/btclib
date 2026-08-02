@@ -174,7 +174,14 @@ jobs:
       # and re-requesting every external url these pages carry.
       # Not a pre-commit hook either: it would have to build the
       # documentation, which is the very reason this job exists apart from
-      # the lint one
+      # the lint one.
+      #
+      # Not narrowed to myst's own class="xref myst" either. The defect is
+      # an href to an id no page has, whoever emitted it, and the prose
+      # that could be mistaken for one cannot reach the attribute: the
+      # CHANGELOG entry for issue 195 quotes href="#./FILE.md" in so many
+      # words and lands in the page as href=&quot;#./, escaped, measured
+      # on the built html
       - name: Check the built pages for unresolved links
         run: |
           if grep -rn 'href="#\./' docs/build/html --include='*.html'; then

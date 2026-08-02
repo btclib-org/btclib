@@ -136,17 +136,30 @@ html_theme = "sphinx_rtd_theme"
 # however many are made; and the copies are generated files in a source
 # tree, which is a second definition of five files that already exist.
 
-# a shim is one myst include fence, and the path on that line is the file
-# the shim renders
-# match an include fence, capturing the path (which may contain spaces),
-# stopping before any inline options (e.g. " :start-line: 5")
-INCLUDE = re.compile(r"^```\{include\}\s+(.+?)(?=\s+:|$)", re.MULTILINE)
+# a shim is one myst include fence, and everything after the directive
+# name on that line is the directive's argument: the path of the file the
+# shim renders, spaces included. Options are the lines under it, never
+# this one, so the path ends where the line does
+INCLUDE = re.compile(r"^```\{include\}\s+(.+?)\s*$", re.MULTILINE)
+
+
+def included(shim: Path) -> tuple[str, str]:
+    """Map the file a *_link.md shim renders to the shim's own docname."""
+    # exactly one fence, and a shim with any other number stops the build
+    # here rather than going missing from the mapping. Missing is the one
+    # failure this file cannot report on itself: links *out* of that page
+    # would be left to myst, which reports them, but links *into* it from
+    # the other four would still resolve -- to the copy on github, next to
+    # the page that renders it and silently not it
+    paths = INCLUDE.findall(shim.read_text(encoding="utf-8"))
+    if len(paths) != 1:
+        err_msg = f"{shim.name}: {len(paths)} include fences, expected one"
+        raise ValueError(err_msg)
+    return str((shim.parent / paths[0]).resolve().relative_to(ROOT)), shim.stem
+
+
 # repository-relative path -> the docname whose page renders it
-INCLUDED = {
-    str((shim.parent / match.group(1).strip()).resolve().relative_to(ROOT)): shim.stem
-    for shim in sorted(Path(__file__).parent.glob("*_link.md"))
-    for match in INCLUDE.finditer(shim.read_text(encoding="utf-8"))
-}
+INCLUDED = dict(map(included, sorted(Path(__file__).parent.glob("*_link.md"))))
 # master, not a permalink pinned to a commit: these are navigation links
 # to files that keep changing, and a reader following one wants the file
 # as it stands. The base url comes from pyproject.toml, where every url
