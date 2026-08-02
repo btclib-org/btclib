@@ -1703,7 +1703,9 @@ edit.
   per-wallet rows a seed-scanning recovery helper would want next are more
   of that file and no more of the module. A purpose the mapping does not
   name is refused rather than guessed at, with a `script_type` argument to
-  say what it means; the coin type has to agree with the network of the
+  say what it means — `alias.BIP44ScriptType`, the Literal that types the
+  mapping and the argument alike, so the four encodings are named once;
+  the coin type has to agree with the network of the
   key, which is where the address is minted, and that one has no override
   — encoding another chain's key as a bitcoin address is the mistake the
   level exists to prevent. The module sits above `script` and not beside

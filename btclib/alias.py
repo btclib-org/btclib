@@ -111,6 +111,27 @@ Integer = bytes | str | int
 NetworkType = Literal["main", "test"]
 
 
+# The four address encodings a purpose level can name: 44 is p2pkh, 49
+# p2wpkh-p2sh, 84 p2wpkh and 86 p2tr. It types both sides of btclib.bip44
+# -- the mapping read out of _data/bip44_purposes.json and the script_type
+# argument that overrides it -- so the two cannot drift apart in silence.
+#
+# Qualified BIP44, and not named ScriptType, because it is not the
+# library's notion of one: script.type_and_payload answers p2pk, p2ms,
+# nulldata, p2sh and p2wsh besides these, b58.address_from_h160 takes
+# p2pkh or p2sh, and p2wpkh-p2sh belongs to neither list -- it is a
+# nesting of one script in another, not an output script type. The field
+# is called script_type because that is what electrum's
+# bip39_wallet_formats.json, the source of the mapping, calls it; the name
+# is kept and qualified rather than corrected, so that the data and the
+# code read the same.
+#
+# A Literal for the reasons NetworkType is one, and with the same limit:
+# it is a mypy fact and not a runtime one, so the json is still checked
+# where it is used
+BIP44ScriptType = Literal["p2pkh", "p2wpkh-p2sh", "p2wpkh", "p2tr"]
+
+
 # What a HashF returns: as much of the hashlib object as this library uses,
 # and no more. A Protocol rather than Any: under Any, hf().digest() and
 # hf().digest_size go unchecked, and with them every expression downstream

@@ -26,6 +26,16 @@ from btclib.exceptions import BTClibValueError
 # default hardening symbol among the possible ones: "h", "H", "'"
 _HARDENING = "h"
 
+# the offset a hardened index carries: BIP32 splits the 2**32 indexes in
+# half at 2**31, so an index is hardened when it reaches this value, and
+# what a path spells before the hardening symbol is what is left under it.
+# The symbol and the offset are one fact in its two spellings, which is
+# why they sit together -- and why bip32, mnemonic.electrum and bip44
+# import this rather than write the literal again: a hardened test is the
+# same test wherever it appears, and a literal repeated is a set of places
+# to read before believing they agree
+_HARDENED_OFFSET = 0x80000000
+
 
 def int_from_index_str(s: str) -> int:
     s.strip().lower()
@@ -35,9 +45,9 @@ def int_from_index_str(s: str) -> int:
         hardened = True
 
     index = int(s)
-    if not 0 <= index < 0x80000000:
+    if not 0 <= index < _HARDENED_OFFSET:
         raise BTClibValueError(f"invalid index: {index}")
-    return index + (0x80000000 if hardened else 0)
+    return index + (_HARDENED_OFFSET if hardened else 0)
 
 
 def str_from_index_int(i: int, hardening: str = _HARDENING) -> str:
@@ -45,7 +55,9 @@ def str_from_index_int(i: int, hardening: str = _HARDENING) -> str:
         raise BTClibValueError(f"invalid hardening symbol: {hardening}")
     if not 0 <= i <= 0xFFFFFFFF:
         raise BTClibValueError(f"invalid index: {i}")
-    return str(i) if i < 0x80000000 else str(i - 0x80000000) + hardening
+    if i < _HARDENED_OFFSET:
+        return str(i)
+    return str(i - _HARDENED_OFFSET) + hardening
 
 
 def _indexes_from_bip32_path_str(der_path: str, skip_m: bool = True) -> list[int]:

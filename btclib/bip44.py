@@ -32,9 +32,10 @@ from collections.abc import Callable
 from os import path
 
 from btclib import b32, b58
-from btclib.alias import NetworkType
+from btclib.alias import BIP44ScriptType, NetworkType
 from btclib.bip32.bip32 import BIP32Key, BIP32KeyData, derive
 from btclib.bip32.der_path import (
+    _HARDENED_OFFSET,
     BIP32DerPath,
     indexes_from_bip32_path,
     str_from_index_int,
@@ -42,8 +43,6 @@ from btclib.bip32.der_path import (
 from btclib.exceptions import BTClibValueError
 from btclib.network import network_from_xkeyversion, network_type_from_xkeyversion
 from btclib.script.taproot import output_pubkey
-
-_HARDENED = 0x80000000
 
 # purpose, coin type, account, change, address index: BIP44 fixes the
 # meaning of each level, so a path of any other length is not one
@@ -59,8 +58,11 @@ _LEVELS = 5
 _PURPOSES_FILE = path.join(path.dirname(__file__), "_data", "bip44_purposes.json")
 with open(_PURPOSES_FILE, encoding="ascii") as _purposes:
     # json object keys are strings; a purpose is an int, as it is in a
-    # derivation path
-    SCRIPT_TYPE_FROM_PURPOSE: dict[int, str] = {
+    # derivation path. The values are annotated and not validated here:
+    # BIP44ScriptType is a mypy fact and json.load answers Any, so what
+    # refuses a script type the file should not have named is the same
+    # table lookup that refuses one a caller passes
+    SCRIPT_TYPE_FROM_PURPOSE: dict[int, BIP44ScriptType] = {
         int(purpose): script_type
         for purpose, script_type in json.load(_purposes).items()
     }
@@ -89,8 +91,10 @@ def _p2tr(key: str, network: str) -> str:
 
 
 # the derived key and the network in, the address out: four encodings
-# that already exist, named by the script type the purpose resolves to
-_ADDRESS_FROM_SCRIPT_TYPE: dict[str, Callable[[str, str], str]] = {
+# that already exist, named by the script type the purpose resolves to.
+# Keyed by BIP44ScriptType, so the alias and this table are checked
+# against each other -- a fifth encoding is a key mypy does not know
+_ADDRESS_FROM_SCRIPT_TYPE: dict[BIP44ScriptType, Callable[[str, str], str]] = {
     "p2pkh": b58.p2pkh,
     "p2wpkh-p2sh": b58.p2wpkh_p2sh,
     "p2wpkh": b32.p2wpkh,
@@ -110,16 +114,16 @@ def _assert_valid_path(indexes: list[int]) -> None:
         err_msg = f"invalid BIP44 path: {len(indexes)} levels instead of {_LEVELS}"
         raise BTClibValueError(err_msg)
 
-    if any(index < _HARDENED for index in indexes[:3]):
+    if any(index < _HARDENED_OFFSET for index in indexes[:3]):
         err_msg = "invalid BIP44 path: purpose, coin type and account must be hardened"
         raise BTClibValueError(err_msg)
 
-    if any(index >= _HARDENED for index in indexes[3:]):
+    if any(index >= _HARDENED_OFFSET for index in indexes[3:]):
         err_msg = "invalid BIP44 path: change and address index must not be hardened"
         raise BTClibValueError(err_msg)
 
 
-def _script_type_from_purpose(purpose: int) -> str:
+def _script_type_from_purpose(purpose: int) -> BIP44ScriptType:
     """Return the script type of a purpose, refusing the ones unknown.
 
     Refusing is the answer because the alternative is to guess: a purpose
@@ -203,7 +207,7 @@ def _indexes_left_to_derive(xkey: BIP32KeyData, indexes: list[int]) -> list[int]
 
 
 def address_from_der_path(
-    xkey: BIP32Key, der_path: BIP32DerPath, script_type: str | None = None
+    xkey: BIP32Key, der_path: BIP32DerPath, script_type: BIP44ScriptType | None = None
 ) -> str:
     """Return the address of a BIP44 derivation path.
 
@@ -230,14 +234,20 @@ def address_from_der_path(
     _assert_valid_path(indexes)
 
     if script_type is None:
-        script_type = _script_type_from_purpose(indexes[0] - _HARDENED)
+        script_type = _script_type_from_purpose(indexes[0] - _HARDENED_OFFSET)
+    # the lookup and not an isinstance: the table is the list of encodings
+    # this module has, so missing from it and unknown are one thing. The
+    # check survives BIP44ScriptType typing the argument because a Literal
+    # is a mypy fact and not a runtime one -- it is what refuses a fifth
+    # script type from the json above, and from a caller who runs no type
+    # checker
     address_funct = _ADDRESS_FROM_SCRIPT_TYPE.get(script_type)
     if address_funct is None:
         known = ", ".join(sorted(_ADDRESS_FROM_SCRIPT_TYPE))
         err_msg = f"unknown script type: {script_type} not in ({known})"
         raise BTClibValueError(err_msg)
 
-    _assert_valid_coin_type(indexes[1] - _HARDENED, xkey)
+    _assert_valid_coin_type(indexes[1] - _HARDENED_OFFSET, xkey)
 
     # derive returns the b58-encoded key, which is what every encoder in
     # the table takes: the composition is the whole point, so nothing

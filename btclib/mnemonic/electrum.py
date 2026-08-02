@@ -44,6 +44,7 @@ from hashlib import pbkdf2_hmac, sha512
 from os import path
 
 from btclib.bip32 import derive, rootxprv_from_seed
+from btclib.bip32.der_path import _HARDENED_OFFSET
 from btclib.exceptions import BTClibValueError
 from btclib.mnemonic import bip39
 from btclib.mnemonic.entropy import (
@@ -415,5 +416,5 @@ def mxprv_from_mnemonic(
     if version == "segwit":
         xversion = NETWORKS[network].slip132_p2wpkh_prv
         rootxprv = rootxprv_from_seed(seed, xversion)
-        return derive(rootxprv, 0x80000000)  # "m/0h"
+        return derive(rootxprv, _HARDENED_OFFSET)  # "m/0h"
     raise BTClibValueError(f"unmanaged electrum mnemonic version: {version}")

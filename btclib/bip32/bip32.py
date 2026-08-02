@@ -39,7 +39,11 @@ from dataclasses import dataclass
 
 from btclib import base58
 from btclib.alias import INF, BinaryData, Octets, Point, String
-from btclib.bip32.der_path import BIP32DerPath, indexes_from_bip32_path
+from btclib.bip32.der_path import (
+    _HARDENED_OFFSET,
+    BIP32DerPath,
+    indexes_from_bip32_path,
+)
 from btclib.curves import (
     bytes_from_point,
     bytes_from_prv_key_int,
@@ -147,7 +151,7 @@ class BIP32KeyData:
 
     @property
     def is_hardened(self) -> bool:
-        return self.index >= 0x80000000
+        return self.index >= _HARDENED_OFFSET
 
     @property
     def is_root(self) -> bool:
@@ -405,7 +409,7 @@ def _invalid_child(index: int, reason: str) -> BTClibValueError:
 def __prv_key_derivation(xkey: _BIP32KeyData, index: int, pub_key: bytes) -> None:
     xb = (
         xkey.key
-        if index >= 0x80000000
+        if index >= _HARDENED_OFFSET
         else pub_key or bytes_from_prv_key_int(xkey.prv_key_int)
     )
     xb += index.to_bytes(4, byteorder="big", signed=False)
@@ -462,7 +466,7 @@ def __pub_key_path_derivation(xkey: _BIP32KeyData, indexes: list[int]) -> None:
     before any of it is walked: half a derivation would leave the caller
     holding a key at neither end of the path.
     """
-    if any(index >= 0x80000000 for index in indexes):
+    if any(index >= _HARDENED_OFFSET for index in indexes):
         raise BTClibValueError("invalid hardened derivation from public key")
     for index in indexes[:-1]:
         __pub_key_derivation(xkey, index)
@@ -556,7 +560,7 @@ def _derive_from_account(
     if not mxkey.is_hardened:
         raise BTClibValueError("unhardened account/master key")
 
-    if branch >= 0x80000000:
+    if branch >= _HARDENED_OFFSET:
         raise BTClibValueError("invalid private derivation at branch level")
     if branch > max_index:
         err_msg = f"invalid branch number: {branch} is higher than {max_index}."
@@ -564,7 +568,7 @@ def _derive_from_account(
     if branches_0_1_only and branch not in (0, 1):
         raise BTClibValueError(f"invalid branch number: {branch} not in (0, 1)")
 
-    if address_index >= 0x80000000:
+    if address_index >= _HARDENED_OFFSET:
         raise BTClibValueError("invalid private derivation at address index level")
     if address_index > max_index:
         err_msg = f"invalid address index: {address_index} is higher than {max_index}."

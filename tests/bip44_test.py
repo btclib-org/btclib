@@ -11,11 +11,18 @@
 
 from __future__ import annotations
 
+from typing import get_args
+
 import pytest
 
 from btclib import b32
+from btclib.alias import BIP44ScriptType
 from btclib.bip32 import bip32
-from btclib.bip44 import SCRIPT_TYPE_FROM_PURPOSE, address_from_der_path
+from btclib.bip44 import (
+    _ADDRESS_FROM_SCRIPT_TYPE,
+    SCRIPT_TYPE_FROM_PURPOSE,
+    address_from_der_path,
+)
 from btclib.exceptions import BTClibValueError
 
 # the "abandon abandon ... about" seed of BIP39, which BIP84 and BIP86
@@ -147,10 +154,17 @@ def test_unknown_purpose() -> None:
 
 
 def test_unknown_script_type() -> None:
+    # the alias and the table say the same four encodings, which is what
+    # lets one of them type the other
+    assert get_args(BIP44ScriptType) == tuple(_ADDRESS_FROM_SCRIPT_TYPE)
+    assert set(SCRIPT_TYPE_FROM_PURPOSE.values()) == set(get_args(BIP44ScriptType))
+
     # p2wsh is an encoding btclib has; it is not one a single derived key
-    # determines, so it is not in the table
+    # determines, so it is not in the table. mypy rejects the call, the
+    # Literal being the static half of this check; the runtime half is for
+    # the caller who does not run mypy
     with pytest.raises(BTClibValueError, match="unknown script type: p2wsh not in "):
-        address_from_der_path(_XPRV_ROOT, "m/84h/0h/0h/0/0", "p2wsh")
+        address_from_der_path(_XPRV_ROOT, "m/84h/0h/0h/0/0", "p2wsh")  # type: ignore[arg-type]
 
 
 def test_coin_type() -> None:
