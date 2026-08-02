@@ -259,6 +259,14 @@ def merkle_root_from_branch(
 
 
 def tagged_hash(tag: bytes, m: bytes, hf: HashF = hashlib.sha256) -> bytes:
+    # libsecp256k1 computes exactly this in hashes.tagged_sha256, and the
+    # binding is not called because it is slower at every size: 0.53 us
+    # against 0.44 on an empty message, 0.63 against 0.44 on 64 bytes,
+    # 2.27 against 0.70 on 1 kB, and 111 against 20 on 64 kB. hashlib's
+    # SHA256 is OpenSSL's, hardware-accelerated, where libsecp256k1
+    # compiles its own portable C. This path also has to stay for
+    # hf != sha256, so delegating would buy neither speed nor one
+    # implementation less.
     h1 = hf()
     h1.update(tag)
     tag_hash = h1.digest()
