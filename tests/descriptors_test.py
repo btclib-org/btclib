@@ -682,6 +682,8 @@ def test_key_expression_fields() -> None:
     assert not plain.is_ranged
     assert not plain.is_compressed
     assert plain.sec() == bytes.fromhex(uncompressed)
+    # the index is the wildcard's, so a key without one ignores it
+    assert plain.sec(5) == plain.sec(0)
 
 
 def test_tr_tree_keys() -> None:
@@ -792,6 +794,11 @@ UNPARSABLE = [
     (f"tr({XONLY},pk({XONLY}),pk({XONLY}))", "at most one tree"),
     (f"tr({XONLY},{{pk({XONLY})}})", "two subtrees"),
     (f"tr({XONLY},{{pk({XONLY}),pk({XONLY})}}x)", "unbalanced braces"),
+    # a character the language has no symbol for, which is the checksum's
+    # charset speaking about a descriptor that carries no checksum: every
+    # printable ASCII character is in INPUT_CHARSET, so it takes a
+    # non-ASCII one to be outside it
+    (f"pk(è{KEY[1:]})", "invalid descriptor character"),
 ]
 
 

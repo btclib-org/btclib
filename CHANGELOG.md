@@ -1569,7 +1569,7 @@ edit.
 - **`btclib.descriptors` reads a descriptor and derives its scripts**,
   where it used to compute the checksum and nothing else. `parse` returns
   a `Descriptor`, one class per grammar function, and
-  `script_pub_keys(index)` answers with the `ScriptPubKey` set the
+  `script_pub_keys(index)` answers with the `ScriptPubKey` set that the
   descriptor pays to at that index — with the address of each, where the
   script has one. The grammar is BIP 380 to BIP 386 and BIP 389 minus
   miniscript: `pk`, `pkh`, `wpkh`, `combo`, `sh`, `wsh`, `multi`,
