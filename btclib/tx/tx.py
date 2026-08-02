@@ -328,10 +328,18 @@ def join_txs(
     txs: Sequence[Tx],
     enforce_same_version: bool,
     enforce_same_lock_time: bool,
-    merge_out: bool,
     shuffle_inp: bool,
     shuffle_out: bool,
 ) -> Tx:
+    """Join transactions into one, concatenating inputs and outputs.
+
+    Outputs are concatenated and never merged, and no parameter asks for
+    it: coalescing two outputs that pay the same script changes the
+    output set, so it invalidates every signature already made over the
+    old one -- and with the shuffle below the result would depend on the
+    order the merge ran in. Summing two payments into one output is the
+    caller's to do before signing.
+    """
     version = max(tx.version for tx in txs)
     if enforce_same_version and any(tx.version != version for tx in txs):
         raise BTClibValueError("Version numbers are not the same")
@@ -347,8 +355,6 @@ def join_txs(
     vin = [vin for tx in txs for vin in tx.vin]
 
     vout = [vout for tx in txs for vout in tx.vout]
-    if merge_out:
-        raise BTClibValueError("output merge not implemented yet")
 
     # avoid leaking matches between inputs and outputs
     if shuffle_inp:
