@@ -11,9 +11,11 @@ release-notes length in the first place, and are still in
 
 ## v2026.8 (work in progress, not released yet)
 
-A hundred and eighty entries, grouped. The order runs from what breaks
-a caller to what only maintainers see; [HISTORY.md](./HISTORY.md) lists the
-twenty-nine source-breaking changes on their own.
+Grouped, and the order runs from what breaks a caller to what only
+maintainers see; [HISTORY.md](./HISTORY.md) lists the source-breaking
+changes on their own. Neither file counts its entries: `grep -c '^- '`
+does that, whereas a stated number is a line every open branch has to
+edit.
 
 ### Repository
 
@@ -33,6 +35,13 @@ twenty-nine source-breaking changes on their own.
   improvements with the material for each, and the borromean references into
   that module's docstring, both next to the code they are about rather than in
   a file nobody opened.
+- **This file and HISTORY.md state no entry count, and `.gitattributes` marks
+  both `merge=union`.** They are append-only lists that every branch appends
+  to, so they were the one thing every pull request had to resolve by hand: a
+  count is a line all of them edit, and the insertion point is shared by any
+  two that add a bullet to the same group. `union` keeps both sides' added
+  lines, so neither is a conflict any more. `grep -c '^- ' CHANGELOG.md`
+  answers how many entries there are, on demand.
 
 ### Security
 

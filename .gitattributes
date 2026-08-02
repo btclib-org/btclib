@@ -1,0 +1,15 @@
+# The changelog and the release notes are append-only lists, and every
+# branch appends to the same few groups: two branches each adding a bullet
+# conflict on the insertion point, which is a conflict with nothing to
+# decide. `union` resolves it by keeping both sides' added lines, in the
+# order base-then-ours, and it is built into git — nobody has to configure
+# anything for it to apply.
+#
+# It applies to rebases too, which is where it earns its keep here, and it
+# has a price worth knowing: these two files now never conflict at all, so
+# the same existing entry edited on two branches merges in silence rather
+# than being flagged. That is why neither file states how many entries it
+# has — a count is exactly such an edit, and union would have kept both
+# numbers. CLAUDE.md carries the rest of the reasoning.
+CHANGELOG.md merge=union
+HISTORY.md merge=union

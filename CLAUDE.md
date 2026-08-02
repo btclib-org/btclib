@@ -251,22 +251,28 @@ docstring.
   two is one fact each, deliberately: the breaking-changes list lives in
   HISTORY.md and the detail behind it in CHANGELOG.md, so neither
   restates the other.
-- **The entry count is the exception, and it is the thing that drifts.**
-  Both headers state it — CHANGELOG.md's "A hundred and N entries" and
-  HISTORY.md's "the largest: a hundred and N entries" — so an entry that
-  does not move both leaves two false claims behind. Move them in the
-  same commit, and do not estimate the number:
+- **Neither file states how many entries it has, and both are
+  `merge=union`.** A stated count is a line every open branch has to
+  edit, so with this many branches open it is the one conflict a pull
+  request is guaranteed to have — and worse, two branches moving it to
+  the same new number merge without a conflict into a number that is
+  wrong. Nothing states the count now; measure it when a release wants
+  it, and do not estimate:
 
   ```shell
-  grep -c '^- ' CHANGELOG.md   # == the count in both headers, exactly
+  grep -c '^- ' CHANGELOG.md   # the number, whenever it is wanted
   ```
 
-  A source-breaking change costs three edits more: a bullet in
-  HISTORY.md's breaking-changes list with the "before" spelling checked
-  against the `v2023.7.12` tag, that list's own "N changes break code"
-  count, and the CHANGELOG header's cross-reference to it ("lists the N
-  source-breaking changes"). Written as a command because the drift is
-  invisible in review: nothing counts the bullets but the command above.
+  The insertion point conflicts too — two branches appending a bullet to
+  the same group — and that is what `.gitattributes` is for: `union`
+  keeps both sides' added lines rather than stopping at a conflict with
+  nothing to decide, on rebases included. Its price is that these two
+  files now never conflict at all, so two branches editing *the same*
+  entry merge in silence, and a branch still carrying an edit to one of
+  the old count paragraphs puts the number back on rebase without a word.
+  Drop those edits while rebasing; nothing else will. A source-breaking
+  change costs one edit more: a bullet in HISTORY.md's breaking-changes
+  list, with the "before" spelling checked against the `v2023.7.12` tag.
 
 ## Verifying
 

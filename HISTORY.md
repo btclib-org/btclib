@@ -7,9 +7,9 @@ full year, short month, short day (YYYY-M-D)
 
 ## v2026.8 (work in progress, not released yet)
 
-The first release since 2023, and the largest: a hundred and eighty
-entries, in [CHANGELOG.md](./CHANGELOG.md). What follows is what a user has
-to act on and what a user gains.
+The first release since 2023, and the largest; every entry of it is in
+[CHANGELOG.md](./CHANGELOG.md). What follows is what a user has to act on
+and what a user gains.
 
 Every change is a *behaviour* change somewhere, so the honest summary is
 this: btclib now refuses input it used to accept, reports errors it used
@@ -19,7 +19,7 @@ CHANGELOG.md.
 
 ### Breaking changes
 
-Twenty-nine changes break code that worked on v2023.7.12. Each is described in
+The changes below break code that worked on v2023.7.12. Each is described in
 full in [CHANGELOG.md](./CHANGELOG.md). Every "before" spelling was checked
 against the `v2023.7.12` tag.
 
