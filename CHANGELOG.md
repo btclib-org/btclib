@@ -1371,6 +1371,28 @@ edit.
 
 ### Transactions, blocks and PSBT
 
+- **`finalize_psbt` spends a single-key input the way it is spent.** It
+  branched on the witness script alone, which no single-key input has, so
+  a native p2wpkh got its signature written into the `final_script_sig`
+  and no witness at all — and btclib's own script engine refused what
+  btclib's own finalizer produced, "non-empty script_sig for a native
+  segwit input". Nor could moving the signature have been the whole fix:
+  `partial_sigs` is keyed by public key and only `.values()` was read, so
+  the key a p2pkh or p2wpkh script hashes reached no stack. What decides
+  the shape now is the script the input spends — the redeem script of a
+  p2sh input, the script_pub_key of the utxo otherwise — and four shapes
+  come out of it: p2wsh keeps the signatures and the witness script in
+  the witness, p2wpkh is spent with `[signature, public key]` there,
+  p2pkh with both in the script_sig, and everything else — p2pk, bare
+  multisig, legacy p2sh — with the signatures and the redeem script in
+  the script_sig. An input that says neither, having no utxo, is built as
+  before. A *native* witness input now gets no script_sig rather than the
+  one byte `serialize([b""])` writes, `OP_0` being non-empty in the eyes
+  of the rule that forbids one. Two multisig shapes are all BIP174's own
+  vectors exercise, which is why the common ones were the broken ones;
+  the five are now finalized, extracted and run through the engine. A
+  single-key input carrying more than one signature is refused rather
+  than picked from (issue #249)
 - **A psbt can carry a taproot signature with its sig_hash type.** BIP341
   spends with 64 bytes of signature, or 65 when the sig_hash type is not
   the default one — the extra byte being that type — and BIP371 says "64

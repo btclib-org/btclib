@@ -23,7 +23,8 @@ from btclib.hashes import hash160, hash256, ripemd160, sha256
 from btclib.psbt import Psbt, combine_psbts, extract_tx, finalize_psbt, join_psbts
 from btclib.psbt.psbt import _sort_or_shuffle_together
 from btclib.psbt.psbt_utils import PSBT_SEPARATOR
-from btclib.script import ScriptPubKey, Witness
+from btclib.script import ScriptPubKey, Witness, serialize, sig_hash
+from btclib.script.engine import verify_transaction
 from btclib.tx import OutPoint, Tx, TxIn, TxOut
 from tests import load, vector_id
 from tests.conftest import JsonGolden
@@ -990,3 +991,142 @@ def test_a_value_that_is_not_the_stated_size_says_so() -> None:
     bad_size = "cHNidP8BADN0Af8HAAEAAAABAP8BAApzMXQo/wAAAAAB/wEDAQAAAQAAAAAAAAAAdgEAAABBAAkAAAAAAA=="
     with pytest.raises(BTClibValueError, match="wrong tx serialization format"):
         Psbt.b64decode(bad_size)
+
+
+# issue 249: the finalizer against btclib's own script engine
+
+_PRV_KEY = 0x1234567890ABCDEF1234567890ABCDEF1234567890ABCDEF1234567890ABCDEF
+_PUB_KEY = bytes.fromhex(
+    "02bb50e2d89a4ed70663d080659fe0ad4b9bc3e06c17a227433966cb59ceee020d"
+)
+
+
+def _p2pkh_script_code(pub_key_hash: bytes) -> bytes:
+    return serialize(
+        ["OP_DUP", "OP_HASH160", pub_key_hash, "OP_EQUALVERIFY", "OP_CHECKSIG"]
+    )
+
+
+def _single_key_psbt(kind: str) -> tuple[Psbt, list[TxOut]]:
+    """Build a one-input psbt of the given kind, signed and not finalized.
+
+    The Updater's job, done here because btclib has no Signer: the psbt
+    carries the utxo, the scripts the input needs, and one partial
+    signature filed under the public key that made it.
+    """
+    p2pk = serialize([_PUB_KEY, "OP_CHECKSIG"])
+    witness_script = p2pk if "p2wsh" in kind else b""
+    script_pub_key = {
+        "p2pkh": ScriptPubKey.p2pkh(_PUB_KEY),
+        "p2wpkh": ScriptPubKey.p2wpkh(_PUB_KEY),
+        "p2wsh": ScriptPubKey.p2wsh(p2pk),
+        "p2sh-p2wpkh": ScriptPubKey.p2sh(ScriptPubKey.p2wpkh(_PUB_KEY).script),
+        "p2sh-p2wsh": ScriptPubKey.p2sh(ScriptPubKey.p2wsh(p2pk).script),
+    }[kind]
+    redeem_script = (
+        ScriptPubKey.p2wpkh(_PUB_KEY).script
+        if kind == "p2sh-p2wpkh"
+        else ScriptPubKey.p2wsh(p2pk).script
+        if kind == "p2sh-p2wsh"
+        else b""
+    )
+
+    prev_out = TxOut(100_000, script_pub_key)
+    # the previous transaction, not merely the output it holds: a legacy
+    # input is spent against the whole of it, and its id is the outpoint
+    prev_tx = Tx(
+        2, 0, [TxIn(OutPoint("00" * 31 + "01", 0), b"", 0xFFFFFFFF)], [prev_out]
+    )
+    tx_in = TxIn(OutPoint(prev_tx.id, 0), b"", 0xFFFFFFFF)
+    tx = Tx(2, 0, [tx_in], [TxOut(90_000, ScriptPubKey.p2wpkh(_PUB_KEY))])
+
+    psbt = Psbt.from_tx(tx)
+    psbt.inputs[0].redeem_script = redeem_script
+    psbt.inputs[0].witness_script = witness_script
+    if kind == "p2pkh":
+        psbt.inputs[0].non_witness_utxo = prev_tx
+        msg_hash = sig_hash.legacy(script_pub_key.script, tx, 0, 1)
+    else:
+        psbt.inputs[0].witness_utxo = prev_out
+        # BIP143's script code: the witness script for p2wsh, the p2pkh
+        # script for the same hash160 for p2wpkh
+        script_code = witness_script or _p2pkh_script_code(hash160(_PUB_KEY))
+        msg_hash = sig_hash.segwit_v0(script_code, tx, 0, 1, prev_out.value)
+    sig = dsa.sign_(msg_hash, _PRV_KEY).serialize() + b"\x01"
+    psbt.inputs[0].partial_sigs = {_PUB_KEY: sig}
+    return psbt, [prev_out]
+
+
+@pytest.mark.parametrize(
+    "kind", ["p2pkh", "p2wpkh", "p2wsh", "p2sh-p2wpkh", "p2sh-p2wsh"]
+)
+def test_what_the_finalizer_builds_the_engine_accepts(kind: str) -> None:
+    """Finalize each single-key shape and run the result (issue #249).
+
+    The five kinds a wallet actually holds, and the assertion is the
+    script engine's rather than a string comparison: what the Finalizer
+    writes is what a node executes, so the engine is the authority on
+    whether it is right.
+
+    Only the two multisig shapes reach here through BIP174's own
+    vectors, which is why the single-key ones were broken -- the
+    signature went into the script_sig of an input BIP141 requires an
+    empty one of, and the public key a p2pkh or p2wpkh script hashes
+    reached no stack at all.
+    """
+    psbt, prevouts = _single_key_psbt(kind)
+    finalized = finalize_psbt(psbt)
+    verify_transaction(prevouts, extract_tx(finalized, check_validity=False))
+
+
+@pytest.mark.parametrize("kind", ["p2pkh", "p2wpkh", "p2sh-p2wpkh"])
+def test_a_single_key_input_is_spent_with_its_public_key(kind: str) -> None:
+    """The key beside the signature, and the empty script_sig (issue #249).
+
+    Where each of the two goes is the whole of the difference between
+    the three kinds: a native segwit input is spent with an empty
+    script_sig and a witness, a wrapped one pushes its redeem script and
+    nothing else, and a legacy p2pkh carries both stack items in the
+    script_sig.
+    """
+    psbt, _ = _single_key_psbt(kind)
+    sig = psbt.inputs[0].partial_sigs[_PUB_KEY]
+    redeem_script = psbt.inputs[0].redeem_script
+    psbt_in = finalize_psbt(psbt).inputs[0]
+
+    if kind == "p2pkh":
+        assert psbt_in.final_script_sig == serialize([sig, _PUB_KEY])
+        assert not psbt_in.final_script_witness
+    else:
+        assert psbt_in.final_script_sig == serialize(
+            [redeem_script] if redeem_script else []
+        )
+        assert psbt_in.final_script_witness.stack == (sig, _PUB_KEY)
+
+
+def test_a_native_p2wsh_input_gets_no_script_sig() -> None:
+    """No redeem script is no push, not a push of nothing (issue #249).
+
+    serialize([b""]) is the one byte OP_0, which is a non-empty
+    script_sig -- the very thing BIP141 forbids a native segwit input,
+    and which the engine names.
+    """
+    psbt, _ = _single_key_psbt("p2wsh")
+    assert finalize_psbt(psbt).inputs[0].final_script_sig == b""
+
+
+def test_a_single_key_input_takes_one_signature() -> None:
+    """A second signature is not a second half (issue #249).
+
+    A p2wpkh output commits to one public key, so two partial signatures
+    are two claims about which key that is; picking one is a guess, and
+    the wrong guess builds a witness that will not run.
+    """
+    psbt, _ = _single_key_psbt("p2wpkh")
+    other_key = bytes.fromhex(
+        "0279be667ef9dcbbac55a06295ce870b07029bfcdb2dce28d959f2815b16f81798"
+    )
+    psbt.inputs[0].partial_sigs[other_key] = psbt.inputs[0].partial_sigs[_PUB_KEY]
+    err_msg = "2 signatures for a single-key input"
+    with pytest.raises(BTClibValueError, match=err_msg):
+        finalize_psbt(psbt)
