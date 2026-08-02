@@ -2914,6 +2914,39 @@ edit.
 
 ### Documentation and the website
 
+- **The documentation has a page that is not the API reference.** Issue
+  #120 asked for worked examples for beginners — "sending transactions,
+  deriving wallets, etc." — against fifteen pages of `automodule` stanzas
+  that answer "what does this function take" and never "which function do
+  I call". `docs/source/guide.rst` is arranged by task instead of by
+  module: a mnemonic and the seed under it, an account xpub and the
+  BIP44/49/84/86 addresses under that, reading a raw transaction,
+  building one and computing the hash it commits to, signing it and
+  checking the result against btclib's own script interpreter, ECDSA and
+  BIP340 on their own, a message signed with an address, and the BIP174
+  roles. It says the things a reference cannot: that a `str` is hex and
+  not text wherever a signature says `Octets`, which is the first mistake
+  everybody makes; that a WIF is a better private key to hand in than an
+  integer, carrying the network and the compressed flag with it; and what
+  btclib deliberately does not do — no network, no wallet, no persistence,
+  no fee estimation, no coin selection. Every private key on it is a
+  published vector of BIP39, BIP143 or BIP340, so each answer is
+  checkable against the specification that published it, and a warning
+  says as much where a reader would otherwise reuse one
+- **The examples in the documentation are executed, not asserted.** An
+  output pasted by hand is true on the afternoon it was pasted and
+  silently false after the next rename, so every example on the guide
+  page is a doctest and `tests/docs_examples_test.py` runs it: what
+  follows a `>>>` is what the library answered, and drift is a red test
+  rather than something a reader discovers by typing the page in. Which
+  pages are examined is read off the pages — a doctest prompt is what
+  makes one an example page — so the next one is covered without a line
+  here to remember. Not `sphinx-build -b doctest`: that needs a job of
+  its own, reports on one runner, and would have to be added to the
+  branch rule to gate anything, where a test runs on every interpreter of
+  the matrix, is gated by `tests-passed` already, and leaves `uv run
+  pytest` the whole command. No doctest option flags either, elision
+  included: an example checked in part is not the promise the page makes
 - **The `bms` docstring says the message is signed byte-for-byte, and
   that Electrum's gui disagrees.** btclib does not strip whitespace
   from the message — a signature must commit to the exact bytes — and

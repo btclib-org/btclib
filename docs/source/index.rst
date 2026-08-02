@@ -10,6 +10,7 @@ Welcome to btclib's documentation
    :caption: Contents:
 
    README <readme_link.md>
+   GUIDE <guide>
    PYTHON PACKAGE <modules>
    CONTRIBUTING <contributing_link.md>
    SECURITY <security_link.md>
