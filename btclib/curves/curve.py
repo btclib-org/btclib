@@ -340,7 +340,9 @@ def multi_mult(
 ) -> Point:
     """Return the multi scalar multiplication u1*Q1 + ... + un*Qn.
 
-    Use Bos-Coster's algorithm for efficient computation.
+    Interleaved wNAF on few scalars, Bos-Coster on many: curve_group's
+    _multi_mult dispatches on the count, at the size the two measure the
+    same.
     """
     if len(scalars) != len(points):
         err_msg = "mismatch between number of scalars and points: "

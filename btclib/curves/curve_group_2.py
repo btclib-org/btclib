@@ -47,10 +47,6 @@ tracks the smaller follow-ups; what is here is the rest:
         - https://crypto.stackexchange.com/questions/58506/what-is-the-curve-type-of-secp256k1
         - 1-s_2.0-S1071579704000395-main (the file name it was saved as; the
           paper it refers to has not been identified)
-    - Strauss-wNAF, and Pippenger above a measured threshold, as the
-      multi_mult libsecp256k1 dispatches between: issue 212. Bos-Coster
-      stays whichever of them lands, the library being didactic as well --
-      it is the one of the three that can be read in twenty lines
     - Peter Dettman's field inverses and square roots, a sliding window over
       blocks of 1s:
 
@@ -65,50 +61,18 @@ tracks the smaller follow-ups; what is here is the rest:
 from __future__ import annotations
 
 from btclib.alias import INFJ, JacPoint
-from btclib.curves.curve_group import CurveGroup, convert_number_to_base
+
+# the wNAF recoding and the table of odd multiples it indexes live in
+# curve_group, next to convert_number_to_base and for the same reason:
+# its interleaved _multi_mult_w_NAF needs them, and the dependency runs
+# one way, this module importing that one
+from btclib.curves.curve_group import (
+    CurveGroup,
+    convert_number_to_base,
+    odd_multiples,
+    wNAF_of_m,
+)
 from btclib.exceptions import BTClibValueError
-
-
-def mods(m: int, w: int) -> int:
-    """Signed modulo function."""
-    w2: int = pow(2, w)
-    M = m % w2
-    return M - w2 if M >= (w2 // 2) else M
-
-
-def wNAF_of_m(m: int, w: int) -> list[int]:
-    """WNAF (width-w Non-adjacent form) of number m.
-
-    Given an integer m, wNAF is a method of representation
-    with powers of 2, where the coefficients are odd or 0,
-    and where at most one of any w consecutive digits is nonzero.
-    It has the following properties:
-    - m has a unique width-w NAF.
-    -The length of wNAF(m) is at most one more than the length of the binary
-    representation of k.
-    -The average density of nonzero digits is approximately 1/(w + 1).
-
-    For complete reference see:
-    D. Hankerson, 'Guide to Elliptic Curve Cryptography' chapter 3
-    """
-    i = 0
-
-    M: list[int] = []
-    while m > 0:
-        if (m % 2) == 1:
-            if w == 1:
-                # Computing binary NAF of m
-                M.append(2 - (m % 4))
-            else:
-                # Computing wNAF of m
-                M.append(mods(m, w))
-            m -= M[i]
-        else:
-            M.append(0)
-        m //= 2
-        i += 1
-
-    return M
 
 
 def _sliding_window_table(Q: JacPoint, ec: CurveGroup, w: int) -> list[JacPoint]:
@@ -294,18 +258,10 @@ def double_mult_w_NAF(
     us = wNAF_of_m(u, w)
     vs = wNAF_of_m(v, w)
 
-    # the odd multiples 1*P, 3*P, ..., (2^(w-1) - 1)*P of each point; a
-    # digit d of a width-w NAF is odd with |d| < 2^(w-1), so d*P is
-    # T[(|d| - 1) // 2], negated on the fly when d < 0. For w of 1 or 2
-    # the digits are only +-1 and the tables are the points themselves
-    H2 = ec.double_jac(HJ)
-    TH = [HJ]
-    for _ in range(2 ** (w - 2) - 1 if w > 2 else 0):
-        TH.append(ec.add_jac(TH[-1], H2))
-    Q2 = ec.double_jac(QJ)
-    TQ = [QJ]
-    for _ in range(2 ** (w - 2) - 1 if w > 2 else 0):
-        TQ.append(ec.add_jac(TQ[-1], Q2))
+    # one table of odd multiples per point, the same curve_group's
+    # interleaved _multi_mult_w_NAF builds for each of its own
+    TH = odd_multiples(HJ, ec, w)
+    TQ = odd_multiples(QJ, ec, w)
 
     R = INFJ
     for j in range(max(len(us), len(vs)) - 1, -1, -1):
