@@ -1,0 +1,708 @@
+#!/usr/bin/env python3
+
+# Copyright (C) The btclib developers
+#
+# This file is part of btclib. It is subject to the license terms in the
+# LICENSE file found in the top-level directory of this distribution.
+#
+# No part of btclib including this file, may be copied, modified, propagated,
+# or distributed except according to the terms contained in the LICENSE file.
+"""MuSig2 key and signature aggregation, according to BIP327.
+
+https://github.com/bitcoin/bips/blob/master/bip-0327.mediawiki
+
+MuSig2 turns many signers into one: their public keys aggregate into a
+single X-only key Q, and their partial signatures into a single BIP340
+signature that verifies under Q with `btclib.ecc.ssa` and with any other
+BIP340 verifier. A verifier -- and the chain -- sees an ordinary
+single-key Schnorr signature, which is where the privacy and the size
+come from.
+
+What is offered here is a primitive per round, not a function that
+signs, because signing is interactive and no library call can be: the
+signers exchange nonces, then partial signatures, and each exchange is
+somebody else's network. The rounds are
+
+- key aggregation, once per group: `key_sort`, `key_agg`, `apply_tweak`
+  and `key_agg_and_tweak`, answering a `KeyAggContext`;
+- round 1, the nonces: `nonce_gen` for each signer, then `nonce_agg`
+  over what they published, which anyone can do;
+- round 2, the partial signatures: `sign` (or `deterministic_sign`) for
+  each signer, `partial_sig_verify` to hold a signer to what it sent,
+  and `partial_sig_agg` for the aggregate signature.
+
+The nonce is a *pair* of points, and that is the whole of what MuSig2
+adds to its predecessor. A one-round scheme in which each signer
+publishes a single R_i is broken by Wagner's generalized birthday
+attack: an adversary opening many concurrent sessions solves for a
+forgery on a message nobody signed. Committing two points and combining
+them as R_1 + b*R_2, with b a hash of the aggregate nonce, the aggregate
+key and the message, makes the effective nonce depend on values the
+adversary cannot fix in advance -- and buys back the round that the
+earlier commit-then-reveal defence had to spend.
+
+Key aggregation is not a plain sum either: sum(P_i) lets a rogue signer
+publish P_n = P - sum(P_1..P_n-1) for a P it controls, and sign alone
+for the group. Each key therefore enters with a coefficient
+a_i = hash(L, P_i), L being the hash of the whole list, so no signer can
+choose its key knowing the others'.
+
+Tweaking is what makes the aggregate key usable: a plain tweak is BIP32
+derivation on top of the group key, an X-only tweak is a BIP341 taproot
+commitment. `KeyAggContext` carries `gacc` and `tacc` across tweaks --
+the accumulated negation and the accumulated tweak -- so that the
+partial signatures still add up to a signature valid under the tweaked
+key.
+
+secp256k1 and sha256 are not parameters here, unlike everywhere else in
+`btclib.ecc`. BIP327 is defined for that pair alone: the tags below, the
+33-byte compressed points, the 32-byte scalars and the 66-byte nonces
+are its serialization, and there is no other curve for which a test
+vector exists. A `Curve` argument would advertise a genericity the
+specification does not define and no vector could check.
+
+The message is of any size, as in `btclib.ecc.ssa`: BIP327 states no
+restriction, and two of its own vectors are an empty message and a
+38-byte one.
+
+One rule outlives every abstraction here: **a secret nonce signs once**.
+Two signatures under one secnonce hand out the private key by
+elementary algebra, which is why `sign` zeroes the bytearray it is given
+rather than merely reading it.
+"""
+
+from __future__ import annotations
+
+import secrets
+from collections.abc import Sequence
+from dataclasses import dataclass
+from hashlib import sha256
+
+from btclib.alias import INF, Octets, Point
+from btclib.curves import mult, secp256k1
+from btclib.curves.sec_point import (
+    bytes_from_point,
+    bytes_from_prv_key_int,
+    point_from_octets,
+)
+from btclib.ecc import ssa
+from btclib.exceptions import (
+    BTClibRuntimeError,
+    BTClibValueError,
+    InvalidContributionError,
+)
+from btclib.hashes import tagged_hash
+from btclib.to_prv_key import PrvKey, int_from_prv_key
+from btclib.utils import bytes_from_octets
+
+# the tags of BIP327, which are what makes a MuSig2 hash a MuSig2 hash:
+# a different string is a different scheme, incompatible with every other
+# implementation, so these are frozen by the specification and not by
+# taste. 'KeyAgg list' and 'KeyAgg coefficient' carry no 'MuSig' prefix
+# because BIP327 inherited them from the MuSig2 paper before the BIP had
+# a number; copy them as they are
+_KEY_AGG_LIST_TAG = b"KeyAgg list"
+_KEY_AGG_COEFF_TAG = b"KeyAgg coefficient"
+_AUX_TAG = b"MuSig/aux"
+_NONCE_TAG = b"MuSig/nonce"
+_NONCE_COEFF_TAG = b"MuSig/noncecoef"
+_DET_NONCE_TAG = b"MuSig/deterministic/nonce"
+
+# a compressed point, a scalar, a public nonce (two compressed points)
+_PK_SIZE = 33
+_SCALAR_SIZE = 32
+_NONCE_SIZE = 66
+
+# the infinity point as 33 zero bytes: not a SEC encoding at all -- SEC
+# has none for it -- but the placeholder BIP327 defines so that an
+# aggregate nonce is always 66 bytes on the wire
+_INF_BYTES = bytes(_PK_SIZE)
+
+# Four error messages below are BIP327's own, verbatim and in its
+# punctuation rather than in btclib's lower-case house style, because the
+# vector files carry the text: `error.message` of an error test case is
+# compared byte for byte, so a paraphrase would cost the comparison and a
+# translation table in the test would drift from both sides at once.
+# Everything else raises what the btclib helper it called raises
+_TWEAK_SIZE_ERR = "The tweak must be a 32-byte array."
+_TWEAK_RANGE_ERR = "The tweak must be less than n."
+_TWEAK_INF_ERR = "The result of tweaking cannot be infinity."
+_SIGNER_PK_ERR = "The signer's pubkey must be included in the list of pubkeys."
+
+
+def _cbytes(P: Point) -> bytes:
+    return bytes_from_point(P, secp256k1)
+
+
+def _cbytes_ext(P: Point) -> bytes:
+    """Serialize a point that may be the infinity one."""
+    return _INF_BYTES if P[1] == 0 else _cbytes(P)
+
+
+def _cpoint(octets: Octets) -> Point:
+    """Deserialize a compressed point, refusing anything else.
+
+    `point_from_octets` is the SEC parser and takes the uncompressed
+    0x04 form too; the size check ahead of it is what makes this
+    BIP327's `cpoint`, which is compressed-only -- a 33-byte input with
+    an 0x04 prefix is then the wrong size for what its prefix announces,
+    and is refused as such.
+    """
+    return point_from_octets(bytes_from_octets(octets, _PK_SIZE), secp256k1)
+
+
+def _cpoint_ext(octets: Octets) -> Point:
+    """Deserialize a point that may be the infinity one."""
+    data = bytes_from_octets(octets, _PK_SIZE)
+    return INF if data == _INF_BYTES else _cpoint(data)
+
+
+def _bytes_xor(a: bytes, b: bytes) -> bytes:
+    return bytes(x ^ y for x, y in zip(a, b, strict=True))
+
+
+def _pub_keys(pub_keys: Sequence[Octets]) -> tuple[bytes, ...]:
+    return tuple(bytes_from_octets(pk, _PK_SIZE) for pk in pub_keys)
+
+
+def _tweaks(tweaks: Sequence[Octets]) -> tuple[bytes, ...]:
+    return tuple(bytes_from_octets(t) for t in tweaks)
+
+
+def _require_same_length(tweaks: Sequence[bytes], is_xonly: Sequence[bool]) -> None:
+    if len(tweaks) != len(is_xonly):
+        err_msg = "The `tweaks` and `is_xonly` arrays must have the same length."
+        raise BTClibValueError(err_msg)
+
+
+def individual_pub_key(prv_key: PrvKey) -> bytes:
+    """Return the plain (33-byte, compressed) public key of a signer."""
+    return bytes_from_prv_key_int(int_from_prv_key(prv_key, secp256k1), secp256k1)
+
+
+def key_sort(pub_keys: Sequence[Octets]) -> list[bytes]:
+    """Return the public keys in lexicographic order.
+
+    The order the signers agree on is theirs to choose -- key
+    aggregation commits to the list as given, and a different order is a
+    different aggregate key -- but sorting is the convention that lets a
+    group reach the same key without a further round.
+
+    A new list, where BIP327's reference sorts in place: a function that
+    reorders its argument makes the key of whoever kept a reference to
+    that list change under them.
+    """
+    return sorted(_pub_keys(pub_keys))
+
+
+def _hash_pub_keys(pub_keys: tuple[bytes, ...]) -> bytes:
+    return tagged_hash(_KEY_AGG_LIST_TAG, b"".join(pub_keys))
+
+
+def _second_pub_key(pub_keys: tuple[bytes, ...]) -> bytes:
+    """Return the first key that differs from the first one.
+
+    Its coefficient is 1 rather than a hash, which saves one scalar
+    multiplication per aggregation and is safe: with two distinct keys
+    in the list, no signer can solve for the rogue key that a plain sum
+    would allow. 33 zero bytes when every key is the same -- not a valid
+    key, so no member of the list can be equal to it and take the
+    exemption by accident.
+    """
+    return next((pk for pk in pub_keys[1:] if pk != pub_keys[0]), _INF_BYTES)
+
+
+def _key_agg_coeff_(L: bytes, second: bytes, pub_key: bytes) -> int:
+    if pub_key == second:
+        return 1
+    return int.from_bytes(tagged_hash(_KEY_AGG_COEFF_TAG, L + pub_key), "big") % (
+        secp256k1.n
+    )
+
+
+def _key_agg_coeff(pub_keys: tuple[bytes, ...], pub_key: bytes) -> int:
+    # the list hash and the second key are the same for every key in the
+    # list, so aggregation computes them once and calls the spelling
+    # above; this one is for the single coefficient a signer needs
+    return _key_agg_coeff_(_hash_pub_keys(pub_keys), _second_pub_key(pub_keys), pub_key)
+
+
+@dataclass(frozen=True)
+class KeyAggContext:
+    """The aggregate public key, and what tweaking it has accumulated.
+
+    - Q is the aggregate point, tweaks included
+    - gacc is the product of the negations x-only tweaking has forced,
+      1 or n-1: a signer multiplies its key by it, so that the partial
+      signatures add up under the even-y Q a BIP340 verifier assumes
+    - tacc is the sum of the tweaks, which `partial_sig_agg` adds in
+      once for the group rather than each signer adding a share of it
+    """
+
+    Q: Point
+    gacc: int
+    tacc: int
+
+    @property
+    def x_only_pub_key(self) -> bytes:
+        """Return the 32-byte X-only aggregate key to verify against."""
+        return self.Q[0].to_bytes(secp256k1.p_size, "big")
+
+
+def key_agg(pub_keys: Sequence[Octets]) -> KeyAggContext:
+    """Aggregate plain public keys into a `KeyAggContext`.
+
+    The order of the list is part of the key: aggregate the same keys in
+    another order and the group is another group. `key_sort` is the
+    usual way to agree on one.
+    """
+    pks = _pub_keys(pub_keys)
+    L = _hash_pub_keys(pks)
+    second = _second_pub_key(pks)
+    Q = INF
+    for i, pk in enumerate(pks):
+        try:
+            P_i = _cpoint(pk)
+        except BTClibValueError as e:
+            raise InvalidContributionError(i, "pubkey") from e
+        Q = secp256k1.add(Q, mult(_key_agg_coeff_(L, second, pk), P_i, secp256k1))
+    if Q[1] == 0:  # pragma: no cover
+        # the coefficients are hashes, so cancelling them all out is the
+        # discrete-log problem rather than a case to handle: raise where
+        # BIP327's reference asserts, an assert being absent under -O
+        raise BTClibRuntimeError("aggregate key is the infinity point")
+    return KeyAggContext(Q, 1, 0)
+
+
+def apply_tweak(
+    key_agg_ctx: KeyAggContext, tweak: Octets, is_xonly: bool
+) -> KeyAggContext:
+    """Return the context tweaked by t, X-only or plain.
+
+    An X-only tweak is a BIP341 taproot commitment: it applies to the
+    even-y point, so an odd-y Q is negated first and the negation is
+    accumulated in gacc for the signers to apply to their keys. A plain
+    tweak is BIP32 derivation on the group key, and takes Q as it is.
+    """
+    tweak = bytes_from_octets(tweak)
+    if len(tweak) != _SCALAR_SIZE:
+        raise BTClibValueError(_TWEAK_SIZE_ERR)
+    Q, gacc, tacc = key_agg_ctx.Q, key_agg_ctx.gacc, key_agg_ctx.tacc
+    g = secp256k1.n - 1 if (is_xonly and Q[1] % 2) else 1
+    t = int.from_bytes(tweak, "big")
+    if t >= secp256k1.n:
+        raise BTClibValueError(_TWEAK_RANGE_ERR)
+    Q = secp256k1.add(mult(g, Q, secp256k1), mult(t, secp256k1.G, secp256k1))
+    if Q[1] == 0:
+        # t*G cancelling g*Q exactly: unreachable for a tweak nobody
+        # chose to do it, reachable for one that did, and a key of
+        # infinity has no signature
+        raise BTClibValueError(_TWEAK_INF_ERR)
+    return KeyAggContext(Q, g * gacc % secp256k1.n, (t + g * tacc) % secp256k1.n)
+
+
+def key_agg_and_tweak(
+    pub_keys: Sequence[Octets],
+    tweaks: Sequence[Octets],
+    is_xonly: Sequence[bool],
+) -> KeyAggContext:
+    """Aggregate the keys, then apply the tweaks in order."""
+    tweaks_ = _tweaks(tweaks)
+    _require_same_length(tweaks_, is_xonly)
+    key_agg_ctx = key_agg(pub_keys)
+    for tweak, xonly in zip(tweaks_, is_xonly, strict=True):
+        key_agg_ctx = apply_tweak(key_agg_ctx, tweak, xonly)
+    return key_agg_ctx
+
+
+def _nonce_hash(
+    rand: bytes, pk: bytes, agg_pk: bytes, i: int, msg_prefixed: bytes, extra_in: bytes
+) -> int:
+    buf = b"".join(
+        [
+            rand,
+            len(pk).to_bytes(1, "big"),
+            pk,
+            len(agg_pk).to_bytes(1, "big"),
+            agg_pk,
+            msg_prefixed,
+            len(extra_in).to_bytes(4, "big"),
+            extra_in,
+            i.to_bytes(1, "big"),
+        ]
+    )
+    return int.from_bytes(tagged_hash(_NONCE_TAG, buf), "big")
+
+
+def nonce_gen_(
+    rand_: Octets,
+    prv_key: PrvKey | None,
+    pub_key: Octets,
+    agg_x_only_pub_key: Octets | None = None,
+    msg: Octets | None = None,
+    extra_in: Octets | None = None,
+) -> tuple[bytearray, bytes]:
+    """Return the (secnonce, pubnonce) pair of one signer, given ``rand_``.
+
+    Double backticks because rst reads a trailing underscore as a link
+    reference: bare, that name makes sphinx -W fail with 'Unknown target
+    name: "rand"'.
+
+    The randomness is the argument, which is what makes BIP327's nonce
+    vectors reproducible; `nonce_gen` is the spelling that draws it, and
+    is the one to call. That is btclib's trailing underscore again:
+    whether the caller prepared the input or the library does it.
+
+    Every other input is optional and every one of them is a defence:
+    the private key masks the randomness, so that a broken RNG alone
+    does not repeat a nonce; the aggregate key, the message and
+    `extra_in` (a counter, a clock) separate a nonce from the nonce of
+    another session. None is not the empty value -- an absent message
+    and an empty message are different inputs to the hash, by a prefix
+    byte -- so pass what is known and leave the rest out.
+
+    The returned secnonce is a bytearray, and mutable on purpose: `sign`
+    zeroes it, which is the only mechanism here that can stop the same
+    nonce signing twice.
+    """
+    rand_ = bytes_from_octets(rand_, _SCALAR_SIZE)
+    if prv_key is None:
+        rand = rand_
+    else:
+        # the key is masked by xor with the hashed randomness, rather
+        # than hashed together with it, as BIP340 does: the fewer
+        # operations touch the secret, the less there is to measure
+        q = int_from_prv_key(prv_key, secp256k1)
+        rand = _bytes_xor(q.to_bytes(_SCALAR_SIZE, "big"), tagged_hash(_AUX_TAG, rand_))
+    pk = bytes_from_octets(pub_key, _PK_SIZE)
+    agg_pk = (
+        b""
+        if agg_x_only_pub_key is None
+        else bytes_from_octets(agg_x_only_pub_key, secp256k1.p_size)
+    )
+    if msg is None:
+        msg_prefixed = b"\x00"
+    else:
+        msg = bytes_from_octets(msg)
+        msg_prefixed = b"\x01" + len(msg).to_bytes(8, "big") + msg
+    extra = b"" if extra_in is None else bytes_from_octets(extra_in)
+
+    k_1 = _nonce_hash(rand, pk, agg_pk, 0, msg_prefixed, extra) % secp256k1.n
+    k_2 = _nonce_hash(rand, pk, agg_pk, 1, msg_prefixed, extra) % secp256k1.n
+    # k_1 or k_2 zero would be a hash landing on a multiple of n, and the
+    # point at infinity has no serialization: _cbytes below raises rather
+    # than a check here answering a question that cannot come up
+    pub_nonce = _cbytes(mult(k_1, ec=secp256k1)) + _cbytes(mult(k_2, ec=secp256k1))
+    sec_nonce = bytearray(
+        k_1.to_bytes(_SCALAR_SIZE, "big") + k_2.to_bytes(_SCALAR_SIZE, "big") + pk
+    )
+    return sec_nonce, pub_nonce
+
+
+def nonce_gen(
+    prv_key: PrvKey | None,
+    pub_key: Octets,
+    agg_x_only_pub_key: Octets | None = None,
+    msg: Octets | None = None,
+    extra_in: Octets | None = None,
+) -> tuple[bytearray, bytes]:
+    """Return the (secnonce, pubnonce) pair of one signer.
+
+    Fresh randomness is drawn here; ``nonce_gen_`` is the spelling that
+    takes it, for the test vectors.
+    """
+    return nonce_gen_(
+        secrets.token_bytes(_SCALAR_SIZE),
+        prv_key,
+        pub_key,
+        agg_x_only_pub_key,
+        msg,
+        extra_in,
+    )
+
+
+def nonce_agg(pub_nonces: Sequence[Octets]) -> bytes:
+    """Aggregate the public nonces of round 1 into the 66-byte aggnonce.
+
+    Anybody can do this -- there is no secret in it -- and a signer that
+    disagrees with the result is free to recompute it: the aggregate
+    nonce is checked by the signature it produces.
+
+    Either half can come out the infinity point, which is where the
+    33-zero-byte placeholder comes from: refusing it here would let one
+    signer, by publishing the negation of what the others published,
+    stop the session at will.
+    """
+    nonces = [bytes_from_octets(nonce, _NONCE_SIZE) for nonce in pub_nonces]
+    agg_nonce = b""
+    for j in (0, 1):
+        R_j = INF
+        for i, pub_nonce in enumerate(nonces):
+            try:
+                R_ij = _cpoint(pub_nonce[j * _PK_SIZE : (j + 1) * _PK_SIZE])
+            except BTClibValueError as e:
+                raise InvalidContributionError(i, "pubnonce") from e
+            R_j = secp256k1.add(R_j, R_ij)
+        agg_nonce += _cbytes_ext(R_j)
+    return agg_nonce
+
+
+@dataclass(frozen=True, init=False)
+class SessionContext:
+    """Everything the signers of one session have to agree on.
+
+    The aggregate nonce, the public keys in the order they aggregate in,
+    the tweaks with their kinds, and the message. Two signers with
+    different session contexts produce partial signatures that do not
+    add up, which `partial_sig_verify` is there to catch.
+    """
+
+    agg_nonce: bytes
+    pub_keys: tuple[bytes, ...]
+    tweaks: tuple[bytes, ...]
+    is_xonly: tuple[bool, ...]
+    msg: bytes
+
+    # written out rather than an InitVar and a __post_init__: as in
+    # ssa.Sig, and here it also normalizes -- the fields hold bytes and
+    # tuples whatever the caller passed, so that a hex string and the
+    # bytes it spells make one context and not two
+    def __init__(
+        self,
+        agg_nonce: Octets,
+        pub_keys: Sequence[Octets],
+        tweaks: Sequence[Octets],
+        is_xonly: Sequence[bool],
+        msg: Octets,
+    ) -> None:
+        object.__setattr__(self, "agg_nonce", bytes_from_octets(agg_nonce, _NONCE_SIZE))
+        object.__setattr__(self, "pub_keys", _pub_keys(pub_keys))
+        object.__setattr__(self, "tweaks", _tweaks(tweaks))
+        object.__setattr__(self, "is_xonly", tuple(is_xonly))
+        object.__setattr__(self, "msg", bytes_from_octets(msg))
+        _require_same_length(self.tweaks, self.is_xonly)
+
+
+@dataclass(frozen=True)
+class SessionValues:
+    """What every party derives from a `SessionContext` before signing.
+
+    - Q, gacc and tacc are the aggregate key and its tweak accumulators
+    - b is the coefficient combining the two halves of the nonce
+    - R is the effective nonce point, R_1 + b*R_2
+    - e is the BIP340 challenge, over R, Q and the message
+    """
+
+    Q: Point
+    gacc: int
+    tacc: int
+    b: int
+    R: Point
+    e: int
+
+
+def session_values(session_ctx: SessionContext) -> SessionValues:
+    """Derive the session values from the context, as every party does."""
+    key_agg_ctx = key_agg_and_tweak(
+        session_ctx.pub_keys, session_ctx.tweaks, session_ctx.is_xonly
+    )
+    Q = key_agg_ctx.Q
+    x_Q = key_agg_ctx.x_only_pub_key
+    t = tagged_hash(_NONCE_COEFF_TAG, session_ctx.agg_nonce + x_Q + session_ctx.msg)
+    b = int.from_bytes(t, "big") % secp256k1.n
+    try:
+        R_1 = _cpoint_ext(session_ctx.agg_nonce[:_PK_SIZE])
+        R_2 = _cpoint_ext(session_ctx.agg_nonce[_PK_SIZE:])
+    except BTClibValueError as err:
+        raise InvalidContributionError(None, "aggnonce") from err
+    R = secp256k1.add(R_1, mult(b, R_2, secp256k1))
+    # an aggregate nonce of infinity is a session the signers can still
+    # complete: G stands in for R, the resulting signature is invalid
+    # for everybody equally, and no signer is singled out as the one who
+    # spoiled it -- BIP327 prefers that to an abort a single participant
+    # can force
+    if R[1] == 0:
+        R = secp256k1.G
+    # ssa.challenge_, so that the challenge of an aggregate signature is
+    # the one btclib's own BIP340 verifier recomputes, byte for byte and
+    # for a message of any size
+    e = ssa.challenge_(session_ctx.msg, Q[0], R[0], secp256k1, sha256)
+    return SessionValues(Q, key_agg_ctx.gacc, key_agg_ctx.tacc, b, R, e)
+
+
+def _session_key_agg_coeff(session_ctx: SessionContext, pub_key: bytes) -> int:
+    if pub_key not in session_ctx.pub_keys:
+        raise BTClibValueError(_SIGNER_PK_ERR)
+    return _key_agg_coeff(session_ctx.pub_keys, pub_key)
+
+
+def sign(sec_nonce: bytearray, prv_key: PrvKey, session_ctx: SessionContext) -> bytes:
+    """Return the 32-byte partial signature of one signer.
+
+    The secnonce is consumed: its first 64 bytes are zeroed before
+    anything else happens, so that calling this twice with the same
+    bytearray raises instead of handing out the private key. That is why
+    the argument is a bytearray and not bytes -- an immutable secnonce
+    is one nothing can spend -- and why a caller must not keep a copy.
+    """
+    values = session_values(session_ctx)
+    k_1_ = int.from_bytes(sec_nonce[:_SCALAR_SIZE], "big")
+    k_2_ = int.from_bytes(sec_nonce[_SCALAR_SIZE : 2 * _SCALAR_SIZE], "big")
+    sec_nonce[: 2 * _SCALAR_SIZE] = bytearray(2 * _SCALAR_SIZE)
+    if not 0 < k_1_ < secp256k1.n:
+        raise BTClibValueError("first secnonce value is out of range.")
+    if not 0 < k_2_ < secp256k1.n:
+        raise BTClibValueError("second secnonce value is out of range.")
+    # the signature is over the even-y R, so a signer whose contribution
+    # sits on the odd-y one negates both halves of its secret nonce
+    if values.R[1] % 2:
+        k_1_, k_2_ = secp256k1.n - k_1_, secp256k1.n - k_2_
+
+    d_ = int_from_prv_key(prv_key, secp256k1)
+    pk = individual_pub_key(d_)
+    if pk != bytes(sec_nonce[2 * _SCALAR_SIZE :]):
+        raise BTClibValueError("Public key does not match nonce_gen argument")
+    a = _session_key_agg_coeff(session_ctx, pk)
+    g = 1 if values.Q[1] % 2 == 0 else secp256k1.n - 1
+    d = g * values.gacc * d_ % secp256k1.n
+    s = (k_1_ + values.b * k_2_ + values.e * a * d) % secp256k1.n
+    return s.to_bytes(_SCALAR_SIZE, "big")
+
+
+def _det_nonce_hash(
+    prv_key: bytes, agg_other_nonce: bytes, agg_pk: bytes, msg: bytes, i: int
+) -> int:
+    buf = b"".join(
+        [
+            prv_key,
+            agg_other_nonce,
+            agg_pk,
+            len(msg).to_bytes(8, "big"),
+            msg,
+            i.to_bytes(1, "big"),
+        ]
+    )
+    return int.from_bytes(tagged_hash(_DET_NONCE_TAG, buf), "big")
+
+
+def deterministic_sign(
+    prv_key: PrvKey,
+    agg_other_nonce: Octets,
+    pub_keys: Sequence[Octets],
+    tweaks: Sequence[Octets],
+    is_xonly: Sequence[bool],
+    msg: Octets,
+    rand: Octets | None = None,
+) -> tuple[bytes, bytes]:
+    """Return the (pubnonce, partial signature) of a signer with no RNG.
+
+    The two rounds collapse into one for the *last* signer to act: given
+    the aggregate of everybody else's nonces, it derives its own from
+    the secret key and the session rather than from randomness, and
+    publishes nonce and partial signature together. That is the answer
+    for a signing device that has no entropy source, and it is safe
+    exactly once per (key, session): the derivation is a function of its
+    inputs, so signing twice over different other-nonces with the same
+    key is what a deterministic scheme must not do -- pass `rand` when
+    there is any doubt.
+    """
+    q = int_from_prv_key(prv_key, secp256k1)
+    sk = q.to_bytes(_SCALAR_SIZE, "big")
+    if rand is not None:
+        sk = _bytes_xor(sk, tagged_hash(_AUX_TAG, bytes_from_octets(rand)))
+    agg_other_nonce = bytes_from_octets(agg_other_nonce, _NONCE_SIZE)
+    msg = bytes_from_octets(msg)
+    agg_pk = key_agg_and_tweak(pub_keys, tweaks, is_xonly).x_only_pub_key
+
+    k_1 = _det_nonce_hash(sk, agg_other_nonce, agg_pk, msg, 0) % secp256k1.n
+    k_2 = _det_nonce_hash(sk, agg_other_nonce, agg_pk, msg, 1) % secp256k1.n
+    pub_nonce = _cbytes(mult(k_1, ec=secp256k1)) + _cbytes(mult(k_2, ec=secp256k1))
+    sec_nonce = bytearray(
+        k_1.to_bytes(_SCALAR_SIZE, "big")
+        + k_2.to_bytes(_SCALAR_SIZE, "big")
+        + individual_pub_key(q)
+    )
+    try:
+        agg_nonce = nonce_agg([pub_nonce, agg_other_nonce])
+    except InvalidContributionError as e:
+        # whoever aggregated the other nonces is accountable for them,
+        # and there is no signer index to name: what this party received
+        # is one 66-byte value, not the nonces behind it
+        raise InvalidContributionError(None, "aggothernonce") from e
+    session_ctx = SessionContext(agg_nonce, pub_keys, tweaks, is_xonly, msg)
+    return pub_nonce, sign(sec_nonce, q, session_ctx)
+
+
+def partial_sig_verify_(
+    psig: Octets, pub_nonce: Octets, pub_key: Octets, session_ctx: SessionContext
+) -> bool:
+    """Verify a partial signature against a prepared session context.
+
+    `partial_sig_verify` is the other spelling: it aggregates the public
+    nonces itself, which is what btclib's trailing underscore
+    distinguishes -- whether the caller prepared the input or the
+    library does it.
+    """
+    values = session_values(session_ctx)
+    s = int.from_bytes(bytes_from_octets(psig, _SCALAR_SIZE), "big")
+    if s >= secp256k1.n:
+        return False
+    pub_nonce = bytes_from_octets(pub_nonce, _NONCE_SIZE)
+    R_s1 = _cpoint(pub_nonce[:_PK_SIZE])
+    R_s2 = _cpoint(pub_nonce[_PK_SIZE:])
+    R_s = secp256k1.add(R_s1, mult(values.b, R_s2, secp256k1))
+    if values.R[1] % 2:
+        R_s = secp256k1.negate(R_s)
+    pub_key = bytes_from_octets(pub_key, _PK_SIZE)
+    P = _cpoint(pub_key)
+    a = _session_key_agg_coeff(session_ctx, pub_key)
+    g = 1 if values.Q[1] % 2 == 0 else secp256k1.n - 1
+    g = g * values.gacc % secp256k1.n
+    lhs = mult(s, secp256k1.G, secp256k1)
+    rhs = secp256k1.add(R_s, mult(values.e * a * g % secp256k1.n, P, secp256k1))
+    return lhs == rhs
+
+
+def partial_sig_verify(
+    psig: Octets,
+    pub_nonces: Sequence[Octets],
+    pub_keys: Sequence[Octets],
+    tweaks: Sequence[Octets],
+    is_xonly: Sequence[bool],
+    msg: Octets,
+    i: int,
+) -> bool:
+    """Verify the partial signature of signer i, against its own nonce.
+
+    Every signer should verify every other signer's partial signature
+    before aggregating: an aggregate signature that does not verify says
+    only that somebody misbehaved, while this says who.
+    """
+    if len(pub_nonces) != len(pub_keys):
+        err_msg = "The `pubnonces` and `pubkeys` arrays must have the same length."
+        raise BTClibValueError(err_msg)
+    agg_nonce = nonce_agg(pub_nonces)
+    session_ctx = SessionContext(agg_nonce, pub_keys, tweaks, is_xonly, msg)
+    return partial_sig_verify_(psig, pub_nonces[i], pub_keys[i], session_ctx)
+
+
+def partial_sig_agg(psigs: Sequence[Octets], session_ctx: SessionContext) -> ssa.Sig:
+    """Aggregate the partial signatures into one BIP340 signature.
+
+    An `ssa.Sig`, because that is what it is: the result verifies under
+    the X-only aggregate key with `btclib.ecc.ssa.verify_` and with
+    every other BIP340 verifier, and handing back 64 bytes would only
+    make the caller parse them again to find out.
+    """
+    values = session_values(session_ctx)
+    s = 0
+    for i, psig in enumerate(psigs):
+        s_i = int.from_bytes(bytes_from_octets(psig, _SCALAR_SIZE), "big")
+        if s_i >= secp256k1.n:
+            raise InvalidContributionError(i, "psig")
+        s = (s + s_i) % secp256k1.n
+    # the tweaks enter the signature once, here, and not as a share each
+    # signer adds: the group tweaked the key, no single signer did
+    g = 1 if values.Q[1] % 2 == 0 else secp256k1.n - 1
+    s = (s + values.e * g * values.tacc) % secp256k1.n
+    return ssa.Sig(values.R[0], s, secp256k1)

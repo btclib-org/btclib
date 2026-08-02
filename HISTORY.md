@@ -249,6 +249,10 @@ and `verify` families now let a `TypeError` out where they used to answer
   consensus rule.
 - **BIP340 messages of any size**, as the BIP has allowed since 2023-04:
   the four vectors btclib used to `xfail` all verify.
+- **MuSig2 is implemented**, `btclib.ecc.musig2` against all 56 cases of
+  BIP327's eight vector files: many signers, one BIP340 signature that
+  `ssa.verify_` accepts. One primitive per round rather than a function
+  that signs, the protocol being interactive.
 - **A psbt carries a taproot signature with its sig_hash type**, the
   65-byte form of BIP341 that BIP371 spells out and btclib refused, while
   its own script engine read it.
