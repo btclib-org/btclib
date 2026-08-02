@@ -2430,6 +2430,19 @@ edit.
 
 ### Tests
 
+- **the tree measures 100% again**, and the two statements that had gone
+  uncovered were electrum's round-trip check on its own encoding — the
+  one `_search_mnemonic` makes before it returns a candidate. Not
+  reachable with the wordlists btclib ships, `en` and `it` being 2048
+  distinct ASCII words each, so the test patches the decode to reach it,
+  as the ripemd160 fallback test patches its flag; a `pragma: no cover`
+  would have left the message unpinned. They had eaten the whole of the
+  `fail_under` rounding step, which is what made the gate turn red for
+  the next single uncovered line to appear anywhere in the tree —
+  and turn red without warning, because pytest-cov prints its `FAIL
+  Required test coverage ... not reached` on the *unrounded* total while
+  the exit code follows the rounded one, so the run before was already
+  printing FAIL and passing. pyproject.toml's comment now says so
 - **the twelve on-chain scripts of issue #123 are vendored**, in
   `tests/script/_data/unspendable_script_pub_keys.json`: the real
   `scriptPubKey`s of the five transactions the issue lists, each with the
