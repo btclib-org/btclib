@@ -1981,13 +1981,72 @@ edit.
   for the `a == p-3` of most catalogued curves, and `JacPoint` is public.
   Every gain is a uniform one, so the comparisons the `curve_group_2`
   docstrings draw between the algorithms still hold as measured
+- **BIP32 public derivation stays serialized throughout**:
+  `keys.pubkey_tweak_add` adds the generator times the offset to the
+  parent's 33 bytes and hands back the child's, where Python multiplied
+  the generator, added the two points and serialized the sum — 12.4 µs
+  against 33.4. The bindings answer uncompressed, deliberately: the
+  cached point wants the y coordinate, and taking it back from a
+  compressed key is the modular square root of `point_from_octets`, some
+  74 µs to undo a serialization libsecp256k1 had just made. A child at
+  infinity is still `invalid child index N`, and still refused before
+  the key data is touched
+- **BIP32 private derivation adds the offset in constant time**:
+  `keys.prvkey_tweak_add`, where it was `(kpar + IL) % n` on Python
+  integers — variable in time with the operands, and leaving an
+  unzeroized copy of every intermediate behind. The parent key goes in
+  as the 32 bytes it is stored as, so no arithmetic on the secret
+  happens on this side of the call at all. It costs 0.55 µs against
+  0.03, on a derivation whose hmac and public key are some 15 µs of
+  their own. BIP32's three invalid children are unchanged, and still
+  `invalid child index N`: the range check on `parse256(IL)` stays in
+  Python, and the one sum libsecp256k1 refuses past it is the zero child
+  BIP32 refuses too. Not gated on the curve, unlike the library's other
+  delegations, there being no second curve BIP32 is defined over
+- **ECDH computes the shared point in libsecp256k1**, and in constant
+  time: `dh.diffie_hellman` calls `keys.pubkey_tweak_mul` on secp256k1,
+  15.2 µs against the 0.55 ms of `mult(dU, QV)` — some thirty-six
+  times, this being the multiplication of a point that is *not* the
+  generator, the one case `mult` never delegated, with the private key
+  as the scalar. The derivation is unchanged and still ANSI-X9.63-KDF,
+  which is why the bindings' own `ecdh.shared_secret` is not a
+  substitute: that one hashes the compressed shared point with SHA256.
+  Every other curve keeps the Python multiplication, GEC 2's secp160r1
+  vector now checked through `diffie_hellman` itself, and so does a
+  scalar that is zero mod n — the infinity point, which the bindings
+  have no scalar for and which is still `invalid (INF) key`
+- **the taproot output *private* key is tweaked by libsecp256k1 too**, and
+  in constant time: `taproot.output_prvkey` calls
+  `xonly.prvkey_tweak_add`, which is BIP341's tweaking of an x-only
+  private key — the negation of a key whose public point has an odd y
+  included — where Python negated with `ec.n - q` and added with a `%`.
+  Neither is constant time; the C one is, and it is a secret scalar. It
+  is faster as well, 32.0 µs against 82.3 over 2000 tweaks,
+  because the x-only public key the tweak commits to now comes from
+  `bytes_from_prv_key_int` instead of a point built in Python and a
+  square root taken to learn that point's parity. The Python arithmetic
+  stays, and is compared against the bindings over both parities
+- **the taproot output key is tweaked by libsecp256k1**, both where it is
+  built and where a control block is checked against it:
+  `taproot.output_pubkey` calls `xonly.tweak_add`, and
+  `check_output_pubkey` calls `xonly.tweak_add_check`, the dedicated
+  verification. Each of the two lifted the x-only key to a point with
+  `ec.y_even` and added `mult(t)` to it in Python: 12.0 µs against 109.3
+  for an output key over 2000 tweaks, of which the modular square
+  root alone was 74. The Python arithmetic stays, and the tests compute
+  every tweak twice to hold the two answers to each other — taproot has no
+  second curve to reach that path with, a toy curve failing BIP341's range
+  check on a 256-bit tweak before any arithmetic happens.
+  `check_output_pubkey` keeps answering the Python comparison for a q that
+  is not 32 bytes, which `tweak_add_check` refuses instead of answering
 - **`mult` takes the GLV endomorphism on secp256k1** wherever the bindings
   cannot answer: `curve_group_2.mult_endomorphism_secp256k1`, 0.53 ms
   against the 0.84 of the generic `_mult`. The bindings take the generator
   and a non-zero scalar, so what reaches the Python path is every *other*
-  secp256k1 point — and the operation that means is ECDH:
-  `dh.diffie_hellman` measures 0.56 ms against 0.87, a third off, and so
-  does any caller multiplying a point of its own. The dispatch asks the
+  secp256k1 point: any caller multiplying a point of its own gains that
+  third. Not ECDH any more, which measured 0.56 ms against 0.87 until
+  `dh.diffie_hellman` began asking libsecp256k1 for the shared point
+  itself, and which reaches this only on another curve. The dispatch asks the
   same `_libsecp256k1_applicable` the bindings dispatch asks, so the two
   cannot drift apart, and every other curve still runs `_mult` untouched.
   The algorithm is not new either: m as m1 + m2*lambda with both halves

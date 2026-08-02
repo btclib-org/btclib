@@ -27,6 +27,12 @@ from btclib.bip32 import (
 )
 from btclib.bip32.bip32 import _derive
 from btclib.bip32.der_path import _indexes_from_der_path_str
+from btclib.curves import (
+    bytes_from_point,
+    bytes_from_prv_key_int,
+    mult,
+    point_from_octets,
+)
 from btclib.curves import secp256k1 as ec
 from btclib.exceptions import BTClibTypeError, BTClibValueError
 from btclib.hashes import hash160
@@ -461,6 +467,45 @@ def _force_hmac(monkeypatch: pytest.MonkeyPatch, il: int, chain_code: bytes) -> 
     """
     digest = il.to_bytes(32, byteorder="big", signed=False) + chain_code
     monkeypatch.setattr(hmac, "new", lambda *args, **kwargs: _ForcedHmac(digest))
+
+
+def test_derivation_is_the_arithmetic_bip32_defines() -> None:
+    """Both derivations, against the scalar and point arithmetic in Python.
+
+    libsecp256k1 adds the offset to the key, privately and publicly, and
+    BIP32 is defined for secp256k1 alone: there is no other curve for a
+    fallback to serve, so nothing in the library computes either sum the
+    other way any more. What holds the delegation to BIP32's own
+    equations is having them here -- `ki = parse256(IL) + kpar (mod n)`
+    and `Ki = point(parse256(IL)) + Kpar` -- written out over the same
+    hmac the derivation takes, and the shipped vectors for the rest.
+    """
+    rootxprv = "xprv9s21ZrQH143K3QTDL4LXw2F7HEK3wJUD2nW2nRk4stbPy6cq3jPPqjiChkVvvNKmPGJxWUtg6LnF5kejMRNNU3TGtRBeJgk33yuGBxrMPHi"
+    parent = BIP32KeyData.b58decode(rootxprv)
+    index = 42
+    parent_prv_key = int.from_bytes(parent.key[1:], byteorder="big", signed=False)
+    parent_pub_key = bytes_from_prv_key_int(parent_prv_key)
+
+    hmac_ = hmac.new(
+        parent.chain_code,
+        parent_pub_key + index.to_bytes(4, byteorder="big", signed=False),
+        "sha512",
+    ).digest()
+    offset = int.from_bytes(hmac_[:32], byteorder="big", signed=False)
+
+    child_prv_key = (parent_prv_key + offset) % ec.n
+    child = BIP32KeyData.b58decode(derive(rootxprv, f"m/{index}"))
+    assert child.chain_code == hmac_[32:]
+    assert child.key == b"\x00" + child_prv_key.to_bytes(
+        32, byteorder="big", signed=False
+    )
+
+    child_pub_key_point = ec.add(point_from_octets(parent_pub_key), mult(offset))
+    child_pub = BIP32KeyData.b58decode(derive(xpub_from_xprv(rootxprv), f"m/{index}"))
+    assert child_pub.chain_code == hmac_[32:]
+    assert child_pub.key == bytes_from_point(child_pub_key_point)
+    # and the two derivations of one index meet, as BIP32 requires
+    assert child_pub.key == bytes_from_prv_key_int(child_prv_key)
 
 
 def test_invalid_child_prv_key(monkeypatch: pytest.MonkeyPatch) -> None:
