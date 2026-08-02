@@ -1,0 +1,178 @@
+---
+name: mutation
+
+# Coverage answers "was this line executed"; this answers "would the suite
+# notice if it were wrong". The gap is not theoretical here -- issue #219
+# lists three defects found inside a 100% covered tree, all three in the
+# consensus code this workflow is scoped to -- and a surviving mutant names
+# one line of it at a time.
+#
+# It gates nothing, and that is the design rather than a caution. A gate
+# needs a number nobody has measured yet, and a survival rate is not a
+# regression: a mutant survives because a test is missing, so a red merge
+# would block whoever next touched the file for a hole somebody else left.
+# It therefore does not appear in master's required checks, and must not --
+# that rule lives outside the repository and names its checks as literal
+# strings.
+#
+# What runs here is what .github/mutation/*.toml says, which is what
+# CONTRIBUTING.md documents for a local run: one list of scopes and test
+# commands, not a second copy of them in yaml.
+
+on:
+  schedule:
+    # Sundays, 03:41 UTC, so a session measured in hours has the weekend
+    # to itself. Not on the hour: GitHub queues scheduled workflows across
+    # every repository that asked for the same minute, and the run can be
+    # dropped outright when the queue is long.
+    # Cron runs from the default branch only, so this file gates nothing
+    # until it reaches master -- on dev it is reachable through the
+    # dispatch button below and nowhere else
+    - cron: "41 3 * * 0"
+  # the escape hatch, and the way to spend a whole afternoon on the engine
+  # session that the weekly budget only samples
+  workflow_dispatch:
+  # No pull_request trigger, unlike links.yml, which does run itself when
+  # its own configuration changes. The difference is the clock: a link
+  # sweep is a couple of hundred requests, a mutation session is hours, so
+  # a trigger on .github/mutation/*.toml would hang an hours-long job off a
+  # pull request it is not allowed to gate. What that trigger would have
+  # caught is caught cheaply elsewhere -- check-toml parses these files on
+  # every commit, and `cosmic-ray baseline` below fails the run before any
+  # mutant if the test command has gone stale
+
+# least privilege for the GITHUB_TOKEN: everything running in a job can
+# read it, and nothing here writes. In particular no issues: write --
+# filing an issue per survivor is the obvious next step and the wrong one,
+# a survivor being a test to write rather than a defect to track
+permissions:
+  contents: read
+
+# cancel superseded runs. Named literally rather than through
+# github.workflow, as everywhere else here: in a called workflow that
+# expression is the caller's name.
+# cancel-in-progress because a dispatch is how somebody asks for these
+# numbers now, and waiting behind the scheduled run for hours would be the
+# opposite of an escape hatch
+concurrency:
+  group: mutation-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  mutation:
+    name: Mutate the consensus code
+    runs-on: ubuntu-latest
+    # the two budgets below add up to 180, and the rest is what it takes to
+    # build the bindings from source, take the baseline and write the
+    # reports. A job that reaches this ceiling has hung somewhere other
+    # than in a session, both of those being cut by `timeout` on their own
+    timeout-minutes: 200
+    steps:
+      # every action is pinned to a commit SHA, the tag in the comment: a
+      # tag, let alone a branch, is a name its owner can move
+      - name: Checkout code
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          # see the checkout of the test-py job in test.yml
+          persist-credentials: false
+      - name: Setup uv
+        uses: astral-sh/setup-uv@c771a70e6277c0a99b617c7a806ffedaca235ff9 # v9.0.0
+        with:
+          # the bindings are compiled from source, from the git revision
+          # uv.lock pins, so the cache is the difference between a couple
+          # of minutes and a couple of seconds on every run
+          enable-cache: true
+      # the test command of each configuration, run once against the
+      # unmutated tree. Without this a stale path or a renamed test file
+      # fails every mutant identically, and the session reports a perfect
+      # kill rate -- the one failure mode of a mutation run that looks like
+      # good news
+      - name: Check the baselines
+        run: |
+          for config in .github/mutation/*.toml; do
+            uv run --locked --no-default-groups --group test --group mutation \
+              cosmic-ray baseline "$config"
+          done
+      # init enumerates the mutants and exec runs them, one at a time, in
+      # this working tree: the local distributor writes each mutation into
+      # the file itself and restores it afterwards, so the two sessions run
+      # in sequence and nothing else may read the source while they do.
+      #
+      # `timeout` and not the job's timeout-minutes, which would cancel the
+      # job and take the reports and the artifact with it: what is wanted
+      # is the numbers for the mutants that did run. 124 is what timeout
+      # exits with when it cuts a session, and a session is resumable --
+      # `cosmic-ray exec` runs the jobs still pending -- so a partial run
+      # is a partial answer rather than a lost one.
+      #
+      # 90 minutes each, and the asymmetry is in what they buy rather than
+      # in the number: the sighash session is half an hour of cpu -- 727
+      # mutants, each costing between the 1.1 s of one the sighash vectors
+      # kill and the 9.2 s of one that reaches the end of the command --
+      # and finishes inside the budget with room for a runner slower than
+      # the machine that measured it, while the engine's five and a half
+      # hours (2768 mutants at 7.2 s) cannot
+      # finish in any budget this workflow is worth and is sampled instead.
+      # .github/mutation/engine.toml carries that arithmetic. A sample of
+      # the same slice every week is worth more than it sounds: the
+      # verdicts in it are stable, so one that changes is a test that
+      # stopped checking what it used to
+      - name: Run the mutation sessions
+        run: |
+          run_session() {
+            local config="$1" session="$2" budget="$3" status=0
+            uv run --locked --no-default-groups --group test --group mutation \
+              cosmic-ray init "$config" "$session"
+            timeout "$budget" \
+              uv run --locked --no-default-groups --group test --group mutation \
+              cosmic-ray exec "$config" "$session" || status=$?
+            if [ "$status" -ne 0 ] && [ "$status" -ne 124 ]; then
+              return "$status"
+            fi
+            if [ "$status" -eq 124 ]; then
+              echo "::notice::$config: cut at $budget, see the report"
+            fi
+          }
+          run_session .github/mutation/sig_hash.toml sig_hash.sqlite 90m
+          run_session .github/mutation/engine.toml engine.sqlite 90m
+      # always(), because the reports are the whole product: a session cut
+      # short, or one whose exec died, still holds every verdict reached
+      # before that, and those are what somebody reads on Monday
+      - name: Write the reports
+        if: always()
+        run: |
+          for session in sig_hash engine; do
+            [ -f "$session.sqlite" ] || continue
+            # --surviving-only with the diff, which is the whole of what
+            # anybody acts on: a killed mutant is the suite working, and
+            # printing all 727 of them would bury the dozen that are not.
+            # Not --show-output, which is the pytest run of every mutant,
+            # megabytes of it; the html below has the full picture
+            uv run --locked --no-default-groups --group test --group mutation \
+              cr-report --surviving-only --show-diff "$session.sqlite" \
+              > "$session-survivors.txt"
+            uv run --locked --no-default-groups --group test --group mutation \
+              cr-html "$session.sqlite" > "$session-report.html"
+            # the one line worth reading in the log rather than in the
+            # artifact. Never with --fail-over: a survival rate is not a
+            # thing this workflow is allowed to be red about
+            uv run --locked --no-default-groups --group test --group mutation \
+              cr-rate "$session.sqlite" | sed "s/^/$session survival rate: /"
+          done
+      # the sessions as well as the reports: a .sqlite is what `cr-report`
+      # and `cr-html` are re-run against, and what a later `cosmic-ray
+      # exec` resumes, so downloading one is how the engine's remaining
+      # two thirds get finished on somebody's machine
+      - name: Upload the sessions and the reports
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: mutation-sessions
+          path: |
+            *.sqlite
+            *-survivors.txt
+            *-report.html
+          if-no-files-found: error
+          # long enough to compare a run with the one before it, short
+          # enough that a weekly job does not accumulate a year of sqlite
+          retention-days: 90
