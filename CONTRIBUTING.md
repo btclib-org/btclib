@@ -287,6 +287,22 @@ uv run --locked --no-default-groups --group docs \
     sphinx-build -W --keep-going -b html docs/source docs/build/html
 ```
 
+That job has a second step, which reads the pages the first one wrote and
+must find nothing — the job fails if this grep exits 0:
+
+```shell
+grep -rn 'href="#\./' docs/build/html --include='*.html'
+```
+
+A link between the root markdown files — `./SECURITY.md` in README.md, the
+spelling GitHub, btclib.org and PyPI need and the one lychee checks — is
+one sphinx cannot resolve on its own, and what MyST emits for a target it
+cannot resolve is an anchor on the page it is already on rather than a
+warning. `docs/source/conf.py` resolves those links and suppresses no
+`myst.xref_missing`, so `-W` fails on the next one that has no target; the
+grep asks the same question of the HTML, where no suppression can hide the
+answer.
+
 The only check with no local equivalent is CodeQL, which GitHub runs on
 its side; its findings appear under the Security tab.
 

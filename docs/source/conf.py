@@ -14,10 +14,23 @@ documentation: https://www.sphinx-
 doc.org/en/master/usage/configuration.html
 """
 
+import posixpath
 import re
 from pathlib import Path
+from typing import Any
 
 import tomllib
+from docutils import nodes
+from sphinx.addnodes import pending_xref
+from sphinx.application import Sphinx
+from sphinx.transforms.post_transforms import SphinxPostTransform
+
+# the repository root, two levels up from this file, and the one place
+# below that is allowed to name it
+ROOT = Path(__file__).parents[2].resolve()
+# read once and read twice from: the version below and the github url the
+# transform at the bottom builds its links on
+PYPROJECT = tomllib.loads((ROOT / "pyproject.toml").read_text(encoding="utf-8"))
 
 # -- Project information -----------------------------------------------------
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#project-information
@@ -28,16 +41,14 @@ project = "btclib"
 # than imported, for the same reason as the version below
 project_copyright = re.search(
     r'^__copyright__ = "Copyright \(C\) (.+)"$',
-    (Path(__file__).parents[2] / "btclib" / "__init__.py").read_text(encoding="utf-8"),
+    (ROOT / "btclib" / "__init__.py").read_text(encoding="utf-8"),
     re.MULTILINE,
 ).group(1)
 author = "The btclib developers"
 # read from pyproject.toml, the one place the version is declared, and not
 # from importlib.metadata: that would need btclib installed in the
 # environment building the documentation, which read the docs does not do
-release = tomllib.loads(
-    (Path(__file__).parents[2] / "pyproject.toml").read_text(encoding="utf-8")
-)["project"]["version"]
+release = PYPROJECT["project"]["version"]
 
 # -- General configuration ---------------------------------------------------
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#general-configuration
@@ -56,21 +67,13 @@ extensions = [
 
 source_suffix = [".rst", ".md"]
 
-# the four markdown pages of the toctree are this repository's README,
-# CONTRIBUTING, SECURITY and HISTORY, pulled in by a myst {include}. They
-# are written for GitHub, where "./SECURITY.md" is a correct link, and
-# sphinx sees them lifted out of the tree that makes it correct: six such
-# links have no target here, and two of them -- CODE_OF_CONDUCT.md and
-# tests/README.md -- are not part of the documentation at all, so no
-# rewriting could give them one.
-# Suppressed by name rather than by dropping the -W that .readthedocs.yaml
-# passes, because -W is there for the failure that actually mattered: an
-# automodule whose module does not import, which is a warning and rendered
-# as an empty page for as long as nobody read the log.
-# Not absolute github urls in the markdown instead: the
-# check-vcs-permalinks hook rejects a blob/master link, rightly, and a
-# permalink pinned to a commit is the wrong thing for a navigation link
-suppress_warnings = ["myst.xref_missing"]
+# no suppress_warnings, and myst.xref_missing least of all: the transform
+# at the bottom of this file resolves every link the included root files
+# carry, so a myst target still missing is a link with nowhere to go and
+# -W is what says so. Suppressing that subtype hides exactly the defect
+# issue #195 is about, because what myst emits for a target it cannot
+# resolve is not a visibly broken link, it is an anchor to an id the page
+# does not have
 
 templates_path = ["_templates"]
 
@@ -93,3 +96,105 @@ html_theme = "sphinx_rtd_theme"
 # was harmless while nothing read it and is a failure now that
 # .readthedocs.yaml builds with -W. Re-add the setting with the directory,
 # not before it
+
+
+# -- Links out of the included root markdown files ----------------------------
+
+# Five pages of the toctree are this repository's README, CONTRIBUTING,
+# SECURITY, HISTORY and CHANGELOG, each pulled into a *_link.md shim by a
+# myst {include}. Those files are written for the three places that read
+# them unrendered -- the GitHub file view, btclib.org, which is served
+# from master's root, and the PyPI long description -- so "./SECURITY.md"
+# is the correct spelling there and the one links.yml checks, resolving it
+# as a path relative to the file. Sphinx sees them lifted out of the tree
+# that makes it correct, and myst resolves not one of those links.
+#
+# What it emits instead is the reason this needs code rather than a
+# warning filter: a target myst cannot resolve becomes an anchor on the
+# page it is already on, href="#./SECURITY.md", an id nothing has. The
+# build succeeds, -W sees nothing, and lychee reads the sources, where the
+# path is right (issue #195).
+#
+# The transform below answers each link from the repository rather than
+# from a table that would have to be kept in step with this directory: a
+# path a *_link.md shim includes becomes a reference to that page, any
+# other path that exists in the tree becomes a link to the file on GitHub,
+# and a path that exists nowhere is left to myst -- which reports it, and
+# -W then fails, now that suppress_warnings no longer hides the subtype.
+#
+# Not the {include} directive's :relative-docs: option, which is what it
+# looks like the job of. It rewrites destinations that begin with the
+# prefix it is given, so "docs/source/" leaves "./SECURITY.md" untouched;
+# and giving it "./" is worse than doing nothing, measured -- the
+# destination becomes "../../SECURITY.md", a path outside srcdir that is
+# no document, sphinx reads it as a download, finds nothing to copy, and
+# renders the link text with no link at all.
+#
+# Not copying the root files into this directory at build time either.
+# CONTRIBUTING.md links to CODE_OF_CONDUCT.md and tests/README.md, neither
+# of which is part of the documentation, so copies leave those two dead
+# however many are made; and the copies are generated files in a source
+# tree, which is a second definition of five files that already exist.
+
+# a shim is one myst include fence, and the path on that line is the file
+# the shim renders
+INCLUDE = re.compile(r"^```\{include\}\s+(\S+)\s*$", re.MULTILINE)
+# repository-relative path -> the docname whose page renders it
+INCLUDED = {
+    str((shim.parent / match.group(1)).resolve().relative_to(ROOT)): shim.stem
+    for shim in sorted(Path(__file__).parent.glob("*_link.md"))
+    for match in INCLUDE.finditer(shim.read_text(encoding="utf-8"))
+}
+# master, not a permalink pinned to a commit: these are navigation links
+# to files that keep changing, and a reader following one wants the file
+# as it stands. The base url comes from pyproject.toml, where every url
+# this project publishes is declared
+BLOB = f"{PYPROJECT['project']['urls']['GitHub']}/blob/master/"
+
+
+class RootFileLinks(SphinxPostTransform):
+    """Resolve the repository-relative links of the included root files."""
+
+    # ahead of myst's own resolver, which runs at 9 and is what turns an
+    # unresolved target into that anchor
+    default_priority = 5
+
+    def run(self, **kwargs: Any) -> None:
+        """Rewrite every myst xref naming a file of this repository."""
+        # the list is taken before the tree is edited: replace_self on a
+        # node the generator is standing on reparents its children under it
+        for node in list(self.document.findall(pending_xref)):
+            # refdomain "doc" is a link myst has already resolved to a
+            # page; None is one it has given up on, and only the shims
+            # hold links written relative to the repository root, so
+            # anywhere else a path that does not resolve is a defect to
+            # report rather than one to rewrite
+            if node.get("reftype") != "myst" or node.get("refdomain") is not None:
+                continue
+            if node.get("refdoc", self.env.docname) not in INCLUDED.values():
+                continue
+            target, _, anchor = node["reftarget"].partition("#")
+            # "./tests/README.md" -> "tests/README.md"; a path climbing out
+            # of the repository is nothing this can answer
+            target = posixpath.normpath(target)
+            if target.startswith(".."):
+                continue
+            if target in INCLUDED:
+                # handed back to myst as the link it would have been
+                # written as, so the page title and the caption are its
+                # business and not this file's
+                node["refdomain"] = "doc"
+                node["reftarget"] = INCLUDED[target]
+                node["reftargetid"] = anchor or None
+            elif (ROOT / target).is_file():
+                fragment = f"#{anchor}" if anchor else ""
+                reference = nodes.reference(
+                    "", "", refuri=f"{BLOB}{target}{fragment}", internal=False
+                )
+                reference.extend(node.children)
+                node.replace_self(reference)
+
+
+def setup(app: Sphinx) -> None:
+    """Register the transform above; sphinx calls this."""
+    app.add_post_transform(RootFileLinks)
