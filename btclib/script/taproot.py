@@ -177,8 +177,8 @@ def output_pubkey(
 
     # secp256k1_xonly_pubkey_tweak_add is this very operation, parity
     # included, and it answers the pair this function returns. 12.0 us
-    # against 109.3 for the three lines below (2000 tweaks, best of
-    # nine): the python path lifts the x-only key to a point with
+    # against 109.3 for the three lines below, over 2000 tweaks: the
+    # python path lifts the x-only key to a point with
     # ec.y_even, i.e. a modular square root, which is 74 us of that on
     # its own -- while libsecp256k1 needs no such lift, having the
     # y coordinate as it goes
@@ -207,8 +207,8 @@ def output_prvkey(
     # time, which the python `%` on a secret scalar is not. The x-only
     # public key the tweak commits to comes from the bindings too, and
     # the parity byte dropped from it is the one they will decide again
-    # for themselves: 32.0 us against 82.3 (2000 tweaks, best of nine),
-    # the difference being the point this path never materializes and
+    # for themselves: 32.0 us against 82.3 over 2000 tweaks, the
+    # difference being the point this path never materializes and
     # the square root it never takes to check that point's parity
     if _libsecp256k1_applicable(ec):
         pub_key = bytes_from_prv_key_int(internal_prvkey, ec)[1:]

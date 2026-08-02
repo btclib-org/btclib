@@ -1998,7 +1998,7 @@ twenty-nine source-breaking changes on their own.
   private key — the negation of a key whose public point has an odd y
   included — where python negated with `ec.n - q` and added with a `%`.
   Neither is constant time; the C one is, and it is a secret scalar. It
-  is faster as well, 32.0 µs against 82.3 (2000 tweaks, best of nine),
+  is faster as well, 32.0 µs against 82.3 over 2000 tweaks,
   because the x-only public key the tweak commits to now comes from
   `bytes_from_prv_key_int` instead of a point built in python and a
   square root taken to learn that point's parity. The python arithmetic
@@ -2009,7 +2009,7 @@ twenty-nine source-breaking changes on their own.
   `check_output_pubkey` calls `xonly.tweak_add_check`, the dedicated
   verification. Each of the two lifted the x-only key to a point with
   `ec.y_even` and added `mult(t)` to it in python: 12.0 µs against 109.3
-  for an output key, 2000 tweaks best of nine, of which the modular square
+  for an output key over 2000 tweaks, of which the modular square
   root alone was 74. The python arithmetic stays, and the tests compute
   every tweak twice to hold the two answers to each other — taproot has no
   second curve to reach that path with, a toy curve failing BIP341's range
