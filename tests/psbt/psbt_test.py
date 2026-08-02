@@ -1130,3 +1130,22 @@ def test_a_single_key_input_takes_one_signature() -> None:
     err_msg = "2 signatures for a single-key input"
     with pytest.raises(BTClibValueError, match=err_msg):
         finalize_psbt(psbt)
+
+
+def test_an_input_that_does_not_say_what_it_spends() -> None:
+    """No utxo is no dispatch, and the finalizer builds what it always did.
+
+    A missing utxo is a psbt an Updater has not finished, not evidence
+    about the spend, so it is not refused here: the signatures go into
+    the script_sig with the redeem script after them, which is the
+    answer for every kind the psbt has not identified. The same holds
+    one level down, for a p2sh input carrying no redeem script
+    (issue #249).
+    """
+    psbt, _ = _single_key_psbt("p2wpkh")
+    sig = psbt.inputs[0].partial_sigs[_PUB_KEY]
+    psbt.inputs[0].witness_utxo = None
+
+    psbt_in = finalize_psbt(psbt).inputs[0]
+    assert psbt_in.final_script_sig == serialize([sig])
+    assert not psbt_in.final_script_witness
