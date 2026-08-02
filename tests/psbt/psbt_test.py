@@ -10,6 +10,7 @@
 """Tests for the `btclib.psbt.psbt` module."""
 
 import base64
+import inspect
 from io import BytesIO
 from typing import Any
 
@@ -21,10 +22,11 @@ from btclib.ecc import dsa
 from btclib.exceptions import BTClibValueError
 from btclib.hashes import hash160, hash256, ripemd160, sha256
 from btclib.psbt import Psbt, combine_psbts, extract_tx, finalize_psbt, join_psbts
-from btclib.psbt.psbt import _sort_or_shuffle_together
+from btclib.psbt.psbt import _sig_hash_from_psbt_in, _sort_or_shuffle_together
 from btclib.psbt.psbt_utils import PSBT_SEPARATOR
 from btclib.script import ScriptPubKey, Witness, serialize, sig_hash
 from btclib.script.engine import verify_transaction
+from btclib.to_pub_key import pub_keyinfo_from_prv_key
 from btclib.tx import OutPoint, Tx, TxIn, TxOut
 from tests import load, vector_id
 from tests.conftest import JsonGolden
@@ -227,13 +229,20 @@ def test_psbt_combination() -> None:
         combine_psbts([psbt1, psbt2])
 
 
+# the psbt BIP174's Combiner example produces, which its Finalizer
+# example turns into the one test_finalize compares against: two inputs,
+# a p2sh 2-of-2 and a p2sh-p2wsh 2-of-2, each with both signatures and
+# each asking for SIGHASH_ALL. It is the fixture of every Finalizer test
+# below, the checks a Finalizer makes being per input
+TO_BE_FINALIZED = "cHNidP8BAJoCAAAAAljoeiG1ba8MI76OcHBFbDNvfLqlyHV5JPVFiHuyq911AAAAAAD/////g40EJ9DsZQpoqka7CwmK6kQiwHGyyng1Kgd5WdB86h0BAAAAAP////8CcKrwCAAAAAAWABTYXCtx0AYLCcmIauuBXlCZHdoSTQDh9QUAAAAAFgAUAK6pouXw+HaliN9VRuh0LR2HAI8AAAAAAAEAuwIAAAABqtc5MQGL0l+ErkALaISL4J23BurCrBgpi6vucatlb4sAAAAASEcwRAIgWPb8fGoz4bMVSNSByCbAFb0wE1qtQs1neQ2rZtKtJDsCIEoc7SYExnNbY5PltBaR3XiwDwxZQvufdRhW+qk4FX26Af7///8CgPD6AgAAAAAXqRQPuUY0IWlrgsgzryQceMF9295JNIfQ8gonAQAAABepFCnKdPigj4GZlCgYXJe12FLkBj9hh2UAAAAiAgKVg785rgpgl0etGZrd1jT6YQhVnWxc05tMIYPxq5bgf0cwRAIgdAGK1BgAl7hzMjwAFXILNoTMgSOJEEjn282bVa1nnJkCIHPTabdA4+tT3O+jOCPIBwUUylWn3ZVE8VfBZ5EyYRGMASICAtq2H/SaFNtqfQKwzR+7ePxLGDErW05U2uTbovv+9TbXSDBFAiEA9hA4swjcHahlo0hSdG8BV3KTQgjG0kRUOTzZm98iF3cCIAVuZ1pnWm0KArhbFOXikHTYolqbV2C+ooFvZhkQoAbqAQEDBAEAAAABBEdSIQKVg785rgpgl0etGZrd1jT6YQhVnWxc05tMIYPxq5bgfyEC2rYf9JoU22p9ArDNH7t4/EsYMStbTlTa5Nui+/71NtdSriIGApWDvzmuCmCXR60Zmt3WNPphCFWdbFzTm0whg/GrluB/ENkMak8AAACAAAAAgAAAAIAiBgLath/0mhTban0CsM0fu3j8SxgxK1tOVNrk26L7/vU21xDZDGpPAAAAgAAAAIABAACAAAEBIADC6wsAAAAAF6kUt/X69A49QKWkWbHbNTXyty+pIeiHIgIDCJ3BDHrG21T5EymvYXMz2ziM6tDCMfcjN50bmQMLAtxHMEQCIGLrelVhB6fHP0WsSrWh3d9vcHX7EnWWmn84Pv/3hLyyAiAMBdu3Rw2/LwhVfdNWxzJcHtMJE+mWzThAlF2xIijaXwEiAgI63ZBPPW3PWd25BrDe4jUpt/+57VDl6GFRkmhgIh8Oc0cwRAIgZfRbpZmLWaJ//hp77QFq8fH5DVSzqo90UKpfVqJRA70CIH9yRwOtHtuWaAsoS1bU/8uI9/t1nqu+CKow8puFE4PSAQEDBAEAAAABBCIAIIwjUxc3Q7WV37Sge3K6jkLjeX2nTof+fZ10l+OyAokDAQVHUiEDCJ3BDHrG21T5EymvYXMz2ziM6tDCMfcjN50bmQMLAtwhAjrdkE89bc9Z3bkGsN7iNSm3/7ntUOXoYVGSaGAiHw5zUq4iBgI63ZBPPW3PWd25BrDe4jUpt/+57VDl6GFRkmhgIh8OcxDZDGpPAAAAgAAAAIADAACAIgYDCJ3BDHrG21T5EymvYXMz2ziM6tDCMfcjN50bmQMLAtwQ2QxqTwAAAIAAAACAAgAAgAAiAgOppMN/WZbTqiXbrGtXCvBlA5RJKUJGCzVHU+2e7KWHcRDZDGpPAAAAgAAAAIAEAACAACICAn9jmXV9Lv9VoTatAsaEsYOLZVbl8bazQoKpS2tQBRCWENkMak8AAACAAAAAgAUAAIAA"
+
+
 def test_finalize() -> None:
     psbt_str = "cHNidP8BAJoCAAAAAljoeiG1ba8MI76OcHBFbDNvfLqlyHV5JPVFiHuyq911AAAAAAD/////g40EJ9DsZQpoqka7CwmK6kQiwHGyyng1Kgd5WdB86h0BAAAAAP////8CcKrwCAAAAAAWABTYXCtx0AYLCcmIauuBXlCZHdoSTQDh9QUAAAAAFgAUAK6pouXw+HaliN9VRuh0LR2HAI8AAAAAAAEAuwIAAAABqtc5MQGL0l+ErkALaISL4J23BurCrBgpi6vucatlb4sAAAAASEcwRAIgWPb8fGoz4bMVSNSByCbAFb0wE1qtQs1neQ2rZtKtJDsCIEoc7SYExnNbY5PltBaR3XiwDwxZQvufdRhW+qk4FX26Af7///8CgPD6AgAAAAAXqRQPuUY0IWlrgsgzryQceMF9295JNIfQ8gonAQAAABepFCnKdPigj4GZlCgYXJe12FLkBj9hh2UAAAABB9oARzBEAiB0AYrUGACXuHMyPAAVcgs2hMyBI4kQSOfbzZtVrWecmQIgc9Npt0Dj61Pc76M4I8gHBRTKVafdlUTxV8FnkTJhEYwBSDBFAiEA9hA4swjcHahlo0hSdG8BV3KTQgjG0kRUOTzZm98iF3cCIAVuZ1pnWm0KArhbFOXikHTYolqbV2C+ooFvZhkQoAbqAUdSIQKVg785rgpgl0etGZrd1jT6YQhVnWxc05tMIYPxq5bgfyEC2rYf9JoU22p9ArDNH7t4/EsYMStbTlTa5Nui+/71NtdSrgABASAAwusLAAAAABepFLf1+vQOPUClpFmx2zU18rcvqSHohwEHIyIAIIwjUxc3Q7WV37Sge3K6jkLjeX2nTof+fZ10l+OyAokDAQjaBABHMEQCIGLrelVhB6fHP0WsSrWh3d9vcHX7EnWWmn84Pv/3hLyyAiAMBdu3Rw2/LwhVfdNWxzJcHtMJE+mWzThAlF2xIijaXwFHMEQCIGX0W6WZi1mif/4ae+0BavHx+Q1Us6qPdFCqX1aiUQO9AiB/ckcDrR7blmgLKEtW1P/LiPf7dZ6rvgiqMPKbhROD0gFHUiEDCJ3BDHrG21T5EymvYXMz2ziM6tDCMfcjN50bmQMLAtwhAjrdkE89bc9Z3bkGsN7iNSm3/7ntUOXoYVGSaGAiHw5zUq4AIgIDqaTDf1mW06ol26xrVwrwZQOUSSlCRgs1R1Ptnuylh3EQ2QxqTwAAAIAAAACABAAAgAAiAgJ/Y5l1fS7/VaE2rQLGhLGDi2VW5fG2s0KCqUtrUAUQlhDZDGpPAAAAgAAAAIAFAACAAA=="
     psbt = Psbt.b64decode(psbt_str)
     assert psbt.b64encode() == psbt_str
 
-    to_be_finalized_psbt_string = "cHNidP8BAJoCAAAAAljoeiG1ba8MI76OcHBFbDNvfLqlyHV5JPVFiHuyq911AAAAAAD/////g40EJ9DsZQpoqka7CwmK6kQiwHGyyng1Kgd5WdB86h0BAAAAAP////8CcKrwCAAAAAAWABTYXCtx0AYLCcmIauuBXlCZHdoSTQDh9QUAAAAAFgAUAK6pouXw+HaliN9VRuh0LR2HAI8AAAAAAAEAuwIAAAABqtc5MQGL0l+ErkALaISL4J23BurCrBgpi6vucatlb4sAAAAASEcwRAIgWPb8fGoz4bMVSNSByCbAFb0wE1qtQs1neQ2rZtKtJDsCIEoc7SYExnNbY5PltBaR3XiwDwxZQvufdRhW+qk4FX26Af7///8CgPD6AgAAAAAXqRQPuUY0IWlrgsgzryQceMF9295JNIfQ8gonAQAAABepFCnKdPigj4GZlCgYXJe12FLkBj9hh2UAAAAiAgKVg785rgpgl0etGZrd1jT6YQhVnWxc05tMIYPxq5bgf0cwRAIgdAGK1BgAl7hzMjwAFXILNoTMgSOJEEjn282bVa1nnJkCIHPTabdA4+tT3O+jOCPIBwUUylWn3ZVE8VfBZ5EyYRGMASICAtq2H/SaFNtqfQKwzR+7ePxLGDErW05U2uTbovv+9TbXSDBFAiEA9hA4swjcHahlo0hSdG8BV3KTQgjG0kRUOTzZm98iF3cCIAVuZ1pnWm0KArhbFOXikHTYolqbV2C+ooFvZhkQoAbqAQEDBAEAAAABBEdSIQKVg785rgpgl0etGZrd1jT6YQhVnWxc05tMIYPxq5bgfyEC2rYf9JoU22p9ArDNH7t4/EsYMStbTlTa5Nui+/71NtdSriIGApWDvzmuCmCXR60Zmt3WNPphCFWdbFzTm0whg/GrluB/ENkMak8AAACAAAAAgAAAAIAiBgLath/0mhTban0CsM0fu3j8SxgxK1tOVNrk26L7/vU21xDZDGpPAAAAgAAAAIABAACAAAEBIADC6wsAAAAAF6kUt/X69A49QKWkWbHbNTXyty+pIeiHIgIDCJ3BDHrG21T5EymvYXMz2ziM6tDCMfcjN50bmQMLAtxHMEQCIGLrelVhB6fHP0WsSrWh3d9vcHX7EnWWmn84Pv/3hLyyAiAMBdu3Rw2/LwhVfdNWxzJcHtMJE+mWzThAlF2xIijaXwEiAgI63ZBPPW3PWd25BrDe4jUpt/+57VDl6GFRkmhgIh8Oc0cwRAIgZfRbpZmLWaJ//hp77QFq8fH5DVSzqo90UKpfVqJRA70CIH9yRwOtHtuWaAsoS1bU/8uI9/t1nqu+CKow8puFE4PSAQEDBAEAAAABBCIAIIwjUxc3Q7WV37Sge3K6jkLjeX2nTof+fZ10l+OyAokDAQVHUiEDCJ3BDHrG21T5EymvYXMz2ziM6tDCMfcjN50bmQMLAtwhAjrdkE89bc9Z3bkGsN7iNSm3/7ntUOXoYVGSaGAiHw5zUq4iBgI63ZBPPW3PWd25BrDe4jUpt/+57VDl6GFRkmhgIh8OcxDZDGpPAAAAgAAAAIADAACAIgYDCJ3BDHrG21T5EymvYXMz2ziM6tDCMfcjN50bmQMLAtwQ2QxqTwAAAIAAAACAAgAAgAAiAgOppMN/WZbTqiXbrGtXCvBlA5RJKUJGCzVHU+2e7KWHcRDZDGpPAAAAgAAAAIAEAACAACICAn9jmXV9Lv9VoTatAsaEsYOLZVbl8bazQoKpS2tQBRCWENkMak8AAACAAAAAgAUAAIAA"
-    to_be_finalized_psbt = Psbt.b64decode(to_be_finalized_psbt_string)
+    to_be_finalized_psbt = Psbt.b64decode(TO_BE_FINALIZED)
     finalized_psbt = finalize_psbt(to_be_finalized_psbt)
     assert finalized_psbt == psbt
 
@@ -755,7 +764,6 @@ def test_join_psbts() -> None:
         [psbt1, psbt2],
         enforce_same_tx_version=True,
         enforce_same_tx_lock_time=True,
-        merge_out=False,
         shuffle_inp=False,
         shuffle_out=False,
     )
@@ -769,14 +777,12 @@ def test_join_psbts() -> None:
         [psbt1, psbt2],
         enforce_same_tx_version=True,
         enforce_same_tx_lock_time=True,
-        merge_out=False,
         shuffle_inp=False,
         shuffle_out=False,
     ) == join_psbts(
         [psbt1, psbt2],
         enforce_same_tx_version=True,
         enforce_same_tx_lock_time=True,
-        merge_out=False,
         shuffle_inp=False,
         shuffle_out=False,
     )
@@ -788,7 +794,6 @@ def test_join_psbts() -> None:
             [psbt1, psbt2],
             enforce_same_tx_version=True,
             enforce_same_tx_lock_time=True,
-            merge_out=False,
             shuffle_inp=True,
             shuffle_out=True,
         )
@@ -803,7 +808,6 @@ def test_join_psbts() -> None:
             [psbt1, psbt2],
             enforce_same_tx_version=True,
             enforce_same_tx_lock_time=True,
-            merge_out=False,
             shuffle_inp=False,
             shuffle_out=False,
         )
@@ -817,7 +821,6 @@ def test_join_psbts() -> None:
             [psbt1, psbt2],
             enforce_same_tx_version=True,
             enforce_same_tx_lock_time=True,
-            merge_out=False,
             shuffle_inp=False,
             shuffle_out=False,
         )
@@ -836,7 +839,6 @@ def test_join_psbts() -> None:
             [psbt1, psbt2],
             enforce_same_tx_version=True,
             enforce_same_tx_lock_time=True,
-            merge_out=False,
             shuffle_inp=False,
             shuffle_out=False,
         )
@@ -858,7 +860,6 @@ def test_join_psbts() -> None:
             [psbt1, psbt2],
             enforce_same_tx_version=True,
             enforce_same_tx_lock_time=True,
-            merge_out=False,
             shuffle_inp=False,
             shuffle_out=False,
         )
@@ -871,21 +872,23 @@ def test_join_psbts() -> None:
             [psbt1, psbt2],
             enforce_same_tx_version=True,
             enforce_same_tx_lock_time=True,
-            merge_out=False,
             shuffle_inp=False,
             shuffle_out=False,
         )
 
-    psbt2 = Psbt.b64decode(psbt2_str)
-    with pytest.raises(BTClibValueError, match="output merge not implemented yet"):
-        join_psbts(
-            [psbt1, psbt2],
-            enforce_same_tx_version=True,
-            enforce_same_tx_lock_time=True,
-            merge_out=True,
-            shuffle_inp=False,
-            shuffle_out=False,
-        )
+    # there is no merge_out parameter to ask for an output merge with:
+    # coalescing two outputs paying one script invalidates every signature
+    # already made over the previous set, and after the shuffle above the
+    # result would depend on the order the merge ran in.
+    # What says so is the parameter list, rather than a merge_out=True
+    # call asserted to raise: that call raises a TypeError whose text is
+    # the interpreter's -- CPython's "unexpected keyword argument" -- and
+    # not a contract of this library, while the two asserts below are the
+    # contract itself, no parameter of that name and no **kwargs to
+    # swallow one
+    params = inspect.signature(join_psbts).parameters
+    assert "merge_out" not in params
+    assert not any(p.kind is inspect.Parameter.VAR_KEYWORD for p in params.values())
 
 
 def test_shuffle_sort_inp_out() -> None:
@@ -1121,13 +1124,130 @@ def test_a_single_key_input_takes_one_signature() -> None:
     A p2wpkh output commits to one public key, so two partial signatures
     are two claims about which key that is; picking one is a guess, and
     the wrong guess builds a witness that will not run.
+
+    The second signature is a real one, made by a second key over the
+    same sig_hash, and it has to be: issue #173 put a signature check in
+    the finalizer ahead of this one, so a signature merely refiled under
+    another key is refused as invalid before the count is ever reached.
+    Two valid signatures are what isolate the count, and they are also
+    the case that matters -- two participants who each signed.
     """
-    psbt, _ = _single_key_psbt("p2wpkh")
-    other_key = bytes.fromhex(
-        "0279be667ef9dcbbac55a06295ce870b07029bfcdb2dce28d959f2815b16f81798"
+    psbt, prev_outs = _single_key_psbt("p2wpkh")
+    script_code = _p2pkh_script_code(hash160(_PUB_KEY))
+    msg_hash = sig_hash.segwit_v0(script_code, psbt.tx, 0, 1, prev_outs[0].value)
+    other_prv_key = _PRV_KEY + 1
+    other_pub_key = pub_keyinfo_from_prv_key(other_prv_key)[0]
+    psbt.inputs[0].partial_sigs[other_pub_key] = (
+        dsa.sign_(msg_hash, other_prv_key).serialize() + b"\x01"
     )
-    psbt.inputs[0].partial_sigs[other_key] = psbt.inputs[0].partial_sigs[_PUB_KEY]
+
     err_msg = "2 signatures for a single-key input"
+    with pytest.raises(BTClibValueError, match=err_msg):
+        finalize_psbt(psbt)
+
+
+def _one_input_finalized_each() -> tuple[Psbt, Psbt]:
+    """Return the two psbts of two participants, one input finalized each."""
+    finalized = finalize_psbt(Psbt.b64decode(TO_BE_FINALIZED))
+    first = Psbt.b64decode(TO_BE_FINALIZED)
+    second = Psbt.b64decode(TO_BE_FINALIZED)
+    first.inputs[0].final_script_sig = finalized.inputs[0].final_script_sig
+    second.inputs[1].final_script_sig = finalized.inputs[1].final_script_sig
+    second.inputs[1].final_script_witness = finalized.inputs[1].final_script_witness
+    return first, second
+
+
+def test_combining_takes_the_union_of_the_final_witnesses() -> None:
+    """A witness one psbt has and the other has not survives the combine.
+
+    BIP174's Combiner "must merge them into one PSBT", and the result
+    "must contain all of the key-value pairs from each of the PSBTs": two
+    participants finalizing one input each is the case that says so for
+    the witness, which is not a map and so is not merged pair by pair.
+    Both orders, the union being commutative when nothing conflicts.
+    """
+    finalized = finalize_psbt(Psbt.b64decode(TO_BE_FINALIZED))
+    first, second = _one_input_finalized_each()
+    for psbts in ([first, second], list(_one_input_finalized_each())[::-1]):
+        combined = combine_psbts(psbts)
+        assert combined.inputs[0].final_script_sig == (
+            finalized.inputs[0].final_script_sig
+        )
+        assert combined.inputs[1].final_script_witness == (
+            finalized.inputs[1].final_script_witness
+        )
+
+    # what conflicts is picked from, and the psbt combined *into* keeps
+    # what it has: the arbitrary choice BIP174 allows a Combiner, and the
+    # one Bitcoin Core's PSBTInput::Merge makes. Merging the two stacks
+    # element-wise is what must not happen -- a witness stack is
+    # positional, so two of them for one input are two spends of it
+    first, second = _one_input_finalized_each()
+    first.inputs[1].final_script_witness = Witness([b"\x01"])
+    combined = combine_psbts([first, second])
+    assert combined.inputs[1].final_script_witness == Witness([b"\x01"])
+
+
+def test_finalize_refuses_a_signature_of_another_sig_hash_type() -> None:
+    """BIP174 charges the Finalizer with the check, and it is per input.
+
+    "If the input has a PSBT_IN_SIGHASH_TYPE field, the Input Finalizer
+    must fail to finalize that input if any signature does not match the
+    specified sighash type." Skipping it finalizes a psbt into a
+    transaction whose signatures commit to something other than the input
+    asked for, and the input is what the other participants agreed to.
+    """
+    # the vector's own psbt: both inputs ask for SIGHASH_ALL, and every
+    # signature commits to it
+    psbt = Psbt.b64decode(TO_BE_FINALIZED)
+    assert psbt.inputs[0].sig_hash_type == 1
+    assert all(sig[-1] == 1 for sig in psbt.inputs[0].partial_sigs.values())
+    finalize_psbt(psbt)
+
+    psbt.inputs[0].sig_hash_type = 3
+    err_msg = "mismatched sig_hash type: 0x1 vs 0x3"
+    with pytest.raises(BTClibValueError, match=err_msg):
+        finalize_psbt(psbt)
+
+    # 0 is SIGHASH_DEFAULT, a type an input may ask for and no ECDSA
+    # signature carries: what BIP174 tests is the field's presence, so a
+    # falsy value is not an absent field
+    psbt.inputs[0].sig_hash_type = 0
+    err_msg = "mismatched sig_hash type: 0x1 vs 0x0"
+    with pytest.raises(BTClibValueError, match=err_msg):
+        finalize_psbt(psbt)
+
+    # no field, no check: the signatures say which type they commit to
+    psbt.inputs[0].sig_hash_type = None
+    finalize_psbt(psbt)
+
+
+def test_finalize_checks_a_partial_signature_against_its_pub_key() -> None:
+    """A signature filed under a key that did not make it is refused.
+
+    PsbtIn.assert_valid parses the DER and can do no more: what the
+    signature commits to is the whole transaction, which a per-field
+    validator has not got. The Finalizer has it, and BIP174 has it decide
+    "if the input has enough data to pass validation".
+    """
+    psbt = Psbt.b64decode(TO_BE_FINALIZED)
+    finalize_psbt(psbt)
+
+    # the two signatures of the 2-of-2 swapped between its two keys: both
+    # are DER, both keys are on the curve, and neither pair belongs
+    # together
+    keys = list(psbt.inputs[0].partial_sigs)
+    sigs = list(psbt.inputs[0].partial_sigs.values())
+    psbt.inputs[0].partial_sigs = {keys[0]: sigs[1], keys[1]: sigs[0]}
+    err_msg = "invalid partial signature for pub_key "
+    with pytest.raises(BTClibValueError, match=err_msg):
+        finalize_psbt(psbt)
+
+    # and the same for the segwit input, whose hash is BIP143's
+    psbt = Psbt.b64decode(TO_BE_FINALIZED)
+    keys = list(psbt.inputs[1].partial_sigs)
+    sigs = list(psbt.inputs[1].partial_sigs.values())
+    psbt.inputs[1].partial_sigs = {keys[0]: sigs[1], keys[1]: sigs[0]}
     with pytest.raises(BTClibValueError, match=err_msg):
         finalize_psbt(psbt)
 
@@ -1149,3 +1269,79 @@ def test_an_input_that_does_not_say_what_it_spends() -> None:
     psbt_in = finalize_psbt(psbt).inputs[0]
     assert psbt_in.final_script_sig == serialize([sig])
     assert not psbt_in.final_script_witness
+
+
+def test_the_sig_hash_of_an_input_that_does_not_say_what_it_spends() -> None:
+    """Four inputs whose hash is not computable, each finalized all the same.
+
+    None out of `_sig_hash_from_psbt_in` is "the psbt does not say what
+    is being signed", which is not evidence against the signature: the
+    Finalizer leaves such an input alone rather than refusing it.
+    """
+    # no utxo at all
+    psbt = Psbt.b64decode(TO_BE_FINALIZED)
+    psbt.inputs[0].non_witness_utxo = None
+    assert _sig_hash_from_psbt_in(psbt.inputs[0], psbt.tx, 0, 1) is None
+    finalize_psbt(psbt)
+
+    # p2sh with no redeem script: the script_pub_key names a hash, and
+    # the script it hashes is what would be signed
+    psbt = Psbt.b64decode(TO_BE_FINALIZED)
+    psbt.inputs[0].redeem_script = b""
+    assert _sig_hash_from_psbt_in(psbt.inputs[0], psbt.tx, 0, 1) is None
+    finalize_psbt(psbt)
+
+    # p2wsh with no witness script, which is the BIP143 script code
+    psbt = Psbt.b64decode(TO_BE_FINALIZED)
+    psbt.inputs[1].witness_script = b""
+    assert _sig_hash_from_psbt_in(psbt.inputs[1], psbt.tx, 1, 1) is None
+    finalize_psbt(psbt)
+
+    # a taproot output is spent with schnorr signatures, and they travel
+    # in the taproot fields: an ECDSA partial signature beside a p2tr
+    # script_pub_key is not a signature this hash would check
+    psbt = Psbt.b64decode(TO_BE_FINALIZED)
+    psbt.inputs[0].non_witness_utxo = None
+    psbt.inputs[0].witness_utxo = TxOut(100000, ScriptPubKey("5120" + "aa" * 32))
+    assert _sig_hash_from_psbt_in(psbt.inputs[0], psbt.tx, 0, 1) is None
+    finalize_psbt(psbt)
+
+
+def test_the_sig_hash_of_every_input_kind_a_partial_signature_signs() -> None:
+    """The helper's hash is the one the vectors' own signatures verify against.
+
+    BIP174's valid psbts carry three partial signatures, over a p2wsh
+    input and two p2wpkh ones; the p2sh and legacy dispatch is what the
+    Finalizer tests above exercise, that psbt's two inputs being a p2sh
+    2-of-2 and a p2sh-p2wsh one.
+    """
+    vectors = load("psbt", "_data", "bip174_test_vectors.json")["valid psbts"]
+    checked = 0
+    for vector in vectors:
+        psbt = Psbt.b64decode(vector["encoded psbt"])
+        for vin_i, psbt_in in enumerate(psbt.inputs):
+            for pub_key, sig in psbt_in.partial_sigs.items():
+                msg_hash = _sig_hash_from_psbt_in(psbt_in, psbt.tx, vin_i, sig[-1])
+                assert msg_hash is not None
+                assert dsa.verify_(msg_hash, pub_key, sig[:-1], lower_s=False)
+                checked += 1
+    # a count, so that a loop that stops finding signatures is a failure
+    # and not a green run over nothing
+    assert checked == 3
+
+
+def test_the_outpoint_names_an_output_of_the_non_witness_utxo() -> None:
+    """An index past that transaction's vout is refused, not an IndexError.
+
+    The tx_id check beside it does not answer this question, and both
+    readers of the spent output index with it: assert_signable, through
+    _signable_payload, and the sig_hash the Finalizer verifies against.
+    """
+    psbt = Psbt.b64decode(TO_BE_FINALIZED)
+    utxo = psbt.inputs[0].non_witness_utxo
+    assert utxo is not None
+    psbt.tx.vin[0].prev_out = OutPoint(utxo.id, len(utxo.vout))
+
+    err_msg = "outpoint vout out of range for the non-witness utxo"
+    with pytest.raises(BTClibValueError, match=err_msg):
+        psbt.assert_valid()

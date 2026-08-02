@@ -684,6 +684,13 @@ edit.
   `sig_hash.from_tx`, which reads the witness script the same way and had
   the same hole — no vector reaches it there, a sig_hash being asked for
   rather than verified (issue #182)
+- `Psbt.assert_valid` requires the outpoint to name an output the
+  non-witness utxo has: `outpoint vout out of range for the non-witness
+  utxo`, where the index was an `IndexError` out of every reader of the
+  spent output — `assert_signable`, through `_signable_payload`, and the
+  sig_hash the Finalizer now verifies against. The tx_id check beside it
+  does not answer this: a psbt can carry the right transaction and name
+  an output it has not got (issue #173)
 
 ### Immutability and shared state
 
@@ -1549,6 +1556,43 @@ edit.
   the psbt ended. Bitcoin Core draws the line in that very place: "extra
   data after PSBT" is `DecodeRawPSBT`'s, the entry point taking a buffer,
   and not the `Unserialize` that reads a stream (issue #179)
+- **A Finalizer refuses an input whose signatures ask for another
+  sighash type.** BIP174 requires it of the role — "if the input has a
+  `PSBT_IN_SIGHASH_TYPE` field, the Input Finalizer must fail to finalize
+  that input if any signature does not match the specified sighash type"
+  — and `finalize_psbt` did not look, so a psbt finalized into a
+  transaction whose signatures commit to something other than the input,
+  i.e. than what the other participants agreed to. The type a signature
+  commits to is the byte appended to its DER encoding, and the answer is
+  `mismatched sig_hash type: 0x1 vs 0x3`. The field's *presence* is what
+  is tested, not its truthiness: `0` is SIGHASH_DEFAULT, a type an input
+  may ask for and no ECDSA signature carries, so an input asking for it
+  is one that no partial signature can finalize (issue #173)
+- **A Finalizer checks each partial signature against the key it is
+  filed under.** `PsbtIn.assert_valid` parses the DER and can do no more,
+  a signature committing to the whole transaction that a per-field
+  validator has not got; the Finalizer has it, and BIP174 charges that
+  role with deciding "if the input has enough data to pass validation".
+  Covered is every input kind a `PSBT_IN_PARTIAL_SIG` can belong to —
+  legacy (p2pk, p2pkh, bare multisig), p2sh, p2wpkh, p2wsh, and either
+  witness kind wrapped in p2sh. An input that does not say what is being
+  signed is left alone rather than refused, that being a missing utxo or
+  a missing script and not evidence against the signature: no utxo, a
+  p2sh input with no redeem script, a p2wsh one with no witness script,
+  and a taproot output, whose signatures are schnorr and travel in the
+  taproot fields. `sig_hash.from_tx` could not serve, reading the redeem
+  script off the input's script_sig and the witness script off its
+  witness stack, which a psbt's unsigned transaction does not carry
+  (issue #173)
+- **A finalized input drops the preimages and the taproot fields too.**
+  What a finalizer consumed is not serialized beside what it produced,
+  and btclib dropped five of the fields BIP174 says so of; the set is now
+  the whole of what Bitcoin Core's `PSBTInput::Serialize` writes inside
+  its `if (final_script_sig.empty() && final_script_witness.IsNull())` —
+  the four preimage maps and the six taproot fields as well. The utxo
+  stays outside the condition, there and here, an Extractor needing it to
+  check the transaction it builds; so do the unknown fields, which no
+  role understands well enough to drop (issue #173)
 - **The header is one constant and a separator is the `0x00`**, as in
   Bitcoin Core: `PSBT_MAGIC_BYTES` is the five bytes `b"psbt\xff"`, where
   it was the four of "psbt" with the `0xff` beside it as `PSBT_SEPARATOR`;
@@ -1632,6 +1676,18 @@ edit.
   only truncation (issue #123) the check had nothing left to refuse, and
   a vacuous validator reads as a guarantee it does not give. What cannot
   execute is unspendable, which a signer learns by running it
+- **`join_psbts` and `join_txs` have lost their `merge_out` parameter.**
+  It was a fourth positional boolean whose only truthy value raised
+  `output merge not implemented yet`, so what it offered was a choice
+  between doing nothing and failing. Specifying it was the alternative,
+  and it is the wrong answer twice over: coalescing two outputs that pay
+  one script changes the output *set*, so every signature already made
+  over the old one stops verifying, and both functions shuffle or sort
+  the outputs first, which would make the result depend on the order the
+  merge ran in. Summing two payments into one output is the caller's, and
+  before signing is the only point at which it is safe. `merge_out=False`
+  is an argument to delete at each call site; nothing else moves
+  (issue #173)
 - **Core's five script limits are `btclib.script.limits`**, under Core's
   own names: `MAX_SCRIPT_ELEMENT_SIZE`, `MAX_OPS_PER_SCRIPT`,
   `MAX_PUBKEYS_PER_MULTISIG`, `MAX_SCRIPT_SIZE`, `MAX_STACK_SIZE`. They
@@ -2430,6 +2486,17 @@ edit.
 
 ### Tests
 
+- **a Combiner's union of the final witnesses is pinned by a test**: two
+  psbts with a different input finalized in each, combined both ways
+  round, keep both — which the marker beside `_combine_field` said they
+  did not. They do, a `Witness` being sized, so the empty one is falsy
+  and the finalized input is the one taken; what the marker's
+  commented-out list branch would have added is the one wrong answer, a
+  witness stack being positional, so two stacks for one input are two
+  spends of it rather than the halves of one. A conflict is picked from
+  and the psbt combined *into* keeps what it has, which is the arbitrary
+  choice BIP174 allows and the one Bitcoin Core's `PSBTInput::Merge`
+  makes; that is now a test too (issue #173)
 - **the tree measures 100% again**, and the two statements that had gone
   uncovered were electrum's round-trip check on its own encoding — the
   one `_search_mnemonic` makes before it returns a candidate. Not

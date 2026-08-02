@@ -11,9 +11,11 @@
 
 from dataclasses import FrozenInstanceError, fields
 from io import BytesIO
+from typing import Any
 
 import pytest
 
+from btclib.bip32 import BIP32KeyOrigin
 from btclib.psbt import Psbt, PsbtIn
 from btclib.psbt.psbt_in import (
     _DROPPED_ONCE_FINALIZED,
@@ -22,6 +24,8 @@ from btclib.psbt.psbt_in import (
     _WHOLE_VALUE_FIELDS,
 )
 from btclib.psbt.psbt_utils import PSBT_SEPARATOR
+from btclib.script import Witness
+from btclib.tx import OutPoint, Tx, TxIn, TxOut
 from tests.conftest import JsonGolden
 
 
@@ -93,6 +97,90 @@ def test_key_type_tables_name_every_field() -> None:
     assert (
         len(_SERIALIZED_FIELDS) == len(_WHOLE_VALUE_FIELDS) + len(_KEY_DATA_FIELDS) + 1
     )
+
+
+def test_a_finalized_input_drops_everything_the_finalizer_consumed() -> None:
+    """bip 174: what a finalizer consumed is not carried beside its result.
+
+    The set is Bitcoin Core's: PSBTInput::Serialize writes exactly these
+    fields inside `if (final_script_sig.empty() && final_script_witness
+    .IsNull())`, the preimages and the taproot fields included, and
+    leaves the utxo outside it for the Extractor to check the built
+    transaction against.
+
+    check_validity=False throughout: the values below are placeholders,
+    and what is under test is which fields a finalized input emits --
+    which a signature that no key made answers exactly as a real one
+    would, serialization not being where a signature is checked.
+    """
+    values: dict[str, Any] = {
+        "partial_sigs": {b"\x02" + b"\x01" * 32: b"\x30\x02"},
+        "sig_hash_type": 1,
+        "redeem_script": b"\x51",
+        "witness_script": b"\x51",
+        "hd_key_paths": {b"\x02" + b"\x01" * 32: BIP32KeyOrigin(b"\x00" * 4, "m/0")},
+        "ripemd160_preimages": {b"\x01" * 20: b"\x02"},
+        "sha256_preimages": {b"\x01" * 32: b"\x02"},
+        "hash160_preimages": {b"\x01" * 20: b"\x02"},
+        "hash256_preimages": {b"\x01" * 32: b"\x02"},
+        "taproot_key_spend_signature": b"\x01" * 64,
+        "taproot_script_spend_signatures": {b"\x01" * 64: b"\x02" * 64},
+        "taproot_leaf_scripts": {b"\xc0" + b"\x01" * 32: (b"\x51", 0xC0)},
+        "taproot_hd_key_paths": {
+            b"\x01" * 32: ([b"\x02" * 32], BIP32KeyOrigin(b"\x00" * 4, "m/0"))
+        },
+        "taproot_internal_key": b"\x01" * 32,
+        "taproot_merkle_root": b"\x01" * 32,
+    }
+    # a field added to the set without a value here would be dropped by a
+    # test that never serialized it in the first place
+    assert values.keys() == _DROPPED_ONCE_FINALIZED
+
+    # and what survives, which is the half of the contract a set of names
+    # cannot state: the two utxo fields, the Extractor needing them to
+    # check the transaction it builds, and the unknown ones, which no role
+    # understands well enough to drop. Both utxos at once is not a psbt a
+    # Creator would write, and is what pins each of them separately
+    kept: dict[str, Any] = {
+        "non_witness_utxo": Tx(
+            vin=[TxIn(OutPoint(b"\x01" * 32, 0))],
+            vout=[TxOut(1, b"\x51")],
+        ),
+        "witness_utxo": TxOut(1, b"\x51"),
+        "final_script_witness": Witness([b"\x01"]),
+        "unknown": {b"\xfc\x01": b"\x02"},
+    }
+    # the two dicts and the final script_sig are the whole of an input, so
+    # a field added to PsbtIn and to neither of them fails here rather
+    # than going untested in both directions
+    assert values.keys() | kept.keys() | {"final_script_sig"} == {
+        field.name for field in fields(PsbtIn)
+    }
+
+    bare = PsbtIn(final_script_sig=b"\x51").serialize()
+
+    # one field at a time, which is what tells the two apart: each dropped
+    # field does serialize while the input is not finalized -- or "gone
+    # once it is" would hold whatever the set said -- and is gone once it
+    # is; each kept field is still there
+    for name, value in values.items():
+        psbt_in = PsbtIn(**{name: value}, check_validity=False)
+        assert psbt_in.serialize(check_validity=False) != PSBT_SEPARATOR
+        psbt_in = PsbtIn(
+            **{name: value}, final_script_sig=b"\x51", check_validity=False
+        )
+        assert psbt_in.serialize(check_validity=False) == bare
+    for name, value in kept.items():
+        psbt_in = PsbtIn(
+            **{name: value}, final_script_sig=b"\x51", check_validity=False
+        )
+        assert psbt_in.serialize(check_validity=False) != bare
+
+    # and all of them at once, which is the input a Finalizer hands on
+    finalized = PsbtIn(**values, **kept, final_script_sig=b"\x51", check_validity=False)
+    assert finalized.serialize(check_validity=False) == PsbtIn(
+        **kept, final_script_sig=b"\x51", check_validity=False
+    ).serialize(check_validity=False)
 
 
 def test_dataclasses_json_dict(json_golden: JsonGolden) -> None:

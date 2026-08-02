@@ -177,6 +177,14 @@ against the `v2023.7.12` tag.
   `CScript::IsPushOnly`, which compares each op code against OP_16 — and
   the name says which script it is asked about, the script_sig, at both
   call sites as in Core.
+- **`join_psbts` and `join_txs` no longer take `merge_out`.** It was the
+  fourth positional parameter of both, and `merge_out=True` raised
+  `output merge not implemented yet`: delete the argument at each call
+  site, `merge_out=False` having been the only value that did anything.
+  Merging two outputs that pay one script changes the output set, so
+  every signature already made over it stops verifying, and both
+  functions shuffle or sort the outputs first — summing two payments
+  into one output is the caller's, before signing.
 - **`psbt_utils.assert_valid_taproot_tree` is gone**, with the leaf-script
   validation it performed: a PSBT tap tree is stored as it arrives, as
   Core's PSBT stores it. Nothing replaces the call — `PsbtOut.assert_valid`
