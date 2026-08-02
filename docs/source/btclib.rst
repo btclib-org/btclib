@@ -11,6 +11,7 @@ Subpackages
    btclib.block
    btclib.curves
    btclib.ecc
+   btclib.fetch
    btclib.mnemonic
    btclib.psbt
    btclib.script

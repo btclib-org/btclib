@@ -1,0 +1,111 @@
+#!/usr/bin/env python3
+
+# Copyright (C) The btclib developers
+#
+# This file is part of btclib. It is subject to the license terms in the
+# LICENSE file found in the top-level directory of this distribution.
+#
+# No part of btclib including this file, may be copied, modified, propagated,
+# or distributed except according to the terms contained in the LICENSE file.
+"""The block-explorer fallback, for a caller with no node.
+
+Esplora's HTTP api, because it is an api and not a product: Blockstream
+publishes the server as open source, several operators run it, and anyone
+can run their own -- so a client written against it is not written
+against one company's endpoint. `BLOCKSTREAM_INFO` below is the reference
+deployment and is offered as a *value to pass*, never as a default: the
+one decision btclib will not take on a user's behalf is which stranger
+gets to see every address they look up.
+
+What the fallback promises is the same three answers behind the same
+interface. What it does not promise is that they are true. A node
+validated the chain it reports; an explorer is a host on the internet
+that says it did. `get_tx` is the one answer that checks itself, in
+`tx_from_raw` -- the serialization comes back and the id is recomputed
+from it, so a substituted transaction is caught -- and the height and the
+tip hash are taken on trust, there being nothing here to check them
+against. Nor does anything here say a transaction is *confirmed*: the
+answer to that is a Merkle branch against a header, which is what the
+Electrum backend of issue #204 would add and this one cannot. That is the
+trade the fallback exists to offer, and `SECURITY.md` states it.
+
+Three endpoints, each answering in plain text rather than json:
+`/tx/<txid>/hex`, `/blocks/tip/height` and `/blocks/tip/hash`. The json
+renderings beside them carry the same values with more to disagree about
+-- and `/hex` is what makes the id check above possible at all.
+"""
+
+from __future__ import annotations
+
+from btclib.alias import Octets
+from btclib.exceptions import FetchError
+from btclib.fetch.fetcher import Fetcher, fetch_errors, tx_from_raw, tx_id_hex
+from btclib.fetch.transport import (
+    DEFAULT_TIMEOUT,
+    HttpTransport,
+    http_request,
+    urlopen_transport,
+)
+from btclib.tx import Tx
+from btclib.utils import bytes_from_octets
+
+# The reference deployment of the Esplora software, per network it
+# serves. A constant to pass rather than a default to inherit: naming it
+# spares a user a typo, and passing it is still their decision, written
+# at the call site where a reviewer can see it
+BLOCKSTREAM_INFO = {
+    "mainnet": "https://blockstream.info/api",
+    "testnet": "https://blockstream.info/testnet/api",
+    "signet": "https://blockstream.info/signet/api",
+}
+
+
+class EsploraFetcher(Fetcher):
+    """The three questions, answered by an Esplora instance over HTTP.
+
+    `base_url` is required and has no default, for the reason
+    `BLOCKSTREAM_INFO` is a constant and not one.
+    """
+
+    def __init__(
+        self,
+        base_url: str,
+        *,
+        network: str = "mainnet",
+        timeout: float = DEFAULT_TIMEOUT,
+        transport: HttpTransport = urlopen_transport,
+    ) -> None:
+        super().__init__(network)
+        self.base_url = base_url.rstrip("/")
+        self.timeout = timeout
+        self.transport = transport
+
+    def text(self, path: str) -> str:
+        """Return the body of a GET on `path`, as stripped text.
+
+        Stripped because a deployment behind a proxy may add a newline
+        and none of the three answers can contain whitespace. Decoded
+        with `replace` rather than strictly: the body of a failure is an
+        error page from whatever is in the way, and it is more use
+        rendered imperfectly than swallowed by a UnicodeDecodeError.
+        """
+        url = f"{self.base_url}{path}"
+        status, payload = http_request(
+            url, timeout=self.timeout, transport=self.transport
+        )
+        text = payload.decode("utf-8", errors="replace").strip()
+        if status != 200:
+            raise FetchError(f"HTTP {status} from {url}: {text}")
+        return text
+
+    def get_tx(self, tx_id: Octets) -> Tx:
+        hex_ = tx_id_hex(tx_id)
+        return tx_from_raw(self.text(f"/tx/{hex_}/hex"), hex_, self.network)
+
+    def get_block_count(self) -> int:
+        with fetch_errors("blocks/tip/height"):
+            return int(self.text("/blocks/tip/height"))
+
+    def get_best_block_id(self) -> bytes:
+        with fetch_errors("blocks/tip/hash"):
+            return bytes_from_octets(self.text("/blocks/tip/hash"), 32)

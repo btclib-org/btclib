@@ -36,6 +36,8 @@ What belongs here is everything btclib does around them:
 - the script engine, and the taproot construction it validates against
 - the pure Python implementations, which are what runs whenever the
     conditions below are not met
+- the JSON-RPC client of `btclib.fetch`: how it authenticates, and what
+    it does with a reply
 - the distributions published to PyPI and their provenance
 
 Report it wherever you found it, though: routing a report is the
@@ -130,3 +132,21 @@ used to teach and to prototype as much as to build:
     `hmac.compare_digest`, so what btclib does with the envelope does not
     depend on the secret byte by byte; a caller wanting the same of the
     decryption should bring a cipher that gives it
+- **a `btclib.fetch` backend is trusted, and the two are trusted
+    differently.** `BitcoindFetcher` talks to a node that validated the
+    chain it reports; `EsploraFetcher` talks to a host that says it did.
+    Only one answer of the four is checked at all — the transaction, whose
+    id is recomputed from the bytes that came back — so a height, a tip
+    hash and the amount of an output all rest on the backend's word. An
+    explorer also learns every txid and outpoint you look up, which is a
+    good deal of what a wallet is; btclib names a public deployment as a
+    constant and never as a default, so nothing here contacts anyone
+    until a caller writes the endpoint down
+- **rpc credentials.** They are passed as arguments and refused in the
+    url, so that a password is not carried in a string that ends up in
+    config files, tracebacks and logs. bitcoind's `.cookie` needs none at
+    all and is the default. The transport is plain HTTP against
+    `127.0.0.1`, which is what bitcoind serves: a node on another host is
+    reached over an ssh tunnel or a TLS proxy, not by trusting the
+    network in between — the basic authentication this sends is a
+    base64 of the credential and nothing more

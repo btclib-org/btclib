@@ -100,6 +100,41 @@ class InvalidContributionError(BTClibRuntimeError):
         super().__init__(f"invalid {contrib} from {who}")
 
 
+class FetchError(BTClibRuntimeError):
+    """A backend of btclib.fetch did not answer, or did not answer this.
+
+    A RuntimeError and not a ValueError, which is the distinction worth
+    keeping: nothing the caller passed is wrong. The node is down, the
+    credentials are stale, the explorer sent html, the transaction is not
+    in the index -- retrying later can work, and correcting the argument
+    cannot.
+
+    It covers the conversion of an answer too. A backend that replies
+    with something which is not a transaction has failed, and reporting
+    that as the BTClibValueError `Tx.parse` raised would name the parser
+    rather than the host that has to be fixed.
+    """
+
+
+class RpcError(FetchError):
+    """bitcoind answered with a JSON-RPC error object, and this is it.
+
+    `code` is the node's, from `src/rpc/protocol.h`: -5 is
+    RPC_INVALID_ADDRESS_OR_KEY, which is what `getrawtransaction` returns
+    for a transaction it cannot find -- including every non-wallet
+    transaction on a node running without `-txindex`. A caller that means
+    to tell "no such transaction" from "the node is unreachable" needs
+    the number, and parsing it back out of the message is what having a
+    field avoids.
+
+    A FetchError still, so code catching that keeps catching this.
+    """
+
+    def __init__(self, message: str, code: int) -> None:
+        self.code = code
+        super().__init__(f"{message} (rpc error code {code})")
+
+
 class BTClibUserWarning(UserWarning):
     """A btclib warning: the call worked, but not the way it should have.
 

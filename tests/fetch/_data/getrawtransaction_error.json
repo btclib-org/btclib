@@ -1,0 +1,1 @@
+{"jsonrpc":"2.0","error":{"code":-5,"message":"No such mempool transaction. Use -txindex or provide a block hash to enable blockchain transaction queries. Use gettransaction for wallet transactions."},"id":"btclib"}

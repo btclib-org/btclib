@@ -1589,6 +1589,35 @@ edit.
   own `descriptor_tests.cpp` vectors, both spellings of each, so a WIF
   and an xprv are checked to reach the script their public halves reach
   (issue #186)
+- **`btclib.fetch` is new, and is the one package that goes out to the
+  network.** `Fetcher` is three questions the library cannot answer from
+  bytes it was handed — the transaction with this id, the output an
+  outpoint names, the chain tip — and it is implemented twice, so calling
+  code takes a `Fetcher` and never branches on which one it got:
+  `BitcoindFetcher` over a full node's JSON-RPC, and `EsploraFetcher`
+  over a block explorer's HTTP api for anyone without a node. What comes
+  back is `Tx` and `TxOut`, not the dicts the backends send, and the
+  outputs are labelled with the fetcher's network, which `Tx.parse`
+  cannot do — a serialization carries a script and no chain. It adds no
+  dependency: `urllib.request`, `json` and `base64` are the whole client,
+  because a cryptography library that pulls `certifi`, `urllib3` and
+  `idna` in for an optional convenience has charged every other user for
+  it. The
+  JSON-RPC is 2.0 rather than python-bitcoinrpc's 1.0, so that a routine
+  "no such transaction" is an HTTP 200 with an `error` member instead of
+  the 500 a real server fault also sends; a 1.0 reply from a node older
+  than v28 is still read. Credentials in the url are refused, and
+  bitcoind's `.cookie` — re-read at every call, since a node restart
+  rotates it — means there need be none. `AuthProxy` is the name the
+  request used, python-bitcoinrpc's, and it calls any method, not only
+  the three. `FetchError` and `RpcError`, the latter carrying the node's
+  code, are in `btclib.exceptions` with the rest. No endpoint is a
+  default: `BLOCKSTREAM_INFO` is a constant to pass, never a host btclib
+  contacts on its own. Nothing here is tested against a live host —
+  `HttpTransport` is the seam, and every test answers from a recorded
+  body — and nothing below it imports it, so a user who never fetches
+  never runs a line of it. `Tx.fee` and `OutPoint.value` were dropped
+  pending this and are not restored by it (issue #185)
 - **`script.parse` has lost its `accept_unknown` parameter**, with the
   answer fixed at what every caller in the library passed: a byte no
   table names is an op code all the same, refused by the interpreter that
