@@ -156,6 +156,14 @@ btclib.to\_pub\_key module
    :undoc-members:
    :show-inheritance:
 
+btclib.tx\_or\_psbt module
+--------------------------
+
+.. automodule:: btclib.tx_or_psbt
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
 btclib.utils module
 -------------------
 

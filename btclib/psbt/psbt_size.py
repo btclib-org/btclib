@@ -1,0 +1,209 @@
+#!/usr/bin/env python3
+
+# Copyright (C) The btclib developers
+#
+# This file is part of btclib. It is subject to the license terms in the
+# LICENSE file found in the top-level directory of this distribution.
+#
+# No part of btclib including this file, may be copied, modified, propagated,
+# or distributed except according to the terms contained in the LICENSE file.
+"""How large the inputs of a Psbt will be once they are signed.
+
+`Tx.size`, `Tx.vsize` and `Tx.weight` are read off a serialization, so
+all three need the signatures a `Psbt` does not have yet. What a psbt
+does have is, per input, the output being spent and the scripts that
+unlock it, and those say how many bytes the missing signatures will
+take -- which is what a fee has to be computed from, before there is
+anything to sign.
+
+Two rules are what make the answer honest rather than merely available.
+
+**A signature is 72 bytes**, the sig_hash byte that follows it in the
+script included. A DER signature is `30 <len> 02 <r len> r 02 <s len> s`,
+so 71 bytes when the 32-byte `r` needs the leading zero its high bit
+calls for and 70 when it does not: with the sig_hash byte, 72 or 71. Low
+s is exactly the rule that keeps `s` from ever needing that zero, which
+is why 72 is the largest and not merely the likeliest. Assuming the
+shorter form would underpay the intended fee rate one transaction in
+two, so the worst case is what is assumed here and every estimate is an
+upper bound.
+
+**An input whose type cannot be read raises.** The utxo, the redeem
+script, the witness script and the derivation data are what the type is
+read from, and an input that carries too little of them has no estimate:
+guessing costs bytes in one direction only, and a fee computed from a
+guess is a transaction that does not relay.
+"""
+
+from __future__ import annotations
+
+from btclib.alias import Command
+from btclib.exceptions import BTClibValueError
+from btclib.hashes import hash160
+from btclib.psbt.psbt_in import PsbtIn
+from btclib.script import serialize, type_and_payload
+from btclib.tx import TxIn
+
+# a DER signature and its sig_hash byte, at the largest a low-s signature
+# can be; see the module docstring, which is where the assumption is
+# stated because it is the one number a caller has to know about
+SIG_SIZE = 72
+
+# a BIP340 signature, to which a sig_hash byte is appended only when the
+# sig_hash type is not the default one
+SCHNORR_SIG_SIZE = 64
+
+# a SEC compressed point
+COMPRESSED_PUB_KEY_SIZE = 33
+
+# OP_1 is 0x51 and OP_16 is 0x60, so the m and the n of an m-of-n
+# multisig script are each written as its value plus this
+_OP_INT_OFFSET = 0x50
+
+
+def _script_pub_key(psbt_in: PsbtIn, tx_in: TxIn) -> bytes:
+    """Return the script_pub_key of the output the input spends.
+
+    Not `psbt._signable_payload`, which answers a neighbouring question
+    and a different one: it returns the payload a Signer has to check a
+    script against, and refuses a witness utxo that is not a segwit
+    output. Here every type is an answer, and the whole script is what
+    the type is read from.
+    """
+    if psbt_in.witness_utxo:
+        return psbt_in.witness_utxo.script_pub_key.script
+
+    if psbt_in.non_witness_utxo:
+        script_pub_key = psbt_in.non_witness_utxo.vout[
+            tx_in.prev_out.vout
+        ].script_pub_key
+        return script_pub_key.script
+
+    raise BTClibValueError("no utxo")
+
+
+def _pub_key_size(psbt_in: PsbtIn, payload: bytes) -> int:
+    """Return the size of the pub key a p2pkh input will push.
+
+    Compressed unless the derivation data says otherwise. A p2pkh script
+    commits to the hash160 of a key and not to its length, so the psbt is
+    the only thing that can tell the two apart, and an uncompressed key
+    is 32 bytes more: assuming compressed for an input that carries the
+    key would be assuming low, which is what this file is against.
+    """
+    for pub_key in psbt_in.hd_key_paths:
+        if hash160(pub_key) == payload:
+            return len(pub_key)
+    return COMPRESSED_PUB_KEY_SIZE
+
+
+def _solution_sizes(script_type: str, payload: bytes, psbt_in: PsbtIn) -> list[int]:
+    """Return the size of each element that will satisfy the script.
+
+    In the order the elements go on the stack, so this is the witness
+    stack of a segwit input and the pushes of a legacy script_sig, one
+    list because it is one list of signatures either way.
+    """
+    if script_type == "p2pkh":
+        return [SIG_SIZE, _pub_key_size(psbt_in, payload)]
+
+    if script_type == "p2pk":
+        # the pub key is in the script being spent, so only a signature
+        # is pushed
+        return [SIG_SIZE]
+
+    if script_type == "p2wpkh":
+        # no _pub_key_size: BIP143 refuses an uncompressed key in a
+        # witness v0 program, so there is nothing to look up
+        return [SIG_SIZE, COMPRESSED_PUB_KEY_SIZE]
+
+    if script_type == "p2ms":
+        # type_and_payload has vetted the shape -- 0 < m <= n < 17 -- so
+        # the first byte is OP_m and the arithmetic below cannot be wrong.
+        # The leading zero-size element is the one CHECKMULTISIG pops and
+        # does not use (BIP147)
+        m = payload[0] - _OP_INT_OFFSET
+        return [0, *[SIG_SIZE] * m]
+
+    raise BTClibValueError(f"no estimate for a script of type '{script_type}'")
+
+
+def _taproot_sig_size(psbt_in: PsbtIn) -> int:
+    """Return the size of the BIP341 key path signature.
+
+    64 bytes, or 65 when the input asks for a sig_hash type other than
+    the default one: that type is the byte appended to the signature, and
+    SIGHASH_DEFAULT is the absence of it.
+    """
+    if psbt_in.taproot_leaf_scripts:
+        # a script path witness is the script's own inputs, the leaf
+        # script and the control block, and which leaf will be spent is
+        # not something the psbt says: an input carrying three of them has
+        # three different answers and no way to choose
+        raise BTClibValueError("no estimate for a taproot script path")
+
+    return SCHNORR_SIG_SIZE + (1 if psbt_in.sig_hash_type else 0)
+
+
+def estimated_input_sizes(psbt_in: PsbtIn, tx_in: TxIn) -> tuple[int, list[int]]:
+    """Return the script_sig size and the witness stack of a signed input.
+
+    The second element is the size of each element the witness stack will
+    hold, and not the size of its serialization: the count and the length
+    prefixes are the transaction's layout, which `Tx.serialize` is the
+    one place that knows.
+
+    A signature is assumed to be 72 bytes; an input whose type cannot be
+    read raises. Both rules, and why, are in the module docstring.
+    """
+    if psbt_in.final_script_sig or psbt_in.final_script_witness:
+        # nothing to estimate: a Finalizer has been here, and what it
+        # produced is what the transaction will carry
+        return len(psbt_in.final_script_sig), [
+            len(element) for element in psbt_in.final_script_witness.stack
+        ]
+
+    script_type, payload = type_and_payload(_script_pub_key(psbt_in, tx_in))
+
+    redeem_script = b""
+    if script_type == "p2sh":
+        redeem_script = psbt_in.redeem_script
+        if not redeem_script:
+            raise BTClibValueError("no redeem script")
+        # what is spent is the redeem script; the script_pub_key is the
+        # hash160 that names it, and _assert_input_signable is where the
+        # two are checked against each other
+        script_type, payload = type_and_payload(redeem_script)
+
+    # the push of the redeem script ends the script_sig of a wrapped
+    # input, and is the whole of it when what is wrapped is segwit
+    wrapper: list[Command] = [redeem_script] if redeem_script else []
+
+    if script_type == "p2wsh":
+        witness_script = psbt_in.witness_script
+        if not witness_script:
+            raise BTClibValueError("no witness script")
+        inner_type, inner_payload = type_and_payload(witness_script)
+        witness_sizes = [
+            *_solution_sizes(inner_type, inner_payload, psbt_in),
+            len(witness_script),
+        ]
+        return len(serialize(wrapper)), witness_sizes
+
+    if script_type == "p2tr":
+        # a witness v1 program wrapped in p2sh is not refused here: it is
+        # unspendable by consensus, so what a psbt carrying one is missing
+        # is not an estimate
+        return len(serialize(wrapper)), [_taproot_sig_size(psbt_in)]
+
+    if script_type == "p2wpkh":
+        return len(serialize(wrapper)), _solution_sizes(script_type, payload, psbt_in)
+
+    # a legacy script takes the whole of what unlocks it in the script_sig
+    sizes = _solution_sizes(script_type, payload, psbt_in)
+    # the pushes are measured rather than counted: how a push is written
+    # -- a one-byte length below 76, OP_PUSHDATA1 above it -- is
+    # script.serialize's rule, and a second implementation of it here is
+    # one that can disagree with the transaction actually built
+    commands: list[Command] = [b"\x00" * size for size in sizes]
+    return len(serialize(commands + wrapper)), []

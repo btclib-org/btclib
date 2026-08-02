@@ -12,6 +12,7 @@
 from btclib.psbt.psbt import Psbt, combine_psbts, extract_tx, finalize_psbt, join_psbts
 from btclib.psbt.psbt_in import PsbtIn
 from btclib.psbt.psbt_out import PsbtOut
+from btclib.psbt.psbt_size import estimated_input_sizes
 from btclib.psbt.psbt_utils import (
     assert_valid_unknown,
     decode_dict_bytes_bytes,
@@ -35,6 +36,7 @@ __all__ = [
     "deserialize_map",
     "deserialize_tx",
     "encode_dict_bytes_bytes",
+    "estimated_input_sizes",
     "extract_tx",
     "finalize_psbt",
     "join_psbts",

@@ -1607,6 +1607,31 @@ edit.
   the constant: a psbt whose fifth byte is not `0xff` answers `malformed
   psbt: missing magic bytes`, which is Core's single "Invalid PSBT magic
   bytes" (issue #179)
+- **A psbt says how large its transaction will be once it is signed.**
+  `Psbt.estimated_weight` and `Psbt.estimated_vsize` are `Tx.weight` and
+  `Tx.vsize` for a transaction whose signatures do not exist yet — the
+  two a fee has to be computed from, and `estimated_vsize` is what
+  Bitcoin Core's `analyzepsbt` calls the second. Per input, the cost is
+  read off the utxo and the scripts the psbt carries: p2pk, p2pkh, bare
+  and p2sh-wrapped m-of-n multisig, p2wpkh, p2wsh, p2sh-p2wpkh,
+  p2sh-p2wsh, and a taproot key path whose signature is 64 bytes or 65
+  by the sig_hash type the input asks for; an input a Finalizer has
+  already been to is measured rather than estimated. Two rules are what
+  make the answer honest. A signature is assumed to be 72 bytes, the
+  largest a low-s DER signature and its sig_hash byte can be, because
+  `r` needs a leading zero whenever its high bit is set — an estimator
+  assuming 71 underpays the intended fee rate one transaction in two.
+  And an input whose type cannot be read has no estimate at all: no
+  utxo, a p2sh with no redeem script, a taproot input carrying three
+  leaf scripts and no way to say which will be spent, each raises
+  naming the input — `input 1: no witness script` — where guessing is
+  guessing low. The arithmetic is checked against transactions that
+  were really signed rather than against a table: BIP174's own example
+  against the network serialization that BIP publishes, BIP371's key
+  path psbt against the signature the next vector carries, and every
+  spend of two whole blocks turned back into the psbt it was signed
+  from, where the estimate of an input is exactly what the input took
+  with each of its signatures at 72 bytes (issue #209)
 
 ### The public API and the module layout
 
@@ -1662,6 +1687,20 @@ edit.
   body — and nothing below it imports it, so a user who never fetches
   never runs a line of it. `Tx.fee` and `OutPoint.value` were dropped
   pending this and are not restored by it (issue #185)
+- **`tx_or_psbt_from_any` parses whatever the caller has**: hex, base64
+  or bytes, answering with a `Tx` or a `Psbt`. Which of `Tx.parse`,
+  `Psbt.parse` and `Psbt.b64decode` applies was something a caller
+  holding one of them had to know first, and it is a question with an
+  unambiguous answer — BIP174's five-byte `<magic>` is what a psbt
+  begins with and what a transaction cannot, which is the whole reason
+  the `0xff` is in it. The new `btclib.tx_or_psbt` sniffs and delegates,
+  reading no byte either parser reads: hex before base64, because a
+  hex-string whose length is divisible by four is also base64 of
+  something else, and bytes are text when they are ascii and decode as
+  either, so that `Path.read_bytes` needs no encoding argument to go
+  with it. A top-level module rather than one inside `psbt/`, its answer
+  being one or the other and `tx` not being allowed to import `psbt`
+  (issue #209)
 - **twelve BIP39 word-lists ship, where two did.** `en` and `it` were the
   whole of it, so a Spanish or Japanese mnemonic — one every wallet reads
   — was a mnemonic btclib could not. The ten of
