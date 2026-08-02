@@ -103,6 +103,16 @@ docstring.
   change is already sitting in the shared tree, carry it out as a patch
   (`git diff -- <paths> | git -C <worktree> apply`), which refuses rather
   than clobbers if they have touched the same file.
+- **A worktree isolates files, not refs, and `refs/stash` is the one
+  that bites.** The stash is a single ref in the common `.git`, so
+  `git stash push` in a private worktree pushes onto the same stack
+  every other session pops from — and on a clean tree it creates
+  nothing, so the `git stash pop` that follows applies and *drops*
+  whatever another session shelved. Commit to your own branch instead:
+  a branch is per-worktree in the way the stash only looks to be. What
+  is already lost is still in the object store —
+  `git fsck --unreachable` names the commit and `git stash store <sha>`
+  puts the ref back.
 - **A stale lock is a dead pid, and that is testable.** The file records
   the holder's `CLAUDE_PID`, which is the Claude Code process itself and
   not the shell of one command, so `kill -0 <pid>` answers whether the
