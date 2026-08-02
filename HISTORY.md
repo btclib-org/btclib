@@ -284,6 +284,14 @@ and `verify` families now let a `TypeError` out where they used to answer
   is the third scheme beside BIP39 and Electrum, and until now btclib
   could not read a single share of the Shamir backup every Trezor since
   2019 offers.
+- **The documentation has a guide and not only a reference.** A new page
+  arranged by task — a mnemonic and its seed, an account xpub and the
+  BIP44/49/84/86 addresses under it, reading a raw transaction, building
+  one and computing the hash it commits to, ECDSA and BIP340, a signed
+  message, a PSBT — where there had been fifteen pages of `automodule`
+  and nothing to start from (issue #120). Every example on it is a
+  doctest the test suite runs, so what follows a `>>>` is what the
+  library answered rather than what somebody expected it to.
 - **Python 3.10 through 3.14**, free-threaded 3.14t included; 3.7, 3.8 and
   3.9 are gone. 3.9 went end-of-life in 2025-10, and it had become the only
   interpreter pulling a second toolchain into the lock: 35 of 132 packages

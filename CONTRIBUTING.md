@@ -304,6 +304,17 @@ warning. `docs/source/conf.py` resolves those links and suppresses no
 grep asks the same question of the HTML, where no suppression can hide the
 answer.
 
+Both steps ask whether a page renders and whether its links resolve, and
+nothing more. Whether the worked examples on it are still true is a
+different question, asked by `tests/docs_examples_test.py`: any page under
+`docs/source/` carrying a `>>>` prompt is run as a doctest by the suite, so
+an example is edited by running `uv run pytest tests/docs_examples_test.py`
+and pasting back what the library answered — never by writing what it ought
+to answer. Keep them deterministic, which for `ssa.sign` means passing
+`aux` and for a mnemonic means passing the entropy; and keep every key on
+those pages a published test vector, so that a reader who copies one copies
+something already known to the world.
+
 The only check with no local equivalent is CodeQL, which GitHub runs on
 its side; its findings appear under the Security tab.
 
