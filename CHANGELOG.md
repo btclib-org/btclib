@@ -127,6 +127,42 @@ edit.
   polynomial-time, so what got through was a curve on which signing is
   worthless. Nothing shipped is affected, none of the 27 catalogued curves
   being anomalous (issue #166)
+- **the Jacobian group law does not shortcut the point at infinity**, so
+  a scalar multiplication takes the same time whatever the bits of the
+  scalar. `add_jac` returned early when an operand was infinity, and
+  infinity is not an exotic input there: it is the identity, so every
+  double-and-add starts its accumulator at it and the windowed ones hold
+  it in the table of multiples as `0*Q`, which a zero digit indexes. Over
+  2000 random secp256k1 scalars `_mult` reached it 3.98 times on average
+  and only 23 of them never, and the count is not incidental to the
+  secret — it *is* the number of zero base-16 digits of the scalar, and
+  for `mult_jac` the number of its low zero bits. On the clock: `P +
+  INFJ` answered in 0.03 us against the 3.7 us of a generic addition,
+  `_mult` measured 0.93 ms on a scalar with no zero digit and 0.55 ms on
+  one with 63, and `mult_jac` 1.56 ms on a random scalar against 0.79 ms
+  on one whose low 192 bits are zero. Infinity now reaches neither a
+  branch nor the arithmetic: a full-size stand-in takes its place and a
+  four-entry table answers for it, because a python integer costs what
+  its size costs and the zero coordinates would time the case as well as
+  the branch did — with the early returns gone but no stand-ins, `P +
+  INFJ` still cost 1.8 us against 5.4. An addition with an infinity in it
+  now measures within 1.4% of one without, and `mult_jac` 1.58 ms
+  whichever scalar it is given, for 1.02x to 1.03x on every
+  multiplication in the package and 1.22x on `_double_mult`, whose
+  Shamir-Strauss loop adds infinity for a quarter of its digit pairs.
+  What still branches is the other kind of special case, two points that
+  coincide or are opposite: that one is geometry rather than
+  bookkeeping, and reaching it inside a multiplication needs the
+  accumulator to land on a table entry — 2^-250 on a curve with a real
+  order, where the toy curves of the test suite take it constantly and
+  keep it covered. What is left is out of reach from pure python, and
+  `SECURITY.md` now lists it: the loop runs once per bit, so a scalar's
+  size is not hidden; the windowed variants index their table with a
+  secret digit; python arithmetic costs what its operand sizes cost; the
+  affine law, `aff_from_jac` and the wNAF recoding each spend something
+  whose iteration count is its input; and the wNAF loops skip the
+  addition of a zero digit outright, which is the next thing to fix
+  (issue #254)
 
 ### Consensus rules
 
@@ -886,10 +922,9 @@ edit.
   coefficient pairs for `_double_mult`, which `curves.double_mult`, `dsa`
   and `ssa` verification all reach. The all-zero triple, which
   `jac_equality` reads as infinity too, did it on every curve, secp256k1
-  included. Infinity is taken first now, ahead of the arithmetic, and that
-  is also cheaper than the deferred fix-up it replaces: that one ran the
-  whole formula and then picked from a four-entry table by the very two
-  comparisons it was avoiding. The tests gained every pair of points of
+  included. Infinity is read before the two coordinates that cannot hold
+  it now, and answered from a table rather than from a branch, for the
+  timing reason `Security` gives above. The tests gained every pair of points of
   every low-cardinality curve — the whole group, in two Jacobian frames
   and three infinity spellings, against a textbook group law written the
   other way round — and every multiplication of a `p == 7` curve
@@ -1751,11 +1786,11 @@ edit.
   Every gain is a uniform one, so the comparisons the `curve_group_2`
   docstrings draw between the algorithms still hold as measured
 - **`mult` takes the GLV endomorphism on secp256k1** wherever the bindings
-  cannot answer: `curve_group_2.mult_endomorphism_secp256k1`, 1.03 ms
-  against the 1.52 of the generic `_mult`. The bindings take the generator
+  cannot answer: `curve_group_2.mult_endomorphism_secp256k1`, 0.53 ms
+  against the 0.84 of the generic `_mult`. The bindings take the generator
   and a non-zero scalar, so what reaches the python path is every *other*
   secp256k1 point — and the operation that means is ECDH:
-  `dh.diffie_hellman` measures 1.07 ms against 1.56, a third off, and so
+  `dh.diffie_hellman` measures 0.56 ms against 0.87, a third off, and so
   does any caller multiplying a point of its own. The dispatch asks the
   same `_libsecp256k1_applicable` the bindings dispatch asks, so the two
   cannot drift apart, and every other curve still runs `_mult` untouched.
@@ -1764,8 +1799,8 @@ edit.
   tree with its own tests
 - **signature verification takes the interleaved-wNAF double
   multiplication**, `curve_group_2.double_mult_w_NAF`, where it took the
-  Shamir-Strauss binary loop of `curve_group._double_mult`: 2.01 ms against
-  2.68 ms per double multiplication on secp256k1, best of seven over random
+  Shamir-Strauss binary loop of `curve_group._double_mult`: 1.03 ms against
+  1.53 ms per double multiplication on secp256k1, best of seven over random
   256-bit coefficients. `curves.double_mult`, `dsa` and `ssa` verification
   and both public key recoveries reach it, so it is every signature the
   bindings do not answer — another curve, another hash function, a

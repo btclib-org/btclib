@@ -256,22 +256,28 @@ def double_mult_w_NAF(
     secp256k1 means every signature the bindings do not answer -- another
     curve, another hash function, a caller-supplied nonce, or the test
     suite holding the python path against them. Measured over random
-    256-bit coefficients, best of seven: 2.01 ms against the 2.68 ms of
+    256-bit coefficients, best of seven: 1.03 ms against the 1.53 ms of
     curve_group's _double_mult, which stays as the reference the tests
-    compare this against. w=5 measures 1.95 ms and w=3 2.12, so the
-    default is within 3% of the best window and the table is half the
+    compare this against. w=5 measures 0.99 ms and w=3 1.10, so the
+    default is within 4% of the best window and the table is half the
     size of w=5's.
+
+    The gap over _double_mult is the wider since add_jac stopped
+    shortcutting infinity: fewer additions is worth the more when an
+    addition of infinity costs what any other costs, and the
+    Shamir-Strauss loop makes one for a quarter of its digit pairs.
 
     The tables are also why it is not faster everywhere: they are built
     per call and per point, so a coefficient too short to amortize them
     pays for them. Against _double_mult, by coefficient size on
-    secp256k1: 8 bits 1.80x *slower*, 16 bits 1.20, 32 bits 0.95, 64 bits
-    0.83, 128 bits 0.77, 256 bits 0.73. The crossover is around 32 bits,
-    so every curve with a real order is on the winning side and the toy
-    curves of the test suite -- n = 11, n = 31 -- are the ones paying,
-    about 2 us a call. Taken as it is rather than guarded by a size test:
-    the guard would buy back a fraction of a second of the suite and put
-    a branch in the middle of signature verification.
+    secp256k1: 8 bits 1.37x *slower*, 16 bits 0.98, 24 bits 0.85, 32 bits
+    0.81, 64 bits 0.72, 128 bits 0.68, 256 bits 0.67. The crossover is
+    around 16 bits, so every curve with a real order is on the winning
+    side and the toy curves of the test suite -- n = 11, n = 31 -- are
+    the ones paying, about 3 us a call. Taken as it is rather than
+    guarded by a size test: the guard would buy back a fraction of a
+    second of the suite and put a branch in the middle of signature
+    verification.
 
     The input points are assumed to be on curve, and the u and v
     coefficients are assumed to have been reduced mod n if appropriate
@@ -374,11 +380,12 @@ def mult_endomorphism_secp256k1(m: int, Q: JacPoint, ec: CurveGroup) -> JacPoint
     Algorithm 3.77 of D. Hankerson, 'Guide to Elliptic Curve
     Cryptography': m*Q as m1*Q + m2*(lambda*Q), the halves coming from
     multiplier_decomposer and the double multiplication interleaving
-    their wNAFs. Measured over 30 random 256-bit scalars: 1.00 ms at the
-    default w=4, against 1.30 ms feeding the same halves to
-    curve_group's _double_mult and 1.50 ms for the _mult this exists to
-    beat -- the fastest python multiplication in the package, and the
-    w=4 default is that measurement, w=3 and w=5 both giving ~1.05 ms.
+    their wNAFs. Measured over 30 random 256-bit scalars: 0.53 ms at the
+    default w=4, against 0.80 ms feeding the same halves to curve_group's
+    _double_mult and 0.84 ms for the _mult this exists to beat -- the
+    fastest python multiplication in the package, and the w=4 default is
+    that measurement, the same halves interleaved at w=3 giving 0.57 ms
+    and at w=5 0.52, which is the default's own noise.
     """
     if m < 0:
         raise BTClibValueError(f"negative m: {hex(m)}")

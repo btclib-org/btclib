@@ -9,6 +9,7 @@
 # or distributed except according to the terms contained in the LICENSE file.
 """Tests for the `btclib.curve` module."""
 
+import copy
 import itertools
 from functools import partial
 from hashlib import sha256, sha512
@@ -424,6 +425,127 @@ def test_add_jac_infinity_is_not_a_doubling() -> None:
             assert ec.aff_from_jac(ec.add_jac(ec.GJ, infinity)) == ec.G
             assert ec.aff_from_jac(ec.add_jac(infinity, ec.GJ)) == ec.G
             assert ec.add_jac(infinity, infinity)[2] == 0
+
+
+class _CountedInt(int):
+    """An int that counts the arithmetic every result of it took.
+
+    Counting rather than timing: what an early return on a special case
+    changes is the operations performed, and that is an assertion, where
+    the time they take is a measurement -- and a noisy one, python
+    integers costing what their size costs. The count is a class
+    attribute because the operands of an operation are two.
+    """
+
+    calls = 0
+
+    def __mul__(self, other: int) -> "_CountedInt":
+        _CountedInt.calls += 1
+        return _CountedInt(int(self) * int(other))
+
+    def __rmul__(self, other: int) -> "_CountedInt":
+        return self * other
+
+    def __mod__(self, other: int) -> "_CountedInt":
+        _CountedInt.calls += 1
+        return _CountedInt(int(self) % int(other))
+
+    def __rmod__(self, other: int) -> "_CountedInt":
+        _CountedInt.calls += 1
+        return _CountedInt(int(other) % int(self))
+
+    def __add__(self, other: int) -> "_CountedInt":
+        _CountedInt.calls += 1
+        return _CountedInt(int(self) + int(other))
+
+    def __radd__(self, other: int) -> "_CountedInt":
+        return self + other
+
+    def __sub__(self, other: int) -> "_CountedInt":
+        _CountedInt.calls += 1
+        return _CountedInt(int(self) - int(other))
+
+    def __rsub__(self, other: int) -> "_CountedInt":
+        _CountedInt.calls += 1
+        return _CountedInt(int(other) - int(self))
+
+
+def _counted(P: JacPoint) -> JacPoint:
+    return _CountedInt(P[0]), _CountedInt(P[1]), _CountedInt(P[2])
+
+
+def test_add_jac_does_the_same_arithmetic_around_infinity() -> None:
+    """Infinity costs an addition exactly what a pair of points costs.
+
+    Which is the point of add_jac not returning early on it: infinity is
+    the identity, so a double-and-add reaches it wherever the scalar has
+    a zero digit, and a case answered without the arithmetic is those
+    digits on the clock. The coinciding pair is the other kind of special
+    case, and is asserted here to count *differently*: that is the one
+    branch add_jac keeps, and it keeps it because reaching the case needs
+    the accumulator to land on a table entry or its negation, which on a
+    curve with a real order it does not.
+
+    The count does not see the values, only the operations, so what it
+    holds is the shape of the code -- an early return, a case that skips
+    a multiplication. That the stand-ins are the size of a real
+    coordinate, which is the other half of it and the half that python
+    integers make necessary, is a measurement and lives in the comments
+    of add_jac.
+    """
+    # the instrument first: every operation add_jac performs has to come
+    # back counted from either side, a plain int on the left included, or
+    # a case would count as cheaper than it is
+    _CountedInt.calls = 0
+    one = _CountedInt(1)
+    assert (one * 2, 2 * one, one % 2, 2 % one, one + 2, 2 + one, one - 2, 2 - one) == (
+        2,
+        2,
+        1,
+        0,
+        3,
+        3,
+        -1,
+        1,
+    )
+    assert _CountedInt.calls == 8
+
+    # a curve of its own: the stand-ins take part in the arithmetic, so
+    # they have to be counted too, and secp256k1 is shared with every
+    # other test in the suite
+    ec = copy.copy(secp256k1)
+    ec._stand_in_q = _counted(ec._stand_in_q)
+    ec._stand_in_r = _counted(ec._stand_in_r)
+
+    PJ = _counted(ec.GJ)
+    QJ = _counted(ec.double_jac(ec.GJ))
+    infinity = _counted(INFJ)
+
+    def operations(A: JacPoint, B: JacPoint) -> int:
+        _CountedInt.calls = 0
+        ec.add_jac(A, B)
+        return _CountedInt.calls
+
+    counts = {
+        "P + Q": operations(PJ, QJ),
+        "P + INFJ": operations(PJ, infinity),
+        "INFJ + P": operations(infinity, PJ),
+        "INFJ + INFJ": operations(infinity, infinity),
+    }
+    assert len(set(counts.values())) == 1, counts
+    # and the branch, which does not hide: the doubling it answers with
+    # costs about what the tail of the general formula costs, so it is
+    # dearer, while the opposite pair returns infinity and pays nothing
+    generic = counts["P + Q"]
+    assert operations(PJ, PJ) > generic
+    assert operations(PJ, ec.negate_jac(PJ)) < generic
+    # and the same again for the doubling, which has no case at all
+    _CountedInt.calls = 0
+    ec.double_jac(PJ)
+    doubling = _CountedInt.calls
+    _CountedInt.calls = 0
+    ec.double_jac(infinity)
+    assert _CountedInt.calls == doubling
 
 
 def test_add_aff_takes_infinity_before_doubling() -> None:

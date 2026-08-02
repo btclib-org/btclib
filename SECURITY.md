@@ -72,8 +72,37 @@ used to teach and to prototype as much as to build:
     own — runs the python implementation, whose scalar multiplication is
     a double-and-add in Jacobian coordinates: it is validated against the
     bindings, which are the authority on the answer, but it is not
-    constant-time and does not try to be. Using it
-    on key material that matters is a choice, and this is the notice of it
+    constant-time. It tries, which is not the same claim. The Jacobian
+    group law neither branches on the point at infinity nor lets it reach
+    the arithmetic: a full-size stand-in takes its place and a table
+    answers for it, because a python integer costs what its size costs
+    and the zero coordinates of infinity would time the case as well as a
+    branch would. That is the case that matters, infinity being the
+    identity and so the accumulator every multiplication starts from and
+    the multiple a zero digit names: an addition of it costs what any
+    other addition costs, and a multiplication takes the same time
+    whatever the bits of the scalar. Two points that coincide, or that
+    are opposite, do still branch — that case needs the accumulator to
+    land on a table entry, 2^-250 on a curve with a real order, and a
+    caller spelling out `P + P` knows it did.
+
+    What is left is out of reach from pure python, and is enough to
+    matter: the loop runs once per digit of the scalar, so the size of a
+    secret is not hidden, only its bits; the wNAF multiplications, which
+    are the ones `mult`, `double_mult` and verification reach, skip the
+    addition of a zero digit outright, so the _number_ of additions is
+    the recoded weight of the scalar (measured on secp256k1: 51 to 63
+    additions, 0.502 ms to 0.549 ms, over 200 random scalars);
+    the windowed multiplications index a table of precomputed multiples
+    with a secret digit, which is the memory access pattern the
+    FLUSH+RELOAD recovery of OpenSSL's nonces read; every reduction and
+    multiplication takes the time its operand sizes ask for, and a
+    residue is not always the full size; the affine group law and the
+    conversion back from Jacobian coordinates spend a modular inverse, an
+    extended Euclid whose iteration count follows its input; and
+    `multi_mult` is Bos-Coster, whose shape is the scalars themselves.
+    Using it on key material that matters is a choice, and this is the
+    notice of it
 - a sign-to-contract commitment is the signer's to open, and opening it
     twice over one message is safe only because the committed value
     reaches the nonce derivation: that is what keeps two such signatures

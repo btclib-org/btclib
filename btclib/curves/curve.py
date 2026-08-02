@@ -308,7 +308,7 @@ def mult(m_int: Integer, Q: Point | None = None, ec: Curve = secp256k1) -> Point
 
     # past the check above, secp256k1 here means a point the bindings do
     # not take -- any point but the generator -- which is exactly where
-    # the GLV endomorphism pays: 1.03 ms against the 1.52 of _mult, the
+    # the GLV endomorphism pays: 0.53 ms against the 0.84 of _mult, the
     # decomposition being secp256k1's own lambda and beta. Same predicate
     # as the bindings dispatch, so the two cannot drift apart
     R = (

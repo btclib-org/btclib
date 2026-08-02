@@ -94,6 +94,14 @@ class CurveGroup:
             raise BTClibValueError("zero discriminant")
         self._a = a
         self._b = b
+        # what add_jac feeds its formula in place of an operand at
+        # infinity: any value does, the arithmetic on it being thrown
+        # away, as long as it is the size of a real coordinate -- which is
+        # the whole of what it is for, so a fraction of p rather than a
+        # small constant. On a curve whose p is a handful of bits some of
+        # these are zero, and nothing there is worth timing anyway
+        self._stand_in_q = p // 3, p // 5, p // 7
+        self._stand_in_r = p // 11, p // 13, p // 17
 
     def __str__(self) -> str:
         result = "Curve"
@@ -234,25 +242,34 @@ class CurveGroup:
     def add_jac(self, Q: JacPoint, R: JacPoint) -> JacPoint:
         # points are assumed to be on curve
 
-        # infinity first, and as a branch. Z == 0 leaves X and Y
-        # unconstrained, so the doubling test below -- a test on the
-        # affine coordinates -- has nothing there to read: the x of INFJ
-        # is 7 and the x of jac_from_aff(INF) is 5, picked for being
-        # invalid rather than for being zero, so on a curve of
-        # characteristic 7 or 5 they reduce to zero and the test fires on
-        # an operand that is not a point at all. P + INFJ then
-        # answers 2*P, and eight of the ten scalar multiplications this
-        # package offers are wrong for most scalars on every p == 7 curve
-        # (issue 171). Deferring it instead -- run the whole formula, then
-        # pick from [(X, Y, Z), R, Q, INFJ] by (Q is INF) + 2*(R is INF)
-        # -- spends that arithmetic to avoid two comparisons it then makes
-        # anyway, and buys a constant time the doubling test right below
-        # spends: SECURITY.md says of this path that it "is not
-        # constant-time and does not try to be"
-        if Q[2] == 0:
-            return R
-        if R[2] == 0:
-            return Q
+        # the group law has four special cases, and they are of two kinds
+        # that want opposite treatment. An operand at infinity is
+        # bookkeeping rather than geometry: infinity is the identity, so
+        # every double-and-add starts its accumulator there and the
+        # windowed ones hold it in the table as the multiple 0*Q, which
+        # the digit 0 indexes. On secp256k1 that is not rare and not
+        # random -- over 2000 random scalars _mult reached it 3.98 times
+        # on average and only 23 of them not at all, and the count *is*
+        # the secret: exactly the number of zero base-16 digits of the
+        # scalar, or for mult_jac the number of its low zero bits. An
+        # early return there put that on the clock, 0.03 us against the
+        # 3.7 us of a generic addition, and _mult measured 0.93 ms with no
+        # zero digit against 0.55 ms with 63.
+        #
+        # So no branch on infinity, and no arithmetic on it either: a
+        # python integer costs what its size costs, and the zero
+        # coordinates of infinity send half the products to zero. A
+        # stand-in of full size takes its place, the table at the end
+        # answers for it, and an addition with no infinity in it pays two
+        # comparisons: 1.02x to 1.03x on every multiplication in the
+        # package, and 1.22x on _double_mult, whose Shamir-Strauss loop
+        # adds the infinity of a zero digit pair a quarter of the time and
+        # used to get those additions free. Without the stand-ins,
+        # dropping the early return was not enough: P + INFJ still cost
+        # 1.8 us against 5.4, and mult_jac was still 25% faster on a
+        # scalar with 128 low zero bits
+        QS = (Q, self._stand_in_q)[Q[2] == 0]
+        RS = (R, self._stand_in_r)[R[2] == 0]
 
         p = self.p
         # every intermediate reduced as it is formed, which is what makes
@@ -262,33 +279,53 @@ class CurveGroup:
         # python multiplies whatever it is handed. Worth between 2.0 and
         # 3.0 times over every mult_* variant in the package, measured
         # against the unreduced spelling on secp256k1 and secp256r1
-        RZ2 = R[2] * R[2] % p
-        RZ3 = RZ2 * R[2] % p
-        QZ2 = Q[2] * Q[2] % p
-        QZ3 = QZ2 * Q[2] % p
+        RZ2 = RS[2] * RS[2] % p
+        RZ3 = RZ2 * RS[2] % p
+        QZ2 = QS[2] * QS[2] % p
+        QZ3 = QZ2 * QS[2] % p
 
         # the two points in a common frame: V is the difference of their
         # affine x-coordinates and W of their affine y ones, up to that
-        # frame. Which is what makes the doubling test free, both being
-        # needed by the formula below -- the four multiplications issue
-        # 171 counted were never its cost either, M, N, T and U all
-        # feeding it too, and only the reductions comparing them extra
-        M = Q[0] * RZ2 % p
-        T = Q[1] * RZ3 % p
-        V = (R[0] * QZ2 - M) % p
-        W = (R[1] * QZ3 - T) % p
+        # frame. Which is what makes the two remaining cases free to
+        # detect, both being needed by the formula below -- the four
+        # multiplications issue 171 counted were never their cost either,
+        # M, N, T and U all feeding them too
+        M = QS[0] * RZ2 % p
+        T = QS[1] * RZ3 % p
+        V = (RS[0] * QZ2 - M) % p
+        W = (RS[1] * QZ3 - T) % p
 
-        # the same affine point, where the chord is the tangent and the
-        # slope W/V below is 0/0. No caller in the package reaches it --
-        # every mult_* doubles through double_jac, and over six of them 0
-        # of 5997 add_jac calls took this branch -- but add_jac is public
-        # and P + P has to be P doubled. Complete formulas would retire
-        # it: Renes-Costello-Batina, homogeneous coordinates, no
-        # exceptional case at all -- and measured on this very fixed
-        # window 34% slower for a == 0 and 59% slower for the a == p-3 of
-        # most catalogued curves, on top of JacPoint being public
-        if V == 0 and W == 0:
-            return self._double_jac_helper(Q, QZ2)
+        # the other kind, and a branch: V == 0 is one x-coordinate for
+        # both points, so they are the same point -- W == 0 too, the chord
+        # is the tangent, and the answer is the doubling -- or opposite
+        # ones, and it is infinity. That is geometry, and inside a
+        # multiplication it needs the accumulator to land on a table entry
+        # or its negation: 2^-250 on a curve with a real order, against
+        # the 3.98 times a random scalar reaches infinity above. What the
+        # branch tells an attacker is that two points coincided, which on
+        # secp256k1 they will not, and a caller spelling out P + P knows
+        # it did. It is the toy curves of the test suite that take it, and
+        # take it constantly, an accumulator wrapping around a group of
+        # eleven points; the exhaustive test over every pair of points of
+        # every one of them is what holds this branch correct. What would
+        # retire the case rather than branch on it is a complete formula:
+        # Renes-Costello-Batina, homogeneous coordinates, no exceptional
+        # case at all -- and measured on this very fixed window 34% slower
+        # for a == 0 and 59% slower for the a == p-3 of most catalogued
+        # curves, on top of JacPoint being public.
+        #
+        # Q[2] and R[2] because V says nothing when either is zero: Z == 0
+        # leaves X and Y unconstrained, and the x of INFJ is 7 while the x
+        # of jac_from_aff(INF) is 5, picked for being invalid rather than
+        # for being zero, so on a curve of characteristic 7 or 5 they
+        # reduce to zero and V vanishes for an operand that is not a point
+        # at all -- P + INFJ answered 2*P, and eight of the ten scalar
+        # multiplications this package offers were wrong for most scalars
+        # on every p == 7 curve (issue 171). The stand-ins do not make it
+        # safe to read: they are values, and V can be zero on a pair of
+        # them too, one time in p
+        if V == 0 and Q[2] and R[2]:
+            return self._double_jac_helper(Q, QZ2) if W == 0 else INFJ
 
         V2 = V * V % p
         V3 = V2 * V % p
@@ -296,17 +333,24 @@ class CurveGroup:
 
         X = (W * W - V3 - 2 * MV2) % p
         Y = (W * (MV2 - X) - T * V3) % p
-        # V == 0 with W != 0 is P + (-P), and needs no branch of its own:
-        # Z comes out zero, which is the infinity the caller is owed
-        Z = V * Q[2] % p * R[2] % p
-        return X, Y, Z
+        Z = V * QS[2] % p * RS[2] % p
+
+        # and the infinity cases, answered rather than branched on. The
+        # arithmetic above was done on the stand-ins and is thrown away
+        # here, which is the whole point of it
+        return ((X, Y, Z), R, Q, INFJ)[(Q[2] == 0) + 2 * (R[2] == 0)]
 
     def double_jac(self, Q: JacPoint) -> JacPoint:
         # point is assumed to be on curve
         return self._double_jac_helper(Q, Q[2] * Q[2] % self.p)
 
     def _double_jac_helper(self, Q: JacPoint, QZ2: int) -> JacPoint:
-        # QZ2 is Q[2]^2 reduced mod p, which add_jac has already formed
+        # QZ2 is Q[2]^2 reduced mod p, which add_jac has already formed.
+        # The tangent law has no case to tell apart -- a point is never
+        # exceptional to itself -- so this is the whole of it: no test on
+        # Q, one sequence of operations for every point of the curve, and
+        # the same one for a secret point as for a public one. Which is
+        # also what lets add_jac call it on every addition
         p = self.p
         QY2 = Q[1] * Q[1] % p
         W = (3 * Q[0] * Q[0] + self._a * QZ2 * QZ2) % p
@@ -340,8 +384,12 @@ class CurveGroup:
         if Q[1] == 0:  # Infinity point in affine coordinates
             return R
 
-        # then doubling, for the reason add_jac has it: two equal points
-        # make the chord a tangent and the slope below 0/0
+        # then doubling: two equal points make the chord a tangent and the
+        # slope below 0/0. Branches, where add_jac computes every case and
+        # selects, because there is nothing here for that to protect: the
+        # mod_inv this path exists to spend is an extended Euclid, whose
+        # iteration count follows the value it is inverting, so the affine
+        # law cannot be made uniform whatever is done to these three tests
         if R[0] == Q[0]:
             return self.double_aff(R) if R[1] == Q[1] else INF
 
@@ -495,7 +543,11 @@ def mult_aff(m: int, Q: Point, ec: CurveGroup) -> Point:
     while m > 0:
         # the doubling part of 'double & add'
         Q = ec.double_aff(Q)
-        # always perform the 'add', even if useless, to be constant-time
+        # always perform the 'add', even if useless: one addition per bit
+        # whatever the bit is, as in mult_jac. It buys less here, add_aff
+        # branching on its own special cases and mod_inv taking the time
+        # its input asks for, which is why the affine variants are the
+        # readable ones rather than the ones to sign with
         R[1] = ec.add_aff(R[0], Q)
         # if least significant bit of m is 1, then add Q to R[0]
         R[0] = R[m & 1]
@@ -525,8 +577,10 @@ def mult_jac(m: int, Q: JacPoint, ec: CurveGroup) -> JacPoint:
     while m > 0:
         # the doubling part of 'double & add'
         Q = ec.double_jac(Q)
-        # always perform the addition, even if useless, to be constant-time
-        # but use it as R[0] only if least significant bit of m is 1
+        # always perform the addition, even if useless, but use it as R[0]
+        # only if the least significant bit of m is 1: one doubling and
+        # one addition per bit, and with a branch-free add_jac under it
+        # the loop costs the same for every scalar of a given length
         R[not m & 1] = ec.add_jac(R[0], Q)
         m >>= 1
     return R[0]
@@ -600,9 +654,14 @@ def mult_mont_ladder(m: int, Q: JacPoint, ec: CurveGroup) -> JacPoint:
     'left-to-right' binary decomposition of the m coefficient,
     Jacobian coordinates.
 
-    It is constant-time and resistant to the FLUSH+RELOAD attack,
-    as it prevents branch prediction avoiding any if.
-    See:
+    The loop body is one addition and one doubling for every bit of m,
+    and the bit only picks which of the two accumulators each is applied
+    to: no test on the scalar, which is what the FLUSH+RELOAD recovery of
+    OpenSSL's nonces read out of a double-and-add. With add_jac branching
+    on nothing either, this is the variant of the package that comes
+    closest to constant-time, and what is left is the loop itself: it
+    runs once per bit of m, so the length of a scalar is not hidden, only
+    its bits. See:
     - https://eprint.iacr.org/2014/140
 
     The input point is assumed to be on curve and
@@ -765,8 +824,13 @@ def _double_mult(
     for i in digits[1:]:
         # the doubling part of 'double & add'
         R = ec.double_jac(R)
-        # always perform the 'add', even if useless, to be constant-time
-        # 'add' it to R[0] only if appropriate
+        # always perform the 'add', even if the digit pair is 0 and the
+        # entry it names is infinity: one addition per step, whatever the
+        # coefficients. Which is where an add_jac that does not shortcut
+        # infinity is dearest -- a quarter of the pairs are 0 on average,
+        # and adding infinity used to be free -- and it is the one place
+        # in the package that measures 22% slower for it, against the 2%
+        # to 3% everywhere else
         R = ec.add_jac(R, T[i])
     return R
 
