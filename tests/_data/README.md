@@ -14,7 +14,7 @@ is a gap rather than a statement about it.
 
 The other directory holding json beside the tests,
 `tests/**/_generated_files/`, is the opposite kind of thing and has no
-entry here: those seventeen files are btclib's own output, `to_dict()`
+entry here: those files are btclib's own output, `to_dict()`
 over fixed input, committed as golden files so that a change to a
 serialized form fails a test instead of passing unnoticed. Nothing
 upstream to pin, and nothing to compare against but ourselves —
@@ -29,8 +29,8 @@ citation is pinned to a commit and the two blobs are compared.
 
 Nothing in this file is a mirror of the citations in the test modules.
 Those say what a vector *is*; this says which revision of it we hold —
-and for six files the answer is "no revision of it, byte for byte",
-which the verdict then accounts for.
+and for the transcribed ones the answer is "no revision of it, byte for
+byte", which the verdict then accounts for.
 
 The two halves are kept in agreement in one direction only: a test module
 names its upstream and points here for the revision, and this file does
@@ -45,8 +45,8 @@ no upstream name to be compared against, so the citation in the module
 that loads it can drift to a path upstream never had and nobody catches
 it — the byte comparison below is the only check the naming cannot fool.
 
-Eighteen files keep a btclib name deliberately, and the reason is the
-same in each: there is no upstream file whose name they could take
+The files that keep a btclib name do so deliberately, and the reason is
+the same in each: there is no upstream file whose name they could take
 
 - `bip32_test_vectors.json`, `bip32_invalid_keys.json`,
   `bip174_test_vectors.json`, `bip371_test_vectors.json` and
@@ -1008,39 +1008,53 @@ Composed 2026-08-02.
 
 ## Summary
 
-52 files. Against a pinned upstream blob:
+No count here, and no count in front of the lists below. A count is a
+line every open branch has to edit, so it is the one conflict a pull
+request vendoring a file is guaranteed to have -- and two branches moving
+it to the same new number merge with nothing to decide, into a number
+that is wrong. `CHANGELOG.md` has a `union` driver to soften that; this
+file cannot have one, union being right for a list of bullets and
+nonsense for the prose around them. The lists *are* the fact the number
+summarized, and the tree answers whenever the number is wanted:
 
-- 20 identical byte for byte: `english.txt`, `wordlist.txt`,
+```shell
+git ls-files 'tests/_data/*' 'tests/*/_data/*' \
+    btclib/mnemonic/_data/wordlist.txt | grep -cv 'README.md'
+```
+
+Against a pinned upstream blob:
+
+- identical byte for byte: `english.txt`, `wordlist.txt`,
   `taproot_test_vector.json`, `sig_hash_legacy_test_vectors.json`,
   `script_tests.json`, `tx_valid.json`, `tx_invalid.json`,
   `key_io_valid.json`, `key_io_invalid.json`,
   `base58_encode_decode.json`, `checkblock_valid.json`,
   `checkblock_invalid.json`, and the eight BIP327 vector files.
-- 2 identical but for a trailing newline:
+- identical but for a trailing newline:
   `script_assets_test.json`, `vectors.json`.
-- 1 identical but for CRLF against LF: `bip340_test_vectors.csv`.
-- 4 JSON-equal, reformatted: `pubkey.json`, `ecdsa_sig.json`,
+- identical but for CRLF against LF: `bip340_test_vectors.csv`.
+- JSON-equal, reformatted: `pubkey.json`, `ecdsa_sig.json`,
   `ecdsa_custom_nonce_sig.json`, `signmessage.json`.
-- 1 upstream plus one btclib case: `bip39_test_vectors.json`.
+- upstream plus one btclib case: `bip39_test_vectors.json`.
 
 No upstream blob exists for the rest:
 
-- 6 transcribed from a pinned prose revision, every value matched:
+- transcribed from a pinned prose revision, every value matched:
   `bip32_test_vectors.json`, `bip32_invalid_keys.json`,
   `bip174_test_vectors.json`, `bip371_test_vectors.json`,
   `bip67_test_vectors.json`, `descriptor_checksums.json`.
-- 7 chain data, identified by block hash or txid;
-  `unspendable_script_pub_keys.json` is scripts rather than whole
+- chain data, identified by block hash or txid: the blocks and
+  transactions under `tests/block/_data/` and `tests/tx/_data/`, and
+  `unspendable_script_pub_keys.json`, which is scripts rather than whole
   transactions and so is the one that cannot recompute its own
   identifier.
-- 7 response bodies under `tests/fetch/_data/`, whose envelopes are
+- response bodies under `tests/fetch/_data/`, whose envelopes are
   composed from Core's and Esplora's own source and whose payload is
   chain data two of the entries above already hold.
-- 4 not vendored: `rfc6979.json` (an RFC),
-  `electrum_test_vectors.json`, `fakeenglish.txt` and
-  `btclib_test_vectors.json` (btclib's own). The last is the only one
-  composed rather than recorded: its cases were built here, out of psbts
-  BIP174 prints as prose.
+- not vendored: `rfc6979.json` (an RFC), `electrum_test_vectors.json`,
+  `fakeenglish.txt` and `btclib_test_vectors.json` (btclib's own). The
+  last is the only one composed rather than recorded: its cases were
+  built here, out of psbts BIP174 prints as prose.
 
 ### Left for a maintainer to decide
 

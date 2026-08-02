@@ -2659,6 +2659,19 @@ edit.
   keeps these files from conflicting, which would itself say nothing. The
   patterns are asserted against the lines they forbid, an assertion in the
   negative passing for free the moment it matches nothing
+- **`tests/_data/README.md` states no count either**, and
+  `tests/vendored_data_test.py` is the same guard for the same reason: the
+  summary opened with a total and each of its bullets counted the names it
+  then listed, so every branch vendoring a vector file had to edit the
+  number — measured, it read 46, 47, 48, 49 and 50 across the branches
+  open on one afternoon, each of those a rebase conflict for the others.
+  The lists stay, being the fact the number summarized, and the Summary
+  now carries the `git ls-files` command that derives it. Not solvable the
+  way CHANGELOG.md's was: `union` keeps both sides' added lines, which is
+  right for a list of bullets and nonsense for the prose describing them.
+  The guard spares the numbers that are upstream's — BIP327's eight vector
+  files, a vector file's 45 quadruples — by anchoring on the two shapes a
+  self-count takes and reading the bullet shape in the Summary alone
 - **the suite runs in a random order**, `pytest-randomly` being in the
   test group; the seed is printed, and `-p no:randomly` puts the file
   order back to reproduce a failure against it. It guards the one thing a
