@@ -1852,6 +1852,36 @@ edit.
   is everything downstream of a network: mempool histograms, fee estimates
   for a confirmation target, ETAs. Those are policy fed by live data and
   belong to an application; the module docstring says so (issue #205)
+- **`btclib.keystore` is the wallet infrastructure `bms` asks for**, and
+  no more of it: `bms`'s own docstring says "at signing time, a wallet
+  infrastructure is required to access the private key corresponding to a
+  given address" and the library had none. A `KeyStore` holds a key
+  source, hands out addresses, remembers the derivation path of each and
+  answers which private key signs for one, which is what lets
+  `keystore.sign(address, msg)` exist — a message signature addressed by
+  *address*, delegated to `bms.sign` and signing nothing itself.
+  `BIP32KeyStore(xkey, "m/84h/0h/0h")` takes an extended key anywhere on
+  the account path and derives the two unhardened levels below it, the
+  purpose choosing the encoding as BIP44/49/84/86 define it; `KeyStore`
+  takes individual keys instead, one address each. The decisions worth
+  knowing: an address the keystore has not handed out is a *raise* and
+  not a None, because "no opinion" and "no key" deserve different answers
+  and `address in keystore` is the question that wants a boolean;
+  addresses are derived on demand rather than precomputed over a gap
+  limit, a gap limit being a scanning parameter that means nothing
+  without a chain to scan; an xpub or a public key is a first-class
+  watch-only keystore, where `sign` raises naming the address rather than
+  returning something falsy; and the script type follows the *path*, not
+  the SLIP132 version bytes, so an xprv and a zprv holding one key cannot
+  hand out two different addresses for one path. p2tr addresses are
+  handed out and cannot be signed for: BMS recovers an ECDSA key against
+  a hash160, a taproot output key is BIP341's tweaked x-only key, and the
+  refusal says so rather than letting `bms` report the generic mismatch.
+  Out of scope and stated in the module docstring: utxo tracking,
+  balances, transaction building, persistence to disk, encryption at rest
+  — the first three need a view of the chain btclib does not have, the
+  last two a file format that would outlive the release choosing it
+  (issue #189)
 
 ### Types
 
