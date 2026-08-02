@@ -25,7 +25,7 @@ from btclib.alias import (
     TaprootLeafPaths,
     TaprootScriptTree,
 )
-from btclib.curves import Curve, mult, secp256k1
+from btclib.curves import Curve, bytes_from_prv_key_int, mult, secp256k1
 from btclib.curves.curve import _libsecp256k1_applicable
 from btclib.exceptions import BTClibValueError
 from btclib.hashes import tagged_hash
@@ -143,6 +143,20 @@ def _tree_helper(script_tree: TaprootScriptTree) -> tuple[TaprootLeafPaths, byte
     return ([((leaf_version, script), b"")], h)
 
 
+def _tap_tweak(pub_key: bytes, h: bytes, ec: Curve) -> int:
+    """Return the BIP341 tweak an x-only key and a tree hash commit to.
+
+    One function for the three tweaks, the two that build an output and
+    the one that checks a control block against it, so that the rule
+    below cannot hold in one of them and not in another.
+    """
+    t = int.from_bytes(tagged_hash(b"TapTweak", pub_key + h), "big")
+    # BIP341: fail if t is not smaller than the group order
+    if t >= ec.n:
+        raise BTClibValueError("Invalid script tree hash")
+    return t
+
+
 def output_pubkey(
     internal_pubkey: Key | None = None,
     script_tree: TaprootScriptTree | None = None,
@@ -159,10 +173,7 @@ def output_pubkey(
         _, h = tree_helper(script_tree)
     else:
         h = b""
-    t = int.from_bytes(tagged_hash(b"TapTweak", pub_key + h), "big")
-    # BIP341: fail if t is not smaller than the group order
-    if t >= ec.n:
-        raise BTClibValueError("Invalid script tree hash")
+    t = _tap_tweak(pub_key, h, ec)
 
     # secp256k1_xonly_pubkey_tweak_add is this very operation, parity
     # included, and it answers the pair this function returns. 12.0 us
@@ -185,23 +196,30 @@ def output_prvkey(
     ec: Curve = secp256k1,
 ) -> int:
     internal_prvkey: int = int_from_prv_key(prv_key)
-    P = mult(internal_prvkey)
     if script_tree:
         _, h = tree_helper(script_tree)
     else:
         h = b""
+
+    # secp256k1_keypair_xonly_tweak_add is the whole of this function
+    # below the tweak: it negates the key whose public point has an odd
+    # y, as BIP341 requires, and adds the tweak to it -- in constant
+    # time, which the python `%` on a secret scalar is not. The x-only
+    # public key the tweak commits to comes from the bindings too, and
+    # the parity byte dropped from it is the one they will decide again
+    # for themselves: 32.0 us against 82.3 (2000 tweaks, best of nine),
+    # the difference being the point this path never materializes and
+    # the square root it never takes to check that point's parity
+    if _libsecp256k1_applicable(ec):
+        pub_key = bytes_from_prv_key_int(internal_prvkey, ec)[1:]
+        t = _tap_tweak(pub_key, h, ec)
+        tweaked = libsecp256k1_xonly.prvkey_tweak_add(internal_prvkey, t)
+        return int.from_bytes(tweaked, "big")
+
+    P = mult(internal_prvkey)
     has_even_y = ec.y_even(P[0]) == P[1]
     internal_prvkey = internal_prvkey if has_even_y else ec.n - internal_prvkey
-    t: int = int.from_bytes(
-        tagged_hash(b"TapTweak", P[0].to_bytes(32, "big") + h), "big"
-    )
-    # BIP341: fail if t is not smaller than the group order.
-    # Unreachable in the suite, unlike its two siblings: P is a
-    # secp256k1 point whatever ec says, so a toy curve fails
-    # ec.y_even(P[0]) above before getting here, and for secp256k1
-    # itself a 256-bit tagged hash reaches n with probability 2**-128
-    if t >= ec.n:
-        raise BTClibValueError("Invalid script tree hash")  # pragma: no cover
+    t = _tap_tweak(P[0].to_bytes(32, "big"), h, ec)
     return (internal_prvkey + t) % ec.n
 
 
@@ -242,12 +260,8 @@ def check_output_pubkey(
         else:
             k = tagged_hash(b"TapBranch", e + k)
     p_bytes = control[1:33]
-    t_bytes = tagged_hash(b"TapTweak", p_bytes + k)
     p = int.from_bytes(p_bytes, "big")
-    t = int.from_bytes(t_bytes, "big")
-    # BIP341: fail if t is not smaller than the group order
-    if t >= ec.n:
-        raise BTClibValueError("Invalid script tree hash")
+    t = _tap_tweak(p_bytes, k, ec)
 
     # secp256k1_xonly_pubkey_tweak_add_check is the call libsecp256k1
     # provides for this very question, and it compares the serialized

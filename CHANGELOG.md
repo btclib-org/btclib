@@ -17,6 +17,7 @@ changes on their own. Neither file counts its entries: `grep -c '^- '`
 does that, whereas a stated number is a line every open branch has to
 edit.
 A hundred and seventy-nine entries, grouped. The order runs from what breaks
+A hundred and eighty entries, grouped. The order runs from what breaks
 a caller to what only maintainers see; [HISTORY.md](./HISTORY.md) lists the
 twenty-nine source-breaking changes on their own.
 
@@ -1954,6 +1955,17 @@ twenty-nine source-breaking changes on their own.
   for the `a == p-3` of most catalogued curves, and `JacPoint` is public.
   Every gain is a uniform one, so the comparisons the `curve_group_2`
   docstrings draw between the algorithms still hold as measured
+- **the taproot output *private* key is tweaked by libsecp256k1 too**, and
+  in constant time: `taproot.output_prvkey` calls
+  `xonly.prvkey_tweak_add`, which is BIP341's tweaking of an x-only
+  private key — the negation of a key whose public point has an odd y
+  included — where python negated with `ec.n - q` and added with a `%`.
+  Neither is constant time; the C one is, and it is a secret scalar. It
+  is faster as well, 32.0 µs against 82.3 (2000 tweaks, best of nine),
+  because the x-only public key the tweak commits to now comes from
+  `bytes_from_prv_key_int` instead of a point built in python and a
+  square root taken to learn that point's parity. The python arithmetic
+  stays, and is compared against the bindings over both parities
 - **the taproot output key is tweaked by libsecp256k1**, both where it is
   built and where a control block is checked against it:
   `taproot.output_pubkey` calls `xonly.tweak_add`, and

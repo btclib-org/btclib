@@ -106,7 +106,7 @@ def test_taproot_key_tweaking() -> None:
 def test_the_python_tweak_is_the_bindings_tweak(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """The output key, computed twice, is the same key on secp256k1.
+    """Both output keys, computed twice, are the same keys on secp256k1.
 
     The bindings are the authority on the answer and the python
     arithmetic is the reference implementation of it, so what has to be
@@ -114,14 +114,22 @@ def test_the_python_tweak_is_the_bindings_tweak(
     there is no second curve to reach the python path with: a toy curve
     fails the BIP341 range check on a 256-bit tweak before any
     arithmetic happens, and taproot is defined over secp256k1 alone.
+
+    The private key is the one whose public point has an odd y, the case
+    the tweaking negates: with an even one the two paths would agree
+    over a negation neither of them performed.
     """
-    pub_key = mult(0xC0FFEE)
+    prv_key = 0xC0FFEE
+    pub_key = mult(prv_key)
+    assert pub_key[1] % 2 == 1
 
     for script_tree in SCRIPT_TREES:
         delegated = output_pubkey(pub_key, script_tree)
+        delegated_prvkey = output_prvkey(prv_key, script_tree)
         with monkeypatch.context() as no_bindings:
             no_bindings.setattr(taproot, "_libsecp256k1_applicable", lambda *_: False)
             assert output_pubkey(pub_key, script_tree) == delegated
+            assert output_prvkey(prv_key, script_tree) == delegated_prvkey
 
 
 def test_the_python_commitment_check_is_the_bindings_one(
