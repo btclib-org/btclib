@@ -25,11 +25,24 @@ BIP39's behaviour, so none of them can be guessed from `bip39.py`:
   lower-case, accents dropped, whitespace collapsed -- so an upper-cased
   or accented sentence is read, not rejected
 
-Electrum reads five word-lists (en, es, ja, pt, zh_simplified) and
-btclib ships two (en, it). English is the shared one, byte for byte, so
-none of the above depends on the data; Italian is btclib's own
-extension, and an "electrum" mnemonic generated in Italian is one
-Electrum cannot read.
+Electrum reads five word-lists -- en, es, ja, pt, zh -- and its own
+registry here holds all twelve of BIP39's beside them, so a language
+Electrum does not read is still a language this module writes: an
+"electrum" mnemonic in Italian is btclib's extension, and Electrum
+cannot read it.
+
+Four of the five are BIP39's file after NFKD normalization, byte for
+byte, so nothing above depends on which of the two schemes loaded them.
+Portuguese is the exception and the reason this module has a registry of
+its own rather than sharing WORDLISTS: Electrum's Portuguese is Monero's
+word-list, 1626 words rather than 2048, and "pt" therefore names one
+word-list in bip39.py and another here. Two consequences, both of them
+visible in the code below: 1626 is not a power of two, so an index into
+it is not eleven bits and the entropy is a base conversion and nothing
+more; and a Portuguese sentence carrying Electrum's default entropy is
+thirteen words, which is why a "2fa" mnemonic cannot be generated in
+Portuguese at all -- that version wants twelve words or twenty, and
+Electrum raises there too.
 
 The pre-2.0 scheme is here too, and it is a different thing wearing the
 same words. A wallet created before Electrum 2.0 has a twelve- or
@@ -59,7 +72,6 @@ from btclib.bip32.der_path import _HARDENED_OFFSET
 from btclib.curves.curve import mult, secp256k1
 from btclib.curves.sec_point import bytes_from_point
 from btclib.exceptions import BTClibValueError
-from btclib.mnemonic import bip39
 from btclib.mnemonic.entropy import (
     BinStr,
     Entropy,
@@ -67,8 +79,10 @@ from btclib.mnemonic.entropy import (
     bin_str_entropy_from_wordlist_indexes,
 )
 from btclib.mnemonic.mnemonic import (
-    WORDLISTS,
+    BIP39_LANGUAGE_FILES,
     Mnemonic,
+    WordLists,
+    data_file,
     indexes_from_mnemonic,
     mnemonic_from_indexes,
 )
@@ -143,6 +157,17 @@ _OLD_WORDLIST_FILE = path.join(
 # has instead of the versioned scheme's 2048 PBKDF2 iterations
 _OLD_STRETCH_ROUNDS = 100_000
 
+# Electrum's own word-lists, which are BIP39's but for Portuguese: that
+# one is Monero's list, vendored as electrum_portuguese.txt
+# (electrum/wordlist/portuguese.txt, BSD-3-Clause, "Copyright (c) 2014,
+# The Monero Project", the licence header kept in the file because the
+# loader reads '#' as a comment). power_of_two off for it: 1626 words is
+# a base to convert to, not eleven bits per word
+ELECTRUM_WORDLISTS = WordLists(
+    {**BIP39_LANGUAGE_FILES, "pt": data_file("electrum_portuguese.txt")},
+    power_of_two=False,
+)
+
 
 def _is_cjk(char: str) -> bool:
     return any(imin <= ord(char) <= imax for imin, imax in _CJK_INTERVALS)
@@ -186,10 +211,11 @@ def _normalize(text: str) -> str:
 def _old_wordlist() -> tuple[str, ...]:
     """Return electrum's pre-2.0 word-list, read once, in its own order.
 
-    Not a language of WORDLISTS: it has 1626 words, and load_lang rejects
-    any count that is not a power of two, rightly -- an index into it is
-    not a whole number of bits, the pre-2.0 scheme being three words to
-    each 32-bit group rather than a base conversion.
+    Not a language of ELECTRUM_WORDLISTS, which would take it -- 1626
+    words is what its Portuguese has -- because the pre-2.0 scheme is not
+    a base conversion at all: three words carry four bytes, so an index
+    into this list is not a digit, and none of the entropy machinery a
+    registered language reaches applies to it.
     """
     with open(_OLD_WORDLIST_FILE, encoding="ascii") as file_:
         return tuple(line.rstrip("\n") for line in file_)
@@ -254,21 +280,42 @@ def _seed_version(mnemonic: Mnemonic) -> str:
 def _is_bip39_mnemonic(mnemonic: Mnemonic, lang: str) -> bool:
     """Return True if the mnemonic is also a valid BIP39 mnemonic.
 
-    The English word-list is the same file for both schemes, so a
-    sentence can satisfy both: one 12-word mnemonic in sixteen has a
-    valid BIP39 checksum by chance, which makes this the skip that counts
-    most towards generating what electrum generates.
+    The word-list is the same file for both schemes, so a sentence can
+    satisfy both: one 12-word mnemonic in sixteen has a valid BIP39
+    checksum by chance, which makes this the skip that counts most
+    towards generating what electrum generates.
+
+    Electrum's bip39_is_checksum_valid, arithmetic included, rather than a
+    call into bip39.py -- which is the same answer for the four 2048-word
+    lists, and a test pins that, but not for Portuguese. Electrum hands
+    that function its own word-list whatever the language, so for
+    Portuguese it is 1626 words being read with eleven bits per word:
+    nonsense as a checksum, and still what decides which candidates
+    electrum passes over, so a sentence generated here without it would
+    not be the sentence electrum generates.
     """
-    # electrum's bip39_is_checksum_valid answers "checksum invalid"
-    # rather than raising for a length outside this set, so the length is
-    # a question of its own and not something to read out of an exception
-    if len(mnemonic.split()) not in (12, 15, 18, 21, 24):
+    words = mnemonic.split()
+    # electrum answers "checksum invalid" rather than raising for a length
+    # outside this set, so the length is a question of its own and not
+    # something to read out of an exception
+    if len(words) not in (12, 15, 18, 21, 24):
         return False
     try:
-        bip39.entropy_from_mnemonic(mnemonic, lang)
+        indexes = indexes_from_mnemonic(mnemonic, lang, ELECTRUM_WORDLISTS)
     except BTClibValueError:
         return False
-    return True
+
+    base = ELECTRUM_WORDLISTS.language_length(lang)
+    int_entropy = 0
+    for index in indexes:
+        int_entropy = int_entropy * base + index
+    checksum_bits = 11 * len(words) // 33
+    # the entropy is 32 bits per checksum bit, so four bytes: with a
+    # 2048-word list the shift leaves exactly that many, and with a
+    # 1626-word one it leaves fewer, never more, at every allowed length
+    bytes_entropy = (int_entropy >> checksum_bits).to_bytes(4 * checksum_bits, "big")
+    hashed = int.from_bytes(sha256(bytes_entropy).digest(), byteorder="big")
+    return int_entropy % (1 << checksum_bits) == hashed >> (256 - checksum_bits)
 
 
 def _mnemonic_type(mnemonic: Mnemonic) -> str:
@@ -328,12 +375,26 @@ def _mnemonic_from_int_entropy(int_entropy: int, lang: str) -> Mnemonic:
     on the integer directly also keeps the leading-zero question out of
     it, an integer having no leading zeros to lose.
     """
-    base = WORDLISTS.language_length(lang)
+    base = ELECTRUM_WORDLISTS.language_length(lang)
     indexes = []
     while int_entropy:
         int_entropy, index = divmod(int_entropy, base)
         indexes.append(index)
-    return mnemonic_from_indexes(indexes, lang)
+    return mnemonic_from_indexes(indexes, lang, ELECTRUM_WORDLISTS)
+
+
+def _decodable(mnemonic: Mnemonic) -> Mnemonic:
+    """Return the sentence in the spelling its words are looked up in.
+
+    Not _normalize: that one drops the accents of a spanish word and the
+    spaces between two chinese ones, and neither survives a word-list
+    lookup -- what it returns is what electrum *hashes*, and electrum's
+    own mnemonic_decode is handed the sentence untouched. Case is folded
+    all the same, an upper-cased sentence being one version_from_mnemonic
+    recognizes, so refusing to decode what was just recognized would be
+    the worse answer. NFKD because the word-lists are NFKD.
+    """
+    return unicodedata.normalize("NFKD", mnemonic).lower()
 
 
 def _bin_str_entropy_from_mnemonic(mnemonic: Mnemonic, lang: str) -> BinStr:
@@ -343,24 +404,31 @@ def _bin_str_entropy_from_mnemonic(mnemonic: Mnemonic, lang: str) -> BinStr:
     is reversed before entropy.py's helper sees it, that helper being
     written for BIP39's order.
     """
-    indexes = indexes_from_mnemonic(mnemonic, lang)
-    base = WORDLISTS.language_length(lang)
+    indexes = indexes_from_mnemonic(_decodable(mnemonic), lang, ELECTRUM_WORDLISTS)
+    base = ELECTRUM_WORDLISTS.language_length(lang)
     return bin_str_entropy_from_wordlist_indexes(indexes[::-1], base)
 
 
 def _random_int_entropy(lang: str) -> int:
     """Return the entropy electrum's make_seed draws when given none.
 
-    132 bits rounded up to whole words, with anything below 2**121 drawn
-    again: that is what makes the leading word uniformly distributed and
-    the sentence twelve words long. secrets.randbits(128) instead leaves
-    the word count to follow the bit length, and the word count is the
-    one thing about the answer a caller cannot correct afterwards.
+    132 bits rounded up to whole words, with anything below one word less
+    drawn again: that is what makes the leading word uniformly
+    distributed and the sentence twelve words long. secrets.randbits(128)
+    instead leaves the word count to follow the bit length, and the word
+    count is the one thing about the answer a caller cannot correct
+    afterwards.
+
+    Bits per word is a float, as it is in electrum: for a 2048-word list
+    it is 11.0 and the rounding is exact, but Portuguese has 1626 words
+    and 10.667 bits, thirteen of which are 138 bits and not 130. int() on
+    it would round the sentence down to twelve words, i.e. to a mnemonic
+    electrum would never draw.
     """
-    bits_per_word = int(math.log2(WORDLISTS.language_length(lang)))
-    nbits = math.ceil(_RANDOM_ENTROPY_BITS / bits_per_word) * bits_per_word
+    bits_per_word = math.log2(ELECTRUM_WORDLISTS.language_length(lang))
+    nbits = int(math.ceil(_RANDOM_ENTROPY_BITS / bits_per_word) * bits_per_word)
     int_entropy = 1
-    while int_entropy < 1 << (nbits - bits_per_word):
+    while int_entropy < 2 ** (nbits - bits_per_word):
         # electrum's randrange: 1 <= r < 2**nbits, zero excluded
         int_entropy = secrets.randbelow((1 << nbits) - 1) + 1
     return int_entropy
@@ -427,17 +495,47 @@ def mnemonic_from_entropy(
     return mnemonic
 
 
-def entropy_from_mnemonic(mnemonic: Mnemonic, lang: str = "en") -> BinStr:
+def lang_from_mnemonic(mnemonic: Mnemonic) -> str:
+    """Return the language of the Electrum mnemonic sentence.
+
+    The word-lists that hold every word of the sentence are the
+    candidates, and more than one is refused rather than resolved. BIP39's
+    tie-break is not available here: an Electrum mnemonic has no checksum
+    over its entropy -- the version prefix is a hash of the sentence and
+    says nothing about which word-list spelled it -- so every candidate
+    decodes to an entropy that is as valid as the others, and only the
+    caller knows which one was meant. It is Chinese that reaches this,
+    Simplified and Traditional sharing 1275 of their 2048 words.
+    """
+    candidates = ELECTRUM_WORDLISTS.langs_of_words(_decodable(mnemonic).split())
+    if not candidates:
+        raise BTClibValueError(f"unknown language for mnemonic: '{mnemonic}'")
+    if len(candidates) > 1:
+        err_msg = f"ambiguous language for mnemonic: {candidates}"
+        raise BTClibValueError(err_msg)
+    return candidates[0]
+
+
+def entropy_from_mnemonic(mnemonic: Mnemonic, lang: str | None = None) -> BinStr:
     """Return the entropy from the Electrum versioned mnemonic sentence.
 
     This is the entropy the mnemonic encodes, which is one more than the
     smallest entropy mnemonic_from_entropy would produce it from.
+
+    The language is read off the words if it is not provided.
     """
-    mnemonic_type, mnemonic = version_from_mnemonic(mnemonic)
+    # the version first, and the language second: the version is a hash of
+    # the sentence and needs no word-list, while a pre-2.0 seed is spelled
+    # in a word-list no language here holds -- asking the language first
+    # would report it as an unknown language rather than as what it is
+    mnemonic_type, _ = version_from_mnemonic(mnemonic)
     if mnemonic_type == "old":
         err_msg = "pre-2.0 electrum mnemonic: entropy is not a base conversion; "
         err_msg += "use hex_seed_from_old_mnemonic"
         raise BTClibValueError(err_msg)
+    lang = lang or lang_from_mnemonic(mnemonic)
+    # the sentence handed in, and not the normalized one version_from_mnemonic
+    # returns beside the version: _decodable says why
     return _bin_str_entropy_from_mnemonic(mnemonic, lang)
 
 

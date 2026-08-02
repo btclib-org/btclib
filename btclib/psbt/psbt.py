@@ -32,6 +32,7 @@ from btclib.bip32 import (
     decode_hd_key_paths,
     encode_to_bip32_derivs,
 )
+from btclib.ecc import dsa
 from btclib.exceptions import BTClibValueError
 from btclib.hashes import hash160, sha256
 from btclib.psbt.psbt_in import PsbtIn
@@ -53,11 +54,14 @@ from btclib.script import (
     Witness,
     is_p2pkh,
     is_p2sh,
+    is_p2tr,
     is_p2wpkh,
+    is_p2wsh,
     serialize,
+    sig_hash,
     type_and_payload,
 )
-from btclib.tx import Tx, TxIn, join_txs
+from btclib.tx import Tx, TxIn, TxOut, join_txs
 from btclib.utils import bytesio_from_binarydata
 
 # the whole of BIP174's <magic>, five bytes: the four of "psbt" and the
@@ -244,6 +248,19 @@ class Psbt:
             for psbt_in, tx_in in zip(self.inputs, self.tx.vin, strict=True)
         ):
             err_msg = "mismatched non-witness utxo / outpoint tx_id"
+            raise BTClibValueError(err_msg)
+
+        # the outpoint names one of that transaction's outputs, and the
+        # tx_id check above does not say so: an index past its vout is an
+        # IndexError to everything that reads the spent output --
+        # _signable_payload, the Finalizer's sig_hash -- where malformed
+        # input owes the caller a BTClibValueError
+        if any(
+            psbt_in.non_witness_utxo
+            and tx_in.prev_out.vout >= len(psbt_in.non_witness_utxo.vout)
+            for psbt_in, tx_in in zip(self.inputs, self.tx.vin, strict=True)
+        ):
+            err_msg = "outpoint vout out of range for the non-witness utxo"
             raise BTClibValueError(err_msg)
 
         if len(self.tx.vout) != len(self.outputs):
@@ -486,16 +503,31 @@ class Psbt:
 def _combine_field(
     psbt_map: PsbtIn | PsbtOut | Psbt, out: PsbtIn | PsbtOut | Psbt, key: str
 ) -> None:
+    """Add one field of psbt_map to out, as BIP174's Combiner does.
+
+    "The resulting PSBT must contain all of the key-value pairs from each
+    of the PSBTs", so a field that is *several* key-value pairs -- a map
+    keyed by pub key, by hash, by control block -- is the union of the
+    two, merged pair by pair. A field that is one pair is taken when out
+    has none and kept when out has one, which is the arbitrary choice the
+    BIP allows a Combiner "when conflicts occur" and the choice Bitcoin
+    Core's PSBTInput::Merge makes.
+
+    A final_script_witness is one of the latter, and it survives the
+    combine either way round because a Witness is sized: an empty one is
+    falsy, so the input finalized in the other psbt is the one taken. It
+    is not merged element-wise, which is the one wrong answer here -- a
+    witness stack is positional, so two stacks for one input are two
+    spends of it and not the halves of one.
+    """
     item = getattr(psbt_map, key)
     if not item:
         return
     attr = getattr(out, key)
     if not attr:
         setattr(out, key, item)
-    elif attr != item and isinstance(item, dict):
+    elif isinstance(item, dict):
         attr.update(item)
-        # issue 173: no list branch, so a final_script_witness present in
-        # one psbt and absent from the other does not survive the combine
 
 
 def combine_psbts(psbts: Sequence[Psbt]) -> Psbt:
@@ -536,6 +568,29 @@ def combine_psbts(psbts: Sequence[Psbt]) -> Psbt:
     return final_psbt
 
 
+def _prev_out(psbt_in: PsbtIn, tx_in: TxIn) -> TxOut | None:
+    """Return the output the input spends, or None if the psbt omits it.
+
+    Either utxo field answers the question, and a psbt carries whichever
+    its kind of input needs: the witness_utxo is the spent output itself,
+    the non_witness_utxo the whole transaction it belongs to, indexed by
+    the outpoint.
+
+    The index is bound-checked rather than trusted. Psbt.assert_valid
+    does check it against that transaction's vout, and every caller here
+    runs after it, so this is belt and braces -- but None is a answer both
+    callers already handle, and an IndexError out of a private helper is
+    not.
+    """
+    if psbt_in.witness_utxo:
+        return psbt_in.witness_utxo
+    if psbt_in.non_witness_utxo and tx_in.prev_out.vout < len(
+        psbt_in.non_witness_utxo.vout
+    ):
+        return psbt_in.non_witness_utxo.vout[tx_in.prev_out.vout]
+    return None
+
+
 def _spent_script(psbt_in: PsbtIn, tx_in: TxIn) -> bytes:
     """Return the script the input's signatures satisfy, or b"".
 
@@ -551,15 +606,10 @@ def _spent_script(psbt_in: PsbtIn, tx_in: TxIn) -> bytes:
     an input that does not say what it spends is not one this function
     can contradict.
     """
-    if psbt_in.witness_utxo:
-        script = psbt_in.witness_utxo.script_pub_key.script
-    elif psbt_in.non_witness_utxo and tx_in.prev_out.vout < len(
-        psbt_in.non_witness_utxo.vout
-    ):
-        vout = psbt_in.non_witness_utxo.vout[tx_in.prev_out.vout]
-        script = vout.script_pub_key.script
-    else:
+    prev_out = _prev_out(psbt_in, tx_in)
+    if prev_out is None:
         return b""
+    script = prev_out.script_pub_key.script
     return psbt_in.redeem_script if is_p2sh(script) else script
 
 
@@ -629,6 +679,129 @@ def _finalized_input(psbt_in: PsbtIn, tx_in: TxIn) -> tuple[bytes, Witness]:
     return serialize(cast(ScriptList, [*cmds, *redeem_script])), Witness()
 
 
+def _witness_v0_script_code(psbt_in: PsbtIn, script: bytes) -> bytes:
+    """Return the script code BIP-143 signs the segwit v0 input against.
+
+    For p2wsh it is the witness script, which the input carries; for
+    p2wpkh it is the p2pkh script for the same hash160, which is in no
+    transaction and is built here. b"" is "the input does not say", i.e.
+    a p2wsh input with no witness script.
+    """
+    if is_p2wpkh(script):
+        _, payload = type_and_payload(script)
+        return serialize(
+            ["OP_DUP", "OP_HASH160", payload, "OP_EQUALVERIFY", "OP_CHECKSIG"]
+        )
+    return psbt_in.witness_script
+
+
+def _sig_hash_from_psbt_in(
+    psbt_in: PsbtIn, tx: Tx, vin_i: int, hash_type: int
+) -> bytes | None:
+    """Return the hash the input's partial signatures commit to, or None.
+
+    Covered is every kind of input a PSBT_IN_PARTIAL_SIG can belong to:
+    the legacy ones (p2pk, p2pkh, bare multisig), p2sh, p2wpkh, p2wsh,
+    and either witness kind wrapped in p2sh -- wrapped ones because what
+    the wrapper commits to is the redeem script, which is what the
+    dispatch below looks at once it has unwrapped it.
+
+    None is "this input does not say what is being signed", which is not
+    the same as "the signature is wrong": there is no utxo, or a p2sh
+    input carries no redeem script, or a p2wsh one no witness script. A
+    taproot input is None too, and for good: its signatures are schnorr
+    and travel in the taproot fields, so a partial signature beside a
+    p2tr script_pub_key is not a signature this hash would check.
+
+    sig_hash.from_tx is the same dispatch for a *signed* transaction, and
+    cannot serve here: it reads the redeem script out of the input's
+    script_sig and the witness script off its witness stack, and a psbt's
+    unsigned transaction has neither -- they are the psbt's own fields,
+    which is the whole point of the format.
+    """
+    prev_out = _prev_out(psbt_in, tx.vin[vin_i])
+    if prev_out is None:
+        return None
+
+    script = prev_out.script_pub_key.script
+    if is_p2sh(script):
+        script = psbt_in.redeem_script
+
+    if is_p2wpkh(script) or is_p2wsh(script):
+        script_code = _witness_v0_script_code(psbt_in, script)
+        if not script_code:
+            return None
+        return sig_hash.segwit_v0(script_code, tx, vin_i, hash_type, prev_out.value)
+
+    if not script or is_p2tr(script):
+        return None
+    return sig_hash.legacy(script, tx, vin_i, hash_type)
+
+
+def _assert_sig_hash_type(psbt_in: PsbtIn) -> None:
+    """Raise unless each signature commits to the type the input asks for.
+
+    BIP174 on the Input Finalizer: "If the input has a
+    PSBT_IN_SIGHASH_TYPE field, the Input Finalizer must fail to finalize
+    that input if any signature does not match the specified sighash
+    type". Without the check a psbt finalizes into a transaction whose
+    signatures commit to something other than the input asked for -- and
+    the input is what the other participants agreed to.
+
+    The type a signature commits to is the byte appended to its DER
+    encoding, which is where the script engine reads it too.
+
+    Presence is `is not None` rather than truthiness: 0 is
+    SIGHASH_DEFAULT, which an input may ask for and no ECDSA signature
+    carries, so an input asking for it is exactly an input no partial
+    signature can finalize.
+    """
+    if psbt_in.sig_hash_type is None:
+        return
+    for sig in psbt_in.partial_sigs.values():
+        if sig[-1] != psbt_in.sig_hash_type:
+            err_msg = "mismatched sig_hash type: "
+            err_msg += f"{hex(sig[-1])} vs {hex(psbt_in.sig_hash_type)}"
+            raise BTClibValueError(err_msg)
+
+
+def _assert_partial_sigs_verify(psbt_in: PsbtIn, tx: Tx, vin_i: int) -> None:
+    """Raise unless each partial signature verifies against its own key.
+
+    The Finalizer is where the check belongs, and PsbtIn.assert_valid is
+    not: a signature commits to the whole transaction, which a per-field
+    validator does not have, while the role BIP174 charges with deciding
+    "if the input has enough data to pass validation" holds it.
+
+    An input whose sig_hash is not computable is left alone rather than
+    refused: what is missing there is the utxo or a script, which is not
+    evidence against the signature.
+
+    lower_s=False because the question here is whether that key made that
+    signature: the low-s rule is policy, applied by the script engine
+    under its flags, and Bitcoin Core's CPubKey::Verify normalizes s
+    before verifying for this very reason.
+    """
+    # the hash is the input's and the hash type's, never the key's, so an
+    # n-of-m input whose signatures agree on the type -- which is the
+    # ordinary case, they are signing one thing -- serializes the
+    # transaction once instead of n times. None is a value worth caching
+    # too, so membership and not truthiness says whether it is computed
+    sig_hashes: dict[int, bytes | None] = {}
+    for pub_key, sig in psbt_in.partial_sigs.items():
+        hash_type = sig[-1]
+        if hash_type not in sig_hashes:
+            sig_hashes[hash_type] = _sig_hash_from_psbt_in(
+                psbt_in, tx, vin_i, hash_type
+            )
+        msg_hash = sig_hashes[hash_type]
+        if msg_hash is None:
+            continue
+        if not dsa.verify_(msg_hash, pub_key, sig[:-1], lower_s=False):
+            err_msg = f"invalid partial signature for pub_key {pub_key.hex()}"
+            raise BTClibValueError(err_msg)
+
+
 def finalize_psbt(psbt: Psbt) -> Psbt:
     """Finalize the Psbt.
 
@@ -644,17 +817,24 @@ def finalize_psbt(psbt: Psbt) -> Psbt:
     to allow Transaction Extractors to verify the final network
     serialized transaction.
 
-    What is built is the spend the input's own kind asks for, which is
-    what _finalized_input dispatches on: a witness script alone does not
-    say, being absent from every single-key segwit input.
+    Deciding that an input has enough data is two checks beyond the
+    presence of a signature, and both are per input: the sighash type
+    each signature commits to is the one the input asks for, and each
+    signature verifies against the key it is filed under.
+
+    What is then built is the spend the input's own kind asks for, which
+    is what _finalized_input dispatches on: a witness script alone does
+    not say, being absent from every single-key segwit input.
     """
     psbt = deepcopy(psbt)
     psbt.assert_valid()
-    # issue 173: BIP-174 requires a Finalizer to refuse an input whose
-    # signatures do not match the sighash type it asks for
-    for psbt_in, tx_in in zip(psbt.inputs, psbt.tx.vin, strict=True):
+    for vin_i, (psbt_in, tx_in) in enumerate(
+        zip(psbt.inputs, psbt.tx.vin, strict=True)
+    ):
         if not psbt_in.partial_sigs:
             raise BTClibValueError("missing signatures")
+        _assert_sig_hash_type(psbt_in)
+        _assert_partial_sigs_verify(psbt_in, psbt.tx, vin_i)
         script_sig, witness = _finalized_input(psbt_in, tx_in)
         psbt_in.final_script_sig = script_sig
         psbt_in.final_script_witness = witness
@@ -762,7 +942,6 @@ def join_psbts(
     psbts: Sequence[Psbt],
     enforce_same_tx_version: bool,
     enforce_same_tx_lock_time: bool,
-    merge_out: bool,
     shuffle_inp: bool,
     shuffle_out: bool,
     sort_inp: Callable[[PsbtIn], int] | None = None,
@@ -774,6 +953,14 @@ def join_psbts(
     they are simply concatenated in the same order as psbts are
     specified. A specific ordering can be specified via sort_{inp|out},
     which overwrite shuffle when present.
+
+    Outputs are concatenated and never merged, and there is no parameter
+    asking for it: coalescing two outputs that pay the same script is a
+    change to the output *set*, so every signature already made over the
+    old one stops verifying -- and, after the shuffle or sort above, the
+    result would depend on the order the merge ran in. A caller who wants
+    one output where there were two builds it that way before signing,
+    which is the only point at which it is safe.
     """
     _ensure_consistency(psbts)
 
@@ -787,11 +974,13 @@ def join_psbts(
     }
     version = max(psbt.version for psbt in psbts)
 
+    # the transaction is joined unshuffled: the psbt's inputs and its vin
+    # are one sequence in two lists, so whatever reorders them has to
+    # reorder both, which is what sort_inputs and sort_outputs below do
     merged_tx = join_txs(
         [psbt.tx for psbt in psbts],
         enforce_same_tx_version,
         enforce_same_tx_lock_time,
-        False,
         False,
         False,
     )
@@ -801,11 +990,6 @@ def join_psbts(
         psbt.sort_inputs(sort_inp)
     if shuffle_out or sort_out:
         psbt.sort_outputs(sort_out)
-    if merge_out:
-        # issue 173: merging two outputs paying the same script changes the
-        # output count, so it invalidates any signature already committed to
-        # the previous set -- and after a sort the result depends on the sort
-        raise BTClibValueError("output merge not implemented yet")
 
     psbt.assert_valid()
     return psbt

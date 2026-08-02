@@ -117,14 +117,15 @@ Moreover,
 the [pytest](https://pytest.org) unit tests
 must pass at any time, with
 [coverage](https://coverage.readthedocs.io/)
-of both the library and the test suite above the `fail_under` ratchet in
-pyproject.toml — 99.99%, against the 100% the tree measures today. One
-rounding step of slack and no more: enough not to trip over a
-version-gated line, tight enough that a regression cannot hide, where
-the 99.9 it replaces was ten times as wide. The ratio is of a statement
-count that moves with every commit and again with the interpreter, so
-neither this file nor pyproject.toml writes one down; `pytest --cov`
-prints it, on the 3.14 the gate is checked on.
+of both the library and the test suite at the `fail_under` ratchet in
+pyproject.toml — 100%, and coverage takes that literally: it
+special-cases the value, so 99.999% is a red build where the 99.99 this
+replaces passed everything above 99.985%, and the 99.9 before it ten
+times as much again. No slack, so a statement no test reaches is either
+covered by patching what stands in the way, as the ripemd160 fallback
+and electrum's round-trip check are, or marked `pragma: no cover` with
+the reason beside it. `pytest --cov` prints the total on every run, on
+the 3.14 the gate is checked on.
 See [Tests, code coverage, and profiling](./tests/README.md).
 
 These requirements are easily checked (and partially fixed) with:
@@ -273,6 +274,46 @@ repository, so a red merge would be somebody else's weather — and a
 failing run is read in the Actions tab. `.lycheeignore` holds the URLs a
 checker cannot judge, each with the reason.
 
+The `mutation` workflow, weekly and on demand, which gates nothing either
+and for a different reason: it asks whether the suite would *notice* a
+wrong line, where coverage only says the line ran, and a surviving mutant
+is a test nobody has written rather than a regression somebody just
+caused. Scoped to the consensus code — `btclib/script/engine/` and
+`btclib/script/sig_hash.py` — by the two configurations under
+`.github/mutation/`, which is also what a local run reads, so there is one
+statement of what is mutated and what judges it:
+
+```shell
+uv run --locked --no-default-groups --group test --group mutation \
+    cosmic-ray baseline .github/mutation/sig_hash.toml
+uv run --locked --no-default-groups --group test --group mutation \
+    cosmic-ray init .github/mutation/sig_hash.toml sig_hash.sqlite
+uv run --locked --no-default-groups --group test --group mutation \
+    cosmic-ray exec .github/mutation/sig_hash.toml sig_hash.sqlite
+uv run --locked --no-default-groups --group test --group mutation \
+    cr-report --surviving-only --show-diff sig_hash.sqlite
+```
+
+`baseline` first, always: it runs the configured test command against the
+unmutated tree, and without it a stale path or a renamed test file fails
+every mutant identically and the session reports a perfect kill rate,
+which is the one failure mode of a mutation run that looks like good news.
+`engine.toml` in place of `sig_hash.toml` is the other scope, at 2768
+mutants against 727 and five and a half hours against half an hour of cpu;
+each configuration says what its own arithmetic is. The report is
+`--surviving-only`, which is the whole of what anybody acts on: a killed
+mutant is the suite doing its job, and printing all 727 of them buries the
+dozen that are not.
+
+Three things to know before starting one. The session mutates the source
+file in place and restores it afterwards, so nothing else may read the
+tree while it runs — no second session, no `pytest` in another shell, and
+a `git status` in the middle is a working tree with a mutant in it.
+`exec` is resumable, running whatever the session still has pending, so
+interrupting one costs only the mutant it was on. And the `.sqlite`
+sessions are the artifact the workflow uploads: `cr-report`, `cr-html` and
+`cr-rate` all read one, and a downloaded one can be finished locally.
+
 The documentation, which the `Build the documentation` job of `lint.yml`
 runs with this same command, as read the docs does. `-W` is what makes an
 `automodule` whose module does not import a failure rather than an empty
@@ -302,6 +343,17 @@ warning. `docs/source/conf.py` resolves those links and suppresses no
 `myst.xref_missing`, so `-W` fails on the next one that has no target; the
 grep asks the same question of the HTML, where no suppression can hide the
 answer.
+
+Both steps ask whether a page renders and whether its links resolve, and
+nothing more. Whether the worked examples on it are still true is a
+different question, asked by `tests/docs_examples_test.py`: any page under
+`docs/source/` carrying a `>>>` prompt is run as a doctest by the suite, so
+an example is edited by running `uv run pytest tests/docs_examples_test.py`
+and pasting back what the library answered — never by writing what it ought
+to answer. Keep them deterministic, which for `ssa.sign` means passing
+`aux` and for a mnemonic means passing the entropy; and keep every key on
+those pages a published test vector, so that a reader who copies one copies
+something already known to the world.
 
 The only check with no local equivalent is CodeQL, which GitHub runs on
 its side; its findings appear under the Security tab.

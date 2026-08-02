@@ -17,13 +17,13 @@ from dataclasses import dataclass
 from os import path
 from typing import Any
 
-from btclib.alias import NetworkType, Octets
+from btclib.alias import NetworkField, NetworkName, NetworkType, Octets
 from btclib.curves import Curve
 from btclib.curves.curve import CURVES
 from btclib.exceptions import BTClibTypeError, BTClibValueError
 from btclib.utils import bytes_from_octets
 
-_KEY_SIZE: list[tuple[str, int]] = [
+_KEY_SIZE: list[tuple[NetworkField, int]] = [
     ("magic_bytes", 4),
     ("genesis_block", 32),
     ("wif", 1),
@@ -250,8 +250,21 @@ datadir = path.join(path.dirname(__file__), "_data")
 # prefixes, and appending a newer network cannot change any answer.
 # mainnet first, then the test networks oldest to newest -- signet.json
 # and testnet4.json differ from testnet.json in the genesis block and
-# the p2p magic, and in nothing else
-for net in ("mainnet", "testnet", "regtest", "signet", "testnet4"):
+# the p2p magic, and in nothing else.
+#
+# Annotated, where inference would widen it to tuple[str, ...]: this is
+# what ties NetworkName to the data it names, a sixth file loaded here
+# without a sixth member there being a mypy error. The dict it fills
+# stays dict[str, Network], a caller's custom signet being as much a
+# network as these -- issue #216 for why no parameter below narrows
+_network_names: tuple[NetworkName, ...] = (
+    "mainnet",
+    "testnet",
+    "regtest",
+    "signet",
+    "testnet4",
+)
+for net in _network_names:
     filename = path.join(datadir, f"{net}.json")
     with open(filename, encoding="ascii") as f:
         NETWORKS[net] = Network.from_dict(json.load(f))
@@ -276,7 +289,9 @@ for net in ("mainnet", "testnet", "regtest", "signet", "testnet4"):
 # xprvversions_from_network(net), a prefix equal to NETWORKS[net].wif.
 # That check is exact for all five networks, and issue #207 records the
 # WIF path having got this wrong by comparing reverse-lookup names.
-def networks_from_key_value(key: str, prefix: str | bytes | Curve) -> list[str]:
+def networks_from_key_value(
+    key: NetworkField, prefix: str | bytes | Curve
+) -> list[str]:
     """Return every network with the (key, value) pair, oldest first.
 
     The list is the ordinal the singular lookups below hide: [0] is the
@@ -293,7 +308,9 @@ def networks_from_key_value(key: str, prefix: str | bytes | Curve) -> list[str]:
     ]
 
 
-def network_from_key_value(key: str, prefix: str | bytes | Curve) -> str | None:
+def network_from_key_value(
+    key: NetworkField, prefix: str | bytes | Curve
+) -> str | None:
     """Return the oldest network with the (key, value) pair, else None.
 
     Oldest, i.e. 'testnet' for the prefixes testnet, regtest, signet and
@@ -310,7 +327,7 @@ def network_from_key_value(key: str, prefix: str | bytes | Curve) -> str | None:
 
 
 def network_type_from_key_value(
-    key: str, prefix: str | bytes | Curve
+    key: NetworkField, prefix: str | bytes | Curve
 ) -> NetworkType | None:
     """Return "main" or "test" from a (key, value) pair, None if unknown.
 

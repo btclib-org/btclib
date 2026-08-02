@@ -5,16 +5,17 @@ nothing else pins: `btclib/mnemonic/_data/wordlist.txt`, SLIP-0039's word
 list. It is here because a word list is the most load-bearing vendored
 file there is -- every share ever written with it decodes through it --
 and because, unlike `english.txt`, it has no byte-identical copy under
-`tests/` for an entry to name instead. The package's other three word
-lists have no entry because each is already pinned somewhere else or not
-at all: `english.txt` through the test copy below,
-`electrum_old_english.txt` through the pin `btclib/mnemonic/electrum.py`
-carries beside the constant naming it, and `italian.txt` nowhere, which
-is a gap rather than a statement about it.
+`tests/` for an entry to name instead. The package's other word lists
+have no entry because each is already pinned somewhere else or not at
+all: `english.txt` through the test copy below,
+`electrum_old_english.txt` and `electrum_portuguese.txt` through the
+pins `btclib/mnemonic/electrum.py` carries beside the constants naming
+them, and `italian.txt` and the eleven other BIP39 lists nowhere, which
+is a gap rather than a statement about them.
 
 The other directory holding json beside the tests,
 `tests/**/_generated_files/`, is the opposite kind of thing and has no
-entry here: those seventeen files are btclib's own output, `to_dict()`
+entry here: those files are btclib's own output, `to_dict()`
 over fixed input, committed as golden files so that a change to a
 serialized form fails a test instead of passing unnoticed. Nothing
 upstream to pin, and nothing to compare against but ourselves —
@@ -29,8 +30,8 @@ citation is pinned to a commit and the two blobs are compared.
 
 Nothing in this file is a mirror of the citations in the test modules.
 Those say what a vector *is*; this says which revision of it we hold —
-and for six files the answer is "no revision of it, byte for byte",
-which the verdict then accounts for.
+and for the transcribed ones the answer is "no revision of it, byte for
+byte", which the verdict then accounts for.
 
 The two halves are kept in agreement in one direction only: a test module
 names its upstream and points here for the revision, and this file does
@@ -45,26 +46,33 @@ no upstream name to be compared against, so the citation in the module
 that loads it can drift to a path upstream never had and nobody catches
 it — the byte comparison below is the only check the naming cannot fool.
 
-Seventeen files keep a btclib name deliberately, and the reason is the
-same in each: there is no upstream file whose name they could take.
+The files that keep a btclib name do so deliberately, and the reason is
+the same in each: there is no upstream file whose name they could take
 
 - `bip32_test_vectors.json`, `bip32_invalid_keys.json`,
   `bip174_test_vectors.json`, `bip371_test_vectors.json` and
   `bip67_test_vectors.json` are transcribed from mediawiki prose. There is
   no upstream file, so the name is ours by necessity.
-- `bip39_test_vectors.json` holds only the `english` array of trezor's
-  `vectors.json`, plus one btclib case. Taking the name `vectors.json`
-  would claim twelve languages we do not vendor -- and that name is now
-  taken in the very same directory, by SLIP-0039's own `vectors.json`,
-  which is a different upstream's file of the same name.
-- `descriptor_checksums.json`, `rfc6979.json`,
-  `electrum_test_vectors.json` and `fakeenglish.txt` have no upstream file
-  either; the last two are btclib's own.
+- `bip39_test_vectors.json` holds all twelve language arrays of trezor's
+  `vectors.json`, plus one btclib case, and keeps the btclib name anyway:
+  `vectors.json` is taken in the very same directory, by SLIP-0039's own
+  file of that name, which is a different upstream's.
+- `descriptor_checksums.json` and `rfc6979.json` are transcribed from
+  prose, and `electrum_test_vectors.json`,
+  `electrum_language_vectors.json`, `btclib_test_vectors.json` and
+  `fakeenglish.txt` are btclib's own: no upstream file for any of them,
+  so no upstream name to take.
 - the seven under `tests/fetch/_data/` are response bodies, and a
   response has no name at all. Each takes the rpc method or the endpoint
   path that produces it, which is the closest thing to an upstream name
   they have and the one a re-check would type into `bitcoin-cli` or a
   url.
+
+`btclib_test_vectors.json` is where that convention says the most, and it
+is a naming rule of its own: the prefix of a psbt vector file names the
+authority the cases answer to — `bip174_`, `bip371_`, and `btclib_` for
+the ones btclib composed, which no BIP publishes and no refresh will ever
+reach. A file so named cannot be mistaken for a copy of something.
 
 `taproot_test_vector.json` and `sig_hash_legacy_test_vectors.json` do have
 an upstream file each -- bip-0341's `wallet-test-vectors.json` and Core's
@@ -93,11 +101,13 @@ Where a file was vendored earlier and later refreshed, both dates appear.
 staleness figure, not a defect: a vector file is a fixed set of cases and
 refreshing it is a decision, not a chore.
 
-Every entry was last re-checked against its upstream on 2026-07-30 -- the
-two SLIP-0039 entries on 2026-08-02, the day they were vendored -- and
+Every entry was last re-checked against its upstream on 2026-07-30, and
 whatever had drifted was refreshed, so `behind` is 0 wherever a refresh
-was possible at all. The eight BIP327 files are the exception by date
-alone: they were vendored on 2026-08-02, at the tip of their path.
+was possible at all. The files vendored since are the exception by date
+alone, all of them taken at the tip of their path on 2026-08-02, which is
+what their `pulled` says: the eight BIP327 files, the three Core files
+`key_io_valid.json`, `key_io_invalid.json` and `base58_encode_decode.json`,
+and the two python-bitcoinlib block files added here.
 
 A vector btclib fails is vendored anyway and marked `xfail`, never left
 out: an absent vector hides the defect it would have shown, and
@@ -284,7 +294,9 @@ failures — and all 34 are here, each with the base64 the prose gives and
 cross-checked against the hex the prose gives beside it. What is not
 vendored, deliberately, is the role walk-through: the creator, updater,
 signer, combiner, finalizer and extractor psbts of the worked example,
-which are prose steps rather than cases.
+which are prose steps rather than cases. Five of them are the raw
+material of `btclib_test_vectors.json` below, which is a different claim:
+not that they are cases, but that a case can be built out of one.
 
 The `description` and `encoded psbt` of each entry are upstream's. The
 `error message` of a signer check failure is **not**: the BIP says only
@@ -391,6 +403,65 @@ behind  0 revisions; that commit is the tip of the path
 
 Verdict: **identical**, 93 vectors — Core's entire file, here too, with
 14 of the 93 naming WITNESS in their flags.
+
+### `tests/_data/key_io_valid.json`
+
+```text
+repo    bitcoin/bitcoin
+path    src/test/data/key_io_valid.json
+commit  7c200ece80575d399a552f5757c07ac2c8c7ec6c  2025-03-26
+blob    bff7ecff0993b7224301f07c8c624853832b61df
+pulled  2026-08-02
+behind  0 revisions; that commit is the tip of the path
+```
+
+Verdict: **identical**, 70 rows — 54 addresses and 16 WIFs, over the four
+chains Core names in the metadata: `main`, `testnet4`, `signet`,
+`regtest`, which are btclib networks under those very names but for
+`mainnet`. The `test` of Core's older revisions is gone from the file:
+the pinned commit is "test: use testnet4 in key_io_valid.json".
+
+Eight of the 54 are witness versions 2, 3 and 16.
+`ScriptPubKey.from_address` decodes each to Core's scriptPubKey and `b32`
+re-encodes each from its witness, but `ScriptPubKey.address` answers `""`
+for them: it renders the five types `type_and_payload` names and a future
+version is not one of them. `tests/key_io_test.py` asserts that answer
+rather than skipping the rows.
+
+### `tests/_data/key_io_invalid.json`
+
+```text
+repo    bitcoin/bitcoin
+path    src/test/data/key_io_invalid.json
+commit  fa506add25cbe5efbbabca647f5378c4128cf945  2022-04-06
+blob    8f55abfec731bf2dec806804bb4dd903487294dc
+pulled  2026-08-02
+behind  0 revisions; that commit is the tip of the path
+```
+
+Verdict: **identical**, 70 strings, each a one-element array. All 70 are
+refused by all four of the entry points that could be handed one —
+`b58.h160_from_address`, `b32.witness_from_address`,
+`ScriptPubKey.from_address` and `prv_keyinfo_from_prv_key` — every
+refusal a `BTClibValueError`.
+
+### `tests/_data/base58_encode_decode.json`
+
+```text
+repo    bitcoin/bitcoin
+path    src/test/data/base58_encode_decode.json
+commit  5dd3a0d8a899e4c7263d5b999135f4d7584e1244  2025-01-04
+blob    7255fd45c8003ad99ee95c507d8c54f49b50e4c2
+pulled  2026-08-02
+behind  0 revisions; that commit is the tip of the path
+```
+
+Verdict: **identical**, 21 rows of `[hex, base58]`. Core's
+`EncodeBase58`/`DecodeBase58`, i.e. the codec with no checksum on it, so
+what reads them is `base58._b58encode`/`_b58decode` and not the checked
+`b58encode`/`b58decode` — one row is 256 bytes, 348 base58 characters,
+which the checked decoder would refuse on `MAX_LENGTH` before looking at
+it.
 
 ### `tests/_data/descriptor_checksums.json`
 
@@ -509,34 +580,143 @@ behind  0 revisions; still the blob on master
 Verdict: **reformatted**. 200 vectors, JSON-equal, and all 200 are
 exercised by `tests/ecc/bms_test.py`.
 
+### `tests/block/_data/checkblock_valid.json`
+
+```text
+repo    petertodd/python-bitcoinlib
+path    bitcoin/tests/data/checkblock_valid.json
+commit  46314961bd7d8d0d6069c766c9cb7bfc41c299f4  2014-02-22
+blob    eeca0aa43d8c3cd75d3c98d497f39edb2f722dff
+pulled  2026-08-02
+behind  0 revisions; that commit is the only one to touch the path
+```
+
+Verdict: **identical**. Four blocks — genesis twice, 99,960 and 99,993 —
+which `tests/block/checkblock_test.py` parses with the full validity
+check. Genesis is the merkle tree btclib had no vector for: one leaf, so
+the root is the coinbase txid and nothing is hashed.
+
+The two genesis entries differ only in the `cur_time` beside them, which
+btclib has no use for: it answers "is this timestamp too far in the
+future", and that takes a clock.
+
+### `tests/block/_data/checkblock_invalid.json`
+
+```text
+repo    petertodd/python-bitcoinlib
+path    bitcoin/tests/data/checkblock_invalid.json
+commit  46314961bd7d8d0d6069c766c9cb7bfc41c299f4  2014-02-22
+blob    16a9b3cafea17fb55057c1bb5eac572b524b27d5
+pulled  2026-08-02
+behind  0 revisions; that commit is the only one to touch the path
+```
+
+Verdict: **identical**. Seven blocks consensus refuses, and the only
+vendored negative block vectors there are: what `block_test.py` rejects,
+it rejects from blocks it mutates itself.
+
+btclib rejects six of the seven. The seventh is the genesis block two
+hours and one second ahead of its `cur_time`, and `xfail` is what that
+gets: no clock, no contextual check. Three of the six are rejected for
+the proof-of-work rather than the rule they name, upstream's `fCheckPoW`
+being a switch `Block.assert_valid` does not have; each of those three
+rules is asserted in `block_test.py` instead, from a block mutated for
+the purpose.
+
+One of the seven is misnamed, and the file is vendored with the name
+anyway: "Duplicate transaction" is refused for its merkle root, the
+duplicate never being reached, which is reported upstream along with
+three other findings as petertodd/python-bitcoinlib#323. Renaming it
+here would break the pin.
+
+### Not vendored as files, from the same repository
+
+Two blocks of values are cited inline instead, each small enough to read
+where it is used, both pinned to `fbbe9245` (2023-04-27), the tip of both
+paths:
+
+- the five secp256k1 RFC6979 vectors of `Test_RFC6979`, in
+  `bitcoin/tests/test_wallet.py`, read by `tests/ecc/rfc6979_test.py`.
+  Private key, message, nonce and signature; the s values are the low
+  ones, and four of the five differ from what RFC6979 arrives at before
+  that normalization.
+- the six nBits-to-difficulty pairs of
+  `Test_CBlockHeader.test_calc_difficulty`, in
+  `bitcoin/tests/test_core.py`, read by `tests/block/block_test.py`.
+  btclib holds them as the hex the header field carries rather than the
+  int upstream reads them as.
+
 ### `tests/mnemonic/_data/bip39_test_vectors.json`
 
 ```text
 repo    trezor/python-mnemonic
 path    vectors.json
-commit  b502451a33a440783926e04428115e0bed87d01f  2015-12-24
-blob    c15add0e28ead51eb0d41fd73273531cc7aab922
-pulled  2018-06-01
-behind  5 revisions, all adding languages
+commit  b57a5ad77a981e743f4167ab2f7927a55c1e82a8  2024-08-27
+blob    d362a5d4eb1ba800a52aec30116915cd4576e1fd
+pulled  2018-06-01, refreshed 2026-08-02
+behind  0 revisions
 ```
 
-Verdict: **extended**, and reformatted. Upstream's 24 English vectors are
-ours, in order, value for value; ours has a 25th, the last one repeated
-with tabs, newlines and doubled spaces sprinkled through the mnemonic, to
-exercise whitespace normalisation. btclib's, not upstream's.
+Verdict: **extended**, and reformatted. All twelve language arrays are
+ours, in order, value for value; ours has one vector upstream does not,
+a 25th English case repeating the last with tabs, newlines and doubled
+spaces sprinkled through the mnemonic, to exercise whitespace
+normalisation. btclib's, not upstream's.
 
-Upstream has grown eleven more languages since, and its English array has
-not changed in any revision — so the pin is the earliest revision that
-provides it, and the five revisions of drift are irrelevant to us. Only
-the English vectors were ever taken; `english.txt` is the only wordlist
-`btclib/mnemonic/mnemonic.py` ships.
+Held to the `english` array alone until 2026-08-02, when the other eleven
+word-lists became languages btclib reads: the pin was the earliest
+revision providing that array, since it has not changed in any of them,
+and the pin is now the current revision because the arrays taken are all
+of them.
 
-Re-checked on 2026-07-30 against the tip of the path, `b57a5ad7`
-(2024-08-27, blob `d362a5d4`, and its message is "normalize the words in
-the wordlist according to NFKD"): upstream's 24 English vectors are still
-ours value for value, that normalisation having touched other languages
-only. Nothing to refresh, and the eleven other languages stay out for as
-long as one BIP39 wordlist is shipped.
+The name is btclib's rather than upstream's, and stays so now that all
+twelve arrays are here: `vectors.json` is taken in this very directory,
+by SLIP-0039's own file of that name, which is a different upstream's.
+
+### `tests/mnemonic/_data/test_JP_BIP39.json`
+
+```text
+repo    bip32JP/bip32JP.github.io
+path    test_JP_BIP39.json
+commit  360c05a6439e5c461bbe5e84c7567ec38eb4ac5f  2017-08-20
+blob    6d8c40b19e5d4b899f9f3c2addbf994d150b245b
+pulled  2026-08-02
+behind  0 revisions
+```
+
+Verdict: **reformatted**. 24 vectors, JSON-equal; upstream's indentation
+wanders by a space or two and ours is what `json.dumps(indent=4)` writes.
+
+bip-0039 cites this file by URL in its own Test vectors section, beside
+the reference implementation's, for the case that file does not cover:
+"Japanese wordlist test with heavily normalized symbols as passphrase".
+The passphrase is one string in NFC and another in NFKD, and the
+sentences are published composed against word-lists published
+decomposed, so these are the vectors that fail when normalisation is
+skipped anywhere.
+
+### `tests/mnemonic/_data/electrum_language_vectors.json`
+
+btclib's own, and the second file here cross-checked against an
+application rather than copied from a project. Electrum's `make_seed`
+run with `randrange` patched to a constant, once per language, which is
+the same starting point `mnemonic_from_entropy` takes: what it returned
+is the mnemonic, and `mnemonic_to_seed` of it is the seed. Electrum
+publishes no vector of that kind — its own `SEED_TEST_CASES` are
+sentences to read, not entropies to generate from — so there is nothing
+upstream to pin or to refresh against; regenerate them from electrum's
+`mnemonic.py` if they are ever doubted.
+
+The two Portuguese sentences beside them answer electrum's
+`bip39_is_checksum_valid` yes and no, over its own 1626-word list.
+
+In a file rather than inline like every other electrum vector in
+`tests/mnemonic/electrum_test.py`, and the reason is this directory: the
+lint gate's two spell checkers read a python source and skip `_data`, and
+`typos` runs with `--write-changes`. Measured, it corrected a word of the
+Portuguese sentence into the English word it is one letter away from.
+
+Pulled 2026-08-02.
 
 ### `btclib/mnemonic/_data/wordlist.txt`
 
@@ -804,10 +984,60 @@ from `english.txt` if that ever changes, which it has not since 2014.
 
 Pulled 2018-06-01.
 
+### `tests/psbt/_data/btclib_test_vectors.json`
+
+**btclib's own, composed rather than copied.** Seven cases that no BIP
+publishes: each is a psbt btclib must refuse, and what it must say. There
+is no upstream URL to give, because there is no upstream — inventing one
+is the failure mode this entry exists to prevent.
+
+What they are made of is upstream, and it is the half of BIP174 the entry
+above deliberately leaves out. The starting psbts are five steps of the
+BIP's "2-of-3 Multisig Workflow" walk-through — prose steps rather than
+`* Case:` entries, which is why `bip174_test_vectors.json` does not
+vendor them — taken at the same pin as that file,
+`8c369ac8e60629ac6c032ffe21bb5ec5b35213d7` (2026-07-16), where all five
+appear verbatim. Every case is one of them plus one edit:
+
+- the **creator**'s psbt with a `PSBT_GLOBAL_VERSION` of 1, and with the
+  `0xff` of its magic bytes replaced — the two `invalid psbts`, which
+  `Psbt.b64decode` must refuse. The second is refused for the header and
+  not for anything narrower, which is the case rather than a shortfall of
+  it: that `0xff` is the fifth byte of `PSBT_MAGIC_BYTES` and not a field
+  of its own, so losing it is the header being wrong;
+- the **creator**'s psbt unedited, three times, under the three
+  `invalid psbt objects`. That section carries a `mutation` name instead
+  of invalid bytes because these three states have no encoding: a psbt
+  is parsed with one input map per `vin` and one output map per `vout`,
+  so counts that disagree cannot be written down, and the global unsigned
+  transaction is serialized without witnesses, so a witness on it cannot
+  either. The vector is the psbt the case starts from, and the test
+  module holds the three one-line edits;
+- the **first signer**'s psbt with its `lock_time` flipped, beside the
+  **second signer**'s unedited, as the one `invalid combination`;
+- the **combiner**'s psbt with the partial signatures of its first input
+  removed, as the one `unfinalizable psbt`. Its second input keeps its
+  own, so what the case pins is that a Finalizer refuses the psbt for the
+  one input it cannot finalize rather than finalizing what it can.
+
+The `error message` of every case is btclib's own, as it is for the
+signer check failures of `bip174_test_vectors.json`: the BIP says nothing
+about the wording, so correcting a message means correcting it here too.
+Nothing upstream will ever refresh this file, and a bumped BIP174 pin
+does not touch it — the five psbts are fixed bytes, and the edits are
+btclib's.
+
+Composed 2026-08-02.
+
 ## What is not pinned, and why
 
 - **`tests/mnemonic/_data/electrum_test_vectors.json`** has no upstream.
   Stated above rather than guessed at.
+- **`tests/mnemonic/_data/electrum_language_vectors.json`** has none
+  either, and for a reason that will not change: electrum publishes no
+  vector for the sentence it *generates* from a given entropy. Ours were
+  produced by running its code, which is a procedure to repeat rather
+  than a revision to pin, and the entry above gives it.
 - **`tests/script/_data/script_assets_test.json`** has a commit, but
   in a repository that rewrites its history. The blob SHA-1 is the pin
   that will still resolve next year.
@@ -815,6 +1045,11 @@ Pulled 2018-06-01.
   blob, so "identical" is not a claim that can be made about them. What
   was checked instead is stated in each entry: every value present,
   verbatim, in the pinned text.
+- **`tests/psbt/_data/btclib_test_vectors.json`** pins the prose revision
+  its raw material came from, which is not the same as having an
+  upstream: the cases are btclib's, so the pin says where the psbts were
+  read and nothing about the cases built on them. A refresh of it is a
+  contradiction in terms.
 - **Nothing here is enforced.** No hook re-fetches an upstream and no
   test compares a blob, so this file goes stale silently. That is a
   deliberate stopping point: a network call in the test suite would trade
@@ -822,34 +1057,55 @@ Pulled 2018-06-01.
 
 ## Summary
 
-46 files. Against a pinned upstream blob:
+No count here, and no count in front of the lists below. A count is a
+line every open branch has to edit, so it is the one conflict a pull
+request vendoring a file is guaranteed to have -- and two branches moving
+it to the same new number merge with nothing to decide, into a number
+that is wrong. `CHANGELOG.md` has a `union` driver to soften that; this
+file cannot have one, union being right for a list of bullets and
+nonsense for the prose around them. The lists *are* the fact the number
+summarized, and the tree answers whenever the number is wanted:
 
-- 15 identical byte for byte: `english.txt`, `wordlist.txt`,
+```shell
+git ls-files 'tests/_data/*' 'tests/*/_data/*' \
+    btclib/mnemonic/_data/wordlist.txt | grep -cv 'README.md'
+```
+
+Against a pinned upstream blob:
+
+- identical byte for byte: `english.txt`, `wordlist.txt`,
   `taproot_test_vector.json`, `sig_hash_legacy_test_vectors.json`,
-  `script_tests.json`, `tx_valid.json`, `tx_invalid.json`, and the
-  eight BIP327 vector files.
-- 2 identical but for a trailing newline:
+  `script_tests.json`, `tx_valid.json`, `tx_invalid.json`,
+  `key_io_valid.json`, `key_io_invalid.json`,
+  `base58_encode_decode.json`, `checkblock_valid.json`,
+  `checkblock_invalid.json`, and the eight BIP327 vector files.
+- identical but for a trailing newline:
   `script_assets_test.json`, `vectors.json`.
-- 1 identical but for CRLF against LF: `bip340_test_vectors.csv`.
-- 4 JSON-equal, reformatted: `pubkey.json`, `ecdsa_sig.json`,
-  `ecdsa_custom_nonce_sig.json`, `signmessage.json`.
-- 1 upstream plus one btclib case: `bip39_test_vectors.json`.
+- identical but for CRLF against LF: `bip340_test_vectors.csv`.
+- JSON-equal, reformatted: `pubkey.json`, `ecdsa_sig.json`,
+  `ecdsa_custom_nonce_sig.json`, `signmessage.json`,
+  `test_JP_BIP39.json`.
+- upstream plus one btclib case: `bip39_test_vectors.json`.
 
 No upstream blob exists for the rest:
 
-- 6 transcribed from a pinned prose revision, every value matched:
+- transcribed from a pinned prose revision, every value matched:
   `bip32_test_vectors.json`, `bip32_invalid_keys.json`,
   `bip174_test_vectors.json`, `bip371_test_vectors.json`,
   `bip67_test_vectors.json`, `descriptor_checksums.json`.
-- 7 chain data, identified by block hash or txid;
-  `unspendable_script_pub_keys.json` is scripts rather than whole
+- chain data, identified by block hash or txid: the blocks and
+  transactions under `tests/block/_data/` and `tests/tx/_data/`, and
+  `unspendable_script_pub_keys.json`, which is scripts rather than whole
   transactions and so is the one that cannot recompute its own
   identifier.
-- 7 response bodies under `tests/fetch/_data/`, whose envelopes are
+- response bodies under `tests/fetch/_data/`, whose envelopes are
   composed from Core's and Esplora's own source and whose payload is
   chain data two of the entries above already hold.
-- 3 not vendored: `rfc6979.json` (an RFC),
-  `electrum_test_vectors.json` and `fakeenglish.txt` (btclib's own).
+- not vendored: `rfc6979.json` (an RFC), `electrum_test_vectors.json`,
+  `electrum_language_vectors.json`, `fakeenglish.txt` and
+  `btclib_test_vectors.json` (btclib's own). The last is the only one
+  composed rather than recorded: its cases were built here, out of psbts
+  BIP174 prints as prose.
 
 ### Left for a maintainer to decide
 

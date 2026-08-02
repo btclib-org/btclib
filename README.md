@@ -95,8 +95,10 @@ Included features are:
   selecting the encoding: 44 p2pkh, 49 p2wpkh-p2sh, 84 p2wpkh (BIP84),
   86 p2tr (BIP86)
 - [BIP39](https://github.com/bitcoin/bips/blob/master/bip-0039.mediawiki)
-  wordlists and mnemonic for generating deterministic keys
-- [Electrum](https://electrum.org/#home) standard for mnemonic
+  mnemonic for generating deterministic keys, in the twelve wordlists of
+  the reference implementation, with the language read off the words
+- [Electrum](https://electrum.org/#home) standard for mnemonic, in the
+  five wordlists Electrum reads
 - [SLIP39](https://github.com/satoshilabs/slips/blob/master/slip-0039.md)
   Shamir backup: a master secret split into mnemonic shares, of which a
   threshold number recovers it

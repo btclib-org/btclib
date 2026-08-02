@@ -1,0 +1,64 @@
+{
+    "generated": [
+        {
+            "lang": "en",
+            "type": "standard",
+            "entropy": 2374320162202718214005778221486670738149,
+            "mnemonic": "key chief muffin sock measure grain steak chronic thrive retreat burger hurry",
+            "seed": "88a1627267afb85535a9013649776caf9088cda81a5b4947ab39bcfe4e8933dd0d822b279a7d88fb501a35f22319e9fcec97a53de3a491ab4c2dcbf25348fe3b"
+        },
+        {
+            "lang": "es",
+            "type": "standard",
+            "entropy": 2800483784688034556653188135214692350526,
+            "mnemonic": "factor crónica rabo ausente enredo mudar lugar superar temor cruz hocico lomo",
+            "seed": "d213aa1e4a6216465c0095723695386930b30ca8607fa31265bcd084c8377c1c620f4369708cf733144799dbffca60b5803135fdca12e9f69146e87082f962a6"
+        },
+        {
+            "lang": "ja",
+            "type": "standard",
+            "entropy": 5169522619905988664003569650213018822966,
+            "mnemonic": "してき たしざん きねん うぶげ そうご ごますり けんお うらがえす わらう さのう たわむれる ようきゅう",
+            "seed": "798f881fa02cf2ee76028b6b1f7617009705b80afb30ce4d280ce7719960f0c03958804647df0d11bb5d5f2d8498c116e4b1a9e784d5a86593c5db993b8a0df8"
+        },
+        {
+            "lang": "zh",
+            "type": "standard",
+            "entropy": 3231577354835385990912538529498286165093,
+            "mnemonic": "阀 震 窗 除 狱 般 伏 腰 斥 股 恩 筒",
+            "seed": "c73a015640eef4d2a99789c7efbfaa62a6bc2654cfa4fc55ffc61c5475e733f3ebb580a7486264d04db7d0aeb218b95c360e66cbc600f806c94c02618ef29f47"
+        },
+        {
+            "lang": "pt",
+            "type": "standard",
+            "entropy": 179171402568111476508776582098317058571995,
+            "mnemonic": "enguico eira vestuario juliano jersei trovoar laxativo avatar torvelinho alivio nunquinha mofo fausto",
+            "seed": "80e44edade800e735509a8fec7e16222e08fb3db0073343a50a24ec7e2419fbe932e190fcae0b03e445c63ff94004836845f2447ac9f654587779daed8a3bc8c"
+        },
+        {
+            "lang": "pt",
+            "type": "segwit",
+            "entropy": 68257152693324063027515172193491488451747,
+            "mnemonic": "iletrado chavena demover liame overnight padronizar flibusteiro texugo mnemonico padronizar duzia somente blenorreia",
+            "seed": "a9a418b53a392f684c98c86e8895f346aa8bab88807edeeb493194835e717567c52f19015fc0d38c13a3106c83726fb3333b12c52f6987cf6e8b51b8b7dc8ca2"
+        },
+        {
+            "lang": "pt",
+            "type": "2fa_segwit",
+            "entropy": 286005379340553326095888838568552629995681,
+            "mnemonic": "cedula numismatico tautologico gaguejo erros himen pactuar fijiano mimosa ocre utilizar glutonia jumento",
+            "seed": "bb2d97fc7672e25c0f04e1f565b5d8ac957893b27563052864542b1a4d23e2275e0a1555a615fda53b14e43140b0965465f532df01c04717ff45ca7e2ca490bf"
+        },
+        {
+            "lang": "pt",
+            "type": "2fa",
+            "entropy": 114937411987029337860467810703987516933499,
+            "mnemonic": "",
+            "seed": ""
+        }
+    ],
+    "bip39_lookalike": {
+        "valid": "catuaba exaustor apito amazonico tascar oasis eczema linotipo piqueteiro arbusto adnominal musselina",
+        "invalid": "etos pseudopode orixa cigarro injusto racista mostruario riqueza plotar aumento rajado adnominal"
+    }
+}

@@ -251,17 +251,27 @@ docstring.
   two is one fact each, deliberately: the breaking-changes list lives in
   HISTORY.md and the detail behind it in CHANGELOG.md, so neither
   restates the other.
-- **Neither file states how many entries it has, and both are
-  `merge=union`.** A stated count is a line every open branch has to
-  edit, so with this many branches open it is the one conflict a pull
-  request is guaranteed to have — and worse, two branches moving it to
-  the same new number merge without a conflict into a number that is
-  wrong. Nothing states the count now; measure it when a release wants
-  it, and do not estimate:
+- **No file states how many of anything it holds**, and CHANGELOG.md and
+  HISTORY.md are `merge=union` besides. A stated count is a line every
+  open branch has to edit, so with this many branches open it is the one
+  conflict a pull request is guaranteed to have — and worse, two branches
+  moving it to the same new number merge without a conflict into a number
+  that is wrong. Nothing states a count now; measure it when a release
+  wants it, and do not estimate:
 
   ```shell
   grep -c '^- ' CHANGELOG.md   # the number, whenever it is wanted
+  git ls-files 'tests/_data/*' 'tests/*/_data/*' \
+      btclib/mnemonic/_data/wordlist.txt | grep -cv 'README.md'
   ```
+
+  The second is `tests/_data/README.md`'s, whose summary used to open
+  with a total and count each of its lists: the same trap, one file
+  further, and `tests/vendored_data_test.py` guards it as
+  `release_notes_test.py` guards the other two. That README cannot take
+  the `union` driver — union is right for a list of bullets and nonsense
+  for the prose around them — so there the count had to go rather than
+  be merged.
 
   The insertion point conflicts too — two branches appending a bullet to
   the same group — and that is what `.gitattributes` is for: `union`

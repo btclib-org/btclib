@@ -684,6 +684,13 @@ edit.
   `sig_hash.from_tx`, which reads the witness script the same way and had
   the same hole — no vector reaches it there, a sig_hash being asked for
   rather than verified (issue #182)
+- `Psbt.assert_valid` requires the outpoint to name an output the
+  non-witness utxo has: `outpoint vout out of range for the non-witness
+  utxo`, where the index was an `IndexError` out of every reader of the
+  spent output — `assert_signable`, through `_signable_payload`, and the
+  sig_hash the Finalizer now verifies against. The tx_id check beside it
+  does not answer this: a psbt can carry the right transaction and name
+  an output it has not got (issue #173)
 
 ### Immutability and shared state
 
@@ -1549,6 +1556,43 @@ edit.
   the psbt ended. Bitcoin Core draws the line in that very place: "extra
   data after PSBT" is `DecodeRawPSBT`'s, the entry point taking a buffer,
   and not the `Unserialize` that reads a stream (issue #179)
+- **A Finalizer refuses an input whose signatures ask for another
+  sighash type.** BIP174 requires it of the role — "if the input has a
+  `PSBT_IN_SIGHASH_TYPE` field, the Input Finalizer must fail to finalize
+  that input if any signature does not match the specified sighash type"
+  — and `finalize_psbt` did not look, so a psbt finalized into a
+  transaction whose signatures commit to something other than the input,
+  i.e. than what the other participants agreed to. The type a signature
+  commits to is the byte appended to its DER encoding, and the answer is
+  `mismatched sig_hash type: 0x1 vs 0x3`. The field's *presence* is what
+  is tested, not its truthiness: `0` is SIGHASH_DEFAULT, a type an input
+  may ask for and no ECDSA signature carries, so an input asking for it
+  is one that no partial signature can finalize (issue #173)
+- **A Finalizer checks each partial signature against the key it is
+  filed under.** `PsbtIn.assert_valid` parses the DER and can do no more,
+  a signature committing to the whole transaction that a per-field
+  validator has not got; the Finalizer has it, and BIP174 charges that
+  role with deciding "if the input has enough data to pass validation".
+  Covered is every input kind a `PSBT_IN_PARTIAL_SIG` can belong to —
+  legacy (p2pk, p2pkh, bare multisig), p2sh, p2wpkh, p2wsh, and either
+  witness kind wrapped in p2sh. An input that does not say what is being
+  signed is left alone rather than refused, that being a missing utxo or
+  a missing script and not evidence against the signature: no utxo, a
+  p2sh input with no redeem script, a p2wsh one with no witness script,
+  and a taproot output, whose signatures are schnorr and travel in the
+  taproot fields. `sig_hash.from_tx` could not serve, reading the redeem
+  script off the input's script_sig and the witness script off its
+  witness stack, which a psbt's unsigned transaction does not carry
+  (issue #173)
+- **A finalized input drops the preimages and the taproot fields too.**
+  What a finalizer consumed is not serialized beside what it produced,
+  and btclib dropped five of the fields BIP174 says so of; the set is now
+  the whole of what Bitcoin Core's `PSBTInput::Serialize` writes inside
+  its `if (final_script_sig.empty() && final_script_witness.IsNull())` —
+  the four preimage maps and the six taproot fields as well. The utxo
+  stays outside the condition, there and here, an Extractor needing it to
+  check the transaction it builds; so do the unknown fields, which no
+  role understands well enough to drop (issue #173)
 - **The header is one constant and a separator is the `0x00`**, as in
   Bitcoin Core: `PSBT_MAGIC_BYTES` is the five bytes `b"psbt\xff"`, where
   it was the four of "psbt" with the `0xff` beside it as `PSBT_SEPARATOR`;
@@ -1657,6 +1701,67 @@ edit.
   with it. A top-level module rather than one inside `psbt/`, its answer
   being one or the other and `tx` not being allowed to import `psbt`
   (issue #209)
+- **twelve BIP39 word-lists ship, where two did.** `en` and `it` were the
+  whole of it, so a Spanish or Japanese mnemonic — one every wallet reads
+  — was a mnemonic btclib could not. The ten of
+  `bip-0039/bip-0039-wordlists.md` are here, `cs`, `en`, `es`, `fr`,
+  `it`, `ja`, `ko`, `pt`, `zh` and `zh_tw`, and beside them the `ru` and
+  `tr` of `trezor/python-mnemonic`, which the BIP's own word-list page
+  does not carry: they are in the reference implementation, so they are a
+  way to *read* what it writes rather than a language to reach for when
+  generating — the BIP strongly discourages generating in anything but
+  English. `zh` is Simplified, which is also the Chinese electrum reads.
+  All 288 vectors of the reference implementation pass, where only the
+  24 English ones used to be run
+- **a BIP39 mnemonic is NFKD-normalized, and so is its passphrase.** The
+  BIP asks for it and `seed_from_mnemonic` did neither, which is a wrong
+  *seed* rather than a rejected input: the accented spanish word a user
+  types is precomposed, the word-list is decomposed, and PBKDF2 over the
+  two is two different keys. The 24 japanese vectors bip-0039 cites
+  beside its own — `bip32JP/bip32JP.github.io`, passphrase
+  `㍍ガバヴァぱばぐゞちぢ十人十色`, the case the BIP calls "heavily
+  normalized symbols" — now pass, and a japanese mnemonic is joined with
+  the ideographic space U+3000 as the reference implementation joins it
+- **the language of a BIP39 mnemonic can be read off its words.**
+  `bip39.lang_from_mnemonic`, and `lang` defaults to `None` — meaning
+  "work it out" — wherever a mnemonic is read rather than written.
+  `seed_from_mnemonic` needed it: it verified the checksum against
+  English whatever the sentence, so every non-English mnemonic was
+  refused by a check that was reading the wrong word-list. Two steps,
+  because neither settles every sentence on its own: the word-lists
+  holding every word, then the checksum among those. English and french
+  share a hundred words at different indexes, so a sentence over those
+  alone is valid in both and spells a different entropy in each — that
+  one is refused, the caller naming the language being the only honest
+  answer. Simplified and Traditional Chinese share 1275 words and, unlike
+  every other pair, share the *index* of each: an ambiguous chinese
+  sentence spells one entropy either way, so it is answered rather than
+  refused
+- **electrum's five word-lists are all here, Portuguese included**, and
+  that last one is why `electrum.py` has an `ELECTRUM_WORDLISTS` of its
+  own rather than sharing `WORDLISTS`: electrum's Portuguese is Monero's
+  list, 1626 words rather than 2048, so `pt` names one word-list in
+  `bip39.py` and another in `electrum.py`. 1626 is not a power of two, so
+  an index into it is not eleven bits and the entropy is a base
+  conversion and nothing else — bits per word is 10.667 and the sentence
+  is thirteen words, which is what makes a "2fa" mnemonic impossible in
+  Portuguese and possible in every other language. Electrum's own
+  `bip39_is_checksum_valid` is reproduced with it, arithmetic and all,
+  rather than delegated to `bip39.py`: electrum hands that function
+  whichever word-list the language has, and the candidates it makes
+  electrum skip are what shape the sentence electrum returns. The other
+  four are BIP39's files after NFKD, byte for byte, and the remaining
+  seven languages stay available as btclib's extension, unreadable by
+  electrum — which is what Italian already was
+- **a word-list that fails to load is not registered.** `load_lang`
+  recorded the language before reading the file, so a file it then
+  refused — 2047 words, say — left a language behind that raised on every
+  later call. Nothing noticed while the only reader named its language;
+  `lang_from_mnemonic` asks every language in turn, and one such
+  leftover made every mnemonic unreadable. The word count check is a
+  policy of the registry now (`power_of_two`), not of the loader, which
+  is what lets electrum's 1626 words load where BIP39's eleven bits per
+  index cannot allow it
 - **`script.parse` has lost its `accept_unknown` parameter**, with the
   answer fixed at what every caller in the library passed: a byte no
   table names is an op code all the same, refused by the interpreter that
@@ -1671,6 +1776,18 @@ edit.
   only truncation (issue #123) the check had nothing left to refuse, and
   a vacuous validator reads as a guarantee it does not give. What cannot
   execute is unspendable, which a signer learns by running it
+- **`join_psbts` and `join_txs` have lost their `merge_out` parameter.**
+  It was a fourth positional boolean whose only truthy value raised
+  `output merge not implemented yet`, so what it offered was a choice
+  between doing nothing and failing. Specifying it was the alternative,
+  and it is the wrong answer twice over: coalescing two outputs that pay
+  one script changes the output *set*, so every signature already made
+  over the old one stops verifying, and both functions shuffle or sort
+  the outputs first, which would make the result depend on the order the
+  merge ran in. Summing two payments into one output is the caller's, and
+  before signing is the only point at which it is safe. `merge_out=False`
+  is an argument to delete at each call site; nothing else moves
+  (issue #173)
 - **Core's five script limits are `btclib.script.limits`**, under Core's
   own names: `MAX_SCRIPT_ELEMENT_SIZE`, `MAX_OPS_PER_SCRIPT`,
   `MAX_PUBKEYS_PER_MULTISIG`, `MAX_SCRIPT_SIZE`, `MAX_STACK_SIZE`. They
@@ -2110,7 +2227,24 @@ edit.
   the reason — a version prefix is a deliberate marker present by chance
   in one sentence in 256, a valid BIP39 checksum in one in sixteen. The
   dispatcher normalizes nothing of its own, each scheme normalizing as it
-  defines, which leaves issue #201 to decide that once for all of them
+  defines, which leaves issue #201 to decide that once for all of them.
+  **`mnemonic.dispatch` answers `"slip39"` too**, and it answers it
+  *first*, ahead of Electrum and BIP39. The order is measured rather than
+  assumed, and it is the one place it changes an answer: Electrum's
+  version check is an HMAC over the sentence and consults no word-list at
+  all, so it claims a share whenever the HMAC happens to start `01` — 80
+  of 20000 random 1-of-1 shares, one in 250. The reverse never happened,
+  0 of 2000 Electrum seeds and 0 of 2000 BIP39 mnemonics reading as a
+  share, because 1495 of BIP39's 2048 English words are absent from
+  SLIP-0039's list; so a share is the rarer signal by orders of magnitude
+  — 30 checksum bits over words that must every one of them be among
+  SLIP-0039's 1024 — and last in the chain would report one share in 250
+  as an Electrum seed. `"slip39"` says the sentence in hand is one
+  well-formed share and nothing about the set it belongs to: of
+  SLIP-0039's 30 invalid vectors, 8 carry a fault inside a share and are
+  refused here, while 22 are unusable sets of individually sound shares
+  and are reported `"slip39"` with `master_secret_from_mnemonics` left to
+  refuse the set
 - **`btclib.mnemonic.slip39` is the third mnemonic scheme**, SLIP-0039
   Shamir backup: the split-into-shares format every Trezor since 2019
   offers, and the one a hardware-wallet user is most likely to be
@@ -2221,6 +2355,33 @@ edit.
   converter each function calls and by nothing else. `NewType` would let a
   checker separate them at the cost of every caller wrapping its literals,
   which is a different library
+- **the closed vocabularies are `Literal` aliases**, and the open ones are
+  named without being imposed (issue #216). `alias.ScriptType` is the ten
+  values `type_and_payload` returns — `"unknown"` among them, an answer and
+  not an absence, and `"witness_unknown"` beside it, which is Core's own
+  name for a witness version this library cannot spend — and types that
+  function, `ScriptPubKey.type`,
+  `b58.address_from_h160`, `b58.h160_from_address` and the script engine's
+  two witness helpers. `alias.NetworkField` is the eighteen field names of
+  `Network` and types the `key` parameter of the three `*_from_key_value`
+  lookups, the most fragile of the four vocabularies: a misspelled field
+  name matches no network, so the lookup answers `None` — "no network
+  carries this prefix" — where a misspelled network *name* at least raises
+  `KeyError` at the indexing. `alias.NetworkName` and `alias.MnemonicLang`
+  name the five networks and three word-lists btclib ships and type no
+  parameter at all, because `NETWORKS` takes a caller's custom signet and
+  `WordLists.load_lang` a caller's word-list: a `Literal` on `network: str`
+  or `lang: str` would refuse a value the library itself accepts. No enum,
+  and the measurement is the issue's: `class Net(str, Enum)` formats a
+  member as `mainnet` on 3.10 and as `Net.MAINNET` on 3.11 and later, so the
+  six error messages that interpolate a network name — text some tests match
+  verbatim — would read differently on different interpreters, while
+  `enum.StrEnum`, which formats as the value everywhere, is 3.11+ against a
+  3.10 floor; and refusing strings breaks thirty-eight signatures. Nothing
+  here exists at run time, so the two data-derived aliases are checked
+  against the data instead: `network_test.py` against
+  `dataclasses.fields(Network)` and `NETWORKS`, `mnemonic_test.py` against a
+  fresh `WordLists`
 
 ### Performance
 
@@ -2452,6 +2613,145 @@ edit.
 
 ### Tests
 
+- **a Combiner's union of the final witnesses is pinned by a test**: two
+  psbts with a different input finalized in each, combined both ways
+  round, keep both — which the marker beside `_combine_field` said they
+  did not. They do, a `Witness` being sized, so the empty one is falsy
+  and the finalized input is the one taken; what the marker's
+  commented-out list branch would have added is the one wrong answer, a
+  witness stack being positional, so two stacks for one input are two
+  spends of it rather than the halves of one. A conflict is picked from
+  and the psbt combined *into* keeps what it has, which is the arbitrary
+  choice BIP174 allows and the one Bitcoin Core's `PSBTInput::Merge`
+  makes; that is now a test too (issue #173)
+- **the tree measures 100% again**, and the two statements that had gone
+  uncovered were electrum's round-trip check on its own encoding — the
+  one `_search_mnemonic` makes before it returns a candidate. Not
+  reachable with the wordlists btclib ships, `en` and `it` being 2048
+  distinct ASCII words each, so the test patches the decode to reach it,
+  as the ripemd160 fallback test patches its flag; a `pragma: no cover`
+  would have left the message unpinned. They had eaten the whole of the
+  `fail_under` rounding step, which is what made the gate turn red for
+  the next single uncovered line to appear anywhere in the tree —
+  and turn red without warning, because pytest-cov prints its `FAIL
+  Required test coverage ... not reached` on the *unrounded* total while
+  the exit code follows the rounded one, so the run before was already
+  printing FAIL and passing. pyproject.toml's comment now says so
+- **the three consensus branches no vector reached are reached**, each
+  by an input rather than by a reworded assertion (issue #252).
+  **The taproot annex on the script path**: `sig_hash.from_tx` was
+  never asked for a script path spend carrying one, so the branch that
+  strips it ran only where there was nothing to strip — a key path
+  spend cannot exercise it, its stack holding the signature alone once
+  the annex is off, which makes the leaf hash the same either way. 58
+  vectors of `script_assets_test.json` now go through it, 11 of them
+  with an annex, selected as the spends of a `<pub_key> OP_CHECKSIG`
+  leaf so that Core's own signature is the authority on the answer; and
+  a round trip signs a script path spend from the shape no vector can
+  carry, the signer's witness of script and control block with no
+  signature on it yet, for btclib's script engine — which strips the
+  annex in its own code and never calls `from_tx` — to accept.
+  **SIGHASH_SINGLE past the last output**: BIP-143's own example signs
+  an input whose index *equals* the output count, and so does every one
+  of the seven such spends in `script_assets_test.json`, so a bound
+  reading `!=` where it should read `<` passed everything there was.
+  Both paths now sign at an index two past the last output: the segwit
+  v0 one against a preimage the test builds from BIP-143's field list,
+  itself checked against the preimage and sigHash the BIP publishes,
+  and the taproot one against the refusal BIP341 requires, by the
+  message it gives. **A script code no op code can be read from at
+  all**: the walk that elides `OP_CODESEPARATOR` keeps whatever is left
+  where the walk stopped, and where it stops at the very first byte
+  that is the script code entire — reachable because 0xab can be in it
+  as data of a push that overruns the end
+- **the three test-data files of Bitcoin Core that were never taken are
+  vendored** — `key_io_valid.json`, `key_io_invalid.json` and
+  `base58_encode_decode.json`, byte for byte in `tests/_data/`, which
+  leaves nothing in Core's `src/test/data/` both applicable to btclib and
+  missing here (issue #218). What they buy over the address tests already
+  in the suite is an oracle btclib did not write: `tests/b58_test.py` and
+  `tests/b32_test.py` carry values this project produced, and a round trip
+  through one implementation agrees with itself by construction. The 70
+  invalid strings are the half that had no equivalent at all, and each is
+  now refused by all four entry points that could be handed one — `b58`,
+  `b32`, `ScriptPubKey.from_address` and `to_prv_key` — because a string
+  arrives without a label, and a refusal from one is worth nothing if
+  another accepts the same bytes. All 70 valid rows pass as they stand:
+  every address decodes to Core's scriptPubKey and every WIF to Core's key
+  with Core's compression flag, over the four chains the metadata names.
+  One thing the encodings do not carry is asserted rather than glossed
+  over: a base58 test-network prefix belongs to four networks and the hrp
+  `tb` to three, so btclib answers "testnet" for a testnet4 or signet
+  string where Core answers with the chain its node was started on (issue
+  #207). The eight rows whose witness version is 2, 3 or 16 render like
+  the rest, `witness_unknown` being a type btclib names and `b32` writing
+  any version 0 to 16 (issue #251); every one of the 54 addresses comes
+  back from its scriptPubKey unchanged
+- **the seven psbt cases built inline are vectors**, in
+  `tests/psbt/_data/btclib_test_vectors.json`, where seven
+  `# TODO add to test vectors` markers had asked for them (issue #181).
+  The file name carries a convention rather than a label: the prefix of a
+  psbt vector file names the authority its cases answer to, so `btclib_`
+  beside `bip174_` and `bip371_` says these are ours, that no upstream
+  URL exists for them, and that no refresh will ever reach them. Their
+  raw material is upstream and pinned — five psbts of BIP174's 2-of-3
+  walk-through, the prose steps `bip174_test_vectors.json` deliberately
+  does not vendor — each carrying one edit that a parse, a serialize, a
+  combine or a finalize must refuse. Three of the seven name an edit
+  instead of holding invalid bytes, and that is a fact about the format
+  rather than a shortcut: `Psbt.parse` reads one input map per `vin` and
+  one output map per `vout`, so a psbt whose counts disagree has no
+  encoding to be parsed from, and the global unsigned transaction is
+  serialized without witnesses, so a witness on it survives no round
+  trip. `tests/_data/README.md` says where the psbts were read and that
+  the cases built on them are pinned to nothing
+- **an input carrying both UTXO types is tested**, which BIP174 calls out
+  twice and nothing exercised: "an input can have both
+  `PSBT_IN_NON_WITNESS_UTXO` and `PSBT_IN_WITNESS_UTXO`", for the wallets
+  that began requiring the full previous transaction after psbt was in
+  use. Both records survive a round trip, and the precedence the BIP's
+  signer algorithm states — `witness_utxo` first, `non_witness_utxo`
+  second — is read off a psbt where the two branches disagree: adding the
+  very output an outpoint already names, so that nothing about the psbt
+  becomes untrue, sends the signer down the witness branch and a p2pkh
+  output is not something a witness signature can spend
+- **an unknown key-value map is read back**, where
+  `tests/psbt/psbt_out_test.py` serialized one and dropped the result.
+  The separator has to be appended for the read: an unknown is one field
+  of a map among others, so the byte that ends the map belongs to
+  whichever of `PsbtIn`, `PsbtOut` or `Psbt.serialize` assembles the whole
+  of it
+- **the BIP39 vectors are the whole of upstream's file**, all twelve
+  language arrays of `trezor/python-mnemonic`'s `vectors.json` where the
+  English one was taken alone. `bip39_test_vectors.json` keeps its btclib
+  name even so: `vectors.json` is taken in that very directory, by
+  SLIP-0039's own file of that name, and two upstreams publishing one
+  name is exactly what a btclib name is for. Beside it,
+  `test_JP_BIP39.json`, the japanese vectors bip-0039 cites in its own
+  Test vectors section: 24 sentences published NFC against word-lists
+  published NFKD, with a passphrase whose normalized form is another
+  string entirely, which makes them the only vectors anywhere that fail
+  when a passphrase goes unnormalized
+- **electrum's generation is measured language by language**, against
+  vectors produced by running electrum's own `mnemonic.py` with
+  `randrange` patched to a constant — the same starting point
+  `mnemonic_from_entropy` takes, electrum's search beginning at
+  entropy + 1 as btclib's does. Electrum publishes no vector of that
+  kind, and its `SEED_TEST_CASES` only reach the seed, which needs no
+  word-list at all; the entropy field of those same cases is now checked
+  too, and it could not be before. In
+  `tests/mnemonic/_data/electrum_language_vectors.json` and not inline
+  like every other electrum vector here, because the lint gate's two
+  spell checkers read a python source and skip `_data`, and `typos` runs
+  with `--write-changes`: measured, it corrected a word of the Portuguese
+  sentence into the English word it is one letter away from
+- **`test_wordlist_2` no longer adds a language to the singleton.** It
+  used the module-level `WORDLISTS`, so every test that ran after it saw
+  a thirteenth language — which nothing could observe while a reader had
+  to name its language, and which `lang_from_mnemonic` turns into a
+  wrong answer. A private `WordLists()` costs nothing and the suite runs
+  in a random order, so the interference would have been a failure in one
+  seed out of some
 - **the twelve on-chain scripts of issue #123 are vendored**, in
   `tests/script/_data/unspendable_script_pub_keys.json`: the real
   `scriptPubKey`s of the five transactions the issue lists, each with the
@@ -2461,6 +2761,21 @@ edit.
   `scriptPubKey` being a part of a transaction and no txid recomputable
   from it, and `tests/_data/README.md` says so next to the command that
   re-derives each one
+- **python-bitcoinlib's block-validity vectors are vendored**, in
+  `tests/block/_data/checkblock_valid.json` and `checkblock_invalid.json`
+  (issue #199): four real blocks and seven consensus refuses, byte for
+  byte, and the only negative block vectors here that btclib did not build
+  by mutating a block of its own. One of the seven is `xfail`, and it is a
+  finding rather than bookkeeping: btclib takes no `cur_time`, so a block
+  two hours ahead of the clock is accepted. The same survey took two
+  blocks of values inline, upstream publishing no file for either: the
+  five secp256k1 RFC6979 vectors, which pin the signature and not only the
+  nonce btclib had for one of them, and six nBits-to-difficulty pairs.
+  What was left upstream is in the issue — their bech32 vectors predate
+  BIP350, and their script and transaction files are subsets of Core's,
+  which this suite already holds at Core's tip. Four defects the survey
+  found in their vectors are reported to them as
+  petertodd/python-bitcoinlib#323
 - **a stated entry count in these two files is a failing test**, where
   CLAUDE.md and CONTRIBUTING.md answered it with a command to run by
   hand. Written as a habit it did not work: `f295aaaf` left CHANGELOG.md
@@ -2475,6 +2790,19 @@ edit.
   keeps these files from conflicting, which would itself say nothing. The
   patterns are asserted against the lines they forbid, an assertion in the
   negative passing for free the moment it matches nothing
+- **`tests/_data/README.md` states no count either**, and
+  `tests/vendored_data_test.py` is the same guard for the same reason: the
+  summary opened with a total and each of its bullets counted the names it
+  then listed, so every branch vendoring a vector file had to edit the
+  number — measured, it read 46, 47, 48, 49 and 50 across the branches
+  open on one afternoon, each of those a rebase conflict for the others.
+  The lists stay, being the fact the number summarized, and the Summary
+  now carries the `git ls-files` command that derives it. Not solvable the
+  way CHANGELOG.md's was: `union` keeps both sides' added lines, which is
+  right for a list of bullets and nonsense for the prose describing them.
+  The guard spares the numbers that are upstream's — BIP327's eight vector
+  files, a vector file's 45 quadruples — by anchoring on the two shapes a
+  self-count takes and reading the bullet shape in the Summary alone
 - **the suite runs in a random order**, `pytest-randomly` being in the
   test group; the seed is printed, and `-p no:randomly` puts the file
   order back to reproduce a failure against it. It guards the one thing a
@@ -2515,7 +2843,7 @@ edit.
   cases, and the wall
   clock does not move, xdist spreading them; the cost is the 190 extra
   signatures, about 19 s of CPU across the workers
-- **coverage is 100% and the ratchet is 99.99%**, where it was 99.9% and
+- **coverage is 100% and the ratchet is 100%**, where it was 99.9% and
   the measured total 99.92%. That gap was not a rounding allowance being
   used up: it was 12 uncovered statements, and 15 of slack is what let
   them accumulate unremarked while both `CONTRIBUTING.md` and the
@@ -2540,11 +2868,21 @@ edit.
   branch no input can take: on ec13_19 the r values are
   {1,2,3,4,5,6,9,10,12}, which is the n > p property the test's own
   docstring names, so it is `assert r` now — a checked claim instead of a
-  possibility the curve does not have. 99.99 rather than 100 because
-  coverage special-cases 100 to mean exactly 100.00%, which would make
-  one version-gated line a red build; the comparison is
-  `round(total, precision) < fail_under`, so 99.99 is one rounding step
-  of slack rather than none
+  possibility the curve does not have. 100 rather than a percentage
+  below it, and coverage special-cases the value: the usual
+  `round(total, precision) < fail_under` does not apply, so 99.999% is a
+  red build where 99.99 passed everything above 99.985%. That is a
+  deliberate loss of the one rounding step of slack it used to carry,
+  because the slack cost more than it bought — it hid two uncovered
+  statements for a whole release and handed the red build to the next
+  pull request through, and pytest-cov's `FAIL` line fires on the
+  unrounded total while the exit code follows the rounded one, so inside
+  that step the report and the gate disagreed. At 100 both say "not
+  exactly 100" and the report can be read again. What it costs is a line
+  no run reaches: it is covered by patching what stands in the way, as
+  the ripemd160 fallback and electrum's check are, or it carries a
+  `pragma: no cover` with the reason, as borromean, bms and musig2 do.
+  `CONTRIBUTING.md` and the `fail_under` comment both say it
 - **`tests/ecc/bms_test.py` imports on Python 3.9 again.** It annotates a
   helper `-> Point | None` without `from __future__ import annotations`,
   which 3.9 evaluates at def time and has no `|` for: the module was ten
@@ -2950,6 +3288,36 @@ edit.
   were fine, while the ones that had rotted were outside every pair.
   The tools.ietf.org citations now name rfc-editor.org, which is where
   they were redirecting
+- a `mutation` workflow asks what coverage cannot — not whether a line
+  ran, but whether the suite would notice if it were wrong — weekly, on
+  demand, and gating nothing (issue #219). Scoped to the consensus code,
+  `btclib/script/engine/` and `btclib/script/sig_hash.py`, which is where
+  all three of the defects that opened the issue lived, every one of them
+  inside a tree measuring 100%. cosmic-ray and not mutmut, measured on
+  this tree rather than chosen: mutmut 3.7 mutates a *copy* of an
+  importable package, so a `source_paths` naming one file leaves that copy
+  without the modules beside it — `ModuleNotFoundError: No module named
+  'btclib.script.script'` — and the scope then has to move out of the
+  configuration and into a name filter on the command line, with the whole
+  package mutated to get there; a 25-minute trial of it also returned
+  `check was interrupted by user` for 263 of the 603 verdicts it reached,
+  which is not a verdict. cosmic-ray's `module-path` is the scope, and its
+  `test-command` is run verbatim, which is what lets a session override
+  the `-n auto` of `tool.pytest.ini_options` and add `-x`. Two
+  configurations under `.github/mutation/` and not one, although
+  `module-path = "btclib/script"` with the six non-consensus modules
+  excluded was measured to enumerate exactly the same 3495 mutants: the
+  test command belongs to the configuration, and the two halves of the
+  scope cost 1.1 s and 7.2 s of cpu per mutant, so one shared command
+  would make every sighash mutant pay the engine's price. The first pass
+  is what the issue asked for and refused to guess at: 727 mutants in
+  `sig_hash.py` against 2768 in the engine, a survival rate measured on
+  the first of those, and a `timeout` of 300 s rather than 60 because at
+  60 the *unmutated* baseline timed out on a machine under load — a
+  timeout is a verdict of its own, so slack is survivors not reported as
+  noise. It is not a gate and is not among master's required checks: a
+  mutant survives because a test is missing, so a red merge would stop
+  whoever next touched the file for a hole somebody else left
 - a scheduled workflow runs the test suite against the *published*
   btclib_libsecp256k1, resolved from PyPI by the declared pin, where every
   other job follows tool.uv.sources to the bindings under development: what
@@ -2982,6 +3350,39 @@ edit.
 
 ### Documentation and the website
 
+- **The documentation has a page that is not the API reference.** Issue
+  #120 asked for worked examples for beginners — "sending transactions,
+  deriving wallets, etc." — against fifteen pages of `automodule` stanzas
+  that answer "what does this function take" and never "which function do
+  I call". `docs/source/guide.rst` is arranged by task instead of by
+  module: a mnemonic and the seed under it, an account xpub and the
+  BIP44/49/84/86 addresses under that, reading a raw transaction,
+  building one and computing the hash it commits to, signing it and
+  checking the result against btclib's own script interpreter, ECDSA and
+  BIP340 on their own, a message signed with an address, and the BIP174
+  roles. It says the things a reference cannot: that a `str` is hex and
+  not text wherever a signature says `Octets`, which is the first mistake
+  everybody makes; that a WIF is a better private key to hand in than an
+  integer, carrying the network and the compressed flag with it; and what
+  btclib deliberately does not do — no network, no wallet, no persistence,
+  no fee estimation, no coin selection. Every private key on it is a
+  published vector of BIP39, BIP143 or BIP340, so each answer is
+  checkable against the specification that published it, and a warning
+  says as much where a reader would otherwise reuse one
+- **The examples in the documentation are executed, not asserted.** An
+  output pasted by hand is true on the afternoon it was pasted and
+  silently false after the next rename, so every example on the guide
+  page is a doctest and `tests/docs_examples_test.py` runs it: what
+  follows a `>>>` is what the library answered, and drift is a red test
+  rather than something a reader discovers by typing the page in. Which
+  pages are examined is read off the pages — a doctest prompt is what
+  makes one an example page — so the next one is covered without a line
+  here to remember. Not `sphinx-build -b doctest`: that needs a job of
+  its own, reports on one runner, and would have to be added to the
+  branch rule to gate anything, where a test runs on every interpreter of
+  the matrix, is gated by `tests-passed` already, and leaves `uv run
+  pytest` the whole command. No doctest option flags either, elision
+  included: an example checked in part is not the promise the page makes
 - **The `bms` docstring says the message is signed byte-for-byte, and
   that Electrum's gui disagrees.** btclib does not strip whitespace
   from the message — a signature must commit to the exact bytes — and

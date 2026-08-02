@@ -177,6 +177,14 @@ against the `v2023.7.12` tag.
   `CScript::IsPushOnly`, which compares each op code against OP_16 — and
   the name says which script it is asked about, the script_sig, at both
   call sites as in Core.
+- **`join_psbts` and `join_txs` no longer take `merge_out`.** It was the
+  fourth positional parameter of both, and `merge_out=True` raised
+  `output merge not implemented yet`: delete the argument at each call
+  site, `merge_out=False` having been the only value that did anything.
+  Merging two outputs that pay one script changes the output set, so
+  every signature already made over it stops verifying, and both
+  functions shuffle or sort the outputs first — summing two payments
+  into one output is the caller's, before signing.
 - **`psbt_utils.assert_valid_taproot_tree` is gone**, with the leaf-script
   validation it performed: a PSBT tap tree is stored as it arrives, as
   Core's PSBT stores it. Nothing replaces the call — `PsbtOut.assert_valid`
@@ -253,6 +261,16 @@ and `verify` families now let a `TypeError` out where they used to answer
   pays to at any index, so one line of text is enough to watch a wallet.
   Checked against Bitcoin Core's own vectors; miniscript and the four
   functions left out say so by name rather than being read wrong.
+- **A mnemonic in any of the twelve languages**, where two word-lists
+  shipped and English was the only one a seed could be derived in:
+  `seed_from_mnemonic` verified every checksum against English, and
+  normalized neither the sentence nor the passphrase, which BIP39
+  requires and which is the difference between two seeds rather than
+  between an accepted input and a rejected one. All 288 vectors of the
+  reference implementation pass, and so do the japanese ones the BIP
+  cites beside them. The language need not be given — the words say which
+  it is — and electrum's five word-lists are here too, its 1626-word
+  Portuguese included.
 - **BIP340 messages of any size**, as the BIP has allowed since 2023-04:
   the four vectors btclib used to `xfail` all verify.
 - **MuSig2 is implemented**, `btclib.ecc.musig2` against all 56 cases of
@@ -276,6 +294,14 @@ and `verify` families now let a `TypeError` out where they used to answer
   is the third scheme beside BIP39 and Electrum, and until now btclib
   could not read a single share of the Shamir backup every Trezor since
   2019 offers.
+- **The documentation has a guide and not only a reference.** A new page
+  arranged by task — a mnemonic and its seed, an account xpub and the
+  BIP44/49/84/86 addresses under it, reading a raw transaction, building
+  one and computing the hash it commits to, ECDSA and BIP340, a signed
+  message, a PSBT — where there had been fifteen pages of `automodule`
+  and nothing to start from (issue #120). Every example on it is a
+  doctest the test suite runs, so what follows a `>>>` is what the
+  library answered rather than what somebody expected it to.
 - **Python 3.10 through 3.14**, free-threaded 3.14t included; 3.7, 3.8 and
   3.9 are gone. 3.9 went end-of-life in 2025-10, and it had become the only
   interpreter pulling a second toolchain into the lock: 35 of 132 packages

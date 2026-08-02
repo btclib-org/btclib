@@ -1,0 +1,83 @@
+# The signature hash, mutated. Coverage says every line of it runs; this
+# asks whether the suite would notice if one of them were wrong (issue
+# #219).
+#
+# Here rather than at the repository root, unlike .lycheeignore: cosmic-ray
+# takes the path of its configuration as an argument, so nothing forces a
+# name or a place, and .github/ is the one directory check-manifest already
+# ignores and Jekyll never serves -- a root file would need an entry in
+# [tool.check-manifest] and another in _config.yml's exclude list to say
+# what its location says here.
+#
+# Two files and not one, though `module-path = "btclib/script"` with the
+# six non-consensus modules excluded was measured to enumerate exactly the
+# same 3495 mutants: the test command is per-configuration, and the two
+# halves of the scope cost 1.1 s and 7.2 s of cpu per mutant. Sharing one
+# command would make every sighash mutant pay the engine's price.
+
+[cosmic-ray]
+module-path = "btclib/script/sig_hash.py"
+
+# 727 mutants, enumerated in under a second by `cosmic-ray init`.
+#
+# -n0 overrides the `-n auto` of tool.pytest.ini_options: xdist starts a
+# worker per core for a one-second test run, and a mutation session pays
+# that startup 727 times. -p no:randomly for the same run twice over --
+# with -x the collection order decides which test does the killing, so a
+# shuffled order makes the runtime, and a timeout verdict, irreproducible.
+#
+# No --cov, and that is not an omission: the ratchet in pyproject.toml
+# fails a run under 99.99%, and a mutant is code no test reaches on
+# purpose, so coverage would fail every job and report every mutant as
+# killed by the wrong thing. addopts carries no --cov, so nothing has to
+# be switched off here; a --cov added there would have to be answered with
+# -p no:cacheprovider and --no-cov in this line.
+#
+# tests/script first and the engine after, because -x stops at the first
+# failure and the cheap suite is where most mutants die: the marginal cost
+# of the second path falls on the survivors, which are the few. Both are
+# named because sig_hash.from_tx is what the engine calls to check a
+# signature, so an engine vector kills sighash mutants that no test under
+# tests/script does -- leaving it out would report those as survivors.
+# python_path_test.py is ignored: it re-runs the same vectors with the two
+# symbols the engine takes from the bindings replaced by their python
+# implementations, which is a second verdict on btclib.ecc and the same
+# verdict on this module, at 46 s of the 54 s that directory costs.
+test-command = """python -m pytest -x -q -n0 -p no:randomly \
+  tests/script tests/script_engine \
+  --ignore=tests/script_engine/python_path_test.py"""
+
+# seconds of wall clock, against a baseline of 9.2 s of cpu: what this
+# guards is a mutant that turns a bound into a loop with no exit, and
+# nothing else. Wide rather than tight, because a timeout is a verdict of
+# its own -- neither killed nor survived -- so every second of slack a
+# loaded machine needs is a survivor not reported as noise. Measured, and
+# this is why the number is 300 and not 60: at 60 s `cosmic-ray baseline`
+# failed with `>>> timeout` on the *unmutated* tree, on a developer machine
+# at load 120, where the same command takes 9.2 s of cpu and 74 s of wall.
+# A two-core runner with nothing else on it is nowhere near that, and the
+# cost of the slack is paid only by the mutants that do loop for ever
+timeout = 300
+
+# nothing: module-path is one file.
+#
+# What is worth knowing before reading a survivor list is that one shape of
+# survivor is inert by construction. cosmic-ray mutates every expression it
+# finds, annotations included, and this module opens with `from __future__
+# import annotations`: `PrecomputedTxData | None` becomes
+# `PrecomputedTxData >> None` and nothing evaluates it, so the mutant
+# cannot be killed and is not a hole. `cr-filter-pragma` is the answer if
+# they ever outnumber the real ones -- it marks `# pragma: no mutate`
+# lines as skipped -- and it is deliberately not used yet: a pragma is a
+# line of source added for the benefit of a weekly report, and six of them
+# is a smaller price than 727 lines of source that say so
+excluded-modules = []
+
+# one mutant at a time, in this working tree. The local distributor writes
+# the mutation into the file itself and restores it afterwards, so a second
+# run -- or a pytest in another shell -- would read mutated source. The
+# http distributor is what cosmic-ray offers instead, and it wants a worker
+# per checkout: parallelism at the price of a clone each, for a session
+# that already fits in the budget
+[cosmic-ray.distributor]
+name = "local"

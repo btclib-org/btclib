@@ -12,14 +12,26 @@
 import secrets
 import unicodedata
 from math import ceil
+from unicodedata import normalize
 
 import pytest
 
 from btclib.bip32 import bip32
 from btclib.exceptions import BTClibValueError
 from btclib.mnemonic import WORDLISTS, bip39, normalize_mnemonic
+from btclib.mnemonic.mnemonic import WordLists
 from tests import load, vector_id
 from tests.mnemonic.mnemonic_test import fullwidth
+
+
+def candidates(mnemonic: str) -> list[str]:
+    """The languages of the shipped word-lists that hold every word.
+
+    A private WordLists and not the singleton bip39 reads: another test
+    adds a language to that one, so a candidate list taken from it would
+    depend on which test ran first.
+    """
+    return WordLists().langs_of_words(mnemonic.split())
 
 
 def test_bip39() -> None:
@@ -45,39 +57,186 @@ def test_bip39() -> None:
         bip39.entropy_from_mnemonic(wr_m, lang)
 
 
+# the language of each array of the reference implementation's vectors,
+# by the ISO 639-1 code btclib keys its word-lists with
+LANGUAGES = {
+    "english": "en",
+    "chinese_simplified": "zh",
+    "chinese_traditional": "zh_tw",
+    "czech": "cs",
+    "french": "fr",
+    "italian": "it",
+    "japanese": "ja",
+    "korean": "ko",
+    "portuguese": "pt",
+    "russian": "ru",
+    "spanish": "es",
+    "turkish": "tr",
+}
+
 BIP39_VECTORS = [
-    pytest.param(*vector, id=vector_id(index, vector[0]))
+    pytest.param(lang, *vector, id=vector_id(index, lang, vector[0]))
+    for name, lang in LANGUAGES.items()
     for index, vector in enumerate(
-        load("mnemonic", "_data", "bip39_test_vectors.json")["english"]
+        load("mnemonic", "_data", "bip39_test_vectors.json", encoding="utf-8")[name]
     )
 ]
 
 
-@pytest.mark.parametrize(("entr", "mnemonic", "seed", "xprv"), BIP39_VECTORS)
-def test_vectors(entr: str, mnemonic: str, seed: str, xprv: str) -> None:
-    """BIP39 test vectors.
+@pytest.mark.parametrize(("lang", "entr", "mnemonic", "seed", "xprv"), BIP39_VECTORS)
+def test_vectors(lang: str, entr: str, mnemonic: str, seed: str, xprv: str) -> None:
+    """BIP39 test vectors, all twelve languages of them.
 
     https://github.com/trezor/python-mnemonic/blob/master/vectors.json
 
-    Upstream's 24 English vectors, in order and value for value, plus a
-    25th that is btclib's own: the last one repeated with tabs, newlines
-    and doubled spaces through the mnemonic. Only the English array was
-    ever taken, `english.txt` being the one wordlist shipped;
-    tests/_data/README.md pins the revision.
+    Upstream's arrays, in order and value for value, plus a 25th English
+    case that is btclib's own: the last one repeated with tabs, newlines
+    and doubled spaces through the mnemonic. tests/_data/README.md pins
+    the revision.
 
-    That 25th vector reaches the library with its whitespace intact:
-    normalising it here first would ask `" ".join(mnemonic.split())`
-    whether it collapses whitespace, and never ask btclib.
+    The sentence a vector holds is what the library is handed, that 25th
+    one included: rejoining it here first would ask
+    `" ".join(mnemonic.split())` whether it collapses whitespace, and
+    never ask btclib. Only the *expected* sentence is rejoined, and on
+    the language's own separator -- the ideographic space for japanese,
+    which split() takes as whitespace, so a plain one would compare
+    against a sentence upstream never wrote.
     """
-    lang = "en"
     entropy = bytes.fromhex(entr)
-    assert normalize_mnemonic(mnemonic) == bip39.mnemonic_from_entropy(entropy, lang)
+    separator = "　" if lang == "ja" else " "
+    assert separator.join(mnemonic.split()) == bip39.mnemonic_from_entropy(
+        entropy, lang
+    )
     assert seed == bip39.seed_from_mnemonic(mnemonic, "TREZOR").hex()
 
     raw_entr = bip39.entropy_from_mnemonic(mnemonic, lang)
     size = (len(raw_entr) + 7) // 8
     assert entropy == int(raw_entr, 2).to_bytes(size, byteorder="big", signed=False)
     assert bip32.rootxprv_from_seed(seed) == xprv
+    # the language need not be named: the words say which it is, and the
+    # four traditional-chinese vectors spelled entirely in characters
+    # simplified chinese shares are the exception -- same words, same
+    # indexes, same entropy, and no way to tell the two apart
+    assert bip39.entropy_from_mnemonic(mnemonic) == raw_entr
+
+
+JP_VECTORS = [
+    pytest.param(vector, id=vector_id(index, vector["entropy"]))
+    for index, vector in enumerate(
+        load("mnemonic", "_data", "test_JP_BIP39.json", encoding="utf-8")
+    )
+]
+
+
+@pytest.mark.parametrize("vector", JP_VECTORS)
+def test_japanese_vectors(vector: dict[str, str]) -> None:
+    """The japanese vectors BIP39 cites beside the reference implementation's.
+
+    https://github.com/bip32JP/bip32JP.github.io/blob/master/test_JP_BIP39.json
+
+    "Japanese wordlist test with heavily normalized symbols as
+    passphrase", says the BIP, and that is the whole point of them: the
+    passphrase is `㍍ガバヴァぱばぐゞちぢ十人十色`, whose NFKD form is
+    another string entirely, so a seed derived without normalizing the
+    passphrase is a different seed. The sentences are published NFC, the
+    word-lists are NFKD, and both spellings have to read as one mnemonic.
+    """
+    mnemonic = vector["mnemonic"]
+    assert mnemonic != normalize("NFKD", mnemonic)
+    generated = bip39.mnemonic_from_entropy(bytes.fromhex(vector["entropy"]), "ja")
+    assert normalize("NFKD", generated) == normalize("NFKD", mnemonic)
+
+    seed = bip39.seed_from_mnemonic(mnemonic, vector["passphrase"])
+    assert seed.hex() == vector["seed"]
+    assert bip32.rootxprv_from_seed(seed) == vector["bip32_xprv"]
+    assert bip39.lang_from_mnemonic(mnemonic) == "ja"
+    assert bip39.entropy_from_mnemonic(mnemonic) == bip39.entropy_from_mnemonic(
+        generated, "ja"
+    )
+
+
+def test_lang_from_mnemonic() -> None:
+    """What the words say the language is, and when they do not say."""
+    entropy = bytes.fromhex("0000003974d093eda670121023cd0000")
+    for lang in ("cs", "en", "es", "fr", "it", "ja", "ko", "pt", "ru", "tr", "zh_tw"):
+        mnemonic = bip39.mnemonic_from_entropy(entropy, lang)
+        assert bip39.lang_from_mnemonic(mnemonic) == lang
+
+    # a word in no word-list at all
+    err_msg = "unknown language for mnemonic: "
+    with pytest.raises(BTClibValueError, match=err_msg):
+        bip39.lang_from_mnemonic("btclib " * 11 + "btclib")
+
+    # NFC in, NFKD word-list: the same mnemonic, and the same language
+    spanish = bip39.mnemonic_from_entropy(entropy, "es")
+    assert normalize("NFC", spanish) != spanish
+    assert bip39.lang_from_mnemonic(normalize("NFC", spanish)) == "es"
+    assert bip39.entropy_from_mnemonic(normalize("NFC", spanish)) == (
+        bip39.entropy_from_mnemonic(spanish, "es")
+    )
+
+
+def test_ambiguous_language() -> None:
+    """Two word-lists holding every word, and what settles it.
+
+    English and french share a hundred words, at a different index in
+    each: a sentence built from those alone is a mnemonic in both
+    languages and spells a different entropy in each, so there is nothing
+    to return. Found by search, one in 256 of the sentences over the
+    shared words being valid in both.
+    """
+    ambiguous = (
+        "nature distance angle abandon simple palace opinion fatigue "
+        "noble volume simple wagon"
+    )
+    assert candidates(ambiguous) == ["en", "fr"]
+    en = bip39.entropy_from_mnemonic(ambiguous, "en")
+    assert en != bip39.entropy_from_mnemonic(ambiguous, "fr")
+    with pytest.raises(BTClibValueError, match="ambiguous language for mnemonic: "):
+        bip39.lang_from_mnemonic(ambiguous)
+
+    # the same hundred words, and a checksum that is valid in one of the
+    # two: that is the sentence the second step is there for
+    english = (
+        "service canal fruit exact essence virus angle brave "
+        "fragile miracle noble festival"
+    )
+    assert candidates(english) == ["en", "fr"]
+    assert bip39.lang_from_mnemonic(english) == "en"
+    assert bip39.entropy_from_mnemonic(english)
+
+    # valid in neither is not that case: the language is not what is
+    # wrong with the sentence, so the checksum is what the caller hears
+    invalid = (
+        "exact aspect caution nation mobile brave fatigue caution "
+        "puzzle muscle bonus relief"
+    )
+    assert candidates(invalid) == ["en", "fr"]
+    with pytest.raises(BTClibValueError, match="invalid checksum: "):
+        bip39.entropy_from_mnemonic(invalid)
+
+
+def test_chinese_is_ambiguous_and_answerable() -> None:
+    """The two chinese word-lists are aligned, so an ambiguity is not one.
+
+    All 1275 words Simplified and Traditional share sit at the same index
+    in both files. A sentence spelled in shared characters alone is
+    therefore a mnemonic in both languages carrying one entropy, which is
+    why lang_from_mnemonic answers instead of refusing -- and why the
+    answer is "zh" for a sentence a Traditional reader wrote.
+    """
+    word_lists = WordLists()
+    simplified = word_lists.wordlist("zh")
+    traditional = word_lists.wordlist("zh_tw")
+    shared = [w for w in simplified if w in traditional]
+    assert len(shared) == 1275
+    assert all(simplified.index(w) == traditional.index(w) for w in shared)
+
+    # a traditional-chinese vector spelled in shared characters alone
+    mnemonic = "的 的 的 的 的 的 的 的 的 的 的 在"
+    assert candidates(mnemonic) == ["zh", "zh_tw"]
+    assert bip39.lang_from_mnemonic(mnemonic) == "zh"
+    assert bip39.entropy_from_mnemonic(mnemonic) == "0" * 128
 
 
 def test_mnemonic_from_entropy() -> None:

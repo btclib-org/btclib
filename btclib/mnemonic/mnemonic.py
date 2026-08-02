@@ -21,19 +21,78 @@ from btclib.exceptions import BTClibValueError
 WordList = Sequence[str]
 
 
+def data_file(filename: str) -> str:
+    """Return the path of a word-list shipped with btclib."""
+    return path.join(path.dirname(__file__), "_data", filename)
+
+
+# The twelve word-lists of BIP39's reference implementation, keyed by
+# ISO 639-1 code. Ten are bip-0039/'s own; russian and turkish are in
+# trezor/python-mnemonic and on no page of the BIP, which is what makes
+# them a way to read what that implementation writes rather than a
+# language to reach for when generating -- and BIP39 itself says
+# non-English word-lists are strongly discouraged for generating.
+#
+# "zh" is Simplified Chinese, which is also the Chinese electrum reads;
+# Traditional is "zh_tw". The two share 1275 of their 2048 words, so a
+# Chinese sentence is ambiguous between them about once in three hundred,
+# and that is the case lang_from_mnemonic has to answer for.
+BIP39_LANGUAGE_FILES = {
+    "cs": data_file("czech.txt"),
+    "en": data_file("english.txt"),
+    "es": data_file("spanish.txt"),
+    "fr": data_file("french.txt"),
+    "it": data_file("italian.txt"),
+    "ja": data_file("japanese.txt"),
+    "ko": data_file("korean.txt"),
+    "pt": data_file("portuguese.txt"),
+    "ru": data_file("russian.txt"),
+    "tr": data_file("turkish.txt"),
+    "zh": data_file("chinese_simplified.txt"),
+    "zh_tw": data_file("chinese_traditional.txt"),
+}
+
+# every word-list btclib ships: BIP39's twelve and slip39's, which is a
+# scheme and not a language code, as its key says. SLIP-0039 supports no
+# localization at all, so there is no "en" of it to collide with BIP39's
+# -- which is a different list of a different length, 1024 words of ten
+# bits against 2048 of eleven. It is registered here rather than on a
+# private WordLists built by slip39.py so that every word-list btclib
+# ships is reachable from the one place that holds them. Sharing the
+# registry is what lets a caller ask bip39 for lang="slip39", so bip39
+# refuses any list that is not 2048 words long rather than answer with a
+# base-1024 sentence no BIP39 wallet reads
+DEFAULT_LANGUAGE_FILES = {
+    **BIP39_LANGUAGE_FILES,
+    "slip39": data_file("wordlist.txt"),
+}
+
+
 class WordLists:
     """Class for word-lists to be used in entropy/mnemonic conversions.
 
-    Word-lists are from:
+    The word-lists loaded by default are DEFAULT_LANGUAGE_FILES: the
+    twelve of BIP39's reference implementation, plus slip39's. More can
+    be added, or an existing language pointed at another file, with the
+    load_lang method; a caller wanting an altogether different set -- as
+    electrum.py does, electrum's Portuguese not being BIP39's -- passes
+    language_files to the constructor.
 
-    * *en*: https://github.com/bitcoin/bips/blob/master/bip-0039/english.txt
-    * *it*: https://github.com/bitcoin/bips/blob/master/bip-0039/italian.txt
-    * *slip39*:
-      https://github.com/satoshilabs/slips/blob/master/slip-0039/wordlist.txt
-
-    More word-lists can be added using the load_lang method.
+    The thirteen keys above are what alias.MnemonicLang names, and
+    load_lang is why no lang parameter here or in bip39 and electrum is
+    typed with it: the set is open, so a Literal would reject the
+    language a caller has just loaded (issue #216).
 
     Word-lists are loaded only if needed and read only once from disk.
+    Each word is NFKD-normalized as it is read, which is the form BIP39
+    requires and the form electrum normalizes to, so a word looked up in
+    either form is found; a '#' starts a comment, which is what carries
+    the licence header of electrum's Portuguese list.
+
+    power_of_two says whether the word count must be one. A BIP39 index
+    is eleven bits, so for BIP39 it must; electrum converts to base
+    len(wordlist) instead, and its Portuguese list has 1626 words, so for
+    electrum it must not.
 
     The loading is under a lock, and the reason is not merely that two
     threads might read the same file twice. load_lang recorded the word
@@ -52,30 +111,24 @@ class WordLists:
     wanting a private set can build their own WordLists().
     """
 
-    def __init__(self) -> None:
+    def __init__(
+        self,
+        language_files: dict[str, str] | None = None,
+        power_of_two: bool = True,
+    ) -> None:
         self._lock = threading.Lock()
-        path_to_filename = path.join(path.dirname(__file__), "_data")
-        self.language_files = {
-            "en": path.join(path_to_filename, "english.txt"),
-            "it": path.join(path_to_filename, "italian.txt"),
-            # "slip39" is a scheme, not a language code, and the key says
-            # so: SLIP-0039 supports no localization at all, so there is
-            # no "en" of it to collide with BIP39's -- which is a
-            # different list of a different length, 1024 words of ten
-            # bits against 2048 of eleven. It is registered here rather
-            # than on a private WordLists built by slip39.py so that
-            # every word-list btclib ships is reachable from the one
-            # place that holds them. Sharing the registry is what lets a
-            # caller ask bip39 for lang="slip39", so bip39 refuses any
-            # list that is not 2048 words long rather than answer with a
-            # base-1024 sentence no BIP39 wallet reads
-            "slip39": path.join(path_to_filename, "wordlist.txt"),
-        }
+        self.power_of_two = power_of_two
+        self.language_files = dict(language_files or DEFAULT_LANGUAGE_FILES)
         self.languages = list(self.language_files)
 
         # create dictionaries where each language has empty word-list
         wordlists: list[list[str]] = [[] for _ in self.languages]
         self._wordlist = dict(zip(self.languages, wordlists, strict=True))
+        # the index of every word, so that a lookup is not a scan of 2048
+        # strings: indexes_from_mnemonic does one per word, and
+        # lang_from_mnemonic one per word per language
+        indexes: list[dict[str, int]] = [{} for _ in self.languages]
+        self._index = dict(zip(self.languages, indexes, strict=True))
 
         zeros = len(self.languages) * [0]
         self._language_length = dict(zip(self.languages, zeros, strict=True))
@@ -87,37 +140,50 @@ class WordLists:
         beyond those already provided.
         """
         with self._lock:
-            # a new language, unknown before
-            if lang not in self.languages:
-                self._init_new_lang(lang, filename)
-            # language has not been loaded yet
-            if self._language_length[lang] == 0:
-                with open(self.language_files[lang], encoding="ascii") as file_:
-                    lines = file_.readlines()
+            known = lang in self.languages
+            # language has been loaded already
+            if known and self._language_length[lang] != 0:
+                return
+            if known:
+                filename = self.language_files[lang]
+            elif filename is None:
+                raise BTClibValueError(f"Missing file for language '{lang}'")
 
-                nwords = len(lines)
-                # http://www.graphics.stanford.edu/~seander/bithacks.html
-                if nwords & (nwords - 1) != 0:
-                    err_msg = f"invalid wordlist length: {nwords}, not a power of two"
-                    raise BTClibValueError(err_msg)
+            words = self._read_wordlist(filename)
 
-                # the words first and the count second: the count is what
-                # marks the language loaded, so publishing it before the
-                # words it counts is what let a concurrent reader see an
-                # empty list. Belt and braces beside the lock, which is
-                # what actually closes it
-                # clean up and normalization are missing, but removal of \n
-                self._wordlist[lang] = [line[:-1] for line in lines]
-                self._language_length[lang] = nwords
+            # a language is registered once its file has been read and
+            # accepted, and not before: one left behind by a load that
+            # raised would raise again on every call, langs_of_words
+            # asking each language in turn whether it holds a word
+            if not known:
+                self.languages.append(lang)
+                self.language_files[lang] = filename
+            # the words first and the count second: the count is what
+            # marks the language loaded, so publishing it before the
+            # words it counts is what let a concurrent reader see an
+            # empty list. Belt and braces beside the lock, which is
+            # what actually closes it
+            self._index[lang] = {word: i for i, word in enumerate(words)}
+            self._wordlist[lang] = words
+            self._language_length[lang] = len(words)
 
-    def _init_new_lang(self, lang: str, filename: str | None) -> None:
-        if filename is None:
-            raise BTClibValueError(f"Missing file for language '{lang}'")
-        # initialize the new language
-        self.languages.append(lang)
-        self.language_files[lang] = filename
-        self._wordlist[lang] = []
-        self._language_length[lang] = 0
+    def _read_wordlist(self, filename: str) -> list[str]:
+        """Return the words of a word-list file, NFKD and comments dropped."""
+        # utf-8 and not ascii: nine of the twelve word-lists are not
+        # ascii, japanese and korean not even close, and the BIP
+        # publishes them NFKD-encoded. A '#' starts a comment, which is
+        # what carries the licence header of electrum's Portuguese list
+        with open(filename, encoding="utf-8") as file_:
+            lines = file_.readlines()
+        stripped = (line.split("#")[0].strip() for line in lines)
+        words = [unicodedata.normalize("NFKD", word) for word in stripped if word]
+
+        nwords = len(words)
+        # http://www.graphics.stanford.edu/~seander/bithacks.html
+        if self.power_of_two and nwords & (nwords - 1) != 0:
+            err_msg = f"invalid wordlist length: {nwords}, not a power of two"
+            raise BTClibValueError(err_msg)
+        return words
 
     def wordlist(self, lang: str) -> WordList:
         """Return the language word-list."""
@@ -128,6 +194,31 @@ class WordLists:
         """Return the number of words in the language word-list."""
         self.load_lang(lang)
         return self._language_length[lang]
+
+    def index(self, word: str, lang: str) -> int:
+        """Return the index of a word into the language word-list."""
+        self.load_lang(lang)
+        normalized = unicodedata.normalize("NFKD", word)
+        if normalized not in self._index[lang]:
+            raise BTClibValueError(f"unknown '{lang}' word: '{word}'")
+        return self._index[lang][normalized]
+
+    def langs_of_words(self, words: Sequence[str]) -> list[str]:
+        """Return the languages whose word-list holds every word.
+
+        Every language is read from disk, the question being about all of
+        them; a caller that knows the language names it instead of asking.
+        """
+        normalized = [unicodedata.normalize("NFKD", word) for word in words]
+        langs = []
+        for lang in self.languages:
+            # the membership test below is on the dictionary load_lang
+            # fills, so the load is a statement of its own rather than
+            # something to hide inside the comprehension
+            self.load_lang(lang)
+            if all(word in self._index[lang] for word in normalized):
+                langs.append(lang)
+        return langs
 
 
 # singleton
@@ -181,23 +272,30 @@ def normalize_mnemonic(mnemonic: Mnemonic) -> Mnemonic:
     return " ".join(unicodedata.normalize("NFKD", mnemonic).split())
 
 
-def mnemonic_from_indexes(indexes: Sequence[int], lang: str) -> Mnemonic:
+def mnemonic_from_indexes(
+    indexes: Sequence[int],
+    lang: str,
+    wordlists: WordLists = WORDLISTS,
+    separator: str = " ",
+) -> Mnemonic:
     """Return the mnemonic from a list of word-list integer indexes.
 
     Return the mnemonic from a list of integer indexes into a given
     language word-list.
     """
-    wordlist = WORDLISTS.wordlist(lang)
+    wordlist = wordlists.wordlist(lang)
     words = [wordlist[index] for index in indexes]
-    return " ".join(words)
+    return separator.join(words)
 
 
-def indexes_from_mnemonic(mnemonic: Mnemonic, lang: str) -> list[int]:
+def indexes_from_mnemonic(
+    mnemonic: Mnemonic, lang: str, wordlists: WordLists = WORDLISTS
+) -> list[int]:
     """Return the word-list integer indexes for a given mnemonic.
 
     Return the list of integer indexes into a language word-list for a
-    given mnemonic.
+    given mnemonic. The sentence is split on any whitespace, the
+    ideographic space of a japanese mnemonic included.
     """
     words = mnemonic.split()
-    wordlist = WORDLISTS.wordlist(lang)
-    return [wordlist.index(w) for w in words]
+    return [wordlists.index(word, lang) for word in words]

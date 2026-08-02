@@ -9,9 +9,13 @@
 # or distributed except according to the terms contained in the LICENSE file.
 """Tests for the `btclib.network` module."""
 
+from dataclasses import fields
+from typing import get_args
+
 import pytest
 
 from btclib import var_bytes
+from btclib.alias import NetworkField, NetworkName
 from btclib.curves.curve import CURVES
 from btclib.exceptions import BTClibTypeError, BTClibValueError
 from btclib.hashes import hash256
@@ -160,7 +164,7 @@ def test_the_test_networks_differ_from_testnet_in_two_fields() -> None:
 # the prefix fields, i.e. every field a reverse lookup is asked about:
 # the two chain-identity fields and the curve are not prefixes, and no
 # lookup in this library keys on them
-_PREFIX_FIELDS = (
+_PREFIX_FIELDS: tuple[NetworkField, ...] = (
     "wif",
     "p2pkh",
     "p2sh",
@@ -308,3 +312,18 @@ def test_a_non_str_hrp_is_a_type_error() -> None:
         Network.from_dict({**mainnet, "hrp": b"bc"})
     with pytest.raises(BTClibTypeError, match="invalid hrp type: int"):
         Network.from_dict({**mainnet, "hrp": 0})
+
+
+def test_the_literal_vocabularies_name_the_data() -> None:
+    """NetworkField is every field of Network, NetworkName every network.
+
+    Neither can be checked by mypy against what it names: one is
+    resolved with getattr, the other is a dict key, and both are
+    Literals precisely so that nothing of them exists at run time
+    (issue #216). So the equality is asserted here rather than left to
+    drift. Half of the second one mypy does cover, network.py annotating
+    with NetworkName the tuple of names it loads; a member no file loads
+    is the other half, and this is what sees it.
+    """
+    assert set(get_args(NetworkField)) == {field.name for field in fields(Network)}
+    assert set(get_args(NetworkName)) == set(NETWORKS)

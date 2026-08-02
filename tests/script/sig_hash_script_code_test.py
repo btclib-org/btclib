@@ -22,6 +22,8 @@ import pytest
 
 from btclib.exceptions import BTClibValueError
 from btclib.script import ScriptPubKey, sig_hash
+from btclib.script.script import op_code_spans
+from btclib.script.sig_hash import _without_op_codeseparators
 from btclib.tx import OutPoint, Tx, TxIn, TxOut
 
 # OP_PUSHDATA1 of one byte where a one-byte push would do, then
@@ -101,6 +103,32 @@ def test_a_truncated_tail_is_kept_verbatim() -> None:
     truncated = bytes.fromhex("ab05010203")
     assert sig_hash.legacy(truncated, tx, 0, sig_hash.ALL) == sig_hash.legacy(
         bytes.fromhex("05010203"), tx, 0, sig_hash.ALL
+    )
+
+
+def test_a_script_code_no_op_code_can_be_read_from_at_all() -> None:
+    """The tail is the whole of it, and none of it is elided (issue #252).
+
+    The test above truncates after an op code, so the walk yields one
+    span and the tail starts where that span ended. Here the very first
+    byte announces more data than there is, so the walk yields nothing
+    and the tail is the script code entire -- which is Core's GetOp loop
+    ending on its first call and `SerializeScriptCode` copying what is
+    left, i.e. everything.
+
+    Reachable because the elision only runs on a script code containing
+    the separator byte, and 0xab is in this one as *data* that no push
+    can be read from. An implementation whose tail began one byte in
+    would sign a different script here and the same script everywhere
+    else.
+    """
+    unreadable = bytes.fromhex("02ab")  # a push of two bytes with one of them
+    assert not list(op_code_spans(unreadable))
+    assert _without_op_codeseparators(unreadable) == unreadable
+
+    tx = one_input_tx()
+    assert sig_hash.legacy(unreadable, tx, 0, sig_hash.ALL) != sig_hash.legacy(
+        unreadable[1:], tx, 0, sig_hash.ALL
     )
 
 

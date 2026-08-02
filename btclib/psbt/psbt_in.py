@@ -111,19 +111,18 @@ def _assert_valid_partial_sigs(partial_sigs: Mapping[bytes, bytes]) -> None:
             # the DER signature alone: a partial signature is that plus a
             # sighash type byte (bip 174), so it is not itself a DER
             # encoding, and Sig.parse refuses trailing bytes after the
-            # sequence (issue #129). The trailing byte is not checked
-            # here: which hash types are admissible depends on the input
-            # being spent, which a per-field validator does not know, and
-            # issue #173 is where that belongs. Do not let a line of this
-            # comment begin with "# type:", which mypy reads as a PEP 484
-            # type comment and then calls the try block a syntax error
+            # sequence (issue #129). Neither that byte nor the key is
+            # checked against the signature here: both questions need the
+            # transaction -- which sighash types the input admits, and
+            # which hash the signature actually commits to -- so both are
+            # the Finalizer's, and psbt.finalize_psbt asks them. Do not
+            # let a line of this comment begin with "# type:", which mypy
+            # reads as a PEP 484 type comment and then calls the try block
+            # a syntax error
             dsa.Sig.parse(sig[:-1])
         except BTClibValueError as e:
             err_msg = f"invalid partial signature: {sig!r}"
             raise BTClibValueError(err_msg) from e
-        # issue 173: the key is not checked against the signature. Doing so
-        # needs the sighash, i.e. the whole transaction, which a per-field
-        # validator does not have -- so the question is where it belongs
 
 
 def _assert_valid_final_script_sig(final_script_sig: bytes) -> None:
@@ -248,7 +247,13 @@ _SERIALIZED_FIELDS: list[tuple[bytes, str, _Serializer]] = [
 # produced, so an input with a final script_sig or witness serializes
 # without these fields. They are still parsed: dropping what a
 # counterparty sent is the Finalizer role's decision, not a codec's.
-# Issue 173: the taproot fields have no such condition
+# The list is the whole of what Bitcoin Core's PSBTInput::Serialize puts
+# inside its `if (final_script_sig.empty() && final_script_witness
+# .IsNull())`, the preimages and the taproot fields included: each of
+# them is an input to signing, and a finalized input has been signed.
+# The utxo fields are outside it there and here, an Extractor needing
+# them to check the transaction it builds; so are the unknown ones,
+# which no role understands well enough to drop
 _DROPPED_ONCE_FINALIZED = frozenset(
     {
         "partial_sigs",
@@ -256,6 +261,16 @@ _DROPPED_ONCE_FINALIZED = frozenset(
         "redeem_script",
         "witness_script",
         "hd_key_paths",
+        "ripemd160_preimages",
+        "sha256_preimages",
+        "hash160_preimages",
+        "hash256_preimages",
+        "taproot_key_spend_signature",
+        "taproot_script_spend_signatures",
+        "taproot_leaf_scripts",
+        "taproot_hd_key_paths",
+        "taproot_internal_key",
+        "taproot_merkle_root",
     }
 )
 

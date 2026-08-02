@@ -1,0 +1,44 @@
+# The script engine, mutated: the larger half of the consensus code issue
+# #219 scopes this to, and where the first of the three findings that
+# opened it lived -- 1016 of 3737 vectors filtered out of the engine's
+# reach, with every line of it still covered by the other 2721.
+# sig_hash.toml beside it carries the reasoning the two share -- why this
+# directory, why two files, why no coverage.
+
+[cosmic-ray]
+# 2768 mutants, against sig_hash.py's 727, and this is the run that does
+# not fit a budget: 2768 times the 7.2 s of cpu below is five and a half
+# hours, where the sighash session is half an hour. The first pass
+# therefore ran sig_hash.py and enumerated this one, which is the
+# "one module first" the issue asks for; this file is what a
+# workflow_dispatch, or a night, is aimed at
+module-path = "btclib/script/engine"
+
+# tests/script_engine alone, where sig_hash.toml names tests/script first,
+# and not because the engine is out of that directory's reach: three of the
+# sighash modules there sign a transaction and hand it to
+# `verify_transaction`, so they do kill engine mutants. What they do not
+# hold is a vector *set* -- Core's script_tests.json and
+# script_assets_test.json are what judge an interpreter, and both are here.
+# Measured, the trade is 1.1 s added to each of 2768 mutants, 51 minutes,
+# to catch the few that only a round trip would kill; those are reported as
+# survivors instead, and the sighash session kills them from its own side.
+# python_path_test.py is ignored for the reason given in sig_hash.toml --
+# it is a second verdict on btclib.ecc's python path and the same verdict
+# on this directory, for 46 s of the 54 s the whole directory costs
+test-command = """python -m pytest -x -q -n0 -p no:randomly \
+  tests/script_engine \
+  --ignore=tests/script_engine/python_path_test.py"""
+
+# seconds of wall clock, against a 7.2 s cpu baseline, and wide for the
+# reason sig_hash.toml measures: a timeout is a verdict of its own, so
+# slack costs only the mutants that really do loop for ever -- and this
+# directory is where they live, the engine being a loop over opcodes with
+# a stack and a mutated bound the way to stop it ending
+timeout = 300
+
+excluded-modules = []
+
+# one at a time, in this working tree: see sig_hash.toml
+[cosmic-ray.distributor]
+name = "local"

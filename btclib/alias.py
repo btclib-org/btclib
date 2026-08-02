@@ -105,10 +105,124 @@ Integer = bytes | str | int
 #
 # A Literal and not an Enum: network names are plain str throughout this
 # library, so a lone enum here would be an island, and mypy strict
-# already rejects the typo an Enum would guard against. Whether btclib
-# should move to enums wholesale -- script types and network names
-# first -- is a real question, and a separate one
+# already rejects the typo an Enum would guard against. That is the same
+# choice the four vocabularies below make, for the reasons written over
+# them
 NetworkType = Literal["main", "test"]
+
+# The closed vocabularies this library passes as plain str, one Literal
+# each: issue #216. Strict mypy refuses a typo at every call site that
+# spells the value out, which is most of them, and refuses nothing where
+# the string is computed at run time -- that is the whole of what a
+# Literal buys and the whole of what it does not.
+#
+# Literal and not Enum, and the issue measures why: `class Net(str,
+# Enum)` formats a member as `mainnet` on 3.10 and as `Net.MAINNET` on
+# 3.11 and later, so a mixin enum would make the six error messages
+# that interpolate a network name -- text some tests match verbatim --
+# read differently on different interpreters, while enum.StrEnum, which
+# formats as the value everywhere, is 3.11+ against a 3.10 floor. A
+# Literal has no runtime existence at all: nothing to format, nothing
+# new for to_dict to serialize, and no signature that stops accepting a
+# str.
+#
+# Which of them a *parameter* may take is the other half of the answer,
+# and it is not the same for all four: an argument annotated with a
+# Literal is a promise that the vocabulary is closed, so only the two
+# whose data is closed are spelled on parameters. The other two name
+# what btclib ships, for a caller who uses only that.
+
+# What a script_pub_key pays to, as script.script_pub_key.type_and_payload
+# names it. Closed, and checked to be: these nine are exactly what that
+# function returns, mypy comparing each return against this alias. Note
+# that "unknown" is one of them -- the answer for bytes this library does
+# not classify, not the absence of an answer -- so there is no None here
+# to widen the type of every caller. Parameters take it: b58's two
+# address functions dispatch on it
+ScriptType = Literal[
+    "nulldata",
+    "p2ms",
+    "p2pk",
+    "p2pkh",
+    "p2sh",
+    "p2tr",
+    "p2wpkh",
+    "p2wsh",
+    "unknown",
+    "witness_unknown",
+]
+
+# A field name of network.Network, which the three *_from_key_value
+# lookups take as a str and resolve with getattr. The most fragile of
+# these vocabularies, and so a parameter type: a misspelled field name
+# matches no network, so the lookup answers None -- "no network carries
+# this prefix" -- where a misspelled network name at least raises
+# KeyError at the indexing. network_test.py checks the members against
+# dataclasses.fields(Network), the one thing mypy cannot check about a
+# name resolved with getattr.
+#
+# Not "NetworkKey": in this library a key is a private or a public one
+NetworkField = Literal[
+    "curve",
+    "network_type",
+    "magic_bytes",
+    "genesis_block",
+    "wif",
+    "p2pkh",
+    "p2sh",
+    "hrp",
+    "bip32_prv",
+    "bip32_pub",
+    "slip132_p2wpkh_p2sh_prv",
+    "slip132_p2wpkh_p2sh_pub",
+    "slip132_p2wsh_p2sh_prv",
+    "slip132_p2wsh_p2sh_pub",
+    "slip132_p2wpkh_prv",
+    "slip132_p2wpkh_pub",
+    "slip132_p2wsh_prv",
+    "slip132_p2wsh_pub",
+]
+
+# The networks btclib ships, i.e. the keys of network.NETWORKS as loaded.
+# Not a parameter type, and that is the honest half of issue #216:
+# NETWORKS is a dict a caller adds a custom signet to, so a `network:
+# NetworkName` would refuse a name the library itself accepts and every
+# such caller would have to cast. It names the five for a caller who
+# uses only those and wants mypy to hold them to it; network.py
+# annotates with it the tuple of names it loads, which is what keeps
+# this list equal to the data
+NetworkName = Literal["mainnet", "testnet", "regtest", "signet", "testnet4"]
+
+# The word-lists btclib ships: BIP39's twelve languages, and SLIP-0039's
+# single list under a key that is a scheme and not a language code -- the
+# SLIP defines no localization, so "slip39" is the whole of it. Every key
+# of the WORDLISTS registry is named here, which is what keeps this list
+# equal to the data; that the thirteen are not interchangeable is the
+# schemes' business, and bip39 enforces its own half by refusing any list
+# that is not 2048 words long.
+#
+# Open, as NetworkName is, and more plainly so:
+# WordLists.load_lang(lang, filename) adds a language, which is how a
+# word-list btclib does not ship is read -- electrum's 1626-word
+# Portuguese is one, on a registry of its own -- so the ten `lang: str`
+# parameters of mnemonic, bip39 and electrum stay str: a Literal there
+# would type check the library's own languages and reject the file a
+# caller has just loaded
+MnemonicLang = Literal[
+    "cs",
+    "en",
+    "es",
+    "fr",
+    "it",
+    "ja",
+    "ko",
+    "pt",
+    "ru",
+    "tr",
+    "zh",
+    "zh_tw",
+    "slip39",
+]
 
 
 # The four address encodings a purpose level can name: 44 is p2pkh, 49

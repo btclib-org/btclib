@@ -23,12 +23,15 @@ has no upstream at all.
 """
 
 from hashlib import sha256
+from unicodedata import normalize
 
 import pytest
 
 from btclib.bip32 import bip32, slip132
 from btclib.exceptions import BTClibValueError
 from btclib.mnemonic import bip39, electrum
+from btclib.mnemonic.electrum import ELECTRUM_WORDLISTS
+from btclib.mnemonic.mnemonic import BIP39_LANGUAGE_FILES, WORDLISTS
 from btclib.network import NETWORKS
 from tests import load, vector_id
 
@@ -55,17 +58,23 @@ SPANISH = (
     "polen vehículo odisea"
 )
 
+SPANISH_SEGWIT = (
+    "equipo fiar auge langosta hacha calor trance cubrir carro pulmón oro áspero"
+)
+SPANISH_SEGWIT_2 = (
+    "vidrio jabón muestra pájaro capucha eludir feliz rotar fogata pez rezar oír"
+)
+
 ENGLISH = (
     "wild father tree among universe such mobile favorite target "
     "dynamic credit identify"
 )
 
-# electrum's SEED_TEST_CASES. ja, zh and es are here although btclib ships
-# no word-list for either of the three: a seed is a normalization and a
-# PBKDF2, neither of which needs one, and these are the cases that make
-# the normalization visible -- the CJK ones have their words joined, the
-# Spanish ones have their accents dropped, and none of them would survive
-# a bare whitespace clean
+# electrum's SEED_TEST_CASES: the seed of each, which is a normalization
+# and a PBKDF2 and needs no word-list at all. These are the cases that
+# make the normalization visible -- the CJK ones have their words joined,
+# the Spanish ones have their accents dropped, and none of them would
+# survive a bare whitespace clean
 SEED_VECTORS = [
     pytest.param(
         ENGLISH,
@@ -132,7 +141,7 @@ SEED_VECTORS = [
         id="spanish-passphrase",
     ),
     pytest.param(
-        "equipo fiar auge langosta hacha calor trance cubrir carro pulmón oro áspero",
+        SPANISH_SEGWIT,
         "",
         "segwit",
         "001ebce6bfde5851f28a0d44aae5ae0c762b600daf3b33fc8fc630aee0d20764"
@@ -140,7 +149,7 @@ SEED_VECTORS = [
         id="spanish-segwit",
     ),
     pytest.param(
-        "vidrio jabón muestra pájaro capucha eludir feliz rotar fogata pez rezar oír",
+        SPANISH_SEGWIT_2,
         "¡Viva España! repiten veinte pueblos y al hablar dan fe del "
         "ánimo español... ¡Marquen arado martillo y clarín",
         "segwit",
@@ -148,6 +157,63 @@ SEED_VECTORS = [
         "ab1cf9c00ba8d3456b7943428541fed714d01d8a0a4028fc3a9bb33d981cb49f",
         id="spanish-segwit-passphrase",
     ),
+]
+
+# the entropy field of those same SEED_TEST_CASES, i.e. what electrum's
+# mnemonic_decode answers. Only now testable: decoding takes the
+# word-list of the language, and btclib shipped two of electrum's five
+DECODE_VECTORS = [
+    pytest.param(
+        JAPANESE, "ja", 1938439226660562861250521787963972783469, id="japanese"
+    ),
+    pytest.param(CHINESE, "zh", 3083737086352778425940060465574397809099, id="chinese"),
+    pytest.param(SPANISH, "es", 3423992296655289706780599506247192518735, id="spanish"),
+    pytest.param(
+        SPANISH_SEGWIT, "es", 448346710104003081119421156750490206837, id="spanish-2"
+    ),
+    pytest.param(
+        SPANISH_SEGWIT_2,
+        "es",
+        3444792611339130545499611089352232093648,
+        id="spanish-3",
+    ),
+]
+
+# generation parity, one language at a time: what electrum's make_seed
+# returns when the entropy it draws is fixed. Produced by running
+# electrum's own mnemonic.py with randrange patched to a constant, which
+# is the same starting point mnemonic_from_entropy takes -- the search
+# begins at entropy + 1 in both. Electrum publishes no vector of this
+# kind for any language, so these are btclib's in the sense
+# electrum_test_vectors.json is: cross-checked against the application.
+#
+# Not the full five-by-four matrix. The version is what the four columns
+# vary and it is a hash of the sentence, language and all, so one
+# language shows it; Portuguese has all four because it is the one
+# word-list that is not 2048 words -- thirteen words to the sentence,
+# which is what makes "2fa" impossible there and nowhere else.
+#
+# In a file and not inline, unlike every other vector here, and for a
+# reason the values cannot defend themselves against: the two spell
+# checkers of the lint gate read a python source and skip _data, and
+# typos runs with --write-changes. Measured, it corrected word five of
+# the Portuguese "2fa_segwit" sentence into the English word it is one
+# letter away from -- a rewrite of a vector by a hook asked to fix prose,
+# and it corrected this very comment when the word was written out here
+LANGUAGE_VECTORS = load(
+    "mnemonic", "_data", "electrum_language_vectors.json", encoding="utf-8"
+)
+
+GENERATED_VECTORS = [
+    pytest.param(
+        vector["lang"],
+        vector["type"],
+        vector["entropy"],
+        vector["mnemonic"],
+        vector["seed"],
+        id=f"{vector['lang']}-{vector['type']}",
+    )
+    for vector in LANGUAGE_VECTORS["generated"]
 ]
 
 # electrum's Test_seeds.mnemonics, the table its calc_seed_type is
@@ -646,6 +712,34 @@ def test_skipped_candidates() -> None:
     )
 
 
+def test_a_wordlist_the_encoding_does_not_round_trip(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """The search checks its own arithmetic, and says so when it fails.
+
+    Electrum makes the same check inside make_seed, and it is not
+    reachable with the two wordlists btclib ships: `en` and `it` are
+    2048 distinct ASCII words each, so encoding an integer and decoding
+    the sentence hands the integer back for every candidate --
+    measured over the first three thousand and three thousand more
+    above 2**131. Patching the decode reaches it on the wordlists there
+    are, which is what the ripemd160 fallback test does with its flag
+    and what a `pragma: no cover` here would not do.
+
+    What would run it for real is a list added later: a CJK one, where
+    normalization can map two entries onto one string, or any list
+    carrying a repetition. Either writes a seed that reads back as
+    another, so the search refuses rather than returns it.
+    """
+    # a decode that answers 1 whatever it is given: the first candidate
+    # is int_entropy + 1, so 1 here is a mismatch and nothing else is
+    monkeypatch.setattr(electrum, "_bin_str_entropy_from_mnemonic", lambda *_: "1")
+
+    err_msg = "cannot extract the same entropy from mnemonic: "
+    with pytest.raises(BTClibValueError, match=err_msg):
+        electrum._search_mnemonic(1, "01", "en")
+
+
 def test_2fa_words() -> None:
     """ "2fa" wants twelve words or twenty, and a search can end elsewhere.
 
@@ -671,13 +765,171 @@ def test_2fa_words() -> None:
         electrum.version_from_mnemonic(thirteen_words)
 
 
+@pytest.mark.parametrize(("mnemonic", "lang", "entropy"), DECODE_VECTORS)
+def test_decode_vectors(mnemonic: str, lang: str, entropy: int) -> None:
+    """The entropy electrum's mnemonic_decode reads off each sentence.
+
+    The sentence is decoded as handed in: electrum's normalization drops
+    the accents of the spanish words and joins the chinese ones, and what
+    it produces is what electrum hashes rather than what it looks up.
+    """
+    assert int(electrum.entropy_from_mnemonic(mnemonic, lang), 2) == entropy
+    # and the language need not be named
+    assert int(electrum.entropy_from_mnemonic(mnemonic), 2) == entropy
+
+
+@pytest.mark.parametrize(
+    ("lang", "mnemonic_type", "entropy", "mnemonic", "seed"), GENERATED_VECTORS
+)
+def test_generated_vectors(
+    lang: str, mnemonic_type: str, entropy: int, mnemonic: str, seed: str
+) -> None:
+    """The sentence electrum builds from an entropy, language by language."""
+    if not mnemonic:
+        with pytest.raises(BTClibValueError, match="electrum mnemonic version: "):
+            electrum.mnemonic_from_entropy(mnemonic_type, entropy, lang)
+        return
+
+    # the vectors are written composed, which is how a reader types them
+    # and how electrum publishes its own word-list files; the word-lists
+    # are loaded NFKD, as BIP39 publishes them and as electrum normalizes
+    # them, so the sentence built here is decomposed and the two are one
+    # sentence. The seed below is the check that does not depend on the
+    # spelling: it is derived from the vector's own text
+    generated = electrum.mnemonic_from_entropy(mnemonic_type, entropy, lang)
+    assert normalize("NFKD", generated) == normalize("NFKD", mnemonic)
+    assert electrum._seed_from_mnemonic(mnemonic, "") == (
+        mnemonic_type,
+        bytes.fromhex(seed),
+    )
+    # the entropy the sentence encodes is above the one it was searched
+    # from, and searching from one below it lands back on the sentence
+    entr = int(electrum.entropy_from_mnemonic(mnemonic, lang), 2)
+    assert entr > entropy
+    assert electrum.mnemonic_from_entropy(mnemonic_type, entr - 1, lang) == generated
+
+
+def test_electrum_wordlists() -> None:
+    """Electrum's word-lists are BIP39's, but for Portuguese."""
+    # the shipped twelve, and not WORDLISTS.languages: that one is a
+    # singleton another test adds a language to
+    assert ELECTRUM_WORDLISTS.languages == list(BIP39_LANGUAGE_FILES)
+    for lang in BIP39_LANGUAGE_FILES:
+        if lang == "pt":
+            continue
+        assert ELECTRUM_WORDLISTS.wordlist(lang) == WORDLISTS.wordlist(lang)
+
+    # electrum's portuguese is Monero's list: 1626 words, not 2048, and
+    # 185 of them are also in BIP39's portuguese
+    assert ELECTRUM_WORDLISTS.language_length("pt") == 1626
+    assert WORDLISTS.language_length("pt") == 2048
+    shared = set(ELECTRUM_WORDLISTS.wordlist("pt")) & set(WORDLISTS.wordlist("pt"))
+    assert len(shared) == 185
+
+
+def test_portuguese_word_count() -> None:
+    """1626 words is 10.667 bits, so the sentence is thirteen words long.
+
+    Rounding that down to ten bits a word would make it twelve, i.e. a
+    sentence electrum would never draw, and rounding the entropy down
+    with it: the sentence carries 138 bits and not 130.
+    """
+    mnemonic = electrum.mnemonic_from_entropy("standard", None, "pt")
+    assert len(mnemonic.split()) == 13
+    assert len(electrum.entropy_from_mnemonic(mnemonic, "pt")) == 139
+
+    # every one of its words is in electrum's list and the sentence is in
+    # no other, which is what lets the language go unnamed
+    assert electrum.lang_from_mnemonic(mnemonic) == "pt"
+    # BIP39's portuguese is another word-list, and cannot read it
+    with pytest.raises(BTClibValueError, match="unknown 'pt' word: "):
+        bip39.entropy_from_mnemonic(mnemonic, "pt")
+
+
+def test_is_bip39_mnemonic() -> None:
+    """The skip electrum performs with the word-list of the language.
+
+    For a 2048-word list it is BIP39's own question, and the first two
+    cases pin that against bip39.py. For electrum's Portuguese it is not:
+    electrum reads 1626 words with eleven bits to the word, which is not
+    a BIP39 checksum of anything, and the two vectors below are what its
+    bip39_is_checksum_valid answers all the same. Reproduced because the
+    candidates it makes electrum skip are what shape the sentences
+    electrum generates.
+    """
+    valid_bip39 = (
+        "park leaf system perfect top lecture rather foster best nest craft topic"
+    )
+    assert electrum._is_bip39_mnemonic(valid_bip39, "en")
+    assert bip39.entropy_from_mnemonic(valid_bip39, "en")
+
+    assert not electrum._is_bip39_mnemonic(ENGLISH, "en")
+    with pytest.raises(BTClibValueError, match="invalid checksum: "):
+        bip39.entropy_from_mnemonic(ENGLISH, "en")
+
+    # a word of no word-list, and a length BIP39 has no checksum for
+    assert not electrum._is_bip39_mnemonic("btclib " * 11 + "btclib", "en")
+    assert not electrum._is_bip39_mnemonic(ENGLISH + " abandon", "en")
+
+    # electrum's portuguese, 1626 words read as though eleven bits each.
+    # In the vector file for the reason stated above it: a Portuguese
+    # sentence in a python source is prose to the spell checkers
+    lookalike = LANGUAGE_VECTORS["bip39_lookalike"]
+    assert electrum._is_bip39_mnemonic(lookalike["valid"], "pt")
+    assert not electrum._is_bip39_mnemonic(lookalike["invalid"], "pt")
+
+
+def test_entropy_round_trips_through_every_candidate(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """The invariant electrum checks on each candidate it encodes.
+
+    "Cannot extract same entropy from mnemonic!", says electrum, of a
+    sentence that does not decode to the integer it was built from. No
+    input reaches it -- a base conversion round-trips, and the word-lists
+    hold no duplicate word for two indexes to answer to -- so the decoder
+    is replaced to reach the raise, which is what makes it a guard rather
+    than dead code.
+    """
+    monkeypatch.setattr(electrum, "_bin_str_entropy_from_mnemonic", lambda *_: "0")
+    with pytest.raises(
+        BTClibValueError, match="cannot extract the same entropy from mnemonic: "
+    ):
+        electrum.mnemonic_from_entropy("standard", 1, "en")
+
+
+def test_lang_from_mnemonic() -> None:
+    """The words say which language, or say that they cannot."""
+    # a fixed entropy, and not the random one a `None` would draw: the
+    # refusal below is the reason. About one chinese sentence in three
+    # hundred is written in the 1275 characters both lists hold, and
+    # electrum refuses that one rather than resolving it, so a random
+    # entropy makes this a test that fails a few times a year for being
+    # right. The same digits as bip39_test's, which pins the same thing
+    entropy = 0x0000003974D093EDA670121023CD0000
+    for lang in ("en", "es", "ja", "pt", "zh"):
+        mnemonic = electrum.mnemonic_from_entropy("standard", entropy, lang)
+        assert electrum.lang_from_mnemonic(mnemonic) == lang
+
+    with pytest.raises(BTClibValueError, match="unknown language for mnemonic: "):
+        electrum.lang_from_mnemonic("btclib " * 11 + "btclib")
+
+    # a chinese sentence in characters both lists hold. BIP39 answers it
+    # by comparing the entropies, which are equal, the two lists being
+    # aligned; here there is no checksum to say the sentence was ever
+    # meant to spell that entropy, so the caller is asked
+    shared = "的 的 的 的 的 的 的 的 的 的 的 在"
+    with pytest.raises(BTClibValueError, match="ambiguous language for mnemonic: "):
+        electrum.lang_from_mnemonic(shared)
+
+
 def test_italian() -> None:
     """Italian is btclib's own extension, and it round-trips.
 
-    Electrum reads en, es, ja, pt and zh_simplified, so a mnemonic
-    generated here in Italian is one electrum cannot read at all. The
-    module docstring says so; this pins the behaviour rather than the
-    parity, there being nothing to be in parity with.
+    Electrum reads en, es, ja, pt and zh, so a mnemonic generated here in
+    Italian is one electrum cannot read at all. The module docstring says
+    so; this pins the behaviour rather than the parity, there being
+    nothing to be in parity with.
     """
     entropy = 0x110AAAA03974D093EDA670121023CD0772
     mnemonic = electrum.mnemonic_from_entropy("standard", entropy, "it")

@@ -16,6 +16,7 @@ those bytes given a node with the transaction index.
 tests/_data/README.md has its size and wtxid.
 """
 
+import inspect
 from os import path
 
 import pytest
@@ -401,7 +402,6 @@ def test_join_txs() -> None:
         [tx1, tx2],
         enforce_same_version=True,
         enforce_same_lock_time=True,
-        merge_out=False,
         shuffle_inp=False,
         shuffle_out=False,
     )
@@ -423,14 +423,12 @@ def test_join_txs() -> None:
         [tx1, tx2],
         enforce_same_version=True,
         enforce_same_lock_time=True,
-        merge_out=False,
         shuffle_inp=False,
         shuffle_out=False,
     ) == join_txs(
         [tx1, tx2],
         enforce_same_version=True,
         enforce_same_lock_time=True,
-        merge_out=False,
         shuffle_inp=False,
         shuffle_out=False,
     )
@@ -442,7 +440,6 @@ def test_join_txs() -> None:
             [tx1, tx2],
             enforce_same_version=True,
             enforce_same_lock_time=True,
-            merge_out=False,
             shuffle_inp=True,
             shuffle_out=True,
         )
@@ -456,7 +453,6 @@ def test_join_txs() -> None:
             [tx1, tx2],
             enforce_same_version=True,
             enforce_same_lock_time=True,
-            merge_out=False,
             shuffle_inp=False,
             shuffle_out=False,
         )
@@ -468,7 +464,6 @@ def test_join_txs() -> None:
             [tx1, tx2],
             enforce_same_version=True,
             enforce_same_lock_time=True,
-            merge_out=False,
             shuffle_inp=False,
             shuffle_out=False,
         )
@@ -480,21 +475,22 @@ def test_join_txs() -> None:
             [tx1, tx2],
             enforce_same_version=True,
             enforce_same_lock_time=True,
-            merge_out=False,
             shuffle_inp=False,
             shuffle_out=False,
         )
 
-    tx2 = Tx.parse(tx_bytes)
-    with pytest.raises(BTClibValueError, match="output merge not implemented yet"):
-        join_txs(
-            [tx1, tx2],
-            enforce_same_version=True,
-            enforce_same_lock_time=True,
-            merge_out=True,
-            shuffle_inp=False,
-            shuffle_out=False,
-        )
+    # outputs are concatenated and never merged, and no parameter asks for
+    # it: merging two outputs paying one script invalidates every
+    # signature already made over the previous set.
+    # What says so is the parameter list, rather than a merge_out=True
+    # call asserted to raise: that call raises a TypeError whose text is
+    # the interpreter's -- CPython's "unexpected keyword argument" -- and
+    # not a contract of this library, while the two asserts below are the
+    # contract itself, no parameter of that name and no **kwargs to
+    # swallow one
+    params = inspect.signature(join_txs).parameters
+    assert "merge_out" not in params
+    assert not any(p.kind is inspect.Parameter.VAR_KEYWORD for p in params.values())
 
 
 def test_eq() -> None:

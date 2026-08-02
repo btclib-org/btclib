@@ -39,6 +39,14 @@ repos:
     rev: v6.0.0
     hooks:
       - id: trailing-whitespace
+        # electrum's Portuguese word-list is Monero's, and the blank lines
+        # of the licence header it opens with end in a space upstream.
+        # Vendored data is not ours to reformat, which is the reason
+        # pretty-format-json below leaves tests/**/_data/ alone: our copy
+        # being byte for byte upstream's is a property that can be
+        # checked, and a stripped space voids it for nothing. The loader
+        # reads the words and treats the header as the comment it is
+        exclude: ^btclib/mnemonic/_data/electrum_portuguese\.txt$
       - id: end-of-file-fixer
       - id: mixed-line-ending
         # not the default --fix=auto, which normalizes a file to its own
@@ -93,16 +101,17 @@ repos:
         # together. Excluded by directory rather than by name so that the
         # next file vendored into it is safe before anyone remembers this
         # line; check-json above still answers the question worth asking
-        # of them, which is whether they parse. The lookahead is the four
+        # of them, which is whether they parse. The lookahead is the five
         # files in there that have no pinned blob for a reformat to void:
-        # three of btclib's own and one of chain data, whose provenance is
-        # a txid rather than a blob. By name because there are four, and
+        # four of btclib's own and one of chain data, whose provenance is
+        # a txid rather than a blob. By name because there are five, and
         # because the default for anything else in that directory has to
         # stay "not touched". (?x) is verbose mode, i.e. the newlines
         # below are not part of the pattern
         exclude: |
           (?x)^tests/([^/]+/)?_data/
-          (?!descriptor_checksums\.json
+          (?!btclib_test_vectors\.json
+            |descriptor_checksums\.json
             |rfc6979\.json
             |electrum_test_vectors\.json
             |unspendable_script_pub_keys\.json)
