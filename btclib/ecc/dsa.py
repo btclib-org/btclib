@@ -15,6 +15,12 @@ http://www.secg.org/sec1-v2.pdf
 
 specialized with bitcoin canonical 'lower-s' form
 to avoid accepting malleable signatures.
+
+``sign`` also takes a value to commit to inside the nonce,
+sign-to-contract style (see btclib.ecc.commit_nonce for the tweak), and
+the four ``anti_exfil_*`` functions here are the protocol that
+construction exists to support: the ECDSA Anti-Exfil Protocol, whose
+five steps and reasoning are in ``anti_exfil_host_commit``.
 """
 
 from __future__ import annotations
@@ -30,7 +36,7 @@ from btclib_libsecp256k1 import dsa as libsecp256k1_dsa
 
 from btclib import var_bytes
 from btclib.alias import BinaryData, HashF, JacPoint, Octets, Point
-from btclib.curves import Curve, secp256k1
+from btclib.curves import Curve, mult, secp256k1
 from btclib.curves.curve import _libsecp256k1_applicable
 from btclib.curves.curve_group import _mult
 from btclib.curves.curve_group_2 import double_mult_w_NAF
@@ -655,6 +661,138 @@ def verify(
     return verify_(
         msg_hash, key, sig, lower_s, hf, commit_hash=commit_hash, receipt=receipt
     )
+
+
+def anti_exfil_host_commit(rho: Octets, hf: HashF = sha256) -> bytes:
+    """Return the host's commitment to rho: step 1 of the anti-exfil protocol.
+
+    A signing device that picks its own nonce can leak the private key
+    through the nonces themselves, a few bits per signature, and no
+    signature says that it did. The ECDSA Anti-Exfil Protocol takes that
+    choice away: the host contributes randomness to the nonce derivation,
+    so the device has nothing left to grind. Which only holds if the
+    device publishes the nonce's point *before* it learns the randomness
+    -- otherwise it grinds the randomness against candidate nonces until
+    one carries the bits it wants out -- so the exchange is a
+    commit-reveal handshake of five steps:
+
+    1. the host draws rho and sends ``anti_exfil_host_commit(rho)``
+    2. the device answers with ``anti_exfil_signer_commit(msg_hash,
+       prv_key, commitment)``, the point R its nonce will have
+    3. the host reveals rho
+    4. the device signs, ``anti_exfil_sign(msg_hash, prv_key, rho)``
+    5. the host checks ``anti_exfil_host_verify`` against the R of step 2
+       and the rho it drew in step 1
+
+    rho is hf_len bytes from a cryptographically secure generator, and it
+    stays secret until step 2 has been answered: revealed earlier it is
+    the device's to grind, which is the whole of what this prevents.
+
+    **Restarting the protocol takes exactly the same rho**, and the host
+    checks that the device answers step 2 with exactly the same R. A
+    device that could make the host draw again by failing would be
+    choosing which nonces reach real signatures, one abort at a time --
+    selective aborting is a bias like any other, and libsecp256k1 puts
+    the scale on it: some hundred aborts before there is a plausible
+    attack, accumulating across a replacement of every device involved,
+    though not across a replacement of the keys.
+
+    The commitment is the committed value as it enters the nonce
+    derivation -- ``commit_entropy_`` under the sign-to-contract data
+    tag, and nothing else -- which is what lets step 2 and step 4 reach
+    one nonce: the device derives it from this hash, and recomputes the
+    same hash from rho when it signs.
+    """
+    return commit_entropy_(bytes_from_octets(rho, hf().digest_size), _S2C_DATA_TAG, hf)
+
+
+def anti_exfil_signer_commit(
+    msg_hash: Octets,
+    prv_key: PrvKey,
+    host_commitment: Octets,
+    ec: Curve = secp256k1,
+    hf: HashF = sha256,
+) -> Point:
+    """Return the signer's public nonce R: step 2 of the anti-exfil protocol.
+
+    The point of the nonce the device is going to use, published before
+    the host reveals what its commitment commits to. Nothing is signed
+    here, and that is the shape the protocol needs: R is a promise, and
+    step 4 is what keeps it.
+
+    The commitment travels as RFC6979 section 3.6 additional data,
+    exactly as the committed value does in ``sign_``, so the two derive
+    one nonce and the R below is the receipt that signature will open
+    with.
+    """
+    c = challenge_(msg_hash, ec, hf)
+    q = int_from_prv_key(prv_key, ec)
+    entropy = bytes_from_octets(host_commitment, hf().digest_size)
+    return mult(_rfc6979_nonce_(c, q, ec, hf, entropy), ec.G, ec)
+
+
+def anti_exfil_sign(
+    msg_hash: Octets,
+    prv_key: PrvKey,
+    rho: Octets,
+    lower_s: bool = True,
+    ec: Curve = secp256k1,
+    hf: HashF = sha256,
+) -> Sig:
+    """Sign committing to the host's rho: step 4 of the anti-exfil protocol.
+
+    Sign-to-contract with rho as the committed value, which is all step 4
+    is: ``sign_`` with that commitment. The receipt it returns is dropped
+    rather than passed on, because the host has it already -- it is the R
+    of step 2, and a host taking the device's word for it here would be
+    accepting a nonce point chosen *after* rho was revealed, which is the
+    one thing the ordering exists to rule out.
+
+    **The device keeps no state between step 2 and step 4.** It does not
+    check rho against the commitment it was given: it re-derives the
+    commitment from rho, and the nonce from that. A rho that does not
+    match yields a different nonce, so the host's step 5 fails and the
+    exchange is over -- and because the R of step 2 belonged to the
+    commitment it was derived from, no nonce is ever used twice and the
+    device's key is never the thing at risk.
+    """
+    sig, _ = sign_(
+        msg_hash,
+        prv_key,
+        None,
+        lower_s,
+        ec,
+        hf,
+        commit_hash=bytes_from_octets(rho, hf().digest_size),
+    )
+    return sig
+
+
+def anti_exfil_host_verify(
+    msg_hash: Octets,
+    key: PubKey,
+    sig: Sig | Octets,
+    rho: Octets,
+    receipt: Point,
+    lower_s: bool = True,
+    hf: HashF = sha256,
+) -> bool:
+    """Check the signature against R and rho: step 5 of the anti-exfil protocol.
+
+    Two questions answered as one, and the host needs both: that this is
+    a valid signature, and that its nonce is the R of step 2 tweaked by
+    the rho of step 1. Either alone is worth nothing -- a valid signature
+    over a nonce nobody constrained is the exfiltration this protects
+    against, and a commitment that opens under an invalid signature is
+    not a signature. Which ``verify_`` already does in one call, both
+    checks running against the same r.
+
+    receipt is the R of step 2, what libsecp256k1 calls the opening.
+    False and not an exception for everything that fails, as ``verify_``
+    answers: a rho of the wrong size is simply a rho this commitment does
+    not open to.
+    """
+    return verify_(msg_hash, key, sig, lower_s, hf, commit_hash=rho, receipt=receipt)
 
 
 def _recover_pub_keys_(

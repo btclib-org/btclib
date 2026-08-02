@@ -1221,6 +1221,42 @@ edit.
   bytearray it is given, because two signatures under one secret nonce hand
   out the private key. Threshold signing, the neighbouring half of #190, is
   not implemented and the issue stays open for it
+- **the ECDSA Anti-Exfil Protocol**, which sign-to-contract is the
+  primitive for. A signing device that picks its own nonce can leak the
+  private key through the nonces themselves, a few bits per signature,
+  and nothing in the signature says that it did; the protocol takes the
+  choice away by having the host contribute randomness `rho` to the nonce
+  derivation. That only holds if the device publishes the nonce's point
+  `R` *before* it learns `rho` — otherwise it grinds `rho` against
+  candidate nonces until one carries the bits it wants out — so
+  `dsa.sign(msg, prv_key, commit=rho)`, which hands the device everything
+  at once, is step 4 alone and cannot enforce the ordering step 2 exists
+  for. The four functions that express the whole handshake are
+  `dsa.anti_exfil_host_commit`, `dsa.anti_exfil_signer_commit`,
+  `dsa.anti_exfil_sign` and `dsa.anti_exfil_host_verify`, one per step,
+  and the second of them is the shape the API did not have: a nonce's
+  point derived and published without signing anything. What lets the two
+  ends meet was already in place — `commit_entropy_` hashes the committed
+  value before it enters the derivation, so the nonce is reachable
+  knowing only a hash of `rho`, and libsecp256k1 states the purpose in as
+  many words: "it should be possible to derive nonces even if only a
+  SHA256 commitment to the data is known. This is important in the ECDSA
+  anti-exfil protocol". `anti_exfil_sign` drops the receipt instead of
+  returning it, as libsecp256k1's does: the host holds that point from
+  step 2, and taking the device's word for it after `rho` was revealed is
+  the one thing the ordering rules out. Two obligations land on the
+  caller and are written into the docstrings — restarting takes
+  **exactly** the same `rho`, with the host checking that the device
+  answers with exactly the same `R`, because selective aborting biases
+  the nonces that reach real signatures; and the device keeps no state
+  between step 2 and step 4, re-deriving the commitment from whatever
+  `rho` arrives, so a mismatch costs a failed verification and never a
+  reused nonce. Both of libsecp256k1-zkp's `expected_s2c_exfil_opening`
+  vectors reproduce, and its `expected_s2c_opening` column is checked
+  beside them as the `R` of step 2 under `anti_exfil_host_commit`: the
+  two columns are one host commitment apart, which is upstream's own
+  bytes saying that step 2 and step 4 reach one nonce. There is no
+  schnorr counterpart upstream to extend this to (issue #222)
 
 ### Script
 
