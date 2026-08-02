@@ -16,6 +16,9 @@ maintainers see; [HISTORY.md](./HISTORY.md) lists the source-breaking
 changes on their own. Neither file counts its entries: `grep -c '^- '`
 does that, whereas a stated number is a line every open branch has to
 edit.
+A hundred and seventy-nine entries, grouped. The order runs from what breaks
+a caller to what only maintainers see; [HISTORY.md](./HISTORY.md) lists the
+twenty-nine source-breaking changes on their own.
 
 ### Repository
 
@@ -1951,6 +1954,19 @@ edit.
   for the `a == p-3` of most catalogued curves, and `JacPoint` is public.
   Every gain is a uniform one, so the comparisons the `curve_group_2`
   docstrings draw between the algorithms still hold as measured
+- **the taproot output key is tweaked by libsecp256k1**, both where it is
+  built and where a control block is checked against it:
+  `taproot.output_pubkey` calls `xonly.tweak_add`, and
+  `check_output_pubkey` calls `xonly.tweak_add_check`, the dedicated
+  verification. Each of the two lifted the x-only key to a point with
+  `ec.y_even` and added `mult(t)` to it in python: 12.0 µs against 109.3
+  for an output key, 2000 tweaks best of nine, of which the modular square
+  root alone was 74. The python arithmetic stays, and the tests compute
+  every tweak twice to hold the two answers to each other — taproot has no
+  second curve to reach that path with, a toy curve failing BIP341's range
+  check on a 256-bit tweak before any arithmetic happens.
+  `check_output_pubkey` keeps answering the python comparison for a q that
+  is not 32 bytes, which `tweak_add_check` refuses instead of answering
 - **`mult` takes the GLV endomorphism on secp256k1** wherever the bindings
   cannot answer: `curve_group_2.mult_endomorphism_secp256k1`, 0.53 ms
   against the 0.84 of the generic `_mult`. The bindings take the generator

@@ -14,6 +14,8 @@ from __future__ import annotations
 from io import BytesIO
 from typing import cast
 
+from btclib_libsecp256k1 import xonly as libsecp256k1_xonly
+
 from btclib import var_bytes
 from btclib.alias import (
     BinaryData,
@@ -24,6 +26,7 @@ from btclib.alias import (
     TaprootScriptTree,
 )
 from btclib.curves import Curve, mult, secp256k1
+from btclib.curves.curve import _libsecp256k1_applicable
 from btclib.exceptions import BTClibValueError
 from btclib.hashes import tagged_hash
 from btclib.script.limits import MAX_SCRIPT_ELEMENT_SIZE
@@ -160,6 +163,17 @@ def output_pubkey(
     # BIP341: fail if t is not smaller than the group order
     if t >= ec.n:
         raise BTClibValueError("Invalid script tree hash")
+
+    # secp256k1_xonly_pubkey_tweak_add is this very operation, parity
+    # included, and it answers the pair this function returns. 12.0 us
+    # against 109.3 for the three lines below (2000 tweaks, best of
+    # nine): the python path lifts the x-only key to a point with
+    # ec.y_even, i.e. a modular square root, which is 74 us of that on
+    # its own -- while libsecp256k1 needs no such lift, having the
+    # y coordinate as it goes
+    if _libsecp256k1_applicable(ec):
+        return libsecp256k1_xonly.tweak_add(pub_key, t)
+
     P_x = int.from_bytes(pub_key, "big")
     Q = ec.add((P_x, ec.y_even(P_x)), mult(t))
     return Q[0].to_bytes(32, "big"), Q[1] % 2
@@ -234,6 +248,26 @@ def check_output_pubkey(
     # BIP341: fail if t is not smaller than the group order
     if t >= ec.n:
         raise BTClibValueError("Invalid script tree hash")
+
+    # secp256k1_xonly_pubkey_tweak_add_check is the call libsecp256k1
+    # provides for this very question, and it compares the serialized
+    # keys instead of tweaking into a point and back.
+    # Only for a 32-byte q, which is what it takes: a q of any other
+    # length is not a taproot output key, but it is not necessarily
+    # unequal either -- b"\x00" + 32 bytes reads as the same integer the
+    # comparison below makes -- so the answer for it stays the python
+    # one rather than becoming an exception
+    if _libsecp256k1_applicable(ec) and len(q) == 32:
+        try:
+            return libsecp256k1_xonly.tweak_add_check(q, control[0] & 1, p_bytes, t)
+        except ValueError as e:
+            # an internal key that is not a point leaves the bindings
+            # through a plain ValueError and the python path below
+            # through the BTClibValueError of ec.y_even. The engine
+            # catches the library's own error, so the two must agree on
+            # what they raise as well as on what they answer
+            raise BTClibValueError(f"invalid internal public key: {e}") from e
+
     P = (p, secp256k1.y_even(p))
     Q = secp256k1.add(P, mult(t))
     return Q[0] == int.from_bytes(q, "big") and control[0] & 1 == Q[1] % 2
