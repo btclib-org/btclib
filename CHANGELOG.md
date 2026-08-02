@@ -1260,6 +1260,26 @@ edit.
 
 ### Script
 
+- **A witness program of version 2 or higher has an address, and btclib
+  now renders it.** `type_and_payload` named five script types, none of
+  which a v2..v16 program is, so `ScriptPubKey.type` answered
+  `"unknown"` and `.address` the empty string — for a script built from
+  a valid bech32m address btclib itself writes and reads. The round trip
+  was broken in the middle, and broken with a value indistinguishable
+  from "this script has no address", which is the right answer for a
+  nulldata output and the wrong one here. The sixth answer is
+  `"witness_unknown"`, Bitcoin Core's own name for the type
+  (`TxoutType::WITNESS_UNKNOWN`), and `.address` is the bech32m one:
+  `EncodeDestination` renders these too, its `WitnessUnknown` case. The
+  line is Core's `Solver`'s — any version but 0 that is not p2tr,
+  including a v1 program that is not 32 bytes; a *version 0* program of
+  an unexpected length stays `"unknown"`, NONSTANDARD to Core, v0 having
+  no upgrade room left for a spend to be defined in. The payload is the
+  witness program, as it is for the three named witness types, and the
+  version is not implied by the answer — it is the op code the program
+  follows, which is where `address` reads it. Nothing changes for the
+  script engine, which dispatches on the version and reaches the same
+  upgrade-room arm it always did (issue #251)
 - **`ScriptPubKey` is a dataclass**, as the `Script` it extends is. It was a
   plain subclass of one, so `network` was a bare annotation rather than a
   field: `dataclasses.fields` reported only `script`, and

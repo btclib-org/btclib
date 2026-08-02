@@ -27,7 +27,17 @@ from btclib.utils import bytes_from_octets, bytesio_from_binarydata
 
 
 def address(script_pub_key: Octets, network: str = "mainnet") -> str:
-    """Return the bech32/base58 address from a script_pub_key."""
+    """Return the bech32/base58 address from a script_pub_key.
+
+    A witness program of version 2 or higher has an address as much as
+    a p2tr one does -- bech32m spells it, `b32.address_from_witness`
+    writes it, and Bitcoin Core renders it, `EncodeDestination` having
+    a `WitnessUnknown` case. Answering "" for one would be
+    indistinguishable from "this script has no address", which is the
+    right answer for a nulldata output and the wrong one where btclib
+    can read the address back into the very script it came from
+    (issue #251).
+    """
     if script_pub_key:
         script_type, payload = type_and_payload(script_pub_key)
         if script_type in ("p2pkh", "p2sh"):
@@ -36,6 +46,11 @@ def address(script_pub_key: Octets, network: str = "mainnet") -> str:
             return b32.address_from_witness(0, payload, network)
         if script_type == "p2tr":
             return b32.address_from_witness(1, payload, network)
+        if script_type == "witness_unknown":
+            # the one type whose version the answer does not imply: it is
+            # the op code the program follows, OP_2..OP_16 being 0x52..0x60
+            version = bytes_from_octets(script_pub_key)[0] - 0x50
+            return b32.address_from_witness(version, payload, network)
 
     # not script_pub_key
     # or
@@ -294,6 +309,46 @@ def is_p2tr(script_pub_key: Octets) -> bool:
     return _is_funct(assert_p2tr, script_pub_key)
 
 
+def _witness_type_and_payload(script_pub_key: bytes) -> tuple[str, bytes] | None:
+    """Name the witness program, or None if these bytes are not one.
+
+    One function for the family, because the version is what tells them
+    apart and the four answers are one decision: v0 of 20 bytes is
+    p2wpkh and of 32 bytes p2wsh, a 32-byte v1 is p2tr, and any other
+    version is a program this library cannot spend -- which is still a
+    type, and still has an address. A v0 program of any other length is
+    none of the four: v0 is defined, so a length it does not define is
+    not upgrade room, and Bitcoin Core's Solver calls it NONSTANDARD.
+
+    The payload is the witness program throughout. For the three named
+    types the version is implied by the answer; for the fourth it is
+    not, and stays in the script, which is where `address` reads it.
+    """
+    if is_p2wpkh(script_pub_key):
+        # p2wpkh: OP_0 pub_key_hash
+        # 0x0014{20-byte pub_key_hash}
+        return "p2wpkh", script_pub_key[2:]
+
+    if is_p2wsh(script_pub_key):
+        # p2wsh: OP_0 script_hash
+        # 0x0020{32-byte script_hash}
+        return "p2wsh", script_pub_key[2:]
+
+    if is_p2tr(script_pub_key):
+        # p2tr: OP_1 output_key
+        # 0x5120{32-byte output key}
+        return "p2tr", script_pub_key[2:]
+
+    if is_segwit(script_pub_key) and script_pub_key[0] != 0:
+        # witness_unknown: Bitcoin Core's own name for the type,
+        # TxoutType::WITNESS_UNKNOWN, and Solver draws the line in the
+        # same place -- any version but 0 that is not p2tr, so a v1
+        # program that is not 32 bytes lands here too
+        return "witness_unknown", script_pub_key[2:]
+
+    return None
+
+
 def type_and_payload(script_pub_key: Octets) -> tuple[str, bytes]:
     """Return (script_pub_key type, payload) from the input script_pub_key."""
     script_pub_key = bytes_from_octets(script_pub_key)
@@ -317,20 +372,8 @@ def type_and_payload(script_pub_key: Octets) -> tuple[str, bytes]:
         # 0xA914{20-byte script_hash}87
         return "p2sh", script_pub_key[2:-1]
 
-    if is_p2wpkh(script_pub_key):
-        # p2wpkh: OP_0 pub_key_hash
-        # 0x0014{20-byte pub_key_hash}
-        return "p2wpkh", script_pub_key[2:]
-
-    if is_p2wsh(script_pub_key):
-        # p2wsh: OP_0 script_hash
-        # 0x0020{32-byte script_hash}
-        return "p2wsh", script_pub_key[2:]
-
-    if is_p2tr(script_pub_key):
-        # p2tr: OP_1 output_key
-        # 0x0120{32-byte script_hash}
-        return "p2tr", script_pub_key[2:]
+    if witness := _witness_type_and_payload(script_pub_key):
+        return witness
 
     if is_nulldata(script_pub_key):
         # nulldata: OP_RETURN data
