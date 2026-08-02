@@ -11,7 +11,7 @@ release-notes length in the first place, and are still in
 
 ## v2026.8 (work in progress, not released yet)
 
-A hundred and seventy-eight entries, grouped. The order runs from what breaks
+A hundred and eighty entries, grouped. The order runs from what breaks
 a caller to what only maintainers see; [HISTORY.md](./HISTORY.md) lists the
 twenty-nine source-breaking changes on their own.
 
@@ -864,6 +864,26 @@ twenty-nine source-breaking changes on their own.
 
 ### Curves, signatures and keys
 
+- **`add_jac` no longer reads the point at infinity as a doubling**
+  (issue #171). Its doubling test compares affine coordinates, and a
+  Jacobian `Z == 0` leaves `X` and `Y` free to be anything: `INFJ` is
+  `(7, 0, 0)` and `jac_from_aff(INF)` is `(5, 0, 0)`, x-coordinates picked
+  for being invalid rather than for being zero, so on a curve of
+  characteristic 7 or 5 they reduce to zero, the test read "same x, same
+  y" and doubled. `P + INFJ` answered `2*P`, and with it eight of the ten
+  scalar multiplications this package offers were wrong for most scalars
+  on every `p == 7` curve — 6 of 13 scalars for `mult_jac`, 12 of 13 for
+  the Montgomery ladder and for `mult_recursive_jac`, and 100 of the 169
+  coefficient pairs for `_double_mult`, which `curves.double_mult`, `dsa`
+  and `ssa` verification all reach. The all-zero triple, which
+  `jac_equality` reads as infinity too, did it on every curve, secp256k1
+  included. Infinity is taken first now, ahead of the arithmetic, and that
+  is also cheaper than the deferred fix-up it replaces: that one ran the
+  whole formula and then picked from a four-entry table by the very two
+  comparisons it was avoiding. The tests gained every pair of points of
+  every low-cardinality curve — the whole group, in two Jacobian frames
+  and three infinity spellings, against a textbook group law written the
+  other way round — and every multiplication of a `p == 7` curve
 - **`btclib.mnemonic.electrum` is Electrum's scheme, both directions**
   (issue #196). The module named the scheme and implemented five things
   differently, and the worst of them was silent: the same entropy gave
@@ -1675,6 +1695,28 @@ twenty-nine source-breaking changes on their own.
 
 ### Performance
 
+- **the point arithmetic reduces its intermediates as it forms them**,
+  which is worth between 2.0 and 3.0 times on every scalar multiplication
+  in the package: `_mult` 2.00x, the fixed window over cached multiples
+  2.88x, `_double_mult` 2.32x, `double_mult_w_NAF` 2.45x, the GLV
+  `mult_endomorphism_secp256k1` 2.42x, `mult_jac` 2.55x, all at 256 bits
+  on secp256k1, and 2.13x to 2.82x on secp256r1; at 32 bits the same
+  span. The formulas are the same ones and so is every answer: what
+  changed is that `add_jac` and the doubling helper let `V3` and `M*V2`
+  grow to `p^9`, and the products that close `X` and `Y` to `p^12` —
+  three thousand bits for secp256k1 — before a single reduction at the
+  end, and python multiplies whatever it is handed. Reducing also makes
+  the doubling test free, `V` and `W` being the differences the formula
+  needs anyway: issue #171 counted four multiplications for that test,
+  and they were never its cost. `add_aff` and `double_aff` take the same
+  treatment for 6%, `mod_inv` being what dominates in affine coordinates,
+  and the tiny curves of the test suite gain nothing at all, `p^9` of a
+  five-bit prime being one machine word. Complete formulas were measured
+  rather than assumed — Renes-Costello-Batina in homogeneous coordinates,
+  no exceptional case at all, is 34% slower for `a == 0` and 59% slower
+  for the `a == p-3` of most catalogued curves, and `JacPoint` is public.
+  Every gain is a uniform one, so the comparisons the `curve_group_2`
+  docstrings draw between the algorithms still hold as measured
 - **`mult` takes the GLV endomorphism on secp256k1** wherever the bindings
   cannot answer: `curve_group_2.mult_endomorphism_secp256k1`, 1.03 ms
   against the 1.52 of the generic `_mult`. The bindings take the generator

@@ -12,7 +12,7 @@
 import pytest
 
 from btclib.alias import INF, INFJ
-from btclib.curves import secp256k1
+from btclib.curves import Curve, secp256k1
 
 # the eight mult_* variants under test, and the helpers they are built on,
 # come from the module that defines them: btclib.curves exports mult,
@@ -403,6 +403,38 @@ def test_assorted_jac_mult() -> None:
         _double_mult(-5, HJ, 1, ec.GJ, ec)
     with pytest.raises(BTClibValueError, match="negative second coefficient: "):
         _double_mult(1, HJ, -5, ec.GJ, ec)
+
+
+def test_mult_on_a_characteristic_7_curve() -> None:
+    """Every multiplication, on the curve where INFJ's x-coordinate is 0.
+
+    INFJ is (7, 0, 0), so p == 7 is where that arbitrary x reduces to
+    zero and add_jac's doubling test can mistake the identity for the
+    other operand (issue 171). Before it was fixed, mult_jac answered
+    wrong for 6 of the 13 scalars here, the ladder and mult_recursive_jac
+    for 12 of 13, and _double_mult for 100 of the 169 coefficient pairs;
+    _mult and the cached fixed window happened not to, every scalar of a
+    curve this small fitting in one base-16 digit -- which is why the
+    reference here is mult_aff, the one multiplication that forms no
+    Jacobian point at all.
+    """
+    ec = Curve(7, 0, 3, (1, 2), 13, 1, False)
+    variants = (
+        _mult,
+        mult_jac,
+        mult_recursive_jac,
+        mult_mont_ladder,
+        mult_base_3,
+        mult_fixed_window,
+        mult_fixed_window_cached,
+    )
+    for k in range(ec.n):
+        expected = mult_aff(k, ec.G, ec)
+        for mult_f in variants:
+            assert ec.aff_from_jac(mult_f(k, ec.GJ, ec)) == expected, mult_f.__name__
+        for j in range(ec.n):
+            shamir = _double_mult(k, ec.GJ, j, ec.GJ, ec)
+            assert ec.aff_from_jac(shamir) == mult_aff(k + j, ec.G, ec), (k, j)
 
 
 def test_jac_equality() -> None:
