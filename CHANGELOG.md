@@ -1417,6 +1417,21 @@ edit.
   on the left and the bitcoin semantics on the right, importing rightwards
   only. `bech32.py` also stops citing `segwitaddress.py`, a file renamed to
   `b32.py` several releases ago (issue #148)
+- **`btclib.bip32.der_path`'s names drop the `bip32_` prefix**: the type
+  alias `BIP32DerPath` is `DerPath`, and `indexes_from_bip32_path`,
+  `str_from_bip32_path` and `bytes_from_bip32_path` are
+  `indexes_from_der_path`, `str_from_der_path` and `bytes_from_der_path`,
+  with `_indexes_from_bip32_path_str` and `_str_from_bip32_path` following
+  them. The module is `der_path.py` and every parameter it takes is already
+  called `der_path`, so the prefix was contradicted by the file it lives in
+  and by the signatures it exports; inside `btclib.bip32` it also says
+  nothing the import path does not, and `BIP32DerPath` reads as though a
+  derivation path were a BIP32-specific notion rather than the one SLIP132
+  and the PSBT key origins hand to this very module. No alias is kept, as
+  the `btclib.ec` → `btclib.curves` rename kept none: an old spelling left
+  reachable is a second name for one object, kept through release after
+  release for the sake of code that one search and replace fixes once
+  (issue #180)
 - `btclib.b58` no longer imports `btclib.script`: importing an address
   encoding stops pulling the whole script package in, and the cycle b58 ->
   btclib.script -> script.script_pub_key -> b58 is gone. Importing any
@@ -1776,7 +1791,7 @@ edit.
   the type checker's again
 - **the public type aliases are PEP 604 unions**: `Octets = bytes | str`,
   and the same for `String`, `BinaryData`, `Integer`, `Command`, `BIP32Key`,
-  `BIP32DerPath`, `BIP340PubKey`, `Entropy`, `OneOrMoreInt`, `ScriptFlags`,
+  `DerPath`, `BIP340PubKey`, `Entropy`, `OneOrMoreInt`, `ScriptFlags`,
   `PrvKey`, `PubKey`, `Key` and `NoneOneOrMoreInt`. Fifteen of them, and they
   were `Union[...]` for one reason: a type alias is an ordinary assignment,
   not an annotation, so `from __future__ import annotations` does not reach

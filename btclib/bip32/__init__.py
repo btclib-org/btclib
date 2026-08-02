@@ -19,10 +19,10 @@ from btclib.bip32.bip32 import (
     xpub_from_xprv,
 )
 from btclib.bip32.der_path import (
-    bytes_from_bip32_path,
-    indexes_from_bip32_path,
+    bytes_from_der_path,
+    indexes_from_der_path,
     int_from_index_str,
-    str_from_bip32_path,
+    str_from_der_path,
     str_from_index_int,
 )
 from btclib.bip32.key_origin import (
@@ -40,17 +40,17 @@ __all__ = [
     "BIP32KeyOrigin",
     "HdKeyPaths",
     "assert_valid_hd_key_paths",
-    "bytes_from_bip32_path",
+    "bytes_from_der_path",
     "crack_prv_key",
     "decode_from_bip32_derivs",
     "decode_hd_key_paths",
     "derive",
     "derive_from_account",
     "encode_to_bip32_derivs",
-    "indexes_from_bip32_path",
+    "indexes_from_der_path",
     "int_from_index_str",
     "rootxprv_from_seed",
-    "str_from_bip32_path",
+    "str_from_der_path",
     "str_from_index_int",
     "xpub_from_xprv",
 ]
