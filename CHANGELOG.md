@@ -16,10 +16,6 @@ maintainers see; [HISTORY.md](./HISTORY.md) lists the source-breaking
 changes on their own. Neither file counts its entries: `grep -c '^- '`
 does that, whereas a stated number is a line every open branch has to
 edit.
-A hundred and eighty-one entries, grouped. The order runs from what breaks
-A hundred and eighty-two entries, grouped. The order runs from what breaks
-a caller to what only maintainers see; [HISTORY.md](./HISTORY.md) lists the
-twenty-nine source-breaking changes on their own.
 
 ### Repository
 

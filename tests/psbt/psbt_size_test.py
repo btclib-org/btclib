@@ -82,7 +82,12 @@ def pushes(script: bytes) -> list[bytes] | None:
         elif isinstance(command, str) and all(c in "0123456789ABCDEF" for c in command):
             out.append(bytes.fromhex(command))
         else:
-            return None
+            # unreached by either block: a coinbase is skipped before it
+            # gets here, and every other script_sig in the two is pushes
+            # and nothing else. The guard is what keeps the answer None
+            # rather than a misreading the day a corpus grows a spend
+            # whose script_sig executes something
+            return None  # pragma: no cover
     return out
 
 
@@ -116,16 +121,10 @@ def psbt_input_from_spend(tx_in: TxIn) -> tuple[PsbtIn, bytes] | None:
     stack = list(tx_in.script_witness.stack)
     script_sig_pushes = pushes(script_sig) if script_sig else []
     if script_sig_pushes is None or (script_sig and not script_sig_pushes):
-        return None
+        return None  # pragma: no cover
     redeem_script = script_sig_pushes[-1] if script_sig_pushes else b""
 
     if stack:
-        # the script_sig of a segwit input is empty, or the push of the
-        # redeem script and nothing else
-        if script_sig and (
-            len(script_sig_pushes) != 1 or serialize([redeem_script]) != script_sig
-        ):
-            return None
         if len(stack) == 2 and len(stack[1]) in (33, 65):
             program = ScriptPubKey.p2wpkh(stack[1]).script
             witness_script = b""
@@ -133,9 +132,16 @@ def psbt_input_from_spend(tx_in: TxIn) -> tuple[PsbtIn, bytes] | None:
             program = ScriptPubKey.p2wsh(stack[-1]).script
             witness_script = stack[-1]
         else:
-            return None
-        if script_sig and redeem_script != program:
-            return None
+            # the witness shapes below are the ones the corpus holds; a
+            # key path taproot spend is what would reach this, and the
+            # blocks predate it
+            return None  # pragma: no cover
+        # the script_sig of a segwit input is empty, or the push of the
+        # program and nothing else, which is what p2sh-wrapping is. One
+        # comparison rather than three, the push being what says both
+        # that there is a single one and that it is the program
+        if script_sig and script_sig != serialize([program]):
+            return None  # pragma: no cover
         script_pub_key = ScriptPubKey.p2sh(program).script if script_sig else program
         psbt_in = PsbtIn(
             witness_utxo=TxOut(1000, script_pub_key, check_validity=False),
@@ -296,6 +302,25 @@ def spend_kind(tx_in: TxIn, psbt_in: PsbtIn) -> str:
     return f"p2pkh-{len((pushes(tx_in.script_sig) or [])[1])}"
 
 
+def test_the_bip174_spend_is_read_back_off_the_wire() -> None:
+    """The same inversion, on the p2sh-p2wsh neither block holds.
+
+    BIP174's transaction is where a witness carrying a multisig is, so
+    it is read here the way the blocks below are read -- off the network
+    serialization, with nothing of the psbt it was signed from -- rather
+    than only from the psbt the earlier tests decode.
+    """
+    signed = extract_tx(Psbt.b64decode(BIP174_FINALIZED_PSBT))
+    psbt = psbt_from_spend(signed)
+    assert psbt is not None
+    assert [
+        spend_kind(tx_in, psbt_in)
+        for tx_in, psbt_in in zip(signed.vin, psbt.inputs, strict=True)
+    ] == ["p2sh-p2ms", "p2sh-p2wsh"]
+    # the three signatures a byte short of the assumption, as above
+    assert assert_input_is_the_spend_with_maximal_signatures(psbt, signed) == 3
+
+
 @pytest.mark.parametrize(
     ("block_name", "first", "kinds"),
     [
@@ -303,7 +328,7 @@ def spend_kind(tx_in: TxIn, psbt_in: PsbtIn) -> str:
         # where its seven segwit spends are -- p2wpkh and p2sh-p2wpkh,
         # beside the p2pkh and p2sh-multisig of everything else in it.
         # p2wsh and p2sh-p2wsh are the two neither block holds, and the
-        # BIP174 example above is where those are: its second input is a
+        # test above is where those are: BIP174's second input is a
         # p2sh-p2wsh 2-of-2, and the multisig arithmetic does not care
         # which of the three scripts carries the multisig it solves
         (
