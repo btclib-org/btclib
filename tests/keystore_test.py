@@ -1,0 +1,402 @@
+#!/usr/bin/env python3
+
+# Copyright (C) The btclib developers
+#
+# This file is part of btclib. It is subject to the license terms in the
+# LICENSE file found in the top-level directory of this distribution.
+#
+# No part of btclib including this file, may be copied, modified, propagated,
+# or distributed except according to the terms contained in the LICENSE file.
+"""Tests for the `btclib.keystore` module."""
+
+from __future__ import annotations
+
+import pytest
+
+from btclib.alias import BIP44ScriptType
+from btclib.bip32 import bip32
+from btclib.ecc import bms
+from btclib.exceptions import BTClibValueError
+from btclib.keystore import AddressInfo, BIP32KeyStore, KeyStore
+
+# the "abandon abandon ... about" seed, whose master key BIP84 and BIP86
+# both publish as their rootpriv and whose addresses SLIP132, BIP49,
+# BIP84 and BIP86 publish between them
+_ROOT = "xprv9s21ZrQH143K3GJpoapnV8SFfukcVBSfeCficPSGfubmSFDxo1kuHnLisriDvSnRRuL2Qrg5ggqHKNVpxR86QEC8w35uxmGoggxtQTPvfUu"
+# the same seed on testnet, which is BIP49's own masterseed
+_TROOT = "tprv8ZgxMBicQKsPe5YMU9gHen4Ez3ApihUfykaqUorj9t6FDqy3nP6eoXiAo2ssvpAjoLroQxHqr3R5nE3a5dU3DHTjTgJDd7zrbniJr6nrCzd"
+
+# SLIP132's account keys for purpose 44 and 84, the second spelled with
+# the zprv version bytes that SLIP132 exists to define
+_ACCOUNT_44_XPRV = "xprv9xpXFhFpqdQK3TmytPBqXtGSwS3DLjojFhTGht8gwAAii8py5X6pxeBnQ6ehJiyJ6nDjWGJfZ95WxByFXVkDxHXrqu53WCRGypk2ttuqncb"
+_ACCOUNT_44_XPUB = "xpub6BosfCnifzxcFwrSzQiqu2DBVTshkCXacvNsWGYJVVhhawA7d4R5WSWGFNbi8Aw6ZRc1brxMyWMzG3DSSSSoekkudhUd9yLb6qx39T9nMdj"
+_ACCOUNT_84_ZPRV = "zprvAdG4iTXWBoARxkkzNpNh8r6Qag3irQB8PzEMkAFeTRXxHpbF9z4QgEvBRmfvqWvGp42t42nvgGpNgYSJA9iefm1yYNZKEm7z6qUWCroSQnE"
+# and the same key with the plain xprv version, which is what
+# `bip32.derive` down m/84h/0h/0h from the master gives
+_ACCOUNT_84_XPRV = "xprv9ybY78BftS5UGANki6oSifuQEjkpyAC8ZmBvBNTshQnCBcxnefjHS7buPMkkqhcRzmoGZ5bokx7GuyDAiktd5HemohAU4wV1ZPMDRmLpBMm"
+
+_MSG = b"Hello, keystore"
+
+# the classic uncompressed WIF of the private key 0x01...01 is not
+# wanted here: this is a random key, compressed and uncompressed
+_WIF_COMPRESSED = "L41XHGJA5QX43QRG3FEwPbqD5BYvy6WxUxqAMM9oQdHJ5FcRHcGk"
+_WIF_UNCOMPRESSED = "5HueCGU8rMjxEXxiPuD5BDku4MkFqeZyd4dZ1jvhTVqvbTLvyTJ"
+_PUB_KEY = "0330d54fd0dd420a6e5f8d3624f5f3482cae350f79d5f0753bf5beef9c2d91af3c"
+
+
+@pytest.mark.parametrize(
+    ("purpose", "script_type", "addresses"),
+    [
+        pytest.param(
+            44,
+            "p2pkh",
+            (
+                "1LqBGSKuX5yYUonjxT5qGfpUsXKYYWeabA",
+                "1Ak8PffB2meyfYnbXZR9EGfLfFZVpzJvQP",
+                "1J3J6EvPrv8q6AC3VCjWV45Uf3nssNMRtH",
+            ),
+            id="44-p2pkh",
+        ),
+        pytest.param(
+            49,
+            "p2wpkh-p2sh",
+            (
+                "37VucYSaXLCAsxYyAPfbSi9eh4iEcbShgf",
+                "3LtMnn87fqUeHBUG414p9CWwnoV6E2pNKS",
+                "34K56kSjgUCUSD8GTtuF7c9Zzwokbs6uZ7",
+            ),
+            id="49-p2wpkh-p2sh",
+        ),
+        pytest.param(
+            84,
+            "p2wpkh",
+            (
+                "bc1qcr8te4kr609gcawutmrza0j4xv80jy8z306fyu",
+                "bc1qnjg0jd8228aq7egyzacy8cys3knf9xvrerkf9g",
+                "bc1q8c6fshw2dlwun7ekn9qwf37cu2rn755upcp6el",
+            ),
+            id="84-p2wpkh",
+        ),
+        pytest.param(
+            86,
+            "p2tr",
+            (
+                "bc1p5cyxnuxmeuwuvkwfem96lqzszd02n6xdcjrs20cac6yqjjwudpxqkedrcr",
+                "bc1p4qhjn9zdvkux4e44uhx8tc55attvtyu358kutcqkudyccelu0was9fqzwh",
+                "bc1p3qkhfews2uk44qtvauqyr2ttdsw7svhkl9nkm9s9c3x4ax5h60wqwruhk7",
+            ),
+            id="86-p2tr",
+        ),
+    ],
+)
+def test_published_vectors(
+    purpose: int, script_type: str, addresses: tuple[str, str, str]
+) -> None:
+    """The addresses BIP49, BIP84, BIP86 and SLIP132 publish.
+
+    Three per purpose: the first two of the receiving branch and the
+    first of the change branch, which is the whole of what BIP84 and
+    BIP86 print. Asserted from the master key and again from the account
+    xpub, the two ends a keystore can be built from.
+    """
+    der_path = f"m/{purpose}h/0h/0h"
+    keystore = BIP32KeyStore(_ROOT, der_path)
+    assert keystore.script_type == script_type
+    assert keystore.network == "mainnet"
+    assert keystore.der_path == der_path
+    assert not keystore.is_watch_only
+
+    assert keystore.next_address() == addresses[0]
+    assert keystore.next_address() == addresses[1]
+    assert keystore.next_address(1) == addresses[2]
+    assert keystore.addresses == addresses
+    assert len(keystore) == 3
+
+    account_xpub = bip32.xpub_from_xprv(bip32.derive(_ROOT, der_path))
+    watching = BIP32KeyStore(account_xpub, der_path)
+    assert watching.is_watch_only
+    assert [watching.address(0, 0), watching.address(0, 1), watching.address(1, 0)] == [
+        *addresses
+    ]
+
+
+def test_bip49_testnet_vector() -> None:
+    """BIP49's own vector, which is the only testnet one published."""
+    keystore = BIP32KeyStore(_TROOT, "m/49h/1h/0h")
+    assert keystore.network == "testnet"
+    assert keystore.script_type == "p2wpkh-p2sh"
+    assert keystore.next_address() == "2Mww8dCYPUpKHofjgcXcBCEGmniw9CoaiD2"
+
+
+def test_the_path_says_the_script_type_and_the_version_bytes_do_not() -> None:
+    """A zprv and an xprv holding one key hand out one set of addresses.
+
+    The alternative -- reading the script type off the SLIP132 version
+    bytes, as `bip32.slip132.address_from_xpub` does -- would make the
+    same account answer one path with two different addresses depending
+    on how the key was spelled, and only one of them would be watched.
+    """
+    from_zprv = BIP32KeyStore(_ACCOUNT_84_ZPRV, "m/84h/0h/0h")
+    from_xprv = BIP32KeyStore(_ACCOUNT_84_XPRV, "m/84h/0h/0h")
+    assert from_zprv.address(0, 0) == from_xprv.address(0, 0)
+    assert from_zprv.address(0, 0) == "bc1qcr8te4kr609gcawutmrza0j4xv80jy8z306fyu"
+
+
+def test_a_key_anywhere_on_the_account_path() -> None:
+    """Master, an intermediate level, and the account key itself."""
+    address = "1LqBGSKuX5yYUonjxT5qGfpUsXKYYWeabA"
+    for xkey in (
+        _ROOT,
+        bip32.derive(_ROOT, "m/44h"),
+        bip32.derive(_ROOT, "m/44h/0h"),
+        _ACCOUNT_44_XPRV,
+        _ACCOUNT_44_XPUB,
+    ):
+        assert BIP32KeyStore(xkey, "m/44h/0h/0h").next_address() == address
+
+
+def test_a_bip32keydata_is_taken_as_it_is() -> None:
+    xkey = bip32.BIP32KeyData.b58decode(_ACCOUNT_44_XPRV)
+    keystore = BIP32KeyStore(xkey, "m/44h/0h/0h")
+    assert keystore.next_address() == "1LqBGSKuX5yYUonjxT5qGfpUsXKYYWeabA"
+
+
+def test_the_key_index_must_be_the_path_element_at_its_depth() -> None:
+    # the account 0 xpub against the path of account 1
+    with pytest.raises(BTClibValueError, match="is not the account path's"):
+        BIP32KeyStore(_ACCOUNT_44_XPUB, "m/44h/0h/1h")
+    # a key already below the account level
+    too_deep = bip32.derive(_ACCOUNT_44_XPUB, "m/0/0")
+    with pytest.raises(BTClibValueError, match="invalid key depth: 5 is past the"):
+        BIP32KeyStore(too_deep, "m/44h/0h/0h")
+
+
+@pytest.mark.parametrize(
+    ("der_path", "err_msg"),
+    [
+        ("m/84h/0h", "invalid account path: 2 levels instead of 3"),
+        ("m/84h/0h/0h/0", "invalid account path: 4 levels instead of 3"),
+        ("m/84/0h/0h", "all three levels must be hardened"),
+        ("m/84h/0/0h", "all three levels must be hardened"),
+        ("m/84h/0h/0", "all three levels must be hardened"),
+    ],
+)
+def test_invalid_account_path(der_path: str, err_msg: str) -> None:
+    with pytest.raises(BTClibValueError, match=err_msg):
+        BIP32KeyStore(_ROOT, der_path)
+
+
+def test_an_unknown_purpose_is_refused_and_script_type_is_the_override() -> None:
+    with pytest.raises(BTClibValueError, match="unknown BIP44 purpose: 45"):
+        BIP32KeyStore(_ROOT, "m/45h/0h/0h")
+    keystore = BIP32KeyStore(_ROOT, "m/45h/0h/0h", "p2wpkh")
+    assert keystore.script_type == "p2wpkh"
+    assert keystore.next_address().startswith("bc1q")
+    # and the override wins over a purpose the table does name
+    assert BIP32KeyStore(_ROOT, "m/84h/0h/0h", "p2pkh").next_address().startswith("1")
+
+
+def test_an_unknown_script_type_is_refused() -> None:
+    with pytest.raises(BTClibValueError, match="unknown script type: p2wsh"):
+        BIP32KeyStore(_ROOT, "m/84h/0h/0h", "p2wsh")  # type: ignore[arg-type]
+    with pytest.raises(BTClibValueError, match="unknown script type: p2wsh"):
+        KeyStore(script_type="p2wsh")  # type: ignore[arg-type]
+    with pytest.raises(BTClibValueError, match="unknown script type: p2wsh"):
+        KeyStore().add(_PUB_KEY, "p2wsh")  # type: ignore[arg-type]
+
+
+def test_an_unknown_network_is_refused() -> None:
+    with pytest.raises(BTClibValueError, match="unknown network: regtest2"):
+        KeyStore(network="regtest2")
+
+
+@pytest.mark.parametrize("purpose", [44, 49, 84])
+def test_sign_by_address_verifies_with_bms(purpose: int) -> None:
+    """The whole point: a signature asked for by address, not by key.
+
+    `bms.verify` is the authority -- it is the code a counterparty runs
+    -- and the address it is given is the one the keystore handed out.
+    """
+    keystore = BIP32KeyStore(_ROOT, f"m/{purpose}h/0h/0h")
+    address = keystore.next_address()
+    sig = keystore.sign(address, _MSG)
+    assert bms.verify(_MSG, address, sig)
+    # and the signature is bms's own, reachable the long way round
+    assert sig == bms.sign(_MSG, keystore.prv_key(address), address)
+
+
+def test_the_recovery_flag_names_the_address_type() -> None:
+    """The address reaches `bms.sign`, not only the key.
+
+    A key alone would produce the compressed p2pkh flag 31..34 for all
+    three; passing the address on is what makes the flag say which
+    address type was signed for, which is BIP137's spelling.
+    """
+    flags = {}
+    for purpose in (44, 49, 84):
+        keystore = BIP32KeyStore(_ROOT, f"m/{purpose}h/0h/0h")
+        address = keystore.next_address()
+        flags[purpose] = keystore.sign(address, _MSG).rf
+    assert 30 < flags[44] < 35
+    assert 34 < flags[49] < 39
+    assert flags[84] > 38
+
+
+def test_bms_cannot_sign_for_a_taproot_address() -> None:
+    """The one script type the keystore hands out and cannot sign for."""
+    keystore = BIP32KeyStore(_ROOT, "m/86h/0h/0h")
+    address = keystore.next_address()
+    with pytest.raises(BTClibValueError, match="BMS cannot sign for a p2tr address"):
+        keystore.sign(address, _MSG)
+    # the key is there all the same: it is the scheme that is missing
+    assert keystore.prv_key(address)
+
+
+def test_a_watch_only_keystore_fails_to_sign_and_says_why() -> None:
+    keystore = BIP32KeyStore(_ACCOUNT_44_XPUB, "m/44h/0h/0h")
+    assert keystore.is_watch_only
+    address = keystore.next_address()
+    err_msg = "watch-only keystore, no private key for"
+    with pytest.raises(BTClibValueError, match=err_msg):
+        keystore.prv_key(address)
+    with pytest.raises(BTClibValueError, match=err_msg):
+        keystore.sign(address, _MSG)
+
+
+def test_a_lookup_miss_raises() -> None:
+    keystore = BIP32KeyStore(_ROOT, "m/84h/0h/0h")
+    # an address of its own chain, not handed out yet: a miss all the
+    # same, the map being what the keystore has issued rather than what
+    # it could issue
+    unissued = BIP32KeyStore(_ROOT, "m/84h/0h/0h").address(0, 7)
+    for address in (unissued, "1LqBGSKuX5yYUonjxT5qGfpUsXKYYWeabA"):
+        assert address not in keystore
+        with pytest.raises(BTClibValueError, match="address not in the keystore"):
+            keystore.address_info(address)
+        with pytest.raises(BTClibValueError, match="address not in the keystore"):
+            keystore.sign(address, _MSG)
+    assert keystore.next_address() in keystore
+
+
+def test_the_record_is_the_path_and_no_key_material() -> None:
+    keystore = BIP32KeyStore(_ROOT, "m/84h/0h/0h")
+    address = keystore.address(1, 5)
+    info = keystore.address_info(address)
+    assert info == AddressInfo(address, "p2wpkh", "m/84h/0h/0h/1/5")
+    assert address not in repr(keystore)
+    assert keystore.prv_key(address) not in repr(info)
+    # frozen: what comes out of a keystore is a copy of what it knows
+    with pytest.raises(AttributeError):
+        info.address = "whatever"  # type: ignore[misc]
+
+
+def test_handing_out_is_idempotent_and_ordered() -> None:
+    keystore = BIP32KeyStore(_ROOT, "m/84h/0h/0h")
+    first = keystore.address(0, 0)
+    assert keystore.address(0, 0) == first
+    assert len(keystore) == 1
+    # next_address is one past the highest handed out, not a count
+    keystore.address(0, 7)
+    assert keystore.next_address() == keystore.address(0, 8)
+    assert len(keystore) == 3
+    # the branches count separately
+    assert keystore.next_address(1) == keystore.address(1, 0)
+    assert keystore.addresses[0] == first
+
+
+def test_the_derivation_bounds_are_bip32s_own() -> None:
+    keystore = BIP32KeyStore(_ROOT, "m/84h/0h/0h")
+    with pytest.raises(BTClibValueError, match="not in \\(0, 1\\)"):
+        keystore.address(2, 0)
+    with pytest.raises(BTClibValueError, match="invalid address index"):
+        keystore.address(0, 0x10000)
+
+
+@pytest.mark.parametrize(
+    ("script_type", "address"),
+    [
+        ("p2pkh", "14dD6ygPi5WXdwwBTt1FBZK3aD8uDem1FY"),
+        ("p2wpkh-p2sh", "3G6hxdgC91ETUpsGCrVywYRDZBp8LHarPF"),
+        ("p2wpkh", "bc1qylqhfq22y39xtt8t6vxhf75dwgmes3efag3kry"),
+    ],
+)
+def test_individual_keys(script_type: BIP44ScriptType, address: str) -> None:
+    keystore = KeyStore([_WIF_COMPRESSED], script_type)
+    assert keystore.addresses == (address,)
+    assert not keystore.is_watch_only
+    assert keystore.prv_key(address) == _WIF_COMPRESSED
+    assert keystore.address_info(address) == AddressInfo(address, script_type, "")
+    assert bms.verify(_MSG, address, keystore.sign(address, _MSG))
+
+
+def test_a_key_that_says_what_it_is_by_its_type() -> None:
+    """An int is a scalar, a point is a pair: neither needs the guess."""
+    q = 0xCA978112CA1BBDCAFAC231B39A23DC4DA786EFF8147C4E72B9807785AFEE48BB
+    address = "14dD6ygPi5WXdwwBTt1FBZK3aD8uDem1FY"
+    keystore = KeyStore([q], "p2pkh")
+    assert keystore.addresses == (address,)
+    assert keystore.prv_key(address) == _WIF_COMPRESSED
+
+    point = (
+        0x30D54FD0DD420A6E5F8D3624F5F3482CAE350F79D5F0753BF5BEEF9C2D91AF3C,
+        0x04717159CE0828A7F686C2C7510B7AA7D4C685EBC2051642CCBEBC7099E2F679,
+    )
+    watching = KeyStore([point], "p2wpkh")
+    assert watching.is_watch_only
+    assert watching.addresses == ("bc1qcr8te4kr609gcawutmrza0j4xv80jy8z306fyu",)
+
+
+def test_a_public_key_makes_a_watch_only_entry() -> None:
+    keystore = KeyStore([_PUB_KEY])
+    address = keystore.addresses[0]
+    assert keystore.is_watch_only
+    assert address == "bc1qcr8te4kr609gcawutmrza0j4xv80jy8z306fyu"
+    with pytest.raises(BTClibValueError, match="watch-only address, no private key"):
+        keystore.prv_key(address)
+    with pytest.raises(BTClibValueError, match="watch-only address, no private key"):
+        keystore.sign(address, _MSG)
+
+
+def test_an_uncompressed_key_can_only_be_p2pkh() -> None:
+    """Segwit has no uncompressed form, so the address would be a lie."""
+    address = KeyStore([_WIF_UNCOMPRESSED], "p2pkh").addresses[0]
+    assert address == "1GAehh7TsJAHuUAeKZcXf5CnwuGuGgyX2S"
+    for script_type in ("p2wpkh-p2sh", "p2wpkh", "p2tr"):
+        with pytest.raises(BTClibValueError, match="uncompressed key cannot be"):
+            KeyStore([_WIF_UNCOMPRESSED], script_type)
+
+
+def test_add_takes_a_script_type_of_its_own() -> None:
+    keystore = KeyStore(script_type="p2pkh")
+    assert not keystore.addresses
+    assert keystore.is_watch_only
+    p2pkh = keystore.add(_WIF_COMPRESSED)
+    p2wpkh = keystore.add(_WIF_COMPRESSED, "p2wpkh")
+    assert keystore.addresses == (p2pkh, p2wpkh)
+    assert keystore.address_info(p2wpkh).script_type == "p2wpkh"
+    assert not keystore.is_watch_only
+
+
+def test_a_key_added_to_a_bip32_keystore_is_not_derived() -> None:
+    keystore = BIP32KeyStore(_ACCOUNT_44_XPUB, "m/44h/0h/0h")
+    derived = keystore.next_address()
+    added = keystore.add(_WIF_COMPRESSED, "p2pkh")
+    # the account is still watch-only, but the keystore now holds a key
+    assert not keystore.is_watch_only
+    assert keystore.prv_key(added) == _WIF_COMPRESSED
+    assert bms.verify(_MSG, added, keystore.sign(added, _MSG))
+    with pytest.raises(BTClibValueError, match="watch-only keystore"):
+        keystore.prv_key(derived)
+    assert keystore.address_info(added).der_path == ""
+
+
+def test_an_address_is_found_however_it_is_spelled() -> None:
+    keystore = BIP32KeyStore(_ROOT, "m/84h/0h/0h")
+    address = keystore.next_address()
+    for spelling in (address.upper(), f"  {address}  ", address.encode("ascii")):
+        assert spelling in keystore
+        assert keystore.address_info(spelling).address == address
+    # base58 is not case insensitive and is left exactly as it came
+    b58_keystore = BIP32KeyStore(_ROOT, "m/44h/0h/0h")
+    b58_address = b58_keystore.next_address()
+    assert b58_address.upper() not in b58_keystore

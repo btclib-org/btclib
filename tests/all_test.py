@@ -98,11 +98,11 @@ def test_ecc_exports_the_signature_schemes() -> None:
     assert btclib.ecc.bms.dsa is btclib.ecc.dsa  # type: ignore[attr-defined]
 
 
-def test_mnemonic_exports_its_two_schemes() -> None:
-    assert "bip39" in btclib.mnemonic.__all__
-    assert "electrum" in btclib.mnemonic.__all__
-    assert btclib.mnemonic.bip39.__name__ == "btclib.mnemonic.bip39"
-    assert btclib.mnemonic.electrum.__name__ == "btclib.mnemonic.electrum"
+def test_mnemonic_exports_its_three_schemes() -> None:
+    for name in ("bip39", "electrum", "slip39"):
+        assert name in btclib.mnemonic.__all__
+        module = getattr(btclib.mnemonic, name)
+        assert module.__name__ == f"btclib.mnemonic.{name}"
 
 
 def test_every_exported_name_exists() -> None:

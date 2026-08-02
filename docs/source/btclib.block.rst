@@ -28,6 +28,22 @@ btclib.block.merkle\_proof module
    :undoc-members:
    :show-inheritance:
 
+btclib.block.mining module
+--------------------------
+
+.. automodule:: btclib.block.mining
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
+btclib.block.proof\_of\_work module
+-----------------------------------
+
+.. automodule:: btclib.block.proof_of_work
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
 Module contents
 ---------------
 

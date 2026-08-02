@@ -115,6 +115,14 @@ btclib.hashes module
    :undoc-members:
    :show-inheritance:
 
+btclib.keystore module
+----------------------
+
+.. automodule:: btclib.keystore
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
 btclib.network module
 ---------------------
 

@@ -97,6 +97,9 @@ Included features are:
 - [BIP39](https://github.com/bitcoin/bips/blob/master/bip-0039.mediawiki)
   wordlists and mnemonic for generating deterministic keys
 - [Electrum](https://electrum.org/#home) standard for mnemonic
+- [SLIP39](https://github.com/satoshilabs/slips/blob/master/slip-0039.md)
+  Shamir backup: a master secret split into mnemonic shares, of which a
+  threshold number recovers it
 - Script encoding/decoding
 - nulldata, p2pk, p2ms, p2pkh, p2sh, p2wpkh, p2wsh and p2tr ScriptPubKeys
 - BlockHeader and Block data classes
@@ -108,6 +111,10 @@ Included features are:
 - fee rates carrying their unit (sat/kvB and sat/vB), the fee a virtual
   size owes at one, and the dust threshold of any output type — computed
   the way Bitcoin Core computes it, rather than tabulated
+- keystore: the addresses an extended key or a set of individual keys has
+  handed out, the derivation path of each, and the private key that signs
+  for one — which is what `sign(address, msg)` needs and what a message
+  signature by address had no way to find
 
 ---
 
@@ -139,7 +146,9 @@ of everything: it imports `b58`, `b32`, `amount` and `network`, and nothing
 in the library imports it. `bip44` is the other module up there, and for
 the same reason: an address from an extended key and a derivation path is
 `bip32` and `script.taproot` and both address encodings composed, so it
-imports all four and nothing imports it.
+imports all four and nothing imports it. `keystore` is one level above
+even that: it remembers which addresses `bip44` has handed out and signs
+for one with `ecc.bms`, so it imports `bip44` and nothing imports it.
 
 ---
 

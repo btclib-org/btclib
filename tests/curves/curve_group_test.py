@@ -469,7 +469,11 @@ def test_multi_mult_w_NAF() -> None:
     """
     for ec in (low_card_curves["ec13_11"], ec23_31):
         HJ = jac_from_aff(second_generator(ec))
-        for w in (1, 2, 3, 5):
+        # MAX_W by name rather than the 5 it is today: it is the widest
+        # window the dispatch ever asks for, and a test that stops one
+        # short of the tuning constant stops covering it the moment the
+        # constant moves
+        for w in (1, 2, 3, MAX_W):
             for k1 in range(ec.n):
                 for k2 in range(ec.n):
                     scalars = [k1, k2, ec.n // 3]
@@ -512,7 +516,7 @@ def test_multi_mult_agrees_across_curves() -> None:
 
     The two implementations and the sum of mults, on three points of
     each: a fixed seed, so a failure is reproducible, and the curves that
-    are not secp256k1 are the ones only the python path ever answers.
+    are not secp256k1 are the ones only the Python path ever answers.
     """
     rnd = random.Random(0x2AC0FFEE)
     for ec in all_curves.values():

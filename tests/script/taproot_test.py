@@ -33,6 +33,7 @@ from btclib.script import (
     is_p2tr,
     output_prvkey,
     output_pubkey,
+    taproot,
     type_and_payload,
 )
 from btclib.script.taproot import parse, serialize
@@ -81,21 +82,117 @@ def test_valid_script_path(vector: dict[str, Any]) -> None:
     assert check_output_pubkey(Q, script, control)
 
 
+# the key path, one leaf and a two-leaf branch: the three shapes a tweak
+# can commit to, shared by the tests below rather than spelled out in
+# each -- what they must agree about is the tweak, not the tree
+SCRIPT_TREES: list[TaprootScriptTree | None] = [
+    None,
+    [(0xC0, ["OP_1"])],
+    [[(0xC0, ["OP_2"])], [(0xC0, ["OP_3"])]],
+]
+
+
 def test_taproot_key_tweaking() -> None:
     prv_key = 123456
     pub_key = mult(prv_key)
 
-    script_trees: list[TaprootScriptTree | None] = [
-        None,
-        [(0xC0, ["OP_1"])],
-        [[(0xC0, ["OP_2"])], [(0xC0, ["OP_3"])]],
-    ]
-
-    for script_tree in script_trees:
+    for script_tree in SCRIPT_TREES:
         tweaked_prvkey = output_prvkey(prv_key, script_tree)
         tweaked_pubkey = output_pubkey(pub_key, script_tree)[0]
 
         assert tweaked_pubkey == mult(tweaked_prvkey)[0].to_bytes(32, "big")
+
+
+def test_the_python_tweak_is_the_bindings_tweak(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Both output keys, computed twice, are the same keys on secp256k1.
+
+    The bindings are the authority on the answer and the Python
+    arithmetic is the reference implementation of it, so what has to be
+    asserted is that the two are one answer. It takes the patch because
+    there is no second curve to reach the Python path with: a toy curve
+    fails the BIP341 range check on a 256-bit tweak before any
+    arithmetic happens, and taproot is defined over secp256k1 alone.
+
+    The private key is the one whose public point has an odd y, the case
+    the tweaking negates: with an even one the two paths would agree
+    over a negation neither of them performed.
+    """
+    prv_key = 0xC0FFEE
+    pub_key = mult(prv_key)
+    assert pub_key[1] % 2 == 1
+
+    for script_tree in SCRIPT_TREES:
+        delegated = output_pubkey(pub_key, script_tree)
+        delegated_prvkey = output_prvkey(prv_key, script_tree)
+        with monkeypatch.context() as no_bindings:
+            no_bindings.setattr(taproot, "_libsecp256k1_applicable", lambda *_: False)
+            assert output_pubkey(pub_key, script_tree) == delegated
+            assert output_prvkey(prv_key, script_tree) == delegated_prvkey
+
+
+def test_the_python_commitment_check_is_the_bindings_one(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """The control block verdict, taken twice, is the same verdict.
+
+    Both verdicts, because a check that only ever says True is a check
+    that says nothing: the false one is the same output key with a byte
+    flipped, which commits to nothing and must fail on either path.
+    """
+    pub_key = mult(0xC0FFEE)
+    script_tree: TaprootScriptTree = [[(0xC0, ["OP_2"])], [(0xC0, ["OP_3"])]]
+    q = output_pubkey(pub_key, script_tree)[0]
+    not_q = bytes([q[0] ^ 1]) + q[1:]
+    script, control = input_script_sig(pub_key, script_tree, 0)
+    script_bytes = serialize(script)
+
+    assert check_output_pubkey(q, script_bytes, control)
+    assert not check_output_pubkey(not_q, script_bytes, control)
+    with monkeypatch.context() as no_bindings:
+        no_bindings.setattr(taproot, "_libsecp256k1_applicable", lambda *_: False)
+        assert check_output_pubkey(q, script_bytes, control)
+        assert not check_output_pubkey(not_q, script_bytes, control)
+
+
+def test_check_output_pubkey_of_a_key_that_is_not_32_bytes() -> None:
+    """A q of another length is answered, not refused.
+
+    `tweak_add_check` takes 32 bytes and raises for anything else, so
+    the dispatch asks for that size and leaves every other q to the
+    Python comparison. Which is not a length test but an integer one:
+    it says no to a truncated key and yes to a zero-padded one, and
+    that second answer is why the dispatch falls through here instead
+    of turning the size into a refusal.
+    """
+    script_tree: TaprootScriptTree = [[(0xC0, ["OP_2"])], [(0xC0, ["OP_3"])]]
+    pub_key = output_pubkey(None, script_tree)[0]
+    script, control = input_script_sig(None, script_tree, 0)
+
+    assert not check_output_pubkey(pub_key[:31], serialize(script), control)
+    assert check_output_pubkey(b"\x00" + pub_key, serialize(script), control)
+
+
+def test_check_output_pubkey_of_an_internal_key_that_is_not_a_point(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Both paths refuse an internal key with no y, and refuse it alike.
+
+    x = 5 is not the x-coordinate of a secp256k1 point: 5**3 + 7 is not
+    a quadratic residue. libsecp256k1 rejects it while parsing and
+    ec.y_even while lifting it, and the two errors have to be the same
+    kind, the script engine catching the library's own.
+    """
+    control = b"\xc0" + (5).to_bytes(32, "big")
+    err_msg = "invalid"
+
+    with pytest.raises(BTClibValueError, match=err_msg):
+        check_output_pubkey(b"\x00" * 32, b"\x51", control)
+    with monkeypatch.context() as no_bindings:
+        no_bindings.setattr(taproot, "_libsecp256k1_applicable", lambda *_: False)
+        with pytest.raises(BTClibValueError, match=err_msg):
+            check_output_pubkey(b"\x00" * 32, b"\x51", control)
 
 
 def test_invalid_control_block() -> None:

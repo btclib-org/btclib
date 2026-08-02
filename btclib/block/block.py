@@ -39,6 +39,28 @@ _COMMITMENT_PREFIX = bytes.fromhex("6a24aa21a9ed")
 _COMMITMENT_LENGTH = len(_COMMITMENT_PREFIX) + 32
 
 
+def merkle_root_and_mutated_from_transactions(
+    transactions: Sequence[Tx],
+) -> tuple[bytes, bool]:
+    """Return a header's merkle root over a list of transactions.
+
+    The leaves are the transactions serialized *without* witness data,
+    i.e. their txids, and the root is reversed into the byte order a
+    header carries. See merkle_root_and_mutated_from_hashes for the
+    second returned value, the CVE-2012-2459 flag.
+
+    One implementation, because the block builder and the block
+    validator must agree by construction: assert_valid_merkle_root
+    compares this against the header at hand, and mining.py's candidate
+    header is built from it.
+    """
+    data = [
+        tx.serialize(include_witness=False, check_validity=False) for tx in transactions
+    ]
+    root, mutated = merkle_root_and_mutated(data, _HF)
+    return root[::-1], mutated
+
+
 @dataclass
 class Block:
     header: BlockHeader
@@ -120,12 +142,9 @@ class Block:
         return any(tx.is_segwit() for tx in self.transactions)
 
     def assert_valid_merkle_root(self) -> None:
-        data = [
-            tx.serialize(include_witness=False, check_validity=False)
-            for tx in self.transactions
-        ]
-        root, mutated = merkle_root_and_mutated(data, _HF)
-        merkle_root_ = root[::-1]
+        merkle_root_, mutated = merkle_root_and_mutated_from_transactions(
+            self.transactions
+        )
         if merkle_root_ != self.header.merkle_root:
             err_msg = f"invalid merkle root: {self.header.merkle_root.hex()}"
             err_msg += f" instead of: {merkle_root_.hex()}"
@@ -238,6 +257,22 @@ class Block:
             raise BTClibValueError("first transaction is not a coinbase")
 
         for transaction in self.transactions[1:]:
+            # Bitcoin Core's bad-cb-multiple, asked immediately after the
+            # same first-transaction question: a coinbase is a claim on
+            # the subsidy, so a second one is a second claim, and it is
+            # the *shape* of the block that is wrong rather than anything
+            # about that transaction on its own -- which is all
+            # assert_valid below can see.
+            # Unreachable from a serialized block, and added anyway: the
+            # proof-of-work checked above already refuses one from the
+            # wire, and a coinbase cannot be added to a real block
+            # without moving the merkle root the header commits to, so no
+            # well-formed vector can carry two. What has no work yet is a
+            # block being assembled -- the toy mining of issue #188, and
+            # any candidate-block path after it -- and that is exactly
+            # where nothing else says no
+            if transaction.is_coinbase():
+                raise BTClibValueError("more than one coinbase")
             transaction.assert_valid()
 
         self.assert_valid_merkle_root()
