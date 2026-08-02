@@ -11,6 +11,7 @@
 
 import base64
 import inspect
+from collections.abc import Callable
 from io import BytesIO
 from typing import Any
 
@@ -23,7 +24,6 @@ from btclib.exceptions import BTClibValueError
 from btclib.hashes import hash160, hash256, ripemd160, sha256
 from btclib.psbt import Psbt, combine_psbts, extract_tx, finalize_psbt, join_psbts
 from btclib.psbt.psbt import _sig_hash_from_psbt_in, _sort_or_shuffle_together
-from btclib.psbt.psbt_utils import PSBT_SEPARATOR
 from btclib.script import ScriptPubKey, Witness, serialize, sig_hash
 from btclib.script.engine import verify_transaction
 from btclib.to_pub_key import pub_keyinfo_from_prv_key
@@ -35,7 +35,7 @@ from tests.conftest import JsonGolden
 
 
 def psbt_vectors(fname: str, kind: str) -> list[Any]:
-    """The `kind` cases of a BIP test vector file, named by description.
+    """The `kind` cases of a psbt vector file, named by description.
 
     The description is the id because a bare "case 7 failed" is not a
     report: as a test id it is there for free, with no print-and-raise
@@ -102,6 +102,84 @@ def test_valid_psbt_bip371(test_vector: dict[str, str]) -> None:
 def test_invalid_psbt_bip371(test_vector: dict[str, str]) -> None:
     with pytest.raises(BTClibValueError) as excinfo:
         Psbt.b64decode(test_vector["encoded psbt"])
+    assert test_vector["error message"] in str(excinfo.value)
+
+
+# the cases below are btclib's own, and btclib_test_vectors.json is where
+# they live: neither BIP publishes them, so the file name says whose they
+# are, the way bip174_ and bip371_ say whose those are. Their provenance
+# is in tests/_data/README.md with every other vector file's
+
+
+@pytest.mark.parametrize(
+    "test_vector", psbt_vectors("btclib_test_vectors.json", "invalid psbts")
+)
+def test_invalid_psbt_btclib(test_vector: dict[str, str]) -> None:
+    """Each case must be refused by the parse, with the message recorded."""
+    with pytest.raises(BTClibValueError) as excinfo:
+        Psbt.b64decode(test_vector["encoded psbt"])
+    assert test_vector["error message"] in str(excinfo.value)
+
+
+def _drop_an_input(psbt: Psbt) -> None:
+    psbt.inputs.pop()
+
+
+def _drop_an_output(psbt: Psbt) -> None:
+    psbt.outputs.pop()
+
+
+def _witness_the_unsigned_tx(psbt: Psbt) -> None:
+    psbt.tx.vin[0].script_witness = Witness([b""])
+
+
+# what the `mutation` of an "invalid psbt objects" vector names, and why
+# that section carries a valid psbt and the name of an edit rather than
+# the invalid bytes: these three states are ones no psbt can be written
+# in. Psbt.parse reads one input map per vin and one output map per vout,
+# so a psbt whose counts disagree has no encoding to be parsed from -- the
+# bytes would be read as a psbt with matching counts and different maps;
+# and the global unsigned tx is serialized with include_witness=False, so
+# a witness on it survives no round trip either. The vector is therefore
+# the valid psbt the case starts from, plus the edit that invalidates it
+_MUTATIONS: dict[str, Callable[[Psbt], None]] = {
+    "drop an input": _drop_an_input,
+    "drop an output": _drop_an_output,
+    "witness the unsigned tx": _witness_the_unsigned_tx,
+}
+
+
+@pytest.mark.parametrize(
+    "test_vector", psbt_vectors("btclib_test_vectors.json", "invalid psbt objects")
+)
+def test_invalid_psbt_object_btclib(test_vector: dict[str, str]) -> None:
+    """A psbt edited into a state that cannot be serialized."""
+    psbt = Psbt.b64decode(test_vector["encoded psbt"])
+    _MUTATIONS[test_vector["mutation"]](psbt)
+    with pytest.raises(BTClibValueError) as excinfo:
+        psbt.serialize()
+    assert test_vector["error message"] in str(excinfo.value)
+
+
+@pytest.mark.parametrize(
+    "test_vector", psbt_vectors("btclib_test_vectors.json", "invalid combinations")
+)
+def test_invalid_combination_btclib(test_vector: dict[str, Any]) -> None:
+    """Psbts a Combiner must refuse to merge."""
+    psbts = [Psbt.b64decode(encoded) for encoded in test_vector["encoded psbts"]]
+    with pytest.raises(BTClibValueError) as excinfo:
+        combine_psbts(psbts)
+    assert test_vector["error message"] in str(excinfo.value)
+
+
+@pytest.mark.parametrize(
+    "test_vector", psbt_vectors("btclib_test_vectors.json", "unfinalizable psbts")
+)
+def test_unfinalizable_psbt_btclib(test_vector: dict[str, str]) -> None:
+    """Valid psbts a Finalizer must refuse."""
+    psbt = Psbt.b64decode(test_vector["encoded psbt"])
+    with pytest.raises(BTClibValueError) as excinfo:
+        finalize_psbt(psbt)
     assert test_vector["error message"] in str(excinfo.value)
 
 
@@ -222,12 +300,6 @@ def test_psbt_combination() -> None:
     combined_psbt = combine_psbts([psbt1, psbt2])
     assert combined_psbt == psbt
 
-    # get the wrong tx_id
-    psbt1.tx.lock_time = psbt1.tx.lock_time ^ 12345678
-    err_msg = "mismatched psbt.tx.id: "
-    with pytest.raises(BTClibValueError, match=err_msg):
-        combine_psbts([psbt1, psbt2])
-
 
 # the psbt BIP174's Combiner example produces, which its Finalizer
 # example turns into the one test_finalize compares against: two inputs,
@@ -245,11 +317,6 @@ def test_finalize() -> None:
     to_be_finalized_psbt = Psbt.b64decode(TO_BE_FINALIZED)
     finalized_psbt = finalize_psbt(to_be_finalized_psbt)
     assert finalized_psbt == psbt
-
-    to_be_finalized_psbt.inputs[0].partial_sigs = {}
-    err_msg = "missing signatures"
-    with pytest.raises(BTClibValueError, match=err_msg):
-        finalize_psbt(to_be_finalized_psbt)
 
 
 def test_extract_tx() -> None:
@@ -302,6 +369,70 @@ def test_missing_script_pub_key() -> None:
     with pytest.raises(BTClibValueError) as excinfo:
         psbt.assert_signable()
     assert str(excinfo.value) == "missing script_pub_key"
+
+
+def test_an_input_may_carry_both_utxos() -> None:
+    """BIP174 allows an input to hold both UTXO types, and says which wins.
+
+    "An input can have both PSBT_IN_NON_WITNESS_UTXO and
+    PSBT_IN_WITNESS_UTXO", against the earlier "if an input is a witness
+    input, then it should not have a Non-Witness UTXO key-value pair" --
+    the footnote on the first is what settles the two: wallets began
+    requiring the full previous transaction for segwit inputs after psbt
+    was in use, so both types must be allowed for the software that
+    expects either one to keep working. The combination is therefore
+    valid, not a redundancy to be refused, and both records have to
+    survive a round trip.
+
+    Which one a Signer reads is the second half, and the BIP's simple
+    signer algorithm is unambiguous: `if witness_utxo.exists` comes
+    first, `else if non_witness_utxo.exists` second. btclib's
+    _signable_payload has that order.
+    """
+    # a p2sh-p2wpkh output, the compatibility case the footnote is about:
+    # a segwit input for which a wallet also wants the whole previous
+    # transaction. Built here rather than taken from BIP174, whose ten
+    # valid psbts carry one UTXO type per input and none the previous
+    # transaction of a segwit one
+    pub_key = "02 1e0f2b3f28d7b4a4c4ae4f0b3e2c6f9e5d8a7c1b0f2e3d4c5b6a798877665544"
+    redeem_script = ScriptPubKey.p2wpkh(pub_key).script
+    script_pub_key = ScriptPubKey.p2sh(redeem_script)
+    prev_tx = Tx(
+        vin=[TxIn(OutPoint(bytes.fromhex("11" * 32), 0))],
+        vout=[TxOut(100_000, script_pub_key)],
+    )
+    tx = Tx(vin=[TxIn(OutPoint(prev_tx.id, 0))], vout=[TxOut(90_000, script_pub_key)])
+    psbt = Psbt.from_tx(tx)
+    psbt.inputs[0].non_witness_utxo = prev_tx
+    psbt.inputs[0].witness_utxo = prev_tx.vout[0]
+    psbt.inputs[0].redeem_script = redeem_script
+
+    psbt.assert_valid()
+    psbt.assert_signable()
+    round_tripped = Psbt.b64decode(psbt.b64encode())
+    assert round_tripped == psbt
+    assert round_tripped.inputs[0].non_witness_utxo == prev_tx
+    assert round_tripped.inputs[0].witness_utxo == prev_tx.vout[0]
+
+    # and the precedence, read off a psbt where the two branches disagree:
+    # BIP174's first valid vector is a p2pkh input carrying the previous
+    # transaction alone, which the non-witness branch signs. Adding the
+    # very output the outpoint already names -- the same UTXO, stated
+    # twice, so nothing about the psbt has become untrue -- sends the
+    # signer down the witness branch, where a p2pkh output is not
+    # something a witness signature can spend
+    encoded = load("psbt", "_data", "bip174_test_vectors.json")["valid psbts"][0]
+    psbt = Psbt.b64decode(encoded["encoded psbt"])
+    psbt_in = psbt.inputs[0]
+    assert psbt_in.non_witness_utxo is not None
+    assert psbt_in.witness_utxo is None
+    psbt.assert_signable()
+
+    psbt_in.witness_utxo = psbt_in.non_witness_utxo.vout[psbt.tx.vin[0].prev_out.vout]
+    psbt.assert_valid()
+    assert Psbt.b64decode(psbt.b64encode()) == psbt
+    with pytest.raises(BTClibValueError, match=r"script type not in "):
+        psbt.assert_signable()
 
 
 def test_psbt() -> None:
@@ -613,35 +744,6 @@ def test_exceptions() -> None:
     with pytest.raises(BTClibValueError, match=err_msg):
         psbt.serialize()
     psbt.version = 0xFFFFFFFF + 1
-    with pytest.raises(BTClibValueError, match=err_msg):
-        psbt.serialize()
-    psbt.version = 1
-    with pytest.raises(BTClibValueError, match="invalid non-zero version: "):
-        psbt.serialize()
-
-    # the 0xff is the fifth byte of the header, not a field of its own, so
-    # losing it is the header being wrong and nothing more specific
-    psbt = Psbt.b64decode(psbt_str)
-    psbt_bin = psbt.serialize()
-    psbt_bin = psbt_bin[:4] + PSBT_SEPARATOR + psbt_bin[5:]
-    with pytest.raises(BTClibValueError, match="malformed psbt: missing magic bytes"):
-        Psbt.parse(psbt_bin)
-
-    psbt = Psbt.b64decode(psbt_str)
-    psbt.inputs.pop()
-    err_msg = "mismatched number of psb.tx.vin and psb.inputs: "
-    with pytest.raises(BTClibValueError, match=err_msg):
-        psbt.serialize()
-
-    psbt = Psbt.b64decode(psbt_str)
-    psbt.tx.vin[0].script_witness = Witness([b""])
-    err_msg = "non empty script_sig or witness"
-    with pytest.raises(BTClibValueError, match=err_msg):
-        psbt.serialize()
-
-    psbt = Psbt.b64decode(psbt_str)
-    psbt.outputs.pop()
-    err_msg = "mismatched number of psb.tx.vout and psbt.outputs: "
     with pytest.raises(BTClibValueError, match=err_msg):
         psbt.serialize()
 

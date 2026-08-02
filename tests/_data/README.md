@@ -45,8 +45,8 @@ no upstream name to be compared against, so the citation in the module
 that loads it can drift to a path upstream never had and nobody catches
 it — the byte comparison below is the only check the naming cannot fool.
 
-Seventeen files keep a btclib name deliberately, and the reason is the
-same in each: there is no upstream file whose name they could take.
+Eighteen files keep a btclib name deliberately, and the reason is the
+same in each: there is no upstream file whose name they could take
 
 - `bip32_test_vectors.json`, `bip32_invalid_keys.json`,
   `bip174_test_vectors.json`, `bip371_test_vectors.json` and
@@ -58,13 +58,20 @@ same in each: there is no upstream file whose name they could take.
   taken in the very same directory, by SLIP-0039's own `vectors.json`,
   which is a different upstream's file of the same name.
 - `descriptor_checksums.json`, `rfc6979.json`,
-  `electrum_test_vectors.json` and `fakeenglish.txt` have no upstream file
-  either; the last two are btclib's own.
+  `electrum_test_vectors.json`, `btclib_test_vectors.json` and
+  `fakeenglish.txt` have no upstream file either; the last three are
+  btclib's own.
 - the seven under `tests/fetch/_data/` are response bodies, and a
   response has no name at all. Each takes the rpc method or the endpoint
   path that produces it, which is the closest thing to an upstream name
   they have and the one a re-check would type into `bitcoin-cli` or a
   url.
+
+`btclib_test_vectors.json` is where that convention says the most, and it
+is a naming rule of its own: the prefix of a psbt vector file names the
+authority the cases answer to — `bip174_`, `bip371_`, and `btclib_` for
+the ones btclib composed, which no BIP publishes and no refresh will ever
+reach. A file so named cannot be mistaken for a copy of something.
 
 `taproot_test_vector.json` and `sig_hash_legacy_test_vectors.json` do have
 an upstream file each -- bip-0341's `wallet-test-vectors.json` and Core's
@@ -287,7 +294,9 @@ failures — and all 34 are here, each with the base64 the prose gives and
 cross-checked against the hex the prose gives beside it. What is not
 vendored, deliberately, is the role walk-through: the creator, updater,
 signer, combiner, finalizer and extractor psbts of the worked example,
-which are prose steps rather than cases.
+which are prose steps rather than cases. Five of them are the raw
+material of `btclib_test_vectors.json` below, which is a different claim:
+not that they are cases, but that a case can be built out of one.
 
 The `description` and `encoded psbt` of each entry are upstream's. The
 `error message` of a signer check failure is **not**: the BIP says only
@@ -866,6 +875,51 @@ from `english.txt` if that ever changes, which it has not since 2014.
 
 Pulled 2018-06-01.
 
+### `tests/psbt/_data/btclib_test_vectors.json`
+
+**btclib's own, composed rather than copied.** Seven cases that no BIP
+publishes: each is a psbt btclib must refuse, and what it must say. There
+is no upstream URL to give, because there is no upstream — inventing one
+is the failure mode this entry exists to prevent.
+
+What they are made of is upstream, and it is the half of BIP174 the entry
+above deliberately leaves out. The starting psbts are five steps of the
+BIP's "2-of-3 Multisig Workflow" walk-through — prose steps rather than
+`* Case:` entries, which is why `bip174_test_vectors.json` does not
+vendor them — taken at the same pin as that file,
+`8c369ac8e60629ac6c032ffe21bb5ec5b35213d7` (2026-07-16), where all five
+appear verbatim. Every case is one of them plus one edit:
+
+- the **creator**'s psbt with a `PSBT_GLOBAL_VERSION` of 1, and with the
+  `0xff` of its magic bytes replaced — the two `invalid psbts`, which
+  `Psbt.b64decode` must refuse. The second is refused for the header and
+  not for anything narrower, which is the case rather than a shortfall of
+  it: that `0xff` is the fifth byte of `PSBT_MAGIC_BYTES` and not a field
+  of its own, so losing it is the header being wrong;
+- the **creator**'s psbt unedited, three times, under the three
+  `invalid psbt objects`. That section carries a `mutation` name instead
+  of invalid bytes because these three states have no encoding: a psbt
+  is parsed with one input map per `vin` and one output map per `vout`,
+  so counts that disagree cannot be written down, and the global unsigned
+  transaction is serialized without witnesses, so a witness on it cannot
+  either. The vector is the psbt the case starts from, and the test
+  module holds the three one-line edits;
+- the **first signer**'s psbt with its `lock_time` flipped, beside the
+  **second signer**'s unedited, as the one `invalid combination`;
+- the **combiner**'s psbt with the partial signatures of its first input
+  removed, as the one `unfinalizable psbt`. Its second input keeps its
+  own, so what the case pins is that a Finalizer refuses the psbt for the
+  one input it cannot finalize rather than finalizing what it can.
+
+The `error message` of every case is btclib's own, as it is for the
+signer check failures of `bip174_test_vectors.json`: the BIP says nothing
+about the wording, so correcting a message means correcting it here too.
+Nothing upstream will ever refresh this file, and a bumped BIP174 pin
+does not touch it — the five psbts are fixed bytes, and the edits are
+btclib's.
+
+Composed 2026-08-02.
+
 ## What is not pinned, and why
 
 - **`tests/mnemonic/_data/electrum_test_vectors.json`** has no upstream.
@@ -877,6 +931,11 @@ Pulled 2018-06-01.
   blob, so "identical" is not a claim that can be made about them. What
   was checked instead is stated in each entry: every value present,
   verbatim, in the pinned text.
+- **`tests/psbt/_data/btclib_test_vectors.json`** pins the prose revision
+  its raw material came from, which is not the same as having an
+  upstream: the cases are btclib's, so the pin says where the psbts were
+  read and nothing about the cases built on them. A refresh of it is a
+  contradiction in terms.
 - **Nothing here is enforced.** No hook re-fetches an upstream and no
   test compares a blob, so this file goes stale silently. That is a
   deliberate stopping point: a network call in the test suite would trade
@@ -884,7 +943,7 @@ Pulled 2018-06-01.
 
 ## Summary
 
-49 files. Against a pinned upstream blob:
+50 files. Against a pinned upstream blob:
 
 - 18 identical byte for byte: `english.txt`, `wordlist.txt`,
   `taproot_test_vector.json`, `sig_hash_legacy_test_vectors.json`,
@@ -911,8 +970,11 @@ No upstream blob exists for the rest:
 - 7 response bodies under `tests/fetch/_data/`, whose envelopes are
   composed from Core's and Esplora's own source and whose payload is
   chain data two of the entries above already hold.
-- 3 not vendored: `rfc6979.json` (an RFC),
-  `electrum_test_vectors.json` and `fakeenglish.txt` (btclib's own).
+- 4 not vendored: `rfc6979.json` (an RFC),
+  `electrum_test_vectors.json`, `fakeenglish.txt` and
+  `btclib_test_vectors.json` (btclib's own). The last is the only one
+  composed rather than recorded: its cases were built here, out of psbts
+  BIP174 prints as prose.
 
 ### Left for a maintainer to decide
 
