@@ -28,6 +28,14 @@ btclib.psbt.psbt\_out module
    :undoc-members:
    :show-inheritance:
 
+btclib.psbt.psbt\_size module
+-----------------------------
+
+.. automodule:: btclib.psbt.psbt_size
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
 btclib.psbt.psbt\_utils module
 ------------------------------
 

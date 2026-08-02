@@ -62,6 +62,18 @@ def load_csv(*relative_path: str, encoding: str = "ascii") -> list[list[str]]:
         return list(csv.reader(file_))[1:]
 
 
+def load_bin(*relative_path: str) -> bytes:
+    """The same for a file of consensus bytes: a block, a transaction.
+
+    Named from `tests/` for the same reason as the two above, and it is
+    what a block is read by outside `tests/block`: the signed
+    transactions of a block are the fixtures of more than one question
+    about them.
+    """
+    with open(path.join(_TESTS_DIR, *relative_path), "rb") as file_:
+        return file_.read()
+
+
 # what makes an id unreadable in a report and unusable in a -k expression:
 # anything that is not a letter, a digit or a dash. Bitcoin Core comments
 # hold spaces, quotes, parentheses and slashes; a descriptor holds a '#'

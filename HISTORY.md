@@ -10,6 +10,9 @@ full year, short month, short day (YYYY-M-D)
 The first release since 2023, and the largest; every entry of it is in
 [CHANGELOG.md](./CHANGELOG.md). What follows is what a user has to act on
 and what a user gains.
+The first release since 2023, and the largest: a hundred and eighty-one
+entries, in [CHANGELOG.md](./CHANGELOG.md). What follows is what a user has
+to act on and what a user gains.
 
 Every change is a *behaviour* change somewhere, so the honest summary is
 this: btclib now refuses input it used to accept, reports errors it used

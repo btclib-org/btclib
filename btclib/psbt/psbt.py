@@ -20,6 +20,7 @@ from collections.abc import Callable, Mapping, Sequence
 from copy import deepcopy
 from dataclasses import dataclass
 from io import BytesIO
+from math import ceil
 from typing import Any, TypeVar, cast
 
 from btclib.alias import BinaryData, Octets, ScriptList, String
@@ -35,6 +36,7 @@ from btclib.exceptions import BTClibValueError
 from btclib.hashes import hash160, sha256
 from btclib.psbt.psbt_in import PsbtIn
 from btclib.psbt.psbt_out import PsbtOut
+from btclib.psbt.psbt_size import estimated_input_sizes
 from btclib.psbt.psbt_utils import (
     PSBT_SEPARATOR,
     assert_valid_unknown,
@@ -142,6 +144,57 @@ class Psbt:
     version: int
     hd_key_paths: HdKeyPaths
     unknown: dict[bytes, bytes]
+
+    @property
+    def estimated_weight(self) -> int:
+        """Return the weight the transaction will have once signed.
+
+        A signature is assumed to be 72 bytes, the largest a low-s one
+        can be with its sig_hash byte, so the answer is an upper bound;
+        an input whose type the psbt does not determine has no estimate
+        and raises, naming itself. Both rules are `psbt_size`'s, and why
+        each is what it is, is there.
+
+        `Tx.weight` is what the placeholders below are handed to: a
+        signature is bytes wherever it goes, and how many of them a
+        transaction is once they are in place is one arithmetic, written
+        once, in the class whose serialization it is.
+        """
+        vin: list[TxIn] = []
+        # strict=True costs nothing: a psbt whose inputs and vin are of
+        # different lengths is one assert_valid refuses
+        for i, (psbt_in, tx_in) in enumerate(
+            zip(self.inputs, self.tx.vin, strict=True)
+        ):
+            try:
+                script_sig_size, witness_sizes = estimated_input_sizes(psbt_in, tx_in)
+            except BTClibValueError as e:
+                raise BTClibValueError(f"input {i}: {e}") from e
+            vin.append(
+                TxIn(
+                    tx_in.prev_out,
+                    b"\x00" * script_sig_size,
+                    tx_in.sequence,
+                    Witness([b"\x00" * size for size in witness_sizes]),
+                    check_validity=False,
+                )
+            )
+        # built rather than copied: the placeholders would otherwise have
+        # to be written into this psbt's own transaction, and the outputs
+        # are only read here -- serialized, and by this very call
+        placeholder = Tx(
+            self.tx.version, self.tx.lock_time, vin, self.tx.vout, check_validity=False
+        )
+        return placeholder.weight
+
+    @property
+    def estimated_vsize(self) -> int:
+        """Return the virtual size the transaction will have once signed.
+
+        The name Bitcoin Core's `analyzepsbt` reports it under, and the
+        `Tx.vsize` arithmetic: a quarter of the weight, rounded up.
+        """
+        return ceil(self.estimated_weight / 4)
 
     def __init__(
         self,
