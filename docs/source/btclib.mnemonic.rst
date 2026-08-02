@@ -44,6 +44,14 @@ btclib.mnemonic.mnemonic module
    :undoc-members:
    :show-inheritance:
 
+btclib.mnemonic.slip39 module
+-----------------------------
+
+.. automodule:: btclib.mnemonic.slip39
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
 Module contents
 ---------------
 

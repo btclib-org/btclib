@@ -97,6 +97,9 @@ Included features are:
 - [BIP39](https://github.com/bitcoin/bips/blob/master/bip-0039.mediawiki)
   wordlists and mnemonic for generating deterministic keys
 - [Electrum](https://electrum.org/#home) standard for mnemonic
+- [SLIP39](https://github.com/satoshilabs/slips/blob/master/slip-0039.md)
+  Shamir backup: a master secret split into mnemonic shares, of which a
+  threshold number recovers it
 - Script encoding/decoding
 - nulldata, p2pk, p2ms, p2pkh, p2sh, p2wpkh, p2wsh and p2tr ScriptPubKeys
 - BlockHeader and Block data classes

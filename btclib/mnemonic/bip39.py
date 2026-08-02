@@ -58,6 +58,33 @@ from btclib.mnemonic.mnemonic import (
 )
 from btclib.network import NETWORKS
 
+# BIP39 is eleven bits to a word, and so 2048 words to a list: "the
+# wordlist contains 2048 words" is the specification, not a property of
+# the english list. WORDLISTS holds every list btclib ships, slip39's
+# 1024 words among them, so the length has to be asked for rather than
+# assumed
+_BIP39_WORDLIST_LENGTH = 1 << 11
+
+
+def _base(lang: str) -> int:
+    """Return the word-list length of lang, which BIP39 requires to be 2048.
+
+    WORDLISTS.load_lang already refuses a length that is not a power of
+    two, and that is the weaker test: a 1024-word list passes it and then
+    encodes ten bits to a word, so the sentence it builds is a base-1024
+    number no BIP39 wallet reads and the checksum it verifies is over the
+    wrong bits. The registry is shared and by design -- slip39 is
+    registered on it under a key of its own -- so refusing here is what
+    keeps `lang="slip39"` from being a silent wrong answer instead of an
+    error.
+    """
+    base = WORDLISTS.language_length(lang)
+    if base != _BIP39_WORDLIST_LENGTH:
+        err_msg = f"invalid bip39 wordlist length: {base}; "
+        err_msg += f"expected: {_BIP39_WORDLIST_LENGTH}"
+        raise BTClibValueError(err_msg)
+    return base
+
 
 def _entropy_checksum(entropy: Entropy) -> tuple[BinStr, BinStr]:
     """Return the checksum of the binary string input entropy.
@@ -99,7 +126,7 @@ def mnemonic_from_entropy(entropy: Entropy | None = None, lang: str = "en") -> M
     if entropy is None or entropy == "":
         entropy = secrets.randbits(128)
     bin_str_entropy, checksum = _entropy_checksum(entropy)
-    base = WORDLISTS.language_length(lang)
+    base = _base(lang)
     indexes = wordlist_indexes_from_bin_str_entropy(bin_str_entropy + checksum, base)
     return mnemonic_from_indexes(indexes, lang)
 
@@ -112,8 +139,8 @@ def entropy_from_mnemonic(mnemonic: Mnemonic, lang: str = "en") -> BinStr:
     japanese IME arrives in fullwidth latin, and U+FF41 is not "a" until
     it is decomposed.
     """
+    base = _base(lang)
     indexes = indexes_from_mnemonic(normalize_mnemonic(mnemonic), lang)
-    base = WORDLISTS.language_length(lang)
     cs_entropy = bin_str_entropy_from_wordlist_indexes(indexes, base)
 
     bits = int(len(cs_entropy) * 32 / 33)

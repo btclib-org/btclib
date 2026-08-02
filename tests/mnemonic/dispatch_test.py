@@ -23,7 +23,8 @@ and `electrum_test.py` says where each came from.
 
 import pytest
 
-from btclib.mnemonic import bip39, dispatch, electrum
+from btclib.mnemonic import bip39, dispatch, electrum, slip39
+from tests import load
 
 # every word in the pre-2.0 list, so electrum reads it as "old" although
 # its HMAC also carries the "01" prefix of a "standard" seed. The
@@ -215,3 +216,22 @@ def test_italian() -> None:
     assert dispatch.seed_type_from_mnemonic(mnemonic, "it") == "bip39"
     # the same sentence against the english list: no word of it is there
     assert dispatch.all_seed_types_from_mnemonic(mnemonic, "en") == []
+
+
+def test_slip39_is_not_claimed() -> None:
+    """A SLIP-0039 share is reported unknown, and cannot be anything else.
+
+    mnemonic.slip39 reads shares, and this dispatcher does not ask it:
+    what a share is claimed *as* is a decision still to take, one share
+    being a share of a secret rather than a sentence that derives a
+    wallet by itself. What the module docstring says about the order is
+    measured here -- a share carries none of the other schemes' signals,
+    its words coming from SLIP-0039's own 1024-word list, so wiring it in
+    at the end of the chain cannot displace an answer already given.
+    """
+    share = load("mnemonic", "_data", "vectors.json")[0][1][0]
+    # a share slip39 does read, so that "unknown" is the dispatcher's
+    # answer and not a sentence nothing at all can make sense of
+    assert slip39.mnemonic_from_share(slip39.share_from_mnemonic(share)) == share
+    assert dispatch.all_seed_types_from_mnemonic(share) == []
+    assert dispatch.seed_type_from_mnemonic(share) == ""

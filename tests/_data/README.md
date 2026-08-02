@@ -1,10 +1,22 @@
 # Vendored test vectors
 
-This file is about `tests/**/_data/` only. The other directory holding json
-beside the tests, `tests/**/_generated_files/`, is the opposite kind of
-thing and has no entry here: those seventeen files are btclib's own output,
-`to_dict()` over fixed input, committed as golden files so that a change to
-a serialized form fails a test instead of passing unnoticed. Nothing
+This file is about `tests/**/_data/`, plus the one shipped data file that
+nothing else pins: `btclib/mnemonic/_data/wordlist.txt`, SLIP-0039's word
+list. It is here because a word list is the most load-bearing vendored
+file there is -- every share ever written with it decodes through it --
+and because, unlike `english.txt`, it has no byte-identical copy under
+`tests/` for an entry to name instead. The package's other three word
+lists have no entry because each is already pinned somewhere else or not
+at all: `english.txt` through the test copy below,
+`electrum_old_english.txt` through the pin `btclib/mnemonic/electrum.py`
+carries beside the constant naming it, and `italian.txt` nowhere, which
+is a gap rather than a statement about it.
+
+The other directory holding json beside the tests,
+`tests/**/_generated_files/`, is the opposite kind of thing and has no
+entry here: those seventeen files are btclib's own output, `to_dict()`
+over fixed input, committed as golden files so that a change to a
+serialized form fails a test instead of passing unnoticed. Nothing
 upstream to pin, and nothing to compare against but ourselves —
 `BTCLIB_REGENERATE_GOLDEN=1 uv run pytest` rewrites them on purpose.
 
@@ -42,7 +54,9 @@ each: there is no upstream file whose name they could take.
   no upstream file, so the name is ours by necessity.
 - `bip39_test_vectors.json` holds only the `english` array of trezor's
   `vectors.json`, plus one btclib case. Taking the name `vectors.json`
-  would claim twelve languages we do not vendor.
+  would claim twelve languages we do not vendor -- and that name is now
+  taken in the very same directory, by SLIP-0039's own `vectors.json`,
+  which is a different upstream's file of the same name.
 - `descriptor_checksums.json`, `rfc6979.json`,
   `electrum_test_vectors.json` and `fakeenglish.txt` have no upstream file
   either; the last two are btclib's own.
@@ -74,7 +88,8 @@ Where a file was vendored earlier and later refreshed, both dates appear.
 staleness figure, not a defect: a vector file is a fixed set of cases and
 refreshing it is a decision, not a chore.
 
-Every entry was last re-checked against its upstream on 2026-07-30, and
+Every entry was last re-checked against its upstream on 2026-07-30 -- the
+two SLIP-0039 entries on 2026-08-02, the day they were vendored -- and
 whatever had drifted was refreshed, so `behind` is 0 wherever a refresh
 was possible at all. The eight BIP327 files are the exception by date
 alone: they were vendored on 2026-08-02, at the tip of their path.
@@ -516,7 +531,61 @@ Re-checked on 2026-07-30 against the tip of the path, `b57a5ad7`
 the wordlist according to NFKD"): upstream's 24 English vectors are still
 ours value for value, that normalisation having touched other languages
 only. Nothing to refresh, and the eleven other languages stay out for as
-long as one wordlist is shipped.
+long as one BIP39 wordlist is shipped.
+
+### `btclib/mnemonic/_data/wordlist.txt`
+
+```text
+repo    satoshilabs/slips
+path    slip-0039/wordlist.txt
+commit  1524583213f1392321109b0ff0a91330836ecb32  2019-03-02
+blob    5673e7ca7f20ed7a5e70b3a7fa5e6df277ee29ab
+pulled  2026-08-02
+behind  0 revisions; that commit is the tip of the path
+```
+
+Verdict: **identical**. SLIP-0039's 1024 words, ten bits each, and the
+only word list it defines: the SLIP supports no localization, so there
+is no second language to leave out and no decision behind shipping one.
+
+`tests/mnemonic/slip39_test.py` re-checks the criteria the SLIP states
+for the list -- 1024 words, none shorter than four letters or longer
+than eight, and all 1024 four-letter prefixes distinct -- which is what
+turns a corrupted copy into a red test rather than into shares nobody
+can read. Not the whole of `slip-0039/test_wordlist.sh`, which also
+measures Damerau-Levenshtein distance: that is a property of the list
+upstream chose, not of our copy of it.
+
+### `tests/mnemonic/_data/vectors.json`
+
+```text
+repo    trezor/python-shamir-mnemonic
+path    vectors.json
+commit  1525df19df504b1f69b49179140119959f317f24  2024-05-14
+blob    d98c387aa1feb32ca9e6e4410cff870dfc6fb358
+pulled  2026-08-02
+behind  0 revisions; that commit is the tip of the path
+```
+
+Verdict: **identical but for a trailing newline** -- our 22,412 bytes
+are that blob's 22,411 plus the `\n` the `end-of-file-fixer` hook added,
+so our blob is `2e6da291`. 45 quadruples -- description, mnemonics,
+master secret, BIP32 root extended private key -- of which 15 are valid
+and 30 have an empty master secret, meaning combining those mnemonics
+must fail. All 45 are exercised, the 30 included: an invalid vector left
+out is a check nobody makes.
+
+The reference implementation rather than the SLIP: SLIP-0039's own "Test
+vectors" section carries no file, it links to this one. The pin is the
+commit that added the extendable backup flag and the four vectors for
+it, which is also the tip of the path.
+
+Four of the 15 valid vectors are checked in both directions. They are
+the 1-of-1 shares, whose value is the encrypted master secret itself and
+therefore involves no randomness the vector does not record, so btclib
+regenerates each of the four mnemonics word for word from the master
+secret. The other 11 are recovery only, a 2-of-3 share being random by
+construction.
 
 ## Chain data, not a repository
 
@@ -648,11 +717,12 @@ spesmilo/electrum:
 - the hex seed and `master_public_key` of the pre-2.0 wallet file in
   `tests/test_storage_upgrade.py`.
 
-The word-list they run over is not under `tests/` and so has no entry
-here: `btclib/mnemonic/_data/electrum_old_english.txt` is shipped code,
-transcribed from the `_words` tuple of `electrum/old_mnemonic.py`, and
-`btclib/mnemonic/electrum.py` carries its pin beside the constant that
-names the file.
+The word-list they run over has no entry here, and being outside
+`tests/` is not the reason -- `wordlist.txt` is outside it and has one.
+`btclib/mnemonic/_data/electrum_old_english.txt` is pinned where it is
+used: it is shipped code, transcribed from the `_words` tuple of
+`electrum/old_mnemonic.py`, and `btclib/mnemonic/electrum.py` carries
+that pin beside the constant that names the file.
 
 Pulled 2018-06-11; the pre-2.0 values 2026-08-02.
 
@@ -683,14 +753,14 @@ Pulled 2018-06-01.
 
 ## Summary
 
-37 files. Against a pinned upstream blob:
+39 files. Against a pinned upstream blob:
 
-- 14 identical byte for byte: `english.txt`,
+- 15 identical byte for byte: `english.txt`, `wordlist.txt`,
   `taproot_test_vector.json`, `sig_hash_legacy_test_vectors.json`,
   `script_tests.json`, `tx_valid.json`, `tx_invalid.json`, and the
   eight BIP327 vector files.
-- 1 identical but for a trailing newline:
-  `script_assets_test.json`.
+- 2 identical but for a trailing newline:
+  `script_assets_test.json`, `vectors.json`.
 - 1 identical but for CRLF against LF: `bip340_test_vectors.csv`.
 - 4 JSON-equal, reformatted: `pubkey.json`, `ecdsa_sig.json`,
   `ecdsa_custom_nonce_sig.json`, `signmessage.json`.
