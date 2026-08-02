@@ -2564,6 +2564,29 @@ edit.
   where the walk stopped, and where it stops at the very first byte
   that is the script code entire — reachable because 0xab can be in it
   as data of a push that overruns the end
+- **the three test-data files of Bitcoin Core that were never taken are
+  vendored** — `key_io_valid.json`, `key_io_invalid.json` and
+  `base58_encode_decode.json`, byte for byte in `tests/_data/`, which
+  leaves nothing in Core's `src/test/data/` both applicable to btclib and
+  missing here (issue #218). What they buy over the address tests already
+  in the suite is an oracle btclib did not write: `tests/b58_test.py` and
+  `tests/b32_test.py` carry values this project produced, and a round trip
+  through one implementation agrees with itself by construction. The 70
+  invalid strings are the half that had no equivalent at all, and each is
+  now refused by all four entry points that could be handed one — `b58`,
+  `b32`, `ScriptPubKey.from_address` and `to_prv_key` — because a string
+  arrives without a label, and a refusal from one is worth nothing if
+  another accepts the same bytes. All 70 valid rows pass as they stand:
+  every address decodes to Core's scriptPubKey and every WIF to Core's key
+  with Core's compression flag, over the four chains the metadata names.
+  One thing the encodings do not carry is asserted rather than glossed
+  over: a base58 test-network prefix belongs to four networks and the hrp
+  `tb` to three, so btclib answers "testnet" for a testnet4 or signet
+  string where Core answers with the chain its node was started on (issue
+  #207). The eight rows whose witness version is 2, 3 or 16 render like
+  the rest, `witness_unknown` being a type btclib names and `b32` writing
+  any version 0 to 16 (issue #251); every one of the 54 addresses comes
+  back from its scriptPubKey unchanged
 - **the twelve on-chain scripts of issue #123 are vendored**, in
   `tests/script/_data/unspendable_script_pub_keys.json`: the real
   `scriptPubKey`s of the five transactions the issue lists, each with the

@@ -23,6 +23,17 @@ from btclib.base58 import (
     b58encode,
 )
 from btclib.exceptions import BTClibValueError
+from tests import load, vector_id
+
+# Bitcoin Core's `src/test/data/base58_encode_decode.json`, entire and
+# byte for byte; tests/_data/README.md pins the revision. A row is [hex,
+# base58], and the pair is Core's `EncodeBase58`/`DecodeBase58` -- the
+# codec with no checksum on it, which is `_b58encode`/`_b58decode` here
+# and not the `b58encode`/`b58decode` the rest of this module exercises
+CODEC_VECTORS = [
+    pytest.param(hexed, encoded, id=vector_id(index, hexed[:16]))
+    for index, (hexed, encoded) in enumerate(load("_data", "base58_encode_decode.json"))
+]
 
 
 def test_empty() -> None:
@@ -48,6 +59,23 @@ def test_trailing_zeros() -> None:
     assert _b58encode(_b58decode(b"11StV1DL6CwTryKyV")) == b"11StV1DL6CwTryKyV"
 
     assert b58decode(b58encode(b"\x00\x00hello world"), 13) == b"\x00\x00hello world"
+
+
+@pytest.mark.parametrize(("hexed", "encoded"), CODEC_VECTORS)
+def test_core_codec_vectors(hexed: str, encoded: str) -> None:
+    """Both directions of Core's codec vectors, over the raw functions.
+
+    The set is small and reaches what the tests above reach by hand:
+    the empty string, leading zero bytes as leading '1' characters, the
+    whole alphabet in order, the transitions at powers of 58, and a
+    256-byte payload. That last one is 348 base58 characters, which
+    `b58decode` would refuse on MAX_LENGTH before looking at it -- the
+    cap is on the checked decoder, the codec under it being uncapped.
+    What the set adds is that the answer is Core's, not btclib's.
+    """
+    raw = bytes.fromhex(hexed)
+    assert _b58encode(raw) == encoded.encode("ascii")
+    assert _b58decode(encoded.encode("ascii")) == raw
 
 
 def test_exceptions() -> None:
