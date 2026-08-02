@@ -632,7 +632,29 @@ spesmilo/electrum's own, inline — the `SEED_TEST_CASES` seeds and the
 vendored as files here: each block is small enough to read, and a
 citation two lines above the values is one that gets checked.
 
-Pulled 2018-06-11.
+The pre-2.0 scheme is the same arrangement and four more of upstream's
+values, added for issue #208. The scheme has no specification — it
+predates the BIPs — so a vector btclib generated would be testing btclib
+against itself, and each of these is a value published by
+spesmilo/electrum:
+
+- the mnemonic-to-hex pair of `Test_OldMnemonic.test`, in
+  `tests/test_mnemonic.py`, which is the only published pair and the only
+  thing that pins the encoder;
+- the mnemonic, hex seed and master public key of
+  `test_electrum_seed_old`, and the mnemonic and master public key of
+  `test_sending_offline_old_electrum_seed_online_mpk`, both in
+  `tests/test_wallet_vertical.py`;
+- the hex seed and `master_public_key` of the pre-2.0 wallet file in
+  `tests/test_storage_upgrade.py`.
+
+The word-list they run over is not under `tests/` and so has no entry
+here: `btclib/mnemonic/_data/electrum_old_english.txt` is shipped code,
+transcribed from the `_words` tuple of `electrum/old_mnemonic.py`, and
+`btclib/mnemonic/electrum.py` carries its pin beside the constant that
+names the file.
+
+Pulled 2018-06-11; the pre-2.0 values 2026-08-02.
 
 ### `tests/mnemonic/_data/fakeenglish.txt`
 

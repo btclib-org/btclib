@@ -1882,6 +1882,50 @@ edit.
   — the first three need a view of the chain btclib does not have, the
   last two a file format that would outlive the release choosing it
   (issue #189)
+- **pre-2.0 Electrum seeds are read, and a dispatcher says which scheme a
+  mnemonic belongs to** (issue #208). A wallet created before Electrum 2.0
+  was recognized and nothing more: `version_from_mnemonic` answered
+  `"old"` and every other function refused it. Four functions in
+  `mnemonic.electrum` now read it — `old_mnemonic_from_hex_seed` and
+  `hex_seed_from_old_mnemonic` for the encoding, three words to each
+  32-bit group over the 1626-word list, and
+  `old_master_prv_key_from_mnemonic` and
+  `old_master_pub_key_from_mnemonic` for the stretch, which is a hundred
+  thousand rounds of `sha256(digest + hex_seed)` over the hex
+  *characters*, not PBKDF2 and not the versioned scheme's 2048
+  iterations. **The passphrase is refused rather than defaulted**:
+  nothing but the seed enters the stretch, so accepting one and ignoring
+  it would hand back the wallet of a seed the caller did not ask for, and
+  Electrum's `keystore.from_seed` refuses it the same way. `None` and the
+  empty string are "no passphrase", as they are there. The scheme has no
+  specification — it predates the BIPs — so Electrum's implementation is
+  what correct means and every vector is Electrum's own: the
+  mnemonic-to-hex pair of its `Test_OldMnemonic`, two wallets of its
+  `test_wallet_vertical.py` with their master public keys, and a real
+  pre-2.0 wallet file from its `test_storage_upgrade.py`. Two of them
+  pin a weakness copied rather than fixed, because fixing it would
+  accept or refuse what Electrum does not: three words can carry a group
+  above `2**32`, so twelve words can decode to 33 or 34 hex characters
+  instead of 32, and one of Electrum's own published seeds does — 34,
+  still octets, so the master public key is derived and matches, while
+  the encoder cannot write those twelve words back out and Electrum's
+  `get_seed` cannot either.
+  The dispatcher is the new `mnemonic.dispatch`:
+  `seed_type_from_mnemonic` answers `"electrum_old"`,
+  `"electrum_standard"`, `"electrum_segwit"`, `"electrum_2fa"`,
+  `"electrum_2fa_segwit"`, `"bip39"`, `"bip39_wordlist"` — every word in
+  the list but no valid reading — or `""`, and
+  `all_seed_types_from_mnemonic` returns every scheme that claims the
+  sentence, because the schemes overlap and the collision is worth
+  seeing rather than resolving in silence. Within Electrum the order is
+  `calc_seed_type`'s, old before the four prefixes, so a pre-2.0 seed
+  that matches `"01"` by chance is not handed back as `"standard"`;
+  Electrum before BIP39 is btclib's, Electrum's wizard asking the user
+  which variant a sentence is instead of guessing, and the base rate is
+  the reason — a version prefix is a deliberate marker present by chance
+  in one sentence in 256, a valid BIP39 checksum in one in sixteen. The
+  dispatcher normalizes nothing of its own, each scheme normalizing as it
+  defines, which leaves issue #201 to decide that once for all of them
 
 ### Types
 

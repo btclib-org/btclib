@@ -22,6 +22,8 @@ for a candidate electrum passes over, and `electrum_test_vectors.json`
 has no upstream at all.
 """
 
+from hashlib import sha256
+
 import pytest
 
 from btclib.bip32 import bip32, slip132
@@ -347,12 +349,14 @@ def test_version_vectors(mnemonic: str, version: str) -> None:
 
 
 def test_old_mnemonic() -> None:
-    """A pre-2.0 seed is reported as "old", and nothing more is done with it.
+    """A pre-2.0 seed is reported as "old", and read by its own functions.
 
-    The cases are electrum's is_old_seed tests. The point of recognizing
-    the scheme without implementing it is that an old seed derives keys
-    another way: reporting it as one of the four new versions would be
-    handing back the wrong wallet without a word.
+    The cases are electrum's is_old_seed tests. Recognizing the scheme is
+    what keeps an old seed away from the four new versions, which derive
+    keys another way: reporting it as one of them would be handing back
+    the wrong wallet without a word. What it *is* read by is
+    hex_seed_from_old_mnemonic and the two old_master_ functions, and
+    both refusals below name the one to use instead.
     """
     assert electrum.version_from_mnemonic(" ".join(["like"] * 12))[0] == "old"
     assert electrum.version_from_mnemonic(" ".join(["like"] * 24))[0] == "old"
@@ -373,6 +377,237 @@ def test_old_mnemonic() -> None:
         electrum.entropy_from_mnemonic(old)
     with pytest.raises(BTClibValueError, match="unmanaged electrum mnemonic version: "):
         electrum.mxprv_from_mnemonic(old)
+
+
+# electrum's own pre-2.0 fixtures, and every one of them is a value taken
+# from a test or a wallet file of spesmilo/electrum rather than from
+# btclib. The scheme has no specification to check against -- it predates
+# the BIPs -- so an invented vector would be testing btclib against
+# btclib, and there is nothing else these could be checked with.
+#
+# 1. tests/test_mnemonic.py, Test_OldMnemonic.test: the only published
+#    mnemonic-to-hex pair, and the only one that pins the encoder.
+# 2. tests/test_wallet_vertical.py, test_electrum_seed_old: mnemonic, hex
+#    seed and master public key of one wallet, restored from either form.
+# 3. tests/test_wallet_vertical.py,
+#    test_sending_offline_old_electrum_seed_online_mpk: a mnemonic and
+#    the master public key its watch-only half is built from.
+# 4. tests/test_storage_upgrade.py: a real pre-2.0 wallet file, holding
+#    the hex seed and the "master_public_key" beside it.
+OLD_HEX_SEEDS = [
+    pytest.param(
+        "8edad31a95e7d59f8837667510d75a4d",
+        "hardly point goal hallway patience key stone difference ready "
+        "caught listen fact",
+        None,
+        id="test-mnemonic",
+    ),
+    pytest.param(
+        "acb740e454c3134901d7c8f16497cc1c",
+        "powerful random nobody notice nothing important anyway look away "
+        "hidden message over",
+        "e9d4b7866dd1e91c862aebf62a49548c7dbf7bcc6e4b7b8c9da820c7737968df"
+        "9c09d5a3e271dc814a29981f81b3faaf2737b551ef5dcc6189cf0f8252c442b3",
+        id="wallet-vertical",
+    ),
+    pytest.param(
+        "14039a74100162d9d0cc3c31f100168ddc",
+        "alone body father children lead goodbye phone twist exist grass kick join",
+        "cd805ed20aec61c7a8b409c121c6ba60a9221f46d20edbc2be83ebd91460e979"
+        "37cd7d782e77c1cb08364c6bc1c98bc040fdad53f22f29f7d3a85c8e51f9c875",
+        id="offline-signing",
+    ),
+    pytest.param(
+        "2605aafe50a45bdf2eb155302437e678",
+        "flirt angel five creation swim bridge chocolate sport another "
+        "hill secret whatever",
+        "756d1fe6ded28d43d4fea902a9695feb785447514d6e6c3bdf369f7c3432fdde"
+        "4409e4efbffbcf10084d57c5a98d1f34d20ac1f133bdb64fa02abf4f7bde1dfb",
+        id="storage-upgrade",
+    ),
+]
+
+
+@pytest.mark.parametrize(("hex_seed", "mnemonic", "master_pub_key"), OLD_HEX_SEEDS)
+def test_old_vectors(hex_seed: str, mnemonic: str, master_pub_key: str | None) -> None:
+    """The pre-2.0 scheme, both directions and the stretch, against electrum.
+
+    Only the hex seed and the master public key are upstream values in
+    the third and fourth cases: the mnemonic of the third is what
+    electrum publishes and the hex seed is this decoder's answer for it,
+    and the fourth is the other way round, a wallet file holding a hex
+    seed and no words. Each is still pinned at both ends, the master
+    public key being downstream of the hex seed and upstream of nothing.
+    """
+    assert electrum.hex_seed_from_old_mnemonic(mnemonic) == hex_seed
+    assert electrum.version_from_mnemonic(mnemonic)[0] == "old"
+
+    if len(hex_seed) % 8:
+        # electrum's offline-signing seed is the weak decoder caught in
+        # the wild: two of its four groups exceeded 2**32, so twelve words
+        # decoded to 34 hex characters rather than 32. Even, so it is
+        # still octets and the stretch below runs on it and matches the
+        # published master public key -- but electrum's own get_seed
+        # cannot show the user those twelve words again, mn_encode
+        # asserting a multiple of eight. Refusing the same way is what
+        # agreeing means; a 17-byte seed is not a seed the encoder has an
+        # answer for
+        with pytest.raises(BTClibValueError, match="not a multiple of eight"):
+            electrum.old_mnemonic_from_hex_seed(hex_seed)
+    else:
+        assert electrum.old_mnemonic_from_hex_seed(hex_seed) == mnemonic
+
+    if master_pub_key is None:
+        # no wallet was ever published for this one: it is the encoder
+        # vector, and encoding is where it has been checked
+        return
+
+    assert electrum.old_master_pub_key_from_mnemonic(mnemonic) == master_pub_key
+
+    if len(hex_seed) in (32, 64):
+        # the hex seed is a seed electrum restores from as readily as the
+        # words, which is what makes the hex branch of the recognizer
+        # more than a curiosity
+        assert electrum.old_master_pub_key_from_mnemonic(hex_seed) == master_pub_key
+    else:
+        # and the same 34-character seed is not one it restores from:
+        # is_old_seed takes 16 or 32 octets of hex and no other length,
+        # so that wallet can be reopened from its twelve words alone
+        with pytest.raises(BTClibValueError, match="not a pre-2.0 electrum mnemonic"):
+            electrum.old_master_pub_key_from_mnemonic(hex_seed)
+
+
+def test_old_stretch() -> None:
+    """The stretch is iterated sha256 over the hex characters, not PBKDF2.
+
+    The master private key of electrum's test_electrum_seed_old wallet,
+    which is the integer its master public key is the point of. Spelled
+    out here because the construction is the thing a vector has to pin:
+    the digest starts as the hex seed, each round hashes the digest
+    followed by that same hex seed, a hundred thousand times, and the
+    seed is the sixteen ascii characters rather than the eight octets
+    they spell.
+    """
+    mnemonic = (
+        "powerful random nobody notice nothing important anyway look away "
+        "hidden message over"
+    )
+    prv_key = electrum.old_master_prv_key_from_mnemonic(mnemonic)
+    assert prv_key == 0x21B880FDA2FD30081834683A7049AC9E3941A42ADBC3A4616C9A9275AA960C0D
+
+    # the same number, reached without the module: electrum's stretch_key
+    # transcribed, so that a change to either side has to break this
+    hex_seed = "acb740e454c3134901d7c8f16497cc1c"
+    encoded = hex_seed.encode("ascii")
+    digest = encoded
+    for _ in range(100000):
+        digest = sha256(digest + encoded).digest()
+    assert int.from_bytes(digest, "big") == prv_key
+
+
+def test_old_no_passphrase() -> None:
+    """The pre-2.0 scheme has no passphrase, and says so.
+
+    Electrum's keystore.from_seed raises "'old'-type electrum seed cannot
+    have passphrase" and its can_seed_have_passphrase answers False for
+    this scheme alone. Nothing but the seed enters the stretch, so a
+    passphrase accepted would be a passphrase ignored -- the wallet of a
+    seed the caller did not ask for, handed back without a word. None and
+    the empty string are "no passphrase", there and here.
+    """
+    mnemonic = (
+        "powerful random nobody notice nothing important anyway look away "
+        "hidden message over"
+    )
+    master_pub_key = (
+        "e9d4b7866dd1e91c862aebf62a49548c7dbf7bcc6e4b7b8c9da820c7737968df"
+        "9c09d5a3e271dc814a29981f81b3faaf2737b551ef5dcc6189cf0f8252c442b3"
+    )
+    assert electrum.old_master_pub_key_from_mnemonic(mnemonic, None) == master_pub_key
+    assert electrum.old_master_pub_key_from_mnemonic(mnemonic, "") == master_pub_key
+
+    for function in (
+        electrum.old_master_prv_key_from_mnemonic,
+        electrum.old_master_pub_key_from_mnemonic,
+    ):
+        with pytest.raises(BTClibValueError, match="cannot have a passphrase"):
+            function(mnemonic, "Did you ever hear the tragedy of Darth Plagueis")
+
+
+def test_old_normalization() -> None:
+    """An old seed is normalized before it is decoded, as electrum does it.
+
+    Electrum's format_seed calls normalize_text first, so the mixed-case
+    and doubled-whitespace forms of its Test_seeds table are the same
+    seed as the plain one. The hex form is normalized too, which is why
+    the upper-case hex of is_old_seed's own test decodes at all.
+    """
+    plain = "cell dumb heartbeat north boom tease ship baby bright kingdom rare squeeze"
+    shouted = (
+        "cElL DuMb hEaRtBeAt nOrTh bOoM TeAsE ShIp bAbY BrIgHt kInGdOm rArE SqUeEzE"
+    )
+    spaced = (
+        "   cElL  DuMb hEaRtBeAt nOrTh bOoM  TeAsE ShIp    bAbY BrIgHt "
+        "kInGdOm rArE SqUeEzE   "
+    )
+    hex_seed = electrum.hex_seed_from_old_mnemonic(plain)
+    assert electrum.hex_seed_from_old_mnemonic(shouted) == hex_seed
+    assert electrum.hex_seed_from_old_mnemonic(spaced) == hex_seed
+
+    # a seed written as hex is lower-cased, and is its own answer
+    assert electrum.hex_seed_from_old_mnemonic("0123456789ABCDEF" * 2) == (
+        "0123456789abcdef" * 2
+    )
+    assert electrum.hex_seed_from_old_mnemonic("0123456789ABCDEF" * 4) == (
+        "0123456789abcdef" * 4
+    )
+
+
+def test_old_weak_decoder() -> None:
+    """Twelve words can decode to 33 hex characters, and electrum agrees.
+
+    The "invalid old" seed of electrum's Test_seeds table. Three words
+    carry a group that can exceed 2**32 -- the largest is 1625 * (1 +
+    1626 + 1626**2), about 4.3 billion against 4.29 -- and the decoder
+    writes it out as nine hex characters instead of eight without
+    noticing. Electrum's decoder does the same and its stretch_key then
+    asserts is_hex_str and fails, so refusing here is what agreeing means.
+    """
+    mnemonic = (
+        "hurry idiot prefer sunset mention mist jaw inhale impossible "
+        "kingdom rare squeeze"
+    )
+    assert electrum.version_from_mnemonic(mnemonic)[0] == "old"
+    hex_seed = electrum.hex_seed_from_old_mnemonic(mnemonic)
+    assert hex_seed == "025d2f2d005036911003ca78900ca155c"
+    assert len(hex_seed) == 33
+
+    with pytest.raises(BTClibValueError, match="decodes to 33 hex characters"):
+        electrum.old_master_prv_key_from_mnemonic(mnemonic)
+
+
+def test_old_invalid() -> None:
+    """What the two pre-2.0 converters refuse, and where the line is."""
+    # the encoder takes hex and only hex: bytes.fromhex would skip the
+    # space and int() would take the underscore, and neither is a seed
+    for hex_seed in ("nonsense", "0123456789abcde", "01234567 89abcdef", "0123_4567"):
+        with pytest.raises(BTClibValueError, match="not a hex string"):
+            electrum.old_mnemonic_from_hex_seed(hex_seed)
+
+    # eight hex characters to a group, so a length that is not a multiple
+    # of eight has no third word for its last group
+    with pytest.raises(BTClibValueError, match="not a multiple of eight"):
+        electrum.old_mnemonic_from_hex_seed("0123456789abcdef" * 2 + "abcdef")
+
+    # the decoder takes what the recognizer accepts and nothing else: a
+    # versioned electrum seed is not a pre-2.0 one, whatever it decodes to
+    for mnemonic in (
+        "ostrich security deer aunt climb inner alpha arm mutual marble solid task",
+        " ".join(["like"] * 18),
+        "",
+    ):
+        with pytest.raises(BTClibValueError, match="not a pre-2.0 electrum mnemonic"):
+            electrum.hex_seed_from_old_mnemonic(mnemonic)
 
 
 def test_skipped_candidates() -> None:

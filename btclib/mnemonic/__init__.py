@@ -13,9 +13,12 @@ bip39 and electrum are the two mnemonic schemes this package is for, and
 neither was exported: `import btclib.mnemonic` followed by
 `btclib.mnemonic.bip39.mnemonic_from_entropy(...)` raised AttributeError
 until something else in the process happened to import the submodule.
+dispatch is exported beside them: it is the entry point that answers
+which of the two a sentence belongs to, and it is of no use to anyone
+who has to import it by name after already knowing.
 """
 
-from btclib.mnemonic import bip39, electrum
+from btclib.mnemonic import bip39, dispatch, electrum
 from btclib.mnemonic.entropy import (
     BinStr,
     Entropy,
@@ -53,6 +56,7 @@ __all__ = [
     "bip39",
     "bytes_entropy_from_str",
     "collect_rolls",
+    "dispatch",
     "electrum",
     "indexes_from_mnemonic",
     "mnemonic_from_indexes",

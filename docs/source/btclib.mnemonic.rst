@@ -12,6 +12,14 @@ btclib.mnemonic.bip39 module
    :undoc-members:
    :show-inheritance:
 
+btclib.mnemonic.dispatch module
+-------------------------------
+
+.. automodule:: btclib.mnemonic.dispatch
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
 btclib.mnemonic.electrum module
 -------------------------------
 
