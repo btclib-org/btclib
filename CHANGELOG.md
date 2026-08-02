@@ -1713,6 +1713,33 @@ edit.
   BIP341 and `bip32` may not import `script`. The vectors are BIP49's,
   BIP84's and BIP86's own, and SLIP132's for purpose 44, which publishes
   no address of its own (issue #197)
+- **`btclib.fee` is the fee arithmetic**: `FeeRate`, `fee_from_vsize` and
+  `dust_threshold`, which every spending path needed and none of which the
+  library had — `amount.py` took `dust` as a *parameter* and carried no rule
+  for it. A `FeeRate` holds an integer number of satoshi per kvB, Core's own
+  unit and the only exact one, and it is keyword-only: `FeeRate(3000)` is the
+  off-by-a-thousand the type exists to prevent and is a TypeError, where
+  `FeeRate(sats_per_kvbyte=3000)` and `FeeRate.from_sats_per_vbyte("1.5")`
+  both say which unit they were handed. The sat/vB constructor refuses a rate
+  it could not hold rather than truncating one, and the sat/vB accessor
+  answers a `Decimal`. `fee_from_vsize` rounds *up*, which is Core's
+  `CFeeRate::GetFee`: a fee one satoshi short of the rate does not relay, and
+  exact ceiling division on ints gives the one-satoshi floor that Core's
+  float-era code needed a branch for. `dust_threshold` is Core's
+  `GetDustThreshold` — the dust relay rate, 3000 sat/kvB and a defaulted
+  parameter as `-dustrelayfee` is an option, over the output's own serialized
+  size plus the input that will spend it. Computed and not tabulated, which
+  is the whole point: p2tr answers 330 with taproot named nowhere in the
+  module, and so will the next output type, where electrum's five
+  `DUST_LIMIT_*` constants need an edit apiece. The tests check the computed
+  answers against that table — 546 p2pkh, 540 p2sh, 330 p2wsh, 294 p2wpkh,
+  354 unknown segwit — and against the 182 and 98 virtual bytes Core works
+  out by hand above `GetDustThreshold`. Unspendability is Core's
+  `IsUnspendable` and not btclib's narrower `is_nulldata` (issue #211), so a
+  bare OP_RETURN gets the zero threshold a node gives it. What is *not* here
+  is everything downstream of a network: mempool histograms, fee estimates
+  for a confirmation target, ETAs. Those are policy fed by live data and
+  belong to an application; the module docstring says so (issue #205)
 
 ### Types
 
