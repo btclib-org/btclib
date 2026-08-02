@@ -1737,7 +1737,14 @@ edit.
   `FeeRate(sats_per_kvbyte=3000)` and `FeeRate.from_sats_per_vbyte("1.5")`
   both say which unit they were handed. The sat/vB constructor refuses a rate
   it could not hold rather than truncating one, and the sat/vB accessor
-  answers a `Decimal`. `fee_from_vsize` rounds *up*, which is Core's
+  answers a `Decimal`. Every argument that is not what it claims to be is
+  refused with one of this library's exceptions rather than with whatever the
+  arithmetic underneath would have raised: a rate `Decimal` cannot parse —
+  `"1,2"`, the way half the world writes one — is a `BTClibValueError` and not
+  a `decimal.InvalidOperation`, and a non-integer virtual size is a
+  `BTClibTypeError` rather than a float fee, `141.5` vB otherwise passing
+  straight through the arithmetic to answer `425.0`. `fee_from_vsize` rounds
+  *up*, which is Core's
   `CFeeRate::GetFee`: a fee one satoshi short of the rate does not relay, and
   exact ceiling division on ints gives the one-satoshi floor that Core's
   float-era code needed a branch for. `dust_threshold` is Core's

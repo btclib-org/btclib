@@ -87,8 +87,25 @@ def test_sats_per_vbyte_is_exact_or_it_is_an_error() -> None:
         FeeRate.from_sats_per_vbyte("0.0001")
 
 
-@pytest.mark.parametrize("rate", ["NaN", "Infinity", "-Infinity"])
-def test_a_rate_that_is_not_a_number(rate: str) -> None:
+@pytest.mark.parametrize(
+    "rate",
+    [
+        # what Decimal parses and a rate cannot be
+        "NaN",
+        "Infinity",
+        "-Infinity",
+        # and what Decimal does not parse: str() renders these too, and
+        # the InvalidOperation each of them would raise is an
+        # ArithmeticError rather than one of this library's exceptions
+        "abc",
+        # the decimal separator of half the world, which is not Decimal's
+        "1,2",
+        "",
+        None,
+        [1],
+    ],
+)
+def test_a_rate_that_is_not_a_number(rate: Any) -> None:
     err_msg = "invalid sat/vB fee rate: "
     with pytest.raises(BTClibValueError, match=err_msg):
         FeeRate.from_sats_per_vbyte(rate)
@@ -162,7 +179,17 @@ def test_the_fee_rounds_up_at_every_remainder() -> None:
     assert fee_from_vsize(1001, rate) == 2
 
 
-def test_a_negative_virtual_size_is_not_a_size() -> None:
+def test_a_virtual_size_is_a_non_negative_integer() -> None:
+    err_msg = "non-integer virtual size: "
+    # a float is the one that has to be refused rather than left to the
+    # arithmetic, which takes it and answers 425.0: a float fee
+    with pytest.raises(BTClibTypeError, match=err_msg):
+        fee_from_vsize(141.5, DUST_RELAY_FEE_RATE)  # type: ignore[arg-type]
+    with pytest.raises(BTClibTypeError, match=err_msg):
+        fee_from_vsize(141.0, DUST_RELAY_FEE_RATE)  # type: ignore[arg-type]
+    with pytest.raises(BTClibTypeError, match=err_msg):
+        fee_from_vsize("141", DUST_RELAY_FEE_RATE)  # type: ignore[arg-type]
+
     with pytest.raises(BTClibValueError, match="negative virtual size: "):
         fee_from_vsize(-1, DUST_RELAY_FEE_RATE)
 
@@ -248,6 +275,18 @@ def test_the_dust_relay_rate_is_a_parameter() -> None:
 )
 def test_an_unspendable_output_has_no_dust_threshold(script_pub_key: bytes) -> None:
     assert dust_threshold(script_pub_key) == 0
+
+
+def test_a_script_at_max_script_size_is_still_spendable() -> None:
+    """The comparison is `>`, and only the boundary says so.
+
+    MAX_SCRIPT_SIZE bytes is a size a node accepts, one more is not, so
+    the script one byte over above is unspendable and this one has an
+    input to pay for like any other: 8 + 3 + 10000 + 148 = 10159 vB at
+    3000 sat/kvB, with the three-byte var_int prefix a script this long
+    takes.
+    """
+    assert dust_threshold(b"\x51" * MAX_SCRIPT_SIZE) == 30477
 
 
 def test_the_unspendable_test_is_cores_and_not_the_nulldata_classifier() -> None:

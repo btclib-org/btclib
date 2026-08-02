@@ -33,7 +33,7 @@ constants, and the same arguments give the same answer forever.
 from __future__ import annotations
 
 from dataclasses import dataclass
-from decimal import Decimal
+from decimal import Decimal, InvalidOperation
 from typing import Any
 
 from btclib import var_int
@@ -104,19 +104,34 @@ class FeeRate:
                 nearest to it.
 
         Raises:
-            BTClibValueError: If the rate is not finite, or if it is not
-                a whole number of millisatoshi per virtual byte -- i.e.
-                if sat/kvB could not hold it exactly.
+            BTClibValueError: If the rate does not read as a decimal
+                number, if it is not finite, or if it is not a whole
+                number of millisatoshi per virtual byte -- i.e. if
+                sat/kvB could not hold it exactly.
 
         Returns:
             FeeRate: The same rate, in sat/kvB.
         """
-        rate = Decimal(str(sats_per_vbyte))
+        err_msg = f"invalid sat/vB fee rate: {sats_per_vbyte}"
+        # str() renders every object there is, and Decimal refuses most
+        # of what it renders with an InvalidOperation -- an
+        # ArithmeticError, which nobody catches around a fee rate.
+        # Accepting Any is what makes that reachable from ordinary
+        # input, "1,2" being how half the world writes a decimal, so the
+        # width of the argument has to be matched by one exception of
+        # this library's rather than one of decimal's
+        try:
+            rate = Decimal(str(sats_per_vbyte))
+        except InvalidOperation as e:
+            raise BTClibValueError(err_msg) from e
         # as_integer_ratio raises OverflowError on an infinity and
         # ValueError on a NaN, and the first of those is outside this
-        # library's exception contract: both are refused here instead
+        # library's exception contract: both are refused here instead.
+        # The same message as above, because it is the same complaint:
+        # "NaN" parses and is not a rate, "abc" does not parse and is
+        # not a rate either
         if not rate.is_finite():
-            raise BTClibValueError(f"invalid sat/vB fee rate: {sats_per_vbyte}")
+            raise BTClibValueError(err_msg)
         # the ratio is exact and reads no decimal context, where
         # multiplying the Decimal by a thousand would round to whatever
         # precision the caller's context happens to carry. A conversion
@@ -161,11 +176,20 @@ def fee_from_vsize(vsize: int, fee_rate: FeeRate) -> int:
         fee_rate (FeeRate): The rate the fee is owed at.
 
     Raises:
+        BTClibTypeError: If the virtual size is not an integer.
         BTClibValueError: If the virtual size is negative.
 
     Returns:
         int: The fee, in satoshi.
     """
+    # checked for the reason FeeRate checks its own field: a float does
+    # not fail this arithmetic, it passes through it, and
+    # fee_from_vsize(141.5, ...) would answer 425.0 -- a float fee out of
+    # the one function whose contract is that no float ever stands
+    # between a rate and the satoshi it owes. A str fails instead, but on
+    # the comparison below and with a bare TypeError naming '<'
+    if not isinstance(vsize, int):
+        raise BTClibTypeError(f"non-integer virtual size: {vsize}")
     if vsize < 0:
         raise BTClibValueError(f"negative virtual size: {vsize}")
     # integer division and a bump, not math.ceil of a quotient: the
