@@ -261,6 +261,16 @@ and `verify` families now let a `TypeError` out where they used to answer
   pays to at any index, so one line of text is enough to watch a wallet.
   Checked against Bitcoin Core's own vectors; miniscript and the four
   functions left out say so by name rather than being read wrong.
+- **A mnemonic in any of the twelve languages**, where two word-lists
+  shipped and English was the only one a seed could be derived in:
+  `seed_from_mnemonic` verified every checksum against English, and
+  normalized neither the sentence nor the passphrase, which BIP39
+  requires and which is the difference between two seeds rather than
+  between an accepted input and a rejected one. All 288 vectors of the
+  reference implementation pass, and so do the japanese ones the BIP
+  cites beside them. The language need not be given — the words say which
+  it is — and electrum's five word-lists are here too, its 1626-word
+  Portuguese included.
 - **BIP340 messages of any size**, as the BIP has allowed since 2023-04:
   the four vectors btclib used to `xfail` all verify.
 - **MuSig2 is implemented**, `btclib.ecc.musig2` against all 56 cases of

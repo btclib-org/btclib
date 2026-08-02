@@ -193,21 +193,36 @@ NetworkField = Literal[
 # this list equal to the data
 NetworkName = Literal["mainnet", "testnet", "regtest", "signet", "testnet4"]
 
-# The word-lists btclib ships: BIP39's two languages, and SLIP-0039's
+# The word-lists btclib ships: BIP39's twelve languages, and SLIP-0039's
 # single list under a key that is a scheme and not a language code -- the
 # SLIP defines no localization, so "slip39" is the whole of it. Every key
 # of the WORDLISTS registry is named here, which is what keeps this list
-# equal to the data; that the three are not interchangeable is the
+# equal to the data; that the thirteen are not interchangeable is the
 # schemes' business, and bip39 enforces its own half by refusing any list
 # that is not 2048 words long.
 #
 # Open, as NetworkName is, and more plainly so:
-# WordLists.load_lang(lang, filename) adds a language, which is the
-# documented way to use any of the other BIP39 word-lists, so the ten
-# `lang: str` parameters of mnemonic, bip39 and electrum stay str -- a
-# Literal there would type check the library's own languages and reject
-# the file a caller has just loaded
-MnemonicLang = Literal["en", "it", "slip39"]
+# WordLists.load_lang(lang, filename) adds a language, which is how a
+# word-list btclib does not ship is read -- electrum's 1626-word
+# Portuguese is one, on a registry of its own -- so the ten `lang: str`
+# parameters of mnemonic, bip39 and electrum stay str: a Literal there
+# would type check the library's own languages and reject the file a
+# caller has just loaded
+MnemonicLang = Literal[
+    "cs",
+    "en",
+    "es",
+    "fr",
+    "it",
+    "ja",
+    "ko",
+    "pt",
+    "ru",
+    "tr",
+    "zh",
+    "zh_tw",
+    "slip39",
+]
 
 
 # The four address encodings a purpose level can name: 44 is p2pkh, 49

@@ -1662,6 +1662,67 @@ edit.
   body — and nothing below it imports it, so a user who never fetches
   never runs a line of it. `Tx.fee` and `OutPoint.value` were dropped
   pending this and are not restored by it (issue #185)
+- **twelve BIP39 word-lists ship, where two did.** `en` and `it` were the
+  whole of it, so a Spanish or Japanese mnemonic — one every wallet reads
+  — was a mnemonic btclib could not. The ten of
+  `bip-0039/bip-0039-wordlists.md` are here, `cs`, `en`, `es`, `fr`,
+  `it`, `ja`, `ko`, `pt`, `zh` and `zh_tw`, and beside them the `ru` and
+  `tr` of `trezor/python-mnemonic`, which the BIP's own word-list page
+  does not carry: they are in the reference implementation, so they are a
+  way to *read* what it writes rather than a language to reach for when
+  generating — the BIP strongly discourages generating in anything but
+  English. `zh` is Simplified, which is also the Chinese electrum reads.
+  All 288 vectors of the reference implementation pass, where only the
+  24 English ones used to be run
+- **a BIP39 mnemonic is NFKD-normalized, and so is its passphrase.** The
+  BIP asks for it and `seed_from_mnemonic` did neither, which is a wrong
+  *seed* rather than a rejected input: the accented spanish word a user
+  types is precomposed, the word-list is decomposed, and PBKDF2 over the
+  two is two different keys. The 24 japanese vectors bip-0039 cites
+  beside its own — `bip32JP/bip32JP.github.io`, passphrase
+  `㍍ガバヴァぱばぐゞちぢ十人十色`, the case the BIP calls "heavily
+  normalized symbols" — now pass, and a japanese mnemonic is joined with
+  the ideographic space U+3000 as the reference implementation joins it
+- **the language of a BIP39 mnemonic can be read off its words.**
+  `bip39.lang_from_mnemonic`, and `lang` defaults to `None` — meaning
+  "work it out" — wherever a mnemonic is read rather than written.
+  `seed_from_mnemonic` needed it: it verified the checksum against
+  English whatever the sentence, so every non-English mnemonic was
+  refused by a check that was reading the wrong word-list. Two steps,
+  because neither settles every sentence on its own: the word-lists
+  holding every word, then the checksum among those. English and french
+  share a hundred words at different indexes, so a sentence over those
+  alone is valid in both and spells a different entropy in each — that
+  one is refused, the caller naming the language being the only honest
+  answer. Simplified and Traditional Chinese share 1275 words and, unlike
+  every other pair, share the *index* of each: an ambiguous chinese
+  sentence spells one entropy either way, so it is answered rather than
+  refused
+- **electrum's five word-lists are all here, Portuguese included**, and
+  that last one is why `electrum.py` has an `ELECTRUM_WORDLISTS` of its
+  own rather than sharing `WORDLISTS`: electrum's Portuguese is Monero's
+  list, 1626 words rather than 2048, so `pt` names one word-list in
+  `bip39.py` and another in `electrum.py`. 1626 is not a power of two, so
+  an index into it is not eleven bits and the entropy is a base
+  conversion and nothing else — bits per word is 10.667 and the sentence
+  is thirteen words, which is what makes a "2fa" mnemonic impossible in
+  Portuguese and possible in every other language. Electrum's own
+  `bip39_is_checksum_valid` is reproduced with it, arithmetic and all,
+  rather than delegated to `bip39.py`: electrum hands that function
+  whichever word-list the language has, and the candidates it makes
+  electrum skip are what shape the sentence electrum returns. The other
+  four are BIP39's files after NFKD, byte for byte, and the remaining
+  seven languages stay available as btclib's extension, unreadable by
+  electrum — which is what Italian already was
+- **a word-list that fails to load is not registered.** `load_lang`
+  recorded the language before reading the file, so a file it then
+  refused — 2047 words, say — left a language behind that raised on every
+  later call. Nothing noticed while the only reader named its language;
+  `lang_from_mnemonic` asks every language in turn, and one such
+  leftover made every mnemonic unreadable. The word count check is a
+  policy of the registry now (`power_of_two`), not of the loader, which
+  is what lets electrum's 1626 words load where BIP39's eleven bits per
+  index cannot allow it
 - **`script.parse` has lost its `accept_unknown` parameter**, with the
   answer fixed at what every caller in the library passed: a byte no
   table names is an op code all the same, refused by the interpreter that
@@ -2621,6 +2682,37 @@ edit.
   of a map among others, so the byte that ends the map belongs to
   whichever of `PsbtIn`, `PsbtOut` or `Psbt.serialize` assembles the whole
   of it
+- **the BIP39 vectors are the whole of upstream's file**, all twelve
+  language arrays of `trezor/python-mnemonic`'s `vectors.json` where the
+  English one was taken alone. `bip39_test_vectors.json` keeps its btclib
+  name even so: `vectors.json` is taken in that very directory, by
+  SLIP-0039's own file of that name, and two upstreams publishing one
+  name is exactly what a btclib name is for. Beside it,
+  `test_JP_BIP39.json`, the japanese vectors bip-0039 cites in its own
+  Test vectors section: 24 sentences published NFC against word-lists
+  published NFKD, with a passphrase whose normalized form is another
+  string entirely, which makes them the only vectors anywhere that fail
+  when a passphrase goes unnormalized
+- **electrum's generation is measured language by language**, against
+  vectors produced by running electrum's own `mnemonic.py` with
+  `randrange` patched to a constant — the same starting point
+  `mnemonic_from_entropy` takes, electrum's search beginning at
+  entropy + 1 as btclib's does. Electrum publishes no vector of that
+  kind, and its `SEED_TEST_CASES` only reach the seed, which needs no
+  word-list at all; the entropy field of those same cases is now checked
+  too, and it could not be before. In
+  `tests/mnemonic/_data/electrum_language_vectors.json` and not inline
+  like every other electrum vector here, because the lint gate's two
+  spell checkers read a python source and skip `_data`, and `typos` runs
+  with `--write-changes`: measured, it corrected a word of the Portuguese
+  sentence into the English word it is one letter away from
+- **`test_wordlist_2` no longer adds a language to the singleton.** It
+  used the module-level `WORDLISTS`, so every test that ran after it saw
+  a thirteenth language — which nothing could observe while a reader had
+  to name its language, and which `lang_from_mnemonic` turns into a
+  wrong answer. A private `WordLists()` costs nothing and the suite runs
+  in a random order, so the interference would have been a failure in one
+  seed out of some
 - **the twelve on-chain scripts of issue #123 are vendored**, in
   `tests/script/_data/unspendable_script_pub_keys.json`: the real
   `scriptPubKey`s of the five transactions the issue lists, each with the
