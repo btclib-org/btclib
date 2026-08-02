@@ -75,6 +75,14 @@ btclib.bip21 module
    :undoc-members:
    :show-inheritance:
 
+btclib.bip44 module
+-------------------
+
+.. automodule:: btclib.bip44
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
 btclib.descriptors module
 -------------------------
 
