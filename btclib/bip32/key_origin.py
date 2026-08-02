@@ -158,7 +158,7 @@ def encode_to_bip32_derivs(
 def _decode_from_bip32_deriv(
     bip32_deriv: Mapping[str, str],
 ) -> tuple[bytes, BIP32KeyOrigin]:
-    # issue 173: the size checks here cannot be switched off, so an invalid
+    # issue 264: the size checks here cannot be switched off, so an invalid
     # master_fingerprint or pub_key cannot be instantiated even deliberately
     # -- a check_validity question, now that the flag is keyword-only
     master_fingerprint = bytes_from_octets(bip32_deriv["master_fingerprint"], 4)
