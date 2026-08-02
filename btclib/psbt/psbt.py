@@ -47,7 +47,14 @@ from btclib.psbt.psbt_utils import (
     serialize_dict_bytes_bytes,
     serialize_hd_key_paths,
 )
-from btclib.script import Witness, serialize, type_and_payload
+from btclib.script import (
+    Witness,
+    is_p2pkh,
+    is_p2sh,
+    is_p2wpkh,
+    serialize,
+    type_and_payload,
+)
 from btclib.tx import Tx, TxIn, join_txs
 from btclib.utils import bytesio_from_binarydata
 
@@ -476,6 +483,99 @@ def combine_psbts(psbts: Sequence[Psbt]) -> Psbt:
     return final_psbt
 
 
+def _spent_script(psbt_in: PsbtIn, tx_in: TxIn) -> bytes:
+    """Return the script the input's signatures satisfy, or b"".
+
+    Which script that is depends on the kind of input: a p2sh one is
+    spent by its redeem script, and it is the redeem script -- not the
+    p2sh wrapper, which every wrapped kind shares -- that says whether
+    the spend is legacy, p2wpkh or p2wsh. Every other input is spent by
+    the script_pub_key of the output it names.
+
+    b"" is "the psbt does not say", which is a missing utxo or a p2sh
+    input carrying no redeem script. Not an error: the finalizer then
+    builds what it built before there was anything to dispatch on, and
+    an input that does not say what it spends is not one this function
+    can contradict.
+    """
+    if psbt_in.witness_utxo:
+        script = psbt_in.witness_utxo.script_pub_key.script
+    elif psbt_in.non_witness_utxo and tx_in.prev_out.vout < len(
+        psbt_in.non_witness_utxo.vout
+    ):
+        vout = psbt_in.non_witness_utxo.vout[tx_in.prev_out.vout]
+        script = vout.script_pub_key.script
+    else:
+        return b""
+    return psbt_in.redeem_script if is_p2sh(script) else script
+
+
+def _single_key(psbt_in: PsbtIn) -> bytes:
+    """Return the one public key a single-key input is spent with.
+
+    partial_sigs is keyed by public key, and p2pkh and p2wpkh are the
+    kinds that need that key on the stack beside the signature: what the
+    output commits to is its hash160, so the script is given the key and
+    hashes it itself. Reading only .values(), as a multisig finalizer
+    can, leaves the key nowhere.
+
+    A single-key input carrying more than one signature is refused
+    rather than picked from: the output commits to one key, so a second
+    signature is a signature for some other output.
+    """
+    if len(psbt_in.partial_sigs) > 1:
+        err_msg = f"{len(psbt_in.partial_sigs)} signatures for a single-key input"
+        raise BTClibValueError(err_msg)
+    return next(iter(psbt_in.partial_sigs))
+
+
+def _finalized_input(psbt_in: PsbtIn, tx_in: TxIn) -> tuple[bytes, Witness]:
+    """Return the final script_sig and witness the input is spent with.
+
+    Four shapes, and the kind of the spent script picks between them:
+
+    - p2wsh, native or wrapped: the witness carries the signatures and
+      the witness script, the script_sig only the redeem script of a
+      wrapped one;
+    - p2wpkh, native or wrapped: the witness is [signature, public key],
+      the script_sig again only the redeem script;
+    - p2pkh: [signature, public key] in the script_sig;
+    - everything else -- p2pk, bare multisig, legacy p2sh: the
+      signatures in the script_sig, and the redeem script last.
+
+    A native segwit input gets the empty script_sig BIP141 requires, and
+    that is what the *absence* of a redeem script buys here: pushing an
+    empty one would write a one-byte script_sig of OP_0, which btclib's
+    own engine refuses as "non-empty script_sig for a native segwit
+    input" (issue #249).
+    """
+    sigs: list[bytes] = list(psbt_in.partial_sigs.values())
+    # https://github.com/bitcoin/bips/blob/master/bip-0147.mediawiki#motivation
+    cmds: list[bytes] = [b""] if len(sigs) > 1 else []
+    cmds += sigs
+    redeem_script: list[bytes] = (
+        [psbt_in.redeem_script] if psbt_in.redeem_script else []
+    )
+
+    script = _spent_script(psbt_in, tx_in)
+
+    # a list of pushes is a ScriptList, which mypy will not infer from a
+    # list[bytes]: ScriptList is list[Command] and a list is invariant
+    if psbt_in.witness_script:
+        witness = Witness([*cmds, psbt_in.witness_script])
+        return serialize(cast(ScriptList, redeem_script)), witness
+
+    if is_p2wpkh(script):
+        witness = Witness([*sigs, _single_key(psbt_in)])
+        return serialize(cast(ScriptList, redeem_script)), witness
+
+    if is_p2pkh(script):
+        script_sig = cast(ScriptList, [*sigs, _single_key(psbt_in)])
+        return serialize(script_sig), Witness()
+
+    return serialize(cast(ScriptList, [*cmds, *redeem_script])), Witness()
+
+
 def finalize_psbt(psbt: Psbt) -> Psbt:
     """Finalize the Psbt.
 
@@ -490,25 +590,21 @@ def finalize_psbt(psbt: Psbt) -> Psbt:
     value map should be cleared from the PSBT. The UTXO should be kept
     to allow Transaction Extractors to verify the final network
     serialized transaction.
+
+    What is built is the spend the input's own kind asks for, which is
+    what _finalized_input dispatches on: a witness script alone does not
+    say, being absent from every single-key segwit input.
     """
     psbt = deepcopy(psbt)
     psbt.assert_valid()
     # issue 173: BIP-174 requires a Finalizer to refuse an input whose
     # signatures do not match the sighash type it asks for
-    for psbt_in in psbt.inputs:
+    for psbt_in, tx_in in zip(psbt.inputs, psbt.tx.vin, strict=True):
         if not psbt_in.partial_sigs:
             raise BTClibValueError("missing signatures")
-        sigs = psbt_in.partial_sigs.values()
-        # https://github.com/bitcoin/bips/blob/master/bip-0147.mediawiki#motivation
-        cmds: list[bytes] = [b""] if len(sigs) > 1 else []
-        cmds += sigs
-        if psbt_in.witness_script:
-            psbt_in.final_script_sig = serialize([psbt_in.redeem_script])
-            psbt_in.final_script_witness = Witness([*cmds, psbt_in.witness_script])
-        else:
-            psbt_in.final_script_sig = serialize(
-                cast(ScriptList, [*cmds, psbt_in.redeem_script])
-            )
+        script_sig, witness = _finalized_input(psbt_in, tx_in)
+        psbt_in.final_script_sig = script_sig
+        psbt_in.final_script_witness = witness
         psbt_in.partial_sigs = {}
         psbt_in.sig_hash_type = None
         psbt_in.redeem_script = b""
