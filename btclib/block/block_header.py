@@ -21,6 +21,7 @@ from datetime import datetime, timezone
 from typing import Any
 
 from btclib.alias import BinaryData, Octets
+from btclib.block.proof_of_work import target_from_bits
 from btclib.exceptions import BTClibTypeError, BTClibValueError
 from btclib.hashes import hash256
 from btclib.utils import bytes_from_octets, bytesio_from_binarydata
@@ -65,28 +66,7 @@ class BlockHeader:
         The target yyzzww * 256^(xx-3) is represented in the blockhader
         by the 4 bytes 'bits' xxyyzzww
         """
-        # significand (also known as mantissa or coefficient)
-        significand = int.from_bytes(self.bits[1:], byteorder="big", signed=False)
-        # power term, also called characteristics. Core's SetCompact
-        # shifts rather than multiplying by a power of 256, and so does
-        # this: pow(256, -1) is a float in Python, so an exponent below
-        # 3 would send a 256-bit number through float arithmetic
-        exponent = self.bits[0]
-        if exponent < 3:
-            value = significand >> (8 * (3 - exponent))
-        else:
-            value = significand << (8 * (exponent - 3))
-
-        # the compact form can denote what 32 bytes cannot hold, which
-        # to_bytes would answer with an OverflowError. Core raises the
-        # same objection through the fOverflow flag of SetCompact, on
-        # which CheckProofOfWork rejects the header
-        if value >= 256**_HF_LEN:
-            err_msg = f"invalid proof-of-work target: 0x{self.bits.hex()}"
-            err_msg += f" overflows {_HF_LEN} bytes"
-            raise BTClibValueError(err_msg)
-
-        return value.to_bytes(_HF_LEN, "big", signed=False)
+        return target_from_bits(self.bits)
 
     @property
     def difficulty(self) -> float:

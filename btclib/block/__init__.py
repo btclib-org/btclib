@@ -9,8 +9,8 @@
 # or distributed except according to the terms contained in the LICENSE file.
 """Module btclib.block."""
 
-from btclib.block import merkle_proof
+from btclib.block import merkle_proof, mining, proof_of_work
 from btclib.block.block import Block
 from btclib.block.block_header import BlockHeader
 
-__all__ = ["Block", "BlockHeader", "merkle_proof"]
+__all__ = ["Block", "BlockHeader", "merkle_proof", "mining", "proof_of_work"]

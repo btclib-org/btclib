@@ -39,6 +39,28 @@ _COMMITMENT_PREFIX = bytes.fromhex("6a24aa21a9ed")
 _COMMITMENT_LENGTH = len(_COMMITMENT_PREFIX) + 32
 
 
+def merkle_root_and_mutated_from_transactions(
+    transactions: Sequence[Tx],
+) -> tuple[bytes, bool]:
+    """Return a header's merkle root over a list of transactions.
+
+    The leaves are the transactions serialized *without* witness data,
+    i.e. their txids, and the root is reversed into the byte order a
+    header carries. See merkle_root_and_mutated_from_hashes for the
+    second returned value, the CVE-2012-2459 flag.
+
+    One implementation, because the block builder and the block
+    validator must agree by construction: assert_valid_merkle_root
+    compares this against the header at hand, and mining.py's candidate
+    header is built from it.
+    """
+    data = [
+        tx.serialize(include_witness=False, check_validity=False) for tx in transactions
+    ]
+    root, mutated = merkle_root_and_mutated(data, _HF)
+    return root[::-1], mutated
+
+
 @dataclass
 class Block:
     header: BlockHeader
@@ -120,12 +142,9 @@ class Block:
         return any(tx.is_segwit() for tx in self.transactions)
 
     def assert_valid_merkle_root(self) -> None:
-        data = [
-            tx.serialize(include_witness=False, check_validity=False)
-            for tx in self.transactions
-        ]
-        root, mutated = merkle_root_and_mutated(data, _HF)
-        merkle_root_ = root[::-1]
+        merkle_root_, mutated = merkle_root_and_mutated_from_transactions(
+            self.transactions
+        )
         if merkle_root_ != self.header.merkle_root:
             err_msg = f"invalid merkle root: {self.header.merkle_root.hex()}"
             err_msg += f" instead of: {merkle_root_.hex()}"
