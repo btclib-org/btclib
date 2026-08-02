@@ -646,6 +646,34 @@ def test_skipped_candidates() -> None:
     )
 
 
+def test_a_wordlist_the_encoding_does_not_round_trip(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """The search checks its own arithmetic, and says so when it fails.
+
+    Electrum makes the same check inside make_seed, and it is not
+    reachable with the two wordlists btclib ships: `en` and `it` are
+    2048 distinct ASCII words each, so encoding an integer and decoding
+    the sentence hands the integer back for every candidate --
+    measured over the first three thousand and three thousand more
+    above 2**131. Patching the decode reaches it on the wordlists there
+    are, which is what the ripemd160 fallback test does with its flag
+    and what a `pragma: no cover` here would not do.
+
+    What would run it for real is a list added later: a CJK one, where
+    normalization can map two entries onto one string, or any list
+    carrying a repetition. Either writes a seed that reads back as
+    another, so the search refuses rather than returns it.
+    """
+    # a decode that answers 1 whatever it is given: the first candidate
+    # is int_entropy + 1, so 1 here is a mismatch and nothing else is
+    monkeypatch.setattr(electrum, "_bin_str_entropy_from_mnemonic", lambda *_: "1")
+
+    err_msg = "cannot extract the same entropy from mnemonic: "
+    with pytest.raises(BTClibValueError, match=err_msg):
+        electrum._search_mnemonic(1, "01", "en")
+
+
 def test_2fa_words() -> None:
     """ "2fa" wants twelve words or twenty, and a search can end elsewhere.
 

@@ -319,7 +319,13 @@ precision = 2
 # The comparison is `round(total, precision) < fail_under`, so 99.99 is
 # not "everything covered": it is one rounding step of slack, enough not
 # to turn a single version-gated line into a red build, tight enough
-# that a regression cannot hide in it. Not 99.9, ten times as wide,
+# that a regression cannot hide in it.
+# Read the exit code and not the report: pytest-cov prints `FAIL
+# Required test coverage of 99.99% not reached` on the *unrounded*
+# total, so a run inside that rounding step prints FAIL and exits 0 --
+# 99.9891% both said FAIL and passed, and 99.98% is where the exit code
+# turns 1. The line is a warning that the slack is spent, not the gate.
+# Not 99.9, ten times as wide,
 # which is room for a whole handful of statements to go uncovered and be
 # reported as a pass. How many statements either allows is a division by
 # a total that moves with every commit, so it is not written down here:
