@@ -10,7 +10,7 @@
 """Candidate block headers, and a toy search for the nonce that solves one.
 
 A toy, and the word is meant: `mine` hashes one nonce at a time in
-python, in one process, over a header it re-serializes on every
+Python, in one process, over a header it re-serializes on every
 evaluation. That is some five orders of magnitude short of what a single
 mainnet block needs, so what this is for is a regtest-grade target, a
 test, or watching the search work.
@@ -108,8 +108,9 @@ def mine(header: BlockHeader, max_tries: int = 1 << 20) -> BlockHeader | None:
     for nonce in range(candidate.nonce, stop):
         candidate.nonce = nonce
         # the comparison assert_valid_pow makes, so that what is returned
-        # from here is what a Block will accept
-        if candidate.hash < target:
+        # from here is what a Block will accept: the target is a bound the
+        # hash may reach, Core rejecting on "hash > bnTarget"
+        if candidate.hash <= target:
             return candidate
 
     return None

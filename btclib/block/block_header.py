@@ -169,9 +169,16 @@ class BlockHeader:
         calls CheckProofOfWork by default: a Block is a block, and the
         proof-of-work is what its transactions are committed by.
         """
-        if self.hash >= self.target:
+        # the target is a bound the hash may reach: CheckProofOfWork
+        # rejects on "hash > bnTarget", so a hash equal to the target is
+        # the last one that solves the block, and refusing it would be
+        # refusing a block every node on the network accepts. No vector
+        # can show the difference -- equality asks a 256-bit hash for one
+        # exact value -- so the comparison is right by matching Core's,
+        # which is the only way it can be right here
+        if self.hash > self.target:
             err_msg = f"invalid proof-of-work: {self.hash.hex()}"
-            err_msg += f" >= {self.target.hex()}"
+            err_msg += f" > {self.target.hex()}"
             raise BTClibValueError(err_msg)
 
     def assert_valid(self) -> None:

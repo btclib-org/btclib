@@ -77,7 +77,7 @@ def test_a_mined_block_is_a_block() -> None:
     header = mine(candidate)
     assert header is not None
     assert header.nonce == 373
-    assert header.hash < header.target
+    assert header.hash <= header.target
     header.assert_valid_pow()
 
     # everything except the nonce is what the candidate carried

@@ -166,6 +166,16 @@ edit.
 
 ### Consensus rules
 
+- **a hash equal to the target is a valid proof-of-work.**
+  `BlockHeader.assert_valid_pow` rejected on `hash >= target`, where
+  Core's `CheckProofOfWork` rejects on `hash > bnTarget`: the target is a
+  bound the hash may reach, so the one hash that lands on it solved the
+  block for every node on the network and for btclib alone did not. The
+  error message says `>` rather than `>=` for the same reason. No vector
+  can exhibit it — equality asks a 256-bit hash for one exact value, and
+  the compact form cannot be nudged to meet a given hash either, its
+  significand holding three bytes — which is precisely why the comparison
+  has to be read off Core rather than tested against it
 - **btclib can check a Merkle proof, not only compute a root.** It had
   the builder's side, `merkle_root_and_mutated_from_hashes`, and no
   entry point for the verifier's: from a txid, a branch of siblings and
@@ -1392,7 +1402,7 @@ edit.
   docstring. `btclib.block.mining` is the fourth:
   `candidate_block_header` computes the merkle root over a transaction
   list and leaves the nonce at zero, `mine` searches the four bytes up to
-  a bound and answers `None` rather than hanging. A toy at one python hash
+  a bound and answers `None` rather than hanging. A toy at one Python hash
   at a time, and not a toy about what it produces: the merkle root comes
   from the function `Block.assert_valid_merkle_root` checks against, now
   shared rather than written twice, and the tests mine a block and let
