@@ -19,6 +19,7 @@ visible beside the assertion.
 from __future__ import annotations
 
 import json
+import re
 from base64 import b64decode
 from pathlib import Path
 
@@ -153,7 +154,11 @@ def test_the_cookie_is_read_at_every_call_not_at_construction(
 
 def test_an_absent_cookie_file_says_which_file(tmp_path: Path) -> None:
     absent = tmp_path / "no-such-datadir" / ".cookie"
-    with pytest.raises(FetchError, match=f"unreadable rpc cookie file {absent}"):
+    # escaped because `match` is a regex and a path is not: the windows
+    # separator is a backslash, so a tmp_path under C:\Users carries an
+    # incomplete \U escape and the pattern does not even compile
+    expected = re.escape(f"unreadable rpc cookie file {absent}")
+    with pytest.raises(FetchError, match=expected):
         cookie_auth(absent)
 
 
