@@ -503,6 +503,32 @@ def test_block_without_transactions() -> None:
         Block(header, [])
 
 
+def test_a_block_carries_one_coinbase() -> None:
+    """A second coinbase is refused, as Core's bad-cb-multiple.
+
+    No vector can state this. The proof-of-work is checked before the
+    transaction list is read, so a block carrying two coinbases is
+    refused for its work long before the rule would fire, and adding a
+    coinbase to a real block moves the merkle root its header commits
+    to -- there is no well-formed block with valid work and two
+    coinbases to be had. So the block is built here instead: block
+    200000's own coinbase, put back a second time over the transaction
+    that followed it.
+
+    The merkle root the block no longer has is checked after this rule,
+    which is where Core checks it too (issue #250).
+    """
+    fname = "block_200000.bin"
+    filename = path.join(path.dirname(__file__), "_data", fname)
+    with open(filename, "rb") as file_:
+        block_bytes = file_.read()
+
+    block = Block.parse(block_bytes)
+    block.transactions[1] = block.transactions[0]
+    with pytest.raises(BTClibValueError, match="more than one coinbase"):
+        block.assert_valid()
+
+
 def test_assert_valid_does_not_rewrite_the_header() -> None:
     """A read is a read: assert_valid must not coerce nonce in place.
 
