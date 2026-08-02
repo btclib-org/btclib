@@ -1371,6 +1371,34 @@ edit.
 
 ### Transactions, blocks and PSBT
 
+- **The difficulty retarget, the work behind a chain, the hash rate it
+  implies, and a toy miner.** `btclib.block.proof_of_work` holds the first
+  three as pure functions over the four `bits` bytes a header carries,
+  because "which of two competing chains is best" is a question asked of
+  both at once and answered by comparing their work, not their heights.
+  `next_bits` is Bitcoin Core's `CalculateNextWorkRequired`: the factor of
+  four clamped onto the measured timespan either way, the pow-limit clamp,
+  the 256-bit ring the multiplication happens in, and the compact
+  re-encoding, whose rounding down is part of the answer. Its window is
+  the one `retarget_first_height` names, 2015 intervals between the
+  timestamps of the 2016 blocks a period holds — the off-by-one Core keeps
+  for compatibility, and the reason blocks come out 0.05% faster than the
+  ten minutes aimed at. `bits_from_target` is the `GetCompact` that
+  `BlockHeader.target` had no inverse for, including the rule that shifts
+  a significand whose high bit would read as the sign; `block_work` and
+  `chain_work` are `GetBlockProof` and `nChainWork`, and `hash_rate` is
+  difficulty times 2^32 over the observed interval, with the variance that
+  makes it an estimate — 1/sqrt(n), still 2% over a whole window — in its
+  docstring. `btclib.block.mining` is the fourth:
+  `candidate_block_header` computes the merkle root over a transaction
+  list and leaves the nonce at zero, `mine` searches the four bytes up to
+  a bound and answers `None` rather than hanging. A toy at one python hash
+  at a time, and not a toy about what it produces: the merkle root comes
+  from the function `Block.assert_valid_merkle_root` checks against, now
+  shared rather than written twice, and the tests mine a block and let
+  `Block.assert_valid` have the last word. The retarget is tested against
+  the four mainnet vectors of Core's `pow_tests.cpp` and the round trip
+  against the bits of every vendored block (issue #188)
 - **A psbt can carry a taproot signature with its sig_hash type.** BIP341
   spends with 64 bytes of signature, or 65 when the sig_hash type is not
   the default one — the extra byte being that type — and BIP371 says "64
