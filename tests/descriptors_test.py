@@ -869,6 +869,10 @@ SCHNORR = ssa.sign(bytes(32), 1).serialize().hex()
 
 MULTI = f"multi(2,{KEY_A},{KEY_B},{KEY_C})"
 SORTED_MULTI = f"sortedmulti(2,{KEY_A},{KEY_B},{KEY_C})"
+# the threshold the two constructions used to disagree about: one
+# signature is a full satisfaction and OP_CHECKMULTISIG pops the dummy
+# all the same, which the psbt finalizer decided by counting (issue #305)
+MULTI_1 = f"multi(1,{KEY_A},{KEY_B},{KEY_C})"
 
 
 def signatures_of(*keys: str) -> dict[Octets, Octets]:
@@ -897,6 +901,16 @@ FINALIZER_VECTORS = [
     ),
     pytest.param(
         f"wsh({SORTED_MULTI})", [KEY_A, KEY_C], "", SORTED_MULTI, id="wsh-sortedmulti"
+    ),
+    pytest.param(MULTI_1, [KEY_A], "", "", id="multi-1"),
+    pytest.param(f"sh({MULTI_1})", [KEY_A], MULTI_1, "", id="sh-multi-1"),
+    pytest.param(f"wsh({MULTI_1})", [KEY_A], "", MULTI_1, id="wsh-multi-1"),
+    pytest.param(
+        f"sh(wsh({MULTI_1}))",
+        [KEY_A],
+        f"wsh({MULTI_1})",
+        MULTI_1,
+        id="sh-wsh-multi-1",
     ),
 ]
 

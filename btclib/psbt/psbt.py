@@ -75,6 +75,7 @@ from btclib.psbt.psbt_utils import (
 )
 from btclib.script import (
     Witness,
+    is_p2ms,
     is_p2pkh,
     is_p2sh,
     is_p2tr,
@@ -1294,6 +1295,40 @@ def _single_key(psbt_in: PsbtIn) -> bytes:
     return next(iter(psbt_in.partial_sigs))
 
 
+def _bip147_dummy(psbt_in: PsbtIn) -> list[bytes]:
+    """Return the empty push OP_CHECKMULTISIG pops, or nothing.
+
+    OP_CHECKMULTISIG pops one element more than it reads, whatever the
+    threshold, and BIP 147 is the rule that the extra element be empty
+    rather than the rule that it be there:
+
+        https://github.com/bitcoin/bips/blob/master/bip-0147.mediawiki#motivation
+
+    So what decides the push is the kind of the script, not how many
+    signatures satisfy it. Counting them agrees everywhere but a 1-of-n,
+    where one signature is a full satisfaction and the element is popped
+    all the same, and on a p2pk carrying two signatures, which is caller
+    error and gets a dummy on top of it (issue #305).
+
+    The script to read is the witness script where the multisig is
+    wrapped in a p2wsh, `_spent_script` naming the p2wsh there rather
+    than what it commits to; and it is `_spent_script` itself for a bare
+    multisig and for a legacy p2sh, whose redeem script that already is.
+
+    The count survives as the fallback for an input that says nothing.
+    A bare multisig needs no script of its own to be finalized, so it
+    reaches here with a utxo missing the way `_assert_partial_sigs_verify`
+    lets an unverifiable signature through -- and the count is then the
+    only evidence there is. A bare 1-of-n without a utxo therefore stays
+    an element short, unknowably: one signature, no script, and nothing
+    to tell it from a p2pk.
+    """
+    script = psbt_in.witness_script or _spent_script(psbt_in)
+    if script:
+        return [b""] if is_p2ms(script) else []
+    return [b""] if len(psbt_in.partial_sigs) > 1 else []
+
+
 def _finalized_input(psbt_in: PsbtIn) -> tuple[bytes, Witness]:
     """Return the final script_sig and witness the input is spent with.
 
@@ -1315,9 +1350,7 @@ def _finalized_input(psbt_in: PsbtIn) -> tuple[bytes, Witness]:
     input" (issue #249).
     """
     sigs: list[bytes] = list(psbt_in.partial_sigs.values())
-    # https://github.com/bitcoin/bips/blob/master/bip-0147.mediawiki#motivation
-    cmds: list[bytes] = [b""] if len(sigs) > 1 else []
-    cmds += sigs
+    cmds: list[bytes] = _bip147_dummy(psbt_in) + sigs
     redeem_script: list[bytes] = (
         [psbt_in.redeem_script] if psbt_in.redeem_script else []
     )

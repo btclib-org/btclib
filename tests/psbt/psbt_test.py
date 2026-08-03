@@ -1834,12 +1834,29 @@ _PRV_KEY = 0x1234567890ABCDEF1234567890ABCDEF1234567890ABCDEF1234567890ABCDEF
 _PUB_KEY = bytes.fromhex(
     "02bb50e2d89a4ed70663d080659fe0ad4b9bc3e06c17a227433966cb59ceee020d"
 )
+# a second key, for the inputs that hold more than one signature
+_OTHER_PRV_KEY = _PRV_KEY + 1
+_OTHER_PUB_KEY = pub_keyinfo_from_prv_key(_OTHER_PRV_KEY)[0]
 
 
 def _p2pkh_script_code(pub_key_hash: bytes) -> bytes:
     return serialize(
         ["OP_DUP", "OP_HASH160", pub_key_hash, "OP_EQUALVERIFY", "OP_CHECKSIG"]
     )
+
+
+def _spending_tx(prev_out: TxOut) -> tuple[Tx, Tx]:
+    """Return the transaction spending an output, and the one holding it.
+
+    The previous transaction and not merely the output: a legacy input is
+    spent against the whole of it, and its id is the outpoint the
+    spending transaction names.
+    """
+    prev_tx = Tx(
+        2, 0, [TxIn(OutPoint("00" * 31 + "01", 0), b"", 0xFFFFFFFF)], [prev_out]
+    )
+    tx_in = TxIn(OutPoint(prev_tx.id, 0), b"", 0xFFFFFFFF)
+    return Tx(2, 0, [tx_in], [TxOut(90_000, ScriptPubKey.p2wpkh(_PUB_KEY))]), prev_tx
 
 
 def _single_key_psbt(kind: str) -> tuple[Psbt, list[TxOut]]:
@@ -1867,13 +1884,7 @@ def _single_key_psbt(kind: str) -> tuple[Psbt, list[TxOut]]:
     )
 
     prev_out = TxOut(100_000, script_pub_key)
-    # the previous transaction, not merely the output it holds: a legacy
-    # input is spent against the whole of it, and its id is the outpoint
-    prev_tx = Tx(
-        2, 0, [TxIn(OutPoint("00" * 31 + "01", 0), b"", 0xFFFFFFFF)], [prev_out]
-    )
-    tx_in = TxIn(OutPoint(prev_tx.id, 0), b"", 0xFFFFFFFF)
-    tx = Tx(2, 0, [tx_in], [TxOut(90_000, ScriptPubKey.p2wpkh(_PUB_KEY))])
+    tx, prev_tx = _spending_tx(prev_out)
 
     psbt = Psbt.from_tx(tx)
     psbt.inputs[0].redeem_script = redeem_script
@@ -1967,15 +1978,155 @@ def test_a_single_key_input_takes_one_signature() -> None:
     psbt, prev_outs = _single_key_psbt("p2wpkh")
     script_code = _p2pkh_script_code(hash160(_PUB_KEY))
     msg_hash = sig_hash.segwit_v0(script_code, psbt.tx, 0, 1, prev_outs[0].value)
-    other_prv_key = _PRV_KEY + 1
-    other_pub_key = pub_keyinfo_from_prv_key(other_prv_key)[0]
-    psbt.inputs[0].partial_sigs[other_pub_key] = (
-        dsa.sign_(msg_hash, other_prv_key).serialize() + b"\x01"
+    psbt.inputs[0].partial_sigs[_OTHER_PUB_KEY] = (
+        dsa.sign_(msg_hash, _OTHER_PRV_KEY).serialize() + b"\x01"
     )
 
     err_msg = "2 signatures for a single-key input"
     with pytest.raises(BTClibValueError, match=err_msg):
         finalize_psbt(psbt)
+
+
+# issue 305: the empty push BIP147 asks for is the script's, not the
+# signatures'
+
+
+def _multisig_psbt(threshold: int, kind: str) -> tuple[Psbt, list[TxOut]]:
+    """Build a one-input threshold-of-2 psbt, signed and not finalized.
+
+    `_single_key_psbt` one key further, and the four kinds are the four
+    places a multisig script can sit: the script_pub_key of a bare
+    multisig, the redeem script of a p2sh, the witness script of a p2wsh,
+    and the witness script of a p2sh-p2wsh, which is the only one the
+    redeem script does not name.
+
+    The signatures go in the order the script holds the keys, which
+    `lexicographic_sorting=False` makes the order given here:
+    OP_CHECKMULTISIG never goes back, so a witness ordered otherwise is
+    one the engine refuses whatever the dummy.
+    """
+    keys = [_PUB_KEY, _OTHER_PUB_KEY]
+    multisig = ScriptPubKey.p2ms(threshold, keys, lexicographic_sorting=False).script
+    witness_script = multisig if "wsh" in kind else b""
+    script_pub_key = {
+        "multi": ScriptPubKey(multisig),
+        "sh-multi": ScriptPubKey.p2sh(multisig),
+        "wsh-multi": ScriptPubKey.p2wsh(multisig),
+        "sh-wsh-multi": ScriptPubKey.p2sh(ScriptPubKey.p2wsh(multisig).script),
+    }[kind]
+    redeem_script = (
+        multisig
+        if kind == "sh-multi"
+        else ScriptPubKey.p2wsh(multisig).script
+        if kind == "sh-wsh-multi"
+        else b""
+    )
+
+    prev_out = TxOut(100_000, script_pub_key)
+    tx, prev_tx = _spending_tx(prev_out)
+
+    psbt = Psbt.from_tx(tx)
+    psbt.inputs[0].redeem_script = redeem_script
+    psbt.inputs[0].witness_script = witness_script
+    if witness_script:
+        psbt.inputs[0].witness_utxo = prev_out
+        msg_hash = sig_hash.segwit_v0(multisig, tx, 0, 1, prev_out.value)
+    else:
+        psbt.inputs[0].non_witness_utxo = prev_tx
+        # the script being spent, which for a p2sh input is its redeem
+        # script and for a bare multisig the script_pub_key: the same
+        # bytes either way here
+        msg_hash = sig_hash.legacy(multisig, tx, 0, 1)
+    prv_keys = [_PRV_KEY, _OTHER_PRV_KEY][:threshold]
+    psbt.inputs[0].partial_sigs = {
+        pub_keyinfo_from_prv_key(prv_key)[0]: dsa.sign_(msg_hash, prv_key).serialize()
+        + b"\x01"
+        for prv_key in prv_keys
+    }
+    return psbt, [prev_out]
+
+
+@pytest.mark.parametrize("kind", ["multi", "sh-multi", "wsh-multi", "sh-wsh-multi"])
+@pytest.mark.parametrize("threshold", [1, 2])
+def test_a_multisig_input_is_spent_with_the_element_the_script_pops(
+    threshold: int, kind: str
+) -> None:
+    """OP_CHECKMULTISIG pops one element more than it reads (issue #305).
+
+    Whatever the threshold: BIP147 is the rule that the extra element be
+    empty, not the rule that it be there. Counting the signatures to
+    decide, as the Finalizer did, is right for every threshold but a
+    1-of-n, where one signature is a full satisfaction and the element is
+    popped all the same -- and a witness one element short is what the
+    engine here refuses.
+
+    The 2-of-2 cases are what every psbt vector already covered, and they
+    are the control: the count and the script agree there, so what the
+    fix must not do is change them.
+    """
+    psbt, prev_outs = _multisig_psbt(threshold, kind)
+    psbt_in = psbt.inputs[0]
+    sigs = list(psbt_in.partial_sigs.values())
+    redeem_script = [psbt_in.redeem_script] if psbt_in.redeem_script else []
+    witness_script = psbt_in.witness_script
+
+    finalized = finalize_psbt(psbt)
+    verify_transaction(prev_outs, extract_tx(finalized, check_validity=False))
+
+    final = finalized.inputs[0]
+    if witness_script:
+        assert final.final_script_witness.stack == (b"", *sigs, witness_script)
+        assert final.final_script_sig == serialize([*redeem_script])
+    else:
+        assert final.final_script_sig == serialize([b"", *sigs, *redeem_script])
+        assert not final.final_script_witness
+
+
+def test_the_dummy_is_the_multisig_script_and_not_a_second_signature() -> None:
+    """A p2pk input holding two signatures gets no empty push (issue #305).
+
+    Two signatures for a script that checks one is caller error, the way
+    `_single_key` refuses the same thing for p2pkh and p2wpkh, and the
+    count gave that error a BIP147 dummy on top of it. Reading the script
+    answers it: a p2pk is not a p2ms, so nothing is pushed and the
+    script_sig is the two signatures the caller supplied.
+
+    Both signatures are real, over the same sig_hash: the Finalizer
+    verifies every partial signature before building anything.
+    """
+    p2pk = serialize([_PUB_KEY, "OP_CHECKSIG"])
+    prev_out = TxOut(100_000, ScriptPubKey(p2pk))
+    tx, prev_tx = _spending_tx(prev_out)
+    psbt = Psbt.from_tx(tx)
+    psbt.inputs[0].non_witness_utxo = prev_tx
+    msg_hash = sig_hash.legacy(p2pk, tx, 0, 1)
+    sigs = {
+        pub_keyinfo_from_prv_key(prv_key)[0]: dsa.sign_(msg_hash, prv_key).serialize()
+        + b"\x01"
+        for prv_key in (_PRV_KEY, _OTHER_PRV_KEY)
+    }
+    psbt.inputs[0].partial_sigs = sigs
+
+    final_script_sig = finalize_psbt(psbt).inputs[0].final_script_sig
+    assert final_script_sig == serialize([*sigs.values()])
+
+
+def test_an_input_that_says_no_script_is_left_with_the_count() -> None:
+    """No script is no answer, and the count is the only evidence (issue #305).
+
+    A bare multisig needs no script of its own to be finalized, so it
+    reaches the Finalizer with the utxo missing the way any input whose
+    sig_hash is not computable does -- and there `is_p2ms` has nothing to
+    read where the number of signatures still says something. Two
+    signatures are a multisig in every case but the caller error the test
+    above names, so the empty push stays.
+    """
+    psbt, _ = _multisig_psbt(2, "multi")
+    sigs = list(psbt.inputs[0].partial_sigs.values())
+    psbt.inputs[0].non_witness_utxo = None
+
+    final = finalize_psbt(psbt).inputs[0]
+    assert final.final_script_sig == serialize([b"", *sigs])
 
 
 def _one_input_finalized_each() -> tuple[Psbt, Psbt]:

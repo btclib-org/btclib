@@ -1718,6 +1718,25 @@ edit.
   the five are now finalized, extracted and run through the engine. A
   single-key input carrying more than one signature is refused rather
   than picked from (issue #249)
+- **`finalize_psbt` writes BIP147's empty push when the script pops one,
+  not when a second signature is there.** OP_CHECKMULTISIG pops one
+  element more than it reads, whatever the threshold, and BIP 147 is the
+  rule that the extra element be empty rather than the rule that it be
+  there: counting the signatures agreed with the script everywhere but a
+  1-of-n, where one signature is a full satisfaction and the witness came
+  out an element short of what the script consumes — bytes the psbt round
+  trip carries happily and no node accepts. The kind of the script decides
+  now, `is_p2ms` read over the witness script where the multisig is wrapped
+  in a p2wsh and over the spent script otherwise, which answers a p2pk
+  input carrying two signatures as well: that is caller error, and it used
+  to get a dummy on top of it. The count survives as the fallback where the
+  psbt says nothing, a bare multisig needing no script of its own to be
+  finalized, so a missing utxo leaves the number of signatures the only
+  evidence there is. All four positions a multisig script can sit in are
+  finalized, extracted and run through the engine at both thresholds; and
+  `Descriptor.satisfy`, which knows from the descriptor what the finalizer
+  had to guess, is now compared against it for a 1-of-3 too — the
+  disagreement that found this (issue #305)
 - **The difficulty retarget, the work behind a chain, the hash rate it
   implies, and a toy miner.** `btclib.block.proof_of_work` holds the first
   three as pure functions over the four `bits` bytes a header carries,
