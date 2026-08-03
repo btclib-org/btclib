@@ -15,7 +15,7 @@ https://github.com/bitcoin/bips/blob/master/bip-0174.mediawiki
 
 from __future__ import annotations
 
-from collections.abc import Mapping, Sequence
+from collections.abc import Callable, Mapping, Sequence
 from dataclasses import dataclass
 from typing import Any, cast
 
@@ -32,24 +32,29 @@ from btclib.bip32 import (
 from btclib.psbt.psbt_utils import (
     PSBT_SEPARATOR,
     assert_not_a_v2_field,
+    assert_valid_musig2_participant_pub_keys,
     assert_valid_redeem_script,
     assert_valid_taproot_bip32_derivation,
     assert_valid_taproot_internal_key,
     assert_valid_unknown,
     assert_valid_witness_script,
     decode_dict_bytes_bytes,
+    decode_musig2_participant_pub_keys,
     decode_taproot_bip32,
     decode_taproot_tree,
     deserialize_bytes,
     deserialize_map,
     deserialize_sized_int,
     encode_dict_bytes_bytes,
+    encode_musig2_participant_pub_keys,
     encode_taproot_tree,
+    parse_musig2_participant_pub_keys,
     parse_taproot_bip32,
     parse_taproot_tree,
     serialize_bytes,
     serialize_dict_bytes_bytes,
     serialize_hd_key_paths,
+    serialize_musig2_participant_pub_keys,
     serialize_sized_int,
     serialize_taproot_bip32,
     serialize_taproot_tree,
@@ -67,6 +72,7 @@ PSBT_OUT_SCRIPT = b"\x04"
 PSBT_OUT_TAP_INTERNAL_KEY = b"\x05"
 PSBT_OUT_TAP_TREE = b"\x06"
 PSBT_OUT_TAP_BIP32_DERIVATION = b"\x07"
+PSBT_OUT_MUSIG2_PARTICIPANT_PUBKEYS = b"\x08"
 
 # the output fields BIP370 defines, which a version 0 output must not
 # carry: the amount and the script_pub_key, which a v0 output reads from
@@ -99,6 +105,31 @@ def _serialized_v2_fields(psbt_out: PsbtOut) -> list[bytes]:
     return serialized
 
 
+def _serialized_taproot_fields(psbt_out: PsbtOut) -> list[bytes]:
+    """Return the three BIP371 fields of an output map, in type-byte order.
+
+    Here rather than inline, as the BIP370 pair above is: what an output
+    writes is one list per BIP, in ascending order of type byte, and
+    `serialize` is then that order and nothing else.
+    """
+    serialized: list[bytes] = []
+    if psbt_out.taproot_internal_key:
+        serialized.append(
+            serialize_bytes(PSBT_OUT_TAP_INTERNAL_KEY, psbt_out.taproot_internal_key)
+        )
+    if psbt_out.taproot_tree:
+        serialized.append(
+            serialize_taproot_tree(PSBT_OUT_TAP_TREE, psbt_out.taproot_tree)
+        )
+    if psbt_out.taproot_hd_key_paths:
+        serialized.append(
+            serialize_taproot_bip32(
+                PSBT_OUT_TAP_BIP32_DERIVATION, psbt_out.taproot_hd_key_paths
+            )
+        )
+    return serialized
+
+
 @dataclass
 class PsbtOut:
     redeem_script: bytes
@@ -110,6 +141,7 @@ class PsbtOut:
     unknown: dict[bytes, bytes]
     amount: int | None
     script_pub_key: bytes
+    musig2_participant_pub_keys: dict[bytes, list[bytes]]
 
     def __init__(
         self,
@@ -123,6 +155,7 @@ class PsbtOut:
         unknown: Mapping[Octets, Octets] | None = None,
         amount: int | None = None,
         script_pub_key: Octets = b"",
+        musig2_participant_pub_keys: Mapping[Octets, Sequence[Octets]] | None = None,
         *,
         check_validity: bool = True,
     ) -> None:
@@ -135,6 +168,9 @@ class PsbtOut:
         self.unknown = dict(sorted(decode_dict_bytes_bytes(unknown).items()))
         self.amount = amount
         self.script_pub_key = bytes_from_octets(script_pub_key)
+        self.musig2_participant_pub_keys = decode_musig2_participant_pub_keys(
+            musig2_participant_pub_keys
+        )
 
         if check_validity:
             self.assert_valid()
@@ -160,6 +196,7 @@ class PsbtOut:
         assert_valid_hd_key_paths(self.hd_key_paths)
         assert_valid_taproot_internal_key(self.taproot_internal_key)
         assert_valid_taproot_bip32_derivation(self.taproot_hd_key_paths)
+        assert_valid_musig2_participant_pub_keys(self.musig2_participant_pub_keys)
         assert_valid_unknown(self.unknown)
 
     def to_dict(self, *, check_validity: bool = True) -> dict[str, Any]:
@@ -176,6 +213,9 @@ class PsbtOut:
             "unknown": dict(sorted(encode_dict_bytes_bytes(self.unknown).items())),
             "amount": self.amount,
             "script_pub_key": script_to_dict(self.script_pub_key),
+            "musig2_participant_pub_keys": encode_musig2_participant_pub_keys(
+                self.musig2_participant_pub_keys
+            ),
         }
 
     @classmethod
@@ -200,6 +240,7 @@ class PsbtOut:
             dict_["unknown"],
             dict_["amount"],
             script_from_dict(dict_["script_pub_key"]),
+            dict_["musig2_participant_pub_keys"],
             check_validity=check_validity,
         )
 
@@ -239,20 +280,13 @@ class PsbtOut:
         if psbt_version == 2:
             psbt_out_bin.extend(_serialized_v2_fields(self))
 
-        if self.taproot_internal_key:
-            psbt_out_bin.append(
-                serialize_bytes(PSBT_OUT_TAP_INTERNAL_KEY, self.taproot_internal_key)
-            )
+        psbt_out_bin.extend(_serialized_taproot_fields(self))
 
-        if self.taproot_tree:
+        if self.musig2_participant_pub_keys:
             psbt_out_bin.append(
-                serialize_taproot_tree(PSBT_OUT_TAP_TREE, self.taproot_tree)
-            )
-
-        if self.taproot_hd_key_paths:
-            psbt_out_bin.append(
-                serialize_taproot_bip32(
-                    PSBT_OUT_TAP_BIP32_DERIVATION, self.taproot_hd_key_paths
+                serialize_musig2_participant_pub_keys(
+                    PSBT_OUT_MUSIG2_PARTICIPANT_PUBKEYS,
+                    self.musig2_participant_pub_keys,
                 )
             )
 
@@ -292,6 +326,21 @@ class PsbtOut:
         unknown: dict[Octets, Octets] = {}
         amount: int | None = None
         script_pub_key = b""
+        musig2_participant_pub_keys: dict[Octets, Sequence[Octets]] = {}
+
+        # the three fields whose key carries key data, each of them as many
+        # map entries as it has keys: the map they accumulate into, and the
+        # parser of one entry's value. A table because they differ in
+        # nothing else, one `elif` each having been three ways to write the
+        # same two lines
+        key_data_fields: dict[bytes, tuple[dict[Any, Any], Callable[[bytes], Any]]] = {
+            PSBT_OUT_BIP32_DERIVATION: (hd_key_paths, BIP32KeyOrigin.parse),
+            PSBT_OUT_TAP_BIP32_DERIVATION: (taproot_hd_key_paths, parse_taproot_bip32),
+            PSBT_OUT_MUSIG2_PARTICIPANT_PUBKEYS: (
+                musig2_participant_pub_keys,
+                parse_musig2_participant_pub_keys,
+            ),
+        }
 
         for k, v in output_map.items():
             # before the dispatch and not in its `unknown` arm: 0x03 and
@@ -306,16 +355,15 @@ class PsbtOut:
                 redeem_script = deserialize_bytes(k, v, "redeem script")
             elif k[:1] == PSBT_OUT_WITNESS_SCRIPT:
                 witness_script = deserialize_bytes(k, v, "witness script")
-            elif k[:1] == PSBT_OUT_BIP32_DERIVATION:
-                #  parse just one hd key path at time :-(
-                hd_key_paths[k[1:]] = BIP32KeyOrigin.parse(v)
             elif k[:1] == PSBT_OUT_TAP_INTERNAL_KEY:
                 taproot_internal_key = deserialize_bytes(k, v, "taproot internal key")
             elif k[:1] == PSBT_OUT_TAP_TREE:
                 taproot_tree = parse_taproot_tree(v)
-            elif k[:1] == PSBT_OUT_TAP_BIP32_DERIVATION:
-                #  parse just one hd key path at time :-(
-                taproot_hd_key_paths[k[1:]] = parse_taproot_bip32(v)
+            elif (key_data_field := key_data_fields.get(k[:1])) is not None:
+                # one key at a time, a field of this kind being as many map
+                # entries as it has keys
+                accumulated, parse_value = key_data_field
+                accumulated[k[1:]] = parse_value(v)
             else:  # unknown
                 unknown[k] = v
 
@@ -329,5 +377,6 @@ class PsbtOut:
             unknown,
             amount,
             script_pub_key,
+            musig2_participant_pub_keys,
             check_validity=check_validity,
         )

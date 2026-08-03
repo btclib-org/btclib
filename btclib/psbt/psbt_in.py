@@ -14,7 +14,7 @@ https://github.com/bitcoin/bips/blob/master/bip-0174.mediawiki
 
 from __future__ import annotations
 
-from collections.abc import Callable, Mapping
+from collections.abc import Callable, Mapping, Sequence
 
 # Standard library imports
 from dataclasses import dataclass
@@ -34,9 +34,13 @@ from btclib.ecc import dsa
 from btclib.exceptions import BTClibValueError
 from btclib.hashes import hash160, hash256, ripemd160, sha256
 from btclib.psbt.psbt_utils import (
+    MUSIG2_PARTIAL_SIG_SIZE,
+    MUSIG2_PUB_NONCE_SIZE,
     PSBT_SEPARATOR,
     assert_not_a_v2_field,
     assert_valid_leaf_scripts,
+    assert_valid_musig2_participant_pub_keys,
+    assert_valid_musig2_session_data,
     assert_valid_redeem_script,
     assert_valid_taproot_bip32_derivation,
     assert_valid_taproot_internal_key,
@@ -46,6 +50,7 @@ from btclib.psbt.psbt_utils import (
     assert_valid_witness_script,
     decode_dict_bytes_bytes,
     decode_leaf_scripts,
+    decode_musig2_participant_pub_keys,
     decode_taproot_bip32,
     deserialize_bytes,
     deserialize_int,
@@ -54,12 +59,15 @@ from btclib.psbt.psbt_utils import (
     deserialize_tx,
     encode_dict_bytes_bytes,
     encode_leaf_scripts,
+    encode_musig2_participant_pub_keys,
     parse_leaf_script,
+    parse_musig2_participant_pub_keys,
     parse_taproot_bip32,
     serialize_bytes,
     serialize_dict_bytes_bytes,
     serialize_hd_key_paths,
     serialize_leaf_scripts,
+    serialize_musig2_participant_pub_keys,
     serialize_sized_int,
     serialize_taproot_bip32,
     taproot_bip32_to_dict,
@@ -93,6 +101,9 @@ PSBT_IN_TAP_LEAF_SCRIPT = b"\x15"
 PSBT_IN_TAP_BIP32_DERIVATION = b"\x16"
 PSBT_IN_TAP_INTERNAL_KEY = b"\x17"
 PSBT_IN_TAP_MERKLE_ROOT = b"\x18"
+PSBT_IN_MUSIG2_PARTICIPANT_PUBKEYS = b"\x1a"
+PSBT_IN_MUSIG2_PUB_NONCE = b"\x1b"
+PSBT_IN_MUSIG2_PARTIAL_SIG = b"\x1c"
 
 # the input fields BIP370 defines, which a version 0 input must not
 # carry: the outpoint and sequence a v0 input reads from the unsigned
@@ -307,6 +318,16 @@ _SERIALIZED_FIELDS: list[tuple[bytes, str, _Serializer]] = [
     (PSBT_IN_TAP_BIP32_DERIVATION, "taproot_hd_key_paths", serialize_taproot_bip32),
     (PSBT_IN_TAP_INTERNAL_KEY, "taproot_internal_key", serialize_bytes),
     (PSBT_IN_TAP_MERKLE_ROOT, "taproot_merkle_root", serialize_bytes),
+    # the three of BIP373, after the taproot fields as their type bytes
+    # are: Bitcoin Core writes them there too (PSBTInput::Serialize), and
+    # the psbts the BIP publishes are what that order is measured against
+    (
+        PSBT_IN_MUSIG2_PARTICIPANT_PUBKEYS,
+        "musig2_participant_pub_keys",
+        serialize_musig2_participant_pub_keys,
+    ),
+    (PSBT_IN_MUSIG2_PUB_NONCE, "musig2_pub_nonces", serialize_dict_bytes_bytes),
+    (PSBT_IN_MUSIG2_PARTIAL_SIG, "musig2_partial_sigs", serialize_dict_bytes_bytes),
 ]
 
 # the fields of the table above that only a version 2 input writes. They
@@ -344,8 +365,9 @@ _PRESENT_IF_NOT_NONE = frozenset(
 # counterparty sent is the Finalizer role's decision, not a codec's.
 # The list is the whole of what Bitcoin Core's PSBTInput::Serialize puts
 # inside its `if (final_script_sig.empty() && final_script_witness
-# .IsNull())`, the preimages and the taproot fields included: each of
-# them is an input to signing, and a finalized input has been signed.
+# .IsNull())`, the preimages and the taproot and MuSig2 fields included:
+# each of them is an input to signing, and a finalized input has been
+# signed -- a MuSig2 session most of all, its nonces being single use.
 # The utxo fields are outside it there and here, an Extractor needing
 # them to check the transaction it builds; so are the unknown ones,
 # which no role understands well enough to drop
@@ -366,6 +388,9 @@ _DROPPED_ONCE_FINALIZED = frozenset(
         "taproot_hd_key_paths",
         "taproot_internal_key",
         "taproot_merkle_root",
+        "musig2_participant_pub_keys",
+        "musig2_pub_nonces",
+        "musig2_partial_sigs",
     }
 )
 
@@ -443,6 +468,14 @@ _KEY_DATA_FIELDS: dict[bytes, tuple[str, Callable[[bytes], Any]]] = {
     PSBT_IN_TAP_SCRIPT_SIG: ("taproot_script_spend_signatures", bytes),
     PSBT_IN_TAP_LEAF_SCRIPT: ("taproot_leaf_scripts", parse_leaf_script),
     PSBT_IN_TAP_BIP32_DERIVATION: ("taproot_hd_key_paths", parse_taproot_bip32),
+    PSBT_IN_MUSIG2_PARTICIPANT_PUBKEYS: (
+        "musig2_participant_pub_keys",
+        parse_musig2_participant_pub_keys,
+    ),
+    # bytes for both: what identifies a nonce and a partial signature is
+    # the whole of their key data, and it is the same key data for the two
+    PSBT_IN_MUSIG2_PUB_NONCE: ("musig2_pub_nonces", bytes),
+    PSBT_IN_MUSIG2_PARTIAL_SIG: ("musig2_partial_sigs", bytes),
 }
 
 
@@ -473,6 +506,9 @@ class PsbtIn:
     sequence: int | None
     required_time_lock_time: int | None
     required_height_lock_time: int | None
+    musig2_participant_pub_keys: dict[bytes, list[bytes]]
+    musig2_pub_nonces: dict[bytes, bytes]
+    musig2_partial_sigs: dict[bytes, bytes]
 
     @property
     def prev_out(self) -> OutPoint:
@@ -520,6 +556,9 @@ class PsbtIn:
         sequence: int | None = None,
         required_time_lock_time: int | None = None,
         required_height_lock_time: int | None = None,
+        musig2_participant_pub_keys: Mapping[Octets, Sequence[Octets]] | None = None,
+        musig2_pub_nonces: Mapping[Octets, Octets] | None = None,
+        musig2_partial_sigs: Mapping[Octets, Octets] | None = None,
         *,
         check_validity: bool = True,
     ) -> None:
@@ -557,6 +596,11 @@ class PsbtIn:
         self.sequence = sequence
         self.required_time_lock_time = required_time_lock_time
         self.required_height_lock_time = required_height_lock_time
+        self.musig2_participant_pub_keys = decode_musig2_participant_pub_keys(
+            musig2_participant_pub_keys
+        )
+        self.musig2_pub_nonces = decode_dict_bytes_bytes(musig2_pub_nonces)
+        self.musig2_partial_sigs = decode_dict_bytes_bytes(musig2_partial_sigs)
 
         if check_validity:
             self.assert_valid()
@@ -638,6 +682,16 @@ class PsbtIn:
         assert_valid_leaf_scripts(self.taproot_leaf_scripts)
         assert_valid_taproot_bip32_derivation(self.taproot_hd_key_paths)
 
+        assert_valid_musig2_participant_pub_keys(self.musig2_participant_pub_keys)
+        assert_valid_musig2_session_data(
+            self.musig2_pub_nonces, MUSIG2_PUB_NONCE_SIZE, "musig2 public nonce"
+        )
+        assert_valid_musig2_session_data(
+            self.musig2_partial_sigs,
+            MUSIG2_PARTIAL_SIG_SIZE,
+            "musig2 partial signature",
+        )
+
         assert_valid_unknown(self.unknown)
 
     def to_dict(self, *, check_validity: bool = True) -> dict[str, Any]:
@@ -678,6 +732,11 @@ class PsbtIn:
             "sequence": self.sequence,
             "required_time_lock_time": self.required_time_lock_time,
             "required_height_lock_time": self.required_height_lock_time,
+            "musig2_participant_pub_keys": encode_musig2_participant_pub_keys(
+                self.musig2_participant_pub_keys
+            ),
+            "musig2_pub_nonces": encode_dict_bytes_bytes(self.musig2_pub_nonces),
+            "musig2_partial_sigs": encode_dict_bytes_bytes(self.musig2_partial_sigs),
         }
 
     @classmethod
@@ -722,6 +781,9 @@ class PsbtIn:
             dict_["sequence"],
             dict_["required_time_lock_time"],
             dict_["required_height_lock_time"],
+            dict_["musig2_participant_pub_keys"],
+            dict_["musig2_pub_nonces"],
+            dict_["musig2_partial_sigs"],
             check_validity=check_validity,
         )
 

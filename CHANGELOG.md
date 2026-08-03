@@ -1538,6 +1538,25 @@ edit.
 
 ### Transactions, blocks and PSBT
 
+- **the four MuSig2 psbt fields of BIP373 are fields, in both psbt
+  versions** (issue #266): `PSBT_IN_MUSIG2_PARTICIPANT_PUBKEYS`,
+  `PSBT_IN_MUSIG2_PUB_NONCE` and `PSBT_IN_MUSIG2_PARTIAL_SIG` on
+  `PsbtIn`, `PSBT_OUT_MUSIG2_PARTICIPANT_PUBKEYS` on `PsbtOut`, each
+  keyed as the BIP keys it and each checked for what the BIP says it
+  holds — a compressed key of 33 bytes and not an x-only one of 32, a
+  participant list that is a whole number of keys in the order
+  aggregation used, a 66-byte public nonce, a 32-byte partial signature.
+  Every key is parsed as a point besides, which is what Bitcoin Core asks
+  of these fields (`IsFullyValid`) and what no vector of the BIP
+  exercises. All 14 valid psbts the BIP publishes round trip byte for
+  byte, where 12 of them used to come back in btclib's order for
+  unknown keys, and all 10 invalid ones are refused, where every one of
+  them used to be accepted: an unknown key is given back as it arrived,
+  which is the right answer for a type byte nobody has defined and the
+  wrong one for four the BIP defines and constrains. A MuSig2 session is
+  not driven yet — the fields travel, `btclib.ecc.musig2` is not wired to
+  them, and that half of #266 waits on where a secret nonce lives between
+  the two rounds.
 - **PSBT version 2 is read, written and validated** (BIP370, issue
   #265), and with it the fields that replace the unsigned transaction:
   the transaction version, the fallback locktime, the input and output

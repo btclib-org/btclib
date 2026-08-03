@@ -22,6 +22,7 @@ from btclib import var_bytes, var_int
 from btclib.alias import BinaryData, Octets
 from btclib.bip32 import BIP32KeyOrigin
 from btclib.bip32.der_path import indexes_from_der_path, str_from_der_path
+from btclib.curves import sec_point
 from btclib.exceptions import BTClibValueError
 from btclib.script.sig_hash import DEFAULT, SIG_HASH_TYPES
 from btclib.script.taproot import assert_valid_control_block
@@ -33,6 +34,28 @@ from btclib.utils import bytes_from_octets, bytesio_from_binarydata
 # the derivation path
 LEAF_HASH_SIZE = 32
 FINGERPRINT_SIZE = 4
+
+# every key BIP373 carries is a compressed point, and the BIP's own
+# footnote says why not the x-only form the taproot fields use: BIP328
+# derives BIP32 children of an aggregate key, which needs the evenness
+# byte, and the master fingerprints of PSBT_IN_TAP_BIP32_DERIVATION need
+# the y coordinate to be computed at all
+MUSIG2_PUB_KEY_SIZE = 33
+
+# what one contribution to one session is keyed by: the participant's own
+# key, the aggregate key it is contributing to, and the tapleaf hash of
+# the script being signed -- present when the aggregate key is a key in a
+# script, omitted when it is the taproot internal or output key, which is
+# the shorter of the two lengths
+MUSIG2_SESSION_KEY_SIZES = (
+    2 * MUSIG2_PUB_KEY_SIZE,
+    2 * MUSIG2_PUB_KEY_SIZE + LEAF_HASH_SIZE,
+)
+
+# what each of the two rounds of BIP327 produces: NonceGen two points,
+# Sign one scalar
+MUSIG2_PUB_NONCE_SIZE = 66
+MUSIG2_PARTIAL_SIG_SIZE = 32
 
 # what ends every map of a psbt: a key of length zero, which no real key
 # can be. It lives here, and not next to the magic bytes, because all
@@ -379,6 +402,128 @@ def parse_taproot_bip32(v: bytes) -> tuple[list[bytes], BIP32KeyOrigin]:
     leaves = [stream.read(LEAF_HASH_SIZE) for _ in range(len_)]
     bip32keyorigin = BIP32KeyOrigin.parse(stream.read())
     return (leaves, bip32keyorigin)
+
+
+def parse_musig2_participant_pub_keys(v: bytes) -> list[bytes]:
+    """Return the participants of one aggregate key, in aggregation order.
+
+    BIP373 writes the value as the participants' compressed keys
+    concatenated, so a value that is not a whole number of keys is not a
+    list of them, and an empty one is a field naming an aggregate key
+    with no participants -- which KeyAgg has no answer for.
+
+    A list and not a set: the order is the order aggregation was done in,
+    which decides the aggregate key, and BIP327's KeyAgg is where a
+    reordering stops being the same key.
+    """
+    if not v or len(v) % MUSIG2_PUB_KEY_SIZE:
+        err_msg = f"invalid musig2 participant pub keys: {len(v)} bytes, "
+        err_msg += f"not a positive multiple of {MUSIG2_PUB_KEY_SIZE}"
+        raise BTClibValueError(err_msg)
+    return [
+        v[i : i + MUSIG2_PUB_KEY_SIZE] for i in range(0, len(v), MUSIG2_PUB_KEY_SIZE)
+    ]
+
+
+def serialize_musig2_participant_pub_keys(
+    type_: bytes, dict_: Mapping[bytes, Sequence[bytes]]
+) -> bytes:
+    """Return the binary representation of the musig2_participant_pub_keys."""
+    return b"".join(
+        [
+            var_bytes.serialize(type_ + k) + var_bytes.serialize(b"".join(v))
+            for k, v in sorted(dict_.items())
+        ]
+    )
+
+
+def encode_musig2_participant_pub_keys(
+    dict_: Mapping[bytes, Sequence[bytes]],
+) -> dict[str, list[str]]:
+    """Return the json representation of the musig2_participant_pub_keys."""
+    return {k.hex(): [x.hex() for x in v] for k, v in sorted(dict_.items())}
+
+
+def decode_musig2_participant_pub_keys(
+    dict_: Mapping[Octets, Sequence[Octets]] | None,
+) -> dict[bytes, list[bytes]]:
+    """Parse correctly the musig2_participant_pub_keys init argument."""
+    if dict_ is None:
+        return {}
+    participants = {
+        bytes_from_octets(k): [bytes_from_octets(x) for x in v]
+        for k, v in dict_.items()
+    }
+    return dict(sorted(participants.items()))
+
+
+def assert_valid_musig2_pub_key(pub_key: bytes, what: str) -> None:
+    """Raise unless the octets are a compressed secp256k1 public key.
+
+    The length is what the four x-only vectors of BIP373 fail on. The
+    point parse is what Bitcoin Core asks beyond it -- `IsFullyValid` on
+    every key of every one of these fields -- and it is what makes 33
+    octets a key rather than 33 octets: a psbt naming an aggregate key
+    that is not on the curve names a session no signer can join.
+    """
+    if len(pub_key) != MUSIG2_PUB_KEY_SIZE:
+        err_msg = f"invalid {what} length: {len(pub_key)} bytes "
+        err_msg += f"instead of {MUSIG2_PUB_KEY_SIZE}"
+        raise BTClibValueError(err_msg)
+    try:
+        sec_point.point_from_octets(pub_key)
+    except BTClibValueError as e:
+        raise BTClibValueError(f"invalid {what}: {pub_key.hex()}") from e
+
+
+def assert_valid_musig2_participant_pub_keys(
+    participants: Mapping[bytes, Sequence[bytes]],
+) -> None:
+    """Raise unless every key of a musig2_participant_pub_keys is one.
+
+    The aggregate key is the key data and the participants are the value,
+    which is the whole of what this field can be checked for on its own:
+    that the participants aggregate to the key they are filed under is
+    KeyAgg's answer, and asking it here would make a codec depend on a
+    signing session.
+    """
+    for aggregate_pub_key, participant_pub_keys in participants.items():
+        assert_valid_musig2_pub_key(aggregate_pub_key, "musig2 aggregate pub key")
+        if not participant_pub_keys:
+            err_msg = "invalid musig2 participant pub keys: "
+            err_msg += f"none for aggregate key {aggregate_pub_key.hex()}"
+            raise BTClibValueError(err_msg)
+        for participant_pub_key in participant_pub_keys:
+            assert_valid_musig2_pub_key(
+                participant_pub_key, "musig2 participant pub key"
+            )
+
+
+def assert_valid_musig2_session_data(
+    session_data: Mapping[bytes, bytes], value_size: int, what: str
+) -> None:
+    """Raise unless every entry of a nonce or partial signature map fits.
+
+    One rule for the two fields because BIP373 gives them one key -- the
+    participant's key, the aggregate key, and the tapleaf hash or nothing
+    -- and they differ only in the size of what a round produced.
+    """
+    for key, value in session_data.items():
+        if len(key) not in MUSIG2_SESSION_KEY_SIZES:
+            sizes = " or ".join(str(size) for size in MUSIG2_SESSION_KEY_SIZES)
+            err_msg = f"invalid {what} key length: {len(key)} bytes instead of {sizes}"
+            raise BTClibValueError(err_msg)
+        assert_valid_musig2_pub_key(
+            key[:MUSIG2_PUB_KEY_SIZE], "musig2 participant pub key"
+        )
+        assert_valid_musig2_pub_key(
+            key[MUSIG2_PUB_KEY_SIZE : 2 * MUSIG2_PUB_KEY_SIZE],
+            "musig2 aggregate pub key",
+        )
+        if len(value) != value_size:
+            err_msg = f"invalid {what} length: {len(value)} bytes "
+            err_msg += f"instead of {value_size}"
+            raise BTClibValueError(err_msg)
 
 
 def serialize_bytes(type_: bytes, value: bytes) -> bytes:

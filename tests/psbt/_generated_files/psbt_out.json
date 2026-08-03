@@ -22,5 +22,6 @@
     "script_pub_key": {
         "asm": "OP_0 D85C2B71D0060B09C9886AEB815E50991DDA124D",
         "hex": "0014d85c2b71d0060b09c9886aeb815e50991dda124d"
-    }
+    },
+    "musig2_participant_pub_keys": {}
 }

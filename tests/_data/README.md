@@ -51,9 +51,9 @@ the same in each: there is no upstream file whose name they could take
 
 - `bip32_test_vectors.json`, `bip32_invalid_keys.json`,
   `bip174_test_vectors.json`, `bip370_test_vectors.json`,
-  `bip371_test_vectors.json` and `bip67_test_vectors.json` are transcribed
-  from mediawiki prose. There is no upstream file, so the name is ours by
-  necessity.
+  `bip371_test_vectors.json`, `bip373_test_vectors.json` and
+  `bip67_test_vectors.json` are transcribed from mediawiki prose. There is
+  no upstream file, so the name is ours by necessity.
 - `bip39_test_vectors.json` holds all twelve language arrays of trezor's
   `vectors.json`, plus one btclib case, and keeps the btclib name anyway:
   `vectors.json` is taken in the very same directory, by SLIP-0039's own
@@ -71,9 +71,10 @@ the same in each: there is no upstream file whose name they could take
 
 `btclib_test_vectors.json` is where that convention says the most, and it
 is a naming rule of its own: the prefix of a psbt vector file names the
-authority the cases answer to — `bip174_`, `bip370_`, `bip371_`, and
-`btclib_` for the ones btclib composed, which no BIP publishes and no
-refresh will ever reach. A file so named cannot be mistaken for a copy of something.
+authority the cases answer to — `bip174_`, `bip370_`, `bip371_`,
+`bip373_`, and `btclib_` for the ones btclib composed, which no BIP
+publishes and no refresh will ever reach. A file so named cannot be
+mistaken for a copy of something.
 
 `taproot_test_vector.json` and `sig_hash_legacy_test_vectors.json` do have
 an upstream file each -- bip-0341's `wallet-test-vectors.json` and Core's
@@ -109,8 +110,8 @@ alone, all of them taken at the tip of their path on 2026-08-02, which is
 what their `pulled` says: the eight BIP327 files, the three Core files
 `key_io_valid.json`, `key_io_invalid.json` and `base58_encode_decode.json`,
 and the two python-bitcoinlib block files added here; Core's
-`blockfilters.json` and BIP370's psbts followed on 2026-08-03, at the tip
-of their paths too.
+`blockfilters.json` and the psbts of BIP370 and BIP373 followed on
+2026-08-03, at the tip of their paths too.
 
 A vector btclib fails is vendored anyway and marked `xfail`, never left
 out: an absent vector hides the defect it would have shown, and
@@ -358,6 +359,44 @@ The valid ones are read and written back byte for byte, and the ten
 locktime cases are asserted against the value the algorithm publishes
 for each — the `null` one by the refusal it gets, its two kinds of
 locktime having no single `nLockTime` to agree on.
+
+### `tests/psbt/_data/bip373_test_vectors.json`
+
+```text
+repo    bitcoin/bips
+path    bip-0373.mediawiki
+commit  24e96e870fffaa257b465ce1f0370c14aac588e8  2026-01-12
+pulled  2026-08-03
+behind  0 revisions; that commit is the tip of the path
+```
+
+Verdict: **transcribed**, complete. Every psbt of the Test Vectors
+section is here: 10 invalid and 14 valid, the valid ones being four
+spend cases in three variants each — participant pubkeys only, then the
+pubnonces, then the partial signatures — and two receiving cases, which
+are the ones carrying the output field. The base64 was taken and the hex
+checked against it, `b64decode(base64) == bytes.fromhex(hex)` for all
+24.
+
+Two of the ten invalid psbts are **the same bytes**: "PSBT with x-only
+aggregate pubkey in output participant pubkeys keydata" and "PSBT with an
+x-only output participant pubkey" both carry the x-only key in the key
+data, so the second condition — an x-only key inside the value, which the
+input pair does distinguish — is named upstream and carried by nothing.
+Both are vendored as published, duplicate included, and
+`test_an_output_participant_list_is_a_whole_number_of_keys` is the case
+they do not make: the same shortening applied to the output map of the
+BIP's own receiving psbt.
+
+The `error message` of an invalid case is btclib's own, as in the three
+files above. Each of the ten is a length — an x-only key where BIP373
+requires a compressed one, or a nonce or partial signature whose value is
+the wrong size — so a length is what each message names. Nothing here
+pins the check Bitcoin Core makes beyond the length, `IsFullyValid` on
+every key of every one of these fields: no vector of the BIP carries a
+key of the right size that is on no curve, and
+`test_a_musig2_key_must_be_a_point_and_not_merely_33_bytes` is where that
+one is.
 
 ### `tests/script/_data/bip67_test_vectors.json`
 
@@ -1174,8 +1213,8 @@ No upstream blob exists for the rest:
 - transcribed from a pinned prose revision, every value matched:
   `bip32_test_vectors.json`, `bip32_invalid_keys.json`,
   `bip174_test_vectors.json`, `bip370_test_vectors.json`,
-  `bip371_test_vectors.json`, `bip67_test_vectors.json`,
-  `descriptor_checksums.json`.
+  `bip371_test_vectors.json`, `bip373_test_vectors.json`,
+  `bip67_test_vectors.json`, `descriptor_checksums.json`.
 - chain data, identified by block hash or txid: the blocks and
   transactions under `tests/block/_data/` and `tests/tx/_data/`, and
   `unspendable_script_pub_keys.json`, which is scripts rather than whole
