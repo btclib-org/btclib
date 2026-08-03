@@ -54,6 +54,17 @@ edit.
   two that add a bullet to the same group. `union` keeps both sides' added
   lines, so neither is a conflict any more. `grep -c '^- ' CHANGELOG.md`
   answers how many entries there are, on demand.
+- **The branch rules and the repository settings are in `REPOSITORY.md`**,
+  which CLAUDE.md points at rather than carrying: the required checks, both
+  branches' protection and why they differ, the read-only `GITHUB_TOKEN`
+  default, the review-gated publishing environments and the secret-scanning
+  settings that a paid plan gates. They are what a session changing a
+  workflow needs first and dead weight in one fixing a bug in `ecc/`, and
+  they live *outside* the repository, so that file is the whole record of
+  them: nothing in it can be recovered by reading the tree.
+  `_config.yml`'s `exclude:` lists it beside CLAUDE.md and RELEASING.md,
+  since a file in master's root is a URL under btclib.org otherwise, and a
+  branch rule's app ids are not a page a visitor wants.
 
 ### Security
 

@@ -3,6 +3,11 @@
 This file provides guidance to Claude Code (claude.ai/code) when working
 with code in this repository.
 
+Repository configuration — branch protection, required checks, token
+permissions, publishing environments, secret scanning — is in
+`REPOSITORY.md`. Read that file before changing a workflow, a branch rule
+or a repository setting. Writing code does not need it.
+
 ## Commands
 
 uv is the only tool that must be installed; it fetches interpreters,
@@ -43,7 +48,7 @@ which is the single most important thing to know before touching
 - the Python path is not dead code and not constant-time: it serves every
   other curve, other hash functions, and caller-supplied nonces, and the
   test suite validates it *against* the bindings, which are the authority
-  on the answer. `SECURITY.md` states this as a limitation; keep it true
+  on the answer. `SECURITY.md` publishes this as a known limitation
 
 Layers, roughly bottom-up: `curves/` (curve arithmetic) → `ecc/` (dsa, ssa,
 bms, borromean, pedersen, rfc6979/bip340 nonces) → keys and encodings
@@ -56,75 +61,78 @@ Three of those pairs are one idea split in two, and each split runs one
 way only: `curves/` is arithmetic and `ecc/` is what is built on it;
 `base58` and `bech32` are codecs with no bitcoin in them, `b58` and `b32`
 the bitcoin semantics on top. `ecc` imports `curves`, `b58` imports
-`base58`, `b32` imports `bech32`, and never the reverse. The README has
-the layout as a table, and each of the six modules says it in its own
-docstring.
+`base58`, `b32` imports `bech32`, and never the reverse. The README
+carries the same layout as a table, and each of the six modules states
+its own direction in its docstring — six places, if the direction ever
+changes.
+
+## The shared checkout
+
+**Take the lock before the first edit.** Working in the shared checkout
+is what lets the maintainer watch the edits as they happen, so it is not
+reserved for the awkward cases — but only one session can have it,
+because one working tree has one index and one HEAD: a plain `git commit`
+(or `git add -A`) there picks up whatever another session has staged, and
+`git rebase`, `git stash` and the `pre-commit` hooks that fix files in
+place rewrite or shelve files that are not this session's.
+
+```shell
+LOCK="$(git rev-parse --path-format=absolute \
+  --git-common-dir)/claude-shared-tree.lock"
+( set -C; printf 'session %s\npid %s\nsince %s\ntask %s\n' \
+  "$CLAUDE_CODE_SESSION_ID" "$CLAUDE_PID" "$(date -u +%FT%TZ)" \
+  "<the task, one line>" > "$LOCK" ) 2>/dev/null \
+  && echo "shared tree: mine" || cat "$LOCK"
+```
+
+`set -C` (noclobber) makes the redirection fail when the file is already
+there, so testing and taking are one atomic step. The path is the
+*common* dir because a file in the repository root would be per-worktree,
+i.e. invisible to exactly the sessions that have to see it; being outside
+the work tree it also needs no `.gitignore` entry. `rm "$LOCK"` when the
+work is pushed: releasing is part of finishing, like removing a worktree.
+
+**Locked out means worktree**, which is the cheap side of the trade:
+`git worktree add --detach <scratchpad>/wt<issue> dev`, `uv sync
+--locked` in it (a second venv, about a minute), then edit, gate and
+commit *there*, `git push origin HEAD:dev`, and `git worktree remove
+--force` at the end. Nothing destructive reaches a file the other session
+holds, and the commit cannot contain their work because their edits were
+never in it. Expect the push to be rejected — `origin/dev` moves while
+you work — so `git fetch && git rebase origin/dev` in the worktree,
+resolving in favour of *both* sides (their change and yours, both
+CHANGELOG.md bullets).
+
+Two things not to do while their lock is held. Do not move
+`refs/heads/dev`: `git update-ref` leaves their files alone but moves the
+base under them, and their next commit, built on the older copy, would
+revert what just landed. And if your change is already sitting in the
+shared tree, carry it out as a patch (`git diff -- <paths> | git -C
+<worktree> apply`), which refuses rather than clobbers if they have
+touched the same file.
+
+**Never `git stash` in a worktree: `refs/stash` is shared.** A worktree
+isolates files, not refs. The stash is a single ref in the common `.git`,
+so `git stash push` pushes onto the same stack every other session pops
+from — and on a clean tree it creates nothing, so the `git stash pop`
+that follows applies and *drops* whatever another session shelved. Commit
+to your own branch instead: a branch is per-worktree in the way the stash
+only looks to be. What is already lost is still in the object store —
+`git fsck --unreachable` names the commit and `git stash store <sha>`
+puts the ref back.
+
+**A stale lock is a dead pid, and that is testable.** The file records
+the holder's `CLAUDE_PID`, the Claude Code process itself and not the
+shell of one command, so `kill -0 <pid>` answers whether the holder still
+exists: dead, and the lock is yours to overwrite — say so; alive, and a
+worktree costs a venv while taking their tree costs their work. An idle
+session is not a dead one, and a pid can be recycled across a reboot, so
+the lock stays advisory: keep using `git add <paths>` rather than `git
+add -A`, since a session that never read this file cannot honour any of
+it.
 
 ## Non-obvious facts that will otherwise waste a session
 
-- **The shared checkout takes one session at a time, and a lock says
-  which.** Working in it is what lets the maintainer watch the edits as
-  they happen, so it is not reserved for the awkward cases — but only one
-  session can have it, because one working tree has one index and one
-  HEAD: a plain `git commit` (or `git add -A`) there picks up whatever
-  another session has staged, and `git rebase`, `git stash` and the
-  `pre-commit` hooks that fix files in place rewrite or shelve files that
-  are not this session's. So, before the first edit, take the lock:
-
-  ```shell
-  LOCK="$(git rev-parse --path-format=absolute \
-    --git-common-dir)/claude-shared-tree.lock"
-  ( set -C; printf 'session %s\npid %s\nsince %s\ntask %s\n' \
-    "$CLAUDE_CODE_SESSION_ID" "$CLAUDE_PID" "$(date -u +%FT%TZ)" \
-    "<the task, one line>" > "$LOCK" ) 2>/dev/null \
-    && echo "shared tree: mine" || cat "$LOCK"
-  ```
-
-  `set -C` (noclobber) makes the redirection fail when the file is
-  already there, so testing and taking are one atomic step and two
-  sessions starting together cannot both win. The path is the *common*
-  dir on purpose: in a linked worktree `.git` is a file, and
-  `--git-common-dir` still answers with the shared `.git`, so every
-  session reads the same lock — a file in the repository root would be
-  per-worktree, i.e. invisible to exactly the sessions that have to see
-  it. Being outside the work tree it also needs no `.gitignore` entry and
-  cannot be committed by accident. `rm "$LOCK"` when the work is pushed:
-  releasing is part of finishing, like removing a worktree.
-- **Locked out means worktree**, which is the cheap side of the trade:
-  `git worktree add --detach <scratchpad>/wt<issue> dev`, `uv sync
-  --locked` in it (a second venv, about a minute), then edit, gate and
-  commit *there*, `git push origin HEAD:dev`, and `git worktree remove
-  --force` at the end. Nothing destructive then reaches a file the other
-  session holds, and the commit cannot contain their work because their
-  edits were never in it. Expect the push to be rejected — `origin/dev`
-  moves while you work — so `git fetch && git rebase origin/dev` in the
-  worktree, resolving in favour of *both* sides (their change and yours,
-  both CHANGELOG.md bullets). Two things not to do while their lock is
-  held: do not move `refs/heads/dev`, because `git update-ref` leaves
-  their files alone but moves the base under them, and their next commit,
-  built on the older copy, would revert what just landed; and if your
-  change is already sitting in the shared tree, carry it out as a patch
-  (`git diff -- <paths> | git -C <worktree> apply`), which refuses rather
-  than clobbers if they have touched the same file.
-- **A worktree isolates files, not refs, and `refs/stash` is the one
-  that bites.** The stash is a single ref in the common `.git`, so
-  `git stash push` in a private worktree pushes onto the same stack
-  every other session pops from — and on a clean tree it creates
-  nothing, so the `git stash pop` that follows applies and *drops*
-  whatever another session shelved. Commit to your own branch instead:
-  a branch is per-worktree in the way the stash only looks to be. What
-  is already lost is still in the object store —
-  `git fsck --unreachable` names the commit and `git stash store <sha>`
-  puts the ref back.
-- **A stale lock is a dead pid, and that is testable.** The file records
-  the holder's `CLAUDE_PID`, which is the Claude Code process itself and
-  not the shell of one command, so `kill -0 <pid>` answers whether the
-  holder still exists: dead, and the lock is yours to overwrite — say so;
-  alive, and a worktree costs a venv while taking their tree costs their
-  work. An idle session is not a dead one, and a pid can be recycled
-  across a reboot, so the lock stays advisory: keep using `git add
-  <paths>` rather than `git add -A`, since a session that never read this
-  file cannot honour any of it.
 - **Work happens on `dev`**; `master` is the default branch and receives
   merges from it. Dependabot and pre-commit.ci both target `dev`.
 - **A dev CI run is usually `cancelled`, not green.** `test.yml`'s
@@ -139,95 +147,35 @@ docstring.
   mirrors-mypy hook injects `--ignore-missing-imports`, which makes every
   bindings import `Any` and strict mode then fails; and the bindings
   cannot be declared in an isolated hook environment, not being on PyPI.
-- **`lint.yml` has a second job, and `pre-commit` does not run it.**
-  `Build the documentation` runs sphinx with `-W`, so a docstring that
-  docutils cannot parse fails the workflow while every hook passes — a
-  name ending in an underscore is a reference to a link target
-  (``mult_``, and the fix is those very backticks). Reproduce it before
-  claiming the gate is green:
+- **`pre-commit` passing is not the lint gate passing: run sphinx too.**
+  `lint.yml`'s second job runs it with `-W`, so a docstring docutils
+  cannot parse fails the workflow while every hook passes — a name ending
+  in an underscore is a reference to a link target (``mult_``, and the
+  fix is those very backticks). Reproduce it before claiming the gate is
+  green:
 
   ```shell
   uv run --locked --no-default-groups --group docs \
       sphinx-build -W --keep-going -b html docs/source docs/build/html
   ```
 
-  It is one of the four required checks on `master`, named on its own: a
-  rule naming `Lint and type-check` alone would leave a red docs build
-  outside the required checks entirely.
+- **Prefix any `--python <version>` command with
+  `UV_PROJECT_ENVIRONMENT=.venv-3.10`.** Without it, `uv run --python
+  <version>` rebuilds `.venv`, and a group-restricted command then leaves
+  pre-commit out of it: reproducing a matrix cell (`uv run --locked
+  --no-default-groups --group test --python 3.10 pytest`) recreates the
+  environment with 15 packages where `uv sync` leaves 84 — and
+  pre-commit's git hook `exec`s `.venv/bin/python -mpre_commit` by
+  absolute path, which exists and lacks the module, so its "did you
+  forget to activate your virtualenv" fallback never fires and the next
+  `git commit` dies with `No module named pre_commit`. `uv sync` restores
+  it. Without `--python` the same command prunes nothing, so it is the
+  interpreter and not the groups that triggers it.
+- `uv run --no-sources` rewrites `uv.lock`; restore it before committing.
 - **The version is declared once**, in `pyproject.toml`.
   `btclib.__version__` reads it back with `importlib.metadata`, and
   `docs/source/conf.py` parses the file (not the metadata, which would
   need the package installed).
-- **`master` requires four checks**, and only four: `tests-passed`,
-  `Lint and type-check`, `CodeQL`, `Build the documentation`.
-  `tests-passed` is an aggregate job at the end of `test.yml` that
-  `needs` the matrix — never name matrix contexts in the branch rule,
-  because the rule lives outside the repository and a context that stops
-  being produced blocks every merge. A new job in `test.yml` belongs in
-  that job's `needs`, or it gates nothing. `Build the documentation`
-  clears that same trap: `lint.yml` triggers on `pull_request` with no
-  branch and no `paths` filter, so both its jobs report on every pull
-  request, forks included. Each check is bound to
-  the app that produces it — `checks` with an `app_id` rather than the
-  bare `contexts` list, 15368 for Actions and 57789 for CodeQL — so
-  nothing else can satisfy one:
-
-  ```shell
-  gh api repos/btclib-org/btclib/branches/master/protection \
-    --jq '.required_status_checks'   # PATCH that sub-endpoint to change
-  ```
-
-  PATCH it, never PUT the whole protection object: a partial PUT drops
-  the reviews, the signatures and the rest. And repeat `strict: true` in
-  the body, which replaces the object rather than merging into it.
-- **Both branches are protected, and differently on purpose.** The rules
-  live outside the repository, so here is the whole of them. `master`:
-  those four checks with `strict`, one approving review,
-  `dismiss_stale_reviews`, **required signatures**, linear history, no
-  force pushes, no deletions, `required_conversation_resolution`, and
-  `enforce_admins` *off* — an administrator can bypass all of it. `dev`:
-  no force pushes, no deletions, linear history, and nothing else — no
-  required check, no review, no signature, so a direct push still works,
-  which is what `uv run` and both bots rely on.
-  That asymmetry is the answer to issue #158, and it is a choice rather
-  than a copy for two measured reasons. Commits on `dev` are **unsigned**
-  (`git log --format='%G?'` prints `N`), so `required_signatures` there
-  would reject every push, the bots' included. And one approving review
-  cannot be satisfied by the author, GitHub not allowing self-approval, so
-  on a solo-maintainer branch it is a stop rather than a speed bump. What
-  `dev` does buy is the thing the issue was about: Dependabot targets it
-  for both ecosystems, pre-commit.ci autoupdates it, and Dependabot
-  security updates are on, so bot-authored commits reach `master` through
-  it — and the branch cannot be rewritten or deleted under them.
-  Requiring the four checks on `dev` as well is the next step if one is
-  wanted, and it costs the direct push.
-- **The default `GITHUB_TOKEN` is read-only repository-wide**, so a job
-  needing more must declare it (only `release.yml`'s `github-release`
-  does, `contents: write`, plus `id-token: write` on the two publish
-  jobs). The workflow-level `permissions: contents: read` is belt and
-  braces; keep it, it is what makes the intent readable in the file.
-- **Publishing waits for an approval**: the `pypi` and `testpypi`
-  environments both require a review, and `pypi` is restricted to `v*`
-  tags. `RELEASING.md` records the reasoning, including why self-review
-  stays allowed.
-- **Some plan-gated settings cannot be enabled**: secret scanning's
-  non-provider patterns and validity checks need paid Secret Protection,
-  and the API answers a PATCH with 200 while leaving them disabled. The
-  `detect-secrets` hook is the compensating control.
-- `uv run --no-sources` rewrites `uv.lock`; restore it before committing.
-- **`uv run --python <version>` rebuilds `.venv`, and a group-restricted
-  command then leaves pre-commit out of it.** Reproducing a matrix cell
-  (`uv run --locked --no-default-groups --group test --python 3.10
-  pytest`) removes and recreates the environment for that interpreter
-  with 15 packages where `uv sync` leaves 84 — and pre-commit's git hook
-  `exec`s `.venv/bin/python -mpre_commit` by absolute path, which exists
-  and lacks the module, so its "did you forget to activate your
-  virtualenv" fallback never fires and the next `git commit` dies with
-  `No module named pre_commit`. `uv sync` restores it; prefix the command
-  with `UV_PROJECT_ENVIRONMENT=.venv-3.10` to leave `.venv` alone.
-  Without `--python` the same command prunes nothing, so it is the
-  interpreter and not the groups that triggers it. CONTRIBUTING.md
-  carries this next to both commands.
 
 ## Conventions to match
 
@@ -253,14 +201,11 @@ docstring.
   and only moves for a change a user has to *act* on. The prose of the
   two is one fact each, deliberately: the breaking-changes list lives in
   HISTORY.md and the detail behind it in CHANGELOG.md, so neither
-  restates the other.
-- **No file states how many of anything it holds**, and CHANGELOG.md and
-  HISTORY.md are `merge=union` besides. A stated count is a line every
-  open branch has to edit, so with this many branches open it is the one
-  conflict a pull request is guaranteed to have — and worse, two branches
-  moving it to the same new number merge without a conflict into a number
-  that is wrong. Nothing states a count now; measure it when a release
-  wants it, and do not estimate:
+  restates the other. A source-breaking change costs one edit more: a
+  bullet in HISTORY.md's breaking-changes list, with the "before"
+  spelling checked against the `v2023.7.12` tag.
+- **Never state how many of anything a file holds** — measure it when a
+  release wants it, and do not estimate:
 
   ```shell
   grep -c '^- ' CHANGELOG.md   # the number, whenever it is wanted
@@ -268,26 +213,27 @@ docstring.
       btclib/mnemonic/_data/wordlist.txt | grep -cv 'README.md'
   ```
 
-  The second is `tests/_data/README.md`'s, whose summary used to open
-  with a total and count each of its lists: the same trap, one file
-  further, and `tests/vendored_data_test.py` guards it as
-  `release_notes_test.py` guards the other two. That README cannot take
-  the `union` driver — union is right for a list of bullets and nonsense
-  for the prose around them — so there the count had to go rather than
-  be merged.
-
-  The insertion point conflicts too — two branches appending a bullet to
-  the same group — and that is what `.gitattributes` is for: `union`
-  keeps both sides' added lines rather than stopping at a conflict with
-  nothing to decide, on rebases included. Its price is that these two
-  files now never conflict at all, so two branches editing *the same*
-  entry merge in silence, and a branch still carrying an edit to one of
-  the old count paragraphs puts the number back on rebase without a word
-  — which is what `tests/release_notes_test.py` is for: it fails on a
-  stated count rather than on a wrong one, so drop those edits while
-  rebasing and the suite says whether you got them all. A source-breaking
-  change costs one edit more: a bullet in HISTORY.md's breaking-changes
-  list, with the "before" spelling checked against the `v2023.7.12` tag.
+  A stated count is a line every open branch has to edit, so with this
+  many branches open it is the one conflict a pull request is guaranteed
+  to have — and worse, two branches moving it to the same new number
+  merge without a conflict into a number that is wrong. Nothing states a
+  count now, and three tests keep it that way:
+  `tests/release_notes_test.py` for CHANGELOG.md and HISTORY.md,
+  `tests/vendored_data_test.py` for `tests/_data/README.md`, whose
+  summary used to open with a total and count each of its lists. They
+  fail on a stated count rather than on a wrong one.
+- **CHANGELOG.md and HISTORY.md are `merge=union`**, which is what
+  `.gitattributes` is for: the insertion point conflicts too — two
+  branches appending a bullet to the same group — and union keeps both
+  sides' added lines rather than stopping at a conflict with nothing to
+  decide, on rebases included. Its price is that these two files now
+  never conflict at all, so two branches editing *the same* entry merge
+  in silence, and a branch still carrying an edit to one of the old count
+  paragraphs puts the number back on rebase without a word. Drop those
+  edits while rebasing; the suite says whether you got them all.
+  `tests/_data/README.md` cannot take the driver — union is right for a
+  list of bullets and nonsense for the prose around them — so there the
+  count had to go rather than be merged.
 
 ## Verifying
 
