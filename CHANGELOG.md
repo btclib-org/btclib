@@ -2505,14 +2505,52 @@ edit.
   time: `dh.diffie_hellman` calls `keys.pubkey_tweak_mul` on secp256k1,
   15.2 µs against the 0.55 ms of `mult(dU, QV)` — some thirty-six
   times, this being the multiplication of a point that is *not* the
-  generator, the one case `mult` never delegated, with the private key
-  as the scalar. The derivation is unchanged and still ANSI-X9.63-KDF,
+  generator, with the private key as the scalar; it stays a call of its
+  own past the entry below, which delegates that multiplication in
+  `mult` as well, because the shared point never becomes a `Point` here.
+  The derivation is unchanged and still ANSI-X9.63-KDF,
   which is why the bindings' own `ecdh.shared_secret` is not a
   substitute: that one hashes the compressed shared point with SHA256.
   Every other curve keeps the Python multiplication, GEC 2's secp160r1
   vector now checked through `diffie_hellman` itself, and so does a
   scalar that is zero mod n — the infinity point, which the bindings
   have no scalar for and which is still `invalid (INF) key`
+- **`mult` multiplies any point in libsecp256k1, and `double_mult` and
+  `multi_mult` sum them there**: the bindings served the generator alone,
+  so every other multiplication of secp256k1 ran the Python arithmetic —
+  0.55 ms against 13 µs for `mult(m, Q)`, 1.02 ms against 28 µs for
+  `double_mult`, 2.4 ms against 122 µs for a `multi_mult` of eight
+  scalars and 15.2 ms against 1.01 ms for one of sixty-four: 43x, 36x,
+  20x and 15x. `pedersen.commit` and borromean's rings are `double_mult`
+  callers and take it as it is. What the three reach is one
+  bytes-in/bytes-out layer: a term is `keys.pubkey_tweak_mul`, the
+  running total `keys.pubkey_combine`, and no intermediate becomes a
+  `Point` again — uncompressed in both directions, a compressed answer
+  costing the 73 µs modular square root that lifts an x coordinate back
+  to a point and a compressed argument 2.1 µs of libsecp256k1's own.
+  Their signatures and their answers are unchanged, infinity included: a
+  libsecp256k1 public key is a point of the curve and never the identity,
+  so a zero scalar, the point at infinity, and a sum that lands on
+  infinity — `v = n - u` on the same point is the one-line case — are
+  recognized before the call rather than caught from it. That last one
+  costs a combine per term instead of one combine for all of them, 112 µs
+  against 97 on eight terms and 925 against 774 on sixty-four, and buys a
+  `ValueError` from those calls still meaning what it says; two terms,
+  which is `double_mult` and the shape most callers have, pay nothing.
+  BIP340 batch verification is where the many-scalar sum is, libsecp256k1
+  exposing no batch verify of its own: it goes through the public `mult`
+  and `multi_mult` in affine coordinates now, instead of the Jacobian
+  functions under them and an equality of projective coordinates, 3.4 ms
+  against 739 µs for four signatures — most of what is left being one
+  modular square root per signature, to lift an `r` back to a point. The
+  Python arithmetic stays, and stays the reference the bindings are held
+  against: the dispatch is patched off and every one of these answers
+  asserted again, with the bindings themselves replaced by a function
+  that raises, so a path still reaching them cannot pass in silence.
+  `mult` finds its GLV endomorphism there, which is why that arm is
+  spelled `ec == secp256k1` rather than by the bindings predicate — the
+  same test today, a different question. A `multi_mult` of a single
+  scalar is still `not a multi_mult`
 - **the taproot output *private* key is tweaked by libsecp256k1 too**, and
   in constant time: `taproot.output_prvkey` calls
   `xonly.prvkey_tweak_add`, which is BIP341's tweaking of an x-only

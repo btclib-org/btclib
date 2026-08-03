@@ -28,7 +28,7 @@ from btclib.hashes import reduce_to_hlen
 from btclib.number_theory import mod_inv
 from btclib.utils import int_from_bits
 from tests import load_csv, vector_id
-from tests.curves.curve_test import low_card_curves, secp256k1_bis
+from tests.curves.curve_test import low_card_curves, no_bindings, secp256k1_bis
 
 
 def test_signature_on_an_equal_curve() -> None:
@@ -313,6 +313,42 @@ def test_batch_validation() -> None:
     with pytest.raises(BTClibRuntimeError, match=err_msg):
         ssa.assert_batch_as_valid_(ms, Qs, sigs)
     assert not ssa.batch_verify_(ms, Qs, sigs)
+
+
+def test_batch_validation_on_the_python_path(monkeypatch: pytest.MonkeyPatch) -> None:
+    """The batch verification equation, on both point arithmetics.
+
+    Batch verification is btclib's own: libsecp256k1 exposes no batch
+    verify, so what serves it is the multi_mult of curves.curve -- and on
+    secp256k1 that is the bindings, which makes this the one caller
+    handing them many scalars at once. Patching the dispatch off is the
+    only way the Python arithmetic sees a batch, and what this catches is
+    the two implementations disagreeing about the verdict, on a batch that
+    must pass and on one that must fail.
+    """
+    aux = b"\x00" * 32
+    # not the size of the msg_hash, just an arbitrary size for the msg
+    msg_size = 16
+    msgs: list[String] = []
+    Qs: list[int] = []
+    sigs: list[ssa.Sig] = []
+    for i in range(1, 5):
+        msg = bytes(i) * msg_size
+        msgs.append(msg)
+        q, Q = ssa.gen_keys(i)
+        Qs.append(Q)
+        sigs.append(ssa.sign(msg, q, aux))
+
+    ssa.assert_batch_as_valid(msgs, Qs, sigs)
+
+    no_bindings(monkeypatch)
+    ssa.assert_batch_as_valid(msgs, Qs, sigs)
+
+    # one signature belonging to another message of the same batch: the
+    # sum misses, and misses on either arithmetic
+    sigs[-1] = sigs[0]
+    with pytest.raises(BTClibRuntimeError, match="signature verification failed"):
+        ssa.assert_batch_as_valid(msgs, Qs, sigs)
 
 
 def test_musig() -> None:

@@ -65,13 +65,16 @@ used to teach and to prototype as much as to build:
     garbage collection, and may have been copied by the interpreter
     meanwhile. The constant-time properties of libsecp256k1 apply to the
     C side of the boundary, not to what happens before and after it
-- not every operation crosses that boundary. `mult` reaches the bindings
-    for secp256k1 and the generator alone; `dsa.sign` for secp256k1 with
-    sha256, the lower-s form, no caller-imposed nonce and no commitment;
-    `ssa.sign` for secp256k1 with sha256, a 32-byte message and no
-    commitment; `taproot.output_prvkey` and `dh.diffie_hellman` for
-    secp256k1, the tweaking of a key and the shared point of a key
-    agreement being the two other places a secret meets the curve.
+- not every operation crosses that boundary. `mult`, `double_mult` and
+    `multi_mult` reach the bindings for secp256k1 and any point of it, a
+    zero scalar and the point at infinity excepted — libsecp256k1 has no
+    scalar for the one and no public key for the other; `dsa.sign` for
+    secp256k1 with sha256, the lower-s form, no caller-imposed nonce and
+    no commitment; `ssa.sign` for secp256k1 with sha256, a 32-byte
+    message and no commitment; `taproot.output_prvkey` and
+    `dh.diffie_hellman` for secp256k1, the tweaking of a key and the
+    shared point of a key agreement being the two other places a secret
+    meets the curve.
     A signature the bindings decline is not all Python for that:
     `dsa.gen_keys` and the nonce point of `dsa._sign_` go through `mult`,
     so those two multiplications are delegated whatever else the

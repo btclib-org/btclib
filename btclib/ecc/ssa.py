@@ -76,8 +76,7 @@ from btclib_libsecp256k1 import ssa as libsecp256k1_ssa
 from btclib.alias import BinaryData, HashF, Integer, JacPoint, Octets, Point
 from btclib.bip32 import BIP32Key
 from btclib.curves import Curve, secp256k1
-from btclib.curves.curve import _libsecp256k1_applicable, mult
-from btclib.curves.curve_group import _mult, _multi_mult
+from btclib.curves.curve import _libsecp256k1_applicable, mult, multi_mult
 from btclib.curves.curve_group_2 import double_mult_w_NAF
 from btclib.ecc.bip340_nonce import bip340_nonce_
 from btclib.ecc.commit_nonce import commit_entropy_, commit_nonce_, commit_point_
@@ -617,15 +616,14 @@ def assert_batch_as_valid_(
         raise BTClibValueError("not the same curve for all signatures")
     t = 0
     scalars: list[int] = []
-    points: list[JacPoint] = []
+    points: list[Point] = []
     for i, (msg, Q, sig) in enumerate(zip(msgs, Qs, sigs, strict=True)):
         # any size, as in sign_ and assert_as_valid_
         msg = bytes_from_octets(msg)
 
-        KJ = sig.r, ec.y_even(sig.r), 1
+        K = sig.r, ec.y_even(sig.r)
 
         x_Q, y_Q = point_from_bip340pub_key(Q, ec)
-        QJ = x_Q, y_Q, 1
 
         c = challenge_(msg, x_Q, sig.r, ec, hf)
 
@@ -636,20 +634,24 @@ def assert_batch_as_valid_(
         # run of the batch verification algorithm
         rand = 1 if i == 0 else 1 + secrets.randbelow(ec.n - 1)
         scalars.append(rand)
-        points.append(KJ)
+        points.append(K)
         scalars.append(rand * c % ec.n)
-        points.append(QJ)
+        points.append((x_Q, y_Q))
         t += rand * sig.s
 
-    TJ = _mult(t, ec.GJ, ec)
-    RHSJ = _multi_mult(scalars, points, ec)
-
-    # return T == RHS, checked in Jacobian coordinates
-    RHSZ2 = RHSJ[2] * RHSJ[2]
-    TZ2 = TJ[2] * TJ[2]
-    if (TJ[0] * RHSZ2 % ec.p != RHSJ[0] * TZ2 % ec.p) or (
-        TJ[1] * RHSZ2 * RHSJ[2] % ec.p != RHSJ[1] * TZ2 * TJ[2] % ec.p
-    ):
+    # the public mult and multi_mult, in affine coordinates, rather than
+    # the Jacobian functions of curve_group underneath them and an
+    # equality of projective coordinates: those two are where the
+    # libsecp256k1 dispatch lives, and this sum is the one place in btclib
+    # that hands the bindings many scalars at once, libsecp256k1 exposing
+    # no batch verification of its own. Four signatures, i.e. the eight
+    # terms above: 2.4 ms of Python arithmetic against 122 us, and
+    # assert_batch_as_valid_ as a whole 3.4 ms against 739 us -- most of
+    # what is left being one y_even per signature, 74 us of modular
+    # square root to lift an r back to a point. The two affine
+    # conversions the equality costs on every other curve are one modular
+    # inversion each, next to a multi_mult of all the terms
+    if mult(t, ec=ec) != multi_mult(scalars, points, ec):
         raise BTClibRuntimeError("signature verification failed")
     return
 
