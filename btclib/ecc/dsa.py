@@ -33,6 +33,8 @@ from io import BytesIO
 from typing import overload
 
 from btclib_libsecp256k1 import dsa as libsecp256k1_dsa
+from btclib_libsecp256k1 import keys as libsecp256k1_keys
+from btclib_libsecp256k1 import recovery as libsecp256k1_recovery
 
 from btclib import var_bytes
 from btclib.alias import BinaryData, HashF, JacPoint, Octets, Point
@@ -812,6 +814,11 @@ def _recover_pub_keys_(
 ) -> list[JacPoint]:
     # Private function provided for testing purposes only.
 
+    # libsecp256k1 has no counterpart to enumerate with -- its recover
+    # answers for a recid it is given -- so this is the Python path
+    # whatever the curve, and it is what the tests hold the delegated
+    # single-candidate recovery against.
+    #
     # every candidate is a key_id, so this is _recover_pub_key_ over the
     # whole range of them and nothing else: a j in [0, ec.cofactor] (step
     # 1 of SEC 1 v.2 section 4.1.6) and a y_K-coordinate parity, the even
@@ -908,6 +915,56 @@ def _recover_pub_key_(
     return QJ
 
 
+def _libsecp256k1_recover_sec_(
+    key_id: int, msg_hash: bytes, sig: Sig, lower_s: bool, compressed: bool
+) -> bytes:
+    # Private function: the caller has asked _libsecp256k1_applicable
+    # already, and hands in a 32-byte msg_hash and a key_id in [0, 3].
+    #
+    # secp256k1_ecdsa_recover is step 1.6 of SEC 1 v.2 section 4.1.6 for
+    # the one named candidate: 19 us here against the two milliseconds of
+    # the Python path, which is `recover_pub_key` 95 us against 2330 once
+    # the Sig validation both of them pay is counted in. It answers sec
+    # octets rather than a point, which is what an address wants, so bms
+    # hashes these very bytes and never builds a point.
+    #
+    # Step 1.6.2 -- that the recovered key verifies the signature -- is
+    # not skipped by delegating: the key returned satisfies the signature
+    # equation by construction, and a candidate whose x-coordinate is not
+    # on the curve is the failure caught below.
+    #
+    # The lower-s rule is checked here and not there. The recoverable
+    # parser takes any s in [1, n-1], as it must: a malleated signature
+    # recovers a key too, and lower_s is the caller saying whether that
+    # answer is wanted -- the same question _assert_as_valid_ answers with
+    # this very message
+    if lower_s and sig.s > sig.ec.n // 2:
+        raise BTClibValueError("not a low s")
+
+    n_size = sig.ec.n_size
+    compact = sig.r.to_bytes(n_size, byteorder="big", signed=False)
+    compact += sig.s.to_bytes(n_size, byteorder="big", signed=False)
+    try:
+        sec = libsecp256k1_recovery.recover(msg_hash, compact, key_id)
+    except ValueError as e:
+        # a bare ValueError is not what the Python path raises for a
+        # candidate that recovers nothing -- BTClibValueError when x_K
+        # misses the curve, BTClibRuntimeError when the key it yields does
+        # not verify -- and bms.sign suppresses those two by name, which a
+        # ValueError does not answer to, being their base and not a
+        # subclass
+        raise BTClibValueError(f"invalid key_id or signature: {e}") from e
+
+    if compressed:
+        return sec
+    # the bindings serialize compressed unless asked otherwise, and the
+    # rf <= 30 case of a message signature hashes the uncompressed form:
+    # 29 us against the 19 above, the difference being a pubkey_parse
+    # undoing a serialization the same library has just made -- which
+    # recover leaves no way around, answering octets and not a pubkey
+    return libsecp256k1_keys.serialize(libsecp256k1_keys.parse(sec), compressed=False)
+
+
 def recover_pub_key_(
     key_id: int,
     msg_hash: Octets,
@@ -928,6 +985,28 @@ def recover_pub_key_(
     # The message msg_hash: a hf_len array
     hf_len = hf().digest_size
     msg_hash = bytes_from_octets(msg_hash, hf_len)
+
+    # a recid is two bits, i.e. a key_id in [0, 3], which is every
+    # candidate a curve of cofactor 1 has; _recover_pub_key_ below reads a
+    # key_id up to 7 as j up to 3, and no j above 1 is reachable on
+    # secp256k1 anyway -- x_K = r + 2*ec.n exceeds ec.p for every r.
+    # Where both answer, they answer the same: the bindings require
+    # r < ec.p - ec.n for j = 1, and the % ec.p of the Python path leaves
+    # x_K = r + ec.n - ec.p otherwise, which fails step 1.6.2 for every r
+    # -- passing it would need ec.p ≡ 0 mod ec.n
+    if _libsecp256k1_applicable(sig.ec, hf) and 0 <= key_id <= 3:
+        sec = _libsecp256k1_recover_sec_(
+            key_id, msg_hash, sig, lower_s, compressed=False
+        )
+        # 0x04 || x || y (SEC 1 v.2, section 2.3.3), read rather than
+        # parsed through point_from_octets: this is a point libsecp256k1
+        # has just created, and proving it on the curve again is work with
+        # a known answer
+        p_size = sig.ec.p_size
+        return (
+            int.from_bytes(sec[1 : 1 + p_size], byteorder="big", signed=False),
+            int.from_bytes(sec[1 + p_size :], byteorder="big", signed=False),
+        )
 
     c = challenge_(msg_hash, sig.ec, hf)  # 1.5
 

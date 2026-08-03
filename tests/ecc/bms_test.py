@@ -774,6 +774,91 @@ def test_a_key_id_that_recovers_nothing() -> None:
             dsa.recover_pub_key(key_id, magic_msg, bms_sig.dsa_sig)
 
 
+def test_recoverable_signing_answers_the_key_id_the_search_finds(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """The recid libsecp256k1 reports is the key_id, and r and s agree too.
+
+    `sign` reads the key_id off a recoverable signature instead of signing
+    and then recovering candidate after candidate until one is the signer's
+    own key. The recid is the same thing arrived at from the other side --
+    the parity of the nonce's point and whether its x-coordinate exceeded
+    the group order, both of which the signer had in hand -- so what has to
+    hold is that the two name one signature, r, s and key_id all three.
+
+    Held over random pairs and not fixed vectors, r and s being what
+    RFC6979 makes of each: the fixed vectors are the base64 signatures of
+    the tests above, which this reproduces through
+    `test_the_python_path_answers_the_same`.
+    """
+    for i in range(20):
+        msg = f"message {i}".encode()
+        wif, addr = bms.gen_keys()
+        bms_sig = bms.sign(msg, wif)
+
+        magic_msg = magic_message(msg)
+        q = prv_keyinfo_from_prv_key(wif)[0]
+        dsa_sig = dsa.sign(magic_msg, q)
+        assert bms_sig.dsa_sig == dsa_sig
+        key_id = bms_sig.rf - 27 & 0b11
+        assert key_id == bms._search_key_id(magic_msg, dsa_sig, q)
+        # and the search asked of the implementation that did not report
+        # the recid, so that the two derivations are independent
+        with monkeypatch.context() as no_bindings:
+            no_bindings.setattr(dsa, "_libsecp256k1_applicable", lambda *_: False)
+            assert key_id == bms._search_key_id(magic_msg, dsa_sig, q)
+
+        bms.assert_as_valid(msg, addr, bms_sig)
+
+
+# the sibling test functions are called rather than reimplemented, as
+# tests/script_engine/python_path_test.py does with the vector walks: two
+# copies of a vector drift, and what has to be identical between the two
+# runs is precisely the vector -- only the implementation underneath
+# differs. Which is what makes these the fixed vectors of the delegation:
+# every base64 signature the tests below assert is a published one, from
+# Core, Electrum, Ledger or BIP137, and the Python path has to produce and
+# verify each of them exactly as the bindings do
+@pytest.mark.parametrize(
+    "vector_test",
+    [
+        test_signature,
+        test_exceptions,
+        test_one_prv_key_multiple_addresses,
+        test_msgsign_p2pkh,
+        test_msgsign_p2pkh_2,
+        test_verify_p2pkh,
+        test_segwit,
+        test_sign_strippable_message,
+        test_ledger,
+        test_the_recovery_flag_carries_a_key_id_not_a_list_index,
+        test_a_key_id_that_recovers_nothing,
+    ],
+    ids=lambda vector_test: vector_test.__name__,
+)
+def test_the_python_path_answers_the_same(
+    vector_test: Any, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """bms is secp256k1 only, so nothing else keeps its Python path reached.
+
+    Unlike taproot or ECDH there is no second curve to fall back for, and
+    no message length the bindings decline: `Sig.assert_valid` refuses any
+    other curve, so in production the dispatch always answers yes. The
+    Python implementation stays as the reference the delegation is held
+    against, and this is what reaches it.
+
+    Two patches, one per module, because there are two dispatches on the
+    way down: bms asks before it signs or recovers, and `dsa.sign` and
+    `dsa.recover_pub_key` under it ask again -- patching bms alone would
+    exercise the key_id search with libsecp256k1 doing the recovery
+    inside it.
+    """
+    with monkeypatch.context() as no_bindings:
+        no_bindings.setattr(bms, "_libsecp256k1_applicable", lambda *_: False)
+        no_bindings.setattr(dsa, "_libsecp256k1_applicable", lambda *_: False)
+        vector_test()
+
+
 def test_parse_length_is_not_a_validity_opinion() -> None:
     """65 bytes is what makes the [rf][r][s] slices mean anything.
 

@@ -154,13 +154,17 @@ import secrets
 from dataclasses import dataclass
 from hashlib import sha256
 
+from btclib_libsecp256k1 import recovery as libsecp256k1_recovery
+
 from btclib.alias import BinaryData, Octets, String
 from btclib.b32 import has_segwit_prefix, p2wpkh, witness_from_address
 from btclib.b58 import h160_from_address, p2pkh, p2wpkh_p2sh, wif_from_prv_key
-from btclib.curves import bytes_from_point, mult, secp256k1
+from btclib.curves import bytes_from_point, bytes_from_prv_key_int, mult, secp256k1
+from btclib.curves.curve import _libsecp256k1_applicable
 from btclib.ecc import dsa
+from btclib.ecc.dsa import _libsecp256k1_recover_sec_
 from btclib.exceptions import BTClibRuntimeError, BTClibValueError
-from btclib.hashes import hash160, magic_message
+from btclib.hashes import hash160, magic_message, reduce_to_hlen
 from btclib.network import NETWORKS
 from btclib.to_prv_key import PrvKey, prv_keyinfo_from_prv_key
 from btclib.utils import bytesio_from_binarydata
@@ -291,17 +295,15 @@ def gen_keys(
     return wif, p2pkh(wif)
 
 
-def sign(msg: Octets, prv_key: PrvKey, addr: String | None = None) -> Sig:
-    """Generate address-based compact signature for the provided message."""
-    # first sign the message
-    magic_msg = magic_message(msg)
-    q, network, compressed = prv_keyinfo_from_prv_key(prv_key)
-    dsa_sig = dsa.sign(magic_msg, q)
+def _search_key_id(magic_msg: bytes, dsa_sig: dsa.Sig, q: int) -> int:
+    """Return the key_id that recovers the public key of q.
 
-    # now calculate the key_id: the candidate that is this key, named by
-    # the key_id that recovers it. key_id is in [0, 3], and the first two
-    # bits in rf are reserved for it
-    #
+    The candidate that is this key, named by the key_id that recovers it.
+    key_id is in [0, 3], and the first two bits in rf are reserved for it.
+
+    This is the question a recoverable signature answers as it signs, so
+    `sign` asks it only where the bindings are not the signer.
+    """
     # one candidate at a time, stopping at the match, rather than
     # dsa.recover_pub_keys(magic_msg, dsa_sig).index(Q) -- every candidate
     # and then a search. Two things this buys: on secp256k1 the list is
@@ -326,14 +328,47 @@ def sign(msg: Octets, prv_key: PrvKey, addr: String | None = None) -> Sig:
         # means "not this one" and not "no key": see dsa._recover_pub_keys_
         with contextlib.suppress(BTClibValueError, BTClibRuntimeError):
             if dsa.recover_pub_key(key_id, magic_msg, dsa_sig) == Q:
-                break
-    else:
-        # unreachable: dsa_sig was just signed with q, so some key_id
-        # recovers mult(q)
-        err_msg = "no key_id recovers the public key"  # pragma: no cover
-        raise BTClibRuntimeError(err_msg)  # pragma: no cover
+                return key_id
 
-    pub_key = bytes_from_point(Q, compressed=compressed)
+    # unreachable: dsa_sig was just signed with q, so some key_id does
+    # recover the public key of q
+    err_msg = "no key_id recovers the public key"  # pragma: no cover
+    raise BTClibRuntimeError(err_msg)  # pragma: no cover
+
+
+def sign(msg: Octets, prv_key: PrvKey, addr: String | None = None) -> Sig:
+    """Generate address-based compact signature for the provided message."""
+    magic_msg = magic_message(msg)
+    q, network, compressed = prv_keyinfo_from_prv_key(prv_key)
+
+    # signing and naming the key_id are one call, not two: recoverable
+    # signing is the shape libsecp256k1 offers precisely because the recid
+    # falls out of the signature -- it is the parity of the nonce's point
+    # and whether its x-coordinate exceeded the group order, both of which
+    # the signer had in hand -- so `_search_key_id` does not get faster,
+    # it goes away. 102 us against 4360, the mean over 40 random keys, and
+    # the search was all of it: 2977 us where the signer's key is key_id 0
+    # and one recovery finds it, 5492 where it is key_id 1 and the first
+    # candidate is computed only to be discarded. 76 of the 102 that
+    # remain are the Sig validation below
+    if _libsecp256k1_applicable(secp256k1):
+        sig_bytes, key_id = libsecp256k1_recovery.sign(reduce_to_hlen(magic_msg), q)
+        n_size = secp256k1.n_size
+        r = int.from_bytes(sig_bytes[:n_size], byteorder="big", signed=False)
+        s = int.from_bytes(sig_bytes[n_size:], byteorder="big", signed=False)
+        # check_validity=False, and the Sig returned below does validate:
+        # asserting r congruent to an x-coordinate is a modular square
+        # root, 76 us of the 102, and paying it twice over the one
+        # signature is most of what is left to save here
+        dsa_sig = dsa.Sig(r, s, secp256k1, check_validity=False)
+    else:
+        dsa_sig = dsa.sign(magic_msg, q)
+        key_id = _search_key_id(magic_msg, dsa_sig, q)
+
+    # bytes_from_prv_key_int, not bytes_from_point(mult(q)): the address
+    # wants the octets, and on secp256k1 they come out of the bindings'
+    # own serialization without a point in between (issue #127)
+    pub_key = bytes_from_prv_key_int(q, compressed=compressed)
 
     if isinstance(addr, str):
         addr = addr.strip()
@@ -424,10 +459,20 @@ def assert_as_valid(
     # 39-27 = 001100;  40-27 = 001101;  41-27 = 001110;  42-27 = 001111
     key_id = sig.rf - 27 & 0b11
     magic_msg = magic_message(msg)
-    Q = dsa.recover_pub_key(key_id, magic_msg, sig.dsa_sig, lower_s, sha256)
     compressed = sig.rf > 30
-    # signature is valid only if the provided address is matched
-    pub_key = bytes_from_point(Q, compressed=compressed)
+    # signature is valid only if the provided address is matched, and an
+    # address is a hash of the sec octets: no point is built here, the
+    # bindings answering the octets themselves -- which is the mod_inv of
+    # an affine conversion not paid either. `verify` is 97 us against 2782,
+    # the mean over 40 random keys, of which 76 are the r-congruence square
+    # root of the Sig validation above and some 20 the recovery itself
+    if _libsecp256k1_applicable(secp256k1):
+        pub_key = _libsecp256k1_recover_sec_(
+            key_id, reduce_to_hlen(magic_msg), sig.dsa_sig, lower_s, compressed
+        )
+    else:
+        Q = dsa.recover_pub_key(key_id, magic_msg, sig.dsa_sig, lower_s, sha256)
+        pub_key = bytes_from_point(Q, compressed=compressed)
 
     # the address says which of the three checks applies, and each of them
     # carries the recovery-flag range that belongs to its type: the flag
