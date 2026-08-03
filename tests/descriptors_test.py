@@ -37,6 +37,7 @@ from hypothesis import given
 from hypothesis import strategies as st
 
 from btclib.alias import Octets
+from btclib.bip32 import BIP32KeyOrigin
 from btclib.descriptors import (
     AddrDescriptor,
     ComboDescriptor,
@@ -58,14 +59,19 @@ from btclib.descriptors import (
 )
 from btclib.ecc import dsa, ssa
 from btclib.exceptions import BTClibValueError
-from btclib.psbt.psbt import _finalized_input
+from btclib.psbt.psbt import (
+    Psbt,
+    _finalized_input,
+    finalize_psbt,
+    taproot_sig_hash,
+)
 from btclib.psbt.psbt_in import PsbtIn
 from btclib.script import taproot
 from btclib.script.script import serialize
 from btclib.script.script_pub_key import ScriptPubKey
 from btclib.script.witness import Witness
 from btclib.to_pub_key import pub_keyinfo_from_key
-from btclib.tx.tx_out import TxOut
+from btclib.tx import OutPoint, Tx, TxIn, TxOut
 from tests import load, vector_id
 
 DOC_DESCRIPTORS = [
@@ -1073,3 +1079,273 @@ def test_only_a_script_is_embeddable() -> None:
     inner = parse(f"tr({XONLY_A})")
     with pytest.raises(BTClibValueError, match="TrDescriptor is not a script"):
         WshDescriptor(inner).satisfy({XONLY_A: SCHNORR})
+
+
+def psbt_spending(descriptor: Descriptor, index: int = 0) -> Psbt:
+    """Return a one-input psbt spending what the descriptor describes.
+
+    The whole previous transaction as the utxo, rather than the spent
+    output alone: a witness_utxo beside a legacy input is what
+    `Psbt.assert_signable` refuses as "script type not in ('p2wpkh',
+    'p2wsh')", and these vectors are of every kind.
+    """
+    script_pub_key = descriptor.script_pub_key(index)
+    prev_tx = Tx(
+        vin=[TxIn(OutPoint(b"\x02" * 32, 0))], vout=[TxOut(1000, script_pub_key)]
+    )
+    psbt = Psbt.from_tx(
+        Tx(vin=[TxIn(OutPoint(prev_tx.id, 0))], vout=[TxOut(900, script_pub_key)])
+    )
+    psbt.inputs[0].non_witness_utxo = prev_tx
+    return psbt
+
+
+@pytest.mark.parametrize(
+    ("descriptor", "signing_keys", "redeem", "witness"), FINALIZER_VECTORS
+)
+def test_the_updater_fills_what_the_finalizer_dispatches_on(
+    descriptor: str, signing_keys: list[str], redeem: str, witness: str
+) -> None:
+    """The vectors above, with the two scripts written by the descriptor.
+
+    Which is the whole of issue 306 for a legacy input: the test beside
+    this one hands the psbt the redeem and witness scripts by parsing a
+    second descriptor of each, and here nothing is handed to it. That the
+    same signatures then finalize to the same spend says the fields are
+    the ones the Finalizer needs, and `assert_signable` says each script
+    is the one the output being spent commits to.
+    """
+    parsed = parse(descriptor)
+    psbt = parsed.update_psbt(psbt_spending(parsed), 0)
+    psbt.assert_signable()
+
+    psbt_in = psbt.inputs[0]
+    assert psbt_in.redeem_script == (parse(redeem).redeem_script() if redeem else b"")
+    assert psbt_in.witness_script == (
+        parse(witness).redeem_script() if witness else b""
+    )
+    psbt_in.partial_sigs = {
+        bytes.fromhex(key): bytes.fromhex(SIGNATURES[key]) for key in signing_keys
+    }
+    assert parsed.satisfy(signatures_of(*signing_keys)) == _finalized_input(psbt_in)
+
+
+def test_the_updater_carries_the_key_origin_of_the_derived_key() -> None:
+    """The path down to the key itself, and not down to the xpub above it.
+
+    What BIP 174 carries is what a signer derives with, so the origin of
+    a ranged descriptor's key is the origin written in it, the steps the
+    descriptor derives, and the index -- three pieces the psbt sees as
+    one path.
+    """
+    descriptor = parse(f"wpkh([d34db33f/84h/0h/0h]{XPUB}/0/*)")
+    key = descriptor.key_expressions[0]
+    for index in (0, 7):
+        psbt = descriptor.update_psbt(psbt_spending(descriptor, index), 0, index)
+        hd_key_paths = psbt.inputs[0].hd_key_paths
+        assert list(hd_key_paths) == [key.sec(index)]
+        assert (
+            hd_key_paths[key.sec(index)].description == f"d34db33f/84h/0h/0h/0/{index}"
+        )
+
+
+def test_a_key_without_an_origin_is_skipped_rather_than_refused() -> None:
+    """A descriptor may name one key as hex and the next with an origin.
+
+    The field is keyed by public key, so what a key with nothing to say
+    about where it came from costs is its own entry and not the field.
+    """
+    descriptor = parse(f"wsh(multi(2,[d34db33f/0h]{XPUB}/0,{KEY_B},{KEY_C}))")
+    psbt = descriptor.update_psbt(psbt_spending(descriptor), 0)
+    hd_key_paths = psbt.inputs[0].hd_key_paths
+    assert list(hd_key_paths) == [descriptor.key_expressions[0].sec()]
+    assert hd_key_paths[descriptor.key_expressions[0].sec()].description == (
+        "d34db33f/0h/0"
+    )
+
+
+def test_the_updater_adds_to_what_the_psbt_already_carries() -> None:
+    """An Updater is a role a psbt passes through, and not the first one.
+
+    Another signer's key origin is left where it is, and the entry for a
+    key this descriptor names too is this one: what the descriptor knows
+    is knowledge about its own keys.
+    """
+    descriptor = parse(f"wsh(multi(2,[d34db33f/0h]{XPUB}/0,{KEY_B},{KEY_C}))")
+    key = descriptor.key_expressions[0].sec()
+    psbt = psbt_spending(descriptor)
+    psbt.inputs[0].hd_key_paths = {
+        bytes.fromhex(KEY_A): BIP32KeyOrigin("ffffffff", "m/1"),
+        key: BIP32KeyOrigin("ffffffff", "m/2"),
+    }
+    hd_key_paths = descriptor.update_psbt(psbt, 0).inputs[0].hd_key_paths
+    assert hd_key_paths[bytes.fromhex(KEY_A)].description == "ffffffff/1"
+    assert hd_key_paths[key].description == "d34db33f/0h/0"
+
+
+def test_the_updater_leaves_the_psbt_it_was_given_alone() -> None:
+    """A copy, as `finalize_psbt` returns one."""
+    descriptor = parse(f"sh({MULTI})")
+    psbt = psbt_spending(descriptor)
+    assert descriptor.update_psbt(psbt, 0).inputs[0].redeem_script
+    assert not psbt.inputs[0].redeem_script
+
+
+def test_the_updater_refuses_an_index_that_names_no_input() -> None:
+    """An IndexError out of a public method is not an answer.
+
+    A negative one least of all: it is the input at the other end of the
+    psbt, updated with the fields of an output it does not spend.
+    """
+    descriptor = parse(f"wpkh({KEY_A})")
+    psbt = psbt_spending(descriptor)
+    for vin_i in (-1, 1):
+        with pytest.raises(BTClibValueError, match="invalid input index"):
+            descriptor.update_psbt(psbt, vin_i)
+    with pytest.raises(BTClibValueError, match="not a ranged descriptor"):
+        descriptor.update_psbt(psbt, 0, 1)
+
+
+def taproot_leaf_of(psbt_in: PsbtIn, x_only: str) -> tuple[bytes, bytes]:
+    """Return the leaf script a key is the whole of, and its control block."""
+    return next(
+        (script, control_block)
+        for control_block, (script, _) in psbt_in.taproot_leaf_scripts.items()
+        if script[1:-1] == bytes.fromhex(x_only)
+    )
+
+
+def test_the_updater_fills_the_taproot_fields() -> None:
+    """The internal key, the merkle root, and every leaf of the tree.
+
+    A control block is the field an Updater is needed for rather than
+    convenient: it holds the merkle path from its leaf to the root, which
+    is the whole tree seen from that leaf, so a psbt handed one leaf
+    cannot work out another. `check_output_pubkey` is the verifier's own
+    side of BIP 341 and says each of them is the path and the parity bit
+    that leaf needs.
+    """
+    descriptor = parse(f"tr({XONLY_A},{{pk({XONLY_B}),pk({XONLY_C})}})")
+    assert isinstance(descriptor, TrDescriptor)
+    psbt_in = descriptor.update_psbt(psbt_spending(descriptor), 0).inputs[0]
+
+    assert psbt_in.taproot_internal_key == bytes.fromhex(XONLY_A)
+    assert psbt_in.taproot_merkle_root == descriptor.taproot_merkle_root()
+    output_key = descriptor.script_pub_key().script[2:]
+    for leaf_key in (XONLY_B, XONLY_C):
+        script, control_block = taproot_leaf_of(psbt_in, leaf_key)
+        assert script == serialize([bytes.fromhex(leaf_key), "OP_CHECKSIG"])
+        assert taproot.check_output_pubkey(output_key, script, control_block)
+    # 0xc0 is the leaf version of every BIP 386 tree, and what the
+    # control block's first byte carries beside the parity bit
+    assert {version for _, version in psbt_in.taproot_leaf_scripts.values()} == {0xC0}
+
+
+def test_a_taproot_key_path_descriptor_has_no_root_and_no_leaf() -> None:
+    """Which is not the same as a tree that is empty.
+
+    `tr(KEY)` tweaks its internal key with no tree at all, and BIP 371
+    says so by leaving PSBT_IN_TAP_MERKLE_ROOT out.
+    """
+    descriptor = parse(f"tr({XONLY_A})")
+    assert isinstance(descriptor, TrDescriptor)
+    assert descriptor.taproot_merkle_root() == b""
+    assert descriptor.taproot_leaf_scripts() == {}
+
+    psbt_in = descriptor.update_psbt(psbt_spending(descriptor), 0).inputs[0]
+    assert psbt_in.taproot_internal_key == bytes.fromhex(XONLY_A)
+    assert not psbt_in.taproot_merkle_root
+    assert not psbt_in.taproot_leaf_scripts
+
+
+def test_a_taproot_key_origin_names_the_leaves_it_is_in() -> None:
+    """BIP 371 keys the field by x-only key and carries the tapleaf hashes.
+
+    None for the internal key, which no leaf commits to, and one per leaf
+    for a key in the tree. `hd_key_paths` stays empty: the same key in
+    its 33-byte spelling there would be a second entry for a signer that
+    signs with neither.
+    """
+    internal = f"[d34db33f/86h]{XPUB}/0"
+    left, right = f"[aabbccdd/1]{XPUB}/1", f"[11223344/2]{XPUB}/2"
+    # the left key is in two leaves, at two depths, so its two control
+    # blocks are two entries of `taproot_leaf_scripts` -- and one leaf
+    # hash here, the two leaves being the same script
+    descriptor = parse(f"tr({internal},{{pk({left}),{{pk({right}),pk({left})}}}})")
+    psbt_in = descriptor.update_psbt(psbt_spending(descriptor), 0).inputs[0]
+
+    assert not psbt_in.hd_key_paths
+    # the left key twice among the key expressions, and once here
+    keys = list(dict.fromkeys(key.sec()[1:] for key in descriptor.key_expressions))
+    assert len(descriptor.key_expressions) == len(keys) + 1
+    assert list(psbt_in.taproot_hd_key_paths) == keys
+    assert len(psbt_in.taproot_leaf_scripts) == 3
+    leaf_hashes, origin = psbt_in.taproot_hd_key_paths[keys[0]]
+    assert leaf_hashes == []
+    assert origin.description == "d34db33f/86h/0"
+    for key, description in zip(
+        keys[1:], ("aabbccdd/1/1", "11223344/2/2"), strict=True
+    ):
+        leaf_hashes, origin = psbt_in.taproot_hd_key_paths[key]
+        script = taproot_leaf_of(psbt_in, key.hex())[0]
+        assert leaf_hashes == [taproot.leaf_hash(0xC0, script)]
+        assert origin.description == description
+
+
+def test_a_taproot_script_path_is_finalizable_only_after_the_updater() -> None:
+    """The gap issue 306 names: a psbt cannot invent a leaf script.
+
+    The Finalizer builds the witness of a script path spend out of the
+    leaf script and the control block the input carries, and until now
+    nothing wrote them there from a descriptor. With them, the psbt
+    finalizes to the very bytes `satisfy` builds from the same signature.
+    """
+    descriptor = parse(f"tr({XONLY_A},{{pk({XONLY_B}),pk({XONLY_C})}})")
+    psbt = descriptor.update_psbt(psbt_spending(descriptor), 0)
+    script, control_block = taproot_leaf_of(psbt.inputs[0], XONLY_B)
+
+    # sign_ and not sign: what BIP 341 signs is the hash BIP 342 makes of
+    # the transaction, and the Finalizer checks it with verify_
+    leaf_hash = taproot.leaf_hash(0xC0, script)
+    msg_hash = taproot_sig_hash(psbt, 0, leaf_hash=leaf_hash)
+    signature = ssa.sign_(msg_hash, 2).serialize()
+    key_data = bytes.fromhex(XONLY_B) + leaf_hash
+    psbt.inputs[0].taproot_script_spend_signatures = {key_data: signature}
+
+    witness = Witness([signature, script, control_block])
+    assert finalize_psbt(psbt).inputs[0].final_script_witness == witness
+    assert descriptor.satisfy({XONLY_B: signature}) == (b"", witness)
+
+    # the same signature in a psbt the descriptor never updated: the
+    # leaf it names is one that input says nothing about
+    not_updated = psbt_spending(descriptor)
+    not_updated.inputs[0].taproot_script_spend_signatures = {key_data: signature}
+    with pytest.raises(BTClibValueError, match="no leaf script for tapleaf hash"):
+        finalize_psbt(not_updated)
+
+
+# what cannot update a psbt, and what says so. The three `satisfy`
+# refuses as well, for reasons of their own: an Updater has nothing to
+# choose between, and these have nothing to write
+UNUPDATABLE = [
+    (f"combo({KEY_A})", "combo\\(\\) is four scripts"),
+    ("addr(1BgGZ9tcN4rm9KBzDn7KprQz87SZ26SAMH)", "addr\\(\\) cannot update a psbt"),
+    ("raw(76a914000000000000000000000000000000000000000088ac)", "raw\\(\\) cannot"),
+]
+
+
+@pytest.mark.parametrize(
+    ("descriptor", "message"),
+    [
+        pytest.param(descriptor, message, id=vector_id(index, descriptor))
+        for index, (descriptor, message) in enumerate(UNUPDATABLE)
+    ],
+)
+def test_what_cannot_update_a_psbt(descriptor: str, message: str) -> None:
+    parsed = parse(descriptor)
+    # combo() is four scripts and script_pub_key refuses to pick one, so
+    # the psbt is built around the p2pkh of the same key: what is being
+    # tested is the refusal, and it comes before anything reads the utxo
+    psbt = psbt_spending(parse(f"pkh({KEY_A})"))
+    with pytest.raises(BTClibValueError, match=message):
+        parsed.update_psbt(psbt, 0)

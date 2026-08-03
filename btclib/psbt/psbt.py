@@ -39,7 +39,6 @@ from io import BytesIO
 from math import ceil
 from typing import Any, TypeVar, cast
 
-from btclib import var_bytes
 from btclib.alias import BinaryData, Octets, ScriptList, String
 from btclib.bip32 import (
     BIP32KeyOrigin,
@@ -51,7 +50,7 @@ from btclib.bip32 import (
 )
 from btclib.ecc import dsa, ssa
 from btclib.exceptions import BTClibValueError
-from btclib.hashes import hash160, sha256, tagged_hash
+from btclib.hashes import hash160, sha256
 from btclib.psbt.psbt_in import PsbtIn
 from btclib.psbt.psbt_out import PsbtOut
 from btclib.psbt.psbt_size import estimated_input_sizes
@@ -82,6 +81,7 @@ from btclib.script import (
     is_p2wsh,
     serialize,
     sig_hash,
+    taproot,
     type_and_payload,
 )
 from btclib.script.sig_hash import DEFAULT
@@ -1412,8 +1412,7 @@ def leaf_script(psbt_in: PsbtIn, leaf_hash: Octets) -> tuple[bytes, bytes]:
     """
     leaf_hash = bytes_from_octets(leaf_hash, LEAF_HASH_SIZE)
     for control_block, (script, leaf_version) in psbt_in.taproot_leaf_scripts.items():
-        preimage = leaf_version.to_bytes(1, "big") + var_bytes.serialize(script)
-        if tagged_hash(b"TapLeaf", preimage) == leaf_hash:
+        if taproot.leaf_hash(leaf_version, script) == leaf_hash:
             return script, control_block
     raise BTClibValueError(f"no leaf script for tapleaf hash {leaf_hash.hex()}")
 
