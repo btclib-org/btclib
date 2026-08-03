@@ -355,6 +355,31 @@ def assert_valid_unknown(data: Mapping[bytes, bytes]) -> None:
         bytes(value)
 
 
+def assert_not_a_v2_field(
+    key_type: bytes, psbt_version: int, v2_fields: Mapping[bytes, str]
+) -> None:
+    """Refuse a BIP370 field in a psbt whose version excludes it.
+
+    BIP370 lists 0 under "Versions Requiring Exclusion" for each of the
+    twelve fields it defines, so a version 0 psbt carrying one of them
+    is invalid rather than merely odd: the file says it is not version 2
+    and then carries what only version 2 has.
+
+    Filing the key under `unknown` instead accepts it and round-trips it
+    byte for byte, which is the right answer for a type byte nobody has
+    defined and the wrong one for a type byte this BIP defines and
+    forbids here.
+
+    Version 0 alone is refused. btclib reads no other version, so a
+    version 2 psbt is answered by what it does not carry -- the unsigned
+    transaction of BIP174 -- until version 2 is implemented (issue #265),
+    and these tables are then what tells its type bytes apart from the
+    unknown ones.
+    """
+    if psbt_version == 0 and (name := v2_fields.get(key_type)):
+        raise BTClibValueError(f"{name} is not allowed in a v0 psbt")
+
+
 def assert_valid_taproot_internal_key(key: bytes) -> None:
     """Fails when the internal pubkey has not the correct length."""
     if key and len(key) != 32:

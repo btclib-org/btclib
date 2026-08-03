@@ -25,6 +25,15 @@ against the `v2023.7.12` tag.
 
 - **`from btclib.ec import ...` is `from btclib.curves import ...`.** Every
   name the package exports is the name it exported before.
+- **a psbt carrying a PSBT v2 field is refused**, where every one of the
+  twelve was filed under `unknown` and round-tripped. BIP370 forbids them
+  in version 0, which is the only version btclib reads, so
+  `Psbt.b64decode` now answers `PSBT_IN_PREVIOUS_TXID is not allowed in a
+  v0 psbt` and names whichever of the twelve it found. What this breaks is
+  a psbt of your own using one of those type bytes — global `0x02` to
+  `0x06`, input `0x0e` to `0x12`, output `0x03` and `0x04` — as a spare
+  slot for data of your own: pick a byte no BIP has taken, or `0xfc`,
+  which is reserved for exactly that.
 - **`btclib.curves` no longer exports the individual multiplications**: the
   eleven `mult_*` variants, `multiples`, `cached_multiples` and
   `jac_from_aff` come from `btclib.curves.curve_group`, or from

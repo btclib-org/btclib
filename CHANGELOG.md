@@ -510,6 +510,27 @@ edit.
 
 ### Malformed input and the exception contract
 
+- **a version 0 psbt carrying a PSBT v2 field is refused, by name**
+  (issue #265). BIP370 lists 0 under "Versions Requiring Exclusion" for
+  each of the twelve fields it defines, and btclib filed all twelve
+  under `unknown` and round-tripped them byte for byte: measured against
+  BIP370's own vectors, twelve of its twenty-four invalid psbts were
+  accepted, which is half of them. What made them invisible is what
+  `unknown` is for — a type byte nobody has defined is kept and handed
+  back — and these are type bytes somebody has defined and forbidden
+  here: an input's `0x0e` is `PSBT_IN_PREVIOUS_TXID`, which in version 0
+  is read from the unsigned transaction and must not be a field. Each of
+  the three maps now carries the table of what its version 2 spelling
+  would be, so the refusal names the field rather than the byte —
+  `PSBT_IN_PREVIOUS_TXID is not allowed in a v0 psbt` — and `PsbtIn.parse`
+  and `PsbtOut.parse` take the psbt version the map belongs to, defaulting
+  to 0, the version btclib writes. A version 2 psbt is unaffected and
+  still refused for the unsigned transaction it has no field for: reading
+  it is the rest of #265, and BIP370's 24 valid psbts are vendored and
+  `xfail` against the day it is read. Composed psbts using `0x0f` as a
+  spare type byte are the one thing this breaks, `test_missing_script_pub_key`'s
+  among them — it types its unknowns `0xf0` now, as the module's other
+  fixtures already did
 - **an empty witness element no longer reaches a caller as `IndexError`.**
   BIP-341 makes the last witness element the annex "if its first byte is
   0x50", and both readers of that rule tested it with `stack[-1][0]` — an

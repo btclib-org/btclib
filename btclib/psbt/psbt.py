@@ -40,6 +40,7 @@ from btclib.psbt.psbt_out import PsbtOut
 from btclib.psbt.psbt_size import estimated_input_sizes
 from btclib.psbt.psbt_utils import (
     PSBT_SEPARATOR,
+    assert_not_a_v2_field,
     assert_valid_unknown,
     decode_dict_bytes_bytes,
     deserialize_int,
@@ -77,6 +78,31 @@ PSBT_GLOBAL_VERSION = b"\xfb"
 # 0xfc is reserved for proprietary use, and needs no constant of its own:
 # explicit support for proprietary (and por) is unnecessary,
 # see https://github.com/bitcoin/bips/pull/1038
+
+# the global fields BIP370 defines, which a version 0 psbt must not
+# carry: in version 2 the unsigned transaction stops being a field and
+# these are what replaces it. Named rather than merely listed, the name
+# being what a rejection has to say -- a type byte says nothing to whoever
+# reads the error. See psbt_utils.assert_not_a_v2_field
+_V2_GLOBAL_FIELDS = {
+    b"\x02": "PSBT_GLOBAL_TX_VERSION",
+    b"\x03": "PSBT_GLOBAL_FALLBACK_LOCKTIME",
+    b"\x04": "PSBT_GLOBAL_INPUT_COUNT",
+    b"\x05": "PSBT_GLOBAL_OUTPUT_COUNT",
+    b"\x06": "PSBT_GLOBAL_TX_MODIFIABLE",
+}
+
+
+def _global_version(global_map: Mapping[bytes, bytes]) -> int:
+    """Return PSBT_GLOBAL_VERSION, or 0 for a map that does not carry it.
+
+    BIP174 makes the field optional and its absence version 0, which is
+    what a psbt written before BIP370 looks like.
+    """
+    for k, v in global_map.items():
+        if k[:1] == PSBT_GLOBAL_VERSION:
+            return deserialize_int(k, v, "global version")
+    return 0
 
 
 def _assert_valid_version(version: int) -> None:
@@ -405,23 +431,29 @@ class Psbt:
             raise BTClibValueError("malformed psbt: missing magic bytes")
 
         global_map = deserialize_map(stream)
+        # before the rest of the map, and before the input and output maps
+        # it is handed to: what a type byte means is version-dependent,
+        # BIP370 defining twelve of them that version 0 must not carry, and
+        # a map has no order to put the version first in
+        version = _global_version(global_map)
         for k, v in global_map.items():
             if k[:1] == PSBT_GLOBAL_UNSIGNED_TX:
                 tx = deserialize_tx(
                     k, v, "global unsigned tx", False, unsigned_template=True
                 )
             elif k[:1] == PSBT_GLOBAL_VERSION:
-                version = deserialize_int(k, v, "global version")
+                pass  # read above
             elif k[:1] == PSBT_GLOBAL_XPUB:
                 hd_key_paths[k[1:]] = BIP32KeyOrigin.parse(v)
             else:  # unknown
+                assert_not_a_v2_field(k[:1], version, _V2_GLOBAL_FIELDS)
                 unknown[k] = v
 
         if tx is None:
             raise BTClibValueError("malformed psbt: missing global unsigned tx")
 
-        inputs = [PsbtIn.parse(stream) for _ in tx.vin]
-        outputs = [PsbtOut.parse(stream) for _ in tx.vout]
+        inputs = [PsbtIn.parse(stream, psbt_version=version) for _ in tx.vin]
+        outputs = [PsbtOut.parse(stream, psbt_version=version) for _ in tx.vout]
 
         # what is left in a caller's stream is the caller's; what is left
         # in octets is malleability, two buffers deserializing to the one
