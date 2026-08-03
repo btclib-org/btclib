@@ -11,6 +11,7 @@
 
 https://github.com/satoshilabs/slips/blob/master/slip-0132.md
 """
+
 from __future__ import annotations
 
 import contextlib

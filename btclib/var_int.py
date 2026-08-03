@@ -58,9 +58,9 @@ def serialize(i: int) -> bytes:
     if i < 0xFD:  # 1 byte
         return bytes([i])
     if i <= 0xFFFF:  # 2 bytes
-        return b"\xFD" + i.to_bytes(2, byteorder="little", signed=False)
+        return b"\xfd" + i.to_bytes(2, byteorder="little", signed=False)
     if i <= 0xFFFFFFFF:  # 4 bytes
-        return b"\xFE" + i.to_bytes(4, byteorder="little", signed=False)
+        return b"\xfe" + i.to_bytes(4, byteorder="little", signed=False)
     if i <= 0xFFFFFFFFFFFFFFFF:  # 8 bytes
-        return b"\xFF" + i.to_bytes(8, byteorder="little", signed=False)
+        return b"\xff" + i.to_bytes(8, byteorder="little", signed=False)
     raise BTClibValueError(f"integer too big for var_int encoding: '{hex_string(i)}'")

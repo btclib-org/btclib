@@ -9,7 +9,6 @@
 # or distributed except according to the terms contained in the LICENSE file.
 """Tests for the `btclib.bip32_path` module."""
 
-
 import pytest
 
 from btclib.bip32 import (

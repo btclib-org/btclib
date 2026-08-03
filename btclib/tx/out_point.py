@@ -12,7 +12,6 @@
 Dataclass encapsulating tx_id and vout.
 """
 
-
 from __future__ import annotations
 
 from dataclasses import dataclass

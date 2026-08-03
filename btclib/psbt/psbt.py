@@ -11,6 +11,7 @@
 
 https://github.com/bitcoin/bips/blob/master/bip-0174.mediawiki
 """
+
 from __future__ import annotations
 
 import base64

@@ -8,6 +8,7 @@
 # No part of btclib including this file, may be copied, modified, propagated,
 # or distributed except according to the terms contained in the LICENSE file.
 """Elliptic curve classes and functions."""
+
 from __future__ import annotations
 
 import json
@@ -241,9 +242,10 @@ def double_mult(
 def multi_mult(
     scalars: Sequence[Integer], points: Sequence[Point], ec: Curve = secp256k1
 ) -> Point:
-    """Return the multi scalar multiplication u1*Q1 + ... + un*Qn.
+    """Return the multi scalar multiplication u1*Q1 + ...
 
-    Use Bos-Coster's algorithm for efficient computation.
+    + un*Qn.
+        Use Bos-Coster's algorithm for efficient computation.
     """
     if len(scalars) != len(points):
         err_msg = "mismatch between number of scalars and points: "
