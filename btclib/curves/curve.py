@@ -11,6 +11,7 @@
 
 from __future__ import annotations
 
+import contextlib
 import json
 from collections.abc import Sequence
 from hashlib import sha256
@@ -18,8 +19,10 @@ from math import sqrt
 from os import path
 from typing import Any
 
+from btclib_libsecp256k1.keys import parse as libsecp256k1_pubkey_parse
 from btclib_libsecp256k1.keys import pubkey_combine as libsecp256k1_pubkey_combine
 from btclib_libsecp256k1.keys import pubkey_tweak_mul as libsecp256k1_pubkey_tweak_mul
+from btclib_libsecp256k1.keys import serialize as libsecp256k1_pubkey_serialize
 from btclib_libsecp256k1.mult import mult as libsecp256k1_mult
 
 from btclib.alias import INF, HashF, Integer, JacPoint, Point
@@ -294,6 +297,80 @@ def _libsecp256k1_applicable(ec: Curve, hf: HashF | None = None) -> bool:
     return hf is None or hf is sha256
 
 
+def _compressed_sec(x: int, ec: Curve) -> bytes | None:
+    """Return 0x02 || x for the bindings to parse, None if they cannot.
+
+    The two functions below ask libsecp256k1 the one question a compressed
+    public key is -- "this x, and the y that goes with it" -- and this is
+    the argument they ask it with, plus the conditions under which there
+    is one: the curve has to be secp256k1, and x has to be a field
+    element, ec_pubkey_parse taking no x-coordinate at or above ec.p and
+    x.to_bytes raising OverflowError rather than answering for one.
+    """
+    if not _libsecp256k1_applicable(ec) or not 0 <= x < ec.p:
+        return None
+    return b"\x02" + x.to_bytes(ec.p_size, "big")
+
+
+def _is_x_coordinate(x: int, ec: Curve = secp256k1) -> bool:
+    """Return True if x is the x-coordinate of a point of the curve.
+
+    Existence and nothing else, which is what a caller with no use for
+    the y has to ask: ec.y computes the modular square root to find out,
+    75 us on secp256k1, while ec_pubkey_parse answers the same question
+    of the compressed key 0x02 || x in 2.4 -- and it is the same answer,
+    both implementations refusing the same x.
+
+    A bool rather than an exception, because the value that names itself
+    in an error message is the caller's and not this x: dsa.Sig's
+    congruence check tries every x congruent to r and reports r. That is
+    also what keeps the refusal cheap, where _y_even below cannot: half
+    of the field elements are not x-coordinates, so falling back to ec.y
+    to phrase an error would pay, on half of the candidates, the very
+    square root this replaces.
+    """
+    sec = _compressed_sec(x, ec)
+    if sec is not None:
+        try:
+            libsecp256k1_pubkey_parse(sec)
+        except ValueError:
+            return False
+        return True
+
+    try:
+        ec.y(x)
+    except BTClibValueError:
+        return False
+    return True
+
+
+def _y_even(x: int, ec: Curve = secp256k1) -> int:
+    """Return the even y-coordinate associated to x.
+
+    ec.y_even, delegated for secp256k1: the parity a compressed public
+    key carries in its prefix is the same tiebreaker, so 0x02 || x names
+    the even-y point and the uncompressed serialization of it hands back
+    the y that was lifted -- 2.9 us against 75. That is 0.5 more than
+    _is_x_coordinate above, which is why both exist.
+
+    An x the bindings refuse falls through to ec.y_even instead of
+    raising here, so that the message stays in the one place that has the
+    value to name: "invalid x-coordinate" is curve_group's to phrase, and
+    the callers of this function wrap that message rather than restating
+    it. The fallthrough pays the Python square root on a path whose
+    answer is an exception, which is the trade _is_x_coordinate exists
+    not to make.
+    """
+    sec = _compressed_sec(x, ec)
+    if sec is not None:
+        with contextlib.suppress(ValueError):
+            pubkey = libsecp256k1_pubkey_parse(sec)
+            uncompressed = libsecp256k1_pubkey_serialize(pubkey, compressed=False)
+            return int.from_bytes(uncompressed[ec.p_size + 1 :], "big")
+
+    return ec.y_even(x)
+
+
 def _sec_from_point(Q: Point) -> bytes:
     """Return a point of secp256k1 as the octets the bindings parse.
 
@@ -307,9 +384,10 @@ def _sec_from_point(Q: Point) -> bytes:
     reads without lifting an x coordinate back to a point, 2.1 us of the
     13 a whole multiplication costs; and, asked of ec_pubkey_serialize on
     the way out, the form that does not drop a y this side would have to
-    lift again -- 73 us of modular square root against 1.2 us of
-    int.from_bytes, the lesson bip32.py:462 records for public
-    derivation. The 32 octets more cost 0.09 us to write here.
+    lift again -- 3.2 us of point_from_octets against 1.2, a lift
+    delegated to the bindings against two int.from_bytes, the lesson
+    bip32.py records for public derivation. The 32 octets more cost
+    0.09 us to write here.
     """
     p_size = secp256k1.p_size
     return b"\x04" + Q[0].to_bytes(p_size, "big") + Q[1].to_bytes(p_size, "big")

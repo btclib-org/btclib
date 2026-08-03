@@ -346,20 +346,20 @@ def sign(msg: Octets, prv_key: PrvKey, addr: String | None = None) -> Sig:
     # falls out of the signature -- it is the parity of the nonce's point
     # and whether its x-coordinate exceeded the group order, both of which
     # the signer had in hand -- so `_search_key_id` does not get faster,
-    # it goes away. 102 us against 4360, the mean over 40 random keys, and
+    # it goes away. 24 us against 4360, the mean over 40 random keys, and
     # the search was all of it: 2977 us where the signer's key is key_id 0
     # and one recovery finds it, 5492 where it is key_id 1 and the first
-    # candidate is computed only to be discarded. 76 of the 102 that
-    # remain are the Sig validation below
+    # candidate is computed only to be discarded
     if _libsecp256k1_applicable(secp256k1):
         sig_bytes, key_id = libsecp256k1_recovery.sign(reduce_to_hlen(magic_msg), q)
         n_size = secp256k1.n_size
         r = int.from_bytes(sig_bytes[:n_size], byteorder="big", signed=False)
         s = int.from_bytes(sig_bytes[n_size:], byteorder="big", signed=False)
         # check_validity=False, and the Sig returned below does validate:
-        # asserting r congruent to an x-coordinate is a modular square
-        # root, 76 us of the 102, and paying it twice over the one
-        # signature is most of what is left to save here
+        # asserting r congruent to an x-coordinate is 2.4 us of the 24,
+        # ec_pubkey_parse of 0x02 || x rather than a modular square root
+        # (issue 284), and paying it twice over the one signature is still
+        # worth not doing
         dsa_sig = dsa.Sig(r, s, secp256k1, check_validity=False)
     else:
         dsa_sig = dsa.sign(magic_msg, q)
@@ -463,9 +463,9 @@ def assert_as_valid(
     # signature is valid only if the provided address is matched, and an
     # address is a hash of the sec octets: no point is built here, the
     # bindings answering the octets themselves -- which is the mod_inv of
-    # an affine conversion not paid either. `verify` is 97 us against 2782,
-    # the mean over 40 random keys, of which 76 are the r-congruence square
-    # root of the Sig validation above and some 20 the recovery itself
+    # an affine conversion not paid either. `verify` is 25 us against 2782,
+    # the mean over 40 random keys, of which some 20 are the recovery
+    # itself and 2.4 the r-congruence check of the Sig validation above
     if _libsecp256k1_applicable(secp256k1):
         pub_key = _libsecp256k1_recover_sec_(
             key_id, reduce_to_hlen(magic_msg), sig.dsa_sig, lower_s, compressed

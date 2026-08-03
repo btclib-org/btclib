@@ -23,6 +23,7 @@ from btclib.curves import (
     point_from_octets,
     secp256k1,
 )
+from btclib.curves.sec_point import _sec_from_octets
 from btclib.exceptions import BTClibValueError
 from btclib.hashes import hash160
 from btclib.network import (
@@ -190,24 +191,22 @@ def pub_keyinfo_from_pub_key(
         return _pub_keyinfo_from_xpub(pub_key, network, compressed)
     with contextlib.suppress(TypeError, BTClibValueError):
         return _pub_keyinfo_from_xpub(pub_key, network, compressed)
-    # it must be octets
+    # it must be octets, and compressed is a filter on which form they may
+    # be in rather than a conversion to it: the size below is required of
+    # the input, so octets that pass come back in the form they came in
     try:
         if compressed is None:
             pub_key = bytes_from_octets(pub_key, (ec.p_size + 1, 2 * ec.p_size + 1))
-            compr = len(pub_key) == ec.p_size + 1
         else:
             size = ec.p_size + 1 if compressed else 2 * ec.p_size + 1
             pub_key = bytes_from_octets(pub_key, size)
-            compr = compressed
     except (TypeError, ValueError) as e:
         # never echo the input: it may be private material passed by
         # mistake; the chained exception carries the parsing reason
         raise BTClibValueError("not a public key") from e
 
-    # verify that it is a valid point
-    Q = point_from_octets(pub_key, ec)
-
-    return bytes_from_point(Q, ec, compr), net
+    # verify that it is a valid point, which is all there is left to do
+    return _sec_from_octets(pub_key, ec), net
 
 
 def pub_keyinfo_from_prv_key(

@@ -9,10 +9,19 @@
 # or distributed except according to the terms contained in the LICENSE file.
 """SEC compressed/uncompressed point representation."""
 
+import contextlib
+
+from btclib_libsecp256k1.keys import parse as libsecp256k1_pubkey_parse
 from btclib_libsecp256k1.mult import mult_ as libsecp256k1_mult_
 
 from btclib.alias import Integer, Octets, Point
-from btclib.curves.curve import Curve, _libsecp256k1_applicable, mult, secp256k1
+from btclib.curves.curve import (
+    Curve,
+    _libsecp256k1_applicable,
+    _y_even,
+    mult,
+    secp256k1,
+)
 from btclib.exceptions import BTClibValueError
 from btclib.utils import bytes_from_octets, hex_string, int_from_integer
 
@@ -96,6 +105,12 @@ def point_from_octets(
     Return a tuple (x_Q, y_Q) that belongs to the curve according to SEC
     1 v.2, section 2.3.4.
 
+    The compressed prefixes are the only branch libsecp256k1 serves, and
+    the whole cost of the function is there: lifting x to a point is a
+    modular square root, 75 us of the 76 in Python against 2.9 of the 3.2
+    delegated, while the 65-byte forms carry the y and take 1.2 either
+    way (issue 284).
+
     hybrid admits the 0x06 and 0x07 prefixes of that same section, which
     carry both coordinates like 0x04 does and repeat the parity of y in
     the prefix. It is off by default, and not out of squeamishness: the
@@ -118,7 +133,7 @@ def point_from_octets(
             raise BTClibValueError(err_msg)
         x_Q = int.from_bytes(pub_key[1:], byteorder="big")
         try:
-            y_Q = ec.y_even(x_Q)  # also check x_Q validity
+            y_Q = _y_even(x_Q, ec)  # also check x_Q validity
             return x_Q, y_Q if prefix == 0x02 else ec.p - y_Q
         except BTClibValueError as e:
             msg = f"invalid x-coordinate: '{hex_string(x_Q)}'"
@@ -149,3 +164,34 @@ def point_from_octets(
         # never echo the octets: a 33-byte 0x00-prefixed input
         # is the key field of an xprv, i.e. a private key
         raise BTClibValueError(f"not a point: prefix 0x{pub_key[:1].hex()}")
+
+
+def _sec_from_octets(pub_key: bytes, ec: Curve = secp256k1) -> bytes:
+    """Return SEC octets of a p-size or 2*p-size length, verified.
+
+    Verified and not converted: bytes_from_point(point_from_octets(sec))
+    asked for the form sec already has is the identity on it, so what
+    that round trip does for a caller that wants octets back is prove
+    them a point of the curve -- which is the whole of what
+    to_pub_key.pub_keyinfo_from_pub_key wants of it.
+
+    For a compressed key on secp256k1 that proof is ec_pubkey_parse and
+    nothing else, 2.4 us against the 4.4 of a round trip that lifts x,
+    re-proves the point it lifted on the curve and serializes it again.
+    It is also the very call libsecp256k1 will make on these bytes if
+    they are on their way to its dsa.verify.
+
+    Anything the bindings refuse falls through to the round trip, and so
+    does every 65-byte form: the message that names what is wrong with
+    the octets is point_from_octets's, and the hybrid prefixes are the
+    reason the fallthrough cannot be skipped for a length ec_pubkey_parse
+    accepts -- it takes 0x06 and 0x07, point_from_octets only when asked,
+    and there is nothing to ask here.
+    """
+    compressed = len(pub_key) == ec.p_size + 1
+    if compressed and _libsecp256k1_applicable(ec):
+        with contextlib.suppress(ValueError):
+            libsecp256k1_pubkey_parse(pub_key)
+            return pub_key
+
+    return bytes_from_point(point_from_octets(pub_key, ec), ec, compressed)

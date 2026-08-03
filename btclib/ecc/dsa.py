@@ -39,7 +39,12 @@ from btclib_libsecp256k1 import recovery as libsecp256k1_recovery
 from btclib import var_bytes
 from btclib.alias import BinaryData, HashF, JacPoint, Octets, Point
 from btclib.curves import Curve, mult, secp256k1
-from btclib.curves.curve import _jac_double_mult, _libsecp256k1_applicable
+from btclib.curves.curve import (
+    _is_x_coordinate,
+    _jac_double_mult,
+    _libsecp256k1_applicable,
+    _y_even,
+)
 from btclib.curves.curve_group_2 import double_mult_w_NAF
 from btclib.ecc.commit_nonce import commit_entropy_, commit_nonce_, commit_point_
 from btclib.ecc.rfc6979_nonce import _rfc6979_nonce_, challenge_
@@ -186,14 +191,20 @@ class Sig:
             err_msg += f"'{hex_string(self.r)}'" if self.r > 0xFFFFFFFF else f"{self.r}"
             raise BTClibValueError(err_msg)
 
-        # ensure r is congruent to a valid x-coordinate
+        # ensure r is congruent to a valid x-coordinate.
+        # r is a scalar, i.e. reduced mod n, so it does not name the
+        # x-coordinate it came from: every x = r + j*ec.n below ec.p is a
+        # candidate, and trying them is btclib's arithmetic either way.
+        # What is delegated is the question asked of each -- whether some
+        # point of the curve has that x -- which for secp256k1 is
+        # ec_pubkey_parse of the compressed key 0x02 || x, 2.4 us against
+        # the 75 of a modular square root whose y is of no use here
         r = self.r
         congruence_not_found = True
         while congruence_not_found and r < self.ec.p:
-            try:
-                self.ec.y(r)
+            if _is_x_coordinate(r, self.ec):
                 congruence_not_found = False
-            except BTClibValueError:
+            else:
                 r += self.ec.n
         if congruence_not_found:
             err_msg = "r is not (congruent to) a valid x-coordinate: "
@@ -512,7 +523,7 @@ def _assert_as_valid_(
     # bindings' own ecdsa_verify declined -- another hash function, a
     # commitment to check, a caller-imposed nonce, a curve of its own --
     # and on secp256k1 the multiplication is theirs all the same, 28 us
-    # against 1.02 ms, which is this whole verification 128 us against
+    # against 1.02 ms, which is this whole verification 61 us against
     # 1.10 ms of it
     KJ = _jac_double_mult(v, QJ, u, ec.GJ, ec)  # 5
 
@@ -588,7 +599,12 @@ def assert_as_valid_(
     if _libsecp256k1_applicable(sig.ec, hf):
         msg_hash_bytes = bytes_from_octets(msg_hash, 32)
         pubkey_bytes = pub_keyinfo_from_pub_key(key)[0]
-        sig_bytes = sig.serialize()
+        # check_validity=False, because assert_valid has just run above --
+        # on the Sig handed in, or inside the Sig.parse that made one.
+        # What it would run again is the congruence check of r, which is
+        # not free even delegated: 0.54 us against 3.1, of a verification
+        # that is 22 in total
+        sig_bytes = sig.serialize(check_validity=False)
         # libsecp256k1 rejects what is not in the lower-s form: if it is
         # not to be enforced, then normalize
         if not lower_s:
@@ -906,8 +922,12 @@ def _recover_pub_key_(
 
     # even root first for Bitcoin Core compatibility
     i = key_id & 0b01
-    y_even = ec.y_even(x_K)
-    y_K = ec.p - y_even if i else y_even
+    # the delegating lift of curves.curve: this function is the Python
+    # path of recovery, but the root it takes to turn a candidate x_K into
+    # a point is libsecp256k1's for secp256k1 all the same -- reached with
+    # a key_id above 3, which the dispatch does not hand over
+    y = _y_even(x_K, ec)
+    y_K = ec.p - y if i else y
     KJ = x_K, y_K, 1  # 1.2, 1.3, and 1.4
     # 1.5 has been performed in the recover_pub_keys calling function
     QJ = double_mult_w_NAF(r1s, KJ, r1e, ec.GJ, ec)  # 1.6.1
@@ -923,7 +943,7 @@ def _libsecp256k1_recover_sec_(
     #
     # secp256k1_ecdsa_recover is step 1.6 of SEC 1 v.2 section 4.1.6 for
     # the one named candidate: 19 us here against the two milliseconds of
-    # the Python path, which is `recover_pub_key` 95 us against 2330 once
+    # the Python path, which is `recover_pub_key` 22 us against 2330 once
     # the Sig validation both of them pay is counted in. It answers sec
     # octets rather than a point, which is what an address wants, so bms
     # hashes these very bytes and never builds a point.
