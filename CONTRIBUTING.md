@@ -391,12 +391,11 @@ Three consequences worth knowing before editing any of them:
   long description, so a typo in it is visible in three places: GitHub,
   btclib.org and the PyPI project page.
 - **every other file in master's root is a URL under btclib.org** unless
-  `_config.yml`'s `exclude:` says otherwise. Before that list existed,
-  `btclib.org/TODO` was a live page carrying the open questions of
-  `TODO.md`, and the site served the library itself —
-  `btclib.org/pyproject.toml` and `btclib.org/btclib/alias.py` both
-  answered with their own contents. A new top-level file is published by
-  default; add it to `exclude:` if it should not be.
+  `_config.yml`'s `exclude:` says otherwise, the library itself included:
+  drop that list's `btclib/` and `pyproject.toml` entries and
+  `btclib.org/pyproject.toml` and `btclib.org/btclib/alias.py` answer with
+  their own contents. A new top-level file is published by default; add it
+  to `exclude:` if it should not be.
 - **the build is the classic Pages builder** (`build_type: legacy`), so
   there are no build logs and no control over the Jekyll or theme version.
   A broken template fails silently: the layout served

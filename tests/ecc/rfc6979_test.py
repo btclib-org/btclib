@@ -201,8 +201,8 @@ def test_rfc6979_nonce_tv(
 
 
 # RFC6979 against BIP340: the two deterministic nonces this library
-# derives, over the same inputs. TODO.md line 43 asked for the
-# comparison and it is these four tests (issue #194).
+# derives, over the same inputs, which is what these four tests compare
+# (issue #194).
 #
 # ec23_19 is where the difference between the two is observable at all.
 # Its order is 19 and its nlen 5, so a hash candidate is one of 32 values

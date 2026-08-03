@@ -61,9 +61,13 @@ extensions = [
     "sphinx.ext.coverage",
     "sphinx.ext.githubpages",
     "sphinx.ext.napoleon",
-    "sphinx.ext.todo",
     "sphinx.ext.viewcode",
 ]
+
+# no sphinx.ext.todo: with todo_include_todos left at its default a
+# `.. todo::` renders as nothing at all, so the directive is a note to
+# nobody. Without the extension it is an unknown directive, which -W turns
+# into a failed build -- the open questions belong in the issue tracker
 
 source_suffix = [".rst", ".md"]
 

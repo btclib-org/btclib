@@ -35,6 +35,18 @@ edit.
   improvements with the material for each, and the borromean references into
   that module's docstring, both next to the code they are about rather than in
   a file nobody opened.
+- **Nothing names `TODO.md` any more**, this file excepted, which is where
+  history belongs. Retiring it had left the name behind in the comments that
+  absorbed its content, in `_config.yml`'s `exclude:` list, and in
+  `_config.yml`'s and CONTRIBUTING.md's account of what `btclib.org/TODO`
+  once served: each said how the tree got here rather than why it is as it
+  is, and what any of them was load-bearing for — that a file in master's
+  root is a URL under btclib.org unless `exclude:` says otherwise — is now
+  stated in the present tense, with the package itself as the example, since
+  `btclib.org/pyproject.toml` is what the list is actually holding back.
+  `sphinx.ext.todo` went too: `todo_include_todos` was at its default, so a
+  `.. todo::` rendered as nothing at all, and without the extension it is an
+  unknown directive that the `-W` documentation build fails on.
 - **This file and HISTORY.md state no entry count, and `.gitattributes` marks
   both `merge=union`.** They are append-only lists that every branch appends
   to, so they were the one thing every pull request had to resolve by hand: a

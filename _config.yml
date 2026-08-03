@@ -27,11 +27,10 @@ google_analytics:
 theme: jekyll-theme-minimal
 
 # There is no index.md, so Jekyll renders README.md as the homepage: a
-# README edit is a website deploy. Everything else in master's root was
-# published too, which is what this list stops -- btclib.org/TODO was a
-# live page carrying the open questions of TODO.md, and btclib.org served
-# the package itself: /pyproject.toml and /btclib/alias.py both answered
-# with their own contents.
+# README edit is a website deploy. Everything else in master's root is
+# published too unless this list stops it, the package itself included:
+# drop the btclib/ and pyproject.toml entries below and /pyproject.toml
+# and /btclib/alias.py answer with their own contents.
 #
 # The first block repeats Jekyll's own default exclude, because this key
 # replaces that default rather than adding to it: without those entries
@@ -68,8 +67,6 @@ exclude:
   # repository process rather than pages for a visitor: agent instructions
   # and the release procedure. RELEASE.md is master's name for RELEASING.md,
   # and both are listed so that the rename can land in either order.
-  # TODO.md was here too, until every one of its lines became an issue and
-  # the file went with them
   - CLAUDE.md
   - RELEASING.md
   - RELEASE.md

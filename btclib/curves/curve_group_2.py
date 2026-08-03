@@ -30,10 +30,10 @@ References:
 
 Further improvements, and the material for them. These are not
 bibliography: each is an improvement this module could take, with what
-would be needed to take it, kept here rather than in TODO.md so that it
-sits next to the code it is about. The point-addition special cases are
-settled where they live, in `curve_group`'s own comments, and issue 183
-tracks the smaller follow-ups; what is here is the rest:
+would be needed to take it, kept next to the code it is about. The
+point-addition special cases are settled where they live, in
+`curve_group`'s own comments, and issue 183 tracks the smaller
+follow-ups; what is here is the rest:
 
     - Computational cost of the different multiplications, measured rather
       than assumed: which of the six is fastest, and at what scalar size
