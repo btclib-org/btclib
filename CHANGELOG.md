@@ -2827,9 +2827,9 @@ edit.
   computed only to be discarded. Verification delegates the
   single-candidate `dsa.recover_pub_key` to `secp256k1_ecdsa_recover`,
   95 µs against 2330, so every caller of that function gains and not
-  only bms; the plural `recover_pub_keys` has no counterpart in the
-  bindings, stays Python whatever the curve, and is what the tests hold
-  the singular against. bms takes the sec octets the recovery answers
+  only bms; the plural `recover_pub_keys` has no single counterpart in the
+  bindings, an enumeration being btclib's own loop, and is what the tests
+  hold the singular against. bms takes the sec octets the recovery answers
   straight to `hash160`, an address being a hash of those bytes: no point
   is built on either side of the module any more, so the affine
   conversion of a recovered key and the multiplication behind
@@ -3202,6 +3202,49 @@ edit.
   gone with the branch: its only caller was that branch, and the search is
   now spelled in the tests, which is where a cross-check of the key_id
   belongs
+- **public key recovery multiplies in libsecp256k1** (issue #286): step
+  1.6.1 of SEC 1 v.2 section 4.1.6 held the last two
+  `double_mult_w_NAF` calls left in `ecc/`, one in each
+  `_recover_pub_key_`, and both are now the `_jac_double_mult` of issue
+  #281. ECDSA's is 2215 µs to 214 for one candidate and 6800 µs to 850
+  for the enumeration that runs one per key_id; BIP340's x-only recovery
+  3540 µs to 109. Then **`dsa.recover_pub_keys_` stops multiplying
+  altogether on secp256k1 with sha256**, and is four
+  `secp256k1_ecdsa_recover` calls: 83 µs against those 850. An
+  enumeration is btclib's loop and not a function the bindings have --
+  their recovery answers for the one recid it is given, which #282
+  delegated as `recover_pub_key_` because that is what bms asks for --
+  but every candidate in the loop *is* one of those recids, and a recid
+  is two bits, i.e. every candidate a curve of cofactor 1 has. So
+  `range(4)` there is the `range(2 * (ec.cofactor + 1))` of the Python
+  enumeration, in the same order, and the dropped candidates drop the
+  same way: `_libsecp256k1_recover_sec_` maps the bindings' refusal to
+  the `BTClibValueError` the loop already suppressed, so a high-s
+  signature under `lower_s` still enumerates to the empty list where the
+  singular raises. x-only recovery had no such option — libsecp256k1's
+  recovery module is ECDSA and its xonly module carries no recovery — so
+  BIP340's delegated multiplication is the whole of its gain.
+  What is left of a Python ECDSA candidate is the `_y_even` lift,
+  delegated already, and a `mod_inv`, which delegating the multiplication
+  has made measurable: 41 µs of the 214, where the same 41 sat inside
+  2215. Still not hoisted out of the loop, because the plural being
+  `_recover_pub_key_` over a range of key_ids and nothing else is what
+  keeps the two from disagreeing (issue #183), so the paths that reach it
+  pay 19% for the arithmetic being written once. On that Python path the
+  recovered point comes back as `jac_from_aff`, i.e. `z == 1`, where the
+  wNAF answered whatever projective representative its ladder reached:
+  the same point either way, and every caller converts it with
+  `aff_from_jac`. What the enumeration answers is now three
+  implementations' answer and asserted to be one list — the four recover
+  calls, the Python loop with its double_mult delegated, and the same
+  with `curves.curve`'s dispatch patched off as well — because the list
+  is dense and a position in it is what a caller reads a key_id from, so
+  two implementations dropping differently would disagree about a
+  recovery flag without disagreeing about any key. The `j = 1` pair that
+  no signature of secp256k1 can reach (`r + ec.n < ec.p`, some 2^-127 of
+  them) is asserted on a fabricated r instead: `r = 2` recovers all four
+  candidates, `r = 7` only the pair, whose key_ids are 2 and 3 while
+  their positions are 0 and 1
 
 ### Tests
 
@@ -3662,6 +3705,18 @@ edit.
   and that any other cut is refused. Whether the preimage is Bitcoin
   Core's is still the appendix vectors and #176's byte-slice property,
   and an independent oracle (#198) is what would settle it
+- **the two spellings of `dsa.recover_pub_keys` are held to being one
+  function.** `recover_pub_keys_` takes the hash the other reduces, and
+  `challenge_` does not hash it again, so the underscore spelling is the
+  one a caller holding a sig_hash has to reach for — and it had no test
+  naming it, only the lines the msg spelling covers through it. Nothing
+  in btclib calls either since bms began naming its own key_id (issue
+  #269), which is what makes the pairing the whole of their contract: the
+  same keys from both, the signature passed as a `Sig` and as DER octets,
+  under another hash function, and with the lower-s rule off. A high-s
+  signature enumerates to the empty list where the singular raises "not a
+  low s" — every candidate fails the rule and a failing candidate is
+  dropped rather than reported
 
 ### Supported interpreters and dependencies
 

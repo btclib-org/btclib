@@ -533,6 +533,14 @@ def _recovered(
         return None
 
 
+def _recovered_(key_id: int, msg_hash: bytes, sig: dsa.Sig) -> Point | None:
+    """The same, for a caller holding the hash rather than the message."""
+    try:
+        return dsa.recover_pub_key_(key_id, msg_hash, sig)
+    except (BTClibValueError, BTClibRuntimeError):
+        return None
+
+
 def test_libsecp256k1_recovery(monkeypatch: pytest.MonkeyPatch) -> None:
     """`recover_pub_key` through secp256k1_ecdsa_recover.
 
@@ -543,8 +551,10 @@ def test_libsecp256k1_recovery(monkeypatch: pytest.MonkeyPatch) -> None:
     recovery flag of a message signature carries a key_id from outside, so
     the number has to mean there what it means here.
 
-    `recover_pub_keys` beside them is the enumeration, which has no
-    counterpart in the bindings and stays Python whatever the curve.
+    `recover_pub_keys` beside them is the enumeration, which is these same
+    four recids on secp256k1 with sha256 and the Python loop everywhere
+    else; `test_recovery_multiplies_in_libsecp256k1` below is where the
+    three implementations of it are held to one list.
     """
     msg = b"Satoshi Nakamoto"
     for q in (0x1, 0x2, prv_key_int, secp256k1.n - 1):
@@ -576,6 +586,134 @@ def test_libsecp256k1_recovery(monkeypatch: pytest.MonkeyPatch) -> None:
         with pytest.raises(BTClibValueError, match=err_msg):
             dsa.recover_pub_key(key_id ^ 1, msg, malleated)
         assert _recovered(key_id ^ 1, msg, malleated, lower_s=False) == Q
+
+
+def test_recover_pub_keys_takes_the_hash_that_recover_pub_keys_reduces() -> None:
+    """The two spellings of the enumeration are one function.
+
+    `challenge_` reduces a digest to an integer and does not hash it
+    again, so the underscore spelling is the one a caller holding a hash
+    -- a sig_hash, the `reduce_to_hlen(magic_message(msg))` of a message
+    signature -- has to reach for: the other would hash it a second time.
+    Nothing in btclib calls either, bms naming its own key_id since issue
+    269, so this is what holds the pairing that justifies both.
+
+    The malleated signature is the plural's answer where the singular
+    raises: a candidate that fails is dropped rather than reported, and
+    every candidate fails the lower-s rule at once, so the enumeration of
+    a high-s signature is empty and not an error. Both spellings say so on
+    both implementations -- sha256 here is the four recover calls, sha512
+    the Python loop -- the rule being btclib's either way, since the
+    recoverable parser takes any s in [1, n-1].
+    """
+    msg = b"Satoshi Nakamoto"
+    for q in (0x1, 0x2, prv_key_int, secp256k1.n - 1):
+        prv_key, Q = dsa.gen_keys(q)
+        # the hash function is the argument both spellings thread through
+        # to the challenge, and it is also what the dispatch reads: sha256
+        # enumerates through the bindings, sha512 through the Python loop
+        for hf in (sha256, sha512):
+            msg_hash = reduce_to_hlen(msg, hf)
+            sig = dsa.sign(msg, prv_key, hf=hf)
+            keys = dsa.recover_pub_keys(msg, sig, hf=hf)
+            assert Q in keys
+            assert dsa.recover_pub_keys_(msg_hash, sig, hf=hf) == keys
+            # the octets spelling of both arguments, which is the shape a
+            # caller of the public API is likelier to hold
+            assert dsa.recover_pub_keys_(msg_hash.hex(), sig.serialize(), hf=hf) == keys
+
+            malleated = dsa.Sig(sig.r, secp256k1.n - sig.s)
+            assert dsa.recover_pub_keys_(msg_hash, malleated, hf=hf) == []
+            assert Q in dsa.recover_pub_keys_(msg_hash, malleated, lower_s=False, hf=hf)
+
+
+def test_recovery_multiplies_in_libsecp256k1(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """The three implementations of the enumeration, and one answer (issue 286).
+
+    On secp256k1 with sha256 `recover_pub_keys` is four
+    `secp256k1_ecdsa_recover` calls: the enumeration is btclib's loop --
+    the bindings recover the one candidate a recid names -- but every
+    candidate in it is one of those recids. Patching `dsa`'s own dispatch
+    off reaches the Python enumeration, whose step 1.6.1 is still
+    libsecp256k1's; patching `curves.curve`'s off as well reaches the wNAF
+    under that.
+
+    The three have to answer the same *list* and not merely the same set:
+    a candidate that fails step 1.6 is dropped rather than reported, so
+    the position of a key in it is what a caller reads a key_id from, and
+    two implementations that drop differently would disagree about the
+    recovery flag of a message signature without disagreeing about any
+    key. Which is why `no_bindings` alone is not this test: it leaves
+    `dsa`'s dispatch on, and the comparison would be the bindings against
+    themselves.
+    """
+    msg = b"Satoshi Nakamoto"
+    for q in (0x1, 0x2, prv_key_int, secp256k1.n - 1):
+        prv_key, Q = dsa.gen_keys(q)
+        sig = dsa.sign(msg, prv_key)
+        # four recover calls, which is what production runs here
+        keys = dsa.recover_pub_keys(msg, sig)
+        assert Q in keys
+        key_ids = range(2 * (secp256k1.cofactor + 1))
+        # and the same, candidate by candidate, None where one recovers
+        # nothing: the enumeration is these four answers less the Nones
+        recovered = [_recovered(key_id, msg, sig) for key_id in key_ids]
+        assert [key for key in recovered if key is not None] == keys
+
+        with monkeypatch.context() as patch:
+            # the Python enumeration, its double_mult still delegated
+            patch.setattr(dsa, "_libsecp256k1_applicable", lambda *_: False)
+            assert dsa.recover_pub_keys(msg, sig) == keys
+            assert [_recovered(key_id, msg, sig) for key_id in key_ids] == recovered
+
+            # and the same with the arithmetic under it patched off too
+            no_bindings(patch)
+            assert dsa.recover_pub_keys(msg, sig) == keys
+            assert [_recovered(key_id, msg, sig) for key_id in key_ids] == recovered
+
+
+@pytest.mark.parametrize(
+    ("r", "expected_key_ids"),
+    [(2, [0, 1, 2, 3]), (7, [2, 3])],
+    ids=["four-candidates", "the-j-one-pair-alone"],
+)
+def test_the_enumeration_asks_for_the_j_one_candidates(
+    r: int, expected_key_ids: list[int], monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """key_id 2 and 3, which no signature of secp256k1 will produce.
+
+    They need `r + ec.n < ec.p`, some 2^-127 of signatures, so a signature
+    cannot reach them and the enumeration would answer the same list with
+    those two candidates never asked for. An r is fabricated instead: with
+    `r = 2` both r and `r + ec.n` are x-coordinates of the curve and all
+    four candidates recover, and with `r = 7` only `r + ec.n` is, so the
+    list is two keys long and their key_ids are 2 and 3 -- the dense-list
+    case, where an index into the list is not the key_id that produced it.
+
+    `(r, s)` is no signature anybody made, and does not have to be: step
+    1.6 is arithmetic on r and s, and the key it recovers satisfies the
+    equation by construction. What it pins is that the four `recover` calls
+    ask for the same candidates as the Python loop, in the same order, and
+    drop the same ones -- on the two key_ids the bindings and the Python
+    path arrive at differently, `recid & 2` against `(r + j*ec.n) % ec.p`.
+    """
+    msg_hash = reduce_to_hlen(b"Satoshi Nakamoto")
+    sig = dsa.Sig(r, 12345)
+
+    keys = dsa.recover_pub_keys_(msg_hash, sig)
+    candidates = [_recovered_(key_id, msg_hash, sig) for key_id in range(4)]
+    assert [
+        key_id for key_id, key in enumerate(candidates) if key is not None
+    ] == expected_key_ids
+    assert [key for key in candidates if key is not None] == keys
+
+    with monkeypatch.context() as patch:
+        patch.setattr(dsa, "_libsecp256k1_applicable", lambda *_: False)
+        assert dsa.recover_pub_keys_(msg_hash, sig) == keys
+        no_bindings(patch)
+        assert dsa.recover_pub_keys_(msg_hash, sig) == keys
 
 
 def _search_key_id(msg: bytes, sig: dsa.Sig, Q: Point, lower_s: bool = True) -> int:

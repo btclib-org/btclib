@@ -759,14 +759,53 @@ def test_zero_challenge() -> None:
         ssa.challenge_(msg_hash, 1, 1, ec, hf)
 
 
-def test_recover_infinity_pub_key() -> None:
+def test_recover_infinity_pub_key(monkeypatch: pytest.MonkeyPatch) -> None:
     """The recovered Q = e1*(s*G - K) is INF whenever s*G equals K.
 
     G's y-coordinate is even, so r = G.x picks K = G, and s = 1 then
     makes the recovered key INF whatever the challenge. The
     low-cardinality loop can never get here: its s comes from a real
     signature, hence s*G - K = c*q*G with c and q both nonzero.
+
+    Both arithmetics answer it, which is what the delegated double_mult of
+    issue 286 turns on: a libsecp256k1 pubkey is never the identity, so
+    the sum is recognized from the coordinates in curves.curve and handed
+    back as the z == 0 this function tests -- u*H + v*Q with v*Q == -u*H
+    is exactly the case, u being n - e1 and v being e1 here.
     """
     err_msg = r"invalid \(INF\) key"
     with pytest.raises(BTClibRuntimeError, match=err_msg):
         ssa._recover_pub_key_(1, secp256k1.G[0], 1, secp256k1)
+
+    no_bindings(monkeypatch)
+    with pytest.raises(BTClibRuntimeError, match=err_msg):
+        ssa._recover_pub_key_(1, secp256k1.G[0], 1, secp256k1)
+
+
+def test_recovery_multiplies_in_libsecp256k1(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """x-only recovery on both point arithmetics (issue 286).
+
+    Nothing in libsecp256k1 recovers an x-only key: its recovery module is
+    ECDSA -- `recover(msg, signature, recid)` -- and its xonly module has
+    no recovery in it, so the double_mult under this function is the whole
+    of what there is to delegate, and the Python arithmetic is reachable
+    only by patching the dispatch off. What this catches is the two
+    disagreeing about the recovered x_Q.
+
+    The low-cardinality loop asserts the same equality exhaustively, and
+    on the Python arithmetic alone: those curves are not secp256k1, so
+    nothing there reaches the bindings this compares against.
+    """
+    ec = secp256k1
+    for i in range(1, 5):
+        msg_hash = reduce_to_hlen(bytes([i]) * 32)
+        q, x_Q = ssa.gen_keys(i)
+        sig = ssa.sign_(msg_hash, q)
+        c = ssa.challenge_(msg_hash, x_Q, sig.r, ec, hf)
+
+        assert ssa._recover_pub_key_(c, sig.r, sig.s, ec) == x_Q
+        with monkeypatch.context() as patch:
+            no_bindings(patch)
+            assert ssa._recover_pub_key_(c, sig.r, sig.s, ec) == x_Q
