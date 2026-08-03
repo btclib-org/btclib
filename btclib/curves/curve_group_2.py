@@ -14,9 +14,11 @@ The implemented algorithms are:
     - Montgomery Ladder
     - Scalar multiplication on basis 3
     - Fixed window
+    - Regular window, signed odd digits (Joye-Tunstall recoding)
     - Sliding window
     - w-ary non-adjacent form (wNAF)
     - Interleaved-wNAF double multiplication (HMV algorithm 3.51)
+    - Regular-window double multiplication
     - GLV endomorphism multiplication for secp256k1 (HMV algorithm 3.77)
 
 References:
@@ -25,6 +27,9 @@ References:
     - https://ecc2017.cs.ru.nl/slides/ecc2017school-castryck.pdf
     - https://cr.yp.to/bib/2003/joye-ladder.pdf
     - D. Hankerson, 'Guide to Elliptic Curve Cryptography' chapter 3
+    - M. Joye and M. Tunstall, 'Exponent Recoding and Regular
+      Exponentiation Algorithms', AFRICACRYPT 2009, for the signed odd
+      digits of a regular window
     - https://bitcointalk.org/index.php?topic=3238.msg45565#msg45565
     - https://medium.com/@CoinExChain/acceleration-of-ecdsa-verification-with-endomorphism-mapping-of-secp256k1-126e77a51dba
 
@@ -60,6 +65,8 @@ follow-ups; what is here is the rest:
 
 from __future__ import annotations
 
+from math import ceil
+
 from btclib.alias import INFJ, JacPoint
 
 # the wNAF recoding and the table of odd multiples it indexes live in
@@ -70,6 +77,8 @@ from btclib.curves.curve_group import (
     CurveGroup,
     convert_number_to_base,
     odd_multiples,
+    signed_odd_digits,
+    signed_odd_multiples,
     wNAF_of_m,
 )
 from btclib.exceptions import BTClibValueError
@@ -277,6 +286,77 @@ def double_mult_w_NAF(
     return R
 
 
+def double_mult_regular_window(
+    u: int,
+    HJ: JacPoint,
+    v: int,
+    QJ: JacPoint,
+    ec: CurveGroup,
+    w: int = 4,
+    scalar_len: int = 0,
+) -> JacPoint:
+    """Double scalar multiplication (u*H + v*Q), regular windows.
+
+    curve_group's mult_regular_window for two coefficients, sharing the
+    doublings as the interleaved wNAF above does: one recoding and one
+    table of signed odd multiples per coefficient, and a loop of w
+    doublings and two additions per window, both of them made whatever the
+    digits are. So the cost is the same for every pair (u, v) of a given
+    scalar_len -- 143 additions and 254 doublings on secp256k1, over 200
+    random pairs -- where double_mult_w_NAF's is the recoded weight of the
+    two coefficients and is 101 to 116 additions over the same pairs, and
+    0.996 ms against 1.11.
+
+    Which is mult_regular_window's trade, twice: a table of 2^(w-1) points
+    per coefficient, and their opposites, to make one addition per window
+    per coefficient -- where the wNAF builds half as many points and adds
+    on one digit in w+1. This function is therefore not what
+    `double_mult` runs -- verification's coefficients are public -- but
+    what mult_endomorphism_secp256k1 runs, whose two are halves of a
+    secret.
+
+    scalar_len is the bit count the digits are fixed to, ec.scalar_len by
+    default. It is a parameter because the caller that wants this function
+    has coefficients shorter than the group's by construction:
+    mult_endomorphism_secp256k1 splits a 256-bit scalar into two halves of
+    128 bits, and the group's own 256 would double the work for nothing.
+
+    The input points are assumed to be on curve, and the u and v
+    coefficients are assumed to have been reduced mod n if appropriate
+    (e.g. cyclic groups of order n).
+    """
+    if u < 0:
+        raise BTClibValueError(f"negative first coefficient: {hex(u)}")
+    if v < 0:
+        raise BTClibValueError(f"negative second coefficient: {hex(v)}")
+    # a number cannot be written in basis 1 (ie w=0)
+    if w <= 0:
+        raise BTClibValueError(f"non positive w: {w}")
+
+    # as in mult_regular_window: the count is the curve's, or the caller's,
+    # and a coefficient above it is multiplied in the digits it needs
+    bits = max(scalar_len or ec.scalar_len, u.bit_length(), v.bit_length())
+    size = ceil(bits / w)
+    us = signed_odd_digits(u | 1, w, size)
+    vs = signed_odd_digits(v | 1, w, size)
+
+    TH = signed_odd_multiples(HJ, ec, w)
+    TQ = signed_odd_multiples(QJ, ec, w)
+    offset = (1 << w) - 1
+
+    # the accumulator starts at the sum of two table entries, so infinity
+    # is out of the loop here too
+    R = ec.add_jac(TH[(us[-1] + offset) // 2], TQ[(vs[-1] + offset) // 2])
+    for du, dv in zip(us[-2::-1], vs[-2::-1], strict=True):
+        for _ in range(w):
+            R = ec.double_jac(R)
+        R = ec.add_jac(R, TH[(du + offset) // 2])
+        R = ec.add_jac(R, TQ[(dv + offset) // 2])
+    # and the two parity corrections, each made whatever the parity
+    R = ec.add_jac(R, (INFJ, ec.negate_jac(HJ))[not u & 1])
+    return ec.add_jac(R, (INFJ, ec.negate_jac(QJ))[not v & 1])
+
+
 # secp256k1 constants for the GLV endomorphism, all four functions of
 # them below being specific to that curve:
 # the group order,
@@ -330,18 +410,48 @@ def multiplier_decomposer(m: int) -> tuple[int, int]:
     return m1, m2
 
 
-def mult_endomorphism_secp256k1(m: int, Q: JacPoint, ec: CurveGroup) -> JacPoint:
+# the bits either half of the decomposition can have, and the digit count
+# double_mult_regular_window is fixed to below. It is the rounding error of
+# multiplier_decomposer and not a measurement: round-to-nearest leaves at
+# most half a basis vector of each, |m1| <= (|a1| + |a2|)/2 and
+# |m2| <= (|b1| + |b2|)/2, both of which are 128-bit numbers with the
+# constants above. libsecp256k1's scalar_split_lambda states the same 128
+_HALF_LEN = 128
+
+
+def mult_endomorphism_secp256k1(
+    m: int, Q: JacPoint, ec: CurveGroup, w: int = 4, regular: bool = True
+) -> JacPoint:
     """Scalar multiplication in Jacobian coordinates using endomorphism.
 
     Algorithm 3.77 of D. Hankerson, 'Guide to Elliptic Curve
     Cryptography': m*Q as m1*Q + m2*(lambda*Q), the halves coming from
-    multiplier_decomposer and the double multiplication interleaving
-    their wNAFs. Measured over 30 random 256-bit scalars: 0.53 ms at the
-    default w=4, against 0.80 ms feeding the same halves to curve_group's
-    _double_mult and 0.84 ms for the _mult this exists to beat -- the
-    fastest Python multiplication in the package, and the w=4 default is
-    that measurement, the same halves interleaved at w=3 giving 0.57 ms
-    and at w=5 0.52, which is the default's own noise.
+    multiplier_decomposer and a double multiplication sharing their
+    doublings. It is the fastest Python multiplication in the package and
+    what `curves.mult` runs for every secp256k1 point the bindings do not
+    take.
+
+    Which double multiplication is `regular`, and the two answer the same
+    point at different costs. Measured over 30 random 256-bit scalars,
+    best of five, at the default w=4:
+
+    - the regular windows of double_mult_regular_window, 0.589 ms, and 79
+      additions and 126 doublings for every one of 200 random scalars
+    - the interleaved wNAFs of double_mult_w_NAF, 0.509 ms, which is
+      algorithm 3.77 as it is written, and 51 to 64 additions and 124 to
+      131 doublings over the same scalars: a quarter more work for the
+      worst scalar than for the best, and which it is is a property of
+      the secret (issue 254)
+
+    The regular one is the default because the scalar of a `curves.mult`
+    is a private key or a nonce in every caller btclib has, and 16% of a
+    multiplication that libsecp256k1 answers in 13 us is not what this
+    path is for. Both stay: the wNAF is what verification wants, its
+    coefficients being public, and `double_mult` reaches it directly.
+
+    w=4 by measurement for both: the regular windows give 0.610 ms at
+    w=5, and the wNAFs 0.527 at w=3 and 0.510 at w=5, which is the
+    default's own noise.
     """
     if m < 0:
         raise BTClibValueError(f"negative m: {hex(m)}")
@@ -352,11 +462,14 @@ def mult_endomorphism_secp256k1(m: int, Q: JacPoint, ec: CurveGroup) -> JacPoint
 
     # the decomposition is signed on purpose -- balance is what makes the
     # halves short -- and the sign belongs to the point: -m1*Q is m1*(-Q),
-    # one modular negation of a y-coordinate
-    P = Q
-    if m1 < 0:
-        m1, P = -m1, ec.negate_jac(P)
-    if m2 < 0:
-        m2, K = -m2, ec.negate_jac(K)
+    # one modular negation of a y-coordinate. Negated whatever the sign and
+    # selected afterwards, rather than under an `if`: the sign of a half is
+    # a bit of the scalar, and a modular subtraction is what a branch on it
+    # would put on the clock
+    P = (Q, ec.negate_jac(Q))[m1 < 0]
+    K = (K, ec.negate_jac(K))[m2 < 0]
+    m1, m2 = abs(m1), abs(m2)
 
-    return double_mult_w_NAF(m1, P, m2, K, ec)
+    if regular:
+        return double_mult_regular_window(m1, P, m2, K, ec, w, _HALF_LEN)
+    return double_mult_w_NAF(m1, P, m2, K, ec, w)

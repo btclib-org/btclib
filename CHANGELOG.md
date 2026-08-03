@@ -186,6 +186,46 @@ edit.
   whose iteration count is its input; and the wNAF loops skip the
   addition of a zero digit outright, which is the next thing to fix
   (issue #254)
+- **the scalar no longer decides how many additions a multiplication
+  makes, nor how many windows** (issue #254). Infinity had stopped costing
+  less than a point inside the group law, which closed the leak *in* the
+  addition; the loops above it still let the scalar say how many additions
+  to do at all. `mult_regular_window` is the fixed window with both
+  quantities taken away from it: `signed_odd_digits` recodes the scalar
+  into digits of `{±1, ±3, …, ±(2^w − 1)}` — the regular recoding of
+  Joye-Tunstall, which libsecp256k1's `ecmult_gen` uses too — so no digit
+  is zero and every window is one addition and `w` doublings, and there
+  are `ceil(ec.scalar_len / w)` windows whatever the scalar, where the
+  fixed window has `ceil(m.bit_length() / w)` and so runs one short for a
+  scalar one short. Measured over 200 random scalars on secp256k1: 71
+  additions and 253 doublings for every one of them, against 68 to 70 and
+  251 to 259, and 0.815 ms against 0.812 — uniformity for the price of
+  nothing, which is why `_mult` is this now and the plain fixed window
+  stays as the didactic one. `curves.mult` on secp256k1 goes through the
+  GLV endomorphism, whose two halves now feed
+  `double_mult_regular_window` rather than the interleaved wNAFs of
+  algorithm 3.77: 79 additions and 126 doublings for every scalar and
+  0.589 ms, against 51 to 64, 124 to 131 and 0.509 — 16% for a quarter of
+  the work stopping to be a property of the secret. The wNAFs are still
+  there and still the default of nothing but themselves: `double_mult`,
+  `dsa` and `ssa` verification and public key recovery reach
+  `double_mult_w_NAF` directly, their coefficients being a signature and a
+  message hash, and `mult_endomorphism_secp256k1(…, regular=False)` is
+  algorithm 3.77 as it is written. Two further consequences, one of them
+  the point: the accumulator starts at a table entry instead of at
+  infinity and no digit names infinity, so the identity is now unreachable
+  from the loops rather than merely uniform inside them, and `add_jac`'s
+  stand-ins have become belt and braces for callers rather than the thing
+  holding a multiplication together; and a scalar's *size* stops being
+  visible, which nothing addressed before. What is unchanged is the
+  memory access pattern: the table is indexed by a secret digit, which is
+  what the FLUSH+RELOAD recovery of OpenSSL's nonces read, and Python
+  offers nothing to hide it with — scanning the whole table per window is
+  the technique, and it costs the window. `SECURITY.md` said so and still
+  does. `CurveGroup` gained `scalar_len`, the bits a scalar of the group
+  can have, `p.bit_length() + 1` from Hasse's bound and narrowed to
+  `nlen` by `Curve`: it is a count and not a limit, a scalar above it
+  being multiplied in the digits it needs
 
 ### Consensus rules
 

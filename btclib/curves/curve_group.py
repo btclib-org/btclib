@@ -103,6 +103,16 @@ class CurveGroup:
         self.p_is_3_mod_4 = p % 4 == 3
         self.p = p
 
+        # how many bits a scalar of this group has, which is what fixes
+        # the digit count of mult_regular_window below -- the quantity a
+        # loop running once per digit of the scalar in hand puts on the
+        # clock. Hasse bounds the order of the group by p + 1 + 2*sqrt(p),
+        # so a scalar reduced mod that order is under 2^(plen+1); Curve
+        # narrows it to nlen, the order of its subgroup being the bound
+        # there. It is a count and not a limit: a scalar above it is
+        # multiplied all the same, in the digits it needs
+        self.scalar_len = plen + 1
+
         # 2. check that a and b are integers in the interval [0, p−1]
         if a < 0:
             raise BTClibValueError(f"negative a: {a}")
@@ -734,6 +744,58 @@ def wNAF_of_m(m: int, w: int) -> list[int]:
     return M
 
 
+def signed_odd_digits(m: int, w: int, size: int) -> list[int]:
+    """Return the size signed odd base-2^w digits of an odd m.
+
+    Regular recoding, Joye-Tunstall: m = sum(digits[i] * 2^(w*i)) with
+    every digit odd and in {±1, ±3, ..., ±(2^w - 1)}, least significant
+    first, as wNAF_of_m returns its own. Two properties are what it is
+    for, and neither is the wNAF's:
+
+    - no digit is zero, so the multiplication that indexes them makes one
+      addition per digit whatever m is, where a wNAF adds on a nonzero
+      digit and so once per unit of the recoded weight
+    - the count is `size` and not the length of m, so a scalar's *size*
+      stops being visible too
+
+    The digits are signed, and that is what buys the first property: 2^w
+    odd values in -(2^w - 1)..2^w - 1 name 2^(w-1) points and their
+    opposites, and negating a Jacobian point is one modular subtraction.
+
+    m must be odd -- a sum of odd digits weighted by powers of 2 has the
+    parity of digits[0], so no even number has such a form at all -- and
+    must fit the size asked for, which is `m < 2^(w*size)`: the last digit
+    is what is left of m and is not reduced further.
+    """
+    if m < 0:
+        raise BTClibValueError(f"negative m: {hex(m)}")
+    # a number cannot be written in basis 1 (ie w=0)
+    if w <= 0:
+        raise BTClibValueError(f"non positive w: {w}")
+    if m % 2 == 0:
+        raise BTClibValueError(f"even m: {hex(m)}")
+    if size < 1:
+        raise BTClibValueError(f"size too low: {size}")
+    if m >> (w * size):
+        raise BTClibValueError(f"m does not fit {size} digits: {hex(m)}")
+
+    w2 = 1 << w
+    digits: list[int] = []
+    for _ in range(size - 1):
+        # the low w+1 bits of m read as a signed value: odd, since m is,
+        # and in -(2^w - 1)..2^w - 1
+        digit = (m % (2 * w2)) - w2
+        digits.append(digit)
+        # m - digit is 2^w times an odd number -- m - (m mod 2^(w+1)) is a
+        # multiple of 2^(w+1) and 2^w is added back to it -- so the next
+        # digit is odd in its turn, and the recoding never needs a zero
+        m = (m - digit) >> w
+    # what is left, which the bound above makes an odd digit of its own:
+    # positive, so the accumulator can start at the entry it names
+    digits.append(m)
+    return digits
+
+
 def odd_multiples(Q: JacPoint, ec: CurveGroup, w: int) -> list[JacPoint]:
     """Return the odd multiples 1*Q, 3*Q, ..., (2^(w-1) - 1)*Q.
 
@@ -748,6 +810,25 @@ def odd_multiples(Q: JacPoint, ec: CurveGroup, w: int) -> list[JacPoint]:
         for _ in range(2 ** (w - 2) - 1):
             T.append(ec.add_jac(T[-1], Q2))
     return T
+
+
+def signed_odd_multiples(Q: JacPoint, ec: CurveGroup, w: int) -> list[JacPoint]:
+    """Return the 2^w multiples a signed odd width-w digit names.
+
+    -(2^w - 1)*Q first and (2^w - 1)*Q last, so the digit d of
+    signed_odd_digits picks entry (d + 2^w - 1) // 2 and nothing has to
+    test its sign, where the wNAF loops negate an entry of `odd_multiples`
+    on the fly under an `if`. Cheaper, too, and not only regular: 2^(w-1)
+    modular subtractions once -- 8 of them at w=4 -- against the one per
+    negative digit the loop would make, which is half of the 64 digits a
+    256-bit scalar has at that width.
+
+    The table it is built on is `odd_multiples(Q, ec, w + 1)`: a regular
+    digit reaches 2^w - 1 where a width-w NAF digit stops at 2^(w-1) - 1,
+    so the table is twice as long as that recoding's for the same window.
+    """
+    T = odd_multiples(Q, ec, w + 1)
+    return [ec.negate_jac(P) for P in reversed(T)] + T
 
 
 def mult_mont_ladder(m: int, Q: JacPoint, ec: CurveGroup) -> JacPoint:
@@ -886,7 +967,85 @@ def mult_fixed_window_cached(
     return R
 
 
-_mult = mult_fixed_window
+def mult_regular_window(m: int, Q: JacPoint, ec: CurveGroup, w: int = 4) -> JacPoint:
+    """Scalar multiplication using a regular window: no digit is zero.
+
+    The fixed window above, with the quantity the scalar still decided
+    taken away from it (issue 254). That one adds a table entry on every
+    digit, the infinity of T[0] included, so *which* digits a scalar has
+    does not change what it costs -- but how many it has does: the count
+    is ceil(m.bit_length() / w), and a scalar short of a full top window
+    runs one window less. Here the digits are the signed odd ones of
+    signed_odd_digits, none of them zero, and there are
+    ceil(ec.scalar_len / w) of them whatever m is: one addition and w
+    doublings per window, for every scalar of every size. Measured on
+    secp256k1 over 200 random scalars: 68 to 70 additions and 251 to 259
+    doublings for the fixed window, and 71 and 253 for this one on every
+    one of them.
+
+    Uniformity for free, in other words -- 0.815 ms against 0.812 over 30
+    random 256-bit scalars, best of five -- which is what makes this the
+    `_mult` the package reaches for rather than an option beside it. The
+    fixed window stays as what it is didactically, the plain one, and the
+    wNAF multiplications stay the fast irregular ones for coefficients
+    that are public: `double_mult_w_NAF` is what verification runs.
+
+    w=4 by measurement, as for the fixed window: 0.803 ms at w=5 and 0.831
+    at w=6, the window paying for a table twice the size of the NAF's at
+    the same width.
+
+    Two things follow for the group law underneath. The accumulator starts
+    at a table entry instead of at infinity and no digit names infinity, so
+    the identity is unreachable from the loop rather than merely uniform in
+    it; and the two special cases left in `add_jac`, a doubling and a sum
+    that is infinity, need the accumulator to land on a table entry or its
+    opposite, 2^-250 on a curve with a real order. On the toy curves of
+    the test suite they are reached constantly, an accumulator wrapping
+    around a group of eleven points, which is what holds them tested.
+
+    The input point is assumed to be on curve. m is *not* assumed to have
+    been reduced: a scalar above ec.scalar_len bits is multiplied in the
+    digits it needs, which is the one case where the count is the scalar's
+    own again -- and no entry point of the library forms one, each reducing
+    mod n first.
+    """
+    if m < 0:
+        raise BTClibValueError(f"negative m: {hex(m)}")
+
+    # a number cannot be written in basis 1 (ie w=0)
+    if w <= 0:
+        raise BTClibValueError(f"non positive w: {w}")
+
+    size = ceil(max(ec.scalar_len, m.bit_length()) / w)
+    # the recoding needs an odd scalar, and m | 1 is m for an odd one and
+    # m + 1 for an even one. The final addition below takes the 1 back
+    # rather than n being added to make m odd: n is not on CurveGroup at
+    # all, and m + n would be the same point only for a point whose order
+    # it is -- which the group this multiplies in cannot say
+    digits = signed_odd_digits(m | 1, w, size)
+    T = signed_odd_multiples(Q, ec, w)
+    offset = (1 << w) - 1
+
+    # a table entry, the top digit being positive, and never infinity
+    R = T[(digits[-1] + offset) // 2]
+    for digit in digits[-2::-1]:
+        # multiple 'double'
+        for _ in range(w):
+            R = ec.double_jac(R)
+        # and 'add', on every digit: there is no zero one to skip
+        R = ec.add_jac(R, T[(digit + offset) // 2])
+    # the parity correction, made whatever the parity so that it cannot be
+    # read off the clock: one addition of infinity, which by the same
+    # property costs what the addition of -Q costs. It is also what
+    # answers m == 0, whose recoding is that of 1
+    return ec.add_jac(R, (INFJ, ec.negate_jac(Q))[not m & 1])
+
+
+# what the rest of the package multiplies with, on every curve but
+# secp256k1, where curves.mult has the GLV endomorphism: the regular
+# window, whose cost is the same for every scalar of the curve, at the
+# cost of nothing measurable against the fixed window it recodes
+_mult = mult_regular_window
 
 
 def _double_mult(
