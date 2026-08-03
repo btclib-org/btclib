@@ -120,6 +120,19 @@ def parse(stream: BinaryData, exit_on_op_success: bool = False) -> ScriptList:
     return r
 
 
+def leaf_hash(leaf_version: int, script: bytes) -> bytes:
+    """Return the BIP341 tapleaf hash of a serialized leaf script.
+
+    What names a leaf everywhere but in the control block: the merkle
+    path is built from these, a BIP342 signature commits to one, and
+    BIP371's psbt fields key their taproot data by one. `script` is the
+    leaf script already serialized, which is the form all three of those
+    hold it in.
+    """
+    preimage = leaf_version.to_bytes(1, "big") + var_bytes.serialize(script)
+    return tagged_hash(b"TapLeaf", preimage)
+
+
 def tree_helper(script_tree: TaprootScriptTree) -> tuple[TaprootLeafPaths, bytes]:
     if len(script_tree) == 1:
         return _tree_helper(script_tree)
@@ -137,9 +150,7 @@ def tree_helper(script_tree: TaprootScriptTree) -> tuple[TaprootLeafPaths, bytes
 def _tree_helper(script_tree: TaprootScriptTree) -> tuple[TaprootLeafPaths, bytes]:
     leaf_version, script = cast("TaprootLeaf", script_tree[0])
     leaf_version = leaf_version & 0xFE
-    preimage = leaf_version.to_bytes(1, "big")
-    preimage += var_bytes.serialize(serialize(script))
-    h = tagged_hash(b"TapLeaf", preimage)
+    h = leaf_hash(leaf_version, serialize(script))
     return ([((leaf_version, script), b"")], h)
 
 
@@ -250,9 +261,7 @@ def check_output_pubkey(
     m = (len(control) - 33) // 32
     if len(control) != 33 + 32 * m:
         raise BTClibValueError("invalid control block length")
-    leaf_version = control[0] & 0xFE
-    preimage = leaf_version.to_bytes(1, "big") + var_bytes.serialize(script)
-    k = tagged_hash(b"TapLeaf", preimage)
+    k = leaf_hash(control[0] & 0xFE, script)
     for j in range(m):
         e = control[33 + 32 * j : 65 + 32 * j]
         if k < e:

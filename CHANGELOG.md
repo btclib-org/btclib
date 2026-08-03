@@ -2048,6 +2048,31 @@ edit.
   against; the test suite checks it against `finalize_psbt`, which does
   have one, and the two build the same bytes for every shape both can
   express (issue #263)
+- **`Descriptor.update_psbt` is BIP 174's Updater**: it returns the psbt
+  with one input told what the descriptor knows — the redeem script of a
+  `sh()`, the witness script of a `wsh()`, the internal key, merkle root
+  and leaf scripts of a `tr()`, and the origin of every key that carries
+  one, which is what `KeyExpression.origin` is kept for and what nothing
+  carried into a psbt before. A copy, the psbt handed in left alone, as
+  `finalize_psbt` returns one. That completes the pipeline BIP 174
+  describes with a btclib call for each role: the descriptor updates,
+  signers fill `partial_sigs` in any order and at their own pace, and
+  `finalize_psbt` assembles — so a 2-of-3 waiting for its second
+  signature is handled without `satisfy` having to answer with bytes that
+  do not spend. The taproot half is the one an Updater is needed for
+  rather than convenient: a control block holds the merkle path from its
+  leaf to the root, so a psbt handed one leaf cannot work out another,
+  and `TrDescriptor.taproot_leaf_scripts` and
+  `TrDescriptor.taproot_merkle_root` are public for the same reason. The
+  three `satisfy` refuses are refused here too, for a reason of their
+  own: `addr()` and `raw()` hold no key and no script below the one the
+  utxo already carries, so an Updater over either would fill nothing and
+  report that it had, and `combo()` is four scripts of which only one is
+  being spent. A key with no origin is skipped rather than refused, the
+  field being keyed by key. `taproot.leaf_hash` is new beside it, the
+  BIP 341 tapleaf hash that `tree_helper`, `check_output_pubkey` and the
+  psbt's own `leaf_script` each used to compute for themselves (issue
+  #306)
 - **`btclib.fetch` is new, and is the one package that goes out to the
   network.** `Fetcher` is three questions the library cannot answer from
   bytes it was handed — the transaction with this id, the output an

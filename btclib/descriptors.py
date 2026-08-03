@@ -25,6 +25,14 @@ the signatures are a parameter rather than something this module makes.
 `psbt.finalize_psbt` does have one and does check, and builds the same
 bytes from a psbt carrying the same signatures.
 
+`update_psbt` is the third answer, and the one for a spend the signers
+do not make all at once: BIP 174's Updater, writing the scripts and the
+key origins into a psbt input, for signers to fill in at their own pace
+and `psbt.finalize_psbt` to assemble. This module imports `psbt` for it
+and nothing there imports back, which is the direction of the layering:
+a psbt is a transaction being built, and a descriptor is what a wallet
+knows about the outputs it holds.
+
 BIP 380: https://github.com/bitcoin/bips/blob/master/bip-0380.mediawiki
 
 The grammar read is BIP 380 to BIP 386 and BIP 389, minus miniscript:
@@ -57,6 +65,7 @@ from __future__ import annotations
 import re
 from abc import ABC, abstractmethod
 from collections.abc import Callable, Mapping
+from copy import deepcopy
 from dataclasses import dataclass
 from typing import cast
 
@@ -65,9 +74,11 @@ from btclib.bip32.bip32 import BIP32KeyData, derive
 from btclib.bip32.der_path import int_from_index_str
 from btclib.bip32.key_origin import BIP32KeyOrigin
 from btclib.exceptions import BTClibValueError
+from btclib.psbt.psbt import Psbt
+from btclib.psbt.psbt_in import PsbtIn
 from btclib.script.script import serialize
 from btclib.script.script_pub_key import ScriptPubKey
-from btclib.script.taproot import input_script_sig
+from btclib.script.taproot import input_script_sig, leaf_hash, tree_helper
 from btclib.script.witness import Witness
 from btclib.to_pub_key import point_from_pub_key, pub_keyinfo_from_key
 from btclib.utils import bytes_from_octets
@@ -306,6 +317,23 @@ def _required_signature(signatures: Mapping[bytes, bytes], sec: bytes) -> bytes:
     return signature
 
 
+def _derived_origin(key: KeyExpression, index: int) -> BIP32KeyOrigin | None:
+    """Return the origin of the key at `index`, None for a key without one.
+
+    `KeyExpression.origin` is the path down to the extended key the
+    descriptor holds, and what BIP 174 carries is the path down to the
+    key itself: the derivation the descriptor then does, the wildcard
+    step at `index` included, appended to it. A signer given the shorter
+    path would derive the wrong key from it.
+    """
+    if key.origin is None:
+        return None
+    der_path = [*key.origin.der_path, *key.der_path]
+    if key.wildcard is not None:
+        der_path.append(key.wildcard + index)
+    return BIP32KeyOrigin(key.origin.master_fingerprint, der_path)
+
+
 @dataclass(frozen=True, kw_only=True)
 class Descriptor(ABC):
     """A parsed output descriptor: the scripts it describes, on demand.
@@ -433,6 +461,69 @@ class Descriptor(ABC):
         """
         return serialize(cast(ScriptList, self._stack(signatures, index))), Witness()
 
+    def update_psbt(self, psbt: Psbt, vin_i: int, index: int = 0) -> Psbt:
+        """Return the psbt with input `vin_i` told what the descriptor knows.
+
+        BIP 174's Updater, for the one input this descriptor describes:
+        the redeem script of a ``sh()``, the witness script of a
+        ``wsh()``, the internal key, merkle root and leaf scripts of a
+        ``tr()``, and the origin of every key that carries one -- which is
+        what a hardware signer needs, and what `KeyExpression.origin` is
+        kept for. `psbt.finalize_psbt` then assembles the same bytes
+        `satisfy` does, from the signatures the signers filled in at
+        their own pace: that pipeline is what a psbt is for, and what
+        `satisfy` cannot answer, refusing a partial satisfaction rather
+        than returning bytes that do not spend.
+
+        A copy, the psbt handed in being left alone, and the fields of
+        the copy mutated in place: `finalize_psbt` is the same
+        construction, and BIP 174's roles read as steps that update a
+        psbt rather than as functions that return a field at a time.
+
+        What is not filled is what a descriptor does not know: the utxo,
+        the sighash type, the signatures. Nor is the script checked
+        against the output being spent -- an input may not carry it yet,
+        and `Psbt.assert_signable` asks that question for every input at
+        once, being the role after this one.
+        """
+        self._assert_index(index)
+        # an IndexError out of a public method is not an answer, and a
+        # negative index would quietly update the input at the other end
+        if not 0 <= vin_i < len(psbt.inputs):
+            raise BTClibValueError(f"invalid input index: {vin_i}")
+        psbt = deepcopy(psbt)
+        self._update(psbt.inputs[vin_i], index)
+        psbt.assert_valid()
+        return psbt
+
+    def _update(self, psbt_in: PsbtIn, index: int) -> None:
+        """Fill the key origins, which is what every fragment knows.
+
+        And the whole of what ``pk()``, ``pkh()``, ``wpkh()`` and
+        ``multi()`` know: their script is the script_pub_key, which the
+        psbt has from the utxo rather than from here. The fragments that
+        embed one of those add their scripts to this.
+
+        The mapping is added to and not replaced: BIP 174 keys it by
+        public key, so a psbt already carrying another signer's key keeps
+        it, and this descriptor's entry wins for a key held by both.
+        """
+        psbt_in.hd_key_paths = {**psbt_in.hd_key_paths, **self._hd_key_paths(index)}
+
+    def _hd_key_paths(self, index: int) -> dict[bytes, BIP32KeyOrigin]:
+        """Return the origin of each key that has one, keyed by public key.
+
+        A key with no origin is skipped and not refused: a descriptor may
+        name one key as plain hex and the next with an origin, the field
+        is keyed by key, and what is missing is one entry of it.
+        """
+        hd_key_paths: dict[bytes, BIP32KeyOrigin] = {}
+        for key in self.key_expressions:
+            origin = _derived_origin(key, index)
+            if origin is not None:
+                hd_key_paths[key.sec(index, self.network)] = origin
+        return hd_key_paths
+
 
 @dataclass(frozen=True)
 class PkDescriptor(Descriptor):
@@ -532,6 +623,17 @@ class ShDescriptor(Descriptor):
         redeem_script = self.inner.redeem_script(index)
         return script_sig + serialize(cast(ScriptList, [redeem_script])), witness
 
+    def _update(self, psbt_in: PsbtIn, index: int) -> None:
+        """Fill the redeem script, and let the argument fill its own fields.
+
+        Delegated rather than dispatched on: the argument of a
+        ``sh(wsh())`` is what knows there is a witness script below the
+        redeem script, and it is the same method that fills it for a
+        native ``wsh()``.
+        """
+        self.inner._update(psbt_in, index)
+        psbt_in.redeem_script = self.inner.redeem_script(index)
+
 
 @dataclass(frozen=True)
 class WshDescriptor(Descriptor):
@@ -558,6 +660,16 @@ class WshDescriptor(Descriptor):
         """
         stack = self.inner._stack(signatures, index)
         return b"", Witness([*stack, self.inner.redeem_script(index)])
+
+    def _update(self, psbt_in: PsbtIn, index: int) -> None:
+        """Fill the witness script; the redeem script is ``sh()``'s to fill.
+
+        Which is the whole difference between a native ``wsh()`` and a
+        wrapped one, in the psbt as in the spend: the same witness script,
+        and a redeem script only where something wraps it.
+        """
+        self.inner._update(psbt_in, index)
+        psbt_in.witness_script = self.inner.redeem_script(index)
 
 
 @dataclass(frozen=True)
@@ -658,6 +770,18 @@ class ComboDescriptor(Descriptor):
         err_msg = "combo() is four scripts: satisfy the one being spent"
         raise BTClibValueError(err_msg)
 
+    def _update(self, psbt_in: PsbtIn, index: int) -> None:
+        """Refuse: the four scripts are updated into an input differently.
+
+        One of them is p2sh and wants a redeem script, the other three
+        want none, and the input is spending one output: an Updater that
+        wrote the key origin and left the script to the caller would have
+        filled in the half that is the same for all four and hidden the
+        half that is not.
+        """
+        err_msg = "combo() is four scripts: update the psbt with the one spent"
+        raise BTClibValueError(err_msg)
+
 
 @dataclass(frozen=True)
 class AddrDescriptor(Descriptor):
@@ -683,6 +807,15 @@ class AddrDescriptor(Descriptor):
         descriptor does not carry.
         """
         raise BTClibValueError("addr() cannot be satisfied: it holds no key")
+
+    def _update(self, psbt_in: PsbtIn, index: int) -> None:
+        """Refuse: there is nothing of an address to write into an input.
+
+        No key, so no origin; no script below the address, so no redeem or
+        witness script. Returning the input untouched would be an Updater
+        that ran and a caller told it had been updated.
+        """
+        raise BTClibValueError("addr() cannot update a psbt: it holds no key")
 
 
 @dataclass(frozen=True)
@@ -710,6 +843,15 @@ class RawDescriptor(Descriptor):
         """
         raise BTClibValueError("raw() cannot be satisfied: it holds no key")
 
+    def _update(self, psbt_in: PsbtIn, index: int) -> None:
+        """Refuse, for the reason ``addr()`` does: bytes hold no key origin.
+
+        Those bytes may be the script an input spends, and they are then
+        its script_pub_key, which the psbt has from the utxo; what a
+        descriptor is asked here is what the utxo does not say.
+        """
+        raise BTClibValueError("raw() cannot update a psbt: it holds no key")
+
 
 @dataclass(frozen=True)
 class TrDescriptor(Descriptor):
@@ -732,6 +874,84 @@ class TrDescriptor(Descriptor):
         )
         internal_key = self.internal_key.sec(index, self.network)
         return [ScriptPubKey.p2tr(internal_key, script_tree).script]
+
+    def _leaf(
+        self, script_tree: TaprootScriptTree, index: int, leaf: int
+    ) -> tuple[bytes, bytes]:
+        """Return one leaf's serialized script and its control block.
+
+        The one place either is built, a spend and an update of the same
+        leaf wanting the same bytes. The tree is a parameter because both
+        callers have computed it already -- and because a ``tr()`` with no
+        tree has no leaf, which they answer for themselves.
+        """
+        internal_key = self.internal_key.sec(index, self.network)
+        script, control_block = input_script_sig(internal_key, script_tree, leaf)
+        return serialize(script), control_block
+
+    def taproot_merkle_root(self, index: int = 0) -> bytes:
+        """Return the root the output key commits to, b"" where there is none.
+
+        BIP 371's PSBT_IN_TAP_MERKLE_ROOT, and empty is how that field
+        says "key path only": a ``tr(KEY)`` tweaks its internal key with
+        no tree, which is not the same as tweaking it with an empty one.
+        """
+        self._assert_index(index)
+        if self.tree is None:
+            return b""
+        return tree_helper(_taproot_script_tree(self.tree, index, self.network))[1]
+
+    def taproot_leaf_scripts(self, index: int = 0) -> dict[bytes, tuple[bytes, int]]:
+        """Return every leaf script and its version, keyed by control block.
+
+        The shape of BIP 371's PSBT_IN_TAP_LEAF_SCRIPT, and the field an
+        Updater is needed for rather than convenient: a control block
+        holds the merkle path from its leaf to the root, which is the
+        whole tree seen from that leaf, and a psbt carrying one leaf's
+        script has no way to compute another's.
+        """
+        self._assert_index(index)
+        if self.tree is None:
+            return {}
+        script_tree = _taproot_script_tree(self.tree, index, self.network)
+        leaf_scripts: dict[bytes, tuple[bytes, int]] = {}
+        for leaf in range(len(_tree_keys(self.tree))):
+            script, control_block = self._leaf(script_tree, index, leaf)
+            leaf_scripts[control_block] = (script, _TAPSCRIPT_LEAF_VERSION)
+        return leaf_scripts
+
+    def _taproot_hd_key_paths(
+        self, index: int
+    ) -> dict[bytes, tuple[list[bytes], BIP32KeyOrigin]]:
+        """Return each key's origin and leaf hashes, keyed by x-only key.
+
+        BIP 371 gives a taproot key a field of its own, keyed by the 32
+        bytes a tapscript holds and carrying the tapleaf hash of every
+        leaf the key appears in: none for a key that is only the internal
+        one, no leaf committing to it, and one entry naming each of them
+        for a key written into several, the field being keyed by key.
+
+        Named once each: a key in two leaves of the same script is in two
+        places of the tree and in one leaf of it, the tapleaf hash being
+        of the script, and what a signer reads here is which scripts it
+        has to sign for.
+        """
+        leaf_hashes: dict[bytes, list[bytes]] = {}
+        for script, leaf_version in self.taproot_leaf_scripts(index).values():
+            # a leaf of this module's own making is a push of the key and
+            # OP_CHECKSIG, `pk()` being the only leaf BIP 386 reads here,
+            # so the key is what the push holds
+            hashes = leaf_hashes.setdefault(script[1:-1], [])
+            if (hash_ := leaf_hash(leaf_version, script)) not in hashes:
+                hashes.append(hash_)
+        hd_key_paths: dict[bytes, tuple[list[bytes], BIP32KeyOrigin]] = {}
+        for key in self.key_expressions:
+            origin = _derived_origin(key, index)
+            if origin is None:
+                continue
+            x_only = key.sec(index, self.network)[1:]
+            hd_key_paths[x_only] = (leaf_hashes.get(x_only, []), origin)
+        return hd_key_paths
 
     def _satisfy(
         self, signatures: Mapping[bytes, bytes], index: int
@@ -771,12 +991,30 @@ class TrDescriptor(Descriptor):
                 signatures, key.sec(index, self.network), x_only=True
             )
             if signature is not None:
-                script, control_block = input_script_sig(
-                    internal_key, script_tree, leaf
-                )
-                return b"", Witness([signature, serialize(script), control_block])
+                script, control_block = self._leaf(script_tree, index, leaf)
+                return b"", Witness([signature, script, control_block])
         err_msg = "no signature for the tr() internal key or for any of its leaves"
         raise BTClibValueError(err_msg)
+
+    def _update(self, psbt_in: PsbtIn, index: int) -> None:
+        """Fill the four taproot fields: internal key, root, leaves, origins.
+
+        This replaces the base method rather than adding to it: a taproot
+        key origin belongs in `taproot_hd_key_paths`, keyed by the x-only
+        key, and a 33-byte entry in `hd_key_paths` beside it would be the
+        same key twice in two spellings, for a signer that signs with
+        neither.
+        """
+        psbt_in.taproot_internal_key = self.internal_key.sec(index, self.network)[1:]
+        psbt_in.taproot_merkle_root = self.taproot_merkle_root(index)
+        psbt_in.taproot_leaf_scripts = {
+            **psbt_in.taproot_leaf_scripts,
+            **self.taproot_leaf_scripts(index),
+        }
+        psbt_in.taproot_hd_key_paths = {
+            **psbt_in.taproot_hd_key_paths,
+            **self._taproot_hd_key_paths(index),
+        }
 
 
 def _split_arguments(arguments: str) -> list[str]:
