@@ -250,6 +250,35 @@ def test_low_cardinality() -> None:
                             ssa._assert_as_valid_(e, QJ, r, (s - 1) % ec.n, ec)
 
 
+def test_verify_with_a_message_that_is_not_32_bytes_on_both_arithmetics(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Issue 169's path, on both arithmetics.
+
+    BIP340 takes a message of any size and so does btclib, while the
+    bindings answer "the message hash must be 32 bytes", so any other
+    length is verified by `_assert_as_valid_` -- the only path that can
+    verify four of BIP340's own vectors. Its multiplication is the
+    bindings' all the same on secp256k1, 183 us against the 1.17 ms of
+    the Python arithmetic, and the two must not disagree about a
+    signature.
+    """
+    msg = b"a message that is not 32 bytes"
+    assert len(msg) != 32
+    q, x_Q = ssa.gen_keys(0x1234567890ABCDEF)
+    sig = ssa.sign_(msg, q)
+
+    def checks() -> None:
+        ssa.assert_as_valid_(msg, x_Q, sig)
+        assert ssa.verify_(msg, x_Q, sig)
+        # the same signature over another message of the same size
+        assert not ssa.verify_(b"another message of the same size", x_Q, sig)
+
+    checks()
+    no_bindings(monkeypatch)
+    checks()
+
+
 def test_batch_validation() -> None:
     ms: list[String] = []
     Qs: list[int] = []

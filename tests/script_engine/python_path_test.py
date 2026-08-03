@@ -40,7 +40,7 @@ from typing import Any
 
 import pytest
 
-from btclib.curves import point_from_octets
+from btclib.curves import curve, point_from_octets
 from btclib.ecc import dsa, ssa
 from btclib.exceptions import BTClibValueError
 from btclib.script.engine import script as engine_script
@@ -82,9 +82,17 @@ def python_verification(monkeypatch: pytest.MonkeyPatch) -> None:
     own reference to the bindings' verify, and `btclib.ecc` would hand
     secp256k1 with sha256 straight back to them -- the very dispatch that
     makes the Python path unreachable in the first place.
+
+    A third patch, one curve deeper, is what keeps the arithmetic Python
+    too: `dsa._assert_as_valid_` and `ssa._assert_as_valid_` reach the
+    `double_mult` of `curves.curve`, which delegates any point of
+    secp256k1 to the bindings. Without it the verdict below would still be
+    the Python implementation's, and the multiplication under it would not
+    -- a bindings-less configuration in name only.
     """
     monkeypatch.setattr(dsa, "_libsecp256k1_applicable", lambda *_: False)
     monkeypatch.setattr(ssa, "_libsecp256k1_applicable", lambda *_: False)
+    monkeypatch.setattr(curve, "_libsecp256k1_applicable", lambda *_: False)
     monkeypatch.setattr(engine_script, "_libsecp256k1_dsa_verify", python_dsa_verify)
     monkeypatch.setattr(engine_tapscript, "_libsecp256k1_ssa_verify", python_ssa_verify)
 

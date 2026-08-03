@@ -76,7 +76,12 @@ from btclib_libsecp256k1 import ssa as libsecp256k1_ssa
 from btclib.alias import BinaryData, HashF, Integer, JacPoint, Octets, Point
 from btclib.bip32 import BIP32Key
 from btclib.curves import Curve, secp256k1
-from btclib.curves.curve import _libsecp256k1_applicable, mult, multi_mult
+from btclib.curves.curve import (
+    _jac_double_mult,
+    _libsecp256k1_applicable,
+    mult,
+    multi_mult,
+)
 from btclib.curves.curve_group_2 import double_mult_w_NAF
 from btclib.ecc.bip340_nonce import bip340_nonce_
 from btclib.ecc.commit_nonce import commit_entropy_, commit_nonce_, commit_point_
@@ -417,8 +422,15 @@ def _assert_as_valid_(c: int, QJ: JacPoint, r: int, s: int, ec: Curve) -> None:
     # It raises Errors, while verify should always return True or False
 
     # Let K = sG - eQ.
-    # in Jacobian coordinates
-    KJ = double_mult_w_NAF(ec.n - c, QJ, s, ec.GJ, ec)
+    # in Jacobian coordinates, and through the dispatching double_mult of
+    # curves.curve rather than the Python arithmetic under it: what
+    # reaches here is the verification the bindings' own declined -- a
+    # message that is not 32 bytes above all, which is issue 169 and four
+    # of BIP340's own vectors -- and on secp256k1 the multiplication is
+    # still theirs, 28 us against 1.02 ms. This whole verification is then
+    # 183 us against 1.17 ms, most of what is left being the y_even that
+    # lifts the r of the signature back to a point
+    KJ = _jac_double_mult(ec.n - c, QJ, s, ec.GJ, ec)
 
     # The following check is prescribed by BIP340 but it is useless:
     # if moved after 'Fail if x_K ≠ r' it would never be executed
