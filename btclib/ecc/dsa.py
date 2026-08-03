@@ -45,7 +45,6 @@ from btclib.curves.curve import (
     _libsecp256k1_applicable,
     _y_even,
 )
-from btclib.curves.curve_group_2 import double_mult_w_NAF
 from btclib.ecc.commit_nonce import commit_entropy_, commit_nonce_, commit_point_
 from btclib.ecc.rfc6979_nonce import _rfc6979_nonce_, challenge_
 from btclib.exceptions import BTClibRuntimeError, BTClibTypeError, BTClibValueError
@@ -936,10 +935,15 @@ def _recover_pub_keys_(
 ) -> list[JacPoint]:
     # Private function provided for testing purposes only.
 
-    # libsecp256k1 has no counterpart to enumerate with -- its recover
-    # answers for a recid it is given -- so this is the Python path
-    # whatever the curve, and it is what the tests hold the delegated
-    # single-candidate recovery against.
+    # The Python enumeration: `recover_pub_keys_` above asks the bindings
+    # for each of the four recids instead, so what reaches here is every
+    # other curve, every other hash function, and the tests that patch the
+    # dispatch off -- where this is the implementation held against the
+    # bindings, they being the authority on the answer.
+    #
+    # The two have to answer the same list and not merely the same set,
+    # dropped candidates included, which is what those tests asserted
+    # before the delegation existed and assert of both paths now.
     #
     # every candidate is a key_id, so this is _recover_pub_key_ over the
     # whole range of them and nothing else: a j in [0, ec.cofactor] (step
@@ -948,9 +952,14 @@ def _recover_pub_keys_(
     # order key_id numbers them in, so range() is the loop.
     #
     # It costs a mod_inv per candidate rather than hoisting the
-    # precomputation out of the loop, and that is not measurable: each
-    # candidate also runs a double_mult_w_NAF, which on secp256k1 is some
-    # eighty times dearer (1970 us against 23.6 us, timeit).
+    # precomputation out of the loop, and delegating the double_mult below
+    # is what made that measurable: 41 us of the 214 a candidate takes on
+    # secp256k1 with the dispatch off, where the same 41 sat inside 2215.
+    # Still not hoisted, because the plural is `_recover_pub_key_` over a
+    # range of key_ids and nothing else -- issue 183 was the two
+    # disagreeing while each held its own copy of this arithmetic -- so the
+    # paths that reach this loop pay 19% for the singular staying the only
+    # place the arithmetic is written.
     keys: list[JacPoint] = []
     for key_id in range(2 * (ec.cofactor + 1)):
         # a candidate can fail either half of step 1.6: x_K may not be on
@@ -981,6 +990,28 @@ def recover_pub_keys_(
     # The message msg_hash: a hf_len array
     hf_len = hf().digest_size
     msg_hash = bytes_from_octets(msg_hash, hf_len)
+
+    # the enumeration is btclib's loop and not a function libsecp256k1
+    # has, but each candidate in it is a recid the bindings answer for, so
+    # what runs here is four `recover` calls: 83 us against 854 (issue
+    # 286). A recid is two bits, i.e. every candidate a curve of cofactor
+    # 1 has, and _libsecp256k1_applicable admits no other curve --
+    # secp256k1's cofactor is 1, so `range(4)` here is the
+    # `range(2 * (ec.cofactor + 1))` of the Python enumeration above, in
+    # the same order, key_id by key_id
+    if _libsecp256k1_applicable(sig.ec, hf):
+        keys: list[Point] = []
+        for key_id in range(4):
+            # a candidate that recovers nothing is dropped rather than
+            # reported, as in _recover_pub_keys_: the bindings' refusal
+            # arrives as the BTClibValueError _libsecp256k1_recover_sec_
+            # maps it to, and a high-s signature under lower_s enumerates
+            # to the empty list, every candidate failing the same rule
+            with contextlib.suppress(BTClibValueError, BTClibRuntimeError):
+                keys.append(
+                    _libsecp256k1_recover_point_(key_id, msg_hash, sig, lower_s)
+                )
+        return keys
 
     c = challenge_(msg_hash, sig.ec, hf)  # 1.5
 
@@ -1036,7 +1067,20 @@ def _recover_pub_key_(
     y_K = ec.p - y if i else y
     KJ = x_K, y_K, 1  # 1.2, 1.3, and 1.4
     # 1.5 has been performed in the recover_pub_keys calling function
-    QJ = double_mult_w_NAF(r1s, KJ, r1e, ec.GJ, ec)  # 1.6.1
+    #
+    # delegated as the double_mult of _assert_as_valid_ below it is: this
+    # is the Python path of recovery -- the named candidate goes to
+    # secp256k1_ecdsa_recover instead, and the enumeration has no
+    # counterpart to go to at all -- but the arithmetic under it is
+    # libsecp256k1's for secp256k1 all the same, as the lift above is:
+    # 2215 us against 214 for the whole of this function, and 6800 against
+    # 850 for the enumeration that runs it once per candidate.
+    #
+    # It is the same point either way and not the same triple: what comes
+    # back is jac_from_aff, i.e. z == 1, where the wNAF answered whatever
+    # representative its ladder reached. Every caller converts with
+    # aff_from_jac, which is what a Jacobian coordinate is for
+    QJ = _jac_double_mult(r1s, KJ, r1e, ec.GJ, ec)  # 1.6.1
     _assert_as_valid_(c, QJ, r, s, lower_s, ec)  # 1.6.2
     return QJ
 
@@ -1091,6 +1135,26 @@ def _libsecp256k1_recover_sec_(
     return libsecp256k1_keys.serialize(libsecp256k1_keys.parse(sec), compressed=False)
 
 
+def _libsecp256k1_recover_point_(
+    key_id: int, msg_hash: bytes, sig: Sig, lower_s: bool
+) -> Point:
+    # Private function: the caller has asked _libsecp256k1_applicable
+    # already, and hands in a 32-byte msg_hash and a key_id in [0, 3].
+    #
+    # 0x04 || x || y (SEC 1 v.2, section 2.3.3), read rather than parsed
+    # through point_from_octets: this is a point libsecp256k1 has just
+    # created, and proving it on the curve again is work with a known
+    # answer. The two callers are the named candidate and the enumeration
+    # over all four of them, which is the only reason this is a function:
+    # bms wants the octets and never builds the point at all.
+    sec = _libsecp256k1_recover_sec_(key_id, msg_hash, sig, lower_s, compressed=False)
+    p_size = sig.ec.p_size
+    return (
+        int.from_bytes(sec[1 : 1 + p_size], byteorder="big", signed=False),
+        int.from_bytes(sec[1 + p_size :], byteorder="big", signed=False),
+    )
+
+
 def recover_pub_key_(
     key_id: int,
     msg_hash: Octets,
@@ -1121,18 +1185,7 @@ def recover_pub_key_(
     # x_K = r + ec.n - ec.p otherwise, which fails step 1.6.2 for every r
     # -- passing it would need ec.p ≡ 0 mod ec.n
     if _libsecp256k1_applicable(sig.ec, hf) and 0 <= key_id <= 3:
-        sec = _libsecp256k1_recover_sec_(
-            key_id, msg_hash, sig, lower_s, compressed=False
-        )
-        # 0x04 || x || y (SEC 1 v.2, section 2.3.3), read rather than
-        # parsed through point_from_octets: this is a point libsecp256k1
-        # has just created, and proving it on the curve again is work with
-        # a known answer
-        p_size = sig.ec.p_size
-        return (
-            int.from_bytes(sec[1 : 1 + p_size], byteorder="big", signed=False),
-            int.from_bytes(sec[1 + p_size :], byteorder="big", signed=False),
-        )
+        return _libsecp256k1_recover_point_(key_id, msg_hash, sig, lower_s)
 
     c = challenge_(msg_hash, sig.ec, hf)  # 1.5
 

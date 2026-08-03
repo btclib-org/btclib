@@ -83,7 +83,6 @@ from btclib.curves.curve import (
     mult,
     multi_mult,
 )
-from btclib.curves.curve_group_2 import double_mult_w_NAF
 from btclib.ecc.bip340_nonce import bip340_nonce_
 from btclib.ecc.commit_nonce import commit_entropy_, commit_nonce_, commit_point_
 from btclib.exceptions import BTClibRuntimeError, BTClibTypeError, BTClibValueError
@@ -610,8 +609,18 @@ def _recover_pub_key_(c: int, r: int, s: int, ec: Curve) -> int:
     KJ = r, _y_even(r, ec), 1
 
     e1 = mod_inv(c, ec.n)
-    QJ = double_mult_w_NAF(ec.n - e1, KJ, e1 * s, ec.GJ, ec)
-    # QJ = e1*(s*G - K) is INF whenever r is the x of s*G, y even
+    # libsecp256k1 recovers no x-only key -- its recovery module is ECDSA
+    # ("recover(msg, signature, recid)") and its xonly module has no
+    # recovery in it -- so the delegated double_mult is the whole of what
+    # there is to gain here, and it is all of the cost: 3540 us against
+    # 109 for this function. Which is also why this stays private, with no
+    # public spelling above it: BIP340 has no recovery flag to carry the
+    # candidate, x-only keys leaving nothing for one to disambiguate
+    QJ = _jac_double_mult(ec.n - e1, KJ, e1 * s, ec.GJ, ec)
+    # QJ = e1*(s*G - K) is INF whenever r is the x of s*G, y even, and
+    # that answer comes back from the bindings too: a libsecp256k1 pubkey
+    # is never the identity, so the sum is recognized from the coordinates
+    # in curves.curve and handed back as the z == 0 tested here
     if QJ[2] == 0:
         err_msg = "invalid (INF) key"
         raise BTClibRuntimeError(err_msg)
