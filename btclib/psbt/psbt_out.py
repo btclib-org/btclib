@@ -230,7 +230,10 @@ class PsbtOut:
         )
         taproot_hd_key_paths = cast(
             Mapping[Octets, tuple[list[bytes], BIP32KeyOrigin]],
-            taproot_bip32_from_dict(dict_["taproot_hd_key_paths"]),
+            # and the same for the taproot derivations (issue 311)
+            taproot_bip32_from_dict(
+                dict_["taproot_hd_key_paths"], check_validity=False
+            ),
         )
         return cls(
             script_from_dict(dict_["redeem_script"]),

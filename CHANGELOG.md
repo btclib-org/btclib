@@ -1966,6 +1966,19 @@ edit.
   every other nested field they build from a dict; the fingerprint is
   checked, as they are, by `assert_valid_hd_key_paths` inside
   `Psbt.assert_valid` (issue #264)
+- **`taproot_bip32_from_dict` checks a `pub_key` against 32 bytes**, where
+  it checked it against 4: `master_fingerprint`'s size, copied onto the
+  x-only key BIP371 gives as 32 bytes and
+  `assert_valid_taproot_bip32_derivation` already checked as 32. So
+  `PsbtOut.to_dict` wrote a `taproot_hd_key_paths` that
+  `PsbtOut.from_dict` refused with `invalid size: 32 bytes instead of 4`
+  — every real taproot output derivation, the json round trip being the
+  only path through the function; the binary one goes through
+  `parse_taproot_bip32` and was unaffected. It also takes
+  `check_validity` now, as `decode_from_bip32_derivs` does since #264, so
+  `PsbtOut.from_dict(d, check_validity=False)` defers both size checks to
+  `PsbtOut.assert_valid` rather than raising where nothing else in the
+  same dict does (issue #311)
 
 ### The public API and the module layout
 
