@@ -20,6 +20,7 @@ from btclib.alias import INF
 from btclib.curves import (
     Curve,
     bytes_from_point,
+    curve,
     double_mult,
     mult,
     point_from_octets,
@@ -473,6 +474,37 @@ def test_prv_key_is_not_a_pub_key() -> None:
     ):
         assert dsa.verify(msg, pub_key, sig)
         assert dsa.verify(msg, pub_key, sig_sha1, hf=sha1)
+
+
+def test_the_two_secret_multiplications_answer_the_python_point(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """`gen_keys` and `_sign_` multiply the generator through `mult`.
+
+    Both scalars are secret — the private key of a key pair, the nonce
+    of a signature — and both points are the generator's multiples, so
+    on secp256k1 `mult` hands them to libsecp256k1, which is constant
+    time where the Jacobian fixed window under it is not.
+
+    The Python path is what every other curve takes and what
+    `test_low_cardinality` exercises there; here it is computed for
+    secp256k1 too, with the dispatch inside `mult` switched off, and the
+    two answers are held to each other. `_mult` beside them is the third
+    opinion: it is the arithmetic being delegated, called directly.
+    """
+    ec = secp256k1
+    nonce = 0x9E5755E5A8FCC1B0A2FD1E0AD9E8D6B29B67D67E6C6A0DEE01E7E1F30DB9A0BE
+    for q in (0x1, 0x2, prv_key_int, ec.n - 1):
+        _, Q = dsa.gen_keys(q)
+        sig = dsa._sign_(0x1234, q, nonce, True, ec)
+
+        with monkeypatch.context() as no_bindings:
+            no_bindings.setattr(curve, "_libsecp256k1_applicable", lambda *_: False)
+            assert dsa.gen_keys(q)[1] == Q
+            assert dsa._sign_(0x1234, q, nonce, True, ec) == sig
+
+        assert Q == ec.aff_from_jac(_mult(q, ec.GJ, ec))
+        assert sig.r == ec.x_aff_from_jac(_mult(nonce, ec.GJ, ec)) % ec.n
 
 
 def test_libsecp256k1() -> None:

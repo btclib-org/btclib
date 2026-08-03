@@ -2419,6 +2419,23 @@ edit.
 
 ### Performance
 
+- **the two generator multiplications of `dsa` go through `mult`**, which
+  is where the libsecp256k1 dispatch lives, instead of calling the `_mult`
+  underneath it (issue #272). Both scalars are secret and neither was
+  delegated: `gen_keys` multiplies the private key — 8.2 µs against 889,
+  a hundred times, and its sibling `ssa.gen_keys` had been computing the
+  same point through `mult` all along — and `_sign_` multiplies the
+  nonce, 107 µs against 976. `_sign_` is what a signature falls to
+  whenever the bindings decline the whole of it, so the second one is the
+  cost of every sign-to-contract signature (991 µs to 124) and of every
+  signature under another hash function (1049 to 111). Speed is not the
+  whole of it: the Python fixed window is not constant time, `SECURITY.md`
+  says so, and these two scalars are a private key and a nonce. The
+  Jacobian coordinates the direct call kept are worth one `mod_inv`
+  against those milliseconds, and the curve gate comes for free, `mult`
+  testing it already: every other curve still runs the Python
+  arithmetic, and the tests hold the two answers to each other with the
+  dispatch patched off
 - **the point arithmetic reduces its intermediates as it forms them**,
   which is worth between 2.0 and 3.0 times on every scalar multiplication
   in the package: `_mult` 2.00x, the fixed window over cached multiples
