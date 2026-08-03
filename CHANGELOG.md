@@ -399,7 +399,7 @@ edit.
   p2sh-p2wpkh redeem script is 23 bytes on the wire where p2wpkh wants
   exactly 22 — so a wrapped segwit input silently fell through to the
   legacy branch and the caller signed a hash committing to no amount, the
-  very thing BIP-143 introduced. Legacy p2sh was wrong in the same way,
+  very thing BIP143 introduced. Legacy p2sh was wrong in the same way,
   its script code being the script_sig rather than the redeem script. The
   new `sig_hash.redeem_script` takes the last data push of the script_sig
   and checks it against the hash in the script_pub_key, so a script_sig
@@ -431,7 +431,7 @@ edit.
   `pbegincodehash`, which the interpreter advances as it *executes* an
   OP_CODESEPARATOR; eliding the separators left after it belongs to the
   legacy serializer, `SerializeScriptCode`, so `sig_hash.legacy` does it
-  and `segwit_v0` does not, BIP-143 keeping them; and FindAndDelete stays
+  and `segwit_v0` does not, BIP143 keeping them; and FindAndDelete stays
   in the engine, Core having it in
   `interpreter.cpp` alone and never in `sign.cpp`, there being no signature
   to delete while signing. The walk all three need is `script.read_op_code`,
@@ -678,7 +678,7 @@ edit.
   among them — it types its unknowns `0xf0` now, as the module's other
   fixtures already did
 - **an empty witness element no longer reaches a caller as `IndexError`.**
-  BIP-341 makes the last witness element the annex "if its first byte is
+  BIP341 makes the last witness element the annex "if its first byte is
   0x50", and both readers of that rule tested it with `stack[-1][0]` — an
   empty element is legal on the wire and has no first byte, so
   `sig_hash.from_tx` answered a caller who catches `BTClibValueError`
@@ -739,8 +739,8 @@ edit.
   the stream returns `b""` without raising and the comprehension ran the
   full count regardless. The var_int cap alone would not have closed it, a
   count under 32 MiB still being an expensive list (issue #133)
-- `parse_taproot_bip32` reads a 32-byte leaf hash, the length BIP-371
-  gives it, instead of 4 bytes. The BIP-371 test vectors exercise this,
+- `parse_taproot_bip32` reads a 32-byte leaf hash, the length BIP371
+  gives it, instead of 4 bytes. The BIP371 test vectors exercise this,
   and the four bytes silently split every leaf hash they contain: the
   remaining 28 were parsed as the master fingerprint and seven more
   derivation indexes, so a script-path input reported a fingerprint taken
@@ -786,7 +786,7 @@ edit.
   accented letter used to escape every caller written to catch
   BTClibValueError (issue #159)
 - `psbt_utils.parse_leaf_script` rejects an empty value instead of raising
-  IndexError: BIP-371 writes a PSBT_IN_TAP_LEAF_SCRIPT as the script
+  IndexError: BIP371 writes a PSBT_IN_TAP_LEAF_SCRIPT as the script
   followed by the one byte of its leaf version, so an empty one is a
   record missing the only field it must carry (issue #159)
 - `Block.assert_valid` rejects a block carrying no transaction instead of
@@ -1047,7 +1047,7 @@ edit.
   A codespell hook now guards the prose, having found 63 typos, four of
   them in the README — misspellings of *bitcoin*, *symmetry*,
   *commitment* and *development* — which is the btclib.org homepage and
-  the PyPI long description at once. The BIP-39 wordlists and the
+  the PyPI long description at once. The BIP39 wordlists and the
   vendored vectors are skipped rather than corrected, being normative:
   one English wordlist entry is a misspelling upstream, and correcting
   it would change every mnemonic derived from that list
@@ -1771,7 +1771,7 @@ edit.
   than picked from (issue #249)
 - **`finalize_psbt` writes BIP147's empty push when the script pops one,
   not when a second signature is there.** OP_CHECKMULTISIG pops one
-  element more than it reads, whatever the threshold, and BIP 147 is the
+  element more than it reads, whatever the threshold, and BIP147 is the
   rule that the extra element be empty rather than the rule that it be
   there: counting the signatures agreed with the script everywhere but a
   1-of-n, where one signature is a full satisfaction and the witness came
@@ -2057,21 +2057,21 @@ edit.
   a `Descriptor`, one class per grammar function, and
   `script_pub_keys(index)` answers with the `ScriptPubKey` set that the
   descriptor pays to at that index — with the address of each, where the
-  script has one. The grammar is BIP 380 to BIP 386 and BIP 389 minus
+  script has one. The grammar is BIP380 to BIP386 and BIP389 minus
   miniscript: `pk`, `pkh`, `wpkh`, `combo`, `sh`, `wsh`, `multi`,
   `sortedmulti`, `addr`, `raw`, and `tr` with a key path and a tree of
   `pk()` leaves; key expressions cover hex keys compressed, uncompressed
   and x-only, WIF, xpub/xprv with a derivation path, key origin, the `/*`
   and `/*h` wildcards and both hardened markers, and
-  `multipath_descriptors` expands the BIP 389 `<a;b>` form into the
+  `multipath_descriptors` expands the BIP389 `<a;b>` form into the
   descriptors it stands for. `strip_checksum` and `add_checksum` are the
   two halves of the checksum a caller needs, and `parse` verifies one
   that is there. Every position rule is enforced rather than assumed —
   `sh()` at the top level only, no uncompressed key inside a witness
   program, x-only only inside `tr()` — and what is not implemented raises
   NotImplementedError naming what it is: miniscript is issue #187,
-  `multi_a` and `sortedmulti_a` are BIP 387, `rawtr` is BIP 386 and
-  `musig` is BIP 390. The derivation is checked against Bitcoin Core's
+  `multi_a` and `sortedmulti_a` are BIP387, `rawtr` is BIP386 and
+  `musig` is BIP390. The derivation is checked against Bitcoin Core's
   own `descriptor_tests.cpp` vectors, both spellings of each, so a WIF
   and an xprv are checked to reach the script their public halves reach
   (issue #186)
@@ -2099,13 +2099,13 @@ edit.
   against; the test suite checks it against `finalize_psbt`, which does
   have one, and the two build the same bytes for every shape both can
   express (issue #263)
-- **`Descriptor.update_psbt` is BIP 174's Updater**: it returns the psbt
+- **`Descriptor.update_psbt` is BIP174's Updater**: it returns the psbt
   with one input told what the descriptor knows — the redeem script of a
   `sh()`, the witness script of a `wsh()`, the internal key, merkle root
   and leaf scripts of a `tr()`, and the origin of every key that carries
   one, which is what `KeyExpression.origin` is kept for and what nothing
   carried into a psbt before. A copy, the psbt handed in left alone, as
-  `finalize_psbt` returns one. That completes the pipeline BIP 174
+  `finalize_psbt` returns one. That completes the pipeline BIP174
   describes with a btclib call for each role: the descriptor updates,
   signers fill `partial_sigs` in any order and at their own pace, and
   `finalize_psbt` assembles — so a 2-of-3 waiting for its second
@@ -2121,7 +2121,7 @@ edit.
   report that it had, and `combo()` is four scripts of which only one is
   being spent. A key with no origin is skipped rather than refused, the
   field being keyed by key. `taproot.leaf_hash` is new beside it, the
-  BIP 341 tapleaf hash that `tree_helper`, `check_output_pubkey` and the
+  BIP341 tapleaf hash that `tree_helper`, `check_output_pubkey` and the
   psbt's own `leaf_script` each used to compute for themselves (issue
   #306)
 - **`btclib.fetch` is new, and is the one package that goes out to the
@@ -2514,7 +2514,7 @@ edit.
   them — `OP_IF OP_CODESEPARATOR OP_ENDIF OP_CODESEPARATOR` down its false
   branch executes the second and not the first. A verifier never needs the
   parameter, its interpreter carrying the offset. It is refused for a
-  taproot input, BIP-341 committing to the position rather than truncating
+  taproot input, BIP341 committing to the position rather than truncating
   and `taproot_annex_and_ext` writing 0xffffffff, and for p2wpkh, whose
   script code is built rather than read — the two cases Core's signer
   declines as well, "Only support non-OP_CODESEPARATOR BIP342 signing for
@@ -3415,12 +3415,12 @@ edit.
   carry, the signer's witness of script and control block with no
   signature on it yet, for btclib's script engine — which strips the
   annex in its own code and never calls `from_tx` — to accept.
-  **SIGHASH_SINGLE past the last output**: BIP-143's own example signs
+  **SIGHASH_SINGLE past the last output**: BIP143's own example signs
   an input whose index *equals* the output count, and so does every one
   of the seven such spends in `script_assets_test.json`, so a bound
   reading `!=` where it should read `<` passed everything there was.
   Both paths now sign at an index two past the last output: the segwit
-  v0 one against a preimage the test builds from BIP-143's field list,
+  v0 one against a preimage the test builds from BIP143's field list,
   itself checked against the preimage and sigHash the BIP publishes,
   and the taproot one against the refusal BIP341 requires, by the
   message it gives. **A script code no op code can be read from at
@@ -3744,7 +3744,7 @@ edit.
   compare -- 6 transcribed from a BIP's prose, 6 chain data identified
   by block hash or txid, 3 btclib's own. The citations in the test
   modules named mutable `blob/master` paths, so "which revision of
-  BIP-341 does this match" had no answer. Two of them were also wrong,
+  BIP341 does this match" had no answer. Two of them were also wrong,
   and are corrected
 - the test suite is property-based as well as vector-based: `hypothesis`
   generates the input nobody wrote down, and `tests/fuzz_test.py` asserts
@@ -3791,7 +3791,7 @@ edit.
   hook's own failure mode written by hand: a name that says "test" to every
   reader, on the one module with none. The cost was 33 import lines and 53
   references in prose and comments, eight of them in `btclib/` itself
-- **BIP-143's OP_CODESEPARATOR cut has an invalid twin** (issue #221).
+- **BIP143's OP_CODESEPARATOR cut has an invalid twin** (issue #221).
   Its other script-code rule — no FindAndDelete of the signature — is
   cornered by Core's own "wrong sighash with FindAndDelete" vectors,
   which fail when the rule is not applied; the cut had three vectors,

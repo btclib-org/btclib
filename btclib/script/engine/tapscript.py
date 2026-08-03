@@ -163,7 +163,7 @@ def op_checksig(
 
 
 # the legacy engine's table with OP_CHECKSIGADD in and
-# OP_CHECKMULTISIGVERIFY out: bip 342 disables both CHECKMULTISIGs and
+# OP_CHECKMULTISIGVERIFY out: BIP342 disables both CHECKMULTISIGs and
 # adds the batch-verifiable OP_CHECKSIGADD in their stead. Module-level
 # because the loop reads it and never writes -- Mapping is what says so
 # -- and a copy per call buys nothing

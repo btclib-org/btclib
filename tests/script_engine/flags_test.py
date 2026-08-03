@@ -116,7 +116,7 @@ def test_default_flags_cannot_be_mutated() -> None:
     """A caller cannot widen or narrow what the next one gets.
 
     A mutable module-level ALL_FLAGS is one missed copy away from a
-    caller's `flags.remove("P2SH")` disabling bip 16 for the rest of the
+    caller's `flags.remove("P2SH")` disabling BIP16 for the rest of the
     process; likewise SIG_HASH_TYPES, whose membership test is what the
     engine accepts as a signature's hash type.
     """

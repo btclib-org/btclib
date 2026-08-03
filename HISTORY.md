@@ -152,7 +152,7 @@ against the `v2023.7.12` tag.
   parse, which is not the bytes a signature commits to. `sig_hash.legacy`
   now elides the separators itself, where Bitcoin Core elides them, so a
   legacy script code is the script as it stands; a segwit v0 one keeps
-  them, as BIP-143 says; and `from_tx(..., codesep_index=k)` is how a
+  them, as BIP143 says; and `from_tx(..., codesep_index=k)` is how a
   signer asks for the script code after the k-th of them.
 - **`btclib.network.n_versions` is gone**, with the `_REPEATED_NETWORKS` list
   it counted for: the version-prefix lookups no longer index a parallel list
@@ -336,7 +336,7 @@ and `verify` families now let a `TypeError` out where they used to answer
   `enum.Flag`, where a misspelled name used to be a silently disabled
   consensus rule.
 - **A descriptor is now an address, not just a checksum.**
-  `descriptors.parse` reads BIP 380 to BIP 386 and BIP 389 — everything
+  `descriptors.parse` reads BIP380 to BIP386 and BIP389 — everything
   but miniscript — and hands back the scripts and addresses a descriptor
   pays to at any index, so one line of text is enough to watch a wallet.
   Checked against Bitcoin Core's own vectors; miniscript and the four
@@ -438,7 +438,7 @@ Major changes include:
 
 Major changes include:
 
-- add support for PSBT's taproot fields (bip370)
+- add support for PSBT's taproot fields (BIP370)
 - added support for Python 3.11
 - fixed the OpenSSL 3.x RIPEMD160 issue in btclib/hashes.py
 - added CONTRIBUTING and SECURITY
@@ -546,7 +546,7 @@ Major changes includes:
   have to be accessed accordingly. Consequently, where previously it was
   bip32.deserialize(xkey), now it is bip32.BIP32KeyData.deserialize(xkey)
 - bip32: added str_from_bip32_path and bytes_from_bip32_path
-- bip3: made bip32 index an int (not bytes) to avoid byteorder ambiguity.
+- bip32: made the index an int (not bytes) to avoid byteorder ambiguity.
   Consequently, where previously it was xkey_dict\["index"\][0] < 0x80,
   now it is xkey_dict.index < 0x80000000
 - bip32: local "./" derivation, opposed to absolute "m/" derivation,

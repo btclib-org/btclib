@@ -55,15 +55,15 @@ class ScriptFlag(Flag):
 
     # consensus: what a node must enforce to stay on the chain, and what
     # ALL_FLAGS turns on
-    P2SH = 1 << 0  # bip 16
-    DERSIG = 1 << 2  # bip 66
-    NULLDUMMY = 1 << 4  # bip 147
-    CHECKLOCKTIMEVERIFY = 1 << 9  # bip 65
-    CHECKSEQUENCEVERIFY = 1 << 10  # bip 112
-    WITNESS = 1 << 11  # bip 141
-    TAPROOT = 1 << 17  # bip 341, bip 342
+    P2SH = 1 << 0  # BIP16
+    DERSIG = 1 << 2  # BIP66
+    NULLDUMMY = 1 << 4  # BIP147
+    CHECKLOCKTIMEVERIFY = 1 << 9  # BIP65
+    CHECKSEQUENCEVERIFY = 1 << 10  # BIP112
+    WITNESS = 1 << 11  # BIP141
+    TAPROOT = 1 << 17  # BIP341, BIP342
 
-    # standardness: bip 62, which was never finalized, and the relay rules
+    # standardness: BIP62, which was never finalized, and the relay rules
     # that outlived it. A block breaking one of these is valid, so
     # ALL_FLAGS leaves them off and only a caller asking a policy question
     # turns them on. Where a BIP made one of them consensus for a script

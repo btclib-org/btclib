@@ -197,7 +197,7 @@ filterwarnings = ["error"]
 
 [tool.codespell]
 # the vendored data is skipped rather than corrected, and the distinction
-# matters in both directions. The BIP-39 wordlists are normative: "sting"
+# matters in both directions. The BIP39 wordlists are normative: "sting"
 # is word 1712 of the English list, and correcting it to "string" changes
 # every mnemonic ever derived from it. The test vectors have to stay byte
 # for byte what upstream published, so a typo inside a Bitcoin Core
@@ -247,7 +247,7 @@ ignore-regex = '`[^`]*`'
 # there, and the list has to be written again rather than shared because
 # the glob syntax differs: "*/_data/*.json" matches at any depth for
 # codespell and one directory deep for typos. Spelled codespell's way it
-# left the normative BIP-39 italian wordlist in the scan, where 18 words
+# left the normative BIP39 italian wordlist in the scan, where 18 words
 # are "corrected" into English -- `tabacco` to tobacco, `normale` to
 # normal --
 # and the hook runs with --write-changes, so that is a rewrite of every
@@ -279,7 +279,7 @@ extend-exclude = [
 extend-ignore-re = ['[0-9A-Za-z+/]{26,}={0,2}']
 
 [tool.typos.default.extend-identifiers]
-# BIP-342 spells it so, and the x is the placeholder for the opcode number
+# BIP342 spells it so, and the x is the placeholder for the opcode number
 OP_SUCCESSx = "OP_SUCCESSx"
 # GitHub Pages' name-with-owner variable, read by the Jekyll layout
 repository_nwo = "repository_nwo"

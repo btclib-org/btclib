@@ -202,7 +202,7 @@ repos:
         # 13 findings and one of them is a typo. "rare" reports "lets" (as
         # in "lets the release workflow gate publication") and "falsy";
         # "usage" is not a spell checker at all, flagging "master" -- 17
-        # times here, every one of them a bip32 master key or a github url;
+        # times here, every one of them a BIP32 master key or a github url;
         # "code" and "names" add nothing this code base contains. A hook
         # whose findings are mostly wrong gets an ignore list long enough to
         # hide a real typo, so the one it did find, "fro" for "from", was
@@ -226,7 +226,7 @@ repos:
         # hook here corrects; dropping --force-exclude would make
         # [tool.typos.files] silent, because pre-commit passes filenames
         # and typos honours its own exclude list only under that flag --
-        # measured, without it the normative BIP-39 italian wordlist takes
+        # measured, without it the normative BIP39 italian wordlist takes
         # 18 corrections into English
         args: [--write-changes, --force-exclude]
   - repo: https://github.com/DavidAnson/markdownlint-cli2

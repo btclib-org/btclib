@@ -147,7 +147,7 @@ def _assert_valid_partial_sigs(partial_sigs: Mapping[bytes, bytes]) -> None:
             raise BTClibValueError(err_msg) from e
         try:
             # the DER signature alone: a partial signature is that plus a
-            # sighash type byte (bip 174), so it is not itself a DER
+            # sighash type byte (BIP174), so it is not itself a DER
             # encoding, and Sig.parse refuses trailing bytes after the
             # sequence (issue #129). Neither that byte nor the key is
             # checked against the signature here: both questions need the
@@ -201,7 +201,7 @@ def _assert_valid_hash256_preimages(hash256_preimages: Mapping[bytes, bytes]) ->
 
 def _serialize_non_witness_utxo(type_: bytes, tx: Tx) -> bytes:
     """Return the binary representation of the dataclass element."""
-    # include_witness=True: bip 174 carries the utxo being spent as the
+    # include_witness=True: BIP174 carries the utxo being spent as the
     # network serializes it, and "non-witness" names the input's kind, not
     # a transaction with its witnesses stripped
     return serialize_bytes(type_, tx.serialize(include_witness=True))
@@ -214,7 +214,7 @@ def _serialize_witness_utxo(type_: bytes, tx_out: TxOut) -> bytes:
 
 def _serialize_sig_hash_type(type_: bytes, sig_hash_type: int) -> bytes:
     """Return the binary representation of the dataclass element."""
-    # bip 174: four bytes, little endian, unsigned
+    # BIP174: four bytes, little endian, unsigned
     return serialize_bytes(
         type_, sig_hash_type.to_bytes(4, byteorder="little", signed=False)
     )
@@ -359,7 +359,7 @@ _PRESENT_IF_NOT_NONE = frozenset(
     }
 )
 
-# bip 174: what a finalizer consumed is not carried beside what it
+# BIP174: what a finalizer consumed is not carried beside what it
 # produced, so an input with a final script_sig or witness serializes
 # without these fields. They are still parsed: dropping what a
 # counterparty sent is the Finalizer role's decision, not a codec's.
