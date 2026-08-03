@@ -1932,6 +1932,30 @@ edit.
   own `descriptor_tests.cpp` vectors, both spellings of each, so a WIF
   and an xprv are checked to reach the script their public halves reach
   (issue #186)
+- **`Descriptor.satisfy` spends what `script_pub_keys` receives into**:
+  given a mapping from public key to signature — the shape
+  `PsbtIn.partial_sigs` has — it returns the `script_sig` and the
+  `Witness` an input spends with, one of the two always empty. Keyed by
+  key and not a sequence because the order the signatures go in is the
+  descriptor's knowledge and not the caller's: the key order for
+  `multi()`, the sorted order for `sortedmulti()`. It is one method per
+  fragment class over one notion of a satisfying stack, so `sh()` appends
+  the redeem script to what its argument produced and `wsh()` appends the
+  witness script to its argument's stack. `tr()` is satisfiable on both
+  paths — the key path preferred where both are offered, as Bitcoin Core's
+  finalizer prefers it, and the script path's control block computed from
+  the tree the descriptor holds, which is the one thing satisfaction here
+  knows that `finalize_psbt` has to be told. Three refusals, each a
+  `BTClibValueError` and not the `NotImplementedError` the parser raises
+  for what a later release adds: `addr()` and `raw()` name a script and
+  not the key that spends it, and `combo()` is four scripts, so which one
+  is being spent is the caller's to say. A signature short of what the
+  script pops is an error too, `PsbtIn.partial_sigs` being where a spend
+  waiting for its second signature belongs. `satisfy` assembles and does
+  not verify, having no transaction and therefore no sig_hash to check
+  against; the test suite checks it against `finalize_psbt`, which does
+  have one, and the two build the same bytes for every shape both can
+  express (issue #263)
 - **`btclib.fetch` is new, and is the one package that goes out to the
   network.** `Fetcher` is three questions the library cannot answer from
   bytes it was handed — the transaction with this id, the output an

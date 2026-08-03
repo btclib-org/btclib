@@ -7,16 +7,23 @@
 #
 # No part of btclib including this file, may be copied, modified, propagated,
 # or distributed except according to the terms contained in the LICENSE file.
-"""Output descriptors: the checksum, the parser, and the scripts.
+"""Output descriptors: the checksum, the parser, the scripts, the spend.
 
 A descriptor says which scripts a wallet owns, in one line of text. This
-module reads that line and answers with the scripts, which is the half of
-a descriptor implementation the receiving side needs: `parse` returns a
-`Descriptor`, and `Descriptor.script_pub_keys` returns what the descriptor
-pays to at an index. The other half, satisfying a script -- descriptor
-plus signatures to a witness or a scriptSig -- is not here; the fragment
-classes below are one per grammar function so that it has somewhere to go
-(issue #186).
+module reads that line and answers with both halves of what a wallet
+does with it: `parse` returns a `Descriptor`, whose `script_pub_keys`
+gives what the descriptor pays to at an index -- the receiving side --
+and whose `satisfy` gives the script_sig and the witness that spend one
+of those scripts, the signatures being handed in. The fragment classes
+below are one per grammar function, which is what lets satisfaction be a
+method of each rather than a dispatch table.
+
+`satisfy` assembles and does not verify. A signature is checked against
+the hash it committed to, that hash is a property of the spending
+transaction, and a descriptor has no transaction -- which is also why
+the signatures are a parameter rather than something this module makes.
+`psbt.finalize_psbt` does have one and does check, and builds the same
+bytes from a psbt carrying the same signatures.
 
 BIP 380: https://github.com/bitcoin/bips/blob/master/bip-0380.mediawiki
 
@@ -49,15 +56,19 @@ from __future__ import annotations
 
 import re
 from abc import ABC, abstractmethod
-from collections.abc import Callable
+from collections.abc import Callable, Mapping
 from dataclasses import dataclass
+from typing import cast
 
-from btclib.alias import ScriptList, TaprootScriptTree
+from btclib.alias import Octets, ScriptList, TaprootScriptTree
 from btclib.bip32.bip32 import BIP32KeyData, derive
 from btclib.bip32.der_path import int_from_index_str
 from btclib.bip32.key_origin import BIP32KeyOrigin
 from btclib.exceptions import BTClibValueError
+from btclib.script.script import serialize
 from btclib.script.script_pub_key import ScriptPubKey
+from btclib.script.taproot import input_script_sig
+from btclib.script.witness import Witness
 from btclib.to_pub_key import point_from_pub_key, pub_keyinfo_from_key
 from btclib.utils import bytes_from_octets
 
@@ -264,6 +275,37 @@ def _taproot_script_tree(
     ]
 
 
+def _offered_signature(
+    signatures: Mapping[bytes, bytes], sec: bytes, *, x_only: bool = False
+) -> bytes | None:
+    """Return the signature offered for a public key, None where none is.
+
+    A taproot key answers to either of its two spellings: the 32 x-only
+    bytes the script holds, and the 33-byte even-y SEC form a
+    KeyExpression keeps it as. Neither is the more correct one, a caller
+    has whichever its signer handed back, and 32 bytes cannot be taken
+    for 33.
+    """
+    if sec in signatures:
+        return signatures[sec]
+    if x_only and sec[1:] in signatures:
+        return signatures[sec[1:]]
+    return None
+
+
+def _required_signature(signatures: Mapping[bytes, bytes], sec: bytes) -> bytes:
+    """Return the signature made with a public key, refusing where none is.
+
+    The key is named in the error: it is public by construction, and
+    which of a descriptor's keys has not signed is the whole content of
+    the refusal.
+    """
+    signature = _offered_signature(signatures, sec)
+    if signature is None:
+        raise BTClibValueError(f"no signature for public key {sec.hex()}")
+    return signature
+
+
 @dataclass(frozen=True, kw_only=True)
 class Descriptor(ABC):
     """A parsed output descriptor: the scripts it describes, on demand.
@@ -289,17 +331,26 @@ class Descriptor(ABC):
         """Return True if the descriptor describes a range of scripts."""
         return any(key.is_ranged for key in self.key_expressions)
 
-    def script_pub_keys(self, index: int = 0) -> list[ScriptPubKey]:
-        """Return the scripts the descriptor describes at `index`.
+    def _assert_index(self, index: int) -> None:
+        """Refuse an index out of range, or one with no script of this.
 
-        A list because ``combo()`` is a set of scripts and not one
-        script; every other fragment answers with exactly one.
+        `satisfy` asks the two questions `script_pub_keys` asks, and has
+        to ask them first: an index out of range would otherwise be a
+        signature looked up under a key derived from it.
         """
         if not 0 <= index < 0x80000000:
             raise BTClibValueError(f"invalid derivation index: {index}")
         if index and not self.is_ranged:
             err_msg = f"not a ranged descriptor: no script at index {index}"
             raise BTClibValueError(err_msg)
+
+    def script_pub_keys(self, index: int = 0) -> list[ScriptPubKey]:
+        """Return the scripts the descriptor describes at `index`.
+
+        A list because ``combo()`` is a set of scripts and not one
+        script; every other fragment answers with exactly one.
+        """
+        self._assert_index(index)
         return [ScriptPubKey(script, self.network) for script in self._scripts(index)]
 
     def script_pub_key(self, index: int = 0) -> ScriptPubKey:
@@ -324,6 +375,64 @@ class Descriptor(ABC):
             script_pub_key.address for script_pub_key in self.script_pub_keys(index)
         ]
 
+    def _stack(self, signatures: Mapping[bytes, bytes], index: int) -> list[bytes]:
+        """Return the elements that satisfy this fragment's own script.
+
+        What ``sh()`` writes into its script_sig and what ``wsh()`` puts
+        in its witness under the script: the same elements, only written
+        somewhere else, which is why this is one method and not two.
+        Answered by the fragments that are a script another one embeds
+        -- ``pk``, ``pkh``, ``wpkh``, ``multi`` -- and refused by the
+        rest. The grammar refuses those in an embedding position too, so
+        what this answers is a descriptor built by hand.
+        """
+        err_msg = f"{type(self).__name__} is not a script another one embeds"
+        raise BTClibValueError(err_msg)
+
+    def satisfy(
+        self, signatures: Mapping[Octets, Octets], index: int = 0
+    ) -> tuple[bytes, Witness]:
+        """Return the script_sig and witness that spend the script at `index`.
+
+        `signatures` maps a public key to the signature made with it,
+        which is the shape `psbt.PsbtIn.partial_sigs` has. Keyed by key
+        and not a sequence because the order the signatures go on the
+        stack is the descriptor's own knowledge -- the key order of a
+        ``multi()``, the sorted order of a ``sortedmulti()`` -- and a
+        caller that had to know it would be building the script itself.
+
+        Both halves come back and one of the two is always empty: a
+        legacy script has no witness, and a native segwit one has the
+        empty script_sig BIP 141 requires.
+
+        A signature short of what the script pops is an error and not a
+        shorter answer. A 2-of-3 holding one signature is a psbt waiting
+        for the second, `psbt.PsbtIn.partial_sigs` is where that state
+        belongs, and bytes that do not spend would be a second and
+        weaker spelling of it.
+        """
+        self._assert_index(index)
+        return self._satisfy(
+            {
+                bytes_from_octets(key): bytes_from_octets(signature)
+                for key, signature in signatures.items()
+            },
+            index,
+        )
+
+    def _satisfy(
+        self, signatures: Mapping[bytes, bytes], index: int
+    ) -> tuple[bytes, Witness]:
+        """Return the satisfaction, the mapping being already in bytes.
+
+        The legacy answer -- the stack pushed into the script_sig, and
+        no witness -- which is what ``pk()``, ``pkh()`` and ``multi()``
+        are spent with; the fragments spent otherwise override it.
+        Separate from `satisfy` so that a wrapper can satisfy its
+        argument without normalizing the same mapping a second time.
+        """
+        return serialize(cast(ScriptList, self._stack(signatures, index))), Witness()
+
 
 @dataclass(frozen=True)
 class PkDescriptor(Descriptor):
@@ -337,6 +446,11 @@ class PkDescriptor(Descriptor):
 
     def _scripts(self, index: int) -> list[bytes]:
         return [ScriptPubKey.p2pk(self.key.sec(index, self.network)).script]
+
+    def _stack(self, signatures: Mapping[bytes, bytes], index: int) -> list[bytes]:
+        # the key is in the script already, so the signature is the whole
+        # of what spending a p2pk output takes
+        return [_required_signature(signatures, self.key.sec(index, self.network))]
 
 
 @dataclass(frozen=True)
@@ -352,6 +466,12 @@ class PkhDescriptor(Descriptor):
     def _scripts(self, index: int) -> list[bytes]:
         return [ScriptPubKey.p2pkh(self.key.sec(index, self.network)).script]
 
+    def _stack(self, signatures: Mapping[bytes, bytes], index: int) -> list[bytes]:
+        # what the output commits to is the hash of the key, so the key
+        # goes on the stack for the script to hash for itself
+        sec = self.key.sec(index, self.network)
+        return [_required_signature(signatures, sec), sec]
+
 
 @dataclass(frozen=True)
 class WpkhDescriptor(Descriptor):
@@ -365,6 +485,21 @@ class WpkhDescriptor(Descriptor):
 
     def _scripts(self, index: int) -> list[bytes]:
         return [ScriptPubKey.p2wpkh(self.key.sec(index, self.network)).script]
+
+    def _stack(self, signatures: Mapping[bytes, bytes], index: int) -> list[bytes]:
+        # the witness of a p2wpkh spend is what the script_sig of a p2pkh
+        # one is, BIP 143 having moved it and changed nothing else
+        sec = self.key.sec(index, self.network)
+        return [_required_signature(signatures, sec), sec]
+
+    def _satisfy(
+        self, signatures: Mapping[bytes, bytes], index: int
+    ) -> tuple[bytes, Witness]:
+        # the empty script_sig of BIP 141, which is not the same as an
+        # empty push: btclib's own engine refuses a native segwit input
+        # whose script_sig is there at all (issue #249). A sh(wpkh())
+        # gets its one push from the sh() above
+        return b"", Witness(self._stack(signatures, index))
 
 
 @dataclass(frozen=True)
@@ -380,6 +515,23 @@ class ShDescriptor(Descriptor):
     def _scripts(self, index: int) -> list[bytes]:
         return [ScriptPubKey.p2sh(self.inner.redeem_script(index)).script]
 
+    def _satisfy(
+        self, signatures: Mapping[bytes, bytes], index: int
+    ) -> tuple[bytes, Witness]:
+        """Return the argument's satisfaction, the redeem script pushed last.
+
+        One rule for the three shapes ``sh()`` wraps, because the two
+        wrapped segwit ones satisfy into the witness and leave the
+        script_sig empty: what is appended is the same push either way,
+        and what it is appended to is nothing where the spend is a
+        witness. Appending is concatenation because a script_sig is
+        pushes and nothing else, so serializing them together and
+        serializing them apart give the same bytes.
+        """
+        script_sig, witness = self.inner._satisfy(signatures, index)
+        redeem_script = self.inner.redeem_script(index)
+        return script_sig + serialize(cast(ScriptList, [redeem_script])), witness
+
 
 @dataclass(frozen=True)
 class WshDescriptor(Descriptor):
@@ -393,6 +545,19 @@ class WshDescriptor(Descriptor):
 
     def _scripts(self, index: int) -> list[bytes]:
         return [ScriptPubKey.p2wsh(self.inner.redeem_script(index)).script]
+
+    def _satisfy(
+        self, signatures: Mapping[bytes, bytes], index: int
+    ) -> tuple[bytes, Witness]:
+        """Return the witness of a p2wsh spend: the stack, then the script.
+
+        The argument's stack and not its satisfaction, which would be
+        those same elements serialized as a script_sig: a witness is a
+        stack already, so BIP 141 puts them in it one by one and the
+        witness script last.
+        """
+        stack = self.inner._stack(signatures, index)
+        return b"", Witness([*stack, self.inner.redeem_script(index)])
 
 
 @dataclass(frozen=True)
@@ -410,12 +575,48 @@ class MultiDescriptor(Descriptor):
     def key_expressions(self) -> tuple[KeyExpression, ...]:
         return self.keys
 
-    def _scripts(self, index: int) -> list[bytes]:
+    def _pub_keys(self, index: int) -> list[bytes]:
+        """Return the keys in the order the script holds them.
+
+        `sorted` and not `p2ms`'s own `lexicographic_sorting`, which
+        sorts identically: the order is also the order the signatures of
+        a satisfaction go in, so one of the two has somewhere to ask for
+        it rather than a second copy of the rule.
+        """
         pub_keys = [key.sec(index, self.network) for key in self.keys]
+        return sorted(pub_keys) if self.sort else pub_keys
+
+    def _scripts(self, index: int) -> list[bytes]:
         script_pub_key = ScriptPubKey.p2ms(
-            self.threshold, pub_keys, self.network, lexicographic_sorting=self.sort
+            self.threshold,
+            self._pub_keys(index),
+            self.network,
+            lexicographic_sorting=False,
         )
         return [script_pub_key.script]
+
+    def _stack(self, signatures: Mapping[bytes, bytes], index: int) -> list[bytes]:
+        """Return the dummy element and `threshold` signatures, in key order.
+
+        OP_CHECKMULTISIG walks the signatures and the keys in one pass
+        and never goes back, so the signatures have to be in the order
+        the script holds the keys in. More signatures than the threshold
+        is not an error and not all of them are used: the script pops
+        exactly as many as it was built for, and the rest are the other
+        keys of the same descriptor having signed too.
+
+        The first element is the one OP_CHECKMULTISIG pops without
+        reading, which BIP 147 requires to be the empty push.
+        """
+        offered = [
+            (sec, _offered_signature(signatures, sec)) for sec in self._pub_keys(index)
+        ]
+        found = [signature for _, signature in offered if signature is not None]
+        if len(found) < self.threshold:
+            missing = ", ".join(sec.hex() for sec, sig in offered if sig is None)
+            err_msg = f"{len(found)} signatures of {self.threshold}, missing {missing}"
+            raise BTClibValueError(err_msg)
+        return [b"", *found[: self.threshold]]
 
 
 @dataclass(frozen=True)
@@ -444,6 +645,19 @@ class ComboDescriptor(Descriptor):
             scripts += [p2wpkh, ScriptPubKey.p2sh(p2wpkh).script]
         return scripts
 
+    def _satisfy(
+        self, signatures: Mapping[bytes, bytes], index: int
+    ) -> tuple[bytes, Witness]:
+        """Refuse: four scripts, and each of them spent differently.
+
+        Which one is being spent is a question the caller answers, by
+        satisfying the descriptor of that script -- ``pk()``, ``pkh()``,
+        ``wpkh()`` or ``sh(wpkh())`` of the same key -- and it is a
+        question `script_pub_keys` can leave open where this cannot.
+        """
+        err_msg = "combo() is four scripts: satisfy the one being spent"
+        raise BTClibValueError(err_msg)
+
 
 @dataclass(frozen=True)
 class AddrDescriptor(Descriptor):
@@ -458,6 +672,18 @@ class AddrDescriptor(Descriptor):
     def _scripts(self, index: int) -> list[bytes]:
         return [ScriptPubKey.from_address(self.addr).script]
 
+    def _satisfy(
+        self, signatures: Mapping[bytes, bytes], index: int
+    ) -> tuple[bytes, Witness]:
+        """Refuse: an address names a script and not what spends it.
+
+        BTClibValueError and not the NotImplementedError the parser
+        raises for what a later release adds: there is nothing to add,
+        an address being a commitment to a key or a script that the
+        descriptor does not carry.
+        """
+        raise BTClibValueError("addr() cannot be satisfied: it holds no key")
+
 
 @dataclass(frozen=True)
 class RawDescriptor(Descriptor):
@@ -471,6 +697,18 @@ class RawDescriptor(Descriptor):
 
     def _scripts(self, index: int) -> list[bytes]:
         return [self.script]
+
+    def _satisfy(
+        self, signatures: Mapping[bytes, bytes], index: int
+    ) -> tuple[bytes, Witness]:
+        """Refuse: a script and no key expression to satisfy it with.
+
+        What ``raw()`` holds is bytes, which say nothing about which key
+        signs for them even where they happen to be a script this module
+        can otherwise read; the descriptor of that script is what is
+        satisfiable.
+        """
+        raise BTClibValueError("raw() cannot be satisfied: it holds no key")
 
 
 @dataclass(frozen=True)
@@ -494,6 +732,51 @@ class TrDescriptor(Descriptor):
         )
         internal_key = self.internal_key.sec(index, self.network)
         return [ScriptPubKey.p2tr(internal_key, script_tree).script]
+
+    def _satisfy(
+        self, signatures: Mapping[bytes, bytes], index: int
+    ) -> tuple[bytes, Witness]:
+        """Return the witness of a key path spend, or of a script path one.
+
+        The key path whenever a signature for the internal key is
+        offered, which is the preference Bitcoin Core's finalizer has:
+        it is the cheaper spend and the one the output key commits to
+        directly. That signature is one the *output* key verifies, the
+        signer having tweaked the key it holds, and it is looked up
+        under the internal key because that is the key the descriptor
+        names.
+
+        A script path witness is the signature, the leaf script and the
+        control block, which is BIP 341's order. Both the parity bit and
+        the merkle path in that control block are the descriptor's to
+        compute, holding the whole tree as it does, where a psbt has to
+        be handed them: it is the one thing satisfaction here knows that
+        finalization there cannot work out.
+
+        The script_sig is empty whichever path is taken: BIP 341 spends
+        a witness v1 program with the witness alone.
+        """
+        internal_key = self.internal_key.sec(index, self.network)
+        signature = _offered_signature(signatures, internal_key, x_only=True)
+        if signature is not None:
+            return b"", Witness([signature])
+        if self.tree is None:
+            raise BTClibValueError("no signature for the tr() internal key")
+        script_tree = _taproot_script_tree(self.tree, index, self.network)
+        # _tree_keys and taproot.tree_helper both walk the left subtree
+        # before the right one, so the n-th key is the n-th leaf and the
+        # number is the one input_script_sig takes
+        for leaf, key in enumerate(_tree_keys(self.tree)):
+            signature = _offered_signature(
+                signatures, key.sec(index, self.network), x_only=True
+            )
+            if signature is not None:
+                script, control_block = input_script_sig(
+                    internal_key, script_tree, leaf
+                )
+                return b"", Witness([signature, serialize(script), control_block])
+        err_msg = "no signature for the tr() internal key or for any of its leaves"
+        raise BTClibValueError(err_msg)
 
 
 def _split_arguments(arguments: str) -> list[str]:

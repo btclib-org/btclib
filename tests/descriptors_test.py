@@ -36,6 +36,7 @@ import pytest
 from hypothesis import given
 from hypothesis import strategies as st
 
+from btclib.alias import Octets
 from btclib.descriptors import (
     AddrDescriptor,
     ComboDescriptor,
@@ -55,8 +56,16 @@ from btclib.descriptors import (
     parse,
     strip_checksum,
 )
+from btclib.ecc import dsa, ssa
 from btclib.exceptions import BTClibValueError
+from btclib.psbt.psbt import _finalized_input
+from btclib.psbt.psbt_in import PsbtIn
+from btclib.script import taproot
+from btclib.script.script import serialize
 from btclib.script.script_pub_key import ScriptPubKey
+from btclib.script.witness import Witness
+from btclib.to_pub_key import pub_keyinfo_from_key
+from btclib.tx.tx_out import TxOut
 from tests import load, vector_id
 
 DOC_DESCRIPTORS = [
@@ -841,3 +850,226 @@ UNIMPLEMENTED = [
 def test_unimplemented(descriptor: str, message: str) -> None:
     with pytest.raises(NotImplementedError, match=message):
         parse(descriptor)
+
+
+# three keys and a signature made with each. Real DER signatures rather
+# than placeholder bytes because the psbt finalizer that satisfaction is
+# checked against parses every partial signature it is handed, so a
+# placeholder would not reach the comparison
+PRV_KEYS = (1, 2, 3)
+SEC_KEYS = [pub_keyinfo_from_key(prv_key)[0].hex() for prv_key in PRV_KEYS]
+SIGNATURES = {
+    sec: (dsa.sign(bytes([i]) * 32, prv_key).serialize() + b"\x01").hex()
+    for i, (sec, prv_key) in enumerate(zip(SEC_KEYS, PRV_KEYS, strict=True))
+}
+KEY_A, KEY_B, KEY_C = SEC_KEYS
+# the x-only spelling of the same three, which is what a tr() holds
+XONLY_A, XONLY_B, XONLY_C = (sec[2:] for sec in SEC_KEYS)
+SCHNORR = ssa.sign(bytes(32), 1).serialize().hex()
+
+MULTI = f"multi(2,{KEY_A},{KEY_B},{KEY_C})"
+SORTED_MULTI = f"sortedmulti(2,{KEY_A},{KEY_B},{KEY_C})"
+
+
+def signatures_of(*keys: str) -> dict[Octets, Octets]:
+    """Return the signature of each key, in the shape satisfy takes."""
+    return {key: SIGNATURES[key] for key in keys}
+
+
+# a descriptor, the keys that sign, and the descriptors of the redeem
+# script and of the witness script a psbt would have to be told about --
+# the two fields the finalizer dispatches on, and the ones an Updater
+# built from a descriptor would fill in
+FINALIZER_VECTORS = [
+    pytest.param(f"pk({KEY_A})", [KEY_A], "", "", id="pk"),
+    pytest.param(f"pkh({KEY_A})", [KEY_A], "", "", id="pkh"),
+    pytest.param(f"wpkh({KEY_A})", [KEY_A], "", "", id="wpkh"),
+    pytest.param(f"sh(wpkh({KEY_A}))", [KEY_A], f"wpkh({KEY_A})", "", id="sh-wpkh"),
+    pytest.param(MULTI, [KEY_A, KEY_C], "", "", id="multi"),
+    pytest.param(f"sh({MULTI})", [KEY_A, KEY_C], MULTI, "", id="sh-multi"),
+    pytest.param(f"wsh({MULTI})", [KEY_A, KEY_C], "", MULTI, id="wsh-multi"),
+    pytest.param(
+        f"sh(wsh({MULTI}))",
+        [KEY_A, KEY_C],
+        f"wsh({MULTI})",
+        MULTI,
+        id="sh-wsh-multi",
+    ),
+    pytest.param(
+        f"wsh({SORTED_MULTI})", [KEY_A, KEY_C], "", SORTED_MULTI, id="wsh-sortedmulti"
+    ),
+]
+
+
+@pytest.mark.parametrize(
+    ("descriptor", "signing_keys", "redeem", "witness"), FINALIZER_VECTORS
+)
+def test_satisfy_matches_the_psbt_finalizer(
+    descriptor: str, signing_keys: list[str], redeem: str, witness: str
+) -> None:
+    """The two ways btclib builds a spend agree, byte for byte.
+
+    `finalize_psbt` assembles the same script_sig and witness from a
+    psbt input carrying the same signatures, and it is the older and the
+    independently tested of the two: BIP 174 describes what it does, and
+    what a descriptor adds is knowing the scripts and the key order
+    without being told them. So the psbt is told them here -- the redeem
+    script, the witness script and the output being spent -- and the two
+    constructions are compared.
+    """
+    parsed = parse(descriptor)
+    psbt_in = PsbtIn(
+        witness_utxo=TxOut(1000, parsed.script_pub_key()),
+        partial_sigs={
+            bytes.fromhex(key): bytes.fromhex(SIGNATURES[key]) for key in signing_keys
+        },
+        redeem_script=parse(redeem).redeem_script() if redeem else b"",
+        witness_script=parse(witness).redeem_script() if witness else b"",
+    )
+    assert parsed.satisfy(signatures_of(*signing_keys)) == _finalized_input(psbt_in)
+
+
+def test_signatures_go_in_the_order_the_script_holds_the_keys() -> None:
+    """OP_CHECKMULTISIG never goes back, so the order is not the caller's.
+
+    The descriptor names the keys C, B, A and the mapping offers them in
+    yet another order: what decides is neither, but the script -- which
+    for `multi()` is the order written and for `sortedmulti()` the
+    sorted one, the two being opposite here on purpose.
+    """
+    keys = f"{KEY_C},{KEY_B},{KEY_A}"
+    signatures = signatures_of(KEY_C, KEY_A)
+    ordered = parse(f"wsh(multi(2,{keys}))").satisfy(signatures)[1]
+    sorted_ = parse(f"wsh(sortedmulti(2,{keys}))").satisfy(signatures)[1]
+    assert ordered.stack[1:3] == (
+        bytes.fromhex(SIGNATURES[KEY_C]),
+        bytes.fromhex(SIGNATURES[KEY_A]),
+    )
+    assert sorted_.stack[1:3] == (
+        bytes.fromhex(SIGNATURES[KEY_A]),
+        bytes.fromhex(SIGNATURES[KEY_C]),
+    )
+    # the empty push BIP 147 requires, both times
+    assert ordered.stack[0] == sorted_.stack[0] == b""
+
+
+def test_more_signatures_than_the_threshold_pops() -> None:
+    """The extra ones are the other keys of the descriptor having signed."""
+    witness = parse(f"wsh({MULTI})").satisfy(signatures_of(*SEC_KEYS))[1]
+    # the witness script last, two signatures and the dummy before it
+    assert len(witness) == 4
+    assert witness.stack[1] == bytes.fromhex(SIGNATURES[KEY_A])
+    assert witness.stack[2] == bytes.fromhex(SIGNATURES[KEY_B])
+
+
+def test_satisfy_a_ranged_descriptor() -> None:
+    """The index derives the key that has to have signed."""
+    descriptor = parse(f"wpkh({XPUB}/0/*)")
+    key = descriptor.key_expressions[0]
+    for index in (0, 1, 2):
+        signature = SIGNATURES[KEY_A]
+        witness = descriptor.satisfy({key.sec(index): signature}, index)[1]
+        assert witness.stack == (bytes.fromhex(signature), key.sec(index))
+    # the signature of index 0 is no signature of the key at index 1
+    with pytest.raises(BTClibValueError, match="no signature for public key"):
+        descriptor.satisfy({key.sec(0): SIGNATURES[KEY_A]}, 1)
+
+
+def test_satisfy_index_out_of_range() -> None:
+    with pytest.raises(BTClibValueError, match="invalid derivation index"):
+        parse(f"wpkh({XPUB}/0/*)").satisfy({}, -1)
+    with pytest.raises(BTClibValueError, match="not a ranged descriptor"):
+        parse(f"wpkh({KEY_A})").satisfy({}, 1)
+
+
+def test_satisfy_taproot_key_path() -> None:
+    """One element, and the internal key is what it is filed under."""
+    descriptor = parse(f"tr({XONLY_A})")
+    expected = (b"", Witness([SCHNORR]))
+    assert descriptor.satisfy({XONLY_A: SCHNORR}) == expected
+    # the same key spelled as the 33-byte even-y SEC form answers too
+    assert descriptor.satisfy({KEY_A: SCHNORR}) == expected
+
+
+def test_satisfy_taproot_script_path() -> None:
+    """Every leaf of an asymmetric tree, and its control block checked.
+
+    `check_output_pubkey` is the verifier's own side of BIP 341: it
+    takes the output key, the leaf script and the control block, and
+    walks the merkle path back to the tweak. That it answers True is
+    what says the parity bit and the path are the ones this leaf needs,
+    and the tree is asymmetric so that a path of one hash and a path of
+    two are both exercised.
+    """
+    descriptor = parse(
+        f"tr({XONLY_A},{{pk({XONLY_B}),{{pk({XONLY_C}),pk({XONLY_A})}}}})"
+    )
+    output_key = descriptor.script_pub_key().script[2:]
+    for leaf_key in (XONLY_B, XONLY_C):
+        script_sig, witness = descriptor.satisfy({leaf_key: SCHNORR})
+        assert script_sig == b""
+        signature, script, control_block = witness.stack
+        assert signature == bytes.fromhex(SCHNORR)
+        assert script == serialize([bytes.fromhex(leaf_key), "OP_CHECKSIG"])
+        assert taproot.check_output_pubkey(output_key, script, control_block)
+
+
+def test_the_taproot_key_path_is_preferred() -> None:
+    """As Bitcoin Core's finalizer prefers it: the cheaper spend.
+
+    The internal key is a leaf of this tree as well, so both paths are
+    open and the answer says which was taken by its length.
+    """
+    descriptor = parse(f"tr({XONLY_A},pk({XONLY_A}))")
+    assert descriptor.satisfy({XONLY_A: SCHNORR}) == (b"", Witness([SCHNORR]))
+
+
+# what cannot be satisfied, and what says so. Each refusal is a
+# BTClibValueError rather than the NotImplementedError the parser raises
+# for miniscript: nothing a later release adds makes any of these
+# spendable from the descriptor alone
+UNSATISFIABLE: list[tuple[str, dict[Octets, Octets], str]] = [
+    (f"pk({KEY_A})", {}, "no signature for public key"),
+    (f"pkh({KEY_A})", {}, "no signature for public key"),
+    (f"wpkh({KEY_A})", {}, "no signature for public key"),
+    (f"sh(wpkh({KEY_A}))", {}, "no signature for public key"),
+    (f"wsh({MULTI})", {KEY_A: SIGNATURES[KEY_A]}, "1 signatures of 2, missing "),
+    (f"combo({KEY_A})", {KEY_A: SIGNATURES[KEY_A]}, "combo\\(\\) is four scripts"),
+    ("addr(1BgGZ9tcN4rm9KBzDn7KprQz87SZ26SAMH)", {}, "addr\\(\\) cannot be satisfied"),
+    ("raw(76a914000000000000000000000000000000000000000088ac)", {}, "raw\\(\\) cannot"),
+    (f"tr({XONLY_A})", {}, "no signature for the tr\\(\\) internal key"),
+    (f"tr({XONLY_A},pk({XONLY_B}))", {}, "or for any of its leaves"),
+]
+
+
+@pytest.mark.parametrize(
+    ("descriptor", "signatures", "message"),
+    [
+        pytest.param(descriptor, signatures, message, id=vector_id(index, descriptor))
+        for index, (descriptor, signatures, message) in enumerate(UNSATISFIABLE)
+    ],
+)
+def test_unsatisfiable(
+    descriptor: str, signatures: dict[Octets, Octets], message: str
+) -> None:
+    with pytest.raises(BTClibValueError, match=message):
+        parse(descriptor).satisfy(signatures)
+
+
+def test_the_missing_keys_are_named() -> None:
+    """Which key has not signed is the whole content of the refusal."""
+    with pytest.raises(BTClibValueError, match=f"missing {KEY_B}, {KEY_C}"):
+        parse(f"wsh({MULTI})").satisfy({KEY_A: SIGNATURES[KEY_A]})
+
+
+def test_only_a_script_is_embeddable() -> None:
+    """The wrappers have no stack of their own to be embedded with.
+
+    The grammar refuses `wsh(tr())` and `sh(addr())` and every other
+    such pair, so this is reachable only by building the descriptor
+    rather than parsing one -- which the dataclasses are public enough
+    to allow.
+    """
+    inner = parse(f"tr({XONLY_A})")
+    with pytest.raises(BTClibValueError, match="TrDescriptor is not a script"):
+        WshDescriptor(inner).satisfy({XONLY_A: SCHNORR})
