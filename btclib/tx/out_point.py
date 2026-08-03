@@ -29,6 +29,15 @@ from btclib.utils import bytes_from_octets, bytesio_from_binarydata
 # __init__ already went through object.__setattr__, in wait for this
 @dataclass(frozen=True)
 class OutPoint:
+    """The output a transaction input spends: (tx_id, vout).
+
+    tx_id is held in the byte order hex explorers print, reversed on
+    the wire by serialize and back by parse. Frozen and hashable, so
+    an OutPoint can key the dict a utxo set is; the default instance
+    is the coinbase marker, all-zero tx_id and 0xFFFFFFFF vout, and
+    assert_valid refuses a half-coinbase mix of the two.
+    """
+
     tx_id: bytes
     vout: int
 
@@ -56,9 +65,16 @@ class OutPoint:
             self.assert_valid()
 
     def is_coinbase(self) -> bool:
+        """Answer whether this is the coinbase marker, spending nothing."""
         return self.tx_id == b"\x00" * 32 and self.vout == 0xFFFFFFFF
 
     def assert_valid(self) -> None:
+        """Refuse a tx_id not of 32 bytes, a vout no 4 bytes hold, a mix.
+
+        The mix is an all-zero tx_id with a real vout or the reverse:
+        the coinbase marker is both fields at their sentinel or
+        neither.
+        """
         if len(self.tx_id) != 32:
             err_msg = f"invalid OutPoint tx_id: {len(self.tx_id)}"
             err_msg += " instead of 32 bytes"
@@ -71,6 +87,11 @@ class OutPoint:
             raise BTClibValueError("invalid OutPoint")
 
     def to_dict(self, *, check_validity: bool = True) -> dict[str, str | int]:
+        """Return {"txid", "vout"}, the keys Bitcoin Core's RPC uses.
+
+        The txid is hex in display order; from_dict reads the same
+        shape back and the round trip is exact.
+        """
         if check_validity:
             self.assert_valid()
 
@@ -80,6 +101,7 @@ class OutPoint:
     def from_dict(
         cls: type[OutPoint], dict_: Mapping[str, Any], *, check_validity: bool = True
     ) -> OutPoint:
+        """Build an OutPoint from the dict shape to_dict writes."""
         return cls(dict_["txid"], dict_["vout"], check_validity=check_validity)
 
     def serialize(self, *, check_validity: bool = True) -> bytes:

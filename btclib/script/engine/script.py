@@ -97,6 +97,15 @@ def fix_signature(signature: bytes, flags: ScriptFlag) -> bytes:
 
 
 def check_pub_key(pub_key: bytes, segwit: bool, flags: ScriptFlag) -> bool:
+    """Answer whether the public key is well-formed enough to verify with.
+
+    Core's CheckPubKeyEncoding, split the way Core splits it: a wrong
+    length or prefix returns False, which op_checksig turns into a
+    failed signature check rather than a script error, while the two
+    flags that make the encoding itself the offence raise -- STRICTENC
+    for a hybrid 0x06/0x07 prefix, WITNESS_PUBKEYTYPE for an
+    uncompressed key in a segwit script.
+    """
     if not pub_key:
         return False
     if pub_key[0] in [4, 6, 7]:
@@ -197,6 +206,21 @@ def op_checksig(
     segwit: bool,
     precomputed: PrecomputedTxData | None = None,
 ) -> bool:
+    """Verify one ECDSA signature over the script code it commits to.
+
+    Returns the boolean the op code pushes rather than raising: an
+    empty signature, one that fails to verify, or a key or encoding
+    refused under lax rules are all False, and an error only where a
+    flag makes the encoding the offence -- DERSIG/LOW_S/STRICTENC for
+    the signature, STRICTENC/WITNESS_PUBKEYTYPE for the key.
+
+    `signatures` is what FindAndDelete removes from a pre-segwit
+    script code: the whole set under check when called from
+    OP_CHECKMULTISIG, the signature itself otherwise. The message hash
+    is BIP143's for a segwit v0 input and the legacy per-input
+    serialization for the rest; tapscript signatures never reach here,
+    tapscript.py verifying BIP340 on its own.
+    """
     if not signature:
         return False
     try:
@@ -280,6 +304,11 @@ def check_signature_num(signature_num: int, pub_key_num: int) -> None:
 
 
 def script_op_count(count: int, increment: int) -> int:
+    """Add to the op code count, bounded by MAX_OPS_PER_SCRIPT.
+
+    Core's accounting: pushes are free, every other op code costs one,
+    and OP_CHECKMULTISIG adds its public key count on top.
+    """
     count += increment
     if count > MAX_OPS_PER_SCRIPT:
         raise BTClibValueError(f"more than {MAX_OPS_PER_SCRIPT} op codes: {count}")
@@ -341,6 +370,11 @@ def check_not_disabled(op_code: int) -> None:
 
 
 def prepare_script(script: ScriptList, flags: ScriptFlag, segwit: bool) -> None:
+    """Refuse OP_CODESEPARATOR in a legacy script under CONST_SCRIPTCODE.
+
+    Only legacy: BIP143 keeps the op code meaningful in segwit v0, so
+    the pre-segwit script code is the one the flag freezes.
+    """
     if (
         "OP_CODESEPARATOR" in script
         and ScriptFlag.CONST_SCRIPTCODE in flags
@@ -424,6 +458,16 @@ def verify_script(  # noqa: C901
     final: bool = False,
     precomputed: PrecomputedTxData | None = None,
 ) -> None:
+    """Execute the script over the caller's stack, as Core's EvalScript.
+
+    The stack is mutated in place, which is how the callers chain
+    scripts: script_sig leaves what script_pub_key then reads. Any
+    refusal -- a BTClibValueError out of an op code, an IndexError out
+    of a pop on a short stack -- is re-raised as ScriptError carrying
+    the index of the failing command and the stack depth. With `final`
+    the script must end on a non-empty stack with a true top element,
+    which is the caller saying no script runs after this one.
+    """
     if len(script_bytes) > MAX_SCRIPT_SIZE:
         err_msg = f"script longer than {MAX_SCRIPT_SIZE} bytes: {len(script_bytes)}"
         raise BTClibValueError(err_msg)

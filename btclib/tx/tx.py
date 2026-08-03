@@ -71,6 +71,17 @@ def _assert_valid_coinbase(vin: Sequence[TxIn], *, is_coinbase: bool) -> None:
 
 @dataclass
 class Tx:
+    """A Bitcoin transaction: version, lock time, inputs, outputs.
+
+    Mutable, being what a builder and a signer edit in place; `id` and
+    `hash` are computed from the current state on every read, so they
+    follow the edits. assert_valid checks what CheckTransaction checks
+    of a lone transaction -- field ranges, the inputs and outputs one
+    by one, the coinbase script size, the MAX_MONEY bound on the
+    output sum; whether it spends what it claims needs the prevouts,
+    which is script.engine.verify_transaction's question.
+    """
+
     # 4 bytes, _signed_ little endian
     version: int
     # 0	Not locked
@@ -126,6 +137,7 @@ class Tx:
 
     @property
     def weight(self) -> int:
+        """Return the BIP141 weight: 3x the stripped size plus the size."""
         no_wit = len(self.serialize(include_witness=False, check_validity=False)) * 3
         wit = len(self.serialize(include_witness=True, check_validity=False))
         return no_wit + wit
@@ -147,13 +159,19 @@ class Tx:
 
     @property
     def vwitness(self) -> list[Witness]:
+        """Return the witnesses, one per input and in input order."""
         return [tx_in.script_witness for tx_in in self.vin]
 
     def is_segwit(self) -> bool:
-        # refer to tx_in, not tx_out
+        """Answer whether any input carries a witness.
+
+        The inputs and not the outputs: paying to a segwit script does
+        not make the paying transaction segwit, spending one does.
+        """
         return any(tx_in.is_segwit() for tx_in in self.vin)
 
     def is_coinbase(self) -> bool:
+        """Answer whether this is a coinbase: one input, spending nothing."""
         return len(self.vin) == 1 and self.vin[0].is_coinbase()
 
     def __init__(
@@ -191,6 +209,12 @@ class Tx:
     def to_dict(
         self, *, check_validity: bool = True
     ) -> dict[str, str | int | list[Any]]:
+        """Return the transaction as a dict of json-friendly values.
+
+        The keys are Bitcoin Core's decoderawtransaction ones; txid,
+        hash, size, vsize and weight are derived for the reader and
+        ignored by from_dict, which recomputes them.
+        """
         if check_validity:
             self.assert_valid()
 
@@ -210,6 +234,7 @@ class Tx:
     def from_dict(
         cls: type[Tx], dict_: Mapping[str, Any], *, check_validity: bool = True
     ) -> Tx:
+        """Build a Tx from the dict shape to_dict writes."""
         return cls(
             dict_["version"],
             dict_["locktime"],
@@ -219,6 +244,12 @@ class Tx:
         )
 
     def assert_standard(self) -> None:
+        """Refuse what assert_valid refuses, plus a non-standard version.
+
+        Standardness reads the version as the signed int Core relays
+        on, so zero and anything above 0x7FFFFFFF fail here and not in
+        assert_valid, negative-as-signed versions being in blocks.
+        """
         self.assert_valid()
 
         # should be a 4-bytes __signed__ integer
@@ -271,6 +302,13 @@ class Tx:
             raise BTClibValueError(f"invalid total output amount: {total}")
 
     def serialize(self, include_witness: bool, *, check_validity: bool = True) -> bytes:
+        """Return the wire serialization, BIP144's where a witness rides.
+
+        `include_witness` False gives the stripped serialization, what
+        the txid is computed over; True adds the marker and the
+        witnesses only if some input has one, a marker over empty
+        witnesses not being what the wire writes.
+        """
         if check_validity:
             self.assert_valid()
 

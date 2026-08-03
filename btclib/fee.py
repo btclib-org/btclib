@@ -94,23 +94,15 @@ class FeeRate:
 
     @classmethod
     def from_sats_per_vbyte(cls, sats_per_vbyte: Any) -> FeeRate:
-        """Return the fee rate quoted in satoshi per virtual byte.
+        """Return the same rate in sat/kvB from a sat/vB quote.
 
-        Args:
-            sats_per_vbyte (Any): The rate in sat/vB: a Decimal, an int,
-                a string, or anything else str() renders as a decimal
-                number. A float is read through its repr, so 1.1 is the
-                1.1 that was written rather than the binary fraction
-                nearest to it.
-
-        Raises:
-            BTClibValueError: If the rate does not read as a decimal
-                number, if it is not finite, or if it is not a whole
-                number of millisatoshi per virtual byte -- i.e. if
-                sat/kvB could not hold it exactly.
-
-        Returns:
-            FeeRate: The same rate, in sat/kvB.
+        The quote is a Decimal, an int, a string, or anything else
+        str() renders as a decimal number; a float is read through
+        its repr, so 1.1 is the 1.1 that was written rather than the
+        binary fraction nearest to it. Refused: what does not read as
+        a decimal number, is not finite, or is not a whole number of
+        millisatoshi per virtual byte -- what sat/kvB cannot hold
+        exactly.
         """
         err_msg = f"invalid sat/vB fee rate: {sats_per_vbyte}"
         # str() renders every object there is, and Decimal refuses most
@@ -169,18 +161,8 @@ def fee_from_vsize(vsize: int, fee_rate: FeeRate) -> int:
 
     Rounded up, which is what Core's `CFeeRate::GetFee` does and the
     reason it does it: a fee one satoshi short of the rate is a fee below
-    the rate, and a transaction paying it does not relay.
-
-    Args:
-        vsize (int): The virtual size, in virtual bytes.
-        fee_rate (FeeRate): The rate the fee is owed at.
-
-    Raises:
-        BTClibTypeError: If the virtual size is not an integer.
-        BTClibValueError: If the virtual size is negative.
-
-    Returns:
-        int: The fee, in satoshi.
+    the rate, and a transaction paying it does not relay. A virtual
+    size that is not an int, or is negative, is refused.
     """
     # checked for the reason FeeRate checks its own field: a float does
     # not fail this arithmetic, it passes through it, and
@@ -254,14 +236,9 @@ def dust_threshold(
     An unspendable output has no input to pay for, so its threshold is
     zero and no value is dust.
 
-    Args:
-        script_pub_key (Octets): The output script.
-        fee_rate (FeeRate, optional): The dust relay fee rate. Defaults
-            to DUST_RELAY_FEE_RATE, Core's 3000 sat/kvB.
-
-    Returns:
-        int: The threshold, in satoshi. An output is dust when its value
-        is below this; an output worth exactly this is not.
+    `fee_rate` is the dust relay rate, defaulting to Core's 3000
+    sat/kvB. An output is dust when its value is below the returned
+    satoshi; one worth exactly it is not.
     """
     script_pub_key = bytes_from_octets(script_pub_key)
 

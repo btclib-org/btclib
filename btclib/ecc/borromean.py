@@ -205,8 +205,12 @@ def assert_as_valid(
     ec: Curve = secp256k1,
     hf: HashF = sha256,
 ) -> None:
-    # Private function for test/dev purposes
-    # It raises Errors, while verify should always return True or False
+    """Refuse an invalid borromean ring signature.
+
+    The rings are walked forward from e0 and must close on the e0 they
+    started from; errors carry the reason, verify being the boolean
+    answer.
+    """
     msg, m, e = _initialize(msg, pubk_rings, ec, hf)
     e0bytes = m
 

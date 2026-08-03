@@ -154,6 +154,7 @@ def add_checksum(descriptor: str) -> str:
 
 
 def descriptor_from_address(address: str) -> str:
+    """Return the addr() descriptor of the address, checksummed."""
     return add_checksum(f"addr({address})")
 
 
@@ -241,6 +242,7 @@ class KeyExpression:
 
     @property
     def is_ranged(self) -> bool:
+        """Answer whether the key has a wildcard to derive at an index."""
         return self.wildcard is not None
 
     @property
@@ -533,6 +535,7 @@ class PkDescriptor(Descriptor):
 
     @property
     def key_expressions(self) -> tuple[KeyExpression, ...]:
+        """Return the one KEY expression, as the base class's tuple."""
         return (self.key,)
 
     def _scripts(self, index: int) -> list[bytes]:
@@ -552,6 +555,7 @@ class PkhDescriptor(Descriptor):
 
     @property
     def key_expressions(self) -> tuple[KeyExpression, ...]:
+        """Return the one KEY expression, as the base class's tuple."""
         return (self.key,)
 
     def _scripts(self, index: int) -> list[bytes]:
@@ -572,6 +576,7 @@ class WpkhDescriptor(Descriptor):
 
     @property
     def key_expressions(self) -> tuple[KeyExpression, ...]:
+        """Return the one KEY expression, as the base class's tuple."""
         return (self.key,)
 
     def _scripts(self, index: int) -> list[bytes]:
@@ -601,6 +606,7 @@ class ShDescriptor(Descriptor):
 
     @property
     def key_expressions(self) -> tuple[KeyExpression, ...]:
+        """Return the wrapped SCRIPT's KEY expressions."""
         return self.inner.key_expressions
 
     def _scripts(self, index: int) -> list[bytes]:
@@ -643,6 +649,7 @@ class WshDescriptor(Descriptor):
 
     @property
     def key_expressions(self) -> tuple[KeyExpression, ...]:
+        """Return the wrapped SCRIPT's KEY expressions."""
         return self.inner.key_expressions
 
     def _scripts(self, index: int) -> list[bytes]:
@@ -685,6 +692,7 @@ class MultiDescriptor(Descriptor):
 
     @property
     def key_expressions(self) -> tuple[KeyExpression, ...]:
+        """Return the KEY expressions, in descriptor order."""
         return self.keys
 
     def _pub_keys(self, index: int) -> list[bytes]:
@@ -744,6 +752,7 @@ class ComboDescriptor(Descriptor):
 
     @property
     def key_expressions(self) -> tuple[KeyExpression, ...]:
+        """Return the one KEY expression, as the base class's tuple."""
         return (self.key,)
 
     def _scripts(self, index: int) -> list[bytes]:
@@ -791,6 +800,7 @@ class AddrDescriptor(Descriptor):
 
     @property
     def key_expressions(self) -> tuple[KeyExpression, ...]:
+        """Return no KEY expression, the descriptor fixing none."""
         return ()
 
     def _scripts(self, index: int) -> list[bytes]:
@@ -826,6 +836,7 @@ class RawDescriptor(Descriptor):
 
     @property
     def key_expressions(self) -> tuple[KeyExpression, ...]:
+        """Return no KEY expression, the descriptor fixing none."""
         return ()
 
     def _scripts(self, index: int) -> list[bytes]:
@@ -862,6 +873,7 @@ class TrDescriptor(Descriptor):
 
     @property
     def key_expressions(self) -> tuple[KeyExpression, ...]:
+        """Return the internal key and every leaf key, in tree order."""
         if self.tree is None:
             return (self.internal_key,)
         return (self.internal_key, *_tree_keys(self.tree))

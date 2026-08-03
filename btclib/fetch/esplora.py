@@ -99,13 +99,16 @@ class EsploraFetcher(Fetcher):
         return text
 
     def get_tx(self, tx_id: Octets) -> Tx:
+        """Return the transaction, parsed and checked against its txid."""
         hex_ = tx_id_hex(tx_id)
         return tx_from_raw(self.text(f"/tx/{hex_}/hex"), hex_, self.network)
 
     def get_block_count(self) -> int:
+        """Return the height of the server's best chain tip."""
         with fetch_errors("blocks/tip/height"):
             return int(self.text("/blocks/tip/height"))
 
     def get_best_block_id(self) -> bytes:
+        """Return the hash of the server's best chain tip, display order."""
         with fetch_errors("blocks/tip/hash"):
             return bytes_from_octets(self.text("/blocks/tip/hash"), 32)

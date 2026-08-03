@@ -44,6 +44,16 @@ _KEY_SIZE: list[tuple[NetworkField, int]] = [
 
 @dataclass(frozen=True)
 class Network:
+    """The encoding table of one network: prefixes, versions, magic.
+
+    What tells a mainnet spelling from a test one -- wif and address
+    prefixes, the bech32 hrp, the BIP32 and SLIP132 version bytes --
+    plus the wire magic and the genesis block hash. No consensus
+    parameter lives here; NETWORKS holds the built-in instances, and
+    the ``*_from_network`` and ``*_from_xkeyversion`` functions below
+    are the lookups.
+    """
+
     curve: Curve
 
     # "main" or "test": see NetworkType in alias.py for why this is the
@@ -161,6 +171,7 @@ class Network:
             self.assert_valid()
 
     def to_dict(self, *, check_validity: bool = True) -> dict[str, str | None]:
+        """Return the network as a dict of hex strings and names."""
         if check_validity:
             self.assert_valid()
 
@@ -189,6 +200,7 @@ class Network:
     def from_dict(
         cls: type[Network], dict_: Mapping[str, Any], *, check_validity: bool = True
     ) -> Network:
+        """Build a Network from the dict shape to_dict writes."""
         return cls(
             CURVES[dict_["curve"]],
             dict_["magic_bytes"],
@@ -214,6 +226,7 @@ class Network:
         )
 
     def assert_valid(self) -> None:
+        """Refuse a field of the wrong type, size, or network_type value."""
         # no check on self.curve
 
         # the hrp is the human-readable part of every bech32 address of this
@@ -346,6 +359,7 @@ def network_type_from_network(network: str = "mainnet") -> NetworkType:
 
 
 def xpubversions_from_network(network: str = "mainnet") -> list[bytes]:
+    """Return every xpub version of the network, BIP32 and SLIP132."""
     network = network.strip().lower()
     return [
         NETWORKS[network].bip32_pub,
@@ -357,6 +371,7 @@ def xpubversions_from_network(network: str = "mainnet") -> list[bytes]:
 
 
 def xprvversions_from_network(network: str = "mainnet") -> list[bytes]:
+    """Return every xprv version of the network, BIP32 and SLIP132."""
     network = network.strip().lower()
     return [
         NETWORKS[network].bip32_prv,
@@ -418,5 +433,6 @@ def network_type_from_xkeyversion(xkeyversion: bytes) -> NetworkType:
 
 
 def curve_from_xkeyversion(xkeyversion: bytes) -> Curve:
+    """Return the curve of the network the version bytes belong to."""
     network = network_from_xkeyversion(xkeyversion)
     return NETWORKS[network].curve

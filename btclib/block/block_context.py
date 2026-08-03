@@ -53,6 +53,13 @@ BIP34_HEIGHT = 227_931
 
 @dataclass(frozen=True)
 class BlockContext:
+    """What Block.assert_valid_contextual reads: a height and a clock.
+
+    The two facts a block cannot answer for itself, supplied by the
+    caller; bip34_height is the chain's activation height, defaulting
+    to mainnet's.
+    """
+
     # the height the block is being accepted at, i.e. Core's
     # pindexPrev->nHeight + 1
     height: int
@@ -92,6 +99,11 @@ class BlockContext:
             self.assert_valid()
 
     def assert_valid(self) -> None:
+        """Refuse a negative or non-int height, or a now that is no datetime.
+
+        Naive-datetime refusal is assert_valid_time's, the reader of
+        the clock being where the comparison happens.
+        """
         for key in ("height", "bip34_height"):
             value = getattr(self, key)
             # a float here would compare fine and read as a height, so the

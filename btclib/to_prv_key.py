@@ -285,6 +285,13 @@ def _prv_keyinfo_from_xprvwif(
 def prv_keyinfo_from_prv_key(
     prv_key: PrvKey, network: str | None = None, compressed: bool | None = None
 ) -> PrvkeyInfo:
+    """Return (int key, network, compressed) from any private key spelling.
+
+    A WIF or an xprv carries its own network and compression, and a
+    contradicting argument is refused rather than overridden; an int
+    or octets carry neither, so the arguments -- mainnet, compressed
+    -- fill in.
+    """
     compr = True if compressed is None else compressed
     net = "mainnet" if network is None else network
     ec = NETWORKS[net].curve

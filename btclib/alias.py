@@ -256,14 +256,26 @@ BIP44ScriptType = Literal["p2pkh", "p2wpkh-p2sh", "p2wpkh", "p2tr"]
 # Not hashlib._Hash, which is what typeshed calls it: a private name, and
 # structural typing is the right tool for "whatever hashlib.new returns"
 class HashObject(Protocol):
-    @property
-    def digest_size(self) -> int: ...
+    """The slice of a hashlib object this library reads, as a Protocol.
+
+    Structural: anything hashlib.new returns satisfies it, and the
+    members carry hashlib's own meanings.
+    """
 
     @property
-    def block_size(self) -> int: ...
+    def digest_size(self) -> int:
+        """Return the digest length in bytes."""
+        ...
 
     @property
-    def name(self) -> str: ...
+    def block_size(self) -> int:
+        """Return the internal block length in bytes."""
+        ...
+
+    @property
+    def name(self) -> str:
+        """Return the name hashlib.new would accept."""
+        ...
 
     # Any, alone in this Protocol, and not for want of trying: hmac.new
     # takes a digestmod whose update() accepts typeshed's ReadableBuffer,
@@ -273,13 +285,21 @@ class HashObject(Protocol):
     # hmac.new eight times. The two members that are actually read,
     # digest() and digest_size, stay exact, which is the point of the
     # Protocol
-    def update(self, data: Any, /) -> None: ...
+    def update(self, data: Any, /) -> None:
+        """Absorb more data, as hashlib's update does."""
+        ...
 
-    def digest(self) -> bytes: ...
+    def digest(self) -> bytes:
+        """Return the digest of everything absorbed so far."""
+        ...
 
-    def hexdigest(self) -> str: ...
+    def hexdigest(self) -> str:
+        """Return the digest as a hex string."""
+        ...
 
-    def copy(self) -> HashObject: ...
+    def copy(self) -> HashObject:
+        """Return a clone that can absorb independently."""
+        ...
 
 
 # Hash digest constructor: it may be any name suitable to hashlib.new().

@@ -38,6 +38,11 @@ _HARDENED_OFFSET = 0x80000000
 
 
 def int_from_index_str(s: str) -> int:
+    """Return one path step as its index: "0h" is 0x80000000.
+
+    Any of the three hardening symbols is read; an index at or above
+    the hardened offset must be spelled with one, not as the number.
+    """
     s.strip().lower()
     hardened = False
     if s[-1] in ("'", "h"):
@@ -51,6 +56,7 @@ def int_from_index_str(s: str) -> int:
 
 
 def str_from_index_int(i: int, hardening: str = _HARDENING) -> str:
+    """Return one index as a path step, the chosen symbol for hardened."""
     if hardening not in ("'", "h", "H"):
         raise BTClibValueError(f"invalid hardening symbol: {hardening}")
     if not 0 <= i <= 0xFFFFFFFF:
@@ -77,6 +83,12 @@ DerPath = str | Sequence[int] | int | bytes
 
 
 def indexes_from_der_path(der_path: DerPath) -> list[int]:
+    """Return the path as a list of indexes, whatever spelling it came in.
+
+    The DerPath spellings of the module docstring are all read: a
+    string with or without the leading m, a single int, the 4-byte
+    little-endian concatenation, or any iterable of ints.
+    """
     if isinstance(der_path, str):
         return _indexes_from_der_path_str(der_path)
 
@@ -106,6 +118,11 @@ def str_from_der_path(
     master_fingerprint: Octets | None = None,
     hardening: str = _HARDENING,
 ) -> str:
+    """Return the path as text, led by m or by the master fingerprint.
+
+    With a fingerprint this is the key-origin spelling a descriptor
+    brackets; without, the m/ path BIP32 writes.
+    """
     result = _str_from_der_path(der_path, hardening)
     if master_fingerprint:
         if isinstance(master_fingerprint, str):
@@ -122,6 +139,7 @@ def str_from_der_path(
 
 
 def bytes_from_der_path(der_path: DerPath) -> bytes:
+    """Return the path as bytes: each index in 4 bytes, little-endian."""
     indexes = indexes_from_der_path(der_path)
     result = [i.to_bytes(4, byteorder="little", signed=False) for i in indexes]
     return b"".join(result)

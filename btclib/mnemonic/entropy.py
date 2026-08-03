@@ -148,6 +148,7 @@ def bin_str_entropy_from_bytes(
 
 
 def bytes_entropy_from_str(bin_str_entropy: BinStr) -> bytes:
+    """Return the binary-string entropy as bytes, left-padded to whole ones."""
     n_bits = len(bin_str_entropy)
     if n_bits not in _bits:
         err_msg = f"invalid number of bits: {n_bits} instead of {_bits}"
@@ -231,6 +232,13 @@ def bin_str_entropy_from_str(str_entropy: str, bits: OneOrMoreInt = _bits) -> Bi
 
 
 def collect_rolls(bits: int) -> tuple[int, list[int]]:
+    """Prompt for dice rolls until they carry `bits` of entropy.
+
+    Interactive on purpose, input() and print() being its interface:
+    the caller gets (dice sides, the rolls that count). Rolls beyond
+    a power of two are discarded and asked again, carrying no whole
+    bits.
+    """
     automate = False
     dice_sides = 0
     _dice_sides = (4, 6, 8, 12, 20, 24, 30, 48, 60, 120)

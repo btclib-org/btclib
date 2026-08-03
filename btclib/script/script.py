@@ -300,6 +300,12 @@ ERROR_COMMAND = "[error]"
 
 
 def op_int(i: int) -> str:
+    """Name the one-byte op code that pushes the number i, -1 to 16.
+
+    OP_0..OP_16 and OP_1NEGATE are the only numbers with an op code of
+    their own; any other integer is refused, a caller wanting it pushed
+    passing the integer itself to serialize.
+    """
     # Short 1-byte op_codes exist
     # to push numbers in [-1, 16]
     if i == -1:
@@ -367,6 +373,15 @@ def _pushdata(i: int, length: int, out: list[bytes]) -> None:
 
 
 def serialize(script: Sequence[Command]) -> bytes:
+    """Serialize a script from its commands.
+
+    An integer is encoded as the number it pushes -- with a warning
+    where a one-byte op code means the same -- a string is an op code
+    name, an UNKNOWN_OP_CODE_n byte, or hex data, and bytes are data;
+    data is always the minimal push, per BIP62. What parse returns
+    round-trips, ERROR_COMMAND excepted, that marker being a place in
+    the bytes rather than an instruction.
+    """
     r: list[bytes] = []
     for command in script:
         if isinstance(command, int):
@@ -580,6 +595,14 @@ def op_code_spans(script: bytes) -> Iterator[tuple[int, int, int]]:
 # condition
 @dataclass(frozen=True)
 class Script:
+    """A Bitcoin script, held as its bytes.
+
+    The bytes are the script -- assert_valid asks nothing else of them
+    -- and `asm` is their parse, computed on first read and cached.
+    Immutable, so a Script can be shared and concatenated (`+`) without
+    aliasing surprises; ScriptPubKey extends it with a network.
+    """
+
     # Bitcoin script expressed as ScriptList
     # e.g. [OP_HASH160, script_h160, OP_EQUAL]
     # or Octets of its byte-encoded representation

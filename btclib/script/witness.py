@@ -29,6 +29,14 @@ from btclib.utils import bytes_from_octets, bytesio_from_binarydata
 # and then read, so the interpreter's popping is done on a list of its own
 @dataclass(frozen=True)
 class Witness:
+    """The witness stack of one transaction input, per BIP141.
+
+    A tuple of byte strings, bottom of the stack first, exactly as
+    serialized after the input count; a non-segwit input has an empty
+    one. Immutable throughout, so a Witness can be shared and hashed;
+    the script interpreter pops a list copy of its own.
+    """
+
     stack: tuple[bytes, ...]
 
     def __init__(
@@ -48,10 +56,21 @@ class Witness:
         return len(self.stack)
 
     def assert_valid(self) -> None:
+        """Refuse a stack element that does not read as bytes.
+
+        Any elements are a valid witness -- what they must mean is the
+        spending script's business -- so readability is the whole
+        check.
+        """
         for stack_element in self.stack:
             bytes(stack_element)
 
     def to_dict(self, *, check_validity: bool = True) -> dict[str, list[str]]:
+        """Return the witness as a dict of hex strings, for json.
+
+        from_dict reads the same shape back, and the round trip is
+        exact, hex being a spelling of the bytes and nothing less.
+        """
         if check_validity:
             self.assert_valid()
 
@@ -64,6 +83,7 @@ class Witness:
         *,
         check_validity: bool = True,
     ) -> Witness:
+        """Build a Witness from the dict shape to_dict writes."""
         return cls(dict_["stack"], check_validity=check_validity)
 
     def serialize(self, *, check_validity: bool = True) -> bytes:

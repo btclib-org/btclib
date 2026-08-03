@@ -42,6 +42,13 @@ from btclib.utils import bytes_from_octets, bytesio_from_binarydata
 
 
 def serialize(script: ScriptList) -> bytes:
+    """Serialize a tapscript from its commands.
+
+    The tapscript twin of script.serialize, differing where BIP342
+    differs: the OP_SUCCESSx names exist here, and one must be followed
+    by exactly one bytes command, appended raw -- what follows an
+    OP_SUCCESS need not be a script, so it round-trips unparsed.
+    """
     r: list[bytes] = []
     script = script[::-1]
     while script:
@@ -86,6 +93,16 @@ def _read_push_data(s: BytesIO, i: int) -> bytes:
 
 
 def parse(stream: BinaryData, exit_on_op_success: bool = False) -> ScriptList:
+    """Parse a tapscript into its commands, per BIP342.
+
+    An unknown op code is refused, data pushes come back as hex
+    strings, and an OP_SUCCESSx ends the parse: what follows one is
+    returned as raw bytes, BIP342 not requiring it to be a script --
+    or, with `exit_on_op_success`, the whole answer is the single
+    marker ["OP_SUCCESS"], which is Core's pre-scan. An element over
+    520 bytes is refused only by a parse that meets no OP_SUCCESSx,
+    one anywhere making the script valid.
+    """
     s = bytesio_from_binarydata(stream)
     r: ScriptList = []  # initialize the result list
     invalid_element_size = False
@@ -134,6 +151,12 @@ def leaf_hash(leaf_version: int, script: bytes) -> bytes:
 
 
 def tree_helper(script_tree: TaprootScriptTree) -> tuple[TaprootLeafPaths, bytes]:
+    """Walk a script tree: (every leaf with its merkle path, root hash).
+
+    BIP341's taproot_tree_helper: the leaves come back in tree order,
+    each with the control-block path that proves it, and the root is
+    what the output key commits to.
+    """
     if len(script_tree) == 1:
         return _tree_helper(script_tree)
     # a branch: both elements are subtrees, and the alias says only that
@@ -173,6 +196,14 @@ def output_pubkey(
     script_tree: TaprootScriptTree | None = None,
     ec: Curve = secp256k1,
 ) -> tuple[bytes, int]:
+    """Return a taproot output key and its parity, per BIP341.
+
+    The x-only internal key is tweaked by the script tree's root hash,
+    an empty tree contributing empty bytes -- key path only -- and a
+    missing internal key replaced by BIP341's unspendable point, script
+    path only. The parity bit is the tweaked point's, needed by the
+    control block and never serialized in the output.
+    """
     if not internal_pubkey and not script_tree:
         raise BTClibValueError("missing data")
     if internal_pubkey:
@@ -206,6 +237,13 @@ def output_prvkey(
     script_tree: TaprootScriptTree | None = None,
     ec: Curve = secp256k1,
 ) -> int:
+    """Return the private key of the taproot output key, per BIP341.
+
+    The private counterpart of output_pubkey: the internal key is
+    negated where its public point has an odd y, then tweaked by the
+    script tree's root hash, so its public point is the output key
+    exactly.
+    """
     internal_prvkey: int = int_from_prv_key(prv_key)
     if script_tree:
         _, h = tree_helper(script_tree)
@@ -237,6 +275,13 @@ def output_prvkey(
 def input_script_sig(
     internal_pubkey: Key | None, script_tree: TaprootScriptTree, script_num: int
 ) -> tuple[ScriptList, bytes]:
+    """Return (leaf script, control block) for a script-path spend.
+
+    `script_num` picks the leaf in tree order, as tree_helper returns
+    them; the control block is BIP341's -- parity bit plus leaf
+    version, then the x-only internal key, then the merkle path -- and
+    a missing internal key is the unspendable point output_pubkey uses.
+    """
     parity_bit = output_pubkey(internal_pubkey, script_tree)[1]
     if internal_pubkey:
         pub_key_bytes = pub_keyinfo_from_key(internal_pubkey, compressed=True)[0][1:]
@@ -253,6 +298,14 @@ def input_script_sig(
 def check_output_pubkey(
     q: Octets, script: Octets, control: Octets, ec: Curve = secp256k1
 ) -> bool:
+    """Answer whether the control block proves the script against the key.
+
+    BIP341's control-block verification: the leaf hash is folded up
+    the merkle path in the control block, and the internal key tweaked
+    by the result must equal the output key q, parity included. A
+    malformed control block or an internal key that is not a point is
+    refused rather than answered False, either being no proof at all.
+    """
     q = bytes_from_octets(q)
     script = bytes_from_octets(script)
     control = bytes_from_octets(control)
@@ -300,5 +353,11 @@ def check_output_pubkey(
 
 
 def assert_valid_control_block(control_block: bytes) -> None:
+    """Refuse a control block whose size no leaf depth can produce.
+
+    Size only, and only its residue: one leading byte plus a multiple
+    of 32, which BIP341's 33 + 32m sizes all satisfy. Proving the
+    block against an output key is check_output_pubkey's.
+    """
     if (len(control_block) - 1) % 32 != 0:
         raise BTClibValueError("invalid control block size")

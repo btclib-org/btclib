@@ -137,6 +137,7 @@ class Sig:
             self.assert_valid()
 
     def assert_valid(self) -> None:
+        """Refuse an r that is no x-coordinate, or an s outside 0..n-1."""
         # r is a field element, fail if r is not a valid x-coordinate.
         # Asking for the y is how that is asked, and the y is discarded:
         # BIP340 fixes it even, and verification recomputes the point from
@@ -153,6 +154,7 @@ class Sig:
             raise BTClibValueError(err_msg)
 
     def serialize(self, *, check_validity: bool = True) -> bytes:
+        """Return BIP340's fixed-size r || s, 64 bytes on secp256k1."""
         if check_validity:
             self.assert_valid()
 
@@ -162,6 +164,12 @@ class Sig:
 
     @classmethod
     def parse(cls: type[Sig], data: BinaryData, *, check_validity: bool = True) -> Sig:
+        """Build a Sig from BIP340's r || s bytes, on secp256k1.
+
+        The serialization does not name its curve, so parse reads the
+        one BIP340 is defined over; a Sig on another curve is built
+        directly.
+        """
         stream = bytesio_from_binarydata(data)
         ec = secp256k1
         r = int.from_bytes(stream.read(ec.p_size), byteorder="big", signed=False)
@@ -223,6 +231,13 @@ def gen_keys(prv_key: PrvKey | None = None, ec: Curve = secp256k1) -> tuple[int,
 
 
 def challenge_(msg: Octets, x_Q: int, x_K: int, ec: Curve, hf: HashF) -> int:
+    """Return the BIP340 challenge scalar over a prepared message.
+
+    TaggedHash(BIP0340/challenge, x_K || x_Q || msg), reduced mod n.
+    The message enters as it is, of any size, which is what the
+    trailing underscore says throughout this module: no reduction by
+    hf happens here.
+    """
     # the message, of any size ("Messages of Arbitrary Size" in BIP340):
     # the tagged hash below absorbs any length unambiguously, x_K and x_Q
     # being fixed at p_size each
@@ -486,8 +501,14 @@ def assert_as_valid_(
     commit_hash: Octets | None = None,
     receipt: Point | None = None,
 ) -> None:
-    # Private function for test/dev purposes
-    # It raises Errors, while verify should always return True or False
+    """Refuse an invalid BIP340 signature over a prepared message.
+
+    The message enters as it is, of any size; assert_as_valid is the
+    spelling that reduces with hf first. Errors carry the reason,
+    ``verify_`` being the boolean answer. With commit_hash and receipt the
+    sign-to-contract commitment is opened as well, an independent
+    check of the same r.
+    """
     if isinstance(sig, Sig):
         sig.assert_valid()
     else:
@@ -638,6 +659,14 @@ def assert_batch_as_valid_(
     sigs: Sequence[Sig],
     hf: HashF = sha256,
 ) -> None:
+    """Refuse an invalid signature in a batch of prepared messages.
+
+    BIP340's batch verification: one multi-scalar equation over
+    random coefficients, cheaper than one verification per signature
+    -- and which signature failed is not in the answer, only that one
+    did. Messages enter as they are; every signature must share one
+    curve.
+    """
     batch_size = len(Qs)
     if batch_size == 0:
         raise BTClibValueError("no signatures provided")
@@ -701,6 +730,7 @@ def assert_batch_as_valid(
     sigs: Sequence[Sig],
     hf: HashF = sha256,
 ) -> None:
+    """Refuse an invalid signature in a batch, reducing each message."""
     msgs = [reduce_to_hlen(msg, hf) for msg in ms]
     return assert_batch_as_valid_(msgs, Qs, sigs, hf)
 
@@ -711,6 +741,12 @@ def batch_verify_(
     sigs: Sequence[Sig],
     hf: HashF = sha256,
 ) -> bool:
+    """Answer whether every signature in the batch verifies.
+
+    Messages enter prepared, as in ``assert_batch_as_valid_``; a failed
+    verification and a malformed input are both False, a caller error
+    still raises.
+    """
     # ValueError and BTClibRuntimeError, not Exception: an input that is not
     # a valid signature is False, and so is a verification that failed, but
     # a TypeError is neither -- an hf passed as sha256() instead of sha256
