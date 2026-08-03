@@ -22,6 +22,7 @@ for a candidate electrum passes over, and `electrum_test_vectors.json`
 has no upstream at all.
 """
 
+import secrets
 from hashlib import sha256
 from unicodedata import normalize
 
@@ -858,7 +859,7 @@ def test_portuguese_random_word_count(monkeypatch: pytest.MonkeyPatch) -> None:
         # randbelow returns one less because _random_int_entropy adds one.
         return twelve_word_entropy - 1
 
-    monkeypatch.setattr(electrum.secrets, "randbelow", draw_below_thirteen_words)
+    monkeypatch.setattr(secrets, "randbelow", draw_below_thirteen_words)
     mnemonic = electrum.mnemonic_from_entropy("standard", None, "pt")
 
     assert len(mnemonic.split()) == 12
