@@ -120,6 +120,15 @@ def _assert_valid_key(version: bytes, key: bytes) -> None:
 
 @dataclass
 class BIP32KeyData:
+    """A BIP32 extended key, decoded into its six fields.
+
+    What one xprv/xpub string holds: version, depth, parent
+    fingerprint, index, chain code and the 33-byte key, private keys
+    carrying their 0x00 prefix. The wire form is the 78-byte serialize
+    and parse; b58encode and b58decode add the customary Base58Check
+    spelling. repr masks the key material of a private one.
+    """
+
     version: bytes
     depth: int
     parent_fingerprint: bytes
@@ -130,6 +139,7 @@ class BIP32KeyData:
 
     @property
     def is_private(self) -> bool:
+        """Answer whether the key is private, by its 0x00 prefix."""
         return self.key[0] == 0
 
     def __repr__(self) -> str:
@@ -151,10 +161,12 @@ class BIP32KeyData:
 
     @property
     def is_hardened(self) -> bool:
+        """Answer whether the index is in the hardened range."""
         return self.index >= _HARDENED_OFFSET
 
     @property
     def is_root(self) -> bool:
+        """Answer whether this is a master key: no depth, index, parent."""
         return (
             self.depth == 0
             and self.index == 0
@@ -189,6 +201,13 @@ class BIP32KeyData:
             self.assert_valid()
 
     def assert_valid(self) -> None:
+        """Refuse what no valid extended key can hold.
+
+        Field types and sizes, a depth consistent with index and
+        parent fingerprint, a known version, and a key that parses --
+        as a scalar in 1..n-1 or as a point of the curve, whichever
+        the version demands.
+        """
         for key, size in _KEY_SIZE:
             # bytes() is the type check, not a coercion: it raises
             # TypeError for a field rebound to a str, which would otherwise
@@ -219,6 +238,7 @@ class BIP32KeyData:
         _assert_valid_key(self.version, self.key)
 
     def serialize(self, *, check_validity: bool = True) -> bytes:
+        """Return the 78-byte serialization, BIP32's."""
         if check_validity:
             self.assert_valid()
 
@@ -234,6 +254,7 @@ class BIP32KeyData:
         )
 
     def b58encode(self, *, check_validity: bool = True) -> str:
+        """Return the Base58Check text, the xprv/xpub spelling."""
         data_binary = self.serialize(check_validity=check_validity)
         return base58.b58encode(data_binary).decode("ascii")
 
@@ -264,6 +285,7 @@ class BIP32KeyData:
     def b58decode(
         cls: type[BIP32KeyData], address: String, *, check_validity: bool = True
     ) -> BIP32KeyData:
+        """Build a BIP32KeyData from its xprv/xpub Base58Check text."""
         if isinstance(address, str):
             address = address.strip()
 
@@ -680,6 +702,14 @@ def derive_from_account(
 
 
 def crack_prv_key(parent_xpub: BIP32Key, child_xprv: BIP32Key) -> str:
+    """Return the parent xprv from a parent xpub and a non-hardened child.
+
+    The known break BIP32 warns about: a non-hardened child's private
+    key minus the derivation offset -- computable from the xpub -- is
+    the parent's, so leaking one child xprv beside the account xpub
+    leaks the account. A hardened child is refused, its offset not
+    being computable.
+    """
     if isinstance(parent_xpub, BIP32KeyData):
         p = copy.copy(parent_xpub)
     else:

@@ -228,7 +228,11 @@ class CurveGroup:
         raise BTClibTypeError("not a Jacobian point")
 
     def aff_from_jac(self, Q: JacPoint) -> Point:
-        # point is assumed to be on curve
+        """Return the affine point: two modular inversions.
+
+        The input point is assumed to be on the curve; infinity comes
+        back as INF, its affine spelling.
+        """
         if Q[2] == 0:  # Infinity point in Jacobian coordinates
             return INF
 
@@ -238,7 +242,11 @@ class CurveGroup:
         return x % self.p, y % self.p
 
     def x_aff_from_jac(self, Q: JacPoint) -> int:
-        # point is assumed to be on curve
+        """Return the affine x alone: one modular inversion, not two.
+
+        The input point is assumed to be on the curve; infinity has no
+        x and is refused.
+        """
         if Q[2] == 0:  # Infinity point in Jacobian coordinates
             raise BTClibValueError("INF has no x-coordinate")
 
@@ -246,7 +254,11 @@ class CurveGroup:
         return (Q[0] * mod_inv(Z2, self.p)) % self.p
 
     def y_aff_from_jac(self, Q: JacPoint) -> int:
-        # point is assumed to be on curve
+        """Return the affine y alone: one modular inversion, not two.
+
+        The input point is assumed to be on the curve; infinity has no
+        y and is refused.
+        """
         if Q[2] == 0:  # Infinity point in Jacobian coordinates
             raise BTClibValueError("INF has no y-coordinate")
 
@@ -281,8 +293,12 @@ class CurveGroup:
         return self.add_aff(Q1, Q2)
 
     def add_jac(self, Q: JacPoint, R: JacPoint) -> JacPoint:
-        # points are assumed to be on curve
+        """Return the sum of two Jacobian points, branch-free.
 
+        The input points are assumed to be on the curve. One sequence
+        of operations whatever the operands -- infinity and doubling
+        included, the comment below saying why that is load-bearing.
+        """
         # the group law has four special cases, and they are of two kinds
         # that want opposite treatment. An operand at infinity is
         # bookkeeping rather than geometry: infinity is the identity, so
@@ -382,7 +398,7 @@ class CurveGroup:
         return ((X, Y, Z), R, Q, INFJ)[(Q[2] == 0) + 2 * (R[2] == 0)]
 
     def double_jac(self, Q: JacPoint) -> JacPoint:
-        # point is assumed to be on curve
+        """Return twice the Jacobian point, assumed to be on the curve."""
         return self._double_jac_helper(Q, Q[2] * Q[2] % self.p)
 
     def _double_jac_helper(self, Q: JacPoint, QZ2: int) -> JacPoint:
@@ -404,8 +420,11 @@ class CurveGroup:
         return X, Y, Z
 
     def add_aff(self, Q: Point, R: Point) -> Point:
-        # points are assumed to be on curve
+        """Return the sum of two affine points, assumed on the curve.
 
+        One modular inversion; the special cases are branched on, the
+        comment below saying why affine coordinates leave no choice.
+        """
         # infinity is a special case here and cannot stop being one: an
         # affine point is two field elements and the group has one point
         # more than any pair of them can name, so INF is spelled y == 0
@@ -444,7 +463,7 @@ class CurveGroup:
         return x, y
 
     def double_aff(self, Q: Point) -> Point:
-        # point is assumed to be on curve
+        """Return twice the affine point, assumed to be on the curve."""
         if Q[1] == 0:  # Infinity point in affine coordinates
             return INF
 
@@ -649,6 +668,11 @@ MAX_W = 5
 
 @functools.lru_cache  # results are cached to increase efficiency
 def cached_multiples(Q: JacPoint, ec: CurveGroup) -> list[JacPoint]:
+    """Return the multiples 0..(2^MAX_W - 1) of Q, memoized on (Q, ec).
+
+    The table the fixed-window ladder indexes when asked to cache; the
+    memoization pays because the generator is the Q of most calls.
+    """
     T = [INFJ, Q]
     for i in range(3, 2**MAX_W, 2):
         T.append(ec.double_jac(T[(i - 1) // 2]))

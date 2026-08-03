@@ -184,6 +184,7 @@ class Sig:
             self.assert_valid()
 
     def assert_valid(self) -> None:
+        """Refuse an r or s outside 1..n-1, or an r no x is congruent to."""
         # r is a scalar, fail if r is not in [1, n-1]
         if not 0 < self.r < self.ec.n:
             err_msg = "scalar r not in 1..n-1: "
@@ -677,9 +678,15 @@ def assert_as_valid_(
     commit_hash: Octets | None = None,
     receipt: Point | None = None,
 ) -> None:
-    # Private function for test/dev purposes
-    # It raises Errors, while verify should always return True or False
-    #
+    """Refuse an invalid ECDSA signature over a message hash.
+
+    The message enters already reduced -- msg_hash, not the message --
+    which is what the trailing underscore says; assert_as_valid is the
+    spelling that reduces with hf first. Errors carry the reason,
+    ``verify_`` being the boolean answer; lower_s asks for the BIP62 rule
+    that refuses the malleable high-s twin. With commit_hash and
+    receipt the sign-to-contract commitment is opened as well.
+    """
     # key is a PubKey, not a Key: verification is where a private key
     # accepted for a public one does real harm, silently checking a
     # signature against a public key derived from the very secret handed
@@ -735,8 +742,7 @@ def assert_as_valid(
     commit: Octets | None = None,
     receipt: Point | None = None,
 ) -> None:
-    # Private function for test/dev purposes
-    # It raises Errors, while verify should always return True or False
+    """Refuse an invalid ECDSA signature, reducing the message with hf."""
     msg_hash = reduce_to_hlen(msg, hf)
     commit_hash = None if commit is None else reduce_to_hlen(commit, hf)
     assert_as_valid_(
@@ -1216,6 +1222,12 @@ def crack_prv_key_(
     sig2: Sig | Octets,
     hf: HashF = sha256,
 ) -> tuple[int, int]:
+    """Return (private key, nonce) from two signatures sharing a nonce.
+
+    The classic nonce-reuse break: two signatures with one r over two
+    message hashes are two linear equations in the nonce and the key.
+    The messages enter already reduced; crack_prv_key reduces first.
+    """
     if isinstance(sig1, Sig):
         sig1.assert_valid()
     else:
@@ -1249,6 +1261,10 @@ def crack_prv_key(
     sig2: Sig | Octets,
     hf: HashF = sha256,
 ) -> tuple[int, int]:
+    """Return (private key, nonce) from two signatures sharing a nonce.
+
+    As ``crack_prv_key_``, with each message reduced by hf first.
+    """
     msg_hash1 = reduce_to_hlen(msg1, hf)
     msg_hash2 = reduce_to_hlen(msg2, hf)
 

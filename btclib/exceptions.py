@@ -19,7 +19,7 @@ TypeError or RuntimeError, and does not lose anything by doing so.
 
 
 class BTClibValueError(ValueError):
-    pass
+    """A value no valid input could carry; the library's usual refusal."""
 
 
 class ScriptError(BTClibValueError):
@@ -64,11 +64,11 @@ class InvalidPrvKeyError(BTClibValueError):
 
 
 class BTClibTypeError(TypeError):
-    pass
+    """An input of a type no conversion accepts: a caller error."""
 
 
 class BTClibRuntimeError(RuntimeError):
-    pass
+    """A check that failed on valid inputs, e.g. a failed verification."""
 
 
 class InvalidContributionError(BTClibRuntimeError):

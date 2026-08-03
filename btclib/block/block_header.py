@@ -47,6 +47,16 @@ _EPOCH = datetime.fromtimestamp(0, timezone.utc)
 
 @dataclass
 class BlockHeader:
+    """The eighty bytes a block is identified and mined by.
+
+    Version, previous block hash, merkle root, time, bits, nonce; the
+    hashes and bits are held in display order and reversed on the
+    wire, the time as an aware datetime. assert_valid answers for the
+    eighty bytes alone -- proof-of-work and clock checks are the
+    explicit assert_valid_pow and assert_valid_time, a header being
+    mined having neither yet.
+    """
+
     # 4 bytes, _signed_ little endian
     version: int
     # _HF_LEN bytes, little endian
@@ -129,6 +139,12 @@ class BlockHeader:
             self.assert_valid()
 
     def to_dict(self, *, check_validity: bool = True) -> dict[str, int | float | str]:
+        """Return the header as a dict of json-friendly values.
+
+        The time is ISO 8601; target and difficulty are derived for
+        the reader and ignored by from_dict, which recomputes them
+        from bits.
+        """
         if check_validity:
             self.assert_valid()
 
@@ -147,6 +163,7 @@ class BlockHeader:
     def from_dict(
         cls: type[BlockHeader], dict_: Mapping[str, Any], *, check_validity: bool = True
     ) -> BlockHeader:
+        """Build a BlockHeader from the dict shape to_dict writes."""
         return cls(
             dict_["version"],
             dict_["previous_block_hash"],
@@ -218,6 +235,14 @@ class BlockHeader:
             raise BTClibValueError(err_msg)
 
     def assert_valid(self) -> None:
+        """Refuse a header the eighty bytes could not hold.
+
+        Field types, the version and nonce ranges, the timestamp
+        between genesis and the last four-byte instant, the field
+        sizes. Nothing here reads a clock or checks the work: those
+        are assert_valid_time and assert_valid_pow, whose docstrings
+        say why they are separate.
+        """
         # the type check the bytes fields get from bytes() below, for the
         # two int ones. Not a coercion, which would repair the mistake by
         # rewriting the header being inspected (__init__ coerces, this

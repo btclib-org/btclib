@@ -7,7 +7,17 @@
 #
 # No part of btclib including this file, may be copied, modified, propagated,
 # or distributed except according to the terms contained in the LICENSE file.
-"""ScriptPubKey class and functions."""
+"""ScriptPubKey and the classification of the standard script shapes.
+
+Every standard shape has an assert_* function, raising
+BTClibValueError on bytes that are not it, and an is_* companion
+answering the same test as a bool: False means "not this shape", while
+a caller error -- None, a list, anything no bytes can be read from --
+raises through both, a TypeError not being an answer to "is this a
+p2sh". The assert functions test shape, not spendability: any 20 bytes
+are a pub_key hash to assert_p2pkh, and only assert_p2pk parses its
+key, the script being the one place the key itself sits.
+"""
 
 from __future__ import annotations
 
@@ -101,6 +111,11 @@ def _is_funct(assert_funct: Callable[[Octets], None], script_pub_key: Octets) ->
 
 
 def assert_p2pk(script_pub_key: Octets) -> None:
+    """Refuse bytes that are not p2pk: a pushed pub_key, OP_CHECKSIG.
+
+    The key must parse as a curve point, so a well-shaped script
+    pushing 33 or 65 bytes that are not one is refused too.
+    """
     script_pub_key = bytes_from_octets(script_pub_key, (35, 67))
     # p2pk: pub_key OP_CHECKSIG
     # 0x41{65-byte pub_key}AC
@@ -126,10 +141,16 @@ def assert_p2pk(script_pub_key: Octets) -> None:
 
 
 def is_p2pk(script_pub_key: Octets) -> bool:
+    """Answer whether the bytes are a p2pk script_pub_key."""
     return _is_funct(assert_p2pk, script_pub_key)
 
 
 def assert_p2pkh(script_pub_key: Octets) -> None:
+    """Refuse bytes that are not p2pkh.
+
+    The shape is OP_DUP OP_HASH160, a 20-byte push, OP_EQUALVERIFY
+    OP_CHECKSIG; the hash is any 20 bytes.
+    """
     script_pub_key = bytes_from_octets(script_pub_key, 25)
     # p2pkh [OP_DUP, OP_HASH160, pub_key hash, OP_EQUALVERIFY, OP_CHECKSIG]
     # 0x76A914{20-byte pub_key_hash}88AC
@@ -144,10 +165,16 @@ def assert_p2pkh(script_pub_key: Octets) -> None:
 
 
 def is_p2pkh(script_pub_key: Octets) -> bool:
+    """Answer whether the bytes are a p2pkh script_pub_key."""
     return _is_funct(assert_p2pkh, script_pub_key)
 
 
 def assert_p2sh(script_pub_key: Octets) -> None:
+    """Refuse bytes that are not p2sh, per BIP16.
+
+    The shape is OP_HASH160, a 20-byte push, OP_EQUAL; the hash is any
+    20 bytes.
+    """
     script_pub_key = bytes_from_octets(script_pub_key, 23)
     # p2sh [OP_HASH160, redeem_script hash, OP_EQUAL]
     # 0xA914{20-byte redeem_script hash}87
@@ -162,14 +189,22 @@ def assert_p2sh(script_pub_key: Octets) -> None:
 
 
 def is_p2sh(script_pub_key: Octets) -> bool:
+    """Answer whether the bytes are a p2sh script_pub_key."""
     return _is_funct(assert_p2sh, script_pub_key)
 
 
 def assert_p2ms(script_pub_key: Octets) -> None:
+    """Refuse bytes that are not p2ms: m, the pushed keys, n, OP_CHECKMULTISIG.
+
+    The bounds are checked -- 0 < m <= n < 17 -- and each key is read
+    as a push of the declared length; the keys are not checked to be
+    curve points.
+    """
     addresses(script_pub_key)
 
 
 def is_p2ms(script_pub_key: Octets) -> bool:
+    """Answer whether the bytes are a p2ms script_pub_key."""
     return _is_funct(assert_p2ms, script_pub_key)
 
 
@@ -229,11 +264,17 @@ def assert_nulldata(script_pub_key: Octets) -> None:
 
 
 def is_nulldata(script_pub_key: Octets) -> bool:
+    """Answer whether the bytes are a standard nulldata script_pub_key."""
     return _is_funct(assert_nulldata, script_pub_key)
 
 
 def assert_segwit(script_pub_key: Octets) -> None:
-    # doesn't check if script_pub_key is a valid script
+    """Refuse bytes that are not a witness program, per BIP141.
+
+    The shape every segwit output shares, whatever its version: one
+    version op code -- OP_0 or OP_1..OP_16 -- and one push of 2 to 40
+    bytes. Shape only; the program is not interpreted.
+    """
     script_pub_key = bytes_from_octets(script_pub_key)
     # an empty script has no version byte to read: script_pub_key[0] would
     # answer it with an IndexError, from outside the exception contract
@@ -252,10 +293,12 @@ def assert_segwit(script_pub_key: Octets) -> None:
 
 
 def is_segwit(script_pub_key: Octets) -> bool:
+    """Answer whether the bytes are a witness program of any version."""
     return _is_funct(assert_segwit, script_pub_key)
 
 
 def assert_p2wpkh(script_pub_key: Octets) -> None:
+    """Refuse bytes that are not p2wpkh: OP_0, a 20-byte push, per BIP141."""
     script_pub_key = bytes_from_octets(script_pub_key, 22)
     # p2wpkh [OP_0, pub_key hash]
     # 0x0014{20-byte pub_key hash}
@@ -270,10 +313,12 @@ def assert_p2wpkh(script_pub_key: Octets) -> None:
 
 
 def is_p2wpkh(script_pub_key: Octets) -> bool:
+    """Answer whether the bytes are a p2wpkh script_pub_key."""
     return _is_funct(assert_p2wpkh, script_pub_key)
 
 
 def assert_p2wsh(script_pub_key: Octets) -> None:
+    """Refuse bytes that are not p2wsh: OP_0, a 32-byte push, per BIP141."""
     script_pub_key = bytes_from_octets(script_pub_key, 34)
     # p2wsh [OP_0, redeem_script hash]
     # 0x0020{32-byte redeem_script hash}
@@ -288,10 +333,17 @@ def assert_p2wsh(script_pub_key: Octets) -> None:
 
 
 def is_p2wsh(script_pub_key: Octets) -> bool:
+    """Answer whether the bytes are a p2wsh script_pub_key."""
     return _is_funct(assert_p2wsh, script_pub_key)
 
 
 def assert_p2tr(script_pub_key: Octets) -> None:
+    """Refuse bytes that are not p2tr: OP_1, a 32-byte push, per BIP341.
+
+    The 32 bytes are not checked to be a valid x-only key: the shape is
+    the classification, and an output key off the curve is found by the
+    spender, not by the classifier.
+    """
     script_pub_key = bytes_from_octets(script_pub_key, 34)
     # p2wtr [OP_1, redeem_script hash]
     # 0x0120{32-byte redeem_script hash}
@@ -306,6 +358,7 @@ def assert_p2tr(script_pub_key: Octets) -> None:
 
 
 def is_p2tr(script_pub_key: Octets) -> bool:
+    """Answer whether the bytes are a p2tr script_pub_key."""
     return _is_funct(assert_p2tr, script_pub_key)
 
 
@@ -413,10 +466,21 @@ def type_and_payload(script_pub_key: Octets) -> tuple[ScriptType, bytes]:
 # object.__setattr__, as Network's and the three Sig classes' do
 @dataclass(init=False, eq=False, frozen=True)
 class ScriptPubKey(Script):
+    """A Script with the network its addresses render on.
+
+    The script bytes and their validation are Script's; the network
+    enters `address`, `addresses` and the equality test, two
+    ScriptPubKey being equal when their scripts match and their
+    networks are of one type -- mainnet against the rest -- rather
+    than of one name. The classmethods build the standard shapes, one
+    per type the classifier names.
+    """
+
     network: str
 
     @property
     def type(self) -> ScriptType:
+        """Return the script type, as type_and_payload names it."""
         return type_and_payload(self.script)[0]
 
     @property
@@ -484,6 +548,7 @@ class ScriptPubKey(Script):
         super().__init__(script, check_validity=check_validity)
 
     def assert_valid(self) -> None:
+        """Run Script's checks, then refuse a network name not in NETWORKS."""
         super().assert_valid()
         if self.network not in NETWORKS:
             raise BTClibValueError(f"unknown network: {self.network}")

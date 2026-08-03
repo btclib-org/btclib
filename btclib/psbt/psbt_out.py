@@ -132,6 +132,14 @@ def _serialized_taproot_fields(psbt_out: PsbtOut) -> list[bytes]:
 
 @dataclass
 class PsbtOut:
+    """The per-output map of a psbt: one field per BIP174/BIP370 key type.
+
+    The scripts and hd paths that let a wallet recognize an output as
+    its own, BIP370's amount and script_pub_key of the output being
+    built, and what no key type names in `unknown`. A field a psbt
+    does not carry is None, or empty for the collection types.
+    """
+
     redeem_script: bytes
     witness_script: bytes
     hd_key_paths: HdKeyPaths
@@ -200,6 +208,11 @@ class PsbtOut:
         assert_valid_unknown(self.unknown)
 
     def to_dict(self, *, check_validity: bool = True) -> dict[str, Any]:
+        """Return the output map as a dict of json-friendly values.
+
+        Keys are hex, hd paths are BIP174's bip32_derivs shape;
+        from_dict reads the same shape back.
+        """
         if check_validity:
             self.assert_valid()
 
@@ -222,6 +235,7 @@ class PsbtOut:
     def from_dict(
         cls: type[PsbtOut], dict_: Mapping[str, Any], *, check_validity: bool = True
     ) -> PsbtOut:
+        """Build a PsbtOut from the dict shape to_dict writes."""
         hd_key_paths = cast(
             Mapping[Octets, BIP32KeyOrigin],
             # check_validity=False, as for every other element here (issue

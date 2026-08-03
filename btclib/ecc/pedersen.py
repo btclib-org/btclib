@@ -101,8 +101,11 @@ def commit(r: int, v: int, ec: Curve = secp256k1, hf: HashF = sha256) -> Point:
 def assert_as_valid(
     r: int, v: int, commitment: Point, ec: Curve = secp256k1, hf: HashF = sha256
 ) -> None:
-    # Private function for test/dev purposes
-    # It raises Errors, while verify should always return True or False
+    """Refuse a commitment that (r, v) does not open.
+
+    The commitment is recomputed and compared; verify is the boolean
+    answer.
+    """
     if commitment != commit(r, v, ec, hf):
         raise BTClibRuntimeError("commitment verification failed")
 

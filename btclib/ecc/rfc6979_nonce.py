@@ -50,6 +50,12 @@ from btclib.utils import bytes_from_octets, int_from_bits
 def challenge_(
     msg_hash: Octets, ec: Curve = secp256k1, hf: HashF = hashlib.sha256
 ) -> int:
+    """Return the ECDSA challenge scalar from a message hash.
+
+    Bits2int of SEC 1 and RFC6979: the leftmost nlen bits of the hash,
+    reduced mod n. The message enters already reduced -- a digest of
+    hf's size, which is what the trailing underscore says.
+    """
     # the message msg_hash: a hf_len array
     hf_len = hf().digest_size
     msg_hash = bytes_from_octets(msg_hash, hf_len)

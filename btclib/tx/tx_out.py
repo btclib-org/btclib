@@ -33,6 +33,14 @@ from btclib.utils import bytes_from_octets, bytesio_from_binarydata
 # raise TypeError, so a frozen TxOut is not a hashable one
 @dataclass(frozen=True)
 class TxOut:
+    """One output of a transaction: an amount and who can spend it.
+
+    The value is in satoshi; the script_pub_key is a ScriptPubKey,
+    built from bytes when the caller passes them. assert_valid judges
+    the amount and not the script, a script_pub_key on chain not
+    having to parse.
+    """
+
     # 8 bytes, unsigned little endian
     value: int  # denominated in satoshi
     script_pub_key: ScriptPubKey
@@ -64,12 +72,20 @@ class TxOut:
             self.assert_valid()
 
     def assert_valid(self) -> None:
+        """Refuse a value that is not a valid satoshi amount."""
         valid_sats_amount(self.value)
         # the amount and not the script: a script_pub_key on chain need
         # not parse, and validating it here would refuse transactions
         # that are in blocks -- bitcoin/bitcoin#320, and issue #123
 
     def to_dict(self, *, check_validity: bool = True) -> dict[str, Any]:
+        """Return the output as a dict of json-friendly values.
+
+        The value is a BTC string, not satoshi; type, addresses and
+        network are derived for the reader and ignored by from_dict,
+        which rebuilds them from the script -- network excepted, read
+        back with mainnet as its default.
+        """
         if check_validity:
             self.assert_valid()
 
@@ -95,6 +111,7 @@ class TxOut:
     def from_dict(
         cls: type[TxOut], dict_: Mapping[str, Any], *, check_validity: bool = True
     ) -> TxOut:
+        """Build a TxOut from the dict shape to_dict writes."""
         value = sats_from_btc(dict_["value"])
         script_bin = script_from_dict(dict_["scriptPubKey"])
         network = dict_.get("network", "mainnet")
@@ -103,6 +120,7 @@ class TxOut:
         )
 
     def serialize(self, *, check_validity: bool = True) -> bytes:
+        """Return the wire serialization: the value, then the script."""
         if check_validity:
             self.assert_valid()
 
@@ -117,6 +135,11 @@ class TxOut:
         *,
         check_validity: bool = True,
     ) -> TxOut:
+        """Build a TxOut by parsing its wire serialization.
+
+        The network is mainnet, the wire not carrying one; the script
+        is taken as it comes, scripts on chain not having to parse.
+        """
         stream = bytesio_from_binarydata(data)
         value = int.from_bytes(stream.read(8), byteorder="little", signed=False)
         script = var_bytes.parse(stream)
@@ -130,5 +153,6 @@ class TxOut:
 
     @classmethod
     def from_address(cls: type[TxOut], value: int, address: String) -> TxOut:
+        """Build a TxOut paying the address, network included."""
         script_pub_key = ScriptPubKey.from_address(address)
         return cls(value, script_pub_key)

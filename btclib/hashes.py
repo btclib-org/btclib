@@ -104,6 +104,12 @@ def hash256(octets: Octets) -> bytes:
 
 
 def reduce_to_hlen(msg: Octets, hf: HashF = hashlib.sha256) -> bytes:
+    """Return the message digested by hf, one digest long.
+
+    Step 4 of SEC 1 v.2 section 4.1.3: what the un-underscored
+    signing and verifying spellings do to a message before handing it
+    to their trailing-underscore twins.
+    """
     msg = bytes_from_octets(msg)
     # Step 4 of SEC 1 v.2 section 4.1.3
     h = hf()
@@ -112,6 +118,13 @@ def reduce_to_hlen(msg: Octets, hf: HashF = hashlib.sha256) -> bytes:
 
 
 def magic_message(msg: Octets) -> bytes:
+    """Return the hash BMS signs: the message in Core's magic envelope.
+
+    Both the "Bitcoin Signed Message:" magic and the message enter
+    var_int-length-prefixed, then hash256 of the whole; the envelope
+    is what keeps a signed message from being a valid transaction
+    signature.
+    """
     msg = bytes_from_octets(msg)
     # Both strings are length-prefixed as var_int (CompactSize), as Core
     # does by serializing them with CDataStream; the 0x18 prefix of the
@@ -259,6 +272,11 @@ def merkle_root_from_branch(
 
 
 def tagged_hash(tag: bytes, m: bytes, hf: HashF = hashlib.sha256) -> bytes:
+    """Return BIP340's tagged hash: hf(hf(tag) || hf(tag) || m).
+
+    The doubled tag digest is what makes a hash under one tag invalid
+    under every other.
+    """
     # libsecp256k1 computes exactly this in hashes.tagged_sha256, and the
     # binding is not called because it is slower at every size: 0.53 us
     # against 0.44 on an empty message, 0.63 against 0.44 on 64 bytes,

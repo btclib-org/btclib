@@ -31,6 +31,16 @@ TX_IN_COMPARES_WITNESS = True
 
 @dataclass
 class TxIn:
+    """One input of a transaction.
+
+    The outpoint it spends, the script_sig, the sequence, and the
+    witness -- which serialize omits and parse leaves empty, the wire
+    placing all witnesses after the inputs: Tx.serialize and Tx.parse
+    are what write and read them. Mutable, a transaction being built
+    input by input; TxIn() is the placeholder a builder starts from,
+    its prev_out the coinbase marker.
+    """
+
     prev_out: OutPoint
     script_sig: bytes
     # If all TxIns have final (0xffffffff) sequence numbers
@@ -85,13 +95,25 @@ class TxIn:
             self.assert_valid()
 
     def is_segwit(self) -> bool:
+        """Answer whether the input carries a witness.
+
+        The input alone can only answer for what it holds: whether the
+        spent output demands a witness is written in that output's
+        script_pub_key, which is not here.
+        """
         # self.prev_out has no segwit information
         return bool(self.script_witness.stack)
 
     def is_coinbase(self) -> bool:
+        """Answer whether the input is a coinbase, spending nothing."""
         return self.prev_out.is_coinbase()
 
     def assert_valid(self) -> None:
+        """Refuse an invalid prev_out, sequence, or witness.
+
+        The script_sig is deliberately not judged; the comment below
+        carries the reasoning.
+        """
         self.prev_out.assert_valid()
 
         # script_sig is deliberately not looked at, and the marker asking
@@ -125,6 +147,12 @@ class TxIn:
             self.script_witness.assert_valid()
 
     def to_dict(self, *, check_validity: bool = True) -> dict[str, Any]:
+        """Return the input as a dict of json-friendly values.
+
+        The script_sig enters as script_to_dict renders it -- asm and
+        hex -- and from_dict reads the same shape back; validation runs
+        once here, not again in the fields.
+        """
         if check_validity:
             self.assert_valid()
 
@@ -139,6 +167,7 @@ class TxIn:
     def from_dict(
         cls: type[TxIn], dict_: Mapping[str, Any], *, check_validity: bool = True
     ) -> TxIn:
+        """Build a TxIn from the dict shape to_dict writes."""
         return cls(
             OutPoint.from_dict(dict_["prev_out"], check_validity=False),
             script_from_dict(dict_["scriptSig"]),
@@ -148,6 +177,11 @@ class TxIn:
         )
 
     def serialize(self, *, check_validity: bool = True) -> bytes:
+        """Return the wire serialization: prev_out, script_sig, sequence.
+
+        The witness is not here, the wire putting every input's
+        witness after the outputs: Tx.serialize writes them there.
+        """
         if check_validity:
             self.assert_valid()
 
@@ -160,6 +194,11 @@ class TxIn:
     def parse(
         cls: type[TxIn], data: BinaryData, *, check_validity: bool = True
     ) -> TxIn:
+        """Build a TxIn by parsing its wire serialization.
+
+        The witness comes back empty, sitting elsewhere on the wire;
+        Tx.parse fills it in.
+        """
         stream = bytesio_from_binarydata(data)
         prev_out = OutPoint.parse(stream, check_validity=check_validity)
         script_sig = var_bytes.parse(stream)

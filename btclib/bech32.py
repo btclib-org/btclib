@@ -146,6 +146,11 @@ def _decode(bech: String) -> tuple[str, list[int], list[int]]:
 
 
 def decode(bech: String, m: int | None = None) -> tuple[str, list[int]]:
+    """Return (hrp, data) from a bech32 string, verifying its checksum.
+
+    `m` picks bech32 or bech32m; None reads it off the first data
+    value, the witness version choosing the constant per BIP350.
+    """
     hrp, data, checksum = _decode(bech)
     m = _m_from_wit_ver(data) if m is None else m
     if _verify_checksum(hrp, data + checksum, m):

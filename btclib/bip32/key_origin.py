@@ -27,11 +27,20 @@ from btclib.utils import bytes_from_octets
 
 @dataclass(frozen=True)
 class BIP32KeyOrigin:
+    """Where a key comes from: master fingerprint and derivation path.
+
+    What BIP174's bip32_derivs and a descriptor's [fingerprint/path]
+    prefix carry; the path is held as indexes, hardened ones offset
+    by 0x80000000. The wire form is serialize and parse, the bracketed
+    text form description and from_description.
+    """
+
     master_fingerprint: bytes
     der_path: Sequence[int]
 
     @property
     def description(self) -> str:
+        """Return the descriptor spelling: fingerprint/path, h for hardened."""
         return str_from_der_path(self.der_path, self.master_fingerprint)
 
     def __init__(
@@ -53,6 +62,11 @@ class BIP32KeyOrigin:
         return len(self.der_path)
 
     def assert_valid(self) -> None:
+        """Refuse a fingerprint not of 4 bytes, a path too long or out of range.
+
+        The bounds are the serialization's: at most 255 indexes, each
+        in 4 bytes.
+        """
         if len(self.master_fingerprint) != 4:
             err_msg = "invalid master fingerprint length: "
             err_msg += f"{len(self.master_fingerprint)}"
@@ -63,6 +77,7 @@ class BIP32KeyOrigin:
             raise BTClibValueError("invalid der_path element")
 
     def to_dict(self, *, check_validity: bool = True) -> dict[str, str]:
+        """Return {"master_fingerprint", "path"} as hex and m/ text."""
         if check_validity:
             self.assert_valid()
 
@@ -78,6 +93,7 @@ class BIP32KeyOrigin:
         *,
         check_validity: bool = True,
     ) -> BIP32KeyOrigin:
+        """Build a BIP32KeyOrigin from the dict shape to_dict writes."""
         return cls(
             dict_["master_fingerprint"],
             dict_["path"],
@@ -85,6 +101,7 @@ class BIP32KeyOrigin:
         )
 
     def serialize(self, *, check_validity: bool = True) -> bytes:
+        """Return BIP174's key-origin bytes: fingerprint, then the indexes."""
         if check_validity:
             self.assert_valid()
 
@@ -105,6 +122,7 @@ class BIP32KeyOrigin:
     def from_description(
         cls: type[BIP32KeyOrigin], data: str, *, check_validity: bool = True
     ) -> BIP32KeyOrigin:
+        """Build a BIP32KeyOrigin from its fingerprint/path spelling."""
         data = data.strip()
         return cls(data[:8], data[9:], check_validity=check_validity)
 

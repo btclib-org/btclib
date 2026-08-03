@@ -66,6 +66,11 @@ SIG_HASH_TYPES = frozenset(
 
 
 def assert_valid_hash_type(hash_type: int) -> None:
+    """Refuse a hash type outside SIG_HASH_TYPES.
+
+    The set is the seven combinations the BIPs define; ANYONECANPAY
+    with DEFAULT is not among them, BIP341 leaving 0x80 undefined.
+    """
     if hash_type not in SIG_HASH_TYPES:
         raise BTClibValueError(f"invalid sig_hash type: {hex(hash_type)}")
 
@@ -138,6 +143,15 @@ def _without_op_codeseparators(script_code: bytes) -> bytes:
 
 
 def taproot_annex_and_ext(tx: Tx, vin_i: int) -> tuple[bytes, bytes]:
+    """Read (annex, sig_hash extension) off one input's witness stack.
+
+    What `taproot` needs beyond the transaction: the annex, per
+    BIP341's "last element whose first byte is 0x50", and -- for a
+    stack that is a script path -- BIP342's message extension, the
+    tapleaf hash with key version 0 and no OP_CODESEPARATOR executed.
+    A signer past a separator computes its own extension; the caller's
+    transaction is never rewritten.
+    """
     # a local name, never assigned back: computing a hash must not rewrite
     # the caller's Tx, and the annex is dropped by rebinding it below
     stack = tx.vin[vin_i].script_witness.stack
@@ -228,6 +242,16 @@ def _zero_other_sequences(new_tx: Tx, vin_i: int) -> None:
 
 
 def legacy(script_code: Octets, tx: Tx, vin_i: int, hash_type: int) -> bytes:
+    """Return the pre-segwit hash one input's signature commits to.
+
+    Satoshi's SignatureHash: the transaction is copied, every other
+    script_sig blanked, the signed input's replaced by the script code
+    with its OP_CODESEPARATORs elided, and outputs and sequences
+    dropped as NONE, SINGLE and ANYONECANPAY ask; hash256 of that
+    serialization and the four hash-type bytes is the answer. The
+    SINGLE bug is kept, being consensus: an input with no matching
+    output signs the constant 1, not an error.
+    """
     # the legacy preimage commits to the script code with its
     # OP_CODESEPARATORs elided, and Core does that here rather than to the
     # script code itself: SerializeScriptCode is part of the serializer,
@@ -376,6 +400,14 @@ def segwit_v0(
     amount: int,
     precomputed: PrecomputedTxData | None = None,
 ) -> bytes:
+    """Return the BIP143 hash one segwit v0 input's signature commits to.
+
+    The preimage commits to the amount being spent -- the point of
+    BIP143 -- and to the script code whole, OP_CODESEPARATORs included.
+    `precomputed`, when given, must describe this very transaction; a
+    single call leaves it None and hashes only what its hash type
+    commits to.
+    """
     script_code = bytes_from_octets(script_code)
 
     # precomputed, when given, must describe this very tx: it is the
@@ -442,6 +474,15 @@ def taproot(
     message_extension: bytes,
     precomputed: PrecomputedTxData | None = None,
 ) -> bytes:
+    """Return the BIP341 hash one taproot input's signature commits to.
+
+    BIP341's SigMsg under the TapSighash tag: the whole-transaction
+    hashes enter as their single-sha256 forms, the spent amounts and
+    script_pub_keys are always committed to, and `ext_flag` with
+    `message_extension` carry BIP342's tapleaf commitment for a script
+    path -- empty for the key path. SIGHASH_SINGLE with no matching
+    output is an error here, per BIP341, where legacy keeps the bug.
+    """
     if hashtype not in SIG_HASH_TYPES:
         raise BTClibValueError(f"Unknown hash type: {hashtype}")
     if hashtype & 0x03 == SINGLE and input_index >= len(transaction.vout):

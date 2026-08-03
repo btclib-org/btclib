@@ -65,6 +65,11 @@ from btclib.utils import bytes_from_octets
 
 
 def has_segwit_prefix(addr: String) -> bool:
+    """Answer whether the string starts as a bech32 address of any network.
+
+    The prefix alone -- hrp and the 1 separator -- is read; whether the
+    rest decodes is witness_from_address's answer.
+    """
     str_addr = addr.strip().lower() if isinstance(addr, str) else addr.decode("ascii")
     return any(str_addr.startswith(f"{net.hrp}1") for net in NETWORKS.values())
 
@@ -102,6 +107,11 @@ def power_of_2_base_conversion(
 
 
 def check_witness(wit_ver: int, wit_prg: Octets) -> bytes:
+    """Return the witness program, refusing what BIP141 does not define.
+
+    A version outside 0..16, a program outside 2..40 bytes, or a v0
+    program that is neither 20 nor 32 bytes is refused.
+    """
     if not 0 <= wit_ver < 17:
         err_msg = "invalid witness version: "
         err_msg += f"{wit_ver} not in 0..16"

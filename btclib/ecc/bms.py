@@ -171,6 +171,14 @@ _REQUIRED_LENGTH = 65
 
 @dataclass(frozen=True, init=False)
 class Sig:
+    """A Bitcoin Message Signature: recovery flag and ECDSA signature.
+
+    The flag, 27 to 42, carries the recovery key id and the address
+    type the signer claims; the signature is an ordinary dsa.Sig on
+    secp256k1. The wire form is the 65-byte compact serialization,
+    customarily exchanged as base64 (b64encode/b64decode).
+    """
+
     # 1 byte
     rf: int
     dsa_sig: dsa.Sig
@@ -187,6 +195,7 @@ class Sig:
             self.assert_valid()
 
     def assert_valid(self) -> None:
+        """Refuse a flag outside 27..42, a curve that is not secp256k1."""
         if self.rf < 27 or self.rf > 42:
             raise BTClibValueError(f"invalid recovery flag: {self.rf}")
         self.dsa_sig.assert_valid()
@@ -194,6 +203,7 @@ class Sig:
             raise BTClibValueError(f"invalid curve: {self.dsa_sig.ec.name}")
 
     def serialize(self, *, check_validity: bool = True) -> bytes:
+        """Return the 65-byte compact form: flag, then r, then s."""
         if check_validity:
             self.assert_valid()
 
@@ -219,6 +229,7 @@ class Sig:
 
     @classmethod
     def parse(cls: type[Sig], data: BinaryData, *, check_validity: bool = True) -> Sig:
+        """Build a Sig from the 65-byte compact serialization."""
         stream = bytesio_from_binarydata(data)
         sig_bin = stream.read(_REQUIRED_LENGTH)
 
@@ -386,8 +397,13 @@ def _assert_p2wpkh_p2sh(addr: String, rf: int, pub_key: bytes, h160: bytes) -> N
 def assert_as_valid(
     msg: Octets, addr: String, sig: Sig | String, lower_s: bool = True
 ) -> None:
-    # Private function for test/dev purposes
-    # It raises Errors, while verify should always return True or False
+    """Refuse a signature that does not open to the address.
+
+    The public key is recovered from the signature under the magic
+    message envelope, then rendered as the address type the recovery
+    flag claims; anything short of a match is an error, verify being
+    the boolean answer.
+    """
     if isinstance(sig, Sig):
         sig.assert_valid()
     else:

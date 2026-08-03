@@ -60,6 +60,14 @@ __all__ = [
 def taproot_unwrap_script(
     script: bytes, stack: list[bytes]
 ) -> tuple[bytes, list[bytes], int]:
+    """Take a script-path spend apart: (tapscript, stack, leaf version).
+
+    The last two witness elements are the control block and the script,
+    per BIP341; the control block must prove the script was committed
+    to by the output key, and check_output_pubkey is what verifies that
+    Merkle proof. Returns the stack without the two, leaving the
+    caller's list untouched.
+    """
     pub_key = type_and_payload(script)[1]
     script_bytes = stack[-2]
     control = stack[-1]
@@ -73,6 +81,12 @@ def taproot_unwrap_script(
 
 
 def taproot_get_annex(witness: Witness) -> tuple[bytes, list[bytes]]:
+    """Split the annex off a taproot witness stack: (annex, the rest).
+
+    BIP341 makes the annex the last element of a stack of at least two
+    whose first byte is 0x50; the empty bytes mean there is none, no
+    annex being distinguishable from an empty one by construction.
+    """
     # the trimmed stack is returned, never written back: a get_ function must
     # not write, and verifying a transaction must not rewrite it. A list in
     # either branch, the stack being popped by the script interpreter.
@@ -425,6 +439,12 @@ def verify_input(
 
 
 def verify_amounts(prevouts: list[TxOut], tx: Tx) -> None:
+    """Refuse a transaction whose outputs exceed the outputs it spends.
+
+    The difference is the fee, and a negative fee is money printed;
+    script validation never reads the amounts except through the
+    sig_hash, so this is a check of its own rather than a flag.
+    """
     if sum(x.value for x in tx.vout) > sum(x.value for x in prevouts):
         raise BTClibValueError("Invalid transaction amounts")
 

@@ -94,11 +94,19 @@ def bip34_commitment(height: int) -> bytes:
 
 @dataclass
 class Block:
+    """A block: its header and the transactions the header commits to.
+
+    assert_valid is Core's CheckBlock -- what the bytes answer for
+    themselves, proof-of-work included; the rules that need a height
+    or a clock are assert_valid_contextual, taking a BlockContext.
+    """
+
     header: BlockHeader
     transactions: list[Tx]
 
     @property
     def size(self) -> int:
+        """Return the serialized size, witnesses included."""
         return len(self.serialize(check_validity=False))
 
     @property
@@ -128,6 +136,7 @@ class Block:
 
     @property
     def vsize(self) -> int:
+        """Return the virtual size: the weight over four, rounded up."""
         return ceil(self.weight / 4)
 
     @property
@@ -183,6 +192,11 @@ class Block:
             self.assert_valid()
 
     def to_dict(self, *, check_validity: bool = True) -> dict[str, Any]:
+        """Return the block as a dict of json-friendly values.
+
+        The header and each transaction as their own to_dict render
+        them; from_dict reads the same shape back.
+        """
         if check_validity:
             self.assert_valid()
 
@@ -197,6 +211,7 @@ class Block:
     def from_dict(
         cls: type[Block], dict_: Mapping[str, Any], *, check_validity: bool = True
     ) -> Block:
+        """Build a Block from the dict shape to_dict writes."""
         return cls(
             BlockHeader.from_dict(dict_["header"], check_validity=False),
             [Tx.from_dict(tx, check_validity=False) for tx in dict_["transactions"]],
@@ -204,6 +219,7 @@ class Block:
         )
 
     def has_segwit_tx(self) -> bool:
+        """Answer whether any transaction carries a witness."""
         return any(tx.is_segwit() for tx in self.transactions)
 
     def _assert_coinbase(self) -> None:
@@ -293,6 +309,11 @@ class Block:
             raise BTClibValueError(err_msg)
 
     def assert_valid_merkle_root(self) -> None:
+        """Refuse a header whose merkle root is not the transactions'.
+
+        The CVE-2012-2459 mutation flag is refused too, as Core's
+        bad-txns-duplicate; the comment below carries the reasoning.
+        """
         merkle_root_, mutated = merkle_root_and_mutated_from_transactions(
             self.transactions
         )
@@ -438,6 +459,13 @@ class Block:
             self.assert_valid_coinbase_height(context.height)
 
     def assert_valid(self) -> None:
+        """Refuse what Core's CheckBlock refuses, in Core's order.
+
+        The header and its proof-of-work, the size bounds, exactly one
+        coinbase and it first, every transaction on its own, the sigop
+        bound, the merkle root, the witness commitment, the weight.
+        Height and clock rules are assert_valid_contextual's.
+        """
         self.header.assert_valid()
         # the header alone does not assert this: a header being mined is
         # structurally valid and has no proof-of-work yet, so requiring one
@@ -490,6 +518,11 @@ class Block:
     def serialize(
         self, include_witness: bool = True, *, check_validity: bool = True
     ) -> bytes:
+        """Return the wire serialization: header, count, transactions.
+
+        `include_witness` False gives the block as a legacy node
+        relays it, every witness stripped.
+        """
         if check_validity:
             self.assert_valid()
 

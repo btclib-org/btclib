@@ -49,6 +49,12 @@ def ssa_verify(msg_hash: bytes, pub_key: bytes, sig: bytes) -> bool:
 
 
 def get_hashtype(signature: bytes) -> int:
+    """Read the sig hash type off a taproot signature, per BIP341.
+
+    A 64-byte signature is SIGHASH_DEFAULT; a 65th byte carries the
+    type and must not spell the default explicitly, the two encodings
+    of one meaning being a malleability.
+    """
     sighash_type = 0  # all
     if len(signature) == 65:
         sighash_type = signature[-1]
@@ -62,6 +68,14 @@ def get_hashtype(signature: bytes) -> int:
 def op_checksigadd(
     stack: list[bytes], altstack: list[bytes], flags: ScriptFlag
 ) -> ScriptList:
+    """Expand OP_CHECKSIGADD to OP_CHECKSIG OP_ADD, per BIP342.
+
+    The op code pops signature, n and public key, and pushes n plus
+    the check's result; the swap puts n out of OP_CHECKSIG's way, and
+    the returned pair is re-run by the loop as the ``*VERIFY``
+    expansions are. BIP342 defines it as this composition,
+    batch-verifiable where the CHECKMULTISIGs it replaces are not.
+    """
     stack[-2], stack[-3] = stack[-3], stack[-2]
     return ["OP_CHECKSIG", "OP_ADD"]
 
@@ -75,6 +89,13 @@ def verify_key_path(
     annex: bytes,
     precomputed: PrecomputedTxData | None = None,
 ) -> None:
+    """Verify a taproot key-path spend, per BIP341.
+
+    The single witness element is a BIP340 signature by the output key
+    itself over the taproot sig_hash with no script committed to; a
+    signature that does not verify is the only refusal, get_hashtype's
+    aside.
+    """
     sighash_type = get_hashtype(stack[0])
     signature = stack[0][:64]
     pub_key = type_and_payload(script_pub_key)[1]
@@ -98,6 +119,19 @@ def op_checksig(
     flags: ScriptFlag,
     precomputed: PrecomputedTxData | None = None,
 ) -> int:
+    """Verify one BIP340 signature in a script path: BIP342's OP_CHECKSIG.
+
+    Pops public key and signature, pushes the result, and returns what
+    is left of the sigops budget, every non-empty signature costing 50
+    whether or not it verifies. The refusals are BIP342's: an empty
+    public key, an exhausted budget, and a non-empty signature that
+    does not verify -- where the legacy op code pushes False, tapscript
+    fails the script, its NULLFAIL being consensus. A key neither empty
+    nor 32 bytes verifies nothing and succeeds, which is the upgrade
+    room, refused only under DISCOURAGE_UPGRADABLE_PUBKEYTYPE. The
+    message hash commits to the tapleaf and to the last executed
+    OP_CODESEPARATOR through the BIP341 extension.
+    """
     pub_key = stack.pop()
     signature = stack.pop()
     if len(pub_key) == 0:
@@ -203,6 +237,16 @@ def verify_script_path_vc0(  # noqa: C901
     flags: ScriptFlag,
     precomputed: PrecomputedTxData | None = None,
 ) -> None:
+    """Execute a leaf-version-0xc0 tapscript, per BIP342.
+
+    The loop is the legacy engine's with BIP342's differences: no op
+    code count and no script size limit, a sigops budget spent by
+    signature instead, an OP_SUCCESSx that ends validation with
+    success before anything runs, MINIMALIF as consensus, and the
+    CHECKMULTISIGs gone in favour of OP_CHECKSIGADD. Refusals leave as
+    ScriptError, as they do from the legacy loop, and the script must
+    end with exactly one true element on the stack.
+    """
     if any(len(x) > MAX_SCRIPT_ELEMENT_SIZE for x in stack):
         err_msg = f"witness stack element longer than {MAX_SCRIPT_ELEMENT_SIZE} bytes"
         raise BTClibValueError(err_msg)

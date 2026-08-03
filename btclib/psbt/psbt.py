@@ -514,6 +514,15 @@ def _assert_input_signable(psbt_in: PsbtIn) -> None:
 
 @dataclass
 class Psbt:
+    """A partially signed bitcoin transaction, BIP174 and BIP370.
+
+    Both versions are held BIP370's way -- the transaction's fields
+    live in the psbt and `tx` computes the unsigned transaction; the
+    module docstring says why. The global fields are here, each input's
+    and output's in its PsbtIn or PsbtOut; the wire form is serialize
+    and parse, the customary text form b64encode and b64decode.
+    """
+
     tx_version: int
     inputs: list[PsbtIn]
     outputs: list[PsbtOut]
@@ -764,6 +773,12 @@ class Psbt:
             _assert_input_signable(psbt_in)
 
     def to_dict(self, *, check_validity: bool = True) -> dict[str, Any]:
+        """Return the psbt as a dict of json-friendly values.
+
+        The "tx" entry is derived for the reader and ignored by
+        from_dict, the comment on it saying why; everything else
+        round-trips.
+        """
         if check_validity:
             self.assert_valid()
 
@@ -792,6 +807,7 @@ class Psbt:
     def from_dict(
         cls: type[Psbt], dict_: Mapping[str, Any], *, check_validity: bool = True
     ) -> Psbt:
+        """Build a Psbt from the dict shape to_dict writes."""
         hd_key_paths = cast(
             Mapping[Octets, BIP32KeyOrigin],
             # check_validity=False, as for every other element here (issue
@@ -962,6 +978,7 @@ class Psbt:
         )
 
     def b64encode(self, *, check_validity: bool = True) -> str:
+        """Return the serialization as base64 text, BIP174's file form."""
         psbt_bin = self.serialize(check_validity=check_validity)
         return base64.b64encode(psbt_bin).decode("ascii")
 
@@ -969,6 +986,7 @@ class Psbt:
     def b64decode(
         cls: type[Psbt], psbt_str: String, *, check_validity: bool = True
     ) -> Psbt:
+        """Build a Psbt from its base64 text, stripping whitespace."""
         if isinstance(psbt_str, str):
             psbt_str = psbt_str.strip()
 

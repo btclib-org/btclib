@@ -481,6 +481,15 @@ _KEY_DATA_FIELDS: dict[bytes, tuple[str, Callable[[bytes], Any]]] = {
 
 @dataclass
 class PsbtIn:
+    """The per-input map of a psbt: one field per BIP174/BIP370 key type.
+
+    What each role fills in for one input on its way to a signature --
+    the spent output or the transaction holding it, scripts, hd paths,
+    partial and taproot signatures, preimages, the finalized script or
+    witness -- with what no key type names kept in `unknown`. A field
+    a psbt does not carry is None, or empty for the collection types.
+    """
+
     non_witness_utxo: Tx | None
     witness_utxo: TxOut | None
     partial_sigs: dict[bytes, bytes]
@@ -695,6 +704,11 @@ class PsbtIn:
         assert_valid_unknown(self.unknown)
 
     def to_dict(self, *, check_validity: bool = True) -> dict[str, Any]:
+        """Return the input map as a dict of json-friendly values.
+
+        Keys are hex, hd paths are BIP174's bip32_derivs shape;
+        from_dict reads the same shape back.
+        """
         if check_validity:
             self.assert_valid()
 
@@ -743,6 +757,7 @@ class PsbtIn:
     def from_dict(
         cls: type[PsbtIn], dict_: Mapping[str, Any], *, check_validity: bool = True
     ) -> PsbtIn:
+        """Build a PsbtIn from the dict shape to_dict writes."""
         hd_key_paths = cast(
             Mapping[Octets, BIP32KeyOrigin],
             # check_validity=False, as for every other element here (issue

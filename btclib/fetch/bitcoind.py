@@ -266,9 +266,11 @@ class BitcoindFetcher(Fetcher):
         return tx_from_raw(raw, hex_, self.network)
 
     def get_block_count(self) -> int:
+        """Return the height of the node's best chain tip."""
         with fetch_errors("getblockcount"):
             return int(self.proxy.call("getblockcount"))
 
     def get_best_block_id(self) -> bytes:
+        """Return the hash of the node's best chain tip, display order."""
         with fetch_errors("getbestblockhash"):
             return bytes_from_octets(self.proxy.call("getbestblockhash"), 32)
