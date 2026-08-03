@@ -240,6 +240,28 @@ def test_a_musig2_key_must_be_a_point_and_not_merely_33_bytes() -> None:
         psbt.assert_valid()
 
 
+def test_an_aggregate_key_with_no_participants_is_not_a_field() -> None:
+    """A field naming an aggregate key and naming nobody under it.
+
+    Not reachable from bytes — an empty value is refused as it is read,
+    a participant list being a positive number of keys — so the object is
+    where the check has to be as well: KeyAgg has no answer for an empty
+    list, and a psbt asserting valid with one names a session no signer
+    can join.
+    """
+    psbt = _bip373_psbt("Spend of a Taproot output where the output key")
+    aggregate = next(iter(psbt.inputs[0].musig2_participant_pub_keys))
+
+    psbt.inputs[0].musig2_participant_pub_keys = {aggregate: []}
+    err_msg = "invalid musig2 participant pub keys: none for aggregate key"
+    with pytest.raises(BTClibValueError, match=err_msg):
+        psbt.assert_valid()
+
+    err_msg = "invalid musig2 participant pub keys: 0 bytes"
+    with pytest.raises(BTClibValueError, match=err_msg):
+        PsbtIn.parse(psbt.inputs[0].serialize(check_validity=False))
+
+
 def test_an_output_participant_list_is_a_whole_number_of_keys() -> None:
     """The case BIP373's own two output vectors do not distinguish.
 
