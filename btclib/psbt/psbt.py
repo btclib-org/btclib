@@ -39,6 +39,7 @@ from io import BytesIO
 from math import ceil
 from typing import Any, TypeVar, cast
 
+from btclib import var_bytes
 from btclib.alias import BinaryData, Octets, ScriptList, String
 from btclib.bip32 import (
     BIP32KeyOrigin,
@@ -48,13 +49,14 @@ from btclib.bip32 import (
     decode_hd_key_paths,
     encode_to_bip32_derivs,
 )
-from btclib.ecc import dsa
+from btclib.ecc import dsa, ssa
 from btclib.exceptions import BTClibValueError
-from btclib.hashes import hash160, sha256
+from btclib.hashes import hash160, sha256, tagged_hash
 from btclib.psbt.psbt_in import PsbtIn
 from btclib.psbt.psbt_out import PsbtOut
 from btclib.psbt.psbt_size import estimated_input_sizes
 from btclib.psbt.psbt_utils import (
+    LEAF_HASH_SIZE,
     PSBT_SEPARATOR,
     assert_not_a_v2_field,
     assert_valid_unknown,
@@ -82,8 +84,9 @@ from btclib.script import (
     sig_hash,
     type_and_payload,
 )
+from btclib.script.sig_hash import DEFAULT
 from btclib.tx import Tx, TxIn, TxOut
-from btclib.utils import bytesio_from_binarydata
+from btclib.utils import bytes_from_octets, bytesio_from_binarydata
 
 # the whole of BIP174's <magic>, five bytes: the four of "psbt" and the
 # 0xff that makes a psbt fail to deserialize as a transaction. It is one
@@ -1336,6 +1339,183 @@ def _finalized_input(psbt_in: PsbtIn) -> tuple[bytes, Witness]:
     return serialize(cast(ScriptList, [*cmds, *redeem_script])), Witness()
 
 
+# the codesep position BIP341 writes when no OP_CODESEPARATOR was
+# executed, which is every script Core's own signer supports signing:
+# "Only support non-OP_CODESEPARATOR BIP342 signing for now"
+_NO_CODESEP = 0xFFFFFFFF
+
+# a tapscript spending a single key: a 32-byte push of it followed by
+# OP_CHECKSIG, which is the leaf shape whose witness is one signature and
+# therefore the only script path a Finalizer here can build
+_SINGLE_KEY_LEAF_SIZE = 34
+_PUSH_32 = 0x20
+_OP_CHECKSIG = 0xAC
+
+
+def prevouts(psbt: Psbt) -> list[TxOut]:
+    """Return the output each input of the psbt spends.
+
+    A taproot signature commits to the amount and script of *every*
+    input (BIP341's sha_amounts and sha_scriptpubkeys), not only of the
+    one being signed, so a single missing utxo leaves the whole
+    transaction unsignable rather than one input of it -- which is why
+    this raises where `_prev_out` answers None.
+    """
+    outs: list[TxOut] = []
+    for i, psbt_in in enumerate(psbt.inputs):
+        prev_out = _prev_out(psbt_in)
+        if prev_out is None:
+            err_msg = f"no utxo for input {i}: a taproot signature commits "
+            err_msg += "to the amount and script of every input"
+            raise BTClibValueError(err_msg)
+        outs.append(prev_out)
+    return outs
+
+
+def taproot_sig_hash(
+    psbt: Psbt, vin_i: int, *, leaf_hash: Octets = b"", hash_type: int | None = None
+) -> bytes:
+    """Return the hash a taproot spend of one input signs.
+
+    BIP341 for a key path spend, BIP342 for a script path one, and the
+    tapleaf hash is what tells the two apart: given one, the message
+    carries it along with the key version and the codesep position, as
+    the script engine's own OP_CHECKSIG builds them.
+
+    hash_type defaults to the type the input asks for, and to
+    SIGHASH_DEFAULT when it asks for none. Passing it is what a Finalizer
+    does: a taproot signature carries its own type appended, so the hash
+    to check it against is the one *it* committed to.
+
+    The annex is empty: BIP341 leaves it undefined, no psbt field carries
+    one, and a signer cannot invent what the spender will put on the
+    stack.
+    """
+    leaf_hash = bytes_from_octets(leaf_hash)
+    if hash_type is None:
+        hash_type = psbt.inputs[vin_i].sig_hash_type or DEFAULT
+    ext = leaf_hash + b"\x00" + _NO_CODESEP.to_bytes(4, "little") if leaf_hash else b""
+    return sig_hash.taproot(
+        psbt.tx, vin_i, prevouts(psbt), hash_type, int(bool(ext)), b"", ext
+    )
+
+
+def leaf_script(psbt_in: PsbtIn, leaf_hash: Octets) -> tuple[bytes, bytes]:
+    """Return the leaf script of a tapleaf hash, and its control block.
+
+    `PSBT_IN_TAP_LEAF_SCRIPT` is keyed by control block and holds the
+    script and its leaf version, while every other taproot field names a
+    leaf by its BIP341 hash: this is that lookup, and it computes the
+    hashes rather than trusting a second index of them.
+    """
+    leaf_hash = bytes_from_octets(leaf_hash, LEAF_HASH_SIZE)
+    for control_block, (script, leaf_version) in psbt_in.taproot_leaf_scripts.items():
+        preimage = leaf_version.to_bytes(1, "big") + var_bytes.serialize(script)
+        if tagged_hash(b"TapLeaf", preimage) == leaf_hash:
+            return script, control_block
+    raise BTClibValueError(f"no leaf script for tapleaf hash {leaf_hash.hex()}")
+
+
+def single_leaf_key(script: bytes) -> bytes:
+    """Return the key of a `<32-byte key> OP_CHECKSIG` leaf script.
+
+    What a Finalizer has to know to build the witness of a script path
+    spend is what the leaf script pops, and that is a property of the
+    script rather than of the psbt: one signature for this shape, and for
+    a leaf that asks for more -- a threshold of CHECKSIGADD, a hash
+    preimage -- the psbt says nothing about what else goes on the stack.
+    """
+    if (
+        len(script) != _SINGLE_KEY_LEAF_SIZE
+        or script[0] != _PUSH_32
+        or script[-1] != _OP_CHECKSIG
+    ):
+        err_msg = "cannot finalize a taproot script path whose leaf script "
+        err_msg += f"is not a single key and OP_CHECKSIG: {script.hex()}"
+        raise BTClibValueError(err_msg)
+    return script[1:-1]
+
+
+def _assert_taproot_sig_hash_type(signature: bytes, psbt_in: PsbtIn, what: str) -> int:
+    """Return the sig_hash type a taproot signature commits to.
+
+    BIP341 appends the type to the 64 bytes when it is not the default
+    one, so the signature says which hash it signed; what this adds is
+    that it must be the type the *input* asks for, as
+    `_assert_sig_hash_type` asks of a partial signature. A Finalizer that
+    skipped the comparison would happily build a witness whose signature
+    commits to other outputs than the ones the psbt was built for.
+    """
+    hash_type = signature[-1] if len(signature) == 65 else DEFAULT
+    if (psbt_in.sig_hash_type or DEFAULT) != hash_type:
+        err_msg = f"invalid {what} sig_hash type: {hash_type}, "
+        err_msg += f"the input asks for {psbt_in.sig_hash_type}"
+        raise BTClibValueError(err_msg)
+    return hash_type
+
+
+def _finalized_taproot_input(psbt: Psbt, vin_i: int) -> tuple[bytes, Witness]:
+    """Return the script_sig and witness a taproot input is spent with.
+
+    An empty script_sig, always: BIP341 spends a witness v1 program with
+    the witness alone, and a p2sh-wrapped one is unspendable by
+    consensus.
+
+    The key path is preferred when the input carries both, as Bitcoin
+    Core's finalizer prefers it: it is the cheaper spend and the one the
+    output key commits to directly. The script path witness is the
+    signature, the leaf script and its control block, which is BIP341's
+    order and needs the leaf to be a single-key one.
+
+    Each signature is verified against the hash it says it committed to,
+    for the reason the legacy path verifies its own: a Finalizer is the
+    last role that can still refuse, and a witness built from a bad
+    signature is a transaction the network drops.
+    """
+    psbt_in = psbt.inputs[vin_i]
+
+    if psbt_in.taproot_key_spend_signature:
+        signature = psbt_in.taproot_key_spend_signature
+        hash_type = _assert_taproot_sig_hash_type(
+            signature, psbt_in, "taproot key path signature"
+        )
+        msg = taproot_sig_hash(psbt, vin_i, hash_type=hash_type)
+        output_key = type_and_payload(prevouts(psbt)[vin_i].script_pub_key.script)[1]
+        if not ssa.verify_(msg, output_key, signature[:64]):
+            err_msg = "invalid taproot key path signature for output key "
+            err_msg += output_key.hex()
+            raise BTClibValueError(err_msg)
+        return b"", Witness([signature])
+
+    if not psbt_in.taproot_script_spend_signatures:
+        raise BTClibValueError("missing taproot signature")
+
+    if len(psbt_in.taproot_script_spend_signatures) > 1:
+        # which leaf to spend is a choice, and one the psbt does not
+        # record: two signatures under two leaves are two spends, both
+        # valid, and picking either would be this function deciding what
+        # the transaction costs
+        err_msg = f"{len(psbt_in.taproot_script_spend_signatures)} taproot script "
+        err_msg += "path signatures: the psbt does not say which leaf to spend"
+        raise BTClibValueError(err_msg)
+
+    key_data, signature = next(iter(psbt_in.taproot_script_spend_signatures.items()))
+    pub_key, leaf_hash = key_data[:LEAF_HASH_SIZE], key_data[LEAF_HASH_SIZE:]
+    hash_type = _assert_taproot_sig_hash_type(
+        signature, psbt_in, "taproot script path signature"
+    )
+    script, control_block = leaf_script(psbt_in, leaf_hash)
+    if single_leaf_key(script) != pub_key:
+        err_msg = f"taproot script path signature of {pub_key.hex()}, which is "
+        err_msg += f"not the key of leaf script {script.hex()}"
+        raise BTClibValueError(err_msg)
+    msg = taproot_sig_hash(psbt, vin_i, leaf_hash=leaf_hash, hash_type=hash_type)
+    if not ssa.verify_(msg, pub_key, signature[:64]):
+        err_msg = f"invalid taproot script path signature for key {pub_key.hex()}"
+        raise BTClibValueError(err_msg)
+    return b"", Witness([signature, script, control_block])
+
+
 def _witness_v0_script_code(psbt_in: PsbtIn, script: bytes) -> bytes:
     """Return the script code BIP-143 signs the segwit v0 input against.
 
@@ -1490,6 +1670,17 @@ def finalize_psbt(psbt: Psbt) -> Psbt:
     # every signature is against the same one
     tx = psbt.tx
     for vin_i, psbt_in in enumerate(psbt.inputs):
+        # a taproot input is finalized from its own fields and not from
+        # partial_sigs, which is keyed by compressed key and holds ECDSA
+        # signatures: a schnorr signature travels in PSBT_IN_TAP_KEY_SIG
+        # or PSBT_IN_TAP_SCRIPT_SIG, and BIP373 is what writes the
+        # aggregate signature of a MuSig2 session into them
+        if is_p2tr(_spent_script(psbt_in)):
+            script_sig, witness = _finalized_taproot_input(psbt, vin_i)
+            psbt_in.final_script_sig = script_sig
+            psbt_in.final_script_witness = witness
+            continue
+
         if not psbt_in.partial_sigs:
             raise BTClibValueError("missing signatures")
         _assert_sig_hash_type(psbt_in)

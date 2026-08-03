@@ -22,6 +22,7 @@ from btclib.bip32 import (
     crack_prv_key,
     derive,
     derive_from_account,
+    pub_key_derivation_tweaks,
     rootxprv_from_seed,
     xpub_from_xprv,
 )
@@ -622,3 +623,29 @@ def test_the_coercion_still_happens_in_init() -> None:
     assert isinstance(coerced.index, int)
     assert coerced.b58encode() == XKEY
     assert BIP32KeyData.b58decode(coerced.b58encode()) == coerced
+
+
+def test_the_tweaks_of_a_public_derivation_are_the_derivation() -> None:
+    """The scalars a path adds up to, against the key the path derives.
+
+    What they are for is a key that cannot be derived from -- a BIP327
+    MuSig2 aggregate key has no private key, so BIP328 derivation reaches
+    the signers as tweaks (BIP373, `btclib.psbt.musig2`) -- and what says
+    they are right is that applying them by hand lands on the key `derive`
+    answers for the same path.
+    """
+    rootxprv = "xprv9s21ZrQH143K3QTDL4LXw2F7HEK3wJUD2nW2nRk4stbPy6cq3jPPqjiChkVvvNKmPGJxWUtg6LnF5kejMRNNU3TGtRBeJgk33yuGBxrMPHi"
+    xpub = BIP32KeyData.b58decode(xpub_from_xprv(rootxprv))
+
+    tweaks = pub_key_derivation_tweaks(xpub.key, xpub.chain_code, "m/1/2")
+    derived = BIP32KeyData.b58decode(derive(xpub_from_xprv(rootxprv), "m/1/2"))
+    point = point_from_octets(xpub.key, ec)
+    for tweak in tweaks:
+        point = ec.add(point, mult(int.from_bytes(tweak, "big"), ec.G, ec))
+    assert bytes_from_point(point, ec) == derived.key
+
+    # a hardened index needs the private key, and the refusal comes before
+    # any step of the path is walked
+    err_msg = "invalid hardened derivation from public key"
+    with pytest.raises(BTClibValueError, match=err_msg):
+        pub_key_derivation_tweaks(xpub.key, xpub.chain_code, "m/1h")

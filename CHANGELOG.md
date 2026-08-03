@@ -1538,6 +1538,50 @@ edit.
 
 ### Transactions, blocks and PSBT
 
+- **a MuSig2 session is carried out over a psbt** (issue #266, the second
+  half): `btclib.psbt.musig2` is BIP373's three roles over
+  `btclib.ecc.musig2` — `add_participant_pub_keys` for an Updater,
+  `nonce_gen` and `partial_sign` for the two rounds a Signer runs,
+  `partial_sig_verify` for what BIP327 asks every signer to check, and
+  `partial_sigs_agg` for a Finalizer, which writes the aggregate BIP340
+  signature into `PSBT_IN_TAP_KEY_SIG` or `PSBT_IN_TAP_SCRIPT_SIG` and
+  drops the session. **The secret nonce is returned to the caller and
+  never held** — the `bytearray` `ecc.musig2.sign` consumes and zeroes —
+  because a psbt is a file that gets copied and a secnonce that signs
+  twice hands out the private key; the same answer serves the
+  libsecp256k1 musig module and the threshold signing of issue #257.
+  What the psbt says is how the aggregate key reaches the output, and all
+  four of BIP373's ways are read off it: the aggregate key as the output
+  key, as the internal key with the BIP341 tweak, as a key in a leaf
+  script, and as the parent of an internal key derived per BIP328 — one
+  plain tweak per step of `PSBT_IN_TAP_BIP32_DERIVATION`. The session is
+  keyed as Bitcoin Core keys it, by the aggregate key *as tweaked*, which
+  is what the four vectors show and is not the key the participants are
+  filed under. Every partial signature BIP373 publishes verifies in the
+  session btclib derives, aggregates, finalizes, and the extracted
+  transaction passes btclib's own script engine.
+- **`finalize_psbt` finalizes a taproot input**, which it never could:
+  the witness of a key path spend is the signature, of a script path
+  spend the signature, the leaf script and its control block, and each is
+  verified against the hash it says it committed to before the witness is
+  built. What it used to do with a p2tr input was build a legacy
+  script_sig out of `PSBT_IN_PARTIAL_SIG`, which BIP341 gives no meaning
+  to; such an input is now refused as "missing taproot signature". Two
+  script path signatures are refused as well, the psbt not saying which
+  leaf to spend, and so is a leaf script that is not a single key and
+  OP_CHECKSIG — what else its witness would carry is not something a psbt
+  records.
+- `psbt.prevouts`, `psbt.taproot_sig_hash` and `psbt.leaf_script` are the
+  three questions that took: the output every input spends, the BIP341 or
+  BIP342 hash of an input, and the leaf script a tapleaf hash names. A
+  missing utxo raises rather than answering None, which is the honest
+  answer for taproot: the hash commits to the amount and script of every
+  input, so one missing utxo leaves none of them signable.
+- `bip32.pub_key_derivation_tweaks` returns the scalar each step of an
+  unhardened public derivation adds. A public child is the parent plus
+  `IL*G`, so a path is a list of tweaks — which is what a key with no
+  private key needs: BIP328 derives from a MuSig2 aggregate key, and the
+  signers apply the derivation as tweaks of the group key.
 - **the four MuSig2 psbt fields of BIP373 are fields, in both psbt
   versions** (issue #266): `PSBT_IN_MUSIG2_PARTICIPANT_PUBKEYS`,
   `PSBT_IN_MUSIG2_PUB_NONCE` and `PSBT_IN_MUSIG2_PARTIAL_SIG` on

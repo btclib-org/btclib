@@ -12,6 +12,14 @@ btclib.psbt.psbt module
    :undoc-members:
    :show-inheritance:
 
+btclib.psbt.musig2 module
+-------------------------
+
+.. automodule:: btclib.psbt.musig2
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
 btclib.psbt.psbt\_in module
 ---------------------------
 

@@ -15,6 +15,7 @@ from btclib.bip32.bip32 import (
     crack_prv_key,
     derive,
     derive_from_account,
+    pub_key_derivation_tweaks,
     rootxprv_from_seed,
     xpub_from_xprv,
 )
@@ -49,6 +50,7 @@ __all__ = [
     "encode_to_bip32_derivs",
     "indexes_from_der_path",
     "int_from_index_str",
+    "pub_key_derivation_tweaks",
     "rootxprv_from_seed",
     "str_from_der_path",
     "str_from_index_int",
