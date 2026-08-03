@@ -18,9 +18,11 @@ from math import sqrt
 from os import path
 from typing import Any
 
+from btclib_libsecp256k1.keys import pubkey_combine as libsecp256k1_pubkey_combine
+from btclib_libsecp256k1.keys import pubkey_tweak_mul as libsecp256k1_pubkey_tweak_mul
 from btclib_libsecp256k1.mult import mult as libsecp256k1_mult
 
-from btclib.alias import HashF, Integer, Point
+from btclib.alias import INF, HashF, Integer, Point
 from btclib.curves.curve_group import (
     HEX_THRESHOLD,
     CurveGroup,
@@ -292,13 +294,100 @@ def _libsecp256k1_applicable(ec: Curve, hf: HashF | None = None) -> bool:
     return hf is None or hf is sha256
 
 
+def _sec_from_point(Q: Point) -> bytes:
+    """Return a point of secp256k1 as the octets the bindings parse.
+
+    Neither on-curve nor infinity is checked here: this is the inside of
+    the dispatches below, past their require_on_curve, and sec_point's
+    bytes_from_point is unreachable from this module anyway -- that one
+    is built on this one.
+
+    Uncompressed, 0x04 || x || y, which is what makes the round trip
+    worth taking, in both directions. It is the form ec_pubkey_parse
+    reads without lifting an x coordinate back to a point, 2.1 us of the
+    13 a whole multiplication costs; and, asked of ec_pubkey_serialize on
+    the way out, the form that does not drop a y this side would have to
+    lift again -- 73 us of modular square root against 1.2 us of
+    int.from_bytes, the lesson bip32.py:462 records for public
+    derivation. The 32 octets more cost 0.09 us to write here.
+    """
+    p_size = secp256k1.p_size
+    return b"\x04" + Q[0].to_bytes(p_size, "big") + Q[1].to_bytes(p_size, "big")
+
+
+def _libsecp256k1_multi_mult_(
+    scalars: Sequence[int], secs: Sequence[bytes]
+) -> bytes | None:
+    """Return sum(scalars[i]*points[i]) as octets, None for infinity.
+
+    The bytes-in/bytes-out layer the gain lives on: a term is one
+    ec_pubkey_tweak_mul, the running total one ec_pubkey_combine, and no
+    intermediate becomes a Point -- each of those would pay a parse on
+    the way out and a serialization on the way back in.
+
+    None rather than octets, because infinity has no serialization: a
+    libsecp256k1 pubkey is a point of the curve and never the identity.
+    Every scalar is therefore required to be in [1, n-1] and every point
+    to be a point of secp256k1 that is not infinity -- the callers below
+    gate on exactly that -- which leaves the sum as the one infinity to
+    answer for: u*H + v*Q with v*Q == -u*H, and v = n - u with Q == H is
+    the one-line case of it.
+
+    That sum is recognized from the coordinates, same x and different y,
+    rather than caught from the combine that fails on it, so that a
+    ValueError raised in here still means what it says instead of
+    doubling as a value. Its price is one combine per term rather than
+    one for all of them, a running total being what has an x to compare:
+    measured on eight terms 112 us against 97, and on sixty-four 925
+    against 774, where the Python arithmetic below takes 2.4 ms and 15 ms.
+    Two terms, which is double_mult and the shape most callers have, pay
+    nothing at all: one combine either way.
+    """
+    x_slice = slice(1, secp256k1.p_size + 1)
+    total: bytes | None = None
+    for m, sec in zip(scalars, secs, strict=True):
+        term = libsecp256k1_pubkey_tweak_mul(sec, m, False)
+        if total is None:  # nothing yet, or infinity, and INF + P is P
+            total = term
+        elif total != term and total[x_slice] == term[x_slice]:
+            # same x, different y, i.e. P + (-P): infinity. Equal octets
+            # instead are P + P, which combine doubles like any other sum
+            total = None
+        else:
+            total = libsecp256k1_pubkey_combine([total, term], False)
+    return total
+
+
+def _libsecp256k1_multi_mult(scalars: Sequence[int], points: Sequence[Point]) -> Point:
+    """Return sum(scalars[i]*points[i]), through the bindings.
+
+    The Point signature the callers keep; the arithmetic is the bytes
+    layer above, whose None is this function's INF.
+    """
+    sec = _libsecp256k1_multi_mult_(scalars, [_sec_from_point(Q) for Q in points])
+    if sec is None:
+        return INF
+    p_size = secp256k1.p_size
+    return (
+        int.from_bytes(sec[1 : p_size + 1], "big"),
+        int.from_bytes(sec[p_size + 1 :], "big"),
+    )
+
+
 def mult(m_int: Integer, Q: Point | None = None, ec: Curve = secp256k1) -> Point:
     """Elliptic curve scalar multiplication."""
     m: int = int_from_integer(m_int) % ec.n
 
     # m == 0 is the infinity point, which the bindings reject as a scalar
-    if m and _libsecp256k1_applicable(ec) and (Q is None or Q == ec.G):
-        return libsecp256k1_mult(m)
+    if m and _libsecp256k1_applicable(ec):
+        # the generator is ec_pubkey_create, with no point to parse first
+        if Q is None or Q == ec.G:
+            return libsecp256k1_mult(m)
+        ec.require_on_curve(Q)
+        # any other point, infinity excepted: that one is not a pubkey,
+        # and m*INF == INF is what the Python path below answers anyway
+        if Q[1]:
+            return _libsecp256k1_multi_mult([m], [Q])
 
     if Q is None:
         QJ = ec.GJ
@@ -306,16 +395,18 @@ def mult(m_int: Integer, Q: Point | None = None, ec: Curve = secp256k1) -> Point
         ec.require_on_curve(Q)
         QJ = jac_from_aff(Q)
 
-    # past the check above, secp256k1 here means a point the bindings do
-    # not take -- any point but the generator -- which is exactly where
-    # the GLV endomorphism pays: 0.53 ms against the 0.84 of _mult, the
-    # decomposition being secp256k1's own lambda and beta. Same predicate
-    # as the bindings dispatch, so the two cannot drift apart
-    R = (
-        mult_endomorphism_secp256k1(m, QJ, ec)
-        if _libsecp256k1_applicable(ec)
-        else _mult(m, QJ, ec)
-    )
+    # what reaches here on secp256k1 is the arguments the bindings decline
+    # -- a zero scalar, or infinity -- and, with the dispatch
+    # above patched off, every multiplication of the curve: that is the
+    # reference implementation the test suite holds the bindings against,
+    # and the GLV endomorphism is its fastest form, 0.53 ms against the
+    # 0.84 of _mult, the decomposition being secp256k1's own lambda and
+    # beta. Not spelled as _libsecp256k1_applicable, though it is the same
+    # test today: what decides here is whether the curve has that
+    # endomorphism, so patching the bindings off must leave this arm --
+    # python_path_test.py's pattern, which otherwise would compare the
+    # bindings against the generic double-and-add of every other curve
+    R = mult_endomorphism_secp256k1(m, QJ, ec) if ec == secp256k1 else _mult(m, QJ, ec)
     return ec.aff_from_jac(R)
 
 
@@ -324,13 +415,20 @@ def double_mult(
 ) -> Point:
     """Double scalar multiplication (u*H + v*Q)."""
     ec.require_on_curve(H)
-    HJ = jac_from_aff(H)
-
     ec.require_on_curve(Q)
-    QJ = jac_from_aff(Q)
 
     u = int_from_integer(u) % ec.n
     v = int_from_integer(v) % ec.n
+
+    # a zero scalar and infinity are what the bindings decline, and the
+    # term they make is nothing: dropping it here would leave the empty
+    # sum -- infinity -- to answer for as well, which the Python path
+    # below answers already, so the whole call goes there instead
+    if u and v and H[1] and Q[1] and _libsecp256k1_applicable(ec):
+        return _libsecp256k1_multi_mult([u, v], [H, Q])
+
+    HJ = jac_from_aff(H)
+    QJ = jac_from_aff(Q)
     R = double_mult_w_NAF(u, HJ, v, QJ, ec)
     return ec.aff_from_jac(R)
 
@@ -342,7 +440,9 @@ def multi_mult(
 
     Interleaved wNAF on few scalars, Bos-Coster on many: curve_group's
     _multi_mult dispatches on the count, at the size the two measure the
-    same.
+    same. On secp256k1 the bindings serve the whole sum instead, and this
+    is the one caller that hands them many scalars at once -- libsecp256k1
+    exposing no batch verification, ssa's is built on this.
     """
     if len(scalars) != len(points):
         err_msg = "mismatch between number of scalars and points: "
@@ -352,7 +452,16 @@ def multi_mult(
     ints = [int_from_integer(s) % ec.n for s in scalars]
     for Q in points:
         ec.require_on_curve(Q)
-    jac_points = [jac_from_aff(Q) for Q in points]
 
+    # as in double_mult; and fewer than two terms is not a multi_mult at
+    # all, an error the Python path below is the one to raise
+    if (
+        len(points) > 1
+        and _libsecp256k1_applicable(ec)
+        and all(m and Q[1] for m, Q in zip(ints, points, strict=True))
+    ):
+        return _libsecp256k1_multi_mult(ints, points)
+
+    jac_points = [jac_from_aff(Q) for Q in points]
     R = _multi_mult(ints, jac_points, ec)
     return ec.aff_from_jac(R)

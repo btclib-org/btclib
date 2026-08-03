@@ -17,7 +17,19 @@ from hashlib import sha256, sha512
 import pytest
 
 from btclib.alias import INF, INFJ, Integer, JacPoint, Point
-from btclib.curves import Curve, CurveGroup, double_mult, mult, multi_mult, secp256k1
+from btclib.curves import (
+    Curve,
+    CurveGroup,
+    bytes_from_point,
+    # the module, not only the names in it: the libsecp256k1 dispatch is a
+    # module attribute, and patching it off is how no_bindings below
+    # reaches the Python arithmetic underneath
+    curve,
+    double_mult,
+    mult,
+    multi_mult,
+    secp256k1,
+)
 from btclib.curves.curve import (
     CURVES,
     NIST,
@@ -30,6 +42,8 @@ from btclib.curves.curve import (
     SEC2v2,
     SEC2v2_params2,
     _libsecp256k1_applicable,
+    _libsecp256k1_multi_mult_,
+    _sec_from_point,
 )
 
 # cached_multiples and jac_from_aff are implementation helpers of
@@ -877,3 +891,142 @@ def test_multi_mult() -> None:
     n = secp256k1.n
     for i, j in ((10**6, 1), (1, 10**6), (n - 1, 1), (n - 1, n - 2)):
         assert double_mult(i, G, j, H) == multi_mult([i, j], [G, H])
+
+
+def no_bindings(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Patch the libsecp256k1 dispatch off, and the bindings out of reach.
+
+    The predicate is what mult, double_mult and multi_mult ask, and
+    patching it is the pattern of tests/script_engine/python_path_test.py.
+    Replacing the three bindings functions besides is what proves they
+    were not asked anyway: a dispatch this does not cover raises here
+    instead of quietly measuring the bindings against themselves.
+    """
+
+    def refuse(*_: object) -> bytes:
+        # a green suite is one where this never runs: the pragma is the
+        # same one borromean and bms carry, for a line the arithmetic --
+        # here the dispatch above it -- rules out
+        raise AssertionError(  # pragma: no cover
+            "the libsecp256k1 dispatch is patched off"
+        )
+
+    monkeypatch.setattr(curve, "_libsecp256k1_applicable", lambda *_: False)
+    monkeypatch.setattr(curve, "libsecp256k1_mult", refuse)
+    monkeypatch.setattr(curve, "libsecp256k1_pubkey_tweak_mul", refuse)
+    monkeypatch.setattr(curve, "libsecp256k1_pubkey_combine", refuse)
+
+
+def test_libsecp256k1_arbitrary_point() -> None:
+    """The bindings' point arithmetic against the Python arithmetic.
+
+    Every multiplication of secp256k1 goes through libsecp256k1 now, the
+    generator's and any other point's, so the Python arithmetic is what
+    the suite has to reach on purpose: the dispatch is patched off and the
+    same call made again. The bindings are the authority on the answer --
+    they are what bitcoin runs -- and the Python implementation is the one
+    being held against them, `mult` reaching its GLV endomorphism there
+    and `multi_mult` its Bos-Coster.
+
+    A spread of scalars and points rather than a random draw, so that a
+    failure is the same failure tomorrow. G is among the points on
+    purpose: it takes the ec_pubkey_create branch of `mult`, where every
+    other point takes the ec_pubkey_tweak_mul one.
+    """
+    n = secp256k1.n
+    scalars = (1, 2, 3, 7, 10**6, n // 2, n - 2, n - 1)
+    points = [mult(k) for k in (1, 2, 3, 7, n // 3, n - 1)]
+    # every scalar paired with a point, the large ones included: a sum of
+    # two small scalars is not what the wNAF and the endomorphism differ on
+    pairs = list(zip(scalars, points + points[:2], strict=True))
+
+    for m, Q in itertools.product(scalars, points):
+        libsecp256k1_answer = mult(m, Q)
+        with pytest.MonkeyPatch.context() as patch:
+            no_bindings(patch)
+            assert mult(m, Q) == libsecp256k1_answer
+
+    for (u, H), (v, Q) in itertools.product(pairs, repeat=2):
+        libsecp256k1_answer = double_mult(u, H, v, Q)
+        assert multi_mult([u, v], [H, Q]) == libsecp256k1_answer
+        with pytest.MonkeyPatch.context() as patch:
+            no_bindings(patch)
+            assert double_mult(u, H, v, Q) == libsecp256k1_answer
+            assert multi_mult([u, v], [H, Q]) == libsecp256k1_answer
+
+    # and the many-scalar sum, which is what ssa's batch verification is
+    libsecp256k1_answer = multi_mult(scalars, points + points[:2])
+    with pytest.MonkeyPatch.context() as patch:
+        no_bindings(patch)
+        assert multi_mult(scalars, points + points[:2]) == libsecp256k1_answer
+
+
+@pytest.mark.parametrize("bindings", [True, False], ids=["bindings", "python"])
+def test_multiplications_the_bindings_decline(
+    bindings: bool, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """A zero scalar, infinity, and a sum that is infinity.
+
+    None of the three is a libsecp256k1 argument or answer -- a pubkey is
+    a point of the curve and never the identity -- and each has to be
+    recognized before the call rather than caught from it. The same table
+    is asserted of both implementations, which is the point of it: what
+    the bindings decline, the Python arithmetic answers, and the two
+    cannot disagree about infinity.
+    """
+    if not bindings:
+        no_bindings(monkeypatch)
+
+    n = secp256k1.n
+    G = secp256k1.G
+    H = second_generator(secp256k1)
+
+    # a zero scalar, and infinity as the point
+    assert mult(0, H) == INF
+    assert mult(n, H) == INF  # n reduces to zero
+    assert mult(3, INF) == INF
+    assert mult(0, INF) == INF
+
+    # both of them again, as one term of a sum
+    assert double_mult(0, H, 0, G) == INF
+    assert double_mult(0, H, 3, G) == mult(3)
+    assert double_mult(3, INF, 5, H) == mult(5, H)
+    assert double_mult(3, H, 5, INF) == mult(3, H)
+    assert multi_mult([0, 0], [H, G]) == INF
+    assert multi_mult([3, 0], [H, G]) == mult(3, H)
+    assert multi_mult([3, 5], [INF, H]) == mult(5, H)
+
+    # and the sum that is infinity: v = n - u with the same point, the
+    # one-line case, then the same through multi_mult
+    assert double_mult(5, H, n - 5, H) == INF
+    assert multi_mult([5, n - 5], [H, H]) == INF
+
+    # an intermediate that is infinity and a total that is not: the
+    # running total starts again from the term that follows it
+    assert multi_mult([5, n - 5, 3], [H, H, H]) == mult(3, H)
+
+    # a total that is infinity from three terms of which no two cancel:
+    # 5 + (n-3) + 2*(n-1) is 2n
+    assert multi_mult([5, n - 3, n - 1], [H, H, mult(2, H)]) == INF
+
+    # the same point twice is P + P, a doubling and not a cancellation
+    assert multi_mult([5, 5], [H, H]) == mult(10, H)
+    assert double_mult(5, H, 5, H) == mult(10, H)
+
+
+def test_libsecp256k1_multi_mult_bytes() -> None:
+    """The bytes boundary the dispatch is built on.
+
+    `_sec_from_point` is `bytes_from_point` without the checks that the
+    dispatch has already made, and asserting the two agree is what keeps
+    it from drifting into a different serialization; `None` is infinity,
+    which has no serialization at all.
+    """
+    H = second_generator(secp256k1)
+    sec = _sec_from_point(H)
+    assert sec == bytes_from_point(H, compressed=False)
+    assert len(sec) == 2 * secp256k1.p_size + 1
+
+    assert _libsecp256k1_multi_mult_([5], [sec]) == _sec_from_point(mult(5, H))
+    assert _libsecp256k1_multi_mult_([5, 3], [sec, sec]) == _sec_from_point(mult(8, H))
+    assert _libsecp256k1_multi_mult_([5, secp256k1.n - 5], [sec, sec]) is None

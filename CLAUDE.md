@@ -27,9 +27,12 @@ the `btclib_libsecp256k1` cffi bindings — and delegated conditionally,
 which is the single most important thing to know before touching
 `btclib/curves/` or `btclib/ecc/`:
 
-- `curves.curve.mult` calls the bindings for secp256k1 and the generator
-  alone; anything else runs the Python double-and-add of
-  `curves/curve_group.py`
+- `curves.curve.mult`, `double_mult` and `multi_mult` call the bindings
+  for secp256k1 and any point of it, a zero scalar and the point at
+  infinity excepted: libsecp256k1 has no scalar for the one and no public
+  key for the other, so those two — and a sum landing on infinity — are
+  recognized before the call and answered by the Python arithmetic of
+  `curves/curve_group.py`, which is what every other curve runs
 - `ecc.dsa.sign` calls them for secp256k1 with sha256, lower-s, and no
   caller-imposed nonce; `ecc.ssa.sign` for secp256k1 with sha256 **and a
   32-byte message**. That last clause is issue 169: BIP340 accepts a
