@@ -50,8 +50,8 @@ def _bip340_nonce_(msg: bytes, q: int, Q: int, aux: bytes, ec: Curve, hf: HashF)
     # assume the random oracle model for the hash function,
     # i.e. hash values can be considered uniformly random
 
-    # Note that in general, taking a uniformly random integer
-    # modulo the curve order n would produce a biased result.
+    # In general, taking a uniformly random integer modulo the
+    # curve order n would produce a biased result.
     # However, if the order n is sufficiently close to 2^hf_len,
     # then the bias is not observable:
     # e.g. for secp256k1 and sha256 1-n/2^256 it is about 1.27*2^-128

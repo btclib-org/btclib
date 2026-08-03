@@ -1319,7 +1319,7 @@ def _bip147_dummy(psbt_in: PsbtIn) -> list[bytes]:
     """Return the empty push OP_CHECKMULTISIG pops, or nothing.
 
     OP_CHECKMULTISIG pops one element more than it reads, whatever the
-    threshold, and BIP 147 is the rule that the extra element be empty
+    threshold, and BIP147 is the rule that the extra element be empty
     rather than the rule that it be there:
 
         https://github.com/bitcoin/bips/blob/master/bip-0147.mediawiki#motivation
@@ -1571,7 +1571,7 @@ def _finalized_taproot_input(psbt: Psbt, vin_i: int) -> tuple[bytes, Witness]:
 
 
 def _witness_v0_script_code(psbt_in: PsbtIn, script: bytes) -> bytes:
-    """Return the script code BIP-143 signs the segwit v0 input against.
+    """Return the script code BIP143 signs the segwit v0 input against.
 
     For p2wsh it is the witness script, which the input carries; for
     p2wpkh it is the p2pkh script for the same hash160, which is in no
@@ -1766,10 +1766,9 @@ def extract_tx(psbt: Psbt, *, check_validity: bool = True) -> Tx:
     The Extractor should produce a fully valid, network serialized
     transaction if all inputs are complete.
 
-    The Transaction Extractor does not need to know how to interpret
-    scripts in order to extract the network serialized transaction.
-    However it may be able to in order to validate the network
-    serialized transaction at the same time.
+    Extracting needs no script interpretation; an Extractor that can
+    interpret scripts may also validate the transaction it extracts,
+    as BIP174 allows.
     """
     if check_validity:
         psbt.assert_valid()

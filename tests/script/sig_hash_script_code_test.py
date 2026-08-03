@@ -64,7 +64,7 @@ def test_legacy_elides_the_separators_and_segwit_v0_keeps_them() -> None:
 
     Core elides them in `CTransactionSignatureSerializer::Serialize
     ScriptCode` and nowhere else, so the elision is the legacy
-    serializer's and BIP-143 does without it.
+    serializer's and BIP143 does without it.
     """
     tx = one_input_tx()
     elided = bytes.fromhex("4c0105ac")
@@ -165,7 +165,7 @@ def test_a_p2wsh_input_with_no_witness_script() -> None:
 def test_no_separator_index_where_there_is_no_script_to_cut() -> None:
     """A p2wpkh script code is built, not read, and taproot commits instead.
 
-    BIP-341 hashes the *position* of the last executed separator rather
+    BIP341 hashes the *position* of the last executed separator rather
     than truncating anything, and this builds the extension with
     0xffffffff, none executed — which is the one case Core's signer
     supports too, `sign.cpp` saying so in as many words.

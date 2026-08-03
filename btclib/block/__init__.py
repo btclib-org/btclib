@@ -7,7 +7,7 @@
 #
 # No part of btclib including this file, may be copied, modified, propagated,
 # or distributed except according to the terms contained in the LICENSE file.
-"""Module btclib.block."""
+"""Blocks: header and block, their rules, proof of work, merkle proofs."""
 
 from btclib.block import merkle_proof, mining, proof_of_work
 from btclib.block.block import Block, bip34_commitment

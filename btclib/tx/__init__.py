@@ -7,7 +7,7 @@
 #
 # No part of btclib including this file, may be copied, modified, propagated,
 # or distributed except according to the terms contained in the LICENSE file.
-"""Module btclib.tx."""
+"""Transactions: OutPoint, TxIn, TxOut, Tx, and join_txs."""
 
 from btclib.tx.out_point import OutPoint
 from btclib.tx.tx import Tx, join_txs

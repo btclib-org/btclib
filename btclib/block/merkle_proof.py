@@ -7,7 +7,7 @@
 #
 # No part of btclib including this file, may be copied, modified, propagated,
 # or distributed except according to the terms contained in the LICENSE file.
-"""Verification of a Merkle branch against a block header's merkle root.
+"""Verification of a merkle branch against a block header's merkle root.
 
 The verifier's side of the tree `btclib.block.Block` builds: given a
 txid, the siblings on its way up and its position among the block's

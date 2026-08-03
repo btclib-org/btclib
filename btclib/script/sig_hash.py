@@ -166,7 +166,7 @@ def taproot_annex_and_ext(tx: Tx, vin_i: int) -> tuple[bytes, bytes]:
     # a slice and not stack[-1][0]: an element of the witness may be empty,
     # which is legal on the wire and has no first byte to read -- indexing
     # would answer a caller who catches BTClibValueError with an IndexError,
-    # on a transaction 186 bytes long that Tx.parse accepts. BIP-341 says
+    # on a transaction 186 bytes long that Tx.parse accepts. BIP341 says
     # the annex is the last element "if its first byte is 0x50", and an
     # empty element does not have one, so this is also what the BIP says
     if len(stack) >= 2 and stack[-1][:1] == b"\x50":
@@ -183,7 +183,7 @@ def taproot_annex_and_ext(tx: Tx, vin_i: int) -> tuple[bytes, bytes]:
         # the same hole, one element along: with the annex off, stack[-1]
         # is the control block, whose first byte is the leaf version. There
         # is no hash to compute without it, so this raises rather than
-        # inventing the 33-byte minimum BIP-341 states -- validating the
+        # inventing the 33-byte minimum BIP341 states -- validating the
         # control block is the engine's job, and it does it
         if not stack[-1]:
             raise BTClibValueError("empty taproot control block")
@@ -295,7 +295,7 @@ def legacy(script_code: Octets, tx: Tx, vin_i: int, hash_type: int) -> bytes:
 
 # the five transaction-wide serializations the two segwit sig_hash
 # flavours commit to. Kept as the serializations and not as their hashes
-# because BIP-143 hashes them with hash256 and BIP-341 with sha256: one
+# because BIP143 hashes them with hash256 and BIP341 with sha256: one
 # definition each, applied twice, rather than two lists of five that have
 # to be checked against each other. Private, PrecomputedTxData below being
 # the supported way to compute them once for a whole transaction
@@ -332,8 +332,8 @@ def _serialized_script_pub_keys(prevouts: list[TxOut]) -> bytes:
 class PrecomputedTxData:
     """The transaction-wide hashes every input of a transaction shares.
 
-    BIP-143 and BIP-341 commit each input to hashes of the whole
-    transaction — its prevouts, its sequences, its outputs — and BIP-341
+    BIP143 and BIP341 commit each input to hashes of the whole
+    transaction — its prevouts, its sequences, its outputs — and BIP341
     to the amounts and script_pub_keys being spent as well. None of them
     depends on which input is being signed, so a transaction with N inputs
     needs them once and not N times: rebuilding them per input makes
@@ -342,9 +342,9 @@ class PrecomputedTxData:
     pathological one (issue #164). Bitcoin Core computes the same set into
     its PrecomputedTransactionData and passes it down.
 
-    The `sha_` attributes are the BIP-341 hashes, spelled as that BIP
+    The `sha_` attributes are the BIP341 hashes, spelled as that BIP
     spells them but for script_pub_keys, which btclib does not write
-    `scriptpubkeys`. The `hash_` properties are the three BIP-143 ones,
+    `scriptpubkeys`. The `hash_` properties are the three BIP143 ones,
     and they are one further sha256 over the corresponding `sha_`
     attribute rather than a second pass over the transaction: hash256 is
     sha256 twice, and the two BIPs hash the very same serializations.
@@ -381,17 +381,17 @@ class PrecomputedTxData:
 
     @property
     def hash_prev_outs(self) -> bytes:
-        """Return BIP-143's hashPrevouts."""
+        """Return BIP143's hashPrevouts."""
         return sha256(self.sha_prevouts)
 
     @property
     def hash_seqs(self) -> bytes:
-        """Return BIP-143's hashSequence."""
+        """Return BIP143's hashSequence."""
         return sha256(self.sha_sequences)
 
     @property
     def hash_outputs(self) -> bytes:
-        """Return BIP-143's hashOutputs, the one that commits to them all."""
+        """Return BIP143's hashOutputs, the one that commits to them all."""
         return sha256(self.sha_outputs)
 
 
@@ -554,7 +554,7 @@ def taproot(
 def redeem_script(script_sig: Octets, script_pub_key: Octets) -> bytes:
     """Return the redeem script of a p2sh input, checked against its hash.
 
-    BIP-16 has it as the last command of the script_sig, and what the
+    BIP16 has it as the last command of the script_sig, and what the
     sig_hash must dispatch on is the redeem script itself, never the push
     that carries it: serialized, a p2sh-p2wpkh redeem script is 23 bytes
     where p2wpkh wants exactly 22, so every is_p2w* test on the script_sig
@@ -625,7 +625,7 @@ def from_tx(
 
     if is_p2tr(script):
         if codesep_index:
-            # BIP-341 commits to the *position* of the last executed
+            # BIP341 commits to the *position* of the last executed
             # OP_CODESEPARATOR rather than truncating the script, and
             # taproot_annex_and_ext writes 0xffffffff, "none executed".
             # Core's signer supports that case and no other either:
@@ -643,7 +643,7 @@ def from_tx(
     if is_p2wpkh(script):
         if codesep_index:
             raise BTClibValueError("OP_CODESEPARATOR index for a p2wpkh input")
-        # BIP-143 signs a p2wpkh input against the p2pkh script for the
+        # BIP143 signs a p2wpkh input against the p2pkh script for the
         # same hash, which is built here and is in no transaction
         _, payload = type_and_payload(script)
         script_code = serialize(
@@ -663,7 +663,7 @@ def from_tx(
         if not stack:
             raise BTClibValueError("empty p2wsh witness stack")
         # the real script is contained in the witness, and it is signed as
-        # it stands: BIP-143 elides no OP_CODESEPARATOR, where the legacy
+        # it stands: BIP143 elides no OP_CODESEPARATOR, where the legacy
         # serializer elides those left after the truncation
         script_code = _script_code_from(stack[-1], codesep_index)
         return segwit_v0(

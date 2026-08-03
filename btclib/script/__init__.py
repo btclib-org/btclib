@@ -7,7 +7,7 @@
 #
 # No part of btclib including this file, may be copied, modified, propagated,
 # or distributed except according to the terms contained in the LICENSE file.
-"""Module btclib.script."""
+"""Scripts: types, classification, sig hashes, taproot, the engine."""
 
 from btclib.alias import Command, TaprootLeaf, TaprootScriptTree
 from btclib.script.script import (

@@ -42,14 +42,14 @@ aggregate key reaches the output being spent. Four ways, and BIP373
 publishes a vector for each:
 
 - the aggregate key **is** the taproot output key: nothing to tweak;
-- the aggregate key is the **internal key**: one X-only tweak, the BIP341
+- the aggregate key is the **internal key**: one x-only tweak, the BIP341
   commitment to the merkle root the input carries;
 - the aggregate key is a **key in a leaf script**: nothing to tweak, and
   the message is BIP342's rather than BIP341's -- which is why every
   function here takes the tapleaf hash the key data carries;
 - the internal key is **derived** from the aggregate key: BIP328
   derivation, i.e. one plain tweak per step of the path in
-  `PSBT_IN_TAP_BIP32_DERIVATION`, then the X-only one.
+  `PSBT_IN_TAP_BIP32_DERIVATION`, then the x-only one.
 
 `session_context` is where those four are read off the psbt, and it is
 public because a signer needs it for what BIP327 asks beyond signing:
@@ -254,7 +254,7 @@ def _session_parts(
 
 
 def _script_key(psbt_in: PsbtIn, leaf_hash: bytes) -> bytes:
-    """Return the X-only key the leaf script of a script path spend signs with.
+    """Return the x-only key the leaf script of a script path spend signs with.
 
     BIP342 spends a leaf with what its own script asks for, so what the
     tweaked key is checked against is a key in that script -- the one and

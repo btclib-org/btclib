@@ -13,8 +13,8 @@ No vector file here: what is asserted is that computing the
 transaction-wide hashes once answers exactly what computing them per
 input did, on every branch of both segwit sig_hash flavours, and that a
 loop over the inputs now hashes the transaction once instead of N times
-(issue #164). The hashes themselves are pinned against the BIP-143 and
-BIP-341 vectors by the three test modules beside this one.
+(issue #164). The hashes themselves are pinned against the BIP143 and
+BIP341 vectors by the three test modules beside this one.
 """
 
 from dataclasses import FrozenInstanceError
@@ -108,8 +108,8 @@ def spending_tx() -> tuple[Tx, list[TxOut]]:
 def test_precomputed_answers_the_same(vin_i: int, hash_type: int) -> None:
     """The precomputed data must not change a single sig_hash.
 
-    Every input of the transaction against every hash type of BIP-143
-    and BIP-341: the pairs cover the ANYONECANPAY branch, which commits
+    Every input of the transaction against every hash type of BIP143
+    and BIP341: the pairs cover the ANYONECANPAY branch, which commits
     to no transaction-wide hash, and the SINGLE one, which commits to
     one output only and so cannot be precomputed either.
     """
@@ -123,8 +123,8 @@ def test_precomputed_answers_the_same(vin_i: int, hash_type: int) -> None:
 def test_bip143_hashes_the_same_serializations_as_bip341() -> None:
     """hash256 is sha256 twice, and the two BIPs hash the same bytes.
 
-    Which is why there are five serializations and not ten: the BIP-143
-    `hash_` properties are one further sha256 over the BIP-341 `sha_`
+    Which is why there are five serializations and not ten: the BIP143
+    `hash_` properties are one further sha256 over the BIP341 `sha_`
     attributes. Asserted against each BIP's own definition, spelled out
     here from the transaction rather than taken from the module.
     """
@@ -144,7 +144,7 @@ def test_bip143_hashes_the_same_serializations_as_bip341() -> None:
     assert precomputed.hash_seqs == hash256(sequences)
     assert precomputed.hash_outputs == hash256(outputs)
 
-    # the two BIP-341 adds, which come from the utxo set and not from the
+    # the two BIP341 adds, which come from the utxo set and not from the
     # transaction. The length prefix is written out rather than taken
     # from var_bytes: every script here is shorter than 253 bytes
     assert precomputed.sha_amounts == sha256(

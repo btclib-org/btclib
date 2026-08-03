@@ -66,9 +66,8 @@ def int_from_bits(octets: Octets, nlen: int) -> int:
 
     Take as input a sequence of blen bits and calculate a
     non-negative integer i that is less than 2^nlen according to
-    SEC 1 v.2 section 4.1.3 (5).
-    Note that an additional reduction modulo n would be required
-    to ensure that 0 < i < n.
+    SEC 1 v.2 section 4.1.3 (5); ensuring 0 < i < n would take a
+    further reduction modulo n, which is the caller's.
 
     int_from_bits is not the reverse of i.to_bytes, even
     for input sequences of length nlen: i.to_bytes will add some

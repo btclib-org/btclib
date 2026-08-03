@@ -26,32 +26,32 @@ the signatures are a parameter rather than something this module makes.
 bytes from a psbt carrying the same signatures.
 
 `update_psbt` is the third answer, and the one for a spend the signers
-do not make all at once: BIP 174's Updater, writing the scripts and the
+do not make all at once: BIP174's Updater, writing the scripts and the
 key origins into a psbt input, for signers to fill in at their own pace
 and `psbt.finalize_psbt` to assemble. This module imports `psbt` for it
 and nothing there imports back, which is the direction of the layering:
 a psbt is a transaction being built, and a descriptor is what a wallet
 knows about the outputs it holds.
 
-BIP 380: https://github.com/bitcoin/bips/blob/master/bip-0380.mediawiki
+BIP380: https://github.com/bitcoin/bips/blob/master/bip-0380.mediawiki
 
-The grammar read is BIP 380 to BIP 386 and BIP 389, minus miniscript:
+The grammar read is BIP380 to BIP386 and BIP389, minus miniscript:
 
-- ``pk``, ``pkh``, ``wpkh``, ``combo`` (BIP 381, BIP 382, BIP 384)
+- ``pk``, ``pkh``, ``wpkh``, ``combo`` (BIP381, BIP382, BIP384)
 - ``sh``, ``wsh``, including ``sh(wpkh())`` and ``sh(wsh())``
-- ``multi``, ``sortedmulti`` (BIP 383)
-- ``addr``, ``raw`` (BIP 385)
-- ``tr``, with a key path and a script tree of ``pk()`` leaves (BIP 386)
+- ``multi``, ``sortedmulti`` (BIP383)
+- ``addr``, ``raw`` (BIP385)
+- ``tr``, with a key path and a script tree of ``pk()`` leaves (BIP386)
 - key expressions: hex public keys (compressed, uncompressed and, inside
   ``tr()``, x-only), WIF private keys, xpub/xprv with a derivation path,
   key origin, ``/*`` and ``/*h`` wildcards, both ``h`` and ``'`` hardened
   markers
-- the ``<a;b>`` multipath form of BIP 389, through `multipath_descriptors`
+- the ``<a;b>`` multipath form of BIP389, through `multipath_descriptors`
 
 What raises NotImplementedError, rather than being read wrong: every
 miniscript expression, which is issue #187; and ``multi_a``,
-``sortedmulti_a``, ``rawtr`` and ``musig``, which are BIP 387, BIP 386
-and BIP 390 and belong with the work that adds them.
+``sortedmulti_a``, ``rawtr`` and ``musig``, which are BIP387, BIP386
+and BIP390 and belong with the work that adds them.
 
 The network is a parameter of `parse` and not part of a descriptor: a
 descriptor names keys and scripts, and the same one means something on
@@ -158,10 +158,10 @@ def descriptor_from_address(address: str) -> str:
     return add_checksum(f"addr({address})")
 
 
-# the tapscript leaf version, which is the only one a BIP 386 tree has
+# the tapscript leaf version, which is the only one a BIP386 tree has
 _TAPSCRIPT_LEAF_VERSION = 0xC0
 
-# where a SCRIPT expression sits. BIP 381 to BIP 386 give each function a
+# where a SCRIPT expression sits. BIP381 to BIP386 give each function a
 # position rule -- sh() is top level only, wpkh() is top level or inside
 # sh(), and so on -- so the context is an argument of the parser, and
 # these strings are what its error messages say
@@ -170,7 +170,7 @@ _P2SH = "sh()"
 _P2WSH = "wsh()"
 _P2TR = "tr()"
 
-# BIP 379 fragments that are miniscript and nothing else. pk, pkh and
+# BIP379 fragments that are miniscript and nothing else. pk, pkh and
 # multi are miniscript too, but they are descriptor functions first and
 # are read as such; a wrapper (`s:pk(...)`) is caught by the colon
 _MINISCRIPT_FRAGMENTS = frozenset(
@@ -199,34 +199,34 @@ _MINISCRIPT_FRAGMENTS = frozenset(
 # each is a specification of its own, and a script derived wrong is an
 # address that loses money
 _UNIMPLEMENTED = {
-    "multi_a": "BIP 387",
-    "sortedmulti_a": "BIP 387",
-    "rawtr": "BIP 386",
-    "musig": "BIP 390",
+    "multi_a": "BIP387",
+    "sortedmulti_a": "BIP387",
+    "rawtr": "BIP386",
+    "musig": "BIP390",
 }
 
 _FINGERPRINT = re.compile("[0-9a-fA-F]{8}")
 _DERIVATION_INDEX = re.compile("[0-9]+[h']?")
 _HEX = re.compile("[0-9a-fA-F]*")
 _THRESHOLD = re.compile("[0-9]+")
-# the BIP 389 multipath step, brackets included: re.split hands back what
+# the BIP389 multipath step, brackets included: re.split hands back what
 # it split on when the pattern captures it
 _MULTIPATH_STEP = re.compile("(<[^<>]*>)")
 
 
 @dataclass(frozen=True)
 class KeyExpression:
-    """A BIP 380 KEY expression: an origin, a key, a derivation path.
+    """A BIP380 KEY expression: an origin, a key, a derivation path.
 
     Either `pub_key` is the key the descriptor fixes, in SEC bytes, or
     `xkey` is the extended key that `der_path` and `wildcard` derive
     from. An x-only key is held as its even-y SEC form, which is what
-    BIP 340 says those 32 bytes mean, so that everything downstream sees
+    BIP340 says those 32 bytes mean, so that everything downstream sees
     one representation of a public key.
 
     `origin` never changes the script. It says which master key and which
     path the key came from, which is what a hardware signer needs and
-    what BIP 174 carries in a PSBT.
+    what BIP174 carries in a PSBT.
     """
 
     origin: BIP32KeyOrigin | None = None
@@ -249,7 +249,7 @@ class KeyExpression:
     def is_compressed(self) -> bool:
         """Return False for an uncompressed SEC public key, True otherwise.
 
-        An extended key is compressed by construction: BIP 32 has no
+        An extended key is compressed by construction: BIP32 has no
         uncompressed serialization.
         """
         return self.pub_key is None or len(self.pub_key) == 33
@@ -323,7 +323,7 @@ def _derived_origin(key: KeyExpression, index: int) -> BIP32KeyOrigin | None:
     """Return the origin of the key at `index`, None for a key without one.
 
     `KeyExpression.origin` is the path down to the extended key the
-    descriptor holds, and what BIP 174 carries is the path down to the
+    descriptor holds, and what BIP174 carries is the path down to the
     key itself: the derivation the descriptor then does, the wildcard
     step at `index` included, appended to it. A signer given the shorter
     path would derive the wrong key from it.
@@ -433,7 +433,7 @@ class Descriptor(ABC):
 
         Both halves come back and one of the two is always empty: a
         legacy script has no witness, and a native segwit one has the
-        empty script_sig BIP 141 requires.
+        empty script_sig BIP141 requires.
 
         A signature short of what the script pops is an error and not a
         shorter answer. A 2-of-3 holding one signature is a psbt waiting
@@ -466,7 +466,7 @@ class Descriptor(ABC):
     def update_psbt(self, psbt: Psbt, vin_i: int, index: int = 0) -> Psbt:
         """Return the psbt with input `vin_i` told what the descriptor knows.
 
-        BIP 174's Updater, for the one input this descriptor describes:
+        BIP174's Updater, for the one input this descriptor describes:
         the redeem script of a ``sh()``, the witness script of a
         ``wsh()``, the internal key, merkle root and leaf scripts of a
         ``tr()``, and the origin of every key that carries one -- which is
@@ -479,7 +479,7 @@ class Descriptor(ABC):
 
         A copy, the psbt handed in being left alone, and the fields of
         the copy mutated in place: `finalize_psbt` is the same
-        construction, and BIP 174's roles read as steps that update a
+        construction, and BIP174's roles read as steps that update a
         psbt rather than as functions that return a field at a time.
 
         What is not filled is what a descriptor does not know: the utxo,
@@ -506,7 +506,7 @@ class Descriptor(ABC):
         psbt has from the utxo rather than from here. The fragments that
         embed one of those add their scripts to this.
 
-        The mapping is added to and not replaced: BIP 174 keys it by
+        The mapping is added to and not replaced: BIP174 keys it by
         public key, so a psbt already carrying another signer's key keeps
         it, and this descriptor's entry wins for a key held by both.
         """
@@ -529,7 +529,7 @@ class Descriptor(ABC):
 
 @dataclass(frozen=True)
 class PkDescriptor(Descriptor):
-    """``pk(KEY)``: a P2PK output, BIP 381."""
+    """``pk(KEY)``: a P2PK output, BIP381."""
 
     key: KeyExpression
 
@@ -549,7 +549,7 @@ class PkDescriptor(Descriptor):
 
 @dataclass(frozen=True)
 class PkhDescriptor(Descriptor):
-    """``pkh(KEY)``: a P2PKH output, BIP 381."""
+    """``pkh(KEY)``: a p2pkh output, BIP381."""
 
     key: KeyExpression
 
@@ -570,7 +570,7 @@ class PkhDescriptor(Descriptor):
 
 @dataclass(frozen=True)
 class WpkhDescriptor(Descriptor):
-    """``wpkh(KEY)``: a P2WPKH output, BIP 382."""
+    """``wpkh(KEY)``: a p2wpkh output, BIP382."""
 
     key: KeyExpression
 
@@ -584,14 +584,14 @@ class WpkhDescriptor(Descriptor):
 
     def _stack(self, signatures: Mapping[bytes, bytes], index: int) -> list[bytes]:
         # the witness of a p2wpkh spend is what the script_sig of a p2pkh
-        # one is, BIP 143 having moved it and changed nothing else
+        # one is, BIP143 having moved it and changed nothing else
         sec = self.key.sec(index, self.network)
         return [_required_signature(signatures, sec), sec]
 
     def _satisfy(
         self, signatures: Mapping[bytes, bytes], index: int
     ) -> tuple[bytes, Witness]:
-        # the empty script_sig of BIP 141, which is not the same as an
+        # the empty script_sig of BIP141, which is not the same as an
         # empty push: btclib's own engine refuses a native segwit input
         # whose script_sig is there at all (issue #249). A sh(wpkh())
         # gets its one push from the sh() above
@@ -600,7 +600,7 @@ class WpkhDescriptor(Descriptor):
 
 @dataclass(frozen=True)
 class ShDescriptor(Descriptor):
-    """``sh(SCRIPT)``: the argument, P2SH-embedded, BIP 381."""
+    """``sh(SCRIPT)``: the argument, p2sh-embedded, BIP381."""
 
     inner: Descriptor
 
@@ -643,7 +643,7 @@ class ShDescriptor(Descriptor):
 
 @dataclass(frozen=True)
 class WshDescriptor(Descriptor):
-    """``wsh(SCRIPT)``: the argument, P2WSH-embedded, BIP 382."""
+    """``wsh(SCRIPT)``: the argument, P2WSH-embedded, BIP382."""
 
     inner: Descriptor
 
@@ -662,7 +662,7 @@ class WshDescriptor(Descriptor):
 
         The argument's stack and not its satisfaction, which would be
         those same elements serialized as a script_sig: a witness is a
-        stack already, so BIP 141 puts them in it one by one and the
+        stack already, so BIP141 puts them in it one by one and the
         witness script last.
         """
         stack = self.inner._stack(signatures, index)
@@ -681,11 +681,11 @@ class WshDescriptor(Descriptor):
 
 @dataclass(frozen=True)
 class MultiDescriptor(Descriptor):
-    """``multi(k,KEY,...)`` and ``sortedmulti(k,KEY,...)``, BIP 383."""
+    """``multi(k,KEY,...)`` and ``sortedmulti(k,KEY,...)``, BIP383."""
 
     threshold: int
     keys: tuple[KeyExpression, ...]
-    # BIP 67 ordering, which is the whole difference between the two
+    # BIP67 ordering, which is the whole difference between the two
     # functions: the keys of a sortedmulti() are sorted in the script, so
     # the participants need not agree on an order to agree on an address
     sort: bool = False
@@ -726,7 +726,7 @@ class MultiDescriptor(Descriptor):
         keys of the same descriptor having signed too.
 
         The first element is the one OP_CHECKMULTISIG pops without
-        reading, which BIP 147 requires to be the empty push.
+        reading, which BIP147 requires to be the empty push.
         """
         offered = [
             (sec, _offered_signature(signatures, sec)) for sec in self._pub_keys(index)
@@ -741,9 +741,9 @@ class MultiDescriptor(Descriptor):
 
 @dataclass(frozen=True)
 class ComboDescriptor(Descriptor):
-    """``combo(KEY)``: the scripts an old wallet would have used, BIP 384.
+    """``combo(KEY)``: the scripts an old wallet would have used, BIP384.
 
-    P2PK and P2PKH, plus P2WPKH and P2SH-P2WPKH when the key is
+    p2pk and p2pkh, plus p2wpkh and p2sh-p2wpkh when the key is
     compressed -- an uncompressed key is not allowed in a witness
     program.
     """
@@ -794,7 +794,7 @@ class ComboDescriptor(Descriptor):
 
 @dataclass(frozen=True)
 class AddrDescriptor(Descriptor):
-    """``addr(ADDR)``: the script the address expands to, BIP 385."""
+    """``addr(ADDR)``: the script the address expands to, BIP385."""
 
     addr: str
 
@@ -830,7 +830,7 @@ class AddrDescriptor(Descriptor):
 
 @dataclass(frozen=True)
 class RawDescriptor(Descriptor):
-    """``raw(HEX)``: the script those bytes are, BIP 385."""
+    """``raw(HEX)``: the script those bytes are, BIP385."""
 
     script: bytes
 
@@ -866,7 +866,7 @@ class RawDescriptor(Descriptor):
 
 @dataclass(frozen=True)
 class TrDescriptor(Descriptor):
-    """``tr(KEY)`` or ``tr(KEY,TREE)``: a P2TR output, BIP 386."""
+    """``tr(KEY)`` or ``tr(KEY,TREE)``: a p2tr output, BIP386."""
 
     internal_key: KeyExpression
     tree: DescriptorTree | None = None
@@ -904,7 +904,7 @@ class TrDescriptor(Descriptor):
     def taproot_merkle_root(self, index: int = 0) -> bytes:
         """Return the root the output key commits to, b"" where there is none.
 
-        BIP 371's PSBT_IN_TAP_MERKLE_ROOT, and empty is how that field
+        BIP371's PSBT_IN_TAP_MERKLE_ROOT, and empty is how that field
         says "key path only": a ``tr(KEY)`` tweaks its internal key with
         no tree, which is not the same as tweaking it with an empty one.
         """
@@ -916,7 +916,7 @@ class TrDescriptor(Descriptor):
     def taproot_leaf_scripts(self, index: int = 0) -> dict[bytes, tuple[bytes, int]]:
         """Return every leaf script and its version, keyed by control block.
 
-        The shape of BIP 371's PSBT_IN_TAP_LEAF_SCRIPT, and the field an
+        The shape of BIP371's PSBT_IN_TAP_LEAF_SCRIPT, and the field an
         Updater is needed for rather than convenient: a control block
         holds the merkle path from its leaf to the root, which is the
         whole tree seen from that leaf, and a psbt carrying one leaf's
@@ -937,7 +937,7 @@ class TrDescriptor(Descriptor):
     ) -> dict[bytes, tuple[list[bytes], BIP32KeyOrigin]]:
         """Return each key's origin and leaf hashes, keyed by x-only key.
 
-        BIP 371 gives a taproot key a field of its own, keyed by the 32
+        BIP371 gives a taproot key a field of its own, keyed by the 32
         bytes a tapscript holds and carrying the tapleaf hash of every
         leaf the key appears in: none for a key that is only the internal
         one, no leaf committing to it, and one entry naming each of them
@@ -951,7 +951,7 @@ class TrDescriptor(Descriptor):
         leaf_hashes: dict[bytes, list[bytes]] = {}
         for script, leaf_version in self.taproot_leaf_scripts(index).values():
             # a leaf of this module's own making is a push of the key and
-            # OP_CHECKSIG, `pk()` being the only leaf BIP 386 reads here,
+            # OP_CHECKSIG, `pk()` being the only leaf BIP386 reads here,
             # so the key is what the push holds
             hashes = leaf_hashes.setdefault(script[1:-1], [])
             if (hash_ := leaf_hash(leaf_version, script)) not in hashes:
@@ -979,13 +979,13 @@ class TrDescriptor(Descriptor):
         names.
 
         A script path witness is the signature, the leaf script and the
-        control block, which is BIP 341's order. Both the parity bit and
+        control block, which is BIP341's order. Both the parity bit and
         the merkle path in that control block are the descriptor's to
         compute, holding the whole tree as it does, where a psbt has to
         be handed them: it is the one thing satisfaction here knows that
         finalization there cannot work out.
 
-        The script_sig is empty whichever path is taken: BIP 341 spends
+        The script_sig is empty whichever path is taken: BIP341 spends
         a witness v1 program with the witness alone.
         """
         internal_key = self.internal_key.sec(index, self.network)
@@ -1095,7 +1095,7 @@ def _der_path(path: str) -> list[int]:
         if not _DERIVATION_INDEX.fullmatch(step):
             raise BTClibValueError(f"invalid derivation index: {step}")
         # int_from_index_str is what refuses 2**31 and above written
-        # unhardened, there being no such BIP 32 index
+        # unhardened, there being no such BIP32 index
         indexes.append(int_from_index_str(step))
     return indexes
 
@@ -1114,7 +1114,7 @@ def _pub_key_from_hex(key: str, *, x_only: bool) -> tuple[bytes, bool]:
     if length == 64:
         if not x_only:
             raise BTClibValueError("x-only public keys are allowed inside tr() only")
-        # the even-y lift of BIP 340, which is what an x-only key means
+        # the even-y lift of BIP340, which is what an x-only key means
         pub_key = b"\x02" + bytes_from_octets(key)
     elif length in (66, 130):
         prefix = key[:2]
@@ -1164,7 +1164,7 @@ def _assert_key_characters(rest: str) -> None:
         err_msg = "multipath key expression: use multipath_descriptors first"
         raise BTClibValueError(err_msg)
     if "(" in rest:
-        # the one KEY expression that is a function is BIP 390's musig(),
+        # the one KEY expression that is a function is BIP390's musig(),
         # and a key nothing reads is not a key to guess at
         _assert_implemented(rest[: rest.index("(")])
         raise BTClibValueError("not a key expression")
@@ -1192,7 +1192,7 @@ def _fixed_pub_key(key: str, *, x_only: bool) -> tuple[bytes, bool]:
 def _parse_key(
     expression: str, *, x_only: bool = False, compressed: bool = False
 ) -> KeyExpression:
-    """Return the KeyExpression of a BIP 380 KEY expression.
+    """Return the KeyExpression of a BIP380 KEY expression.
 
     Never echo the key in an error message: a KEY expression is a WIF or
     an xprv as often as it is a public key, and an error message ends up
@@ -1219,7 +1219,7 @@ def _parse_key(
 
 
 def _parse_tree(expression: str) -> DescriptorTree:
-    """Return the script tree of a BIP 386 TREE expression."""
+    """Return the script tree of a BIP386 TREE expression."""
     if expression.startswith("{"):
         if not expression.endswith("}"):
             raise BTClibValueError(f"unbalanced braces: {expression}")
@@ -1237,7 +1237,7 @@ def _parse_tree(expression: str) -> DescriptorTree:
 
 
 # inside a witness program an uncompressed key is unspendable, so
-# BIP 382 refuses one rather than describing a script nobody can spend;
+# BIP382 refuses one rather than describing a script nobody can spend;
 # inside tr() the keys are x-only to begin with
 def _no_uncompressed(context: str) -> bool:
     return context in (_P2WSH, _P2TR)
@@ -1324,7 +1324,7 @@ def _parse_raw(args: list[str], context: str, network: str) -> Descriptor:
     return RawDescriptor(script, network=network)
 
 
-# every SCRIPT function, where BIP 381 to BIP 386 allow it, and what
+# every SCRIPT function, where BIP381 to BIP386 allow it, and what
 # reads it. A table rather than a chain of comparisons because the
 # position rule is the interesting half and belongs where it can be read
 # beside the others
@@ -1362,7 +1362,7 @@ def parse(descriptor: str, network: str = "mainnet") -> Descriptor:
 
 
 def multipath_descriptors(descriptor: str) -> list[str]:
-    """Return the single-path descriptors of a BIP 389 multipath one.
+    """Return the single-path descriptors of a BIP389 multipath one.
 
     A descriptor with no ``<a;b>`` step is one descriptor, returned
     checksummed and otherwise unchanged. One with such steps is as many
@@ -1370,7 +1370,7 @@ def multipath_descriptors(descriptor: str) -> list[str]:
     element of every step, the second the second, and so on -- which is
     what makes the two-element form a receiving chain and a change chain.
 
-    The expansion is textual, as BIP 389 defines it, and each result is a
+    The expansion is textual, as BIP389 defines it, and each result is a
     descriptor to be parsed on its own.
     """
     pieces = _MULTIPATH_STEP.split(strip_checksum(descriptor))

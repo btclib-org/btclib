@@ -309,9 +309,9 @@ def gen_keys(prv_key: PrvKey | None = None, ec: Curve = secp256k1) -> tuple[int,
 def _sign_recoverable_(
     c: int, q: int, nonce: int, lower_s: bool, ec: Curve
 ) -> tuple[Sig, int]:
-    # Private function for testing purposes: it allows to explore all
-    # possible value of the challenge c (for low-cardinality curves).
-    # It assume that c is in [0, n-1], while q and nonce are in [1, n-1]
+    # Private, for tests: it takes the challenge c as an argument, so
+    # a test can explore every value of it on a low-cardinality curve.
+    # c is assumed in 0..n-1, q and nonce in 1..n-1
     # Steps numbering follows SEC 1 v.2 section 4.1.3
     # affine coordinates of K (field elements); mult dispatches the
     # generator to libsecp256k1 on secp256k1, which is where this

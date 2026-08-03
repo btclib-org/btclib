@@ -7,7 +7,12 @@
 #
 # No part of btclib including this file, may be copied, modified, propagated,
 # or distributed except according to the terms contained in the LICENSE file.
-"""Elliptic curve classes and functions."""
+"""The prime-order Curve and the multiplications built on it.
+
+mult, double_mult and multi_mult dispatch secp256k1 to the
+libsecp256k1 bindings and answer every other curve -- and the cases
+the bindings cannot express -- with curve_group's arithmetic.
+"""
 
 from __future__ import annotations
 

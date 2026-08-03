@@ -25,7 +25,7 @@ that says it did. `get_tx` is the one answer that checks itself, in
 from it, so a substituted transaction is caught -- and the height and the
 tip hash are taken on trust, there being nothing here to check them
 against. Nor does anything here say a transaction is *confirmed*: the
-answer to that is a Merkle branch against a header, which is what the
+answer to that is a merkle branch against a header, which is what the
 Electrum backend of issue #204 would add and this one cannot. That is the
 trade the fallback exists to offer, and `SECURITY.md` states it.
 

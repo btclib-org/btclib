@@ -4126,6 +4126,13 @@ edit.
 
 ### Documentation and the website
 
+- **One spelling per term, throughout the prose.** BIPnnn — no space, no
+  hyphen — op code, segwit, merkle, sighash, x-only, and lowercase
+  p2pkh/p2sh/p2wpkh/p2tr: each is the spelling already dominant in the
+  tree, now the only one. Identifiers, quoted Core code and the vendored
+  vectors keep their own spellings; the few runtime messages that spelled
+  a term differently ("BIP 386", "sig hash type") follow the prose, and
+  the tests asserting on them with it (issue #290)
 - **Every public class, method and function has a docstring, and ruff
   now fails one that arrives without.** The members autodoc rendered as
   bare signatures state their contract: the script engine's op codes

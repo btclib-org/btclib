@@ -151,7 +151,7 @@ def test_checksum_is_eight_characters(descriptor: str) -> None:
 def test_a_changed_character_changes_the_checksum(
     descriptor: str, position: int, replacement: str
 ) -> None:
-    """A single substitution is what the BIP-380 checksum must catch.
+    """A single substitution is what the BIP380 checksum must catch.
 
     It is designed to catch any error of up to four characters, so one
     is the case it must never miss -- and the case a wallet meets, a
@@ -469,7 +469,7 @@ def test_hardened_derivation_needs_the_private_key(descriptor: str) -> None:
     """An xpub cannot answer a hardened step, so the descriptor cannot.
 
     Bitcoin Core says the same by expanding only the private spelling of
-    these four, and BIP 380 states it as a rule of the language.
+    these four, and BIP380 states it as a rule of the language.
     """
     parsed = parse(descriptor)
     with pytest.raises(BTClibValueError, match="hardened derivation"):
@@ -507,7 +507,7 @@ def test_doc_descriptor(descriptor: str) -> None:
 def test_doc_descriptors_are_read_but_for_one() -> None:
     """Seventeen of Core's eighteen documented descriptors expand here.
 
-    The eighteenth is a `sortedmulti_a()`, BIP 387, refused rather than
+    The eighteenth is a `sortedmulti_a()`, BIP387, refused rather than
     guessed at. Counted rather than assumed, so that refreshing the
     vendored file cannot move a descriptor from one group to the other
     unnoticed.
@@ -533,7 +533,7 @@ def test_sortedmulti_sorts_what_multi_leaves_alone() -> None:
 
 
 # Bitcoin Core's CheckMultipath vector at line 705 of the same file: one
-# BIP 389 descriptor, the two it expands to, and the scripts of each
+# BIP389 descriptor, the two it expands to, and the scripts of each
 MULTIPATH = "wpkh([ffffffff/13h]xpub69H7F5d8KSRgmmdJg2KhpAK8SR3DjMwAdkxj3ZuxV27CprR9LgpeyGmXUbC6wb7ERfvrnKZjXoUmmDznezpbZb7ap6r1D3tgFxHmwMkQTPH/<1;3>/2/*)"
 MULTIPATH_EXPANSIONS = [
     "wpkh([ffffffff/13h]xpub69H7F5d8KSRgmmdJg2KhpAK8SR3DjMwAdkxj3ZuxV27CprR9LgpeyGmXUbC6wb7ERfvrnKZjXoUmmDznezpbZb7ap6r1D3tgFxHmwMkQTPH/1/2/*)",
@@ -571,7 +571,7 @@ def test_multipath_of_a_single_path_descriptor() -> None:
 
 
 def test_multipath_in_two_key_expressions() -> None:
-    """Every step takes its i-th element, which is what BIP 389 says.
+    """Every step takes its i-th element, which is what BIP389 says.
 
     Bitcoin Core's CheckMultipath vector at line 755 of the same file.
     """
@@ -679,7 +679,7 @@ def test_key_origin_is_kept() -> None:
     assert origin is not None
     assert origin.description == "deadbeef/1/2h/3/4h"
     # the same descriptor with the other hardening marker is the same
-    # descriptor: BIP 380 gives h and ' the same meaning
+    # descriptor: BIP380 gives h and ' the same meaning
     apostrophes = parse(f"pkh([deadbeef/1/2'/3/4']{key})")
     assert apostrophes.key_expressions[0].origin == origin
 
@@ -756,7 +756,7 @@ OFF_CURVE = "020000000000000000000000000000000000000000000000000000000000000005"
 
 # what a descriptor cannot be, and the message that says so. The first
 # group is Bitcoin Core's own CheckUnparsable cases, from the same
-# descriptor_test; the rest are the position rules of BIP 381 to BIP 386
+# descriptor_test; the rest are the position rules of BIP381 to BIP386
 # and the shapes a recursive parser has to refuse
 UNPARSABLE = [
     # Core: an invalid public key, here 64 hex characters where an x-only
@@ -775,7 +775,7 @@ UNPARSABLE = [
     (f"pk(06{UNCOMPRESSED[2:]})", "public key prefix"),
     # Core: a fingerprint that is not four bytes
     (f"combo([012345678]{XPUB})", "fingerprint"),
-    # Core: a derivation index that is no BIP 32 index
+    # Core: a derivation index that is no BIP32 index
     (f"pkh({XPUB}/2147483648)", "invalid index"),
     (f"pkh({XPUB}/1aa)", "invalid derivation index"),
     (f"pkh({XPUB}/+1)", "invalid derivation index"),
@@ -838,11 +838,11 @@ UNIMPLEMENTED = [
     ),
     (f"wsh(thresh(1,pk({KEY})))", "187"),
     (f"wsh(s:pk({KEY}))", "187"),
-    (f"tr({XONLY},multi_a(1,{XONLY}))", "BIP 387"),
-    (f"tr({XONLY},sortedmulti_a(1,{XONLY}))", "BIP 387"),
+    (f"tr({XONLY},multi_a(1,{XONLY}))", "BIP387"),
+    (f"tr({XONLY},sortedmulti_a(1,{XONLY}))", "BIP387"),
     (f"tr({XONLY},pkh({KEY}))", "inside tr"),
-    (f"rawtr({XONLY})", "BIP 386"),
-    (f"tr(musig({KEY},{KEY}))", "BIP 390"),
+    (f"rawtr({XONLY})", "BIP386"),
+    (f"tr(musig({KEY},{KEY}))", "BIP390"),
 ]
 
 
@@ -931,7 +931,7 @@ def test_satisfy_matches_the_psbt_finalizer(
 
     `finalize_psbt` assembles the same script_sig and witness from a
     psbt input carrying the same signatures, and it is the older and the
-    independently tested of the two: BIP 174 describes what it does, and
+    independently tested of the two: BIP174 describes what it does, and
     what a descriptor adds is knowing the scripts and the key order
     without being told them. So the psbt is told them here -- the redeem
     script, the witness script and the output being spent -- and the two
@@ -969,7 +969,7 @@ def test_signatures_go_in_the_order_the_script_holds_the_keys() -> None:
         bytes.fromhex(SIGNATURES[KEY_A]),
         bytes.fromhex(SIGNATURES[KEY_C]),
     )
-    # the empty push BIP 147 requires, both times
+    # the empty push BIP147 requires, both times
     assert ordered.stack[0] == sorted_.stack[0] == b""
 
 
@@ -1014,7 +1014,7 @@ def test_satisfy_taproot_key_path() -> None:
 def test_satisfy_taproot_script_path() -> None:
     """Every leaf of an asymmetric tree, and its control block checked.
 
-    `check_output_pubkey` is the verifier's own side of BIP 341: it
+    `check_output_pubkey` is the verifier's own side of BIP341: it
     takes the output key, the leaf script and the control block, and
     walks the merkle path back to the tweak. That it answers True is
     what says the parity bit and the path are the ones this leaf needs,
@@ -1147,7 +1147,7 @@ def test_the_updater_fills_what_the_finalizer_dispatches_on(
 def test_the_updater_carries_the_key_origin_of_the_derived_key() -> None:
     """The path down to the key itself, and not down to the xpub above it.
 
-    What BIP 174 carries is what a signer derives with, so the origin of
+    What BIP174 carries is what a signer derives with, so the origin of
     a ranged descriptor's key is the origin written in it, the steps the
     descriptor derives, and the index -- three pieces the psbt sees as
     one path.
@@ -1236,7 +1236,7 @@ def test_the_updater_fills_the_taproot_fields() -> None:
     convenient: it holds the merkle path from its leaf to the root, which
     is the whole tree seen from that leaf, so a psbt handed one leaf
     cannot work out another. `check_output_pubkey` is the verifier's own
-    side of BIP 341 and says each of them is the path and the parity bit
+    side of BIP341 and says each of them is the path and the parity bit
     that leaf needs.
     """
     descriptor = parse(f"tr({XONLY_A},{{pk({XONLY_B}),pk({XONLY_C})}})")
@@ -1250,7 +1250,7 @@ def test_the_updater_fills_the_taproot_fields() -> None:
         script, control_block = taproot_leaf_of(psbt_in, leaf_key)
         assert script == serialize([bytes.fromhex(leaf_key), "OP_CHECKSIG"])
         assert taproot.check_output_pubkey(output_key, script, control_block)
-    # 0xc0 is the leaf version of every BIP 386 tree, and what the
+    # 0xc0 is the leaf version of every BIP386 tree, and what the
     # control block's first byte carries beside the parity bit
     assert {version for _, version in psbt_in.taproot_leaf_scripts.values()} == {0xC0}
 
@@ -1258,7 +1258,7 @@ def test_the_updater_fills_the_taproot_fields() -> None:
 def test_a_taproot_key_path_descriptor_has_no_root_and_no_leaf() -> None:
     """Which is not the same as a tree that is empty.
 
-    `tr(KEY)` tweaks its internal key with no tree at all, and BIP 371
+    `tr(KEY)` tweaks its internal key with no tree at all, and BIP371
     says so by leaving PSBT_IN_TAP_MERKLE_ROOT out.
     """
     descriptor = parse(f"tr({XONLY_A})")
@@ -1273,7 +1273,7 @@ def test_a_taproot_key_path_descriptor_has_no_root_and_no_leaf() -> None:
 
 
 def test_a_taproot_key_origin_names_the_leaves_it_is_in() -> None:
-    """BIP 371 keys the field by x-only key and carries the tapleaf hashes.
+    """BIP371 keys the field by x-only key and carries the tapleaf hashes.
 
     None for the internal key, which no leaf commits to, and one per leaf
     for a key in the tree. `hd_key_paths` stays empty: the same key in
@@ -1318,7 +1318,7 @@ def test_a_taproot_script_path_is_finalizable_only_after_the_updater() -> None:
     psbt = descriptor.update_psbt(psbt_spending(descriptor), 0)
     script, control_block = taproot_leaf_of(psbt.inputs[0], XONLY_B)
 
-    # sign_ and not sign: what BIP 341 signs is the hash BIP 342 makes of
+    # sign_ and not sign: what BIP341 signs is the hash BIP342 makes of
     # the transaction, and the Finalizer checks it with verify_
     leaf_hash = taproot.leaf_hash(0xC0, script)
     msg_hash = taproot_sig_hash(psbt, 0, leaf_hash=leaf_hash)

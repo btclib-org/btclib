@@ -7,7 +7,7 @@
 #
 # No part of btclib including this file, may be copied, modified, propagated,
 # or distributed except according to the terms contained in the LICENSE file.
-"""BIP32 key origin."""
+"""The BIP32KeyOrigin dataclass and the bip32_derivs codecs."""
 
 from __future__ import annotations
 
@@ -141,7 +141,7 @@ def assert_valid_hd_key_paths(hd_key_paths: Mapping[bytes, BIP32KeyOrigin]) -> N
     ):
         raise BTClibValueError("Duplicated key origin values in hd_key_paths")
     for pub_key, key_origin in hd_key_paths.items():
-        # the length and not the point: BIP-174 test vector 6 carries a
+        # the length and not the point: BIP174 test vector 6 carries a
         # pub_key that is not on the curve, so parsing it here would
         # refuse a psbt the specification calls valid
         if len(pub_key) not in (78, 33, 65):

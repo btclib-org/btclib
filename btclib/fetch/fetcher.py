@@ -94,7 +94,7 @@ class Fetcher(ABC):
     Three abstract methods, one per question, each with a return type of
     its own. That is the shape on purpose rather than one `get(kind, id)`
     returning whatever: a backend able to *prove* what it says -- the
-    Electrum protocol serves a Merkle branch, which a client checks
+    Electrum protocol serves a merkle branch, which a client checks
     against a header it already holds (issues #188 and #204) -- returns
     evidence beside the data, and evidence is a different type. Adding a
     method for it is additive; widening the return type of `get_tx` would

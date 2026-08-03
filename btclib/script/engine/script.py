@@ -76,7 +76,7 @@ def fix_signature(signature: bytes, flags: ScriptFlag) -> bytes:
     """
     signature_suffix = signature[-1:]
     if ScriptFlag.STRICTENC in flags and signature_suffix[0] not in SIG_HASH_TYPES:
-        raise BTClibValueError(f"invalid sig hash type: {hex(signature_suffix[0])}")
+        raise BTClibValueError(f"invalid sighash type: {hex(signature_suffix[0])}")
     signature = signature[:-1]
     if not flags & STRICT_DER_FLAGS:
         signature = Sig.parse(signature, strict=False).serialize()
@@ -168,7 +168,7 @@ def calculate_script_code(
     scriptCode(pbegincodehash, pend)`, a slice of the script's own bytes
     from just past the last executed OP_CODESEPARATOR, and then — for a
     pre-segwit signature only — FindAndDelete of the signature itself,
-    which BIP-143 dropped for segwit v0 and which is why `segwit` is a
+    which BIP143 dropped for segwit v0 and which is why `segwit` is a
     parameter rather than a fact about the script.
 
     The OP_CODESEPARATORs left in the slice stay in it. Eliding them is

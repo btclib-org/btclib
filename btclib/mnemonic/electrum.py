@@ -90,8 +90,8 @@ from btclib.network import NETWORKS
 from btclib.to_prv_key import int_from_prv_key
 
 _MNEMONIC_VERSIONS = {
-    "standard": "01",  # P2PKH and P2MS-P2SH wallets
-    "segwit": "100",  # P2WPKH and P2WSH wallets
+    "standard": "01",  # p2pkh and p2ms-p2sh wallets
+    "segwit": "100",  # p2wpkh and p2wsh wallets
     "2fa": "101",  # Two-factor authenticated wallets
     "2fa_segwit": "102",  # Two-factor authenticated wallets, using segwit
 }
@@ -557,8 +557,8 @@ def mxprv_from_mnemonic(
 ) -> str:
     """Return BIP32 master extended private key from Electrum mnemonic.
 
-    Note that for a "standard" mnemonic the derivation path is "m", for
-    a "segwit" mnemonic it is "m/0h" instead.
+    The derivation path is "m" for a "standard" mnemonic and "m/0h"
+    for a "segwit" one.
     """
     version, seed = _seed_from_mnemonic(mnemonic, passphrase or "")
 

@@ -12,7 +12,7 @@
 https://github.com/bitcoin/bips/blob/master/bip-0327.mediawiki
 
 MuSig2 turns many signers into one: their public keys aggregate into a
-single X-only key Q, and their partial signatures into a single BIP340
+single x-only key Q, and their partial signatures into a single BIP340
 signature that verifies under Q with `btclib.ecc.ssa` and with any other
 BIP340 verifier. A verifier -- and the chain -- sees an ordinary
 single-key Schnorr signature, which is where the privacy and the size
@@ -48,7 +48,7 @@ a_i = hash(L, P_i), L being the hash of the whole list, so no signer can
 choose its key knowing the others'.
 
 Tweaking is what makes the aggregate key usable: a plain tweak is BIP32
-derivation on top of the group key, an X-only tweak is a BIP341 taproot
+derivation on top of the group key, an x-only tweak is a BIP341 taproot
 commitment. `KeyAggContext` carries `gacc` and `tacc` across tweaks --
 the accumulated negation and the accumulated tweak -- so that the
 partial signatures still add up to a signature valid under the tweaked
@@ -245,7 +245,7 @@ class KeyAggContext:
 
     @property
     def x_only_pub_key(self) -> bytes:
-        """Return the 32-byte X-only aggregate key to verify against."""
+        """Return the 32-byte x-only aggregate key to verify against."""
         return self.Q[0].to_bytes(secp256k1.p_size, "big")
 
 
@@ -277,9 +277,9 @@ def key_agg(pub_keys: Sequence[Octets]) -> KeyAggContext:
 def apply_tweak(
     key_agg_ctx: KeyAggContext, tweak: Octets, is_xonly: bool
 ) -> KeyAggContext:
-    """Return the context tweaked by t, X-only or plain.
+    """Return the context tweaked by t, x-only or plain.
 
-    An X-only tweak is a BIP341 taproot commitment: it applies to the
+    An x-only tweak is a BIP341 taproot commitment: it applies to the
     even-y point, so an odd-y Q is negated first and the negation is
     accumulated in gacc for the signers to apply to their keys. A plain
     tweak is BIP32 derivation on the group key, and takes Q as it is.
@@ -690,7 +690,7 @@ def partial_sig_agg(psigs: Sequence[Octets], session_ctx: SessionContext) -> ssa
     """Aggregate the partial signatures into one BIP340 signature.
 
     An `ssa.Sig`, because that is what it is: the result verifies under
-    the X-only aggregate key with `btclib.ecc.ssa.verify_` and with
+    the x-only aggregate key with `btclib.ecc.ssa.verify_` and with
     every other BIP340 verifier, and handing back 64 bytes would only
     make the caller parse them again to find out.
     """

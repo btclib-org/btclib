@@ -36,60 +36,58 @@ where:
   recovered public keys is the one associated to the address
 - compressed indicates if the address is the hash of the compressed
   public key representation
-- 27 identify a P2PKH address, which is the only kind of address
+- 27 identifies a p2pkh address, which is the only kind of address
   supported by Bitcoin Core;
   when the recovery flag is in the [31, 34] range of compressed
-  addresses, Electrum also check for P2WPKH-P2SH and P2WPKH
-  (SegWit always uses compressed public keys);
+  addresses, Electrum also checks for p2wpkh-p2sh and p2wpkh
+  (segwit always uses compressed public keys);
   BIP137 (Trezor) uses, instead, 35 and 39 instead of 27
-  for P2WPKH-P2SH and P2WPKH (respectively)
+  for p2wpkh-p2sh and p2wpkh (respectively)
 
 +----------+---------+-----------------------------------------------------+
 | rec flag |  key id | address type                                        |
 +==========+=========+=====================================================+
-|    27    |    0    | P2PKH uncompressed                                  |
+|    27    |    0    | p2pkh uncompressed                                  |
 +----------+---------+-----------------------------------------------------+
-|    28    |    1    | P2PKH uncompressed                                  |
+|    28    |    1    | p2pkh uncompressed                                  |
 +----------+---------+-----------------------------------------------------+
-|    29    |    2    | P2PKH uncompressed                                  |
+|    29    |    2    | p2pkh uncompressed                                  |
 +----------+---------+-----------------------------------------------------+
-|    30    |    3    | P2PKH uncompressed                                  |
+|    30    |    3    | p2pkh uncompressed                                  |
 +----------+---------+-----------------------------------------------------+
-|    31    |    0    | P2PKH compressed (also Electrum P2WPKH-P2SH/P2WPKH) |
+|    31    |    0    | p2pkh compressed (also Electrum p2wpkh-p2sh/p2wpkh) |
 +----------+---------+-----------------------------------------------------+
-|    32    |    1    | P2PKH compressed (also Electrum P2WPKH-P2SH/P2WPKH) |
+|    32    |    1    | p2pkh compressed (also Electrum p2wpkh-p2sh/p2wpkh) |
 +----------+---------+-----------------------------------------------------+
-|    33    |    2    | P2PKH compressed (also Electrum P2WPKH-P2SH/P2WPKH) |
+|    33    |    2    | p2pkh compressed (also Electrum p2wpkh-p2sh/p2wpkh) |
 +----------+---------+-----------------------------------------------------+
-|    34    |    3    | P2PKH compressed (also Electrum P2WPKH-P2SH/P2WPKH) |
+|    34    |    3    | p2pkh compressed (also Electrum p2wpkh-p2sh/p2wpkh) |
 +----------+---------+-----------------------------------------------------+
-|    35    |    0    | BIP137 (Trezor) P2WPKH-P2SH                         |
+|    35    |    0    | BIP137 (Trezor) p2wpkh-p2sh                         |
 +----------+---------+-----------------------------------------------------+
-|    36    |    1    | BIP137 (Trezor) P2WPKH-P2SH                         |
+|    36    |    1    | BIP137 (Trezor) p2wpkh-p2sh                         |
 +----------+---------+-----------------------------------------------------+
-|    37    |    2    | BIP137 (Trezor) P2WPKH-P2SH                         |
+|    37    |    2    | BIP137 (Trezor) p2wpkh-p2sh                         |
 +----------+---------+-----------------------------------------------------+
-|    38    |    3    | BIP137 (Trezor) P2WPKH-P2SH                         |
+|    38    |    3    | BIP137 (Trezor) p2wpkh-p2sh                         |
 +----------+---------+-----------------------------------------------------+
-|    39    |    0    | BIP137 (Trezor) P2WPKH                              |
+|    39    |    0    | BIP137 (Trezor) p2wpkh                              |
 +----------+---------+-----------------------------------------------------+
-|    40    |    1    | BIP137 (Trezor) P2WPKH                              |
+|    40    |    1    | BIP137 (Trezor) p2wpkh                              |
 +----------+---------+-----------------------------------------------------+
-|    41    |    2    | BIP137 (Trezor) P2WPKH                              |
+|    41    |    2    | BIP137 (Trezor) p2wpkh                              |
 +----------+---------+-----------------------------------------------------+
-|    42    |    3    | BIP137 (Trezor) P2WPKH                              |
+|    42    |    3    | BIP137 (Trezor) p2wpkh                              |
 +----------+---------+-----------------------------------------------------+
 
 This implementation endorses the Electrum approach: a signature
 generated with a compressed WIF (i.e. without explicit address or
-with a compressed P2PKH address) is valid also for the
-P2WPKH-P2SH and P2WPKH addresses derived from the same WIF.
+with a compressed p2pkh address) is valid also for the
+p2wpkh-p2sh and p2wpkh addresses derived from the same WIF.
 
-Nonetheless, it is possible to obtain the BIP137 behaviour if
-at signing time the compressed WIF is supplemented with
-a P2WPKH-P2SH or P2WPKH address:
-in this case the signature will be valid only for that same
-address.
+The BIP137 behaviour is available all the same: a compressed WIF
+supplemented at signing time with a p2wpkh-p2sh or p2wpkh address
+yields a signature valid for that address alone.
 
 The message is signed and verified byte-for-byte as provided:
 btclib does not strip whitespace, because the signature must commit
@@ -256,7 +254,7 @@ def gen_keys(
 ) -> tuple[str, str]:
     """Return a private/public key pair.
 
-    The private key is a WIF, the public key is a base58 P2PKH address.
+    The private key is a WIF, the public key is a base58 p2pkh address.
     """
     if prv_key is None:
         if network is None:
@@ -412,7 +410,7 @@ def assert_as_valid(
         _assert_p2pkh(addr, sig.rf, pub_key, h160)
         return
 
-    # must be P2WPKH-P2SH
+    # must be p2wpkh-p2sh
     _assert_p2wpkh_p2sh(addr, sig.rf, pub_key, h160)
 
 

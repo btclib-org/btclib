@@ -29,7 +29,7 @@ from btclib.script.taproot import assert_valid_control_block
 from btclib.tx import Tx
 from btclib.utils import bytes_from_octets, bytesio_from_binarydata
 
-# BIP-371 defines the tap_bip32_derivation value as a compact size number
+# BIP371 defines the tap_bip32_derivation value as a compact size number
 # of 32-byte leaf hashes, followed by the 4-byte master fingerprint and
 # the derivation path
 LEAF_HASH_SIZE = 32
@@ -99,9 +99,7 @@ def deserialize_map(data: BinaryData) -> dict[bytes, bytes]:
     and one passing octets has nothing left to read from anyway.
     """
     stream = bytesio_from_binarydata(data)
-    if (
-        len(stream.getbuffer()) == stream.tell()
-    ):  # we are at the end of the stream buffer
+    if len(stream.getbuffer()) == stream.tell():  # the end of the stream buffer
         raise BTClibValueError("malformed psbt: at least a map is missing")
     partial_map: dict[bytes, bytes] = {}
     while True:
@@ -266,7 +264,7 @@ def serialize_leaf_scripts(
 def parse_leaf_script(v: bytes) -> tuple[bytes, int]:
     """Split the script and the leaf version.
 
-    BIP-371 writes the value of a PSBT_IN_TAP_LEAF_SCRIPT as the script
+    BIP371 writes the value of a PSBT_IN_TAP_LEAF_SCRIPT as the script
     followed by the one byte of its leaf version, so an empty value is
     not a zero-length script: it is a record without the only field it
     is required to carry, which v[-1] would answer with an IndexError.

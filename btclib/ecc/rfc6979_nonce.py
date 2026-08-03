@@ -11,30 +11,22 @@
 
 https://www.rfc-editor.org/rfc/rfc6979.html
 
-ECDSA and ECSSA need to produce, for each signature generation,
-a fresh random value (ephemeral key, hereafter designated as nonce).
-For effective security, nonce must be chosen randomly and uniformly
-from a set of modular integers, using a cryptographically secure
-process. Even slight biases in that process may be turned into
-attacks on the signature schemes.
+Every ECDSA and ECSSA signature needs a fresh ephemeral key (nonce),
+chosen randomly and uniformly from the scalars by a cryptographically
+secure process: even a slight bias in that process can be turned into
+an attack on the scheme, and reusing a nonce across two messages
+signed with one private key reveals the key -- dsa.crack_prv_key is
+that computation.
 
-The need for a cryptographically secure source of randomness proves
-to be a hindranceand and makes implementations harder to test.
-Moreover, reusing the same ephemeral key for a different message
-signed with the same private key reveal the private key!
+RFC6979 removes the need for a randomness source by deriving the
+nonce deterministically from the private key and the message, which
+also makes signing testable against fixed vectors. The derivation
+keeps the properties a signature scheme expects: to whoever does not
+know the private key, the message-to-nonce mapping is computationally
+indistinguishable from a uniformly random function.
 
-RFC6979 turns ECDSA and ECSSA into deterministic schemes by using a
-deterministic process for generating the nonce.
-The process fulfills the cryptographic characteristics in order to
-maintain the properties of verifiability and unforgeability
-expected from signature schemes; namely, for whoever does not know
-the signature private key, the mapping from input messages to the
-corresponding nonce values is computationally indistinguishable from
-what a randomly and uniformly chosen function (from the set of
-messages to the set of possible nonce values) would return.
-
-Please note that the Bitcoin protocol (BIP340) uses a different
-algorithm for the generation of the ephemeral key (see bip340_nonce.py).
+BIP340 uses a different algorithm for the generation of the
+ephemeral key: bip340_nonce.py.
 """
 
 import hashlib

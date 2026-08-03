@@ -82,7 +82,7 @@ Included features are:
 - Base58 encoding/decoding
 - p2pkh/p2sh addresses and WIFs
 - Bech32 encoding/decoding
-- p2wpkh/p2wsh native SegWit addresses and their legacy p2sh-wrapped versions
+- p2wpkh/p2wsh native segwit addresses and their legacy p2sh-wrapped versions
 - [BIP32](https://github.com/bitcoin/bips/blob/master/bip-0032.mediawiki)
   hierarchical deterministic key chains
 - [SLIP132](https://github.com/satoshilabs/slips/blob/master/slip-0132.md)
