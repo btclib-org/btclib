@@ -7,11 +7,15 @@
 #
 # No part of btclib including this file, may be copied, modified, propagated,
 # or distributed except according to the terms contained in the LICENSE file.
-"""Transaction hashes to be signed and their hash types.
+"""The hashes a transaction signature commits to, one per era.
 
-- https://medium.com/@bitaps.com/exploring-bitcoin-signature-hash-types-15427766f0a9
-- https://raghavsood.com/blog/2018/06/10/bitcoin-signature-types-sighash
-- https://wiki.bitcoinsv.io/index.php/SIGHASH_flags
+Three preimages for one question -- what does this input's signature
+sign: `legacy` is Satoshi's SignatureHash, `segwit_v0` is BIP143's,
+which adds the amount being spent, and `taproot` is BIP341's SigMsg,
+which commits to every spent output. The hash types -- ALL, NONE,
+SINGLE, each with or without ANYONECANPAY, and taproot's DEFAULT --
+choose how much of the transaction each preimage covers, and
+`from_tx` dispatches an input to the preimage its script demands.
 """
 
 from __future__ import annotations

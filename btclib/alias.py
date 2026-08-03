@@ -7,9 +7,7 @@
 #
 # No part of btclib including this file, may be copied, modified, propagated,
 # or distributed except according to the terms contained in the LICENSE file.
-"""Aliases.
-
-mypy aliases, documenting also coding input conventions.
+"""The type aliases of the public API, and the input conventions they name.
 
 Octets and String below are both `bytes | str`, so mypy cannot tell
 one from the other: passing a text string where a hex-string is expected

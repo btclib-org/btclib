@@ -7,10 +7,10 @@ does this function take". This page answers the question before it,
 rather than by which module the code lives in.
 
 Every example below is executed by btclib's own test suite, in
-``tests/docs_examples_test.py``. What you see after a ``>>>`` prompt is
-what the library answered, not what somebody expected it to answer, and
-an example that stops being true fails a test rather than sitting here
-misleading you. So type them in: they work.
+``tests/docs_examples_test.py``. What follows a ``>>>`` prompt is what
+the library answered, not what somebody expected it to answer, and an
+example that stops being true fails a test rather than sitting here
+misleading.
 
 .. contents:: On this page
    :local:
@@ -33,13 +33,13 @@ particular btclib does **not**:
   spent, the example supplies it
 - choose coins, estimate a fee, or pick a change amount. A fee is the
   difference between what the inputs are worth and what the outputs are
-  worth, and that arithmetic is yours; btclib will happily build a
-  transaction that pays a thousand-bitcoin fee
+  worth, and that arithmetic is yours: btclib builds a transaction
+  that pays a thousand-bitcoin fee without objection
 - protect your secrets from the machine they are on. Read the
   `limitations section of SECURITY.md <security_link.html>`_ before you
   use it with a key that holds value: private keys live in ordinary,
-  immutable python objects that are never zeroized, and — this is the
-  one most people miss — **not every operation reaches the constant-time
+  immutable python objects that are never zeroized, and — the least
+  obvious limitation — **not every operation reaches the constant-time
   C library**. secp256k1 signing and generator multiplication are
   delegated to the libsecp256k1 bindings; another curve, another hash
   function, a nonce of your own, or a message that is not 32 bytes takes
@@ -78,13 +78,13 @@ Which type to pass
 ------------------
 
 Most of the public API takes "anything convertible" rather than one
-type, which is friendly once you know the rules and baffling until then.
+type, so the rules of the conversion are worth learning first.
 There are four aliases, all in :mod:`btclib.alias`, and one rule matters
 more than the rest.
 
 **A ``str`` is hexadecimal, not text.** Anywhere the signature says
 ``Octets`` — a message to sign, a script, a hash — a ``str`` is parsed
-with ``bytes.fromhex``. This is the single most common first mistake:
+with ``bytes.fromhex``. Passing text where hex is expected fails:
 
 >>> from btclib.ecc import dsa
 >>> dsa.sign("hello world", 1)
@@ -92,7 +92,7 @@ Traceback (most recent call last):
 ValueError: non-hexadecimal number found in fromhex() arg at position 0
 
 Pass ``bytes`` when you mean text, and let the hex spelling be for
-things that really are bytes:
+things that are bytes:
 
 >>> sig = dsa.sign(b"hello world", 1)
 >>> type(sig).__name__

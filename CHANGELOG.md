@@ -4086,6 +4086,35 @@ edit.
 
 ### Documentation and the website
 
+- **Every public class, method and function has a docstring, and ruff
+  now fails one that arrives without.** The members autodoc rendered as
+  bare signatures state their contract: the script engine's op codes
+  carry the stack effect, the refusals and the consensus rule each
+  comes from; the trailing-underscore variants (`ssa.assert_as_valid_`,
+  `dsa.crack_prv_key_`, ...) say what the suffix means — the input
+  enters already prepared, unvalidated; the core types say what
+  `to_dict`/`from_dict`, `serialize`/`parse` and `assert_valid` each
+  validate, mutate and preserve; and the `is_p2*`/`assert_p2*` family
+  says which raises and which answers a bool. `D101`, `D102` and `D103`
+  moved out of `pyproject.toml`'s ruff `ignore`, so the finished state
+  is a lint gate rather than a convention; `D107` stays ignored,
+  `__init__` being documented by its class (issue #290)
+- **One voice throughout the prose: neutral, factual, dry, and no
+  history.** Docstrings, comments, the sphinx pages and the top-level
+  markdown are reviewed to the same register — the reasoning with its
+  negative results, the authority cited, no unchecked numbers, one fact
+  in one place — and comments that told the story of what the code used
+  to be now state the same reasoning in the present tense, history
+  staying in this file and HISTORY.md. `amount.py` and `fee.py` drop
+  their `Args:`/`Returns:` sections for the pep257 prose the rest of
+  the tree uses (issue #290)
+- **CONTRIBUTING.md states the documentation style, and CLAUDE.md
+  points at it.** The tone of voice, the house style and the no-history
+  rule were readable only by inference from the files a contributor
+  happened to open; a new "Documentation and comments" section under
+  "Make Changes" states them where a contributor reads, and it is the
+  single statement — CLAUDE.md references it rather than repeating it
+  (issue #290)
 - **The documentation has a page that is not the API reference.** Issue
   #120 asked for worked examples for beginners — "sending transactions,
   deriving wallets, etc." — against fifteen pages of `automodule` stanzas

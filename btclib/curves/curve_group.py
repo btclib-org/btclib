@@ -320,10 +320,11 @@ class CurveGroup:
         # answers for it, and an addition with no infinity in it pays two
         # comparisons: 1.02x to 1.03x on every multiplication in the
         # package, and 1.22x on _double_mult, whose Shamir-Strauss loop
-        # adds the infinity of a zero digit pair a quarter of the time and
-        # used to get those additions free. Without the stand-ins,
-        # dropping the early return was not enough: P + INFJ still cost
-        # 1.8 us against 5.4, and mult_jac was still 25% faster on a
+        # adds the infinity of a zero digit pair a quarter of the time --
+        # the additions an early return answers for free, at the price of
+        # putting their count on the clock. Dropping the early return
+        # without the stand-ins is not enough: P + INFJ still costs
+        # 1.8 us against 5.4, and mult_jac is still 25% faster on a
         # scalar with 128 low zero bits
         QS = (Q, self._stand_in_q)[Q[2] == 0]
         RS = (R, self._stand_in_r)[R[2] == 0]
@@ -956,9 +957,9 @@ def _double_mult(
         # entry it names is infinity: one addition per step, whatever the
         # coefficients. Which is where an add_jac that does not shortcut
         # infinity is dearest -- a quarter of the pairs are 0 on average,
-        # and adding infinity used to be free -- and it is the one place
-        # in the package that measures 22% slower for it, against the 2%
-        # to 3% everywhere else
+        # each an addition a shortcut would answer for free -- and it is
+        # the one place in the package that measures 22% slower for it,
+        # against the 2% to 3% everywhere else
         R = ec.add_jac(R, T[i])
     return R
 

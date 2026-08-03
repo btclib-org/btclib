@@ -187,10 +187,12 @@ it.
   `persist-credentials: false`; uv commands pass `--locked`, never
   `--frozen`. `actionlint` and `zizmor` are hooks, and both must stay at
   zero findings.
-- **Comments carry the reasoning, including the negative results** — why
-  *not* the obvious alternative. That is the house style throughout the
-  workflows and pre-commit config, and it is what makes those files
-  reviewable; match it rather than trimming it.
+- **The prose style — tone, comments, docstrings, no history — is
+  CONTRIBUTING.md's "Documentation and comments" section**, stated once
+  there because contributors read that file and not this one. It
+  governs the workflows and the pre-commit config too: the reasoning
+  with its negative results is what makes those files reviewable, so
+  match it rather than trimming it.
 - **Markdown wraps at 80 columns**, tables included (MD013 is on), so
   long commands go in fenced blocks split with `\`.
 - pytest is strict: a warning is an error, an unregistered marker is an
@@ -213,15 +215,11 @@ it.
       btclib/mnemonic/_data/wordlist.txt | grep -cv 'README.md'
   ```
 
-  A stated count is a line every open branch has to edit, so with this
-  many branches open it is the one conflict a pull request is guaranteed
-  to have — and worse, two branches moving it to the same new number
-  merge without a conflict into a number that is wrong. Nothing states a
-  count now, and three tests keep it that way:
-  `tests/release_notes_test.py` for CHANGELOG.md and HISTORY.md,
-  `tests/vendored_data_test.py` for `tests/_data/README.md`, whose
-  summary used to open with a total and count each of its lists. They
-  fail on a stated count rather than on a wrong one.
+  The why is in CONTRIBUTING.md's "Documentation and comments"; what
+  this file adds is that nothing states a count now and tests keep it
+  that way — `tests/release_notes_test.py` for CHANGELOG.md and
+  HISTORY.md, `tests/vendored_data_test.py` for `tests/_data/README.md`
+  — failing on a stated count rather than on a wrong one.
 - **CHANGELOG.md and HISTORY.md are `merge=union`**, which is what
   `.gitattributes` is for: the insertion point conflicts too — two
   branches appending a bullet to the same group — and union keeps both

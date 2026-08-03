@@ -7,10 +7,7 @@
 #
 # No part of btclib including this file, may be copied, modified, propagated,
 # or distributed except according to the terms contained in the LICENSE file.
-"""OutPoint dataclass.
-
-Dataclass encapsulating tx_id and vout.
-"""
+"""The OutPoint dataclass; the class docstring has the contract."""
 
 from __future__ import annotations
 
@@ -23,7 +20,7 @@ from btclib.exceptions import BTClibValueError
 from btclib.utils import bytes_from_octets, bytesio_from_binarydata
 
 
-# frozen, as the FIXME here asked: both fields are immutable, so this one
+# frozen: both fields are immutable, so this one
 # is frozen all the way down, and the generated __hash__ makes an OutPoint
 # usable as the dict key or set member an utxo set wants it to be.
 # __init__ already went through object.__setattr__, in wait for this

@@ -450,6 +450,52 @@ Work locally on your fork of btclib,
 until you are satisfied. Ensure that pre-commit and pytest
 have no issue with your modified codebase.
 
+#### Documentation and comments
+
+What "satisfied" means for the prose — docstrings, comments, the
+sphinx pages, a pull request reply — is written down here, because a
+hook can check that a docstring exists but not what it says.
+
+**Tone of voice: neutral, factual, dry.** The same register
+everywhere: no wit, no salesmanship, no emphasis where the fact is
+enough. Explanatory detail is wanted; decoration is not.
+
+**A docstring states the contract.** What the function takes, what it
+returns or raises, and the rule the behaviour comes from — not a
+restatement of the name. Most readers of a docstring here are new to
+btclib: write for them.
+
+**A comment carries the reasoning, including the negative result.**
+Say why the code is as it is and why *not* the obvious alternative —
+the second half is what stops the next reader from "fixing" a
+deliberate choice, and it is what makes a file reviewable rather than
+merely readable.
+
+**Cite the authority.** Where behaviour comes from a BIP, an RFC or a
+Bitcoin Core function, name it, rather than asserting the behaviour
+as if btclib had decided it. Where btclib deviates, say so and say
+why.
+
+**Measure, don't assert.** A number in prose comes from a command,
+and the command belongs beside it, so the next reader can re-measure
+instead of trusting a figure whose date they cannot see. Never state
+a count that nothing checks — an unchecked number drifts into a false
+claim — and never state how many of anything a file holds: a stated
+total is a line every open branch has to edit, and two branches
+moving it to the same wrong number merge without a conflict.
+
+**One fact in one place.** Two files stating the same thing become
+two files disagreeing about it; the second one points at the first.
+
+**No history in the prose.** Comments and docstrings say why the code
+is as it is, in the present tense; they do not tell the story of what
+it used to be. "This is here rather than X because X breaks Y" stays,
+whatever prompted it; "this used to be X, until Z" goes — unless the
+old spelling is something a caller can still encounter (a deprecated
+alias, a wire format), in which case it is not history but the
+present. History has two files of its own, `CHANGELOG.md` and
+`HISTORY.md`, and it is complete there.
+
 ### Commit your update
 
 Commit the changes to your fork once you are happy with them.

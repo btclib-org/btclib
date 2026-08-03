@@ -1183,9 +1183,10 @@ def _combined_tx_modifiable(psbts: Sequence[Psbt]) -> int | None:
 
 
 def combine_psbts(psbts: Sequence[Psbt]) -> Psbt:
-    """Merge Psbt data from multiple Psbts of one transaction.
+    """Merge the data of several psbts of one transaction: the Combiner.
 
-    Basically used to merge signatures.
+    BIP174's Combiner role, whose ordinary use is merging the partial
+    signatures different signers added to copies of one psbt.
 
     Which psbts are of one transaction is a question the two versions
     answer differently, and each is asked its own: a version 0 psbt is
@@ -1199,7 +1200,8 @@ def combine_psbts(psbts: Sequence[Psbt]) -> Psbt:
     The versions must match, and are not converted here: `to_v0` and
     `to_v2` are that, and doing it silently would decide for the caller
     which of the two the combined psbt is -- and, from v0 to v2, hand
-    back a psbt whose lock time no longer comes from where it did.
+    back a psbt whose lock time comes from the fallback rather than
+    from the unsigned transaction the caller wrote it into.
     """
     final_psbt = psbts[0]
     version = final_psbt.version
@@ -1795,9 +1797,9 @@ def _sort_or_shuffle(
 ) -> list[TypeA]:
     """Return the sequence sorted by ordering_func, or shuffled.
 
-    One sequence, where the two of a psbt's inputs used to be sorted
-    together: an input's outpoint and sequence are the input's own now,
-    so there is no second list to keep in step with the first.
+    One sequence only: an input's outpoint and sequence are fields of
+    the input itself, so there is no second list to keep in step with
+    the first.
     """
     items = list(sequence)
     if ordering_func is None:
@@ -1851,7 +1853,7 @@ def join_psbts(
     """Join multiple psbts into a single one by merging inputs and outputs.
 
     inputs/outputs are shuffled by default. If shuffle_{in|out}=False,
-    they are simply concatenated in the same order as psbts are
+    they are concatenated in the same order as psbts are
     specified. A specific ordering can be specified via sort_{inp|out},
     which overwrite shuffle when present.
 

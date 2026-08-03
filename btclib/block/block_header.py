@@ -7,11 +7,7 @@
 #
 # No part of btclib including this file, may be copied, modified, propagated,
 # or distributed except according to the terms contained in the LICENSE file.
-"""BlockHeader dataclass.
-
-Dataclass encapsulating version, previous block hash, merkle root, time,
-bits, and nonce.
-"""
+"""The BlockHeader dataclass; the class docstring has the contract."""
 
 from __future__ import annotations
 

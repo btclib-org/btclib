@@ -7,10 +7,7 @@
 #
 # No part of btclib including this file, may be copied, modified, propagated,
 # or distributed except according to the terms contained in the LICENSE file.
-"""Block dataclass.
-
-Dataclass encapsulating BlockHeader and list[Tx].
-"""
+"""The Block dataclass and its rules; the class docstring has the contract."""
 
 from __future__ import annotations
 

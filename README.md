@@ -23,9 +23,9 @@ Python3 [type annotated](https://docs.python.org/3/library/typing.html)
 library intended for teaching, learning, and using bitcoin;
 the focus is on elliptic curve cryptography and bitcoin's blockchain.
 
-It is rigorously and extensively tested: the test suite covers
-virtually the whole code base, a floor the build enforces, and
-reproduces results from both informal and major reference sources.
+The test suite covers virtually the whole code base — a coverage
+floor the build enforces — and reproduces the published vectors of
+the BIPs, of RFC 6979, and of Bitcoin Core.
 
 Originally developed for the
 _[Bitcoin and Blockchain Technology](https://www.ametrano.net/bbt/)_

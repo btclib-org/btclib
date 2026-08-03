@@ -7,10 +7,11 @@
 #
 # No part of btclib including this file, may be copied, modified, propagated,
 # or distributed except according to the terms contained in the LICENSE file.
-"""CurveGroup explorer functions.
+"""CurveGroup explorer functions, for low-cardinality didactic curves.
 
-These functions are meant to explore low-cardinality CurveGroup, for
-didactic (and fun) reason only.
+Enumerating the points of a group is feasible only when the group is
+tiny, which is what makes these useful in teaching and useless -- and
+never used -- in the rest of the library.
 """
 
 from __future__ import annotations

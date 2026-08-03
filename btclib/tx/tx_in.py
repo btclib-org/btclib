@@ -7,11 +7,7 @@
 #
 # No part of btclib including this file, may be copied, modified, propagated,
 # or distributed except according to the terms contained in the LICENSE file.
-"""Transaction Input (TxIn) dataclass.
-
-Dataclass encapsulating prev_out, script_sig, sequence, and
-script_witness.
-"""
+"""The TxIn dataclass; the class docstring has the contract."""
 
 from __future__ import annotations
 
@@ -43,17 +39,11 @@ class TxIn:
 
     prev_out: OutPoint
     script_sig: bytes
-    # If all TxIns have final (0xffffffff) sequence numbers
-    # then Tx lock_time is irrelevant.
-    #
-    # Set to 0xFFFFFFFE to enables nLocktime (e.g. to discourage fee sniping)
-    # and disables Replace-By-Fee (RBF).
-    #
-    # RBF txs typically have the sequence of each input set to 0xFFFFFFFD.
-    #
-    # Because sequence locks require that the sequence field be set
-    # lower than 0xFFFFFFFD to be meaningful,
-    # all sequence locked transactions are opting into RBF.
+    # 0xFFFFFFFF (final) on every input makes Tx.lock_time irrelevant;
+    # 0xFFFFFFFE enables the lock time (e.g. against fee sniping) while
+    # opting out of Replace-By-Fee, whose customary opt-in is 0xFFFFFFFD.
+    # BIP68 relative lock times need a sequence below 0xFFFFFFFD, so every
+    # sequence-locked transaction is also opting into RBF.
     sequence: int
     script_witness: Witness = field(compare=TX_IN_COMPARES_WITNESS)
 

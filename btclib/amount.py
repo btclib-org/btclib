@@ -7,23 +7,17 @@
 #
 # No part of btclib including this file, may be copied, modified, propagated,
 # or distributed except according to the terms contained in the LICENSE file.
-"""Proper handling of monetary amounts.
+"""Monetary amounts: satoshi ints and BTC Decimals, never floats.
 
-A BTC monetary amount can be expressed
-as number of satoshis (1 BTC is 100_000_000) or
-as Python Decimal with up to 8 digits, e.g. Decimal("0.12345678").
+A BTC amount is an int number of satoshi (1 BTC is 100_000_000) or a
+Decimal with up to 8 decimals, e.g. Decimal("0.12345678"). Not a
+float: binary floating point cannot hold most decimal fractions
+exactly (1.1 + 2.2 != 3.3), so a float between a rate and the satoshi
+it owes is a rounding error waiting for money to measure it. The
+functions here convert between the two spellings and refuse what no
+output can carry.
 
-Because of floating-point conversion issues
-(e.g. with floats 1.1 + 2.2 != 3.3)
-algebra with bitcoin amounts should never involve floats.
-
-The provided functions handle conversion between
-satoshi amounts (sats) and Decimal/float values.
-
-Amounts cannot be a negative value:
-the Bitcoin protocol and this library do not deal with negative amounts.
-The functions in this module could be easily amended
-(in a backward compatible way) in the future if such a need arises.
+Amounts are never negative, here as in the protocol.
 """
 
 from __future__ import annotations

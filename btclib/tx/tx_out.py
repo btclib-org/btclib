@@ -7,11 +7,7 @@
 #
 # No part of btclib including this file, may be copied, modified, propagated,
 # or distributed except according to the terms contained in the LICENSE file.
-"""Transaction Output (TxOut) dataclass.
-
-Dataclass encapsulating value and script_pub_key (and network to convert
-script_pub_key to and from address).
-"""
+"""The TxOut dataclass; the class docstring has the contract."""
 
 from __future__ import annotations
 
@@ -26,7 +22,7 @@ from btclib.script import ScriptPubKey, script_from_dict, script_to_dict
 from btclib.utils import bytes_from_octets, bytesio_from_binarydata
 
 
-# frozen, as the FIXME here asked. Shallow: `value` is immutable, but
+# frozen, but only shallowly: `value` is immutable, while
 # ScriptPubKey extends the plain dataclass Script, so `script_pub_key.script`
 # can still be rebound through a frozen TxOut. Freezing Script is a change
 # of its own. Its being unhashable also makes the generated TxOut.__hash__

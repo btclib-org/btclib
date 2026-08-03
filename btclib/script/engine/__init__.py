@@ -7,7 +7,7 @@
 #
 # No part of btclib including this file, may be copied, modified, propagated,
 # or distributed except according to the terms contained in the LICENSE file.
-"""Bitcoin Script engine."""
+"""The script engine: transaction verification against the consensus rules."""
 
 from __future__ import annotations
 

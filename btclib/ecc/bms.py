@@ -7,60 +7,26 @@
 #
 # No part of btclib including this file, may be copied, modified, propagated,
 # or distributed except according to the terms contained in the LICENSE file.
-"""Bitcoin message signing (BMS).
+"""Bitcoin message signing (BMS): address-based signatures over text.
 
-Bitcoin uses a P2PKH address-based scheme for message signature: such
-a signature does prove the control of the private key corresponding to
-the address and, consequently, of the associated bitcoins (if any).
-Message signature adopts a custom compact 65-bytes (fixed size)
-serialization format (i.e. not the ASN.1 DER format used for
-transactions, which would results in 71-bytes average signature).
+A BMS signature proves control of the private key behind an address.
+The scheme is ECDSA under an envelope: the message is prefixed by the
+magic "Bitcoin Signed Message:\\n" string -- so that a signed message
+can never double as a transaction signature -- and the hash of the
+envelope is what is signed. The serialization is the compact 65-byte
+[1-byte recovery flag][32-byte r][32-byte s], customarily exchanged
+as base64 text, not the DER of transaction signatures.
 
-One should never sign a vague statement that could be reused
-out of the context it was intended for. Always include at least:
+A vague statement can be replayed out of the context it was signed
+for, so a message worth signing names its signer, its date, its
+addressee, and its purpose.
 
-- name (nickname, customer id, e-mail, etc.)
-- date and time
-- who the message is intended for (name, business name, e-mail, etc.)
-- specific purpose of the message
-
-To mitigate the risk of signing a possibly deceiving message,
-for any given message a *magic* "Bitcoin Signed Message:\\n" prefix is
-added, then the hash of the resulting message is signed.
-
-This BMS scheme relies on ECDSA,
-i.e. it works with private/public key pairs, not addresses:
-the address is only used to identify a key pair.
-At signing time, a wallet infrastructure is required to access
-the private key corresponding to a given address;
-alternatively, the private key must be provided explicitly.
-
-To verify the ECDSA signature the public key is not needed
-because (EC)DSA allows public key recovery:
-public keys that correctly verify the signature
-can be implied from the signature itself.
-In the case of the Bitcoin secp256k1 curve,
-two public keys are recovered
-(up to four with non-zero but negligible probability);
-at verification time the address must match
-that public key in the recovery set
-marked as the right one at signature time.
-
-The (r, s) DSA signature is serialized as
-[1-byte recovery flag][32-bytes r][32-bytes s],
-in a compact 65-bytes (fixed-size) encoding.
-
-The serialized signature is then base64-encoded to transport it
-across channels that are designed to deal with textual data.
-Base64-encoding uses 10 digits, 26 lowercase characters, 26 uppercase
-characters, '+' (plus sign), and '/' (forward slash).
-The equal sign '=' is used as encoding end marker.
-
-The recovery flag is used
-at verification time to discriminate among recovered
-public keys (and among address types in the case
-of scheme extension beyond P2PKH).
-Explicitly, the recovery flag value is:
+The scheme works on key pairs, the address only identifying one: the
+signer needs the private key behind the address, from a wallet or
+supplied directly. The verifier needs no public key at all, ECDSA
+allowing recovery: the candidate keys are implied by the signature,
+and the recovery flag says which candidate -- and which address type
+-- the signer meant. Explicitly, the recovery flag value is:
 
     key_id + (4 if compressed else 0) + 27
 
@@ -310,12 +276,12 @@ def sign(msg: Octets, prv_key: PrvKey, addr: String | None = None) -> Sig:
 
     # signing and naming the key_id are one call, not two, and this module
     # has no dispatch of its own for it: `dsa.sign_recoverable` answers the
-    # key_id whichever implementation signs, the recid libsecp256k1 reports
-    # being the very thing the Python signer computed and used to throw
-    # away -- the parity of the nonce's point and how far its x-coordinate
-    # ran past the group order. So the search this used to run, one
-    # recovery per candidate until one was the signer's own key, does not
-    # get faster: it is gone from both paths (issue 285)
+    # key_id whichever implementation signs, the recid libsecp256k1
+    # reports being the very thing the Python signer computes anyway --
+    # the parity of the nonce's point and how far its x-coordinate runs
+    # past the group order. Not a search over the four candidates, one
+    # recovery each until one is the signer's own key: that recomputes
+    # what the signer already knows, on either path (issue 285)
     dsa_sig, key_id = dsa.sign_recoverable(magic_msg, q)
 
     # bytes_from_prv_key_int, not bytes_from_point(mult(q)): the address
