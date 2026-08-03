@@ -198,7 +198,7 @@ def _tweaks(
 class _SessionParts(NamedTuple):
     """What a session is, before the nonces of round 1 exist.
 
-    `session_key` is the aggregate key **as tweaked for this session**,
+    `tweaked_pub_key` is the aggregate key **as tweaked for this session**,
     compressed, and it is what the nonces and the partial signatures of
     the input are keyed by -- not the aggregate key the participants are
     filed under, which is the untweaked one. The two differ in exactly
@@ -213,7 +213,7 @@ class _SessionParts(NamedTuple):
     tweaks: list[bytes]
     is_xonly: list[bool]
     msg: bytes
-    session_key: bytes
+    tweaked_pub_key: bytes
 
 
 def _session_parts(
@@ -240,7 +240,7 @@ def _session_parts(
     key_agg_ctx = musig2.key_agg_and_tweak(participants, tweaks, is_xonly)
     expected = _script_key(psbt_in, leaf_hash) if leaf_hash else output_key
     if key_agg_ctx.x_only_pub_key != expected:
-        err_msg = f"musig2 session key {key_agg_ctx.x_only_pub_key.hex()} is not "
+        err_msg = f"the tweaked musig2 key {key_agg_ctx.x_only_pub_key.hex()} is not "
         err_msg += f"the key being spent, {expected.hex()}"
         raise BTClibValueError(err_msg)
 
@@ -257,7 +257,7 @@ def _script_key(psbt_in: PsbtIn, leaf_hash: bytes) -> bytes:
     """Return the X-only key the leaf script of a script path spend signs with.
 
     BIP342 spends a leaf with what its own script asks for, so what the
-    session key is checked against is a key in that script -- the one and
+    tweaked key is checked against is a key in that script -- the one and
     only one of a `<key> OP_CHECKSIG` leaf, which is the shape a MuSig2
     aggregate key in a script takes and the shape BIP373's own vector
     uses. `single_leaf_key` is the same question the Finalizer asks of
@@ -282,7 +282,9 @@ def session_context(
     aggregate_pub_key = bytes_from_octets(aggregate_pub_key, MUSIG2_PUB_KEY_SIZE)
     leaf_hash = bytes_from_octets(leaf_hash)
     parts = _session_parts(psbt, vin_i, aggregate_pub_key, leaf_hash)
-    pub_nonces = _session_pub_nonces(psbt.inputs[vin_i], parts.session_key, leaf_hash)
+    pub_nonces = _session_pub_nonces(
+        psbt.inputs[vin_i], parts.tweaked_pub_key, leaf_hash
+    )
     if not pub_nonces:
         err_msg = "no musig2 public nonce for aggregate key "
         err_msg += aggregate_pub_key.hex()
@@ -300,36 +302,36 @@ def session_context(
 
 
 def _key_data(
-    participant_pub_key: bytes, session_key: bytes, leaf_hash: bytes
+    participant_pub_key: bytes, tweaked_pub_key: bytes, leaf_hash: bytes
 ) -> bytes:
     """Return the key data BIP373 files a nonce and a partial signature under.
 
-    The session key, not the aggregate key of the participants field:
+    The tweaked key, not the aggregate key of the participants field:
     `_SessionParts` says why, and it is the one place the difference
     between the two has to be got right.
     """
-    return participant_pub_key + session_key + leaf_hash
+    return participant_pub_key + tweaked_pub_key + leaf_hash
 
 
 def _session_pub_nonces(
-    psbt_in: PsbtIn, session_key: bytes, leaf_hash: bytes
+    psbt_in: PsbtIn, tweaked_pub_key: bytes, leaf_hash: bytes
 ) -> dict[bytes, bytes]:
     """Return the public nonces of one session, by participant key."""
     return {
         key_data[:MUSIG2_PUB_KEY_SIZE]: pub_nonce
         for key_data, pub_nonce in psbt_in.musig2_pub_nonces.items()
-        if key_data[MUSIG2_PUB_KEY_SIZE:] == session_key + leaf_hash
+        if key_data[MUSIG2_PUB_KEY_SIZE:] == tweaked_pub_key + leaf_hash
     }
 
 
 def _session_partial_sigs(
-    psbt_in: PsbtIn, session_key: bytes, leaf_hash: bytes
+    psbt_in: PsbtIn, tweaked_pub_key: bytes, leaf_hash: bytes
 ) -> dict[bytes, bytes]:
     """Return the partial signatures of one session, by participant key."""
     return {
         key_data[:MUSIG2_PUB_KEY_SIZE]: psig
         for key_data, psig in psbt_in.musig2_partial_sigs.items()
-        if key_data[MUSIG2_PUB_KEY_SIZE:] == session_key + leaf_hash
+        if key_data[MUSIG2_PUB_KEY_SIZE:] == tweaked_pub_key + leaf_hash
     }
 
 
@@ -364,9 +366,9 @@ def nonce_gen(
         raise BTClibValueError(err_msg)
 
     sec_nonce, pub_nonce = musig2.nonce_gen(
-        prv_key, pub_key, parts.session_key[1:], parts.msg, extra_in
+        prv_key, pub_key, parts.tweaked_pub_key[1:], parts.msg, extra_in
     )
-    key_data = _key_data(pub_key, parts.session_key, leaf_hash)
+    key_data = _key_data(pub_key, parts.tweaked_pub_key, leaf_hash)
     psbt.inputs[vin_i].musig2_pub_nonces[key_data] = pub_nonce
     return sec_nonce
 
@@ -395,8 +397,10 @@ def partial_sign(
     leaf_hash = bytes_from_octets(leaf_hash)
     psbt_in = psbt.inputs[vin_i]
     pub_key = musig2.individual_pub_key(prv_key)
-    session_key = _session_parts(psbt, vin_i, aggregate_pub_key, leaf_hash).session_key
-    key_data = _key_data(pub_key, session_key, leaf_hash)
+    tweaked_pub_key = _session_parts(
+        psbt, vin_i, aggregate_pub_key, leaf_hash
+    ).tweaked_pub_key
+    key_data = _key_data(pub_key, tweaked_pub_key, leaf_hash)
     pub_nonce = psbt_in.musig2_pub_nonces.get(key_data)
     if pub_nonce is None:
         err_msg = f"no musig2 public nonce of {pub_key.hex()} for aggregate key "
@@ -436,8 +440,10 @@ def partial_sig_verify(
     leaf_hash = bytes_from_octets(leaf_hash)
     participant_pub_key = bytes_from_octets(participant_pub_key, MUSIG2_PUB_KEY_SIZE)
     psbt_in = psbt.inputs[vin_i]
-    session_key = _session_parts(psbt, vin_i, aggregate_pub_key, leaf_hash).session_key
-    key_data = _key_data(participant_pub_key, session_key, leaf_hash)
+    tweaked_pub_key = _session_parts(
+        psbt, vin_i, aggregate_pub_key, leaf_hash
+    ).tweaked_pub_key
+    key_data = _key_data(participant_pub_key, tweaked_pub_key, leaf_hash)
     psig = psbt_in.musig2_partial_sigs.get(key_data)
     pub_nonce = psbt_in.musig2_pub_nonces.get(key_data)
     if psig is None or pub_nonce is None:
@@ -471,9 +477,11 @@ def partial_sigs_agg(
     aggregate_pub_key = bytes_from_octets(aggregate_pub_key, MUSIG2_PUB_KEY_SIZE)
     leaf_hash = bytes_from_octets(leaf_hash)
     psbt_in = psbt.inputs[vin_i]
-    session_key = _session_parts(psbt, vin_i, aggregate_pub_key, leaf_hash).session_key
+    tweaked_pub_key = _session_parts(
+        psbt, vin_i, aggregate_pub_key, leaf_hash
+    ).tweaked_pub_key
     session_ctx = session_context(psbt, vin_i, aggregate_pub_key, leaf_hash=leaf_hash)
-    partial_sigs = _session_partial_sigs(psbt_in, session_key, leaf_hash)
+    partial_sigs = _session_partial_sigs(psbt_in, tweaked_pub_key, leaf_hash)
     missing = [key for key in session_ctx.pub_keys if key not in partial_sigs]
     if missing:
         err_msg = "missing musig2 partial signature of "
@@ -505,23 +513,23 @@ def partial_sigs_agg(
     else:
         psbt_in.taproot_key_spend_signature = signature
 
-    _drop_session(psbt_in, aggregate_pub_key, session_key, leaf_hash)
+    _drop_session(psbt_in, aggregate_pub_key, tweaked_pub_key, leaf_hash)
     return sig
 
 
 def _drop_session(
     psbt_in: PsbtIn,
     aggregate_pub_key: bytes,
-    session_key: bytes,
+    tweaked_pub_key: bytes,
     leaf_hash: bytes,
 ) -> None:
     """Remove the nonces, the partial signatures and the participants.
 
     Two keys, because the fields are keyed by two: the nonces and the
-    partial signatures by the session key, the participants by the
+    partial signatures by the tweaked key, the participants by the
     aggregate key they aggregate to.
     """
-    tail = session_key + leaf_hash
+    tail = tweaked_pub_key + leaf_hash
     for field in (psbt_in.musig2_pub_nonces, psbt_in.musig2_partial_sigs):
         for key_data in [k for k in field if k[MUSIG2_PUB_KEY_SIZE:] == tail]:
             del field[key_data]

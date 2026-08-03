@@ -66,7 +66,7 @@ def session_of(psbt: Psbt) -> tuple[bytes, bytes]:
     Two different keys live in these fields, and this is the place the
     difference shows: `musig2_participant_pub_keys` is keyed by the plain
     aggregate key, which is what the roles take, while the nonces and the
-    partial signatures are keyed by that key *as tweaked for the session*
+    partial signatures are keyed by that key *as tweaked for the spend*
     -- the taproot output key in two of these four vectors. The tapleaf
     hash is read off the key data, being the same in both.
     """
@@ -295,7 +295,7 @@ def test_a_session_the_psbt_does_not_describe() -> None:
         musig2.session_context(psbt, 0, aggregate_pub_key)
 
     # the merkle root of another script tree: the tweak is then not the
-    # one the output key commits to, and the session key is not it either
+    # one the output key commits to, and the tweaked key is not it either
     psbt = _bip373_psbt("internal key is a MuSig2 Aggregate Pubkey, with participant")
     psbt.inputs[0].taproot_merkle_root = b"\x01" * 32
     with pytest.raises(BTClibValueError, match="is not the key being spent"):
