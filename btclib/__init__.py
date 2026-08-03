@@ -7,7 +7,7 @@
 #
 # No part of btclib including this file, may be copied, modified, propagated,
 # or distributed except according to the terms contained in the LICENSE file.
-"""__init__ module for the btclib package."""
+"""The btclib package: __version__ is read off the installed metadata."""
 
 from importlib.metadata import PackageNotFoundError, version
 

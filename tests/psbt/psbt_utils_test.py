@@ -29,7 +29,7 @@ def test_invalid_serialize_hd_key_paths() -> None:
 
 
 def test_parse_taproot_bip32() -> None:
-    """A leaf hash is 32 bytes, not 4 (BIP-371)."""
+    """A leaf hash is 32 bytes, not 4 (BIP371)."""
     leaf_hashes = [bytes(range(32)), bytes(range(32, 64))]
     key_origin = BIP32KeyOrigin(b"\xde\xad\xbe\xef", "m/86h/1h/0h/0/0")
     v = b"\x02" + b"".join(leaf_hashes) + key_origin.serialize()

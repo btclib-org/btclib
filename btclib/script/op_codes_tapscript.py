@@ -7,7 +7,7 @@
 #
 # No part of btclib including this file, may be copied, modified, propagated,
 # or distributed except according to the terms contained in the LICENSE file.
-"""Tapscript OP_CODES.
+"""The tapscript op code tables, per BIP342.
 
 OP_VERIF (0x65) and OP_VERNOTIF (0x66) are named here although no script
 that executes them can be spent: BIP342 leaves both out of OP_SUCCESS,

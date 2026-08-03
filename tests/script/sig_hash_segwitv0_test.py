@@ -76,7 +76,7 @@ def test_native_p2wsh() -> None:
     )
 
     # the second signature of the same input, checked after the
-    # OP_CODESEPARATOR has executed: BIP-143 prints its script code, and
+    # OP_CODESEPARATOR has executed: BIP143 prints its script code, and
     # it is the witness script from just past that byte -- separators
     # kept, only the truncation applied
     script_ = bytes.fromhex(
@@ -192,7 +192,7 @@ def test_wrapped_p2wsh() -> None:
 # issue 252: SIGHASH_SINGLE for an input past the last output
 
 
-# BIP-143's own out-of-range example, the one `test_native_p2wsh` signs:
+# BIP143's own out-of-range example, the one `test_native_p2wsh` signs:
 # two inputs and a single output, so input 1 has no output of its own
 _BIP143_TX = "0100000002fe3dc9208094f3ffd12645477b3dc56f60ec4fa8e6f5d67c565d1c6b9216b36e0000000000ffffffff0815cf020f013ed6cf91d29f4202e8a58726b1ac6c79da47c23d1bee0a6925f80000000000ffffffff0100f2052a010000001976a914a30741f8145e5acadf23f751864167f32e0963f788ac00000000"
 _WITNESS_SCRIPT = "21026dccc749adc2a9d0d89497ac511f760f45c47dc5ed9cf352a58ac706453880aeadab210255a9626aebf5e29c0e6538428ba0d1dcf6ca98ffdf086aa8ced5e0d0215ea465ac"
@@ -202,7 +202,7 @@ _AMOUNT = 4900000000
 def _bip143_preimage(
     tx: Tx, vin_i: int, script_code: bytes, amount: int, hash_outputs: bytes
 ) -> bytes:
-    """BIP-143's field list, written out, for a SIGHASH_SINGLE input.
+    """BIP143's field list, written out, for a SIGHASH_SINGLE input.
 
     The rule under test is one field of it — "hashOutputs is a uint256
     of 0x0000......0000" when the input index is beyond the last output
@@ -231,7 +231,7 @@ def test_the_hand_built_preimage_is_the_one_bip143_publishes() -> None:
     """The next test's authority, checked against a published number.
 
     `_bip143_preimage` is what says the rule below is right, so it is
-    itself checked here — against BIP-143's own preimage for its
+    itself checked here — against BIP143's own preimage for its
     out-of-range example, printed in the BIP beside the sigHash that
     `test_native_p2wsh` already pins.
     """
@@ -254,12 +254,12 @@ def test_the_hand_built_preimage_is_the_one_bip143_publishes() -> None:
 def test_sighash_single_past_the_last_output() -> None:
     """hashOutputs is 32 zero bytes for every index past the last output.
 
-    BIP-143: "if the sighash type is SINGLE and the input index is
+    BIP143: "if the sighash type is SINGLE and the input index is
     smaller than the number of outputs, hashOutputs is the double
     SHA256 of the output amount with scriptPubKey of the same index as
     the input; Otherwise, hashOutputs is a uint256 of 0x0000......0000".
 
-    *Every* index past it, which is the part no vector states. BIP-143's
+    *Every* index past it, which is the part no vector states. BIP143's
     own example signs input 1 of a transaction with one output, so it
     pins the case where the index equals the output count and says
     nothing about the ones beyond — and an implementation reading the

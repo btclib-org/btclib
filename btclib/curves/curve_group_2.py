@@ -165,11 +165,9 @@ def mult_sliding_window(m: int, Q: JacPoint, ec: CurveGroup, w: int = 4) -> JacP
 def mult_w_NAF(m: int, Q: JacPoint, ec: CurveGroup, w: int = 4) -> JacPoint:
     """Scalar multiplication in Jacobian coordinates using wNAF.
 
-    This implementation uses the same method called "w-ary non-adjacent
-    form" (wNAF). We make use of the fact that point subtraction is as
-    easy as point addition to perform fewer operations compared to
-    sliding-window. In fact, on Weierstrass curves, known P, -P can be
-    computed on the fly.
+    The "w-ary non-adjacent form": on a Weierstrass curve -P costs
+    nothing once P is known, so subtraction is as cheap as addition and
+    the recoding spends fewer operations than a sliding window.
 
     The input point is assumed to be on curve and
     the m coefficient is assumed to have been reduced mod n

@@ -7,7 +7,14 @@
 #
 # No part of btclib including this file, may be copied, modified, propagated,
 # or distributed except according to the terms contained in the LICENSE file.
-"""Taproot related functions."""
+"""Taproot keys, script trees and control blocks, per BIP341.
+
+The output side and the spend side of taproot, tapscript execution
+excepted: output_pubkey and output_prvkey build the tweaked keys,
+tree_helper and input_script_sig walk a script tree into leaves,
+merkle paths and control blocks, check_output_pubkey verifies one,
+and serialize/parse are the tapscript codec the engine reads.
+"""
 
 from __future__ import annotations
 

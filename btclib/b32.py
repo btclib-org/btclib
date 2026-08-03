@@ -27,7 +27,7 @@
 # LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 # THE SOFTWARE.
-"""SegWit address functions.
+"""Segwit address functions.
 
 **The bitcoin semantics.** p2wpkh, p2wsh and p2tr addresses: the witness
 version, the human-readable part of each network, and the length rules a
@@ -139,13 +139,13 @@ def _address_from_witness(wit_ver: int, wit_prg: Octets, hrp: str) -> str:
 def address_from_witness(
     wit_ver: int, wit_prg: Octets, network: str = "mainnet"
 ) -> str:
-    """Encode a bech32 native SegWit address from the witness."""
+    """Encode a bech32 native segwit address from the witness."""
     hrp = NETWORKS[network].hrp
     return _address_from_witness(wit_ver, wit_prg, hrp)
 
 
 def witness_from_address(b32addr: String) -> tuple[int, bytes, str]:
-    """Return the witness from a bech32 native SegWit address.
+    """Return the witness from a bech32 native segwit address.
 
     The returned data structure is: version, program, network.
     """
@@ -163,7 +163,7 @@ def witness_from_address(b32addr: String) -> tuple[int, bytes, str]:
     wit_prog = bytes(power_of_2_base_conversion(data[1:], 5, 8, False))
     wit_prog = check_witness(wit_ver, wit_prog)
 
-    # check that it is a known SegWit address type
+    # check that it is a known segwit address type
     network = network_from_key_value("hrp", hrp)
     if network is None:
         raise BTClibValueError(f"invalid hrp: {hrp}")

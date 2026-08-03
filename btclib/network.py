@@ -7,7 +7,7 @@
 #
 # No part of btclib including this file, may be copied, modified, propagated,
 # or distributed except according to the terms contained in the LICENSE file.
-"""Network constants and associated functions."""
+"""The Network dataclass, NETWORKS, and the lookups over them."""
 
 from __future__ import annotations
 

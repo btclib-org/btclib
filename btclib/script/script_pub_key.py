@@ -213,7 +213,7 @@ def assert_nulldata(script_pub_key: Octets) -> None:
 
     A policy, and narrower than Bitcoin Core's classification on every
     count. Core's `Solver` answers NULL_DATA for an OP_RETURN whose
-    remaining bytes pass `IsPushOnly`, which refuses only an opcode above
+    remaining bytes pass `IsPushOnly`, which refuses only an op code above
     OP_16: any number of pushes qualifies, OP_1..OP_16 among them, and so
     does the empty remainder of a bare OP_RETURN. The 83-byte bound is a
     third thing again, `MAX_OP_RETURN_RELAY` being relay policy tested by
@@ -605,7 +605,7 @@ class ScriptPubKey(Script):
 
         BIP67 endorses lexicographic sorting of compressed public keys.
 
-        Note that sorting uncompressed keys (leading 0x04 byte) would
+        Sorting uncompressed keys (leading 0x04 byte) would
         result in a different order. An uncompressed key is not refused
         here even when lexicographic_sorting is True: BIP67's own
         compatibility note calls such a key a sign of a non-conforming

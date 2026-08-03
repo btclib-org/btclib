@@ -65,7 +65,7 @@ def taproot_unwrap_script(
     The last two witness elements are the control block and the script,
     per BIP341; the control block must prove the script was committed
     to by the output key, and check_output_pubkey is what verifies that
-    Merkle proof. Returns the stack without the two, leaving the
+    merkle proof. Returns the stack without the two, leaving the
     caller's list untouched.
     """
     pub_key = type_and_payload(script)[1]
@@ -91,7 +91,7 @@ def taproot_get_annex(witness: Witness) -> tuple[bytes, list[bytes]]:
     # not write, and verifying a transaction must not rewrite it. A list in
     # either branch, the stack being popped by the script interpreter.
     # A slice and not [-1][0], for the reason sig_hash.taproot_annex_and_ext
-    # gives: an empty witness element has no first byte, and BIP-341 makes
+    # gives: an empty witness element has no first byte, and BIP341 makes
     # the annex the element whose first byte is 0x50. Core's vectors carry
     # the case -- two `spendpath/truncshortcontrol`, whose control block is
     # truncated to nothing -- which indexing would answer with an IndexError

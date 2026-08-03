@@ -816,7 +816,7 @@ def codeseparator_witness_script() -> tuple[bytes, bytes]:
     """A p2wsh witness script with two separators, and its script code.
 
     The script code is the second one's, i.e. what a spend executing both
-    signs: BIP-143 cuts at the last executed OP_CODESEPARATOR and keeps
+    signs: BIP143 cuts at the last executed OP_CODESEPARATOR and keeps
     the separators left in the slice, of which there are none here.
 
     Each half carries a non-minimal push -- an OP_PUSHDATA1 of one byte,
@@ -868,7 +868,7 @@ def sign_codeseparator_spend(
 
 
 def test_p2wsh_codeseparator_cut_is_what_the_signature_commits_to() -> None:
-    """The invalid twin BIP-143's second rule never had (issue #221).
+    """The invalid twin BIP143's second rule never had (issue #221).
 
     Its three worked examples are all valid spends of native P2WSH, so
     nothing among them says what a *wrong* cut looks like -- where the
@@ -909,7 +909,7 @@ def test_p2wsh_codeseparator_cut_is_what_the_signature_commits_to() -> None:
 def test_wrapped_p2wsh_codeseparator_cuts_the_same_script() -> None:
     """A p2sh wrapper does not move the cut: it is the witness script's.
 
-    All three of BIP-143's separator examples are native, so which
+    All three of BIP143's separator examples are native, so which
     script the code comes out of when there is a redeem script in the
     way is untested. It comes out of the witness script, and the redeem
     script -- the witness program, which a p2wsh spend commits to by

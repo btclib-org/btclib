@@ -13,8 +13,8 @@ https://en.bitcoin.it/wiki/Script
 
 Scripts are represented by list[Command], where Command = int | str | bytes
 
-* ascii string are for opcodes (e.g. 'OP_HASH160', 'OP_1', 'OP_1NEGATE', etc.)
-* hex-string or bytes (i.e., Octets) are for data
+* an ascii string is an op code name (e.g. 'OP_HASH160', 'OP_1NEGATE')
+* a hex-string or bytes (i.e., Octets) are data
 
 The tables name op codes no valid script can execute, marked `# disabled`
 below: the fifteen splice, bitwise and multiplication op codes Satoshi
@@ -341,7 +341,7 @@ def _serialize_str_command(command: str) -> bytes:
 def _serialize_bytes_command(command: bytes) -> bytes:
     """Convert to canonical push: OP_PUSHDATA (if needed) | length | command.
 
-    According to standardness rules (BIP-62) the minimum possible
+    According to standardness rules (BIP62) the minimum possible
     PUSHDATA operator must be used.
 
     All four widths, OP_PUSHDATA4 included, because what parse reads

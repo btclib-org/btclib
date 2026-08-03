@@ -9,7 +9,7 @@
 # or distributed except according to the terms contained in the LICENSE file.
 """BIP32 derivation path and key origin.
 
-A BIP 32 derivation path can be represented as:
+A BIP32 derivation path can be represented as:
 
 - "m/44h/0'/1H/0/10" or "44h/0'/1H/0/10" string
 - sequence of integer indexes (even a single int)

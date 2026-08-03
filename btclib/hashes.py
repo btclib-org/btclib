@@ -7,7 +7,12 @@
 #
 # No part of btclib including this file, may be copied, modified, propagated,
 # or distributed except according to the terms contained in the LICENSE file.
-"""Hash based helper functions."""
+"""The hash functions of bitcoin.
+
+ripemd160 and sha1 through sha256, the hash160 and hash256 pairs,
+BIP340's tagged hash, the BMS magic envelope, and the merkle roots
+and branches of a block.
+"""
 
 from __future__ import annotations
 
@@ -77,7 +82,7 @@ def ripemd160(octets: Octets) -> bytes:
 def sha1(octets: Octets) -> bytes:
     """Return the SHA1(*) of the input octet sequence."""
     octets = bytes_from_octets(octets)
-    # OP_SHA1 is a consensus opcode: the script says SHA1, and the only
+    # OP_SHA1 is a consensus op code: the script says SHA1, and the only
     # correct answer is the one the network computes, so the weakness of
     # the algorithm is not a choice made here. usedforsecurity=False
     # states that to hashlib rather than to the linter alone, as a noqa
@@ -138,7 +143,7 @@ def magic_message(msg: Octets) -> bytes:
 def merkle_root_and_mutated_from_hashes(
     hashes: Sequence[bytes], hf: HashDigestF
 ) -> tuple[bytes, bool]:
-    """Return the Merkle tree root, and whether the tree is mutated.
+    """Return the merkle tree root, and whether the tree is mutated.
 
     The bottom level is the provided list of hashes, taken as they are:
     this is the tree over values that are hashes already, as the witness
@@ -177,9 +182,9 @@ def merkle_root_and_mutated_from_hashes(
 def merkle_root_and_mutated(
     data: Sequence[bytes], hf: HashDigestF
 ) -> tuple[bytes, bool]:
-    """Return the Merkle tree root, and whether the tree is mutated.
+    """Return the merkle tree root, and whether the tree is mutated.
 
-    The Merkle tree is a binary tree constructed with the provided list
+    The merkle tree is a binary tree constructed with the provided list
     of binary data as bottom level, then recursively going up one level
     by hashing every hash value pair in the current level, until a
     single value (root) is obtained.
@@ -191,9 +196,9 @@ def merkle_root_and_mutated(
 
 
 def merkle_root(data: Sequence[bytes], hf: HashDigestF) -> bytes:
-    """Return the Merkle tree root of a list of binary hashes.
+    """Return the merkle tree root of a list of binary hashes.
 
-    The Merkle tree is a binary tree constructed with the provided list
+    The merkle tree is a binary tree constructed with the provided list
     of binary data as bottom level, then recursively going up one level
     by hashing every hash value pair in the current level, until a
     single value (root) is obtained.
@@ -212,7 +217,7 @@ def merkle_root_from_branch(
     hf: HashDigestF,
     check_inner_node: Callable[[bytes], None] | None = None,
 ) -> bytes:
-    """Return the Merkle root a branch proves, in internal byte order.
+    """Return the merkle root a branch proves, in internal byte order.
 
     The verifier's side of merkle_root_and_mutated_from_hashes: given a
     leaf, the siblings met on the way up and the leaf's position, this is
@@ -224,7 +229,7 @@ def merkle_root_from_branch(
     left child or right child at each step, lowest bit first. `branch`
     holds one sibling per level, bottom-up. Both are what they are in the
     tree, so both are in internal byte order, as this module's other
-    Merkle functions are: btclib.block.merkle_proof is the entry point
+    The merkle functions are: btclib.block.merkle_proof is the entry point
     taking the reversed order that a txid and a header are displayed in.
 
     A branch is evidence only together with the header that carries the

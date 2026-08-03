@@ -333,7 +333,7 @@ H160_Net = tuple[bytes, str]
 # Warning: to make Point a NamedTuple would slow down the code
 Point = tuple[int, int]
 
-# Note that the infinity point in affine coordinates is INF = (int, 0)
+# the infinity point in affine coordinates is INF = (int, 0)
 # (no affine point has y=0 coordinate in a group of prime order).
 # It can be checked with 'INF[1] == 0'
 # The x-coordinate is arbitrary: 5 is preferred

@@ -191,7 +191,7 @@ def point_from_bip340pub_key(x_Q: BIP340PubKey, ec: Curve = secp256k1) -> Point:
     # libsecp256k1 for secp256k1, 2.9 us against the 75 of a modular
     # square root, and the Python one for every other curve
 
-    # BIP 340 key as integer
+    # BIP340 key as integer
     if isinstance(x_Q, int):
         return x_Q, _y_even(x_Q, ec)
 
@@ -199,7 +199,7 @@ def point_from_bip340pub_key(x_Q: BIP340PubKey, ec: Curve = secp256k1) -> Point:
     with contextlib.suppress(BTClibValueError):
         x_Q = point_from_pub_key(x_Q, ec)[0]
         return x_Q, _y_even(x_Q, ec)
-    # BIP 340 key as bytes or hex-string
+    # BIP340 key as bytes or hex-string
     if isinstance(x_Q, (str, bytes)):
         Q = bytes_from_octets(x_Q, ec.p_size)
         x_Q = int.from_bytes(Q, "big", signed=False)
@@ -259,12 +259,12 @@ def challenge_(msg: Octets, x_Q: int, x_K: int, ec: Curve, hf: HashF) -> int:
 
 
 def _sign_(c: int, q: int, nonce: int, r: int, ec: Curve) -> Sig:
-    # Private function for testing purposes: it allows to explore all
-    # possible value of the challenge c (for low-cardinality curves).
+    # Private, for tests: it takes the challenge c as an argument, so
+    # a test can explore every value of it on a low-cardinality curve.
     # That freedom is what Fiat-Shamir forbids -- the public API derives
     # c from the nonce point, committing before the challenge -- and it
     # is why this function must stay private.
-    # It assume that c is in [1, n-1], while q and nonce are in [1, n-1]
+    # c and q and nonce are assumed in 1..n-1
     if c == 0:  # c≠0 required as it multiplies the private key
         raise BTClibRuntimeError("invalid zero challenge")
 

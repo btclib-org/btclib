@@ -7,7 +7,7 @@
 #
 # No part of btclib including this file, may be copied, modified, propagated,
 # or distributed except according to the terms contained in the LICENSE file.
-"""Module btclib.psbt."""
+"""Partially signed bitcoin transactions and the BIP174/BIP370 roles."""
 
 from btclib.psbt.psbt import Psbt, combine_psbts, extract_tx, finalize_psbt, join_psbts
 from btclib.psbt.psbt_in import PsbtIn

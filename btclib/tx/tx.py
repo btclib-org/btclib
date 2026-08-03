@@ -133,7 +133,7 @@ class Tx:
         """Return the legacy sigop count, Core's GetLegacySigOpCount.
 
         Every input's script_sig and every output's script_pub_key,
-        counted from the bytes by `script.sig_ops.sig_op_count`: the P2SH
+        counted from the bytes by `script.sig_ops.sig_op_count`: the p2sh
         and witness sigops Core adds in ConnectBlock need the outputs
         being spent, which a transaction does not carry. That module's
         docstring has what the shortfall is; the block rule this feeds,

@@ -49,7 +49,7 @@ def ssa_verify(msg_hash: bytes, pub_key: bytes, sig: bytes) -> bool:
 
 
 def get_hashtype(signature: bytes) -> int:
-    """Read the sig hash type off a taproot signature, per BIP341.
+    """Read the sighash type off a taproot signature, per BIP341.
 
     A 64-byte signature is SIGHASH_DEFAULT; a 65th byte carries the
     type and must not spell the default explicitly, the two encodings

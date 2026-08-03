@@ -49,7 +49,7 @@ particular btclib does **not**:
 .. warning::
 
    Every private key, WIF and mnemonic on this page is a **published
-   test vector**, copied from BIP-39, BIP-143 or BIP-340 so that you can
+   test vector**, copied from BIP39, BIP143 or BIP340 so that you can
    check btclib's answer against the specification itself. They are
    known to the whole world. Never send bitcoin to an address derived
    from any of them, and never reuse one for anything real.
@@ -144,7 +144,7 @@ public key was compressed, and the address follows from that.
 A mnemonic, and the seed underneath it
 --------------------------------------
 
-A BIP-39 mnemonic is a human-transcribable encoding of some entropy,
+A BIP39 mnemonic is a human-transcribable encoding of some entropy,
 with a checksum so that a typo is caught. :mod:`btclib.mnemonic.bip39`
 is the whole of it.
 
@@ -157,7 +157,7 @@ module supplies the entropy:
 12
 
 That one is genuinely random, so this page cannot show you its value.
-The rest of this section uses BIP-39's own first test vector — sixteen
+The rest of this section uses BIP39's own first test vector — sixteen
 zero bytes — which is why you may recognize it:
 
 >>> mnemonic = bip39.mnemonic_from_entropy(bytes.fromhex("00" * 16))
@@ -191,7 +191,7 @@ string ``"mnemonic"`` and the passphrase:
 >>> seed.hex()
 'c55257c360c07c72029aebc1b53c05ed0362ada38ead3e3e9efa3708e53495531f09a6987599d18264c1e1c92f2cf141630c7a3c4ab7c81b2f001698e7463b04'
 
-That is byte for byte BIP-39's published seed for this mnemonic and this
+That is byte for byte BIP39's published seed for this mnemonic and this
 passphrase, which is the point of using a vector.
 
 The passphrase is not a password on the mnemonic: it is an input to the
@@ -204,7 +204,7 @@ wrong.
 >>> bip39.seed_from_mnemonic(mnemonic, "TREZOR") == seed
 True
 
-The root extended private key is the seed run through BIP-32, and
+The root extended private key is the seed run through BIP32, and
 ``mxprv_from_mnemonic`` does both steps:
 
 >>> rootxprv = bip39.mxprv_from_mnemonic(mnemonic, "TREZOR")
@@ -256,7 +256,7 @@ The four address flavours
 ~~~~~~~~~~~~~~~~~~~~~~~~~
 
 Which address a key becomes is a separate decision from where the key
-came from, and BIP-44/49/84/86 are the convention that ties a purpose
+came from, and BIP44/49/84/86 are the convention that ties a purpose
 number to a script type. btclib does not enforce the tie — you pick the
 path, then you pick the address function — but following it is what lets
 another wallet find your coins from the same mnemonic.
@@ -276,7 +276,7 @@ another wallet find your coins from the same mnemonic.
 84 bc1qv5rmq0kt9yz3pm36wvzct7p3x6mtgehjul0feu
 86 bc1p3ryfth56dp058avv97ppn065ctsk263puvwp4rcka3wpg6cudp9qd3jsuu
 
-The taproot one is the odd one out and deliberately so: a BIP-86 address
+The taproot one is the odd one out and deliberately so: a BIP86 address
 is not the hash of the key but the key *tweaked* by a commitment to an
 empty script tree, which ``taproot.output_pubkey`` computes. It returns
 the 32-byte x-only output key and the parity bit that spending it needs.
@@ -329,7 +329,7 @@ Reading a raw transaction
 -------------------------
 
 :class:`btclib.tx.tx.Tx` parses the wire format, hex or bytes. The one
-below is BIP-143's worked example, unsigned:
+below is BIP143's worked example, unsigned:
 
 >>> from btclib.tx import Tx
 >>> raw = (
@@ -445,8 +445,8 @@ you.
 >>> sig_hash.from_tx([prevout], unsigned, 0, 0x01).hex()
 '8feec313e988999f1db646742b8a287269d10706cd086f8cda79aa491cc843af'
 
-Check that it agrees with the specification. BIP-143 publishes both the
-transaction and the hash for its native-P2WPKH example, so btclib's
+Check that it agrees with the specification. BIP143 publishes both the
+transaction and the hash for its native-p2wpkh example, so btclib's
 answer has something to be right about:
 
 >>> from btclib.script.script_pub_key import ScriptPubKey
@@ -462,14 +462,14 @@ answer has something to be right about:
 >>> sig_hash.from_tx(bip143_prevouts, tx, 1, 0x01).hex()
 'c37af31116d1b27caf68aae9e3ac82f1477929014d5b917657d0eb49478cb670'
 
-That is BIP-143's published ``sigHash``. The hash type ``0x01`` is
+That is BIP143's published ``sigHash``. The hash type ``0x01`` is
 ``SIGHASH_ALL``; ``btclib.script.sig_hash`` names the others
 (``NONE``, ``SINGLE``, ``ANYONECANPAY``).
 
 Signing, and checking the result without a node
 -----------------------------------------------
 
-The private key below is BIP-143's, published in the specification.
+The private key below is BIP143's, published in the specification.
 
 >>> prv_key = "619c335025c7f4012e556c2a58b2506e30b8511b53ade95ea316fd8c3286feb9"
 >>> from btclib.to_pub_key import pub_keyinfo_from_prv_key
@@ -544,7 +544,7 @@ Signatures on their own
 -----------------------
 
 The two schemes live in :mod:`btclib.ecc.dsa` (ECDSA, what pre-taproot
-bitcoin uses) and :mod:`btclib.ecc.ssa` (BIP-340 Schnorr, what taproot
+bitcoin uses) and :mod:`btclib.ecc.ssa` (BIP340 Schnorr, what taproot
 uses). Both come in two spellings, and the difference is the trailing
 underscore: ``sign`` hashes its argument for you, ``sign_`` takes the
 hash.
@@ -581,10 +581,10 @@ are computed by any signer and thrown away by ``sign``.
 >>> bytes_from_point(recovered) == pub_key
 True
 
-BIP-340 Schnorr
+BIP340 Schnorr
 ~~~~~~~~~~~~~~~
 
-BIP-340 keys are x-only: 32 bytes, with the y coordinate implied even.
+BIP340 keys are x-only: 32 bytes, with the y coordinate implied even.
 ``gen_keys`` returns the scalar and that x coordinate.
 
 >>> from btclib.ecc import ssa
@@ -594,10 +594,10 @@ BIP-340 keys are x-only: 32 bytes, with the y coordinate implied even.
 >>> x_Q.to_bytes(32, "big").hex().upper()
 'DFF1D77F2A671C5F36183726DB2341BE58FEAE1DA2DECED843240F7B502BA659'
 
-Unlike ECDSA, a BIP-340 nonce mixes in auxiliary randomness, so
+Unlike ECDSA, a BIP340 nonce mixes in auxiliary randomness, so
 ``ssa.sign`` is **not** deterministic unless you supply the ``aux``
 argument. Supplying it is what makes the example below reproducible, and
-it is exactly what BIP-340's test vector 1 does:
+it is exactly what BIP340's test vector 1 does:
 
 >>> aux = "0000000000000000000000000000000000000000000000000000000000000001"
 >>> msg = "243F6A8885A308D313198A2E03707344A4093822299F31D0082EFA98EC4E6C89"
@@ -607,7 +607,7 @@ it is exactly what BIP-340's test vector 1 does:
 >>> ssa.verify_(msg, x_Q, sig)
 True
 
-That is BIP-340's published signature for vector 1. In production leave
+That is BIP340's published signature for vector 1. In production leave
 ``aux`` alone and let ``secrets`` fill it: the randomness is a defence
 against fault attacks, and the signature is valid either way.
 
@@ -655,10 +655,10 @@ reading before you use this for anything that matters.
 Partially signed transactions
 -----------------------------
 
-A PSBT (BIP-174) is the container that lets an unsigned transaction, the
+A PSBT (BIP174) is the container that lets an unsigned transaction, the
 data needed to sign it, and the signatures themselves travel between
 programs that do not trust each other — a watch-only wallet, a hardware
-signer, a coordinator. BIP-174 describes the work as *roles*, and
+signer, a coordinator. BIP174 describes the work as *roles*, and
 :mod:`btclib.psbt.psbt` gives you the data structure for each of them,
 not a wallet that plays them.
 
@@ -681,7 +681,7 @@ puts it in:
 
 **Signer.** btclib does not sign a PSBT for you — it has no idea which
 keys are yours. You compute the sighash and put the signature in the
-slot BIP-174 defines for it, keyed by public key, with the hash type
+slot BIP174 defines for it, keyed by public key, with the hash type
 appended:
 
 >>> msg_hash = sig_hash.from_tx([prevout], psbt.tx, 0, 0x01)
@@ -695,7 +695,7 @@ programs:
 >>> Psbt.b64decode(psbt.b64encode()) == psbt
 True
 
-**Version 2 (BIP-370).** In version 2 the unsigned transaction stops
+**Version 2 (BIP370).** In version 2 the unsigned transaction stops
 being a field: the transaction version, each input's outpoint and
 sequence, and each output's amount and script live in the psbt itself,
 which is what lets a *Constructor* add inputs and outputs after the psbt
@@ -737,7 +737,7 @@ psbt btclib refuses rather than resolves.
 **Finalizer and Extractor.** ``finalize_psbt`` turns the partial
 signatures into a final script_sig or witness and ``extract_tx`` pulls
 out the network transaction. Be aware of the shape they handle: they
-build what BIP-174's own vectors need, which are p2sh and p2wsh
+build what BIP174's own vectors need, which are p2sh and p2wsh
 multisig, and they do not know that a bare p2wpkh input wants its
 signature in the witness rather than in the script_sig. For a
 single-key segwit input, build the witness yourself as the previous

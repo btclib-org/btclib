@@ -17,12 +17,12 @@ from its own bytes, and it is why the count is here: `Tx.sig_op_count` and
 `Block.sig_op_count` are the two sums, each reading this.
 
 The count underestimates, and Core's comment where it is summed says so:
-the P2SH count needs the redeem script the input pushes, the witness count
+the p2sh count needs the redeem script the input pushes, the witness count
 needs the `script_pub_key` being spent, and both are outputs of blocks that
 are not this one. `fAccurate` is not a parameter here for that same reason
 -- accurate means `OP_CHECKMULTISIG` costing the number of keys pushed
 before it rather than the twenty of `MAX_PUBKEYS_PER_MULTISIG`, and Core
-only ever asks for it under P2SH and segwit, where the script counted comes
+only ever asks for it under p2sh and segwit, where the script counted comes
 from the UTXO set.
 
 A module of its own rather than the bottom of `script.py`, which is the

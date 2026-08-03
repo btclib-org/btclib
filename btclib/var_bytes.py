@@ -7,7 +7,7 @@
 #
 # No part of btclib including this file, may be copied, modified, propagated,
 # or distributed except according to the terms contained in the LICENSE file.
-"""Varbytes encoding and decoding functions."""
+"""Varbytes encoding and decoding: a var_int length, then the bytes."""
 
 from btclib import var_int
 from btclib.alias import BinaryData, Octets

@@ -124,7 +124,7 @@ def p2sh(script_pub_key: Octets, network: str = "mainnet") -> str:
 
 
 def _address_from_v0_witness(wit_prg: Octets, network: str = "mainnet") -> str:
-    """Return the legacy base58 p2sh-wrapped SegWit v0 address."""
+    """Return the legacy base58 p2sh-wrapped segwit v0 address."""
     # check witness program
     wit_prg = b32.check_witness(0, wit_prg)
     # the redeem script is [OP_0, wit_prg], spelled out here instead of
@@ -140,7 +140,7 @@ def _address_from_v0_witness(wit_prg: Octets, network: str = "mainnet") -> str:
     return p2sh(redeem_script, network)
 
 
-# 1.+2b. = 3b. base58 (p2sh-wrapped) SegWit address from pub_key/script_pub_key
+# 1.+2b. = 3b. base58 (p2sh-wrapped) segwit address from pub_key/script_pub_key
 
 
 def p2wpkh_p2sh(key: Key, network: str | None = None) -> str:
