@@ -510,6 +510,21 @@ edit.
 
 ### Malformed input and the exception contract
 
+- **a psbt claiming a version that does not exist is refused as one.**
+  `invalid non-zero version: 1` is `invalid psbt version: 1`, and the
+  rule behind it is no longer "anything but 0": version 2 is read now,
+  and version 1 was skipped by BIP370 rather than left free. The check
+  runs on the way in and on the way out whatever `check_validity` says,
+  which is new: which fields a psbt is written and read as *is* its
+  version, so there is nothing left to defer. Two messages move with the
+  unsigned transaction that stopped being a field:
+  `mismatched number of psb.tx.vin and psb.inputs` and its `vout`
+  counterpart named a disagreement a psbt can no longer hold — its maps
+  *are* its transaction — and are now
+  `mismatched number of tx.vin and psbt inputs`, raised by `from_tx`
+  when the maps it is handed are not one per input and one per output.
+  A version 2 psbt whose count and maps disagree is refused by the
+  parse instead, for the map that is missing or the bytes left over
 - **a version 0 psbt carrying a PSBT v2 field is refused, by name**
   (issue #265). BIP370 lists 0 under "Versions Requiring Exclusion" for
   each of the twelve fields it defines, and btclib filed all twelve
@@ -1443,6 +1458,51 @@ edit.
 
 ### Transactions, blocks and PSBT
 
+- **PSBT version 2 is read, written and validated** (BIP370, issue
+  #265), and with it the fields that replace the unsigned transaction:
+  the transaction version, the fallback locktime, the input and output
+  counts and the modifiable flags of the global map; the previous txid,
+  output index, sequence and two required locktimes of an input; the
+  amount and script of an output. Every valid psbt the BIP publishes
+  round trips byte for byte — the 14 of its valid section and 9 of the
+  10 in its lock time section, the tenth being the one whose two kinds
+  of lock time no single `nLockTime` can satisfy — each lock time case
+  computes the value the BIP gives for it, and the 24 invalid ones are
+  each refused for what the BIP says is wrong with them, where 11 used
+  to be refused for the unsigned transaction btclib required.
+- **The unsigned transaction is now computed, and the BIP370 fields are
+  what a psbt holds** — in *both* versions, version 0 being a conversion
+  at the two edges: `Psbt.parse` takes its `PSBT_GLOBAL_UNSIGNED_TX`
+  apart into the input and output maps, and `Psbt.serialize` puts it
+  back together. Which is the honest shape, version 2 having no such
+  field to keep, and it is the shape that can hold both transactions the
+  BIP defines: the one being signed, and the one that identifies the
+  psbt, whose sequences are all zero (`Psbt.unique_id`). `Psbt.tx` is a
+  property, so it is a copy: writing into it writes into nothing, and an
+  outpoint or a sequence is set on the input that holds it.
+- **`PSBT_GLOBAL_TX_MODIFIABLE` is honoured by the three helpers that
+  change a transaction.** `sort_inputs`, `sort_outputs` and `join_psbts`
+  reorder and add, which under BIP370 is a Constructor's work and needs
+  the Inputs Modifiable or Outputs Modifiable bit set; the Has
+  SIGHASH_SINGLE bit refuses both sides whatever the other two say,
+  such a signature committing to the output at its own input's index. A
+  version 0 psbt has no such field and no Constructor role, so it
+  reorders as it always has. `combine_psbts` takes the AND of the two
+  modifiable bits and the OR of the third, so a combine can never hand
+  back permission a Signer took away.
+- **`combine_psbts` compares BIP370's identifier for a version 2 psbt**
+  rather than `psbt.tx.id`: the sequence is a field an Updater may set,
+  so two psbts of one transaction can differ by it, and the txid would
+  call them two. A version 0 psbt is still compared by the txid of the
+  unsigned transaction every copy of it carries. Psbts of different
+  versions are refused rather than converted, `to_v0` and `to_v2` being
+  where that decision belongs.
+- **`Psbt.to_v0` and `Psbt.to_v2` convert between the two versions.**
+  To version 2 is the version number alone, every field it writes being
+  held already; to version 0 is what version 0 cannot say — the computed
+  lock time becomes the fallback, where a version 0 psbt keeps its
+  `nLockTime`, and the inputs' required lock times and the modifiable
+  flags go, the transaction unchanged by the going.
 - **`finalize_psbt` spends a single-key input the way it is spent.** It
   branched on the witness script alone, which no single-key input has, so
   a native p2wpkh got its signature written into the `final_script_sig`
@@ -1648,6 +1708,22 @@ edit.
   stays outside the condition, there and here, an Extractor needing it to
   check the transaction it builds; so do the unknown fields, which no
   role understands well enough to drop (issue #173)
+- **`Psbt` takes the transaction's version where it took the
+  transaction, and `Psbt.tx` is a property.** The BIP370 fields are what
+  a psbt holds, in either version, so what the constructor takes is
+  those: `Psbt(tx, inputs, outputs, version, hd_key_paths, unknown)` is
+  now `Psbt(tx_version, inputs, outputs, version, hd_key_paths,
+  unknown, fallback_lock_time, tx_modifiable)`, and `Psbt.from_tx` --
+  which takes the input and output maps as well now, for a caller who
+  already has them -- is the way in from a transaction. Reading
+  `psbt.tx` is unchanged; writing into what it returns reaches nothing,
+  it being built at every access, so an outpoint is set on the input
+  that holds it. `PsbtIn` gains `previous_tx_id`, `output_index`,
+  `sequence`, `required_time_lock_time` and `required_height_lock_time`
+  and `PsbtOut` gains `amount` and `script_pub_key`, each after the
+  fields that were there; both `serialize` methods take a keyword-only
+  `psbt_version`, which decides whether those fields are written or
+  folded into the unsigned transaction (issue #265)
 - **The header is one constant and a separator is the `0x00`**, as in
   Bitcoin Core: `PSBT_MAGIC_BYTES` is the five bytes `b"psbt\xff"`, where
   it was the four of "psbt" with the `0xff` beside it as `PSBT_SEPARATOR`;

@@ -347,12 +347,17 @@ be found by the name the other 46 use. A refresh should read the labels
 case-insensitively rather than trust the count.
 
 The `error message` of an invalid case is btclib's own, as in the two
-files above, and here it says more than usual: half of the 24 are a
-version 0 psbt carrying one of BIP370's twelve fields, which btclib
-refuses by name, and the other half are version 2 psbts refused for the
-unsigned transaction btclib still requires. The valid ones are `xfail`,
-version 2 being unimplemented (issue #265), and the marker is strict, so
-this file is the acceptance criterion the day it lands.
+files above, and here each names what the BIP says is wrong with the
+case: half of the 24 are a version 0 psbt carrying one of BIP370's
+twelve fields, refused by the name of the field, and the other half are
+version 2 psbts refused for the unsigned transaction version 2 excludes,
+for one of the seven fields it requires, or for a required locktime
+outside the range that makes it one kind of locktime.
+
+The valid ones are read and written back byte for byte, and the ten
+locktime cases are asserted against the value the algorithm publishes
+for each — the `null` one by the refusal it gets, its two kinds of
+locktime having no single `nLockTime` to agree on.
 
 ### `tests/script/_data/bip67_test_vectors.json`
 
@@ -1062,7 +1067,9 @@ BIP's "2-of-3 Multisig Workflow" walk-through — prose steps rather than
 `* Case:` entries, which is why `bip174_test_vectors.json` does not
 vendor them — taken at the same pin as that file,
 `8c369ac8e60629ac6c032ffe21bb5ec5b35213d7` (2026-07-16), where all five
-appear verbatim. Every case is one of them plus one edit:
+appear verbatim; the two version 2 cases start instead from the first
+valid psbt of `bip370_test_vectors.json`, at the pin recorded there.
+Every case is one of those plus one edit:
 
 - the **creator**'s psbt with a `PSBT_GLOBAL_VERSION` of 1, and with the
   `0xff` of its magic bytes replaced — the two `invalid psbts`, which
@@ -1070,14 +1077,18 @@ appear verbatim. Every case is one of them plus one edit:
   not for anything narrower, which is the case rather than a shortfall of
   it: that `0xff` is the fifth byte of `PSBT_MAGIC_BYTES` and not a field
   of its own, so losing it is the header being wrong;
-- the **creator**'s psbt unedited, three times, under the three
-  `invalid psbt objects`. That section carries a `mutation` name instead
-  of invalid bytes because these three states have no encoding: a psbt
-  is parsed with one input map per `vin` and one output map per `vout`,
-  so counts that disagree cannot be written down, and the global unsigned
-  transaction is serialized without witnesses, so a witness on it cannot
-  either. The vector is the psbt the case starts from, and the test
-  module holds the three one-line edits;
+- the **creator**'s psbt with a `script_sig` written into the first
+  input of its unsigned transaction, which BIP174 requires to be
+  unsigned. It is bytes like every other case here, where the three
+  cases this replaces were a psbt plus the name of an edit: those
+  described a psbt whose input maps and unsigned transaction disagreed,
+  and under BIP370 the maps *are* the transaction, so dropping a map
+  drops an input rather than leaving two counts to differ;
+- two version 2 psbts, BIP370's first valid one with its
+  `PSBT_GLOBAL_OUTPUT_COUNT` one too high and one too low. That count is
+  how a version 2 parse knows how many maps follow, so a wrong one is a
+  psbt that ends too early or has bytes left over — and it is the one
+  place where those disagreeing counts *can* be written down;
 - the **first signer**'s psbt with its `lock_time` flipped, beside the
   **second signer**'s unedited, as the one `invalid combination`;
 - the **combiner**'s psbt with the partial signatures of its first input

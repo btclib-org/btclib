@@ -50,6 +50,7 @@ from btclib.psbt.psbt_utils import (
     deserialize_bytes,
     deserialize_int,
     deserialize_map,
+    deserialize_sized_int,
     deserialize_tx,
     encode_dict_bytes_bytes,
     encode_leaf_scripts,
@@ -59,12 +60,13 @@ from btclib.psbt.psbt_utils import (
     serialize_dict_bytes_bytes,
     serialize_hd_key_paths,
     serialize_leaf_scripts,
+    serialize_sized_int,
     serialize_taproot_bip32,
     taproot_bip32_to_dict,
 )
 from btclib.script import Witness, script_from_dict, script_to_dict
 from btclib.script.sig_hash import assert_valid_hash_type
-from btclib.tx import Tx, TxOut
+from btclib.tx import OutPoint, Tx, TxOut
 from btclib.utils import bytes_from_octets
 
 PSBT_IN_NON_WITNESS_UTXO = b"\x00"
@@ -80,6 +82,11 @@ PSBT_IN_RIPEMD160 = b"\x0a"
 PSBT_IN_SHA256 = b"\x0b"
 PSBT_IN_HASH160 = b"\x0c"
 PSBT_IN_HASH256 = b"\x0d"
+PSBT_IN_PREVIOUS_TXID = b"\x0e"
+PSBT_IN_OUTPUT_INDEX = b"\x0f"
+PSBT_IN_SEQUENCE = b"\x10"
+PSBT_IN_REQUIRED_TIME_LOCKTIME = b"\x11"
+PSBT_IN_REQUIRED_HEIGHT_LOCKTIME = b"\x12"
 PSBT_IN_TAP_KEY_SIG = b"\x13"
 PSBT_IN_TAP_SCRIPT_SIG = b"\x14"
 PSBT_IN_TAP_LEAF_SCRIPT = b"\x15"
@@ -89,15 +96,22 @@ PSBT_IN_TAP_MERKLE_ROOT = b"\x18"
 
 # the input fields BIP370 defines, which a version 0 input must not
 # carry: the outpoint and sequence a v0 input reads from the unsigned
-# transaction, and the two locktimes that transaction's own would be
-# computed from. See psbt_utils.assert_not_a_v2_field
+# transaction, and the two locktimes that transaction's own is computed
+# from. See psbt_utils.assert_not_a_v2_field
 _V2_FIELDS = {
-    b"\x0e": "PSBT_IN_PREVIOUS_TXID",
-    b"\x0f": "PSBT_IN_OUTPUT_INDEX",
-    b"\x10": "PSBT_IN_SEQUENCE",
-    b"\x11": "PSBT_IN_REQUIRED_TIME_LOCKTIME",
-    b"\x12": "PSBT_IN_REQUIRED_HEIGHT_LOCKTIME",
+    PSBT_IN_PREVIOUS_TXID: "PSBT_IN_PREVIOUS_TXID",
+    PSBT_IN_OUTPUT_INDEX: "PSBT_IN_OUTPUT_INDEX",
+    PSBT_IN_SEQUENCE: "PSBT_IN_SEQUENCE",
+    PSBT_IN_REQUIRED_TIME_LOCKTIME: "PSBT_IN_REQUIRED_TIME_LOCKTIME",
+    PSBT_IN_REQUIRED_HEIGHT_LOCKTIME: "PSBT_IN_REQUIRED_HEIGHT_LOCKTIME",
 }
+
+# the boundary BIP65 draws between the two kinds of lock time, and BIP370
+# with it: below it a value is a block height, at it or above a Unix
+# timestamp. It is why an input can require one kind or the other and why
+# a psbt requiring both is refused -- one nLockTime field cannot be both
+# a height and a time
+LOCK_TIME_THRESHOLD = 500_000_000
 
 # 0xfc is reserved for proprietary use, and needs no constant of its own:
 # explicit support for proprietary (and por) is unnecessary,
@@ -200,6 +214,36 @@ def _serialize_final_script_witness(type_: bytes, witness: Witness) -> bytes:
     return serialize_bytes(type_, witness.serialize())
 
 
+def _serialize_previous_tx_id(type_: bytes, tx_id: bytes) -> bytes:
+    """Return the binary representation of the dataclass element.
+
+    BIP370 asks for "standard byte order, not display byte order", which
+    is the order OutPoint.serialize writes and the reverse of the one
+    btclib holds a tx_id in: `Tx.id`, `OutPoint.tx_id` and this field are
+    then one value, comparable without a reversal at every use.
+    """
+    return serialize_bytes(type_, tx_id[::-1])
+
+
+def _deserialize_previous_tx_id(k: bytes, v: bytes, type_: str) -> bytes:
+    """Return the dataclass element from its binary representation."""
+    tx_id = deserialize_bytes(k, v, type_)
+    if len(tx_id) != 32:
+        err_msg = f"invalid {type_} length: {len(tx_id)} bytes instead of 32"
+        raise BTClibValueError(err_msg)
+    return tx_id[::-1]
+
+
+def _serialize_uint32(type_: bytes, value: int) -> bytes:
+    """Return the binary representation of a 4-byte little-endian field."""
+    return serialize_sized_int(type_, value, 4)
+
+
+def _deserialize_uint32(k: bytes, v: bytes, type_: str) -> int:
+    """Return the dataclass element from its binary representation."""
+    return deserialize_sized_int(k, v, type_, 4)
+
+
 # what serializing a field takes: its key type and its value, whatever the
 # value's shape is -- so the psbt_utils serializers and the four wrappers
 # above share one signature, which is what lets the table below be a table
@@ -244,6 +288,15 @@ _SERIALIZED_FIELDS: list[tuple[bytes, str, _Serializer]] = [
     (PSBT_IN_SHA256, "sha256_preimages", serialize_dict_bytes_bytes),
     (PSBT_IN_HASH160, "hash160_preimages", serialize_dict_bytes_bytes),
     (PSBT_IN_HASH256, "hash256_preimages", serialize_dict_bytes_bytes),
+    # the five of BIP370, in the ascending order of the type byte the rest
+    # of the table is in: a version 2 psbt written any other way still
+    # parses, and stops being the byte-for-byte answer to the one the BIP
+    # publishes
+    (PSBT_IN_PREVIOUS_TXID, "previous_tx_id", _serialize_previous_tx_id),
+    (PSBT_IN_OUTPUT_INDEX, "output_index", _serialize_uint32),
+    (PSBT_IN_SEQUENCE, "sequence", _serialize_uint32),
+    (PSBT_IN_REQUIRED_TIME_LOCKTIME, "required_time_lock_time", _serialize_uint32),
+    (PSBT_IN_REQUIRED_HEIGHT_LOCKTIME, "required_height_lock_time", _serialize_uint32),
     (PSBT_IN_TAP_KEY_SIG, "taproot_key_spend_signature", serialize_bytes),
     (
         PSBT_IN_TAP_SCRIPT_SIG,
@@ -255,6 +308,35 @@ _SERIALIZED_FIELDS: list[tuple[bytes, str, _Serializer]] = [
     (PSBT_IN_TAP_INTERNAL_KEY, "taproot_internal_key", serialize_bytes),
     (PSBT_IN_TAP_MERKLE_ROOT, "taproot_merkle_root", serialize_bytes),
 ]
+
+# the fields of the table above that only a version 2 input writes. They
+# are held whatever the version, the outpoint and sequence of a version 0
+# input being what its psbt's unsigned transaction is built from; what the
+# version decides is whether they are written as fields of the input map
+# or as the transaction they are folded into
+_V2_ONLY = frozenset(
+    {
+        "previous_tx_id",
+        "output_index",
+        "sequence",
+        "required_time_lock_time",
+        "required_height_lock_time",
+    }
+)
+
+# the fields whose absence is None rather than a falsy value: an output
+# index of 0 is the first output of the previous transaction and a
+# sequence of 0 is the one BIP125 signals with, so "write it if it is
+# truthy" -- the rule for every other field here -- would drop exactly
+# what a version 2 input has to carry
+_PRESENT_IF_NOT_NONE = frozenset(
+    {
+        "output_index",
+        "sequence",
+        "required_time_lock_time",
+        "required_height_lock_time",
+    }
+)
 
 # bip 174: what a finalizer consumed is not carried beside what it
 # produced, so an input with a final script_sig or witness serializes
@@ -328,6 +410,23 @@ _WHOLE_VALUE_FIELDS: dict[bytes, tuple[str, str, _Deserializer]] = {
         "taproot merkle root",
         deserialize_bytes,
     ),
+    PSBT_IN_PREVIOUS_TXID: (
+        "previous_tx_id",
+        "previous txid",
+        _deserialize_previous_tx_id,
+    ),
+    PSBT_IN_OUTPUT_INDEX: ("output_index", "output index", _deserialize_uint32),
+    PSBT_IN_SEQUENCE: ("sequence", "sequence", _deserialize_uint32),
+    PSBT_IN_REQUIRED_TIME_LOCKTIME: (
+        "required_time_lock_time",
+        "required time locktime",
+        _deserialize_uint32,
+    ),
+    PSBT_IN_REQUIRED_HEIGHT_LOCKTIME: (
+        "required_height_lock_time",
+        "required height locktime",
+        _deserialize_uint32,
+    ),
 }
 
 # and here the fields whose key carries key data: the init keyword, and the
@@ -369,6 +468,21 @@ class PsbtIn:
     taproot_internal_key: bytes
     taproot_merkle_root: bytes
     unknown: dict[bytes, bytes]
+    previous_tx_id: bytes
+    output_index: int | None
+    sequence: int | None
+    required_time_lock_time: int | None
+    required_height_lock_time: int | None
+
+    @property
+    def prev_out(self) -> OutPoint:
+        """Return the outpoint this input spends.
+
+        The two fields as the one value every other btclib caller takes,
+        `TxIn.prev_out` included; an input that does not carry both is an
+        input Psbt.assert_valid refuses, and OutPoint says so here.
+        """
+        return OutPoint(self.previous_tx_id, self.output_index or 0)
 
     @property
     def sig_hash(self) -> int:
@@ -401,6 +515,11 @@ class PsbtIn:
         taproot_internal_key: Octets = b"",
         taproot_merkle_root: Octets = b"",
         unknown: Mapping[Octets, Octets] | None = None,
+        previous_tx_id: Octets = b"",
+        output_index: int | None = None,
+        sequence: int | None = None,
+        required_time_lock_time: int | None = None,
+        required_height_lock_time: int | None = None,
         *,
         check_validity: bool = True,
     ) -> None:
@@ -433,12 +552,54 @@ class PsbtIn:
         self.taproot_internal_key = bytes_from_octets(taproot_internal_key)
         self.taproot_merkle_root = bytes_from_octets(taproot_merkle_root)
         self.unknown = dict(sorted(decode_dict_bytes_bytes(unknown).items()))
+        self.previous_tx_id = bytes_from_octets(previous_tx_id)
+        self.output_index = output_index
+        self.sequence = sequence
+        self.required_time_lock_time = required_time_lock_time
+        self.required_height_lock_time = required_height_lock_time
 
         if check_validity:
             self.assert_valid()
 
     def assert_valid(self) -> None:
-        """Assert logical self-consistency."""
+        """Assert logical self-consistency.
+
+        The BIP370 fields are checked for what they hold and not for
+        whether they are there: which of them an input must carry is the
+        psbt's version, which an input on its own does not know, so
+        Psbt.assert_valid asks that question and this one answers what
+        an input can be asked alone.
+        """
+        if self.previous_tx_id and len(self.previous_tx_id) != 32:
+            err_msg = f"invalid previous txid: {len(self.previous_tx_id)} bytes"
+            raise BTClibValueError(err_msg)
+
+        if self.output_index is not None and not 0 <= self.output_index <= 0xFFFFFFFF:
+            raise BTClibValueError(f"invalid output index: {self.output_index}")
+
+        if self.sequence is not None and not 0 <= self.sequence <= 0xFFFFFFFF:
+            raise BTClibValueError(f"invalid sequence: {self.sequence}")
+
+        # the two bounds are BIP370's own, and they are what makes each
+        # field one kind of lock time: a time locktime below the BIP65
+        # threshold would be read as a block height by every node, and a
+        # height at or above it as a timestamp. Zero is excluded from the
+        # height because it is nLockTime's "no lock time at all", so an
+        # input requiring it requires nothing
+        if self.required_time_lock_time is not None and not (
+            LOCK_TIME_THRESHOLD <= self.required_time_lock_time <= 0xFFFFFFFF
+        ):
+            err_msg = f"invalid required time locktime: {self.required_time_lock_time}"
+            raise BTClibValueError(err_msg)
+
+        if self.required_height_lock_time is not None and not (
+            0 < self.required_height_lock_time < LOCK_TIME_THRESHOLD
+        ):
+            err_msg = (
+                f"invalid required height locktime: {self.required_height_lock_time}"
+            )
+            raise BTClibValueError(err_msg)
+
         if self.non_witness_utxo:
             self.non_witness_utxo.assert_valid()
 
@@ -512,6 +673,11 @@ class PsbtIn:
             "taproot_internal_key": self.taproot_internal_key.hex(),
             "taproot_merkle_root": self.taproot_merkle_root.hex(),
             "unknown": dict(sorted(encode_dict_bytes_bytes(self.unknown).items())),
+            "previous_tx_id": self.previous_tx_id.hex(),
+            "output_index": self.output_index,
+            "sequence": self.sequence,
+            "required_time_lock_time": self.required_time_lock_time,
+            "required_height_lock_time": self.required_height_lock_time,
         }
 
     @classmethod
@@ -551,10 +717,22 @@ class PsbtIn:
             dict_["taproot_internal_key"],
             dict_["taproot_merkle_root"],
             dict_["unknown"],
+            dict_["previous_tx_id"],
+            dict_["output_index"],
+            dict_["sequence"],
+            dict_["required_time_lock_time"],
+            dict_["required_height_lock_time"],
             check_validity=check_validity,
         )
 
-    def serialize(self, *, check_validity: bool = True) -> bytes:
+    def serialize(self, *, psbt_version: int = 0, check_validity: bool = True) -> bytes:
+        """Return the binary representation of the input map.
+
+        psbt_version is the version of the psbt the map belongs to, and
+        it decides whether the BIP370 fields are written here or folded
+        into the psbt's unsigned transaction; an input serialized on its
+        own is written as version 0, the version BIP174 defines.
+        """
         if check_validity:
             self.assert_valid()
 
@@ -564,9 +742,12 @@ class PsbtIn:
         for type_, field, serialize_field in _SERIALIZED_FIELDS:
             if finalized and field in _DROPPED_ONCE_FINALIZED:
                 continue
+            if psbt_version == 0 and field in _V2_ONLY:
+                continue
             value = getattr(self, field)
-            if value:
-                psbt_in_bin.append(serialize_field(type_, value))
+            if value is None or (not value and field not in _PRESENT_IF_NOT_NONE):
+                continue
+            psbt_in_bin.append(serialize_field(type_, value))
 
         # the map ends itself, as it does in Bitcoin Core
         # (PSBTInput::Serialize): a psbt is a sequence of maps with no
@@ -589,9 +770,9 @@ class PsbtIn:
         on the input after this one.
 
         psbt_version is the version of the psbt the map belongs to, which
-        decides whether a BIP370 type byte is a field this version must
-        not carry or one nobody has defined; an input read on its own is
-        read as version 0, the version btclib writes.
+        decides whether a BIP370 type byte is a field of this input or
+        one this version must not carry; an input read on its own is read
+        as version 0, the version BIP174 defines.
         """
         input_map = deserialize_map(data)
         # the init keywords the map fills; whatever it does not carry keeps
@@ -601,6 +782,10 @@ class PsbtIn:
 
         for k, v in input_map.items():
             type_ = k[:1]
+            # before the dispatch and not inside its `unknown` arm: these
+            # five type bytes are fields of the table below now, so a
+            # version 0 psbt carrying one would be read rather than refused
+            assert_not_a_v2_field(type_, psbt_version, _V2_FIELDS)
             if type_ in _WHOLE_VALUE_FIELDS:
                 field, what, deserialize = _WHOLE_VALUE_FIELDS[type_]
                 fields[field] = deserialize(k, v, what)
@@ -610,7 +795,6 @@ class PsbtIn:
                 # key data, so it is accumulated and not assigned
                 fields.setdefault(field, {})[k[1:]] = parse_value(v)
             else:  # unknown
-                assert_not_a_v2_field(type_, psbt_version, _V2_FIELDS)
                 # keyed by the whole key: what makes it unknown is its type
                 # byte, so that byte is part of what has to be given back
                 fields.setdefault("unknown", {})[k] = v

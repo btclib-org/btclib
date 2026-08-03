@@ -196,7 +196,10 @@ def psbt_from_spend(tx: Tx) -> Psbt | None:
         tx_in.script_sig = b""
         tx_in.script_witness = Witness()
     outputs = [PsbtOut() for _ in tx.vout]
-    return Psbt(tx, inputs, outputs, 0, {}, check_validity=False)
+    # from_tx and not Psbt(...): the outpoint and sequence of each input
+    # are the input's own now, and taking the transaction apart into them
+    # is what this classmethod is
+    return Psbt.from_tx(tx, inputs, outputs, check_validity=False)
 
 
 def assert_input_is_the_spend_with_maximal_signatures(psbt: Psbt, signed: Tx) -> int:

@@ -10,6 +10,22 @@
 """Partially Signed Bitcoin Transaction (Psbt) dataclass and functions.
 
 https://github.com/bitcoin/bips/blob/master/bip-0174.mediawiki
+https://github.com/bitcoin/bips/blob/master/bip-0370.mediawiki
+
+Both versions are held the same way, and it is BIP370's way: the fields
+of the transaction being built -- its version, each input's outpoint and
+sequence, each output's amount and script -- live in the psbt, and the
+unsigned transaction is computed from them (`Psbt.tx`). Version 0, where
+that transaction is the field and those are computed, is then a
+conversion at the two edges, `parse` taking it apart and `serialize`
+putting it back together, and nothing between the two has to ask which
+version it is holding.
+
+The other way round -- keeping BIP174's transaction and shadowing the
+BIP370 fields beside it -- costs the same conversion and leaves the two
+able to disagree, and BIP370 needs a second transaction anyway: the one
+that identifies a psbt has every sequence zeroed (`Psbt.unique_id`), so
+one stored transaction could not be both.
 """
 
 from __future__ import annotations
@@ -43,13 +59,17 @@ from btclib.psbt.psbt_utils import (
     assert_not_a_v2_field,
     assert_valid_unknown,
     decode_dict_bytes_bytes,
+    deserialize_count,
     deserialize_int,
     deserialize_map,
+    deserialize_sized_int,
     deserialize_tx,
     encode_dict_bytes_bytes,
     serialize_bytes,
+    serialize_count,
     serialize_dict_bytes_bytes,
     serialize_hd_key_paths,
+    serialize_sized_int,
 )
 from btclib.script import (
     Witness,
@@ -62,7 +82,7 @@ from btclib.script import (
     sig_hash,
     type_and_payload,
 )
-from btclib.tx import Tx, TxIn, TxOut, join_txs
+from btclib.tx import Tx, TxIn, TxOut
 from btclib.utils import bytesio_from_binarydata
 
 # the whole of BIP174's <magic>, five bytes: the four of "psbt" and the
@@ -74,10 +94,21 @@ PSBT_MAGIC_BYTES = b"psbt\xff"
 
 PSBT_GLOBAL_UNSIGNED_TX = b"\x00"
 PSBT_GLOBAL_XPUB = b"\x01"
+PSBT_GLOBAL_TX_VERSION = b"\x02"
+PSBT_GLOBAL_FALLBACK_LOCKTIME = b"\x03"
+PSBT_GLOBAL_INPUT_COUNT = b"\x04"
+PSBT_GLOBAL_OUTPUT_COUNT = b"\x05"
+PSBT_GLOBAL_TX_MODIFIABLE = b"\x06"
 PSBT_GLOBAL_VERSION = b"\xfb"
 # 0xfc is reserved for proprietary use, and needs no constant of its own:
 # explicit support for proprietary (and por) is unnecessary,
 # see https://github.com/bitcoin/bips/pull/1038
+
+# the two versions there are. Version 1 is not one of them and never will
+# be: BIP370 skipped the number because version 0 had been colloquially
+# called version 1 while it was being designed
+PSBT_V0 = 0
+PSBT_V2 = 2
 
 # the global fields BIP370 defines, which a version 0 psbt must not
 # carry: in version 2 the unsigned transaction stops being a field and
@@ -85,12 +116,24 @@ PSBT_GLOBAL_VERSION = b"\xfb"
 # being what a rejection has to say -- a type byte says nothing to whoever
 # reads the error. See psbt_utils.assert_not_a_v2_field
 _V2_GLOBAL_FIELDS = {
-    b"\x02": "PSBT_GLOBAL_TX_VERSION",
-    b"\x03": "PSBT_GLOBAL_FALLBACK_LOCKTIME",
-    b"\x04": "PSBT_GLOBAL_INPUT_COUNT",
-    b"\x05": "PSBT_GLOBAL_OUTPUT_COUNT",
-    b"\x06": "PSBT_GLOBAL_TX_MODIFIABLE",
+    PSBT_GLOBAL_TX_VERSION: "PSBT_GLOBAL_TX_VERSION",
+    PSBT_GLOBAL_FALLBACK_LOCKTIME: "PSBT_GLOBAL_FALLBACK_LOCKTIME",
+    PSBT_GLOBAL_INPUT_COUNT: "PSBT_GLOBAL_INPUT_COUNT",
+    PSBT_GLOBAL_OUTPUT_COUNT: "PSBT_GLOBAL_OUTPUT_COUNT",
+    PSBT_GLOBAL_TX_MODIFIABLE: "PSBT_GLOBAL_TX_MODIFIABLE",
 }
+
+# the three bits BIP370 defines in PSBT_GLOBAL_TX_MODIFIABLE. The other
+# five are undefined and kept as they arrive: an undefined flag is one of
+# the BIP's own valid vectors
+INPUTS_MODIFIABLE = 0b0000_0001
+OUTPUTS_MODIFIABLE = 0b0000_0010
+HAS_SIG_HASH_SINGLE = 0b0000_0100
+
+# what an input's sequence is when the field is absent, which BIP370
+# spells out: "if omitted, the sequence number is assumed to be the final
+# sequence number"
+_FINAL_SEQUENCE = 0xFFFFFFFF
 
 
 def _global_version(global_map: Mapping[bytes, bytes]) -> int:
@@ -109,12 +152,311 @@ def _assert_valid_version(version: int) -> None:
     # must be a 4-bytes int
     if not 0 <= version <= 0xFFFFFFFF:
         raise BTClibValueError(f"invalid version: {version}")
-    # actually the only version that is currently handled is zero
-    if version != 0:
-        raise BTClibValueError(f"invalid non-zero version: {version}")
+    # and one of the two that exist, which is a narrower rule than "a
+    # version btclib does not know": a psbt claiming version 3 is not a
+    # psbt of a later BIP, no such BIP being written -- version 1 was
+    # skipped and nothing has taken any number since
+    if version not in (PSBT_V0, PSBT_V2):
+        raise BTClibValueError(f"invalid psbt version: {version}")
 
 
-def _signable_payload(psbt_in: PsbtIn, tx_in: TxIn) -> bytes:
+def _lock_time(inputs: Sequence[PsbtIn], fallback_lock_time: int | None) -> int:
+    """Return the lock time of the transaction these inputs make.
+
+    BIP370's "Determining Lock Time", which is the whole of it: with no
+    input requiring one, the fallback, and 0 when there is no fallback
+    either; otherwise the kind of lock time *every* requiring input can
+    satisfy, and the maximum of the values of that kind.
+
+    An input requiring neither kind takes either, and so does one
+    requiring both -- which is what leaves a tie to settle when every
+    requiring input carries both, and the BIP settles it on the height:
+    signatures commit to the lock time, so the two ends have to reach
+    the same answer, and the block height is bitcoin's own unit of time.
+
+    A psbt where one input requires a height and another a time has no
+    answer at all, one nLockTime being one number of one kind, and that
+    is a psbt this refuses rather than resolves.
+    """
+    requiring = [
+        psbt_in
+        for psbt_in in inputs
+        if psbt_in.required_height_lock_time is not None
+        or psbt_in.required_time_lock_time is not None
+    ]
+    if not requiring:
+        return fallback_lock_time or 0
+
+    if all(psbt_in.required_height_lock_time is not None for psbt_in in requiring):
+        # the heights are not None by the test above, which mypy cannot see
+        return max(
+            cast(int, psbt_in.required_height_lock_time) for psbt_in in requiring
+        )
+    if all(psbt_in.required_time_lock_time is not None for psbt_in in requiring):
+        return max(cast(int, psbt_in.required_time_lock_time) for psbt_in in requiring)
+
+    err_msg = "no lock time satisfies every input: "
+    err_msg += "a height is required by one and a time by another"
+    raise BTClibValueError(err_msg)
+
+
+def _unsigned_tx(psbt: Psbt, *, zeroed_sequences: bool = False) -> Tx:
+    """Return the transaction a psbt's fields describe.
+
+    check_validity=False throughout, and Psbt.assert_valid is what
+    checks the result: a psbt's transaction is a template -- BIP174
+    lists two psbts with no inputs as valid (issue 170) -- and every
+    element of it is validated where it is held.
+
+    zeroed_sequences=True is BIP370's "Unique Identification": the
+    sequence is an Updater's to change, so the transaction that
+    identifies a psbt is the one with every sequence set to 0, which is
+    neither the final sequence nor the input's own.
+    """
+    vin = [
+        TxIn(
+            psbt_in.prev_out,
+            b"",
+            0 if zeroed_sequences else _sequence(psbt_in),
+            check_validity=False,
+        )
+        for psbt_in in psbt.inputs
+    ]
+    vout = [
+        TxOut(psbt_out.amount or 0, psbt_out.script_pub_key, check_validity=False)
+        for psbt_out in psbt.outputs
+    ]
+    return Tx(psbt.tx_version, psbt.lock_time, vin, vout, check_validity=False)
+
+
+def _sequence(psbt_in: PsbtIn) -> int:
+    """Return the input's sequence, the final one when it has none."""
+    return _FINAL_SEQUENCE if psbt_in.sequence is None else psbt_in.sequence
+
+
+# one entry per BIP370 global: the name it is read into, the name an
+# error message calls it by, and the deserializer of its value. A table
+# for the same reason PsbtIn has two -- the fields differ in these three
+# things and in nothing else -- and it is what keeps the parse of the
+# global map one dispatch rather than one branch per field
+_V2_GLOBAL_PARSERS: dict[bytes, tuple[str, str, Callable[[bytes, bytes, str], int]]] = {
+    PSBT_GLOBAL_TX_VERSION: (
+        "tx_version",
+        "tx version",
+        lambda k, v, what: deserialize_sized_int(k, v, what, 4, signed=True),
+    ),
+    PSBT_GLOBAL_FALLBACK_LOCKTIME: (
+        "fallback_lock_time",
+        "fallback locktime",
+        lambda k, v, what: deserialize_sized_int(k, v, what, 4),
+    ),
+    PSBT_GLOBAL_INPUT_COUNT: ("input_count", "input count", deserialize_count),
+    PSBT_GLOBAL_OUTPUT_COUNT: ("output_count", "output count", deserialize_count),
+    PSBT_GLOBAL_TX_MODIFIABLE: (
+        "tx_modifiable",
+        "tx modifiable",
+        lambda k, v, what: deserialize_sized_int(k, v, what, 1),
+    ),
+}
+
+
+def _parse_global_map(
+    global_map: Mapping[bytes, bytes], version: int
+) -> tuple[
+    Tx | None, dict[str, int | None], dict[Octets, BIP32KeyOrigin], dict[Octets, Octets]
+]:
+    """Return what the global map holds: the transaction, if any, and the rest.
+
+    None for every field the map does not carry, which each version
+    requires a different set of: BIP174's "The unsigned transaction must
+    be provided" for version 0, and BIP370's three globals for version
+    2. Not zero-valued placeholders -- an empty transaction is
+    indistinguishable from a *parsed* one with no inputs, and a count of
+    0 from a psbt with no maps, so a check on the value would refuse the
+    two zero-input psbts BIP174 lists as valid (issue 170).
+    """
+    tx: Tx | None = None
+    globals_: dict[str, int | None] = {
+        field: None for field, _, _ in _V2_GLOBAL_PARSERS.values()
+    }
+    hd_key_paths: dict[Octets, BIP32KeyOrigin] = {}
+    unknown: dict[Octets, Octets] = {}
+
+    for k, v in global_map.items():
+        type_ = k[:1]
+        assert_not_a_v2_field(type_, version, _V2_GLOBAL_FIELDS)
+        if type_ in _V2_GLOBAL_PARSERS:
+            field, what, deserialize = _V2_GLOBAL_PARSERS[type_]
+            globals_[field] = deserialize(k, v, what)
+        elif type_ == PSBT_GLOBAL_UNSIGNED_TX:
+            if version != PSBT_V0:
+                err_msg = "PSBT_GLOBAL_UNSIGNED_TX is not allowed in a v2 psbt"
+                raise BTClibValueError(err_msg)
+            tx = deserialize_tx(
+                k, v, "global unsigned tx", False, unsigned_template=True
+            )
+        elif type_ == PSBT_GLOBAL_VERSION:
+            pass  # read before this loop, the map having no order
+        elif type_ == PSBT_GLOBAL_XPUB:
+            hd_key_paths[k[1:]] = BIP32KeyOrigin.parse(v)
+        else:  # unknown
+            unknown[k] = v
+
+    return tx, globals_, hd_key_paths, unknown
+
+
+def _settle_globals(
+    tx: Tx | None, globals_: dict[str, int | None], version: int
+) -> None:
+    """Fill in what a version 0 psbt says with a transaction, or check.
+
+    The two versions state the same four things and state them in
+    different places: version 0 in the unsigned transaction, whose
+    version, lock time and two counts these are, and version 2 in the
+    fields, three of which it requires. Which leaves the fields filled
+    either way, and the rest of the parse with one thing to read.
+    """
+    if version == PSBT_V0:
+        if tx is None:
+            raise BTClibValueError("malformed psbt: missing global unsigned tx")
+        globals_["tx_version"] = tx.version
+        globals_["fallback_lock_time"] = tx.lock_time
+        globals_["input_count"] = len(tx.vin)
+        globals_["output_count"] = len(tx.vout)
+        return
+
+    for field, name in (
+        ("tx_version", "PSBT_GLOBAL_TX_VERSION"),
+        ("input_count", "PSBT_GLOBAL_INPUT_COUNT"),
+        ("output_count", "PSBT_GLOBAL_OUTPUT_COUNT"),
+    ):
+        if globals_[field] is None:
+            raise BTClibValueError(f"malformed psbt: missing {name}")
+
+
+def _read_unsigned_tx(
+    tx: Tx, inputs: Sequence[PsbtIn], outputs: Sequence[PsbtOut]
+) -> None:
+    """Write BIP174's unsigned transaction into the BIP370 fields.
+
+    The version 0 conversion on the way in, and its only place: what
+    that transaction says about an input -- the outpoint it spends and
+    its sequence -- is written into the input map, and what it says
+    about an output into the output map, after which nothing has to read
+    it again. `Psbt.tx` puts it back together on the way out.
+
+    The sequence is written even when it is the final one: a version 0
+    transaction states a sequence for every input, so keeping the value
+    rather than the absence is what makes the round trip exact.
+
+    That the transaction is unsigned is checked here, this being the
+    only door such a transaction comes through: a psbt built from the
+    fields has no script_sig to carry, `Psbt.tx` writing an empty one.
+    """
+    if any(tx_in.script_sig or tx_in.script_witness for tx_in in tx.vin):
+        raise BTClibValueError("non empty script_sig or witness")
+
+    # one map per input and one per output, which `parse` gets from the
+    # transaction itself and a caller of `from_tx` may not: strict=True
+    # below would answer that caller with a bare ValueError, where
+    # malformed input owes them a BTClibValueError
+    if len(inputs) != len(tx.vin):
+        err_msg = "mismatched number of tx.vin and psbt inputs: "
+        err_msg += f"{len(tx.vin)} vs {len(inputs)}"
+        raise BTClibValueError(err_msg)
+    if len(outputs) != len(tx.vout):
+        err_msg = "mismatched number of tx.vout and psbt outputs: "
+        err_msg += f"{len(tx.vout)} vs {len(outputs)}"
+        raise BTClibValueError(err_msg)
+
+    for psbt_in, tx_in in zip(inputs, tx.vin, strict=True):
+        psbt_in.previous_tx_id = tx_in.prev_out.tx_id
+        psbt_in.output_index = tx_in.prev_out.vout
+        psbt_in.sequence = tx_in.sequence
+
+    for psbt_out, tx_out in zip(outputs, tx.vout, strict=True):
+        psbt_out.amount = tx_out.value
+        psbt_out.script_pub_key = tx_out.script_pub_key.script
+
+
+def _assert_modifiable(psbt: Psbt, *, inputs: bool) -> None:
+    """Raise unless this side of the transaction may still be changed.
+
+    BIP370 gives the Constructor two bits of PSBT_GLOBAL_TX_MODIFIABLE
+    to consult before adding an input or an output, and reordering is
+    under the same rule rather than beside it: what the flag protects is
+    the transaction the signatures already made commit to, and the order
+    of the inputs and outputs is part of that transaction.
+
+    The Has SIGHASH_SINGLE bit refuses both sides whatever the other two
+    say. Such a signature commits to the output at the signed input's
+    own index, so the pairing is positional, and a permutation that
+    preserves every position is the one that changes nothing.
+
+    A version 0 psbt has no such field and no Constructor either, so it
+    passes: BIP174 has nothing to say about who may reorder what, and
+    saying it here would break the callers that have always done so.
+    """
+    what = "inputs" if inputs else "outputs"
+    if psbt.has_sig_hash_single:
+        err_msg = "a SIGHASH_SINGLE signature pins each input to its output: "
+        err_msg += f"the {what} cannot be reordered"
+        raise BTClibValueError(err_msg)
+    if not (psbt.inputs_modifiable if inputs else psbt.outputs_modifiable):
+        raise BTClibValueError(f"the {what} are not modifiable")
+
+
+def _assert_valid_input_fields(psbt_in: PsbtIn, version: int, i: int) -> None:
+    """Raise unless the input carries what its psbt's version asks of it.
+
+    The outpoint is asked of both versions, and named as BIP370 names it
+    even when the psbt is version 0: it is the field btclib holds it in
+    whatever the version, and a version 0 psbt gets it from the unsigned
+    transaction on the way in. Without it there is no transaction to
+    build -- an empty txid is no outpoint -- so the check is here rather
+    than left to `OutPoint` to report as a length.
+
+    The two required lock times are the other way round: BIP370 excludes
+    them from version 0, where the transaction has one nLockTime and no
+    field to compute it from, so a version 0 psbt carrying one would
+    lose it on serialization. The message is the one `Psbt.parse` gives
+    a version 0 psbt carrying the field itself.
+    """
+    if not psbt_in.previous_tx_id:
+        raise BTClibValueError(f"input {i}: missing PSBT_IN_PREVIOUS_TXID")
+    if psbt_in.output_index is None:
+        raise BTClibValueError(f"input {i}: missing PSBT_IN_OUTPUT_INDEX")
+
+    if version != PSBT_V0:
+        return
+    for value, name in (
+        (psbt_in.required_time_lock_time, "PSBT_IN_REQUIRED_TIME_LOCKTIME"),
+        (psbt_in.required_height_lock_time, "PSBT_IN_REQUIRED_HEIGHT_LOCKTIME"),
+    ):
+        if value is not None:
+            err_msg = f"input {i}: {name} is not allowed in a v0 psbt"
+            raise BTClibValueError(err_msg)
+
+
+def _assert_valid_output_fields(psbt_out: PsbtOut, version: int, i: int) -> None:
+    """Raise unless the output carries what its psbt's version asks of it.
+
+    Version 2 alone, where the two are the output: BIP370 requires both
+    fields, and an output map carrying neither is one of its invalid
+    vectors. A version 0 output is under no such rule -- its amount and
+    script are read from the unsigned transaction, which can carry a
+    zero amount and an empty script, and neither is distinguishable from
+    a field that is not there.
+    """
+    if version != PSBT_V2:
+        return
+    if psbt_out.amount is None:
+        raise BTClibValueError(f"output {i}: missing PSBT_OUT_AMOUNT")
+    if not psbt_out.script_pub_key:
+        raise BTClibValueError(f"output {i}: missing PSBT_OUT_SCRIPT")
+
+
+def _signable_payload(psbt_in: PsbtIn) -> bytes:
     """Return the hash the input's script_pub_key commits to.
 
     Which utxo the input carries is which kind of input it is. A
@@ -123,7 +465,7 @@ def _signable_payload(psbt_in: PsbtIn, tx_in: TxIn) -> bytes:
     the redeem script, while the payload stays the p2sh one -- the
     hash160 the caller checks that redeem script against. A
     non_witness_utxo is the whole previous transaction, and the output
-    being spent is the one the outpoint names.
+    being spent is the one the input's own outpoint names.
     """
     if witness_utxo := psbt_in.witness_utxo:
         script_type, payload = type_and_payload(witness_utxo.script_pub_key.script)
@@ -135,7 +477,7 @@ def _signable_payload(psbt_in: PsbtIn, tx_in: TxIn) -> bytes:
 
     if psbt_in.non_witness_utxo:
         script_pub_key = psbt_in.non_witness_utxo.vout[
-            tx_in.prev_out.vout
+            psbt_in.output_index or 0
         ].script_pub_key
         _, payload = type_and_payload(script_pub_key.script)
         return payload
@@ -144,7 +486,7 @@ def _signable_payload(psbt_in: PsbtIn, tx_in: TxIn) -> bytes:
     raise BTClibValueError(err_msg)
 
 
-def _assert_input_signable(psbt_in: PsbtIn, tx_in: TxIn) -> None:
+def _assert_input_signable(psbt_in: PsbtIn) -> None:
     """Raise an exception unless the input carries what a Signer needs.
 
     Each script the input provides has to be the one the level above it
@@ -153,7 +495,7 @@ def _assert_input_signable(psbt_in: PsbtIn, tx_in: TxIn) -> None:
     the level above *it* -- the redeem script when the input is wrapped,
     the script_pub_key when it is native.
     """
-    payload = _signable_payload(psbt_in, tx_in)
+    payload = _signable_payload(psbt_in)
     redeem_script = psbt_in.redeem_script
 
     if redeem_script and payload != hash160(redeem_script):
@@ -168,12 +510,89 @@ def _assert_input_signable(psbt_in: PsbtIn, tx_in: TxIn) -> None:
 
 @dataclass
 class Psbt:
-    tx: Tx
+    tx_version: int
     inputs: list[PsbtIn]
     outputs: list[PsbtOut]
     version: int
     hd_key_paths: HdKeyPaths
     unknown: dict[bytes, bytes]
+    fallback_lock_time: int | None
+    tx_modifiable: int | None
+
+    @property
+    def lock_time(self) -> int:
+        """Return the lock time of the transaction being built.
+
+        Computed, never stored: BIP370 makes it the answer to the
+        inputs' required lock times, with the fallback for a psbt whose
+        inputs require none -- which is every version 0 psbt, its
+        unsigned transaction's nLockTime being read into the fallback.
+        _lock_time is the algorithm.
+        """
+        return _lock_time(self.inputs, self.fallback_lock_time)
+
+    @property
+    def tx(self) -> Tx:
+        """Return the unsigned transaction this psbt is of.
+
+        Computed from the fields each time, so it is a copy and not the
+        psbt: what is written into it is written into nothing, and an
+        outpoint or a sequence is changed on the input that holds it.
+        The transaction is the psbt's serialization in version 0 and
+        nowhere at all in version 2, which is why it cannot be the field
+        the rest hangs off.
+        """
+        return _unsigned_tx(self)
+
+    @property
+    def unique_id(self) -> bytes:
+        """Return the identifier BIP370 gives this psbt.
+
+        The txid of the unsigned transaction with every sequence set to
+        0: an Updater may set PSBT_IN_SEQUENCE, so two psbts of one
+        transaction can disagree about it, and the identifier must not.
+        It is what a Combiner compares -- `combine_psbts` does -- rather
+        than `tx.id`, which for a version 2 psbt would call the same
+        transaction two.
+        """
+        return _unsigned_tx(self, zeroed_sequences=True).id
+
+    @property
+    def inputs_modifiable(self) -> bool:
+        """Return whether a Constructor may add or remove an input.
+
+        Bit 0 of PSBT_GLOBAL_TX_MODIFIABLE. A version 2 psbt with no
+        such field says no: "A Constructor may choose to declare that no
+        further inputs and outputs can be added to the transaction by
+        setting the appropriate bits ... to 0 or by removing the field
+        entirely". Version 0 has no field to consult and no Constructor
+        role either, so it answers yes and nothing changes for it.
+        """
+        if self.version == PSBT_V0:
+            return True
+        return bool(self.tx_modifiable and self.tx_modifiable & INPUTS_MODIFIABLE)
+
+    @property
+    def outputs_modifiable(self) -> bool:
+        """Return whether a Constructor may add or remove an output.
+
+        Bit 1 of PSBT_GLOBAL_TX_MODIFIABLE; `inputs_modifiable` says
+        what an absent field and a version 0 psbt answer.
+        """
+        if self.version == PSBT_V0:
+            return True
+        return bool(self.tx_modifiable and self.tx_modifiable & OUTPUTS_MODIFIABLE)
+
+    @property
+    def has_sig_hash_single(self) -> bool:
+        """Return whether a SIGHASH_SINGLE signature pins input to output.
+
+        Bit 2 of PSBT_GLOBAL_TX_MODIFIABLE. Such a signature commits to
+        the output at the signed input's own index, so the pairing is
+        positional: adding, removing or reordering either side breaks
+        it, whatever the two modifiable bits say.
+        """
+        return bool(self.tx_modifiable and self.tx_modifiable & HAS_SIG_HASH_SINGLE)
 
     @property
     def estimated_weight(self) -> int:
@@ -191,11 +610,12 @@ class Psbt:
         once, in the class whose serialization it is.
         """
         vin: list[TxIn] = []
-        # strict=True costs nothing: a psbt whose inputs and vin are of
-        # different lengths is one assert_valid refuses
-        for i, (psbt_in, tx_in) in enumerate(
-            zip(self.inputs, self.tx.vin, strict=True)
-        ):
+        # read once: the transaction is computed at every access, being
+        # the psbt's fields put together rather than a field of its own
+        tx = self.tx
+        # strict=True costs nothing: the vin is built from the inputs, so
+        # the two are of one length by construction
+        for i, (psbt_in, tx_in) in enumerate(zip(self.inputs, tx.vin, strict=True)):
             try:
                 script_sig_size, witness_sizes = estimated_input_sizes(psbt_in, tx_in)
             except BTClibValueError as e:
@@ -212,9 +632,7 @@ class Psbt:
         # built rather than copied: the placeholders would otherwise have
         # to be written into this psbt's own transaction, and the outputs
         # are only read here -- serialized, and by this very call
-        placeholder = Tx(
-            self.tx.version, self.tx.lock_time, vin, self.tx.vout, check_validity=False
-        )
+        placeholder = Tx(tx.version, tx.lock_time, vin, tx.vout, check_validity=False)
         return placeholder.weight
 
     @property
@@ -228,50 +646,77 @@ class Psbt:
 
     def __init__(
         self,
-        tx: Tx,
+        tx_version: int,
         inputs: Sequence[PsbtIn],
         outputs: Sequence[PsbtOut],
         version: int,
         hd_key_paths: Mapping[Octets, BIP32KeyOrigin],
         unknown: Mapping[Octets, Octets] | None = None,
+        fallback_lock_time: int | None = None,
+        tx_modifiable: int | None = None,
         *,
         check_validity: bool = True,
     ) -> None:
-        self.tx = tx
+        self.tx_version = tx_version
         self.inputs = list(inputs)
         self.outputs = list(outputs)
         self.version = version
         self.hd_key_paths = decode_hd_key_paths(hd_key_paths)
         self.unknown = dict(sorted(decode_dict_bytes_bytes(unknown).items()))
+        self.fallback_lock_time = fallback_lock_time
+        self.tx_modifiable = tx_modifiable
 
         if check_validity:
             self.assert_valid()
 
     def assert_valid(self) -> None:
-        """Assert logical self-consistency."""
-        # the global unsigned tx is incomplete by construction, so it is
+        """Assert logical self-consistency.
+
+        Two questions, and the version answers the first: which fields
+        this psbt must have and which it must not, BIP370 giving each of
+        its twelve a "Versions Requiring Inclusion" and a "Versions
+        Requiring Exclusion". The second is what the fields hold, which
+        is the same question in both versions -- an outpoint is an
+        outpoint whether it was read from an input map or from an
+        unsigned transaction.
+        """
+        # first, the version being what every rule below is read under
+        _assert_valid_version(self.version)
+
+        for i, psbt_in in enumerate(self.inputs):
+            _assert_valid_input_fields(psbt_in, self.version, i)
+            psbt_in.assert_valid()
+
+        for i, psbt_out in enumerate(self.outputs):
+            _assert_valid_output_fields(psbt_out, self.version, i)
+            psbt_out.assert_valid()
+
+        if self.version == PSBT_V0 and self.tx_modifiable is not None:
+            raise BTClibValueError(
+                "PSBT_GLOBAL_TX_MODIFIABLE is not allowed in a v0 psbt"
+            )
+        if self.tx_modifiable is not None and not 0 <= self.tx_modifiable <= 0xFF:
+            raise BTClibValueError(f"invalid tx modifiable: {self.tx_modifiable}")
+
+        if self.fallback_lock_time is not None and not (
+            0 <= self.fallback_lock_time <= 0xFFFFFFFF
+        ):
+            err_msg = f"invalid fallback locktime: {self.fallback_lock_time}"
+            raise BTClibValueError(err_msg)
+
+        # the unsigned transaction is incomplete by construction, so it is
         # checked as a template: no "at least one input", no "at least one
         # output", either of which would refuse the two psbts BIP174 lists
         # as valid with no inputs (issue 170). deserialize_tx checks it
-        # the same way on the way in
+        # the same way on the way in. The lock time is computed by the
+        # very act of building it, so a psbt whose inputs require both
+        # kinds is refused here, by _lock_time
         self.tx.assert_valid(unsigned_template=True)
-
-        # ensure the tx is unsigned
-        if any(tx_in.script_sig or tx_in.script_witness for tx_in in self.tx.vin):
-            raise BTClibValueError("non empty script_sig or witness")
-
-        if len(self.tx.vin) != len(self.inputs):
-            err_msg = "mismatched number of psb.tx.vin and psb.inputs: "
-            err_msg += f"{len(self.tx.vin)} vs {len(self.inputs)}"
-            raise BTClibValueError(err_msg)
-
-        for psbt_in in self.inputs:
-            psbt_in.assert_valid()
 
         if any(
             psbt_in.non_witness_utxo
-            and psbt_in.non_witness_utxo.id != tx_in.prev_out.tx_id
-            for psbt_in, tx_in in zip(self.inputs, self.tx.vin, strict=True)
+            and psbt_in.non_witness_utxo.id != psbt_in.previous_tx_id
+            for psbt_in in self.inputs
         ):
             err_msg = "mismatched non-witness utxo / outpoint tx_id"
             raise BTClibValueError(err_msg)
@@ -283,21 +728,12 @@ class Psbt:
         # input owes the caller a BTClibValueError
         if any(
             psbt_in.non_witness_utxo
-            and tx_in.prev_out.vout >= len(psbt_in.non_witness_utxo.vout)
-            for psbt_in, tx_in in zip(self.inputs, self.tx.vin, strict=True)
+            and (psbt_in.output_index or 0) >= len(psbt_in.non_witness_utxo.vout)
+            for psbt_in in self.inputs
         ):
             err_msg = "outpoint vout out of range for the non-witness utxo"
             raise BTClibValueError(err_msg)
 
-        if len(self.tx.vout) != len(self.outputs):
-            err_msg = "mismatched number of psb.tx.vout and psbt.outputs: "
-            err_msg += f"{len(self.tx.vout)} vs {len(self.outputs)}"
-            raise BTClibValueError(err_msg)
-
-        for psbt_out in self.outputs:
-            psbt_out.assert_valid()
-
-        _assert_valid_version(self.version)
         assert_valid_hd_key_paths(self.hd_key_paths)
         assert_valid_unknown(self.unknown)
 
@@ -317,22 +753,18 @@ class Psbt:
         """
         self.assert_valid()
 
-        if not self.tx.vin:
+        if not self.inputs:
             raise BTClibValueError("nothing to sign: no inputs")
 
-        # strict=True costs nothing here: assert_valid above has just
-        # refused a psbt whose inputs and vin are of different lengths
-        for psbt_in, tx_in in zip(self.inputs, self.tx.vin, strict=True):
-            _assert_input_signable(psbt_in, tx_in)
+        for psbt_in in self.inputs:
+            _assert_input_signable(psbt_in)
 
     def to_dict(self, *, check_validity: bool = True) -> dict[str, Any]:
         if check_validity:
             self.assert_valid()
 
         return {
-            # check_validity=False for the same reason as in serialize:
-            # a template, already validated by assert_valid above
-            "tx": self.tx.to_dict(check_validity=False),
+            "tx_version": self.tx_version,
             "inputs": [
                 psbt_in.to_dict(check_validity=False) for psbt_in in self.inputs
             ],
@@ -342,6 +774,14 @@ class Psbt:
             "version": self.version,
             "bip32_derivs": encode_to_bip32_derivs(self.hd_key_paths),
             "unknown": dict(sorted(encode_dict_bytes_bytes(self.unknown).items())),
+            "fallback_lock_time": self.fallback_lock_time,
+            "tx_modifiable": self.tx_modifiable,
+            # what the fields above make, for whoever is reading rather
+            # than round-tripping: from_dict ignores it, as it must --
+            # two ways in would let a dict say two different things.
+            # check_validity=False for the same reason as in serialize:
+            # a template, already validated by assert_valid above
+            "tx": self.tx.to_dict(check_validity=False),
         }
 
     @classmethod
@@ -353,12 +793,12 @@ class Psbt:
             decode_from_bip32_derivs(dict_["bip32_derivs"]),
         )
         return cls(
-            # check_validity=False, as for every other element here: the
-            # global unsigned tx is a template, and Psbt.assert_valid below
-            # checks it as one. Validating it here as a complete transaction
-            # would refuse the two zero-input psbts BIP174 lists as valid
-            # (issue 170)
-            Tx.from_dict(dict_["tx"], check_validity=False),
+            dict_["tx_version"],
+            # check_validity=False, as for every other element here: what
+            # the inputs and outputs make is a template, and
+            # Psbt.assert_valid below checks it as one. Validating it here
+            # as a complete transaction would refuse the two zero-input
+            # psbts BIP174 lists as valid (issue 170)
             [
                 PsbtIn.from_dict(psbt_in, check_validity=False)
                 for psbt_in in dict_["inputs"]
@@ -370,21 +810,67 @@ class Psbt:
             dict_["version"],
             hd_key_paths,
             dict_["unknown"],
+            dict_["fallback_lock_time"],
+            dict_["tx_modifiable"],
             check_validity=check_validity,
         )
 
     def serialize(self, *, check_validity: bool = True) -> bytes:
+        """Return the psbt as the bytes of the version it declares.
+
+        Version 0 writes the unsigned transaction its fields make and
+        nothing else of BIP370; version 2 writes those fields and no
+        transaction. `to_v0` and `to_v2` are the conversions between the
+        two, and neither is done here: what a psbt is written as is what
+        it says it is.
+        """
         if check_validity:
             self.assert_valid()
 
         psbt_bin: list[bytes] = [PSBT_MAGIC_BYTES]
 
-        # check_validity=False: Psbt.assert_valid above has already
-        # validated it, as the template it is, and Tx.serialize would
-        # otherwise re-check it as a complete transaction and refuse the
-        # two zero-input psbts BIP174 lists as valid (issue 170)
-        temp = self.tx.serialize(include_witness=False, check_validity=False)
-        psbt_bin.append(serialize_bytes(PSBT_GLOBAL_UNSIGNED_TX, temp))
+        if self.version == PSBT_V0:
+            # check_validity=False: Psbt.assert_valid above has already
+            # validated it, as the template it is, and Tx.serialize would
+            # otherwise re-check it as a complete transaction and refuse
+            # the two zero-input psbts BIP174 lists as valid (issue 170)
+            temp = self.tx.serialize(include_witness=False, check_validity=False)
+            psbt_bin.append(serialize_bytes(PSBT_GLOBAL_UNSIGNED_TX, temp))
+        elif self.version == PSBT_V2:
+            # ascending by type byte, which is the order BIP370's own
+            # psbts are written in and so the order a byte-for-byte
+            # comparison with them requires
+            psbt_bin.append(
+                serialize_sized_int(
+                    PSBT_GLOBAL_TX_VERSION, self.tx_version, 4, signed=True
+                )
+            )
+            if self.fallback_lock_time is not None:
+                psbt_bin.append(
+                    serialize_sized_int(
+                        PSBT_GLOBAL_FALLBACK_LOCKTIME, self.fallback_lock_time, 4
+                    )
+                )
+            # the counts are what tells the parser how many maps follow,
+            # so they are written from the maps themselves rather than
+            # held as fields that could disagree with them
+            psbt_bin.append(serialize_count(PSBT_GLOBAL_INPUT_COUNT, len(self.inputs)))
+            psbt_bin.append(
+                serialize_count(PSBT_GLOBAL_OUTPUT_COUNT, len(self.outputs))
+            )
+            if self.tx_modifiable is not None:
+                psbt_bin.append(
+                    serialize_sized_int(
+                        PSBT_GLOBAL_TX_MODIFIABLE, self.tx_modifiable, 1
+                    )
+                )
+        else:
+            # asked even when the caller asked for no validation: which
+            # fields are written *is* the version, so a version with no
+            # answer to that has no serialization for the check to be
+            # skipped over
+            _assert_valid_version(self.version)
+
         if self.version:
             temp = self.version.to_bytes(4, byteorder="little", signed=False)
             psbt_bin.append(serialize_bytes(PSBT_GLOBAL_VERSION, temp))
@@ -397,8 +883,12 @@ class Psbt:
         # the only separator written here: an input and an output each end
         # themselves, as they do in Bitcoin Core
         psbt_bin.append(PSBT_SEPARATOR)
-        psbt_bin.extend(psbt_in.serialize() for psbt_in in self.inputs)
-        psbt_bin.extend(psbt_out.serialize() for psbt_out in self.outputs)
+        psbt_bin.extend(
+            psbt_in.serialize(psbt_version=self.version) for psbt_in in self.inputs
+        )
+        psbt_bin.extend(
+            psbt_out.serialize(psbt_version=self.version) for psbt_out in self.outputs
+        )
         return b"".join(psbt_bin)
 
     @classmethod
@@ -414,17 +904,6 @@ class Psbt:
         Core splits the two the same way, between PSBTInput::Unserialize
         and DecodeRawPSBT's "extra data after PSBT".
         """
-        # None until the global map yields one, which BIP174 requires it to:
-        # "The unsigned transaction must be provided". Not a
-        # Tx(check_validity=False) placeholder: an empty transaction is
-        # indistinguishable from a *parsed* one with no inputs, so a check
-        # refusing the placeholder would also refuse the two zero-input
-        # psbts BIP174 lists as valid (issue 170)
-        tx: Tx | None = None
-        version = 0
-        hd_key_paths: dict[Octets, BIP32KeyOrigin] = {}
-        unknown: dict[Octets, Octets] = {}
-
         stream = bytesio_from_binarydata(data)
 
         if stream.read(5) != PSBT_MAGIC_BYTES:
@@ -436,24 +915,24 @@ class Psbt:
         # BIP370 defining twelve of them that version 0 must not carry, and
         # a map has no order to put the version first in
         version = _global_version(global_map)
-        for k, v in global_map.items():
-            if k[:1] == PSBT_GLOBAL_UNSIGNED_TX:
-                tx = deserialize_tx(
-                    k, v, "global unsigned tx", False, unsigned_template=True
-                )
-            elif k[:1] == PSBT_GLOBAL_VERSION:
-                pass  # read above
-            elif k[:1] == PSBT_GLOBAL_XPUB:
-                hd_key_paths[k[1:]] = BIP32KeyOrigin.parse(v)
-            else:  # unknown
-                assert_not_a_v2_field(k[:1], version, _V2_GLOBAL_FIELDS)
-                unknown[k] = v
+        _assert_valid_version(version)
+        tx, globals_, hd_key_paths, unknown = _parse_global_map(global_map, version)
+        _settle_globals(tx, globals_, version)
+        input_count = cast(int, globals_["input_count"])
+        output_count = cast(int, globals_["output_count"])
 
-        if tx is None:
-            raise BTClibValueError("malformed psbt: missing global unsigned tx")
+        inputs = [
+            PsbtIn.parse(stream, psbt_version=version) for _ in range(input_count)
+        ]
+        outputs = [
+            PsbtOut.parse(stream, psbt_version=version) for _ in range(output_count)
+        ]
 
-        inputs = [PsbtIn.parse(stream, psbt_version=version) for _ in tx.vin]
-        outputs = [PsbtOut.parse(stream, psbt_version=version) for _ in tx.vout]
+        # the version 0 conversion, and the whole of it: what BIP174 puts
+        # in one transaction, BIP370 puts in the maps, and the rest of
+        # this module reads the maps
+        if tx is not None:
+            _read_unsigned_tx(tx, inputs, outputs)
 
         # what is left in a caller's stream is the caller's; what is left
         # in octets is malleability, two buffers deserializing to the one
@@ -465,12 +944,14 @@ class Psbt:
                 raise BTClibValueError(err_msg)
 
         return cls(
-            tx,
+            cast(int, globals_["tx_version"]),
             inputs,
             outputs,
             version,
             hd_key_paths,
             unknown,
+            globals_["fallback_lock_time"],
+            globals_["tx_modifiable"],
             check_validity=check_validity,
         )
 
@@ -490,35 +971,99 @@ class Psbt:
         return cls.parse(psbt_decoded, check_validity=check_validity)
 
     @classmethod
-    def from_tx(cls: type[Psbt], tx: Tx, *, check_validity: bool = True) -> Psbt:
+    def from_tx(
+        cls: type[Psbt],
+        tx: Tx,
+        inputs: Sequence[PsbtIn] | None = None,
+        outputs: Sequence[PsbtOut] | None = None,
+        *,
+        check_validity: bool = True,
+    ) -> Psbt:
+        """Return the version 0 psbt of a transaction, Creator-style.
+
+        The transaction is taken apart into the fields the psbt holds,
+        which is the same conversion `parse` makes: one input map per
+        input and one output map per output, each carrying what the
+        transaction said about it.
+
+        inputs and outputs are the maps to fill, for a caller who
+        already has them -- a Combiner or an Updater -- and empty ones
+        otherwise, which is what a Creator starts from.
+        """
+        inputs = [PsbtIn() for _ in tx.vin] if inputs is None else list(inputs)
+        outputs = [PsbtOut() for _ in tx.vout] if outputs is None else list(outputs)
         for tx_in in tx.vin:
             tx_in.script_sig = b""
             tx_in.script_witness = Witness()
-        inputs = [PsbtIn() for _ in tx.vin]
-        outputs = [PsbtOut() for _ in tx.vout]
+        _read_unsigned_tx(tx, inputs, outputs)
 
-        psbt_version = 0
+        psbt_version = PSBT_V0
         hd_key_paths: dict[Octets, BIP32KeyOrigin] = {}
         unknown: dict[Octets, Octets] = {}
 
         return cls(
-            tx,
+            tx.version,
             inputs,
             outputs,
             psbt_version,
             hd_key_paths,
             unknown,
+            tx.lock_time,
             check_validity=check_validity,
         )
+
+    def to_v0(self) -> Psbt:
+        """Return this psbt as the version 0 psbt of the same transaction.
+
+        What version 0 cannot say is dropped, and the transaction is
+        unchanged by the dropping: the computed lock time becomes the
+        fallback, which is where a version 0 psbt keeps its nLockTime,
+        so the inputs' required lock times go with nothing lost from the
+        transaction -- only the record of which input required what.
+        The modifiable flags go too, version 0 having no Constructor to
+        obey them.
+
+        A psbt whose inputs require both kinds of lock time has no
+        transaction to be the version 0 psbt of, and raises here as it
+        does anywhere else its lock time is asked for.
+        """
+        psbt = deepcopy(self)
+        psbt.fallback_lock_time = self.lock_time
+        psbt.tx_modifiable = None
+        for psbt_in in psbt.inputs:
+            psbt_in.required_time_lock_time = None
+            psbt_in.required_height_lock_time = None
+        psbt.version = PSBT_V0
+        psbt.assert_valid()
+        return psbt
+
+    def to_v2(self) -> Psbt:
+        """Return this psbt as the version 2 psbt of the same transaction.
+
+        Nothing but the version number: every field version 2 writes is
+        already held, this being how btclib holds a psbt of either
+        version, so the conversion the other way is the one with work to
+        do. What was the unsigned transaction's nLockTime is written as
+        the fallback, which is what it is -- no input of a version 0
+        psbt requires a lock time, none being able to say so.
+        """
+        psbt = deepcopy(self)
+        psbt.version = PSBT_V2
+        psbt.assert_valid()
+        return psbt
 
     def sort_inputs(self, ordering_func: Callable[[PsbtIn], int] | None = None) -> None:
         """Sort psbt inputs.
 
         sorting logic is ordering_func if present, shuffle otherwise.
+
+        A version 2 psbt is asked first: reordering the inputs is a
+        change to the transaction every signature commits to, so it is
+        one the Inputs Modifiable flag has to allow. `_assert_modifiable`
+        is where the two flags are read.
         """
-        self.inputs, self.tx.vin = _sort_or_shuffle_together(
-            self.inputs, self.tx.vin, ordering_func
-        )
+        _assert_modifiable(self, inputs=True)
+        self.inputs = _sort_or_shuffle(self.inputs, ordering_func)
 
     def sort_outputs(
         self, ordering_func: Callable[[PsbtOut], int] | None = None
@@ -526,10 +1071,12 @@ class Psbt:
         """Sort psbt outputs.
 
         sorting logic is ordering_func if present, shuffle otherwise.
+
+        The Outputs Modifiable flag is what allows it in a version 2
+        psbt, as the Inputs Modifiable one allows `sort_inputs`.
         """
-        self.outputs, self.tx.vout = _sort_or_shuffle_together(
-            self.outputs, self.tx.vout, ordering_func
-        )
+        _assert_modifiable(self, inputs=False)
+        self.outputs = _sort_or_shuffle(self.outputs, ordering_func)
 
 
 def _combine_field(
@@ -562,18 +1109,88 @@ def _combine_field(
         attr.update(item)
 
 
+def _combine_optional_field(
+    psbt_map: PsbtIn | PsbtOut | Psbt, out: PsbtIn | PsbtOut | Psbt, key: str
+) -> None:
+    """Add one optional integer field of psbt_map to out.
+
+    _combine_field's rule -- take it when out has none, keep out's when
+    it has one -- read with `is not None` rather than with truthiness,
+    which for these fields answers the wrong question: 0 is a sequence
+    BIP125 gives a meaning to, and an amount of 0 is an amount.
+    """
+    item = getattr(psbt_map, key)
+    if item is None:
+        return
+    if getattr(out, key) is None:
+        setattr(out, key, item)
+
+
+def _combined_tx_modifiable(psbts: Sequence[Psbt]) -> int | None:
+    """Return the modifiable flags of the psbt these combine into.
+
+    Not an arbitrary pick, which is what BIP174 allows a Combiner for a
+    field of one key-value pair, because this one is a claim about what
+    may still be done: a Signer clears a modifiable bit when it adds a
+    signature that would be broken by a change, so a psbt where the bit
+    is clear must not come out of a combine with it set. The two
+    modifiable bits are therefore the AND of the sides and the Has
+    SIGHASH_SINGLE bit their OR -- each in the direction that keeps the
+    combined psbt no more permissive than either half.
+
+    The five undefined bits are OR-ed with the third: nobody here knows
+    what they mean, and dropping a flag somebody set is the change with
+    consequences. None when no psbt carries the field, so that a combine
+    of psbts without it does not invent one.
+    """
+    flags = [psbt.tx_modifiable for psbt in psbts if psbt.tx_modifiable is not None]
+    if not flags:
+        return None
+    modifiable = INPUTS_MODIFIABLE | OUTPUTS_MODIFIABLE
+    # a psbt with no field at all is "nothing may be modified", which is
+    # what the AND has to see for the bits it takes
+    and_bits = 0xFF
+    for psbt in psbts:
+        and_bits &= psbt.tx_modifiable or 0
+    or_bits = 0
+    for value in flags:
+        or_bits |= value
+    return (and_bits & modifiable) | (or_bits & ~modifiable & 0xFF)
+
+
 def combine_psbts(psbts: Sequence[Psbt]) -> Psbt:
-    """Merge Psbt data from multiple Psbts with same TxId.
+    """Merge Psbt data from multiple Psbts of one transaction.
 
     Basically used to merge signatures.
+
+    Which psbts are of one transaction is a question the two versions
+    answer differently, and each is asked its own: a version 0 psbt is
+    identified by the txid of the unsigned transaction every copy of it
+    carries, so two copies whose sequences differ are two transactions;
+    a version 2 psbt is identified as BIP370 says, by the txid of that
+    transaction with every sequence zeroed, the sequence being a field
+    an Updater may set. Comparing `tx.id` there would refuse two psbts
+    of one transaction, which is what the identifier exists to prevent.
+
+    The versions must match, and are not converted here: `to_v0` and
+    `to_v2` are that, and doing it silently would decide for the caller
+    which of the two the combined psbt is -- and, from v0 to v2, hand
+    back a psbt whose lock time no longer comes from where it did.
     """
     final_psbt = psbts[0]
-    tx_id = psbts[0].tx.id
+    version = final_psbt.version
     for psbt in psbts[1:]:
-        if psbt.tx.id != tx_id:
-            raise BTClibValueError(f"mismatched psbt.tx.id: {psbt.tx.id.hex()}")
+        if psbt.version != version:
+            err_msg = f"mismatched psbt version: {psbt.version} vs {version}"
+            raise BTClibValueError(err_msg)
 
-    final_psbt.version = max(psbt.version for psbt in psbts)
+    tx_id = final_psbt.unique_id if version == PSBT_V2 else final_psbt.tx.id
+    for psbt in psbts[1:]:
+        other_id = psbt.unique_id if version == PSBT_V2 else psbt.tx.id
+        if other_id != tx_id:
+            raise BTClibValueError(f"mismatched psbt.tx.id: {other_id.hex()}")
+
+    final_psbt.tx_modifiable = _combined_tx_modifiable(psbts)
     for psbt in psbts[1:]:
         for i, inp in enumerate(final_psbt.inputs):
             _combine_field(psbt.inputs[i], inp, "non_witness_utxo")
@@ -586,6 +1203,16 @@ def combine_psbts(psbts: Sequence[Psbt]) -> Psbt:
             _combine_field(psbt.inputs[i], inp, "final_script_sig")
             _combine_field(psbt.inputs[i], inp, "final_script_witness")
             _combine_field(psbt.inputs[i], inp, "unknown")
+            # the two lock times an input may require are not part of
+            # what identifies the psbt -- the identifier holds the lock
+            # time they compute, not which input asked for it -- so a
+            # Combiner takes the one it is given. `is not None` and not
+            # truthiness: 0 is not a value either field can hold, but
+            # the sequence beside them takes it, and one rule for the
+            # four is one rule to read
+            _combine_optional_field(psbt.inputs[i], inp, "sequence")
+            _combine_optional_field(psbt.inputs[i], inp, "required_time_lock_time")
+            _combine_optional_field(psbt.inputs[i], inp, "required_height_lock_time")
 
         for i, out in enumerate(final_psbt.outputs):
             _combine_field(psbt.outputs[i], out, "redeem_script")
@@ -593,14 +1220,13 @@ def combine_psbts(psbts: Sequence[Psbt]) -> Psbt:
             _combine_field(psbt.outputs[i], out, "hd_key_paths")
             _combine_field(psbt.outputs[i], out, "unknown")
 
-        _combine_field(psbt, final_psbt, "tx")
         _combine_field(psbt, final_psbt, "hd_key_paths")
         _combine_field(psbt, final_psbt, "unknown")
 
     return final_psbt
 
 
-def _prev_out(psbt_in: PsbtIn, tx_in: TxIn) -> TxOut | None:
+def _prev_out(psbt_in: PsbtIn) -> TxOut | None:
     """Return the output the input spends, or None if the psbt omits it.
 
     Either utxo field answers the question, and a psbt carries whichever
@@ -616,14 +1242,13 @@ def _prev_out(psbt_in: PsbtIn, tx_in: TxIn) -> TxOut | None:
     """
     if psbt_in.witness_utxo:
         return psbt_in.witness_utxo
-    if psbt_in.non_witness_utxo and tx_in.prev_out.vout < len(
-        psbt_in.non_witness_utxo.vout
-    ):
-        return psbt_in.non_witness_utxo.vout[tx_in.prev_out.vout]
+    vout = psbt_in.output_index or 0
+    if psbt_in.non_witness_utxo and vout < len(psbt_in.non_witness_utxo.vout):
+        return psbt_in.non_witness_utxo.vout[vout]
     return None
 
 
-def _spent_script(psbt_in: PsbtIn, tx_in: TxIn) -> bytes:
+def _spent_script(psbt_in: PsbtIn) -> bytes:
     """Return the script the input's signatures satisfy, or b"".
 
     Which script that is depends on the kind of input: a p2sh one is
@@ -638,7 +1263,7 @@ def _spent_script(psbt_in: PsbtIn, tx_in: TxIn) -> bytes:
     an input that does not say what it spends is not one this function
     can contradict.
     """
-    prev_out = _prev_out(psbt_in, tx_in)
+    prev_out = _prev_out(psbt_in)
     if prev_out is None:
         return b""
     script = prev_out.script_pub_key.script
@@ -664,7 +1289,7 @@ def _single_key(psbt_in: PsbtIn) -> bytes:
     return next(iter(psbt_in.partial_sigs))
 
 
-def _finalized_input(psbt_in: PsbtIn, tx_in: TxIn) -> tuple[bytes, Witness]:
+def _finalized_input(psbt_in: PsbtIn) -> tuple[bytes, Witness]:
     """Return the final script_sig and witness the input is spent with.
 
     Four shapes, and the kind of the spent script picks between them:
@@ -692,7 +1317,7 @@ def _finalized_input(psbt_in: PsbtIn, tx_in: TxIn) -> tuple[bytes, Witness]:
         [psbt_in.redeem_script] if psbt_in.redeem_script else []
     )
 
-    script = _spent_script(psbt_in, tx_in)
+    script = _spent_script(psbt_in)
 
     # a list of pushes is a ScriptList, which mypy will not infer from a
     # list[bytes]: ScriptList is list[Command] and a list is invariant
@@ -751,7 +1376,7 @@ def _sig_hash_from_psbt_in(
     unsigned transaction has neither -- they are the psbt's own fields,
     which is the whole point of the format.
     """
-    prev_out = _prev_out(psbt_in, tx.vin[vin_i])
+    prev_out = _prev_out(psbt_in)
     if prev_out is None:
         return None
 
@@ -860,14 +1485,16 @@ def finalize_psbt(psbt: Psbt) -> Psbt:
     """
     psbt = deepcopy(psbt)
     psbt.assert_valid()
-    for vin_i, (psbt_in, tx_in) in enumerate(
-        zip(psbt.inputs, psbt.tx.vin, strict=True)
-    ):
+    # read once: the transaction is what the fields make, so asking the
+    # psbt for it inside the loop would build it once per input, and
+    # every signature is against the same one
+    tx = psbt.tx
+    for vin_i, psbt_in in enumerate(psbt.inputs):
         if not psbt_in.partial_sigs:
             raise BTClibValueError("missing signatures")
         _assert_sig_hash_type(psbt_in)
-        _assert_partial_sigs_verify(psbt_in, psbt.tx, vin_i)
-        script_sig, witness = _finalized_input(psbt_in, tx_in)
+        _assert_partial_sigs_verify(psbt_in, tx, vin_i)
+        script_sig, witness = _finalized_input(psbt_in)
         psbt_in.final_script_sig = script_sig
         psbt_in.final_script_witness = witness
         psbt_in.partial_sigs = {}
@@ -902,6 +1529,9 @@ def extract_tx(psbt: Psbt, *, check_validity: bool = True) -> Tx:
     if check_validity:
         psbt.assert_valid()
 
+    # a copy, computed from the psbt's fields: the finalized scripts are
+    # written into the transaction being extracted and not into the psbt,
+    # which the Extractor "must not modify"
     tx = psbt.tx
     for tx_in, psbt_input in zip(tx.vin, psbt.inputs, strict=True):
         tx_in.script_sig = psbt_input.final_script_sig
@@ -914,28 +1544,24 @@ def extract_tx(psbt: Psbt, *, check_validity: bool = True) -> Tx:
 
 
 TypeA = TypeVar("TypeA")
-TypeB = TypeVar("TypeB")
 
 
-def _sort_or_shuffle_together(
-    sequence_a: Sequence[TypeA],
-    sequence_b: Sequence[TypeB],
+def _sort_or_shuffle(
+    sequence: Sequence[TypeA],
     ordering_func: Callable[[TypeA], int] | None = None,
-) -> tuple[list[TypeA], list[TypeB]]:
-    """Sort together with ordering_func if provided, else shuffle together.
+) -> list[TypeA]:
+    """Return the sequence sorted by ordering_func, or shuffled.
 
-    Sort is on TypeA, both sequences must have same length.
+    One sequence, where the two of a psbt's inputs used to be sorted
+    together: an input's outpoint and sequence are the input's own now,
+    so there is no second list to keep in step with the first.
     """
-    if len(sequence_a) != len(sequence_b):
-        raise BTClibValueError("sequences must have same length")
-
-    tmp = list(zip(sequence_a, sequence_b, strict=True))
+    items = list(sequence)
     if ordering_func is None:
-        secrets.SystemRandom().shuffle(tmp)
+        secrets.SystemRandom().shuffle(items)
     else:
-        tmp.sort(key=lambda t: ordering_func(t[0]))
-    tuple_a, tuple_b = zip(*tmp, strict=True)
-    return list(tuple_a), list(tuple_b)
+        items.sort(key=ordering_func)
+    return items
 
 
 def _ensure_consistency(psbts: Sequence[Psbt]) -> None:
@@ -993,8 +1619,23 @@ def join_psbts(
     result would depend on the order the merge ran in. A caller who wants
     one output where there were two builds it that way before signing,
     which is the only point at which it is safe.
+
+    Joining is a Constructor adding inputs and outputs to each of the
+    psbts at once, so a version 2 psbt has to allow both: every psbt
+    joined is asked for its two modifiable flags, and the joined psbt
+    carries what all of them still allow. The versions must be the same,
+    for the reason `combine_psbts` gives.
     """
     _ensure_consistency(psbts)
+
+    version = psbts[0].version
+    for psbt in psbts[1:]:
+        if psbt.version != version:
+            err_msg = f"mismatched psbt version: {psbt.version} vs {version}"
+            raise BTClibValueError(err_msg)
+    for psbt in psbts:
+        _assert_modifiable(psbt, inputs=True)
+        _assert_modifiable(psbt, inputs=False)
 
     inputs = [inp for psbt in psbts for inp in psbt.inputs]
     outputs = [outp for psbt in psbts for outp in psbt.outputs]
@@ -1004,20 +1645,41 @@ def join_psbts(
     unknown: dict[Octets, Octets] = {
         k: v for psbt in psbts for k, v in psbt.unknown.items()
     }
-    version = max(psbt.version for psbt in psbts)
 
-    # the transaction is joined unshuffled: the psbt's inputs and its vin
-    # are one sequence in two lists, so whatever reorders them has to
-    # reorder both, which is what sort_inputs and sort_outputs below do
-    merged_tx = join_txs(
-        [psbt.tx for psbt in psbts],
-        enforce_same_tx_version,
-        enforce_same_tx_lock_time,
-        False,
-        False,
+    tx_version = max(psbt.tx_version for psbt in psbts)
+    if enforce_same_tx_version and any(psbt.tx_version != tx_version for psbt in psbts):
+        raise BTClibValueError("Version numbers are not the same")
+
+    # the lock time that is compared is the one the transaction will
+    # have, which is what the signatures commit to; the fallback is
+    # merely where a psbt with no input requiring one keeps it, so it is
+    # the maximum of the fallbacks there are and absent when there are
+    # none -- a psbt that never carried the field does not gain one
+    lock_time = max(psbt.lock_time for psbt in psbts)
+    if enforce_same_tx_lock_time and any(psbt.lock_time != lock_time for psbt in psbts):
+        raise BTClibValueError("Lock times are not the same")
+    fallbacks = [
+        psbt.fallback_lock_time for psbt in psbts if psbt.fallback_lock_time is not None
+    ]
+    fallback_lock_time = max(fallbacks) if fallbacks else None
+
+    # what join_txs refuses, asked of the outpoints themselves: one
+    # transaction cannot spend one output twice, and the joined psbt
+    # would be exactly that
+    outpoints = {(inp.previous_tx_id, inp.output_index) for inp in inputs}
+    if len(outpoints) != len(inputs):
+        raise BTClibValueError("common inputs")
+
+    psbt = Psbt(
+        tx_version,
+        inputs,
+        outputs,
+        version,
+        hd_key_paths,
+        unknown,
+        fallback_lock_time,
+        _combined_tx_modifiable(psbts),
     )
-
-    psbt = Psbt(merged_tx, inputs, outputs, version, hd_key_paths, unknown)
     if shuffle_inp or sort_inp:
         psbt.sort_inputs(sort_inp)
     if shuffle_out or sort_out:

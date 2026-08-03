@@ -679,6 +679,45 @@ programs:
 >>> Psbt.b64decode(psbt.b64encode()) == psbt
 True
 
+**Version 2 (BIP-370).** In version 2 the unsigned transaction stops
+being a field: the transaction version, each input's outpoint and
+sequence, and each output's amount and script live in the psbt itself,
+which is what lets a *Constructor* add inputs and outputs after the psbt
+exists. btclib holds every psbt that way and computes the transaction
+from it, so the two versions differ only in how they are written, and
+converting is a method each way:
+
+>>> v2 = psbt.to_v2()
+>>> v2.version, v2.tx_version, v2.lock_time
+(2, 1, 0)
+>>> v2.inputs[0].previous_tx_id == psbt.tx.vin[0].prev_out.tx_id
+True
+>>> v2.tx == psbt.tx
+True
+>>> v2.to_v0() == psbt
+True
+
+``psbt.tx`` is computed from the fields at every access, so writing into
+it writes into a copy: to change what is being built, set the field —
+``psbt.inputs[0].sequence``, ``psbt.outputs[0].amount``.
+
+A version 2 psbt says what may still be changed, in
+``PSBT_GLOBAL_TX_MODIFIABLE``, and btclib honours it: ``sort_inputs``,
+``sort_outputs`` and ``join_psbts`` refuse to reorder or add on a side
+the flags do not allow, since every signature already made commits to
+the order it saw:
+
+>>> v2.tx_modifiable = 0
+>>> v2.sort_inputs()
+Traceback (most recent call last):
+btclib.exceptions.BTClibValueError: the inputs are not modifiable
+
+The lock time of a version 2 psbt is computed too, from the lock times
+its inputs require and the fallback for when none does — and a psbt
+whose inputs require both a block height and a timestamp has no lock
+time at all, one ``nLockTime`` being one number of one kind. That is a
+psbt btclib refuses rather than resolves.
+
 **Finalizer and Extractor.** ``finalize_psbt`` turns the partial
 signatures into a final script_sig or witness and ``extract_tx`` pulls
 out the network transaction. Be aware of the shape they handle: they

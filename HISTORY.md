@@ -34,6 +34,31 @@ against the `v2023.7.12` tag.
   `0x06`, input `0x0e` to `0x12`, output `0x03` and `0x04` — as a spare
   slot for data of your own: pick a byte no BIP has taken, or `0xfc`,
   which is reserved for exactly that.
+- **`Psbt.tx` is computed, not stored, and `Psbt(...)` takes the
+  transaction's version where it took the transaction.**
+  `Psbt(tx, inputs, outputs, version, hd_key_paths, unknown)` is
+  `Psbt(tx.version, inputs, outputs, version, hd_key_paths, unknown,
+  fallback_lock_time, tx_modifiable)`, and `Psbt.from_tx(tx)` — which
+  now takes the input and output maps too — is the way to build one
+  from a transaction. Reading `psbt.tx` still works and gives the same
+  transaction; *writing* into it no longer reaches the psbt, because
+  what comes back is built from the fields at every access:
+  `psbt.tx.vin[0].prev_out = outpoint` is now
+  `psbt.inputs[0].previous_tx_id, psbt.inputs[0].output_index`, and
+  `psbt.tx.lock_time = n` is `psbt.fallback_lock_time = n`.
+  `Psbt.to_dict()` carries the fields it holds — `tx_version`,
+  `fallback_lock_time`, `tx_modifiable`, and the new per-input and
+  per-output ones — with the transaction beside them for reading;
+  `from_dict` needs the fields, so a dict written by an older btclib
+  does not load. Why the format is held this way, and not as BIP174's
+  transaction with the BIP370 fields shadowing it, is in the module
+  docstring of `btclib.psbt.psbt`.
+- **`sort_inputs`, `sort_outputs` and `join_psbts` can refuse a version
+  2 psbt**, and `combine_psbts` refuses psbts of different versions. The
+  first three are a Constructor's work, which BIP370 gates on
+  `PSBT_GLOBAL_TX_MODIFIABLE`; nothing changes for a version 0 psbt,
+  which has no such field. For the fourth, convert first with
+  `to_v0()` or `to_v2()`.
 - **`btclib.curves` no longer exports the individual multiplications**: the
   eleven `mult_*` variants, `multiples`, `cached_multiples` and
   `jac_from_aff` come from `btclib.curves.curve_group`, or from
