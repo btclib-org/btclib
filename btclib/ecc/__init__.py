@@ -12,8 +12,9 @@
 **The schemes.** btclib.ecc holds what is built *on* an elliptic curve:
 dsa, ssa, bms and borromean signatures, the MuSig2 aggregation of many
 ssa signers into one, pedersen commitments, the Diffie-Hellman key
-agreement, the BIE1 ECIES built on top of it, and the RFC6979, BIP340
-and sign-to-contract nonces. The curve arithmetic underneath is
+agreement, the BIE1 ECIES built on top of it, the ElligatorSwift encoding
+of a public key with the x-only ECDH on it, and the RFC6979, BIP340 and
+sign-to-contract nonces. The curve arithmetic underneath is
 btclib.curves, and the rule between the two is that direction: ecc
 imports curves, never the other way round.
 
@@ -25,8 +26,8 @@ The schemes are what this package is for, so ``__all__`` names them and
 the import below binds each as a package attribute: without it, `import
 btclib.ecc` followed by `btclib.ecc.dsa.sign(...)` would raise
 AttributeError until something else in the process happened to import the
-submodule, and the package would advertise four helpers instead of the
-seven schemes behind them.
+submodule, and the package would advertise the loose helpers alone
+instead of the schemes behind them.
 
 bms does `from btclib.ecc import dsa`, i.e. it imports a name from the
 package that is importing it, and the order of the line below does not
@@ -37,7 +38,7 @@ the library with nothing else in sys.modules, which is the order that
 would find it if it did not.
 """
 
-from btclib.ecc import bms, borromean, dsa, ecies, musig2, pedersen, ssa
+from btclib.ecc import bms, borromean, dsa, ecies, ellswift, musig2, pedersen, ssa
 from btclib.ecc.bip340_nonce import bip340_nonce_
 from btclib.ecc.dh import ansi_x9_63_kdf, diffie_hellman
 from btclib.ecc.pedersen import second_generator
@@ -50,6 +51,7 @@ __all__ = [
     "diffie_hellman",
     "dsa",
     "ecies",
+    "ellswift",
     "musig2",
     "pedersen",
     "second_generator",

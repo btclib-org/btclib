@@ -110,8 +110,8 @@ alone, all of them taken at the tip of their path on 2026-08-02, which is
 what their `pulled` says: the eight BIP327 files, the three Core files
 `key_io_valid.json`, `key_io_invalid.json` and `base58_encode_decode.json`,
 and the two python-bitcoinlib block files added here; Core's
-`blockfilters.json` and the psbts of BIP370 and BIP373 followed on
-2026-08-03, at the tip of their paths too.
+`blockfilters.json`, the psbts of BIP370 and BIP373 and the two BIP324
+csv files followed on 2026-08-03, at the tip of their paths too.
 
 A vector btclib fails is vendored anyway and marked `xfail`, never left
 out: an absent vector hides the defect it would have shown, and
@@ -221,6 +221,47 @@ function, and copies four of its error message strings verbatim
 because the `error.message` field of a case is compared byte for byte.
 That file is not vendored — it is an implementation, not data, and
 btclib's is the one under test.
+
+### BIP324 (ElligatorSwift): two files under `tests/ecc/_data/`
+
+`ellswift_decode_test_vectors.csv` and `xswiftec_inv_test_vectors.csv`,
+under upstream's own names. One commit is the tip of both paths, so one
+pin serves the pair:
+
+```text
+repo    bitcoin/bips
+path    bip-0324/<name>.csv
+commit  cc177ab7bc5abcdcdf9c956ee88afd1052053328  2023-01-11
+pulled  2026-08-03
+behind  0 revisions; that commit is the tip of both paths
+```
+
+Verdict for both: **identical**, line endings included — these two are
+LF upstream, where `bip340_test_vectors.csv` above is CRLF. The blobs:
+
+```text
+1bab96b721e2f3ab90142c318523551eb520f753  ellswift_decode_test_vectors.csv
+138c4cf85c040785a45c6552c0169c8c12fd3cfc  xswiftec_inv_test_vectors.csv
+```
+
+The two files test the two halves of the map, and both halves are
+btclib's own Python: `tests/ecc/ellswift_test.py` runs the decode file
+against `_xswiftec` and the inverse file against `_xswiftec_inv`, whose
+eight `case` columns are eight assertions per row rather than one — an
+empty cell is a case with no preimage, and asserting that it *has* none
+is what keeps a permissive inverse from passing. The comment column of
+each row names the branch it exercises (`valid_x(x1)`, `non_square(s)`,
+`t>=p`, `info[v=0]`), which is what makes the two files a branch
+inventory and not a sample.
+
+Neither file covers `create` or `encode`: those pick one of up to eight
+preimages at random, so there is no vector to hold them to, and what the
+suite asserts instead is the round trip against the bindings — the
+authority named in the entry that has no file to cite.
+
+`bip-0324/packet_encoding_test_vectors.csv` is the third file of that
+directory and is **not** vendored: it is the v2 transport's, which btclib
+does not implement.
 
 ### `tests/script/_data/taproot_test_vector.json`
 
@@ -1198,8 +1239,8 @@ Against a pinned upstream blob:
   `script_tests.json`, `tx_valid.json`, `tx_invalid.json`,
   `key_io_valid.json`, `key_io_invalid.json`,
   `base58_encode_decode.json`, `blockfilters.json`,
-  `checkblock_valid.json`, `checkblock_invalid.json`, and the eight
-  BIP327 vector files.
+  `checkblock_valid.json`, `checkblock_invalid.json`, the eight
+  BIP327 vector files, and the two BIP324 ones.
 - identical but for a trailing newline:
   `script_assets_test.json`, `vectors.json`.
 - identical but for CRLF against LF: `bip340_test_vectors.csv`.
