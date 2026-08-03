@@ -106,16 +106,25 @@ used to teach and to prototype as much as to build:
     are opposite, do still branch — that case needs the accumulator to
     land on a table entry, 2^-250 on a curve with a real order, and a
     caller spelling out `P + P` knows it did.
+    Nor does the scalar decide how many additions there are, or how many
+    windows: `mult` recodes it into signed odd digits, none of them zero
+    and always `ceil(nlen / w)` of them, and starts the accumulator at a
+    table entry rather than at the identity, so every scalar of the curve
+    costs the same additions and the same doublings, and its size is
+    hidden as its bits are. Measured over 200 random scalars: 71 additions
+    and 253 doublings for every one of them, where the plain fixed window
+    makes 68 to 70 and 251 to 259; and on secp256k1, whose endomorphism
+    halves the doublings, 79 and 126 for every one of them, where the
+    interleaved wNAFs of the same decomposition make 51 to 64 and 124 to
+    131. Those wNAFs add on a nonzero digit and so once per unit of the
+    recoded weight of the coefficient, which is why they are not what
+    `mult` reaches for; they are what `double_mult` and signature
+    verification reach, where the coefficients are a signature and a
+    message hash rather than a secret.
 
     What is left is out of reach from pure Python, and is enough to
-    matter: the loop runs once per digit of the scalar, so the size of a
-    secret is not hidden, only its bits; the wNAF multiplications, which
-    are the ones `mult`, `double_mult` and verification reach, skip the
-    addition of a zero digit outright, so the _number_ of additions is
-    the recoded weight of the scalar (measured on secp256k1: 51 to 63
-    additions, 0.502 ms to 0.549 ms, over 200 random scalars);
-    the windowed multiplications index a table of precomputed multiples
-    with a secret digit, which is the memory access pattern the
+    matter: the windowed multiplications index a table of precomputed
+    multiples with a secret digit, which is the memory access pattern the
     FLUSH+RELOAD recovery of OpenSSL's nonces read; every reduction and
     multiplication takes the time its operand sizes ask for, and a
     residue is not always the full size; the affine group law and the

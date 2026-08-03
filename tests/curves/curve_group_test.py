@@ -16,8 +16,8 @@ import pytest
 from btclib.alias import INF, INFJ, JacPoint
 from btclib.curves import Curve, CurveGroup, secp256k1
 
-# the eight mult_* variants under test, and the helpers they are built on,
-# come from the module that defines them: btclib.curves exports mult,
+# the mult_* variants under test, and the helpers they are built on, come
+# from the module that defines them: btclib.curves exports mult,
 # double_mult and multi_mult, not a menu of implementations
 from btclib.curves.curve_group import (
     BOS_COSTER_THRESHOLD,
@@ -37,7 +37,10 @@ from btclib.curves.curve_group import (
     mult_mont_ladder,
     mult_recursive_aff,
     mult_recursive_jac,
+    mult_regular_window,
     multiples,
+    signed_odd_digits,
+    signed_odd_multiples,
 )
 from btclib.ecc import second_generator
 from btclib.exceptions import BTClibValueError
@@ -314,6 +317,162 @@ def test_mult_fixed_window() -> None:
             assert ec.jac_equality(K1, mult_jac(k1, ec.GJ, ec))
 
 
+def test_signed_odd_digits() -> None:
+    """The regular recoding against hand-computed digits, and its errors.
+
+    Vectors first, digit by digit and small enough to be checked on paper,
+    because the round trip below cannot fail on a recoding that is wrong
+    in a way its own reconstruction shares: -5 + 3*16 is 43 whether or not
+    -5 is the digit the algorithm should have produced.
+    """
+    assert signed_odd_digits(43, 4, 2) == [-5, 3]
+    assert signed_odd_digits(5, 1, 3) == [-1, 1, 1]
+    assert signed_odd_digits(255, 2, 4) == [3, 3, 3, 3]
+    # a scalar of one digit, padded out to three: the low digits go as
+    # negative as they can and the top one carries the whole value
+    assert signed_odd_digits(1, 4, 3) == [-15, -15, 1]
+    assert signed_odd_digits(1, 4, 1) == [1]
+
+    err_msg = "negative m: "
+    with pytest.raises(BTClibValueError, match=err_msg):
+        signed_odd_digits(-1, 4, 2)
+    with pytest.raises(BTClibValueError, match="non positive w: "):
+        signed_odd_digits(1, 0, 2)
+    with pytest.raises(BTClibValueError, match="even m: "):
+        signed_odd_digits(4, 4, 2)
+    with pytest.raises(BTClibValueError, match="size too low: "):
+        signed_odd_digits(1, 4, 0)
+    with pytest.raises(BTClibValueError, match="does not fit 1 digits: "):
+        signed_odd_digits(17, 4, 1)
+
+
+def test_signed_odd_digits_properties() -> None:
+    """The three properties the multiplication is built on, over a spread.
+
+    Every digit odd and inside the window, the count exactly the one
+    asked for whatever the scalar, and the digits summing back to m --
+    the last one against the definition of a base-2^w expansion, which is
+    not how signed_odd_digits computes them.
+    """
+    rnd = random.Random(0x5164ED)
+    for w in range(1, 7):
+        for size in range(1, 6):
+            scalars = [1, (1 << (w * size)) - 1] + [
+                rnd.randrange(1 << (w * size)) | 1 for _ in range(20)
+            ]
+            for m in scalars:
+                digits = signed_odd_digits(m, w, size)
+                assert len(digits) == size, (m, w, size)
+                assert all(d % 2 for d in digits), (m, w, size)
+                assert all(0 < abs(d) < 2**w for d in digits), (m, w, size)
+                # positive, which is what lets the accumulator start there
+                assert digits[-1] > 0, (m, w, size)
+                assert sum(d << (w * i) for i, d in enumerate(digits)) == m
+
+
+def test_signed_odd_multiples() -> None:
+    """The table against the multiplications of the digits that index it."""
+    for ec in (ec23_31, secp256k1):
+        for w in range(1, 6):
+            T = signed_odd_multiples(ec.GJ, ec, w)
+            assert len(T) == 2**w
+            for d in range(-(2**w - 1), 2**w, 2):
+                expected = mult_jac(d % ec.n, ec.GJ, ec)
+                assert ec.jac_equality(T[(d + 2**w - 1) // 2], expected), (d, w)
+
+
+class _CountingGroup(CurveGroup):
+    """secp256k1's group, counting the point additions it is asked for.
+
+    The number of additions is what the scalar used to decide (issue 254),
+    and counting them is how the test below says it no longer does: a
+    timing at 0.8 ms a multiplication is noise against a spread of one
+    addition in seventy.
+    """
+
+    def __init__(self) -> None:
+        # secp256k1's own p, a and b, which is the curve every measurement
+        # in curve_group's docstrings is taken on
+        super().__init__(secp256k1.p, 0, 7)
+        self.additions = 0
+
+    def add_jac(self, Q: JacPoint, R: JacPoint) -> JacPoint:
+        self.additions += 1
+        return super().add_jac(Q, R)
+
+
+def test_regular_window_addition_count_is_the_same_for_every_scalar() -> None:
+    """Issue 254, as the property it is: one count, not a range of them.
+
+    The fixed window over the same scalars is the control, and what varies
+    for it is the *size* of the scalar: its digit count is
+    ceil(m.bit_length() / w), so it makes one addition and w doublings
+    fewer for every window the scalar is short of a full one. Hence the
+    scalars of distant sizes here beside the full-length random ones --
+    over 256-bit scalars alone the control would be constant too, a
+    quarter of the 20 the seed picks being needed to reach a shorter
+    digit count at all.
+    """
+    ec = _CountingGroup()
+    rnd = random.Random(0x9EC0DE)
+    scalars = [rnd.randrange(secp256k1.n) for _ in range(10)]
+    scalars += [0, 1, 2, 3, 1 << 100, secp256k1.n >> 17, secp256k1.n - 1]
+
+    regular = set()
+    fixed = set()
+    for m in scalars:
+        ec.additions = 0
+        mult_regular_window(m, secp256k1.GJ, ec)
+        regular.add(ec.additions)
+        ec.additions = 0
+        mult_fixed_window(m, secp256k1.GJ, ec)
+        fixed.add(ec.additions)
+
+    assert len(regular) == 1, regular
+    assert len(fixed) > 1, fixed
+
+
+def test_mult_regular_window() -> None:
+    for w in range(1, MAX_W):
+        for ec in low_card_curves.values():
+            assert ec.jac_equality(mult_regular_window(0, ec.GJ, ec, w), INFJ)
+            assert ec.jac_equality(mult_regular_window(0, INFJ, ec, w), INFJ)
+
+            assert ec.jac_equality(mult_regular_window(1, INFJ, ec, w), INFJ)
+            assert ec.jac_equality(mult_regular_window(1, ec.GJ, ec, w), ec.GJ)
+
+            PJ = mult_regular_window(2, ec.GJ, ec, w)
+            assert ec.jac_equality(PJ, ec.add_jac(ec.GJ, ec.GJ))
+
+            PJ = mult_regular_window(ec.n - 1, ec.GJ, ec, w)
+            assert ec.jac_equality(ec.negate_jac(ec.GJ), PJ)
+            assert ec.jac_equality(mult_regular_window(ec.n - 1, INFJ, ec, w), INFJ)
+
+            assert ec.jac_equality(ec.add_jac(PJ, ec.GJ), INFJ)
+            assert ec.jac_equality(mult_regular_window(ec.n, ec.GJ, ec, w), INFJ)
+
+            with pytest.raises(BTClibValueError, match="negative m: "):
+                mult_regular_window(-1, ec.GJ, ec, w)
+
+            with pytest.raises(BTClibValueError, match="non positive w: "):
+                mult_regular_window(1, ec.GJ, ec, -w)
+
+    ec = ec23_31
+    for w in range(1, 10):
+        for k1 in range(ec.n):
+            K1 = mult_regular_window(k1, ec.GJ, ec, w)
+            assert ec.jac_equality(K1, mult_jac(k1, ec.GJ, ec))
+
+    # a scalar of more bits than the group has, which is the one case where
+    # the digit count is the scalar's own again: the answer is still the
+    # multiplication, the recoding being asked for the digits it needs
+    ec = secp256k1
+    for m in (ec.n, ec.n + 1, 2 * ec.n, 1 << 300):
+        assert ec.jac_equality(
+            mult_regular_window(m, ec.GJ, ec), mult_jac(m, ec.GJ, ec)
+        ), m
+
+
 def test_mult_fixed_window_cached() -> None:
     for _ in range(1, MAX_W):
         for ec in low_card_curves.values():
@@ -418,10 +577,10 @@ def test_mult_on_a_characteristic_7_curve() -> None:
     other operand (issue 171). Before it was fixed, mult_jac answered
     wrong for 6 of the 13 scalars here, the ladder and mult_recursive_jac
     for 12 of 13, and _double_mult for 100 of the 169 coefficient pairs;
-    _mult and the cached fixed window happened not to, every scalar of a
-    curve this small fitting in one base-16 digit -- which is why the
-    reference here is mult_aff, the one multiplication that forms no
-    Jacobian point at all.
+    the two fixed windows happened not to, every scalar of a curve this
+    small fitting in one base-16 digit -- which is why the reference here
+    is mult_aff, the one multiplication that forms no Jacobian point at
+    all.
     """
     ec = Curve(7, 0, 3, (1, 2), 13, 1, False)
     variants = (
@@ -432,6 +591,7 @@ def test_mult_on_a_characteristic_7_curve() -> None:
         mult_base_3,
         mult_fixed_window,
         mult_fixed_window_cached,
+        mult_regular_window,
     )
     for k in range(ec.n):
         expected = mult_aff(k, ec.G, ec)

@@ -140,6 +140,14 @@ class Curve(CurveGroup):
         self.n = n
         self.nlen = n.bit_length()
         self.n_size = (self.nlen + 7) // 8
+        # a scalar here is reduced mod n and not mod the order of the whole
+        # curve, so nlen is a tighter bound than the plen + 1 CurveGroup
+        # took from Hasse -- one window less at w=4 on secp256k1, and
+        # log2(cofactor) bits less on a curve with a cofactor.
+        # mult_regular_window fixes its digit count to it, and reads it
+        # under this name rather than as nlen so that a CurveGroup, which
+        # has no n, can be multiplied in as well
+        self.scalar_len = self.nlen
 
         # 5. Check that n is prime.
         if not _is_prime(n):
@@ -516,9 +524,13 @@ def mult(m_int: Integer, Q: Point | None = None, ec: Curve = secp256k1) -> Point
     # -- a zero scalar, or infinity -- and, with the dispatch
     # above patched off, every multiplication of the curve: that is the
     # reference implementation the test suite holds the bindings against,
-    # and the GLV endomorphism is its fastest form, 0.53 ms against the
-    # 0.84 of _mult, the decomposition being secp256k1's own lambda and
-    # beta. Not spelled as _libsecp256k1_applicable, though it is the same
+    # and the GLV endomorphism is its fastest form, 0.59 ms against the
+    # 0.82 of _mult, the decomposition being secp256k1's own lambda and
+    # beta. Both are regular: the number of point additions either makes
+    # is the same for every scalar, which is what a private key or a nonce
+    # arriving here needs and what issue 254 is about -- the endomorphism
+    # over interleaved wNAFs would be 0.51 ms and 51 to 64 additions.
+    # Not spelled as _libsecp256k1_applicable, though it is the same
     # test today: what decides here is whether the curve has that
     # endomorphism, so patching the bindings off must leave this arm --
     # python_path_test.py's pattern, which otherwise would compare the
