@@ -22,7 +22,7 @@ from os import path
 import pytest
 
 from btclib.exceptions import BTClibValueError
-from btclib.script import ScriptPubKey, Witness
+from btclib.script import ScriptPubKey, Witness, sig_op_count
 from btclib.tx import OutPoint, Tx, TxIn, TxOut, join_txs
 from tests.conftest import JsonGolden
 
@@ -258,6 +258,12 @@ def test_coinbase_block_1() -> None:
     assert not any(bool(tx_in.script_witness) for tx_in in tx.vin)
     assert tx.is_coinbase()
 
+    # the p2pk output announces one signature check; the coinbase
+    # script_sig announces none, pushing the extranonce and nothing else
+    assert tx.sig_op_count == 1
+    assert sig_op_count(tx.vin[0].script_sig) == 0
+    assert sig_op_count(tx.vout[0].script_pub_key.script) == 1
+
 
 # https://en.bitcoin.it/wiki/Protocol_documentation#tx
 def test_wiki_transaction() -> None:
@@ -283,6 +289,16 @@ def test_wiki_transaction() -> None:
     assert not any(bool(w) for w in tx.vwitness)
     assert not any(bool(tx_in.script_witness) for tx_in in tx.vin)
     assert not tx.is_coinbase()
+
+    # Core's GetLegacySigOpCount, which is the sum over both lists: the
+    # two p2pkh outputs announce one check each, and the script_sig
+    # answering the p2pkh being spent announces none -- it pushes a
+    # signature and a key, and the OP_CHECKSIG that verifies them is in
+    # the output this transaction spends, i.e. in another block. Which is
+    # what makes the count an underestimate, and what makes it the one a
+    # block can be checked against on its own
+    assert tx.sig_op_count == 2
+    assert sig_op_count(tx.vin[0].script_sig) == 0
 
 
 def test_single_witness() -> None:

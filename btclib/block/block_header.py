@@ -21,6 +21,7 @@ from datetime import datetime, timezone
 from typing import Any
 
 from btclib.alias import BinaryData, Octets
+from btclib.block.limits import MAX_FUTURE_BLOCK_TIME
 from btclib.block.proof_of_work import target_from_bits
 from btclib.exceptions import BTClibTypeError, BTClibValueError
 from btclib.hashes import hash256
@@ -179,6 +180,41 @@ class BlockHeader:
         if self.hash > self.target:
             err_msg = f"invalid proof-of-work: {self.hash.hex()}"
             err_msg += f" > {self.target.hex()}"
+            raise BTClibValueError(err_msg)
+
+    def assert_valid_time(self, now: datetime) -> None:
+        """Assert that the timestamp is not too far ahead of a clock.
+
+        Bitcoin Core's time-too-new, from ContextualCheckBlockHeader: a
+        header more than MAX_FUTURE_BLOCK_TIME ahead of the current time
+        is refused, which is what bounds how far a miner can push a
+        timestamp forward -- and the reason it is a bound rather than an
+        equality is that the network has no clock of its own to check
+        against.
+
+        `now` is the caller's, and never `datetime.now()` read here: a
+        consensus rule taking the wall clock would have one machine accept
+        the block another refuses, and no test of it could be written that
+        did not depend on the day it ran on. Which is also why this is not
+        called by assert_valid, and why Block.assert_valid does not reach
+        it: those two answer for the eighty bytes and for the block, and a
+        clock is neither.
+
+        time-too-old is the other half of the pair Core checks beside this
+        one, and it stays out of reach: it is the median time past of
+        eleven ancestors, i.e. the chain.
+        """
+        if now.tzinfo is None or now.tzinfo.utcoffset(now) is None:
+            raise BTClibValueError(f"naive current time (no time zone): {now}")
+
+        # int(), as assert_valid does and for the same reason: it is the
+        # value the four bytes hold, so a header carrying a fraction of a
+        # second is compared as it serializes. The bound keeps the
+        # fraction of `now`, which is where Core keeps it too -- its clock
+        # is finer than a second and the comparison is in the finer unit
+        if int(self.time.timestamp()) > now.timestamp() + MAX_FUTURE_BLOCK_TIME:
+            err_msg = f"invalid timestamp (too far in the future): {self.time}"
+            err_msg += f" > {now} + {MAX_FUTURE_BLOCK_TIME} seconds"
             raise BTClibValueError(err_msg)
 
     def assert_valid(self) -> None:

@@ -517,8 +517,11 @@ Verdict: **identical**. Core's BIP158 vector file, vendored whole and
 read in part: every row carries a height, a block hash and a full
 serialized block before its filter columns, and `blockfilters_test.py`
 reads those three. All ten blocks parse under the full validity check,
-round-trip byte for byte, hash to the hash the row states, and the six
-that postdate BIP34 commit the height the row states.
+round-trip byte for byte, hash to the hash the row states, and the six at
+or above testnet's BIP34 activation height commit the height the row
+states — in the bytes Core builds, `assert_valid_coinbase_height`
+comparing them. The four below it commit nothing, which is what makes the
+file the vector for the activation gate as well.
 
 btclib implements no block filter, so the filter columns are unread. The
 file is here under its own name anyway rather than as a btclib-named
@@ -666,9 +669,10 @@ which `tests/block/checkblock_test.py` parses with the full validity
 check. Genesis is the merkle tree btclib had no vector for: one leaf, so
 the root is the coinbase txid and nothing is hashed.
 
-The two genesis entries differ only in the `cur_time` beside them, which
-btclib has no use for: it answers "is this timestamp too far in the
-future", and that takes a clock.
+The two genesis entries differ only in the `cur_time` beside them, and it
+is read: it answers "is this timestamp too far in the future", which
+`BlockContext` carries the clock for. The first is one second inside the
+two-hour window and the second is the instant genesis was mined.
 
 ### `tests/block/_data/checkblock_invalid.json`
 
@@ -685,13 +689,14 @@ Verdict: **identical**. Seven blocks consensus refuses, and the only
 vendored negative block vectors there are: what `block_test.py` rejects,
 it rejects from blocks it mutates itself.
 
-btclib rejects six of the seven. The seventh is the genesis block two
-hours and one second ahead of its `cur_time`, and `xfail` is what that
-gets: no clock, no contextual check. Three of the six are rejected for
-the proof-of-work rather than the rule they name, upstream's `fCheckPoW`
-being a switch `Block.assert_valid` does not have; each of those three
-rules is asserted in `block_test.py` instead, from a block mutated for
-the purpose.
+btclib rejects every one of them, and one of them for something
+`assert_valid` cannot see: the genesis block two hours and one second
+ahead of its `cur_time` is a valid block refused by
+`assert_valid_contextual`, Core's `time-too-new`. Three of the rest are
+rejected for the proof-of-work rather than the rule they name, upstream's
+`fCheckPoW` being a switch `Block.assert_valid` does not have; each of
+those three rules is asserted in `block_test.py` instead, from a block
+mutated for the purpose.
 
 One of the seven is misnamed, and the file is vendored with the name
 anyway: "Duplicate transaction" is refused for its merkle root, the

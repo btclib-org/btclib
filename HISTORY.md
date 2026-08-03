@@ -25,6 +25,14 @@ against the `v2023.7.12` tag.
 
 - **`from btclib.ec import ...` is `from btclib.curves import ...`.** Every
   name the package exports is the name it exported before.
+- **`Block.weight` is the weight of the block**, where it was the sum of
+  its transactions' weights: Core's `GetBlockWeight`, so the 80-byte header
+  and the var_int holding the transaction count are counted too — 332 more
+  for a block with hundreds of transactions, 324 for one holding a single
+  transaction — and `Block.vsize` moves with it. `Tx.weight` is unchanged.
+  This is the number consensus reads, `MAX_BLOCK_WEIGHT` bounding it; the
+  sum is still available as `sum(t.weight for t in block.transactions)`,
+  and `Block.stripped_size` is the other quantity a block is bounded by.
 - **a psbt carrying a PSBT v2 field is refused**, where every one of the
   twelve was filed under `unknown` and round-tripped. BIP370 forbids them
   in version 0, which is the only version btclib reads, so
@@ -257,7 +265,11 @@ and `verify` families now let a `TypeError` out where they used to answer
   silence. `Block.assert_valid` now rejects the CVE-2012-2459 merkle
   mutation and checks the BIP141 witness commitment, without which every
   signature in a block could be replaced wholesale with the header
-  untouched. The low-s rule is decided by exact integer division, where
+  untouched; it also bounds the block's size, weight and signature
+  operations, and a caller holding a height and a clock can ask the two
+  rules that need them — the coinbase's BIP34 commitment and the timestamp
+  — through `Block.assert_valid_contextual`. The low-s rule is decided by
+  exact integer division, where
   `ec.n / 2` had put the threshold 2^127 above the true midpoint, and
   `dsa.verify` no longer accepts a *private* key where a public one goes.
 - **Secrets stay out of logs.** A routine network mismatch used to put a

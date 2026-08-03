@@ -178,6 +178,74 @@ edit.
 
 ### Consensus rules
 
+- **a block has a maximum size, and `Block.weight` is now the block's.**
+  Nothing bounded either: `bad-blk-length` — the transaction count and the
+  stripped size, each times `WITNESS_SCALE_FACTOR`, against
+  `MAX_BLOCK_WEIGHT` — and `bad-blk-weight`, the weight itself, are now
+  both checked, the second after the witness commitment because that is
+  where Core checks it and for Core's reason: the coinbase witness is not
+  covered by the block hash, so a block over the cap only because that
+  witness was stuffed must not be refused before the commitment to it has
+  been verified. The rules are also what made the property wrong.
+  `Block.weight` was the sum of the transactions' weights, which is
+  neither of the quantities they read; it is now Core's `GetBlockWeight`,
+  the 80-byte header and the var_int holding the transaction count
+  included, so 332 more than before for a block with hundreds of
+  transactions — 3,954,880 for block 481,824 — and 324 more for a block
+  holding one. `Block.stripped_size` is the other quantity, the
+  serialization a legacy node relays, and it is the one real blocks sit
+  against: 3,954,076 of 4,000,000, 98.9% of the cap. `Tx.weight` is
+  unchanged, and `Block.vsize` moves with the weight (issue #278)
+- **the signature check operations a block announces are counted, and
+  bounded** (`bad-blk-sigops`). Nothing counted them at any level.
+  `script.sig_ops.sig_op_count` is Core's `CScript::GetSigOpCount(false)`
+  over the bytes of one script, `Tx.sig_op_count` is what
+  `GetLegacySigOpCount` sums over every `script_sig` and every
+  `script_pub_key`, `Block.sig_op_count` sums that over the transactions,
+  and `assert_valid` bounds it by `MAX_BLOCK_SIGOPS_COST` — 20,000 legacy
+  checks — last of `CheckBlock`'s own questions, where Core asks it. An
+  `OP_CHECKMULTISIG` costs `MAX_PUBKEYS_PER_MULTISIG` however many keys it
+  would check: the accurate count is one Core only asks under P2SH and
+  segwit, where the script being counted comes from the output being
+  spent, so that count and the witness one need the UTXO set and this one
+  underestimates exactly as Core's comment on it says. The walk stops
+  where the script stops parsing and raises nothing, as Core's `GetOp`
+  loop breaks — the coinbase output script of testnet block 987,876 ends
+  in an `OP_CHECKSIG` five bytes inside a push that runs past the end of
+  the script, and neither implementation reaches it: 0 sigops on both
+  sides. The largest count in the suite is block 481,824's 3,409, 17% of
+  the cap, so a block that breaks the rule has to be built for the
+  purpose (issue #278)
+- **a block can be checked against a height and a clock**, which is what
+  `BlockContext` carries and `Block.assert_valid_contextual` reads.
+  `assert_valid` is Core's `CheckBlock`, what the bytes answer on their
+  own, and `Block.parse` calls it with no context to pass — so the two
+  rules of `ContextualCheckBlockHeader` and `ContextualCheckBlock` that
+  need nothing but a caller now have a carrier rather than being absent.
+  `bad-cb-height` is a byte comparison, as Core's is: the coinbase
+  `script_sig` must *start with* `CScript() << nHeight`, which
+  `bip34_commitment` builds, so a height pushed non-minimally is refused
+  although `Block.height` decodes the right number out of it — and for the
+  first seventeen heights that encoding is a one-byte op code (`OP_0`,
+  `OP_1` to `OP_16`) where `script.serialize([height])` writes a data
+  push, which makes them the mainline case rather than an edge: regtest
+  has BIP34 in force from height 1. `time-too-new` is
+  `BlockHeader.assert_valid_time(now)`, the timestamp against a clock the
+  caller supplies and never `datetime.now()` read inside the library,
+  which would have one machine accept what another refuses and would make
+  the test depend on the day it ran on. BIP34's activation height is a
+  field of the context, defaulting to mainnet's 227,931, because the
+  activation is itself contextual: block 200,000 commits its height and is
+  27,931 blocks below the height Core enforces it from, and four of the ten
+  testnet blocks of `blockfilters.json` commit nothing at all. What stays
+  out needs the chain and not merely a context — `time-too-old` and
+  `bad-txns-nonfinal` are the median time past of eleven ancestors,
+  `bad-diffbits` the target of a whole retarget period, `bad-version` two
+  more activation heights — and each is a field of `BlockContext` away
+  once the chain state it reads is there to put in one. The one `xfail` of
+  `tests/block/checkblock_test.py` is a passing vector now:
+  python-bitcoinlib's genesis block, two hours and one second ahead of the
+  `cur_time` beside it (issue #278)
 - **A block carries one coinbase, and `Block.assert_valid` now says so.**
   It asked whether the first transaction is a coinbase and never asked
   the rest, where Bitcoin Core's `CheckBlock` asks both, the second as

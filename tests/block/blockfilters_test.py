@@ -38,10 +38,35 @@ from typing import Any
 
 import pytest
 
-from btclib.block import Block
+from btclib.block import Block, BlockContext
+from btclib.exceptions import BTClibValueError
 from tests import load, vector_id
 
 _HEADER_ROW = 1  # "Block Height,Block Hash,Block,[Prev Output Scripts ..."
+
+# Core's chainparams for testnet3, which these ten blocks are from: the
+# four rows below it predate the rule, and are the reason the gate exists
+# -- checking bad-cb-height at every height would refuse four blocks the
+# chain accepted
+_TESTNET_BIP34_HEIGHT = 21_111
+
+# the legacy sigop count of each row, which is the arithmetic and not the
+# limit: 21 in all, against a cost cap of 20,000 checks. 987,876 is the
+# zero, its coinbase output script ending in an OP_CHECKSIG inside a push
+# that runs past the end of the script -- an op code no implementation
+# reaches
+_SIG_OP_COUNT = {
+    0: 1,
+    2: 1,
+    3: 1,
+    15007: 1,
+    49291: 2,
+    180480: 8,
+    926485: 6,
+    987876: 0,
+    1263442: 1,
+    1414221: 0,
+}
 
 
 def _rows() -> list[Any]:
@@ -80,6 +105,43 @@ def test_blockfilters_block(height: int, block_hash: str, serialization: str) ->
 
     expected_height = None if block.header.version == 1 else height
     assert block.height == expected_height
+
+    assert block.sig_op_count == _SIG_OP_COUNT[height]
+
+
+@pytest.mark.parametrize(("height", "block_hash", "serialization"), params())
+def test_blockfilters_coinbase_height(
+    height: int, block_hash: str, serialization: str
+) -> None:
+    """Core's bad-cb-height over ten real testnet blocks.
+
+    Six of the rows are at or above testnet3's activation height and
+    commit their own height in the bytes Core builds; the four below it
+    are version 1 blocks that commit nothing, and they are what says the
+    activation height has to be part of the context. Asked through
+    `assert_valid_contextual`, so that the gate is what decides and not
+    the test: the same call over the same block passes below the
+    activation height and asks the question above it.
+    """
+    block = Block.parse(serialization)
+    context = BlockContext(
+        height=height,
+        now=block.header.time,
+        bip34_height=_TESTNET_BIP34_HEIGHT,
+    )
+    assert context.bip34_active == (height >= _TESTNET_BIP34_HEIGHT)
+    block.assert_valid_contextual(context)
+
+    if not context.bip34_active:
+        # the commitment is absent, so asking for it directly is what
+        # measures that the gate above is doing the work
+        with pytest.raises(BTClibValueError, match="invalid coinbase height: "):
+            block.assert_valid_coinbase_height(height)
+        return
+
+    # and above it, the block is refused for any other height
+    with pytest.raises(BTClibValueError, match="invalid coinbase height: "):
+        block.assert_valid_coinbase_height(height + 1)
 
 
 def test_an_output_script_can_be_empty() -> None:

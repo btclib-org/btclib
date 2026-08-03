@@ -52,6 +52,14 @@ btclib.script.sig\_hash module
    :undoc-members:
    :show-inheritance:
 
+btclib.script.sig\_ops module
+-----------------------------
+
+.. automodule:: btclib.script.sig_ops
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
 btclib.script.taproot module
 ----------------------------
 
