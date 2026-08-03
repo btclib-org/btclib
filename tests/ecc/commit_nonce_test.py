@@ -26,9 +26,10 @@ from hashlib import sha1, sha256
 
 import pytest
 
+from btclib.alias import INF
 from btclib.curves import bytes_from_point, mult, secp256k1
 from btclib.curves.curve import CURVES
-from btclib.ecc import dsa, ssa
+from btclib.ecc import commit_nonce, dsa, ssa
 from btclib.ecc.bip340_nonce import bip340_nonce_
 from btclib.ecc.commit_nonce import (
     _tweak,
@@ -360,3 +361,71 @@ def test_zero_tweaked_nonce() -> None:
     )
     with pytest.raises(BTClibRuntimeError, match="zero tweaked nonce"):
         commit_nonce_(commit_hash, nonce, _S2C_POINT_TAG, ec, hf)
+
+
+def test_zero_tweaked_nonce_through_the_bindings(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """The binding's own refusal of a zero sum maps to the same error.
+
+    On secp256k1 the loop above is not the one to force here --
+    `secp256k1_ec_seckey_tweak_add` refuses a zero result exactly where
+    the Python `% ec.n` in the fallback answers zero, and both have to
+    raise the one error `commit_nonce_` has always raised for it.
+    """
+    ec = secp256k1
+    nonce = 1 + random.randrange(ec.n - 1)
+    monkeypatch.setattr(commit_nonce, "_tweak", lambda *_: ec.n - nonce)
+    with pytest.raises(BTClibRuntimeError, match="zero tweaked nonce"):
+        commit_nonce_(b"", nonce, _S2C_POINT_TAG, ec, sha256)
+
+
+def test_commit_point_falls_back_at_infinity(monkeypatch: pytest.MonkeyPatch) -> None:
+    """The tweaked point at infinity is answered as ec.add answers it.
+
+    `secp256k1_ec_pubkey_tweak_add` refuses a result at infinity, where
+    `ec.add` returns it -- the one behaviour difference between the two
+    halves issue #271 calls out, so the fallback has to be exercised
+    rather than trusted: a tweak forced to n - k lands exactly there.
+    """
+    ec = secp256k1
+    k = 1 + random.randrange(ec.n - 1)
+    receipt = mult(k, ec.G, ec)
+    monkeypatch.setattr(commit_nonce, "_tweak", lambda *_: ec.n - k)
+    assert commit_point_(b"", receipt, _S2C_POINT_TAG, ec, sha256) == INF
+
+
+def test_the_python_tweaks_are_the_bindings_tweaks(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Both halves, computed twice, are the same answer with the dispatch off.
+
+    The bindings are the authority on the sum `commit_nonce_` computes
+    and the point `commit_point_` computes, and the Python arithmetic is
+    the reference implementation of both -- so what has to hold is that
+    the two agree, over both parities of the resulting point, the shape
+    `30e2ec19` used for BIP32 and taproot.
+    """
+    ec, hf = secp256k1, sha256
+    parities = set()
+    for i in range(16):
+        commit_hash = i.to_bytes(4, "big")
+        nonce = 1 + random.randrange(ec.n - 1)
+        delegated_nonce, receipt = commit_nonce_(
+            commit_hash, nonce, _S2C_POINT_TAG, ec, hf
+        )
+        delegated_point = commit_point_(commit_hash, receipt, _S2C_POINT_TAG, ec, hf)
+        parities.add(delegated_point[1] % 2)
+        with monkeypatch.context() as no_bindings:
+            no_bindings.setattr(
+                commit_nonce, "_libsecp256k1_applicable", lambda *_: False
+            )
+            assert commit_nonce_(commit_hash, nonce, _S2C_POINT_TAG, ec, hf) == (
+                delegated_nonce,
+                receipt,
+            )
+            assert (
+                commit_point_(commit_hash, receipt, _S2C_POINT_TAG, ec, hf)
+                == delegated_point
+            )
+    assert parities == {0, 1}
