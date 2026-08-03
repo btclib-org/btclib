@@ -216,7 +216,14 @@ def _ell_from_point(Q: Point, ec: Curve) -> bytes:
         if t is None:
             continue
         # _xswiftec_inv pins the x-coordinate alone, so t and p-t encode
-        # the two points of that x: the parity of t has to be the y's
+        # the two points of that x: the parity of t has to be the y's.
+        # Neither Python reference has this step and neither is wrong --
+        # BIP324's reference.py and Core's crypto/ellswift.py are x-only
+        # end to end, so no y ever reaches them -- while libsecp256k1
+        # wraps the same x-only map in the same condition, its
+        # elligatorswift_var over xelligatorswift_var. It is here because
+        # `decode` answers with a point; without it, half the encodings
+        # would decode to -Q
         if t % 2 != Q[1] % 2:
             t = p - t
         return u.to_bytes(size, "big") + t.to_bytes(size, "big")
