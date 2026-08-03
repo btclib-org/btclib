@@ -478,10 +478,11 @@ select = [
     "W",    # pycodestyle warnings
 ]
 ignore = [
-    # docstrings: only modules and public classes/functions are documented
-    "D101", # undocumented-public-class
-    "D102", # undocumented-public-method
-    "D103", # undocumented-public-function
+    # docstrings: every public module, class, method and function must
+    # carry one -- D100/D104 and the D101/D102/D103 left out of this
+    # list enforce exactly that (issue #290). The two still ignored are
+    # the ones pep257 does not ask for: __init__ is documented by its
+    # class, and a magic method by the data model it implements
     "D105", # undocumented-magic-method
     "D107", # undocumented-public-init
     "D203", # incorrect-blank-line-before-class (conflicts with D211)
