@@ -2615,6 +2615,24 @@ edit.
 
 ### Performance
 
+- **`pedersen.second_generator` is cached on `(ec, hf)`** (issue #287):
+  `second_generator` is 0.02 µs against 74.4 for secp256k1 with sha256,
+  and `commit` -- which calls it, as does every `assert_as_valid` and
+  `verify` -- 13.7 µs against 89.5. The generator is a hash-to-curve of
+  `ec.G` followed by a modular square root for each `x_H` the hash
+  digest and its increments try, and the answer is a constant for a
+  given `(ec, hf)`: recomputing it on every call had been 71% of a
+  commitment's cost, `double_mult` -- the arithmetic a commitment
+  actually is -- the rest. `functools.lru_cache` is the same tool
+  `curve_group.cached_multiples` already puts on a per-curve table, and
+  for the same reason `Curve.__hash__` exists: equal curves share a
+  cache entry. `hf` is compared by identity, the same conservative
+  choice `_libsecp256k1_applicable` makes for sha256. `maxsize` is 128
+  rather than `None`: `ec` is caller-supplied, and an unbounded cache on
+  it would be a memory leak, while 128 clears every curve in the
+  catalogue paired with more than one hash function. The cached value is
+  a `Point`, i.e. a tuple, so handing the same one to every caller is
+  safe -- there is no mutable object to share by accident
 - **verification takes no Python square root any more** (issue #284):
   `dsa.verify_` is 21.7 µs against 244, `ssa.verify_` 21.1 against 243,
   `bms.sign` 24 against the 102 the recovery module had left and
