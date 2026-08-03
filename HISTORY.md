@@ -42,6 +42,14 @@ against the `v2023.7.12` tag.
   `0x06`, input `0x0e` to `0x12`, output `0x03` and `0x04` — as a spare
   slot for data of your own: pick a byte no BIP has taken, or `0xfc`,
   which is reserved for exactly that.
+- **`finalize_psbt` refuses a taproot input that carries no taproot
+  signature**, where it used to build a script_sig out of the input's
+  `PSBT_IN_PARTIAL_SIG` entries — a spend BIP341 gives no meaning to and
+  btclib's own script engine rejects. A p2tr input is now finalized from
+  `PSBT_IN_TAP_KEY_SIG` or `PSBT_IN_TAP_SCRIPT_SIG`, which is what
+  `btclib.psbt.musig2` writes for a MuSig2 session and what any taproot
+  signer writes; an input carrying neither answers "missing taproot
+  signature".
 - **a psbt whose MuSig2 fields are malformed is refused**, where all four
   type bytes BIP373 defines were filed under `unknown` and round-tripped:
   input `0x1a`, `0x1b` and `0x1c`, output `0x08`. They are fields now, so

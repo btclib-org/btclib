@@ -444,12 +444,58 @@ def __prv_key_derivation(xkey: _BIP32KeyData, index: int, pub_key: bytes) -> Non
     xkey.key = b"\x00" + key
 
 
-def __pub_key_derivation(xkey: _BIP32KeyData, index: int) -> None:
-    xb = xkey.key + index.to_bytes(4, byteorder="big", signed=False)
-    hmac_ = hmac.new(xkey.chain_code, xb, "sha512").digest()
+def _pub_key_offset(chain_code: bytes, key: bytes, index: int) -> tuple[int, bytes]:
+    """Return what an unhardened index adds, and the child chain code.
+
+    The scalar alone, without the point it is added to: BIP32 derives a
+    public child as P + IL*G, so this is the whole of the arithmetic that
+    a caller which is not deriving a key of its own needs --
+    `pub_key_derivation_tweaks` below, and through it the MuSig2
+    aggregate keys of BIP328, which have no private key to derive with.
+    """
+    xb = key + index.to_bytes(4, byteorder="big", signed=False)
+    hmac_ = hmac.new(chain_code, xb, "sha512").digest()
     offset = int.from_bytes(hmac_[:32], byteorder="big", signed=False)
     if offset >= secp256k1.n:
         raise _invalid_child(index, "the hmac left half is not a valid scalar")
+    return offset, hmac_[32:]
+
+
+def pub_key_derivation_tweaks(
+    pub_key: Octets, chain_code: Octets, der_path: DerPath
+) -> list[bytes]:
+    """Return the 32-byte tweak each step of a public derivation adds.
+
+    A public child is the parent point plus IL*G, so a whole path is a
+    list of scalars that can be applied wherever the point itself is not
+    available to derive from. That is what a BIP327 MuSig2 aggregate key
+    needs: the group has no private key, so BIP328 derivation reaches the
+    signers as plain tweaks of the aggregate key, and BIP373 carries a
+    psbt signed under a key derived that way.
+
+    Hardened indexes are refused before any step is walked, as
+    __pub_key_path_derivation refuses them: they need a private key that
+    by construction does not exist.
+    """
+    key = bytes_from_octets(pub_key, secp256k1.p_size + 1)
+    code = bytes_from_octets(chain_code, 32)
+    indexes = indexes_from_der_path(der_path)
+    if any(index >= _HARDENED_OFFSET for index in indexes):
+        raise BTClibValueError("invalid hardened derivation from public key")
+
+    tweaks: list[bytes] = []
+    for index in indexes:
+        offset, code = _pub_key_offset(code, key, index)
+        tweaks.append(offset.to_bytes(32, byteorder="big"))
+        # the child key, which the next index hashes: the point is not
+        # needed here and libsecp256k1 adds the tweak to the serialized
+        # key, as __pub_key_derivation does one function below
+        key = libsecp256k1_keys.pubkey_tweak_add(key, offset, compressed=True)
+    return tweaks
+
+
+def __pub_key_derivation(xkey: _BIP32KeyData, index: int) -> None:
+    offset, chain_code = _pub_key_offset(xkey.chain_code, xkey.key, index)
 
     # the parent point plus the generator times the offset, which is
     # what secp256k1_ec_pubkey_tweak_add computes: 12.4 us against the
@@ -473,7 +519,7 @@ def __pub_key_derivation(xkey: _BIP32KeyData, index: int) -> None:
             index, "the child public key is the point at infinity"
         ) from e
 
-    xkey.chain_code = hmac_[32:]
+    xkey.chain_code = chain_code
     y = int.from_bytes(sec[33:], byteorder="big", signed=False)
     xkey.pub_key_point = (int.from_bytes(sec[1:33], byteorder="big", signed=False), y)
     # the compressed spelling of what came back, as bytes_from_point

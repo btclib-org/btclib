@@ -17,11 +17,12 @@ from typing import Any
 
 import pytest
 
+from btclib import var_bytes
 from btclib.bip32 import BIP32KeyOrigin
 from btclib.curves import sec_point
 from btclib.ecc import dsa
 from btclib.exceptions import BTClibValueError
-from btclib.hashes import hash160, hash256, ripemd160, sha256
+from btclib.hashes import hash160, hash256, ripemd160, sha256, tagged_hash
 from btclib.psbt import (
     Psbt,
     PsbtIn,
@@ -31,6 +32,7 @@ from btclib.psbt import (
     finalize_psbt,
     join_psbts,
 )
+from btclib.psbt import musig2 as psbt_musig2
 from btclib.psbt.psbt import (
     _V2_GLOBAL_FIELDS,
     HAS_SIG_HASH_SINGLE,
@@ -38,6 +40,8 @@ from btclib.psbt.psbt import (
     OUTPUTS_MODIFIABLE,
     _sig_hash_from_psbt_in,
     _sort_or_shuffle,
+    leaf_script,
+    prevouts,
 )
 from btclib.psbt.psbt_in import _V2_FIELDS as _V2_INPUT_FIELDS
 from btclib.psbt.psbt_in import LOCK_TIME_THRESHOLD
@@ -2100,11 +2104,17 @@ def test_an_input_that_does_not_say_what_it_spends() -> None:
 
 
 def test_the_sig_hash_of_an_input_that_does_not_say_what_it_spends() -> None:
-    """Four inputs whose hash is not computable, each finalized all the same.
+    """Four inputs whose hash is not computable, three finalized all the same.
 
     None out of `_sig_hash_from_psbt_in` is "the psbt does not say what
     is being signed", which is not evidence against the signature: the
     Finalizer leaves such an input alone rather than refusing it.
+
+    The fourth is a p2tr input, and there the Finalizer does refuse: a
+    taproot input is finalized from its taproot fields, so an ECDSA
+    partial signature beside a p2tr script_pub_key is not a spend of it
+    -- and building one out of the partial signatures, as this used to,
+    produced a script_sig BIP341 gives no meaning to.
     """
     # no utxo at all
     psbt = Psbt.b64decode(TO_BE_FINALIZED)
@@ -2132,7 +2142,8 @@ def test_the_sig_hash_of_an_input_that_does_not_say_what_it_spends() -> None:
     psbt.inputs[0].non_witness_utxo = None
     psbt.inputs[0].witness_utxo = TxOut(100000, ScriptPubKey("5120" + "aa" * 32))
     assert _sig_hash_from_psbt_in(psbt.inputs[0], psbt.tx, 0, 1) is None
-    finalize_psbt(psbt)
+    with pytest.raises(BTClibValueError, match="missing taproot signature"):
+        finalize_psbt(psbt)
 
 
 def test_the_sig_hash_of_every_input_kind_a_partial_signature_signs() -> None:
@@ -2173,3 +2184,150 @@ def test_the_outpoint_names_an_output_of_the_non_witness_utxo() -> None:
     err_msg = "outpoint vout out of range for the non-witness utxo"
     with pytest.raises(BTClibValueError, match=err_msg):
         psbt.assert_valid()
+
+
+def _taproot_signed(description: str) -> Psbt:
+    """A BIP373 psbt whose MuSig2 session has been aggregated into a signature.
+
+    Which is the only way this tree produces a taproot signature: BIP371's
+    own valid psbts carry signatures beside utxos that do not commit to
+    the transaction they sit in, so they cannot be finalized -- the hash a
+    taproot signature checks against covers every input.
+    """
+    psbt = Psbt.b64decode(
+        next(
+            test_vector["encoded psbt"]
+            for test_vector in load("psbt", "_data", "bip373_test_vectors.json")[
+                "valid psbts"
+            ]
+            if description in test_vector["description"]
+        )
+    )
+    psbt_in = psbt.inputs[0]
+    aggregate_pub_key = next(iter(psbt_in.musig2_participant_pub_keys))
+    leaf_hash = next(iter(psbt_in.musig2_partial_sigs))[66:]
+    psbt_musig2.partial_sigs_agg(psbt, 0, aggregate_pub_key, leaf_hash=leaf_hash)
+    return psbt
+
+
+def test_a_taproot_input_is_finalized_from_its_own_fields() -> None:
+    """The key path and the script path, and the witness each is spent with.
+
+    BIP341: the witness of a key path spend is the signature alone, and of
+    a script path spend the signature, the leaf script and the control
+    block. The script_sig is empty either way, a witness v1 program having
+    nothing to put in it.
+    """
+    psbt = finalize_psbt(
+        _taproot_signed("output key is a MuSig2 Aggregate Pubkey, with all partial")
+    )
+    assert not psbt.inputs[0].final_script_sig
+    assert psbt.inputs[0].final_script_witness.stack == (
+        _taproot_signed("output key is a MuSig2 Aggregate Pubkey, with all partial")
+        .inputs[0]
+        .taproot_key_spend_signature,
+    )
+
+    psbt = _taproot_signed(
+        "a key in a script is a MuSig2 Aggregate Pubkey, with all partial"
+    )
+    key_data, sig = next(iter(psbt.inputs[0].taproot_script_spend_signatures.items()))
+    script, control_block = leaf_script(psbt.inputs[0], key_data[32:])
+    finalized = finalize_psbt(psbt)
+    assert not finalized.inputs[0].final_script_sig
+    assert finalized.inputs[0].final_script_witness.stack == (
+        sig,
+        script,
+        control_block,
+    )
+
+
+def test_what_a_taproot_input_cannot_be_finalized_from() -> None:
+    """Every way the taproot fields of an input fail to be a spend of it."""
+    # a signature of the wrong sig_hash type: the input asks for one and
+    # the signature commits to another
+    psbt = _taproot_signed("output key is a MuSig2 Aggregate Pubkey, with all partial")
+    psbt.inputs[0].sig_hash_type = 1
+    err_msg = "invalid taproot key path signature sig_hash type"
+    with pytest.raises(BTClibValueError, match=err_msg):
+        finalize_psbt(psbt)
+
+    # a signature of the right shape that signs something else
+    psbt = _taproot_signed("output key is a MuSig2 Aggregate Pubkey, with all partial")
+    psbt.inputs[0].taproot_key_spend_signature = b"\x01" * 64
+    err_msg = "invalid taproot key path signature for output key"
+    with pytest.raises(BTClibValueError, match=err_msg):
+        finalize_psbt(psbt)
+
+    # no utxo, which is not one input's problem: a taproot signature
+    # commits to the amount and script of every input, so the hash cannot
+    # be computed for any of them. Not through the Finalizer, which
+    # without a utxo cannot tell the input is taproot at all and answers
+    # "missing signatures" as it does for every input that does not say
+    # what it spends
+    psbt = _taproot_signed("output key is a MuSig2 Aggregate Pubkey, with all partial")
+    psbt.inputs[0].witness_utxo = None
+    with pytest.raises(BTClibValueError, match="no utxo for input 0"):
+        prevouts(psbt)
+    with pytest.raises(BTClibValueError, match="missing signatures"):
+        finalize_psbt(psbt)
+
+    # two script path signatures, i.e. two spends of two leaves
+    psbt = _taproot_signed(
+        "a key in a script is a MuSig2 Aggregate Pubkey, with all partial"
+    )
+    key_data, sig = next(iter(psbt.inputs[0].taproot_script_spend_signatures.items()))
+    psbt.inputs[0].taproot_script_spend_signatures[b"\x01" * 64] = sig
+    err_msg = "2 taproot script path signatures"
+    with pytest.raises(BTClibValueError, match=err_msg):
+        finalize_psbt(psbt)
+
+    # one, under a tapleaf hash the input carries no script for
+    psbt = _taproot_signed(
+        "a key in a script is a MuSig2 Aggregate Pubkey, with all partial"
+    )
+    psbt.inputs[0].taproot_script_spend_signatures = {key_data[:32] + b"\x02" * 32: sig}
+    with pytest.raises(BTClibValueError, match="no leaf script for tapleaf hash"):
+        finalize_psbt(psbt)
+
+    # a leaf whose script is not a single key and OP_CHECKSIG: what else
+    # goes on the stack is not something the psbt says
+    psbt = _taproot_signed(
+        "a key in a script is a MuSig2 Aggregate Pubkey, with all partial"
+    )
+    control_block = next(iter(psbt.inputs[0].taproot_leaf_scripts))
+    psbt.inputs[0].taproot_leaf_scripts[control_block] = (b"\x51", 0xC0)
+    with pytest.raises(BTClibValueError, match="no leaf script for tapleaf hash"):
+        finalize_psbt(psbt)
+
+    # the same, reached by its own hash: the leaf is the one signed for and
+    # the script asks for more than a signature
+    psbt = _taproot_signed(
+        "a key in a script is a MuSig2 Aggregate Pubkey, with all partial"
+    )
+    control_block = next(iter(psbt.inputs[0].taproot_leaf_scripts))
+    script = serialize(["OP_1"])
+    psbt.inputs[0].taproot_leaf_scripts = {control_block: (script, 0xC0)}
+    leaf_hash_ = tagged_hash(b"TapLeaf", b"\xc0" + var_bytes.serialize(script))
+    psbt.inputs[0].taproot_script_spend_signatures = {key_data[:32] + leaf_hash_: sig}
+    err_msg = "not a single key and OP_CHECKSIG"
+    with pytest.raises(BTClibValueError, match=err_msg):
+        finalize_psbt(psbt)
+
+    # a signature filed under a key that is not the leaf's
+    psbt = _taproot_signed(
+        "a key in a script is a MuSig2 Aggregate Pubkey, with all partial"
+    )
+    psbt.inputs[0].taproot_script_spend_signatures = {b"\x03" * 32 + key_data[32:]: sig}
+    err_msg = "which is not the key of leaf script"
+    with pytest.raises(BTClibValueError, match=err_msg):
+        finalize_psbt(psbt)
+
+    # and the leaf's own key, with a signature that signs something else
+    psbt = _taproot_signed(
+        "a key in a script is a MuSig2 Aggregate Pubkey, with all partial"
+    )
+    psbt.inputs[0].taproot_script_spend_signatures = {key_data: b"\x01" * 64}
+    err_msg = "invalid taproot script path signature for key"
+    with pytest.raises(BTClibValueError, match=err_msg):
+        finalize_psbt(psbt)
