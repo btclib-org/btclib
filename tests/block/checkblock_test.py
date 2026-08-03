@@ -16,21 +16,22 @@ negative block vectors: what `block_test.py` rejects, it rejects from
 blocks it mutates itself, so an independent hand is worth the two files.
 
 A vector is `[comment, is_header, check_pow, cur_time, serialization]`.
-The last two fields are contextual and btclib takes neither: `cur_time`
-answers "is this block's timestamp too far in the future", which needs a
-clock, and `check_pow` switches off a check `Block.assert_valid` always
-makes. Both are read here anyway -- `check_pow` because it says which
-rule the vector was written to reach, and the invalid table below records
-where btclib's answer is the proof-of-work instead.
+`cur_time` is the clock the block is being accepted against, which is
+what `BlockContext` carries and `BlockHeader.assert_valid_time` reads;
+`check_pow` switches off a check `Block.assert_valid` always makes, so it
+is read here for what it says about the rule a vector was written to
+reach, and the invalid table below records where btclib's answer is the
+proof-of-work instead.
 """
 
 from __future__ import annotations
 
+from datetime import datetime, timezone
 from typing import Any
 
 import pytest
 
-from btclib.block import Block
+from btclib.block import Block, BlockContext
 from btclib.exceptions import BTClibValueError
 from tests import load, vector_id
 
@@ -44,11 +45,13 @@ from tests import load, vector_id
 # block it mutates; the test at the end of this module is why the third
 # of them cannot be covered from its own vector
 _INVALID = {
-    # the one contextual vector: two hours and one second ahead of the
-    # cur_time it carries. btclib has no clock and no cur_time, so it
-    # accepts -- marked xfail rather than dropped, and it turns red the
-    # day a contextual check lands
-    "Genesis block with time set to two hours + 1 second behind": None,
+    # the one contextual vector, and the only entry here answered by
+    # assert_valid_contextual rather than assert_valid: the genesis block
+    # two hours and one second ahead of the cur_time beside it, which is
+    # Core's time-too-new
+    "Genesis block with time set to two hours + 1 second behind": (
+        r"invalid timestamp \(too far in the future\)"
+    ),
     "Genesis with one byte changed": "invalid proof-of-work: ",
     # the intended rule is "vtx empty"; this header carries a timestamp of
     # zero, so the header is refused before the transaction count is read
@@ -71,7 +74,7 @@ _INVALID = {
 }
 
 
-def check_block_vectors(file_name: str) -> list[tuple[int, str, bool, str]]:
+def check_block_vectors(file_name: str) -> list[tuple[int, str, bool, int, str]]:
     """One tuple per vector, the single-string comment entries dropped.
 
     The index kept beside each is the position in the file, comments
@@ -81,33 +84,55 @@ def check_block_vectors(file_name: str) -> list[tuple[int, str, bool, str]]:
     for index, vector in enumerate(load("block", "_data", file_name)):
         if len(vector) == 1:  # a comment, which upstream's loader skips too
             continue
-        comment, is_header, check_pow, _cur_time, serialization = vector
+        comment, is_header, check_pow, cur_time, serialization = vector
         # no vector in either file is a bare 80-byte header, so there is
         # no header branch here to leave untested; a refreshed file that
         # grows one says so instead of being silently read as a block
         assert not is_header, comment
-        vectors.append((index, comment, check_pow, serialization))
+        vectors.append((index, comment, check_pow, cur_time, serialization))
     return vectors
 
 
 def params(file_name: str) -> list[Any]:
     """`check_block_vectors`, as parametrize takes it."""
     return [
-        pytest.param(comment, check_pow, serialization, id=vector_id(index, comment))
-        for index, comment, check_pow, serialization in check_block_vectors(file_name)
+        pytest.param(
+            comment, check_pow, cur_time, serialization, id=vector_id(index, comment)
+        )
+        for index, comment, check_pow, cur_time, serialization in check_block_vectors(
+            file_name
+        )
     ]
 
 
+def context_at(cur_time: int) -> BlockContext:
+    """The vector's `cur_time` as a context, at the height genesis has.
+
+    Every vector of both files is the genesis block or a block of the
+    first hundred thousand, so mainnet's BIP34 activation height leaves
+    bad-cb-height out of the contextual check and the timestamp is what
+    it answers -- which is what these vectors were written for. A height
+    of zero says so rather than claiming a height the files do not carry.
+    """
+    return BlockContext(height=0, now=datetime.fromtimestamp(cur_time, timezone.utc))
+
+
 @pytest.mark.parametrize(
-    ("comment", "check_pow", "serialization"),
+    ("comment", "check_pow", "cur_time", "serialization"),
     params("checkblock_valid.json"),
 )
-def test_checkblock_valid(comment: str, check_pow: bool, serialization: str) -> None:
+def test_checkblock_valid(
+    comment: str, check_pow: bool, cur_time: int, serialization: str
+) -> None:
     """Four real mainnet blocks, genesis among them.
 
     Genesis is the block btclib had no vector for, and it is the shape
     the merkle tree has nowhere else: one leaf, so the root is the txid
     of the coinbase and no hashing happens at all.
+
+    Each is valid at the `cur_time` beside it, the two genesis entries
+    differing in nothing else: the first is one second inside the
+    two-hour window and the second is the instant genesis was mined.
     """
     # every one of the four carries its proof-of-work, so parse() with
     # the default check_validity is the whole assertion
@@ -115,19 +140,30 @@ def test_checkblock_valid(comment: str, check_pow: bool, serialization: str) -> 
     block = Block.parse(serialization)
     assert block.serialize().hex() == serialization
     assert block == Block.parse(block.serialize())
+    block.assert_valid_contextual(context_at(cur_time))
 
 
 @pytest.mark.parametrize(
-    ("comment", "check_pow", "serialization"),
+    ("comment", "check_pow", "cur_time", "serialization"),
     params("checkblock_invalid.json"),
 )
-def test_checkblock_invalid(comment: str, check_pow: bool, serialization: str) -> None:
+def test_checkblock_invalid(
+    comment: str, check_pow: bool, cur_time: int, serialization: str
+) -> None:
     err_msg = _INVALID[comment]
-    if err_msg is None:
-        pytest.xfail("btclib takes no cur_time: no contextual timestamp check")
     # the serialization still has to parse: these are well-formed blocks
     # that consensus refuses, not truncated bytes
     block = Block.parse(serialization, check_validity=False)
+
+    if "time set to two hours" in comment:
+        # the one vector whose block is valid on its own: what it is
+        # refused for is where its timestamp sits relative to a clock, so
+        # assert_valid has to accept it for the vector to mean anything
+        block.assert_valid()
+        with pytest.raises(BTClibValueError, match=err_msg):
+            block.assert_valid_contextual(context_at(cur_time))
+        return
+
     with pytest.raises(BTClibValueError, match=err_msg):
         block.assert_valid()
 
@@ -150,7 +186,7 @@ def test_the_bad_cb_multiple_vector_is_answered_by_the_work() -> None:
     """
     two_coinbases = next(
         serialization
-        for _, comment, _, serialization in check_block_vectors(
+        for _, comment, _, _, serialization in check_block_vectors(
             "checkblock_invalid.json"
         )
         if comment.startswith("More than one coinbase")

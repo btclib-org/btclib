@@ -25,6 +25,11 @@ from os import path
 import pytest
 
 from btclib.block import Block, BlockHeader
+from btclib.block.limits import (
+    MAX_BLOCK_SIGOPS_COST,
+    MAX_BLOCK_WEIGHT,
+    WITNESS_SCALE_FACTOR,
+)
 from btclib.exceptions import BTClibTypeError, BTClibValueError
 from btclib.network import NETWORKS
 from btclib.script import ScriptPubKey
@@ -43,7 +48,11 @@ def test_block_1() -> None:
     block = Block.parse(block_bytes)
     assert len(block.transactions) == 1
     assert block.size == 215
-    assert block.weight == 536
+    assert block.stripped_size == 215
+    # 215 * 4, the header and the transaction count included: Core's
+    # GetBlockWeight, and 324 more than the 536 of its one transaction
+    assert block.weight == 860
+    assert block.sig_op_count == 1
     assert block.height is None
     assert not block.has_segwit_tx()
     assert block == Block.parse(block.serialize())
@@ -194,7 +203,10 @@ def test_block_170() -> None:
     block = Block.parse(block_bytes)
     assert len(block.transactions) == 2
     assert block.size == 490
-    assert block.weight == 1636
+    assert block.weight == 1960
+    # one for the coinbase output, two for the first payment ever made:
+    # the p2pk it pays to and the p2pk it spends from
+    assert block.sig_op_count == 3
     assert block.height is None
     assert not block.has_segwit_tx()
     assert block == Block.parse(block.serialize())
@@ -227,7 +239,8 @@ def test_block_200000() -> None:
     block = Block.parse(block_bytes)
     assert len(block.transactions) == 388
     assert block.size == 247_533
-    assert block.weight == 989_800
+    assert block.weight == 990_132
+    assert block.sig_op_count == 822
     assert block.height == 200_000
     assert not block.has_segwit_tx()
     assert block == Block.parse(block.serialize())
@@ -315,16 +328,23 @@ def test_block_481824() -> None:
         assert header == BlockHeader.parse(header.serialize())
         assert header == BlockHeader.from_dict(header.to_dict())
 
+        # the same 1866 transactions either way, so the same sigops: the
+        # count is over the script_sig and script_pub_key bytes, which
+        # both serializations carry in full
+        assert block.sig_op_count == 3_409
+
         if i:  # segwit nodes see the witness data
             assert block.has_segwit_tx()
             assert block.size == 989_323
-            assert block.weight == 3_954_548
-            assert block.vsize == 988_637
+            assert block.stripped_size == 988_519
+            assert block.weight == 3_954_880
+            assert block.vsize == 988_720
         else:  # legacy nodes see NO witness data
             assert not block.has_segwit_tx()
             assert block.size == 988_519
-            assert block.weight == 3_953_744
-            assert block.vsize == 988_436
+            assert block.stripped_size == 988_519
+            assert block.weight == 3_954_076
+            assert block.vsize == 988_519
 
 
 def test_block_witness_commitment() -> None:
@@ -655,6 +675,169 @@ def test_a_candidate_header_can_be_built() -> None:
     # the round trip still works for the mined header, work and all
     assert mined.serialize() == header_bytes
     mined.assert_valid_pow()
+
+
+@pytest.mark.parametrize(
+    ("fname", "delta"),
+    [
+        ("block_1.bin", 324),
+        ("block_170.bin", 324),
+        ("block_200000.bin", 332),
+        ("block_481824_complete.bin", 332),
+    ],
+)
+def test_the_weight_is_the_block_and_not_its_transactions(
+    fname: str, delta: int
+) -> None:
+    """`Block.weight` is Core's GetBlockWeight, over the whole block.
+
+    The sum of the transactions' weights is a different number, and it is
+    the one no rule reads: the header weighs 320 units, and the var_int
+    holding the transaction count weighs 4 for the two blocks with fewer
+    than 253 transactions and 12 for the two with hundreds. That is the
+    delta here, and MAX_BLOCK_WEIGHT bounds the larger of the two.
+
+    Both spellings of Core's formula are asserted, because the comment
+    beside it in `consensus/validation.h` is that they are the same one:
+    four times the stripped size plus the witness bytes, and three times
+    the stripped size plus the size.
+    """
+    filename = path.join(path.dirname(__file__), "_data", fname)
+    with open(filename, "rb") as file_:
+        block_bytes = file_.read()
+
+    block = Block.parse(block_bytes)
+    witness_size = block.size - block.stripped_size
+    assert block.weight == block.stripped_size * WITNESS_SCALE_FACTOR + witness_size
+    assert block.weight == block.stripped_size * 3 + block.size
+    assert block.weight - sum(t.weight for t in block.transactions) == delta
+
+
+def test_a_block_cannot_announce_too_many_sigops() -> None:
+    """Core's bad-blk-sigops, from a block built for the purpose.
+
+    The largest count in this suite is block 481,824's 3,409, 17% of the
+    20,000 legacy signature checks the cost limit allows, so no vendored
+    block comes near it: block 1's coinbase output script is replaced by
+    n OP_CHECKSIG, which is n sigops however unspendable that script is
+    -- the count is what the bytes announce, not what executing them
+    would do.
+
+    The mutation moves the merkle root as well, so the block is invalid
+    twice over, and which answer comes back says where the rule sits:
+    Core asks the sigop question last of CheckBlock's own, after every
+    transaction has been checked on its own.
+    """
+    fname = "block_1.bin"
+    filename = path.join(path.dirname(__file__), "_data", fname)
+    with open(filename, "rb") as file_:
+        block_bytes = file_.read()
+
+    limit = MAX_BLOCK_SIGOPS_COST // WITNESS_SCALE_FACTOR
+    assert limit == 20_000
+
+    for count in (limit, limit + 1):
+        block = Block.parse(block_bytes)
+        coinbase = block.transactions[0]
+        # a new TxOut rather than a rebound script: ScriptPubKey is frozen
+        coinbase.vout[0] = TxOut(coinbase.vout[0].value, ScriptPubKey(b"\xac" * count))
+        # the coinbase script_sig pushes the extranonce and nothing else,
+        # so the block's count is the output script's
+        assert coinbase.sig_op_count == count
+        assert block.sig_op_count == count
+
+        if count == limit:
+            # the cost is exactly the cap, which the rule allows: the
+            # comparison is a bound the block may reach
+            block.assert_valid_sig_op_count()
+            continue
+
+        err_msg = f"invalid sigop cost: {(count) * WITNESS_SCALE_FACTOR} > 80000"
+        with pytest.raises(BTClibValueError, match=err_msg):
+            block.assert_valid_sig_op_count()
+        with pytest.raises(BTClibValueError, match=err_msg):
+            block.assert_valid()
+
+
+def test_a_block_cannot_hold_too_many_transactions_or_too_many_bytes() -> None:
+    """Core's bad-blk-length, whose two comparisons are neither the weight.
+
+    A transaction weighs at least one unit, so a block cannot hold more
+    of them than MAX_BLOCK_WEIGHT over WITNESS_SCALE_FACTOR: a million,
+    and the list here holds one more -- the same coinbase a million and
+    one times, which costs a list of pointers rather than a gigabyte of
+    transactions. That the count is compared before anything is
+    serialized is what makes this half testable at all.
+
+    The other half is the stripped size, reached with a single
+    million-byte output script.
+    """
+    fname = "block_1.bin"
+    filename = path.join(path.dirname(__file__), "_data", fname)
+    with open(filename, "rb") as file_:
+        block_bytes = file_.read()
+
+    limit = MAX_BLOCK_WEIGHT // WITNESS_SCALE_FACTOR
+    assert limit == 1_000_000
+
+    block = Block.parse(block_bytes)
+    header, coinbase = block.header, block.transactions[0]
+
+    too_many = Block(header, [coinbase] * (limit + 1), check_validity=False)
+    err_msg = f"invalid transaction count: {limit + 1} \\* 4 > {MAX_BLOCK_WEIGHT}"
+    with pytest.raises(BTClibValueError, match=err_msg):
+        too_many.assert_valid_length()
+
+    block = Block.parse(block_bytes)
+    coinbase = block.transactions[0]
+    coinbase.vout[0] = TxOut(coinbase.vout[0].value, ScriptPubKey(b"\x00" * limit))
+    # the 215 bytes of block 1, less the 67-byte p2pk script and its
+    # one-byte length, plus a million and the five bytes announcing it
+    assert block.stripped_size == 1_000_152
+    err_msg = f"invalid stripped size: 1000152 \\* 4 > {MAX_BLOCK_WEIGHT}"
+    with pytest.raises(BTClibValueError, match=err_msg):
+        block.assert_valid_length()
+    with pytest.raises(BTClibValueError, match=err_msg):
+        block.assert_valid()
+
+
+def test_a_block_cannot_weigh_more_than_the_cap() -> None:
+    """Core's bad-blk-weight, and why it is asked after the commitment.
+
+    Witness bytes are not in the stripped serialization, so a block can
+    pass bad-blk-length and still be over MAX_BLOCK_WEIGHT: block
+    481,824 weighs 3,954,880 of the 4,000,000, and 46,000 bytes of
+    witness handed to its second transaction take it over while the
+    stripped size does not move.
+
+    The same bytes in the *coinbase* witness are what Core's comment
+    there is about: the block hash does not cover that witness, so the
+    weight must not be what answers before the commitment to it has been
+    checked -- a block could otherwise be marked permanently invalid for
+    bytes anyone could have appended. btclib asks them in that order, and
+    this is where that claim is measured.
+    """
+    fname = "block_481824_complete.bin"
+    filename = path.join(path.dirname(__file__), "_data", fname)
+    with open(filename, "rb") as file_:
+        block_bytes = file_.read()
+
+    stuffing = Witness([b"\x00" * 46_000])
+
+    block = Block.parse(block_bytes)
+    block.transactions[1].vin[0].script_witness = stuffing
+    assert block.stripped_size == 988_519
+    block.assert_valid_length()
+    assert block.weight == 4_000_886
+    err_msg = f"invalid weight: 4000886 > {MAX_BLOCK_WEIGHT}"
+    with pytest.raises(BTClibValueError, match=err_msg):
+        block.assert_valid_weight()
+
+    block = Block.parse(block_bytes)
+    block.transactions[0].vin[0].script_witness = stuffing
+    assert block.weight == 4_000_850
+    with pytest.raises(BTClibValueError, match="invalid witness nonce: "):
+        block.assert_valid()
 
 
 def test_a_block_still_requires_the_work() -> None:

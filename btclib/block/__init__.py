@@ -10,7 +10,20 @@
 """Module btclib.block."""
 
 from btclib.block import merkle_proof, mining, proof_of_work
-from btclib.block.block import Block
+from btclib.block.block import Block, bip34_commitment
+from btclib.block.block_context import BlockContext
 from btclib.block.block_header import BlockHeader
 
-__all__ = ["Block", "BlockHeader", "merkle_proof", "mining", "proof_of_work"]
+# btclib.block.limits is not here, as btclib.script.limits is not in
+# btclib.script: a caller reading a consensus constant names the module it
+# comes from, which is what says the number is Core's and not this
+# library's
+__all__ = [
+    "Block",
+    "BlockContext",
+    "BlockHeader",
+    "bip34_commitment",
+    "merkle_proof",
+    "mining",
+    "proof_of_work",
+]

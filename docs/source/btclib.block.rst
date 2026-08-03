@@ -12,10 +12,26 @@ btclib.block.block module
    :undoc-members:
    :show-inheritance:
 
+btclib.block.block\_context module
+----------------------------------
+
+.. automodule:: btclib.block.block_context
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
 btclib.block.block\_header module
 ---------------------------------
 
 .. automodule:: btclib.block.block_header
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
+btclib.block.limits module
+--------------------------
+
+.. automodule:: btclib.block.limits
    :members:
    :undoc-members:
    :show-inheritance:

@@ -37,6 +37,7 @@ from btclib.alias import BinaryData
 from btclib.amount import _MAX_SATOSHI
 from btclib.exceptions import BTClibValueError
 from btclib.hashes import hash256
+from btclib.script.sig_ops import sig_op_count as script_sig_op_count
 from btclib.script.witness import Witness
 from btclib.tx.tx_in import TX_IN_COMPARES_WITNESS, TxIn
 from btclib.tx.tx_out import TxOut
@@ -128,6 +129,21 @@ class Tx:
         no_wit = len(self.serialize(include_witness=False, check_validity=False)) * 3
         wit = len(self.serialize(include_witness=True, check_validity=False))
         return no_wit + wit
+
+    @property
+    def sig_op_count(self) -> int:
+        """Return the legacy sigop count, Core's GetLegacySigOpCount.
+
+        Every input's script_sig and every output's script_pub_key,
+        counted from the bytes by `script.sig_ops.sig_op_count`: the P2SH
+        and witness sigops Core adds in ConnectBlock need the outputs
+        being spent, which a transaction does not carry. That module's
+        docstring has what the shortfall is; the block rule this feeds,
+        `Block.assert_valid_sig_op_count`, is the one it is enough for.
+        """
+        return sum(script_sig_op_count(tx_in.script_sig) for tx_in in self.vin) + sum(
+            script_sig_op_count(tx_out.script_pub_key.script) for tx_out in self.vout
+        )
 
     @property
     def vwitness(self) -> list[Witness]:

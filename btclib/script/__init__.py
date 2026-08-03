@@ -41,6 +41,7 @@ from btclib.script.script_pub_key import (
     is_p2wsh,
     type_and_payload,
 )
+from btclib.script.sig_ops import sig_op_count
 from btclib.script.taproot import (
     check_output_pubkey,
     input_script_sig,
@@ -84,5 +85,6 @@ __all__ = [
     "script_from_dict",
     "script_to_dict",
     "serialize",
+    "sig_op_count",
     "type_and_payload",
 ]
