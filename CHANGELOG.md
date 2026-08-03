@@ -1424,6 +1424,36 @@ edit.
   two columns are one host commitment apart, which is upstream's own
   bytes saying that step 2 and step 4 reach one nonce. There is no
   schnorr counterpart upstream to extend this to (issue #222)
+- **ElligatorSwift, and the x-only ECDH on it** (issue #270).
+  `btclib.ecc.ellswift` adds `create`, `encode`, `decode` and `xdh`: a
+  public key as 64 bytes indistinguishable from random, which is what
+  BIP324's v2 handshake carries so that a key on the wire is not
+  recognizable as one. This is the item of issue #128 with no Python to
+  delegate — a new capability rather than a replacement — so both halves
+  are here, the SwiftEC map in Python and the libsecp256k1 `ellswift`
+  bindings dispatched to for secp256k1 exactly as `mult` and `dsa.sign`
+  are. The map is held to BIP324's own two vector files, vendored and
+  pinned: 76 decode cases, and 32 rows of the inverse times its eight
+  `case` selectors, where an empty cell asserts that a case has *no*
+  preimage — the half a too-permissive inverse would pass. `create` and
+  `encode` have no vector and can have none, one of up to eight preimages
+  being chosen at random, and that randomness is the point: an encoding
+  derived from the key alone would be recomputable by anyone. So there is
+  no deterministic option the way `dsa.sign` takes a nonce — RFC6979
+  specifies the nonce it derives and nothing specifies a derivation for
+  this — and what the suite asserts instead is the round trip *across*
+  the two implementations, each decoding what the other encoded. Two
+  details are libsecp256k1's rather than BIP324's, whose reference
+  implementation stops at an x-coordinate: the y a pair names is the
+  parity of the reduced `t`, and `xdh` hashes both encodings in a fixed
+  order with the caller's `party` saying which is its own. The `ec`
+  parameter is not decoration — the map wants only `a == 0` and a square
+  -3, so the Python path serves the catalogue's other three Koblitz
+  curves, and `secp224k1` reaches it through Tonelli-Shanks; a curve with
+  `a != 0` is refused by every entry point. Where this stops is
+  deliberate: ElligatorSwift is not BIP324, whose transport also wants
+  HKDF, ChaCha20-Poly1305 and the packet encoding, and btclib's position
+  on shipping a cipher is already on record (issue #210)
 
 ### Script
 

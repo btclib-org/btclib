@@ -79,6 +79,7 @@ def test_ecc_exports_the_signature_schemes() -> None:
         "diffie_hellman",
         "dsa",
         "ecies",
+        "ellswift",
         "musig2",
         "pedersen",
         "second_generator",
@@ -88,7 +89,16 @@ def test_ecc_exports_the_signature_schemes() -> None:
     # importing the package is enough to reach them, which is the point:
     # guards against btclib.ecc.dsa raising AttributeError until something
     # else in the process happens to import the submodule
-    for name in ("dsa", "ssa", "bms", "borromean", "pedersen", "ecies", "musig2"):
+    for name in (
+        "dsa",
+        "ssa",
+        "bms",
+        "borromean",
+        "pedersen",
+        "ecies",
+        "ellswift",
+        "musig2",
+    ):
         module = getattr(btclib.ecc, name)
         assert module.__name__ == f"btclib.ecc.{name}"
 

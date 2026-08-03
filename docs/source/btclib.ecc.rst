@@ -60,6 +60,14 @@ btclib.ecc.ecies module
    :undoc-members:
    :show-inheritance:
 
+btclib.ecc.ellswift module
+--------------------------
+
+.. automodule:: btclib.ecc.ellswift
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
 btclib.ecc.musig2 module
 ------------------------
 
