@@ -1,9 +1,7 @@
-.. btclib documentation master file.
-   You can adapt this file completely to your liking, but it should at least
-   contain the root `toctree` directive.
+.. btclib documentation master file: the root `toctree`.
 
-Welcome to btclib's documentation
-=================================
+btclib documentation
+====================
 
 .. toctree::
    :maxdepth: 1

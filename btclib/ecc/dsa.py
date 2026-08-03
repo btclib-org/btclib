@@ -930,7 +930,7 @@ def anti_exfil_host_verify(
 
     receipt is the R of step 2, what libsecp256k1 calls the opening.
     False and not an exception for everything that fails, as ``verify_``
-    answers: a rho of the wrong size is simply a rho this commitment does
+    answers: a rho of the wrong size is a rho this commitment does
     not open to.
     """
     return verify_(msg_hash, key, sig, lower_s, hf, commit_hash=rho, receipt=receipt)

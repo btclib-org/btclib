@@ -7,21 +7,7 @@
 #
 # No part of btclib including this file, may be copied, modified, propagated,
 # or distributed except according to the terms contained in the LICENSE file.
-"""Transaction (Tx) class.
-
-Dataclass encapsulating version, lock_time,
-vin (list[TxIn]), and vout (list[TxOut]).
-
-- https://en.bitcoin.it/wiki/Transaction
-- https://learnmeabitcoin.com/guide/coinbase-transaction
-- https://bitcoin.stackexchange.com/questions/20721/what-is-the-format-of-the-coinbase-transaction
-
-For TxIn.sequence and TX.lock_time see:
-- https://developer.bitcoin.org/devguide/transactions.html
-- https://medium.com/summa-technology/bitcoins-time-locks-27e0c362d7a1
-- https://bitcoin.stackexchange.com/questions/40764/is-my-understanding-of-locktime-correct
-- https://en.bitcoin.it/wiki/Timelock
-"""
+"""The Tx dataclass and join_txs; the class docstring has the contract."""
 
 from __future__ import annotations
 

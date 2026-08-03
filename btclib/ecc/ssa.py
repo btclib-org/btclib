@@ -13,13 +13,11 @@ This implementation is according to BIP340-Schnorr:
 
 https://github.com/bitcoin/bips/blob/master/bip-0340.mediawiki
 
-The BIP340-Schnorr scheme uses as public key the x-coordinate (field element)
-of the curve point associated to the private key 0 < q < n.
-Therefore, for sepcp256k1 the public key size is 32 bytes.
-Arguably, the knowledge of q as the discrete logarithm of Q
-also implies the knowledge of n-q as discrete logarithm of -Q.
-As such, {q, n-q} can be considered a single private key and
-{Q, -Q} the associated public key characterized by the shared x_Q.
+The public key is the x-coordinate -- a field element -- of the curve
+point associated to the private key 0 < q < n, so on secp256k1 a
+public key is 32 bytes. Knowing q as the discrete logarithm of Q is
+knowing n-q as the discrete logarithm of -Q, so {q, n-q} acts as one
+private key and {Q, -Q} as the public key their shared x_Q names.
 
 The dropped 02/03 prefix is implicit, not lost: verification needs an
 unambiguous Y, so BIP340 fixes it as even, and the x-only key is the
@@ -29,17 +27,16 @@ breaks the full key at the price of a negation -- and taking the bare
 x as the key refuses a malleability: a verifier that accepted a point
 and negated its odd Y would make every signature valid for two keys.
 
-Also, BIP340 advocates its own SHA256 modification as hash function:
-TaggedHash(tag, x) = SHA256(SHA256(tag)||SHA256(tag)||x)
-The rationale is to make BIP340 signatures invalid for anything else
-but Bitcoin and vice versa.
+The hash function is BIP340's tagged SHA256,
+TaggedHash(tag, x) = SHA256(SHA256(tag)||SHA256(tag)||x),
+which makes a BIP340 hash invalid under any other tag and any other
+scheme; the challenge uses tag 'BIP0340/challenge', the deterministic
+nonce 'BIP0340/aux' and 'BIP0340/nonce'.
 
-TaggedHash is used for both the challenge (with tag 'BIP0340/challenge')
-and the deterministic nonce (with tag 'BIP0340/aux').
-
-To allow for secure batch verification of multiple signatures,
-BIP340-Schnorr uses a challenge that prevents public key recovery
-from signature: c = TaggedHash('BIP0340/challenge', x_k||x_Q||msg).
+The challenge commits to the public key as well as to the nonce
+point, c = TaggedHash('BIP0340/challenge', x_k||x_Q||msg), which
+rules out public key recovery and is what makes batch verification
+sound.
 
 The challenge commits to the nonce point as well, and that dependency
 is the Fiat-Shamir transform itself: hashing the commitment x_k
@@ -48,18 +45,14 @@ only after receiving the commitment. Were c and the nonce chosen
 independently, no private key would be needed: K = s*G - c*Q
 satisfies verification for any Q.
 
-A custom algorithm for the ephemeral key (nonce)
-is used for signing, instead of the RFC6979 standard:
+The deterministic nonce is BIP340's own, not RFC6979's:
 
 nonce = TaggedHash('BIP0340/nonce', t||x_Q||msg)
 with t = q xor TaggedHash('BIP0340/aux', a), a the auxiliary randomness
 
-Finally, BIP340-Schnorr adopts a robust [r][s] custom serialization
-format, instead of the loosely specified ASN.1 DER standard.
-The signature size is p-size*n-size, where p-size is the field element
-(curve point coordinate) byte size and n-size is the scalar
-(curve point multiplication coefficient) byte size.
-For sepcp256k1 the resulting signature size is 64 bytes.
+The serialization is the fixed-size [r][s] -- p-size plus n-size
+bytes, 64 on secp256k1 -- not the loosely specified ASN.1 DER of
+ECDSA.
 """
 
 from __future__ import annotations
@@ -110,12 +103,11 @@ _S2C_DATA_TAG = b"s2c/bip340/data"
 
 @dataclass(frozen=True, init=False)
 class Sig:
-    """BIP340-Schnorr signature.
+    """A BIP340-Schnorr signature: (r, s).
 
-    - r is an x-coordinate _field_element_, 0 <= r < ec.p
-    - s is a scalar, 0 <= s < ec.n (yes, for BIP340-Schnorr it can be zero)
-
-    (ec.p is the field prime, ec.n is the curve order)
+    r is a field element, 0 <= r < ec.p, the x-coordinate of the nonce
+    point; s is a scalar, 0 <= s < ec.n, and zero is valid here where
+    dsa.Sig refuses it, BIP340 placing no lower bound.
     """
 
     # 32 bytes x-coordinate field element

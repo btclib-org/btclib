@@ -616,8 +616,8 @@ class Script:
         57.9 us for a 16.5 kB script, for a value that cannot change.
         Cached, a second read is 0.02 us.
 
-        Nothing warms the cache: construction no longer parses at all,
-        and __init__ filling it in would be the wrong trade anyway --
+        Nothing warms the cache: construction does not parse, and
+        __init__ filling the cache in would be the wrong trade --
         measured on that 16.5 kB script, an instance holding the parse
         costs 55.4 kB against 0.2 kB without it, 277 times the script's
         own bytes, and nothing inside the library reads .asm.
@@ -639,21 +639,21 @@ class Script:
     def assert_valid(self) -> None:
         """Assert that the script is bytes, which is all a script is.
 
-        There is no other question to ask, and asking one was the bug:
-        Bitcoin Core has no validity notion for a script either -- a
-        CScript is a vector of bytes, and the only script-level predicate
-        it offers is IsUnspendable(), for pruning the UTXO set. Whether a
-        script can be *executed* is the interpreter's answer, given by
-        executing it, and the limits it enforces depend on the sigversion
-        the script is spent under: in tapscript an OP_SUCCESSx makes a
-        script valid however malformed the rest of it is, so no predicate
-        on the bytes alone could answer for both.
+        There is no other question to ask: Bitcoin Core has no validity
+        notion for a script either -- a CScript is a vector of bytes,
+        and the only script-level predicate it offers is
+        IsUnspendable(), for pruning the UTXO set. Whether a script can
+        be *executed* is the interpreter's answer, given by executing
+        it, and the limits it enforces depend on the sigversion the
+        script is spent under: in tapscript an OP_SUCCESSx makes a
+        script valid however malformed the rest of it is, so no
+        predicate on the bytes alone could answer for both.
 
-        This used to parse, and refuse what the parse refused: a push
-        over 520 bytes, a truncated push, an op code no table names.
-        Those are five transactions in blocks 251718 to 299571 that
-        Tx.parse could not read (issue #123), and a `.asm` that raised
-        for the scripts an explorer prints.
+        Not a parse, refusing what the parse refuses -- a push over 520
+        bytes, a truncated push, an op code no table names: five
+        transactions in blocks 251718 to 299571 carry such scripts, so
+        that predicate leaves Tx.parse unable to read them and `.asm`
+        raising for the scripts an explorer prints (issue #123).
 
         The coercion is the check, as it is in Witness.assert_valid: a
         Script built through __init__ has been through bytes_from_octets

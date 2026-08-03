@@ -7,7 +7,7 @@
 #
 # No part of btclib including this file, may be copied, modified, propagated,
 # or distributed except according to the terms contained in the LICENSE file.
-"""Bitcoin Script engine."""
+"""The tapscript interpreter loop of the script engine, per BIP342."""
 
 from __future__ import annotations
 

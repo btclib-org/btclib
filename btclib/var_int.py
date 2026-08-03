@@ -9,19 +9,13 @@
 # or distributed except according to the terms contained in the LICENSE file.
 """Varint encoding and decoding functions.
 
-A var_int (variable integer) is variable-length quantity that uses an
-arbitrary number of binary octets (eight-bit bytes) to represent an
-arbitrarily large integer.
-It is usually a base-128 (7 bits) representation of an unsigned integer
-with the addition of the eighth bit to mark continuation of bytes;
-it is used to save additional space for a resource constrained system.
+Bitcoin's variable-length integer, Core's CompactSize: what the wire
+uses to say how many fields follow or how long the next field is.
+Not the base-128 varint of other protocols -- the encoding is its
+own.
 
-This is the slightly different Bitcoin implementation, used in transaction
-data to indicate the number of upcoming fields or the length of the
-upcoming field.
-
-Up to 0xfc, a var_int is just 1 byte; however, if the integer is greater than
-0xfc, then it is expanded as [1 byte prefix][number]:
+Up to 0xfc, a var_int is 1 byte; a greater integer is expanded as
+[1 byte prefix][number]:
 
 * prefix 0xfd marks the next two bytes as the number;
 * prefix 0xfe marks the next four bytes as the number;

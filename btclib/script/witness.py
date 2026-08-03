@@ -7,7 +7,7 @@
 #
 # No part of btclib including this file, may be copied, modified, propagated,
 # or distributed except according to the terms contained in the LICENSE file.
-"""Witness (tuple[bytes, ...]) class."""
+"""The Witness dataclass; the class docstring has the contract."""
 
 from __future__ import annotations
 

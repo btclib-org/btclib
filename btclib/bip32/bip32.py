@@ -7,19 +7,14 @@
 #
 # No part of btclib including this file, may be copied, modified, propagated,
 # or distributed except according to the terms contained in the LICENSE file.
-"""BIP32 Hierarchical Deterministic Wallet functions.
+"""BIP32 hierarchical deterministic wallet functions.
 
-A deterministic wallet is a hash-chain of private/public key pairs that
-derives from a single root, which is the only element requiring backup.
-Moreover, there are schemes where public keys can be calculated without
-accessing private keys.
+https://github.com/bitcoin/bips/blob/master/bip-0032.mediawiki
 
-A hierarchical deterministic wallet is a tree of multiple hash-chains,
-derived from a single root, allowing for selective sharing of keypair
-chains.
-
-Here, the HD wallet is implemented according to BIP32 bitcoin standard
-https://github.com/bitcoin/bips/blob/master/bip-0032.mediawiki.
+A deterministic wallet derives every key pair from a single root, the
+one element requiring backup; BIP32 makes the derivation a tree, so a
+branch of keys can be shared without the rest, and public derivation
+computes child public keys with no private key at hand.
 
 A BIP32 extended key is 78 bytes:
 
