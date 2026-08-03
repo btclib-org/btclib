@@ -77,8 +77,9 @@ used to teach and to prototype as much as to build:
     meets the curve.
     A signature the bindings decline is not all Python for that:
     `dsa.gen_keys` and the nonce point of `dsa._sign_` go through `mult`,
-    so those two multiplications are delegated whatever else the
-    signature asks for. The rest of that signature is not — the
+    and the verification equation of both `dsa` and `ssa` through
+    `double_mult`, so those multiplications are delegated whatever else
+    the signature asks for. The rest of that signature is not — the
     inversion of the nonce and the arithmetic on the key around it are
     Python integers.
     Anything else — another

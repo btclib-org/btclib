@@ -22,7 +22,7 @@ from btclib_libsecp256k1.keys import pubkey_combine as libsecp256k1_pubkey_combi
 from btclib_libsecp256k1.keys import pubkey_tweak_mul as libsecp256k1_pubkey_tweak_mul
 from btclib_libsecp256k1.mult import mult as libsecp256k1_mult
 
-from btclib.alias import INF, HashF, Integer, Point
+from btclib.alias import INF, HashF, Integer, JacPoint, Point
 from btclib.curves.curve_group import (
     HEX_THRESHOLD,
     CurveGroup,
@@ -431,6 +431,39 @@ def double_mult(
     QJ = jac_from_aff(Q)
     R = double_mult_w_NAF(u, HJ, v, QJ, ec)
     return ec.aff_from_jac(R)
+
+
+def _jac_double_mult(u: int, HJ: JacPoint, v: int, QJ: JacPoint, ec: Curve) -> JacPoint:
+    """Return u*HJ + v*QJ in Jacobian coordinates, delegated where it can be.
+
+    double_mult for a caller whose equation is written in projective
+    coordinates: dsa's and ssa's _assert_as_valid_, which are the two
+    verifications the bindings' own decline -- a hash function that is not
+    sha256, a BIP340 message that is not 32 bytes (issue 169), a
+    caller-imposed nonce, another curve -- and which paid a Python
+    double_mult underneath whatever the reason. 1.02 ms against 28 us on
+    secp256k1.
+
+    Jacobian in and Jacobian out, rather than those two rewritten in
+    affine coordinates, because it is not only their arithmetic that is
+    projective: so are the infinity test, the y parity and the x
+    comparison each makes, and so is the QJ that public key recovery
+    threads through dsa's. jac_from_aff is what keeps that exact --
+    infinity has no serialization on the other side of the boundary, and
+    it answers the z == 0 both functions already recognize, so each still
+    raises what it raised before, from the same line.
+
+    The two conversions in cost 0.39 us each on the z == 1 that a parsed
+    key and a lifted r arrive as, and a shortcut for that case -- the
+    affine point being the same pair of coordinates, no inversion at all
+    -- saves 0.75 us of the 28. Not worth a branch, and neither is the
+    caller's own mod_inv(1) on the way back out, 0.14 us.
+    """
+    if not _libsecp256k1_applicable(ec):
+        return double_mult_w_NAF(u, HJ, v, QJ, ec)
+
+    R = double_mult(u, ec.aff_from_jac(HJ), v, ec.aff_from_jac(QJ), ec)
+    return jac_from_aff(R)
 
 
 def multi_mult(

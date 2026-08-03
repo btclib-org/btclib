@@ -37,7 +37,7 @@ from btclib_libsecp256k1 import dsa as libsecp256k1_dsa
 from btclib import var_bytes
 from btclib.alias import BinaryData, HashF, JacPoint, Octets, Point
 from btclib.curves import Curve, mult, secp256k1
-from btclib.curves.curve import _libsecp256k1_applicable
+from btclib.curves.curve import _jac_double_mult, _libsecp256k1_applicable
 from btclib.curves.curve_group_2 import double_mult_w_NAF
 from btclib.ecc.commit_nonce import commit_entropy_, commit_nonce_, commit_point_
 from btclib.ecc.rfc6979_nonce import _rfc6979_nonce_, challenge_
@@ -505,7 +505,14 @@ def _assert_as_valid_(
     u = c * w % ec.n
     v = r * w % ec.n  # 4
     # Let K = u*G + v*Q.
-    KJ = double_mult_w_NAF(v, QJ, u, ec.GJ, ec)  # 5
+    # the dispatching double_mult of curves.curve, not the Python
+    # arithmetic under it: what reaches here is the verification the
+    # bindings' own ecdsa_verify declined -- another hash function, a
+    # commitment to check, a caller-imposed nonce, a curve of its own --
+    # and on secp256k1 the multiplication is theirs all the same, 28 us
+    # against 1.02 ms, which is this whole verification 128 us against
+    # 1.10 ms of it
+    KJ = _jac_double_mult(v, QJ, u, ec.GJ, ec)  # 5
 
     # Fail if infinite(K).
     # K = w*(c + r*q)*G is INF whenever c == -r*q (mod n)

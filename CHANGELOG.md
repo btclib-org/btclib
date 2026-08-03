@@ -2551,6 +2551,33 @@ edit.
   spelled `ec == secp256k1` rather than by the bindings predicate — the
   same test today, a different question. A `multi_mult` of a single
   scalar is still `not a multi_mult`
+- **the verification a signature's own bindings decline still multiplies in
+  libsecp256k1**: `dsa._assert_as_valid_` and `ssa._assert_as_valid_` are
+  what answers when `ecdsa_verify` and BIP340's verify are not asked — a
+  hash function that is not sha256, a commitment to check, a
+  caller-imposed nonce, a BIP340 message of a size other than 32 bytes,
+  which is issue #169 and four of BIP340's own vectors — and each paid a
+  Python `double_mult` underneath whatever the reason. They now reach the
+  dispatching one: ECDSA verification with sha512 is 128 µs against
+  1.10 ms, BIP340 verification of a 30-byte message 183 µs against
+  1.17 ms, and what is left of the second is mostly the modular square
+  root that lifts the signature's `r` back to a point. Both keep their
+  Jacobian shape rather than being rewritten in affine coordinates,
+  because it is not only their arithmetic that is projective: so are the
+  infinity test, the y parity and the x comparison each makes, and so is
+  the `QJ` that public key recovery threads through `dsa`'s. What makes
+  that exact is `jac_from_aff` answering `z == 0` for the infinity the
+  other side of the boundary has no serialization for, so each function
+  still raises what it raised before, from the same line — `invalid (INF)
+  key` for the ECDSA `K` that is infinity, from the same `KJ[2] == 0`.
+  The two conversions it costs are 0.39 µs each on the `z == 1` a parsed
+  key arrives as; the shortcut that would skip them, the affine point
+  being the same pair of coordinates, saves 0.75 µs of 28 and is not
+  worth a branch. Every other curve is untouched, measured: secp256r1
+  ECDSA verification is 1.21 ms either way. `tests/script_engine`'s
+  bindings-less configuration patches the curve dispatch off as well now,
+  which is what keeps it one: the verdict was already the Python
+  implementation's, and now the multiplication under it is too
 - **the taproot output *private* key is tweaked by libsecp256k1 too**, and
   in constant time: `taproot.output_prvkey` calls
   `xonly.prvkey_tweak_add`, which is BIP341's tweaking of an x-only

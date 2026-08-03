@@ -10,7 +10,7 @@
 """Tests for the `btclib.dsa` module."""
 
 import secrets
-from hashlib import sha1, sha256
+from hashlib import sha1, sha256, sha512
 from typing import Any
 
 import pytest
@@ -34,7 +34,7 @@ from btclib.hashes import reduce_to_hlen
 from btclib.number_theory import mod_inv
 from btclib.to_pub_key import pub_keyinfo_from_prv_key
 from tests import load, vector_id
-from tests.curves.curve_test import low_card_curves, secp256k1_bis
+from tests.curves.curve_test import low_card_curves, no_bindings, secp256k1_bis
 from tests.to_key_test import Q as pub_key_point
 from tests.to_key_test import Q_compressed as pub_key_compressed
 from tests.to_key_test import q as prv_key_int
@@ -585,6 +585,43 @@ def test_verify_infinity_point() -> None:
     err_msg = r"invalid \(INF\) key"
     with pytest.raises(BTClibRuntimeError, match=err_msg):
         dsa._assert_as_valid_(ec.n - 1, ec.GJ, 1, 1, True, ec)
+
+
+def test_verify_with_another_hash_function_on_both_arithmetics(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """The verification equation the bindings decline, on both arithmetics.
+
+    A hash function that is not sha256 is one of the reasons
+    `libsecp256k1_dsa.verify` is not asked -- a commitment to check, a
+    caller-imposed nonce and another curve are the others -- and what
+    answers instead is `_assert_as_valid_`, whose multiplication is the
+    bindings' all the same: 128 us against the 1.10 ms of the Python
+    arithmetic, which is the whole of this verification either way.
+
+    The two must not disagree, about a valid signature or an invalid one,
+    and least of all about the infinity point: a libsecp256k1 pubkey is
+    never the identity, so the K that is INF is answered on this side of
+    the boundary -- from the z == 0 of `jac_from_aff`, in the same line
+    that answered it before.
+    """
+    msg = b"a message to sign"
+    q, Q = dsa.gen_keys(0x1234567890ABCDEF)
+    sig = dsa.sign(msg, q, hf=sha512)
+    ec = sig.ec
+
+    def checks() -> None:
+        dsa.assert_as_valid(msg, Q, sig, hf=sha512)
+        assert dsa.verify(msg, Q, sig, hf=sha512)
+        # the same signature over another message
+        assert not dsa.verify(b"another message", Q, sig, hf=sha512)
+        # K = u*G + v*Q is INF for Q = G, r = s = 1 and c = n-1
+        with pytest.raises(BTClibRuntimeError, match=r"invalid \(INF\) key"):
+            dsa._assert_as_valid_(ec.n - 1, ec.GJ, 1, 1, True, ec)
+
+    checks()
+    no_bindings(monkeypatch)
+    checks()
 
 
 def test_verify_answers_about_signatures_not_about_types() -> None:
