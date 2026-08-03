@@ -541,7 +541,12 @@ class ScriptPubKey(Script):
         BIP67 endorses lexicographic sorting of compressed public keys.
 
         Note that sorting uncompressed keys (leading 0x04 byte) would
-        result in a different order.
+        result in a different order. An uncompressed key is not refused
+        here even when lexicographic_sorting is True: BIP67's own
+        compatibility note calls such a key a sign of a non-conforming
+        counterparty, not something to reject, and Bitcoin Core's
+        sortedmulti() accepts the mix and sorts it the same way -- see
+        #299.
 
         https://github.com/bitcoin/bips/blob/master/bip-0067.mediawiki
         """
