@@ -557,6 +557,16 @@ class ScriptPubKey(Script):
             pub_keyinfo_from_key(k, network, compressed)[0] for k in keys[1:]
         ]
         if lexicographic_sorting:
+            # btclib_libsecp256k1's keys.pubkey_sort is not called here:
+            # on compressed keys it gives the identical order, byte for
+            # byte, at 11.0 us against sorted()'s 0.062 on three keys --
+            # 180 times the cost for the same answer -- and it re-
+            # serializes an uncompressed key to a compressed one, which
+            # a drop-in delegation cannot do without rewriting the
+            # script. sorted() is also what Bitcoin Core's own
+            # sortedmulti() computes, CPubKey::operator< (src/pubkey.h)
+            # comparing the serialization as received on any input,
+            # compressed or not -- see #267.
             pub_keys = sorted(pub_keys)
 
         script = serialize([op_int(m), *pub_keys, op_int(n), "OP_CHECKMULTISIG"])
