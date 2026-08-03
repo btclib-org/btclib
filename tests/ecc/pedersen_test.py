@@ -38,6 +38,26 @@ def test_second_generator() -> None:
     _ = pedersen.second_generator(secp384r1, sha384)
 
 
+def test_second_generator_is_cached() -> None:
+    """Issue #287: (ec, hf) is the cache key, not ec alone.
+
+    A cache hit answers with the very object the first call built --
+    fine here, since a Point is a tuple and so cannot be mutated back
+    into the cache -- and a different hf is a different entry rather
+    than a collision with the one secp256k1/sha256 already filled.
+    """
+    pedersen.second_generator.cache_clear()
+
+    H1 = pedersen.second_generator(secp256k1, sha256)
+    H2 = pedersen.second_generator(secp256k1, sha256)
+    assert H1 is H2
+    assert pedersen.second_generator.cache_info().hits == 1
+
+    H3 = pedersen.second_generator(secp256k1, sha384)
+    assert H3 != H1
+    assert pedersen.second_generator.cache_info().hits == 1
+
+
 def test_commitment() -> None:
     ec = secp256k1
     hf = sha256
