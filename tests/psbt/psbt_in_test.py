@@ -84,7 +84,7 @@ def test_key_type_tables_name_every_field() -> None:
 
     assert {name for _, name, _ in _SERIALIZED_FIELDS} == field_names
     # a name here that is not a field is silent too: the drop would simply
-    # not happen, and a finalized input would carry what bip 174 says it
+    # not happen, and a finalized input would carry what BIP174 says it
     # must not
     assert _DROPPED_ONCE_FINALIZED < field_names
 
@@ -101,7 +101,7 @@ def test_key_type_tables_name_every_field() -> None:
 
 
 def test_a_finalized_input_drops_everything_the_finalizer_consumed() -> None:
-    """bip 174: what a finalizer consumed is not carried beside its result.
+    """BIP174: what a finalizer consumed is not carried beside its result.
 
     The set is Bitcoin Core's: PSBTInput::Serialize writes exactly these
     fields inside `if (final_script_sig.empty() && final_script_witness

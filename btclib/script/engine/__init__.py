@@ -196,7 +196,7 @@ def _verify_taproot(
     the upgrade path, which Core answers with success and no questions.
     """
     budget = 50 + len(witness.serialize())
-    # the annex counts towards the budget, hence the order (bip 342)
+    # the annex counts towards the budget, hence the order (BIP342)
     annex, stack = taproot_get_annex(witness)
     if len(stack) == 0:
         raise BTClibValueError("empty taproot witness stack")
