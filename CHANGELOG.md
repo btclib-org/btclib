@@ -2647,6 +2647,27 @@ edit.
 
 ### Tests
 
+- **the ten blocks Bitcoin Core carries in `blockfilters.json` are
+  vendored and parsed** (issue #274). Core publishes no block-validity
+  vector file — `src/test/data/` holds no block, and the two suites that
+  cover block validity, `validation_block_tests.cpp` and
+  `feature_block.py`, *build* blocks against a node rather than reading
+  them — but its BIP158 vector file opens every row with a height, a
+  block hash and a whole serialized block, and the rows were chosen for
+  the shapes their scripts have. All ten parse under the full validity
+  check, round-trip byte for byte and hash to the hash the row states,
+  and the six postdating BIP34 commit the height it states, which is the
+  first check of `Block.height` against a number btclib did not compute.
+  They are testnet and odd where `_data/block_*.bin` are mainnet and
+  ordinary: an unparsable coinbase output script, an output paying to an
+  empty script and a transaction spending from one, duplicate pushdata,
+  witness data, genesis. What they do not add is an invalid block — every
+  row is a block the chain accepted, so the negative vectors are still
+  python-bitcoinlib's seven. The file is vendored whole under Core's own
+  name, filter columns and all, btclib implementing no block filter: a
+  btclib-named extract of the block column would have no upstream name to
+  be compared against, which is what `tests/_data/README.md`'s naming
+  convention is for, and the rest of the file costs 17,816 bytes
 - **a Combiner's union of the final witnesses is pinned by a test**: two
   psbts with a different input finalized in each, combined both ways
   round, keep both — which the marker beside `_combine_field` said they

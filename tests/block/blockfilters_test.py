@@ -1,0 +1,128 @@
+#!/usr/bin/env python3
+
+# Copyright (C) The btclib developers
+#
+# This file is part of btclib. It is subject to the license terms in the
+# LICENSE file found in the top-level directory of this distribution.
+#
+# No part of btclib including this file, may be copied, modified, propagated,
+# or distributed except according to the terms contained in the LICENSE file.
+"""The ten testnet blocks Bitcoin Core carries in `blockfilters.json`.
+
+`src/test/data/blockfilters.json` is Core's BIP158 vector file, and each
+of its rows opens with a height, a block hash and a whole serialized
+block before the filter columns begin; tests/_data/README.md pins the
+revision. btclib implements no block filter, so those columns are unread
+here -- the file is vendored whole under its own name anyway, which is
+what the naming convention asks for and what leaves the filters there
+for whenever BIP158 arrives.
+
+The three columns read are the vector: Core chose the rows for the
+shapes their scripts have, and they are shapes nothing else in this
+suite holds. The four blocks of `_data/block_*.bin` are mainnet and
+ordinary; these are testnet and deliberately odd -- a coinbase output
+script no parser can read, two empty output scripts, duplicate pushdata.
+What the file does not add is an *invalid* block: every row is a block
+the chain accepted, and the negative vectors remain the seven of
+`checkblock_test.py`.
+
+The `Notes` column is Core's own and describes the filter case rather
+than the block: 15007's "non-standard OP_RETURN output" is in a script
+this block spends from, not in the block, whose single transaction is a
+coinbase paying to p2pk.
+"""
+
+from __future__ import annotations
+
+from typing import Any
+
+import pytest
+
+from btclib.block import Block
+from tests import load, vector_id
+
+_HEADER_ROW = 1  # "Block Height,Block Hash,Block,[Prev Output Scripts ..."
+
+
+def _rows() -> list[Any]:
+    """The vector rows, the header row of column names dropped."""
+    rows: list[Any] = load("block", "_data", "blockfilters.json")
+    return rows[_HEADER_ROW:]
+
+
+def params() -> list[Any]:
+    return [
+        pytest.param(height, block_hash, serialization, id=vector_id(height, notes))
+        for height, block_hash, serialization, _, _, _, _, notes in _rows()
+    ]
+
+
+def block_at(height: int) -> Block:
+    """The row of that height, parsed under the full validity check."""
+    return next(Block.parse(row[2]) for row in _rows() if row[0] == height)
+
+
+@pytest.mark.parametrize(("height", "block_hash", "serialization"), params())
+def test_blockfilters_block(height: int, block_hash: str, serialization: str) -> None:
+    """Parse each row's block, round-trip it, and check its two claims.
+
+    The hash the row states is what the parsed header must hash to, and
+    the height is the second independent claim in the file: from BIP34
+    on, a block commits its own height into the coinbase script_sig, so
+    `Block.height` can be held to a number btclib did not compute. The
+    four version 1 rows -- genesis, 2, 3 and 15007 -- predate BIP34 and
+    commit nothing, which is `None` here.
+    """
+    block = Block.parse(serialization)
+    assert block.serialize().hex() == serialization
+    assert block == Block.parse(block.serialize())
+    assert block.header.hash.hex() == block_hash
+
+    expected_height = None if block.header.version == 1 else height
+    assert block.height == expected_height
+
+
+def test_an_output_script_can_be_empty() -> None:
+    """Core's "pays to empty output script", and the "empty data" row.
+
+    A zero-length script_pub_key is a var_bytes of zero and nothing
+    else, so it is the shape a length-driven parser is most likely to
+    mishandle -- and it is spendable by anyone, which is why the chain
+    holds so few of them.
+    """
+    empty = [
+        (out.value, out.script_pub_key.script)
+        for height in (49291, 1414221)
+        for tx in block_at(height).transactions
+        for out in tx.vout
+        if not out.script_pub_key.script
+    ]
+    assert empty == [(50000000, b""), (78125000, b"")]
+
+
+def test_a_coinbase_output_script_need_not_parse() -> None:
+    """Core's row for a coinbase output script no parser can read.
+
+    A script_pub_key is bytes the consensus rules never execute unless
+    something spends it, so a block carrying one that no parser can read
+    is valid: the block-level checks are over the bytes. btclib says so
+    twice -- `assert_valid` accepts the block, and the rendering marks
+    where the opcodes stop making sense rather than raising.
+    """
+    coinbase = block_at(987876).transactions[0]
+    assert coinbase.is_coinbase()
+    script_pub_key = coinbase.vout[0].script_pub_key
+    assert script_pub_key.asm[-2:] == ["UNKNOWN_OP_CODE_216", "[error]"]
+    assert script_pub_key.type == "unknown"
+
+
+def test_the_witness_row_commits_to_its_witnesses() -> None:
+    """Core's "includes witness data", the one segwit row of the file.
+
+    `Block.parse` above already asserted it, `assert_valid` checking the
+    BIP141 commitment for any block with a witness; naming it here is
+    what says the row was chosen for that and would be missed if it went.
+    """
+    block = block_at(1263442)
+    assert block.has_segwit_tx()
+    assert block.witness_commitment is not None

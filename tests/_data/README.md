@@ -107,7 +107,8 @@ was possible at all. The files vendored since are the exception by date
 alone, all of them taken at the tip of their path on 2026-08-02, which is
 what their `pulled` says: the eight BIP327 files, the three Core files
 `key_io_valid.json`, `key_io_invalid.json` and `base58_encode_decode.json`,
-and the two python-bitcoinlib block files added here.
+and the two python-bitcoinlib block files added here; Core's
+`blockfilters.json` followed on 2026-08-03, at the tip of its path too.
 
 A vector btclib fails is vendored anyway and marked `xfail`, never left
 out: an absent vector hides the defect it would have shown, and
@@ -462,6 +463,37 @@ what reads them is `base58._b58encode`/`_b58decode` and not the checked
 `b58encode`/`b58decode` — one row is 256 bytes, 348 base58 characters,
 which the checked decoder would refuse on `MAX_LENGTH` before looking at
 it.
+
+### `tests/block/_data/blockfilters.json`
+
+```text
+repo    bitcoin/bitcoin
+path    src/test/data/blockfilters.json
+commit  c7efb652f3543b001b4dd22186a354605b14f47e  2019-04-06
+blob    8945296a079b984d65b0aeb4a3e9b0798df075e0
+pulled  2026-08-03
+behind  0 revisions; that commit is the tip of the path
+```
+
+Verdict: **identical**. Core's BIP158 vector file, vendored whole and
+read in part: every row carries a height, a block hash and a full
+serialized block before its filter columns, and `blockfilters_test.py`
+reads those three. All ten blocks parse under the full validity check,
+round-trip byte for byte, hash to the hash the row states, and the six
+that postdate BIP34 commit the height the row states.
+
+btclib implements no block filter, so the filter columns are unread. The
+file is here under its own name anyway rather than as a btclib-named
+extract of the block column: a btclib name has no upstream name to be
+compared against, which is what the naming section above is about, and
+the whole file is 17,816 bytes.
+
+The ten are testnet, where the four blocks of `tests/block/_data/` are
+mainnet, and Core picked them for the shapes their scripts have: a
+coinbase output script no parser can read, an output paying to an empty
+script and a transaction spending from one, duplicate pushdata, witness
+data, and genesis. None of them is invalid — every row is a block the
+chain accepted.
 
 ### `tests/_data/descriptor_checksums.json`
 
@@ -1077,8 +1109,9 @@ Against a pinned upstream blob:
   `taproot_test_vector.json`, `sig_hash_legacy_test_vectors.json`,
   `script_tests.json`, `tx_valid.json`, `tx_invalid.json`,
   `key_io_valid.json`, `key_io_invalid.json`,
-  `base58_encode_decode.json`, `checkblock_valid.json`,
-  `checkblock_invalid.json`, and the eight BIP327 vector files.
+  `base58_encode_decode.json`, `blockfilters.json`,
+  `checkblock_valid.json`, `checkblock_invalid.json`, and the eight
+  BIP327 vector files.
 - identical but for a trailing newline:
   `script_assets_test.json`, `vectors.json`.
 - identical but for CRLF against LF: `bip340_test_vectors.csv`.
