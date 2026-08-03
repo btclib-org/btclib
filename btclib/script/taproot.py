@@ -26,7 +26,7 @@ from btclib.alias import (
     TaprootScriptTree,
 )
 from btclib.curves import Curve, bytes_from_prv_key_int, mult, secp256k1
-from btclib.curves.curve import _libsecp256k1_applicable
+from btclib.curves.curve import _libsecp256k1_applicable, _y_even
 from btclib.exceptions import BTClibValueError
 from btclib.hashes import tagged_hash
 from btclib.script.limits import MAX_SCRIPT_ELEMENT_SIZE
@@ -277,12 +277,15 @@ def check_output_pubkey(
         except ValueError as e:
             # an internal key that is not a point leaves the bindings
             # through a plain ValueError and the Python path below
-            # through the BTClibValueError of ec.y_even. The engine
+            # through the BTClibValueError of _y_even. The engine
             # catches the library's own error, so the two must agree on
             # what they raise as well as on what they answer
             raise BTClibValueError(f"invalid internal public key: {e}") from e
 
-    P = (p, secp256k1.y_even(p))
+    # _y_even, i.e. ec.y_even with the lift delegated: this is the path a
+    # q of any other length takes, secp256k1 included, so the modular
+    # square root is worth not taking here either
+    P = (p, _y_even(p, secp256k1))
     Q = secp256k1.add(P, mult(t))
     return Q[0] == int.from_bytes(q, "big") and control[0] & 1 == Q[1] % 2
 

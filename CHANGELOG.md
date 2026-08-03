@@ -2596,6 +2596,43 @@ edit.
 
 ### Performance
 
+- **verification takes no Python square root any more** (issue #284):
+  `dsa.verify_` is 21.7 µs against 244, `ssa.verify_` 21.1 against 243,
+  `bms.sign` 24 against the 102 the recovery module had left and
+  `bms.verify` 25 against 97, `dsa.recover_pub_key` 22 against 95, and
+  BIP340 batch verification of four signatures 158 µs against 739. None of
+  it is new arithmetic. A compressed public key is "this x, and the y that
+  goes with it", which is the question every one of those was asking
+  `ec.y` in Python — one modular square root on a 256-bit modulus, 75 µs,
+  where `ec_pubkey_parse` answers it of `0x02 || x` in 2.4 and hands the y
+  back, serialized uncompressed, in 2.9. Two private functions of
+  `curves.curve` hold the dispatch: `_is_x_coordinate` for a caller with
+  no use for the y — the congruence check of `dsa.Sig`, where r is a
+  scalar and every `x = r + j*ec.n` below `ec.p` is a candidate, so the
+  loop stays btclib's and only the question inside it is delegated — and
+  `_y_even` for the lift itself, which is `point_from_octets`'s compressed
+  branch, `ssa`'s x-only keys and the r of its signatures, the candidate
+  x of public key recovery, and taproot's internal key on the path an
+  output key of any size but 32 bytes takes. `ec.y` and `ec.y_even` are
+  untouched, and both functions fall back to them: for a curve that is not
+  secp256k1, for an x outside the field, and to phrase the refusal, since
+  "invalid x-coordinate" naming the value is what the bindings' bare
+  `ValueError` cannot do. Two of the roots were not delegated but dropped:
+  `Sig.serialize` validates before it writes and both `assert_as_valid_`
+  have just validated, so they serialize with `check_validity=False`, 0.54
+  µs against 3.1 for ECDSA and 0.14 against 3.1 for BIP340.
+  `pub_keyinfo_from_pub_key` loses a round trip besides — for octets in,
+  `compressed` is a filter on the form they may be in and not a conversion
+  to it, so `bytes_from_point(point_from_octets(sec))` gave back the bytes
+  it was handed and what the caller wanted of it was the proof that they
+  are a key: `ec_pubkey_parse` and nothing else, 2.4 µs against 4.4, and
+  the very call libsecp256k1 makes on those bytes if they go on to its
+  `ecdsa_verify`. The refusals are what the tests hold the two
+  implementations to, being half of the inputs: of the 400 smallest field
+  elements 208 are not x-coordinates, and both refuse each of them with
+  the same message. The uncompressed serialization BIP32 public
+  derivation asks the bindings for is still the right one, but by 3.2 µs
+  against 1.2 rather than by 74
 - **message signing goes through libsecp256k1's recovery module** (issue
   #269): `bms.sign` is 102 µs against 4360, `bms.verify` 97 against 2782,
   both the mean over 40 random keys. The signing gain is not a faster

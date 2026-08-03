@@ -458,8 +458,10 @@ def __pub_key_derivation(xkey: _BIP32KeyData, index: int) -> None:
     # the child's come out, with no point built on either side.
     # Uncompressed on the way out, deliberately: the y coordinate is
     # what the cached point needs, and recovering it from a compressed
-    # key would be the modular square root of point_from_octets, some
-    # 74 us to undo a serialization libsecp256k1 had just made.
+    # key would be the lift of point_from_octets, 3.2 us against the 1.2
+    # of reading the y out of octets libsecp256k1 has already written --
+    # a lift the bindings answer rather than a modular square root, which
+    # is what makes the two comparable at all.
     #
     # Not gated on the curve, BIP32 being defined for secp256k1 alone
     try:

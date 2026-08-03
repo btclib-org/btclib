@@ -79,6 +79,7 @@ from btclib.curves import Curve, secp256k1
 from btclib.curves.curve import (
     _jac_double_mult,
     _libsecp256k1_applicable,
+    _y_even,
     mult,
     multi_mult,
 )
@@ -137,8 +138,14 @@ class Sig:
             self.assert_valid()
 
     def assert_valid(self) -> None:
-        # r is a field element, fail if r is not a valid x-coordinate
-        self.ec.y(self.r)
+        # r is a field element, fail if r is not a valid x-coordinate.
+        # Asking for the y is how that is asked, and the y is discarded:
+        # BIP340 fixes it even, and verification recomputes the point from
+        # the scalars rather than lifting this r. Through the delegating
+        # lift of curves.curve, 2.9 us against 75 -- and no congruence
+        # loop, r being a field element here and not a scalar reduced mod
+        # n as it is in dsa.Sig
+        _y_even(self.r, self.ec)
 
         # s is a scalar, fail if s is not in [0, n-1]
         if not 0 <= self.s < self.ec.n:
@@ -180,19 +187,24 @@ def point_from_bip340pub_key(x_Q: BIP340PubKey, ec: Curve = secp256k1) -> Point:
     - BIP340 Octets (bytes or hex-string, p-size Point x-coordinate)
     - native tuple
     """
+    # every branch below ends in the same lift, an x-only key being an x
+    # and the even y that goes with it: _y_even is ec.y_even answered by
+    # libsecp256k1 for secp256k1, 2.9 us against the 75 of a modular
+    # square root, and the Python one for every other curve
+
     # BIP 340 key as integer
     if isinstance(x_Q, int):
-        return x_Q, ec.y_even(x_Q)
+        return x_Q, _y_even(x_Q, ec)
 
     # (tuple) Point, (dict or str) BIP32Key, or 33/65 bytes
     with contextlib.suppress(BTClibValueError):
         x_Q = point_from_pub_key(x_Q, ec)[0]
-        return x_Q, ec.y_even(x_Q)
+        return x_Q, _y_even(x_Q, ec)
     # BIP 340 key as bytes or hex-string
     if isinstance(x_Q, (str, bytes)):
         Q = bytes_from_octets(x_Q, ec.p_size)
         x_Q = int.from_bytes(Q, "big", signed=False)
-        return x_Q, ec.y_even(x_Q)
+        return x_Q, _y_even(x_Q, ec)
 
     raise BTClibTypeError("not a BIP340 public key")
 
@@ -428,8 +440,8 @@ def _assert_as_valid_(c: int, QJ: JacPoint, r: int, s: int, ec: Curve) -> None:
     # message that is not 32 bytes above all, which is issue 169 and four
     # of BIP340's own vectors -- and on secp256k1 the multiplication is
     # still theirs, 28 us against 1.02 ms. This whole verification is then
-    # 183 us against 1.17 ms, most of what is left being the y_even that
-    # lifts the r of the signature back to a point
+    # 38 us against 1.17 ms, the two lifts around it -- the r of the
+    # signature and the x-only key -- being theirs as well
     KJ = _jac_double_mult(ec.n - c, QJ, s, ec.GJ, ec)
 
     # The following check is prescribed by BIP340 but it is useless:
@@ -498,7 +510,13 @@ def assert_as_valid_(
     # runs, not whether the answer is no
     if len(msg) == 32 and _libsecp256k1_applicable(sig.ec, hf):
         pubkey_bytes = x_Q.to_bytes(32, "big")
-        if not libsecp256k1_ssa.verify(msg, pubkey_bytes, sig.serialize()):
+        # check_validity=False, because assert_valid has just run above --
+        # on the Sig handed in, or inside the Sig.parse that made one. What
+        # it would run again is the lift of r, which is not free even
+        # delegated: 0.14 us against 3.1, of a verification that is 21 in
+        # total
+        sig_bytes = sig.serialize(check_validity=False)
+        if not libsecp256k1_ssa.verify(msg, pubkey_bytes, sig_bytes):
             raise BTClibRuntimeError("signature verification failed")
         return
 
@@ -589,7 +607,7 @@ def _recover_pub_key_(c: int, r: int, s: int, ec: Curve) -> int:
     if c == 0:
         raise BTClibRuntimeError("invalid zero challenge")
 
-    KJ = r, ec.y_even(r), 1
+    KJ = r, _y_even(r, ec), 1
 
     e1 = mod_inv(c, ec.n)
     QJ = double_mult_w_NAF(ec.n - e1, KJ, e1 * s, ec.GJ, ec)
@@ -633,7 +651,7 @@ def assert_batch_as_valid_(
         # any size, as in sign_ and assert_as_valid_
         msg = bytes_from_octets(msg)
 
-        K = sig.r, ec.y_even(sig.r)
+        K = sig.r, _y_even(sig.r, ec)
 
         x_Q, y_Q = point_from_bip340pub_key(Q, ec)
 
@@ -658,9 +676,9 @@ def assert_batch_as_valid_(
     # that hands the bindings many scalars at once, libsecp256k1 exposing
     # no batch verification of its own. Four signatures, i.e. the eight
     # terms above: 2.4 ms of Python arithmetic against 122 us, and
-    # assert_batch_as_valid_ as a whole 3.4 ms against 739 us -- most of
-    # what is left being one y_even per signature, 74 us of modular
-    # square root to lift an r back to a point. The two affine
+    # assert_batch_as_valid_ as a whole 3.4 ms against 158 us -- what is
+    # left being two lifts and a challenge per signature, some 9 us of
+    # which the lifts are libsecp256k1's. The two affine
     # conversions the equality costs on every other curve are one modular
     # inversion each, next to a multi_mult of all the terms
     if mult(t, ec=ec) != multi_mult(scalars, points, ec):

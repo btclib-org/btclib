@@ -41,9 +41,11 @@ from btclib.curves.curve import (
     SEC2v1_params2,
     SEC2v2,
     SEC2v2_params2,
+    _is_x_coordinate,
     _libsecp256k1_applicable,
     _libsecp256k1_multi_mult_,
     _sec_from_point,
+    _y_even,
 )
 
 # cached_multiples and jac_from_aff are implementation helpers of
@@ -903,7 +905,7 @@ def no_bindings(monkeypatch: pytest.MonkeyPatch) -> None:
     instead of quietly measuring the bindings against themselves.
     """
 
-    def refuse(*_: object) -> bytes:
+    def refuse(*_: object, **__: object) -> bytes:
         # a green suite is one where this never runs: the pragma is the
         # same one borromean and bms carry, for a line the arithmetic --
         # here the dispatch above it -- rules out
@@ -915,6 +917,8 @@ def no_bindings(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(curve, "libsecp256k1_mult", refuse)
     monkeypatch.setattr(curve, "libsecp256k1_pubkey_tweak_mul", refuse)
     monkeypatch.setattr(curve, "libsecp256k1_pubkey_combine", refuse)
+    monkeypatch.setattr(curve, "libsecp256k1_pubkey_parse", refuse)
+    monkeypatch.setattr(curve, "libsecp256k1_pubkey_serialize", refuse)
 
 
 def test_libsecp256k1_arbitrary_point() -> None:
@@ -1030,3 +1034,77 @@ def test_libsecp256k1_multi_mult_bytes() -> None:
     assert _libsecp256k1_multi_mult_([5], [sec]) == _sec_from_point(mult(5, H))
     assert _libsecp256k1_multi_mult_([5, 3], [sec, sec]) == _sec_from_point(mult(8, H))
     assert _libsecp256k1_multi_mult_([5, secp256k1.n - 5], [sec, sec]) is None
+
+
+@pytest.mark.parametrize("bindings", [True, False], ids=["bindings", "python"])
+def test_x_coordinate_lift(bindings: bool, monkeypatch: pytest.MonkeyPatch) -> None:
+    """The two delegated square roots, against the Python arithmetic.
+
+    A compressed public key is "this x, and the y that goes with it", so
+    ec_pubkey_parse answers both of the questions `_is_x_coordinate` and
+    `_y_even` ask (issue 284) -- and `ec.y_even` is what they are held
+    against, over the 400 smallest field elements, of which 208 are not
+    x-coordinates at all. It is those that have to be checked: an
+    implementation accepting one would take a public key consensus
+    refuses, and the two do not even fail alike -- the bindings raise a
+    bare ValueError where btclib names the offending value.
+
+    A spread fixed by construction rather than a random draw, so that a
+    failure is the same failure tomorrow, and the same one asserted of
+    both implementations.
+    """
+    if not bindings:
+        no_bindings(monkeypatch)
+
+    ec = secp256k1
+    refused = 0
+    for x in range(400):
+        try:
+            y_even = ec.y_even(x)
+        except BTClibValueError as e:
+            refused += 1
+            python_msg = str(e)
+            assert not _is_x_coordinate(x, ec)
+            # the message names the value, which is why the refusal stays
+            # curve_group's to phrase rather than the bindings' to raise
+            with pytest.raises(BTClibValueError, match="invalid x-coordinate: ") as err:
+                _y_even(x, ec)
+            assert str(err.value) == python_msg
+        else:
+            assert _is_x_coordinate(x, ec)
+            assert _y_even(x, ec) == y_even
+            assert y_even % 2 == 0
+            assert ec.is_on_curve((x, y_even))
+    assert refused == 208
+
+    # the x of a point, which is the case every caller has
+    assert _is_x_coordinate(ec.G[0], ec)
+    assert _y_even(ec.G[0], ec) == ec.G[1]
+
+    # outside the field, where there is no x-coordinate to have and no
+    # p-size serialization to ask the bindings about either
+    for x in (-1, ec.p, ec.p + 1, 2**256):
+        assert not _is_x_coordinate(x, ec)
+        with pytest.raises(BTClibValueError, match="x-coordinate not in 0..p-1"):
+            _y_even(x, ec)
+
+
+def test_x_coordinate_lift_of_every_other_curve() -> None:
+    """No curve but secp256k1 has bindings to reach, so ec.y answers.
+
+    Exhaustively on a low-cardinality curve, where every field element is
+    a candidate and the answer is the Python arithmetic by construction:
+    what is asserted is that the two functions are that arithmetic, the
+    default argument of secp256k1 not having leaked into either.
+    """
+    for ec in (CURVES["secp256r1"], low_card_curves["ec13_11"]):
+        for x in range(min(ec.p, 24)):
+            try:
+                y_even = ec.y_even(x)
+            except BTClibValueError:
+                assert not _is_x_coordinate(x, ec)
+                with pytest.raises(BTClibValueError, match="x-coordinate"):
+                    _y_even(x, ec)
+            else:
+                assert _is_x_coordinate(x, ec)
+                assert _y_even(x, ec) == y_even
