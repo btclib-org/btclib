@@ -413,17 +413,16 @@ def _random_int_entropy(lang: str) -> int:
     """Return the entropy electrum's make_seed draws when given none.
 
     132 bits rounded up to whole words, with anything below one word less
-    drawn again: that is what makes the leading word uniformly
-    distributed and the sentence twelve words long. secrets.randbits(128)
-    instead leaves the word count to follow the bit length, and the word
-    count is the one thing about the answer a caller cannot correct
-    afterwards.
+    drawn again: that is electrum's guard against a short sentence.
+    secrets.randbits(128) instead leaves the word count to follow the bit
+    length, and the word count is the one thing about the answer a caller
+    cannot correct afterwards.
 
     Bits per word is a float, as it is in electrum: for a 2048-word list
-    it is 11.0 and the rounding is exact, but Portuguese has 1626 words
-    and 10.667 bits, thirteen of which are 138 bits and not 130. int() on
-    it would round the sentence down to twelve words, i.e. to a mnemonic
-    electrum would never draw.
+    it is 11.0 and the rounding is exact. Portuguese has 1626 words and
+    10.667 bits, so the lower bound is below the first integer that needs
+    thirteen words. A small share of accepted draws therefore has twelve
+    words, exactly as it does in electrum.
     """
     bits_per_word = math.log2(ELECTRUM_WORDLISTS.language_length(lang))
     nbits = int(math.ceil(_RANDOM_ENTROPY_BITS / bits_per_word) * bits_per_word)
