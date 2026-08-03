@@ -768,6 +768,31 @@ def _search_key_id(magic_msg: bytes, dsa_sig: dsa.Sig, q: int) -> int:
     raise AssertionError("no key_id recovers the public key")
 
 
+def test_the_key_id_search_reports_a_key_it_cannot_reach() -> None:
+    """The helper above raises rather than answer, and this is why it can.
+
+    The counterpart of `test_a_key_id_that_recovers_nothing` below: that
+    one is a candidate recovering *no* key, this one is every candidate
+    recovering a key that is not the one asked for. Untested, the
+    fallthrough would be the single line of the cross-check that never
+    runs -- and a search answering 0 for a key it never found would make
+    the callers above agree with the recovery flag for the wrong reason.
+    """
+    msg = b"a message"
+    wif, _addr = bms.gen_keys()
+    bms_sig = bms.sign(msg, wif)
+    magic_msg = magic_message(msg)
+
+    # somebody else's private key: the signature is valid, and none of its
+    # candidates recovers this q's public key
+    other_wif, _other_addr = bms.gen_keys()
+    other_q = prv_keyinfo_from_prv_key(other_wif)[0]
+
+    err_msg = "no key_id recovers the public key"
+    with pytest.raises(AssertionError, match=err_msg):
+        _search_key_id(magic_msg, bms_sig.dsa_sig, other_q)
+
+
 def test_a_key_id_that_recovers_nothing() -> None:
     """The dropped candidate, which is why the helper above returns None.
 
