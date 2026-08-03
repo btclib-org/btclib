@@ -151,10 +151,23 @@ def test_a_finalized_input_drops_everything_the_finalizer_consumed() -> None:
         "final_script_witness": Witness([b"\x01"]),
         "unknown": {b"\xfc\x01": b"\x02"},
     }
-    # the two dicts and the final script_sig are the whole of an input, so
-    # a field added to PsbtIn and to neither of them fails here rather
-    # than going untested in both directions
-    assert values.keys() | kept.keys() | {"final_script_sig"} == {
+    # the five BIP370 fields are in neither set, and finalization is not
+    # what decides them: an input writes them when its psbt is version 2
+    # and folds them into the unsigned transaction when it is version 0,
+    # so a finalized input carries them still -- an Extractor needs the
+    # outpoint as much as it needs the utxo
+    v2_only: dict[str, Any] = {
+        "previous_tx_id": b"\x01" * 32,
+        "output_index": 0,
+        "sequence": 0xFFFFFFFF,
+        "required_time_lock_time": 500_000_000,
+        "required_height_lock_time": 1,
+    }
+
+    # the three dicts and the final script_sig are the whole of an input,
+    # so a field added to PsbtIn and to none of them fails here rather
+    # than going untested in every direction
+    assert values.keys() | kept.keys() | v2_only.keys() | {"final_script_sig"} == {
         field.name for field in fields(PsbtIn)
     }
 
@@ -176,6 +189,15 @@ def test_a_finalized_input_drops_everything_the_finalizer_consumed() -> None:
             **{name: value}, final_script_sig=b"\x51", check_validity=False
         )
         assert psbt_in.serialize(check_validity=False) != bare
+    # the version and not the finalization: nothing of them in a version
+    # 0 map, where the unsigned transaction is where they go, and a field
+    # each in a version 2 one, finalized as this input is
+    for name, value in v2_only.items():
+        psbt_in = PsbtIn(
+            **{name: value}, final_script_sig=b"\x51", check_validity=False
+        )
+        assert psbt_in.serialize(check_validity=False) == bare
+        assert psbt_in.serialize(psbt_version=2, check_validity=False) != bare
 
     # and all of them at once, which is the input a Finalizer hands on
     finalized = PsbtIn(**values, **kept, final_script_sig=b"\x51", check_validity=False)

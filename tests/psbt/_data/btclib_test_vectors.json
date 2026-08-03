@@ -2,33 +2,28 @@
     "invalid psbts": [
         {
             "description": "PSBT with a global version of 1, and only version 0 is handled",
-            "error message": "invalid non-zero version: 1",
+            "error message": "invalid psbt version: 1",
             "encoded psbt": "cHNidP8BAJoCAAAAAljoeiG1ba8MI76OcHBFbDNvfLqlyHV5JPVFiHuyq911AAAAAAD/////g40EJ9DsZQpoqka7CwmK6kQiwHGyyng1Kgd5WdB86h0BAAAAAP////8CcKrwCAAAAAAWABTYXCtx0AYLCcmIauuBXlCZHdoSTQDh9QUAAAAAFgAUAK6pouXw+HaliN9VRuh0LR2HAI8AAAAAAfsEAQAAAAAAAAAA"
         },
         {
             "description": "PSBT whose magic bytes lost the 0xff that ends them",
             "error message": "malformed psbt: missing magic bytes",
             "encoded psbt": "cHNidAABAJoCAAAAAljoeiG1ba8MI76OcHBFbDNvfLqlyHV5JPVFiHuyq911AAAAAAD/////g40EJ9DsZQpoqka7CwmK6kQiwHGyyng1Kgd5WdB86h0BAAAAAP////8CcKrwCAAAAAAWABTYXCtx0AYLCcmIauuBXlCZHdoSTQDh9QUAAAAAFgAUAK6pouXw+HaliN9VRuh0LR2HAI8AAAAAAAAAAAA="
-        }
-    ],
-    "invalid psbt objects": [
-        {
-            "description": "PSBT with one input map fewer than the unsigned tx has inputs",
-            "mutation": "drop an input",
-            "error message": "mismatched number of psb.tx.vin and psb.inputs: 2 vs 1",
-            "encoded psbt": "cHNidP8BAJoCAAAAAljoeiG1ba8MI76OcHBFbDNvfLqlyHV5JPVFiHuyq911AAAAAAD/////g40EJ9DsZQpoqka7CwmK6kQiwHGyyng1Kgd5WdB86h0BAAAAAP////8CcKrwCAAAAAAWABTYXCtx0AYLCcmIauuBXlCZHdoSTQDh9QUAAAAAFgAUAK6pouXw+HaliN9VRuh0LR2HAI8AAAAAAAAAAAA="
         },
         {
-            "description": "PSBT whose unsigned tx carries a witness on its first input",
-            "mutation": "witness the unsigned tx",
+            "description": "PSBT whose unsigned tx carries a script_sig on its first input",
             "error message": "non empty script_sig or witness",
-            "encoded psbt": "cHNidP8BAJoCAAAAAljoeiG1ba8MI76OcHBFbDNvfLqlyHV5JPVFiHuyq911AAAAAAD/////g40EJ9DsZQpoqka7CwmK6kQiwHGyyng1Kgd5WdB86h0BAAAAAP////8CcKrwCAAAAAAWABTYXCtx0AYLCcmIauuBXlCZHdoSTQDh9QUAAAAAFgAUAK6pouXw+HaliN9VRuh0LR2HAI8AAAAAAAAAAAA="
+            "encoded psbt": "cHNidP8BAJ8CAAAAAljoeiG1ba8MI76OcHBFbDNvfLqlyHV5JPVFiHuyq911AAAAAAUBAgMEBf////+DjQQn0OxlCmiqRrsLCYrqRCLAcbLKeDUqB3lZ0HzqHQEAAAAA/////wJwqvAIAAAAABYAFNhcK3HQBgsJyYhq64FeUJkd2hJNAOH1BQAAAAAWABQArqmi5fD4dqWI31VG6HQtHYcAjwAAAAAAAAAAAA=="
         },
         {
-            "description": "PSBT with one output map fewer than the unsigned tx has outputs",
-            "mutation": "drop an output",
-            "error message": "mismatched number of psb.tx.vout and psbt.outputs: 2 vs 1",
-            "encoded psbt": "cHNidP8BAJoCAAAAAljoeiG1ba8MI76OcHBFbDNvfLqlyHV5JPVFiHuyq911AAAAAAD/////g40EJ9DsZQpoqka7CwmK6kQiwHGyyng1Kgd5WdB86h0BAAAAAP////8CcKrwCAAAAAAWABTYXCtx0AYLCcmIauuBXlCZHdoSTQDh9QUAAAAAFgAUAK6pouXw+HaliN9VRuh0LR2HAI8AAAAAAAAAAAA="
+            "description": "PSBTv2 whose PSBT_GLOBAL_OUTPUT_COUNT is one more than the output maps",
+            "error message": "malformed psbt: at least a map is missing",
+            "encoded psbt": "cHNidP8BAgQCAAAAAQQBAQEFAQMB+wQCAAAAAAEOIAsK2SFBnByHGXNdctxzn56p4GONH+TB7vD5lECEgV/IAQ8EAAAAAAABAwgACK8vAAAAAAEEFgAUxDD2TEdW2jENvRoIVXLvKZkmJywAAQMIi73rCwAAAAABBBYAFE3Rk6yWSlasG54cyoRU/i9HT4UTAA=="
+        },
+        {
+            "description": "PSBTv2 whose PSBT_GLOBAL_OUTPUT_COUNT is one fewer than the output maps",
+            "error message": "malformed psbt: 37 bytes after the psbt",
+            "encoded psbt": "cHNidP8BAgQCAAAAAQQBAQEFAQEB+wQCAAAAAAEOIAsK2SFBnByHGXNdctxzn56p4GONH+TB7vD5lECEgV/IAQ8EAAAAAAABAwgACK8vAAAAAAEEFgAUxDD2TEdW2jENvRoIVXLvKZkmJywAAQMIi73rCwAAAAABBBYAFE3Rk6yWSlasG54cyoRU/i9HT4UTAA=="
         }
     ],
     "invalid combinations": [

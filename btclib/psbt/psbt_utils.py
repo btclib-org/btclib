@@ -121,6 +121,64 @@ def deserialize_int(k: bytes, v: bytes, type_: str) -> int:
     return int.from_bytes(v, byteorder="little", signed=False)
 
 
+def deserialize_sized_int(
+    k: bytes, v: bytes, type_: str, size: int, *, signed: bool = False
+) -> int:
+    """Return the int of a little-endian value of exactly `size` octets.
+
+    The size check is what deserialize_int does not make, and every
+    BIP370 field needs it: a four-byte field written in five octets
+    deserializes to the same integer and serializes back to four, which
+    is one psbt with two encodings -- the malleability _read_exactly
+    refuses a level down, where the length is the map's rather than the
+    field's.
+
+    signed=True for the two values the BIPs define as signed, the
+    transaction version and an output's amount.
+    """
+    if len(k) != 1:
+        err_msg = f"invalid {type_} key length: {len(k)}"
+        raise BTClibValueError(err_msg)
+    if len(v) != size:
+        err_msg = f"invalid {type_} length: {len(v)} bytes instead of {size}"
+        raise BTClibValueError(err_msg)
+    return int.from_bytes(v, byteorder="little", signed=signed)
+
+
+def deserialize_count(k: bytes, v: bytes, type_: str) -> int:
+    """Return the count a compact size uint value holds.
+
+    The two BIP370 counts are compact size, not fixed width, so the size
+    check of deserialize_sized_int does not apply; what takes its place
+    is that the whole value has to be the number. var_int.parse refuses
+    a non-canonical encoding on its own, and octets left after it would
+    be the same malleability by another route.
+    """
+    if len(k) != 1:
+        err_msg = f"invalid {type_} key length: {len(k)}"
+        raise BTClibValueError(err_msg)
+    stream = BytesIO(v)
+    count = var_int.parse(stream)
+    if stream.read():
+        err_msg = f"invalid {type_}: {len(v)} bytes for a {len(var_int.serialize(count))}-byte count"
+        raise BTClibValueError(err_msg)
+    return count
+
+
+def serialize_count(type_: bytes, count: int) -> bytes:
+    """Return the binary representation of a compact size uint field."""
+    return serialize_bytes(type_, var_int.serialize(count))
+
+
+def serialize_sized_int(
+    type_: bytes, value: int, size: int, *, signed: bool = False
+) -> bytes:
+    """Return the binary representation of a fixed-size integer field."""
+    return serialize_bytes(
+        type_, value.to_bytes(size, byteorder="little", signed=signed)
+    )
+
+
 def encode_dict_bytes_bytes(dict_: Mapping[bytes, bytes]) -> dict[str, str]:
     """Return the json representation of the dataclass element."""
     # unknown could be sorted, partial_sigs cannot
@@ -370,11 +428,9 @@ def assert_not_a_v2_field(
     defined and the wrong one for a type byte this BIP defines and
     forbids here.
 
-    Version 0 alone is refused. btclib reads no other version, so a
-    version 2 psbt is answered by what it does not carry -- the unsigned
-    transaction of BIP174 -- until version 2 is implemented (issue #265),
-    and these tables are then what tells its type bytes apart from the
-    unknown ones.
+    Version 0 alone is refused: in a version 2 psbt these type bytes are
+    the fields the parse is looking for, and the tables are what names
+    them there too.
     """
     if psbt_version == 0 and (name := v2_fields.get(key_type)):
         raise BTClibValueError(f"{name} is not allowed in a v0 psbt")

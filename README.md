@@ -110,6 +110,11 @@ Included features are:
 - [BIP174](https://github.com/bitcoin/bips/blob/master/bip-0174.mediawiki)
   partially signed bitcoin transactions (PSBT):
   PsbtIn, PsbtOut, and Psbt data classes
+- [BIP370](https://github.com/bitcoin/bips/blob/master/bip-0370.mediawiki)
+  PSBT version 2, where the unsigned transaction is computed from the
+  fields rather than carried as one: the lock time its inputs require,
+  the identifier that ignores their sequences, the modifiable flags a
+  Constructor must obey, and conversion either way
 - fee rates carrying their unit (sat/kvB and sat/vB), the fee a virtual
   size owes at one, and the dust threshold of any output type — computed
   the way Bitcoin Core computes it, rather than tabulated

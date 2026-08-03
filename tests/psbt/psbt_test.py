@@ -11,7 +11,7 @@
 
 import base64
 import inspect
-from collections.abc import Callable
+from copy import deepcopy
 from io import BytesIO
 from typing import Any
 
@@ -22,13 +22,24 @@ from btclib.curves import sec_point
 from btclib.ecc import dsa
 from btclib.exceptions import BTClibValueError
 from btclib.hashes import hash160, hash256, ripemd160, sha256
-from btclib.psbt import Psbt, combine_psbts, extract_tx, finalize_psbt, join_psbts
+from btclib.psbt import (
+    Psbt,
+    PsbtIn,
+    combine_psbts,
+    extract_tx,
+    finalize_psbt,
+    join_psbts,
+)
 from btclib.psbt.psbt import (
     _V2_GLOBAL_FIELDS,
+    HAS_SIG_HASH_SINGLE,
+    INPUTS_MODIFIABLE,
+    OUTPUTS_MODIFIABLE,
     _sig_hash_from_psbt_in,
-    _sort_or_shuffle_together,
+    _sort_or_shuffle,
 )
 from btclib.psbt.psbt_in import _V2_FIELDS as _V2_INPUT_FIELDS
+from btclib.psbt.psbt_in import LOCK_TIME_THRESHOLD
 from btclib.psbt.psbt_out import _V2_FIELDS as _V2_OUTPUT_FIELDS
 from btclib.script import ScriptPubKey, Witness, serialize, sig_hash
 from btclib.script.engine import verify_transaction
@@ -119,16 +130,14 @@ def test_invalid_psbt_bip370(test_vector: dict[str, str]) -> None:
 
     Half of the twenty-four are a version 0 psbt carrying one of the
     twelve fields BIP370 defines, and each names the field it carries:
-    that is a rule a v0 parser can apply on its own, no version 2 needed
-    (issue #265).
+    that is a rule a v0 parser can apply on its own, no version 2 needed.
 
-    The other half is a version 2 psbt, and those are refused for what
-    btclib cannot yet read rather than for what the BIP says is wrong
-    with them -- ten of them for the unsigned transaction a v2 psbt has
-    no field for, which is what the twenty-four *valid* ones below are
-    told as well. The message recorded beside each is btclib's own, so
-    the file says which reason each case is refused for, and the day
-    version 2 is read the wrong reasons are the ones that change.
+    The other half is a version 2 psbt, and each of those is refused for
+    what the BIP says is wrong with it: the unsigned transaction version
+    2 excludes, one of the three globals or the four per-map fields it
+    requires, or a required lock time outside the range that makes it
+    one kind of lock time. The message recorded beside each is btclib's
+    own, so the file says what each case is refused for.
     """
     with pytest.raises(BTClibValueError) as excinfo:
         Psbt.b64decode(test_vector["encoded psbt"])
@@ -136,33 +145,41 @@ def test_invalid_psbt_bip370(test_vector: dict[str, str]) -> None:
 
 
 @pytest.mark.parametrize(
-    "test_vector",
-    psbt_vectors("bip370_test_vectors.json", "valid psbts")
-    + psbt_vectors("bip370_test_vectors.json", "lock time psbts"),
-)
-@pytest.mark.xfail(
-    raises=BTClibValueError, strict=True, reason="PSBT v2 is not read (issue #265)"
+    "test_vector", psbt_vectors("bip370_test_vectors.json", "valid psbts")
 )
 def test_valid_psbt_bip370(test_vector: dict[str, str]) -> None:
-    """Every valid psbt of BIP370 is a v2 one, and btclib reads v0.
+    """Every valid psbt of BIP370 is read and written back byte for byte.
 
-    Vendored and marked rather than left out, which is what
-    tests/_data/README.md asks of a vector btclib fails: the marker is
-    strict, so these turn red the day v2 is read and the file is then
-    the acceptance criterion for it.
-
-    The `lock time` beside the second group is the value BIP370's
-    timelock determination must compute -- `null` for the one psbt whose
-    two kinds of locktime cannot be reconciled, which is invalid under
-    that algorithm. Nothing reads it yet, there being no computation to
-    hold it against.
-
-    One statement, where the tests above take two: the decode is what
-    raises, so a second line would never run and the coverage gate --
-    which is at 100 and counts test code too -- would fail on it.
+    Which is more than "it parses": a version 2 psbt is the fields
+    themselves, so an encode that agreed with the BIP on the values and
+    not on how they are written -- their order, the width of each -- is
+    an encode no other implementation would take.
     """
     encoded = test_vector["encoded psbt"]
     assert Psbt.b64encode(Psbt.b64decode(encoded)) == encoded
+
+
+@pytest.mark.parametrize(
+    "test_vector", psbt_vectors("bip370_test_vectors.json", "lock time psbts")
+)
+def test_lock_time_bip370(test_vector: dict[str, Any]) -> None:
+    """The lock time BIP370's algorithm computes, psbt by psbt.
+
+    The `lock time` beside each is the value the BIP publishes for it,
+    and `null` is the one psbt that has no lock time at all: one input
+    requires a height and another a time, and one nLockTime cannot be
+    both -- so what is asserted there is the refusal, which is the same
+    answer `Psbt.tx` and `Psbt.serialize` give it.
+    """
+    psbt = Psbt.b64decode(test_vector["encoded psbt"], check_validity=False)
+    if test_vector["lock time"] is None:
+        err_msg = "no lock time satisfies every input"
+        with pytest.raises(BTClibValueError, match=err_msg):
+            psbt.assert_valid()
+        return
+    assert psbt.lock_time == test_vector["lock time"]
+    psbt.assert_valid()
+    assert psbt.b64encode() == test_vector["encoded psbt"]
 
 
 def test_the_v2_field_tables_hold_bip370s_twelve() -> None:
@@ -220,6 +237,439 @@ def test_a_v2_field_is_refused_wherever_it_sits() -> None:
             Psbt.b64decode(encoded[field])
 
 
+def _bip370_psbt(description: str) -> Psbt:
+    """The valid BIP370 psbt whose description starts with this."""
+    valid = load("psbt", "_data", "bip370_test_vectors.json")["valid psbts"]
+    encoded = next(
+        test_vector["encoded psbt"]
+        for test_vector in valid
+        if test_vector["description"].startswith(description)
+    )
+    return Psbt.b64decode(encoded)
+
+
+def test_a_v2_psbt_is_read_as_the_fields_and_not_as_a_transaction() -> None:
+    """The fields are what a version 2 psbt is, and `tx` is computed.
+
+    Which is the difference the design makes visible: writing into that
+    transaction writes into a copy, so the psbt is unchanged and the
+    next reader sees what the fields say. An outpoint is changed on the
+    input that holds it.
+    """
+    psbt = _bip370_psbt("1 input, 2 output PSBTv2, required fields only")
+    assert psbt.version == 2
+    assert psbt.tx_version == 2
+    assert len(psbt.inputs) == 1
+    assert len(psbt.outputs) == 2
+
+    psbt_in = psbt.inputs[0]
+    assert psbt_in.previous_tx_id.hex() == (
+        "c85f81844094f9f0eec1e41f8d63e0a99e9f73dc725d7319871c9c4121d90a0b"
+    )
+    assert psbt_in.output_index == 0
+    # absent, which BIP370 reads as the final sequence
+    assert psbt_in.sequence is None
+    assert psbt.tx.vin[0].sequence == 0xFFFFFFFF
+    assert psbt.tx.vin[0].prev_out == psbt_in.prev_out
+
+    assert psbt.outputs[0].amount == 800_000_000
+    assert psbt.tx.vout[0].value == 800_000_000
+    assert psbt.tx.vout[0].script_pub_key.script == psbt.outputs[0].script_pub_key
+
+    # the copy, which is the whole point: what is written into it is
+    # written into nothing, and the outpoint is changed on the input
+    tx = psbt.tx
+    tx.vin[0].sequence = 0
+    assert psbt.tx.vin[0].sequence == 0xFFFFFFFF
+    psbt_in.sequence = 0
+    assert psbt.tx.vin[0].sequence == 0
+
+
+def test_the_identifier_of_a_v2_psbt_ignores_the_sequences() -> None:
+    """BIP370's "Unique Identification", and why a Combiner needs it.
+
+    An Updater may set PSBT_IN_SEQUENCE, so two psbts of one transaction
+    can differ by it -- and `tx.id`, which the sequence is part of,
+    would call them two transactions and refuse the combine. The
+    identifier is the txid with every sequence zeroed, so it does not
+    move; a psbt whose *outpoint* differs is a different transaction by
+    either measure.
+    """
+    psbt = _bip370_psbt("1 input, 2 output updated PSBTv2")
+    updated = deepcopy(psbt)
+    updated.inputs[0].sequence = 0xFFFFFFFD
+
+    assert updated.tx.id != psbt.tx.id
+    assert updated.unique_id == psbt.unique_id
+    # the first psbt is the one combined into, and it has no sequence of
+    # its own to keep: what BIP174 lets a Combiner choose between is two
+    # values, and here there is one
+    combined = combine_psbts([deepcopy(psbt), updated])
+    assert combined.inputs[0].sequence == 0xFFFFFFFD
+    assert (
+        combine_psbts([deepcopy(updated), deepcopy(psbt)]).inputs[0].sequence
+        == 0xFFFFFFFD
+    )
+
+    other = deepcopy(psbt)
+    other.inputs[0].output_index = 1
+    with pytest.raises(BTClibValueError, match="mismatched psbt.tx.id: "):
+        combine_psbts([psbt, other])
+
+    # and the two versions are not combined into each other: which of
+    # them the result would be is the caller's to say, with to_v0/to_v2
+    with pytest.raises(BTClibValueError, match="mismatched psbt version: 0 vs 2"):
+        combine_psbts([psbt, psbt.to_v0()])
+
+
+def test_combining_keeps_the_flags_no_more_permissive_than_they_were() -> None:
+    """A combine cannot hand back what a Signer took away.
+
+    The two modifiable bits are the AND of the psbts combined and the
+    Has SIGHASH_SINGLE bit their OR, each in the direction that cannot
+    invent permission: a Signer clears a modifiable bit when it adds a
+    signature a change would break, and sets the third when the
+    signature it added is a SIGHASH_SINGLE one.
+    """
+    both = _bip370_psbt(
+        "1 input, 2 output updated PSBTv2, with all defined PSBT_GLOBAL_TX_MODIFIABLE"
+    )
+    assert both.tx_modifiable == 0b111
+
+    inputs_only = deepcopy(both)
+    inputs_only.tx_modifiable = INPUTS_MODIFIABLE
+    combined = combine_psbts([deepcopy(both), inputs_only])
+    # the inputs stay modifiable, the outputs do not, and the
+    # SIGHASH_SINGLE one of the psbt that has it survives
+    assert combined.tx_modifiable == INPUTS_MODIFIABLE | HAS_SIG_HASH_SINGLE
+
+    # an undefined bit is nobody's to drop
+    undefined = deepcopy(both)
+    undefined.tx_modifiable = 0b1000
+    assert combine_psbts([deepcopy(both), undefined]).tx_modifiable == 0b1100
+
+    # a psbt with no field at all is "nothing may be modified", so it
+    # clears the two bits of the psbt it is combined with
+    absent = deepcopy(both)
+    absent.tx_modifiable = None
+    assert combine_psbts([deepcopy(both), absent]).tx_modifiable == HAS_SIG_HASH_SINGLE
+
+    # and no field on either side stays no field: a combine does not
+    # invent a claim neither psbt made
+    plain = _bip370_psbt("1 input, 2 output updated PSBTv2")
+    assert combine_psbts([plain, deepcopy(plain)]).tx_modifiable is None
+
+
+def test_tx_modifiable_is_what_allows_a_shuffle() -> None:
+    """The Constructor's two bits, honoured by the three helpers.
+
+    Reordering the inputs or the outputs changes the transaction every
+    signature commits to, so a version 2 psbt is asked before it is
+    done. A version 0 psbt has no such field and is not asked: BIP174
+    says nothing about who may reorder what.
+    """
+    psbt = _bip370_psbt("1 input, 2 output updated PSBTv2")
+    assert psbt.tx_modifiable is None
+    with pytest.raises(BTClibValueError, match="the inputs are not modifiable"):
+        psbt.sort_inputs()
+    with pytest.raises(BTClibValueError, match="the outputs are not modifiable"):
+        psbt.sort_outputs()
+
+    inputs_modifiable = _bip370_psbt(
+        "1 input, 2 output updated PSBTv2, with Inputs Modifiable Flag"
+    )
+    assert inputs_modifiable.inputs_modifiable
+    assert not inputs_modifiable.outputs_modifiable
+    inputs_modifiable.sort_inputs()
+    with pytest.raises(BTClibValueError, match="the outputs are not modifiable"):
+        inputs_modifiable.sort_outputs()
+
+    outputs_modifiable = _bip370_psbt(
+        "1 input, 2 output updated PSBTv2, with Outputs Modifiable Flag"
+    )
+    outputs_modifiable.sort_outputs(lambda psbt_out: psbt_out.amount or 0)
+    assert [psbt_out.amount for psbt_out in outputs_modifiable.outputs] == sorted(
+        psbt_out.amount or 0 for psbt_out in outputs_modifiable.outputs
+    )
+    with pytest.raises(BTClibValueError, match="the inputs are not modifiable"):
+        outputs_modifiable.sort_inputs()
+
+    # the third bit refuses both sides whatever the other two say: a
+    # SIGHASH_SINGLE signature commits to the output at its own input's
+    # index, so no permutation preserves it
+    pinned = _bip370_psbt(
+        "1 input, 2 output updated PSBTv2, with all defined PSBT_GLOBAL_TX_MODIFIABLE"
+    )
+    assert pinned.inputs_modifiable
+    assert pinned.outputs_modifiable
+    assert pinned.has_sig_hash_single
+    err_msg = "a SIGHASH_SINGLE signature pins each input to its output"
+    with pytest.raises(BTClibValueError, match=err_msg):
+        pinned.sort_inputs()
+    with pytest.raises(BTClibValueError, match=err_msg):
+        pinned.sort_outputs()
+
+    # a version 0 psbt shuffles as it always has
+    v0 = pinned.to_v0()
+    assert v0.tx_modifiable is None
+    v0.sort_inputs()
+    v0.sort_outputs()
+
+
+def test_joining_asks_every_psbt_whether_it_may_grow() -> None:
+    """A join adds inputs and outputs to each psbt, so each is asked.
+
+    Both flags, of every psbt joined: what comes out has the inputs and
+    the outputs of all of them, so a psbt that may take neither is one
+    the join must refuse rather than quietly rewrite.
+    """
+    first = _bip370_psbt(
+        "1 input, 2 output updated PSBTv2, with all possible PSBT_GLOBAL_TX_MODIFIABLE"
+    )
+    # the SIGHASH_SINGLE bit is set in that one, and it refuses a join
+    err_msg = "a SIGHASH_SINGLE signature pins each input to its output"
+    with pytest.raises(BTClibValueError, match=err_msg):
+        join_psbts([first, deepcopy(first)], True, True, False, False)
+
+    first.tx_modifiable = INPUTS_MODIFIABLE | OUTPUTS_MODIFIABLE
+    second = deepcopy(first)
+    second.inputs[0].previous_tx_id = bytes.fromhex("11" * 32)
+    second.inputs[0].non_witness_utxo = None
+    second.inputs[0].sequence = 0xFFFFFFFD
+    joined = join_psbts([first, deepcopy(second)], True, True, False, False)
+    assert len(joined.inputs) == 2
+    assert len(joined.outputs) == 4
+    assert joined.version == 2
+    assert joined.tx_modifiable == INPUTS_MODIFIABLE | OUTPUTS_MODIFIABLE
+
+    frozen = deepcopy(second)
+    frozen.tx_modifiable = INPUTS_MODIFIABLE
+    with pytest.raises(BTClibValueError, match="the outputs are not modifiable"):
+        join_psbts([first, frozen], True, True, False, False)
+
+    # the transaction version is the transaction's, not the psbt's, and
+    # enforce_same_tx_version is what asks the psbts to agree on it
+    other_tx_version = deepcopy(second)
+    other_tx_version.tx_version = 3
+    with pytest.raises(BTClibValueError, match="Version numbers are not the same"):
+        join_psbts([first, other_tx_version], True, True, False, False)
+
+    with pytest.raises(BTClibValueError, match="mismatched psbt version: 0 vs 2"):
+        join_psbts([first, second.to_v0()], True, True, False, False)
+
+
+def test_converting_between_the_two_versions() -> None:
+    """v0 to v2 is the version number; v2 to v0 is what v0 cannot say.
+
+    The transaction is the same on both sides of either conversion,
+    which is the whole requirement: the lock time an input required
+    becomes the fallback, where a version 0 psbt keeps its nLockTime, so
+    what is lost is the record of which input asked for it and not the
+    value it asked for.
+    """
+    v2 = _bip370_psbt(
+        "1 input, 2 output updated PSBTv2, with PSBT_IN_SEQUENCE, and all"
+    )
+    psbt_in = v2.inputs[0]
+    assert psbt_in.required_time_lock_time is not None
+    assert psbt_in.required_height_lock_time is not None
+    assert v2.lock_time == psbt_in.required_height_lock_time
+
+    v0 = v2.to_v0()
+    assert v0.version == 0
+    assert v0.tx == v2.tx
+    assert v0.fallback_lock_time == v2.lock_time
+    assert v0.inputs[0].required_time_lock_time is None
+    assert v0.inputs[0].required_height_lock_time is None
+    assert Psbt.b64decode(v0.b64encode()) == v0
+
+    # and back, which is the same transaction again and not the same
+    # psbt: what version 0 dropped is dropped
+    assert v0.to_v2().tx == v2.tx
+    assert v0.to_v2() != v2
+
+    # a psbt whose inputs cannot agree on a kind of lock time has no
+    # transaction, so it has no version 0 psbt either
+    unreconcilable = deepcopy(v2)
+    unreconcilable.inputs[0].required_height_lock_time = None
+    unreconcilable.inputs.append(deepcopy(v2.inputs[0]))
+    unreconcilable.inputs[1].required_time_lock_time = None
+    unreconcilable.inputs[1].previous_tx_id = bytes.fromhex("11" * 32)
+    unreconcilable.inputs[1].non_witness_utxo = None
+    with pytest.raises(BTClibValueError, match="no lock time satisfies every input"):
+        unreconcilable.to_v0()
+
+
+def test_what_each_version_may_and_must_carry() -> None:
+    """The two columns BIP370 gives each of its twelve fields.
+
+    Excluded from version 0 and required in version 2, checked where the
+    version is known -- which is the psbt and not the map: an input on
+    its own is asked only what its values are, so that a version 2 input
+    can be built one field at a time.
+    """
+    v0 = _bip370_psbt("1 input, 2 output updated PSBTv2").to_v0()
+
+    # a version 0 psbt has nowhere to write a required lock time, so
+    # holding one is holding what serializing would drop
+    v0.inputs[0].required_height_lock_time = 10_000
+    err_msg = "PSBT_IN_REQUIRED_HEIGHT_LOCKTIME is not allowed in a v0 psbt"
+    with pytest.raises(BTClibValueError, match=err_msg):
+        v0.assert_valid()
+    v0.inputs[0].required_height_lock_time = None
+    v0.inputs[0].required_time_lock_time = 500_000_000
+    err_msg = "PSBT_IN_REQUIRED_TIME_LOCKTIME is not allowed in a v0 psbt"
+    with pytest.raises(BTClibValueError, match=err_msg):
+        v0.assert_valid()
+    v0.inputs[0].required_time_lock_time = None
+
+    v0.tx_modifiable = 0
+    err_msg = "PSBT_GLOBAL_TX_MODIFIABLE is not allowed in a v0 psbt"
+    with pytest.raises(BTClibValueError, match=err_msg):
+        v0.assert_valid()
+    v0.tx_modifiable = None
+
+    # the outpoint is required in both versions: without it there is no
+    # transaction to build, and a version 0 psbt reads it off the
+    # unsigned transaction rather than out of a field
+    v0.inputs[0].output_index = None
+    with pytest.raises(BTClibValueError, match="missing PSBT_IN_OUTPUT_INDEX"):
+        v0.assert_valid()
+    v0.inputs[0].output_index = 0
+    v0.inputs[0].previous_tx_id = b""
+    with pytest.raises(BTClibValueError, match="missing PSBT_IN_PREVIOUS_TXID"):
+        v0.assert_valid()
+
+
+def test_the_values_the_v2_fields_may_hold() -> None:
+    """What a map is asked on its own: ranges, and nothing versioned.
+
+    Each is a 4-byte field but for the amount and the flags, and each
+    bound is a rule of BIP370's own -- the two lock times being the two
+    halves of BIP65's threshold, which is what makes one a height and
+    the other a time.
+    """
+    psbt = _bip370_psbt("1 input, 2 output updated PSBTv2")
+    psbt_in = psbt.inputs[0]
+
+    psbt_in.output_index = 0xFFFFFFFF + 1
+    with pytest.raises(BTClibValueError, match="invalid output index: "):
+        psbt_in.assert_valid()
+    psbt_in.output_index = 0
+
+    psbt_in.sequence = -1
+    with pytest.raises(BTClibValueError, match="invalid sequence: "):
+        psbt_in.assert_valid()
+    psbt_in.sequence = None
+
+    psbt_in.previous_tx_id = b"\x01" * 31
+    with pytest.raises(BTClibValueError, match="invalid previous txid: 31 bytes"):
+        psbt_in.assert_valid()
+    psbt_in.previous_tx_id = b"\x01" * 32
+
+    # at the threshold and above it a value is a timestamp, below it a
+    # height, and 0 is nLockTime's "no lock time at all"
+    psbt_in.required_time_lock_time = LOCK_TIME_THRESHOLD - 1
+    with pytest.raises(BTClibValueError, match="invalid required time locktime: "):
+        psbt_in.assert_valid()
+    psbt_in.required_time_lock_time = LOCK_TIME_THRESHOLD
+    psbt_in.assert_valid()
+    psbt_in.required_time_lock_time = None
+
+    psbt_in.required_height_lock_time = LOCK_TIME_THRESHOLD
+    with pytest.raises(BTClibValueError, match="invalid required height locktime: "):
+        psbt_in.assert_valid()
+    psbt_in.required_height_lock_time = LOCK_TIME_THRESHOLD - 1
+    psbt_in.assert_valid()
+    psbt_in.required_height_lock_time = None
+
+    psbt.outputs[0].amount = -1
+    with pytest.raises(BTClibValueError, match="invalid satoshi amount: "):
+        psbt.outputs[0].assert_valid()
+    psbt.outputs[0].amount = 1
+
+    psbt.tx_modifiable = 0x100
+    with pytest.raises(BTClibValueError, match="invalid tx modifiable: 256"):
+        psbt.assert_valid()
+    psbt.tx_modifiable = None
+
+    psbt.fallback_lock_time = 0xFFFFFFFF + 1
+    with pytest.raises(BTClibValueError, match="invalid fallback locktime: "):
+        psbt.assert_valid()
+
+
+def test_from_tx_wants_one_map_per_input_and_output() -> None:
+    """The maps a caller brings are matched against the transaction.
+
+    `parse` counts them off the transaction itself, so only a caller can
+    get this wrong -- and a psbt cannot hold the disagreement any more,
+    its maps being what its transaction is built from. What answers is
+    therefore the conversion, at the moment the two are put together.
+    """
+    psbt = _bip370_psbt("1 input, 2 output updated PSBTv2").to_v0()
+    tx = psbt.tx
+    err_msg = "mismatched number of tx.vin and psbt inputs: 1 vs 2"
+    with pytest.raises(BTClibValueError, match=err_msg):
+        Psbt.from_tx(tx, [*psbt.inputs, PsbtIn()], psbt.outputs)
+    err_msg = "mismatched number of tx.vout and psbt outputs: 2 vs 1"
+    with pytest.raises(BTClibValueError, match=err_msg):
+        Psbt.from_tx(tx, psbt.inputs, psbt.outputs[:1])
+
+
+def test_a_v2_field_of_the_wrong_size_is_refused() -> None:
+    """A field is its width, and a value of another width is not it.
+
+    Not pedantry: read leniently, a four-byte field written in five
+    octets deserializes to the same integer and serializes back to four,
+    so one psbt would have two encodings -- the malleability the map
+    parser refuses one level up, where the length is the map's.
+    """
+    psbt = _bip370_psbt("1 input, 2 output PSBTv2, required fields only")
+    encoded = psbt.b64encode()
+    raw = base64.b64decode(encoded)
+
+    # PSBT_IN_OUTPUT_INDEX, four octets of little-endian zero, written
+    # in five: the same 0, and a psbt that is 1 byte longer
+    assert raw.count(bytes.fromhex("010f0400000000")) == 1
+    padded = raw.replace(
+        bytes.fromhex("010f0400000000"), bytes.fromhex("010f050000000000")
+    )
+    err_msg = "invalid output index length: 5 bytes instead of 4"
+    with pytest.raises(BTClibValueError, match=err_msg):
+        Psbt.parse(padded)
+
+    # the txid, whose 32 octets are a length rather than a width, and
+    # whose key is one byte as every key of a field that occurs once is
+    txid_key = bytes.fromhex("010e20")
+    assert raw.count(txid_key) == 1
+    short = raw.replace(
+        txid_key + psbt.inputs[0].previous_tx_id[::-1],
+        bytes.fromhex("010e1f") + psbt.inputs[0].previous_tx_id[:31],
+    )
+    err_msg = "invalid previous txid length: 31 bytes instead of 32"
+    with pytest.raises(BTClibValueError, match=err_msg):
+        Psbt.parse(short)
+
+    # and the counts, which are compact size and so have no width to
+    # check: what takes its place is that the value is the number and
+    # nothing after it
+    assert raw.count(bytes.fromhex("01040101")) == 1
+    trailing = raw.replace(bytes.fromhex("01040101"), bytes.fromhex("0104020100"))
+    with pytest.raises(BTClibValueError, match="invalid input count: 2 bytes"):
+        Psbt.parse(trailing)
+
+    # a key with data after the type byte, for two fields that take
+    # none: what the key of such a field is, is the type byte alone
+    keyed_count = raw.replace(bytes.fromhex("01040101"), bytes.fromhex("0204000101"))
+    with pytest.raises(BTClibValueError, match="invalid input count key length: 2"):
+        Psbt.parse(keyed_count)
+    keyed_version = raw.replace(
+        bytes.fromhex("01020402000000"), bytes.fromhex("0202000402000000")
+    )
+    with pytest.raises(BTClibValueError, match="invalid tx version key length: 2"):
+        Psbt.parse(keyed_version)
+
+
 # the cases below are btclib's own, and btclib_test_vectors.json is where
 # they live: neither BIP publishes them, so the file name says whose they
 # are, the way bip174_ and bip371_ say whose those are. Their provenance
@@ -236,44 +686,15 @@ def test_invalid_psbt_btclib(test_vector: dict[str, str]) -> None:
     assert test_vector["error message"] in str(excinfo.value)
 
 
-def _drop_an_input(psbt: Psbt) -> None:
-    psbt.inputs.pop()
-
-
-def _drop_an_output(psbt: Psbt) -> None:
-    psbt.outputs.pop()
-
-
-def _witness_the_unsigned_tx(psbt: Psbt) -> None:
-    psbt.tx.vin[0].script_witness = Witness([b""])
-
-
-# what the `mutation` of an "invalid psbt objects" vector names, and why
-# that section carries a valid psbt and the name of an edit rather than
-# the invalid bytes: these three states are ones no psbt can be written
-# in. Psbt.parse reads one input map per vin and one output map per vout,
-# so a psbt whose counts disagree has no encoding to be parsed from -- the
-# bytes would be read as a psbt with matching counts and different maps;
-# and the global unsigned tx is serialized with include_witness=False, so
-# a witness on it survives no round trip either. The vector is therefore
-# the valid psbt the case starts from, plus the edit that invalidates it
-_MUTATIONS: dict[str, Callable[[Psbt], None]] = {
-    "drop an input": _drop_an_input,
-    "drop an output": _drop_an_output,
-    "witness the unsigned tx": _witness_the_unsigned_tx,
-}
-
-
-@pytest.mark.parametrize(
-    "test_vector", psbt_vectors("btclib_test_vectors.json", "invalid psbt objects")
-)
-def test_invalid_psbt_object_btclib(test_vector: dict[str, str]) -> None:
-    """A psbt edited into a state that cannot be serialized."""
-    psbt = Psbt.b64decode(test_vector["encoded psbt"])
-    _MUTATIONS[test_vector["mutation"]](psbt)
-    with pytest.raises(BTClibValueError) as excinfo:
-        psbt.serialize()
-    assert test_vector["error message"] in str(excinfo.value)
+# the "invalid psbt objects" section, and the three mutations that named
+# its cases, are gone with the states they described. A psbt's inputs and
+# outputs are its transaction now, rather than two lists a mutation could
+# put out of step, so "one input map fewer than the unsigned tx has
+# inputs" is not a psbt that can be built: dropping an input drops it
+# from the transaction too. What can still be written down is written
+# down, in "invalid psbts" above and as bytes: an unsigned transaction
+# carrying a script_sig, and a version 2 count that does not match the
+# maps that follow it
 
 
 @pytest.mark.parametrize(
@@ -634,18 +1055,34 @@ def test_explicit_version() -> None:
     psbt = Psbt.b64decode(psbt_str)
     assert psbt.b64encode() == psbt_str
 
+    # the version btclib writes is the version the psbt declares, and
+    # version 2 declares itself: a version 0 psbt converted to version 2
+    # is the same transaction, written the other way, and comes back
+    psbt_v2 = psbt.to_v2()
+    assert psbt_v2.version == 2
+    assert psbt_v2.tx == psbt.tx
+    assert Psbt.b64decode(psbt_v2.b64encode()) == psbt_v2
+    assert psbt_v2.to_v0() == psbt
+
+    # and a version that is neither is refused on the way out and on the
+    # way in, check_validity or not: which fields a psbt is written and
+    # read as *is* its version, so there is nothing to defer
     psbt.version = 10
-    assert_valid = False
-    assert (
-        Psbt.b64decode(
-            psbt.b64encode(check_validity=assert_valid), check_validity=assert_valid
-        )
-        == psbt
-    )
-    with pytest.raises(BTClibValueError, match="invalid non-zero version: "):
+    err_msg = "invalid psbt version: 10"
+    with pytest.raises(BTClibValueError, match=err_msg):
+        psbt.b64encode(check_validity=False)
+    with pytest.raises(BTClibValueError, match=err_msg):
         psbt.b64encode(check_validity=True)
-    with pytest.raises(BTClibValueError, match="invalid non-zero version: "):
-        Psbt.b64decode(psbt.b64encode(check_validity=assert_valid), check_validity=True)
+    encoded_v2 = psbt_v2.b64encode()
+    # the same psbt, its version field alone edited: 0xfb 0x04, then the
+    # four little-endian bytes of the version, 2 becoming 10
+    ten = base64.b64encode(
+        base64.b64decode(encoded_v2).replace(
+            bytes.fromhex("01fb040200"), bytes.fromhex("01fb040a00")
+        )
+    ).decode("ascii")
+    with pytest.raises(BTClibValueError, match=err_msg):
+        Psbt.b64decode(ten, check_validity=False)
 
 
 def test_global_unknown() -> None:
@@ -743,8 +1180,10 @@ def test_valid_sign_2() -> None:
     assert psbt.inputs[0].witness_utxo is not None
     # pylance cannot grok the following line, even considering the above line
     transaction = Tx(1, 2, [transaction_input], [psbt.inputs[0].witness_utxo])
-    # a new OutPoint, OutPoint being frozen; TxIn.prev_out is still settable
-    psbt.tx.vin[0].prev_out = OutPoint(transaction.id, psbt.tx.vin[0].prev_out.vout)
+    # on the input, which is where the outpoint is: writing it into
+    # psbt.tx would write it into a copy, that transaction being computed
+    # from the inputs at every access
+    psbt.inputs[0].previous_tx_id = transaction.id
     psbt.inputs[0].non_witness_utxo = transaction
     psbt.assert_signable()
 
@@ -865,14 +1304,17 @@ def test_exceptions() -> None:
     psbt.version = 0xFFFFFFFF + 1
     with pytest.raises(BTClibValueError, match=err_msg):
         psbt.serialize()
+    # in range, and not one of the two versions there are
+    psbt.version = 3
+    with pytest.raises(BTClibValueError, match="invalid psbt version: 3"):
+        psbt.serialize()
 
     psbt_str = "cHNidP8BAJoCAAAAAljoeiG1ba8MI76OcHBFbDNvfLqlyHV5JPVFiHuyq911AAAAAAD/////g40EJ9DsZQpoqka7CwmK6kQiwHGyyng1Kgd5WdB86h0BAAAAAP////8CcKrwCAAAAAAWABTYXCtx0AYLCcmIauuBXlCZHdoSTQDh9QUAAAAAFgAUAK6pouXw+HaliN9VRuh0LR2HAI8AAAAAAAEAuwIAAAABqtc5MQGL0l+ErkALaISL4J23BurCrBgpi6vucatlb4sAAAAASEcwRAIgWPb8fGoz4bMVSNSByCbAFb0wE1qtQs1neQ2rZtKtJDsCIEoc7SYExnNbY5PltBaR3XiwDwxZQvufdRhW+qk4FX26Af7///8CgPD6AgAAAAAXqRQPuUY0IWlrgsgzryQceMF9295JNIfQ8gonAQAAABepFCnKdPigj4GZlCgYXJe12FLkBj9hh2UAAAAiAgKVg785rgpgl0etGZrd1jT6YQhVnWxc05tMIYPxq5bgf0cwRAIgdAGK1BgAl7hzMjwAFXILNoTMgSOJEEjn282bVa1nnJkCIHPTabdA4+tT3O+jOCPIBwUUylWn3ZVE8VfBZ5EyYRGMASICAtq2H/SaFNtqfQKwzR+7ePxLGDErW05U2uTbovv+9TbXSDBFAiEA9hA4swjcHahlo0hSdG8BV3KTQgjG0kRUOTzZm98iF3cCIAVuZ1pnWm0KArhbFOXikHTYolqbV2C+ooFvZhkQoAbqAQEDBAEAAAABBEdSIQKVg785rgpgl0etGZrd1jT6YQhVnWxc05tMIYPxq5bgfyEC2rYf9JoU22p9ArDNH7t4/EsYMStbTlTa5Nui+/71NtdSriIGApWDvzmuCmCXR60Zmt3WNPphCFWdbFzTm0whg/GrluB/ENkMak8AAACAAAAAgAAAAIAiBgLath/0mhTban0CsM0fu3j8SxgxK1tOVNrk26L7/vU21xDZDGpPAAAAgAAAAIABAACAAAEBIADC6wsAAAAAF6kUt/X69A49QKWkWbHbNTXyty+pIeiHIgIDCJ3BDHrG21T5EymvYXMz2ziM6tDCMfcjN50bmQMLAtxHMEQCIGLrelVhB6fHP0WsSrWh3d9vcHX7EnWWmn84Pv/3hLyyAiAMBdu3Rw2/LwhVfdNWxzJcHtMJE+mWzThAlF2xIijaXwEiAgI63ZBPPW3PWd25BrDe4jUpt/+57VDl6GFRkmhgIh8Oc0cwRAIgZfRbpZmLWaJ//hp77QFq8fH5DVSzqo90UKpfVqJRA70CIH9yRwOtHtuWaAsoS1bU/8uI9/t1nqu+CKow8puFE4PSAQEDBAEAAAABBCIAIIwjUxc3Q7WV37Sge3K6jkLjeX2nTof+fZ10l+OyAokDAQVHUiEDCJ3BDHrG21T5EymvYXMz2ziM6tDCMfcjN50bmQMLAtwhAjrdkE89bc9Z3bkGsN7iNSm3/7ntUOXoYVGSaGAiHw5zUq4iBgI63ZBPPW3PWd25BrDe4jUpt/+57VDl6GFRkmhgIh8OcxDZDGpPAAAAgAAAAIADAACAIgYDCJ3BDHrG21T5EymvYXMz2ziM6tDCMfcjN50bmQMLAtwQ2QxqTwAAAIAAAACAAgAAgAAiAgOppMN/WZbTqiXbrGtXCvBlA5RJKUJGCzVHU+2e7KWHcRDZDGpPAAAAgAAAAIAEAACAACICAn9jmXV9Lv9VoTatAsaEsYOLZVbl8bazQoKpS2tQBRCWENkMak8AAACAAAAAgAUAAIAA"
     psbt = Psbt.b64decode(psbt_str)
-    # swap the two tx_id, each keeping its own vout: new OutPoints, OutPoint
-    # being frozen
-    prev_out_0, prev_out_1 = psbt.tx.vin[0].prev_out, psbt.tx.vin[1].prev_out
-    psbt.tx.vin[0].prev_out = OutPoint(prev_out_1.tx_id, prev_out_0.vout)
-    psbt.tx.vin[1].prev_out = OutPoint(prev_out_0.tx_id, prev_out_1.vout)
+    # swap the two tx_id, each input keeping its own output index
+    tx_id_0, tx_id_1 = (psbt_in.previous_tx_id for psbt_in in psbt.inputs)
+    psbt.inputs[0].previous_tx_id = tx_id_1
+    psbt.inputs[1].previous_tx_id = tx_id_0
     err_msg = "mismatched non-witness utxo / outpoint tx_id"
     with pytest.raises(BTClibValueError, match=err_msg):
         psbt.assert_valid()
@@ -980,7 +1422,7 @@ def test_join_psbts() -> None:
 
     psbt2_str = "cHNidP8BAIkCAAAAAQKRPRGG7prm5Q6O5UJleyh9L9mmTPInNsVHnHzOS+ouAAAAAAAAAAAAAkBCDwAAAAAAIgAg1CyIdLnm/VxeOpIrt1Cvd2pVfTIgBuhGjqY7NVWGNgNDZAMAAAAAACIAIIUkJZx27tj1ukl5cN1lACHcJpd+XYVHg3XdxlGGJaRGAAAAAAABASslqRIAAAAAACIAIIUkJZx27tj1ukl5cN1lACHcJpd+XYVHg3XdxlGGJaRGIgICAO+hDq7He+h19gglhqAwUuruSCtWpIXFyEkj53crNh1IMEUCIQDiB1FrWN+TYztVhZTo7T7OJzQXTDz5dOhMG9+2ydm8+AIgb6pEEFSXYa9bAOExy4VQ3R3hpbi94l4doBBqLHQIh1ABIgIDxpfu3Y+krSVPw26m5LwhdoYVyRf7xWBL+P5WUbdO2etHMEQCIC/gN9WvBgebfiLJoNGXL6VPtblmo09Yr9bkjmCdMVIfAiBKJu4UTYVPkun4Whq8YKlddlRp95nzzInN4MnPx0N7ZQEBBf2oAVIhAgDvoQ6ux3vodfYIJYagMFLq7kgrVqSFxchJI+d3KzYdIQKtPKqcpvfFHCIaEGlHiX2kBTvZ+sZa8dtXLz6eErPsWyEDxpfu3Y+krSVPw26m5LwhdoYVyRf7xWBL+P5WUbdO2etTrmRSIQJAg8IBrMPT1XzBOuatwoVRObsgDKywIO/hTXX5BLqJ2yECWDeYBx2nVYYUPeICE2IgZ32CtqldcbZWrhmncmX7fxIhAs/eanomSWEuQFlCjry6HTmZcZ03c12wzMe6+jFMZFjYU68CkACyZ1MhA2HwlTuHQ7vQzuBibvN/r36m4MaIP6p1CEypK06o02pyIQNlG153o/5ni/xXlHgDAsD8sjOmvfh8E3s8XoQr8kBj7SEDahsw8dKvYjcoyrLfr+kWiXBRmG8cr0EBhDoslO3JgF0hA34ELbQa8gKi0ju2YUck4PSOLtfJ+QWAREM9Zmn4zAcjIQOnrP8c7MWRPaVi8ew06516BidH/65MoqblLYUp4+3KwSEDw2+64TPFicHXuZ1HYJWxEQ5v6iKmuTdgDvwIndMCfI9WrmgiBgIA76EOrsd76HX2CCWGoDBS6u5IK1akhcXISSPndys2HRj8i5WHKgAAgAAAAIAAAACAAQAAAAEAAAAiBgKtPKqcpvfFHCIaEGlHiX2kBTvZ+sZa8dtXLz6eErPsWxgN8rafKgAAgAAAAIAAAACAAQAAAAEAAAAiBgNh8JU7h0O70M7gYm7zf69+puDGiD+qdQhMqStOqNNqchg/h1X2LAAAgAAAAIAAAACAAQAAAAEAAAAiBgNlG153o/5ni/xXlHgDAsD8sjOmvfh8E3s8XoQr8kBj7RgmqLvwLAAAgAAAAIAAAACAAQAAAAEAAAAiBgNqGzDx0q9iNyjKst+v6RaJcFGYbxyvQQGEOiyU7cmAXRgQqVSnLAAAgAAAAIAAAACAAQAAAAEAAAAiBgN+BC20GvICotI7tmFHJOD0ji7XyfkFgERDPWZp+MwHIxgZXhf6LAAAgAAAAIAAAACAAQAAAAEAAAAiBgOnrP8c7MWRPaVi8ew06516BidH/65MoqblLYUp4+3KwRhm/AUgLAAAgAAAAIAAAACAAQAAAAEAAAAiBgPDb7rhM8WJwde5nUdglbERDm/qIqa5N2AO/Aid0wJ8jxg2/ys6LAAAgAAAAIAAAACAAQAAAAEAAAAiBgPGl+7dj6StJU/DbqbkvCF2hhXJF/vFYEv4/lZRt07Z6xiTeMdTKgAAgAAAAIAAAACAAQAAAAEAAAAAAAA="
     psbt2 = Psbt.b64decode(psbt2_str)
-    psbt2.tx.lock_time = psbt1.tx.lock_time
+    psbt2.fallback_lock_time = psbt1.lock_time
     joint_psbt = join_psbts(
         [psbt1, psbt2],
         enforce_same_tx_version=True,
@@ -1023,7 +1465,7 @@ def test_join_psbts() -> None:
     )
 
     # failure: different locktimes
-    psbt2.tx.lock_time = psbt1.tx.lock_time ^ 12345678
+    psbt2.fallback_lock_time = psbt1.lock_time ^ 12345678
     with pytest.raises(BTClibValueError, match="Lock times are not the same"):
         join_psbts(
             [psbt1, psbt2],
@@ -1036,7 +1478,7 @@ def test_join_psbts() -> None:
     # failure: common inputs
     psbt2 = Psbt.b64decode(psbt2_str)
     psbt2.inputs.append(psbt2.inputs[0])
-    err_msg = "mismatched number of psb.tx.vin and psb.inputs: "
+    err_msg = "common inputs"
     with pytest.raises(BTClibValueError, match=err_msg):
         join_psbts(
             [psbt1, psbt2],
@@ -1122,33 +1564,25 @@ def test_shuffle_sort_inp_out() -> None:
 
 
 def test_shuffle_sort() -> None:
+    """One sequence, sorted or shuffled, and the caller's left alone.
+
+    The two lists it used to take were a psbt's inputs and its vin, kept
+    in step because the outpoint of an input lived in the other list;
+    under BIP370 the input carries its own outpoint, so there is one
+    list to reorder and nothing to keep in step with it.
+    """
     list_a = [2, 1, 4, 3]
-    list_b = ["b", "a", "d", "c"]
 
     # testing sort
-    assert (
-        _sort_or_shuffle_together(list_a, list_b, lambda t: t)
-        == (
-            [1, 2, 3, 4],
-            ["a", "b", "c", "d"],
-        )
-        and list_a == [2, 1, 4, 3]
-        and list_b == ["b", "a", "d", "c"]
-    )
+    assert _sort_or_shuffle(list_a, lambda t: t) == [1, 2, 3, 4]
+    assert list_a == [2, 1, 4, 3]
 
     # testing shuffle
     # 10 attempts should be enough to reduce to zero the probability
     # of having (all) shuffled ones identical to the original one
     assert any(
-        _sort_or_shuffle_together(list_a, list_b) != (list_a, list_b)
-        and list_a == [2, 1, 4, 3]
-        and list_b == ["b", "a", "d", "c"]
-        for _ in range(10)
+        _sort_or_shuffle(list_a) != list_a and list_a == [2, 1, 4, 3] for _ in range(10)
     )
-
-    list_a.append(list_a[0])
-    with pytest.raises(BTClibValueError, match="sequences must have same length"):
-        _sort_or_shuffle_together(list_a, list_b)
 
 
 def test_a_psbt_may_have_no_inputs() -> None:
@@ -1561,7 +1995,7 @@ def test_the_outpoint_names_an_output_of_the_non_witness_utxo() -> None:
     psbt = Psbt.b64decode(TO_BE_FINALIZED)
     utxo = psbt.inputs[0].non_witness_utxo
     assert utxo is not None
-    psbt.tx.vin[0].prev_out = OutPoint(utxo.id, len(utxo.vout))
+    psbt.inputs[0].output_index = len(utxo.vout)
 
     err_msg = "outpoint vout out of range for the non-witness utxo"
     with pytest.raises(BTClibValueError, match=err_msg):
