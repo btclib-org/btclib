@@ -793,7 +793,9 @@ class Psbt:
     ) -> Psbt:
         hd_key_paths = cast(
             Mapping[Octets, BIP32KeyOrigin],
-            decode_from_bip32_derivs(dict_["bip32_derivs"]),
+            # check_validity=False, as for every other element here (issue
+            # 264): Psbt.assert_valid below validates it as part of the whole
+            decode_from_bip32_derivs(dict_["bip32_derivs"], check_validity=False),
         )
         return cls(
             dict_["tx_version"],

@@ -131,3 +131,22 @@ def test_bip32_derivs() -> None:
         BTClibValueError, match="Duplicated key origin values in hd_key_paths"
     ):
         assert_valid_hd_key_paths(hd_key_paths)
+
+
+def test_bip32_derivs_check_validity() -> None:
+    # issue 264: check_validity=False lets a malformed master_fingerprint
+    # through decode_from_bip32_derivs, the way every other check_validity
+    # does -- deferred to assert_valid_hd_key_paths rather than refused here
+    bip32_derivs = [
+        {
+            "pub_key": "029583bf39ae0a609747ad199addd634fa6108559d6c5cd39b4c2183f1ab96e07f",
+            "master_fingerprint": "d90c6a",
+            "path": f"m/0{_HARDENING}/0/0",
+        },
+    ]
+    with pytest.raises(BTClibValueError, match="invalid size: "):
+        decode_from_bip32_derivs(bip32_derivs)
+
+    hd_key_paths = decode_from_bip32_derivs(bip32_derivs, check_validity=False)
+    with pytest.raises(BTClibValueError, match="invalid master fingerprint length: "):
+        assert_valid_hd_key_paths(hd_key_paths)

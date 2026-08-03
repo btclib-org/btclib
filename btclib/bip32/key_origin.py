@@ -157,18 +157,28 @@ def encode_to_bip32_derivs(
 
 def _decode_from_bip32_deriv(
     bip32_deriv: Mapping[str, str],
+    *,
+    check_validity: bool = True,
 ) -> tuple[bytes, BIP32KeyOrigin]:
-    # issue 264: the size checks here cannot be switched off, so an invalid
-    # master_fingerprint or pub_key cannot be instantiated even deliberately
-    # -- a check_validity question, now that the flag is keyword-only
-    master_fingerprint = bytes_from_octets(bip32_deriv["master_fingerprint"], 4)
+    master_fingerprint = bytes_from_octets(
+        bip32_deriv["master_fingerprint"], 4 if check_validity else None
+    )
     der_path = indexes_from_der_path(bip32_deriv["path"])
-    key_origin = BIP32KeyOrigin(master_fingerprint, der_path)
+    key_origin = BIP32KeyOrigin(
+        master_fingerprint, der_path, check_validity=check_validity
+    )
     return bytes_from_octets(bip32_deriv["pub_key"]), key_origin
 
 
 def decode_from_bip32_derivs(
     bip32_derivs: Sequence[Mapping[str, str]],
+    *,
+    check_validity: bool = True,
 ) -> HdKeyPaths:
     """Return the dataclass element from its json representation."""
-    return dict(sorted([_decode_from_bip32_deriv(item) for item in bip32_derivs]))
+    return dict(
+        sorted(
+            _decode_from_bip32_deriv(item, check_validity=check_validity)
+            for item in bip32_derivs
+        )
+    )
