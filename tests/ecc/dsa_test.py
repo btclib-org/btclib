@@ -16,7 +16,7 @@ from typing import Any
 import pytest
 from btclib_libsecp256k1 import dsa as libsecp256k1_dsa
 
-from btclib.alias import INF
+from btclib.alias import INF, Point
 from btclib.curves import (
     Curve,
     bytes_from_point,
@@ -520,6 +520,61 @@ def test_libsecp256k1() -> None:
     assert btclib_sig.serialize() == libsecp256k1_sig
     assert libsecp256k1_dsa.verify(msg_hash, pub_key, btclib_sig.serialize())
     assert dsa.verify_(msg_hash, pub_key, libsecp256k1_sig)
+
+
+def _recovered(
+    key_id: int, msg: bytes, sig: dsa.Sig, lower_s: bool = True
+) -> Point | None:
+    """The recovered key, or None for a candidate that recovers nothing."""
+    try:
+        return dsa.recover_pub_key(key_id, msg, sig, lower_s)
+    except (BTClibValueError, BTClibRuntimeError):
+        return None
+
+
+def test_libsecp256k1_recovery(monkeypatch: pytest.MonkeyPatch) -> None:
+    """`recover_pub_key` through secp256k1_ecdsa_recover.
+
+    A recid is a key_id -- the same two bits, in the same order -- so the
+    two implementations have to answer the same point for every candidate,
+    and the same refusal for the candidates that recover nothing, which on
+    secp256k1 is key_id 2 and 3. That is what the delegation rests on: the
+    recovery flag of a message signature carries a key_id from outside, so
+    the number has to mean there what it means here.
+
+    `recover_pub_keys` beside them is the enumeration, which has no
+    counterpart in the bindings and stays Python whatever the curve.
+    """
+    msg = b"Satoshi Nakamoto"
+    for q in (0x1, 0x2, prv_key_int, secp256k1.n - 1):
+        prv_key, Q = dsa.gen_keys(q)
+        sig = dsa.sign(msg, prv_key)
+        keys = dsa.recover_pub_keys(msg, sig)
+        assert Q in keys
+
+        recovering = []
+        for key_id in range(2 * (secp256k1.cofactor + 1)):
+            delegated = _recovered(key_id, msg, sig)
+            with monkeypatch.context() as no_bindings:
+                no_bindings.setattr(dsa, "_libsecp256k1_applicable", lambda *_: False)
+                python = _recovered(key_id, msg, sig)
+            assert delegated == python
+            if delegated is not None:
+                assert delegated in keys
+                recovering.append(key_id)
+        # the signer's own key has j = 0, so it is one of the first pair,
+        # and the second pair recovers nothing: r + ec.n < ec.p is some
+        # 2^-127 of signatures, and both implementations require it
+        assert recovering == [0, 1]
+
+        # the lower-s rule is the caller's, and it is btclib that applies
+        # it: the recoverable parser takes any s in [1, n-1]
+        key_id = next(k for k in recovering if _recovered(k, msg, sig) == Q)
+        malleated = dsa.Sig(sig.r, secp256k1.n - sig.s)
+        err_msg = "not a low s"
+        with pytest.raises(BTClibValueError, match=err_msg):
+            dsa.recover_pub_key(key_id ^ 1, msg, malleated)
+        assert _recovered(key_id ^ 1, msg, malleated, lower_s=False) == Q
 
 
 def signature_vectors(fname: str) -> list[Any]:

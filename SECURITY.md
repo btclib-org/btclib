@@ -81,6 +81,11 @@ used to teach and to prototype as much as to build:
     signature asks for. The rest of that signature is not — the
     inversion of the nonce and the arithmetic on the key around it are
     Python integers.
+    `bms.sign` is delegated outright, `recovery.sign` signing and naming
+    the recovery flag in one call: message signing is defined for
+    secp256k1 alone, so there is no argument that sends it down the
+    Python path — which the test suite reaches by switching the dispatch
+    off, and which no caller can.
     Anything else — another
     curve, another hash function, another message size, a nonce of your
     own — runs the Python implementation, whose scalar multiplication is

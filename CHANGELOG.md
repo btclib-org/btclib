@@ -2440,6 +2440,37 @@ edit.
 
 ### Performance
 
+- **message signing goes through libsecp256k1's recovery module** (issue
+  #269): `bms.sign` is 102 µs against 4360, `bms.verify` 97 against 2782,
+  both the mean over 40 random keys. The signing gain is not a faster
+  search but no search at all. `recovery.sign` returns the recovery id
+  beside r and s, and that id *is* the `key_id` the recovery flag carries
+  — the parity of the nonce's point and whether its x-coordinate exceeded
+  the group order, both of which the signer had in hand — where `sign`
+  used to sign and then recover candidate after candidate until one
+  equalled its own public key: 2977 µs where the signer's key was the
+  first candidate, 5492 where it was the second and the first had been
+  computed only to be discarded. Verification delegates the
+  single-candidate `dsa.recover_pub_key` to `secp256k1_ecdsa_recover`,
+  95 µs against 2330, so every caller of that function gains and not
+  only bms; the plural `recover_pub_keys` has no counterpart in the
+  bindings, stays Python whatever the curve, and is what the tests hold
+  the singular against. bms takes the sec octets the recovery answers
+  straight to `hash160`, an address being a hash of those bytes: no point
+  is built on either side of the module any more, so the affine
+  conversion of a recovered key and the multiplication behind
+  `bytes_from_point(mult(q))` are both gone. The lower-s rule stays
+  btclib's own, the recoverable parser taking any s in 1..n-1 as it must
+  — a malleated signature recovers a key too, and `lower_s` is the caller
+  saying whether that answer is wanted. What is left of those hundred
+  microseconds is no longer curve arithmetic: 76 of them are
+  `dsa.Sig.assert_valid` checking that r is congruent to a valid
+  x-coordinate, which is one modular square root in Python. bms is
+  secp256k1 only, so unlike taproot or ECDH no second curve keeps its
+  Python implementation reached: it stays as the reference the delegation
+  is measured against, and the tests reach it with both dispatches
+  patched off — every published base64 vector in the file signed and
+  verified twice, once each way
 - **the two generator multiplications of `dsa` go through `mult`**, which
   is where the libsecp256k1 dispatch lives, instead of calling the `_mult`
   underneath it (issue #272). Both scalars are secret and neither was
