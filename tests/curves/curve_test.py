@@ -35,7 +35,6 @@ from btclib.curves.curve import (
     NIST,
     Brainpool,
     Brainpool_params2,
-    CurveSubGroup,
     NIST_params2,
     SEC2v1,
     SEC2v1_params2,
@@ -589,6 +588,13 @@ def test_ec_repr() -> None:
         assert str(ec) == str(ec2)
         assert ec == ec2
 
+    # the group underneath names its own class, so it eval's back to a
+    # group rather than to a Curve short of four arguments
+    group = CurveGroup(secp256k1.p, 0, 7)
+    assert repr(group).startswith("CurveGroup(")
+    assert str(group).startswith("CurveGroup\n")
+    assert eval(repr(group)) == group  # noqa: S307
+
 
 def test_ec_repr_groups_its_hex() -> None:
     """A curve integer reads `DEADBEEF 00000000`, not `0xdeadbeef00000000`.
@@ -643,16 +649,22 @@ def test_curve_equality() -> None:
     assert CURVES["secp256r1"] != secp256k1
     assert secp256k1 != "not a curve"
 
-    # the parent classes are not the curve, whatever they share with it
+    # the group of every point of the curve is not the subgroup a caller
+    # multiplies in, whatever the two share: same p, a and b, and the one
+    # has neither a generator nor an order. The comparison runs both ways
+    # round, __eq__ answering NotImplemented rather than False
     group = CurveGroup(secp256k1.p, 0, 7)
-    subgroup = CurveSubGroup(secp256k1.p, 0, 7, secp256k1.G)
     assert group == CurveGroup(secp256k1.p, 0, 7)
-    assert subgroup == CurveSubGroup(secp256k1.p, 0, 7, secp256k1.G)
-    assert group != subgroup
     assert group != secp256k1
-    assert subgroup != secp256k1
-    # the generator is part of what defines the subgroup
-    assert subgroup != CurveSubGroup(secp256k1.p, 0, 7, mult(2))
+    assert secp256k1 != group
+
+    # the generator is part of what defines the curve, and not by picking
+    # the points out. n being prime, 2G generates the very same subgroup,
+    # and what differs is the correspondence between scalars and points,
+    # so the same private key is another public key altogether
+    on_2G = Curve(secp256k1.p, 0, 7, mult(2), secp256k1.n, 1)
+    assert on_2G != secp256k1
+    assert mult(3, None, on_2G) != mult(3)
 
 
 def test_sec2_catalogues_share_one_curve() -> None:

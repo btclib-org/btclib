@@ -10,9 +10,9 @@
 """Module btclib.curves.
 
 **The arithmetic.** btclib.curves holds the elliptic curve itself: the field
-and group operations of `curve_group`, the `Curve` and `CurveSubGroup` built
-on them, the catalogued curves (secp256k1 among 26 others), and the SEC
-encoding of a point. Nothing here knows what a signature is.
+and group operations of `curve_group`, the `Curve` built on them, the
+catalogued curves (secp256k1 among 26 others), and the SEC encoding of a
+point. Nothing here knows what a signature is.
 
 What is built *on* a curve lives in btclib.ecc -- dsa, ssa, bms, borromean,
 pedersen, Diffie-Hellman, the nonces -- and the rule between the two is that
