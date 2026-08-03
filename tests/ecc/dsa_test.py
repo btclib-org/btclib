@@ -591,6 +591,28 @@ def _search_key_id(msg: bytes, sig: dsa.Sig, Q: Point, lower_s: bool = True) -> 
     raise AssertionError("no key_id recovers the public key")
 
 
+def test_the_key_id_search_reports_a_key_it_cannot_reach() -> None:
+    """The helper above raises rather than answer, and this is why it can.
+
+    Its loop returns the first key_id that recovers Q, so a Q no candidate
+    recovers has to leave it with nothing to return. Untested, that
+    fallthrough would be the one line of the cross-check that never runs --
+    and a search that answered 0 for a key it never found would make every
+    caller above agree with `sign_recoverable` for the wrong reason.
+    """
+    msg = b"a message"
+    prv_key, _Q = dsa.gen_keys()
+    sig = dsa.sign(msg, prv_key)
+
+    # a key of somebody else: the signature is valid, and none of its
+    # candidates is this point
+    _other_prv_key, other_Q = dsa.gen_keys()
+
+    err_msg = "no key_id recovers the public key"
+    with pytest.raises(AssertionError, match=err_msg):
+        _search_key_id(msg, sig, other_Q)
+
+
 def test_sign_recoverable_is_sign_plus_the_key_id_a_search_would_find(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
