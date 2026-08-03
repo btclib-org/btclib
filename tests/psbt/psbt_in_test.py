@@ -132,6 +132,11 @@ def test_a_finalized_input_drops_everything_the_finalizer_consumed() -> None:
         },
         "taproot_internal_key": b"\x01" * 32,
         "taproot_merkle_root": b"\x01" * 32,
+        "musig2_participant_pub_keys": {
+            b"\x02" + b"\x01" * 32: [b"\x02" + b"\x02" * 32]
+        },
+        "musig2_pub_nonces": {(b"\x02" + b"\x01" * 32) * 2: b"\x03" * 66},
+        "musig2_partial_sigs": {(b"\x02" + b"\x01" * 32) * 2: b"\x04" * 32},
     }
     # a field added to the set without a value here would be dropped by a
     # test that never serialized it in the first place

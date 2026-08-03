@@ -25,6 +25,7 @@ from btclib.hashes import hash160, hash256, ripemd160, sha256
 from btclib.psbt import (
     Psbt,
     PsbtIn,
+    PsbtOut,
     combine_psbts,
     extract_tx,
     finalize_psbt,
@@ -120,6 +121,156 @@ def test_invalid_psbt_bip371(test_vector: dict[str, str]) -> None:
     with pytest.raises(BTClibValueError) as excinfo:
         Psbt.b64decode(test_vector["encoded psbt"])
     assert test_vector["error message"] in str(excinfo.value)
+
+
+@pytest.mark.parametrize(
+    "test_vector", psbt_vectors("bip373_test_vectors.json", "valid psbts")
+)
+def test_valid_psbt_bip373(test_vector: dict[str, str]) -> None:
+    """Test https://github.com/bitcoin/bips/blob/master/bip-0373.mediawiki.
+
+    Byte for byte, and with nothing left under `unknown`: these psbts
+    round-tripped before the fields existed, an unknown key being given
+    back exactly as it arrived, so preservation is not what the assert
+    below is about. What it pins is that the four type bytes are read as
+    the fields they are -- which is what makes the ten invalid psbts of
+    this same file refusable at all.
+    """
+    psbt_decoded = Psbt.b64decode(test_vector["encoded psbt"])
+    assert test_vector["encoded psbt"] == Psbt.b64encode(psbt_decoded)
+
+    carried = any(
+        psbt_in.musig2_participant_pub_keys
+        or psbt_in.musig2_pub_nonces
+        or psbt_in.musig2_partial_sigs
+        for psbt_in in psbt_decoded.inputs
+    ) or any(psbt_out.musig2_participant_pub_keys for psbt_out in psbt_decoded.outputs)
+    assert carried
+    for psbt_in in psbt_decoded.inputs:
+        assert not psbt_in.unknown
+    for psbt_out in psbt_decoded.outputs:
+        assert not psbt_out.unknown
+
+
+@pytest.mark.parametrize(
+    "test_vector", psbt_vectors("bip373_test_vectors.json", "invalid psbts")
+)
+def test_invalid_psbt_bip373(test_vector: dict[str, str]) -> None:
+    """Each case must be refused, with the message this file records.
+
+    Every one of the ten is a length: an x-only key where BIP373 requires
+    a compressed one, in the participant list, in the nonce key data or in
+    the partial signature key data, and a nonce or a signature whose value
+    is the wrong size. Which is why they were all accepted while the type
+    bytes were unknown -- an unknown key has no shape to be wrong.
+    """
+    with pytest.raises(BTClibValueError) as excinfo:
+        Psbt.b64decode(test_vector["encoded psbt"])
+    assert test_vector["error message"] in str(excinfo.value)
+
+
+def _bip373_psbt(description: str) -> Psbt:
+    """The valid BIP373 psbt whose description starts with this."""
+    valid = load("psbt", "_data", "bip373_test_vectors.json")["valid psbts"]
+    encoded = next(
+        test_vector["encoded psbt"]
+        for test_vector in valid
+        if test_vector["description"].startswith(description)
+    )
+    return Psbt.b64decode(encoded)
+
+
+def test_musig2_participants_keep_the_order_they_were_aggregated_in() -> None:
+    """A list, not a set: KeyAgg is not symmetric in its input.
+
+    BIP373 asks for "the order required for aggregation", so two psbts
+    naming the same participants in two orders name two aggregate keys.
+    The three keys below are the ones the BIP publishes for its vectors,
+    in the order it publishes them.
+    """
+    participants = [
+        bytes.fromhex(
+            "02346b99593357107c9d3459e9deba8d3eaf44e6636c85c7f853eb90ba52e8cd00"
+        ),
+        bytes.fromhex(
+            "024fafd65f8169186fc2bfdb2233c77e630d10be280a24c7165c09a27611775c2c"
+        ),
+        bytes.fromhex(
+            "02f9308a019258c31049344f85f89d5229b531c845836f99b08601f113bce036f9"
+        ),
+    ]
+    aggregate = bytes.fromhex(
+        "030b58e337aa4d3852a8c29387c42408d8cfbe3a613a5e397e0a9f01a5fb7107d4"
+    )
+
+    psbt = _bip373_psbt("Spend of a Taproot output where the output key")
+    assert psbt.inputs[0].musig2_participant_pub_keys == {aggregate: participants}
+
+    # reversed and back, which a sorted or de-duplicated field would not
+    # survive: the reversal is a different psbt, and the original bytes
+    # come back from the original order alone
+    encoded = psbt.b64encode()
+    psbt.inputs[0].musig2_participant_pub_keys[aggregate] = participants[::-1]
+    assert psbt.b64encode() != encoded
+    assert Psbt.b64decode(psbt.b64encode()).inputs[0].musig2_participant_pub_keys == {
+        aggregate: participants[::-1]
+    }
+
+
+def test_a_musig2_key_must_be_a_point_and_not_merely_33_bytes() -> None:
+    """What Bitcoin Core asks beyond the length, `IsFullyValid` per key.
+
+    No vector of BIP373 carries it: all ten of its invalid psbts are
+    x-only keys or wrong-sized values, so the length alone refuses them,
+    and a key of the right length that is on no curve would be accepted
+    by a length check on its own.
+    """
+    not_a_point = b"\x02" + b"\xff" * 32
+
+    psbt = _bip373_psbt("Spend of a Taproot output where the output key")
+    aggregate, participants = next(
+        iter(psbt.inputs[0].musig2_participant_pub_keys.items())
+    )
+    psbt.inputs[0].musig2_participant_pub_keys = {aggregate: [not_a_point]}
+    with pytest.raises(BTClibValueError, match="invalid musig2 participant pub key: "):
+        psbt.assert_valid()
+
+    psbt.inputs[0].musig2_participant_pub_keys = {not_a_point: participants}
+    with pytest.raises(BTClibValueError, match="invalid musig2 aggregate pub key: "):
+        psbt.assert_valid()
+
+
+def test_an_output_participant_list_is_a_whole_number_of_keys() -> None:
+    """The case BIP373's own two output vectors do not distinguish.
+
+    "PSBT with x-only aggregate pubkey in output participant pubkeys
+    keydata" and "PSBT with an x-only output participant pubkey" are one
+    psbt in the BIP -- byte for byte the same base64, the x-only key in
+    the key data both times -- so the second condition, an x-only key
+    inside the value, is named upstream and carried by nothing. Here it
+    is, on the output map of the BIP's own receiving psbt.
+    """
+    psbt_out = _bip373_psbt(
+        "Receiving a Taproot output where the internal key is a"
+    ).outputs[0]
+    aggregate, participants = next(iter(psbt_out.musig2_participant_pub_keys.items()))
+    # the first participant as x-only, which is a value of 98 bytes: no
+    # participant list is 98 bytes long, whichever key was shortened
+    psbt_out.musig2_participant_pub_keys[aggregate] = [
+        participants[0][1:],
+        *participants[1:],
+    ]
+
+    # the key that is 32 bytes, where the object holds them apart
+    err_msg = "invalid musig2 participant pub key length: 32 bytes"
+    with pytest.raises(BTClibValueError, match=err_msg):
+        psbt_out.assert_valid()
+
+    # and the value that is 98, where the psbt holds them concatenated
+    serialized = psbt_out.serialize(check_validity=False)
+    err_msg = "invalid musig2 participant pub keys: 98 bytes"
+    with pytest.raises(BTClibValueError, match=err_msg):
+        PsbtOut.parse(serialized)
 
 
 @pytest.mark.parametrize(

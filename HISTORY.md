@@ -34,6 +34,16 @@ against the `v2023.7.12` tag.
   `0x06`, input `0x0e` to `0x12`, output `0x03` and `0x04` — as a spare
   slot for data of your own: pick a byte no BIP has taken, or `0xfc`,
   which is reserved for exactly that.
+- **a psbt whose MuSig2 fields are malformed is refused**, where all four
+  type bytes BIP373 defines were filed under `unknown` and round-tripped:
+  input `0x1a`, `0x1b` and `0x1c`, output `0x08`. They are fields now, so
+  a key or value of the wrong size is an error rather than opaque data —
+  `invalid musig2 aggregate pub key length: 32 bytes instead of 33` and
+  the like — and what this breaks is the same thing the entry above
+  breaks, one of those bytes used as a spare slot for data of your own:
+  `0xfc` is reserved for exactly that. `PsbtIn.to_dict` and
+  `PsbtOut.to_dict` carry the new fields, and `from_dict` needs them, so a
+  dict written by an older btclib does not load.
 - **`Psbt.tx` is computed, not stored, and `Psbt(...)` takes the
   transaction's version where it took the transaction.**
   `Psbt(tx, inputs, outputs, version, hd_key_paths, unknown)` is

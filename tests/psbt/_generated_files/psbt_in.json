@@ -98,5 +98,8 @@
     "output_index": 0,
     "sequence": 4294967295,
     "required_time_lock_time": null,
-    "required_height_lock_time": null
+    "required_height_lock_time": null,
+    "musig2_participant_pub_keys": {},
+    "musig2_pub_nonces": {},
+    "musig2_partial_sigs": {}
 }
