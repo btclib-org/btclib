@@ -15,6 +15,7 @@ from typing import Any
 
 import pytest
 from btclib_libsecp256k1 import dsa as libsecp256k1_dsa
+from btclib_libsecp256k1 import recovery as libsecp256k1_recovery
 
 from btclib.alias import INF, Point
 from btclib.curves import (
@@ -575,6 +576,159 @@ def test_libsecp256k1_recovery(monkeypatch: pytest.MonkeyPatch) -> None:
         with pytest.raises(BTClibValueError, match=err_msg):
             dsa.recover_pub_key(key_id ^ 1, msg, malleated)
         assert _recovered(key_id ^ 1, msg, malleated, lower_s=False) == Q
+
+
+def _search_key_id(msg: bytes, sig: dsa.Sig, Q: Point, lower_s: bool = True) -> int:
+    """The key_id arrived at by recovering and comparing, not by signing.
+
+    The derivation `sign_recoverable` exists not to run: it is here as the
+    independent opinion its key_id is held against, one recovery per
+    candidate until one is the signer's own key.
+    """
+    for key_id in range(2 * (sig.ec.cofactor + 1)):
+        if _recovered(key_id, msg, sig, lower_s) == Q:
+            return key_id
+    raise AssertionError("no key_id recovers the public key")
+
+
+def test_sign_recoverable_is_sign_plus_the_key_id_a_search_would_find(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """The recoverable spelling signs what `sign` signs, and names the key_id.
+
+    Three opinions on one signature, and they have to be the same one:
+    `sign`, which is r and s alone; `secp256k1_ecdsa_sign_recoverable`,
+    which is r, s and the recid; and the search, which recovers candidate
+    after candidate until one is the signer's key. The Python path is asked
+    for all three too, the dispatch patched off, because that is where the
+    key_id is derived rather than reported -- read off the nonce's point at
+    signing time, which is the whole of issue 285.
+    """
+    for i in range(20):
+        msg = f"message {i}".encode()
+        prv_key, Q = dsa.gen_keys()
+        msg_hash = reduce_to_hlen(msg)
+
+        sig, key_id = dsa.sign_recoverable(msg, prv_key)
+        assert sig == dsa.sign(msg, prv_key)
+        assert (sig, key_id) == dsa.sign_recoverable_(msg_hash, prv_key)
+        assert dsa.recover_pub_key(key_id, msg, sig) == Q
+        assert key_id == _search_key_id(msg, sig, Q)
+
+        # the bindings' own recoverable signing, which is what the
+        # delegated path above answered with
+        sig_bytes, recid = libsecp256k1_recovery.sign(msg_hash, prv_key)
+        assert sig.r == int.from_bytes(sig_bytes[:32], "big")
+        assert sig.s == int.from_bytes(sig_bytes[32:], "big")
+        assert key_id == recid
+
+        with monkeypatch.context() as no_bindings:
+            no_bindings.setattr(dsa, "_libsecp256k1_applicable", lambda *_: False)
+            assert dsa.sign_recoverable(msg, prv_key) == (sig, key_id)
+
+
+def test_the_key_id_survives_what_the_bindings_decline(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Each condition that sends a signature down the Python path.
+
+    A nonce of the caller's, a high s allowed, another hash function and
+    another curve: four signatures the bindings do not make, and the key_id
+    of each still recovers the signer. The first two are secp256k1, so the
+    dispatch is what declines them rather than the curve, and patching it
+    off must not change the answer -- the Python path is the only one that
+    ever produced them.
+    """
+    msg = b"Satoshi Nakamoto"
+    prv_key, Q = dsa.gen_keys(prv_key_int)
+    nonce = 0x9E5755E5A8FCC1B0A2FD1E0AD9E8D6B29B67D67E6C6A0DEE01E7E1F30DB9A0BE
+
+    cases: list[dict[str, Any]] = [
+        {"nonce": nonce},
+        {"lower_s": False},
+        {"hf": sha512},
+    ]
+    for kwargs in cases:
+        lower_s = bool(kwargs.get("lower_s", True))
+        sig, key_id = dsa.sign_recoverable(msg, prv_key, **kwargs)
+        hf = kwargs.get("hf", sha256)
+        assert dsa.recover_pub_key(key_id, msg, sig, lower_s, hf) == Q
+        with monkeypatch.context() as no_bindings:
+            no_bindings.setattr(dsa, "_libsecp256k1_applicable", lambda *_: False)
+            assert dsa.sign_recoverable(msg, prv_key, **kwargs) == (sig, key_id)
+
+    ec = CURVES["secp112r2"]
+    q, Q = dsa.gen_keys(0x10, ec)
+    sig, key_id = dsa.sign_recoverable(msg, q, ec=ec)
+    assert dsa.recover_pub_key(key_id, msg, sig) == Q
+    assert key_id == _search_key_id(msg, sig, Q)
+
+
+def test_the_low_s_negation_flips_the_key_id_parity_bit() -> None:
+    """Negating s mirrors K, so bit 0 flips and j does not.
+
+    The two signatures over one nonce are the same r and the two s of the
+    malleability -- which is why `lower_s=False` is how the negation is
+    reached from outside: the same `_sign_recoverable_` call with the
+    reflection left out. Where the s that was computed is already low the
+    negation never happens and the two key_ids agree, so both outcomes have
+    to be reached for the assertion to be about anything, and the nonces
+    are fixed rather than drawn: which s comes out is a property of
+    (c, q, nonce) and a random one would make the coverage random too.
+    """
+    ec = secp256k1
+    flipped = kept = 0
+    for q in (0x1, 0x2, prv_key_int, ec.n - 1):
+        for c in (0x1234, 0xDEAD, ec.n - 1):
+            for nonce in (0x1, 0x2, 0xC0FFEE):
+                high_s, high_id = dsa._sign_recoverable_(c, q, nonce, False, ec)
+                low_s, low_id = dsa._sign_recoverable_(c, q, nonce, True, ec)
+                assert high_s.r == low_s.r
+                negated = high_s.s > ec.n // 2
+                assert low_s.s == (ec.n - high_s.s if negated else high_s.s)
+                assert low_id == (high_id ^ 1 if negated else high_id)
+                # and j is the bit the reflection cannot reach: x_K is what
+                # both signatures were built from
+                assert high_id >> 1 == low_id >> 1
+                flipped += negated
+                kept += not negated
+    assert flipped and kept
+
+
+def test_the_key_id_names_j_where_j_is_reachable() -> None:
+    """The cofactor-2 curves, where `x_K // ec.n` is not a boolean.
+
+    On secp256k1 the j bit needs r + ec.n < ec.p, some 2^-127 of
+    signatures, so `2 if x_K != r else 0` would pass every test the
+    delegated path can be held to. These two curves have x_K above ec.n for
+    two of their twelve nonces, and there the signer's own key is named by
+    a key_id of 2 or 3: every signature they admit is made both ways round
+    and its key_id required to recover the signer.
+    """
+    for name, expected in (("ec17_13", 2880), ("ec19_13", 3456)):
+        ec = low_card_curves[name]
+        assert ec.cofactor == 2
+        cases = 0
+        j_reached = 0
+        for q in range(1, ec.n):
+            Q = ec.aff_from_jac(_mult(q, ec.GJ, ec))
+            for k in range(1, ec.n):
+                for c in range(ec.n):
+                    for lower_s in (True, False):
+                        try:
+                            sig, key_id = dsa._sign_recoverable_(c, q, k, lower_s, ec)
+                        except BTClibRuntimeError:  # r == 0 or s == 0
+                            continue
+                        QJ = dsa._recover_pub_key_(key_id, c, sig.r, sig.s, lower_s, ec)
+                        assert ec.aff_from_jac(QJ) == Q
+                        cases += 1
+                        j_reached += key_id >> 1
+        assert cases == expected
+        # the same j = 1 count from both, the two nonces above ec.n being
+        # two on either curve; what differs is the total, ec17_13 having
+        # two nonces whose x_K is a multiple of 13 and so no signature at
+        # all where ec19_13 has none
+        assert j_reached == 576
 
 
 def signature_vectors(fname: str) -> list[Any]:

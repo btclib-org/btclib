@@ -149,17 +149,14 @@ https://github.com/bitcoin/bips/blob/master/bip-0137.mediawiki
 from __future__ import annotations
 
 import base64
-import contextlib
 import secrets
 from dataclasses import dataclass
 from hashlib import sha256
 
-from btclib_libsecp256k1 import recovery as libsecp256k1_recovery
-
 from btclib.alias import BinaryData, Octets, String
 from btclib.b32 import has_segwit_prefix, p2wpkh, witness_from_address
 from btclib.b58 import h160_from_address, p2pkh, p2wpkh_p2sh, wif_from_prv_key
-from btclib.curves import bytes_from_point, bytes_from_prv_key_int, mult, secp256k1
+from btclib.curves import bytes_from_point, bytes_from_prv_key_int, secp256k1
 from btclib.curves.curve import _libsecp256k1_applicable
 from btclib.ecc import dsa
 from btclib.ecc.dsa import _libsecp256k1_recover_sec_
@@ -295,75 +292,20 @@ def gen_keys(
     return wif, p2pkh(wif)
 
 
-def _search_key_id(magic_msg: bytes, dsa_sig: dsa.Sig, q: int) -> int:
-    """Return the key_id that recovers the public key of q.
-
-    The candidate that is this key, named by the key_id that recovers it.
-    key_id is in [0, 3], and the first two bits in rf are reserved for it.
-
-    This is the question a recoverable signature answers as it signs, so
-    `sign` asks it only where the bindings are not the signer.
-    """
-    # one candidate at a time, stopping at the match, rather than
-    # dsa.recover_pub_keys(magic_msg, dsa_sig).index(Q) -- every candidate
-    # and then a search. Two things this buys: on secp256k1 the list is
-    # key_ids 0 and 1, since a signer's own key has j = 0, so key_ids 2
-    # and 3 would be computed only to be dropped -- each a Python
-    # _double_mult when r + ec.n - ec.p happens to be on the curve, about
-    # half the time; measured over 40 random (key, msg) pairs, 18.7 ms
-    # against 9.0 ms here, a factor of 2. And .index names the key_id only
-    # while no earlier candidate has dropped out of that list, which is
-    # exactly what the j = 1 case does: r + ec.n < ec.p with r not a
-    # coordinate on the curve leaves [key_id 2, key_id 3] and an index of
-    # 0 or 1
-    #
-    # a mod_inv per candidate is the price of comparing affine points, and
-    # the match could be made in Jacobian coordinates instead (issue 183);
-    # measured, it is not worth reaching into dsa's private layer for, the
-    # two inversions of an aff_from_jac being 37 us against the 5900 us of
-    # the recovery that produced the point
-    Q = mult(q)
-    for key_id in range(2 * (secp256k1.cofactor + 1)):
-        # a candidate can fail either half of SEC 1 v.2 step 1.6, which
-        # means "not this one" and not "no key": see dsa._recover_pub_keys_
-        with contextlib.suppress(BTClibValueError, BTClibRuntimeError):
-            if dsa.recover_pub_key(key_id, magic_msg, dsa_sig) == Q:
-                return key_id
-
-    # unreachable: dsa_sig was just signed with q, so some key_id does
-    # recover the public key of q
-    err_msg = "no key_id recovers the public key"  # pragma: no cover
-    raise BTClibRuntimeError(err_msg)  # pragma: no cover
-
-
 def sign(msg: Octets, prv_key: PrvKey, addr: String | None = None) -> Sig:
     """Generate address-based compact signature for the provided message."""
     magic_msg = magic_message(msg)
     q, network, compressed = prv_keyinfo_from_prv_key(prv_key)
 
-    # signing and naming the key_id are one call, not two: recoverable
-    # signing is the shape libsecp256k1 offers precisely because the recid
-    # falls out of the signature -- it is the parity of the nonce's point
-    # and whether its x-coordinate exceeded the group order, both of which
-    # the signer had in hand -- so `_search_key_id` does not get faster,
-    # it goes away. 24 us against 4360, the mean over 40 random keys, and
-    # the search was all of it: 2977 us where the signer's key is key_id 0
-    # and one recovery finds it, 5492 where it is key_id 1 and the first
-    # candidate is computed only to be discarded
-    if _libsecp256k1_applicable(secp256k1):
-        sig_bytes, key_id = libsecp256k1_recovery.sign(reduce_to_hlen(magic_msg), q)
-        n_size = secp256k1.n_size
-        r = int.from_bytes(sig_bytes[:n_size], byteorder="big", signed=False)
-        s = int.from_bytes(sig_bytes[n_size:], byteorder="big", signed=False)
-        # check_validity=False, and the Sig returned below does validate:
-        # asserting r congruent to an x-coordinate is 2.4 us of the 24,
-        # ec_pubkey_parse of 0x02 || x rather than a modular square root
-        # (issue 284), and paying it twice over the one signature is still
-        # worth not doing
-        dsa_sig = dsa.Sig(r, s, secp256k1, check_validity=False)
-    else:
-        dsa_sig = dsa.sign(magic_msg, q)
-        key_id = _search_key_id(magic_msg, dsa_sig, q)
+    # signing and naming the key_id are one call, not two, and this module
+    # has no dispatch of its own for it: `dsa.sign_recoverable` answers the
+    # key_id whichever implementation signs, the recid libsecp256k1 reports
+    # being the very thing the Python signer computed and used to throw
+    # away -- the parity of the nonce's point and how far its x-coordinate
+    # ran past the group order. So the search this used to run, one
+    # recovery per candidate until one was the signer's own key, does not
+    # get faster: it is gone from both paths (issue 285)
+    dsa_sig, key_id = dsa.sign_recoverable(magic_msg, q)
 
     # bytes_from_prv_key_int, not bytes_from_point(mult(q)): the address
     # wants the octets, and on secp256k1 they come out of the bindings'

@@ -29,7 +29,7 @@ import pytest
 from btclib import b32, b58
 from btclib.alias import Point
 from btclib.bip32 import bip32
-from btclib.curves import secp256k1
+from btclib.curves import mult, secp256k1
 from btclib.curves.curve import CURVES
 from btclib.ecc import bms, dsa
 from btclib.exceptions import BTClibRuntimeError, BTClibValueError
@@ -749,6 +749,25 @@ def _recovers(key_id: int, magic_msg: bytes, dsa_sig: dsa.Sig) -> Point | None:
     return None
 
 
+def _search_key_id(magic_msg: bytes, dsa_sig: dsa.Sig, q: int) -> int:
+    """Return the first key_id that recovers the public key of q.
+
+    The key_id arrived at from the other side: by recovering candidate
+    after candidate and comparing, where a signer reads it off the nonce's
+    point. That is what makes it a cross-check of `dsa.sign_recoverable`,
+    and it lives here because the library has no other caller for it --
+    the search is what the recoverable spelling exists not to run.
+    """
+    Q = mult(q)
+    for key_id in range(2 * (secp256k1.cofactor + 1)):
+        # a candidate can fail either half of SEC 1 v.2 step 1.6, which
+        # means "not this one" and not "no key": see dsa._recover_pub_keys_
+        if _recovers(key_id, magic_msg, dsa_sig) == Q:
+            return key_id
+
+    raise AssertionError("no key_id recovers the public key")
+
+
 def test_a_key_id_that_recovers_nothing() -> None:
     """The dropped candidate, which is why the helper above returns None.
 
@@ -777,14 +796,15 @@ def test_a_key_id_that_recovers_nothing() -> None:
 def test_recoverable_signing_answers_the_key_id_the_search_finds(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """The recid libsecp256k1 reports is the key_id, and r and s agree too.
+    """The key_id `sign` reports is the one a search finds, r and s too.
 
-    `sign` reads the key_id off a recoverable signature instead of signing
-    and then recovering candidate after candidate until one is the signer's
-    own key. The recid is the same thing arrived at from the other side --
-    the parity of the nonce's point and whether its x-coordinate exceeded
-    the group order, both of which the signer had in hand -- so what has to
-    hold is that the two name one signature, r, s and key_id all three.
+    `sign` reads the key_id off the signature it just made instead of
+    signing and then recovering candidate after candidate until one is the
+    signer's own key. The key_id is the same thing arrived at from the other
+    side -- the parity of the nonce's point and whether its x-coordinate
+    exceeded the group order, both of which the signer had in hand -- so
+    what has to hold is that the two name one signature, r, s and key_id
+    all three.
 
     Held over random pairs and not fixed vectors, r and s being what
     RFC6979 makes of each: the fixed vectors are the base64 signatures of
@@ -801,12 +821,12 @@ def test_recoverable_signing_answers_the_key_id_the_search_finds(
         dsa_sig = dsa.sign(magic_msg, q)
         assert bms_sig.dsa_sig == dsa_sig
         key_id = bms_sig.rf - 27 & 0b11
-        assert key_id == bms._search_key_id(magic_msg, dsa_sig, q)
+        assert key_id == _search_key_id(magic_msg, dsa_sig, q)
         # and the search asked of the implementation that did not report
-        # the recid, so that the two derivations are independent
+        # the key_id, so that the two derivations are independent
         with monkeypatch.context() as no_bindings:
             no_bindings.setattr(dsa, "_libsecp256k1_applicable", lambda *_: False)
-            assert key_id == bms._search_key_id(magic_msg, dsa_sig, q)
+            assert key_id == _search_key_id(magic_msg, dsa_sig, q)
 
         bms.assert_as_valid(msg, addr, bms_sig)
 
@@ -847,11 +867,11 @@ def test_the_python_path_answers_the_same(
     Python implementation stays as the reference the delegation is held
     against, and this is what reaches it.
 
-    Two patches, one per module, because there are two dispatches on the
-    way down: bms asks before it signs or recovers, and `dsa.sign` and
-    `dsa.recover_pub_key` under it ask again -- patching bms alone would
-    exercise the key_id search with libsecp256k1 doing the recovery
-    inside it.
+    Two patches, one per module, because signing and verifying ask in
+    different places: `dsa.sign_recoverable` under `sign` asks for itself,
+    while `assert_as_valid` asks here before it recovers. Patching dsa
+    alone would leave verification delegated, and bms alone would leave
+    every signature delegated.
     """
     with monkeypatch.context() as no_bindings:
         no_bindings.setattr(bms, "_libsecp256k1_applicable", lambda *_: False)

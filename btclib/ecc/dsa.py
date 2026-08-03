@@ -306,19 +306,22 @@ def gen_keys(prv_key: PrvKey | None = None, ec: Curve = secp256k1) -> tuple[int,
     return q, mult(q, ec=ec)
 
 
-def _sign_(c: int, q: int, nonce: int, lower_s: bool, ec: Curve) -> Sig:
+def _sign_recoverable_(
+    c: int, q: int, nonce: int, lower_s: bool, ec: Curve
+) -> tuple[Sig, int]:
     # Private function for testing purposes: it allows to explore all
     # possible value of the challenge c (for low-cardinality curves).
     # It assume that c is in [0, n-1], while q and nonce are in [1, n-1]
     # Steps numbering follows SEC 1 v.2 section 4.1.3
-    # affine x_K-coordinate of K (field element); mult dispatches the
+    # affine coordinates of K (field elements); mult dispatches the
     # generator to libsecp256k1 on secp256k1, which is where this
     # function is reached from whenever the bindings decline the whole
     # signature -- another hash function, another curve, a nonce the
     # caller imposed, a sign-to-contract commitment. The nonce is secret
     # and the Python fixed window is not constant time; the affine
     # conversion the Jacobian form would have saved is one mod_inv
-    x_K = mult(nonce, ec=ec)[0]  # 1
+    K = mult(nonce, ec=ec)  # 1
+    x_K = K[0]
     # mod n makes it a scalar
     r = x_K % ec.n  # 2, 3
     if r == 0:  # r≠0 required as it multiplies the public key
@@ -328,13 +331,41 @@ def _sign_(c: int, q: int, nonce: int, lower_s: bool, ec: Curve) -> Sig:
     if s == 0:  # s≠0 required as verify will need the inverse of s
         raise BTClibRuntimeError("failed to sign: s = 0")
 
+    # the key_id is what step 2 threw away, and nothing else. r is x_K
+    # reduced mod n, so recovering the key from it takes two things the
+    # signer has in hand and the signature does not carry: how many times
+    # ec.n came off x_K -- SEC 1 v.2 section 4.1.6's j -- and which of the
+    # two roots of x_K is y_K. `_recover_pub_key_` reads them back as
+    # `key_id >> 1` and `key_id & 0b01`, so this is that encoding written
+    # from the other side, and it is why a signer never has to search:
+    # the two bits were computed above and discarded.
+    #
+    # x_K // ec.n rather than `2 if x_K != r else 0`: the two agree
+    # wherever x_K < 2*ec.n, which on secp256k1 is every point --
+    # libsecp256k1 spells it `is_odd(r.y) | (overflow ? 2 : 0)` -- but a
+    # cofactor above 1 leaves room for a j of 2 or 3, which the boolean
+    # would report as 1
+    key_id = 2 * (x_K // ec.n) + (K[1] & 1)
+
     # bitcoin canonical 'low-s' encoding for ECDSA signatures
     # it removes signature malleability as cause of transaction malleability
     # see https://github.com/bitcoin/bitcoin/pull/6769
     if lower_s and s > ec.n // 2:
         s = ec.n - s  # s = - s % ec.n
+        # negating s mirrors K, so the parity bit flips while j does not:
+        # x_K is the one coordinate the reflection leaves alone.
+        # libsecp256k1 has the same `*recid ^= 1` beside the same negation
+        key_id ^= 1
 
-    return Sig(r, s, ec)
+    return Sig(r, s, ec), key_id
+
+
+def _sign_(c: int, q: int, nonce: int, lower_s: bool, ec: Curve) -> Sig:
+    # Private function for testing purposes: _sign_recoverable_ without
+    # the key_id, which is two bit operations over a y_K-coordinate `mult`
+    # returns anyway. One signing body, projected, rather than a second
+    # copy of the arithmetic that would be cheaper by nothing measurable
+    return _sign_recoverable_(c, q, nonce, lower_s, ec)[0]
 
 
 @overload
@@ -504,6 +535,81 @@ def sign(
         return sign_(msg_hash, prv_key, nonce, lower_s, ec, hf)
     commit_hash = reduce_to_hlen(commit, hf)
     return sign_(msg_hash, prv_key, nonce, lower_s, ec, hf, commit_hash=commit_hash)
+
+
+def sign_recoverable_(
+    msg_hash: Octets,
+    prv_key: PrvKey,
+    nonce: PrvKey | None = None,
+    lower_s: bool = True,
+    ec: Curve = secp256k1,
+    hf: HashF = sha256,
+) -> tuple[Sig, int]:
+    """Sign a hf_len bytes message, naming the key_id that recovers the key.
+
+    The signature `sign_` gives, and beside it the key_id
+    `recover_pub_key_` takes to answer the signer's own public key: the
+    same value the recovery flag of a message signature carries.
+
+    A spelling of its own rather than a flag on `sign_`, as
+    libsecp256k1 has `ecdsa_sign_recoverable` beside `ecdsa_sign`: a
+    second argument changing what is returned would multiply into four
+    return shapes with the commitment, which is also why no commitment is
+    taken here (see `sign_`). Nothing is published that a plain signature
+    keeps: the key_id is derivable from any signature by recovering the
+    four candidates and seeing which is the signer's, so what this saves
+    is that search and not a secret.
+    """
+    # the message msg_hash: a hf_len array
+    hf_len = hf().digest_size
+    msg_hash = bytes_from_octets(msg_hash, hf_len)
+
+    # the secret key q: an integer in the range 1..n-1.
+    # SEC 1 v.2 section 3.2.1
+    q = int_from_prv_key(prv_key, ec)
+
+    # as in sign_: a nonce of the caller's is the nonce, where what the
+    # bindings take is extra entropy for the RFC6979 nonce they derive
+    # themselves, so a requested nonce is for the Python path below. The
+    # recoverable signing they offer is lower-s like the plain one, and
+    # lower_s=False is the caller asking for the s that was computed
+    if _libsecp256k1_applicable(ec, hf) and nonce is None and lower_s:
+        # the compact form, r || s, and the recid beside it: the DER
+        # encoding sign_ parses would have to be taken apart again, the
+        # key_id being what this call is made for
+        sig_bytes, key_id = libsecp256k1_recovery.sign(msg_hash, q)
+        n_size = ec.n_size
+        r = int.from_bytes(sig_bytes[:n_size], byteorder="big", signed=False)
+        s = int.from_bytes(sig_bytes[n_size:], byteorder="big", signed=False)
+        return Sig(r, s, ec), key_id
+
+    # the challenge
+    c = challenge_(msg_hash, ec, hf)  # 4, 5
+
+    # nonce: an integer in the range 1..n-1.
+    if nonce is None:
+        nonce = _rfc6979_nonce_(c, q, ec, hf)  # 1
+    else:
+        nonce = int_from_prv_key(nonce, ec)
+    # second part delegated to helper function
+    return _sign_recoverable_(c, q, nonce, lower_s, ec)
+
+
+def sign_recoverable(
+    msg: Octets,
+    prv_key: PrvKey,
+    nonce: PrvKey | None = None,
+    lower_s: bool = True,
+    ec: Curve = secp256k1,
+    hf: HashF = sha256,
+) -> tuple[Sig, int]:
+    """ECDSA signature and the key_id that recovers the signing key.
+
+    `sign` with the key_id beside it; `sign_recoverable_` is the spelling
+    that takes the message hash.
+    """
+    msg_hash = reduce_to_hlen(msg, hf)
+    return sign_recoverable_(msg_hash, prv_key, nonce, lower_s, ec, hf)
 
 
 def _assert_as_valid_(

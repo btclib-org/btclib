@@ -2629,6 +2629,22 @@ edit.
   does not catch it — it asks for a power of two, and 1024 is one — and
   the refusal reaches any custom list of the wrong length, not only
   SLIP-0039's (issue #206)
+- **`dsa.sign_recoverable` and `dsa.sign_recoverable_` are new**: the
+  signature `sign` gives, and beside it the `key_id` that
+  `recover_pub_key` takes to answer the signer's own public key — the
+  value a message signature's recovery flag carries. A spelling of its own
+  and not a `recoverable=True` on `sign`, as libsecp256k1 has
+  `ecdsa_sign_recoverable` beside `ecdsa_sign`: a second argument changing
+  what is returned would multiply into four return shapes with
+  `commit_hash`, which is also why no commitment is taken here. Nothing
+  stops one being added later — the commitment path of `sign_` tweaks the
+  nonce and then calls the same signing body, so the key_id is already
+  computed there — and a keyword-only argument can be added compatibly
+  where removing one cannot. The key_id is public information either way,
+  derivable from any signature by recovering the four candidates and
+  seeing which is the signer's, so the recoverable spelling publishes
+  nothing the plain one keeps. `docs/source/guide.rst` has the round trip
+  as a worked example, next to `sign` and `verify` (issue #285)
 
 ### Types
 
@@ -3149,6 +3165,33 @@ edit.
   Every Python path stays reached, on the low-cardinality curves the
   tests already used and, new here, with the dispatch patched off on
   secp256k1 itself, over both parities
+- **a Python signature names its own key_id, and the search for it is
+  gone** (issue #285). `_sign_` computed the nonce's point and kept `x_K`
+  alone; the key_id is the two bits it threw away — how far `x_K` ran past
+  the group order, SEC 1 v.2 section 4.1.6's `j`, and the parity of `y_K`,
+  with the lower-s negation mirroring K and so flipping the parity bit.
+  `_sign_recoverable_` returns them beside the signature and `_sign_` is
+  its first element, which is one signing body and not a second copy of
+  the arithmetic: over 40 random keys the Python path is 38.0 µs with the
+  key_id and 37.9 µs without, the two bit operations being unmeasurable
+  against a signature. What they replace is a recovery per candidate until
+  one equalled the signer's own public key: 1867 µs, of which the search
+  was all but 38 — a factor of 49, both numbers measured with the
+  generator multiplication delegated as it is in production (issue #272),
+  since a signature the bindings decline still has that one point from
+  them. `bms.sign` is what pays
+  it, and it **loses its dispatch entirely**: no `if
+  _libsecp256k1_applicable` and no second branch to keep in step, because
+  `dsa.sign_recoverable` answers the key_id whichever implementation signs
+  — 1833 µs to 56.6 on the Python path, and 29.7 µs to 32.1 on the
+  delegated one, the 2.4 being the `Sig` validation the module used to skip
+  with `check_validity=False` and now leaves to the public function that
+  hands the signature back. `bms.assert_as_valid` keeps its own dispatch,
+  recovery having no Python counterpart to hide, so bms is one
+  implementation of signing and two of verifying. `bms._search_key_id` is
+  gone with the branch: its only caller was that branch, and the search is
+  now spelled in the tests, which is where a cross-check of the key_id
+  belongs
 
 ### Tests
 

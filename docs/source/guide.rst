@@ -565,6 +565,22 @@ Verification returns a bool and never raises, which is what you want in
 a loop over untrusted input; ``dsa.assert_as_valid`` is the spelling
 that raises with a reason, for when you want to know why.
 
+A verifier that has the signature but not the public key can recover it,
+which is what makes the 65-byte message signature below shorter than a
+key plus a signature. Recovery answers up to four candidate keys, so the
+signer has to say which one is theirs: ``dsa.sign_recoverable`` is
+``dsa.sign`` with that number beside it — the ``key_id``
+``dsa.recover_pub_key`` takes. It costs nothing to ask for: the two bits
+are computed by any signer and thrown away by ``sign``.
+
+>>> sig, key_id = dsa.sign_recoverable(b"Satoshi Nakamoto", prv_key)
+>>> key_id
+1
+>>> from btclib.curves import bytes_from_point
+>>> recovered = dsa.recover_pub_key(key_id, b"Satoshi Nakamoto", sig)
+>>> bytes_from_point(recovered) == pub_key
+True
+
 BIP-340 Schnorr
 ~~~~~~~~~~~~~~~
 
