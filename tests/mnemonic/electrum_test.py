@@ -828,13 +828,15 @@ def test_electrum_wordlists() -> None:
 
 
 def test_portuguese_word_count() -> None:
-    """1626 words is 10.667 bits, so the sentence is thirteen words long.
+    """The first entropy needing thirteen base-1626 digits has thirteen words.
 
-    Rounding that down to ten bits a word would make it twelve, i.e. a
-    sentence electrum would never draw, and rounding the entropy down
-    with it: the sentence carries 138 bits and not 130.
+    Pin the entropy because electrum's random lower bound is slightly
+    below this base-conversion boundary and can also draw twelve words.
     """
-    mnemonic = electrum.mnemonic_from_entropy("standard", None, "pt")
+    first_thirteen_word_entropy = ELECTRUM_WORDLISTS.language_length("pt") ** 12
+    mnemonic = electrum.mnemonic_from_entropy(
+        "standard", first_thirteen_word_entropy, "pt"
+    )
     assert len(mnemonic.split()) == 13
     assert len(electrum.entropy_from_mnemonic(mnemonic, "pt")) == 139
 
@@ -844,6 +846,23 @@ def test_portuguese_word_count() -> None:
     # BIP39's portuguese is another word-list, and cannot read it
     with pytest.raises(BTClibValueError, match="unknown 'pt' word: "):
         bip39.entropy_from_mnemonic(mnemonic, "pt")
+
+
+def test_portuguese_random_word_count(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Electrum's random lower bound permits a twelve-word Portuguese seed."""
+    base = ELECTRUM_WORDLISTS.language_length("pt")
+    twelve_word_entropy = base**12 - 1000
+
+    def draw_below_thirteen_words(upper_bound: int) -> int:
+        assert upper_bound == (1 << 138) - 1
+        # randbelow returns one less because _random_int_entropy adds one.
+        return twelve_word_entropy - 1
+
+    monkeypatch.setattr(electrum.secrets, "randbelow", draw_below_thirteen_words)
+    mnemonic = electrum.mnemonic_from_entropy("standard", None, "pt")
+
+    assert len(mnemonic.split()) == 12
+    assert len(electrum.entropy_from_mnemonic(mnemonic, "pt")) == 129
 
 
 def test_is_bip39_mnemonic() -> None:
