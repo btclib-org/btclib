@@ -745,11 +745,15 @@ class PsbtIn:
     ) -> PsbtIn:
         hd_key_paths = cast(
             Mapping[Octets, BIP32KeyOrigin],
-            decode_from_bip32_derivs(dict_["bip32_derivs"]),
+            # check_validity=False, as for every other element here (issue
+            # 264): PsbtIn.assert_valid below validates it as part of the whole
+            decode_from_bip32_derivs(dict_["bip32_derivs"], check_validity=False),
         )
         taproot_hd_key_paths = cast(
             Mapping[Octets, tuple[list[Octets], BIP32KeyOrigin]],
-            decode_from_bip32_derivs(dict_["taproot_hd_key_paths"]),
+            decode_from_bip32_derivs(
+                dict_["taproot_hd_key_paths"], check_validity=False
+            ),
         )
         return cls(
             Tx.from_dict(dict_["non_witness_utxo"], check_validity=False)

@@ -1956,6 +1956,16 @@ edit.
   spend of two whole blocks turned back into the psbt it was signed
   from, where the estimate of an input is exactly what the input took
   with each of its signatures at 72 bytes (issue #209)
+- **`decode_from_bip32_derivs` takes `check_validity`**, which it used to
+  drop: its `master_fingerprint` size check ran unconditionally, so
+  `Psbt.from_dict(d, check_validity=False)` raised on a bad
+  `master_fingerprint` while every other malformed field of the same
+  `d` was accepted for the caller to inspect. `Psbt.from_dict`,
+  `PsbtIn.from_dict` and `PsbtOut.from_dict` now pass
+  `check_validity=False` into it, matching what they already pass into
+  every other nested field they build from a dict; the fingerprint is
+  checked, as they are, by `assert_valid_hd_key_paths` inside
+  `Psbt.assert_valid` (issue #264)
 
 ### The public API and the module layout
 

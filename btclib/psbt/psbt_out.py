@@ -224,7 +224,9 @@ class PsbtOut:
     ) -> PsbtOut:
         hd_key_paths = cast(
             Mapping[Octets, BIP32KeyOrigin],
-            decode_from_bip32_derivs(dict_["bip32_derivs"]),
+            # check_validity=False, as for every other element here (issue
+            # 264): PsbtOut.assert_valid below validates it as part of the whole
+            decode_from_bip32_derivs(dict_["bip32_derivs"], check_validity=False),
         )
         taproot_hd_key_paths = cast(
             Mapping[Octets, tuple[list[bytes], BIP32KeyOrigin]],
