@@ -345,14 +345,19 @@ def taproot_bip32_to_dict(
 
 def taproot_bip32_from_dict(
     taproot_hd_key_paths: list[dict[str, str]],
+    *,
+    check_validity: bool = True,
 ) -> dict[bytes, tuple[list[bytes], BIP32KeyOrigin]]:
     """Return a tap_bip32_derivation from its json representation."""
     return {
-        bytes_from_octets(bip32_deriv["pub_key"], 4): (
+        bytes_from_octets(bip32_deriv["pub_key"], 32 if check_validity else None): (
             [bytes_from_octets(x) for x in bip32_deriv["leaf_hashes"]],
             BIP32KeyOrigin(
-                bytes_from_octets(bip32_deriv["master_fingerprint"], 4),
+                bytes_from_octets(
+                    bip32_deriv["master_fingerprint"], 4 if check_validity else None
+                ),
                 indexes_from_der_path(bip32_deriv["path"]),
+                check_validity=check_validity,
             ),
         )
         for bip32_deriv in taproot_hd_key_paths

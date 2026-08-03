@@ -11,11 +11,14 @@
 
 from __future__ import annotations
 
+from collections.abc import Mapping
 from io import BytesIO
+from typing import Any, cast
 
 import pytest
 
 from btclib.alias import Octets
+from btclib.bip32 import BIP32KeyOrigin
 from btclib.exceptions import BTClibValueError
 from btclib.psbt import (
     Psbt,
@@ -26,7 +29,7 @@ from btclib.psbt import (
     encode_dict_bytes_bytes,
     serialize_dict_bytes_bytes,
 )
-from btclib.psbt.psbt_utils import PSBT_SEPARATOR
+from btclib.psbt.psbt_utils import PSBT_SEPARATOR, taproot_bip32_from_dict
 from tests.conftest import JsonGolden
 
 
@@ -111,6 +114,48 @@ def test_dataclasses_json_dict(json_golden: JsonGolden) -> None:
     assert isinstance(psbt_out2, PsbtOut)
 
     assert psbt_out == psbt_out2
+
+
+def test_taproot_hd_key_paths_round_trips_through_dict() -> None:
+    """issue 311: a 32-byte pub_key used to be checked against 4 bytes.
+
+    `taproot_bip32_from_dict` copied `master_fingerprint`'s size check onto
+    `pub_key`, so no real taproot output derivation survived a
+    to_dict/from_dict round trip.
+    """
+    pub_key = "11" * 32
+    taproot_hd_key_paths: dict[Octets, tuple[list[bytes], BIP32KeyOrigin]] = {
+        pub_key: ([], BIP32KeyOrigin("d90c6a4f", "m/0"))
+    }
+    psbt_out = PsbtOut(taproot_hd_key_paths=taproot_hd_key_paths)
+
+    dict_ = psbt_out.to_dict()
+    assert dict_["taproot_hd_key_paths"]
+    assert PsbtOut.from_dict(dict_) == psbt_out
+
+
+def test_taproot_bip32_from_dict_check_validity() -> None:
+    # check_validity=False lets a malformed pub_key or master_fingerprint
+    # through, the way decode_from_bip32_derivs does for hd_key_paths
+    # (issue 264) -- deferred to PsbtOut.assert_valid rather than refused
+    # here
+    bip32_derivs: list[dict[str, Any]] = [
+        {
+            "pub_key": "11" * 4,
+            "leaf_hashes": [],
+            "master_fingerprint": "d90c6a4f",
+            "path": "m/0",
+        }
+    ]
+    with pytest.raises(BTClibValueError, match="invalid size: "):
+        taproot_bip32_from_dict(bip32_derivs)
+
+    taproot_hd_key_paths = cast(
+        "Mapping[Octets, tuple[list[bytes], BIP32KeyOrigin]]",
+        taproot_bip32_from_dict(bip32_derivs, check_validity=False),
+    )
+    with pytest.raises(BTClibValueError, match="invalid taproot bip32 derivation"):
+        PsbtOut(taproot_hd_key_paths=taproot_hd_key_paths)
 
 
 def test_scripts_are_rendered_as_asm_and_hex() -> None:
