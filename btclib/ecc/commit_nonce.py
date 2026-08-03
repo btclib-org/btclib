@@ -67,8 +67,11 @@ from __future__ import annotations
 
 from hashlib import sha256
 
+from btclib_libsecp256k1 import keys as libsecp256k1_keys
+
 from btclib.alias import HashF, Octets, Point
 from btclib.curves import Curve, bytes_from_point, mult, secp256k1
+from btclib.curves.curve import _libsecp256k1_applicable
 from btclib.exceptions import BTClibRuntimeError
 from btclib.hashes import tagged_hash
 from btclib.to_prv_key import PrvKey, int_from_prv_key
@@ -128,7 +131,25 @@ def commit_nonce_(
     """
     nonce = int_from_prv_key(nonce, ec)
     receipt = mult(nonce, ec.G, ec)
-    tweaked_nonce = (nonce + _tweak(commit_hash, receipt, tag, ec, hf)) % ec.n
+    tweak = _tweak(commit_hash, receipt, tag, ec, hf)
+
+    # secp256k1_ec_seckey_tweak_add computes the sum in constant time,
+    # where Python's own `(a + b) % n` is variable in time with the
+    # operands and leaves an unzeroized copy of each intermediate behind
+    # -- this is the one place a secret nonce is tweaked in Python that
+    # the delegation removes. Gated on the curve alone, as BIP32
+    # derivation gates the same call: hf enters only the tagged hash
+    # above, computed in Python either way
+    if _libsecp256k1_applicable(ec):
+        try:
+            tweaked = libsecp256k1_keys.prvkey_tweak_add(nonce, tweak)
+        except ValueError as e:
+            # tweak is in range past _tweak's own loop, so the one sum
+            # the binding refuses is the zero btclib refuses too
+            raise BTClibRuntimeError("failed to sign: zero tweaked nonce") from e
+        return int.from_bytes(tweaked, byteorder="big", signed=False), receipt
+
+    tweaked_nonce = (nonce + tweak) % ec.n
     # the tweak is uniform in 1..n-1, so a zero sum is a one-in-n event
     # and not a rejection to loop over: a second candidate would be a
     # second tweak, and the tweak is what the verifier recomputes.
@@ -153,4 +174,26 @@ def commit_point_(
     element -- so the comparison against r belongs to each scheme and not
     here.
     """
-    return ec.add(receipt, mult(_tweak(commit_hash, receipt, tag, ec, hf), ec.G, ec))
+    tweak = _tweak(commit_hash, receipt, tag, ec, hf)
+
+    # secp256k1_ec_pubkey_tweak_add computes R + tweak*G directly on the
+    # serialized point, with no point built on the Python side. Unlike
+    # the secret half above, refusing a result at infinity is the
+    # binding's own choice and not ec.add's, which returns it: a refusal
+    # here falls through to the Python addition instead of propagating,
+    # so the one-in-n point at infinity is still answered rather than
+    # raised. bytes_from_point's own refusal of an infinite receipt is a
+    # BTClibValueError, a ValueError too, and falls through the same way
+    # for the same reason
+    if _libsecp256k1_applicable(ec):
+        try:
+            sec = bytes_from_point(receipt, ec, compressed=False)
+            tweaked = libsecp256k1_keys.pubkey_tweak_add(sec, tweak, compressed=False)
+        except ValueError:
+            pass
+        else:
+            x = int.from_bytes(tweaked[1:33], byteorder="big", signed=False)
+            y = int.from_bytes(tweaked[33:], byteorder="big", signed=False)
+            return x, y
+
+    return ec.add(receipt, mult(tweak, ec.G, ec))

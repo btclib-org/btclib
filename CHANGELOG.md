@@ -2990,6 +2990,29 @@ edit.
   this same function it measures 7.67 µs, 0.8% below the slice, so what
   argues for it upstream is the bindings' API convention that public keys
   come out compressed, and not btclib's speed (issue #127)
+- **sign-to-contract's two tweaks go through libsecp256k1, one of them
+  slower on purpose** (issue #271). `commit_point_`'s public half,
+  `keys.pubkey_tweak_add`, computes the receipt plus the tweak times the
+  generator directly on the serialized point: 5.9 µs against 33.9,
+  serialization included. `commit_nonce_`'s secret half is the opposite
+  trade, the one this issue is for and not for the clock: `(nonce +
+  tweak) % n` on Python integers is 0.02 µs, variable in time with the
+  operands and leaving an unzeroized copy of the sum behind, where
+  `keys.prvkey_tweak_add` is 0.50 µs and constant time, the trade BIP32
+  private derivation already took. Both are gated on the curve alone,
+  as taproot, ECDH and BIP32 are, `_tweak`'s own loop keeping every
+  tweak in range before either call is reached; the one sum
+  `prvkey_tweak_add` refuses past that loop is the zero
+  `commit_nonce_` has always refused, and the mapping to
+  `BTClibRuntimeError("failed to sign: zero tweaked nonce")` is
+  unchanged. `pubkey_tweak_add` refuses a result at infinity, where
+  `ec.add` returns it — the one behaviour difference between the two
+  bindings — so that refusal, and `bytes_from_point`'s own refusal of
+  an infinite receipt, both fall through to the Python addition rather
+  than propagating: the one-in-n edge answers what it always answered.
+  Every Python path stays reached, on the low-cardinality curves the
+  tests already used and, new here, with the dispatch patched off on
+  secp256k1 itself, over both parities
 
 ### Tests
 

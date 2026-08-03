@@ -71,10 +71,11 @@ used to teach and to prototype as much as to build:
     scalar for the one and no public key for the other; `dsa.sign` for
     secp256k1 with sha256, the lower-s form, no caller-imposed nonce and
     no commitment; `ssa.sign` for secp256k1 with sha256, a 32-byte
-    message and no commitment; `taproot.output_prvkey` and
-    `dh.diffie_hellman` for secp256k1, the tweaking of a key and the
-    shared point of a key agreement being the two other places a secret
-    meets the curve.
+    message and no commitment; `taproot.output_prvkey`,
+    `dh.diffie_hellman` and `commit_nonce.commit_nonce_` for secp256k1,
+    the tweaking of a key, the shared point of a key agreement and the
+    tweaking of a sign-to-contract nonce being three other places a
+    secret meets the curve.
     A signature the bindings decline is not all Python for that:
     `dsa.gen_keys` and the nonce point of `dsa._sign_` go through `mult`,
     and the verification equation of both `dsa` and `ssa` through
