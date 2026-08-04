@@ -302,8 +302,11 @@ extend-exclude = [
 
 [tool.typos.default]
 # addresses, keys and signatures written inline in the test sources, which
-# splitting into words turns into a spell checker's worst input: 34
-# findings, `SHS` inside a base58 address, `Owrk` inside a base64 psbt.
+# splitting into words turns into a spell checker's worst input: `SHS`
+# inside a base58 address, `Owrk` inside a base64 psbt. The rule is what
+# keeps a vector byte for byte -- this hook fixes in place, so with the
+# rule off it rewrites the sources it reads, an extended key's `ThmBZ`
+# becoming `ThemBZ`.
 # Ignored by shape rather than by file, unlike the vendored data above --
 # these literals sit next to prose that has to stay checked, and a skipped
 # tests/*.py would take the prose with it.
@@ -414,9 +417,10 @@ show_error_codes = true
 # early warning filterwarnings = ["error"] buys at runtime.
 #
 # Three codes are deliberately absent, and the survey is why:
-# redundant-expr (2), warn_unreachable (1) and possibly-undefined (3) all
-# point at the same deliberate idiom -- a runtime isinstance guard on a
-# field mypy already believes is typed. btclib/network.py says it in a
+# redundant-expr and possibly-undefined, which --enable-error-code adds,
+# and warn_unreachable, which is a flag of its own -- all point at the same
+# deliberate idiom, a runtime isinstance guard on a field mypy already
+# believes is typed. btclib/network.py says it in a
 # comment: a Literal is a mypy fact and not a runtime one, and from_dict
 # takes whatever the json says. Turning them on would ask this code base
 # to stop checking what it decided to check
@@ -470,17 +474,19 @@ exclude = [
 # ones that either find nothing today
 # -- a ratchet, costing no cleanup -- or find something worth removing.
 #
-# What the same survey rejected, with the count, so that nobody has to run
-# it again: N 498 (uppercase math symbols are the convention here, as the
-# PLR2004 note below already says), COM 417 (COM812, which ruff's own
-# documentation recommends against alongside the formatter), EM 343,
-# FBT 203, EXE 153 (all EXE001, i.e. the shebang-not-executable finding
-# that .pre-commit-config.yaml records the same decision about), TC 136,
-# PTH 95, ARG 93, ANN 20 (all ANN401, the explicit Any of
-# the vector loaders), SLF 7 (tests reaching into private members on
-# purpose), PERF 3 (all PERF203, try/except in a retry loop).
-# ERA is selected despite surveying at 89: about half were genuine
-# dead code and the other half prose that ERA read as code, and the second
+# What the same survey rejected, with the reason it was rejected rather
+# than the count it reached -- `uv run ruff check --select N --no-cache
+# btclib tests` re-derives any of these in a second, and a number here
+# rots with the next test file: N (uppercase math symbols are the
+# convention here, as the PLR2004 note below already says), COM (COM812,
+# which ruff's own documentation recommends against alongside the
+# formatter), EM, FBT, EXE (all EXE001, i.e. the shebang-not-executable
+# finding that .pre-commit-config.yaml records the same decision about),
+# TC, PTH, ARG, ANN (all ANN401, the explicit Any of the vector loaders),
+# SLF (all SLF001, tests reaching into private members on purpose), PERF
+# (all PERF203, try/except in a retry loop).
+# ERA is selected despite what it found on that survey: about half was
+# genuine dead code and the other half prose that ERA read as code, and the
 # half did not need a single noqa -- a reworded comment reads as prose to
 # it, and a diagram belongs in the docstring, which it does not inspect.
 # The zero-finding sets not taken are the ones for constructs this code
@@ -561,9 +567,9 @@ ignore = [
 [tool.ruff.lint.per-file-ignores]
 "**/__init__.py" = ["F401"] # re-exported imports
 # collecting entropy from dice is a conversation: the module prompts with
-# input() and prints how many rolls it needs and which ones count, so
-# these two prints are the interface, not a debugging leftover -- unlike
-# the one print T20 found elsewhere, which is deleted rather than ignored
+# input() and prints how many rolls it needs and which ones count, so its
+# prints are the interface, not a debugging leftover -- unlike a print
+# anywhere else in the library, which is deleted rather than ignored
 "btclib/mnemonic/entropy.py" = ["T201"]
 # the D rules are not here: a public test function, fixture or method
 # states what it verifies -- the property, the vector, the failure
@@ -583,7 +589,7 @@ ignore = [
 ]
 
 [tool.ruff.lint.mccabe]
-# ruff's default, and the 2 functions over it each carry a noqa whose
+# ruff's default, and the functions over it each carry a noqa whose
 # reason is the comment above the def -- ruff reads the code, the prose
 # after it is for the reader, and a line of its own keeps both inside 80
 # columns (issue #184). Not a global bound at the tree's worst, which

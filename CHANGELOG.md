@@ -4791,6 +4791,27 @@ edit.
   not numbers: another checkout's `pre-commit` run on the same machine
   doubles the baseline, so a comparison of a second or two is worth reading
   only as best of three with nothing else running
+- **The lint and type-check surveys keep their reasons and lose their
+  counts.** The survey of unselected ruff rule sets was the largest tally
+  in pyproject.toml and said in as many words what it was for — "with the
+  count, so that nobody has to run it again" — and every one of its twelve
+  numbers had moved: N 498 is 604, COM 417 is 783, EM 343 is 491, FBT 203
+  is 285, EXE 153 is 203, TC 136 is 207, PTH 95 is 130, ARG 93 is 138, ANN
+  20 is 37, SLF 7 is 38, PERF 3 is 4, and ERA, selected since it was
+  surveyed at 89, now finds nothing at all. mypy's three deliberately
+  absent codes read redundant-expr (2), warn_unreachable (1) and
+  possibly-undefined (3) against the 2, 4 and 1 they find today. Each keeps
+  the reason it was rejected — which is what decides it — and gains the
+  command that re-derives the number: `ruff check --select N --no-cache`,
+  `--enable-error-code` for the first and third code, `--warn-unreachable`
+  for the second. The smaller ones went the same way, `[tool.ruff.mccabe]`'s
+  2 functions over the default and the 2 prints of the dice interface
+  included, both right today and neither the reason for the setting.
+  `[tool.typos.default]`'s shape rule counted 34 findings without it, where
+  what it now says is what the measurement costs: the hook fixes in place,
+  so a run without the rule rewrites the vectors it reads, an extended key's
+  `ThmBZ` becoming `ThemBZ`. That is the argument the count was standing in
+  for
 - **`assert_nulldata` says which question it answers** (issue #211). The
   rule it applies — OP_RETURN and one minimal push, total length neither
   78 nor above 83 — is standardness policy, and narrower than the
