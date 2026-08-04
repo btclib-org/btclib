@@ -22,8 +22,10 @@ from urllib.request import (
     HTTPHandler,
     HTTPRedirectHandler,
     OpenerDirector,
+    ProxyHandler,
     Request,
     build_opener,
+    getproxies_environment,
 )
 from urllib.response import addinfourl
 
@@ -479,6 +481,40 @@ def test_the_opener_does_not_follow_a_redirect() -> None:
     ]
     assert len(redirect_handlers) == 1
     assert isinstance(redirect_handlers[0], transport_module._NoRedirect)
+
+
+@pytest.mark.parametrize("variable", ["http_proxy", "HTTPS_PROXY", "ALL_PROXY"])
+def test_no_proxy_is_taken_from_the_environment(
+    variable: str, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """A variable set for a browser does not get btclib's rpc credential.
+
+    `build_opener` installs a `ProxyHandler` built from `getproxies()` by
+    default, so without the empty one this module passes it, a call to a
+    node on loopback would be sent to whatever host `HTTP_PROXY` names --
+    with the `Basic` header btclib puts on every request before being
+    asked for one. The environment is inherited by everything in a shell
+    and is nobody's statement about which host holds the node.
+
+    There is no proxy handler in the chain at all, which is what passing
+    an empty map achieves: `ProxyHandler.__init__` sets one `<scheme>_open`
+    method per entry, `add_handler` appends a handler only when it
+    registered something, and `build_opener` skips the default of a class
+    it was handed an instance of. So the empty one takes the place of
+    urllib's and then declines to be in the chain.
+
+    Measured against what the default opener does with the same
+    environment, which is the other half of the claim: a handler that
+    would have proxied is there, and in btclib's opener it is not.
+    """
+    monkeypatch.setenv(variable, "http://proxy.invalid:3128")
+    assert getproxies_environment()  # the environment does name one
+
+    default = getattr(build_opener(), "handlers", [])
+    assert [h for h in default if isinstance(h, ProxyHandler)]
+
+    handlers = getattr(transport_module._OPENER, "handlers", [])
+    assert [h for h in handlers if isinstance(h, ProxyHandler)] == []
 
 
 @pytest.mark.parametrize(

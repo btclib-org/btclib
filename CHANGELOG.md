@@ -2423,7 +2423,10 @@ edit.
   for a 503 from a full work queue wants the number rather than a message
   to match on. A body no parser can read keeps the status too: it cannot
   be an rpc error, so what is reported is the 401 or the 503 rather than
-  the encoding of whatever answered instead of the node. No endpoint is a
+  the encoding of whatever answered instead of the node. No ambient proxy
+  is consulted either — `urllib` would otherwise route the request, and
+  with it the `Basic` credential, through whatever host `HTTP_PROXY` names
+  in a shell that set it for something else. No endpoint is a
   default: `BLOCKSTREAM_INFO` is a constant to pass, never a host btclib
   contacts on its own. Nothing here is tested against a live host —
   `HttpTransport` is the seam, and every test answers from a recorded
