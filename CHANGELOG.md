@@ -3908,6 +3908,26 @@ edit.
 
 ### Packaging, linting and CI
 
+- **the bindings dependency states its policy where the pin is** (issue
+  #325). `btclib_libsecp256k1>=0.7.1rc1` has no upper bound, and the
+  absence of a ceiling is now written down as the decision it is:
+  the bindings are a btclib-org project developed by the same people, so a
+  breaking change there is coordinated with the release here — which is
+  what a version ceiling substitutes for when it cannot be. `<0.8` would
+  cost a btclib release for every bindings minor, the ones that break
+  nothing included, and would make a published artifact refuse a version
+  it works with; `<1` constrains nothing, pre-1.0 semver putting the
+  breaking changes in the minor. CONTRIBUTING.md carries what the policy
+  does *not* cover — metadata is baked into every wheel already published,
+  so coordinating the two projects protects the supported pair and not an
+  artifact that went out before — and what the lower bound naming a release
+  candidate does: it opts this direct dependency into uv's default
+  `if-necessary-or-explicit` strategy, where packaging tools otherwise
+  generally exclude prereleases unless no final or post-release satisfies
+  the specifier or the user asks for them. A satisfying stable release
+  stays preferred, so publishing a final `0.7.1` makes it the selected
+  candidate without changing the bound
+
 - **nine more mypy error codes**, surveyed the way the ruff sets were:
   every optional code `strict` leaves off, run over btclib and tests.
   These nine find nothing today, so each is a ratchet — and two carry

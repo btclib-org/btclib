@@ -43,6 +43,36 @@ pyproject.toml. They are compiled from source, so a C toolchain is required
 (cmake comes as a build dependency); the released btclib keeps depending on
 the plain btclib_libsecp256k1 wheels from PyPI.
 
+**The declared dependency is `btclib_libsecp256k1>=0.7.1rc1`, with no
+upper bound**, and the absence of a ceiling is a decision. The bindings are
+a btclib-org project developed by the same people, and their whole purpose
+is to be the bindings this library calls, so a breaking change there is
+coordinated with the release here — which is what a version ceiling
+substitutes for when it cannot be. A `<0.8` ceiling would cost a btclib
+release for every bindings minor, the ones that break nothing included, and
+would make a published artifact refuse a version it in fact works with; a
+`<1` ceiling constrains nothing, pre-1.0 semver putting the breaking
+changes in the minor.
+
+What the policy does not cover: dependency metadata is baked into every
+wheel already published, so coordinating the two projects protects the
+current pair and not an artifact that went out before. Only the latest
+release is supported (SECURITY.md) and nothing is backported, so the
+promise is about that pair — a bindings release keeps the runtime API the
+supported btclib needs, and an older btclib may one day stop installing or
+running against the newest bindings.
+
+The lower bound explicitly includes a prerelease, which opts this direct
+dependency into uv's default `if-necessary-or-explicit` strategy. Packaging
+tools otherwise generally exclude prereleases, except when no final or
+post-release satisfies the specifier or the user asks for them explicitly:
+see the
+[version-specifiers page](https://packaging.python.org/en/latest/specifications/version-specifiers/#handling-of-pre-releases)
+and
+[uv's prerelease handling](https://docs.astral.sh/uv/concepts/resolution/#pre-release-handling).
+A satisfying stable release remains preferred, so publishing a final
+`0.7.1` makes it the selected candidate without changing this bound.
+
 **`pip install -e .` does not work here, and the error will not say why.**
 tool.uv.sources is uv-only metadata: pip does not read it, so it resolves
 btclib_libsecp256k1 from PyPI, where the newest release is older than the
