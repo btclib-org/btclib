@@ -859,6 +859,40 @@ edit.
   does not answer this: a psbt can carry the right transaction and name
   an output it has not got (issue #173)
 
+- **a fixed-width field must hold its bytes, and complete octets must hold
+  exactly one object** (issue #322). `btclib/utils.py` states the rule and
+  holds the two helpers every `parse` reads it through: `read_exactly`
+  refuses a short read and names the field it could not fill,
+  `assert_no_trailing` refuses what is left over in an octet string and
+  leaves a caller's stream alone. Both faces of the defect were
+  malleability rather than a missing check — distinct buffers deserializing
+  to one object that serializes back to only one of them. `Tx.version`,
+  `Tx.lock_time`, `TxIn.sequence`, `TxOut.value`, `OutPoint.tx_id` and
+  `OutPoint.vout` read `stream.read(size)` and took whatever came back, so
+  a transaction three bytes short of its lock time parsed into a
+  transaction with a lock time three bytes smaller, serializing back
+  longer than the buffer it was read from; and `Tx.parse` on octets
+  ignored everything after the transaction, so `Tx.parse(raw + b"junk")`
+  was the transaction of `raw`. The length checks `BlockHeader.parse` and
+  `BIP32KeyData.parse` already had are no longer gated on `check_validity`
+  — 70 bytes of a header used to answer a header, its nonce read from no
+  bytes at all — which is what `bms.Sig.parse` had right and what the
+  comment beside it already said. `Psbt.parse`'s trailing check and
+  `psbt_utils`'s private `_read_exactly` are those helpers now, which
+  costs the `malformed psbt:` prefix on three messages: `not enough data
+  for the psbt map key: 3 bytes instead of 5` and `37 bytes after the
+  psbt`. Two codecs are deliberately outside the rule and say so:
+  `var_int` and `var_bytes` read one element out of the middle of a
+  buffer, which is how `Block.height` reads the BIP34 height out of a
+  coinbase script that carries an extranonce after it.
+  `tests/parse_contract_test.py` holds seven parsers to the rule — every
+  truncation of an encoding refused at every offset, under either
+  `check_validity`, octets with anything after them refused, and a stream
+  left on the byte after the object — and one BIP174 invalid-psbt vector
+  is pinned to its own reason at last: the case whose value is not its
+  stated size now answers `39 bytes after the transaction` rather than the
+  `Missing inputs` that was true of it and not what was wrong with it
+
 ### Immutability and shared state
 
 - a default-constructed `TxIn` no longer shares its `prev_out` and

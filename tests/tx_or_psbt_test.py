@@ -107,12 +107,17 @@ def test_check_validity_reaches_the_parser() -> None:
         pytest.param("not hex and not base64!", "neither hex nor base64", id="text"),
         pytest.param(
             # ascii, and neither encoding: read as the bytes it is, which
-            # is where a transaction parser gives up
+            # is where a transaction parser gives up -- on the outpoint of
+            # the first of the inputs the fifth byte says are coming
             b"not hex and not base64!",
-            "invalid OutPoint tx_id",
+            "not enough data for the outpoint tx_id",
             id="text as bytes",
         ),
-        pytest.param(b"\xff\xfe\x00 not text", "invalid OutPoint tx_id", id="bytes"),
+        pytest.param(
+            b"\xff\xfe\x00 not text",
+            "not enough data for the outpoint tx_id",
+            id="bytes",
+        ),
         pytest.param("70736274ff", "at least a map is missing", id="the magic alone"),
     ],
 )

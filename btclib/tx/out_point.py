@@ -17,7 +17,12 @@ from typing import Any
 
 from btclib.alias import BinaryData, Octets
 from btclib.exceptions import BTClibValueError
-from btclib.utils import bytes_from_octets, bytesio_from_binarydata
+from btclib.utils import (
+    assert_no_trailing,
+    bytes_from_octets,
+    bytesio_from_binarydata,
+    read_exactly,
+)
 
 
 # frozen: both fields are immutable, so this one
@@ -115,8 +120,11 @@ class OutPoint:
         cls: type[OutPoint], data: BinaryData, *, check_validity: bool = True
     ) -> OutPoint:
         """Return an OutPoint from the first 36 bytes of the provided data."""
-        data = bytesio_from_binarydata(data)
-        tx_id = data.read(32)[::-1]
-        vout = int.from_bytes(data.read(4), "little", signed=False)
+        stream = bytesio_from_binarydata(data)
+        tx_id = read_exactly(stream, 32, "outpoint tx_id")[::-1]
+        vout = int.from_bytes(
+            read_exactly(stream, 4, "outpoint vout"), "little", signed=False
+        )
+        assert_no_trailing(data, stream, "outpoint")
 
         return cls(tx_id, vout, check_validity=check_validity)

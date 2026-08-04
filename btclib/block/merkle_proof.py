@@ -59,9 +59,11 @@ def _assert_inner_node_is_not_a_tx(inner_node: bytes) -> None:
     """
     try:
         tx = Tx.parse(inner_node, check_validity=False)
-        # parse stops at the end of the transaction, so a prefix that
-        # happens to parse is not one: the 64 bytes have to be a whole
-        # transaction and nothing more
+        # a prefix that happens to parse is refused by the parser itself,
+        # octets being one whole transaction; what is left for the
+        # round-trip to catch is an encoding of a transaction that is not
+        # the one btclib writes -- a segwit marker with no witness behind
+        # it -- which is not the shape a leaf can be forged into either
         is_a_tx = tx.serialize(include_witness=True, check_validity=False) == inner_node
     except (BTClibValueError, BTClibTypeError, BTClibRuntimeError):
         # the exception contract of btclib/exceptions.py, which is what

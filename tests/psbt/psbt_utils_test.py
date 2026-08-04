@@ -69,12 +69,12 @@ def test_deserialize_map_short_read() -> None:
     """
     assert deserialize_map(b"\x01A\x01B\x00") == {b"A": b"B"}
 
-    err_msg = "malformed psbt: not enough data for the map value, "
+    err_msg = "not enough data for the psbt map value: "
     for announced_size in (b"\x02", b"\x05", b"\x09"):
         with pytest.raises(BTClibValueError, match=err_msg):
             deserialize_map(b"\x01A" + announced_size + b"B")
 
-    err_msg = "malformed psbt: not enough data for the map key, "
+    err_msg = "not enough data for the psbt map key: "
     with pytest.raises(BTClibValueError, match=err_msg):
         deserialize_map(b"\x05AB")
 

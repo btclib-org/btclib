@@ -12,6 +12,24 @@
 Most conversions from SEC 1 v.2 2.3 are included.
 
 https://www.secg.org/sec1-v2.pdf
+
+`read_exactly` and `assert_no_trailing` are the two halves of what every
+`parse` in this library owes its caller, and they live here because all of
+them owe it:
+
+- a field is as long as its encoding says it is, so a short read is an
+  error and not a value. That is structural rather than semantic, so
+  `check_validity` does not gate it: skipped, a truncated buffer becomes
+  an object that serializes back zero-padded, and two buffers map to the
+  one object that serializes to only the longer of them
+- octets are one whole object, so bytes after it are refused; a caller's
+  stream is not, so parsing consumes the object and leaves the stream on
+  the byte after it, which is how a transaction is read out of a block
+
+A fixed-size object read whole -- a 78-byte bip32 key, a 65-byte bms
+signature, an 80-byte block header -- reports its own decoded length
+instead of naming a field, the buffer being the object and not a part of
+one; that check is unconditional for the same reason.
 """
 
 from __future__ import annotations
@@ -59,6 +77,48 @@ def bytesio_from_binarydata(stream: BinaryData) -> BytesIO:
         stream = BytesIO(stream)
 
     return stream
+
+
+def read_exactly(stream: BytesIO, size: int, what: str) -> bytes:
+    """Return size octets from the stream, or raise: a short read is truncation.
+
+    `BytesIO.read` answers with whatever is left when the buffer holds
+    less than was asked for, and `int.from_bytes` takes the short answer
+    without a word. The size is what makes the field boundary, so it is
+    checked whatever `check_validity` says: see this module's docstring
+    for why that is not the same question.
+
+    `what` names the field in the error message, the caller knowing which
+    one it was reading and the stream not.
+    """
+    data = stream.read(size)
+    if len(data) != size:
+        err_msg = f"not enough data for the {what}: "
+        err_msg += f"{len(data)} bytes instead of {size}"
+        raise BTClibValueError(err_msg)
+    return data
+
+
+def assert_no_trailing(data: BinaryData, stream: BytesIO, what: str) -> None:
+    """Refuse bytes left over after a complete octet encoding.
+
+    Octets are one whole object, so what follows the object in them is
+    malleability: two buffers deserializing to the one object that
+    serializes back to only the shorter of them. A caller's stream is the
+    other case, and nothing is checked there -- what follows in it is the
+    caller's, a transaction inside a block being read from the very stream
+    the block is read from -- so `parse` leaves the stream on the byte
+    after the object.
+
+    Bitcoin Core splits the two the same way, between `Unserialize` and
+    `DecodeRawPSBT`'s "extra data after PSBT".
+    """
+    if isinstance(data, BytesIO):
+        return
+
+    trailing = stream.read()
+    if trailing:
+        raise BTClibValueError(f"{len(trailing)} bytes after the {what}")
 
 
 def int_from_bits(octets: Octets, nlen: int) -> int:

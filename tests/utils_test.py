@@ -10,13 +10,71 @@
 """Tests for the `btclib.utils` module."""
 
 import random
+from io import BytesIO
 
 import pytest
 
 from btclib.exceptions import BTClibValueError
-from btclib.utils import decode_num, encode_num, hex_string, int_from_integer
+from btclib.utils import (
+    assert_no_trailing,
+    decode_num,
+    encode_num,
+    hex_string,
+    int_from_integer,
+    read_exactly,
+)
 
 random.seed(42)
+
+
+def test_read_exactly() -> None:
+    """The size asked for is the size returned, or it is an error."""
+    stream = BytesIO(b"12345")
+    assert read_exactly(stream, 2, "first field") == b"12"
+    assert read_exactly(stream, 3, "second field") == b"345"
+    # nothing left, and asking for nothing is not asking
+    assert read_exactly(stream, 0, "no field") == b""
+
+
+def test_read_exactly_names_the_field_it_could_not_fill() -> None:
+    """A short read is refused, and the message says which field it was.
+
+    BytesIO.read hands back what is left rather than raising, so an
+    unchecked read is not a missing check but a wrong value: the field
+    would be as long as the buffer happened to be.
+    """
+    err_msg = "not enough data for the sequence: 3 bytes instead of 4"
+    with pytest.raises(BTClibValueError, match=err_msg):
+        read_exactly(BytesIO(b"123"), 4, "sequence")
+
+    err_msg = "not enough data for the tx_id: 0 bytes instead of 32"
+    with pytest.raises(BTClibValueError, match=err_msg):
+        read_exactly(BytesIO(b""), 32, "tx_id")
+
+
+def test_assert_no_trailing() -> None:
+    """Octets are one whole object; a caller's stream is the caller's."""
+    # what a parser hands over: the argument as it came, and the stream
+    # it made of it, read up to the end of the object
+    consumed = BytesIO(b"12")
+    consumed.read(2)
+    assert_no_trailing(b"12", consumed, "thing")
+
+    consumed = BytesIO(b"12")
+    consumed.read(2)
+    assert_no_trailing("3132", consumed, "thing")
+
+    stream = BytesIO(b"12junk")
+    stream.read(2)
+    with pytest.raises(BTClibValueError, match="4 bytes after the thing"):
+        assert_no_trailing(b"12junk", stream, "thing")
+
+    # the same four bytes in a stream the caller owns are the caller's,
+    # and they are still there to be read
+    stream = BytesIO(b"12junk")
+    stream.read(2)
+    assert_no_trailing(stream, stream, "thing")
+    assert stream.read() == b"junk"
 
 
 def test_int_from_integer() -> None:

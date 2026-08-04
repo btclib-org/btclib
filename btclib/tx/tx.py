@@ -27,7 +27,7 @@ from btclib.script.sig_ops import sig_op_count as script_sig_op_count
 from btclib.script.witness import Witness
 from btclib.tx.tx_in import TX_IN_COMPARES_WITNESS, TxIn
 from btclib.tx.tx_out import TxOut
-from btclib.utils import bytesio_from_binarydata
+from btclib.utils import assert_no_trailing, bytesio_from_binarydata, read_exactly
 
 _SEGWIT_MARKER = b"\x00\x01"
 
@@ -340,12 +340,21 @@ class Tx:
         # where the version number is negative if it is considered as a signed
         # integer. As such in btclib the version is an UNSIGNED integer.
         # This has been discussed in: https://github.com/bitcoin/bitcoin/pull/16525
-        version = int.from_bytes(stream.read(4), byteorder="little", signed=False)
+        version = int.from_bytes(
+            read_exactly(stream, 4, "transaction version"),
+            byteorder="little",
+            signed=False,
+        )
 
-        segwit = stream.read(2) == _SEGWIT_MARKER
+        # a probe and not a field, so it is read with whatever is there and
+        # put back by as much: seeking -2 after a one-byte read would leave
+        # the stream a byte before where it started, and the var_int below
+        # would count the inputs from the wrong byte
+        marker = stream.read(2)
+        segwit = marker == _SEGWIT_MARKER
         if not segwit:
             # Change stream position: seek to byte offset relative to position
-            stream.seek(-2, SEEK_CUR)  # current position
+            stream.seek(-len(marker), SEEK_CUR)  # current position
 
         n = var_int.parse(stream)
         vin = [TxIn.parse(stream, check_validity=check_validity) for _ in range(n)]
@@ -359,7 +368,10 @@ class Tx:
                     stream, check_validity=check_validity
                 )
 
-        lock_time = int.from_bytes(stream.read(4), byteorder="little", signed=False)
+        lock_time = int.from_bytes(
+            read_exactly(stream, 4, "lock time"), byteorder="little", signed=False
+        )
+        assert_no_trailing(data, stream, "transaction")
 
         return cls(version, lock_time, vin, vout, check_validity=check_validity)
 

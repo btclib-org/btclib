@@ -35,7 +35,6 @@ import secrets
 from collections.abc import Callable, Mapping, Sequence
 from copy import deepcopy
 from dataclasses import dataclass
-from io import BytesIO
 from math import ceil
 from typing import Any, TypeVar, cast
 
@@ -87,7 +86,11 @@ from btclib.script import (
 )
 from btclib.script.sig_hash import DEFAULT
 from btclib.tx import Tx, TxIn, TxOut
-from btclib.utils import bytes_from_octets, bytesio_from_binarydata
+from btclib.utils import (
+    assert_no_trailing,
+    bytes_from_octets,
+    bytesio_from_binarydata,
+)
 
 # the whole of BIP174's <magic>, five bytes: the four of "psbt" and the
 # 0xff that makes a psbt fail to deserialize as a transaction. It is one
@@ -956,14 +959,9 @@ class Psbt:
         if tx is not None:
             _read_unsigned_tx(tx, inputs, outputs)
 
-        # what is left in a caller's stream is the caller's; what is left
-        # in octets is malleability, two buffers deserializing to the one
-        # object that serializes back to only the shorter of them
-        if not isinstance(data, BytesIO):
-            trailing = stream.read()
-            if trailing:
-                err_msg = f"malformed psbt: {len(trailing)} bytes after the psbt"
-                raise BTClibValueError(err_msg)
+        # octets are one whole psbt and a stream is the caller's:
+        # btclib/utils.py states the rule both halves of this contract read
+        assert_no_trailing(data, stream, "psbt")
 
         return cls(
             cast(int, globals_["tx_version"]),

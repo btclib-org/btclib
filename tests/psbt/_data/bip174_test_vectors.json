@@ -97,7 +97,7 @@
         },
         {
             "description": "PSBT with an invalid value data due to its size being not the stated size",
-            "error message": "wrong tx serialization format",
+            "error message": "39 bytes after the transaction",
             "encoded psbt": "cHNidP8BADN0Af8HAAEAAAABAP8BAApzMXQo/wAAAAAB/wEDAQAAAQAAAAAAAAAAdgEAAABBAAkAAAAAAA=="
         }
     ],

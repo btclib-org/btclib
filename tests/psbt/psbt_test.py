@@ -86,12 +86,10 @@ def test_invalid_psbt_bip174(test_vector: dict[str, str]) -> None:
     """Each case must be refused, with the message this file records.
 
     The message is btclib's, not the BIP's, so the assert is what pins a
-    rejection to its reason -- and one of the twenty is pinned to the
-    wrong one: the `invalid value data` case answers "Missing inputs"
-    because its unsigned tx has none, while btclib's map parser accepts
-    the malformed value itself. Lifting the input check of issue 170
-    turns this case red, which is where the missing size check gets
-    written.
+    rejection to its reason, and each of the twenty is pinned to its own:
+    the `invalid value data` case is the transaction parser refusing the
+    thirty-nine octets left after the transaction its unsigned-tx value
+    holds, which is the malformation the description names.
     """
     with pytest.raises(BTClibValueError) as excinfo:
         Psbt.b64decode(test_vector["encoded psbt"])
@@ -1225,7 +1223,7 @@ def test_parse_refuses_what_follows_a_psbt_in_octets() -> None:
     tx_out = TxOut(2500000, "a914f987c321394968be164053d352fc49763b2be55c87")
     psbt_bin = Psbt.from_tx(Tx(1, 0, [tx_in], [tx_out])).serialize()
 
-    err_msg = "malformed psbt: 3 bytes after the psbt"
+    err_msg = "3 bytes after the psbt"
     with pytest.raises(BTClibValueError, match=err_msg):
         Psbt.parse(psbt_bin + b"abc")
     with pytest.raises(BTClibValueError, match=err_msg):
@@ -1846,16 +1844,18 @@ def test_the_global_unsigned_tx_is_mandatory() -> None:
 
 
 def test_a_value_that_is_not_the_stated_size_says_so() -> None:
-    """The size mismatch is what is reported, and the check is reachable.
+    """The size mismatch is what is reported, and by the parser itself.
 
-    deserialize_tx compares the re-serialized transaction against the
-    value it came from. Were Tx.parse to validate on the way in, a value
-    the parse rejects would never reach the comparison, and this vector
-    would be reported as "Missing inputs" -- true of it, and not what is
-    wrong with it: 51 bytes whose transaction is 10.
+    The value announces more octets than its transaction holds, and a
+    value is one whole transaction: the thirty-nine left over are refused
+    where they are read. Were the length taken on trust, this vector would
+    be reported as "Missing inputs" -- true of it, and not what is wrong
+    with it. The round-trip comparison in deserialize_tx still has the
+    other shape to catch, a transaction that parses whole and
+    re-serializes to something else.
     """
     bad_size = "cHNidP8BADN0Af8HAAEAAAABAP8BAApzMXQo/wAAAAAB/wEDAQAAAQAAAAAAAAAAdgEAAABBAAkAAAAAAA=="
-    with pytest.raises(BTClibValueError, match="wrong tx serialization format"):
+    with pytest.raises(BTClibValueError, match="39 bytes after the transaction"):
         Psbt.b64decode(bad_size)
 
 

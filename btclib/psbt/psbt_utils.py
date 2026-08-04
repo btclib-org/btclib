@@ -27,7 +27,7 @@ from btclib.exceptions import BTClibValueError
 from btclib.script.sig_hash import DEFAULT, SIG_HASH_TYPES
 from btclib.script.taproot import assert_valid_control_block
 from btclib.tx import Tx
-from btclib.utils import bytes_from_octets, bytesio_from_binarydata
+from btclib.utils import bytes_from_octets, bytesio_from_binarydata, read_exactly
 
 # BIP371 defines the tap_bip32_derivation value as a compact size number
 # of 32-byte leaf hashes, followed by the 4-byte master fingerprint and
@@ -72,23 +72,6 @@ MUSIG2_PARTIAL_SIG_SIZE = 32
 PSBT_SEPARATOR = b"\x00"
 
 
-def _read_exactly(stream: BytesIO, size: int, what: str) -> bytes:
-    """Return size octets, or raise: a short read is a truncated psbt.
-
-    BytesIO.read returns what is left when the buffer holds less than
-    was asked for. Taken at face value that is malleability, not just a
-    missing check: the announced size is what distinguishes two inputs
-    that would otherwise deserialize to the same object and serialize
-    back to only one of them.
-    """
-    data = stream.read(size)
-    if len(data) != size:
-        err_msg = f"malformed psbt: not enough data for the {what}, "
-        err_msg += f"{len(data)} bytes instead of {size}"
-        raise BTClibValueError(err_msg)
-    return data
-
-
 def deserialize_map(data: BinaryData) -> dict[bytes, bytes]:
     """Return one map, read from the stream up to its 0x00 separator.
 
@@ -111,8 +94,8 @@ def deserialize_map(data: BinaryData) -> dict[bytes, bytes]:
         if marker[0] == 0:
             return partial_map
         stream.seek(-1, 1)  # reset stream position
-        key = _read_exactly(stream, var_int.parse(stream), "map key")
-        value = _read_exactly(stream, var_int.parse(stream), "map value")
+        key = read_exactly(stream, var_int.parse(stream), "psbt map key")
+        value = read_exactly(stream, var_int.parse(stream), "psbt map value")
         if key in partial_map:
             raise BTClibValueError(f"duplicated key in psbt map: 0x{key.hex()}")
         partial_map[key] = value
@@ -150,7 +133,7 @@ def deserialize_sized_int(
     The size check is what deserialize_int does not make, and every
     BIP370 field needs it: a four-byte field written in five octets
     deserializes to the same integer and serializes back to four, which
-    is one psbt with two encodings -- the malleability _read_exactly
+    is one psbt with two encodings -- the malleability `read_exactly`
     refuses a level down, where the length is the map's rather than the
     field's.
 
