@@ -34,6 +34,11 @@ from btclib.utils import (
     read_exactly,
 )
 
+__all__ = [
+    "Tx",
+    "join",
+]
+
 _SEGWIT_MARKER = b"\x00\x01"
 
 

@@ -47,6 +47,18 @@ from btclib.to_prv_key import PrvKey, int_from_prv_key
 from btclib.to_pub_key import Key, pub_keyinfo_from_key
 from btclib.utils import bytes_from_octets, bytesio_from_binarydata
 
+__all__ = [
+    "assert_valid_control_block",
+    "check_output_pubkey",
+    "input_script_sig",
+    "leaf_hash",
+    "output_prvkey",
+    "output_pubkey",
+    "parse",
+    "serialize",
+    "tree_helper",
+]
+
 
 def serialize(script: ScriptList) -> bytes:
     """Serialize a tapscript from its commands.

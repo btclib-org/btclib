@@ -89,6 +89,19 @@ from btclib.mnemonic.mnemonic import (
 from btclib.network import NETWORKS
 from btclib.to_prv_key import int_from_prv_key
 
+__all__ = [
+    "ELECTRUM_WORDLISTS",
+    "entropy_from_mnemonic",
+    "hex_seed_from_old_mnemonic",
+    "lang_from_mnemonic",
+    "mnemonic_from_entropy",
+    "mxprv_from_mnemonic",
+    "old_master_prv_key_from_mnemonic",
+    "old_master_pub_key_from_mnemonic",
+    "old_mnemonic_from_hex_seed",
+    "version_from_mnemonic",
+]
+
 _MNEMONIC_VERSIONS = {
     "standard": "01",  # p2pkh and p2ms-p2sh wallets
     "segwit": "100",  # p2wpkh and p2wsh wallets

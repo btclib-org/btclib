@@ -40,6 +40,10 @@ from btclib.script.limits import MAX_PUBKEYS_PER_MULTISIG
 from btclib.script.script import BYTE_FROM_OP_CODE_NAME, op_code_spans
 from btclib.utils import bytes_from_octets
 
+__all__ = [
+    "sig_op_count",
+]
+
 # read out of the table rather than written as bytes, so that these stay
 # the op codes those names stand for
 _CHECKSIG = {

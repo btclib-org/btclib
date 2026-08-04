@@ -34,6 +34,16 @@ from btclib.to_prv_key import PrvKey, prv_keyinfo_from_prv_key
 from btclib.to_pub_key import Key, pub_keyinfo_from_key
 from btclib.utils import bytes_from_octets
 
+__all__ = [
+    "address_from_h160",
+    "h160_from_address",
+    "p2pkh",
+    "p2sh",
+    "p2wpkh_p2sh",
+    "p2wsh_p2sh",
+    "wif_from_prv_key",
+]
+
 
 def wif_from_prv_key(
     prv_key: PrvKey, network: str | None = None, compressed: bool | None = None

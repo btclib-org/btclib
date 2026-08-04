@@ -54,6 +54,29 @@ from btclib.to_prv_key import PrvKey, int_from_prv_key
 from btclib.to_pub_key import PubKey, point_from_pub_key, pub_keyinfo_from_pub_key
 from btclib.utils import bytes_from_octets, bytesio_from_binarydata, hex_string
 
+__all__ = [
+    "Sig",
+    "anti_exfil_host_commit",
+    "anti_exfil_host_verify",
+    "anti_exfil_sign",
+    "anti_exfil_signer_commit",
+    "assert_as_valid",
+    "assert_as_valid_",
+    "crack_prv_key",
+    "crack_prv_key_",
+    "gen_keys",
+    "recover_pub_key",
+    "recover_pub_key_",
+    "recover_pub_keys",
+    "recover_pub_keys_",
+    "sign",
+    "sign_",
+    "sign_recoverable",
+    "sign_recoverable_",
+    "verify",
+    "verify_",
+]
+
 _DER_SCALAR_MARKER = b"\x02"
 _DER_SIG_MARKER = b"\x30"
 

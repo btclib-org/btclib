@@ -30,6 +30,11 @@ from btclib.curves.curve import _libsecp256k1_applicable
 from btclib.exceptions import BTClibRuntimeError, BTClibTypeError, BTClibValueError
 from btclib.utils import is_integer
 
+__all__ = [
+    "ansi_x9_63_kdf",
+    "diffie_hellman",
+]
+
 
 def ansi_x9_63_kdf(z: bytes, size: int, hf: HashF, shared_info: bytes | None) -> bytes:
     """Return keying data according to ANSI-X9.63-KDF.

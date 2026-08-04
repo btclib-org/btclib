@@ -45,6 +45,10 @@ from btclib.hashes import tagged_hash
 from btclib.to_prv_key import PrvKey, int_from_prv_key
 from btclib.utils import bytes_from_octets, int_from_bits
 
+__all__ = [
+    "bip340_nonce_",
+]
+
 
 def _bip340_nonce_(msg: bytes, q: int, Q: int, aux: bytes, ec: Curve, hf: HashF) -> int:
     # assume the random oracle model for the hash function,

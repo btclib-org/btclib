@@ -44,6 +44,13 @@ from btclib.psbt.psbt_in import PsbtIn
 from btclib.script import serialize, type_and_payload
 from btclib.tx import TxIn
 
+__all__ = [
+    "COMPRESSED_PUB_KEY_SIZE",
+    "SCHNORR_SIG_SIZE",
+    "SIG_SIZE",
+    "estimated_input_sizes",
+]
+
 # a DER signature and its sig_hash byte, at the largest a low-s signature
 # can be; see the module docstring, which is where the assumption is
 # stated because it is the one number a caller has to know about

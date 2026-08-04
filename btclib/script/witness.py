@@ -22,6 +22,10 @@ from btclib.utils import (
     bytesio_from_binarydata,
 )
 
+__all__ = [
+    "Witness",
+]
+
 
 # frozen, and a tuple rather than a list of bytes, which makes a Witness
 # immutable all the way down: neither replacing the whole stack of a

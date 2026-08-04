@@ -130,6 +130,14 @@ from btclib.network import NETWORKS
 from btclib.to_prv_key import PrvKey, prv_keyinfo_from_prv_key
 from btclib.utils import assert_no_trailing, bytesio_from_binarydata
 
+__all__ = [
+    "Sig",
+    "assert_as_valid",
+    "gen_keys",
+    "sign",
+    "verify",
+]
+
 _REQUIRED_LENGTH = 65
 
 

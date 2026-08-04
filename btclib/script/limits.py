@@ -29,6 +29,14 @@ in a transaction as in a script. It stays where OP_CHECKLOCKTIMEVERIFY
 reads it.
 """
 
+__all__ = [
+    "MAX_OPS_PER_SCRIPT",
+    "MAX_PUBKEYS_PER_MULTISIG",
+    "MAX_SCRIPT_ELEMENT_SIZE",
+    "MAX_SCRIPT_SIZE",
+    "MAX_STACK_SIZE",
+]
+
 # Maximum number of bytes pushable to the stack
 MAX_SCRIPT_ELEMENT_SIZE = 520
 

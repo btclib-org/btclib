@@ -34,6 +34,14 @@ from btclib.script import ScriptPubKey
 from btclib.tx import OutPoint, Tx, TxOut
 from btclib.utils import bytes_from_octets
 
+__all__ = [
+    "Fetcher",
+    "fetch_errors",
+    "tx_for_network",
+    "tx_from_raw",
+    "tx_id_hex",
+]
+
 
 @contextmanager
 def fetch_errors(source: str) -> Iterator[None]:

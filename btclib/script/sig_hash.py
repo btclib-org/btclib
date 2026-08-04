@@ -44,6 +44,24 @@ from btclib.script.script_pub_key import (
 from btclib.tx import Tx, TxIn, TxOut
 from btclib.utils import bytes_from_octets
 
+__all__ = [
+    "ALL",
+    "ANYONECANPAY",
+    "DEFAULT",
+    "NONE",
+    "OP_CODESEPARATOR",
+    "SIG_HASH_TYPES",
+    "SINGLE",
+    "PrecomputedTxData",
+    "assert_valid_hash_type",
+    "from_tx",
+    "legacy",
+    "redeem_script",
+    "segwit_v0",
+    "taproot",
+    "taproot_annex_and_ext",
+]
+
 DEFAULT = 0
 ALL = 1
 NONE = 2

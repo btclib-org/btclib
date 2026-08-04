@@ -28,6 +28,11 @@ from btclib.utils import (
     read_exactly,
 )
 
+__all__ = [
+    "TX_IN_COMPARES_WITNESS",
+    "TxIn",
+]
+
 TX_IN_COMPARES_WITNESS = True
 
 

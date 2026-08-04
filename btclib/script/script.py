@@ -42,6 +42,20 @@ from btclib.alias import BinaryData, Command, Octets, ScriptList
 from btclib.exceptions import BTClibUserWarning, BTClibValueError
 from btclib.utils import bytes_from_octets, bytesio_from_binarydata, encode_num
 
+__all__ = [
+    "BYTE_FROM_OP_CODE_NAME",
+    "ERROR_COMMAND",
+    "OP_CODE_NAME_FROM_INT",
+    "Script",
+    "op_code_spans",
+    "op_int",
+    "parse",
+    "read_op_code",
+    "script_from_dict",
+    "script_to_dict",
+    "serialize",
+]
+
 BYTE_FROM_OP_CODE_NAME = {
     # Constants
     "OP_0": b"\x00",

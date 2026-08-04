@@ -46,6 +46,15 @@ from urllib.request import (
 from btclib.exceptions import BTClibTypeError, BTClibValueError, FetchError
 from btclib.utils import is_integer
 
+__all__ = [
+    "DEFAULT_MAX_BODY_SIZE",
+    "DEFAULT_TIMEOUT",
+    "MAX_ERROR_BODY_SIZE",
+    "HttpTransport",
+    "http_request",
+    "urlopen_transport",
+]
+
 # What a fetcher does its I/O with: a callable taking the request and a
 # timeout in seconds, answering with the HTTP status and the response
 # body. A status rather than an exception, because a JSON-RPC error can

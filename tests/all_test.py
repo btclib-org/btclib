@@ -7,12 +7,22 @@
 #
 # No part of btclib including this file, may be copied, modified, propagated,
 # or distributed except according to the terms contained in the LICENSE file.
-"""Tests for what the packages export.
+"""Tests for what the library exports.
 
 `__all__` is a decision about the public surface, and it had drifted: it
 carried a benchmark's worth of multiplication implementations in `btclib.curves`
 while `btclib.ecc` advertised four helpers and none of the six signature
 schemes behind them, and `btclib.mnemonic` neither of its two schemes.
+
+Every module and package of the library declares one, at every depth, which
+is the answer issue #338 asked for: a name is public here because a list
+says so, not because it happens to lack a leading underscore. A list per
+module is a list per module to keep true, and the policy tests below are
+what keeps it, rather than a reviewer noticing.
+
+`btclib.__all__` is the root of that tree, and one of those tests walks it
+the way `docs/proposals/cli.md` says the command line will: from the root,
+into every module-valued export, down to a node that has none.
 
 These tests are written against the names rather than the counts, so that a
 deliberate addition is one line here and an accidental one is a failure.
@@ -20,8 +30,14 @@ deliberate addition is one line here and an accidental one is a failure.
 
 from __future__ import annotations
 
+import ast
+from collections.abc import Iterable, Iterator
 from importlib import import_module
-from pkgutil import iter_modules
+from pathlib import Path
+from pkgutil import iter_modules, walk_packages
+from types import ModuleType
+
+import pytest
 
 import btclib
 import btclib.curves
@@ -32,6 +48,201 @@ import btclib.script
 from btclib.curves import curve_group, curve_group_2
 from btclib.psbt import psbt_utils
 from btclib.script import script_pub_key
+
+# what a module defines without a leading underscore and deliberately does
+# not export, with the reason beside the list in each module's docstring.
+# A name added here is a decision; a name that has to be added here to make
+# the suite pass is one that was about to become public by accident
+UNEXPORTED = {
+    "btclib": ["name"],
+    "btclib.curves.curve": ["datadir"],
+    "btclib.descriptors": ["CHECKSUM_CHARSET", "GENERATOR", "INPUT_CHARSET"],
+    "btclib.network": ["datadir"],
+}
+
+# every direct child module of every package, on the side of the decision
+# its parent made about it: `groups` is what the parent publishes, which is
+# what docs/proposals/cli.md's command tree descends into, and `unpublished`
+# is what it deliberately does not -- a module holding names the parent
+# re-exports flat, or an implementation nothing outside the package calls.
+#
+# The two together are asserted to be the package's whole directory, which
+# is the half a table of the published edges alone cannot check: a child
+# module added and left out of its parent's `__all__` changes neither the
+# list nor the edges, and that is the missing edge which had `btclib.script`
+# publishing none of the three subgroups its own tables promise. Both sides
+# are recorded, so a module added to a package fails the suite until
+# somebody says which of the two it is.
+#
+# btclib itself is not here: its children are the top-level modules, and
+# test_the_root_publishes_every_top_level_module asserts the same partition
+# against the directory with nothing on the unpublished side
+CHILD_MODULES = {
+    "btclib.bip32": {
+        "groups": [],
+        "unpublished": ["bip32", "der_path", "key_origin"],
+    },
+    "btclib.block": {
+        "groups": ["merkle_proof", "mining", "proof_of_work"],
+        "unpublished": ["block", "block_context", "block_header", "limits"],
+    },
+    "btclib.curves": {
+        "groups": [],
+        "unpublished": [
+            "curve",
+            "curve_group",
+            "curve_group_2",
+            "curve_group_f",
+            "sec_point",
+        ],
+    },
+    "btclib.ecc": {
+        "groups": [
+            "bip340_nonce",
+            "bms",
+            "borromean",
+            "commit_nonce",
+            "dh",
+            "dsa",
+            "ecies",
+            "ellswift",
+            "musig2",
+            "pedersen",
+            "rfc6979_nonce",
+            "ssa",
+        ],
+        "unpublished": [],
+    },
+    "btclib.fetch": {
+        "groups": [],
+        "unpublished": ["bitcoin_core", "esplora", "fetcher", "transport"],
+    },
+    "btclib.mnemonic": {
+        "groups": [
+            "bip39",
+            "dispatch",
+            "electrum",
+            "entropy",
+            "mnemonic",
+            "slip39",
+        ],
+        "unpublished": [],
+    },
+    "btclib.psbt": {
+        "groups": ["musig2"],
+        "unpublished": ["psbt", "psbt_in", "psbt_out", "psbt_size", "psbt_utils"],
+    },
+    "btclib.script": {
+        "groups": ["engine", "sig_hash", "taproot"],
+        "unpublished": [
+            "limits",
+            "op_codes_tapscript",
+            "script",
+            "script_pub_key",
+            "sig_ops",
+            "witness",
+        ],
+    },
+    "btclib.script.engine": {
+        "groups": [],
+        "unpublished": ["flags", "script", "script_op_codes", "tapscript"],
+    },
+    "btclib.tx": {
+        "groups": [],
+        "unpublished": ["out_point", "tx", "tx_in", "tx_out"],
+    },
+}
+
+
+def public_name(dotted: str) -> bool:
+    """Whether every component of a dotted module name is public."""
+    return not any(part.startswith("_") for part in dotted.split("."))
+
+
+def library_modules() -> list[ModuleType]:
+    """Return every module and package of the library, private ones out.
+
+    Found rather than listed: one added to btclib is one these tests ask
+    about, and the walk is the whole tree rather than the top level, the
+    packages having submodules a caller reaches by name --
+    `btclib.ecc.dsa`, `btclib.script.sig_hash` -- and a command line
+    reaching them through `__all__` alone.
+
+    `btclib._ripemd160` is out, and so is anything under a private name: a
+    module whose name opens with an underscore is not part of the surface,
+    so what is public *in* it is not reachable by any spelling a caller is
+    offered.
+    """
+    return [
+        btclib,
+        *(
+            import_module(name)
+            for _, name, _ in walk_packages(btclib.__path__, "btclib.")
+            if public_name(name)
+        ),
+    ]
+
+
+def module_scope(body: Iterable[ast.stmt]) -> Iterator[ast.stmt]:
+    """Yield the statements a module executes in its own namespace.
+
+    Every statement of the body, and then inside each compound one, which
+    runs at module scope too: an import in a module-level `try`, `if`,
+    `with`, `for`, `while` or `match` binds a global exactly as a
+    top-level one does, and `try: from dependency import PublicType` is
+    how an optional import is written. A function or a class opens a scope
+    of its own, so an import in either binds nothing here, and neither is
+    descended into.
+    """
+    for node in body:
+        yield node
+        if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef)):
+            continue
+        nested: list[ast.stmt] = []
+        for field in ("body", "orelse", "finalbody"):
+            statements = getattr(node, field, None)
+            if isinstance(statements, list):
+                nested += statements
+        for clause in (*getattr(node, "handlers", ()), *getattr(node, "cases", ())):
+            nested += clause.body
+        yield from module_scope(nested)
+
+
+def imported_names_in(source: str) -> set[str]:
+    """Return the names the import statements of one module source bind."""
+    return {
+        alias.asname or alias.name.split(".")[0]
+        for node in module_scope(ast.parse(source).body)
+        if isinstance(node, (ast.Import, ast.ImportFrom))
+        for alias in node.names
+    }
+
+
+def imported_names(module: ModuleType) -> set[str]:
+    """Return the names a module's own import statements bind.
+
+    Read off the source rather than the module object, there being nothing
+    in a module's namespace to say how a name got there.
+    """
+    return imported_names_in(Path(str(module.__file__)).read_text(encoding="utf-8"))
+
+
+def defined_public_names(module: ModuleType) -> set[str]:
+    """Return the public names a module defines itself.
+
+    Everything in its namespace, minus the underscored, minus what it
+    imported, minus the modules: a submodule becomes an attribute of its
+    package as soon as anything imports it, so `btclib.b58` is in
+    `vars(btclib)` by the time any test runs.
+    """
+    imported = imported_names(module)
+    return {
+        name
+        for name, value in vars(module).items()
+        if not name.startswith("_")
+        and name not in imported
+        and not isinstance(value, ModuleType)
+    }
 
 
 def test_ec_exports_the_curve_api_not_the_benchmark() -> None:
@@ -155,6 +366,31 @@ def test_script_exports_both_halves_of_every_pair() -> None:
             assert name in btclib.script.__all__, f"{name} is not exported"
 
 
+def test_script_publishes_the_three_subgroups_the_cli_promises() -> None:
+    """`sig_hash`, `taproot` and `engine` are groups, so they are named.
+
+    The transitive walk cannot ask this: it follows the edges that are
+    there, so a group `docs/proposals/cli.md` promises and no list
+    publishes is a walk that stops early and a test that passes. That file
+    spells `script sig-hash`, `script taproot` and `script engine`, and
+    these are the three edges `btclib.script` carries for them -- listed
+    here rather than derived from the proposal, prose being no place to
+    read a contract from, and pinned because the two that are imported on
+    demand are the two a refactor can drop without anything else noticing.
+    """
+    for group in ("engine", "sig_hash", "taproot"):
+        assert group in btclib.script.__all__, f"script does not publish {group}"
+        assert getattr(btclib.script, group).__name__ == f"btclib.script.{group}"
+
+    # that these three are the only ones is CHILD_MODULES' assertion, for
+    # this package as for every other. What is left here is the behaviour
+    # of the two the package does not import: reachable by name, offered to
+    # a prompt, and no answer for anything else
+    assert set(btclib.script.__all__) <= set(dir(btclib.script))
+    with pytest.raises(AttributeError, match="has no attribute 'sig_hashes'"):
+        _ = btclib.script.sig_hashes
+
+
 def test_mnemonic_exports_its_three_schemes() -> None:
     """Verify bip39, electrum and slip39 are exported and importable."""
     for name in ("bip39", "electrum", "slip39"):
@@ -228,23 +464,202 @@ def test_psbt_exports_the_format_not_its_plumbing() -> None:
 def test_every_exported_name_exists() -> None:
     """An `__all__` entry that names nothing is a broken `import *`.
 
-    Every package of the library, found rather than listed: a package added
-    to btclib is a package this checks, where a list here would be one more
+    Every module and package of the library, found rather than listed: one
+    added to btclib is one this checks, where a list here would be one more
     thing to keep true -- and it is what caught `btclib.script` being
-    outside the four names this used to hold. Nested packages are not
-    walked, `btclib.script.engine` being the only one; asking `pkgutil` to
-    walk them would import every module of the library, which
-    tests/imports_test.py already does deliberately and one module at a
-    time.
+    outside the four names this used to hold. The whole tree is walked,
+    which imports every module of the library; tests/imports_test.py does
+    that deliberately and one module at a time, for the cycle a bulk import
+    hides, and this one asks a question that needs them all loaded.
+
+    An empty list is a legitimate answer, and the assertion says when: a
+    module with nothing public of its own -- a package `__init__` that only
+    re-exports, or a module that is all private helpers -- declares `[]`
+    rather than nothing, so that the declaration is there to read.
     """
-    packages = [
-        import_module(f"btclib.{name}")
-        for _, name, is_package in iter_modules(btclib.__path__)
-        if is_package
-    ]
-    assert packages, "no package found under btclib"
-    for package in packages:
-        names = getattr(package, "__all__", None)
-        assert names, f"{package.__name__} declares no __all__"
+    modules = library_modules()
+    assert len(modules) > 40, f"only {len(modules)} modules found under btclib"
+    for module in modules:
+        names = getattr(module, "__all__", None)
+        assert names is not None, f"{module.__name__} declares no __all__"
+        assert names or not defined_public_names(module), (
+            f"{module.__name__} declares an empty __all__ and defines"
+            f" {sorted(defined_public_names(module))}"
+        )
         for name in names:
-            assert hasattr(package, name), f"{package.__name__}.{name} is not there"
+            assert hasattr(module, name), f"{module.__name__}.{name} is not there"
+
+
+def test_no_module_exports_a_name_it_imported() -> None:
+    """A module exports what it defines, which is what packages do not.
+
+    A package's `__all__` is re-export by design -- `btclib.ecc` names
+    `dsa`, defined a module away -- and for a module the same thing is a
+    leak: `Octets` reached through `btclib.b58` is that module's import
+    section, where `btclib.alias.Octets` is the name a caller wants. A
+    module with a reason to re-export something is a conversation to have
+    with this test, not around it.
+    """
+    for module in library_modules():
+        if hasattr(module, "__path__"):  # a package re-exports for a living
+            continue
+        imported = imported_names(module)
+        for name in module.__all__:
+            assert name not in imported, f"{module.__name__} re-exports {name}"
+
+
+def test_the_export_tree_is_walkable_to_its_leaves() -> None:
+    """Every module reachable through `__all__` declares one of its own.
+
+    `docs/proposals/cli.md` reads the command tree off `__all__`: a group
+    is a module-valued export, its commands are that module's own list, and
+    an out-of-repo walker sees nothing this library does not publish. So a
+    module named in a parent's list and declaring nothing is a node the
+    walk arrives at and cannot descend from -- which is what this asks
+    about, transitively from `btclib` down, following exports rather than
+    the file tree.
+
+    A module-valued export is also checked to be a submodule of the module
+    exporting it: `btclib.ecc.dsa` is `btclib.ecc`'s to publish, and a
+    module from somewhere else in the tree would make the path a caller
+    reads off the walk -- `btclib ecc dsa sign` -- name something the
+    import does not.
+    """
+    seen = {btclib.__name__}
+    frontier = [btclib]
+    while frontier:
+        module = frontier.pop()
+        names = getattr(module, "__all__", None)
+        assert names is not None, f"{module.__name__} declares no __all__"
+        for name in names:
+            value = getattr(module, name)
+            if not isinstance(value, ModuleType):
+                continue
+            assert value.__name__ == f"{module.__name__}.{name}", (
+                f"{module.__name__} exports {name}, which is {value.__name__}"
+            )
+            # the set is the frontier's filter rather than a check on the
+            # way out: one module reachable from two parents would be
+            # walked twice, and nothing here is
+            if value.__name__ not in seen:
+                seen.add(value.__name__)
+                frontier.append(value)
+    # the root, the nine packages, the nested one, and the modules they
+    # publish: a walk that stopped at the root would satisfy the loop above
+    assert len(seen) > 30, f"the export tree walk reached {len(seen)} modules"
+
+
+def test_every_child_module_is_a_group_or_deliberately_not() -> None:
+    """Each package's children are partitioned, and the parts are recorded.
+
+    Two directions, and the second is the one nothing else here can see.
+    The published side is the exact module-valued exports, so a submodule
+    imported into an `__init__` for one name and left in `__all__` by habit
+    is a command group nobody decided on. The union of the two sides is the
+    package's whole directory, so a child module added and left out of the
+    list -- which changes neither the list nor the edges, and is how
+    `btclib.script` came to publish none of the three subgroups its own
+    tables promise -- fails until somebody writes down which side it is on.
+
+    The empty published sides are as deliberate as the rest: `curves`,
+    `tx`, `bip32`, `fetch` and `script.engine` offer a flat surface and no
+    group. Every package has to be in the table, so a new one is a decision
+    rather than a silent pair of empty lists.
+    """
+    packages = [module for module in library_modules() if hasattr(module, "__path__")]
+    assert len(packages) == len(CHILD_MODULES) + 1, "btclib plus the ten packages"
+    for package in packages:
+        if package.__name__ == "btclib":  # the directory is its assertion
+            continue
+        assert package.__name__ in CHILD_MODULES, f"{package.__name__} is not recorded"
+        recorded = CHILD_MODULES[package.__name__]
+        edges = sorted(
+            name
+            for name in package.__all__
+            if isinstance(getattr(package, name), ModuleType)
+        )
+        assert edges == recorded["groups"], f"{package.__name__} publishes {edges}"
+        children = sorted(
+            child
+            for _, child, _ in iter_modules(package.__path__)
+            if public_name(child)
+        )
+        assert sorted([*recorded["groups"], *recorded["unpublished"]]) == children, (
+            f"{package.__name__}'s children are {children}"
+        )
+
+
+def test_the_root_publishes_every_top_level_module() -> None:
+    """`btclib.__all__` is the tree's root, so nothing top-level is missing.
+
+    The list is written out rather than discovered -- a declaration is a
+    list somebody edited -- and this is the other half of that: a module
+    added to `btclib/` and not published here would be a group the command
+    line cannot reach and a name `getattr(btclib, ...)` cannot answer,
+    where a discovered list would have published it without anybody
+    deciding to.
+    """
+    top_level = sorted(
+        name for _, name, _ in iter_modules(btclib.__path__) if public_name(name)
+    )
+    assert sorted(btclib.__all__) == top_level
+    # and each answers on a package that imported none of them, which is
+    # what the module __getattr__ is for
+    for name in top_level:
+        assert getattr(btclib, name).__name__ == f"btclib.{name}"
+
+
+def test_the_root_answers_only_for_what_it_publishes() -> None:
+    """A name outside the list raises, as an attribute of anything does.
+
+    `btclib._ripemd160` is not asserted absent, and could not be: the
+    import machinery sets a submodule as an attribute of its package, so
+    `btclib.hashes` importing it puts the name there. What the list decides
+    is what this package imports *for* a caller, and `import
+    btclib._ripemd160` is the caller's own business.
+    """
+    with pytest.raises(AttributeError, match="has no attribute 'b59'"):
+        _ = btclib.b59
+    # dir() answers the published tree, not only what has been imported
+    assert set(btclib.__all__) <= set(dir(btclib))
+
+
+def test_the_import_scan_reaches_a_nested_import() -> None:
+    """A module-level `try` binds a global, and a function body does not.
+
+    The check above is only as good as this scan: an optional dependency
+    imported in a `try` and named in `__all__` is exactly the re-export it
+    refuses, and reading `tree.body` alone would have let it through.
+    """
+    source = (
+        "try:\n"
+        "    from dependency import PublicType\n"
+        "except ImportError:\n"
+        "    from fallback import PublicType\n"
+        "if TYPE_CHECKING:\n"
+        "    from typing import Never\n"
+        "for _name in ():\n"
+        "    import late\n"
+        "def f():\n"
+        "    import local\n"
+        "class C:\n"
+        "    import attribute\n"
+    )
+    assert imported_names_in(source) == {"PublicType", "Never", "late"}
+
+
+def test_nothing_becomes_public_by_accident() -> None:
+    """Every public name is exported or recorded as kept out.
+
+    This is the check the underscore convention cannot make: a helper that
+    grows into a name callers depend on does so silently, where a package
+    takes an edit to a list. `UNEXPORTED` is that edit for modules, and
+    `sorted` is what the failure reads as -- the names not accounted for,
+    against the ones that are.
+    """
+    for module in library_modules():
+        kept_out = sorted(defined_public_names(module) - set(module.__all__))
+        assert kept_out == UNEXPORTED.get(module.__name__, []), (
+            f"{module.__name__} defines public names that are neither"
+            f" exported nor recorded in UNEXPORTED: {kept_out}"
+        )

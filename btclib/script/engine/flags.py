@@ -42,6 +42,14 @@ from enum import Flag
 
 from btclib.exceptions import BTClibValueError
 
+__all__ = [
+    "ALL_FLAGS",
+    "NO_FLAGS",
+    "ScriptFlag",
+    "ScriptFlags",
+    "to_script_flags",
+]
+
 
 class ScriptFlag(Flag):
     """A set of script verification rules to enforce.

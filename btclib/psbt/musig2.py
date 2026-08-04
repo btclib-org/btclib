@@ -85,6 +85,16 @@ from btclib.script import type_and_payload
 from btclib.to_prv_key import PrvKey
 from btclib.utils import bytes_from_octets
 
+__all__ = [
+    "add_participant_pub_keys",
+    "assert_valid_participants",
+    "nonce_gen",
+    "partial_sig_verify",
+    "partial_sign",
+    "partial_sigs_agg",
+    "session_context",
+]
+
 # BIP328's chain code, which is the sha256 of "MuSig2MuSig2MuSig2": an
 # aggregate key has no chain code of its own, so a synthetic xpub is the
 # key plus this constant, and every implementation deriving from an

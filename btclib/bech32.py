@@ -61,6 +61,11 @@ from collections.abc import Iterable
 from btclib.alias import String
 from btclib.exceptions import BTClibValueError
 
+__all__ = [
+    "decode",
+    "encode",
+]
+
 _ALPHABET = "qpzry9x8gf2tvdw0s3jn54khce6mua7l"
 _BECH32_1_CONST = 1
 _BECH32_M_CONST = 0x2BC830A3

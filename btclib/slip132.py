@@ -30,6 +30,14 @@ from btclib.network import (
     network_from_xkeyversion,
 )
 
+__all__ = [
+    "address_from_xkey",
+    "address_from_xpub",
+    "p2pkh_xkey",
+    "p2wpkh_p2sh_xkey",
+    "p2wpkh_xkey",
+]
+
 
 def address_from_xkey(xkey: BIP32Key) -> str:
     """Return the SLIP132 base58/bech32 address.

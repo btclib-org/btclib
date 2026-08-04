@@ -100,6 +100,11 @@ from btclib.exceptions import BTClibValueError
 from btclib.mnemonic import bip39, electrum, slip39
 from btclib.mnemonic.mnemonic import Mnemonic, indexes_from_mnemonic
 
+__all__ = [
+    "all_seed_types_from_mnemonic",
+    "seed_type_from_mnemonic",
+]
+
 # the sentence lengths BIP39 defines, and so the only ones it defines a
 # checksum for
 _BIP39_WORD_COUNTS = (12, 15, 18, 21, 24)

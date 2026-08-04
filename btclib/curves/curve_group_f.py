@@ -20,6 +20,11 @@ from btclib.alias import INF, Point
 from btclib.curves.curve_group import CurveGroup
 from btclib.exceptions import BTClibValueError
 
+__all__ = [
+    "find_all_points",
+    "find_subgroup_points",
+]
+
 
 def find_all_points(ec: CurveGroup) -> list[Point]:
     """Attempt to find all group points, if p is low.

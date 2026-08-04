@@ -138,6 +138,14 @@ from btclib.fetch.transport import (
 from btclib.tx import Tx
 from btclib.utils import bytes_from_octets, is_integer
 
+__all__ = [
+    "COOKIE_USER",
+    "DEFAULT_DATADIR",
+    "BitcoinCoreFetcher",
+    "BitcoinCoreRpcClient",
+    "cookie_auth",
+]
+
 # the rpc port and the datadir subdirectory of each network, from Core's
 # `CreateBaseChainParams` in src/chainparamsbase.cpp. Mainnet's cookie is
 # in the datadir itself, which is the empty subdirectory below. Core's

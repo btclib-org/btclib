@@ -350,6 +350,25 @@ against the `v2023.7.12` tag.
   import slip132` was the spelling at `v2023.7.12` — checked against the
   tag — and is `from btclib import slip132` now. `bip44`, which needs
   the same top-level placement for the same reason, was already there.
+- **`from btclib.<module> import *` hands out that module's own names.**
+  Every module of the library declares `__all__` now, where none did at
+  `v2023.7.12` — checked against the tag — so a star import stops binding
+  what the module imported: `Octets`, `String` and `sha256` came out of
+  `btclib.b58` and come out of `btclib.alias` and `btclib.hashes`, which
+  define them. Every named import of a name a module defines is unchanged,
+  `from btclib.b58 import p2pkh` included. What does go is the residue of
+  three load loops and one type variable: `net`, `filename` and `f` in
+  `btclib.network`, `filename`, `file_` and `ec_name` in
+  `btclib.curves.curve`, and `TypeA` in `btclib.psbt.psbt`, all
+  underscored now, so `from btclib.network import net` — which the
+  underscore rule already said was nobody's to write — raises
+  `ImportError`.
+- **`from btclib import *` binds the library's modules**, where it bound
+  `name` and the two names the version lookup imports. `btclib.__all__` is
+  the nine packages and the twenty-two top-level modules now, imported on
+  demand by a module `__getattr__`, so `import btclib` still costs the
+  metadata lookup alone and `btclib.b58` answers without an import of its
+  own. `btclib.name` is where it was, and is no longer star-imported.
 
 Two changes are deliberately *not* on that list, because what they change
 stays compatible. The new `BTClibTypeError`, `NotAPrvKeyError` and

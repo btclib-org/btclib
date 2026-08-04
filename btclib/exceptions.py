@@ -26,6 +26,20 @@ from __future__ import annotations
 
 from typing import Any
 
+__all__ = [
+    "BTClibRuntimeError",
+    "BTClibTypeError",
+    "BTClibUserWarning",
+    "BTClibValueError",
+    "FetchError",
+    "HttpError",
+    "InvalidContributionError",
+    "InvalidPrvKeyError",
+    "NotAPrvKeyError",
+    "RpcError",
+    "ScriptError",
+]
+
 
 class BTClibValueError(ValueError):
     """A value no valid input could carry; the library's usual refusal."""

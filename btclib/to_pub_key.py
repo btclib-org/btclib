@@ -35,6 +35,18 @@ from btclib.network import (
 from btclib.to_prv_key import PrvKey, prv_keyinfo_from_prv_key
 from btclib.utils import bytes_from_octets
 
+__all__ = [
+    "Key",
+    "PubKey",
+    "PubkeyInfo",
+    "fingerprint",
+    "point_from_key",
+    "point_from_pub_key",
+    "pub_keyinfo_from_key",
+    "pub_keyinfo_from_prv_key",
+    "pub_keyinfo_from_pub_key",
+]
+
 # public key inputs:
 # elliptic curve point as Union[Octets, BIP32Key, Point]
 PubKey = bytes | str | BIP32KeyData | Point

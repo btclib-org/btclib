@@ -25,6 +25,21 @@ from btclib.alias import HashDigestF, HashF, Octets
 from btclib.exceptions import BTClibValueError
 from btclib.utils import bytes_from_octets
 
+__all__ = [
+    "hash160",
+    "hash256",
+    "magic_message",
+    "merkle_root",
+    "merkle_root_and_mutated",
+    "merkle_root_and_mutated_from_hashes",
+    "merkle_root_from_branch",
+    "reduce_to_hlen",
+    "ripemd160",
+    "sha1",
+    "sha256",
+    "tagged_hash",
+]
+
 
 def _hashlib_has_ripemd160() -> bool:
     """Whether this interpreter's hashlib can do RIPEMD-160 at all.

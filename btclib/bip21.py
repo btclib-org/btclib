@@ -45,6 +45,10 @@ from btclib.amount import valid_btc_amount
 from btclib.exceptions import BTClibValueError
 from btclib.network import network_type_from_network
 
+__all__ = [
+    "Bip21",
+]
+
 _SCHEME = "bitcoin"
 
 # BIP21's own grammar for the amount: `*digit [ "." *digit ]`, and the

@@ -34,6 +34,13 @@ from btclib.block.block_header import BlockHeader
 from btclib.exceptions import BTClibValueError
 from btclib.tx import Tx
 
+__all__ = [
+    "NONCE_SPACE",
+    "VERSION",
+    "candidate_block_header",
+    "mine",
+]
+
 # BIP9 leaves the top three bits of the version at 001 and signals in the
 # 29 below, so this is the version of a block that signals for nothing.
 # Not 1, which BIP34 made unacceptable at height 227,836 and BIP66 and

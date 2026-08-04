@@ -3232,6 +3232,140 @@ edit.
   is gone with the move; `from btclib import slip132` is the spelling
   this module's own test file, `docs/source/guide.rst` and every other
   caller in the tree now use (issue #340)
+- **Every top-level module declares `__all__`**, where every package
+  already did and no module did: `alias`, `amount`, `b32`, `b58`,
+  `base58`, `bech32`, `bip21`, `bip44`, `descriptors`, `exceptions`,
+  `fee`, `hashes`, `keystore`, `network`, `number_theory`, `slip132`,
+  `to_prv_key`, `to_pub_key`, `tx_or_psbt`, `utils`, `var_bytes`,
+  `var_int`, and `btclib` itself. In half the library "public" was
+  declared and in the other half it was a leading character, which is a
+  difference and not a style: `from btclib.b58 import *` handed out `Key`,
+  `Octets`, `String`, `sha256` and `network_from_key_value` beside the
+  seven names that module defines, and a helper growing into a name
+  callers depend on did so silently, where in a package it takes an edit
+  to a list. The lists hold what each module defines and nothing it
+  imported — a caller wanting `Octets` wants `btclib.alias.Octets` — so
+  `import *` and the sphinx pages both stop depending on an import
+  section (issue #338)
+- **`btclib.__all__` is the root of the library's public tree**: the nine
+  packages and the twenty-two top-level modules, so a walk that starts at
+  the package name has an edge to follow and a declared surface at every
+  node it reaches. That is what `docs/proposals/cli.md` reads to build the
+  command tree of the out-of-repo command line, and the reason the list is
+  written out rather than discovered: `pkgutil.iter_modules` would answer
+  the file tree, and a module added to the directory would publish itself
+  rather than be published. `name` and the metadata dunders are not in it
+  — the first is the distribution's name and not a member of the tree, and
+  a star import binding `__version__` would overwrite the importing
+  module's own — and both are still attributes, `btclib.__version__` being
+  how a caller reads the version.
+- **A module `__getattr__` imports a published module on demand**, so
+  `import btclib` costs the metadata lookup and nothing else, as it did:
+  `getattr(btclib, "b58")` and `from btclib import *` work on a fresh
+  interpreter, while eager imports here would put the whole library in
+  `sys.modules` before any module of it could be imported first — which is
+  the situation `tests/imports_test.py` exists to make impossible — and
+  would route `btclib.b58` into `btclib.script` through this file. Its one
+  cost is stated in the docstring: mypy reads a module `__getattr__` as a
+  promise that any attribute may exist, so a misspelled `btclib.b59` is a
+  runtime `AttributeError` rather than a checker error, where every import
+  spelling a caller writes stays checked. A `__dir__` beside it answers
+  with the published tree: `dir()` reads the namespace, so without it a
+  module not yet imported is missing from what an interactive prompt
+  completes — the same asymmetry, answered the same way, in `btclib` and in
+  `btclib.script`
+- **Every module below a package declares one too**, which is the rest of
+  the same rule: the modules a caller reaches by name —
+  `btclib.ecc.dsa`, `btclib.script.sig_hash`, `btclib.bip32.der_path` —
+  said no more about their surface than the top-level ones did, and
+  `from btclib.curves.curve import *` handed out `Point`, `sha256` and
+  `libsecp256k1_mult` beside the curve. The lists are what each module
+  defines, so the ones a package does not publish an edge to —
+  `psbt.psbt_utils`, `curves.curve_group`, `script.engine.script_op_codes`
+  — declare their own surface without becoming anybody's API: a module
+  states what it offers, and its parent decides whether the offer is
+  reachable.
+- **Three modules record what they keep out**, which is the place a
+  package has and a module did not: `network.datadir` and
+  `curves.curve.datadir` are where those two packages keep their json
+  files, a question about the installation rather than about a network or
+  a curve, and `descriptors.INPUT_CHARSET`, `CHECKSUM_CHARSET` and
+  `GENERATOR` are the three tables BIP380's checksum is computed from,
+  which `checksum`, `add_checksum` and `strip_checksum` are what a caller
+  asks. Each is still importable from the module that defines it, which is
+  where the test suite takes them.
+- **Two load loops and a type variable stop being public names.** A `for`
+  target and a `with` target are module globals like any other, so
+  `btclib.network` had `net`, `filename` and an open file, and
+  `btclib.curves.curve` had `filename`, `file_` and `ec_name`: all six are
+  underscored now, as `bip44` already spells `_purposes`. The
+  `*_params2` beside them stay, being the standardized parameters
+  `test_catalogued_curves` rebuilds every curve from. `psbt.psbt.TypeA` is
+  `_TypeA`, a `TypeVar` of one private helper's signature and a name no
+  caller can pass anything to.
+- **`script.engine.PAY_TO_ANCHOR` is exported**, where the list beside it
+  named every function that package defines and not the four bytes they
+  compare a script against — Core's `MATCH_PAY_TO_ANCHOR`, which a caller
+  reading a witness output for it needs by name.
+- **`tests/all_test.py` enforces the lists** rather than leaving them to
+  review, and finds the modules instead of listing them — the whole tree,
+  packages and modules alike. Three checks: every one declares an
+  `__all__` naming things that are there, empty only where there is
+  nothing public to declare; no module exports a name it imported, which
+  is the failure a package does the opposite of by design; and every
+  public name a module defines is either exported or named in the file's
+  `UNEXPORTED` table, so a new public helper fails the suite until
+  somebody decides which it is. The import scan reads the module's own
+  source and walks into a module-level `try`, `if`, `with`, `for`, `while`
+  or `match`, those binding globals as much as a top-level import does,
+  stopping at a function or a class
+- **`btclib.script` publishes `sig_hash`, `taproot` and `engine`**, the
+  three subgroups `docs/proposals/cli.md` promises as command groups and
+  the one package whose list named none of the submodules behind its own
+  tables. `taproot` was imported already, four of its names being
+  re-exported flat; `sig_hash` and `engine` are imported on demand by a
+  module `__getattr__`, and that is not a speed decision: `sig_hash`
+  imports `btclib.tx`, whose `tx_in` and `tx_out` import `btclib.script`
+  back, and `btclib.script.engine.script` asks this package for
+  `sig_hash`, so an eager import of either would run on a half-initialized
+  `btclib.script` — issue #147's shape, which `tests/imports_test.py` now
+  measures from this side too: importing the package leaves both out of
+  `sys.modules`, and asking for the attribute is what brings them in.
+  `limits`, `op_codes_tapscript`, `script`, `script_pub_key`, `sig_ops`
+  and `witness` stay unpublished, being where the flat names are defined
+  and the tables the engine reads
+- **A fourth test walks the export tree the way the command line will**:
+  from `btclib`, into every module-valued export, transitively, checking
+  that each node declares an `__all__` of its own and that an exported
+  module is a submodule of the module exporting it — so the command path a
+  walker reads off the tree is the import path, by construction rather
+  than by convention. A fifth pins the root against the file tree, a
+  module added to `btclib/` and not published there being a group the
+  command line cannot reach, and a sixth pins the three subgroups of
+  `btclib.script` by name — the walk follows the edges that exist, so a
+  promised group nothing publishes is a walk that stops early and a test
+  that passes
+- **Every child module of every package is recorded on the side of the
+  decision made about it**, published as a group or deliberately not, and
+  the two sides together are asserted to be the package's whole directory.
+  Both directions are needed and only the first is visible to the checks
+  above: a submodule imported into an `__init__` for one name and left in
+  `__all__` by habit is a group nobody decided on, while a child module
+  added and left *out* of the list changes neither the list nor the edges —
+  which is how `btclib.script` came to publish none of the three subgroups
+  its own tables promise, and what the partition catches. The empty
+  published sides are as deliberate as the rest — `curves`, `tx`, `bip32`,
+  `fetch` and `script.engine` offer a flat surface and no group — and every
+  package has to be in the table, so a new one is a decision rather than a
+  silent pair of empty lists
+- **`docs/proposals/cli.md` states the traversal contract** in place of
+  the question it used to pose: the five points a walker depends on, with
+  the one that makes the mirror implementable from outside this repository
+  named as such — a module declares its surface whether or not its parent
+  publishes an edge to it, so what the walk must not reach is exactly what
+  nothing published, and no list of exceptions has to travel with it.
+  Decision 3 of that file, "prerequisite or consequence", is answered:
+  prerequisite, and done
 
 ### Types
 

@@ -58,6 +58,17 @@ from btclib.utils import (
     is_integer,
 )
 
+__all__ = [
+    "BIP32Key",
+    "BIP32KeyData",
+    "crack_prv_key",
+    "derive",
+    "derive_from_account",
+    "pub_key_derivation_tweaks",
+    "rootxprv_from_seed",
+    "xpub_from_xprv",
+]
+
 # secp256k1 is written out at each use rather than aliased to a module
 # global "ec": BIP32 is defined for secp256k1 and for nothing else, so
 # the alias was not configuration, and rebinding btclib.bip32.bip32.ec

@@ -33,6 +33,12 @@ from btclib.alias import BinaryData
 from btclib.exceptions import BTClibTypeError, BTClibValueError
 from btclib.utils import bytesio_from_binarydata, hex_string, is_integer
 
+__all__ = [
+    "MAX_SIZE",
+    "parse",
+    "serialize",
+]
+
 # The MAX_SIZE of Bitcoin Core (serialize.h), i.e. the range check its
 # ReadCompactSize applies by default. Every var_int btclib parses is a
 # length or a count, so it cannot legitimately exceed it; without a cap,

@@ -71,15 +71,40 @@ arithmetic, and three mnemonic standards where Electrum reads two.
 - the option name is the parameter name with `_` written `-`, and its
   default is the function's default.
 
-**`__all__` is the command tree.** Every package here declares one, so
-the commands of a group are the names its `__init__.py` re-exports and
-there is nothing left to decide: `btclib script serialize` and
-`btclib bip32 derive` sit on the group because those two packages
+**`__all__` is the command tree.** Every module and package of the library
+declares one, at every depth, so the commands of a group are the names its
+list holds and there is nothing left to decide: `btclib script serialize`
+and `btclib bip32 derive` sit on the group because those two packages
 re-export them, while `sig_hash` and `bip39` are not re-exported and
 become subgroups — `btclib script sig-hash legacy`, and
 `btclib mnemonic bip39 seed-from-mnemonic`. `ecc.__all__` names its
 schemes as submodules, so even the subgroups are in a list the library
 already maintains for its own reasons.
+
+**The traversal contract**, which issue #338 settled and
+`tests/all_test.py` holds:
+
+1. every non-private module and package declares its own `__all__`; an
+   empty list is valid where a module has no public surface of its own,
+   and declaring nothing is not;
+2. `btclib.__all__` is the root of the tree: the nine packages and the
+   twenty-two top-level modules, `getattr` answering each on a fresh
+   interpreter through a module `__getattr__` that imports it on demand.
+   The metadata — `name`, `__version__` — is not part of the tree;
+3. a module-valued name in a list is an edge, and it is a submodule of
+   the module publishing it, so the command path is the import path by
+   construction rather than by convention;
+4. a module declares its surface whether or not its parent publishes an
+   edge to it. `psbt.psbt_utils` and `curves.curve_group` say what they
+   hold and are reachable by import; the walk never arrives, so no
+   command comes of them. Being a group is the parent's decision, and
+   being declared is the module's;
+5. a public name a module keeps out of its list is recorded, in the
+   module docstring and in that test file's `UNEXPORTED` table.
+
+Point 4 is what makes the mirror implementable from outside this
+repository: the walker needs no list of what to skip, because what it
+must not reach is what nothing published.
 
 Nothing is renamed for the shell, and no verb is invented. So the command
 line reads `btclib mnemonic bip39 mnemonic-from-entropy`, which is long;
@@ -146,15 +171,23 @@ belongs on a command line.
 ## What the mirror finds in `__all__`
 
 Reading the command tree off `__all__` only works if `__all__` says what
-the package offers, and measured over the ten packages that declare one
-— no top-level module does — it does not yet. What follows are library
-findings that the command line only makes visible.
+each module offers, and it did not: measured over the ten packages that
+declared one, half of them said the wrong thing, and no module of the
+library declared one at all. What follows are the library findings the
+command line made visible, and the pull requests that answered each.
 
-**Whether a submodule is named is a per-package decision.** `ecc`,
-`mnemonic` and `block` name theirs; `curves`, `script`, `script.engine`,
-`tx`, `psbt`, `bip32` and `fetch` name none. So `from btclib.ecc import
-dsa` is blessed by a list and `from btclib.script import sig_hash`,
-which works identically, is stated nowhere.
+**Whether a submodule is named is a per-package decision**, and it was
+made once per package and nowhere written down: `ecc`, `mnemonic` and
+`block` named theirs, while `curves`, `script`, `script.engine`, `tx`,
+`psbt`, `bip32` and `fetch` named none. So `from btclib.ecc import dsa`
+was blessed by a list and `from btclib.script import sig_hash`, which
+works identically, was stated nowhere. It is the decision point 4 of the
+contract above keeps -- a module declares its surface, its parent decides
+whether the offer is a group -- so what changed is that each decision is
+now written: `psbt` names `musig2`, `script` names the three subgroups the
+tables below promise, and `curves`, `tx`, `bip32`, `fetch` and
+`script.engine` name none, their submodules being where a flat surface is
+defined rather than groups of their own.
 
 **Missing.** Each of these is public, tested, and absent from its
 package's list:
@@ -175,15 +208,17 @@ package's list:
 - `psbt.prevouts`, the outputs a psbt spends.
 
 **Two findings did not survive being checked**, which is the other half of
-what an audit is for. `bip32.slip132` cannot be exported at all: it
+what an audit is for. `bip32.slip132` could not be exported at all: it
 imports `b58` and `b32`, which import `to_pub_key`, which imports
-`btclib.bip32`, so naming it means importing it and that closes a cycle —
-73 tests fail with `cannot import name 'BIP32Key' from partially
-initialized module`. That one is a defect after all, and issue #340 has
+`btclib.bip32`, so naming it meant importing it and that closed a cycle —
+73 tests failed with `cannot import name 'BIP32Key' from partially
+initialized module`. That one was a defect after all, and issue #340 had
 the cause rather than the symptom: `ecc.bms` imports `b58` and `b32` the
-same way and `btclib.ecc` exports it without trouble, so what is wrong is
-narrower — `bip32` is the only package a lower layer imports *and* that
-holds a module belonging to a higher one. And `fetch.cookie_auth` is not
+same way and `btclib.ecc` exports it without trouble, so what was wrong
+was narrower — `bip32` was the only package a lower layer imports *and*
+that held a module belonging to a higher one. The module is
+`btclib.slip132` now, published at the root, which is why the tables below
+spell it without a package in front. And `fetch.cookie_auth` is not
 missing: `BitcoinCoreRpcClient` takes a `cookie_path` and reads the file at
 every call, the node rewriting the cookie when it restarts, so a caller
 passes a path and never a credential. In both cases what was missing was
@@ -225,12 +260,15 @@ bodies, and the three modules whose only finding is a rename are issues:
 \#335 `base58`, #336 `descriptors`, #337 `tx` with the psbt trio. #338 asks
 the question none of them can answer.
 
-The larger gap is that no top-level module declares an `__all__` at all —
-twenty-one of them, `b58`, `b32`, `descriptors`, `keystore`, `network`,
-`amount`, `fee` and the rest. There "public" is a naming convention rather
-than a declaration, and a command line reading the library's own word for
-it would be the first thing to depend on the difference. That one is a
-question rather than a fix, and it is issue #338.
+The larger gap was that no module declared an `__all__` at all — the
+twenty-two at the top level, `b58`, `b32`, `descriptors`, `keystore`,
+`network`, `amount`, `fee` and the rest, and the fifty-nine below the
+packages. There "public" was a naming convention rather than a
+declaration, and a command line reading the library's own word for it
+would have been the first thing to depend on the difference. Issue #338
+asked which of the two the library meant, and the answer is a declaration
+everywhere: the contract above, with `btclib.__all__` the root a walker
+starts from.
 
 ## Renamings worth making
 
@@ -429,10 +467,11 @@ carries it, and what the split costs.
 - the mirror test (`## The test that keeps it true`) moves with it and
   loses its in-tree reach: it can walk only the `__all__` this package
   publishes, not the private tree a same-repository test could still
-  see. That makes the `__all__` audit (#319, #320, #328 to #334, #338,
-  #340) a harder prerequisite than the "before or after" question
-  decision 3 below poses — outside this repository there is no escape
-  hatch past an incomplete `__all__`;
+  see. Outside this repository there is no escape hatch past an
+  incomplete `__all__`, which is why the audit (#319, #320, #328 to
+  #334, #338, #340) went first and why the traversal contract above is
+  stated as a contract: the new repository's walk depends on it, and
+  `tests/all_test.py` is where it is enforced on this side;
 - a version boundary now exists where the old, in-tree design had
   none. This repository's own README is the reason: a library "often
   refactored for improved clarity, without care for backward
@@ -509,7 +548,7 @@ bip32         rootxprv-from-seed  xpub-from-xprv  derive
               derive-from-account  crack-prv-key
               str-from-der-path  indexes-from-der-path
               int-from-index-str  str-from-index-int
-bip32 slip132 address-from-xkey  address-from-xpub  p2pkh-xkey
+slip132       address-from-xkey  address-from-xpub  p2pkh-xkey
               p2wpkh-xkey  p2wpkh-p2sh-xkey
 bip44         address-from-der-path
 mnemonic bip39
@@ -595,7 +634,7 @@ would have been for.
 | `serialize` | `tx from-dict` |
 | `validateaddress` | `b58 h160-from-address`, `b32 witness-from-address` |
 | `getpubkeys` | `to-pub-key pub-keyinfo-from-key` |
-| `convert_xkey` | `bip32 slip132`, `bip32 xpub-from-xprv` |
+| `convert_xkey` | `slip132`, `bip32 xpub-from-xprv` |
 | `getmasterprivate` | `mnemonic bip39 mxprv-from-mnemonic` |
 | `make_seed` | `mnemonic bip39 mnemonic-from-entropy` |
 | `getseed` | `mnemonic bip39 seed-from-mnemonic` |
@@ -676,12 +715,13 @@ repository, not this one, releases and versions.
 2. **The mirror rule, at full verbosity?** The alternative is a small
    alias table (`btclib address` for `b58 p2pkh` and friends), which
    costs a second set of names and a second thing to keep true.
-3. **Is the `__all__` audit a prerequisite or a consequence?** The rule
-   proposed above changes what six packages export, which is a
-   source-breaking change for anyone importing from a package rather
-   than from a module. Doing it first gives the command line a tree to
-   read; doing it after means the first version of the tree carries
-   `btclib psbt deserialize-int`.
+3. ~~**Is the `__all__` audit a prerequisite or a consequence?**~~
+   Decided: a prerequisite, and done. The eight package pull requests
+   (#319, #320, #328 to #334), the three renamings (#335 to #337), the
+   move of #340 and the declaration everywhere of #338 all landed before
+   any command line exists, so the first version of the tree reads a
+   surface somebody decided rather than one an import section left
+   behind — and the traversal contract above is what it reads.
 4. **Do the six renamings go in, and in one commit or six?** Each is
    source-breaking on its own, and HISTORY.md's breaking-changes list is
    where a user reads them; one release absorbing all six is one entry

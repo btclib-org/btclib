@@ -28,6 +28,32 @@ from btclib.exceptions import BTClibTypeError, BTClibValueError
 from btclib.number_theory import legendre_symbol, mod_inv, mod_sqrt
 from btclib.utils import hex_string, int_from_integer
 
+__all__ = [
+    "BOS_COSTER_THRESHOLD",
+    "HEX_THRESHOLD",
+    "MAX_W",
+    "CurveGroup",
+    "cached_multiples",
+    "cached_multiples_fixwind",
+    "convert_number_to_base",
+    "jac_from_aff",
+    "mods",
+    "mult_aff",
+    "mult_base_3",
+    "mult_fixed_window",
+    "mult_fixed_window_cached",
+    "mult_jac",
+    "mult_mont_ladder",
+    "mult_recursive_aff",
+    "mult_recursive_jac",
+    "mult_regular_window",
+    "multiples",
+    "odd_multiples",
+    "signed_odd_digits",
+    "signed_odd_multiples",
+    "wNAF_of_m",
+]
+
 HEX_THRESHOLD = 0xFFFFFFFF
 
 

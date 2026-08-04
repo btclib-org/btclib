@@ -79,6 +79,12 @@ from btclib.network import NETWORKS, network_from_xkeyversion
 from btclib.to_prv_key import prv_keyinfo_from_prv_key
 from btclib.to_pub_key import Key, pub_keyinfo_from_key, pub_keyinfo_from_pub_key
 
+__all__ = [
+    "AddressInfo",
+    "BIP32KeyStore",
+    "KeyStore",
+]
+
 # purpose, coin type, account: the three hardened levels of a BIP44 path
 # above the two a keystore walks itself
 _ACCOUNT_LEVELS = 3

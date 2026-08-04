@@ -25,6 +25,15 @@ from btclib.bip32.der_path import (
 from btclib.exceptions import BTClibValueError
 from btclib.utils import bytes_from_octets, read_exactly
 
+__all__ = [
+    "BIP32KeyOrigin",
+    "HdKeyPaths",
+    "assert_valid_hd_key_paths",
+    "decode_from_bip32_derivs",
+    "decode_hd_key_paths",
+    "encode_to_bip32_derivs",
+]
+
 
 @dataclass(frozen=True)
 class BIP32KeyOrigin:

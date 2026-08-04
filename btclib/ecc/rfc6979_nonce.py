@@ -38,6 +38,11 @@ from btclib.curves import Curve, secp256k1
 from btclib.to_prv_key import PrvKey, int_from_prv_key
 from btclib.utils import bytes_from_octets, int_from_bits
 
+__all__ = [
+    "challenge_",
+    "rfc6979_nonce_",
+]
+
 
 def challenge_(
     msg_hash: Octets, ec: Curve = secp256k1, hf: HashF = hashlib.sha256

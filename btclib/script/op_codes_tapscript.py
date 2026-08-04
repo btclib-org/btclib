@@ -24,6 +24,12 @@ reaching it (issue #182).
 from btclib.exceptions import BTClibValueError
 from btclib.script.script import _serialize_bytes_command
 
+__all__ = [
+    "OP_CODES",
+    "OP_CODE_NAMES",
+    "OP_SUCCESS",
+]
+
 OP_CODES = {
     # Constants
     "OP_0": b"\x00",

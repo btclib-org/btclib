@@ -33,6 +33,22 @@ from btclib.alias import Octets
 from btclib.exceptions import BTClibValueError
 from btclib.utils import bytes_from_octets
 
+__all__ = [
+    "DIFFICULTY_ADJUSTMENT_INTERVAL",
+    "MAINNET_POW_LIMIT_BITS",
+    "POW_TARGET_SPACING",
+    "POW_TARGET_TIMESPAN",
+    "REGTEST_POW_LIMIT_BITS",
+    "TARGET_SIZE",
+    "bits_from_target",
+    "block_work",
+    "chain_work",
+    "hash_rate",
+    "next_bits",
+    "retarget_first_height",
+    "target_from_bits",
+]
+
 # a target is a 256-bit number, i.e. the hash it is compared against
 TARGET_SIZE = 32
 

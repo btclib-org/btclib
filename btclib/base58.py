@@ -53,6 +53,12 @@ from btclib.exceptions import BTClibTypeError, BTClibValueError
 from btclib.hashes import hash256
 from btclib.utils import bytes_from_octets, is_integer
 
+__all__ = [
+    "MAX_LENGTH",
+    "decode",
+    "encode",
+]
+
 _ALPHABET = b"123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz"
 __BASE = len(_ALPHABET)
 
