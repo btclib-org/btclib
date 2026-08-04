@@ -2951,6 +2951,21 @@ edit.
   four catalogues it is the union of, `SEC2v1`, `SEC2v2`, `NIST` and
   `Brainpool`, stay unexported: which standard a curve comes from is a
   question about a curve, not a way of finding one.
+- **`btclib.ecc` names its three nonce modules and no longer exports
+  `bip340_nonce_`.** The package docstring lists "the RFC6979, BIP340 and
+  sign-to-contract nonces" among what it holds, and `__all__` carried one
+  of the three, as a loose function — the very shape the docstring says
+  the list is not for, since it advertises a helper instead of the scheme
+  behind it. `bip340_nonce`, `rfc6979_nonce` and `commit_nonce` are now in
+  it as modules, beside `dsa` and `ssa`, and so is `dh`, whose two
+  functions were exported while the module they come from was not. What
+  went is the trailing-underscore spelling: `bip340_nonce_`,
+  `rfc6979_nonce_` and `commit_nonce_` take a message already reduced to a
+  scalar and an explicit curve, which is the expert door of the module
+  that defines them — `dsa.sign_` and `ssa.sign_` are not exported either
+  — so `from btclib.ecc import bip340_nonce_` is now
+  `from btclib.ecc.bip340_nonce import bip340_nonce_`, which is where the
+  rest of the tree already took it from.
 
 ### Types
 

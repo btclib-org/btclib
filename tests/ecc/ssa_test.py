@@ -22,7 +22,8 @@ from btclib.bip32 import BIP32KeyData
 from btclib.curves import bytes_from_point, double_mult, mult, secp256k1
 from btclib.curves.curve import CURVES, Curve
 from btclib.curves.curve_group import jac_from_aff
-from btclib.ecc import bip340_nonce_, second_generator, ssa
+from btclib.ecc import second_generator, ssa
+from btclib.ecc.bip340_nonce import bip340_nonce_
 from btclib.exceptions import BTClibRuntimeError, BTClibTypeError, BTClibValueError
 from btclib.hashes import reduce_to_hlen
 from btclib.number_theory import mod_inv

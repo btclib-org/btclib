@@ -80,15 +80,18 @@ def test_ecc_exports_the_signature_schemes() -> None:
     """Guards against dsa, ssa and bms dropping out of the export list."""
     assert sorted(btclib.ecc.__all__) == [
         "ansi_x9_63_kdf",
-        "bip340_nonce_",
+        "bip340_nonce",
         "bms",
         "borromean",
+        "commit_nonce",
+        "dh",
         "diffie_hellman",
         "dsa",
         "ecies",
         "ellswift",
         "musig2",
         "pedersen",
+        "rfc6979_nonce",
         "second_generator",
         "ssa",
     ]
@@ -105,9 +108,25 @@ def test_ecc_exports_the_signature_schemes() -> None:
         "ecies",
         "ellswift",
         "musig2",
+        "dh",
+        "rfc6979_nonce",
+        "bip340_nonce",
+        "commit_nonce",
     ):
         module = getattr(btclib.ecc, name)
         assert module.__name__ == f"btclib.ecc.{name}"
+
+    # the expert door stays in the module that defines it: a name ending in
+    # an underscore takes a reduced message and an explicit curve, and
+    # dsa.sign_ is not exported either
+    for module_name, name in (
+        ("rfc6979_nonce", "rfc6979_nonce_"),
+        ("bip340_nonce", "bip340_nonce_"),
+        ("commit_nonce", "commit_nonce_"),
+    ):
+        module = getattr(btclib.ecc, module_name)
+        assert hasattr(module, name), f"btclib.ecc.{module_name}.{name} went missing"
+        assert name not in btclib.ecc.__all__
 
     # and bms resolves dsa through the package that is importing it, which
     # the single sorted import line does not have to work around: a name
