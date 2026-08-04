@@ -17,7 +17,6 @@ import pytest
 from btclib.exceptions import BTClibValueError
 from btclib.script import Witness
 from btclib.tx import OutPoint, Tx, TxIn
-from btclib.tx.tx_in import TX_IN_COMPARES_WITNESS
 from tests.conftest import JsonGolden
 
 
@@ -84,10 +83,10 @@ def test_tx_in() -> None:
     tx_in2 = TxIn.parse(tx_in.serialize())
     assert not tx_in2.is_segwit()
     # the witness is part of a TxIn comparison, so the input carrying one
-    # differs from the input that comes back off the wire without it. Both
-    # halves are stated: an `== ... or TX_IN_COMPARES_WITNESS` would pass
-    # whichever way the flag is set, which is no statement at all
-    assert TX_IN_COMPARES_WITNESS
+    # differs from the input that comes back off the wire without it. Said
+    # of the objects rather than of the flag behind them, and an
+    # `== ... or TX_IN_COMPARES_WITNESS` says neither: it passes whichever
+    # way that flag is set
     assert tx_in != tx_in2
     tx_in2 = TxIn.from_dict(tx_in.to_dict())
     assert tx_in2.is_segwit()

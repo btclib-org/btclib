@@ -64,11 +64,11 @@ excluded-modules = []
 # an unevaluated string, and cosmic-ray mutates the `|` in it eleven ways
 # -- `Sequence[TxIn] >> None` and ten more -- none of which any test can
 # reach. Measured rather than argued: 88 mutants of the 1035, and an
-# unfiltered session over the same scope reports 142 survivors, every one
-# of those 88 among them. Filtered it reports the other 54, which is the
+# unfiltered session over the same scope reports 144 survivors, every one
+# of those 88 among them. Filtered it reports the other 56, which is the
 # difference between a list somebody reads and one nobody does, and it
-# spends two minutes less doing it -- a survivor costs the whole test
-# command.
+# spends minutes less doing it -- a survivor costs the whole test command,
+# where most kills cost a fraction of one.
 #
 # Excluded by operator here rather than with `# pragma: no mutate` on 37
 # lines of source, which is what sig_hash.toml refused for six of them:

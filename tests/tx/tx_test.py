@@ -225,16 +225,22 @@ def test_the_top_of_the_four_byte_range_round_trips() -> None:
     assert parsed == tx
 
 
-def test_a_standard_version_is_the_signed_range_without_zero() -> None:
-    """assert_standard wants 0 < version <= 0x7FFFFFFF, both ends of it.
+def test_a_standard_version_is_neither_zero_nor_negative_as_signed() -> None:
+    """Versions 1 and 2 are standard; 0 and the negative-as-signed ones are not.
 
-    The window is Core's IsStandardTx read as a signed int, and every one
-    of its four corners answers differently from the range assert_valid
-    checks: zero and 0x80000000 are valid versions that are not standard.
+    Only the part of the window both Core policies agree on: 1 and 2 are
+    standard for v27.2 and v31.1 alike, and every version whose top bit is
+    set is standard for neither. Where `assert_standard` currently puts the
+    upper end -- 0x7FFFFFFF, which is standard for no Core -- is issue 387's
+    to answer, so it is deliberately not a test here.
+
+    What the low end is worth saying is that these are valid versions:
+    `assert_valid` takes zero and takes 0xFFFFFFFF, standardness being the
+    narrower question and the only one asked about relay.
     """
     tx = Tx(1, 0, [TxIn(OutPoint(b"\x01" * 32, 0))], [TxOut(1, "")])
 
-    for version in (1, 2, 0x7FFFFFFE, 0x7FFFFFFF):
+    for version in (1, 2):
         tx.version = version
         tx.assert_standard()
 
@@ -678,14 +684,22 @@ def test_join() -> None:
     assert not any(p.kind is inspect.Parameter.VAR_KEYWORD for p in params.values())
 
 
-def test_join_keeps_the_order_it_was_given() -> None:
+def test_join_keeps_the_order_it_was_given(monkeypatch: pytest.MonkeyPatch) -> None:
     """Not shuffling is the concatenation, input for input and output too.
 
-    Two joins compared with each other agree whenever a shuffle draws the
-    order it was given, which with two inputs is every other attempt: the
-    count is what makes the answer deterministic, and at six the odds of a
-    shuffle passing for the concatenation are one in 720.
+    The monkeypatch is what makes the answer deterministic rather than
+    likely: a shuffle of six elements draws the order it was given once in
+    720, and comparing two non-shuffled joins with each other is worse
+    still -- with two inputs they agree every other attempt. So the
+    question asked is whether anything shuffles at all when both flags are
+    false, and the order below is what that leaves.
     """
+
+    def refuse(_self: object, _sequence: object) -> None:
+        pytest.fail("join shuffled a list it was told to keep in order")
+
+    monkeypatch.setattr("btclib.tx.tx.secrets.SystemRandom.shuffle", refuse)
+
     txs = [
         Tx(
             1,

@@ -3968,24 +3968,28 @@ edit.
   `MAX_SIZE`'s value, every test around the cap holding for whatever the
   constant is; the non-canonical message naming the width the number was
   written in; the four-byte range of a version, a lock time and a sequence
-  at both ends rather than at one; the version window `assert_standard`
-  reads as signed, whose corners answer differently from `assert_valid`'s
-  range; the coinbase script_sig's 2 to 100 bytes, both included;
+  at both ends rather than at one; the versions `assert_standard` refuses
+  where `assert_valid` takes them, zero and every one whose top bit is set —
+  and not where it puts the upper end, which is issue #387's to answer and
+  no test's to pin; the coinbase script_sig's 2 to 100 bytes, both included;
   `assert_valid` asking every input and every output, which only a
   transaction whose sums are fine can reach; the legacy sigop count being
   the sum of both lists rather than a bitwise mix of them, one sigop on
-  each side being the case that tells those apart; and an output value read
-  as unsigned, the octets that tell the two readings apart being refused
-  before the conversion sees them
+  each side being the case that tells those apart; and an eight-byte output
+  value surviving an unchecked round trip byte for byte while validation
+  refuses it, which is the invariant either reading of the field satisfies
+  — issue #388 has the reading itself
 - **three assertions that could not fail say something now.** `assert
   tx_in.nSequence == tx_in.nSequence` compared the property with itself in
   three places, so the alias it is there to check was never read; `assert
   tx_in == tx_in2 or TX_IN_COMPARES_WITNESS` passes whichever way that flag
-  is set, and the two halves are now separate assertions; and a
-  non-shuffled `join` was held to equalling *another* non-shuffled join,
-  which two shuffled ones satisfy every other attempt with two inputs — so
-  the order it keeps is asserted against the concatenation it was given,
-  over six inputs and six outputs, where a shuffle agrees once in 720. `Tx`
+  is set, and what replaces it is the inequality of the two inputs, which is
+  behaviour rather than the flag behind it; and a non-shuffled `join` was
+  held to equalling *another* non-shuffled join, which two shuffled ones
+  satisfy every other attempt with two inputs — so the question asked is
+  whether anything shuffles at all when both flags are false, a monkeypatched
+  `SystemRandom.shuffle` failing the test if it is called, because six
+  elements drawn in the order they were given is still one run in 720. `Tx`
   being a dataclass is a promise too, and `dataclasses.fields` is what
   reads it: the constructor, the comparison and every conversion are
   written out, so the decorator is left holding the field list and the
@@ -4505,16 +4509,18 @@ edit.
   the ast walk in that file is the only thing that fails on it. Measured
   before the budget was written, and the numbers are what the issue asked
   for rather than an estimate: 1035 mutants, 88 skipped, the 947 that ran
-  taking 4 min 43 s of cpu, 54 surviving. So this profile *finishes*,
+  taking a little over five minutes of cpu, 56 surviving. So this profile
+  *finishes*,
   where the engine's five and a half hours are sampled — which is what
   makes a survival rate comparable with the week before. Its own job, in
-  parallel with the consensus one and under a 60-minute ceiling, because
-  the two sessions there already spend 180 of the 200 minutes that job has:
-  the jobs are now a matrix over profiles, each cell naming its
-  configurations and their budgets, so a scope added next takes nothing
-  from the ones already measured. One artifact per profile, two uploads
-  under one name being an error, so `mutation-sessions` is now
-  `mutation-consensus-sessions` beside `mutation-parser-sessions`
+  parallel with the consensus one, with a 30-minute budget under a
+  45-minute ceiling, because the two sessions there already spend 180 of
+  the 200 minutes that job has: the jobs are now a matrix over profiles,
+  each cell naming its configurations and their budgets, so a scope added
+  next takes nothing from the ones already measured. One artifact per
+  profile, two uploads under one name being an error, so
+  `mutation-sessions` is now `mutation-consensus-sessions` beside
+  `mutation-parsers-sessions`
 - **`cr-filter-operators` runs between `init` and `exec`** for every
   configuration, and is a no-op for one that excludes no operator, so the
   decision stays in the toml rather than in the workflow. What
@@ -4522,10 +4528,11 @@ edit.
   open with `from __future__ import annotations`, so `Sequence[TxIn] | None`
   is an unevaluated string, and cosmic-ray's eleven replacements for that
   operator are 88 mutants nothing can reach. Measured rather than argued: an
-  unfiltered session over the same scope reports 142 survivors and every one
-  of those 88 is among them, so filtering leaves the 54 that are worth
-  reading and spends two minutes less, a survivor costing the whole test
-  command. Excluded by operator rather than with a
+  unfiltered session over the same scope reports 144 survivors and every one
+  of those 88 is among them, so filtering leaves the 56 that are worth
+  reading and spends minutes less, a survivor costing the whole test command
+  where most kills cost a fraction of one. Excluded by operator rather than
+  with a
   `# pragma: no mutate` on each of the 37 annotations, which is what
   `sig_hash.toml` refused for six of them: a pragma is a line of library
   source added for the benefit of a weekly report. The price is stated
