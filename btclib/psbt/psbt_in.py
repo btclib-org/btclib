@@ -74,7 +74,11 @@ from btclib.psbt.psbt_utils import (
 from btclib.script import Witness, script_from_dict, script_to_dict
 from btclib.script.sig_hash import assert_valid_hash_type
 from btclib.tx import OutPoint, Tx, TxOut
-from btclib.utils import bytes_from_octets
+from btclib.utils import (
+    assert_no_trailing,
+    bytes_from_octets,
+    bytesio_from_binarydata,
+)
 
 PSBT_IN_NON_WITNESS_UTXO = b"\x00"
 PSBT_IN_WITNESS_UTXO = b"\x01"
@@ -845,8 +849,15 @@ class PsbtIn:
         decides whether a BIP370 type byte is a field of this input or
         one this version must not carry; an input read on its own is read
         as version 0, the version BIP174 defines.
+
+        Octets are one whole input and a stream is the caller's, as they
+        are for the psbt these maps make: `Psbt.parse` threads one stream
+        through the inputs and the outputs, and what follows an input in it
+        is the next one.
         """
-        input_map = deserialize_map(data)
+        stream = bytesio_from_binarydata(data)
+        input_map = deserialize_map(stream)
+        assert_no_trailing(data, stream, "psbt input")
         # the init keywords the map fills; whatever it does not carry keeps
         # the default __init__ gives it, which is what makes the two tables
         # above the whole of the mapping

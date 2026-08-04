@@ -296,13 +296,16 @@ against the `v2023.7.12` tag.
   `Tx.parse(raw[:-1])` and `Tx.parse(raw + b"junk")` both raise
   `BTClibValueError`, where the first answered a transaction with a
   shorter lock time and the second answered the transaction of `raw`. The
-  same holds for `TxIn`, `TxOut`, `OutPoint`, `Block`, `BlockHeader` and
-  `BIP32KeyData`, and whatever `check_validity` says — the length is what
+  same holds for `TxIn`, `TxOut`, `OutPoint`, `Block`, `BlockHeader`,
+  `BIP32KeyData`, `Witness`, `PsbtIn` and `PsbtOut`, and whatever
+  `check_validity` says — the length is what
   makes the fields mean anything, not an opinion about what they hold. A
   stream is unaffected, what follows the object in it being the caller's:
   reading a transaction out of a block reads on as before. Parsing one
   object out of a longer buffer is `parse(BytesIO(buffer))` rather than
-  `parse(buffer)`.
+  `parse(buffer)`. `BIP32KeyOrigin.parse` goes with them for the width of
+  its master fingerprint, which `check_validity=False` used to defer: four
+  octets, or it is not a key origin.
 - **a boolean is refused wherever a field is an integer quantity.**
   `bool` being a subclass of `int`, `valid_sats_amount(True)` was 1,
   `FeeRate(sats_per_kvbyte=True)` was a one-sat/kvB rate, and

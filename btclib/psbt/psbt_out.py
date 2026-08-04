@@ -62,7 +62,11 @@ from btclib.psbt.psbt_utils import (
     taproot_bip32_to_dict,
 )
 from btclib.script import script_from_dict, script_to_dict
-from btclib.utils import bytes_from_octets
+from btclib.utils import (
+    assert_no_trailing,
+    bytes_from_octets,
+    bytesio_from_binarydata,
+)
 
 PSBT_OUT_REDEEM_SCRIPT = b"\x00"
 PSBT_OUT_WITNESS_SCRIPT = b"\x01"
@@ -334,8 +338,15 @@ class PsbtOut:
         decides whether a BIP370 type byte is a field of this output or
         one this version must not carry; an output read on its own is
         read as version 0, the version BIP174 defines.
+
+        Octets are one whole output and a stream is the caller's, as they
+        are for the psbt these maps make: `Psbt.parse` threads one stream
+        through the inputs and the outputs, and what follows an output in it
+        is the next one.
         """
-        output_map = deserialize_map(data)
+        stream = bytesio_from_binarydata(data)
+        output_map = deserialize_map(stream)
+        assert_no_trailing(data, stream, "psbt output")
         redeem_script = b""
         witness_script = b""
         hd_key_paths: dict[Octets, BIP32KeyOrigin] = {}
