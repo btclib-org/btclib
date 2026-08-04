@@ -20,6 +20,7 @@ from btclib.exceptions import BTClibRuntimeError, BTClibValueError
 
 
 def test_ecdh() -> None:
+    """Check both sides derive one shared key, at sizes around the digest."""
     ec = CURVES["secp256k1"]
     hf = sha256
 

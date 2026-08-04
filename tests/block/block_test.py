@@ -76,6 +76,7 @@ def test_block_1() -> None:
 
 
 def test_exceptions() -> None:
+    """Verify the error each truncation or malformed header field raises."""
     fname = "block_1.bin"
     filename = path.join(path.dirname(__file__), "_data", fname)
     with open(filename, "rb") as file_:
@@ -231,6 +232,7 @@ def test_block_170() -> None:
 
 
 def test_block_200000() -> None:
+    """Verify block 200,000: 388 transactions and a BIP34 height."""
     fname = "block_200000.bin"
     filename = path.join(path.dirname(__file__), "_data", fname)
     with open(filename, "rb") as file_:
@@ -436,6 +438,7 @@ def test_block_unexpected_witness() -> None:
 
 
 def test_dataclasses_json_dict(json_golden: JsonGolden) -> None:
+    """Round-trip Block and BlockHeader through their dict and golden json."""
     fname = "block_481824.bin"
     filename = path.join(path.dirname(__file__), "_data", fname)
     with open(filename, "rb") as binfile_:

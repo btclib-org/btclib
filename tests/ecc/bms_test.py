@@ -42,6 +42,7 @@ ec = secp256k1
 
 
 def test_signature() -> None:
+    """Round-trip sign, verify and the encodings; malleation included."""
     msg = b"test message"
 
     wif, addr = bms.gen_keys()
@@ -105,6 +106,7 @@ def test_long_message() -> None:
 
 
 def test_exceptions() -> None:
+    """Refuse bad addresses, flags, encodings and key/address pairs."""
     msg = b"test"
     wif = "KwELaABegYxcKApCb3kJR9ymecfZZskL9BzVUkQhsqFiUKftb4tu"
     address = b58.p2pkh(wif)
@@ -198,6 +200,7 @@ def test_exceptions() -> None:
 
 
 def test_one_prv_key_multiple_addresses() -> None:
+    """Verify the BIP137 flag binds a signature to its address type."""
     msg = b"Paolo is afraid of ephemeral random numbers"
 
     # Compressed WIF
@@ -323,6 +326,7 @@ def test_one_prv_key_multiple_addresses() -> None:
 
 
 def test_msgsign_p2pkh() -> None:
+    """Reproduce Core's signatures, compressed and uncompressed keys."""
     msg = b"test message"
     # sigs are taken from (Electrum and) Bitcoin Core
 
@@ -375,6 +379,7 @@ def test_msgsign_p2pkh() -> None:
 
 
 def test_msgsign_p2pkh_2() -> None:
+    """Reproduce Core's signatures, with and without a named address."""
     msg = b"test message"
     # sigs are taken from (Electrum and) Bitcoin Core
 
@@ -404,6 +409,7 @@ def test_msgsign_p2pkh_2() -> None:
 
 
 def test_verify_p2pkh() -> None:
+    """Verify published p2pkh signatures, surrounding spaces included."""
     msg = b"Hello, world!"
     address = "1FEz167JCVgBvhJBahpzmrsTNewhiwgWVG"
     exp_sig = "G+WptuOvPCSswt/Ncm1upO4lPSCWbS2cpKariPmHvxX5eOJwgqmdEExMTKvaR0S3f1TXwggLn/m4CbI2jv0SCuM="
@@ -470,6 +476,7 @@ def test_verify_p2pkh() -> None:
 
 
 def test_segwit() -> None:
+    """Reproduce Electrum and BIP137 signatures for segwit addresses."""
     msg = b"test"
     wif = "L4xAvhKR35zFcamyHME2ZHfhw5DEyeJvEMovQHQ7DttPTM8NLWCK"
     b58_p2pkh = b58.p2pkh(wif)
@@ -507,6 +514,7 @@ def test_segwit() -> None:
 
 
 def test_sign_strippable_message() -> None:
+    """Reproduce Core's signatures for messages Electrum would strip."""
     wif = "Ky1XfDK2v6wHPazA6ECaD8UctEoShXdchgABjpU9GWGZDxVRDBMJ"
     address = "1DAag8qiPLHh6hMFVu9qJQm9ro1HtwuyK5"
 
@@ -703,6 +711,7 @@ def test_ledger() -> None:
 
 
 def test_recover_pub_key_input_type() -> None:
+    """Verify recovery takes a Sig object or its serialization alike."""
     msg = b"test message"
     wif, _ = bms.gen_keys()
     bms_sig = bms.sign(msg, wif)
@@ -884,7 +893,9 @@ def test_recoverable_signing_answers_the_key_id_the_search_finds(
 def test_the_python_path_answers_the_same(
     vector_test: Any, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    """bms is secp256k1 only, so nothing else keeps its Python path reached.
+    """Run the fixed-vector tests again with the dispatch patched off.
+
+    bms is secp256k1 only, so nothing else keeps its Python path reached.
 
     Unlike taproot or ECDH there is no second curve to fall back for, and
     no message length the bindings decline: `Sig.assert_valid` refuses any

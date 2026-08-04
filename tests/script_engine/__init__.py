@@ -16,6 +16,7 @@ from btclib.script.script import BYTE_FROM_OP_CODE_NAME, serialize
 
 
 def parse_script(bitcoin_core_script: str) -> str:
+    """Compile Bitcoin Core's script notation into serialized hex."""
     script_pub_key = ""
     for y in bitcoin_core_script.split():
         if y[:2] == "0x":

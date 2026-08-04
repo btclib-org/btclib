@@ -21,6 +21,7 @@ from btclib.network import NETWORKS
 
 
 def test_slip132() -> None:
+    """Derive the three key types and their addresses; refuse misuse."""
     mnemonic = "enough regret erode news field main wild jar erupt bronze velvet ugly"
     mxprv = bip39.mxprv_from_mnemonic(mnemonic)
 
@@ -141,6 +142,7 @@ def test_slip132_test_vectors() -> None:
 
 
 def test_addresses() -> None:
+    """Reproduce account xpubs cross-checked with Electrum, all versions."""
     # data cross-checked with Electrum and
     # https://jlopp.github.io/xpub-converter/
 

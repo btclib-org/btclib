@@ -29,6 +29,7 @@ from btclib.tx import OutPoint, Tx, TxIn, TxOut
 
 
 def _load(fname: str) -> Block:
+    """Return a vendored block, parsed from tests/block/_data."""
     filename = path.join(path.dirname(__file__), "_data", fname)
     with open(filename, "rb") as file_:
         return Block.parse(file_.read())
@@ -165,7 +166,7 @@ def test_cve_2012_2459_a_duplicated_sibling_is_refused() -> None:
 
 
 def _sixty_four_byte_tx() -> Tx:
-    """A transaction whose serialization is exactly 64 bytes.
+    """Return a transaction whose serialization is exactly 64 bytes.
 
     4 version, 1 input count, 36 outpoint, 1 empty script_sig, 4
     sequence, 1 output count, 8 value, 1 script length, 4 script, 4
@@ -210,6 +211,7 @@ def test_an_honest_block_has_no_inner_node_that_parses_as_a_transaction() -> Non
 
 
 def test_a_malformed_branch_is_refused() -> None:
+    """Refuse a branch malformed in sibling size, index or length."""
     block = _load("block_200000.bin")
     txids = [tx.id for tx in block.transactions]
     hashes = [txid[::-1] for txid in txids]

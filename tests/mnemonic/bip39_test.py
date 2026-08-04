@@ -25,7 +25,7 @@ from tests.mnemonic.mnemonic_test import fullwidth
 
 
 def candidates(mnemonic: str) -> list[str]:
-    """The languages of the shipped word-lists that hold every word.
+    """List the languages of the shipped word-lists that hold every word.
 
     A private WordLists and not the singleton bip39 reads: another test
     adds a language to that one, so a candidate list taken from it would
@@ -35,6 +35,7 @@ def candidates(mnemonic: str) -> list[str]:
 
 
 def test_bip39() -> None:
+    """Round-trip entropy and mnemonic; refuse a bad size or checksum."""
     lang = "en"
     mnem = "abandon abandon atom trust ankle walnut oil across awake bunker divorce abstract"
 
@@ -240,6 +241,7 @@ def test_chinese_is_ambiguous_and_answerable() -> None:
 
 
 def test_mnemonic_from_entropy() -> None:
+    """Accept entropy with a leading zero bit, and none at all."""
     # zero leading bit should not throw an error
     bip39.mnemonic_from_entropy(secrets.randbits(127), "en")
     # random mnemonic
@@ -366,6 +368,7 @@ def test_nfkd_fullwidth_latin() -> None:
 
 
 def test_mxprv_from_mnemonic() -> None:
+    """Reproduce the rootxprv a known mnemonic derives to."""
     mnemonic = "abandon abandon atom trust ankle walnut oil across awake bunker divorce abstract"
     rootxprv = bip39.mxprv_from_mnemonic(mnemonic, "")
     exp = "xprv9s21ZrQH143K3ZxBCax3Wu25iWt3yQJjdekBuGrVa5LDAvbLeCT99U59szPSFdnMe5szsWHbFyo8g5nAFowWJnwe8r6DiecBXTVGHG124G1"

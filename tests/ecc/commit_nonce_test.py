@@ -68,6 +68,7 @@ _SHA256_INIT = (
 
 
 def _rotr(x: int, n: int) -> int:
+    """Rotate a 32-bit word right by n bits."""
     return ((x >> n) | (x << (32 - n))) & 0xFFFFFFFF
 
 
@@ -81,6 +82,7 @@ _PRV_KEY = 12345678901234567890
 
 
 def test_dsa_commitment() -> None:
+    """Check a committing dsa signature verifies and opens only its value."""
     for hf in (sha256, sha1):
         for ec in (secp256k1, CURVES["secp160r1"]):
             pub_key = mult(_PRV_KEY, ec.G, ec)
@@ -116,6 +118,7 @@ def test_dsa_commitment() -> None:
 
 
 def test_ssa_commitment() -> None:
+    """Check a committing ssa signature verifies over both nonce parities."""
     # the tweak moves the nonce's point, so BIP340's even-y normalization
     # has to be applied to the moved one: both parities are collected
     # here, the odd ones being the signatures that fail without it
@@ -298,7 +301,11 @@ def test_the_commitment_reaches_the_nonce() -> None:
 
 
 def test_a_commitment_derives_its_own_nonce() -> None:
-    """dsa refuses a nonce beside a commitment; ssa's aux is not a nonce."""
+    """Verify dsa refuses a caller nonce beside a commitment.
+
+    ssa has no nonce parameter to clash with: its aux is entropy, and
+    the commitment is mixed into it rather than displacing it.
+    """
     with pytest.raises(BTClibValueError, match="commitment derives its own nonce"):
         dsa.sign(_MSG, _PRV_KEY, 1234, commit=_COMMIT)
     with pytest.raises(BTClibValueError, match="commitment derives its own nonce"):

@@ -67,6 +67,7 @@ def test_the_unit_is_in_the_name() -> None:
     ],
 )
 def test_sats_per_vbyte_round_trip(sats_per_vbyte: Any, sats_per_kvbyte: int) -> None:
+    """Round-trip a sat/vB rate through the constructor and accessor."""
     rate = FeeRate.from_sats_per_vbyte(sats_per_vbyte)
     assert rate.sats_per_kvbyte == sats_per_kvbyte
     assert rate.sats_per_vbyte == Decimal(str(sats_per_vbyte))
@@ -106,12 +107,14 @@ def test_sats_per_vbyte_is_exact_or_it_is_an_error() -> None:
     ],
 )
 def test_a_rate_that_is_not_a_number(rate: Any) -> None:
+    """Refuse NaN, infinities and what Decimal cannot parse."""
     err_msg = "invalid sat/vB fee rate: "
     with pytest.raises(BTClibValueError, match=err_msg):
         FeeRate.from_sats_per_vbyte(rate)
 
 
 def test_a_rate_is_a_non_negative_integer_number_of_sats_per_kvbyte() -> None:
+    """Refuse a non-integer and a negative sat/kvB rate."""
     err_msg = "non-integer sat/kvB fee rate: "
     with pytest.raises(BTClibTypeError, match=err_msg):
         FeeRate(sats_per_kvbyte=1.5)  # type: ignore[arg-type]
@@ -128,6 +131,7 @@ def test_a_rate_is_a_non_negative_integer_number_of_sats_per_kvbyte() -> None:
 
 
 def test_rates_compare_and_hash() -> None:
+    """Verify rates order, sort and hash by their value."""
     slow = FeeRate(sats_per_kvbyte=1000)
     fast = FeeRate.from_sats_per_vbyte("1.001")
     assert slow < fast
@@ -163,6 +167,7 @@ def test_rates_compare_and_hash() -> None:
     ],
 )
 def test_fee_from_vsize(sats_per_kvbyte: int, vsize: int, fee: int) -> None:
+    """Check the fee at the boundaries and on Core's worked examples."""
     assert fee_from_vsize(vsize, FeeRate(sats_per_kvbyte=sats_per_kvbyte)) == fee
 
 
@@ -180,6 +185,7 @@ def test_the_fee_rounds_up_at_every_remainder() -> None:
 
 
 def test_a_virtual_size_is_a_non_negative_integer() -> None:
+    """Refuse a float, a string and a negative virtual size."""
     err_msg = "non-integer virtual size: "
     # a float is the one that has to be refused rather than left to the
     # arithmetic, which takes it and answers 425.0: a float fee
@@ -195,7 +201,7 @@ def test_a_virtual_size_is_a_non_negative_integer() -> None:
 
 
 def _script_pub_keys() -> dict[str, bytes]:
-    """The output types, built by btclib rather than written out.
+    """Build the output types with btclib rather than writing them out.
 
     The sizes the threshold is computed from are then the sizes btclib's
     own constructors produce, which a script literal copied into this
@@ -236,10 +242,12 @@ def _script_pub_keys() -> dict[str, bytes]:
 def test_dust_threshold_against_the_tabulated_limits(
     script_type: str, threshold: int
 ) -> None:
+    """Reproduce electrum's DUST_LIMIT table, plus p2tr and p2pk."""
     assert dust_threshold(_script_pub_keys()[script_type]) == threshold
 
 
 def test_dust_threshold_takes_a_hex_string_too() -> None:
+    """Verify a hex string answers the same threshold as its bytes."""
     script_pub_key = _script_pub_keys()["p2wpkh"]
     assert dust_threshold(script_pub_key.hex()) == dust_threshold(script_pub_key)
 
@@ -274,6 +282,7 @@ def test_the_dust_relay_rate_is_a_parameter() -> None:
     ],
 )
 def test_an_unspendable_output_has_no_dust_threshold(script_pub_key: bytes) -> None:
+    """Verify each shape Core's IsUnspendable names has a zero threshold."""
     assert dust_threshold(script_pub_key) == 0
 
 

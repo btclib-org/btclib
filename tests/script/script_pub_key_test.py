@@ -55,6 +55,7 @@ from tests import load, vector_id
 
 
 def test_eq() -> None:
+    """Verify equality reads script and network, and the class too."""
     pub_key = "02 cc71eb30d653c0c3163990c47b976f3fb3f37cccdcbedb169a1dfef58bbfbfaf"
     script_pub_key = ScriptPubKey.p2pkh(pub_key)
 
@@ -69,11 +70,13 @@ def test_eq() -> None:
 
 
 def test_unknown_network() -> None:
+    """Refuse an unknown network name at construction."""
     with pytest.raises(BTClibValueError, match="unknown network: "):
         ScriptPubKey(b"", "no_network")
 
 
 def test_nulldata() -> None:
+    """Round-trip nulldata payloads, learnmeabitcoin's cases included."""
     OP_RETURN = b"\x6a"
 
     # self-consistency
@@ -119,6 +122,7 @@ def test_nulldata() -> None:
 
 
 def test_nulldata2() -> None:
+    """Verify every payload length up to the 80-byte cap parses back."""
     for length in (0, 1, 16, 17, 74, 75, 76, 77, 78, 79, 80):
         payload = b"\x00" * length
         script_pub_key = serialize(["OP_RETURN", payload])
@@ -126,6 +130,7 @@ def test_nulldata2() -> None:
 
 
 def test_nulldata3() -> None:
+    """Refuse an oversized payload and malformed length markers."""
     err_msg = "invalid nulldata payload length: "
     with pytest.raises(BTClibValueError, match=err_msg):
         payload = "0A" * 81
@@ -222,6 +227,7 @@ def test_nulldata_is_narrower_than_solver() -> None:
 
 
 def test_p2pk() -> None:
+    """Round-trip p2pk scripts and refuse malformed ones."""
     # self-consistency
     pub_key = "02 cc71eb30d653c0c3163990c47b976f3fb3f37cccdcbedb169a1dfef58bbfbfaf"
     script_pub_key = serialize([pub_key, "OP_CHECKSIG"])
@@ -261,6 +267,7 @@ def test_p2pk() -> None:
 
 
 def test_p2pkh() -> None:
+    """Round-trip p2pkh script and address; refuse malformed scripts."""
     # self-consistency
     pub_key = (
         "04 "
@@ -308,6 +315,7 @@ def test_p2pkh() -> None:
 
 
 def test_p2wpkh() -> None:
+    """Round-trip p2wpkh script and address; refuse bad markers."""
     # self-consistency
     pub_key = "02 cc71eb30d653c0c3163990c47b976f3fb3f37cccdcbedb169a1dfef58bbfbfaf"
     payload = hash160(pub_key)
@@ -340,6 +348,7 @@ def test_p2wpkh() -> None:
 
 
 def test_p2sh() -> None:
+    """Round-trip p2sh script and address; refuse malformed scripts."""
     # self-consistency
     pub_key = "02 cc71eb30d653c0c3163990c47b976f3fb3f37cccdcbedb169a1dfef58bbfbfaf"
     redeem_script = ScriptPubKey.p2pkh(pub_key).script
@@ -382,6 +391,7 @@ def test_p2sh() -> None:
 
 
 def test_p2wsh() -> None:
+    """Round-trip p2wsh script and address; refuse bad markers."""
     # self-consistency
     pub_key = "02 cc71eb30d653c0c3163990c47b976f3fb3f37cccdcbedb169a1dfef58bbfbfaf"
     redeem_script = ScriptPubKey.p2pkh(pub_key).script
@@ -457,7 +467,7 @@ def test_a_witness_program_of_an_unnamed_version_has_an_address() -> None:
 
 
 def test_where_witness_unknown_begins_and_ends() -> None:
-    """btclib draws Core's line, `Solver`'s (issue #251).
+    """Verify btclib draws Core's line, `Solver`'s (issue #251).
 
     Any version but 0 that is not p2tr is `witness_unknown`, a v1
     program that is not 32 bytes included. A version *0* program of an
@@ -481,6 +491,7 @@ def test_where_witness_unknown_begins_and_ends() -> None:
 
 
 def test_p2ms_1() -> None:
+    """Verify p2ms classification; refuse invalid m, n and keys."""
     # self-consistency
     # documented test case: https://learnmeabitcoin.com/guide/p2ms
     pub_key0 = "04 cc71eb30d653c0c3163990c47b976f3fb3f37cccdcbedb169a1dfef58bbfbfaf f7d8a473e7e2e6d317b87bafe8bde97e3cf8f065dec022b51d11fcdd0d348ac4"
@@ -573,6 +584,7 @@ def test_p2ms_1() -> None:
 
 
 def test_p2ms_2() -> None:
+    """Verify p2ms with uncompressed and mixed keys, sorted or not."""
     m = 1
 
     # all uncompressed
@@ -599,6 +611,7 @@ def test_p2ms_2() -> None:
 
 
 def test_p2ms_3() -> None:
+    """Reproduce a mainnet p2ms output and its per-key addresses."""
     # tx_id 33ac2af1a6f894276713b59ed09ce1a20fed5b36d169f20a3fe831dc45564d57
     # output n 0
     keys: ScriptList = [
@@ -658,6 +671,7 @@ def test_bip67(keys: list[str], addr: str) -> None:
 
 
 def test_non_standard_script_in_p2wsh() -> None:
+    """Round-trip a non-standard redeem script through its address."""
     network = "mainnet"
 
     addr = "bc1qqst9un5sz8576fy2nnqkpm4rpfh0weveqwtt8zxgjp02g2mx5q7s2vresu"
@@ -697,6 +711,7 @@ def test_non_standard_script_in_p2wsh() -> None:
 
 
 def test_p2tr() -> None:
+    """Round-trip p2tr script and address; refuse a bad length marker."""
     pub_key = "cc71eb30d653c0c3163990c47b976f3fb3f37cccdcbedb169a1dfef58bbfbfaf"
     out_pubkey = output_pubkey(pub_key)[0]
     script_pub_key = serialize(["OP_1", out_pubkey])
@@ -716,7 +731,7 @@ def test_p2tr() -> None:
 
 
 def test_script_pub_key_is_a_dataclass() -> None:
-    """network is a field, so dataclasses sees it.
+    """Verify network is a field, one dataclasses sees.
 
     Guards against ScriptPubKey extending the Script dataclass without
     being one: with network a bare annotation, dataclasses.fields would
@@ -900,6 +915,7 @@ def test_script_is_frozen_and_asm_is_cached() -> None:
 
 
 def test_asm_parses_once_per_script() -> None:
+    """Verify three .asm reads cost one parse, cached in __dict__."""
     calls = []
     real_parse = script_module.parse
 

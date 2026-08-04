@@ -53,6 +53,7 @@ from btclib.script import op_int, output_pubkey, serialize
 
 
 def test_has_segwit_prefix() -> None:
+    """Verify bc1 addresses are told from base58 ones, str or bytes."""
     addr = b"bc1q0hy024867ednvuhy9en4dggflt5w9unw4ztl5a"
     assert b32.has_segwit_prefix(addr)
     assert b32.has_segwit_prefix(addr.decode("ascii"))
@@ -212,6 +213,7 @@ def test_invalid_address_enc() -> None:
 
 
 def test_address_witness() -> None:
+    """Round-trip v0 witnesses; refuse a bad size or conversion value."""
     wit_ver = 0
     wit_prg = 20 * b"\x05"
     for net in ("mainnet", "testnet"):
@@ -240,6 +242,7 @@ def test_address_witness() -> None:
 
 
 def test_p2wpkh_p2sh() -> None:
+    """Reproduce published p2wpkh-p2sh addresses, testnet included."""
     # https://matthewdowney.github.io/create-segwit-address.html
     pub = " 03 a1af804ac108a8a51782198c2d034b28bf90c8803f5a53f76276fa69a4eae77f"
     address = b58.p2wpkh_p2sh(pub)
@@ -254,6 +257,7 @@ def test_p2wpkh_p2sh() -> None:
 
 
 def test_p2wpkh() -> None:
+    """Reproduce BIP173's p2wpkh examples; refuse uncompressed keys."""
     # https://github.com/bitcoin/bips/blob/master/bip-0173.mediawiki
     # leading/trailing spaces should be tolerated
     pub = " 02 79BE667EF9DCBBAC55A06295CE870B07029BFCDB2DCE28D959F2815B16F81798"
@@ -283,6 +287,7 @@ def test_p2wpkh() -> None:
 
 
 def test_p2wsh_p2sh() -> None:
+    """Build p2wsh-p2sh addresses from a script with spaced-out keys."""
     # leading/trailing spaces should be tolerated
     pub = " 02 79BE667EF9DCBBAC55A06295CE870B07029BFCDB2DCE28D959F2815B16F81798"
     script_pub_key: ScriptList = [pub, "OP_CHECKSIG"]
@@ -292,6 +297,7 @@ def test_p2wsh_p2sh() -> None:
 
 
 def test_p2wsh() -> None:
+    """Reproduce BIP173's p2wsh addresses; the program is the sha256."""
     # https://github.com/bitcoin/bips/blob/master/bip-0173.mediawiki
     pub = "02 79BE667EF9DCBBAC55A06295CE870B07029BFCDB2DCE28D959F2815B16F81798"
     script_pub_key: ScriptList = [pub, "OP_CHECKSIG"]
@@ -313,6 +319,7 @@ def test_p2wsh() -> None:
 
 
 def test_p2tr() -> None:
+    """Verify a p2tr address decodes back to its taproot output key."""
     key = 1
     pub_key = output_pubkey(key)[0]
     addr = b32.p2tr(pub_key)

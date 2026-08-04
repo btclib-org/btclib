@@ -86,7 +86,7 @@ INPUT_PARAMS = [pytest.param(i, id=kind) for i, (kind, *_) in enumerate(INPUTS)]
 
 
 def spending_tx() -> tuple[Tx, list[TxOut]]:
-    """A transaction spending one output of each kind, and those outputs.
+    """Build a transaction spending one output of each kind, and the utxos.
 
     The sequences differ input by input and the amounts output by
     output, so that a hash taken over the wrong one of them, or in the

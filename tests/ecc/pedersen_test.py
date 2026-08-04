@@ -59,6 +59,7 @@ def test_second_generator_is_cached() -> None:
 
 
 def test_commitment() -> None:
+    """Verify commit/verify round-trips and the additive homomorphism."""
     ec = secp256k1
     hf = sha256
 
@@ -99,7 +100,7 @@ def test_commitment() -> None:
 
 
 def test_commit_to_infinity() -> None:
-    """r and v both zero mod n commit to INF.
+    """Refuse r and v both zero mod n: the commitment is INF.
 
     Any other opening of INF would need the discrete log of H.
     """

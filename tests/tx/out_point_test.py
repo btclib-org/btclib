@@ -20,6 +20,7 @@ from tests.conftest import JsonGolden
 
 
 def test_out_point() -> None:
+    """Check defaults, coinbase detection, and both round-trips."""
     out_point = OutPoint()
     assert out_point.tx_id == b"\x00" * 32
     assert out_point.vout == 0xFFFFFFFF
@@ -42,6 +43,7 @@ def test_out_point() -> None:
 
 
 def test_frozen() -> None:
+    """Refuse assignment to either field: a frozen OutPoint is hashable."""
     out_point = OutPoint(
         "d5b5982254eebca64e4b42a3092a10bfb76ab430455b2bf0cf7c4f7f32db1c2e", 0
     )
@@ -60,6 +62,7 @@ def test_frozen() -> None:
 
 
 def test_dataclasses_json_dict_out_point(json_golden: JsonGolden) -> None:
+    """Round-trip an OutPoint through dict, against the golden json."""
     fname = "d4f3c2c3c218be868c77ae31bedb497e2f908d6ee5bbbe91e4933e6da680c970.bin"
     filename = path.join(path.dirname(__file__), "_data", fname)
     with open(filename, "rb") as binary_file_:
@@ -80,6 +83,7 @@ def test_dataclasses_json_dict_out_point(json_golden: JsonGolden) -> None:
 
 
 def test_invalid_outpoint() -> None:
+    """Refuse a bad tx_id length, vout range, or half-coinbase outpoint."""
     out_point = OutPoint(b"\x01" * 31, 18, check_validity=False)
     with pytest.raises(BTClibValueError, match="invalid OutPoint tx_id: "):
         out_point.assert_valid()

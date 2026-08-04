@@ -55,7 +55,7 @@ def load(*relative_path: str, encoding: str = "ascii") -> Any:
 
 
 def load_csv(*relative_path: str, encoding: str = "ascii") -> list[list[str]]:
-    """The same for a csv vector file, header row dropped."""
+    """Read a vendored csv vector file, header row dropped."""
     with open(
         path.join(_TESTS_DIR, *relative_path), newline="", encoding=encoding
     ) as file_:
@@ -63,7 +63,7 @@ def load_csv(*relative_path: str, encoding: str = "ascii") -> list[list[str]]:
 
 
 def load_bin(*relative_path: str) -> bytes:
-    """The same for a file of consensus bytes: a block, a transaction.
+    """Read a vendored file of consensus bytes: a block, a transaction.
 
     Named from `tests/` for the same reason as the two above, and it is
     what a block is read by outside `tests/block`: the signed

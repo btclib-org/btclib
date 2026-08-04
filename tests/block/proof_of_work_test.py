@@ -44,6 +44,7 @@ from btclib.exceptions import BTClibValueError
 
 
 def _time(timestamp: int) -> datetime:
+    """Return the UTC datetime of a unix timestamp."""
     return datetime.fromtimestamp(timestamp, timezone.utc)
 
 
@@ -56,6 +57,7 @@ def _bits_of(fname: str) -> bytes:
 
 
 def test_consensus_parameters() -> None:
+    """Verify the retarget constants and mainnet's genesis-block limit."""
     assert POW_TARGET_TIMESPAN == 14 * 24 * 60 * 60
     assert POW_TARGET_SPACING == 10 * 60
     assert DIFFICULTY_ADJUSTMENT_INTERVAL == 2016
@@ -124,6 +126,7 @@ def test_bits_from_target_round_trip() -> None:
 
 
 def test_bits_from_target_edges() -> None:
+    """Check the compact encoding at its edges: truncation, sign bit, zero."""
     # the significand holds three bytes, so everything below them is
     # dropped and the round trip is lossy the other way: what comes back
     # is the same target or a harder one, never an easier one
@@ -360,6 +363,7 @@ def test_hash_rate() -> None:
 
 
 def test_hash_rate_exceptions() -> None:
+    """Refuse a non-positive timespan, a zero count, a zero difficulty."""
     # no timespan, no rate: Core's getnetworkhashps returns 0 when the
     # window's ends carry the same time, and a negative one is what
     # miner-supplied timestamps can produce

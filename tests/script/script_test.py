@@ -38,6 +38,7 @@ from tests.script import serialize_non_canonical
 
 
 def test_operators() -> None:
+    """Verify the two op code tables agree, aliases and gaps aside."""
     for i, name in OP_CODE_NAME_FROM_INT.items():
         b = BYTE_FROM_OP_CODE_NAME[name]
         assert i == b[0]
@@ -64,6 +65,7 @@ def test_operators() -> None:
 
 
 def test_op_int() -> None:
+    """Verify op_int names -1 to 16 and refuses 17."""
     assert op_int(-1) == "OP_1NEGATE"
     for i in range(17):
         assert op_int(i) == f"OP_{i}"
@@ -74,6 +76,7 @@ def test_op_int() -> None:
 
 
 def test_serialize_bytes_command() -> None:
+    """Verify the push overhead grows at the 76- and 256-byte thresholds."""
     length = 75
     b = b"\x0a" * length
     assert len(serialize([b])) == length + 1
@@ -88,6 +91,7 @@ def test_serialize_bytes_command() -> None:
 
 
 def test_add_and_eq() -> None:
+    """Verify Script + Script concatenates and refuses raw bytes."""
     script_1 = serialize(["OP_2", "OP_3", "OP_ADD", "OP_5"])
     script_2 = serialize(["OP_EQUAL"])
     assert Script(script_1) + Script(script_2) == Script(script_1 + script_2)
@@ -97,6 +101,7 @@ def test_add_and_eq() -> None:
 
 
 def test_simple_scripts() -> None:
+    """Round-trip a sample of scripts through serialize and parse."""
     script_list: list[ScriptList] = [
         ["OP_2", "OP_3", "OP_ADD", "OP_5", "OP_EQUAL"],
         [0x1ADD, "OP_1ADD", 0x1ADE, "OP_EQUAL"],
@@ -115,6 +120,7 @@ def test_simple_scripts() -> None:
 
 
 def test_exceptions() -> None:
+    """Refuse an unknown OP_ string and a command of the wrong type."""
     script_pub_key: ScriptList = ["OP_2", "OP_3", "OP_ADD", "OP_5", "OP_RETURN_244"]
     err_msg = "invalid string command: OP_RETURN_244"
     with pytest.raises(BTClibValueError, match=err_msg):
@@ -150,6 +156,7 @@ def test_pushdata4_and_the_only_length_left_to_refuse() -> None:
 
 
 def test_nulldata() -> None:
+    """Round-trip OP_RETURN scripts carrying 79-byte payloads."""
     scripts: list[ScriptList] = [["OP_RETURN", "1A" * 79], ["OP_RETURN", "0A" * 79]]
     for script_pub_key in scripts:
         assert script_pub_key == parse(serialize(script_pub_key))
@@ -157,6 +164,7 @@ def test_nulldata() -> None:
 
 
 def test_encoding() -> None:
+    """Round-trip the BIP141 'Hello SegWit' bytes through parse."""
     script_bytes = b"jKBIP141 \\o/ Hello SegWit :-) keep it strong! LLAP Bitcoin twitter.com/khs9ne"
     assert serialize(parse(script_bytes)) == script_bytes
 
@@ -191,7 +199,7 @@ def test_truncated_push_ends_the_parse() -> None:
 
 
 def unspendable_script_pub_key_vectors() -> list[Any]:
-    """The twelve on-chain script_pub_keys of issue #123, one case each.
+    """Return the twelve script_pub_keys of issue #123, one case each.
 
     tests/_data/README.md records where they come from. Real ones and not
     a synthetic equivalent: what the issue reports is that these could
@@ -232,6 +240,7 @@ def test_an_unspendable_script_pub_key_still_decodes(vector: dict[str, Any]) -> 
 
 
 def test_regressions() -> None:
+    """Round-trip past regressions, the warned non-canonical ones apart."""
     script_list: list[ScriptList] = [
         ["OP_1"],
         [51],
@@ -262,6 +271,7 @@ def test_regressions() -> None:
 
 
 def test_null_serialization() -> None:
+    """Verify empty pushes read back as OP_0, and the 0/16 borderline."""
     empty_script: ScriptList = []
     assert empty_script == parse(b"")
     assert serialize(empty_script) == b""
@@ -290,6 +300,7 @@ def test_null_serialization() -> None:
 
 
 def test_op_int_serialization() -> None:
+    """Round-trip OP_1NEGATE to OP_16 through one-byte serializations."""
     for i in range(-1, 17):
         op_int_str = f"OP_{i}" if i > -1 else "OP_1NEGATE"
         serialized_op_int = serialize([op_int_str])
@@ -298,6 +309,7 @@ def test_op_int_serialization() -> None:
 
 
 def test_integer_serialization() -> None:
+    """Verify integers parse back as data, warned only in [0, 16]."""
     assert ["OP_0"] == parse(b"\x00")
 
     # [0, 16] is exactly the range with a shorter op code form, so every
@@ -316,6 +328,7 @@ def test_integer_serialization() -> None:
 
 
 def test_single_byte_serialization() -> None:
+    """Round-trip every single-byte hex string as a two-byte push."""
     for i in range(256):
         hex_str = hex_string(i)  # e.g., "1A"
         serialized_byte = serialize([hex_str])
@@ -380,7 +393,7 @@ def test_script_to_dict() -> None:
 
 
 def test_script_from_dict() -> None:
-    """hex is the script; asm is checked against it, never believed."""
+    """Take the script from hex; asm is checked against it, not believed."""
     script = bytes.fromhex(P2PKH)
 
     # the round trip, and the same answer with no asm to check

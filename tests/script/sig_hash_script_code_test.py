@@ -35,6 +35,7 @@ MINIMAL = bytes.fromhex("0105abac")
 
 
 def one_input_tx() -> Tx:
+    """Provide a minimal one-input, one-output transaction to hash."""
     return Tx(
         vin=[TxIn(OutPoint(), b"", 0xFFFFFFFF, check_validity=False)],
         vout=[TxOut(0, ScriptPubKey(b""), check_validity=False)],

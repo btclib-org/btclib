@@ -90,6 +90,7 @@ def test_parse_stops_at_the_end_of_the_sequence() -> None:
 
 
 def test_signature() -> None:
+    """Sign and verify, with the RFC6979 vector, recovery and refusals."""
     msg = b"Satoshi Nakamoto"
 
     q, Q = dsa.gen_keys(0x1)
@@ -195,7 +196,6 @@ def test_gec() -> None:
 
 def test_low_cardinality() -> None:
     """Test low-cardinality curves for all msg/key pairs."""
-
     # five of the eight low-cardinality curves. All eight have a prime
     # order, so that is not what selects them: the loop below is
     # quadratic in n, and ec13_19, ec17_13 and ec19_23 are left out to
@@ -241,6 +241,7 @@ def test_low_cardinality() -> None:
 
 
 def test_pub_key_recovery() -> None:
+    """Recover four keys on secp112r2, all verifying the signature."""
     ec = CURVES["secp112r2"]
 
     q = 0x10
@@ -357,6 +358,7 @@ def test_key_id_is_the_j_zero_pair_when_n_is_above_p() -> None:
 
 
 def test_crack_prv_key() -> None:
+    """Crack key and nonce from two signatures sharing the nonce."""
     ec = CURVES["secp256k1"]
 
     q, _ = dsa.gen_keys(1)
@@ -395,8 +397,7 @@ def test_crack_prv_key() -> None:
 
 
 def test_forge_hash_sig() -> None:
-    """Forging valid hash signatures."""
-
+    """Forge valid hash signatures."""
     ec = CURVES["secp256k1"]
 
     # see https://twitter.com/pwuille/status/1063582706288586752
@@ -428,6 +429,7 @@ def test_forge_hash_sig() -> None:
 
 
 def test_sign_input_type() -> None:
+    """Verify assert_as_valid takes a Sig or its DER serialization."""
     msg = b"Satoshi Nakamoto"
     q, Q = dsa.gen_keys(0x1)
     sig = dsa.sign(msg, q)
@@ -509,6 +511,7 @@ def test_the_two_secret_multiplications_answer_the_python_point(
 
 
 def test_libsecp256k1() -> None:
+    """Verify btclib and the bindings sign and verify byte-for-byte."""
     msg = b"Satoshi Nakamoto"
     prvkey_int, pubkey_point = dsa.gen_keys(0x1)
     btclib_sig = dsa.sign(msg, prvkey_int)
@@ -526,7 +529,7 @@ def test_libsecp256k1() -> None:
 def _recovered(
     key_id: int, msg: bytes, sig: dsa.Sig, lower_s: bool = True
 ) -> Point | None:
-    """The recovered key, or None for a candidate that recovers nothing."""
+    """Return the recovered key, None for a candidate recovering nothing."""
     try:
         return dsa.recover_pub_key(key_id, msg, sig, lower_s)
     except (BTClibValueError, BTClibRuntimeError):
@@ -534,7 +537,7 @@ def _recovered(
 
 
 def _recovered_(key_id: int, msg_hash: bytes, sig: dsa.Sig) -> Point | None:
-    """The same, for a caller holding the hash rather than the message."""
+    """Recover the same, for a caller holding the hash, not the message."""
     try:
         return dsa.recover_pub_key_(key_id, msg_hash, sig)
     except (BTClibValueError, BTClibRuntimeError):
@@ -717,7 +720,7 @@ def test_the_enumeration_asks_for_the_j_one_candidates(
 
 
 def _search_key_id(msg: bytes, sig: dsa.Sig, Q: Point, lower_s: bool = True) -> int:
-    """The key_id arrived at by recovering and comparing, not by signing.
+    """Find the key_id by recovering and comparing, not by signing.
 
     The derivation `sign_recoverable` exists not to run: it is here as the
     independent opinion its key_id is held against, one recovery per
@@ -904,6 +907,7 @@ def signature_vectors(fname: str) -> list[Any]:
 # tests/_data/README.md pins the revision, for this and the file below
 @pytest.mark.parametrize("vector", signature_vectors("ecdsa_sig.json"))
 def test_libsecp256k1_py_vectors_ecdsa(vector: dict[str, str]) -> None:
+    """Reproduce secp256k1-py's ECDSA vectors on both implementations."""
     msg_hash = bytes.fromhex(vector["msg"])
     assert len(msg_hash) == 32
     sig_raw = bytes.fromhex(vector["sig"])
@@ -925,6 +929,7 @@ def test_libsecp256k1_py_vectors_ecdsa(vector: dict[str, str]) -> None:
 # 199 vectors, same upstream, same reformatting
 @pytest.mark.parametrize("vector", signature_vectors("ecdsa_custom_nonce_sig.json"))
 def test_libsecp256k1_py_vectors_ecdsa_nonce(vector: dict[str, str]) -> None:
+    """Reproduce secp256k1-py's custom-nonce ECDSA vectors."""
     msg_hash = bytes.fromhex(vector["msg"])
     assert len(msg_hash) == 32
     sig_der = bytes.fromhex(vector["sig"])

@@ -106,7 +106,7 @@ def params(file_name: str) -> list[Any]:
 
 
 def context_at(cur_time: int) -> BlockContext:
-    """The vector's `cur_time` as a context, at the height genesis has.
+    """Build a context from the vector's `cur_time`, at height zero.
 
     Every vector of both files is the genesis block or a block of the
     first hundred thousand, so mainnet's BIP34 activation height leaves
@@ -150,6 +150,7 @@ def test_checkblock_valid(
 def test_checkblock_invalid(
     comment: str, check_pow: bool, cur_time: int, serialization: str
 ) -> None:
+    """Verify each invalid vector raises the message `_INVALID` records."""
     err_msg = _INVALID[comment]
     # the serialization still has to parse: these are well-formed blocks
     # that consensus refuses, not truncated bytes

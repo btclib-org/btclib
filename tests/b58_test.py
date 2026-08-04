@@ -34,6 +34,7 @@ ec = secp256k1
 
 
 def test_wif_from_prv_key() -> None:
+    """Verify WIF encoding from any key spelling, and the malformed WIFs."""
     q_prv_key = "0C28FCA386C7A227600B2FE50B7CAE11EC86D3BF1FBE471BE89827E19D72AA1D"
     wif_prv_keys = [
         "KwdMAjGmerYanjeui5SHS7JkmpZvVipYvB2LJGU1ZxJwYvP98617",
@@ -114,6 +115,7 @@ def test_wif_from_prv_key() -> None:
 
 
 def test_address_from_h160() -> None:
+    """Round-trip three published addresses, refusing a p2pk type."""
     address = "1PMycacnJaSqwwJqjawXBErnLsZ7RkXUAs"
     assert address == b58.address_from_h160(*b58.h160_from_address(address))
 
@@ -128,6 +130,7 @@ def test_address_from_h160() -> None:
 
 
 def test_p2pkh_from_wif() -> None:
+    """Verify the p2pkh of a derived WIF, and refuse an xpub as a key."""
     seed = b"\x00" * 32  # better be a documented test case
     rxprv = bip32.rootxprv_from_seed(seed)
     path = "m/0h/0h/12"
@@ -145,6 +148,7 @@ def test_p2pkh_from_wif() -> None:
 
 
 def test_p2pkh_from_pub_key() -> None:
+    """Reproduce the bitcoin wiki's p2pkh example, both compressions."""
     # https://en.bitcoin.it/wiki/Technical_background_of_version_1_Bitcoin_addresses
     pub_key = "02 50863ad64a87ae8a2fe83c1af1a8403cb53f53e486d8511dad8a04887e5b2352"
     address = "1PMycacnJaSqwwJqjawXBErnLsZ7RkXUAs"
@@ -176,6 +180,7 @@ def test_p2pkh_from_pub_key() -> None:
 
 
 def test_p2sh() -> None:
+    """Reproduce a published p2sh address from its redeem script."""
     # https://medium.com/@darosior/bitcoin-raw-transactions-part-2-p2sh-94df206fee8d
     network = "mainnet"
     address = "37k7toV1Nv4DfmQbmZ8KuZDQCYK9x5KpzP"
@@ -205,6 +210,7 @@ def test_p2sh() -> None:
 
 
 def test_p2w_p2sh() -> None:
+    """Verify p2wpkh-p2sh and p2wsh-p2sh addresses from one public key."""
     pub_key_str = "03 a1af804ac108a8a51782198c2d034b28bf90c8803f5a53f76276fa69a4eae77f"
     pub_key, network = pub_keyinfo_from_key(pub_key_str, compressed=True)
     witness_program = hash160(pub_key)
@@ -240,6 +246,7 @@ def test_v0_witness_redeem_script() -> None:
 
 
 def test_address_from_wif() -> None:
+    """Verify addresses from WIFs, segwit refused when uncompressed."""
     q = 0x19E14A7B6A307F426A94F8114701E7C8E774E7F9A47E2C2035DB29A206321725
 
     test_cases = [
@@ -293,6 +300,7 @@ def test_address_from_wif() -> None:
 
 
 def test_exceptions() -> None:
+    """Refuse an unknown address prefix and a key of the wrong size."""
     pub_key = "02 50863ad64a87ae8a2fe83c1af1a8403cb53f53e486d8511dad8a04887e5b2352"
     payload = b"\xf5" + hash160(pub_key)
     invalid_address = b58encode(payload)

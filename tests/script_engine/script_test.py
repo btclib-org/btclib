@@ -54,6 +54,8 @@ from tests.script_engine import parse_script
 
 
 class ScriptVector(NamedTuple):
+    """One vector of Bitcoin Core's script_tests.json, fields named."""
+
     stack: list[str]
     amount: int
     script_sig: str
@@ -151,6 +153,8 @@ def script_vectors() -> list[Any]:
 
 @pytest.mark.parametrize("vector", script_vectors())
 def test_script(vector: ScriptVector) -> None:
+    """Run each Core vector through verify_input, expecting its verdict."""
+
     def verify() -> None:
         coinbase_input = TxIn(
             sequence=0xFFFFFFFF, prev_out=OutPoint(), script_sig=b"\x00\x00"
@@ -233,6 +237,7 @@ def test_script_error_stack_underflow() -> None:
 
 
 def test_unknown_op_code_is_not_a_key_error() -> None:
+    """Refuse the byte 0xff as a ScriptError, not a KeyError."""
     tx = Tx(check_validity=False)
     with pytest.raises(ScriptError, match="unknown op code: 0xff"):
         verify_script(b"\xff", [], 0, tx, 0, NO_FLAGS, False)
@@ -390,7 +395,7 @@ def taproot_script_spend(
     extra_witness: tuple[str, ...] = (),
     leaf_version: int = 0xC0,
 ) -> tuple[list[TxOut], Tx]:
-    """A script-path spend of the given tapscript, no signature involved.
+    """Build a script-path spend of the given tapscript, unsigned.
 
     The internal key is the BIP341 NUMS point, the default of
     output_pubkey and input_script_sig, so the key path cannot sign;
@@ -813,7 +818,7 @@ CODESEP_PRV_KEY = 0x9E5C7B3D5A0F0E4A9F1E3D2C1B0A99887766554433221100FFEEDDCCBBAA
 
 
 def codeseparator_witness_script() -> tuple[bytes, bytes]:
-    """A p2wsh witness script with two separators, and its script code.
+    """Build a p2wsh witness script with two separators, and its code.
 
     The script code is the second one's, i.e. what a spend executing both
     signs: BIP143 cuts at the last executed OP_CODESEPARATOR and keeps
@@ -835,7 +840,7 @@ def codeseparator_witness_script() -> tuple[bytes, bytes]:
 def p2wsh_codeseparator_spend(
     witness_script: bytes, *, wrapped: bool
 ) -> tuple[list[TxOut], Tx]:
-    """The spend of that script, native or wrapped in p2sh, unsigned."""
+    """Build the spend of that script, native or wrapped in p2sh, unsigned."""
     program = b"\x00\x20" + sha256(witness_script)
     script_pub_key = program
     script_sig = b""
@@ -985,7 +990,7 @@ def test_a_truncated_script_sig_is_not_push_only() -> None:
 
 
 def _one_op_code_script(op_code: int) -> bytes:
-    """That op code alone, a push carrying the data it declares."""
+    """Build that op code alone, a push carrying the data it declares."""
     if 0 < op_code < 0x4C:  # a push of its own length
         return bytes([op_code]) + b"\x2a" * op_code
     if op_code in (0x4C, 0x4D, 0x4E):  # OP_PUSHDATA1, OP_PUSHDATA2, OP_PUSHDATA4

@@ -32,7 +32,7 @@ TX = Tx.parse(TX_HEX)
 
 
 def wrapped(text: str, width: int = 64) -> str:
-    """The same base64, in lines: what a psbt out of an email looks like."""
+    """Wrap the base64 in lines: what a psbt out of an email looks like."""
     return "\n".join(text[i : i + width] for i in range(0, len(text), width))
 
 
@@ -50,6 +50,7 @@ def wrapped(text: str, width: int = 64) -> str:
     ],
 )
 def test_a_psbt_in_any_encoding(data: String) -> None:
+    """Parse the BIP174 creator psbt from every encoding offered."""
     parsed = tx_or_psbt_from_any(data)
     assert isinstance(parsed, Psbt)
     assert parsed == PSBT
@@ -66,6 +67,7 @@ def test_a_psbt_in_any_encoding(data: String) -> None:
     ],
 )
 def test_a_transaction_in_any_encoding(data: String) -> None:
+    """Parse block 170's transaction from every encoding offered."""
     parsed = tx_or_psbt_from_any(data)
     assert isinstance(parsed, Tx)
     assert parsed == TX
@@ -115,6 +117,7 @@ def test_check_validity_reaches_the_parser() -> None:
     ],
 )
 def test_what_is_neither(data: String, err_msg: str) -> None:
+    """Refuse what is neither, with the message naming the failure."""
     with pytest.raises(BTClibValueError, match=err_msg):
         tx_or_psbt_from_any(data)
 

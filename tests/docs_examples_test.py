@@ -40,7 +40,7 @@ _PROMPT = ">>> "
 
 
 def _pages_with_examples() -> list[str]:
-    """The names of the documentation pages that carry doctests."""
+    """List the documentation pages that carry doctests."""
     return sorted(
         page.name
         for page in _DOCS_DIR.glob("*.rst")
@@ -50,6 +50,7 @@ def _pages_with_examples() -> list[str]:
 
 @pytest.mark.parametrize("page_name", _pages_with_examples())
 def test_the_examples_are_what_the_library_answers(page_name: str) -> None:
+    """Run the page's doctests, surfacing the diff of any failure."""
     # doctest reports a failure by writing a diff, and the diff is the
     # whole value of running it: captured here so that it reaches the
     # assertion message instead of pytest's captured-stdout section,

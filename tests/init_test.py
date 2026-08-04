@@ -18,6 +18,7 @@ import btclib
 
 
 def test_version() -> None:
+    """Verify __version__ matches the installed metadata."""
     assert btclib.__version__ == importlib.metadata.version("btclib")
 
 

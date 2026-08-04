@@ -50,6 +50,7 @@ ec23_31 = low_card_curves["ec23_31"]
 
 
 def test_mult_recursive_aff() -> None:
+    """Check the recursive affine mult on boundary scalars, every curve."""
     for ec in all_curves.values():
         assert mult_recursive_aff(0, ec.G, ec) == INF
         assert mult_recursive_aff(0, INF, ec) == INF
@@ -83,6 +84,7 @@ def test_mult_recursive_aff() -> None:
 
 
 def test_mult_recursive_jac() -> None:
+    """Check the recursive Jacobian mult on boundary scalars, every curve."""
     for ec in all_curves.values():
         assert ec.jac_equality(mult_recursive_jac(0, ec.GJ, ec), INFJ)
         assert ec.jac_equality(mult_recursive_jac(0, INFJ, ec), INFJ)
@@ -111,6 +113,7 @@ def test_mult_recursive_jac() -> None:
 
 
 def test_mult_aff() -> None:
+    """Check the affine double-and-add on boundary scalars, every curve."""
     for ec in all_curves.values():
         assert mult_aff(0, ec.G, ec) == INF
         assert mult_aff(0, INF, ec) == INF
@@ -144,6 +147,7 @@ def test_mult_aff() -> None:
 
 
 def test_mult_jac() -> None:
+    """Check the Jacobian double-and-add on boundary scalars, every curve."""
     for ec in all_curves.values():
         assert ec.jac_equality(mult_jac(0, ec.GJ, ec), INFJ)
         assert ec.jac_equality(mult_jac(0, INFJ, ec), INFJ)
@@ -172,6 +176,7 @@ def test_mult_jac() -> None:
 
 
 def test_mont_ladder() -> None:
+    """Check the Montgomery ladder on boundary scalars and against _mult."""
     for ec in low_card_curves.values():
         assert ec.jac_equality(mult_mont_ladder(0, ec.GJ, ec), INFJ)
         assert ec.jac_equality(mult_mont_ladder(0, INFJ, ec), INFJ)
@@ -200,6 +205,7 @@ def test_mont_ladder() -> None:
 
 
 def test_mult_base_3() -> None:
+    """Check the base-3 mult on boundary scalars and against _mult."""
     for ec in low_card_curves.values():
         assert ec.jac_equality(mult_base_3(0, ec.GJ, ec), INFJ)
         assert ec.jac_equality(mult_base_3(0, INFJ, ec), INFJ)
@@ -228,12 +234,14 @@ def test_mult_base_3() -> None:
 
 
 def test_cached_multiples() -> None:
+    """Verify the cache holds 2**MAX_W multiples of the generator."""
     ec = secp256k1
     M = cached_multiples(ec.GJ, ec)
     assert len(M) == 2**MAX_W
 
 
 def test_multiples() -> None:
+    """Check the table of multiples, size by size, against additions."""
     ec = secp256k1
     with pytest.raises(BTClibValueError, match="size too low: "):
         multiples(ec.GJ, 1, ec)
@@ -285,6 +293,7 @@ def test_multiples() -> None:
 
 
 def test_mult_fixed_window() -> None:
+    """Check the fixed-window mult on boundary scalars, for every width."""
     for w in range(1, MAX_W):
         for ec in low_card_curves.values():
             assert ec.jac_equality(mult_fixed_window(0, ec.GJ, ec, w), INFJ)
@@ -433,6 +442,7 @@ def test_regular_window_addition_count_is_the_same_for_every_scalar() -> None:
 
 
 def test_mult_regular_window() -> None:
+    """Check the regular-window mult on boundaries and oversized scalars."""
     for w in range(1, MAX_W):
         for ec in low_card_curves.values():
             assert ec.jac_equality(mult_regular_window(0, ec.GJ, ec, w), INFJ)
@@ -474,6 +484,7 @@ def test_mult_regular_window() -> None:
 
 
 def test_mult_fixed_window_cached() -> None:
+    """Check the cached fixed-window mult on boundary scalars and widths."""
     for _ in range(1, MAX_W):
         for ec in low_card_curves.values():
             assert ec.jac_equality(mult_fixed_window_cached(0, ec.GJ, ec), INFJ)
@@ -507,6 +518,7 @@ def test_mult_fixed_window_cached() -> None:
 
 
 def test_assorted_jac_mult() -> None:
+    """Check the double and multi mults exhaustively against sums of mults."""
     ec = ec23_31
     H = second_generator(ec)
     HJ = jac_from_aff(H)
@@ -757,6 +769,7 @@ def test_multi_mult_distant_magnitudes() -> None:
 
 
 def test_jac_equality() -> None:
+    """Check jac_equality on equal representations and on unequal points."""
     ec = ec23_31
     assert ec.jac_equality(ec.GJ, jac_from_aff(ec.G))
 
@@ -770,6 +783,7 @@ def test_jac_equality() -> None:
 
 
 def test_INF() -> None:
+    """Verify INF's y is 0 and its x is no coordinate of secp256k1."""
     assert INF[1] == 0
 
     with pytest.raises(BTClibValueError, match="invalid x-coordinate: "):

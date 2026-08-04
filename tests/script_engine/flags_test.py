@@ -96,6 +96,7 @@ def test_all_flags_is_the_consensus_set() -> None:
     ],
 )
 def test_to_script_flags(flags: ScriptFlags | None, expected: ScriptFlag) -> None:
+    """Verify every accepted spelling of the flags converts to the enum."""
     assert to_script_flags(flags) == expected
 
 

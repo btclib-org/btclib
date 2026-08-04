@@ -53,6 +53,7 @@ from tests.to_key_test import (
 
 
 def test_from_prv_key() -> None:
+    """Check every private-key form against network and compression."""
     secp256r1 = CURVES["secp256r1"]
     m_c = (q, "mainnet", True)
     m_unc = (q, "mainnet", False)

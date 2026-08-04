@@ -32,6 +32,7 @@ OTHER_ID = "b1fea52486ce0c62bb442b530a3f0132b826c74e473d1f2c220bfa78111c5082"
 def fetcher(
     *answers: tuple[int, bytes] | Exception, **kwargs: object
 ) -> EsploraFetcher:
+    """Build an EsploraFetcher whose transport replays the answers."""
     return EsploraFetcher(
         BASE,
         transport=Recorded(*answers),
@@ -56,11 +57,13 @@ def test_the_reference_deployment_is_a_value_to_pass_not_a_default() -> None:
 
 
 def test_an_unknown_network_is_refused() -> None:
+    """Refuse a network name that is none of the three known ones."""
     with pytest.raises(BTClibValueError, match="unknown network: liquid"):
         EsploraFetcher(BASE, network="liquid")
 
 
 def test_a_trailing_slash_does_not_double_up() -> None:
+    """Verify a base URL with a trailing slash builds a clean request."""
     transport = Recorded((200, recorded_body("esplora_blocks_tip_height.txt")))
     EsploraFetcher(BASE + "/", transport=transport).get_block_count()
     assert transport.request.full_url == f"{BASE}/blocks/tip/height"
@@ -88,6 +91,7 @@ def test_get_tx_refuses_the_answer_to_another_question() -> None:
 
 
 def test_get_tx_out_derives_the_output() -> None:
+    """Verify get_tx_out reads the output off the fetched transaction."""
     out = fetcher((200, recorded_body("esplora_tx_hex.txt"))).get_tx_out(
         OutPoint(TX_ID, 0)
     )
@@ -95,6 +99,7 @@ def test_get_tx_out_derives_the_output() -> None:
 
 
 def test_get_tx_labels_the_outputs_for_the_network_given() -> None:
+    """Verify the outputs carry the network the fetcher was given."""
     tx = fetcher((200, recorded_body("esplora_tx_hex.txt")), network="signet").get_tx(
         TX_ID
     )
@@ -134,12 +139,14 @@ def test_a_body_that_is_not_utf_8_is_still_reported() -> None:
 
 @pytest.mark.parametrize("body", [b"not a number", b"", b"1e6"])
 def test_a_height_that_is_not_one(body: bytes) -> None:
+    """Refuse a tip-height body that is not a decimal integer."""
     with pytest.raises(FetchError, match="blocks/tip/height:"):
         fetcher((200, body)).get_block_count()
 
 
 @pytest.mark.parametrize("body", [b"not hex", b"", b"00" * 31])
 def test_a_tip_hash_that_is_not_one(body: bytes) -> None:
+    """Refuse a tip-hash body that is not 32 bytes of hex."""
     with pytest.raises(FetchError, match="blocks/tip/hash:"):
         fetcher((200, body)).get_best_block_id()
 

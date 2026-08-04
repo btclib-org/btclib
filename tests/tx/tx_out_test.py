@@ -21,6 +21,7 @@ from tests.conftest import JsonGolden
 
 
 def test_tx_out() -> None:
+    """Round-trip serialization, dict and address forms of an output."""
     tx_out = TxOut(0, b"")
     assert tx_out.value == 0
     assert tx_out.script_pub_key.script == b""
@@ -51,6 +52,7 @@ def test_tx_out() -> None:
 
 
 def test_frozen() -> None:
+    """Verify TxOut is frozen all the way down, and unhashable."""
     tx_out = TxOut(1, "0014751e76e8199196d454941c45d1b3a323f1433bd6")
 
     with pytest.raises(FrozenInstanceError):
@@ -74,12 +76,14 @@ def test_frozen() -> None:
 
 
 def test_invalid_tx_out() -> None:
+    """Refuse a negative satoshi amount."""
     with pytest.raises(BTClibValueError, match="invalid satoshi amount: "):
         script = "0020ed8e9600561000f722bd26e850be7d80f24d174fabeff98baef967325e2b5a86"
         TxOut(-1, script)
 
 
 def test_tx_out_from_address() -> None:
+    """Verify from_address keeps the address and infers the network."""
     address = "bc1qwqdg6squsna38e46795at95yu9atm8azzmyvckulcc7kytlcckxswvvzej"
     assert TxOut.from_address(0, address).script_pub_key.addresses == [address]
     assert TxOut.from_address(0, address).script_pub_key.network == "mainnet"
@@ -89,6 +93,7 @@ def test_tx_out_from_address() -> None:
 
 
 def test_dataclasses_json_dict(json_golden: JsonGolden) -> None:
+    """Round-trip a parsed output's dict, held to the committed json."""
     fname = "d4f3c2c3c218be868c77ae31bedb497e2f908d6ee5bbbe91e4933e6da680c970.bin"
     filename = path.join(path.dirname(__file__), "_data", fname)
     with open(filename, "rb") as binary_file_:

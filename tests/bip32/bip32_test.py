@@ -42,6 +42,7 @@ from tests import load, vector_id
 
 
 def test_exceptions() -> None:
+    """Refuse a bad checksum, a public key, and seeds of the wrong size."""
     with pytest.raises(BTClibValueError, match="not a private or public key"):
         # invalid checksum
         xprv = "xppp9s21ZrQH143K2oxHiQ5f7D7WYgXD9h6HAXDBuMoozDGGiYHWsq7TLBj2yvGuHTLSPCaFmUyN1v3fJRiY2A4YuNSrqQMPVLZKt76goL6LP7L"
@@ -64,6 +65,7 @@ def test_exceptions() -> None:
 
 
 def test_assert_valid2() -> None:
+    """Corrupt each BIP32KeyData field and check the error it raises."""
     xkey = "xprv9s21ZrQH143K2ZP8tyNiUtgoezZosUkw9hhir2JFzDhcUWKz8qFYk3cxdgSFoCMzt8E2Ubi1nXw71TLhwgCfzqFHfM5Snv4zboSebePRmLS"
 
     xkey_data = BIP32KeyData.b58decode(xkey)
@@ -151,6 +153,7 @@ def test_assert_valid2() -> None:
 
 
 def test_serialization() -> None:
+    """Check b58decode's fields against the raw base58 byte layout."""
     xkey = "xprv9s21ZrQH143K3QTDL4LXw2F7HEK3wJUD2nW2nRk4stbPy6cq3jPPqjiChkVvvNKmPGJxWUtg6LnF5kejMRNNU3TGtRBeJgk33yuGBxrMPHi"
     xkey_data = BIP32KeyData.b58decode(xkey)
 
@@ -223,6 +226,7 @@ def test_invalid_bip32_xkeys(xkey: str, err_msg: str) -> None:
 
 
 def test_derive() -> None:
+    """Derive p2pkh addresses along paths in irregular spellings."""
     test_vectors = {
         "xprv9s21ZrQH143K2ZP8tyNiUtgoezZosUkw9hhir2JFzDhcUWKz8qFYk3cxdgSFoCMzt8E2Ubi1nXw71TLhwgCfzqFHfM5Snv4zboSebePRmLS": [
             ["m / 0 h / 0 h / 463 h", "1DyfBWxhVLmrJ7keyiHeMbt7N3UdeGU4G5"],
@@ -245,6 +249,7 @@ def test_derive() -> None:
 
 
 def test_derive_exceptions() -> None:
+    """Refuse malformed paths, excess depth, and mismatched key prefixes."""
     # root key, zero depth
     rootmxprv = "xprv9s21ZrQH143K3QTDL4LXw2F7HEK3wJUD2nW2nRk4stbPy6cq3jPPqjiChkVvvNKmPGJxWUtg6LnF5kejMRNNU3TGtRBeJgk33yuGBxrMPHi"
     xprv = BIP32KeyData.b58decode(rootmxprv)
@@ -305,6 +310,7 @@ def test_derive_exceptions() -> None:
 
 
 def test_derive_from_account() -> None:
+    """Match account derivation to full paths; refuse bad branch or index."""
     seed = "bfc4cbaad0ff131aa97fa30a48d09ae7df914bcc083af1e07793cd0a7c61a03f65d622848209ad3366a419f4718a80ec9037df107d8d12c19b83202de00a40ad"
     rmxprv = rootxprv_from_seed(seed)
 
@@ -353,6 +359,7 @@ def test_derive_from_account() -> None:
 
 
 def test_crack() -> None:
+    """Recover a parent xprv from its xpub and a child xprv; refuse else."""
     parent_xpub = "xpub6BabMgRo8rKHfpAb8waRM5vj2AneD4kDMsJhm7jpBDHSJvrFAjHJHU5hM43YgsuJVUVHWacAcTsgnyRptfMdMP8b28LYfqGocGdKCFjhQMV"
     child_xprv = "xprv9xkG88dGyiurKbVbPH1kjdYrA8poBBBXa53RKuRGJXyruuoJUDd8e4m6poiz7rV8Z4NoM5AJNcPHN6aj8wRFt5CWvF8VPfQCrDUcLU5tcTm"
     parent_xprv = crack_prv_key(parent_xpub, child_xprv)
@@ -398,6 +405,7 @@ def test_bips_pr905() -> None:
 
 
 def test_pub_key_derivation() -> None:
+    """Check a public child's parent fingerprint, zeroed for an orphan."""
     parent_xpub = "xpub6CpsfWjghR6XdCB8yDq7jQRpRKEDP2LT3ZRUgURF9g5xevB7YoTpogkFRqq5nQtVSN8YCMZo2CD8u4zCaxRv85ctCWmzEi9gQ5DBhBFaTNo"
     proper_child = "xpub6FCCuDg6j52SWRVZ1TugkjrnGkqPcDuNNKDzohU2mmd4dxiGJypZa535iqYT8KcN2oouRF7A6tXEGAX6HCSjQe7HVSDR4LQ4yUT3HwF1Tqi"
     assert derive(parent_xpub, "m/0") == proper_child
@@ -510,6 +518,7 @@ def test_derivation_is_the_arithmetic_bip32_defines() -> None:
 
 
 def test_invalid_child_prv_key(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Refuse the two invalid private children, on a dictated hmac."""
     rootxprv = "xprv9s21ZrQH143K3QTDL4LXw2F7HEK3wJUD2nW2nRk4stbPy6cq3jPPqjiChkVvvNKmPGJxWUtg6LnF5kejMRNNU3TGtRBeJgk33yuGBxrMPHi"
     xkey = BIP32KeyData.b58decode(rootxprv)
     prv_key_int = int.from_bytes(xkey.key[1:], byteorder="big", signed=False)
@@ -528,6 +537,7 @@ def test_invalid_child_prv_key(monkeypatch: pytest.MonkeyPatch) -> None:
 
 
 def test_invalid_child_pub_key(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Refuse the two invalid public children, on a dictated hmac."""
     rootxprv = "xprv9s21ZrQH143K3QTDL4LXw2F7HEK3wJUD2nW2nRk4stbPy6cq3jPPqjiChkVvvNKmPGJxWUtg6LnF5kejMRNNU3TGtRBeJgk33yuGBxrMPHi"
     rootxpub = xpub_from_xprv(rootxprv)
     xkey = BIP32KeyData.b58decode(rootxprv)
@@ -577,6 +587,7 @@ def test_assert_valid_does_not_rewrite_the_key_data() -> None:
 
 
 def test_assert_valid_does_not_rewrite_on_a_read() -> None:
+    """Keep b58encode and serialize from coercing fields in place."""
     xkey_data = BIP32KeyData.b58decode(XKEY)
     xkey_data.chain_code = bytearray(xkey_data.chain_code)  # type: ignore[assignment]
 

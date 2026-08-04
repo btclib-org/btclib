@@ -51,13 +51,13 @@ TAPSCRIPT = load("script", "_data", "script_assets_test.json")
 
 
 def is_key_path(witness: Witness) -> bool:
-    """A key path spend: the signature alone, or the signature and an annex."""
+    """Report a key path spend: the signature alone, or plus an annex."""
     stack = witness.stack
     return len(stack) == 1 or (len(stack) == 2 and stack[-1][0] == 0x50)
 
 
 def key_path_vectors(outcome: str, taproot_flag: bool) -> list[Any]:
-    """The vectors of `outcome` that spend a p2tr prevout through the key path.
+    """Select the `outcome` vectors spending a p2tr prevout by key path.
 
     Selecting them here rather than skipping the others with `continue`
     inside the test is what makes the count in the report the count of
@@ -82,6 +82,7 @@ def key_path_vectors(outcome: str, taproot_flag: bool) -> list[Any]:
 
 @pytest.mark.parametrize("vector", key_path_vectors("success", taproot_flag=True))
 def test_valid_taproot_key_path(vector: dict[str, Any]) -> None:
+    """Verify each success vector's signature against its sig_hash."""
     tx = Tx.parse(vector["tx"])
     prevouts = [TxOut.parse(prevout) for prevout in vector["prevouts"]]
     index = vector["index"]
@@ -108,6 +109,7 @@ def test_valid_taproot_key_path(vector: dict[str, Any]) -> None:
 # does not ask for TAPROOT still must not verify
 @pytest.mark.parametrize("vector", key_path_vectors("failure", taproot_flag=False))
 def test_invalid_taproot_key_path(vector: dict[str, Any]) -> None:
+    """Refuse each failure vector, as malformed or as not verifying."""
     tx = Tx.parse(vector["tx"])
     prevouts = [TxOut.parse(prevout) for prevout in vector["prevouts"]]
     index = vector["index"]
@@ -143,6 +145,7 @@ def test_invalid_taproot_key_path(vector: dict[str, Any]) -> None:
 
 
 def test_valid_taproot_script_path() -> None:
+    """Verify one script path spend's signature against its sig_hash."""
     tx_data = "26dc279d02d8b1a203b653fc4e0f27f408432f3f540136d33f8f930eaeba655910095142980402000000fd697cd4eb5278f1e34545cd57b6670df806fa3a0a064fd8e385a19f1a53d9ce8d8971a30f02000000378d5fb502335dbe02000000001976a9140053a23441c8478caac4c6b769c51f8476cd4b4b88ac58020000000000001976a914f2aae94a43e0d173354201d7832b46c5269c8a2488ac4a08671e"
     prevouts_data = [
         "91ca4c010000000017a9145658b58602cdf7b7e962cfe44e024cb0e366f27087",
@@ -176,6 +179,7 @@ def test_valid_taproot_script_path() -> None:
 
 
 def test_valid_sighash_type() -> None:
+    """Verify each byte value is accepted or refused as a hash type."""
     for hash_type in range(256):
         if hash_type in sig_hash.SIG_HASH_TYPES:
             sig_hash.assert_valid_hash_type(hash_type)
@@ -186,6 +190,7 @@ def test_valid_sighash_type() -> None:
 
 
 def test_empty_stack() -> None:
+    """Refuse to hash a p2tr spend whose witness stack is empty."""
     utxo = TxOut(
         100000000,
         serialize(
@@ -201,6 +206,7 @@ def test_empty_stack() -> None:
 
 
 def test_wrapped_p2tr() -> None:
+    """Refuse a taproot script wrapped in p2sh."""
     script: ScriptList = [
         "OP_1",
         "cc71eb30d653c0c3163990c47b976f3fb3f37cccdcbedb169a1dfef58bbfbfaf",
@@ -276,7 +282,7 @@ KEY_PATH_SPENDING = load("script", "_data", "taproot_test_vector.json")[
 
 
 def unsigned_tx_and_utxos() -> tuple[Tx, list[TxOut]]:
-    """The BIP341 key path spending case, rebuilt for each of its inputs.
+    """Rebuild the BIP341 key path spending case for each of its inputs.
 
     Rebuilt rather than shared: a parameter is one object handed to every
     test that takes it, and this Tx is the argument of the very calls the
@@ -308,6 +314,7 @@ def unsigned_tx_and_utxos() -> tuple[Tx, list[TxOut]]:
     ],
 )
 def test_bip_test_vector(spending: dict[str, Any]) -> None:
+    """Reproduce BIP341's vectors: sig_hash, witness and tweak alike."""
     unsigned_tx, utxos = unsigned_tx_and_utxos()
 
     index = spending["given"]["txinIndex"]
@@ -420,7 +427,7 @@ def has_annex(witness: Witness) -> bool:
 
 
 def script_path_vectors() -> list[Any]:
-    """The success vectors spending a leaf of `<pub_key> OP_CHECKSIG`.
+    """Select the success vectors spending a `<pub_key> OP_CHECKSIG` leaf.
 
     The tapscript has to be one whose signature this test can check, so
     the leaf is the simplest shape Core's dump carries and the witness

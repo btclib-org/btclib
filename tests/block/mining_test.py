@@ -171,6 +171,7 @@ def test_the_nonce_field_is_four_bytes() -> None:
 
 
 def test_mine_exceptions() -> None:
+    """Refuse a non-positive max_tries and bits denoting no target."""
     transactions = [_coinbase(1)]
     candidate = candidate_block_header(_PREVIOUS, transactions, _TIME, _EASY_BITS)
 

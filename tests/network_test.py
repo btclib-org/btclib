@@ -37,6 +37,7 @@ from tests.conftest import JsonGolden
 
 
 def test_bad_network() -> None:
+    """Refuse a Network whose genesis block is not 32 bytes."""
     with pytest.raises(BTClibValueError, match="invalid genesis_block length: "):
         Network(
             curve=CURVES["secp256k1"],
@@ -60,6 +61,7 @@ def test_bad_network() -> None:
 
 
 def test_curve_from_xkeyversion() -> None:
+    """Verify curve, network and type lookups for every xkey version."""
     for net_str, net in NETWORKS.items():
         all_versions = xpubversions_from_network(net_str)
         all_versions += xprvversions_from_network(net_str)
@@ -77,6 +79,7 @@ def test_curve_from_xkeyversion() -> None:
 
 
 def test_space_and_caps() -> None:
+    """Verify network names are stripped and lowercased before lookup."""
     net = " MainNet "
     assert xpubversions_from_network(net), f"unknown network: {net}"
 
@@ -86,10 +89,12 @@ def test_space_and_caps() -> None:
 
 
 def test_numbers_of_networks() -> None:
+    """Verify the registry holds the five built-in networks."""
     assert len(NETWORKS) == 5
 
 
 def test_dataclasses_json_dict(json_golden: JsonGolden) -> None:
+    """Round-trip every Network through its dict and golden json."""
     for network_name, net in NETWORKS.items():
         assert net == Network.from_dict(net.to_dict())
 
@@ -241,6 +246,7 @@ def test_the_three_lookups_answer_one_question_each() -> None:
 
 
 def test_the_three_xkeyversion_lookups() -> None:
+    """Verify the xkeyversion lookups and their unknown-version errors."""
     for name, net in NETWORKS.items():
         for version in xprvversions_from_network(name) + xpubversions_from_network(
             name
@@ -270,6 +276,7 @@ def test_the_three_xkeyversion_lookups() -> None:
 
 
 def test_network_type_from_network() -> None:
+    """Verify the name-to-type mapping, mainnet alone being main."""
     assert network_type_from_network() == "main"
     assert network_type_from_network("mainnet") == "main"
     # the same space-and-caps tolerance as xpubversions_from_network

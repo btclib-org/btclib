@@ -44,7 +44,7 @@ from tests.script import serialize_non_canonical
 
 
 def script_path_vectors() -> list[Any]:
-    """The vectors spending a p2tr prevout through a script path.
+    """Collect the vectors spending a p2tr prevout through a script path.
 
     The two `continue` of the loop: a prevout that is not p2tr, and a
     witness with nothing but a signature on it once the annex is off.
@@ -65,6 +65,7 @@ def script_path_vectors() -> list[Any]:
 
 @pytest.mark.parametrize("vector", script_path_vectors())
 def test_valid_script_path(vector: dict[str, Any]) -> None:
+    """Verify each vector's control block commits to its output key."""
     prevouts = [TxOut.parse(prevout) for prevout in vector["prevouts"]]
     index = vector["index"]
 
@@ -93,6 +94,7 @@ SCRIPT_TREES: list[TaprootScriptTree | None] = [
 
 
 def test_taproot_key_tweaking() -> None:
+    """Verify the tweaked private key generates the tweaked public key."""
     prv_key = 123456
     pub_key = mult(prv_key)
 
@@ -196,6 +198,7 @@ def test_check_output_pubkey_of_an_internal_key_that_is_not_a_point(
 
 
 def test_invalid_control_block() -> None:
+    """Refuse a control block too long or of an invalid length."""
     err_msg = "control block too long"
     with pytest.raises(BTClibValueError, match=err_msg):
         check_output_pubkey(b"\x00" * 32, b"\x00", b"\x00" * 4130)
@@ -206,12 +209,14 @@ def test_invalid_control_block() -> None:
 
 
 def test_unspendable_script() -> None:
+    """Refuse output_pubkey with neither a key nor a script tree."""
     err_msg = "missing data"
     with pytest.raises(BTClibValueError, match=err_msg):
         output_pubkey()
 
 
 def test_control_block() -> None:
+    """Verify input_script_sig's control block passes the BIP341 check."""
     script_tree: TaprootScriptTree = [[(0xC0, ["OP_2"])], [(0xC0, ["OP_3"])]]
     pub_key = output_pubkey(None, script_tree)[0]
     script, control = input_script_sig(None, script_tree, 0)
@@ -230,6 +235,7 @@ def test_control_block() -> None:
 # TaprootScriptTree out -- each leaf a tuple, the one shape the alias
 # names, not a two-element list that happens to unpack the same way
 def convert_script_tree(script_tree: Any) -> TaprootScriptTree:
+    """Convert a vector's scriptTree json into a TaprootScriptTree."""
     if isinstance(script_tree, list):
         return [convert_script_tree(x) for x in script_tree]
     if isinstance(script_tree, dict):
@@ -247,6 +253,7 @@ def convert_script_tree(script_tree: Any) -> TaprootScriptTree:
     ],
 )
 def test_bip_test_vector(test: dict[str, Any]) -> None:
+    """Reproduce bip-0341's wallet vectors: tweaked key and address."""
     pub_key = test["given"]["internalPubkey"]
     script_tree = convert_script_tree(test["given"]["scriptTree"])
 
@@ -258,12 +265,14 @@ def test_bip_test_vector(test: dict[str, Any]) -> None:
 
 
 def test_serialize_op_success() -> None:
+    """Parse an OP_SUCCESS byte, with and without exit_on_op_success."""
     assert parse(b"\x01\x00\x7e", exit_on_op_success=True) == ["OP_SUCCESS"]
 
     assert parse(b"\x7e\x02\x01") == ["OP_SUCCESS126", b"\x02\x01"]
 
 
 def test_serialize_bytes_command() -> None:
+    """Verify the push-length encoding grows at 76 and 256 bytes."""
     length = 75
     b = b"\x0a" * length
     assert len(serialize([b])) == length + 1
@@ -278,6 +287,7 @@ def test_serialize_bytes_command() -> None:
 
 
 def test_invalid_serialization() -> None:
+    """Refuse a non-hex push and an OP_SUCCESS not followed by bytes."""
     with pytest.raises(BTClibValueError):
         serialize(["AAA"])
 
@@ -297,6 +307,7 @@ def test_parse_unknown_op_code() -> None:
 
 
 def test_serialization() -> None:
+    """Round-trip scripts, small integers as data pushes included."""
     script: ScriptList = ["OP_SUCCESS80", b"\x01\x01\x01"]
     assert parse(serialize(script)) == script
 

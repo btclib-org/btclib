@@ -32,6 +32,7 @@ _ERRORS = (BTClibValueError, InvalidContributionError)
 
 
 def _hex_all(values: list[str]) -> list[bytes]:
+    """Convert a list of hex strings to bytes, one for one."""
     return [bytes.fromhex(value) for value in values]
 
 
@@ -58,6 +59,7 @@ def assert_error(error: dict[str, Any], exc: Exception) -> None:
 
 
 def test_key_sort_vectors() -> None:
+    """Reproduce BIP327's key_sort_vectors.json, sorting into a new list."""
     test_data = load("ecc", "_data", "key_sort_vectors.json")
     pub_keys = _hex_all(test_data["pubkeys"])
     unsorted = list(pub_keys)
@@ -71,6 +73,7 @@ _KEY_AGG = load("ecc", "_data", "key_agg_vectors.json")
 
 
 def key_agg_valid_vectors() -> list[Any]:
+    """One param per valid case of key_agg_vectors.json."""
     pub_keys = _hex_all(_KEY_AGG["pubkeys"])
     return [
         pytest.param(
@@ -84,10 +87,12 @@ def key_agg_valid_vectors() -> list[Any]:
 
 @pytest.mark.parametrize(("pub_keys", "expected"), key_agg_valid_vectors())
 def test_key_agg_vectors(pub_keys: list[bytes], expected: bytes) -> None:
+    """Reproduce the valid cases of BIP327's key_agg_vectors.json."""
     assert musig2.key_agg(pub_keys).x_only_pub_key == expected
 
 
 def key_agg_error_vectors() -> list[Any]:
+    """One param per error case of key_agg_vectors.json."""
     pub_keys = _hex_all(_KEY_AGG["pubkeys"])
     tweaks = _hex_all(_KEY_AGG["tweaks"])
     return [
@@ -108,12 +113,14 @@ def key_agg_error_vectors() -> list[Any]:
 def test_key_agg_error_vectors(
     pub_keys: list[bytes], tweaks: list[bytes], is_xonly: list[bool], error: Any
 ) -> None:
+    """Reproduce the error cases of BIP327's key_agg_vectors.json."""
     with pytest.raises(_ERRORS) as excinfo:
         musig2.key_agg_and_tweak(pub_keys, tweaks, is_xonly)
     assert_error(error, excinfo.value)
 
 
 def nonce_gen_vectors() -> list[Any]:
+    """One param per case of nonce_gen_vectors.json."""
     test_data = load("ecc", "_data", "nonce_gen_vectors.json")
     return [
         pytest.param(case, id=vector_id(index, case["msg"]))
@@ -123,6 +130,7 @@ def nonce_gen_vectors() -> list[Any]:
 
 @pytest.mark.parametrize("case", nonce_gen_vectors())
 def test_nonce_gen_vectors(case: dict[str, Any]) -> None:
+    """Reproduce BIP327's nonce_gen_vectors.json."""
     sec_nonce, pub_nonce = musig2.nonce_gen_(
         case["rand_"],
         case["sk"],
@@ -139,6 +147,7 @@ _NONCE_AGG = load("ecc", "_data", "nonce_agg_vectors.json")
 
 
 def nonce_agg_valid_vectors() -> list[Any]:
+    """One param per valid case of nonce_agg_vectors.json."""
     pub_nonces = _hex_all(_NONCE_AGG["pnonces"])
     return [
         pytest.param(
@@ -152,10 +161,12 @@ def nonce_agg_valid_vectors() -> list[Any]:
 
 @pytest.mark.parametrize(("pub_nonces", "expected"), nonce_agg_valid_vectors())
 def test_nonce_agg_vectors(pub_nonces: list[bytes], expected: bytes) -> None:
+    """Reproduce the valid cases of BIP327's nonce_agg_vectors.json."""
     assert musig2.nonce_agg(pub_nonces) == expected
 
 
 def nonce_agg_error_vectors() -> list[Any]:
+    """One param per error case of nonce_agg_vectors.json."""
     pub_nonces = _hex_all(_NONCE_AGG["pnonces"])
     return [
         pytest.param(
@@ -169,6 +180,7 @@ def nonce_agg_error_vectors() -> list[Any]:
 
 @pytest.mark.parametrize(("pub_nonces", "error"), nonce_agg_error_vectors())
 def test_nonce_agg_error_vectors(pub_nonces: list[bytes], error: Any) -> None:
+    """Reproduce the error cases of BIP327's nonce_agg_vectors.json."""
     with pytest.raises(_ERRORS) as excinfo:
         musig2.nonce_agg(pub_nonces)
     assert_error(error, excinfo.value)
@@ -196,6 +208,7 @@ def test_sign_verify_vectors_consistency() -> None:
 
 
 def sign_verify_valid_vectors() -> list[Any]:
+    """One param per valid case of sign_verify_vectors.json."""
     return [
         pytest.param(case, id=vector_id(index, case.get("comment")))
         for index, case in enumerate(_SIGN_VERIFY["valid_test_cases"])
@@ -204,6 +217,7 @@ def sign_verify_valid_vectors() -> list[Any]:
 
 @pytest.mark.parametrize("case", sign_verify_valid_vectors())
 def test_sign_verify_valid_vectors(case: dict[str, Any]) -> None:
+    """Reproduce the valid cases of BIP327's sign_verify_vectors.json."""
     pub_keys = [_SV_PUB_KEYS[i] for i in case["key_indices"]]
     pub_nonces = [_SV_PUB_NONCES[i] for i in case["nonce_indices"]]
     agg_nonce = _SV_AGG_NONCES[case["aggnonce_index"]]
@@ -221,6 +235,7 @@ def test_sign_verify_valid_vectors(case: dict[str, Any]) -> None:
 
 
 def sign_error_vectors() -> list[Any]:
+    """One param per sign error case of sign_verify_vectors.json."""
     return [
         pytest.param(case, id=vector_id(index, case["comment"]))
         for index, case in enumerate(_SIGN_VERIFY["sign_error_test_cases"])
@@ -229,6 +244,7 @@ def sign_error_vectors() -> list[Any]:
 
 @pytest.mark.parametrize("case", sign_error_vectors())
 def test_sign_error_vectors(case: dict[str, Any]) -> None:
+    """Reproduce the sign error cases of BIP327's sign_verify_vectors.json."""
     pub_keys = [_SV_PUB_KEYS[i] for i in case["key_indices"]]
     agg_nonce = _SV_AGG_NONCES[case["aggnonce_index"]]
     msg = _SV_MSGS[case["msg_index"]]
@@ -241,6 +257,7 @@ def test_sign_error_vectors(case: dict[str, Any]) -> None:
 
 
 def verify_fail_vectors() -> list[Any]:
+    """One param per verify fail case of sign_verify_vectors.json."""
     return [
         pytest.param(case, id=vector_id(index, case["comment"]))
         for index, case in enumerate(_SIGN_VERIFY["verify_fail_test_cases"])
@@ -249,6 +266,7 @@ def verify_fail_vectors() -> list[Any]:
 
 @pytest.mark.parametrize("case", verify_fail_vectors())
 def test_verify_fail_vectors(case: dict[str, Any]) -> None:
+    """Reproduce the verify fail cases of sign_verify_vectors.json."""
     pub_keys = [_SV_PUB_KEYS[i] for i in case["key_indices"]]
     pub_nonces = [_SV_PUB_NONCES[i] for i in case["nonce_indices"]]
     msg = _SV_MSGS[case["msg_index"]]
@@ -258,6 +276,7 @@ def test_verify_fail_vectors(case: dict[str, Any]) -> None:
 
 
 def verify_error_vectors() -> list[Any]:
+    """One param per verify error case of sign_verify_vectors.json."""
     return [
         pytest.param(case, id=vector_id(index, case["comment"]))
         for index, case in enumerate(_SIGN_VERIFY["verify_error_test_cases"])
@@ -266,6 +285,7 @@ def verify_error_vectors() -> list[Any]:
 
 @pytest.mark.parametrize("case", verify_error_vectors())
 def test_verify_error_vectors(case: dict[str, Any]) -> None:
+    """Reproduce the verify error cases of sign_verify_vectors.json."""
     pub_keys = [_SV_PUB_KEYS[i] for i in case["key_indices"]]
     pub_nonces = [_SV_PUB_NONCES[i] for i in case["nonce_indices"]]
     msg = _SV_MSGS[case["msg_index"]]
@@ -294,6 +314,7 @@ def test_tweak_vectors_consistency() -> None:
 
 
 def tweak_valid_vectors() -> list[Any]:
+    """One param per valid case of tweak_vectors.json."""
     return [
         pytest.param(case, id=vector_id(index, case["comment"]))
         for index, case in enumerate(_TWEAK["valid_test_cases"])
@@ -302,6 +323,7 @@ def tweak_valid_vectors() -> list[Any]:
 
 @pytest.mark.parametrize("case", tweak_valid_vectors())
 def test_tweak_valid_vectors(case: dict[str, Any]) -> None:
+    """Reproduce the valid cases of BIP327's tweak_vectors.json."""
     pub_keys = [_TW_PUB_KEYS[i] for i in case["key_indices"]]
     pub_nonces = [_TW_PUB_NONCES[i] for i in case["nonce_indices"]]
     tweaks = [_TW_TWEAKS[i] for i in case["tweak_indices"]]
@@ -325,6 +347,7 @@ def test_tweak_valid_vectors(case: dict[str, Any]) -> None:
 
 
 def tweak_error_vectors() -> list[Any]:
+    """One param per error case of tweak_vectors.json."""
     return [
         pytest.param(case, id=vector_id(index, case["comment"]))
         for index, case in enumerate(_TWEAK["error_test_cases"])
@@ -333,6 +356,7 @@ def tweak_error_vectors() -> list[Any]:
 
 @pytest.mark.parametrize("case", tweak_error_vectors())
 def test_tweak_error_vectors(case: dict[str, Any]) -> None:
+    """Reproduce the error cases of BIP327's tweak_vectors.json."""
     pub_keys = [_TW_PUB_KEYS[i] for i in case["key_indices"]]
     tweaks = [_TW_TWEAKS[i] for i in case["tweak_indices"]]
     session_ctx = musig2.SessionContext(
@@ -350,10 +374,12 @@ _DS_MSGS = _hex_all(_DET_SIGN["msgs"])
 
 
 def test_det_sign_vectors_consistency() -> None:
+    """Check the file's one cross-reference, pubkeys[0] against sk."""
     assert _DS_PUB_KEYS[0] == musig2.individual_pub_key(_DS_SK)
 
 
 def det_sign_valid_vectors() -> list[Any]:
+    """One param per valid case of det_sign_vectors.json."""
     return [
         pytest.param(case, id=vector_id(index, case.get("comment")))
         for index, case in enumerate(_DET_SIGN["valid_test_cases"])
@@ -362,6 +388,7 @@ def det_sign_valid_vectors() -> list[Any]:
 
 @pytest.mark.parametrize("case", det_sign_valid_vectors())
 def test_det_sign_valid_vectors(case: dict[str, Any]) -> None:
+    """Reproduce the valid cases of BIP327's det_sign_vectors.json."""
     pub_keys = [_DS_PUB_KEYS[i] for i in case["key_indices"]]
     agg_other_nonce = case["aggothernonce"]
     tweaks = case["tweaks"]
@@ -383,6 +410,7 @@ def test_det_sign_valid_vectors(case: dict[str, Any]) -> None:
 
 
 def det_sign_error_vectors() -> list[Any]:
+    """One param per error case of det_sign_vectors.json."""
     return [
         pytest.param(case, id=vector_id(index, case["comment"]))
         for index, case in enumerate(_DET_SIGN["error_test_cases"])
@@ -391,6 +419,7 @@ def det_sign_error_vectors() -> list[Any]:
 
 @pytest.mark.parametrize("case", det_sign_error_vectors())
 def test_det_sign_error_vectors(case: dict[str, Any]) -> None:
+    """Reproduce the error cases of BIP327's det_sign_vectors.json."""
     pub_keys = [_DS_PUB_KEYS[i] for i in case["key_indices"]]
     with pytest.raises(_ERRORS) as excinfo:
         musig2.deterministic_sign(
@@ -414,6 +443,7 @@ _SA_MSG = bytes.fromhex(_SIG_AGG["msg"])
 
 
 def sig_agg_valid_vectors() -> list[Any]:
+    """One param per valid case of sig_agg_vectors.json."""
     return [
         pytest.param(case, id=vector_id(index, case["key_indices"]))
         for index, case in enumerate(_SIG_AGG["valid_test_cases"])
@@ -422,6 +452,7 @@ def sig_agg_valid_vectors() -> list[Any]:
 
 @pytest.mark.parametrize("case", sig_agg_valid_vectors())
 def test_sig_agg_valid_vectors(case: dict[str, Any]) -> None:
+    """Reproduce the valid cases of BIP327's sig_agg_vectors.json."""
     pub_nonces = [_SA_PUB_NONCES[i] for i in case["nonce_indices"]]
     agg_nonce = bytes.fromhex(case["aggnonce"])
     assert agg_nonce == musig2.nonce_agg(pub_nonces)
@@ -441,6 +472,7 @@ def test_sig_agg_valid_vectors(case: dict[str, Any]) -> None:
 
 
 def sig_agg_error_vectors() -> list[Any]:
+    """One param per error case of sig_agg_vectors.json."""
     return [
         pytest.param(case, id=vector_id(index, case["comment"]))
         for index, case in enumerate(_SIG_AGG["error_test_cases"])
@@ -449,6 +481,7 @@ def sig_agg_error_vectors() -> list[Any]:
 
 @pytest.mark.parametrize("case", sig_agg_error_vectors())
 def test_sig_agg_error_vectors(case: dict[str, Any]) -> None:
+    """Reproduce the error cases of BIP327's sig_agg_vectors.json."""
     pub_nonces = [_SA_PUB_NONCES[i] for i in case["nonce_indices"]]
     pub_keys = [_SA_PUB_KEYS[i] for i in case["key_indices"]]
     tweaks = [_SA_TWEAKS[i] for i in case["tweak_indices"]]
@@ -484,6 +517,7 @@ _MSG = b"a message the two signers agree on, and not of 32 bytes"
     ],
 )
 def test_session(tweaks: list[bytes], is_xonly: list[bool]) -> None:
+    """Run a full two-signer session over a message that is not 32 bytes."""
     pk_1 = musig2.individual_pub_key(_SK_1)
     pk_2 = musig2.individual_pub_key(_SK_2)
     pub_keys = musig2.key_sort([pk_2, pk_1])
@@ -528,6 +562,7 @@ def test_session(tweaks: list[bytes], is_xonly: list[bool]) -> None:
 
 
 def test_sec_nonce_signs_once() -> None:
+    """Verify signing zeroes the secnonce, so a second sign raises."""
     pk_1 = musig2.individual_pub_key(_SK_1)
     sec_nonce, pub_nonce = musig2.nonce_gen(_SK_1, pk_1, None, _MSG)
     session_ctx = musig2.SessionContext(
@@ -541,6 +576,7 @@ def test_sec_nonce_signs_once() -> None:
 
 
 def test_sec_nonce_second_half_out_of_range() -> None:
+    """Verify sign refuses a secnonce whose second scalar is zero."""
     # the vectors zero a whole secnonce, which the first half already
     # answers; the second half is checked here
     pk_1 = musig2.individual_pub_key(_SK_1)
@@ -554,6 +590,7 @@ def test_sec_nonce_second_half_out_of_range() -> None:
 
 
 def test_sec_nonce_of_another_key() -> None:
+    """Verify sign refuses a secnonce generated for another key."""
     pk_1 = musig2.individual_pub_key(_SK_1)
     pk_2 = musig2.individual_pub_key(_SK_2)
     sec_nonce, pub_nonce = musig2.nonce_gen(_SK_1, pk_1, None, _MSG)
@@ -565,6 +602,7 @@ def test_sec_nonce_of_another_key() -> None:
 
 
 def test_session_context_normalizes() -> None:
+    """Verify a SessionContext built from hex equals one from bytes."""
     pk_1 = musig2.individual_pub_key(_SK_1)
     sec_nonce, pub_nonce = musig2.nonce_gen(_SK_1, pk_1, None, _MSG)
     del sec_nonce
@@ -576,6 +614,7 @@ def test_session_context_normalizes() -> None:
 
 
 def test_tweaks_and_is_xonly_pair_up() -> None:
+    """Verify tweaks and is_xonly of unequal lengths are refused."""
     pk_1 = musig2.individual_pub_key(_SK_1)
     with pytest.raises(BTClibValueError, match="must have the same length"):
         musig2.key_agg_and_tweak([pk_1], [bytes(32)], [])
@@ -584,6 +623,7 @@ def test_tweaks_and_is_xonly_pair_up() -> None:
 
 
 def test_tweak_size() -> None:
+    """Verify a tweak that is not 32 bytes is refused."""
     pk_1 = musig2.individual_pub_key(_SK_1)
     key_agg_ctx = musig2.key_agg([pk_1])
     with pytest.raises(BTClibValueError, match="must be a 32-byte array"):
@@ -591,6 +631,7 @@ def test_tweak_size() -> None:
 
 
 def test_a_nonce_per_key() -> None:
+    """Verify partial_sig_verify refuses fewer nonces than keys."""
     pk_1 = musig2.individual_pub_key(_SK_1)
     pk_2 = musig2.individual_pub_key(_SK_2)
     sec_nonce, pub_nonce = musig2.nonce_gen(_SK_1, pk_1, None, _MSG)
@@ -600,6 +641,7 @@ def test_a_nonce_per_key() -> None:
 
 
 def test_invalid_contribution_names_the_party() -> None:
+    """Verify InvalidContributionError's message names the culprit."""
     exc = InvalidContributionError(2, "pubkey")
     assert exc.signer == 2
     assert exc.contrib == "pubkey"

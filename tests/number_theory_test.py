@@ -62,6 +62,7 @@ primes = [
 
 
 def test_mod_inv_prime() -> None:
+    """Verify the inverse mod a prime, and refuse the zero residue."""
     for p in primes:
         with pytest.raises(BTClibValueError, match="no inverse for 0 mod"):
             mod_inv(0, p)
@@ -73,6 +74,7 @@ def test_mod_inv_prime() -> None:
 
 
 def test_mod_inv() -> None:
+    """Verify mod_inv over every residue of every modulus up to 100."""
     max_m = 100
     for m in range(2, max_m):
         nums = list(range(m))
@@ -90,6 +92,7 @@ def test_mod_inv() -> None:
 
 
 def test_mod_sqrt() -> None:
+    """Verify both roots of every residue, exhaustively on small primes."""
     for p in primes[:30]:  # exhaustable only for small p
         has_root = {0, 1}
         for i in range(2, p):
@@ -110,6 +113,7 @@ def test_mod_sqrt() -> None:
 
 
 def test_mod_sqrt2() -> None:
+    """Reproduce Rosetta Code's Tonelli-Shanks vectors."""
     # https://rosettacode.org/wiki/Tonelli-Shanks_algorithm#Python
     test_vectors = [
         (10, 13),

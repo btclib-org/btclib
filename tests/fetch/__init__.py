@@ -65,6 +65,7 @@ class Recorded:
         self.timeouts: list[float] = []
 
     def __call__(self, request: Request, timeout: float) -> tuple[int, bytes]:
+        """Record the request and answer with the next scripted response."""
         self.requests.append(request)
         self.timeouts.append(timeout)
         answer = self.answers.pop(0) if len(self.answers) > 1 else self.answers[0]
@@ -101,11 +102,14 @@ class StubFetcher(Fetcher):
         self.asked: list[str] = []
 
     def get_tx(self, tx_id: Octets) -> Tx:
+        """Record the tx_id asked for and answer the fixed transaction."""
         self.asked.append(bytes(tx_id).hex() if not isinstance(tx_id, str) else tx_id)
         return self.tx
 
     def get_block_count(self) -> int:
+        """Answer the tip height the recorded responses report."""
         return TIP_HEIGHT
 
     def get_best_block_id(self) -> bytes:
+        """Answer the tip block id the recorded responses report."""
         return bytes.fromhex(TIP_ID)
