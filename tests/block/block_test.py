@@ -585,6 +585,24 @@ def test_a_block_carries_one_coinbase() -> None:
         block.assert_valid()
 
 
+def test_assert_valid_checks_the_coinbase_transaction() -> None:
+    """Refuse an invalid coinbase before checking its changed txid.
+
+    Emptying the script_sig violates CheckTransaction's coinbase rule and
+    also changes the merkle root. The transaction rule comes first in
+    CheckBlock, so a merkle-root error would mean the coinbase itself was
+    skipped.
+    """
+    fname = "block_1.bin"
+    filename = path.join(path.dirname(__file__), "_data", fname)
+    with open(filename, "rb") as file_:
+        block = Block.parse(file_.read())
+
+    block.transactions[0].vin[0].script_sig = b""
+    with pytest.raises(BTClibValueError, match="Invalid coinbase script size"):
+        block.assert_valid()
+
+
 def test_assert_valid_does_not_rewrite_the_header() -> None:
     """A read is a read: assert_valid must not coerce nonce in place.
 

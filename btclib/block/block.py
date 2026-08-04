@@ -482,6 +482,7 @@ class Block:
         self.assert_valid_length()
 
         self._assert_coinbase()
+        self.transactions[0].assert_valid()
 
         for transaction in self.transactions[1:]:
             # Bitcoin Core's bad-cb-multiple, asked immediately after the
