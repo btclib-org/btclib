@@ -54,6 +54,30 @@ def test_parse_reads_one_input_from_the_stream() -> None:
     assert stream.read() == b"the outputs"
 
 
+def test_the_sig_hash_type_is_four_octets_and_no_other_number_of_them() -> None:
+    """BIP174 calls PSBT_IN_SIGHASH_TYPE a 32-bit unsigned integer.
+
+    The width is the field, and read without it a one-octet `01` is the
+    same SIGHASH_ALL that serializes back as four -- one input with several
+    encodings, which is what the rest of the fixed-width fields of the
+    format are held away from. `_serialize_uint32` is what writes it, so
+    the two directions now agree on the number of octets rather than only
+    on the number.
+    """
+    canonical = bytes.fromhex("01030401000000") + PSBT_SEPARATOR
+    psbt_in = PsbtIn.parse(canonical)
+    assert psbt_in.sig_hash_type == 1
+    assert psbt_in.serialize() == canonical
+
+    for size in (0, 1, 2, 3, 5):
+        value = (1).to_bytes(max(size, 4), "little")[:size]
+        raw = bytes.fromhex("0103") + bytes([size]) + value + PSBT_SEPARATOR
+        err_msg = f"invalid sig_hash type length: {size} bytes instead of 4"
+        for check_validity in (True, False):
+            with pytest.raises(BTClibValueError, match=err_msg):
+                PsbtIn.parse(raw, check_validity=check_validity)
+
+
 def test_compatibility() -> None:
     """Check the compatibility property `sig_hash` defaults to zero."""
     psbt_in = PsbtIn()

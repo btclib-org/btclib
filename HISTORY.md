@@ -50,6 +50,17 @@ against the `v2023.7.12` tag.
   `btclib.psbt.musig2` writes for a MuSig2 session and what any taproot
   signer writes; an input carrying neither answers "missing taproot
   signature".
+- **a psbt whose global version or input sighash type is not four octets
+  wide is refused.** BIP174 defines both as a little-endian uint32, and
+  both were read at whatever length they arrived at and written back at
+  four: `PSBT_GLOBAL_VERSION` of `02` in one octet was version 2, and
+  `PSBT_IN_SIGHASH_TYPE` of `01` in one octet was SIGHASH_ALL. Both now
+  answer `invalid global version length: 1 bytes instead of 4` and
+  `invalid sig_hash type length: 1 bytes instead of 4`. What this breaks is
+  a psbt written by something that padded neither field to its width; write
+  the four octets. `psbt_utils.deserialize_int` is gone with the last of
+  its call sites — `deserialize_sized_int` is the one to use, with the
+  width of the field.
 - **a psbt whose MuSig2 fields are malformed is refused**, where all four
   type bytes BIP373 defines were filed under `unknown` and round-tripped:
   input `0x1a`, `0x1b` and `0x1c`, output `0x08`. They are fields now, so

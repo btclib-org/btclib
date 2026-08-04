@@ -117,25 +117,23 @@ def serialize_hd_key_paths(
     )
 
 
-def deserialize_int(k: bytes, v: bytes, type_: str) -> int:
-    """Return the dataclass element from its binary representation."""
-    if len(k) != 1:
-        err_msg = f"invalid {type_} key length: {len(k)}"
-        raise BTClibValueError(err_msg)
-    return int.from_bytes(v, byteorder="little", signed=False)
-
-
 def deserialize_sized_int(
     k: bytes, v: bytes, type_: str, size: int, *, signed: bool = False
 ) -> int:
     """Return the int of a little-endian value of exactly `size` octets.
 
-    The size check is what deserialize_int does not make, and every
-    BIP370 field needs it: a four-byte field written in five octets
-    deserializes to the same integer and serializes back to four, which
-    is one psbt with two encodings -- the malleability `read_exactly`
-    refuses a level down, where the length is the map's rather than the
-    field's.
+    The size is what makes the value one encoding of one number, and every
+    fixed-width field of BIP174 and BIP370 needs it: a four-byte field
+    written in five octets, or in one, deserializes to the same integer and
+    serializes back to four, which is one psbt with several encodings --
+    the malleability `read_exactly` refuses a level down, where the length
+    is the map's rather than the field's.
+
+    There is no unsized counterpart, and that is deliberate: the BIPs
+    define no psbt integer field without a width, the two counts of BIP370
+    being compact size and having `deserialize_count`. A helper reading a
+    value of any length is a field boundary left to whoever writes the
+    bytes.
 
     signed=True for the two values the BIPs define as signed, the
     transaction version and an output's amount.

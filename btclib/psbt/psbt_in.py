@@ -53,7 +53,6 @@ from btclib.psbt.psbt_utils import (
     decode_musig2_participant_pub_keys,
     decode_taproot_bip32,
     deserialize_bytes,
-    deserialize_int,
     deserialize_map,
     deserialize_sized_int,
     deserialize_tx,
@@ -212,14 +211,6 @@ def _serialize_witness_utxo(type_: bytes, tx_out: TxOut) -> bytes:
     return serialize_bytes(type_, tx_out.serialize())
 
 
-def _serialize_sig_hash_type(type_: bytes, sig_hash_type: int) -> bytes:
-    """Return the binary representation of the dataclass element."""
-    # BIP174: four bytes, little endian, unsigned
-    return serialize_bytes(
-        type_, sig_hash_type.to_bytes(4, byteorder="little", signed=False)
-    )
-
-
 def _serialize_final_script_witness(type_: bytes, witness: Witness) -> bytes:
     """Return the binary representation of the dataclass element."""
     return serialize_bytes(type_, witness.serialize())
@@ -282,7 +273,7 @@ _SERIALIZED_FIELDS: list[tuple[bytes, str, _Serializer]] = [
     (PSBT_IN_NON_WITNESS_UTXO, "non_witness_utxo", _serialize_non_witness_utxo),
     (PSBT_IN_WITNESS_UTXO, "witness_utxo", _serialize_witness_utxo),
     (PSBT_IN_PARTIAL_SIG, "partial_sigs", serialize_dict_bytes_bytes),
-    (PSBT_IN_SIG_HASH_TYPE, "sig_hash_type", _serialize_sig_hash_type),
+    (PSBT_IN_SIG_HASH_TYPE, "sig_hash_type", _serialize_uint32),
     (PSBT_IN_REDEEM_SCRIPT, "redeem_script", serialize_bytes),
     (PSBT_IN_WITNESS_SCRIPT, "witness_script", serialize_bytes),
     (PSBT_IN_BIP32_DERIVATION, "hd_key_paths", serialize_hd_key_paths),
@@ -407,7 +398,7 @@ _WHOLE_VALUE_FIELDS: dict[bytes, tuple[str, str, _Deserializer]] = {
         deserialize_tx,
     ),
     PSBT_IN_WITNESS_UTXO: ("witness_utxo", "witness-utxo", _deserialize_witness_utxo),
-    PSBT_IN_SIG_HASH_TYPE: ("sig_hash_type", "sig_hash type", deserialize_int),
+    PSBT_IN_SIG_HASH_TYPE: ("sig_hash_type", "sig_hash type", _deserialize_uint32),
     PSBT_IN_REDEEM_SCRIPT: ("redeem_script", "redeem script", deserialize_bytes),
     PSBT_IN_WITNESS_SCRIPT: ("witness_script", "witness script", deserialize_bytes),
     PSBT_IN_FINAL_SCRIPTSIG: (

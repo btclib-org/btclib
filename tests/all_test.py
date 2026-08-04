@@ -214,7 +214,6 @@ def test_psbt_exports_the_format_not_its_plumbing() -> None:
     for name in (
         "assert_valid_unknown",
         "decode_dict_bytes_bytes",
-        "deserialize_int",
         "deserialize_map",
         "deserialize_tx",
         "encode_dict_bytes_bytes",
