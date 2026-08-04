@@ -1,5 +1,11 @@
 [build-system]
-requires = ["setuptools>=64"]
+# 77 is the floor for the PEP 639 metadata below, and for both halves of
+# it at once: the SPDX string form of `project.license` and
+# `project.license-files` arrived in setuptools 77.0.0, which is the
+# version the deprecation warning for the old table form names. An
+# isolated build resolving anything older fails on the syntax rather than
+# ignoring it, which is what the bound is for
+requires = ["setuptools>=77"]
 build-backend = "setuptools.build_meta"
 
 [project]
@@ -12,7 +18,19 @@ name = "btclib"
 version = "2026.8"
 description = "A library for 'bitcoin cryptography'"
 readme = "README.md"
-license = { text = "MIT License" }
+# PEP 639: an SPDX expression, which becomes the `License-Expression`
+# metadata field, and the files it is carried by. The TOML-table form
+# setuptools deprecates wrote a free-text `License:` field instead, and
+# there is no license classifier below for the same reason -- one
+# machine-readable statement rather than three spellings of it.
+#
+# AUTHORS.md is named beside LICENSE rather than dropped: setuptools'
+# default globs match both, so both are in `dist-info/licenses/` today, and
+# the MIT notice this repository carries names "Ferdinando M. Ametrano and
+# btclib contributors" -- AUTHORS.md being where that list is kept.
+# `["LICENSE"]` alone would take the attribution out of every wheel
+license = "MIT"
+license-files = ["LICENSE", "AUTHORS.md"]
 authors = [{ name = "The btclib developers", email = "devs@btclib.org" }]
 # Python 3.9 is end-of-life since 2025-10, and keeping it out buys more
 # than one fewer column in the matrix: a fresh resolve at ">=3.9" splits
@@ -70,7 +88,6 @@ classifiers = [
     "Development Status :: 4 - Beta",
     "Intended Audience :: Developers",
     "Intended Audience :: Education",
-    "License :: OSI Approved :: MIT License",
     "Natural Language :: English",
     "Operating System :: OS Independent",
     "Topic :: Scientific/Engineering",

@@ -4458,6 +4458,23 @@ edit.
   ..., "hex": ...}`, seven identical markers), #173 (four unfinished PSBT
   behaviours — combining a witness, the Finalizer's sighash check, output
   merging, and a partial signature never checked against its key)
+- **the license is an SPDX expression** (issue #363). `license = "MIT"` and
+  `license-files = ["LICENSE", "AUTHORS.md"]` replace the TOML table
+  `license = { text = "MIT License" }`, the `License :: OSI Approved :: MIT
+  License` classifier is gone, and `[build-system] requires` is
+  `setuptools>=77`, the version that added both halves of the PEP 639 form.
+  The metadata field changes with it: the free-text `License: MIT License`
+  of a wheel becomes `License-Expression: MIT`, one machine-readable
+  statement where there were two spellings and a classifier. What prompted
+  it is a build that was already loud about it — three
+  `SetuptoolsDeprecationWarning`s per distribution, the table's naming
+  2027-02-18 as the date the legacy call goes — and `uv build` is now
+  silent on license metadata, with `twine check --strict`,
+  `check-wheel-contents`, `check-manifest` and pyroma at 10/10 unchanged.
+  `AUTHORS.md` is named beside `LICENSE` rather than dropped: setuptools'
+  default globs matched both, so both were already in
+  `dist-info/licenses/`, and the MIT notice names "Ferdinando M. Ametrano
+  and btclib contributors" with that file being where the list is kept
 
 ### Documentation and the website
 
