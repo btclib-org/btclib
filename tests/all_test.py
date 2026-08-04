@@ -273,6 +273,30 @@ def test_script_exports_both_halves_of_every_pair() -> None:
             assert name in btclib.script.__all__, f"{name} is not exported"
 
 
+def test_script_publishes_the_three_subgroups_the_cli_promises() -> None:
+    """`sig_hash`, `taproot` and `engine` are groups, so they are named.
+
+    The transitive walk cannot ask this: it follows the edges that are
+    there, so a group `docs/proposals/cli.md` promises and no list
+    publishes is a walk that stops early and a test that passes. That file
+    spells `script sig-hash`, `script taproot` and `script engine`, and
+    these are the three edges `btclib.script` carries for them -- listed
+    here rather than derived from the proposal, prose being no place to
+    read a contract from, and pinned because the two that are imported on
+    demand are the two a refactor can drop without anything else noticing.
+    """
+    for group in ("engine", "sig_hash", "taproot"):
+        assert group in btclib.script.__all__, f"script does not publish {group}"
+        assert getattr(btclib.script, group).__name__ == f"btclib.script.{group}"
+
+    # and nothing else is a group of that package: the modules holding the
+    # flat names, and the two tables the engine reads, are not published
+    for internal in ("limits", "op_codes_tapscript", "script_pub_key", "witness"):
+        assert internal not in btclib.script.__all__
+    with pytest.raises(AttributeError, match="has no attribute 'sig_hashes'"):
+        _ = btclib.script.sig_hashes
+
+
 def test_mnemonic_exports_its_three_schemes() -> None:
     """Verify bip39, electrum and slip39 are exported and importable."""
     for name in ("bip39", "electrum", "slip39"):

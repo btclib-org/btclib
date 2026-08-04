@@ -176,11 +176,18 @@ declared one, half of them said the wrong thing, and no module of the
 library declared one at all. What follows are the library findings the
 command line made visible, and the pull requests that answered each.
 
-**Whether a submodule is named is a per-package decision.** `ecc`,
-`mnemonic` and `block` name theirs; `curves`, `script`, `script.engine`,
-`tx`, `psbt`, `bip32` and `fetch` name none. So `from btclib.ecc import
-dsa` is blessed by a list and `from btclib.script import sig_hash`,
-which works identically, is stated nowhere.
+**Whether a submodule is named is a per-package decision**, and it was
+made once per package and nowhere written down: `ecc`, `mnemonic` and
+`block` named theirs, while `curves`, `script`, `script.engine`, `tx`,
+`psbt`, `bip32` and `fetch` named none. So `from btclib.ecc import dsa`
+was blessed by a list and `from btclib.script import sig_hash`, which
+works identically, was stated nowhere. It is the decision point 4 of the
+contract above keeps -- a module declares its surface, its parent decides
+whether the offer is a group -- so what changed is that each decision is
+now written: `psbt` names `musig2`, `script` names the three subgroups the
+tables below promise, and `curves`, `tx`, `bip32`, `fetch` and
+`script.engine` name none, their submodules being where a flat surface is
+defined rather than groups of their own.
 
 **Missing.** Each of these is public, tested, and absent from its
 package's list:
@@ -201,15 +208,17 @@ package's list:
 - `psbt.prevouts`, the outputs a psbt spends.
 
 **Two findings did not survive being checked**, which is the other half of
-what an audit is for. `bip32.slip132` cannot be exported at all: it
+what an audit is for. `bip32.slip132` could not be exported at all: it
 imports `b58` and `b32`, which import `to_pub_key`, which imports
-`btclib.bip32`, so naming it means importing it and that closes a cycle —
-73 tests fail with `cannot import name 'BIP32Key' from partially
-initialized module`. That one is a defect after all, and issue #340 has
+`btclib.bip32`, so naming it meant importing it and that closed a cycle —
+73 tests failed with `cannot import name 'BIP32Key' from partially
+initialized module`. That one was a defect after all, and issue #340 had
 the cause rather than the symptom: `ecc.bms` imports `b58` and `b32` the
-same way and `btclib.ecc` exports it without trouble, so what is wrong is
-narrower — `bip32` is the only package a lower layer imports *and* that
-holds a module belonging to a higher one. And `fetch.cookie_auth` is not
+same way and `btclib.ecc` exports it without trouble, so what was wrong
+was narrower — `bip32` was the only package a lower layer imports *and*
+that held a module belonging to a higher one. The module is
+`btclib.slip132` now, published at the root, which is why the tables below
+spell it without a package in front. And `fetch.cookie_auth` is not
 missing: `BitcoinCoreRpcClient` takes a `cookie_path` and reads the file at
 every call, the node rewriting the cookie when it restarts, so a caller
 passes a path and never a credential. In both cases what was missing was
@@ -539,7 +548,7 @@ bip32         rootxprv-from-seed  xpub-from-xprv  derive
               derive-from-account  crack-prv-key
               str-from-der-path  indexes-from-der-path
               int-from-index-str  str-from-index-int
-bip32 slip132 address-from-xkey  address-from-xpub  p2pkh-xkey
+slip132       address-from-xkey  address-from-xpub  p2pkh-xkey
               p2wpkh-xkey  p2wpkh-p2sh-xkey
 bip44         address-from-der-path
 mnemonic bip39
@@ -625,7 +634,7 @@ would have been for.
 | `serialize` | `tx from-dict` |
 | `validateaddress` | `b58 h160-from-address`, `b32 witness-from-address` |
 | `getpubkeys` | `to-pub-key pub-keyinfo-from-key` |
-| `convert_xkey` | `bip32 slip132`, `bip32 xpub-from-xprv` |
+| `convert_xkey` | `slip132`, `bip32 xpub-from-xprv` |
 | `getmasterprivate` | `mnemonic bip39 mxprv-from-mnemonic` |
 | `make_seed` | `mnemonic bip39 mnemonic-from-entropy` |
 | `getseed` | `mnemonic bip39 seed-from-mnemonic` |

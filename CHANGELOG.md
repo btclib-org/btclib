@@ -3315,6 +3315,21 @@ edit.
   source and walks into a module-level `try`, `if`, `with`, `for`, `while`
   or `match`, those binding globals as much as a top-level import does,
   stopping at a function or a class
+- **`btclib.script` publishes `sig_hash`, `taproot` and `engine`**, the
+  three subgroups `docs/proposals/cli.md` promises as command groups and
+  the one package whose list named none of the submodules behind its own
+  tables. `taproot` was imported already, four of its names being
+  re-exported flat; `sig_hash` and `engine` are imported on demand by a
+  module `__getattr__`, and that is not a speed decision: `sig_hash`
+  imports `btclib.tx`, whose `tx_in` and `tx_out` import `btclib.script`
+  back, and `btclib.script.engine.script` asks this package for
+  `sig_hash`, so an eager import of either would run on a half-initialized
+  `btclib.script` — issue #147's shape, which `tests/imports_test.py` now
+  measures from this side too: importing the package leaves both out of
+  `sys.modules`, and asking for the attribute is what brings them in.
+  `limits`, `op_codes_tapscript`, `script`, `script_pub_key`, `sig_ops`
+  and `witness` stay unpublished, being where the flat names are defined
+  and the tables the engine reads
 - **A fourth test walks the export tree the way the command line will**:
   from `btclib`, into every module-valued export, transitively, checking
   that each node declares an `__all__` of its own and that an exported
@@ -3322,7 +3337,10 @@ edit.
   walker reads off the tree is the import path, by construction rather
   than by convention. A fifth pins the root against the file tree, a
   module added to `btclib/` and not published there being a group the
-  command line cannot reach
+  command line cannot reach, and a sixth pins the three subgroups of
+  `btclib.script` by name — the walk follows the edges that exist, so a
+  promised group nothing publishes is a walk that stops early and a test
+  that passes
 - **`docs/proposals/cli.md` states the traversal contract** in place of
   the question it used to pose: the five points a walker depends on, with
   the one that makes the mirror implementable from outside this repository

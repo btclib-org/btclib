@@ -95,3 +95,31 @@ def test_address_encodings_stay_below_script(unimported_btclib: None) -> None:
     importlib.import_module("btclib.b58")
     importlib.import_module("btclib.b32")
     assert not [name for name in btclib_modules() if name.startswith("btclib.script")]
+
+
+def test_script_publishes_sig_hash_and_the_engine_without_importing_them(
+    unimported_btclib: None,
+) -> None:
+    """btclib.script names two submodules it must not import.
+
+    Both reach the transaction stack -- `sig_hash` imports `btclib.tx`,
+    whose `tx_in` and `tx_out` import `btclib.script` back, and
+    `btclib.script.engine.script` asks this very package for `sig_hash` --
+    so an import of either from `btclib/script/__init__.py` would run on a
+    half-initialized package, which is issue #147 again. The `__getattr__`
+    there is what publishes them instead, and this is the measurement:
+    importing the package leaves both out of sys.modules, and asking for
+    the attribute is what brings them in.
+    """
+    script = importlib.import_module("btclib.script")
+    loaded = btclib_modules()
+    assert not [name for name in loaded if name.startswith("btclib.tx")]
+    assert not [name for name in loaded if name.startswith("btclib.script.engine")]
+    assert "btclib.script.sig_hash" not in loaded
+    # taproot is the third group and is imported, its four flat names being
+    # re-exported: the asymmetry is in the package docstring
+    assert "btclib.script.taproot" in loaded
+
+    assert script.sig_hash.__name__ == "btclib.script.sig_hash"
+    assert script.engine.__name__ == "btclib.script.engine"
+    assert "btclib.tx" in btclib_modules()
