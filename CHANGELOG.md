@@ -2976,6 +2976,19 @@ edit.
   written from the BIP, which is what having to reach into
   `btclib.block.block` for it invited. The comment recording why
   `btclib.block.limits` stays out now records this too.
+- **`btclib.bip32` records why `slip132` is not in its `__all__`.** It is
+  the one submodule of that package that sits *above* the address
+  encodings — it imports `b58` and `b32`, which import `to_pub_key`, which
+  imports `btclib.bip32` — so naming it there means importing it there,
+  and that is a cycle: every caller then gets `cannot import name
+  'BIP32Key' from partially initialized module 'btclib.bip32'`, which
+  `tests/imports_test.py` reports by importing each module with nothing
+  else in `sys.modules`. `from btclib.bip32 import slip132` works
+  regardless — a submodule does not need its parent's `__all__` to be
+  importable — and is what every caller in the tree writes. What was
+  missing is the reason, which is now beside the list, with the
+  observation that `btclib.bip44` has the same shape and lives at the top
+  level for the same cause.
 
 ### Types
 

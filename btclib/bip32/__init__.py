@@ -35,6 +35,20 @@ from btclib.bip32.key_origin import (
     encode_to_bip32_derivs,
 )
 
+# btclib.bip32.slip132 is not here, and cannot be: it is the one submodule
+# of this package that sits *above* the address encodings -- it imports
+# btclib.b58 and btclib.b32, which import btclib.to_pub_key, which imports
+# this package -- so an import of it in this file is a cycle, and
+# `cannot import name 'BIP32Key' from partially initialized module
+# 'btclib.bip32'` is what every caller then gets. tests/imports_test.py,
+# which imports each module of the library with nothing else in sys.modules,
+# is what reports it.
+# `from btclib.bip32 import slip132` works regardless, a submodule not
+# needing its parent's __all__ to be importable, and is what every caller in
+# the tree writes. What the absence from this list costs is that nothing
+# states the layering it comes from, which is what this comment is for:
+# btclib.bip44 has the same shape -- bip32 plus both address encodings --
+# and lives at the top level for that very reason
 __all__ = [
     "BIP32Key",
     "BIP32KeyData",
