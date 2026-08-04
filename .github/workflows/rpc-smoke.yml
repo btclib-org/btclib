@@ -1,0 +1,166 @@
+---
+name: rpc-smoke
+
+# The one claim tests/fetch cannot make. Every reply under
+# tests/fetch/_data is Core's own and the suite classifies all of them
+# without opening a socket, which is the right shape for a test suite --
+# but a recording is the thing being classified, so nothing in it says
+# that a live bitcoind still answers this way. This workflow asks two of
+# them, and .github/scripts/rpc_smoke.py is the whole of what it asks:
+# the reply shapes read off the wire before btclib reads them, the cookie
+# the node wrote, the /wallet/<name> endpoint of a node with two wallets,
+# and the three fetcher answers against a regtest chain the script
+# generates, so the expected height is arithmetic rather than a recording.
+#
+# It gates a release rather than a commit, and issue #370 adopted it as
+# the last gate before the rpc client is described as production ready:
+# RELEASING.md dispatches it, and CONTRIBUTING.md carries the local
+# command.
+#
+# A workflow of its own and not a job in test.yml, whose matrix is
+# interpreters: this one is bitcoind versions, and two nodes plus two
+# downloads is minutes where that workflow is seconds. It therefore does
+# not appear in master's required checks, and must not -- that rule lives
+# outside the repository and names its checks as literal strings.
+
+on:
+  # the way a release asks for the answer, which is when the answer is
+  # wanted: hanging two node downloads off every commit would make every
+  # commit wait for them, which is the reason mutation.yml gives for the
+  # same choice
+  workflow_dispatch:
+  # so that a change to this file, or to the script it runs, is checked by
+  # the thing it configures -- as links.yml does for its own
+  # configuration. Not a path under btclib/fetch/: a change to the client
+  # is gated by the recorded suite, and re-validated against live nodes by
+  # the dispatch before a release
+  pull_request:
+    paths:
+      - .github/workflows/rpc-smoke.yml
+      - .github/scripts/rpc_smoke.py
+
+# least privilege for the GITHUB_TOKEN, and here it is also the point: a
+# job that exists to establish a security property files nothing and
+# publishes nothing, so read is the whole of what it needs. In particular
+# the download below is verified rather than trusted, which is the other
+# half of the same argument
+permissions:
+  contents: read
+
+# cancel superseded runs. Named literally rather than through
+# github.workflow, as everywhere else here: in a called workflow that
+# expression is the caller's name
+concurrency:
+  group: rpc-smoke-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  rpc-smoke:
+    name: Smoke the rpc client against Core ${{ matrix.core }}
+    runs-on: ubuntu-latest
+    # a download, a node and a hundred blocks of regtest, all of it local:
+    # a run past this is a node that never opened its rpc port
+    timeout-minutes: 20
+    strategy:
+      # both cells always run: which versions answer which protocol is the
+      # question, so the answer for one of them is not a reason to stop
+      # asking about the other
+      fail-fast: false
+      matrix:
+        # x86_64 linux only, that being the architecture the digests below
+        # are of. What the matrix buys here is bitcoind versions, and a
+        # second architecture would buy the same two protocols again.
+        #
+        # The rule for moving these pins, which is why it is written beside
+        # them: the older is the final release of the newest line that
+        # predates the 2.0 marker, and the newer is whatever is current.
+        #
+        # 27.2 is deliberately end of life. It is the last major that does
+        # not recognize the "jsonrpc": "2.0" marker at all, so what it pins
+        # is the compatibility boundary -- that a client sending the marker
+        # to a node which has never heard of it still reads the 1.1 reply
+        # that comes back, an rpc error under an HTTP 500 included. Nothing
+        # else in Core's supported range can demonstrate that, and this pin
+        # does not move again unless Core changes what v27 was.
+        #
+        # The digest is the SHA256SUMS entry of the release directory,
+        # written here rather than fetched beside the file it describes: a
+        # checksum file served by the host that served the archive is one
+        # host's statement about itself. SHA256SUMS.asc is the stronger
+        # link and is not taken -- it would make this job hold the builder
+        # keys and decide how many signatures are enough, which is a policy
+        # this repository has nowhere to state
+        include:
+          - core: "27.2"
+            protocol: "1.1"
+            digest: acc223af46c178064c132b235392476f66d486453ddbd6bca6f1f8411547da78
+          - core: "31.1"
+            protocol: "2.0"
+            digest: b80d9c3e04da78fb6f0569685673418cf686fadba9042d926d13fb87ff503f9e
+    steps:
+      # every action is pinned to a commit SHA, the tag in the comment: a
+      # tag, let alone a branch, is a name its owner can move
+      - name: Checkout code
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          # see the checkout of the test-py job in test.yml
+          persist-credentials: false
+      - name: Setup uv
+        uses: astral-sh/setup-uv@c771a70e6277c0a99b617c7a806ffedaca235ff9 # v9.0.0
+        with:
+          # the bindings are compiled from source, from the git revision
+          # uv.lock pins: the cache is the difference between a couple of
+          # minutes and a couple of seconds
+          enable-cache: true
+      # the matrix values reach the shell as environment variables rather
+      # than as expressions interpolated into it, which is the convention
+      # zizmor enforces and the one that keeps a shell script readable as
+      # a shell script
+      - name: Download bitcoind and verify the archive
+        env:
+          CORE: ${{ matrix.core }}
+          DIGEST: ${{ matrix.digest }}
+        run: |
+          archive="bitcoin-${CORE}-x86_64-linux-gnu.tar.gz"
+          # an immutable versioned artifact, never a "latest" url, and no
+          # --location: the release url is https and direct, so a redirect
+          # is a change in what is being served rather than a hop to
+          # follow. The digest below would catch it either way; failing
+          # here says which of the two happened
+          curl --fail --silent --show-error --proto '=https' --tlsv1.2 \
+            --output "${archive}" \
+            "https://bitcoincore.org/bin/bitcoin-core-${CORE}/${archive}"
+          # fail closed, before the archive is unpacked and long before
+          # anything in it is executed
+          printf '%s  %s\n' "${DIGEST}" "${archive}" | sha256sum --check --strict -
+          # and the negative control, which is what says the check above is
+          # load-bearing rather than decorative: the same comparison
+          # against a digest that is not the file's has to fail. Every hex
+          # digit rotated, so the tampered digest is a well-formed one that
+          # no file is
+          tampered="$(printf '%s' "${DIGEST}" | tr '0123456789abcdef' '123456789abcdef0')"
+          if printf '%s  %s\n' "${tampered}" "${archive}" \
+              | sha256sum --check --status --strict -; then
+            echo "::error::sha256sum accepted a digest that is not the archive's"
+            exit 1
+          fi
+          # the daemon is the only member extracted; the other archive
+          # members are never unpacked or run. The archive itself is on
+          # disk, curl having written it, and verified before this line.
+          # tar fails the step if the member is not there, which is what a
+          # release changing its layout looks like from here
+          tar --extract --gzip --file "${archive}" "bitcoin-${CORE}/bin/bitcoind"
+      # --no-default-groups: the script imports btclib and starts a node,
+      # so what it needs installed is the project and its one dependency.
+      # --locked, as everywhere else, so the bindings are the revision
+      # uv.lock pins
+      - name: Smoke the rpc client against the node
+        env:
+          CORE: ${{ matrix.core }}
+          PROTOCOL: ${{ matrix.protocol }}
+        run: >
+          uv run --locked --no-default-groups
+          python .github/scripts/rpc_smoke.py
+          --bitcoind "bitcoin-${CORE}/bin/bitcoind"
+          --core-version "${CORE}"
+          --protocol "${PROTOCOL}"

@@ -571,6 +571,12 @@ ignore = [
 # prints are the interface, not a debugging leftover -- unlike a print
 # anywhere else in the library, which is deleted rather than ignored
 "btclib/mnemonic/entropy.py" = ["T201"]
+# the smoke script's output is the whole of what it produces: it runs a
+# bitcoind and prints, one line each, the claim every check confirmed, so
+# the log of a green run is the list of what a live node was actually
+# asked. T20 is selected for the library, which writes to no stream of its
+# own; a script whose caller is a workflow step is the case it is not about
+".github/scripts/rpc_smoke.py" = ["T201"]
 # the D rules are not here: a public test function, fixture or method
 # states what it verifies -- the property, the vector, the failure
 # mode -- under the same docstring gate as the library's public

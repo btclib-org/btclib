@@ -163,7 +163,7 @@ These requirements are easily checked (and partially fixed) with:
 ```shell
 uv run ruff check --fix
 uv run ruff format
-uv run mypy btclib tests
+uv run mypy btclib tests .github/scripts
 uv run pytest
 ```
 
@@ -347,6 +347,45 @@ a `git status` in the middle is a working tree with a mutant in it.
 interrupting one costs only the mutant it was on. And the `.sqlite`
 sessions are the artifact the workflow uploads: `cr-report`, `cr-html` and
 `cr-rate` all read one, and a downloaded one can be finished locally.
+
+The `rpc-smoke` workflow, on demand and before a release, and the one job
+here that needs something uv cannot fetch: a bitcoind. It is what stands
+behind the recorded replies under `tests/fetch/_data` — the reply shapes of
+both protocol versions read off the wire, the cookie the node wrote, the
+`/wallet/<name>` endpoint, and the three fetcher answers against a regtest
+chain it generates. Two versions, and `rpc-smoke.yml` states the rule for
+moving the pins: the last v27 release for the JSON-RPC 1.1 path, whatever
+is current for 2.0.
+
+The node comes from the release directory of its version, verified against
+the digest that workflow carries — never a `latest` url, and verified
+before the archive is unpacked. `sha256sum` is coreutils, so on macOS the
+command is `shasum -a 256`:
+
+```shell
+core=27.2
+archive="bitcoin-$core-x86_64-linux-gnu.tar.gz"
+curl --fail --proto '=https' --tlsv1.2 --output "$archive" \
+    "https://bitcoincore.org/bin/bitcoin-core-$core/$archive"
+printf '%s  %s\n' "<the digest in rpc-smoke.yml>" "$archive" \
+    | sha256sum --check --strict -
+tar --extract --gzip --file "$archive" "bitcoin-$core/bin/bitcoind"
+```
+
+Then the command the workflow runs, verbatim, for that half of the matrix:
+
+```shell
+uv run --locked --no-default-groups python .github/scripts/rpc_smoke.py \
+    --bitcoind bitcoin-27.2/bin/bitcoind --core-version 27.2 --protocol 1.1
+```
+
+A bitcoind already on the machine does as well, `--core-version` being
+what says which one it has to be. The script starts it itself, in a
+temporary datadir, with no `-rpcport`: the port, the datadir layout and the
+cookie are then the node's own defaults, which is what makes them
+something to check rather than something to configure — and why it refuses
+to run while anything else is listening on regtest's rpc port. Both cells
+of the matrix are two runs of that command, with `31.1` and `2.0`.
 
 The documentation, which the `Build the documentation` job of `lint.yml`
 runs with this same command, as read the docs does. `-W` is what makes an
