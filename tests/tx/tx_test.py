@@ -18,7 +18,9 @@ tests/_data/README.md has its size and wtxid.
 
 import dataclasses
 import inspect
+from collections.abc import MutableSequence
 from os import path
+from typing import Any
 
 import pytest
 
@@ -684,21 +686,25 @@ def test_join() -> None:
     assert not any(p.kind is inspect.Parameter.VAR_KEYWORD for p in params.values())
 
 
-def test_join_keeps_the_order_it_was_given(monkeypatch: pytest.MonkeyPatch) -> None:
-    """Not shuffling is the concatenation, input for input and output too.
+def test_join_shuffles_only_when_it_is_told_to(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Each flag decides one list, and off means the order it was given.
 
-    The monkeypatch is what makes the answer deterministic rather than
-    likely: a shuffle of six elements draws the order it was given once in
-    720, and comparing two non-shuffled joins with each other is worse
-    still -- with two inputs they agree every other attempt. So the
-    question asked is whether anything shuffles at all when both flags are
-    false, and the order below is what that leaves.
+    A known permutation in place of the system one, because the answer has
+    to be an equality rather than a likelihood: a real shuffle of six
+    elements draws the order it was given once in 720, and comparing two
+    non-shuffled joins with each other is worse still -- with two inputs
+    they agree every other attempt. Reversal is that permutation, so each
+    list says which of the two branches ran, and each flag is read on its
+    own: a join that shuffles what it was told to keep, or keeps what it was
+    told to shuffle, is one equality away either way.
     """
 
-    def refuse(_self: object, _sequence: object) -> None:
-        pytest.fail("join shuffled a list it was told to keep in order")
+    def reverse(_self: object, sequence: MutableSequence[Any]) -> None:
+        sequence.reverse()
 
-    monkeypatch.setattr("btclib.tx.tx.secrets.SystemRandom.shuffle", refuse)
+    monkeypatch.setattr("btclib.tx.tx.secrets.SystemRandom.shuffle", reverse)
 
     txs = [
         Tx(
@@ -710,16 +716,29 @@ def test_join_keeps_the_order_it_was_given(monkeypatch: pytest.MonkeyPatch) -> N
         for group in ((1, 2, 3), (4, 5, 6))
     ]
 
-    joint_tx = join(
-        txs,
-        enforce_same_version=True,
-        enforce_same_lock_time=True,
-        shuffle_inp=False,
-        shuffle_out=False,
-    )
+    def joined(*, shuffle_inp: bool, shuffle_out: bool) -> tuple[list[int], list[int]]:
+        joint_tx = join(
+            txs,
+            enforce_same_version=True,
+            enforce_same_lock_time=True,
+            shuffle_inp=shuffle_inp,
+            shuffle_out=shuffle_out,
+        )
+        return (
+            [tx_in.prev_out.tx_id[0] for tx_in in joint_tx.vin],
+            [tx_out.value for tx_out in joint_tx.vout],
+        )
 
-    assert [tx_in.prev_out.tx_id[0] for tx_in in joint_tx.vin] == [1, 2, 3, 4, 5, 6]
-    assert [tx_out.value for tx_out in joint_tx.vout] == [1, 2, 3, 4, 5, 6]
+    concatenated = [1, 2, 3, 4, 5, 6]
+    permuted = [6, 5, 4, 3, 2, 1]
+
+    assert joined(shuffle_inp=False, shuffle_out=False) == (
+        concatenated,
+        concatenated,
+    )
+    assert joined(shuffle_inp=True, shuffle_out=True) == (permuted, permuted)
+    assert joined(shuffle_inp=True, shuffle_out=False) == (permuted, concatenated)
+    assert joined(shuffle_inp=False, shuffle_out=True) == (concatenated, permuted)
 
 
 def test_eq() -> None:

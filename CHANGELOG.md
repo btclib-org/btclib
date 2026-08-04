@@ -3986,10 +3986,11 @@ edit.
   is set, and what replaces it is the inequality of the two inputs, which is
   behaviour rather than the flag behind it; and a non-shuffled `join` was
   held to equalling *another* non-shuffled join, which two shuffled ones
-  satisfy every other attempt with two inputs — so the question asked is
-  whether anything shuffles at all when both flags are false, a monkeypatched
-  `SystemRandom.shuffle` failing the test if it is called, because six
-  elements drawn in the order they were given is still one run in 720. `Tx`
+  satisfy every other attempt with two inputs — so `SystemRandom.shuffle` is
+  monkeypatched to a known permutation, reversal, and each of the four flag
+  combinations is one equality: the order a list comes back in says which
+  branch ran, where a real shuffle of six elements draws the order it was
+  given once in 720 and answers nothing the other 719 times. `Tx`
   being a dataclass is a promise too, and `dataclasses.fields` is what
   reads it: the constructor, the comparison and every conversion are
   written out, so the decorator is left holding the field list and the
@@ -4509,7 +4510,7 @@ edit.
   the ast walk in that file is the only thing that fails on it. Measured
   before the budget was written, and the numbers are what the issue asked
   for rather than an estimate: 1035 mutants, 88 skipped, the 947 that ran
-  taking a little over five minutes of cpu, 56 surviving. So this profile
+  taking minutes rather than hours, 56 surviving. So this profile
   *finishes*,
   where the engine's five and a half hours are sampled — which is what
   makes a survival rate comparable with the week before. Its own job, in

@@ -102,12 +102,12 @@ jobs:
           # the transaction encodings and the length prefixes under them,
           # measured before this budget was written: 1035 mutants, 88 of
           # them skipped by the operator filter that configuration
-          # explains, and the 947 left take under five minutes of cpu. So
-          # unlike the engine this profile finishes, which is what makes its
-          # survival rate comparable with the week before -- and the budget
-          # is minutes rather than hours: 30 is six times what it takes on
-          # the machine that measured it, and a runner is slower than that
-          # but not by six
+          # explains, and the 947 left take five to seven minutes of cpu
+          # depending on what else the machine is doing. So unlike the engine
+          # this profile finishes, which is what makes its survival rate
+          # comparable with the week before -- and the budget is minutes
+          # rather than hours: 30 is several times the measurement, and a
+          # runner is slower than that machine but not by several
           - profile: the wire-format parsers
             slug: parsers
             ceiling: 45
