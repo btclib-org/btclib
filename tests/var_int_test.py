@@ -14,7 +14,7 @@ from hypothesis import given
 from hypothesis import strategies as st
 
 from btclib import var_int
-from btclib.exceptions import BTClibValueError
+from btclib.exceptions import BTClibTypeError, BTClibValueError
 
 
 def test_var_int_conversion() -> None:
@@ -95,6 +95,29 @@ def test_var_int_max_size() -> None:
     # a caller can still raise it for a var_int that is neither a length
     # nor a count
     assert var_int.parse("fe00000004", max_size=0xFFFFFFFF) == 0x04000000
+
+
+def test_a_bool_is_neither_a_count_nor_a_cap() -> None:
+    """CompactSize is an integer field, and `is_integer` is the policy.
+
+    The cap is the case a caller cannot see failing: `max_size=True` is a
+    limit of one, so every count above one comes back as `var_int too
+    big` -- a range refusal for what is a type error, and `true` is what a
+    json configuration decodes to. Both entry points are in
+    tests/integer_policy_test.py's inventory too, with every other integer
+    field of the library.
+    """
+    for value in (True, False):
+        with pytest.raises(BTClibTypeError, match="non-integer var_int"):
+            var_int.serialize(value)
+        with pytest.raises(BTClibTypeError, match="non-integer max_size"):
+            var_int.parse(b"\x01", max_size=value)
+
+    # what the refusal must not take with it: the numbers those two are
+    # not, at the boundary of the one-byte encoding
+    assert var_int.serialize(0) == b"\x00"
+    assert var_int.serialize(1) == b"\x01"
+    assert var_int.parse(b"\x01", max_size=1) == 1
 
 
 def test_var_int_non_canonical() -> None:
