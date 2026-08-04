@@ -325,13 +325,15 @@ def test_the_response_of_a_failure_is_closed() -> None:
         assert closed == [True]
 
 
-@pytest.mark.parametrize("max_body_size", [1.5, "64", None, 64.0])
+@pytest.mark.parametrize("max_body_size", [1.5, "64", None, 64.0, True, False])
 def test_a_limit_that_is_no_size_is_refused_as_such(max_body_size: object) -> None:
     """And refused before it is read as one.
 
     A float reaches `read` and leaves through a bare `TypeError` about the
     argument of a read: outside this library's exception contract, and out
-    of a function whose whole subject is what it refuses to read.
+    of a function whose whole subject is what it refuses to read. A bool
+    goes with it, through the `is_integer` of issue #326: `True` would be a
+    limit of one octet, and `true` is what a json configuration decodes to.
     """
     transport = Recorded((200, b"7"))
     with pytest.raises(BTClibTypeError, match="non-integer max_body_size"):

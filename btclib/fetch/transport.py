@@ -38,6 +38,7 @@ from urllib.parse import urlsplit
 from urllib.request import Request, urlopen
 
 from btclib.exceptions import BTClibTypeError, BTClibValueError, FetchError
+from btclib.utils import is_integer
 
 # What a fetcher does its I/O with: a callable taking the request and a
 # timeout in seconds, answering with the HTTP status and the response
@@ -101,8 +102,13 @@ def _assert_valid_max_body_size(max_body_size: int) -> None:
     exception contract; a negative limit makes the bounded read ask for
     nothing and then report every body as too large. Zero is a size and is
     left alone: it says that only an empty body is an answer.
+
+    `is_integer` and not a second spelling of it, so a bool is refused here
+    for the reason it is refused everywhere else: `max_body_size=True`
+    would be a limit of one octet, and `true` is what a json configuration
+    decodes to.
     """
-    if not isinstance(max_body_size, int):
+    if not is_integer(max_body_size):
         err_msg = f"non-integer max_body_size: {max_body_size}"
         raise BTClibTypeError(err_msg)
     if max_body_size < 0:

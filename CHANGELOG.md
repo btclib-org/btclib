@@ -257,7 +257,10 @@ edit.
   deallocator later, and the limit itself is refused when it is no size: a
   float would otherwise reach `read` and leave through a bare `TypeError`,
   a negative one would report every body as too large, and zero is a limit
-  like any other -- it says that only an empty body is an answer. A total
+  like any other -- it says that only an empty body is an answer. The check
+  is `is_integer`, the predicate of issue #326, so a bool is refused here
+  for the reason it is refused everywhere else rather than by a second
+  spelling of the rule. A total
   request deadline is a different mechanism and is deliberately not here
 
 ### Consensus rules
