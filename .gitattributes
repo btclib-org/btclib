@@ -13,3 +13,15 @@
 # numbers. CLAUDE.md carries the rest of the reasoning.
 CHANGELOG.md merge=union
 HISTORY.md merge=union
+
+# Electrum's Portuguese word-list is Monero's, and the blank lines of the
+# licence header it opens with end in a space upstream. Our copy being byte
+# for byte upstream's is a property that can be checked, so those six bytes
+# stay: `.pre-commit-config.yaml` excludes the file from trailing-whitespace
+# for that reason, which covers the hook and nothing else. git enforces the
+# same rule on its own, and does more than report it — `git apply
+# --whitespace=fix` strips them, saying only "1 line applied after fixing
+# whitespace errors", and `git diff --check` calls them an error of ours.
+# `-whitespace` turns both off, for the one path whose bytes are not ours to
+# choose.
+btclib/mnemonic/_data/electrum_portuguese.txt -whitespace
