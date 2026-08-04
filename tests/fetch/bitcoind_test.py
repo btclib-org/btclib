@@ -639,8 +639,18 @@ def test_a_non_number_in_a_reply_is_refused(constant: str) -> None:
     rest of its life, so it is refused where it decodes.
     """
     body = b'{"jsonrpc":"2.0","result":' + constant.encode() + b',"id":"x"}'
-    with pytest.raises(FetchError, match=f"not a json number in the reply: {constant}"):
+    with pytest.raises(
+        FetchError, match=f"not a json number in the reply: {constant}"
+    ) as exc:
         client((200, body)).call("getbalance")
+
+    # and it is not its own cause. This refusal is btclib's, raised from
+    # inside `json.loads` and re-raised as it stands, so a `from` here
+    # would have made `__cause__` point at the exception itself -- which
+    # anything walking that chain, a log formatter or a reporter, follows
+    # round for as long as it is willing to
+    assert exc.value.__cause__ is not exc.value
+    assert exc.value.__context__ is not exc.value
 
 
 def test_the_clients_timeout_reaches_the_transport() -> None:
