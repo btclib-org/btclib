@@ -483,7 +483,7 @@ def test_the_opener_does_not_follow_a_redirect() -> None:
     assert isinstance(redirect_handlers[0], transport_module._NoRedirect)
 
 
-@pytest.mark.parametrize("variable", ["http_proxy", "HTTPS_PROXY", "ALL_PROXY"])
+@pytest.mark.parametrize("variable", ["http_proxy", "HTTPS_PROXY"])
 def test_no_proxy_is_taken_from_the_environment(
     variable: str, monkeypatch: pytest.MonkeyPatch
 ) -> None:
@@ -506,6 +506,14 @@ def test_no_proxy_is_taken_from_the_environment(
     Measured against what the default opener does with the same
     environment, which is the other half of the claim: a handler that
     would have proxied is there, and in btclib's opener it is not.
+
+    These two variables and not `ALL_PROXY`, which is the case that looks
+    like a wildcard and is not one: `getproxies_environment` maps it to
+    the key `all`, `ProxyHandler` registers `all_open` from that, and
+    `OpenerDirector` dispatches an http request through the `http` chain
+    alone. So an `ALL_PROXY` handler is installed and never proxies
+    either scheme, which would make this a test that a handler exists
+    rather than one about where a credential goes.
     """
     monkeypatch.setenv(variable, "http://proxy.invalid:3128")
     assert getproxies_environment()  # the environment does name one

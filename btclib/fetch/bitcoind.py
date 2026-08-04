@@ -28,6 +28,44 @@ attribute lookup that builds a method name is a different interface, and
 the explicit one is what makes an unknown method a value rather than a
 typo that becomes a request.
 
+**Migrating from `AuthServiceProxy`.** A migration and not a drop-in
+replacement: four things change, and each of them is the difference
+deliberately.
+
+.. code-block:: python
+
+    # a method is an argument, not an attribute: an unknown one is a
+    # value that arrives at the node, not an AttributeError here
+    rpc.getblock(block_id, 2)
+    client.call("getblock", [block_id, 2])
+
+    # and the named form is the other structure Core takes, which no
+    # attribute lookup can express
+    client.call("getblock", {"blockhash": block_id, "verbosity": 2})
+
+    # credentials leave the url, which is what gets written into a
+    # config file and printed in a traceback
+    AuthServiceProxy(f"http://{user}:{password}@127.0.0.1:8332")
+    BitcoindRpcClient("http://127.0.0.1:8332", user=user, password=password)
+    BitcoindRpcClient.from_network("mainnet")  # or the node's cookie file
+
+    # one wallet of a multi-wallet node, percent-encoded
+    client.for_wallet("hot").call("getbalance")
+
+`JSONRPCException` becomes three exceptions, because it covered three
+things a caller acts on differently: `RpcError` when the node computed an
+error, with its `code`; `HttpError` when the exchange failed, with its
+`status`; `FetchError` when there was no answer to read at all. All three
+are `FetchError`, so one `except FetchError` is the equivalent of the one
+`except JSONRPCException` -- and the reason to catch them apart is that
+only the middle one is ever worth another attempt.
+
+Two things `AuthServiceProxy` does that this does not: `batch_`, and the
+notifications a request without an `id` makes. Both are named non-goals
+-- a batch needs an api for correlating several answers and for partly
+failing -- so code that uses either is a loop over `call` here, or stays
+where it is.
+
 **One call, one HTTP request, and no retry.** A 503 from bitcoind means
 its rpc work queue is full and the same request works once the queue
 drains, so a retry is the obvious convenience -- and it is the caller's
@@ -410,24 +448,29 @@ def _rpc_error(where: str, error: Any) -> FetchError:
     return RpcError(f"{where}: {message}", code, error.get("data"))
 
 
-def _unparsable(where: str, status: int, cause: Exception) -> FetchError:
-    """Say that a reply could not be read, the status first when it failed.
+def _no_reply(where: str, status: int, cause: Exception) -> FetchError:
+    """Say that no reply arrived, which on a non-200 is the status.
 
-    A body no parser can read cannot be a correlated rpc error, so on a
-    non-200 the status is the failure and the answer carries it: the
-    common case is the 401 with an empty body Core sends, and the next is
-    a 503 whose body is whatever is in front of the node. Reporting "not
-    json" for either would name the symptom and hide the cause.
+    One decision for every body that is not a json-rpc reply, whether the
+    parser refused it or read it into something else: none of them can be
+    a *correlated* answer, so none of them can be this call's rpc error,
+    and on a non-200 what is left is the status -- the 401 with the empty
+    body Core sends, or a 503 whose body is whatever stands in front of
+    the node. Reporting the encoding of an error page would name the
+    symptom and hide the cause.
 
-    On a 200 there is no status to report and what is left is that the
-    node answered something which is not a reply. The three shapes get
-    their own sentence, being three different things to go and look at,
-    and everything else -- a json integer longer than
-    `sys.get_int_max_str_digits` allows, and whatever a later Python adds
-    -- arrives as the parser refusing the reply, which is what happened.
+    On a 200 the status says nothing and the shape is the whole diagnosis,
+    so each shape keeps its own sentence: not utf-8, nested past the
+    stack, not json, not an object. Anything else -- a json integer longer
+    than `sys.get_int_max_str_digits` allows, and whatever a later Python
+    adds -- is the parser refusing the reply, which is what happened.
+    `_refuse_constant`'s own refusal is more precise than any of these and
+    is kept as it is.
     """
     if status != 200:
         return _http_error(where, status)
+    if isinstance(cause, FetchError):
+        return cause
     if isinstance(cause, UnicodeDecodeError):
         return FetchError(f"{where}: a reply that is not utf-8 ({cause})")
     if isinstance(cause, RecursionError):
@@ -443,15 +486,24 @@ def _reply_object(where: str, status: int, payload: bytes) -> Mapping[str, Any]:
         reply = json.loads(
             payload, parse_float=Decimal, parse_constant=_refuse_constant
         )
-    except (ValueError, RecursionError) as e:
-        # every way the parse can fail, under two types: JSONDecodeError
-        # and UnicodeDecodeError are both ValueError, the bare ValueError
-        # of the integer digit limit is a third, and json recurses. None
-        # of them is a distinction a caller acts on differently, and each
-        # of them on a non-200 has to keep the status -- see `_unparsable`
-        raise _unparsable(where, status, e) from e
+    except (ValueError, RecursionError, FetchError) as e:
+        # every way a body can fail to be a reply, under three types.
+        # JSONDecodeError and UnicodeDecodeError are both ValueError, the
+        # bare ValueError of the integer digit limit is a third, json
+        # recurses, and `_refuse_constant` raises a FetchError of its own
+        # for the three non-numbers Python would otherwise decode. What
+        # they have in common is the only thing that matters here: a
+        # caller acts on none of the distinctions, and every one of them
+        # on a non-200 has to keep the status -- see `_no_reply`
+        raise _no_reply(where, status, e) from e
     if not isinstance(reply, dict):
-        raise FetchError(f"{where}: not a json-rpc reply, but a {type(reply).__name__}")
+        # read, and not a reply: an array, a string or a number is no more
+        # a json-rpc answer than a page of html is, so it takes the same
+        # route -- a 503 whose body is `[1, 2, 3]` is a 503
+        cause = FetchError(
+            f"{where}: not a json-rpc reply, but a {type(reply).__name__}"
+        )
+        raise _no_reply(where, status, cause)
     return reply
 
 

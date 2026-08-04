@@ -876,18 +876,29 @@ _TOO_MANY_DIGITS = b'{"jsonrpc":"2.0","result":' + b"9" * 5000 + b',"id":"x"}'
 
 @pytest.mark.parametrize(
     "body",
-    [b'{"result": "\xff\xfe"}', b"[" * 200_000 + b"]" * 200_000, _TOO_MANY_DIGITS],
-    ids=["not utf-8", "too deep", "too many digits"],
+    [
+        b'{"result": "\xff\xfe"}',
+        b"[" * 200_000 + b"]" * 200_000,
+        _TOO_MANY_DIGITS,
+        b'{"jsonrpc":"2.0","result":NaN,"id":"x"}',
+        b"[1, 2, 3]",
+        b'"a string"',
+        b"",
+    ],
+    ids=["not utf-8", "too deep", "too many digits", "NaN", "array", "string", "empty"],
 )
-def test_a_status_survives_a_body_no_parser_can_read(body: bytes) -> None:
-    """An unreadable body cannot be a correlated rpc error, so the status wins.
+def test_a_status_survives_a_body_that_is_no_reply(body: bytes) -> None:
+    """A body that is no reply cannot be correlated, so the status wins.
 
-    Whatever is in front of a node explains itself in its own words, and
-    those words are not json-rpc: reporting "not utf-8" for a 503 would
-    name the symptom and lose the one thing a caller acts on. Every way
-    the parse can fail has to keep the status, and they are not one
-    exception type -- a decode error, a recursion error and the bare
-    ValueError of the integer digit limit.
+    Whatever stands in front of a node explains itself in its own words,
+    and those words are not json-rpc: reporting "not utf-8" for a 503, or
+    "not a json-rpc reply", would name the symptom and lose the one thing
+    a caller acts on. Every way a body can fail to be a reply keeps the
+    status, and they are not one exception type nor even all of them
+    failures of the parse -- a decode error, a recursion error, the bare
+    ValueError of the integer digit limit, btclib's own refusal of the
+    three non-numbers Python decodes, and a body that parses perfectly
+    into something that is not an object.
     """
     with pytest.raises(HttpError) as exc:
         client((503, body)).call("getblockcount")

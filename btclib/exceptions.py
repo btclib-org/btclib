@@ -136,10 +136,15 @@ class HttpError(FetchError):
     matching on the text of a message is what a field spares them.
 
     Not every FetchError carries one, and that is the distinction: a
-    refused connection, an expired timeout and a body that is not json
-    are failures with no status to report, and stay a plain FetchError.
-    The message states the status too -- an exception is a diagnostic
-    before it is a value.
+    refused connection and an expired timeout are failures of an exchange
+    that never produced a status, and stay a plain FetchError. So does a
+    body that is no answer -- not json, not utf-8, not a reply object --
+    when it arrived with an HTTP 200: there the status says nothing and
+    the shape of the body is the whole diagnosis. The same body under a
+    non-200 is this exception instead, carrying that status: it cannot be
+    an answer the backend computed, so what is left to report is the
+    status it came with. The message states the status too -- an exception
+    is a diagnostic before it is a value.
 
     A FetchError still, so code catching that keeps catching this.
     """

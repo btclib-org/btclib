@@ -2421,9 +2421,11 @@ edit.
   its own — `call` carries any method, so it cannot know that re-sending
   one is safe, and a timeout is not a deadline — and a caller's policy
   for a 503 from a full work queue wants the number rather than a message
-  to match on. A body no parser can read keeps the status too: it cannot
-  be an rpc error, so what is reported is the 401 or the 503 rather than
-  the encoding of whatever answered instead of the node. No ambient proxy
+  to match on. A body that is no reply keeps the status too — one that no
+  parser can read, and one that parses into something which is not a
+  reply object — since neither can be an answer the node computed: what
+  is reported is the 401 or the 503, not the encoding of whatever
+  answered in its place. No ambient proxy
   is consulted either — `urllib` would otherwise route the request, and
   with it the `Basic` credential, through whatever host `HTTP_PROXY` names
   in a shell that set it for something else. No endpoint is a
