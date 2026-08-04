@@ -49,9 +49,9 @@ https://github.com/keis/base58, with the following modifications:
 from __future__ import annotations
 
 from btclib.alias import Octets, String
-from btclib.exceptions import BTClibValueError
+from btclib.exceptions import BTClibTypeError, BTClibValueError
 from btclib.hashes import hash256
-from btclib.utils import bytes_from_octets
+from btclib.utils import bytes_from_octets, is_integer
 
 _ALPHABET = b"123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz"
 __BASE = len(_ALPHABET)
@@ -163,6 +163,13 @@ def b58decode(v: String, out_size: int | None = None) -> bytes:
     if checksum != h256[:4]:
         err_msg = f"invalid checksum: 0x{checksum.hex()} instead of 0x{h256[:4].hex()}"
         raise BTClibValueError(err_msg)
+
+    # the size policy of btclib/utils.py, at the boundary that does its own
+    # comparison rather than going through bytes_from_octets: a bool would
+    # accept a one-octet payload and call it a checked size
+    if out_size is not None and not is_integer(out_size):
+        err_msg = f"invalid output size type: {type(out_size).__name__}"
+        raise BTClibTypeError(err_msg)
 
     if out_size is None or len(result) == out_size:
         return result

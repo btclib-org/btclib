@@ -42,7 +42,7 @@ from btclib.exceptions import BTClibTypeError, BTClibValueError
 from btclib.script.limits import MAX_SCRIPT_SIZE
 from btclib.script.script import BYTE_FROM_OP_CODE_NAME
 from btclib.script.script_pub_key import is_segwit
-from btclib.utils import bytes_from_octets
+from btclib.utils import bytes_from_octets, is_integer
 
 # the kilo in sat/kvB, i.e. how many virtual bytes a rate is quoted over
 _VBYTES_PER_KVBYTE = 1000
@@ -78,7 +78,7 @@ class FeeRate:
     sats_per_kvbyte: int
 
     def __post_init__(self) -> None:
-        if not isinstance(self.sats_per_kvbyte, int):
+        if not is_integer(self.sats_per_kvbyte):
             raise BTClibTypeError(
                 f"non-integer sat/kvB fee rate: {self.sats_per_kvbyte}"
             )
@@ -170,7 +170,7 @@ def fee_from_vsize(vsize: int, fee_rate: FeeRate) -> int:
     # the one function whose contract is that no float ever stands
     # between a rate and the satoshi it owes. A str fails instead, but on
     # the comparison below and with a bare TypeError naming '<'
-    if not isinstance(vsize, int):
+    if not is_integer(vsize):
         raise BTClibTypeError(f"non-integer virtual size: {vsize}")
     if vsize < 0:
         raise BTClibValueError(f"negative virtual size: {vsize}")

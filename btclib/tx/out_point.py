@@ -16,11 +16,12 @@ from dataclasses import dataclass
 from typing import Any
 
 from btclib.alias import BinaryData, Octets
-from btclib.exceptions import BTClibValueError
+from btclib.exceptions import BTClibTypeError, BTClibValueError
 from btclib.utils import (
     assert_no_trailing,
     bytes_from_octets,
     bytesio_from_binarydata,
+    is_integer,
     read_exactly,
 )
 
@@ -81,6 +82,11 @@ class OutPoint:
             err_msg = f"invalid OutPoint tx_id: {len(self.tx_id)}"
             err_msg += " instead of 32 bytes"
             raise BTClibValueError(err_msg)
+        # a bool is an int and would read as vout 0 or 1, which the range
+        # check below cannot tell from an index: `from_dict` reads json
+        if not is_integer(self.vout):
+            err_msg = f"invalid vout type: {type(self.vout).__name__}"
+            raise BTClibTypeError(err_msg)
         # must be a 4-bytes int
         if not 0 <= self.vout <= 0xFFFFFFFF:
             raise BTClibValueError(f"invalid vout: {self.vout}")

@@ -26,6 +26,7 @@ from decimal import Decimal, FloatOperation, InvalidOperation, localcontext
 from typing import Any
 
 from btclib.exceptions import BTClibTypeError, BTClibValueError
+from btclib.utils import is_integer
 
 # The two functions below doing Decimal algebra trap FloatOperation in a
 # local context, not in the process-wide one at import time:
@@ -106,6 +107,18 @@ def sats_from_btc(amount: Decimal) -> int:
 
 def valid_sats_amount(amount: Any, dust: int = 0) -> int:
     """Return the satoshi amount as int, if valid and not less than dust."""
+    # a bool is an int in Python, so True reached the conversion below as
+    # the number one and `int(True) == True` let it through the equality
+    # check as well: refused by name, for the reason is_integer gives --
+    # and by name because this argument is Any, so a str and a Decimal are
+    # legitimate here and the predicate cannot be the gate
+    if isinstance(amount, bool):
+        raise BTClibTypeError(f"non-integer satoshi amount: {amount}")
+    # and the threshold it is compared against: a bool passes the
+    # comparison below as zero or one, so `dust=True` is a dust level of
+    # one satoshi rather than a caller error
+    if not is_integer(dust):
+        raise BTClibTypeError(f"non-integer satoshi dust threshold: {dust}")
     # any input that can be converted to int is fine -- and int() refuses
     # what it cannot convert with a bare ValueError ("abc", b"\x01"), a
     # bare TypeError (a list), or a bare OverflowError (an infinity, where

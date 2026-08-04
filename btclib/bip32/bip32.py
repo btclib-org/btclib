@@ -54,6 +54,8 @@ from btclib.utils import (
     bytes_from_octets,
     bytesio_from_binarydata,
     hex_string,
+    int_from_json_number,
+    is_integer,
 )
 
 # secp256k1 is written out at each use rather than aliased to a module
@@ -185,15 +187,17 @@ class BIP32KeyData:
         check_validity: bool = True,
     ) -> None:
         self.version = bytes_from_octets(version)
-        # int(), where the annotation already says int, for the same reason
-        # bytes_from_octets is called on the four Octets fields: from_dict
-        # feeds this constructor a json object, where a whole number may
-        # arrive as a float. Coercing in assert_valid instead would rewrite
-        # the object it is asked to inspect -- and it is called by
-        # serialize() and to_dict(), so reading a key would mutate it
-        self.depth = int(depth)
+        # a coercion, where the annotation already says int, for the same
+        # reason bytes_from_octets is called on the four Octets fields:
+        # from_dict feeds this constructor a json object, where a whole
+        # number may arrive as a float. Coercing in assert_valid instead
+        # would rewrite the object it is asked to inspect -- and it is
+        # called by serialize() and to_dict(), so reading a key would
+        # mutate it. A bool is refused rather than coerced: `true` out of
+        # json is a schema error, not depth one
+        self.depth = int_from_json_number(depth, "depth")
         self.parent_fingerprint = bytes_from_octets(parent_fingerprint)
-        self.index = int(index)
+        self.index = int_from_json_number(index, "index")
         self.chain_code = bytes_from_octets(chain_code)
         self.key = bytes_from_octets(key)
 
@@ -227,7 +231,7 @@ class BIP32KeyData:
         # to_bytes and leave through an AttributeError
         for key in ("depth", "index"):
             value_ = getattr(self, key)
-            if not isinstance(value_, int):
+            if not is_integer(value_):
                 err_msg = f"invalid {key} type: {type(value_).__name__}"
                 raise BTClibTypeError(err_msg)
 

@@ -21,7 +21,8 @@ from __future__ import annotations
 from collections.abc import Sequence
 
 from btclib.alias import Octets
-from btclib.exceptions import BTClibValueError
+from btclib.exceptions import BTClibTypeError, BTClibValueError
+from btclib.utils import is_integer
 
 # default hardening symbol among the possible ones: "h", "H", "'"
 _HARDENING = "h"
@@ -59,11 +60,20 @@ def str_from_index_int(i: int, hardening: str = _HARDENING) -> str:
     """Return one index as a path step, the chosen symbol for hardened."""
     if hardening not in ("'", "h", "H"):
         raise BTClibValueError(f"invalid hardening symbol: {hardening}")
-    if not 0 <= i <= 0xFFFFFFFF:
-        raise BTClibValueError(f"invalid index: {i}")
-    if i < _HARDENED_OFFSET:
-        return str(i)
-    return str(i - _HARDENED_OFFSET) + hardening
+    # reachable without indexes_from_der_path, and str(True) is "True": a
+    # path step of a boolean would be a path nothing derives
+    if not is_integer(i):
+        raise BTClibTypeError(f"invalid derivation index type: {type(i).__name__}")
+    # int() of an int, because an IntEnum is one and str() of an IntEnum is
+    # its *name* up to Python 3.10 -- "Sighash.ALL" where a path step wants
+    # "1". Accepting a deliberate integer subclass, which is what
+    # is_integer above is for, means answering with the number it is
+    index = int(i)
+    if not 0 <= index <= 0xFFFFFFFF:
+        raise BTClibValueError(f"invalid index: {index}")
+    if index < _HARDENED_OFFSET:
+        return str(index)
+    return str(index - _HARDENED_OFFSET) + hardening
 
 
 def _indexes_from_der_path_str(der_path: str, skip_m: bool = True) -> list[int]:
@@ -93,6 +103,9 @@ def indexes_from_der_path(der_path: DerPath) -> list[int]:
         return _indexes_from_der_path_str(der_path)
 
     if isinstance(der_path, int):
+        if not is_integer(der_path):
+            err_msg = f"invalid derivation index type: {type(der_path).__name__}"
+            raise BTClibTypeError(err_msg)
         return [der_path]
 
     if isinstance(der_path, bytes):
@@ -104,8 +117,15 @@ def indexes_from_der_path(der_path: DerPath) -> list[int]:
             for n in range(0, len(der_path), 4)
         ]
 
-    # an iterable of int
-    return [int(i) for i in der_path]
+    # an iterable of int, and of int alone: int() here would coerce a bool
+    # into the index one, where the annotation already says Sequence[int]
+    # and a bool is no index -- `True` is not the first child of anything
+    indexes = list(der_path)
+    for index in indexes:
+        if not is_integer(index):
+            err_msg = f"invalid derivation index type: {type(index).__name__}"
+            raise BTClibTypeError(err_msg)
+    return indexes
 
 
 def _str_from_der_path(der_path: DerPath, hardening: str = _HARDENING) -> str:

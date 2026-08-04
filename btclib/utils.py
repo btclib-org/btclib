@@ -35,11 +35,11 @@ one; that check is unconditional for the same reason.
 from __future__ import annotations
 
 from collections.abc import Iterable
-from collections.abc import Iterable as IterableCollection
 from io import BytesIO
+from typing import Any
 
 from btclib.alias import BinaryData, Integer, Octets
-from btclib.exceptions import BTClibValueError
+from btclib.exceptions import BTClibTypeError, BTClibValueError
 
 NoneOneOrMoreInt = int | Iterable[int] | None
 
@@ -48,16 +48,34 @@ def bytes_from_octets(octets: Octets, out_size: NoneOneOrMoreInt = None) -> byte
     """Return bytes from a hex-string, stripping leading/trailing spaces.
 
     If the input is not a string, then it goes untouched. Optionally, it
-    also ensures required output size.
+    also ensures required output size: one size, or any iterable of them,
+    and a bool is neither -- `out_size=True` would accept a single octet
+    and say it had checked a size.
     """
     if isinstance(octets, str):  # hex string
         octets = bytes.fromhex(octets)
 
-    if (
-        out_size is None
-        or (isinstance(out_size, int) and len(octets) == out_size)
-        or (isinstance(out_size, IterableCollection) and len(octets) in out_size)
-    ):
+    if out_size is None:
+        return octets
+
+    # one size or an iterable of them, and nothing else: `tuple()` on
+    # whatever is left would refuse a float with a bare TypeError about
+    # iteration -- a complaint about the wrong thing, and from underneath
+    # the library rather than through its exception contract
+    if isinstance(out_size, int):
+        sizes: tuple[int, ...] = (out_size,)
+    elif isinstance(out_size, Iterable):
+        sizes = tuple(out_size)
+    else:
+        err_msg = f"invalid output size type: {type(out_size).__name__}"
+        raise BTClibTypeError(err_msg)
+
+    for size in sizes:
+        if not is_integer(size):
+            err_msg = f"invalid output size type: {type(size).__name__}"
+            raise BTClibTypeError(err_msg)
+
+    if len(octets) in sizes:
         return octets
 
     err_msg = f"invalid size: {len(octets)} bytes instead of {out_size}"
@@ -119,6 +137,48 @@ def assert_no_trailing(data: BinaryData, stream: BytesIO, what: str) -> None:
     trailing = stream.read()
     if trailing:
         raise BTClibValueError(f"{len(trailing)} bytes after the {what}")
+
+
+def is_integer(value: Any) -> bool:
+    """Return whether the value is an integer, a bool not being one.
+
+    `isinstance(x, int)` is True for `True` and `False`, `bool` being a
+    subclass of `int` -- so every field of this library whose contract is
+    an integer quantity accepted a boolean as the number one or zero, and
+    `int(True) == True` slips through a conversion-and-equality check as
+    well. What makes that worth a refusal rather than a shrug is the json
+    boundary: `true` decodes to `True`, so a schema mistake became one
+    satoshi, one virtual byte, one index or a one-sat/kvB fee rate instead
+    of failing next to the input that caused it.
+
+    A boolean is not another spelling of a number, which is the difference
+    from the strings and bytes much of this library accepts: "1" is a
+    number written down, `True` is a different type that Python's
+    inheritance makes indistinguishable from one.
+
+    `isinstance` and not `type(value) is int`, so an `IntEnum` -- what
+    issue #273 asks about for the sighash types -- and any other
+    deliberate integer subclass stay integers. `bool` is the one
+    subclass excluded, and by name.
+    """
+    return isinstance(value, int) and not isinstance(value, bool)
+
+
+def int_from_json_number(value: Any, what: str) -> int:
+    """Return the int of a whole number out of json, a bool not being one.
+
+    `from_dict` feeds a constructor a json object, where a whole number
+    may arrive as a float -- 1.0 for 1 -- which is why the int fields of
+    the dataclasses coerce rather than refuse. A boolean is not one of
+    those numbers: `true` decodes to `True`, `int(True)` is 1, and a
+    schema mistake would become a version, a depth or an index instead of
+    an error beside the input that caused it.
+
+    `is_integer` is the same decision where there is nothing to coerce.
+    """
+    if isinstance(value, bool):
+        raise BTClibTypeError(f"invalid {what} type: {type(value).__name__}")
+    return int(value)
 
 
 def int_from_bits(octets: Octets, nlen: int) -> int:
