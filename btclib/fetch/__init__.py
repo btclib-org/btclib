@@ -13,7 +13,7 @@
 handed. This package is the one place that goes and asks: what
 transaction has this id, what output does this outpoint name, where is
 the chain tip. `Fetcher` is the interface, and it is implemented twice --
-`BitcoindFetcher` over a full node's JSON-RPC, `EsploraFetcher` over a
+`BitcoinCoreFetcher` over a full node's JSON-RPC, `EsploraFetcher` over a
 block explorer's HTTP api -- so that calling code takes a `Fetcher` and
 never branches on which one it got.
 
@@ -29,25 +29,30 @@ fetcher does not either: the first call is what opens a connection, and
 what raises if there is nothing to connect to.
 
 **What is exported, and what is not.** The two fetchers, the interface
-they implement, the endpoint a bitcoind one is reached through, and the
-transport seam: the timeout, the protocol a substitute has to satisfy and
-the one implementation of it that opens a socket. That last group is here
-because the seam is the supported way to test calling code without a node,
-which is not a detail of the two implementations.
+they implement, the rpc client a Bitcoin Core one is reached through, and
+the transport seam: the timeout, the protocol a substitute has to satisfy
+and the one implementation of it that opens a socket. That last group is
+here because the seam is the supported way to test calling code without a
+node, which is not a detail of the two implementations.
 
-`bitcoind.cookie_auth` is deliberately not here: `AuthProxy` takes a
-`cookie_path` and reads that file at every call -- the node rewrites the
-cookie whenever it restarts -- so a caller who wants cookie authentication
-passes the path and never the credential, and a name for reading it is one
-way to hold a credential longer than the node does. `fetcher.fetch_errors`,
+`bitcoin_core.cookie_auth` is deliberately not here:
+`BitcoinCoreRpcClient` takes a `cookie_path` and reads that file at every
+call -- the node rewrites the cookie whenever it restarts -- so a caller
+who wants cookie authentication passes the path and never the credential,
+and a name for reading it is one way to hold a credential longer than the
+node does. `fetcher.fetch_errors`,
 `tx_from_raw`, `tx_id_hex` and `tx_for_network` are not here either: they
 are what an implementation of the interface is built out of, and they are
 the answer to a third implementation rather than to a caller of the two --
 `from btclib.fetch.fetcher import fetch_errors` is that answer, and it says
 which layer it is reaching into.
+
+`FetchError`, `HttpError` and `RpcError` are not here because no exception
+is: `btclib.exceptions` holds every one of them together, which is what
+lets a caller see at a glance what the library raises.
 """
 
-from btclib.fetch.bitcoind import AuthProxy, BitcoindFetcher
+from btclib.fetch.bitcoin_core import BitcoinCoreFetcher, BitcoinCoreRpcClient
 from btclib.fetch.esplora import BLOCKSTREAM_INFO, EsploraFetcher
 from btclib.fetch.fetcher import Fetcher
 from btclib.fetch.transport import DEFAULT_TIMEOUT, HttpTransport, urlopen_transport
@@ -55,8 +60,8 @@ from btclib.fetch.transport import DEFAULT_TIMEOUT, HttpTransport, urlopen_trans
 __all__ = [
     "BLOCKSTREAM_INFO",
     "DEFAULT_TIMEOUT",
-    "AuthProxy",
-    "BitcoindFetcher",
+    "BitcoinCoreFetcher",
+    "BitcoinCoreRpcClient",
     "EsploraFetcher",
     "Fetcher",
     "HttpTransport",

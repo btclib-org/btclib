@@ -36,7 +36,12 @@ from http.client import HTTPMessage
 from typing import IO, Any
 from urllib.error import HTTPError
 from urllib.parse import urlsplit
-from urllib.request import HTTPRedirectHandler, Request, build_opener
+from urllib.request import (
+    HTTPRedirectHandler,
+    ProxyHandler,
+    Request,
+    build_opener,
+)
 
 from btclib.exceptions import BTClibTypeError, BTClibValueError, FetchError
 from btclib.utils import is_integer
@@ -45,7 +50,28 @@ from btclib.utils import is_integer
 # timeout in seconds, answering with the HTTP status and the response
 # body. A status rather than an exception, because a JSON-RPC error can
 # arrive with a 500 and its body is the error object -- see
-# btclib.fetch.bitcoind
+# btclib.fetch.bitcoin_core
+#
+# Two arguments and no more, which is what a caller's own transport is
+# owed and what it owes. What it is owed: a `Request` with its url, its
+# method, its body and its headers already built, and a timeout in
+# seconds. What it owes, none of which this module can check for it:
+#
+# - *its own* bound on what it holds in memory while reading. It is handed
+#   no `max_body_size` -- there is nowhere in two arguments to pass one --
+#   and btclib's limit is a per-call number applied to the bytes it hands
+#   back, which is a refusal after the allocation and not instead of it.
+#   The two are different bounds, and a transport that reads a body of any
+#   size has already spent the memory btclib then declines to use;
+# - no redirect followed. The request already carries the `Authorization`
+#   for the host it names -- `_OPENER` below is what does this for the
+#   default -- and a client library that follows a 30x sends that
+#   credential to whatever the `Location` says;
+# - its own thread-safety. `BitcoinCoreRpcClient` promises that concurrent
+#   calls are safe while its configuration is not mutated, and the
+#   transport is part of that configuration: a session object that is not
+#   thread-safe makes the client not thread-safe, and only its author
+#   knows which it is.
 HttpTransport = Callable[[Request, float], tuple[int, bytes]]
 
 # 30 seconds. Long enough for `getrawtransaction` against a node reading
@@ -143,10 +169,29 @@ class _NoRedirect(HTTPRedirectHandler):
 # does its own I/O, so what `requests` or `httpx` does with a 30x is
 # theirs.
 #
+# `ProxyHandler({})` is the second thing missing, and for the same reason
+# as the first. `build_opener` otherwise installs a `ProxyHandler` built
+# from `getproxies()`, i.e. from `HTTP_PROXY`, `HTTPS_PROXY` and the
+# system's proxy configuration -- so an rpc call to a node would be sent
+# to whatever host an environment variable named, carrying the `Basic`
+# credential btclib puts on every request before being asked for it.
+# Ambient configuration is exactly the wrong source for that decision: the
+# variable is set for a browser or a package manager and inherited by
+# everything in the shell, while the endpoint here is a node the caller
+# named. A caller who does want a proxy has `HttpTransport` and a client
+# that reads the environment if that is what they mean.
+#
+# An empty map does not install an inert handler, it installs none:
+# `ProxyHandler.__init__` sets one `<scheme>_open` method per entry,
+# `add_handler` keeps a handler only when it registered something, and
+# `build_opener` drops the default of a class it was handed an instance
+# of. So this argument is how the handler is *removed*, and the chain has
+# nothing in it that could proxy.
+#
 # `build_opener` and not `install_opener`: the default opener is process
 # wide, and a library that replaced it would decide this for every other
 # user of `urlopen` in the program
-_OPENER = build_opener(_NoRedirect)
+_OPENER = build_opener(_NoRedirect, ProxyHandler({}))
 
 
 def _assert_valid_max_body_size(max_body_size: int) -> None:
@@ -260,8 +305,8 @@ def http_request(
     them is a bitcoin error worth a type of its own.
 
     A non-2xx status is *not* a failure here. It comes back like any
-    other, because the body of a 500 is where bitcoind's JSON-RPC 1.0
-    reply puts its error object, and the body of a 404 is where an
+    other, because the body of a 500 is where bitcoind's legacy JSON-RPC
+    1.1 reply puts its error object, and the body of a 404 is where an
     explorer says what it could not find. Deciding what a status means is
     the backend's job, that being the layer that knows. A 30x is one of
     those statuses now rather than a second request: `urlopen_transport`

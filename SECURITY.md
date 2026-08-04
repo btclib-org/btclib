@@ -158,7 +158,7 @@ used to teach and to prototype as much as to build:
     depend on the secret byte by byte; a caller wanting the same of the
     decryption should bring a cipher that gives it
 - **a `btclib.fetch` backend is trusted, and the two are trusted
-    differently.** `BitcoindFetcher` talks to a node that validated the
+    differently.** `BitcoinCoreFetcher` talks to a node that validated the
     chain it reports; `EsploraFetcher` talks to a host that says it did.
     Only one answer of the four is checked at all — the transaction, whose
     id is recomputed from the bytes that came back — so a height, a tip

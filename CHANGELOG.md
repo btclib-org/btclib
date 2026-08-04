@@ -276,7 +276,9 @@ edit.
   positional arguments as before, which is why the limit is a keyword on
   `urlopen_transport` alone: a transport of a caller's own hands over
   bytes it has already read, so what `http_request` promises for one is
-  that an oversized answer goes no further. `AuthProxy.call` takes
+  that an oversized answer goes no further — a bound distinct from the
+  one a transport of a caller's own applies to what it holds while
+  reading, which it alone can enforce. `BitcoinCoreRpcClient.call` takes
   `max_body_size` too, for the caller invoking `getblock` on a large
   block. The body of an `HTTPError` is closed after that bounded read, a
   response left with octets in it being a `ResourceWarning` out of a
@@ -2376,7 +2378,7 @@ edit.
   bytes it was handed — the transaction with this id, the output an
   outpoint names, the chain tip — and it is implemented twice, so calling
   code takes a `Fetcher` and never branches on which one it got:
-  `BitcoindFetcher` over a full node's JSON-RPC, and `EsploraFetcher`
+  `BitcoinCoreFetcher` over a full node's JSON-RPC, and `EsploraFetcher`
   over a block explorer's HTTP api for anyone without a node. What comes
   back is `Tx` and `TxOut`, not the dicts the backends send, and the
   outputs are labelled with the fetcher's network, which `Tx.parse`
@@ -2384,16 +2386,49 @@ edit.
   dependency: `urllib.request`, `json` and `base64` are the whole client,
   because a cryptography library that pulls `certifi`, `urllib3` and
   `idna` in for an optional convenience has charged every other user for
-  it. The
-  JSON-RPC is 2.0 rather than python-bitcoinrpc's 1.0, so that a routine
-  "no such transaction" is an HTTP 200 with an `error` member instead of
-  the 500 a real server fault also sends; a 1.0 reply from a node older
-  than v28 is still read. Credentials in the url are refused, and
-  bitcoind's `.cookie` — re-read at every call, since a node restart
-  rotates it — means there need be none. `AuthProxy` is the name the
-  request used, python-bitcoinrpc's, and it calls any method, not only
-  the three. `FetchError` and `RpcError`, the latter carrying the node's
-  code, are in `btclib.exceptions` with the rest. No endpoint is a
+  it. The JSON-RPC is 2.0 rather than the legacy 1.1 a node answers by
+  default, so that a routine "no such transaction" is an HTTP 200 with an
+  `error` member instead of the 500 a real server fault also sends; a 1.1
+  reply from a node older than v28 is still read, and which of the two a
+  reply is decides where an error may legitimately come from — under 2.0
+  a non-200 is the HTTP exchange failing and never the node's answer.
+  `BitcoinCoreRpcClient` calls any method, not only the three, and is an
+  implementation of the protocol rather than a port of
+  python-bitcoinrpc's `AuthServiceProxy`, whose lineage is LGPL where
+  btclib is MIT. It takes either of json-rpc's two parameter structures —
+  a sequence positionally, a mapping by name, which covers Core's `args`
+  convention too — a distinct request id per call that the reply has to
+  echo back, and a `request_timeout` of its own for the methods that run
+  for minutes. Amounts never pass through binary floating point: a number
+  in a reply decodes as a `Decimal`, a `Decimal` parameter is refused
+  rather than rounded, and `NaN` and `Infinity` are refused in both
+  directions. The parameters are checked whole and not at the top level
+  only, because `json.dumps` *rewrites* a mapping key that is not a
+  string — `{1: "a"}` would reach the node as `{"1": "a"}` — and reports
+  a structure containing itself as the same kind of error a non-finite
+  number is. `for_wallet` is the `/wallet/<name>` endpoint of a
+  multi-wallet node, percent-encoded. Credentials in the url are refused,
+  as are a query, a fragment and a missing host; credentials and a cookie
+  path are mutually exclusive rather than silently ranked; and bitcoind's
+  `.cookie` — re-read at every call since a node restart rotates it,
+  bounded, and required to be one ascii line — means there need be no
+  password at all. The client holds no chain, so
+  `BitcoinCoreFetcher(client, network=...)` owns btclib's label and a signet
+  of one's own is an explicit url rather than a name this package has to
+  know. `FetchError`, `HttpError` with the HTTP status and `RpcError`
+  with the node's code and optional `data` are in `btclib.exceptions`
+  with the rest; the status is a field because btclib retries nothing on
+  its own — `call` carries any method, so it cannot know that re-sending
+  one is safe, and a timeout is not a deadline — and a caller's policy
+  for a 503 from a full work queue wants the number rather than a message
+  to match on. A body that is no reply keeps the status too — one that no
+  parser can read, and one that parses into something which is not a
+  reply object — since neither can be an answer the node computed: what
+  is reported is the 401 or the 503, not the encoding of whatever
+  answered in its place. No ambient proxy
+  is consulted either — `urllib` would otherwise route the request, and
+  with it the `Basic` credential, through whatever host `HTTP_PROXY` names
+  in a shell that set it for something else. No endpoint is a
   default: `BLOCKSTREAM_INFO` is a constant to pass, never a host btclib
   contacts on its own. Nothing here is tested against a live host —
   `HttpTransport` is the seam, and every test answers from a recorded
@@ -3081,7 +3116,7 @@ edit.
 - **`btclib.fetch` states what it exports and what it keeps out.** The
   docstring explained the design of the package and said nothing about its
   public surface, where `btclib.curves` and `btclib.block` each record
-  theirs. `cookie_auth` stays out because `AuthProxy` takes a
+  theirs. `cookie_auth` stays out because `BitcoinCoreRpcClient` takes a
   `cookie_path` and reads that file at every call, the node rewriting the
   cookie whenever it restarts: a caller passes the path and never the
   credential, and a name for reading one is a way to hold it longer than

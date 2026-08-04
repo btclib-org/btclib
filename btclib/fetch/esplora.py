@@ -38,7 +38,7 @@ renderings beside them carry the same values with more to disagree about
 from __future__ import annotations
 
 from btclib.alias import Octets
-from btclib.exceptions import FetchError
+from btclib.exceptions import HttpError
 from btclib.fetch.fetcher import Fetcher, fetch_errors, tx_from_raw, tx_id_hex
 from btclib.fetch.transport import (
     DEFAULT_MAX_BODY_SIZE,
@@ -110,6 +110,13 @@ class EsploraFetcher(Fetcher):
         `max_body_size` is what this particular answer may weigh; the
         default is the widest of the three, so a caller asking for
         something narrow says so.
+
+        A status that is not 200 is an `HttpError`, which carries it:
+        every answer here is a GET of an immutable value, so a 429 or a
+        503 from a public deployment is the one failure worth another
+        attempt, and telling it from a 404 without reading a message is
+        what the field is for. btclib retries nothing itself -- an
+        explorer's rate limit is the caller's budget to spend.
         """
         url = f"{self.base_url}{path}"
         status, payload = http_request(
@@ -120,7 +127,7 @@ class EsploraFetcher(Fetcher):
         )
         text = payload.decode("utf-8", errors="replace").strip()
         if status != 200:
-            raise FetchError(f"HTTP {status} from {url}: {text}")
+            raise HttpError(f"HTTP {status} from {url}: {text}", status)
         return text
 
     def get_tx(self, tx_id: Octets) -> Tx:

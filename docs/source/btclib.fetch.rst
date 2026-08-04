@@ -4,10 +4,10 @@ btclib.fetch package
 Submodules
 ----------
 
-btclib.fetch.bitcoind module
-----------------------------
+btclib.fetch.bitcoin_core module
+--------------------------------
 
-.. automodule:: btclib.fetch.bitcoind
+.. automodule:: btclib.fetch.bitcoin_core
    :members:
    :show-inheritance:
 
