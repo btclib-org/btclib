@@ -3042,6 +3042,16 @@ edit.
   their prefix: on a class it says which encoding the object serializes
   to, distinguishing it from `serialize`, rather than repeating the
   module's own name (issue #335)
+- **`btclib.descriptors` exports `checksum` and `from_address`**, where it
+  exported `descriptor_checksum` and `descriptor_from_address`. The
+  inconsistency was inside the one file: `add_checksum` and
+  `strip_checksum` already take a descriptor and return one without
+  repeating "descriptor" in their names, while the function that computes
+  the checksum did. Qualified, the four now read `descriptors.checksum`,
+  `descriptors.add_checksum`, `descriptors.strip_checksum`,
+  `descriptors.from_address` — one vocabulary instead of two.
+  `strip_checksum`'s local variable holding the parsed checksum is
+  `given_checksum` now, `checksum` being the function's name (issue #336)
 
 ### Types
 

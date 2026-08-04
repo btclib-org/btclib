@@ -51,8 +51,8 @@ from btclib.descriptors import (
     WshDescriptor,
     __descsum_expand,
     add_checksum,
-    descriptor_checksum,
-    descriptor_from_address,
+    checksum,
+    from_address,
     multipath_descriptors,
     parse,
     strip_checksum,
@@ -93,10 +93,10 @@ CHECKSUM_VECTORS = [
 
 # descriptors taken from https://github.com/bitcoin/bitcoin/blob/master/doc/descriptors.md
 # checksum calculated using https://docs.rs/bdk/latest/bdk/descriptor/checksum/fn.get_checksum.html
-@pytest.mark.parametrize(("descriptor", "checksum"), CHECKSUM_VECTORS)
-def test_checksum(descriptor: str, checksum: str) -> None:
+@pytest.mark.parametrize(("descriptor", "expected_checksum"), CHECKSUM_VECTORS)
+def test_checksum(descriptor: str, expected_checksum: str) -> None:
     """Reproduce the checksum of each descriptor of Core's descriptors.md."""
-    assert descriptor_checksum(descriptor) == checksum
+    assert checksum(descriptor) == expected_checksum
 
 
 def test_invalid_charset() -> None:
@@ -109,7 +109,7 @@ def test_addr() -> None:
     """Build a checksummed addr() descriptor from an address."""
     address = "bc1qnehtvnd4fedkwjq6axfgsrxgllwne3k58rhdh0"
     descriptor = "addr(bc1qnehtvnd4fedkwjq6axfgsrxgllwne3k58rhdh0)#s2y3vepm"
-    assert descriptor_from_address(address) == descriptor
+    assert from_address(address) == descriptor
 
 
 def test_add_and_strip_checksum() -> None:
@@ -146,7 +146,7 @@ DESCRIPTOR = st.text(alphabet=DESCRIPTOR_CHARS, min_size=1, max_size=60)
 @given(descriptor=DESCRIPTOR)
 def test_checksum_is_eight_characters(descriptor: str) -> None:
     """Verify the checksum is eight characters whatever the input."""
-    assert len(descriptor_checksum(descriptor)) == 8
+    assert len(checksum(descriptor)) == 8
 
 
 @given(
@@ -167,7 +167,7 @@ def test_a_changed_character_changes_the_checksum(
     mutated = descriptor[:i] + replacement + descriptor[i + 1 :]
     if mutated == descriptor:
         return
-    assert descriptor_checksum(mutated) != descriptor_checksum(descriptor)
+    assert checksum(mutated) != checksum(descriptor)
 
 
 # Bitcoin Core's descriptor_test: the private spelling, the public one

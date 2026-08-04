@@ -324,6 +324,10 @@ against the `v2023.7.12` tag.
   b58encode`, so a caller doing the same keeps its own names.
   `BIP32KeyData.b58encode`/`.b58decode`, `bms.Sig.b64encode`/`.b64decode`
   and `Psbt.b64encode`/`.b64decode` are methods and are unaffected.
+- **`descriptors.descriptor_checksum` and `.descriptor_from_address` are
+  `checksum` and `from_address`.** Both spellings were already there at
+  `v2023.7.12` — checked against the tag. `add_checksum` and
+  `strip_checksum` keep their names.
 
 Two changes are deliberately *not* on that list, because what they change
 stays compatible. The new `BTClibTypeError`, `NotAPrvKeyError` and
