@@ -16,6 +16,7 @@ those bytes given a node with the transaction index.
 tests/_data/README.md has its size and wtxid.
 """
 
+import dataclasses
 import inspect
 from os import path
 
@@ -177,6 +178,131 @@ def test_exceptions() -> None:
         tx.assert_valid()
 
 
+def test_the_four_byte_fields_at_their_bounds() -> None:
+    """Zero and 0xFFFFFFFF are in the range, -1 and one more are out.
+
+    Both ends of both fields, and the accepted end is the half a refusal
+    test cannot state: a bound one too tight or one too loose refuses a
+    transaction that is in a block, which is the direction that cannot be
+    noticed from the outside.
+    """
+    tx_in = TxIn(OutPoint(b"\x01" * 32, 0))
+    tx_out = TxOut(1, "")
+
+    for value in (0, 1, 0xFFFFFFFE, 0xFFFFFFFF):
+        Tx(value, 0, [tx_in], [tx_out]).assert_valid()
+        Tx(1, value, [tx_in], [tx_out]).assert_valid()
+
+    for value in (-1, 0xFFFFFFFF + 1):
+        with pytest.raises(BTClibValueError, match="invalid version: "):
+            Tx(value, 0, [tx_in], [tx_out])
+        with pytest.raises(BTClibValueError, match="invalid lock time: "):
+            Tx(1, value, [tx_in], [tx_out])
+
+
+def test_the_top_of_the_four_byte_range_round_trips() -> None:
+    """Version and lock_time are unsigned on the wire, and above 2^31 too.
+
+    Read or written as signed, a version of 0xFFFFFFFF comes back as -1
+    and 0x80000000 does not serialize at all -- and assert_valid accepts
+    every one of them, only assert_standard reading the version as the
+    signed int Core relays on. A transaction below 0x80000000 cannot tell
+    the two spellings apart.
+    """
+    tx = Tx(
+        0xFFFFFFFF,
+        0xFFFFFFFF,
+        [TxIn(OutPoint(b"\x01" * 32, 0))],
+        [TxOut(1, "")],
+    )
+    tx_bytes = tx.serialize(include_witness=True)
+    assert tx_bytes.endswith(b"\xff" * 4)  # the lock time, little endian
+    assert tx_bytes.startswith(b"\xff" * 4)  # and the version before it
+
+    parsed = Tx.parse(tx_bytes)
+    assert parsed.version == 0xFFFFFFFF
+    assert parsed.lock_time == 0xFFFFFFFF
+    assert parsed == tx
+
+
+def test_a_standard_version_is_the_signed_range_without_zero() -> None:
+    """assert_standard wants 0 < version <= 0x7FFFFFFF, both ends of it.
+
+    The window is Core's IsStandardTx read as a signed int, and every one
+    of its four corners answers differently from the range assert_valid
+    checks: zero and 0x80000000 are valid versions that are not standard.
+    """
+    tx = Tx(1, 0, [TxIn(OutPoint(b"\x01" * 32, 0))], [TxOut(1, "")])
+
+    for version in (1, 2, 0x7FFFFFFE, 0x7FFFFFFF):
+        tx.version = version
+        tx.assert_standard()
+
+    for version in (0, 0x7FFFFFFF + 1, 0xFFFFFFFF):
+        tx.version = version
+        tx.assert_valid()
+        with pytest.raises(BTClibValueError, match="invalid version: "):
+            tx.assert_standard()
+
+
+def test_the_coinbase_script_size_window() -> None:
+    """A coinbase script_sig is 2 to 100 bytes, both included.
+
+    Consensus writes the rule as an inclusive range, so both ends are a
+    valid coinbase and one byte outside either is not: a bound one off
+    would reject a block that is in the chain, or accept one that is not.
+    """
+    tx_out = TxOut(1, "")
+
+    for size in (2, 3, 99, 100):
+        Tx(vin=[TxIn(OutPoint(), b"\x00" * size)], vout=[tx_out]).assert_valid()
+
+    for size in (0, 1, 101, 200):
+        with pytest.raises(BTClibValueError, match="Invalid coinbase script size"):
+            Tx(vin=[TxIn(OutPoint(), b"\x00" * size)], vout=[tx_out])
+
+
+def test_an_invalid_input_or_output_fails_the_transaction() -> None:
+    """assert_valid asks every input and every output, not only the sums.
+
+    A negative sequence and a negative amount are each invalid on their
+    own while leaving every transaction-level check happy -- the output
+    total is still inside MoneyRange -- so nothing but the delegation
+    catches them.
+    """
+    prev_out = OutPoint(b"\x01" * 32, 0)
+
+    tx_in = TxIn(prev_out, b"", -1, check_validity=False)
+    tx = Tx(1, 0, [tx_in], [TxOut(1, "")], check_validity=False)
+    with pytest.raises(BTClibValueError, match="invalid sequence: "):
+        tx.assert_valid()
+
+    tx_out = TxOut(-1, "", check_validity=False)
+    tx = Tx(1, 0, [TxIn(prev_out)], [tx_out], check_validity=False)
+    with pytest.raises(BTClibValueError, match="invalid satoshi amount: "):
+        tx.assert_valid()
+
+
+def test_sig_op_count_adds_the_two_sides() -> None:
+    """The count is the sum of both lists, which is not a mix of them.
+
+    One sigop in the inputs and one in the outputs is the case that says
+    so: a bitwise operator in place of the sum answers one or zero for it,
+    and answers correctly for a transaction whose inputs announce none.
+    """
+    check_sig = b"\xac"  # OP_CHECKSIG, one sigop wherever it is
+
+    tx = Tx(
+        1,
+        0,
+        [TxIn(OutPoint(b"\x01" * 32, 0), check_sig)],
+        [TxOut(1, check_sig)],
+    )
+    assert sig_op_count(tx.vin[0].script_sig) == 1
+    assert sig_op_count(tx.vout[0].script_pub_key.script) == 1
+    assert tx.sig_op_count == 2
+
+
 def test_output_total_is_bounded() -> None:
     """The outputs are bounded one by one and then as a sum.
 
@@ -267,6 +393,32 @@ def test_coinbase_block_1() -> None:
     assert tx.sig_op_count == 1
     assert sig_op_count(tx.vin[0].script_sig) == 0
     assert sig_op_count(tx.vout[0].script_pub_key.script) == 1
+
+
+def test_a_coinbase_input_belongs_to_a_coinbase_only() -> None:
+    """The null outpoint is refused where the transaction is not a coinbase.
+
+    Two inputs make `is_coinbase` false whatever they are, so the null
+    outpoint among them spends an output that does not exist and creates
+    the coinbase's money outside a coinbase. Core's CheckTransaction has
+    the rule; here it was the only statement of `btclib/tx` that the
+    directory's own tests never reached -- a script_engine vector did,
+    which is a verdict on the engine and no test of this one.
+    """
+    coinbase_in = TxIn(OutPoint())
+    tx_in = TxIn(OutPoint(b"\x01" * 32, 0))
+    tx_out = TxOut(1, "")
+
+    err_msg = "coinbase input in a non-coinbase transaction"
+    with pytest.raises(BTClibValueError, match=err_msg):
+        Tx(vin=[tx_in, coinbase_in], vout=[tx_out])
+    with pytest.raises(BTClibValueError, match=err_msg):
+        Tx(vin=[coinbase_in, tx_in], vout=[tx_out])
+
+    # and what the refusal must not take with it: the coinbase itself,
+    # whose single input is that very outpoint, with a script_sig of the
+    # size consensus wants
+    Tx(vin=[TxIn(OutPoint(), b"\x00\x00")], vout=[tx_out]).assert_valid()
 
 
 # https://en.bitcoin.it/wiki/Protocol_documentation#tx
@@ -386,8 +538,16 @@ def test_dataclasses_json_dict(json_golden: JsonGolden) -> None:
     with open(filename, "rb") as binary_file_:
         tx = Tx.parse(binary_file_.read())
 
-    # Tx dataclass
+    # Tx dataclass, which is what `fields` reads and `isinstance` cannot
+    # say: __init__, __eq__ and every conversion here are written out, so
+    # the decorator is left holding the field list and the repr
     assert isinstance(tx, Tx)
+    assert [f.name for f in dataclasses.fields(tx)] == [
+        "version",
+        "lock_time",
+        "vin",
+        "vout",
+    ]
     assert tx.is_segwit()
     assert any(bool(w) for w in tx.vwitness)
     assert any(bool(tx_in.script_witness) for tx_in in tx.vin)
@@ -516,6 +676,36 @@ def test_join() -> None:
     params = inspect.signature(join).parameters
     assert "merge_out" not in params
     assert not any(p.kind is inspect.Parameter.VAR_KEYWORD for p in params.values())
+
+
+def test_join_keeps_the_order_it_was_given() -> None:
+    """Not shuffling is the concatenation, input for input and output too.
+
+    Two joins compared with each other agree whenever a shuffle draws the
+    order it was given, which with two inputs is every other attempt: the
+    count is what makes the answer deterministic, and at six the odds of a
+    shuffle passing for the concatenation are one in 720.
+    """
+    txs = [
+        Tx(
+            1,
+            0,
+            [TxIn(OutPoint(bytes([i]) * 32, 0)) for i in group],
+            [TxOut(i, "") for i in group],
+        )
+        for group in ((1, 2, 3), (4, 5, 6))
+    ]
+
+    joint_tx = join(
+        txs,
+        enforce_same_version=True,
+        enforce_same_lock_time=True,
+        shuffle_inp=False,
+        shuffle_out=False,
+    )
+
+    assert [tx_in.prev_out.tx_id[0] for tx_in in joint_tx.vin] == [1, 2, 3, 4, 5, 6]
+    assert [tx_out.value for tx_out in joint_tx.vout] == [1, 2, 3, 4, 5, 6]
 
 
 def test_eq() -> None:

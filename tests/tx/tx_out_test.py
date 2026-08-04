@@ -82,6 +82,26 @@ def test_invalid_tx_out() -> None:
         TxOut(-1, script)
 
 
+def test_the_value_is_eight_unsigned_octets() -> None:
+    """The amount an output holds is unsigned, top bit set included.
+
+    Every amount a valid output carries is below MoneyRange, hence below
+    2^63, where the signed and unsigned readings agree -- so the octets
+    that tell them apart are refused by `assert_valid` and reach the
+    conversion only with the check off. Read as signed they are a negative
+    amount, which serializes back to something else or not at all: two
+    buffers for one object, the malleability issue 322 is about.
+    """
+    highest_bit_set = b"\xff" * 8 + b"\x00"  # the value, then an empty script
+
+    tx_out = TxOut.parse(highest_bit_set, check_validity=False)
+    assert tx_out.value == 0xFFFFFFFFFFFFFFFF
+    assert tx_out.serialize(check_validity=False) == highest_bit_set
+
+    with pytest.raises(BTClibValueError, match="invalid satoshi amount: "):
+        TxOut.parse(highest_bit_set)
+
+
 def test_tx_out_from_address() -> None:
     """Verify from_address keeps the address and infers the network."""
     address = "bc1qwqdg6squsna38e46795at95yu9atm8azzmyvckulcc7kytlcckxswvvzej"

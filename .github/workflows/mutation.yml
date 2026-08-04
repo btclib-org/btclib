@@ -4,8 +4,9 @@ name: mutation
 # Coverage answers "was this line executed"; this answers "would the suite
 # notice if it were wrong". The gap is not theoretical here -- issue #219
 # lists three defects found inside a 100% covered tree, all three in the
-# consensus code this workflow is scoped to -- and a surviving mutant names
-# one line of it at a time.
+# consensus code, and issue #327 five more on the input boundaries, two of
+# them in the transaction parsers -- and a surviving mutant names one line
+# of it at a time.
 #
 # It gates nothing, and that is the design rather than a caution. A gate
 # needs a number nobody has measured yet, and a survival rate is not a
@@ -60,13 +61,58 @@ concurrency:
 
 jobs:
   mutation:
-    name: Mutate the consensus code
+    name: Mutate ${{ matrix.profile }}
     runs-on: ubuntu-latest
-    # the two budgets below add up to 180, and the rest is what it takes to
-    # install the environment, take the baseline and write the reports. A
-    # job that reaches this ceiling has hung somewhere other than in a
-    # session, both of those being cut by `timeout` on their own
-    timeout-minutes: 200
+    # the profiles run in parallel, each under its own ceiling, which is
+    # what keeps a scope added here from spending the budget of the ones
+    # already measured (issue #327): another session inside the consensus
+    # job would have to come out of its 180 minutes or push it past the
+    # ceiling
+    timeout-minutes: ${{ matrix.ceiling }}
+    strategy:
+      # one profile's runner dying is not a reason to take the other's
+      # numbers with it
+      fail-fast: false
+      matrix:
+        include:
+          # `sessions` is one `<configuration> <budget>` line per session,
+          # in the order they run; the budget is what `timeout` is given,
+          # and the ceiling is the sum of them plus what it takes to
+          # install the environment, take the baselines and write the
+          # reports. A job that reaches its ceiling has hung somewhere
+          # other than in a session, each of those being cut on its own
+          - profile: the consensus code
+            slug: consensus
+            ceiling: 200
+            # 90 minutes each, and the asymmetry is in what they buy rather
+            # than in the number: the sighash session is half an hour of
+            # cpu -- 727 mutants, each costing between the 1.1 s of one the
+            # sighash vectors kill and the 9.2 s of one that reaches the
+            # end of the command -- and finishes inside the budget with
+            # room for a runner slower than the machine that measured it,
+            # while the engine's five and a half hours (2768 mutants at
+            # 7.2 s) cannot finish in any budget this workflow is worth and
+            # is sampled instead. A sample of the same slice every week is
+            # worth more than it sounds: the verdicts in it are stable, so
+            # one that changes is a test that stopped checking what it used
+            # to
+            sessions: |
+              sig_hash.toml 90m
+              engine.toml 90m
+          # the transaction encodings and the length prefixes under them,
+          # measured before this budget was written: 1035 mutants, 88 of
+          # them skipped by the operator filter that configuration
+          # explains, and the 947 left take under five minutes of cpu. So
+          # unlike the engine this profile finishes, which is what makes its
+          # survival rate comparable with the week before -- and the budget
+          # is minutes rather than hours: 30 is six times what it takes on
+          # the machine that measured it, and a runner is slower than that
+          # but not by six
+          - profile: the wire-format parsers
+            slug: parsers
+            ceiling: 45
+            sessions: |
+              parsers.toml 30m
     steps:
       # every action is pinned to a commit SHA, the tag in the comment: a
       # tag, let alone a branch, is a name its owner can move
@@ -85,43 +131,46 @@ jobs:
       # unmutated tree. Without this a stale path or a renamed test file
       # fails every mutant identically, and the session reports a perfect
       # kill rate -- the one failure mode of a mutation run that looks like
-      # good news
+      # good news.
+      #
+      # The matrix value reaches the shell through the environment rather
+      # than through a `${{ }}` inside the script, which would be text
+      # pasted into it: the value is this file's own, and the habit is what
+      # zizmor's template-injection rule is asking for
       - name: Check the baselines
+        env:
+          SESSIONS: ${{ matrix.sessions }}
         run: |
-          for config in .github/mutation/*.toml; do
+          while read -r config _; do
+            [ -n "$config" ] || continue
             uv run --locked --no-default-groups --group test --group mutation \
-              cosmic-ray baseline "$config"
-          done
-      # init enumerates the mutants and exec runs them, one at a time, in
-      # this working tree: the local distributor writes each mutation into
-      # the file itself and restores it afterwards, so the two sessions run
-      # in sequence and nothing else may read the source while they do.
+              cosmic-ray baseline ".github/mutation/$config"
+          done <<< "$SESSIONS"
+      # init enumerates the mutants, the filter marks as skipped whatever
+      # the configuration excludes by operator -- a no-op for one that
+      # excludes none, so the decision stays in the toml -- and exec runs
+      # the rest, one at a time, in this working tree: the local
+      # distributor writes each mutation into the file itself and restores
+      # it afterwards, so the sessions run in sequence and nothing else may
+      # read the source while they do.
       #
       # `timeout` and not the job's timeout-minutes, which would cancel the
       # job and take the reports and the artifact with it: what is wanted
       # is the numbers for the mutants that did run. 124 is what timeout
       # exits with when it cuts a session, and a session is resumable --
       # `cosmic-ray exec` runs the jobs still pending -- so a partial run
-      # is a partial answer rather than a lost one.
-      #
-      # 90 minutes each, and the asymmetry is in what they buy rather than
-      # in the number: the sighash session is half an hour of cpu -- 727
-      # mutants, each costing between the 1.1 s of one the sighash vectors
-      # kill and the 9.2 s of one that reaches the end of the command --
-      # and finishes inside the budget with room for a runner slower than
-      # the machine that measured it, while the engine's five and a half
-      # hours (2768 mutants at 7.2 s) cannot
-      # finish in any budget this workflow is worth and is sampled instead.
-      # .github/mutation/engine.toml carries that arithmetic. A sample of
-      # the same slice every week is worth more than it sounds: the
-      # verdicts in it are stable, so one that changes is a test that
-      # stopped checking what it used to
+      # is a partial answer rather than a lost one
       - name: Run the mutation sessions
+        env:
+          SESSIONS: ${{ matrix.sessions }}
         run: |
           run_session() {
-            local config="$1" session="$2" budget="$3" status=0
+            local config=".github/mutation/$1" session="${1%.toml}.sqlite"
+            local budget="$2" status=0
             uv run --locked --no-default-groups --group test --group mutation \
               cosmic-ray init "$config" "$session"
+            uv run --locked --no-default-groups --group test --group mutation \
+              cr-filter-operators "$session" "$config"
             timeout "$budget" \
               uv run --locked --no-default-groups --group test --group mutation \
               cosmic-ray exec "$config" "$session" || status=$?
@@ -132,15 +181,21 @@ jobs:
               echo "::notice::$config: cut at $budget, see the report"
             fi
           }
-          run_session .github/mutation/sig_hash.toml sig_hash.sqlite 90m
-          run_session .github/mutation/engine.toml engine.sqlite 90m
+          while read -r config budget; do
+            [ -n "$config" ] || continue
+            run_session "$config" "$budget"
+          done <<< "$SESSIONS"
       # always(), because the reports are the whole product: a session cut
       # short, or one whose exec died, still holds every verdict reached
       # before that, and those are what somebody reads on Monday
       - name: Write the reports
         if: always()
+        env:
+          SESSIONS: ${{ matrix.sessions }}
         run: |
-          for session in sig_hash engine; do
+          while read -r config _; do
+            [ -n "$config" ] || continue
+            session="${config%.toml}"
             [ -f "$session.sqlite" ] || continue
             # --surviving-only with the diff, which is the whole of what
             # anybody acts on: a killed mutant is the suite working, and
@@ -154,19 +209,25 @@ jobs:
               cr-html "$session.sqlite" > "$session-report.html"
             # the one line worth reading in the log rather than in the
             # artifact. Never with --fail-over: a survival rate is not a
-            # thing this workflow is allowed to be red about
+            # thing this workflow is allowed to be red about. It is taken
+            # over the whole session, a mutant the filter skipped counting
+            # as a kill, so what compares between weeks is that rate
+            # against the completed count in the report beside it
             uv run --locked --no-default-groups --group test --group mutation \
               cr-rate "$session.sqlite" | sed "s/^/$session survival rate: /"
-          done
+          done <<< "$SESSIONS"
       # the sessions as well as the reports: a .sqlite is what `cr-report`
       # and `cr-html` are re-run against, and what a later `cosmic-ray
       # exec` resumes, so downloading one is how the engine's remaining
-      # two thirds get finished on somebody's machine
+      # two thirds get finished on somebody's machine.
+      # One artifact per profile, the profiles being parallel jobs: two
+      # uploads under one name is an error, and the slug is what tells the
+      # consensus sessions from the parser ones in the Actions tab
       - name: Upload the sessions and the reports
         if: always()
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
-          name: mutation-sessions
+          name: mutation-${{ matrix.slug }}-sessions
           path: |
             *.sqlite
             *-survivors.txt

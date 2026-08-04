@@ -3959,6 +3959,42 @@ edit.
 
 ### Tests
 
+- **the boundaries the first parser mutation session found unconstrained
+  are tests now** (issue #327). Every one was a check the suite executed
+  without pinning, so a wrong version of it would have gone unnoticed: a
+  tx_id length refused from below only, where 33 bytes are an outpoint that
+  serializes back to 37; the largest number a two- or four-byte `var_int`
+  holds, which a canonical minimum one short of its value accepts;
+  `MAX_SIZE`'s value, every test around the cap holding for whatever the
+  constant is; the non-canonical message naming the width the number was
+  written in; the four-byte range of a version, a lock time and a sequence
+  at both ends rather than at one; the version window `assert_standard`
+  reads as signed, whose corners answer differently from `assert_valid`'s
+  range; the coinbase script_sig's 2 to 100 bytes, both included;
+  `assert_valid` asking every input and every output, which only a
+  transaction whose sums are fine can reach; the legacy sigop count being
+  the sum of both lists rather than a bitwise mix of them, one sigop on
+  each side being the case that tells those apart; and an output value read
+  as unsigned, the octets that tell the two readings apart being refused
+  before the conversion sees them
+- **three assertions that could not fail say something now.** `assert
+  tx_in.nSequence == tx_in.nSequence` compared the property with itself in
+  three places, so the alias it is there to check was never read; `assert
+  tx_in == tx_in2 or TX_IN_COMPARES_WITNESS` passes whichever way that flag
+  is set, and the two halves are now separate assertions; and a
+  non-shuffled `join` was held to equalling *another* non-shuffled join,
+  which two shuffled ones satisfy every other attempt with two inputs — so
+  the order it keeps is asserted against the concatenation it was given,
+  over six inputs and six outputs, where a shuffle agrees once in 720. `Tx`
+  being a dataclass is a promise too, and `dataclasses.fields` is what
+  reads it: the constructor, the comparison and every conversion are
+  written out, so the decorator is left holding the field list and the
+  repr, and nothing asked for either
+- **a coinbase input in a non-coinbase transaction has a test of its own.**
+  That refusal was the one statement of `btclib/tx` that no test under
+  `tests/tx` reached: a script_engine vector did, which is a verdict on the
+  engine and none on the transaction, and it left the parser profile's
+  baseline one statement short of the scope it mutates
 - **the ten blocks Bitcoin Core carries in `blockfilters.json` are
   vendored and parsed** (issue #274). Core publishes no block-validity
   vector file — `src/test/data/` holds no block, and the two suites that
@@ -4451,6 +4487,52 @@ edit.
 
 ### Packaging, linting and CI
 
+- **mutation testing reaches the wire format**, a third configuration and a
+  second job (issue #327). `.github/mutation/parsers.toml` mutates
+  `btclib/tx/` with the `var_int` and `var_bytes` codecs under it: the
+  transaction encodings are where two of the five defects that opened the
+  issue lived — a fixed-width field that took a truncated read and
+  normalized it on serialization, and an octet parser that ignored what
+  followed the object (#322) — and both were inside a tree measuring 100%,
+  which is #219's question again on a different boundary. One
+  configuration and not three, `module-path` taking a list of paths as well
+  as a path, because one test command judges all six modules; and it names
+  `tests/parse_contract_test.py`, `tests/integer_policy_test.py` and
+  `tests/check_validity_test.py` beside the module suites, each for a class
+  of mutant the module suites cannot see. The last of those is the cheapest
+  fourteen kills in the profile: cosmic-ray turns the `*` of a keyword-only
+  marker into `/`, which moves `check_validity` into a positional slot, and
+  the ast walk in that file is the only thing that fails on it. Measured
+  before the budget was written, and the numbers are what the issue asked
+  for rather than an estimate: 1035 mutants, 88 skipped, the 947 that ran
+  taking 4 min 43 s of cpu, 54 surviving. So this profile *finishes*,
+  where the engine's five and a half hours are sampled — which is what
+  makes a survival rate comparable with the week before. Its own job, in
+  parallel with the consensus one and under a 60-minute ceiling, because
+  the two sessions there already spend 180 of the 200 minutes that job has:
+  the jobs are now a matrix over profiles, each cell naming its
+  configurations and their budgets, so a scope added next takes nothing
+  from the ones already measured. One artifact per profile, two uploads
+  under one name being an error, so `mutation-sessions` is now
+  `mutation-consensus-sessions` beside `mutation-parser-sessions`
+- **`cr-filter-operators` runs between `init` and `exec`** for every
+  configuration, and is a no-op for one that excludes no operator, so the
+  decision stays in the toml rather than in the workflow. What
+  `parsers.toml` excludes is the `|` of a type annotation: all four modules
+  open with `from __future__ import annotations`, so `Sequence[TxIn] | None`
+  is an unevaluated string, and cosmic-ray's eleven replacements for that
+  operator are 88 mutants nothing can reach. Measured rather than argued: an
+  unfiltered session over the same scope reports 142 survivors and every one
+  of those 88 is among them, so filtering leaves the 54 that are worth
+  reading and spends two minutes less, a survivor costing the whole test
+  command. Excluded by operator rather than with a
+  `# pragma: no mutate` on each of the 37 annotations, which is what
+  `sig_hash.toml` refused for six of them: a pragma is a line of library
+  source added for the benefit of a weekly report. The price is stated
+  where it is paid — a real `a | b` added to one of these modules would be
+  skipped in silence, and the grep that re-derives the claim is beside the
+  exclusion — as is what a skip does to the one number the workflow prints:
+  `cr-rate` counts a result that is not SURVIVED as a kill
 - **the bindings dependency states its policy where the pin is** (issue
   #325). `btclib_libsecp256k1>=0.7.1` has no upper bound, and the
   absence of a ceiling is now written down as the decision it is:
