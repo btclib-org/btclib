@@ -17,6 +17,17 @@ and what BIP324's v2 handshake needs of the keys it carries.
 
 https://github.com/bitcoin/bips/blob/master/bip-0324.mediawiki
 
+This module stops at ElligatorSwift key encoding and x-only ECDH. It does
+not implement BIP324's v2 transport: HKDF-SHA256, ChaCha20-Poly1305,
+forward-secure rekeying, length obfuscation, and packet framing are
+outside btclib's scope. Those belong beside a P2P client, which btclib
+does not provide. Shipping them here would either put a pure-Python cipher
+on a production network path or make a new cipher dependency mandatory for
+every installation; accepting a cipher from the caller would still
+leave a framing layer that is not useful on its own. A complete transport
+belongs in a separate optional package or extra, backed by an established
+cryptographic implementation and BIP324's packet vectors.
+
 `decode` is the map, and it is deterministic. `encode` and `create` are
 its inverse, and are not: up to eight (u, t) pairs decode to one
 x-coordinate, one of them is picked at random, and the randomness is the
