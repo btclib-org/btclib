@@ -20,10 +20,16 @@ deliberate addition is one line here and an accidental one is a failure.
 
 from __future__ import annotations
 
+from importlib import import_module
+from pkgutil import iter_modules
+
+import btclib
 import btclib.curves
 import btclib.ecc
 import btclib.mnemonic
+import btclib.script
 from btclib.curves import curve_group, curve_group_2
+from btclib.script import script_pub_key
 
 
 def test_ec_exports_the_curve_api_not_the_benchmark() -> None:
@@ -108,6 +114,25 @@ def test_ecc_exports_the_signature_schemes() -> None:
     assert btclib.ecc.bms.dsa is btclib.ecc.dsa  # type: ignore[attr-defined]
 
 
+def test_script_exports_both_halves_of_every_pair() -> None:
+    """`is_x` beside `assert_x`, and `address` beside `addresses`.
+
+    Written as the pairing rather than as the list of names, because the
+    pairing is the invariant: a script type added to `script_pub_key`
+    brings both halves, and exporting one of the two is what this catches.
+    """
+    for name in ("address", "addresses"):
+        assert name in btclib.script.__all__
+
+    types = sorted(n[3:] for n in vars(script_pub_key) if n.startswith("is_"))
+    assert types  # a typo in the prefix would otherwise pass silently
+    for script_type in types:
+        for prefix in ("is_", "assert_"):
+            name = f"{prefix}{script_type}"
+            assert hasattr(script_pub_key, name), f"{name} went missing"
+            assert name in btclib.script.__all__, f"{name} is not exported"
+
+
 def test_mnemonic_exports_its_three_schemes() -> None:
     """Verify bip39, electrum and slip39 are exported and importable."""
     for name in ("bip39", "electrum", "slip39"):
@@ -117,7 +142,25 @@ def test_mnemonic_exports_its_three_schemes() -> None:
 
 
 def test_every_exported_name_exists() -> None:
-    """An `__all__` entry that names nothing is a broken `import *`."""
-    for package in (btclib.curves, btclib.ecc, btclib.mnemonic):
-        for name in package.__all__:
+    """An `__all__` entry that names nothing is a broken `import *`.
+
+    Every package of the library, found rather than listed: a package added
+    to btclib is a package this checks, where a list here would be one more
+    thing to keep true -- and it is what caught `btclib.script` being
+    outside the four names this used to hold. Nested packages are not
+    walked, `btclib.script.engine` being the only one; asking `pkgutil` to
+    walk them would import every module of the library, which
+    tests/imports_test.py already does deliberately and one module at a
+    time.
+    """
+    packages = [
+        import_module(f"btclib.{name}")
+        for _, name, is_package in iter_modules(btclib.__path__)
+        if is_package
+    ]
+    assert packages, "no package found under btclib"
+    for package in packages:
+        names = getattr(package, "__all__", None)
+        assert names, f"{package.__name__} declares no __all__"
+        for name in names:
             assert hasattr(package, name), f"{package.__name__}.{name} is not there"

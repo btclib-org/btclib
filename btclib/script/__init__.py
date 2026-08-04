@@ -21,6 +21,7 @@ from btclib.script.script import (
 from btclib.script.script_pub_key import (
     ScriptPubKey,
     address,
+    addresses,
     assert_nulldata,
     assert_p2ms,
     assert_p2pk,
@@ -29,6 +30,7 @@ from btclib.script.script_pub_key import (
     assert_p2tr,
     assert_p2wpkh,
     assert_p2wsh,
+    assert_segwit,
     is_nulldata,
     is_p2ms,
     is_p2pk,
@@ -39,6 +41,7 @@ from btclib.script.script_pub_key import (
     is_p2tr,
     is_p2wpkh,
     is_p2wsh,
+    is_segwit,
     type_and_payload,
 )
 from btclib.script.sig_ops import sig_op_count
@@ -60,6 +63,7 @@ __all__ = [
     "TaprootScriptTree",
     "Witness",
     "address",
+    "addresses",
     "assert_nulldata",
     "assert_p2ms",
     "assert_p2pk",
@@ -68,6 +72,7 @@ __all__ = [
     "assert_p2tr",
     "assert_p2wpkh",
     "assert_p2wsh",
+    "assert_segwit",
     "check_output_pubkey",
     "input_script_sig",
     "is_nulldata",
@@ -78,6 +83,7 @@ __all__ = [
     "is_p2tr",
     "is_p2wpkh",
     "is_p2wsh",
+    "is_segwit",
     "op_int",
     "output_prvkey",
     "output_pubkey",

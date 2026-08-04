@@ -2931,6 +2931,17 @@ edit.
   seeing which is the signer's, so the recoverable spelling publishes
   nothing the plain one keeps. `docs/source/guide.rst` has the round trip
   as a worked example, next to `sign` and `verify` (issue #285)
+- **`btclib.script` exports both halves of every pair it exports one of**:
+  `addresses` beside the `address` that was there, and `is_segwit` with
+  `assert_segwit`, which were the one missing pair of the nine
+  `script_pub_key` defines — the file already carries a comment recording
+  that this audit was run once, for `is_p2pkh`, and it caught eight of the
+  nine. `tests/all_test.py` now asserts the pairing itself rather than a
+  list of names, so a script type added to `script_pub_key` has to bring
+  both halves, and `test_every_exported_name_exists` walks every package
+  of the library rather than the four it named: a package added to btclib
+  is a package it checks, and it is what found `btclib.script` outside the
+  list.
 
 ### Types
 
