@@ -709,11 +709,12 @@ class BitcoindRpcClient:
         try:
             body = json.dumps(request, allow_nan=False, default=_refuse_param).encode()
         except ValueError as e:
-            # the walk above refuses every value json refuses and says
-            # which one, so what is left for this to catch is whatever a
-            # later Python adds to the encoder's own refusals. It is still
-            # about the parameters, this being the only part of a request
-            # that is not built here
+            # an int of more digits than `sys.get_int_max_str_digits`
+            # allows, which is the mirror of the limit a *reply* holding
+            # one runs into: json has the number and this interpreter will
+            # not write it. The walk above refuses the types json has no
+            # rendering for, and this is a value of a type it does, so the
+            # encoder is where it surfaces
             raise BTClibValueError(f"rpc params json cannot carry: {e}") from e
         status, payload = http_request(
             self.url,

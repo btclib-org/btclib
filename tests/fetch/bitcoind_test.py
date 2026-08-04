@@ -720,6 +720,19 @@ def test_an_error_for_someone_elses_request_is_refused() -> None:
     assert not isinstance(exc.value, RpcError)
 
 
+def test_a_legacy_reply_to_someone_elses_request_is_refused() -> None:
+    """The correlation is checked on the path that reads a 1.1 reply too.
+
+    A 200 rules out the status being the failure, so what is left to say
+    about a reply carrying another call's id is that it is not this call's
+    answer -- the same conclusion the 2.0 path reaches, by a different
+    route through the same two facts.
+    """
+    body = json.dumps({"result": 1, "error": None, "id": "another"}).encode()
+    with pytest.raises(FetchError, match="reply id 'another' is not the"):
+        verbatim((200, body)).call("getblockcount")
+
+
 def test_an_rpc_error_object_is_an_rpc_error_with_the_code() -> None:
     """Core's own message for a node without -txindex, and its code."""
     body = recorded_body("getrawtransaction_error.json")
@@ -879,6 +892,19 @@ def test_a_status_survives_a_body_no_parser_can_read(body: bytes) -> None:
     with pytest.raises(HttpError) as exc:
         client((503, body)).call("getblockcount")
     assert exc.value.status == 503
+
+
+def test_a_number_too_long_for_this_interpreter_to_write() -> None:
+    """The mirror of the reply-side limit, on the way out.
+
+    json has the number and Python will not render it, so this is a value
+    of a type json takes rather than one of a type it refuses -- which is
+    why the walk over the parameters cannot catch it and the encoder is
+    where it surfaces.
+    """
+    endpoint = client((200, recorded_body("getblockcount.json")))
+    with pytest.raises(BTClibValueError, match="rpc params json cannot carry"):
+        endpoint.call("send", [10**5000])
 
 
 def test_a_number_too_long_for_this_interpreter_to_read() -> None:
