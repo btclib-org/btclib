@@ -65,6 +65,27 @@ edit.
   `_config.yml`'s `exclude:` lists it beside CLAUDE.md and RELEASING.md,
   since a file in master's root is a URL under btclib.org otherwise, and a
   branch rule's app ids are not a page a visitor wants.
+- **The primary checkout is the maintainer's, and no session works in it.**
+  It is their window on the tree — what is open in their editor, what they
+  have half-staged, the branch they are looking at — and one working tree
+  has one index and one HEAD to lose, so an edit, a `git add`, a branch
+  switch, a rebase or a `pre-commit run` there is somebody else's work
+  being rewritten. CLAUDE.md now says so, and says that a worktree per
+  session is the whole of the alternative: reading the primary checkout
+  stays fine, `git fetch` included, since it writes refs and leaves the
+  work tree alone. What the advisory lock file it replaces could not do is
+  bind a session that never read the file it was described in.
+- **A pull request under review is corrected by a commit on top, never by
+  an amend, and is merged with "Squash and merge"** (CONTRIBUTING.md's
+  "Pull Request" section). An amend and a force-push replace the commits
+  the review is attached to: the reviewer loses the diff they read,
+  "changes since your last review" has nothing to compare against, and
+  every check restarts from a commit nobody has seen. The squash is what
+  makes that free — the branch lands as one commit whose subject is the
+  pull request title with its number, so `dev` keeps one commit per change
+  while the review keeps its own. The one force-push still right is the
+  one carrying no new work, a `git rebase origin/dev` on a branch whose
+  base has moved.
 
 ### Security
 

@@ -69,70 +69,50 @@ carries the same layout as a table, and each of the six modules states
 its own direction in its docstring — six places, if the direction ever
 changes.
 
-## The shared checkout
+## The primary checkout is the maintainer's
 
-**Take the lock before the first edit.** Working in the shared checkout
-is what lets the maintainer watch the edits as they happen, so it is not
-reserved for the awkward cases — but only one session can have it,
-because one working tree has one index and one HEAD: a plain `git commit`
-(or `git add -A`) there picks up whatever another session has staged, and
-`git rebase`, `git stash` and the `pre-commit` hooks that fix files in
-place rewrite or shelve files that are not this session's.
+**Never work in it.** No edit, no `git add`, no commit, no branch switch,
+no rebase, no `git stash`, no `pre-commit run` — the hooks fix files in
+place. It is the maintainer's window on the tree: whatever is open in
+their editor, whatever they have half-staged, and the branch they are
+looking at are theirs, and one working tree has one index and one HEAD to
+lose. Reading it is fine — `git log`, `git show`, `git diff`, `gh`, and a
+`git fetch`, which writes refs and leaves the work tree alone.
+
+**Every session works in a worktree**, its own, from the first edit:
 
 ```shell
-LOCK="$(git rev-parse --path-format=absolute \
-  --git-common-dir)/claude-shared-tree.lock"
-( set -C; printf 'session %s\npid %s\nsince %s\ntask %s\n' \
-  "$CLAUDE_CODE_SESSION_ID" "$CLAUDE_PID" "$(date -u +%FT%TZ)" \
-  "<the task, one line>" > "$LOCK" ) 2>/dev/null \
-  && echo "shared tree: mine" || cat "$LOCK"
+WT=<scratchpad>/wt<issue>
+git worktree add -b <branch> "$WT" origin/dev
+cd "$WT" && uv sync --locked          # a second venv, about a minute
+# edit, gate and commit here, then
+git push origin HEAD:refs/heads/<branch>
+git worktree remove --force "$WT"     # removing it is part of finishing
 ```
 
-`set -C` (noclobber) makes the redirection fail when the file is already
-there, so testing and taking are one atomic step. The path is the
-*common* dir because a file in the repository root would be per-worktree,
-i.e. invisible to exactly the sessions that have to see it; being outside
-the work tree it also needs no `.gitignore` entry. `rm "$LOCK"` when the
-work is pushed: releasing is part of finishing, like removing a worktree.
+The venv is the whole of the cost, and it buys the thing that matters: a
+commit cannot contain work that was never in it. Expect `origin/dev` to
+move while you work, so `git fetch && git rebase origin/dev` before
+pushing, resolving in favour of *both* sides (their change and yours,
+both CHANGELOG.md bullets).
 
-**Locked out means worktree**, which is the cheap side of the trade:
-`git worktree add --detach <scratchpad>/wt<issue> dev`, `uv sync
---locked` in it (a second venv, about a minute), then edit, gate and
-commit *there*, `git push origin HEAD:dev`, and `git worktree remove
---force` at the end. Nothing destructive reaches a file the other session
-holds, and the commit cannot contain their work because their edits were
-never in it. Expect the push to be rejected — `origin/dev` moves while
-you work — so `git fetch && git rebase origin/dev` in the worktree,
-resolving in favour of *both* sides (their change and yours, both
-CHANGELOG.md bullets).
+**Never `git stash` in a worktree either: `refs/stash` is shared.** A
+worktree isolates files, not refs. The stash is a single ref in the
+common `.git`, so `git stash push` pushes onto the same stack every other
+session pops from — and on a clean tree it creates nothing, so the `git
+stash pop` that follows applies and *drops* whatever another session
+shelved. Commit to your own branch instead: a branch is per-worktree in
+the way the stash only looks to be. What is already lost is still in the
+object store — `git fsck --unreachable` names the commit and `git stash
+store <sha>` puts the ref back.
 
-Two things not to do while their lock is held. Do not move
-`refs/heads/dev`: `git update-ref` leaves their files alone but moves the
-base under them, and their next commit, built on the older copy, would
-revert what just landed. And if your change is already sitting in the
-shared tree, carry it out as a patch (`git diff -- <paths> | git -C
-<worktree> apply`), which refuses rather than clobbers if they have
-touched the same file.
-
-**Never `git stash` in a worktree: `refs/stash` is shared.** A worktree
-isolates files, not refs. The stash is a single ref in the common `.git`,
-so `git stash push` pushes onto the same stack every other session pops
-from — and on a clean tree it creates nothing, so the `git stash pop`
-that follows applies and *drops* whatever another session shelved. Commit
-to your own branch instead: a branch is per-worktree in the way the stash
-only looks to be. What is already lost is still in the object store —
-`git fsck --unreachable` names the commit and `git stash store <sha>`
-puts the ref back.
-
-**A stale lock is a dead pid, and that is testable.** The file records
-the holder's `CLAUDE_PID`, the Claude Code process itself and not the
-shell of one command, so `kill -0 <pid>` answers whether the holder still
-exists: dead, and the lock is yours to overwrite — say so; alive, and a
-worktree costs a venv while taking their tree costs their work. An idle
-session is not a dead one, and a pid can be recycled across a reboot, so
-the lock stays advisory: keep using `git add <paths>` rather than `git
-add -A`, since a session that never read this file cannot honour any of
-it.
+**Do not rewrite `refs/heads/dev`, or advance it with work that is not
+yours.** `git update-ref`, or a push carrying another session's commits,
+leaves every working tree's files alone and moves the base under them, so
+their next commit — built on the older copy — reverts what just landed.
+Your own branch is what you push, and the pull request is what moves
+`dev`: CONTRIBUTING.md's "Pull Request" section has how a branch under
+review is corrected and how it is merged.
 
 ## Non-obvious facts that will otherwise waste a session
 
