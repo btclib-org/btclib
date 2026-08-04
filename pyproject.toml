@@ -33,12 +33,14 @@ license = "MIT"
 license-files = ["LICENSE", "AUTHORS.md"]
 authors = [{ name = "The btclib developers", email = "devs@btclib.org" }]
 # Python 3.9 is end-of-life since 2025-10, and keeping it out buys more
-# than one fewer column in the matrix: a fresh resolve at ">=3.9" splits
-# 35 of the 132 locked packages into a modern version and an older one
-# reachable only from 3.9 -- mypy 1.19 beside 2.3, pytest 8.4 beside 9.1,
-# hypothesis 6.141 beside 6.164 -- so 3.9 jobs would be the only ones not
-# testing against what everybody else runs. At ">=3.10" the lock holds 99
-# packages and 4 splits, all four at the 3.11 docs boundary.
+# than one fewer column in the matrix: a fresh resolve at ">=3.9" splits a
+# large part of the lock into a modern version and an older one reachable
+# only from 3.9 -- the type checker, the test runner and the property-based
+# testing library all appear twice -- so 3.9 jobs would be the only ones
+# not testing against what everybody else runs. At ">=3.10" few packages
+# split at all. How many, at either floor, is a question for the resolver
+# rather than for a number here that every dependency bump moves: edit this
+# floor, `rm uv.lock`, `uv lock`, read the answer, `git checkout uv.lock`.
 # 3.10 is also the oldest mypy can be aimed at (tool.mypy below), so the
 # floor and the type checker's target agree
 requires-python = ">=3.10"
@@ -184,21 +186,21 @@ ignore = [
 # where the tests are, so a bare "pytest" from the root collects them and
 # nothing else, whatever else the tree grows
 testpaths = ["tests"]
-# -ra summarizes everything that was not a plain pass. On a matrix of 42
-# jobs a skip, an xfail or a warning is otherwise invisible: it is not a
-# failure, so nobody opens the log to find it.
+# -ra summarizes everything that was not a plain pass. Across a matrix of
+# interpreters and platforms a skip, an xfail or a warning is otherwise
+# invisible: it is not a failure, so nobody opens the log to find it.
 # --strict-config makes a typo in this very table an error rather than a
 # warning that scrolls past a hundred lines of dots, and --strict-markers
 # does the same for a marker nobody registered, which is how a misspelled
 # skipif silently stops skipping
 # --dist worksteal rather than xdist's default `load`, because the cost
 # here is lopsided: the taproot vectors of
-# tests/script_engine/python_path_test.py carry the slowest cases in the
-# suite and a large part of its work, orders of magnitude above the median
-# test. `load` hands out the queue in chunks and a worker that draws
-# several of those finishes long after the others; worksteal lets an idle
-# worker take back what is queued behind a busy one. Measured on the tree,
-# best of three:
+# tests/script_engine/python_path_test.py carry most of the suite's slowest
+# cases and a large part of its work, orders of magnitude above a median
+# test that --durations rounds to zero. `load` hands out the queue in
+# chunks and a worker that draws several of those finishes long after the
+# others; worksteal lets an idle worker take back what is queued behind a
+# busy one. Measured on the tree, best of three:
 # tests/README.md carries the two things that do *not* help -- reordering
 # the slow module first, and any -n other than auto -- and the commands
 # that measure all three again, no wall clock here surviving the suite it
@@ -223,8 +225,8 @@ xfail_strict = true
 # pypy, there is time to act on it only if it is not silent.
 # The list carries no ignore, and no test silences a warning wholesale:
 # the one btclib emits, BTClibUserWarning, is asserted with pytest.warns
-# where a test provokes it deliberately, and silenced by category alone at
-# the single call in tests/script_engine that provokes it incidentally.
+# where a test provokes it deliberately, and silenced by category alone
+# where tests/script_engine provokes it incidentally.
 # A blanket simplefilter("ignore") would defeat this table, which is why
 # there is none: checked on 3.10, 3.14, 3.14t and pypy3.11. An ignore added
 # here should name the warning, not a module, and say what would let it be
@@ -253,8 +255,8 @@ skip = "*/_data/*.json,*/_data/*.csv,*/_data/*.txt,*/_data/*.bin,*/_generated_fi
 ignore-words-list = "wit,nd"
 # a misspelling written on purpose goes in backticks, and that is a
 # convention of this repository rather than a preference: prose that
-# documents a spell checker has to name what it catches, and the paragraph
-# below costs codespell five findings in this very file without the rule.
+# documents a spell checker has to name what it catches, and the prose
+# below costs codespell a finding for every one of them without the rule.
 # codespell has no per-file configuration, so it holds everywhere
 # it reads; what the rule hides from it is what is written inside
 # backticks, i.e. identifiers, which are typos' half of the work and not
@@ -267,10 +269,10 @@ ignore-regex = '`[^`]*`'
 # codespell matches whole words against a curated list of misspellings,
 # and its word regex keeps the hyphen inside the token: `y-simmetry` and
 # `hex-strin` are one word each, in no dictionary, and therefore silent --
-# measured, with every builtin enabled it reported nothing on the six
-# typos this hook found, while reporting a free-standing `simmetry` in the
-# same run. That is the blindness the #161 entry in CHANGELOG.md records
-# and worked around by splitting 592 identifiers by hand; typos splits
+# measured, with every builtin enabled it reported nothing on the typos
+# this hook found, while reporting a free-standing `simmetry` in the same
+# run. That is the blindness the #161 entry in CHANGELOG.md records and
+# worked around by splitting identifiers by hand; typos splits
 # hyphens, snake_case and camelCase itself. Its dictionary also has
 # entries codespell's lacks, `bitcon` -- in README.md, which is both the
 # btclib.org homepage and the PyPI long description -- and `threshould`.
@@ -352,8 +354,8 @@ extend-ignore-re = ['`[^`]*`']
 # Ignored by shape and not by file, as [tool.typos.default]'s literal rule
 # above is: a lower-case letter followed by an upper-case one inside one
 # word is the shape, so the prose and the identifiers of the same file stay
-# checked. Two words trip it today, and the rule covers the class because
-# which of the twelve trips it is a fact about a dictionary that updates
+# checked. Some of those words trip it today, and the rule covers the class
+# because which of them trips it is a fact about a dictionary that updates
 extend-glob = ["electrum_test.py"]
 extend-ignore-re = ['\w*[a-z][A-Z]\w*']
 
@@ -404,7 +406,7 @@ strict = true
 show_column_numbers = true
 show_error_codes = true
 # the optional error codes strict does not turn on, surveyed one by one
-# over btclib and tests: these nine find nothing today, so each is a
+# over btclib and tests: each of them finds nothing today, so each is a
 # ratchet and none is a cleanup. Two carry their own weight beyond that --
 # ignore-without-code makes every "type: ignore" name the rule it
 # silences, so a blanket one cannot creep in, and deprecated reports a
@@ -530,10 +532,9 @@ ignore = [
     "D413", # blank-line-after-last-section
     # code length is enforced by the formatter, which reflows to its 88
     # columns everything it is allowed to rewrite. What is left for E501
-    # to find is what no width can break: 267 lines today, almost all of
-    # them a test vector, an extended key or a base64 signature on one
-    # line. The prose the formatter never touches is measured instead by
-    # max-doc-length below
+    # to find is what no width can break, almost all of it a test vector,
+    # an extended key or a base64 signature on one line. The prose the
+    # formatter never touches is measured instead by max-doc-length below
     "E501", # line-too-long
     # uppercase math symbols (M, R, Q, ...) are variables, not constants:
     # ruff mistakes comparisons against them for Yoda conditions
@@ -606,8 +607,8 @@ max-complexity = 10
 # W505 is in the "W" set selected above and is inert without this line,
 # ruff having no default doc length; setting it is the whole of the
 # switch. A comment that ends in a URL is exempt, which is the amnesty
-# MD013 gives an unbreakable link: the 20 comments still over 80 columns
-# are every one of them a link, and none is a defect
+# MD013 gives an unbreakable link: the comments still over 80 columns are
+# every one of them a link, and none is a defect
 max-doc-length = 80
 
 [tool.ruff.lint.pydocstyle]

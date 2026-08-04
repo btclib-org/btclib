@@ -4765,6 +4765,32 @@ edit.
   suite's work nor a wall clock per case: the imbalance that argues for
   worksteal is which tests are the slowest and by how many orders of
   magnitude, and that outlives any number of seconds
+- **Neither pyproject.toml nor tests/README.md states a count a commit can
+  falsify, and most of the counts they did state were already false.** The
+  suite applies `usefixtures` and `skipif` beside `parametrize`, where the
+  README said only `parametrize`; `--durations` names a test in
+  `tests/ecc/dsa_test.py` as the slowest in the suite, where both files
+  named the `tapscript-bigmulti` cases; `-ra`'s comment described a matrix
+  of 42 jobs, which is what 6 platforms by 7 interpreters would build and
+  not the 14 the 4 commented-out platforms leave; the requires-python
+  comment split 35 of 132 locked packages at `">=3.9"` and counted 99 with
+  4 splits at `">=3.10"`, where the lock holds 122 and splits 5;
+  codespell's `ignore-regex` was worth 5 findings in this file and is worth
+  7; E501's comment left 267 unbreakable lines, which are 469; W505's left
+  20 over-long comments, which are 19. The counts that were still true went
+  with them — the 9 mypy error codes the next line lists anyway, the one
+  `simplefilter` call, and the 12 camelCase words, 6 typos and 592
+  identifiers of measurements no run repeats — each being a line that the
+  next bump has to edit, and none of them the reason the setting is what it
+  is. What stands in their place is the mechanism, or the command that
+  answers today: `--durations=0 --durations-min=0` for the whole
+  distribution rather than the tail above 5 ms, a `-p` plugin for the
+  collection-order question, `rm uv.lock && uv lock` at either floor for
+  the resolver, and the hook with its rule taken out for what a spell
+  checker would say. tests/README.md also states why it gives commands and
+  not numbers: another checkout's `pre-commit` run on the same machine
+  doubles the baseline, so a comparison of a second or two is worth reading
+  only as best of three with nothing else running
 - **`assert_nulldata` says which question it answers** (issue #211). The
   rule it applies — OP_RETURN and one minimal push, total length neither
   78 nor above 83 — is standardness policy, and narrower than the
