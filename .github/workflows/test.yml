@@ -52,16 +52,15 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  # what the matrix buys: btclib_libsecp256k1 is built from source (see
-  # tool.uv.sources), so every (os, architecture, interpreter) triple is a
-  # distinct C toolchain, and the pure Python code meets a distinct
-  # hashlib and OpenSSL.
+  # what the matrix buys: every (os, architecture, interpreter) triple
+  # selects a different published wheel of btclib_libsecp256k1, each with
+  # its own compiled libsecp256k1 inside, and the pure Python code meets a
+  # distinct hashlib and OpenSSL.
   # windows-11-arm needs no special handling, and that is worth a word:
   # which architecture the interpreter targets there is up to the runner
   # image, native arm64 for the versions it caches and emulated x86-64
-  # for the ones uv has to download, and the bindings build the vendored
-  # library for the interpreter rather than for the host, so either one
-  # links
+  # for the ones uv has to download, and the wheel is selected for the
+  # interpreter rather than for the host, so either one links
   test-py:
     runs-on: ${{ matrix.os }}
     strategy:
@@ -99,8 +98,8 @@ jobs:
             "3.14t",
             "pypy3.11",
           ]
-    # the bindings are compiled here, so this is not instantaneous; what
-    # it bounds is a hung job holding a runner for six hours
+    # far above what a run of the suite needs: what it bounds is a hung
+    # job holding a runner for six hours
     timeout-minutes: 30
     steps:
       # every action is pinned to a commit SHA, the tag in the comment: a
@@ -214,6 +213,21 @@ jobs:
       # being 10 today
       - name: Rate the packaging metadata
         run: uv run --locked --only-group build pyroma --min 10 dist/*.tar.gz
+      # what none of the three above does: install the wheel. From an empty
+      # directory, so the import resolves to the wheel and not to the
+      # btclib/ source tree, and without the lock, so the dependency is
+      # resolved from PyPI by the declared pin -- the only check here that
+      # asks whether what is published can satisfy what is declared.
+      # The version is asserted, not merely printed: btclib.__version__
+      # falls back to "unknown" when no metadata is installed (issue #150),
+      # so a wheel shipping none, or an import resolving to a source tree
+      # rather than to the wheel, would print that and pass
+      - name: Smoke-test the wheel, with its dependencies from PyPI
+        run: |
+          cd "$RUNNER_TEMP"
+          uv run --isolated --no-project --with "$GITHUB_WORKSPACE"/dist/*.whl \
+            python -c "import btclib; print(btclib.__version__); \
+              assert btclib.__version__ != 'unknown'"
 
   # the single check master's branch protection requires from this
   # workflow, and it exists because that rule names its checks as literal

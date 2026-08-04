@@ -25,17 +25,13 @@ build:
     python: "3.13"
   # build.commands rather than the sphinx: and python: keys, which cannot
   # express this and are rejected when it is present.
-  # autodoc has to import btclib, so btclib has to be installed, and
-  # installing it means resolving btclib_libsecp256k1, whose pin is
-  # satisfiable only from git -- see tool.uv.sources in pyproject.toml.
-  # What read the docs can express natively is "pip install .", and pip
-  # does not read tool.uv.sources, so that install fails on the one
-  # dependency the library is built around. uv is therefore the only thing
-  # that can build these docs, which is also why there is no
-  # docs/requirements.txt: the docs dependency group in pyproject.toml is
-  # the single declaration, and uv.lock pins it, where a requirements
-  # file would be unpinned and kept in step by a header asking a human to
-  # do it.
+  # autodoc has to import btclib, so btclib has to be installed, and what
+  # read the docs can express natively is "pip install ." plus a
+  # requirements file. uv installs the docs dependency group instead,
+  # from uv.lock, which is why there is no docs/requirements.txt: the
+  # group in pyproject.toml is the single declaration and the lock pins
+  # it, where a requirements file would be unpinned and kept in step by a
+  # header asking a human to do it.
   # uv itself is not pinned, deliberately: no dependabot ecosystem watches
   # this file, so a pin here is a version nobody bumps, and --locked makes
   # the uv version irrelevant to what gets installed -- uv.lock decides

@@ -154,7 +154,6 @@ review is corrected and how it is merged.
   `git commit` dies with `No module named pre_commit`. `uv sync` restores
   it. Without `--python` the same command prunes nothing, so it is the
   interpreter and not the groups that triggers it.
-- `uv run --no-sources` rewrites `uv.lock`; restore it before committing.
 - **The version is declared once**, in `pyproject.toml`.
   `btclib.__version__` reads it back with `importlib.metadata`, and
   `docs/source/conf.py` parses the file (not the metadata, which would

@@ -54,13 +54,11 @@ requires-python = ">=3.10"
 # breaking changes in the minor. CONTRIBUTING.md states the policy, and
 # what it costs an artifact that is no longer supported.
 #
-# The lower bound explicitly includes a prerelease, which opts this direct
-# dependency into uv's default `if-necessary-or-explicit` strategy.
-# Packaging tools otherwise generally exclude prereleases, except when no
-# final or post-release satisfies the specifier or the user asks for them
-# explicitly. A satisfying stable release stays preferred, so publishing a
-# final 0.7.1 makes it the selected candidate without changing this bound
-dependencies = ["btclib_libsecp256k1>=0.7.1rc1"]
+# The lower bound names a final release and no prerelease, which is what
+# keeps packaging tools at their default: a specifier naming one opts the
+# dependency into resolving prereleases, and 0.7.1 is what btclib is
+# developed and tested against
+dependencies = ["btclib_libsecp256k1>=0.7.1"]
 keywords = [
     "bitcoin",
     "cryptography",
@@ -145,16 +143,6 @@ dev = [
     { include-group = "docs" },
     { include-group = "mutation" },
 ]
-
-[tool.uv.sources]
-# development and CI track the bindings under development, not the
-# released ones: this is uv-only metadata, so the published btclib keeps
-# depending on plain btclib_libsecp256k1 from PyPI.
-# The branch is where a re-lock looks, not something uv.lock follows: a
-# lock entry always records the commit it resolved, so tracking the head
-# is `uv lock --upgrade-package btclib_libsecp256k1`, deliberately, and
-# every CI command passes --locked to get the commit that was tested
-btclib_libsecp256k1 = { git = "https://github.com/btclib-org/btclib_libsecp256k1", branch = "dev" }
 
 [tool.setuptools.packages.find]
 include = ["btclib*"]

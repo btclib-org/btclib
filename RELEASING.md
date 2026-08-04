@@ -65,11 +65,9 @@ pyroma), build, wheel smoke test — and publishes to
 ## Release to PyPI
 
 1. Make sure the released btclib_libsecp256k1 satisfies the pin in
-   pyproject.toml. Development tracks the bindings' dev branch
-   (`tool.uv.sources`), but the published btclib resolves them from
-   PyPI: if the pin is only satisfied by an unreleased version, release
-   the bindings first. The wheel smoke test fails exactly on this, so a
-   rehearsal catches it.
+   pyproject.toml: if the pin is only satisfied by an unreleased version,
+   release the bindings first. The wheel smoke test of the `dist-py` job
+   fails exactly on this, so every pull request already says so.
 
 1. Set the release version (calendar versioning, `YYYY.M.D`) in
    pyproject.toml, the only place it is declared, and re-lock (the

@@ -36,14 +36,7 @@ tools, including those needed to build the documentation, is then created with:
 uv sync
 ```
 
-Development tracks the
-[btclib_libsecp256k1](https://github.com/btclib-org/btclib_libsecp256k1)
-bindings under development, not the released ones: see tool.uv.sources in
-pyproject.toml. They are compiled from source, so a C toolchain is required
-(cmake comes as a build dependency); the released btclib keeps depending on
-the plain btclib_libsecp256k1 wheels from PyPI.
-
-**The declared dependency is `btclib_libsecp256k1>=0.7.1rc1`, with no
+**The declared dependency is `btclib_libsecp256k1>=0.7.1`, with no
 upper bound**, and the absence of a ceiling is a decision. The bindings are
 a btclib-org project developed by the same people, and their whole purpose
 is to be the bindings this library calls, so a breaking change there is
@@ -62,33 +55,14 @@ promise is about that pair — a bindings release keeps the runtime API the
 supported btclib needs, and an older btclib may one day stop installing or
 running against the newest bindings.
 
-The lower bound explicitly includes a prerelease, which opts this direct
-dependency into uv's default `if-necessary-or-explicit` strategy. Packaging
-tools otherwise generally exclude prereleases, except when no final or
-post-release satisfies the specifier or the user asks for them explicitly:
-see the
+The bound names a final release and no prerelease, which is what keeps
+packaging tools at their default: a specifier naming one opts the
+dependency into resolving prereleases, where they are otherwise excluded
+unless nothing else satisfies the specifier or the user asks for them
+explicitly. See the
 [version-specifiers page](https://packaging.python.org/en/latest/specifications/version-specifiers/#handling-of-pre-releases)
 and
 [uv's prerelease handling](https://docs.astral.sh/uv/concepts/resolution/#pre-release-handling).
-A satisfying stable release remains preferred, so publishing a final
-`0.7.1` makes it the selected candidate without changing this bound.
-
-**`pip install -e .` does not work here, and the error will not say why.**
-tool.uv.sources is uv-only metadata: pip does not read it, so it resolves
-btclib_libsecp256k1 from PyPI, where the newest release is older than the
-`>=0.7.1rc1` this project pins. The constraint is satisfiable only from
-git, so pip reports an unsatisfiable requirement and nothing points at the
-table that would have satisfied it. Use `uv sync`. If you need a
-pip-installed tree anyway, install the bindings from git yourself and then
-the project without its dependencies:
-
-```shell
-pip install git+https://github.com/btclib-org/btclib_libsecp256k1@dev
-pip install -e . --no-deps
-```
-
-Read the docs hits this same wall, which is why `.readthedocs.yaml` drives
-uv rather than pip.
 
 Every command is run inside that environment prefixing it with `uv run`
 (e.g., `uv run pytest`); alternatively, activate the environment once with
@@ -266,13 +240,22 @@ uv run --locked --no-default-groups --group test \
     pytest --cov=btclib --cov=tests
 ```
 
-The `dist-py` job, which inspects what would be published:
+The `dist-py` job, which inspects what would be published and then
+installs it. The last command resolves btclib_libsecp256k1 from PyPI by
+the declared pin rather than from uv.lock, so it is the one that fails
+when the published bindings cannot satisfy what pyproject.toml declares;
+it runs from an empty directory, or the import finds the source tree
+instead of the wheel:
 
 ```shell
 uv build
 uv run --locked --only-group build twine check --strict dist/*
 uv run --locked --only-group build check-wheel-contents dist/*.whl
 uv run --locked --only-group build pyroma --min 10 dist/*.tar.gz
+cd "$(mktemp -d)" && uv run --isolated --no-project \
+    --with "$OLDPWD"/dist/*.whl \
+    python -c "import btclib; print(btclib.__version__); \
+      assert btclib.__version__ != 'unknown'"
 ```
 
 The checks the `release` workflow runs before building anything:
@@ -280,15 +263,6 @@ The checks the `release` workflow runs before building anything:
 ```shell
 uv lock --check
 uv version --short
-```
-
-The `published` workflow, which resolves btclib_libsecp256k1 from PyPI by
-the declared pin instead of following `tool.uv.sources`. It therefore
-cannot pass `--locked`, and it rewrites uv.lock: restore that with
-`git checkout uv.lock` before committing.
-
-```shell
-uv run --no-sources --no-default-groups --group test pytest
 ```
 
 The `latest` workflow, which upgrades every dependency uv resolves before
