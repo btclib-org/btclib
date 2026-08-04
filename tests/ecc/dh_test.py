@@ -16,7 +16,11 @@ import pytest
 from btclib.curves import bytes_from_point, mult
 from btclib.curves.curve import CURVES
 from btclib.ecc import ansi_x9_63_kdf, dh, diffie_hellman, dsa
-from btclib.exceptions import BTClibRuntimeError, BTClibValueError
+from btclib.exceptions import (
+    BTClibRuntimeError,
+    BTClibTypeError,
+    BTClibValueError,
+)
 
 
 def test_ecdh() -> None:
@@ -57,6 +61,47 @@ def test_ecdh() -> None:
     size = max_size + 1
     with pytest.raises(BTClibValueError, match="cannot derive a key larger than "):
         ansi_x9_63_kdf(z, size, hf, None)
+
+
+@pytest.mark.parametrize("size", [-1, 0, -(2**32)])
+def test_a_key_of_no_octets_is_no_key(size: int) -> None:
+    """A size below one is refused, where a negative one used to answer b"".
+
+    The loop bound is computed from the size, so a negative one made the
+    loop empty and the final negative slice returned nothing at all: a key
+    derivation function answering with an empty key is the one answer it
+    must never invent. Zero is refused with it -- SEC 1 3.6.1 states
+    keydatalen as a positive integer, and a caller asking for no octets of
+    keying material has a bug rather than an empty key (issue 321).
+    """
+    with pytest.raises(BTClibValueError, match="invalid keying data size"):
+        ansi_x9_63_kdf(b"z", size, sha256, None)
+
+
+@pytest.mark.parametrize("size", [1.5, 32.0, "32", None, True, False])
+def test_a_size_that_is_no_integer_is_refused_as_such(size: object) -> None:
+    """And refused as this library's TypeError, not as a slice's.
+
+    A float reached the final slice and left through a bare `TypeError`
+    about slice indices -- outside the exception contract of
+    btclib/exceptions.py, which is the contract tests/fuzz_test.py holds
+    every parser to. A bool is refused for the reason
+    `btclib.utils.is_integer` gives: `True` would have derived a
+    one-octet key.
+    """
+    with pytest.raises(BTClibTypeError, match="non-integer keying data size"):
+        ansi_x9_63_kdf(b"z", size, sha256, None)  # type: ignore[arg-type]
+
+
+def test_the_smallest_key_a_size_can_ask_for() -> None:
+    """One octet, which is what the refusal above must not have taken.
+
+    The upper bound is checked without being reached: max_size octets of
+    sha256 output is a hundred and thirty-seven gigabytes, so what is
+    tested is that the number is refused one past it, above.
+    """
+    assert len(ansi_x9_63_kdf(b"z", 1, sha256, None)) == 1
+    assert len(ansi_x9_63_kdf(b"z", 32, sha256, None)) == 32
 
 
 def test_gec_2() -> None:

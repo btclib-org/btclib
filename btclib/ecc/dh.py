@@ -27,7 +27,8 @@ from btclib_libsecp256k1 import keys as libsecp256k1_keys
 from btclib.alias import HashF, Point
 from btclib.curves import Curve, bytes_from_point, mult, secp256k1
 from btclib.curves.curve import _libsecp256k1_applicable
-from btclib.exceptions import BTClibRuntimeError, BTClibValueError
+from btclib.exceptions import BTClibRuntimeError, BTClibTypeError, BTClibValueError
+from btclib.utils import is_integer
 
 
 def ansi_x9_63_kdf(z: bytes, size: int, hf: HashF, shared_info: bytes | None) -> bytes:
@@ -36,9 +37,28 @@ def ansi_x9_63_kdf(z: bytes, size: int, hf: HashF, shared_info: bytes | None) ->
     Return a keying data octet sequence of the requested size according
     to ANSI-X9.63-KDF specifications for the key derivation function.
 
+    `size` is a positive number of octets, SEC 1's keydatalen: a
+    BTClibTypeError if it is no integer, a BTClibValueError if it is zero,
+    negative, or above what the hash function can derive.
+
     http://www.secg.org/sec1-v2.pdf,
     section 3.6.1
     """
+    # the range is checked before the loop bound is computed from it, and
+    # the type before the range. Unchecked, a negative size made the loop
+    # empty and the final negative slice returned b"" -- an empty key
+    # where the caller asked for keying material, which is the one answer
+    # a key derivation function must never invent (issue 321). A float
+    # went further still and reached that slice, leaving through a bare
+    # TypeError from underneath the library rather than through its own
+    # exception contract
+    if not is_integer(size):
+        raise BTClibTypeError(f"non-integer keying data size: {size}")
+    # zero and not merely negative: SEC 1 3.6.1 states keydatalen as a
+    # positive integer, and a caller asking for no octets of key is a
+    # caller with a bug rather than one with an empty key
+    if size <= 0:
+        raise BTClibValueError(f"invalid keying data size: {size}")
     hf_size = hf().digest_size
     max_size = hf_size * (2**32 - 1)
     if size > max_size:

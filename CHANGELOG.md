@@ -978,6 +978,19 @@ edit.
   holds all of them to it, and holds the refusal to the numbers it must
   not take with it
 
+- **a key derivation function does not answer with an empty key**
+  (issue #321). `ansi_x9_63_kdf` checked only that the requested size was
+  not above what the hash function can derive, so a negative size made the
+  loop empty and the final negative slice returned `b""` — keying material
+  the caller never got, reported as success. Zero is refused with it: SEC 1
+  3.6.1 states keydatalen as a positive integer, and a caller asking for no
+  octets of key has a bug rather than an empty key. A size that is no
+  integer reached that same slice and left through a bare `TypeError`
+  about slice indices, from underneath the library rather than through its
+  own exception contract; it is a `BTClibTypeError` now, `bool` included,
+  through the `is_integer` of #326. The bound above is unchanged and its
+  message with it
+
 ### Immutability and shared state
 
 - a default-constructed `TxIn` no longer shares its `prev_out` and
