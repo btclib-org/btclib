@@ -22,8 +22,16 @@ The two names are easy to conflate -- everything in ecc is also about
 curves -- so the anchor is worth stating: `from btclib.curves import mult`,
 `from btclib.ecc import dsa`.
 
-What this package exports is the curve API: a Curve, the three scalar
-multiplications, and the SEC point codec. The other mult_* of
+What this package exports is the curve API: a Curve, the catalogue they
+are looked up in, the three scalar multiplications, and the SEC point
+codec. `CURVES` is what makes the catalogue reachable -- `secp256k1` is
+exported by name because nearly every caller wants that one, and every
+other curve is `CURVES["secp256r1"]` -- so exporting the name and not the
+dictionary left the paragraph above naming curves a caller could not get
+at without importing the module the name is defined in. The four
+catalogues it is the union of (SEC2v1, SEC2v2, NIST, Brainpool) stay
+where they are defined: which standard a curve comes from is a question
+about a curve, not a way of finding one. The other mult_* of
 btclib.curves.curve_group and btclib.curves.curve_group_2 -- mult_aff, mult_jac,
 mult_base_3, mult_mont_ladder, the two mult_recursive_*, the two
 mult_fixed_window*, mult_regular_window, mult_sliding_window, mult_w_NAF and
@@ -45,7 +53,14 @@ is, answered for secp256k1 out of the bindings' own serialization, without
 materializing the point (issue #127).
 """
 
-from btclib.curves.curve import Curve, double_mult, mult, multi_mult, secp256k1
+from btclib.curves.curve import (
+    CURVES,
+    Curve,
+    double_mult,
+    mult,
+    multi_mult,
+    secp256k1,
+)
 from btclib.curves.curve_group import CurveGroup
 from btclib.curves.curve_group_f import find_all_points, find_subgroup_points
 from btclib.curves.sec_point import (
@@ -55,6 +70,7 @@ from btclib.curves.sec_point import (
 )
 
 __all__ = [
+    "CURVES",
     "Curve",
     "CurveGroup",
     "bytes_from_point",
