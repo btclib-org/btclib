@@ -24,6 +24,20 @@ authors = [{ name = "The btclib developers", email = "devs@btclib.org" }]
 # 3.10 is also the oldest mypy can be aimed at (tool.mypy below), so the
 # floor and the type checker's target agree
 requires-python = ">=3.10"
+# No upper bound, and that is a decision rather than an omission (issue
+# 325). The bindings are a btclib-org project developed by the same people,
+# so a breaking change there is coordinated with the release here -- which
+# is what a version ceiling substitutes for when it cannot be. `<0.8` would
+# cost a btclib release for every bindings minor, including the ones that
+# break nothing, and would make a published artifact refuse a version it
+# works with; `<1` constrains nothing at all, pre-1.0 semver putting the
+# breaking changes in the minor. CONTRIBUTING.md states the policy, and
+# what it costs an artifact that is no longer supported.
+#
+# The lower bound names a release candidate, which under PEP 440 is what
+# makes prereleases of this package eligible candidates at all. A resolver
+# still prefers a stable release among them, so the rc is what gets
+# installed only while nothing stable satisfies the bound
 dependencies = ["btclib_libsecp256k1>=0.7.1rc1"]
 keywords = [
     "bitcoin",
