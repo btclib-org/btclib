@@ -2690,6 +2690,16 @@ edit.
   while a base58 one uppercased is a broken checksum. `label` and
   `message` are percent-decoded with `unquote` and not `unquote_plus`,
   a payment URI not being an HTML form, so `Alice+Bob` is two names.
+  The escapes are checked as syntax before they are decoded as text
+  (issue #362), which is a second fault and not the one `errors="strict"`
+  answers: that flag is the error handler of the utf-8 decode *after* the
+  unescaping, so it refuses `%FF` — an escape of an octet that is no text
+  — and says nothing about `%ZZ`, `%G0` or a trailing `%`, which `unquote`
+  leaves as literal text. Left as text they would not round trip, a
+  literal percent sign being written back as `%25`: `label=%ZZ` came out
+  as `label=%25ZZ`, two URIs meaning one request with only one of them
+  written. Every `%` must be followed by two hexadecimal digits, in a
+  parameter name as in a value.
   Along the way: **the address BIP21 prints in every one of its
   examples does not checksum.** Its payload is a sound mainnet p2pkh
   hash160 and hash256 of it begins `8a9c6111` where the address carries

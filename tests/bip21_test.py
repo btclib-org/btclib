@@ -170,6 +170,36 @@ def test_percent_encoding() -> None:
         Bip21.parse(f"bitcoin:{ADDR}?label=%FF")
 
 
+def test_a_percent_that_escapes_nothing_is_not_text() -> None:
+    """Malformed syntax is a second fault, and `errors="strict"` misses it.
+
+    That flag is the error handler of the utf-8 decode that follows the
+    unescaping, so it answers `%FF` -- an escape of an octet that is not
+    text -- and says nothing about `%ZZ`, which is not an escape: `unquote`
+    leaves the percent sign as literal text. What makes that a defect and
+    not a leniency is the round trip, `serialize` writing a literal percent
+    sign as `%25`: `label=%ZZ` came back out as `label=%25ZZ`, two URIs
+    meaning one request with only one of them written.
+    """
+    for escape in ("%", "%2", "%G0", "%0G", "%ZZ", "%%41", "a%b"):
+        for query in (
+            f"label={escape}",
+            f"message={escape}",
+            f"foo={escape}",
+            f"{escape}=1",
+        ):
+            with pytest.raises(BTClibValueError, match="malformed percent escape"):
+                Bip21.parse(f"bitcoin:{ADDR}?{query}")
+
+    # and what the refusal must not take with it: either case of hex, the
+    # escape of a percent sign itself, and a multi-octet character
+    uri = Bip21.parse(f"bitcoin:{ADDR}?label=%2f%2F&message=100%25&foo=caff%C3%A8")
+    assert uri.label == "//"
+    assert uri.message == "100%"
+    assert uri.others == {"foo": "caffè"}
+    assert Bip21.parse(uri.serialize()) == uri
+
+
 def test_the_address_is_not_lowercased() -> None:
     """A bech32 address is legally uppercase; a base58 one is not."""
     bech32 = "bc1qw508d6qejxtdg4y5r3zarvary0c5xw7kv8f3t4"
