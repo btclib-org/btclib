@@ -536,6 +536,13 @@ can descend into. For a module it is what the module itself defines: a
 name it imported belongs to the module that defines it, and
 `btclib.alias.Octets` is the spelling of `Octets`.
 
+`btclib.__all__` is the root of that tree: every top-level module and
+package, imported on demand by the module `__getattr__` in
+`btclib/__init__.py`. A module added to `btclib/` is added there too, and
+the suite says so — the list is written out rather than discovered,
+because a discovered one would publish a new module without anybody
+deciding to.
+
 The two halves are independent. A module declares its own surface whether
 or not its parent publishes an edge to it, which is how
 `btclib.psbt.psbt_utils` and `btclib.curves.curve_group` say what they

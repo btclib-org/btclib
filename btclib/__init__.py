@@ -7,9 +7,46 @@
 #
 # No part of btclib including this file, may be copied, modified, propagated,
 # or distributed except according to the terms contained in the LICENSE file.
-"""The btclib package: __version__ is read off the installed metadata."""
+"""The btclib package: what it publishes, and the version metadata.
 
+`__all__` here is the root of the library's public tree: the nine
+packages and the twenty-two top-level modules a caller reaches from this
+name, and the list `docs/proposals/cli.md` walks to build the command
+tree of the out-of-repo command line. Each of those, and each module
+below them, declares its own `__all__`, so a walk that starts here has a
+declared surface at every node -- which is the whole of what the mirror
+needs, and why the list is not `pkgutil.iter_modules`: discovery would
+answer the file tree, and a module added to the directory would publish
+itself rather than being published.
+
+`name` is not in it, nor are the metadata dunders. `name` is the
+distribution's name and not a member of the tree, `__version__` bound by
+a star import would overwrite the importing module's own, and each is
+still an attribute here: `btclib.__version__` is how a caller reads the
+version and `btclib.name` how it reads the name.
+
+Nothing is imported eagerly. A module is imported when it is first asked
+for, through the `__getattr__` at the bottom of this file, so `import
+btclib` stays what it was -- the metadata lookup below and nothing else --
+and the import graph keeps its shape: importing every module here would
+put the whole library in `sys.modules` before any single module of it
+could be imported first, which is the situation tests/imports_test.py
+exists to make impossible, and `btclib.b58` would pull `btclib.script`
+in through this file rather than not at all.
+
+What that costs is worth stating: mypy reads a module-level `__getattr__`
+as a promise that any attribute may exist, so `btclib.b59` is `Any` to it
+and a misspelling on this package is a runtime `AttributeError` rather
+than a reported error. The spellings a caller actually writes -- `from
+btclib import b58`, `import btclib.b58`, `from btclib.b58 import p2pkh` --
+resolve against the real modules and stay checked, which is why the trade
+is one attribute lookup's worth of strictness for an import graph that
+stays acyclic and a root that publishes its tree.
+"""
+
+from importlib import import_module
 from importlib.metadata import PackageNotFoundError, version
+from types import ModuleType
 
 name = "btclib"
 # read back from the installed distribution, so that pyproject.toml is the
@@ -36,11 +73,68 @@ __author_email__ = "devs@btclib.org"
 __copyright__ = "Copyright (C) 2017-2026 The btclib developers"
 __license__ = "MIT License"
 
-# the distribution name is the whole of it, and the metadata dunders are
-# deliberately not in the list: a star import binding __version__ would
-# overwrite the importing module's own, which is not what asking for
-# btclib's version can be made to mean. Every one of them is still an
-# attribute -- btclib.__version__ is how a caller reads it -- and this
-# list is what stops `from btclib import *` handing out the `version` and
-# `PackageNotFoundError` the lookup above imports
-__all__ = ["name"]
+__all__ = [
+    "alias",
+    "amount",
+    "b32",
+    "b58",
+    "base58",
+    "bech32",
+    "bip21",
+    "bip32",
+    "bip44",
+    "block",
+    "curves",
+    "descriptors",
+    "ecc",
+    "exceptions",
+    "fee",
+    "fetch",
+    "hashes",
+    "keystore",
+    "mnemonic",
+    "network",
+    "number_theory",
+    "psbt",
+    "script",
+    "slip132",
+    "to_prv_key",
+    "to_pub_key",
+    "tx",
+    "tx_or_psbt",
+    "utils",
+    "var_bytes",
+    "var_int",
+]
+
+
+def __getattr__(published: str) -> ModuleType:
+    """Import a published module the first time it is asked for.
+
+    PEP 562: this runs only for a name the package does not already have,
+    so it answers `btclib.b58` once and the import machinery's own
+    attribute answers it from then on -- and it never runs for `import
+    btclib.b58` or `from btclib import b58`, which import the submodule
+    themselves. What it makes work is `getattr(btclib, "b58")` on a fresh
+    interpreter, which is how a walker reading `__all__` descends, and
+    `from btclib import *`, which asks for each name in the list.
+
+    Anything not in `__all__` raises `AttributeError`, private modules
+    included: `btclib._ripemd160` is `btclib.hashes`' business, and
+    `import btclib._ripemd160` still reaches it. The message is the
+    interpreter's own wording, so a typo reads as it does anywhere else.
+    """
+    if published in __all__:
+        return import_module(f"{__name__}.{published}")
+    raise AttributeError(f"module {__name__!r} has no attribute {published!r}")
+
+
+def __dir__() -> list[str]:
+    """Answer with the published tree beside what the package already has.
+
+    `dir(btclib)` consults this rather than the namespace, so without it a
+    module not yet imported is missing from the completion a caller gets
+    at an interactive prompt -- the same names `__getattr__` above will
+    answer for.
+    """
+    return sorted({*__all__, *globals()})

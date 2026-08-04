@@ -14,11 +14,15 @@ carried a benchmark's worth of multiplication implementations in `btclib.curves`
 while `btclib.ecc` advertised four helpers and none of the six signature
 schemes behind them, and `btclib.mnemonic` neither of its two schemes.
 
-Every package declares one and so does every top-level module, which is the
-answer issue #338 asked for: a name is public here because a list says so,
-not because it happens to lack a leading underscore. A list per module is a
-list per module to keep true, and the last three tests are what keeps it,
-rather than a reviewer noticing.
+Every module and package of the library declares one, at every depth, which
+is the answer issue #338 asked for: a name is public here because a list
+says so, not because it happens to lack a leading underscore. A list per
+module is a list per module to keep true, and the policy tests below are
+what keeps it, rather than a reviewer noticing.
+
+`btclib.__all__` is the root of that tree and the last of those tests walks
+it the way `docs/proposals/cli.md` says the command line will: from the
+root, into every module-valued export, down to a node that has none.
 
 These tests are written against the names rather than the counts, so that a
 deliberate addition is one line here and an accidental one is a failure.
@@ -32,6 +36,8 @@ from importlib import import_module
 from pathlib import Path
 from pkgutil import iter_modules, walk_packages
 from types import ModuleType
+
+import pytest
 
 import btclib
 import btclib.curves
@@ -48,6 +54,7 @@ from btclib.script import script_pub_key
 # A name added here is a decision; a name that has to be added here to make
 # the suite pass is one that was about to become public by accident
 UNEXPORTED = {
+    "btclib": ["name"],
     "btclib.curves.curve": ["datadir"],
     "btclib.descriptors": ["CHECKSUM_CHARSET", "GENERATOR", "INPUT_CHARSET"],
     "btclib.network": ["datadir"],
@@ -390,6 +397,80 @@ def test_no_module_exports_a_name_it_imported() -> None:
         imported = imported_names(module)
         for name in module.__all__:
             assert name not in imported, f"{module.__name__} re-exports {name}"
+
+
+def test_the_export_tree_is_walkable_to_its_leaves() -> None:
+    """Every module reachable through `__all__` declares one of its own.
+
+    `docs/proposals/cli.md` reads the command tree off `__all__`: a group
+    is a module-valued export, its commands are that module's own list, and
+    an out-of-repo walker sees nothing this library does not publish. So a
+    module named in a parent's list and declaring nothing is a node the
+    walk arrives at and cannot descend from -- which is what this asks
+    about, transitively from `btclib` down, following exports rather than
+    the file tree.
+
+    A module-valued export is also checked to be a submodule of the module
+    exporting it: `btclib.ecc.dsa` is `btclib.ecc`'s to publish, and a
+    module from somewhere else in the tree would make the path a caller
+    reads off the walk -- `btclib ecc dsa sign` -- name something the
+    import does not.
+    """
+    seen: set[str] = set()
+    frontier = [btclib]
+    while frontier:
+        module = frontier.pop()
+        if module.__name__ in seen:
+            continue
+        seen.add(module.__name__)
+        names = getattr(module, "__all__", None)
+        assert names is not None, f"{module.__name__} declares no __all__"
+        for name in names:
+            value = getattr(module, name)
+            if not isinstance(value, ModuleType):
+                continue
+            assert value.__name__ == f"{module.__name__}.{name}", (
+                f"{module.__name__} exports {name}, which is {value.__name__}"
+            )
+            frontier.append(value)
+    # the root, the nine packages, the nested one, and the modules they
+    # publish: a walk that stopped at the root would satisfy the loop above
+    assert len(seen) > 30, f"the export tree walk reached {len(seen)} modules"
+
+
+def test_the_root_publishes_every_top_level_module() -> None:
+    """`btclib.__all__` is the tree's root, so nothing top-level is missing.
+
+    The list is written out rather than discovered -- a declaration is a
+    list somebody edited -- and this is the other half of that: a module
+    added to `btclib/` and not published here would be a group the command
+    line cannot reach and a name `getattr(btclib, ...)` cannot answer,
+    where a discovered list would have published it without anybody
+    deciding to.
+    """
+    top_level = sorted(
+        name for _, name, _ in iter_modules(btclib.__path__) if public_name(name)
+    )
+    assert sorted(btclib.__all__) == top_level
+    # and each answers on a package that imported none of them, which is
+    # what the module __getattr__ is for
+    for name in top_level:
+        assert getattr(btclib, name).__name__ == f"btclib.{name}"
+
+
+def test_the_root_answers_only_for_what_it_publishes() -> None:
+    """A name outside the list raises, as an attribute of anything does.
+
+    `btclib._ripemd160` is not asserted absent, and could not be: the
+    import machinery sets a submodule as an attribute of its package, so
+    `btclib.hashes` importing it puts the name there. What the list decides
+    is what this package imports *for* a caller, and `import
+    btclib._ripemd160` is the caller's own business.
+    """
+    with pytest.raises(AttributeError, match="has no attribute 'b59'"):
+        _ = btclib.b59
+    # dir() answers the published tree, not only what has been imported
+    assert set(btclib.__all__) <= set(dir(btclib))
 
 
 def test_the_import_scan_reaches_a_nested_import() -> None:

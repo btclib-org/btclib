@@ -3246,10 +3246,30 @@ edit.
   to a list. The lists hold what each module defines and nothing it
   imported — a caller wanting `Octets` wants `btclib.alias.Octets` — so
   `import *` and the sphinx pages both stop depending on an import
-  section. `btclib.__all__` is `name` alone: the metadata dunders stay out
-  because a star import binding `__version__` would overwrite the
-  importing module's own, and `btclib.__version__` is how a caller reads
-  it anyway (issue #338)
+  section (issue #338)
+- **`btclib.__all__` is the root of the library's public tree**: the nine
+  packages and the twenty-two top-level modules, so a walk that starts at
+  the package name has an edge to follow and a declared surface at every
+  node it reaches. That is what `docs/proposals/cli.md` reads to build the
+  command tree of the out-of-repo command line, and the reason the list is
+  written out rather than discovered: `pkgutil.iter_modules` would answer
+  the file tree, and a module added to the directory would publish itself
+  rather than be published. `name` and the metadata dunders are not in it
+  — the first is the distribution's name and not a member of the tree, and
+  a star import binding `__version__` would overwrite the importing
+  module's own — and both are still attributes, `btclib.__version__` being
+  how a caller reads the version.
+- **A module `__getattr__` imports a published module on demand**, so
+  `import btclib` costs the metadata lookup and nothing else, as it did:
+  `getattr(btclib, "b58")` and `from btclib import *` work on a fresh
+  interpreter, while eager imports here would put the whole library in
+  `sys.modules` before any module of it could be imported first — which is
+  the situation `tests/imports_test.py` exists to make impossible — and
+  would route `btclib.b58` into `btclib.script` through this file. Its one
+  cost is stated in the docstring: mypy reads a module `__getattr__` as a
+  promise that any attribute may exist, so a misspelled `btclib.b59` is a
+  runtime `AttributeError` rather than a checker error, where every import
+  spelling a caller writes stays checked
 - **Every module below a package declares one too**, which is the rest of
   the same rule: the modules a caller reaches by name —
   `btclib.ecc.dsa`, `btclib.script.sig_hash`, `btclib.bip32.der_path` —
@@ -3295,6 +3315,22 @@ edit.
   source and walks into a module-level `try`, `if`, `with`, `for`, `while`
   or `match`, those binding globals as much as a top-level import does,
   stopping at a function or a class
+- **A fourth test walks the export tree the way the command line will**:
+  from `btclib`, into every module-valued export, transitively, checking
+  that each node declares an `__all__` of its own and that an exported
+  module is a submodule of the module exporting it — so the command path a
+  walker reads off the tree is the import path, by construction rather
+  than by convention. A fifth pins the root against the file tree, a
+  module added to `btclib/` and not published there being a group the
+  command line cannot reach
+- **`docs/proposals/cli.md` states the traversal contract** in place of
+  the question it used to pose: the five points a walker depends on, with
+  the one that makes the mirror implementable from outside this repository
+  named as such — a module declares its surface whether or not its parent
+  publishes an edge to it, so what the walk must not reach is exactly what
+  nothing published, and no list of exceptions has to travel with it.
+  Decision 3 of that file, "prerequisite or consequence", is answered:
+  prerequisite, and done
 
 ### Types
 
