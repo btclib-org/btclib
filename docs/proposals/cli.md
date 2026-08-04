@@ -414,33 +414,34 @@ already are.
 
 ## Packaging and layering
 
-- `btclib/cli/` as a subpackage, one module per group, mirroring the
-  library's own tree; `btclib/__main__.py` so that `python -m btclib`
-  works for someone who has not put the script on `PATH`;
-- it imports everything and nothing imports it, which is the sentence the
-  README already makes about `bip21`, `bip44`, `keystore` and `fetch`.
-  The command line is the top layer and the layering stays acyclic;
-- `[project.scripts] btclib = "btclib.cli:main"` and
-  `[project.optional-dependencies] cli = ["click>=8.2"]`;
-- the script is installed whether or not the extra was asked for, so
-  `main()` imports click inside the function body and turns an
-  `ImportError` into one line — "btclib's command line needs click:
-  `pip install btclib[cli]`" — and exit 1, rather than a traceback out of
-  a console script;
-- the `test` dependency group installs the extra, and has to: with click
-  absent every statement in `btclib/cli/` is uncovered, and 100.00% is
-  not a floor that tolerates a package the run skipped;
-- shell completion comes with click and costs a documentation line:
-  `eval "$(_BTCLIB_COMPLETE=zsh_source btclib)"`.
+**A separate repository, not `btclib/cli/`.** Issue #357 is the
+decision, reversing what this section used to argue: the command line
+is its own project, depending on published btclib releases the way any
+other consumer does, rather than a subpackage of this one. What
+follows is the design that still holds regardless of which repository
+carries it, and what the split costs.
 
-**Not a separate distribution.** A `btclib-cli` package in its own
-repository was the alternative, and the README is the argument against
-it: a library "often refactored for improved clarity, without care for
-backward compatibility" is one whose downstream consumers break, and a
-command line living downstream would go red on the day after every
-refactor instead of in the pull request that caused it. In tree, a rename
-that breaks a command breaks it in the same commit, and the mirror test
-above says which command.
+- the command tree still mirrors the library's own, one module per
+  group; `__main__.py`, `[project.scripts]` and the `click` dependency
+  are the new repository's `pyproject.toml`, not this one's;
+- the layering argument still holds, one repository further out: the
+  CLI imports btclib and nothing in btclib imports the CLI, so the
+  command line is the top layer whichever repository it lives in;
+- the mirror test (`## The test that keeps it true`) moves with it and
+  loses its in-tree reach: it can walk only the `__all__` this package
+  publishes, not the private tree a same-repository test could still
+  see. That makes the `__all__` audit (#319, #320, #328 to #334, #338,
+  #340) a harder prerequisite than the "before or after" question
+  decision 3 below poses — outside this repository there is no escape
+  hatch past an incomplete `__all__`;
+- a version boundary now exists where the old, in-tree design had
+  none. This repository's own README is the reason: a library "often
+  refactored for improved clarity, without care for backward
+  compatibility" is exactly why the new repository needs an explicit
+  compatibility contract — a supported btclib version range, declared
+  and tested, the way `btclib_libsecp256k1` is pinned from this side
+  (issue #325) — where the in-tree design had a rename break the
+  command in the same commit and needed no such contract at all.
 
 ## The command surface
 
@@ -637,32 +638,35 @@ is idempotent and this one is not.
 
 ## Testing and the gates
 
+With the CLI in its own repository (see "Packaging and layering"
+above), the gates below are that repository's to set up, mirroring
+this one's conventions rather than sharing its configuration:
+
 - `CliRunner`, in process, so no subprocess and no coverage gap;
-- the mirror test above, which is what makes the naming rule a rule;
+- the mirror test above, which is what makes the naming rule a rule,
+  walking whatever btclib's own `__all__` publishes rather than its
+  private tree (a reach the split already costs, above);
 - one test walks the whole command tree asking for `--help`, which also
-  catches a command with no docstring: ruff's D103 is ignored in this
-  repository, so nothing else would notice, and with click the docstring
-  *is* the help text;
+  catches a command with no docstring — a docstring D102/D103 already
+  require of the btclib function behind it, and with click the
+  docstring *is* the help text;
 - round trips are not restated here. `parse(serialize(x)) == x` is
-  already asserted in the library's own suite, and repeating it through
-  argv tests argv. What this layer owes tests for is its own surface: the
+  already asserted in btclib's own suite, and repeating it through argv
+  tests argv. What this layer owes tests for is its own surface: the
   octets parameter type and its `-` and `@` forms, the exit codes, the
   stdout/stderr split, the JSON shape, and the secret never printed;
-- coverage stays at 100.00%, which is why the extra is in the `test`
-  group;
-- the documentation page is markdown, so markdownlint holds it to 80
-  columns and the sphinx `-W` build has to pass with it in the toctree.
+- a coverage floor of its own, and markdownlint/sphinx settings of its
+  own for whatever documents the CLI, rather than this repository's.
 
 ## Documentation
 
-`docs/source/cli.md`, listed in `docs/source/index.rst`: myst-parser is
-already in the docs group, and a page that is not in a toctree is a
-warning the `-W` build turns into a failure. The README gets a short
-section, remembering that it is both the btclib.org homepage and the PyPI
-long description. CHANGELOG.md gets its entries as the phases land, and
-HISTORY.md gets one line when the first of them ships — not because the
-CLI breaks anything, but because a user has to type `pip install
-btclib[cli]` to get it, and that is an action.
+The CLI's own documentation -- its README, its own sphinx or mkdocs
+pages if it has any -- lives in the new repository, not here.
+btclib's side of this is what a dependent project's is: at most a
+mention where README.md already lists `btclib_libsecp256k1`, once the
+new repository exists to link to. Nothing in this repository's own
+CHANGELOG.md or HISTORY.md is owed an entry for a project the CLI's
+repository, not this one, releases and versions.
 
 ## The decisions this needs
 
@@ -697,7 +701,10 @@ btclib[cli]` to get it, and that is an action.
    BIP174 role but that one, so either the command line ships with the
    gap in plain sight, or the Signer is written before it — which is
    library work this proposal has no business deciding on its own.
-9. **Where does this document live?** It is in `docs/proposals/` so that
-   it stays out of btclib.org — `_config.yml` excludes `docs/` — and out
-   of the sphinx build, which reads `docs/source/` only. An issue is the
-   other candidate, and is where the discussion would happen anyway.
+9. **Where does this document live?** ~~It is in `docs/proposals/` so
+   that it stays out of btclib.org — `_config.yml` excludes `docs/` —
+   and out of the sphinx build, which reads `docs/source/` only. An
+   issue is the other candidate, and is where the discussion would
+   happen anyway.~~ Decided: issue #357 is where the discussion
+   continues, this document being the design reference underneath it
+   rather than the place a decision gets made.
