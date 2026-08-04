@@ -84,7 +84,7 @@ from btclib.to_pub_key import Key, pub_keyinfo_from_key, pub_keyinfo_from_pub_ke
 _ACCOUNT_LEVELS = 3
 
 # native segwit, which is what a wallet created today uses and what
-# `bip32.slip132.p2wpkh_xkey` already defaults to
+# `slip132.p2wpkh_xkey` already defaults to
 _DEFAULT_ACCOUNT = "m/84h/0h/0h"
 _DEFAULT_SCRIPT_TYPE: BIP44ScriptType = "p2wpkh"
 

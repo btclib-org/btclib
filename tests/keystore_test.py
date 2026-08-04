@@ -132,7 +132,7 @@ def test_the_path_says_the_script_type_and_the_version_bytes_do_not() -> None:
     """A zprv and an xprv holding one key hand out one set of addresses.
 
     The alternative -- reading the script type off the SLIP132 version
-    bytes, as `bip32.slip132.address_from_xpub` does -- would make the
+    bytes, as `slip132.address_from_xpub` does -- would make the
     same account answer one path with two different addresses depending
     on how the key was spelled, and only one of them would be watched.
     """

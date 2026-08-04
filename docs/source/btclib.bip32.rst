@@ -25,13 +25,6 @@ btclib.bip32.key\_origin module
    :members:
    :show-inheritance:
 
-btclib.bip32.slip132 module
----------------------------
-
-.. automodule:: btclib.bip32.slip132
-   :members:
-   :show-inheritance:
-
 Module contents
 ---------------
 

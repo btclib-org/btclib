@@ -28,7 +28,8 @@ from unicodedata import normalize
 
 import pytest
 
-from btclib.bip32 import bip32, slip132
+from btclib import slip132
+from btclib.bip32 import bip32
 from btclib.exceptions import BTClibValueError
 from btclib.mnemonic import bip39, electrum
 from btclib.mnemonic.electrum import ELECTRUM_WORDLISTS

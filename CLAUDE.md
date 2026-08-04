@@ -51,11 +51,14 @@ which is the single most important thing to know before touching
   on the answer. `SECURITY.md` publishes this as a known limitation
 
 Layers, roughly bottom-up: `curves/` (curve arithmetic) → `ecc/` (dsa, ssa,
-bms, borromean, pedersen, rfc6979/bip340 nonces) → keys and encodings
-(`to_prv_key`, `to_pub_key`, `b58`, `b32`, `bech32`, `base58`) → `bip32/`,
-`mnemonic/` → `script/`, `tx/`, `block/`, `psbt/`, `descriptors`.
-`alias.py` holds the type aliases the public API accepts, and much of the
-surface takes "anything convertible" rather than one type.
+bms, borromean, pedersen, rfc6979/bip340 nonces). At the key boundary,
+`base58` and `bech32` are the low-level codecs; `bip32/` depends on
+`base58`; `to_prv_key` and `to_pub_key` depend on `bip32/`; and `b58`
+and `b32` depend on those converters. `slip132` therefore sits above the
+address encodings, beside `bip44`. `mnemonic/`, `script/`, `tx/`,
+`block/`, `psbt/` and `descriptors` build on those layers. `alias.py`
+holds the type aliases the public API accepts, and much of the surface
+takes "anything convertible" rather than one type.
 
 Three of those pairs are one idea split in two, and each split runs one
 way only: `curves/` is arithmetic and `ecc/` is what is built on it;
