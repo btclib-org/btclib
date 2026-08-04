@@ -260,8 +260,8 @@ def http_request(
     them is a bitcoin error worth a type of its own.
 
     A non-2xx status is *not* a failure here. It comes back like any
-    other, because the body of a 500 is where bitcoind's JSON-RPC 1.0
-    reply puts its error object, and the body of a 404 is where an
+    other, because the body of a 500 is where bitcoind's legacy JSON-RPC
+    1.1 reply puts its error object, and the body of a 404 is where an
     explorer says what it could not find. Deciding what a status means is
     the backend's job, that being the layer that knows. A 30x is one of
     those statuses now rather than a second request: `urlopen_transport`

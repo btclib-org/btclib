@@ -29,6 +29,7 @@ import re
 from base64 import b64decode
 from decimal import Decimal
 from pathlib import Path
+from typing import Any
 from urllib.request import Request
 
 import pytest
@@ -492,6 +493,96 @@ def test_a_parameter_name_that_is_not_a_string() -> None:
         endpoint.call("getblock", {1: TX_ID})  # type: ignore[dict-item]
 
 
+def test_a_nested_parameter_name_that_is_not_a_string() -> None:
+    """The check is the whole structure, because the encoder rewrites keys.
+
+    `json.dumps` renders `{1: "a"}` as `{"1": "a"}`: an int, a float, a
+    bool or None as a key is silently turned into a string rather than
+    refused. Only the outermost mapping is a set of names a caller wrote
+    by hand, so a check that stopped there would let every nested value
+    reach the node changed from what was passed.
+    """
+    endpoint = client((200, recorded_body("getblockcount.json")))
+    with pytest.raises(BTClibTypeError, match="non-string rpc parameter name"):
+        endpoint.call("importdescriptors", [{"nested": {1: "value"}}])
+
+
+@pytest.mark.parametrize(
+    "params",
+    [
+        [{"nested": {"amount": Decimal("0.1")}}],
+        [[[Decimal("0.1")]]],
+        {"outputs": [{"bc1qexample": Decimal("0.1")}]},
+    ],
+)
+def test_a_decimal_anywhere_in_the_parameters_is_refused(params: object) -> None:
+    """A Decimal is refused wherever it is, not only at the top level.
+
+    Which is where one would actually be passed: an amount belongs to an
+    output of `send`, an entry of `sendmany`, a field of a descriptor
+    request -- never to the array itself.
+    """
+    endpoint = client((200, recorded_body("getblockcount.json")))
+    with pytest.raises(BTClibTypeError, match="Decimal rpc parameter"):
+        endpoint.call("send", params)  # type: ignore[arg-type]
+
+
+def test_a_non_finite_number_nested_in_the_parameters_is_refused() -> None:
+    """The same walk, and the same diagnosis, for a nan inside a structure."""
+    endpoint = client((200, recorded_body("getblockcount.json")))
+    with pytest.raises(BTClibValueError, match="not a json number in the rpc params"):
+        endpoint.call("send", [{"fee_rate": float("inf")}])
+
+
+def test_bytes_nested_in_the_parameters_are_not_a_list_of_octets() -> None:
+    """A `bytes` is a Sequence, and walking it would send the ints in it.
+
+    Refused as the value it is instead, which is the same answer the top
+    level gives: btclib takes hex where Core takes hex.
+    """
+    endpoint = client((200, recorded_body("getblockcount.json")))
+    with pytest.raises(BTClibTypeError, match="not a json value"):
+        endpoint.call("sendrawtransaction", [b"\x01\x00"])
+
+
+def test_parameters_that_contain_themselves_are_refused() -> None:
+    """A cycle is a ValueError out of the encoder, and not about a number.
+
+    `json.dumps` says "Circular reference detected" with the same
+    exception type a nan raises, so leaving it to the encoder would report
+    a structure that has no json as a number that is not one.
+    """
+    cyclic: list[Any] = [1]
+    cyclic.append(cyclic)
+    endpoint = client((200, recorded_body("getblockcount.json")))
+    with pytest.raises(BTClibValueError, match="contains itself"):
+        endpoint.call("send", cyclic)
+
+
+def test_parameters_nested_deeper_than_the_bound_are_refused() -> None:
+    """Deep and acyclic, which no cycle check catches and json recurses on."""
+    deep: Any = "bottom"
+    for _ in range(200):
+        deep = [deep]
+    endpoint = client((200, recorded_body("getblockcount.json")))
+    with pytest.raises(BTClibValueError, match="nested deeper than"):
+        endpoint.call("send", deep)
+
+
+def test_something_that_walks_as_json_and_has_none_is_still_refused() -> None:
+    """The backstop under the walk, reached by a Sequence json cannot write.
+
+    `range(3)` is a Sequence of three json numbers and has no json of its
+    own, so it passes a walk that checks what a structure contains and
+    fails in the encoder. What the backstop buys is that it fails as a
+    btclib refusal naming the value, rather than as a TypeError from
+    inside the standard library.
+    """
+    endpoint = client((200, recorded_body("getblockcount.json")))
+    with pytest.raises(BTClibTypeError, match="not a json value: range"):
+        endpoint.call("send", [range(3)])
+
+
 def test_a_decimal_parameter_is_refused_and_not_rounded() -> None:
     """An amount does not become binary floating point on the way out.
 
@@ -752,28 +843,6 @@ def test_a_redirect_is_refused_and_not_answered(code: int) -> None:
     assert transport.request.get_header("Authorization") == endpoint.auth_header()
 
 
-@pytest.mark.parametrize("code", [301, 302, 303, 307, 308])
-def test_a_redirect_is_refused_and_not_answered(code: int) -> None:
-    """An rpc call meeting a 30x fails; the credential stays on one url.
-
-    Nothing follows a redirect (issue #358), so a `Location` is a header on
-    a status like any other and the body beside it -- here the html of
-    whatever answered instead of the node -- is not a reply. What the
-    caller gets is the status, which is what says the endpoint is not the
-    node any more; the `Authorization` reached the url they wrote down and
-    no second one.
-    """
-    endpoint = proxy((code, b"<html><title>Moved</title></html>"))
-    with pytest.raises(FetchError, match=f"HTTP {code}"):
-        endpoint.call("getblockcount")
-
-    transport = endpoint.transport
-    assert isinstance(transport, Recorded)
-    assert len(transport.requests) == 1
-    assert transport.request.full_url == endpoint.url
-    assert transport.request.get_header("Authorization") == endpoint.auth_header()
-
-
 def test_a_body_that_is_not_json_says_so() -> None:
     """A proxy or a web server on the rpc port, answering 200 with html."""
     with pytest.raises(FetchError, match="not json"):
@@ -784,6 +853,43 @@ def test_a_body_that_is_not_utf_8_says_so() -> None:
     """Json is utf-8, and a body that is not is the backend's failure."""
     with pytest.raises(FetchError, match="not utf-8"):
         client((200, b'{"result": "\xff\xfe"}')).call("getblockcount")
+
+
+# a json number of more digits than `sys.get_int_max_str_digits` allows,
+# which `int` refuses with a bare ValueError that is not a
+# JSONDecodeError: valid json that this interpreter will not read
+_TOO_MANY_DIGITS = b'{"jsonrpc":"2.0","result":' + b"9" * 5000 + b',"id":"x"}'
+
+
+@pytest.mark.parametrize(
+    "body",
+    [b'{"result": "\xff\xfe"}', b"[" * 200_000 + b"]" * 200_000, _TOO_MANY_DIGITS],
+    ids=["not utf-8", "too deep", "too many digits"],
+)
+def test_a_status_survives_a_body_no_parser_can_read(body: bytes) -> None:
+    """An unreadable body cannot be a correlated rpc error, so the status wins.
+
+    Whatever is in front of a node explains itself in its own words, and
+    those words are not json-rpc: reporting "not utf-8" for a 503 would
+    name the symptom and lose the one thing a caller acts on. Every way
+    the parse can fail has to keep the status, and they are not one
+    exception type -- a decode error, a recursion error and the bare
+    ValueError of the integer digit limit.
+    """
+    with pytest.raises(HttpError) as exc:
+        client((503, body)).call("getblockcount")
+    assert exc.value.status == 503
+
+
+def test_a_number_too_long_for_this_interpreter_to_read() -> None:
+    """Valid json, and `int` refuses it: `sys.get_int_max_str_digits`.
+
+    Not a JSONDecodeError, so it escaped as a bare ValueError from
+    underneath the library rather than through btclib's contract, where a
+    caller catching FetchError would not see it at all.
+    """
+    with pytest.raises(FetchError, match="the json parser refused"):
+        client((200, _TOO_MANY_DIGITS)).call("getblockcount")
 
 
 def test_a_reply_nested_too_deeply_to_parse() -> None:
@@ -818,9 +924,17 @@ def test_a_version_marker_that_is_neither_2_0_nor_absent(marker: object) -> None
         client((200, body)).call("getblockcount")
 
 
-def test_a_2_0_reply_with_both_result_and_error() -> None:
-    """2.0 says exactly one of them, which is what tells it from 1.1."""
-    error = {"code": -5, "message": "not found"}
+@pytest.mark.parametrize(
+    "error", [{"code": -5, "message": "not found"}, None], ids=["error", "null"]
+)
+def test_a_2_0_reply_with_both_result_and_error(error: object) -> None:
+    """2.0 says exactly one of them, which is what tells it from 1.1.
+
+    Which member is *present*, and not which is non-null: `"error": null`
+    beside a result is the 1.1 shape, and a 1.1 reply wearing the 2.0
+    marker is one whose errors would be looked for in the wrong place --
+    under 2.0 they never arrive with a 500, and under 1.1 they do.
+    """
     body = json.dumps(
         {"jsonrpc": "2.0", "result": 1, "error": error, "id": "x"}
     ).encode()
@@ -843,14 +957,27 @@ def test_a_legacy_reply_with_neither_result_nor_error() -> None:
 
 
 @pytest.mark.parametrize(
-    "error", ["a string", {"message": "no code"}, {"code": "-5"}, {"code": True}, []]
+    "error",
+    [
+        "a string",
+        {"message": "no code"},
+        {"code": "-5"},
+        {"code": True},
+        [],
+        {"code": -1},
+        {"code": -1, "message": ["not", "a", "string"]},
+        {"code": -1, "message": None},
+    ],
 )
 def test_an_error_member_that_is_not_one(error: object) -> None:
-    """Not every non-null `error` carries a code to report.
+    """Not every non-null `error` carries a code and a message to report.
 
-    A bool among them, `true` being what a json `code` of one decodes to
-    and a bool not being another spelling of a number anywhere else in
-    the library.
+    A bool among the codes, `true` being what a json `code` of one decodes
+    to and a bool not being another spelling of a number anywhere else in
+    the library. And a message that is absent or is not a string: a caller
+    acts on the code and reads the message, so formatting a list into the
+    exception, or reporting an empty message, would have the node saying
+    something it did not say.
     """
     body = json.dumps({"jsonrpc": "2.0", "error": error, "id": "x"}).encode()
     with pytest.raises(FetchError, match="unreadable rpc error"):

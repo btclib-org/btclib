@@ -2402,7 +2402,11 @@ edit.
   for minutes. Amounts never pass through binary floating point: a number
   in a reply decodes as a `Decimal`, a `Decimal` parameter is refused
   rather than rounded, and `NaN` and `Infinity` are refused in both
-  directions. `for_wallet` is the `/wallet/<name>` endpoint of a
+  directions. The parameters are checked whole and not at the top level
+  only, because `json.dumps` *rewrites* a mapping key that is not a
+  string — `{1: "a"}` would reach the node as `{"1": "a"}` — and reports
+  a structure containing itself as the same kind of error a non-finite
+  number is. `for_wallet` is the `/wallet/<name>` endpoint of a
   multi-wallet node, percent-encoded. Credentials in the url are refused,
   as are a query, a fragment and a missing host; credentials and a cookie
   path are mutually exclusive rather than silently ranked; and bitcoind's
@@ -2417,7 +2421,9 @@ edit.
   its own — `call` carries any method, so it cannot know that re-sending
   one is safe, and a timeout is not a deadline — and a caller's policy
   for a 503 from a full work queue wants the number rather than a message
-  to match on. No endpoint is a
+  to match on. A body no parser can read keeps the status too: it cannot
+  be an rpc error, so what is reported is the 401 or the 503 rather than
+  the encoding of whatever answered instead of the node. No endpoint is a
   default: `BLOCKSTREAM_INFO` is a constant to pass, never a host btclib
   contacts on its own. Nothing here is tested against a live host —
   `HttpTransport` is the seam, and every test answers from a recorded

@@ -141,6 +141,14 @@ _MAX_COOKIE_SIZE = 4096
 # it was
 _RPC_ID_BYTES = 8
 
+# how deep a parameter structure may nest. Both the encoder and the walk
+# that checks a structure before it recurse, so a bound is what turns
+# something too deep for either into a refusal that names the parameters
+# rather than a RecursionError out of the standard library. Core's own
+# methods nest a few levels -- the inputs of a psbt, the tree of a
+# descriptor -- so this is not a limit a call arrives at
+_MAX_PARAMS_DEPTH = 100
+
 # what a reply that is a number or a hash may weigh: the json envelope
 # around `result`, `error` and `id`, and a value of a few dozen octets.
 # `getrawtransaction` is the one answer here that is not small, and it
@@ -263,9 +271,6 @@ def _params_member(params: Sequence[Any] | Mapping[str, Any] | None) -> Any:
     if params is None:
         return []
     if isinstance(params, Mapping):
-        for name in params:
-            if not isinstance(name, str):
-                raise BTClibTypeError(f"non-string rpc parameter name: {name!r}")
         return dict(params)
     if isinstance(params, (str, bytes, bytearray)):
         err_msg = f"rpc params is a {type(params).__name__} and not a sequence"
@@ -278,23 +283,84 @@ def _params_member(params: Sequence[Any] | Mapping[str, Any] | None) -> Any:
     raise BTClibTypeError(err_msg)
 
 
-def _refuse_param(value: Any) -> Any:
-    """Refuse a parameter no json value corresponds to.
+def _assert_json_params(
+    value: Any, depth: int = 0, enclosing: tuple[int, ...] = ()
+) -> None:
+    """Refuse a parameter structure json cannot carry, before it is encoded.
 
-    Decimal by name, it being the one a caller has a reason to pass: an
-    amount is a decimal quantity, and `Decimal("0.1")` is the exact way
-    to hold one in Python. What json has no room for is exactly that --
-    the encoder renders a number through `float`, which rounds, and an
-    exact decimal literal would take an encoder of btclib's own. So an
-    amount goes the way the method documents it, satoshis as an int or
-    the string Core accepts for the field, and a Decimal is refused
-    rather than quietly narrowed to binary floating point.
+    Walked rather than left to the encoder, because most of what goes
+    wrong here is silent or unhelpful in it. A mapping keyed by anything
+    but a string is *rewritten*: `{1: "a"}` encodes as `{"1": "a"}`, so a
+    caller's value reaches the node changed rather than refused, and only
+    the outermost mapping is a name a caller wrote by hand. A structure
+    containing itself raises ValueError("Circular reference detected"),
+    which is the same type a non-finite number raises and means something
+    else entirely. One nested past the interpreter's stack raises
+    RecursionError from inside the encoder. And a Decimal or a `bytes`
+    reaches `default`, which cannot say where in the structure it was.
+
+    `enclosing` carries the ids of the containers this value sits inside,
+    which is what a cycle is: a container reached from within itself. No
+    depth bound tells that from a structure that is merely deep, and no
+    bound on a *reply* helps -- these are the caller's own objects.
+    """
+    if depth > _MAX_PARAMS_DEPTH:
+        err_msg = f"rpc params nested deeper than the {_MAX_PARAMS_DEPTH} allowed"
+        raise BTClibValueError(err_msg)
+    if _json_scalar(value):
+        return
+    if isinstance(value, Mapping):
+        _assert_no_cycle(value, enclosing)
+        for name, item in value.items():
+            if not isinstance(name, str):
+                raise BTClibTypeError(f"non-string rpc parameter name: {name!r}")
+            _assert_json_params(item, depth + 1, (*enclosing, id(value)))
+        return
+    if isinstance(value, Sequence):
+        _assert_no_cycle(value, enclosing)
+        for item in value:
+            _assert_json_params(item, depth + 1, (*enclosing, id(value)))
+        return
+    raise BTClibTypeError(f"rpc parameter that is not a json value: {value!r}")
+
+
+def _json_scalar(value: Any) -> bool:
+    """Say whether a value is a json scalar, refusing three that look like one.
+
+    A Decimal, a non-finite float and a `bytes` are each a value a caller
+    has a reason to pass and json has no rendering for, so each is refused
+    where what to pass instead can be named -- rather than reported as
+    "not a json value" from the end of the walk, or, for the `bytes`,
+    walked as the list of the ints of its octets.
     """
     if isinstance(value, Decimal):
         err_msg = "Decimal rpc parameter: json carries no exact decimal, so"
         err_msg += " pass what the method documents -- an int of satoshis,"
         err_msg += " or the string it accepts -- rather than a rounded float"
         raise BTClibTypeError(err_msg)
+    if isinstance(value, float) and not isfinite(value):
+        raise BTClibValueError(f"not a json number in the rpc params: {value}")
+    if isinstance(value, (bytes, bytearray)):
+        raise BTClibTypeError(f"rpc parameter that is not a json value: {value!r}")
+    return value is None or isinstance(value, (bool, int, float, str))
+
+
+def _assert_no_cycle(value: Any, enclosing: tuple[int, ...]) -> None:
+    """Refuse a container reached from inside itself, by the ids it is in."""
+    if id(value) in enclosing:
+        raise BTClibValueError("rpc params contains itself, so it has no json")
+
+
+def _refuse_param(value: Any) -> Any:
+    """Refuse a parameter the walk before the encoder did not anticipate.
+
+    The backstop, and every type it can be reached with today is one
+    `_assert_json_params` refuses first. What keeps it here is that
+    `json.dumps` calling this is the alternative to a TypeError from
+    inside the encoder: an object that is a `Sequence` of json values and
+    still has no json -- `range(3)` is one -- passes the walk and arrives
+    here.
+    """
     raise BTClibTypeError(f"rpc parameter that is not a json value: {value!r}")
 
 
@@ -325,12 +391,50 @@ def _id_error(where: str, request_id: str, reply: Mapping[str, Any]) -> FetchErr
 
 
 def _rpc_error(where: str, error: Any) -> FetchError:
-    """Turn what the node put in `error` into the exception for it."""
-    if not isinstance(error, Mapping) or not is_integer(error.get("code")):
+    """Turn what the node put in `error` into the exception for it.
+
+    An error object is a code that is an integer and a message that is a
+    string; a caller acts on the first and reads the second, so neither is
+    something to render whatever arrived. A missing message would become
+    an empty one and a list would be formatted into the exception, both of
+    which report the node as having said something it did not.
+    """
+    if not isinstance(error, Mapping):
         return FetchError(f"{where}: unreadable rpc error {error!r}")
-    return RpcError(
-        f"{where}: {error.get('message', '')}", error["code"], error.get("data")
-    )
+    # Any, both of them: every value of a reply is whatever the backend
+    # put there, which is what the two checks below are for
+    code: Any = error.get("code")
+    message: Any = error.get("message")
+    if not is_integer(code) or not isinstance(message, str):
+        return FetchError(f"{where}: unreadable rpc error {error!r}")
+    return RpcError(f"{where}: {message}", code, error.get("data"))
+
+
+def _unparsable(where: str, status: int, cause: Exception) -> FetchError:
+    """Say that a reply could not be read, the status first when it failed.
+
+    A body no parser can read cannot be a correlated rpc error, so on a
+    non-200 the status is the failure and the answer carries it: the
+    common case is the 401 with an empty body Core sends, and the next is
+    a 503 whose body is whatever is in front of the node. Reporting "not
+    json" for either would name the symptom and hide the cause.
+
+    On a 200 there is no status to report and what is left is that the
+    node answered something which is not a reply. The three shapes get
+    their own sentence, being three different things to go and look at,
+    and everything else -- a json integer longer than
+    `sys.get_int_max_str_digits` allows, and whatever a later Python adds
+    -- arrives as the parser refusing the reply, which is what happened.
+    """
+    if status != 200:
+        return _http_error(where, status)
+    if isinstance(cause, UnicodeDecodeError):
+        return FetchError(f"{where}: a reply that is not utf-8 ({cause})")
+    if isinstance(cause, RecursionError):
+        return FetchError(f"{where}: a reply nested too deeply to parse")
+    if isinstance(cause, json.JSONDecodeError):
+        return FetchError(f"{where}: not json ({cause})")
+    return FetchError(f"{where}: a reply the json parser refused ({cause})")
 
 
 def _reply_object(where: str, status: int, payload: bytes) -> Mapping[str, Any]:
@@ -339,20 +443,13 @@ def _reply_object(where: str, status: int, payload: bytes) -> Mapping[str, Any]:
         reply = json.loads(
             payload, parse_float=Decimal, parse_constant=_refuse_constant
         )
-    except UnicodeDecodeError as e:
-        raise FetchError(f"{where}: a reply that is not utf-8 ({e})") from e
-    except json.JSONDecodeError as e:
-        # a 401 is the common way to get here: Core answers an
-        # unauthorized request with the status and an empty body, so
-        # reporting "not json" would name the symptom and hide the cause
-        if status != 200:
-            raise _http_error(where, status) from e
-        raise FetchError(f"{where}: not json ({e})") from e
-    except RecursionError as e:
-        # json nested deeper than the interpreter's stack, which the
-        # bound on the body leaves ample room for: a megabyte of `[` is a
-        # recursion error out of the parser rather than an answer
-        raise FetchError(f"{where}: a reply nested too deeply to parse") from e
+    except (ValueError, RecursionError) as e:
+        # every way the parse can fail, under two types: JSONDecodeError
+        # and UnicodeDecodeError are both ValueError, the bare ValueError
+        # of the integer digit limit is a third, and json recurses. None
+        # of them is a distinction a caller acts on differently, and each
+        # of them on a non-200 has to keep the status -- see `_unparsable`
+        raise _unparsable(where, status, e) from e
     if not isinstance(reply, dict):
         raise FetchError(f"{where}: not a json-rpc reply, but a {type(reply).__name__}")
     return reply
@@ -400,19 +497,22 @@ def _v2_result(
     however json-shaped the body beside them is.
 
     Then exactly one of `result` and `error`, which is 2.0's own rule and
-    what tells a 2.0 reply from a 1.1 one wearing the marker.
+    what tells a 2.0 reply from a 1.1 one wearing the marker. Which member
+    is *present*, and not which is non-null: `"error": null` beside a
+    result is the 1.1 shape, and a reply that is 1.1 under a 2.0 marker is
+    one whose errors this function would look for in the wrong place.
     """
     if status != 200:
         raise _http_error(where, status)
     if reply.get("id") != request_id:
         raise _id_error(where, request_id, reply)
-    error = reply.get("error")
-    if error is not None:
-        if "result" in reply:
-            raise FetchError(f"{where}: a 2.0 reply with both result and error")
-        raise _rpc_error(where, error)
-    if "result" not in reply:
-        raise FetchError(f"{where}: a reply with neither result nor error")
+    has_result = "result" in reply
+    has_error = "error" in reply
+    if has_result == has_error:
+        both = "both result and error" if has_result else "neither result nor error"
+        raise FetchError(f"{where}: a 2.0 reply with {both}")
+    if has_error:
+        raise _rpc_error(where, reply["error"])
     return reply["result"]
 
 
@@ -598,20 +698,23 @@ class BitcoindRpcClient:
         request_id = _rpc_id()
         timeout = self.timeout if request_timeout is None else request_timeout
         _assert_valid_timeout(timeout, "rpc request_timeout")
+        params_member = _params_member(params)
+        _assert_json_params(params_member)
         request = {
             "jsonrpc": "2.0",
             "id": request_id,
             "method": method,
-            "params": _params_member(params),
+            "params": params_member,
         }
         try:
             body = json.dumps(request, allow_nan=False, default=_refuse_param).encode()
         except ValueError as e:
-            # allow_nan=False, i.e. a nan or an infinity among the
-            # parameters: Python writes those as the three bare words
-            # json has no numbers for, and a node parsing strictly
-            # rejects the whole request rather than the one parameter
-            raise BTClibValueError(f"not a json number in the rpc params: {e}") from e
+            # the walk above refuses every value json refuses and says
+            # which one, so what is left for this to catch is whatever a
+            # later Python adds to the encoder's own refusals. It is still
+            # about the parameters, this being the only part of a request
+            # that is not built here
+            raise BTClibValueError(f"rpc params json cannot carry: {e}") from e
         status, payload = http_request(
             self.url,
             data=body,
