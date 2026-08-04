@@ -90,21 +90,21 @@ pyroma), build, wheel smoke test — and publishes to
    uv run --with griffe griffe check btclib -a <previous release tag>
    ```
 
-   `tests/release_notes_test.py` keeps the *count* honest — the list, the
-   number stated above it, and the cross-reference in CHANGELOG.md all
-   have to agree — but it cannot know whether the list is complete, the
-   list being prose about the public API. griffe reads both revisions and
-   answers that: it finds a removed name, a parameter that changed kind
-   or default, an attribute whose value moved. Expect more lines than the
-   list has bullets, since it reports every difference and not only the
-   breaking ones; what matters is that nothing it calls a removal or a
-   signature change is missing from HISTORY.md.
+   `tests/release_notes_test.py` keeps both release-note files count-free:
+   it rejects entry counts and breaking-change totals, because those
+   figures drift and create merge conflicts. It cannot know whether the
+   list is complete, the list being prose about the public API. griffe
+   reads both revisions and answers that: it finds a removed name, a
+   parameter that changed kind or default, an attribute whose value moved.
+   Expect more lines than the list has bullets, since it reports every
+   difference and not only the breaking ones; what matters is that nothing
+   it calls a removal or a signature change is missing from HISTORY.md.
 
    Not a gate on every commit, and deliberately so: the comparison is
    against the previous *release*, so it reports the whole of a
-   development cycle — 170 differences today, which is v2026.8 in full.
-   Against `origin/master` it becomes usable as a pull-request check once
-   this release lands there, master still being at the 2023 tree.
+   development cycle, typically hundreds of differences. Against
+   `origin/master` it becomes usable as a pull-request check once this
+   release lands there, master still being at the 2023 tree.
 
 1. Retitle the "work in progress" section of **both** HISTORY.md and
    CHANGELOG.md as `## v<version>`. The workflow lifts the GitHub
