@@ -9,6 +9,12 @@
 # or distributed except according to the terms contained in the LICENSE file.
 """Tests for btclib.bitcoin_core_rpc, against recorded replies.
 
+Under `tests/fetch/` although its subject moved out of `btclib.fetch`, and
+that is `tests/fetch/__init__.py`: the recorded replies and the transports
+that serve them are there, shared with the Esplora tests and with the
+fetcher's. `tests/bitcoin_core_rpc_standalone_test.py` needs none of that
+and sits beside the module instead.
+
 Every client here is built with a transport, so no test reaches a node.
 The recorded bodies under `_data` are Core's, shape and newline included;
 the failure bodies a node cannot be asked to produce on demand -- a 401,

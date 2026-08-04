@@ -8,8 +8,13 @@
 # No part of btclib including this file, may be copied, modified, propagated,
 # or distributed except according to the terms contained in the LICENSE file.
 
+# Those terms are the ones below, embedded rather than referenced: this file
+# is meant to be copied out of the distribution, and a copy has no LICENSE
+# beside it. It carries no year, MIT asking for none and `btclib/__init__.py`
+# being the one place btclib writes them, so that no notice ever needs
+# editing.
 # SPDX-License-Identifier: MIT
-# Copyright (c) 2017-2026 The btclib developers
+# Copyright (c) The btclib developers
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to deal
@@ -29,6 +34,13 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE.
 """A standalone JSON-RPC client against Bitcoin Core.
+
+One source file with nothing but the standard library behind it, so that a
+project can copy it whole -- **Vendoring and updates** below is how. Its
+first consumer is btclib's own `BitcoinCoreFetcher`, which asks a node the
+three questions btclib has of a chain and turns the answers into btclib
+types: that class is named a few times here, as the example of a caller, and
+nothing in this file needs it.
 
 `BitcoinCoreRpcClient` invokes any one rpc method a node has, with
 positional or named parameters: one HTTP POST per call, basic
@@ -207,7 +219,7 @@ class BTClibRuntimeError(RuntimeError):
 
 
 class FetchError(BTClibRuntimeError):
-    """A backend of btclib.fetch did not answer, or did not answer this.
+    """A backend did not answer, or did not answer this.
 
     A RuntimeError and not a ValueError, which is the distinction worth
     keeping: nothing the caller passed is wrong. The node is down, the
@@ -217,7 +229,8 @@ class FetchError(BTClibRuntimeError):
 
     It covers the conversion of an answer too. A backend that replies
     with something which is not a transaction has failed, and reporting
-    that as the BTClibValueError `Tx.parse` raised would name the parser
+    that as the BTClibValueError the parser of the reply raised -- btclib's
+    `Tx.parse`, for the fetchers built on this -- would name the parser
     rather than the host that has to be fixed.
     """
 
@@ -290,11 +303,19 @@ if __name__ == "btclib.bitcoin_core_rpc":
 
 
 def _is_integer(value: Any) -> bool:
-    """Return whether value is an integer, with a bool not being one."""
+    """Return whether value is an integer, with a bool not being one.
+
+    `btclib.utils.is_integer` is the same predicate and states the policy:
+    `bool` being a subclass of `int`, every field whose contract is an
+    integer quantity accepted `True` as the number one, and the json
+    boundary is what makes that worth a refusal rather than a shrug.
+    Copied rather than imported, this file importing nothing of btclib's,
+    and `tests/integer_policy_test.py` is what keeps the two in step.
+    """
     return isinstance(value, int) and not isinstance(value, bool)
 
 
-# What a fetcher does its I/O with: a callable taking the request and a
+# What this module does its I/O with: a callable taking the request and a
 # timeout in seconds, answering with the HTTP status and the response
 # body. A status rather than an exception, because a JSON-RPC error can
 # arrive with a 500 and its body is the error object -- see
@@ -307,7 +328,7 @@ def _is_integer(value: Any) -> bool:
 #
 # - *its own* bound on what it holds in memory while reading. It is handed
 #   no `max_body_size` -- there is nowhere in two arguments to pass one --
-#   and btclib's limit is a per-call number applied to the bytes it hands
+#   and the limit here is a per-call number applied to the bytes it hands
 #   back, which is a refusal after the allocation and not instead of it.
 #   The two are different bounds, and a transport that reads a body of any
 #   size has already spent the memory btclib then declines to use;
@@ -330,23 +351,24 @@ HttpTransport = Callable[[Request, float], tuple[int, bytes]]
 # is not a timeout
 DEFAULT_TIMEOUT = 30.0
 
-# How much of a response body btclib will hold in memory, and why there
-# is a number at all: `EsploraFetcher`'s endpoint is allowed to be a
-# public explorer -- a host on the internet that says it validated the
-# chain -- and `response.read()` with nothing in front of it lets that
-# host hand over as much as it likes before any parser of btclib's gets to
-# refuse it. The socket timeout is no substitute: a peer delivering data
-# slowly but steadily resets it with every packet.
+# How much of a response body this module will hold in memory, and why
+# there is a number at all: an endpoint is allowed to be a host on the
+# internet -- a public explorer that says it validated the chain, which is
+# what btclib's `EsploraFetcher` reaches through this same transport -- and
+# `response.read()` with nothing in front of it lets that host hand over as
+# much as it likes before any parser gets to refuse it. The socket timeout
+# is no substitute: a peer delivering data slowly but steadily resets it
+# with every packet.
 #
-# Eight megabytes and a little. The largest of the three answers a fetcher
-# asks for is a raw transaction, a transaction fits in a block, and Esplora
-# sends it as hex, so the bound is twice Core's 4,000,000-byte buffer bound
-# on a serialized block, plus room for the newline a proxy may add.
-# btclib/block/limits.py leaves that constant out on purpose, consensus
-# capping the weight rather than the size -- here a buffer bound is
-# precisely what is wanted, so it is spelled out rather than imported.
-# A caller fetching something larger through `http_request` says so with
-# max_body_size
+# Eight megabytes and a little. The widest answer asked for here is a raw
+# transaction, a transaction fits in a block, and an explorer sends it as
+# hex, so the bound is twice Core's 4,000,000-byte buffer bound on a
+# serialized block, plus room for the newline a proxy may add. A buffer
+# bound and not a consensus rule, consensus capping the weight of a block
+# rather than its size: btclib's own block/limits.py leaves the constant
+# out for that very reason, so it is spelled out here rather than imported
+# from anywhere. A caller fetching something larger through `http_request`
+# says so with max_body_size
 _MAX_BLOCK_SERIALIZED_SIZE = 4_000_000
 DEFAULT_MAX_BODY_SIZE = 2 * _MAX_BLOCK_SERIALIZED_SIZE + 1024
 
@@ -411,11 +433,10 @@ class _NoRedirect(HTTPRedirectHandler):
 # downgrade, bounding every intermediate body and counting hops, which is
 # a redirect implementation inside a module whose subject is one bounded
 # request. What following a same-origin redirect would buy a caller -- an
-# endpoint that moved path -- is a base url they fix once, and both
-# fetchers turn the 30x into a FetchError naming the status and the url,
-# which is what tells them to. A caller passing a transport of their own
-# does its own I/O, so what `requests` or `httpx` does with a 30x is
-# theirs.
+# endpoint that moved path -- is a base url they fix once, and a 30x
+# arrives as a FetchError naming the status and the url, which is what
+# tells them to. A caller passing a transport of their own does its own
+# I/O, so what `requests` or `httpx` does with a 30x is theirs.
 #
 # `ProxyHandler({})` is the second thing missing, and for the same reason
 # as the first. `build_opener` otherwise installs a `ProxyHandler` built
@@ -513,10 +534,10 @@ def urlopen_transport(
 ) -> tuple[int, bytes]:
     """Perform the request with urllib, reading a bounded response.
 
-    The default `HttpTransport`, and the only function in btclib that
-    opens a socket. It maps nothing and interprets nothing: the status
-    and the bytes go back as they arrived, and `http_request` is where
-    the failures become btclib errors.
+    The default `HttpTransport`, and the only function that opens a
+    socket, here or anywhere in btclib. It maps nothing and interprets
+    nothing: the status and the bytes go back as they arrived, and
+    `http_request` is where the failures become the exceptions above.
 
     Bounded, and this is the only place a bound can be incremental: the
     limit is a keyword with a default, so this function still *is* an

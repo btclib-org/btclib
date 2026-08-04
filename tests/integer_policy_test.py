@@ -14,12 +14,17 @@ One file rather than a case per module, because the decision is one and
 json boundary: `true` decodes to `True`, and a schema mistake used to
 become one satoshi, one virtual byte, one index or a one-sat/kvB fee rate
 instead of failing beside the input that caused it.
+
+The predicate does have a second spelling, `btclib.bitcoin_core_rpc` being
+vendorable as one file and therefore importing nothing of btclib's. The last
+test here is what keeps that copy from drifting.
 """
 
 from __future__ import annotations
 
 from collections.abc import Callable
 from datetime import datetime, timezone
+from decimal import Decimal
 from enum import IntEnum
 from typing import Any
 
@@ -34,6 +39,7 @@ from btclib.bip32.der_path import (
     str_from_der_path,
     str_from_index_int,
 )
+from btclib.bitcoin_core_rpc import _is_integer
 from btclib.block import BlockHeader
 from btclib.block.block_context import BlockContext
 from btclib.exceptions import BTClibTypeError
@@ -227,3 +233,22 @@ def test_an_int_subclass_that_is_not_a_bool_is_still_an_integer() -> None:
     assert not is_integer(1.0)
     assert not is_integer("1")
     assert not is_integer(None)
+
+
+def test_the_vendorable_rpc_client_carries_the_same_predicate() -> None:
+    """The copy in `btclib.bitcoin_core_rpc` answers what this one answers.
+
+    That file is the one btclib source meant to be copied out of the
+    package, so it imports nothing of btclib's and spells the predicate
+    again -- which is a second statement of a decision this file exists to
+    say there is only one of. Nothing else would notice the two parting
+    company: the copy guards a json-rpc parameter and an HTTP body size, and
+    a `True` accepted there is a limit of one octet or a parameter the node
+    reads as the number one.
+    """
+    # a Decimal among them because that is what the client decodes a json
+    # number into, so it is the value most likely to reach the copy
+    values: list[Any] = [0, -1, 1, True, False, 1.0, "1", None, Decimal(1)]
+    assert [_is_integer(value) for value in values] == [
+        is_integer(value) for value in values
+    ]

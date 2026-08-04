@@ -23,6 +23,15 @@ the independently vendorable `btclib.bitcoin_core_rpc`; the transport exports
 here are aliases to that same source, not another implementation. The seam
 lets the test suite exercise all of this while opening no socket.
 
+It is no longer free for a user who never fetches, and that is what one
+exception identity costs. `FetchError` and the two below it are defined in
+the standalone file, so that a vendored copy and an installed btclib raise
+the same class; `btclib.exceptions` re-exports them, and every module in the
+library imports `btclib.exceptions` -- so any import of btclib at all now
+loads `urllib.request`, with `ssl` and `socket` under it. The alternative is
+two `FetchError` classes, one per import path, that no single `except`
+catches.
+
 Importing the package does not connect to anything, and constructing a
 fetcher does not either: the first call is what opens a connection, and
 what raises if there is nothing to connect to.

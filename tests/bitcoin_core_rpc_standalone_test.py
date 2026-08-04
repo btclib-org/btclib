@@ -41,6 +41,17 @@ def _source_path() -> Path:
 def test_the_client_source_imports_only_the_standard_library() -> None:
     """A copied file has no package or third-party import left behind."""
     tree = ast.parse(_source_path().read_text(encoding="utf-8"))
+    # a relative import is the one this would otherwise not see: the file
+    # sits inside the package, so `from . import fetcher` is how a
+    # dependency on btclib comes back, and `node.module` is None for the
+    # `from . import x` spelling -- an empty set of roots, and an assertion
+    # that passes. The level is what says an import is relative at all
+    relative = [
+        node
+        for node in ast.walk(tree)
+        if isinstance(node, ast.ImportFrom) and node.level
+    ]
+    assert not relative
     imported_roots = {
         node.module.split(".", 1)[0]
         for node in ast.walk(tree)
@@ -72,6 +83,18 @@ assert spec is not None and spec.loader is not None
 rpc = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(rpc)
 assert rpc.FetchError.__module__ == "vendored_bitcoin_core_rpc"
+
+# what -I -S bought, asserted rather than assumed: no site packages, no
+# PYTHONPATH and no script directory on sys.path, so there is no btclib
+# here to have been reached. Without these two, an isolation that stopped
+# working would leave a test that passes and proves nothing
+assert "btclib" not in sys.modules
+try:
+    import btclib
+except ImportError:
+    pass
+else:
+    raise AssertionError("btclib is importable here, so this proves nothing")
 
 calls = []
 def transport(request, timeout):

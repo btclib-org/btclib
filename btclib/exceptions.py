@@ -24,6 +24,25 @@ the field spares them.
 
 from __future__ import annotations
 
+# The six below are defined in `btclib.bitcoin_core_rpc` and re-exported here,
+# an exception having one identity: a caller must catch the same `FetchError`
+# through a copy of that single file and through this module. The three
+# BTClib bases come with them, so that the TypeError, ValueError and
+# RuntimeError hierarchies stay exact -- a `FetchError` deriving from a second
+# `BTClibRuntimeError` is one an `except BTClibRuntimeError` written against
+# this module does not catch.
+#
+# So this import runs the way no other in the package does, from the module
+# every other one imports to a protocol client, and it is not a layering
+# accident to tidy away: `btclib.bitcoin_core_rpc` imports nothing of
+# btclib's, that being what lets it be vendored whole, so the classes are
+# defined on that side or duplicated. What it costs is that any import of
+# btclib loads `urllib.request`, and `ssl` and `socket` under it:
+#
+#     python -X importtime -c "import btclib.exceptions"
+#
+# `tests/imports_test.py` pins the extent of it -- this module reaches that
+# one and nothing else of the fetch stack.
 from btclib.bitcoin_core_rpc import (
     BTClibRuntimeError,
     BTClibTypeError,
