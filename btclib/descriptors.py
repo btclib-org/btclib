@@ -58,6 +58,16 @@ descriptor names keys and scripts, and the same one means something on
 any chain, which is why Bitcoin Core takes the chain from its own context
 too. ``addr()`` is the exception, an address carrying the network in its
 own prefix.
+
+What this module exports is the checksum functions, `parse` and
+`multipath_descriptors`, and the fragment classes a parsed descriptor is
+made of -- `KeyExpression` and `DescriptorTree` among them, both being
+names a caller reads off `Descriptor.key_expressions` and
+`TrDescriptor.tree`. `INPUT_CHARSET`, `CHECKSUM_CHARSET` and `GENERATOR`
+stay out: they are the three tables BIP380's checksum is computed from,
+which is what `checksum`, `add_checksum` and `strip_checksum` answer, and
+each is still importable from this module the way the test suite takes
+them.
 """
 
 from __future__ import annotations
@@ -82,6 +92,28 @@ from btclib.script.taproot import input_script_sig, leaf_hash, tree_helper
 from btclib.script.witness import Witness
 from btclib.to_pub_key import point_from_pub_key, pub_keyinfo_from_key
 from btclib.utils import bytes_from_octets
+
+__all__ = [
+    "AddrDescriptor",
+    "ComboDescriptor",
+    "Descriptor",
+    "DescriptorTree",
+    "KeyExpression",
+    "MultiDescriptor",
+    "PkDescriptor",
+    "PkhDescriptor",
+    "RawDescriptor",
+    "ShDescriptor",
+    "TrDescriptor",
+    "WpkhDescriptor",
+    "WshDescriptor",
+    "add_checksum",
+    "checksum",
+    "from_address",
+    "multipath_descriptors",
+    "parse",
+    "strip_checksum",
+]
 
 INPUT_CHARSET = "0123456789()[],'/*abcdefgh@:$%{}IJKLMNOPQRSTUVWXYZ&+-.;<=>?!^_|~ijklmnopqrstuvwxyzABCDEFGH`#\"\\ "
 CHECKSUM_CHARSET = "qpzry9x8gf2tvdw0s3jn54khce6mua7l"

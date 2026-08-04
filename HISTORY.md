@@ -351,6 +351,14 @@ against the `v2023.7.12` tag.
   tag — and is `from btclib import slip132` now. `bip44`, which needs
   the same top-level placement for the same reason, was already there.
 
+- **`from btclib.<module> import *` hands out that module's own names.**
+  Every top-level module declares `__all__` now, where none did at
+  `v2023.7.12` — checked against the tag — so a star import stops binding
+  what the module imported: `Octets`, `String` and `sha256` came out of
+  `btclib.b58` and come out of `btclib.alias` and `btclib.hashes`, which
+  define them. Nothing became unreachable, `from btclib.b58 import p2pkh`
+  and every other named import included.
+
 Two changes are deliberately *not* on that list, because what they change
 stays compatible. The new `BTClibTypeError`, `NotAPrvKeyError` and
 `InvalidPrvKeyError` all derive from what was raised before, so `except

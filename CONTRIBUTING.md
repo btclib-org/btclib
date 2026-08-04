@@ -519,6 +519,27 @@ Work locally on your fork of btclib,
 until you are satisfied. Ensure that pre-commit and pytest
 have no issue with your modified codebase.
 
+#### The public surface
+
+**Every module and every package declares `__all__`.** A name is public
+here because a list says so, not because it happens to lack a leading
+underscore: `import *` and the sphinx pages then stop depending on an
+import section, and a helper cannot grow into a name callers depend on
+without somebody editing that list.
+
+For a package the list is what the `__init__` re-exports. For a module it
+is what the module itself defines — a name it imported belongs to the
+module that defines it, and `btclib.alias.Octets` is the spelling of
+`Octets`.
+
+**A public name kept out of the list is a decision, and the docstring
+says why.** `btclib.network.datadir` and the three checksum tables of
+`btclib.descriptors` are the two in the tree today; each stays importable
+from the module that defines it, which is where the test suite takes it
+from. `tests/all_test.py` checks all of this and finds the modules rather
+than listing them, so a new public name fails the suite until it is
+exported or recorded in that file's `UNEXPORTED` table.
+
 #### Documentation and comments
 
 What "satisfied" means for the prose — docstrings, comments, the

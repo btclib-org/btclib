@@ -28,6 +28,13 @@ from typing import Any
 from btclib.exceptions import BTClibTypeError, BTClibValueError
 from btclib.utils import is_integer
 
+__all__ = [
+    "btc_from_sats",
+    "sats_from_btc",
+    "valid_btc_amount",
+    "valid_sats_amount",
+]
+
 # The two functions below doing Decimal algebra trap FloatOperation in a
 # local context, not in the process-wide one at import time:
 # getcontext().traps[FloatOperation] = True would change the Decimal

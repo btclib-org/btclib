@@ -3232,6 +3232,43 @@ edit.
   is gone with the move; `from btclib import slip132` is the spelling
   this module's own test file, `docs/source/guide.rst` and every other
   caller in the tree now use (issue #340)
+- **Every top-level module declares `__all__`**, where every package
+  already did and no module did: `alias`, `amount`, `b32`, `b58`,
+  `base58`, `bech32`, `bip21`, `bip44`, `descriptors`, `exceptions`,
+  `fee`, `hashes`, `keystore`, `network`, `number_theory`, `slip132`,
+  `to_prv_key`, `to_pub_key`, `tx_or_psbt`, `utils`, `var_bytes`,
+  `var_int`, and `btclib` itself. In half the library "public" was
+  declared and in the other half it was a leading character, which is a
+  difference and not a style: `from btclib.b58 import *` handed out `Key`,
+  `Octets`, `String`, `sha256` and `network_from_key_value` beside the
+  seven names that module defines, and a helper growing into a name
+  callers depend on did so silently, where in a package it takes an edit
+  to a list. The lists hold what each module defines and nothing it
+  imported — a caller wanting `Octets` wants `btclib.alias.Octets` — so
+  `import *` and the sphinx pages both stop depending on an import
+  section. `btclib.__all__` is `name` alone: the metadata dunders stay out
+  because a star import binding `__version__` would overwrite the
+  importing module's own, and `btclib.__version__` is how a caller reads
+  it anyway (issue #338)
+- **Two modules record what they keep out**, which is the place a package
+  has and a module did not: `network.datadir` is where the five network
+  json files live, a question about the installation rather than about a
+  network, and `descriptors.INPUT_CHARSET`, `CHECKSUM_CHARSET` and
+  `GENERATOR` are the three tables BIP380's checksum is computed from,
+  which `checksum`, `add_checksum` and `strip_checksum` are what a caller
+  asks. Each is still importable from the module that defines it, which is
+  where the test suite takes them. `btclib.network` also stops leaking the
+  names of the loop that loads those files: `net`, `filename` and the open
+  file were module globals like any other, and are `_net`, `_filename` and
+  `_network_file` now, as `bip44` already spells `_purposes`
+- **`tests/all_test.py` enforces the module lists** rather than leaving
+  them to review, and finds the modules instead of listing them. Three
+  checks: every module declares a non-empty `__all__` naming things that
+  are there, as the packages are already checked; no module exports a name
+  it imported, which is the failure the packages do the opposite of by
+  design; and every public name a module defines is either exported or
+  named in the file's `UNEXPORTED` table, so a new public helper fails the
+  suite until somebody decides which it is
 
 ### Types
 

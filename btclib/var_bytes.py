@@ -14,6 +14,11 @@ from btclib.alias import BinaryData, Octets
 from btclib.exceptions import BTClibRuntimeError
 from btclib.utils import bytes_from_octets, bytesio_from_binarydata
 
+__all__ = [
+    "parse",
+    "serialize",
+]
+
 
 def parse(stream: BinaryData, forbid_zero_size: bool = False) -> bytes:
     """Return the variable-length octets read from a stream."""

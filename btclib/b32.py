@@ -38,6 +38,13 @@ the rule between the two is that direction: this module imports bech32, never
 the other way round. `base58` and `b58` are the same pair for the base58
 address encoding.
 
+The whole surface is exported, the two facilities below the addresses
+included: `power_of_2_base_conversion` is the `convertbits` of the
+reference implementation, which a caller reading or writing a witness
+program in five-bit groups needs as much as this module does, and
+`check_witness` is BIP141's length rule, which `btclib.b58` asks for the
+p2sh-wrapped forms.
+
 Some of these functions are originally from
 https://github.com/sipa/bech32/tree/master/ref/python,
 with the following modifications:
@@ -60,6 +67,17 @@ from btclib.hashes import hash160, sha256
 from btclib.network import NETWORKS, network_from_key_value
 from btclib.to_pub_key import Key, pub_keyinfo_from_key
 from btclib.utils import bytes_from_octets
+
+__all__ = [
+    "address_from_witness",
+    "check_witness",
+    "has_segwit_prefix",
+    "p2tr",
+    "p2wpkh",
+    "p2wsh",
+    "power_of_2_base_conversion",
+    "witness_from_address",
+]
 
 # 0. bech32 facilities
 

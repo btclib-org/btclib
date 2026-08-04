@@ -7,7 +7,19 @@
 #
 # No part of btclib including this file, may be copied, modified, propagated,
 # or distributed except according to the terms contained in the LICENSE file.
-"""The Network dataclass, NETWORKS, and the lookups over them."""
+"""The Network dataclass, NETWORKS, and the lookups over them.
+
+What this module exports is the dataclass, the catalogue, the three
+questions asked of a key-value pair and the three asked of an extended-key
+version, plus the two version lists a caller matches against.
+
+`datadir` stays out, and this is where that decision is recorded: it is
+where this package keeps the five json files loaded at the bottom of this
+file, so it answers a question about the installation and not one about a
+network, and the only code that reads it is the loop it is written for --
+`btclib.curves.curve` has a `datadir` of its own for its own catalogues.
+It is still `btclib.network.datadir` for a caller who wants the path.
+"""
 
 from __future__ import annotations
 
@@ -22,6 +34,23 @@ from btclib.curves import Curve
 from btclib.curves.curve import CURVES
 from btclib.exceptions import BTClibTypeError, BTClibValueError
 from btclib.utils import bytes_from_octets
+
+__all__ = [
+    "NETWORKS",
+    "XPRV_VERSIONS_ALL",
+    "XPUB_VERSIONS_ALL",
+    "Network",
+    "curve_from_xkeyversion",
+    "network_from_key_value",
+    "network_from_xkeyversion",
+    "network_type_from_key_value",
+    "network_type_from_network",
+    "network_type_from_xkeyversion",
+    "networks_from_key_value",
+    "networks_from_xkeyversion",
+    "xprvversions_from_network",
+    "xpubversions_from_network",
+]
 
 _KEY_SIZE: list[tuple[NetworkField, int]] = [
     ("magic_bytes", 4),
@@ -277,10 +306,13 @@ _network_names: tuple[NetworkName, ...] = (
     "signet",
     "testnet4",
 )
-for net in _network_names:
-    filename = path.join(datadir, f"{net}.json")
-    with open(filename, encoding="ascii") as f:
-        NETWORKS[net] = Network.from_dict(json.load(f))
+# the loop's own names are underscored: a for target and a with target are
+# module globals like any other, so `net`, `filename` and the open file
+# would be three names of this module that no caller has any use for
+for _net in _network_names:
+    _filename = path.join(datadir, f"{_net}.json")
+    with open(_filename, encoding="ascii") as _network_file:
+        NETWORKS[_net] = Network.from_dict(json.load(_network_file))
 
 
 # Three questions, three functions, and one scan -- the plural one --

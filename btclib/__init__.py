@@ -35,3 +35,12 @@ __author_email__ = "devs@btclib.org"
 # docs not installing this package into the environment it builds in
 __copyright__ = "Copyright (C) 2017-2026 The btclib developers"
 __license__ = "MIT License"
+
+# the distribution name is the whole of it, and the metadata dunders are
+# deliberately not in the list: a star import binding __version__ would
+# overwrite the importing module's own, which is not what asking for
+# btclib's version can be made to mean. Every one of them is still an
+# attribute -- btclib.__version__ is how a caller reads it -- and this
+# list is what stops `from btclib import *` handing out the `version` and
+# `PackageNotFoundError` the lookup above imports
+__all__ = ["name"]

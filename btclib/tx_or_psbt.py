@@ -37,6 +37,10 @@ from btclib.exceptions import BTClibValueError
 from btclib.psbt.psbt import PSBT_MAGIC_BYTES, Psbt
 from btclib.tx import Tx
 
+__all__ = [
+    "tx_or_psbt_from_any",
+]
+
 
 def _octets_from_text(text: str) -> bytes:
     """Return the bytes a hex-string or a base64 string encodes.

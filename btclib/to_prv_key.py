@@ -28,6 +28,13 @@ from btclib.network import (
 )
 from btclib.utils import bytes_from_octets
 
+__all__ = [
+    "PrvKey",
+    "PrvkeyInfo",
+    "int_from_prv_key",
+    "prv_keyinfo_from_prv_key",
+]
+
 # private key inputs:
 # integer as Union[int, Octets]
 # BIP32key as BIP32Key

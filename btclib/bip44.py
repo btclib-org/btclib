@@ -48,6 +48,11 @@ from btclib.network import network_from_xkeyversion, network_type_from_xkeyversi
 from btclib.script.taproot import output_pubkey
 from btclib.to_pub_key import Key
 
+__all__ = [
+    "SCRIPT_TYPE_FROM_PURPOSE",
+    "address_from_der_path",
+]
+
 # purpose, coin type, account, change, address index: BIP44 fixes the
 # meaning of each level, so a path of any other length is not one
 _LEVELS = 5

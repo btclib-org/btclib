@@ -7,12 +7,18 @@
 #
 # No part of btclib including this file, may be copied, modified, propagated,
 # or distributed except according to the terms contained in the LICENSE file.
-"""Tests for what the packages export.
+"""Tests for what the library exports.
 
 `__all__` is a decision about the public surface, and it had drifted: it
 carried a benchmark's worth of multiplication implementations in `btclib.curves`
 while `btclib.ecc` advertised four helpers and none of the six signature
 schemes behind them, and `btclib.mnemonic` neither of its two schemes.
+
+Every package declares one and so does every top-level module, which is the
+answer issue #338 asked for: a name is public here because a list says so,
+not because it happens to lack a leading underscore. A list per module is a
+list per module to keep true, and the last three tests are what keeps it,
+rather than a reviewer noticing.
 
 These tests are written against the names rather than the counts, so that a
 deliberate addition is one line here and an accidental one is a failure.
@@ -20,8 +26,11 @@ deliberate addition is one line here and an accidental one is a failure.
 
 from __future__ import annotations
 
+import ast
 from importlib import import_module
+from pathlib import Path
 from pkgutil import iter_modules
+from types import ModuleType
 
 import btclib
 import btclib.curves
@@ -32,6 +41,69 @@ import btclib.script
 from btclib.curves import curve_group, curve_group_2
 from btclib.psbt import psbt_utils
 from btclib.script import script_pub_key
+
+# what a module defines without a leading underscore and deliberately does
+# not export, with the reason beside the list in each module's docstring.
+# A name added here is a decision; a name that has to be added here to make
+# the suite pass is one that was about to become public by accident
+UNEXPORTED = {
+    "btclib.descriptors": ["CHECKSUM_CHARSET", "GENERATOR", "INPUT_CHARSET"],
+    "btclib.network": ["datadir"],
+}
+
+
+def top_level_modules() -> list[ModuleType]:
+    """Return btclib and its top-level modules, the private one excluded.
+
+    Found rather than listed, as the packages are below: a module added to
+    the library is a module these tests ask about. `btclib._ripemd160` is
+    out because a module whose name opens with an underscore is not part of
+    the surface at all -- what is public *in* it is not reachable by any
+    spelling a caller is offered -- and the packages are out because
+    `test_every_exported_name_exists` walks those.
+    """
+    return [
+        btclib,
+        *(
+            import_module(f"btclib.{name}")
+            for _, name, is_package in iter_modules(btclib.__path__)
+            if not is_package and not name.startswith("_")
+        ),
+    ]
+
+
+def imported_names(module: ModuleType) -> set[str]:
+    """Return the names a module's own import statements bind.
+
+    Read off the source rather than the module object, there being nothing
+    in a module's namespace to say how a name got there. Only the top-level
+    statements are read: an import inside a function binds a local.
+    """
+    tree = ast.parse(Path(str(module.__file__)).read_text(encoding="utf-8"))
+    return {
+        alias.asname or alias.name.split(".")[0]
+        for node in tree.body
+        if isinstance(node, (ast.Import, ast.ImportFrom))
+        for alias in node.names
+    }
+
+
+def defined_public_names(module: ModuleType) -> set[str]:
+    """Return the public names a module defines itself.
+
+    Everything in its namespace, minus the underscored, minus what it
+    imported, minus the modules: a submodule becomes an attribute of its
+    package as soon as anything imports it, so `btclib.b58` is in
+    `vars(btclib)` by the time any test runs.
+    """
+    imported = imported_names(module)
+    return {
+        name
+        for name, value in vars(module).items()
+        if not name.startswith("_")
+        and name not in imported
+        and not isinstance(value, ModuleType)
+    }
 
 
 def test_ec_exports_the_curve_api_not_the_benchmark() -> None:
@@ -248,3 +320,55 @@ def test_every_exported_name_exists() -> None:
         assert names, f"{package.__name__} declares no __all__"
         for name in names:
             assert hasattr(package, name), f"{package.__name__}.{name} is not there"
+
+
+def test_every_module_declares_one_too() -> None:
+    """A top-level module says what it exports, as a package does.
+
+    Half the library declared its surface and the other half left it to a
+    leading character, so `from btclib.b58 import *` handed out `Key`,
+    `Octets`, `String`, `sha256` and `network_from_key_value` beside the
+    seven names that module defines. This is the same check
+    `test_every_exported_name_exists` makes of the packages: a list, not
+    empty, naming things that are there.
+    """
+    modules = top_level_modules()
+    assert len(modules) > 1, "no top-level module found under btclib"
+    for module in modules:
+        names = getattr(module, "__all__", None)
+        assert names, f"{module.__name__} declares no __all__"
+        for name in names:
+            assert hasattr(module, name), f"{module.__name__}.{name} is not there"
+
+
+def test_no_module_exports_a_name_it_imported() -> None:
+    """A module exports what it defines, which is what packages do not.
+
+    A package's `__all__` is re-export by design -- `btclib.ecc` names
+    `dsa`, defined a module away -- and for a module the same thing is a
+    leak: `Octets` reached through `btclib.b58` is that module's import
+    section, where `btclib.alias.Octets` is the name a caller wants. A
+    module with a reason to re-export something is a conversation to have
+    with this test, not around it.
+    """
+    for module in top_level_modules():
+        imported = imported_names(module)
+        for name in module.__all__:
+            assert name not in imported, f"{module.__name__} re-exports {name}"
+
+
+def test_nothing_becomes_public_by_accident() -> None:
+    """Every public name is exported or recorded as kept out.
+
+    This is the check the underscore convention cannot make: a helper that
+    grows into a name callers depend on does so silently, where a package
+    takes an edit to a list. `UNEXPORTED` is that edit for modules, and
+    `sorted` is what the failure reads as -- the names not accounted for,
+    against the ones that are.
+    """
+    for module in top_level_modules():
+        kept_out = sorted(defined_public_names(module) - set(module.__all__))
+        assert kept_out == UNEXPORTED.get(module.__name__, []), (
+            f"{module.__name__} defines public names that are neither"
+            f" exported nor recorded in UNEXPORTED: {kept_out}"
+        )

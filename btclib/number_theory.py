@@ -25,6 +25,14 @@ from __future__ import annotations
 from btclib.exceptions import BTClibValueError
 from btclib.utils import hex_string
 
+__all__ = [
+    "legendre_symbol",
+    "mod_inv",
+    "mod_sqrt",
+    "tonelli",
+    "xgcd",
+]
+
 
 def xgcd(a: int, b: int) -> tuple[int, int, int]:
     """Return (g, x, y) such that a*x + b*y = g = gcd(x, y).

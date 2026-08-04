@@ -44,6 +44,13 @@ from btclib.script.script import BYTE_FROM_OP_CODE_NAME
 from btclib.script.script_pub_key import is_segwit
 from btclib.utils import bytes_from_octets, is_integer
 
+__all__ = [
+    "DUST_RELAY_FEE_RATE",
+    "FeeRate",
+    "dust_threshold",
+    "fee_from_vsize",
+]
+
 # the kilo in sat/kvB, i.e. how many virtual bytes a rate is quoted over
 _VBYTES_PER_KVBYTE = 1000
 
