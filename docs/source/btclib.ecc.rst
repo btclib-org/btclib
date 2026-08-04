@@ -9,7 +9,6 @@ btclib.ecc.bip340\_nonce module
 
 .. automodule:: btclib.ecc.bip340_nonce
    :members:
-   :undoc-members:
    :show-inheritance:
 
 btclib.ecc.bms module
@@ -17,7 +16,6 @@ btclib.ecc.bms module
 
 .. automodule:: btclib.ecc.bms
    :members:
-   :undoc-members:
    :show-inheritance:
 
 btclib.ecc.borromean module
@@ -25,7 +23,6 @@ btclib.ecc.borromean module
 
 .. automodule:: btclib.ecc.borromean
    :members:
-   :undoc-members:
    :show-inheritance:
 
 btclib.ecc.commit\_nonce module
@@ -33,7 +30,6 @@ btclib.ecc.commit\_nonce module
 
 .. automodule:: btclib.ecc.commit_nonce
    :members:
-   :undoc-members:
    :show-inheritance:
 
 btclib.ecc.dh module
@@ -41,7 +37,6 @@ btclib.ecc.dh module
 
 .. automodule:: btclib.ecc.dh
    :members:
-   :undoc-members:
    :show-inheritance:
 
 btclib.ecc.dsa module
@@ -49,7 +44,6 @@ btclib.ecc.dsa module
 
 .. automodule:: btclib.ecc.dsa
    :members:
-   :undoc-members:
    :show-inheritance:
 
 btclib.ecc.ecies module
@@ -57,7 +51,6 @@ btclib.ecc.ecies module
 
 .. automodule:: btclib.ecc.ecies
    :members:
-   :undoc-members:
    :show-inheritance:
 
 btclib.ecc.ellswift module
@@ -65,7 +58,6 @@ btclib.ecc.ellswift module
 
 .. automodule:: btclib.ecc.ellswift
    :members:
-   :undoc-members:
    :show-inheritance:
 
 btclib.ecc.musig2 module
@@ -73,7 +65,6 @@ btclib.ecc.musig2 module
 
 .. automodule:: btclib.ecc.musig2
    :members:
-   :undoc-members:
    :show-inheritance:
 
 btclib.ecc.pedersen module
@@ -81,7 +72,6 @@ btclib.ecc.pedersen module
 
 .. automodule:: btclib.ecc.pedersen
    :members:
-   :undoc-members:
    :show-inheritance:
 
 btclib.ecc.rfc6979\_nonce module
@@ -89,7 +79,6 @@ btclib.ecc.rfc6979\_nonce module
 
 .. automodule:: btclib.ecc.rfc6979_nonce
    :members:
-   :undoc-members:
    :show-inheritance:
 
 btclib.ecc.ssa module
@@ -97,7 +86,6 @@ btclib.ecc.ssa module
 
 .. automodule:: btclib.ecc.ssa
    :members:
-   :undoc-members:
    :show-inheritance:
 
 Module contents
@@ -105,5 +93,4 @@ Module contents
 
 .. automodule:: btclib.ecc
    :members:
-   :undoc-members:
    :show-inheritance:

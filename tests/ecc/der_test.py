@@ -19,6 +19,7 @@ ec = secp256k1
 
 
 def test_der_size() -> None:
+    """Round-trip DER serializations of every size from 8 to 72 bytes."""
     sig8 = 1, 1
     sig72 = ec.n - 2, ec.n - 1
     sig71 = 2**255 - 4, ec.n - 1
@@ -40,6 +41,7 @@ def test_der_size() -> None:
 
 
 def test_der_deserialize() -> None:
+    """Refuse each malformed DER field with its own message."""
     err_msg = "non-hexadecimal number found "
     with pytest.raises(ValueError, match=err_msg):
         Sig.parse("not a sig")
@@ -126,6 +128,7 @@ def test_der_one_byte_scalar() -> None:
 
 
 def test_der_serialize() -> None:
+    """Refuse out-of-range scalars and an r that fits no x-coordinate."""
     r = 2**247 - 1
     s = 2**247 - 1
     Sig(r, s)

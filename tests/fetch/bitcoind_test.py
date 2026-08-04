@@ -51,7 +51,7 @@ RPC_PASSWORD = "rpcpassword"  # noqa: S105  # pragma: allowlist secret
 
 
 def proxy(*answers: tuple[int, bytes] | Exception, **kwargs: object) -> AuthProxy:
-    """An AuthProxy answered by a recording, with credentials of no node."""
+    """Return an AuthProxy over a recording, with credentials of no node."""
     transport = Recorded(*answers)
     return AuthProxy(
         user=RPC_USER,
@@ -79,6 +79,7 @@ def test_the_default_endpoint_is_the_local_node_of_that_network() -> None:
 
 
 def test_an_unknown_network_is_refused() -> None:
+    """Refuse a network name Core's chainparamsbase does not know."""
     with pytest.raises(BTClibValueError, match="unknown network: testnet5"):
         AuthProxy(network="testnet5")
 
@@ -105,11 +106,13 @@ def test_credentials_in_the_url_are_refused(url: str) -> None:
 def test_a_user_without_a_password_is_refused(
     user: str | None, password: str | None
 ) -> None:
+    """Refuse a user without a password, and the other way round."""
     with pytest.raises(BTClibValueError, match="go together"):
         AuthProxy(user=user, password=password)
 
 
 def test_the_basic_credential_is_the_user_and_password_given() -> None:
+    """Verify the Authorization header is Basic over user:password."""
     header = AuthProxy(user=RPC_USER, password=RPC_PASSWORD).auth_header()
     scheme, encoded = header.split(" ")
     assert scheme == "Basic"
@@ -126,6 +129,7 @@ def test_a_non_ascii_password_is_utf_8() -> None:
 def test_the_cookie_file_is_the_credential_when_there_is_no_user(
     tmp_path: Path,
 ) -> None:
+    """Verify the cookie line becomes the Basic credential, no user given."""
     cookie = tmp_path / ".cookie"
     cookie.write_text(COOKIE_LINE)
     header = AuthProxy(cookie_path=cookie).auth_header()
@@ -153,6 +157,7 @@ def test_the_cookie_is_read_at_every_call_not_at_construction(
 
 
 def test_an_absent_cookie_file_says_which_file(tmp_path: Path) -> None:
+    """Verify the unreadable-cookie error names the missing file."""
     absent = tmp_path / "no-such-datadir" / ".cookie"
     # escaped because `match` is a regex and a path is not: the windows
     # separator is a backslash, so a tmp_path under C:\Users carries an
@@ -163,6 +168,7 @@ def test_an_absent_cookie_file_says_which_file(tmp_path: Path) -> None:
 
 
 def test_a_cookie_file_without_a_colon_is_not_one(tmp_path: Path) -> None:
+    """Refuse a cookie file carrying no colon as malformed."""
     cookie = tmp_path / ".cookie"
     cookie.write_text("nonsense\n")
     with pytest.raises(FetchError, match="malformed rpc cookie file"):
@@ -198,6 +204,7 @@ def test_the_parameters_go_through_in_order() -> None:
 
 
 def test_the_timeout_reaches_the_transport() -> None:
+    """Verify the constructor's timeout is handed to the transport."""
     transport = Recorded((200, recorded_body("getblockcount.json")))
     AuthProxy(
         user=RPC_USER, password=RPC_PASSWORD, timeout=2.5, transport=transport
@@ -250,11 +257,13 @@ def test_a_body_that_is_not_json_says_so() -> None:
 
 
 def test_a_json_body_that_is_not_a_reply_object() -> None:
+    """Refuse a json body that is not a json-rpc reply object."""
     with pytest.raises(FetchError, match="not a json-rpc reply"):
         proxy((200, b"[1, 2, 3]")).call("getblockcount")
 
 
 def test_a_non_200_with_no_error_object_reports_the_status() -> None:
+    """Verify a non-200 with no error object reports the status."""
     body = json.dumps({"jsonrpc": "2.0", "result": None, "id": "btclib"}).encode()
     with pytest.raises(FetchError, match="HTTP 503"):
         proxy((503, body)).call("getblockcount")
@@ -268,6 +277,7 @@ def test_a_reply_to_someone_elses_request_is_refused() -> None:
 
 
 def test_a_reply_with_neither_result_nor_error() -> None:
+    """Refuse a reply object with neither result nor error."""
     body = json.dumps({"jsonrpc": "2.0", "id": "btclib"}).encode()
     with pytest.raises(FetchError, match="neither result nor error"):
         proxy((200, body)).call("getblockcount")
@@ -286,6 +296,7 @@ def test_an_error_member_that_is_not_one(error: object) -> None:
 def fetcher(
     *answers: tuple[int, bytes] | Exception, **kwargs: object
 ) -> BitcoindFetcher:
+    """Return a BitcoindFetcher over a recorded AuthProxy."""
     return BitcoindFetcher(proxy(*answers, **kwargs))
 
 
@@ -298,6 +309,7 @@ def test_get_tx_parses_the_serialization_the_node_sent() -> None:
 
 
 def test_get_tx_asks_for_the_id_it_was_given() -> None:
+    """Verify get_tx sends getrawtransaction with the hex id it was given."""
     transport = Recorded((200, recorded_body("getrawtransaction.json")))
     endpoint = AuthProxy(user=RPC_USER, password=RPC_PASSWORD, transport=transport)
     BitcoindFetcher(endpoint).get_tx(bytes.fromhex(TX_ID))
@@ -317,6 +329,7 @@ def test_get_tx_labels_the_outputs_for_the_proxies_network() -> None:
 
 
 def test_get_tx_out_reads_one_output_of_the_previous_transaction() -> None:
+    """Verify get_tx_out answers with the one output the OutPoint names."""
     out = fetcher((200, recorded_body("getrawtransaction.json"))).get_tx_out(
         OutPoint(TX_ID, 1)
     )
@@ -324,6 +337,7 @@ def test_get_tx_out_reads_one_output_of_the_previous_transaction() -> None:
 
 
 def test_get_block_count_and_get_best_block_id() -> None:
+    """Verify the height and the tip id are read off recorded replies."""
     assert fetcher((200, recorded_body("getblockcount.json"))).get_block_count() == (
         TIP_HEIGHT
     )
@@ -340,6 +354,7 @@ def test_get_block_count_and_get_best_block_id() -> None:
     ],
 )
 def test_a_height_that_is_not_one(result: object, match: str) -> None:
+    """Refuse a getblockcount result that is not an int."""
     body = json.dumps({"jsonrpc": "2.0", "result": result, "id": "btclib"}).encode()
     with pytest.raises(FetchError, match=match):
         fetcher((200, body)).get_block_count()
@@ -347,6 +362,7 @@ def test_a_height_that_is_not_one(result: object, match: str) -> None:
 
 @pytest.mark.parametrize("result", ["", "00" * 31, 481824, None])
 def test_a_tip_hash_that_is_not_one(result: object) -> None:
+    """Refuse a getbestblockhash result that is not a block id."""
     body = json.dumps({"jsonrpc": "2.0", "result": result, "id": "btclib"}).encode()
     with pytest.raises(FetchError, match="getbestblockhash:"):
         fetcher((200, body)).get_best_block_id()
@@ -354,6 +370,7 @@ def test_a_tip_hash_that_is_not_one(result: object) -> None:
 
 @pytest.mark.parametrize("result", ["not hex", "", None, 170, {"hex": "0100"}])
 def test_a_raw_transaction_that_is_not_one(result: object) -> None:
+    """Refuse a getrawtransaction result that is not a hex tx."""
     body = json.dumps({"jsonrpc": "2.0", "result": result, "id": "btclib"}).encode()
     with pytest.raises(FetchError, match=f"transaction {TX_ID}:"):
         fetcher((200, body)).get_tx(TX_ID)

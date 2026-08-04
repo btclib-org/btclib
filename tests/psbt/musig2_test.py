@@ -44,7 +44,7 @@ PARTICIPANT_PUB_KEYS = (
 
 
 def signed_vectors() -> list[Any]:
-    """The four BIP373 psbts that carry a complete set of partial signatures."""
+    """Select the four BIP373 psbts carrying all partial signatures."""
     return [
         pytest.param(test_vector, id=vector_id(index, test_vector["description"]))
         for index, test_vector in enumerate(
@@ -61,7 +61,7 @@ def signed_vectors() -> list[Any]:
 
 
 def session_of(psbt: Psbt) -> tuple[bytes, bytes]:
-    """The aggregate key of the participants, and the tapleaf hash if any.
+    """Read the participants' aggregate key, and the tapleaf hash if any.
 
     Two different keys live in these fields, and this is the place the
     difference shows: `musig2_participant_pub_keys` is keyed by the plain
@@ -237,6 +237,7 @@ def test_the_updater_files_a_list_under_the_key_it_aggregates_to() -> None:
 
 
 def test_a_signer_that_is_not_a_participant_is_refused() -> None:
+    """Refuse a nonce for a key outside the participant list."""
     encoded = next(
         test_vector["encoded psbt"]
         for test_vector in load("psbt", "_data", "bip373_test_vectors.json")[
@@ -252,7 +253,7 @@ def test_a_signer_that_is_not_a_participant_is_refused() -> None:
 
 
 def _bip373_psbt(description: str) -> Psbt:
-    """The valid BIP373 psbt whose description contains this."""
+    """Return the valid BIP373 psbt whose description contains this."""
     return Psbt.b64decode(
         next(
             test_vector["encoded psbt"]
@@ -342,10 +343,10 @@ def test_a_round_that_the_other_round_has_not_reached() -> None:
 
 
 def test_partial_signatures_that_do_not_add_up() -> None:
-    """A partial signature of another session verifies alone, and adds up
-    to nothing.
+    """Refuse to aggregate a partial signature of another session.
 
-    Which is the Finalizer's check: the aggregate signature is verified
+    Each such signature verifies alone and adds up to nothing, and
+    catching that is the Finalizer's check: the aggregate signature is verified
     before it is written, so a psbt combined out of two sessions is
     refused rather than finalized into a transaction the network drops.
     """

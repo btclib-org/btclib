@@ -55,7 +55,7 @@ from tests.script_engine import transactions_test as tx_vector_module
 
 
 def python_dsa_verify(msg_hash: bytes, pub_key: bytes, sig: bytes) -> bool:
-    """The Python verify the fixture below installs in the engine.
+    """Verify an ECDSA signature through the Python implementation.
 
     `hybrid=True` is the second half of issue #129: `point_from_octets`
     takes the hybrid 0x06/0x07 prefixes only when asked,
@@ -70,7 +70,7 @@ def python_dsa_verify(msg_hash: bytes, pub_key: bytes, sig: bytes) -> bool:
 
 
 def python_ssa_verify(msg_hash: bytes, pub_key: bytes, sig: bytes) -> bool:
-    """The BIP340 counterpart, for the tapscript vectors."""
+    """Verify a BIP340 signature through the Python implementation."""
     return ssa.verify_(msg_hash, pub_key, sig)
 
 
@@ -103,30 +103,35 @@ def python_verification(monkeypatch: pytest.MonkeyPatch) -> None:
 @pytest.mark.parametrize("vector", script_vector_module.script_vectors())
 @pytest.mark.usefixtures("python_verification")
 def test_script_vectors(vector: script_vector_module.ScriptVector) -> None:
+    """Rerun Core's script vectors with Python verification underneath."""
     script_vector_module.test_script(vector)
 
 
 @pytest.mark.parametrize("vector", tx_vector_module.legacy_vectors("tx_valid.json"))
 @pytest.mark.usefixtures("python_verification")
 def test_valid_legacy_vectors(vector: list[Any]) -> None:
+    """Rerun tx_valid.json with Python verification underneath."""
     tx_vector_module.test_valid_legacy(vector)
 
 
 @pytest.mark.parametrize("vector", tx_vector_module.legacy_vectors("tx_invalid.json"))
 @pytest.mark.usefixtures("python_verification")
 def test_invalid_legacy_vectors(vector: list[Any]) -> None:
+    """Rerun tx_invalid.json with Python verification underneath."""
     tx_vector_module.test_invalid_legacy(vector)
 
 
 @pytest.mark.parametrize("vector", tx_vector_module.taproot_vectors("success"))
 @pytest.mark.usefixtures("python_verification")
 def test_valid_taproot_vectors(vector: dict[str, Any]) -> None:
+    """Rerun the taproot success vectors with Python verification."""
     tx_vector_module.test_valid_taproot(vector)
 
 
 @pytest.mark.parametrize("vector", tx_vector_module.taproot_vectors("failure"))
 @pytest.mark.usefixtures("python_verification")
 def test_invalid_taproot_vectors(vector: dict[str, Any]) -> None:
+    """Rerun the taproot failure vectors with Python verification."""
     tx_vector_module.test_invalid_taproot(vector)
 
 

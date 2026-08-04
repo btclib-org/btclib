@@ -24,6 +24,7 @@ from tests.curves.curve_test import low_card_curves
 
 
 def test_borromean() -> None:
+    """Round-trip a four-ring signature, and check the failure modes."""
     nring = 4
     # fixed rather than drawn at random: a ring the draw makes short
     # leaves some of the loop below unrun, and the coverage gate then

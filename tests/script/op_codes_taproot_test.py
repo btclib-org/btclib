@@ -16,6 +16,7 @@ from btclib.script.op_codes_tapscript import _serialize_str_command
 
 
 def test_invalid_op_success() -> None:
+    """Refuse OP_SUCCESS numbers BIP342 does not define; 80 is 0x50."""
     err_msg = "invalid OP_SUCCESS number:"
     with pytest.raises(BTClibValueError, match=err_msg):
         _serialize_str_command("OP_SUCCESS1")

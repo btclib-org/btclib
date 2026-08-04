@@ -137,6 +137,7 @@ DISPATCH_VECTORS = [
 
 @pytest.mark.parametrize(("mnemonic", "seed_type", "seed_types"), DISPATCH_VECTORS)
 def test_dispatch_vectors(mnemonic: str, seed_type: str, seed_types: list[str]) -> None:
+    """Verify each sentence's seed type and its full candidate list."""
     assert dispatch.seed_type_from_mnemonic(mnemonic) == seed_type
     assert dispatch.all_seed_types_from_mnemonic(mnemonic) == seed_types
 
@@ -328,7 +329,7 @@ def test_slip39_bad_sentence_is_not_claimed(mnemonics: list[str]) -> None:
     ],
 )
 def test_slip39_bad_set_of_good_sentences(mnemonics: list[str]) -> None:
-    """ "slip39" is about the sentence in hand, not the set it belongs to.
+    """Report a share as "slip39" whatever the set it belongs to.
 
     These 22 vectors are sets that cannot be combined -- mismatching
     fields, duplicate indices, too few groups, a digest that does not

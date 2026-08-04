@@ -114,6 +114,7 @@ def test_bech32_insertion_issue() -> None:
 
 
 def test_bech32m() -> None:
+    """Reproduce the reference bech32m checksum vectors, valid and invalid."""
     valid_checksum = [
         "A1LQFN3A",
         "a1lqfn3a",

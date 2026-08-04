@@ -96,6 +96,7 @@ def test_a_real_hashlib_object_satisfies_the_protocol() -> None:
 
 
 def test_the_aliases_are_distinct() -> None:
+    """Verify the two aliases differ in arity, hence in assignability."""
     assert HashF != HashDigestF
 
     # a constructor: no argument in, a HashObject out

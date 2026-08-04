@@ -23,6 +23,7 @@ from tests.conftest import JsonGolden
 
 
 def test_bip32_key_origin() -> None:
+    """Parse descriptions in every hardening spelling; refuse bad ones."""
     with pytest.raises(BTClibValueError, match="invalid master fingerprint length: "):
         BIP32KeyOrigin("badbad", [0])
 
@@ -72,6 +73,7 @@ def test_bip32_key_origin() -> None:
 
 
 def test_dataclasses_json_dict_key_origin(json_golden: JsonGolden) -> None:
+    """Round-trip a BIP32KeyOrigin through dict, against the golden json."""
     key_origin = BIP32KeyOrigin.from_description("deadbeef//44h/0'/1H/0/10/")
 
     # BIP32KeyOrigin dataclass
@@ -96,6 +98,7 @@ def test_dataclasses_json_dict_key_origin(json_golden: JsonGolden) -> None:
 
 
 def test_bip32_derivs() -> None:
+    """Round-trip bip32_derivs dicts; refuse duplicated key origins."""
     # the basic type dict representation
     bip32_derivs = [
         {
@@ -134,6 +137,7 @@ def test_bip32_derivs() -> None:
 
 
 def test_bip32_derivs_check_validity() -> None:
+    """Check check_validity=False defers the fingerprint check (issue 264)."""
     # issue 264: check_validity=False lets a malformed master_fingerprint
     # through decode_from_bip32_derivs, the way every other check_validity
     # does -- deferred to assert_valid_hd_key_paths rather than refused here

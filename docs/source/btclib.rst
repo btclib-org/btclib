@@ -25,7 +25,6 @@ btclib.alias module
 
 .. automodule:: btclib.alias
    :members:
-   :undoc-members:
    :show-inheritance:
 
 btclib.amount module
@@ -33,7 +32,6 @@ btclib.amount module
 
 .. automodule:: btclib.amount
    :members:
-   :undoc-members:
    :show-inheritance:
 
 btclib.b32 module
@@ -41,7 +39,6 @@ btclib.b32 module
 
 .. automodule:: btclib.b32
    :members:
-   :undoc-members:
    :show-inheritance:
 
 btclib.b58 module
@@ -49,7 +46,6 @@ btclib.b58 module
 
 .. automodule:: btclib.b58
    :members:
-   :undoc-members:
    :show-inheritance:
 
 btclib.base58 module
@@ -57,7 +53,6 @@ btclib.base58 module
 
 .. automodule:: btclib.base58
    :members:
-   :undoc-members:
    :show-inheritance:
 
 btclib.bech32 module
@@ -65,7 +60,6 @@ btclib.bech32 module
 
 .. automodule:: btclib.bech32
    :members:
-   :undoc-members:
    :show-inheritance:
 
 btclib.bip21 module
@@ -73,7 +67,6 @@ btclib.bip21 module
 
 .. automodule:: btclib.bip21
    :members:
-   :undoc-members:
    :show-inheritance:
 
 btclib.bip44 module
@@ -81,7 +74,6 @@ btclib.bip44 module
 
 .. automodule:: btclib.bip44
    :members:
-   :undoc-members:
    :show-inheritance:
 
 btclib.descriptors module
@@ -89,7 +81,6 @@ btclib.descriptors module
 
 .. automodule:: btclib.descriptors
    :members:
-   :undoc-members:
    :show-inheritance:
 
 btclib.exceptions module
@@ -97,7 +88,6 @@ btclib.exceptions module
 
 .. automodule:: btclib.exceptions
    :members:
-   :undoc-members:
    :show-inheritance:
 
 btclib.fee module
@@ -105,7 +95,6 @@ btclib.fee module
 
 .. automodule:: btclib.fee
    :members:
-   :undoc-members:
    :show-inheritance:
 
 btclib.hashes module
@@ -113,7 +102,6 @@ btclib.hashes module
 
 .. automodule:: btclib.hashes
    :members:
-   :undoc-members:
    :show-inheritance:
 
 btclib.keystore module
@@ -121,7 +109,6 @@ btclib.keystore module
 
 .. automodule:: btclib.keystore
    :members:
-   :undoc-members:
    :show-inheritance:
 
 btclib.network module
@@ -129,7 +116,6 @@ btclib.network module
 
 .. automodule:: btclib.network
    :members:
-   :undoc-members:
    :show-inheritance:
 
 btclib.number\_theory module
@@ -137,7 +123,6 @@ btclib.number\_theory module
 
 .. automodule:: btclib.number_theory
    :members:
-   :undoc-members:
    :show-inheritance:
 
 btclib.to\_prv\_key module
@@ -145,7 +130,6 @@ btclib.to\_prv\_key module
 
 .. automodule:: btclib.to_prv_key
    :members:
-   :undoc-members:
    :show-inheritance:
 
 btclib.to\_pub\_key module
@@ -153,7 +137,6 @@ btclib.to\_pub\_key module
 
 .. automodule:: btclib.to_pub_key
    :members:
-   :undoc-members:
    :show-inheritance:
 
 btclib.tx\_or\_psbt module
@@ -161,7 +144,6 @@ btclib.tx\_or\_psbt module
 
 .. automodule:: btclib.tx_or_psbt
    :members:
-   :undoc-members:
    :show-inheritance:
 
 btclib.utils module
@@ -169,7 +151,6 @@ btclib.utils module
 
 .. automodule:: btclib.utils
    :members:
-   :undoc-members:
    :show-inheritance:
 
 btclib.var\_bytes module
@@ -177,7 +158,6 @@ btclib.var\_bytes module
 
 .. automodule:: btclib.var_bytes
    :members:
-   :undoc-members:
    :show-inheritance:
 
 btclib.var\_int module
@@ -185,7 +165,6 @@ btclib.var\_int module
 
 .. automodule:: btclib.var_int
    :members:
-   :undoc-members:
    :show-inheritance:
 
 Module contents
@@ -193,5 +172,4 @@ Module contents
 
 .. automodule:: btclib
    :members:
-   :undoc-members:
    :show-inheritance:

@@ -48,6 +48,7 @@ def test_signature_on_an_equal_curve() -> None:
 
 
 def test_signature() -> None:
+    """Round-trip sign, verify and serialize, then the failure modes."""
     msg = b"Satoshi Nakamoto"
     aux = b"\x00" * 32
     q = 6
@@ -152,6 +153,7 @@ def test_bip340_vectors(row: list[str]) -> None:
 
 
 def test_point_from_bip340pub_key() -> None:
+    """Verify every accepted pub_key representation yields the point."""
     q, x_Q = ssa.gen_keys()
     Q = mult(q)
     # an int
@@ -189,7 +191,6 @@ def test_point_from_bip340pub_key() -> None:
 
 def test_low_cardinality() -> None:
     """Test low-cardinality curves for all msg/key pairs."""
-
     # ec.n has to be prime to sign
     test_curves = [
         low_card_curves["ec13_11"],
@@ -280,6 +281,7 @@ def test_verify_with_a_message_that_is_not_32_bytes_on_both_arithmetics(
 
 
 def test_batch_validation() -> None:
+    """Verify batch verification and the mismatches it must refuse."""
     ms: list[String] = []
     Qs: list[int] = []
     sigs: list[ssa.Sig] = []
@@ -468,7 +470,7 @@ def test_musig() -> None:
 
 
 def _share(f: list[int], x: int, ec: Curve) -> int:
-    """The sharing polynomial f evaluated at x, f(x) = sum_i f[i] x**i.
+    """Evaluate the sharing polynomial f at x, f(x) = sum_i f[i] x**i.
 
     Each term is reduced mod n and the sum is not: what every consumer
     of a share needs is its value mod n, and mult, double_mult and the
@@ -478,7 +480,7 @@ def _share(f: list[int], x: int, ec: Curve) -> int:
 
 
 def _commitment(commits: list[Point], x: int, ec: Curve) -> Point:
-    """The commitment polynomial evaluated at x, sum_i x**i commits[i].
+    """Evaluate the commitment polynomial at x, sum_i x**i commits[i].
 
     This is the same evaluation as _share, in the exponent: a share is
     consistent with the commitments when the two agree, which is what
@@ -531,7 +533,7 @@ def _deal(
 def _partial_sig_point(
     x: int, e: int, Q: Point, K: Point, A: list[Point], B: list[Point], ec: Curve
 ) -> Point:
-    """What signer x's partial signature must commit to: B(x) + e A(x).
+    """Compute B(x) + e A(x), what signer x's partial signature commits to.
 
     Q and K are arguments instead of A[0] and B[0]: an odd y negates the
     aggregates and the coefficient lists keep the sign they were built
@@ -546,7 +548,6 @@ def _partial_sig_point(
 
 def test_threshold() -> None:
     """Testing 2-of-3 threshold signature (Pedersen secret sharing)."""
-
     ec = CURVES["secp256k1"]
 
     # parameters
@@ -683,6 +684,7 @@ def test_threshold() -> None:
 
 
 def test_libsecp256k1() -> None:
+    """Check btclib's signature is byte-identical to the bindings' own."""
     msg = b"Satoshi Nakamoto"
     prvkey_int, pubkey_int = ssa.gen_keys(0x1)
     aux = b"\x00" * 32

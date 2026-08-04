@@ -26,6 +26,7 @@ from btclib.exceptions import BTClibTypeError, BTClibValueError
 
 
 def test_conversions() -> None:
+    """Round-trip sats to BTC under both FloatOperation trap settings."""
     for trap_float_operation in (True, False):
         with localcontext() as ctx:
             ctx.traps[FloatOperation] = trap_float_operation
@@ -45,6 +46,7 @@ def test_conversions() -> None:
 
 
 def test_caller_decimal_context() -> None:
+    """Check the caller's Decimal context survives the amount functions."""
     # importing btclib must not trap FloatOperation process-wide:
     # it would change the Decimal semantics of the unrelated code
     # of the hosting application
@@ -64,6 +66,7 @@ def test_caller_decimal_context() -> None:
 
 
 def test_other_thread() -> None:
+    """Verify the conversions need no trap set in the calling thread."""
     # getcontext() is thread-local: a thread created elsewhere does not
     # inherit any trap, so the amount functions must not rely on one
     results: list[str] = []
@@ -82,6 +85,7 @@ def test_other_thread() -> None:
 
 
 def test_exceptions() -> None:
+    """Verify the errors for overflow, excess decimals and wrong types."""
     for trap_float_operation in (True, False):
         with localcontext() as ctx:
             ctx.traps[FloatOperation] = trap_float_operation
@@ -139,6 +143,7 @@ def test_max_money_is_the_consensus_bound() -> None:
 
 
 def test_self_consistency() -> None:
+    """Round-trip BTC amounts through sats for every accepted input type."""
     for trap_float_operation in (True, False):
         with localcontext() as ctx:
             ctx.traps[FloatOperation] = trap_float_operation

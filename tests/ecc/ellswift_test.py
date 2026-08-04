@@ -39,6 +39,7 @@ OTHER_CURVES = ("secp160k1", "secp192k1", "secp224k1")
 
 
 def decode_vectors() -> list[Any]:
+    """Load BIP324's ellswift_decode_test_vectors.csv as pytest params."""
     return [
         pytest.param(row, id=vector_id(index, row[2]))
         for index, row in enumerate(
@@ -48,6 +49,7 @@ def decode_vectors() -> list[Any]:
 
 
 def xswiftec_inv_vectors() -> list[Any]:
+    """Load BIP324's xswiftec_inv_test_vectors.csv as pytest params."""
     return [
         pytest.param(row, id=vector_id(index, row[10]))
         for index, row in enumerate(
@@ -216,7 +218,7 @@ def test_the_other_koblitz_curves(curve_name: str) -> None:
 
 
 def test_a_curve_the_map_is_not_defined_on() -> None:
-    """a != 0 has no SwiftEC map, and every entry point says so."""
+    """Refuse a curve with a != 0 at every entry point of the map."""
     ec = CURVES["secp256r1"]
     q, _Q = _key_pair()
     ell = bytes(2 * ec.p_size)
@@ -266,5 +268,6 @@ def test_invalid_private_key() -> None:
 
 
 def _key_pair() -> tuple[int, tuple[int, int]]:
+    """Return a random secp256k1 key pair."""
     q = secrets.randbelow(secp256k1.n - 1) + 1
     return q, mult(q, secp256k1.G, secp256k1)

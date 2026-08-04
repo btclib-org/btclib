@@ -90,6 +90,7 @@ def _shipped() -> set[str]:
 # missing stanza in docs/source, something documented that no longer exists
 # is a stanza left behind by a rename
 def test_every_module_is_documented() -> None:
+    """Verify every shipped module has a stanza in docs/source."""
     undocumented = _shipped() - _documented()
     assert not undocumented, (
         "not documented in docs/source: "
@@ -100,6 +101,7 @@ def test_every_module_is_documented() -> None:
 
 
 def test_no_documented_module_has_gone_away() -> None:
+    """Verify no automodule stanza names a module the tree lost."""
     stale = _documented() - _shipped()
     assert not stale, "documented in docs/source but not shipped: " + ", ".join(
         sorted(stale)

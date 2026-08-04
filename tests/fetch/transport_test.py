@@ -51,6 +51,7 @@ class FakeResponse:
         self.closed = True
 
     def read(self) -> bytes:
+        """Return the recorded body."""
         return self._body
 
 
@@ -85,7 +86,7 @@ def test_urlopen_transport_reads_status_and_body(
 
 @contextmanager
 def http_error(status: int, body: bytes = b"") -> Iterator[HTTPError]:
-    """An HTTPError carrying a body, closed when the test is done with it.
+    """Yield an HTTPError carrying a body, closed when the test is done.
 
     Built with no file object, urllib gives it a temporary file of its
     own; nobody closing it is a ResourceWarning raised from a deallocator
@@ -134,6 +135,7 @@ def test_the_default_transport_is_the_urllib_one() -> None:
 
 
 def test_a_get_carries_no_body() -> None:
+    """Verify a GET sends no body and uses the default timeout."""
     transport = Recorded((200, b"7"))
     assert http_request(f"{URL}/x", transport=transport) == (200, b"7")
     assert transport.request.get_method() == "GET"
@@ -143,6 +145,7 @@ def test_a_get_carries_no_body() -> None:
 
 
 def test_data_makes_it_a_post_with_the_headers_given() -> None:
+    """Verify data makes the request a POST carrying the headers given."""
     transport = Recorded((200, b"{}"))
     http_request(
         URL,

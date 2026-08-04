@@ -105,6 +105,7 @@ SECP256K1_VECTORS: tuple[tuple[int, str, int, str, str], ...] = (
     ],
 )
 def test_rfc6979_secp256k1(prv_key: int, msg: str, k: int, r: str, s: str) -> None:
+    """Reproduce python-bitcoinlib's five secp256k1/sha256 vectors."""
     msg_hash = hashlib.sha256(msg.encode()).digest()
     assert rfc6979_nonce_(msg_hash, prv_key, hf=hashlib.sha256) == k
 
@@ -137,6 +138,8 @@ def test_rfc6979_secp256k1_s_is_normalized() -> None:
 
 
 def test_rfc6979_nonce_example() -> None:
+    """Reproduce the worked example of RFC6979's section A.1."""
+
     class _helper(Curve):
         def __init__(self, n: int) -> None:
             self.n = n
@@ -178,6 +181,7 @@ def rfc6979_vectors() -> list[Any]:
 def test_rfc6979_nonce_tv(
     ec: Curve, x: str, x_U: str, y_U: str, hf: str, msg: str, k: str, r: str, s: str
 ) -> None:
+    """Reproduce RFC6979's appendix A.2 vectors, nonce and signature."""
     lower_s = False
     prv_key = int(x, 16)
     msg_bytes = msg.encode()
@@ -230,6 +234,7 @@ class CountingSha256:
         self.calls = 0
 
     def __call__(self) -> HashObject:
+        """Return a fresh sha256 hash object, counting the request."""
         self.calls += 1
         return hashlib.sha256()
 

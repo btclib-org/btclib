@@ -31,6 +31,7 @@ from btclib.mnemonic.mnemonic import WordLists, data_file
 
 
 def test_mnemonic() -> None:
+    """Round-trip a mnemonic through its wordlist indexes."""
     lang = "en"
     mnem = (
         "ozone drill grab fiber curtain grace pudding thank cruise elder eight picnic"
@@ -43,6 +44,7 @@ def test_mnemonic() -> None:
 
 
 def fullwidth(text: str) -> str:
+    """Return text in fullwidth latin, as a japanese IME types it."""
     # ASCII lower-case as a japanese IME types it, U+FF41 upwards. Built
     # rather than written out: the fullwidth letters are indistinguishable
     # from the ASCII ones in a diff, which is the whole reason NFKD has to
@@ -51,6 +53,7 @@ def fullwidth(text: str) -> str:
 
 
 def test_normalize_mnemonic() -> None:
+    """Verify NFKD then whitespace collapse, and what must survive it."""
     # the ideographic space BIP39's japanese vectors separate words with
     # is a separator because NFKD says so, not because btclib says so
     assert normalize_mnemonic("\u3000a\u3000b\u3000") == "a b"
@@ -112,11 +115,13 @@ ELECTRUM_MNEMONIC = (
 
 
 def respace(mnemonic: str, prefix: str, separator: str, suffix: str) -> str:
+    """Return the mnemonic re-joined with the given whitespace shape."""
     return prefix + separator.join(mnemonic.split()) + suffix
 
 
 @pytest.mark.parametrize(("prefix", "separator", "suffix"), WHITESPACE_SHAPES)
 def test_bip39_whitespace(prefix: str, separator: str, suffix: str) -> None:
+    """Verify BIP39's answers are unchanged by the whitespace shape."""
     mnemonic = respace(BIP39_MNEMONIC, prefix, separator, suffix)
     assert normalize_mnemonic(mnemonic) == BIP39_MNEMONIC
     assert bip39.entropy_from_mnemonic(mnemonic) == bip39.entropy_from_mnemonic(
@@ -132,6 +137,7 @@ def test_bip39_whitespace(prefix: str, separator: str, suffix: str) -> None:
 
 @pytest.mark.parametrize(("prefix", "separator", "suffix"), WHITESPACE_SHAPES)
 def test_electrum_whitespace(prefix: str, separator: str, suffix: str) -> None:
+    """Verify electrum's answers are unchanged by the whitespace shape."""
     mnemonic = respace(ELECTRUM_MNEMONIC, prefix, separator, suffix)
     assert electrum.version_from_mnemonic(mnemonic) == electrum.version_from_mnemonic(
         ELECTRUM_MNEMONIC
@@ -148,6 +154,7 @@ def test_electrum_whitespace(prefix: str, separator: str, suffix: str) -> None:
 def test_indexes_from_mnemonic_whitespace(
     prefix: str, separator: str, suffix: str
 ) -> None:
+    """Verify the shared index layer is whitespace-insensitive too."""
     # the shared layer answers the same question the two schemes do:
     # str.split() with no argument is already a split on any run of
     # unicode whitespace, which is half of normalize_mnemonic
@@ -158,6 +165,7 @@ def test_indexes_from_mnemonic_whitespace(
 
 
 def test_wordlist_1() -> None:
+    """Verify the english word-list loads its 2048 words."""
     lang = "en"
     d = WORDLISTS.wordlist(lang)
     assert isinstance(d, list)
@@ -167,6 +175,7 @@ def test_wordlist_1() -> None:
 
 
 def test_wordlist_2() -> None:
+    """Refuse a missing or short word-list; add a language dynamically."""
     # a private WordLists and not the singleton: adding a language to that
     # one is process-wide, so a test that did would leave every later test
     # of language detection with a language it did not expect

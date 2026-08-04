@@ -116,6 +116,7 @@ def test_the_req_prefix_is_the_only_thing_that_invalidates_a_parameter() -> None
 
 
 def test_the_amount_is_decimal_btc() -> None:
+    """Verify the amount grammar: decimal BTC, digits and one dot only."""
     assert Bip21.parse(f"bitcoin:{ADDR}?amount=0.00000001").amount == Decimal("1e-8")
     assert Bip21.parse(f"bitcoin:{ADDR}?amount=21000000").amount == Decimal(21000000)
     assert Bip21.parse(f"bitcoin:{ADDR}?amount=0").amount == Decimal(0)
@@ -149,6 +150,7 @@ def test_a_repeated_key_is_an_error() -> None:
 
 
 def test_percent_encoding() -> None:
+    """Verify percent-decoding: unquote, not unquote_plus, and %FF raises."""
     uri = Bip21.parse(f"bitcoin:{ADDR}?message=100%25%20of%20it%20%26%20more")
     assert uri.message == "100% of it & more"
     assert Bip21.parse(uri.serialize()).message == uri.message
@@ -208,6 +210,7 @@ def test_networks_other_than_mainnet() -> None:
 
 
 def test_a_uri_that_is_not_one() -> None:
+    """Refuse non-bitcoin URIs, bytes input and a missing address."""
     for uri in ("", ADDR, f"http://{ADDR}", f"bitcoincash:{ADDR}", "bitcoin"):
         with pytest.raises(BTClibValueError, match="not a bitcoin URI"):
             Bip21.parse(uri)
@@ -224,6 +227,7 @@ def test_a_uri_that_is_not_one() -> None:
 
 
 def test_round_trip() -> None:
+    """Round-trip parse and serialize; only the amount is normalized."""
     for uri in (
         f"bitcoin:{ADDR}",
         f"bitcoin:{ADDR}?amount=1",
@@ -251,6 +255,7 @@ def test_round_trip() -> None:
 
 
 def test_odds_and_ends_of_the_grammar() -> None:
+    """Verify empty elements, valueless keys, fragments and empty names."""
     # bitcoinparam admits the empty element
     assert Bip21.parse(f"bitcoin:{ADDR}?&amount=1&").amount == Decimal(1)
     # a parameter with no value
@@ -264,6 +269,7 @@ def test_odds_and_ends_of_the_grammar() -> None:
 
 
 def test_built_rather_than_parsed() -> None:
+    """Verify a Bip21 built from arguments validates and serializes."""
     uri = Bip21(ADDR, "20.3", "Luke-Jr", "Donation for project xyz")
     assert uri.amount == Decimal("20.3")
     assert uri.serialize() == (

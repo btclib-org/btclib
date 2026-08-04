@@ -70,12 +70,13 @@ _SIG_OP_COUNT = {
 
 
 def _rows() -> list[Any]:
-    """The vector rows, the header row of column names dropped."""
+    """Return the vector rows, the header row of column names dropped."""
     rows: list[Any] = load("block", "_data", "blockfilters.json")
     return rows[_HEADER_ROW:]
 
 
 def params() -> list[Any]:
+    """Return one pytest.param per row, labelled by height and notes."""
     return [
         pytest.param(height, block_hash, serialization, id=vector_id(height, notes))
         for height, block_hash, serialization, _, _, _, _, notes in _rows()
@@ -83,7 +84,7 @@ def params() -> list[Any]:
 
 
 def block_at(height: int) -> Block:
-    """The row of that height, parsed under the full validity check."""
+    """Return the row of that height, parsed under the full validity check."""
     return next(Block.parse(row[2]) for row in _rows() if row[0] == height)
 
 

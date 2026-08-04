@@ -17,6 +17,7 @@ from btclib.exceptions import BTClibValueError
 
 
 def test_ecf() -> None:
+    """Verify group arithmetic over F_9739 against precomputed points."""
     ec = CurveGroup(9739, 497, 1768)
 
     # Point Negation
@@ -56,6 +57,7 @@ def test_ecf() -> None:
 
 
 def test_ecf_exceptions() -> None:
+    """Refuse to enumerate points when the field prime is too big."""
     ec = CurveGroup(10007, 497, 1768)
 
     err_msg = "p is too big to count all group points: "

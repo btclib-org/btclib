@@ -528,8 +528,10 @@ ignore = [
 # these two prints are the interface, not a debugging leftover -- unlike
 # the one print T20 found elsewhere, which is deleted rather than ignored
 "btclib/mnemonic/entropy.py" = ["T201"]
+# the D rules are not here: a test states what it verifies -- the
+# property, the vector, the failure mode -- under the same docstring
+# gate as the library (issue #290)
 "tests/**" = [
-    "D",      # docstrings are not required in tests
     "S101",   # assert
     "S311",   # non-cryptographic random: fine in tests
     "B017",   # assert-raises-exception

@@ -64,6 +64,7 @@ def taproot_vectors(outcome: str) -> list[Any]:
 
 @pytest.mark.parametrize("vector", taproot_vectors("success"))
 def test_valid_taproot(vector: dict[str, Any]) -> None:
+    """Reproduce the success branch of Core's script_assets_test.json."""
     tx = Tx.parse(vector["tx"])
 
     prevouts = [TxOut.parse(prevout) for prevout in vector["prevouts"]]
@@ -80,6 +81,7 @@ def test_valid_taproot(vector: dict[str, Any]) -> None:
 
 @pytest.mark.parametrize("vector", taproot_vectors("failure"))
 def test_invalid_taproot(vector: dict[str, Any]) -> None:
+    """Reproduce the failure branch of Core's script_assets_test.json."""
     tx = Tx.parse(vector["tx"])
 
     prevouts = [TxOut.parse(prevout) for prevout in vector["prevouts"]]
@@ -102,7 +104,7 @@ def test_invalid_taproot(vector: dict[str, Any]) -> None:
 
 
 def annex_vectors() -> list[Any]:
-    """The TAPROOT vectors whose witness carries an annex to be stripped.
+    """Select the TAPROOT vectors whose witness carries an annex to strip.
 
     The flags test `taproot_vectors` above omits is made here, and
     selects the same 248 vectors with or without it: no vector whose
@@ -192,7 +194,7 @@ def legacy_vectors(fname: str) -> list[Any]:
 
 
 def prevouts_of(vector: list[Any]) -> tuple[list[TxOut], bool]:
-    """The spent outputs of a legacy vector, and whether they carry amounts."""
+    """Return a legacy vector's prevouts and whether they carry amounts."""
     check_amounts = True
     prevouts = []
     for i in vector[0]:
@@ -204,7 +206,7 @@ def prevouts_of(vector: list[Any]) -> tuple[list[TxOut], bool]:
 
 
 def witness_v0_vectors() -> list[Any]:
-    """The valid legacy vectors that spend a witness v0 output.
+    """Select the valid legacy vectors that spend a witness v0 output.
 
     The two further `continue` of the loop: a tx with no witness has none
     to leave alone, and one whose input count does not match the prevouts
@@ -288,7 +290,7 @@ CONSENSUS_FLAGS = (
 
 
 def flags_of(vector: list[Any]) -> ScriptFlags:
-    """The flags field of a legacy vector, as verify_transaction takes it.
+    """Return a legacy vector's flags field, as verify_transaction takes it.
 
     The field is Core's comma-separated one and needs no splitting here:
     an empty field and its `"NONE"` spelling are both no rule at all.
@@ -301,6 +303,7 @@ def flags_of(vector: list[Any]) -> ScriptFlags:
 
 @pytest.mark.parametrize("vector", legacy_vectors("tx_valid.json"))
 def test_valid_legacy(vector: list[Any]) -> None:
+    """Reproduce Core's tx_valid.json."""
     tx = Tx.parse(vector[1])
 
     flags = CONSENSUS_FLAGS
@@ -318,6 +321,7 @@ def test_valid_legacy(vector: list[Any]) -> None:
 
 @pytest.mark.parametrize("vector", legacy_vectors("tx_invalid.json"))
 def test_invalid_legacy(vector: list[Any]) -> None:
+    """Reproduce Core's tx_invalid.json."""
     prevouts, check_amounts = prevouts_of(vector)
 
     # Tx.parse inside the raises block, not before it: 8 of these
@@ -338,6 +342,7 @@ def test_invalid_legacy(vector: list[Any]) -> None:
 
 
 def test_invalid_amount() -> None:
+    """Refuse outputs summing to more than the inputs provide."""
     prevout = TxOut(0, ScriptPubKey(""))
 
     tx = Tx(vin=[TxIn(OutPoint(b"1" * 32, 1))], vout=[TxOut(10, ScriptPubKey(""))])

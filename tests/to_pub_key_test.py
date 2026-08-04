@@ -91,7 +91,7 @@ def _check_point(point_from: Callable[..., Point], key: Key) -> None:
 
 
 def _check_plain(api: Conversions, keys: Sequence[Key]) -> None:
-    """The form fixes neither network nor compression: all four answers.
+    """Check a form fixing neither network nor compression: four answers.
 
     Nothing in the form can contradict the request, so every combination
     is answered by re-encoding the point as asked, and the default is
@@ -112,7 +112,7 @@ def _check_plain(api: Conversions, keys: Sequence[Key]) -> None:
 
 
 def _check_compressed(api: Conversions, keys: Sequence[Key]) -> None:
-    """The form is compressed: an uncompressed answer is refused.
+    """Check a compressed form: an uncompressed answer is refused.
 
     An xpub or a compressed WIF carries the compression in the form
     itself, and a request for the other one is a mismatch to report, not
@@ -134,7 +134,7 @@ def _check_compressed(api: Conversions, keys: Sequence[Key]) -> None:
 
 
 def _check_uncompressed(api: Conversions, keys: Sequence[Key]) -> None:
-    """The form is uncompressed: a compressed answer is refused.
+    """Check an uncompressed form: a compressed answer is refused.
 
     The mirror of _check_compressed, and the default flips with it: an
     uncompressed form asked for no compression in particular answers
@@ -162,7 +162,7 @@ def _check_uncompressed(api: Conversions, keys: Sequence[Key]) -> None:
 
 
 def _check_net_aware(api: Conversions, keys: Sequence[Key]) -> None:
-    """The form names mainnet: testnet is refused.
+    """Check a form naming mainnet: testnet is refused.
 
     Whether the answer is compressed depends on the form, which is what
     _check_compressed and _check_uncompressed pin down; here either one
@@ -178,7 +178,7 @@ def _check_net_aware(api: Conversions, keys: Sequence[Key]) -> None:
 
 
 def _check_net_unaware(api: Conversions, keys: Sequence[Key]) -> None:
-    """The form names no network: both are answered, mainnet by default."""
+    """Check a form naming no network: both answered, mainnet by default."""
     point_from, keyinfo_from = api
     for key in keys:
         _check_point(point_from, key)
@@ -270,6 +270,7 @@ def test_from_key() -> None:
 
 
 def test_fingerprint() -> None:
+    """Verify the fingerprint matches the child's parent_fingerprint."""
     seed = "bfc4cbaad0ff131aa97fa30a48d09ae7df914bcc083af1e07793cd0a7c61a03f65d622848209ad3366a419f4718a80ec9037df107d8d12c19b83202de00a40ad"
     xprv = rootxprv_from_seed(seed)
     pf = fingerprint(xprv)  # xprv is automatically converted to xpub

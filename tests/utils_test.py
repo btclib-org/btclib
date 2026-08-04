@@ -20,6 +20,7 @@ random.seed(42)
 
 
 def test_int_from_integer() -> None:
+    """Round-trip integers through int, hex-string, and bytes forms."""
     for i in (
         random.getrandbits(256 - 8),
         0x0B6CA75B7D3076C561958CCED813797F6D2275C7F42F3856D007D587769A90,
@@ -32,6 +33,7 @@ def test_int_from_integer() -> None:
 
 
 def test_int_from_integer_reads_a_str_as_hex() -> None:
+    """Check "1234" reads as 0x1234, and an odd digit count is refused."""
     # a decimal-looking str is a hex-string like any other, which the
     # docstring says out loud: 0x1234, not one thousand two hundred
     # and thirty-four
@@ -46,6 +48,7 @@ def test_int_from_integer_reads_a_str_as_hex() -> None:
 
 
 def test_hex_string() -> None:
+    """Format int, str and bytes as spaced hex; refuse odd or negative."""
     int_ = 34492435054806958080
     assert hex_string(int_) == "01 DEADBEEF 00000000"
     assert hex_string(hex(int_).lower()) == "01 DEADBEEF 00000000"
@@ -67,6 +70,7 @@ def test_hex_string() -> None:
 
 
 def test_encode_num() -> None:
+    """Round-trip script numbers across sign, zero and length boundaries."""
     with pytest.raises(BTClibValueError, match="empty byte string"):
         decode_num(b"")
 

@@ -49,7 +49,7 @@ settings.load_profile(os.environ.get("HYPOTHESIS_PROFILE", "btclib"))
 
 @pytest.fixture
 def generated_files_dir(request: pytest.FixtureRequest) -> Path:
-    """The `_generated_files` directory beside the test module asking.
+    """Locate the `_generated_files` directory beside the asking module.
 
     Stated once here rather than once per module: spelling
     `path.join(path.dirname(__file__), "_generated_files")` in each test

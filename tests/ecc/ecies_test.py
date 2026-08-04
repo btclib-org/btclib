@@ -248,7 +248,7 @@ def test_aes_cbc_rejects_broken_padding() -> None:
 
 
 def _electrum_key_from_password(password: bytes) -> int:
-    """The private key Electrum derives from a storage password.
+    """Compute the private key Electrum derives from a storage password.
 
     `WalletStorage.get_eckey_from_password` in electrum/storage.py: 1024
     rounds of PBKDF2-HMAC-SHA512 over the utf-8 password with an empty
@@ -287,7 +287,7 @@ _ELECTRUM_VECTORS = [
 
 @pytest.mark.parametrize(("plaintext", "armor"), _ELECTRUM_VECTORS)
 def test_decrypt_electrum_ciphertext(plaintext: bytes, armor: str) -> None:
-    """btclib reads what Electrum wrote.
+    """Verify btclib reads what Electrum wrote.
 
     BIE1 has no specification, so this is the whole of the interoperability
     claim: ciphertexts lifted from Electrum's test suite, decrypted here.
@@ -298,7 +298,7 @@ def test_decrypt_electrum_ciphertext(plaintext: bytes, armor: str) -> None:
 
 @pytest.mark.parametrize(("plaintext", "armor"), _ELECTRUM_VECTORS)
 def test_rebuild_electrum_ciphertext(plaintext: bytes, armor: str) -> None:
-    """btclib writes what Electrum wrote, byte for byte.
+    """Verify btclib writes what Electrum wrote, byte for byte.
 
     The ephemeral private key of a published envelope cannot be recovered,
     so `encrypt` cannot be pointed at one of these vectors directly. It can
@@ -340,6 +340,7 @@ def test_decrypt_with_the_wrong_key() -> None:
 
 
 def test_round_trip() -> None:
+    """Round-trip messages of several sizes, block-aligned included."""
     prv_key = 0xC28FCA386C7A227600B2FE50B7CAE11EC86D3BF1FBE471BE89827E19D72AA1D
     pub_key = mult(prv_key)
     for msg in (b"", b"short", b"a" * 16, b"a" * 17, bytes(555)):
@@ -359,6 +360,7 @@ def test_a_fresh_ephemeral_key_every_time() -> None:
 
 
 def test_chosen_ephemeral_key_is_deterministic() -> None:
+    """Verify a caller-supplied ephemeral key fixes the whole envelope."""
     prv_key = 0xC28FCA386C7A227600B2FE50B7CAE11EC86D3BF1FBE471BE89827E19D72AA1D
     pub_key = mult(prv_key)
     eph_prv_key = 0x1D1E1F202122232425262728292A2B2C2D2E2F303132333435363738393A3B3C
@@ -442,6 +444,7 @@ def test_derive_keys_is_the_sha512_of_the_compressed_point() -> None:
 
 
 def test_envelope_round_trips_through_its_serializations() -> None:
+    """Round-trip an envelope through bytes, hex and base64."""
     key_m = bytes(range(32))
     eph_pub_key = bytes_from_point(mult(42))
     envelope = ecies.Envelope.from_ciphertext(eph_pub_key, bytes(48), key_m)
@@ -454,6 +457,7 @@ def test_envelope_round_trips_through_its_serializations() -> None:
 
 
 def test_envelope_b64decode_tolerates_surrounding_whitespace() -> None:
+    """Verify b64decode strips the whitespace around the armor."""
     key_m = bytes(range(32))
     envelope = ecies.Envelope.from_ciphertext(
         bytes_from_point(mult(42)), bytes(48), key_m
@@ -464,6 +468,7 @@ def test_envelope_b64decode_tolerates_surrounding_whitespace() -> None:
 
 
 def test_envelope_mac_check_notices_a_flipped_bit() -> None:
+    """Refuse a tampered ciphertext through assert_valid_mac."""
     key_m = bytes(range(32))
     eph_pub_key = bytes_from_point(mult(42))
     envelope = ecies.Envelope.from_ciphertext(eph_pub_key, bytes(48), key_m)
@@ -488,6 +493,7 @@ def test_envelope_skips_validation_when_told_to() -> None:
 
 
 def _valid_parts() -> tuple[bytes, bytes, bytes, bytes]:
+    """Provide the four fields of a well-formed envelope."""
     return b"BIE1", bytes_from_point(mult(42)), bytes(48), bytes(32)
 
 
@@ -504,6 +510,7 @@ def _valid_parts() -> tuple[bytes, bytes, bytes, bytes]:
 def test_envelope_rejects_a_malformed_field(
     field: int, value: bytes, err_msg: str
 ) -> None:
+    """Refuse each malformed envelope field with the message naming it."""
     magic, eph_pub_key, ciphertext, mac = _valid_parts()
     parts = [magic, eph_pub_key, ciphertext, mac]
     parts[field] = value
@@ -519,11 +526,13 @@ def test_envelope_rejects_an_ephemeral_key_that_is_not_a_point() -> None:
 
 
 def test_parse_rejects_a_truncated_envelope() -> None:
+    """Refuse an envelope too short to hold its fixed-size fields."""
     with pytest.raises(BTClibValueError, match="invalid envelope size"):
         ecies.Envelope.parse(b"BIE1" + bytes(80))
 
 
 def test_parse_rejects_the_wrong_magic() -> None:
+    """Refuse an envelope whose magic is not the one asked for."""
     envelope = ecies.Envelope(*_valid_parts(), check_validity=False)
     with pytest.raises(BTClibValueError, match="invalid magic bytes"):
         ecies.Envelope.parse(envelope.serialize(check_validity=False), magic=b"BIE2")
@@ -538,6 +547,7 @@ def test_parse_rejects_the_wrong_magic() -> None:
     ],
 )
 def test_b64decode_rejects_bad_armor(armor: str, err_msg: str) -> None:
+    """Refuse armor that is not valid base64."""
     with pytest.raises(BTClibValueError, match=err_msg):
         ecies.Envelope.b64decode(armor)
 

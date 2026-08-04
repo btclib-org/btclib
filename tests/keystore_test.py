@@ -156,12 +156,14 @@ def test_a_key_anywhere_on_the_account_path() -> None:
 
 
 def test_a_bip32keydata_is_taken_as_it_is() -> None:
+    """Verify a decoded BIP32KeyData works as the account key."""
     xkey = bip32.BIP32KeyData.b58decode(_ACCOUNT_44_XPRV)
     keystore = BIP32KeyStore(xkey, "m/44h/0h/0h")
     assert keystore.next_address() == "1LqBGSKuX5yYUonjxT5qGfpUsXKYYWeabA"
 
 
 def test_the_key_index_must_be_the_path_element_at_its_depth() -> None:
+    """Refuse a key at the wrong index, or past the account depth."""
     # the account 0 xpub against the path of account 1
     with pytest.raises(BTClibValueError, match="is not the account path's"):
         BIP32KeyStore(_ACCOUNT_44_XPUB, "m/44h/0h/1h")
@@ -182,11 +184,13 @@ def test_the_key_index_must_be_the_path_element_at_its_depth() -> None:
     ],
 )
 def test_invalid_account_path(der_path: str, err_msg: str) -> None:
+    """Refuse an account path of wrong depth or missing hardening."""
     with pytest.raises(BTClibValueError, match=err_msg):
         BIP32KeyStore(_ROOT, der_path)
 
 
 def test_an_unknown_purpose_is_refused_and_script_type_is_the_override() -> None:
+    """Refuse purpose 45 bare, and let the script type override win."""
     with pytest.raises(BTClibValueError, match="unknown BIP44 purpose: 45"):
         BIP32KeyStore(_ROOT, "m/45h/0h/0h")
     keystore = BIP32KeyStore(_ROOT, "m/45h/0h/0h", "p2wpkh")
@@ -197,6 +201,7 @@ def test_an_unknown_purpose_is_refused_and_script_type_is_the_override() -> None
 
 
 def test_an_unknown_script_type_is_refused() -> None:
+    """Refuse p2wsh at every entry point that takes a script type."""
     with pytest.raises(BTClibValueError, match="unknown script type: p2wsh"):
         BIP32KeyStore(_ROOT, "m/84h/0h/0h", "p2wsh")  # type: ignore[arg-type]
     with pytest.raises(BTClibValueError, match="unknown script type: p2wsh"):
@@ -206,6 +211,7 @@ def test_an_unknown_script_type_is_refused() -> None:
 
 
 def test_an_unknown_network_is_refused() -> None:
+    """Refuse a network name btclib does not register."""
     with pytest.raises(BTClibValueError, match="unknown network: regtest2"):
         KeyStore(network="regtest2")
 
@@ -253,6 +259,7 @@ def test_bms_cannot_sign_for_a_taproot_address() -> None:
 
 
 def test_a_watch_only_keystore_fails_to_sign_and_says_why() -> None:
+    """Refuse to sign without a private key, naming the reason."""
     keystore = BIP32KeyStore(_ACCOUNT_44_XPUB, "m/44h/0h/0h")
     assert keystore.is_watch_only
     address = keystore.next_address()
@@ -264,6 +271,7 @@ def test_a_watch_only_keystore_fails_to_sign_and_says_why() -> None:
 
 
 def test_a_lookup_miss_raises() -> None:
+    """Refuse an address the keystore never handed out."""
     keystore = BIP32KeyStore(_ROOT, "m/84h/0h/0h")
     # an address of its own chain, not handed out yet: a miss all the
     # same, the map being what the keystore has issued rather than what
@@ -279,6 +287,7 @@ def test_a_lookup_miss_raises() -> None:
 
 
 def test_the_record_is_the_path_and_no_key_material() -> None:
+    """Verify AddressInfo is frozen and no repr leaks key material."""
     keystore = BIP32KeyStore(_ROOT, "m/84h/0h/0h")
     address = keystore.address(1, 5)
     info = keystore.address_info(address)
@@ -291,6 +300,7 @@ def test_the_record_is_the_path_and_no_key_material() -> None:
 
 
 def test_handing_out_is_idempotent_and_ordered() -> None:
+    """Verify an address is issued once, next_address one past the top."""
     keystore = BIP32KeyStore(_ROOT, "m/84h/0h/0h")
     first = keystore.address(0, 0)
     assert keystore.address(0, 0) == first
@@ -305,6 +315,7 @@ def test_handing_out_is_idempotent_and_ordered() -> None:
 
 
 def test_the_derivation_bounds_are_bip32s_own() -> None:
+    """Refuse a branch outside (0, 1) and an address index out of range."""
     keystore = BIP32KeyStore(_ROOT, "m/84h/0h/0h")
     with pytest.raises(BTClibValueError, match="not in \\(0, 1\\)"):
         keystore.address(2, 0)
@@ -321,6 +332,7 @@ def test_the_derivation_bounds_are_bip32s_own() -> None:
     ],
 )
 def test_individual_keys(script_type: BIP44ScriptType, address: str) -> None:
+    """Verify one WIF gives one address per script type, and it signs."""
     keystore = KeyStore([_WIF_COMPRESSED], script_type)
     assert keystore.addresses == (address,)
     assert not keystore.is_watch_only
@@ -347,6 +359,7 @@ def test_a_key_that_says_what_it_is_by_its_type() -> None:
 
 
 def test_a_public_key_makes_a_watch_only_entry() -> None:
+    """Verify an entry built from a public key alone cannot sign."""
     keystore = KeyStore([_PUB_KEY])
     address = keystore.addresses[0]
     assert keystore.is_watch_only
@@ -367,6 +380,7 @@ def test_an_uncompressed_key_can_only_be_p2pkh() -> None:
 
 
 def test_add_takes_a_script_type_of_its_own() -> None:
+    """Verify each added key can carry its own script type."""
     keystore = KeyStore(script_type="p2pkh")
     assert not keystore.addresses
     assert keystore.is_watch_only
@@ -378,6 +392,7 @@ def test_add_takes_a_script_type_of_its_own() -> None:
 
 
 def test_a_key_added_to_a_bip32_keystore_is_not_derived() -> None:
+    """Verify an added key signs while the derived ones stay watch-only."""
     keystore = BIP32KeyStore(_ACCOUNT_44_XPUB, "m/44h/0h/0h")
     derived = keystore.next_address()
     added = keystore.add(_WIF_COMPRESSED, "p2pkh")
@@ -391,6 +406,7 @@ def test_a_key_added_to_a_bip32_keystore_is_not_derived() -> None:
 
 
 def test_an_address_is_found_however_it_is_spelled() -> None:
+    """Verify bech32 lookups ignore case and spaces; base58 must not."""
     keystore = BIP32KeyStore(_ROOT, "m/84h/0h/0h")
     address = keystore.next_address()
     for spelling in (address.upper(), f"  {address}  ", address.encode("ascii")):

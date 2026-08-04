@@ -32,6 +32,7 @@ from btclib.mnemonic.entropy import _bits
 
 
 def test_indexes() -> None:
+    """Round-trip wordlist indexes through the binary string entropy."""
     for entropy in ("0", "00000000000"):
         indexes = wordlist_indexes_from_bin_str_entropy(entropy, 2048)
         assert indexes == [0]
@@ -51,6 +52,7 @@ def test_indexes() -> None:
 
 
 def test_conversions() -> None:
+    """Round-trip entropy across its str, int and bytes forms."""
     test_vectors = [
         "10101011" * 32,
         "00101011" * 32,
@@ -111,6 +113,7 @@ def test_conversions() -> None:
 
 
 def test_exceptions() -> None:
+    """Refuse invalid bit counts, negative entropy, non-entropy types."""
     bin_str_entropy216 = "00011010" * 27  # 216 bits
     bin_str_entropy214 = bin_str_entropy216[:-2]  # 214 bits
 
@@ -180,6 +183,7 @@ inputs.append(StringIO("120\npluto\n" + "64\n" * 43))
 
 
 def test_collect_rolls(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Check the interactive roll collection over three stdin scripts."""
     bits = 256
     for i, sides in enumerate((6, 120, 120)):
         monkeypatch.setattr("sys.stdin", inputs[i])
@@ -194,6 +198,7 @@ def test_collect_rolls(monkeypatch: pytest.MonkeyPatch) -> None:
 
 
 def test_bin_str_entropy_from_rolls() -> None:
+    """Check the roll-to-bits conversion, its bounds and its refusals."""
     bits = 256
     dice_base = 20
     bits_per_roll = math.floor(math.log2(dice_base))
@@ -260,6 +265,7 @@ def test_bin_str_entropy_from_rolls() -> None:
 
 
 def test_bin_str_entropy_from_random() -> None:
+    """Check the random entropy source, its mixing and its bit cap."""
     for to_be_hashed in (True, False):
         bits = 256
         bin_str = bin_str_entropy_from_random(bits, to_be_hashed=to_be_hashed)

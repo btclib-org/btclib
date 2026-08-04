@@ -87,6 +87,7 @@ secp256k1_bis: Curve = eval(repr(secp256k1))  # noqa: S307
 
 
 def test_mult_on_secp256k1() -> None:
+    """Verify mult against G's published coordinates and edge scalars."""
     assert mult(0) == INF
 
     G = mult(1)
@@ -116,6 +117,7 @@ def test_mult_on_secp256k1() -> None:
     ],
 )
 def test_secp256k1_py_vectors(vector: dict[str, str]) -> None:
+    """Reproduce secp256k1-py's pubkey vectors, in both encodings."""
     prv_key = bytes.fromhex(vector["seckey"])
     assert len(prv_key) == 32
     pubkey_uncp = bytes.fromhex(vector["pubkey"])
@@ -128,6 +130,7 @@ def test_secp256k1_py_vectors(vector: dict[str, str]) -> None:
 
 
 def test_exceptions() -> None:
+    """Refuse each invalid curve parameter with its own message."""
     # good curve
     Curve(13, 0, 2, (1, 9), 19, 1, False)
 
@@ -190,6 +193,7 @@ def test_exceptions() -> None:
 # json data behind it, writes a prime (issue #166)
 @pytest.mark.parametrize("p", [13, "0x0d", b"\x0d"], ids=["int", "str", "bytes"])
 def test_anomalous_curve(p: Integer) -> None:
+    """Refuse the n == p anomalous curve, however p is spelled."""
     with pytest.raises(BTClibValueError, match="n=p weak curve: "):
         Curve(p, 1, 6, (2, 9), 13, 1)
 
@@ -262,6 +266,7 @@ def test_catalogued_curves() -> None:
 
 
 def test_aff_jac_conversions() -> None:
+    """Round-trip affine and Jacobian coordinates; INF has neither."""
     for ec in all_curves.values():
         # just a point, not INF
         Q = ec.G
@@ -346,7 +351,7 @@ def test_add_double_aff_jac() -> None:
 
 
 def _textbook_add(ec: CurveGroup, P: Point | None, Q: Point | None) -> Point | None:
-    """The chord-and-tangent law, with infinity spelled as None.
+    """Apply the chord-and-tangent law, with infinity spelled as None.
 
     The reference the two library routines are held against below, and
     deliberately not written the way they are: infinity is a value of its
@@ -580,6 +585,7 @@ def test_add_aff_takes_infinity_before_doubling() -> None:
 
 
 def test_ec_repr() -> None:
+    """Round-trip every curve, and a bare group, through eval(repr)."""
     for ec in all_curves.values():
         ec_repr = repr(ec)
         if ec in low_card_curves.values() or ec.p_size < 24:
@@ -668,6 +674,7 @@ def test_curve_equality() -> None:
 
 
 def test_sec2_catalogues_share_one_curve() -> None:
+    """Verify SEC 2 v.2 holds the very objects of v.1, secp256k1 too."""
     # the eight curves of SEC 2 v.2 are in v.1 too; guards against them
     # being built twice, where only one of the two objects is the
     # secp256k1 the dispatch compares against and SEC2v2 holds the other
@@ -705,6 +712,7 @@ def test_each_catalogue_holds_what_it_is_named_after() -> None:
 
 
 def test_libsecp256k1_applicable() -> None:
+    """Verify the dispatch takes secp256k1 with sha256, nothing else."""
     assert _libsecp256k1_applicable(secp256k1)
     assert _libsecp256k1_applicable(secp256k1, sha256)
     assert not _libsecp256k1_applicable(CURVES["secp256r1"])
@@ -716,6 +724,7 @@ def test_libsecp256k1_applicable() -> None:
 
 
 def test_is_on_curve() -> None:
+    """Refuse non-tuples and out-of-range coordinates, on every curve."""
     for ec in all_curves.values():
         with pytest.raises(BTClibValueError, match="point must be a tuple"):
             ec.is_on_curve("not a point")  # type: ignore[arg-type]
@@ -730,6 +739,7 @@ def test_is_on_curve() -> None:
 
 
 def test_negate() -> None:
+    """Verify P plus its negation is INF; refuse mixed coordinates."""
     for ec in all_curves.values():
         # just a point, not INF
         Q = ec.G
@@ -822,6 +832,7 @@ def test_symmetry() -> None:
 
 
 def test_assorted_mult() -> None:
+    """Cross-check mult, double_mult and multi_mult on a tiny curve."""
     ec = ec23_31
     H = second_generator(ec)
     for k1 in range(-2, ec.n):
@@ -872,6 +883,7 @@ def test_assorted_mult() -> None:
 
 
 def test_double_mult() -> None:
+    """Verify double_mult against add and mult over small scalars."""
     H = second_generator(secp256k1)
     G = secp256k1.G
     assert double_mult(0, G, 0, H) == INF
@@ -883,6 +895,7 @@ def test_double_mult() -> None:
 
 
 def test_multi_mult() -> None:
+    """Verify multi_mult against double_mult, issue 175's pairs too."""
     with pytest.raises(BTClibValueError, match="not a multi_mult"):
         multi_mult([1], [secp256k1.G])
 

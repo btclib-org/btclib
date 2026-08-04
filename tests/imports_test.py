@@ -40,6 +40,7 @@ MODULE_NAMES = [
 
 
 def btclib_modules() -> list[str]:
+    """Return the btclib modules in sys.modules, the bindings excluded."""
     # not startswith("btclib"), which would also catch the
     # btclib_libsecp256k1 bindings: they are not part of this package, and
     # reimporting a cffi extension module is another matter entirely
@@ -77,6 +78,7 @@ def unimported_btclib() -> Iterator[None]:
 
 @pytest.mark.parametrize("module_name", MODULE_NAMES)
 def test_import_first(module_name: str, unimported_btclib: None) -> None:
+    """Import each module first, with no other btclib module loaded."""
     assert importlib.import_module(module_name).__name__ == module_name
 
 

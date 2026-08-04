@@ -41,6 +41,7 @@ OTHER_ID = "b1fea52486ce0c62bb442b530a3f0132b826c74e473d1f2c220bfa78111c5082"
     ],
 )
 def test_fetch_errors_names_the_source(error: Exception) -> None:
+    """Wrap parse-time exceptions in a FetchError naming the call."""
     with (
         pytest.raises(FetchError, match=f"getblockcount: {error}"),
         fetch_errors("getblockcount"),
@@ -58,12 +59,14 @@ def test_fetch_errors_lets_a_fetch_error_through() -> None:
 
 
 def test_fetch_errors_is_transparent_when_nothing_is_raised() -> None:
+    """Run the guarded body untouched when it raises nothing."""
     with fetch_errors("getblockcount"):
         value = 481824
     assert value == 481824
 
 
 def test_tx_id_hex_takes_whatever_octets_takes() -> None:
+    """Accept hex, bytes, and whitespace-padded hex alike."""
     assert tx_id_hex(TX_ID) == TX_ID
     assert tx_id_hex(bytes.fromhex(TX_ID)) == TX_ID
     assert tx_id_hex(f"  {TX_ID}  ") == TX_ID
@@ -77,6 +80,7 @@ def test_tx_id_hex_refuses_what_is_not_an_id(tx_id: str) -> None:
 
 
 def test_tx_for_network_leaves_mainnet_alone() -> None:
+    """Return the very same object for mainnet, not a relabelled copy."""
     tx = Tx.parse(RAW)
     assert tx_for_network(tx, "mainnet") is tx
 
@@ -117,6 +121,7 @@ def test_the_label_is_what_an_address_is_rendered_from() -> None:
 
 
 def test_tx_from_raw_returns_the_transaction_asked_for() -> None:
+    """Parse the raw hex into the transaction with the requested id."""
     tx = tx_from_raw(RAW, TX_ID, "mainnet")
     assert tx.id.hex() == TX_ID
     assert len(tx.vout) == 2
@@ -138,6 +143,7 @@ def test_tx_from_raw_catches_the_answer_to_another_question() -> None:
     ],
 )
 def test_tx_from_raw_reports_what_is_not_a_transaction(raw: str) -> None:
+    """Wrap an unparsable body in a FetchError naming the transaction."""
     with pytest.raises(FetchError, match=f"transaction {TX_ID}:"):
         tx_from_raw(raw, TX_ID, "mainnet")
 
@@ -149,12 +155,14 @@ def test_the_interface_is_abstract() -> None:
 
 
 def test_an_unknown_network_is_refused_at_construction() -> None:
+    """Refuse a misspelled network before any request is made."""
     with pytest.raises(BTClibValueError, match="unknown network: mainnnet"):
         StubFetcher(Tx.parse(RAW), "mainnnet")
 
 
 @pytest.mark.parametrize("network", ["mainnet", "testnet", "testnet4", "regtest"])
 def test_the_network_is_the_one_it_was_given(network: str) -> None:
+    """Expose the constructor's network unchanged, for all four."""
     assert StubFetcher(Tx.parse(RAW), network).network == network
 
 
@@ -192,6 +200,7 @@ def test_get_tx_out_answers_for_an_output_already_spent() -> None:
 
 
 def test_get_tx_out_refuses_a_vout_the_transaction_does_not_have() -> None:
+    """Refuse an out-of-range vout with a FetchError naming it."""
     fetcher = StubFetcher(Tx.parse(RAW))
     with pytest.raises(FetchError, match="out of range vout: 2"):
         fetcher.get_tx_out(OutPoint(TX_ID, 2))

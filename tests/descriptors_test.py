@@ -95,21 +95,25 @@ CHECKSUM_VECTORS = [
 # checksum calculated using https://docs.rs/bdk/latest/bdk/descriptor/checksum/fn.get_checksum.html
 @pytest.mark.parametrize(("descriptor", "checksum"), CHECKSUM_VECTORS)
 def test_checksum(descriptor: str, checksum: str) -> None:
+    """Reproduce the checksum of each descriptor of Core's descriptors.md."""
     assert descriptor_checksum(descriptor) == checksum
 
 
 def test_invalid_charset() -> None:
+    """Refuse a character outside the BIP380 checksum charset."""
     with pytest.raises(BTClibValueError):
         __descsum_expand("è")
 
 
 def test_addr() -> None:
+    """Build a checksummed addr() descriptor from an address."""
     address = "bc1qnehtvnd4fedkwjq6axfgsrxgllwne3k58rhdh0"
     descriptor = "addr(bc1qnehtvnd4fedkwjq6axfgsrxgllwne3k58rhdh0)#s2y3vepm"
     assert descriptor_from_address(address) == descriptor
 
 
 def test_add_and_strip_checksum() -> None:
+    """Round-trip the checksum, idempotently in both directions."""
     descriptor = "addr(bc1qnehtvnd4fedkwjq6axfgsrxgllwne3k58rhdh0)"
     checksummed = f"{descriptor}#s2y3vepm"
     assert add_checksum(descriptor) == checksummed
@@ -121,6 +125,7 @@ def test_add_and_strip_checksum() -> None:
 
 
 def test_invalid_checksum() -> None:
+    """Refuse a wrong checksum and a descriptor carrying two."""
     descriptor = "addr(bc1qnehtvnd4fedkwjq6axfgsrxgllwne3k58rhdh0)"
     with pytest.raises(BTClibValueError, match="invalid descriptor checksum"):
         strip_checksum(f"{descriptor}#00000000")
@@ -140,6 +145,7 @@ DESCRIPTOR = st.text(alphabet=DESCRIPTOR_CHARS, min_size=1, max_size=60)
 
 @given(descriptor=DESCRIPTOR)
 def test_checksum_is_eight_characters(descriptor: str) -> None:
+    """Verify the checksum is eight characters whatever the input."""
     assert len(descriptor_checksum(descriptor)) == 8
 
 
@@ -447,6 +453,11 @@ DERIVATION_VECTORS = [
 def test_core_derivation_vector(
     private: str, public: str | None, scripts: list[list[str]]
 ) -> None:
+    """Reproduce Bitcoin Core's descriptor derivation vectors.
+
+    Both spellings derive the same scripts at every index, and the
+    addresses are the addresses of those very scripts.
+    """
     for descriptor in (private, public):
         if descriptor is None:
             continue
@@ -554,6 +565,7 @@ MULTIPATH_SCRIPTS = [
 
 
 def test_multipath() -> None:
+    """Reproduce Bitcoin Core's CheckMultipath vector, scripts included."""
     expanded = multipath_descriptors(MULTIPATH)
     assert [strip_checksum(d) for d in expanded] == MULTIPATH_EXPANSIONS
     for descriptor, scripts in zip(expanded, MULTIPATH_SCRIPTS, strict=True):
@@ -585,6 +597,7 @@ def test_multipath_in_two_key_expressions() -> None:
 
 
 def test_invalid_multipath() -> None:
+    """Refuse mismatched multipath lengths and a single-element step."""
     xpub = "xpub68NZiKmJWnxxS6aaHmn81bvJeTESw724CRDs6HbuccFQN9Ku14VQrADWgqbhhTHBaohPX4CjNLf9fq9MYo6oDaPPLPxSb7gwQN3ih19Zm4Y"
     with pytest.raises(BTClibValueError, match="different length"):
         multipath_descriptors(f"multi(1,{xpub}/<0;1>/*,{xpub}/<0;1;2>/*)")
@@ -622,6 +635,7 @@ def test_addr_takes_the_network_of_its_address() -> None:
 
 
 def test_raw() -> None:
+    """Verify raw() answers the very script it wraps, unranged."""
     script = "76a9149a1c78a507689f6f54b847ad1cef1e614ee23f1e88ac"
     parsed = parse(f"raw({script})")
     assert isinstance(parsed, RawDescriptor)
@@ -658,6 +672,7 @@ def test_redeem_script() -> None:
 
 
 def test_index_out_of_range() -> None:
+    """Refuse an out-of-range index, and any index on a fixed descriptor."""
     ranged = "wpkh(xpub69H7F5d8KSRgmmdJg2KhpAK8SR3DjMwAdkxj3ZuxV27CprR9LgpeyGmXUbC6wb7ERfvrnKZjXoUmmDznezpbZb7ap6r1D3tgFxHmwMkQTPH/1/2/*)"
     parsed = parse(ranged)
     assert parsed.is_ranged
@@ -685,6 +700,7 @@ def test_key_origin_is_kept() -> None:
 
 
 def test_key_expression_fields() -> None:
+    """Check the parsed fields of ranged, hardened and plain keys."""
     xpub = "xpub69H7F5d8KSRgmmdJg2KhpAK8SR3DjMwAdkxj3ZuxV27CprR9LgpeyGmXUbC6wb7ERfvrnKZjXoUmmDznezpbZb7ap6r1D3tgFxHmwMkQTPH"
     (key,) = parse(f"wpkh({xpub}/1/2/*)").key_expressions
     assert key == KeyExpression(xkey=xpub, der_path=(1, 2), wildcard=0)
@@ -702,6 +718,7 @@ def test_key_expression_fields() -> None:
 
 
 def test_tr_tree_keys() -> None:
+    """Verify a tr() lists the internal key and every leaf key."""
     internal = "a34b99f22c790c4e36b2b3c2c35a36db06226e41c692fc82b8b56ac1c540c5bd"
     leaf = "669b8afcec803a0d323e9a17f3ea8e68e8abe5a278020a929adbec52421adbd0"
     parsed = parse(f"tr({internal},{{pk({leaf}),pk({internal})}})")
@@ -716,6 +733,7 @@ def test_tr_tree_keys() -> None:
 
 
 def test_parsed_types() -> None:
+    """Verify parse returns the descriptor type each function names."""
     key = "03a34b99f22c790c4e36b2b3c2c35a36db06226e41c692fc82b8b56ac1c540c5bd"
     assert isinstance(parse(f"pk({key})"), PkDescriptor)
     assert isinstance(parse(f"wsh(pk({key}))"), WshDescriptor)
@@ -825,6 +843,7 @@ UNPARSABLE = [
     ],
 )
 def test_unparsable(descriptor: str, message: str) -> None:
+    """Refuse each unparsable descriptor with the message naming why."""
     with pytest.raises(BTClibValueError, match=message):
         parse(descriptor)
 
@@ -854,6 +873,7 @@ UNIMPLEMENTED = [
     ],
 )
 def test_unimplemented(descriptor: str, message: str) -> None:
+    """Refuse each unimplemented descriptor, naming the BIP or issue."""
     with pytest.raises(NotImplementedError, match=message):
         parse(descriptor)
 
@@ -996,6 +1016,7 @@ def test_satisfy_a_ranged_descriptor() -> None:
 
 
 def test_satisfy_index_out_of_range() -> None:
+    """Refuse satisfy with a negative index, or any on a fixed key."""
     with pytest.raises(BTClibValueError, match="invalid derivation index"):
         parse(f"wpkh({XPUB}/0/*)").satisfy({}, -1)
     with pytest.raises(BTClibValueError, match="not a ranged descriptor"):
@@ -1072,6 +1093,7 @@ UNSATISFIABLE: list[tuple[str, dict[Octets, Octets], str]] = [
 def test_unsatisfiable(
     descriptor: str, signatures: dict[Octets, Octets], message: str
 ) -> None:
+    """Refuse each unsatisfiable descriptor with the reason named."""
     with pytest.raises(BTClibValueError, match=message):
         parse(descriptor).satisfy(signatures)
 
@@ -1356,6 +1378,7 @@ UNUPDATABLE = [
     ],
 )
 def test_what_cannot_update_a_psbt(descriptor: str, message: str) -> None:
+    """Refuse update_psbt on combo(), addr() and raw()."""
     parsed = parse(descriptor)
     # combo() is four scripts and script_pub_key refuses to pick one, so
     # the psbt is built around the p2pkh of the same key: what is being

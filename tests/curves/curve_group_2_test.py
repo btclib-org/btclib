@@ -37,6 +37,7 @@ ec23_31 = low_card_curves["ec23_31"]
 
 
 def test_mult_sliding_window() -> None:
+    """Check the sliding-window mult on boundary scalars and against _mult."""
     for w in range(1, 6):
         for ec in low_card_curves.values():
             assert ec.jac_equality(mult_sliding_window(0, ec.GJ, ec, w), INFJ)
@@ -69,6 +70,7 @@ def test_mult_sliding_window() -> None:
 
 
 def test_mult_w_NAF() -> None:
+    """Check the wNAF mult on boundary scalars and against _mult."""
     for w in range(1, 6):
         for ec in low_card_curves.values():
             assert ec.jac_equality(mult_w_NAF(0, ec.GJ, ec, w), INFJ)

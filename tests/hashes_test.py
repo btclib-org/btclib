@@ -78,6 +78,7 @@ def test_hashlib_ripemd160_probe(monkeypatch: pytest.MonkeyPatch) -> None:
 
 
 def test_hash160_hash256() -> None:
+    """Verify hash160 and hash256 take keys in every octet spelling."""
     test_vectors = (
         plain_prv_keys
         + net_unaware_compressed_pub_keys
@@ -158,6 +159,7 @@ def test_merkle_root_from_hashes() -> None:
 
 
 def test_merkle_root_empty() -> None:
+    """Refuse an empty merkle tree rather than loop forever."""
     # guards against looping forever, never reducing an empty level to a
     # root
     with pytest.raises(BTClibValueError, match="empty merkle tree"):

@@ -60,12 +60,13 @@ DUMMY_KEY_ORIGIN = BIP32KeyOrigin("deadbeef", "m/0")
 
 
 def bip371_psbt(index: int) -> Psbt:
+    """Return the BIP371 valid psbt at this index, decoded."""
     vectors = load("psbt", "_data", "bip371_test_vectors.json")["valid psbts"]
     return Psbt.b64decode(vectors[index]["encoded psbt"])
 
 
 def unsigned(psbt: Psbt) -> Psbt:
-    """The psbt as the Updater left it: the signatures dropped."""
+    """Return the psbt as the Updater left it: the signatures dropped."""
     psbt = deepcopy(psbt)
     for psbt_in in psbt.inputs:
         psbt_in.partial_sigs = {}
@@ -74,7 +75,7 @@ def unsigned(psbt: Psbt) -> Psbt:
 
 
 def pushes(script: bytes) -> list[bytes] | None:
-    """The script as the byte strings it pushes, None if it is not that."""
+    """Return the byte strings the script pushes, None if it is not that."""
     out: list[bytes] = []
     for command in parse(script):
         if command == "OP_0":
@@ -109,7 +110,7 @@ def is_sig(element: bytes) -> bool:
 
 
 def psbt_input_from_spend(tx_in: TxIn) -> tuple[PsbtIn, bytes] | None:
-    """The PsbtIn an Updater would have built, read off the signed input.
+    """Rebuild the PsbtIn an Updater would have, read off the signed input.
 
     A spend says what it spent: the pub key of a p2pkh script_sig
     hash160s to the payload of the script_pub_key, the redeem script is
@@ -164,7 +165,7 @@ def psbt_input_from_spend(tx_in: TxIn) -> tuple[PsbtIn, bytes] | None:
 
 
 def psbt_from_spend(tx: Tx) -> Psbt | None:
-    """The psbt the signed transaction was signed from, None if unreadable.
+    """Rebuild the psbt the transaction was signed from, None if unreadable.
 
     check_validity=False throughout: the psbt is built to be measured
     and not to be signed again, and validating it would decompress a
@@ -291,7 +292,7 @@ def test_the_first_transaction_is_bounded_by_its_p2pk_spend() -> None:
 
 
 def spend_kind(tx_in: TxIn, psbt_in: PsbtIn) -> str:
-    """What `psbt_input_from_spend` made of the input, as a name.
+    """Name what `psbt_input_from_spend` made of the input.
 
     Only so that a corpus can be asserted to hold what it is here for: a
     block is a frozen file, but which types are in it is not something
@@ -348,6 +349,7 @@ def test_the_bip174_spend_is_read_back_off_the_wire() -> None:
 def test_a_block_of_real_spends(
     block_name: str, first: int | None, kinds: set[str]
 ) -> None:
+    """Check the estimate of every readable spend in a real block."""
     block = Block.parse(load_bin("block", "_data", block_name))
     checked = 0
     seen: set[str] = set()

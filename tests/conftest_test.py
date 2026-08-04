@@ -44,6 +44,7 @@ def _regenerate_unset(monkeypatch: pytest.MonkeyPatch) -> None:
 
 
 def test_a_matching_golden_passes(tmp_path: Path) -> None:
+    """Verify a committed file equal to what the check writes passes."""
     path = tmp_path / "net.json"
     # four spaces of indent and a trailing newline: what the check writes
     # is what it then accepts, and nothing else is
@@ -52,6 +53,7 @@ def test_a_matching_golden_passes(tmp_path: Path) -> None:
 
 
 def test_a_missing_golden_says_how_to_write_it(tmp_path: Path) -> None:
+    """Verify a missing file fails and names the regenerate command."""
     path = tmp_path / "absent.json"
     with pytest.raises(pytest.fail.Exception, match="missing golden file"):
         check_golden(path, "absent.json", {"a": 1}, MODULE)
@@ -61,6 +63,7 @@ def test_a_missing_golden_says_how_to_write_it(tmp_path: Path) -> None:
 
 
 def test_a_mismatching_golden_fails_with_the_diff(tmp_path: Path) -> None:
+    """Verify a mismatch reports a unified diff of the changed line."""
     path = tmp_path / "net.json"
     path.write_text('{\n    "a": 1\n}\n', encoding="ascii")
 

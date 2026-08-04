@@ -131,6 +131,7 @@ def _assert_contract(parse: Callable[[Any], Any], data: Any) -> None:
 def test_binary_parser_honors_the_exception_contract(
     parse: Callable[[bytes], Any], data: bytes
 ) -> None:
+    """Fuzz every binary parser: refusals stay within the contract."""
     _assert_contract(parse, data)
 
 
@@ -139,15 +140,18 @@ def test_binary_parser_honors_the_exception_contract(
 def test_text_parser_honors_the_exception_contract(
     parse: Callable[[str], Any], data: str
 ) -> None:
+    """Fuzz every text parser: refusals stay within the contract."""
     _assert_contract(parse, data)
 
 
 def _load(*parts: str) -> bytes:
+    """Return the bytes of a file vendored under tests/."""
     with open(path.join(path.dirname(__file__), *parts), "rb") as file_:
         return file_.read()
 
 
 def _first_valid_psbt() -> bytes:
+    """Return BIP174's first valid psbt, re-serialized to bytes."""
     filename = path.join("psbt", "_data", "bip174_test_vectors.json")
     with open(path.join(path.dirname(__file__), filename), encoding="ascii") as file_:
         vectors = json.load(file_)
@@ -217,6 +221,7 @@ MUTATED_PARSERS: dict[str, tuple[Callable[[bytes], Any], bytes]] = {
 def test_mutated_serialization_honors_the_exception_contract(
     parse: Callable[[bytes], Any], sample: bytes, data: st.DataObject
 ) -> None:
+    """Fuzz near-miss serializations: refusals stay within the contract."""
     _assert_contract(parse, data.draw(_mutations(sample)))
 
 
@@ -241,7 +246,7 @@ _P2TR_PREVOUTS = [TxOut(100_000, _P2TR_SCRIPT_PUB_KEY)]
 
 
 def _p2tr_spend(stack: list[bytes]) -> Tx:
-    """The one-input spend of a p2tr output, carrying `stack` as witness."""
+    """Return a one-input spend of a p2tr output, `stack` as witness."""
     vin = TxIn(OutPoint(b"\x11" * 32, 0))
     vin.script_witness = Witness(stack)
     return Tx(vin=[vin], vout=[TxOut(90_000, _P2TR_SCRIPT_PUB_KEY)])
@@ -274,4 +279,5 @@ WITNESS_CONSUMERS: dict[str, Callable[[list[bytes]], Any]] = {
 def test_witness_consumer_honors_the_exception_contract(
     consume: Callable[[list[bytes]], Any], stack: list[bytes]
 ) -> None:
+    """Fuzz witness stacks: consumers keep the exception contract."""
     _assert_contract(consume, stack)

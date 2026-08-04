@@ -109,6 +109,7 @@ def test_ecc_exports_the_signature_schemes() -> None:
 
 
 def test_mnemonic_exports_its_three_schemes() -> None:
+    """Verify bip39, electrum and slip39 are exported and importable."""
     for name in ("bip39", "electrum", "slip39"):
         assert name in btclib.mnemonic.__all__
         module = getattr(btclib.mnemonic, name)

@@ -22,6 +22,7 @@ from tests.conftest import JsonGolden
 
 
 def test_tx_in() -> None:
+    """Round-trip TxIn through bytes and dict, coinbase and segwit."""
     tx_in = TxIn()
     assert tx_in.prev_out == OutPoint()
     assert tx_in.script_sig == b""
@@ -93,6 +94,7 @@ def test_tx_in() -> None:
 
 
 def test_default_arguments_are_not_shared() -> None:
+    """Verify the default prev_out and witness are built per call."""
     # guards against the defaults being built once, at definition time:
     # mutating a shared default through one TxIn corrupts every other one,
     # and assigning prev_out.vout would even leave the constructor unable
@@ -114,6 +116,7 @@ def test_default_arguments_are_not_shared() -> None:
 
 
 def test_dataclasses_json_dict(json_golden: JsonGolden) -> None:
+    """Compare a real input's to_dict with its golden json, and back."""
     fname = "d4f3c2c3c218be868c77ae31bedb497e2f908d6ee5bbbe91e4933e6da680c970.bin"
     filename = path.join(path.dirname(__file__), "_data", fname)
     with open(filename, "rb") as binary_file_:

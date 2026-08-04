@@ -64,11 +64,13 @@ class CountingSource:
         self.calls = 0
 
     def __call__(self, n_bytes: int) -> bytes:
+        """Return n_bytes bytes, distinct on every call."""
         self.calls += 1
         return bytes((self.calls * 31 + i) % 256 for i in range(n_bytes))
 
 
 def test_wordlist() -> None:
+    """Verify the word-list satisfies SLIP-0039's own criteria."""
     assert WORDLISTS.language_length("slip39") == 1024
     wordlist = WORDLISTS.wordlist("slip39")
     assert wordlist[0] == "academic"
@@ -208,6 +210,7 @@ def test_extendable_flag_changes_the_secret() -> None:
 
 
 def test_unknown_word() -> None:
+    """Refuse a word outside the SLIP-0039 word-list, naming it."""
     mnemonic = _VECTORS[0][1][0].replace("duckling", "abandon", 1)
     err_msg = r"not in the SLIP-0039 word-list: \['abandon'\]"
     with pytest.raises(BTClibValueError, match=err_msg):
@@ -215,6 +218,7 @@ def test_unknown_word() -> None:
 
 
 def test_whitespace_is_collapsed() -> None:
+    """Verify extra whitespace decodes to the same share."""
     mnemonic = _VECTORS[0][1][0]
     # not an f-string with the escapes inside the braces: a backslash in
     # a replacement field is python 3.12, and this package supports 3.10
@@ -223,12 +227,14 @@ def test_whitespace_is_collapsed() -> None:
 
 
 def test_no_mnemonic() -> None:
+    """Refuse an empty list of mnemonics."""
     with pytest.raises(BTClibValueError, match="no mnemonic"):
         slip39.master_secret_from_mnemonics([], PASSPHRASE)
 
 
 @pytest.mark.parametrize("passphrase", ["\x1f", "\x7f", "è"])
 def test_invalid_passphrase(passphrase: str) -> None:
+    """Refuse a passphrase outside printable ASCII, both directions."""
     err_msg = "invalid passphrase: only printable ASCII"
     with pytest.raises(BTClibValueError, match=err_msg):
         slip39.master_secret_from_mnemonics(_VECTORS[0][1], passphrase)
@@ -250,6 +256,7 @@ def test_invalid_passphrase(passphrase: str) -> None:
     ],
 )
 def test_invalid_share_field(field: str, value: int) -> None:
+    """Refuse each out-of-range Share field, one at a time."""
     fields = {
         "identifier": 1,
         "extendable": True,
@@ -268,6 +275,7 @@ def test_invalid_share_field(field: str, value: int) -> None:
 
 @pytest.mark.parametrize("n_bytes", [0, 14, 17])
 def test_invalid_secret_length(n_bytes: int) -> None:
+    """Refuse master secrets and share values of invalid length."""
     err_msg = f"invalid master secret length: {n_bytes} bytes"
     with pytest.raises(BTClibValueError, match=err_msg):
         slip39.mnemonics_from_master_secret(bytes(n_bytes))
@@ -277,6 +285,7 @@ def test_invalid_secret_length(n_bytes: int) -> None:
 
 
 def test_group_count_below_threshold() -> None:
+    """Refuse a group count smaller than the group threshold."""
     err_msg = "group count 1 smaller than group threshold 2"
     with pytest.raises(BTClibValueError, match=err_msg):
         slip39.Share(1, True, 0, 0, 2, 1, 0, 1, bytes(16))
@@ -284,6 +293,7 @@ def test_group_count_below_threshold() -> None:
 
 @pytest.mark.parametrize("iteration_exponent", [-1, 16])
 def test_invalid_iteration_exponent(iteration_exponent: int) -> None:
+    """Refuse an iteration exponent outside 0..15."""
     err_msg = f"invalid iteration exponent: {iteration_exponent}"
     with pytest.raises(BTClibValueError, match=err_msg):
         slip39.mnemonics_from_master_secret(
@@ -309,6 +319,7 @@ def test_one_of_many_group() -> None:
     ],
 )
 def test_invalid_threshold(groups: list[tuple[int, int]], group_threshold: int) -> None:
+    """Refuse thresholds and counts outside SLIP-0039's bounds."""
     with pytest.raises(BTClibValueError, match="invalid threshold "):
         slip39.mnemonics_from_master_secret(
             bytes(16), groups=groups, group_threshold=group_threshold

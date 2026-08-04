@@ -35,6 +35,7 @@ PACKAGE = pathlib.Path(__file__).parent.parent / "btclib"
 
 
 def _signatures() -> list[tuple[str, int, str, list[str], list[str]]]:
+    """Return every btclib signature that takes check_validity."""
     out = []
     for path in sorted(PACKAGE.rglob("*.py")):
         tree = ast.parse(path.read_text(encoding="utf-8"))
@@ -58,6 +59,7 @@ def _signatures() -> list[tuple[str, int, str, list[str], list[str]]]:
 
 
 def test_check_validity_is_keyword_only() -> None:
+    """Verify no signature takes check_validity positionally."""
     signatures = _signatures()
 
     # not an assertion about the number, which changes: an assertion that

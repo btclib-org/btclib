@@ -9,7 +9,6 @@ btclib.fetch.bitcoind module
 
 .. automodule:: btclib.fetch.bitcoind
    :members:
-   :undoc-members:
    :show-inheritance:
 
 btclib.fetch.esplora module
@@ -17,7 +16,6 @@ btclib.fetch.esplora module
 
 .. automodule:: btclib.fetch.esplora
    :members:
-   :undoc-members:
    :show-inheritance:
 
 btclib.fetch.fetcher module
@@ -25,7 +23,6 @@ btclib.fetch.fetcher module
 
 .. automodule:: btclib.fetch.fetcher
    :members:
-   :undoc-members:
    :show-inheritance:
 
 btclib.fetch.transport module
@@ -33,7 +30,6 @@ btclib.fetch.transport module
 
 .. automodule:: btclib.fetch.transport
    :members:
-   :undoc-members:
    :show-inheritance:
 
 Module contents
@@ -41,5 +37,4 @@ Module contents
 
 .. automodule:: btclib.fetch
    :members:
-   :undoc-members:
    :show-inheritance:

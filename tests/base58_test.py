@@ -37,6 +37,7 @@ CODEC_VECTORS = [
 
 
 def test_empty() -> None:
+    """Round-trip the empty payload, checksummed or not."""
     assert _b58encode(b"") == b""
     assert _b58decode(_b58encode(b"")) == b""
 
@@ -44,6 +45,7 @@ def test_empty() -> None:
 
 
 def test_hello_world() -> None:
+    """Check the 'hello world' known answer, in both directions."""
     assert _b58encode(b"hello world") == b"StV1DL6CwTryKyV"
     assert _b58decode(b"StV1DL6CwTryKyV") == b"hello world"
     assert _b58decode(_b58encode(b"hello world")) == b"hello world"
@@ -53,6 +55,7 @@ def test_hello_world() -> None:
 
 
 def test_trailing_zeros() -> None:
+    """Verify leading zero bytes become leading '1' characters, and back."""
     assert _b58encode(b"\x00\x00hello world") == b"11StV1DL6CwTryKyV"
     assert _b58decode(b"11StV1DL6CwTryKyV") == b"\x00\x00hello world"
     assert _b58decode(_b58encode(b"\x00\x00hello world")) == b"\x00\x00hello world"
@@ -79,6 +82,7 @@ def test_core_codec_vectors(hexed: str, encoded: str) -> None:
 
 
 def test_exceptions() -> None:
+    """Check the message of each way b58decode refuses an input."""
     encoded = b58encode(b"hello world")
     b58decode(encoded, 11)
 
@@ -102,6 +106,7 @@ def test_exceptions() -> None:
 
 
 def test_wif() -> None:
+    """Reproduce the Bitcoin wiki's WIF vectors, compressed and not."""
     # https://en.bitcoin.it/wiki/Wallet_import_format
     prv = 0xC28FCA386C7A227600B2FE50B7CAE11EC86D3BF1FBE471BE89827E19D72AA1D
 
@@ -126,6 +131,7 @@ def test_wif() -> None:
 
 
 def test_integers() -> None:
+    """Verify the integer codec over each digit and the full alphabet."""
     digits = b"123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz"
     for i in range(len(digits)):
         char = digits[i : i + 1]

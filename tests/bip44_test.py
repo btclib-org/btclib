@@ -109,6 +109,7 @@ _VECTORS = [
 
 @pytest.mark.parametrize(("mxkey", "xpub", "der_path", "address"), _VECTORS)
 def test_bip44_vectors(mxkey: str, xpub: str, der_path: str, address: str) -> None:
+    """Reproduce SLIP132, BIP49, BIP84 and BIP86 addresses, any level."""
     # from the master key, walking the whole path
     assert address_from_der_path(mxkey, der_path) == address
     # from the account xpub, walking the two public levels left
@@ -133,6 +134,7 @@ def test_purpose_mapping() -> None:
 
 
 def test_unknown_purpose() -> None:
+    """Refuse purpose 48 bare, and let the script type override win."""
     # 48 is BIP48, multi-signature: a real purpose, and one whose script
     # type an account key does not determine
     err_msg = "unknown BIP44 purpose: 48 not in "
@@ -154,6 +156,7 @@ def test_unknown_purpose() -> None:
 
 
 def test_unknown_script_type() -> None:
+    """Refuse p2wsh, and verify the alias and the table agree."""
     # the alias and the table say the same four encodings, which is what
     # lets one of them type the other
     assert get_args(BIP44ScriptType) == tuple(_ADDRESS_FROM_SCRIPT_TYPE)
@@ -168,6 +171,7 @@ def test_unknown_script_type() -> None:
 
 
 def test_coin_type() -> None:
+    """Refuse a coin type off the key's network, and Litecoin's."""
     # a mainnet key with the testnet coin type, and the other way round
     err_msg = "coin type 1 is test, the extended key is main"
     with pytest.raises(BTClibValueError, match=err_msg):
@@ -196,11 +200,13 @@ def test_coin_type() -> None:
     ],
 )
 def test_invalid_path(der_path: str, err_msg: str) -> None:
+    """Refuse a BIP44 path of wrong depth or wrong hardening."""
     with pytest.raises(BTClibValueError, match=err_msg):
         address_from_der_path(_ZPRV_ROOT, der_path)
 
 
 def test_key_depth() -> None:
+    """Refuse a key whose depth or index disagrees with the path."""
     der_path = "m/84h/0h/0h/0/0"
 
     # the account xpub of another account: the depth says which index of

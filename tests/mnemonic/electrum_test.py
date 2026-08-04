@@ -331,6 +331,7 @@ VERSION_VECTORS = [
 
 
 def test_mnemonic() -> None:
+    """Check generation, decoding and the unknown-version refusals."""
     lang = "en"
 
     entropy = 0x110AAAA03974D093EDA670121023CD0772
@@ -398,6 +399,7 @@ def test_word_order() -> None:
 
 @pytest.mark.parametrize(("mnemonic", "passphrase", "version", "seed"), SEED_VECTORS)
 def test_seed_vectors(mnemonic: str, passphrase: str, version: str, seed: str) -> None:
+    """Reproduce electrum's SEED_TEST_CASES, version and seed alike."""
     assert electrum._seed_from_mnemonic(mnemonic, passphrase) == (
         version,
         bytes.fromhex(seed),
@@ -406,6 +408,7 @@ def test_seed_vectors(mnemonic: str, passphrase: str, version: str, seed: str) -
 
 @pytest.mark.parametrize(("mnemonic", "version"), VERSION_VECTORS)
 def test_version_vectors(mnemonic: str, version: str) -> None:
+    """Reproduce electrum's Test_seeds table, refusals included."""
     if not version:
         with pytest.raises(
             BTClibValueError, match="unknown electrum mnemonic version: "
@@ -742,7 +745,7 @@ def test_a_wordlist_the_encoding_does_not_round_trip(
 
 
 def test_2fa_words() -> None:
-    """ "2fa" wants twelve words or twenty, and a search can end elsewhere.
+    """A "2fa" seed wants twelve words or twenty; a search can end elsewhere.
 
     Electrum closes make_seed by asking what it would read the sentence
     back as, and this is the case where the answer is "nothing": the
@@ -1002,6 +1005,7 @@ def test_vectors(
 
 
 def test_mnemonic_from_entropy() -> None:
+    """Verify a zero leading bit is fine and the random default draws 12."""
     # zero leading bit should not throw an error
     electrum.mnemonic_from_entropy("standard", 2**126 + 1, "en")
     # the random default is electrum's: 132 bits, redrawn below 2**121,

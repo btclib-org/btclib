@@ -51,6 +51,7 @@ TEST_VECTORS = (
 
 @pytest.mark.parametrize(("msg", "digest"), TEST_VECTORS)
 def test_ripemd160(msg: bytes, digest: str) -> None:
+    """Reproduce the designers' published RIPEMD-160 vectors."""
     assert ripemd160(msg).hex() == digest
 
 
@@ -59,6 +60,7 @@ def test_ripemd160(msg: bytes, digest: str) -> None:
     reason="hashlib has no ripemd160 to compare against",
 )
 def test_matches_hashlib() -> None:
+    """Match hashlib over lengths spanning padding and block boundaries."""
     # every length up to 135 covers the two padding boundaries, 55/56 and
     # 119/120, and the block boundaries at 64 and 128; 4096 covers the
     # many-block loop, which the upstream vector left out above is what

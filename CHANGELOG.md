@@ -4126,6 +4126,15 @@ edit.
 
 ### Documentation and the website
 
+- **The tests are documented too, and the rendered pages show only what
+  is documented.** The `tests/**` exemption from ruff's D rules is gone:
+  every test function, fixture and helper states what it verifies — the
+  property, the published vector, the failure mode — rather than leaving
+  the name to speak, under the same pydocstyle gate as the library. With
+  nothing left undocumented, the 92 `:undoc-members:` options are gone
+  from the `automodule` blocks: a member without a docstring no longer
+  renders as a bare signature, so `sphinx.ext.coverage` measures
+  something again instead of reporting 100% by construction (issue #290)
 - **One spelling per term, throughout the prose.** BIPnnn — no space, no
   hyphen — op code, segwit, merkle, sighash, x-only, and lowercase
   p2pkh/p2sh/p2wpkh/p2tr: each is the spelling already dominant in the

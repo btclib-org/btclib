@@ -23,6 +23,7 @@ from btclib.exceptions import BTClibValueError
 
 
 def test_from_der_path_str() -> None:
+    """Convert der paths between str, ints and bytes; refuse bad indexes."""
     test_reg_str_vectors = [
         # account 0, external branch, address_index 463
         (f"m/0{_HARDENING}/0/463", [0x80000000, 0, 463]),
@@ -93,6 +94,7 @@ def test_from_der_path_str() -> None:
 
 
 def test_index_int_to_from_str() -> None:
+    """Round-trip indexes at the 32-bit bounds; refuse what lies beyond."""
     for i in (0, 1, 0x80000000 - 1, 0x80000000, 0xFFFFFFFF):
         assert i == int_from_index_str(str_from_index_int(i))
 
@@ -109,6 +111,7 @@ def test_index_int_to_from_str() -> None:
 
 
 def test_str_from_der_path() -> None:
+    """Prefix the path with m or the fingerprint; refuse a bad fingerprint."""
     der_path = "/44h/0h"
     assert str_from_der_path(der_path) == f"m{der_path}"
     m_fngrprnt = "deadbeef"
