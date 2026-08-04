@@ -2942,6 +2942,15 @@ edit.
   of the library rather than the four it named: a package added to btclib
   is a package it checks, and it is what found `btclib.script` outside the
   list.
+- **`btclib.curves` exports `CURVES`**, the catalogue every curve other
+  than secp256k1 is looked up in. `secp256k1` was exported by name and the
+  dictionary it comes from was not, so the package's own docstring named
+  the catalogued curves while a caller could reach exactly one of them
+  without importing `btclib.curves.curve` — which is where the test suite
+  takes `CURVES` from, that being the only place it was available. The
+  four catalogues it is the union of, `SEC2v1`, `SEC2v2`, `NIST` and
+  `Brainpool`, stay unexported: which standard a curve comes from is a
+  question about a curve, not a way of finding one.
 
 ### Types
 

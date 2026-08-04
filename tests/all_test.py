@@ -40,6 +40,7 @@ def test_ec_exports_the_curve_api_not_the_benchmark() -> None:
     on the strength of its name -- gives up.
     """
     assert sorted(btclib.curves.__all__) == [
+        "CURVES",
         "Curve",
         "CurveGroup",
         "bytes_from_point",
