@@ -309,6 +309,14 @@ against the `v2023.7.12` tag.
   byte at the call site — `ssa.verify(msg, pub_key, witness_sig[:64])`,
   which is what btclib's own script engine does after reading the sighash
   type off it.
+- **`btclib.psbt` no longer exports the nine `psbt_utils` names**:
+  `serialize_bytes`, `deserialize_int`, `deserialize_map`,
+  `deserialize_tx`, `encode_dict_bytes_bytes`, `decode_dict_bytes_bytes`,
+  `serialize_dict_bytes_bytes`, `serialize_hd_key_paths` and
+  `assert_valid_unknown` come from `btclib.psbt.psbt_utils`, which is
+  where they are defined. They are how one field of one psbt map is
+  written and read; `Psbt`, `PsbtIn` and `PsbtOut` are where a caller
+  reads and writes a psbt.
 
 Two changes are deliberately *not* on that list, because what they change
 stays compatible. The new `BTClibTypeError`, `NotAPrvKeyError` and

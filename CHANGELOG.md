@@ -3010,6 +3010,24 @@ edit.
   re-export flat, `WordLists` and `data_file` among it, had no named way
   in. `tests/all_test.py` now finds the submodules rather than listing
   them, so one added to the package is one it asks about.
+- **`btclib.psbt` exports the format and the roles, not the plumbing of
+  the file format.** Nine names came from `psbt_utils` —
+  `serialize_bytes`, `deserialize_int`, `deserialize_map`,
+  `deserialize_tx`, `encode_dict_bytes_bytes`, `decode_dict_bytes_bytes`,
+  `serialize_dict_bytes_bytes`, `serialize_hd_key_paths` and
+  `assert_valid_unknown` — which is how one field of one map is written and
+  read, called by `psbt_in`, `psbt_out` and `psbt` and by nothing outside
+  the package: there were more of them in `__all__` than there were names
+  for the psbt itself, `encode_dict_bytes_bytes` listed twice among them.
+  Each is still importable from `btclib.psbt.psbt_utils`, which is where
+  the test suite already took the other half of that module from — and one
+  test file was importing `serialize_hd_key_paths` from the package and
+  `deserialize_map` from the module, in the same import block.
+  Two names arrive: `prevouts`, the outputs a psbt spends, and `musig2`,
+  named as a module because BIP373 is a role rather than a function, the
+  way `btclib.ecc` names `dsa`. The package docstring records both
+  decisions, and `tests/all_test.py` pins the list and checks the nine are
+  still where they are defined.
 
 ### Types
 

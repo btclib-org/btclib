@@ -27,8 +27,10 @@ import btclib
 import btclib.curves
 import btclib.ecc
 import btclib.mnemonic
+import btclib.psbt
 import btclib.script
 from btclib.curves import curve_group, curve_group_2
+from btclib.psbt import psbt_utils
 from btclib.script import script_pub_key
 
 
@@ -182,6 +184,46 @@ def test_mnemonic_names_every_submodule_it_has() -> None:
         assert name in btclib.mnemonic.__all__, f"{name} is not exported"
         module = getattr(btclib.mnemonic, name)
         assert module.__name__ == f"btclib.mnemonic.{name}"
+
+
+def test_psbt_exports_the_format_not_its_plumbing() -> None:
+    """The maps and the roles, not how one field of one map is written.
+
+    The list it replaces held more names from psbt_utils than names for the
+    psbt itself, `encode_dict_bytes_bytes` twice among them, so a caller
+    reading `btclib.psbt` was offered the plumbing of a file format ahead
+    of the format.
+    """
+    assert sorted(btclib.psbt.__all__) == [
+        "Psbt",
+        "PsbtIn",
+        "PsbtOut",
+        "combine_psbts",
+        "estimated_input_sizes",
+        "extract_tx",
+        "finalize_psbt",
+        "join_psbts",
+        "musig2",
+        "prevouts",
+    ]
+
+    # BIP373 is a role, so the module is the name, as btclib.ecc.dsa is
+    assert btclib.psbt.musig2.__name__ == "btclib.psbt.musig2"
+
+    # the plumbing is still there, in the module that defines it
+    for name in (
+        "assert_valid_unknown",
+        "decode_dict_bytes_bytes",
+        "deserialize_int",
+        "deserialize_map",
+        "deserialize_tx",
+        "encode_dict_bytes_bytes",
+        "serialize_bytes",
+        "serialize_dict_bytes_bytes",
+        "serialize_hd_key_paths",
+    ):
+        assert hasattr(psbt_utils, name), f"psbt_utils.{name} went missing"
+        assert name not in btclib.psbt.__all__
 
 
 def test_every_exported_name_exists() -> None:

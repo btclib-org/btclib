@@ -15,10 +15,10 @@ import pytest
 
 from btclib.bip32 import BIP32KeyOrigin
 from btclib.exceptions import BTClibValueError
-from btclib.psbt import serialize_hd_key_paths
 from btclib.psbt.psbt_utils import (
     deserialize_map,
     parse_taproot_bip32,
+    serialize_hd_key_paths,
     serialize_taproot_bip32,
 )
 
