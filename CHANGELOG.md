@@ -964,7 +964,15 @@ edit.
   and `base58.b58decode`, where `out_size=True` accepted a single octet and
   reported a size as checked. The derivation-path sequence is no longer
   coerced with `int()` either: its contract is `Sequence[int]`, so a member
-  that is no integer is refused rather than converted. A BTC amount is a
+  that is no integer is refused rather than converted. Two things follow
+  from accepting an `IntEnum`, and both are in: `str_from_index_int`
+  normalizes with `int()` before formatting, `str()` of an `IntEnum` being
+  its *name* up to Python 3.10 — a path step of `"Sighash.ALL"` there and
+  `"1"` on every later interpreter, which is what the 3.10 cells of the
+  matrix caught — and `bytes_from_octets` tells a scalar size from an
+  iterable of them before taking `tuple()` of either, a float otherwise
+  answering "not iterable", which complains about the wrong thing and from
+  outside this library's exception contract. A BTC amount is a
   Decimal quote rather than an integer field, so `valid_btc_amount(True)`
   stays the value error it became in #339. `tests/integer_policy_test.py`
   holds all of them to it, and holds the refusal to the numbers it must

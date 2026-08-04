@@ -58,7 +58,18 @@ def bytes_from_octets(octets: Octets, out_size: NoneOneOrMoreInt = None) -> byte
     if out_size is None:
         return octets
 
-    sizes = (out_size,) if isinstance(out_size, int) else tuple(out_size)
+    # one size or an iterable of them, and nothing else: `tuple()` on
+    # whatever is left would refuse a float with a bare TypeError about
+    # iteration -- a complaint about the wrong thing, and from underneath
+    # the library rather than through its exception contract
+    if isinstance(out_size, int):
+        sizes: tuple[int, ...] = (out_size,)
+    elif isinstance(out_size, Iterable):
+        sizes = tuple(out_size)
+    else:
+        err_msg = f"invalid output size type: {type(out_size).__name__}"
+        raise BTClibTypeError(err_msg)
+
     for size in sizes:
         if not is_integer(size):
             err_msg = f"invalid output size type: {type(size).__name__}"

@@ -157,11 +157,43 @@ def test_the_integers_a_bool_refusal_must_not_take_with_it() -> None:
     assert indexes_from_der_path("m/44h/0h") == [2147483692, 2147483648]
 
 
+def test_what_is_no_integer_at_all_is_refused_the_same_way() -> None:
+    """The policy is about integers, and a bool is only its sharpest case.
+
+    These boundaries used to convert what they were handed -- a derivation
+    path through `int()`, a dust threshold through a comparison -- or to
+    complain about the wrong thing: an output size that is neither a number
+    nor an iterable of them met `tuple()` and answered "not iterable", from
+    underneath the library rather than through its exception contract.
+    """
+    with pytest.raises(BTClibTypeError, match="non-integer satoshi dust"):
+        valid_sats_amount(1, dust=1.0)  # type: ignore[arg-type]
+
+    with pytest.raises(BTClibTypeError, match="invalid derivation index type"):
+        indexes_from_der_path([2.0])  # type: ignore[list-item]
+    with pytest.raises(BTClibTypeError, match="invalid derivation index type"):
+        str_from_index_int(1.0)  # type: ignore[arg-type]
+
+    for out_size in (1.5, object(), "1"):
+        with pytest.raises(BTClibTypeError, match="invalid output size type"):
+            bytes_from_octets(b"x", out_size)  # type: ignore[arg-type]
+    with pytest.raises(BTClibTypeError, match="invalid output size type"):
+        bytes_from_octets(b"x", [1.5])  # type: ignore[list-item]
+    with pytest.raises(BTClibTypeError, match="invalid output size type"):
+        base58.b58decode(base58.b58encode(b"x"), 1.0)  # type: ignore[arg-type]
+
+
 def test_an_int_subclass_that_is_not_a_bool_is_still_an_integer() -> None:
     """`IntEnum` stays a number, which is why the predicate names bool.
 
     Issue #273 asks whether the sighash types should become an `IntEnum`;
     `type(value) is int` would have answered it in advance, and with a no.
+
+    The path step is the case that has to be *answered* with a number and
+    not merely accepted as one: `str()` of an `IntEnum` is its name up to
+    Python 3.10, so a derivation path of one would have read
+    "Sighash.ALL" there and "1" on every later interpreter -- which the
+    3.10 cells of the matrix caught and this assertion now pins.
     """
 
     class Sighash(IntEnum):
