@@ -107,7 +107,7 @@ TEXT_PARSERS: dict[str, Callable[[str], Any]] = {
     "b58.h160_from_address": b58.h160_from_address,
     "BIP32KeyData.b58decode": BIP32KeyData.b58decode,
     "bms.Sig.b64decode": bms.Sig.b64decode,
-    "descriptors.descriptor_checksum": descriptors.descriptor_checksum,
+    "descriptors.checksum": descriptors.checksum,
 }
 
 

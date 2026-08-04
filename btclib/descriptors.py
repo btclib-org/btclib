@@ -119,11 +119,11 @@ def __descsum_expand(descriptor_string: str) -> list[int]:
     return symbols
 
 
-def descriptor_checksum(descriptor: str) -> str:
+def checksum(descriptor: str) -> str:
     """Compute the descriptor checksum."""
     symbols = [*__descsum_expand(descriptor), 0, 0, 0, 0, 0, 0, 0, 0]
-    checksum = __descsum_polymod(symbols) ^ 1
-    return "".join(CHECKSUM_CHARSET[(checksum >> (5 * (7 - i))) & 31] for i in range(8))
+    polymod = __descsum_polymod(symbols) ^ 1
+    return "".join(CHECKSUM_CHARSET[(polymod >> (5 * (7 - i))) & 31] for i in range(8))
 
 
 def strip_checksum(descriptor: str) -> str:
@@ -134,15 +134,15 @@ def strip_checksum(descriptor: str) -> str:
     require it. What is never accepted is a checksum that does not match,
     which is what the eight characters are there for.
     """
-    body, separator, checksum = descriptor.partition("#")
-    if "#" in checksum:
+    body, separator, given_checksum = descriptor.partition("#")
+    if "#" in given_checksum:
         raise BTClibValueError(f"more than one '#' in the descriptor: {descriptor}")
     # computed before the comparison, and whether or not there is one to
     # compare against: it is also what refuses a character outside
     # INPUT_CHARSET, which is an error in a descriptor with no checksum
-    expected = descriptor_checksum(body)
-    if separator and checksum != expected:
-        err_msg = f"invalid descriptor checksum: {checksum}, {expected} expected"
+    expected = checksum(body)
+    if separator and given_checksum != expected:
+        err_msg = f"invalid descriptor checksum: {given_checksum}, {expected} expected"
         raise BTClibValueError(err_msg)
     return body
 
@@ -150,10 +150,10 @@ def strip_checksum(descriptor: str) -> str:
 def add_checksum(descriptor: str) -> str:
     """Return the descriptor with its checksum, verifying a present one."""
     body = strip_checksum(descriptor)
-    return f"{body}#{descriptor_checksum(body)}"
+    return f"{body}#{checksum(body)}"
 
 
-def descriptor_from_address(address: str) -> str:
+def from_address(address: str) -> str:
     """Return the addr() descriptor of the address, checksummed."""
     return add_checksum(f"addr({address})")
 
