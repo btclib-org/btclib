@@ -27,6 +27,7 @@ deliberate addition is one line here and an accidental one is a failure.
 from __future__ import annotations
 
 import ast
+from collections.abc import Iterable, Iterator
 from importlib import import_module
 from pathlib import Path
 from pkgutil import iter_modules
@@ -72,20 +73,48 @@ def top_level_modules() -> list[ModuleType]:
     ]
 
 
+def module_scope(body: Iterable[ast.stmt]) -> Iterator[ast.stmt]:
+    """Yield the statements a module executes in its own namespace.
+
+    Every statement of the body, and then inside each compound one, which
+    runs at module scope too: an import in a module-level `try`, `if`,
+    `with`, `for`, `while` or `match` binds a global exactly as a
+    top-level one does, and `try: from dependency import PublicType` is
+    how an optional import is written. A function or a class opens a scope
+    of its own, so an import in either binds nothing here, and neither is
+    descended into.
+    """
+    for node in body:
+        yield node
+        if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef)):
+            continue
+        nested: list[ast.stmt] = []
+        for field in ("body", "orelse", "finalbody"):
+            statements = getattr(node, field, None)
+            if isinstance(statements, list):
+                nested += statements
+        for clause in (*getattr(node, "handlers", ()), *getattr(node, "cases", ())):
+            nested += clause.body
+        yield from module_scope(nested)
+
+
+def imported_names_in(source: str) -> set[str]:
+    """Return the names the import statements of one module source bind."""
+    return {
+        alias.asname or alias.name.split(".")[0]
+        for node in module_scope(ast.parse(source).body)
+        if isinstance(node, (ast.Import, ast.ImportFrom))
+        for alias in node.names
+    }
+
+
 def imported_names(module: ModuleType) -> set[str]:
     """Return the names a module's own import statements bind.
 
     Read off the source rather than the module object, there being nothing
-    in a module's namespace to say how a name got there. Only the top-level
-    statements are read: an import inside a function binds a local.
+    in a module's namespace to say how a name got there.
     """
-    tree = ast.parse(Path(str(module.__file__)).read_text(encoding="utf-8"))
-    return {
-        alias.asname or alias.name.split(".")[0]
-        for node in tree.body
-        if isinstance(node, (ast.Import, ast.ImportFrom))
-        for alias in node.names
-    }
+    return imported_names_in(Path(str(module.__file__)).read_text(encoding="utf-8"))
 
 
 def defined_public_names(module: ModuleType) -> set[str]:
@@ -355,6 +384,30 @@ def test_no_module_exports_a_name_it_imported() -> None:
         imported = imported_names(module)
         for name in module.__all__:
             assert name not in imported, f"{module.__name__} re-exports {name}"
+
+
+def test_the_import_scan_reaches_a_nested_import() -> None:
+    """A module-level `try` binds a global, and a function body does not.
+
+    The check above is only as good as this scan: an optional dependency
+    imported in a `try` and named in `__all__` is exactly the re-export it
+    refuses, and reading `tree.body` alone would have let it through.
+    """
+    source = (
+        "try:\n"
+        "    from dependency import PublicType\n"
+        "except ImportError:\n"
+        "    from fallback import PublicType\n"
+        "if TYPE_CHECKING:\n"
+        "    from typing import Never\n"
+        "for _name in ():\n"
+        "    import late\n"
+        "def f():\n"
+        "    import local\n"
+        "class C:\n"
+        "    import attribute\n"
+    )
+    assert imported_names_in(source) == {"PublicType", "Never", "late"}
 
 
 def test_nothing_becomes_public_by_accident() -> None:
