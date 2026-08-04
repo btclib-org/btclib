@@ -128,7 +128,7 @@ from btclib.exceptions import BTClibRuntimeError, BTClibValueError
 from btclib.hashes import hash160, magic_message, reduce_to_hlen
 from btclib.network import NETWORKS
 from btclib.to_prv_key import PrvKey, prv_keyinfo_from_prv_key
-from btclib.utils import bytesio_from_binarydata
+from btclib.utils import assert_no_trailing, bytesio_from_binarydata
 
 _REQUIRED_LENGTH = 65
 
@@ -206,6 +206,7 @@ class Sig:
             err_msg = f"invalid decoded length: {len(sig_bin)}"
             err_msg += f" instead of {_REQUIRED_LENGTH}"
             raise BTClibValueError(err_msg)
+        assert_no_trailing(data, stream, "signature")
 
         rf = sig_bin[0]
         ec = secp256k1

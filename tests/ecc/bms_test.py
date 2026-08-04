@@ -931,6 +931,13 @@ def test_parse_length_is_not_a_validity_opinion() -> None:
             with pytest.raises(BTClibValueError, match=err_msg):
                 bms.Sig.parse(sig_bin[:length], check_validity=check_validity)
 
+    # and the other half of the same rule: octets are one whole
+    # signature, so what follows it in them is refused rather than
+    # dropped -- 66 bytes would otherwise be the signature of the 65
+    for check_validity in (True, False):
+        with pytest.raises(BTClibValueError, match="1 bytes after the signature"):
+            bms.Sig.parse(sig_bin + b"\x00", check_validity=check_validity)
+
 
 def test_b64decode_rejects_what_is_not_base64() -> None:
     """Guard against b64decode discarding what is not in the alphabet.

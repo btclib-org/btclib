@@ -893,6 +893,26 @@ edit.
   stated size now answers `39 bytes after the transaction` rather than the
   `Missing inputs` that was true of it and not what was wrong with it
 
+- **a BIP340 signature is sixty-four octets, and no other number**
+  (issue #323). `ssa.Sig.parse` read `r` and `s` with two 32-byte reads
+  and checked nothing, so sixty-three octets parsed into a signature of
+  their own — an `s` read out of thirty-one bytes is below the order, so
+  it is a valid scalar — and sixty-five into the signature of the first
+  sixty-four, the last byte read as part of nothing. `Sig.parse(b"")`
+  under `check_validity=False` answered the `Sig` of `(0, 0)`: a
+  signature out of no bytes at all. The length is now checked as
+  `bms.Sig.parse` checks its own, whatever `check_validity` says, and
+  `bms.Sig.parse` gains the trailing-octets half of the same rule, so
+  sixty-six octets are no longer the signature of the first sixty-five.
+  The one parser left with a flag in front of that rule is
+  `dsa.Sig.parse`, whose `strict` is Core's own
+  `IsValidSignatureEncoding` and is documented as the exception it is
+  (issue #129). The 65-octet shape this refuses is the one a taproot
+  witness carries: BIP341 appends the sighash type, which is a fact about
+  the transaction rather than part of the signature, and stripping it is
+  the caller's — `signature[:64]`, as `btclib.script.engine.tapscript`
+  does once `get_hashtype` has read it
+
 ### Immutability and shared state
 
 - a default-constructed `TxIn` no longer shares its `prev_out` and

@@ -284,7 +284,12 @@ class Sig:
         # LOW_S and not otherwise, and fix_signature parses with
         # strict=False for exactly the flags Core leaves it out for. A
         # stream is held to the same rule as a bytes buffer, no caller in
-        # this library parsing a signature out of the middle of one
+        # this library parsing a signature out of the middle of one.
+        #
+        # This is the one parser in btclib with a flag in front of that
+        # rule, and the flag is Core's: btclib/utils.py states the rule
+        # everything else follows, where a complete octet string is one
+        # whole object and nothing may follow it
         if strict and stream.read(1) != b"":
             raise BTClibValueError("trailing bytes after the DER sequence")
 
