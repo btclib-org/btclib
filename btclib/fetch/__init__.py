@@ -27,6 +27,24 @@ socket.
 Importing the package does not connect to anything, and constructing a
 fetcher does not either: the first call is what opens a connection, and
 what raises if there is nothing to connect to.
+
+**What is exported, and what is not.** The two fetchers, the interface
+they implement, the endpoint a bitcoind one is reached through, and the
+transport seam: the timeout, the protocol a substitute has to satisfy and
+the one implementation of it that opens a socket. That last group is here
+because the seam is the supported way to test calling code without a node,
+which is not a detail of the two implementations.
+
+`bitcoind.cookie_auth` is deliberately not here: `AuthProxy` takes a
+`cookie_path` and reads that file at every call -- the node rewrites the
+cookie whenever it restarts -- so a caller who wants cookie authentication
+passes the path and never the credential, and a name for reading it is one
+way to hold a credential longer than the node does. `fetcher.fetch_errors`,
+`tx_from_raw`, `tx_id_hex` and `tx_for_network` are not here either: they
+are what an implementation of the interface is built out of, and they are
+the answer to a third implementation rather than to a caller of the two --
+`from btclib.fetch.fetcher import fetch_errors` is that answer, and it says
+which layer it is reaching into.
 """
 
 from btclib.fetch.bitcoind import AuthProxy, BitcoindFetcher

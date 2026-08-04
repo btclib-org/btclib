@@ -2989,6 +2989,18 @@ edit.
   missing is the reason, which is now beside the list, with the
   observation that `btclib.bip44` has the same shape and lives at the top
   level for the same cause.
+- **`btclib.fetch` states what it exports and what it keeps out.** The
+  docstring explained the design of the package and said nothing about its
+  public surface, where `btclib.curves` and `btclib.block` each record
+  theirs. `cookie_auth` stays out because `AuthProxy` takes a
+  `cookie_path` and reads that file at every call, the node rewriting the
+  cookie whenever it restarts: a caller passes the path and never the
+  credential, and a name for reading one is a way to hold it longer than
+  the node does. `fetch_errors`, `tx_from_raw`, `tx_id_hex` and
+  `tx_for_network` stay out because they are what an implementation of
+  `Fetcher` is built out of, which is a third implementation's question
+  rather than a caller's. The transport seam is in, and the reason is now
+  written down: it is how calling code is tested without a node.
 
 ### Types
 
