@@ -251,6 +251,28 @@ def test_a_401_says_it_is_the_credentials() -> None:
         proxy((401, b"")).call("getblockcount")
 
 
+@pytest.mark.parametrize("code", [301, 302, 303, 307, 308])
+def test_a_redirect_is_refused_and_not_answered(code: int) -> None:
+    """An rpc call meeting a 30x fails; the credential stays on one url.
+
+    Nothing follows a redirect (issue #358), so a `Location` is a header on
+    a status like any other and the body beside it -- here the html of
+    whatever answered instead of the node -- is not a reply. What the
+    caller gets is the status, which is what says the endpoint is not the
+    node any more; the `Authorization` reached the url they wrote down and
+    no second one.
+    """
+    endpoint = proxy((code, b"<html><title>Moved</title></html>"))
+    with pytest.raises(FetchError, match=f"HTTP {code}"):
+        endpoint.call("getblockcount")
+
+    transport = endpoint.transport
+    assert isinstance(transport, Recorded)
+    assert len(transport.requests) == 1
+    assert transport.request.full_url == endpoint.url
+    assert transport.request.get_header("Authorization") == endpoint.auth_header()
+
+
 def test_a_body_that_is_not_json_says_so() -> None:
     """A proxy or a web server on the rpc port, answering 200 with html."""
     with pytest.raises(FetchError, match="not json"):

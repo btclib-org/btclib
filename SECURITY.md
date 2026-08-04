@@ -174,4 +174,11 @@ used to teach and to prototype as much as to build:
     `127.0.0.1`, which is what bitcoind serves: a node on another host is
     reached over an ssh tunnel or a TLS proxy, not by trusting the
     network in between — the basic authentication this sends is a
-    base64 of the credential and nothing more
+    base64 of the credential and nothing more. With the default
+    `urlopen_transport` it reaches the url the caller wrote down and no
+    other: no redirect is followed, so a 30x is a status the backend
+    reports rather than a second request carrying the same `Authorization`
+    to wherever a `Location` header named. A transport of the caller's own
+    is supported and does its own I/O, so there the same guarantee is
+    theirs to provide — a client that follows redirects is one that
+    decides where the credential goes

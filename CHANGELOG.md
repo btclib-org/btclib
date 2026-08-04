@@ -68,6 +68,32 @@ edit.
 
 ### Security
 
+- **`btclib.fetch` follows no redirect, so an rpc credential reaches one
+  host** (issue #358). `urlopen` uses urllib's default opener, whose
+  `HTTPRedirectHandler` answered a 30x before this module saw a response,
+  and it did three things nothing here asked for: `redirect_request`
+  copies every header but `content-length` and `content-type`, so the
+  `Authorization` built for a node travelled to whatever host the
+  `Location` named — a JSON-RPC POST arriving there as a GET; a redirect
+  target may be `http`, `https` or `ftp`, so an https request could be
+  answered with an http one and the scheme check covered only the first
+  url; and `fp.read()` with no argument read the whole intermediate body,
+  so `max_body_size` bounded the final response and not the exchange.
+  Measured against two local `http.server` instances, the second one
+  received the request with `Authorization: Basic YWxpY2U6c2VjcmV0` on
+  it verbatim. `urlopen_transport` now does its I/O through an opener
+  built without that handler, so a 30x arrives as the `HTTPError` any
+  other non-2xx does and comes back as a status with a bounded body,
+  which both fetchers already turn into a `FetchError` naming it —
+  `getblockcount at http://127.0.0.1:8332: HTTP 302`. Refused rather than
+  policed, and the reason is what a policy would have to be: stripping
+  credentials across origins, refusing a downgrade, bounding every
+  intermediate body and counting hops is a redirect implementation inside
+  a module whose subject is one bounded request, where what a same-origin
+  redirect would buy is a base url the caller fixes once. `build_opener`
+  and not `install_opener`, the default opener being process-wide: a
+  library replacing it would decide this for every other user of
+  `urlopen` in the program
 - **a sign-to-contract commitment reaches the nonce derivation, and not
   only the nonce.** `sign_to_contract` tweaked the nonce with the
   commitment and derived that nonce from the message and the key alone,
