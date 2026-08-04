@@ -328,6 +328,10 @@ against the `v2023.7.12` tag.
   `checksum` and `from_address`.** Both spellings were already there at
   `v2023.7.12` — checked against the tag. `add_checksum` and
   `strip_checksum` keep their names.
+- **`tx.join_txs` is `tx.join`; `psbt.combine_psbts`, `psbt.join_psbts`
+  and `psbt.finalize_psbt` are `combine`, `join` and `finalize`.** All
+  four spellings were already there at `v2023.7.12` — checked against
+  the tag. `psbt.extract_tx` is unchanged.
 
 Two changes are deliberately *not* on that list, because what they change
 stays compatible. The new `BTClibTypeError`, `NotAPrvKeyError` and

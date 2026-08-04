@@ -465,7 +465,7 @@ script        serialize  parse  script-to-dict  script-from-dict
               is-p2pk  is-p2pkh  is-p2sh  is-p2ms  is-p2wpkh
               is-p2wsh  is-p2tr  is-nulldata, and the assert- of each
 tx            parse  serialize  to-dict  from-dict  id  vsize
-              weight  sig-op-count  join-txs
+              weight  sig-op-count  join
 block         parse  to-dict  bip34-commitment
 block proof-of-work
               target-from-bits  bits-from-target  block-work
@@ -557,7 +557,7 @@ script taproot
               serialize  parse  leaf-hash  assert-valid-control-block
 script engine verify-input  verify-transaction  verify-amounts
 psbt          parse  b64encode  b64decode  to-dict  from-tx
-              combine-psbts  join-psbts  finalize-psbt  extract-tx
+              combine  join  finalize  extract-tx
               to-v0  to-v2  estimated-vsize  prevouts
 descriptors   satisfy  update-psbt
 keystore      addresses  address-info  next-address  address
@@ -623,7 +623,7 @@ Two rows are worth reading as findings rather than as omissions.
 
 `signtransaction` has no btclib equivalent because BIP174's **Signer** is
 the role the library does not implement: `Descriptor.update_psbt` is the
-Updater, `finalize_psbt` the Finalizer and `extract_tx` the Extractor,
+Updater, `finalize` the Finalizer and `extract_tx` the Extractor,
 and between the second and the third there is a step a caller has to do
 by hand with `sig_hash` and `ecc.dsa`. A command line makes that gap
 visible in a way the library does not — `btclib psbt --help` would list

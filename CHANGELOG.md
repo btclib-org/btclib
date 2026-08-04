@@ -3052,6 +3052,17 @@ edit.
   `descriptors.from_address` — one vocabulary instead of two.
   `strip_checksum`'s local variable holding the parsed checksum is
   `given_checksum` now, `checksum` being the function's name (issue #336)
+- **`tx.join_txs` is `tx.join`, and the psbt trio drops its suffix too**:
+  `psbt.combine_psbts` is `combine`, `psbt.join_psbts` is `join`,
+  `psbt.finalize_psbt` is `finalize`. Qualified, the suffix only repeated
+  the package — `tx.join_txs(...)`, `psbt.finalize_psbt(...)` — and the
+  package name is already the qualifier a reader needs.
+  `psbt.extract_tx` keeps its name: it is the one of the four whose
+  suffix names what comes *out* rather than what goes in, and
+  `psbt.extract()` would leave a reader to guess whether a transaction
+  or a signature comes back. `tests/tx/tx_test.py::test_join` and
+  `tests/psbt/psbt_test.py::test_join` are the renamed test functions
+  (issue #337)
 
 ### Types
 

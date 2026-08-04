@@ -31,10 +31,10 @@ half of that module from already.
 from btclib.psbt import musig2
 from btclib.psbt.psbt import (
     Psbt,
-    combine_psbts,
+    combine,
     extract_tx,
-    finalize_psbt,
-    join_psbts,
+    finalize,
+    join,
     prevouts,
 )
 from btclib.psbt.psbt_in import PsbtIn
@@ -45,11 +45,11 @@ __all__ = [
     "Psbt",
     "PsbtIn",
     "PsbtOut",
-    "combine_psbts",
+    "combine",
     "estimated_input_sizes",
     "extract_tx",
-    "finalize_psbt",
-    "join_psbts",
+    "finalize",
+    "join",
     "musig2",
     "prevouts",
 ]
