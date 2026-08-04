@@ -31,6 +31,8 @@ no socket at all.
 from __future__ import annotations
 
 from collections.abc import Callable, Mapping
+from contextlib import suppress
+from typing import Any
 from urllib.error import HTTPError
 from urllib.parse import urlsplit
 from urllib.request import Request, urlopen
@@ -52,6 +54,37 @@ HttpTransport = Callable[[Request, float], tuple[int, bytes]]
 # is not a timeout
 DEFAULT_TIMEOUT = 30.0
 
+# How much of a response body btclib will hold in memory, and why there
+# is a number at all: `EsploraFetcher`'s endpoint is allowed to be a
+# public explorer -- a host on the internet that says it validated the
+# chain -- and `response.read()` with nothing in front of it lets that
+# host hand over as much as it likes before any parser of btclib's gets to
+# refuse it. The socket timeout is no substitute: a peer delivering data
+# slowly but steadily resets it with every packet.
+#
+# Eight megabytes and a little. The largest of the three answers a fetcher
+# asks for is a raw transaction, a transaction fits in a block, and Esplora
+# sends it as hex, so the bound is twice Core's 4,000,000-byte buffer bound
+# on a serialized block, plus room for the newline a proxy may add.
+# btclib/block/limits.py leaves that constant out on purpose, consensus
+# capping the weight rather than the size -- here a buffer bound is
+# precisely what is wanted, so it is spelled out rather than imported.
+# A caller fetching something larger through `http_request` says so with
+# max_body_size
+_MAX_BLOCK_SERIALIZED_SIZE = 4_000_000
+DEFAULT_MAX_BODY_SIZE = 2 * _MAX_BLOCK_SERIALIZED_SIZE + 1024
+
+# where a status stops being an answer and becomes a diagnosis: urlopen
+# raises HTTPError from 400 up, so this is the same line drawn for a
+# transport of a caller's own that catches its own errors and returns them
+_CLIENT_ERROR = 400
+
+# what is kept of the body of a failure: enough to carry whatever the
+# backend said with its status, and not the megabytes an error page from
+# something in the way can be. Truncated rather than refused, a diagnostic
+# being worth more incomplete than absent
+MAX_ERROR_BODY_SIZE = 64 * 1024
+
 # http and https, and nothing else. `urlopen` also speaks `file:` and
 # `data:`, so a base url taken from configuration could make a fetcher
 # read the local disk and report the bytes as a transaction. Refusing the
@@ -60,18 +93,71 @@ DEFAULT_TIMEOUT = 30.0
 _SCHEMES = ("http", "https")
 
 
-def urlopen_transport(request: Request, timeout: float) -> tuple[int, bytes]:
-    """Perform the request with urllib, reading the whole response.
+def _read_bounded(response: Any, max_body_size: int, where: str) -> bytes:
+    """Return the body, having never held more than the limit of it.
+
+    `Content-Length` first, when the response carries one: a server
+    announcing more than the limit is refused before a byte of it is
+    read. It is not believed, though -- it is the sender's claim about
+    the sender -- so the read is bounded as well, and by one octet more
+    than the limit, which is what tells a body *at* the limit from one
+    over it.
+
+    The reads are incremental because the point is not to hold the body:
+    `read(limit + 1)` may answer with less than was asked for on a
+    chunked response, so this loops until the limit is filled or the peer
+    is done.
+    """
+    announced = response.headers.get("Content-Length")
+    if announced is not None:
+        # a header, so it can be anything: a value that is not a number
+        # says nothing about the size and is left to the bounded read
+        with suppress(ValueError):
+            if int(announced) > max_body_size:
+                err_msg = f"{where}: announced {int(announced)} bytes,"
+                err_msg += f" more than the {max_body_size} allowed"
+                raise FetchError(err_msg)
+
+    chunks = []
+    remaining = max_body_size + 1
+    while remaining > 0:
+        chunk = response.read(remaining)
+        if not chunk:
+            break
+        chunks.append(chunk)
+        remaining -= len(chunk)
+    body = b"".join(chunks)
+
+    if len(body) > max_body_size:
+        raise FetchError(f"{where}: response larger than {max_body_size} bytes")
+    return body
+
+
+def urlopen_transport(
+    request: Request,
+    timeout: float,
+    *,
+    max_body_size: int = DEFAULT_MAX_BODY_SIZE,
+) -> tuple[int, bytes]:
+    """Perform the request with urllib, reading a bounded response.
 
     The default `HttpTransport`, and the only function in btclib that
     opens a socket. It maps nothing and interprets nothing: the status
     and the bytes go back as they arrived, and `http_request` is where
     the failures become btclib errors.
+
+    Bounded, and this is the only place a bound can be incremental: the
+    limit is a keyword with a default, so this function still *is* an
+    `HttpTransport` and a caller's own transport still satisfies that
+    type. What a transport of someone else's returns is bytes it has
+    already read, so all `http_request` can do for those is refuse to pass
+    an oversized body on -- see its `max_body_size`.
     """
     # what reaches urlopen is http or https: `http_request` is the only
     # thing that builds a Request, and it checks the scheme first
     with urlopen(request, timeout=timeout) as response:  # noqa: S310
-        return response.status, response.read()
+        body = _read_bounded(response, max_body_size, request.full_url)
+        return response.status, body
 
 
 def http_request(
@@ -80,6 +166,7 @@ def http_request(
     data: bytes | None = None,
     headers: Mapping[str, str] | None = None,
     timeout: float = DEFAULT_TIMEOUT,
+    max_body_size: int = DEFAULT_MAX_BODY_SIZE,
     transport: HttpTransport = urlopen_transport,
 ) -> tuple[int, bytes]:
     """Return the status and body of a GET, or of a POST when data is given.
@@ -94,6 +181,14 @@ def http_request(
     reply puts its error object, and the body of a 404 is where an
     explorer says what it could not find. Deciding what a status means is
     the backend's job, that being the layer that knows.
+
+    `max_body_size` is what an *answer* may weigh, and the caller sets it
+    from what it asked for: a tip height is a few octets and a raw
+    transaction is megabytes, so one number for both would be the larger.
+    The body of a failure is bounded separately, by `MAX_ERROR_BODY_SIZE`
+    and by truncation rather than refusal -- an error page arriving one
+    octet over a caller's limit for a *height* is still the diagnosis of
+    why there is no height.
     """
     scheme = urlsplit(url).scheme
     if scheme not in _SCHEMES:
@@ -105,14 +200,45 @@ def http_request(
         url, data=data, headers=dict(headers or {}), method="POST" if data else "GET"
     )
     try:
-        return transport(request, timeout)
+        # the limit reaches the read itself for the transport of this
+        # module, which is the only one it can: `HttpTransport` is two
+        # positional arguments, so a caller's transport has nowhere to be
+        # told a limit and nothing to do with one it does not know about.
+        # Identity and not a subclass check because there is one such
+        # function, and the fetchers pass it explicitly
+        if transport is urlopen_transport:
+            status, body = urlopen_transport(
+                request, timeout, max_body_size=max_body_size
+            )
+        else:
+            status, body = transport(request, timeout)
     except HTTPError as e:
         # a subclass of URLError, so it has to be caught before the OSError
         # below. It is also a response: `read` gives the body the server
         # sent with the status, and discarding it would turn whatever
-        # diagnosis the backend offered into a bare number
-        return e.code, e.read()
+        # diagnosis the backend offered into a bare number -- bounded,
+        # because an error page is written by whatever is in the way and
+        # is not a size this library agreed to
+        return e.code, e.read(MAX_ERROR_BODY_SIZE)
     except OSError as e:
         # URLError and TimeoutError both derive from it, which is every
         # way urllib reports that the exchange did not happen
         raise FetchError(f"no answer from {url}: {e}") from e
+
+    # a failure, whether it arrived as an exception above or as a status
+    # from a transport that catches its own: the body is a diagnostic and
+    # not the answer, so it is bounded by truncation rather than held to
+    # the caller's limit for the answer. An explorer explaining a 404 in a
+    # paragraph of html is worth reading even when what was asked for was
+    # a tip height, sixty-four octets wide
+    if status >= _CLIENT_ERROR:
+        return status, body[:MAX_ERROR_BODY_SIZE]
+
+    # the transport of this module has already stopped reading at the
+    # limit; a caller's own has not, and cannot be made to, so this is
+    # what is left to promise for one: an oversized answer goes no further
+    if len(body) > max_body_size:
+        err_msg = f"{url}: response of {len(body)} bytes,"
+        err_msg += f" more than the {max_body_size} allowed"
+        raise FetchError(err_msg)
+    return status, body

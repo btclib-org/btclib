@@ -154,3 +154,38 @@ def test_a_tip_hash_that_is_not_one(body: bytes) -> None:
 def test_whitespace_around_an_answer_is_not_part_of_it() -> None:
     """A deployment behind a proxy that adds a newline is still readable."""
     assert fetcher((200, b"  481824\n")).get_block_count() == TIP_HEIGHT
+
+
+def test_each_answer_is_bounded_by_what_it_is() -> None:
+    """A height is not megabytes, and the limit says so per endpoint.
+
+    One limit for all three would have to be the widest of them -- a raw
+    transaction in hex -- so a host answering `blocks/tip/height` with a
+    transaction's worth of digits would be held in memory and only then
+    refused by `int`. The narrow answers carry narrow limits, with room
+    for the newline a proxy adds and for nothing else.
+    """
+    height = fetcher((200, b"9" * 65))
+    with pytest.raises(FetchError, match="response of 65 bytes, more than the 64"):
+        height.get_block_count()
+
+    tip = fetcher((200, b"a" * 129))
+    with pytest.raises(FetchError, match="response of 129 bytes, more than the 128"):
+        tip.get_best_block_id()
+
+    # and the recorded answers are inside their limits, which is the other
+    # half of the claim
+    assert fetcher((200, b"481824\n")).get_block_count() == TIP_HEIGHT
+    assert fetcher((200, TIP_ID.encode() + b"\n")).get_best_block_id().hex() == TIP_ID
+
+
+def test_the_body_of_a_failure_is_not_held_to_the_answer_limit() -> None:
+    """A 404 page is longer than a height, and is still the diagnosis.
+
+    The bound on an error body is `MAX_ERROR_BODY_SIZE` and truncation,
+    not the caller's limit for the answer that did not arrive: an explorer
+    saying "Block not found" in a paragraph of html is worth reading.
+    """
+    page = b"<html><body>Block not found, and here is why: " + b"x" * 200 + b"</body>"
+    with pytest.raises(FetchError, match="HTTP 404"):
+        fetcher((404, page)).get_block_count()

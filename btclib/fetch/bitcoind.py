@@ -46,6 +46,7 @@ from btclib.alias import Octets
 from btclib.exceptions import BTClibValueError, FetchError, RpcError
 from btclib.fetch.fetcher import Fetcher, fetch_errors, tx_from_raw, tx_id_hex
 from btclib.fetch.transport import (
+    DEFAULT_MAX_BODY_SIZE,
     DEFAULT_TIMEOUT,
     HttpTransport,
     http_request,
@@ -92,6 +93,12 @@ DEFAULT_DATADIR = Path.home() / ".bitcoin"
 # matched. Checking it back is worth the line anyway -- it is what
 # catches a caching proxy answering one call with another's reply
 _RPC_ID = "btclib"
+
+# what a reply that is a number or a hash may weigh: the json envelope
+# around `result`, `error` and `id`, and a value of a few dozen octets.
+# `getrawtransaction` is the one answer here that is not small, and it
+# keeps the default of `call`
+_MAX_SMALL_REPLY = 1024
 
 
 def cookie_auth(cookie_path: Path) -> str:
@@ -168,12 +175,20 @@ class AuthProxy:
             credential = f"{self.user}:{self._password}"
         return "Basic " + b64encode(credential.encode()).decode("ascii")
 
-    def call(self, method: str, *params: Any) -> Any:
+    def call(
+        self, method: str, *params: Any, max_body_size: int = DEFAULT_MAX_BODY_SIZE
+    ) -> Any:
         """Invoke one rpc method, returning its `result`.
 
         Any method, not only the three the fetcher needs: a caller with a
         node has every reason to ask it something else, and refusing that
         would only mean they write this class again.
+
+        `max_body_size` is what the reply may weigh, and it defaults to the
+        widest answer a fetcher asks for -- a raw transaction, as hex
+        inside a json envelope. A caller invoking something whose reply is
+        a number tightens it; one invoking `getblock` on a large block
+        widens it, this being their node and their memory.
         """
         body = json.dumps(
             {"jsonrpc": "2.0", "id": _RPC_ID, "method": method, "params": list(params)}
@@ -186,6 +201,7 @@ class AuthProxy:
                 "Authorization": self.auth_header(),
             },
             timeout=self.timeout,
+            max_body_size=max_body_size,
             transport=self.transport,
         )
         return self._result(method, status, payload)
@@ -268,9 +284,10 @@ class BitcoindFetcher(Fetcher):
     def get_block_count(self) -> int:
         """Return the height of the node's best chain tip."""
         with fetch_errors("getblockcount"):
-            return int(self.proxy.call("getblockcount"))
+            return int(self.proxy.call("getblockcount", max_body_size=_MAX_SMALL_REPLY))
 
     def get_best_block_id(self) -> bytes:
         """Return the hash of the node's best chain tip, display order."""
         with fetch_errors("getbestblockhash"):
-            return bytes_from_octets(self.proxy.call("getbestblockhash"), 32)
+            reply = self.proxy.call("getbestblockhash", max_body_size=_MAX_SMALL_REPLY)
+            return bytes_from_octets(reply, 32)
