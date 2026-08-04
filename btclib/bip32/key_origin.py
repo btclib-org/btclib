@@ -13,6 +13,7 @@ from __future__ import annotations
 
 from collections.abc import Mapping, MutableMapping, Sequence
 from dataclasses import dataclass
+from io import BytesIO
 
 from btclib.alias import Octets
 from btclib.bip32.der_path import (
@@ -22,7 +23,7 @@ from btclib.bip32.der_path import (
     str_from_der_path,
 )
 from btclib.exceptions import BTClibValueError
-from btclib.utils import bytes_from_octets
+from btclib.utils import bytes_from_octets, read_exactly
 
 
 @dataclass(frozen=True)
@@ -111,10 +112,20 @@ class BIP32KeyOrigin:
     def parse(
         cls: type[BIP32KeyOrigin], data: Octets, *, check_validity: bool = True
     ) -> BIP32KeyOrigin:
-        """Return a BIP32KeyOrigin by parsing binary data."""
+        """Return a BIP32KeyOrigin by parsing binary data.
+
+        The four fingerprint octets are the encoding's boundary and not an
+        opinion about what it means, so they are required whatever
+        `check_validity` says: a slice of a shorter buffer answers with
+        whatever is there, and the object serializes back longer than what
+        it was parsed from. The other half of the same boundary is already
+        unconditional -- `indexes_from_der_path` refuses a remainder that is
+        not a whole number of 4-octet indexes.
+        """
         data = bytes_from_octets(data)
-        master_fingerprint = data[:4]
-        der_path = indexes_from_der_path(data[4:])
+        stream = BytesIO(data)
+        master_fingerprint = read_exactly(stream, 4, "master fingerprint")
+        der_path = indexes_from_der_path(stream.read())
 
         return cls(master_fingerprint, der_path, check_validity=check_validity)
 

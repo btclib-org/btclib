@@ -921,13 +921,35 @@ edit.
   `var_int` and `var_bytes` read one element out of the middle of a
   buffer, which is how `Block.height` reads the BIP34 height out of a
   coinbase script that carries an extranonce after it.
-  `tests/parse_contract_test.py` holds seven parsers to the rule — every
+  `tests/parse_contract_test.py` holds the parsers to the rule — every
   truncation of an encoding refused at every offset, under either
   `check_validity`, octets with anything after them refused, and a stream
   left on the byte after the object — and one BIP174 invalid-psbt vector
   is pinned to its own reason at last: the case whose value is not its
   stated size now answers `39 bytes after the transaction` rather than the
   `Missing inputs` that was true of it and not what was wrong with it
+- **the three parsers the contract had missed are held to it, and the
+  inventory now fails when one is left out** (issue #359).
+  `Witness.parse(b"\x00junk")` was an empty witness and dropped the four
+  octets, and `PsbtIn.parse` and `PsbtOut.parse` did the same with
+  anything after their map's separator — one map with as many encodings as
+  a caller cares to append to it, while `Psbt.parse` one level up refused
+  exactly that. All three take the stream themselves now and call
+  `assert_no_trailing`, so octets are one whole object and a stream is
+  still the caller's, which is what leaves `Psbt.parse` reading its maps in
+  sequence and a transaction reading a witness per input.
+  `BIP32KeyOrigin.parse` requires its four fingerprint octets whatever
+  `check_validity` says, the other half of that boundary having been
+  unconditional already — `indexes_from_der_path` refuses a remainder that
+  is not a whole number of 4-octet indexes. And the test file now walks
+  `btclib` for every public class with a `parse` and fails unless each is
+  either in the inventory or in a table of exclusions with the reason:
+  `Bip21` is text rather than octets, `dsa.Sig` puts Bitcoin Core's
+  `strict` flag in front of the rule and says so where it does it,
+  `Envelope` writes BIE1's ciphertext between fixed offsets with no length
+  in front of it, and `BIP32KeyOrigin` has a valid four-octet prefix and no
+  length of its own, so two of the three properties are false of it by
+  design
 - **an amount validator raises what this library raises** (issue #339).
   `valid_btc_amount` converted with `Decimal(str(amount))` and let
   `decimal.InvalidOperation` out: an `ArithmeticError`, which `except

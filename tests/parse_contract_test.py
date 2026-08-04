@@ -15,10 +15,18 @@ complete octet string is one whole object, and a caller's stream is the
 caller's. What the tests hold every parser to is that none of the three
 depends on `check_validity`, which is an opinion about what the bytes
 mean and not about where they end.
+
+The inventory at the top is what those tests run over, and the last test
+is what makes it a promise rather than a list: it walks the package for
+every public class carrying a `parse` and fails unless each one is either
+in the inventory or in a table of exclusions naming its reason. A parser
+added to btclib and forgotten here would otherwise be held to nothing.
 """
 
 from __future__ import annotations
 
+import importlib
+import pkgutil
 from collections.abc import Callable
 from io import BytesIO
 from os import path
@@ -26,10 +34,13 @@ from typing import Any
 
 import pytest
 
-from btclib.bip32 import BIP32KeyData
+import btclib
+from btclib.bip32 import BIP32KeyData, BIP32KeyOrigin
 from btclib.block import Block, BlockHeader
 from btclib.ecc import bms, ssa
 from btclib.exceptions import BTClibRuntimeError, BTClibTypeError, BTClibValueError
+from btclib.psbt import Psbt, PsbtIn, PsbtOut
+from btclib.script import Witness
 from btclib.tx import OutPoint, Tx, TxIn, TxOut
 
 # what btclib promises to raise, and the whole of it: a truncated buffer
@@ -60,22 +71,33 @@ def _tx() -> Tx:
     )
 
 
+def _psbt() -> Psbt:
+    """Return the psbt of the transaction above, maps and all."""
+    return Psbt.from_tx(_tx())
+
+
 # every object with a fixed-width field in it or a length of its own,
-# with the parser to read it back: (name, parse, serialization)
-_CASES: list[tuple[str, Callable[..., Any], bytes]] = [
-    ("outpoint", OutPoint.parse, OutPoint(_TX_ID, 0).serialize()),
-    ("tx_in", TxIn.parse, TxIn(OutPoint(_TX_ID, 0), b"", 0xFFFFFFFF).serialize()),
-    ("tx_out", TxOut.parse, TxOut(1, b"").serialize()),
-    ("tx", Tx.parse, _tx().serialize(include_witness=True)),
-    ("block_header", BlockHeader.parse, _block_1()[:80]),
-    ("block", Block.parse, _block_1()),
-    ("bip32_key", BIP32KeyData.parse, BIP32KeyData.b58decode(_XPRV).serialize()),
-    ("ssa_sig", ssa.Sig.parse, ssa.sign(b"parse contract", 1).serialize()),
-    ("bms_sig", bms.Sig.parse, bms.sign(b"parse contract", 1).serialize()),
+# with the class whose `parse` reads it back: (name, class, serialization).
+# The class and not the bound method, so that the inventory says which
+# parsers are covered -- see the completeness test at the end of this file
+_CASES: list[tuple[str, type[Any], bytes]] = [
+    ("outpoint", OutPoint, OutPoint(_TX_ID, 0).serialize()),
+    ("tx_in", TxIn, TxIn(OutPoint(_TX_ID, 0), b"", 0xFFFFFFFF).serialize()),
+    ("tx_out", TxOut, TxOut(1, b"").serialize()),
+    ("tx", Tx, _tx().serialize(include_witness=True)),
+    ("block_header", BlockHeader, _block_1()[:80]),
+    ("block", Block, _block_1()),
+    ("bip32_key", BIP32KeyData, BIP32KeyData.b58decode(_XPRV).serialize()),
+    ("ssa_sig", ssa.Sig, ssa.sign(b"parse contract", 1).serialize()),
+    ("bms_sig", bms.Sig, bms.sign(b"parse contract", 1).serialize()),
+    ("witness", Witness, Witness([b"\x51", b"\x52\x53"]).serialize()),
+    ("psbt", Psbt, _psbt().serialize()),
+    ("psbt_in", PsbtIn, PsbtIn(redeem_script=b"\x51").serialize()),
+    ("psbt_out", PsbtOut, PsbtOut(redeem_script=b"\x51").serialize()),
 ]
 
 _IDS = [case[0] for case in _CASES]
-_PARSE_AND_BYTES = [(case[1], case[2]) for case in _CASES]
+_PARSE_AND_BYTES = [(case[1].parse, case[2]) for case in _CASES]
 
 
 @pytest.mark.parametrize(("parse", "serialization"), _PARSE_AND_BYTES, ids=_IDS)
@@ -191,3 +213,109 @@ def test_a_truncation_does_not_round_trip() -> None:
     assert Tx.parse(tx_bytes) == tx
     with pytest.raises(BTClibValueError, match="4 bytes after the transaction"):
         Tx.parse(tx_bytes + b"junk")
+
+
+def test_a_key_origin_is_a_fingerprint_and_then_indexes() -> None:
+    """The fingerprint is four octets wide, whatever the origin means.
+
+    Deferred to `check_validity`, a slice of a shorter buffer answered with
+    whatever was there and the object serialized back longer than what it
+    was parsed from. The remainder was already unconditional:
+    `indexes_from_der_path` refuses what is not a whole number of 4-octet
+    indexes, whatever `check_validity` says, so this is the other half of
+    one boundary.
+
+    Its own test rather than a line in the inventory above, because none of
+    the three generic properties applies to a key origin, and that is worth
+    saying once: four octets are a valid key origin with an empty path, so
+    a prefix of a longer encoding *is* an object; the record carries no
+    length and consumes the whole buffer, so nothing can trail it -- four
+    junk octets are one more index; and `parse` takes `Octets` rather than
+    `BinaryData`, so there is no stream to leave alone.
+    """
+    for check_validity in (True, False):
+        for raw in (b"", b"\x00", b"\x00\x00\x00"):
+            err_msg = "not enough data for the master fingerprint"
+            with pytest.raises(BTClibValueError, match=err_msg):
+                BIP32KeyOrigin.parse(raw, check_validity=check_validity)
+
+    # and what the refusal must not take with it: the shortest key origin
+    # there is, and one with a path
+    assert BIP32KeyOrigin.parse(b"\xde\xad\xbe\xef").description == "deadbeef"
+    key_origin = BIP32KeyOrigin("deadbeef", "m/44h/0h")
+    assert BIP32KeyOrigin.parse(key_origin.serialize()) == key_origin
+
+
+# what a parser of this library is *not* held to, and why. A name here is
+# a decision, which is the difference between an exclusion and an
+# oversight -- the test below fails on either
+_EXCLUDED = {
+    "btclib.bip21.Bip21": (
+        "a bitcoin: URI is text and not octets: it has no fixed-width"
+        " field, nothing can follow it in a stream, and its own grammar"
+        " is what tests/bip21_test.py holds it to"
+    ),
+    "btclib.bip32.key_origin.BIP32KeyOrigin": (
+        "a four-octet prefix of it is a valid key origin with an empty"
+        " path, and the record has no length of its own, so two of the"
+        " three properties are false of it by design; the boundary it does"
+        " owe its caller is the test above"
+    ),
+    "btclib.ecc.dsa.Sig": (
+        "the one parser here with a flag in front of the rule, and the flag"
+        " is Bitcoin Core's: trailing octets are refused under `strict`"
+        " alone, where IsValidSignatureEncoding is called, and refused in a"
+        " stream as well -- no caller in this library reads a signature out"
+        " of the middle of one. Sig.parse says so where it does it"
+    ),
+    "btclib.ecc.ecies.Envelope": (
+        "BIE1 writes the ciphertext between fixed offsets with no length in"
+        " front of it, so what would trail the envelope is ciphertext and a"
+        " truncation of it is a shorter message: the size rule it can be"
+        " held to is the minimum one it checks"
+    ),
+}
+
+
+def _public_parsers() -> set[str]:
+    """Return every public btclib class offering a `parse`, module included.
+
+    Found rather than listed, which is the whole point: a parser added to
+    the library has to appear in the inventory above or be named an
+    exclusion, and a class the walk cannot reach is one no caller can
+    import either.
+
+    The module is part of the name because three classes are called `Sig`.
+    A private class is skipped, the contract being about what a caller can
+    reach -- `_BIP32KeyData` is the one such today, and its public
+    subclass is in the inventory.
+    """
+    module_names = [
+        "btclib",
+        *(module.name for module in pkgutil.walk_packages(btclib.__path__, "btclib.")),
+    ]
+    parsers = set()
+    for module_name in module_names:
+        module = importlib.import_module(module_name)
+        for obj in vars(module).values():
+            if not isinstance(obj, type):
+                continue
+            if not getattr(obj, "__module__", "").startswith("btclib"):
+                continue
+            if obj.__qualname__.startswith("_"):
+                continue
+            if callable(getattr(obj, "parse", None)):
+                parsers.add(f"{obj.__module__}.{obj.__qualname__}")
+    return parsers
+
+
+def test_every_parser_is_covered_or_named_an_exclusion() -> None:
+    """The inventory is a promise only if omission is what fails.
+
+    A parser added to btclib and forgotten here is the failure this
+    catches: the tests above would go on passing on the parsers they were
+    given, and the new one would be held to nothing.
+    """
+    covered = {f"{cls.__module__}.{cls.__qualname__}" for _, cls, _ in _CASES}
+    assert not covered & _EXCLUDED.keys()
+    assert _public_parsers() == covered | _EXCLUDED.keys()

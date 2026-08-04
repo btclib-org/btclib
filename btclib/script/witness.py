@@ -16,7 +16,11 @@ from dataclasses import dataclass
 
 from btclib import var_bytes, var_int
 from btclib.alias import BinaryData, Octets
-from btclib.utils import bytes_from_octets, bytesio_from_binarydata
+from btclib.utils import (
+    assert_no_trailing,
+    bytes_from_octets,
+    bytesio_from_binarydata,
+)
 
 
 # frozen, and a tuple rather than a list of bytes, which makes a Witness
@@ -99,8 +103,16 @@ class Witness:
     def parse(
         cls: type[Witness], data: BinaryData, *, check_validity: bool = True
     ) -> Witness:
-        """Return a Witness by parsing binary data."""
-        data = bytesio_from_binarydata(data)
-        n = var_int.parse(data)
-        stack = [var_bytes.parse(data) for _ in range(n)]
+        """Return a Witness by parsing binary data.
+
+        Octets are one whole witness and a stream is the caller's:
+        btclib/utils.py states the rule both halves of this contract read.
+        The stream case is what a transaction is parsed with -- one witness
+        per input, out of the stream the transaction is read from -- and the
+        octet case is what a PSBT_IN_FINAL_SCRIPTWITNESS value is.
+        """
+        stream = bytesio_from_binarydata(data)
+        n = var_int.parse(stream)
+        stack = [var_bytes.parse(stream) for _ in range(n)]
+        assert_no_trailing(data, stream, "witness")
         return cls(stack, check_validity=check_validity)
