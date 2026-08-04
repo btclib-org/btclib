@@ -317,6 +317,13 @@ against the `v2023.7.12` tag.
   where they are defined. They are how one field of one psbt map is
   written and read; `Psbt`, `PsbtIn` and `PsbtOut` are where a caller
   reads and writes a psbt.
+- **`from btclib.base58 import b58encode, b58decode` is `encode,
+  decode`.** The two call sites that need both codecs in scope —
+  `btclib/b58.py` and `btclib/to_prv_key.py` — alias them back at the
+  import, `from btclib.base58 import decode as b58decode, encode as
+  b58encode`, so a caller doing the same keeps its own names.
+  `BIP32KeyData.b58encode`/`.b58decode`, `bms.Sig.b64encode`/`.b64decode`
+  and `Psbt.b64encode`/`.b64decode` are methods and are unaffected.
 
 Two changes are deliberately *not* on that list, because what they change
 stays compatible. The new `BTClibTypeError`, `NotAPrvKeyError` and

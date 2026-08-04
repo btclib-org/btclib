@@ -105,7 +105,7 @@ _CASES: list[tuple[str, Callable[[Any], object]]] = [
     ("derivation index as a step", str_from_index_int),
     ("output size", lambda v: bytes_from_octets(b"x", v)),
     ("output size in an iterable", lambda v: bytes_from_octets(b"x", [v])),
-    ("base58 output size", lambda v: base58.b58decode(base58.b58encode(b"x"), v)),
+    ("base58 output size", lambda v: base58.decode(base58.encode(b"x"), v)),
 ]
 
 _IDS = [case[0] for case in _CASES]
@@ -151,7 +151,7 @@ def test_the_integers_a_bool_refusal_must_not_take_with_it() -> None:
     assert str_from_index_int(1) == "1"
     assert bytes_from_octets(b"x", 1) == b"x"
     assert bytes_from_octets(b"xx", [1, 2]) == b"xx"
-    assert base58.b58decode(base58.b58encode(b"x"), 1) == b"x"
+    assert base58.decode(base58.encode(b"x"), 1) == b"x"
 
     # the str and bytes spellings of a path are untouched by any of it
     assert indexes_from_der_path("m/44h/0h") == [2147483692, 2147483648]
@@ -180,7 +180,7 @@ def test_what_is_no_integer_at_all_is_refused_the_same_way() -> None:
     with pytest.raises(BTClibTypeError, match="invalid output size type"):
         bytes_from_octets(b"x", [1.5])  # type: ignore[list-item]
     with pytest.raises(BTClibTypeError, match="invalid output size type"):
-        base58.b58decode(base58.b58encode(b"x"), 1.0)  # type: ignore[arg-type]
+        base58.decode(base58.encode(b"x"), 1.0)  # type: ignore[arg-type]
 
 
 def test_an_int_subclass_that_is_not_a_bool_is_still_an_integer() -> None:
@@ -206,7 +206,7 @@ def test_an_int_subclass_that_is_not_a_bool_is_still_an_integer() -> None:
     assert indexes_from_der_path([Sighash.ALL]) == [1]
     assert str_from_index_int(Sighash.ALL) == "1"
     assert bytes_from_octets(b"x", Sighash.ALL) == b"x"
-    assert base58.b58decode(base58.b58encode(b"x"), Sighash.ALL) == b"x"
+    assert base58.decode(base58.encode(b"x"), Sighash.ALL) == b"x"
 
     assert is_integer(0)
     assert is_integer(-1)

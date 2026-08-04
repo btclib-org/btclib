@@ -94,14 +94,14 @@ BINARY_PARSERS: dict[str, Callable[[bytes], Any]] = {
     "ssa.Sig.parse": ssa.Sig.parse,
     "bms.Sig.parse": bms.Sig.parse,
     "point_from_octets": point_from_octets,
-    "base58.b58decode": base58.b58decode,
+    "base58.decode": base58.decode,
     "bech32.decode": bech32.decode,
 }
 
 # The same contract, for what a user pastes rather than what a peer
 # sends: an address, a WIF, an extended key, a descriptor
 TEXT_PARSERS: dict[str, Callable[[str], Any]] = {
-    "base58.b58decode": base58.b58decode,
+    "base58.decode": base58.decode,
     "bech32.decode": bech32.decode,
     "b32.witness_from_address": b32.witness_from_address,
     "b58.h160_from_address": b58.h160_from_address,

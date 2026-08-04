@@ -18,7 +18,7 @@ from __future__ import annotations
 import copy
 
 from btclib.alias import INF
-from btclib.base58 import b58encode
+from btclib.base58 import encode as b58encode
 from btclib.bip32 import BIP32KeyData
 from btclib.curves import mult, secp256k1
 
