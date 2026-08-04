@@ -892,6 +892,29 @@ edit.
   is pinned to its own reason at last: the case whose value is not its
   stated size now answers `39 bytes after the transaction` rather than the
   `Missing inputs` that was true of it and not what was wrong with it
+- **an amount validator raises what this library raises** (issue #339).
+  `valid_btc_amount` converted with `Decimal(str(amount))` and let
+  `decimal.InvalidOperation` out: an `ArithmeticError`, which `except
+  BTClibValueError` does not catch and which nobody writes `except
+  ArithmeticError` around an amount. The argument is `Any` on purpose, so
+  the leak was reachable from ordinary input — `valid_btc_amount("abc")`
+  and `valid_btc_amount("1,2")`, the way half the world writes a decimal.
+  It answers `invalid BTC amount` now, as `FeeRate.from_sats_per_vbyte`
+  already did for a rate. Catching the constructor is not the whole fix:
+  `Decimal("nan")` is valid syntax and constructs without a word, and what
+  raised for it was the *ordering comparison* in the range check, so every
+  spelling of a NaN — `float("nan")`, `"nan"`, `"sNaN"`, `Decimal("NaN")`
+  — left through the very line meant to bound the amount. `is_finite()`
+  refuses those, which is what that method is there for in the fee rate
+  too; an infinity does compare, and the range check refuses it. Beside
+  it, `valid_sats_amount` let `int()`'s own refusals out unchanged — a
+  bare `ValueError` for `"abc"` and `b"\x01"`, a bare `TypeError` for a
+  list, and a bare `OverflowError` for an infinity, which is an
+  `ArithmeticError` and so was never caught by `except ValueError` either
+  — and each is now this library's counterpart of the builtin it was, so
+  what a caller catches does not shrink. A NaN leaves `int()` as a
+  `ValueError` where an infinity leaves it as an `OverflowError`; the
+  asymmetry is `int()`'s, and both answer `invalid satoshi amount` now
 
 ### Immutability and shared state
 

@@ -22,7 +22,7 @@ Amounts are never negative, here as in the protocol.
 
 from __future__ import annotations
 
-from decimal import Decimal, FloatOperation, localcontext
+from decimal import Decimal, FloatOperation, InvalidOperation, localcontext
 from typing import Any
 
 from btclib.exceptions import BTClibTypeError, BTClibValueError
@@ -68,11 +68,31 @@ def valid_btc_amount(amount: Any, dust: Decimal = Decimal(0)) -> Decimal:
         ctx.traps[FloatOperation] = True
         # any input that can be converted to str is fine
         amount = "0" if amount is None else str(amount)
+        err_msg = f"invalid BTC amount: {amount}"
         # using str in the Decimal constructor avoids the
-        # FloatOperation exception trapped just above
-        btc = Decimal(amount)
+        # FloatOperation exception trapped just above.
+        #
+        # str() renders every object there is and Decimal refuses most of
+        # what it renders with an InvalidOperation -- an ArithmeticError,
+        # which nobody catches around an amount and which `except
+        # BTClibValueError` does not catch either. Accepting Any is what
+        # makes it reachable from ordinary input, "1,2" being how half the
+        # world writes a decimal, so the width of the argument has to be
+        # matched by one exception of this library's:
+        # FeeRate.from_sats_per_vbyte answers the same way
+        try:
+            btc = Decimal(amount)
+        except InvalidOperation as e:
+            raise BTClibValueError(err_msg) from e
+        # a NaN parses and is no amount, and the range check below is not
+        # what refuses it: an ordering comparison against a NaN raises
+        # InvalidOperation of its own, so "nan" would leave through the
+        # very line meant to bound it. An infinity does compare, and the
+        # range refuses it there
+        if not btc.is_finite():
+            raise BTClibValueError(err_msg)
         if not dust <= btc <= _MAX_BITCOIN:
-            raise BTClibValueError(f"invalid BTC amount: {amount}")
+            raise BTClibValueError(err_msg)
         if btc == btc.quantize(_BITCOIN_PER_SATOSHI):
             return btc
         raise BTClibValueError(f"too many decimals for a BTC amount: {amount}")
@@ -86,8 +106,21 @@ def sats_from_btc(amount: Decimal) -> int:
 
 def valid_sats_amount(amount: Any, dust: int = 0) -> int:
     """Return the satoshi amount as int, if valid and not less than dust."""
-    # any input that can be converted to int is fine
-    sats = 0 if amount is None else int(amount)
+    # any input that can be converted to int is fine -- and int() refuses
+    # what it cannot convert with a bare ValueError ("abc", b"\x01"), a
+    # bare TypeError (a list), or a bare OverflowError (an infinity, where
+    # a NaN is a ValueError: the asymmetry is int()'s, not this
+    # function's). None of the three says that btclib refused anything,
+    # and OverflowError is not even a ValueError -- it is an
+    # ArithmeticError, so a caller catching ValueError never caught it.
+    # Each is answered with this library's counterpart of the builtin it
+    # was, so what a caller catches does not shrink
+    try:
+        sats = 0 if amount is None else int(amount)
+    except (ValueError, OverflowError) as e:
+        raise BTClibValueError(f"invalid satoshi amount: {amount}") from e
+    except TypeError as e:
+        raise BTClibTypeError(f"non-integer satoshi amount: {amount}") from e
     if amount is not None and sats != amount:
         raise BTClibTypeError(f"non-integer satoshi amount: {amount}")
     if not dust <= sats <= _MAX_SATOSHI:
