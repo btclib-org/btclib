@@ -3250,25 +3250,51 @@ edit.
   because a star import binding `__version__` would overwrite the
   importing module's own, and `btclib.__version__` is how a caller reads
   it anyway (issue #338)
-- **Two modules record what they keep out**, which is the place a package
-  has and a module did not: `network.datadir` is where the five network
-  json files live, a question about the installation rather than about a
-  network, and `descriptors.INPUT_CHARSET`, `CHECKSUM_CHARSET` and
+- **Every module below a package declares one too**, which is the rest of
+  the same rule: the modules a caller reaches by name —
+  `btclib.ecc.dsa`, `btclib.script.sig_hash`, `btclib.bip32.der_path` —
+  said no more about their surface than the top-level ones did, and
+  `from btclib.curves.curve import *` handed out `Point`, `sha256` and
+  `libsecp256k1_mult` beside the curve. The lists are what each module
+  defines, so the ones a package does not publish an edge to —
+  `psbt.psbt_utils`, `curves.curve_group`, `script.engine.script_op_codes`
+  — declare their own surface without becoming anybody's API: a module
+  states what it offers, and its parent decides whether the offer is
+  reachable.
+- **Three modules record what they keep out**, which is the place a
+  package has and a module did not: `network.datadir` and
+  `curves.curve.datadir` are where those two packages keep their json
+  files, a question about the installation rather than about a network or
+  a curve, and `descriptors.INPUT_CHARSET`, `CHECKSUM_CHARSET` and
   `GENERATOR` are the three tables BIP380's checksum is computed from,
   which `checksum`, `add_checksum` and `strip_checksum` are what a caller
   asks. Each is still importable from the module that defines it, which is
-  where the test suite takes them. `btclib.network` also stops leaking the
-  names of the loop that loads those files: `net`, `filename` and the open
-  file were module globals like any other, and are `_net`, `_filename` and
-  `_network_file` now, as `bip44` already spells `_purposes`
-- **`tests/all_test.py` enforces the module lists** rather than leaving
-  them to review, and finds the modules instead of listing them. Three
-  checks: every module declares a non-empty `__all__` naming things that
-  are there, as the packages are already checked; no module exports a name
-  it imported, which is the failure the packages do the opposite of by
-  design; and every public name a module defines is either exported or
-  named in the file's `UNEXPORTED` table, so a new public helper fails the
-  suite until somebody decides which it is
+  where the test suite takes them.
+- **Two load loops and a type variable stop being public names.** A `for`
+  target and a `with` target are module globals like any other, so
+  `btclib.network` had `net`, `filename` and an open file, and
+  `btclib.curves.curve` had `filename`, `file_` and `ec_name`: all six are
+  underscored now, as `bip44` already spells `_purposes`. The
+  `*_params2` beside them stay, being the standardized parameters
+  `test_catalogued_curves` rebuilds every curve from. `psbt.psbt.TypeA` is
+  `_TypeA`, a `TypeVar` of one private helper's signature and a name no
+  caller can pass anything to.
+- **`script.engine.PAY_TO_ANCHOR` is exported**, where the list beside it
+  named every function that package defines and not the four bytes they
+  compare a script against — Core's `MATCH_PAY_TO_ANCHOR`, which a caller
+  reading a witness output for it needs by name.
+- **`tests/all_test.py` enforces the lists** rather than leaving them to
+  review, and finds the modules instead of listing them — the whole tree,
+  packages and modules alike. Three checks: every one declares an
+  `__all__` naming things that are there, empty only where there is
+  nothing public to declare; no module exports a name it imported, which
+  is the failure a package does the opposite of by design; and every
+  public name a module defines is either exported or named in the file's
+  `UNEXPORTED` table, so a new public helper fails the suite until
+  somebody decides which it is. The import scan reads the module's own
+  source and walks into a module-level `try`, `if`, `with`, `for`, `while`
+  or `match`, those binding globals as much as a top-level import does,
+  stopping at a function or a class
 
 ### Types
 

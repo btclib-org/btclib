@@ -42,6 +42,11 @@ from btclib.hashes import hash256, merkle_root_from_branch
 from btclib.tx import Tx
 from btclib.utils import bytes_from_octets
 
+__all__ = [
+    "assert_as_valid",
+    "verify",
+]
+
 _HF = hash256
 
 

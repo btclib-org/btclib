@@ -77,6 +77,12 @@ from btclib.hashes import tagged_hash
 from btclib.to_prv_key import PrvKey, int_from_prv_key
 from btclib.utils import bytes_from_octets, int_from_bits
 
+__all__ = [
+    "commit_entropy_",
+    "commit_nonce_",
+    "commit_point_",
+]
+
 
 def commit_entropy_(commit_hash: Octets, tag: bytes, hf: HashF = sha256) -> bytes:
     """Return the committed value as entropy for a nonce derivation.

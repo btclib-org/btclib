@@ -36,6 +36,12 @@ from btclib.script.script import serialize as serialize_script
 from btclib.tx import Tx
 from btclib.utils import assert_no_trailing, bytesio_from_binarydata, decode_num
 
+__all__ = [
+    "Block",
+    "bip34_commitment",
+    "merkle_root_and_mutated_from_transactions",
+]
+
 _HF = hash256
 
 # BIP141: OP_RETURN, a 36-byte push, and the aa21a9ed header of it; the

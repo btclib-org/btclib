@@ -76,6 +76,15 @@ from btclib.mnemonic.mnemonic import (
 from btclib.network import NETWORKS
 from btclib.utils import bytes_from_octets
 
+__all__ = [
+    "Share",
+    "master_secret_from_mnemonics",
+    "mnemonic_from_share",
+    "mnemonics_from_master_secret",
+    "mxprv_from_mnemonics",
+    "share_from_mnemonic",
+]
+
 # the key of the SLIP-0039 word-list in WORDLISTS; a scheme and not a
 # language code, SLIP-0039 having no localization at all
 _LANG = "slip39"

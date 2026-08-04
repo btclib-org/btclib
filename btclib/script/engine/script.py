@@ -39,6 +39,28 @@ from btclib.script.sig_hash import SIG_HASH_TYPES, PrecomputedTxData
 from btclib.tx.tx import Tx
 from btclib.utils import bytesio_from_binarydata
 
+__all__ = [
+    "DISABLED_OP_CODES",
+    "EVALUATED_WHEN_UNEXECUTED",
+    "OPERATIONS",
+    "STRICT_DER_FLAGS",
+    "calculate_script_code",
+    "check_not_disabled",
+    "check_nulldummy",
+    "check_nullfail",
+    "check_pub_key",
+    "check_pub_key_num",
+    "check_signature_num",
+    "dsa_verify",
+    "find_and_delete",
+    "fix_signature",
+    "op_checksig",
+    "op_code_name",
+    "prepare_script",
+    "script_op_count",
+    "verify_script",
+]
+
 
 def dsa_verify(msg_hash: bytes, pub_key: bytes, sig: bytes) -> bool:
     """Verify an ECDSA signature, returning False if it is malformed.

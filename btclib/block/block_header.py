@@ -29,6 +29,10 @@ from btclib.utils import (
     is_integer,
 )
 
+__all__ = [
+    "BlockHeader",
+]
+
 _HF = hash256
 _HF_LEN = 32  # should be _HF().digest_size
 _KEY_SIZE = [("previous_block_hash", _HF_LEN), ("merkle_root", 32), ("bits", 4)]

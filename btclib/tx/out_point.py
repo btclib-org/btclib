@@ -25,6 +25,10 @@ from btclib.utils import (
     read_exactly,
 )
 
+__all__ = [
+    "OutPoint",
+]
+
 
 # frozen: both fields are immutable, so this one
 # is frozen all the way down, and the generated __hash__ makes an OutPoint

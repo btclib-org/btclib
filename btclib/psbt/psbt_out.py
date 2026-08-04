@@ -68,6 +68,19 @@ from btclib.utils import (
     bytesio_from_binarydata,
 )
 
+__all__ = [
+    "PSBT_OUT_AMOUNT",
+    "PSBT_OUT_BIP32_DERIVATION",
+    "PSBT_OUT_MUSIG2_PARTICIPANT_PUBKEYS",
+    "PSBT_OUT_REDEEM_SCRIPT",
+    "PSBT_OUT_SCRIPT",
+    "PSBT_OUT_TAP_BIP32_DERIVATION",
+    "PSBT_OUT_TAP_INTERNAL_KEY",
+    "PSBT_OUT_TAP_TREE",
+    "PSBT_OUT_WITNESS_SCRIPT",
+    "PsbtOut",
+]
+
 PSBT_OUT_REDEEM_SCRIPT = b"\x00"
 PSBT_OUT_WITNESS_SCRIPT = b"\x01"
 PSBT_OUT_BIP32_DERIVATION = b"\x02"

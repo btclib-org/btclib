@@ -88,6 +88,14 @@ from btclib.to_prv_key import PrvKey, int_from_prv_key
 from btclib.to_pub_key import PubKey, point_from_pub_key
 from btclib.utils import bytes_from_octets
 
+__all__ = [
+    "MAGIC",
+    "Envelope",
+    "decrypt",
+    "derive_keys",
+    "encrypt",
+]
+
 # the four bytes Electrum writes for a user-password envelope, and the name
 # the scheme goes by. A comment and not an attribute docstring: the
 # check-docstring-first hook reads the second string literal of a module as

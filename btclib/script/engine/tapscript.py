@@ -34,6 +34,16 @@ from btclib.tx.tx import Tx
 from btclib.tx.tx_out import TxOut
 from btclib.utils import bytesio_from_binarydata
 
+__all__ = [
+    "OPERATIONS",
+    "get_hashtype",
+    "op_checksig",
+    "op_checksigadd",
+    "ssa_verify",
+    "verify_key_path",
+    "verify_script_path_vc0",
+]
+
 
 def ssa_verify(msg_hash: bytes, pub_key: bytes, sig: bytes) -> bool:
     """Verify a BIP340 signature, returning False if it is malformed.

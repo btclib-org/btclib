@@ -64,6 +64,15 @@ from btclib.to_prv_key import PrvKey, int_from_prv_key
 from btclib.to_pub_key import PubKey, point_from_pub_key
 from btclib.utils import bytes_from_octets
 
+__all__ = [
+    "ELL_SIZE",
+    "XDH_TAG",
+    "create",
+    "decode",
+    "encode",
+    "xdh",
+]
+
 # two field elements of secp256k1, which is what BIP324 fixes the size
 # at; every function below takes 2 * ec.p_size, the same number for it
 ELL_SIZE = 64

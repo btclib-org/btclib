@@ -12,6 +12,19 @@
 mult, double_mult and multi_mult dispatch secp256k1 to the
 libsecp256k1 bindings and answer every other curve -- and the cases
 the bindings cannot express -- with curve_group's arithmetic.
+
+What this module exports is the class, the three multiplications, the
+catalogue, the four standards it is the union of -- which is where
+btclib.curves keeps them, a standard being a question about a curve and
+not a way of finding one -- and the `*_params2` each of those four is
+built from, which is what test_catalogued_curves rebuilds every curve
+out of with both expensive checks on.
+
+`datadir` stays out: it is where this package keeps the four json files
+loaded below, so it answers a question about the installation rather than
+about a curve, and `btclib.network` has a `datadir` of its own for the
+network files. The loader's own names are underscored, a `with` target and
+a `for` target being module globals like any other.
 """
 
 from __future__ import annotations
@@ -45,6 +58,23 @@ from btclib.curves.curve_group_2 import (
 )
 from btclib.exceptions import BTClibValueError
 from btclib.utils import hex_string, int_from_integer
+
+__all__ = [
+    "CURVES",
+    "NIST",
+    "Brainpool",
+    "Brainpool_params2",
+    "Curve",
+    "NIST_params2",
+    "SEC2v1",
+    "SEC2v1_params2",
+    "SEC2v2",
+    "SEC2v2_params2",
+    "double_mult",
+    "mult",
+    "multi_mult",
+    "secp256k1",
+]
 
 
 def _generator_from_point(G: Point, ec: CurveGroup) -> Point:
@@ -281,45 +311,45 @@ def _catalogued_curve(params: list[Any], name: str) -> Curve:
 # Elliptic Curve Cryptography (ECC)
 # Brainpool Standard Curves and Curve Generation
 # https://www.rfc-editor.org/rfc/rfc5639.html
-filename = path.join(datadir, "ec_Brainpool.json")
-with open(filename, encoding="ascii") as file_:
-    Brainpool_params2 = json.load(file_)
+_filename = path.join(datadir, "ec_Brainpool.json")
+with open(_filename, encoding="ascii") as _file:
+    Brainpool_params2 = json.load(_file)
 Brainpool: dict[str, Curve] = {
-    ec_name: _catalogued_curve(Brainpool_params2[ec_name], ec_name)
-    for ec_name in Brainpool_params2
+    _ec_name: _catalogued_curve(Brainpool_params2[_ec_name], _ec_name)
+    for _ec_name in Brainpool_params2
 }
 # FIPS PUB 186-4
 # FEDERAL INFORMATION PROCESSING STANDARDS PUBLICATION
 # Digital Signature Standard (DSS)
 # https://oag.ca.gov/sites/all/files/agweb/pdfs/erds1/fips_pub_07_2013.pdf
-filename = path.join(datadir, "ec_NIST.json")
-with open(filename, encoding="ascii") as file_:
-    NIST_params2 = json.load(file_)
+_filename = path.join(datadir, "ec_NIST.json")
+with open(_filename, encoding="ascii") as _file:
+    NIST_params2 = json.load(_file)
 NIST: dict[str, Curve] = {
-    ec_name: _catalogued_curve(NIST_params2[ec_name], ec_name)
-    for ec_name in NIST_params2
+    _ec_name: _catalogued_curve(NIST_params2[_ec_name], _ec_name)
+    for _ec_name in NIST_params2
 }
 # SEC 2 v.1 curves, removed from SEC 2 v.2 as insecure ones
 # http://www.secg.org/SEC2-Ver-1.0.pdf
-filename = path.join(datadir, "ec_SEC2v1_insecure.json")
-with open(filename, encoding="ascii") as file_:
-    SEC2v1_params2 = json.load(file_)
+_filename = path.join(datadir, "ec_SEC2v1_insecure.json")
+with open(_filename, encoding="ascii") as _file:
+    SEC2v1_params2 = json.load(_file)
 SEC2v1: dict[str, Curve] = {
-    ec_name: _catalogued_curve(SEC2v1_params2[ec_name], ec_name)
-    for ec_name in SEC2v1_params2
+    _ec_name: _catalogued_curve(SEC2v1_params2[_ec_name], _ec_name)
+    for _ec_name in SEC2v1_params2
 }
 # curves included in both SEC 2 v.1 and SEC 2 v.2
 # http://www.secg.org/sec2-v2.pdf
-filename = path.join(datadir, "ec_SEC2v2.json")
-with open(filename, encoding="ascii") as file_:
-    SEC2v2_params2 = json.load(file_)
+_filename = path.join(datadir, "ec_SEC2v2.json")
+with open(_filename, encoding="ascii") as _file:
+    SEC2v2_params2 = json.load(_file)
 SEC2v2: dict[str, Curve] = {}
-for ec_name in SEC2v2_params2:
+for _ec_name in SEC2v2_params2:
     # one object in both catalogues, not two: building the curve twice
     # would hand out two objects, and only one of them the secp256k1 the
     # libsecp256k1 dispatch below compares against
-    SEC2v2[ec_name] = _catalogued_curve(SEC2v2_params2[ec_name], ec_name)
-    SEC2v1[ec_name] = SEC2v2[ec_name]
+    SEC2v2[_ec_name] = _catalogued_curve(SEC2v2_params2[_ec_name], _ec_name)
+    SEC2v1[_ec_name] = SEC2v2[_ec_name]
 
 # a new dict, deliberately: aliasing (CURVES = SEC2v1) followed by
 # update() calls would pour NIST and Brainpool into the SEC 2 v.1

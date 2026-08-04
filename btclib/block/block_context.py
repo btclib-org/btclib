@@ -40,6 +40,11 @@ from datetime import datetime
 from btclib.exceptions import BTClibTypeError, BTClibValueError
 from btclib.utils import is_integer
 
+__all__ = [
+    "BIP34_HEIGHT",
+    "BlockContext",
+]
+
 # Core's chainparams: 227,931 on mainnet, 21,111 on testnet3, and 1 on
 # testnet4, signet and regtest. Mainnet is the default, as it is
 # everywhere else in btclib.

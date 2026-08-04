@@ -45,6 +45,7 @@ from btclib.tx.tx_out import TxOut
 __all__ = [
     "ALL_FLAGS",
     "NO_FLAGS",
+    "PAY_TO_ANCHOR",
     "ScriptFlag",
     "ScriptFlags",
     "taproot_get_annex",

@@ -50,6 +50,11 @@ from btclib.fetch.transport import (
 from btclib.tx import Tx
 from btclib.utils import bytes_from_octets
 
+__all__ = [
+    "BLOCKSTREAM_INFO",
+    "EsploraFetcher",
+]
+
 # The reference deployment of the Esplora software, per network it
 # serves. A constant to pass rather than a default to inherit: naming it
 # spares a user a typo, and passing it is still their decision, written

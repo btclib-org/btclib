@@ -521,24 +521,35 @@ have no issue with your modified codebase.
 
 #### The public surface
 
-**Every module and every package declares `__all__`.** A name is public
-here because a list says so, not because it happens to lack a leading
-underscore: `import *` and the sphinx pages then stop depending on an
-import section, and a helper cannot grow into a name callers depend on
-without somebody editing that list.
+**Every module and every package declares `__all__`**, at every depth of
+the tree. A name is public here because a list says so, not because it
+happens to lack a leading underscore: `import *` and the sphinx pages then
+stop depending on an import section, and a helper cannot grow into a name
+callers depend on without somebody editing that list. An empty list is a
+legitimate answer, for a module with nothing public of its own; declaring
+nothing is not.
 
-For a package the list is what the `__init__` re-exports. For a module it
-is what the module itself defines — a name it imported belongs to the
-module that defines it, and `btclib.alias.Octets` is the spelling of
-`Octets`.
+For a package the list is what the `__init__` re-exports, submodules
+included: a module named there is a module a caller — and the command line
+of `docs/proposals/cli.md`, which reads the command tree off `__all__` —
+can descend into. For a module it is what the module itself defines: a
+name it imported belongs to the module that defines it, and
+`btclib.alias.Octets` is the spelling of `Octets`.
+
+The two halves are independent. A module declares its own surface whether
+or not its parent publishes an edge to it, which is how
+`btclib.psbt.psbt_utils` and `btclib.curves.curve_group` say what they
+offer without becoming anybody's API: the module states the offer, the
+parent decides whether it is reachable.
 
 **A public name kept out of the list is a decision, and the docstring
-says why.** `btclib.network.datadir` and the three checksum tables of
-`btclib.descriptors` are the two in the tree today; each stays importable
-from the module that defines it, which is where the test suite takes it
-from. `tests/all_test.py` checks all of this and finds the modules rather
-than listing them, so a new public name fails the suite until it is
-exported or recorded in that file's `UNEXPORTED` table.
+says why.** The `datadir` of `btclib.network` and of
+`btclib.curves.curve`, and the three checksum tables of
+`btclib.descriptors`, are the ones in the tree today; each stays
+importable from the module that defines it, which is where the test suite
+takes it from. `tests/all_test.py` checks all of this and finds the
+modules rather than listing them, so a new public name fails the suite
+until it is exported or recorded in that file's `UNEXPORTED` table.
 
 #### Documentation and comments
 

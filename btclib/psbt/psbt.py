@@ -91,6 +91,32 @@ from btclib.utils import (
     bytesio_from_binarydata,
 )
 
+__all__ = [
+    "HAS_SIG_HASH_SINGLE",
+    "INPUTS_MODIFIABLE",
+    "OUTPUTS_MODIFIABLE",
+    "PSBT_GLOBAL_FALLBACK_LOCKTIME",
+    "PSBT_GLOBAL_INPUT_COUNT",
+    "PSBT_GLOBAL_OUTPUT_COUNT",
+    "PSBT_GLOBAL_TX_MODIFIABLE",
+    "PSBT_GLOBAL_TX_VERSION",
+    "PSBT_GLOBAL_UNSIGNED_TX",
+    "PSBT_GLOBAL_VERSION",
+    "PSBT_GLOBAL_XPUB",
+    "PSBT_MAGIC_BYTES",
+    "PSBT_V0",
+    "PSBT_V2",
+    "Psbt",
+    "combine",
+    "extract_tx",
+    "finalize",
+    "join",
+    "leaf_script",
+    "prevouts",
+    "single_leaf_key",
+    "taproot_sig_hash",
+]
+
 # the whole of BIP174's <magic>, five bytes: the four of "psbt" and the
 # 0xff that makes a psbt fail to deserialize as a transaction. It is one
 # constant and one check because it is one header -- the 0xff is no more
@@ -1788,13 +1814,13 @@ def extract_tx(psbt: Psbt, *, check_validity: bool = True) -> Tx:
     return tx
 
 
-TypeA = TypeVar("TypeA")
+_TypeA = TypeVar("_TypeA")
 
 
 def _sort_or_shuffle(
-    sequence: Sequence[TypeA],
-    ordering_func: Callable[[TypeA], int] | None = None,
-) -> list[TypeA]:
+    sequence: Sequence[_TypeA],
+    ordering_func: Callable[[_TypeA], int] | None = None,
+) -> list[_TypeA]:
     """Return the sequence sorted by ordering_func, or shuffled.
 
     One sequence only: an input's outpoint and sequence are fields of

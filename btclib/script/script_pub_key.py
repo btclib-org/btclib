@@ -35,6 +35,31 @@ from btclib.script.taproot import output_pubkey
 from btclib.to_pub_key import Key, pub_keyinfo_from_key
 from btclib.utils import bytes_from_octets, bytesio_from_binarydata
 
+__all__ = [
+    "ScriptPubKey",
+    "address",
+    "addresses",
+    "assert_nulldata",
+    "assert_p2ms",
+    "assert_p2pk",
+    "assert_p2pkh",
+    "assert_p2sh",
+    "assert_p2tr",
+    "assert_p2wpkh",
+    "assert_p2wsh",
+    "assert_segwit",
+    "is_nulldata",
+    "is_p2ms",
+    "is_p2pk",
+    "is_p2pkh",
+    "is_p2sh",
+    "is_p2tr",
+    "is_p2wpkh",
+    "is_p2wsh",
+    "is_segwit",
+    "type_and_payload",
+]
+
 
 def address(script_pub_key: Octets, network: str = "mainnet") -> str:
     """Return the bech32/base58 address from a script_pub_key.

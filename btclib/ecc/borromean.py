@@ -28,6 +28,14 @@ from btclib.curves import Curve, bytes_from_point, double_mult, mult, secp256k1
 from btclib.exceptions import BTClibRuntimeError
 from btclib.utils import bytes_from_octets, int_from_bits
 
+__all__ = [
+    "PubkeyRing",
+    "SValues",
+    "assert_as_valid",
+    "sign",
+    "verify",
+]
+
 # the curve and the hash function are parameters, as they are in dsa, ssa
 # and pedersen -- not module globals: selecting either through a global
 # would mean rebinding an attribute of this module, which changes the

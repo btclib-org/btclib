@@ -37,6 +37,13 @@ from btclib.curves import Curve, bytes_from_point, double_mult, secp256k1
 from btclib.exceptions import BTClibRuntimeError, BTClibValueError
 from btclib.utils import int_from_bits
 
+__all__ = [
+    "assert_as_valid",
+    "commit",
+    "second_generator",
+    "verify",
+]
+
 
 # (ec, hf) is the cache key: both change the answer, and both are
 # hashable -- Curve.__hash__ exists precisely so that equal curves

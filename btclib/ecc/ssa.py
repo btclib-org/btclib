@@ -91,6 +91,24 @@ from btclib.utils import (
     int_from_bits,
 )
 
+__all__ = [
+    "BIP340PubKey",
+    "Sig",
+    "assert_as_valid",
+    "assert_as_valid_",
+    "assert_batch_as_valid",
+    "assert_batch_as_valid_",
+    "batch_verify",
+    "batch_verify_",
+    "challenge_",
+    "gen_keys",
+    "point_from_bip340pub_key",
+    "sign",
+    "sign_",
+    "verify",
+    "verify_",
+]
+
 # btclib's own sign-to-contract tags, and the only invented thing in the
 # scheme: libsecp256k1 has an ecdsa_s2c module and no schnorr one, and
 # BIP340 says nothing about commitments, so there is no upstream string

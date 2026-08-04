@@ -30,6 +30,22 @@ from btclib.alias import Octets
 from btclib.exceptions import BTClibValueError
 from btclib.utils import bytes_from_octets
 
+__all__ = [
+    "BinStr",
+    "Entropy",
+    "OneOrMoreInt",
+    "bin_str_entropy_from_bytes",
+    "bin_str_entropy_from_entropy",
+    "bin_str_entropy_from_int",
+    "bin_str_entropy_from_random",
+    "bin_str_entropy_from_rolls",
+    "bin_str_entropy_from_str",
+    "bin_str_entropy_from_wordlist_indexes",
+    "bytes_entropy_from_str",
+    "collect_rolls",
+    "wordlist_indexes_from_bin_str_entropy",
+]
+
 _bits = 128, 160, 192, 224, 256, 512
 
 # the main internal representation of entropy is binary 0/1 string

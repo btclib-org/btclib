@@ -80,6 +80,14 @@ from btclib.mnemonic.mnemonic import (
 )
 from btclib.network import NETWORKS
 
+__all__ = [
+    "entropy_from_mnemonic",
+    "lang_from_mnemonic",
+    "mnemonic_from_entropy",
+    "mxprv_from_mnemonic",
+    "seed_from_mnemonic",
+]
+
 # the reference implementation joins a japanese mnemonic with the
 # ideographic space and every other one with a plain space, and its
 # vectors are written that way. Not a property of the word-list, which is

@@ -95,6 +95,26 @@ from btclib.hashes import tagged_hash
 from btclib.to_prv_key import PrvKey, int_from_prv_key
 from btclib.utils import bytes_from_octets
 
+__all__ = [
+    "KeyAggContext",
+    "SessionContext",
+    "SessionValues",
+    "apply_tweak",
+    "deterministic_sign",
+    "individual_pub_key",
+    "key_agg",
+    "key_agg_and_tweak",
+    "key_sort",
+    "nonce_agg",
+    "nonce_gen",
+    "nonce_gen_",
+    "partial_sig_agg",
+    "partial_sig_verify",
+    "partial_sig_verify_",
+    "session_values",
+    "sign",
+]
+
 # the tags of BIP327, which are what makes a MuSig2 hash a MuSig2 hash:
 # a different string is a different scheme, incompatible with every other
 # implementation, so these are frozen by the specification and not by

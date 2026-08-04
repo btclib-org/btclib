@@ -26,6 +26,10 @@ from btclib.utils import (
     read_exactly,
 )
 
+__all__ = [
+    "TxOut",
+]
+
 
 # frozen, but only shallowly: `value` is immutable, while
 # ScriptPubKey extends the plain dataclass Script, so `script_pub_key.script`

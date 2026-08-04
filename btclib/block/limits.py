@@ -31,6 +31,13 @@ first block of a retarget period, which needs the previous block. The two
 fee estimation rather than by consensus.
 """
 
+__all__ = [
+    "MAX_BLOCK_SIGOPS_COST",
+    "MAX_BLOCK_WEIGHT",
+    "MAX_FUTURE_BLOCK_TIME",
+    "WITNESS_SCALE_FACTOR",
+]
+
 # Maximum allowed weight for a block, see BIP141 (network rule)
 MAX_BLOCK_WEIGHT = 4_000_000
 

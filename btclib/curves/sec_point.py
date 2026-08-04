@@ -25,6 +25,12 @@ from btclib.curves.curve import (
 from btclib.exceptions import BTClibValueError
 from btclib.utils import bytes_from_octets, hex_string, int_from_integer
 
+__all__ = [
+    "bytes_from_point",
+    "bytes_from_prv_key_int",
+    "point_from_octets",
+]
+
 
 def bytes_from_point(Q: Point, ec: Curve = secp256k1, compressed: bool = True) -> bytes:
     """Return a point as compressed/uncompressed octet sequence.

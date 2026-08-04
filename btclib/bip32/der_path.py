@@ -24,6 +24,15 @@ from btclib.alias import Octets
 from btclib.exceptions import BTClibTypeError, BTClibValueError
 from btclib.utils import is_integer
 
+__all__ = [
+    "DerPath",
+    "bytes_from_der_path",
+    "indexes_from_der_path",
+    "int_from_index_str",
+    "str_from_der_path",
+    "str_from_index_int",
+]
+
 # default hardening symbol among the possible ones: "h", "H", "'"
 _HARDENING = "h"
 

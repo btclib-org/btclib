@@ -83,6 +83,15 @@ from btclib.curves.curve_group import (
 )
 from btclib.exceptions import BTClibValueError
 
+__all__ = [
+    "double_mult_regular_window",
+    "double_mult_w_NAF",
+    "mult_endomorphism_secp256k1",
+    "mult_sliding_window",
+    "mult_w_NAF",
+    "multiplier_decomposer",
+]
+
 
 def _sliding_window_table(Q: JacPoint, ec: CurveGroup, w: int) -> list[JacPoint]:
     """Return the multiples a full window can name, 2^(w-1)*Q to (2^w - 1)*Q.

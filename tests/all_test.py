@@ -30,7 +30,7 @@ import ast
 from collections.abc import Iterable, Iterator
 from importlib import import_module
 from pathlib import Path
-from pkgutil import iter_modules
+from pkgutil import iter_modules, walk_packages
 from types import ModuleType
 
 import btclib
@@ -48,28 +48,47 @@ from btclib.script import script_pub_key
 # A name added here is a decision; a name that has to be added here to make
 # the suite pass is one that was about to become public by accident
 UNEXPORTED = {
+    "btclib.curves.curve": ["datadir"],
     "btclib.descriptors": ["CHECKSUM_CHARSET", "GENERATOR", "INPUT_CHARSET"],
     "btclib.network": ["datadir"],
 }
 
 
-def top_level_modules() -> list[ModuleType]:
-    """Return btclib and its top-level modules, the private one excluded.
+def public_name(dotted: str) -> bool:
+    """Whether every component of a dotted module name is public."""
+    return not any(part.startswith("_") for part in dotted.split("."))
 
-    Found rather than listed, as the packages are below: a module added to
-    the library is a module these tests ask about. `btclib._ripemd160` is
-    out because a module whose name opens with an underscore is not part of
-    the surface at all -- what is public *in* it is not reachable by any
-    spelling a caller is offered -- and the packages are out because
-    `test_every_exported_name_exists` walks those.
+
+def library_modules() -> list[ModuleType]:
+    """Return every module and package of the library, private ones out.
+
+    Found rather than listed: one added to btclib is one these tests ask
+    about, and the walk is the whole tree rather than the top level, the
+    packages having submodules a caller reaches by name --
+    `btclib.ecc.dsa`, `btclib.script.sig_hash` -- and a command line
+    reaching them through `__all__` alone.
+
+    `btclib._ripemd160` is out, and so is anything under a private name: a
+    module whose name opens with an underscore is not part of the surface,
+    so what is public *in* it is not reachable by any spelling a caller is
+    offered.
     """
     return [
         btclib,
         *(
-            import_module(f"btclib.{name}")
-            for _, name, is_package in iter_modules(btclib.__path__)
-            if not is_package and not name.startswith("_")
+            import_module(name)
+            for _, name, _ in walk_packages(btclib.__path__, "btclib.")
+            if public_name(name)
         ),
+    ]
+
+
+def top_level_modules() -> list[ModuleType]:
+    """Return btclib's own top-level modules, the private one excluded."""
+    return [
+        import_module(f"btclib.{name}")
+        for _, name, is_package in iter_modules(btclib.__path__)
+        if not is_package and public_name(name)
     ]
 
 
@@ -329,43 +348,28 @@ def test_psbt_exports_the_format_not_its_plumbing() -> None:
 def test_every_exported_name_exists() -> None:
     """An `__all__` entry that names nothing is a broken `import *`.
 
-    Every package of the library, found rather than listed: a package added
-    to btclib is a package this checks, where a list here would be one more
+    Every module and package of the library, found rather than listed: one
+    added to btclib is one this checks, where a list here would be one more
     thing to keep true -- and it is what caught `btclib.script` being
-    outside the four names this used to hold. Nested packages are not
-    walked, `btclib.script.engine` being the only one; asking `pkgutil` to
-    walk them would import every module of the library, which
-    tests/imports_test.py already does deliberately and one module at a
-    time.
+    outside the four names this used to hold. The whole tree is walked,
+    which imports every module of the library; tests/imports_test.py does
+    that deliberately and one module at a time, for the cycle a bulk import
+    hides, and this one asks a question that needs them all loaded.
+
+    An empty list is a legitimate answer, and the assertion says when: a
+    module with nothing public of its own -- a package `__init__` that only
+    re-exports, or a module that is all private helpers -- declares `[]`
+    rather than nothing, so that the declaration is there to read.
     """
-    packages = [
-        import_module(f"btclib.{name}")
-        for _, name, is_package in iter_modules(btclib.__path__)
-        if is_package
-    ]
-    assert packages, "no package found under btclib"
-    for package in packages:
-        names = getattr(package, "__all__", None)
-        assert names, f"{package.__name__} declares no __all__"
-        for name in names:
-            assert hasattr(package, name), f"{package.__name__}.{name} is not there"
-
-
-def test_every_module_declares_one_too() -> None:
-    """A top-level module says what it exports, as a package does.
-
-    Half the library declared its surface and the other half left it to a
-    leading character, so `from btclib.b58 import *` handed out `Key`,
-    `Octets`, `String`, `sha256` and `network_from_key_value` beside the
-    seven names that module defines. This is the same check
-    `test_every_exported_name_exists` makes of the packages: a list, not
-    empty, naming things that are there.
-    """
-    modules = top_level_modules()
-    assert len(modules) > 1, "no top-level module found under btclib"
+    modules = library_modules()
+    assert len(modules) > 40, f"only {len(modules)} modules found under btclib"
     for module in modules:
         names = getattr(module, "__all__", None)
-        assert names, f"{module.__name__} declares no __all__"
+        assert names is not None, f"{module.__name__} declares no __all__"
+        assert names or not defined_public_names(module), (
+            f"{module.__name__} declares an empty __all__ and defines"
+            f" {sorted(defined_public_names(module))}"
+        )
         for name in names:
             assert hasattr(module, name), f"{module.__name__}.{name} is not there"
 
@@ -380,7 +384,9 @@ def test_no_module_exports_a_name_it_imported() -> None:
     module with a reason to re-export something is a conversation to have
     with this test, not around it.
     """
-    for module in top_level_modules():
+    for module in library_modules():
+        if hasattr(module, "__path__"):  # a package re-exports for a living
+            continue
         imported = imported_names(module)
         for name in module.__all__:
             assert name not in imported, f"{module.__name__} re-exports {name}"
@@ -419,7 +425,7 @@ def test_nothing_becomes_public_by_accident() -> None:
     `sorted` is what the failure reads as -- the names not accounted for,
     against the ones that are.
     """
-    for module in top_level_modules():
+    for module in library_modules():
         kept_out = sorted(defined_public_names(module) - set(module.__all__))
         assert kept_out == UNEXPORTED.get(module.__name__, []), (
             f"{module.__name__} defines public names that are neither"
