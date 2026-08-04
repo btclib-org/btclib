@@ -25,7 +25,8 @@ from typing import Literal
 
 from btclib import b32
 from btclib.alias import Octets, ScriptType, String
-from btclib.base58 import b58decode, b58encode
+from btclib.base58 import decode as b58decode
+from btclib.base58 import encode as b58encode
 from btclib.exceptions import BTClibValueError
 from btclib.hashes import hash160, sha256
 from btclib.network import NETWORKS, network_from_key_value

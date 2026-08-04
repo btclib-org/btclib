@@ -12,7 +12,7 @@
 from __future__ import annotations
 
 from btclib.alias import String
-from btclib.base58 import b58decode
+from btclib.base58 import decode as b58decode
 from btclib.bip32 import BIP32Key, BIP32KeyData
 from btclib.curves import Curve, secp256k1
 from btclib.exceptions import (

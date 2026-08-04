@@ -260,7 +260,7 @@ class BIP32KeyData:
     def b58encode(self, *, check_validity: bool = True) -> str:
         """Return the Base58Check text, the xprv/xpub spelling."""
         data_binary = self.serialize(check_validity=check_validity)
-        return base58.b58encode(data_binary).decode("ascii")
+        return base58.encode(data_binary).decode("ascii")
 
     @classmethod
     def parse(
@@ -297,7 +297,7 @@ class BIP32KeyData:
         if isinstance(address, str):
             address = address.strip()
 
-        xkey_bin = base58.b58decode(address)
+        xkey_bin = base58.decode(address)
         return cls.parse(xkey_bin, check_validity=check_validity)
 
 

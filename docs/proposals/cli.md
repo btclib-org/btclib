@@ -84,10 +84,9 @@ already maintains for its own reasons.
 Nothing is renamed for the shell, and no verb is invented. So the command
 line reads `btclib mnemonic bip39 mnemonic-from-entropy`, which is long;
 `btclib b58 wif-from-prv-key`, which is longer than `dumpprivkey`; and
-`btclib base58 b58encode`, which stutters, the function being `b58encode`
-in a module called `base58` — and which is the first of the renamings
-two sections below, since a stutter the mirror shows is a stutter the
-library has.
+`btclib base58 encode`, matching `base58.encode` — the first of the
+renamings two sections below, since a stutter the mirror once showed
+(`base58 b58encode`) is a stutter the library no longer has.
 
 That price is worth paying, for a reason the README states about the
 library: it "is often refactored for improved clarity, without care for
@@ -455,7 +454,7 @@ No key material, no network, no state. It is the half of the surface that
 can be written and reviewed without deciding anything about secrets.
 
 ```text
-base58        b58encode  b58decode
+base58        encode  decode
 bech32        encode  decode
 b58           wif-from-prv-key  address-from-h160  h160-from-address
               p2pkh  p2sh  p2wpkh-p2sh  p2wsh-p2sh

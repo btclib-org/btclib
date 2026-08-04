@@ -3028,6 +3028,20 @@ edit.
   way `btclib.ecc` names `dsa`. The package docstring records both
   decisions, and `tests/all_test.py` pins the list and checks the nine are
   still where they are defined.
+- **`btclib.base58` exports `encode` and `decode`**, where it exported
+  `b58encode` and `b58decode`. The module name already carries the prefix,
+  and `btclib.bech32` — the sibling codec, `btclib.b32`'s bitcoin semantics
+  on top of it the same way `btclib.b58` sits on `base58` — defines `encode`
+  and `decode` with no prefix at all; `base58.b58encode` was the one pair
+  that stuttered. The two call sites where both codecs are in scope,
+  `btclib/b58.py` and `btclib/to_prv_key.py`, import the pair aliased —
+  `from btclib.base58 import decode as b58decode, encode as b58encode` —
+  so the distinction is spelled where it is needed rather than at every
+  use. `BIP32KeyData.b58encode`/`.b58decode`, `bms.Sig.b64encode`/
+  `.b64decode` and `Psbt.b64encode`/`.b64decode` are methods and keep
+  their prefix: on a class it says which encoding the object serializes
+  to, distinguishing it from `serialize`, rather than repeating the
+  module's own name (issue #335)
 
 ### Types
 

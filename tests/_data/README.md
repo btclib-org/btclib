@@ -578,7 +578,7 @@ behind  0 revisions; that commit is the tip of the path
 Verdict: **identical**, 21 rows of `[hex, base58]`. Core's
 `EncodeBase58`/`DecodeBase58`, i.e. the codec with no checksum on it, so
 what reads them is `base58._b58encode`/`_b58decode` and not the checked
-`b58encode`/`b58decode` — one row is 256 bytes, 348 base58 characters,
+`encode`/`decode` — one row is 256 bytes, 348 base58 characters,
 which the checked decoder would refuse on `MAX_LENGTH` before looking at
 it.
 

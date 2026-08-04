@@ -40,7 +40,7 @@ https://github.com/keis/base58, with the following modifications:
 
 * type annotated Python3
 * using native Python3 int.from_bytes() and i.to_bytes()
-* added optional check on output size for b58decode()
+* added optional check on output size for decode()
 * interface mimics the native Python3 base64 interface, i.e.
   it supports encoding bytes-like objects to ASCII bytes,
   and decoding ASCII bytes-like objects or ASCII strings to bytes.
@@ -95,7 +95,7 @@ def _b58encode(v: bytes) -> bytes:
     return result
 
 
-def b58encode(v: Octets, in_size: int | None = None) -> bytes:
+def encode(v: Octets, in_size: int | None = None) -> bytes:
     """Encode a bytes-like object using Base58Check."""
     v = bytes_from_octets(v, in_size)
     h256 = hash256(v)
@@ -131,7 +131,7 @@ def _b58decode(v: bytes) -> bytes:
     return result
 
 
-def b58decode(v: String, out_size: int | None = None) -> bytes:
+def decode(v: String, out_size: int | None = None) -> bytes:
     """Decode a Base58Check encoded bytes-like object or ASCII string.
 
     Optionally, it also ensures required output size.

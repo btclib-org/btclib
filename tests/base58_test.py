@@ -19,8 +19,8 @@ from btclib.base58 import (
     _b58decode_to_int,
     _b58encode,
     _b58encode_from_int,
-    b58decode,
-    b58encode,
+    decode,
+    encode,
 )
 from btclib.exceptions import BTClibValueError
 from tests import load, vector_id
@@ -29,7 +29,7 @@ from tests import load, vector_id
 # byte for byte; tests/_data/README.md pins the revision. A row is [hex,
 # base58], and the pair is Core's `EncodeBase58`/`DecodeBase58` -- the
 # codec with no checksum on it, which is `_b58encode`/`_b58decode` here
-# and not the `b58encode`/`b58decode` the rest of this module exercises
+# and not the `encode`/`decode` the rest of this module exercises
 CODEC_VECTORS = [
     pytest.param(hexed, encoded, id=vector_id(index, hexed[:16]))
     for index, (hexed, encoded) in enumerate(load("_data", "base58_encode_decode.json"))
@@ -41,7 +41,7 @@ def test_empty() -> None:
     assert _b58encode(b"") == b""
     assert _b58decode(_b58encode(b"")) == b""
 
-    assert b58decode(b58encode(b""), 0) == b""
+    assert decode(encode(b""), 0) == b""
 
 
 def test_hello_world() -> None:
@@ -51,7 +51,7 @@ def test_hello_world() -> None:
     assert _b58decode(_b58encode(b"hello world")) == b"hello world"
     assert _b58encode(_b58decode(b"StV1DL6CwTryKyV")) == b"StV1DL6CwTryKyV"
 
-    assert b58decode(b58encode(b"hello world"), 11) == b"hello world"
+    assert decode(encode(b"hello world"), 11) == b"hello world"
 
 
 def test_trailing_zeros() -> None:
@@ -61,7 +61,7 @@ def test_trailing_zeros() -> None:
     assert _b58decode(_b58encode(b"\x00\x00hello world")) == b"\x00\x00hello world"
     assert _b58encode(_b58decode(b"11StV1DL6CwTryKyV")) == b"11StV1DL6CwTryKyV"
 
-    assert b58decode(b58encode(b"\x00\x00hello world"), 13) == b"\x00\x00hello world"
+    assert decode(encode(b"\x00\x00hello world"), 13) == b"\x00\x00hello world"
 
 
 @pytest.mark.parametrize(("hexed", "encoded"), CODEC_VECTORS)
@@ -72,7 +72,7 @@ def test_core_codec_vectors(hexed: str, encoded: str) -> None:
     the empty string, leading zero bytes as leading '1' characters, the
     whole alphabet in order, the transitions at powers of 58, and a
     256-byte payload. That last one is 348 base58 characters, which
-    `b58decode` would refuse on MAX_LENGTH before looking at it -- the
+    `decode` would refuse on MAX_LENGTH before looking at it -- the
     cap is on the checked decoder, the codec under it being uncapped.
     What the set adds is that the answer is Core's, not btclib's.
     """
@@ -82,27 +82,27 @@ def test_core_codec_vectors(hexed: str, encoded: str) -> None:
 
 
 def test_exceptions() -> None:
-    """Check the message of each way b58decode refuses an input."""
-    encoded = b58encode(b"hello world")
-    b58decode(encoded, 11)
+    """Check the message of each way decode refuses an input."""
+    encoded = encode(b"hello world")
+    decode(encoded, 11)
 
     wrong_length = len(encoded) - 1
     with pytest.raises(BTClibValueError, match="invalid decoded size: "):
-        b58decode(encoded, wrong_length)
+        decode(encoded, wrong_length)
 
     invalid_checksum = encoded[:-4] + b"1111"
     with pytest.raises(BTClibValueError, match="invalid checksum: "):
-        b58decode(invalid_checksum, 4)
+        decode(invalid_checksum, 4)
 
     # a character outside ascii is an invalid base58 character like any
     # other, not a UnicodeEncodeError
     err_msg = "non-ascii character in base58 string: "
     with pytest.raises(BTClibValueError, match=err_msg):
-        b58decode("hèllo world")
+        decode("hèllo world")
 
     err_msg = "not enough bytes for checksum, invalid base58 decoded size: "
     with pytest.raises(BTClibValueError, match=err_msg):
-        b58decode(_b58encode(b"123"))
+        decode(_b58encode(b"123"))
 
 
 def test_wif() -> None:
@@ -112,21 +112,21 @@ def test_wif() -> None:
 
     uncompressed_key = b"\x80" + prv.to_bytes(32, byteorder="big", signed=False)
     uncompressed_wif = b"5HueCGU8rMjxEXxiPuD5BDku4MkFqeZyd4dZ1jvhTVqvbTLvyTJ"
-    wif = b58encode(uncompressed_key)
+    wif = encode(uncompressed_key)
     assert wif == uncompressed_wif
-    key = b58decode(uncompressed_wif)
+    key = decode(uncompressed_wif)
     assert key == uncompressed_key
 
     compressed_key = b"\x80" + prv.to_bytes(32, byteorder="big", signed=False) + b"\x01"
     compressed_wif = b"KwdMAjGmerYanjeui5SHS7JkmpZvVipYvB2LJGU1ZxJwYvP98617"
-    wif = b58encode(compressed_key)
+    wif = encode(compressed_key)
     assert wif == compressed_wif
-    key = b58decode(compressed_wif)
+    key = decode(compressed_wif)
     assert key == compressed_key
 
     # string
     compressed_wif = b"KwdMAjGmerYanjeui5SHS7JkmpZvVipYvB2LJGU1ZxJwYvP98617"
-    key = b58decode(compressed_wif)
+    key = decode(compressed_wif)
     assert key == compressed_key
 
 
@@ -155,16 +155,16 @@ def test_max_length() -> None:
     """
     # the longest thing btclib encodes: a 78-byte BIP32 extended key,
     # here the one whose 112 characters no payload can exceed
-    longest = b58encode(b"\xff" * 78)
+    longest = encode(b"\xff" * 78)
     assert len(longest) == MAX_LENGTH
-    assert b58decode(longest, 78) == b"\xff" * 78
+    assert decode(longest, 78) == b"\xff" * 78
 
     err_msg = f"too many base58 characters: {MAX_LENGTH + 1}, max is {MAX_LENGTH}"
     with pytest.raises(BTClibValueError, match=err_msg):
-        b58decode(b"1" * (MAX_LENGTH + 1))
+        decode(b"1" * (MAX_LENGTH + 1))
     # str and bytes take the same path
     with pytest.raises(BTClibValueError, match=err_msg):
-        b58decode("1" * (MAX_LENGTH + 1))
+        decode("1" * (MAX_LENGTH + 1))
 
 
 @given(payload=st.binary(max_size=78))
@@ -176,9 +176,9 @@ def test_round_trip(payload: bytes) -> None:
     case the encoding writes as leading '1' characters rather than
     carrying through the base conversion, and has to count back.
     """
-    encoded = b58encode(payload)
+    encoded = encode(payload)
     assert len(encoded) <= MAX_LENGTH
-    assert b58decode(encoded) == payload
-    assert b58decode(encoded, len(payload)) == payload
+    assert decode(encoded) == payload
+    assert decode(encoded, len(payload)) == payload
     # str and bytes are the same string to the decoder
-    assert b58decode(encoded.decode("ascii")) == payload
+    assert decode(encoded.decode("ascii")) == payload
