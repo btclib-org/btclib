@@ -19,7 +19,12 @@ from btclib import var_bytes
 from btclib.alias import BinaryData, Octets, String
 from btclib.amount import btc_from_sats, sats_from_btc, valid_sats_amount
 from btclib.script import ScriptPubKey, script_from_dict, script_to_dict
-from btclib.utils import bytes_from_octets, bytesio_from_binarydata
+from btclib.utils import (
+    assert_no_trailing,
+    bytes_from_octets,
+    bytesio_from_binarydata,
+    read_exactly,
+)
 
 
 # frozen, but only shallowly: `value` is immutable, while
@@ -137,8 +142,11 @@ class TxOut:
         is taken as it comes, scripts on chain not having to parse.
         """
         stream = bytesio_from_binarydata(data)
-        value = int.from_bytes(stream.read(8), byteorder="little", signed=False)
+        value = int.from_bytes(
+            read_exactly(stream, 8, "output value"), byteorder="little", signed=False
+        )
         script = var_bytes.parse(stream)
+        assert_no_trailing(data, stream, "transaction output")
         return cls(
             value,
             ScriptPubKey(

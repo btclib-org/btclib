@@ -20,7 +20,12 @@ from btclib.alias import BinaryData, Octets
 from btclib.exceptions import BTClibValueError
 from btclib.script import Witness, script_from_dict, script_to_dict
 from btclib.tx.out_point import OutPoint
-from btclib.utils import bytes_from_octets, bytesio_from_binarydata
+from btclib.utils import (
+    assert_no_trailing,
+    bytes_from_octets,
+    bytesio_from_binarydata,
+    read_exactly,
+)
 
 TX_IN_COMPARES_WITNESS = True
 
@@ -192,7 +197,10 @@ class TxIn:
         stream = bytesio_from_binarydata(data)
         prev_out = OutPoint.parse(stream, check_validity=check_validity)
         script_sig = var_bytes.parse(stream)
-        sequence = int.from_bytes(stream.read(4), byteorder="little", signed=False)
+        sequence = int.from_bytes(
+            read_exactly(stream, 4, "sequence"), byteorder="little", signed=False
+        )
+        assert_no_trailing(data, stream, "transaction input")
 
         return cls(
             prev_out, script_sig, sequence, Witness(), check_validity=check_validity

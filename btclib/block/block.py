@@ -34,7 +34,7 @@ from btclib.hashes import (
 from btclib.script.script import op_int
 from btclib.script.script import serialize as serialize_script
 from btclib.tx import Tx
-from btclib.utils import bytesio_from_binarydata, decode_num
+from btclib.utils import assert_no_trailing, bytesio_from_binarydata, decode_num
 
 _HF = hash256
 
@@ -543,5 +543,6 @@ class Block:
         transactions = [
             Tx.parse(stream, check_validity=check_validity) for _ in range(n)
         ]
+        assert_no_trailing(data, stream, "block")
 
         return cls(header, transactions, check_validity=check_validity)

@@ -49,7 +49,12 @@ from btclib.curves import (
 from btclib.exceptions import BTClibTypeError, BTClibValueError
 from btclib.hashes import hash160
 from btclib.network import NETWORKS, XPRV_VERSIONS_ALL, XPUB_VERSIONS_ALL
-from btclib.utils import bytes_from_octets, bytesio_from_binarydata, hex_string
+from btclib.utils import (
+    assert_no_trailing,
+    bytes_from_octets,
+    bytesio_from_binarydata,
+    hex_string,
+)
 
 # secp256k1 is written out at each use rather than aliased to a module
 # global "ec": BIP32 is defined for secp256k1 and for nothing else, so
@@ -259,20 +264,24 @@ class BIP32KeyData:
     ) -> BIP32KeyData:
         """Return a BIP32KeyData by parsing 78 bytes from binary data."""
         stream = bytesio_from_binarydata(xkey_bin)
-        xkey_bin = stream.read(_REQUIRED_LENGTH)
+        key_bin = stream.read(_REQUIRED_LENGTH)
 
-        if check_validity and len(xkey_bin) != _REQUIRED_LENGTH:
-            err_msg = f"invalid decoded length: {len(xkey_bin)}"
+        # whatever check_validity says: seventy-eight bytes are what make
+        # the slices below mean anything, where a semantic check is an
+        # opinion about the key they carry. btclib/utils.py states the rule
+        if len(key_bin) != _REQUIRED_LENGTH:
+            err_msg = f"invalid decoded length: {len(key_bin)}"
             err_msg += f" instead of {_REQUIRED_LENGTH}"
             raise BTClibValueError(err_msg)
+        assert_no_trailing(xkey_bin, stream, "extended key")
 
         return cls(
-            version=xkey_bin[:4],
-            depth=xkey_bin[4],
-            parent_fingerprint=xkey_bin[5:9],
-            index=int.from_bytes(xkey_bin[9:13], byteorder="big", signed=False),
-            chain_code=xkey_bin[13:45],
-            key=xkey_bin[45:78],
+            version=key_bin[:4],
+            depth=key_bin[4],
+            parent_fingerprint=key_bin[5:9],
+            index=int.from_bytes(key_bin[9:13], byteorder="big", signed=False),
+            chain_code=key_bin[13:45],
+            key=key_bin[45:78],
             check_validity=check_validity,
         )
 

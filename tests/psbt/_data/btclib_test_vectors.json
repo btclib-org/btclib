@@ -22,7 +22,7 @@
         },
         {
             "description": "PSBTv2 whose PSBT_GLOBAL_OUTPUT_COUNT is one fewer than the output maps",
-            "error message": "malformed psbt: 37 bytes after the psbt",
+            "error message": "37 bytes after the psbt",
             "encoded psbt": "cHNidP8BAgQCAAAAAQQBAQEFAQEB+wQCAAAAAAEOIAsK2SFBnByHGXNdctxzn56p4GONH+TB7vD5lECEgV/IAQ8EAAAAAAABAwgACK8vAAAAAAEEFgAUxDD2TEdW2jENvRoIVXLvKZkmJywAAQMIi73rCwAAAAABBBYAFE3Rk6yWSlasG54cyoRU/i9HT4UTAA=="
         }
     ],

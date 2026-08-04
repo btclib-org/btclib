@@ -21,7 +21,11 @@ from btclib.block.limits import MAX_FUTURE_BLOCK_TIME
 from btclib.block.proof_of_work import target_from_bits
 from btclib.exceptions import BTClibTypeError, BTClibValueError
 from btclib.hashes import hash256
-from btclib.utils import bytes_from_octets, bytesio_from_binarydata
+from btclib.utils import (
+    assert_no_trailing,
+    bytes_from_octets,
+    bytesio_from_binarydata,
+)
 
 _HF = hash256
 _HF_LEN = 32  # should be _HF().digest_size
@@ -340,11 +344,15 @@ class BlockHeader:
         # -- eight bytes short as "invalid nonce", four as "invalid bits
         # length", twelve as "invalid timestamp (before genesis)", the
         # epoch read from no bytes at all. Reported as truncation instead,
-        # as BIP32KeyData.parse reports it
-        if check_validity and len(header_bin) != _REQUIRED_LENGTH:
+        # as BIP32KeyData.parse reports it -- and reported whatever
+        # check_validity says, eighty bytes being what makes the slices
+        # below mean anything rather than an opinion about the header:
+        # btclib/utils.py states the rule and holds the two helpers for it
+        if len(header_bin) != _REQUIRED_LENGTH:
             err_msg = f"invalid decoded length: {len(header_bin)}"
             err_msg += f" instead of {_REQUIRED_LENGTH}"
             raise BTClibValueError(err_msg)
+        assert_no_trailing(data, stream, "block header")
 
         # version is a signed int (int32_t, not uint32_t)
         version = int.from_bytes(header_bin[:4], byteorder="little", signed=True)
