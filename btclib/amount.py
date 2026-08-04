@@ -107,14 +107,17 @@ def sats_from_btc(amount: Decimal) -> int:
 def valid_sats_amount(amount: Any, dust: int = 0) -> int:
     """Return the satoshi amount as int, if valid and not less than dust."""
     # any input that can be converted to int is fine -- and int() refuses
-    # what it cannot convert with a bare ValueError ("abc", b"\x01") or a
-    # bare TypeError (a list), neither of which says that btclib refused
-    # anything. Each is answered with this library's counterpart of the
-    # very builtin it was, so a caller catching ValueError or TypeError
-    # catches exactly what it caught before
+    # what it cannot convert with a bare ValueError ("abc", b"\x01"), a
+    # bare TypeError (a list), or a bare OverflowError (an infinity, where
+    # a NaN is a ValueError: the asymmetry is int()'s, not this
+    # function's). None of the three says that btclib refused anything,
+    # and OverflowError is not even a ValueError -- it is an
+    # ArithmeticError, so a caller catching ValueError never caught it.
+    # Each is answered with this library's counterpart of the builtin it
+    # was, so what a caller catches does not shrink
     try:
         sats = 0 if amount is None else int(amount)
-    except ValueError as e:
+    except (ValueError, OverflowError) as e:
         raise BTClibValueError(f"invalid satoshi amount: {amount}") from e
     except TypeError as e:
         raise BTClibTypeError(f"non-integer satoshi amount: {amount}") from e

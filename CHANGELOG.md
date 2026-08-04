@@ -909,9 +909,12 @@ edit.
   too; an infinity does compare, and the range check refuses it. Beside
   it, `valid_sats_amount` let `int()`'s own refusals out unchanged — a
   bare `ValueError` for `"abc"` and `b"\x01"`, a bare `TypeError` for a
-  list — and each is now this library's counterpart of the builtin it was,
-  so a caller catching `ValueError` or `TypeError` catches exactly what it
-  caught before
+  list, and a bare `OverflowError` for an infinity, which is an
+  `ArithmeticError` and so was never caught by `except ValueError` either
+  — and each is now this library's counterpart of the builtin it was, so
+  what a caller catches does not shrink. A NaN leaves `int()` as a
+  `ValueError` where an infinity leaves it as an `OverflowError`; the
+  asymmetry is `int()`'s, and both answer `invalid satoshi amount` now
 
 ### Immutability and shared state
 

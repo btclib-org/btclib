@@ -218,3 +218,24 @@ def test_a_satoshi_amount_that_int_refuses_is_refused_in_kind() -> None:
     for other in ([], {}, object()):
         with pytest.raises(BTClibTypeError, match="non-integer satoshi amount"):
             valid_sats_amount(other)
+
+
+@pytest.mark.parametrize(
+    "amount",
+    [float("inf"), float("-inf"), Decimal("Infinity"), Decimal("-Infinity")],
+)
+def test_a_non_finite_satoshi_amount_is_refused_in_kind(amount: object) -> None:
+    """An infinity leaves int() as an OverflowError, which is no ValueError.
+
+    It is an ArithmeticError, like the InvalidOperation of the BTC
+    validator: a caller catching ValueError around a satoshi amount never
+    caught it. A NaN is a ValueError out of the same call, which is int()'s
+    asymmetry rather than this function's, and both answer the same way
+    now.
+    """
+    with pytest.raises(BTClibValueError, match="invalid satoshi amount"):
+        valid_sats_amount(amount)
+
+    for nan in (float("nan"), Decimal("NaN")):
+        with pytest.raises(BTClibValueError, match="invalid satoshi amount"):
+            valid_sats_amount(nan)
