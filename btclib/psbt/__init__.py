@@ -16,8 +16,8 @@ an unsigned psbt spends, and the size estimation a fee rate is applied to.
 function, the way btclib.ecc names dsa.
 
 btclib.psbt.psbt_utils is not exported, and this is where that decision is
-recorded: serialize_bytes, deserialize_int, deserialize_map,
-deserialize_tx, the encode/decode_dict_bytes_bytes pair,
+recorded: serialize_bytes, deserialize_map, deserialize_tx,
+the encode/decode_dict_bytes_bytes pair,
 serialize_dict_bytes_bytes, serialize_hd_key_paths and
 assert_valid_unknown are how one field of one map is written and read.
 They are called by psbt_in, psbt_out and psbt itself and by nothing

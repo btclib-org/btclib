@@ -38,6 +38,7 @@ from btclib.psbt.psbt import (
     HAS_SIG_HASH_SINGLE,
     INPUTS_MODIFIABLE,
     OUTPUTS_MODIFIABLE,
+    PSBT_GLOBAL_VERSION,
     _sig_hash_from_psbt_in,
     _sort_or_shuffle,
     leaf_script,
@@ -46,6 +47,7 @@ from btclib.psbt.psbt import (
 from btclib.psbt.psbt_in import _V2_FIELDS as _V2_INPUT_FIELDS
 from btclib.psbt.psbt_in import LOCK_TIME_THRESHOLD
 from btclib.psbt.psbt_out import _V2_FIELDS as _V2_OUTPUT_FIELDS
+from btclib.psbt.psbt_utils import PSBT_SEPARATOR
 from btclib.script import ScriptPubKey, Witness, serialize, sig_hash
 from btclib.script.engine import verify_transaction
 from btclib.to_pub_key import pub_keyinfo_from_prv_key
@@ -842,6 +844,36 @@ def test_a_v2_field_of_the_wrong_size_is_refused() -> None:
     )
     with pytest.raises(BTClibValueError, match="invalid tx version key length: 2"):
         Psbt.parse(keyed_version)
+
+
+def test_the_global_version_is_four_octets_and_no_other_number_of_them() -> None:
+    """BIP174 calls it a little-endian uint32, so five values are not one.
+
+    Read without its width, the field made one psbt out of five encodings:
+    an empty value, one octet, two, three and four all deserialize to a
+    version this writes back as four -- the malleability every other
+    fixed-width field of the format is held away from.
+
+    A length is not an opinion about what the psbt means, so it is refused
+    with either value of `check_validity`; and it is refused ahead of the
+    version being one of the two that exist, which is what a value of `00`
+    in one octet would otherwise have been.
+    """
+    header = "70736274ff" + "01020402000000" + "01040100" + "01050100"
+    canonical = f"{header}01fb040200000000"
+
+    psbt = Psbt.parse(canonical)
+    assert psbt.version == 2
+    assert psbt.serialize().hex() == canonical
+
+    for size in (0, 1, 2, 3, 5):
+        value = (2).to_bytes(max(size, 4), "little")[:size]
+        field = bytes([1]) + PSBT_GLOBAL_VERSION + bytes([size]) + value
+        raw = bytes.fromhex(header) + field + PSBT_SEPARATOR
+        err_msg = f"invalid global version length: {size} bytes instead of 4"
+        for check_validity in (True, False):
+            with pytest.raises(BTClibValueError, match=err_msg):
+                Psbt.parse(raw, check_validity=check_validity)
 
 
 # the cases below are btclib's own, and btclib_test_vectors.json is where

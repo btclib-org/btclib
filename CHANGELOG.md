@@ -692,6 +692,21 @@ edit.
   when the maps it is handed are not one per input and one per output.
   A version 2 psbt whose count and maps disagree is refused by the
   parse instead, for the map that is missing or the bytes left over
+- **the last two psbt integer fields read without their width now have
+  it** (issue #360). `PSBT_GLOBAL_VERSION` and `PSBT_IN_SIGHASH_TYPE` are
+  both a little-endian uint32 in BIP174 and were both read by an unsized
+  `deserialize_int`, so a value of no octets, one, two, three or four
+  deserialized to the same number and was written back as four: one psbt
+  with five encodings, which is the malleability every fixed-width field of
+  BIP370 was already held away from and the canonical-serialization rule of
+  #322 one level up. `deserialize_sized_int(..., 4)` reads them now, the
+  length is refused whatever `check_validity` says — a width is not an
+  opinion about what the psbt means — and `_serialize_sig_hash_type` is
+  gone, `_serialize_uint32` beside it having written the same four octets
+  all along. `psbt_utils.deserialize_int` goes with them: every call site it
+  ever had was a fixed-width field read without its width, and the BIPs
+  define no psbt integer field that has none, the two counts of BIP370
+  being compact size and having `deserialize_count`
 - **a version 0 psbt carrying a PSBT v2 field is refused, by name**
   (issue #265). BIP370 lists 0 under "Versions Requiring Exclusion" for
   each of the twelve fields it defines, and btclib filed all twelve

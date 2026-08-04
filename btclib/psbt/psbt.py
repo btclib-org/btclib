@@ -60,7 +60,6 @@ from btclib.psbt.psbt_utils import (
     assert_valid_unknown,
     decode_dict_bytes_bytes,
     deserialize_count,
-    deserialize_int,
     deserialize_map,
     deserialize_sized_int,
     deserialize_tx,
@@ -147,11 +146,15 @@ def _global_version(global_map: Mapping[bytes, bytes]) -> int:
     """Return PSBT_GLOBAL_VERSION, or 0 for a map that does not carry it.
 
     BIP174 makes the field optional and its absence version 0, which is
-    what a psbt written before BIP370 looks like.
+    what a psbt written before BIP370 looks like. Present, it is four
+    octets and no other number of them: the BIP calls it a little-endian
+    uint32, and a value read without its width makes one psbt out of five
+    encodings -- an empty value, one octet, two, three and four all
+    deserialize to a version this writes back as four.
     """
     for k, v in global_map.items():
         if k[:1] == PSBT_GLOBAL_VERSION:
-            return deserialize_int(k, v, "global version")
+            return deserialize_sized_int(k, v, "global version", 4)
     return 0
 
 
