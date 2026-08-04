@@ -60,6 +60,21 @@ _AMOUNT = re.compile(r"\A(?:[0-9]+(?:\.[0-9]*)?|\.[0-9]+)\Z")
 # "?" and "#" are the delimiters and must stay encoded
 _SAFE = "/:@!$'()*+,;"
 
+# a `%` that is not RFC 3986's pct-encoded, i.e. not followed by exactly
+# two hexadecimal digits. `unquote` leaves such a `%` as literal text --
+# "%ZZ" decodes to "%ZZ" -- and `errors="strict"` does not see it, being
+# the error handler of the utf-8 decode that happens *after* the
+# unescaping. Malformed syntax is therefore not what that flag catches:
+# "%FF" is an escape of an octet that is no text and is refused by it,
+# where "%ZZ" is not an escape at all.
+#
+# Left as text, it would not round trip: serialize writes a literal
+# percent sign as "%25", so "label=%ZZ" would come back out as
+# "label=%25ZZ" -- two URIs meaning one request, with only one of them
+# written, which is the canonical-form rule the binary parsers of this
+# library are held to as well
+_MALFORMED_ESCAPE = re.compile("%(?![0-9A-Fa-f]{2})")
+
 
 def _network_from_address(address: str) -> str:
     """Return the network of an address, raising if it is not one."""
@@ -76,6 +91,11 @@ def _decode(value: str, what: str) -> str:
     -- a label of "Alice+Bob" is two names, and a space is "%20".
     """
     if "%" in value:
+        # the syntax first, and separately: a `%` that escapes nothing is a
+        # different fault from an escape of octets that are not utf-8, and
+        # only the second is what errors="strict" answers
+        if _MALFORMED_ESCAPE.search(value):
+            raise BTClibValueError(f"malformed percent escape in {what}")
         # errors="strict", because a mangled percent escape in a payment
         # request is not a label with a replacement character in it
         try:
