@@ -18,11 +18,10 @@ block explorer's HTTP api -- so that calling code takes a `Fetcher` and
 never branches on which one it got.
 
 **It adds no dependency.** `urllib.request`, `json` and `base64` from the
-standard library are the whole of the client; nothing here is imported by
-anything below it, so a user who never fetches never pays for it. The
-argument against `requests` is in `btclib.fetch.transport`, along with
-the seam that lets the test suite exercise all of this while opening no
-socket.
+standard library are the whole of the client. Its canonical implementation is
+the independently vendorable `btclib.bitcoin_core_rpc`; the transport exports
+here are aliases to that same source, not another implementation. The seam
+lets the test suite exercise all of this while opening no socket.
 
 Importing the package does not connect to anything, and constructing a
 fetcher does not either: the first call is what opens a connection, and
@@ -52,7 +51,8 @@ is: `btclib.exceptions` holds every one of them together, which is what
 lets a caller see at a glance what the library raises.
 """
 
-from btclib.fetch.bitcoin_core import BitcoinCoreFetcher, BitcoinCoreRpcClient
+from btclib.bitcoin_core_rpc import BitcoinCoreRpcClient
+from btclib.fetch.bitcoin_core import BitcoinCoreFetcher
 from btclib.fetch.esplora import BLOCKSTREAM_INFO, EsploraFetcher
 from btclib.fetch.fetcher import Fetcher
 from btclib.fetch.transport import DEFAULT_TIMEOUT, HttpTransport, urlopen_transport

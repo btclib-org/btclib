@@ -2331,6 +2331,25 @@ edit.
 
 ### The public API and the module layout
 
+- **`BitcoinCoreRpcClient` is one independently vendorable source file**
+  (`btclib/bitcoin_core_rpc.py`), separate from the
+  `BitcoinCoreFetcher` adapter that turns its answers into btclib `Tx`
+  objects (issue #378). Copying that file now brings everything one call
+  needs and nothing from btclib: cookie and Basic authentication, JSON-RPC
+  2.0 requests and legacy 1.1 replies, `Decimal` decoding, correlated ids,
+  structured `FetchError`/`HttpError`/`RpcError`, bounded urllib reads, and
+  the opener that follows no redirect and consults no ambient proxy. The
+  transport is not a second copy: `btclib.fetch.transport` re-exports the
+  canonical implementation for Esplora and for its existing public seam,
+  while `btclib.fetch.bitcoin_core` re-exports the client beside the fetcher,
+  so both existing import paths name the same objects. The standalone file
+  carries its MIT notice and an update recipe based on signed release tags;
+  a subprocess test copies it alone and imports it with site packages
+  disabled before exercising a `Decimal` result and both RPC and HTTP error
+  fields. Its module documentation also spells out the migration from
+  python-bitcoinrpc's `AuthServiceProxy`: method attributes become explicit
+  `call` arguments, credentials leave the URL, batches and notifications are
+  deliberate non-goals, and a caller -- not the client -- owns any retry.
 - **`btclib.descriptors` reads a descriptor and derives its scripts**,
   where it used to compute the checksum and nothing else. `parse` returns
   a `Descriptor`, one class per grammar function, and

@@ -34,6 +34,13 @@ btclib.amount module
    :members:
    :show-inheritance:
 
+btclib.bitcoin_core_rpc module
+------------------------------
+
+.. automodule:: btclib.bitcoin_core_rpc
+   :members:
+   :show-inheritance:
+
 btclib.b32 module
 -----------------
 

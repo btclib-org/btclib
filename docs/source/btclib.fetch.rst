@@ -4,8 +4,8 @@ btclib.fetch package
 Submodules
 ----------
 
-btclib.fetch.bitcoin_core module
---------------------------------
+btclib.fetch.bitcoin_core integration module
+--------------------------------------------
 
 .. automodule:: btclib.fetch.bitcoin_core
    :members:

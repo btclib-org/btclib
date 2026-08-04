@@ -24,7 +24,14 @@ the field spares them.
 
 from __future__ import annotations
 
-from typing import Any
+from btclib.bitcoin_core_rpc import (
+    BTClibRuntimeError,
+    BTClibTypeError,
+    BTClibValueError,
+    FetchError,
+    HttpError,
+    RpcError,
+)
 
 __all__ = [
     "BTClibRuntimeError",
@@ -39,10 +46,6 @@ __all__ = [
     "RpcError",
     "ScriptError",
 ]
-
-
-class BTClibValueError(ValueError):
-    """A value no valid input could carry; the library's usual refusal."""
 
 
 class ScriptError(BTClibValueError):
@@ -86,14 +89,6 @@ class InvalidPrvKeyError(BTClibValueError):
     """
 
 
-class BTClibTypeError(TypeError):
-    """An input of a type no conversion accepts: a caller error."""
-
-
-class BTClibRuntimeError(RuntimeError):
-    """A check that failed on valid inputs, e.g. a failed verification."""
-
-
 class InvalidContributionError(BTClibRuntimeError):
     """A party to an interactive protocol sent a value that does not check out.
 
@@ -121,77 +116,6 @@ class InvalidContributionError(BTClibRuntimeError):
         self.contrib = contrib
         who = "the aggregator" if signer is None else f"signer {signer}"
         super().__init__(f"invalid {contrib} from {who}")
-
-
-class FetchError(BTClibRuntimeError):
-    """A backend of btclib.fetch did not answer, or did not answer this.
-
-    A RuntimeError and not a ValueError, which is the distinction worth
-    keeping: nothing the caller passed is wrong. The node is down, the
-    credentials are stale, the explorer sent html, the transaction is not
-    in the index -- retrying later can work, and correcting the argument
-    cannot.
-
-    It covers the conversion of an answer too. A backend that replies
-    with something which is not a transaction has failed, and reporting
-    that as the BTClibValueError `Tx.parse` raised would name the parser
-    rather than the host that has to be fixed.
-    """
-
-
-class HttpError(FetchError):
-    """A backend failed at the HTTP layer, and `status` is what it said.
-
-    A field because acting on a status is the caller's job and btclib's
-    retries nothing: a 401 says the credentials are wrong and will stay
-    wrong until they are changed, while a 503 from bitcoind says its rpc
-    work queue is full and the same request works when the queue drains.
-    A caller writing that policy needs to recognise the status, and
-    matching on the text of a message is what a field spares them.
-
-    Not every FetchError carries one, and that is the distinction: a
-    refused connection and an expired timeout are failures of an exchange
-    that never produced a status, and stay a plain FetchError. So does a
-    body that is no answer -- not json, not utf-8, not a reply object --
-    when it arrived with an HTTP 200: there the status says nothing and
-    the shape of the body is the whole diagnosis. The same body under a
-    non-200 is this exception instead, carrying that status: it cannot be
-    an answer the backend computed, so what is left to report is the
-    status it came with. The message states the status too -- an exception
-    is a diagnostic before it is a value.
-
-    A FetchError still, so code catching that keeps catching this.
-    """
-
-    def __init__(self, message: str, status: int) -> None:
-        self.status = status
-        super().__init__(message)
-
-
-class RpcError(FetchError):
-    """bitcoind answered with a JSON-RPC error object, and this is it.
-
-    `code` is the node's, from `src/rpc/protocol.h`: -5 is
-    RPC_INVALID_ADDRESS_OR_KEY, which is what `getrawtransaction` returns
-    for a transaction it cannot find -- including every non-wallet
-    transaction on a node running without `-txindex`. A caller that means
-    to tell "no such transaction" from "the node is unreachable" needs
-    the number, and parsing it back out of the message is what having a
-    field avoids.
-
-    `data` is JSON-RPC's optional third member of an error object, kept
-    as it arrived. Core leaves it out today, so it is None for every
-    error a node sends; a method that starts sending one -- or a proxy
-    between the two adding its own -- would otherwise have it dropped
-    here, which is the one place it cannot be recovered from.
-
-    A FetchError still, so code catching that keeps catching this.
-    """
-
-    def __init__(self, message: str, code: int, data: Any = None) -> None:
-        self.code = code
-        self.data = data
-        super().__init__(f"{message} (rpc error code {code})")
 
 
 class BTClibUserWarning(UserWarning):

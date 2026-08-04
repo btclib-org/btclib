@@ -31,8 +31,8 @@ from urllib.response import addinfourl
 
 import pytest
 
+from btclib import bitcoin_core_rpc as transport_module
 from btclib.exceptions import BTClibTypeError, BTClibValueError, FetchError
-from btclib.fetch import transport as transport_module
 from btclib.fetch.transport import (
     DEFAULT_MAX_BODY_SIZE,
     DEFAULT_TIMEOUT,

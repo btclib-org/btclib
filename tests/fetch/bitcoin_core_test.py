@@ -7,7 +7,7 @@
 #
 # No part of btclib including this file, may be copied, modified, propagated,
 # or distributed except according to the terms contained in the LICENSE file.
-"""Tests for btclib.fetch.bitcoin_core, against recorded replies.
+"""Tests for btclib.bitcoin_core_rpc, against recorded replies.
 
 Every client here is built with a transport, so no test reaches a node.
 The recorded bodies under `_data` are Core's, shape and newline included;
@@ -34,6 +34,12 @@ from urllib.request import Request
 
 import pytest
 
+from btclib.bitcoin_core_rpc import (
+    COOKIE_USER,
+    DEFAULT_DATADIR,
+    BitcoinCoreRpcClient,
+    cookie_auth,
+)
 from btclib.exceptions import (
     BTClibTypeError,
     BTClibValueError,
@@ -41,13 +47,7 @@ from btclib.exceptions import (
     HttpError,
     RpcError,
 )
-from btclib.fetch.bitcoin_core import (
-    COOKIE_USER,
-    DEFAULT_DATADIR,
-    BitcoinCoreFetcher,
-    BitcoinCoreRpcClient,
-    cookie_auth,
-)
+from btclib.fetch.bitcoin_core import BitcoinCoreFetcher
 from btclib.fetch.transport import DEFAULT_MAX_BODY_SIZE, DEFAULT_TIMEOUT
 from btclib.tx import OutPoint
 from tests.fetch import TIP_HEIGHT, TIP_ID, TX_ID, Recorded, recorded_body
