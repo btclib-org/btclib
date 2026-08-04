@@ -21,7 +21,7 @@ need it passes a transport of their own: that is what the `HttpTransport`
 alias below is for.
 
 The seam is deliberate, and it is what keeps the test suite off the
-network. `http_request` never calls `urlopen` itself; it calls whatever
+network. `http_request` opens no socket itself; it calls whatever
 callable it was handed, `urlopen_transport` by default. A test hands it a
 function answering from a recorded response, so the suite exercises the
 request building, the status handling and the error mapping while opening
@@ -32,10 +32,11 @@ from __future__ import annotations
 
 from collections.abc import Callable, Mapping
 from contextlib import suppress
-from typing import Any
+from http.client import HTTPMessage
+from typing import IO, Any
 from urllib.error import HTTPError
 from urllib.parse import urlsplit
-from urllib.request import Request, urlopen
+from urllib.request import HTTPRedirectHandler, Request, build_opener
 
 from btclib.exceptions import BTClibTypeError, BTClibValueError, FetchError
 from btclib.utils import is_integer
@@ -92,6 +93,60 @@ MAX_ERROR_BODY_SIZE = 64 * 1024
 # scheme here is what makes the `noqa` in `urlopen_transport` true rather
 # than hopeful
 _SCHEMES = ("http", "https")
+
+
+class _NoRedirect(HTTPRedirectHandler):
+    """The handler that does not follow a 30x, and answers None to say so.
+
+    `redirect_request` returning None means "not handled" to
+    `OpenerDirector.error`, which then reaches `HTTPDefaultErrorHandler`
+    and raises the `HTTPError` -- so a redirect arrives at `http_request`
+    as the status and the bounded body of any other non-2xx.
+    """
+
+    def redirect_request(
+        self,
+        req: Request,
+        fp: IO[bytes],
+        code: int,
+        msg: str,
+        headers: HTTPMessage,
+        newurl: str,
+    ) -> Request | None:
+        """Answer None: no redirect is followed, whatever it points at."""
+        return None
+
+
+# The one opener btclib does its I/O with, and what it is missing is the
+# point: urllib's default `HTTPRedirectHandler`, which follows a 30x
+# before any of this module sees a response. Three things it does that no
+# caller asked for, read off CPython's urllib/request.py:
+#
+# - `redirect_request` copies every request header except `content-length`
+#   and `content-type`, so an `Authorization` built for a node reaches
+#   whatever host the redirect names -- a JSON-RPC POST also arriving there
+#   as a GET;
+# - `http_error_302` admits `http`, `https`, `ftp` and the empty scheme, so
+#   an https request can be answered with an http target and the scheme
+#   check of `http_request` covers only the first url;
+# - it calls `fp.read()` with no argument before following, so the whole
+#   intermediate body is read whatever `max_body_size` says.
+#
+# Refused rather than policed, and that is a decision (issue #358): a
+# redirect policy is stripping credentials across origins, refusing a
+# downgrade, bounding every intermediate body and counting hops, which is
+# a redirect implementation inside a module whose subject is one bounded
+# request. What following a same-origin redirect would buy a caller -- an
+# endpoint that moved path -- is a base url they fix once, and both
+# fetchers turn the 30x into a FetchError naming the status and the url,
+# which is what tells them to. A caller passing a transport of their own
+# does its own I/O, so what `requests` or `httpx` does with a 30x is
+# theirs.
+#
+# `build_opener` and not `install_opener`: the default opener is process
+# wide, and a library that replaced it would decide this for every other
+# user of `urlopen` in the program
+_OPENER = build_opener(_NoRedirect)
 
 
 def _assert_valid_max_body_size(max_body_size: int) -> None:
@@ -176,10 +231,14 @@ def urlopen_transport(
     type. What a transport of someone else's returns is bytes it has
     already read, so all `http_request` can do for those is refuse to pass
     an oversized body on -- see its `max_body_size`.
+
+    No redirect is followed: `_OPENER` above says why, and what a 30x
+    arrives as is the `HTTPError` any other non-2xx status does.
     """
-    # what reaches urlopen is http or https: `http_request` is the only
-    # thing that builds a Request, and it checks the scheme first
-    with urlopen(request, timeout=timeout) as response:  # noqa: S310
+    # what reaches the opener is http or https: `http_request` is the only
+    # thing that builds a Request, it checks the scheme first, and a
+    # redirect cannot introduce a second url
+    with _OPENER.open(request, timeout=timeout) as response:
         body = _read_bounded(response, max_body_size, request.full_url)
         return response.status, body
 
@@ -204,7 +263,9 @@ def http_request(
     other, because the body of a 500 is where bitcoind's JSON-RPC 1.0
     reply puts its error object, and the body of a 404 is where an
     explorer says what it could not find. Deciding what a status means is
-    the backend's job, that being the layer that knows.
+    the backend's job, that being the layer that knows. A 30x is one of
+    those statuses now rather than a second request: `urlopen_transport`
+    follows no redirect, and `_OPENER` says why.
 
     `max_body_size` is what an *answer* may weigh, and the caller sets it
     from what it asked for: a tip height is a few octets and a raw

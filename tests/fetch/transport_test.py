@@ -11,11 +11,21 @@
 
 from __future__ import annotations
 
-from collections.abc import Iterator
+from collections.abc import Callable, Iterator
 from contextlib import contextmanager
-from types import TracebackType
+from http.client import HTTPMessage
+from io import BytesIO
+from types import SimpleNamespace, TracebackType
+from typing import Any
 from urllib.error import HTTPError, URLError
-from urllib.request import Request
+from urllib.request import (
+    HTTPHandler,
+    HTTPRedirectHandler,
+    OpenerDirector,
+    Request,
+    build_opener,
+)
+from urllib.response import addinfourl
 
 import pytest
 
@@ -31,6 +41,25 @@ from btclib.fetch.transport import (
 from tests.fetch import Recorded
 
 URL = "http://127.0.0.1:8332"
+# where a 30x would send the request, and the host that must receive
+# nothing: `.invalid` is reserved by RFC 2606, so a test that started
+# following redirects would fail on a resolution error rather than reach
+# somebody
+REDIRECT_URL = "http://elsewhere.invalid/"
+# the credential of the reproduction in issue #358, which is what the
+# redirected request carried verbatim: `alice:secret`
+CREDENTIAL = "Basic YWxpY2U6c2VjcmV0"
+
+
+def _opener(open_: Callable[..., Any]) -> SimpleNamespace:
+    """Return something with an `open`, which is all the transport uses.
+
+    `urlopen_transport` does its I/O through the module's own opener --
+    urllib's default one without the redirect handler -- so that is what a
+    test replaces, and `.open(request, timeout=...)` is the whole of the
+    interface it needs to offer.
+    """
+    return SimpleNamespace(open=open_)
 
 
 class FakeResponse:
@@ -99,12 +128,12 @@ def test_urlopen_transport_reads_status_and_body(
     seen: dict[str, object] = {}
     response = FakeResponse(200, b"body")
 
-    def fake_urlopen(request: Request, timeout: float) -> FakeResponse:
+    def fake_open(request: Request, timeout: float) -> FakeResponse:
         seen["request"] = request
         seen["timeout"] = timeout
         return response
 
-    monkeypatch.setattr(transport_module, "urlopen", fake_urlopen)
+    monkeypatch.setattr(transport_module, "_OPENER", _opener(fake_open))
 
     request = Request(URL, method="GET")
     assert urlopen_transport(request, 12.5) == (200, b"body")
@@ -145,10 +174,10 @@ def test_urlopen_transport_does_not_swallow_an_http_error(
     """A non-2xx is urlopen's exception, and it goes up to http_request."""
     with http_error(500) as error:
 
-        def fake_urlopen(request: Request, timeout: float) -> FakeResponse:
+        def fake_open(request: Request, timeout: float) -> FakeResponse:
             raise error
 
-        monkeypatch.setattr(transport_module, "urlopen", fake_urlopen)
+        monkeypatch.setattr(transport_module, "_OPENER", _opener(fake_open))
 
         with pytest.raises(HTTPError):
             urlopen_transport(Request(URL, method="GET"), DEFAULT_TIMEOUT)
@@ -169,10 +198,10 @@ def test_the_body_of_a_response_is_bounded(
     def serve(body: bytes) -> FakeResponse:
         response = FakeResponse(200, body)
 
-        def fake_urlopen(request: Request, timeout: float) -> FakeResponse:
+        def fake_open(request: Request, timeout: float) -> FakeResponse:
             return response
 
-        monkeypatch.setattr(transport_module, "urlopen", fake_urlopen)
+        monkeypatch.setattr(transport_module, "_OPENER", _opener(fake_open))
         return response
 
     serve(b"a" * limit)
@@ -199,10 +228,10 @@ def test_a_chunked_body_is_read_to_the_limit_and_no_further(
     body = b"z" * limit
     response = FakeResponse(200, body, chunk_size=7)
 
-    def fake_urlopen(request: Request, timeout: float) -> FakeResponse:
+    def fake_open(request: Request, timeout: float) -> FakeResponse:
         return response
 
-    monkeypatch.setattr(transport_module, "urlopen", fake_urlopen)
+    monkeypatch.setattr(transport_module, "_OPENER", _opener(fake_open))
 
     request = Request(URL, method="GET")
     assert urlopen_transport(request, DEFAULT_TIMEOUT, max_body_size=limit) == (
@@ -225,10 +254,10 @@ def test_an_announced_size_over_the_limit_is_refused_before_reading(
     request = Request(URL, method="GET")
 
     def serve(response: FakeResponse) -> None:
-        def fake_urlopen(req: Request, timeout: float) -> FakeResponse:
+        def fake_open(req: Request, timeout: float) -> FakeResponse:
             return response
 
-        monkeypatch.setattr(transport_module, "urlopen", fake_urlopen)
+        monkeypatch.setattr(transport_module, "_OPENER", _opener(fake_open))
 
     serve(FakeResponse(200, b"a" * 4, content_length=str(limit + 1)))
     with pytest.raises(FetchError, match=f"announced {limit + 1} bytes"):
@@ -273,10 +302,10 @@ def test_the_limit_reaches_the_read_of_the_default_transport(
     """
     response = FakeResponse(200, b"a" * 100)
 
-    def fake_urlopen(request: Request, timeout: float) -> FakeResponse:
+    def fake_open(request: Request, timeout: float) -> FakeResponse:
         return response
 
-    monkeypatch.setattr(transport_module, "urlopen", fake_urlopen)
+    monkeypatch.setattr(transport_module, "_OPENER", _opener(fake_open))
 
     with pytest.raises(FetchError, match="response larger than 64 bytes"):
         http_request(URL, max_body_size=64)
@@ -431,6 +460,167 @@ def test_an_http_error_is_a_status_and_a_body_not_an_exception() -> None:
             500,
             b'{"result":null,"error":{"code":-5}}',
         )
+
+
+def test_the_opener_does_not_follow_a_redirect() -> None:
+    """One redirect handler is installed, and it is the one that refuses.
+
+    The direct claim behind the exchange the next test measures, and worth
+    a test of its own for what it says when it fails: an opener carrying
+    urllib's own handler follows a 30x before this module sees a response,
+    and that is a fact about which object is in the chain.
+    """
+    # getattr with a default because typeshed does not declare `handlers`
+    # on OpenerDirector: the attribute is what add_handler appends to, and
+    # a plain access would be an attr-defined error rather than a test
+    handlers = getattr(transport_module._OPENER, "handlers", [])
+    redirect_handlers = [
+        handler for handler in handlers if isinstance(handler, HTTPRedirectHandler)
+    ]
+    assert len(redirect_handlers) == 1
+    assert isinstance(redirect_handlers[0], transport_module._NoRedirect)
+
+
+@pytest.mark.parametrize(
+    "target",
+    [
+        REDIRECT_URL,  # another origin, which is where the credential leaked
+        f"{URL}/moved",  # the same one, i.e. an endpoint that changed path
+        "https://elsewhere.invalid/",  # an upgrade
+        "ftp://elsewhere.invalid/tx",  # not http at all, and urllib admits it
+    ],
+)
+def test_no_redirect_target_is_followed(target: str) -> None:
+    """Cross-origin, same-origin, an upgrade and an ftp target alike.
+
+    urllib's own handler follows all four -- `http_error_302` admits http,
+    https, ftp and the empty scheme -- and a redirect policy would have had
+    to tell them apart: strip the credential across origins, refuse a
+    downgrade, bound the intermediate body, keep the rest. Answering None
+    before the target is read is what makes the four one case, and it is
+    why a downgrade needs no rule of its own: the scheme of the request is
+    not consulted either.
+    """
+    handlers = getattr(transport_module._OPENER, "handlers", [])
+    redirect = next(h for h in handlers if isinstance(h, HTTPRedirectHandler))
+    headers = HTTPMessage()
+    headers["Location"] = target
+
+    request = Request(URL, data=b"{}", headers={"Authorization": CREDENTIAL})
+    assert (
+        redirect.redirect_request(
+            request, BytesIO(b"moved"), 302, "Found", headers, target
+        )
+        is None
+    )
+
+
+class RecordedBody(BytesIO):
+    """A response body that remembers what was read of it.
+
+    Which is the half of the fix a status cannot show: urllib's redirect
+    handler calls `fp.read()` with no argument before following, so the
+    whole intermediate body was held whatever the caller's limit said. A
+    read of -1 in `reads` is that call.
+    """
+
+    def __init__(self, data: bytes) -> None:
+        super().__init__(data)
+        self.reads: list[int] = []
+
+    def read(self, size: int | None = -1, /) -> bytes:
+        """Record the size asked for, and answer as a BytesIO does."""
+        self.reads.append(-1 if size is None else size)
+        return super().read(size)
+
+
+class RecordedHTTP(HTTPHandler):
+    """The opener's socket, replaced by a scripted response in memory.
+
+    A handler and not a whole opener: what the redirect exchange runs
+    through is urllib's own chain -- the redirect handler, the error
+    processor, the default error handler -- and the only part of it that
+    would reach the network is this one. `Location` is set on every
+    response, so a handler that follows redirects has somewhere to go and
+    the test can tell that it went.
+    """
+
+    def __init__(self, code: int, body: bytes) -> None:
+        super().__init__()
+        self.code = code
+        self.body = RecordedBody(body)
+        self.requests: list[Request] = []
+
+    # typeshed types `http_open` by what urllib's own answers with, an
+    # `HTTPResponse` read off a socket; the chain downstream only takes a
+    # status, headers and bytes off it, which is what an `addinfourl` is --
+    # and what `FileHandler.file_open` beside it answers with
+    def http_open(self, req: Request) -> addinfourl:  # type: ignore[override]
+        """Record the request and answer the scripted response."""
+        self.requests.append(req)
+        headers = HTTPMessage()
+        headers["Location"] = REDIRECT_URL
+        response = addinfourl(self.body, headers, req.full_url, self.code)
+        # what `do_open` sets from the reason line and `HTTPErrorProcessor`
+        # reads off a response beside the status; addinfourl has no such
+        # attribute of its own, and typeshed says so
+        response.msg = "Found"  # type: ignore[attr-defined]
+        return response
+
+
+def _opener_over(handler: HTTPHandler) -> OpenerDirector:
+    """Return the module's own opener with `handler` in place of the socket.
+
+    The redirect handler is taken from `_OPENER` rather than named here,
+    and that is what makes a test built on this fail if urllib's own comes
+    back: the exchange would then be two requests instead of one, which is
+    the property under test rather than a spelling of it.
+    """
+    handlers = getattr(transport_module._OPENER, "handlers", [])
+    redirect = next(h for h in handlers if isinstance(h, HTTPRedirectHandler))
+    return build_opener(type(redirect), handler)
+
+
+@pytest.mark.parametrize("code", [301, 302, 303, 307, 308])
+def test_a_redirect_is_a_status_and_not_a_second_request(
+    monkeypatch: pytest.MonkeyPatch, code: int
+) -> None:
+    """The credential goes nowhere, and the 30x body is bounded.
+
+    urllib's default handler copies every header but the content ones onto
+    the redirected request, so an `Authorization` built for a node reached
+    whatever host the `Location` named -- and it read the whole 30x body
+    before following, whatever `max_body_size` said.
+
+    The whole chain runs here, socket excepted: `http_request` builds the
+    request, `urlopen_transport` hands it to the module's opener, and the
+    30x travels `OpenerDirector.error` -> the redirect handler ->
+    `HTTPDefaultErrorHandler` -> the `HTTPError` that `http_request`
+    answers with a status. What a caller gets is one request and one
+    response, which for both fetchers is a `FetchError` naming the status.
+    """
+    handler = RecordedHTTP(code, b"x" * (MAX_ERROR_BODY_SIZE + 10))
+    monkeypatch.setattr(transport_module, "_OPENER", _opener_over(handler))
+
+    status, body = http_request(
+        URL,
+        data=b'{"method":"getblockcount"}',
+        headers={"Authorization": CREDENTIAL},
+        max_body_size=64,
+    )
+
+    assert status == code
+    # bounded as any failure body is, by truncation rather than refusal
+    assert len(body) == MAX_ERROR_BODY_SIZE
+    # one request, to the url the caller asked for, carrying the credential
+    # exactly once and nowhere else
+    assert len(handler.requests) == 1
+    assert handler.requests[0].full_url == URL
+    assert handler.requests[0].get_header("Authorization") == CREDENTIAL
+    # and the body of the 30x was read to the bound and no further, which
+    # the `fp.read()` of a following handler would have done first
+    assert handler.body.reads == [MAX_ERROR_BODY_SIZE]
+    assert handler.body.closed
 
 
 @pytest.mark.parametrize(
