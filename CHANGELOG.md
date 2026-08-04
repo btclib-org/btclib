@@ -2966,6 +2966,16 @@ edit.
   — so `from btclib.ecc import bip340_nonce_` is now
   `from btclib.ecc.bip340_nonce import bip340_nonce_`, which is where the
   rest of the tree already took it from.
+- **`btclib.block` exports
+  `merkle_root_and_mutated_from_transactions`**, beside the
+  `bip34_commitment` defined next to it: both are what a header commits
+  to, and this one is the single implementation the builder and the
+  validator share — `mining.candidate_block_header` builds a header from
+  it and `Block.assert_valid` compares the header against it. A caller
+  checking a block by hand needs that function and not a second one
+  written from the BIP, which is what having to reach into
+  `btclib.block.block` for it invited. The comment recording why
+  `btclib.block.limits` stays out now records this too.
 
 ### Types
 
