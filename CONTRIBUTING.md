@@ -592,6 +592,26 @@ When you're finished with the changes, create a pull request (PR).
   [git tutorial](https://github.com/skills/resolve-merge-conflicts)
   to help you resolve merge conflicts and other issues.
 
+**A correction is a commit of its own, never an amend.** Once a branch is
+pushed and under review, `git commit --amend` and a force-push replace the
+commits the review is attached to: the reviewer loses the diff they read,
+"changes since your last review" has nothing to compare against, and every
+check starts again from a commit nobody has seen. Add the fix on top, with
+a message saying what it fixes, and reply to the comment with the sha.
+
+Nothing is lost in `dev`'s history by doing so, because **every pull
+request is merged with "Squash and merge"**: the branch becomes one commit
+whose subject is the PR title with its number, so the review's commits are
+the record of the review and `dev` keeps one commit per landed change. A
+merge commit would put the branch's steps into `dev` and a rebase merge
+would replay them one by one — `dev` is linear by branch rule, and one
+change is one commit there.
+
+The one force-push that stays right is the one that carries no new work: a
+`git rebase origin/dev` on a branch whose base has moved, which is how a
+stale pull request is refreshed. Re-run the gates after it, never only
+before it, and say in the pull request that the head moved and why.
+
 ### Your PR is merged
 
 Congratulations :tada::tada: The btclib team thanks you :sparkles:.
