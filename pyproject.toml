@@ -34,10 +34,12 @@ requires-python = ">=3.10"
 # breaking changes in the minor. CONTRIBUTING.md states the policy, and
 # what it costs an artifact that is no longer supported.
 #
-# The lower bound names a release candidate, which under PEP 440 is what
-# makes prereleases of this package eligible candidates at all. A resolver
-# still prefers a stable release among them, so the rc is what gets
-# installed only while nothing stable satisfies the bound
+# The lower bound explicitly includes a prerelease, which opts this direct
+# dependency into uv's default `if-necessary-or-explicit` strategy.
+# Packaging tools otherwise generally exclude prereleases, except when no
+# final or post-release satisfies the specifier or the user asks for them
+# explicitly. A satisfying stable release stays preferred, so publishing a
+# final 0.7.1 makes it the selected candidate without changing this bound
 dependencies = ["btclib_libsecp256k1>=0.7.1rc1"]
 keywords = [
     "bitcoin",

@@ -62,13 +62,16 @@ promise is about that pair — a bindings release keeps the runtime API the
 supported btclib needs, and an older btclib may one day stop installing or
 running against the newest bindings.
 
-The lower bound names a release candidate, and that is what makes
-prereleases of that package eligible at all: PEP 440 has pip exclude them
-unless the specifier itself names one, and uv's default strategy is the
-same. A resolver still prefers a stable release among the candidates, so
-the rc is installed only while nothing stable satisfies the bound — the day
-a final `0.7.1` is published, `>=0.7.1rc1` resolves to it with no edit
-here.
+The lower bound explicitly includes a prerelease, which opts this direct
+dependency into uv's default `if-necessary-or-explicit` strategy. Packaging
+tools otherwise generally exclude prereleases, except when no final or
+post-release satisfies the specifier or the user asks for them explicitly:
+see the
+[version-specifiers page](https://packaging.python.org/en/latest/specifications/version-specifiers/#handling-of-pre-releases)
+and
+[uv's prerelease handling](https://docs.astral.sh/uv/concepts/resolution/#pre-release-handling).
+A satisfying stable release remains preferred, so publishing a final
+`0.7.1` makes it the selected candidate without changing this bound.
 
 **`pip install -e .` does not work here, and the error will not say why.**
 tool.uv.sources is uv-only metadata: pip does not read it, so it resolves

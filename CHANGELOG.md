@@ -3863,11 +3863,13 @@ edit.
   breaking changes in the minor. CONTRIBUTING.md carries what the policy
   does *not* cover — metadata is baked into every wheel already published,
   so coordinating the two projects protects the supported pair and not an
-  artifact that went out before — and why the lower bound naming a release
-  candidate is not an opt-in to one: PEP 440 makes prereleases eligible
-  only when the specifier names one, and a resolver prefers a stable
-  release among the candidates, so the rc is installed only while nothing
-  stable satisfies the bound
+  artifact that went out before — and what the lower bound naming a release
+  candidate does: it opts this direct dependency into uv's default
+  `if-necessary-or-explicit` strategy, where packaging tools otherwise
+  generally exclude prereleases unless no final or post-release satisfies
+  the specifier or the user asks for them. A satisfying stable release
+  stays preferred, so publishing a final `0.7.1` makes it the selected
+  candidate without changing the bound
 
 - **nine more mypy error codes**, surveyed the way the ruff sets were:
   every optional code `strict` leaves off, run over btclib and tests.
