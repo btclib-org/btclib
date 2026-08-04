@@ -33,6 +33,7 @@ from btclib.fetch.bitcoind import (
     BitcoindFetcher,
     cookie_auth,
 )
+from btclib.fetch.transport import DEFAULT_MAX_BODY_SIZE
 from btclib.tx import OutPoint
 from tests.fetch import TIP_HEIGHT, TIP_ID, TX_ID, Recorded, recorded_body
 
@@ -374,3 +375,28 @@ def test_a_raw_transaction_that_is_not_one(result: object) -> None:
     body = json.dumps({"jsonrpc": "2.0", "result": result, "id": "btclib"}).encode()
     with pytest.raises(FetchError, match=f"transaction {TX_ID}:"):
         fetcher((200, body)).get_tx(TX_ID)
+
+
+def test_a_small_reply_carries_a_small_limit() -> None:
+    """A height and a tip hash are bounded by what they are.
+
+    `call` defaults to the widest answer a fetcher asks for, a raw
+    transaction as hex inside a json envelope, because it is public and
+    takes any method -- `getblock` on a large block is a legitimate call.
+    The two answers that are a number and a hash say so instead.
+    """
+    oversized = b'{"result":' + b"9" * 1100 + b',"error":null,"id":"btclib"}'
+    with pytest.raises(FetchError, match="more than the 1024 allowed"):
+        fetcher((200, oversized)).get_block_count()
+
+    # the recorded answers are well inside it, which is the other half of
+    # the claim
+    assert fetcher((200, recorded_body("getblockcount.json"))).get_block_count() == (
+        TIP_HEIGHT
+    )
+
+    # and `call` itself keeps the wide default, being public and taking
+    # any method: `getblock` on a large block is a legitimate call
+    defaults = AuthProxy.call.__kwdefaults__
+    assert defaults is not None
+    assert defaults["max_body_size"] == DEFAULT_MAX_BODY_SIZE

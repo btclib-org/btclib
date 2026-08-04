@@ -41,6 +41,7 @@ from btclib.alias import Octets
 from btclib.exceptions import FetchError
 from btclib.fetch.fetcher import Fetcher, fetch_errors, tx_from_raw, tx_id_hex
 from btclib.fetch.transport import (
+    DEFAULT_MAX_BODY_SIZE,
     DEFAULT_TIMEOUT,
     HttpTransport,
     http_request,
@@ -58,6 +59,23 @@ BLOCKSTREAM_INFO = {
     "testnet": "https://blockstream.info/testnet/api",
     "signet": "https://blockstream.info/signet/api",
 }
+
+
+# What each answer may weigh, because each of the three is bounded by
+# what it is: a height is a decimal number, a tip hash is sixty-four hex
+# digits, and a raw transaction is hex of a transaction that fits in a
+# block -- DEFAULT_MAX_BODY_SIZE, which is that bound. The two small ones
+# leave room for the whitespace a deployment behind a proxy adds and for
+# nothing else: a host answering a height with a megabyte is answering
+# something that is not a height, and there is no reason to hold it in
+# order to find that out.
+#
+# The body of a *failure* is not bounded by these -- see
+# `MAX_ERROR_BODY_SIZE` -- so a 404 whose error page is longer than a
+# height still arrives as the diagnosis it is
+_MAX_HEIGHT_BODY = 64
+_MAX_HASH_BODY = 128
+_MAX_TX_BODY = DEFAULT_MAX_BODY_SIZE
 
 
 class EsploraFetcher(Fetcher):
@@ -80,7 +98,7 @@ class EsploraFetcher(Fetcher):
         self.timeout = timeout
         self.transport = transport
 
-    def text(self, path: str) -> str:
+    def text(self, path: str, max_body_size: int = DEFAULT_MAX_BODY_SIZE) -> str:
         """Return the body of a GET on `path`, as stripped text.
 
         Stripped because a deployment behind a proxy may add a newline
@@ -88,10 +106,17 @@ class EsploraFetcher(Fetcher):
         with `replace` rather than strictly: the body of a failure is an
         error page from whatever is in the way, and it is more use
         rendered imperfectly than swallowed by a UnicodeDecodeError.
+
+        `max_body_size` is what this particular answer may weigh; the
+        default is the widest of the three, so a caller asking for
+        something narrow says so.
         """
         url = f"{self.base_url}{path}"
         status, payload = http_request(
-            url, timeout=self.timeout, transport=self.transport
+            url,
+            timeout=self.timeout,
+            max_body_size=max_body_size,
+            transport=self.transport,
         )
         text = payload.decode("utf-8", errors="replace").strip()
         if status != 200:
@@ -101,14 +126,15 @@ class EsploraFetcher(Fetcher):
     def get_tx(self, tx_id: Octets) -> Tx:
         """Return the transaction, parsed and checked against its txid."""
         hex_ = tx_id_hex(tx_id)
-        return tx_from_raw(self.text(f"/tx/{hex_}/hex"), hex_, self.network)
+        raw = self.text(f"/tx/{hex_}/hex", _MAX_TX_BODY)
+        return tx_from_raw(raw, hex_, self.network)
 
     def get_block_count(self) -> int:
         """Return the height of the server's best chain tip."""
         with fetch_errors("blocks/tip/height"):
-            return int(self.text("/blocks/tip/height"))
+            return int(self.text("/blocks/tip/height", _MAX_HEIGHT_BODY))
 
     def get_best_block_id(self) -> bytes:
         """Return the hash of the server's best chain tip, display order."""
         with fetch_errors("blocks/tip/hash"):
-            return bytes_from_octets(self.text("/blocks/tip/hash"), 32)
+            return bytes_from_octets(self.text("/blocks/tip/hash", _MAX_HASH_BODY), 32)

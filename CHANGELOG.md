@@ -227,6 +227,42 @@ edit.
   `nlen` by `Curve`: it is a count and not a limit, a scalar above it
   being multiplied in the digits it needs
 
+- **a response body is bounded, and the bound is what the answer is**
+  (issue #324). `urlopen_transport` read every response with a bare
+  `response.read()`, and `EsploraFetcher`'s endpoint is allowed to be a
+  public explorer — a host on the internet that says it validated the
+  chain — so a malicious or misconfigured one decided how much memory this
+  process spent before any parser of btclib's could refuse the answer. The
+  socket timeout is no substitute: a peer delivering slowly but steadily
+  resets it with every packet. The read is incremental now and stops at
+  `max_body_size + 1`, which is the octet that tells a body at the limit
+  from one over it; `Content-Length` refuses an over-announced response
+  before a byte of it is read, and is never believed, the header being the
+  sender's claim about the sender. `DEFAULT_MAX_BODY_SIZE` is twice Core's
+  4,000,000-byte buffer bound on a serialized block plus room for a
+  proxy's newline, a raw transaction in hex being the widest answer a
+  fetcher asks for, and the narrow answers carry their own: 64 octets for
+  a tip height, 128 for a tip hash, 1024 for a JSON-RPC reply that is a
+  number or a hash. The body of a *failure* is bounded separately, by
+  `MAX_ERROR_BODY_SIZE` and by truncation rather than refusal — an
+  explorer explaining a 404 in a paragraph of html is worth reading even
+  when what was asked for was a height. `HttpTransport` is unchanged, two
+  positional arguments as before, which is why the limit is a keyword on
+  `urlopen_transport` alone: a transport of a caller's own hands over
+  bytes it has already read, so what `http_request` promises for one is
+  that an oversized answer goes no further. `AuthProxy.call` takes
+  `max_body_size` too, for the caller invoking `getblock` on a large
+  block. The body of an `HTTPError` is closed after that bounded read, a
+  response left with octets in it being a `ResourceWarning` out of a
+  deallocator later, and the limit itself is refused when it is no size: a
+  float would otherwise reach `read` and leave through a bare `TypeError`,
+  a negative one would report every body as too large, and zero is a limit
+  like any other -- it says that only an empty body is an answer. The check
+  is `is_integer`, the predicate of issue #326, so a bool is refused here
+  for the reason it is refused everywhere else rather than by a second
+  spelling of the rule. A total
+  request deadline is a different mechanism and is deliberately not here
+
 ### Consensus rules
 
 - **a block has a maximum size, and `Block.weight` is now the block's.**
