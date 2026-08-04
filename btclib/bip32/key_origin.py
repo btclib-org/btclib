@@ -64,8 +64,8 @@ class BIP32KeyOrigin:
     def assert_valid(self) -> None:
         """Refuse a fingerprint not of 4 bytes, a path too long or out of range.
 
-        The bounds are the serialization's: at most 255 indexes, each
-        in 4 bytes.
+        Btclib bounds a BIP32 path at 255 indexes; each serialized index
+        occupies 4 bytes.
         """
         if len(self.master_fingerprint) != 4:
             err_msg = "invalid master fingerprint length: "
