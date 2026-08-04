@@ -25,12 +25,13 @@ lets the test suite exercise all of this while opening no socket.
 
 It is no longer free for a user who never fetches, and that is what one
 exception identity costs. `FetchError` and the two below it are defined in
-the standalone file, so that a vendored copy and an installed btclib raise
-the same class; `btclib.exceptions` re-exports them, and every module in the
-library imports `btclib.exceptions` -- so any import of btclib at all now
-loads `urllib.request`, with `ssl` and `socket` under it. The alternative is
-two `FetchError` classes, one per import path, that no single `except`
-catches.
+the standalone file and re-exported by `btclib.exceptions`, so that the
+class is one whichever import path a caller reached it by -- the alternative
+being two of them that no single `except` catches. Most of the library
+imports `btclib.exceptions`, so most of it now loads `urllib.request`, with
+`ssl` and `socket` under it; `import btclib` and `btclib.alias` are the kind
+that still do not. What no arrangement buys is a copy of that file raising
+btclib's class: a copy is another module, and its exceptions are its own.
 
 Importing the package does not connect to anything, and constructing a
 fetcher does not either: the first call is what opens a connection, and

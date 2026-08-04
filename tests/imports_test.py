@@ -89,16 +89,17 @@ def test_exceptions_reaches_the_rpc_client_and_nothing_more(
 
     The one import in the package that runs from the bottom upwards, and a
     decision rather than a cycle: `FetchError`, `HttpError` and `RpcError`
-    are defined in the standalone client so that a copy of that single file
-    and an installed btclib raise the same class, and this module re-exports
-    them. Reversing it means either two `FetchError` classes or a
-    `FetchError` that an `except BTClibRuntimeError` does not catch, and
-    `btclib/exceptions.py` says so where the import is.
+    are defined in the standalone client and re-exported here, so that the
+    class is one whichever of the import paths a caller took. Reversing it
+    means either two `FetchError` classes or a `FetchError` that an `except
+    BTClibRuntimeError` does not catch, and `btclib/exceptions.py` says so
+    where the import is.
 
     What is pinned here is the extent of it. That module imports nothing of
     btclib's, so this set is the whole cost: a fetcher, a transaction or an
-    address encoding reached from `btclib.exceptions` would make every
-    import of btclib an import of most of it.
+    address encoding reached from `btclib.exceptions` would put most of the
+    library behind every import that reaches this module, which is most of
+    the library in turn.
     """
     importlib.import_module("btclib.exceptions")
     assert set(btclib_modules()) == {

@@ -44,6 +44,7 @@ from btclib.bitcoin_core_rpc import (
     COOKIE_USER,
     DEFAULT_DATADIR,
     BitcoinCoreRpcClient,
+    _default_datadir,
     cookie_auth,
 )
 from btclib.exceptions import (
@@ -168,6 +169,33 @@ def test_from_network_is_the_local_node_of_that_network() -> None:
     assert from_network("regtest").cookie_path == (
         DEFAULT_DATADIR / "regtest" / ".cookie"
     )
+
+
+def test_the_default_datadir_survives_a_home_that_cannot_be_resolved(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """An unresolvable home leaves the path unexpanded, and raises nothing.
+
+    `DEFAULT_DATADIR` is computed at import and `btclib.exceptions` imports
+    the module it is in, so a `Path.home()` that raised would fail an import
+    of most of btclib on a host that was never going to fetch anything: a
+    container run under an arbitrary uid, where `HOME` is unset and the
+    passwd file has no entry to fall back to.
+
+    `Path.home` is patched, and not the `os.path.expanduser` under it, which
+    is what answers with the path unchanged in that case. Some interpreters
+    of the matrix call that function while resolving the home; others bound
+    it to a pathlib accessor when the class was created, and there patching
+    the module attribute is invisible -- written that way, this passed on
+    3.14 and did not raise at all on 3.10. What `_default_datadir` relies on
+    is `Path.home` raising, so that is what this arranges.
+    """
+
+    def no_home() -> Path:
+        raise RuntimeError("Could not determine home directory.")
+
+    monkeypatch.setattr(Path, "home", no_home)
+    assert _default_datadir() == Path("~/.bitcoin")
 
 
 def test_from_network_takes_credentials_instead_of_a_cookie() -> None:

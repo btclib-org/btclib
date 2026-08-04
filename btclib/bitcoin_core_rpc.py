@@ -140,9 +140,12 @@ rotated at every restart, readable by the user running the node and by
 nobody else.
 
 **Vendoring and updates.** This file is the canonical, standard-library-only
-source. Copy `btclib/bitcoin_core_rpc.py` whole from a signed btclib release
-tag, keep the license notice above, and record the tag beside the copy. The
-upstream source is
+source. Copy `btclib/bitcoin_core_rpc.py` whole from a btclib release tag,
+keep the license notice above, and record the tag beside the copy. A release
+tag and not a signed one: what the instruction needs is a name to diff
+against, and RELEASING.md's `git tag -a` promises no more than an annotated
+tag, so naming a signature here would promise a verification the release
+procedure does not require. The upstream source is
 `https://github.com/btclib-org/btclib/blob/master/btclib/bitcoin_core_rpc.py`;
 the raw source of a release is the same path under
 `https://raw.githubusercontent.com/btclib-org/btclib/<tag>/`. An update is a
@@ -199,11 +202,20 @@ __all__ = [
 ]
 
 # These are defined here, rather than as parallel classes beside the rest of
-# btclib's exceptions, because an exception has one identity. A caller must be
-# able to catch the same `FetchError` through a vendored file and through
-# `btclib.exceptions`; the latter therefore re-exports these objects. The
-# three BTClib bases come with them so the established TypeError, ValueError,
-# and RuntimeError hierarchies remain exact.
+# btclib's exceptions, because an exception has one identity: inside an
+# installed btclib the `FetchError` of this module, of `btclib.exceptions` and
+# of `btclib.fetch.bitcoin_core` is one class, so one `except` catches
+# whichever of the three import paths raised it. Declaring a parallel class
+# beside the other exceptions is what would make two.
+#
+# Not across a copy of this file, which no arrangement here could manage: a
+# copy is another module, these definitions execute again in it, and its
+# `FetchError` is its own class -- so a project vendoring this catches the
+# exception the copy exports, and an `except btclib.exceptions.FetchError`
+# beside it catches nothing the copy raises.
+#
+# The three BTClib bases come with them so the established TypeError,
+# ValueError, and RuntimeError hierarchies remain exact.
 
 
 class BTClibValueError(ValueError):
@@ -682,6 +694,27 @@ _DATADIR_SUBDIR = {
 # a cookie file whose first field is something else is still a valid one
 COOKIE_USER = "__cookie__"
 
+
+def _default_datadir() -> Path:
+    """Return `~/.bitcoin`, expanded when the home directory is knowable.
+
+    `Path.home()` raises RuntimeError where it is not: no `HOME` in the
+    environment and no passwd entry for the uid, which is a container run
+    under an arbitrary one. This is module level and `btclib.exceptions`
+    imports this module, so raising here would fail an import of most of
+    btclib on a machine that was never going to fetch anything.
+
+    The unexpanded path is the answer instead, and it fails the way every
+    other wrong datadir does: at the cookie read, which names the file it
+    looked for. A caller on such a host passes `cookie_path`, as one on
+    macOS or Windows already has to.
+    """
+    try:
+        return Path.home() / ".bitcoin"
+    except RuntimeError:
+        return Path("~/.bitcoin")
+
+
 # `~/.bitcoin`, which is the datadir on Linux and on nothing else: macOS
 # puts it under ~/Library/Application Support/Bitcoin and Windows under
 # %APPDATA%\Bitcoin. Guessing per platform would put two branches here
@@ -689,7 +722,7 @@ COOKIE_USER = "__cookie__"
 # exactly as an absent file does; `cookie_path` is how a caller says
 # where it really is, and the unreadable-cookie error names the file it
 # looked for, which is what tells a caller on either platform to pass one
-DEFAULT_DATADIR = Path.home() / ".bitcoin"
+DEFAULT_DATADIR = _default_datadir()
 
 # what a cookie file may weigh. bitcoind writes one line of some seventy
 # octets, so a bound three orders of magnitude above that refuses nothing

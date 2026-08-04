@@ -246,9 +246,27 @@ def test_the_vendorable_rpc_client_carries_the_same_predicate() -> None:
     a `True` accepted there is a limit of one octet or a parameter the node
     reads as the number one.
     """
-    # a Decimal among them because that is what the client decodes a json
-    # number into, so it is the value most likely to reach the copy
-    values: list[Any] = [0, -1, 1, True, False, 1.0, "1", None, Decimal(1)]
+
+    class Sighash(IntEnum):
+        ALL = 1
+
+    # an `IntEnum` among them, and it is the value that makes this a test:
+    # `type(value) is int` agrees with `is_integer` on everything else here,
+    # and is exactly the spelling the test above rules out. A Decimal too,
+    # that being what the client decodes a json number into, so it is what
+    # most easily reaches the copy
+    values: list[Any] = [
+        0,
+        -1,
+        1,
+        Sighash.ALL,
+        True,
+        False,
+        1.0,
+        "1",
+        None,
+        Decimal(1),
+    ]
     assert [_is_integer(value) for value in values] == [
         is_integer(value) for value in values
     ]

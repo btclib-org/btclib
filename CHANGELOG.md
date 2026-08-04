@@ -2344,17 +2344,23 @@ edit.
   while `btclib.fetch.bitcoin_core` re-exports the client beside the fetcher,
   so both existing import paths name the same objects. `btclib.exceptions`
   re-exports the client's exceptions rather than declaring parallel ones, so
-  that a copy of the file and an installed btclib raise the same
-  `FetchError`; the price of that one identity is that every import of
-  btclib now loads `urllib.request`, and `ssl` and `socket` under it, where
-  before only a caller who fetched did. The standalone file carries its MIT
-  notice and an update recipe based on signed release tags;
-  a subprocess test copies it alone and imports it with site packages
-  disabled before exercising a `Decimal` result and both RPC and HTTP error
-  fields. Its module documentation also spells out the migration from
-  python-bitcoinrpc's `AuthServiceProxy`: method attributes become explicit
-  `call` arguments, credentials leave the URL, batches and notifications are
-  deliberate non-goals, and a caller -- not the client -- owns any retry.
+  that `FetchError` is one class whichever of the paths a caller imports it
+  by -- not across a copied file, whose exceptions are its own module's, and
+  which is what a vendoring project catches. The price of that one identity
+  is that every import reaching `btclib.exceptions` -- most of the library,
+  though not `import btclib` itself -- now loads `urllib.request`, and `ssl`
+  and `socket` under it, where before only a caller who fetched did; and
+  that the default datadir no longer resolves the home directory in a way
+  that can raise, a uid without one -- a container run under an arbitrary
+  uid -- leaving `~/.bitcoin` unexpanded to fail at the cookie read rather
+  than failing the import. The standalone file carries its MIT notice and an
+  update recipe based on release tags; a subprocess test copies it alone and
+  imports it with site packages disabled before exercising a `Decimal`
+  result and both RPC and HTTP error fields. Its module documentation also
+  spells out the migration from python-bitcoinrpc's `AuthServiceProxy`:
+  method attributes become explicit `call` arguments, credentials leave the
+  URL, batches and notifications are deliberate non-goals, and a caller --
+  not the client -- owns any retry.
 - **`btclib.descriptors` reads a descriptor and derives its scripts**,
   where it used to compute the checksum and nothing else. `parse` returns
   a `Descriptor`, one class per grammar function, and
