@@ -288,6 +288,15 @@ against the `v2023.7.12` tag.
   object out of a longer buffer is `parse(BytesIO(buffer))` rather than
   `parse(buffer)`.
 
+- **`ssa.verify` answers False for a 65-byte taproot witness signature**,
+  where it answered True: the 65th octet is BIP341's sighash type, not
+  part of the BIP340 signature, and `Sig.parse` read the first sixty-four
+  octets and dropped the rest. `ssa.Sig.parse` and `ssa.assert_as_valid`
+  raise `BTClibValueError` on it, as they do on a truncation. Strip the
+  byte at the call site — `ssa.verify(msg, pub_key, witness_sig[:64])`,
+  which is what btclib's own script engine does after reading the sighash
+  type off it.
+
 Two changes are deliberately *not* on that list, because what they change
 stays compatible. The new `BTClibTypeError`, `NotAPrvKeyError` and
 `InvalidPrvKeyError` all derive from what was raised before, so `except

@@ -28,6 +28,7 @@ import pytest
 
 from btclib.bip32 import BIP32KeyData
 from btclib.block import Block, BlockHeader
+from btclib.ecc import bms, ssa
 from btclib.exceptions import BTClibRuntimeError, BTClibTypeError, BTClibValueError
 from btclib.tx import OutPoint, Tx, TxIn, TxOut
 
@@ -69,6 +70,8 @@ _CASES: list[tuple[str, Callable[..., Any], bytes]] = [
     ("block_header", BlockHeader.parse, _block_1()[:80]),
     ("block", Block.parse, _block_1()),
     ("bip32_key", BIP32KeyData.parse, BIP32KeyData.b58decode(_XPRV).serialize()),
+    ("ssa_sig", ssa.Sig.parse, ssa.sign(b"parse contract", 1).serialize()),
+    ("bms_sig", bms.Sig.parse, bms.sign(b"parse contract", 1).serialize()),
 ]
 
 _IDS = [case[0] for case in _CASES]

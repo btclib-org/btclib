@@ -152,6 +152,55 @@ def test_bip340_vectors(row: list[str]) -> None:
         assert not ssa.verify_(m, pub_key, sig)
 
 
+@pytest.mark.parametrize("check_validity", [True, False], ids=["checked", "unchecked"])
+@pytest.mark.parametrize("length", [0, 1, 31, 32, 33, 63, 65, 68])
+def test_parse_takes_64_bytes_and_no_other_number(
+    length: int, *, check_validity: bool
+) -> None:
+    """A BIP340 signature is sixty-four octets, and the length says so.
+
+    Sixty-three of them used to parse into a signature of their own -- an
+    s read out of thirty-one bytes is below the order, so it is a valid
+    scalar -- and sixty-five into the signature of the first sixty-four,
+    the last byte read as part of nothing. Both are one object with two
+    encodings, and the second is the shape a taproot witness signature
+    arrives in.
+    """
+    sig_bin = ssa.sign(b"parse contract", 1).serialize()
+    assert len(sig_bin) == 64
+
+    truncated_or_extended = (sig_bin + sig_bin)[:length]
+    err_msg = f"invalid decoded length: {min(length, 64)} instead of 64"
+    if length > 64:
+        err_msg = f"{length - 64} bytes after the BIP340 signature"
+    with pytest.raises(BTClibValueError, match=err_msg):
+        ssa.Sig.parse(truncated_or_extended, check_validity=check_validity)
+
+
+def test_the_sighash_type_of_a_witness_signature_is_the_callers() -> None:
+    """BIP341's 65-byte witness signature is not a BIP340 signature.
+
+    The 65th octet is the sighash type, a fact about the transaction
+    rather than part of the signature, and it used to reach `verify` as
+    part of one: True came back with the byte still attached, the first
+    sixty-four read and the rest dropped. Stripping it is the caller's,
+    which is what btclib's own script engine does with `signature[:64]`
+    once `get_hashtype` has read it.
+    """
+    prv_key, pub_key = ssa.gen_keys(1)
+    msg = b"witness signature"
+    sig_bin = ssa.sign(msg, prv_key).serialize()
+
+    # an encoding that is not a signature is False, as any other invalid
+    # one is, and assert_as_valid is where the reason comes out
+    assert not ssa.verify(msg, pub_key, sig_bin + b"\x01")
+    with pytest.raises(BTClibValueError, match="1 bytes after the BIP340 signature"):
+        ssa.assert_as_valid(msg, pub_key, sig_bin + b"\x01")
+
+    assert ssa.verify(msg, pub_key, (sig_bin + b"\x01")[:64])
+    assert ssa.verify(msg, pub_key, sig_bin)
+
+
 def test_point_from_bip340pub_key() -> None:
     """Verify every accepted pub_key representation yields the point."""
     q, x_Q = ssa.gen_keys()

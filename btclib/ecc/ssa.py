@@ -84,6 +84,7 @@ from btclib.number_theory import mod_inv
 from btclib.to_prv_key import PrvKey, int_from_prv_key
 from btclib.to_pub_key import point_from_pub_key
 from btclib.utils import (
+    assert_no_trailing,
     bytes_from_octets,
     bytesio_from_binarydata,
     hex_string,
@@ -99,6 +100,11 @@ from btclib.utils import (
 # a different scheme, and every signature already made would stop opening
 _S2C_POINT_TAG = b"s2c/bip340/point"
 _S2C_DATA_TAG = b"s2c/bip340/data"
+
+# BIP340 serializes a signature as thirty-two octets of r and thirty-two
+# of s, on secp256k1 and by that BIP alone: a Sig on another curve has no
+# encoding here to be a length of
+_REQUIRED_LENGTH = 64
 
 
 @dataclass(frozen=True, init=False)
@@ -161,11 +167,31 @@ class Sig:
         The serialization does not name its curve, so parse reads the
         one BIP340 is defined over; a Sig on another curve is built
         directly.
+
+        Sixty-four octets exactly, and a witness signature is not one:
+        BIP341 appends the sighash type to it, which is a byte about the
+        transaction and not part of the signature. Stripping it is the
+        caller's, `signature[:64]`, as btclib's own script engine does
+        after reading it.
         """
         stream = bytesio_from_binarydata(data)
+        sig_bin = stream.read(_REQUIRED_LENGTH)
+
+        # the length is checked whatever check_validity says, as
+        # bms.Sig.parse checks its own: it is not an opinion about the
+        # signature but what makes the two slices below mean anything.
+        # Skipped, sixty-three octets would yield a Sig whose s is a
+        # thirty-one-byte integer -- below the order, so valid -- and no
+        # bytes at all would yield the Sig of (0, 0)
+        if len(sig_bin) != _REQUIRED_LENGTH:
+            err_msg = f"invalid decoded length: {len(sig_bin)}"
+            err_msg += f" instead of {_REQUIRED_LENGTH}"
+            raise BTClibValueError(err_msg)
+        assert_no_trailing(data, stream, "BIP340 signature")
+
         ec = secp256k1
-        r = int.from_bytes(stream.read(ec.p_size), byteorder="big", signed=False)
-        s = int.from_bytes(stream.read(ec.n_size), byteorder="big", signed=False)
+        r = int.from_bytes(sig_bin[: ec.p_size], byteorder="big", signed=False)
+        s = int.from_bytes(sig_bin[ec.p_size :], byteorder="big", signed=False)
         return cls(r, s, ec, check_validity=check_validity)
 
 
