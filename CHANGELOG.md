@@ -4553,6 +4553,43 @@ edit.
   noise. It is not a gate and is not among master's required checks: a
   mutant survives because a test is missing, so a red merge would stop
   whoever next touched the file for a hole somebody else left
+- an `rpc-smoke` workflow asks live bitcoinds what the recorded replies
+  under `tests/fetch/_data` claim, on demand and before a release (issue
+  #377). The suite classifies every one of those replies without opening a
+  socket, which is the right shape for it and leaves exactly one claim with
+  nothing behind it: the recording is the thing being classified.
+  `.github/scripts/rpc_smoke.py` is what the workflow runs — a node in a
+  temporary datadir on Core's own regtest rpc port, the reply shapes read
+  off the wire before btclib classifies them, and then the same result and
+  the same error through `call`. Two pins, with the rule for moving them
+  beside them: v27.2, end of life upstream and the final release of the
+  last major that does not recognize the `"jsonrpc": "2.0"` marker at all,
+  and v31.1, whatever is current. The first is the compatibility boundary —
+  a client sending the marker to a node that has never heard of it reads
+  back a 1.1 reply, an rpc error under an HTTP 500 included — and no
+  supported release can demonstrate that, v28 and later all knowing the
+  marker. The rest is what only a node can answer: the cookie file it
+  wrote, one ascii line at the path Core's layout puts it; a wrong
+  credential as a 401 with an empty body; the `/wallet/<name>` endpoint of
+  a node with *two* wallets loaded, one named with a space and a plus in
+  it, two being the case where the endpoint is load-bearing; an amount as
+  an exact `Decimal`; and the three fetcher answers against a chain the
+  script generates, so the expected height is arithmetic rather than a
+  recording, with a coinbase paid outside both wallets that only
+  `-txindex` can answer for. The download is verified rather than trusted:
+  an immutable versioned url and never a `latest` one,
+  the release SHA256SUMS digest written into the workflow instead of
+  fetched beside the file it describes, checked before the archive is
+  unpacked — and the same comparison against a rotated digest required to
+  fail in the same step, a verification nothing tests being decorative. A
+  workflow of its own and not a job in test.yml, whose matrix is
+  interpreters where this one is node versions, and it gates no commit:
+  RELEASING.md dispatches it, and CONTRIBUTING.md carries the command for
+  a bitcoind of one's own
+- mypy's scope grew by `.github/scripts`, where that script lives: no test
+  collects it, so a workflow dispatch would otherwise be the first thing to
+  read it — and in a script of checks, a bound method used as a truth value
+  is a check that cannot fail
 - a scheduled workflow runs the test suite against the *published*
   btclib_libsecp256k1, resolved from PyPI by the declared pin, where every
   other job follows tool.uv.sources to the bindings under development: what
