@@ -599,13 +599,22 @@ commits the review is attached to: the reviewer loses the diff they read,
 check starts again from a commit nobody has seen. Add the fix on top, with
 a message saying what it fixes, and reply to the comment with the sha.
 
-Nothing is lost in `dev`'s history by doing so, because **every pull
-request is merged with "Squash and merge"**: the branch becomes one commit
-whose subject is the PR title with its number, so the review's commits are
-the record of the review and `dev` keeps one commit per landed change. A
-merge commit would put the branch's steps into `dev` and a rebase merge
-would replay them one by one — `dev` is linear by branch rule, and one
-change is one commit there.
+Nothing is lost in `dev`'s history by doing so, because **a pull request
+into `dev` is merged with "Squash and merge"**: the branch becomes one
+commit whose subject is the PR title with its number, so the review's
+commits are the record of the review and `dev` keeps one commit per landed
+change. A merge commit would put the branch's steps into `dev` and a
+rebase merge would replay them one by one — `dev` is linear by branch
+rule, and one change is one commit there.
+
+**The pull request that takes `dev` into `master` is merged with "Rebase
+and merge"**. Read the button before clicking it: all three methods are
+enabled on the repository, and GitHub offers whichever was used last. A
+squash there would fold every change `dev` has landed since the previous
+merge into a single commit, and that history would then be on `dev` alone.
+The rebase replays those commits onto `master`, which is linear by branch
+rule as `dev` is — the same rule that bars a merge commit. And nothing is
+deleted afterwards: the branch merged is `dev`.
 
 The one force-push that stays right is the one that carries no new work: a
 `git rebase origin/dev` on a branch whose base has moved, which is how a

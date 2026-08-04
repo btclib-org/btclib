@@ -86,6 +86,15 @@ edit.
   while the review keeps its own. The one force-push still right is the
   one carrying no new work, a `git rebase origin/dev` on a branch whose
   base has moved.
+- **The squash is the merge into `dev`; `dev` goes into `master` with
+  "Rebase and merge"**, which CONTRIBUTING.md's "Pull Request" section now
+  says, having stated the squash for every pull request alike. A squash on
+  that one would fold every change landed since the previous merge into a
+  single commit, and the history of them would then be on `dev` alone; the
+  rebase replays those commits onto `master`, which the branch rule wants
+  linear as it wants `dev` — the same rule that bars a merge commit. All
+  three methods are enabled on the repository and GitHub offers whichever
+  was used last, so the button is read before it is clicked.
 
 ### Security
 
