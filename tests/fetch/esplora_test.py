@@ -18,7 +18,7 @@ from __future__ import annotations
 
 import pytest
 
-from btclib.exceptions import BTClibValueError, FetchError
+from btclib.exceptions import BTClibValueError, FetchError, HttpError
 from btclib.fetch.esplora import BLOCKSTREAM_INFO, EsploraFetcher
 from btclib.tx import OutPoint
 from tests.fetch import TIP_HEIGHT, TIP_ID, TX_ID, Recorded, recorded_body
@@ -125,6 +125,20 @@ def test_a_404_carries_what_the_explorer_said() -> None:
     """Esplora answers an unknown txid with a status and a sentence."""
     with pytest.raises(FetchError, match="HTTP 404 .*: Transaction not found"):
         fetcher((404, b"Transaction not found")).get_tx(TX_ID)
+
+
+@pytest.mark.parametrize("status", [404, 429, 503])
+def test_the_status_of_a_failure_is_a_field(status: int) -> None:
+    """Which is what tells a rate limit from a missing transaction.
+
+    Every answer here is a GET of an immutable value, so a 429 or a 503
+    from a public deployment is worth another attempt and a 404 is not.
+    btclib retries neither -- an explorer's rate limit is the caller's
+    budget to spend -- so the status has to reach them as a value.
+    """
+    with pytest.raises(HttpError) as exc:
+        fetcher((status, b"no")).get_tx(TX_ID)
+    assert exc.value.status == status
 
 
 def test_a_body_that_is_not_utf_8_is_still_reported() -> None:

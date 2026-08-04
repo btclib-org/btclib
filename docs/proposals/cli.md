@@ -184,11 +184,10 @@ the cause rather than the symptom: `ecc.bms` imports `b58` and `b32` the
 same way and `btclib.ecc` exports it without trouble, so what is wrong is
 narrower — `bip32` is the only package a lower layer imports *and* that
 holds a module belonging to a higher one. And `fetch.cookie_auth` is not
-missing: `AuthProxy`
-takes a `cookie_path` and reads the file at every call, the node
-rewriting the cookie when it restarts, so a caller passes a path and never
-a credential. In both cases what was missing was the statement of why, not
-the name.
+missing: `BitcoindRpcClient` takes a `cookie_path` and reads the file at
+every call, the node rewriting the cookie when it restarts, so a caller
+passes a path and never a credential. In both cases what was missing was
+the statement of why, not the name.
 
 **Too much.** Each of these is used nowhere outside its own package:
 

@@ -15,7 +15,16 @@ failure it is, and adds nothing to it.
 
 So a caller is usually better off catching the regular ValueError,
 TypeError or RuntimeError, and does not lose anything by doing so.
+
+The exceptions to that are the few classes below carrying a field: what
+a peer got wrong, the node's rpc error code, an HTTP status. Those are
+values a caller acts on, and reading them back out of a message is what
+the field spares them.
 """
+
+from __future__ import annotations
+
+from typing import Any
 
 
 class BTClibValueError(ValueError):
@@ -116,6 +125,30 @@ class FetchError(BTClibRuntimeError):
     """
 
 
+class HttpError(FetchError):
+    """A backend failed at the HTTP layer, and `status` is what it said.
+
+    A field because acting on a status is the caller's job and btclib's
+    retries nothing: a 401 says the credentials are wrong and will stay
+    wrong until they are changed, while a 503 from bitcoind says its rpc
+    work queue is full and the same request works when the queue drains.
+    A caller writing that policy needs to recognise the status, and
+    matching on the text of a message is what a field spares them.
+
+    Not every FetchError carries one, and that is the distinction: a
+    refused connection, an expired timeout and a body that is not json
+    are failures with no status to report, and stay a plain FetchError.
+    The message states the status too -- an exception is a diagnostic
+    before it is a value.
+
+    A FetchError still, so code catching that keeps catching this.
+    """
+
+    def __init__(self, message: str, status: int) -> None:
+        self.status = status
+        super().__init__(message)
+
+
 class RpcError(FetchError):
     """bitcoind answered with a JSON-RPC error object, and this is it.
 
@@ -127,11 +160,18 @@ class RpcError(FetchError):
     the number, and parsing it back out of the message is what having a
     field avoids.
 
+    `data` is JSON-RPC's optional third member of an error object, kept
+    as it arrived. Core leaves it out today, so it is None for every
+    error a node sends; a method that starts sending one -- or a proxy
+    between the two adding its own -- would otherwise have it dropped
+    here, which is the one place it cannot be recovered from.
+
     A FetchError still, so code catching that keeps catching this.
     """
 
-    def __init__(self, message: str, code: int) -> None:
+    def __init__(self, message: str, code: int, data: Any = None) -> None:
         self.code = code
+        self.data = data
         super().__init__(f"{message} (rpc error code {code})")
 
 
