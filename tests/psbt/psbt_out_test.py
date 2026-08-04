@@ -20,16 +20,16 @@ import pytest
 from btclib.alias import Octets
 from btclib.bip32 import BIP32KeyOrigin
 from btclib.exceptions import BTClibValueError
-from btclib.psbt import (
-    Psbt,
-    PsbtOut,
+from btclib.psbt import Psbt, PsbtOut
+from btclib.psbt.psbt_utils import (
+    PSBT_SEPARATOR,
     assert_valid_unknown,
     decode_dict_bytes_bytes,
     deserialize_map,
     encode_dict_bytes_bytes,
     serialize_dict_bytes_bytes,
+    taproot_bip32_from_dict,
 )
-from btclib.psbt.psbt_utils import PSBT_SEPARATOR, taproot_bip32_from_dict
 from tests.conftest import JsonGolden
 
 
