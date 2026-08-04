@@ -161,6 +161,29 @@ def test_mnemonic_exports_its_three_schemes() -> None:
         assert module.__name__ == f"btclib.mnemonic.{name}"
 
 
+def test_mnemonic_names_every_submodule_it_has() -> None:
+    """The schemes, the entry point, and the two modules under all of them.
+
+    `entropy` and `mnemonic` were the two the list left out, so what those
+    hold and does not come out flat -- `WordLists` and `data_file` -- had no
+    named way in. The submodules are found rather than listed: one added to
+    the package is one this asks about.
+    """
+    submodules = sorted(name for _, name, _ in iter_modules(btclib.mnemonic.__path__))
+    assert submodules == [
+        "bip39",
+        "dispatch",
+        "electrum",
+        "entropy",
+        "mnemonic",
+        "slip39",
+    ]
+    for name in submodules:
+        assert name in btclib.mnemonic.__all__, f"{name} is not exported"
+        module = getattr(btclib.mnemonic, name)
+        assert module.__name__ == f"btclib.mnemonic.{name}"
+
+
 def test_every_exported_name_exists() -> None:
     """An `__all__` entry that names nothing is a broken `import *`.
 

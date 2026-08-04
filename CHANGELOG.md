@@ -3001,6 +3001,15 @@ edit.
   `Fetcher` is built out of, which is a third implementation's question
   rather than a caller's. The transport seam is in, and the reason is now
   written down: it is how calling code is tested without a node.
+- **`btclib.mnemonic` names `entropy` and `mnemonic`**, the two modules the
+  three schemes are built on: the first turns dice rolls, bytes, an int or
+  a bit string into the entropy a sentence encodes, the second is the word
+  list and the index codec over it. They were the two submodules of the
+  six that the list left out — `bip39`, `electrum`, `slip39` and
+  `dispatch` were named — so what they hold and the package does not
+  re-export flat, `WordLists` and `data_file` among it, had no named way
+  in. `tests/all_test.py` now finds the submodules rather than listing
+  them, so one added to the package is one it asks about.
 
 ### Types
 

@@ -18,9 +18,18 @@ the submodule, which is why all three are named here.
 dispatch is exported beside them: it is the entry point that answers
 which scheme a sentence belongs to, and it is of no use to anyone who
 has to import it by name after already knowing.
+
+entropy and mnemonic are named too, being the two modules the three
+schemes are built on rather than schemes themselves: the first turns
+dice rolls, bytes, an int or a bit string into the entropy a sentence
+encodes, the second is the word list and the index codec over it. Their
+functions are also re-exported flat below, so naming the modules adds one
+thing -- what is *not* flat, WordLists and data_file among it, is reached
+as btclib.mnemonic.mnemonic, a module spelled like the package that holds
+it and easy to assume is the package.
 """
 
-from btclib.mnemonic import bip39, dispatch, electrum, slip39
+from btclib.mnemonic import bip39, dispatch, electrum, entropy, mnemonic, slip39
 from btclib.mnemonic.entropy import (
     BinStr,
     Entropy,
@@ -60,7 +69,9 @@ __all__ = [
     "collect_rolls",
     "dispatch",
     "electrum",
+    "entropy",
     "indexes_from_mnemonic",
+    "mnemonic",
     "mnemonic_from_indexes",
     "normalize_mnemonic",
     "slip39",
