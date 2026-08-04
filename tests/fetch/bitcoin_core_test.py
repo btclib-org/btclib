@@ -40,6 +40,7 @@ from urllib.request import Request
 
 import pytest
 
+from btclib import bitcoin_core_rpc
 from btclib.bitcoin_core_rpc import (
     COOKIE_USER,
     DEFAULT_DATADIR,
@@ -155,6 +156,9 @@ def sent(endpoint: BitcoinCoreRpcClient) -> dict[str, object]:
 
 def test_from_network_is_the_local_node_of_that_network() -> None:
     """The rpc port and the datadir subdirectory of Core's chainparamsbase."""
+    # None where no absolute home is knowable, which is not a machine the
+    # suite runs on -- and asserting it is what makes the paths below a Path
+    assert DEFAULT_DATADIR is not None
     from_network = BitcoinCoreRpcClient.from_network
     assert from_network().url == "http://127.0.0.1:8332"
     assert from_network("testnet").url == "http://127.0.0.1:18332"
@@ -171,31 +175,77 @@ def test_from_network_is_the_local_node_of_that_network() -> None:
     )
 
 
-def test_the_default_datadir_survives_a_home_that_cannot_be_resolved(
+def test_no_absolute_home_is_no_default_datadir_and_no_exception(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """An unresolvable home leaves the path unexpanded, and raises nothing.
+    """Both ways a home is not a datadir answer with None, and neither raises.
 
     `DEFAULT_DATADIR` is computed at import and `btclib.exceptions` imports
-    the module it is in, so a `Path.home()` that raised would fail an import
-    of most of btclib on a host that was never going to fetch anything: a
-    container run under an arbitrary uid, where `HOME` is unset and the
-    passwd file has no entry to fall back to.
+    the module it is in, so an exception here would fail an import of most of
+    btclib on a host that was never going to fetch anything: a container run
+    under an arbitrary uid, where `HOME` is unset and the passwd file has no
+    entry to fall back to, is where `Path.home()` raises. A `HOME` that holds
+    a relative path is the other way, and it raises nothing at all.
 
-    `Path.home` is patched, and not the `os.path.expanduser` under it, which
-    is what answers with the path unchanged in that case. Some interpreters
-    of the matrix call that function while resolving the home; others bound
-    it to a pathlib accessor when the class was created, and there patching
-    the module attribute is invisible -- written that way, this passed on
-    3.14 and did not raise at all on 3.10. What `_default_datadir` relies on
-    is `Path.home` raising, so that is what this arranges.
+    `Path.home` is patched, and not the `os.path.expanduser` under it. Some
+    interpreters of the matrix call that function while resolving the home;
+    others bound it to a pathlib accessor when the class was created, and
+    there patching the module attribute is invisible -- written that way,
+    this passed on 3.14 and did not raise at all on 3.10. What
+    `_default_datadir` reads is `Path.home`, so that is what this arranges.
     """
 
     def no_home() -> Path:
         raise RuntimeError("Could not determine home directory.")
 
     monkeypatch.setattr(Path, "home", no_home)
-    assert _default_datadir() == Path("~/.bitcoin")
+    assert _default_datadir() is None
+
+    monkeypatch.setattr(Path, "home", lambda: Path("relative/home"))
+    assert Path.home().is_absolute() is False
+    assert _default_datadir() is None
+
+
+def test_from_network_refuses_a_datadir_it_cannot_name(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    """No default datadir is a refusal, and never a path read against the cwd.
+
+    The end of the same path as the test above, and the reason None is the
+    answer there rather than an unexpanded `~/.bitcoin`: that is a relative
+    path, `pathlib` expands no tilde, and `from_network` handed it to the
+    cookie reader unchanged -- so a `./~/.bitcoin/.cookie` that the working
+    directory happened to contain became the credential this client presents
+    to the node. Planted below, exactly as it was when that was reproduced.
+
+    A refusal naming `cookie_path` instead, before any file is opened. The
+    explicit path still works, the refusal being about the default alone.
+    """
+    planted = tmp_path / "~" / ".bitcoin" / ".cookie"
+    planted.parent.mkdir(parents=True)
+    planted.write_text(f"{COOKIE_USER}:planted\n", encoding="ascii")
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.setattr(bitcoin_core_rpc, "DEFAULT_DATADIR", None)
+
+    with pytest.raises(BTClibValueError, match="pass cookie_path"):
+        BitcoinCoreRpcClient.from_network()
+
+    # the file is there and readable, so the refusal above is what kept it
+    # out and not an absent path: through an explicit `cookie_path` the very
+    # same file is the credential
+    explicit = BitcoinCoreRpcClient.from_network("mainnet", cookie_path=planted)
+    assert (
+        b64decode(explicit.auth_header().split()[1])
+        == f"{COOKIE_USER}:planted".encode()
+    )
+
+    # and credentials need no datadir at all
+    assert (
+        BitcoinCoreRpcClient.from_network(
+            "regtest", user=RPC_USER, password=RPC_PASSWORD
+        ).cookie_path
+        is None
+    )
 
 
 def test_from_network_takes_credentials_instead_of_a_cookie() -> None:

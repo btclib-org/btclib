@@ -80,10 +80,11 @@ btclib.bitcoin_core_rpc module
 ------------------------------
 
 .. the six exception classes are in this module's ``__all__``, being defined
-   in it -- one identity for a vendored copy and for an installed btclib --
-   and they are documented under ``btclib.exceptions``, which is where the
-   library's exceptions are read together. Without this, autodoc renders
-   each of them twice on this page, at two cross-reference targets.
+   in it -- so that the compatibility import paths of an installed btclib
+   name one class rather than two -- and they are documented under
+   ``btclib.exceptions``, which is where the library's exceptions are read
+   together. Without this, autodoc renders each of them twice on this page,
+   at two cross-reference targets.
 
 .. automodule:: btclib.bitcoin_core_rpc
    :members:

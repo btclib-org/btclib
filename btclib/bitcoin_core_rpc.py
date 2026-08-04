@@ -141,11 +141,8 @@ nobody else.
 
 **Vendoring and updates.** This file is the canonical, standard-library-only
 source. Copy `btclib/bitcoin_core_rpc.py` whole from a btclib release tag,
-keep the license notice above, and record the tag beside the copy. A release
-tag and not a signed one: what the instruction needs is a name to diff
-against, and RELEASING.md's `git tag -a` promises no more than an annotated
-tag, so naming a signature here would promise a verification the release
-procedure does not require. The upstream source is
+keep the license notice above, and record the tag beside the copy. The
+upstream source is
 `https://github.com/btclib-org/btclib/blob/master/btclib/bitcoin_core_rpc.py`;
 the raw source of a release is the same path under
 `https://raw.githubusercontent.com/btclib-org/btclib/<tag>/`. An update is a
@@ -695,31 +692,41 @@ _DATADIR_SUBDIR = {
 COOKIE_USER = "__cookie__"
 
 
-def _default_datadir() -> Path:
-    """Return `~/.bitcoin`, expanded when the home directory is knowable.
+def _default_datadir() -> Path | None:
+    """Return `~/.bitcoin`, or None where no absolute home is knowable.
 
-    `Path.home()` raises RuntimeError where it is not: no `HOME` in the
-    environment and no passwd entry for the uid, which is a container run
-    under an arbitrary one. This is module level and `btclib.exceptions`
-    imports this module, so raising here would fail an import of most of
-    btclib on a machine that was never going to fetch anything.
+    Two ways there is no home to name, and neither may raise: this is
+    module level, and the module holds the exceptions the rest of the
+    library imports, so an exception here fails an import of most of it on
+    a host that was never going to fetch anything.
 
-    The unexpanded path is the answer instead, and it fails the way every
-    other wrong datadir does: at the cookie read, which names the file it
-    looked for. A caller on such a host passes `cookie_path`, as one on
-    macOS or Windows already has to.
+    `Path.home()` raises RuntimeError when nothing resolves `~` -- no
+    `HOME` in the environment and no passwd entry for the uid, which is a
+    container run under an arbitrary one. It also answers with whatever
+    `HOME` holds, so a relative `HOME` gives a relative home and raises
+    nothing.
+
+    None for both, rather than a path that is no datadir. A relative one
+    would be resolved against the working directory at the moment of the
+    read, so `~/.bitcoin/.cookie` would make a file a caller's cwd happens
+    to contain the credential this client presents -- a wrong guess about
+    the datadir is one thing, reading a credential from wherever the
+    process was started is another. `from_network` refuses instead, naming
+    `cookie_path` as what to pass; a caller on macOS or Windows already
+    passes one.
     """
     try:
-        return Path.home() / ".bitcoin"
+        home = Path.home()
     except RuntimeError:
-        return Path("~/.bitcoin")
+        return None
+    return home / ".bitcoin" if home.is_absolute() else None
 
 
 # `~/.bitcoin`, which is the datadir on Linux and on nothing else: macOS
 # puts it under ~/Library/Application Support/Bitcoin and Windows under
 # %APPDATA%\Bitcoin. Guessing per platform would put two branches here
-# that no test on a third platform can reach, and a wrong guess fails
-# exactly as an absent file does; `cookie_path` is how a caller says
+# that no test on a third platform can reach, and a wrong absolute guess
+# fails exactly as an absent file does; `cookie_path` is how a caller says
 # where it really is, and the unreadable-cookie error names the file it
 # looked for, which is what tells a caller on either platform to pass one
 DEFAULT_DATADIR = _default_datadir()
@@ -1210,10 +1217,22 @@ class BitcoinCoreRpcClient:
         Nor is this the chain the answers get labelled with. That is
         `BitcoinCoreFetcher`'s `network`, and nothing here verifies that the
         node agrees with either of them.
+
+        The datadir is where it can be named at all: `DEFAULT_DATADIR` is
+        None on a host with no absolute home directory -- see
+        `_default_datadir` -- and deriving a cookie path is what this
+        refuses there rather than reading a relative one against whatever
+        the working directory is. `cookie_path` is the answer, and the
+        error says so.
         """
         if network not in _RPC_PORT:
             raise BTClibValueError(f"unknown network: {network}")
         if user is None and cookie_path is None:
+            if DEFAULT_DATADIR is None:
+                err_msg = "no home directory, so no default datadir to find"
+                err_msg += " the cookie file in: pass cookie_path, or user"
+                err_msg += " and password"
+                raise BTClibValueError(err_msg)
             cookie_path = DEFAULT_DATADIR / _DATADIR_SUBDIR[network] / ".cookie"
         return cls(
             f"http://127.0.0.1:{_RPC_PORT[network]}",

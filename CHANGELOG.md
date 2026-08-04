@@ -2349,11 +2349,16 @@ edit.
   which is what a vendoring project catches. The price of that one identity
   is that every import reaching `btclib.exceptions` -- most of the library,
   though not `import btclib` itself -- now loads `urllib.request`, and `ssl`
-  and `socket` under it, where before only a caller who fetched did; and
-  that the default datadir no longer resolves the home directory in a way
-  that can raise, a uid without one -- a container run under an arbitrary
-  uid -- leaving `~/.bitcoin` unexpanded to fail at the cookie read rather
-  than failing the import. The standalone file carries its MIT notice and an
+  and `socket` under it, where before only a caller who fetched did.
+  `DEFAULT_DATADIR` is therefore `Path | None`, and None where no absolute
+  home directory can be named -- a container run under an arbitrary uid,
+  where `Path.home()` raises, or a relative `HOME`, where it does not.
+  Neither may fail an import of btclib now that this module is under
+  `btclib.exceptions`, and neither may become a path either:
+  `from_network` refuses to derive a cookie path it cannot make absolute,
+  naming `cookie_path` as what to pass, rather than reading
+  `~/.bitcoin/.cookie` against the working directory. The standalone file
+  carries its MIT notice and an
   update recipe based on release tags; a subprocess test copies it alone and
   imports it with site packages disabled before exercising a `Decimal`
   result and both RPC and HTTP error fields. Its module documentation also
