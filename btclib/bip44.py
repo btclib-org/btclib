@@ -18,10 +18,13 @@ four encodings the path means. Nothing in this module derives or encodes
 anything itself; what it adds is the mapping that makes a path
 unambiguous, and the two checks that keep it honest.
 
-The module sits above `script` rather than beside `bip32.slip132`, and
-taproot is the reason: a p2tr address encodes the *tweaked* output key of
-BIP341, which `script.taproot.output_pubkey` computes, and `bip32` is
-below `script` and may not import it. Nothing in the library imports this
+The module sits above `script`, and taproot is the reason: a p2tr
+address encodes the *tweaked* output key of BIP341, which
+`script.taproot.output_pubkey` computes, and `bip32` is below `script`
+and may not import it. `slip132` sits beside it at the top level for a
+narrower version of the same shape: it needs `b58` and `b32`, which
+import `bip32`, so it cannot live inside the package whose keys it
+derives addresses from either. Nothing in the library imports this
 module.
 """
 

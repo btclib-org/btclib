@@ -125,6 +125,13 @@ btclib.number\_theory module
    :members:
    :show-inheritance:
 
+btclib.slip132 module
+---------------------
+
+.. automodule:: btclib.slip132
+   :members:
+   :show-inheritance:
+
 btclib.to\_prv\_key module
 --------------------------
 

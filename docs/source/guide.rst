@@ -286,11 +286,11 @@ SLIP-132 version bytes
 
 Some wallets label an account key by script type, spelling it ``ypub``
 or ``zpub`` instead of ``xpub``. That is SLIP-132, and it changes four
-version bytes and nothing else. :mod:`btclib.bip32.slip132` takes the
+version bytes and nothing else. :mod:`btclib.slip132` takes the
 **root** key and does the derivation itself, because the version and the
 path have to agree:
 
->>> from btclib.bip32 import slip132
+>>> from btclib import slip132
 >>> bip32.xpub_from_xprv(slip132.p2wpkh_xkey(rootxprv))
 'zpub6rXDN3yuixCtvAyzKn3uWLDr8qXKEQ2orduEL5AAysdHZmuPVUL2vbMQDEhp8L9hRsgM8J8idDNPdZjrob8R5e7x7UoYXVdfjDG96TLa7La'
 >>> bip32.xpub_from_xprv(slip132.p2wpkh_p2sh_xkey(rootxprv))

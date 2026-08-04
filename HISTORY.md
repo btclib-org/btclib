@@ -332,6 +332,10 @@ against the `v2023.7.12` tag.
   and `psbt.finalize_psbt` are `combine`, `join` and `finalize`.** All
   four spellings were already there at `v2023.7.12` — checked against
   the tag. `psbt.extract_tx` is unchanged.
+- **`btclib.bip32.slip132` is `btclib.slip132`.** `from btclib.bip32
+  import slip132` was the spelling at `v2023.7.12` — checked against the
+  tag — and is `from btclib import slip132` now. `bip44`, which needs
+  the same top-level placement for the same reason, was already there.
 
 Two changes are deliberately *not* on that list, because what they change
 stays compatible. The new `BTClibTypeError`, `NotAPrvKeyError` and

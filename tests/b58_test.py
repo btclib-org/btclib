@@ -15,10 +15,10 @@ import pytest
 from hypothesis import given
 from hypothesis import strategies as st
 
-from btclib import b32, b58
+from btclib import b32, b58, slip132
 from btclib.alias import ScriptList, ScriptType
 from btclib.base58 import encode as b58encode
-from btclib.bip32 import bip32, slip132
+from btclib.bip32 import bip32
 from btclib.curves import bytes_from_point, point_from_octets, secp256k1
 from btclib.exceptions import (
     BTClibValueError,

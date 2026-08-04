@@ -13,8 +13,8 @@ from __future__ import annotations
 
 import pytest
 
-from btclib import b32, b58
-from btclib.bip32 import bip32, slip132
+from btclib import b32, b58, slip132
+from btclib.bip32 import bip32
 from btclib.exceptions import BTClibValueError
 from btclib.mnemonic import bip39
 from btclib.network import NETWORKS

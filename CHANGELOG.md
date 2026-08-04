@@ -3063,6 +3063,21 @@ edit.
   or a signature comes back. `tests/tx/tx_test.py::test_join` and
   `tests/psbt/psbt_test.py::test_join` are the renamed test functions
   (issue #337)
+- **`btclib.bip32.slip132` is `btclib.slip132`.** It is the one submodule
+  of `bip32` that sits *above* the address encodings — it imports `b58`
+  and `b32`, which import `to_pub_key`, which imports `btclib.bip32` for
+  `BIP32Key` — so naming it in `bip32.__all__` closes an import cycle:
+  `from btclib.bip32 import slip132` added to the package raises
+  `ImportError: cannot import name 'BIP32Key' from partially initialized
+  module 'btclib.bip32'`, which `tests/imports_test.py` is what reports.
+  `btclib.bip44` has exactly the same shape for the same reason — it
+  needs `script.taproot`, which `bip32` may not import either — and
+  already lives at the top level; `slip132` now does too, which makes
+  every remaining submodule of `bip32` sit below the address encodings,
+  a rule rather than an exception. `from btclib.bip32 import slip132`
+  is gone with the move; `from btclib import slip132` is the spelling
+  this module's own test file, `docs/source/guide.rst` and every other
+  caller in the tree now use (issue #340)
 
 ### Types
 
