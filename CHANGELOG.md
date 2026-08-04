@@ -4811,7 +4811,12 @@ edit.
   what it now says is what the measurement costs: the hook fixes in place,
   so a run without the rule rewrites the vectors it reads, an extended key's
   `ThmBZ` becoming `ThemBZ`. That is the argument the count was standing in
-  for
+  for. CLAUDE.md's "never state how many" convention now says that a wall
+  clock and a findings count are counts as well, that no test fails on
+  either, and which command re-derives each — with the survey that says
+  "so that nobody has to run it again" named as the shape to distrust, and
+  a vendored file's vector count as the one kind of number that pins
+  rather than rots
 - **`assert_nulldata` says which question it answers** (issue #211). The
   rule it applies — OP_RETURN and one minimal push, total length neither
   78 nor above 83 — is standardness policy, and narrower than the

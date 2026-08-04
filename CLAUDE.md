@@ -223,6 +223,24 @@ it.
   that way — `tests/release_notes_test.py` for CHANGELOG.md and
   HISTORY.md, `tests/vendored_data_test.py` for `tests/_data/README.md`
   — failing on a stated count rather than on a wrong one.
+- **A wall clock and a linter's findings are counts too**, and nothing
+  fails on those: pyproject.toml's comments and tests/README.md state
+  none, and keeping it that way is by hand. What a comment carries
+  instead is the reason, which is what decided the setting, with the
+  command that re-derives the number beside it:
+
+  ```shell
+  uv run ruff check --select N --no-cache btclib tests
+  uv run mypy --enable-error-code=redundant-expr btclib tests
+  uv run pytest --durations=0 --durations-min=0
+  ```
+
+  A survey that says "with the count, so that nobody has to run it
+  again" is the shape to distrust: every one of the twelve it recorded
+  was wrong when re-run. The exception is a count of what upstream
+  published — `tests/_data/README.md`'s "121 vectors, Core's entire
+  file" — which pins a vendored file rather than measuring this tree,
+  and which `tests/vendored_data_test.py` spares on purpose.
 - **CHANGELOG.md and HISTORY.md are `merge=union`**, which is what
   `.gitattributes` is for: the insertion point conflicts too — two
   branches appending a bullet to the same group — and union keeps both
