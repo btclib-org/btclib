@@ -21,13 +21,18 @@ from typing import Any
 from btclib import var_int
 from btclib.alias import BinaryData
 from btclib.amount import _MAX_SATOSHI
-from btclib.exceptions import BTClibValueError
+from btclib.exceptions import BTClibTypeError, BTClibValueError
 from btclib.hashes import hash256
 from btclib.script.sig_ops import sig_op_count as script_sig_op_count
 from btclib.script.witness import Witness
 from btclib.tx.tx_in import TX_IN_COMPARES_WITNESS, TxIn
 from btclib.tx.tx_out import TxOut
-from btclib.utils import assert_no_trailing, bytesio_from_binarydata, read_exactly
+from btclib.utils import (
+    assert_no_trailing,
+    bytesio_from_binarydata,
+    is_integer,
+    read_exactly,
+)
 
 _SEGWIT_MARKER = b"\x00\x01"
 
@@ -258,6 +263,16 @@ class Tx:
         and btclib refused both (issue 170).
         """
         _assert_valid_coinbase(self.vin, is_coinbase=self.is_coinbase())
+
+        # the type before the range, as BlockHeader.assert_valid checks its
+        # own two int fields: a bool passes every comparison below as one or
+        # zero, and `to_dict`/`from_dict` is a json boundary -- `true` there
+        # would be version 1 rather than a schema error
+        for key in ("version", "lock_time"):
+            value = getattr(self, key)
+            if not is_integer(value):
+                err_msg = f"invalid {key} type: {type(value).__name__}"
+                raise BTClibTypeError(err_msg)
 
         # must be a 4-bytes integer
         if not 0 <= self.version <= 0xFFFFFFFF:

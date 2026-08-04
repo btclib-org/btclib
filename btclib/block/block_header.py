@@ -25,6 +25,8 @@ from btclib.utils import (
     assert_no_trailing,
     bytes_from_octets,
     bytesio_from_binarydata,
+    int_from_json_number,
+    is_integer,
 )
 
 _HF = hash256
@@ -122,18 +124,20 @@ class BlockHeader:
         *,
         check_validity: bool = True,
     ) -> None:
-        # int(), where the annotation already says int, for the same reason
-        # bytes_from_octets is called on the Octets fields: from_dict feeds
-        # this constructor a json object, where a whole number may arrive
-        # as a float. Coercing in assert_valid instead would rewrite the
-        # object it is asked to inspect -- and it is called by serialize()
-        # and to_dict(), so reading a header would mutate it
-        self.version = int(version)
+        # a coercion, where the annotation already says int, for the same
+        # reason bytes_from_octets is called on the Octets fields:
+        # from_dict feeds this constructor a json object, where a whole
+        # number may arrive as a float. Coercing in assert_valid instead
+        # would rewrite the object it is asked to inspect -- and it is
+        # called by serialize() and to_dict(), so reading a header would
+        # mutate it. A bool is the one thing not coerced but refused,
+        # `true` out of json being a schema error rather than version 1
+        self.version = int_from_json_number(version, "version")
         self.previous_block_hash = bytes_from_octets(previous_block_hash)
         self.merkle_root = bytes_from_octets(merkle_root)
         self.time = time
         self.bits = bytes_from_octets(bits)
-        self.nonce = int(nonce)
+        self.nonce = int_from_json_number(nonce, "nonce")
 
         if check_validity:
             self.assert_valid()
@@ -250,7 +254,7 @@ class BlockHeader:
         # to_bytes and leave the library through an AttributeError
         for key in ("version", "nonce"):
             value = getattr(self, key)
-            if not isinstance(value, int):
+            if not is_integer(value):
                 err_msg = f"invalid {key} type: {type(value).__name__}"
                 raise BTClibTypeError(err_msg)
 

@@ -17,13 +17,14 @@ from typing import Any
 
 from btclib import var_bytes
 from btclib.alias import BinaryData, Octets
-from btclib.exceptions import BTClibValueError
+from btclib.exceptions import BTClibTypeError, BTClibValueError
 from btclib.script import Witness, script_from_dict, script_to_dict
 from btclib.tx.out_point import OutPoint
 from btclib.utils import (
     assert_no_trailing,
     bytes_from_octets,
     bytesio_from_binarydata,
+    is_integer,
     read_exactly,
 )
 
@@ -110,6 +111,13 @@ class TxIn:
         carries the reasoning.
         """
         self.prev_out.assert_valid()
+
+        # as everywhere an int field is range-checked: True would be a
+        # sequence of one, and a sequence is where a locktime-enabled
+        # input is told from a final one
+        if not is_integer(self.sequence):
+            err_msg = f"invalid sequence type: {type(self.sequence).__name__}"
+            raise BTClibTypeError(err_msg)
 
         # script_sig is deliberately not looked at, and the marker asking
         # for a check (issue 183) is answered by where the answers already

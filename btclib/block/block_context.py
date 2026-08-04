@@ -38,6 +38,7 @@ from dataclasses import dataclass
 from datetime import datetime
 
 from btclib.exceptions import BTClibTypeError, BTClibValueError
+from btclib.utils import is_integer
 
 # Core's chainparams: 227,931 on mainnet, 21,111 on testnet3, and 1 on
 # testnet4, signet and regtest. Mainnet is the default, as it is
@@ -106,10 +107,11 @@ class BlockContext:
         """
         for key in ("height", "bip34_height"):
             value = getattr(self, key)
-            # a float here would compare fine and read as a height, so the
-            # type is checked rather than coerced -- and bool is an int,
-            # which no comparison below can be confused by
-            if not isinstance(value, int):
+            # a float here would compare fine and read as a height, so
+            # the type is checked rather than coerced -- and a bool is not
+            # an integer for this purpose either, `true` out of json being
+            # how a height becomes one
+            if not is_integer(value):
                 err_msg = f"invalid {key} type: {type(value).__name__}"
                 raise BTClibTypeError(err_msg)
             if value < 0:

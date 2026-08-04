@@ -287,6 +287,14 @@ against the `v2023.7.12` tag.
   reading a transaction out of a block reads on as before. Parsing one
   object out of a longer buffer is `parse(BytesIO(buffer))` rather than
   `parse(buffer)`.
+- **a boolean is refused wherever a field is an integer quantity.**
+  `bool` being a subclass of `int`, `valid_sats_amount(True)` was 1,
+  `FeeRate(sats_per_kvbyte=True)` was a one-sat/kvB rate, and
+  `OutPoint(tx_id, True)` was output number one; all of them raise
+  `BTClibTypeError` now. This matters at a json boundary, where `true`
+  decodes to `True`: what used to be one satoshi is an error next to the
+  field that carried it. Only an actual boolean is affected — an `IntEnum`
+  or any other deliberate integer subclass is still an integer.
 
 - **`ssa.verify` answers False for a 65-byte taproot witness signature**,
   where it answered True: the 65th octet is BIP341's sighash type, not
