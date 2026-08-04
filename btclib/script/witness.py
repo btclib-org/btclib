@@ -32,9 +32,10 @@ class Witness:
     """The witness stack of one transaction input, per BIP141.
 
     A tuple of byte strings, bottom of the stack first, exactly as
-    serialized after the input count; a non-segwit input has an empty
-    one. Immutable throughout, so a Witness can be shared and hashed;
-    the script interpreter pops a list copy of its own.
+    serialized in the transaction's witness section after the outputs;
+    a non-segwit input has an empty one. Immutable throughout, so a
+    Witness can be shared and hashed; the script interpreter pops a list
+    copy of its own.
     """
 
     stack: tuple[bytes, ...]
