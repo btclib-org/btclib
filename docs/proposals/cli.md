@@ -470,8 +470,8 @@ block         parse  to-dict  bip34-commitment
 block proof-of-work
               target-from-bits  bits-from-target  block-work
               chain-work  hash-rate  next-bits
-descriptors   descriptor-checksum  add-checksum  strip-checksum
-              descriptor-from-address  address  addresses
+descriptors   checksum  add-checksum  strip-checksum
+              from-address  address  addresses
               script-pub-key
 amount        btc-from-sats  sats-from-btc  valid-btc-amount
 fee           fee-from-vsize  dust-threshold
