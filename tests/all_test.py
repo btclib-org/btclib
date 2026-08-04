@@ -60,47 +60,97 @@ UNEXPORTED = {
     "btclib.network": ["datadir"],
 }
 
-# the module-valued exports of each package: the subgroups of
-# docs/proposals/cli.md's command tree, and the decision point 4 of its
-# traversal contract leaves to the parent. Pinned as the exact set per
-# package, so that a submodule imported into an __init__ and named in
-# passing is a failure rather than a new command -- and so that a child
-# module added later is a decision somebody writes down here.
+# every direct child module of every package, on the side of the decision
+# its parent made about it: `groups` is what the parent publishes, which is
+# what docs/proposals/cli.md's command tree descends into, and `unpublished`
+# is what it deliberately does not -- a module holding names the parent
+# re-exports flat, or an implementation nothing outside the package calls.
 #
-# btclib itself is not in the table: its edges are the top-level modules,
-# and test_the_root_publishes_every_top_level_module pins them against the
-# directory rather than against a list
-COMMAND_GROUPS = {
-    "btclib.bip32": [],
-    "btclib.block": ["merkle_proof", "mining", "proof_of_work"],
-    "btclib.curves": [],
-    "btclib.ecc": [
-        "bip340_nonce",
-        "bms",
-        "borromean",
-        "commit_nonce",
-        "dh",
-        "dsa",
-        "ecies",
-        "ellswift",
-        "musig2",
-        "pedersen",
-        "rfc6979_nonce",
-        "ssa",
-    ],
-    "btclib.fetch": [],
-    "btclib.mnemonic": [
-        "bip39",
-        "dispatch",
-        "electrum",
-        "entropy",
-        "mnemonic",
-        "slip39",
-    ],
-    "btclib.psbt": ["musig2"],
-    "btclib.script": ["engine", "sig_hash", "taproot"],
-    "btclib.script.engine": [],
-    "btclib.tx": [],
+# The two together are asserted to be the package's whole directory, which
+# is the half a table of the published edges alone cannot check: a child
+# module added and left out of its parent's `__all__` changes neither the
+# list nor the edges, and that is the missing edge which had `btclib.script`
+# publishing none of the three subgroups its own tables promise. Both sides
+# are recorded, so a module added to a package fails the suite until
+# somebody says which of the two it is.
+#
+# btclib itself is not here: its children are the top-level modules, and
+# test_the_root_publishes_every_top_level_module asserts the same partition
+# against the directory with nothing on the unpublished side
+CHILD_MODULES = {
+    "btclib.bip32": {
+        "groups": [],
+        "unpublished": ["bip32", "der_path", "key_origin"],
+    },
+    "btclib.block": {
+        "groups": ["merkle_proof", "mining", "proof_of_work"],
+        "unpublished": ["block", "block_context", "block_header", "limits"],
+    },
+    "btclib.curves": {
+        "groups": [],
+        "unpublished": [
+            "curve",
+            "curve_group",
+            "curve_group_2",
+            "curve_group_f",
+            "sec_point",
+        ],
+    },
+    "btclib.ecc": {
+        "groups": [
+            "bip340_nonce",
+            "bms",
+            "borromean",
+            "commit_nonce",
+            "dh",
+            "dsa",
+            "ecies",
+            "ellswift",
+            "musig2",
+            "pedersen",
+            "rfc6979_nonce",
+            "ssa",
+        ],
+        "unpublished": [],
+    },
+    "btclib.fetch": {
+        "groups": [],
+        "unpublished": ["bitcoin_core", "esplora", "fetcher", "transport"],
+    },
+    "btclib.mnemonic": {
+        "groups": [
+            "bip39",
+            "dispatch",
+            "electrum",
+            "entropy",
+            "mnemonic",
+            "slip39",
+        ],
+        "unpublished": [],
+    },
+    "btclib.psbt": {
+        "groups": ["musig2"],
+        "unpublished": ["psbt", "psbt_in", "psbt_out", "psbt_size", "psbt_utils"],
+    },
+    "btclib.script": {
+        "groups": ["engine", "sig_hash", "taproot"],
+        "unpublished": [
+            "limits",
+            "op_codes_tapscript",
+            "script",
+            "script_pub_key",
+            "sig_ops",
+            "witness",
+        ],
+    },
+    "btclib.script.engine": {
+        "groups": [],
+        "unpublished": ["flags", "script", "script_op_codes", "tapscript"],
+    },
+    "btclib.tx": {
+        "groups": [],
+        "unpublished": ["out_point", "tx", "tx_in", "tx_out"],
+    },
 }
 
 
@@ -332,7 +382,7 @@ def test_script_publishes_the_three_subgroups_the_cli_promises() -> None:
         assert group in btclib.script.__all__, f"script does not publish {group}"
         assert getattr(btclib.script, group).__name__ == f"btclib.script.{group}"
 
-    # that these three are the only ones is COMMAND_GROUPS' assertion, for
+    # that these three are the only ones is CHILD_MODULES' assertion, for
     # this package as for every other. What is left here is the behaviour
     # of the two the package does not import: reachable by name, offered to
     # a prompt, and no answer for anything else
@@ -499,34 +549,43 @@ def test_the_export_tree_is_walkable_to_its_leaves() -> None:
     assert len(seen) > 30, f"the export tree walk reached {len(seen)} modules"
 
 
-def test_the_command_groups_are_the_edges_that_are_meant_to_be() -> None:
-    """Each package's module-valued exports are the set recorded for it.
+def test_every_child_module_is_a_group_or_deliberately_not() -> None:
+    """Each package's children are partitioned, and the parts are recorded.
 
-    The walk above follows the edges that are there, and the checks around
-    it ask each node about its own list, so neither can see an edge that
-    should not exist: a submodule imported into an `__init__` for one name
-    and left in `__all__` by habit is a command group nobody decided on,
-    and a child module added later is one nobody wrote down. This is the
-    set, per package, and the empty ones are as deliberate as the rest --
-    `curves`, `tx`, `bip32`, `fetch` and `script.engine` publish a flat
-    surface and no group.
+    Two directions, and the second is the one nothing else here can see.
+    The published side is the exact module-valued exports, so a submodule
+    imported into an `__init__` for one name and left in `__all__` by habit
+    is a command group nobody decided on. The union of the two sides is the
+    package's whole directory, so a child module added and left out of the
+    list -- which changes neither the list nor the edges, and is how
+    `btclib.script` came to publish none of the three subgroups its own
+    tables promise -- fails until somebody writes down which side it is on.
 
-    Every package has to be in the table, so a new one is a decision about
-    its groups rather than a silent `[]`.
+    The empty published sides are as deliberate as the rest: `curves`,
+    `tx`, `bip32`, `fetch` and `script.engine` offer a flat surface and no
+    group. Every package has to be in the table, so a new one is a decision
+    rather than a silent pair of empty lists.
     """
     packages = [module for module in library_modules() if hasattr(module, "__path__")]
-    assert len(packages) == len(COMMAND_GROUPS) + 1, "btclib plus the ten packages"
+    assert len(packages) == len(CHILD_MODULES) + 1, "btclib plus the ten packages"
     for package in packages:
         if package.__name__ == "btclib":  # the directory is its assertion
             continue
-        assert package.__name__ in COMMAND_GROUPS, f"{package.__name__} is not recorded"
+        assert package.__name__ in CHILD_MODULES, f"{package.__name__} is not recorded"
+        recorded = CHILD_MODULES[package.__name__]
         edges = sorted(
             name
             for name in package.__all__
             if isinstance(getattr(package, name), ModuleType)
         )
-        assert edges == COMMAND_GROUPS[package.__name__], (
-            f"{package.__name__} publishes {edges}"
+        assert edges == recorded["groups"], f"{package.__name__} publishes {edges}"
+        children = sorted(
+            child
+            for _, child, _ in iter_modules(package.__path__)
+            if public_name(child)
+        )
+        assert sorted([*recorded["groups"], *recorded["unpublished"]]) == children, (
+            f"{package.__name__}'s children are {children}"
         )
 
 

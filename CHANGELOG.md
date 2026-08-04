@@ -3345,15 +3345,19 @@ edit.
   `btclib.script` by name — the walk follows the edges that exist, so a
   promised group nothing publishes is a walk that stops early and a test
   that passes
-- **The command groups are a table, one exact set per package**, since the
-  walk and the per-module checks between them cannot see an edge that
-  should not be there: a submodule imported into an `__init__` for one name
-  and left in `__all__` by habit is a group nobody decided on, and a child
-  module added later is one nobody wrote down. The empty sets are as
-  deliberate as the rest — `curves`, `tx`, `bip32`, `fetch` and
-  `script.engine` publish a flat surface and no group — and every package
-  has to be in the table, so a new one is a decision rather than a silent
-  `[]`
+- **Every child module of every package is recorded on the side of the
+  decision made about it**, published as a group or deliberately not, and
+  the two sides together are asserted to be the package's whole directory.
+  Both directions are needed and only the first is visible to the checks
+  above: a submodule imported into an `__init__` for one name and left in
+  `__all__` by habit is a group nobody decided on, while a child module
+  added and left *out* of the list changes neither the list nor the edges —
+  which is how `btclib.script` came to publish none of the three subgroups
+  its own tables promise, and what the partition catches. The empty
+  published sides are as deliberate as the rest — `curves`, `tx`, `bip32`,
+  `fetch` and `script.engine` offer a flat surface and no group — and every
+  package has to be in the table, so a new one is a decision rather than a
+  silent pair of empty lists
 - **`docs/proposals/cli.md` states the traversal contract** in place of
   the question it used to pose: the five points a walker depends on, with
   the one that makes the mirror implementable from outside this repository
