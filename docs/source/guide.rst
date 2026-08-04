@@ -719,7 +719,7 @@ it writes into a copy: to change what is being built, set the field —
 
 A version 2 psbt says what may still be changed, in
 ``PSBT_GLOBAL_TX_MODIFIABLE``, and btclib honours it: ``sort_inputs``,
-``sort_outputs`` and ``join_psbts`` refuse to reorder or add on a side
+``sort_outputs`` and ``join`` refuse to reorder or add on a side
 the flags do not allow, since every signature already made commits to
 the order it saw:
 
@@ -734,7 +734,7 @@ whose inputs require both a block height and a timestamp has no lock
 time at all, one ``nLockTime`` being one number of one kind. That is a
 psbt btclib refuses rather than resolves.
 
-**Finalizer and Extractor.** ``finalize_psbt`` turns the partial
+**Finalizer and Extractor.** ``finalize`` turns the partial
 signatures into a final script_sig or witness and ``extract_tx`` pulls
 out the network transaction. Be aware of the shape they handle: they
 build what BIP174's own vectors need, which are p2sh and p2wsh

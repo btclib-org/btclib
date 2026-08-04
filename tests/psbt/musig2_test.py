@@ -16,7 +16,7 @@ import pytest
 from btclib.curves import secp256k1
 from btclib.ecc import ssa
 from btclib.exceptions import BTClibValueError
-from btclib.psbt import Psbt, extract_tx, finalize_psbt, musig2
+from btclib.psbt import Psbt, extract_tx, finalize, musig2
 from btclib.psbt.psbt import prevouts, taproot_sig_hash
 from btclib.script import type_and_payload
 from btclib.script.engine import verify_transaction
@@ -108,7 +108,7 @@ def test_aggregating_bip373s_partial_signatures_spends_the_output(
     """The Finalizer's half, and the answer is a transaction that verifies.
 
     `partial_sigs_agg` writes the BIP340 signature where the spend reads
-    it, `finalize_psbt` builds the witness, and btclib's own script
+    it, `finalize` builds the witness, and btclib's own script
     engine is what says the result is a spend of that output -- consensus
     rules over the extracted transaction, not a signature check of
     btclib's against a message of btclib's.
@@ -128,7 +128,7 @@ def test_aggregating_bip373s_partial_signatures_spends_the_output(
     else:
         assert len(psbt.inputs[0].taproot_key_spend_signature) == 64
 
-    tx = extract_tx(finalize_psbt(psbt))
+    tx = extract_tx(finalize(psbt))
     verify_transaction(spent, tx)
 
 
@@ -182,7 +182,7 @@ def test_a_whole_session_is_run_over_the_psbt() -> None:
     output_key = type_and_payload(spent[0].script_pub_key.script)[1]
     assert ssa.verify_(taproot_sig_hash(psbt, 0), output_key, sig)
 
-    tx = extract_tx(finalize_psbt(psbt))
+    tx = extract_tx(finalize(psbt))
     verify_transaction(spent, tx)
 
 
@@ -389,4 +389,4 @@ def test_a_session_signing_for_a_sig_hash_type_of_its_own() -> None:
     signature = psbt.inputs[0].taproot_key_spend_signature
     assert len(signature) == 65
     assert signature[-1] == 1
-    verify_transaction(spent, extract_tx(finalize_psbt(psbt)))
+    verify_transaction(spent, extract_tx(finalize(psbt)))

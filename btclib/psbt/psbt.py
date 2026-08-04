@@ -567,7 +567,7 @@ class Psbt:
         The txid of the unsigned transaction with every sequence set to
         0: an Updater may set PSBT_IN_SEQUENCE, so two psbts of one
         transaction can disagree about it, and the identifier must not.
-        It is what a Combiner compares -- `combine_psbts` does -- rather
+        It is what a Combiner compares -- `combine` does -- rather
         than `tx.id`, which for a version 2 psbt would call the same
         transaction two.
         """
@@ -1180,7 +1180,7 @@ def _combined_tx_modifiable(psbts: Sequence[Psbt]) -> int | None:
     return (and_bits & modifiable) | (or_bits & ~modifiable & 0xFF)
 
 
-def combine_psbts(psbts: Sequence[Psbt]) -> Psbt:
+def combine(psbts: Sequence[Psbt]) -> Psbt:
     """Merge the data of several psbts of one transaction: the Combiner.
 
     BIP174's Combiner role, whose ordinary use is merging the partial
@@ -1691,7 +1691,7 @@ def _assert_partial_sigs_verify(psbt_in: PsbtIn, tx: Tx, vin_i: int) -> None:
             raise BTClibValueError(err_msg)
 
 
-def finalize_psbt(psbt: Psbt) -> Psbt:
+def finalize(psbt: Psbt) -> Psbt:
     """Finalize the Psbt.
 
     The Input Finalizer must only accept a PSBT.
@@ -1838,7 +1838,7 @@ def _ensure_consistency(psbts: Sequence[Psbt]) -> None:
         unknown.update(psbt.unknown)
 
 
-def join_psbts(
+def join(
     psbts: Sequence[Psbt],
     enforce_same_tx_version: bool,
     enforce_same_tx_lock_time: bool,
@@ -1866,7 +1866,7 @@ def join_psbts(
     psbts at once, so a version 2 psbt has to allow both: every psbt
     joined is asked for its two modifiable flags, and the joined psbt
     carries what all of them still allow. The versions must be the same,
-    for the reason `combine_psbts` gives.
+    for the reason `combine` gives.
     """
     _ensure_consistency(psbts)
 
@@ -1905,7 +1905,7 @@ def join_psbts(
     ]
     fallback_lock_time = max(fallbacks) if fallbacks else None
 
-    # what join_txs refuses, asked of the outpoints themselves: one
+    # what tx.join refuses, asked of the outpoints themselves: one
     # transaction cannot spend one output twice, and the joined psbt
     # would be exactly that
     outpoints = {(inp.previous_tx_id, inp.output_index) for inp in inputs}

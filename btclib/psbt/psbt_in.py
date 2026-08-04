@@ -153,7 +153,7 @@ def _assert_valid_partial_sigs(partial_sigs: Mapping[bytes, bytes]) -> None:
             # checked against the signature here: both questions need the
             # transaction -- which sighash types the input admits, and
             # which hash the signature actually commits to -- so both are
-            # the Finalizer's, and psbt.finalize_psbt asks them. Do not
+            # the Finalizer's, and psbt.finalize asks them. Do not
             # let a line of this comment begin with "# type:", which mypy
             # reads as a PEP 484 type comment and then calls the try block
             # a syntax error

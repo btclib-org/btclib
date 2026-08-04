@@ -22,13 +22,13 @@ method of each rather than a dispatch table.
 the hash it committed to, that hash is a property of the spending
 transaction, and a descriptor has no transaction -- which is also why
 the signatures are a parameter rather than something this module makes.
-`psbt.finalize_psbt` does have one and does check, and builds the same
+`psbt.finalize` does have one and does check, and builds the same
 bytes from a psbt carrying the same signatures.
 
 `update_psbt` is the third answer, and the one for a spend the signers
 do not make all at once: BIP174's Updater, writing the scripts and the
 key origins into a psbt input, for signers to fill in at their own pace
-and `psbt.finalize_psbt` to assemble. This module imports `psbt` for it
+and `psbt.finalize` to assemble. This module imports `psbt` for it
 and nothing there imports back, which is the direction of the layering:
 a psbt is a transaction being built, and a descriptor is what a wallet
 knows about the outputs it holds.
@@ -471,14 +471,14 @@ class Descriptor(ABC):
         ``wsh()``, the internal key, merkle root and leaf scripts of a
         ``tr()``, and the origin of every key that carries one -- which is
         what a hardware signer needs, and what `KeyExpression.origin` is
-        kept for. `psbt.finalize_psbt` then assembles the same bytes
+        kept for. `psbt.finalize` then assembles the same bytes
         `satisfy` does, from the signatures the signers filled in at
         their own pace: that pipeline is what a psbt is for, and what
         `satisfy` cannot answer, refusing a partial satisfaction rather
         than returning bytes that do not spend.
 
         A copy, the psbt handed in being left alone, and the fields of
-        the copy mutated in place: `finalize_psbt` is the same
+        the copy mutated in place: `finalize` is the same
         construction, and BIP174's roles read as steps that update a
         psbt rather than as functions that return a field at a time.
 

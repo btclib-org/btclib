@@ -62,7 +62,7 @@ from btclib.exceptions import BTClibValueError
 from btclib.psbt.psbt import (
     Psbt,
     _finalized_input,
-    finalize_psbt,
+    finalize,
     taproot_sig_hash,
 )
 from btclib.psbt.psbt_in import PsbtIn
@@ -949,7 +949,7 @@ def test_satisfy_matches_the_psbt_finalizer(
 ) -> None:
     """The two ways btclib builds a spend agree, byte for byte.
 
-    `finalize_psbt` assembles the same script_sig and witness from a
+    `finalize` assembles the same script_sig and witness from a
     psbt input carrying the same signatures, and it is the older and the
     independently tested of the two: BIP174 describes what it does, and
     what a descriptor adds is knowing the scripts and the key order
@@ -1220,7 +1220,7 @@ def test_the_updater_adds_to_what_the_psbt_already_carries() -> None:
 
 
 def test_the_updater_leaves_the_psbt_it_was_given_alone() -> None:
-    """A copy, as `finalize_psbt` returns one."""
+    """A copy, as `finalize` returns one."""
     descriptor = parse(f"sh({MULTI})")
     psbt = psbt_spending(descriptor)
     assert descriptor.update_psbt(psbt, 0).inputs[0].redeem_script
@@ -1349,7 +1349,7 @@ def test_a_taproot_script_path_is_finalizable_only_after_the_updater() -> None:
     psbt.inputs[0].taproot_script_spend_signatures = {key_data: signature}
 
     witness = Witness([signature, script, control_block])
-    assert finalize_psbt(psbt).inputs[0].final_script_witness == witness
+    assert finalize(psbt).inputs[0].final_script_witness == witness
     assert descriptor.satisfy({XONLY_B: signature}) == (b"", witness)
 
     # the same signature in a psbt the descriptor never updated: the
@@ -1357,7 +1357,7 @@ def test_a_taproot_script_path_is_finalizable_only_after_the_updater() -> None:
     not_updated = psbt_spending(descriptor)
     not_updated.inputs[0].taproot_script_spend_signatures = {key_data: signature}
     with pytest.raises(BTClibValueError, match="no leaf script for tapleaf hash"):
-        finalize_psbt(not_updated)
+        finalize(not_updated)
 
 
 # what cannot update a psbt, and what says so. The three `satisfy`

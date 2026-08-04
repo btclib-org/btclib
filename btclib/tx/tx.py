@@ -7,7 +7,7 @@
 #
 # No part of btclib including this file, may be copied, modified, propagated,
 # or distributed except according to the terms contained in the LICENSE file.
-"""The Tx dataclass and join_txs; the class docstring has the contract."""
+"""The Tx dataclass and join; the class docstring has the contract."""
 
 from __future__ import annotations
 
@@ -391,7 +391,7 @@ class Tx:
         return cls(version, lock_time, vin, vout, check_validity=check_validity)
 
 
-def join_txs(
+def join(
     txs: Sequence[Tx],
     enforce_same_version: bool,
     enforce_same_lock_time: bool,
