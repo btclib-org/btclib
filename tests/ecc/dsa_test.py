@@ -194,50 +194,38 @@ def test_gec() -> None:
     assert dsa.verify(msg, QU, sig, lower_s, hf)
 
 
-def test_low_cardinality() -> None:
-    """Test low-cardinality curves for all msg/key pairs."""
-    # five of the eight low-cardinality curves. All eight have a prime
-    # order, so that is not what selects them: the loop below is
-    # quadratic in n, and ec13_19, ec17_13 and ec19_23 are left out to
-    # bound the runtime rather than for any property they lack
-    test_curves = [
-        low_card_curves["ec13_11"],
-        low_card_curves["ec17_23"],
-        low_card_curves["ec19_13"],
-        low_card_curves["ec23_19"],
-        low_card_curves["ec23_31"],
-    ]
-
+@pytest.mark.parametrize("name", list(low_card_curves))
+def test_low_cardinality(name: str) -> None:
+    """Exercise every low-cardinality curve in its own exhaustive test case."""
+    ec = low_card_curves[name]
     lower_s = True
-    # only low cardinality test curves or it would take forever
-    for ec in test_curves:
-        for q in range(1, ec.n):  # all possible private keys
-            QJ = _mult(q, ec.GJ, ec)  # public key
-            for k in range(1, ec.n):  # all possible ephemeral keys
-                RJ = _mult(k, ec.GJ, ec)
-                r = ec.x_aff_from_jac(RJ) % ec.n
-                k_inv = mod_inv(k, ec.n)
-                for e in range(ec.n):  # all possible challenges
-                    s = k_inv * (e + q * r) % ec.n
-                    # bitcoin canonical 'low-s' encoding for ECDSA
-                    if lower_s and s > ec.n // 2:
-                        s = ec.n - s
-                    if r == 0 or s == 0:
-                        err_msg = "failed to sign: "
-                        with pytest.raises(BTClibRuntimeError, match=err_msg):
-                            dsa._sign_(e, q, k, lower_s, ec)
-                    else:
-                        sig = dsa._sign_(e, q, k, lower_s, ec)
-                        assert r == sig.r
-                        assert s == sig.s
-                        assert ec == sig.ec
-                        # valid signature must pass verification
-                        dsa._assert_as_valid_(e, QJ, r, s, lower_s, ec)
+    for q in range(1, ec.n):  # all possible private keys
+        QJ = _mult(q, ec.GJ, ec)  # public key
+        for k in range(1, ec.n):  # all possible ephemeral keys
+            RJ = _mult(k, ec.GJ, ec)
+            r = ec.x_aff_from_jac(RJ) % ec.n
+            k_inv = mod_inv(k, ec.n)
+            for e in range(ec.n):  # all possible challenges
+                s = k_inv * (e + q * r) % ec.n
+                # bitcoin canonical 'low-s' encoding for ECDSA
+                if lower_s and s > ec.n // 2:
+                    s = ec.n - s
+                if r == 0 or s == 0:
+                    err_msg = "failed to sign: "
+                    with pytest.raises(BTClibRuntimeError, match=err_msg):
+                        dsa._sign_(e, q, k, lower_s, ec)
+                else:
+                    sig = dsa._sign_(e, q, k, lower_s, ec)
+                    assert r == sig.r
+                    assert s == sig.s
+                    assert ec == sig.ec
+                    # valid signature must pass verification
+                    dsa._assert_as_valid_(e, QJ, r, s, lower_s, ec)
 
-                        jac_keys = dsa._recover_pub_keys_(e, r, s, lower_s, ec)
-                        Qs = [ec.aff_from_jac(key) for key in jac_keys]
-                        assert ec.aff_from_jac(QJ) in Qs
-                        assert len(jac_keys) in {2, 4}
+                    jac_keys = dsa._recover_pub_keys_(e, r, s, lower_s, ec)
+                    Qs = [ec.aff_from_jac(key) for key in jac_keys]
+                    assert ec.aff_from_jac(QJ) in Qs
+                    assert len(jac_keys) in {2, 4}
 
 
 def test_pub_key_recovery() -> None:
