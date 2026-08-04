@@ -35,7 +35,6 @@ one; that check is unconditional for the same reason.
 from __future__ import annotations
 
 from collections.abc import Iterable
-from collections.abc import Iterable as IterableCollection
 from io import BytesIO
 from typing import Any
 
@@ -49,16 +48,23 @@ def bytes_from_octets(octets: Octets, out_size: NoneOneOrMoreInt = None) -> byte
     """Return bytes from a hex-string, stripping leading/trailing spaces.
 
     If the input is not a string, then it goes untouched. Optionally, it
-    also ensures required output size.
+    also ensures required output size: one size, or any iterable of them,
+    and a bool is neither -- `out_size=True` would accept a single octet
+    and say it had checked a size.
     """
     if isinstance(octets, str):  # hex string
         octets = bytes.fromhex(octets)
 
-    if (
-        out_size is None
-        or (isinstance(out_size, int) and len(octets) == out_size)
-        or (isinstance(out_size, IterableCollection) and len(octets) in out_size)
-    ):
+    if out_size is None:
+        return octets
+
+    sizes = (out_size,) if isinstance(out_size, int) else tuple(out_size)
+    for size in sizes:
+        if not is_integer(size):
+            err_msg = f"invalid output size type: {type(size).__name__}"
+            raise BTClibTypeError(err_msg)
+
+    if len(octets) in sizes:
         return octets
 
     err_msg = f"invalid size: {len(octets)} bytes instead of {out_size}"
@@ -120,6 +126,7 @@ def assert_no_trailing(data: BinaryData, stream: BytesIO, what: str) -> None:
     trailing = stream.read()
     if trailing:
         raise BTClibValueError(f"{len(trailing)} bytes after the {what}")
+
 
 def is_integer(value: Any) -> bool:
     """Return whether the value is an integer, a bool not being one.

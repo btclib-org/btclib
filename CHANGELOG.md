@@ -952,11 +952,19 @@ edit.
   bool is the one thing they refuse instead. `isinstance(x, int) and not
   isinstance(x, bool)` rather than `type(x) is int`, so an `IntEnum` stays
   a number and issue #273 is not answered here in advance. The fields:
-  satoshi amounts, `FeeRate.sats_per_kvbyte`, virtual sizes, `OutPoint.vout`,
+  satoshi amounts and the dust threshold they are compared against,
+  `FeeRate.sats_per_kvbyte`, virtual sizes, `OutPoint.vout`,
   `TxIn.sequence`, `Tx.version` and `Tx.lock_time` — the last three
   type-checked before their range, as `BlockHeader.assert_valid` already
   checked its own two — a block header's version and nonce, a block
-  context's heights, and a bip32 key's depth and index. A BTC amount is a
+  context's heights, a bip32 key's depth and index, every derivation index
+  (`indexes_from_der_path` turned `True` into the index one and
+  `str_from_index_int` turned it into the path step `"True"`, `str()`
+  rendering a bool as a word), and the output sizes of `bytes_from_octets`
+  and `base58.b58decode`, where `out_size=True` accepted a single octet and
+  reported a size as checked. The derivation-path sequence is no longer
+  coerced with `int()` either: its contract is `Sequence[int]`, so a member
+  that is no integer is refused rather than converted. A BTC amount is a
   Decimal quote rather than an integer field, so `valid_btc_amount(True)`
   stays the value error it became in #339. `tests/integer_policy_test.py`
   holds all of them to it, and holds the refusal to the numbers it must

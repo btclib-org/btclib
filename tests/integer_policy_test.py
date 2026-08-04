@@ -25,14 +25,21 @@ from typing import Any
 
 import pytest
 
+from btclib import base58
 from btclib.amount import valid_sats_amount
 from btclib.bip32 import BIP32KeyData
+from btclib.bip32.der_path import (
+    bytes_from_der_path,
+    indexes_from_der_path,
+    str_from_der_path,
+    str_from_index_int,
+)
 from btclib.block import BlockHeader
 from btclib.block.block_context import BlockContext
 from btclib.exceptions import BTClibTypeError
 from btclib.fee import FeeRate, fee_from_vsize
 from btclib.tx import OutPoint, Tx, TxIn, TxOut
-from btclib.utils import is_integer
+from btclib.utils import bytes_from_octets, is_integer
 
 _TX_ID = "01" * 32
 _RATE = FeeRate(sats_per_kvbyte=1000)
@@ -90,6 +97,15 @@ _CASES: list[tuple[str, Callable[[Any], object]]] = [
             b"\x04\x88\xad\xe4", 0, b"\x00" * 4, v, b"\x00" * 32, b"\x00" * 33
         ),
     ),
+    ("dust threshold", lambda v: valid_sats_amount(1, dust=v)),
+    ("derivation index", indexes_from_der_path),
+    ("derivation index in a sequence", lambda v: indexes_from_der_path([v])),
+    ("derivation path as bytes", bytes_from_der_path),
+    ("derivation path as text", str_from_der_path),
+    ("derivation index as a step", str_from_index_int),
+    ("output size", lambda v: bytes_from_octets(b"x", v)),
+    ("output size in an iterable", lambda v: bytes_from_octets(b"x", [v])),
+    ("base58 output size", lambda v: base58.b58decode(base58.b58encode(b"x"), v)),
 ]
 
 _IDS = [case[0] for case in _CASES]
@@ -127,6 +143,18 @@ def test_the_integers_a_bool_refusal_must_not_take_with_it() -> None:
     assert _tx(version=1, lock_time=1).lock_time == 1
     assert _header(nonce=1).nonce == 1
     assert BlockContext(1, _NOW).height == 1
+    assert valid_sats_amount(1, dust=1) == 1
+    assert indexes_from_der_path(1) == [1]
+    assert indexes_from_der_path([1, 2]) == [1, 2]
+    assert bytes_from_der_path(1).hex() == "01000000"
+    assert str_from_der_path([1]) == "m/1"
+    assert str_from_index_int(1) == "1"
+    assert bytes_from_octets(b"x", 1) == b"x"
+    assert bytes_from_octets(b"xx", [1, 2]) == b"xx"
+    assert base58.b58decode(base58.b58encode(b"x"), 1) == b"x"
+
+    # the str and bytes spellings of a path are untouched by any of it
+    assert indexes_from_der_path("m/44h/0h") == [2147483692, 2147483648]
 
 
 def test_an_int_subclass_that_is_not_a_bool_is_still_an_integer() -> None:
@@ -142,6 +170,11 @@ def test_an_int_subclass_that_is_not_a_bool_is_still_an_integer() -> None:
     assert is_integer(Sighash.ALL)
     assert valid_sats_amount(Sighash.ALL) == 1
     assert FeeRate(sats_per_kvbyte=Sighash.ALL).sats_per_kvbyte == 1
+    assert indexes_from_der_path(Sighash.ALL) == [1]
+    assert indexes_from_der_path([Sighash.ALL]) == [1]
+    assert str_from_index_int(Sighash.ALL) == "1"
+    assert bytes_from_octets(b"x", Sighash.ALL) == b"x"
+    assert base58.b58decode(base58.b58encode(b"x"), Sighash.ALL) == b"x"
 
     assert is_integer(0)
     assert is_integer(-1)
