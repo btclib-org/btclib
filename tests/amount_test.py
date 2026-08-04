@@ -161,3 +161,60 @@ def test_self_consistency() -> None:
                 btc = btc_from_sats(sats_from_btc(btc_amount))  # type: ignore[arg-type]
                 assert btc == exp_btc
                 assert str(btc) == str(exp_btc)
+
+
+@pytest.mark.parametrize(
+    "amount",
+    ["abc", "1,2", "", "0x10", object(), "nan", "sNaN", "-nan", "inf", "-Infinity"],
+)
+def test_what_is_no_decimal_number_is_refused_as_btclib_refuses_things(
+    amount: object,
+) -> None:
+    """The exception is this library's, not the decimal module's.
+
+    `str()` renders every object there is and `Decimal` refuses most of
+    what it renders with an `InvalidOperation` -- an `ArithmeticError`,
+    which `except BTClibValueError` does not catch and nobody writes
+    `except ArithmeticError` around an amount. The argument is `Any` on
+    purpose, so this is reachable from ordinary input rather than from
+    something exotic.
+    """
+    with pytest.raises(BTClibValueError, match="invalid BTC amount"):
+        valid_btc_amount(amount)
+
+
+def test_a_nan_does_not_leave_through_the_range_check() -> None:
+    """The NaNs are why `is_finite` is there and a `try` is not enough.
+
+    `Decimal("nan")` is valid syntax and constructs without a word: what
+    used to raise `InvalidOperation` was the *comparison* in the range
+    check, so catching the constructor alone would have left every
+    spelling of a NaN leaking an ArithmeticError out of a validator.
+    """
+    for nan in (float("nan"), "nan", "sNaN", Decimal("NaN")):
+        with pytest.raises(BTClibValueError, match="invalid BTC amount"):
+            valid_btc_amount(nan)
+
+    # an infinity does compare, so the range check is what refuses it,
+    # and that is the line the NaNs never reach
+    for infinity in (float("inf"), "-inf", Decimal("Infinity")):
+        with pytest.raises(BTClibValueError, match="invalid BTC amount"):
+            valid_btc_amount(infinity)
+
+
+def test_a_satoshi_amount_that_int_refuses_is_refused_in_kind() -> None:
+    """int()'s bare ValueError and TypeError become this library's own.
+
+    Each maps to btclib's counterpart of the very builtin it was --
+    BTClibValueError derives from ValueError, BTClibTypeError from
+    TypeError -- so a caller catching either of the builtins catches
+    exactly what it caught before, and one catching btclib's now sees
+    these too.
+    """
+    for amount in ("abc", "", b"\x01", "1,2"):
+        with pytest.raises(BTClibValueError, match="invalid satoshi amount"):
+            valid_sats_amount(amount)
+
+    for other in ([], {}, object()):
+        with pytest.raises(BTClibTypeError, match="non-integer satoshi amount"):
+            valid_sats_amount(other)
