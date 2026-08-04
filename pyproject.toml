@@ -192,12 +192,13 @@ testpaths = ["tests"]
 # does the same for a marker nobody registered, which is how a misspelled
 # skipif silently stops skipping
 # --dist worksteal rather than xdist's default `load`, because the cost
-# here is lopsided: half the suite's work sits in the taproot vectors of
-# tests/script_engine/python_path_test.py, whose slowest cases take ~3 s
-# each against a median test under a millisecond. `load` hands out the
-# queue in chunks and a worker that draws several of those finishes long
-# after the others; worksteal lets an idle worker take back what is
-# queued behind a busy one. Measured on the tree, best of three:
+# here is lopsided: the taproot vectors of
+# tests/script_engine/python_path_test.py carry the slowest cases in the
+# suite and a large part of its work, orders of magnitude above the median
+# test. `load` hands out the queue in chunks and a worker that draws
+# several of those finishes long after the others; worksteal lets an idle
+# worker take back what is queued behind a busy one. Measured on the tree,
+# best of three:
 # tests/README.md carries the two things that do *not* help -- reordering
 # the slow module first, and any -n other than auto -- and the commands
 # that measure all three again, no wall clock here surviving the suite it

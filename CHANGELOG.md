@@ -4760,8 +4760,11 @@ edit.
   pytest` is the run that has looked at everything; `--dist worksteal`
   beats `load`, with `-p no:randomly` part of that comparison rather than
   decoration, two schedulers timed over two collection orders measuring the
-  orders. pyproject.toml points at those commands where it pointed at the
-  figures
+  orders. pyproject.toml's comment on the flag points at those commands
+  where it pointed at the figures, and states neither a share of the
+  suite's work nor a wall clock per case: the imbalance that argues for
+  worksteal is which tests are the slowest and by how many orders of
+  magnitude, and that outlives any number of seconds
 - **`assert_nulldata` says which question it answers** (issue #211). The
   rule it applies — OP_RETURN and one minimal push, total length neither
   78 nor above 83 — is standardness policy, and narrower than the
