@@ -3988,7 +3988,7 @@ edit.
   median test under a millisecond — and `load` hands the queue out in
   chunks, so a worker that draws several of them is still going when the
   others have run out of work. Two changes that look like they should help
-  do not, and tests/README.md records both with their numbers: scheduling
+  do not, and tests/README.md records both: scheduling
   the slow module first is *worse* under either scheduler, and every `-n`
   other than `auto` is slower than `auto`
 - **every vendored vector is exercised**, where two filters used to hold
@@ -4745,16 +4745,23 @@ edit.
   where it named a personal account. And `test.yml`'s `push` trigger carries
   a `paths-ignore` for the website files, so a website-only commit to
   `master` no longer runs the whole matrix (issue #160)
-- **tests/README.md's "no `slow` marker" section is a measurement again.**
-  Its figures were taken when the suite was 7936 tests, and the suite has
-  since nearly doubled: every one of them had stopped being true, the
-  slowest test included, and the conclusion moved with them. Bitcoin Core's
-  vector files are still not the slow part, but
-  `tests/script_engine/python_path_test.py` is — it holds the slowest tests
-  in the suite and, on its own, more than half the wall clock. So a `slow`
-  marker would save something real, where the section said there was nothing
-  to put behind one; none is registered still, and the reason is now stated
-  in numbers the file carries and a run can check
+- **tests/README.md's "no `slow` marker" section states its findings and
+  the command behind each, and no number.** Its figures had been taken when
+  the suite was 7936 tests; the suite has since more than doubled, and every
+  one of them had stopped being true a second time, the slowest test
+  included. Restating them only resets a clock, which is the argument this
+  file already makes about counting its own entries: a wall clock in prose
+  is a line that every commit touching the suite has to edit, and nothing
+  fails when it is not edited. The findings are unchanged, and each is now
+  a run a reader can make — Bitcoin Core's vector files are the biggest
+  thing in the suite and still not the slow part; the cost is
+  `tests/script_engine/python_path_test.py`, so a `slow` marker would save
+  something real, and none is registered still because a plain `uv run
+  pytest` is the run that has looked at everything; `--dist worksteal`
+  beats `load`, with `-p no:randomly` part of that comparison rather than
+  decoration, two schedulers timed over two collection orders measuring the
+  orders. pyproject.toml points at those commands where it pointed at the
+  figures
 - **`assert_nulldata` says which question it answers** (issue #211). The
   rule it applies — OP_RETURN and one minimal push, total length neither
   78 nor above 83 — is standardness policy, and narrower than the

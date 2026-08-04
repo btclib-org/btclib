@@ -198,8 +198,10 @@ testpaths = ["tests"]
 # queue in chunks and a worker that draws several of those finishes long
 # after the others; worksteal lets an idle worker take back what is
 # queued behind a busy one. Measured on the tree, best of three:
-# tests/README.md carries the numbers and the two things that do *not*
-# help -- reordering the slow module first, and any -n other than auto.
+# tests/README.md carries the two things that do *not* help -- reordering
+# the slow module first, and any -n other than auto -- and the commands
+# that measure all three again, no wall clock here surviving the suite it
+# was taken on.
 #
 # pytest-randomly is in the test group and needs no flag here: installed,
 # it shuffles the order and prints the seed, and `-p no:randomly` puts the
