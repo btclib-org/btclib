@@ -456,7 +456,7 @@ def test_only_http_and_https_are_opened(url: str) -> None:
 
 
 def test_an_http_error_is_a_status_and_a_body_not_an_exception() -> None:
-    """Where bitcoind's 1.0 error object and Esplora's 404 text come from."""
+    """Where bitcoind's 1.1 error object and Esplora's 404 text come from."""
     with http_error(500, b'{"result":null,"error":{"code":-5}}') as error:
         assert http_request(URL, transport=Recorded(error)) == (
             500,

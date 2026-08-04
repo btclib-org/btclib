@@ -7,7 +7,7 @@
 #
 # No part of btclib including this file, may be copied, modified, propagated,
 # or distributed except according to the terms contained in the LICENSE file.
-"""Tests for btclib.fetch.bitcoind, against recorded replies.
+"""Tests for btclib.fetch.bitcoin_core, against recorded replies.
 
 Every client here is built with a transport, so no test reaches a node.
 The recorded bodies under `_data` are Core's, shape and newline included;
@@ -41,11 +41,11 @@ from btclib.exceptions import (
     HttpError,
     RpcError,
 )
-from btclib.fetch.bitcoind import (
+from btclib.fetch.bitcoin_core import (
     COOKIE_USER,
     DEFAULT_DATADIR,
-    BitcoindFetcher,
-    BitcoindRpcClient,
+    BitcoinCoreFetcher,
+    BitcoinCoreRpcClient,
     cookie_auth,
 )
 from btclib.fetch.transport import DEFAULT_MAX_BODY_SIZE, DEFAULT_TIMEOUT
@@ -105,9 +105,9 @@ class Echoing(Recorded):
 
 def client(
     *answers: tuple[int, bytes] | Exception, **kwargs: object
-) -> BitcoindRpcClient:
+) -> BitcoinCoreRpcClient:
     """Return a client over an id-echoing recording, credentials of no node."""
-    return BitcoindRpcClient(
+    return BitcoinCoreRpcClient(
         URL,
         user=RPC_USER,
         password=RPC_PASSWORD,
@@ -116,30 +116,30 @@ def client(
     )
 
 
-def verbatim(*answers: tuple[int, bytes] | Exception) -> BitcoindRpcClient:
+def verbatim(*answers: tuple[int, bytes] | Exception) -> BitcoinCoreRpcClient:
     """Return a client answering exactly these bodies, their id included."""
-    return BitcoindRpcClient(
+    return BitcoinCoreRpcClient(
         URL, user=RPC_USER, password=RPC_PASSWORD, transport=Recorded(*answers)
     )
 
 
 def fetcher(
     *answers: tuple[int, bytes] | Exception, **kwargs: object
-) -> BitcoindFetcher:
-    """Return a BitcoindFetcher over a recorded client."""
+) -> BitcoinCoreFetcher:
+    """Return a BitcoinCoreFetcher over a recorded client."""
     network = kwargs.pop("network", "mainnet")
     assert isinstance(network, str)
-    return BitcoindFetcher(client(*answers, **kwargs), network)
+    return BitcoinCoreFetcher(client(*answers, **kwargs), network)
 
 
-def recording(endpoint: BitcoindRpcClient) -> Recorded:
+def recording(endpoint: BitcoinCoreRpcClient) -> Recorded:
     """Return the recording a client was built with, as one."""
     transport = endpoint.transport
     assert isinstance(transport, Recorded)
     return transport
 
 
-def sent(endpoint: BitcoindRpcClient) -> dict[str, object]:
+def sent(endpoint: BitcoinCoreRpcClient) -> dict[str, object]:
     """Return the json request body a client's only call was sent with."""
     body = json.loads(recording(endpoint).body)
     assert isinstance(body, dict)
@@ -148,7 +148,7 @@ def sent(endpoint: BitcoindRpcClient) -> dict[str, object]:
 
 def test_from_network_is_the_local_node_of_that_network() -> None:
     """The rpc port and the datadir subdirectory of Core's chainparamsbase."""
-    from_network = BitcoindRpcClient.from_network
+    from_network = BitcoinCoreRpcClient.from_network
     assert from_network().url == "http://127.0.0.1:8332"
     assert from_network("testnet").url == "http://127.0.0.1:18332"
     assert from_network("testnet4").url == "http://127.0.0.1:48332"
@@ -166,7 +166,7 @@ def test_from_network_is_the_local_node_of_that_network() -> None:
 
 def test_from_network_takes_credentials_instead_of_a_cookie() -> None:
     """Credentials given, no cookie path derived: the two are exclusive."""
-    endpoint = BitcoindRpcClient.from_network(
+    endpoint = BitcoinCoreRpcClient.from_network(
         "regtest", user=RPC_USER, password=RPC_PASSWORD
     )
     assert endpoint.cookie_path is None
@@ -176,18 +176,18 @@ def test_from_network_takes_credentials_instead_of_a_cookie() -> None:
 def test_from_network_refuses_a_network_core_has_no_port_for() -> None:
     """The five names are Core's chainparamsbase, not btclib's registry."""
     with pytest.raises(BTClibValueError, match="unknown network: testnet5"):
-        BitcoindRpcClient.from_network("testnet5")
+        BitcoinCoreRpcClient.from_network("testnet5")
 
 
 def test_the_url_carries_no_network_and_no_registry() -> None:
     """A signet of one's own reaches the constructor, which asks no name.
 
     The connection is a url and credentials; which chain the node serves
-    is `BitcoindFetcher`'s label. A custom signet -- a network btclib can
+    is `BitcoinCoreFetcher`'s label. A custom signet -- a network btclib can
     be taught and Core has no default port for -- is exactly the case a
     client validating chain names would have refused.
     """
-    endpoint = BitcoindRpcClient(
+    endpoint = BitcoinCoreRpcClient(
         "http://node.example:39332", user=RPC_USER, password=RPC_PASSWORD
     )
     assert endpoint.url == "http://node.example:39332"
@@ -215,7 +215,7 @@ def test_an_endpoint_that_is_not_one_is_refused_at_construction(
     these -- by then the line that supplied it is somewhere else.
     """
     with pytest.raises(BTClibValueError, match=match):
-        BitcoindRpcClient(url, user=RPC_USER, password=RPC_PASSWORD)
+        BitcoinCoreRpcClient(url, user=RPC_USER, password=RPC_PASSWORD)
 
 
 @pytest.mark.parametrize(
@@ -233,7 +233,7 @@ def test_credentials_in_the_url_are_refused(url: str) -> None:
     disclosed before anybody meant to disclose it.
     """
     with pytest.raises(BTClibValueError, match="credentials in the rpc url"):
-        BitcoindRpcClient(url, cookie_path="/nowhere/.cookie")
+        BitcoinCoreRpcClient(url, cookie_path="/nowhere/.cookie")
 
 
 @pytest.mark.parametrize(("user", "password"), [(RPC_USER, None), (None, RPC_PASSWORD)])
@@ -242,7 +242,7 @@ def test_a_user_without_a_password_is_refused(
 ) -> None:
     """Refuse a user without a password, and the other way round."""
     with pytest.raises(BTClibValueError, match="go together"):
-        BitcoindRpcClient(URL, user=user, password=password)
+        BitcoinCoreRpcClient(URL, user=user, password=password)
 
 
 def test_credentials_and_a_cookie_path_together_are_refused() -> None:
@@ -254,7 +254,7 @@ def test_credentials_and_a_cookie_path_together_are_refused() -> None:
     nothing said which of the two was in use.
     """
     with pytest.raises(BTClibValueError, match="both rpc credentials and a cookie"):
-        BitcoindRpcClient(
+        BitcoinCoreRpcClient(
             URL,
             user=RPC_USER,
             password=RPC_PASSWORD,
@@ -265,21 +265,21 @@ def test_credentials_and_a_cookie_path_together_are_refused() -> None:
 def test_neither_credentials_nor_a_cookie_path_is_refused() -> None:
     """A client with no way to authenticate is refused where it is built."""
     with pytest.raises(BTClibValueError, match="no rpc credentials"):
-        BitcoindRpcClient(URL)
+        BitcoinCoreRpcClient(URL)
 
 
 @pytest.mark.parametrize("timeout", [0, -1, float("inf"), float("nan")])
 def test_a_timeout_that_is_no_duration_is_refused(timeout: float) -> None:
     """A zero, a negative, an infinity and a nan are not seconds to wait."""
     with pytest.raises(BTClibValueError, match="rpc timeout is not a positive"):
-        BitcoindRpcClient(URL, user=RPC_USER, password=RPC_PASSWORD, timeout=timeout)
+        BitcoinCoreRpcClient(URL, user=RPC_USER, password=RPC_PASSWORD, timeout=timeout)
 
 
 @pytest.mark.parametrize("timeout", [True, "30", None])
 def test_a_non_numeric_timeout_is_refused(timeout: object) -> None:
     """A bool is not a duration: `timeout=True` would be one second."""
     with pytest.raises(BTClibTypeError, match="non-numeric rpc timeout"):
-        BitcoindRpcClient(
+        BitcoinCoreRpcClient(
             URL,
             user=RPC_USER,
             password=RPC_PASSWORD,
@@ -289,14 +289,16 @@ def test_a_non_numeric_timeout_is_refused(timeout: object) -> None:
 
 def test_the_default_timeout_is_the_one_the_module_documents() -> None:
     """Verify a client with no timeout argument carries the module default."""
-    assert BitcoindRpcClient(URL, cookie_path="/nowhere/.cookie").timeout == (
+    assert BitcoinCoreRpcClient(URL, cookie_path="/nowhere/.cookie").timeout == (
         DEFAULT_TIMEOUT
     )
 
 
 def test_the_basic_credential_is_the_user_and_password_given() -> None:
     """Verify the Authorization header is Basic over user:password."""
-    header = BitcoindRpcClient(URL, user=RPC_USER, password=RPC_PASSWORD).auth_header()
+    header = BitcoinCoreRpcClient(
+        URL, user=RPC_USER, password=RPC_PASSWORD
+    ).auth_header()
     scheme, encoded = header.split(" ")
     assert scheme == "Basic"
     assert b64decode(encoded).decode() == f"{RPC_USER}:{RPC_PASSWORD}"
@@ -305,7 +307,7 @@ def test_the_basic_credential_is_the_user_and_password_given() -> None:
 def test_a_non_ascii_password_is_utf_8() -> None:
     """What a shell and a bitcoin.conf would have written."""
     umlauts = "pässwörd"
-    header = BitcoindRpcClient(URL, user=RPC_USER, password=umlauts).auth_header()
+    header = BitcoinCoreRpcClient(URL, user=RPC_USER, password=umlauts).auth_header()
     assert b64decode(header.split(" ")[1]) == f"{RPC_USER}:{umlauts}".encode()
 
 
@@ -315,7 +317,7 @@ def test_the_cookie_file_is_the_credential_when_there_is_no_user(
     """Verify the cookie line becomes the Basic credential, no user given."""
     cookie = tmp_path / ".cookie"
     cookie.write_text(COOKIE_LINE)
-    header = BitcoindRpcClient(URL, cookie_path=cookie).auth_header()
+    header = BitcoinCoreRpcClient(URL, cookie_path=cookie).auth_header()
     assert b64decode(header.split(" ")[1]).decode() == COOKIE_LINE
 
 
@@ -330,7 +332,7 @@ def test_the_cookie_is_read_at_every_call_not_at_construction(
     should not raise FileNotFoundError.
     """
     cookie = tmp_path / ".cookie"
-    endpoint = BitcoindRpcClient(
+    endpoint = BitcoinCoreRpcClient(
         URL, cookie_path=cookie, transport=Echoing((200, b"{}"))
     )
     assert not cookie.exists()
@@ -1033,9 +1035,9 @@ def test_an_error_member_that_is_not_one(error: object) -> None:
 
 def test_a_wallet_endpoint_is_the_path_core_documents() -> None:
     """How a node with several wallets loaded is told which one is meant."""
-    endpoint = BitcoindRpcClient(URL, user=RPC_USER, password=RPC_PASSWORD).for_wallet(
-        "hot"
-    )
+    endpoint = BitcoinCoreRpcClient(
+        URL, user=RPC_USER, password=RPC_PASSWORD
+    ).for_wallet("hot")
     assert endpoint.url == f"{URL}/wallet/hot"
     assert endpoint.user == RPC_USER
 
@@ -1058,7 +1060,7 @@ def test_a_wallet_name_is_percent_encoded(name: str, path: str) -> None:
     addresses a different endpoint or none -- and the caller who named
     the wallet is not the one who should have to know that.
     """
-    endpoint = BitcoindRpcClient(URL, user=RPC_USER, password=RPC_PASSWORD)
+    endpoint = BitcoinCoreRpcClient(URL, user=RPC_USER, password=RPC_PASSWORD)
     assert endpoint.for_wallet(name).url == f"{URL}/wallet/{path}"
 
 
@@ -1066,7 +1068,7 @@ def test_a_wallet_client_keeps_the_credentials_and_the_transport() -> None:
     """The endpoint is the only difference, so one client derives the rest."""
     cookie = Path("/nowhere/.cookie")
     transport = Echoing((200, recorded_body("getblockcount.json")))
-    endpoint = BitcoindRpcClient(
+    endpoint = BitcoinCoreRpcClient(
         URL, cookie_path=cookie, timeout=7.0, transport=transport
     ).for_wallet("hot")
     assert endpoint.cookie_path == cookie
@@ -1086,7 +1088,7 @@ def test_get_tx_parses_the_serialization_the_node_sent() -> None:
 def test_get_tx_asks_for_the_id_it_was_given() -> None:
     """Verify get_tx sends getrawtransaction with the hex id it was given."""
     endpoint = client((200, recorded_body("getrawtransaction.json")))
-    BitcoindFetcher(endpoint).get_tx(bytes.fromhex(TX_ID))
+    BitcoinCoreFetcher(endpoint).get_tx(bytes.fromhex(TX_ID))
     body = sent(endpoint)
     assert body["method"] == "getrawtransaction"
     assert body["params"] == [TX_ID]
@@ -1095,7 +1097,7 @@ def test_get_tx_asks_for_the_id_it_was_given() -> None:
 def test_get_tx_labels_the_outputs_for_the_fetchers_network() -> None:
     """The network is the fetcher's: the client knows a url and no chain."""
     endpoint = client((200, recorded_body("getrawtransaction.json")))
-    tx = BitcoindFetcher(endpoint, "testnet").get_tx(TX_ID)
+    tx = BitcoinCoreFetcher(endpoint, "testnet").get_tx(TX_ID)
     assert [out.script_pub_key.network for out in tx.vout] == ["testnet"] * 2
 
 
@@ -1106,8 +1108,8 @@ def test_the_fetchers_network_is_btclibs_registry_not_cores() -> None:
     has no port for -- neither of which is the question this label answers.
     """
     with pytest.raises(BTClibValueError, match="unknown network"):
-        BitcoindFetcher(
-            BitcoindRpcClient(URL, user=RPC_USER, password=RPC_PASSWORD), "nowhere"
+        BitcoinCoreFetcher(
+            BitcoinCoreRpcClient(URL, user=RPC_USER, password=RPC_PASSWORD), "nowhere"
         )
 
 
@@ -1173,7 +1175,7 @@ def test_a_small_reply_carries_a_small_limit() -> None:
     # and `call` itself keeps the wide default, being public and taking
     # any method: `getblock` on a large block is a legitimate call. The
     # timeout defaults to the client's, which is what None means here
-    defaults = BitcoindRpcClient.call.__kwdefaults__
+    defaults = BitcoinCoreRpcClient.call.__kwdefaults__
     assert defaults is not None
     assert defaults["max_body_size"] == DEFAULT_MAX_BODY_SIZE
     assert defaults["request_timeout"] is None

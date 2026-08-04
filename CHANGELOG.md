@@ -278,7 +278,7 @@ edit.
   bytes it has already read, so what `http_request` promises for one is
   that an oversized answer goes no further — a bound distinct from the
   one a transport of a caller's own applies to what it holds while
-  reading, which it alone can enforce. `BitcoindRpcClient.call` takes
+  reading, which it alone can enforce. `BitcoinCoreRpcClient.call` takes
   `max_body_size` too, for the caller invoking `getblock` on a large
   block. The body of an `HTTPError` is closed after that bounded read, a
   response left with octets in it being a `ResourceWarning` out of a
@@ -2378,7 +2378,7 @@ edit.
   bytes it was handed — the transaction with this id, the output an
   outpoint names, the chain tip — and it is implemented twice, so calling
   code takes a `Fetcher` and never branches on which one it got:
-  `BitcoindFetcher` over a full node's JSON-RPC, and `EsploraFetcher`
+  `BitcoinCoreFetcher` over a full node's JSON-RPC, and `EsploraFetcher`
   over a block explorer's HTTP api for anyone without a node. What comes
   back is `Tx` and `TxOut`, not the dicts the backends send, and the
   outputs are labelled with the fetcher's network, which `Tx.parse`
@@ -2392,7 +2392,7 @@ edit.
   reply from a node older than v28 is still read, and which of the two a
   reply is decides where an error may legitimately come from — under 2.0
   a non-200 is the HTTP exchange failing and never the node's answer.
-  `BitcoindRpcClient` calls any method, not only the three, and is an
+  `BitcoinCoreRpcClient` calls any method, not only the three, and is an
   implementation of the protocol rather than a port of
   python-bitcoinrpc's `AuthServiceProxy`, whose lineage is LGPL where
   btclib is MIT. It takes either of json-rpc's two parameter structures —
@@ -2413,7 +2413,7 @@ edit.
   `.cookie` — re-read at every call since a node restart rotates it,
   bounded, and required to be one ascii line — means there need be no
   password at all. The client holds no chain, so
-  `BitcoindFetcher(client, network=...)` owns btclib's label and a signet
+  `BitcoinCoreFetcher(client, network=...)` owns btclib's label and a signet
   of one's own is an explicit url rather than a name this package has to
   know. `FetchError`, `HttpError` with the HTTP status and `RpcError`
   with the node's code and optional `data` are in `btclib.exceptions`
@@ -3116,7 +3116,7 @@ edit.
 - **`btclib.fetch` states what it exports and what it keeps out.** The
   docstring explained the design of the package and said nothing about its
   public surface, where `btclib.curves` and `btclib.block` each record
-  theirs. `cookie_auth` stays out because `BitcoindRpcClient` takes a
+  theirs. `cookie_auth` stays out because `BitcoinCoreRpcClient` takes a
   `cookie_path` and reads that file at every call, the node rewriting the
   cookie whenever it restarts: a caller passes the path and never the
   credential, and a name for reading one is a way to hold it longer than

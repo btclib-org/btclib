@@ -50,7 +50,7 @@ from btclib.utils import is_integer
 # timeout in seconds, answering with the HTTP status and the response
 # body. A status rather than an exception, because a JSON-RPC error can
 # arrive with a 500 and its body is the error object -- see
-# btclib.fetch.bitcoind
+# btclib.fetch.bitcoin_core
 #
 # Two arguments and no more, which is what a caller's own transport is
 # owed and what it owes. What it is owed: a `Request` with its url, its
@@ -67,7 +67,7 @@ from btclib.utils import is_integer
 #   for the host it names -- `_OPENER` below is what does this for the
 #   default -- and a client library that follows a 30x sends that
 #   credential to whatever the `Location` says;
-# - its own thread-safety. `BitcoindRpcClient` promises that concurrent
+# - its own thread-safety. `BitcoinCoreRpcClient` promises that concurrent
 #   calls are safe while its configuration is not mutated, and the
 #   transport is part of that configuration: a session object that is not
 #   thread-safe makes the client not thread-safe, and only its author

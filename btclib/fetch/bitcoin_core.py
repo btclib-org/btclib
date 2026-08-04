@@ -7,12 +7,12 @@
 #
 # No part of btclib including this file, may be copied, modified, propagated,
 # or distributed except according to the terms contained in the LICENSE file.
-"""A JSON-RPC client against bitcoind, and the fetcher built on it.
+"""A JSON-RPC client against Bitcoin Core, and the fetcher built on it.
 
-`BitcoindRpcClient` invokes any one rpc method a node has, with
+`BitcoinCoreRpcClient` invokes any one rpc method a node has, with
 positional or named parameters: one HTTP POST per call, basic
 authentication, the result or an exception. Any method, and not only the
-three `BitcoindFetcher` asks for -- a caller with a node has every reason
+three `BitcoinCoreFetcher` asks for -- a caller with a node has every reason
 to ask it something else, and refusing that would only mean they write
 this class again. One method per call, though: a batch answers several at
 once and needs an api for correlating the answers and for partly failing,
@@ -46,8 +46,8 @@ deliberately.
     # credentials leave the url, which is what gets written into a
     # config file and printed in a traceback
     AuthServiceProxy(f"http://{user}:{password}@127.0.0.1:8332")
-    BitcoindRpcClient("http://127.0.0.1:8332", user=user, password=password)
-    BitcoindRpcClient.from_network("mainnet")  # or the node's cookie file
+    BitcoinCoreRpcClient("http://127.0.0.1:8332", user=user, password=password)
+    BitcoinCoreRpcClient.from_network("mainnet")  # or the node's cookie file
 
     # one wallet of a multi-wallet node, percent-encoded
     client.for_wallet("hot").call("getbalance")
@@ -588,8 +588,8 @@ def _v2_result(
     return reply["result"]
 
 
-class BitcoindRpcClient:
-    """One bitcoind JSON-RPC endpoint, and the credentials to reach it.
+class BitcoinCoreRpcClient:
+    """One Bitcoin Core JSON-RPC endpoint, and the credentials to reach it.
 
     Not a dataclass, and that is about the password: a generated
     `__repr__` prints every field, so the credential would appear in any
@@ -618,7 +618,7 @@ class BitcoindRpcClient:
     tunnel, is what keeps them off it.
 
     Nothing here asks the node which chain it is on. The url and the
-    cookie path say where to ask; `BitcoindFetcher`'s `network` says what
+    cookie path say where to ask; `BitcoinCoreFetcher`'s `network` says what
     the answers are labelled with, and holding the two together is the
     caller's -- `getblockchaininfo` through `call` is how it is checked.
     """
@@ -661,7 +661,7 @@ class BitcoindRpcClient:
         cookie_path: Path | str | None = None,
         timeout: float = DEFAULT_TIMEOUT,
         transport: HttpTransport = urlopen_transport,
-    ) -> BitcoindRpcClient:
+    ) -> BitcoinCoreRpcClient:
         """Return a client for the local node of one of Core's networks.
 
         The convenience of not writing out a loopback url, a port and a
@@ -672,7 +672,7 @@ class BitcoindRpcClient:
         with a `cookie_path`, which is the constructor.
 
         Nor is this the chain the answers get labelled with. That is
-        `BitcoindFetcher`'s `network`, and nothing here verifies that the
+        `BitcoinCoreFetcher`'s `network`, and nothing here verifies that the
         node agrees with either of them.
         """
         if network not in _RPC_PORT:
@@ -688,7 +688,7 @@ class BitcoindRpcClient:
             transport=transport,
         )
 
-    def for_wallet(self, wallet_name: str) -> BitcoindRpcClient:
+    def for_wallet(self, wallet_name: str) -> BitcoinCoreRpcClient:
         """Return a client for this node's `/wallet/<name>` endpoint.
 
         Which is how a node with several wallets loaded is told which one
@@ -702,7 +702,7 @@ class BitcoindRpcClient:
         several wallets builds one client and derives the rest.
         """
         url = f"{self.url.rstrip('/')}/wallet/{quote(wallet_name, safe='')}"
-        return BitcoindRpcClient(
+        return BitcoinCoreRpcClient(
             url,
             user=self.user,
             password=self._password,
@@ -817,7 +817,7 @@ class BitcoindRpcClient:
         return _v2_result(where, request_id, status, reply)
 
 
-class BitcoindFetcher(Fetcher):
+class BitcoinCoreFetcher(Fetcher):
     """The three questions, answered by a node over its rpc.
 
     The client is a constructor argument rather than a set of connection
@@ -835,7 +835,7 @@ class BitcoindFetcher(Fetcher):
     checked.
     """
 
-    def __init__(self, client: BitcoindRpcClient, network: str = "mainnet") -> None:
+    def __init__(self, client: BitcoinCoreRpcClient, network: str = "mainnet") -> None:
         super().__init__(network)
         self.client = client
 
