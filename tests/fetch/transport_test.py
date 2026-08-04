@@ -19,7 +19,7 @@ from urllib.request import Request
 
 import pytest
 
-from btclib.exceptions import BTClibValueError, FetchError
+from btclib.exceptions import BTClibTypeError, BTClibValueError, FetchError
 from btclib.fetch import transport as transport_module
 from btclib.fetch.transport import (
     DEFAULT_MAX_BODY_SIZE,
@@ -298,6 +298,58 @@ def test_the_body_of_a_failure_is_truncated_not_refused() -> None:
         status, body = http_request(URL, max_body_size=64, transport=Recorded(error))
     assert status == 404
     assert len(body) == MAX_ERROR_BODY_SIZE
+
+
+def test_the_response_of_a_failure_is_closed() -> None:
+    """A bounded read leaves octets in it, and nobody else will close it.
+
+    An HTTPError is a response as well as an exception, so releasing the
+    connection is this function's now that it stops reading early. Left
+    open, it is a ResourceWarning out of a deallocator at whatever later
+    moment the collector picks -- which under `filterwarnings = ["error"]`
+    fails whichever unrelated test is running then.
+    """
+    with http_error(500, b"x" * (MAX_ERROR_BODY_SIZE + 1)) as error:
+        closed: list[bool] = []
+        already = error.close
+
+        def close() -> None:
+            closed.append(True)
+            already()
+
+        error.close = close  # type: ignore[method-assign]
+        status, body = http_request(URL, transport=Recorded(error))
+
+        assert status == 500
+        assert len(body) == MAX_ERROR_BODY_SIZE
+        assert closed == [True]
+
+
+@pytest.mark.parametrize("max_body_size", [1.5, "64", None, 64.0])
+def test_a_limit_that_is_no_size_is_refused_as_such(max_body_size: object) -> None:
+    """And refused before it is read as one.
+
+    A float reaches `read` and leaves through a bare `TypeError` about the
+    argument of a read: outside this library's exception contract, and out
+    of a function whose whole subject is what it refuses to read.
+    """
+    transport = Recorded((200, b"7"))
+    with pytest.raises(BTClibTypeError, match="non-integer max_body_size"):
+        http_request(URL, max_body_size=max_body_size, transport=transport)  # type: ignore[arg-type]
+    assert transport.requests == []
+
+
+def test_a_negative_limit_is_no_limit_at_all() -> None:
+    """Where zero is a limit: only an empty body answers it."""
+    with pytest.raises(BTClibValueError, match="negative max_body_size: -1"):
+        http_request(URL, max_body_size=-1, transport=Recorded((200, b"")))
+
+    assert http_request(URL, max_body_size=0, transport=Recorded((200, b""))) == (
+        200,
+        b"",
+    )
+    with pytest.raises(FetchError, match="more than the 0 allowed"):
+        http_request(URL, max_body_size=0, transport=Recorded((200, b"7")))
 
 
 def test_the_default_limit_is_a_transaction_in_hex() -> None:

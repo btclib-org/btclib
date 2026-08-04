@@ -252,8 +252,13 @@ edit.
   bytes it has already read, so what `http_request` promises for one is
   that an oversized answer goes no further. `AuthProxy.call` takes
   `max_body_size` too, for the caller invoking `getblock` on a large
-  block. A total request deadline is a different mechanism and is
-  deliberately not here
+  block. The body of an `HTTPError` is closed after that bounded read, a
+  response left with octets in it being a `ResourceWarning` out of a
+  deallocator later, and the limit itself is refused when it is no size: a
+  float would otherwise reach `read` and leave through a bare `TypeError`,
+  a negative one would report every body as too large, and zero is a limit
+  like any other -- it says that only an empty body is an answer. A total
+  request deadline is a different mechanism and is deliberately not here
 
 ### Consensus rules
 

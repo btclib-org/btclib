@@ -37,7 +37,7 @@ from urllib.error import HTTPError
 from urllib.parse import urlsplit
 from urllib.request import Request, urlopen
 
-from btclib.exceptions import BTClibValueError, FetchError
+from btclib.exceptions import BTClibTypeError, BTClibValueError, FetchError
 
 # What a fetcher does its I/O with: a callable taking the request and a
 # timeout in seconds, answering with the HTTP status and the response
@@ -93,6 +93,22 @@ MAX_ERROR_BODY_SIZE = 64 * 1024
 _SCHEMES = ("http", "https")
 
 
+def _assert_valid_max_body_size(max_body_size: int) -> None:
+    """Refuse a limit that is no size, before it is read as one.
+
+    A float reaches `read` and leaves through a bare `TypeError` about the
+    argument of a read, from underneath the library rather than through its
+    exception contract; a negative limit makes the bounded read ask for
+    nothing and then report every body as too large. Zero is a size and is
+    left alone: it says that only an empty body is an answer.
+    """
+    if not isinstance(max_body_size, int):
+        err_msg = f"non-integer max_body_size: {max_body_size}"
+        raise BTClibTypeError(err_msg)
+    if max_body_size < 0:
+        raise BTClibValueError(f"negative max_body_size: {max_body_size}")
+
+
 def _read_bounded(response: Any, max_body_size: int, where: str) -> bytes:
     """Return the body, having never held more than the limit of it.
 
@@ -108,6 +124,8 @@ def _read_bounded(response: Any, max_body_size: int, where: str) -> bytes:
     chunked response, so this loops until the limit is filled or the peer
     is done.
     """
+    _assert_valid_max_body_size(max_body_size)
+
     announced = response.headers.get("Content-Length")
     if announced is not None:
         # a header, so it can be anything: a value that is not a number
@@ -190,6 +208,8 @@ def http_request(
     octet over a caller's limit for a *height* is still the diagnosis of
     why there is no height.
     """
+    _assert_valid_max_body_size(max_body_size)
+
     scheme = urlsplit(url).scheme
     if scheme not in _SCHEMES:
         raise BTClibValueError(f"invalid url scheme: '{scheme}' instead of http(s)")
@@ -219,7 +239,17 @@ def http_request(
         # diagnosis the backend offered into a bare number -- bounded,
         # because an error page is written by whatever is in the way and
         # is not a size this library agreed to
-        return e.code, e.read(MAX_ERROR_BODY_SIZE)
+        try:
+            return e.code, e.read(MAX_ERROR_BODY_SIZE)
+        finally:
+            # an HTTPError is a response, and a bounded read leaves it with
+            # octets still in it: releasing the connection is nobody
+            # else's, and an unclosed one is a ResourceWarning out of a
+            # deallocator at whatever later moment the collector picks --
+            # which under `filterwarnings = ["error"]` fails an unrelated
+            # test. The `with` in `urlopen_transport` does this for the
+            # responses that are not errors
+            e.close()
     except OSError as e:
         # URLError and TimeoutError both derive from it, which is every
         # way urllib reports that the exchange did not happen
