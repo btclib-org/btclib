@@ -1014,6 +1014,22 @@ edit.
   holds all of them to it, and holds the refusal to the numbers it must
   not take with it
 
+- **CompactSize is one of those integer fields too** (issue #361).
+  `var_int.serialize(True)` was the one-octet count one and
+  `var_int.serialize(False)` the length zero — the number saying how many
+  of something there are, taken from a value that says whether — and
+  `var_int.parse(..., max_size=True)` was a cap of one, so a caller who
+  meant "no cap" got a `var_int too big` refusal for every count above
+  one: a range error for what is a type error, and `true` is what a json
+  configuration decodes to. Both entry points go through the `is_integer`
+  of #326 and raise `BTClibTypeError`, which also puts a float, a string
+  and an arbitrary object inside the exception contract, where
+  `bytes([1.5])` and a comparison against a string used to answer from
+  underneath the library. An `IntEnum` is still a count, the negative and
+  overflow diagnostics are still `BTClibValueError` — both being about a
+  value and not a type — and the check on `parse` is on `max_size` alone,
+  the octets being read on the hottest path in the library
+
 - **a key derivation function does not answer with an empty key**
   (issue #321). `ansi_x9_63_kdf` checked only that the requested size was
   not above what the hash function can derive, so a negative size made the

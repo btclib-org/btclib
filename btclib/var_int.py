@@ -30,8 +30,8 @@ txids.
 from io import BytesIO
 
 from btclib.alias import BinaryData
-from btclib.exceptions import BTClibValueError
-from btclib.utils import bytesio_from_binarydata, hex_string
+from btclib.exceptions import BTClibTypeError, BTClibValueError
+from btclib.utils import bytesio_from_binarydata, hex_string, is_integer
 
 # The MAX_SIZE of Bitcoin Core (serialize.h), i.e. the range check its
 # ReadCompactSize applies by default. Every var_int btclib parses is a
@@ -56,8 +56,16 @@ def parse(stream: BinaryData, max_size: int = MAX_SIZE) -> int:
     """Return the variable-length integer read from a stream.
 
     max_size is the range check of Bitcoin Core's ReadCompactSize; raise
-    it only for a var_int that is neither a length nor a count.
+    it only for a var_int that is neither a length nor a count. It is an
+    integer and a bool is not one, `is_integer` being the same predicate
+    every integer field of the library is held to: `max_size=True` is a cap
+    of one, so a caller who meant "no cap" would get a `var_int too big`
+    for every count above one -- and `true` is what a json configuration
+    decodes to.
     """
+    if not is_integer(max_size):
+        raise BTClibTypeError(f"non-integer max_size: {max_size}")
+
     stream = bytesio_from_binarydata(stream)
 
     data = stream.read(1)
@@ -82,7 +90,18 @@ def parse(stream: BinaryData, max_size: int = MAX_SIZE) -> int:
 
 
 def serialize(i: int) -> bytes:
-    """Return the var_int bytes encoding of an integer."""
+    """Return the var_int bytes encoding of an integer.
+
+    An integer, and a bool is not one: `bytes([True])` is the single octet
+    one, so a boolean would encode as the count one or the length zero --
+    the number saying how many of something there are, taken from a value
+    that says whether. A float or a string leaves through the `TypeError`
+    of `bytes()` or of a comparison, from underneath the library rather
+    than through its exception contract, which is what `is_integer` is
+    here to answer instead.
+    """
+    if not is_integer(i):
+        raise BTClibTypeError(f"non-integer var_int: {i}")
     if i < 0x00:
         raise BTClibValueError(f"negative integer: {i}")
     if i < 0xFD:  # 1 byte

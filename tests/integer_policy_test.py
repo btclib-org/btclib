@@ -25,7 +25,7 @@ from typing import Any
 
 import pytest
 
-from btclib import base58
+from btclib import base58, var_int
 from btclib.amount import valid_sats_amount
 from btclib.bip32 import BIP32KeyData
 from btclib.bip32.der_path import (
@@ -106,6 +106,8 @@ _CASES: list[tuple[str, Callable[[Any], object]]] = [
     ("output size", lambda v: bytes_from_octets(b"x", v)),
     ("output size in an iterable", lambda v: bytes_from_octets(b"x", [v])),
     ("base58 output size", lambda v: base58.decode(base58.encode(b"x"), v)),
+    ("var_int", var_int.serialize),
+    ("var_int max_size", lambda v: var_int.parse(b"\x01", max_size=v)),
 ]
 
 _IDS = [case[0] for case in _CASES]
@@ -152,6 +154,8 @@ def test_the_integers_a_bool_refusal_must_not_take_with_it() -> None:
     assert bytes_from_octets(b"x", 1) == b"x"
     assert bytes_from_octets(b"xx", [1, 2]) == b"xx"
     assert base58.decode(base58.encode(b"x"), 1) == b"x"
+    assert var_int.serialize(1) == b"\x01"
+    assert var_int.parse(b"\x01", max_size=1) == 1
 
     # the str and bytes spellings of a path are untouched by any of it
     assert indexes_from_der_path("m/44h/0h") == [2147483692, 2147483648]
@@ -182,6 +186,12 @@ def test_what_is_no_integer_at_all_is_refused_the_same_way() -> None:
     with pytest.raises(BTClibTypeError, match="invalid output size type"):
         base58.decode(base58.encode(b"x"), 1.0)  # type: ignore[arg-type]
 
+    for not_a_count in (1.5, "1", object()):
+        with pytest.raises(BTClibTypeError, match="non-integer var_int"):
+            var_int.serialize(not_a_count)  # type: ignore[arg-type]
+        with pytest.raises(BTClibTypeError, match="non-integer max_size"):
+            var_int.parse(b"\x01", max_size=not_a_count)  # type: ignore[arg-type]
+
 
 def test_an_int_subclass_that_is_not_a_bool_is_still_an_integer() -> None:
     """`IntEnum` stays a number, which is why the predicate names bool.
@@ -207,6 +217,8 @@ def test_an_int_subclass_that_is_not_a_bool_is_still_an_integer() -> None:
     assert str_from_index_int(Sighash.ALL) == "1"
     assert bytes_from_octets(b"x", Sighash.ALL) == b"x"
     assert base58.decode(base58.encode(b"x"), Sighash.ALL) == b"x"
+    assert var_int.serialize(Sighash.ALL) == b"\x01"
+    assert var_int.parse(b"\x01", max_size=Sighash.ALL) == 1
 
     assert is_integer(0)
     assert is_integer(-1)
