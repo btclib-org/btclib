@@ -143,3 +143,15 @@ def __getattr__(published: str) -> ModuleType:
     if published in _ON_DEMAND:
         return import_module(f"{__name__}.{published}")
     raise AttributeError(f"module {__name__!r} has no attribute {published!r}")
+
+
+def __dir__() -> list[str]:
+    """Answer with the two on-demand groups beside what is already here.
+
+    The same PEP 562 asymmetry `btclib/__init__.py` answers the same way:
+    `dir()` reads the namespace, so a module `__getattr__` has not imported
+    yet is missing from it -- `engine` and `sig_hash` until first touched,
+    where `taproot` shows because the import above bound it. Interactive
+    completion would hide two supported groups.
+    """
+    return sorted({*__all__, *globals()})

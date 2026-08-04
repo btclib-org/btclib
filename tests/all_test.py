@@ -60,6 +60,49 @@ UNEXPORTED = {
     "btclib.network": ["datadir"],
 }
 
+# the module-valued exports of each package: the subgroups of
+# docs/proposals/cli.md's command tree, and the decision point 4 of its
+# traversal contract leaves to the parent. Pinned as the exact set per
+# package, so that a submodule imported into an __init__ and named in
+# passing is a failure rather than a new command -- and so that a child
+# module added later is a decision somebody writes down here.
+#
+# btclib itself is not in the table: its edges are the top-level modules,
+# and test_the_root_publishes_every_top_level_module pins them against the
+# directory rather than against a list
+COMMAND_GROUPS = {
+    "btclib.bip32": [],
+    "btclib.block": ["merkle_proof", "mining", "proof_of_work"],
+    "btclib.curves": [],
+    "btclib.ecc": [
+        "bip340_nonce",
+        "bms",
+        "borromean",
+        "commit_nonce",
+        "dh",
+        "dsa",
+        "ecies",
+        "ellswift",
+        "musig2",
+        "pedersen",
+        "rfc6979_nonce",
+        "ssa",
+    ],
+    "btclib.fetch": [],
+    "btclib.mnemonic": [
+        "bip39",
+        "dispatch",
+        "electrum",
+        "entropy",
+        "mnemonic",
+        "slip39",
+    ],
+    "btclib.psbt": ["musig2"],
+    "btclib.script": ["engine", "sig_hash", "taproot"],
+    "btclib.script.engine": [],
+    "btclib.tx": [],
+}
+
 
 def public_name(dotted: str) -> bool:
     """Whether every component of a dotted module name is public."""
@@ -289,10 +332,11 @@ def test_script_publishes_the_three_subgroups_the_cli_promises() -> None:
         assert group in btclib.script.__all__, f"script does not publish {group}"
         assert getattr(btclib.script, group).__name__ == f"btclib.script.{group}"
 
-    # and nothing else is a group of that package: the modules holding the
-    # flat names, and the two tables the engine reads, are not published
-    for internal in ("limits", "op_codes_tapscript", "script_pub_key", "witness"):
-        assert internal not in btclib.script.__all__
+    # that these three are the only ones is COMMAND_GROUPS' assertion, for
+    # this package as for every other. What is left here is the behaviour
+    # of the two the package does not import: reachable by name, offered to
+    # a prompt, and no answer for anything else
+    assert set(btclib.script.__all__) <= set(dir(btclib.script))
     with pytest.raises(AttributeError, match="has no attribute 'sig_hashes'"):
         _ = btclib.script.sig_hashes
 
@@ -453,6 +497,37 @@ def test_the_export_tree_is_walkable_to_its_leaves() -> None:
     # the root, the nine packages, the nested one, and the modules they
     # publish: a walk that stopped at the root would satisfy the loop above
     assert len(seen) > 30, f"the export tree walk reached {len(seen)} modules"
+
+
+def test_the_command_groups_are_the_edges_that_are_meant_to_be() -> None:
+    """Each package's module-valued exports are the set recorded for it.
+
+    The walk above follows the edges that are there, and the checks around
+    it ask each node about its own list, so neither can see an edge that
+    should not exist: a submodule imported into an `__init__` for one name
+    and left in `__all__` by habit is a command group nobody decided on,
+    and a child module added later is one nobody wrote down. This is the
+    set, per package, and the empty ones are as deliberate as the rest --
+    `curves`, `tx`, `bip32`, `fetch` and `script.engine` publish a flat
+    surface and no group.
+
+    Every package has to be in the table, so a new one is a decision about
+    its groups rather than a silent `[]`.
+    """
+    packages = [module for module in library_modules() if hasattr(module, "__path__")]
+    assert len(packages) == len(COMMAND_GROUPS) + 1, "btclib plus the ten packages"
+    for package in packages:
+        if package.__name__ == "btclib":  # the directory is its assertion
+            continue
+        assert package.__name__ in COMMAND_GROUPS, f"{package.__name__} is not recorded"
+        edges = sorted(
+            name
+            for name in package.__all__
+            if isinstance(getattr(package, name), ModuleType)
+        )
+        assert edges == COMMAND_GROUPS[package.__name__], (
+            f"{package.__name__} publishes {edges}"
+        )
 
 
 def test_the_root_publishes_every_top_level_module() -> None:

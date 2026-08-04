@@ -3269,7 +3269,11 @@ edit.
   cost is stated in the docstring: mypy reads a module `__getattr__` as a
   promise that any attribute may exist, so a misspelled `btclib.b59` is a
   runtime `AttributeError` rather than a checker error, where every import
-  spelling a caller writes stays checked
+  spelling a caller writes stays checked. A `__dir__` beside it answers
+  with the published tree: `dir()` reads the namespace, so without it a
+  module not yet imported is missing from what an interactive prompt
+  completes — the same asymmetry, answered the same way, in `btclib` and in
+  `btclib.script`
 - **Every module below a package declares one too**, which is the rest of
   the same rule: the modules a caller reaches by name —
   `btclib.ecc.dsa`, `btclib.script.sig_hash`, `btclib.bip32.der_path` —
@@ -3341,6 +3345,15 @@ edit.
   `btclib.script` by name — the walk follows the edges that exist, so a
   promised group nothing publishes is a walk that stops early and a test
   that passes
+- **The command groups are a table, one exact set per package**, since the
+  walk and the per-module checks between them cannot see an edge that
+  should not be there: a submodule imported into an `__init__` for one name
+  and left in `__all__` by habit is a group nobody decided on, and a child
+  module added later is one nobody wrote down. The empty sets are as
+  deliberate as the rest — `curves`, `tx`, `bip32`, `fetch` and
+  `script.engine` publish a flat surface and no group — and every package
+  has to be in the table, so a new one is a decision rather than a silent
+  `[]`
 - **`docs/proposals/cli.md` states the traversal contract** in place of
   the question it used to pose: the five points a walker depends on, with
   the one that makes the mirror implementable from outside this repository
