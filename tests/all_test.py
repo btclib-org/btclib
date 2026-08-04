@@ -20,9 +20,9 @@ says so, not because it happens to lack a leading underscore. A list per
 module is a list per module to keep true, and the policy tests below are
 what keeps it, rather than a reviewer noticing.
 
-`btclib.__all__` is the root of that tree and the last of those tests walks
-it the way `docs/proposals/cli.md` says the command line will: from the
-root, into every module-valued export, down to a node that has none.
+`btclib.__all__` is the root of that tree, and one of those tests walks it
+the way `docs/proposals/cli.md` says the command line will: from the root,
+into every module-valued export, down to a node that has none.
 
 These tests are written against the names rather than the counts, so that a
 deliberate addition is one line here and an accidental one is a failure.
@@ -87,15 +87,6 @@ def library_modules() -> list[ModuleType]:
             for _, name, _ in walk_packages(btclib.__path__, "btclib.")
             if public_name(name)
         ),
-    ]
-
-
-def top_level_modules() -> list[ModuleType]:
-    """Return btclib's own top-level modules, the private one excluded."""
-    return [
-        import_module(f"btclib.{name}")
-        for _, name, is_package in iter_modules(btclib.__path__)
-        if not is_package and public_name(name)
     ]
 
 
@@ -416,13 +407,10 @@ def test_the_export_tree_is_walkable_to_its_leaves() -> None:
     reads off the walk -- `btclib ecc dsa sign` -- name something the
     import does not.
     """
-    seen: set[str] = set()
+    seen = {btclib.__name__}
     frontier = [btclib]
     while frontier:
         module = frontier.pop()
-        if module.__name__ in seen:
-            continue
-        seen.add(module.__name__)
         names = getattr(module, "__all__", None)
         assert names is not None, f"{module.__name__} declares no __all__"
         for name in names:
@@ -432,7 +420,12 @@ def test_the_export_tree_is_walkable_to_its_leaves() -> None:
             assert value.__name__ == f"{module.__name__}.{name}", (
                 f"{module.__name__} exports {name}, which is {value.__name__}"
             )
-            frontier.append(value)
+            # the set is the frontier's filter rather than a check on the
+            # way out: one module reachable from two parents would be
+            # walked twice, and nothing here is
+            if value.__name__ not in seen:
+                seen.add(value.__name__)
+                frontier.append(value)
     # the root, the nine packages, the nested one, and the modules they
     # publish: a walk that stopped at the root would satisfy the loop above
     assert len(seen) > 30, f"the export tree walk reached {len(seen)} modules"
