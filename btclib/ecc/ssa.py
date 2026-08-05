@@ -719,7 +719,7 @@ def assert_batch_as_valid_(
     points: list[Point] = []
     for i, (msg, Q, sig) in enumerate(zip(msgs, Qs, sigs, strict=True)):
         # any size, as in sign_ and assert_as_valid_
-        msg = bytes_from_octets(msg)
+        msg = bytes_from_octets(msg)  # noqa: PLW2901
 
         K = sig.r, _y_even(sig.r, ec)
 

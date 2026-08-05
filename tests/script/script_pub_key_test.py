@@ -865,7 +865,9 @@ def test_the_two_index_errors_the_broad_catch_was_hiding() -> None:
     exception contract -- and _is_funct turned both into a plain False by
     catching Exception. Narrowing the catch to ValueError needed them fixed
     first, or is_nulldata(b"\\x6a") would have started raising.
-    """
+    """  # noqa: D301
+    # `b"\x6a"` above is the literal text of the code quoted, backslash
+    # and all: an r prefix would double that backslash instead
     # a lone OP_RETURN: no data length marker to read
     with pytest.raises(BTClibValueError, match="missing data length marker"):
         assert_nulldata(b"\x6a")

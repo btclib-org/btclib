@@ -152,7 +152,7 @@ def _xswiftec(u: int, t: int, ec: Curve) -> int:
     raise BTClibRuntimeError(err_msg)  # pragma: no cover
 
 
-def _xswiftec_inv(x: int, u: int, case: int, ec: Curve) -> int | None:
+def _xswiftec_inv(x: int, u: int, case: int, ec: Curve) -> int | None:  # noqa: PLR0911
     """Return a t with _xswiftec(u, t) == x, or None if this case has none.
 
     `xswiftec_inv` of BIP324's reference implementation. Up to eight t

@@ -11,6 +11,7 @@ References:
 
 Both are also cited inside `sign`, which is not where a reader looks
 first; they are here because the module is what one arrives at.
+
 """
 
 from __future__ import annotations

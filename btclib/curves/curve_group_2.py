@@ -57,6 +57,7 @@ follow-ups; what is here is the rest:
       one joint recoding of both scalars instead of one NAF each, fewer
       total additions in exchange for digit pairs that do not index a
       per-point table of odd multiples
+
 """
 
 from __future__ import annotations

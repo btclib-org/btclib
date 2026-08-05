@@ -105,7 +105,7 @@ def is_sig(element: bytes) -> bool:
     return True
 
 
-def psbt_input_from_spend(tx_in: TxIn) -> tuple[PsbtIn, bytes] | None:
+def psbt_input_from_spend(tx_in: TxIn) -> tuple[PsbtIn, bytes] | None:  # noqa: PLR0911
     """Rebuild the PsbtIn an Updater would have, read off the signed input.
 
     A spend says what it spent: the pub key of a p2pkh script_sig
