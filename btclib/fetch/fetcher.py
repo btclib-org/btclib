@@ -181,7 +181,7 @@ def tx_from_raw(raw: Octets, tx_id: str, network: str) -> Tx:
         # through untouched, so a json number where the hex belongs
         # surfaces as AttributeError on `.read` -- a traceback into the
         # parser for what is the backend answering the wrong shape
-        err_msg = f"transaction {tx_id}: not a serialization,"
+        err_msg = f"transaction {tx_id}: not a serialization,"  # type: ignore[unreachable]
         err_msg += f" but a {type(raw).__name__}"
         raise FetchError(err_msg)
     with fetch_errors(f"transaction {tx_id}"):

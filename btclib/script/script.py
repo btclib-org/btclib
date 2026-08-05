@@ -638,7 +638,7 @@ class Script:
     def __add__(self, other: Script) -> Script:
         return (
             Script(self.script + other.script)
-            if isinstance(other, Script)
+            if isinstance(other, Script)  # type: ignore[redundant-expr]
             else NotImplemented
         )
 

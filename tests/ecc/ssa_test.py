@@ -256,13 +256,12 @@ def test_low_cardinality() -> None:
         for q in range(1, ec.n // 2):  # all possible private keys
             q_fixed, x_Q = ssa.gen_keys(q, ec)
             QJ = jac_from_aff((x_Q, ec.y_even(x_Q)))
-            while True:
+            sig: ssa.Sig | None = None
+            while sig is None:
                 try:
                     sig = ssa.sign(msg, q, aux, ec)
-                    break
                 except BTClibRuntimeError:  # invalid zero challenge
                     msg += b"\x01"
-                    continue
             ssa.assert_as_valid(msg, x_Q, sig)
             for k in range(1, ec.n // 2):  # all possible ephemeral keys
                 k_fixed, r = ssa.gen_keys(k, ec)

@@ -5038,6 +5038,20 @@ edit.
   decision this file made, unlike everything around it. The comma is how
   pytest's own documentation writes a parametrize signature, and it is
   also what the bindings had already chosen, with that reason stated
+- **`redundant-expr`, `possibly-undefined` and `warn_unreachable` are on**,
+  closing the last three codes the mypy survey had left off as a block.
+  Re-measured one at a time: `possibly-undefined`'s one finding was a
+  `while True: break` retry loop mypy's flow analysis cannot follow,
+  unrelated to the other two and gone now that
+  `test_low_cardinality` counts the retry with a sentinel `while` instead.
+  The other eight, in `network.py`, `bip21.py`, `script.py`,
+  `bitcoin_core_rpc.py` (twice), `utils.py`, `block_context.py` and
+  `fetch/fetcher.py`, are the deliberate idiom the old comment named:
+  a runtime guard against a value whose static type promises more than
+  json, a caller ignoring an annotation, or an operator's own dispatch
+  protocol can guarantee. Each keeps the check on everywhere else with
+  its own `# type: ignore[redundant-expr]` or `[unreachable]`, naming the
+  code, rather than the three staying off for eight sites' sake
 - **80 columns on the prose, and the yaml measured for the first time.**
   `ruff-format` reflows code to its 88 columns and never touches a
   comment or a docstring, which is why `E501` is ignored and stays so:
