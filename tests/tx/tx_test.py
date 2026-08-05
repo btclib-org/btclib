@@ -16,14 +16,18 @@ those bytes given a node with the transaction index.
 tests/_data/README.md has its size and wtxid.
 """
 
+import dataclasses
 import inspect
+from collections.abc import MutableSequence
 from os import path
+from typing import Any
 
 import pytest
 
 from btclib.exceptions import BTClibValueError
 from btclib.script import ScriptPubKey, Witness, sig_op_count
 from btclib.tx import OutPoint, Tx, TxIn, TxOut, join
+from btclib.tx.tx import _assert_valid_coinbase
 from tests.conftest import JsonGolden
 
 
@@ -177,6 +181,139 @@ def test_exceptions() -> None:
         tx.assert_valid()
 
 
+def test_the_four_byte_fields_at_their_bounds() -> None:
+    """Zero and 0xFFFFFFFF are in the range, -1 and one more are out.
+
+    Both ends of both fields, and the accepted end is the half a refusal
+    test cannot state: a bound one too tight or one too loose refuses a
+    transaction that is in a block, which is the direction that cannot be
+    noticed from the outside.
+    """
+    tx_in = TxIn(OutPoint(b"\x01" * 32, 0))
+    tx_out = TxOut(1, "")
+
+    for value in (0, 1, 0xFFFFFFFE, 0xFFFFFFFF):
+        Tx(value, 0, [tx_in], [tx_out]).assert_valid()
+        Tx(1, value, [tx_in], [tx_out]).assert_valid()
+
+    for value in (-1, 0xFFFFFFFF + 1):
+        with pytest.raises(BTClibValueError, match="invalid version: "):
+            Tx(value, 0, [tx_in], [tx_out])
+        with pytest.raises(BTClibValueError, match="invalid lock time: "):
+            Tx(1, value, [tx_in], [tx_out])
+
+
+def test_the_top_of_the_four_byte_range_round_trips() -> None:
+    """Version and lock_time are unsigned on the wire, and above 2^31 too.
+
+    Read or written as signed, a version of 0xFFFFFFFF comes back as -1
+    and 0x80000000 does not serialize at all, so a transaction below
+    0x80000000 cannot tell the two spellings apart. Both are valid
+    versions, which is the other half of the boundary: `assert_valid`
+    takes the whole four-byte range and `assert_standard` refuses this end
+    of it -- what Core's own field is, signed in v27.2 and unsigned in
+    v31.1, is issue 387's, and no assertion here needs it.
+    """
+    tx = Tx(
+        0xFFFFFFFF,
+        0xFFFFFFFF,
+        [TxIn(OutPoint(b"\x01" * 32, 0))],
+        [TxOut(1, "")],
+    )
+    tx_bytes = tx.serialize(include_witness=True)
+    assert tx_bytes.endswith(b"\xff" * 4)  # the lock time, little endian
+    assert tx_bytes.startswith(b"\xff" * 4)  # and the version before it
+
+    parsed = Tx.parse(tx_bytes)
+    assert parsed.version == 0xFFFFFFFF
+    assert parsed.lock_time == 0xFFFFFFFF
+    assert parsed == tx
+
+
+def test_a_standard_version_excludes_zero_and_the_top_bit_set_ones() -> None:
+    """Versions 1 and 2 are standard; zero and a set top bit are not.
+
+    Only the part of the window both Core policies agree on: 1 and 2 are
+    standard for v27.2 and v31.1 alike, and every version whose top bit is
+    set is standard for neither. Where `assert_standard` currently puts the
+    upper end -- 0x7FFFFFFF, which is standard for no Core -- is issue 387's
+    to answer, so it is deliberately not a test here.
+
+    What the low end is worth saying is that these are valid versions:
+    `assert_valid` takes zero and takes 0xFFFFFFFF, standardness being the
+    narrower question and the only one asked about relay.
+    """
+    tx = Tx(1, 0, [TxIn(OutPoint(b"\x01" * 32, 0))], [TxOut(1, "")])
+
+    for version in (1, 2):
+        tx.version = version
+        tx.assert_standard()
+
+    for version in (0, 0x7FFFFFFF + 1, 0xFFFFFFFF):
+        tx.version = version
+        tx.assert_valid()
+        with pytest.raises(BTClibValueError, match="invalid version: "):
+            tx.assert_standard()
+
+
+def test_the_coinbase_script_size_window() -> None:
+    """A coinbase script_sig is 2 to 100 bytes, both included.
+
+    Consensus writes the rule as an inclusive range, so both ends are a
+    valid coinbase and one byte outside either is not: a bound one off
+    would reject a block that is in the chain, or accept one that is not.
+    """
+    tx_out = TxOut(1, "")
+
+    for size in (2, 3, 99, 100):
+        Tx(vin=[TxIn(OutPoint(), b"\x00" * size)], vout=[tx_out]).assert_valid()
+
+    for size in (0, 1, 101, 200):
+        with pytest.raises(BTClibValueError, match="Invalid coinbase script size"):
+            Tx(vin=[TxIn(OutPoint(), b"\x00" * size)], vout=[tx_out])
+
+
+def test_an_invalid_input_or_output_fails_the_transaction() -> None:
+    """assert_valid asks every input and every output, not only the sums.
+
+    A negative sequence and a negative amount are each invalid on their
+    own while leaving every transaction-level check happy -- the output
+    total is still inside MoneyRange -- so nothing but the delegation
+    catches them.
+    """
+    prev_out = OutPoint(b"\x01" * 32, 0)
+
+    tx_in = TxIn(prev_out, b"", -1, check_validity=False)
+    tx = Tx(1, 0, [tx_in], [TxOut(1, "")], check_validity=False)
+    with pytest.raises(BTClibValueError, match="invalid sequence: "):
+        tx.assert_valid()
+
+    tx_out = TxOut(-1, "", check_validity=False)
+    tx = Tx(1, 0, [TxIn(prev_out)], [tx_out], check_validity=False)
+    with pytest.raises(BTClibValueError, match="invalid satoshi amount: "):
+        tx.assert_valid()
+
+
+def test_sig_op_count_adds_the_two_sides() -> None:
+    """The count is the sum of both lists, which is not a mix of them.
+
+    One sigop in the inputs and one in the outputs is the case that says
+    so: a bitwise operator in place of the sum answers one or zero for it,
+    and answers correctly for a transaction whose inputs announce none.
+    """
+    check_sig = b"\xac"  # OP_CHECKSIG, one sigop wherever it is
+
+    tx = Tx(
+        1,
+        0,
+        [TxIn(OutPoint(b"\x01" * 32, 0), check_sig)],
+        [TxOut(1, check_sig)],
+    )
+    assert sig_op_count(tx.vin[0].script_sig) == 1
+    assert sig_op_count(tx.vout[0].script_pub_key.script) == 1
+    assert tx.sig_op_count == 2
+
+
 def test_output_total_is_bounded() -> None:
     """The outputs are bounded one by one and then as a sum.
 
@@ -267,6 +404,54 @@ def test_coinbase_block_1() -> None:
     assert tx.sig_op_count == 1
     assert sig_op_count(tx.vin[0].script_sig) == 0
     assert sig_op_count(tx.vout[0].script_pub_key.script) == 1
+
+
+def test_the_other_two_flags_stay_keyword_only() -> None:
+    """`unsigned_template` and `is_coinbase` sit behind a star as well.
+
+    tests/check_validity_test.py states the rule for the flag it is named
+    after, and these are the two in this module that are not it: the hazard
+    is the same one, a parameter added in front of a positional flag taking
+    its slot in silence, and a keyword-only one makes that call a TypeError
+    instead. `_assert_valid_coinbase` is private and reached here directly,
+    a keyword call being all `Tx.assert_valid` can say about it.
+    """
+    tx = Tx(1, 0, [TxIn(OutPoint(b"\x01" * 32, 0))], [TxOut(1, "")])
+
+    with pytest.raises(TypeError, match="positional argument"):
+        tx.assert_valid(True)  # type: ignore[call-arg]
+    with pytest.raises(TypeError, match="positional argument"):
+        _assert_valid_coinbase(tx.vin, False)  # type: ignore[call-arg]
+
+    # and what the refusal must not take with it
+    tx.assert_valid(unsigned_template=True)
+    _assert_valid_coinbase(tx.vin, is_coinbase=False)
+
+
+def test_a_coinbase_input_belongs_to_a_coinbase_only() -> None:
+    """The null outpoint is refused where the transaction is not a coinbase.
+
+    Two inputs make `is_coinbase` false whatever they are, so the null
+    outpoint among them spends an output that does not exist and creates
+    the coinbase's money outside a coinbase. Core's CheckTransaction has
+    the rule; here it was the only statement of `btclib/tx` that the
+    directory's own tests never reached -- a script_engine vector did,
+    which is a verdict on the engine and no test of this one.
+    """
+    coinbase_in = TxIn(OutPoint())
+    tx_in = TxIn(OutPoint(b"\x01" * 32, 0))
+    tx_out = TxOut(1, "")
+
+    err_msg = "coinbase input in a non-coinbase transaction"
+    with pytest.raises(BTClibValueError, match=err_msg):
+        Tx(vin=[tx_in, coinbase_in], vout=[tx_out])
+    with pytest.raises(BTClibValueError, match=err_msg):
+        Tx(vin=[coinbase_in, tx_in], vout=[tx_out])
+
+    # and what the refusal must not take with it: the coinbase itself,
+    # whose single input is that very outpoint, with a script_sig of the
+    # size consensus wants
+    Tx(vin=[TxIn(OutPoint(), b"\x00\x00")], vout=[tx_out]).assert_valid()
 
 
 # https://en.bitcoin.it/wiki/Protocol_documentation#tx
@@ -386,8 +571,16 @@ def test_dataclasses_json_dict(json_golden: JsonGolden) -> None:
     with open(filename, "rb") as binary_file_:
         tx = Tx.parse(binary_file_.read())
 
-    # Tx dataclass
+    # Tx dataclass, which is what `fields` reads and `isinstance` cannot
+    # say: __init__, __eq__ and every conversion here are written out, so
+    # the decorator is left holding the field list and the repr
     assert isinstance(tx, Tx)
+    assert [f.name for f in dataclasses.fields(tx)] == [
+        "version",
+        "lock_time",
+        "vin",
+        "vout",
+    ]
     assert tx.is_segwit()
     assert any(bool(w) for w in tx.vwitness)
     assert any(bool(tx_in.script_witness) for tx_in in tx.vin)
@@ -457,20 +650,12 @@ def test_join() -> None:
         shuffle_inp=False,
         shuffle_out=False,
     )
-    # testing shuffle
-    # 10 attempts should be enough to reduce to zero the probability
-    # of having (all) shuffled ones identical to the original one
-    assert any(
-        join(
-            [tx1, tx2],
-            enforce_same_version=True,
-            enforce_same_lock_time=True,
-            shuffle_inp=True,
-            shuffle_out=True,
-        )
-        != joint_tx
-        for _ in range(10)
-    )
+    # what each flag does is test_join_shuffles_only_when_it_is_told_to's,
+    # against a known permutation: these two transactions have two inputs
+    # and four outputs between them, so a real shuffle draws the order it
+    # was given once in 2! * 4! -- and an attempt that draws it says
+    # nothing either way, which is what makes ten of them an assertion
+    # about probability rather than about the join
 
     tx2.version = 2
     with pytest.raises(BTClibValueError, match="Version numbers are not the same"):
@@ -518,6 +703,101 @@ def test_join() -> None:
     assert not any(p.kind is inspect.Parameter.VAR_KEYWORD for p in params.values())
 
 
+def test_join_shuffles_only_when_it_is_told_to(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Each flag decides one list, and off means the order it was given.
+
+    A known permutation in place of the system one, because the answer has
+    to be an equality rather than a likelihood: a real shuffle of six
+    elements draws the order it was given once in 720, and comparing two
+    non-shuffled joins with each other is worse still -- with two inputs
+    they agree every other attempt. Reversal is that permutation, so each
+    list says which of the two branches ran, and each flag is read on its
+    own: a join that shuffles what it was told to keep, or keeps what it was
+    told to shuffle, is one equality away either way.
+    """
+
+    def reverse(_self: object, sequence: MutableSequence[Any]) -> None:
+        sequence.reverse()
+
+    monkeypatch.setattr("btclib.tx.tx.secrets.SystemRandom.shuffle", reverse)
+
+    txs = [
+        Tx(
+            1,
+            0,
+            [TxIn(OutPoint(bytes([i]) * 32, 0)) for i in group],
+            [TxOut(i, "") for i in group],
+        )
+        for group in ((1, 2, 3), (4, 5, 6))
+    ]
+
+    def joined(*, shuffle_inp: bool, shuffle_out: bool) -> tuple[list[int], list[int]]:
+        joint_tx = join(
+            txs,
+            enforce_same_version=True,
+            enforce_same_lock_time=True,
+            shuffle_inp=shuffle_inp,
+            shuffle_out=shuffle_out,
+        )
+        return (
+            [tx_in.prev_out.tx_id[0] for tx_in in joint_tx.vin],
+            [tx_out.value for tx_out in joint_tx.vout],
+        )
+
+    concatenated = [1, 2, 3, 4, 5, 6]
+    permuted = [6, 5, 4, 3, 2, 1]
+
+    assert joined(shuffle_inp=False, shuffle_out=False) == (
+        concatenated,
+        concatenated,
+    )
+    assert joined(shuffle_inp=True, shuffle_out=True) == (permuted, permuted)
+    assert joined(shuffle_inp=True, shuffle_out=False) == (permuted, concatenated)
+    assert joined(shuffle_inp=False, shuffle_out=True) == (concatenated, permuted)
+
+
+def test_join_compares_by_value_and_not_by_identity() -> None:
+    """The three guards of `join` read numbers, not objects.
+
+    `int("1000")` builds a fresh object where the literal 1000 would be one
+    CPython has already cached, and 257 inputs put a count past the last
+    cached integer. A guard spelled `is not` instead of `!=` accepts every
+    case a test with small numbers can build and refuses these three, so
+    what reads as one comparison is one only up to 256.
+    """
+    tx_out = TxOut(1, "")
+
+    def tx_with(offset: int, count: int, version: int, lock_time: int) -> Tx:
+        vin = [
+            TxIn(OutPoint((offset + i).to_bytes(32, "big"), 0))
+            for i in range(1, count + 1)
+        ]
+        return Tx(version, lock_time, vin, [tx_out])
+
+    def joined(txs: list[Tx]) -> Tx:
+        return join(
+            txs,
+            enforce_same_version=True,
+            enforce_same_lock_time=True,
+            shuffle_inp=False,
+            shuffle_out=False,
+        )
+
+    # equal versions that are not the same object, then equal lock times
+    same_version = [tx_with(i * 100, 1, int("1000"), 0) for i in range(2)]
+    assert joined(same_version).version == 1000
+
+    same_lock_time = [tx_with(i * 100, 1, 1, int("1000")) for i in range(2)]
+    assert joined(same_lock_time).lock_time == 1000
+
+    # and a count past 256: the inputs are all distinct, so the list length
+    # and the set size have the same value but are distinct integer objects
+    many = [tx_with(1000, 129, 1, 0), tx_with(2000, 128, 1, 0)]
+    assert len(joined(many).vin) == 257
+
+
 def test_eq() -> None:
     """Verify comparing a Tx with a non-Tx answers inequality."""
     tx = Tx(check_validity=False)
@@ -528,15 +808,44 @@ def test_eq() -> None:
 def test_eq_witness(monkeypatch: pytest.MonkeyPatch) -> None:
     """Tx.__eq__ compares the witnesses only if TxIn.__eq__ does not.
 
-    With TX_IN_COMPARES_WITNESS the witness is part of the TxIn
-    comparison, baked into the dataclass at class creation: the
-    vwitness check in Tx.__eq__ only ever runs for the False setting,
-    which a monkeypatch is the only way to exercise.
+    Two halves, and the monkeypatch is only one of them.
+    TX_IN_COMPARES_WITNESS reaches `field(compare=...)` at class creation, so
+    patching the module global opens the `vwitness` branch of Tx.__eq__ and
+    leaves the generated TxIn comparison still reading the witness -- which
+    answers the same way, and so says nothing about the branch. The input
+    below is the other half: a TxIn whose equality leaves the witness out, as
+    the False setting makes the generated one, so what the branch decides is
+    the whole of the answer.
     """
-    segwit = Tx(vin=[TxIn(script_witness=Witness(["00"]))], check_validity=False)
-    stripped = Tx(vin=[TxIn()], check_validity=False)
+
+    class TxInIgnoringWitness(TxIn):
+        """A TxIn compared on everything but its witness."""
+
+        def __eq__(self, other: object) -> bool:
+            if not isinstance(other, TxIn):
+                return NotImplemented
+            return (self.prev_out, self.script_sig, self.sequence) == (
+                other.prev_out,
+                other.script_sig,
+                other.sequence,
+            )
+
+    def tx_with(*stack: str) -> Tx:
+        witness = Witness(list(stack))
+        return Tx(
+            vin=[TxInIgnoringWitness(script_witness=witness, check_validity=False)],
+            check_validity=False,
+        )
+
     monkeypatch.setattr("btclib.tx.tx.TX_IN_COMPARES_WITNESS", False)
-    assert segwit != stripped
-    assert segwit == Tx(
-        vin=[TxIn(script_witness=Witness(["00"]))], check_validity=False
-    )
+
+    # the inputs compare equal either way, so the branch is what answers
+    assert tx_with("00").vin == tx_with().vin
+    assert tx_with("00") != tx_with()
+    assert tx_with("00") == tx_with("00")
+
+    # and the input above answers a non-input the way TxIn does, which is
+    # what its NotImplemented is for. Annotated, so that what the comparison
+    # is about is the answer rather than the two types
+    not_an_input: object = "not an input"
+    assert tx_with().vin[0] != not_an_input

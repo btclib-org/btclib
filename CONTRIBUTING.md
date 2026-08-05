@@ -307,32 +307,40 @@ The `mutation` workflow, weekly and on demand, which gates nothing either
 and for a different reason: it asks whether the suite would *notice* a
 wrong line, where coverage only says the line ran, and a surviving mutant
 is a test nobody has written rather than a regression somebody just
-caused. Scoped to the consensus code — `btclib/script/engine/` and
-`btclib/script/sig_hash.py` — by the two configurations under
-`.github/mutation/`, which is also what a local run reads, so there is one
-statement of what is mutated and what judges it:
+caused. Two profiles, a parallel job with its own budget each: the
+consensus code — `btclib/script/engine/` and `btclib/script/sig_hash.py` —
+and the wire format, `btclib/tx/` with the `var_int` and `var_bytes`
+codecs under it. The three configurations under `.github/mutation/` are
+what says so, and are what a local run reads, so there is one statement of
+what is mutated and what judges it:
 
 ```shell
 uv run --locked --no-default-groups --group test --group mutation \
-    cosmic-ray baseline .github/mutation/sig_hash.toml
+    cosmic-ray baseline .github/mutation/parsers.toml
 uv run --locked --no-default-groups --group test --group mutation \
-    cosmic-ray init .github/mutation/sig_hash.toml sig_hash.sqlite
+    cosmic-ray init .github/mutation/parsers.toml parsers.sqlite
 uv run --locked --no-default-groups --group test --group mutation \
-    cosmic-ray exec .github/mutation/sig_hash.toml sig_hash.sqlite
+    cr-filter-operators parsers.sqlite .github/mutation/parsers.toml
 uv run --locked --no-default-groups --group test --group mutation \
-    cr-report --surviving-only --show-diff sig_hash.sqlite
+    cosmic-ray exec .github/mutation/parsers.toml parsers.sqlite
+uv run --locked --no-default-groups --group test --group mutation \
+    cr-report --surviving-only --show-diff parsers.sqlite
 ```
 
 `baseline` first, always: it runs the configured test command against the
 unmutated tree, and without it a stale path or a renamed test file fails
 every mutant identically and the session reports a perfect kill rate,
 which is the one failure mode of a mutation run that looks like good news.
-`engine.toml` in place of `sig_hash.toml` is the other scope, at 2768
-mutants against 727 and five and a half hours against half an hour of cpu;
-each configuration says what its own arithmetic is. The report is
-`--surviving-only`, which is the whole of what anybody acts on: a killed
-mutant is the suite doing its job, and printing all 727 of them buries the
-dozen that are not.
+`cr-filter-operators` marks as skipped the mutants a configuration
+excludes by operator, and is a no-op for one that excludes none, so the
+same five commands run any of the three: `parsers.toml` is the one that
+excludes a family, and states which and why. `sig_hash.toml` or
+`engine.toml` in place of it is the other profile, at 727 mutants and half
+an hour of cpu against 2768 and five and a half hours; the parser profile
+is 1034 mutants and minutes, so it is the one that finishes. Each
+configuration carries its own arithmetic. The report is `--surviving-only`,
+which is the whole of what anybody acts on: a killed mutant is the suite
+doing its job, and printing all 727 of them buries the dozen that are not.
 
 Three things to know before starting one. The session mutates the source
 file in place and restores it afterwards, so nothing else may read the

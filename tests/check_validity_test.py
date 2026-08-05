@@ -14,6 +14,13 @@ about signatures rather than about any one of them: it appears in 91 of
 them and is forwarded by hand from one to the next, so the guard has to be
 the rule itself. A new signature spelling it positionally is what this
 module fails on.
+
+What the flag *does* when nobody passes it is the other half, and the same
+kind of rule: every default is True, so a caller who says nothing gets the
+check. Nothing held any of those defaults to it -- the mutation profile of
+issue #327 reported one survivor per default and per `if check_validity:`
+in `btclib/tx/` -- and the tests at the end of this module are what does,
+over the wire-format classes that profile measures.
 """
 
 from __future__ import annotations
@@ -21,13 +28,17 @@ from __future__ import annotations
 import ast
 import dataclasses
 import pathlib
+from typing import Any
 
 import pytest
 
+from btclib.amount import _MAX_SATOSHI
 from btclib.curves import secp256k1
 from btclib.ecc import dsa
-from btclib.exceptions import BTClibValueError
+from btclib.exceptions import BTClibTypeError, BTClibValueError
+from btclib.script import Witness
 from btclib.script.script_pub_key import ScriptPubKey
+from btclib.tx import TxIn, TxOut
 from btclib.tx.out_point import OutPoint
 from btclib.tx.tx import Tx
 
@@ -155,3 +166,209 @@ def test_a_parameter_before_the_flag_stays_positional() -> None:
     assert tx.serialize(False, check_validity=False) == tx.serialize(
         include_witness=False, check_validity=False
     )
+
+
+# an outpoint that is neither a coinbase marker nor an ordinary reference:
+# the all-zero tx_id with a real vout, which assert_valid refuses and
+# nothing else looks at
+_HALF_COINBASE = OutPoint(b"\x00" * 32, 0, check_validity=False)
+_GOOD_OUT_POINT = OutPoint(b"\x01" * 32, 0)
+
+# invalid objects, built with the check off, and two shapes of invalid
+# rather than one because they answer different questions.
+#
+# `-itself` is invalid at that class's own boundary, which is what holds the
+# class's own guard: a parent forwards the flag to its children, so an object
+# invalid only in a child is refused by the child whatever the parent does --
+# take `if check_validity:` out of `TxIn.serialize` and the
+# `prev_out.serialize` below it raises in its place, a green suite about
+# nothing.
+#
+# `-nested` is invalid in a child, which is what holds the
+# `check_validity=False` a parent hands its children: turned True, that inner
+# call refuses an object the outer call was told not to look at. It is also
+# the only shape `parse` can be asked about, for the reason beside
+# _NO_OCTETS.
+#
+# Every one of them is invalid in a way the conversions do not notice: a
+# sequence of `True`, a transaction without inputs and an amount over
+# MoneyRange all serialize, so what refuses them is the flag and not the
+# arithmetic underneath
+_INVALID: list[tuple[str, Any]] = [
+    ("outpoint", _HALF_COINBASE),
+    ("tx_in-itself", TxIn(_GOOD_OUT_POINT, b"", True, check_validity=False)),
+    ("tx_in-nested", TxIn(_HALF_COINBASE, check_validity=False)),
+    ("tx_out", TxOut(_MAX_SATOSHI + 1, "", check_validity=False)),
+    ("tx-itself", Tx(1, 0, [], [TxOut(1, "")], check_validity=False)),
+    (
+        "tx-nested",
+        Tx(
+            1,
+            0,
+            [TxIn(_HALF_COINBASE, check_validity=False)],
+            [TxOut(1, "")],
+            check_validity=False,
+        ),
+    ),
+]
+
+# what a `parse` cannot be asked, and why: a sequence of `True` reads back as
+# the number one, which is a valid input, and a transaction without inputs
+# has no octets to read back at all -- the input count is where the segwit
+# marker lives, so its `\x00` opens a witness section rather than an empty
+# list
+_NO_OCTETS = {"tx_in-itself", "tx-itself"}
+
+# and what a dict cannot be asked. TxOut's only validity question is the
+# amount, and `to_dict` puts that amount through `btc_from_sats`, which is
+# `valid_sats_amount` -- the conversion asks what assert_valid would ask, so
+# there is no answer the flag could change. The last test below is that
+# exclusion, stated as a test rather than as prose here
+_NO_DICT = {"tx_out"}
+
+_OCTETS = [case for case in _INVALID if case[0] not in _NO_OCTETS]
+_DICTS = [case for case in _INVALID if case[0] not in _NO_DICT]
+
+
+def _serialize(obj: Any, **flag: bool) -> bytes:
+    """Return the wire octets, `include_witness` being Tx's own parameter.
+
+    The flag is forwarded and never spelled: a default written here would
+    be a copy of the one under test, and the call with nothing to forward
+    is the case that matters.
+    """
+    if isinstance(obj, Tx):
+        return obj.serialize(include_witness=True, **flag)
+    octets: bytes = obj.serialize(**flag)
+    return octets
+
+
+@pytest.mark.parametrize(("name", "invalid"), _INVALID, ids=[c[0] for c in _INVALID])
+def test_the_default_checks_the_object_it_is_asked_about(
+    name: str, invalid: Any
+) -> None:
+    """Serialize refuses an object its own class calls invalid.
+
+    And writes it when the caller says so, which is the half that says the
+    flag still switches the check off rather than the half that says it is
+    there.
+    """
+    assert name  # the id of the case, so a failure names it
+
+    assert _serialize(invalid, check_validity=False)
+    with pytest.raises((BTClibValueError, BTClibTypeError)):
+        _serialize(invalid)
+
+
+@pytest.mark.parametrize(("name", "invalid"), _OCTETS, ids=[c[0] for c in _OCTETS])
+def test_the_default_checks_the_octets_it_reads(name: str, invalid: Any) -> None:
+    """Parse refuses octets that decode to an invalid object.
+
+    The other direction of the same boundary, and the one somebody else's
+    bytes arrive through.
+    """
+    assert name
+
+    octets = _serialize(invalid, check_validity=False)
+
+    assert type(invalid).parse(octets, check_validity=False)
+    with pytest.raises((BTClibValueError, BTClibTypeError)):
+        type(invalid).parse(octets)
+
+
+@pytest.mark.parametrize(("name", "invalid"), _DICTS, ids=[c[0] for c in _DICTS])
+def test_the_default_checks_the_dict_it_writes_and_reads(
+    name: str, invalid: Any
+) -> None:
+    """to_dict and from_dict validate unless the caller says not to.
+
+    The json boundary, where the default matters most: `from_dict` is what
+    reads a value somebody else wrote.
+    """
+    assert name
+
+    dict_ = invalid.to_dict(check_validity=False)
+    with pytest.raises((BTClibValueError, BTClibTypeError)):
+        invalid.to_dict()
+
+    assert type(invalid).from_dict(dict_, check_validity=False)
+    with pytest.raises((BTClibValueError, BTClibTypeError)):
+        type(invalid).from_dict(dict_)
+
+
+def test_a_nested_object_is_left_the_flag_it_was_given() -> None:
+    """The `check_validity=False` a parent hands its children is theirs.
+
+    Turned True, that inner call refuses an object the outer call was told
+    not to look at -- and a subclass is where the invariant that shows it
+    lives, `Witness`, `TxOut` and `TxIn` all being public and not final. The
+    base classes cannot say so: an empty witness has nothing to reject, and
+    a TxOut's only question is an amount its own conversion asks whatever
+    the flag says, which is the test below.
+
+    Held through the two constructors that build `cls` rather than a named
+    class, too, since a subclass is what they are `cls` for.
+    """
+
+    class RejectingWitness(Witness):
+        def assert_valid(self) -> None:
+            raise BTClibValueError("invalid witness")
+
+    class RejectingTxOut(TxOut):
+        def assert_valid(self) -> None:
+            raise BTClibValueError("invalid output")
+
+    tx_in = TxIn(
+        _GOOD_OUT_POINT,
+        b"",
+        0,
+        RejectingWitness(check_validity=False),
+        check_validity=False,
+    )
+    tx_out = RejectingTxOut(1, "", check_validity=False)
+    tx = Tx(1, 0, [TxIn(_GOOD_OUT_POINT)], [tx_out], check_validity=False)
+
+    for obj, err_msg in (
+        (tx_in, "invalid witness"),
+        (tx_out, "invalid output"),
+        (tx, "invalid output"),
+    ):
+        assert obj.to_dict(check_validity=False)
+        with pytest.raises(BTClibValueError, match=err_msg):
+            obj.to_dict()
+
+    dict_ = tx_out.to_dict(check_validity=False)
+    assert RejectingTxOut.from_dict(dict_, check_validity=False).value == 1
+    with pytest.raises(BTClibValueError, match="invalid output"):
+        RejectingTxOut.from_dict(dict_)
+
+    octets = tx_out.serialize(check_validity=False)
+    assert RejectingTxOut.parse(octets, check_validity=False).value == 1
+    with pytest.raises(BTClibValueError, match="invalid output"):
+        RejectingTxOut.parse(octets)
+
+
+def test_a_base_tx_out_dict_refuses_the_amount_either_way() -> None:
+    """The exclusion above, and why it is one rather than an oversight.
+
+    A base TxOut is valid when its amount is, and the dict form of an amount
+    is BTC: `to_dict` calls `btc_from_sats` and `from_dict` calls
+    `sats_from_btc`, each of which validates the amount on its own. So for
+    this class the flag has nothing left to switch off, and the refusal below
+    is the conversion's rather than assert_valid's -- which is what the
+    subclass above answers for, an invariant of its own being the thing a
+    conversion cannot ask.
+    """
+    invalid = TxOut(_MAX_SATOSHI + 1, "", check_validity=False)
+    for check_validity in (True, False):
+        with pytest.raises(BTClibValueError, match="invalid satoshi amount: "):
+            invalid.to_dict(check_validity=check_validity)
+
+    over = {"value": "21000000.00000001", "scriptPubKey": {"asm": "", "hex": ""}}
+    for check_validity in (True, False):
+        with pytest.raises(BTClibValueError, match="invalid BTC amount: "):
+            TxOut.from_dict(over, check_validity=check_validity)
+
+    # and what neither refusal takes with it: the octets, where the amount
+    # is eight bytes and `serialize` is the only reader of the flag
+    assert invalid.serialize(check_validity=False)

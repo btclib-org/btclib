@@ -103,3 +103,37 @@ def test_invalid_outpoint() -> None:
     out_point = OutPoint(b"\x00" * 32, 0, check_validity=False)
     with pytest.raises(BTClibValueError, match="invalid OutPoint"):
         out_point.assert_valid()
+
+
+def test_a_tx_id_is_exactly_32_bytes() -> None:
+    """Too long is refused as well as too short, the field being fixed.
+
+    A length checked from below only is the shape issue 322 reported
+    elsewhere: 33 bytes serialize back to 37, so the octets an OutPoint
+    was built from and the octets it writes would differ, and the two
+    would name different outputs.
+    """
+    for size in (0, 31, 33, 64):
+        out_point = OutPoint(b"\x01" * size, 18, check_validity=False)
+        with pytest.raises(BTClibValueError, match="invalid OutPoint tx_id: "):
+            out_point.assert_valid()
+
+
+def test_a_coinbase_marker_is_both_fields_or_neither() -> None:
+    """is_coinbase answers for the pair, and half of it is not a coinbase.
+
+    assert_valid refuses the mix, so a valid OutPoint cannot tell the
+    conjunction from either half of it: the objects built with the check
+    off are the only place the question can be put, and the answer decides
+    whether a transaction with such an input is read as a coinbase.
+    """
+    assert OutPoint().is_coinbase()
+
+    for tx_id, vout in (
+        (b"\x00" * 32, 0),  # the null tx_id, a real vout
+        (b"\x01" * 32, 0xFFFFFFFF),  # a real tx_id, the null vout
+        (b"", 0xFFFFFFFF),  # no tx_id at all
+        (b"\x00" * 32, 0xFFFFFFFF + 1),  # a vout no four bytes hold
+        (b"\x01" * 32, 0),
+    ):
+        assert not OutPoint(tx_id, vout, check_validity=False).is_coinbase()

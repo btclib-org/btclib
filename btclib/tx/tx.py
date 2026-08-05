@@ -420,11 +420,9 @@ def join(
     if enforce_same_lock_time and any(tx.lock_time != lock_time for tx in txs):
         raise BTClibValueError("Lock times are not the same")
 
-    if sum(len(tx.vin) for tx in txs) != len(
-        {vin.serialize() for tx in txs for vin in tx.vin}
-    ):
-        raise BTClibValueError("common inputs")
     vin = [vin for tx in txs for vin in tx.vin]
+    if len(vin) != len({tx_in.serialize() for tx_in in vin}):
+        raise BTClibValueError("common inputs")
 
     vout = [vout for tx in txs for vout in tx.vout]
 

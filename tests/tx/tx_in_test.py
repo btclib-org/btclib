@@ -17,7 +17,6 @@ import pytest
 from btclib.exceptions import BTClibValueError
 from btclib.script import Witness
 from btclib.tx import OutPoint, Tx, TxIn
-from btclib.tx.tx_in import TX_IN_COMPARES_WITNESS
 from tests.conftest import JsonGolden
 
 
@@ -29,7 +28,7 @@ def test_tx_in() -> None:
     assert tx_in.sequence == 0
     assert tx_in.outpoint == tx_in.prev_out
     assert tx_in.scriptSig == tx_in.script_sig
-    assert tx_in.nSequence == tx_in.nSequence
+    assert tx_in.nSequence == tx_in.sequence
     assert tx_in.is_coinbase()
     assert not tx_in.is_segwit()
     tx_in2 = TxIn.parse(tx_in.serialize())
@@ -50,7 +49,7 @@ def test_tx_in() -> None:
     assert tx_in.sequence == sequence
     assert tx_in.outpoint == tx_in.prev_out
     assert tx_in.scriptSig == tx_in.script_sig
-    assert tx_in.nSequence == tx_in.nSequence
+    assert tx_in.nSequence == tx_in.sequence
     assert not tx_in.is_coinbase()
     assert not tx_in.is_segwit()
     tx_in2 = TxIn.parse(tx_in.serialize())
@@ -78,19 +77,27 @@ def test_tx_in() -> None:
     assert tx_in.sequence == sequence
     assert tx_in.outpoint == tx_in.prev_out
     assert tx_in.scriptSig == tx_in.script_sig
-    assert tx_in.nSequence == tx_in.nSequence
+    assert tx_in.nSequence == tx_in.sequence
     assert not tx_in.is_coinbase()
     assert tx_in.is_segwit()
     tx_in2 = TxIn.parse(tx_in.serialize())
     assert not tx_in2.is_segwit()
-    assert tx_in == tx_in2 or TX_IN_COMPARES_WITNESS
+    # the witness is part of a TxIn comparison, so the input carrying one
+    # differs from the input that comes back off the wire without it. Said
+    # of the objects rather than of the flag behind them, and an
+    # `== ... or TX_IN_COMPARES_WITNESS` says neither: it passes whichever
+    # way that flag is set
+    assert tx_in != tx_in2
     tx_in2 = TxIn.from_dict(tx_in.to_dict())
     assert tx_in2.is_segwit()
     assert tx_in == tx_in2
 
-    tx_in.sequence = 0xFFFFFFFF + 1
-    with pytest.raises(BTClibValueError, match="invalid sequence: "):
-        tx_in.assert_valid()
+    # the sequence is a 4-byte unsigned integer, so both ends of the range
+    # answer: 0 and 0xFFFFFFFF above are inputs this test built
+    for sequence in (-1, 0xFFFFFFFF + 1):
+        tx_in.sequence = sequence
+        with pytest.raises(BTClibValueError, match="invalid sequence: "):
+            tx_in.assert_valid()
 
 
 def test_default_arguments_are_not_shared() -> None:
@@ -113,6 +120,19 @@ def test_default_arguments_are_not_shared() -> None:
 
     assert TxIn().prev_out.vout == 0xFFFFFFFF
     assert not TxIn().script_witness.stack
+
+
+def test_an_empty_witness_is_still_validated() -> None:
+    """Validation dispatches to a witness even when its stack is empty."""
+
+    class RejectingWitness(Witness):
+        def assert_valid(self) -> None:
+            raise BTClibValueError("invalid witness")
+
+    witness = RejectingWitness(check_validity=False)
+    tx_in = TxIn(script_witness=witness, check_validity=False)
+    with pytest.raises(BTClibValueError, match="invalid witness"):
+        tx_in.assert_valid()
 
 
 def test_dataclasses_json_dict(json_golden: JsonGolden) -> None:

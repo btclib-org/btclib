@@ -3959,6 +3959,118 @@ edit.
 
 ### Tests
 
+- **the boundaries the first parser mutation session found unconstrained
+  are tests now** (issue #327). Every one was a check the suite executed
+  without pinning, so a wrong version of it would have gone unnoticed: a
+  tx_id length refused from below only, where 33 bytes are an outpoint that
+  serializes back to 37; the largest number a two- or four-byte `var_int`
+  holds, which a canonical minimum one short of its value accepts;
+  `MAX_SIZE`'s value, every test around the cap holding for whatever the
+  constant is; the non-canonical message naming the width the number was
+  written in; the four-byte range of a version, a lock time and a sequence
+  at both ends rather than at one; the versions `assert_standard` refuses
+  where `assert_valid` takes them, zero and every one whose top bit is set —
+  and not where it puts the upper end, which is issue #387's to answer and
+  no test's to pin; the coinbase script_sig's 2 to 100 bytes, both included;
+  `assert_valid` asking every input and every output, which only a
+  transaction whose sums are fine can reach; the legacy sigop count being
+  the sum of both lists rather than a bitwise mix of them, one sigop on
+  each side being the case that tells those apart; and an eight-byte output
+  value surviving an unchecked round trip byte for byte while validation
+  refuses it, which is the invariant either reading of the field satisfies
+  — issue #388 has the reading itself
+- **`check_validity`'s default is held to checking**, class by class over the
+  wire format, and that is the shape 19 of the parser profile's survivors
+  had: a `check_validity: bool = True` mutated to `False`, or an `if
+  check_validity:` negated, changed nothing any test asked about, so what
+  every caller who says nothing gets was the one thing the flag's
+  91 signatures did not promise. `tests/check_validity_test.py` carries the
+  table, in two columns, because a fixture invalid only in a nested object
+  answers the *child's* guard: take `if check_validity:` out of
+  `TxIn.serialize` and the `prev_out.serialize` under it raises in its place,
+  a green suite about nothing. One column is therefore invalid at its own
+  class's boundary — a sequence of `True`, a transaction without inputs —
+  and holds `serialize`, `to_dict` and `from_dict`; the other is invalid in a
+  nested outpoint and holds `parse`, which the first cannot: a `True`
+  sequence reads back as the number one, and a transaction without inputs has
+  no octets to read at all, the input count being where the segwit marker
+  lives. Each accepts with the flag off, which is the half that says the flag
+  still switches the check *off*, and every guard was removed one at a time
+  to see the tests notice: eleven of the twelve go red, the twelfth being the
+  one below. `TxOut` is out of the dict half
+  and by name: its only validity question is the amount, `to_dict` puts that
+  through `btc_from_sats` and `from_dict` through `sats_from_btc`, and each of
+  those is `valid_sats_amount` — so the conversion asks what `assert_valid`
+  would, and the flag has nothing left to switch. A test of that exclusion
+  stands where the reason would otherwise be prose
+- **the two keyword-only flags of `btclib/tx/tx.py` that are not
+  `check_validity`** — `assert_valid`'s `unsigned_template` and
+  `_assert_valid_coinbase`'s `is_coinbase` — are held to refusing a
+  positional call, which is the hazard the star is there for and the one
+  `tests/check_validity_test.py` states for the flag it is named after. The
+  ast walk in that file only inspects signatures carrying `check_validity`,
+  so these two were mutable from `*` to `/` with nothing red
+- **`join` compares numbers and not objects**, which is what let three of its
+  guards be mutated from `!=` to `is not` with nothing red: equal small
+  integers are the same object in CPython, so every case a test built from
+  literals passes either way. `int("1000")` builds a fresh object where the
+  literal would be the cached one, and 257 distinct inputs put a count past
+  the last cached integer, so transactions agreeing on version, on lock time
+  and on inputs that are all distinct are joined by the code and refused by
+  the mutant. What is left of that shape in the profile is one mutant in
+  `var_int._parse_number`, where the sizes compared are 2, 4 and 8
+- **validation asks even an empty witness to validate itself.** The base
+  `Witness` has nothing to reject when its stack is empty, so the old truth
+  guard changed none of its answers; a public subclass can still have an
+  invariant of its own, and `TxIn.assert_valid` now dispatches to it without
+  making non-emptiness stand in for validity. The test uses that falsey
+  subclass, which is the case that distinguishes the two implementations
+- **`join` flattens its inputs once**, then compares that list's length with
+  the serialized-input set and hands the same list to the transaction. The
+  duplicate check and the result therefore read one snapshot instead of
+  traversing every transaction's inputs separately for the count, the set
+  and the concatenation
+- **a subclass is where the invariant a base class cannot have lives**, and
+  eight mutants of `btclib/tx/` were reachable only through one: `Witness`,
+  `TxOut` and `TxIn` are public and not final, `parse` and `from_dict` build
+  `cls` on purpose, and the `check_validity=False` a parent hands a child is
+  observable the moment that child has something of its own to refuse. So
+  `tests/check_validity_test.py` holds the forwarded flag with a rejecting
+  `Witness` inside a `TxIn` and a rejecting `TxOut` on its own and inside a
+  `Tx`, and the amount-conversion exclusion beside it is narrowed to the base
+  class, which is all it ever showed. Four of those eight were the ones that
+  exclusion had covered
+- **`Tx.__eq__`'s witness fallback is exercised rather than masked.** The
+  branch runs only when `TX_IN_COMPARES_WITNESS` is false, and monkeypatching
+  that global cannot reach `field(compare=...)`, which the dataclass read at
+  class creation: the generated `TxIn` comparison went on reading the witness,
+  answered the same way as the branch, and hid whatever the branch did — a
+  deleted `not`, a doubled one, an `is` for `!=`, all three green. The input
+  is now a `TxIn` subclass whose equality leaves the witness out, as the false
+  setting makes the generated one, so the branch is the whole of the answer
+- **three assertions that could not fail say something now.** `assert
+  tx_in.nSequence == tx_in.nSequence` compared the property with itself in
+  three places, so the alias it is there to check was never read; `assert
+  tx_in == tx_in2 or TX_IN_COMPARES_WITNESS` passes whichever way that flag
+  is set, and what replaces it is the inequality of the two inputs, which is
+  behaviour rather than the flag behind it; and a non-shuffled `join` was
+  held to equalling *another* non-shuffled join, which two shuffled ones
+  satisfy every other attempt with two inputs — so `SystemRandom.shuffle` is
+  monkeypatched to a known permutation, reversal, and each of the four flag
+  combinations is one equality: the order a list comes back in says which
+  branch ran, where a real shuffle can preserve the order it was given —
+  once in 720 for six elements — and a run that draws it says nothing. The
+  ten-attempt randomized assertion beside it is gone for that reason, its
+  two inputs and four outputs making the odds 1 in 48 an attempt. `Tx`
+  being a dataclass is a promise too, and `dataclasses.fields` is what
+  reads it: the constructor, the comparison and every conversion are
+  written out, so the decorator is left holding the field list and the
+  repr, and nothing asked for either
+- **a coinbase input in a non-coinbase transaction has a test of its own.**
+  That refusal was the one statement of `btclib/tx` that no test under
+  `tests/tx` reached: a script_engine vector did, which is a verdict on the
+  engine and none on the transaction, and it left the parser profile's
+  baseline one statement short of the scope it mutates
 - **the ten blocks Bitcoin Core carries in `blockfilters.json` are
   vendored and parsed** (issue #274). Core publishes no block-validity
   vector file — `src/test/data/` holds no block, and the two suites that
@@ -4451,6 +4563,69 @@ edit.
 
 ### Packaging, linting and CI
 
+- **mutation testing reaches the wire format**, a third configuration and a
+  second job (issue #327). `.github/mutation/parsers.toml` mutates
+  `btclib/tx/` with the `var_int` and `var_bytes` codecs under it: the
+  transaction encodings are where two of the five defects that opened the
+  issue lived — a fixed-width field that took a truncated read and
+  normalized it on serialization, and an octet parser that ignored what
+  followed the object (#322) — and both were inside a tree measuring 100%,
+  which is #219's question again on a different boundary. One
+  configuration and not three, `module-path` taking a list of paths as well
+  as a path, because one test command judges all six modules; and it names
+  `tests/parse_contract_test.py`, `tests/integer_policy_test.py` and
+  `tests/check_validity_test.py` beside the module suites, each for a class
+  of mutant the module suites cannot see. The last of those is the cheapest
+  fourteen kills in the profile: cosmic-ray turns the `*` of a keyword-only
+  marker into `/`, which moves `check_validity` into a positional slot, and
+  the ast walk in that file is the only thing that fails on it. Measured
+  before the budget was written, and the numbers are what the issue asked
+  for rather than an estimate: 1034 mutants, 88 skipped, the 946 that ran
+  taking minutes rather than hours, and 22 surviving once the tests the runs
+  asked for were written — 127 in the original run, before the tests and the
+  simplification above. Of those 22, 19 are equivalent mutants, one turns `!=`
+  into `is not` where the sizes compared are 2, 4 and 8 and CPython interns
+  all three, and two are the upper end of `assert_standard`'s version window,
+  which issue #387 has to settle before a test may pin it. So this profile *finishes*,
+  where the engine's five and a half hours are sampled — which is what
+  makes a survival rate comparable with the week before. Its own job, in
+  parallel with the consensus one, with a 30-minute budget under a
+  45-minute ceiling, because the two sessions there already spend 180 of
+  the 200 minutes that job has: the jobs are now a matrix over profiles,
+  each cell naming its configurations and their budgets, so a scope added
+  next takes nothing from the ones already measured. One artifact per
+  profile, two uploads under one name being an error, so
+  `mutation-sessions` is now `mutation-consensus-sessions` beside
+  `mutation-parsers-sessions`
+- **`cr-filter-operators` runs between `init` and `exec`** for every
+  configuration, and is a no-op for one that excludes no operator, so the
+  decision stays in the toml rather than in the workflow. What
+  `parsers.toml` excludes is the `|` of a type annotation: all four modules
+  open with `from __future__ import annotations`, so `Sequence[TxIn] | None`
+  is an unevaluated string, and cosmic-ray's eleven replacements for that
+  operator are 88 mutants — eight such `|`, on seven lines — that nothing
+  can reach. Measured rather than argued: an unfiltered session over the same
+  scope reports 110 survivors and every one of those 88 is among them, so
+  filtering leaves the 22 that are worth reading and spends minutes less, a
+  survivor costing the whole test command where most kills cost a fraction of
+  one. Excluded by operator rather than with a `# pragma: no mutate`, and the
+  collateral of a pragma is not the argument for it: grouped by the line
+  `cr-filter-pragma` reads — the one a mutation *ends* on — six of the seven
+  hold nothing but that annotation's eleven mutants, the multiline signatures
+  putting the `*` and the `check_validity` default on lines of their own.
+  `OutPoint.to_dict` is the exception, the only one of the seven written on a
+  single line: 23 mutations end there and a pragma would skip 12 the filter
+  does not — eleven replacements of its keyword-only `*`, `Mul_BitOr` among
+  them and so past the anchored pattern, and the one of its default. What
+  settles it is where the decision lives: one line in the file that already
+  says what is mutated and what judges it, against a marker in each of seven
+  library lines and again in
+  every module a later `module-path` adds. The price is the same either way
+  and is paid in the configuration instead of the library: a real `a | b`
+  added to one of these modules would be skipped in silence, and the grep
+  that re-derives the claim is beside the exclusion. So is what a skip does
+  to the one number the workflow prints: `cr-rate` counts a result that is
+  not SURVIVED as a kill, which a skip and a per-mutant timeout both are
 - **the bindings dependency states its policy where the pin is** (issue
   #325). `btclib_libsecp256k1>=0.7.1` has no upper bound, and the
   absence of a ceiling is now written down as the decision it is:
@@ -4706,9 +4881,10 @@ edit.
   is what the issue asked for and refused to guess at: 727 mutants in
   `sig_hash.py` against 2768 in the engine, a survival rate measured on
   the first of those, and a `timeout` of 300 s rather than 60 because at
-  60 the *unmutated* baseline timed out on a machine under load — a
-  timeout is a verdict of its own, so slack is survivors not reported as
-  noise. It is not a gate and is not among master's required checks: a
+  60 the *unmutated* baseline timed out on a machine under load — and
+  cosmic-ray answers KILLED for a timeout, so a tight one turns a slow
+  mutant into a kill nobody earned. It is not a gate and is not among
+  master's required checks: a
   mutant survives because a test is missing, so a red merge would stop
   whoever next touched the file for a hole somebody else left
 - an `rpc-smoke` workflow asks live bitcoinds what the recorded replies

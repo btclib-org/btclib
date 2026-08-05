@@ -1,0 +1,121 @@
+# The wire format, mutated: the transaction encodings and the two
+# length-prefix codecs under them. Issue #327 asks for this scope after
+# five defects were found in code measuring 100% statement coverage, two
+# of them here -- fixed-width fields that took a truncated read and
+# normalized it on serialization, and octet parsers that ignored trailing
+# bytes (#322) -- which is #219's question again on a different boundary:
+# every statement ran, and nothing checked where the field ended.
+#
+# Its own configuration and its own job rather than a third session beside
+# the consensus ones: sig_hash.toml and engine.toml already spend 90
+# minutes each, so a session added there would either take from them or
+# push the job past its ceiling. mutation.yml runs the two jobs in
+# parallel and each carries its own budget.
+
+[cosmic-ray]
+# a list, which cosmic-ray reads as well as a single path: the scope is
+# four modules of one package and two files beside it, and one test
+# command judges all six. btclib/tx alone would leave var_int and
+# var_bytes -- the length prefix of every list and every script in a
+# transaction -- to a profile of their own, for 195 mutants
+module-path = [
+  "btclib/tx",
+  "btclib/var_int.py",
+  "btclib/var_bytes.py",
+]
+
+# tests/tx first, where most mutants die, and then the two files for the
+# codecs. The three after them are what makes this a parser profile
+# rather than a directory of unit tests, and each one answers a class of
+# mutant the first three cannot:
+#
+# - parse_contract_test.py holds every parse in btclib to the truncation,
+#   trailing-bytes and caller's-stream rules, under check_validity both
+#   ways, so it is what a mutated field boundary has to get past
+# - integer_policy_test.py is the type half of the same surface, refusing
+#   a bool as a satoshi amount, an index or a sequence (#326): without it
+#   those statements run in no test of this command
+# - check_validity_test.py is the rule about the signatures, and it is
+#   here for a mutant nothing else sees: cosmic-ray turns the `*` of a
+#   keyword-only marker into `/`, which moves `check_validity` into a
+#   positional slot, and the ast walk in that file is what fails on it.
+#   Fourteen mutants of this scope, killed by a file costing a tenth of a
+#   second
+#
+# -n0 overrides the `-n auto` of tool.pytest.ini_options, xdist's worker
+# per core being startup paid once per mutant; -p no:randomly makes the
+# collection order fixed, which with -x is what decides both the killing
+# test and the runtime. No --cov, for the reason sig_hash.toml gives
+test-command = """python -m pytest -x -q -n0 -p no:randomly \
+  tests/tx tests/var_int_test.py tests/var_bytes_test.py \
+  tests/parse_contract_test.py tests/integer_policy_test.py \
+  tests/check_validity_test.py"""
+
+# seconds of wall clock, as in the other two configurations, and wide
+# because of what cosmic-ray does with a timeout rather than in spite of
+# it: `run_tests` catches `subprocess.TimeoutExpired` and answers KILLED,
+# so a mutant cut short is *reported as dead* on a busy machine. That is
+# the direction to be afraid of -- a survivor counted as a kill is the
+# failure mode a stale test command has, the one that looks like good news.
+#
+# What the width is not guarding is a loop in this scope. There is no
+# unbounded one to find: the counts and lengths a mutant could uncap are
+# read from a stream that ends, so `Tx.parse`'s `range(n)` stops at the
+# first `read_exactly`, and `var_bytes.parse` asks `stream.read(i)` for
+# whatever is left and then refuses the short answer. Against a test
+# command of about a second, every session measured here has finished with
+# zero timeouts, so the number is slack for a loaded runner and nothing
+# else
+timeout = 300
+
+excluded-modules = []
+
+# what a mutant of `Sequence[TxIn] | None` is: nothing. All four modules
+# open with `from __future__ import annotations`, so every annotation is
+# an unevaluated string, and cosmic-ray mutates the `|` in it eleven ways
+# -- `Sequence[TxIn] >> None` and ten more -- none of which any test can
+# reach. Measured rather than argued: eight such `|` on seven lines, 88
+# mutants of the 1034, and an unfiltered session over the same scope
+# reports 110 survivors, every one of those 88 among them. Filtered it
+# reports the other 22, which is the difference between a list somebody
+# reads and one nobody does -- 88 against 22 -- and it spends minutes less
+# doing it, a survivor costing the whole test command where most kills cost
+# a fraction of one.
+#
+# Excluded by operator here rather than with `# pragma: no mutate`, and
+# the collateral of a pragma is not the argument: grouped by the line
+# `cr-filter-pragma` reads -- the one a mutation *ends* on -- six of the
+# seven hold nothing but that annotation's eleven mutants, the multiline
+# signatures putting the `*` and the `check_validity` default on lines of
+# their own. `OutPoint.to_dict` is the exception, being the only one of the
+# seven written on a single line: 23 mutations end there, and a pragma would
+# skip 12 the filter does not -- eleven replacements of its keyword-only `*`,
+# `Mul_BitOr` among them and so past this exclusion's anchored pattern, and
+# the one of its `check_validity` default. tests/check_validity_test.py
+# answers both. Named rather than numbered, a line number here rotting on
+# the next insertion above it.
+#
+# What settles it is where the decision lives. One line here, in the file
+# that already says what is mutated and what judges it, against a marker in
+# each of seven library lines and again in every module a later
+# `module-path` adds. The price is the same either way and is paid here
+# instead of there: a real `a | b` added to one of these modules would be
+# skipped in silence, so the claim behind it is a grep:
+#
+#   grep -n ' | ' btclib/tx/*.py btclib/var_int.py btclib/var_bytes.py
+#
+# Seven hits today, every one an annotation. Note also what a skipped
+# mutant does to the one number the workflow prints: `cr-rate` counts a
+# result that is not SURVIVED as a kill, and a skip is one, so the rate it
+# reports is over the whole session and the honest denominator is what
+# `cosmic-ray exec` actually ran.
+#
+# BitOr and not the other operators of that family: `^` is what
+# OutPoint.assert_valid uses to catch a half-coinbase outpoint, and a
+# mutant of that one is a test question
+[cosmic-ray.filters.operators-filter]
+exclude-operators = ["core/ReplaceBinaryOperator_BitOr_.*"]
+
+# one mutant at a time, in this working tree: see sig_hash.toml
+[cosmic-ray.distributor]
+name = "local"

@@ -80,6 +80,17 @@ def test_var_int_conversion() -> None:
     assert var_int.parse("fe703a0f00") == 998000
 
 
+def test_max_size_is_bitcoin_cores() -> None:
+    """MAX_SIZE is serialize.h's number, and the number is the whole of it.
+
+    Every check around the cap -- that MAX_SIZE parses and one more does
+    not -- holds for whatever value the constant happens to have, so the
+    value is what has to be written down: it is a limit btclib shares with
+    Core rather than one it chooses.
+    """
+    assert var_int.MAX_SIZE == 0x02000000
+
+
 def test_var_int_max_size() -> None:
     """The MAX_SIZE range check of Bitcoin Core's ReadCompactSize."""
     assert var_int.parse(var_int.serialize(var_int.MAX_SIZE)) == var_int.MAX_SIZE
@@ -122,12 +133,30 @@ def test_a_bool_is_neither_a_count_nor_a_cap() -> None:
 
 def test_var_int_non_canonical() -> None:
     """Only the shortest encoding is valid, as in Bitcoin Core."""
-    # 1 fits in one byte, 0xfd in two, 0x10000 in four
-    for encoding in ("fd0100", "fd0000", "fe01000000", "fefdff0000", "fefeff0000"):
+    # 1 fits in one byte, 0xfd in two, 0x10000 in four. fdfc00 and
+    # feffff0000 are the boundary from below -- the largest number the
+    # shorter form holds, written in the longer one -- and each is the
+    # case a minimum one short of the right value would accept
+    for encoding in (
+        "fd0100",
+        "fd0000",
+        "fdfc00",
+        "fe01000000",
+        "fefdff0000",
+        "fefeff0000",
+        "feffff0000",
+    ):
         with pytest.raises(BTClibValueError, match="non-canonical var_int: "):
             var_int.parse(encoding)
     with pytest.raises(BTClibValueError, match="non-canonical var_int: "):
         var_int.parse(b"\xff" + (0xFFFFFFFF).to_bytes(8, "little"))
+
+    # the diagnosis names the number and the width it was written in,
+    # which is what tells a longer encoding from a number out of range:
+    # both refusals are about the same octets
+    err_msg = "non-canonical var_int: 252 encoded in 3 bytes"
+    with pytest.raises(BTClibValueError, match=err_msg):
+        var_int.parse("fdfc00")
 
     # the boundary values are the shortest encoding of themselves
     assert var_int.parse("fcfd") == 0xFC  # 0xfc is a one byte integer
