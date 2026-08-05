@@ -147,6 +147,19 @@ dev = [
     { include-group = "mutation" },
 ]
 
+[tool.uv]
+# the oldest uv allowed to touch uv.lock, matching the rev the uv-lock
+# hook of .pre-commit-config.yaml pins: that hook is what regenerates the
+# file, and its rev is something pre-commit.ci moves on its own schedule.
+# Declared here the floor holds for every uv command rather than for the
+# hook alone, so an older uv on a developer's machine says so instead of
+# rewriting the lock in a format the runners then fail to read -- uv is
+# pre-1.0 and has changed that format before. It also reaches CI without
+# a second pin: setup-uv, given no version input, reads this key, and a
+# bare minimum specifier makes it install the latest uv, so the runners
+# are never behind the floor and there is nothing here to go stale
+required-version = ">=0.12.0"
+
 [tool.setuptools.packages.find]
 include = ["btclib*"]
 namespaces = true
