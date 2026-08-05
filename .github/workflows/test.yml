@@ -70,10 +70,10 @@ jobs:
           [
             ubuntu-latest,
             ubuntu-24.04-arm,
-            # macos-26-intel,
-            # macos-latest,
-            # windows-latest,
-            # windows-11-arm,
+            macos-26-intel,
+            macos-latest,
+            windows-latest,
+            windows-11-arm,
           ]
         # 3.14t is the free-threaded interpreter, and it is in the matrix
         # for what it installs as much as for what it runs: the bindings
