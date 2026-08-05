@@ -122,6 +122,19 @@ def test_default_arguments_are_not_shared() -> None:
     assert not TxIn().script_witness.stack
 
 
+def test_an_empty_witness_is_still_validated() -> None:
+    """Validation dispatches to a witness even when its stack is empty."""
+
+    class RejectingWitness(Witness):
+        def assert_valid(self) -> None:
+            raise BTClibValueError("invalid witness")
+
+    witness = RejectingWitness(check_validity=False)
+    tx_in = TxIn(script_witness=witness, check_validity=False)
+    with pytest.raises(BTClibValueError, match="invalid witness"):
+        tx_in.assert_valid()
+
+
 def test_dataclasses_json_dict(json_golden: JsonGolden) -> None:
     """Compare a real input's to_dict with its golden json, and back."""
     fname = "d4f3c2c3c218be868c77ae31bedb497e2f908d6ee5bbbe91e4933e6da680c970.bin"

@@ -151,8 +151,7 @@ class TxIn:
         if not 0 <= self.sequence <= 0xFFFFFFFF:
             raise BTClibValueError(f"invalid sequence: {self.sequence}")
 
-        if self.script_witness:
-            self.script_witness.assert_valid()
+        self.script_witness.assert_valid()
 
     def to_dict(self, *, check_validity: bool = True) -> dict[str, Any]:
         """Return the input as a dict of json-friendly values.

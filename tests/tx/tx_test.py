@@ -792,8 +792,8 @@ def test_join_compares_by_value_and_not_by_identity() -> None:
     same_lock_time = [tx_with(i * 100, 1, 1, int("1000")) for i in range(2)]
     assert joined(same_lock_time).lock_time == 1000
 
-    # and a count past 256: the inputs are all distinct, so the sum and the
-    # size of the set are the same number and not the same object
+    # and a count past 256: the inputs are all distinct, so the list length
+    # and the set size have the same value but are distinct integer objects
     many = [tx_with(1000, 129, 1, 0), tx_with(2000, 128, 1, 0)]
     assert len(joined(many).vin) == 257
 

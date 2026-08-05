@@ -4019,6 +4019,17 @@ edit.
   and on inputs that are all distinct are joined by the code and refused by
   the mutant. What is left of that shape in the profile is one mutant in
   `var_int._parse_number`, where the sizes compared are 2, 4 and 8
+- **validation asks even an empty witness to validate itself.** The base
+  `Witness` has nothing to reject when its stack is empty, so the old truth
+  guard changed none of its answers; a public subclass can still have an
+  invariant of its own, and `TxIn.assert_valid` now dispatches to it without
+  making non-emptiness stand in for validity. The test uses that falsey
+  subclass, which is the case that distinguishes the two implementations
+- **`join` flattens its inputs once**, then compares that list's length with
+  the serialized-input set and hands the same list to the transaction. The
+  duplicate check and the result therefore read one snapshot instead of
+  traversing every transaction's inputs separately for the count, the set
+  and the concatenation
 - **three assertions that could not fail say something now.** `assert
   tx_in.nSequence == tx_in.nSequence` compared the property with itself in
   three places, so the alias it is there to check was never read; `assert
@@ -4551,10 +4562,11 @@ edit.
   marker into `/`, which moves `check_validity` into a positional slot, and
   the ast walk in that file is the only thing that fails on it. Measured
   before the budget was written, and the numbers are what the issue asked
-  for rather than an estimate: 1035 mutants, 88 skipped, the 947 that ran
-  taking minutes rather than hours, and 31 surviving once the tests the runs
-  asked for were written — 127 before them. None of those 31 is a test anybody
-  can write: 28 are equivalent mutants, one turns `!=` into `is not` where the
+  for rather than an estimate: 1034 mutants, 88 skipped, the 946 that ran
+  taking minutes rather than hours, and 30 surviving once the tests the runs
+  asked for were written — 127 in the original run, before the tests and the
+  simplification above. Of those 30, 27 are classified as equivalent mutants,
+  one turns `!=` into `is not` where the
   sizes compared are 2, 4 and 8 and CPython interns all three, and two are the
   upper end of `assert_standard`'s version window, which issue #387 has to
   settle before a test may pin it. So this profile *finishes*,
@@ -4576,8 +4588,8 @@ edit.
   is an unevaluated string, and cosmic-ray's eleven replacements for that
   operator are 88 mutants — eight such `|`, on seven lines — that nothing
   can reach. Measured rather than argued: an unfiltered session over the same
-  scope reports 119 survivors and every one of those 88 is among them, so
-  filtering leaves the 31 that are worth reading and spends minutes less, a
+  scope reports 118 survivors and every one of those 88 is among them, so
+  filtering leaves the 30 that are worth reading and spends minutes less, a
   survivor costing the whole test command where most kills cost a fraction of
   one. Excluded by operator rather than with a `# pragma: no mutate`, and the
   collateral of a pragma is not the argument for it: grouped by the line
