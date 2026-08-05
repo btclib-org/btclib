@@ -26,7 +26,10 @@ Telling these apart is most of what can go wrong when cutting a release.
   and cannot be reuploaded (see "If something goes wrong"). All three
   are typed by hand, and nothing in `version-check` tells them apart
   from each other — only from a tag that disagrees with whichever one
-  is declared
+  is declared. Three components is always the release day; four is
+  always a patch on it. The day is never dropped in favor of a fourth
+  digit standing in for it, which is what would make the two
+  indistinguishable
 - **`v2026.8.4`**, the tag, carries no version of its own: it picks the
   index, PyPI rather than TestPyPI, and `version-check` exists to
   confirm it says what `pyproject.toml` says
@@ -181,14 +184,48 @@ pyroma), build, wheel smoke test — and publishes to
 1. Tag the release commit and push the tag:
 
    ```shell
-   git tag -a v2026.8 -m "release v2026.8"
-   git push origin v2026.8
+   git tag -a v2026.8.4 -m "release v2026.8.4"
+   git push origin v2026.8.4
    ```
 
-1. The workflow does the rest: full matrix, build and checks, PyPI
-   upload, and the GitHub release with the distribution files attached
-   and the HISTORY.md section as its body. Give the release notes a
-   read once it lands.
+1. The workflow builds the full matrix and the distribution files, then
+   pauses at the `pypi` environment for the review "One-time setup"
+   describes. Approve it. That approval is not the point of no return:
+   the OIDC token exchange happens after it, so a trusted publisher
+   whose claims do not match fails there having uploaded nothing, and
+   the version survives — delete the tag, fix the registration, tag
+   again. The same holds for a rehearsal failing the same way on
+   TestPyPI: its `.dev<run number>` is not consumed either, and `gh run
+   rerun --failed` re-runs the publish job alone, against the artifacts
+   already built, rather than the whole matrix again. The upload itself
+   is the point of no return, PyPI accepting no file name twice even
+   after deletion; the GitHub release follows it, with the distribution
+   files attached and the HISTORY.md section as its body. Give the
+   release notes a read once it lands.
+
+1. Install what was just published into an environment of its own,
+   then exercise something that touches the shipped data rather than
+   only importing it. `import btclib` runs `__init__.py` alone, and the
+   25 files under `_data/` — the twelve BIP39 wordlists among them —
+   are opened by path at the first call that needs one, not imported,
+   so a wheel missing `wordlist.txt` would install and import cleanly
+   and only fail there:
+
+   ```shell
+   uv run --isolated --no-project --with btclib \
+     python -c "from btclib.mnemonic.bip39 import seed_from_mnemonic; \
+       m = 'abandon abandon abandon abandon abandon abandon abandon ' \
+           'abandon abandon abandon abandon about'; \
+       print(seed_from_mnemonic(m, 'TREZOR').hex())"
+   ```
+
+1. Check the PEP 740 attestations SECURITY.md says every release
+   carries. The JSON API is not where: its `provenance` field answers
+   `null` even on a release that has them. The project page shows them,
+   and machine-readably they are under
+   `/integrity/<project>/<version>/<filename>/provenance`, whose
+   `attestation_bundles[].publisher` should name this repository and
+   `release.yml`.
 
 1. Open the next cycle: set a generic next version without the day
    (e.g. after 2026.8.4, use 2026.9) in pyproject.toml, and start a new
@@ -200,13 +237,13 @@ pyroma), build, wheel smoke test — and publishes to
   uploaded. Delete the tag, fix, and tag again:
 
   ```shell
-  git tag -d v2026.8
-  git push origin :refs/tags/v2026.8
+  git tag -d v2026.8.4
+  git push origin :refs/tags/v2026.8.4
   ```
 
 - The upload succeeded but the release is broken: PyPI never accepts a
   file name twice, even after deletion. Yank the bad release on PyPI
-  and publish a new patch version (`2026.8` → `2026.8.1`).
+  and publish a new patch version (`2026.8.4` → `2026.8.4.1`).
 
 - Only the `github-release` job failed: the PyPI upload is already
   done; re-run the failed job, or create the release by hand from the
