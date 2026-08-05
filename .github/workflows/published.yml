@@ -35,14 +35,15 @@ name: published
 
 on:
   schedule:
-    # Wednesday, a minute that is not the hour: everything scheduled on
-    # the hour queues together, and a run that waits is a run whose
-    # failure is noticed later. links.yml has Monday, mutation.yml Sunday,
-    # latest.yml Thursday -- three sentinels in one inbox on one morning
-    # is one sentinel.
+    # Tuesday, a minute that is not the hour: everything scheduled on the
+    # hour queues together, and a run that waits is a run whose failure
+    # is noticed later. The day after links.yml's Monday: a fixed,
+    # already-released artifact is checked here, before latest.yml asks
+    # the more volatile question of what the newest dependency does to a
+    # tree not yet released.
     # Only the default branch schedules workflows, so on any other branch
     # this is reachable through the dispatch below alone
-    - cron: "31 4 * * 3"
+    - cron: "31 4 * * 2"
   workflow_dispatch:
 
 # least privilege for the GITHUB_TOKEN: everything running in a job

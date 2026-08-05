@@ -20,7 +20,12 @@ on:
   schedule:
     # Mondays, 04:17 UTC. Not on the hour: GitHub queues scheduled
     # workflows across every repository that asked for the same minute, and
-    # the run can be dropped outright when the queue is long
+    # the run can be dropped outright when the queue is long.
+    # First among the weekday sentinels: whether an external page still
+    # resolves is the least volatile of the four questions this week
+    # asks, published.yml (Tuesday), latest.yml (Wednesday) and
+    # Dependabot (Thursday) each asking something that changes more
+    # often than the last
     - cron: "17 4 * * 1"
   # the escape hatch, and the way to check a branch before merging a
   # documentation change that adds links
