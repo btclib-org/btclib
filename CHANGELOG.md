@@ -1157,6 +1157,27 @@ edit.
   exception contract. What each commits to is unchanged, `-1` and
   `0xffffffffffffffff` being the same eight octets. Found while
   reviewing #386
+- **the hash type the two pre-taproot preimages write is `int32_t
+  nHashType`, Core's own parameter type, not an unsigned integer** (issue
+  #405). `sig_hash.legacy` and `sig_hash.segwit_v0` are public and take it
+  as a plain `int`, and wrote it `signed=False`: `-1` — `ffffffff`, the
+  four octets Core's `ss << nHashType` puts there — was an
+  `OverflowError` out of `int.to_bytes` rather than a preimage, and so was
+  anything from 2^32 up, both from underneath the library rather than
+  through its exception contract. Either spelling of a 32-bit word is
+  hashed now, the two differing nowhere else either, `-1 & 0x1F` and
+  `0xffffffff & 0x1F` being the same 31 that chooses the commitment; what
+  the field cannot carry is a `BTClibValueError` naming it, refused before
+  the transaction is copied so that the SIGHASH_SINGLE bug cannot answer
+  with the constant 1 first. Core's sighash.json carries negative hash
+  types among its vectors, `InsecureRand32()` filling the whole word, and
+  they go in as Core wrote them where the test had been adding 2^32 to
+  each by hand. The seven defined values commit to what they did, and
+  `assert_valid_hash_type` stays out of both preimages: without STRICTENC
+  the script engine hashes whatever byte a signature carries, so refusing
+  an undefined hash type there would refuse preimages consensus asks for
+  — that vector file is nothing but undefined ones. Found while auditing
+  btclib's consensus types against Core v31.1
 
 ### Immutability and shared state
 

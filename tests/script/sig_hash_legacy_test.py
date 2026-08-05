@@ -19,7 +19,7 @@ import pytest
 
 from btclib.ecc import dsa
 from btclib.exceptions import BTClibValueError
-from btclib.hashes import hash160
+from btclib.hashes import hash160, hash256
 from btclib.script import serialize, sig_hash
 from btclib.script.engine import verify_transaction
 from btclib.to_pub_key import pub_keyinfo_from_prv_key
@@ -241,9 +241,10 @@ def test_test_vectors(
     # not malformed, and every one of the 500 is valid. Passing
     # check_validity=False would say the opposite without ever checking
     # it, and would hide a vector that stops parsing
+    # the hash type as Core's file writes it, negative ones included: it is
+    # an int32_t there and in `legacy`, so half of these vectors are what
+    # says the four bytes are signed (issue #405)
     tx = Tx.parse(raw_tx)
-    if hash_type < 0:
-        hash_type += 0xFFFFFFFF + 1
     actual_hash = sig_hash.legacy(raw_script, tx, input_index, hash_type)
     assert actual_hash == bytes.fromhex(exp_hash)[::-1]
 
@@ -275,3 +276,76 @@ def test_test_vectors_are_all_undefined_hash_types() -> None:
     # and they are spread over every low-bit combination, the two the
     # legacy rules single out included
     assert {hash_type & 0x1F for hash_type in hash_types} == set(range(32))
+    # negative ones among them, which is what makes this file the authority
+    # for the int32_t Core's nHashType is (issue #405): the whole word is
+    # random, sign bit included, and the vectors go in as Core wrote them
+    assert any(hash_type < 0 for _, _, _, hash_type, _ in rows)
+
+
+# the script code every hash-type case below signs against: a p2pkh
+# script, and one with no OP_CODESEPARATOR, `legacy` eliding those itself
+_SCRIPT_CODE = serialize(
+    [
+        "OP_DUP",
+        "OP_HASH160",
+        "1018853670f9f3b0582c5b9ee8ce93764ac32b93",
+        "OP_EQUALVERIFY",
+        "OP_CHECKSIG",
+    ]
+)
+
+
+def _two_in_one_out() -> Tx:
+    """Return a transaction whose second input has no output of its own."""
+    tx_in_0 = TxIn(OutPoint(b"\x01" * 32, 0), b"", 0xFFFFFFFE)
+    tx_in_1 = TxIn(OutPoint(b"\x02" * 32, 1), serialize(["OP_1"]), 0xFFFFFFFF)
+    return Tx(1, 5, [tx_in_0, tx_in_1], [TxOut(1000, _SCRIPT_CODE)])
+
+
+def test_the_hash_type_is_a_signed_int32() -> None:
+    """Core's nHashType is an int32_t, so -1 has a preimage of its own.
+
+    `SignatureHash` takes an `int32_t` and serializes it as one, four `ff`
+    octets for -1, where an unsigned reading has no such hash type at all
+    and answers with an `OverflowError` from underneath the library
+    (issue #405). The bits of that word are what choose the commitment:
+    `-1 & 0x80` is ANYONECANPAY, so the copy keeps the signed input alone,
+    and `-1 & 0x1F` is 31, which is neither NONE nor SINGLE, so every
+    output stays and every other sequence with them.
+
+    The preimage is written out here, as the segwit v0 file's are, rather
+    than asked of the code under test.
+    """
+    tx = _two_in_one_out()
+    signed_input_only = Tx(
+        tx.version,
+        tx.lock_time,
+        [TxIn(tx.vin[0].prev_out, _SCRIPT_CODE, tx.vin[0].sequence)],
+        tx.vout,
+    )
+    preimage = signed_input_only.serialize(include_witness=False)
+    preimage += b"\xff\xff\xff\xff"
+    assert sig_hash.legacy(_SCRIPT_CODE, tx, 0, -1) == hash256(preimage)
+
+    # the unsigned spelling of the same 32-bit word: the same four octets
+    # go on the wire and the same bits choose the commitment, so it is the
+    # same preimage rather than a second hash type
+    assert sig_hash.legacy(_SCRIPT_CODE, tx, 0, 0xFFFFFFFF) == hash256(preimage)
+
+
+@pytest.mark.parametrize(
+    "hash_type", [-(2**31) - 1, 2**32, 2**32 + sig_hash.SINGLE, 2**64]
+)
+def test_hash_type_too_wide_for_its_four_bytes(hash_type: int) -> None:
+    """Refuse a hash type the field cannot carry, before anything else.
+
+    A `BTClibValueError` naming the field, where `int.to_bytes` answers
+    with an `OverflowError` from outside the library's exception contract
+    (issue #405). Input 1 has no output of its own, which is the SINGLE
+    bug: `2**32 + SINGLE` carries SINGLE's low five bits, and the bug
+    returns the constant 1 without ever reaching the serialization at the
+    end, so it is the case that says the check comes first.
+    """
+    tx = _two_in_one_out()
+    with pytest.raises(BTClibValueError, match="sig_hash type too wide"):
+        sig_hash.legacy(_SCRIPT_CODE, tx, 1, hash_type)
