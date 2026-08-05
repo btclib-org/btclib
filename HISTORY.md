@@ -460,8 +460,12 @@ and `verify` families now let a `TypeError` out where they used to answer
   is a transaction by id, the output an outpoint names and the chain tip,
   behind one interface with two backends — a full node's JSON-RPC and a
   block explorer's HTTP api — answering in `Tx` and `TxOut`. Nothing to
-  install for it: the client is `urllib.request`, and no other package
-  imports it.
+  install for it: the client is `urllib.request`. It is
+  `btclib.bitcoin_core_rpc`, one standard-library-only file a project can
+  copy whole instead of depending on btclib, and `btclib.exceptions`
+  re-exports the three exceptions it defines so that one `except` catches
+  them by either name — which is why importing btclib at all now loads
+  `urllib.request`, where nothing connects until a call is made.
 - **Borromean ring signatures work on a curve other than secp256k1**, which
   is what the `ec` parameter has been offering since it stopped being a module
   global: the arithmetic ignored it and computed on secp256k1, so the first

@@ -323,6 +323,44 @@ def test_connection_controls_are_keyword_only() -> None:
         from_network("regtest", RPC_USER, RPC_PASSWORD)
 
 
+def test_a_colon_in_the_user_is_refused_and_one_in_the_password_is_not() -> None:
+    """The credential is `user:password`, and the node splits at the first.
+
+    A user of `alice:admin` and a user of `alice` whose credential begins
+    `admin:` encode to the same `Basic` header, so nothing downstream can
+    tell them apart: Core reads both as the user `alice` --
+    `RPCAuthorized` in src/httprpc.cpp -- which is a different rpc user, and
+    a different `-rpcwhitelist`, than the first caller wrote. Refused where
+    it is written rather than authenticated as somebody else.
+
+    A colon on the other side of the credential is unambiguous: everything
+    after the first one belongs to the second field by definition, so it
+    stays valid, and the assertion here is what keeps the refusal from
+    spreading to it.
+    """
+    with pytest.raises(BTClibValueError, match="colon in the rpc user"):
+        BitcoinCoreRpcClient(URL, user="alice:admin", password=RPC_PASSWORD)
+
+    ambiguous = f"admin:{RPC_PASSWORD}"
+    endpoint = BitcoinCoreRpcClient(URL, user="alice", password=ambiguous)
+    credential = b64decode(endpoint.auth_header().split()[1])
+    assert credential == f"alice:{ambiguous}".encode()
+
+
+@pytest.mark.parametrize("method", [7, None, b"getblockcount", ["getblockcount"]])
+def test_a_method_that_is_not_a_string_is_refused(method: object) -> None:
+    """json-rpc's `method` is a string, and the annotation is not a check.
+
+    `call(7)` used to build `"method": 7` and send it, which is this client
+    constructing a request json-rpc has no reading of -- while it walks the
+    caller's `params` to refuse exactly that. An unknown method is a value
+    the node answers for, which is why it is an argument; a number is not
+    one.
+    """
+    with pytest.raises(BTClibTypeError, match="rpc method that is not a string"):
+        client().call(method)  # type: ignore[arg-type]
+
+
 def test_from_network_refuses_a_network_core_has_no_port_for() -> None:
     """The five names are Core's chainparamsbase, not btclib's registry."""
     with pytest.raises(BTClibValueError, match="unknown network: testnet5"):
@@ -1091,6 +1129,12 @@ def test_a_body_that_is_not_utf_8_says_so() -> None:
 # JSONDecodeError: valid json that this interpreter will not read
 _TOO_MANY_DIGITS = b'{"jsonrpc":"2.0","result":' + b"9" * 5000 + b',"id":"x"}'
 
+# the same kind of thing on the other side of the number: json's grammar
+# accepts the exponent, and the exact-decimal parser this client asks for
+# answers with `decimal.InvalidOperation` -- an ArithmeticError, so neither
+# the ValueError nor the RecursionError the rest of this list raises
+_HUGE_EXPONENT = b'{"jsonrpc":"2.0","result":1e999999999999999999999999999,"id":"x"}'
+
 
 @pytest.mark.parametrize(
     "body",
@@ -1102,8 +1146,18 @@ _TOO_MANY_DIGITS = b'{"jsonrpc":"2.0","result":' + b"9" * 5000 + b',"id":"x"}'
         b"[1, 2, 3]",
         b'"a string"',
         b"",
+        b'{"jsonrpc":"1.0","id":"x","result":1}',
     ],
-    ids=["not utf-8", "too deep", "too many digits", "NaN", "array", "string", "empty"],
+    ids=[
+        "not utf-8",
+        "too deep",
+        "too many digits",
+        "NaN",
+        "array",
+        "string",
+        "empty",
+        "a version this module does not read",
+    ],
 )
 def test_a_status_survives_a_body_that_is_no_reply(body: bytes) -> None:
     """A body that is no reply cannot be correlated, so the status wins.
@@ -1114,13 +1168,60 @@ def test_a_status_survives_a_body_that_is_no_reply(body: bytes) -> None:
     a caller acts on. Every way a body can fail to be a reply keeps the
     status, and they are not one exception type nor even all of them
     failures of the parse -- a decode error, a recursion error, the bare
-    ValueError of the integer digit limit, btclib's own refusal of the
-    three non-numbers Python decodes, and a body that parses perfectly
-    into something that is not an object.
+    ValueError of the integer digit limit, btclib's own refusal of the three
+    non-numbers Python decodes, a body that parses perfectly into something
+    that is not an object, and an object naming a protocol version this
+    module does not read. The decimal parser's own refusal is the same case
+    and is tested apart, `Echoing` not being able to carry that body.
+
+    The last one is not a parse failure at all: it is a well-formed object
+    that cannot be an answer, which makes it the same case. `Echoing` puts
+    this request's id in it, so it is even correlated -- and still not an
+    answer, since nothing here knows what a `"1.0"` reply means.
     """
     with pytest.raises(HttpError) as exc:
         client((503, body)).call("getblockcount")
     assert exc.value.status == 503
+
+
+def test_a_correlated_legacy_error_that_is_no_error_object_keeps_the_status() -> None:
+    """An `error` that is not an object is no rpc error, so the status wins.
+
+    The one case the id check alone does not cover: a legacy reply carrying
+    *this* request's id and `"error": "bad"`. Correlated, so it is not
+    somebody else's answer, and still nothing the node computed -- a string
+    is no json-rpc error object -- so what is left to report is the status a
+    caller has a policy for. Under a 200 there is no status to report and
+    the shape of the body is the whole diagnosis, which is the other half
+    asserted here.
+    """
+    # `Echoing` overwrites the id with this request's, so the reply is
+    # correlated whatever is written here
+    body = b'{"id":"x","error":"bad"}'
+    with pytest.raises(HttpError) as exc:
+        client((503, body)).call("getblockcount")
+    assert exc.value.status == 503
+
+    with pytest.raises(FetchError, match="unreadable rpc error 'bad'"):
+        client((200, body)).call("getblockcount")
+
+
+def test_a_real_legacy_rpc_error_still_outranks_its_status() -> None:
+    """Which is what the two tests above must not have cost.
+
+    Core's legacy 1.1 sends a genuine rpc error with an HTTP 500, so the
+    error object has to be read before the status -- otherwise every "no
+    such transaction" from a node older than v28 is reported as a server
+    fault. Only an *unreadable* error gives the status precedence.
+    """
+    body = (
+        b'{"id":"x","result":null,"error":'
+        b'{"code":-5,"message":"No such mempool transaction"}}'
+    )
+    with pytest.raises(RpcError) as exc:
+        client((500, body)).call("getrawtransaction")
+    assert exc.value.code == -5
+    assert not hasattr(exc.value, "status")
 
 
 @pytest.mark.parametrize(
@@ -1175,6 +1276,31 @@ def test_a_reply_nested_too_deeply_to_parse() -> None:
     body = b"[" * 200_000 + b"]" * 200_000
     with pytest.raises(FetchError, match="nested too deeply"):
         client((200, body)).call("getblockcount")
+
+
+def test_a_number_the_exact_decimal_parser_will_not_build() -> None:
+    """`1e999999999999999999999999999` is json, and no Decimal of any size.
+
+    The price of `parse_float=Decimal`, which is what keeps an amount off
+    binary floating point: the exponent is past what the decimal module will
+    construct, so it answers `InvalidOperation` -- an ArithmeticError, and
+    therefore neither the ValueError nor the RecursionError every other
+    unreadable body raises. It used to escape `call` as that, past the
+    promise this client makes about a reply it cannot read.
+
+    `verbatim` and not `client`: `Echoing` reads the body to put this
+    request's id in it, and reading it is what cannot be done -- with the
+    default `parse_float` the exponent becomes `inf` and comes back out as
+    `Infinity`, so the harness would hand the client a different failure
+    than the one under test. The id is never reached here anyway, the parse
+    being what fails.
+    """
+    with pytest.raises(FetchError, match="the json parser refused"):
+        verbatim((200, _HUGE_EXPONENT)).call("getbalance")
+
+    with pytest.raises(HttpError) as exc:
+        verbatim((503, _HUGE_EXPONENT)).call("getbalance")
+    assert exc.value.status == 503
 
 
 def test_a_json_body_that_is_not_a_reply_object() -> None:

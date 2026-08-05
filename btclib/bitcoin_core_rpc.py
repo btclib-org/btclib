@@ -143,9 +143,10 @@ nobody else.
 source. Copy `btclib/bitcoin_core_rpc.py` whole from a btclib release tag,
 keep the license notice above, and record the tag beside the copy. The
 upstream source is
-`https://github.com/btclib-org/btclib/blob/master/btclib/bitcoin_core_rpc.py`;
-the raw source of a release is the same path under
-`https://raw.githubusercontent.com/btclib-org/btclib/<tag>/`. An update is a
+`https://github.com/btclib-org/btclib/blob/master/btclib/bitcoin_core_rpc.py`,
+and the raw source of a release is
+`https://raw.githubusercontent.com/btclib-org/btclib/<tag>/btclib/bitcoin_core_rpc.py`
+-- the whole path, so that it can be fetched as it stands. An update is a
 replacement of the whole file; this shows every behavioral change first:
 
 .. code-block:: console
@@ -164,8 +165,8 @@ import json
 from base64 import b64encode
 from collections.abc import Callable, Mapping, Sequence
 from contextlib import suppress
-from decimal import Decimal
-from http.client import HTTPMessage
+from decimal import Decimal, DecimalException
+from http.client import HTTPException, HTTPMessage
 from math import isfinite
 from pathlib import Path
 from secrets import token_hex
@@ -606,8 +607,16 @@ def http_request(
 
     # S310 asks what scheme this url can carry, and the answer is the
     # three lines above: nothing but http and https reaches a Request
+    # `data is not None` and not the truth of it: `data=b""` is a body a
+    # caller passed, so the request is the POST they asked for. urllib draws
+    # the same line -- an absent body is what makes a request a GET there --
+    # and Core answers a GET with "JSON-RPC: method not allowed", which is
+    # not the diagnosis an empty body deserves
     request = Request(  # noqa: S310
-        url, data=data, headers=dict(headers or {}), method="POST" if data else "GET"
+        url,
+        data=data,
+        headers=dict(headers or {}),
+        method="POST" if data is not None else "GET",
     )
     try:
         # the limit reaches the read itself for the transport of this
@@ -630,7 +639,15 @@ def http_request(
         # because an error page is written by whatever is in the way and
         # is not a size this library agreed to
         try:
-            return e.code, e.read(MAX_ERROR_BODY_SIZE)
+            try:
+                return e.code, e.read(MAX_ERROR_BODY_SIZE)
+            except (OSError, HTTPException):
+                # the body of the failure failed too -- a connection dropped
+                # mid-error-page is `IncompleteRead` here. The status is the
+                # part worth keeping and it is already in hand, so it goes
+                # back with no body rather than replacing a 503 a caller has
+                # a policy for with a report about reading it
+                return e.code, b""
         finally:
             # an HTTPError is a response, and a bounded read leaves it with
             # octets still in it: releasing the connection is nobody
@@ -640,9 +657,15 @@ def http_request(
             # test. The `with` in `urlopen_transport` does this for the
             # responses that are not errors
             e.close()
-    except OSError as e:
-        # URLError and TimeoutError both derive from it, which is every
-        # way urllib reports that the exchange did not happen
+    except (OSError, HTTPException) as e:
+        # URLError and TimeoutError derive from OSError, which is every way
+        # urllib reports that the exchange did not happen. `HTTPException` is
+        # the other family and no relation of it: `IncompleteRead` from a
+        # chunked body that stopped early, `BadStatusLine` and `LineTooLong`
+        # from a peer that is not speaking HTTP. Those arrive from inside the
+        # read rather than from the connect, so nothing above catches them,
+        # and this function promises that everything below the status is a
+        # FetchError
         raise FetchError(f"no answer from {url}: {e}") from e
 
     # a failure, whether it arrived as an exception above or as a status
@@ -1028,8 +1051,9 @@ def _unreadable(where: str, cause: Exception) -> FetchError:
     Each shape gets its own sentence, being a different thing to go and
     look at: not utf-8, nested past the interpreter's stack, not json.
     Anything else -- a json integer longer than
-    `sys.get_int_max_str_digits` allows, and whatever a later Python adds
-    -- is the parser refusing the reply, which is what happened.
+    `sys.get_int_max_str_digits` allows, a number whose exponent the
+    decimal module refuses to build, and whatever a later Python adds --
+    is the parser refusing the reply, which is what happened.
 
     Only for a 200. Under any other status the shape is not the answer:
     see `_reply_object`, which reaches this only after ruling that out.
@@ -1072,10 +1096,16 @@ def _reply_object(where: str, status: int, payload: bytes) -> Mapping[str, Any]:
         if status == 200:
             raise
         raise _http_error(where, status) from e
-    except (ValueError, RecursionError) as e:
+    except (ValueError, RecursionError, DecimalException) as e:
         # the rest of the ways a parse fails: JSONDecodeError and
         # UnicodeDecodeError are both ValueError, the bare ValueError of
-        # the integer digit limit is a third, and json recurses
+        # the integer digit limit is a third, and json recurses.
+        # `DecimalException` is none of those and is the price of
+        # `parse_float=Decimal`: `1e999999999999999999999999999` is a json
+        # number this parser will not build, an `InvalidOperation` out of
+        # the decimal module, and an ArithmeticError rather than a
+        # ValueError -- so it escaped a promise this module makes about
+        # every unreadable reply
         if status != 200:
             raise _http_error(where, status) from e
         raise _unreadable(where, e) from e
@@ -1104,11 +1134,20 @@ def _legacy_result(
     Before the status, but not before the id. A 500 from something in the
     way, carrying an error object of its own or another call's, is a
     failure of the HTTP exchange and not this call's rpc error.
+
+    And not before the status either when the `error` member is no error
+    object: `{"id": ours, "error": "bad"}` under a 503 is a correlated
+    something, but nothing the node computed -- so what is left to report is
+    the status, which is the thing a caller has a policy for. Only a
+    readable error object outranks it.
     """
     ours = reply.get("id") == request_id
     error = reply.get("error")
     if ours and error is not None:
-        raise _rpc_error(where, error)
+        rpc_error = _rpc_error(where, error)
+        if isinstance(rpc_error, RpcError) or status == 200:
+            raise rpc_error
+        raise _http_error(where, status) from rpc_error
     if status != 200:
         raise _http_error(where, status)
     if not ours:
@@ -1205,6 +1244,20 @@ class BitcoinCoreRpcClient:
         if user is None and cookie_path is None:
             err_msg = "no rpc credentials: pass user and password, or the"
             err_msg += " path of the cookie file the node writes"
+            raise BTClibValueError(err_msg)
+        if user is not None and ":" in user:
+            # the Basic credential is `user:password`, and Core splits it at
+            # the *first* colon -- `RPCAuthorized` in src/httprpc.cpp. So a
+            # user of `alice:admin` reaches the node as the user `alice`,
+            # whose credential begins `admin:`: a different rpc user, a
+            # different `-rpcwhitelist` and no error anywhere, the two
+            # spellings encoding to the same header so that nothing
+            # downstream can tell them apart. A colon on the other side is
+            # unambiguous and stays valid, everything after the first one
+            # belonging to the second field by definition
+            err_msg = f"colon in the rpc user: {user!r}. The credential is"
+            err_msg += " user:password and the node splits it at the first"
+            err_msg += " colon, so this names a different user than intended"
             raise BTClibValueError(err_msg)
         _assert_valid_timeout(timeout, "rpc timeout")
         self.user = user
@@ -1350,6 +1403,14 @@ class BitcoinCoreRpcClient:
         say the node stopped executing one.
         """
         request_id = _rpc_id()
+        if not isinstance(method, str):
+            # json-rpc's `method` is a string, and the annotation is not a
+            # check: `call(7)` otherwise built `"method": 7` and sent it,
+            # which is this client constructing an invalid request while it
+            # walks the caller's params for exactly that reason. An unknown
+            # method is a value the node answers for -- that is the point of
+            # taking it as an argument -- and a number is not one
+            raise BTClibTypeError(f"rpc method that is not a string: {method!r}")
         timeout = self.timeout if request_timeout is None else request_timeout
         _assert_valid_timeout(timeout, "rpc request_timeout")
         params_member = _params_member(params)
@@ -1393,6 +1454,13 @@ class BitcoinCoreRpcClient:
             return _legacy_result(where, request_id, status, reply)
         marker = reply["jsonrpc"]
         if marker != "2.0":
+            # a version this module does not read, so the object is no
+            # answer -- and under a non-200 the status is what is left to
+            # report, as it is for a body that would not parse at all. A
+            # `"jsonrpc": "1.0"` beside a 503 is a 503, and losing that
+            # would cost the caller the policy `HttpError.status` is for
+            if status != 200:
+                raise _http_error(where, status)
             err_msg = f"{where}: json-rpc version {marker!r}, neither 2.0"
             err_msg += " nor the legacy reply that carries no version at all"
             raise FetchError(err_msg)

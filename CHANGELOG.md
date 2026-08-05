@@ -2364,8 +2364,30 @@ edit.
   says who is calling, the constructor being where the pair is held
   together. `DEFAULT_DATADIR` stays as the location taken at import, for a
   caller who wants to name it, and is declared `Path | None` for the same
-  host: the alternatives were a `Path` that lies or the relative one. The
-  standalone file
+  host: the alternatives were a `Path` that lies or the relative one.
+
+  Five refusals and normalizations came out of reviewing it, each of them a
+  request this client used to build or an answer it used to let past. A
+  colon in `user` is refused: the `Basic` credential is `user:password` and
+  Core splits it at the first colon, so `user="alice:admin"` authenticated
+  as `alice` with the password `admin:secret` -- a different rpc user and a
+  different `-rpcwhitelist` than the caller wrote, and no error anywhere. A
+  `method` that is not a string is refused, where `call(7)` used to send
+  `"method": 7`. `data=b""` is a POST, the truth of the bytes not being what
+  makes a body: an empty one built a GET, which Core answers with "method
+  not allowed". `http.client.HTTPException` -- `IncompleteRead` from a
+  chunked body that stopped early, `BadStatusLine` from a peer that is not
+  speaking HTTP -- is a `FetchError` like every other failed exchange, where
+  it used to escape `except OSError`, no relation of it; and a
+  `decimal.InvalidOperation` from the exact-decimal parser, which is what
+  `1e999999999999999999999999999` is, joins the bodies that cannot be read.
+  Finally, an object that is no reply keeps the status it arrived with: a
+  `"jsonrpc": "1.0"` marker beside a 503, and a correlated legacy `error`
+  that is not an error object, used to lose `HttpError.status` -- while a
+  genuine legacy rpc error under Core's HTTP 500 is still `RpcError`, which
+  is the precedence that matters.
+
+  The standalone file
   carries its MIT notice and an
   update recipe based on release tags; a subprocess test copies it alone and
   imports it with site packages disabled before exercising a `Decimal`

@@ -13,7 +13,13 @@ from __future__ import annotations
 
 from collections.abc import Callable, Iterator
 from contextlib import contextmanager
-from http.client import HTTPMessage
+from http.client import (
+    BadStatusLine,
+    HTTPException,
+    HTTPMessage,
+    IncompleteRead,
+    LineTooLong,
+)
 from io import BytesIO
 from types import SimpleNamespace, TracebackType
 from typing import Any
@@ -772,14 +778,72 @@ def test_a_redirect_is_a_status_and_not_a_second_request(
         TimeoutError("timed out"),
         ConnectionResetError("peer went away"),
         OSError("no route to host"),
+        IncompleteRead(b"ab", 10),
+        BadStatusLine("not a status line"),
+        LineTooLong("header line"),
     ],
 )
 def test_an_exchange_that_did_not_happen_is_a_fetch_error(error: Exception) -> None:
-    """One answer for four ways of not getting one.
+    """One answer for every way of not getting one.
 
-    A timeout is the one worth naming: `socket.timeout` has been
-    `TimeoutError` since 3.10, so it arrives here as an OSError like the
-    rest, and there is nothing left for a caller to tell apart.
+    A timeout is the one worth naming among the first four: `socket.timeout`
+    has been `TimeoutError` since 3.10, so it arrives here as an OSError like
+    the rest, and there is nothing left for a caller to tell apart.
+
+    The last three are the other family, and no relation of `OSError`:
+    `HTTPException` is a plain Exception, so an `except OSError` never saw
+    them. They come from inside the read rather than from the connect -- a
+    chunked body that stopped early, a peer answering something that is not
+    a status line -- which is exactly where this function's promise that
+    everything below the status is a FetchError used to end.
     """
+    assert not issubclass(HTTPException, OSError)
     with pytest.raises(FetchError, match="no answer from"):
         http_request(URL, transport=Recorded(error))
+
+
+def test_a_failure_body_that_cannot_be_read_keeps_its_status(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """The status outlives the error page, which is the part with a policy.
+
+    An `HTTPError` is a response and its body is the backend's diagnosis, so
+    it is read -- and that read is over the same connection that just
+    failed, so it can fail the same way. What a caller does about a 503 does
+    not depend on the page, so the status goes back with an empty body
+    rather than being replaced by a report about reading one.
+    """
+
+    class UnreadableError(HTTPError):
+        def read(self, amt: int | None = None) -> bytes:
+            raise IncompleteRead(b"", 42)
+
+    error = UnreadableError(URL, 503, "busy", HTTPMessage(), None)
+
+    def fake_open(request: Request, timeout: float) -> FakeResponse:
+        raise error
+
+    monkeypatch.setattr(transport_module, "_OPENER", _opener(fake_open))
+
+    assert http_request(URL) == (503, b"")
+
+
+def test_an_explicitly_empty_body_is_still_a_post() -> None:
+    """`data=b""` is a body a caller passed, and a POST is what they asked.
+
+    The public contract is a POST "when data is given", and the truth of the
+    bytes is not what gives them: an empty body used to build a GET, which
+    Core answers with "JSON-RPC: method not allowed" -- a diagnosis about
+    the method for a request whose body was the problem. `urllib.request`
+    draws the line at `data is None` too.
+    """
+    methods = []
+
+    def spy(request: Request, timeout: float) -> tuple[int, bytes]:
+        methods.append(request.get_method())
+        return 200, b"{}"
+
+    http_request(URL, data=b"", transport=spy)
+    http_request(URL, data=b"{}", transport=spy)
+    http_request(URL, transport=spy)
+    assert methods == ["POST", "POST", "GET"]

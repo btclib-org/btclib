@@ -618,6 +618,25 @@ fetch         get-tx  get-tx-out  get-block-count  get-best-block-id
 bip21         parse  serialize
 ```
 
+**`bitcoin_core_rpc` is published and is not a group.** It is in
+`btclib.__all__` — the root publishes every top-level module, and the suite
+asserts that — so a walker reaches it, and what it would find there is not a
+command surface: exception classes, size and timeout constants, the
+`HttpTransport` protocol, `http_request` and `urlopen_transport`, the client
+class, and `cookie_auth`. That last one reads a node's credential and
+returns it, so a command spelling of it would print a live rpc password to a
+terminal and into whatever shell history or CI log is watching. The node
+commands are the `fetch` group above, which is the same client with the
+btclib types on top.
+
+So the walker needs one rule, and it is a rule and not a skip list: a module
+whose exports are types, protocols and constants rather than operations
+carries no commands. `alias`, `exceptions` and `bitcoin_core_rpc` are what it
+covers today. The alternative — leaving the module out of the root's
+`__all__` — was rejected: the vendorable file is API, a caller imports it by
+name, and a public tree that omits what it publishes would be the drift
+`__all__` was declared to end.
+
 The two `Fetcher` implementations are two option sets, not two command
 trees: `--rpc-url` with a cookie file for `bitcoind`, `--esplora-url`
 defaulting to `BLOCKSTREAM_INFO`. No configuration file. That is the same

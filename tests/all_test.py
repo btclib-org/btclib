@@ -45,6 +45,7 @@ import btclib.ecc
 import btclib.mnemonic
 import btclib.psbt
 import btclib.script
+from btclib import bitcoin_core_rpc
 from btclib.curves import curve_group, curve_group_2
 from btclib.psbt import psbt_utils
 from btclib.script import script_pub_key
@@ -541,18 +542,34 @@ def test_no_module_exports_a_name_it_imported() -> None:
     `REEXPORTED` is that conversation, held once: the three modules whose
     objects moved into the vendorable `btclib.bitcoin_core_rpc` alias them
     back under the names callers had, an exception and a transport each
-    having one identity to keep. The names are listed one by one, so a
-    fourth module or an unlisted name is still the failure this is for.
+    having one identity to keep.
+
+    Asserted both ways, because a skip list is only half a table: it says
+    which names may be re-exported and nothing about whether they still are,
+    so dropping one of these aliases from an `__all__` would have been
+    invisible to every test in this file. The recorded names and the
+    re-exported ones must be the same set, and each must be the canonical
+    object rather than a same-named one -- which is the property the whole
+    arrangement exists for.
     """
     for module in library_modules():
         if hasattr(module, "__path__"):  # a package re-exports for a living
             continue
         imported = imported_names(module)
-        allowed = REEXPORTED.get(module.__name__, [])
-        for name in module.__all__:
-            if name in allowed:
-                continue
-            assert name not in imported, f"{module.__name__} re-exports {name}"
+        leaked = {name for name in module.__all__ if name in imported}
+        allowed = REEXPORTED.get(module.__name__)
+        if allowed is None:
+            assert not leaked, f"{module.__name__} re-exports {sorted(leaked)}"
+            continue
+        assert leaked == set(allowed), (
+            f"{module.__name__} re-exports {sorted(leaked)}, where REEXPORTED"
+            f" records {sorted(allowed)}"
+        )
+        for name in allowed:
+            assert getattr(module, name) is getattr(bitcoin_core_rpc, name), (
+                f"{module.__name__}.{name} is not the canonical"
+                f" btclib.bitcoin_core_rpc.{name}"
+            )
 
 
 def test_the_export_tree_is_walkable_to_its_leaves() -> None:
