@@ -132,8 +132,11 @@ def test_an_outcome_that_is_no_verdict_is_named_and_is_not_sound(
         ("KILLED", "NORMAL"),
         ("SURVIVED", "NORMAL"),
         (None, "SKIPPED"),
+        # the pair Cosmic Ray actually writes when `mutate_and_test` raises:
+        # one row carrying both, where a `COALESCE(test_outcome,
+        # worker_outcome)` answers INCOMPETENT and never names the exception
+        ("INCOMPETENT", "EXCEPTION"),
         ("INCOMPETENT", "NORMAL"),
-        (None, "EXCEPTION"),
         (None, "ABNORMAL"),
         (None, "NO_TEST"),
     ]
@@ -143,9 +146,31 @@ def test_an_outcome_that_is_no_verdict_is_named_and_is_not_sound(
     assert not sound
     assert "killed 1, survived 1, skipped 1, never run 1" in line
     # named one by one, and `no-test` in the spelling of the enum rather than
-    # of the column
+    # of the column. The exception is there rather than hidden behind the
+    # INCOMPETENT its own row also carries
     assert "No verdict on the suite: abnormal 1, exception 1, incompetent 1" in line
     assert "no-test 1" in line
+
+
+@pytest.mark.parametrize("name", ["session?copy.sqlite", "session#copy.sqlite"])
+def test_a_session_whose_name_is_not_a_uri(
+    counter: ModuleType, tmp_path: Path, name: str
+) -> None:
+    """A path is not a URI, and `?` and `#` are ordinary in a filename.
+
+    Interpolated into `file:{path}?mode=ro`, the first of those names the
+    database `session` and reads the rest as query parameters: the wrong file,
+    `no such table`, and a `session` created beside it -- the `mode=ro` that
+    would have forbidden the creation having been parsed as part of the name.
+    A downloaded session artifact is exactly where a `?` in a name comes from.
+    """
+    line, sound = counter.report(
+        counter.counts(session(tmp_path / name, [("KILLED", "NORMAL")] * 2)), 2
+    )
+    assert sound
+    assert "killed 2" in line
+    # nothing was created beside it, which is the half `mode=ro` promises
+    assert sorted(path.name for path in tmp_path.iterdir()) == [name]
 
 
 def test_a_session_nothing_has_run_says_so(counter: ModuleType, tmp_path: Path) -> None:

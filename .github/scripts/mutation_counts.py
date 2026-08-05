@@ -49,6 +49,7 @@ from __future__ import annotations
 
 import sqlite3
 import sys
+from collections import Counter
 from contextlib import closing
 from pathlib import Path
 
@@ -68,6 +69,7 @@ from pathlib import Path
 _KILLED = "killed"
 _SURVIVED = "survived"
 _SKIPPED = "skipped"
+_NORMAL = "normal"
 
 
 def _normalized(outcome: object) -> str:
@@ -75,26 +77,45 @@ def _normalized(outcome: object) -> str:
     return str(outcome).strip().lower().replace("_", "-")
 
 
-def counts(session: Path) -> dict[str, int]:
-    """Return how many results the session holds, by what happened to them.
+def _outcome(test_outcome: object, worker_outcome: object) -> str:
+    """Return the one word for a result, the worker's failure winning.
 
-    `test_outcome` is what the suite said, and is null for a mutant no suite
-    ran -- where the worker outcome is what happened instead. One of the two
-    is always there, which is why they coalesce rather than being read apart.
+    Not `COALESCE(test_outcome, worker_outcome)`, which reads as if the two
+    columns were alternatives and is wrong on the row that matters most: when
+    `mutate_and_test` raises, Cosmic Ray stores `worker_outcome=EXCEPTION`
+    *and* `test_outcome=INCOMPETENT` in the same row, so coalescing always
+    answers INCOMPETENT and the exception is never named. INCOMPETENT there is
+    the consequence -- no suite judged the mutant -- and the exception is what
+    happened, so a worker outcome that is not NORMAL is the answer.
     """
-    query = """
-        SELECT COALESCE(test_outcome, worker_outcome), COUNT(*)
-        FROM work_results GROUP BY 1
+    worker = _normalized(worker_outcome)
+    return _normalized(test_outcome) if worker == _NORMAL else worker
+
+
+def _read_only(session: Path) -> str:
+    """Return the sqlite URI of that file, opened for reading and nothing else.
+
+    Built with `as_uri`, because a path is not a URI: `?` and `#` are ordinary
+    characters in a POSIX filename and delimiters here, so `session?copy
+    .sqlite` interpolated into `file:{path}?mode=ro` names the database
+    `session` with the rest read as query parameters -- which opens the wrong
+    file, reports `no such table`, and creates a `session` on the way, the
+    `mode=ro` that would have forbidden it having been parsed as part of the
+    name.
     """
-    with closing(sqlite3.connect(f"file:{session}?mode=ro", uri=True)) as db:
-        return {
-            _normalized(outcome): int(count) for outcome, count in db.execute(query)
-        }
+    return f"{session.resolve().as_uri()}?mode=ro"
+
+
+def counts(session: Path) -> dict[str, int]:
+    """Return how many results the session holds, by what happened to them."""
+    query = "SELECT test_outcome, worker_outcome FROM work_results"
+    with closing(sqlite3.connect(_read_only(session), uri=True)) as db:
+        return Counter(_outcome(*row) for row in db.execute(query))
 
 
 def enumerated_mutants(session: Path) -> int:
     """Return how many mutants the session enumerated, run or not."""
-    with closing(sqlite3.connect(f"file:{session}?mode=ro", uri=True)) as db:
+    with closing(sqlite3.connect(_read_only(session), uri=True)) as db:
         return int(db.execute("SELECT COUNT(*) FROM work_items").fetchone()[0])
 
 
@@ -128,10 +149,18 @@ def report(by_outcome: dict[str, int], enumerated: int) -> tuple[str, bool]:
 
 
 def main() -> None:
-    """Print the counts of the session named on the command line."""
+    """Print the counts of the session named on the command line.
+
+    A second argument is a label to print the line under, which is what the
+    workflow passes instead of piping this through `sed`: a pipeline's status
+    is its last command's, and GitHub runs a `run` step as `bash -e` without
+    `pipefail`, so the exit code below would have been thrown away by the very
+    step that reads it.
+    """
     session = Path(sys.argv[1])
+    label = f"{sys.argv[2]}: " if len(sys.argv) > 2 else ""
     line, sound = report(counts(session), enumerated_mutants(session))
-    print(line)
+    print(f"{label}{line}")
     if not sound:
         raise SystemExit(1)
 

@@ -168,6 +168,11 @@ ignore = [
     # .secrets.baseline, which it does carry, because the lint gate is
     # runnable from an unpacked sdist
     ".lycheeignore",
+    # the test of the mutation workflow's counter, whose subject is under
+    # .github and therefore not shipped either. The suite an sdist carries
+    # has to be runnable from it, and a test whose subject is absent is not
+    # a test but four errors; MANIFEST.in excludes it and says the same
+    "tests/mutation_counts_test.py",
 ]
 
 [tool.pytest.ini_options]
