@@ -1178,6 +1178,26 @@ edit.
   an undefined hash type there would refuse preimages consensus asks for
   — that vector file is nothing but undefined ones. Found while auditing
   btclib's consensus types against Core v31.1
+- **A version 2 psbt now holds every transaction version `Tx` accepts**
+  (issue #404). BIP370 calls `PSBT_GLOBAL_TX_VERSION` a "32-bit little
+  endian signed integer" and btclib read it that way, while `Tx.version`
+  is unsigned, for the two mainnet transactions `Tx.parse`'s comment
+  names; the two readings met in `to_v2`, where a version above
+  `0x7fffffff` had no four-byte signed encoding and left through
+  `int.to_bytes` as a bare `OverflowError`, from underneath the library
+  rather than through its exception contract. The field is unsigned now,
+  at the parse and at the serialization both, so `Tx`'s own
+  `0 <= version <= 0xffffffff` is the only bound the version has and the
+  same four octets mean one thing whichever version of the psbt carries
+  them: `ffffffff` reads as `4294967295` where it used to read as `-1`
+  and then be refused as `invalid version: -1`. A comment at both sites
+  says why the BIP's word is not followed — Core declares
+  `CTransaction::version` a `uint32_t` and implements no PSBTv2, so it
+  has no counterpart for this field to be aligned with, and a psbt
+  version `Tx` cannot hold is of no use whatever the BIP says.
+  `PSBT_OUT_AMOUNT` is untouched, the BIP and Core agreeing on `int64_t`
+  there. Found while auditing btclib's consensus types against Core
+  v31.1, after #388
 
 ### Immutability and shared state
 
