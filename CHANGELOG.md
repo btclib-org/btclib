@@ -4030,6 +4030,24 @@ edit.
   duplicate check and the result therefore read one snapshot instead of
   traversing every transaction's inputs separately for the count, the set
   and the concatenation
+- **a subclass is where the invariant a base class cannot have lives**, and
+  eight mutants of `btclib/tx/` were reachable only through one: `Witness`,
+  `TxOut` and `TxIn` are public and not final, `parse` and `from_dict` build
+  `cls` on purpose, and the `check_validity=False` a parent hands a child is
+  observable the moment that child has something of its own to refuse. So
+  `tests/check_validity_test.py` holds the forwarded flag with a rejecting
+  `Witness` inside a `TxIn` and a rejecting `TxOut` on its own and inside a
+  `Tx`, and the amount-conversion exclusion beside it is narrowed to the base
+  class, which is all it ever showed. Four of those eight were the ones that
+  exclusion had covered
+- **`Tx.__eq__`'s witness fallback is exercised rather than masked.** The
+  branch runs only when `TX_IN_COMPARES_WITNESS` is false, and monkeypatching
+  that global cannot reach `field(compare=...)`, which the dataclass read at
+  class creation: the generated `TxIn` comparison went on reading the witness,
+  answered the same way as the branch, and hid whatever the branch did — a
+  deleted `not`, a doubled one, an `is` for `!=`, all three green. The input
+  is now a `TxIn` subclass whose equality leaves the witness out, as the false
+  setting makes the generated one, so the branch is the whole of the answer
 - **three assertions that could not fail say something now.** `assert
   tx_in.nSequence == tx_in.nSequence` compared the property with itself in
   three places, so the alias it is there to check was never read; `assert
@@ -4563,13 +4581,12 @@ edit.
   the ast walk in that file is the only thing that fails on it. Measured
   before the budget was written, and the numbers are what the issue asked
   for rather than an estimate: 1034 mutants, 88 skipped, the 946 that ran
-  taking minutes rather than hours, and 30 surviving once the tests the runs
+  taking minutes rather than hours, and 22 surviving once the tests the runs
   asked for were written — 127 in the original run, before the tests and the
-  simplification above. Of those 30, 27 are classified as equivalent mutants,
-  one turns `!=` into `is not` where the
-  sizes compared are 2, 4 and 8 and CPython interns all three, and two are the
-  upper end of `assert_standard`'s version window, which issue #387 has to
-  settle before a test may pin it. So this profile *finishes*,
+  simplification above. Of those 22, 19 are equivalent mutants, one turns `!=`
+  into `is not` where the sizes compared are 2, 4 and 8 and CPython interns
+  all three, and two are the upper end of `assert_standard`'s version window,
+  which issue #387 has to settle before a test may pin it. So this profile *finishes*,
   where the engine's five and a half hours are sampled — which is what
   makes a survival rate comparable with the week before. Its own job, in
   parallel with the consensus one, with a 30-minute budget under a
@@ -4588,8 +4605,8 @@ edit.
   is an unevaluated string, and cosmic-ray's eleven replacements for that
   operator are 88 mutants — eight such `|`, on seven lines — that nothing
   can reach. Measured rather than argued: an unfiltered session over the same
-  scope reports 118 survivors and every one of those 88 is among them, so
-  filtering leaves the 30 that are worth reading and spends minutes less, a
+  scope reports 110 survivors and every one of those 88 is among them, so
+  filtering leaves the 22 that are worth reading and spends minutes less, a
   survivor costing the whole test command where most kills cost a fraction of
   one. Excluded by operator rather than with a `# pragma: no mutate`, and the
   collateral of a pragma is not the argument for it: grouped by the line

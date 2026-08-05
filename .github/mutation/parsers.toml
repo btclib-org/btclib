@@ -76,9 +76,9 @@ excluded-modules = []
 # -- `Sequence[TxIn] >> None` and ten more -- none of which any test can
 # reach. Measured rather than argued: eight such `|` on seven lines, 88
 # mutants of the 1034, and an unfiltered session over the same scope
-# reports 118 survivors, every one of those 88 among them. Filtered it
-# reports the other 30, which is the difference between a list somebody
-# reads and one nobody does -- 88 against 30 -- and it spends minutes less
+# reports 110 survivors, every one of those 88 among them. Filtered it
+# reports the other 22, which is the difference between a list somebody
+# reads and one nobody does -- 88 against 22 -- and it spends minutes less
 # doing it, a survivor costing the whole test command where most kills cost
 # a fraction of one.
 #

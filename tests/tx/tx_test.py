@@ -808,15 +808,44 @@ def test_eq() -> None:
 def test_eq_witness(monkeypatch: pytest.MonkeyPatch) -> None:
     """Tx.__eq__ compares the witnesses only if TxIn.__eq__ does not.
 
-    With TX_IN_COMPARES_WITNESS the witness is part of the TxIn
-    comparison, baked into the dataclass at class creation: the
-    vwitness check in Tx.__eq__ only ever runs for the False setting,
-    which a monkeypatch is the only way to exercise.
+    Two halves, and the monkeypatch is only one of them.
+    TX_IN_COMPARES_WITNESS reaches `field(compare=...)` at class creation, so
+    patching the module global opens the `vwitness` branch of Tx.__eq__ and
+    leaves the generated TxIn comparison still reading the witness -- which
+    answers the same way, and so says nothing about the branch. The input
+    below is the other half: a TxIn whose equality leaves the witness out, as
+    the False setting makes the generated one, so what the branch decides is
+    the whole of the answer.
     """
-    segwit = Tx(vin=[TxIn(script_witness=Witness(["00"]))], check_validity=False)
-    stripped = Tx(vin=[TxIn()], check_validity=False)
+
+    class TxInIgnoringWitness(TxIn):
+        """A TxIn compared on everything but its witness."""
+
+        def __eq__(self, other: object) -> bool:
+            if not isinstance(other, TxIn):
+                return NotImplemented
+            return (self.prev_out, self.script_sig, self.sequence) == (
+                other.prev_out,
+                other.script_sig,
+                other.sequence,
+            )
+
+    def tx_with(*stack: str) -> Tx:
+        witness = Witness(list(stack))
+        return Tx(
+            vin=[TxInIgnoringWitness(script_witness=witness, check_validity=False)],
+            check_validity=False,
+        )
+
     monkeypatch.setattr("btclib.tx.tx.TX_IN_COMPARES_WITNESS", False)
-    assert segwit != stripped
-    assert segwit == Tx(
-        vin=[TxIn(script_witness=Witness(["00"]))], check_validity=False
-    )
+
+    # the inputs compare equal either way, so the branch is what answers
+    assert tx_with("00").vin == tx_with().vin
+    assert tx_with("00") != tx_with()
+    assert tx_with("00") == tx_with("00")
+
+    # and the input above answers a non-input the way TxIn does, which is
+    # what its NotImplemented is for. Annotated, so that what the comparison
+    # is about is the answer rather than the two types
+    not_an_input: object = "not an input"
+    assert tx_with().vin[0] != not_an_input

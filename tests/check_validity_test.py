@@ -36,6 +36,7 @@ from btclib.amount import _MAX_SATOSHI
 from btclib.curves import secp256k1
 from btclib.ecc import dsa
 from btclib.exceptions import BTClibTypeError, BTClibValueError
+from btclib.script import Witness
 from btclib.script.script_pub_key import ScriptPubKey
 from btclib.tx import TxIn, TxOut
 from btclib.tx.out_point import OutPoint
@@ -295,14 +296,68 @@ def test_the_default_checks_the_dict_it_writes_and_reads(
         type(invalid).from_dict(dict_)
 
 
-def test_a_tx_out_dict_refuses_the_amount_either_way() -> None:
+def test_a_nested_object_is_left_the_flag_it_was_given() -> None:
+    """The `check_validity=False` a parent hands its children is theirs.
+
+    Turned True, that inner call refuses an object the outer call was told
+    not to look at -- and a subclass is where the invariant that shows it
+    lives, `Witness`, `TxOut` and `TxIn` all being public and not final. The
+    base classes cannot say so: an empty witness has nothing to reject, and
+    a TxOut's only question is an amount its own conversion asks whatever
+    the flag says, which is the test below.
+
+    Held through the two constructors that build `cls` rather than a named
+    class, too, since a subclass is what they are `cls` for.
+    """
+
+    class RejectingWitness(Witness):
+        def assert_valid(self) -> None:
+            raise BTClibValueError("invalid witness")
+
+    class RejectingTxOut(TxOut):
+        def assert_valid(self) -> None:
+            raise BTClibValueError("invalid output")
+
+    tx_in = TxIn(
+        _GOOD_OUT_POINT,
+        b"",
+        0,
+        RejectingWitness(check_validity=False),
+        check_validity=False,
+    )
+    tx_out = RejectingTxOut(1, "", check_validity=False)
+    tx = Tx(1, 0, [TxIn(_GOOD_OUT_POINT)], [tx_out], check_validity=False)
+
+    for obj, err_msg in (
+        (tx_in, "invalid witness"),
+        (tx_out, "invalid output"),
+        (tx, "invalid output"),
+    ):
+        assert obj.to_dict(check_validity=False)
+        with pytest.raises(BTClibValueError, match=err_msg):
+            obj.to_dict()
+
+    dict_ = tx_out.to_dict(check_validity=False)
+    assert RejectingTxOut.from_dict(dict_, check_validity=False).value == 1
+    with pytest.raises(BTClibValueError, match="invalid output"):
+        RejectingTxOut.from_dict(dict_)
+
+    octets = tx_out.serialize(check_validity=False)
+    assert RejectingTxOut.parse(octets, check_validity=False).value == 1
+    with pytest.raises(BTClibValueError, match="invalid output"):
+        RejectingTxOut.parse(octets)
+
+
+def test_a_base_tx_out_dict_refuses_the_amount_either_way() -> None:
     """The exclusion above, and why it is one rather than an oversight.
 
-    A TxOut is valid when its amount is, and the dict form of an amount is
-    BTC: `to_dict` calls `btc_from_sats` and `from_dict` calls
-    `sats_from_btc`, each of which validates the amount on its own. So the
-    flag has nothing left to switch off here, and the refusal below is the
-    conversion's rather than assert_valid's.
+    A base TxOut is valid when its amount is, and the dict form of an amount
+    is BTC: `to_dict` calls `btc_from_sats` and `from_dict` calls
+    `sats_from_btc`, each of which validates the amount on its own. So for
+    this class the flag has nothing left to switch off, and the refusal below
+    is the conversion's rather than assert_valid's -- which is what the
+    subclass above answers for, an invariant of its own being the thing a
+    conversion cannot ask.
     """
     invalid = TxOut(_MAX_SATOSHI + 1, "", check_validity=False)
     for check_validity in (True, False):
