@@ -4964,6 +4964,16 @@ edit.
   master's required checks: a
   mutant survives because a test is missing, so a red merge would stop
   whoever next touched the file for a hole somebody else left
+- the standalone Bitcoin Core RPC client has its own Cosmic Ray profile.
+  Its request, reply, credential, cookie, transport and vendoring tests judge
+  719 enumerated mutants; 187 replacements of `|` in deferred annotations are
+  filtered as inert, and the remaining 532 finish in 2m13s, with 524 killed
+  and eight equivalent survivors. The run found two unchecked status
+  boundaries and a `break`-to-`continue` mutation that previously waited for
+  the per-mutant timeout; the tests now distinguish all three, including EOF
+  as the end of an incremental read. The weekly workflow runs and reports the
+  profile in a 30-minute budget and applies each configuration's operator
+  filter after initialization
 - an `rpc-smoke` workflow asks live bitcoinds what the recorded replies
   under `tests/fetch/_data` claim, on demand and before a release (issue
   #377). The suite classifies every one of those replies without opening a

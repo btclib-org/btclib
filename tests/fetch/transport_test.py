@@ -92,6 +92,7 @@ class FakeResponse:
         self.closed = False
         self._offset = 0
         self._chunk_size = chunk_size
+        self._returned_eof = False
         self.reads: list[int | None] = []
         self.headers: dict[str, str] = (
             {} if content_length is None else {"Content-Length": content_length}
@@ -114,12 +115,15 @@ class FakeResponse:
         Every read is remembered, which is how a test checks that a
         caller's limit reached the read rather than the check after it.
         """
+        if self._returned_eof:
+            raise AssertionError("the response was read again after EOF")
         self.reads.append(amt)
         size = len(self._body) - self._offset if amt is None else amt
         if self._chunk_size is not None:
             size = min(size, self._chunk_size)
         chunk = self._body[self._offset : self._offset + size]
         self._offset += len(chunk)
+        self._returned_eof = not chunk
         return chunk
 
 
@@ -246,6 +250,25 @@ def test_a_chunked_body_is_read_to_the_limit_and_no_further(
         200,
         body,
     )
+
+
+def test_eof_ends_the_incremental_read(monkeypatch: pytest.MonkeyPatch) -> None:
+    """An empty chunk is EOF, so the transport does not read it again."""
+    response = FakeResponse(200, b"")
+
+    def fake_open(request: Request, timeout: float) -> FakeResponse:
+        return response
+
+    monkeypatch.setattr(transport_module, "_OPENER", _opener(fake_open))
+
+    request = Request(URL, method="GET")
+    assert urlopen_transport(request, DEFAULT_TIMEOUT, max_body_size=64) == (
+        200,
+        b"",
+    )
+    assert response.reads == [65]
+    with pytest.raises(AssertionError, match="read again after EOF"):
+        response.read(1)
 
 
 def test_an_announced_size_over_the_limit_is_refused_before_reading(

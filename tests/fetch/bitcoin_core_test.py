@@ -1246,7 +1246,10 @@ def test_a_status_survives_a_body_that_is_no_reply(body: bytes) -> None:
     assert exc.value.status == 503
 
 
-def test_a_correlated_legacy_error_that_is_no_error_object_keeps_the_status() -> None:
+@pytest.mark.parametrize("status", [199, 503])
+def test_a_correlated_legacy_error_that_is_no_error_object_keeps_the_status(
+    status: int,
+) -> None:
     """An `error` that is not an object is no rpc error, so the status wins.
 
     The one case the id check alone does not cover: a legacy reply carrying
@@ -1261,8 +1264,8 @@ def test_a_correlated_legacy_error_that_is_no_error_object_keeps_the_status() ->
     # correlated whatever is written here
     body = b'{"id":"x","error":"bad"}'
     with pytest.raises(HttpError) as exc:
-        client((503, body)).call("getblockcount")
-    assert exc.value.status == 503
+        client((status, body)).call("getblockcount")
+    assert exc.value.status == status
 
     with pytest.raises(FetchError, match="unreadable rpc error 'bad'"):
         client((200, body)).call("getblockcount")
@@ -1293,9 +1296,10 @@ def test_a_real_legacy_rpc_error_still_outranks_its_status() -> None:
         b"not json",
         b"[1, 2, 3]",
         json.dumps({"result": TIP_HEIGHT, "error": None, "id": "x"}).encode(),
+        json.dumps({"jsonrpc": "1.0", "result": TIP_HEIGHT, "id": "x"}).encode(),
         json.dumps({"jsonrpc": "2.0", "result": TIP_HEIGHT, "id": "x"}).encode(),
     ],
-    ids=["non-number", "not-json", "array", "legacy", "version-2"],
+    ids=["non-number", "not-json", "array", "legacy", "version-1", "version-2"],
 )
 def test_every_status_other_than_200_precedes_the_reply_shape(body: bytes) -> None:
     """A status below 200 is no more an RPC answer than one above 200."""
