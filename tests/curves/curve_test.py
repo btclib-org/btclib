@@ -267,13 +267,13 @@ def test_aff_jac_conversions() -> None:
         # just a point, not INF
         Q = ec.G
         QJ = jac_from_aff(Q)
-        assert Q == ec.aff_from_jac(QJ)
+        assert ec.aff_from_jac(QJ) == Q
         x_Q = ec.x_aff_from_jac(QJ)
         assert Q[0] == x_Q
         y_Q = ec.y_aff_from_jac(QJ)
         assert Q[1] == y_Q
 
-        assert INF == ec.aff_from_jac(jac_from_aff(INF))
+        assert ec.aff_from_jac(jac_from_aff(INF)) == INF
 
         with pytest.raises(BTClibValueError, match="INF has no x-coordinate"):
             ec.x_aff_from_jac(INFJ)
@@ -291,7 +291,7 @@ def test_add_double_aff() -> None:
 
         # double G
         G2 = ec.add_aff(ec.G, ec.G)
-        assert G2 == ec.double_aff(ec.G)
+        assert ec.double_aff(ec.G) == G2
 
         # double INF
         assert ec.add_aff(INF, INF) == INF
@@ -336,13 +336,13 @@ def test_add_double_aff_jac() -> None:
         # add Q and G
         R = ec.add_aff(Q, ec.G)
         RJ = ec.add_jac(QJ, ec.GJ)
-        assert R == ec.aff_from_jac(RJ)
+        assert ec.aff_from_jac(RJ) == R
 
         # double Q
         R = ec.double_aff(Q)
         RJ = ec.double_jac(QJ)
-        assert R == ec.aff_from_jac(RJ)
-        assert R == ec.add_aff(Q, Q)
+        assert ec.aff_from_jac(RJ) == R
+        assert ec.add_aff(Q, Q) == R
         assert ec.jac_equality(RJ, ec.add_jac(QJ, QJ))
 
 
@@ -416,7 +416,7 @@ def test_point_addition_exhaustive() -> None:
                         got = None if RJ[2] == 0 else ec.aff_from_jac(RJ)
                         assert got == expected, f"{name}: {PJ} + {QJ}"
                 R = ec.add_aff(INF if P is None else P, INF if Q is None else Q)
-                assert R == (INF if expected is None else expected), (
+                assert (INF if expected is None else expected) == R, (
                     f"{name}: {P} + {Q}"
                 )
 
@@ -850,7 +850,7 @@ def test_assorted_mult() -> None:
             shamir = double_mult(k1, ec.G, k2, H, ec)
             assert ec.is_on_curve(shamir)
             K1K2 = ec.add(K1, K2)
-            assert K1K2 == shamir
+            assert shamir == K1K2
 
             k3 = ec.n // 3  # just a random point, not INF
             K3 = mult(k3, ec.G, ec)
@@ -858,7 +858,7 @@ def test_assorted_mult() -> None:
             assert ec.is_on_curve(K1K2K3)
             boscoster = multi_mult([k1, k2, k3], [ec.G, H, ec.G], ec)
             assert ec.is_on_curve(boscoster)
-            assert K1K2K3 == boscoster, k3
+            assert boscoster == K1K2K3, k3
 
             k4 = ec.n // 4  # just a random point, not INF
             K4 = mult(k4, H, ec)
@@ -867,11 +867,11 @@ def test_assorted_mult() -> None:
             points = [ec.G, H, ec.G, H]
             boscoster = multi_mult([k1, k2, k3, k4], points, ec)
             assert ec.is_on_curve(boscoster)
-            assert K1K2K3K4 == boscoster, k4
-            assert K1K2K3 == multi_mult([k1, k2, k3, 0], points, ec)
-            assert K1K2 == multi_mult([k1, k2, 0, 0], points, ec)
-            assert K1 == multi_mult([k1, 0, 0, 0], points, ec)
-            assert INF == multi_mult([0, 0, 0, 0], points, ec)
+            assert boscoster == K1K2K3K4, k4
+            assert multi_mult([k1, k2, k3, 0], points, ec) == K1K2K3
+            assert multi_mult([k1, k2, 0, 0], points, ec) == K1K2
+            assert multi_mult([k1, 0, 0, 0], points, ec) == K1
+            assert multi_mult([0, 0, 0, 0], points, ec) == INF
 
             err_msg = "mismatch between number of scalars and points: "
             with pytest.raises(BTClibValueError, match=err_msg):

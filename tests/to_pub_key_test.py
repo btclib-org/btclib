@@ -80,7 +80,7 @@ def _check_point(point_from: Callable[..., Point], key: Key) -> None:
     has that scalar: secp256r1 answers with the r1 point rather than
     raising, which is why the int forms skip the check.
     """
-    assert Q == point_from(key)
+    assert point_from(key) == Q
     if not isinstance(key, int):
         with pytest.raises(BTClibValueError):
             point_from(key, secp256r1)

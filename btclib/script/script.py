@@ -566,7 +566,7 @@ def read_op_code(script: bytes, start: int) -> tuple[int, int] | None:
     stop = start + 1
     if 0 < op_code <= 78:  # a push, of its own length or of a declared one
         data_length = op_code
-        if 75 < op_code:  # OP_PUSHDATA1, OP_PUSHDATA2, OP_PUSHDATA4
+        if op_code > 75:  # OP_PUSHDATA1, OP_PUSHDATA2, OP_PUSHDATA4
             size = 2 ** (op_code - 76)  # 1, 2 or 4 bytes of little-endian length
             if stop + size > len(script):
                 return None

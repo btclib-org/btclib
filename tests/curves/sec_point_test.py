@@ -48,11 +48,11 @@ def test_octets2point() -> None:
     for ec in all_curves.values():
         G_bytes = bytes_from_point(ec.G, ec)
         G_point = point_from_octets(G_bytes, ec)
-        assert ec.G == G_point
+        assert G_point == ec.G
 
         G_bytes = bytes_from_point(ec.G, ec, False)
         G_point = point_from_octets(G_bytes, ec)
-        assert ec.G == G_point
+        assert G_point == ec.G
 
         # just a point, not INF
         Q = ec.G

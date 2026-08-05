@@ -251,7 +251,7 @@ def test_dust_threshold_takes_a_hex_string_too() -> None:
 def test_the_dust_relay_rate_is_a_parameter() -> None:
     """-dustrelayfee is Core's option, and this is the same knob."""
     script_pub_key = _script_pub_keys()["p2pkh"]
-    assert DUST_RELAY_FEE_RATE == FeeRate(sats_per_kvbyte=3000)
+    assert FeeRate(sats_per_kvbyte=3000) == DUST_RELAY_FEE_RATE
     assert dust_threshold(script_pub_key, DUST_RELAY_FEE_RATE) == 546
     # the 182 virtual bytes Core's comment names, at three other rates
     assert dust_threshold(script_pub_key, FeeRate(sats_per_kvbyte=1000)) == 182

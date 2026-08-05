@@ -304,7 +304,7 @@ def test_tweak_vectors_consistency() -> None:
     """The file's own cross-references, as the reference checks them."""
     assert _TW_PUB_KEYS[0] == musig2.individual_pub_key(_TW_SK)
     assert _TW_PUB_NONCES[0] == _pub_nonce_of(_TW_SEC_NONCE)
-    assert _TW_AGG_NONCE == musig2.nonce_agg(_TW_PUB_NONCES[:3])
+    assert musig2.nonce_agg(_TW_PUB_NONCES[:3]) == _TW_AGG_NONCE
 
 
 def tweak_valid_vectors() -> list[Any]:
