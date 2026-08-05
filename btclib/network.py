@@ -22,7 +22,7 @@ from __future__ import annotations
 import json
 from collections.abc import Mapping
 from dataclasses import dataclass
-from os import path
+from pathlib import Path
 from typing import Any
 
 from btclib.alias import NetworkField, NetworkName, NetworkType, Octets
@@ -281,7 +281,7 @@ class Network:
 
 
 NETWORKS: dict[str, Network] = {}
-datadir = path.join(path.dirname(__file__), "_data")
+datadir = Path(__file__).parent / "_data"
 # order matters, and it is the order of the reverse lookups below: the
 # first network holding a version prefix is the one they answer with, so
 # testnet, the oldest, answers for the four networks that share its
@@ -306,8 +306,8 @@ _network_names: tuple[NetworkName, ...] = (
 # module globals like any other, so `net`, `filename` and the open file
 # would be three names of this module that no caller has any use for
 for _net in _network_names:
-    _filename = path.join(datadir, f"{_net}.json")
-    with open(_filename, encoding="ascii") as _network_file:
+    _filename = datadir / f"{_net}.json"
+    with _filename.open(encoding="ascii") as _network_file:
         NETWORKS[_net] = Network.from_dict(json.load(_network_file))
 
 

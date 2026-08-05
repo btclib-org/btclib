@@ -5,9 +5,8 @@
 
 """Tests for the `btclib.mnemonic` module."""
 
-import builtins
 import threading
-from os import path
+from pathlib import Path
 from typing import Any, get_args
 from unicodedata import normalize
 
@@ -189,7 +188,7 @@ def test_wordlist_2() -> None:
     # english.txt if that ever changes, which it has not since 2014;
     # tests/_data/README.md records both
     fname = "fakeenglish.txt"
-    filename = path.join(path.dirname(__file__), "_data", fname)
+    filename = str(Path(__file__).parent / "_data" / fname)
     err_msg = "invalid wordlist length: "
     with pytest.raises(BTClibValueError, match=err_msg):
         word_lists.load_lang(lang, filename)
@@ -203,7 +202,7 @@ def test_wordlist_2() -> None:
     # dynamically add a new language
     lang = "en2"
     fname = "english.txt"
-    filename = path.join(path.dirname(__file__), "_data", fname)
+    filename = str(Path(__file__).parent / "_data" / fname)
     word_lists.load_lang(lang, filename)
     length = word_lists.language_length(lang)
     assert length == 2048
@@ -279,7 +278,7 @@ def test_power_of_two() -> None:
     rather than of the loader.
     """
     fname = "fakeenglish.txt"
-    filename = path.join(path.dirname(__file__), "_data", fname)
+    filename = str(Path(__file__).parent / "_data" / fname)
 
     with pytest.raises(BTClibValueError, match="invalid wordlist length: 2047"):
         WordLists().load_lang("fakeen", filename)
@@ -358,19 +357,19 @@ def test_load_lang_is_idempotent_and_reads_once() -> None:
     """Loaded lazily, and read from disk only once."""
     word_lists = WordLists()
     reads = []
-    real_open = builtins.open
+    real_open = Path.open
 
-    def counting_open(*args: Any, **kwargs: Any) -> Any:
-        reads.append(args[0])
-        return real_open(*args, **kwargs)
+    def counting_open(self: Path, *args: Any, **kwargs: Any) -> Any:
+        reads.append(self)
+        return real_open(self, *args, **kwargs)
 
-    builtins.open = counting_open
+    Path.open = counting_open  # type: ignore[method-assign]
     try:
         assert word_lists.language_length("en") == 2048
         assert len(word_lists.wordlist("en")) == 2048
         assert word_lists.language_length("en") == 2048
     finally:
-        builtins.open = real_open
+        Path.open = real_open  # type: ignore[method-assign]
 
     assert len(reads) == 1
 

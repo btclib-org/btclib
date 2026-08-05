@@ -28,7 +28,7 @@ from __future__ import annotations
 
 import json
 from collections.abc import Callable
-from os import path
+from pathlib import Path
 
 from btclib import b32, b58
 from btclib.alias import BIP44ScriptType, NetworkType
@@ -60,8 +60,8 @@ _LEVELS = 5
 # recovery helper wants next -- per-wallet rows, with the xpub version
 # each writes -- is more of this file and no more of this module, and
 # that list tracks the wallet ecosystem rather than the library
-_PURPOSES_FILE = path.join(path.dirname(__file__), "_data", "bip44_purposes.json")
-with open(_PURPOSES_FILE, encoding="ascii") as _purposes:
+_PURPOSES_FILE = Path(__file__).parent / "_data" / "bip44_purposes.json"
+with _PURPOSES_FILE.open(encoding="ascii") as _purposes:
     # json object keys are strings; a purpose is an int, as it is in a
     # derivation path. The values are annotated and not validated here:
     # BIP44ScriptType is a mypy fact and json.load answers Any, so what

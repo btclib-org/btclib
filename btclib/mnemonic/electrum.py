@@ -61,7 +61,7 @@ import string
 import unicodedata
 from functools import cache
 from hashlib import pbkdf2_hmac, sha256, sha512
-from os import path
+from pathlib import Path
 
 from btclib.bip32 import derive, rootxprv_from_seed
 from btclib.bip32.der_path import _HARDENED_OFFSET
@@ -158,9 +158,7 @@ _CJK_INTERVALS = (
 # contemporary poetry -- so a re-sorted copy decodes every seed to
 # something else. There is no upstream file to compare bytes against,
 # the words living inside a python module rather than in a .txt
-_OLD_WORDLIST_FILE = path.join(
-    path.dirname(__file__), "_data", "electrum_old_english.txt"
-)
+_OLD_WORDLIST_FILE = Path(__file__).parent / "_data" / "electrum_old_english.txt"
 
 # the rounds of Old_KeyStore.stretch_key, which is what a pre-2.0 seed
 # has instead of the versioned scheme's 2048 PBKDF2 iterations
@@ -226,7 +224,7 @@ def _old_wordlist() -> tuple[str, ...]:
     into this list is not a digit, and none of the entropy machinery a
     registered language reaches applies to it.
     """
-    with open(_OLD_WORDLIST_FILE, encoding="ascii") as file_:
+    with _OLD_WORDLIST_FILE.open(encoding="ascii") as file_:
         return tuple(line.rstrip("\n") for line in file_)
 
 

@@ -14,7 +14,7 @@ the authority on the answer, but neither is needed to have the vectors:
 the block carries the transactions and the root that commits to them.
 """
 
-from os import path
+from pathlib import Path
 
 import pytest
 
@@ -26,8 +26,8 @@ from btclib.tx import OutPoint, Tx, TxIn, TxOut
 
 def _load(fname: str) -> Block:
     """Return a vendored block, parsed from tests/block/_data."""
-    filename = path.join(path.dirname(__file__), "_data", fname)
-    with open(filename, "rb") as file_:
+    filename = Path(__file__).parent / "_data" / fname
+    with filename.open("rb") as file_:
         return Block.parse(file_.read())
 
 

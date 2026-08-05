@@ -6,7 +6,7 @@
 """Tests for the `btclib.tx_in` module."""
 
 from dataclasses import FrozenInstanceError
-from os import path
+from pathlib import Path
 
 import pytest
 
@@ -134,8 +134,8 @@ def test_an_empty_witness_is_still_validated() -> None:
 def test_dataclasses_json_dict(json_golden: JsonGolden) -> None:
     """Compare a real input's to_dict with its golden json, and back."""
     fname = "d4f3c2c3c218be868c77ae31bedb497e2f908d6ee5bbbe91e4933e6da680c970.bin"
-    filename = path.join(path.dirname(__file__), "_data", fname)
-    with open(filename, "rb") as binary_file_:
+    filename = Path(__file__).parent / "_data" / fname
+    with filename.open("rb") as binary_file_:
         temp = Tx.parse(binary_file_.read())
 
     tx_in = temp.vin[0]

@@ -22,7 +22,7 @@ green rather than for having written it once.
 import contextlib
 import json
 from collections.abc import Callable
-from os import path
+from pathlib import Path
 from typing import Any
 
 import pytest
@@ -142,14 +142,14 @@ def test_text_parser_honors_the_exception_contract(
 
 def _load(*parts: str) -> bytes:
     """Return the bytes of a file vendored under tests/."""
-    with open(path.join(path.dirname(__file__), *parts), "rb") as file_:
+    with Path(__file__).parent.joinpath(*parts).open("rb") as file_:
         return file_.read()
 
 
 def _first_valid_psbt() -> bytes:
     """Return BIP174's first valid psbt, re-serialized to bytes."""
-    filename = path.join("psbt", "_data", "bip174_test_vectors.json")
-    with open(path.join(path.dirname(__file__), filename), encoding="ascii") as file_:
+    filename = Path("psbt") / "_data" / "bip174_test_vectors.json"
+    with (Path(__file__).parent / filename).open(encoding="ascii") as file_:
         vectors = json.load(file_)
     return Psbt.b64decode(vectors["valid psbts"][0]["encoded psbt"]).serialize()
 

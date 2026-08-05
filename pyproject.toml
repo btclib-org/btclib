@@ -482,6 +482,13 @@ exclude = [
 # unselected rule set was run over btclib and tests, and these are the
 # ones that either find nothing today
 # -- a ratchet, costing no cleanup -- or find something worth removing.
+# PTH is the same case with a wider cleanup: 130 os.path and bare open()
+# calls, 23 of them in the library, all replaced by pathlib. Two of the
+# 23 are the module-level `datadir` of btclib.curves.curve and
+# btclib.network, each a path a caller can read directly, so its type
+# changes from str to Path there too -- a breaking change, recorded in
+# HISTORY.md, and not one this rule set finds on its own: ruff has no
+# opinion on what a module chooses to expose.
 #
 # What the same survey rejected, with the reason it was rejected rather
 # than the count it reached -- `uv run ruff check --select N --no-cache
@@ -491,7 +498,7 @@ exclude = [
 # which ruff's own documentation recommends against alongside the
 # formatter), EM, FBT, EXE (all EXE001, i.e. the shebang-not-executable
 # finding that .pre-commit-config.yaml records the same decision about),
-# TC, PTH, ARG, ANN (all ANN401, the explicit Any of the vector loaders),
+# TC, ARG, ANN (all ANN401, the explicit Any of the vector loaders),
 # SLF (all SLF001, tests reaching into private members on purpose), PERF
 # (all PERF203, try/except in a retry loop).
 # ERA is selected despite what it found on that survey: about half was
@@ -519,6 +526,7 @@ select = [
     "PIE",  # flake8-pie
     "PL",   # pylint
     "PT",   # flake8-pytest-style
+    "PTH",  # flake8-use-pathlib
     "RET",  # flake8-return
     "RSE",  # flake8-raise
     "RUF",  # ruff-specific rules

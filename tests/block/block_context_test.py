@@ -19,7 +19,7 @@ height, so its coinbase commitment is one the whole network agreed on.
 """
 
 from datetime import datetime, timedelta, timezone
-from os import path
+from pathlib import Path
 
 import pytest
 
@@ -35,8 +35,8 @@ _MAINNET_BIP34_HEIGHT = 227_931
 
 def block_of(fname: str) -> Block:
     """Parse a vendored block from this directory's `_data`."""
-    filename = path.join(path.dirname(__file__), "_data", fname)
-    with open(filename, "rb") as file_:
+    filename = Path(__file__).parent / "_data" / fname
+    with filename.open("rb") as file_:
         return Block.parse(file_.read())
 
 

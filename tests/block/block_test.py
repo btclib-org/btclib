@@ -16,7 +16,7 @@ and sizes.
 """
 
 from datetime import datetime, timedelta, timezone
-from os import path
+from pathlib import Path
 
 import pytest
 
@@ -37,8 +37,8 @@ from tests.conftest import JsonGolden
 def test_block_1() -> None:
     """Test first block after genesis."""
     fname = "block_1.bin"
-    filename = path.join(path.dirname(__file__), "_data", fname)
-    with open(filename, "rb") as file_:
+    filename = Path(__file__).parent / "_data" / fname
+    with filename.open("rb") as file_:
         block_bytes = file_.read()
 
     block = Block.parse(block_bytes)
@@ -74,8 +74,8 @@ def test_block_1() -> None:
 def test_exceptions() -> None:
     """Verify the error each truncation or malformed header field raises."""
     fname = "block_1.bin"
-    filename = path.join(path.dirname(__file__), "_data", fname)
-    with open(filename, "rb") as file_:
+    filename = Path(__file__).parent / "_data" / fname
+    with filename.open("rb") as file_:
         block_bytes = file_.read()
 
     # a truncated header is reported as truncated, whichever field the
@@ -169,8 +169,8 @@ def test_exceptions() -> None:
 def test_block_header_keywords() -> None:
     """Test that every BlockHeader field is a valid keyword argument."""
     fname = "block_1.bin"
-    filename = path.join(path.dirname(__file__), "_data", fname)
-    with open(filename, "rb") as file_:
+    filename = Path(__file__).parent / "_data" / fname
+    with filename.open("rb") as file_:
         header_bytes = file_.read()[:80]
 
     header = BlockHeader.parse(header_bytes)
@@ -193,8 +193,8 @@ def test_block_header_keywords() -> None:
 def test_block_170() -> None:
     """Test first block with a transaction."""
     fname = "block_170.bin"
-    filename = path.join(path.dirname(__file__), "_data", fname)
-    with open(filename, "rb") as file_:
+    filename = Path(__file__).parent / "_data" / fname
+    with filename.open("rb") as file_:
         block_bytes = file_.read()
 
     block = Block.parse(block_bytes)
@@ -230,8 +230,8 @@ def test_block_170() -> None:
 def test_block_200000() -> None:
     """Verify block 200,000: 388 transactions and a BIP34 height."""
     fname = "block_200000.bin"
-    filename = path.join(path.dirname(__file__), "_data", fname)
-    with open(filename, "rb") as file_:
+    filename = Path(__file__).parent / "_data" / fname
+    with filename.open("rb") as file_:
         block_bytes = file_.read()
 
     block = Block.parse(block_bytes)
@@ -283,8 +283,8 @@ def test_block_merkle_mutation() -> None:
     commits to this one. Core rejects it as bad-txns-duplicate.
     """
     fname = "block_200000.bin"
-    filename = path.join(path.dirname(__file__), "_data", fname)
-    with open(filename, "rb") as file_:
+    filename = Path(__file__).parent / "_data" / fname
+    with filename.open("rb") as file_:
         block_bytes = file_.read()
 
     block = Block.parse(block_bytes)
@@ -302,8 +302,8 @@ def test_block_481824() -> None:
     merkle_root = "6438250cad442b982801ae6994edb8a9ec63c0a0ba117779fbe7ef7f07cad140"
     hash_ = "0000000000000000001c8018d9cb3b742ef25114f27563e3fc4a1902167f9893"
     for i, fname in enumerate(["block_481824.bin", "block_481824_complete.bin"]):
-        filename = path.join(path.dirname(__file__), "_data", fname)
-        with open(filename, "rb") as file_:
+        filename = Path(__file__).parent / "_data" / fname
+        with filename.open("rb") as file_:
             block_bytes = file_.read()
 
         block = Block.parse(block_bytes)
@@ -355,8 +355,8 @@ def test_block_witness_commitment() -> None:
     bad-witness-merkle-match.
     """
     fname = "block_481824_complete.bin"
-    filename = path.join(path.dirname(__file__), "_data", fname)
-    with open(filename, "rb") as file_:
+    filename = Path(__file__).parent / "_data" / fname
+    with filename.open("rb") as file_:
         block_bytes = file_.read()
 
     block = Block.parse(block_bytes)
@@ -401,8 +401,8 @@ def test_block_witness_nonce() -> None:
     them as bad-witness-nonce-size.
     """
     fname = "block_481824_complete.bin"
-    filename = path.join(path.dirname(__file__), "_data", fname)
-    with open(filename, "rb") as file_:
+    filename = Path(__file__).parent / "_data" / fname
+    with filename.open("rb") as file_:
         block_bytes = file_.read()
 
     for stack in ([], [b"\x00" * 31], [b"\x00" * 32] * 2):
@@ -421,8 +421,8 @@ def test_block_unexpected_witness() -> None:
     rejects the block as unexpected-witness.
     """
     fname = "block_170.bin"
-    filename = path.join(path.dirname(__file__), "_data", fname)
-    with open(filename, "rb") as file_:
+    filename = Path(__file__).parent / "_data" / fname
+    with filename.open("rb") as file_:
         block_bytes = file_.read()
 
     block = Block.parse(block_bytes)
@@ -436,8 +436,8 @@ def test_block_unexpected_witness() -> None:
 def test_dataclasses_json_dict(json_golden: JsonGolden) -> None:
     """Round-trip Block and BlockHeader through their dict and golden json."""
     fname = "block_481824.bin"
-    filename = path.join(path.dirname(__file__), "_data", fname)
-    with open(filename, "rb") as binfile_:
+    filename = Path(__file__).parent / "_data" / fname
+    with filename.open("rb") as binfile_:
         block = binfile_.read()
 
     # dataclass
@@ -541,8 +541,8 @@ def test_block_without_transactions() -> None:
     surface as an IndexError.
     """
     fname = "block_1.bin"
-    filename = path.join(path.dirname(__file__), "_data", fname)
-    with open(filename, "rb") as file_:
+    filename = Path(__file__).parent / "_data" / fname
+    with filename.open("rb") as file_:
         block_bytes = file_.read()
 
     # the count follows the 80 bytes of the header
@@ -571,8 +571,8 @@ def test_a_block_carries_one_coinbase() -> None:
     which is where Core checks it too (issue #250).
     """
     fname = "block_200000.bin"
-    filename = path.join(path.dirname(__file__), "_data", fname)
-    with open(filename, "rb") as file_:
+    filename = Path(__file__).parent / "_data" / fname
+    with filename.open("rb") as file_:
         block_bytes = file_.read()
 
     block = Block.parse(block_bytes)
@@ -590,8 +590,8 @@ def test_assert_valid_checks_the_coinbase_transaction() -> None:
     skipped.
     """
     fname = "block_1.bin"
-    filename = path.join(path.dirname(__file__), "_data", fname)
-    with open(filename, "rb") as file_:
+    filename = Path(__file__).parent / "_data" / fname
+    with filename.open("rb") as file_:
         block = Block.parse(file_.read())
 
     block.transactions[0].vin[0].script_sig = b""
@@ -608,8 +608,8 @@ def test_assert_valid_does_not_rewrite_the_header() -> None:
     json -- the reason it exists -- goes through it.
     """
     fname = "block_1.bin"
-    filename = path.join(path.dirname(__file__), "_data", fname)
-    with open(filename, "rb") as file_:
+    filename = Path(__file__).parent / "_data" / fname
+    with filename.open("rb") as file_:
         header_bytes = file_.read()[:80]
 
     header = BlockHeader.parse(header_bytes)
@@ -658,8 +658,8 @@ def test_a_candidate_header_can_be_built() -> None:
     serialized, or hashed through the ordinary API. Hashing it is mining.
     """
     fname = "block_1.bin"
-    filename = path.join(path.dirname(__file__), "_data", fname)
-    with open(filename, "rb") as file_:
+    filename = Path(__file__).parent / "_data" / fname
+    with filename.open("rb") as file_:
         header_bytes = file_.read()[:80]
 
     mined = BlockHeader.parse(header_bytes)
@@ -719,8 +719,8 @@ def test_the_weight_is_the_block_and_not_its_transactions(
     four times the stripped size plus the witness bytes, and three times
     the stripped size plus the size.
     """
-    filename = path.join(path.dirname(__file__), "_data", fname)
-    with open(filename, "rb") as file_:
+    filename = Path(__file__).parent / "_data" / fname
+    with filename.open("rb") as file_:
         block_bytes = file_.read()
 
     block = Block.parse(block_bytes)
@@ -746,8 +746,8 @@ def test_a_block_cannot_announce_too_many_sigops() -> None:
     transaction has been checked on its own.
     """
     fname = "block_1.bin"
-    filename = path.join(path.dirname(__file__), "_data", fname)
-    with open(filename, "rb") as file_:
+    filename = Path(__file__).parent / "_data" / fname
+    with filename.open("rb") as file_:
         block_bytes = file_.read()
 
     limit = MAX_BLOCK_SIGOPS_COST // WITNESS_SCALE_FACTOR
@@ -790,8 +790,8 @@ def test_a_block_cannot_hold_too_many_transactions_or_too_many_bytes() -> None:
     million-byte output script.
     """
     fname = "block_1.bin"
-    filename = path.join(path.dirname(__file__), "_data", fname)
-    with open(filename, "rb") as file_:
+    filename = Path(__file__).parent / "_data" / fname
+    with filename.open("rb") as file_:
         block_bytes = file_.read()
 
     limit = MAX_BLOCK_WEIGHT // WITNESS_SCALE_FACTOR
@@ -835,8 +835,8 @@ def test_a_block_cannot_weigh_more_than_the_cap() -> None:
     this is where that claim is measured.
     """
     fname = "block_481824_complete.bin"
-    filename = path.join(path.dirname(__file__), "_data", fname)
-    with open(filename, "rb") as file_:
+    filename = Path(__file__).parent / "_data" / fname
+    with filename.open("rb") as file_:
         block_bytes = file_.read()
 
     stuffing = Witness([b"\x00" * 46_000])
@@ -864,8 +864,8 @@ def test_a_block_still_requires_the_work() -> None:
     Block.parse recomputes the hash from the bytes on every run.
     """
     fname = "block_1.bin"
-    filename = path.join(path.dirname(__file__), "_data", fname)
-    with open(filename, "rb") as file_:
+    filename = Path(__file__).parent / "_data" / fname
+    with filename.open("rb") as file_:
         block_bytes = file_.read()
 
     block = Block.parse(block_bytes)

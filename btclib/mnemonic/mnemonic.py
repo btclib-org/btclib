@@ -10,7 +10,7 @@ from __future__ import annotations
 import threading
 import unicodedata
 from collections.abc import Sequence
-from os import path
+from pathlib import Path
 
 from btclib.exceptions import BTClibValueError
 
@@ -32,7 +32,7 @@ WordList = Sequence[str]
 
 def data_file(filename: str) -> str:
     """Return the path of a word-list shipped with btclib."""
-    return path.join(path.dirname(__file__), "_data", filename)
+    return str(Path(__file__).parent / "_data" / filename)
 
 
 # The twelve word-lists of BIP39's reference implementation, keyed by
@@ -182,7 +182,7 @@ class WordLists:
         # ascii, japanese and korean not even close, and the BIP
         # publishes them NFKD-encoded. A '#' starts a comment, which is
         # what carries the licence header of electrum's Portuguese list
-        with open(filename, encoding="utf-8") as file_:
+        with Path(filename).open(encoding="utf-8") as file_:
             lines = file_.readlines()
         stripped = (line.split("#")[0].strip() for line in lines)
         words = [unicodedata.normalize("NFKD", word) for word in stripped if word]
