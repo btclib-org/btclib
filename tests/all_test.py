@@ -93,6 +93,7 @@ REEXPORTED = {
         "DEFAULT_DATADIR",
         "BitcoinCoreRpcClient",
         "cookie_auth",
+        "core_chain_from_network",
     ],
     "btclib.fetch.transport": [
         "DEFAULT_MAX_BODY_SIZE",

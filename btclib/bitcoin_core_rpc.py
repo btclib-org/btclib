@@ -80,7 +80,7 @@ deliberately.
     # config file and printed in a traceback
     AuthServiceProxy(f"http://{user}:{password}@127.0.0.1:8332")
     BitcoinCoreRpcClient("http://127.0.0.1:8332", user=user, password=password)
-    BitcoinCoreRpcClient.from_network("mainnet")  # or the node's cookie file
+    BitcoinCoreRpcClient.from_chain("main")  # or the node's cookie file
 
     # one wallet of a multi-wallet node, percent-encoded
     client.for_wallet("hot").call("getbalance")
@@ -195,7 +195,9 @@ __all__ = [
     "HttpTransport",
     "RpcError",
     "cookie_auth",
+    "core_chain_from_network",
     "http_request",
+    "network_from_core_chain",
     "urlopen_transport",
 ]
 
@@ -687,26 +689,83 @@ def http_request(
     return status, body
 
 
-# the rpc port and the datadir subdirectory of each network, from Core's
-# `CreateBaseChainParams` in src/chainparamsbase.cpp. Mainnet's cookie is
-# in the datadir itself, which is the empty subdirectory below. Core's
-# chain names and not btclib's network registry, because what they index
-# here is a port and a directory: a chain btclib knows and Core has no
-# default port for is an explicit url, which is the constructor
+# the rpc port and the datadir subdirectory of each chain, from Core's
+# `CreateBaseChainParams` in src/chainparamsbase.cpp. Main's cookie is in
+# the datadir itself, which is the empty subdirectory below. Keyed by
+# Core's chain names -- `ChainTypeToString` in src/util/chaintype.cpp,
+# which is what `-chain=` reads and what `getblockchaininfo` reports --
+# because what they index here is a port and a directory: a chain btclib
+# knows and Core has no default port for is an explicit url, which is the
+# constructor.
+#
+# `test` indexes `testnet3`, which is the third vocabulary for that one
+# chain and the reason both columns are Core's: a directory name is no
+# more btclib's to choose than a port number is
 _RPC_PORT = {
-    "mainnet": 8332,
-    "testnet": 18332,
+    "main": 8332,
+    "test": 18332,
     "testnet4": 48332,
     "signet": 38332,
     "regtest": 18443,
 }
 _DATADIR_SUBDIR = {
-    "mainnet": "",
-    "testnet": "testnet3",
+    "main": "",
+    "test": "testnet3",
     "testnet4": "testnet4",
     "signet": "signet",
     "regtest": "regtest",
 }
+
+# btclib's network names against Core's chain names: `mainnet`/`main` and
+# `testnet`/`test` differ, the rest agree. btclib spells what BIP32 and
+# BIP173 spell, Core what `-chain=` takes, and neither vocabulary is going
+# to adopt the other -- btclib's `network` names the encoding table to
+# encode *with*, and answers `testnet` for a signet address, where Core's
+# `chain` is an identity. So the pair is written down once, here, this
+# being the file that speaks Core's protocol and therefore the boundary
+# between the two.
+#
+# A translation of vocabulary and not a promise of availability: v31.1
+# warns that support for testnet3 is deprecated and will be removed, so
+# `test` is a name Core still reads rather than a chain every node still
+# serves.
+_CORE_CHAIN_FROM_NETWORK = {
+    "mainnet": "main",
+    "testnet": "test",
+    "testnet4": "testnet4",
+    "signet": "signet",
+    "regtest": "regtest",
+}
+_NETWORK_FROM_CORE_CHAIN = {
+    chain: network for network, chain in _CORE_CHAIN_FROM_NETWORK.items()
+}
+
+
+def core_chain_from_network(network: str) -> str:
+    """Return Core's chain name for one of btclib's network names.
+
+    Raises rather than passing an unrecognized name through, in both
+    directions: a chain Core adds later is then a failure here, naming
+    what it knows, instead of a string that reaches a node as a port
+    lookup or a directory name.
+    """
+    if network not in _CORE_CHAIN_FROM_NETWORK:
+        known = ", ".join(_CORE_CHAIN_FROM_NETWORK)
+        raise BTClibValueError(f"unknown network: {network} not in ({known})")
+    return _CORE_CHAIN_FROM_NETWORK[network]
+
+
+def network_from_core_chain(chain: str) -> str:
+    """Return btclib's network name for one of Core's chain names.
+
+    The inverse of `core_chain_from_network`, and raising for the same
+    reason.
+    """
+    if chain not in _NETWORK_FROM_CORE_CHAIN:
+        known = ", ".join(_NETWORK_FROM_CORE_CHAIN)
+        raise BTClibValueError(f"unknown Core chain: {chain} not in ({known})")
+    return _NETWORK_FROM_CORE_CHAIN[chain]
+
 
 # the username bitcoind writes into the cookie file, COOKIEAUTH_USER in
 # src/rpc/request.cpp. The node ignores it -- cookie authentication
@@ -734,11 +793,11 @@ def _default_datadir() -> Path | None:
     read, so `~/.bitcoin/.cookie` would make a file a caller's cwd happens
     to contain the credential this client presents -- a wrong guess about
     the datadir is one thing, reading a credential from wherever the
-    process was started is another. `from_network` refuses instead, naming
+    process was started is another. `from_chain` refuses instead, naming
     `cookie_path` as what to pass; a caller on macOS or Windows already
     passes one.
 
-    Called by `from_network` when it derives a cookie path, and not once at
+    Called by `from_chain` when it derives a cookie path, and not once at
     import: `Path.home()` reads `HOME`, so a value computed at import is
     the environment as it stood whenever the first import reached this
     module -- which, this module holding the library's exceptions, is
@@ -761,7 +820,7 @@ def _default_datadir() -> Path | None:
 # looked for, which is what tells a caller on either platform to pass one
 #
 # This is the answer as it stood at import, kept for a caller who wants to
-# name the location or build a path under it. `from_network` does not read
+# name the location or build a path under it. `from_chain` does not read
 # it -- it asks `_default_datadir` at the call, so that a `HOME` set after
 # btclib was imported is the one that counts.
 #
@@ -1228,7 +1287,7 @@ class BitcoinCoreRpcClient:
     Credentials or a cookie path, and not both: each of the two says who
     is calling, so a client given both would have to rank them, and a
     caller who passed both has a mistaken idea of which one is in use.
-    `from_network` is the constructor that fills in a cookie path, along
+    `from_chain` is the constructor that fills in a cookie path, along
     with the port, from Core's own defaults.
 
     **Concurrent calls are supported while the configuration is not
@@ -1240,7 +1299,7 @@ class BitcoinCoreRpcClient:
     that one is the transport's own contract.
 
     **Basic authentication is cleartext over plain HTTP**, that being
-    what Core's rpc speaks. On loopback, which is what `from_network`
+    what Core's rpc speaks. On loopback, which is what `from_chain`
     builds, the cleartext is between one process and the node beside it.
     For a node anywhere else it is on the wire, and rpc credentials
     authorise every wallet command that node has: an `https` url, or a
@@ -1249,7 +1308,8 @@ class BitcoinCoreRpcClient:
     Nothing here asks the node which chain it is on. The url and the
     cookie path say where to ask; `BitcoinCoreFetcher`'s `network` says what
     the answers are labelled with, and holding the two together is the
-    caller's -- `getblockchaininfo` through `call` is how it is checked.
+    caller's -- `BitcoinCoreFetcher.assert_network` is what asks, and
+    `core_chain_from_network` is the vocabulary it compares through.
     """
 
     def __init__(
@@ -1319,9 +1379,9 @@ class BitcoinCoreRpcClient:
         self.transport = transport
 
     @classmethod
-    def from_network(
+    def from_chain(
         cls,
-        network: str = "mainnet",
+        chain: str = "main",
         *,
         user: str | None = None,
         password: str | None = None,
@@ -1329,18 +1389,21 @@ class BitcoinCoreRpcClient:
         timeout: float = DEFAULT_TIMEOUT,
         transport: HttpTransport = urlopen_transport,
     ) -> BitcoinCoreRpcClient:
-        """Return a client for the local node of one of Core's networks.
+        """Return a client for the local node of one of Core's chains.
 
         The convenience of not writing out a loopback url, a port and a
         datadir: all three come from Core's own tables, and everything
-        else is the constructor's. The five names are Core's chain names,
-        because what they index here is a port and a directory -- a chain
-        btclib knows and Core has no default port for is an explicit url
-        with a `cookie_path`, which is the constructor.
+        else is the constructor's. `chain` is spelled as Core spells it --
+        the string `-chain=` takes and `getblockchaininfo` reports, so
+        `main` where btclib says `mainnet` -- because what it indexes here
+        is a port and a directory, neither of which btclib names.
+        `core_chain_from_network` translates for a caller holding a btclib
+        name; a chain btclib knows and Core has no default port for is an
+        explicit url with a `cookie_path`, which is the constructor.
 
         Nor is this the chain the answers get labelled with. That is
-        `BitcoinCoreFetcher`'s `network`, and nothing here verifies that the
-        node agrees with either of them.
+        `BitcoinCoreFetcher`'s `network`, and `assert_network` there is
+        what asks the node whether it agrees.
 
         The datadir is asked for here rather than read off
         `DEFAULT_DATADIR`, so that the `HOME` of this call is the one that
@@ -1356,8 +1419,11 @@ class BitcoinCoreRpcClient:
         cookie derived before that check would report a missing home
         directory to a caller who passed a password and forgot the user.
         """
-        if network not in _RPC_PORT:
-            raise BTClibValueError(f"unknown network: {network}")
+        if chain not in _RPC_PORT:
+            known = ", ".join(_RPC_PORT)
+            err_msg = f"unknown chain: {chain} not in ({known})."
+            err_msg += " These are Core's names, not btclib's"
+            raise BTClibValueError(err_msg)
         if user is None and password is None and cookie_path is None:
             datadir = _default_datadir()
             if datadir is None:
@@ -1365,9 +1431,9 @@ class BitcoinCoreRpcClient:
                 err_msg += " the cookie file in: pass cookie_path, or user"
                 err_msg += " and password"
                 raise BTClibValueError(err_msg)
-            cookie_path = datadir / _DATADIR_SUBDIR[network] / ".cookie"
+            cookie_path = datadir / _DATADIR_SUBDIR[chain] / ".cookie"
         return cls(
-            f"http://127.0.0.1:{_RPC_PORT[network]}",
+            f"http://127.0.0.1:{_RPC_PORT[chain]}",
             user=user,
             password=password,
             cookie_path=cookie_path,
