@@ -40,7 +40,6 @@ from urllib.request import Request
 
 import pytest
 
-from btclib import bitcoin_core_rpc
 from btclib.bitcoin_core_rpc import (
     COOKIE_USER,
     DEFAULT_DATADIR,
@@ -156,9 +155,15 @@ def sent(endpoint: BitcoinCoreRpcClient) -> dict[str, object]:
 
 def test_from_network_is_the_local_node_of_that_network() -> None:
     """The rpc port and the datadir subdirectory of Core's chainparamsbase."""
-    # None where no absolute home is knowable, which is not a machine the
-    # suite runs on -- and asserting it is what makes the paths below a Path
-    assert DEFAULT_DATADIR is not None
+    # what `from_network` asks at the call. None where no absolute home is
+    # knowable, which is not a machine the suite runs on -- and asserting it
+    # is what makes the paths below a Path
+    datadir = _default_datadir()
+    assert datadir is not None
+    # the constant is the same answer, taken at import: a snapshot for a
+    # caller to read, and not what the derivation goes through
+    assert DEFAULT_DATADIR == datadir
+
     from_network = BitcoinCoreRpcClient.from_network
     assert from_network().url == "http://127.0.0.1:8332"
     assert from_network("testnet").url == "http://127.0.0.1:18332"
@@ -166,13 +171,54 @@ def test_from_network_is_the_local_node_of_that_network() -> None:
     assert from_network("signet").url == "http://127.0.0.1:38332"
     assert from_network("regtest").url == "http://127.0.0.1:18443"
 
-    assert from_network().cookie_path == DEFAULT_DATADIR / ".cookie"
-    assert from_network("testnet").cookie_path == (
-        DEFAULT_DATADIR / "testnet3" / ".cookie"
-    )
-    assert from_network("regtest").cookie_path == (
-        DEFAULT_DATADIR / "regtest" / ".cookie"
-    )
+    assert from_network().cookie_path == datadir / ".cookie"
+    assert from_network("testnet").cookie_path == datadir / "testnet3" / ".cookie"
+    assert from_network("regtest").cookie_path == datadir / "regtest" / ".cookie"
+
+
+def test_from_network_reads_the_home_of_the_call_and_not_of_the_import(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    """A home set after btclib was imported is the one a cookie comes from.
+
+    `btclib.exceptions` imports this module, so anything importing btclib at
+    all imports it: a datadir resolved once, at that moment, is the
+    environment as it stood whenever some unrelated early import happened.
+    Reproduced before this was fixed -- `HOME=/tmp/home-before`, `import
+    btclib.exceptions`, `HOME=/tmp/home-after`, and `from_network()` still
+    answered with `/tmp/home-before/.bitcoin/.cookie`.
+
+    Which is what a test can only see by *not* patching `DEFAULT_DATADIR`:
+    that constant is the frozen answer, and patching it would pass against
+    either implementation. The home is what moves here, and the derivation
+    has to follow it.
+    """
+    monkeypatch.setattr(Path, "home", lambda: tmp_path / "home-after")
+
+    expected = tmp_path / "home-after" / ".bitcoin" / "regtest" / ".cookie"
+    assert BitcoinCoreRpcClient.from_network("regtest").cookie_path == expected
+    assert DEFAULT_DATADIR != _default_datadir()
+
+
+def test_from_network_derives_no_cookie_when_told_who_is_calling(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """A user or a password is the answer to that, so nothing is derived.
+
+    Either of the two on its own is a caller's mistake, and the constructor
+    is where the pair is held together. What this pins is that the datadir is
+    not consulted first: on a host with no home directory, a `password` with
+    no `user` used to be reported as a missing datadir -- an error about the
+    machine, for a call that was wrong on any machine.
+
+    So the home is not made to fail here, it is made to *fail the test* if it
+    is looked at: a stub that raises would leave the pinned property implied
+    by a line the run never reaches, where this states it.
+    """
+    monkeypatch.setattr(Path, "home", lambda: pytest.fail("home consulted"))
+    for kwargs in ({"password": RPC_PASSWORD}, {"user": RPC_USER}):
+        with pytest.raises(BTClibValueError, match="go together"):
+            BitcoinCoreRpcClient.from_network(**kwargs)  # type: ignore[arg-type]
 
 
 def test_no_absolute_home_is_no_default_datadir_and_no_exception(
@@ -220,12 +266,20 @@ def test_from_network_refuses_a_datadir_it_cannot_name(
 
     A refusal naming `cookie_path` instead, before any file is opened. The
     explicit path still works, the refusal being about the default alone.
+
+    `Path.home` is what raises here, not a patched `DEFAULT_DATADIR`: the
+    derivation asks at the call, so this is the whole path a host with no
+    home directory takes.
     """
+
+    def no_home() -> Path:
+        raise RuntimeError("Could not determine home directory.")
+
     planted = tmp_path / "~" / ".bitcoin" / ".cookie"
     planted.parent.mkdir(parents=True)
     planted.write_text(f"{COOKIE_USER}:planted\n", encoding="ascii")
     monkeypatch.chdir(tmp_path)
-    monkeypatch.setattr(bitcoin_core_rpc, "DEFAULT_DATADIR", None)
+    monkeypatch.setattr(Path, "home", no_home)
 
     with pytest.raises(BTClibValueError, match="pass cookie_path"):
         BitcoinCoreRpcClient.from_network()

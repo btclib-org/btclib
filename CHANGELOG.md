@@ -2350,14 +2350,21 @@ edit.
   is that every import reaching `btclib.exceptions` -- most of the library,
   though not `import btclib` itself -- now loads `urllib.request`, and `ssl`
   and `socket` under it, where before only a caller who fetched did.
-  `DEFAULT_DATADIR` is therefore `Path | None`, and None where no absolute
-  home directory can be named -- a container run under an arbitrary uid,
-  where `Path.home()` raises, or a relative `HOME`, where it does not.
-  Neither may fail an import of btclib now that this module is under
-  `btclib.exceptions`, and neither may become a path either:
-  `from_network` refuses to derive a cookie path it cannot make absolute,
-  naming `cookie_path` as what to pass, rather than reading
-  `~/.bitcoin/.cookie` against the working directory. The standalone file
+  `from_network` therefore derives the cookie path from the home directory
+  **at the call** rather than from a value computed at import: this module
+  is what `btclib.exceptions` imports, so an import-time answer would be
+  the `HOME` as it stood whenever anything first imported btclib, and an
+  unrelated early import is no way to decide which credentials a later
+  call sends. Where no absolute home directory can be named -- a container
+  run under an arbitrary uid, where `Path.home()` raises, or a relative
+  `HOME`, where it does not -- it refuses, naming `cookie_path` as what to
+  pass, rather than reading `~/.bitcoin/.cookie` against the working
+  directory; and it derives nothing at all when a `user` or a `password`
+  says who is calling, the constructor being where the pair is held
+  together. `DEFAULT_DATADIR` stays as the location taken at import, for a
+  caller who wants to name it, and is declared `Path | None` for the same
+  host: the alternatives were a `Path` that lies or the relative one. The
+  standalone file
   carries its MIT notice and an
   update recipe based on release tags; a subprocess test copies it alone and
   imports it with site packages disabled before exercising a `Decimal`

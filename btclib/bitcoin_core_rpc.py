@@ -10,9 +10,9 @@
 
 # Those terms are the ones below, embedded rather than referenced: this file
 # is meant to be copied out of the distribution, and a copy has no LICENSE
-# beside it. It carries no year, MIT asking for none and `btclib/__init__.py`
-# being the one place btclib writes them, so that no notice ever needs
-# editing.
+# beside it. No year in it, MIT asking for none: a copy nobody has touched
+# would otherwise look out of date every January, and updating one is a diff
+# against the tag it was taken from rather than a year to bump.
 # SPDX-License-Identifier: MIT
 # Copyright (c) The btclib developers
 #
@@ -714,6 +714,13 @@ def _default_datadir() -> Path | None:
     process was started is another. `from_network` refuses instead, naming
     `cookie_path` as what to pass; a caller on macOS or Windows already
     passes one.
+
+    Called by `from_network` when it derives a cookie path, and not once at
+    import: `Path.home()` reads `HOME`, so a value computed at import is
+    the environment as it stood whenever the first import reached this
+    module -- which, this module holding the library's exceptions, is
+    whenever anything imported btclib at all. An unrelated early import is
+    no way to decide which credentials a later call sends.
     """
     try:
         home = Path.home()
@@ -729,7 +736,19 @@ def _default_datadir() -> Path | None:
 # fails exactly as an absent file does; `cookie_path` is how a caller says
 # where it really is, and the unreadable-cookie error names the file it
 # looked for, which is what tells a caller on either platform to pass one
-DEFAULT_DATADIR = _default_datadir()
+#
+# This is the answer as it stood at import, kept for a caller who wants to
+# name the location or build a path under it. `from_network` does not read
+# it -- it asks `_default_datadir` at the call, so that a `HOME` set after
+# btclib was imported is the one that counts.
+#
+# `Path | None`, and that is a deliberate declaration rather than an
+# oversight: None is what a host with no absolute home directory has, and
+# the alternatives are a `Path` that lies -- an invented absolute path -- or
+# the relative `~/.bitcoin` that made a cwd file a credential. A caller
+# whose strict type checking now asks for the None case is being asked the
+# question the value always had
+DEFAULT_DATADIR: Path | None = _default_datadir()
 
 # what a cookie file may weigh. bitcoind writes one line of some seventy
 # octets, so a bound three orders of magnitude above that refuses nothing
@@ -1218,22 +1237,30 @@ class BitcoinCoreRpcClient:
         `BitcoinCoreFetcher`'s `network`, and nothing here verifies that the
         node agrees with either of them.
 
-        The datadir is where it can be named at all: `DEFAULT_DATADIR` is
-        None on a host with no absolute home directory -- see
-        `_default_datadir` -- and deriving a cookie path is what this
-        refuses there rather than reading a relative one against whatever
-        the working directory is. `cookie_path` is the answer, and the
-        error says so.
+        The datadir is asked for here rather than read off
+        `DEFAULT_DATADIR`, so that the `HOME` of this call is the one that
+        counts and not the one that stood when btclib was first imported.
+        Where there is no absolute home directory to name -- see
+        `_default_datadir` -- deriving a cookie path is what this refuses,
+        rather than reading a relative one against whatever the working
+        directory is. `cookie_path` is the answer, and the error says so.
+
+        Nothing is derived when the caller said who is calling: a `user` or
+        a `password`, either of them, is an answer to that question, and
+        the constructor is where the two are held to going together. A
+        cookie derived before that check would report a missing home
+        directory to a caller who passed a password and forgot the user.
         """
         if network not in _RPC_PORT:
             raise BTClibValueError(f"unknown network: {network}")
-        if user is None and cookie_path is None:
-            if DEFAULT_DATADIR is None:
+        if user is None and password is None and cookie_path is None:
+            datadir = _default_datadir()
+            if datadir is None:
                 err_msg = "no home directory, so no default datadir to find"
                 err_msg += " the cookie file in: pass cookie_path, or user"
                 err_msg += " and password"
                 raise BTClibValueError(err_msg)
-            cookie_path = DEFAULT_DATADIR / _DATADIR_SUBDIR[network] / ".cookie"
+            cookie_path = datadir / _DATADIR_SUBDIR[network] / ".cookie"
         return cls(
             f"http://127.0.0.1:{_RPC_PORT[network]}",
             user=user,
