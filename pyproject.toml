@@ -609,6 +609,10 @@ ignore = [
 # and the same for the mutation counter, whose one line of output is what
 # the workflow step exists to put in the log
 ".github/scripts/mutation_counts.py" = ["T201"]
+# and the vendored-vector checker: BEHIND, SKIPPED and the all-clear line
+# are what a monthly run's log says happened, the issue it opens or
+# closes being the same report a second way
+".github/scripts/check_vendored_vectors.py" = ["T201"]
 # the D rules are not here: a public test function, fixture or method
 # states what it verifies -- the property, the vector, the failure
 # mode -- under the same docstring gate as the library's public
