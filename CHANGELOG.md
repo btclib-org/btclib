@@ -4442,20 +4442,17 @@ edit.
   its hypothesis inputs with an engine nobody else had. At `>=3.10` the lock
   holds 99 packages and 4 splits, all four at the 3.11 docs boundary. No
   interpreter gained a newer dependency: what went away is the second
-  toolchain. `published.yml` and `latest.yml` sample 3.10 and 3.14 as the
-  ends of the supported range, where they sampled 3.9 and 3.14
+  toolchain. `latest.yml` samples 3.10 and 3.14 as the ends of the
+  supported range, where it sampled 3.9 and 3.14
 - dropped pypy3.10 from the test matrix; pypy3.11 stays, so PyPy is still
   covered. hypothesis ships compiled wheels from 6.160 on and publishes
   none for pypy3.10, whose sdist build needs a PyO3 requiring PyPy 3.11 or
   newer
-- development and CI now track the btclib_libsecp256k1 bindings under
-  development (built from source), instead of the released ones; the
-  published btclib still depends on btclib_libsecp256k1 from PyPI
 
 ### Packaging, linting and CI
 
 - **the bindings dependency states its policy where the pin is** (issue
-  #325). `btclib_libsecp256k1>=0.7.1rc1` has no upper bound, and the
+  #325). `btclib_libsecp256k1>=0.7.1` has no upper bound, and the
   absence of a ceiling is now written down as the decision it is:
   the bindings are a btclib-org project developed by the same people, so a
   breaking change there is coordinated with the release here — which is
@@ -4466,13 +4463,10 @@ edit.
   breaking changes in the minor. CONTRIBUTING.md carries what the policy
   does *not* cover — metadata is baked into every wheel already published,
   so coordinating the two projects protects the supported pair and not an
-  artifact that went out before — and what the lower bound naming a release
-  candidate does: it opts this direct dependency into uv's default
-  `if-necessary-or-explicit` strategy, where packaging tools otherwise
-  generally exclude prereleases unless no final or post-release satisfies
-  the specifier or the user asks for them. A satisfying stable release
-  stays preferred, so publishing a final `0.7.1` makes it the selected
-  candidate without changing the bound
+  artifact that went out before — and what the bound is: the oldest final
+  release supported, `0.7.1rc1` falling below it, where what a resolver
+  does with prereleases is its own policy rather than something a
+  specifier settles
 
 - **nine more mypy error codes**, surveyed the way the ruff sets were:
   every optional code `strict` leaves off, run over btclib and tests.
@@ -4754,10 +4748,6 @@ edit.
   collects it, so a workflow dispatch would otherwise be the first thing to
   read it — and in a script of checks, a bound method used as a truth value
   is a check that cannot fail
-- a scheduled workflow runs the test suite against the *published*
-  btclib_libsecp256k1, resolved from PyPI by the declared pin, where every
-  other job follows tool.uv.sources to the bindings under development: what
-  it watches for is not a change here but a release there
 - the version is declared once, in pyproject.toml: `btclib.__version__`
   reads it back from the installed metadata (so it reports the version
   that is installed, not the one a source tree carries) and the
@@ -4800,6 +4790,39 @@ edit.
   default globs matched both, so both were already in
   `dist-info/licenses/`, and the MIT notice names "Ferdinando M. Ametrano
   and btclib contributors" with that file being where the list is kept
+- **btclib is developed against the released bindings** (issue #131).
+  `tool.uv.sources` is gone, so uv resolves `btclib_libsecp256k1` from
+  PyPI as pip does — from a wheel wherever 0.7.1 publishes one, which is
+  every platform of the test matrix, and from the sdist, compiling,
+  anywhere else — and the pin is `>=0.7.1`, the first release of the
+  bindings that satisfies what this version needs. What that unlocks is
+  the check the pin had been waiting for: the wheel smoke test, which
+  asks for the built wheel and nothing else from an empty directory, so
+  that the `Requires-Dist` the wheel carries is what pulls the bindings
+  in, now runs in `dist-py` and gates every pull request. It had to stay
+  out of that path while no published bindings could satisfy the pin,
+  since a red check nobody can turn green from a branch is noise rather
+  than a gate — and for the same reason `uv.lock` reaches it as
+  constraints, which bind a version without requesting a package: a
+  bindings release is exactly such a red, and a requirements file would
+  have installed the bindings whether or not the wheel asked for them.
+  What is asserted is the version (metadata can be missing, issue #150),
+  an import of `btclib.ecc.dsa` (`import btclib` runs only
+  `__init__.py`, which touches no binding) and a signature round trip (a
+  bindings release can install and still answer wrongly). The release
+  workflow keeps a smoke test of its own, unconstrained and on the wheel
+  it uploads, which is not the one `dist-py` built: no pull request
+  waits on that job, where the two publish jobs do, so it is where "does
+  what a user installs today still work" belongs, and a release stopping
+  on the answer is the outcome wanted. It runs after the upload, not
+  before: installing a dependency executes its code, and the artifact
+  the publish jobs download is frozen first. The scheduled
+  `published` workflow goes: it existed to run the suite against the
+  bindings a user installs, which is now what every job does, and
+  `latest.yml` keeps the part it does not cover by upgrading every
+  dependency, the bindings included, to the newest release that satisfies
+  pyproject.toml. `pip install -e .` works here now, and readthedocs
+  drives uv for the lock rather than for the resolution.
 
 ### Documentation and the website
 
@@ -4937,8 +4960,8 @@ edit.
   `automodule` directive failed to import its module and rendered as a
   bare heading: btclib.readthedocs.io was 15 module titles with nothing
   under them, silently, a failed import being a warning nobody read.
-  `.readthedocs.yaml` now drives uv, which is the only tool that can
-  resolve the bindings (pip does not read tool.uv.sources), builds with
+  `.readthedocs.yaml` now drives uv, which installs the library the
+  documentation imports, builds with
   `-W`, and retires docs/requirements.txt — the docs dependency group in
   pyproject.toml is the single declaration and uv.lock pins it, where
   that file was unpinned and kept in step by a header asking a human to

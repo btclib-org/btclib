@@ -36,14 +36,7 @@ tools, including those needed to build the documentation, is then created with:
 uv sync
 ```
 
-Development tracks the
-[btclib_libsecp256k1](https://github.com/btclib-org/btclib_libsecp256k1)
-bindings under development, not the released ones: see tool.uv.sources in
-pyproject.toml. They are compiled from source, so a C toolchain is required
-(cmake comes as a build dependency); the released btclib keeps depending on
-the plain btclib_libsecp256k1 wheels from PyPI.
-
-**The declared dependency is `btclib_libsecp256k1>=0.7.1rc1`, with no
+**The declared dependency is `btclib_libsecp256k1>=0.7.1`, with no
 upper bound**, and the absence of a ceiling is a decision. The bindings are
 a btclib-org project developed by the same people, and their whole purpose
 is to be the bindings this library calls, so a breaking change there is
@@ -62,33 +55,15 @@ promise is about that pair — a bindings release keeps the runtime API the
 supported btclib needs, and an older btclib may one day stop installing or
 running against the newest bindings.
 
-The lower bound explicitly includes a prerelease, which opts this direct
-dependency into uv's default `if-necessary-or-explicit` strategy. Packaging
-tools otherwise generally exclude prereleases, except when no final or
-post-release satisfies the specifier or the user asks for them explicitly:
-see the
+The bound is the oldest final release this version supports, and
+`0.7.1rc1` is below it: the candidate is what the pin named while nothing
+final satisfied it. What a resolver does with prereleases is its own
+policy — pip and uv alike prefer a stable candidate and reach for a
+prerelease only when no stable one satisfies the constraints — so the
+bound states support and nothing else. See the
 [version-specifiers page](https://packaging.python.org/en/latest/specifications/version-specifiers/#handling-of-pre-releases)
 and
 [uv's prerelease handling](https://docs.astral.sh/uv/concepts/resolution/#pre-release-handling).
-A satisfying stable release remains preferred, so publishing a final
-`0.7.1` makes it the selected candidate without changing this bound.
-
-**`pip install -e .` does not work here, and the error will not say why.**
-tool.uv.sources is uv-only metadata: pip does not read it, so it resolves
-btclib_libsecp256k1 from PyPI, where the newest release is older than the
-`>=0.7.1rc1` this project pins. The constraint is satisfiable only from
-git, so pip reports an unsatisfiable requirement and nothing points at the
-table that would have satisfied it. Use `uv sync`. If you need a
-pip-installed tree anyway, install the bindings from git yourself and then
-the project without its dependencies:
-
-```shell
-pip install git+https://github.com/btclib-org/btclib_libsecp256k1@dev
-pip install -e . --no-deps
-```
-
-Read the docs hits this same wall, which is why `.readthedocs.yaml` drives
-uv rather than pip.
 
 Every command is run inside that environment prefixing it with `uv run`
 (e.g., `uv run pytest`); alternatively, activate the environment once with
@@ -230,9 +205,8 @@ rubber stamp and the hook into decoration.
 ### Reproducing what CI runs
 
 Every job of every workflow is a `uv` command, and `uv` fetches what it
-needs: no interpreter, no linter, no packaging tool has to be installed by
-hand, and even the `cmake` that builds the bindings arrives as a build
-requirement.
+needs: no interpreter, no linter and no packaging tool has to be
+installed by hand.
 
 The `Lint and type-check` job of the `lint` workflow, in full — the same
 pre-commit the lock pins, which is what `uv run` above gives you too:
@@ -266,13 +240,32 @@ uv run --locked --no-default-groups --group test \
     pytest --cov=btclib --cov=tests
 ```
 
-The `dist-py` job, which inspects what would be published:
+The `dist-py` job, which inspects what would be published and then
+installs it. The last commands ask for the wheel and nothing else, so
+what pulls btclib_libsecp256k1 in is the `Requires-Dist` the wheel
+carries; the lock arrives as constraints, which bind a version without
+requesting a package, so a release of the bindings cannot turn a required
+check red while the wheel's own metadata still does the work. They run
+from an empty directory, or the import finds the source tree instead of
+the wheel:
 
 ```shell
 uv build
 uv run --locked --only-group build twine check --strict dist/*
 uv run --locked --only-group build check-wheel-contents dist/*.whl
 uv run --locked --only-group build pyroma --min 10 dist/*.tar.gz
+tmp=$(mktemp -d)
+uv export --locked --no-dev --no-emit-project --no-hashes \
+    -o "$tmp"/constraints.txt
+cd "$tmp" && uv venv &&
+    uv pip install --constraints constraints.txt "$OLDPWD"/dist/*.whl &&
+    .venv/bin/python -c "import btclib; \
+      from btclib.ecc import dsa; \
+      from btclib.to_pub_key import pub_keyinfo_from_prv_key; \
+      print(btclib.__version__); \
+      assert btclib.__version__ != 'unknown'; \
+      assert dsa.verify(b'btclib', pub_keyinfo_from_prv_key(1)[0], \
+        dsa.sign(b'btclib', 1))"
 ```
 
 The checks the `release` workflow runs before building anything:
@@ -282,14 +275,16 @@ uv lock --check
 uv version --short
 ```
 
-The `published` workflow, which resolves btclib_libsecp256k1 from PyPI by
-the declared pin instead of following `tool.uv.sources`. It therefore
-cannot pass `--locked`, and it rewrites uv.lock: restore that with
-`git checkout uv.lock` before committing.
-
-```shell
-uv run --no-sources --no-default-groups --group test pytest
-```
+Its build job then repeats the smoke test above on the wheel it uploads,
+which is not the one `dist-py` built, and repeats it without the
+constraints. No pull request waits on that job and no branch rule names
+it, where `publish-testpypi` and `publish-pypi` both have it in `needs`:
+so it is the place to ask whether the newest published bindings satisfy
+the artifact, and a release stopping on that answer is the outcome
+wanted. It runs after the upload rather than before, the artifact being
+what the publish jobs download: installing a dependency executes its
+code, and a compromised one must not reach a `dist/` that has still to
+be handed on.
 
 The `latest` workflow, which upgrades every dependency uv resolves before
 running the suite, the lint gate and the packaging checks. The upgrade

@@ -52,16 +52,15 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  # what the matrix buys: btclib_libsecp256k1 is built from source (see
-  # tool.uv.sources), so every (os, architecture, interpreter) triple is a
-  # distinct C toolchain, and the pure Python code meets a distinct
-  # hashlib and OpenSSL.
+  # what the matrix buys: every (os, architecture, interpreter) triple
+  # selects a different published wheel of btclib_libsecp256k1, each with
+  # its own compiled libsecp256k1 inside, and the pure Python code meets a
+  # distinct hashlib and OpenSSL.
   # windows-11-arm needs no special handling, and that is worth a word:
   # which architecture the interpreter targets there is up to the runner
   # image, native arm64 for the versions it caches and emulated x86-64
-  # for the ones uv has to download, and the bindings build the vendored
-  # library for the interpreter rather than for the host, so either one
-  # links
+  # for the ones uv has to download, and the wheel is selected for the
+  # interpreter rather than for the host, so either one links
   test-py:
     runs-on: ${{ matrix.os }}
     strategy:
@@ -99,8 +98,8 @@ jobs:
             "3.14t",
             "pypy3.11",
           ]
-    # the bindings are compiled here, so this is not instantaneous; what
-    # it bounds is a hung job holding a runner for six hours
+    # far above what a run of the suite needs: what it bounds is a hung
+    # job holding a runner for six hours
     timeout-minutes: 30
     steps:
       # every action is pinned to a commit SHA, the tag in the comment: a
@@ -119,8 +118,8 @@ jobs:
       - name: Setup uv
         uses: astral-sh/setup-uv@c771a70e6277c0a99b617c7a806ffedaca235ff9 # v9.0.0
         with:
-          # the bindings are built from source: the cache keeps that to
-          # once per commit of the bindings
+          # the cache holds the wheels uv.lock resolves, this matrix
+          # fetching the same ones on every run of every commit
           enable-cache: true
           python-version: ${{ matrix.python }}
       - name: Run pytest
@@ -173,12 +172,10 @@ jobs:
   # carries it, and then only yankable. The release workflow calls this
   # one, so it runs these checks too, and its build job builds only what
   # it publishes.
-  # The wheel is not installed here with its dependencies resolved from
-  # PyPI, which is the other thing worth checking about metadata: that step
-  # stays in the release workflow because it cannot pass until the pinned
-  # btclib_libsecp256k1 is published, and a check that is red for a reason
-  # nobody can fix in this repository is not a gate, it is noise.
-  # Moving it here once that upload happens is issue #131
+  # Installing the wheel is the last of them (issue #131), and it is a
+  # gate here rather than in the release workflow alone because the
+  # bindings it resolves are published: while they were not, the step
+  # could only be red, for a reason nobody could fix from a branch
   dist-py:
     runs-on: ubuntu-latest
     timeout-minutes: 15
@@ -214,6 +211,47 @@ jobs:
       # being 10 today
       - name: Rate the packaging metadata
         run: uv run --locked --only-group build pyroma --min 10 dist/*.tar.gz
+      # what none of the three above does: install the wheel, and install
+      # it alone, from an empty directory. The wheel is the only thing
+      # asked for, so what pulls btclib_libsecp256k1 in is the
+      # `Requires-Dist` the wheel itself carries, resolved from the index
+      # -- which is the question, metadata being what the three checks
+      # above only read.
+      # The lock arrives as constraints and not as requirements: a
+      # requirements file installs the bindings whether or not the wheel
+      # asks for them, so a wheel declaring nothing would pass. A
+      # constraint binds a version and requests no package, which leaves
+      # the wheel's metadata doing the work while pinning the outcome to
+      # what uv.lock resolved -- and pinning it is what keeps a required
+      # check deterministic, since with `>=0.7.1` alone uv takes the
+      # newest release and a btclib_libsecp256k1 published this morning
+      # would redden every open pull request, none of which caused it.
+      # Whether the newest bindings still work is asked on a schedule by
+      # latest.yml, and again by the release workflow before it publishes.
+      # The assertions are three, because each catches what the others
+      # miss: the version is asserted and not merely printed, since
+      # btclib.__version__ falls back to "unknown" with no metadata
+      # installed (issue #150), so a wheel shipping none would print that
+      # and pass; `btclib.ecc.dsa` is imported because `import btclib`
+      # runs only __init__.py, which reads that metadata and touches no
+      # binding, so the bindings could be missing entirely; and a
+      # signature is verified because an installable release of them with
+      # an incompatible API imports fine and answers wrongly
+      - name: Smoke-test the wheel, with its dependencies from PyPI
+        run: |
+          uv export --locked --no-dev --no-emit-project --no-hashes \
+            -o "$RUNNER_TEMP"/constraints.txt
+          cd "$RUNNER_TEMP"
+          uv venv
+          uv pip install --constraints constraints.txt \
+            "$GITHUB_WORKSPACE"/dist/*.whl
+          .venv/bin/python -c "import btclib; \
+            from btclib.ecc import dsa; \
+            from btclib.to_pub_key import pub_keyinfo_from_prv_key; \
+            print(btclib.__version__); \
+            assert btclib.__version__ != 'unknown'; \
+            assert dsa.verify(b'btclib', pub_keyinfo_from_prv_key(1)[0], \
+              dsa.sign(b'btclib', 1))"
 
   # the single check master's branch protection requires from this
   # workflow, and it exists because that rule names its checks as literal

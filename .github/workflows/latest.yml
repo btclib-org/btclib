@@ -9,11 +9,12 @@ name: latest
 # all, so the whole drift of pytest, mypy, coverage and twine lives in
 # uv.lock, and every command in every other workflow passes --locked: what
 # CI runs is the resolution someone locked, not the one PyPI holds today.
-# uv.lock moves on a weekly dependabot pull request, and the commit of
-# btclib_libsecp256k1 it records -- the dev head, through tool.uv.sources
-# -- moves only when a re-lock asks for it. A break upstream therefore
-# surfaces a week or more later, inside a pull request that has to be
-# reviewed anyway, and its cause is one entry in a diff of many.
+# uv.lock moves on a weekly dependabot pull request. A break upstream
+# therefore surfaces a week or more later, inside a pull request that has
+# to be reviewed anyway, and its cause is one entry in a diff of many.
+# btclib_libsecp256k1 is the entry that matters most here: a release of
+# the bindings is a release in another repository, which nothing in this
+# one has to change for the pair to stop working.
 #
 # The obvious alternative, dropping --locked from test.yml and resolving
 # afresh on every run, is what this workflow exists instead of: a pull
@@ -23,8 +24,7 @@ name: latest
 # filterwarnings = ["error"] and coverage with a fail_under ratchet, so
 # the ways an upstream release turns this tree red without touching it are
 # not hypothetical. Determinism is what makes the gate legible; the early
-# warning belongs on a schedule, off the critical path -- the same
-# division published.yml already makes for the published bindings.
+# warning belongs on a schedule, off the critical path.
 #
 # Scope: what uv resolves. Not the pre-commit hook revisions, which are
 # pinned in .pre-commit-config.yaml and bumped by pre-commit.ci's weekly
@@ -48,8 +48,6 @@ on:
     # weekly, on a minute that is not the hour: everything scheduled on
     # the hour is queued together, and a run that waits is a run whose
     # failure is noticed later.
-    # Thursday, where published.yml takes Monday: two sentinels landing in
-    # the same inbox on the same morning are one sentinel.
     # Only the default branch schedules workflows, so on any other branch
     # this is reachable through the dispatch below alone
     - cron: "43 4 * * 4"
@@ -69,11 +67,11 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  # narrower than the test matrix, on the reasoning published.yml sets
-  # out: there, every (os, arch, interpreter) triple is a distinct C
-  # toolchain for the bindings; here what varies is which release of each
-  # dependency the interpreter selects, and the two ends of the supported
-  # range are what a sentinel needs. The low end earns its place: a
+  # narrower than the test matrix, and for a different reason: there,
+  # every (os, arch, interpreter) triple selects a different wheel of the
+  # bindings; here what varies is which release of each dependency the
+  # interpreter resolves to, and the two ends of the supported range are
+  # what a sentinel needs. The low end earns its place: a
   # dependency dropping 3.10 does not fail to resolve, it resolves to an
   # older version there and keeps the job green while 3.10 quietly stops
   # being tested against what everybody else runs. That is not a
@@ -87,8 +85,8 @@ jobs:
       matrix:
         os: [ubuntu-latest, macos-latest, windows-latest]
         python: ["3.10", "3.14"]
-    # the bindings are compiled here too, and the upgrade below is what
-    # moves them to the head of their dev branch
+    # far above what a run of the suite needs, the resolution the upgrade
+    # below performs included: what it bounds is a hung job
     timeout-minutes: 30
     steps:
       # every action is pinned to a commit SHA, the tag in the comment: a
@@ -106,9 +104,9 @@ jobs:
           # something did is the week this job has work to do anyway
           enable-cache: true
           python-version: ${{ matrix.python }}
-      # --upgrade re-resolves every entry, git sources included: this is
-      # what carries btclib_libsecp256k1 to the head of the dev branch
-      # tool.uv.sources names, which no other scheduled job does.
+      # --upgrade re-resolves every entry, btclib_libsecp256k1 included:
+      # this is what carries the bindings to their newest release, which
+      # nothing else off a pull request does.
       # It prints one "Update <pkg> vA -> vB" line per package it moves,
       # so the log names the suspects without a diff of uv.lock; a run
       # that moved nothing says so, and its green means nothing new.
