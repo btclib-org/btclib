@@ -22,6 +22,12 @@ rather than after Core's spelling -- `bits_from_target` is `GetCompact`,
 `target_from_bits` is `SetCompact`, `next_bits` is
 `CalculateNextWorkRequired`, `block_work` is `GetBlockProof` -- and each
 docstring names its counterpart.
+
+`SetCompact` answers three things at once, the number and two
+out-parameters, so it is two functions here: `target_from_bits` is the
+number and raises where `fOverflow` is set, `is_negative_bits` is
+`fNegative`. Refusing a header on either takes both, which is what
+`BlockHeader.assert_valid_pow` asks.
 """
 
 from __future__ import annotations
@@ -53,6 +59,13 @@ __all__ = [
 # a target is a 256-bit number, i.e. the hash it is compared against
 TARGET_SIZE = 32
 
+# the high bit of the three-byte significand is a sign and not a
+# magnitude: Core's SetCompact reads the number out of
+# `nCompact & 0x007fffff` and reports the bit through fNegative. Not
+# exported, the two functions below being what a caller asks instead
+_SIGNIFICAND_MASK = 0x007FFFFF
+_SIGNIFICAND_SIGN_BIT = 0x00800000
+
 # two weeks, the timespan a difficulty period aims at
 POW_TARGET_TIMESPAN = 14 * 24 * 60 * 60
 # ten minutes, the block interval it aims at
@@ -76,25 +89,41 @@ MAINNET_POW_LIMIT_BITS = b"\x1d\x00\xff\xff"
 REGTEST_POW_LIMIT_BITS = b"\x20\x7f\xff\xff"
 
 
-def target_from_bits(bits: Octets) -> bytes:
-    """Return the 32-byte target the compact `bits` denote.
+def _value_from_bits(bits: bytes) -> int:
+    """Return the magnitude the compact `bits` denote, unbounded.
 
-    The target yyzzww * 256^(xx-3) is represented by the 4 bytes
-    'bits' xxyyzzww. Bitcoin Core spells this `SetCompact`.
+    The body of Core's `SetCompact` and neither of its flags: nothing
+    here objects to what 32 bytes cannot hold, which is the caller's
+    business, and the sign is masked off rather than reported.
     """
-    bits = bytes_from_octets(bits, 4)
-
-    # significand (also known as mantissa or coefficient)
-    significand = int.from_bytes(bits[1:], byteorder="big", signed=False)
+    # significand (also known as mantissa or coefficient), the sign bit
+    # masked off as Core's `nCompact & 0x007fffff` does
+    significand = (
+        int.from_bytes(bits[1:], byteorder="big", signed=False) & _SIGNIFICAND_MASK
+    )
     # power term, also called characteristics. Core's SetCompact shifts
     # rather than multiplying by a power of 256, and so does this:
     # pow(256, -1) is a float in Python, so an exponent below 3 would send
     # a 256-bit number through float arithmetic
     exponent = bits[0]
     if exponent < 3:
-        value = significand >> (8 * (3 - exponent))
-    else:
-        value = significand << (8 * (exponent - 3))
+        return significand >> (8 * (3 - exponent))
+    return significand << (8 * (exponent - 3))
+
+
+def target_from_bits(bits: Octets) -> bytes:
+    """Return the 32-byte target the compact `bits` denote.
+
+    The target yyzzww * 256^(xx-3) is represented by the 4 bytes
+    'bits' xxyyzzww. Bitcoin Core spells this `SetCompact`.
+
+    The high bit of yy is the sign of that number and not part of it, so
+    it is masked off here and answered by `is_negative_bits`: a target
+    is what a hash is compared against, and 0x1d80ffff denotes the
+    genesis target with a sign, not one 2^7 easier.
+    """
+    bits = bytes_from_octets(bits, 4)
+    value = _value_from_bits(bits)
 
     # the compact form can denote what 32 bytes cannot hold, which
     # to_bytes would answer with an OverflowError. Core raises the same
@@ -115,19 +144,23 @@ def is_negative_bits(bits: Octets) -> bool:
     value: 0x00800000 of the significand is a sign and not magnitude, so
     `bits` carrying it denote a number below zero, which no target is and
     no header may claim. `CheckProofOfWork` refuses such a header, and
-    `BlockHeader.assert_valid_pow` is where btclib does.
+    `BlockHeader.assert_valid_pow` is where btclib does. `target_from_bits`
+    masks the bit off and answers the magnitude alone, which is what makes
+    the flag a question of its own.
 
     A significand of zero has no sign, which is Core's `nWord != 0 &&`:
     0x03800000 denotes zero rather than negative zero, the sign bit being
-    all there is of it. This asks the sign of the number the four bytes
-    denote and not the sign of the target, which is unsigned and cannot
+    all there is of it. The magnitude asked about is the one the exponent
+    has already been applied to, as it is in Core, so 0x018000ff is zero
+    as well -- the only byte its masked significand holds is shifted out
+    by an exponent of 1. And it is the sign of the number the four bytes
+    denote, not the sign of the target, which is unsigned and cannot
     carry the answer -- hence a predicate, where Core has an
     out-parameter.
     """
     bits = bytes_from_octets(bits, 4)
-
     significand = int.from_bytes(bits[1:], byteorder="big", signed=False)
-    return bool(significand & 0x007FFFFF) and bool(significand & 0x00800000)
+    return bool(significand & _SIGNIFICAND_SIGN_BIT) and _value_from_bits(bits) != 0
 
 
 def bits_from_target(target: Octets) -> bytes:
@@ -162,7 +195,7 @@ def bits_from_target(target: Octets) -> bytes:
     else:
         significand = value >> (8 * (exponent - 3))
 
-    if significand & 0x00800000:
+    if significand & _SIGNIFICAND_SIGN_BIT:
         significand >>= 8
         exponent += 1
 
