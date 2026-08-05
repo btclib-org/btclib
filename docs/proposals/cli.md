@@ -87,8 +87,8 @@ already maintains for its own reasons.
 1. every non-private module and package declares its own `__all__`; an
    empty list is valid where a module has no public surface of its own,
    and declaring nothing is not;
-2. `btclib.__all__` is the root of the tree: the nine packages and the
-   twenty-two top-level modules, `getattr` answering each on a fresh
+2. `btclib.__all__` is the root of the tree: the packages and top-level
+   modules of the library, `getattr` answering each on a fresh
    interpreter through a module `__getattr__` that imports it on demand.
    The metadata — `name`, `__version__` — is not part of the tree;
 3. a module-valued name in a list is an edge, and it is a submodule of

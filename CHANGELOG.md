@@ -2342,7 +2342,8 @@ edit.
   transport is not a second copy: `btclib.fetch.transport` re-exports the
   canonical implementation for Esplora and for its existing public seam,
   while `btclib.fetch.bitcoin_core` re-exports the client beside the fetcher,
-  so both existing import paths name the same objects. `btclib.exceptions`
+  so both existing import paths name the same objects, and `btclib.__all__`
+  publishes the new module at the root beside them. `btclib.exceptions`
   re-exports the client's exceptions rather than declaring parallel ones, so
   that `FetchError` is one class whichever of the paths a caller imports it
   by -- not across a copied file, whose exceptions are its own module's, and

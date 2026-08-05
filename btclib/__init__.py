@@ -9,10 +9,10 @@
 # or distributed except according to the terms contained in the LICENSE file.
 """The btclib package: what it publishes, and the version metadata.
 
-`__all__` here is the root of the library's public tree: the nine
-packages and the twenty-two top-level modules a caller reaches from this
-name, and the list `docs/proposals/cli.md` walks to build the command
-tree of the out-of-repo command line. Each of those, and each module
+`__all__` here is the root of the library's public tree: the packages and
+top-level modules a caller reaches from this name, and the list
+`docs/proposals/cli.md` walks to build the command tree of the
+out-of-repo command line. Each of those, and each module
 below them, declares its own `__all__`, so a walk that starts here has a
 declared surface at every node -- which is the whole of what the mirror
 needs, and why the list is not `pkgutil.iter_modules`: discovery would
@@ -83,6 +83,7 @@ __all__ = [
     "bip21",
     "bip32",
     "bip44",
+    "bitcoin_core_rpc",
     "block",
     "curves",
     "descriptors",

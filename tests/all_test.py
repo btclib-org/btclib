@@ -60,6 +60,44 @@ UNEXPORTED = {
     "btclib.network": ["datadir"],
 }
 
+# what a module exports without defining it, which for a module rather than a
+# package is a leak -- and these three are the exception, all of it one
+# decision. `btclib.bitcoin_core_rpc` is the canonical source of the rpc
+# client, its transport and the exceptions both raise, and it is a file meant
+# to be copied out of the package whole, so it imports nothing of btclib's;
+# the three modules below are where those objects were before that file
+# existed, and they alias them rather than declaring a second of anything.
+# An exception has one identity, a transport has one bounded-read policy, and
+# an import path that used to work still does.
+#
+# So a name here is not a name about to leak: it is the same object under the
+# name a caller already had. What would be a leak is a *fourth* module, or a
+# name in these three that the canonical file does not export
+REEXPORTED = {
+    "btclib.exceptions": [
+        "BTClibRuntimeError",
+        "BTClibTypeError",
+        "BTClibValueError",
+        "FetchError",
+        "HttpError",
+        "RpcError",
+    ],
+    "btclib.fetch.bitcoin_core": [
+        "COOKIE_USER",
+        "DEFAULT_DATADIR",
+        "BitcoinCoreRpcClient",
+        "cookie_auth",
+    ],
+    "btclib.fetch.transport": [
+        "DEFAULT_MAX_BODY_SIZE",
+        "DEFAULT_TIMEOUT",
+        "MAX_ERROR_BODY_SIZE",
+        "HttpTransport",
+        "http_request",
+        "urlopen_transport",
+    ],
+}
+
 # every direct child module of every package, on the side of the decision
 # its parent made about it: `groups` is what the parent publishes, which is
 # what docs/proposals/cli.md's command tree descends into, and `unpublished`
@@ -499,12 +537,21 @@ def test_no_module_exports_a_name_it_imported() -> None:
     section, where `btclib.alias.Octets` is the name a caller wants. A
     module with a reason to re-export something is a conversation to have
     with this test, not around it.
+
+    `REEXPORTED` is that conversation, held once: the three modules whose
+    objects moved into the vendorable `btclib.bitcoin_core_rpc` alias them
+    back under the names callers had, an exception and a transport each
+    having one identity to keep. The names are listed one by one, so a
+    fourth module or an unlisted name is still the failure this is for.
     """
     for module in library_modules():
         if hasattr(module, "__path__"):  # a package re-exports for a living
             continue
         imported = imported_names(module)
+        allowed = REEXPORTED.get(module.__name__, [])
         for name in module.__all__:
+            if name in allowed:
+                continue
             assert name not in imported, f"{module.__name__} re-exports {name}"
 
 
