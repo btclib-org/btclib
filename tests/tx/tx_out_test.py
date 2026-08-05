@@ -88,15 +88,16 @@ def test_an_eight_byte_value_round_trips_and_is_refused() -> None:
     Every amount a valid output carries is below MoneyRange, hence below
     2^63, where a signed and an unsigned reading of the field agree -- so
     the octets that tell the two apart reach the conversion only with the
-    check off. What is asserted is what holds either way: the buffer comes
-    back byte for byte, so one buffer stays one object rather than two, and
-    the checked parse refuses the amount. Which integer btclib should show
-    for it -- Core's `CAmount` is signed, and reads these as -1 -- is issue
-    388's to answer, and no assertion here decides it.
+    check off. btclib reads the field as Core's `CAmount` does, signed,
+    settling issue 388: the highest bit set parses as -1, not as a
+    satoshi count twice MAX_MONEY, and the buffer comes back byte for
+    byte, so one buffer stays one object rather than two. The checked
+    parse refuses the amount either way, negative or merely too large.
     """
     highest_bit_set = b"\xff" * 8 + b"\x00"  # the value, then an empty script
 
     tx_out = TxOut.parse(highest_bit_set, check_validity=False)
+    assert tx_out.value == -1
     assert tx_out.serialize(check_validity=False) == highest_bit_set
 
     with pytest.raises(BTClibValueError, match="invalid satoshi amount: "):
