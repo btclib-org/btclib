@@ -425,7 +425,7 @@ def _witness_type_and_payload(
     return None
 
 
-def type_and_payload(script_pub_key: Octets) -> tuple[ScriptType, bytes]:
+def type_and_payload(script_pub_key: Octets) -> tuple[ScriptType, bytes]:  # noqa: PLR0911
     """Return (script_pub_key type, payload) from the input script_pub_key.
 
     The returns here and in _witness_type_and_payload are the whole of
@@ -486,7 +486,7 @@ def type_and_payload(script_pub_key: Octets) -> tuple[ScriptType, bytes]:
 # reach through a frozen TxOut. So __init__ assigns through
 # object.__setattr__, as Network's and the three Sig classes' do
 @dataclass(init=False, eq=False, frozen=True)
-class ScriptPubKey(Script):
+class ScriptPubKey(Script):  # noqa: PLW1641
     """A Script with the network its addresses render on.
 
     The script bytes and their validation are Script's; the network

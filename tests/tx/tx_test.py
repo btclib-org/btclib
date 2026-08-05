@@ -814,7 +814,7 @@ def test_eq_witness(monkeypatch: pytest.MonkeyPatch) -> None:
     the whole of the answer.
     """
 
-    class TxInIgnoringWitness(TxIn):
+    class TxInIgnoringWitness(TxIn):  # noqa: PLW1641
         """A TxIn compared on everything but its witness."""
 
         def __eq__(self, other: object) -> bool:

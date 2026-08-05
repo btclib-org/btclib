@@ -104,7 +104,10 @@ matching Core and btclib).
 https://github.com/bitcoin/bitcoin/pull/524
 
 https://github.com/bitcoin/bips/blob/master/bip-0137.mediawiki
-"""
+"""  # noqa: D301
+# the "\n" a few paragraphs up is two characters, backslash and n, naming
+# the magic string's own escape notation rather than embedding a newline
+# in this one: an r prefix would double that backslash instead
 
 from __future__ import annotations
 

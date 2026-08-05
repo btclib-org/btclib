@@ -135,7 +135,7 @@ class CurveGroup:
         # multiplied all the same, in the digits it needs
         self.scalar_len = plen + 1
 
-        # 2. check that a and b are integers in the interval [0, p−1]
+        # 2. check that a and b are integers in [0, p−1]  # noqa: RUF003
         if a < 0:
             raise BTClibValueError(f"negative a: {a}")
         if p <= a:

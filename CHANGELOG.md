@@ -4932,6 +4932,29 @@ edit.
   protocol can guarantee. Each keeps the check on everywhere else with
   its own `# type: ignore[redundant-expr]` or `[unreachable]`, naming the
   code, rather than the three staying off for eight sites' sake
+- **The same audit, over ruff's own ignore list.** Every code still in
+  it was measured on its own rather than trusted on its comment: four
+  found nothing at all and are gone -- `D406`, `D407`, `PLR0904`,
+  `PLR0914` -- and five found a short, nameable list of sites, now each
+  carrying a `# noqa` instead of the whole codebase going unchecked for
+  them: `RUF003` (2, a mathematical minus sign and a stray no-break
+  space -- the second one a typo, fixed rather than kept), `PLW1641` (4,
+  the mutable dataclasses and one test double whose `__eq__` was never
+  meant to survive hashing), `PLW2901` (4, not "throughout the code
+  base" as the old comment said), and `PLR0911` with `PLR0912` (3 and 2,
+  the same script-engine dispatch and classification functions the
+  mccabe `# noqa: C901` already named, now carrying it too). `D301` and
+  `D405`/`D413` found four sites each that needed fixing outright, not
+  ignoring: three were `r"""` withheld from a docstring on purpose, to
+  keep a doubled backslash rendering as one -- `bms.py`'s magic string,
+  two vector examples in tests -- and one, `utils.py`'s
+  `b'\xde\xad\xbe\xef'` example, was rendering as four decoded Latin-1
+  characters instead of the literal escapes, an actual bug the `r`
+  prefix now fixes; the section-heading and blank-line findings were
+  autofixed. `PLR2004`, `TRY003`, `SIM300`, `PLR0913` and `PLR0917`
+  stay: each was measured too, at 567, 516, 36, 64 and 45 findings, too
+  many and too spread out to be a short exception list rather than this
+  codebase's normal shape
 - **80 columns on the prose, and the yaml measured for the first time.**
   `ruff-format` reflows code to its 88 columns and never touches a
   comment or a docstring, which is why `E501` is ignored and stays so:

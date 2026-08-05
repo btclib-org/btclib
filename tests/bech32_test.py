@@ -68,7 +68,7 @@ def test_bech32() -> None:
         assert decoded == decode(test.encode("ascii"), _BECH32_1_CONST)
         assert encode(*decoded, _BECH32_1_CONST).decode() == test.lower()
         pos = test.rfind("1")
-        test = test[: pos + 1] + chr(ord(test[pos + 1]) ^ 1) + test[pos + 2 :]
+        test = test[: pos + 1] + chr(ord(test[pos + 1]) ^ 1) + test[pos + 2 :]  # noqa: PLW2901
         with pytest.raises(BTClibValueError):  # assorted error messages
             decode(test, _BECH32_1_CONST)
 
@@ -126,7 +126,7 @@ def test_bech32m() -> None:
         assert decoded == decode(test.encode("ascii"), _BECH32_M_CONST)
         assert encode(*decoded, _BECH32_M_CONST).decode() == test.lower()
         pos = test.rfind("1")
-        test = test[: pos + 1] + chr(ord(test[pos + 1]) ^ 1) + test[pos + 2 :]
+        test = test[: pos + 1] + chr(ord(test[pos + 1]) ^ 1) + test[pos + 2 :]  # noqa: PLW2901
         with pytest.raises(BTClibValueError):
             decode(test, _BECH32_M_CONST)
 

@@ -217,7 +217,7 @@ def int_from_bits(octets: Octets, nlen: int) -> int:
 
 
 def int_from_integer(i: Integer) -> int:
-    """Return an int from many possible integer representations.
+    r"""Return an int from many possible integer representations.
 
     Allowed integer representations are:
 

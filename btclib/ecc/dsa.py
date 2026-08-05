@@ -1009,8 +1009,9 @@ def recover_pub_keys_(
 ) -> list[Point]:
     """ECDSA public key recovery (SEC 1 v.2 section 4.1.6).
 
-    See also:
+    See Also:
     - https://crypto.stackexchange.com/questions/18105/how-does-recovering-the-public-key-from-an-ecdsa-signature-work/18106#18106
+
     """
     if isinstance(sig, Sig):
         sig.assert_valid()
@@ -1054,8 +1055,9 @@ def recover_pub_keys(
 ) -> list[Point]:
     """ECDSA public key recovery (SEC 1 v.2 section 4.1.6).
 
-    See also:
+    See Also:
     - https://crypto.stackexchange.com/questions/18105/how-does-recovering-the-public-key-from-an-ecdsa-signature-work/18106#18106
+
     """
     msg_hash = reduce_to_hlen(msg, hf)
     return recover_pub_keys_(msg_hash, sig, lower_s, hf)
@@ -1194,8 +1196,9 @@ def recover_pub_key_(
 ) -> Point:
     """ECDSA public key recovery (SEC 1 v.2 section 4.1.6).
 
-    See also:
+    See Also:
     - https://crypto.stackexchange.com/questions/18105/how-does-recovering-the-public-key-from-an-ecdsa-signature-work/18106#18106
+
     """
     if isinstance(sig, Sig):
         sig.assert_valid()
@@ -1232,8 +1235,9 @@ def recover_pub_key(
 ) -> Point:
     """ECDSA public key recovery (SEC 1 v.2 section 4.1.6).
 
-    See also:
+    See Also:
     - https://crypto.stackexchange.com/questions/18105/how-does-recovering-the-public-key-from-an-ecdsa-signature-work/18106#18106
+
     """
     msg_hash = reduce_to_hlen(msg, hf)
     return recover_pub_key_(key_id, msg_hash, sig, lower_s, hf)

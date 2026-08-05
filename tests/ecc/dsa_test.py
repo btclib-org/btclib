@@ -71,7 +71,9 @@ def test_parse_stops_at_the_end_of_the_sequence() -> None:
     IsValidSignatureEncoding, and only under the flags asking for
     canonical DER: hence strict here, and hence the lenient parse the
     engine uses when DERSIG is off still takes it.
-    """
+    """  # noqa: D301
+    # `b"\x01"` above is the literal text of the code quoted, backslash
+    # and all: an r prefix would double that backslash instead
     q, _ = dsa.gen_keys(0x1)
     der = dsa.sign(b"Satoshi Nakamoto", q).serialize()
     assert dsa.Sig.parse(der).serialize() == der
@@ -358,7 +360,7 @@ def test_crack_prv_key() -> None:
 
     q_cracked, k_cracked = dsa.crack_prv_key(msg1, sig1.serialize(), msg2, sig2)
 
-    #  if the lower_s convention has changed only one of s1 and s2
+    #  if the lower_s convention has changed only one of s1 and s2
     sig2 = dsa.Sig(sig2.r, ec.n - sig2.s)
     qc2, kc2 = dsa.crack_prv_key(msg1, sig1, msg2, sig2.serialize())
 

@@ -62,7 +62,7 @@ def _assert_valid_coinbase(vin: Sequence[TxIn], *, is_coinbase: bool) -> None:
 
 
 @dataclass
-class Tx:
+class Tx:  # noqa: PLW1641
     """A Bitcoin transaction: version, lock time, inputs, outputs.
 
     Mutable, being what a builder and a signer edit in place; `id` and

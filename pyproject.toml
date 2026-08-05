@@ -553,11 +553,6 @@ ignore = [
     "D107", # undocumented-public-init
     "D203", # incorrect-blank-line-before-class (conflicts with D211)
     "D213", # multi-line-summary-second-line (conflicts with D212)
-    "D301", # escape-sequence-in-docstring
-    "D405", # capitalize-section-name, and the other section rules
-    "D406", # new-line-after-section-name
-    "D407", # dashed-underline-after-section
-    "D413", # blank-line-after-last-section
     # code length is enforced by the formatter, which reflows to its 88
     # columns everything it is allowed to rewrite. What is left for E501
     # to find is what no width can break, almost all of it a test vector,
@@ -567,18 +562,14 @@ ignore = [
     # uppercase math symbols (M, R, Q, ...) are variables, not constants:
     # ruff mistakes comparisons against them for Yoda conditions
     "SIM300", # yoda-condition
-    # ambiguous unicode (−, non-breaking space) in comments is intentional
-    "RUF003",
-    # rebinding the loop variable is used throughout the code base
-    "PLW2901", # redefined-loop-name
-    # dataclasses define __eq__ without __hash__ on purpose
-    "PLW1641", # eq-without-hash
-    # complexity metrics: not enforced on this codebase
-    "PLR0904", # too-many-public-methods
-    "PLR0911", # too-many-return-statements
-    "PLR0912", # too-many-branches
+    # complexity metrics this codebase does not bound globally: measured
+    # one at a time, PLR0913 and PLR0917 find 64 and 45 functions with
+    # several parameters and PLR0915 finds 16 long functions, none of it
+    # a short, nameable list of exceptions the way PLR0904, PLR0911,
+    # PLR0912 and PLR0914 were -- those four are gone from this list now,
+    # the first and last for finding nothing, the middle two carrying a
+    # `# noqa` at each of their five sites instead
     "PLR0913", # too-many-arguments
-    "PLR0914", # too-many-locals
     "PLR0915", # too-many-statements
     "PLR0917", # too-many-positional-arguments
     "PLR2004", # magic-value-comparison
