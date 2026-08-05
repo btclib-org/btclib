@@ -152,7 +152,19 @@ def test_an_outcome_that_is_no_verdict_is_named_and_is_not_sound(
     assert "no-test 1" in line
 
 
-@pytest.mark.parametrize("name", ["session?copy.sqlite", "session#copy.sqlite"])
+@pytest.mark.parametrize(
+    "name",
+    [
+        pytest.param(
+            "session?copy.sqlite",
+            marks=pytest.mark.skipif(
+                sys.platform == "win32",
+                reason="NTFS refuses `?` in a filename, so there is none to write",
+            ),
+        ),
+        "session#copy.sqlite",
+    ],
+)
 def test_a_session_whose_name_is_not_a_uri(
     counter: ModuleType, tmp_path: Path, name: str
 ) -> None:
@@ -163,6 +175,10 @@ def test_a_session_whose_name_is_not_a_uri(
     `no such table`, and a `session` created beside it -- the `mode=ro` that
     would have forbidden the creation having been parsed as part of the name.
     A downloaded session artifact is exactly where a `?` in a name comes from.
+
+    Skipped for `?` on Windows: NTFS refuses that character in a filename, so
+    the fixture has no file to write there, and `#` alone still exercises the
+    same escaping on that platform.
     """
     line, sound = counter.report(
         counter.counts(session(tmp_path / name, [("KILLED", "NORMAL")] * 2)), 2
