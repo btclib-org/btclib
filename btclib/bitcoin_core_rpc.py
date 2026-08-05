@@ -967,7 +967,7 @@ def _params_member(params: Sequence[Any] | Mapping[str, Any] | None) -> Any:
         raise BTClibTypeError(err_msg)
     if isinstance(params, Sequence):
         return list(params)
-    err_msg = "rpc params is neither a sequence nor a mapping, but a"
+    err_msg = "rpc params is neither a sequence nor a mapping, but a"  # type: ignore[unreachable]
     err_msg += f" {type(params).__name__}"
     raise BTClibTypeError(err_msg)
 
@@ -1343,7 +1343,7 @@ class BitcoinCoreRpcClient:
                 # every traceback and log that renders one. The type is what a
                 # caller needs to see, and `bytes` is the mistake this catches
                 # most often
-                err_msg = f"non-string rpc {name}: {type(value).__name__}"
+                err_msg = f"non-string rpc {name}: {type(value).__name__}"  # type: ignore[unreachable]
                 raise BTClibTypeError(err_msg)
         if user is not None and ":" in user:
             # the Basic credential is `user:password`, and Core splits it at

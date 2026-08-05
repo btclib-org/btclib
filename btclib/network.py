@@ -261,7 +261,7 @@ class Network:
         # bytes fields, TypeError being what they raise for a field
         # rebound to something else
         if not isinstance(self.hrp, str):
-            err_msg = f"invalid hrp type: {type(self.hrp).__name__}"
+            err_msg = f"invalid hrp type: {type(self.hrp).__name__}"  # type: ignore[unreachable]
             raise BTClibTypeError(err_msg)
 
         # NetworkType is a Literal, which is a mypy fact and not a runtime

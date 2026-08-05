@@ -157,7 +157,7 @@ class Bip21:
 
     def assert_valid(self) -> None:
         """Refuse a URI without a decodable address, or a bad amount."""
-        if not isinstance(self.address, str) or not self.address:
+        if not isinstance(self.address, str) or not self.address:  # type: ignore[redundant-expr]
             raise BTClibValueError("missing address in the bip21 URI")
         # the decoders *are* the validation, and each says what is wrong
         # with the string it refused, which is more than this module

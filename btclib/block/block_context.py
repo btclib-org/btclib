@@ -119,7 +119,7 @@ class BlockContext:
                 raise BTClibValueError(f"invalid {key}: {value}")
 
         if not isinstance(self.now, datetime):
-            err_msg = f"invalid now type: {type(self.now).__name__}"
+            err_msg = f"invalid now type: {type(self.now).__name__}"  # type: ignore[unreachable]
             raise BTClibTypeError(err_msg)
 
         # a naive datetime has no instant attached to it: timestamp() would

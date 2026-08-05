@@ -78,7 +78,7 @@ def bytes_from_octets(octets: Octets, out_size: NoneOneOrMoreInt = None) -> byte
     elif isinstance(out_size, Iterable):
         sizes = tuple(out_size)
     else:
-        err_msg = f"invalid output size type: {type(out_size).__name__}"
+        err_msg = f"invalid output size type: {type(out_size).__name__}"  # type: ignore[unreachable]
         raise BTClibTypeError(err_msg)
 
     for size in sizes:
