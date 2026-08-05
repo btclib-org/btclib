@@ -55,9 +55,10 @@ Both branches are protected, and differently on purpose.
 pushes, no deletions, `required_conversation_resolution`, and
 `enforce_admins` *off* — an administrator can bypass all of it.
 
-`dev`: no force pushes, no deletions, linear history, and nothing else —
-no required check, no review, no signature, so a direct push still works,
-which is what `uv run` and both bots rely on.
+`dev`: no force pushes, no deletions, linear history, resolved
+conversations, and nothing beyond that — no required check, no review, no
+signature, so a direct push still works, which is what `uv run` and both
+bots rely on.
 
 That asymmetry is the answer to issue #158, and it is a choice rather
 than a copy for two measured reasons. Commits on `dev` are **unsigned**
