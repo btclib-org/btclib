@@ -296,6 +296,41 @@ worth repeating:
 uv lock --upgrade
 ```
 
+The `published` workflow, weekly and on demand, two jobs asking two
+different questions. The first upgrades only the bindings and re-runs the
+suite — narrower than `latest`, which moves every dependency, so a red
+run here names the one responsible instead of burying it behind a dozen
+others:
+
+```shell
+uv lock --upgrade-package btclib_libsecp256k1
+uv run --locked --no-default-groups --group test pytest
+```
+
+The second installs btclib itself from PyPI, nothing checked out, and
+asks whether it works rather than whether it installs: `import btclib`
+runs `__init__.py` alone, and the files under `btclib/*/_data/` — the
+wordlists among them — are opened by path at the first call that needs
+one, not imported, so a wheel missing one would pass the import and fail
+only here. Both checks are version-independent, a BIP340 vector and a
+BIP39 one whose values are fixed forever:
+
+```shell
+python -m pip install btclib
+python -c "import btclib; \
+    from btclib.ecc import dsa; \
+    from btclib.to_pub_key import pub_keyinfo_from_prv_key; \
+    assert dsa.verify(b'btclib', pub_keyinfo_from_prv_key(1)[0], \
+      dsa.sign(b'btclib', 1))"
+python -c "from btclib.mnemonic.bip39 import seed_from_mnemonic; \
+    m = 'abandon abandon abandon abandon abandon abandon abandon ' \
+        'abandon abandon abandon abandon about'; \
+    assert seed_from_mnemonic(m, 'TREZOR').hex() == ( \
+      'c55257c360c07c72029aebc1b53c05ed0362ada38ead3e3e9efa3708e53' \
+      '495531f09a6987599d18264c1e1c92f2cf141630c7a3c4ab7c81b2f0016' \
+      '98e7463b04')"
+```
+
 The `links` workflow, weekly and on demand, which is the one that needs a
 tool uv does not provide: lychee is a rust binary, and the workflow uses
 the action. It gates nothing — a link rots without anybody touching the

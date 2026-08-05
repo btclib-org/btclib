@@ -1,0 +1,153 @@
+---
+name: published
+
+# two questions, two jobs, and neither is asked by a pull request.
+#
+# test-bindings checks out this tree and upgrades only
+# btclib_libsecp256k1 to its newest release, so a red run names the
+# bindings among no other candidate: latest.yml already upgrades
+# everything and would bury this release behind a dozen others, and
+# dist-py's wheel smoke test pins every runtime dependency to uv.lock by
+# construction, so it cannot see a release published after that lock was
+# written. This is the sentinel issue #397 asked whether to keep, restored
+# with `uv lock --upgrade-package` in place of the `tool.uv.sources` table
+# #390 removed, --no-sources having been a no-op since.
+#
+# test-published checks out nothing: it installs btclib itself from PyPI,
+# which is the half of "does this work" that an import cannot answer.
+# `import btclib` runs __init__.py alone, and 25 files under
+# btclib/*/_data/ -- the twelve BIP39 wordlists among them -- are opened
+# by path at the first call that needs one, not imported, so a wheel
+# missing one of them installs cleanly, imports cleanly, and only fails
+# there. dist-py's smoke test and this job's check share that blind spot;
+# this job's second command is the one that does not have it.
+#
+# Both are version-independent on purpose, checking a BIP39 vector and a
+# BIP340 one whose values are fixed forever, so neither needs an edit
+# after a release the way a version-pinned assertion would
+
+on:
+  schedule:
+    # Wednesday, a minute that is not the hour: everything scheduled on
+    # the hour queues together, and a run that waits is a run whose
+    # failure is noticed later. links.yml has Monday, mutation.yml Sunday,
+    # latest.yml Thursday -- three sentinels in one inbox on one morning
+    # is one sentinel.
+    # Only the default branch schedules workflows, so on any other branch
+    # this is reachable through the dispatch below alone
+    - cron: "31 4 * * 3"
+  workflow_dispatch:
+
+# least privilege for the GITHUB_TOKEN: everything running in a job
+# (actions, dependencies) can read the token, so it must not be able to
+# write to the repository
+permissions:
+  contents: read
+
+# never cancel a sentinel: a scheduled run and a dispatched one are both
+# samples worth keeping, and neither supersedes the other. A concurrent
+# run queues instead
+concurrency:
+  group: published-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  # narrower than test.yml's matrix, and for a different reason: there,
+  # every (os, interpreter) triple selects a distinct wheel of the
+  # bindings, which is the question this workflow is not asking. What
+  # varies here is only which release of one dependency the environment
+  # resolves to, which is what latest.yml's own narrower matrix answers
+  # for every dependency at once
+  test-bindings:
+    name: >-
+      Test ${{ matrix.python }} on ${{ matrix.os }}, bindings at latest
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+        python: ["3.10", "3.14"]
+    timeout-minutes: 20
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Setup uv
+        uses: astral-sh/setup-uv@c771a70e6277c0a99b617c7a806ffedaca235ff9 # v9.0.0
+        with:
+          enable-cache: true
+          python-version: ${{ matrix.python }}
+      # upgrades one entry rather than every one of them, which is the
+      # whole difference from latest.yml: it prints "Update
+      # btclib_libsecp256k1 vA -> vB" when a release moved it and nothing
+      # when it did not, so the log names the suspect without a diff of
+      # uv.lock. Harmless on an ephemeral checkout; worth knowing before
+      # running the same command in a working tree
+      - name: Upgrade the bindings to their latest release
+        run: uv lock --upgrade-package btclib_libsecp256k1
+      - name: Run pytest
+        run: uv run --locked --no-default-groups --group test pytest
+
+  # no checkout, on purpose: nothing from this repository takes part,
+  # which is also what guarantees that the two checks below resolve to
+  # what pip installed and not to a source tree
+  test-published:
+    name: "Install btclib ${{ matrix.python }} on ${{ matrix.os }}"
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os:
+          [
+            ubuntu-latest,
+            ubuntu-24.04-arm,
+            macos-26-intel,
+            macos-latest,
+            windows-latest,
+            windows-11-arm,
+          ]
+        # the two ends of the supported range, plus the free-threaded
+        # interpreter: btclib itself ships one universal wheel, so what
+        # varies across this matrix is entirely which wheel of
+        # btclib_libsecp256k1 each cell resolves to
+        python: ["3.10", "3.14", "3.14t"]
+    timeout-minutes: 20
+    steps:
+      - name: Set up Python ${{ matrix.python }}
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: ${{ matrix.python }}
+      - name: Install btclib from PyPI
+        run: |
+          python -m pip install -U pip
+          python -m pip install --verbose btclib
+      # BIP340 vector 0 for the ecc surface, exactly what dist-py and
+      # release.yml already assert; a signature round trip is the one
+      # thing an import cannot get wrong by itself, and a bindings release
+      # that installs and answers incorrectly is what this catches
+      - name: Verify a signature, round tripped
+        shell: bash
+        run: |
+          python -c "import btclib; \
+            from btclib.ecc import dsa; \
+            from btclib.to_pub_key import pub_keyinfo_from_prv_key; \
+            print(btclib.__version__); \
+            assert btclib.__version__ != 'unknown'; \
+            assert dsa.verify(b'btclib', pub_keyinfo_from_prv_key(1)[0], \
+              dsa.sign(b'btclib', 1))"
+      # the trezor test vector, whose seed is fixed forever: this is the
+      # check the header describes, the one that touches a _data/ file a
+      # bare import does not reach
+      - name: Verify a BIP39 seed, derived from shipped word lists
+        shell: bash
+        run: |
+          python -c "from btclib.mnemonic.bip39 import seed_from_mnemonic; \
+            m = 'abandon abandon abandon abandon abandon abandon abandon ' \
+                'abandon abandon abandon abandon about'; \
+            seed = seed_from_mnemonic(m, 'TREZOR').hex(); \
+            expected = ( \
+              'c55257c360c07c72029aebc1b53c05ed0362ada38ead3e3e9efa370' \
+              '8e53495531f09a6987599d18264c1e1c92f2cf141630c7a3c4ab7c8' \
+              '1b2f001698e7463b04'); \
+            assert seed == expected, seed"
