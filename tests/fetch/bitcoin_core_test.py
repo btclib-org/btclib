@@ -34,6 +34,7 @@ import json
 import re
 from base64 import b64decode
 from decimal import Decimal
+from io import BytesIO
 from pathlib import Path
 from typing import Any
 from urllib.request import Request
@@ -311,6 +312,17 @@ def test_from_network_takes_credentials_instead_of_a_cookie() -> None:
     assert endpoint.user == RPC_USER
 
 
+def test_connection_controls_are_keyword_only() -> None:
+    """Credentials cannot be mistaken for positional connection arguments."""
+    constructor: Any = BitcoinCoreRpcClient
+    with pytest.raises(TypeError):
+        constructor(URL, RPC_USER, RPC_PASSWORD)
+
+    from_network: Any = BitcoinCoreRpcClient.from_network
+    with pytest.raises(TypeError):
+        from_network("regtest", RPC_USER, RPC_PASSWORD)
+
+
 def test_from_network_refuses_a_network_core_has_no_port_for() -> None:
     """The five names are Core's chainparamsbase, not btclib's registry."""
     with pytest.raises(BTClibValueError, match="unknown network: testnet5"):
@@ -526,6 +538,46 @@ def test_a_cookie_file_that_is_not_ascii_is_not_one(tmp_path: Path) -> None:
         cookie_auth(cookie)
 
 
+@pytest.mark.parametrize("size", [4096, 4097])
+def test_the_cookie_size_boundary_is_4096_bytes(tmp_path: Path, size: int) -> None:
+    """The largest permitted cookie is accepted and the next byte is not."""
+    line = "u:" + "x" * (size - 2)
+    cookie = tmp_path / ".cookie"
+    cookie.write_text(line, encoding="ascii")
+
+    if size == 4096:
+        assert cookie_auth(cookie) == line
+    else:
+        with pytest.raises(FetchError, match="oversized rpc cookie file"):
+            cookie_auth(cookie)
+
+
+def test_the_cookie_read_stops_after_the_sentinel_octet(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Checking the bound reads 4096 bytes and only one byte beyond it."""
+
+    class MeasuredCookie(BytesIO):
+        def __init__(self) -> None:
+            super().__init__(COOKIE_LINE.encode("ascii"))
+            self.reads: list[int | None] = []
+
+        def read(self, size: int | None = -1, /) -> bytes:
+            self.reads.append(size)
+            return super().read(size)
+
+    measured = MeasuredCookie()
+
+    def open_cookie(path: Path, mode: str) -> MeasuredCookie:
+        assert path == Path("measured.cookie")
+        assert mode == "rb"
+        return measured
+
+    monkeypatch.setattr(Path, "open", open_cookie)
+    assert cookie_auth(Path("measured.cookie")) == COOKIE_LINE
+    assert measured.reads == [4097]
+
+
 def test_an_enormous_cookie_file_is_refused_rather_than_held(
     tmp_path: Path,
 ) -> None:
@@ -699,14 +751,22 @@ def test_parameters_that_contain_themselves_are_refused() -> None:
         endpoint.call("send", cyclic)
 
 
-def test_parameters_nested_deeper_than_the_bound_are_refused() -> None:
-    """Deep and acyclic, which no cycle check catches and json recurses on."""
-    deep: Any = "bottom"
-    for _ in range(200):
-        deep = [deep]
+@pytest.mark.parametrize("kind", ["sequence", "mapping"])
+def test_the_parameter_depth_bound_is_inclusive(kind: str) -> None:
+    """One hundred containers fit; the next one is refused before encoding."""
+
+    def wrap(value: Any) -> Any:
+        return [value] if kind == "sequence" else {"level": value}
+
+    at_limit: Any = "bottom"
+    for _ in range(100):
+        at_limit = wrap(at_limit)
+
     endpoint = client((200, recorded_body("getblockcount.json")))
+    assert endpoint.call("send", at_limit) == TIP_HEIGHT
+
     with pytest.raises(BTClibValueError, match="nested deeper than"):
-        endpoint.call("send", deep)
+        endpoint.call("send", wrap(at_limit))
 
 
 def test_something_that_walks_as_json_and_has_none_is_still_refused() -> None:
@@ -812,6 +872,13 @@ def test_a_call_can_widen_the_timeout_for_itself() -> None:
     assert endpoint.timeout == 2.5
 
 
+def test_one_second_is_a_positive_timeout() -> None:
+    """The lower boundary excludes zero, not the first positive second."""
+    endpoint = client((200, recorded_body("getblockcount.json")), timeout=1)
+    endpoint.call("getblockcount", request_timeout=1)
+    assert recording(endpoint).timeouts == [1]
+
+
 @pytest.mark.parametrize("timeout", [0, -1, float("inf")])
 def test_a_per_call_timeout_that_is_no_duration_is_refused(timeout: float) -> None:
     """The same check as the constructor's, at the other place it is set."""
@@ -833,7 +900,7 @@ def test_every_call_asks_with_an_id_of_its_own() -> None:
     endpoint.call("getblockcount")
     ids = [asked_id(request) for request in recording(endpoint).requests]
     assert len(set(ids)) == 2
-    assert all(id_.startswith("btclib-") for id_ in ids)
+    assert all(re.fullmatch(r"btclib-[0-9a-f]{16}", id_) for id_ in ids)
 
 
 def test_a_call_writes_nothing_on_the_client() -> None:
@@ -849,10 +916,11 @@ def test_a_call_writes_nothing_on_the_client() -> None:
     assert dict(vars(endpoint)) == before
 
 
-def test_a_reply_to_someone_elses_request_is_refused() -> None:
+@pytest.mark.parametrize("other_id", ["another call", "z-another-call"])
+def test_a_reply_to_someone_elses_request_is_refused(other_id: str) -> None:
     """What a caching proxy in the way looks like from here."""
-    body = json.dumps({"jsonrpc": "2.0", "result": 1, "id": "another call"}).encode()
-    with pytest.raises(FetchError, match="reply id 'another call' is not the"):
+    body = json.dumps({"jsonrpc": "2.0", "result": 1, "id": other_id}).encode()
+    with pytest.raises(FetchError, match=rf"reply id {other_id!r} is not the"):
         verbatim((200, body)).call("getblockcount")
 
 
@@ -1053,6 +1121,24 @@ def test_a_status_survives_a_body_that_is_no_reply(body: bytes) -> None:
     with pytest.raises(HttpError) as exc:
         client((503, body)).call("getblockcount")
     assert exc.value.status == 503
+
+
+@pytest.mark.parametrize(
+    "body",
+    [
+        b'{"jsonrpc":"2.0","result":NaN,"id":"x"}',
+        b"not json",
+        b"[1, 2, 3]",
+        json.dumps({"result": TIP_HEIGHT, "error": None, "id": "x"}).encode(),
+        json.dumps({"jsonrpc": "2.0", "result": TIP_HEIGHT, "id": "x"}).encode(),
+    ],
+    ids=["non-number", "not-json", "array", "legacy", "version-2"],
+)
+def test_every_status_other_than_200_precedes_the_reply_shape(body: bytes) -> None:
+    """A status below 200 is no more an RPC answer than one above 200."""
+    with pytest.raises(HttpError) as exc:
+        client((199, body)).call("getblockcount")
+    assert exc.value.status == 199
 
 
 def test_a_number_too_long_for_this_interpreter_to_write() -> None:

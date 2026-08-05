@@ -265,6 +265,14 @@ def test_an_announced_size_over_the_limit_is_refused_before_reading(
     with pytest.raises(FetchError, match=f"announced {limit + 1} bytes"):
         urlopen_transport(request, DEFAULT_TIMEOUT, max_body_size=limit)
 
+    # equal is still within the limit: changing `>` to `>=` must not turn
+    # the largest permitted response into an early refusal
+    serve(FakeResponse(200, b"a" * limit, content_length=str(limit)))
+    assert urlopen_transport(request, DEFAULT_TIMEOUT, max_body_size=limit) == (
+        200,
+        b"a" * limit,
+    )
+
     # not a number: no claim about the size, so the read decides
     serve(FakeResponse(200, b"a" * 4, content_length="banana"))
     assert urlopen_transport(request, DEFAULT_TIMEOUT, max_body_size=limit) == (
@@ -317,6 +325,27 @@ def test_the_limit_reaches_the_read_of_the_default_transport(
     assert response.reads == [65]
 
 
+def test_an_odd_limit_still_reads_the_octet_that_proves_it_was_exceeded(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """The sentinel octet is read after a chunk exactly fills the limit.
+
+    An odd limit distinguishes `limit + 1` from the bitwise expressions a
+    mutation can replace it with. The first chunk leaves that one octet to
+    read; stopping with one remaining would silently accept a truncated body.
+    """
+    response = FakeResponse(200, b"a" * 64, chunk_size=63)
+
+    def fake_open(request: Request, timeout: float) -> FakeResponse:
+        return response
+
+    monkeypatch.setattr(transport_module, "_OPENER", _opener(fake_open))
+
+    with pytest.raises(FetchError, match="response larger than 63 bytes"):
+        http_request(URL, max_body_size=63)
+    assert response.reads == [64, 1]
+
+
 def test_the_body_of_a_failure_is_truncated_not_refused() -> None:
     """An error page is bounded separately, and by truncation.
 
@@ -329,6 +358,11 @@ def test_the_body_of_a_failure_is_truncated_not_refused() -> None:
         status, body = http_request(URL, max_body_size=64, transport=Recorded(error))
     assert status == 404
     assert len(body) == MAX_ERROR_BODY_SIZE
+
+
+def test_the_failure_body_limit_is_64_kib() -> None:
+    """The public diagnostic bound has a stable value, not only a name."""
+    assert MAX_ERROR_BODY_SIZE == 64 * 1024
 
 
 def test_the_response_of_a_failure_is_closed() -> None:
@@ -403,6 +437,70 @@ def test_the_default_transport_is_the_urllib_one() -> None:
     assert defaults is not None
     assert defaults["transport"] is urlopen_transport
     assert defaults["timeout"] == DEFAULT_TIMEOUT
+    assert DEFAULT_TIMEOUT == 30.0
+
+
+def test_the_incremental_limit_is_keyword_only(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """The two-argument transport protocol stays valid for custom transports."""
+    monkeypatch.setattr(
+        transport_module,
+        "_OPENER",
+        _opener(lambda _request, **_kwargs: FakeResponse(200, b"body")),
+    )
+    untyped_transport: Any = urlopen_transport
+    with pytest.raises(TypeError):
+        untyped_transport(Request(URL), DEFAULT_TIMEOUT, 64)
+
+
+def test_a_transport_equal_to_the_default_is_still_the_callers_transport(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """The special incremental path is selected by identity, not equality."""
+    monkeypatch.setattr(
+        transport_module,
+        "_OPENER",
+        _opener(
+            lambda _request, **_kwargs: FakeResponse(200, b"the module's transport")
+        ),
+    )
+
+    class EqualTransport:
+        def __init__(self) -> None:
+            self.requests: list[Request] = []
+
+        def __eq__(self, other: object) -> bool:
+            return other is urlopen_transport
+
+        def __call__(self, request: Request, timeout: float) -> tuple[int, bytes]:
+            self.requests.append(request)
+            return 200, b"the caller's transport"
+
+    transport = EqualTransport()
+    assert transport == urlopen_transport
+    assert http_request(URL, transport=transport) == (200, b"the caller's transport")
+    assert len(transport.requests) == 1
+
+
+@pytest.mark.parametrize(
+    ("status", "is_error"),
+    [(int("399"), False), (int("400"), True), (int("401"), True)],
+)
+def test_a_caller_transport_uses_400_as_the_error_boundary(
+    status: int, is_error: bool
+) -> None:
+    """A 400 starts diagnostics; a 399 remains a size-limited answer."""
+    transport = Recorded((status, b"too long"))
+    if not is_error:
+        with pytest.raises(FetchError, match="more than the 1 allowed"):
+            http_request(URL, max_body_size=1, transport=transport)
+        return
+
+    assert http_request(URL, max_body_size=1, transport=transport) == (
+        status,
+        b"too long",
+    )
 
 
 def test_a_get_carries_no_body() -> None:

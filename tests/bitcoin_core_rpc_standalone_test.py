@@ -78,11 +78,12 @@ import json
 import sys
 from decimal import Decimal
 
-spec = importlib.util.spec_from_file_location("vendored_bitcoin_core_rpc", sys.argv[1])
-assert spec is not None and spec.loader is not None
-rpc = importlib.util.module_from_spec(spec)
-spec.loader.exec_module(rpc)
-assert rpc.FetchError.__module__ == "vendored_bitcoin_core_rpc"
+for module_name in ("a_vendored_bitcoin_core_rpc", "z_vendored_bitcoin_core_rpc"):
+    spec = importlib.util.spec_from_file_location(module_name, sys.argv[1])
+    assert spec is not None and spec.loader is not None
+    rpc = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(rpc)
+    assert rpc.FetchError.__module__ == module_name
 
 # what -I -S bought, asserted rather than assumed: no site packages, no
 # PYTHONPATH and no script directory on sys.path, so there is no btclib
