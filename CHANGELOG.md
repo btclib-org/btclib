@@ -4568,9 +4568,9 @@ edit.
   `cr-filter-pragma` reads — the one a mutation *ends* on — six of the seven
   hold nothing but that annotation's eleven mutants, the multiline signatures
   putting the `*` and the `check_validity` default on lines of their own.
-  `out_point.py:97` is the exception and the only signature written on one
-  line, where a pragma would also skip the ten mutants of the keyword-only
-  `*` and the one of its default. What settles it is where the decision
+  `OutPoint.to_dict` is the exception, the only one of the seven written on a
+  single line, where a pragma would also skip the ten mutants of its
+  keyword-only `*` and the one of its default. What settles it is where the decision
   lives: one line in the file that already says what is mutated and what
   judges it, against a marker in each of seven library lines and again in
   every module a later `module-path` adds. The price is the same either way
