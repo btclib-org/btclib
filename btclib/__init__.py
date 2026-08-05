@@ -1,4 +1,4 @@
-# Copyright (C) The btclib developers
+# Copyright (c) The btclib developers
 #
 # Distributed under the MIT software license, see the accompanying
 # LICENSE file or https://opensource.org/license/mit for the full text.
@@ -72,7 +72,7 @@ __author_email__ = "devs@btclib.org"
 # which the copyright-notice hook enforces, so it never needs editing.
 # docs/source/conf.py reads this line rather than importing it, read the
 # docs not installing this package into the environment it builds in
-__copyright__ = "Copyright (C) 2017-2026 The btclib developers"
+__copyright__ = "Copyright (c) 2017-2026 The btclib developers"
 __license__ = "MIT License"
 
 __all__ = [
