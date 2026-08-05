@@ -241,11 +241,13 @@ uv run --locked --no-default-groups --group test \
 ```
 
 The `dist-py` job, which inspects what would be published and then
-installs it. The last command reads the wheel's own metadata and resolves
-btclib_libsecp256k1 from the index, with the runtime dependencies pinned
-to uv.lock so that a release of the bindings cannot turn a required check
-red; it runs from an empty directory, or the import finds the source tree
-instead of the wheel:
+installs it. The last commands ask for the wheel and nothing else, so
+what pulls btclib_libsecp256k1 in is the `Requires-Dist` the wheel
+carries; the lock arrives as constraints, which bind a version without
+requesting a package, so a release of the bindings cannot turn a required
+check red while the wheel's own metadata still does the work. They run
+from an empty directory, or the import finds the source tree instead of
+the wheel:
 
 ```shell
 uv build
@@ -254,12 +256,16 @@ uv run --locked --only-group build check-wheel-contents dist/*.whl
 uv run --locked --only-group build pyroma --min 10 dist/*.tar.gz
 tmp=$(mktemp -d)
 uv export --locked --no-dev --no-emit-project --no-hashes \
-    -o "$tmp"/requirements.txt
-cd "$tmp" && uv run --isolated --no-project \
-    --with-requirements requirements.txt \
-    --with "$OLDPWD"/dist/*.whl \
-    python -c "import btclib; print(btclib.__version__); \
-      assert btclib.__version__ != 'unknown'"
+    -o "$tmp"/constraints.txt
+cd "$tmp" && uv venv &&
+    uv pip install --constraints constraints.txt "$OLDPWD"/dist/*.whl &&
+    .venv/bin/python -c "import btclib; \
+      from btclib.ecc import dsa; \
+      from btclib.to_pub_key import pub_keyinfo_from_prv_key; \
+      print(btclib.__version__); \
+      assert btclib.__version__ != 'unknown'; \
+      assert dsa.verify(b'btclib', pub_keyinfo_from_prv_key(1)[0], \
+        dsa.sign(b'btclib', 1))"
 ```
 
 The checks the `release` workflow runs before building anything:
@@ -270,9 +276,15 @@ uv version --short
 ```
 
 Its build job then repeats the smoke test above on the wheel it uploads,
-which is not the one `dist-py` built, and repeats it without the exported
-requirements: nothing is waiting on that job, so it is the place to ask
-whether the newest published bindings satisfy the artifact.
+which is not the one `dist-py` built, and repeats it without the
+constraints. No pull request waits on that job and no branch rule names
+it, where `publish-testpypi` and `publish-pypi` both have it in `needs`:
+so it is the place to ask whether the newest published bindings satisfy
+the artifact, and a release stopping on that answer is the outcome
+wanted. It runs after the upload rather than before, the artifact being
+what the publish jobs download: installing a dependency executes its
+code, and a compromised one must not reach a `dist/` that has still to
+be handed on.
 
 The `latest` workflow, which upgrades every dependency uv resolves before
 running the suite, the lint gate and the packaging checks. The upgrade

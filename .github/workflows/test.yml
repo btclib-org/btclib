@@ -211,33 +211,47 @@ jobs:
       # being 10 today
       - name: Rate the packaging metadata
         run: uv run --locked --only-group build pyroma --min 10 dist/*.tar.gz
-      # what none of the three above does: install the wheel, reading its
-      # own metadata rather than pyproject.toml, and from an empty
-      # directory so the import resolves to the wheel and not to the
-      # btclib/ source tree. What it proves is that the dependency the
-      # wheel declares can be satisfied from the index at all.
-      # The runtime dependencies come pinned to what uv.lock resolved, and
-      # that is the whole difference between a gate and a coin toss: with
-      # the pin alone, uv takes the newest release satisfying it, so a
-      # btclib_libsecp256k1 published this morning would turn a required
-      # check red on every open pull request, none of which caused it and
-      # none of which can fix it. Whether the newest bindings still work
-      # is asked on a schedule by latest.yml, and once more by the release
-      # workflow before it uploads anything.
-      # The version is asserted, not merely printed: btclib.__version__
-      # falls back to "unknown" when no metadata is installed (issue #150),
-      # so a wheel shipping none, or an import resolving to a source tree
-      # rather than to the wheel, would print that and pass
+      # what none of the three above does: install the wheel, and install
+      # it alone, from an empty directory. The wheel is the only thing
+      # asked for, so what pulls btclib_libsecp256k1 in is the
+      # `Requires-Dist` the wheel itself carries, resolved from the index
+      # -- which is the question, metadata being what the three checks
+      # above only read.
+      # The lock arrives as constraints and not as requirements: a
+      # requirements file installs the bindings whether or not the wheel
+      # asks for them, so a wheel declaring nothing would pass. A
+      # constraint binds a version and requests no package, which leaves
+      # the wheel's metadata doing the work while pinning the outcome to
+      # what uv.lock resolved -- and pinning it is what keeps a required
+      # check deterministic, since with `>=0.7.1` alone uv takes the
+      # newest release and a btclib_libsecp256k1 published this morning
+      # would redden every open pull request, none of which caused it.
+      # Whether the newest bindings still work is asked on a schedule by
+      # latest.yml, and again by the release workflow before it publishes.
+      # The assertions are three, because each catches what the others
+      # miss: the version is asserted and not merely printed, since
+      # btclib.__version__ falls back to "unknown" with no metadata
+      # installed (issue #150), so a wheel shipping none would print that
+      # and pass; `btclib.ecc.dsa` is imported because `import btclib`
+      # runs only __init__.py, which reads that metadata and touches no
+      # binding, so the bindings could be missing entirely; and a
+      # signature is verified because an installable release of them with
+      # an incompatible API imports fine and answers wrongly
       - name: Smoke-test the wheel, with its dependencies from PyPI
         run: |
           uv export --locked --no-dev --no-emit-project --no-hashes \
-            -o "$RUNNER_TEMP"/requirements.txt
+            -o "$RUNNER_TEMP"/constraints.txt
           cd "$RUNNER_TEMP"
-          uv run --isolated --no-project \
-            --with-requirements requirements.txt \
-            --with "$GITHUB_WORKSPACE"/dist/*.whl \
-            python -c "import btclib; print(btclib.__version__); \
-              assert btclib.__version__ != 'unknown'"
+          uv venv
+          uv pip install --constraints constraints.txt \
+            "$GITHUB_WORKSPACE"/dist/*.whl
+          .venv/bin/python -c "import btclib; \
+            from btclib.ecc import dsa; \
+            from btclib.to_pub_key import pub_keyinfo_from_prv_key; \
+            print(btclib.__version__); \
+            assert btclib.__version__ != 'unknown'; \
+            assert dsa.verify(b'btclib', pub_keyinfo_from_prv_key(1)[0], \
+              dsa.sign(b'btclib', 1))"
 
   # the single check master's branch protection requires from this
   # workflow, and it exists because that rule names its checks as literal

@@ -4663,16 +4663,26 @@ edit.
   anywhere else — and the pin is `>=0.7.1`, the first release of the
   bindings that satisfies what this version needs. What that unlocks is
   the check the pin had been waiting for: the wheel smoke test, which
-  installs the built wheel from an empty directory and reads the wheel's
-  own metadata rather than pyproject.toml, now runs in `dist-py` and
-  gates every pull request. It had to stay out of that path while no
-  published bindings could satisfy the pin, since a red check nobody can
-  turn green from a branch is noise rather than a gate — and for the same
-  reason it runs there with the runtime dependencies pinned to `uv.lock`,
-  a bindings release being exactly such a red. The release workflow keeps
-  a smoke test of its own, unpinned and on the wheel it uploads, which is
-  not the one `dist-py` built: nothing waits on that job, so it is where
-  "does what a user installs today still work" belongs. The scheduled
+  asks for the built wheel and nothing else from an empty directory, so
+  that the `Requires-Dist` the wheel carries is what pulls the bindings
+  in, now runs in `dist-py` and gates every pull request. It had to stay
+  out of that path while no published bindings could satisfy the pin,
+  since a red check nobody can turn green from a branch is noise rather
+  than a gate — and for the same reason `uv.lock` reaches it as
+  constraints, which bind a version without requesting a package: a
+  bindings release is exactly such a red, and a requirements file would
+  have installed the bindings whether or not the wheel asked for them.
+  What is asserted is the version (metadata can be missing, issue #150),
+  an import of `btclib.ecc.dsa` (`import btclib` runs only
+  `__init__.py`, which touches no binding) and a signature round trip (a
+  bindings release can install and still answer wrongly). The release
+  workflow keeps a smoke test of its own, unconstrained and on the wheel
+  it uploads, which is not the one `dist-py` built: no pull request
+  waits on that job, where the two publish jobs do, so it is where "does
+  what a user installs today still work" belongs, and a release stopping
+  on the answer is the outcome wanted. It runs after the upload, not
+  before: installing a dependency executes its code, and the artifact
+  the publish jobs download is frozen first. The scheduled
   `published` workflow goes: it existed to run the suite against the
   bindings a user installs, which is now what every job does, and
   `latest.yml` keeps the part it does not cover by upgrading every

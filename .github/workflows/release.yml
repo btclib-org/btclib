@@ -233,33 +233,45 @@ jobs:
       # too
       - name: Build the distribution files
         run: uv build
-      # what it does do is install it, dist-py notwithstanding: that job
-      # builds its own copy of the wheel, on another runner and -- in a
-      # rehearsal -- from another version, the step above having patched
-      # pyproject.toml and re-locked. The artifact that reaches an index
-      # is this one, so this one is imported, from an empty directory so
-      # the import resolves to the wheel and not to the btclib/ source
-      # tree.
-      # Unpinned, where dist-py pins the runtime dependencies to uv.lock:
-      # nothing is blocked by this job, so it can afford the question a
-      # required check cannot, which is whether the newest published
-      # btclib_libsecp256k1 satisfies the wheel about to be uploaded --
-      # what a user installing it will resolve.
-      # The version is asserted, not merely printed: btclib.__version__
-      # falls back to "unknown" when no metadata is installed (issue #150),
-      # so a wheel shipping none, or an import resolving to a source tree
-      # rather than to the wheel, would print that and pass
-      - name: Smoke-test the wheel, with its dependencies from PyPI
-        run: |
-          cd "$RUNNER_TEMP"
-          uv run --isolated --no-project --with "$GITHUB_WORKSPACE"/dist/*.whl \
-            python -c "import btclib; print(btclib.__version__); \
-              assert btclib.__version__ != 'unknown'"
+      # before anything is installed, and that ordering is the point: the
+      # step below runs third-party code -- a `.pth` file in a dependency
+      # executes at interpreter startup, before the first import -- while
+      # dist/ is a writable directory on the same runner. Uploading first
+      # freezes what the publish jobs will download, so the worst a
+      # compromised dependency can do here is fail the job, which stops
+      # them: both name this one in `needs`
       - name: Upload the distribution files
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: dist
           path: dist/
+      # dist-py installs a wheel too, but not this one: it builds its own
+      # copy, on another runner and -- in a rehearsal -- from another
+      # version, the step above having patched pyproject.toml and
+      # re-locked. What reaches an index is this artifact, so this one is
+      # imported, from an empty directory so the import resolves to the
+      # wheel and not to the btclib/ source tree.
+      # Unconstrained, where dist-py pins the runtime dependencies to
+      # uv.lock: no pull request waits on this job, so it can afford the
+      # question a required check cannot -- whether the newest published
+      # btclib_libsecp256k1 satisfies the wheel about to be published,
+      # which is what a user installing it resolves. A release stopping
+      # on that answer is the outcome wanted.
+      # The three assertions are dist-py's, and there for the same
+      # reasons: metadata can be missing (issue #150), `import btclib`
+      # runs only __init__.py and touches no binding, and a bindings
+      # release can install and still answer wrongly
+      - name: Smoke-test the wheel, with its dependencies from PyPI
+        run: |
+          cd "$RUNNER_TEMP"
+          uv run --isolated --no-project --with "$GITHUB_WORKSPACE"/dist/*.whl \
+            python -c "import btclib; \
+              from btclib.ecc import dsa; \
+              from btclib.to_pub_key import pub_keyinfo_from_prv_key; \
+              print(btclib.__version__); \
+              assert btclib.__version__ != 'unknown'; \
+              assert dsa.verify(b'btclib', pub_keyinfo_from_prv_key(1)[0], \
+                dsa.sign(b'btclib', 1))"
 
   publish-testpypi:
     needs: [test, lint, build]
