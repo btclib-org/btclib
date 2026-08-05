@@ -13,7 +13,10 @@ test vector at
 https://github.com/bitcoin/bips/blob/master/bip-0143.mediawiki
 """
 
+import pytest
+
 from btclib import var_bytes
+from btclib.exceptions import BTClibValueError
 from btclib.hashes import hash256
 from btclib.script import Witness, sig_hash
 from btclib.tx import OutPoint, Tx, TxIn, TxOut
@@ -322,3 +325,59 @@ def test_the_bip143_amount_is_a_signed_camount() -> None:
     assert sig_hash.segwit_v0(script_code, tx, 0, sig_hash.SINGLE, -1) == hash256(
         negative
     )
+
+
+def test_the_hash_type_is_a_signed_int32() -> None:
+    """Core's nHashType is an int32_t, so -1 has a preimage of its own.
+
+    `SignatureHash` takes an `int32_t` and BIP143's preimage ends with the
+    four bytes of one, `ffffffff` for -1, where an unsigned reading has no
+    such hash type at all and answers with an `OverflowError` from
+    underneath the library (issue #405). The bits of that word choose the
+    fields as they always do: `-1 & 0x80` is ANYONECANPAY, so hashPrevouts
+    and hashSequence are zero, and `-1 & 0x1F` is 31, neither NONE nor
+    SINGLE, so hashOutputs commits to every output.
+
+    The field list is written out here, as the file's other preimages are,
+    rather than asked of the code under test.
+    """
+    tx = Tx.parse(_BIP143_TX)
+    script_code = bytes.fromhex(_WITNESS_SCRIPT)
+    outputs = b"".join(vout.serialize() for vout in tx.vout)
+    preimage = b"".join(
+        [
+            tx.version.to_bytes(4, "little"),
+            b"\x00" * 32,  # hashPrevouts, ANYONECANPAY
+            b"\x00" * 32,  # hashSequence, ANYONECANPAY
+            tx.vin[0].prev_out.serialize(),
+            var_bytes.serialize(script_code),
+            _AMOUNT.to_bytes(8, "little", signed=True),  # a CAmount
+            tx.vin[0].sequence.to_bytes(4, "little"),
+            hash256(outputs),
+            tx.lock_time.to_bytes(4, "little"),
+            b"\xff\xff\xff\xff",
+        ]
+    )
+    assert sig_hash.segwit_v0(script_code, tx, 0, -1, _AMOUNT) == hash256(preimage)
+
+    # the unsigned spelling of the same 32-bit word: the same four octets
+    # go on the wire and the same bits choose the fields, so it is the same
+    # preimage rather than a second hash type
+    assert sig_hash.segwit_v0(script_code, tx, 0, 0xFFFFFFFF, _AMOUNT) == hash256(
+        preimage
+    )
+
+
+@pytest.mark.parametrize("hash_type", [-(2**31) - 1, 2**32, 2**64])
+def test_hash_type_too_wide_for_its_four_bytes(hash_type: int) -> None:
+    """Refuse a hash type the field cannot carry.
+
+    A `BTClibValueError` naming the field, where `int.to_bytes` answers
+    with an `OverflowError` from outside the library's exception contract
+    (issue #405). The same domain `legacy` has, both preimages writing the
+    same `nHashType`.
+    """
+    tx = Tx.parse(_BIP143_TX)
+    script_code = bytes.fromhex(_WITNESS_SCRIPT)
+    with pytest.raises(BTClibValueError, match="sig_hash type too wide"):
+        sig_hash.segwit_v0(script_code, tx, 0, hash_type, _AMOUNT)
