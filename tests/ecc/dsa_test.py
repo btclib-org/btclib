@@ -492,7 +492,7 @@ def test_the_two_secret_multiplications_answer_the_python_point(
             assert dsa.gen_keys(q)[1] == Q
             assert dsa._sign_(0x1234, q, nonce, True, ec) == sig
 
-        assert Q == ec.aff_from_jac(_mult(q, ec.GJ, ec))
+        assert ec.aff_from_jac(_mult(q, ec.GJ, ec)) == Q
         assert sig.r == ec.x_aff_from_jac(_mult(nonce, ec.GJ, ec)) % ec.n
 
 

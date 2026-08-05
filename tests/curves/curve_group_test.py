@@ -55,7 +55,7 @@ def test_mult_recursive_aff() -> None:
         assert mult_aff(1, ec.G, ec) == ec.G
 
         Q = ec.add_aff(ec.G, ec.G)
-        assert Q == mult_recursive_aff(2, ec.G, ec)
+        assert mult_recursive_aff(2, ec.G, ec) == Q
 
         Q = mult_recursive_aff(ec.n - 1, ec.G, ec)
         assert ec.negate(ec.G) == Q
@@ -74,8 +74,8 @@ def test_mult_recursive_aff() -> None:
             assert ec.is_on_curve(Q), f"{q}, {ec}"
             QJ = _mult(q, ec.GJ, ec)
             assert ec.is_on_curve(ec.aff_from_jac(QJ)), f"{q}, {ec}"
-            assert Q == ec.aff_from_jac(QJ), f"{q}, {ec}"
-            assert INF == mult_recursive_aff(q, INF, ec), f"{q}, {ec}"
+            assert ec.aff_from_jac(QJ) == Q, f"{q}, {ec}"
+            assert mult_recursive_aff(q, INF, ec) == INF, f"{q}, {ec}"
             assert ec.jac_equality(INFJ, _mult(q, INFJ, ec)), f"{q}, {ec}"
 
 
@@ -118,7 +118,7 @@ def test_mult_aff() -> None:
         assert mult_aff(1, ec.G, ec) == ec.G
 
         Q = ec.add_aff(ec.G, ec.G)
-        assert Q == mult_aff(2, ec.G, ec)
+        assert mult_aff(2, ec.G, ec) == Q
 
         Q = mult_aff(ec.n - 1, ec.G, ec)
         assert ec.negate(ec.G) == Q
@@ -137,8 +137,8 @@ def test_mult_aff() -> None:
             assert ec.is_on_curve(Q), f"{q}, {ec}"
             QJ = _mult(q, ec.GJ, ec)
             assert ec.is_on_curve(ec.aff_from_jac(QJ)), f"{q}, {ec}"
-            assert Q == ec.aff_from_jac(QJ), f"{q}, {ec}"
-            assert INF == mult_aff(q, INF, ec), f"{q}, {ec}"
+            assert ec.aff_from_jac(QJ) == Q, f"{q}, {ec}"
+            assert mult_aff(q, INF, ec) == INF, f"{q}, {ec}"
             assert ec.jac_equality(INFJ, _mult(q, INFJ, ec)), f"{q}, {ec}"
 
 

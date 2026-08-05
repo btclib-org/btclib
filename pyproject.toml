@@ -431,7 +431,7 @@ show_error_codes = true
 # whose static type promises more than an untrusted source -- unvalidated
 # json in network.py's from_dict, a caller ignoring an annotation in
 # bitcoin_core_rpc.py and bip21.py, an operator's own dispatch protocol in
-# script.py's __add__ -- can guarantee. Eight sites, each carrying its own
+# script.py's __add__ -- can guarantee. Each of those sites carries its own
 # `# type: ignore[...]` naming the code rather than a second global
 # exemption: the check is worth having everywhere else, and a blanket
 # ignore-list entry would have silenced it there too
@@ -487,9 +487,9 @@ exclude = [
 # unselected rule set was run over btclib and tests, and these are the
 # ones that either find nothing today
 # -- a ratchet, costing no cleanup -- or find something worth removing.
-# PTH is the same case with a wider cleanup: 130 os.path and bare open()
-# calls, 23 of them in the library, all replaced by pathlib. Two of the
-# 23 are the module-level `datadir` of btclib.curves.curve and
+# PTH is the same case with a wider cleanup: every os.path and bare open()
+# call in the library and its tests, replaced by pathlib. Two of the
+# library sites are the module-level `datadir` of btclib.curves.curve and
 # btclib.network, each a path a caller can read directly, so its type
 # changes from str to Path there too -- a breaking change, recorded in
 # HISTORY.md, and not one this rule set finds on its own: ruff has no
@@ -559,21 +559,28 @@ ignore = [
     # an extended key or a base64 signature on one line. The prose the
     # formatter never touches is measured instead by max-doc-length below
     "E501", # line-too-long
-    # uppercase math symbols (M, R, Q, ...) are variables, not constants:
-    # ruff mistakes comparisons against them for Yoda conditions
-    "SIM300", # yoda-condition
     # complexity metrics this codebase does not bound globally: measured
-    # one at a time, PLR0913 and PLR0917 find 64 and 45 functions with
-    # several parameters and PLR0915 finds 16 long functions, none of it
-    # a short, nameable list of exceptions the way PLR0904, PLR0911,
+    # one at a time, PLR0913 and PLR0917 find many functions with several
+    # parameters and PLR0915 finds several long ones too, none of it a
+    # short, nameable list of exceptions the way PLR0904, PLR0911,
     # PLR0912 and PLR0914 were -- those four are gone from this list now,
     # the first and last for finding nothing, the middle two carrying a
-    # `# noqa` at each of their five sites instead
+    # `# noqa` at each of their sites instead
     "PLR0913", # too-many-arguments
     "PLR0915", # too-many-statements
     "PLR0917", # too-many-positional-arguments
+    # not a complexity metric, and measured widely on its own: what is
+    # compared is almost always the size of a cryptographic object -- 32
+    # or 33 for a key, 64 or 65 for a signature, 20 for a hash160 -- or an
+    # index into a standardized algorithm's own constants, as
+    # _ripemd160.py's 2, 3 and 4 are. The size *is* the domain, not a
+    # value this code chose and could have named instead
     "PLR2004", # magic-value-comparison
-    # exception messages are built inline, on purpose
+    # measured widely too, and every one on purpose: the message is built
+    # where the exception is raised because that is the only place holding
+    # what went wrong -- the value refused, the length found instead of the
+    # one expected -- and a shared exception class could not say that
+    # without every raise site passing it back in anyway
     "TRY003", # raise-vanilla-args
 ]
 

@@ -306,7 +306,7 @@ def test_op_int_serialization() -> None:
 
 def test_integer_serialization() -> None:
     """Verify integers parse back as data, warned only in [0, 16]."""
-    assert ["OP_0"] == parse(b"\x00")
+    assert parse(b"\x00") == ["OP_0"]
 
     # [0, 16] is exactly the range with a shorter op code form, so every
     # serialize() below warns; from 17 on, none does

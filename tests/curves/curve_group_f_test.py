@@ -20,7 +20,7 @@ def test_ecf() -> None:
     P = (8045, 6936)
     S = ec.negate(P)
     S_exp = (8045, 2803)
-    assert S == S_exp
+    assert S_exp == S
 
     # Point Addition
     X = (5274, 2841)
@@ -33,7 +33,7 @@ def test_ecf() -> None:
     S = ec.add(ec.add(ec.add(P, P), Q), R)
     ec.require_on_curve(S)
     S_exp = (4215, 2162)
-    assert S == S_exp
+    assert S_exp == S
 
     # Scalar Multiplication
     X = (5323, 5438)
@@ -42,7 +42,7 @@ def test_ecf() -> None:
     S = mult_aff(7863, P, ec)
     ec.require_on_curve(S)
     S_exp = (9467, 2742)
-    assert S == S_exp
+    assert S_exp == S
 
     # Curves and Logs
     all_points = find_all_points(ec)

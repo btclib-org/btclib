@@ -162,7 +162,7 @@ def test_from_chain_is_the_local_node_of_that_chain() -> None:
     assert datadir is not None
     # the constant is the same answer, taken at import: a snapshot for a
     # caller to read, and not what the derivation goes through
-    assert DEFAULT_DATADIR == datadir
+    assert datadir == DEFAULT_DATADIR
 
     from_chain = BitcoinCoreRpcClient.from_chain
     assert from_chain().url == "http://127.0.0.1:8332"
@@ -197,7 +197,7 @@ def test_from_chain_reads_the_home_of_the_call_and_not_of_the_import(
 
     expected = tmp_path / "home-after" / ".bitcoin" / "regtest" / ".cookie"
     assert BitcoinCoreRpcClient.from_chain("regtest").cookie_path == expected
-    assert DEFAULT_DATADIR != _default_datadir()
+    assert _default_datadir() != DEFAULT_DATADIR
 
 
 def test_from_chain_derives_no_cookie_when_told_who_is_calling(

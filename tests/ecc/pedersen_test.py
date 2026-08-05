@@ -28,7 +28,7 @@ def test_second_generator() -> None:
         0x50929B74C1A04954B78B4B6035E97A5E078A5A0F28EC96D547BFEE9ACE803AC0,
         0x31D3C6863973926E049E637CB1B5F40A36DAC28AF1766968C30C2313F3A38904,
     )
-    assert H == pedersen.second_generator(secp256k1, sha256)
+    assert pedersen.second_generator(secp256k1, sha256) == H
 
     _ = pedersen.second_generator(secp256r1, sha256)
     _ = pedersen.second_generator(secp384r1, sha384)

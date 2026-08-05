@@ -122,7 +122,7 @@ def test_key_type_tables_name_every_field() -> None:
     # a name here that is not a field is silent too: the drop would simply
     # not happen, and a finalized input would carry what BIP174 says it
     # must not
-    assert _DROPPED_ONCE_FINALIZED < field_names
+    assert field_names > _DROPPED_ONCE_FINALIZED
 
     parsed = {name for name, _, _ in _WHOLE_VALUE_FIELDS.values()}
     parsed |= {name for name, _ in _KEY_DATA_FIELDS.values()}
