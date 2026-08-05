@@ -2371,7 +2371,11 @@ edit.
   Neither half of the credential may be something other than a string: a
   `bytes` or an `int` user used to leave a bare `TypeError` from underneath
   the library, and a list passed every check and was formatted into the
-  credential, reaching the node as a username nobody wrote. A
+  credential, reaching the node as a username nobody wrote. None of these
+  refusals quotes back what it refused, which is the rule `_checked_url`
+  already followed for a url carrying userinfo: the type is named, the value
+  is not, and a rejected credential therefore stays out of the traceback and
+  out of whatever log renders one. A
   colon in `user` is refused: the `Basic` credential is `user:password` and
   Core splits it at the first colon, so `user="alice:admin"` authenticated
   as `alice` with the password `admin:secret` -- a different rpc user and a

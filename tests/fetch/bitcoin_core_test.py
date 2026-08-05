@@ -350,10 +350,10 @@ def test_a_colon_in_the_user_is_refused_and_one_in_the_password_is_not() -> None
 @pytest.mark.parametrize(
     ("kwargs", "match"),
     [
-        ({"user": 7, "password": RPC_PASSWORD}, "non-string rpc user: 7"),
-        ({"user": b"alice", "password": RPC_PASSWORD}, "non-string rpc user"),
-        ({"user": ["alice"], "password": RPC_PASSWORD}, "non-string rpc user"),
-        ({"user": "alice", "password": 7}, "non-string rpc password: 7"),
+        ({"user": 7, "password": RPC_PASSWORD}, "non-string rpc user: int"),
+        ({"user": b"alice", "password": RPC_PASSWORD}, "non-string rpc user: bytes"),
+        ({"user": ["alice"], "password": RPC_PASSWORD}, "non-string rpc user: list"),
+        ({"user": "alice", "password": 7}, "non-string rpc password: int"),
     ],
     ids=["an int user", "a bytes user", "a list user", "an int password"],
 )
@@ -367,9 +367,42 @@ def test_a_credential_that_is_not_a_string_is_refused(
     bare `TypeError` from underneath the library, while a list passed that
     test and was formatted into the credential -- `['alice']:` and the
     password, reaching the node as a username nobody wrote.
+
+    The message names the type and not the value, which the next test is
+    about.
     """
     with pytest.raises(BTClibTypeError, match=match):
         BitcoinCoreRpcClient(URL, **kwargs)
+
+
+def test_a_refused_credential_is_not_quoted_back() -> None:
+    """No refusal of a credential puts the credential in its message.
+
+    This class has no generated `__repr__` because a password would be in
+    it, and an exception is the same exposure by another route: it is
+    rendered into every traceback, and from there into whatever log or
+    issue tracker collects one. So the type-refusal names the type, and the
+    colon-refusal names neither half -- the string it is refusing has a
+    colon in it, so what it most likely holds is `user:password` written
+    into the first argument.
+
+    `_checked_url` set the precedent by refusing a url with userinfo in it
+    without echoing the url; these two are the same rule, and this test is
+    what keeps a helpful `!r` from being added back to any of them.
+    """
+    secret = f"s3cret-{RPC_PASSWORD}"
+
+    with pytest.raises(BTClibTypeError) as type_error:
+        BitcoinCoreRpcClient(URL, user="alice", password=secret.encode())  # type: ignore[arg-type]
+    assert secret not in str(type_error.value)
+
+    with pytest.raises(BTClibValueError) as colon_error:
+        BitcoinCoreRpcClient(URL, user=f"alice:{secret}", password="")
+    assert secret not in str(colon_error.value)
+
+    with pytest.raises(BTClibValueError) as url_error:
+        BitcoinCoreRpcClient(f"http://alice:{secret}@127.0.0.1:8332")
+    assert secret not in str(url_error.value)
 
 
 @pytest.mark.parametrize("method", [7, None, b"getblockcount", ["getblockcount"]])
@@ -1319,6 +1352,92 @@ def test_a_number_too_long_for_this_interpreter_to_write() -> None:
     endpoint = client((200, recorded_body("getblockcount.json")))
     with pytest.raises(BTClibValueError, match="rpc params json cannot carry"):
         endpoint.call("send", [10**5000])
+
+
+class Shifty(dict):  # type: ignore[type-arg]
+    """A mapping whose second reading is not its first."""
+
+    def __init__(self, *args: Any, **kwargs: Any) -> None:
+        super().__init__(*args, **kwargs)
+        self.reads = 0
+
+    def items(self) -> Any:
+        """Answer a finite amount once, and a NaN from then on."""
+        self.reads += 1
+        return [("amount", 1.0 if self.reads == 1 else float("nan"))]
+
+
+def _refused_by_the_encoder(mapping: dict[str, Any]) -> bool:
+    """Whether `json.dumps` declines to write that mapping at all."""
+    try:
+        json.dumps(mapping, allow_nan=False)
+    except ValueError:
+        return True
+    return False
+
+
+def _encoder_rereads_a_mapping() -> bool:
+    """Whether this interpreter's json encoder consults `items()` itself.
+
+    Measured, because it is not the same answer everywhere: CPython's encoder
+    calls `items()` on a dict subclass, so a mapping read once by the
+    parameter walk is read again while the request is written -- and the NaN
+    of that second reading reaches `allow_nan=False`. pypy's serializes the
+    subclass from its own storage without calling `items()` at all, and
+    writes the `1.0` the first reading had.
+    """
+    already_read = Shifty(amount=1.0)
+    already_read.items()
+    return _refused_by_the_encoder(already_read)
+
+
+def test_the_encoder_probe_answers_both_ways() -> None:
+    """Both answers of `_refused_by_the_encoder` are real, on any interpreter.
+
+    A plain mapping of a finite amount is written; the one whose *first*
+    reading is already a NaN is refused. What the interpreters disagree about
+    is only whether a second reading happens at all, which is the question
+    the probe above asks with those two answers.
+    """
+    assert _refused_by_the_encoder({"amount": 1.0}) is False
+    assert _refused_by_the_encoder({"amount": float("nan")}) is True
+
+
+@pytest.mark.skipif(
+    not _encoder_rereads_a_mapping(),
+    reason="this interpreter's json encoder does not consult a mapping's items()",
+)
+def test_a_parameter_that_is_not_what_the_walk_saw() -> None:
+    """`allow_nan=False` is not made redundant by the walk before it.
+
+    The walk reads the caller's own objects, and a mapping is free to answer
+    differently the second time it is read: `params` accepts any `Mapping`,
+    only the outermost one is copied by `dict(params)`, and a nested one is
+    read once by `_assert_json_params` and again by the encoder. So a value
+    can be finite while it is being checked and `NaN` while it is being
+    written -- deliberately here, and in a threaded caller by accident.
+
+    `allow_nan=False` is what catches that, and it catches it before the
+    request is built: the assertion on the transport is the half that
+    matters, since a `NaN` amount that reaches a node is a request nobody
+    wrote. Without this test the flag reads as a second opinion the walk
+    already gave, and a mutation of it survives the suite -- which is what
+    it did until this test existed.
+
+    Skipped where the encoder does not consult a mapping's `items()`, which
+    is pypy: there this route to the guard does not exist, though a plain
+    dict mutated by another thread between the two readings still would.
+    `_encoder_rereads_a_mapping` measures which kind of interpreter this is.
+    """
+    shifty = Shifty(amount=1.0)
+    endpoint = client((200, recorded_body("getblockcount.json")))
+    with pytest.raises(BTClibValueError, match="rpc params json cannot carry"):
+        endpoint.call("sendmany", [shifty])
+
+    # read twice, which is what makes the two readings distinguishable, and
+    # the transport was never called: no request was recorded
+    assert shifty.reads == 2
+    assert recording(endpoint).requests == []
 
 
 def test_a_number_too_long_for_this_interpreter_to_read() -> None:

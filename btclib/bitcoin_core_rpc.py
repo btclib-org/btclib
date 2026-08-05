@@ -1280,8 +1280,16 @@ class BitcoinCoreRpcClient:
                 # `int` user made the colon test below raise a bare TypeError
                 # from underneath the library, and a list passed it and was
                 # formatted into the credential -- `['alice']:secret` reaching
-                # the node as a username nobody wrote
-                raise BTClibTypeError(f"non-string rpc {name}: {value!r}")
+                # the node as a username nobody wrote.
+                #
+                # The type and not the value, which is the same reason this
+                # class has no generated `__repr__`: a rejected `password` is
+                # a credential, and putting it in an exception writes it into
+                # every traceback and log that renders one. The type is what a
+                # caller needs to see, and `bytes` is the mistake this catches
+                # most often
+                err_msg = f"non-string rpc {name}: {type(value).__name__}"
+                raise BTClibTypeError(err_msg)
         if user is not None and ":" in user:
             # the Basic credential is `user:password`, and Core splits it at
             # the *first* colon -- `RPCAuthorized` in src/httprpc.cpp. So a
@@ -1292,9 +1300,16 @@ class BitcoinCoreRpcClient:
             # downstream can tell them apart. A colon on the other side is
             # unambiguous and stays valid, everything after the first one
             # belonging to the second field by definition
-            err_msg = f"colon in the rpc user: {user!r}. The credential is"
-            err_msg += " user:password and the node splits it at the first"
-            err_msg += " colon, so this names a different user than intended"
+            # and the user is not quoted back either, for the reason above
+            # applied to this refusal in particular: the string being refused
+            # is one with a colon in it, so the likeliest thing it holds is
+            # `user:password` written into the first argument -- which is a
+            # credential, and would go into the traceback with it.
+            # `_checked_url` refuses a url with userinfo in it without echoing
+            # the url, and this is the same rule
+            err_msg = "colon in the rpc user. The credential is user:password"
+            err_msg += " and the node splits it at the first colon, so a user"
+            err_msg += " containing one names a different user than intended"
             raise BTClibValueError(err_msg)
         _assert_valid_timeout(timeout, "rpc timeout")
         self.user = user

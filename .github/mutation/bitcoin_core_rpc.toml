@@ -6,13 +6,24 @@
 [cosmic-ray]
 module-path = "btclib/bitcoin_core_rpc.py"
 
-# Measured on the head that introduced the profile: 719 mutants enumerate,
-# the annotation filter below skips 187, and all 532 remaining mutants finish
-# in 2m13s. The suite kills 524. The eight survivors are equivalent here:
-# four bitwise replacements whose constant operands have disjoint bits, two
-# identity comparisons on booleans, `remaining > 0` versus `remaining != 0`
-# for a bounded read that cannot make it negative, and `allow_nan=True` after
-# the parameter walk has already refused every non-finite float.
+# Re-measured after the review of this profile: 719 mutants enumerate, the
+# annotation filter below skips 187, and the 532 that run take a couple of
+# minutes -- 2m13s on the head that introduced the profile, 3m11s on another
+# machine, which is what the wide budget in mutation.yml is for. The suite
+# kills 525.
+#
+# The seven survivors are equivalent here: four bitwise replacements whose
+# constant operands have disjoint bits, two identity comparisons on booleans,
+# and `remaining > 0` versus `remaining != 0` for a bounded read that cannot
+# make it negative.
+#
+# `allow_nan=True` was the eighth and was not equivalent, which is worth
+# recording rather than quietly dropping: the parameter walk reads the
+# caller's own objects, and a nested mapping is free to answer a finite value
+# while it is being checked and a NaN while it is being written -- the
+# encoder reads it a second time. `tests/fetch/bitcoin_core_test.py`'s
+# `test_a_parameter_that_is_not_what_the_walk_saw` is that reading, and it
+# kills the mutant.
 
 # The client tests judge JSON-RPC construction and validation, credentials,
 # cookies and per-call bounds. The transport tests judge the default urllib
