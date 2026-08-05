@@ -33,7 +33,7 @@ from __future__ import annotations
 import json
 import re
 from base64 import b64decode
-from decimal import Decimal
+from decimal import Decimal, DecimalException
 from io import BytesIO
 from pathlib import Path
 from typing import Any
@@ -1133,7 +1133,40 @@ _TOO_MANY_DIGITS = b'{"jsonrpc":"2.0","result":' + b"9" * 5000 + b',"id":"x"}'
 # accepts the exponent, and the exact-decimal parser this client asks for
 # answers with `decimal.InvalidOperation` -- an ArithmeticError, so neither
 # the ValueError nor the RecursionError the rest of this list raises
-_HUGE_EXPONENT = b'{"jsonrpc":"2.0","result":1e999999999999999999999999999,"id":"x"}'
+_HUGE_EXPONENT_NUMBER = "1e999999999999999999999999999"
+_HUGE_EXPONENT = (
+    b'{"jsonrpc":"2.0","result":' + _HUGE_EXPONENT_NUMBER.encode() + b',"id":"x"}'
+)
+
+
+def _decimal_refuses(number: str) -> bool:
+    """Whether this interpreter's decimal declines to build that number.
+
+    It is not the same answer everywhere, which is the whole reason this is
+    a function: CPython's `decimal` is libmpdec, whose exponent is bounded
+    by MAX_EMAX, and pypy's is the pure-Python implementation, which parses
+    the exponent as an int and builds the number. So the reply below is
+    unreadable on one and an ordinary amount on the other -- measured
+    rather than assumed, after the pypy cells of the matrix said so.
+    """
+    try:
+        Decimal(number)
+    except DecimalException:
+        return True
+    return False
+
+
+def test_the_decimal_probe_answers_both_ways() -> None:
+    """`_decimal_refuses` is a measurement, and both of its answers are real.
+
+    One branch of it is dead on any single interpreter -- CPython always
+    refuses the exponent it is called with, pypy always builds it -- so the
+    two cases here are the ones every implementation agrees on: a number is
+    built, a string that is no number is refused. Which keeps the probe
+    itself from being the untested part of a test that skips.
+    """
+    assert _decimal_refuses("1e0") is False
+    assert _decimal_refuses("not a number") is True
 
 
 @pytest.mark.parametrize(
@@ -1278,15 +1311,26 @@ def test_a_reply_nested_too_deeply_to_parse() -> None:
         client((200, body)).call("getblockcount")
 
 
+@pytest.mark.skipif(
+    not _decimal_refuses(_HUGE_EXPONENT_NUMBER),
+    reason="this interpreter's decimal builds that exponent, so the reply reads",
+)
 def test_a_number_the_exact_decimal_parser_will_not_build() -> None:
-    """`1e999999999999999999999999999` is json, and no Decimal of any size.
+    """`1e999999999999999999999999999` is json, and no Decimal on libmpdec.
 
     The price of `parse_float=Decimal`, which is what keeps an amount off
-    binary floating point: the exponent is past what the decimal module will
+    binary floating point: the exponent is past what CPython's decimal will
     construct, so it answers `InvalidOperation` -- an ArithmeticError, and
     therefore neither the ValueError nor the RecursionError every other
     unreadable body raises. It used to escape `call` as that, past the
     promise this client makes about a reply it cannot read.
+
+    Skipped where the interpreter builds the number instead, which is pypy:
+    there the reply is readable and this body is an amount, so there is no
+    unreadable reply left to make a FetchError of. The normalization in
+    `_reply_object` costs nothing on such an interpreter and is what a shared
+    source file has to do -- `DecimalException` is raised by one of the two
+    implementations of the same standard module.
 
     `verbatim` and not `client`: `Echoing` reads the body to put this
     request's id in it, and reading it is what cannot be done -- with the
