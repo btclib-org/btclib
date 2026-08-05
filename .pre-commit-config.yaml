@@ -62,12 +62,10 @@ repos:
       # nothing. That is the whole reason the meta hooks are in this
       # file, and overruling one of them would be an odd way to keep them
       #
-      # its converse stays off too, and not by oversight: every module here
-      # opens with "#!/usr/bin/env python3", which is the house header
-      # above the copyright notice the hook below enforces and not a
-      # claim that the file is a script. 154 files have one and none is
-      # executable, so enabling this means either chmod +x on a library
-      # or deleting a convention -- measured, not guessed
+      # its converse stays off for the same reason now: no module here
+      # opens with "#!/usr/bin/env python3" any more -- a house header
+      # that was never a claim the file is a script, none of them being
+      # executable, and deleted rather than kept as a line nothing checks
       # - id: check-shebang-scripts-are-executable
       # no byte order mark anywhere today, and the same kind of guard as
       # check-executables-have-shebangs: what it costs is one line, what
@@ -76,38 +74,36 @@ repos:
       - id: fix-byte-order-marker
       # this one *adds* "# -*- coding: utf-8 -*-" to every Python file.
       # UTF-8 has been the default source encoding since Python 3 and the
-      # floor here is 3.10, so it is 155 dead lines
+      # floor here is 3.10, so every line it would add is dead on arrival
       # - id: fix-encoding-pragma
       - id: check-yaml
       - id: check-json
       # both of this hook's defaults are wrong for this tree: at
-      # --indent=2 it fails on 44 of the 45 json files, and with the key
-      # sort on, on 33. The golden-file
-      # fixture writes json.dumps(indent=4) (tests/conftest.py), so at
-      # indent 2 the two would rewrite each other on every run; and
-      # sorting the keys reorders a golden file against the insertion
-      # order to_dict() emits, which the next run of the suite reports as
-      # a mismatch -- the sort does not churn the diff, it breaks the
-      # tests. With both flags 39 of the 45 files already conform.
+      # --indent=2 nearly every json file here fails, the golden-file
+      # fixture writing json.dumps(indent=4) (tests/conftest.py) -- so at
+      # indent 2 the two would rewrite each other on every run. Sorting
+      # the keys reorders a golden file against the insertion order
+      # to_dict() emits, which the next run of the suite reports as a
+      # mismatch -- the sort does not churn the diff, it breaks the
+      # tests. With both flags most files already conform.
       # --autofix because every other fixing hook here corrects rather
       # than reports
       - id: pretty-format-json
         name: pretty-format-json (in place fixes)
         args: [--autofix, --indent=4, --no-sort-keys]
         # tests/**/_data/ is the vendored directory, as tests/_data/
-        # README.md declares it: five of the six files that do not
-        # conform are vectors that file gives a blob SHA and the verdict
-        # "identical" to, and a reformat voids the pin and the verdict
-        # together. Excluded by directory rather than by name so that the
-        # next file vendored into it is safe before anyone remembers this
-        # line; check-json above still answers the question worth asking
-        # of them, which is whether they parse. The lookahead is the five
-        # files in there that have no pinned blob for a reformat to void:
-        # four of btclib's own and one of chain data, whose provenance is
-        # a txid rather than a blob. By name because there are five, and
-        # because the default for anything else in that directory has to
-        # stay "not touched". (?x) is verbose mode, i.e. the newlines
-        # below are not part of the pattern
+        # README.md declares it: most files that do not conform are
+        # vectors that file gives a blob SHA and the verdict "identical"
+        # to, and a reformat voids the pin and the verdict together.
+        # Excluded by directory rather than by name so that the next file
+        # vendored into it is safe before anyone remembers this line;
+        # check-json above still answers the question worth asking of
+        # them, which is whether they parse. The lookahead names the
+        # files in there with no pinned blob for a reformat to void --
+        # btclib's own, and one of chain data whose provenance is a txid
+        # rather than a blob -- because the default for anything else in
+        # that directory has to stay "not touched". (?x) is verbose mode,
+        # i.e. the newlines below are not part of the pattern
         exclude: |
           (?x)^tests/([^/]+/)?_data/
           (?!btclib_test_vectors\.json
