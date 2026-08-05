@@ -151,7 +151,7 @@ jobs:
           tar --extract --gzip --file "${archive}" "bitcoin-${CORE}/bin/bitcoind"
       # --no-default-groups: the script imports btclib and starts a node,
       # so what it needs installed is the project and its one dependency.
-      # --locked, as everywhere else, so the bindings are the revision
+      # --locked, as everywhere else, so the bindings are the release
       # uv.lock pins
       - name: Smoke the rpc client against the node
         env:
