@@ -3985,12 +3985,19 @@ edit.
   check_validity:` negated, changed nothing any test asked about, so what
   every caller who says nothing gets was the one thing the flag's
   91 signatures did not promise. `tests/check_validity_test.py` carries the
-  table — an invalid instance of each class, built with the check off, and
-  invalid in a way its own conversions do not notice — and asks both
-  directions of both boundaries: `serialize` and `to_dict` refuse it by
-  default, `parse` and `from_dict` refuse the octets and the dict it writes,
-  and each of the four accepts with the flag off, which is the half that says
-  the flag still switches the check *off*. `TxOut` is out of the dict half
+  table, in two columns, because a fixture invalid only in a nested object
+  answers the *child's* guard: take `if check_validity:` out of
+  `TxIn.serialize` and the `prev_out.serialize` under it raises in its place,
+  a green suite about nothing. One column is therefore invalid at its own
+  class's boundary — a sequence of `True`, a transaction without inputs —
+  and holds `serialize`, `to_dict` and `from_dict`; the other is invalid in a
+  nested outpoint and holds `parse`, which the first cannot: a `True`
+  sequence reads back as the number one, and a transaction without inputs has
+  no octets to read at all, the input count being where the segwit marker
+  lives. Each accepts with the flag off, which is the half that says the flag
+  still switches the check *off*, and every guard was removed one at a time
+  to see the tests notice: eleven of the twelve go red, the twelfth being the
+  one below. `TxOut` is out of the dict half
   and by name: its only validity question is the amount, `to_dict` puts that
   through `btc_from_sats` and `from_dict` through `sats_from_btc`, and each of
   those is `valid_sats_amount` — so the conversion asks what `assert_valid`
@@ -4003,6 +4010,15 @@ edit.
   `tests/check_validity_test.py` states for the flag it is named after. The
   ast walk in that file only inspects signatures carrying `check_validity`,
   so these two were mutable from `*` to `/` with nothing red
+- **`join` compares numbers and not objects**, which is what let three of its
+  guards be mutated from `!=` to `is not` with nothing red: equal small
+  integers are the same object in CPython, so every case a test built from
+  literals passes either way. `int("1000")` builds a fresh object where the
+  literal would be the cached one, and 257 distinct inputs put a count past
+  the last cached integer, so transactions agreeing on version, on lock time
+  and on inputs that are all distinct are joined by the code and refused by
+  the mutant. What is left of that shape in the profile is one mutant in
+  `var_int._parse_number`, where the sizes compared are 2, 4 and 8
 - **three assertions that could not fail say something now.** `assert
   tx_in.nSequence == tx_in.nSequence` compared the property with itself in
   three places, so the alias it is there to check was never read; `assert
@@ -4536,12 +4552,12 @@ edit.
   the ast walk in that file is the only thing that fails on it. Measured
   before the budget was written, and the numbers are what the issue asked
   for rather than an estimate: 1035 mutants, 88 skipped, the 947 that ran
-  taking minutes rather than hours, and 34 surviving once the tests the first
-  run asked for were written — 127 before them. None of those 34 is a test
-  anybody can write: 28 are equivalent mutants, four turn `!=` into `is not`
-  on integers CPython interns, and two are the upper end of
-  `assert_standard`'s version window, which issue #387 has to settle before a
-  test may pin it. So this profile *finishes*,
+  taking minutes rather than hours, and 31 surviving once the tests the runs
+  asked for were written — 127 before them. None of those 31 is a test anybody
+  can write: 28 are equivalent mutants, one turns `!=` into `is not` where the
+  sizes compared are 2, 4 and 8 and CPython interns all three, and two are the
+  upper end of `assert_standard`'s version window, which issue #387 has to
+  settle before a test may pin it. So this profile *finishes*,
   where the engine's five and a half hours are sampled — which is what
   makes a survival rate comparable with the week before. Its own job, in
   parallel with the consensus one, with a 30-minute budget under a
@@ -4560,8 +4576,8 @@ edit.
   is an unevaluated string, and cosmic-ray's eleven replacements for that
   operator are 88 mutants — eight such `|`, on seven lines — that nothing
   can reach. Measured rather than argued: an unfiltered session over the same
-  scope reports 122 survivors and every one of those 88 is among them, so
-  filtering leaves the 34 that are worth reading and spends minutes less, a
+  scope reports 119 survivors and every one of those 88 is among them, so
+  filtering leaves the 31 that are worth reading and spends minutes less, a
   survivor costing the whole test command where most kills cost a fraction of
   one. Excluded by operator rather than with a `# pragma: no mutate`, and the
   collateral of a pragma is not the argument for it: grouped by the line
@@ -4569,10 +4585,12 @@ edit.
   hold nothing but that annotation's eleven mutants, the multiline signatures
   putting the `*` and the `check_validity` default on lines of their own.
   `OutPoint.to_dict` is the exception, the only one of the seven written on a
-  single line, where a pragma would also skip the ten mutants of its
-  keyword-only `*` and the one of its default. What settles it is where the decision
-  lives: one line in the file that already says what is mutated and what
-  judges it, against a marker in each of seven library lines and again in
+  single line: 23 mutations end there and a pragma would skip 12 the filter
+  does not — eleven replacements of its keyword-only `*`, `Mul_BitOr` among
+  them and so past the anchored pattern, and the one of its default. What
+  settles it is where the decision lives: one line in the file that already
+  says what is mutated and what judges it, against a marker in each of seven
+  library lines and again in
   every module a later `module-path` adds. The price is the same either way
   and is paid in the configuration instead of the library: a real `a | b`
   added to one of these modules would be skipped in silence, and the grep

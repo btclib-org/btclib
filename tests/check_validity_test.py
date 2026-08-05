@@ -171,17 +171,36 @@ def test_a_parameter_before_the_flag_stays_positional() -> None:
 # the all-zero tx_id with a real vout, which assert_valid refuses and
 # nothing else looks at
 _HALF_COINBASE = OutPoint(b"\x00" * 32, 0, check_validity=False)
+_GOOD_OUT_POINT = OutPoint(b"\x01" * 32, 0)
 
-# one invalid object per wire-format class, built with the check off, and
-# invalid in a way its conversions do not notice: what is being asked is
-# whether the flag's default asks, so an object whose serialization fails
-# for some other reason would answer the wrong question
+# invalid objects, built with the check off, and two shapes of invalid
+# rather than one because they answer different questions.
+#
+# `-itself` is invalid at that class's own boundary, which is what holds the
+# class's own guard: a parent forwards the flag to its children, so an object
+# invalid only in a child is refused by the child whatever the parent does --
+# take `if check_validity:` out of `TxIn.serialize` and the
+# `prev_out.serialize` below it raises in its place, a green suite about
+# nothing.
+#
+# `-nested` is invalid in a child, which is what holds the
+# `check_validity=False` a parent hands its children: turned True, that inner
+# call refuses an object the outer call was told not to look at. It is also
+# the only shape `parse` can be asked about, for the reason beside
+# _NO_OCTETS.
+#
+# Every one of them is invalid in a way the conversions do not notice: a
+# sequence of `True`, a transaction without inputs and an amount over
+# MoneyRange all serialize, so what refuses them is the flag and not the
+# arithmetic underneath
 _INVALID: list[tuple[str, Any]] = [
     ("outpoint", _HALF_COINBASE),
-    ("tx_in", TxIn(_HALF_COINBASE, check_validity=False)),
+    ("tx_in-itself", TxIn(_GOOD_OUT_POINT, b"", True, check_validity=False)),
+    ("tx_in-nested", TxIn(_HALF_COINBASE, check_validity=False)),
     ("tx_out", TxOut(_MAX_SATOSHI + 1, "", check_validity=False)),
+    ("tx-itself", Tx(1, 0, [], [TxOut(1, "")], check_validity=False)),
     (
-        "tx",
+        "tx-nested",
         Tx(
             1,
             0,
@@ -192,13 +211,22 @@ _INVALID: list[tuple[str, Any]] = [
     ),
 ]
 
-# the dict half of the same table, tx_out excepted and by name: its only
-# validity question is the amount, and `to_dict` puts that amount through
-# `btc_from_sats`, which is `valid_sats_amount` -- the conversion asks what
-# assert_valid would ask, so there is no answer the flag could change. The
-# test after the two below is that exclusion, stated as a test rather than
-# as prose here
-_INVALID_FOR_A_DICT = [case for case in _INVALID if case[0] != "tx_out"]
+# what a `parse` cannot be asked, and why: a sequence of `True` reads back as
+# the number one, which is a valid input, and a transaction without inputs
+# has no octets to read back at all -- the input count is where the segwit
+# marker lives, so its `\x00` opens a witness section rather than an empty
+# list
+_NO_OCTETS = {"tx_in-itself", "tx-itself"}
+
+# and what a dict cannot be asked. TxOut's only validity question is the
+# amount, and `to_dict` puts that amount through `btc_from_sats`, which is
+# `valid_sats_amount` -- the conversion asks what assert_valid would ask, so
+# there is no answer the flag could change. The last test below is that
+# exclusion, stated as a test rather than as prose here
+_NO_DICT = {"tx_out"}
+
+_OCTETS = [case for case in _INVALID if case[0] not in _NO_OCTETS]
+_DICTS = [case for case in _INVALID if case[0] not in _NO_DICT]
 
 
 def _serialize(obj: Any, **flag: bool) -> bytes:
@@ -215,30 +243,42 @@ def _serialize(obj: Any, **flag: bool) -> bytes:
 
 
 @pytest.mark.parametrize(("name", "invalid"), _INVALID, ids=[c[0] for c in _INVALID])
-def test_the_default_checks_on_the_way_to_octets(name: str, invalid: Any) -> None:
-    """Serialize and parse validate unless the caller says not to.
+def test_the_default_checks_the_object_it_is_asked_about(
+    name: str, invalid: Any
+) -> None:
+    """Serialize refuses an object its own class calls invalid.
 
-    Both directions of one boundary: the object that must not be written
-    is also the octets that must not be read back into an object, and each
-    is refused by a default nobody passed.
+    And writes it when the caller says so, which is the half that says the
+    flag still switches the check off rather than the half that says it is
+    there.
     """
     assert name  # the id of the case, so a failure names it
 
-    octets = _serialize(invalid, check_validity=False)
+    assert _serialize(invalid, check_validity=False)
     with pytest.raises((BTClibValueError, BTClibTypeError)):
         _serialize(invalid)
+
+
+@pytest.mark.parametrize(("name", "invalid"), _OCTETS, ids=[c[0] for c in _OCTETS])
+def test_the_default_checks_the_octets_it_reads(name: str, invalid: Any) -> None:
+    """Parse refuses octets that decode to an invalid object.
+
+    The other direction of the same boundary, and the one somebody else's
+    bytes arrive through.
+    """
+    assert name
+
+    octets = _serialize(invalid, check_validity=False)
 
     assert type(invalid).parse(octets, check_validity=False)
     with pytest.raises((BTClibValueError, BTClibTypeError)):
         type(invalid).parse(octets)
 
 
-@pytest.mark.parametrize(
-    ("name", "invalid"),
-    _INVALID_FOR_A_DICT,
-    ids=[c[0] for c in _INVALID_FOR_A_DICT],
-)
-def test_the_default_checks_on_the_way_to_a_dict(name: str, invalid: Any) -> None:
+@pytest.mark.parametrize(("name", "invalid"), _DICTS, ids=[c[0] for c in _DICTS])
+def test_the_default_checks_the_dict_it_writes_and_reads(
+    name: str, invalid: Any
+) -> None:
     """to_dict and from_dict validate unless the caller says not to.
 
     The json boundary, where the default matters most: `from_dict` is what

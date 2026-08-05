@@ -758,6 +758,46 @@ def test_join_shuffles_only_when_it_is_told_to(
     assert joined(shuffle_inp=False, shuffle_out=True) == (concatenated, permuted)
 
 
+def test_join_compares_by_value_and_not_by_identity() -> None:
+    """The three guards of `join` read numbers, not objects.
+
+    `int("1000")` builds a fresh object where the literal 1000 would be one
+    CPython has already cached, and 257 inputs put a count past the last
+    cached integer. A guard spelled `is not` instead of `!=` accepts every
+    case a test with small numbers can build and refuses these three, so
+    what reads as one comparison is one only up to 256.
+    """
+    tx_out = TxOut(1, "")
+
+    def tx_with(offset: int, count: int, version: int, lock_time: int) -> Tx:
+        vin = [
+            TxIn(OutPoint((offset + i).to_bytes(32, "big"), 0))
+            for i in range(1, count + 1)
+        ]
+        return Tx(version, lock_time, vin, [tx_out])
+
+    def joined(txs: list[Tx]) -> Tx:
+        return join(
+            txs,
+            enforce_same_version=True,
+            enforce_same_lock_time=True,
+            shuffle_inp=False,
+            shuffle_out=False,
+        )
+
+    # equal versions that are not the same object, then equal lock times
+    same_version = [tx_with(i * 100, 1, int("1000"), 0) for i in range(2)]
+    assert joined(same_version).version == 1000
+
+    same_lock_time = [tx_with(i * 100, 1, 1, int("1000")) for i in range(2)]
+    assert joined(same_lock_time).lock_time == 1000
+
+    # and a count past 256: the inputs are all distinct, so the sum and the
+    # size of the set are the same number and not the same object
+    many = [tx_with(1000, 129, 1, 0), tx_with(2000, 128, 1, 0)]
+    assert len(joined(many).vin) == 257
+
+
 def test_eq() -> None:
     """Verify comparing a Tx with a non-Tx answers inequality."""
     tx = Tx(check_validity=False)
