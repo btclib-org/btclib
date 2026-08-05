@@ -999,6 +999,31 @@ def _refuse_param(value: Any) -> Any:
     raise BTClibTypeError(f"rpc parameter that is not a json value: {value!r}")
 
 
+def _json_number(token: str) -> Decimal:
+    """Return the Decimal a json number is, having refused a non-finite one.
+
+    `Decimal(token)` is built in whatever decimal context the *caller* is
+    running under, and that context decides whether an exponent the
+    implementation cannot represent raises or is answered quietly: with
+    `InvalidOperation` untrapped -- `localcontext()` and
+    `ctx.traps[InvalidOperation] = False`, which is a reasonable thing for a
+    program doing its own arithmetic to want -- `1e999999999999999999999999999`
+    comes back as `Decimal("NaN")` instead. That is an amount that compares
+    false against itself for the rest of its life, arriving past the refusal
+    of NaN this module states, and no exception is raised anywhere for the
+    `DecimalException` normalization to catch.
+
+    So the value is checked rather than the exception waited for. Size is not
+    the question and is deliberately not asked: a finite number is an answer
+    however large, which is what lets pypy's decimal build exponents
+    libmpdec declines to.
+    """
+    number = Decimal(token)
+    if not number.is_finite():
+        raise FetchError(f"not a json number in the reply: {token}")
+    return number
+
+
 def _refuse_constant(name: str) -> Any:
     """Refuse the three non-numbers Python's json decodes by default.
 
@@ -1085,14 +1110,17 @@ def _reply_object(where: str, status: int, payload: bytes) -> Mapping[str, Any]:
     """
     try:
         reply = json.loads(
-            payload, parse_float=Decimal, parse_constant=_refuse_constant
+            payload, parse_float=_json_number, parse_constant=_refuse_constant
         )
     except FetchError as e:
-        # `_refuse_constant`, i.e. one of the three non-numbers Python
-        # decodes by default. Its own sentence names which, so under a 200
-        # it is re-raised as it stands -- `raise _unreadable(...) from e`
-        # would hand back this very object and make the exception its own
-        # `__cause__`, which anything walking that chain follows in a loop
+        # one of this module's own two refusals of a number: the three
+        # non-numbers Python decodes by default, through `_refuse_constant`,
+        # or a `Decimal` that came back non-finite because the caller's
+        # context does not trap that, through `_json_number`. Each names
+        # what it saw, so under a 200 it is re-raised as it stands -- `raise
+        # _unreadable(...) from e` would hand back this very object and make
+        # the exception its own `__cause__`, which anything walking that
+        # chain follows in a loop
         if status == 200:
             raise
         raise _http_error(where, status) from e
@@ -1245,6 +1273,15 @@ class BitcoinCoreRpcClient:
             err_msg = "no rpc credentials: pass user and password, or the"
             err_msg += " path of the cookie file the node writes"
             raise BTClibValueError(err_msg)
+        for name, value in (("user", user), ("password", password)):
+            if value is not None and not isinstance(value, str):
+                # the annotation is not a check, and neither half of the
+                # credential survives being something else: a `bytes` or an
+                # `int` user made the colon test below raise a bare TypeError
+                # from underneath the library, and a list passed it and was
+                # formatted into the credential -- `['alice']:secret` reaching
+                # the node as a username nobody wrote
+                raise BTClibTypeError(f"non-string rpc {name}: {value!r}")
         if user is not None and ":" in user:
             # the Basic credential is `user:password`, and Core splits it at
             # the *first* colon -- `RPCAuthorized` in src/httprpc.cpp. So a

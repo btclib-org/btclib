@@ -33,7 +33,7 @@ from __future__ import annotations
 import json
 import re
 from base64 import b64decode
-from decimal import Decimal, DecimalException
+from decimal import Decimal, InvalidOperation, localcontext
 from io import BytesIO
 from pathlib import Path
 from typing import Any
@@ -345,6 +345,31 @@ def test_a_colon_in_the_user_is_refused_and_one_in_the_password_is_not() -> None
     endpoint = BitcoinCoreRpcClient(URL, user="alice", password=ambiguous)
     credential = b64decode(endpoint.auth_header().split()[1])
     assert credential == f"alice:{ambiguous}".encode()
+
+
+@pytest.mark.parametrize(
+    ("kwargs", "match"),
+    [
+        ({"user": 7, "password": RPC_PASSWORD}, "non-string rpc user: 7"),
+        ({"user": b"alice", "password": RPC_PASSWORD}, "non-string rpc user"),
+        ({"user": ["alice"], "password": RPC_PASSWORD}, "non-string rpc user"),
+        ({"user": "alice", "password": 7}, "non-string rpc password: 7"),
+    ],
+    ids=["an int user", "a bytes user", "a list user", "an int password"],
+)
+def test_a_credential_that_is_not_a_string_is_refused(
+    kwargs: dict[str, Any], match: str
+) -> None:
+    """Neither half of the credential survives being something else.
+
+    The annotation is not a check, and the two halves failed differently
+    before this: a `bytes` or an `int` user reached the colon test and left a
+    bare `TypeError` from underneath the library, while a list passed that
+    test and was formatted into the credential -- `['alice']:` and the
+    password, reaching the node as a username nobody wrote.
+    """
+    with pytest.raises(BTClibTypeError, match=match):
+        BitcoinCoreRpcClient(URL, **kwargs)
 
 
 @pytest.mark.parametrize("method", [7, None, b"getblockcount", ["getblockcount"]])
@@ -1139,34 +1164,38 @@ _HUGE_EXPONENT = (
 )
 
 
-def _decimal_refuses(number: str) -> bool:
-    """Whether this interpreter's decimal declines to build that number.
+def _decimal_represents(number: str) -> bool:
+    """Whether this interpreter's decimal has a finite value for that number.
 
     It is not the same answer everywhere, which is the whole reason this is
     a function: CPython's `decimal` is libmpdec, whose exponent is bounded
     by MAX_EMAX, and pypy's is the pure-Python implementation, which parses
-    the exponent as an int and builds the number. So the reply below is
-    unreadable on one and an ordinary amount on the other -- measured
-    rather than assumed, after the pypy cells of the matrix said so.
+    the exponent as an int and builds the number. So a reply carrying
+    `1e999999999999999999999999999` is unreadable on one and an ordinary
+    amount on the other -- measured rather than assumed, after the pypy
+    cells of the matrix said so.
+
+    Every trap is cleared, which is what makes this one question rather than
+    two: an implementation that cannot represent the number *raises* under
+    the default context and answers `NaN` under this one, and both are the
+    same fact about the implementation. The two tests that skip on it are
+    about those two spellings of it.
     """
-    try:
-        Decimal(number)
-    except DecimalException:
-        return True
-    return False
+    with localcontext() as ctx:
+        for trap in ctx.traps:
+            ctx.traps[trap] = False
+        return Decimal(number).is_finite()
 
 
-def test_the_decimal_probe_answers_both_ways() -> None:
-    """`_decimal_refuses` is a measurement, and both of its answers are real.
+def test_the_decimal_probe_measures_what_it_says() -> None:
+    """`_decimal_represents` answers both ways on every interpreter.
 
-    One branch of it is dead on any single interpreter -- CPython always
-    refuses the exponent it is called with, pypy always builds it -- so the
-    two cases here are the ones every implementation agrees on: a number is
-    built, a string that is no number is refused. Which keeps the probe
-    itself from being the untested part of a test that skips.
+    Not for coverage -- it has one statement -- but because a probe that two
+    tests skip on is worth knowing is still a probe: one of these would fail
+    if it started answering the same thing to everything.
     """
-    assert _decimal_refuses("1e0") is False
-    assert _decimal_refuses("not a number") is True
+    assert _decimal_represents("1e0") is True
+    assert _decimal_represents("nan") is False
 
 
 @pytest.mark.parametrize(
@@ -1312,7 +1341,7 @@ def test_a_reply_nested_too_deeply_to_parse() -> None:
 
 
 @pytest.mark.skipif(
-    not _decimal_refuses(_HUGE_EXPONENT_NUMBER),
+    _decimal_represents(_HUGE_EXPONENT_NUMBER),
     reason="this interpreter's decimal builds that exponent, so the reply reads",
 )
 def test_a_number_the_exact_decimal_parser_will_not_build() -> None:
@@ -1345,6 +1374,44 @@ def test_a_number_the_exact_decimal_parser_will_not_build() -> None:
     with pytest.raises(HttpError) as exc:
         verbatim((503, _HUGE_EXPONENT)).call("getbalance")
     assert exc.value.status == 503
+
+
+@pytest.mark.skipif(
+    _decimal_represents(_HUGE_EXPONENT_NUMBER),
+    reason="this interpreter's decimal has a finite value for that exponent",
+)
+@pytest.mark.parametrize(("status", "raised"), [(200, FetchError), (503, HttpError)])
+def test_a_non_finite_decimal_is_refused_whatever_the_caller_traps(
+    status: int, raised: type[FetchError]
+) -> None:
+    """The refusal of NaN cannot depend on the caller's decimal context.
+
+    `parse_float=Decimal` builds the number in whatever context the calling
+    thread is under, and that context decides whether an exponent the
+    implementation cannot represent raises or is answered quietly: with
+    `InvalidOperation` untrapped, `1e999999999999999999999999999` used to
+    arrive as `Decimal("NaN")` -- an amount comparing false against itself
+    forever, past a refusal this module documents, with no exception raised
+    anywhere to normalize.
+
+    So the number is checked and not the exception waited for, and the check
+    is `is_finite` rather than a bound on the exponent: a finite value is an
+    answer however large, which is what leaves pypy's decimal free to build
+    what libmpdec will not.
+
+    The status keeps its precedence either way, which is the second half of
+    the parametrization.
+    """
+    with localcontext() as ctx:
+        ctx.traps[InvalidOperation] = False
+        assert not Decimal(_HUGE_EXPONENT_NUMBER).is_finite()
+        with pytest.raises(raised) as exc:
+            verbatim((status, _HUGE_EXPONENT)).call("getbalance")
+    if status != 200:
+        assert isinstance(exc.value, HttpError)
+        assert exc.value.status == status
+    else:
+        assert "not a json number in the reply" in str(exc.value)
 
 
 def test_a_json_body_that_is_not_a_reply_object() -> None:

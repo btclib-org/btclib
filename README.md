@@ -165,15 +165,18 @@ nothing below it imports it.
 
 One module of that stack is not up there, and deliberately:
 `btclib.bitcoin_core_rpc` holds the Bitcoin Core rpc client, its bounded
-`urllib` transport and the `FetchError`, `HttpError` and `RpcError` that
-both fetchers raise — one standard-library-only source file, so that a
-project can copy it whole rather than depend on btclib. `btclib.exceptions`
+`urllib` transport, and the exceptions the fetchers raise — `FetchError`
+when a backend did not answer, `HttpError` carrying a status, from either
+fetcher, and `RpcError` carrying a node's error code, which only the rpc one
+can raise. It is one standard-library-only source file, so that a project
+can copy it whole rather than depend on btclib. `btclib.exceptions`
 re-exports those three, an exception being no use if it has two identities,
-so the module every other one imports reaches this one. Which is the one
-import in the library that runs from the bottom upwards, and the reason
-importing anything of btclib now loads `urllib.request`. Nothing connects
-to anything for it: constructing a client opens no socket, and the first
-call is what does.
+so a module most of the library imports reaches this one. That is the one
+import here that runs from the bottom upwards, and its price: every import
+which reaches `btclib.exceptions` loads `urllib.request` too, which is most
+of the library — `import btclib` and `btclib.alias` are the kind that do
+not. Nothing connects to anything for it: constructing a client opens no
+socket, and the first call is what does.
 
 ---
 

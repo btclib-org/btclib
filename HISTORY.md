@@ -365,10 +365,10 @@ against the `v2023.7.12` tag.
   `ImportError`.
 - **`from btclib import *` binds the library's modules**, where it bound
   `name` and the two names the version lookup imports. `btclib.__all__` is
-  the nine packages and the twenty-two top-level modules now, imported on
-  demand by a module `__getattr__`, so `import btclib` still costs the
-  metadata lookup alone and `btclib.b58` answers without an import of its
-  own. `btclib.name` is where it was, and is no longer star-imported.
+  the packages and top-level modules now, imported on demand by a module
+  `__getattr__`, so `import btclib` still costs the metadata lookup alone
+  and `btclib.b58` answers without an import of its own. `btclib.name` is
+  where it was, and is no longer star-imported.
 
 Two changes are deliberately *not* on that list, because what they change
 stays compatible. The new `BTClibTypeError`, `NotAPrvKeyError` and
@@ -464,8 +464,10 @@ and `verify` families now let a `TypeError` out where they used to answer
   `btclib.bitcoin_core_rpc`, one standard-library-only file a project can
   copy whole instead of depending on btclib, and `btclib.exceptions`
   re-exports the three exceptions it defines so that one `except` catches
-  them by either name — which is why importing btclib at all now loads
-  `urllib.request`, where nothing connects until a call is made.
+  them by either name — which is why an import that reaches
+  `btclib.exceptions` loads `urllib.request` too, `import btclib` itself
+  still costing the metadata lookup alone. Nothing connects until a call is
+  made.
 - **Borromean ring signatures work on a curve other than secp256k1**, which
   is what the `ec` parameter has been offering since it stopped being a module
   global: the arithmetic ignored it and computed on secp256k1, so the first

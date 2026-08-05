@@ -2366,8 +2366,12 @@ edit.
   caller who wants to name it, and is declared `Path | None` for the same
   host: the alternatives were a `Path` that lies or the relative one.
 
-  Five refusals and normalizations came out of reviewing it, each of them a
-  request this client used to build or an answer it used to let past. A
+  Reviewing it turned up a set of refusals and normalizations, each of them
+  a request this client used to build or an answer it used to let past.
+  Neither half of the credential may be something other than a string: a
+  `bytes` or an `int` user used to leave a bare `TypeError` from underneath
+  the library, and a list passed every check and was formatted into the
+  credential, reaching the node as a username nobody wrote. A
   colon in `user` is refused: the `Basic` credential is `user:password` and
   Core splits it at the first colon, so `user="alice:admin"` authenticated
   as `alice` with the password `admin:secret` -- a different rpc user and a
@@ -2381,6 +2385,14 @@ edit.
   it used to escape `except OSError`, no relation of it; and a
   `decimal.InvalidOperation` from the exact-decimal parser, which is what
   `1e999999999999999999999999999` is, joins the bodies that cannot be read.
+  A number in a reply is checked for being finite rather than trusted to
+  raise, because `parse_float=Decimal` builds it in the *caller's* decimal
+  context: with `InvalidOperation` untrapped that same exponent came back as
+  `Decimal("NaN")` -- an amount comparing false against itself forever, past
+  the refusal of NaN this client documents, with nothing raised anywhere to
+  normalize. Size is deliberately not the question: a finite number is an
+  answer however large, which is what leaves the pure-Python `decimal` of
+  another interpreter free to build what libmpdec declines to.
   Finally, an object that is no reply keeps the status it arrived with: a
   `"jsonrpc": "1.0"` marker beside a 503, and a correlated legacy `error`
   that is not an error object, used to lose `HttpError.status` -- while a
@@ -3312,10 +3324,10 @@ edit.
   imported — a caller wanting `Octets` wants `btclib.alias.Octets` — so
   `import *` and the sphinx pages both stop depending on an import
   section (issue #338)
-- **`btclib.__all__` is the root of the library's public tree**: the nine
-  packages and the twenty-two top-level modules, so a walk that starts at
-  the package name has an edge to follow and a declared surface at every
-  node it reaches. That is what `docs/proposals/cli.md` reads to build the
+- **`btclib.__all__` is the root of the library's public tree**: the
+  packages and the top-level modules, so a walk that starts at the package
+  name has an edge to follow and a declared surface at every node it
+  reaches. That is what `docs/proposals/cli.md` reads to build the
   command tree of the out-of-repo command line, and the reason the list is
   written out rather than discovered: `pkgutil.iter_modules` would answer
   the file tree, and a module added to the directory would publish itself

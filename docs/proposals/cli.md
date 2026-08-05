@@ -629,13 +629,23 @@ terminal and into whatever shell history or CI log is watching. The node
 commands are the `fetch` group above, which is the same client with the
 btclib types on top.
 
-So the walker needs one rule, and it is a rule and not a skip list: a module
-whose exports are types, protocols and constants rather than operations
-carries no commands. `alias`, `exceptions` and `bitcoin_core_rpc` are what it
-covers today. The alternative — leaving the module out of the root's
-`__all__` — was rejected: the vendorable file is API, a caller imports it by
-name, and a public tree that omits what it publishes would be the drift
-`__all__` was declared to end.
+So the walker needs to be told, and by name: **`btclib.bitcoin_core_rpc` is
+excluded from the command tree**, one line in the walker's table beside the
+reason. Not a predicate over what the module exports, which was the first
+attempt and does not hold: `alias` and `exceptions` do publish only types and
+constants, and this module publishes `http_request`, `urlopen_transport` and
+`cookie_auth`, which are operations by any reading. A criterion that a
+walker could apply and that separates them mechanically is not available, and
+inventing a marker in the source is worse: it would travel into every
+vendored copy of a file whose whole point is to carry nothing this repository
+needs.
+
+The alternative — leaving the module out of the root's `__all__` — was
+rejected: the vendorable file is API, a caller imports it by name, and a
+public tree that omits what it publishes would be the drift `__all__` was
+declared to end. Excluding it from the *command* tree costs one recorded
+line; excluding it from the *public* tree would cost the property the tree
+exists for.
 
 The two `Fetcher` implementations are two option sets, not two command
 trees: `--rpc-url` with a cookie file for `bitcoind`, `--esplora-url`
