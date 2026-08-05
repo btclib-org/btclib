@@ -1,12 +1,8 @@
-#!/usr/bin/env python3
-
 # Copyright (C) The btclib developers
 #
-# This file is part of btclib. It is subject to the license terms in the
-# LICENSE file found in the top-level directory of this distribution.
-#
-# No part of btclib including this file, may be copied, modified, propagated,
-# or distributed except according to the terms contained in the LICENSE file.
+# Distributed under the MIT software license, see the accompanying
+# LICENSE file or https://opensource.org/license/mit for the full text.
+
 """The tapscript op code tables, per BIP342.
 
 OP_VERIF (0x65) and OP_VERNOTIF (0x66) are named here although no script

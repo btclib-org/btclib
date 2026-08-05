@@ -1,10 +1,8 @@
 # Copyright (C) The btclib developers
 #
-# This file is part of btclib. It is subject to the license terms in the
-# LICENSE file found in the top-level directory of this distribution.
-#
-# No part of btclib including this file, may be copied, modified, propagated,
-# or distributed except according to the terms contained in the LICENSE file.
+# Distributed under the MIT software license, see the accompanying
+# LICENSE file or https://opensource.org/license/mit for the full text.
+
 """Bitcoin Script legacy op codes.
 
 One function per op code, each the matching case of Core's EvalScript;
