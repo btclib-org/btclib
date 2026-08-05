@@ -53,7 +53,10 @@ Telling these apart is most of what can go wrong when cutting a release.
   resolve
 
 PEP 440 sorts `2026.8.4.dev7` before `2026.8.4`, so a rehearsal never
-shadows the release it rehearses.
+shadows the release it rehearses. `git tag` on its own does not read
+the numbers the same way: measured, `v2026.10` lists before `v2026.7`,
+alphabetically rather than chronologically. `git tag --sort=v:refname`
+reads them as PEP 440 does.
 
 ## One-time setup
 
