@@ -88,6 +88,18 @@ jobs:
             echo "::error::$version is not a final version; $msg"
             exit 1
           fi
+          # three components at least: the day is not optional on
+          # anything this pushes to PyPI, only on the placeholder "Open
+          # the next cycle" sets between releases -- which is never
+          # tagged, so this check never sees it. Without this, "v2026.8"
+          # passes every check above it and publishes a version with no
+          # day, indistinguishable from the placeholder that names the
+          # same month
+          if ! echo "$version" | grep -Eq '^[0-9]+\.[0-9]+\.[0-9]+(\.[0-9]+)?$'; then
+            msg="a release is YYYY.M.D, optionally YYYY.M.D.N for a patch"
+            echo "::error::$version has no day; $msg"
+            exit 1
+          fi
       # the release notes are HISTORY.md's section for the tag, lifted by
       # the github-release job below, and its fallback fires only on an
       # *empty* section: "## v2026.8 (work in progress, not released yet)"
