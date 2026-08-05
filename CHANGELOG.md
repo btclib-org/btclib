@@ -4971,6 +4971,21 @@ edit.
   than an unenforceable one — `psbt.musig2._SessionParts` is a real
   `NamedTuple` subclass, not a construct this codebase lacks the way
   `DTZ` or `ASYNC` are
+- **A monthly workflow re-checks every vendored-vector pin against
+  upstream**, and opens, updates or closes a tracking issue on what it
+  finds. `tests/_data/README.md`'s own "Re-checking a pin" section was a
+  manual procedure, last run by hand on the dates it records;
+  `.github/scripts/check_vendored_vectors.py` automates exactly that
+  procedure and nothing past it -- refreshing a stale vector stays a
+  decision nobody but a maintainer makes. Scope is narrower than the
+  README: only entries whose `behind` already reads 0, an entry already
+  documented as behind being a gap someone already decided not to close,
+  which re-reporting monthly would only turn into noise. Every heading
+  the script does not check for that reason, or because one pin serves
+  several files (BIP327's eight, BIP324's two), is named in its own
+  report, so nothing reads as checked that was not. `issues: write` is
+  new to this repository -- every other scheduled workflow stops at
+  `contents: read`, on purpose, and this one does not, also on purpose
 - **80 columns on the prose, and the yaml measured for the first time.**
   `ruff-format` reflows code to its 88 columns and never touches a
   comment or a docstring, which is why `E501` is ignored and stays so:

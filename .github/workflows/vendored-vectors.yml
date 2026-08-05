@@ -1,0 +1,71 @@
+---
+name: vendored vectors
+
+# tests/_data/README.md pins every vendored test vector to a commit and a
+# git blob SHA-1, with a documented manual procedure to re-check one --
+# last done by hand on specific dates the file itself records. This runs
+# that procedure once a month instead, over every pin the script can
+# check, and opens or updates an issue on drift rather than fixing
+# anything: refreshing a vector file is a decision the script does not
+# get to make.
+#
+# issues: write is new to this repository -- links.yml's own comment
+# explains why every other scheduled workflow here stops at contents:
+# read, an automatic issue being the usual next step it deliberately
+# does not take. This one does take it, on purpose: a link is noticed
+# the next time somebody follows it, where a vendored vector is trusted
+# without anybody looking at it again, and that is exactly what a
+# monthly issue is for
+
+on:
+  schedule:
+    # the 1st of the month, 04:53 UTC. Not on the hour, for the reason
+    # links.yml's own cron comment gives -- GitHub queues same-minute
+    # scheduled workflows across every repository that asked for it, and
+    # a long queue can drop the run outright. Minute 53 is not shared
+    # with any other cron in this repository (17, 31, 41, 43)
+    - cron: "53 4 1 * *"
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - .github/workflows/vendored-vectors.yml
+      - .github/scripts/check_vendored_vectors.py
+      - tests/_data/README.md
+
+permissions:
+  contents: read
+  issues: write
+
+concurrency:
+  group: vendored-vectors-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  check:
+    name: Check vendored vectors against upstream
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: "3.14"
+
+      # no project dependency: the script imports only the standard
+      # library and shells out to gh, which every GitHub-hosted runner
+      # already has.
+      # --dry-run on the pull_request trigger only: a fork's read-only
+      # token could not write the issue anyway, and a same-repository
+      # pull request testing a change to this script or the README
+      # should not close or edit whatever tracking issue is open at the
+      # time as a side effect of that test
+      - name: Re-check every pin already at upstream's tip
+        run: >-
+          python .github/scripts/check_vendored_vectors.py
+          tests/_data/README.md
+          ${{ github.event_name == 'pull_request' && '--dry-run' || '' }}
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
