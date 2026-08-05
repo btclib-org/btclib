@@ -11,6 +11,46 @@ configured to trust the workflow itself
 The same workflow, started by hand instead of by a tag, is a full
 rehearsal against TestPyPI. A rehearsal is never tagged.
 
+## Which version string is which
+
+Telling these apart is most of what can go wrong when cutting a release.
+
+- **`pyproject.toml`'s own `version`** takes three shapes over one
+  cycle, never two at once: `2026.8`, month only, between releases —
+  the placeholder "Open the next cycle" sets, so a checkout of `dev`
+  reports itself as work in progress rather than as a release it is
+  not; `2026.8.4`, with the day added on release day — calendar
+  versioning, `YYYY.M.D` — which is what gets published and the only
+  value `btclib.__version__` reads back from installed metadata; and
+  `2026.8.4.1`, a fourth number added only if `2026.8.4` shipped broken
+  and cannot be reuploaded (see "If something goes wrong"). All three
+  are typed by hand, and nothing in `version-check` tells them apart
+  from each other — only from a tag that disagrees with whichever one
+  is declared
+- **`v2026.8.4`**, the tag, carries no version of its own: it picks the
+  index, PyPI rather than TestPyPI, and `version-check` exists to
+  confirm it says what `pyproject.toml` says
+- **`.dev<run number>`** is not a version but the template the `build`
+  job patches into `pyproject.toml` before a rehearsal, `github.
+  run_number` counted for `release.yml` alone. Only `workflow_dispatch`
+  adds it, and nothing commits the result: `uv lock` runs straight
+  after, so the lockfile the sdist ships agrees with the version it is
+  named for
+- **`2026.8.4.dev7`** is what that template produces rehearsing
+  `2026.8.4` the seventh time `release.yml` has run. That count is
+  what makes a rehearsal's version unique, and what makes re-running a
+  finished one collide with itself rather than mint a new one
+- **`2026.8.4rc1`**, and a `v2026.8.4rc1` tag, have no place in this
+  scheme: there is no pre-release here, only a version not yet tagged.
+  `version-check` refuses anything that is not digits and dots, which
+  is what stops `2026.8.4rc1` at `pyproject.toml` before a tag is even
+  pushed — and what a `v2026.8.4rc1` tag would otherwise pass, the
+  comparison against it burning a version `--pre` installs would then
+  resolve
+
+PEP 440 sorts `2026.8.4.dev7` before `2026.8.4`, so a rehearsal never
+shadows the release it rehearses.
+
 ## One-time setup
 
 Already done for btclib-org/btclib; kept here for the record.
