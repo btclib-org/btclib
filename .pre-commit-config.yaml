@@ -347,10 +347,11 @@ repos:
   # turns an unresolved (or misspelled) import into Any, the opposite of
   # strict, and it type checks in an isolated environment, where every
   # import of the btclib_libsecp256k1 bindings is exactly that. Declaring
-  # them there would mean building libsecp256k1 for the hook, and from
-  # PyPI at that, where the version this project requires is not yet
-  # published. This is the very command the lint workflow runs, against
-  # the project environment and the real pytest.
+  # them there would pin the bindings a second time, in additional
+  # dependencies beside uv.lock and by hand, so the hook could type check
+  # against a version the suite never ran. This is the very command the
+  # lint workflow runs, against the project environment and the real
+  # pytest.
   # --locked, as everywhere else, and not --frozen, which takes uv.lock
   # as it finds it: a dependency added to pyproject.toml without a re-lock
   # leaves mypy type checking a stale environment and saying nothing about

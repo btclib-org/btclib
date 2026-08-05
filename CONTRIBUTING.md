@@ -55,11 +55,12 @@ promise is about that pair — a bindings release keeps the runtime API the
 supported btclib needs, and an older btclib may one day stop installing or
 running against the newest bindings.
 
-The bound names a final release and no prerelease, which is what keeps
-packaging tools at their default: a specifier naming one opts the
-dependency into resolving prereleases, where they are otherwise excluded
-unless nothing else satisfies the specifier or the user asks for them
-explicitly. See the
+The bound is the oldest final release this version supports, and
+`0.7.1rc1` is below it: the candidate is what the pin named while nothing
+final satisfied it. What a resolver does with prereleases is its own
+policy — pip and uv alike prefer a stable candidate and reach for a
+prerelease only when no stable one satisfies the constraints — so the
+bound states support and nothing else. See the
 [version-specifiers page](https://packaging.python.org/en/latest/specifications/version-specifiers/#handling-of-pre-releases)
 and
 [uv's prerelease handling](https://docs.astral.sh/uv/concepts/resolution/#pre-release-handling).
@@ -204,9 +205,8 @@ rubber stamp and the hook into decoration.
 ### Reproducing what CI runs
 
 Every job of every workflow is a `uv` command, and `uv` fetches what it
-needs: no interpreter, no linter, no packaging tool has to be installed by
-hand, and even the `cmake` that builds the bindings arrives as a build
-requirement.
+needs: no interpreter, no linter and no packaging tool has to be
+installed by hand.
 
 The `Lint and type-check` job of the `lint` workflow, in full — the same
 pre-commit the lock pins, which is what `uv run` above gives you too:
@@ -241,10 +241,10 @@ uv run --locked --no-default-groups --group test \
 ```
 
 The `dist-py` job, which inspects what would be published and then
-installs it. The last command resolves btclib_libsecp256k1 from PyPI by
-the declared pin rather than from uv.lock, so it is the one that fails
-when the published bindings cannot satisfy what pyproject.toml declares;
-it runs from an empty directory, or the import finds the source tree
+installs it. The last command reads the wheel's own metadata and resolves
+btclib_libsecp256k1 from the index, with the runtime dependencies pinned
+to uv.lock so that a release of the bindings cannot turn a required check
+red; it runs from an empty directory, or the import finds the source tree
 instead of the wheel:
 
 ```shell
@@ -252,7 +252,11 @@ uv build
 uv run --locked --only-group build twine check --strict dist/*
 uv run --locked --only-group build check-wheel-contents dist/*.whl
 uv run --locked --only-group build pyroma --min 10 dist/*.tar.gz
-cd "$(mktemp -d)" && uv run --isolated --no-project \
+tmp=$(mktemp -d)
+uv export --locked --no-dev --no-emit-project --no-hashes \
+    -o "$tmp"/requirements.txt
+cd "$tmp" && uv run --isolated --no-project \
+    --with-requirements requirements.txt \
     --with "$OLDPWD"/dist/*.whl \
     python -c "import btclib; print(btclib.__version__); \
       assert btclib.__version__ != 'unknown'"
@@ -264,6 +268,11 @@ The checks the `release` workflow runs before building anything:
 uv lock --check
 uv version --short
 ```
+
+Its build job then repeats the smoke test above on the wheel it uploads,
+which is not the one `dist-py` built, and repeats it without the exported
+requirements: nothing is waiting on that job, so it is the place to ask
+whether the newest published bindings satisfy the artifact.
 
 The `latest` workflow, which upgrades every dependency uv resolves before
 running the suite, the lint gate and the packaging checks. The upgrade

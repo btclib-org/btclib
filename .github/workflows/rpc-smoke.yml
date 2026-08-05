@@ -108,9 +108,8 @@ jobs:
       - name: Setup uv
         uses: astral-sh/setup-uv@c771a70e6277c0a99b617c7a806ffedaca235ff9 # v9.0.0
         with:
-          # the bindings are compiled from source, from the git revision
-          # uv.lock pins: the cache is the difference between a couple of
-          # minutes and a couple of seconds
+          # the wheels uv.lock pins do not change between runs, so the
+          # cache is the difference between a download and a copy
           enable-cache: true
       # the matrix values reach the shell as environment variables rather
       # than as expressions interpolated into it, which is the convention

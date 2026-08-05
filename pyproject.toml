@@ -54,10 +54,10 @@ requires-python = ">=3.10"
 # breaking changes in the minor. CONTRIBUTING.md states the policy, and
 # what it costs an artifact that is no longer supported.
 #
-# The lower bound names a final release and no prerelease, which is what
-# keeps packaging tools at their default: a specifier naming one opts the
-# dependency into resolving prereleases, and 0.7.1 is what btclib is
-# developed and tested against
+# The lower bound is the oldest final release this version supports, and
+# 0.7.1rc1 is below it: the candidate is what the pin named while nothing
+# final satisfied it, and what btclib is developed and tested against is
+# now a release
 dependencies = ["btclib_libsecp256k1>=0.7.1"]
 keywords = [
     "bitcoin",

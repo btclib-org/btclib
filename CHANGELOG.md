@@ -4329,10 +4329,10 @@ edit.
   breaking changes in the minor. CONTRIBUTING.md carries what the policy
   does *not* cover — metadata is baked into every wheel already published,
   so coordinating the two projects protects the supported pair and not an
-  artifact that went out before — and what a bound naming a final release
-  keeps out: a specifier naming a prerelease opts the dependency into
-  resolving prereleases, where packaging tools otherwise exclude them
-  unless nothing else satisfies the specifier or the user asks for them
+  artifact that went out before — and what the bound is: the oldest final
+  release supported, `0.7.1rc1` falling below it, where what a resolver
+  does with prereleases is its own policy rather than something a
+  specifier settles
 
 - **nine more mypy error codes**, surveyed the way the ruff sets were:
   every optional code `strict` leaves off, run over btclib and tests.
@@ -4658,17 +4658,23 @@ edit.
   and btclib contributors" with that file being where the list is kept
 - **btclib is developed against the released bindings** (issue #131).
   `tool.uv.sources` is gone, so uv resolves `btclib_libsecp256k1` from
-  PyPI as pip does, from a wheel rather than by compiling the vendored
-  library, and the pin is `>=0.7.1` — the first release of the bindings
-  that satisfies what this version needs. What that unlocks is the check
-  the pin had been waiting for: the wheel smoke test, which installs the
-  built wheel from an empty directory with its dependencies resolved from
-  PyPI, moves out of the release workflow's `build` job into `dist-py`,
-  where it gates every pull request. It had to stay out while no
+  PyPI as pip does — from a wheel wherever 0.7.1 publishes one, which is
+  every platform of the test matrix, and from the sdist, compiling,
+  anywhere else — and the pin is `>=0.7.1`, the first release of the
+  bindings that satisfies what this version needs. What that unlocks is
+  the check the pin had been waiting for: the wheel smoke test, which
+  installs the built wheel from an empty directory and reads the wheel's
+  own metadata rather than pyproject.toml, now runs in `dist-py` and
+  gates every pull request. It had to stay out of that path while no
   published bindings could satisfy the pin, since a red check nobody can
-  turn green from a branch is noise rather than a gate. The scheduled
-  `published` workflow goes with it: it existed to run the suite against
-  the bindings a user installs, which is now what every job does, and
+  turn green from a branch is noise rather than a gate — and for the same
+  reason it runs there with the runtime dependencies pinned to `uv.lock`,
+  a bindings release being exactly such a red. The release workflow keeps
+  a smoke test of its own, unpinned and on the wheel it uploads, which is
+  not the one `dist-py` built: nothing waits on that job, so it is where
+  "does what a user installs today still work" belongs. The scheduled
+  `published` workflow goes: it existed to run the suite against the
+  bindings a user installs, which is now what every job does, and
   `latest.yml` keeps the part it does not cover by upgrading every
   dependency, the bindings included, to the newest release that satisfies
   pyproject.toml. `pip install -e .` works here now, and readthedocs

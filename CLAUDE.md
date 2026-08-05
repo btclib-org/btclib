@@ -128,8 +128,9 @@ review is corrected and how it is merged.
   job runs exactly it. Never add a second list of the same tools to a
   workflow. mypy is a *local* hook shelling out to uv on purpose: the
   mirrors-mypy hook injects `--ignore-missing-imports`, which makes every
-  bindings import `Any` and strict mode then fails; and the bindings
-  cannot be declared in an isolated hook environment, not being on PyPI.
+  bindings import `Any` and strict mode then fails; and its isolated
+  environment would need the bindings declared a second time, beside
+  `uv.lock` and pinned by hand.
 - **`pre-commit` passing is not the lint gate passing: run sphinx too.**
   `lint.yml`'s second job runs it with `-W`, so a docstring docutils
   cannot parse fails the workflow while every hook passes — a name ending

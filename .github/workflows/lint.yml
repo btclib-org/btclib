@@ -108,8 +108,8 @@ jobs:
       # so uvx is the one place where the two could differ -- the tool
       # deciding what "clean" means being the only one not pinned, while
       # every hook it runs is.
-      # --only-group omits the project, so this still installs no bindings
-      # and compiles nothing; the mypy hook installs what it needs itself
+      # --only-group omits the project, so this installs no bindings; the
+      # mypy hook installs what it needs itself
       - name: Run the pre-commit hooks
         run: >
           uv run --locked --only-group lint

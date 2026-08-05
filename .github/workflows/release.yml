@@ -213,25 +213,48 @@ jobs:
           uv lock
       # one thing the rehearsal does not cover, deliberately: dist-py, in
       # the workflow this one calls, validates the tree as committed, while
-      # this job ships the suffixed version, so the packaging checks never
-      # see the metadata that reaches TestPyPI. What they judge is metadata
-      # syntax, README rendering, metadata quality and that the wheel
-      # imports with its dependencies from PyPI, and a .dev<N> suffix is
-      # valid PEP 440 that changes none of them. Should a packaging check
-      # ever become version-sensitive, the suffix has to be plumbed into
-      # test.yml as a workflow_call input instead
+      # this job ships the suffixed version, so twine and pyroma never see
+      # the metadata that reaches TestPyPI. What they judge is metadata
+      # syntax, README rendering and metadata quality, and a .dev<N> suffix
+      # is valid PEP 440 that changes none of them. The smoke test below is
+      # the exception, and the reason it is below rather than left to
+      # dist-py: it installs the suffixed wheel itself. Should a packaging
+      # check ever become version-sensitive, the suffix has to be plumbed
+      # into test.yml as a workflow_call input instead
       # uv build builds the sdist first and then the wheel from it, not
       # both from the source tree: the packaging path a user installing
       # from source takes is therefore the one that produced the wheel,
       # which is why no separate "install from the sdist" job is needed.
       # What this job does not do is inspect what it builds: twine,
-      # check-wheel-contents, pyroma and the wheel smoke test run in the
-      # dist-py job of the test workflow, which this workflow calls, so
-      # they gate every pull request as well as this one tag.
-      # check-manifest is a pre-commit hook, gated by the lint workflow,
-      # which this one calls too
+      # check-wheel-contents and pyroma run in the dist-py job of the
+      # test workflow, which this workflow calls, so they gate every
+      # pull request as well as this one tag. check-manifest is a
+      # pre-commit hook, gated by the lint workflow, which this one calls
+      # too
       - name: Build the distribution files
         run: uv build
+      # what it does do is install it, dist-py notwithstanding: that job
+      # builds its own copy of the wheel, on another runner and -- in a
+      # rehearsal -- from another version, the step above having patched
+      # pyproject.toml and re-locked. The artifact that reaches an index
+      # is this one, so this one is imported, from an empty directory so
+      # the import resolves to the wheel and not to the btclib/ source
+      # tree.
+      # Unpinned, where dist-py pins the runtime dependencies to uv.lock:
+      # nothing is blocked by this job, so it can afford the question a
+      # required check cannot, which is whether the newest published
+      # btclib_libsecp256k1 satisfies the wheel about to be uploaded --
+      # what a user installing it will resolve.
+      # The version is asserted, not merely printed: btclib.__version__
+      # falls back to "unknown" when no metadata is installed (issue #150),
+      # so a wheel shipping none, or an import resolving to a source tree
+      # rather than to the wheel, would print that and pass
+      - name: Smoke-test the wheel, with its dependencies from PyPI
+        run: |
+          cd "$RUNNER_TEMP"
+          uv run --isolated --no-project --with "$GITHUB_WORKSPACE"/dist/*.whl \
+            python -c "import btclib; print(btclib.__version__); \
+              assert btclib.__version__ != 'unknown'"
       - name: Upload the distribution files
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
