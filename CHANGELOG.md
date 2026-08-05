@@ -3746,6 +3746,12 @@ edit.
   assignments already do. `psbt_in_test.py` checks `ValidSigHashType`
   against `SIG_HASH_TYPES`, the way `network_test.py` checks #216's two
   data-derived aliases
+- **`network.datadir` and `curves.curve.datadir` are `Path`, not `str`.**
+  Both mark where each package keeps its own json catalogue, and each
+  docstring already promised "the path" to a caller who asks — a promise
+  `pathlib.Path` keeps more precisely than the string ruff's new `PTH`
+  rule set found underneath it. `str(btclib.network.datadir)` is the
+  `v2023.7.12` value back; string concatenation and `.startswith` are not
 
 ### Performance
 
@@ -5013,6 +5019,18 @@ edit.
   never fire reads as an enforced invariant while enforcing nothing.
   `check-readthedocs` joins `check-dependabot` on the same argument,
   `.readthedocs.yaml` being 2.7 KB that nothing read as a build definition
+- **`PTH` is selected too, the seventh of that survey's rejects to move.**
+  130 `os.path` calls and bare `open()`s, 23 of them in the library, are
+  now `pathlib.Path`: `curves.curve`'s four catalogue loaders and
+  `network`'s five, `bip44`'s purposes table, `mnemonic.electrum`'s old
+  wordlist, and every fixture loader in `tests/block`, `tests/tx`,
+  `tests/mnemonic`, `tests/fuzz_test.py`, `tests/parse_contract_test.py`
+  and the package's own `tests/__init__.py` loaders. `mnemonic.data_file`
+  and `WordLists.load_lang` keep their `str`: a caller passes a filename
+  of their own to register a language there, and narrowing what it hands
+  back was not this rule's question to answer. `network.datadir` and
+  `curves.curve.datadir` are the two names whose type this did change —
+  see Types below
 - **80 columns on the prose, and the yaml measured for the first time.**
   `ruff-format` reflows code to its 88 columns and never touches a
   comment or a docstring, which is why `E501` is ignored and stays so:

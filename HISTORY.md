@@ -378,6 +378,10 @@ against the `v2023.7.12` tag.
   `__getattr__`, so `import btclib` still costs the metadata lookup alone
   and `btclib.b58` answers without an import of its own. `btclib.name` is
   where it was, and is no longer star-imported.
+- **`network.datadir` and `curves.curve.datadir` are `Path`, not `str`.**
+  `str(btclib.network.datadir)` recovers the `v2023.7.12` value; code
+  that concatenated it, sliced it, or called a string method on it does
+  not.
 
 Two changes are deliberately *not* on that list, because what they change
 stays compatible. The new `BTClibTypeError`, `NotAPrvKeyError` and

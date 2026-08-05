@@ -30,7 +30,7 @@ import json
 from collections.abc import Sequence
 from hashlib import sha256
 from math import sqrt
-from os import path
+from pathlib import Path
 from typing import Any
 
 from btclib_libsecp256k1.keys import parse as libsecp256k1_pubkey_parse
@@ -282,7 +282,7 @@ class Curve(CurveGroup):
         return (*super()._eq_key(), *self.G, self.n, self.cofactor)
 
 
-datadir = path.join(path.dirname(__file__), "_data")
+datadir = Path(__file__).parent / "_data"
 
 
 def _catalogued_curve(params: list[Any], name: str) -> Curve:
@@ -307,8 +307,8 @@ def _catalogued_curve(params: list[Any], name: str) -> Curve:
 # Elliptic Curve Cryptography (ECC)
 # Brainpool Standard Curves and Curve Generation
 # https://www.rfc-editor.org/rfc/rfc5639.html
-_filename = path.join(datadir, "ec_Brainpool.json")
-with open(_filename, encoding="ascii") as _file:
+_filename = datadir / "ec_Brainpool.json"
+with _filename.open(encoding="ascii") as _file:
     Brainpool_params2 = json.load(_file)
 Brainpool: dict[str, Curve] = {
     _ec_name: _catalogued_curve(Brainpool_params2[_ec_name], _ec_name)
@@ -318,8 +318,8 @@ Brainpool: dict[str, Curve] = {
 # FEDERAL INFORMATION PROCESSING STANDARDS PUBLICATION
 # Digital Signature Standard (DSS)
 # https://oag.ca.gov/sites/all/files/agweb/pdfs/erds1/fips_pub_07_2013.pdf
-_filename = path.join(datadir, "ec_NIST.json")
-with open(_filename, encoding="ascii") as _file:
+_filename = datadir / "ec_NIST.json"
+with _filename.open(encoding="ascii") as _file:
     NIST_params2 = json.load(_file)
 NIST: dict[str, Curve] = {
     _ec_name: _catalogued_curve(NIST_params2[_ec_name], _ec_name)
@@ -327,8 +327,8 @@ NIST: dict[str, Curve] = {
 }
 # SEC 2 v.1 curves, removed from SEC 2 v.2 as insecure ones
 # http://www.secg.org/SEC2-Ver-1.0.pdf
-_filename = path.join(datadir, "ec_SEC2v1_insecure.json")
-with open(_filename, encoding="ascii") as _file:
+_filename = datadir / "ec_SEC2v1_insecure.json"
+with _filename.open(encoding="ascii") as _file:
     SEC2v1_params2 = json.load(_file)
 SEC2v1: dict[str, Curve] = {
     _ec_name: _catalogued_curve(SEC2v1_params2[_ec_name], _ec_name)
@@ -336,8 +336,8 @@ SEC2v1: dict[str, Curve] = {
 }
 # curves included in both SEC 2 v.1 and SEC 2 v.2
 # http://www.secg.org/sec2-v2.pdf
-_filename = path.join(datadir, "ec_SEC2v2.json")
-with open(_filename, encoding="ascii") as _file:
+_filename = datadir / "ec_SEC2v2.json"
+with _filename.open(encoding="ascii") as _file:
     SEC2v2_params2 = json.load(_file)
 SEC2v2: dict[str, Curve] = {}
 for _ec_name in SEC2v2_params2:

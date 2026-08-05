@@ -25,7 +25,7 @@ import importlib
 import pkgutil
 from collections.abc import Callable
 from io import BytesIO
-from os import path
+from pathlib import Path
 from typing import Any
 
 import pytest
@@ -53,8 +53,8 @@ _XPRV = (
 
 def _block_1() -> bytes:
     """Return the consensus bytes of the block after genesis."""
-    filename = path.join(path.dirname(__file__), "block", "_data", "block_1.bin")
-    with open(filename, "rb") as file_:
+    filename = Path(__file__).parent / "block" / "_data" / "block_1.bin"
+    with filename.open("rb") as file_:
         return file_.read()
 
 

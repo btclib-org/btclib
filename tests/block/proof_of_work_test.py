@@ -17,7 +17,7 @@ comes from one of two places, named per test:
 """
 
 from datetime import datetime, timedelta, timezone
-from os import path
+from pathlib import Path
 
 import pytest
 
@@ -47,8 +47,8 @@ def _time(timestamp: int) -> datetime:
 
 def _bits_of(fname: str) -> bytes:
     """Return the bits of a vendored block, which verifies itself."""
-    filename = path.join(path.dirname(__file__), "_data", fname)
-    with open(filename, "rb") as file_:
+    filename = Path(__file__).parent / "_data" / fname
+    with filename.open("rb") as file_:
         block_bytes = file_.read()
     return Block.parse(block_bytes).header.bits
 

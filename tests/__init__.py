@@ -32,10 +32,10 @@ beside the helpers of `tests/script/__init__.py` and
 import csv
 import json
 import re
-from os import path
+from pathlib import Path
 from typing import Any
 
-_TESTS_DIR = path.dirname(__file__)
+_TESTS_DIR = Path(__file__).parent
 
 
 def load(*relative_path: str, encoding: str = "ascii") -> Any:
@@ -46,14 +46,14 @@ def load(*relative_path: str, encoding: str = "ascii") -> Any:
     share one file without the `dirname(dirname(__file__))` walk that
     breaks the moment a test module moves.
     """
-    with open(path.join(_TESTS_DIR, *relative_path), encoding=encoding) as file_:
+    with _TESTS_DIR.joinpath(*relative_path).open(encoding=encoding) as file_:
         return json.load(file_)
 
 
 def load_csv(*relative_path: str, encoding: str = "ascii") -> list[list[str]]:
     """Read a vendored csv vector file, header row dropped."""
-    with open(
-        path.join(_TESTS_DIR, *relative_path), newline="", encoding=encoding
+    with _TESTS_DIR.joinpath(*relative_path).open(
+        newline="", encoding=encoding
     ) as file_:
         return list(csv.reader(file_))[1:]
 
@@ -66,7 +66,7 @@ def load_bin(*relative_path: str) -> bytes:
     transactions of a block are the fixtures of more than one question
     about them.
     """
-    with open(path.join(_TESTS_DIR, *relative_path), "rb") as file_:
+    with _TESTS_DIR.joinpath(*relative_path).open("rb") as file_:
         return file_.read()
 
 
