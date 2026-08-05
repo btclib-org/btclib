@@ -296,24 +296,24 @@ worth repeating:
 uv lock --upgrade
 ```
 
-The `published` workflow, weekly and on demand, two jobs asking two
-different questions. The first upgrades only the bindings and re-runs the
-suite — narrower than `latest`, which moves every dependency, so a red
-run here names the one responsible instead of burying it behind a dozen
-others:
+That workflow has a second job, `test-bindings-latest`, upgrading only
+the bindings and re-running the suite — narrower than the upgrade above,
+which moves every dependency, so a red run here names the one responsible
+instead of burying it behind a dozen others:
 
 ```shell
 uv lock --upgrade-package btclib_libsecp256k1
 uv run --locked --no-default-groups --group test pytest
 ```
 
-The second installs btclib itself from PyPI, nothing checked out, and
-asks whether it works rather than whether it installs: `import btclib`
-runs `__init__.py` alone, and the files under `btclib/*/_data/` — the
-wordlists among them — are opened by path at the first call that needs
-one, not imported, so a wheel missing one would pass the import and fail
-only here. Both checks are version-independent, a BIP340 vector and a
-BIP39 one whose values are fixed forever:
+The `published` workflow, weekly and on demand, installs btclib itself
+from PyPI, nothing checked out, and asks whether it works rather than
+whether it installs: `import btclib` runs `__init__.py` alone, and the
+files under `btclib/*/_data/` — the wordlists among them — are opened by
+path at the first call that needs one, not imported, so a wheel missing
+one would pass the import and fail only here. Both checks are
+version-independent, a BIP340 vector and a BIP39 one whose values are
+fixed forever:
 
 ```shell
 python -m pip install btclib

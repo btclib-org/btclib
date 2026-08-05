@@ -14,7 +14,9 @@ name: latest
 # to be reviewed anyway, and its cause is one entry in a diff of many.
 # btclib_libsecp256k1 is the entry that matters most here: a release of
 # the bindings is a release in another repository, which nothing in this
-# one has to change for the pair to stop working.
+# one has to change for the pair to stop working. test-bindings-latest
+# below asks about that one entry alone, precisely, rather than folding
+# it into test-latest's broader upgrade -- see that job for why.
 #
 # The obvious alternative, dropping --locked from test.yml and resolving
 # afresh on every run, is what this workflow exists instead of: a pull
@@ -118,6 +120,48 @@ jobs:
       # wrote that lock, so this asserts nothing moved between the two and
       # keeps the convention that no uv command in these workflows
       # installs from a lock it has not checked
+      - name: Run pytest
+        run: uv run --locked --no-default-groups --group test pytest
+
+  # narrower than test-latest above, and for a different reason: that
+  # job upgrades every dependency, so a red run there buries a release
+  # of btclib_libsecp256k1 behind a dozen other candidates. This
+  # upgrades only that one, so a red run here names it without a
+  # bisect -- worth a job of its own because it is a sibling project
+  # under the same org, released by the same maintainer, which makes
+  # "did my own other release just break this one" a distinct and
+  # likely enough question to ask separately from "did some
+  # third-party wheel". Moved here from published.yml (issue #397): it
+  # is a question about drift against a tree not yet published, which
+  # belongs before publication rather than after
+  test-bindings-latest:
+    name: >-
+      Test ${{ matrix.python }} on ${{ matrix.os }}, bindings at latest
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+        python: ["3.10", "3.14"]
+    timeout-minutes: 20
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Setup uv
+        uses: astral-sh/setup-uv@c771a70e6277c0a99b617c7a806ffedaca235ff9 # v9.0.0
+        with:
+          enable-cache: true
+          python-version: ${{ matrix.python }}
+      # upgrades one entry rather than every one of them, which is the
+      # whole difference from test-latest above: it prints "Update
+      # btclib_libsecp256k1 vA -> vB" when a release moved it and
+      # nothing when it did not, so the log names the suspect without a
+      # diff of uv.lock. Harmless on an ephemeral checkout; worth
+      # knowing before running the same command in a working tree
+      - name: Upgrade the bindings to their latest release
+        run: uv lock --upgrade-package btclib_libsecp256k1
       - name: Run pytest
         run: uv run --locked --no-default-groups --group test pytest
 
