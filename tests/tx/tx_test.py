@@ -27,6 +27,7 @@ import pytest
 from btclib.exceptions import BTClibValueError
 from btclib.script import ScriptPubKey, Witness, sig_op_count
 from btclib.tx import OutPoint, Tx, TxIn, TxOut, join
+from btclib.tx.tx import _assert_valid_coinbase
 from tests.conftest import JsonGolden
 
 
@@ -403,6 +404,28 @@ def test_coinbase_block_1() -> None:
     assert tx.sig_op_count == 1
     assert sig_op_count(tx.vin[0].script_sig) == 0
     assert sig_op_count(tx.vout[0].script_pub_key.script) == 1
+
+
+def test_the_other_two_flags_stay_keyword_only() -> None:
+    """`unsigned_template` and `is_coinbase` sit behind a star as well.
+
+    tests/check_validity_test.py states the rule for the flag it is named
+    after, and these are the two in this module that are not it: the hazard
+    is the same one, a parameter added in front of a positional flag taking
+    its slot in silence, and a keyword-only one makes that call a TypeError
+    instead. `_assert_valid_coinbase` is private and reached here directly,
+    a keyword call being all `Tx.assert_valid` can say about it.
+    """
+    tx = Tx(1, 0, [TxIn(OutPoint(b"\x01" * 32, 0))], [TxOut(1, "")])
+
+    with pytest.raises(TypeError, match="positional argument"):
+        tx.assert_valid(True)  # type: ignore[call-arg]
+    with pytest.raises(TypeError, match="positional argument"):
+        _assert_valid_coinbase(tx.vin, False)  # type: ignore[call-arg]
+
+    # and what the refusal must not take with it
+    tx.assert_valid(unsigned_template=True)
+    _assert_valid_coinbase(tx.vin, is_coinbase=False)
 
 
 def test_a_coinbase_input_belongs_to_a_coinbase_only() -> None:

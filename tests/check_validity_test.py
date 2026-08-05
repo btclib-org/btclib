@@ -14,6 +14,13 @@ about signatures rather than about any one of them: it appears in 91 of
 them and is forwarded by hand from one to the next, so the guard has to be
 the rule itself. A new signature spelling it positionally is what this
 module fails on.
+
+What the flag *does* when nobody passes it is the other half, and the same
+kind of rule: every default is True, so a caller who says nothing gets the
+check. Nothing held any of those defaults to it -- the mutation profile of
+issue #327 reported one survivor per default and per `if check_validity:`
+in `btclib/tx/` -- and the tests at the end of this module are what does,
+over the wire-format classes that profile measures.
 """
 
 from __future__ import annotations
@@ -21,13 +28,16 @@ from __future__ import annotations
 import ast
 import dataclasses
 import pathlib
+from typing import Any
 
 import pytest
 
+from btclib.amount import _MAX_SATOSHI
 from btclib.curves import secp256k1
 from btclib.ecc import dsa
-from btclib.exceptions import BTClibValueError
+from btclib.exceptions import BTClibTypeError, BTClibValueError
 from btclib.script.script_pub_key import ScriptPubKey
+from btclib.tx import TxIn, TxOut
 from btclib.tx.out_point import OutPoint
 from btclib.tx.tx import Tx
 
@@ -155,3 +165,115 @@ def test_a_parameter_before_the_flag_stays_positional() -> None:
     assert tx.serialize(False, check_validity=False) == tx.serialize(
         include_witness=False, check_validity=False
     )
+
+
+# an outpoint that is neither a coinbase marker nor an ordinary reference:
+# the all-zero tx_id with a real vout, which assert_valid refuses and
+# nothing else looks at
+_HALF_COINBASE = OutPoint(b"\x00" * 32, 0, check_validity=False)
+
+# one invalid object per wire-format class, built with the check off, and
+# invalid in a way its conversions do not notice: what is being asked is
+# whether the flag's default asks, so an object whose serialization fails
+# for some other reason would answer the wrong question
+_INVALID: list[tuple[str, Any]] = [
+    ("outpoint", _HALF_COINBASE),
+    ("tx_in", TxIn(_HALF_COINBASE, check_validity=False)),
+    ("tx_out", TxOut(_MAX_SATOSHI + 1, "", check_validity=False)),
+    (
+        "tx",
+        Tx(
+            1,
+            0,
+            [TxIn(_HALF_COINBASE, check_validity=False)],
+            [TxOut(1, "")],
+            check_validity=False,
+        ),
+    ),
+]
+
+# the dict half of the same table, tx_out excepted and by name: its only
+# validity question is the amount, and `to_dict` puts that amount through
+# `btc_from_sats`, which is `valid_sats_amount` -- the conversion asks what
+# assert_valid would ask, so there is no answer the flag could change. The
+# test after the two below is that exclusion, stated as a test rather than
+# as prose here
+_INVALID_FOR_A_DICT = [case for case in _INVALID if case[0] != "tx_out"]
+
+
+def _serialize(obj: Any, **flag: bool) -> bytes:
+    """Return the wire octets, `include_witness` being Tx's own parameter.
+
+    The flag is forwarded and never spelled: a default written here would
+    be a copy of the one under test, and the call with nothing to forward
+    is the case that matters.
+    """
+    if isinstance(obj, Tx):
+        return obj.serialize(include_witness=True, **flag)
+    octets: bytes = obj.serialize(**flag)
+    return octets
+
+
+@pytest.mark.parametrize(("name", "invalid"), _INVALID, ids=[c[0] for c in _INVALID])
+def test_the_default_checks_on_the_way_to_octets(name: str, invalid: Any) -> None:
+    """Serialize and parse validate unless the caller says not to.
+
+    Both directions of one boundary: the object that must not be written
+    is also the octets that must not be read back into an object, and each
+    is refused by a default nobody passed.
+    """
+    assert name  # the id of the case, so a failure names it
+
+    octets = _serialize(invalid, check_validity=False)
+    with pytest.raises((BTClibValueError, BTClibTypeError)):
+        _serialize(invalid)
+
+    assert type(invalid).parse(octets, check_validity=False)
+    with pytest.raises((BTClibValueError, BTClibTypeError)):
+        type(invalid).parse(octets)
+
+
+@pytest.mark.parametrize(
+    ("name", "invalid"),
+    _INVALID_FOR_A_DICT,
+    ids=[c[0] for c in _INVALID_FOR_A_DICT],
+)
+def test_the_default_checks_on_the_way_to_a_dict(name: str, invalid: Any) -> None:
+    """to_dict and from_dict validate unless the caller says not to.
+
+    The json boundary, where the default matters most: `from_dict` is what
+    reads a value somebody else wrote.
+    """
+    assert name
+
+    dict_ = invalid.to_dict(check_validity=False)
+    with pytest.raises((BTClibValueError, BTClibTypeError)):
+        invalid.to_dict()
+
+    assert type(invalid).from_dict(dict_, check_validity=False)
+    with pytest.raises((BTClibValueError, BTClibTypeError)):
+        type(invalid).from_dict(dict_)
+
+
+def test_a_tx_out_dict_refuses_the_amount_either_way() -> None:
+    """The exclusion above, and why it is one rather than an oversight.
+
+    A TxOut is valid when its amount is, and the dict form of an amount is
+    BTC: `to_dict` calls `btc_from_sats` and `from_dict` calls
+    `sats_from_btc`, each of which validates the amount on its own. So the
+    flag has nothing left to switch off here, and the refusal below is the
+    conversion's rather than assert_valid's.
+    """
+    invalid = TxOut(_MAX_SATOSHI + 1, "", check_validity=False)
+    for check_validity in (True, False):
+        with pytest.raises(BTClibValueError, match="invalid satoshi amount: "):
+            invalid.to_dict(check_validity=check_validity)
+
+    over = {"value": "21000000.00000001", "scriptPubKey": {"asm": "", "hex": ""}}
+    for check_validity in (True, False):
+        with pytest.raises(BTClibValueError, match="invalid BTC amount: "):
+            TxOut.from_dict(over, check_validity=check_validity)
+
+    # and what neither refusal takes with it: the octets, where the amount
+    # is eight bytes and `serialize` is the only reader of the flag
+    assert invalid.serialize(check_validity=False)

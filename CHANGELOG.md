@@ -3979,6 +3979,30 @@ edit.
   value surviving an unchecked round trip byte for byte while validation
   refuses it, which is the invariant either reading of the field satisfies
   — issue #388 has the reading itself
+- **`check_validity`'s default is held to checking**, class by class over the
+  wire format, and that is the shape 19 of the parser profile's survivors
+  had: a `check_validity: bool = True` mutated to `False`, or an `if
+  check_validity:` negated, changed nothing any test asked about, so what
+  every caller who says nothing gets was the one thing the flag's
+  91 signatures did not promise. `tests/check_validity_test.py` carries the
+  table — an invalid instance of each class, built with the check off, and
+  invalid in a way its own conversions do not notice — and asks both
+  directions of both boundaries: `serialize` and `to_dict` refuse it by
+  default, `parse` and `from_dict` refuse the octets and the dict it writes,
+  and each of the four accepts with the flag off, which is the half that says
+  the flag still switches the check *off*. `TxOut` is out of the dict half
+  and by name: its only validity question is the amount, `to_dict` puts that
+  through `btc_from_sats` and `from_dict` through `sats_from_btc`, and each of
+  those is `valid_sats_amount` — so the conversion asks what `assert_valid`
+  would, and the flag has nothing left to switch. A test of that exclusion
+  stands where the reason would otherwise be prose
+- **the two keyword-only flags of `btclib/tx/tx.py` that are not
+  `check_validity`** — `assert_valid`'s `unsigned_template` and
+  `_assert_valid_coinbase`'s `is_coinbase` — are held to refusing a
+  positional call, which is the hazard the star is there for and the one
+  `tests/check_validity_test.py` states for the flag it is named after. The
+  ast walk in that file only inspects signatures carrying `check_validity`,
+  so these two were mutable from `*` to `/` with nothing red
 - **three assertions that could not fail say something now.** `assert
   tx_in.nSequence == tx_in.nSequence` compared the property with itself in
   three places, so the alias it is there to check was never read; `assert
@@ -4512,8 +4536,12 @@ edit.
   the ast walk in that file is the only thing that fails on it. Measured
   before the budget was written, and the numbers are what the issue asked
   for rather than an estimate: 1035 mutants, 88 skipped, the 947 that ran
-  taking minutes rather than hours, 56 surviving. So this profile
-  *finishes*,
+  taking minutes rather than hours, and 34 surviving once the tests the first
+  run asked for were written — 127 before them. None of those 34 is a test
+  anybody can write: 28 are equivalent mutants, four turn `!=` into `is not`
+  on integers CPython interns, and two are the upper end of
+  `assert_standard`'s version window, which issue #387 has to settle before a
+  test may pin it. So this profile *finishes*,
   where the engine's five and a half hours are sampled — which is what
   makes a survival rate comparable with the week before. Its own job, in
   parallel with the consensus one, with a 30-minute budget under a
@@ -4532,8 +4560,8 @@ edit.
   is an unevaluated string, and cosmic-ray's eleven replacements for that
   operator are 88 mutants — eight such `|`, on seven lines — that nothing
   can reach. Measured rather than argued: an unfiltered session over the same
-  scope reports 144 survivors and every one of those 88 is among them, so
-  filtering leaves the 56 that are worth reading and spends minutes less, a
+  scope reports 122 survivors and every one of those 88 is among them, so
+  filtering leaves the 34 that are worth reading and spends minutes less, a
   survivor costing the whole test command where most kills cost a fraction of
   one. Excluded by operator rather than with a `# pragma: no mutate`, and not
   because seven lines of library source are many: `cr-filter-pragma` skips
