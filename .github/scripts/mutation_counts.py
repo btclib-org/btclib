@@ -23,6 +23,16 @@ killed, survived, skipped, and the rate over what actually ran. A rate alone
 cannot say whether a session was complete, and completeness is the first
 thing to know about one that had a timeout.
 
+**Every outcome is printed, and one that is not a verdict makes this exit
+non-zero.** A mutant can come back INCOMPETENT, or with a worker outcome of
+EXCEPTION, ABNORMAL or NO-TEST: the mutated tree would not run, or the runner
+would not run it, and `cosmic-ray exec` can finish with a zero exit having
+recorded them. None of those says anything about the suite, so counting them
+silently anywhere -- as killed, as executed, or by leaving them out of the
+line -- publishes a session that measured less than it appears to. This is
+the one thing the mutation workflow may be red about: a survivor is a test
+nobody has written yet, where these are the measurement itself not working.
+
 Read from the session file with `sqlite3`, which is a coupling worth stating.
 `cosmic-ray dump` is the documented interchange and would have been the
 honest input, but it cannot read these sessions at all: `result_to_dict` does
@@ -39,50 +49,91 @@ from __future__ import annotations
 
 import sqlite3
 import sys
+from contextlib import closing
 from pathlib import Path
 
-# how Cosmic Ray spells the two verdicts and the non-verdict, as they are
-# stored: a skipped mutant is one the operator filter excluded before
-# anything ran it, and it has a worker outcome and no test outcome
-_KILLED = "KILLED"
-_SURVIVED = "SURVIVED"
-_SKIPPED = "SKIPPED"
+# `closing` and not `with sqlite3.connect(...)` alone: that context manager
+# commits a transaction and leaves the connection open, so a read-only query
+# through it is a `ResourceWarning: unclosed database` at whatever later
+# moment the collector notices -- which under this suite's
+# `filterwarnings = ["error"]` fails a test that has nothing to do with it
+
+# how Cosmic Ray spells the two verdicts and the one non-verdict a session is
+# meant to hold: a skipped mutant is one the operator filter excluded before
+# anything ran it, so it is deliberate rather than a failure. Everything else
+# that is neither verdict is a failure -- see the module docstring.
+#
+# Compared after `_normalized`, because the enum members and what the session
+# stores agree on neither case nor the separator in `no-test`
+_KILLED = "killed"
+_SURVIVED = "survived"
+_SKIPPED = "skipped"
+
+
+def _normalized(outcome: object) -> str:
+    """Return an outcome as one word, whichever spelling it was stored in."""
+    return str(outcome).strip().lower().replace("_", "-")
 
 
 def counts(session: Path) -> dict[str, int]:
-    """Return how many results the session holds, by what happened to them."""
+    """Return how many results the session holds, by what happened to them.
+
+    `test_outcome` is what the suite said, and is null for a mutant no suite
+    ran -- where the worker outcome is what happened instead. One of the two
+    is always there, which is why they coalesce rather than being read apart.
+    """
     query = """
         SELECT COALESCE(test_outcome, worker_outcome), COUNT(*)
         FROM work_results GROUP BY 1
     """
-    with sqlite3.connect(f"file:{session}?mode=ro", uri=True) as db:
-        return {str(outcome): int(count) for outcome, count in db.execute(query)}
+    with closing(sqlite3.connect(f"file:{session}?mode=ro", uri=True)) as db:
+        return {
+            _normalized(outcome): int(count) for outcome, count in db.execute(query)
+        }
 
 
-def report(by_outcome: dict[str, int], enumerated: int) -> str:
-    """Return the one line worth reading in a workflow log."""
+def enumerated_mutants(session: Path) -> int:
+    """Return how many mutants the session enumerated, run or not."""
+    with closing(sqlite3.connect(f"file:{session}?mode=ro", uri=True)) as db:
+        return int(db.execute("SELECT COUNT(*) FROM work_items").fetchone()[0])
+
+
+def report(by_outcome: dict[str, int], enumerated: int) -> tuple[str, bool]:
+    """Return the line worth reading, and whether the session measured soundly.
+
+    Unsound is an outcome that is neither verdict nor deliberate skip, and the
+    line names each of them with its count: a number nobody can interpret is
+    worse than a red step, so the step is red for it.
+    """
     killed = by_outcome.get(_KILLED, 0)
     survived = by_outcome.get(_SURVIVED, 0)
     skipped = by_outcome.get(_SKIPPED, 0)
     executed = killed + survived
     pending = enumerated - sum(by_outcome.values())
-    rate = f"{survived / executed * 100:.2f}%" if executed else "no mutant ran"
+    failed = {
+        outcome: count
+        for outcome, count in sorted(by_outcome.items())
+        if outcome not in (_KILLED, _SURVIVED, _SKIPPED)
+    }
+
     line = f"killed {killed}, survived {survived}, skipped {skipped}"
     if pending:
         line += f", never run {pending}"
-    return f"{line}; survival rate over the {executed} executed: {rate}"
-
-
-def enumerated_mutants(session: Path) -> int:
-    """Return how many mutants the session enumerated, run or not."""
-    with sqlite3.connect(f"file:{session}?mode=ro", uri=True) as db:
-        return int(db.execute("SELECT COUNT(*) FROM work_items").fetchone()[0])
+    rate = f"{survived / executed * 100:.2f}%" if executed else "no mutant ran"
+    line += f"; survival rate over the {executed} executed: {rate}"
+    if failed:
+        named = ", ".join(f"{outcome} {count}" for outcome, count in failed.items())
+        line += f". No verdict on the suite: {named}"
+    return line, not failed
 
 
 def main() -> None:
     """Print the counts of the session named on the command line."""
     session = Path(sys.argv[1])
-    print(report(counts(session), enumerated_mutants(session)))
+    line, sound = report(counts(session), enumerated_mutants(session))
+    print(line)
+    if not sound:
+        raise SystemExit(1)
 
 
 if __name__ == "__main__":

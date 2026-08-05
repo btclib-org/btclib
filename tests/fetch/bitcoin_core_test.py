@@ -1355,67 +1355,37 @@ def test_a_number_too_long_for_this_interpreter_to_write() -> None:
 
 
 class Shifty(dict):  # type: ignore[type-arg]
-    """A mapping whose second reading is not its first."""
+    """A mapping that becomes a NaN while it is being read the first time.
+
+    The finite value is what the reader is answered with, and the storage is
+    a NaN by the time that answer is returned. So whichever way an
+    interpreter writes the request afterwards, it writes the NaN: CPython's
+    json encoder calls `items()` a second time, pypy's serializes the dict's
+    own storage without calling it at all, and the storage is what was
+    changed.
+    """
 
     def __init__(self, *args: Any, **kwargs: Any) -> None:
         super().__init__(*args, **kwargs)
         self.reads = 0
 
     def items(self) -> Any:
-        """Answer a finite amount once, and a NaN from then on."""
+        """Answer this reading's value, having spoiled the next one."""
         self.reads += 1
-        return [("amount", 1.0 if self.reads == 1 else float("nan"))]
+        answer = list(super().items())
+        self["amount"] = float("nan")
+        return answer
 
 
-def _refused_by_the_encoder(mapping: dict[str, Any]) -> bool:
-    """Whether `json.dumps` declines to write that mapping at all."""
-    try:
-        json.dumps(mapping, allow_nan=False)
-    except ValueError:
-        return True
-    return False
-
-
-def _encoder_rereads_a_mapping() -> bool:
-    """Whether this interpreter's json encoder consults `items()` itself.
-
-    Measured, because it is not the same answer everywhere: CPython's encoder
-    calls `items()` on a dict subclass, so a mapping read once by the
-    parameter walk is read again while the request is written -- and the NaN
-    of that second reading reaches `allow_nan=False`. pypy's serializes the
-    subclass from its own storage without calling `items()` at all, and
-    writes the `1.0` the first reading had.
-    """
-    already_read = Shifty(amount=1.0)
-    already_read.items()
-    return _refused_by_the_encoder(already_read)
-
-
-def test_the_encoder_probe_answers_both_ways() -> None:
-    """Both answers of `_refused_by_the_encoder` are real, on any interpreter.
-
-    A plain mapping of a finite amount is written; the one whose *first*
-    reading is already a NaN is refused. What the interpreters disagree about
-    is only whether a second reading happens at all, which is the question
-    the probe above asks with those two answers.
-    """
-    assert _refused_by_the_encoder({"amount": 1.0}) is False
-    assert _refused_by_the_encoder({"amount": float("nan")}) is True
-
-
-@pytest.mark.skipif(
-    not _encoder_rereads_a_mapping(),
-    reason="this interpreter's json encoder does not consult a mapping's items()",
-)
 def test_a_parameter_that_is_not_what_the_walk_saw() -> None:
     """`allow_nan=False` is not made redundant by the walk before it.
 
-    The walk reads the caller's own objects, and a mapping is free to answer
-    differently the second time it is read: `params` accepts any `Mapping`,
-    only the outermost one is copied by `dict(params)`, and a nested one is
-    read once by `_assert_json_params` and again by the encoder. So a value
-    can be finite while it is being checked and `NaN` while it is being
-    written -- deliberately here, and in a threaded caller by accident.
+    The walk reads the caller's own objects, and those objects are free to
+    change: `params` accepts any `Mapping`, only the outermost one is copied
+    by `dict(params)`, and a nested one is read by `_assert_json_params` and
+    then written by the encoder. So a value can be finite while it is being
+    checked and `NaN` while it is being written -- deliberately here, and in
+    a threaded caller by accident.
 
     `allow_nan=False` is what catches that, and it catches it before the
     request is built: the assertion on the transport is the half that
@@ -1424,20 +1394,21 @@ def test_a_parameter_that_is_not_what_the_walk_saw() -> None:
     already gave, and a mutation of it survives the suite -- which is what
     it did until this test existed.
 
-    Skipped where the encoder does not consult a mapping's `items()`, which
-    is pypy: there this route to the guard does not exist, though a plain
-    dict mutated by another thread between the two readings still would.
-    `_encoder_rereads_a_mapping` measures which kind of interpreter this is.
+    `Shifty` spoils its own storage while it is being read, which is what
+    makes this one test rather than one per interpreter: CPython's encoder
+    calls `items()` a second time and pypy's serializes the storage without
+    calling it at all, and both of those are the NaN. The reading count is
+    asserted as one or two for that reason -- it is the interpreters'
+    difference, and not this guard's.
     """
     shifty = Shifty(amount=1.0)
     endpoint = client((200, recorded_body("getblockcount.json")))
     with pytest.raises(BTClibValueError, match="rpc params json cannot carry"):
         endpoint.call("sendmany", [shifty])
 
-    # read twice, which is what makes the two readings distinguishable, and
     # the transport was never called: no request was recorded
-    assert shifty.reads == 2
     assert recording(endpoint).requests == []
+    assert shifty.reads in (1, 2)
 
 
 def test_a_number_too_long_for_this_interpreter_to_read() -> None:

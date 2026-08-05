@@ -21,8 +21,13 @@ module is a list per module to keep true, and the policy tests below are
 what keeps it, rather than a reviewer noticing.
 
 `btclib.__all__` is the root of that tree, and one of those tests walks it
-the way `docs/proposals/cli.md` says the command line will: from the root,
-into every module-valued export, down to a node that has none.
+from the root, into every module-valued export, down to a node that has
+none. The command line of `docs/proposals/cli.md` walks the same edges and
+stops at a shorter list: what it publishes as a command group is this tree
+minus the exclusions that proposal records, `bitcoin_core_rpc` being the one
+today. So this test descends into that module deliberately -- the export
+tree is what it is about -- and the assertion that the command tree does not
+belongs to the walker, where the proposal asks for it.
 
 These tests are written against the names rather than the counts, so that a
 deliberate addition is one line here and an accidental one is a failure.
@@ -575,13 +580,18 @@ def test_no_module_exports_a_name_it_imported() -> None:
 def test_the_export_tree_is_walkable_to_its_leaves() -> None:
     """Every module reachable through `__all__` declares one of its own.
 
-    `docs/proposals/cli.md` reads the command tree off `__all__`: a group
-    is a module-valued export, its commands are that module's own list, and
-    an out-of-repo walker sees nothing this library does not publish. So a
+    `docs/proposals/cli.md` reads its command tree off these same edges: a
+    group is a module-valued export, its commands are that module's own list,
+    and an out-of-repo walker sees nothing this library does not publish. So a
     module named in a parent's list and declaring nothing is a node the
     walk arrives at and cannot descend from -- which is what this asks
     about, transitively from `btclib` down, following exports rather than
     the file tree.
+
+    Every published module is walked here, including the ones that proposal
+    excludes from the *command* tree: what is asserted is that the export
+    tree has a declared surface everywhere, which is true of a module whose
+    exports no command line should offer as well as of every other.
 
     A module-valued export is also checked to be a submodule of the module
     exporting it: `btclib.ecc.dsa` is `btclib.ecc`'s to publish, and a
