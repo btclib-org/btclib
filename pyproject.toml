@@ -483,9 +483,9 @@ exclude = [
 # target-version is inferred from project.requires-python
 
 [tool.ruff.lint]
-# A, BLE, C90, RSE, T20 and TID are here by measurement: every
-# unselected rule set was run over btclib and tests, and these are the
-# ones that either find nothing today
+# A, BLE, C90, FA, FIX, FLY, RSE, SLOT, T10, T20 and TID are here by
+# measurement: every unselected rule set was run over btclib and tests,
+# and these are the ones that either find nothing today
 # -- a ratchet, costing no cleanup -- or find something worth removing.
 # PTH is the same case with a wider cleanup: every os.path and bare open()
 # call in the library and its tests, replaced by pathlib. Two of the
@@ -513,7 +513,11 @@ exclude = [
 # The zero-finding sets not taken are the ones for constructs this code
 # base does not contain -- DTZ without datetime, G and LOG without
 # logging, ASYNC, NPY -- because a rule that can never fire reads as an
-# enforced invariant while enforcing nothing
+# enforced invariant while enforcing nothing. TD is the other zero-finding
+# set left out on purpose rather than for want of a construct: it and FIX
+# both watch TODO-style comments, TD disciplining their format and FIX
+# refusing them outright, and a codebase that finishes what it starts
+# wants the second
 select = [
     "A",    # flake8-builtins: a name that shadows a builtin
     "B",    # flake8-bugbear
@@ -524,6 +528,9 @@ select = [
     "E",    # pycodestyle errors
     "ERA",  # eradicate: code that was commented out instead of deleted
     "F",    # pyflakes
+    "FA",   # flake8-future-annotations
+    "FIX",  # flake8-fixme: a TODO left behind is a thing not finished
+    "FLY",  # flynt: string concatenation ruff can turn into an f-string
     "FURB", # refurb
     "I",    # isort
     "ISC",  # flake8-implicit-str-concat
@@ -537,6 +544,8 @@ select = [
     "RUF",  # ruff-specific rules
     "S",    # flake8-bandit
     "SIM",  # flake8-simplify
+    "SLOT", # flake8-slots: a tuple/NamedTuple subclass without __slots__
+    "T10",  # flake8-debugger: a breakpoint() left in
     "T20",  # flake8-print: a library writes to no stream of its own
     "TID",  # flake8-tidy-imports: absolute, so the layering is readable
     "TRY",  # tryceratops
