@@ -4644,6 +4644,15 @@ edit.
 
 ### Packaging, linting and CI
 
+- **`tests/mutation_counts_test.py` skips its `?` filename case on
+  Windows**, now that `test.yml`'s matrix runs `windows-latest` and
+  `windows-11-arm` again. The case exists to show that `_read_only`'s URI
+  construction treats `?` as an ordinary filename character rather than
+  `file:{path}?mode=ro`'s query-string delimiter, and NTFS refuses that
+  character in a filename outright, so there is no such file for the
+  fixture to write there. `#`, the other delimiter the same parametrize
+  covers, is ordinary on NTFS and keeps running everywhere, so the
+  escaping stays covered on every platform the matrix tests.
 - **mutation testing reaches the wire format**, a third configuration and a
   second job (issue #327). `.github/mutation/parsers.toml` mutates
   `btclib/tx/` with the `var_int` and `var_bytes` codecs under it: the
