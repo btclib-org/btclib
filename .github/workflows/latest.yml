@@ -49,10 +49,13 @@ on:
   schedule:
     # weekly, on a minute that is not the hour: everything scheduled on
     # the hour is queued together, and a run that waits is a run whose
-    # failure is noticed later.
+    # failure is noticed later. Wednesday, the day after published.yml's
+    # Tuesday: a fixed, already-released artifact is checked first, this
+    # the more volatile question. Thursday is left for Dependabot,
+    # opening the day after this has already reported.
     # Only the default branch schedules workflows, so on any other branch
     # this is reachable through the dispatch below alone
-    - cron: "43 4 * * 4"
+    - cron: "43 4 * * 3"
   workflow_dispatch:
 
 # least privilege for the GITHUB_TOKEN: everything running in a job

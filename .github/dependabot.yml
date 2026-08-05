@@ -36,11 +36,11 @@ updates:
     directory: /
     schedule:
       interval: weekly
-      # friday, where the latest workflow runs thursday: the sentinel has
-      # just reported when the pull requests are opened. It buys the
+      # thursday, where the latest workflow runs wednesday: the sentinel
+      # has just reported when the pull requests are opened. It buys the
       # actions ecosystem nothing, which the sentinel does not cover, but
       # two schedules a day apart are one thing to remember instead of two
-      day: friday
+      day: thursday
     target-branch: dev
     groups:
       actions:
@@ -58,7 +58,7 @@ updates:
     directory: /
     schedule:
       interval: weekly
-      day: friday
+      day: thursday
     target-branch: dev
     groups:
       dev-tooling:
