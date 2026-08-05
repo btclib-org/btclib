@@ -56,11 +56,16 @@ test-command = """python -m pytest -x -q -n0 -p no:randomly \
 # it: `run_tests` catches `subprocess.TimeoutExpired` and answers KILLED,
 # so a mutant cut short is *reported as dead* on a busy machine. That is
 # the direction to be afraid of -- a survivor counted as a kill is the
-# failure mode a stale test command has, the one that looks like good news
-# -- and every second of slack costs only the mutants that really do not
-# end, `var_int.parse` reading a length it then allocates being where one
-# would be. Zero timeouts in the sessions measured so far, against a test
-# command of about a second
+# failure mode a stale test command has, the one that looks like good news.
+#
+# What the width is not guarding is a loop in this scope. There is no
+# unbounded one to find: the counts and lengths a mutant could uncap are
+# read from a stream that ends, so `Tx.parse`'s `range(n)` stops at the
+# first `read_exactly`, and `var_bytes.parse` asks `stream.read(i)` for
+# whatever is left and then refuses the short answer. Against a test
+# command of about a second, every session measured here has finished with
+# zero timeouts, so the number is slack for a loaded runner and nothing
+# else
 timeout = 300
 
 excluded-modules = []
@@ -78,14 +83,21 @@ excluded-modules = []
 # a fraction of one.
 #
 # Excluded by operator here rather than with `# pragma: no mutate`, and
-# seven lines of library source against one line in this file is not what
-# settles that: `cr-filter-pragma` skips whatever mutation *ends* on a
-# marked line, and every one of the seven is a signature, so the pragma
-# would take the `check_validity: bool = True` and the keyword-only `*` on
-# the same line with it -- mutants this profile's survivor list is about.
-# The price of doing it by operator is the other way round: a real `a | b`
-# added to one of these modules would be skipped in silence, so the claim
-# behind it is a grep:
+# the collateral of a pragma is not the argument: grouped by the line
+# `cr-filter-pragma` reads -- the one a mutation *ends* on -- six of the
+# seven hold nothing but that annotation's eleven mutants, the multiline
+# signatures putting the `*` and the `check_validity` default on lines of
+# their own. `out_point.py:97` is the exception and the only signature
+# written on one line, where a pragma would also skip the ten mutants of
+# the keyword-only `*` and the one of its default, both of which
+# tests/check_validity_test.py answers.
+#
+# What settles it is where the decision lives. One line here, in the file
+# that already says what is mutated and what judges it, against a marker in
+# each of seven library lines and again in every module a later
+# `module-path` adds. The price is the same either way and is paid here
+# instead of there: a real `a | b` added to one of these modules would be
+# skipped in silence, so the claim behind it is a grep:
 #
 #   grep -n ' | ' btclib/tx/*.py btclib/var_int.py btclib/var_bytes.py
 #

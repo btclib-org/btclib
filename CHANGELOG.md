@@ -4563,17 +4563,22 @@ edit.
   scope reports 122 survivors and every one of those 88 is among them, so
   filtering leaves the 34 that are worth reading and spends minutes less, a
   survivor costing the whole test command where most kills cost a fraction of
-  one. Excluded by operator rather than with a `# pragma: no mutate`, and not
-  because seven lines of library source are many: `cr-filter-pragma` skips
-  whatever mutation *ends* on a marked line, and all seven are signatures, so
-  the pragma would take the `check_validity` default and the keyword-only `*`
-  on those lines with it — mutants this profile's survivor list is about. The
-  price of the operator is the other way round and stated where it is paid: a
-  real `a | b` added to one of these modules would be skipped in silence, and
-  the grep that re-derives the claim is beside the exclusion. So is what a
-  skip does to the one number the workflow prints: `cr-rate` counts a result
-  that is not SURVIVED as a kill, which a skip and a per-mutant timeout both
-  are
+  one. Excluded by operator rather than with a `# pragma: no mutate`, and the
+  collateral of a pragma is not the argument for it: grouped by the line
+  `cr-filter-pragma` reads — the one a mutation *ends* on — six of the seven
+  hold nothing but that annotation's eleven mutants, the multiline signatures
+  putting the `*` and the `check_validity` default on lines of their own.
+  `out_point.py:97` is the exception and the only signature written on one
+  line, where a pragma would also skip the ten mutants of the keyword-only
+  `*` and the one of its default. What settles it is where the decision
+  lives: one line in the file that already says what is mutated and what
+  judges it, against a marker in each of seven library lines and again in
+  every module a later `module-path` adds. The price is the same either way
+  and is paid in the configuration instead of the library: a real `a | b`
+  added to one of these modules would be skipped in silence, and the grep
+  that re-derives the claim is beside the exclusion. So is what a skip does
+  to the one number the workflow prints: `cr-rate` counts a result that is
+  not SURVIVED as a kill, which a skip and a per-mutant timeout both are
 - **the bindings dependency states its policy where the pin is** (issue
   #325). `btclib_libsecp256k1>=0.7.1` has no upper bound, and the
   absence of a ceiling is now written down as the decision it is:
