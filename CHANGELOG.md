@@ -1146,7 +1146,17 @@ edit.
   sentinel for the field, instead of a satoshi count twice MAX_MONEY. The
   checked parse still refuses either reading, negative or merely too
   large, and a valid amount serializes exactly as before, the two
-  readings not differing below 2^63. Found while reviewing #386
+  readings not differing below 2^63. The three other places the same
+  field goes on the wire move with it, so that one field has one
+  reading: BIP143's `amount`, BIP341's `sha_amounts`, and the amount
+  ANYONECANPAY writes inline. Each wrote the octets a caller had
+  already been handed as a negative integer, so they answered a
+  prevout of `TxOut.parse`'s own making with a bare `OverflowError`
+  from `int.to_bytes` -- reachable through `sig_hash.taproot`,
+  `sig_hash.segwit_v0` and `PrecomputedTxData`, and from outside the
+  exception contract. What each commits to is unchanged, `-1` and
+  `0xffffffffffffffff` being the same eight octets. Found while
+  reviewing #386
 
 ### Immutability and shared state
 

@@ -223,7 +223,7 @@ def _bip143_preimage(
             b"\x00" * 32,
             tx.vin[vin_i].prev_out.serialize(),
             var_bytes.serialize(script_code),
-            amount.to_bytes(8, "little"),
+            amount.to_bytes(8, "little", signed=True),  # a CAmount
             tx.vin[vin_i].sequence.to_bytes(4, "little"),
             hash_outputs,
             tx.lock_time.to_bytes(4, "little"),
@@ -291,4 +291,34 @@ def test_sighash_single_past_the_last_output() -> None:
     preimage = _bip143_preimage(tx, 0, script_code, _AMOUNT, hash_outputs)
     assert sig_hash.segwit_v0(script_code, tx, 0, sig_hash.SINGLE, _AMOUNT) == hash256(
         preimage
+    )
+
+
+def test_the_bip143_amount_is_a_signed_camount() -> None:
+    """BIP143's amount is Core's CAmount, so the eight bytes are signed.
+
+    The amount reaches the preimage from a spent output's value, which
+    is a signed int64 (issue #388), so the two must agree on which
+    integers the field stands for: -1 is what eight `ff` octets mean,
+    and writing them is what Core's `ss << amount` does. Asserted as
+    the bytes rather than as a number, the preimage being what is
+    signed -- and hand-written here, as the file's other preimage is.
+    """
+    tx = Tx.parse(_BIP143_TX)
+    script_code = bytes.fromhex(_WITNESS_SCRIPT)
+    hash_outputs = hash256(tx.vout[0].serialize())
+
+    preimage = _bip143_preimage(tx, 0, script_code, _AMOUNT, hash_outputs)
+    assert sig_hash.segwit_v0(script_code, tx, 0, sig_hash.SINGLE, _AMOUNT) == hash256(
+        preimage
+    )
+
+    # the octets a signed and an unsigned reading disagree about: what
+    # goes into the preimage is `ffffffffffffffff` either way, so the
+    # hash is unchanged and only the integer naming those octets moves
+    assert (-1).to_bytes(8, "little", signed=True) == b"\xff" * 8
+    negative = _bip143_preimage(tx, 0, script_code, -1, hash_outputs)
+    assert b"\xff" * 8 in negative
+    assert sig_hash.segwit_v0(script_code, tx, 0, sig_hash.SINGLE, -1) == hash256(
+        negative
     )

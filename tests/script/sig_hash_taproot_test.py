@@ -29,7 +29,7 @@ import pytest
 from btclib.alias import ScriptList, TaprootScriptTree
 from btclib.ecc import ssa
 from btclib.exceptions import BTClibRuntimeError, BTClibValueError
-from btclib.hashes import hash160
+from btclib.hashes import hash160, sha256
 from btclib.script import (
     ScriptPubKey,
     Witness,
@@ -595,3 +595,36 @@ def test_script_path_spend_round_trip(annex: bytes) -> None:
     # the signature on the stack is not part of what is signed: the same
     # message comes back out of the completed spend
     assert sig_hash.from_tx(prevouts, tx, 0, sig_hash.DEFAULT) == msg_hash
+
+
+def test_the_spent_amounts_are_signed_camounts() -> None:
+    """BIP341's sha_amounts holds CAmounts, so its eight-byte words are signed.
+
+    Every amount is a spent output's value, a signed int64 (issue #388),
+    and Core hashes them with `ss << txout.nValue` -- so what
+    `TxOut.parse` reads with the check off must be what this commits to.
+    Eight `ff` octets are -1, and the field carries those octets: the
+    hash is the one an unsigned reading of the same buffer produced,
+    which is the point, only the integer naming them having moved.
+    """
+    high_bit_set = b"\xff" * 8 + b"\x00"  # the value, then an empty script
+    prevout = TxOut.parse(high_bit_set, check_validity=False)
+    assert prevout.value == -1
+
+    tx = Tx(
+        1,
+        0,
+        [TxIn(OutPoint(b"\x11" * 32, 0), b"", 0xFFFFFFFF, Witness([b"\x00" * 64]))],
+        [TxOut(1000, "00141d0f172a0ecb48aee1be1f2687d2963ae33f71a1")],
+    )
+
+    # the octets, and the two entry points that write them: neither
+    # raises the OverflowError an unsigned field answers -1 with
+    precomputed = sig_hash.PrecomputedTxData(tx, [prevout])
+    assert precomputed.sha_amounts == sha256(b"\xff" * 8)
+    assert sig_hash.taproot(tx, 0, [prevout], sig_hash.DEFAULT, 0, b"", b"")
+
+    # and ANYONECANPAY, which writes the one amount inline instead
+    assert sig_hash.taproot(
+        tx, 0, [prevout], sig_hash.ANYONECANPAY | sig_hash.ALL, 0, b"", b""
+    )
