@@ -20,7 +20,7 @@ from collections.abc import Callable, Mapping, Sequence
 from dataclasses import dataclass
 from typing import Any, cast
 
-from btclib.alias import BinaryData, Octets
+from btclib.alias import BinaryData, Octets, ValidSigHashType
 from btclib.bip32.key_origin import (
     BIP32KeyOrigin,
     HdKeyPaths,
@@ -520,7 +520,7 @@ class PsbtIn:
     non_witness_utxo: Tx | None
     witness_utxo: TxOut | None
     partial_sigs: dict[bytes, bytes]
-    sig_hash_type: int | None
+    sig_hash_type: ValidSigHashType | None
     redeem_script: bytes
     witness_script: bytes
     hd_key_paths: HdKeyPaths
@@ -569,7 +569,7 @@ class PsbtIn:
         non_witness_utxo: Tx | None = None,
         witness_utxo: TxOut | None = None,
         partial_sigs: Mapping[Octets, Octets] | None = None,
-        sig_hash_type: int | None = None,
+        sig_hash_type: ValidSigHashType | None = None,
         redeem_script: Octets = b"",
         witness_script: Octets = b"",
         hd_key_paths: Mapping[Octets, BIP32KeyOrigin] | None = None,

@@ -11,10 +11,11 @@
 
 from dataclasses import FrozenInstanceError, fields
 from io import BytesIO
-from typing import Any
+from typing import Any, get_args
 
 import pytest
 
+from btclib.alias import ValidSigHashType
 from btclib.bip32 import BIP32KeyOrigin
 from btclib.exceptions import BTClibValueError
 from btclib.psbt import Psbt, PsbtIn
@@ -26,6 +27,7 @@ from btclib.psbt.psbt_in import (
 )
 from btclib.psbt.psbt_utils import PSBT_SEPARATOR
 from btclib.script import Witness
+from btclib.script.sig_hash import SIG_HASH_TYPES
 from btclib.tx import OutPoint, Tx, TxIn, TxOut
 from tests.conftest import JsonGolden
 
@@ -76,6 +78,16 @@ def test_the_sig_hash_type_is_four_octets_and_no_other_number_of_them() -> None:
         for check_validity in (True, False):
             with pytest.raises(BTClibValueError, match=err_msg):
                 PsbtIn.parse(raw, check_validity=check_validity)
+
+
+def test_valid_sig_hash_type_matches_sig_hash_types() -> None:
+    """ValidSigHashType is a mypy fact about sig_hash_type, checked here.
+
+    Nothing of a Literal exists at run time (issue #273), so what mypy
+    cannot check against sig_hash.assert_valid_hash_type's own frozenset,
+    the suite does.
+    """
+    assert set(get_args(ValidSigHashType)) == SIG_HASH_TYPES
 
 
 def test_compatibility() -> None:

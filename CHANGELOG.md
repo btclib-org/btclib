@@ -3548,6 +3548,25 @@ edit.
   against the data instead: `network_test.py` against
   `dataclasses.fields(Network)` and `NETWORKS`, `mnemonic_test.py` against a
   fresh `WordLists`
+- **the sighash byte gets a `Literal` too, narrower than #216's four**
+  (issue #273). `alias.ValidSigHashType` names the seven values
+  `sig_hash.SIG_HASH_TYPES` already enforces — the low bits' four values
+  and each ORed with `ANYONECANPAY` — and types only `PsbtIn.sig_hash_type`,
+  the one place this vocabulary is closed. Not an `IntFlag` over the whole
+  byte: `SINGLE == ALL | NONE`, both 3, so a flag decomposition would make
+  `SINGLE` an alias of `ALL | NONE`, a bit structure the protocol does not
+  have. Not an `IntEnum` either, and on neither side of the boundary:
+  `legacy` and `segwit_v0` mask a hash type rather than validate it, so a
+  byte such as `0x05` must still hash, being a value a mined signature can
+  carry, which is why `assert_valid_hash_type` keeps `hash_type: int` and
+  is checked against all 256 possible bytes by
+  `sig_hash_taproot_test.py`'s own `test_valid_sighash_type` — a call a
+  `Literal`-typed parameter could not be given under mypy strict. The one
+  cost: `psbt_test.py`'s out-of-range `sig_hash_type` assignment now reads
+  `# type: ignore[assignment]`, the same way its neighbouring bad-value
+  assignments already do. `psbt_in_test.py` checks `ValidSigHashType`
+  against `SIG_HASH_TYPES`, the way `network_test.py` checks #216's two
+  data-derived aliases
 
 ### Performance
 
