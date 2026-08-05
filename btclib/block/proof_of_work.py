@@ -44,6 +44,7 @@ __all__ = [
     "block_work",
     "chain_work",
     "hash_rate",
+    "is_negative_bits",
     "next_bits",
     "retarget_first_height",
     "target_from_bits",
@@ -107,6 +108,28 @@ def target_from_bits(bits: Octets) -> bytes:
     return value.to_bytes(TARGET_SIZE, "big", signed=False)
 
 
+def is_negative_bits(bits: Octets) -> bool:
+    """Return whether the compact `bits` denote a negative number.
+
+    Bitcoin Core's `fNegative`, the flag `SetCompact` reports beside the
+    value: 0x00800000 of the significand is a sign and not magnitude, so
+    `bits` carrying it denote a number below zero, which no target is and
+    no header may claim. `CheckProofOfWork` refuses such a header, and
+    `BlockHeader.assert_valid_pow` is where btclib does.
+
+    A significand of zero has no sign, which is Core's `nWord != 0 &&`:
+    0x03800000 denotes zero rather than negative zero, the sign bit being
+    all there is of it. This asks the sign of the number the four bytes
+    denote and not the sign of the target, which is unsigned and cannot
+    carry the answer -- hence a predicate, where Core has an
+    out-parameter.
+    """
+    bits = bytes_from_octets(bits, 4)
+
+    significand = int.from_bytes(bits[1:], byteorder="big", signed=False)
+    return bool(significand & 0x007FFFFF) and bool(significand & 0x00800000)
+
+
 def bits_from_target(target: Octets) -> bytes:
     """Return the compact `bits` denoting a target, rounded down.
 
@@ -119,8 +142,9 @@ def bits_from_target(target: Octets) -> bytes:
     change of base. The compact form reads 0x00800000 as "negative", so
     a significand whose high bit is set is divided by 256 and the
     exponent raised -- 0x800000 is written 0x04008000, four bytes rather
-    than three, and never 0x03800000, which denotes a negative number no
-    header may carry.
+    than three, and never 0x03800000, where that bit is the sign and
+    `SetCompact` masks it off, leaving four bytes that denote zero.
+    is_negative_bits is the flag itself, for the other direction.
     """
     target = bytes_from_octets(target)
     if len(target) > TARGET_SIZE:

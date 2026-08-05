@@ -415,6 +415,33 @@ edit.
   the compact form cannot be nudged to meet a given hash either, its
   significand holding three bytes — which is precisely why the comparison
   has to be read off Core rather than tested against it
+- **a proof-of-work is checked against the network's limit**, and against
+  the three other range checks Core's `DeriveTarget` makes before it.
+  `BlockHeader.assert_valid_pow` was that hash comparison and nothing
+  else, where `CheckProofOfWork` refuses four targets without looking at
+  the hash at all: a negative `nBits`, a zero target, one 32 bytes cannot
+  hold, and one above `params.powLimit`. btclib made none of them at that
+  site — `target_from_bits` raises on the overflow, the zero target was
+  refused only by `block_work`, which this never called, and there was no
+  pow limit in a function that took no arguments — so a header claiming
+  regtest's `207fffff` on mainnet was a mainnet header for half a try's
+  worth of work. `assert_valid_pow(pow_limit_bits)` and
+  `Block.assert_valid(pow_limit_bits)` now take the network's easiest
+  target, `MAINNET_POW_LIMIT_BITS` by default as `next_bits` already took
+  it, and each refusal names which of the four it was where
+  `DeriveTarget` returns a bare `nullopt` for all of them. The sign bit is
+  `proof_of_work.is_negative_bits`, Core's `fNegative`, asked of the four
+  bytes because the target is unsigned and cannot carry it. It is a
+  parameter of `Block.assert_valid` and not of `__init__`, `parse` or
+  `serialize`: those three call it to ask whether the bytes are a block,
+  and a block of another network is built with `check_validity=False` and
+  then asked, which is the pair of steps a header being mined already
+  takes. What the four do not yet close is issue #402's: `SetCompact`
+  masks the significand before computing the value, so the two `nBits`
+  Core reads as zero, `03800000` and `1d800000`, are a target of 2^23 and
+  one of 2^215 here and reach the zero check as neither.
+  `tests/block/block_test.py` carries both as the `xfail` that turns red
+  the day the mask lands (issue #403)
 - **btclib can check a Merkle proof, not only compute a root.** It had
   the builder's side, `merkle_root_and_mutated_from_hashes`, and no
   entry point for the verifier's: from a txid, a branch of siblings and

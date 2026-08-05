@@ -36,6 +36,7 @@ from btclib.block.proof_of_work import (
     block_work,
     chain_work,
     hash_rate,
+    is_negative_bits,
     next_bits,
     retarget_first_height,
     target_from_bits,
@@ -152,6 +153,37 @@ def test_bits_from_target_edges() -> None:
     # a target is 256 bits
     with pytest.raises(BTClibValueError, match="invalid target: 33 bytes"):
         bits_from_target(b"\xff" * 33)
+
+
+def test_is_negative_bits() -> None:
+    """Core's fNegative, the flag SetCompact reports beside the value.
+
+    `nWord = nCompact & 0x007fffff` and `*pfNegative = nWord != 0 &&
+    (nCompact & 0x00800000) != 0`, so the answers below are read off
+    `arith_uint256.cpp` and not off btclib: 0x03800000 is the row that
+    tells the two apart, its significand masking to zero, which is a
+    number with no sign rather than a negative zero.
+
+    The flag is asked of the four bytes and not of the target, which is
+    unsigned and cannot carry it. `assert_valid_pow` is what refuses a
+    header for it, as `CheckProofOfWork` does.
+    """
+    # every bits value this file and the vendored blocks already use
+    for bits_hex in ("1d00ffff", "207fffff", "1a05db8b", "18013ce9", "2000ffff"):
+        assert not is_negative_bits(bits_hex)
+
+    # the sign bit set, over a significand that is not zero
+    assert is_negative_bits("03ffffff")
+    assert is_negative_bits("1d80ffff")
+    assert is_negative_bits("03800001")
+
+    # and set over one that is: no sign on zero
+    assert not is_negative_bits("03800000")
+    assert not is_negative_bits("1d800000")
+
+    # bits are four bytes, whatever else is handed over
+    with pytest.raises(BTClibValueError, match="invalid size: 3 bytes instead of 4"):
+        is_negative_bits("00ffff")
 
 
 def test_retarget_first_height() -> None:

@@ -17,9 +17,11 @@ test, or watching the search work.
 
 What it is not a toy about is the header it produces. The merkle root
 comes from the same function `Block.assert_valid_merkle_root` checks
-against, and the solved header satisfies `assert_valid_pow`, so the
-result is a block every other implementation accepts -- at a difficulty
-nobody has to be convinced by.
+against, and the solved header satisfies `assert_valid_pow` for a network
+whose pow limit the bits are within -- `REGTEST_POW_LIMIT_BITS` for a
+target of that grade, since mainnet's is the default there and refuses
+one. So the result is a block every other implementation accepts, at a
+difficulty nobody has to be convinced by.
 """
 
 from __future__ import annotations
@@ -114,9 +116,13 @@ def mine(header: BlockHeader, max_tries: int = 1 << 20) -> BlockHeader | None:
     stop = min(candidate.nonce + max_tries, NONCE_SPACE)
     for nonce in range(candidate.nonce, stop):
         candidate.nonce = nonce
-        # the comparison assert_valid_pow makes, so that what is returned
-        # from here is what a Block will accept: the target is a bound the
-        # hash may reach, Core rejecting on "hash > bnTarget"
+        # the last comparison assert_valid_pow makes, so that what is
+        # returned from here is what a Block will accept: the target is a
+        # bound the hash may reach, Core rejecting on "hash > bnTarget".
+        # The range checks it makes before it are about the bits and not
+        # the nonce, so they are the same for every candidate and none of
+        # this loop's business: a target no network allows is one this
+        # search solves and assert_valid_pow still refuses
         if candidate.hash <= target:
             return candidate
 

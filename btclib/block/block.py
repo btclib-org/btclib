@@ -17,7 +17,7 @@ from math import ceil
 from typing import Any
 
 from btclib import var_bytes, var_int
-from btclib.alias import BinaryData, Command
+from btclib.alias import BinaryData, Command, Octets
 from btclib.block.block_context import BlockContext
 from btclib.block.block_header import BlockHeader
 from btclib.block.limits import (
@@ -25,6 +25,7 @@ from btclib.block.limits import (
     MAX_BLOCK_WEIGHT,
     WITNESS_SCALE_FACTOR,
 )
+from btclib.block.proof_of_work import MAINNET_POW_LIMIT_BITS
 from btclib.exceptions import BTClibValueError
 from btclib.hashes import (
     hash256,
@@ -461,13 +462,21 @@ class Block:
         if context.bip34_active:
             self.assert_valid_coinbase_height(context.height)
 
-    def assert_valid(self) -> None:
+    def assert_valid(self, pow_limit_bits: Octets = MAINNET_POW_LIMIT_BITS) -> None:
         """Refuse what Core's CheckBlock refuses, in Core's order.
 
         The header and its proof-of-work, the size bounds, exactly one
         coinbase and it first, every transaction on its own, the sigop
         bound, the merkle root, the witness commitment, the weight.
         Height and clock rules are assert_valid_contextual's.
+
+        `pow_limit_bits` is forwarded to assert_valid_pow, whose docstring
+        says why the network's easiest target is the caller's to state and
+        why mainnet's is the default. It is a parameter here and not of
+        __init__, parse or serialize: those three call this to answer
+        whether the bytes are a block, and a block of another network is
+        built with check_validity=False and then asked, which is the same
+        two steps a caller already takes to build a header being mined.
         """
         self.header.assert_valid()
         # the header alone does not assert this: a header being mined is
@@ -478,7 +487,7 @@ class Block:
         # CheckProofOfWork with fCheckPOW defaulted to true.
         # It is also what makes the vendored block_*.bin files verify
         # themselves: Block.parse recomputes the hash from the bytes
-        self.header.assert_valid_pow()
+        self.header.assert_valid_pow(pow_limit_bits)
 
         # Core's bad-blk-length is three questions in one condition -- an
         # empty transaction list, too many transactions, too many bytes --
