@@ -322,7 +322,7 @@ def test_the_bip174_spend_is_read_back_off_the_wire() -> None:
 
 
 @pytest.mark.parametrize(
-    ("block_name", "first", "kinds"),
+    "block_name, first, kinds",
     [
         # the first 600 transactions of the first segwit block, which is
         # where its seven segwit spends are -- p2wpkh and p2sh-p2wpkh,

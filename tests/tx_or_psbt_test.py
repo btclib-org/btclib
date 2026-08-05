@@ -95,7 +95,7 @@ def test_check_validity_reaches_the_parser() -> None:
 
 
 @pytest.mark.parametrize(
-    ("data", "err_msg"),
+    "data, err_msg",
     [
         pytest.param("", "no data", id="an empty string"),
         pytest.param(b"", "no data", id="empty bytes"),

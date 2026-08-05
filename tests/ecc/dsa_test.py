@@ -662,7 +662,7 @@ def test_recovery_multiplies_in_libsecp256k1(
 
 
 @pytest.mark.parametrize(
-    ("r", "expected_key_ids"),
+    "r, expected_key_ids",
     [(2, [0, 1, 2, 3]), (7, [2, 3])],
     ids=["four-candidates", "the-j-one-pair-alone"],
 )

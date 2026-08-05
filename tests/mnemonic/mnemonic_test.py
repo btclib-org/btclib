@@ -114,7 +114,7 @@ def respace(mnemonic: str, prefix: str, separator: str, suffix: str) -> str:
     return prefix + separator.join(mnemonic.split()) + suffix
 
 
-@pytest.mark.parametrize(("prefix", "separator", "suffix"), WHITESPACE_SHAPES)
+@pytest.mark.parametrize("prefix, separator, suffix", WHITESPACE_SHAPES)
 def test_bip39_whitespace(prefix: str, separator: str, suffix: str) -> None:
     """Verify BIP39's answers are unchanged by the whitespace shape."""
     mnemonic = respace(BIP39_MNEMONIC, prefix, separator, suffix)
@@ -130,7 +130,7 @@ def test_bip39_whitespace(prefix: str, separator: str, suffix: str) -> None:
     )
 
 
-@pytest.mark.parametrize(("prefix", "separator", "suffix"), WHITESPACE_SHAPES)
+@pytest.mark.parametrize("prefix, separator, suffix", WHITESPACE_SHAPES)
 def test_electrum_whitespace(prefix: str, separator: str, suffix: str) -> None:
     """Verify electrum's answers are unchanged by the whitespace shape."""
     mnemonic = respace(ELECTRUM_MNEMONIC, prefix, separator, suffix)
@@ -145,7 +145,7 @@ def test_electrum_whitespace(prefix: str, separator: str, suffix: str) -> None:
     )
 
 
-@pytest.mark.parametrize(("prefix", "separator", "suffix"), WHITESPACE_SHAPES)
+@pytest.mark.parametrize("prefix, separator, suffix", WHITESPACE_SHAPES)
 def test_indexes_from_mnemonic_whitespace(
     prefix: str, separator: str, suffix: str
 ) -> None:

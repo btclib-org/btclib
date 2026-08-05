@@ -195,7 +195,7 @@ _ZKP_VECTORS = [
 ]
 
 
-@pytest.mark.parametrize(("commit_hash", "opening"), _ZKP_VECTORS)
+@pytest.mark.parametrize("commit_hash, opening", _ZKP_VECTORS)
 def test_libsecp256k1_zkp_fixed_vectors(commit_hash: str, opening: str) -> None:
     """The receipt is the opening libsecp256k1-zkp's own fixture expects."""
     sig, receipt = dsa.sign_(_ZKP_MSG_HASH, _ZKP_PRV_KEY, commit_hash=commit_hash)
@@ -261,7 +261,7 @@ def _sha256_midstate(block: bytes) -> tuple[int, ...]:
     )
 
 
-@pytest.mark.parametrize(("tag", "midstate"), _ZKP_MIDSTATES)
+@pytest.mark.parametrize("tag, midstate", _ZKP_MIDSTATES)
 def test_the_tags_are_libsecp256k1s(tag: bytes, midstate: tuple[int, ...]) -> None:
     """Each tag string reproduces the midstate the C source publishes."""
     assert _sha256_midstate(sha256(tag).digest() * 2) == midstate

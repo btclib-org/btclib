@@ -645,3 +645,11 @@ max-doc-length = 80
 
 [tool.ruff.lint.pydocstyle]
 convention = "pep257"
+
+[tool.ruff.lint.flake8-pytest-style]
+# matching the bindings' own choice, and its reason: the names of a
+# parametrize are a signature, and the comma-separated string is how
+# pytest's own documentation writes one. Ruff's default, tuple, was never
+# a decision this file made -- every other setting in it carries the
+# measurement or the reason that chose it, and this one had neither
+parametrize-names-type = "csv"

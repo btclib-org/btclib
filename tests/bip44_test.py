@@ -103,7 +103,7 @@ _VECTORS = [
 ]
 
 
-@pytest.mark.parametrize(("mxkey", "xpub", "der_path", "address"), _VECTORS)
+@pytest.mark.parametrize("mxkey, xpub, der_path, address", _VECTORS)
 def test_bip44_vectors(mxkey: str, xpub: str, der_path: str, address: str) -> None:
     """Reproduce SLIP132, BIP49, BIP84 and BIP86 addresses, any level."""
     # from the master key, walking the whole path
@@ -184,7 +184,7 @@ def test_coin_type() -> None:
 
 
 @pytest.mark.parametrize(
-    ("der_path", "err_msg"),
+    "der_path, err_msg",
     [
         ("m/84h/0h/0h/0", "invalid BIP44 path: 4 levels instead of 5"),
         ("m/84h/0h/0h/0/0/0", "invalid BIP44 path: 6 levels instead of 5"),

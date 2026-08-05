@@ -394,7 +394,7 @@ def test_word_order() -> None:
     assert int(reversed_entr, 2) == 0xFB0A779F83FEDDB0E39AA0DDE898CC384
 
 
-@pytest.mark.parametrize(("mnemonic", "passphrase", "version", "seed"), SEED_VECTORS)
+@pytest.mark.parametrize("mnemonic, passphrase, version, seed", SEED_VECTORS)
 def test_seed_vectors(mnemonic: str, passphrase: str, version: str, seed: str) -> None:
     """Reproduce electrum's SEED_TEST_CASES, version and seed alike."""
     assert electrum._seed_from_mnemonic(mnemonic, passphrase) == (
@@ -403,7 +403,7 @@ def test_seed_vectors(mnemonic: str, passphrase: str, version: str, seed: str) -
     )
 
 
-@pytest.mark.parametrize(("mnemonic", "version"), VERSION_VECTORS)
+@pytest.mark.parametrize("mnemonic, version", VERSION_VECTORS)
 def test_version_vectors(mnemonic: str, version: str) -> None:
     """Reproduce electrum's Test_seeds table, refusals included."""
     if not version:
@@ -495,7 +495,7 @@ OLD_HEX_SEEDS = [
 ]
 
 
-@pytest.mark.parametrize(("hex_seed", "mnemonic", "master_pub_key"), OLD_HEX_SEEDS)
+@pytest.mark.parametrize("hex_seed, mnemonic, master_pub_key", OLD_HEX_SEEDS)
 def test_old_vectors(hex_seed: str, mnemonic: str, master_pub_key: str | None) -> None:
     """The pre-2.0 scheme, both directions and the stretch, against electrum.
 
@@ -766,7 +766,7 @@ def test_2fa_words() -> None:
         electrum.version_from_mnemonic(thirteen_words)
 
 
-@pytest.mark.parametrize(("mnemonic", "lang", "entropy"), DECODE_VECTORS)
+@pytest.mark.parametrize("mnemonic, lang, entropy", DECODE_VECTORS)
 def test_decode_vectors(mnemonic: str, lang: str, entropy: int) -> None:
     """The entropy electrum's mnemonic_decode reads off each sentence.
 
@@ -780,7 +780,7 @@ def test_decode_vectors(mnemonic: str, lang: str, entropy: int) -> None:
 
 
 @pytest.mark.parametrize(
-    ("lang", "mnemonic_type", "entropy", "mnemonic", "seed"), GENERATED_VECTORS
+    "lang, mnemonic_type, entropy, mnemonic, seed", GENERATED_VECTORS
 )
 def test_generated_vectors(
     lang: str, mnemonic_type: str, entropy: int, mnemonic: str, seed: str
@@ -969,7 +969,7 @@ ELECTRUM_VECTORS = [
 
 
 @pytest.mark.parametrize(
-    ("mnemonic", "passphrase", "rmxprv", "rmxpub", "address"), ELECTRUM_VECTORS
+    "mnemonic, passphrase, rmxprv, rmxpub, address", ELECTRUM_VECTORS
 )
 def test_vectors(
     mnemonic: str, passphrase: str, rmxprv: str, rmxpub: str, address: str

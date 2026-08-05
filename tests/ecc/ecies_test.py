@@ -281,7 +281,7 @@ _ELECTRUM_VECTORS = [
 ]
 
 
-@pytest.mark.parametrize(("plaintext", "armor"), _ELECTRUM_VECTORS)
+@pytest.mark.parametrize("plaintext, armor", _ELECTRUM_VECTORS)
 def test_decrypt_electrum_ciphertext(plaintext: bytes, armor: str) -> None:
     """Verify btclib reads what Electrum wrote.
 
@@ -292,7 +292,7 @@ def test_decrypt_electrum_ciphertext(plaintext: bytes, armor: str) -> None:
     assert ecies.decrypt(armor, prv_key, aes_128_cbc_decrypt) == plaintext
 
 
-@pytest.mark.parametrize(("plaintext", "armor"), _ELECTRUM_VECTORS)
+@pytest.mark.parametrize("plaintext, armor", _ELECTRUM_VECTORS)
 def test_rebuild_electrum_ciphertext(plaintext: bytes, armor: str) -> None:
     """Verify btclib writes what Electrum wrote, byte for byte.
 
@@ -494,7 +494,7 @@ def _valid_parts() -> tuple[bytes, bytes, bytes, bytes]:
 
 
 @pytest.mark.parametrize(
-    ("field", "value", "err_msg"),
+    "field, value, err_msg",
     [
         (0, b"BIE", "invalid magic size"),
         (1, bytes(32), "invalid ephemeral public key size"),
@@ -535,7 +535,7 @@ def test_parse_rejects_the_wrong_magic() -> None:
 
 
 @pytest.mark.parametrize(
-    ("armor", "err_msg"),
+    "armor, err_msg",
     [
         ("not base64 at all!", "invalid base64 encoding"),
         ("QklFMQ", "invalid base64 encoding"),

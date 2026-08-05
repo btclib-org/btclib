@@ -84,7 +84,7 @@ def block_at(height: int) -> Block:
     return next(Block.parse(row[2]) for row in _rows() if row[0] == height)
 
 
-@pytest.mark.parametrize(("height", "block_hash", "serialization"), params())
+@pytest.mark.parametrize("height, block_hash, serialization", params())
 def test_blockfilters_block(height: int, block_hash: str, serialization: str) -> None:
     """Parse each row's block, round-trip it, and check its two claims.
 
@@ -106,7 +106,7 @@ def test_blockfilters_block(height: int, block_hash: str, serialization: str) ->
     assert block.sig_op_count == _SIG_OP_COUNT[height]
 
 
-@pytest.mark.parametrize(("height", "block_hash", "serialization"), params())
+@pytest.mark.parametrize("height, block_hash, serialization", params())
 def test_blockfilters_coinbase_height(
     height: int, block_hash: str, serialization: str
 ) -> None:

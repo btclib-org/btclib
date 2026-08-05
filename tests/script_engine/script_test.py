@@ -300,7 +300,7 @@ def test_ifdup_casts_to_bool() -> None:
 
 
 @pytest.mark.parametrize(
-    ("script", "message"),
+    "script, message",
     [
         (
             ["OP_0", "OP_1NEGATE", "OP_1NEGATE", "OP_CHECKMULTISIG"],

@@ -502,7 +502,7 @@ def test_target_from_compact_bits() -> None:
 
 
 @pytest.mark.parametrize(
-    ("height", "nbits", "difficulty"),
+    "height, nbits, difficulty",
     [
         (0, 486604799, 1.000),
         (33_333, 486594666, 1.183),
@@ -723,7 +723,7 @@ def test_a_candidate_header_can_be_built() -> None:
 
 
 @pytest.mark.parametrize(
-    ("fname", "delta"),
+    "fname, delta",
     [
         ("block_1.bin", 324),
         ("block_170.bin", 324),

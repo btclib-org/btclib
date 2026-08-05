@@ -89,7 +89,7 @@ CHECKSUM_VECTORS = [
 
 # descriptors taken from https://github.com/bitcoin/bitcoin/blob/master/doc/descriptors.md
 # checksum calculated using https://docs.rs/bdk/latest/bdk/descriptor/checksum/fn.get_checksum.html
-@pytest.mark.parametrize(("descriptor", "expected_checksum"), CHECKSUM_VECTORS)
+@pytest.mark.parametrize("descriptor, expected_checksum", CHECKSUM_VECTORS)
 def test_checksum(descriptor: str, expected_checksum: str) -> None:
     """Reproduce the checksum of each descriptor of Core's descriptors.md."""
     assert checksum(descriptor) == expected_checksum
@@ -445,7 +445,7 @@ DERIVATION_VECTORS = [
 ]
 
 
-@pytest.mark.parametrize(("private", "public", "scripts"), DERIVATION_VECTORS)
+@pytest.mark.parametrize("private, public, scripts", DERIVATION_VECTORS)
 def test_core_derivation_vector(
     private: str, public: str | None, scripts: list[list[str]]
 ) -> None:
@@ -832,7 +832,7 @@ UNPARSABLE = [
 
 
 @pytest.mark.parametrize(
-    ("descriptor", "message"),
+    "descriptor, message",
     [
         pytest.param(descriptor, message, id=vector_id(index, descriptor))
         for index, (descriptor, message) in enumerate(UNPARSABLE)
@@ -862,7 +862,7 @@ UNIMPLEMENTED = [
 
 
 @pytest.mark.parametrize(
-    ("descriptor", "message"),
+    "descriptor, message",
     [
         pytest.param(descriptor, message, id=vector_id(index, descriptor))
         for index, (descriptor, message) in enumerate(UNIMPLEMENTED)
@@ -937,9 +937,7 @@ FINALIZER_VECTORS = [
 ]
 
 
-@pytest.mark.parametrize(
-    ("descriptor", "signing_keys", "redeem", "witness"), FINALIZER_VECTORS
-)
+@pytest.mark.parametrize("descriptor, signing_keys, redeem, witness", FINALIZER_VECTORS)
 def test_satisfy_matches_the_psbt_finalizer(
     descriptor: str, signing_keys: list[str], redeem: str, witness: str
 ) -> None:
@@ -1080,7 +1078,7 @@ UNSATISFIABLE: list[tuple[str, dict[Octets, Octets], str]] = [
 
 
 @pytest.mark.parametrize(
-    ("descriptor", "signatures", "message"),
+    "descriptor, signatures, message",
     [
         pytest.param(descriptor, signatures, message, id=vector_id(index, descriptor))
         for index, (descriptor, signatures, message) in enumerate(UNSATISFIABLE)
@@ -1132,9 +1130,7 @@ def psbt_spending(descriptor: Descriptor, index: int = 0) -> Psbt:
     return psbt
 
 
-@pytest.mark.parametrize(
-    ("descriptor", "signing_keys", "redeem", "witness"), FINALIZER_VECTORS
-)
+@pytest.mark.parametrize("descriptor, signing_keys, redeem, witness", FINALIZER_VECTORS)
 def test_the_updater_fills_what_the_finalizer_dispatches_on(
     descriptor: str, signing_keys: list[str], redeem: str, witness: str
 ) -> None:
@@ -1367,7 +1363,7 @@ UNUPDATABLE = [
 
 
 @pytest.mark.parametrize(
-    ("descriptor", "message"),
+    "descriptor, message",
     [
         pytest.param(descriptor, message, id=vector_id(index, descriptor))
         for index, (descriptor, message) in enumerate(UNUPDATABLE)

@@ -239,7 +239,7 @@ def _serialize(obj: Any, **flag: bool) -> bytes:
     return octets
 
 
-@pytest.mark.parametrize(("name", "invalid"), _INVALID, ids=[c[0] for c in _INVALID])
+@pytest.mark.parametrize("name, invalid", _INVALID, ids=[c[0] for c in _INVALID])
 def test_the_default_checks_the_object_it_is_asked_about(
     name: str, invalid: Any
 ) -> None:
@@ -256,7 +256,7 @@ def test_the_default_checks_the_object_it_is_asked_about(
         _serialize(invalid)
 
 
-@pytest.mark.parametrize(("name", "invalid"), _OCTETS, ids=[c[0] for c in _OCTETS])
+@pytest.mark.parametrize("name, invalid", _OCTETS, ids=[c[0] for c in _OCTETS])
 def test_the_default_checks_the_octets_it_reads(name: str, invalid: Any) -> None:
     """Parse refuses octets that decode to an invalid object.
 
@@ -272,7 +272,7 @@ def test_the_default_checks_the_octets_it_reads(name: str, invalid: Any) -> None
         type(invalid).parse(octets)
 
 
-@pytest.mark.parametrize(("name", "invalid"), _DICTS, ids=[c[0] for c in _DICTS])
+@pytest.mark.parametrize("name, invalid", _DICTS, ids=[c[0] for c in _DICTS])
 def test_the_default_checks_the_dict_it_writes_and_reads(
     name: str, invalid: Any
 ) -> None:

@@ -45,7 +45,7 @@ TEST_VECTORS = (
 )
 
 
-@pytest.mark.parametrize(("msg", "digest"), TEST_VECTORS)
+@pytest.mark.parametrize("msg, digest", TEST_VECTORS)
 def test_ripemd160(msg: bytes, digest: str) -> None:
     """Reproduce the designers' published RIPEMD-160 vectors."""
     assert ripemd160(msg).hex() == digest

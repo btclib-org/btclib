@@ -5031,6 +5031,13 @@ edit.
   back was not this rule's question to answer. `network.datadir` and
   `curves.curve.datadir` are the two names whose type this did change —
   see Types below
+- **`pytest.mark.parametrize`'s names are a comma-separated string, not a
+  tuple.** `("hexed", "encoded")` is `"hexed, encoded"` now, at 89 call
+  sites over 37 files; `flake8-pytest-style`'s `parametrize-names-type`
+  had never been set, so `tuple` was ruff's own default rather than a
+  decision this file made, unlike everything around it. The comma is how
+  pytest's own documentation writes a parametrize signature, and it is
+  also what the bindings had already chosen, with that reason stated
 - **80 columns on the prose, and the yaml measured for the first time.**
   `ruff-format` reflows code to its 88 columns and never touches a
   comment or a docstring, which is why `E501` is ignored and stays so:

@@ -643,7 +643,7 @@ BIP67_VECTORS = load("script", "_data", "bip67_test_vectors.json")
 
 
 @pytest.mark.parametrize(
-    ("keys", "addr"),
+    "keys, addr",
     [
         pytest.param(keys, addr, id=vector_id(int(i), addr))
         for i, (keys, addr) in BIP67_VECTORS.items()

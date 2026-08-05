@@ -79,7 +79,7 @@ def test_wordlist() -> None:
     assert set(wordlist) != set(WORDLISTS.wordlist("en"))
 
 
-@pytest.mark.parametrize(("mnemonics", "master_secret", "xprv"), VECTORS)
+@pytest.mark.parametrize("mnemonics, master_secret, xprv", VECTORS)
 def test_vectors(mnemonics: list[str], master_secret: str, xprv: str) -> None:
     """SLIP-0039 test vectors.
 
@@ -107,7 +107,7 @@ def test_vectors(mnemonics: list[str], master_secret: str, xprv: str) -> None:
         assert slip39.mnemonic_from_share(share) == mnemonic
 
 
-@pytest.mark.parametrize(("mnemonic", "master_secret"), SINGLE_SHARE_VECTORS)
+@pytest.mark.parametrize("mnemonic, master_secret", SINGLE_SHARE_VECTORS)
 def test_generation_vectors(mnemonic: str, master_secret: str) -> None:
     """Regenerate the 1-of-1 vectors, mnemonic for mnemonic.
 
@@ -239,7 +239,7 @@ def test_invalid_passphrase(passphrase: str) -> None:
 
 
 @pytest.mark.parametrize(
-    ("field", "value"),
+    "field, value",
     [
         ("identifier", -1),
         ("identifier", 1 << 15),
@@ -305,7 +305,7 @@ def test_one_of_many_group() -> None:
 
 
 @pytest.mark.parametrize(
-    ("groups", "group_threshold"),
+    "groups, group_threshold",
     [
         ([(2, 3)], 0),  # a threshold of no group
         ([(2, 3)], 2),  # more groups needed than there are

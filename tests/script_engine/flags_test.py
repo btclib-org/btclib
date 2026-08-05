@@ -75,7 +75,7 @@ def test_all_flags_is_the_consensus_set() -> None:
 
 
 @pytest.mark.parametrize(
-    ("flags", "expected"),
+    "flags, expected",
     [
         (None, ALL_FLAGS),
         (ALL_FLAGS, ALL_FLAGS),

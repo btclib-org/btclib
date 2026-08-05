@@ -96,7 +96,7 @@ _IDS = [case[0] for case in _CASES]
 _PARSE_AND_BYTES = [(case[1].parse, case[2]) for case in _CASES]
 
 
-@pytest.mark.parametrize(("parse", "serialization"), _PARSE_AND_BYTES, ids=_IDS)
+@pytest.mark.parametrize("parse, serialization", _PARSE_AND_BYTES, ids=_IDS)
 @pytest.mark.parametrize("check_validity", [True, False], ids=["checked", "unchecked"])
 def test_no_prefix_of_an_encoding_is_an_object(
     parse: Callable[..., Any], serialization: bytes, *, check_validity: bool
@@ -114,7 +114,7 @@ def test_no_prefix_of_an_encoding_is_an_object(
             parse(serialization[:size], check_validity=check_validity)
 
 
-@pytest.mark.parametrize(("parse", "serialization"), _PARSE_AND_BYTES, ids=_IDS)
+@pytest.mark.parametrize("parse, serialization", _PARSE_AND_BYTES, ids=_IDS)
 @pytest.mark.parametrize("check_validity", [True, False], ids=["checked", "unchecked"])
 def test_octets_are_one_whole_object(
     parse: Callable[..., Any], serialization: bytes, *, check_validity: bool
@@ -129,7 +129,7 @@ def test_octets_are_one_whole_object(
             parse((serialization + trailing).hex(), check_validity=check_validity)
 
 
-@pytest.mark.parametrize(("parse", "serialization"), _PARSE_AND_BYTES, ids=_IDS)
+@pytest.mark.parametrize("parse, serialization", _PARSE_AND_BYTES, ids=_IDS)
 def test_a_stream_is_the_callers(
     parse: Callable[..., Any], serialization: bytes
 ) -> None:

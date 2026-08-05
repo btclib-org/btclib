@@ -26,7 +26,7 @@ _MAX = MAX_PUBKEYS_PER_MULTISIG
 
 
 @pytest.mark.parametrize(
-    ("count", "script"),
+    "count, script",
     [
         pytest.param(0, b"", id="an-empty-script-announces-nothing"),
         pytest.param(1, serialize([_KEY, "OP_CHECKSIG"]), id="p2pk"),

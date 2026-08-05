@@ -130,7 +130,7 @@ def test_shipped_module_is_a_dotted_btclib_name(name: str) -> None:
 
 
 @pytest.mark.parametrize(
-    ("parts", "public"),
+    "parts, public",
     [
         (("curve",), True),
         (("curves", "curve"), True),
