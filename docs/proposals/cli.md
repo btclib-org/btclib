@@ -71,9 +71,13 @@ arithmetic, and three mnemonic standards where Electrum reads two.
 - the option name is the parameter name with `_` written `-`, and its
   default is the function's default.
 
-**`__all__` is the command tree.** Every module and package of the library
-declares one, at every depth, so the commands of a group are the names its
-list holds and there is nothing left to decide: `btclib script serialize`
+**The command tree is `__all__` minus the recorded exclusions.** Every
+module and package of the library declares one, at every depth, so the
+commands of a group are the names its list holds, and the only decision
+left is the short list of published modules that carry no commands — one
+entry today, `btclib.bitcoin_core_rpc`, for the reason Phase 4 gives, and
+the test that builds the tree is to assert it rather than discover it. What
+the published tree settles is everything else: `btclib script serialize`
 and `btclib bip32 derive` sit on the group because those two packages
 re-export them, while `sig_hash` and `bip39` are not re-exported and
 become subgroups — `btclib script sig-hash legacy`, and
@@ -87,8 +91,8 @@ already maintains for its own reasons.
 1. every non-private module and package declares its own `__all__`; an
    empty list is valid where a module has no public surface of its own,
    and declaring nothing is not;
-2. `btclib.__all__` is the root of the tree: the nine packages and the
-   twenty-two top-level modules, `getattr` answering each on a fresh
+2. `btclib.__all__` is the root of the tree: the packages and top-level
+   modules of the library, `getattr` answering each on a fresh
    interpreter through a module `__getattr__` that imports it on demand.
    The metadata — `name`, `__version__` — is not part of the tree;
 3. a module-valued name in a list is an edge, and it is a submodule of
@@ -103,8 +107,12 @@ already maintains for its own reasons.
    module docstring and in that test file's `UNEXPORTED` table.
 
 Point 4 is what makes the mirror implementable from outside this
-repository: the walker needs no list of what to skip, because what it
-must not reach is what nothing published.
+repository: nothing unpublished can be reached, because the walk follows
+`__all__` and what must not be reached is what nothing published. What it
+does not settle is the converse — a module can be published and still carry
+no commands — and that is the exclusion list above rather than a property of
+the tree, because the tree cannot express it. One entry, asserted by the
+walker's own test, is the whole of it.
 
 Nothing is renamed for the shell, and no verb is invented. So the command
 line reads `btclib mnemonic bip39 mnemonic-from-entropy`, which is long;
@@ -617,6 +625,42 @@ suite runs against Bitcoin Core's own vectors.
 fetch         get-tx  get-tx-out  get-block-count  get-best-block-id
 bip21         parse  serialize
 ```
+
+**`bitcoin_core_rpc` is published and is not a group.** It is in
+`btclib.__all__` — the root publishes every top-level module, and the suite
+asserts that — so a walker reaches it, and what it would find there is not a
+command surface: exception classes, size and timeout constants, the
+`HttpTransport` protocol, `http_request` and `urlopen_transport`, the client
+class, and `cookie_auth`. That last one reads a node's credential and
+returns it, so a command spelling of it would print a live rpc password to a
+terminal and into whatever shell history or CI log is watching. The node
+commands are the `fetch` group above, which is the same client with the
+btclib types on top.
+
+So the walker needs to be told, and by name: **`btclib.bitcoin_core_rpc` is
+excluded from the command tree**, one line in the walker's table beside the
+reason. Not a predicate over what the module exports, which was the first
+attempt and does not hold: `alias` and `exceptions` do publish only types and
+constants, and this module publishes `http_request`, `urlopen_transport` and
+`cookie_auth`, which are operations by any reading. A criterion that a
+walker could apply and that separates them mechanically is not available, and
+inventing a marker in the source is worse: it would travel into every
+vendored copy of a file whose whole point is to carry nothing this repository
+needs.
+
+The alternative — leaving the module out of the root's `__all__` — was
+rejected: the vendorable file is API, a caller imports it by name, and a
+public tree that omits what it publishes would be the drift `__all__` was
+declared to end. Excluding it from the *command* tree costs one recorded
+line; excluding it from the *public* tree would cost the property the tree
+exists for.
+
+So the exclusion is normative and not advisory, and the traversal contract
+above says so: the command tree is the published tree minus this list, and
+the walker's test asserts that `bitcoin-core-rpc` is not a group. A mirror
+that skipped the assertion would publish `cookie_auth` as a command, which
+is why it is the one thing about the command tree this proposal asks a test
+to check rather than a reader to notice.
 
 The two `Fetcher` implementations are two option sets, not two command
 trees: `--rpc-url` with a cookie file for `bitcoind`, `--esplora-url`

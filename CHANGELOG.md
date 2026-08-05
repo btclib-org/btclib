@@ -2331,6 +2331,87 @@ edit.
 
 ### The public API and the module layout
 
+- **`BitcoinCoreRpcClient` is one independently vendorable source file**
+  (`btclib/bitcoin_core_rpc.py`), separate from the
+  `BitcoinCoreFetcher` adapter that turns its answers into btclib `Tx`
+  objects (issue #378). Copying that file now brings everything one call
+  needs and nothing from btclib: cookie and Basic authentication, JSON-RPC
+  2.0 requests and legacy 1.1 replies, `Decimal` decoding, correlated ids,
+  structured `FetchError`/`HttpError`/`RpcError`, bounded urllib reads, and
+  the opener that follows no redirect and consults no ambient proxy. The
+  transport is not a second copy: `btclib.fetch.transport` re-exports the
+  canonical implementation for Esplora and for its existing public seam,
+  while `btclib.fetch.bitcoin_core` re-exports the client beside the fetcher,
+  so both existing import paths name the same objects, and `btclib.__all__`
+  publishes the new module at the root beside them. `btclib.exceptions`
+  re-exports the client's exceptions rather than declaring parallel ones, so
+  that `FetchError` is one class whichever of the paths a caller imports it
+  by -- not across a copied file, whose exceptions are its own module's, and
+  which is what a vendoring project catches. The price of that one identity
+  is that every import reaching `btclib.exceptions` -- most of the library,
+  though not `import btclib` itself -- now loads `urllib.request`, and `ssl`
+  and `socket` under it, where before only a caller who fetched did.
+  `from_network` therefore derives the cookie path from the home directory
+  **at the call** rather than from a value computed at import: this module
+  is what `btclib.exceptions` imports, so an import-time answer would be
+  the `HOME` as it stood whenever anything first imported btclib, and an
+  unrelated early import is no way to decide which credentials a later
+  call sends. Where no absolute home directory can be named -- a container
+  run under an arbitrary uid, where `Path.home()` raises, or a relative
+  `HOME`, where it does not -- it refuses, naming `cookie_path` as what to
+  pass, rather than reading `~/.bitcoin/.cookie` against the working
+  directory; and it derives nothing at all when a `user` or a `password`
+  says who is calling, the constructor being where the pair is held
+  together. `DEFAULT_DATADIR` stays as the location taken at import, for a
+  caller who wants to name it, and is declared `Path | None` for the same
+  host: the alternatives were a `Path` that lies or the relative one.
+
+  Reviewing it turned up a set of refusals and normalizations, each of them
+  a request this client used to build or an answer it used to let past.
+  Neither half of the credential may be something other than a string: a
+  `bytes` or an `int` user used to leave a bare `TypeError` from underneath
+  the library, and a list passed every check and was formatted into the
+  credential, reaching the node as a username nobody wrote. None of these
+  refusals quotes back what it refused, which is the rule `_checked_url`
+  already followed for a url carrying userinfo: the type is named, the value
+  is not, and a rejected credential therefore stays out of the traceback and
+  out of whatever log renders one. A
+  colon in `user` is refused: the `Basic` credential is `user:password` and
+  Core splits it at the first colon, so `user="alice:admin"` authenticated
+  as `alice` with the password `admin:secret` -- a different rpc user and a
+  different `-rpcwhitelist` than the caller wrote, and no error anywhere. A
+  `method` that is not a string is refused, where `call(7)` used to send
+  `"method": 7`. `data=b""` is a POST, the truth of the bytes not being what
+  makes a body: an empty one built a GET, which Core answers with "method
+  not allowed". `http.client.HTTPException` -- `IncompleteRead` from a
+  chunked body that stopped early, `BadStatusLine` from a peer that is not
+  speaking HTTP -- is a `FetchError` like every other failed exchange, where
+  it used to escape `except OSError`, no relation of it; and a
+  `decimal.InvalidOperation` from the exact-decimal parser, which is what
+  `1e999999999999999999999999999` is, joins the bodies that cannot be read.
+  A number in a reply is checked for being finite rather than trusted to
+  raise, because `parse_float=Decimal` builds it in the *caller's* decimal
+  context: with `InvalidOperation` untrapped that same exponent came back as
+  `Decimal("NaN")` -- an amount comparing false against itself forever, past
+  the refusal of NaN this client documents, with nothing raised anywhere to
+  normalize. Size is deliberately not the question: a finite number is an
+  answer however large, which is what leaves the pure-Python `decimal` of
+  another interpreter free to build what libmpdec declines to.
+  Finally, an object that is no reply keeps the status it arrived with: a
+  `"jsonrpc": "1.0"` marker beside a 503, and a correlated legacy `error`
+  that is not an error object, used to lose `HttpError.status` -- while a
+  genuine legacy rpc error under Core's HTTP 500 is still `RpcError`, which
+  is the precedence that matters.
+
+  The standalone file
+  carries its MIT notice and an
+  update recipe based on release tags; a subprocess test copies it alone and
+  imports it with site packages disabled before exercising a `Decimal`
+  result and both RPC and HTTP error fields. Its module documentation also
+  spells out the migration from python-bitcoinrpc's `AuthServiceProxy`:
+  method attributes become explicit `call` arguments, credentials leave the
+  URL, batches and notifications are deliberate non-goals, and a caller --
+  not the client -- owns any retry.
 - **`btclib.descriptors` reads a descriptor and derives its scripts**,
   where it used to compute the checksum and nothing else. `parse` returns
   a `Descriptor`, one class per grammar function, and
@@ -3247,10 +3328,10 @@ edit.
   imported — a caller wanting `Octets` wants `btclib.alias.Octets` — so
   `import *` and the sphinx pages both stop depending on an import
   section (issue #338)
-- **`btclib.__all__` is the root of the library's public tree**: the nine
-  packages and the twenty-two top-level modules, so a walk that starts at
-  the package name has an edge to follow and a declared surface at every
-  node it reaches. That is what `docs/proposals/cli.md` reads to build the
+- **`btclib.__all__` is the root of the library's public tree**: the
+  packages and the top-level modules, so a walk that starts at the package
+  name has an edge to follow and a declared surface at every node it
+  reaches. That is what `docs/proposals/cli.md` reads to build the
   command tree of the out-of-repo command line, and the reason the list is
   written out rather than discovered: `pkgutil.iter_modules` would answer
   the file tree, and a module added to the directory would publish itself
@@ -4887,6 +4968,16 @@ edit.
   master's required checks: a
   mutant survives because a test is missing, so a red merge would stop
   whoever next touched the file for a hole somebody else left
+- the standalone Bitcoin Core RPC client has its own Cosmic Ray profile.
+  Its request, reply, credential, cookie, transport and vendoring tests judge
+  719 enumerated mutants; 187 replacements of `|` in deferred annotations are
+  filtered as inert, and the remaining 532 finish in 2m13s, with 524 killed
+  and eight equivalent survivors. The run found two unchecked status
+  boundaries and a `break`-to-`continue` mutation that previously waited for
+  the per-mutant timeout; the tests now distinguish all three, including EOF
+  as the end of an incremental read. The weekly workflow runs and reports the
+  profile in a 30-minute budget and applies each configuration's operator
+  filter after initialization
 - an `rpc-smoke` workflow asks live bitcoinds what the recorded replies
   under `tests/fetch/_data` claim, on demand and before a release (issue
   #377). The suite classifies every one of those replies without opening a

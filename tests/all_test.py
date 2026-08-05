@@ -21,8 +21,13 @@ module is a list per module to keep true, and the policy tests below are
 what keeps it, rather than a reviewer noticing.
 
 `btclib.__all__` is the root of that tree, and one of those tests walks it
-the way `docs/proposals/cli.md` says the command line will: from the root,
-into every module-valued export, down to a node that has none.
+from the root, into every module-valued export, down to a node that has
+none. The command line of `docs/proposals/cli.md` walks the same edges and
+stops at a shorter list: what it publishes as a command group is this tree
+minus the exclusions that proposal records, `bitcoin_core_rpc` being the one
+today. So this test descends into that module deliberately -- the export
+tree is what it is about -- and the assertion that the command tree does not
+belongs to the walker, where the proposal asks for it.
 
 These tests are written against the names rather than the counts, so that a
 deliberate addition is one line here and an accidental one is a failure.
@@ -45,6 +50,7 @@ import btclib.ecc
 import btclib.mnemonic
 import btclib.psbt
 import btclib.script
+from btclib import bitcoin_core_rpc
 from btclib.curves import curve_group, curve_group_2
 from btclib.psbt import psbt_utils
 from btclib.script import script_pub_key
@@ -58,6 +64,44 @@ UNEXPORTED = {
     "btclib.curves.curve": ["datadir"],
     "btclib.descriptors": ["CHECKSUM_CHARSET", "GENERATOR", "INPUT_CHARSET"],
     "btclib.network": ["datadir"],
+}
+
+# what a module exports without defining it, which for a module rather than a
+# package is a leak -- and these three are the exception, all of it one
+# decision. `btclib.bitcoin_core_rpc` is the canonical source of the rpc
+# client, its transport and the exceptions both raise, and it is a file meant
+# to be copied out of the package whole, so it imports nothing of btclib's;
+# the three modules below are where those objects were before that file
+# existed, and they alias them rather than declaring a second of anything.
+# An exception has one identity, a transport has one bounded-read policy, and
+# an import path that used to work still does.
+#
+# So a name here is not a name about to leak: it is the same object under the
+# name a caller already had. What would be a leak is a *fourth* module, or a
+# name in these three that the canonical file does not export
+REEXPORTED = {
+    "btclib.exceptions": [
+        "BTClibRuntimeError",
+        "BTClibTypeError",
+        "BTClibValueError",
+        "FetchError",
+        "HttpError",
+        "RpcError",
+    ],
+    "btclib.fetch.bitcoin_core": [
+        "COOKIE_USER",
+        "DEFAULT_DATADIR",
+        "BitcoinCoreRpcClient",
+        "cookie_auth",
+    ],
+    "btclib.fetch.transport": [
+        "DEFAULT_MAX_BODY_SIZE",
+        "DEFAULT_TIMEOUT",
+        "MAX_ERROR_BODY_SIZE",
+        "HttpTransport",
+        "http_request",
+        "urlopen_transport",
+    ],
 }
 
 # every direct child module of every package, on the side of the decision
@@ -499,25 +543,55 @@ def test_no_module_exports_a_name_it_imported() -> None:
     section, where `btclib.alias.Octets` is the name a caller wants. A
     module with a reason to re-export something is a conversation to have
     with this test, not around it.
+
+    `REEXPORTED` is that conversation, held once: the three modules whose
+    objects moved into the vendorable `btclib.bitcoin_core_rpc` alias them
+    back under the names callers had, an exception and a transport each
+    having one identity to keep.
+
+    Asserted both ways, because a skip list is only half a table: it says
+    which names may be re-exported and nothing about whether they still are,
+    so dropping one of these aliases from an `__all__` would have been
+    invisible to every test in this file. The recorded names and the
+    re-exported ones must be the same set, and each must be the canonical
+    object rather than a same-named one -- which is the property the whole
+    arrangement exists for.
     """
     for module in library_modules():
         if hasattr(module, "__path__"):  # a package re-exports for a living
             continue
         imported = imported_names(module)
-        for name in module.__all__:
-            assert name not in imported, f"{module.__name__} re-exports {name}"
+        leaked = {name for name in module.__all__ if name in imported}
+        allowed = REEXPORTED.get(module.__name__)
+        if allowed is None:
+            assert not leaked, f"{module.__name__} re-exports {sorted(leaked)}"
+            continue
+        assert leaked == set(allowed), (
+            f"{module.__name__} re-exports {sorted(leaked)}, where REEXPORTED"
+            f" records {sorted(allowed)}"
+        )
+        for name in allowed:
+            assert getattr(module, name) is getattr(bitcoin_core_rpc, name), (
+                f"{module.__name__}.{name} is not the canonical"
+                f" btclib.bitcoin_core_rpc.{name}"
+            )
 
 
 def test_the_export_tree_is_walkable_to_its_leaves() -> None:
     """Every module reachable through `__all__` declares one of its own.
 
-    `docs/proposals/cli.md` reads the command tree off `__all__`: a group
-    is a module-valued export, its commands are that module's own list, and
-    an out-of-repo walker sees nothing this library does not publish. So a
+    `docs/proposals/cli.md` reads its command tree off these same edges: a
+    group is a module-valued export, its commands are that module's own list,
+    and an out-of-repo walker sees nothing this library does not publish. So a
     module named in a parent's list and declaring nothing is a node the
     walk arrives at and cannot descend from -- which is what this asks
     about, transitively from `btclib` down, following exports rather than
     the file tree.
+
+    Every published module is walked here, including the ones that proposal
+    excludes from the *command* tree: what is asserted is that the export
+    tree has a declared surface everywhere, which is true of a module whose
+    exports no command line should offer as well as of every other.
 
     A module-valued export is also checked to be a submodule of the module
     exporting it: `btclib.ecc.dsa` is `btclib.ecc`'s to publish, and a

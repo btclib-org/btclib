@@ -168,6 +168,11 @@ ignore = [
     # .secrets.baseline, which it does carry, because the lint gate is
     # runnable from an unpacked sdist
     ".lycheeignore",
+    # the test of the mutation workflow's counter, whose subject is under
+    # .github and therefore not shipped either. The suite an sdist carries
+    # has to be runnable from it, and a test whose subject is absent is not
+    # a test but four errors; MANIFEST.in excludes it and says the same
+    "tests/mutation_counts_test.py",
 ]
 
 [tool.pytest.ini_options]
@@ -565,6 +570,9 @@ ignore = [
 # asked. T20 is selected for the library, which writes to no stream of its
 # own; a script whose caller is a workflow step is the case it is not about
 ".github/scripts/rpc_smoke.py" = ["T201"]
+# and the same for the mutation counter, whose one line of output is what
+# the workflow step exists to put in the log
+".github/scripts/mutation_counts.py" = ["T201"]
 # the D rules are not here: a public test function, fixture or method
 # states what it verifies -- the property, the vector, the failure
 # mode -- under the same docstring gate as the library's public

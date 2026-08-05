@@ -7,7 +7,13 @@
 #
 # No part of btclib including this file, may be copied, modified, propagated,
 # or distributed except according to the terms contained in the LICENSE file.
-"""Tests for btclib.fetch.bitcoin_core, against recorded replies.
+"""Tests for btclib.bitcoin_core_rpc, against recorded replies.
+
+Under `tests/fetch/` although its subject moved out of `btclib.fetch`, and
+that is `tests/fetch/__init__.py`: the recorded replies and the transports
+that serve them are there, shared with the Esplora tests and with the
+fetcher's. `tests/bitcoin_core_rpc_standalone_test.py` needs none of that
+and sits beside the module instead.
 
 Every client here is built with a transport, so no test reaches a node.
 The recorded bodies under `_data` are Core's, shape and newline included;
@@ -27,13 +33,21 @@ from __future__ import annotations
 import json
 import re
 from base64 import b64decode
-from decimal import Decimal
+from decimal import Decimal, InvalidOperation, localcontext
+from io import BytesIO
 from pathlib import Path
 from typing import Any
 from urllib.request import Request
 
 import pytest
 
+from btclib.bitcoin_core_rpc import (
+    COOKIE_USER,
+    DEFAULT_DATADIR,
+    BitcoinCoreRpcClient,
+    _default_datadir,
+    cookie_auth,
+)
 from btclib.exceptions import (
     BTClibTypeError,
     BTClibValueError,
@@ -41,13 +55,7 @@ from btclib.exceptions import (
     HttpError,
     RpcError,
 )
-from btclib.fetch.bitcoin_core import (
-    COOKIE_USER,
-    DEFAULT_DATADIR,
-    BitcoinCoreFetcher,
-    BitcoinCoreRpcClient,
-    cookie_auth,
-)
+from btclib.fetch.bitcoin_core import BitcoinCoreFetcher
 from btclib.fetch.transport import DEFAULT_MAX_BODY_SIZE, DEFAULT_TIMEOUT
 from btclib.tx import OutPoint
 from tests.fetch import TIP_HEIGHT, TIP_ID, TX_ID, Recorded, recorded_body
@@ -148,6 +156,15 @@ def sent(endpoint: BitcoinCoreRpcClient) -> dict[str, object]:
 
 def test_from_network_is_the_local_node_of_that_network() -> None:
     """The rpc port and the datadir subdirectory of Core's chainparamsbase."""
+    # what `from_network` asks at the call. None where no absolute home is
+    # knowable, which is not a machine the suite runs on -- and asserting it
+    # is what makes the paths below a Path
+    datadir = _default_datadir()
+    assert datadir is not None
+    # the constant is the same answer, taken at import: a snapshot for a
+    # caller to read, and not what the derivation goes through
+    assert DEFAULT_DATADIR == datadir
+
     from_network = BitcoinCoreRpcClient.from_network
     assert from_network().url == "http://127.0.0.1:8332"
     assert from_network("testnet").url == "http://127.0.0.1:18332"
@@ -155,12 +172,134 @@ def test_from_network_is_the_local_node_of_that_network() -> None:
     assert from_network("signet").url == "http://127.0.0.1:38332"
     assert from_network("regtest").url == "http://127.0.0.1:18443"
 
-    assert from_network().cookie_path == DEFAULT_DATADIR / ".cookie"
-    assert from_network("testnet").cookie_path == (
-        DEFAULT_DATADIR / "testnet3" / ".cookie"
+    assert from_network().cookie_path == datadir / ".cookie"
+    assert from_network("testnet").cookie_path == datadir / "testnet3" / ".cookie"
+    assert from_network("regtest").cookie_path == datadir / "regtest" / ".cookie"
+
+
+def test_from_network_reads_the_home_of_the_call_and_not_of_the_import(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    """A home set after btclib was imported is the one a cookie comes from.
+
+    `btclib.exceptions` imports this module, so anything importing btclib at
+    all imports it: a datadir resolved once, at that moment, is the
+    environment as it stood whenever some unrelated early import happened.
+    Reproduced before this was fixed -- `HOME=/tmp/home-before`, `import
+    btclib.exceptions`, `HOME=/tmp/home-after`, and `from_network()` still
+    answered with `/tmp/home-before/.bitcoin/.cookie`.
+
+    Which is what a test can only see by *not* patching `DEFAULT_DATADIR`:
+    that constant is the frozen answer, and patching it would pass against
+    either implementation. The home is what moves here, and the derivation
+    has to follow it.
+    """
+    monkeypatch.setattr(Path, "home", lambda: tmp_path / "home-after")
+
+    expected = tmp_path / "home-after" / ".bitcoin" / "regtest" / ".cookie"
+    assert BitcoinCoreRpcClient.from_network("regtest").cookie_path == expected
+    assert DEFAULT_DATADIR != _default_datadir()
+
+
+def test_from_network_derives_no_cookie_when_told_who_is_calling(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """A user or a password is the answer to that, so nothing is derived.
+
+    Either of the two on its own is a caller's mistake, and the constructor
+    is where the pair is held together. What this pins is that the datadir is
+    not consulted first: on a host with no home directory, a `password` with
+    no `user` used to be reported as a missing datadir -- an error about the
+    machine, for a call that was wrong on any machine.
+
+    So the home is not made to fail here, it is made to *fail the test* if it
+    is looked at: a stub that raises would leave the pinned property implied
+    by a line the run never reaches, where this states it.
+    """
+    monkeypatch.setattr(Path, "home", lambda: pytest.fail("home consulted"))
+    for kwargs in ({"password": RPC_PASSWORD}, {"user": RPC_USER}):
+        with pytest.raises(BTClibValueError, match="go together"):
+            BitcoinCoreRpcClient.from_network(**kwargs)  # type: ignore[arg-type]
+
+
+def test_no_absolute_home_is_no_default_datadir_and_no_exception(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Both ways a home is not a datadir answer with None, and neither raises.
+
+    `DEFAULT_DATADIR` is computed at import and `btclib.exceptions` imports
+    the module it is in, so an exception here would fail an import of most of
+    btclib on a host that was never going to fetch anything: a container run
+    under an arbitrary uid, where `HOME` is unset and the passwd file has no
+    entry to fall back to, is where `Path.home()` raises. A `HOME` that holds
+    a relative path is the other way, and it raises nothing at all.
+
+    `Path.home` is patched, and not the `os.path.expanduser` under it. Some
+    interpreters of the matrix call that function while resolving the home;
+    others bound it to a pathlib accessor when the class was created, and
+    there patching the module attribute is invisible -- written that way,
+    this passed on 3.14 and did not raise at all on 3.10. What
+    `_default_datadir` reads is `Path.home`, so that is what this arranges.
+    """
+
+    def no_home() -> Path:
+        raise RuntimeError("Could not determine home directory.")
+
+    monkeypatch.setattr(Path, "home", no_home)
+    assert _default_datadir() is None
+
+    monkeypatch.setattr(Path, "home", lambda: Path("relative/home"))
+    assert Path.home().is_absolute() is False
+    assert _default_datadir() is None
+
+
+def test_from_network_refuses_a_datadir_it_cannot_name(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    """No default datadir is a refusal, and never a path read against the cwd.
+
+    The end of the same path as the test above, and the reason None is the
+    answer there rather than an unexpanded `~/.bitcoin`: that is a relative
+    path, `pathlib` expands no tilde, and `from_network` handed it to the
+    cookie reader unchanged -- so a `./~/.bitcoin/.cookie` that the working
+    directory happened to contain became the credential this client presents
+    to the node. Planted below, exactly as it was when that was reproduced.
+
+    A refusal naming `cookie_path` instead, before any file is opened. The
+    explicit path still works, the refusal being about the default alone.
+
+    `Path.home` is what raises here, not a patched `DEFAULT_DATADIR`: the
+    derivation asks at the call, so this is the whole path a host with no
+    home directory takes.
+    """
+
+    def no_home() -> Path:
+        raise RuntimeError("Could not determine home directory.")
+
+    planted = tmp_path / "~" / ".bitcoin" / ".cookie"
+    planted.parent.mkdir(parents=True)
+    planted.write_text(f"{COOKIE_USER}:planted\n", encoding="ascii")
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.setattr(Path, "home", no_home)
+
+    with pytest.raises(BTClibValueError, match="pass cookie_path"):
+        BitcoinCoreRpcClient.from_network()
+
+    # the file is there and readable, so the refusal above is what kept it
+    # out and not an absent path: through an explicit `cookie_path` the very
+    # same file is the credential
+    explicit = BitcoinCoreRpcClient.from_network("mainnet", cookie_path=planted)
+    assert (
+        b64decode(explicit.auth_header().split()[1])
+        == f"{COOKIE_USER}:planted".encode()
     )
-    assert from_network("regtest").cookie_path == (
-        DEFAULT_DATADIR / "regtest" / ".cookie"
+
+    # and credentials need no datadir at all
+    assert (
+        BitcoinCoreRpcClient.from_network(
+            "regtest", user=RPC_USER, password=RPC_PASSWORD
+        ).cookie_path
+        is None
     )
 
 
@@ -171,6 +310,113 @@ def test_from_network_takes_credentials_instead_of_a_cookie() -> None:
     )
     assert endpoint.cookie_path is None
     assert endpoint.user == RPC_USER
+
+
+def test_connection_controls_are_keyword_only() -> None:
+    """Credentials cannot be mistaken for positional connection arguments."""
+    constructor: Any = BitcoinCoreRpcClient
+    with pytest.raises(TypeError):
+        constructor(URL, RPC_USER, RPC_PASSWORD)
+
+    from_network: Any = BitcoinCoreRpcClient.from_network
+    with pytest.raises(TypeError):
+        from_network("regtest", RPC_USER, RPC_PASSWORD)
+
+
+def test_a_colon_in_the_user_is_refused_and_one_in_the_password_is_not() -> None:
+    """The credential is `user:password`, and the node splits at the first.
+
+    A user of `alice:admin` and a user of `alice` whose credential begins
+    `admin:` encode to the same `Basic` header, so nothing downstream can
+    tell them apart: Core reads both as the user `alice` --
+    `RPCAuthorized` in src/httprpc.cpp -- which is a different rpc user, and
+    a different `-rpcwhitelist`, than the first caller wrote. Refused where
+    it is written rather than authenticated as somebody else.
+
+    A colon on the other side of the credential is unambiguous: everything
+    after the first one belongs to the second field by definition, so it
+    stays valid, and the assertion here is what keeps the refusal from
+    spreading to it.
+    """
+    with pytest.raises(BTClibValueError, match="colon in the rpc user"):
+        BitcoinCoreRpcClient(URL, user="alice:admin", password=RPC_PASSWORD)
+
+    ambiguous = f"admin:{RPC_PASSWORD}"
+    endpoint = BitcoinCoreRpcClient(URL, user="alice", password=ambiguous)
+    credential = b64decode(endpoint.auth_header().split()[1])
+    assert credential == f"alice:{ambiguous}".encode()
+
+
+@pytest.mark.parametrize(
+    ("kwargs", "match"),
+    [
+        ({"user": 7, "password": RPC_PASSWORD}, "non-string rpc user: int"),
+        ({"user": b"alice", "password": RPC_PASSWORD}, "non-string rpc user: bytes"),
+        ({"user": ["alice"], "password": RPC_PASSWORD}, "non-string rpc user: list"),
+        ({"user": "alice", "password": 7}, "non-string rpc password: int"),
+    ],
+    ids=["an int user", "a bytes user", "a list user", "an int password"],
+)
+def test_a_credential_that_is_not_a_string_is_refused(
+    kwargs: dict[str, Any], match: str
+) -> None:
+    """Neither half of the credential survives being something else.
+
+    The annotation is not a check, and the two halves failed differently
+    before this: a `bytes` or an `int` user reached the colon test and left a
+    bare `TypeError` from underneath the library, while a list passed that
+    test and was formatted into the credential -- `['alice']:` and the
+    password, reaching the node as a username nobody wrote.
+
+    The message names the type and not the value, which the next test is
+    about.
+    """
+    with pytest.raises(BTClibTypeError, match=match):
+        BitcoinCoreRpcClient(URL, **kwargs)
+
+
+def test_a_refused_credential_is_not_quoted_back() -> None:
+    """No refusal of a credential puts the credential in its message.
+
+    This class has no generated `__repr__` because a password would be in
+    it, and an exception is the same exposure by another route: it is
+    rendered into every traceback, and from there into whatever log or
+    issue tracker collects one. So the type-refusal names the type, and the
+    colon-refusal names neither half -- the string it is refusing has a
+    colon in it, so what it most likely holds is `user:password` written
+    into the first argument.
+
+    `_checked_url` set the precedent by refusing a url with userinfo in it
+    without echoing the url; these two are the same rule, and this test is
+    what keeps a helpful `!r` from being added back to any of them.
+    """
+    secret = f"s3cret-{RPC_PASSWORD}"
+
+    with pytest.raises(BTClibTypeError) as type_error:
+        BitcoinCoreRpcClient(URL, user="alice", password=secret.encode())  # type: ignore[arg-type]
+    assert secret not in str(type_error.value)
+
+    with pytest.raises(BTClibValueError) as colon_error:
+        BitcoinCoreRpcClient(URL, user=f"alice:{secret}", password="")
+    assert secret not in str(colon_error.value)
+
+    with pytest.raises(BTClibValueError) as url_error:
+        BitcoinCoreRpcClient(f"http://alice:{secret}@127.0.0.1:8332")
+    assert secret not in str(url_error.value)
+
+
+@pytest.mark.parametrize("method", [7, None, b"getblockcount", ["getblockcount"]])
+def test_a_method_that_is_not_a_string_is_refused(method: object) -> None:
+    """json-rpc's `method` is a string, and the annotation is not a check.
+
+    `call(7)` used to build `"method": 7` and send it, which is this client
+    constructing a request json-rpc has no reading of -- while it walks the
+    caller's `params` to refuse exactly that. An unknown method is a value
+    the node answers for, which is why it is an argument; a number is not
+    one.
+    """
+    with pytest.raises(BTClibTypeError, match="rpc method that is not a string"):
+        client().call(method)  # type: ignore[arg-type]
 
 
 def test_from_network_refuses_a_network_core_has_no_port_for() -> None:
@@ -388,6 +634,46 @@ def test_a_cookie_file_that_is_not_ascii_is_not_one(tmp_path: Path) -> None:
         cookie_auth(cookie)
 
 
+@pytest.mark.parametrize("size", [4096, 4097])
+def test_the_cookie_size_boundary_is_4096_bytes(tmp_path: Path, size: int) -> None:
+    """The largest permitted cookie is accepted and the next byte is not."""
+    line = "u:" + "x" * (size - 2)
+    cookie = tmp_path / ".cookie"
+    cookie.write_text(line, encoding="ascii")
+
+    if size == 4096:
+        assert cookie_auth(cookie) == line
+    else:
+        with pytest.raises(FetchError, match="oversized rpc cookie file"):
+            cookie_auth(cookie)
+
+
+def test_the_cookie_read_stops_after_the_sentinel_octet(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Checking the bound reads 4096 bytes and only one byte beyond it."""
+
+    class MeasuredCookie(BytesIO):
+        def __init__(self) -> None:
+            super().__init__(COOKIE_LINE.encode("ascii"))
+            self.reads: list[int | None] = []
+
+        def read(self, size: int | None = -1, /) -> bytes:
+            self.reads.append(size)
+            return super().read(size)
+
+    measured = MeasuredCookie()
+
+    def open_cookie(path: Path, mode: str) -> MeasuredCookie:
+        assert path == Path("measured.cookie")
+        assert mode == "rb"
+        return measured
+
+    monkeypatch.setattr(Path, "open", open_cookie)
+    assert cookie_auth(Path("measured.cookie")) == COOKIE_LINE
+    assert measured.reads == [4097]
+
+
 def test_an_enormous_cookie_file_is_refused_rather_than_held(
     tmp_path: Path,
 ) -> None:
@@ -561,14 +847,22 @@ def test_parameters_that_contain_themselves_are_refused() -> None:
         endpoint.call("send", cyclic)
 
 
-def test_parameters_nested_deeper_than_the_bound_are_refused() -> None:
-    """Deep and acyclic, which no cycle check catches and json recurses on."""
-    deep: Any = "bottom"
-    for _ in range(200):
-        deep = [deep]
+@pytest.mark.parametrize("kind", ["sequence", "mapping"])
+def test_the_parameter_depth_bound_is_inclusive(kind: str) -> None:
+    """One hundred containers fit; the next one is refused before encoding."""
+
+    def wrap(value: Any) -> Any:
+        return [value] if kind == "sequence" else {"level": value}
+
+    at_limit: Any = "bottom"
+    for _ in range(100):
+        at_limit = wrap(at_limit)
+
     endpoint = client((200, recorded_body("getblockcount.json")))
+    assert endpoint.call("send", at_limit) == TIP_HEIGHT
+
     with pytest.raises(BTClibValueError, match="nested deeper than"):
-        endpoint.call("send", deep)
+        endpoint.call("send", wrap(at_limit))
 
 
 def test_something_that_walks_as_json_and_has_none_is_still_refused() -> None:
@@ -674,6 +968,13 @@ def test_a_call_can_widen_the_timeout_for_itself() -> None:
     assert endpoint.timeout == 2.5
 
 
+def test_one_second_is_a_positive_timeout() -> None:
+    """The lower boundary excludes zero, not the first positive second."""
+    endpoint = client((200, recorded_body("getblockcount.json")), timeout=1)
+    endpoint.call("getblockcount", request_timeout=1)
+    assert recording(endpoint).timeouts == [1]
+
+
 @pytest.mark.parametrize("timeout", [0, -1, float("inf")])
 def test_a_per_call_timeout_that_is_no_duration_is_refused(timeout: float) -> None:
     """The same check as the constructor's, at the other place it is set."""
@@ -695,7 +996,7 @@ def test_every_call_asks_with_an_id_of_its_own() -> None:
     endpoint.call("getblockcount")
     ids = [asked_id(request) for request in recording(endpoint).requests]
     assert len(set(ids)) == 2
-    assert all(id_.startswith("btclib-") for id_ in ids)
+    assert all(re.fullmatch(r"btclib-[0-9a-f]{16}", id_) for id_ in ids)
 
 
 def test_a_call_writes_nothing_on_the_client() -> None:
@@ -711,10 +1012,11 @@ def test_a_call_writes_nothing_on_the_client() -> None:
     assert dict(vars(endpoint)) == before
 
 
-def test_a_reply_to_someone_elses_request_is_refused() -> None:
+@pytest.mark.parametrize("other_id", ["another call", "z-another-call"])
+def test_a_reply_to_someone_elses_request_is_refused(other_id: str) -> None:
     """What a caching proxy in the way looks like from here."""
-    body = json.dumps({"jsonrpc": "2.0", "result": 1, "id": "another call"}).encode()
-    with pytest.raises(FetchError, match="reply id 'another call' is not the"):
+    body = json.dumps({"jsonrpc": "2.0", "result": 1, "id": other_id}).encode()
+    with pytest.raises(FetchError, match=rf"reply id {other_id!r} is not the"):
         verbatim((200, body)).call("getblockcount")
 
 
@@ -885,6 +1187,49 @@ def test_a_body_that_is_not_utf_8_says_so() -> None:
 # JSONDecodeError: valid json that this interpreter will not read
 _TOO_MANY_DIGITS = b'{"jsonrpc":"2.0","result":' + b"9" * 5000 + b',"id":"x"}'
 
+# the same kind of thing on the other side of the number: json's grammar
+# accepts the exponent, and the exact-decimal parser this client asks for
+# answers with `decimal.InvalidOperation` -- an ArithmeticError, so neither
+# the ValueError nor the RecursionError the rest of this list raises
+_HUGE_EXPONENT_NUMBER = "1e999999999999999999999999999"
+_HUGE_EXPONENT = (
+    b'{"jsonrpc":"2.0","result":' + _HUGE_EXPONENT_NUMBER.encode() + b',"id":"x"}'
+)
+
+
+def _decimal_represents(number: str) -> bool:
+    """Whether this interpreter's decimal has a finite value for that number.
+
+    It is not the same answer everywhere, which is the whole reason this is
+    a function: CPython's `decimal` is libmpdec, whose exponent is bounded
+    by MAX_EMAX, and pypy's is the pure-Python implementation, which parses
+    the exponent as an int and builds the number. So a reply carrying
+    `1e999999999999999999999999999` is unreadable on one and an ordinary
+    amount on the other -- measured rather than assumed, after the pypy
+    cells of the matrix said so.
+
+    Every trap is cleared, which is what makes this one question rather than
+    two: an implementation that cannot represent the number *raises* under
+    the default context and answers `NaN` under this one, and both are the
+    same fact about the implementation. The two tests that skip on it are
+    about those two spellings of it.
+    """
+    with localcontext() as ctx:
+        for trap in ctx.traps:
+            ctx.traps[trap] = False
+        return Decimal(number).is_finite()
+
+
+def test_the_decimal_probe_measures_what_it_says() -> None:
+    """`_decimal_represents` answers both ways on every interpreter.
+
+    Not for coverage -- it has one statement -- but because a probe that two
+    tests skip on is worth knowing is still a probe: one of these would fail
+    if it started answering the same thing to everything.
+    """
+    assert _decimal_represents("1e0") is True
+    assert _decimal_represents("nan") is False
+
 
 @pytest.mark.parametrize(
     "body",
@@ -896,8 +1241,18 @@ _TOO_MANY_DIGITS = b'{"jsonrpc":"2.0","result":' + b"9" * 5000 + b',"id":"x"}'
         b"[1, 2, 3]",
         b'"a string"',
         b"",
+        b'{"jsonrpc":"1.0","id":"x","result":1}',
     ],
-    ids=["not utf-8", "too deep", "too many digits", "NaN", "array", "string", "empty"],
+    ids=[
+        "not utf-8",
+        "too deep",
+        "too many digits",
+        "NaN",
+        "array",
+        "string",
+        "empty",
+        "a version this module does not read",
+    ],
 )
 def test_a_status_survives_a_body_that_is_no_reply(body: bytes) -> None:
     """A body that is no reply cannot be correlated, so the status wins.
@@ -908,13 +1263,82 @@ def test_a_status_survives_a_body_that_is_no_reply(body: bytes) -> None:
     a caller acts on. Every way a body can fail to be a reply keeps the
     status, and they are not one exception type nor even all of them
     failures of the parse -- a decode error, a recursion error, the bare
-    ValueError of the integer digit limit, btclib's own refusal of the
-    three non-numbers Python decodes, and a body that parses perfectly
-    into something that is not an object.
+    ValueError of the integer digit limit, btclib's own refusal of the three
+    non-numbers Python decodes, a body that parses perfectly into something
+    that is not an object, and an object naming a protocol version this
+    module does not read. The decimal parser's own refusal is the same case
+    and is tested apart, `Echoing` not being able to carry that body.
+
+    The last one is not a parse failure at all: it is a well-formed object
+    that cannot be an answer, which makes it the same case. `Echoing` puts
+    this request's id in it, so it is even correlated -- and still not an
+    answer, since nothing here knows what a `"1.0"` reply means.
     """
     with pytest.raises(HttpError) as exc:
         client((503, body)).call("getblockcount")
     assert exc.value.status == 503
+
+
+@pytest.mark.parametrize("status", [199, 503])
+def test_a_correlated_legacy_error_that_is_no_error_object_keeps_the_status(
+    status: int,
+) -> None:
+    """An `error` that is not an object is no rpc error, so the status wins.
+
+    The one case the id check alone does not cover: a legacy reply carrying
+    *this* request's id and `"error": "bad"`. Correlated, so it is not
+    somebody else's answer, and still nothing the node computed -- a string
+    is no json-rpc error object -- so what is left to report is the status a
+    caller has a policy for. Under a 200 there is no status to report and
+    the shape of the body is the whole diagnosis, which is the other half
+    asserted here.
+    """
+    # `Echoing` overwrites the id with this request's, so the reply is
+    # correlated whatever is written here
+    body = b'{"id":"x","error":"bad"}'
+    with pytest.raises(HttpError) as exc:
+        client((status, body)).call("getblockcount")
+    assert exc.value.status == status
+
+    with pytest.raises(FetchError, match="unreadable rpc error 'bad'"):
+        client((200, body)).call("getblockcount")
+
+
+def test_a_real_legacy_rpc_error_still_outranks_its_status() -> None:
+    """Which is what the two tests above must not have cost.
+
+    Core's legacy 1.1 sends a genuine rpc error with an HTTP 500, so the
+    error object has to be read before the status -- otherwise every "no
+    such transaction" from a node older than v28 is reported as a server
+    fault. Only an *unreadable* error gives the status precedence.
+    """
+    body = (
+        b'{"id":"x","result":null,"error":'
+        b'{"code":-5,"message":"No such mempool transaction"}}'
+    )
+    with pytest.raises(RpcError) as exc:
+        client((500, body)).call("getrawtransaction")
+    assert exc.value.code == -5
+    assert not hasattr(exc.value, "status")
+
+
+@pytest.mark.parametrize(
+    "body",
+    [
+        b'{"jsonrpc":"2.0","result":NaN,"id":"x"}',
+        b"not json",
+        b"[1, 2, 3]",
+        json.dumps({"result": TIP_HEIGHT, "error": None, "id": "x"}).encode(),
+        json.dumps({"jsonrpc": "1.0", "result": TIP_HEIGHT, "id": "x"}).encode(),
+        json.dumps({"jsonrpc": "2.0", "result": TIP_HEIGHT, "id": "x"}).encode(),
+    ],
+    ids=["non-number", "not-json", "array", "legacy", "version-1", "version-2"],
+)
+def test_every_status_other_than_200_precedes_the_reply_shape(body: bytes) -> None:
+    """A status below 200 is no more an RPC answer than one above 200."""
+    with pytest.raises(HttpError) as exc:
+        client((199, body)).call("getblockcount")
+    assert exc.value.status == 199
 
 
 def test_a_number_too_long_for_this_interpreter_to_write() -> None:
@@ -928,6 +1352,63 @@ def test_a_number_too_long_for_this_interpreter_to_write() -> None:
     endpoint = client((200, recorded_body("getblockcount.json")))
     with pytest.raises(BTClibValueError, match="rpc params json cannot carry"):
         endpoint.call("send", [10**5000])
+
+
+class Shifty(dict):  # type: ignore[type-arg]
+    """A mapping that becomes a NaN while it is being read the first time.
+
+    The finite value is what the reader is answered with, and the storage is
+    a NaN by the time that answer is returned. So whichever way an
+    interpreter writes the request afterwards, it writes the NaN: CPython's
+    json encoder calls `items()` a second time, pypy's serializes the dict's
+    own storage without calling it at all, and the storage is what was
+    changed.
+    """
+
+    def __init__(self, *args: Any, **kwargs: Any) -> None:
+        super().__init__(*args, **kwargs)
+        self.reads = 0
+
+    def items(self) -> Any:
+        """Answer this reading's value, having spoiled the next one."""
+        self.reads += 1
+        answer = list(super().items())
+        self["amount"] = float("nan")
+        return answer
+
+
+def test_a_parameter_that_is_not_what_the_walk_saw() -> None:
+    """`allow_nan=False` is not made redundant by the walk before it.
+
+    The walk reads the caller's own objects, and those objects are free to
+    change: `params` accepts any `Mapping`, only the outermost one is copied
+    by `dict(params)`, and a nested one is read by `_assert_json_params` and
+    then written by the encoder. So a value can be finite while it is being
+    checked and `NaN` while it is being written -- deliberately here, and in
+    a threaded caller by accident.
+
+    `allow_nan=False` is what catches that, and it catches it before the
+    request is built: the assertion on the transport is the half that
+    matters, since a `NaN` amount that reaches a node is a request nobody
+    wrote. Without this test the flag reads as a second opinion the walk
+    already gave, and a mutation of it survives the suite -- which is what
+    it did until this test existed.
+
+    `Shifty` spoils its own storage while it is being read, which is what
+    makes this one test rather than one per interpreter: CPython's encoder
+    calls `items()` a second time and pypy's serializes the storage without
+    calling it at all, and both of those are the NaN. The reading count is
+    asserted as one or two for that reason -- it is the interpreters'
+    difference, and not this guard's.
+    """
+    shifty = Shifty(amount=1.0)
+    endpoint = client((200, recorded_body("getblockcount.json")))
+    with pytest.raises(BTClibValueError, match="rpc params json cannot carry"):
+        endpoint.call("sendmany", [shifty])
+
+    # the transport was never called: no request was recorded
+    assert recording(endpoint).requests == []
+    assert shifty.reads in (1, 2)
 
 
 def test_a_number_too_long_for_this_interpreter_to_read() -> None:
@@ -951,6 +1432,80 @@ def test_a_reply_nested_too_deeply_to_parse() -> None:
     body = b"[" * 200_000 + b"]" * 200_000
     with pytest.raises(FetchError, match="nested too deeply"):
         client((200, body)).call("getblockcount")
+
+
+@pytest.mark.skipif(
+    _decimal_represents(_HUGE_EXPONENT_NUMBER),
+    reason="this interpreter's decimal builds that exponent, so the reply reads",
+)
+def test_a_number_the_exact_decimal_parser_will_not_build() -> None:
+    """`1e999999999999999999999999999` is json, and no Decimal on libmpdec.
+
+    The price of `parse_float=Decimal`, which is what keeps an amount off
+    binary floating point: the exponent is past what CPython's decimal will
+    construct, so it answers `InvalidOperation` -- an ArithmeticError, and
+    therefore neither the ValueError nor the RecursionError every other
+    unreadable body raises. It used to escape `call` as that, past the
+    promise this client makes about a reply it cannot read.
+
+    Skipped where the interpreter builds the number instead, which is pypy:
+    there the reply is readable and this body is an amount, so there is no
+    unreadable reply left to make a FetchError of. The normalization in
+    `_reply_object` costs nothing on such an interpreter and is what a shared
+    source file has to do -- `DecimalException` is raised by one of the two
+    implementations of the same standard module.
+
+    `verbatim` and not `client`: `Echoing` reads the body to put this
+    request's id in it, and reading it is what cannot be done -- with the
+    default `parse_float` the exponent becomes `inf` and comes back out as
+    `Infinity`, so the harness would hand the client a different failure
+    than the one under test. The id is never reached here anyway, the parse
+    being what fails.
+    """
+    with pytest.raises(FetchError, match="the json parser refused"):
+        verbatim((200, _HUGE_EXPONENT)).call("getbalance")
+
+    with pytest.raises(HttpError) as exc:
+        verbatim((503, _HUGE_EXPONENT)).call("getbalance")
+    assert exc.value.status == 503
+
+
+@pytest.mark.skipif(
+    _decimal_represents(_HUGE_EXPONENT_NUMBER),
+    reason="this interpreter's decimal has a finite value for that exponent",
+)
+@pytest.mark.parametrize(("status", "raised"), [(200, FetchError), (503, HttpError)])
+def test_a_non_finite_decimal_is_refused_whatever_the_caller_traps(
+    status: int, raised: type[FetchError]
+) -> None:
+    """The refusal of NaN cannot depend on the caller's decimal context.
+
+    `parse_float=Decimal` builds the number in whatever context the calling
+    thread is under, and that context decides whether an exponent the
+    implementation cannot represent raises or is answered quietly: with
+    `InvalidOperation` untrapped, `1e999999999999999999999999999` used to
+    arrive as `Decimal("NaN")` -- an amount comparing false against itself
+    forever, past a refusal this module documents, with no exception raised
+    anywhere to normalize.
+
+    So the number is checked and not the exception waited for, and the check
+    is `is_finite` rather than a bound on the exponent: a finite value is an
+    answer however large, which is what leaves pypy's decimal free to build
+    what libmpdec will not.
+
+    The status keeps its precedence either way, which is the second half of
+    the parametrization.
+    """
+    with localcontext() as ctx:
+        ctx.traps[InvalidOperation] = False
+        assert not Decimal(_HUGE_EXPONENT_NUMBER).is_finite()
+        with pytest.raises(raised) as exc:
+            verbatim((status, _HUGE_EXPONENT)).call("getbalance")
+    if status != 200:
+        assert isinstance(exc.value, HttpError)
+        assert exc.value.status == status
+    else:
+        assert "not a json number in the reply" in str(exc.value)
 
 
 def test_a_json_body_that_is_not_a_reply_object() -> None:

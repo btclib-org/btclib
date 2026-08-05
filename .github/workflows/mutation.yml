@@ -115,6 +115,18 @@ jobs:
             ceiling: 45
             sessions: |
               parsers.toml 30m
+          # the standalone Bitcoin Core rpc client, whose boundaries are a
+          # protocol's rather than a format's: 719 mutants enumerate, 187 are
+          # skipped by the annotation filter that configuration explains, and
+          # the 532 left take a couple of minutes of wall clock. Its own cell
+          # for the reason the parsers have one, and the same budget for the
+          # same reason -- 30 minutes is an order of magnitude over the
+          # measurement, which is what a slower runner is worth
+          - profile: the standalone RPC client
+            slug: rpc
+            ceiling: 45
+            sessions: |
+              bitcoin_core_rpc.toml 30m
     steps:
       # every action is pinned to a commit SHA, the tag in the comment: a
       # tag, let alone a branch, is a name its owner can move
@@ -195,6 +207,11 @@ jobs:
         env:
           SESSIONS: ${{ matrix.sessions }}
         run: |
+          # what the counter said, kept until every session has been
+          # reported: a step that exited at the first unsound one would take
+          # the reports of the sessions after it with it, and those are the
+          # product
+          counted=0
           while read -r config _; do
             [ -n "$config" ] || continue
             session="${config%.toml}"
@@ -210,14 +227,31 @@ jobs:
             uv run --locked --no-default-groups --group test --group mutation \
               cr-html "$session.sqlite" > "$session-report.html"
             # the one line worth reading in the log rather than in the
-            # artifact. Never with --fail-over: a survival rate is not a
-            # thing this workflow is allowed to be red about. It is taken
-            # over the whole session, a mutant the filter skipped counting
-            # as a kill, so what compares between weeks is that rate
-            # against the completed count in the report beside it
-            uv run --locked --no-default-groups --group test --group mutation \
-              cr-rate "$session.sqlite" | sed "s/^/$session survival rate: /"
+            # artifact, and not `cr-rate`: that tool's `is_killed` is
+            # `test_outcome != SURVIVED`, so a mutant the filter skipped
+            # counts as a kill and the rate divides by every result. On a
+            # filtered profile that reads 0.97% where the executed mutants
+            # are 1.32%, and on a session nothing has run yet it reads a
+            # perfect 0.00% -- the one failure mode of a mutation run that
+            # looks like good news. `cr-report`'s summary line is wrong the
+            # same way. The counter prints the counts as well as the rate,
+            # a rate alone being unable to say whether the session finished,
+            # and .github/scripts/mutation_counts.py says why it reads the
+            # session file rather than `cosmic-ray dump`.
+            #
+            # No threshold on the rate: a survivor is a test nobody has
+            # written yet, and this workflow is not allowed to be red about
+            # one. An outcome that is no verdict -- INCOMPETENT, or a worker
+            # that raised -- is the other thing, and the counter exits
+            # non-zero for it, which is why the session label is an argument
+            # rather than a `sed` after a pipe: a pipeline's status is its
+            # last command's, and this step runs under `bash -e` without
+            # `pipefail`, so piping discarded exactly the status it reports
+            uv run --locked --no-default-groups \
+              python .github/scripts/mutation_counts.py \
+              "$session.sqlite" "$session" || counted=$?
           done <<< "$SESSIONS"
+          exit "$counted"
       # the sessions as well as the reports: a .sqlite is what `cr-report`
       # and `cr-html` are re-run against, and what a later `cosmic-ray
       # exec` resumes, so downloading one is how the engine's remaining

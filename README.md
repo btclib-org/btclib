@@ -161,8 +161,22 @@ all four and nothing imports it. `keystore` is one level above even that:
 it remembers which addresses `bip44` has handed out and signs for one
 with `ecc.bms`, so it imports `bip44` and nothing imports it. `fetch`
 sits up there too, and is the one package that goes out to the network:
-nothing below it imports it, so a user who never asks a node or an
-explorer anything never runs a line of it.
+nothing below it imports it.
+
+One module of that stack is not up there, and deliberately:
+`btclib.bitcoin_core_rpc` holds the Bitcoin Core rpc client, its bounded
+`urllib` transport, and the exceptions the fetchers raise — `FetchError`
+when a backend did not answer, `HttpError` carrying a status, from either
+fetcher, and `RpcError` carrying a node's error code, which only the rpc one
+can raise. It is one standard-library-only source file, so that a project
+can copy it whole rather than depend on btclib. `btclib.exceptions`
+re-exports those three, an exception being no use if it has two identities,
+so a module most of the library imports reaches this one. That is the one
+import here that runs from the bottom upwards, and its price: every import
+which reaches `btclib.exceptions` loads `urllib.request` too, which is most
+of the library — `import btclib` and `btclib.alias` are the kind that do
+not. Nothing connects to anything for it: constructing a client opens no
+socket, and the first call is what does.
 
 ---
 

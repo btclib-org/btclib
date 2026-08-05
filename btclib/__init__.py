@@ -9,15 +9,21 @@
 # or distributed except according to the terms contained in the LICENSE file.
 """The btclib package: what it publishes, and the version metadata.
 
-`__all__` here is the root of the library's public tree: the nine
-packages and the twenty-two top-level modules a caller reaches from this
-name, and the list `docs/proposals/cli.md` walks to build the command
-tree of the out-of-repo command line. Each of those, and each module
-below them, declares its own `__all__`, so a walk that starts here has a
-declared surface at every node -- which is the whole of what the mirror
-needs, and why the list is not `pkgutil.iter_modules`: discovery would
-answer the file tree, and a module added to the directory would publish
-itself rather than being published.
+`__all__` here is the root of the library's public tree: the packages and
+top-level modules a caller reaches from this name. Each of those, and each
+module below them, declares its own `__all__`, so a walk that starts here
+has a declared surface at every node -- which is why the list is not
+`pkgutil.iter_modules`: discovery would answer the file tree, and a module
+added to the directory would publish itself rather than being published.
+
+That walk is also what `docs/proposals/cli.md` reads to build the command
+tree of the out-of-repo command line, and there it is a starting point
+rather than the whole answer: a module can be published and carry no
+commands, `bitcoin_core_rpc` being the one that does -- `cookie_auth`
+returns a node's credential, and a command spelling of it would print one.
+The command tree is this tree minus the exclusions that proposal records,
+which is a distinction the published surface cannot express and does not
+try to.
 
 `name` is not in it, nor are the metadata dunders. `name` is the
 distribution's name and not a member of the tree, `__version__` bound by
@@ -83,6 +89,7 @@ __all__ = [
     "bip21",
     "bip32",
     "bip44",
+    "bitcoin_core_rpc",
     "block",
     "curves",
     "descriptors",

@@ -32,6 +32,14 @@ recursive-include tests *.csv
 recursive-include tests *.json
 recursive-include tests *.md
 recursive-include tests *.py
+# except the one whose subject the sdist does not carry: the mutation
+# workflow's counter lives under .github, which is not shipped, so that test
+# in an sdist is three fixture errors and a failing subprocess rather than a
+# test. Excluded here because the include above did add it -- unlike the
+# website's files, whose absence is check-manifest's configuration and not
+# this file's; [tool.check-manifest] ignore names this one too, a tracked
+# file the sdist omits being exactly what that tool reports
+exclude tests/mutation_counts_test.py
 recursive-exclude tests *.pyc
 recursive-include tests *.txt
 

@@ -1,0 +1,61 @@
+# The standalone Bitcoin Core RPC client, mutated. The split in #378 moves
+# the request builder, reply validator, cookie reader and bounded urllib
+# transport behind one vendorable source file; this profile keeps the tests
+# that found its unchecked boundaries attached to that source.
+
+[cosmic-ray]
+module-path = "btclib/bitcoin_core_rpc.py"
+
+# Re-measured after the review of this profile: 719 mutants enumerate, the
+# annotation filter below skips 187, and the 532 that run take a couple of
+# minutes -- 2m13s on the head that introduced the profile, 3m11s on another
+# machine, which is what the wide budget in mutation.yml is for. The suite
+# kills 525.
+#
+# The seven survivors are equivalent here: four bitwise replacements whose
+# constant operands have disjoint bits, two identity comparisons on booleans,
+# and `remaining > 0` versus `remaining != 0` for a bounded read that cannot
+# make it negative.
+#
+# `allow_nan=True` was the eighth and was not equivalent, which is worth
+# recording rather than quietly dropping: the parameter walk reads the
+# caller's own objects, and a nested mapping is free to answer a finite value
+# while it is being checked and a NaN while it is being written -- the
+# encoder reads it a second time. `tests/fetch/bitcoin_core_test.py`'s
+# `test_a_parameter_that_is_not_what_the_walk_saw` is that reading, and it
+# kills the mutant.
+
+# The client tests judge JSON-RPC construction and validation, credentials,
+# cookies and per-call bounds. The transport tests judge the default urllib
+# implementation and the custom-transport seam. The integer-policy test keeps
+# the file's local predicate aligned with btclib's without making the file
+# import btclib. The standalone tests copy this one file out of btclib and
+# exercise it under `python -I -S`, which is the contract that distinguishes
+# this module from the compatibility imports.
+#
+# -n0 avoids paying xdist startup once per mutant; -p no:randomly keeps the
+# first killing test and therefore the runtime reproducible. Coverage is
+# deliberately absent for the reason documented in sig_hash.toml.
+test-command = """python -m pytest -x -q -n0 -p no:randomly \
+  tests/fetch/transport_test.py tests/fetch/bitcoin_core_test.py \
+  tests/integer_policy_test.py tests/bitcoin_core_rpc_standalone_test.py"""
+
+# The unmutated command is well below one second on the measured checkout.
+# Keep the same wide per-mutant ceiling as the other profiles: a timeout is
+# reported as KILLED by Cosmic Ray, so a tight bound could turn runner load
+# into a false kill, while this scope includes response-reading loops whose
+# bounds are among the expressions being mutated.
+timeout = 300
+
+excluded-modules = []
+
+# Every `|` in this module is part of an annotation, and the file imports
+# `annotations` from __future__: all 17 are stored rather than evaluated.
+# Cosmic Ray gives each one eleven binary-operator replacements, 187 mutants
+# no execution can distinguish. Keep them out of the actionable report; the
+# workflow applies this filter after init, as documented in mutation.yml.
+[cosmic-ray.filters.operators-filter]
+exclude-operators = ["core/ReplaceBinaryOperator_BitOr_.*"]
+
+[cosmic-ray.distributor]
+name = "local"

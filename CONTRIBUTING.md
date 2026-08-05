@@ -307,10 +307,11 @@ The `mutation` workflow, weekly and on demand, which gates nothing either
 and for a different reason: it asks whether the suite would *notice* a
 wrong line, where coverage only says the line ran, and a surviving mutant
 is a test nobody has written rather than a regression somebody just
-caused. Two profiles, a parallel job with its own budget each: the
+caused. Three profiles, a parallel job with its own budget each: the
 consensus code — `btclib/script/engine/` and `btclib/script/sig_hash.py` —
-and the wire format, `btclib/tx/` with the `var_int` and `var_bytes`
-codecs under it. The three configurations under `.github/mutation/` are
+the wire format, `btclib/tx/` with the `var_int` and `var_bytes`
+codecs under it, and the standalone Bitcoin Core rpc client. The
+configurations under `.github/mutation/` are
 what says so, and are what a local run reads, so there is one statement of
 what is mutated and what judges it:
 
@@ -333,11 +334,13 @@ every mutant identically and the session reports a perfect kill rate,
 which is the one failure mode of a mutation run that looks like good news.
 `cr-filter-operators` marks as skipped the mutants a configuration
 excludes by operator, and is a no-op for one that excludes none, so the
-same five commands run any of the three: `parsers.toml` is the one that
-excludes a family, and states which and why. `sig_hash.toml` or
-`engine.toml` in place of it is the other profile, at 727 mutants and half
+same five commands run any of them: `parsers.toml` and
+`bitcoin_core_rpc.toml` are the two that exclude a family, and each states
+which and why. `sig_hash.toml` or
+`engine.toml` in place of it is the consensus profile, at 727 mutants and half
 an hour of cpu against 2768 and five and a half hours; the parser profile
-is 1034 mutants and minutes, so it is the one that finishes. Each
+is 1034 mutants and minutes and the rpc one 719, so those two are the ones
+that finish. Each
 configuration carries its own arithmetic. The report is `--surviving-only`,
 which is the whole of what anybody acts on: a killed mutant is the suite
 doing its job, and printing all 727 of them buries the dozen that are not.
@@ -350,6 +353,25 @@ a `git status` in the middle is a working tree with a mutant in it.
 interrupting one costs only the mutant it was on. And the `.sqlite`
 sessions are the artifact the workflow uploads: `cr-report`, `cr-html` and
 `cr-rate` all read one, and a downloaded one can be finished locally.
+
+For the counts, read the session with the workflow's own script rather than
+`cr-rate`:
+
+```shell
+uv run --locked --no-default-groups \
+    python .github/scripts/mutation_counts.py parsers.sqlite
+```
+
+`cr-rate`'s `is_killed` is `test_outcome != SURVIVED`, so a mutant the
+operator filter skipped counts as a kill and the rate divides by every
+result: on a filtered profile that reads 0.97% where the executed mutants
+are 1.32%, and on a session nothing has run yet it reads a perfect 0.00%.
+`cr-report`'s summary line is wrong the same way. The script prints killed,
+survived, skipped and never-run beside the rate over what ran, names any
+outcome that is no verdict — INCOMPETENT, or a worker that raised — and
+exits non-zero for one, which is the only thing the workflow is red about.
+Its docstring says why it reads the session file rather than `cosmic-ray
+dump`, which cannot read one of these sessions at all.
 
 The `rpc-smoke` workflow, on demand and before a release, and the one job
 here that needs something uv cannot fetch: a bitcoind. It is what stands

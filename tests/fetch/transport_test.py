@@ -13,7 +13,13 @@ from __future__ import annotations
 
 from collections.abc import Callable, Iterator
 from contextlib import contextmanager
-from http.client import HTTPMessage
+from http.client import (
+    BadStatusLine,
+    HTTPException,
+    HTTPMessage,
+    IncompleteRead,
+    LineTooLong,
+)
 from io import BytesIO
 from types import SimpleNamespace, TracebackType
 from typing import Any
@@ -31,8 +37,8 @@ from urllib.response import addinfourl
 
 import pytest
 
+from btclib import bitcoin_core_rpc as transport_module
 from btclib.exceptions import BTClibTypeError, BTClibValueError, FetchError
-from btclib.fetch import transport as transport_module
 from btclib.fetch.transport import (
     DEFAULT_MAX_BODY_SIZE,
     DEFAULT_TIMEOUT,
@@ -86,6 +92,7 @@ class FakeResponse:
         self.closed = False
         self._offset = 0
         self._chunk_size = chunk_size
+        self._returned_eof = False
         self.reads: list[int | None] = []
         self.headers: dict[str, str] = (
             {} if content_length is None else {"Content-Length": content_length}
@@ -108,12 +115,15 @@ class FakeResponse:
         Every read is remembered, which is how a test checks that a
         caller's limit reached the read rather than the check after it.
         """
+        if self._returned_eof:
+            raise AssertionError("the response was read again after EOF")
         self.reads.append(amt)
         size = len(self._body) - self._offset if amt is None else amt
         if self._chunk_size is not None:
             size = min(size, self._chunk_size)
         chunk = self._body[self._offset : self._offset + size]
         self._offset += len(chunk)
+        self._returned_eof = not chunk
         return chunk
 
 
@@ -242,6 +252,25 @@ def test_a_chunked_body_is_read_to_the_limit_and_no_further(
     )
 
 
+def test_eof_ends_the_incremental_read(monkeypatch: pytest.MonkeyPatch) -> None:
+    """An empty chunk is EOF, so the transport does not read it again."""
+    response = FakeResponse(200, b"")
+
+    def fake_open(request: Request, timeout: float) -> FakeResponse:
+        return response
+
+    monkeypatch.setattr(transport_module, "_OPENER", _opener(fake_open))
+
+    request = Request(URL, method="GET")
+    assert urlopen_transport(request, DEFAULT_TIMEOUT, max_body_size=64) == (
+        200,
+        b"",
+    )
+    assert response.reads == [65]
+    with pytest.raises(AssertionError, match="read again after EOF"):
+        response.read(1)
+
+
 def test_an_announced_size_over_the_limit_is_refused_before_reading(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
@@ -264,6 +293,14 @@ def test_an_announced_size_over_the_limit_is_refused_before_reading(
     serve(FakeResponse(200, b"a" * 4, content_length=str(limit + 1)))
     with pytest.raises(FetchError, match=f"announced {limit + 1} bytes"):
         urlopen_transport(request, DEFAULT_TIMEOUT, max_body_size=limit)
+
+    # equal is still within the limit: changing `>` to `>=` must not turn
+    # the largest permitted response into an early refusal
+    serve(FakeResponse(200, b"a" * limit, content_length=str(limit)))
+    assert urlopen_transport(request, DEFAULT_TIMEOUT, max_body_size=limit) == (
+        200,
+        b"a" * limit,
+    )
 
     # not a number: no claim about the size, so the read decides
     serve(FakeResponse(200, b"a" * 4, content_length="banana"))
@@ -317,6 +354,27 @@ def test_the_limit_reaches_the_read_of_the_default_transport(
     assert response.reads == [65]
 
 
+def test_an_odd_limit_still_reads_the_octet_that_proves_it_was_exceeded(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """The sentinel octet is read after a chunk exactly fills the limit.
+
+    An odd limit distinguishes `limit + 1` from the bitwise expressions a
+    mutation can replace it with. The first chunk leaves that one octet to
+    read; stopping with one remaining would silently accept a truncated body.
+    """
+    response = FakeResponse(200, b"a" * 64, chunk_size=63)
+
+    def fake_open(request: Request, timeout: float) -> FakeResponse:
+        return response
+
+    monkeypatch.setattr(transport_module, "_OPENER", _opener(fake_open))
+
+    with pytest.raises(FetchError, match="response larger than 63 bytes"):
+        http_request(URL, max_body_size=63)
+    assert response.reads == [64, 1]
+
+
 def test_the_body_of_a_failure_is_truncated_not_refused() -> None:
     """An error page is bounded separately, and by truncation.
 
@@ -329,6 +387,11 @@ def test_the_body_of_a_failure_is_truncated_not_refused() -> None:
         status, body = http_request(URL, max_body_size=64, transport=Recorded(error))
     assert status == 404
     assert len(body) == MAX_ERROR_BODY_SIZE
+
+
+def test_the_failure_body_limit_is_64_kib() -> None:
+    """The public diagnostic bound has a stable value, not only a name."""
+    assert MAX_ERROR_BODY_SIZE == 64 * 1024
 
 
 def test_the_response_of_a_failure_is_closed() -> None:
@@ -403,6 +466,70 @@ def test_the_default_transport_is_the_urllib_one() -> None:
     assert defaults is not None
     assert defaults["transport"] is urlopen_transport
     assert defaults["timeout"] == DEFAULT_TIMEOUT
+    assert DEFAULT_TIMEOUT == 30.0
+
+
+def test_the_incremental_limit_is_keyword_only(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """The two-argument transport protocol stays valid for custom transports."""
+    monkeypatch.setattr(
+        transport_module,
+        "_OPENER",
+        _opener(lambda _request, **_kwargs: FakeResponse(200, b"body")),
+    )
+    untyped_transport: Any = urlopen_transport
+    with pytest.raises(TypeError):
+        untyped_transport(Request(URL), DEFAULT_TIMEOUT, 64)
+
+
+def test_a_transport_equal_to_the_default_is_still_the_callers_transport(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """The special incremental path is selected by identity, not equality."""
+    monkeypatch.setattr(
+        transport_module,
+        "_OPENER",
+        _opener(
+            lambda _request, **_kwargs: FakeResponse(200, b"the module's transport")
+        ),
+    )
+
+    class EqualTransport:
+        def __init__(self) -> None:
+            self.requests: list[Request] = []
+
+        def __eq__(self, other: object) -> bool:
+            return other is urlopen_transport
+
+        def __call__(self, request: Request, timeout: float) -> tuple[int, bytes]:
+            self.requests.append(request)
+            return 200, b"the caller's transport"
+
+    transport = EqualTransport()
+    assert transport == urlopen_transport
+    assert http_request(URL, transport=transport) == (200, b"the caller's transport")
+    assert len(transport.requests) == 1
+
+
+@pytest.mark.parametrize(
+    ("status", "is_error"),
+    [(int("399"), False), (int("400"), True), (int("401"), True)],
+)
+def test_a_caller_transport_uses_400_as_the_error_boundary(
+    status: int, is_error: bool
+) -> None:
+    """A 400 starts diagnostics; a 399 remains a size-limited answer."""
+    transport = Recorded((status, b"too long"))
+    if not is_error:
+        with pytest.raises(FetchError, match="more than the 1 allowed"):
+            http_request(URL, max_body_size=1, transport=transport)
+        return
+
+    assert http_request(URL, max_body_size=1, transport=transport) == (
+        status,
+        b"too long",
+    )
 
 
 def test_a_get_carries_no_body() -> None:
@@ -674,14 +801,72 @@ def test_a_redirect_is_a_status_and_not_a_second_request(
         TimeoutError("timed out"),
         ConnectionResetError("peer went away"),
         OSError("no route to host"),
+        IncompleteRead(b"ab", 10),
+        BadStatusLine("not a status line"),
+        LineTooLong("header line"),
     ],
 )
 def test_an_exchange_that_did_not_happen_is_a_fetch_error(error: Exception) -> None:
-    """One answer for four ways of not getting one.
+    """One answer for every way of not getting one.
 
-    A timeout is the one worth naming: `socket.timeout` has been
-    `TimeoutError` since 3.10, so it arrives here as an OSError like the
-    rest, and there is nothing left for a caller to tell apart.
+    A timeout is the one worth naming among the first four: `socket.timeout`
+    has been `TimeoutError` since 3.10, so it arrives here as an OSError like
+    the rest, and there is nothing left for a caller to tell apart.
+
+    The last three are the other family, and no relation of `OSError`:
+    `HTTPException` is a plain Exception, so an `except OSError` never saw
+    them. They come from inside the read rather than from the connect -- a
+    chunked body that stopped early, a peer answering something that is not
+    a status line -- which is exactly where this function's promise that
+    everything below the status is a FetchError used to end.
     """
+    assert not issubclass(HTTPException, OSError)
     with pytest.raises(FetchError, match="no answer from"):
         http_request(URL, transport=Recorded(error))
+
+
+def test_a_failure_body_that_cannot_be_read_keeps_its_status(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """The status outlives the error page, which is the part with a policy.
+
+    An `HTTPError` is a response and its body is the backend's diagnosis, so
+    it is read -- and that read is over the same connection that just
+    failed, so it can fail the same way. What a caller does about a 503 does
+    not depend on the page, so the status goes back with an empty body
+    rather than being replaced by a report about reading one.
+    """
+
+    class UnreadableError(HTTPError):
+        def read(self, amt: int | None = None) -> bytes:
+            raise IncompleteRead(b"", 42)
+
+    error = UnreadableError(URL, 503, "busy", HTTPMessage(), None)
+
+    def fake_open(request: Request, timeout: float) -> FakeResponse:
+        raise error
+
+    monkeypatch.setattr(transport_module, "_OPENER", _opener(fake_open))
+
+    assert http_request(URL) == (503, b"")
+
+
+def test_an_explicitly_empty_body_is_still_a_post() -> None:
+    """`data=b""` is a body a caller passed, and a POST is what they asked.
+
+    The public contract is a POST "when data is given", and the truth of the
+    bytes is not what gives them: an empty body used to build a GET, which
+    Core answers with "JSON-RPC: method not allowed" -- a diagnosis about
+    the method for a request whose body was the problem. `urllib.request`
+    draws the line at `data is None` too.
+    """
+    methods = []
+
+    def spy(request: Request, timeout: float) -> tuple[int, bytes]:
+        methods.append(request.get_method())
+        return 200, b"{}"
+
+    http_request(URL, data=b"", transport=spy)
+    http_request(URL, data=b"{}", transport=spy)
+    http_request(URL, transport=spy)
+    assert methods == ["POST", "POST", "GET"]
