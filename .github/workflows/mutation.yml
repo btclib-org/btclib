@@ -178,7 +178,17 @@ jobs:
       # is the numbers for the mutants that did run. 124 is what timeout
       # exits with when it cuts a session, and a session is resumable --
       # `cosmic-ray exec` runs the jobs still pending -- so a partial run
-      # is a partial answer rather than a lost one
+      # is a partial answer rather than a lost one.
+      #
+      # --signal=INT, not the default SIGTERM (issue #392): the local
+      # distributor applies a mutant and restores it from a `finally`
+      # block that only runs if the process can unwind. SIGTERM kills it
+      # outright, mid-mutant, before that block runs; SIGINT is what
+      # Python turns into a catchable KeyboardInterrupt, letting it
+      # unwind. Measured directly -- a process writing a marker, sleeping,
+      # and restoring the marker in `finally`, killed with each signal in
+      # turn -- SIGTERM leaves the marker at its mutated value, SIGINT at
+      # its restored one, timeout still exiting 124 either way
       - name: Run the mutation sessions
         env:
           SESSIONS: ${{ matrix.sessions }}
@@ -190,9 +200,22 @@ jobs:
               cosmic-ray init "$config" "$session"
             uv run --locked --no-default-groups --group test --group mutation \
               cr-filter-operators "$session" "$config"
-            timeout "$budget" \
+            timeout --signal=INT "$budget" \
               uv run --locked --no-default-groups --group test --group mutation \
               cosmic-ray exec "$config" "$session" || status=$?
+            # belt and braces beside the signal above: a session that
+            # restores every mutant it applies leaves the tracked source
+            # identical to HEAD, so anything git still sees changed here
+            # is exactly what issue #392 describes, whatever left it that
+            # way. Caught and restored before the next session in this
+            # loop can inherit it -- untracked files (the .sqlite session,
+            # the reports written below) are untouched, git diff not
+            # seeing them in the first place
+            if ! git diff --quiet; then
+              echo "::warning::$config left the tracked source changed after" \
+                "exec; restoring before the next session"
+              git checkout -- .
+            fi
             if [ "$status" -ne 0 ] && [ "$status" -ne 124 ]; then
               return "$status"
             fi
