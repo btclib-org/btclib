@@ -186,8 +186,10 @@ def deserialize_sized_int(
     value of any length is a field boundary left to whoever writes the
     bytes.
 
-    signed=True for the two values the BIPs define as signed, the
-    transaction version and an output's amount.
+    signed=True for an output's amount, the one field btclib reads as
+    the signed integer the BIPs define. BIP370 defines the transaction
+    version as signed too, and `btclib.psbt.psbt` reads it unsigned,
+    with the reason at the two sites that do.
     """
     if len(k) != 1:
         err_msg = f"invalid {type_} key length: {len(k)}"
