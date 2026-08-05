@@ -1137,6 +1137,26 @@ edit.
   own exception contract; it is a `BTClibTypeError` now, `bool` included,
   through the `is_integer` of #326. The bound above is unchanged and its
   message with it
+- **`TxOut`'s eight-byte value is read and written as `CAmount`, Core's
+  signed `int64_t`, not as an unsigned integer** (issue #388). Every valid
+  amount is below MAX_MONEY, hence below 2^63, where the two readings
+  agree; `check_validity=False` is what makes the difference observable,
+  and it now matches Core rather than a `signed=False` nobody had chosen
+  on purpose: eight `ff` octets parse to `-1`, Core's own null-value
+  sentinel for the field, instead of a satoshi count twice MAX_MONEY. The
+  checked parse still refuses either reading, negative or merely too
+  large, and a valid amount serializes exactly as before, the two
+  readings not differing below 2^63. The three other places the same
+  field goes on the wire move with it, so that one field has one
+  reading: BIP143's `amount`, BIP341's `sha_amounts`, and the amount
+  ANYONECANPAY writes inline. Each wrote the octets a caller had
+  already been handed as a negative integer, so they answered a
+  prevout of `TxOut.parse`'s own making with a bare `OverflowError`
+  from `int.to_bytes` -- reachable through `sig_hash.taproot`,
+  `sig_hash.segwit_v0` and `PrecomputedTxData`, and from outside the
+  exception contract. What each commits to is unchanged, `-1` and
+  `0xffffffffffffffff` being the same eight octets. Found while
+  reviewing #386
 
 ### Immutability and shared state
 

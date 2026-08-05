@@ -46,7 +46,9 @@ class TxOut:
     having to parse.
     """
 
-    # 8 bytes, unsigned little endian
+    # 8 bytes, little endian, signed -- Core's CAmount is int64_t, and
+    # check_validity=False exposes that: the highest bit set parses as
+    # negative rather than as a satoshi count twice MAX_MONEY (issue 388)
     value: int  # denominated in satoshi
     script_pub_key: ScriptPubKey
 
@@ -125,11 +127,16 @@ class TxOut:
         )
 
     def serialize(self, *, check_validity: bool = True) -> bytes:
-        """Return the wire serialization: the value, then the script."""
+        """Return the wire serialization: the value, then the script.
+
+        The value is written as CAmount, Core's signed int64_t: a valid
+        amount is never negative, but check_validity=False lets one
+        through and it must still fit in the eight bytes it came from.
+        """
         if check_validity:
             self.assert_valid()
 
-        out = self.value.to_bytes(8, byteorder="little", signed=False)
+        out = self.value.to_bytes(8, byteorder="little", signed=True)
         out += var_bytes.serialize(self.script_pub_key.script)
         return out
 
@@ -143,11 +150,14 @@ class TxOut:
         """Build a TxOut by parsing its wire serialization.
 
         The network is mainnet, the wire not carrying one; the script
-        is taken as it comes, scripts on chain not having to parse.
+        is taken as it comes, scripts on chain not having to parse. The
+        value is read as CAmount, Core's signed int64_t: with
+        check_validity=False, a high bit set parses negative -- as it
+        does for Core -- rather than as an amount above MAX_MONEY.
         """
         stream = bytesio_from_binarydata(data)
         value = int.from_bytes(
-            read_exactly(stream, 8, "output value"), byteorder="little", signed=False
+            read_exactly(stream, 8, "output value"), byteorder="little", signed=True
         )
         script = var_bytes.parse(stream)
         assert_no_trailing(data, stream, "transaction output")

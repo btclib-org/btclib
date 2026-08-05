@@ -291,14 +291,14 @@ def legacy(script_code: Octets, tx: Tx, vin_i: int, hash_type: int) -> bytes:
         # sig_hash single bug
         if vin_i >= len(new_tx.vout):
             return (256**31).to_bytes(32, byteorder="big", signed=False)
-        # every output before the signed one is blanked: value -1 as an
-        # unsigned 8-bytes int, and an empty script_pub_key. Rebuilt one by
-        # one rather than assigned into, TxOut being frozen — and one
-        # instance each, a single blanked TxOut repeated being the aliasing
-        # that issue #139 was about
+        # every output before the signed one is blanked: value -1, Core's
+        # own `nValue = -1` on the CAmount it is (issue #388), and an
+        # empty script_pub_key. Rebuilt one by one rather than assigned
+        # into, TxOut being frozen — and one instance each, a single
+        # blanked TxOut repeated being the aliasing that issue #139 was
+        # about
         new_tx.vout = [
-            TxOut(0xFFFFFFFFFFFFFFFF, ScriptPubKey(b""), check_validity=False)
-            for _ in range(vin_i)
+            TxOut(-1, ScriptPubKey(b""), check_validity=False) for _ in range(vin_i)
         ] + [new_tx.vout[vin_i]]
         _zero_other_sequences(new_tx, vin_i)
 
@@ -332,9 +332,12 @@ def _serialized_outputs(tx: Tx) -> bytes:
 
 
 def _serialized_amounts(prevouts: list[TxOut]) -> bytes:
+    # signed, as TxOut.serialize is and for the same reason: this is the
+    # same CAmount field, Core's `ss << txout.nValue`, so the two must
+    # agree on which integers the eight bytes stand for (issue #388)
     return b"".join(
         [
-            prevout.value.to_bytes(8, byteorder="little", signed=False)
+            prevout.value.to_bytes(8, byteorder="little", signed=True)
             for prevout in prevouts
         ]
     )
@@ -476,7 +479,10 @@ def segwit_v0(
             hash_seqs,
             tx.vin[vin_i].prev_out.serialize(check_validity=False),
             var_bytes.serialize(script_code),
-            amount.to_bytes(8, byteorder="little", signed=False),  # value
+            # a CAmount, signed as TxOut's is: BIP143's `amount` is the
+            # spent output's value, and Core writes it with the same
+            # serializer (issue #388)
+            amount.to_bytes(8, byteorder="little", signed=True),  # value
             tx.vin[vin_i].sequence.to_bytes(4, byteorder="little", signed=False),
             hash_outputs,
             tx.lock_time.to_bytes(4, byteorder="little", signed=False),
@@ -549,7 +555,7 @@ def taproot(
         prevout = prevouts[input_index]
         parts += [
             transaction.vin[input_index].prev_out.serialize(check_validity=False),
-            prevout.value.to_bytes(8, "little"),
+            prevout.value.to_bytes(8, "little", signed=True),  # a CAmount
             var_bytes.serialize(prevout.script_pub_key.script),
             transaction.vin[input_index].nSequence.to_bytes(4, "little"),
         ]
