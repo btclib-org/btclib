@@ -47,6 +47,8 @@ from btclib.bitcoin_core_rpc import (
     BitcoinCoreRpcClient,
     _default_datadir,
     cookie_auth,
+    core_chain_from_network,
+    network_from_core_chain,
 )
 from btclib.exceptions import (
     BTClibTypeError,
@@ -55,8 +57,9 @@ from btclib.exceptions import (
     HttpError,
     RpcError,
 )
-from btclib.fetch.bitcoin_core import BitcoinCoreFetcher
+from btclib.fetch.bitcoin_core import BitcoinCoreFetcher, _signet_magic
 from btclib.fetch.transport import DEFAULT_MAX_BODY_SIZE, DEFAULT_TIMEOUT
+from btclib.network import NETWORKS, Network
 from btclib.tx import OutPoint
 from tests.fetch import TIP_HEIGHT, TIP_ID, TX_ID, Recorded, recorded_body
 
@@ -74,7 +77,7 @@ RPC_USER = "rpcuser"
 RPC_PASSWORD = "rpcpassword"  # noqa: S105  # pragma: allowlist secret
 
 # the endpoint the tests build against, written once. A url is required,
-# there being no network here to derive one from -- `from_network` is what
+# there being no chain here to derive one from -- `from_chain` is what
 # derives one, and has its own tests
 URL = "http://127.0.0.1:8332"
 
@@ -154,9 +157,9 @@ def sent(endpoint: BitcoinCoreRpcClient) -> dict[str, object]:
     return body
 
 
-def test_from_network_is_the_local_node_of_that_network() -> None:
+def test_from_chain_is_the_local_node_of_that_chain() -> None:
     """The rpc port and the datadir subdirectory of Core's chainparamsbase."""
-    # what `from_network` asks at the call. None where no absolute home is
+    # what `from_chain` asks at the call. None where no absolute home is
     # knowable, which is not a machine the suite runs on -- and asserting it
     # is what makes the paths below a Path
     datadir = _default_datadir()
@@ -165,19 +168,19 @@ def test_from_network_is_the_local_node_of_that_network() -> None:
     # caller to read, and not what the derivation goes through
     assert DEFAULT_DATADIR == datadir
 
-    from_network = BitcoinCoreRpcClient.from_network
-    assert from_network().url == "http://127.0.0.1:8332"
-    assert from_network("testnet").url == "http://127.0.0.1:18332"
-    assert from_network("testnet4").url == "http://127.0.0.1:48332"
-    assert from_network("signet").url == "http://127.0.0.1:38332"
-    assert from_network("regtest").url == "http://127.0.0.1:18443"
+    from_chain = BitcoinCoreRpcClient.from_chain
+    assert from_chain().url == "http://127.0.0.1:8332"
+    assert from_chain("test").url == "http://127.0.0.1:18332"
+    assert from_chain("testnet4").url == "http://127.0.0.1:48332"
+    assert from_chain("signet").url == "http://127.0.0.1:38332"
+    assert from_chain("regtest").url == "http://127.0.0.1:18443"
 
-    assert from_network().cookie_path == datadir / ".cookie"
-    assert from_network("testnet").cookie_path == datadir / "testnet3" / ".cookie"
-    assert from_network("regtest").cookie_path == datadir / "regtest" / ".cookie"
+    assert from_chain().cookie_path == datadir / ".cookie"
+    assert from_chain("test").cookie_path == datadir / "testnet3" / ".cookie"
+    assert from_chain("regtest").cookie_path == datadir / "regtest" / ".cookie"
 
 
-def test_from_network_reads_the_home_of_the_call_and_not_of_the_import(
+def test_from_chain_reads_the_home_of_the_call_and_not_of_the_import(
     monkeypatch: pytest.MonkeyPatch, tmp_path: Path
 ) -> None:
     """A home set after btclib was imported is the one a cookie comes from.
@@ -186,7 +189,7 @@ def test_from_network_reads_the_home_of_the_call_and_not_of_the_import(
     all imports it: a datadir resolved once, at that moment, is the
     environment as it stood whenever some unrelated early import happened.
     Reproduced before this was fixed -- `HOME=/tmp/home-before`, `import
-    btclib.exceptions`, `HOME=/tmp/home-after`, and `from_network()` still
+    btclib.exceptions`, `HOME=/tmp/home-after`, and `from_chain()` still
     answered with `/tmp/home-before/.bitcoin/.cookie`.
 
     Which is what a test can only see by *not* patching `DEFAULT_DATADIR`:
@@ -197,11 +200,11 @@ def test_from_network_reads_the_home_of_the_call_and_not_of_the_import(
     monkeypatch.setattr(Path, "home", lambda: tmp_path / "home-after")
 
     expected = tmp_path / "home-after" / ".bitcoin" / "regtest" / ".cookie"
-    assert BitcoinCoreRpcClient.from_network("regtest").cookie_path == expected
+    assert BitcoinCoreRpcClient.from_chain("regtest").cookie_path == expected
     assert DEFAULT_DATADIR != _default_datadir()
 
 
-def test_from_network_derives_no_cookie_when_told_who_is_calling(
+def test_from_chain_derives_no_cookie_when_told_who_is_calling(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     """A user or a password is the answer to that, so nothing is derived.
@@ -219,7 +222,7 @@ def test_from_network_derives_no_cookie_when_told_who_is_calling(
     monkeypatch.setattr(Path, "home", lambda: pytest.fail("home consulted"))
     for kwargs in ({"password": RPC_PASSWORD}, {"user": RPC_USER}):
         with pytest.raises(BTClibValueError, match="go together"):
-            BitcoinCoreRpcClient.from_network(**kwargs)  # type: ignore[arg-type]
+            BitcoinCoreRpcClient.from_chain(**kwargs)  # type: ignore[arg-type]
 
 
 def test_no_absolute_home_is_no_default_datadir_and_no_exception(
@@ -253,14 +256,14 @@ def test_no_absolute_home_is_no_default_datadir_and_no_exception(
     assert _default_datadir() is None
 
 
-def test_from_network_refuses_a_datadir_it_cannot_name(
+def test_from_chain_refuses_a_datadir_it_cannot_name(
     monkeypatch: pytest.MonkeyPatch, tmp_path: Path
 ) -> None:
     """No default datadir is a refusal, and never a path read against the cwd.
 
     The end of the same path as the test above, and the reason None is the
     answer there rather than an unexpanded `~/.bitcoin`: that is a relative
-    path, `pathlib` expands no tilde, and `from_network` handed it to the
+    path, `pathlib` expands no tilde, and `from_chain` handed it to the
     cookie reader unchanged -- so a `./~/.bitcoin/.cookie` that the working
     directory happened to contain became the credential this client presents
     to the node. Planted below, exactly as it was when that was reproduced.
@@ -283,12 +286,12 @@ def test_from_network_refuses_a_datadir_it_cannot_name(
     monkeypatch.setattr(Path, "home", no_home)
 
     with pytest.raises(BTClibValueError, match="pass cookie_path"):
-        BitcoinCoreRpcClient.from_network()
+        BitcoinCoreRpcClient.from_chain()
 
     # the file is there and readable, so the refusal above is what kept it
     # out and not an absent path: through an explicit `cookie_path` the very
     # same file is the credential
-    explicit = BitcoinCoreRpcClient.from_network("mainnet", cookie_path=planted)
+    explicit = BitcoinCoreRpcClient.from_chain("main", cookie_path=planted)
     assert (
         b64decode(explicit.auth_header().split()[1])
         == f"{COOKIE_USER}:planted".encode()
@@ -296,16 +299,16 @@ def test_from_network_refuses_a_datadir_it_cannot_name(
 
     # and credentials need no datadir at all
     assert (
-        BitcoinCoreRpcClient.from_network(
+        BitcoinCoreRpcClient.from_chain(
             "regtest", user=RPC_USER, password=RPC_PASSWORD
         ).cookie_path
         is None
     )
 
 
-def test_from_network_takes_credentials_instead_of_a_cookie() -> None:
+def test_from_chain_takes_credentials_instead_of_a_cookie() -> None:
     """Credentials given, no cookie path derived: the two are exclusive."""
-    endpoint = BitcoinCoreRpcClient.from_network(
+    endpoint = BitcoinCoreRpcClient.from_chain(
         "regtest", user=RPC_USER, password=RPC_PASSWORD
     )
     assert endpoint.cookie_path is None
@@ -318,9 +321,9 @@ def test_connection_controls_are_keyword_only() -> None:
     with pytest.raises(TypeError):
         constructor(URL, RPC_USER, RPC_PASSWORD)
 
-    from_network: Any = BitcoinCoreRpcClient.from_network
+    from_chain: Any = BitcoinCoreRpcClient.from_chain
     with pytest.raises(TypeError):
-        from_network("regtest", RPC_USER, RPC_PASSWORD)
+        from_chain("regtest", RPC_USER, RPC_PASSWORD)
 
 
 def test_a_colon_in_the_user_is_refused_and_one_in_the_password_is_not() -> None:
@@ -419,10 +422,18 @@ def test_a_method_that_is_not_a_string_is_refused(method: object) -> None:
         client().call(method)  # type: ignore[arg-type]
 
 
-def test_from_network_refuses_a_network_core_has_no_port_for() -> None:
-    """The five names are Core's chainparamsbase, not btclib's registry."""
-    with pytest.raises(BTClibValueError, match="unknown network: testnet5"):
-        BitcoinCoreRpcClient.from_network("testnet5")
+def test_from_chain_refuses_a_chain_core_has_no_port_for() -> None:
+    """The names are Core's chainparamsbase, not btclib's registry.
+
+    Which a btclib name is now the demonstration of: `mainnet` is a
+    network btclib has and a chain Core has not, so it is refused here
+    exactly as an invented name is. `core_chain_from_network` is what a
+    caller holding one goes through.
+    """
+    with pytest.raises(BTClibValueError, match="unknown chain: testnet5"):
+        BitcoinCoreRpcClient.from_chain("testnet5")
+    with pytest.raises(BTClibValueError, match="unknown chain: mainnet"):
+        BitcoinCoreRpcClient.from_chain("mainnet")
 
 
 def test_the_url_carries_no_network_and_no_registry() -> None:
@@ -1659,13 +1670,176 @@ def test_get_tx_labels_the_outputs_for_the_fetchers_network() -> None:
 def test_the_fetchers_network_is_btclibs_registry_not_cores() -> None:
     """Which is the point of the split: `Fetcher` validates against NETWORKS.
 
-    The client refuses no name at all, and `from_network` refuses one Core
+    The client refuses no name at all, and `from_chain` refuses one Core
     has no port for -- neither of which is the question this label answers.
     """
     with pytest.raises(BTClibValueError, match="unknown network"):
         BitcoinCoreFetcher(
             BitcoinCoreRpcClient(URL, user=RPC_USER, password=RPC_PASSWORD), "nowhere"
         )
+
+
+# a block challenge that is not Core's, which is the whole of what makes a
+# signet a different one. Any script serves: what the check reads from it
+# is a hash, and this is a p2wpkh of a public key hash nobody holds
+CUSTOM_CHALLENGE = "0014" + "ab" * 20
+OTHER_CHALLENGE = "0014" + "cd" * 20
+
+
+def blockchaininfo(**members: object) -> tuple[int, bytes]:
+    """Return a 200 answer whose result is a getblockchaininfo of these members.
+
+    Written here rather than recorded: the reply carries a dozen members
+    beyond the two this question reads, so a recording of it would be a
+    fixture to re-take whenever Core adds one, and every test below would
+    then be edited to change the one member it is about.
+    """
+    body = json.dumps({"jsonrpc": "2.0", "result": members, "id": "x"}).encode()
+    return 200, body
+
+
+def custom_signet(challenge: str) -> Network:
+    """Return a Network like the default signet, with this challenge's magic.
+
+    What a caller registers for a signet of their own -- issue #207 -- and
+    the magic is derived by the function the check itself uses. What that
+    derivation is worth is settled elsewhere, in
+    `tests/network_test.py`, against the magic Core publishes for its own
+    signet; here it is the pairing of a challenge with a Network that
+    matters.
+    """
+    return Network.from_dict(
+        {**NETWORKS["signet"].to_dict(), "magic_bytes": _signet_magic(challenge).hex()}
+    )
+
+
+def test_the_two_vocabularies_translate_both_ways() -> None:
+    """Core's chain names against btclib's network names, and back.
+
+    Two differ and the rest agree, which is what makes the pairing both
+    necessary and easy to leave out: `"main" != "mainnet"` is the mismatch
+    a correct comparison produces.
+    """
+    assert core_chain_from_network("mainnet") == "main"
+    assert core_chain_from_network("testnet") == "test"
+    for shared in ("testnet4", "signet", "regtest"):
+        assert core_chain_from_network(shared) == shared
+    for network in NETWORKS:
+        assert network_from_core_chain(core_chain_from_network(network)) == network
+
+
+def test_neither_direction_falls_back_on_a_name_it_does_not_know() -> None:
+    """A chain Core adds later fails here, rather than being passed through.
+
+    And the two vocabularies are not interchangeable in either direction:
+    Core's `main` is no network of btclib's, btclib's `mainnet` no chain
+    of Core's, and each is refused by the function that does not own it.
+    """
+    with pytest.raises(BTClibValueError, match="unknown network: main"):
+        core_chain_from_network("main")
+    with pytest.raises(BTClibValueError, match="unknown Core chain: mainnet"):
+        network_from_core_chain("mainnet")
+
+
+@pytest.mark.parametrize(
+    ("network", "chain"), [("mainnet", "main"), ("testnet", "test")]
+)
+def test_assert_network_accepts_the_chain_the_node_reports(
+    network: str, chain: str
+) -> None:
+    """The two names that differ, which are the two a mismatch hides behind."""
+    fetcher(blockchaininfo(chain=chain), network=network).assert_network()
+
+
+def test_assert_network_refuses_a_node_on_another_chain() -> None:
+    """The silent failure this exists for: a testnet node under a mainnet label.
+
+    A client with an explicit url reaches a testnet node with no port
+    default in the way, and every address rendered from what that fetcher
+    returns is then a mainnet address for coins that are not there.
+    Nothing else in the exchange says so.
+    """
+    with pytest.raises(
+        BTClibValueError, match="node is on test, this fetcher on mainnet"
+    ):
+        fetcher(blockchaininfo(chain="test"), network="mainnet").assert_network()
+
+
+def test_assert_network_tells_two_signets_apart() -> None:
+    """`signet` is the name of every signet, so the challenge is the identity.
+
+    Core reports `signet` for the default one and for a custom one alike,
+    so the name comparison passes here and the check has to go further:
+    the magic the challenge derives is what a fetcher for the default
+    signet does not share with a node on someone else's.
+    """
+    answer = blockchaininfo(chain="signet", signet_challenge=CUSTOM_CHALLENGE)
+    with pytest.raises(BTClibValueError, match="signet this fetcher is not"):
+        fetcher(answer, network="signet").assert_network()
+
+
+def test_assert_network_checks_a_caller_registered_signet(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """A Network a caller built is checkable, which is what the magic buys.
+
+    Its name is btclib's alone and means nothing to a node, so the name is
+    not what is compared. `NETWORKS` is a dict a caller adds to, and
+    `monkeypatch.setitem` is how this one is taken back out.
+    """
+    monkeypatch.setitem(NETWORKS, "custom-signet", custom_signet(CUSTOM_CHALLENGE))
+
+    answer = blockchaininfo(chain="signet", signet_challenge=CUSTOM_CHALLENGE)
+    fetcher(answer, network="custom-signet").assert_network()
+
+    other = blockchaininfo(chain="signet", signet_challenge=OTHER_CHALLENGE)
+    with pytest.raises(BTClibValueError, match="signet this fetcher is not"):
+        fetcher(other, network="custom-signet").assert_network()
+
+
+def test_assert_network_has_nothing_to_compare_for_a_custom_name_off_signet(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """A caller's own network against a node on main: a refusal, not a pass.
+
+    Only a signet answers with an identity, so a name Core never heard of
+    has nothing to be held against -- and passing silently is the failure
+    this method exists to catch.
+    """
+    monkeypatch.setitem(NETWORKS, "custom-signet", custom_signet(CUSTOM_CHALLENGE))
+    with pytest.raises(BTClibValueError, match="no chain of Core's"):
+        fetcher(blockchaininfo(chain="main"), network="custom-signet").assert_network()
+
+
+@pytest.mark.parametrize(
+    ("result", "message"),
+    [
+        pytest.param(3, "not a JSON object: int", id="not-an-object"),
+        pytest.param({}, "no chain name in the reply: None", id="no-chain"),
+        pytest.param(
+            {"chain": 5}, "no chain name in the reply: 5", id="chain-not-a-string"
+        ),
+        pytest.param(
+            {"chain": "signet"}, "no signet_challenge", id="signet-with-no-challenge"
+        ),
+        pytest.param(
+            {"chain": "signet", "signet_challenge": "not hex"},
+            "getblockchaininfo",
+            id="challenge-that-is-not-hex",
+        ),
+    ],
+)
+def test_assert_network_refuses_a_malformed_reply(result: object, message: str) -> None:
+    """A reply that is not an answer is a FetchError naming the method.
+
+    The same treatment every other answer here gets, and what tells it
+    apart from the case above: a node that said something unreadable is a
+    fetch that did not happen, where a node that named another chain
+    answered exactly what was asked.
+    """
+    body = json.dumps({"jsonrpc": "2.0", "result": result, "id": "x"}).encode()
+    with pytest.raises(FetchError, match=message):
+        fetcher((200, body), network="mainnet").assert_network()
 
 
 def test_get_tx_out_reads_one_output_of_the_previous_transaction() -> None:

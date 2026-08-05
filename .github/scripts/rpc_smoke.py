@@ -73,8 +73,13 @@ from btclib.fetch.transport import http_request
 
 # regtest, and the node is started with no -rpcport so that the port is
 # Core's own default for the chain rather than one this script chose:
-# `from_network` builds that number from Core's table, and a live node is
+# `from_chain` builds that number from Core's table, and a live node is
 # what says the two still agree
+#
+# One constant for two vocabularies, which regtest is the name that allows:
+# it is Core's chain name -- what `-regtest` and `from_chain` take -- and
+# btclib's network name, spelled alike, where mainnet and testnet are not.
+# So this is also passed to `b32.p2wpkh` and to `BitcoinCoreFetcher` below
 NETWORK = "regtest"
 RPC_PORT = 18443
 
@@ -160,7 +165,7 @@ def node(bitcoind: Path, datadir: Path) -> Iterator[BitcoinCoreRpcClient]:
     """Run a regtest bitcoind on Core's own rpc port, and stop it after.
 
     No `-rpcport` and no `-rpcuser`: the port, the datadir layout and the
-    cookie are the node's defaults, which is what makes `from_network` and
+    cookie are the node's defaults, which is what makes `from_chain` and
     `cookie_auth` checkable at all. `-txindex` so `getrawtransaction`
     answers for a transaction no wallet of this node knows, and `-listen=0`
     because a smoke test has no peers.
@@ -185,7 +190,7 @@ def node(bitcoind: Path, datadir: Path) -> Iterator[BitcoinCoreRpcClient]:
     # the client before the node, so that the `finally` below always has
     # one to stop it with: the cookie is read at every call, so a client
     # built before the file exists is a client that works once it does
-    client = BitcoinCoreRpcClient.from_network(
+    client = BitcoinCoreRpcClient.from_chain(
         NETWORK, cookie_path=datadir / DATADIR_SUBDIR / ".cookie"
     )
     # S603: the executable is a path this script was handed, and every
@@ -342,7 +347,7 @@ def check_cookie(cookie_path: Path) -> None:
     """Check the credential in the file the node wrote.
 
     At Core's own path for the chain, which is the other half of what
-    `from_network` computes. The first field is documentation -- the node
+    `from_chain` computes. The first field is documentation -- the node
     compares the whole line -- so what is checked about it is that it is
     still what Core writes, a cookie whose first field is something else
     being a valid one.

@@ -33,25 +33,30 @@ from __future__ import annotations
 import pytest
 
 from btclib import b32, b58
+from btclib.bitcoin_core_rpc import network_from_core_chain
 from btclib.exceptions import BTClibValueError
 from btclib.network import network_type_from_network
 from btclib.script import ScriptPubKey
 from btclib.to_prv_key import prv_keyinfo_from_prv_key
 from tests import load, vector_id
 
-# Core names a chain as its `-chain=` argument does, and btclib spells
-# three of the four the same way: only "main" is "mainnet" here. So a
-# chain Core adds later needs no entry to be tried, and fails loudly --
-# "unknown network" -- rather than being read as one btclib knows
-_NETWORK_NAME = {"main": "mainnet"}
-
+# the `chain` of each vector is Core's name for it, as its `-chain=`
+# argument spells it, and btclib's name is what the encoders here take:
+# `network_from_core_chain` is the pair, which lives with the rest of
+# Core's vocabulary in the module that speaks Core's protocol -- and
+# imports nothing of btclib, so a key-encoding test reads it without
+# acquiring `btclib.fetch`.
+#
+# It raises on a name it does not know, which is the property wanted at
+# collection time: a chain Core adds to this file later stops the run
+# naming itself, rather than reaching an encoder as a network btclib has
 _VALID = load("_data", "key_io_valid.json")
 
 ADDRESS_VECTORS = [
     pytest.param(
         string,
         hexed,
-        _NETWORK_NAME.get(meta["chain"], meta["chain"]),
+        network_from_core_chain(meta["chain"]),
         id=vector_id(index, string),
     )
     for index, (string, hexed, meta) in enumerate(_VALID)
@@ -62,7 +67,7 @@ WIF_VECTORS = [
     pytest.param(
         string,
         hexed,
-        _NETWORK_NAME.get(meta["chain"], meta["chain"]),
+        network_from_core_chain(meta["chain"]),
         meta["isCompressed"],
         id=vector_id(index, string),
     )

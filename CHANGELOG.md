@@ -2351,6 +2351,45 @@ edit.
 
 ### The public API and the module layout
 
+- **Core's chain names are spoken in the module that speaks to Core**, and
+  btclib's network names everywhere else (issue #379). The two vocabularies
+  name one chain and two of the names differ -- Core's `main` and `test`
+  against btclib's `mainnet` and `testnet` -- and nothing paired them, so a
+  caller who asked a node which chain it was on could not compare the answer
+  to the network they had asked btclib for. `btclib.bitcoin_core_rpc` now
+  holds the pairing, `core_chain_from_network` and `network_from_core_chain`,
+  each raising on a name it does not know rather than passing it through: a
+  chain Core adds later is a failure that names itself instead of a string
+  that reaches a node as a port lookup or a directory name. That module's
+  own tables are keyed on Core's names too, so
+  `BitcoinCoreRpcClient.from_network("mainnet")` is
+  `BitcoinCoreRpcClient.from_chain("main")` -- the string `-chain=` takes and
+  `getblockchaininfo` reports, which is what a project vendoring that one
+  file already has, where btclib's registry is what it does not. The
+  translation lives there and not in `btclib.network` because the two words
+  are not synonyms: btclib's `network` names the encoding table to encode
+  *with*, and answers `testnet` for a signet address on purpose, where
+  Core's `chain` is an identity; and because that module imports nothing of
+  btclib, `tests/key_io_test.py` reads the pairing for Core's own `key_io`
+  vectors without a key-encoding test acquiring `btclib.fetch`. A
+  translation of vocabulary and not a promise of availability: v31.1 warns
+  that testnet3 is deprecated and will be removed, so `test` is a name Core
+  still reads rather than a chain every node still serves.
+- **`BitcoinCoreFetcher.assert_network()`** asks the node whether it serves
+  the chain the fetcher labels outputs with, and raises when it does not.
+  Explicit, and not part of every fetch: it costs an rpc round trip that a
+  caller with one node and one chain has no use for, and the answer cannot
+  change under a client that goes on pointing at the same node. Worth the
+  one call because the failure it catches is silent -- a client built for a
+  testnet node, an explicit url with no port default in the way, under a
+  fetcher labelled `mainnet` renders a mainnet address for every output it
+  fetches, for coins that are not there. Signet is the case a name cannot
+  settle, Core reporting `signet` for the default one and for every custom
+  one alike: the p2p magic derived from the reply's `signet_challenge` is
+  compared with the network's own, which is also what makes a
+  caller-registered custom signet checkable (issue #207). A malformed reply
+  is a `FetchError` naming the method; a disagreement is a
+  `BTClibValueError`, the node being the authority on which chain it serves.
 - **`BitcoinCoreRpcClient` is one independently vendorable source file**
   (`btclib/bitcoin_core_rpc.py`), separate from the
   `BitcoinCoreFetcher` adapter that turns its answers into btclib `Tx`
@@ -2371,7 +2410,7 @@ edit.
   is that every import reaching `btclib.exceptions` -- most of the library,
   though not `import btclib` itself -- now loads `urllib.request`, and `ssl`
   and `socket` under it, where before only a caller who fetched did.
-  `from_network` therefore derives the cookie path from the home directory
+  `from_chain` therefore derives the cookie path from the home directory
   **at the call** rather than from a value computed at import: this module
   is what `btclib.exceptions` imports, so an import-time answer would be
   the `HOME` as it stood whenever anything first imported btclib, and an
