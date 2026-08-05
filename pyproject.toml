@@ -26,9 +26,12 @@ readme = "README.md"
 #
 # AUTHORS.md is named beside LICENSE rather than dropped: setuptools'
 # default globs match both, so both are in `dist-info/licenses/` today, and
-# the MIT notice this repository carries names "Ferdinando M. Ametrano and
-# btclib contributors" -- AUTHORS.md being where that list is kept.
-# `["LICENSE"]` alone would take the attribution out of every wheel
+# the MIT notice this repository carries names "The btclib developers" --
+# the same holder `authors` below declares -- rather than a list of
+# people. AUTHORS.md answers where that list would be instead: by
+# pointing at the revision history, the record that keeps itself, not by
+# keeping one of its own. `["LICENSE"]` alone would take that pointer out
+# of every wheel
 license = "MIT"
 license-files = ["LICENSE", "AUTHORS.md"]
 authors = [{ name = "The btclib developers", email = "devs@btclib.org" }]
