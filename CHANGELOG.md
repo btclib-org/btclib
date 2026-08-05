@@ -5082,6 +5082,15 @@ edit.
   backwards, `M >= (w2 // 2)` rewritten `(w2 // 2) <= M` -- rather than a
   real Yoda condition anywhere. Equivalent either way, since flipping the
   two sides of a comparison changes nothing it evaluates to
+- **Five more rule sets never surveyed before, all clean today: `FA`,
+  `FIX`, `FLY`, `SLOT`, `T10`.** `TD` was the other zero-finding set the
+  same survey turned up, and is not selected: it and `FIX` both watch
+  TODO-style comments, one disciplining the format and the other
+  refusing them outright, and only one of the two belongs in a codebase
+  that finishes what it starts. `SLOT` reads as a fresh ratchet rather
+  than an unenforceable one — `psbt.musig2._SessionParts` is a real
+  `NamedTuple` subclass, not a construct this codebase lacks the way
+  `DTZ` or `ASYNC` are
 - **80 columns on the prose, and the yaml measured for the first time.**
   `ruff-format` reflows code to its 88 columns and never touches a
   comment or a docstring, which is why `E501` is ignored and stays so:
