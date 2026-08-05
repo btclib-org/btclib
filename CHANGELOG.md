@@ -4986,6 +4986,17 @@ edit.
   report, so nothing reads as checked that was not. `issues: write` is
   new to this repository -- every other scheduled workflow stops at
   `contents: read`, on purpose, and this one does not, also on purpose
+- **Four pins move from "behind, already reviewed" to the tip, into the
+  monthly check above**: `bip32_test_vectors.json`,
+  `bip32_invalid_keys.json`, `bip371_test_vectors.json` and
+  `bip67_test_vectors.json` were each re-checked against the current tip
+  of their path and re-pinned to it, a `behind` of anything but 0 being
+  exactly what the check above skips. BIP32's two and BIP67's carried no
+  change at all. BIP371's 17 cases didn't either, but two of their
+  `description` labels did: "PSBT_KEY_PATH_SIG" is upstream's own older
+  name for the field renamed `PSBT_IN_TAP_KEY_SIG` between the original
+  pin and the tip, and both labels now read the field's current name --
+  the `encoded psbt` of every case is unchanged throughout
 - **80 columns on the prose, and the yaml measured for the first time.**
   `ruff-format` reflows code to its 88 columns and never touches a
   comment or a docstring, which is why `E501` is ignored and stays so:

@@ -281,9 +281,9 @@ Verdict: **identical**.
 ```text
 repo    bitcoin/bips
 path    bip-0032.mediawiki
-commit  b0521f076c0b40208e82208f5476c48071aab785  2020-11-04
-pulled  2020-05-08, vector 4 added 2021-08-25
-behind  14 revisions, none of which touches the vectors
+commit  c0644a054fd1568ecbfc9c2b656ad5200b16ff74  2026-03-05
+pulled  2020-05-08, vector 4 added 2021-08-25, re-pinned to the tip 2026-08-06
+behind  0 revisions; that commit is the tip of the path
 ```
 
 Verdict: **transcribed**. BIP32 ships its vectors as prose, so there is
@@ -291,26 +291,25 @@ no upstream file and no byte comparison to make. All four seeds and all
 34 extended keys of test vectors 1 to 4 appear verbatim in the pinned
 text, and the derivation counts match: 6, 6, 2, 3.
 
-The pin is the commit that *added* test vector 4 rather than the one
-current when btclib transcribed it: it is the earliest revision holding
-all 34 keys, and the parent holds 28, which makes the pin checkable
-rather than merely plausible.
-
-Re-checked on 2026-07-30 against the tip of the path,
-`c0644a054fd1568ecbfc9c2b656ad5200b16ff74` (2026-03-05): the BIP still
-carries test vectors 1 to 5 and no sixth, and every extended key in it is
-one of ours — 48 match the key pattern, our 34 valid plus 14 of the 16
-invalid, the other 2 being the zero-prefix keys of test vector 5, which
-serialize outside it. Nothing to refresh.
+The original pin was the commit that *added* test vector 4 rather than
+the one current when btclib transcribed it: the earliest revision
+holding all 34 keys, the parent holding 28, which made that pin checkable
+rather than merely plausible. Re-checked against the tip on 2026-07-30
+and again on 2026-08-06 — both times still test vectors 1 to 5 and no
+sixth, every extended key in it one of ours, 48 matching the key
+pattern: our 34 valid plus 14 of the 16 invalid, the other 2 being the
+zero-prefix keys of test vector 5, which serialize outside it — the pin
+above is now that tip, so the monthly automated check can carry it.
 
 ### `tests/bip32/_data/bip32_invalid_keys.json`
 
 ```text
 repo    bitcoin/bips
 path    bip-0032.mediawiki
-commit  ee2e0598206b8b8a16555a14b8f0c0a70105f93e  2020-05-16
-pulled  2020-05-16, error strings last changed 2026-07-30
-behind  13 revisions; the 16 keys are unchanged on master
+commit  c0644a054fd1568ecbfc9c2b656ad5200b16ff74  2026-03-05
+pulled  2020-05-16, error strings last changed 2026-07-30, re-pinned to
+        the tip 2026-08-06
+behind  0 revisions; that commit is the tip of the path
 ```
 
 Verdict: **transcribed**. All 16 invalid extended keys are exactly the 16
@@ -318,10 +317,13 @@ of BIP32 test vector 5 — no omissions, no local additions — both at the
 pinned commit and on master today.
 
 btclib is the upstream here, not the consumer: commit ee2e0598, "added
-invalid extended keys vectors", is Ferdinando Ametrano's. The second
-column is btclib's own: it holds btclib error messages, which the BIP
-does not and should not carry, and which change when the messages change.
-Refreshing from upstream means refreshing the keys, never the messages.
+invalid extended keys vectors", is Ferdinando Ametrano's, and is what
+first put these 16 keys into the BIP. The pin above is the tip of the
+same path rather than that commit, so the monthly automated check can
+carry it too; the second column of the file is btclib's own regardless —
+it holds btclib error messages, which the BIP does not and should not
+carry, and which change when the messages change. Refreshing from
+upstream means refreshing the keys, never the messages.
 
 ### `tests/psbt/_data/bip174_test_vectors.json`
 
@@ -354,16 +356,18 @@ correcting it here too.
 ```text
 repo    bitcoin/bips
 path    bip-0371.mediawiki
-commit  4ab7faad749856bfc8178f9a12f4c1a8d40f632f  2023-02-15
-pulled  2023-07-07
-behind  8 revisions, none of which touches the cases
+commit  24e96e870fffaa257b465ce1f0370c14aac588e8  2026-01-12
+pulled  2023-07-07, re-pinned to the tip 2026-08-06
+behind  0 revisions; that commit is the tip of the path
 ```
 
 Verdict: **transcribed**, complete. All 17 psbts in the pinned text are
-in our file and all 17 of ours are in the text — 11 invalid, 6 valid.
-Re-checked on 2026-07-30 against the tip of the path,
-`24e96e870fffaa257b465ce1f0370c14aac588e8` (2026-01-12): still 17 cases,
-still the same 17. Nothing to refresh.
+in our file and all 17 of ours are in the text — 11 invalid, 6 valid, the
+same 17 on 2026-07-30 and again on 2026-08-06 when re-checked against the
+tip. The two "PSBT_KEY_PATH_SIG" cases were renamed
+"PSBT_IN_TAP_KEY_SIG" between the original pin and the tip, matching the
+field's own name; the `description` of both is updated to match, the
+`encoded psbt` of every case unchanged throughout.
 
 ### `tests/psbt/_data/bip370_test_vectors.json`
 
@@ -444,14 +448,14 @@ one is.
 ```text
 repo    bitcoin/bips
 path    bip-0067.mediawiki
-commit  b7090922b5e364409e4ddcd1558d85f2dd434c16  2020-04-28
-pulled  2020-05-31
-behind  10 revisions, none of which touches the vectors
+commit  24e96e870fffaa257b465ce1f0370c14aac588e8  2026-01-12
+pulled  2020-05-31, re-pinned to the tip 2026-08-06
+behind  0 revisions; that commit is the tip of the path
 ```
 
 Verdict: **transcribed**, complete. All five groups — their 15 public keys
 and their five p2sh addresses — appear verbatim in the pinned text, and
-re-checking against the tip `24e96e87` (2026-01-12) on 2026-07-30 found no
+re-checking against the tip on 2026-07-30 and again on 2026-08-06 found no
 sixth group. Nothing to refresh.
 
 ## bitcoin/bitcoin
