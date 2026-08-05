@@ -509,7 +509,7 @@ def test_a_transport_equal_to_the_default_is_still_the_callers_transport(
 
 
 @pytest.mark.parametrize(
-    ("status", "is_error"),
+    "status, is_error",
     [(int("399"), False), (int("400"), True), (int("401"), True)],
 )
 def test_a_caller_transport_uses_400_as_the_error_boundary(

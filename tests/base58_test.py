@@ -60,7 +60,7 @@ def test_trailing_zeros() -> None:
     assert decode(encode(b"\x00\x00hello world"), 13) == b"\x00\x00hello world"
 
 
-@pytest.mark.parametrize(("hexed", "encoded"), CODEC_VECTORS)
+@pytest.mark.parametrize("hexed, encoded", CODEC_VECTORS)
 def test_core_codec_vectors(hexed: str, encoded: str) -> None:
     """Both directions of Core's codec vectors, over the raw functions.
 

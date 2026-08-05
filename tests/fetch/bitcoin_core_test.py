@@ -347,7 +347,7 @@ def test_a_colon_in_the_user_is_refused_and_one_in_the_password_is_not() -> None
 
 
 @pytest.mark.parametrize(
-    ("kwargs", "match"),
+    "kwargs, match",
     [
         ({"user": 7, "password": RPC_PASSWORD}, "non-string rpc user: int"),
         ({"user": b"alice", "password": RPC_PASSWORD}, "non-string rpc user: bytes"),
@@ -448,7 +448,7 @@ def test_the_url_carries_no_network_and_no_registry() -> None:
 
 
 @pytest.mark.parametrize(
-    ("url", "match"),
+    "url, match",
     [
         ("ftp://127.0.0.1:8332", "invalid rpc url scheme"),
         ("file:///etc/passwd", "invalid rpc url scheme"),
@@ -489,7 +489,7 @@ def test_credentials_in_the_url_are_refused(url: str) -> None:
         BitcoinCoreRpcClient(url, cookie_path="/nowhere/.cookie")
 
 
-@pytest.mark.parametrize(("user", "password"), [(RPC_USER, None), (None, RPC_PASSWORD)])
+@pytest.mark.parametrize("user, password", [(RPC_USER, None), (None, RPC_PASSWORD)])
 def test_a_user_without_a_password_is_refused(
     user: str | None, password: str | None
 ) -> None:
@@ -1481,7 +1481,7 @@ def test_a_number_the_exact_decimal_parser_will_not_build() -> None:
     _decimal_represents(_HUGE_EXPONENT_NUMBER),
     reason="this interpreter's decimal has a finite value for that exponent",
 )
-@pytest.mark.parametrize(("status", "raised"), [(200, FetchError), (503, HttpError)])
+@pytest.mark.parametrize("status, raised", [(200, FetchError), (503, HttpError)])
 def test_a_non_finite_decimal_is_refused_whatever_the_caller_traps(
     status: int, raised: type[FetchError]
 ) -> None:
@@ -1605,7 +1605,7 @@ def test_a_wallet_endpoint_is_the_path_core_documents() -> None:
 
 
 @pytest.mark.parametrize(
-    ("name", "path"),
+    "name, path",
     [
         ("my wallet", "my%20wallet"),
         ("a/b", "a%2Fb"),
@@ -1737,9 +1737,7 @@ def test_neither_direction_falls_back_on_a_name_it_does_not_know() -> None:
         network_from_core_chain("mainnet")
 
 
-@pytest.mark.parametrize(
-    ("network", "chain"), [("mainnet", "main"), ("testnet", "test")]
-)
+@pytest.mark.parametrize("network, chain", [("mainnet", "main"), ("testnet", "test")])
 def test_assert_network_accepts_the_chain_the_node_reports(
     network: str, chain: str
 ) -> None:
@@ -1808,7 +1806,7 @@ def test_assert_network_has_nothing_to_compare_for_a_custom_name_off_signet(
 
 
 @pytest.mark.parametrize(
-    ("result", "message"),
+    "result, message",
     [
         pytest.param(3, "not a JSON object: int", id="not-an-object"),
         pytest.param({}, "no chain name in the reply: None", id="no-chain"),

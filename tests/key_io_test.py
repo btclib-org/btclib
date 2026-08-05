@@ -85,7 +85,7 @@ REFUSED_VECTORS = [
 ]
 
 
-@pytest.mark.parametrize(("address", "script_pub_key", "network"), ADDRESS_VECTORS)
+@pytest.mark.parametrize("address, script_pub_key, network", ADDRESS_VECTORS)
 def test_address_script(address: str, script_pub_key: str, network: str) -> None:
     """The address decodes to the scriptPubKey Core encodes it from."""
     spk = ScriptPubKey.from_address(address)
@@ -94,7 +94,7 @@ def test_address_script(address: str, script_pub_key: str, network: str) -> None
     assert network_type_from_network(spk.network) == network_type_from_network(network)
 
 
-@pytest.mark.parametrize(("address", "script_pub_key", "network"), ADDRESS_VECTORS)
+@pytest.mark.parametrize("address, script_pub_key, network", ADDRESS_VECTORS)
 def test_address_network(address: str, script_pub_key: str, network: str) -> None:
     """Which chain the address itself can name, which is fewer than four.
 
@@ -116,7 +116,7 @@ def test_address_network(address: str, script_pub_key: str, network: str) -> Non
     assert ScriptPubKey.from_address(address).network == expected
 
 
-@pytest.mark.parametrize(("address", "script_pub_key", "network"), ADDRESS_VECTORS)
+@pytest.mark.parametrize("address, script_pub_key, network", ADDRESS_VECTORS)
 def test_address_payload(address: str, script_pub_key: str, network: str) -> None:
     """The codec layer reads a payload and writes the address back.
 
@@ -133,7 +133,7 @@ def test_address_payload(address: str, script_pub_key: str, network: str) -> Non
         assert b58.address_from_h160(script_type, h160, network) == address
 
 
-@pytest.mark.parametrize(("address", "script_pub_key", "network"), ADDRESS_VECTORS)
+@pytest.mark.parametrize("address, script_pub_key, network", ADDRESS_VECTORS)
 def test_address_from_script(address: str, script_pub_key: str, network: str) -> None:
     """Core's scriptPubKey renders back to Core's address, every row of it.
 
@@ -146,13 +146,13 @@ def test_address_from_script(address: str, script_pub_key: str, network: str) ->
     assert ScriptPubKey(script_pub_key, network).address == address
 
 
-@pytest.mark.parametrize(("address", "script_pub_key"), CASE_FLIP_VECTORS)
+@pytest.mark.parametrize("address, script_pub_key", CASE_FLIP_VECTORS)
 def test_address_case_flip(address: str, script_pub_key: str) -> None:
     """`tryCaseFlip`: bech32 in upper case is the same address."""
     assert ScriptPubKey.from_address(address.upper()).script.hex() == script_pub_key
 
 
-@pytest.mark.parametrize(("wif", "prv_key", "network", "compressed"), WIF_VECTORS)
+@pytest.mark.parametrize("wif, prv_key, network, compressed", WIF_VECTORS)
 def test_wif(wif: str, prv_key: str, network: str, compressed: bool) -> None:
     """The key Core encoded, its compression flag, and the WIF written back."""
     q, net, compr = prv_keyinfo_from_prv_key(wif, network)
@@ -162,7 +162,7 @@ def test_wif(wif: str, prv_key: str, network: str, compressed: bool) -> None:
     assert b58.wif_from_prv_key(q, network, compressed) == wif
 
 
-@pytest.mark.parametrize(("wif", "prv_key", "network", "compressed"), WIF_VECTORS)
+@pytest.mark.parametrize("wif, prv_key, network, compressed", WIF_VECTORS)
 def test_wif_without_a_network(
     wif: str, prv_key: str, network: str, compressed: bool
 ) -> None:

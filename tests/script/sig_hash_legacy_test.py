@@ -223,7 +223,7 @@ SIG_HASH_VECTORS = [
 
 
 @pytest.mark.parametrize(
-    ("raw_tx", "raw_script", "input_index", "hash_type", "exp_hash"), SIG_HASH_VECTORS
+    "raw_tx, raw_script, input_index, hash_type, exp_hash", SIG_HASH_VECTORS
 )
 def test_test_vectors(
     raw_tx: str, raw_script: str, input_index: int, hash_type: int, exp_hash: str

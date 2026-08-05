@@ -48,7 +48,7 @@ def test_the_unit_is_in_the_name() -> None:
 
 
 @pytest.mark.parametrize(
-    ("sats_per_vbyte", "sats_per_kvbyte"),
+    "sats_per_vbyte, sats_per_kvbyte",
     [
         (0, 0),
         (1, 1000),
@@ -137,7 +137,7 @@ def test_rates_compare_and_hash() -> None:
 
 
 @pytest.mark.parametrize(
-    ("sats_per_kvbyte", "vsize", "fee"),
+    "sats_per_kvbyte, vsize, fee",
     [
         # the rate is per thousand virtual bytes, so a thousand of them
         # owe exactly the rate: no rounding to hide a factor of 1000 in
@@ -218,7 +218,7 @@ def _script_pub_keys() -> dict[str, bytes]:
 
 
 @pytest.mark.parametrize(
-    ("script_type", "threshold"),
+    "script_type, threshold",
     [
         # electrum/bitcoin.py's DUST_LIMIT_* table, every entry of it
         ("p2pkh", 546),

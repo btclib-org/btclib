@@ -69,7 +69,7 @@ _RHO = sha256(b"the host's randomness").digest()
 _OTHER_RHO = sha256(b"a second draw").digest()
 
 
-@pytest.mark.parametrize(("rho", "opening", "exfil_opening"), _ZKP_VECTORS)
+@pytest.mark.parametrize("rho, opening, exfil_opening", _ZKP_VECTORS)
 def test_signer_commit_vectors(rho: str, opening: str, exfil_opening: str) -> None:
     """R is the opening test_ecdsa_anti_exfil_signer_commit expects.
 
@@ -87,7 +87,7 @@ def test_signer_commit_vectors(rho: str, opening: str, exfil_opening: str) -> No
     assert exfil_opening != opening
 
 
-@pytest.mark.parametrize(("rho", "opening", "exfil_opening"), _ZKP_VECTORS)
+@pytest.mark.parametrize("rho, opening, exfil_opening", _ZKP_VECTORS)
 def test_step_2_and_step_4_reach_one_nonce(
     rho: str, opening: str, exfil_opening: str
 ) -> None:

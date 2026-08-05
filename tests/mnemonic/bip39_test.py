@@ -80,7 +80,7 @@ BIP39_VECTORS = [
 ]
 
 
-@pytest.mark.parametrize(("lang", "entr", "mnemonic", "seed", "xprv"), BIP39_VECTORS)
+@pytest.mark.parametrize("lang, entr, mnemonic, seed, xprv", BIP39_VECTORS)
 def test_vectors(lang: str, entr: str, mnemonic: str, seed: str, xprv: str) -> None:
     """BIP39 test vectors, all twelve languages of them.
 
@@ -310,7 +310,7 @@ JAPANESE_VECTORS = [
 ]
 
 
-@pytest.mark.parametrize(("words", "seed", "xprv"), JAPANESE_VECTORS)
+@pytest.mark.parametrize("words, seed, xprv", JAPANESE_VECTORS)
 def test_nfkd_japanese_vectors(words: list[str], seed: str, xprv: str) -> None:
     """BIP39 stretches the NFKD of the sentence and of the passphrase.
 

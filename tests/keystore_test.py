@@ -41,7 +41,7 @@ _PUB_KEY = "0330d54fd0dd420a6e5f8d3624f5f3482cae350f79d5f0753bf5beef9c2d91af3c"
 
 
 @pytest.mark.parametrize(
-    ("purpose", "script_type", "addresses"),
+    "purpose, script_type, addresses",
     [
         pytest.param(
             44,
@@ -170,7 +170,7 @@ def test_the_key_index_must_be_the_path_element_at_its_depth() -> None:
 
 
 @pytest.mark.parametrize(
-    ("der_path", "err_msg"),
+    "der_path, err_msg",
     [
         ("m/84h/0h", "invalid account path: 2 levels instead of 3"),
         ("m/84h/0h/0h/0", "invalid account path: 4 levels instead of 3"),
@@ -320,7 +320,7 @@ def test_the_derivation_bounds_are_bip32s_own() -> None:
 
 
 @pytest.mark.parametrize(
-    ("script_type", "address"),
+    "script_type, address",
     [
         ("p2pkh", "14dD6ygPi5WXdwwBTt1FBZK3aD8uDem1FY"),
         ("p2wpkh-p2sh", "3G6hxdgC91ETUpsGCrVywYRDZBp8LHarPF"),

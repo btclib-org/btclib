@@ -131,7 +131,7 @@ DISPATCH_VECTORS = [
 ]
 
 
-@pytest.mark.parametrize(("mnemonic", "seed_type", "seed_types"), DISPATCH_VECTORS)
+@pytest.mark.parametrize("mnemonic, seed_type, seed_types", DISPATCH_VECTORS)
 def test_dispatch_vectors(mnemonic: str, seed_type: str, seed_types: list[str]) -> None:
     """Verify each sentence's seed type and its full candidate list."""
     assert dispatch.seed_type_from_mnemonic(mnemonic) == seed_type
@@ -344,7 +344,7 @@ def test_slip39_bad_set_of_good_sentences(mnemonics: list[str]) -> None:
 
 
 @pytest.mark.parametrize(
-    ("share", "electrum_type"),
+    "share, electrum_type",
     [
         pytest.param(SLIP39_ELECTRUM_STANDARD, "electrum_standard", id="standard"),
         pytest.param(SLIP39_ELECTRUM_2FA, "electrum_2fa", id="2fa"),

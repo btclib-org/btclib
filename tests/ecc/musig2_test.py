@@ -81,7 +81,7 @@ def key_agg_valid_vectors() -> list[Any]:
     ]
 
 
-@pytest.mark.parametrize(("pub_keys", "expected"), key_agg_valid_vectors())
+@pytest.mark.parametrize("pub_keys, expected", key_agg_valid_vectors())
 def test_key_agg_vectors(pub_keys: list[bytes], expected: bytes) -> None:
     """Reproduce the valid cases of BIP327's key_agg_vectors.json."""
     assert musig2.key_agg(pub_keys).x_only_pub_key == expected
@@ -103,9 +103,7 @@ def key_agg_error_vectors() -> list[Any]:
     ]
 
 
-@pytest.mark.parametrize(
-    ("pub_keys", "tweaks", "is_xonly", "error"), key_agg_error_vectors()
-)
+@pytest.mark.parametrize("pub_keys, tweaks, is_xonly, error", key_agg_error_vectors())
 def test_key_agg_error_vectors(
     pub_keys: list[bytes], tweaks: list[bytes], is_xonly: list[bool], error: Any
 ) -> None:
@@ -155,7 +153,7 @@ def nonce_agg_valid_vectors() -> list[Any]:
     ]
 
 
-@pytest.mark.parametrize(("pub_nonces", "expected"), nonce_agg_valid_vectors())
+@pytest.mark.parametrize("pub_nonces, expected", nonce_agg_valid_vectors())
 def test_nonce_agg_vectors(pub_nonces: list[bytes], expected: bytes) -> None:
     """Reproduce the valid cases of BIP327's nonce_agg_vectors.json."""
     assert musig2.nonce_agg(pub_nonces) == expected
@@ -174,7 +172,7 @@ def nonce_agg_error_vectors() -> list[Any]:
     ]
 
 
-@pytest.mark.parametrize(("pub_nonces", "error"), nonce_agg_error_vectors())
+@pytest.mark.parametrize("pub_nonces, error", nonce_agg_error_vectors())
 def test_nonce_agg_error_vectors(pub_nonces: list[bytes], error: Any) -> None:
     """Reproduce the error cases of BIP327's nonce_agg_vectors.json."""
     with pytest.raises(_ERRORS) as excinfo:
@@ -501,7 +499,7 @@ _MSG = b"a message the two signers agree on, and not of 32 bytes"
 
 
 @pytest.mark.parametrize(
-    ("tweaks", "is_xonly"),
+    "tweaks, is_xonly",
     [
         pytest.param([], [], id="no-tweak"),
         pytest.param([bytes(31) + b"\x07"], [True], id="x-only-tweak"),

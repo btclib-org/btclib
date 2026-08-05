@@ -185,7 +185,7 @@ def bip32_vectors() -> list[Any]:
     ]
 
 
-@pytest.mark.parametrize(("seed", "der_path", "xpub", "xprv"), bip32_vectors())
+@pytest.mark.parametrize("seed, der_path, xpub, xprv", bip32_vectors())
 def test_bip32_vectors(seed: str, der_path: str, xpub: str, xprv: str) -> None:
     """BIP32 test vectors #1, #2, #3, and #4.
 
@@ -197,7 +197,7 @@ def test_bip32_vectors(seed: str, der_path: str, xpub: str, xprv: str) -> None:
 
 
 @pytest.mark.parametrize(
-    ("xkey", "err_msg"),
+    "xkey, err_msg",
     [
         pytest.param(xkey, err_msg, id=vector_id(index, err_msg))
         for index, (xkey, err_msg) in enumerate(

@@ -114,7 +114,7 @@ def context_at(cur_time: int) -> BlockContext:
 
 
 @pytest.mark.parametrize(
-    ("comment", "check_pow", "cur_time", "serialization"),
+    "comment, check_pow, cur_time, serialization",
     params("checkblock_valid.json"),
 )
 def test_checkblock_valid(
@@ -140,7 +140,7 @@ def test_checkblock_valid(
 
 
 @pytest.mark.parametrize(
-    ("comment", "check_pow", "cur_time", "serialization"),
+    "comment, check_pow, cur_time, serialization",
     params("checkblock_invalid.json"),
 )
 def test_checkblock_invalid(

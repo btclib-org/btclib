@@ -209,7 +209,7 @@ MUTATED_PARSERS: dict[str, tuple[Callable[[bytes], Any], bytes]] = {
 
 
 @pytest.mark.parametrize(
-    ("parse", "sample"),
+    "parse, sample",
     MUTATED_PARSERS.values(),
     ids=list(MUTATED_PARSERS.keys()),
 )

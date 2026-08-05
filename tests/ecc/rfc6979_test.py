@@ -94,7 +94,7 @@ SECP256K1_VECTORS: tuple[tuple[int, str, int, str, str], ...] = (
 
 
 @pytest.mark.parametrize(
-    ("prv_key", "msg", "k", "r", "s"),
+    "prv_key, msg, k, r, s",
     [
         pytest.param(*vector, id=vector_id(index, vector[1]))
         for index, vector in enumerate(SECP256K1_VECTORS)
@@ -171,9 +171,7 @@ def rfc6979_vectors() -> list[Any]:
     ]
 
 
-@pytest.mark.parametrize(
-    ("ec", "x", "x_U", "y_U", "hf", "msg", "k", "r", "s"), rfc6979_vectors()
-)
+@pytest.mark.parametrize("ec, x, x_U, y_U, hf, msg, k, r, s", rfc6979_vectors())
 def test_rfc6979_nonce_tv(
     ec: Curve, x: str, x_U: str, y_U: str, hf: str, msg: str, k: str, r: str, s: str
 ) -> None:
