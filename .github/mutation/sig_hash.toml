@@ -49,9 +49,13 @@ test-command = """python -m pytest -x -q -n0 -p no:randomly \
 
 # seconds of wall clock, against a baseline of 9.2 s of cpu: what this
 # guards is a mutant that turns a bound into a loop with no exit, and
-# nothing else. Wide rather than tight, because a timeout is a verdict of
-# its own -- neither killed nor survived -- so every second of slack a
-# loaded machine needs is a survivor not reported as noise. Measured, and
+# nothing else. Wide rather than tight, because of what cosmic-ray does
+# with a timeout: `run_tests` catches `subprocess.TimeoutExpired` and
+# answers KILLED, so a mutant cut short on a loaded machine is reported
+# dead rather than reported as noise -- a survivor counted as a kill, which
+# is the one failure mode of a mutation run that looks like good news.
+# Every second of slack a loaded machine needs buys against that. Measured,
+# and
 # this is why the number is 300 and not 60: at 60 s `cosmic-ray baseline`
 # failed with `>>> timeout` on the *unmutated* tree, on a developer machine
 # at load 120, where the same command takes 9.2 s of cpu and 74 s of wall.

@@ -31,7 +31,8 @@ test-command = """python -m pytest -x -q -n0 -p no:randomly \
   --ignore=tests/script_engine/python_path_test.py"""
 
 # seconds of wall clock, against a 7.2 s cpu baseline, and wide for the
-# reason sig_hash.toml measures: a timeout is a verdict of its own, so
+# reason sig_hash.toml measures: a timeout is answered KILLED, so a tight
+# one turns a loaded machine's slow mutant into a kill nobody earned, while
 # slack costs only the mutants that really do loop for ever -- and this
 # directory is where they live, the engine being a loop over opcodes with
 # a stack and a mutated bound the way to stop it ending

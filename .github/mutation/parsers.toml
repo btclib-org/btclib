@@ -51,10 +51,16 @@ test-command = """python -m pytest -x -q -n0 -p no:randomly \
   tests/parse_contract_test.py tests/integer_policy_test.py \
   tests/check_validity_test.py"""
 
-# seconds of wall clock, as in the other two configurations and for the
-# same reason: a timeout is neither killed nor survived, so slack costs
-# only the mutants that really do not end -- and `var_int.parse` reading a
-# length it then allocates is where one would be
+# seconds of wall clock, as in the other two configurations, and wide
+# because of what cosmic-ray does with a timeout rather than in spite of
+# it: `run_tests` catches `subprocess.TimeoutExpired` and answers KILLED,
+# so a mutant cut short is *reported as dead* on a busy machine. That is
+# the direction to be afraid of -- a survivor counted as a kill is the
+# failure mode a stale test command has, the one that looks like good news
+# -- and every second of slack costs only the mutants that really do not
+# end, `var_int.parse` reading a length it then allocates being where one
+# would be. Zero timeouts in the sessions measured so far, against a test
+# command of about a second
 timeout = 300
 
 excluded-modules = []
@@ -63,26 +69,30 @@ excluded-modules = []
 # open with `from __future__ import annotations`, so every annotation is
 # an unevaluated string, and cosmic-ray mutates the `|` in it eleven ways
 # -- `Sequence[TxIn] >> None` and ten more -- none of which any test can
-# reach. Measured rather than argued: 88 mutants of the 1035, and an
-# unfiltered session over the same scope reports 144 survivors, every one
-# of those 88 among them. Filtered it reports the other 56, which is the
-# difference between a list somebody reads and one nobody does, and it
-# spends minutes less doing it -- a survivor costs the whole test command,
-# where most kills cost a fraction of one.
+# reach. Measured rather than argued: eight such `|` on seven lines, 88
+# mutants of the 1035, and an unfiltered session over the same scope
+# reports 144 survivors, every one of those 88 among them. Filtered it
+# reports the other 56, which is the difference between a list somebody
+# reads and one nobody does, and it spends minutes less doing it -- a
+# survivor costs the whole test command, where most kills cost a fraction
+# of one.
 #
-# Excluded by operator here rather than with `# pragma: no mutate` on 37
-# lines of source, which is what sig_hash.toml refused for six of them:
-# the pragma filter needs a line in the library for the benefit of a
-# weekly report, and this one needs a line in this file. Its price is that
-# a real `a | b` added to one of these modules would be skipped in
-# silence, so the claim behind it is a grep:
+# Excluded by operator here rather than with `# pragma: no mutate`, and
+# seven lines of library source against one line in this file is not what
+# settles that: `cr-filter-pragma` skips whatever mutation *ends* on a
+# marked line, and every one of the seven is a signature, so the pragma
+# would take the `check_validity: bool = True` and the keyword-only `*` on
+# the same line with it -- mutants this profile's survivor list is about.
+# The price of doing it by operator is the other way round: a real `a | b`
+# added to one of these modules would be skipped in silence, so the claim
+# behind it is a grep:
 #
 #   grep -n ' | ' btclib/tx/*.py btclib/var_int.py btclib/var_bytes.py
 #
-# Every hit is an annotation today. Note also what a skipped mutant does
-# to the one number the workflow prints: `cr-rate` counts a result that
-# is not SURVIVED as a kill, and a skip is one, so the rate it reports is
-# over the whole session and the honest denominator is what
+# Seven hits today, every one an annotation. Note also what a skipped
+# mutant does to the one number the workflow prints: `cr-rate` counts a
+# result that is not SURVIVED as a kill, and a skip is one, so the rate it
+# reports is over the whole session and the honest denominator is what
 # `cosmic-ray exec` actually ran.
 #
 # BitOr and not the other operators of that family: `^` is what

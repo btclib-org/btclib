@@ -3989,8 +3989,10 @@ edit.
   satisfy every other attempt with two inputs — so `SystemRandom.shuffle` is
   monkeypatched to a known permutation, reversal, and each of the four flag
   combinations is one equality: the order a list comes back in says which
-  branch ran, where a real shuffle of six elements draws the order it was
-  given once in 720 and answers nothing the other 719 times. `Tx`
+  branch ran, where a real shuffle can preserve the order it was given —
+  once in 720 for six elements — and a run that draws it says nothing. The
+  ten-attempt randomized assertion beside it is gone for that reason, its
+  two inputs and four outputs making the odds 1 in 48 an attempt. `Tx`
   being a dataclass is a promise too, and `dataclasses.fields` is what
   reads it: the constructor, the comparison and every conversion are
   written out, so the decorator is left holding the field list and the
@@ -4528,19 +4530,22 @@ edit.
   `parsers.toml` excludes is the `|` of a type annotation: all four modules
   open with `from __future__ import annotations`, so `Sequence[TxIn] | None`
   is an unevaluated string, and cosmic-ray's eleven replacements for that
-  operator are 88 mutants nothing can reach. Measured rather than argued: an
-  unfiltered session over the same scope reports 144 survivors and every one
-  of those 88 is among them, so filtering leaves the 56 that are worth
-  reading and spends minutes less, a survivor costing the whole test command
-  where most kills cost a fraction of one. Excluded by operator rather than
-  with a
-  `# pragma: no mutate` on each of the 37 annotations, which is what
-  `sig_hash.toml` refused for six of them: a pragma is a line of library
-  source added for the benefit of a weekly report. The price is stated
-  where it is paid — a real `a | b` added to one of these modules would be
-  skipped in silence, and the grep that re-derives the claim is beside the
-  exclusion — as is what a skip does to the one number the workflow prints:
-  `cr-rate` counts a result that is not SURVIVED as a kill
+  operator are 88 mutants — eight such `|`, on seven lines — that nothing
+  can reach. Measured rather than argued: an unfiltered session over the same
+  scope reports 144 survivors and every one of those 88 is among them, so
+  filtering leaves the 56 that are worth reading and spends minutes less, a
+  survivor costing the whole test command where most kills cost a fraction of
+  one. Excluded by operator rather than with a `# pragma: no mutate`, and not
+  because seven lines of library source are many: `cr-filter-pragma` skips
+  whatever mutation *ends* on a marked line, and all seven are signatures, so
+  the pragma would take the `check_validity` default and the keyword-only `*`
+  on those lines with it — mutants this profile's survivor list is about. The
+  price of the operator is the other way round and stated where it is paid: a
+  real `a | b` added to one of these modules would be skipped in silence, and
+  the grep that re-derives the claim is beside the exclusion. So is what a
+  skip does to the one number the workflow prints: `cr-rate` counts a result
+  that is not SURVIVED as a kill, which a skip and a per-mutant timeout both
+  are
 - **the bindings dependency states its policy where the pin is** (issue
   #325). `btclib_libsecp256k1>=0.7.1` has no upper bound, and the
   absence of a ceiling is now written down as the decision it is:
@@ -4796,9 +4801,10 @@ edit.
   is what the issue asked for and refused to guess at: 727 mutants in
   `sig_hash.py` against 2768 in the engine, a survival rate measured on
   the first of those, and a `timeout` of 300 s rather than 60 because at
-  60 the *unmutated* baseline timed out on a machine under load — a
-  timeout is a verdict of its own, so slack is survivors not reported as
-  noise. It is not a gate and is not among master's required checks: a
+  60 the *unmutated* baseline timed out on a machine under load — and
+  cosmic-ray answers KILLED for a timeout, so a tight one turns a slow
+  mutant into a kill nobody earned. It is not a gate and is not among
+  master's required checks: a
   mutant survives because a test is missing, so a red merge would stop
   whoever next touched the file for a hole somebody else left
 - an `rpc-smoke` workflow asks live bitcoinds what the recorded replies

@@ -206,10 +206,12 @@ def test_the_top_of_the_four_byte_range_round_trips() -> None:
     """Version and lock_time are unsigned on the wire, and above 2^31 too.
 
     Read or written as signed, a version of 0xFFFFFFFF comes back as -1
-    and 0x80000000 does not serialize at all -- and assert_valid accepts
-    every one of them, only assert_standard reading the version as the
-    signed int Core relays on. A transaction below 0x80000000 cannot tell
-    the two spellings apart.
+    and 0x80000000 does not serialize at all, so a transaction below
+    0x80000000 cannot tell the two spellings apart. Both are valid
+    versions, which is the other half of the boundary: `assert_valid`
+    takes the whole four-byte range and `assert_standard` refuses this end
+    of it -- what Core's own field is, signed in v27.2 and unsigned in
+    v31.1, is issue 387's, and no assertion here needs it.
     """
     tx = Tx(
         0xFFFFFFFF,
@@ -227,8 +229,8 @@ def test_the_top_of_the_four_byte_range_round_trips() -> None:
     assert parsed == tx
 
 
-def test_a_standard_version_is_neither_zero_nor_negative_as_signed() -> None:
-    """Versions 1 and 2 are standard; 0 and the negative-as-signed ones are not.
+def test_a_standard_version_excludes_zero_and_the_top_bit_set_ones() -> None:
+    """Versions 1 and 2 are standard; zero and a set top bit are not.
 
     Only the part of the window both Core policies agree on: 1 and 2 are
     standard for v27.2 and v31.1 alike, and every version whose top bit is
@@ -625,20 +627,12 @@ def test_join() -> None:
         shuffle_inp=False,
         shuffle_out=False,
     )
-    # testing shuffle
-    # 10 attempts should be enough to reduce to zero the probability
-    # of having (all) shuffled ones identical to the original one
-    assert any(
-        join(
-            [tx1, tx2],
-            enforce_same_version=True,
-            enforce_same_lock_time=True,
-            shuffle_inp=True,
-            shuffle_out=True,
-        )
-        != joint_tx
-        for _ in range(10)
-    )
+    # what each flag does is test_join_shuffles_only_when_it_is_told_to's,
+    # against a known permutation: these two transactions have two inputs
+    # and four outputs between them, so a real shuffle draws the order it
+    # was given once in 2! * 4! -- and an attempt that draws it says
+    # nothing either way, which is what makes ten of them an assertion
+    # about probability rather than about the join
 
     tx2.version = 2
     with pytest.raises(BTClibValueError, match="Version numbers are not the same"):
