@@ -24,12 +24,13 @@ Telling these apart is most of what can go wrong when cutting a release.
   value `btclib.__version__` reads back from installed metadata; and
   `2026.8.4.1`, a fourth number added only if `2026.8.4` shipped broken
   and cannot be reuploaded (see "If something goes wrong"). All three
-  are typed by hand, and nothing in `version-check` tells them apart
-  from each other — only from a tag that disagrees with whichever one
-  is declared. Three components is always the release day; four is
-  always a patch on it. The day is never dropped in favor of a fourth
-  digit standing in for it, which is what would make the two
-  indistinguishable
+  are typed by hand. Three components is always the release day; four
+  is always a patch on it. The day is never dropped in favor of a
+  fourth digit standing in for it, which is what would make the two
+  indistinguishable — and `version-check` refuses a tag on the
+  placeholder shape for exactly that reason: two components reach the
+  check and nothing past it, whichever one is declared. It does not
+  tell three apart from four, both being a release it accepts
 - **`v2026.8.4`**, the tag, carries no version of its own: it picks the
   index, PyPI rather than TestPyPI, and `version-check` exists to
   confirm it says what `pyproject.toml` says
