@@ -169,3 +169,29 @@ def test_encode_num() -> None:
     # 16 bits + sign bit = 17 bits = 3 byte (plus 1 byte for length)
     i = 0b1111111111111111
     assert len(encode_num(i)) == 3
+
+
+def test_encode_num_is_bounded_by_the_int64_of_a_script_number() -> None:
+    """A script number is an int64, so both ends of int64 are the bound.
+
+    Core takes a number into a script through
+    `CScript::operator<<(int64_t)` and has no wider parameter, so an
+    integer past either end is one no script can carry (issue #406).
+    Both extremes are in range, and the most negative one takes nine
+    octets rather than eight, its magnitude not fitting beside a sign
+    bit -- which is what Core's `CScriptNum::serialize` writes for it
+    too.
+    """
+    assert encode_num(2**63 - 1) == bytes.fromhex("ffffffffffffff7f")
+    assert encode_num(-(2**63)) == bytes.fromhex("000000000000008080")
+
+    with pytest.raises(BTClibValueError, match="script number out of range: "):
+        encode_num(2**63)
+    with pytest.raises(BTClibValueError, match="script number out of range: "):
+        encode_num(-(2**63) - 1)
+
+    # the reader is not bounded to match: it answers for a coinbase push
+    # of any width, which is what Block.height reads
+    assert decode_num(encode_num(2**63 - 1)) == 2**63 - 1
+    assert decode_num(encode_num(-(2**63))) == -(2**63)
+    assert decode_num(bytes.fromhex("00000000000000000010")) == 2**76

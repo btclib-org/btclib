@@ -1225,6 +1225,25 @@ edit.
   `PSBT_OUT_AMOUNT` is untouched, the BIP and Core agreeing on `int64_t`
   there. Found while auditing btclib's consensus types against Core
   v31.1, after #388
+- **a script number is bounded by the `int64_t` it is**, so
+  `utils.encode_num` and `script.serialize` refuse one outside
+  `[-2^63, 2^63-1]` with `script number out of range` (issue #406).
+  Core stores a `CScriptNum` in an `int64_t` and takes a number into a
+  script through `CScript::operator<<(int64_t)`, which has no wider
+  parameter; btclib's serializer took an unbounded Python int, so
+  `serialize([2**100])` wrote a 13-octet push and `serialize([2**200])`
+  a 26-octet one -- pushes no node can have built, and pushes the engine
+  refuses on execution anyway, capping every operand at four bytes and
+  five for CLTV and CSV. Both extremes still serialize, the most
+  negative int64 taking the nine octets Core's `CScriptNum::serialize`
+  gives it too, sign-magnitude having no room for its magnitude in
+  eight. `utils.decode_num` is deliberately not bounded to match: it is
+  the reader, the engine caps an operand before reaching it, and
+  `Block.height` decodes whatever a coinbase pushed -- BIP34 in btclib
+  being the byte comparison of `assert_valid_coinbase_height`, as it is
+  in Core -- so a bound there would refuse a coinbase the network
+  accepts. Found while auditing the consensus types against Core v31.1,
+  after #388
 
 ### Immutability and shared state
 
