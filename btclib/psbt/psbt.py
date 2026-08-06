@@ -1421,6 +1421,12 @@ def combine(psbts: Sequence[Psbt]) -> Psbt:
 
         _combine_field(psbt, final_psbt, "hd_key_paths")
         _combine_field(psbt, final_psbt, "unknown")
+        # the fallback is reached only when no input requires a lock time,
+        # so two psbts that differ in it can still be one transaction and
+        # reach here -- and a Combiner that dropped it answered one thing
+        # for combine([a, b]) and another for combine([b, a]), the copy
+        # merged into being the one that happened to come first
+        _combine_optional_field(psbt, final_psbt, "fallback_lock_time")
 
     return final_psbt
 
@@ -1832,6 +1838,21 @@ def _sig_hash_from_psbt_in(
     and travel in the taproot fields, so a partial signature beside a
     p2tr script_pub_key is not a signature this hash would check.
 
+    A non-witness spend described by a witness utxo alone is the case
+    that raises instead, being neither of those: the input says what is
+    signed and says it on no authority. `PSBT_IN_WITNESS_UTXO` "should
+    only be present for inputs which spend segwit outputs, including P2SH
+    embedded ones", and nothing ties one to the outpoint it claims to be
+    -- BIP174's Signer checks `sha256d(non_witness_utxo)` against that
+    outpoint and has no such line to write for the other field, so its
+    own algorithm signs from a witness utxo only where the script is
+    p2wpkh or p2wsh. Bitcoin Core's `SignPSBTInput` says it as
+    `require_witness_sig`, and refuses the input when the signature it
+    produced is not a witness one. A legacy sig_hash taken from those
+    bytes commits to a script_pub_key nobody vouched for, so the answer
+    is an error rather than a hash, and rather than the None that would
+    have the Finalizer skip the very signature it is checking.
+
     sig_hash.from_tx is the same dispatch for a *signed* transaction, and
     cannot serve here: it reads the redeem script out of the input's
     script_sig and the witness script off its witness stack, and a psbt's
@@ -1854,6 +1875,10 @@ def _sig_hash_from_psbt_in(
 
     if not script or is_p2tr(script):
         return None
+    if psbt_in.non_witness_utxo is None:
+        err_msg = f"input {vin_i}: a witness utxo alone does not say what a "
+        err_msg += "non-witness spend signs"
+        raise BTClibValueError(err_msg)
     return sig_hash.legacy(script, tx, vin_i, hash_type)
 
 
@@ -1877,7 +1902,9 @@ def ecdsa_sig_hash(psbt: Psbt, vin_i: int, *, hash_type: int | None = None) -> b
     Where it answers None this raises, and the difference is the caller:
     a Finalizer checking a signature it was handed learns nothing from a
     psbt that does not say what was signed, while a Signer about to make
-    one has to stop.
+    one has to stop. Where it raises -- a non-witness spend described by
+    a witness utxo alone -- every caller stops, that being an input no
+    role may sign, verify or finalize.
     """
     psbt_in = psbt.inputs[vin_i]
     if hash_type is None:
@@ -2308,7 +2335,11 @@ def _assert_partial_sigs_verify(psbt_in: PsbtIn, tx: Tx, vin_i: int) -> None:
 
     An input whose sig_hash is not computable is left alone rather than
     refused: what is missing there is the utxo or a script, which is not
-    evidence against the signature.
+    evidence against the signature. A non-witness spend carrying a
+    witness utxo alone is the exception, and raises out of
+    `_sig_hash_from_psbt_in`: there the input does say what was signed,
+    on bytes nothing vouches for, so skipping the check would finalize
+    exactly the input whose signature cannot be believed.
 
     lower_s=False because the question here is whether that key made that
     signature: the low-s rule is policy, applied by the script engine

@@ -2196,6 +2196,31 @@ edit.
 
 ### Transactions, blocks and PSBT
 
+- **no role reads a legacy sig_hash out of a witness utxo alone** (issue
+  #381). `PSBT_IN_WITNESS_UTXO` "should only be present for inputs which
+  spend segwit outputs, including P2SH embedded ones", and nothing ties
+  one to the outpoint it claims to be: BIP174's Signer checks
+  `sha256d(non_witness_utxo)` against that outpoint and has no such line
+  to write for the other field, so its own algorithm signs from a
+  witness utxo only where the script is p2wpkh or p2wsh. A legacy
+  sig_hash taken from those bytes commits to a script_pub_key nobody
+  vouched for. `psbt.ecdsa_sig_hash` computed one and now raises, and so
+  do `finalize` and `assert_signatures_only`, which read the same
+  dispatch: the Finalizer skips an input whose message it cannot
+  compute, and skipping is what would finalize exactly the signature
+  that cannot be believed. Bitcoin Core stops for the same reason,
+  `require_witness_sig` in `SignPSBTInput`. `assert_signable` already
+  refused the input; the message function is what a caller reaches
+  without it.
+- **the Combiner keeps a fallback lock time whichever copy holds it.**
+  `PSBT_GLOBAL_FALLBACK_LOCKTIME` was not merged at all, so
+  `combine([a, b])` and `combine([b, a])` answered differently — the
+  copy merged into is the first one, and the field of the others was
+  dropped. It is reached only when no input requires a lock time, which
+  is what lets two psbts differ in it and still be one transaction by
+  the unique id BIP370 defines. Bitcoin Core's `Merge` takes it under
+  the same rule every other combined field follows: the one already
+  there is kept.
 - **`psbt.assert_signatures_only` is the check that belongs before
   `combine` when the psbt came from somebody else** (issue #381).
   BIP174 gives the Combiner no such role: it takes the union of what it
