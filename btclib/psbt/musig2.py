@@ -58,7 +58,7 @@ from collections.abc import Sequence
 from typing import NamedTuple
 
 from btclib.alias import Octets
-from btclib.bip32 import pub_key_derivation_tweaks
+from btclib.bip32 import BIP328_CHAIN_CODE, pub_key_derivation_tweaks
 from btclib.curves import secp256k1
 from btclib.curves.sec_point import bytes_from_point
 from btclib.ecc import musig2, ssa
@@ -90,14 +90,6 @@ __all__ = [
     "partial_sigs_agg",
     "session_context",
 ]
-
-# BIP328's chain code, which is the sha256 of "MuSig2MuSig2MuSig2": an
-# aggregate key has no chain code of its own, so a synthetic xpub is the
-# key plus this constant, and every implementation deriving from an
-# aggregate key has to use the same one or derive other children
-_BIP328_CHAIN_CODE = bytes.fromhex(
-    "868087ca02a6f974c4598924c36b57762d32cb45717167e300622c7167e38965"
-)
 
 
 def add_participant_pub_keys(
@@ -141,8 +133,8 @@ def _derivation_tweaks(psbt_in: PsbtIn, aggregate_pub_key: bytes) -> list[bytes]
 
     The path is the one `PSBT_IN_TAP_BIP32_DERIVATION` files the internal
     key under, and what says it starts at the aggregate key is the master
-    fingerprint: BIP328's synthetic xpub is the aggregate key with the
-    fixed chain code above, so its fingerprint is hash160 of that key.
+    fingerprint: BIP328's synthetic xpub is the aggregate key with
+    `BIP328_CHAIN_CODE`, so its fingerprint is hash160 of that key.
     BIP373 lets that field be assumed to be BIP328 derivation whenever no
     `PSBT_GLOBAL_XPUB` names a synthetic xpub, which is what makes the
     fingerprint enough to recognize it.
@@ -156,7 +148,7 @@ def _derivation_tweaks(psbt_in: PsbtIn, aggregate_pub_key: bytes) -> list[bytes]
         err_msg += internal_key.hex()
         raise BTClibValueError(err_msg)
     return pub_key_derivation_tweaks(
-        aggregate_pub_key, _BIP328_CHAIN_CODE, derivation[1].der_path
+        aggregate_pub_key, BIP328_CHAIN_CODE, derivation[1].der_path
     )
 
 

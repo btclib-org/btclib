@@ -55,6 +55,7 @@ from btclib.utils import (
 )
 
 __all__ = [
+    "BIP328_CHAIN_CODE",
     "BIP32Key",
     "BIP32KeyData",
     "crack_prv_key",
@@ -496,6 +497,18 @@ def _pub_key_offset(chain_code: bytes, key: bytes, index: int) -> tuple[int, byt
     if offset >= secp256k1.n:
         raise _invalid_child(index, "the hmac left half is not a valid scalar")
     return offset, hmac_[32:]
+
+
+# BIP328's chain code, which is the sha256 of "MuSig2MuSig2MuSig2": an
+# aggregate key has no chain code of its own, so a synthetic xpub is the
+# key plus this constant, and every implementation deriving from an
+# aggregate key has to use the same one or derive other children. It sits
+# beside the tweaks below because it is the other half of one fact: the
+# derivation BIP328 defines is this chain code walked by that function,
+# and both `psbt.musig2` and a `musig()` descriptor key expression need it
+BIP328_CHAIN_CODE = bytes.fromhex(
+    "868087ca02a6f974c4598924c36b57762d32cb45717167e300622c7167e38965"
+)
 
 
 def pub_key_derivation_tweaks(

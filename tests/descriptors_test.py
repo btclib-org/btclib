@@ -6,15 +6,19 @@
 """Tests for the `btclib.descriptors` module.
 
 The derivation vectors are Bitcoin Core's own, transcribed from the
-`descriptor_test` case of `src/test/descriptor_tests.cpp` at commit
-8ecbe270f0dee68b7eec6cea1714f453c5e215ad (2026-07-29): each `Check(prv,
-pub, ...)` there gives a descriptor in its private and its public
-spelling and the scriptPubKey each expands to, at index 0, 1 and 2 where
-the descriptor is ranged. Both spellings are exercised, so a WIF and an
-xprv are checked to reach the script the public key and the xpub beside
-them reach. Not vendored as a file: the values are extracted from C++
-source rather than copied from a data file, so the citation is the
-commit and the case, and `tests/_data/README.md` covers what is vendored.
+`descriptor_test` case of `src/test/descriptor_tests.cpp`: each
+`Check(prv, pub, ...)` there gives a descriptor in its private and its
+public spelling and the scriptPubKey each expands to, at index 0, 1 and 2
+where the descriptor is ranged. Both spellings are exercised, so a WIF
+and an xprv are checked to reach the script the public key and the xpub
+beside them reach. The two ``rawtr()`` vectors are read there too, no BIP
+having any.
+
+Not vendored as files, those and BIP387's and BIP390's alike: the values
+are read out of C++ source and mediawiki prose rather than copied from a
+data file, so what this module cites is the path and the case, and
+`tests/_data/README.md` carries the revision each is pinned to -- which
+is also what the monthly upstream re-check reads.
 
 Four of those descriptors have no public spelling to check, and Core's
 own flags say why: HARDENED and DERIVE_HARDENED mark a derivation that
@@ -60,6 +64,8 @@ from btclib.descriptors import (
 )
 from btclib.ecc import dsa, ssa
 from btclib.exceptions import BTClibValueError
+from btclib.hashes import hash160
+from btclib.psbt.musig2 import nonce_gen, partial_sign, partial_sigs_agg
 from btclib.psbt.psbt import (
     Psbt,
     _finalized_input,
@@ -899,6 +905,17 @@ XPUB = "xpub661MyMwAqRbcFW31YEwpkMuc5THy2PSt5bDMsktWQcFF8syAmRUapSCGu8ED9W6oDMSg
 XONLY = "a34b99f22c790c4e36b2b3c2c35a36db06226e41c692fc82b8b56ac1c540c5bd"
 OFF_CURVE = "020000000000000000000000000000000000000000000000000000000000000005"
 
+# BIP390's own participants: three fixed keys, the first of them also
+# written as the WIF its vectors use, and two xpubs. MUSIG_A[2:] is the
+# x-only spelling of the first, which two of those vectors write as a
+# plain taproot key beside the musig() rather than inside it
+MUSIG_A = "02f9308a019258c31049344f85f89d5229b531c845836f99b08601f113bce036f9"
+MUSIG_B = "03dff1d77f2a671c5f36183726db2341be58feae1da2deced843240f7b502ba659"
+MUSIG_C = "023590a94e768f8e1815c2f24b4d80a8e3149316c3518ce7b7ad338368d038ca66"
+MUSIG_A_WIF = "KwDiBf89QgGbjEhKnhXJuH7LrciVrZi3qYjgd9M7rFU74sHUHy8S"
+MUSIG_XPUB_A = "xpub6ERApfZwUNrhLCkDtcHTcxd75RbzS1ed54G1LkBUHQVHQKqhMkhgbmJbZRkrgZw4koxb5JaHWkY4ALHY2grBGRjaDMzQLcgJvLJuZZvRcEL"
+MUSIG_XPUB_B = "xpub68NZiKmJWnxxS6aaHmn81bvJeTESw724CRDs6HbuccFQN9Ku14VQrADWgqbhhTHBaohPX4CjNLf9fq9MYo6oDaPPLPxSb7gwQN3ih19Zm4Y"
+
 # what a descriptor cannot be, and the message that says so. The first
 # group is Bitcoin Core's own CheckUnparsable cases, from the same
 # descriptor_test; the rest are the position rules of BIP381 to BIP386
@@ -1004,7 +1021,6 @@ UNIMPLEMENTED = [
     ),
     (f"wsh(thresh(1,pk({KEY})))", "187"),
     (f"wsh(s:pk({KEY}))", "187"),
-    (f"tr(musig({KEY},{KEY}))", "BIP390"),
 ]
 
 
@@ -1114,6 +1130,242 @@ def test_bip387_invalid(descriptor: str, message: str) -> None:
     """Refuse each of BIP387's invalid descriptors, with the reason named."""
     with pytest.raises(BTClibValueError, match=message):
         parse(descriptor).script_pub_key()
+
+
+# BIP390's own test vectors: a valid descriptor and the scriptPubKey it
+# produces, three of them where the keys derive. The first two are the same
+# three participants under rawtr() and tr(), so the pair says which key is
+# the output key and which is tweaked into it; the last aggregates one key
+# with itself, participants being allowed to repeat
+BIP390_VECTORS: list[tuple[str, list[str]]] = [
+    (
+        f"rawtr(musig({MUSIG_A_WIF},{MUSIG_B},{MUSIG_C}))",
+        ["5120789d937bade6673538f3e28d8368dda4d0512f94da44cf477a505716d26a1575"],
+    ),
+    (
+        f"tr(musig({MUSIG_A},{MUSIG_B},{MUSIG_C}))",
+        ["512079e6c3e628c9bfbce91de6b7fb28e2aec7713d377cf260ab599dcbc40e542312"],
+    ),
+    (
+        f"rawtr(musig({MUSIG_XPUB_A},{MUSIG_XPUB_B})/0/*)",
+        [
+            "51209508c08832f3bb9d5e8baf8cb5cfa3669902e2f2da19acea63ff47b93faa9bfc",
+            "51205ca1102663025a83dd9b5dbc214762c5a6309af00d48167d2d6483808525a298",
+            "51207dbed1b89c338df6a1ae137f133a19cae6e03d481196ee6f1a5c7d1aeb56b166",
+        ],
+    ),
+    (
+        f"tr(musig({MUSIG_XPUB_A},{MUSIG_XPUB_B})/0/*,pk({MUSIG_A[2:]}))",
+        [
+            "51201d377b637b5c73f670f5c8a96a2c0bb0d1a682a1fca6aba91fe673501a189782",
+            "51208950c83b117a6c208d5205ffefcf75b187b32512eb7f0d8577db8d9102833036",
+            "5120a49a477c61df73691b77fcd563a80a15ea67bb9c75470310ce5c0f25918db60d",
+        ],
+    ),
+    (
+        f"tr({MUSIG_A[2:]},pk(musig({MUSIG_XPUB_A},{MUSIG_XPUB_B})/0/*))",
+        [
+            "512068983d461174afc90c26f3b2821d8a9ced9534586a756763b68371a404635cc8",
+            "5120368e2d864115181bdc8bb5dc8684be8d0760d5c33315570d71a21afce4afd43e",
+            "512097a1e6270b33ad85744677418bae5f59ea9136027223bc6e282c47c167b471d5",
+        ],
+    ),
+    (
+        f"tr(musig({MUSIG_XPUB_A}/1,{MUSIG_XPUB_A}/1)/2)",
+        ["5120a17ceacd6422bd5ffd9f165807b254b7d68ad39f179cc4f11545a6835227e97c"],
+    ),
+]
+
+
+@pytest.mark.parametrize(
+    "descriptor, scripts",
+    [
+        pytest.param(descriptor, scripts, id=vector_id(index, descriptor))
+        for index, (descriptor, scripts) in enumerate(BIP390_VECTORS)
+    ],
+)
+def test_bip390_vector(descriptor: str, scripts: list[str]) -> None:
+    """Reproduce BIP390's own vectors: the script at each index it lists.
+
+    Nothing here needs the private material `parse` hands back: a
+    ``musig()`` derives from xpubs and from the aggregate of them, neither
+    of which can take a hardened step.
+    """
+    parsed = parse(descriptor)
+    assert parsed.is_ranged == (len(scripts) > 1)
+    for index, expected in enumerate(scripts):
+        assert parsed.script_pub_key(index).script.hex() == expected
+
+
+# BIP390's invalid descriptors, and what each is refused with. The first
+# eight are one rule -- a musig() is a key expression of tr() and rawtr()
+# and of nothing else -- and the rest are the conditions derivation from
+# the aggregate key comes with
+BIP390_INVALID = [
+    (f"pk(musig({MUSIG_A},{MUSIG_B},{MUSIG_C}))", "only allowed in tr"),
+    (f"pkh(musig({MUSIG_A},{MUSIG_B},{MUSIG_C}))", "only allowed in tr"),
+    (f"wpkh(musig({MUSIG_A},{MUSIG_B},{MUSIG_C}))", "only allowed in tr"),
+    (f"combo(musig({MUSIG_A},{MUSIG_B},{MUSIG_C}))", "only allowed in tr"),
+    (f"sh(wpkh(musig({MUSIG_A},{MUSIG_B},{MUSIG_C})))", "only allowed in tr"),
+    (f"sh(wsh(pk(musig({MUSIG_A},{MUSIG_B},{MUSIG_C}))))", "only allowed in tr"),
+    (f"wsh(musig({MUSIG_A},{MUSIG_B},{MUSIG_C}))", "only allowed in tr"),
+    (f"sh(musig({MUSIG_A},{MUSIG_B},{MUSIG_C}))", "only allowed in tr"),
+    (
+        f"tr(musig({MUSIG_A},{MUSIG_B},{MUSIG_C})/0/0)",
+        "requires every participant to be extended",
+    ),
+    (
+        f"tr(musig({MUSIG_XPUB_A}/*,{MUSIG_XPUB_B})/0/*)",
+        "ranged participant and derivation",
+    ),
+    # BIP390 refuses a multipath musig() holding multipath participants;
+    # btclib refuses the whole shape earlier and for the general reason,
+    # `parse` taking one path per key and `multipath_descriptors` being
+    # what expands the <a;b> steps textually, as BIP389 defines them
+    (
+        f"tr(musig({MUSIG_XPUB_A}/<0;1>,{MUSIG_XPUB_B})/<2;3>)",
+        "multipath key expression",
+    ),
+    (f"tr(musig({MUSIG_XPUB_A},{MUSIG_XPUB_B})/0h/*)", "hardened derivation steps"),
+    (f"tr(musig({MUSIG_XPUB_A},{MUSIG_XPUB_B})/0/*h)", "hardened wildcard"),
+    (
+        f"tr(musig({MUSIG_XPUB_A}/*,{MUSIG_XPUB_B}/*)/1/2)",
+        "ranged participant and derivation",
+    ),
+    # and what BIP390 states in prose rather than listing: no nesting, no
+    # origin in front of one, and at least one participant. A musig() as a
+    # tree leaf is refused too: what a leaf holds is a script
+    (f"tr(musig(musig({MUSIG_A},{MUSIG_B}),{MUSIG_XPUB_A}))", "only allowed in tr"),
+    (f"tr([deadbeef/0]musig({MUSIG_A},{MUSIG_B}))", "nested inside a key origin"),
+    ("tr(musig())", "at least one key"),
+    (f"tr({XONLY},musig({MUSIG_A},{MUSIG_B}))", "pk\\(musig\\(...\\)\\) is the leaf"),
+    # a participant is aggregated as a point, so an x-only one is short of
+    # the byte that says which point it is
+    (f"tr(musig({XONLY},{MUSIG_B}))", "musig\\(\\): x-only"),
+    # and characters after the closing bracket that are no path at all
+    (f"tr(musig({MUSIG_A},{MUSIG_B})x)", "not a musig\\(\\) derivation path"),
+]
+
+
+@pytest.mark.parametrize(
+    "descriptor, message",
+    [
+        pytest.param(descriptor, message, id=vector_id(index, descriptor))
+        for index, (descriptor, message) in enumerate(BIP390_INVALID)
+    ],
+)
+def test_bip390_invalid(descriptor: str, message: str) -> None:
+    """Refuse each of BIP390's invalid descriptors, with the reason named."""
+    with pytest.raises(BTClibValueError, match=message):
+        parse(descriptor)
+
+
+def test_the_order_participants_are_written_in_is_not_the_key() -> None:
+    """BIP390 sorts before aggregating, and that is the whole rationale.
+
+    MuSig2 is about a set of keys, so a descriptor written in another order
+    describes the same output -- which is also what makes a descriptor
+    recoverable without the order having been backed up. What is *not*
+    normalized is the text: the participants are written back in the order
+    they were read, as Bitcoin Core writes them.
+    """
+    written = f"tr(musig({MUSIG_A},{MUSIG_B},{MUSIG_C}))"
+    reordered = f"tr(musig({MUSIG_C},{MUSIG_A},{MUSIG_B}))"
+    assert parse(written).script_pub_key() == parse(reordered).script_pub_key()
+    assert str(parse(reordered)) == reordered
+
+    # and the aggregation order is the sorted one, which is the list BIP373
+    # stores in a psbt
+    keys = parse(written).key_expressions[0].participant_keys()
+    assert keys == sorted(keys)
+    assert [key.hex() for key in keys] == sorted((MUSIG_A, MUSIG_B, MUSIG_C))
+
+
+def test_a_musig_descriptor_builds_a_psbt_its_group_can_sign() -> None:
+    """The whole point of naming an aggregate key: BIP373's rounds can run.
+
+    What the Updater has to write for that is three things, and all three
+    come from the descriptor: the internal key, which is the aggregate key
+    derived at this index; the participants, under the *undervied*
+    aggregate key, which is what BIP373 keys its field by; and the BIP328
+    path from that key to this one, under the fingerprint of the synthetic
+    xpub, which is how `psbt.musig2` recognizes the derivation.
+
+    Then the two signers play BIP373's two rounds and the Finalizer adds
+    their partial signatures up. `finalize` is the oracle: it verifies the
+    aggregate signature against the output key it reads out of the script,
+    so it accepts only if every tweak on the way agreed.
+    """
+    prv_keys: dict[str, str] = {}
+    descriptor = parse(f"tr(musig({XPRV_ROOT},{XPRV_SECOND})/0/*)", prv_keys=prv_keys)
+    key = descriptor.key_expressions[0]
+    psbt = descriptor.update_psbt(psbt_spending(descriptor, 1), 0, 1)
+    psbt.assert_signable()
+
+    aggregate = key.aggregate(1)
+    psbt_in = psbt.inputs[0]
+    assert psbt_in.taproot_internal_key == key.sec(1)[1:]
+    assert psbt_in.musig2_participant_pub_keys == {aggregate: key.participant_keys(1)}
+    ((leaf_hashes, origin),) = psbt_in.taproot_hd_key_paths.values()
+    assert leaf_hashes == []
+    assert origin.master_fingerprint == hash160(aggregate)[:4]
+    assert origin.description.endswith("/0/1")
+
+    signers = [prv_keyinfo_from_prv_key(xprv)[0] for xprv in (XPRV_ROOT, XPRV_SECOND)]
+    sec_nonces = [nonce_gen(psbt, 0, signer, aggregate) for signer in signers]
+    for signer, sec_nonce in zip(signers, sec_nonces, strict=True):
+        partial_sign(psbt, 0, sec_nonce, signer, aggregate)
+    signature = partial_sigs_agg(psbt, 0, aggregate)
+
+    witness = finalize(psbt).inputs[0].final_script_witness
+    assert witness == Witness([signature.serialize()])
+
+
+def test_the_updater_writes_a_musig_group_that_derives_nothing() -> None:
+    """An aggregate key that *is* the internal key has no path to report.
+
+    Which is the first of BIP373's four ways for an aggregate key to reach
+    what is spent, and the field that would say how to get from one to the
+    other is left out rather than filled with an empty path. What is still
+    written is the participants, and the origin of each participant that
+    carries one -- the entry a signer looks itself up in.
+    """
+    participant = f"[d34db33f/0h]{MUSIG_XPUB_A}"
+    descriptor = parse(f"tr(musig({participant},{MUSIG_XPUB_B}))")
+    key = descriptor.key_expressions[0]
+    psbt_in = descriptor.update_psbt(psbt_spending(descriptor), 0).inputs[0]
+
+    aggregate = key.aggregate()
+    assert psbt_in.taproot_internal_key == aggregate[1:]
+    assert psbt_in.musig2_participant_pub_keys == {aggregate: key.participant_keys()}
+    # the aggregate key is the internal key, so no derivation of it, and
+    # the one entry there is is the participant that named an origin
+    x_only = key.participants[0].sec()[1:]
+    ((leaf_hashes, origin),) = psbt_in.taproot_hd_key_paths.values()
+    assert list(psbt_in.taproot_hd_key_paths) == [x_only]
+    assert leaf_hashes == []
+    assert origin.description == "d34db33f/0h"
+
+
+def test_the_normalized_form_of_a_musig_is_its_participants() -> None:
+    """Its own path cannot harden, so there is nothing else to re-root.
+
+    A participant with a hardened step is re-rooted as any other key is,
+    and the result computes every script with no private key at all --
+    which is what an export to a watch-only wallet needs, aggregate key or
+    not.
+    """
+    prv_keys: dict[str, str] = {}
+    descriptor = parse(
+        f"tr(musig({XPRV_ROOT}/44h/0h/0h/0,{MUSIG_XPUB_B})/0/*)", prv_keys=prv_keys
+    )
+    canonical = normalized(descriptor, prv_keys)
+
+    assert f"[{fingerprint(XPRV_ROOT).hex()}/44h/0h/0h]" in str(canonical)
+    for index in (0, 5):
+        assert canonical.script_pub_keys(index) == descriptor.script_pub_keys(
+            index, prv_keys
+        )
 
 
 def leaf_script_of(descriptor: str) -> bytes:
@@ -1835,6 +2087,7 @@ def test_what_cannot_update_a_psbt(descriptor: str, message: str) -> None:
 ROUND_TRIP = [
     *(d for private, public, _ in CORE_VECTORS for d in (private, public) if d),
     *(descriptor for descriptor, _ in BIP387_VECTORS),
+    *(descriptor for descriptor, _ in BIP390_VECTORS),
     *DOC_DESCRIPTORS,
     *HARDENED_PUBLIC,
 ]
@@ -1948,6 +2201,11 @@ def test_a_wif_in_a_taproot_position_is_written_x_only() -> None:
 XPRV_ROOT = (
     "xprv9s21ZrQH143K3QTDL4LXw2F7HEK3wJUD2nW2nRk4stbPy6cq3jPPqjiChkVvv"
     "NKmPGJxWUtg6LnF5kejMRNNU3TGtRBeJgk33yuGBxrMPHi"
+)
+# a second one, so that a MuSig2 group of two has two keys to hold
+XPRV_SECOND = (
+    "xprv9uPDJpEQgRQfDcW7BkF7eTya6RPxXeJCqCJGHuCJ4GiRVLzkTXBAJMu2qaMWP"
+    "rS7AANYqdq6vcBcBUdJCVVFceUvJFjaPdGZ2y9WACViL4L"
 )
 
 

@@ -6,6 +6,7 @@
 """BIP32 extended keys, derivation, and key origins."""
 
 from btclib.bip32.bip32 import (
+    BIP328_CHAIN_CODE,
     BIP32Key,
     BIP32KeyData,
     crack_prv_key,
@@ -33,6 +34,7 @@ from btclib.bip32.key_origin import (
 )
 
 __all__ = [
+    "BIP328_CHAIN_CODE",
     "BIP32Key",
     "BIP32KeyData",
     "BIP32KeyOrigin",
