@@ -205,12 +205,14 @@ class BitcoinCoreFetcher(Fetcher):
             return
         try:
             expected_chain = core_chain_from_network(self.network)
-        except rpc.BTClibValueError as e:
-            # the package's BTClibValueError and not btclib's, which is what
-            # the function above raises: it is `bitcoin_core_rpc`'s, and that
-            # package declares its own exceptions -- catching the wrong one
-            # here would let a name it does not know escape as something no
-            # caller of `assert_network` is told to expect.
+        except rpc.BtcRpcValueError as e:
+            # `BtcRpcValueError` and not btclib's `BTClibValueError`:
+            # `core_chain_from_network` is the package's function and raises
+            # the package's class, so catching btclib's here would let a
+            # name it does not know escape as something no caller of
+            # `assert_network` is told to expect. The two were spelled
+            # alike until the package renamed its own, and this line is
+            # why -- it read correct and was wrong.
             #
             # A Network the caller registered: its name is btclib's alone,
             # so there is nothing to compare a chain name with, and only a

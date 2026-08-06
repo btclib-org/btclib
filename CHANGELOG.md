@@ -42,7 +42,11 @@ edit.
   `RpcError` as btclib's with the `status` and the `code` carried across,
   and `args[0]` rather than `str(e)` so a message composed in `__str__` is
   not composed twice. `EsploraFetcher.text` and
-  `BitcoinCoreFetcher._call` are the two lines that cross.
+  `BitcoinCoreFetcher._call` are the two lines that cross. The package
+  spells its own bases `BtcRpcValueError` and so on, where btclib spells
+  its `BTClibValueError`: two same-named classes is an `except` that reads
+  correct and catches the wrong one, which `assert_network` did until the
+  package renamed its three.
 - **`import btclib.exceptions` no longer loads `urllib.request`**, nor the
   `ssl` and `socket` under it. That cost was what the one bottom-upwards
   import in the package bought, and most of the library pays it: an
