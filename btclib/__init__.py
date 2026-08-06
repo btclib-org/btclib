@@ -97,6 +97,7 @@ __all__ = [
     "network",
     "number_theory",
     "psbt",
+    "psbt_signer",
     "script",
     "slip132",
     "to_prv_key",

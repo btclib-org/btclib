@@ -2786,6 +2786,50 @@ edit.
 
 ### The public API and the module layout
 
+- **`btclib.psbt_signer` is new: the contract an external signer answers,
+  and the checks on its answers** (issue #381). A hardware wallet, a
+  signing service, another process — something that holds keys btclib does
+  not have. `PsbtSigner` is the four questions such a thing answers
+  (master fingerprint, xpub at a path, a signed psbt, its capabilities,
+  plus `close`), `AddressDisplay` and `MessageSigner` the two optional
+  ones, all three runtime-checkable so a caller asks rather than being
+  told.
+
+  This is **not** `psbt.sign`, which plays the Signer role over a
+  `KeyManager` btclib calls in-process: that one derives keys and signs,
+  and its answers are btclib's own. Here the psbt goes out and comes back
+  untrusted, so the two are two contracts with two trust models — and the
+  functions beside the protocols are the point of the module, a protocol
+  alone being an interface:
+
+    - `request_signatures` sends the psbt, holds the answer to it with
+    `psbt.assert_signatures_only`, and only then combines the two.
+    Skipping that is not a smaller version of the call: `combine` takes
+    the union of what it is given and resolves a conflict by picking a
+    side, so an answer that changed an amount or somebody else's signature
+    would be merged without a word.
+    - `export_account` composes the fingerprint and the xpub into the
+    account pair, `descriptors.account_descriptors` being what refuses an
+    xpub that is not the account the path names. What no check can see is
+    an xpub of another *master* key at the right path — an extended key
+    records nothing about where it came from — and the docstring says so,
+    naming the independent answer that does catch it.
+    - `display_address` compares what the device shows with what the
+    descriptor describes, which is the whole point of asking: the screen
+    is the one part a compromised host cannot rewrite, and a caller
+    showing the user its own answer has checked nothing.
+    - `sign_message` verifies the signature against the address the caller
+    says it must open to; which address that is, is a fact about the key
+    that was asked for rather than about the signature that came back.
+
+  `SignerCapabilities` is two flags, `taproot` and `musig2`, and not a
+  device matrix: which model supports what is a table HWI maintains per
+  vendor and firmware, and a library copying it would be wrong the week
+  after. Which *operations* a signer offers is what the optional protocols
+  say. `assert_public` refuses to send a descriptor holding a key that
+  signs — nothing `descriptors.parse` returns can fail it, and a
+  hand-built `KeyExpression` can, `musig()` participants included.
+
 - **the Updater has an output half: `Descriptor.update_psbt_output`**
   (issue #381), and `update_psbt` is `update_psbt_input`. An input told a
   psbt what it needed to be spent; nothing told a psbt what an output is,
