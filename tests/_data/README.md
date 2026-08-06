@@ -336,8 +336,10 @@ pulled  2026-08-03, split into its own pin 2026-08-06
 behind  0 revisions; that commit is the tip of the path
 ```
 
-Verdict: **identical**, line endings included — LF upstream, where
-`bip340_test_vectors.csv` above is CRLF.
+Verdict: **identical but for line endings** — upstream is CRLF and this
+repository is LF throughout, which `mixed-line-ending` enforces with
+`--fix=lf`, so our blob is `bcc5b319` rather than the one above, the
+same exception `bip340_test_vectors.csv` above documents.
 
 ### `tests/ecc/_data/xswiftec_inv_test_vectors.csv`
 
@@ -350,7 +352,8 @@ pulled  2026-08-03, split into its own pin 2026-08-06
 behind  0 revisions; that commit is the tip of the path
 ```
 
-Verdict: **identical**, line endings included too.
+Verdict: **identical but for line endings**, the same exception, our
+blob `135958f6` rather than the one above.
 
 The two files test the two halves of the map, and both halves are
 btclib's own Python: `tests/ecc/ellswift_test.py` runs the decode file
@@ -1351,11 +1354,12 @@ Against a pinned upstream blob:
   `script_tests.json`, `tx_valid.json`, `tx_invalid.json`,
   `key_io_valid.json`, `key_io_invalid.json`,
   `base58_encode_decode.json`, `blockfilters.json`,
-  `checkblock_valid.json`, `checkblock_invalid.json`, the eight
-  BIP327 vector files, and the two BIP324 ones.
+  `checkblock_valid.json`, `checkblock_invalid.json`, and the eight
+  BIP327 vector files.
 - identical but for a trailing newline:
   `script_assets_test.json`, `vectors.json`.
-- identical but for CRLF against LF: `bip340_test_vectors.csv`.
+- identical but for CRLF against LF: `bip340_test_vectors.csv` and the
+  two BIP324 vector files.
 - JSON-equal, reformatted: `pubkey.json`, `ecdsa_sig.json`,
   `ecdsa_custom_nonce_sig.json`, `signmessage.json`,
   `test_JP_BIP39.json`.

@@ -5130,6 +5130,16 @@ edit.
   in between. Each of the eight is now pinned to its own real tip, and
   every one is still the blob already vendored -- nothing to refresh,
   the fix is only in which commit each cites
+- **BIP324's two files are "identical but for line endings", not
+  byte-identical as the README had it.** A blob-SHA match against
+  upstream's tip only proves upstream has not moved since the pin, not
+  that upstream and the vendored copy agree, and fetching the actual
+  bytes found both `ellswift_decode_test_vectors.csv` and
+  `xswiftec_inv_test_vectors.csv` are CRLF upstream -- `mixed-line-ending`
+  normalizes our copy to LF, the same exception `bip340_test_vectors.csv`
+  already documented. Nothing in either file's vectors changed; the fix
+  is the Verdict describing them, and the Summary list moving the pair
+  from "identical byte for byte" to "identical but for CRLF against LF"
 - **80 columns on the prose, and the yaml measured for the first time.**
   `ruff-format` reflows code to its 88 columns and never touches a
   comment or a docstring, which is why `E501` is ignored and stays so:
