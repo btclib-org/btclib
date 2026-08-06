@@ -1804,3 +1804,97 @@ def test_what_cannot_update_a_psbt(descriptor: str, message: str) -> None:
     psbt = psbt_spending(parse(f"pkh({KEY_A})"))
     with pytest.raises(BTClibValueError, match=message):
         parsed.update_psbt(psbt, 0)
+
+
+ROUND_TRIP = [
+    *(d for private, public, _ in CORE_VECTORS for d in (private, public) if d),
+    *(descriptor for descriptor, _ in BIP387_VECTORS),
+    *DOC_DESCRIPTORS,
+    *HARDENED_PUBLIC,
+]
+
+
+@pytest.mark.parametrize(
+    "descriptor",
+    [
+        pytest.param(descriptor, id=vector_id(index, descriptor))
+        for index, descriptor in enumerate(ROUND_TRIP)
+    ],
+)
+def test_a_descriptor_writes_itself_back(descriptor: str) -> None:
+    """Every descriptor the suite reads is written back and read again.
+
+    Writing is idempotent, and what it writes parses to the same scripts:
+    the text may differ from the input, `parse` keeping the meaning and
+    not the characters, but it cannot differ from itself.
+    """
+    prv_keys: dict[str, str] = {}
+    parsed = parse(descriptor, prv_keys=prv_keys)
+    text = str(parsed)
+
+    assert "#" not in text
+    assert str(parse(text)) == text
+    assert add_checksum(text) == add_checksum(str(parse(add_checksum(text))))
+
+    reparsed = parse(text)
+    assert reparsed.is_ranged == parsed.is_ranged
+    # HARDENED_PUBLIC is the corpus that derives nothing, by construction
+    if descriptor not in HARDENED_PUBLIC:
+        assert reparsed.script_pub_keys(0, prv_keys) == parsed.script_pub_keys(
+            0, prv_keys
+        )
+
+
+def test_what_writing_a_descriptor_normalizes() -> None:
+    """Two spellings are not echoed back, and one that could be is.
+
+    A WIF and an xprv are gone by the time there is anything to write:
+    the first was reduced to its public key on the way in and the second
+    neutered. Bitcoin Core writes the same, `ToString` holding the public
+    key alone. The hardening symbol is the one that *is* echoed, being
+    the one whose two spellings are two checksums.
+    """
+    wif = "L4rK1yDtCWekvXuE6oXD9jCYfFNV2cWRpVuPLBcCU2z8TrisoyY1"
+    pub_key = pub_keyinfo_from_key(wif)[0].hex()
+    assert str(parse(f"pkh({wif})")) == f"pkh({pub_key})"
+    assert str(parse(f"pkh({pub_key.upper()})")) == f"pkh({pub_key})"
+
+    xprv = (
+        "xprv9s21ZrQH143K3QTDL4LXw2F7HEK3wJUD2nW2nRk4stbPy6cq3jPPqjiChkVvv"
+        "NKmPGJxWUtg6LnF5kejMRNNU3TGtRBeJgk33yuGBxrMPHi"
+    )
+    xpub = xpub_from_xprv(xprv)
+    assert str(parse(f"wpkh({xprv}/0/*)")) == f"wpkh({xpub}/0/*)"
+
+    aitches = f"wpkh([deadbeef/84h]{xpub}/1h/*h)"
+    apostrophes = f"wpkh([deadbeef/84']{xpub}/1'/*')"
+    assert str(parse(aitches)) == aitches
+    assert str(parse(apostrophes)) == apostrophes
+    # which matters because the two spellings are two descriptors: one
+    # meaning, two strings, two checksums
+    assert checksum(aitches) != checksum(apostrophes)
+
+
+def test_every_fragment_writes_its_own_function() -> None:
+    """One case per grammar function, the nested ones included."""
+    xonly = XONLY
+    written = [
+        f"pk({KEY})",
+        f"pkh({KEY})",
+        f"wpkh({KEY})",
+        f"combo({KEY})",
+        f"sh(wpkh({KEY}))",
+        f"wsh(pk({KEY}))",
+        f"sh(wsh(pk({KEY})))",
+        f"multi(1,{KEY})",
+        f"sortedmulti(2,{KEY},{KEY_B})",
+        f"tr({xonly})",
+        f"tr({xonly},pk({xonly}))",
+        f"tr({xonly},{{pk({xonly}),pk({KEY_B})}})",
+        f"tr({xonly},multi_a(1,{xonly}))",
+        f"tr({xonly},{{sortedmulti_a(2,{xonly},{KEY_B}),pk({KEY_C})}})",
+        "addr(1BgGZ9tcN4rm9KBzDn7KprQz87SZ26SAMH)",
+        "raw(76a914f8c62e9b7c0e7e1e6e3f0e2c1e6e6a0e6e6e6e6e88ac)",
+    ]
+    for descriptor in written:
+        assert str(parse(descriptor)) == descriptor
