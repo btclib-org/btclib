@@ -93,7 +93,7 @@ def test_target_from_bits() -> None:
 
 
 @pytest.mark.parametrize(
-    ("bits_hex", "target_hex", "negative"),
+    "bits_hex, target_hex, negative",
     [
         # the genesis bits, where the sign bit is not set and nothing
         # about them changes

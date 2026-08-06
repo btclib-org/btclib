@@ -917,8 +917,8 @@ def test_assert_valid_pow_makes_derive_targets_range_checks() -> None:
     negative, and it is refused as negative (issue #403).
     """
     fname = "block_1.bin"
-    filename = path.join(path.dirname(__file__), "_data", fname)
-    with open(filename, "rb") as file_:
+    filename = Path(__file__).parent / "_data" / fname
+    with filename.open("rb") as file_:
         header_bytes = file_.read()[:80]
 
     header = BlockHeader.parse(header_bytes)
@@ -953,8 +953,8 @@ def test_the_zero_target_check_is_only_as_good_as_the_target(bits_hex: str) -> N
     check was only as good as the number it was handed (issue #402).
     """
     fname = "block_1.bin"
-    filename = path.join(path.dirname(__file__), "_data", fname)
-    with open(filename, "rb") as file_:
+    filename = Path(__file__).parent / "_data" / fname
+    with filename.open("rb") as file_:
         header_bytes = file_.read()[:80]
 
     header = BlockHeader.parse(header_bytes)
@@ -973,8 +973,8 @@ def test_the_pow_limit_is_the_callers_to_state() -> None:
     same network its header is.
     """
     fname = "block_1.bin"
-    filename = path.join(path.dirname(__file__), "_data", fname)
-    with open(filename, "rb") as file_:
+    filename = Path(__file__).parent / "_data" / fname
+    with filename.open("rb") as file_:
         block_bytes = file_.read()
 
     block = Block.parse(block_bytes)
