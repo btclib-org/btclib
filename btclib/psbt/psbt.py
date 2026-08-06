@@ -30,7 +30,7 @@ import base64
 import secrets
 from collections.abc import Callable, Mapping, Sequence
 from copy import deepcopy
-from dataclasses import dataclass
+from dataclasses import dataclass, fields
 from math import ceil
 from typing import Any, Protocol, TypeVar, cast
 
@@ -2104,6 +2104,69 @@ def _assert_partial_sigs_verify(psbt_in: PsbtIn, tx: Tx, vin_i: int) -> None:
             raise BTClibValueError(err_msg)
 
 
+# what a finalized input keeps, BIP174's rule being that everything else
+# goes: "All other data except the UTXO and unknown fields in the input
+# key-value map should be cleared from the PSBT". Three groups, and the
+# BIP names only the first two --
+#
+# - the utxo and `unknown`, exempted by that sentence: the utxo so that
+#   "Transaction Extractors [can] verify the final network serialized
+#   transaction", and the unknown fields because no reader here knows
+#   what dropping one would cost;
+# - the two finalized scripts, which are what finalizing produced;
+# - BIP370's transaction fields, which are not "data" about how the input
+#   is spent but the input *itself*: clearing `previous_tx_id` and
+#   `output_index` would leave a version 2 psbt naming no outpoint, and
+#   the sequence and the two required lock times are what its unsigned
+#   transaction is computed from.
+#
+# A keep list and not a clear list, so that a field added to PsbtIn is
+# cleared by default: BIP174's sentence is about everything, and a new
+# field that has to survive finalization is the exception worth writing
+# down here.
+_FINALIZED_KEEPS = frozenset(
+    {
+        "non_witness_utxo",
+        "witness_utxo",
+        "unknown",
+        "final_script_sig",
+        "final_script_witness",
+        "previous_tx_id",
+        "output_index",
+        "sequence",
+        "required_time_lock_time",
+        "required_height_lock_time",
+    }
+)
+
+
+def _clear_finalized(psbt_in: PsbtIn) -> None:
+    """Drop everything finalizing the input made redundant.
+
+    One rule for both kinds of input, which is the point of it being one
+    function: a taproot input cleared nothing at all, so a finalized psbt
+    went on publishing that input's key origins -- master fingerprint and
+    derivation path, per key -- where an ECDSA input published none. The
+    asymmetry was not a wrong spend, the witness being built already, but
+    no reader could state what the rule was.
+
+    Each field is set to what a fresh `PsbtIn` has, rather than to a
+    literal per field: the empty value of a field is the constructor's
+    business, and spelling it twice is how the two drift.
+
+    btclib is stricter than Bitcoin Core here, whose
+    `PSBTInput::FromSignatureData` clears `partial_sigs`, `hd_keypaths`,
+    `redeem_script` and `witness_script` and leaves the taproot fields,
+    the sighash type and the preimages in place. BIP174's sentence covers
+    those too, and what they buy after finalization is nothing: the
+    preimage a hash-locked script needs is in the witness by then.
+    """
+    empty = PsbtIn(check_validity=False)
+    for field in fields(psbt_in):
+        if field.name not in _FINALIZED_KEEPS:
+            setattr(psbt_in, field.name, getattr(empty, field.name))
+
+
 def finalize(psbt: Psbt) -> Psbt:
     """Finalize the Psbt.
 
@@ -2117,7 +2180,8 @@ def finalize(psbt: Psbt) -> Psbt:
     All other data except the UTXO and unknown fields in the input key-
     value map should be cleared from the PSBT. The UTXO should be kept
     to allow Transaction Extractors to verify the final network
-    serialized transaction.
+    serialized transaction. `_FINALIZED_KEEPS` is that list, and one list
+    for both kinds of input is what keeps the two from drifting apart.
 
     Deciding that an input has enough data is two checks beyond the
     presence of a signature, and both are per input: the sighash type
@@ -2127,6 +2191,14 @@ def finalize(psbt: Psbt) -> Psbt:
     What is then built is the spend the input's own kind asks for, which
     is what _finalized_input dispatches on: a witness script alone does
     not say, being absent from every single-key segwit input.
+
+    An input that is already finalized is left alone rather than refused,
+    so finalizing twice is finalizing once. "The Input Finalizer
+    determines if the input has enough data" and one carrying its final
+    scripts has more than enough; Bitcoin Core's `SignPSBTInput` skips it
+    too. Refusing it would mean a psbt whose signer finalized one input
+    could not be finalized at all -- the rest of it would raise "missing
+    signatures" for the input that is already done.
     """
     psbt = deepcopy(psbt)
     psbt.assert_valid()
@@ -2135,6 +2207,9 @@ def finalize(psbt: Psbt) -> Psbt:
     # every signature is against the same one
     tx = psbt.tx
     for vin_i, psbt_in in enumerate(psbt.inputs):
+        if psbt_in.final_script_sig or psbt_in.final_script_witness:
+            continue
+
         # a taproot input is finalized from its own fields and not from
         # partial_sigs, which is keyed by compressed key and holds ECDSA
         # signatures: a schnorr signature travels in PSBT_IN_TAP_KEY_SIG
@@ -2142,22 +2217,16 @@ def finalize(psbt: Psbt) -> Psbt:
         # aggregate signature of a MuSig2 session into them
         if is_p2tr(_spent_script(psbt_in)):
             script_sig, witness = _finalized_taproot_input(psbt, vin_i)
-            psbt_in.final_script_sig = script_sig
-            psbt_in.final_script_witness = witness
-            continue
+        else:
+            if not psbt_in.partial_sigs:
+                raise BTClibValueError("missing signatures")
+            _assert_sig_hash_type(psbt_in)
+            _assert_partial_sigs_verify(psbt_in, tx, vin_i)
+            script_sig, witness = _finalized_input(psbt_in)
 
-        if not psbt_in.partial_sigs:
-            raise BTClibValueError("missing signatures")
-        _assert_sig_hash_type(psbt_in)
-        _assert_partial_sigs_verify(psbt_in, tx, vin_i)
-        script_sig, witness = _finalized_input(psbt_in)
+        _clear_finalized(psbt_in)
         psbt_in.final_script_sig = script_sig
         psbt_in.final_script_witness = witness
-        psbt_in.partial_sigs = {}
-        psbt_in.sig_hash_type = None
-        psbt_in.redeem_script = b""
-        psbt_in.witness_script = b""
-        psbt_in.hd_key_paths = {}
     return psbt
 
 
