@@ -38,6 +38,9 @@ from urllib.request import Request
 import pytest
 
 from btclib.bitcoin_core_rpc import (
+    _CORE_CHAIN_FROM_NETWORK,
+    _DATADIR_SUBDIR,
+    _RPC_PORT,
     COOKIE_USER,
     DEFAULT_DATADIR,
     BitcoinCoreRpcClient,
@@ -1707,6 +1710,20 @@ def custom_signet(challenge: str) -> Network:
     return Network.from_dict(
         {**NETWORKS["signet"].to_dict(), "magic_bytes": _signet_magic(challenge).hex()}
     )
+
+
+def test_every_chain_with_a_port_has_a_datadir_and_a_name() -> None:
+    """The three tables are keyed by Core's chain names and must agree.
+
+    `from_chain` walks `_RPC_PORT` and then `_DATADIR_SUBDIR` with no
+    guard between them, so a chain in one and not the other is a bare
+    `KeyError` where every other failure in this module is a
+    `BTClibValueError`. A chain in neither `_CORE_CHAIN_FROM_NETWORK` is
+    reachable through `from_chain` and unreachable through the vocabulary
+    function meant to feed it -- silently, in both directions.
+    """
+    assert _RPC_PORT.keys() == _DATADIR_SUBDIR.keys()
+    assert _RPC_PORT.keys() == set(_CORE_CHAIN_FROM_NETWORK.values())
 
 
 def test_the_two_vocabularies_translate_both_ways() -> None:

@@ -4843,6 +4843,15 @@ edit.
   signature enumerates to the empty list where the singular raises "not a
   low s" — every candidate fails the rule and a failing candidate is
   dropped rather than reported
+- **`bitcoin_core_rpc`'s three chain tables are held in step.** `_RPC_PORT`,
+  `_DATADIR_SUBDIR` and `_CORE_CHAIN_FROM_NETWORK` agreed by construction and
+  nothing checked it: a chain added to `_RPC_PORT` alone passed `from_chain`'s
+  membership guard and then raised a bare `KeyError` at the
+  `_DATADIR_SUBDIR` lookup, not the `BTClibValueError` this module raises
+  everywhere else; added to both and not to `_CORE_CHAIN_FROM_NETWORK`, it
+  stayed reachable through `from_chain` while `core_chain_from_network`
+  refused to name it. One test now asserts all three keyed sets equal
+  (issue #418)
 
 ### Supported interpreters and dependencies
 
