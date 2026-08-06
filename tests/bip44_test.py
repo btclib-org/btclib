@@ -3,7 +3,14 @@
 # Distributed under the MIT software license, see the accompanying
 # LICENSE file or https://opensource.org/license/mit for the full text.
 
-"""Tests for the `btclib.bip44` module."""
+"""Tests for the `btclib.bip44` module.
+
+`descriptors.account_descriptors` is read here as well, against the same
+vectors: it answers with the receive and change descriptors of an account
+and reads the purpose off the same table, so the addresses it describes
+have to be the addresses this module derives. What is tested there is the
+function; what is tested here is that the two agree on published values.
+"""
 
 from __future__ import annotations
 
@@ -19,7 +26,9 @@ from btclib.bip44 import (
     SCRIPT_TYPE_FROM_PURPOSE,
     address_from_der_path,
 )
+from btclib.descriptors import account_descriptors
 from btclib.exceptions import BTClibValueError
+from btclib.to_pub_key import fingerprint
 
 # the "abandon abandon ... about" seed of BIP39, which BIP84 and BIP86
 # publish as a root key: the same key, spelled with two versions
@@ -119,6 +128,35 @@ def test_bip44_vectors(mxkey: str, xpub: str, der_path: str, address: str) -> No
     )
 
 
+@pytest.mark.parametrize("mxkey, xpub, der_path, address", _VECTORS)
+def test_the_account_descriptors_reach_the_same_addresses(
+    mxkey: str, xpub: str, der_path: str, address: str
+) -> None:
+    """`descriptors.account_descriptors` and this module are one mapping.
+
+    The purpose says which encoding a path means and both read it from the
+    same table, so the pair a wallet exports has to describe the addresses
+    this module answers for the same path: the change chain of the pair at
+    an index is the `/1/index` address, and the receive chain the `/0/`
+    one. The vectors above are published addresses, so this is the
+    descriptor half of them.
+
+    The account level is where the two split: `address_from_der_path`
+    walks all five levels, while a descriptor names the first three in its
+    key origin and derives the last two -- which is why the descriptors
+    are built from the account path alone.
+    """
+    account, chain, index = der_path.rsplit("/", 2)
+    pair = account_descriptors(mxkey, account)
+    assert pair[int(chain)].address(int(index)) == address
+
+    # and from the account xpub, which cannot say which master key it came
+    # from, so the fingerprint the origin needs is handed in
+    master_fingerprint = fingerprint(mxkey)
+    from_account = account_descriptors(xpub, account, master_fingerprint)
+    assert str(from_account[int(chain)]) == str(pair[int(chain)])
+
+
 def test_purpose_mapping() -> None:
     """The mapping is the one BIP44, BIP49, BIP84 and BIP86 define."""
     assert SCRIPT_TYPE_FROM_PURPOSE == {
@@ -212,9 +250,10 @@ def test_key_depth() -> None:
     with pytest.raises(BTClibValueError, match=err_msg):
         address_from_der_path(xpub, der_path)
 
-    # a key deeper than the path itself has no tail left to walk
+    # a key deeper than the path itself has no tail left to walk, and the
+    # bound is the path's own length: an account path is three levels
     xkey = bip32.derive(_ZPRV_ROOT, "m/84h/0h/0h/0/0/0")
-    err_msg = "invalid key depth: 6 is past the 5 levels of a BIP44 path"
+    err_msg = "invalid key depth: 6 is past the 5 levels of the path"
     with pytest.raises(BTClibValueError, match=err_msg):
         address_from_der_path(xkey, der_path)
 
