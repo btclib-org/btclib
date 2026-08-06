@@ -2786,6 +2786,25 @@ edit.
 
 ### The public API and the module layout
 
+- **a key expression remembers which hardening symbol spelled it**
+  (issue #381). `KeyExpression.hardening` is ``h`` or ``'``, whichever
+  the expression used, defaulting to ``h`` where it hardened nothing.
+  BIP380 gives the two one meaning, and they are two strings with two
+  checksums — `wpkh([00000000/84h/0h/0h]xpub…/0/*)` checksums to
+  `ny9ympxj` and the apostrophe spelling to `q46mpm33` — so a serializer
+  that cannot tell them apart hands back a descriptor that is not the
+  one it read.
+
+  One symbol for the whole expression, origin included, which is Bitcoin
+  Core's single `m_apostrophe` per key: the last hardened step read wins,
+  in the order the expression writes them — the origin's path, then the
+  key's, then the wildcard. A path spelled both ways, which is BIP380's
+  own valid `[deadbeef/0'/0h/0']`, is written back in the second symbol.
+  `BIP32KeyOrigin` does not carry it and does not change: an origin is a
+  fingerprint and a path whichever way the path was spelled, so two that
+  differ in nothing else stay equal, stay one hash and serialize to the
+  same bytes.
+
 - **a parsed descriptor holds no key that signs** (issue #381).
   `KeyExpression.xkey` kept the xprv the descriptor was written with, so
   a `repr()`, a log line or a bug report could carry it, and every
