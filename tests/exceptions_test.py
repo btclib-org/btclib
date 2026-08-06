@@ -1,12 +1,8 @@
-#!/usr/bin/env python3
+# Copyright (c) The btclib developers
+#
+# Distributed under the MIT software license, see the accompanying
+# LICENSE file or https://opensource.org/license/mit for the full text.
 
-# Copyright (C) The btclib developers
-#
-# This file is part of btclib. It is subject to the license terms in the
-# LICENSE file found in the top-level directory of this distribution.
-#
-# No part of btclib including this file, may be copied, modified, propagated,
-# or distributed except according to the terms contained in the LICENSE file.
 """Tests for `btclib.exceptions`, and for what an exception carries.
 
 The classes with nothing added to their base need no test of their own:
@@ -97,7 +93,7 @@ def _assert_same(back: BaseException, error: BaseException, fields: Any) -> None
         assert getattr(back, name) == value
 
 
-@pytest.mark.parametrize(("error", "args", "message", "fields"), CASES)
+@pytest.mark.parametrize("error, args, message, fields", CASES)
 def test_a_field_carrying_exception_says_what_it_carries(
     error: BaseException, args: tuple[Any, ...], message: str, fields: Any
 ) -> None:
@@ -112,7 +108,7 @@ def test_a_field_carrying_exception_says_what_it_carries(
     assert repr(error) == f"{type(error).__name__}{args!r}"
 
 
-@pytest.mark.parametrize(("error", "args", "message", "fields"), CASES)
+@pytest.mark.parametrize("error, args, message, fields", CASES)
 def test_a_field_carrying_exception_survives_pickle(
     error: BaseException, args: tuple[Any, ...], message: str, fields: Any
 ) -> None:
@@ -123,7 +119,7 @@ def test_a_field_carrying_exception_survives_pickle(
     assert str(back) == message
 
 
-@pytest.mark.parametrize(("error", "args", "message", "fields"), CASES)
+@pytest.mark.parametrize("error, args, message, fields", CASES)
 def test_a_field_carrying_exception_survives_copy(
     error: BaseException, args: tuple[Any, ...], message: str, fields: Any
 ) -> None:
@@ -134,7 +130,7 @@ def test_a_field_carrying_exception_survives_copy(
         assert str(back) == message
 
 
-@pytest.mark.parametrize(("error", "args", "message", "fields"), CASES)
+@pytest.mark.parametrize("error, args, message, fields", CASES)
 def test_the_message_is_composed_once(
     error: BaseException, args: tuple[Any, ...], message: str, fields: Any
 ) -> None:

@@ -1546,6 +1546,12 @@ edit.
   second `(rpc error code -5)` every time. `str(e)` is unchanged; `e.args`
   is the tuple of arguments now rather than a one-tuple of the composed
   message, and `repr(e)` names the fields with it (issue #391)
+- `tests/exceptions_test.py`, added for the entry above, carried a
+  shebang line and the pre-uv copyright header instead of the one every
+  other file states, and its four `parametrize` calls passed the names
+  as a tuple where `pyproject.toml` sets `parametrize-names-type = "csv"`
+  for a reason: neither had been caught before merging, so `dev`'s lint
+  job has been red since.
 
 ### Curves, signatures and keys
 
