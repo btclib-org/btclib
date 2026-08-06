@@ -19,6 +19,35 @@ edit.
 
 ### Repository
 
+- **the Bitcoin Core rpc client is a package of its own**, and btclib
+  depends on it rather than carrying it. `btclib/bitcoin_core_rpc.py` was
+  one standard-library-only source file that a project could copy whole
+  rather than depend on btclib for, which is a distribution shape and not
+  a module of a bitcoin library: it is
+  [bitcoin-core-rpc](https://github.com/btclib-org/btclib-bitcoin-core-rpc)
+  now, and what left with it is the client, its bounded `urllib`
+  transport, their tests, the live-node smoke script and workflow, and the
+  mutation profile that measured them. What stays is `btclib.fetch`: the
+  answers turned into btclib types, and `assert_network`.
+  `btclib.fetch.transport` and `btclib.fetch.bitcoin_core` re-export the
+  package's names, so every import path a caller had still resolves except
+  `btclib.bitcoin_core_rpc` itself.
+- **`btclib.exceptions` declares its own six classes again.** They were
+  defined in the vendorable file and re-exported here, an exception
+  wanting one identity; with the file gone the choice was to import
+  btclib's three *base* classes from a protocol client -- which is what
+  most of the library would then depend on -- or to declare them here and
+  translate at the boundary. `btclib.fetch.fetcher.client_errors` is that
+  translation, re-raising the package's `FetchError`, `HttpError` and
+  `RpcError` as btclib's with the `status` and the `code` carried across,
+  and `args[0]` rather than `str(e)` so a message composed in `__str__` is
+  not composed twice. `EsploraFetcher.text` and
+  `BitcoinCoreFetcher._call` are the two lines that cross.
+- **`import btclib.exceptions` no longer loads `urllib.request`**, nor the
+  `ssl` and `socket` under it. That cost was what the one bottom-upwards
+  import in the package bought, and most of the library pays it: an
+  exception is what most of the library raises. `tests/imports_test.py`
+  measures it in a fresh interpreter now rather than pinning its extent.
 - `TODO.md` is gone, and every one of its lines is accounted for. Eighteen
   became issues (#184 to #194, #196 to #202): the feature requests the file
   had carried for years — a full-node RPC client, descriptors beyond the

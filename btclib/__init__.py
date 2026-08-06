@@ -14,12 +14,10 @@ added to the directory would publish itself rather than being published.
 
 That walk is also what `docs/proposals/cli.md` reads to build the command
 tree of the out-of-repo command line, and there it is a starting point
-rather than the whole answer: a module can be published and carry no
-commands, `bitcoin_core_rpc` being the one that does -- `cookie_auth`
-returns a node's credential, and a command spelling of it would print one.
-The command tree is this tree minus the exclusions that proposal records,
-which is a distinction the published surface cannot express and does not
-try to.
+rather than the whole answer: a module can be published and carry nothing
+a command should spell. The command tree is this tree minus the exclusions
+that proposal records, which is a distinction the published surface cannot
+express and does not try to.
 
 `name` is not in it, nor are the metadata dunders. `name` is the
 distribution's name and not a member of the tree, `__version__` bound by
@@ -85,7 +83,6 @@ __all__ = [
     "bip21",
     "bip32",
     "bip44",
-    "bitcoin_core_rpc",
     "block",
     "curves",
     "descriptors",

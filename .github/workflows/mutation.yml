@@ -120,18 +120,6 @@ jobs:
             ceiling: 45
             sessions: |
               parsers.toml 30m
-          # the standalone Bitcoin Core rpc client, whose boundaries are a
-          # protocol's rather than a format's: 719 mutants enumerate, 187 are
-          # skipped by the annotation filter that configuration explains, and
-          # the 532 left take a couple of minutes of wall clock. Its own cell
-          # for the reason the parsers have one, and the same budget for the
-          # same reason -- 30 minutes is an order of magnitude over the
-          # measurement, which is what a slower runner is worth
-          - profile: the standalone RPC client
-            slug: rpc
-            ceiling: 45
-            sessions: |
-              bitcoin_core_rpc.toml 30m
     steps:
       # every action is pinned to a commit SHA, the tag in the comment: a
       # tag, let alone a branch, is a name its owner can move

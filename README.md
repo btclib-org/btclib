@@ -163,20 +163,25 @@ with `ecc.bms`, so it imports `bip44` and nothing imports it. `fetch`
 sits up there too, and is the one package that goes out to the network:
 nothing below it imports it.
 
-One module of that stack is not up there, and deliberately:
-`btclib.bitcoin_core_rpc` holds the Bitcoin Core rpc client, its bounded
-`urllib` transport, and the exceptions the fetchers raise — `FetchError`
-when a backend did not answer, `HttpError` carrying a status, from either
-fetcher, and `RpcError` carrying a node's error code, which only the rpc one
-can raise. It is one standard-library-only source file, so that a project
-can copy it whole rather than depend on btclib. `btclib.exceptions`
-re-exports those three, an exception being no use if it has two identities,
-so a module most of the library imports reaches this one. That is the one
-import here that runs from the bottom upwards, and its price: every import
-which reaches `btclib.exceptions` loads `urllib.request` too, which is most
-of the library — `import btclib` and `btclib.alias` are the kind that do
-not. Nothing connects to anything for it: constructing a client opens no
-socket, and the first call is what does.
+The Bitcoin Core rpc client `fetch` speaks through is not in that stack at
+all: it is
+[bitcoin-core-rpc](https://github.com/btclib-org/btclib-bitcoin-core-rpc),
+a package of its own that btclib depends on. One file with nothing but the
+standard library behind it, installable or copyable, and usable without
+btclib by anyone who wants a node client and no bitcoin library. What
+btclib adds on top is `btclib.fetch`: the answers turned into `Tx` and
+`TxOut`, and the chain the node reports checked against the network those
+are labelled for.
+
+The dependency stops at `btclib/fetch/`. The exceptions a `Fetcher` raises
+are `btclib.exceptions`' own — the package declares its own `FetchError`,
+importing nothing of btclib's being what lets its one file be vendored, and
+`btclib.fetch.fetcher.client_errors` re-raises them as btclib's with the
+`status` and the `code` carried across. So an `except FetchError` written
+against btclib catches what a fetcher raises, and no module outside that
+package loads `urllib.request` to find out. Nothing connects to anything
+either: constructing a client opens no socket, and the first call is what
+does.
 
 ---
 

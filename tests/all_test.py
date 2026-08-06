@@ -20,10 +20,10 @@ what keeps it, rather than a reviewer noticing.
 from the root, into every module-valued export, down to a node that has
 none. The command line of `docs/proposals/cli.md` walks the same edges and
 stops at a shorter list: what it publishes as a command group is this tree
-minus the exclusions that proposal records, `bitcoin_core_rpc` being the one
-today. So this test descends into that module deliberately -- the export
-tree is what it is about -- and the assertion that the command tree does not
-belongs to the walker, where the proposal asks for it.
+minus the exclusions that proposal records. So this test descends
+everywhere the export tree goes -- that tree is what it is about -- and
+the assertion that the command tree does not belongs to the walker, where
+the proposal asks for it.
 
 These tests are written against the names rather than the counts, so that a
 deliberate addition is one line here and an accidental one is a failure.
@@ -38,6 +38,7 @@ from pathlib import Path
 from pkgutil import iter_modules, walk_packages
 from types import ModuleType
 
+import bitcoin_core_rpc
 import pytest
 
 import btclib
@@ -46,7 +47,6 @@ import btclib.ecc
 import btclib.mnemonic
 import btclib.psbt
 import btclib.script
-from btclib import bitcoin_core_rpc
 from btclib.curves import curve_group, curve_group_2
 from btclib.psbt import psbt_utils
 from btclib.script import script_pub_key
@@ -63,27 +63,18 @@ UNEXPORTED = {
 }
 
 # what a module exports without defining it, which for a module rather than a
-# package is a leak -- and these three are the exception, all of it one
-# decision. `btclib.bitcoin_core_rpc` is the canonical source of the rpc
-# client, its transport and the exceptions both raise, and it is a file meant
-# to be copied out of the package whole, so it imports nothing of btclib's;
-# the three modules below are where those objects were before that file
-# existed, and they alias them rather than declaring a second of anything.
-# An exception has one identity, a transport has one bounded-read policy, and
+# package is a leak -- and these two are the exception, both of it one
+# decision. The `bitcoin-core-rpc` package is the canonical source of the rpc
+# client and of the transport under it, and btclib depends on it rather than
+# carrying a copy; the two modules below are where those objects were before
+# it was a package of its own, and they alias them rather than declaring a
+# second of anything. A transport has one bounded-read policy, and
 # an import path that used to work still does.
 #
 # So a name here is not a name about to leak: it is the same object under the
 # name a caller already had. What would be a leak is a *fourth* module, or a
 # name in these three that the canonical file does not export
 REEXPORTED = {
-    "btclib.exceptions": [
-        "BTClibRuntimeError",
-        "BTClibTypeError",
-        "BTClibValueError",
-        "FetchError",
-        "HttpError",
-        "RpcError",
-    ],
     "btclib.fetch.bitcoin_core": [
         "COOKIE_USER",
         "DEFAULT_DATADIR",
@@ -541,10 +532,10 @@ def test_no_module_exports_a_name_it_imported() -> None:
     module with a reason to re-export something is a conversation to have
     with this test, not around it.
 
-    `REEXPORTED` is that conversation, held once: the three modules whose
-    objects moved into the vendorable `btclib.bitcoin_core_rpc` alias them
-    back under the names callers had, an exception and a transport each
-    having one identity to keep.
+    `REEXPORTED` is that conversation, held once: the two modules whose
+    objects moved into the `bitcoin-core-rpc` package alias them back under
+    the names callers had, a transport having one bounded-read policy to
+    keep.
 
     Asserted both ways, because a skip list is only half a table: it says
     which names may be re-exported and nothing about whether they still are,
@@ -569,8 +560,7 @@ def test_no_module_exports_a_name_it_imported() -> None:
         )
         for name in allowed:
             assert getattr(module, name) is getattr(bitcoin_core_rpc, name), (
-                f"{module.__name__}.{name} is not the canonical"
-                f" btclib.bitcoin_core_rpc.{name}"
+                f"{module.__name__}.{name} is not the canonical bitcoin_core_rpc.{name}"
             )
 
 

@@ -5,26 +5,43 @@
 
 """The btclib fetcher backed by a `BitcoinCoreRpcClient`.
 
-The client itself lives in `btclib.bitcoin_core_rpc`: that file has no btclib
-or third-party import and can be vendored as one source file. The imports below
-keep the original `btclib.fetch.bitcoin_core` client path working while this
-module provides only the integration with btclib transactions and networks.
+The client itself is the `bitcoin-core-rpc` package: one file with nothing
+but the standard library behind it, installable or vendorable, and no part
+of btclib. What this module adds is the integration -- the answers turned
+into btclib transactions, and the chain the node serves compared with the
+network those transactions are labelled for.
+
+The five names it re-exports are the package's own, unchanged, so that
+`from btclib.fetch.bitcoin_core import BitcoinCoreRpcClient` keeps
+resolving. Their behaviour is the package's too, exceptions included: a
+`client.call` reached that way raises `bitcoin_core_rpc.RpcError`, not
+`btclib.exceptions.RpcError`. The `Fetcher` interface is where btclib's
+own exceptions are promised, and `_call` below is the line that makes it
+true.
 """
 
-from collections.abc import Mapping
+from collections.abc import Mapping, Sequence
 from typing import Any
 
-from btclib import var_bytes
-from btclib.alias import Octets
-from btclib.bitcoin_core_rpc import (
+import bitcoin_core_rpc as rpc
+from bitcoin_core_rpc import (
     COOKIE_USER,
     DEFAULT_DATADIR,
     BitcoinCoreRpcClient,
     cookie_auth,
     core_chain_from_network,
 )
+
+from btclib import var_bytes
+from btclib.alias import Octets
 from btclib.exceptions import BTClibValueError
-from btclib.fetch.fetcher import Fetcher, fetch_errors, tx_from_raw, tx_id_hex
+from btclib.fetch.fetcher import (
+    Fetcher,
+    client_errors,
+    fetch_errors,
+    tx_from_raw,
+    tx_id_hex,
+)
 from btclib.hashes import hash256
 from btclib.network import NETWORKS
 from btclib.tx import Tx
@@ -76,6 +93,29 @@ class BitcoinCoreFetcher(Fetcher):
         super().__init__(network)
         self.client = client
 
+    def _call(
+        self,
+        method: str,
+        params: Sequence[Any] | Mapping[str, Any] | None = None,
+        *,
+        max_body_size: int | None = None,
+    ) -> Any:
+        """Invoke one rpc method, raising btclib's exceptions for it.
+
+        The one line of this class that crosses into `bitcoin_core_rpc`,
+        which is why every method below goes through it: the package
+        declares a `FetchError` of its own, and what a `Fetcher` promises
+        its caller is `btclib.exceptions`'. `client_errors` carries the
+        `status` and the `code` across.
+
+        `max_body_size` is omitted rather than passed as None when a
+        caller does not narrow it, so the client's own default -- the
+        widest ordinary answer -- is what applies.
+        """
+        bound = {} if max_body_size is None else {"max_body_size": max_body_size}
+        with client_errors():
+            return self.client.call(method, params, **bound)
+
     def get_tx(self, tx_id: Octets) -> Tx:
         """Return the transaction with this id.
 
@@ -86,19 +126,19 @@ class BitcoinCoreFetcher(Fetcher):
         other. Without the index the error is RPC code -5.
         """
         hex_ = tx_id_hex(tx_id)
-        raw = self.client.call("getrawtransaction", [hex_])
+        raw = self._call("getrawtransaction", [hex_])
         return tx_from_raw(raw, hex_, self.network)
 
     def get_block_count(self) -> int:
         """Return the height of the node's best chain tip."""
         with fetch_errors("getblockcount"):
-            reply = self.client.call("getblockcount", max_body_size=_MAX_SMALL_REPLY)
+            reply = self._call("getblockcount", max_body_size=_MAX_SMALL_REPLY)
             return int(reply)
 
     def get_best_block_id(self) -> bytes:
         """Return the hash of the node's best chain tip, display order."""
         with fetch_errors("getbestblockhash"):
-            reply = self.client.call("getbestblockhash", max_body_size=_MAX_SMALL_REPLY)
+            reply = self._call("getbestblockhash", max_body_size=_MAX_SMALL_REPLY)
             return bytes_from_octets(reply, 32)
 
     def assert_network(self) -> None:
@@ -131,7 +171,7 @@ class BitcoinCoreFetcher(Fetcher):
         which chain it serves, so the fetcher's label is the thing to fix.
         """
         with fetch_errors("getblockchaininfo"):
-            info: Any = self.client.call("getblockchaininfo")
+            info: Any = self._call("getblockchaininfo")
             if not isinstance(info, Mapping):
                 err_msg = f"not a JSON object: {type(info).__name__}"
                 raise BTClibValueError(err_msg)
@@ -165,8 +205,14 @@ class BitcoinCoreFetcher(Fetcher):
             return
         try:
             expected_chain = core_chain_from_network(self.network)
-        except BTClibValueError as e:
-            # a Network the caller registered: its name is btclib's alone,
+        except rpc.BTClibValueError as e:
+            # the package's BTClibValueError and not btclib's, which is what
+            # the function above raises: it is `bitcoin_core_rpc`'s, and that
+            # package declares its own exceptions -- catching the wrong one
+            # here would let a name it does not know escape as something no
+            # caller of `assert_network` is told to expect.
+            #
+            # A Network the caller registered: its name is btclib's alone,
             # so there is nothing to compare a chain name with, and only a
             # signet carries an identity a node can be asked for
             err_msg = f"the node is on {chain}, and {self.network} is no"

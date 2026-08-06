@@ -74,9 +74,9 @@ arithmetic, and three mnemonic standards where Electrum reads two.
 **The command tree is `__all__` minus the recorded exclusions.** Every
 module and package of the library declares one, at every depth, so the
 commands of a group are the names its list holds, and the only decision
-left is the short list of published modules that carry no commands — one
-entry today, `btclib.bitcoin_core_rpc`, for the reason Phase 4 gives, and
-the test that builds the tree is to assert it rather than discover it. What
+left is the short list of published modules that carry no commands — empty
+today, for the reason Phase 4 gives, and the test that builds the tree is
+to assert that list rather than discover it. What
 the published tree settles is everything else: `btclib script serialize`
 and `btclib bip32 derive` sit on the group because those two packages
 re-export them, while `sig_hash` and `bip39` are not re-exported and
@@ -626,41 +626,31 @@ fetch         get-tx  get-tx-out  get-block-count  get-best-block-id
 bip21         parse  serialize
 ```
 
-**`bitcoin_core_rpc` is published and is not a group.** It is in
+**The rpc client is not in the tree at all, and that settles a question
+this proposal used to answer at length.** While
+`btclib.bitcoin_core_rpc` was a module of this package it was in
 `btclib.__all__` — the root publishes every top-level module, and the suite
-asserts that — so a walker reaches it, and what it would find there is not a
+asserts that — so a walker reached it, and what it found there was not a
 command surface: exception classes, size and timeout constants, the
 `HttpTransport` protocol, `http_request` and `urlopen_transport`, the client
 class, and `cookie_auth`. That last one reads a node's credential and
 returns it, so a command spelling of it would print a live rpc password to a
-terminal and into whatever shell history or CI log is watching. The node
-commands are the `fetch` group above, which is the same client with the
-btclib types on top.
+terminal and into whatever shell history or CI log is watching. It therefore
+needed a recorded exclusion, by name, because no predicate separated it from
+`alias` and `exceptions` mechanically.
 
-So the walker needs to be told, and by name: **`btclib.bitcoin_core_rpc` is
-excluded from the command tree**, one line in the walker's table beside the
-reason. Not a predicate over what the module exports, which was the first
-attempt and does not hold: `alias` and `exceptions` do publish only types and
-constants, and this module publishes `http_request`, `urlopen_transport` and
-`cookie_auth`, which are operations by any reading. A criterion that a
-walker could apply and that separates them mechanically is not available, and
-inventing a marker in the source is worse: it would travel into every
-vendored copy of a file whose whole point is to carry nothing this repository
-needs.
+It is now the
+[bitcoin-core-rpc](https://github.com/btclib-org/btclib-bitcoin-core-rpc)
+package, which btclib depends on and does not publish, so the walker never
+reaches it and there is nothing to exclude. **The exclusion table is empty
+today**, and the traversal contract above is the whole of the rule: the
+command tree is the published tree. The node commands are the `fetch` group,
+which is that client with the btclib types on top.
 
-The alternative — leaving the module out of the root's `__all__` — was
-rejected: the vendorable file is API, a caller imports it by name, and a
-public tree that omits what it publishes would be the drift `__all__` was
-declared to end. Excluding it from the *command* tree costs one recorded
-line; excluding it from the *public* tree would cost the property the tree
-exists for.
-
-So the exclusion is normative and not advisory, and the traversal contract
-above says so: the command tree is the published tree minus this list, and
-the walker's test asserts that `bitcoin-core-rpc` is not a group. A mirror
-that skipped the assertion would publish `cookie_auth` as a command, which
-is why it is the one thing about the command tree this proposal asks a test
-to check rather than a reader to notice.
+The table stays in the design even so, because the question it answers
+recurs: a published module carrying no commands is a thing this tree can
+grow again, and the answer of record is one line naming it beside the
+reason, never a predicate over what a module exports.
 
 The two `Fetcher` implementations are two option sets, not two command
 trees: `--rpc-url` with a cookie file for `bitcoind`, `--esplora-url`

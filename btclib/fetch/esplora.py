@@ -35,7 +35,13 @@ from __future__ import annotations
 
 from btclib.alias import Octets
 from btclib.exceptions import HttpError
-from btclib.fetch.fetcher import Fetcher, fetch_errors, tx_from_raw, tx_id_hex
+from btclib.fetch.fetcher import (
+    Fetcher,
+    client_errors,
+    fetch_errors,
+    tx_from_raw,
+    tx_id_hex,
+)
 from btclib.fetch.transport import (
     DEFAULT_MAX_BODY_SIZE,
     DEFAULT_TIMEOUT,
@@ -118,14 +124,20 @@ class EsploraFetcher(Fetcher):
         attempt, and telling it from a 404 without reading a message is
         what the field is for. btclib retries nothing itself -- an
         explorer's rate limit is the caller's budget to spend.
+
+        `client_errors` because `http_request` is `bitcoin_core_rpc`'s and
+        raises that package's exceptions: a refused connection reaching a
+        caller as something no `except FetchError` of btclib's catches is
+        what it is there to prevent.
         """
         url = f"{self.base_url}{path}"
-        status, payload = http_request(
-            url,
-            timeout=self.timeout,
-            max_body_size=max_body_size,
-            transport=self.transport,
-        )
+        with client_errors():
+            status, payload = http_request(
+                url,
+                timeout=self.timeout,
+                max_body_size=max_body_size,
+                transport=self.transport,
+            )
         text = payload.decode("utf-8", errors="replace").strip()
         if status != 200:
             raise HttpError(f"HTTP {status} from {url}: {text}", status)

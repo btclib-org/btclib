@@ -60,8 +60,19 @@ requires-python = ">=3.10"
 # The lower bound is the oldest final release this version supports, and
 # 0.7.1rc1 is below it: the candidate is what the pin named while nothing
 # final satisfied it, and what btclib is developed and tested against is
-# now a release
-dependencies = ["btclib_libsecp256k1>=0.7.1"]
+# now a release.
+#
+# bitcoin-core-rpc is the second, and the same reasoning applies to its
+# ceiling: another btclib-org project, released by the same people, so a
+# breaking change there is coordinated rather than guarded against here.
+# It is one file with nothing but the standard library behind it, so
+# depending on it adds no transitive anything -- what it replaces is the
+# copy of that file btclib used to carry, and `btclib/fetch/` is the whole
+# of what reaches it
+dependencies = [
+    "btclib_libsecp256k1>=0.7.1",
+    "bitcoin-core-rpc>=2026.8",
+]
 keywords = [
     "bitcoin",
     "cryptography",
@@ -159,6 +170,30 @@ dev = [
 # bare minimum specifier makes it install the latest uv, so the runners
 # are never behind the floor and there is nothing here to go stale
 required-version = ">=0.12.0"
+
+# TEMPORARY, and the one thing in this pull request to delete before it
+# merges: bitcoin-core-rpc is not on PyPI yet -- both indices answer 404 --
+# so without a source uv cannot resolve it and there is no lock to commit
+# at all. Pointing at the branch makes this reviewable.
+#
+# It also defeats the one job that would have caught the missing package,
+# which is the reason this cannot merge and not merely a note. `dist-py`
+# builds a constraints file with `uv export --locked`, and that export
+# carries the source:
+#
+#     bitcoin-core-rpc @ git+https://github.com/btclib-org/...@<sha>
+#
+# so the step named "with its dependencies from PyPI" installs from git
+# and passes. Measured: `dist-py` is green on this branch, and a plain
+# `uv pip install dist/*.whl` against the index is not --
+# "bitcoin-core-rpc was not found in the package registry". Do not read
+# that green as the wheel being installable.
+#
+# btclib carried a `tool.uv.sources` for the bindings once and removed it
+# when they were published: this goes the same way, and the dependency
+# above is already written as the ordinary requirement it becomes
+[tool.uv.sources]
+bitcoin-core-rpc = { git = "https://github.com/btclib-org/btclib-bitcoin-core-rpc", rev = "dev" }
 
 [tool.setuptools.packages.find]
 include = ["btclib*"]
@@ -430,8 +465,8 @@ show_error_codes = true
 # list. All three found something: a runtime isinstance guard on a value
 # whose static type promises more than an untrusted source -- unvalidated
 # json in network.py's from_dict, a caller ignoring an annotation in
-# bitcoin_core_rpc.py and bip21.py, an operator's own dispatch protocol in
-# script.py's __add__ -- can guarantee. Each of those sites carries its own
+# bip21.py, an operator's own dispatch protocol in script.py's __add__ --
+# can guarantee. Each of those sites carries its own
 # `# type: ignore[...]` naming the code rather than a second global
 # exemption: the check is worth having everywhere else, and a blanket
 # ignore-list entry would have silenced it there too
@@ -478,6 +513,28 @@ python_version = "3.10"
 exclude = [
     "build",
 ]
+
+[[tool.mypy.overrides]]
+# bitcoin-core-rpc is annotated throughout and type checked in strict mode
+# in its own repository, but it cannot say so from here: PEP 561's marker
+# is a `py.typed` file inside a package directory, and that distribution is
+# a top-level module with no directory to put one in. Measured against the
+# installed wheel: without this, every name imported from it is `Any` --
+# which under `strict` is eight errors about the import and two more about
+# the `Any` leaking into a return type, and, worse, silence wherever it
+# should have been checking.
+#
+# So the annotations are read off the installed source instead. Scoped to
+# the one module rather than set globally: `follow_untyped_imports` at the
+# top of this table would extend the same trust to any dependency that
+# stops shipping a marker, and there is no other untyped import here to
+# want it. The alternatives are the other repository's to take -- a
+# `bitcoin_core_rpc-stubs` distribution, which is a hand-written second
+# copy of the interface, or a package directory, which costs the file the
+# single name that makes it copyable -- and its pyproject.toml records why
+# it took neither
+module = ["bitcoin_core_rpc"]
+follow_untyped_imports = true
 
 [tool.ruff]
 # target-version is inferred from project.requires-python
@@ -600,14 +657,10 @@ ignore = [
 # prints are the interface, not a debugging leftover -- unlike a print
 # anywhere else in the library, which is deleted rather than ignored
 "btclib/mnemonic/entropy.py" = ["T201"]
-# the smoke script's output is the whole of what it produces: it runs a
-# bitcoind and prints, one line each, the claim every check confirmed, so
-# the log of a green run is the list of what a live node was actually
-# asked. T20 is selected for the library, which writes to no stream of its
-# own; a script whose caller is a workflow step is the case it is not about
-".github/scripts/rpc_smoke.py" = ["T201"]
-# and the same for the mutation counter, whose one line of output is what
-# the workflow step exists to put in the log
+# the mutation counter's one line of output is what the workflow step
+# exists to put in the log. T20 is selected for the library, which writes
+# to no stream of its own; a script whose caller is a workflow step is the
+# case it is not about
 ".github/scripts/mutation_counts.py" = ["T201"]
 # and the vendored-vector checker: BEHIND, SKIPPED and the all-clear line
 # are what a monthly run's log says happened, the issue it opens or

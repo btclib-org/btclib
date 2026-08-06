@@ -22,6 +22,7 @@ from __future__ import annotations
 
 import importlib
 import pkgutil
+import subprocess
 import sys
 from collections.abc import Iterator
 
@@ -78,31 +79,39 @@ def test_import_first(module_name: str, unimported_btclib: None) -> None:
     assert importlib.import_module(module_name).__name__ == module_name
 
 
-def test_exceptions_reaches_the_rpc_client_and_nothing_more(
+def test_exceptions_imports_nothing_of_btclibs_and_no_client(
     unimported_btclib: None,
 ) -> None:
-    """btclib.exceptions imports btclib.bitcoin_core_rpc, and only that.
+    """btclib.exceptions declares its own classes and reaches nothing.
 
-    The one import in the package that runs from the bottom upwards, and a
-    decision rather than a cycle: `FetchError`, `HttpError` and `RpcError`
-    are defined in the standalone client and re-exported here, so that the
-    class is one whichever of the import paths a caller took. Reversing it
-    means either two `FetchError` classes or a `FetchError` that an `except
-    BTClibRuntimeError` does not catch, and `btclib/exceptions.py` says so
-    where the import is.
+    It used to import the rpc client, which was in-tree then and defined
+    the six classes this module now declares. That put `urllib.request`,
+    and `ssl` and `socket` under it, behind every import reaching here --
+    which is most of the library, an exception being what most of it
+    raises. Since the client became a package of its own, the classes are
+    btclib's again and `btclib.fetch.fetcher.client_errors` translates at
+    the one boundary that needs it.
 
-    What is pinned here is the extent of it. That module imports nothing of
-    btclib's, so this set is the whole cost: a fetcher, a transaction or an
-    address encoding reached from `btclib.exceptions` would put most of the
-    library behind every import that reaches this module, which is most of
-    the library in turn.
+    So the cost pinned here is nothing at all: no btclib module beyond
+    this one, and no socket machinery. `sys.modules` is what says so,
+    rather than a timing.
     """
     importlib.import_module("btclib.exceptions")
-    assert set(btclib_modules()) == {
-        "btclib",
-        "btclib.bitcoin_core_rpc",
-        "btclib.exceptions",
-    }
+    assert set(btclib_modules()) == {"btclib", "btclib.exceptions"}
+
+    # a subprocess for the half `unimported_btclib` cannot arrange: that
+    # fixture takes btclib out of `sys.modules` and leaves every other
+    # package where it is, so a `bitcoin_core_rpc` some earlier test
+    # imported is still there and asserting its absence in this
+    # interpreter would fail for a reason that is not the one under test.
+    # A fresh interpreter has neither, and importing this module is the
+    # whole of what runs in it
+    probe = "import btclib.exceptions, sys; print(sorted(sys.modules))"
+    loaded = subprocess.run(  # noqa: S603
+        [sys.executable, "-c", probe], check=True, capture_output=True, text=True
+    ).stdout
+    assert "'bitcoin_core_rpc'" not in loaded
+    assert "'urllib.request'" not in loaded
 
 
 def test_address_encodings_stay_below_script(unimported_btclib: None) -> None:
