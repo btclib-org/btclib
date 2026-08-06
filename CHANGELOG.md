@@ -5101,8 +5101,8 @@ edit.
   README: only entries whose `behind` already reads 0, an entry already
   documented as behind being a gap someone already decided not to close,
   which re-reporting monthly would only turn into noise. Every heading
-  the script does not check for that reason, or because one pin serves
-  several files (BIP327's eight, BIP324's two), is named in its own
+  the script does not check for that reason, or because its path is a
+  placeholder standing in for several real ones, is named in its own
   report, so nothing reads as checked that was not. `issues: write` is
   new to this repository -- every other scheduled workflow stops at
   `contents: read`, on purpose, and this one does not, also on purpose
@@ -5117,6 +5117,19 @@ edit.
   name for the field renamed `PSBT_IN_TAP_KEY_SIG` between the original
   pin and the tip, and both labels now read the field's current name --
   the `encoded psbt` of every case is unchanged throughout
+- **BIP327's eight files and BIP324's two are pinned one real path at a
+  time now, not one placeholder path standing in for a whole
+  directory**, which is what brings all ten into the monthly check
+  above: a placeholder is not a path GitHub's own "commits touching a
+  path" call can be asked about. Splitting BIP324's pair changed
+  nothing else, both genuinely tipped by one commit throughout. BIP327's
+  eight were not: the placeholder cited one commit as the tip of all
+  eight paths, but that commit touches only `sig_agg_vectors.json`; six
+  of the other seven have been untouched since the commit that added
+  all eight in 2023, and `sign_verify_vectors.json` was fixed once more
+  in between. Each of the eight is now pinned to its own real tip, and
+  every one is still the blob already vendored -- nothing to refresh,
+  the fix is only in which commit each cites
 - **80 columns on the prose, and the yaml measured for the first time.**
   `ruff-format` reflows code to its 88 columns and never touches a
   comment or a docstring, which is why `E501` is ignored and stays so:

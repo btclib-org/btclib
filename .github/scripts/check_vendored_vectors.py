@@ -14,23 +14,26 @@ is an issue, never a commit.
 
 Scope is narrower than the README: only entries whose `behind` already
 reads 0 -- the ones a human last confirmed were exactly at upstream's
-tip. An entry already documented as behind (BIP32's mediawiki, 14
-revisions, none touching the vectors) is a decision already made, and
+tip. An entry documented as behind is a decision already made, and
 re-reporting the same gap every month would just be noise; if a *new*
 commit moves it further, `behind`'s own count in the README goes stale
 in a way this script cannot see either, which is the reason it never
 tries to judge relevance, only tip-vs-pinned identity.
 
-Three shapes in the README this script does not attempt: a path
-carrying a `<name>` placeholder (BIP327's eight files and BIP324's two
-share one pin across a directory, not a single path), an entry with no
+Two shapes in the README this script does not attempt: an entry with no
 `commit` at all (chain data self-identified by hash, files this project
-composed itself), and a `repo`/`path` pair naming prose rather than a
-single blob (transcribed BIPs, already excluded by the `behind != 0`
-rule above in every current case, but not guaranteed to always be).
-Every heading the README carries but this script did not check is
-listed in its own report, so nothing silently reads as "checked and
-clean" that was not checked at all.
+composed itself, a section heading with no pin of its own), and a path
+carrying a `<name>` placeholder -- one pin standing in for several real
+paths under a directory, which the "commits touching a path" call above
+cannot be asked about in one request. No current entry uses that shape:
+BIP327's eight files and BIP324's two were themselves written that way
+once, each pin citing one commit as the tip of every path it stood in
+for. Splitting them into one pin per real path is what brought them
+into this script's scope, and also corrected BIP327's, whose shared
+commit was the tip of only one of the eight. Every heading the README
+carries but this script did not check is listed in its own report, so
+nothing silently reads as "checked and clean" that was not checked at
+all.
 
     python .github/scripts/check_vendored_vectors.py tests/_data/README.md
 """
