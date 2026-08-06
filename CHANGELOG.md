@@ -2786,6 +2786,37 @@ edit.
 
 ### The public API and the module layout
 
+- **the Updater has an output half: `Descriptor.update_psbt_output`**
+  (issue #381), and `update_psbt` is `update_psbt_input`. An input told a
+  psbt what it needed to be spent; nothing told a psbt what an output is,
+  which is what a signing device reads to tell change from a payment — it
+  derives the script itself and sees that the money comes back.
+
+  The same fields, on the map an output has: the redeem script of a
+  `sh()`, the witness script of a `wsh()`, the internal key of a `tr()`
+  and the origin of every key that carries one. One writer serves both,
+  BIP174 giving the two maps the same field wherever it means the same
+  thing, and `tr()` is the one that parts company: an input carries the
+  merkle root and the leaf it spends, an output carries
+  `PSBT_OUT_TAP_TREE` — every leaf with the depth it sits at, depth-first.
+  That is more than the root an input has, and deliberately: a root proves
+  nothing about the scripts under it, where the tree lets a reader fold
+  the leaves back up, tweak the internal key and land on the output key
+  itself, which is what the suite does with it. BIP373's participant list
+  is written on an output too, which is what tells a wallet that an output
+  comes back to a group it is in.
+
+  **The script is checked, where the input half checks nothing**: the
+  output being paid is in the psbt already, so this refuses unless the
+  descriptor derives exactly that script at that index. Marking an output
+  as one's own is a claim about where money goes, and the only evidence
+  for it is the whole script — never a key origin whose four-byte
+  fingerprint matches, which collides and which whoever wrote the psbt
+  chose. `Descriptor.index_of` is the same question the other way round,
+  answering which index of a descriptor pays to a script and None where
+  none does, over a range the caller bounds: how far ahead of its own gap
+  limit a wallet looks is not this module's policy.
+
 - **`btclib.core_import` is new: the requests Bitcoin Core's
   `importdescriptors` takes** (issue #381). `import_request` is one json
   object and `account_import_requests` the pair a BIP44 account is — the
@@ -3030,7 +3061,7 @@ edit.
 
   What that costs is the one thing an xpub cannot do, a hardened step,
   and it is why `script_pub_keys`, `script_pub_key`, `redeem_script`,
-  `address`, `addresses`, `satisfy`, `update_psbt`,
+  `address`, `addresses`, `satisfy`, the two `update_psbt` halves,
   `taproot_merkle_root`, `taproot_leaf_scripts` and
   `KeyExpression.sec` all end in an optional `prv_keys`: expansion takes
   the keys back for the call that needs them, the way Core's `Expand`
@@ -3220,8 +3251,8 @@ edit.
   against; the test suite checks it against `finalize_psbt`, which does
   have one, and the two build the same bytes for every shape both can
   express (issue #263)
-- **`Descriptor.update_psbt` is BIP174's Updater**: it returns the psbt
-  with one input told what the descriptor knows — the redeem script of a
+- **`Descriptor.update_psbt_input` is BIP174's Updater**: it returns the
+  psbt with one input told what the descriptor knows — the redeem script of a
   `sh()`, the witness script of a `wsh()`, the internal key, merkle root
   and leaf scripts of a `tr()`, and the origin of every key that carries
   one, which is what `KeyExpression.origin` is kept for and what nothing

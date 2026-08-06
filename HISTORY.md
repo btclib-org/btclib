@@ -26,8 +26,8 @@ against the `v2023.7.12` tag.
 - **A descriptor parsed from an xprv no longer derives a hardened step
   on its own.** `descriptors.parse` keeps no private key: it neuters the
   xprv and fills the `prv_keys` mapping handed to it, and
-  `script_pub_keys`, `satisfy`, `update_psbt` and their neighbours take
-  that mapping back as a last argument. `parse(d).script_pub_keys(0)`
+  `script_pub_keys`, `satisfy`, `update_psbt_input` and their neighbours
+  take that mapping back as a last argument. `parse(d).script_pub_keys(0)`
   becomes `keys = {}; parse(d, prv_keys=keys).script_pub_keys(0, keys)`
   where the path has a hardened step; everything else is unchanged.
 - **`str_from_index_int(i, "H")` raises.** A derivation path is written
