@@ -2786,6 +2786,28 @@ edit.
 
 ### The public API and the module layout
 
+- **`psbt_signer.SoftwareSigner` is the reference implementation** (issue
+  #381): one extended key, in this process, answering all three protocols.
+  What it is for is a signer whose answers a test can predict, so every
+  psbt shape the library builds is signed end to end before any device is
+  involved — the suite exports an account of each BIP44 encoding, builds a
+  psbt of it, updates both halves, sends it through `request_signatures`,
+  finalizes, and runs the spend under btclib's own script engine.
+
+  It is not a way to sign with a key you hold — `psbt.sign` over a
+  `KeyManager` is that, and this calls it. What it adds is the boundary:
+  it answers only what the protocol asks. A key is answered for when the
+  origin's fingerprint is its own *and* the path derives to the very
+  public key the psbt names, which is the check a device makes too — a
+  psbt is written by somebody else, and its claim about which key sits at
+  which path is not evidence. A watch-only signer (an xpub) answers the
+  fingerprint, an unhardened path and an address to display, and refuses
+  the two questions that need a key rather than answering "none of these
+  keys are mine"; it cannot export an account either, every level of a
+  BIP44 account path being hardened. `close` releases nothing and exists
+  for the contract: a caller that closes every signer it opens works with
+  a device too, and asking a closed one raises.
+
 - **`btclib.psbt_signer` is new: the contract an external signer answers,
   and the checks on its answers** (issue #381). A hardware wallet, a
   signing service, another process — something that holds keys btclib does

@@ -45,22 +45,28 @@ module's: this is the contract such an adapter implements (issue #381).
 
 from __future__ import annotations
 
+from base64 import b64encode
 from dataclasses import dataclass
 from typing import Protocol, runtime_checkable
 
 from btclib.alias import BIP44ScriptType, Octets, String
-from btclib.bip32.bip32 import BIP32KeyData
+from btclib.bip32.bip32 import BIP32Key, BIP32KeyData, derive, xpub_from_xprv
 from btclib.bip32.der_path import DerPath
+from btclib.bip32.key_origin import BIP32KeyOrigin
 from btclib.descriptors import Descriptor, account_descriptors
-from btclib.ecc import bms
+from btclib.ecc import bms, dsa, ssa
 from btclib.exceptions import BTClibValueError
-from btclib.psbt.psbt import Psbt, assert_signatures_only, combine
+from btclib.psbt.psbt import Psbt, assert_signatures_only, combine, sign
+from btclib.script.taproot import output_prvkey_from_merkle_root
+from btclib.to_prv_key import prv_keyinfo_from_prv_key
+from btclib.to_pub_key import fingerprint, pub_keyinfo_from_key
 
 __all__ = [
     "AddressDisplay",
     "MessageSigner",
     "PsbtSigner",
     "SignerCapabilities",
+    "SoftwareSigner",
     "assert_public",
     "display_address",
     "export_account",
@@ -270,3 +276,198 @@ def sign_message(
     signature = signer.sign_message(message, der_path)
     bms.assert_as_valid(message, address, signature)
     return signature
+
+
+class SoftwareSigner:
+    """One extended key, in this process, answering the contract above.
+
+    The reference implementation of `PsbtSigner`, `AddressDisplay` and
+    `MessageSigner`, and what makes the contract testable without
+    hardware: a deterministic signer is a signer whose answers a test can
+    predict, so every psbt shape the library builds can be signed end to
+    end here before any device is involved.
+
+    It is not a way to sign with a key you hold -- `psbt.sign` over a
+    `KeyManager` is that, and this calls it. What this adds is the
+    boundary: it answers only what the protocol asks, by deriving what it
+    is told to derive, and it holds nothing about the caller. Which is why
+    it is worth having beside a device rather than instead of one -- an
+    adapter and this answer the same questions, so a caller can be
+    developed against this and run against that.
+
+    A key is answered for when the origin's fingerprint is this key's own
+    and the path derives to the very public key the psbt names. That
+    second half is the check a device makes too: a psbt saying "this key
+    is at that path" is a psbt somebody else wrote, and signing with what
+    the path derives to without looking would sign with a key the caller
+    was not told about.
+    """
+
+    def __init__(self, xkey: BIP32Key, *, musig2: bool = False) -> None:
+        # held as the b58 text whatever came in, which is what `derive`
+        # takes and what the two key answers below hand back: one spelling
+        # inside, rather than a branch at every use. The round trip is
+        # also what refuses a key that is no key, at construction rather
+        # than at the first question asked
+        self.xkey = (
+            xkey.b58encode()
+            if isinstance(xkey, BIP32KeyData)
+            else BIP32KeyData.b58decode(xkey).b58encode()
+        )
+        self._musig2 = musig2
+        self._fingerprint = fingerprint(self.xkey)
+        self._closed = False
+
+    @property
+    def is_watch_only(self) -> bool:
+        """Answer whether this signer holds no key that signs."""
+        return not BIP32KeyData.b58decode(self.xkey).is_private
+
+    def master_fingerprint(self) -> bytes:
+        """Return the fingerprint of the key this signer was built on.
+
+        The *master* fingerprint of the contract, which is this key's own
+        and is therefore a claim only as true as the key handed in: a
+        signer built on an account xpub answers that account's
+        fingerprint, and a key origin naming it would send another signer
+        looking for a master key nobody has.
+        """
+        return self._fingerprint
+
+    def xpub(self, der_path: DerPath) -> str:
+        """Return the extended public key at a path, neutered whatever it is.
+
+        Public whether this signer holds a private key or not: what the
+        contract asks for is an xpub, and answering an xprv would put a
+        key that signs where a caller expects one that cannot.
+        """
+        self._assert_open()
+        derived = derive(self.xkey, der_path)
+        if BIP32KeyData.b58decode(derived).is_private:
+            return xpub_from_xprv(derived)
+        return derived
+
+    def sign_psbt(self, psbt: Psbt) -> Psbt:
+        """Return the psbt with a signature for every key this one holds.
+
+        `psbt.sign` over a `KeyManager` this class implements, which is
+        the whole of it: the roles are btclib's already, and a reference
+        signer that re-derived the sig_hash itself would be a second
+        implementation to keep right.
+
+        A watch-only signer raises rather than answering the psbt
+        unchanged: "I hold none of these keys" and "I hold no key at all"
+        are different answers, and only the first is a psbt somebody else
+        can carry on with.
+        """
+        self._assert_open()
+        if self.is_watch_only:
+            raise BTClibValueError("watch-only signer: it holds no key that signs")
+        return sign(psbt, self)[0]
+
+    def capabilities(self) -> SignerCapabilities:
+        """Return what this signer can be asked to sign.
+
+        Taproot always: `psbt.sign` signs the key path, which is what a
+        BIP341 output with no script tree is spent by. MuSig2 is a
+        constructor argument and defaults to False, because the rounds of
+        BIP373 are `psbt.musig2`'s and are played by a caller holding the
+        secret nonce between them -- this signer signs in one call and
+        cannot answer for a session it does not hold.
+        """
+        return SignerCapabilities(taproot=True, musig2=self._musig2)
+
+    def close(self) -> None:
+        """Mark the signer closed; there is nothing to release.
+
+        A software signer holds no handle and no process, so this exists
+        for the contract: a caller that closes every signer it opens is a
+        caller that works with a device too. Asking a closed signer
+        anything raises, which is what makes the difference visible in a
+        test rather than only against hardware.
+        """
+        self._closed = True
+
+    def _assert_open(self) -> None:
+        """Refuse to answer once closed, as a device would."""
+        if self._closed:
+            raise BTClibValueError("the signer is closed")
+
+    def display_address(self, descriptor: Descriptor, index: int = 0) -> str:
+        """Return the address the descriptor describes, as a screen would.
+
+        There is no screen here, so what this answers is what a device
+        would show if it agreed -- which makes `display_address` above a
+        check of the descriptor against itself when this signer is the
+        one asked. That is what a reference implementation is for: the
+        caller's flow runs unchanged, and the check that matters is the
+        one made against a device that could have disagreed.
+        """
+        self._assert_open()
+        return descriptor.address(index)
+
+    def sign_message(self, message: Octets, der_path: DerPath) -> str:
+        """Return the BIP137 compact signature of a message, base64.
+
+        The address the signature opens to is the p2pkh one of the key at
+        the path, which is what `ecc.bms` signs with by default and what
+        a caller checks it against.
+        """
+        self._assert_open()
+        if self.is_watch_only:
+            raise BTClibValueError("watch-only signer: it holds no key that signs")
+        prv_key = derive(self.xkey, der_path)
+        return b64encode(bms.sign(message, prv_key).serialize()).decode("ascii")
+
+    def _prv_key(self, pub_key: bytes, origin: BIP32KeyOrigin | None) -> int | None:
+        """Return the key at the origin, where it is one this signer holds.
+
+        Three conditions and each is a refusal: an origin at all, whose
+        fingerprint is this signer's, and whose path derives to the public
+        key the psbt names. The last is what a device checks too -- a psbt
+        is written by somebody else, and its claim about which key sits at
+        which path is not evidence.
+
+        The x-only spelling is accepted for the taproot candidates, whose
+        `pub_key` is 32 bytes where an ECDSA one is 33.
+        """
+        if origin is None or origin.master_fingerprint != self._fingerprint:
+            return None
+        try:
+            derived = derive(self.xkey, origin.der_path)
+        # a path this key cannot walk is a key this signer does not hold:
+        # a hardened step under an xpub, or an index BIP32 refuses
+        except BTClibValueError:
+            return None
+        sec = pub_keyinfo_from_key(derived)[0]
+        if pub_key not in (sec, sec[1:]):
+            return None
+        return prv_keyinfo_from_prv_key(derived)[0]
+
+    def sign_ecdsa(
+        self, pub_key: bytes, origin: BIP32KeyOrigin | None, msg_hash: bytes
+    ) -> bytes | None:
+        """Return the DER signature of msg_hash by pub_key, or None."""
+        prv_key = self._prv_key(pub_key, origin)
+        if prv_key is None:
+            return None
+        return dsa.sign_(msg_hash, prv_key).serialize()
+
+    def sign_schnorr(
+        self,
+        pub_key: bytes,
+        origin: BIP32KeyOrigin | None,
+        msg_hash: bytes,
+        merkle_root: bytes,
+    ) -> bytes | None:
+        """Return the BIP340 signature of msg_hash by pub_key, or None.
+
+        Tweaked by the merkle root before signing, which is the
+        `KeyManager` contract: the signature has to be the *output* key's,
+        and `sign` never holds what tweaking a private key needs.
+        """
+        prv_key = self._prv_key(pub_key, origin)
+        if prv_key is None:
+            return None
+        tweaked = output_prvkey_from_merkle_root(prv_key, merkle_root)
+        return ssa.sign_(msg_hash, tweaked).serialize()
