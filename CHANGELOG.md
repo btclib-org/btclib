@@ -95,6 +95,11 @@ edit.
   linear as it wants `dev` — the same rule that bars a merge commit. All
   three methods are enabled on the repository and GitHub offers whichever
   was used last, so the button is read before it is clicked.
+- `.gitignore`'s `btclib-*` pattern is gone. The comment above it named a
+  tox process this repository has never run, and the glob matched nothing
+  either tracked or produced by the current tooling — a rule matching
+  nothing reads as still enforcing something, the same shape CLAUDE.md and
+  `check-useless-excludes` already treat as worth removing elsewhere.
 
 ### Security
 
