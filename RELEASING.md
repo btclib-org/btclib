@@ -111,6 +111,19 @@ pyroma), build, wheel smoke test — and publishes to
 
 ## Release to PyPI
 
+`latest` is worth dispatching before the tag rather than waiting for its
+Wednesday cron, because what it answers is cheaper to know before a version
+is consumed than after. It gates nothing, so it will not stop you:
+reading it is the point. A release ships what `uv.lock` pins, so a red
+run here does not make the release wrong — it says the next dependency
+bump is going to be work. Its `test-bindings-latest` job is the one worth
+reading closely: it asks about the newest btclib_libsecp256k1 release
+alone, precisely, rather than folding it into the broader upgrade the
+rest of the workflow makes — a release of the bindings is a release in
+another repository, which nothing here has to change for the pair to
+stop working, and this release is the moment to find out before shipping
+against a pin about to be a version behind.
+
 1. Make sure the released btclib_libsecp256k1 satisfies the pin in
    pyproject.toml: if the pin is only satisfied by an unreleased version,
    release the bindings first. The wheel smoke test of the `dist-py` job
@@ -180,7 +193,9 @@ pyroma), build, wheel smoke test — and publishes to
    that reaches `master`'s history: the pull request is where it stays,
    and where a reader of any commit in it arrives. A template left
    unfilled, or a bot's summary of the diff, is not a substitute — the
-   summary can stay, but what the diff cannot say has to be written.
+   summary can stay, but what the diff cannot say has to be written, and
+   what a reader should not have to discover at the button belongs there
+   too.
 
    And merge it with **"Rebase and merge"**, never *"Squash and merge"*.
    All three methods are enabled here and GitHub preselects whichever was
@@ -238,6 +253,17 @@ pyroma), build, wheel smoke test — and publishes to
    `/integrity/<project>/<version>/<filename>/provenance`, whose
    `attestation_bundles[].publisher` should name this repository and
    `release.yml`.
+
+1. Dispatch the `published` workflow (Actions → published → Run workflow)
+   and expect it green: no checkout, so it resolves to what PyPI actually
+   serves rather than to a source tree. It checks a BIP39 vector against
+   the twenty-five `_data/` files a wheel missing one would still install
+   and import cleanly, and a BIP340 vector besides -- both fixed forever,
+   so neither needs an edit after a release the way a version-pinned
+   assertion would. From then on it runs weekly on its own, and a failure
+   means the outside world moved, not this repository — a new interpreter
+   release, PyPI serving a file that does not match its own hash — which
+   is why it is a workflow of its own rather than a job of this one.
 
 1. Realign `dev` onto `master`, before anything else is committed to it.
    **Rebase and merge** replays `dev`'s commits with new SHAs, so the
