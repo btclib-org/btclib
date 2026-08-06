@@ -1333,6 +1333,20 @@ edit.
 
 ### Immutability and shared state
 
+- **`psbt.combine` and `psbt.join` return a psbt that shares nothing
+  with the ones they were given.** `combine` returned `psbts[0]` itself,
+  merged into in place, so a coordinator that kept its own copy to check
+  the next signer's answer against held the copy the last answer had
+  gone into — and a check against it would pass whatever came back. The
+  copy is of the whole sequence and not only of the first, because
+  `_combine_field` assigns the objects it takes rather than copying
+  them: a `witness_utxo` or a leaf-script map that came from `psbts[1]`
+  was the very object `psbts[1]` still held, so mutating the combined
+  psbt reached back into an argument. `join` shared the same way, its
+  input and output maps being concatenated from every psbt joined, so an
+  Updater filling in a joined input filled in one somebody else held.
+  Both now copy, which is the rule `sign` and `finalize` already follow
+  and the one `extract_tx` states for itself.
 - a default-constructed `TxIn` no longer shares its `prev_out` and
   `script_witness` with every other one, nor a `PsbtIn` its
   `final_script_witness`: the defaults were `OutPoint()` and `Witness()`

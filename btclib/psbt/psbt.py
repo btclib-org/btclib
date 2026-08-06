@@ -1332,7 +1332,19 @@ def combine(psbts: Sequence[Psbt]) -> Psbt:
     which of the two the combined psbt is -- and, from v0 to v2, hand
     back a psbt whose lock time comes from the fallback rather than
     from the unsigned transaction the caller wrote it into.
+
+    The psbt handed back shares nothing with the ones handed in, which is
+    `finalize`'s rule and `extract_tx`'s stated one. It matters more here
+    than anywhere: without the copy this *is* `psbts[0]`, merged into in
+    place, so the copy a coordinator keeps to check the next signer's
+    answer against is the copy the last answer went into -- and a check
+    against it would then pass whatever came back. The whole sequence is
+    copied and not only the first, `_combine_field` assigning the objects
+    it takes rather than copying them: a witness_utxo or a leaf script
+    map that came from `psbts[1]` would otherwise be the very object
+    `psbts[1]` still holds.
     """
+    psbts = deepcopy(list(psbts))
     final_psbt = psbts[0]
     version = final_psbt.version
     for psbt in psbts[1:]:
@@ -2268,8 +2280,15 @@ def join(
     joined is asked for its two modifiable flags, and the joined psbt
     carries what all of them still allow. The versions must be the same,
     for the reason `combine` gives.
+
+    The joined psbt shares nothing with the ones joined, for the reason
+    `combine` copies: the input and output maps below are taken from
+    every psbt in the sequence, so without the copy the joined psbt's
+    inputs *are* theirs, and an Updater filling one in afterwards fills
+    in a psbt somebody else is still holding.
     """
     _ensure_consistency(psbts)
+    psbts = deepcopy(list(psbts))
 
     version = psbts[0].version
     for psbt in psbts[1:]:
