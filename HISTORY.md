@@ -23,6 +23,10 @@ The changes below break code that worked on v2023.7.12. Each is described in
 full in [CHANGELOG.md](./CHANGELOG.md). Every "before" spelling was checked
 against the `v2023.7.12` tag.
 
+- **`str_from_index_int(i, "H")` raises.** A derivation path is written
+  with `h` or `'`, the two hardened indicators BIP380 allows; the
+  uppercase `H` that BIP32 writes its own vectors with is still read and
+  is no longer written. Pass `"h"` or `"'"`, or take the default.
 - **`btclib.bitcoin_core_rpc` is the `bitcoin-core-rpc` package.** The
   Bitcoin Core rpc client is no longer a module of btclib: it is
   [a distribution of its own](https://pypi.org/project/bitcoin-core-rpc/),
