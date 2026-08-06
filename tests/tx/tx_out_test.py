@@ -48,7 +48,7 @@ def test_tx_out() -> None:
 
 
 def test_frozen() -> None:
-    """Verify TxOut is frozen all the way down, and unhashable."""
+    """Verify TxOut is frozen all the way down, and hashable with it."""
     tx_out = TxOut(1, "0014751e76e8199196d454941c45d1b3a323f1433bd6")
 
     with pytest.raises(FrozenInstanceError):
@@ -65,10 +65,14 @@ def test_frozen() -> None:
         tx_out.script_pub_key.script = b""  # type: ignore[misc]
     assert tx_out.script_pub_key.script != b""
 
-    # a ScriptPubKey defines __eq__ and so is unhashable, which makes
-    # hashing the TxOut holding it a TypeError
-    with pytest.raises(TypeError, match="unhashable type"):
-        hash(tx_out)
+    # frozen buys the generated __hash__, and it reaches the ScriptPubKey
+    # field: an unhashable one made hashing the TxOut a TypeError, which
+    # is issue 416. Equal outputs hash equal, so a TxOut is the value of
+    # the dict an OutPoint keys
+    same = TxOut(1, "0014751e76e8199196d454941c45d1b3a323f1433bd6")
+    assert same == tx_out
+    assert hash(same) == hash(tx_out)
+    assert len({tx_out, same, TxOut(2, tx_out.script_pub_key)}) == 2
 
 
 def test_invalid_tx_out() -> None:

@@ -1351,6 +1351,24 @@ edit.
   twice: an instance holding the parse of that 16.5 kB script costs 55.4 kB
   against 0.2 kB without it, 277 times the script's own bytes, and nothing
   inside the library reads `.asm` at all (issue #165)
+- **`ScriptPubKey` is hashable, and the `TxOut` holding one with it.** The
+  class is frozen, which is what makes a hash safe, but it writes its
+  `__eq__` by hand — issue #207's comparison by network *type* — and
+  Python sets `__hash__` to `None` for any class defining one without the
+  other, so `hash(spk)` raised `TypeError: unhashable type`. It reached
+  `TxOut` too: frozen, so it *has* a generated `__hash__`, which raised on
+  the field it could not hash. An utxo set's key hashed and its value did
+  not. `__hash__` is written out beside `__eq__` now, over the same pair
+  that one compares — the script bytes and the network type, not the
+  network name — so a signet ScriptPubKey and the equal testnet one land
+  in the same bucket, and `Script`, which hashes its bytes alone, needs no
+  agreement with it: a Script never equals a ScriptPubKey, the generated
+  `__eq__` it inherits comparing by exact class. The comment that had
+  explained the asymmetry said `Script` defines `__eq__` without
+  `__hash__`, which the dataclass decorator makes false, and `tx_out.py`'s
+  said Script is unfrozen, which issue #165 made false; both state what
+  the code does. `# noqa: PLW1641` goes from the class, the rule finding
+  nothing there any more (issue #416)
 - **`assert_valid` no longer rewrites what it validates.**
   `BIP32KeyData.assert_valid` coerced six fields in place — `bytes()` over
   `version`, `parent_fingerprint`, `chain_code` and `key`, `int()` over
@@ -5480,14 +5498,15 @@ edit.
   dependency, the bindings included, to the newest release that satisfies
   pyproject.toml. `pip install -e .` works here now, and readthedocs
   drives uv for the lock rather than for the resolution.
-- **Each of the four `PLW1641` sites the audit above narrowed to now
-  states its own reason, not a bare `# noqa`.** `Tx` is mutable, which is
-  the dataclass default that sets `__hash__` to `None`; `EqualTransport`
-  and `TxInIgnoringWitness` are test doubles nothing hashes.
-  `ScriptPubKey`'s is different: its hand-written `__eq__` sets
-  `__hash__` to `None` the same way Python does for any class defining
-  one without the other, and whether that is the shape the class is
-  meant to have is issue #416, still open (issue #417)
+- **Each `PLW1641` site the audit above narrowed to states its own reason,
+  not a bare `# noqa`.** `Tx` is mutable, which is the dataclass default
+  that sets `__hash__` to `None`; `EqualTransport` and
+  `TxInIgnoringWitness` are test doubles nothing hashes. `ScriptPubKey`
+  was the odd one, its hand-written `__eq__` setting `__hash__` to `None`
+  the same way Python does for any class defining one without the other:
+  writing the reason down is what asked whether the class is meant to be
+  unhashable at all, answered by issue #416 above, and it carries a
+  `__hash__` rather than a `# noqa` now (issue #417)
 
 ### Documentation and the website
 

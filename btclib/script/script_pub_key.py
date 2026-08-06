@@ -486,19 +486,24 @@ def type_and_payload(script_pub_key: Octets) -> tuple[ScriptType, bytes]:  # noq
 # reach through a frozen TxOut. So __init__ assigns through
 # object.__setattr__, as Network's and the three Sig classes' do
 #
-# the hand-written __eq__ below leaves __hash__ at Python's default for a
-# class defining __eq__ without __hash__, None; whether that is the shape
-# this class is meant to have is issue #416, open
+# __hash__ is written out below because __eq__ is: a class defining __eq__
+# without __hash__ gets __hash__ = None, and an unhashable ScriptPubKey
+# takes TxOut with it -- TxOut is frozen, so it has a generated __hash__,
+# which raises TypeError on the field that cannot hash. Frozen is what
+# makes hashing safe here, and every other frozen value class of the
+# library is hashable: OutPoint keys the dict an utxo set is, and TxOut
+# is the other half of it (issue #416)
 @dataclass(init=False, eq=False, frozen=True)
-class ScriptPubKey(Script):  # noqa: PLW1641
+class ScriptPubKey(Script):
     """A Script with the network its addresses render on.
 
     The script bytes and their validation are Script's; the network
-    enters `address`, `addresses` and the equality test, two
+    enters `address`, `addresses`, the equality test and the hash, two
     ScriptPubKey being equal when their scripts match and their
     networks are of one type -- mainnet against the rest -- rather
-    than of one name. The classmethods build the standard shapes, one
-    per type the classifier names.
+    than of one name. Frozen and hashable on that same pair, so a
+    ScriptPubKey can be a set member or a dict key. The classmethods
+    build the standard shapes, one per type the classifier names.
     """
 
     network: str
@@ -547,14 +552,22 @@ class ScriptPubKey(Script):  # noqa: PLW1641
         # carry: issue #207.
         #
         # Two ScriptPubKey are still not equal across types, so this is
-        # not a loosening of the funds-relevant check. ScriptPubKey is
-        # unhashable (Script defines __eq__ without __hash__), so there
-        # is no __hash__ to keep consistent with it
+        # not a loosening of the funds-relevant check. __hash__ below is
+        # over the same pair this compares, and moves with it
         if network_type_from_network(self.network) != network_type_from_network(
             other.network
         ):
             return False
         return super().__eq__(other)
+
+    def __hash__(self) -> int:
+        # the script and the network *type*, which is what __eq__ above
+        # compares: hashing the network *name* would put a signet
+        # ScriptPubKey and the equal testnet one in different buckets.
+        # Script hashes its bytes alone, and a Script never equals a
+        # ScriptPubKey -- the generated __eq__ it inherits compares by
+        # exact class -- so the two need not agree
+        return hash((self.script, network_type_from_network(self.network)))
 
     def __init__(
         self,

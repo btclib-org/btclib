@@ -27,11 +27,13 @@ __all__ = [
 ]
 
 
-# frozen, but only shallowly: `value` is immutable, while
-# ScriptPubKey extends the plain dataclass Script, so `script_pub_key.script`
-# can still be rebound through a frozen TxOut. Freezing Script is a change
-# of its own. Its being unhashable also makes the generated TxOut.__hash__
-# raise TypeError, so a frozen TxOut is not a hashable one
+# frozen all the way down: `value` is immutable and ScriptPubKey is frozen
+# too (issue 165), so `tx_out.script_pub_key.script = b""` cannot reach
+# through a frozen TxOut and rebind the script of whatever else holds that
+# ScriptPubKey. Hashable all the way down for the same reason: the
+# generated __hash__ hashes the ScriptPubKey field, which is itself
+# hashable (issue 416), so a TxOut can be the value of the dict an
+# OutPoint keys, or a set member of its own
 @dataclass(frozen=True)
 class TxOut:
     """One output of a transaction: an amount and who can spend it.

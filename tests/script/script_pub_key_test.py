@@ -902,14 +902,41 @@ def test_script_is_frozen_and_asm_is_cached() -> None:
         spk.network = "mainnet"  # type: ignore[misc]
 
     # frozen and eq, so Script gets a generated __hash__ and can be a dict
-    # key or a set member. ScriptPubKey cannot: it defines __eq__, which
-    # leaves __hash__ None
+    # key or a set member
     assert len({Script(script.script), Script(script.script)}) == 1
-    with pytest.raises(TypeError, match="unhashable type"):
-        hash(spk)
 
     # and dataclasses.replace still works through the written-out __init__
     assert dataclasses.replace(spk).network == "testnet"
+
+
+def test_script_pub_key_hash_matches_eq() -> None:
+    """Verify the hash is over the pair __eq__ compares (issue 416).
+
+    A hand-written __eq__ leaves __hash__ None unless the class writes
+    one too, which had made a frozen ScriptPubKey -- and the frozen
+    TxOut holding it -- unhashable.
+    """
+    key = "03a1af804ac108a8a51782198c2d034b28bf90c8803f5a53f76276fa69a4eae77f"
+    testnet = ScriptPubKey.p2pkh(key, network="testnet")
+    signet = ScriptPubKey(testnet.script, "signet")
+    mainnet = ScriptPubKey(testnet.script, "mainnet")
+
+    # the network type, as __eq__ compares: equal ScriptPubKey hash equal,
+    # so a signet one finds the testnet key it is equal to
+    assert signet == testnet
+    assert hash(signet) == hash(testnet)
+    assert {testnet: "found"}[signet] == "found"
+
+    # and one set member for the two of them, two with the mainnet one
+    assert mainnet != testnet
+    assert len({testnet, signet}) == 1
+    assert len({testnet, signet, mainnet}) == 2
+
+    # a Script never equals a ScriptPubKey -- the generated __eq__ it
+    # inherits compares by exact class -- so both fit in one set
+    plain = Script(testnet.script)
+    assert plain != testnet
+    assert len({plain, testnet}) == 2
 
 
 def test_asm_parses_once_per_script() -> None:
