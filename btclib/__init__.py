@@ -84,6 +84,7 @@ __all__ = [
     "bip32",
     "bip44",
     "block",
+    "core_import",
     "curves",
     "descriptors",
     "ecc",
