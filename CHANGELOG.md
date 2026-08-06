@@ -2786,6 +2786,28 @@ edit.
 
 ### The public API and the module layout
 
+- **`descriptors.normalized` puts the xpub at each last hardened step**
+  (issue #381), which is Bitcoin Core's `ToNormalizedString` and what
+  `getdescriptorinfo` answers with. A descriptor written with hardened
+  derivation cannot be expanded by a wallet holding no private key; the
+  normalized one can, the extended key becoming the xpub at that step and
+  the hardened prefix moving into the key origin, where it says where the
+  key came from rather than naming a derivation anybody has to perform.
+  It is what an export to a watch-only wallet wants.
+
+  Three keys come back with the symbol canonicalized and nothing else:
+  one that is not extended, one whose path hardens nothing, and one whose
+  wildcard is the hardened `/*h` — the last because the step needing the
+  private key is the one taken at every index, so there is no point to
+  re-root to, which is Core's first branch and its reason. An origin
+  already there keeps its fingerprint and has the prefix appended; one
+  absent is the extended key's own. The symbol is `h` throughout the
+  result whichever was read, a normalized descriptor being a canonical
+  spelling rather than the one that came in — "always use h for hardened
+  derivation", as Core's own interface puts it. A hardened step whose
+  private key the caller did not hand in raises, rather than handing back
+  a descriptor that quietly still needs one.
+
 - **a descriptor writes itself back: `str(descriptor)`** (issue #381).
   `btclib.descriptors` parsed, derived, satisfied and updated a psbt, and
   had no way back to the text — the one thing every workflow that talks
