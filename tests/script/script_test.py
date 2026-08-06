@@ -323,6 +323,26 @@ def test_integer_serialization() -> None:
         serialized_int = serialize([i])
 
 
+def test_serialize_refuses_a_number_wider_than_an_int64() -> None:
+    """Serialize writes only the script numbers Core's int64_t can hold.
+
+    A number reaches a script through `CScript::operator<<(int64_t)`,
+    which has no wider parameter, so an unbounded Python int writes a
+    push no node can have built -- 13 octets for 2**100, 26 for 2**200
+    -- and one the interpreter cannot read back either, capping every
+    operand at four bytes (issue #406).
+
+    Both extremes serialize: the eight-octet largest, and the nine-octet
+    most negative.
+    """
+    assert serialize([2**63 - 1]) == bytes.fromhex("08ffffffffffffff7f")
+    assert serialize([-(2**63)]) == bytes.fromhex("09000000000000008080")
+
+    for i in (2**63, -(2**63) - 1, 2**100, 2**200, -(2**100)):
+        with pytest.raises(BTClibValueError, match="script number out of range: "):
+            serialize([i])
+
+
 def test_single_byte_serialization() -> None:
     """Round-trip every single-byte hex string as a two-byte push."""
     for i in range(256):

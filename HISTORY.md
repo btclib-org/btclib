@@ -33,6 +33,15 @@ against the `v2023.7.12` tag.
   This is the number consensus reads, `MAX_BLOCK_WEIGHT` bounding it; the
   sum is still available as `sum(t.weight for t in block.transactions)`,
   and `Block.stripped_size` is the other quantity a block is bounded by.
+- **a block is proved against a network's pow limit, mainnet's unless you
+  say which.** `BlockHeader.assert_valid_pow()` and `Block.assert_valid()`
+  compared the hash with the target and made none of `CheckProofOfWork`'s
+  four range checks on that target, so a regtest or signet block passed as
+  a mainnet one. Both now take a `pow_limit_bits`, and a block of another
+  network is answered `proof-of-work target above the limit` until it is
+  named: `assert_valid(REGTEST_POW_LIMIT_BITS)`. `Block.__init__`, `parse`
+  and `serialize` have no such parameter, so build with
+  `check_validity=False` and validate in a second step.
 - **a psbt carrying a PSBT v2 field is refused**, where every one of the
   twelve was filed under `unknown` and round-tripped. BIP370 forbids them
   in version 0, which is the only version btclib reads, so

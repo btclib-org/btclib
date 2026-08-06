@@ -14,7 +14,11 @@ from typing import Any
 
 from btclib.alias import BinaryData, Octets
 from btclib.block.limits import MAX_FUTURE_BLOCK_TIME
-from btclib.block.proof_of_work import target_from_bits
+from btclib.block.proof_of_work import (
+    MAINNET_POW_LIMIT_BITS,
+    is_negative_bits,
+    target_from_bits,
+)
 from btclib.exceptions import BTClibTypeError, BTClibValueError
 from btclib.hashes import hash256
 from btclib.utils import (
@@ -95,16 +99,25 @@ class BlockHeader:
         The difficulty of the genesis block is 2^32 (4*2^30), i.e. 4
         GigaHash function evaluations.
         """
-        # genesis block target
-        genesis_significand = 0x00FFFF
-        genesis_exponent = 0x1D
-        # significand ratio
-        significand = genesis_significand / int.from_bytes(
-            self.bits[1:], byteorder="big", signed=False
-        )
-        # power term ratio
-        power_term = pow(256, genesis_exponent - self.bits[0])
-        return float(significand * power_term)
+        # the ratio of the two targets, and never the compact form
+        # decoded a second time here: the sign bit of `bits` is masked
+        # off in one place, `target_from_bits`, so that this and `target`
+        # cannot disagree about which number the header carries. Core's
+        # GetDifficulty divides by the unmasked significand, which it can
+        # afford to: the header reaching it has passed CheckProofOfWork,
+        # so the bit is not set. This property answers for any header.
+        # MAINNET_POW_LIMIT_BITS is the genesis target, which is what
+        # makes the genesis difficulty 1
+        genesis_target = int.from_bytes(target_from_bits(MAINNET_POW_LIMIT_BITS), "big")
+        target = int.from_bytes(self.target, "big")
+        if not target:
+            # no hash can satisfy a zero target, so no block carries one.
+            # Raised as the exception contract requires, rather than left
+            # to the ZeroDivisionError of the division below, which names
+            # neither the field nor the header
+            raise BTClibValueError(f"zero proof-of-work target: {self.bits.hex()}")
+
+        return genesis_target / target
 
     @property
     def hash(self) -> bytes:
@@ -178,8 +191,24 @@ class BlockHeader:
             check_validity=check_validity,
         )
 
-    def assert_valid_pow(self) -> None:
+    def assert_valid_pow(self, pow_limit_bits: Octets = MAINNET_POW_LIMIT_BITS) -> None:
         """Assert whether the BlockHeader provides a valid proof-of-work.
+
+        Bitcoin Core's CheckProofOfWork: the target the bits denote must
+        be one the network allows, and the hash must not exceed it. The
+        range of the target is checked first and is four questions, which
+        are Core's DeriveTarget -- a negative bits value, a zero target,
+        a target 32 bytes cannot hold, a target above the network's
+        limit. Each is refused by name, where DeriveTarget returns a bare
+        nullopt for all four: a caller of this library is told which rule
+        it broke, and the four are as many different mistakes.
+
+        `pow_limit_bits` is the network's easiest target, mainnet's by
+        default as `next_bits` takes it, and it is the caller's to state:
+        a header carries no claim about which network it belongs to, so
+        nothing here can read one. Passing REGTEST_POW_LIMIT_BITS is what
+        makes a regtest header acceptable -- and what keeps a regtest one
+        from passing for mainnet, which is the hole this closes.
 
         Not called by assert_valid, which answers the other question:
         whether the eighty bytes are a well-formed header. A header being
@@ -191,6 +220,36 @@ class BlockHeader:
         calls CheckProofOfWork by default: a Block is a block, and the
         proof-of-work is what its transactions are committed by.
         """
+        # DeriveTarget's four range checks, in the order of the condition
+        # they are the disjuncts of. Only the last of them needs the
+        # network, and none of them looks at the hash: bits alone can be
+        # a target no chain would ever hand out.
+        #
+        # fNegative, which the target cannot report because it is
+        # unsigned -- 0x1d80ffff denotes a number below zero and its
+        # magnitude is a plausible mainnet target
+        if is_negative_bits(self.bits):
+            raise BTClibValueError(f"negative proof-of-work target: {self.bits.hex()}")
+
+        # fOverflow is raised by target_from_bits, which is where the
+        # 32 bytes are, so reading the target is the third check
+        target = self.target
+
+        # a target no hash can satisfy, since a hash is unsigned: Core
+        # refuses it here rather than letting the comparison below decide,
+        # and block_work refuses it for the same reason
+        if not int.from_bytes(target, byteorder="big", signed=False):
+            raise BTClibValueError(f"zero proof-of-work target: {self.bits.hex()}")
+
+        # both are 32 bytes big endian, so this is the comparison of the
+        # numbers they hold. The limit is the easiest target the network
+        # allows, so a target above it is work no network asked for
+        pow_limit = target_from_bits(pow_limit_bits)
+        if target > pow_limit:
+            err_msg = f"proof-of-work target above the limit: {target.hex()}"
+            err_msg += f" > {pow_limit.hex()}"
+            raise BTClibValueError(err_msg)
+
         # the target is a bound the hash may reach: CheckProofOfWork
         # rejects on "hash > bnTarget", so a hash equal to the target is
         # the last one that solves the block, and refusing it would be
@@ -198,9 +257,9 @@ class BlockHeader:
         # can show the difference -- equality asks a 256-bit hash for one
         # exact value -- so the comparison is right by matching Core's,
         # which is the only way it can be right here
-        if self.hash > self.target:
+        if self.hash > target:
             err_msg = f"invalid proof-of-work: {self.hash.hex()}"
-            err_msg += f" > {self.target.hex()}"
+            err_msg += f" > {target.hex()}"
             raise BTClibValueError(err_msg)
 
     def assert_valid_time(self, now: datetime) -> None:

@@ -93,6 +93,32 @@ def assert_valid_hash_type(hash_type: int) -> None:
         raise BTClibValueError(f"invalid sig_hash type: {hex(hash_type)}")
 
 
+def _serialized_hash_type(hash_type: int) -> bytes:
+    """Return the four bytes the two pre-taproot preimages end with.
+
+    Core's `SignatureHash` takes `int32_t nHashType` and writes it as one,
+    so the field is a 32-bit word and -1 is `ffffffff` on the wire. Either
+    spelling of that word is taken -- Core's signed -1 and the
+    `0xffffffff` of a caller who read the field off a preimage -- because
+    the two differ nowhere else either: `-1 & 0x1F` and `0xffffffff & 0x1F`
+    are the same 31, Python's `&` reading a negative in the same two's
+    complement the wire carries. What does not fit the field is a
+    BTClibValueError, where `int.to_bytes` answers with an `OverflowError`
+    from underneath the library (issue #405).
+
+    Not assert_valid_hash_type: the seven defined types are what a signer
+    chooses, not what a preimage may be computed over. Without STRICTENC
+    the script engine hashes whatever byte a signature carries, which is
+    consensus and not taste, and Core's sighash.json is nothing but
+    undefined hash types with the hash each of them must produce.
+    """
+    if not -(2**31) <= hash_type < 2**32:
+        raise BTClibValueError(
+            f"sig_hash type too wide for its four bytes: {hash_type}"
+        )
+    return (hash_type & 0xFFFFFFFF).to_bytes(4, byteorder="little")
+
+
 # the op code a script code is measured from, read out of the table so
 # that a name that stops existing fails at import rather than leaving a
 # rule that quietly stops matching
@@ -269,7 +295,17 @@ def legacy(script_code: Octets, tx: Tx, vin_i: int, hash_type: int) -> bytes:
     serialization and the four hash-type bytes is the answer. The
     SINGLE bug is kept, being consensus: an input with no matching
     output signs the constant 1, not an error.
+
+    `hash_type` is Core's `int32_t nHashType`, and every 32-bit word has a
+    preimage: the seven defined types are what a signer picks, and an
+    undefined one is what a signature may carry and this must still hash.
     """
+    # the field is serialized here, before the transaction is copied, so
+    # that a hash type too wide for it is refused rather than met by the
+    # SINGLE bug's early return, which answers with the constant 1 and
+    # never reaches the serialization at the end
+    serialized_hash_type = _serialized_hash_type(hash_type)
+
     # the legacy preimage commits to the script code with its
     # OP_CODESEPARATORs elided, and Core does that here rather than to the
     # script code itself: SerializeScriptCode is part of the serializer,
@@ -302,7 +338,7 @@ def legacy(script_code: Octets, tx: Tx, vin_i: int, hash_type: int) -> bytes:
         new_tx.vin = [new_tx.vin[vin_i]]
 
     preimage = new_tx.serialize(include_witness=False, check_validity=False)
-    preimage += hash_type.to_bytes(4, byteorder="little", signed=False)
+    preimage += serialized_hash_type
 
     return hash256(preimage)
 
@@ -428,6 +464,9 @@ def segwit_v0(
     `precomputed`, when given, must describe this very transaction; a
     single call leaves it None and hashes only what its hash type
     commits to.
+
+    `hash_type` is Core's `int32_t nHashType`, as `legacy`'s is, and every
+    32-bit word has a preimage for the same reason.
     """
     script_code = bytes_from_octets(script_code)
 
@@ -482,7 +521,9 @@ def segwit_v0(
             tx.vin[vin_i].sequence.to_bytes(4, byteorder="little", signed=False),
             hash_outputs,
             tx.lock_time.to_bytes(4, byteorder="little", signed=False),
-            hash_type.to_bytes(4, byteorder="little", signed=False),
+            # an int32_t as Core's nHashType is, so that -1 is the
+            # `ffffffff` Core writes rather than an OverflowError (#405)
+            _serialized_hash_type(hash_type),
         ]
     )
     return hash256(preimage)

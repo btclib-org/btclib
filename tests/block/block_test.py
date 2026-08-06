@@ -26,6 +26,7 @@ from btclib.block.limits import (
     MAX_BLOCK_WEIGHT,
     WITNESS_SCALE_FACTOR,
 )
+from btclib.block.proof_of_work import REGTEST_POW_LIMIT_BITS
 from btclib.exceptions import BTClibTypeError, BTClibValueError
 from btclib.network import NETWORKS
 from btclib.script import ScriptPubKey
@@ -533,6 +534,33 @@ def test_difficulty_from_compact_bits(
     assert round(header.difficulty, 3) == difficulty
 
 
+def test_difficulty_decodes_bits_once() -> None:
+    """The difficulty and the target decode `bits` once (issue #402).
+
+    `difficulty` used to redo the compact arithmetic itself, so masking
+    the sign bit in `target_from_bits` alone would leave one header with
+    two answers: a target with the bit taken off and a difficulty
+    computed with it in. The genesis bits signed are the case that shows
+    it -- difficulty 1, which is what the unsigned spelling gives, and
+    not the 0.00775 of a target 2^7 easier.
+    """
+    genesis = BlockHeader(bits="1d00ffff", check_validity=False)
+    signed = BlockHeader(bits="1d80ffff", check_validity=False)
+
+    assert signed.target == genesis.target
+    assert signed.difficulty == genesis.difficulty == 1
+
+    # a zero target is no ratio to take, and the answer is the refusal
+    # assert_valid_pow and block_work give it rather than a
+    # ZeroDivisionError out of the library. Both spellings: an exponent
+    # that shifts the significand away, and a significand that is only
+    # the sign bit
+    for bits in ("00000000", "0000ffff", "03800000"):
+        header = BlockHeader(bits=bits, check_validity=False)
+        with pytest.raises(BTClibValueError, match="zero proof-of-work target: "):
+            _ = header.difficulty
+
+
 def test_block_without_transactions() -> None:
     """A block with no coinbase is not a block with nothing in it.
 
@@ -876,3 +904,87 @@ def test_a_block_still_requires_the_work() -> None:
     forged[76] ^= 0x01
     with pytest.raises(BTClibValueError, match="invalid proof-of-work: "):
         Block.parse(bytes(forged))
+
+
+def test_assert_valid_pow_makes_derive_targets_range_checks() -> None:
+    """Four targets are refused before the hash is looked at.
+
+    `fNegative`, a zero target, `fOverflow` and a target above the
+    network's pow limit: the four disjuncts of the one condition in
+    Core's `DeriveTarget`, which `CheckProofOfWorkImpl` answers with a
+    bare false for all four. btclib says which of the four it was, and
+    the order is Core's -- 0x1d80ffff is above mainnet's limit as well as
+    negative, and it is refused as negative (issue #403).
+    """
+    fname = "block_1.bin"
+    filename = path.join(path.dirname(__file__), "_data", fname)
+    with open(filename, "rb") as file_:
+        header_bytes = file_.read()[:80]
+
+    header = BlockHeader.parse(header_bytes)
+    # the regression guard for the whole change: the first mainnet block
+    # after genesis carries mainnet's limit as its bits, so it sits on
+    # the boundary all four checks are drawn around
+    header.assert_valid_pow()
+
+    # 0x22ffffff is not among them: it overflows *and* is negative, and
+    # Core reads fNegative first, so it is the row that would not tell
+    # the two apart. 0xff000001 overflows with the sign bit clear
+    for bits_hex, err_msg in (
+        ("1d80ffff", "negative proof-of-work target: "),
+        ("0000ffff", "zero proof-of-work target: "),
+        ("ff000001", "invalid proof-of-work target: "),
+        ("207fffff", "proof-of-work target above the limit: "),
+    ):
+        header.bits = bytes.fromhex(bits_hex)
+        with pytest.raises(BTClibValueError, match=err_msg):
+            header.assert_valid_pow()
+
+
+@pytest.mark.parametrize("bits_hex", ["03800000", "1d800000"])
+def test_the_zero_target_check_is_only_as_good_as_the_target(bits_hex: str) -> None:
+    """Two nBits Core reads as zero, and so does btclib.
+
+    `SetCompact` masks the significand with 0x007fffff before computing
+    the value, so `nWord` is zero for both of these and `DeriveTarget`
+    refuses the header on `bnTarget == 0`. btclib used to read the sign
+    bit as magnitude, which made 0x03800000 a target of 2^23 and
+    0x1d800000 one of 2^215, and the zero check fired for neither: the
+    check was only as good as the number it was handed (issue #402).
+    """
+    fname = "block_1.bin"
+    filename = path.join(path.dirname(__file__), "_data", fname)
+    with open(filename, "rb") as file_:
+        header_bytes = file_.read()[:80]
+
+    header = BlockHeader.parse(header_bytes)
+    header.bits = bytes.fromhex(bits_hex)
+    with pytest.raises(BTClibValueError, match="zero proof-of-work target: "):
+        header.assert_valid_pow()
+
+
+def test_the_pow_limit_is_the_callers_to_state() -> None:
+    """A header carries no network, so nothing but the caller knows one.
+
+    Block 1's hash is far below regtest's target, so a header claiming
+    regtest's bits on mainnet is the block Core rejects and btclib used
+    to accept (issue #403). What tells the two apart is the limit passed
+    in, and Block.assert_valid forwards it so a block is answered for the
+    same network its header is.
+    """
+    fname = "block_1.bin"
+    filename = path.join(path.dirname(__file__), "_data", fname)
+    with open(filename, "rb") as file_:
+        block_bytes = file_.read()
+
+    block = Block.parse(block_bytes)
+    block.header.bits = REGTEST_POW_LIMIT_BITS
+
+    # the work satisfies the target it claims, and the target is one no
+    # mainnet block may claim
+    assert block.header.hash <= block.header.target
+    with pytest.raises(BTClibValueError, match="target above the limit: "):
+        block.assert_valid()
+
+    # and the same block is a block on the network those bits belong to
+    block.assert_valid(REGTEST_POW_LIMIT_BITS)

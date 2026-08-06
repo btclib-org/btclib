@@ -386,11 +386,12 @@ def serialize(script: Sequence[Command]) -> bytes:
     """Serialize a script from its commands.
 
     An integer is encoded as the number it pushes -- with a warning
-    where a one-byte op code means the same -- a string is an op code
-    name, an UNKNOWN_OP_CODE_n byte, or hex data, and bytes are data;
-    data is always the minimal push, per BIP62. What parse returns
-    round-trips, ERROR_COMMAND excepted, that marker being a place in
-    the bytes rather than an instruction.
+    where a one-byte op code means the same, and a refusal outside the
+    int64 a script number is -- a string is an op code name, an
+    UNKNOWN_OP_CODE_n byte, or hex data, and bytes are data; data is
+    always the minimal push, per BIP62. What parse returns round-trips,
+    ERROR_COMMAND excepted, that marker being a place in the bytes
+    rather than an instruction.
     """
     r: list[bytes] = []
     for command in script:

@@ -272,10 +272,18 @@ def _sequence(psbt_in: PsbtIn) -> int:
 # things and in nothing else -- and it is what keeps the parse of the
 # global map one dispatch rather than one branch per field
 _V2_GLOBAL_PARSERS: dict[bytes, tuple[str, str, Callable[[bytes, bytes, str], int]]] = {
+    # unsigned, where BIP370 calls this field a "32-bit little endian
+    # signed integer": what it holds is Tx.version one layer down, and
+    # there it is unsigned, for the two mainnet transactions Tx.parse
+    # names. Core arbitrates neither way -- it implements no PSBTv2, so
+    # it has no counterpart to this field at all -- and the type it does
+    # declare, CTransaction::version, is uint32_t. Read as signed, the
+    # versions above 0x7fffffff come back negative and Tx refuses them,
+    # so the BIP's word would buy a psbt this library cannot hold
     PSBT_GLOBAL_TX_VERSION: (
         "tx_version",
         "tx version",
-        lambda k, v, what: deserialize_sized_int(k, v, what, 4, signed=True),
+        lambda k, v, what: deserialize_sized_int(k, v, what, 4),
     ),
     PSBT_GLOBAL_FALLBACK_LOCKTIME: (
         "fallback_lock_time",
@@ -890,10 +898,12 @@ class Psbt:
             # ascending by type byte, which is the order BIP370's own
             # psbts are written in and so the order a byte-for-byte
             # comparison with them requires
+
+            # the version is written unsigned, where BIP370 says signed;
+            # _V2_GLOBAL_PARSERS says why, and every version Tx accepts
+            # has to be writable here
             psbt_bin.append(
-                serialize_sized_int(
-                    PSBT_GLOBAL_TX_VERSION, self.tx_version, 4, signed=True
-                )
+                serialize_sized_int(PSBT_GLOBAL_TX_VERSION, self.tx_version, 4)
             )
             if self.fallback_lock_time is not None:
                 psbt_bin.append(

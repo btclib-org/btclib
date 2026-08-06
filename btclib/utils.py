@@ -288,6 +288,13 @@ def decode_num(data: bytes) -> int:
 
     Positive zero is also represented by a null-length byte vector,
     which is considered the canonical one.
+
+    Not bounded the way `encode_num` is: this is the reader, and its two
+    callers ask different things of it. The engine's `_to_num` caps an
+    operand at four bytes -- five for CLTV and CSV -- before it gets
+    here, and `Block.height` decodes whatever a coinbase pushed, BIP34
+    being a byte comparison rather than a number, so an int64 bound here
+    would refuse a coinbase the network accepts.
     """
     length = len(data)
     if length == 0:
@@ -299,6 +306,15 @@ def decode_num(data: bytes) -> int:
         i &= mask
         i *= -1
     return i
+
+
+# the int64_t of Core's CScriptNum, which is the type of the only
+# parameter `CScript::operator<<` takes a number through: no script Core
+# can build carries one outside this range, so no serializer of btclib's
+# writes one either (issue #406). Here and not in script.serialize
+# because every caller reaches the octets through encode_num
+_MIN_SCRIPT_NUM = -(2**63)
+_MAX_SCRIPT_NUM = 2**63 - 1
 
 
 def encode_num(i: int) -> bytes:
@@ -317,7 +333,23 @@ def encode_num(i: int) -> bytes:
 
     Positive zero is also represented by a null-length byte vector,
     which is considered the canonical one.
+
+    The number is a CScriptNum, i.e. an int64, and a Python int outside
+    that range is refused rather than encoded: what it would write is a
+    push no node can have built, and one the interpreter -- capping every
+    operand at four bytes, five for CLTV and CSV -- cannot read back
+    either.
+
+    The bound is on the value and not on the width: the most negative
+    int64 is in range and takes nine octets, sign-magnitude having no
+    room for its magnitude in eight, which is what Core's
+    `CScriptNum::serialize` writes for it as well.
     """
+    if not _MIN_SCRIPT_NUM <= i <= _MAX_SCRIPT_NUM:
+        err_msg = f"script number out of range: {i}"
+        err_msg += f", not in [{_MIN_SCRIPT_NUM}, {_MAX_SCRIPT_NUM}]"
+        raise BTClibValueError(err_msg)
+
     # i.bit_length() bits, plus a sign bit
     n_bits = i.bit_length() + 1
     # The number of bytes necessary to accommodate n_bits

@@ -415,6 +415,32 @@ edit.
   the compact form cannot be nudged to meet a given hash either, its
   significand holding three bytes — which is precisely why the comparison
   has to be read off Core rather than tested against it
+- **a proof-of-work is checked against the network's limit**, and against
+  the three other range checks Core's `DeriveTarget` makes before it.
+  `BlockHeader.assert_valid_pow` was that hash comparison and nothing
+  else, where `CheckProofOfWork` refuses four targets without looking at
+  the hash at all: a negative `nBits`, a zero target, one 32 bytes cannot
+  hold, and one above `params.powLimit`. btclib made none of them at that
+  site — `target_from_bits` raises on the overflow, the zero target was
+  refused only by `block_work`, which this never called, and there was no
+  pow limit in a function that took no arguments — so a header claiming
+  regtest's `207fffff` on mainnet was a mainnet header for half a try's
+  worth of work. `assert_valid_pow(pow_limit_bits)` and
+  `Block.assert_valid(pow_limit_bits)` now take the network's easiest
+  target, `MAINNET_POW_LIMIT_BITS` by default as `next_bits` already took
+  it, and each refusal names which of the four it was where
+  `DeriveTarget` returns a bare `nullopt` for all of them. The sign bit is
+  `proof_of_work.is_negative_bits`, Core's `fNegative`, asked of the four
+  bytes because the target is unsigned and cannot carry it. It is a
+  parameter of `Block.assert_valid` and not of `__init__`, `parse` or
+  `serialize`: those three call it to ask whether the bytes are a block,
+  and a block of another network is built with `check_validity=False` and
+  then asked, which is the pair of steps a header being mined already
+  takes. The zero check is only as good as the target handed to it, which
+  is what issue #402 was about: the two `nBits` Core reads as zero,
+  `03800000` and `1d800000`, reach it as zero because the significand is
+  masked before the value is computed, and
+  `tests/block/block_test.py` carries both rows (issue #403)
 - **btclib can check a Merkle proof, not only compute a root.** It had
   the builder's side, `merkle_root_and_mutated_from_hashes`, and no
   entry point for the verifier's: from a txid, a branch of siblings and
@@ -732,6 +758,29 @@ edit.
   TAPROOT off; the shapes they miss are a test. No consensus verdict
   moves: every flag named here is outside ALL_FLAGS, save WITNESS and
   TAPROOT, which move nothing when both are on
+- **the sign bit of `nBits` is a sign, and `target_from_bits` no longer
+  reads it as magnitude** (issue #402). The compact form is a float with
+  a sign bit: Core's `SetCompact` takes the number out of `nCompact &
+  0x007fffff` and reports the bit separately, through the `fNegative`
+  out-parameter `DeriveTarget` refuses the header on. btclib read all
+  three significand bytes, so every `nBits` with `0x00800000` set
+  answered a number no node computes — `0x1d80ffff` put the sign bit
+  *inside* the target's own bytes and made it 2^7 easier than the
+  genesis one, and `0x03800000`, which Core reads as zero, came back as
+  `0x800000`. The mask is Core's now, so `target_from_bits` still answers
+  one target and every call site of it is left alone; the sign it hides
+  is `is_negative_bits`, which `assert_valid_pow` refuses the header on.
+  That predicate reads the magnitude after the exponent, as Core reads it
+  for `nWord != 0 &&`, so a sign bit over a significand the exponent
+  shifts away is not negative either: `0x018000ff` is zero, as
+  `0x03800000` is. `BlockHeader.difficulty` stops redoing
+  the compact arithmetic by hand and takes the ratio of two targets, so
+  one header can no longer have a `target` and a `difficulty` that
+  disagree about which number its `bits` denote; the difficulty of every
+  real header is unchanged, and a zero target now answers the "zero
+  proof-of-work target" of `block_work` instead of dividing by zero.
+  A test walks every exponent against a transcription of `SetCompact`,
+  value and both flags, rather than pinning a handful of numbers
 
 ### Malformed input and the exception contract
 
@@ -1157,6 +1206,66 @@ edit.
   exception contract. What each commits to is unchanged, `-1` and
   `0xffffffffffffffff` being the same eight octets. Found while
   reviewing #386
+- **the hash type the two pre-taproot preimages write is `int32_t
+  nHashType`, Core's own parameter type, not an unsigned integer** (issue
+  #405). `sig_hash.legacy` and `sig_hash.segwit_v0` are public and take it
+  as a plain `int`, and wrote it `signed=False`: `-1` — `ffffffff`, the
+  four octets Core's `ss << nHashType` puts there — was an
+  `OverflowError` out of `int.to_bytes` rather than a preimage, and so was
+  anything from 2^32 up, both from underneath the library rather than
+  through its exception contract. Either spelling of a 32-bit word is
+  hashed now, the two differing nowhere else either, `-1 & 0x1F` and
+  `0xffffffff & 0x1F` being the same 31 that chooses the commitment; what
+  the field cannot carry is a `BTClibValueError` naming it, refused before
+  the transaction is copied so that the SIGHASH_SINGLE bug cannot answer
+  with the constant 1 first. Core's sighash.json carries negative hash
+  types among its vectors, `InsecureRand32()` filling the whole word, and
+  they go in as Core wrote them where the test had been adding 2^32 to
+  each by hand. The seven defined values commit to what they did, and
+  `assert_valid_hash_type` stays out of both preimages: without STRICTENC
+  the script engine hashes whatever byte a signature carries, so refusing
+  an undefined hash type there would refuse preimages consensus asks for
+  — that vector file is nothing but undefined ones. Found while auditing
+  btclib's consensus types against Core v31.1
+- **A version 2 psbt now holds every transaction version `Tx` accepts**
+  (issue #404). BIP370 calls `PSBT_GLOBAL_TX_VERSION` a "32-bit little
+  endian signed integer" and btclib read it that way, while `Tx.version`
+  is unsigned, for the two mainnet transactions `Tx.parse`'s comment
+  names; the two readings met in `to_v2`, where a version above
+  `0x7fffffff` had no four-byte signed encoding and left through
+  `int.to_bytes` as a bare `OverflowError`, from underneath the library
+  rather than through its exception contract. The field is unsigned now,
+  at the parse and at the serialization both, so `Tx`'s own
+  `0 <= version <= 0xffffffff` is the only bound the version has and the
+  same four octets mean one thing whichever version of the psbt carries
+  them: `ffffffff` reads as `4294967295` where it used to read as `-1`
+  and then be refused as `invalid version: -1`. A comment at both sites
+  says why the BIP's word is not followed — Core declares
+  `CTransaction::version` a `uint32_t` and implements no PSBTv2, so it
+  has no counterpart for this field to be aligned with, and a psbt
+  version `Tx` cannot hold is of no use whatever the BIP says.
+  `PSBT_OUT_AMOUNT` is untouched, the BIP and Core agreeing on `int64_t`
+  there. Found while auditing btclib's consensus types against Core
+  v31.1, after #388
+- **a script number is bounded by the `int64_t` it is**, so
+  `utils.encode_num` and `script.serialize` refuse one outside
+  `[-2^63, 2^63-1]` with `script number out of range` (issue #406).
+  Core stores a `CScriptNum` in an `int64_t` and takes a number into a
+  script through `CScript::operator<<(int64_t)`, which has no wider
+  parameter; btclib's serializer took an unbounded Python int, so
+  `serialize([2**100])` wrote a 13-octet push and `serialize([2**200])`
+  a 26-octet one -- pushes no node can have built, and pushes the engine
+  refuses on execution anyway, capping every operand at four bytes and
+  five for CLTV and CSV. Both extremes still serialize, the most
+  negative int64 taking the nine octets Core's `CScriptNum::serialize`
+  gives it too, sign-magnitude having no room for its magnitude in
+  eight. `utils.decode_num` is deliberately not bounded to match: it is
+  the reader, the engine caps an operand before reaching it, and
+  `Block.height` decodes whatever a coinbase pushed -- BIP34 in btclib
+  being the byte comparison of `assert_valid_coinbase_height`, as it is
+  in Core -- so a bound there would refuse a coinbase the network
+  accepts. Found while auditing the consensus types against Core v31.1,
+  after #388
 
 ### Immutability and shared state
 

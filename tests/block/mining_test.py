@@ -5,9 +5,9 @@
 
 """Tests for the `btclib.block.mining` module.
 
-The target mined against is `2000ffff`, easier than anything a network
-allows and harder than regtest's own limit: it is satisfied by one hash
-in 256, so the search takes a few hundred evaluations and under a
+The target mined against is `2000ffff`, harder than regtest's own limit
+and easier than anything else a network allows: it is satisfied by one
+hash in 256, so the search takes a few hundred evaluations and under a
 millisecond, and is still a search rather than a lucky first nonce. The
 nonces asserted below are therefore fixed by the candidate they solve --
 change a byte of one and its nonce moves. Every assertion goes through the
@@ -15,6 +15,12 @@ ordinary validation -- `Block.assert_valid`, which asserts the
 proof-of-work, the merkle root and the coinbase -- so what is being
 checked is that a block built here is a block, not that two copies of
 the same arithmetic agree.
+
+Regtest is therefore the network every block here belongs to, and it is
+said out loud: `assert_valid` and `assert_valid_pow` default to mainnet's
+limit, which these targets are far above, so each call names
+`REGTEST_POW_LIMIT_BITS`. A validation that passed without naming it
+would be one that let a regtest block pass for a mainnet one.
 """
 
 from datetime import datetime, timezone
@@ -68,13 +74,18 @@ def test_a_mined_block_is_a_block() -> None:
     assert candidate.version == VERSION
     assert len(candidate.serialize()) == 80
     with pytest.raises(BTClibValueError, match="invalid proof-of-work: "):
-        candidate.assert_valid_pow()
+        candidate.assert_valid_pow(REGTEST_POW_LIMIT_BITS)
 
     header = mine(candidate)
     assert header is not None
     assert header.nonce == 373
     assert header.hash <= header.target
-    header.assert_valid_pow()
+    header.assert_valid_pow(REGTEST_POW_LIMIT_BITS)
+
+    # and the same work is no proof-of-work on mainnet, whose limit these
+    # bits are 2^24 above: what the header solved is the network it says
+    with pytest.raises(BTClibValueError, match="target above the limit: "):
+        header.assert_valid_pow()
 
     # everything except the nonce is what the candidate carried
     assert header.merkle_root == candidate.merkle_root
@@ -83,11 +94,14 @@ def test_a_mined_block_is_a_block() -> None:
     assert header.bits == candidate.bits
 
     # and the block it heads validates in full: work, merkle root,
-    # coinbase, witness commitment
-    block = Block(header, transactions)
-    block.assert_valid()
+    # coinbase, witness commitment. Built unchecked and then checked,
+    # because __init__ has no network to be told about and defaults to
+    # mainnet's limit -- the two steps Block.assert_valid documents
+    block = Block(header, transactions, check_validity=False)
+    block.assert_valid(REGTEST_POW_LIMIT_BITS)
     assert block.height == 700_000
-    assert block == Block.parse(block.serialize())
+    round_tripped = block.serialize(check_validity=False)
+    assert block == Block.parse(round_tripped, check_validity=False)
 
     # the caller's candidate was not touched
     assert candidate.nonce == 0
@@ -122,7 +136,16 @@ def test_regtest_target_is_solved_by_the_first_nonce() -> None:
     header = mine(candidate, 2)
     assert header is not None
     assert header.nonce == 0
-    Block(header, transactions).assert_valid()
+    Block(header, transactions, check_validity=False).assert_valid(
+        REGTEST_POW_LIMIT_BITS
+    )
+
+    # issue #403 measured from here: a header solved against regtest's
+    # limit and offered to mainnet, which Core's DeriveTarget refuses on
+    # "bnTarget > powLimit" and btclib used to accept. Half a try's worth
+    # of work, and it was a mainnet block
+    with pytest.raises(BTClibValueError, match="target above the limit: "):
+        Block(header, transactions, check_validity=False).assert_valid()
 
 
 def test_a_bounded_search_can_find_nothing() -> None:
