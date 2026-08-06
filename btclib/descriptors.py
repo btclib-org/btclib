@@ -31,13 +31,14 @@ knows about the outputs it holds.
 
 BIP380: https://github.com/bitcoin/bips/blob/master/bip-0380.mediawiki
 
-The grammar read is BIP380 to BIP386 and BIP389, minus miniscript:
+The grammar read is BIP380 to BIP387 and BIP389, minus miniscript:
 
 - ``pk``, ``pkh``, ``wpkh``, ``combo`` (BIP381, BIP382, BIP384)
 - ``sh``, ``wsh``, including ``sh(wpkh())`` and ``sh(wsh())``
 - ``multi``, ``sortedmulti`` (BIP383)
 - ``addr``, ``raw`` (BIP385)
-- ``tr``, with a key path and a script tree of ``pk()`` leaves (BIP386)
+- ``tr``, with a key path and a script tree whose leaves are ``pk()``,
+  ``multi_a()`` and ``sortedmulti_a()`` (BIP386, BIP387)
 - key expressions: hex public keys (compressed, uncompressed and, inside
   ``tr()``, x-only), WIF private keys, xpub/xprv with a derivation path,
   key origin, ``/*`` and ``/*h`` wildcards, both ``h`` and ``'`` hardened
@@ -45,9 +46,8 @@ The grammar read is BIP380 to BIP386 and BIP389, minus miniscript:
 - the ``<a;b>`` multipath form of BIP389, through `multipath_descriptors`
 
 What raises NotImplementedError, rather than being read wrong: every
-miniscript expression, which is issue #187; and ``multi_a``,
-``sortedmulti_a``, ``rawtr`` and ``musig``, which are BIP387, BIP386
-and BIP390 and belong with the work that adds them.
+miniscript expression, which is issue #187; and ``rawtr`` and ``musig``,
+which are BIP386 and BIP390 and belong with the work that adds them.
 
 The network is a parameter of `parse` and not part of a descriptor: a
 descriptor names keys and scripts, and the same one means something on
@@ -57,13 +57,13 @@ own prefix.
 
 What this module exports is the checksum functions, `parse` and
 `multipath_descriptors`, and the fragment classes a parsed descriptor is
-made of -- `KeyExpression` and `DescriptorTree` among them, both being
-names a caller reads off `Descriptor.key_expressions` and
-`TrDescriptor.tree`. `INPUT_CHARSET`, `CHECKSUM_CHARSET` and `GENERATOR`
-stay out: they are the three tables BIP380's checksum is computed from,
-which is what `checksum`, `add_checksum` and `strip_checksum` answer, and
-each is still importable from this module the way the test suite takes
-them.
+made of -- `KeyExpression`, `DescriptorTree` and the `MultiA` a tree leaf
+may be among them, all three being names a caller reads off
+`Descriptor.key_expressions` and `TrDescriptor.tree`. `INPUT_CHARSET`,
+`CHECKSUM_CHARSET` and `GENERATOR` stay out: they are the three tables
+BIP380's checksum is computed from, which is what `checksum`,
+`add_checksum` and `strip_checksum` answer, and each is still importable
+from this module the way the test suite takes them.
 """
 
 from __future__ import annotations
@@ -82,7 +82,7 @@ from btclib.bip32.key_origin import BIP32KeyOrigin
 from btclib.exceptions import BTClibValueError
 from btclib.psbt.psbt import Psbt
 from btclib.psbt.psbt_in import PsbtIn
-from btclib.script.script import serialize
+from btclib.script.script import op_int, serialize
 from btclib.script.script_pub_key import ScriptPubKey
 from btclib.script.taproot import input_script_sig, leaf_hash, tree_helper
 from btclib.script.witness import Witness
@@ -93,8 +93,10 @@ __all__ = [
     "AddrDescriptor",
     "ComboDescriptor",
     "Descriptor",
+    "DescriptorLeaf",
     "DescriptorTree",
     "KeyExpression",
+    "MultiA",
     "MultiDescriptor",
     "PkDescriptor",
     "PkhDescriptor",
@@ -227,11 +229,20 @@ _MINISCRIPT_FRAGMENTS = frozenset(
 # each is a specification of its own, and a script derived wrong is an
 # address that loses money
 _UNIMPLEMENTED = {
-    "multi_a": "BIP387",
-    "sortedmulti_a": "BIP387",
     "rawtr": "BIP386",
     "musig": "BIP390",
 }
+
+# BIP387's own bound on the keys of a multi_a(): the satisfaction puts one
+# stack element per key, and a script whose spend would push more than the
+# 1000 elements BIP342 allows is one nobody can spend
+_MAX_MULTI_A_KEYS = 999
+
+# the two functions BIP387 allows inside tr() and nowhere else. Not in
+# _PARSERS with the SCRIPT expressions: what they parse to is a leaf of a
+# script tree and not a descriptor, so `_parse_tree` reads them and this
+# is what refuses them anywhere a SCRIPT expression is expected
+_TREE_FUNCTIONS = ("multi_a", "sortedmulti_a")
 
 _FINGERPRINT = re.compile("[0-9a-fA-F]{8}")
 _HEX = re.compile("[0-9a-fA-F]*")
@@ -291,28 +302,162 @@ class KeyExpression:
         return pub_keyinfo_from_key(derive(self.xkey, der_path), network)[0]
 
 
-# a tr() script tree: a `pk()` leaf, or a branch of two subtrees. The
-# leaves are KEY expressions and not scripts because a ranged descriptor
-# has no script until an index is given
-DescriptorTree = KeyExpression | tuple["DescriptorTree", "DescriptorTree"]
+@dataclass(frozen=True)
+class MultiA:
+    """``multi_a(k,KEY,...)`` or ``sortedmulti_a(k,KEY,...)``: a leaf, BIP387.
+
+    A leaf of a ``tr()`` script tree, beside the bare `KeyExpression` that
+    is a ``pk()`` leaf, and not a `Descriptor`: BIP387 allows these two
+    functions inside ``tr()`` and nowhere else, so no output pays to one
+    of them -- what an output pays to is the ``tr()`` that commits to it
+    as one of its tapscripts.
+    """
+
+    threshold: int
+    keys: tuple[KeyExpression, ...]
+    # the ordering that is the whole difference between the two functions,
+    # as BIP67 is for sortedmulti(): the keys of a sortedmulti_a() are
+    # sorted in the script, so the participants need not agree on an order
+    # to agree on an address
+    sort: bool = False
+
+    def _pub_keys(self, index: int, network: str) -> list[bytes]:
+        """Return the SEC keys in the order the script holds them.
+
+        Sorted on the x-only bytes and not on these: what a tapscript
+        carries is 32 bytes per key, and the 33-byte form adds to them a
+        prefix saying the parity of y -- so sorting the SEC bytes would
+        order the keys by that parity first, and a ``sortedmulti_a()``
+        naming a key by its WIF would get another script than the same
+        key written x-only.
+        """
+        pub_keys = [key.sec(index, network) for key in self.keys]
+        return sorted(pub_keys, key=lambda sec: sec[1:]) if self.sort else pub_keys
+
+    def _script(self, index: int, network: str) -> ScriptList:
+        """Return the tapscript of BIP387: a CHECKSIG, then CHECKSIGADDs.
+
+        The threshold is pushed as OP_1 to OP_16 where an op code means
+        it and as the number itself above that, which is what BIP387 says
+        and the one place the two spellings differ.
+
+        The bounds are checked here, and not in the parser, for the reason
+        `multi()` has them in `ScriptPubKey.p2ms`: a threshold of none or
+        of more keys than there are describes a script nobody can spend,
+        and a descriptor built by hand reaches this and not the parser.
+        """
+        pub_keys = self._pub_keys(index, network)
+        if not 1 <= self.threshold <= len(pub_keys):
+            err_msg = f"invalid k in k-of-n multi_a: {self.threshold}"
+            raise BTClibValueError(err_msg)
+        if len(pub_keys) > _MAX_MULTI_A_KEYS:
+            err_msg = f"invalid n in k-of-n multi_a: {len(pub_keys)}"
+            raise BTClibValueError(err_msg)
+        script: ScriptList = [pub_keys[0][1:], "OP_CHECKSIG"]
+        for pub_key in pub_keys[1:]:
+            script += [pub_key[1:], "OP_CHECKSIGADD"]
+        threshold = op_int(self.threshold) if self.threshold <= 16 else self.threshold
+        return [*script, threshold, "OP_NUMEQUAL"]
+
+    def _stack(
+        self, signatures: Mapping[bytes, bytes], index: int, network: str
+    ) -> list[bytes] | None:
+        """Return one element per key, or None where the keys have not signed.
+
+        `threshold` of the elements are signatures and the rest the empty
+        push. A signature beyond the threshold is not spare, which is the
+        first difference from `multi()`: OP_CHECKSIGADD counts every
+        signature that verifies and OP_NUMEQUAL compares the count with
+        the threshold, where OP_CHECKMULTISIG stops at the signatures it
+        was built to pop.
+
+        The elements go in the reverse of the key order, which is the
+        second: the signature of the first key is popped first, so it is
+        the last element of the witness and the top of the stack. Bitcoin
+        Core's satisfier says the same in a comment of its own.
+
+        None rather than an error where fewer keys than the threshold have
+        signed: a leaf is one spending path of a tree, and which of them
+        the signatures at hand open is the question `TrDescriptor` walks
+        the leaves to answer.
+        """
+        offered = [
+            _offered_signature(signatures, sec, x_only=True)
+            for sec in self._pub_keys(index, network)
+        ]
+        if sum(signature is not None for signature in offered) < self.threshold:
+            return None
+        stack: list[bytes] = []
+        signed = 0
+        for signature in offered:
+            if signature is None or signed == self.threshold:
+                stack.append(b"")
+            else:
+                stack.append(signature)
+                signed += 1
+        stack.reverse()
+        return stack
+
+
+# a tr() script tree: a leaf, or a branch of two subtrees. A leaf is the
+# KEY expression a `pk()` leaf is, or the `MultiA` of BIP387's two
+# functions; a branch is a tuple, which is what tells a branch from a
+# leaf. The leaves hold KEY expressions and not scripts because a ranged
+# descriptor has no script until an index is given
+DescriptorLeaf = KeyExpression | MultiA
+DescriptorTree = DescriptorLeaf | tuple["DescriptorTree", "DescriptorTree"]
+
+
+def _leaf_keys(leaf: DescriptorLeaf) -> tuple[KeyExpression, ...]:
+    """Return the KEY expressions of one leaf, in the order it names them."""
+    return leaf.keys if isinstance(leaf, MultiA) else (leaf,)
+
+
+def _tree_leaves(tree: DescriptorTree) -> tuple[DescriptorLeaf, ...]:
+    """Return the leaves left to right, which is the order they are numbered.
+
+    `taproot.tree_helper` walks the left subtree before the right one, so
+    the n-th leaf here is the n-th leaf there, and that number is what
+    `taproot.input_script_sig` takes.
+    """
+    if isinstance(tree, tuple):
+        return _tree_leaves(tree[0]) + _tree_leaves(tree[1])
+    return (tree,)
 
 
 def _tree_keys(tree: DescriptorTree) -> tuple[KeyExpression, ...]:
-    if isinstance(tree, KeyExpression):
-        return (tree,)
-    return _tree_keys(tree[0]) + _tree_keys(tree[1])
+    keys: tuple[KeyExpression, ...] = ()
+    for leaf in _tree_leaves(tree):
+        keys += _leaf_keys(leaf)
+    return keys
+
+
+def _leaf_script(leaf: DescriptorLeaf, index: int, network: str) -> ScriptList:
+    """Return the tapscript of one leaf: a ``pk()``, or a ``multi_a()``."""
+    if isinstance(leaf, MultiA):
+        return leaf._script(index, network)
+    return [leaf.sec(index, network)[1:], "OP_CHECKSIG"]
+
+
+def _leaf_stack(
+    leaf: DescriptorLeaf, signatures: Mapping[bytes, bytes], index: int, network: str
+) -> list[bytes] | None:
+    """Return what satisfies one leaf, None where the signatures do not."""
+    if isinstance(leaf, MultiA):
+        return leaf._stack(signatures, index, network)
+    signature = _offered_signature(signatures, leaf.sec(index, network), x_only=True)
+    return None if signature is None else [signature]
 
 
 def _taproot_script_tree(
     tree: DescriptorTree, index: int, network: str
 ) -> TaprootScriptTree:
-    if isinstance(tree, KeyExpression):
-        script: ScriptList = [tree.sec(index, network)[1:], "OP_CHECKSIG"]
-        return [(_TAPSCRIPT_LEAF_VERSION, script)]
-    return [
-        _taproot_script_tree(tree[0], index, network),
-        _taproot_script_tree(tree[1], index, network),
-    ]
+    if isinstance(tree, tuple):
+        return [
+            _taproot_script_tree(tree[0], index, network),
+            _taproot_script_tree(tree[1], index, network),
+        ]
+    return [(_TAPSCRIPT_LEAF_VERSION, _leaf_script(tree, index, network))]
 
 
 def _offered_signature(
@@ -954,7 +1099,7 @@ class TrDescriptor(Descriptor):
             return {}
         script_tree = _taproot_script_tree(self.tree, index, self.network)
         leaf_scripts: dict[bytes, tuple[bytes, int]] = {}
-        for leaf in range(len(_tree_keys(self.tree))):
+        for leaf in range(len(_tree_leaves(self.tree))):
             script, control_block = self._leaf(script_tree, index, leaf)
             leaf_scripts[control_block] = (script, _TAPSCRIPT_LEAF_VERSION)
         return leaf_scripts
@@ -974,15 +1119,24 @@ class TrDescriptor(Descriptor):
         places of the tree and in one leaf of it, the tapleaf hash being
         of the script, and what a signer reads here is which scripts it
         has to sign for.
+
+        The leaves are walked rather than `taproot_leaf_scripts`, which is
+        keyed by control block: which keys a leaf commits to is what the
+        leaf says and no longer what its script bytes show, a
+        ``multi_a()`` leaf holding as many keys as it names.
         """
         leaf_hashes: dict[bytes, list[bytes]] = {}
-        for script, leaf_version in self.taproot_leaf_scripts(index).values():
-            # a leaf of this module's own making is a push of the key and
-            # OP_CHECKSIG, `pk()` being the only leaf BIP386 reads here,
-            # so the key is what the push holds
-            hashes = leaf_hashes.setdefault(script[1:-1], [])
-            if (hash_ := leaf_hash(leaf_version, script)) not in hashes:
-                hashes.append(hash_)
+        if self.tree is not None:
+            script_tree = _taproot_script_tree(self.tree, index, self.network)
+            for number, leaf in enumerate(_tree_leaves(self.tree)):
+                script = self._leaf(script_tree, index, number)[0]
+                hash_ = leaf_hash(_TAPSCRIPT_LEAF_VERSION, script)
+                for key in _leaf_keys(leaf):
+                    hashes = leaf_hashes.setdefault(
+                        key.sec(index, self.network)[1:], []
+                    )
+                    if hash_ not in hashes:
+                        hashes.append(hash_)
         hd_key_paths: dict[bytes, tuple[list[bytes], BIP32KeyOrigin]] = {}
         for key in self.key_expressions:
             origin = _derived_origin(key, index)
@@ -1005,12 +1159,19 @@ class TrDescriptor(Descriptor):
         under the internal key because that is the key the descriptor
         names.
 
-        A script path witness is the signature, the leaf script and the
-        control block, which is BIP341's order. Both the parity bit and
-        the merkle path in that control block are the descriptor's to
-        compute, holding the whole tree as it does, where a psbt has to
-        be handed them: it is the one thing satisfaction here knows that
-        finalization there cannot work out.
+        A script path witness is what satisfies the leaf, then the leaf
+        script and the control block, which is BIP341's order: one
+        signature for a ``pk()`` leaf, and one element per key for a
+        ``multi_a()`` one. Both the parity bit and the merkle path in that
+        control block are the descriptor's to compute, holding the whole
+        tree as it does, where a psbt has to be handed them: it is the one
+        thing satisfaction here knows that finalization there cannot work
+        out.
+
+        The first leaf the signatures satisfy, left to right, where they
+        satisfy several: they are all valid spends of the same output, and
+        which is the cheapest is a question about weights that this module
+        does not answer.
 
         The script_sig is empty whichever path is taken: BIP341 spends
         a witness v1 program with the witness alone.
@@ -1022,16 +1183,11 @@ class TrDescriptor(Descriptor):
         if self.tree is None:
             raise BTClibValueError("no signature for the tr() internal key")
         script_tree = _taproot_script_tree(self.tree, index, self.network)
-        # _tree_keys and taproot.tree_helper both walk the left subtree
-        # before the right one, so the n-th key is the n-th leaf and the
-        # number is the one input_script_sig takes
-        for leaf, key in enumerate(_tree_keys(self.tree)):
-            signature = _offered_signature(
-                signatures, key.sec(index, self.network), x_only=True
-            )
-            if signature is not None:
-                script, control_block = self._leaf(script_tree, index, leaf)
-                return b"", Witness([signature, script, control_block])
+        for number, leaf in enumerate(_tree_leaves(self.tree)):
+            stack = _leaf_stack(leaf, signatures, index, self.network)
+            if stack is not None:
+                script, control_block = self._leaf(script_tree, index, number)
+                return b"", Witness([*stack, script, control_block])
         err_msg = "no signature for the tr() internal key or for any of its leaves"
         raise BTClibValueError(err_msg)
 
@@ -1243,6 +1399,22 @@ def _parse_key(
     return key_expression
 
 
+def _parse_multi_a(name: str, args: list[str]) -> MultiA:
+    """Return the leaf of a BIP387 ``multi_a()`` or ``sortedmulti_a()``.
+
+    The keys are read as a ``pk()`` leaf's key is, which is what allows
+    BIP387's own vectors to name one by its WIF and the next by an xprv:
+    x-only is the spelling a tapscript holds and not the only spelling a
+    KEY expression has.
+    """
+    if len(args) < 2:
+        raise BTClibValueError(f"{name}() takes a threshold and at least one key")
+    if not _THRESHOLD.fullmatch(args[0]):
+        raise BTClibValueError(f"invalid {name}() threshold: {args[0]}")
+    keys = tuple(_parse_key(key, x_only=True, compressed=True) for key in args[1:])
+    return MultiA(int(args[0]), keys, sort=name == "sortedmulti_a")
+
+
 def _parse_tree(expression: str) -> DescriptorTree:
     """Return the script tree of a BIP386 TREE expression."""
     if expression.startswith("{"):
@@ -1255,10 +1427,12 @@ def _parse_tree(expression: str) -> DescriptorTree:
         return (_parse_tree(branches[0]), _parse_tree(branches[1]))
     name, arguments = _split_function(expression)
     _assert_implemented(name)
+    args = _split_arguments(arguments)
+    if name in _TREE_FUNCTIONS:
+        return _parse_multi_a(name, args)
     if name != "pk":
         raise NotImplementedError(f"{name}() inside tr() is not implemented")
-    key = _one_argument(_split_arguments(arguments), name)
-    return _parse_key(key, x_only=True, compressed=True)
+    return _parse_key(_one_argument(args, name), x_only=True, compressed=True)
 
 
 # inside a witness program an uncompressed key is unspendable, so
@@ -1374,6 +1548,12 @@ def _parse_expression(expression: str, context: str, network: str) -> Descriptor
     """Return the Descriptor of a SCRIPT expression, in its context."""
     name, arguments = _split_function(expression)
     _assert_implemented(name)
+    if name in _TREE_FUNCTIONS:
+        # a tree leaf and no SCRIPT expression, so reaching this is the
+        # position rule of BIP387 being broken: `_assert_position` says
+        # which position it was, where "unknown function" would say the
+        # language has no such word
+        _assert_position(name, context, (_P2TR,))
     if name not in _PARSERS:
         raise BTClibValueError(f"unknown descriptor function: {name}()")
     allowed, parser = _PARSERS[name]

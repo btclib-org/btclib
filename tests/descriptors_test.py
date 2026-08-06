@@ -39,6 +39,7 @@ from btclib.descriptors import (
     ComboDescriptor,
     Descriptor,
     KeyExpression,
+    MultiA,
     MultiDescriptor,
     PkDescriptor,
     RawDescriptor,
@@ -62,7 +63,8 @@ from btclib.psbt.psbt import (
     taproot_sig_hash,
 )
 from btclib.psbt.psbt_in import PsbtIn
-from btclib.script import taproot
+from btclib.script import sig_hash, taproot
+from btclib.script.engine import verify_transaction
 from btclib.script.script import serialize
 from btclib.script.script_pub_key import ScriptPubKey
 from btclib.script.witness import Witness
@@ -498,10 +500,6 @@ def test_doc_descriptor(descriptor: str) -> None:
     a notation for a script, and `ScriptPubKey.from_address` has to give
     back the very script the descriptor derived.
     """
-    if "sortedmulti_a(" in descriptor:
-        with pytest.raises(NotImplementedError, match="sortedmulti_a"):
-            parse(descriptor)
-        return
     script_pub_keys = parse(descriptor).script_pub_keys()
     assert script_pub_keys
     for script_pub_key in script_pub_keys:
@@ -509,19 +507,6 @@ def test_doc_descriptor(descriptor: str) -> None:
         # p2pk and bare multisig have no address, which is not a failure
         if address:
             assert ScriptPubKey.from_address(address) == script_pub_key
-
-
-def test_doc_descriptors_are_read_but_for_one() -> None:
-    """Seventeen of Core's eighteen documented descriptors expand here.
-
-    The eighteenth is a `sortedmulti_a()`, BIP387, refused rather than
-    guessed at. Counted rather than assumed, so that refreshing the
-    vendored file cannot move a descriptor from one group to the other
-    unnoticed.
-    """
-    unimplemented = [d for d in DOC_DESCRIPTORS if "sortedmulti_a(" in d]
-    assert len(DOC_DESCRIPTORS) == 18
-    assert len(unimplemented) == 1
 
 
 def test_sortedmulti_sorts_what_multi_leaves_alone() -> None:
@@ -764,6 +749,9 @@ def test_descriptor_is_abstract() -> None:
 
 KEY = "03a34b99f22c790c4e36b2b3c2c35a36db06226e41c692fc82b8b56ac1c540c5bd"
 UNCOMPRESSED = "04a34b99f22c790c4e36b2b3c2c35a36db06226e41c692fc82b8b56ac1c540c5bd5b8dec5235a0fa8722476c7709c02559e3aa73aa03918ba2d492eea75abea235"
+# the same two keys as WIFs, which is how BIP387 writes them
+WIF = "L4rK1yDtCWekvXuE6oXD9jCYfFNV2cWRpVuPLBcCU2z8TrisoyY1"
+UNCOMPRESSED_WIF = "5KYZdUEo39z3FPrtuX2QbbwGnNP5zTd7yyr2SC1j299sBCnWjss"
 XPUB = "xpub661MyMwAqRbcFW31YEwpkMuc5THy2PSt5bDMsktWQcFF8syAmRUapSCGu8ED9W6oDMSgv6Zz8idoc4a6mr8BDzTJY47LJhkJ8UB7WEGuduB"
 XONLY = "a34b99f22c790c4e36b2b3c2c35a36db06226e41c692fc82b8b56ac1c540c5bd"
 OFF_CURVE = "020000000000000000000000000000000000000000000000000000000000000005"
@@ -863,8 +851,6 @@ UNIMPLEMENTED = [
     ),
     (f"wsh(thresh(1,pk({KEY})))", "187"),
     (f"wsh(s:pk({KEY}))", "187"),
-    (f"tr({XONLY},multi_a(1,{XONLY}))", "BIP387"),
-    (f"tr({XONLY},sortedmulti_a(1,{XONLY}))", "BIP387"),
     (f"tr({XONLY},pkh({KEY}))", "inside tr"),
     (f"rawtr({XONLY})", "BIP386"),
     (f"tr(musig({KEY},{KEY}))", "BIP390"),
@@ -884,6 +870,179 @@ def test_unimplemented(descriptor: str, message: str) -> None:
         parse(descriptor)
 
 
+# BIP387's own test vectors, transcribed from `bip-0387.mediawiki`: a
+# valid descriptor and the scriptPubKey it produces, three of them where
+# the keys derive. The third and the fourth are the same two keys, ordered
+# and sorted, so the pair says both that the sorting happens and which
+# script each spelling means
+BIP387_VECTORS: list[tuple[str, list[str]]] = [
+    (
+        "tr(L4rK1yDtCWekvXuE6oXD9jCYfFNV2cWRpVuPLBcCU2z8TrisoyY1,multi_a(1,KzoAz5CanayRKex3fSLQ2BwJpN7U52gZvxMyk78nDMHuqrUxuSJy))",
+        ["5120eb5bd3894327d75093891cc3a62506df7d58ec137fcd104cdd285d67816074f3"],
+    ),
+    (
+        "tr(a34b99f22c790c4e36b2b3c2c35a36db06226e41c692fc82b8b56ac1c540c5bd,multi_a(1,669b8afcec803a0d323e9a17f3ea8e68e8abe5a278020a929adbec52421adbd0))",
+        ["5120eb5bd3894327d75093891cc3a62506df7d58ec137fcd104cdd285d67816074f3"],
+    ),
+    (
+        "tr(50929b74c1a04954b78b4b6035e97a5e078a5a0f28ec96d547bfee9ace803ac0,multi_a(2,[00000000/111'/222]xprvA1RpRA33e1JQ7ifknakTFpgNXPmW2YvmhqLQYMmrj4xJXXWYpDPS3xz7iAxn8L39njGVyuoseXzU6rcxFLJ8HFsTjSyQbLYnMpCqE2VbFWc,xprv9uPDJpEQgRQfDcW7BkF7eTya6RPxXeJCqCJGHuCJ4GiRVLzkTXBAJMu2qaMWPrS7AANYqdq6vcBcBUdJCVVFceUvJFjaPdGZ2y9WACViL4L/0))",
+        ["51202eea93581594a43c0c8423b70dc112e5651df63984d108d4fc8ccd3b63b4eafa"],
+    ),
+    (
+        "tr(50929b74c1a04954b78b4b6035e97a5e078a5a0f28ec96d547bfee9ace803ac0,sortedmulti_a(2,[00000000/111'/222]xprvA1RpRA33e1JQ7ifknakTFpgNXPmW2YvmhqLQYMmrj4xJXXWYpDPS3xz7iAxn8L39njGVyuoseXzU6rcxFLJ8HFsTjSyQbLYnMpCqE2VbFWc,xprv9uPDJpEQgRQfDcW7BkF7eTya6RPxXeJCqCJGHuCJ4GiRVLzkTXBAJMu2qaMWPrS7AANYqdq6vcBcBUdJCVVFceUvJFjaPdGZ2y9WACViL4L/0))",
+        ["512016fa6a6ba7e98c54b5bf43b3144912b78a61b60b02f6a74172b8dcb35b12bc30"],
+    ),
+    (
+        "tr(50929b74c1a04954b78b4b6035e97a5e078a5a0f28ec96d547bfee9ace803ac0,sortedmulti_a(2,xpub6ERApfZwUNrhLCkDtcHTcxd75RbzS1ed54G1LkBUHQVHQKqhMkhgbmJbZRkrgZw4koxb5JaHWkY4ALHY2grBGRjaDMzQLcgJvLJuZZvRcEL/*,xpub68NZiKmJWnxxS6aaHmn81bvJeTESw724CRDs6HbuccFQN9Ku14VQrADWgqbhhTHBaohPX4CjNLf9fq9MYo6oDaPPLPxSb7gwQN3ih19Zm4Y/0/0/*))",
+        [
+            "5120abd47468515223f58a1a18edfde709a7a2aab2b696d59ecf8c34f0ba274ef772",
+            "5120fe62e7ed20705bd1d3678e072bc999acb014f07795fa02cb8f25a7aa787e8cbd",
+            "51201311093750f459039adaa2a5ed23b0f7a8ae2c2ffb07c5390ea37e2fb1050b41",
+        ],
+    ),
+    (
+        "tr(50929b74c1a04954b78b4b6035e97a5e078a5a0f28ec96d547bfee9ace803ac0,multi_a(2,xprv9s21ZrQH143K31xYSDQpPDxsXRTUcvj2iNHm5NUtrGiGG5e2DtALGdso3pGz6ssrdK4PFmM8NSpSBHNqPqm55Qn3LqFtT2emdEXVYsCzC2U/2147483647'/0,xprv9vHkqa6EV4sPZHYqZznhT2NPtPCjKuDKGY38FBWLvgaDx45zo9WQRUT3dKYnjwih2yJD9mkrocEZXo1ex8G81dwSM1fwqWpWkeS3v86pgKt/1/2/*,xprv9s21ZrQH143K3QTDL4LXw2F7HEK3wJUD2nW2nRk4stbPy6cq3jPPqjiChkVvvNKmPGJxWUtg6LnF5kejMRNNU3TGtRBeJgk33yuGBxrMPHi/10/20/30/40/*'))",
+        [
+            "5120e4c8f2b0a7d3a688ac131cb03248c0d4b0a59bbd4f37211c848cfbd22a981192",
+            "5120827faedaa21e52fca2ac83b53afd1ab7d4d1e6ce67ff42b19f2723d48b5a19ab",
+            "5120647495ed09de61a3a324704f9203c130d655bf3141f9b748df8f7be7e9af55a4",
+        ],
+    ),
+]
+
+
+@pytest.mark.parametrize(
+    "descriptor, scripts",
+    [
+        pytest.param(descriptor, scripts, id=vector_id(index, descriptor))
+        for index, (descriptor, scripts) in enumerate(BIP387_VECTORS)
+    ],
+)
+def test_bip387_vector(descriptor: str, scripts: list[str]) -> None:
+    """Reproduce BIP387's own vectors: the script at each index it lists."""
+    parsed = parse(descriptor)
+    assert parsed.is_ranged == (len(scripts) > 1)
+    for index, expected in enumerate(scripts):
+        assert parsed.script_pub_key(index).script.hex() == expected
+
+
+# BIP387's invalid descriptors, and what each is refused with. The
+# threshold bounds are checked where the script is built, as `multi()`'s
+# are in `ScriptPubKey.p2ms`, so for those the refusal comes from
+# `script_pub_key` and for the rest from `parse`
+BIP387_INVALID = [
+    (f"multi_a(1,{KEY})", "not allowed inside top level"),
+    (f"sh(multi_a(1,{KEY}))", "not allowed inside sh"),
+    (f"wsh(multi_a(1,{KEY}))", "not allowed inside wsh"),
+    (f"tr({XONLY},multi_a(a,{KEY}))", "invalid multi_a\\(\\) threshold"),
+    (f"tr({XONLY},multi_a(0,{KEY}))", "invalid k in k-of-n multi_a"),
+    (f"tr({XONLY},multi_a(1,{UNCOMPRESSED}))", "uncompressed"),
+    # BIP387's own "threshold larger than keys" case names two
+    # uncompressed WIFs, and an uncompressed key is refused before any
+    # threshold is read: it is the case below that reaches the bound
+    (f"tr({XONLY},multi_a(3,{WIF},{UNCOMPRESSED_WIF}))", "uncompressed"),
+    (f"tr({XONLY},multi_a(3,{KEY},{KEY}))", "invalid k in k-of-n multi_a"),
+    # and what BIP387 does not list: a threshold with no key after it
+    (f"tr({XONLY},multi_a(1))", "at least one key"),
+]
+
+
+@pytest.mark.parametrize(
+    "descriptor, message",
+    [
+        pytest.param(descriptor, message, id=vector_id(index, descriptor))
+        for index, (descriptor, message) in enumerate(BIP387_INVALID)
+    ],
+)
+def test_bip387_invalid(descriptor: str, message: str) -> None:
+    """Refuse each of BIP387's invalid descriptors, with the reason named."""
+    with pytest.raises(BTClibValueError, match=message):
+        parse(descriptor).script_pub_key()
+
+
+def leaf_script_of(descriptor: str) -> bytes:
+    """Return the one leaf script of a tr() whose tree is a single leaf."""
+    parsed = parse(descriptor)
+    assert isinstance(parsed, TrDescriptor)
+    ((script, _),) = parsed.taproot_leaf_scripts().values()
+    return script
+
+
+def test_multi_a_is_a_tree_leaf_and_not_a_descriptor() -> None:
+    """What a `multi_a()` parses to is a `MultiA` leaf, its keys and all."""
+    descriptor = parse(f"tr({XONLY},multi_a(2,{KEY},{XONLY}))")
+    assert isinstance(descriptor, TrDescriptor)
+    leaf = descriptor.tree
+    assert isinstance(leaf, MultiA)
+    assert leaf.threshold == 2
+    assert not leaf.sort
+    # the internal key and both of the leaf's keys, in that order
+    assert len(descriptor.key_expressions) == 3
+    assert descriptor.key_expressions[1:] == leaf.keys
+    sorted_ = parse(f"tr({XONLY},sortedmulti_a(2,{KEY},{XONLY}))")
+    assert isinstance(sorted_, TrDescriptor)
+    assert isinstance(sorted_.tree, MultiA)
+    assert sorted_.tree.sort
+
+
+def test_sortedmulti_a_sorts_on_the_x_only_keys() -> None:
+    """BIP387 sorts the 32 bytes the script holds, not the 33 SEC bytes.
+
+    The two spellings of a key differ by the prefix that says the parity
+    of y, so sorting the SEC form would order the keys by that parity
+    first. These two are chosen for it: the odd-y key is the smaller of
+    the two x-only and the larger of the two SEC, so one sort puts it
+    first and the other last.
+    """
+    odd_y = "032fa2104d6b38d11b0230010559879124e42ab8dfeff5ff29dc9cdadd4ecacc3f"
+    even_y = "0279be667ef9dcbbac55a06295ce870b07029bfcdb2dce28d959f2815b16f81798"
+    assert odd_y[2:] < even_y[2:]
+    assert odd_y > even_y
+    assert leaf_script_of(
+        f"tr({XONLY},sortedmulti_a(1,{even_y},{odd_y}))"
+    ) == serialize(
+        [
+            bytes.fromhex(odd_y[2:]),
+            "OP_CHECKSIG",
+            bytes.fromhex(even_y[2:]),
+            "OP_CHECKSIGADD",
+            "OP_1",
+            "OP_NUMEQUAL",
+        ]
+    )
+
+
+def test_a_multi_a_threshold_above_sixteen_is_pushed_as_a_number() -> None:
+    """OP_1 to OP_16 are the thresholds an op code means, and 17 has none.
+
+    Which is what BIP387 says about the script, and the only thing the
+    seventeenth key changes beyond the length: sixteen ends in the single
+    byte `60`, seventeen in the two-byte push `0111`, and `9c` is
+    OP_NUMEQUAL either way.
+    """
+    keys = ",".join([KEY] * 17)
+    assert leaf_script_of(f"tr({XONLY},multi_a(16,{keys}))").endswith(
+        bytes.fromhex("609c")
+    )
+    assert leaf_script_of(f"tr({XONLY},multi_a(17,{keys}))").endswith(
+        bytes.fromhex("01119c")
+    )
+
+
+def test_too_many_keys_for_a_multi_a() -> None:
+    """BIP387 stops at 999 keys, a satisfaction being one element per key.
+
+    Built rather than parsed: a thousand key expressions is a descriptor
+    nobody writes, and the bound is on what the leaf holds.
+    """
+    (key,) = parse(f"tr({XONLY})").key_expressions
+    with pytest.raises(BTClibValueError, match="invalid n in k-of-n multi_a"):
+        TrDescriptor(key, MultiA(1, (key,) * 1000)).script_pub_key()
+    # and the last count BIP387 allows is a script this builds
+    allowed = TrDescriptor(key, MultiA(1, (key,) * 999))
+    assert allowed.script_pub_key().script
+
+
 # three keys and a signature made with each. Real DER signatures rather
 # than placeholder bytes because the psbt finalizer that satisfaction is
 # checked against parses every partial signature it is handed, so a
@@ -898,6 +1057,10 @@ KEY_A, KEY_B, KEY_C = SEC_KEYS
 # the x-only spelling of the same three, which is what a tr() holds
 XONLY_A, XONLY_B, XONLY_C = (sec[2:] for sec in SEC_KEYS)
 SCHNORR = ssa.sign(bytes(32), 1).serialize().hex()
+# the same message signed by the other two keys: a stack holding several
+# signatures says which key's is where only if they differ
+SCHNORR_B = ssa.sign(bytes(32), 2).serialize().hex()
+SCHNORR_C = ssa.sign(bytes(32), 3).serialize().hex()
 
 MULTI = f"multi(2,{KEY_A},{KEY_B},{KEY_C})"
 SORTED_MULTI = f"sortedmulti(2,{KEY_A},{KEY_B},{KEY_C})"
@@ -1069,6 +1232,98 @@ def test_the_taproot_key_path_is_preferred() -> None:
     assert descriptor.satisfy({XONLY_A: SCHNORR}) == (b"", Witness([SCHNORR]))
 
 
+# a 2-of-3 `multi_a()` of the three keys above, under an internal key
+# nothing here can sign with: the key path is preferred wherever it is
+# open, so an internal key with no signature is what leaves the script
+# path to be exercised
+MULTI_A = f"tr({XONLY},multi_a(2,{XONLY_A},{XONLY_B},{XONLY_C}))"
+
+
+def test_satisfy_a_multi_a_leaf() -> None:
+    """One element per key, in the reverse of the order the script holds.
+
+    OP_CHECKSIG pops the first key's signature first, so that signature is
+    the last element of the witness and the top of the stack -- the
+    opposite of `multi()`, where the signatures go in key order. The key
+    that has not signed is the empty push, which `multi()` has nothing
+    standing for at all.
+    """
+    script_sig, witness = parse(MULTI_A).satisfy({XONLY_A: SCHNORR, XONLY_C: SCHNORR_C})
+    assert script_sig == b""
+    signatures = witness.stack[:3]
+    assert signatures == (bytes.fromhex(SCHNORR_C), b"", bytes.fromhex(SCHNORR))
+    assert witness.stack[3] == leaf_script_of(MULTI_A)
+
+
+def test_a_multi_a_signature_beyond_the_threshold_is_not_spare() -> None:
+    """The third signature of a 2-of-3 becomes the empty push, not a fourth.
+
+    Which is the other difference from `multi()`: OP_CHECKSIGADD counts
+    every signature that verifies and OP_NUMEQUAL compares that count with
+    the threshold, where OP_CHECKMULTISIG pops the signatures the script
+    was built for and leaves the rest alone.
+    """
+    witness = parse(MULTI_A).satisfy(
+        {XONLY_A: SCHNORR, XONLY_B: SCHNORR_B, XONLY_C: SCHNORR_C}
+    )[1]
+    # the three keys in reverse order, the third one's signature dropped
+    assert witness.stack[:3] == (
+        b"",
+        bytes.fromhex(SCHNORR_B),
+        bytes.fromhex(SCHNORR),
+    )
+
+
+def test_a_leaf_the_signatures_do_not_open_is_the_next_leaf_s_turn() -> None:
+    """A tree is several spending paths, and a leaf short of one is not one.
+
+    The 2-of-2 comes first in the tree and only one of its keys has
+    signed, so what satisfies the descriptor is the `pk()` beside it. No
+    error either, which is what a leaf answering "not with these
+    signatures" rather than raising is for.
+    """
+    descriptor = parse(f"tr({XONLY},{{multi_a(2,{XONLY_A},{XONLY_B}),pk({XONLY_C})}})")
+    script_sig, witness = descriptor.satisfy({XONLY_A: SCHNORR, XONLY_C: SCHNORR_C})
+    assert script_sig == b""
+    signature, script, _ = witness.stack
+    assert signature == bytes.fromhex(SCHNORR_C)
+    assert script == serialize([bytes.fromhex(XONLY_C), "OP_CHECKSIG"])
+
+
+def test_a_multi_a_leaf_spends_under_the_engine() -> None:
+    """The satisfaction is checked by running it, and not by its shape.
+
+    A stack in the wrong order is a witness that looks well formed and
+    that OP_CHECKSIGADD counts to something else, so the oracle here is
+    btclib's own script engine: the sig_hash, the tapleaf hash, the
+    control block, the two signatures and their places all have to agree
+    for it to accept the spend.
+    """
+    descriptor = parse(MULTI_A)
+    assert isinstance(descriptor, TrDescriptor)
+    script_pub_key = descriptor.script_pub_key()
+    prevouts = [TxOut(100_000, script_pub_key)]
+    ((control_block, (script, _)),) = descriptor.taproot_leaf_scripts().items()
+
+    vin = TxIn(OutPoint(b"\x11" * 32, 0))
+    # the sig_hash of a script path spend commits to the tapleaf hash, and
+    # sig_hash reads that off the witness: the leaf script and the control
+    # block are the whole of the stack it looks at, so a placeholder
+    # carrying them is enough to sign against
+    vin.script_witness = Witness([b"", b"", b"", script, control_block])
+    tx = Tx(vin=[vin], vout=[TxOut(90_000, script_pub_key)])
+    msg_hash = sig_hash.from_tx(prevouts, tx, 0, sig_hash.DEFAULT)
+
+    signatures: dict[Octets, Octets] = {
+        x_only: ssa.sign_(msg_hash, prv_key).serialize()
+        for x_only, prv_key in ((XONLY_A, 1), (XONLY_C, 3))
+    }
+    script_sig, witness = descriptor.satisfy(signatures)
+    assert script_sig == b""
+    tx.vin[0].script_witness = witness
+    verify_transaction(prevouts, tx)
+
+
 # what cannot be satisfied, and what says so. Each refusal is a
 # BTClibValueError rather than the NotImplementedError the parser raises
 # for miniscript: nothing a later release adds makes any of these
@@ -1084,6 +1339,11 @@ UNSATISFIABLE: list[tuple[str, dict[Octets, Octets], str]] = [
     ("raw(76a914000000000000000000000000000000000000000088ac)", {}, "raw\\(\\) cannot"),
     (f"tr({XONLY_A})", {}, "no signature for the tr\\(\\) internal key"),
     (f"tr({XONLY_A},pk({XONLY_B}))", {}, "or for any of its leaves"),
+    (
+        f"tr({XONLY_A},multi_a(2,{XONLY_B},{XONLY_C}))",
+        {XONLY_B: SCHNORR},
+        "or for any of its leaves",
+    ),
 ]
 
 
@@ -1326,6 +1586,31 @@ def test_a_taproot_key_origin_names_the_leaves_it_is_in() -> None:
     ):
         leaf_hashes, origin = psbt_in.taproot_hd_key_paths[key]
         script = taproot_leaf_of(psbt_in, key.hex())[0]
+        assert leaf_hashes == [taproot.leaf_hash(0xC0, script)]
+        assert origin.description == description
+
+
+def test_the_updater_names_the_leaf_a_multi_a_key_is_in() -> None:
+    """A leaf commits to as many keys as it names, and BIP371 to each.
+
+    The tapleaf hash is of the whole script, so both keys of one
+    `multi_a()` name one hash and the same one: what a signer reads there
+    is which scripts it has to sign for, and this is a script both of them
+    have to sign. The internal key carries no origin here, so what the
+    field holds is the leaf's two keys and nothing else.
+    """
+    left, right = f"[aabbccdd/1]{XPUB}/1", f"[11223344/2]{XPUB}/2"
+    descriptor = parse(f"tr({XONLY},multi_a(2,{left},{right}))")
+    assert isinstance(descriptor, TrDescriptor)
+    psbt_in = descriptor.update_psbt(psbt_spending(descriptor), 0).inputs[0]
+
+    assert psbt_in.taproot_leaf_scripts == descriptor.taproot_leaf_scripts()
+    ((script, version),) = psbt_in.taproot_leaf_scripts.values()
+    assert version == 0xC0
+    keys = [key.sec()[1:] for key in descriptor.key_expressions[1:]]
+    assert list(psbt_in.taproot_hd_key_paths) == keys
+    for key, description in zip(keys, ("aabbccdd/1/1", "11223344/2/2"), strict=True):
+        leaf_hashes, origin = psbt_in.taproot_hd_key_paths[key]
         assert leaf_hashes == [taproot.leaf_hash(0xC0, script)]
         assert origin.description == description
 
