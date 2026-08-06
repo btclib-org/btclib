@@ -2452,6 +2452,80 @@ def test_combining_refuses_two_participant_lists_for_one_aggregate_key() -> None
         combine([first, second])
 
 
+def test_combining_leaves_every_psbt_it_was_given_alone() -> None:
+    """The Combiner returns a copy, and merged into none of its arguments.
+
+    Without it the returned psbt *is* `psbts[0]`: a coordinator that
+    keeps its own copy to check the next signer's answer against holds
+    the copy the last answer was merged into, so the check would pass
+    whatever came back.
+    """
+    first = Psbt.b64decode(TO_BE_FINALIZED)
+    second = deepcopy(first)
+    first.inputs[0].sha256_preimages = {sha256(b"one"): b"one"}
+    second.inputs[0].sha256_preimages = {sha256(b"two"): b"two"}
+    first_before, second_before = deepcopy(first), deepcopy(second)
+
+    combined = combine([first, second])
+
+    assert combined is not first
+    assert first == first_before
+    assert second == second_before
+
+
+def test_the_combined_psbt_shares_no_object_with_what_was_combined() -> None:
+    """Not only psbts[0]: `_combine_field` assigns what it takes.
+
+    A field taken from a later psbt is that psbt's own object -- a
+    witness_utxo, a preimage map -- so mutating the combined psbt would
+    reach into an argument the caller still holds. Mutation is the test
+    because identity is what is being asserted, and `==` cannot see it.
+    """
+    first = Psbt.b64decode(TO_BE_FINALIZED)
+    second = deepcopy(first)
+    # a map only `second` carries, so the combined psbt takes second's
+    second.inputs[0].sha256_preimages = {sha256(b"two"): b"two"}
+    first.inputs[0].sha256_preimages = {}
+
+    combined = combine([first, second])
+    assert combined.inputs[0].sha256_preimages == {sha256(b"two"): b"two"}
+
+    combined.inputs[0].sha256_preimages.clear()
+    combined.inputs[0].partial_sigs.clear()
+    assert second.inputs[0].sha256_preimages == {sha256(b"two"): b"two"}
+    assert first.inputs[0].partial_sigs
+
+
+def test_joining_leaves_every_psbt_it_was_given_alone() -> None:
+    """The joined psbt shares no input or output with what was joined.
+
+    `join` concatenates the input and output maps of every psbt, so
+    without a copy the joined psbt's inputs *are* theirs, and an Updater
+    filling one in afterwards fills in a psbt somebody else holds.
+
+    Two psbts of different kinds, which is what `join` needs: they spend
+    different outputs, so they have different outpoints, and one
+    transaction cannot spend one output twice -- two copies of one psbt
+    are refused as "common inputs".
+    """
+    first, _ = _single_key_psbt("p2wpkh")
+    second, _ = _single_key_psbt("p2wsh")
+    first_before, second_before = deepcopy(first), deepcopy(second)
+
+    joined = join([first, second], False, False, False, False)
+
+    assert first == first_before
+    assert second == second_before
+    given = [*first.inputs, *second.inputs]
+    assert all(inp is not joined_inp for inp in given for joined_inp in joined.inputs)
+
+    joined.inputs[0].witness_script = b"\x51"
+    joined.outputs[0].redeem_script = b"\x51"
+    joined.inputs[0].partial_sigs.clear()
+    assert first == first_before
+    assert second == second_before
+
+
 def test_finalize_refuses_a_signature_of_another_sig_hash_type() -> None:
     """BIP174 charges the Finalizer with the check, and it is per input.
 
