@@ -89,7 +89,12 @@ from typing import cast
 
 from btclib.alias import Octets, ScriptList, TaprootScriptTree
 from btclib.bip32.bip32 import BIP32KeyData, derive, xpub_from_xprv
-from btclib.bip32.der_path import indexes_from_der_path
+from btclib.bip32.der_path import (
+    _HARDENED_OFFSET,
+    _HARDENING,
+    hardenings_from_der_path,
+    indexes_from_der_path,
+)
 from btclib.bip32.key_origin import BIP32KeyOrigin
 from btclib.exceptions import BTClibValueError
 from btclib.psbt.psbt import Psbt
@@ -306,6 +311,15 @@ class KeyExpression:
     # is only meaningful when there is a wildcard to harden
     wildcard: int | None = None
     x_only: bool = False
+    # the symbol every hardened step of this expression is written with:
+    # BIP380 gives "h" and "'" one meaning and two spellings, and the two
+    # are different strings with different checksums, so a descriptor
+    # handed back in the other one is not the descriptor that was read.
+    # One symbol for the whole expression, origin included, which is
+    # Bitcoin Core's single `m_apostrophe` per key: a path spelled both
+    # ways -- BIP380's own valid `[deadbeef/0'/0h/0']` -- is read and
+    # written back in the symbol its last hardened step used
+    hardening: str = _HARDENING
 
     @property
     def is_ranged(self) -> bool:
@@ -1426,12 +1440,34 @@ def _der_path(path: str) -> list[int]:
     return indexes_from_der_path(path, bip380_enforced=True) if path else []
 
 
-def _key_origin(description: str) -> BIP32KeyOrigin:
-    """Return the key origin of a `[fingerprint/path]` prefix."""
+def _hardening(path: str) -> str:
+    """Return the symbol the last hardened step of a path was written with.
+
+    Empty where the path hardens nothing, so that a caller choosing
+    between two paths can tell "no opinion" from "an apostrophe". The
+    last and not the first, which is Bitcoin Core's rule by construction:
+    its parser assigns the bool per hardened element, so the one it ends
+    on is the one that is written back.
+    """
+    if not path:
+        return ""
+    symbols = [s for s in hardenings_from_der_path(path, bip380_enforced=True) if s]
+    return symbols[-1] if symbols else ""
+
+
+def _key_origin(description: str) -> tuple[BIP32KeyOrigin, str]:
+    """Return the key origin of a `[fingerprint/path]` prefix, and its symbol.
+
+    The symbol is the origin's alone, and the caller picks between it and
+    the key path's: `BIP32KeyOrigin` does not carry it, an origin being a
+    fingerprint and a path whichever way the path was spelled -- two
+    origins that differ in nothing else are the same origin, and equality
+    and `serialize` both have to keep saying so.
+    """
     fingerprint, _, path = description.partition("/")
     if not _FINGERPRINT.fullmatch(fingerprint):
         raise BTClibValueError(f"invalid key origin fingerprint: {fingerprint}")
-    return BIP32KeyOrigin(fingerprint, _der_path(path))
+    return BIP32KeyOrigin(fingerprint, _der_path(path)), _hardening(path)
 
 
 def _pub_key_from_hex(key: str, *, x_only: bool) -> tuple[bytes, bool]:
@@ -1491,16 +1527,17 @@ def _neutered(xkey: str, prv_keys: dict[str, str]) -> str:
     return xpub
 
 
-def _origin_and_rest(expression: str) -> tuple[BIP32KeyOrigin | None, str]:
+def _origin_and_rest(expression: str) -> tuple[BIP32KeyOrigin | None, str, str]:
     """Split the `[fingerprint/path]` prefix off a KEY expression."""
     if not expression.startswith("["):
         if "]" in expression:
             raise BTClibValueError("']' without the '[' that opens a key origin")
-        return None, expression
+        return None, "", expression
     end = expression.find("]")
     if end < 0:
         raise BTClibValueError("missing ']' in the key origin")
-    return _key_origin(expression[1:end]), expression[end + 1 :]
+    origin, hardening = _key_origin(expression[1:end])
+    return origin, hardening, expression[end + 1 :]
 
 
 def _assert_key_characters(rest: str) -> None:
@@ -1517,11 +1554,12 @@ def _assert_key_characters(rest: str) -> None:
         raise BTClibValueError("not a key expression")
 
 
-def _split_wildcard(steps: list[str]) -> tuple[list[str], int | None]:
-    """Split the final `/*` step, if any, off a derivation path."""
+def _split_wildcard(steps: list[str]) -> tuple[list[str], int | None, str]:
+    """Split the final `/*` step off a path: its offset, and its symbol."""
     if steps and steps[-1] in ("*", "*'", "*h"):
-        return steps[:-1], 0 if steps[-1] == "*" else 0x80000000
-    return steps, None
+        offset = 0 if steps[-1] == "*" else _HARDENED_OFFSET
+        return steps[:-1], offset, steps[-1][1:]
+    return steps, None, ""
 
 
 def _fixed_pub_key(key: str, *, x_only: bool) -> tuple[bytes, bool]:
@@ -1548,22 +1586,39 @@ def _parse_key(
     Never echo the key in an error message: a KEY expression is a WIF or
     an xprv as often as it is a public key, and an error message ends up
     in logs and in bug reports.
+
+    The hardening symbol is the last one the expression used, read in the
+    order it is written: the origin's path, then the key's, then the
+    wildcard. A fixed key hardens nothing and keeps the default, there
+    being no step of it to write.
     """
-    origin, rest = _origin_and_rest(expression)
+    origin, origin_hardening, rest = _origin_and_rest(expression)
     _assert_key_characters(rest)
     key, separator, path = rest.partition("/")
     if _is_extended_key(key):
-        steps, wildcard = _split_wildcard(path.split("/") if separator else [])
+        steps, wildcard, wildcard_hardening = _split_wildcard(
+            path.split("/") if separator else []
+        )
+        der_path = "/".join(steps)
+        hardening = origin_hardening
+        for symbol in (_hardening(der_path), wildcard_hardening):
+            hardening = symbol or hardening
         return KeyExpression(
             origin=origin,
             xkey=_neutered(key, prv_keys),
-            der_path=tuple(_der_path("/".join(steps))),
+            der_path=tuple(_der_path(der_path)),
             wildcard=wildcard,
+            hardening=hardening or _HARDENING,
         )
     if separator:
         raise BTClibValueError("derivation path after a key that cannot derive")
     pub_key, was_x_only = _fixed_pub_key(key, x_only=x_only)
-    key_expression = KeyExpression(origin=origin, pub_key=pub_key, x_only=was_x_only)
+    key_expression = KeyExpression(
+        origin=origin,
+        pub_key=pub_key,
+        x_only=was_x_only,
+        hardening=origin_hardening or _HARDENING,
+    )
     if compressed and not key_expression.is_compressed:
         raise BTClibValueError("uncompressed public keys are not allowed here")
     return key_expression

@@ -35,6 +35,7 @@ from hypothesis import strategies as st
 from btclib.alias import Octets
 from btclib.bip32 import BIP32KeyOrigin
 from btclib.bip32.bip32 import xpub_from_xprv
+from btclib.bip32.der_path import _HARDENING
 from btclib.descriptors import (
     AddrDescriptor,
     ComboDescriptor,
@@ -739,6 +740,58 @@ def test_a_hardened_step_takes_the_keys_back() -> None:
     # hardened step is refused the way it is with no mapping at all
     with pytest.raises(BTClibValueError, match="hardened derivation"):
         hardened.script_pub_keys(0, {"xpub-of-somebody-else": xprv})
+
+
+def test_the_hardening_symbol_that_was_read_is_the_one_kept() -> None:
+    """A key expression remembers which of the two spellings it was written in.
+
+    BIP380 gives ``h`` and ``'`` one meaning, and the two are different
+    strings with different checksums, so which one was read is what
+    writing the descriptor back again takes.
+    """
+    key = "03a34b99f22c790c4e36b2b3c2c35a36db06226e41c692fc82b8b56ac1c540c5bd"
+
+    for symbol in ("h", "'"):
+        parsed = parse(f"pkh([deadbeef/1/2{symbol}/3]{key})")
+        assert parsed.key_expressions[0].hardening == symbol
+
+    # BIP380's own valid vector with mixed indicators: one symbol for the
+    # expression, and it is the last hardened step's, which is Bitcoin
+    # Core's single m_apostrophe by construction
+    mixed = parse(f"pk([deadbeef/0'/0h/0']{key})")
+    assert mixed.key_expressions[0].hardening == "'"
+    assert parse(f"pk([deadbeef/0'/0h/0h]{key})").key_expressions[0].hardening == "h"
+
+    # the key's own path is written after the origin's, and the wildcard
+    # after both, so each in turn has the last word
+    assert parse(f"wpkh([deadbeef/0']{XPUB}/1h/2)").key_expressions[0].hardening == "h"
+    assert parse(f"wpkh([deadbeef/0h]{XPUB}/1'/2)").key_expressions[0].hardening == "'"
+    assert parse(f"wpkh([deadbeef/0h]{XPUB}/1/*')").key_expressions[0].hardening == "'"
+    assert parse(f"wpkh([deadbeef/0']{XPUB}/1/*h)").key_expressions[0].hardening == "h"
+
+    # a path that hardens nothing, and a key that has no path at all,
+    # keep the default rather than an answer they were never given
+    assert parse(f"wpkh({XPUB}/1/2)").key_expressions[0].hardening == _HARDENING
+    assert parse(f"pk({key})").key_expressions[0].hardening == _HARDENING
+
+
+def test_the_origin_is_the_same_whichever_symbol_spelled_it() -> None:
+    """The spelling is the key expression's, and never the origin's.
+
+    `BIP32KeyOrigin` is a fingerprint and a path: two that differ in
+    nothing else are equal, serialize to the same bytes and hash the
+    same, whichever way the descriptor wrote the path. Which is why the
+    symbol is a field of the KeyExpression around it.
+    """
+    key = "03a34b99f22c790c4e36b2b3c2c35a36db06226e41c692fc82b8b56ac1c540c5bd"
+    apostrophes = parse(f"pkh([deadbeef/1/2'/3]{key})").key_expressions[0]
+    aitches = parse(f"pkh([deadbeef/1/2h/3]{key})").key_expressions[0]
+
+    assert apostrophes.origin == aitches.origin
+    assert hash(apostrophes.origin) == hash(aitches.origin)
+    assert apostrophes.hardening != aitches.hardening
+    # and so the two key expressions are not the same key expression
+    assert apostrophes != aitches
 
 
 def test_key_origin_is_kept() -> None:
