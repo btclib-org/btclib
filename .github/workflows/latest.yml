@@ -33,9 +33,12 @@ name: latest
 # pull request -- that pull request runs the whole matrix, so ruff and the
 # other pinned hooks already have their sentinel. mypy is the exception
 # and the reason the lint job below is here at all: its hook is local and
-# shells out to uv, so it is the lock that pins it. Not sphinx either:
-# nothing in CI builds the documentation, readthedocs does, and a build
-# there fails on its own.
+# shells out to uv, so it is the lock that pins it. Not sphinx: lint.yml's
+# second job already builds the docs, with --locked, on every pull
+# request, so a broken build surfaces there, not here. What it builds
+# against is the same lock this workflow exists to get ahead of, so a
+# sphinx break in the newest releases is the one gap this file leaves
+# open too, same as everywhere else in it.
 #
 # Nothing here gates anything, by construction: a separate workflow, with
 # no aggregate job, named by no branch protection rule. That is the point.
