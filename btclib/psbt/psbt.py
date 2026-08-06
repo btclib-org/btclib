@@ -105,6 +105,7 @@ __all__ = [
     "PSBT_V2",
     "KeyManager",
     "Psbt",
+    "assert_signatures_only",
     "combine",
     "ecdsa_sig_hash",
     "extract_tx",
@@ -2038,6 +2039,236 @@ def sign(psbt: Psbt, key_manager: KeyManager) -> tuple[Psbt, list[int]]:
         if _sign_ecdsa_input(psbt, vin_i, key_manager):
             signed_vins.append(vin_i)
     return psbt, signed_vins
+
+
+# the input fields a signer's answer may add to, and the only ones:
+# everything else it carries has to be what was sent. That is what makes
+# `assert_signatures_only` a check on an answer rather than a merge of
+# two opinions -- `combine` is the merge, and BIP174 lets it resolve a
+# conflict by picking either side, which is the wrong instinct entirely
+# when one side came from somebody else.
+#
+# The two musig2 maps are here because BIP373 puts a session's rounds in
+# them: a public nonce in round 1 and a partial signature in round 2 are
+# what that signer's answer *is*.
+_SIGNATURE_FIELDS = frozenset(
+    {
+        "partial_sigs",
+        "taproot_key_spend_signature",
+        "taproot_script_spend_signatures",
+        "musig2_pub_nonces",
+        "musig2_partial_sigs",
+    }
+)
+
+
+def _assert_unchanged(
+    request_map: PsbtIn | PsbtOut, returned_map: PsbtIn | PsbtOut, what: str
+) -> None:
+    """Raise unless every field that is not a signature came back as sent.
+
+    Walked with `dataclasses.fields` and not from a list of its own, so
+    that a field added to `PsbtIn` or `PsbtOut` has to come back
+    unchanged by default: the safe answer for a field nobody has thought
+    about yet is that an external signer may not touch it.
+
+    Equality and not "was not overwritten", which is what `combine`
+    settles for: a signer that adds a `witness_utxo` the request did not
+    carry, or a `redeem_script`, is playing Updater as well, and a caller
+    who wants that has `combine` and no illusion that it was checked.
+    That is also how the two decisions about `unknown` and the finalized
+    scripts are kept -- neither is a signature, so both must be equal,
+    and an answer that finalizes an input or adds a vendor field is
+    refused here rather than merged.
+    """
+    for field in fields(request_map):
+        if field.name in _SIGNATURE_FIELDS:
+            continue
+        if getattr(returned_map, field.name) != getattr(request_map, field.name):
+            raise BTClibValueError(f"{what}: {field.name} was changed")
+
+
+def _assert_signatures_added_only(
+    request_in: PsbtIn, returned_in: PsbtIn, vin_i: int
+) -> None:
+    """Raise unless the signature fields only gained entries.
+
+    A signature the request already carried must come back as it was, and
+    dropping one is refused too: the answer is meant to be the request
+    plus what this signer had to add, and `combine` would put a dropped
+    signature back without anybody noticing that it had been taken out.
+    """
+    for name in sorted(_SIGNATURE_FIELDS):
+        was, now = getattr(request_in, name), getattr(returned_in, name)
+        if isinstance(was, dict):
+            for key, value in was.items():
+                if key not in now:
+                    err_msg = f"input {vin_i}: {name} of {key.hex()} was dropped"
+                    raise BTClibValueError(err_msg)
+                if now[key] != value:
+                    err_msg = f"input {vin_i}: {name} of {key.hex()} was changed"
+                    raise BTClibValueError(err_msg)
+        elif was and now != was:
+            raise BTClibValueError(f"input {vin_i}: {name} was changed")
+
+
+def _assert_new_ecdsa_sigs_verify(
+    request_in: PsbtIn, returned_in: PsbtIn, tx: Tx, vin_i: int
+) -> None:
+    """Raise unless each partial signature that arrived verifies.
+
+    Where `_assert_partial_sigs_verify` leaves an unverifiable signature
+    alone, this refuses it, and the difference is who is asking: the
+    Finalizer learns nothing about a signature from a psbt that does not
+    say what was signed, while here a signature that cannot be checked is
+    the one thing that must not be merged.
+
+    lower_s=False for the Finalizer's reason: the question is whether that
+    key made that signature, the low-s rule being policy the script engine
+    applies under its flags.
+    """
+    for pub_key, sig in returned_in.partial_sigs.items():
+        if pub_key in request_in.partial_sigs:
+            continue
+        msg_hash = _sig_hash_from_psbt_in(returned_in, tx, vin_i, sig[-1])
+        if msg_hash is None:
+            err_msg = f"input {vin_i}: cannot verify the signature of "
+            err_msg += f"{pub_key.hex()}, the psbt does not say what was signed"
+            raise BTClibValueError(err_msg)
+        if not dsa.verify_(msg_hash, pub_key, sig[:-1], lower_s=False):
+            err_msg = f"input {vin_i}: invalid signature for pub_key {pub_key.hex()}"
+            raise BTClibValueError(err_msg)
+
+
+def _assert_new_taproot_sigs_verify(request: Psbt, returned: Psbt, vin_i: int) -> None:
+    """Raise unless each taproot signature that arrived verifies.
+
+    The Finalizer's own checks, asked one role earlier: a key path
+    signature against the output key being spent, a script path one
+    against the key its tapleaf hash names. The sig_hash type each
+    commits to has to be the type the input asks for, which is what
+    `_assert_taproot_sig_hash_type` answers and what decides the message.
+
+    A taproot signature beside an input that does not spend a taproot
+    output is refused rather than verified: there is no output key to
+    check it against, and an answer carrying one is describing some other
+    input.
+    """
+    request_in, returned_in = request.inputs[vin_i], returned.inputs[vin_i]
+    new_key_sig = returned_in.taproot_key_spend_signature and (
+        not request_in.taproot_key_spend_signature
+    )
+    new_script_sigs = {
+        key_data: sig
+        for key_data, sig in returned_in.taproot_script_spend_signatures.items()
+        if key_data not in request_in.taproot_script_spend_signatures
+    }
+    if not new_key_sig and not new_script_sigs:
+        return
+
+    script = _spent_script(returned_in)
+    if not is_p2tr(script):
+        err_msg = f"input {vin_i}: a taproot signature for an input spending "
+        err_msg += "no taproot output"
+        raise BTClibValueError(err_msg)
+
+    if new_key_sig:
+        sig = returned_in.taproot_key_spend_signature
+        hash_type = _assert_taproot_sig_hash_type(
+            sig, returned_in, "taproot key path signature"
+        )
+        msg = taproot_sig_hash(returned, vin_i, hash_type=hash_type)
+        output_key = type_and_payload(script)[1]
+        if not ssa.verify_(msg, output_key, sig[:64]):
+            err_msg = f"input {vin_i}: invalid taproot key path signature for "
+            err_msg += f"output key {output_key.hex()}"
+            raise BTClibValueError(err_msg)
+
+    for key_data, sig in new_script_sigs.items():
+        pub_key, leaf_hash = key_data[:LEAF_HASH_SIZE], key_data[LEAF_HASH_SIZE:]
+        hash_type = _assert_taproot_sig_hash_type(
+            sig, returned_in, "taproot script path signature"
+        )
+        msg = taproot_sig_hash(
+            returned, vin_i, leaf_hash=leaf_hash, hash_type=hash_type
+        )
+        if not ssa.verify_(msg, pub_key, sig[:64]):
+            err_msg = f"input {vin_i}: invalid taproot script path signature for "
+            err_msg += f"key {pub_key.hex()}"
+            raise BTClibValueError(err_msg)
+
+
+def assert_signatures_only(request: Psbt, returned: Psbt) -> None:
+    """Raise unless `returned` is `request` with signatures added, and no more.
+
+    What a caller has to know before merging an answer from somebody
+    else -- an external signer, a hardware device, a cosigner -- because
+    `combine` will not tell them: BIP174's Combiner takes the union of
+    what it is given and may resolve a conflict by picking either side,
+    so it compares only the psbt's identifier and merges the rest. Which
+    leaves three ways for an answer to change what was sent: adding a
+    field the request left empty, overwriting one entry of a field that
+    is a map, and -- in a version 2 psbt, whose identifier zeroes every
+    sequence -- changing a sequence.
+
+    The rule here is one sentence. Everything that is not a signature
+    comes back as it was sent; the signature fields may only gain
+    entries; every signature that arrived is verified before anything is
+    merged. `_SIGNATURE_FIELDS` is the second clause, `_assert_unchanged`
+    the first, and both walk the fields a map declares rather than a list
+    kept beside them.
+
+    The transaction being signed is compared whole, `Psbt.tx` being
+    computed from the fields of either version: that is what catches the
+    changed sequence of a version 2 psbt, which `unique_id` cannot see,
+    and it makes the input and output counts equal without a check of
+    their own.
+
+    `tx_modifiable` is the one field an answer may legitimately change,
+    a Signer clearing a bit when it adds a signature that a change would
+    break. What it may not do is loosen one, and the rule for that is
+    `_combined_tx_modifiable`'s already: an answer no more permissive
+    than the request is one the two combine into unchanged.
+
+    The two musig2 maps are permitted additions and are not verified
+    here. A BIP327 partial signature is checked against the session's
+    aggregate nonce, which needs every participant's nonce, and a psbt
+    mid-session need not carry them yet; `musig2.partial_sigs_agg`
+    refuses an aggregate that does not verify, which is the check that
+    can be made once the session is complete.
+    """
+    returned.assert_valid()
+
+    if returned.version != request.version:
+        err_msg = f"mismatched psbt version: {returned.version} vs {request.version}"
+        raise BTClibValueError(err_msg)
+    if returned.tx != request.tx:
+        raise BTClibValueError("the transaction being signed was changed")
+    if returned.fallback_lock_time != request.fallback_lock_time:
+        raise BTClibValueError("fallback_lock_time was changed")
+    if returned.hd_key_paths != request.hd_key_paths:
+        raise BTClibValueError("the global hd_key_paths were changed")
+    if returned.unknown != request.unknown:
+        raise BTClibValueError("the global unknown fields were changed")
+    if _combined_tx_modifiable([request, returned]) != returned.tx_modifiable:
+        raise BTClibValueError("tx_modifiable is more permissive than the request's")
+
+    # read once, as `finalize` reads it once: every signature of every
+    # input is against the same transaction
+    tx = returned.tx
+    for vin_i, (request_in, returned_in) in enumerate(
+        zip(request.inputs, returned.inputs, strict=True)
+    ):
+        _assert_unchanged(request_in, returned_in, f"input {vin_i}")
+        _assert_signatures_added_only(request_in, returned_in, vin_i)
+        _assert_sig_hash_type(returned_in)
+        _assert_new_ecdsa_sigs_verify(request_in, returned_in, tx, vin_i)
+        _assert_new_taproot_sigs_verify(request, returned, vin_i)
+
+    for vout_i, (request_out, returned_out) in enumerate(
+        zip(request.outputs, returned.outputs, strict=True)
+    ):
+        _assert_unchanged(request_out, returned_out, f"output {vout_i}")
 
 
 def _assert_sig_hash_type(psbt_in: PsbtIn) -> None:

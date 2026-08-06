@@ -12,6 +12,12 @@ which plays the role over a `KeyManager`'s answers, and the size
 estimation a fee rate is applied to. `musig2` is named as a module, being
 the BIP373 role rather than one function, the way btclib.ecc names dsa.
 
+`assert_signatures_only` is the check that belongs before `combine` when
+the psbt being merged came from somebody else. BIP174 gives the Combiner
+no such role -- it takes the union of what it is given and may resolve a
+conflict by picking either side -- so a caller merging an external
+signer's answer has to hold it to the request first.
+
 `ecdsa_sig_hash` and `taproot_sig_hash` are here for the same reason
 `prevouts` is: `sign` needs the message before it needs anything else,
 and a caller playing the Signer by hand -- writing a signature into a
@@ -35,6 +41,7 @@ from btclib.psbt import musig2
 from btclib.psbt.psbt import (
     KeyManager,
     Psbt,
+    assert_signatures_only,
     combine,
     ecdsa_sig_hash,
     extract_tx,
@@ -53,6 +60,7 @@ __all__ = [
     "Psbt",
     "PsbtIn",
     "PsbtOut",
+    "assert_signatures_only",
     "combine",
     "ecdsa_sig_hash",
     "estimated_input_sizes",
