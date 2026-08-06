@@ -15,7 +15,7 @@ contact_links:
       maintainers alone; SECURITY.md gives an email address for anyone who
       would rather not use it.
   - name: Bug in the libsecp256k1 bindings
-    url: https://github.com/btclib-org/btclib_libsecp256k1/issues
+    url: https://github.com/btclib-org/btclib-libsecp256k1/issues
     about: Signing, verification and curve arithmetic are delegated there.
   - name: Chat with the developers
     url: https://bbt-training.slack.com/archives/C01CCJ85AES
