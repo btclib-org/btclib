@@ -39,15 +39,17 @@ The grammar read is BIP380 to BIP387 and BIP389, minus miniscript:
 - ``addr``, ``raw`` (BIP385)
 - ``tr``, with a key path and a script tree whose leaves are ``pk()``,
   ``multi_a()`` and ``sortedmulti_a()`` (BIP386, BIP387)
+- ``rawtr``, which no BIP specifies: Bitcoin Core's `doc/descriptors.md`
+  is what defines it, and the key it takes is the output key itself
 - key expressions: hex public keys (compressed, uncompressed and, inside
-  ``tr()``, x-only), WIF private keys, xpub/xprv with a derivation path,
-  key origin, ``/*`` and ``/*h`` wildcards, both ``h`` and ``'`` hardened
-  markers
+  ``tr()`` and ``rawtr()``, x-only), WIF private keys, xpub/xprv with a
+  derivation path, key origin, ``/*`` and ``/*h`` wildcards, both ``h``
+  and ``'`` hardened markers
 - the ``<a;b>`` multipath form of BIP389, through `multipath_descriptors`
 
 What raises NotImplementedError, rather than being read wrong: every
-miniscript expression, which is issue #187; and ``rawtr`` and ``musig``,
-which are BIP386 and BIP390 and belong with the work that adds them.
+miniscript expression, which is issue #187; and ``musig``, which is
+BIP390 and belongs with the work that adds it.
 
 A parsed descriptor holds no key that signs. `parse` neuters an xprv to
 the xpub the `KeyExpression` then carries, and hands the private spelling
@@ -135,6 +137,7 @@ __all__ = [
     "PkhDescriptor",
     "PrvKeys",
     "RawDescriptor",
+    "RawTrDescriptor",
     "ShDescriptor",
     "TrDescriptor",
     "WpkhDescriptor",
@@ -264,7 +267,6 @@ _MINISCRIPT_FRAGMENTS = frozenset(
 # each is a specification of its own, and a script derived wrong is an
 # address that loses money
 _UNIMPLEMENTED = {
-    "rawtr": "BIP386",
     "musig": "BIP390",
 }
 
@@ -510,7 +512,6 @@ class MultiA:
         return stack
 
 
-# a tr() script tree: a leaf, or a branch of two subtrees. A leaf is the
 def _expression(name: str, *args: str) -> str:
     """Return a descriptor function written out: its name and its arguments."""
     return f"{name}({','.join(args)})"
@@ -525,6 +526,7 @@ def _tree_expression(tree: DescriptorTree) -> str:
     return _expression("pk", str(tree))
 
 
+# a tr() script tree: a leaf, or a branch of two subtrees. A leaf is the
 # KEY expression a `pk()` leaf is, or the `MultiA` of BIP387's two
 # functions; a branch is a tuple, which is what tells a branch from a
 # leaf. The leaves hold KEY expressions and not scripts because a ranged
@@ -1491,6 +1493,88 @@ class TrDescriptor(Descriptor):
         }
 
 
+@dataclass(frozen=True)
+class RawTrDescriptor(Descriptor):
+    """``rawtr(KEY)``: the key as the output key itself, no tweak at all.
+
+    No BIP specifies this function. BIP386 specifies ``tr()``, the tree
+    expression and the x-only key inside them and never mentions
+    ``rawtr()``; what defines it is Bitcoin Core's own
+    `doc/descriptors.md`, which also carries the warning this docstring
+    keeps: an output key whose internal key nobody knows cannot be shown
+    to have no hidden script path, so a ``rawtr()`` describes an output a
+    wallet already holds rather than one to build.
+
+    The key is BIP341's *output* key, written into ``OP_1 <32 bytes>`` as
+    it is. That is the whole difference from ``tr(KEY)``, which tweaks its
+    internal key with an empty merkle root, and it is why this is not a
+    `TrDescriptor` carrying ``tree=None``.
+    """
+
+    key: KeyExpression
+
+    def __str__(self) -> str:
+        return _expression("rawtr", str(self.key))
+
+    @property
+    def key_expressions(self) -> tuple[KeyExpression, ...]:
+        """Return the one KEY expression, as the base class's tuple."""
+        return (self.key,)
+
+    def _scripts(self, index: int, prv_keys: PrvKeys | None) -> list[bytes]:
+        # not ScriptPubKey.p2tr, which computes an output key from an
+        # internal one: here the key already is the output key, and
+        # tweaking it would describe an output nobody named
+        output_key = self.key.sec(index, self.network, prv_keys)[1:]
+        return [serialize(["OP_1", output_key])]
+
+    def _satisfy(
+        self,
+        signatures: Mapping[bytes, bytes],
+        index: int,
+        prv_keys: PrvKeys | None,
+    ) -> tuple[bytes, Witness]:
+        """Return the witness of a BIP341 key path spend: one signature.
+
+        Looked up under the key the descriptor names, as ``tr()`` does,
+        and the two lookups mean opposite things: there the signature is
+        one the *tweaked* key verifies, made by a signer that tweaked the
+        internal key it holds, while here it must verify against the key
+        as written, so a signer must not tweak anything.
+
+        The script_sig is empty: BIP341 spends a witness v1 program with
+        the witness alone.
+        """
+        output_key = self.key.sec(index, self.network, prv_keys)
+        signature = _offered_signature(signatures, output_key, x_only=True)
+        if signature is None:
+            raise BTClibValueError("no signature for the rawtr() output key")
+        return b"", Witness([signature])
+
+    def _update(self, psbt_in: PsbtIn, index: int, prv_keys: PrvKeys | None) -> None:
+        """Fill the one taproot field a ``rawtr()`` has anything to say in.
+
+        BIP371's PSBT_IN_TAP_BIP32_DERIVATION, keyed by the x-only key,
+        which is the origin of the key the script holds. The other three
+        fields are `TrDescriptor`'s and not this one's: PSBT_IN_TAP_
+        INTERNAL_KEY names the key a verifier tweaks and a ``rawtr()`` has
+        none, so it has no merkle root and no leaf script either.
+
+        What that costs is `psbt.sign`, which signs a taproot input
+        through its internal key and therefore leaves this input alone
+        rather than tweaking a key it should not: an input with no
+        internal key is one that role skips.
+        """
+        origin = _derived_origin(self.key, index)
+        if origin is None:
+            return
+        x_only = self.key.sec(index, self.network, prv_keys)[1:]
+        psbt_in.taproot_hd_key_paths = {
+            **psbt_in.taproot_hd_key_paths,
+            x_only: ([], origin),
+        }
+
+
 def _split_arguments(arguments: str) -> list[str]:
     """Split a comma-separated argument list, at nesting depth zero.
 
@@ -1683,13 +1767,22 @@ def _split_wildcard(steps: list[str]) -> tuple[list[str], int | None, str]:
 
 
 def _fixed_pub_key(key: str, *, x_only: bool) -> tuple[bytes, bool]:
-    """Return the SEC bytes of a hex or WIF key, and whether x-only."""
+    """Return the SEC bytes of a hex or WIF key, and whether x-only.
+
+    A hex key is x-only when it was written in 32 bytes, and a WIF when it
+    sits where only an x-only key is written: it has no spelling of its
+    own to echo, so what is written back is the spelling the position
+    takes. Bitcoin Core makes the same distinction with one bool per key
+    -- `false` for a hex key it read whole, `ctx == ParseScriptContext::
+    P2TR` for a private one -- which is what makes its ``tr(WIF)`` and
+    ``rawtr(WIF)`` vectors come back in 32 bytes and not 33.
+    """
     if _HEX.fullmatch(key):
         return _pub_key_from_hex(key, x_only=x_only)
     # what is left is a WIF, and pub_keyinfo_from_key answers both for it
     # and for characters that are no key expression at all
     try:
-        return pub_keyinfo_from_key(key)[0], False
+        return pub_keyinfo_from_key(key)[0], x_only
     except (TypeError, ValueError) as e:
         raise BTClibValueError("invalid key expression") from e
 
@@ -1780,8 +1873,14 @@ def _parse_tree(expression: str, prv_keys: dict[str, str]) -> DescriptorTree:
     args = _split_arguments(arguments)
     if name in _TREE_FUNCTIONS:
         return _parse_multi_a(name, args, prv_keys)
+    if name in _PARSERS:
+        # a SCRIPT function where a leaf is expected: a position rule and
+        # not something a later release adds, which is what the position
+        # table says and Bitcoin Core's own message says too. ``pk()``
+        # allows tr() among its positions and falls through to be read
+        _assert_position(name, _P2TR, _PARSERS[name][0])
     if name != "pk":
-        raise NotImplementedError(f"{name}() inside tr() is not implemented")
+        raise BTClibValueError(f"unknown descriptor function: {name}()")
     return _parse_key(_one_argument(args, name), prv_keys, x_only=True, compressed=True)
 
 
@@ -1885,6 +1984,17 @@ def _parse_tr(
     return TrDescriptor(internal_key, tree, network=network)
 
 
+def _parse_rawtr(
+    args: list[str], context: str, network: str, prv_keys: dict[str, str]
+) -> Descriptor:
+    # one key and no tree: what Core's error says too, "rawtr(): only one
+    # key expected", the function having nothing to put a second key in
+    key = _parse_key(
+        _one_argument(args, "rawtr"), prv_keys, x_only=True, compressed=True
+    )
+    return RawTrDescriptor(key, network=network)
+
+
 def _parse_addr(
     args: list[str], context: str, network: str, prv_keys: dict[str, str]
 ) -> Descriptor:
@@ -1924,6 +2034,7 @@ _PARSERS: dict[
     "multi": ((_TOP, _P2SH, _P2WSH), _parse_ordered_multi),
     "sortedmulti": ((_TOP, _P2SH, _P2WSH), _parse_sorted_multi),
     "tr": ((_TOP,), _parse_tr),
+    "rawtr": ((_TOP,), _parse_rawtr),
     "addr": ((_TOP,), _parse_addr),
     "raw": ((_TOP,), _parse_raw),
 }

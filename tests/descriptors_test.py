@@ -45,6 +45,7 @@ from btclib.descriptors import (
     MultiDescriptor,
     PkDescriptor,
     RawDescriptor,
+    RawTrDescriptor,
     ShDescriptor,
     TrDescriptor,
     WshDescriptor,
@@ -434,11 +435,26 @@ CORE_VECTORS: list[tuple[str, str | None, list[list[str]]]] = [
         "tr(a34b99f22c790c4e36b2b3c2c35a36db06226e41c692fc82b8b56ac1c540c5bd,pk(669b8afcec803a0d323e9a17f3ea8e68e8abe5a278020a929adbec52421adbd0))",
         [["512017cf18db381d836d8923b1bdb246cfcd818da1a9f0e6e7907f187f0b2f937754"]],
     ),
+    (
+        "rawtr(xprv9vHkqa6EV4sPZHYqZznhT2NPtPCjKuDKGY38FBWLvgaDx45zo9WQRUT3dKYnjwih2yJD9mkrocEZXo1ex8G81dwSM1fwqWpWkeS3v86pgKt/86'/1'/0'/1/*)",
+        None,
+        [
+            ["51205172af752f057d543ce8e4a6f8dcf15548ec6be44041bfa93b72e191cfc8c1ee"],
+            ["51201b66f20b86f700c945ecb9ad9b0ad1662b73084e2bfea48bee02126350b8a5b1"],
+            ["512063e70f66d815218abcc2306aa930aaca07c5cde73b75127eb27b5e8c16b58a25"],
+        ],
+    ),
+    (
+        "rawtr(L4rK1yDtCWekvXuE6oXD9jCYfFNV2cWRpVuPLBcCU2z8TrisoyY1)",
+        "rawtr(a34b99f22c790c4e36b2b3c2c35a36db06226e41c692fc82b8b56ac1c540c5bd)",
+        [["5120a34b99f22c790c4e36b2b3c2c35a36db06226e41c692fc82b8b56ac1c540c5bd"]],
+    ),
 ]
 
-# the public spelling of the four descriptors that derive hardened: Core
+# the public spelling of the five descriptors that derive hardened: Core
 # flags them HARDENED or DERIVE_HARDENED and expands the private one only
 HARDENED_PUBLIC = [
+    "rawtr(xpub69H7F5d8KSRgmmdJg2KhpAK8SR3DjMwAdkxj3ZuxV27CprR9LgpeyGmXUbC6wb7ERfvrnKZjXoUmmDznezpbZb7ap6r1D3tgFxHmwMkQTPH/86'/1'/0'/1/*)",
     "pkh(xpub661MyMwAqRbcFW31YEwpkMuc5THy2PSt5bDMsktWQcFF8syAmRUapSCGu8ED9W6oDMSgv6Zz8idoc4a6mr8BDzTJY47LJhkJ8UB7WEGuduB/2147483647'/0)",
     "sh(wpkh(xpub661MyMwAqRbcFtXgS5sYJABqqG9YLmC4Q1Rdap9gSE8NqtwybGhePY2gZ29ESFjqJoCu1Rupje8YtGqsefD265TMg7usUDFdp6W1EGMcet8/10/20/30/40/*'))",
     "pkh([01234567/10/20]xpub661MyMwAqRbcFW31YEwpkMuc5THy2PSt5bDMsktWQcFF8syAmRUapSCGu8ED9W6oDMSgv6Zz8idoc4a6mr8BDzTJY47LJhkJ8UB7WEGuduB/2147483647'/0)",
@@ -928,6 +944,16 @@ UNPARSABLE = [
     (f"sh(tr({XONLY}))", "not allowed inside"),
     ("sh(addr(1BgGZ9tcN4rm9KBzDn7KprQz87SZ26SAMH))", "not allowed inside"),
     ("sh(raw(00))", "not allowed inside"),
+    # Core: rawtr() is top level only, and a SCRIPT function where a tree
+    # leaf is expected is that same rule and not an unimplemented one
+    (f"sh(rawtr({XONLY}))", "not allowed inside"),
+    (f"wsh(rawtr({XONLY}))", "not allowed inside"),
+    (f"tr({XONLY},rawtr({XONLY}))", "not allowed inside"),
+    (f"tr({XONLY},pkh({KEY}))", "not allowed inside"),
+    (f"tr({XONLY},nope({KEY}))", "unknown descriptor function"),
+    # Core refuses a second key too, as rawtr(): only one key expected
+    (f"rawtr({XONLY},{XONLY})", "takes one argument"),
+    (f"rawtr({UNCOMPRESSED})", "uncompressed"),
     # a key expression written for another position, or not at all
     (f"pk({XONLY})", "x-only"),
     (f"pk({KEY}/0)", "cannot derive"),
@@ -978,8 +1004,6 @@ UNIMPLEMENTED = [
     ),
     (f"wsh(thresh(1,pk({KEY})))", "187"),
     (f"wsh(s:pk({KEY}))", "187"),
-    (f"tr({XONLY},pkh({KEY}))", "inside tr"),
-    (f"rawtr({XONLY})", "BIP386"),
     (f"tr(musig({KEY},{KEY}))", "BIP390"),
 ]
 
@@ -1470,6 +1494,7 @@ UNSATISFIABLE: list[tuple[str, dict[Octets, Octets], str]] = [
     ("addr(1BgGZ9tcN4rm9KBzDn7KprQz87SZ26SAMH)", {}, "addr\\(\\) cannot be satisfied"),
     ("raw(76a914000000000000000000000000000000000000000088ac)", {}, "raw\\(\\) cannot"),
     (f"tr({XONLY_A})", {}, "no signature for the tr\\(\\) internal key"),
+    (f"rawtr({XONLY_A})", {}, "no signature for the rawtr\\(\\) output key"),
     (f"tr({XONLY_A},pk({XONLY_B}))", {}, "or for any of its leaves"),
     (
         f"tr({XONLY_A},multi_a(2,{XONLY_B},{XONLY_C}))",
@@ -1894,11 +1919,30 @@ def test_every_fragment_writes_its_own_function() -> None:
         f"tr({xonly},{{pk({xonly}),pk({KEY_B})}})",
         f"tr({xonly},multi_a(1,{xonly}))",
         f"tr({xonly},{{sortedmulti_a(2,{xonly},{KEY_B}),pk({KEY_C})}})",
+        f"rawtr({xonly})",
         "addr(1BgGZ9tcN4rm9KBzDn7KprQz87SZ26SAMH)",
         "raw(76a914f8c62e9b7c0e7e1e6e3f0e2c1e6e6a0e6e6e6e6e88ac)",
     ]
     for descriptor in written:
         assert str(parse(descriptor)) == descriptor
+
+
+def test_a_wif_in_a_taproot_position_is_written_x_only() -> None:
+    """A private key has no spelling of its own, so the position decides.
+
+    Bitcoin Core writes the same and says so with one bool per key: a hex
+    key carries whether it was written in 32 bytes, a WIF carries whether
+    it sits where only 32 are written. Its own ``tr()`` and ``rawtr()``
+    vectors are what pin it -- the WIF below is the one they use, and it
+    comes back in 32 bytes there and in 33 everywhere else.
+    """
+    assert str(parse(f"tr({WIF})")) == f"tr({XONLY})"
+    assert str(parse(f"rawtr({WIF})")) == f"rawtr({XONLY})"
+    assert str(parse(f"tr({XONLY},pk({WIF}))")) == f"tr({XONLY},pk({XONLY}))"
+    assert str(parse(f"tr({XONLY},multi_a(1,{WIF}))")) == (
+        f"tr({XONLY},multi_a(1,{XONLY}))"
+    )
+    assert str(parse(f"wpkh({WIF})")) == f"wpkh({KEY})"
 
 
 XPRV_ROOT = (
@@ -1969,6 +2013,128 @@ def test_normalizing_without_the_key_says_so() -> None:
     # and the mapping has to name this key, not merely be non-empty
     with pytest.raises(BTClibValueError, match=err_msg):
         normalized(parse(f"wpkh({xpub}/0h/1/*)"), {"somebody-else": XPRV_ROOT})
+
+
+def test_the_three_spellings_of_core_s_rawtr_vector() -> None:
+    """Core gives that vector in three forms, and each is a different answer.
+
+    The private one is what is read, the public one is `ToString` -- the
+    xprv neutered and the apostrophes echoed -- and the third is
+    `ToNormalizedString`, the xpub at the last hardened step with the
+    hardened prefix moved into the key origin. The scripts are checked by
+    `test_core_derivation_vector`, which reads the same vector; what is
+    checked here is the text, `rawtr()` being a function whose only oracle
+    is Core.
+    """
+    private = "rawtr(xprv9vHkqa6EV4sPZHYqZznhT2NPtPCjKuDKGY38FBWLvgaDx45zo9WQRUT3dKYnjwih2yJD9mkrocEZXo1ex8G81dwSM1fwqWpWkeS3v86pgKt/86'/1'/0'/1/*)"
+    public = "rawtr(xpub69H7F5d8KSRgmmdJg2KhpAK8SR3DjMwAdkxj3ZuxV27CprR9LgpeyGmXUbC6wb7ERfvrnKZjXoUmmDznezpbZb7ap6r1D3tgFxHmwMkQTPH/86'/1'/0'/1/*)"
+    canonical = "rawtr([5a61ff8e/86h/1h/0h]xpub6DtZpc9PRL2B6pwoNGysmHAaBofDmWv5S6KQEKKGPKhf5fV62ywDtSziSApYVK3JnYY5KUSgiCwiXW5wtd8z7LNBxT9Mu5sEro8itdGfTeA/1/*)"
+    # Core's own checksums, which is the whole descriptor being compared
+    assert add_checksum(private) == f"{private}#a5gn3t7k"
+    assert add_checksum(public) == f"{public}#4ur3xhft"
+    assert add_checksum(canonical) == f"{canonical}#vwgx7hj9"
+
+    prv_keys: dict[str, str] = {}
+    parsed = parse(private, prv_keys=prv_keys)
+    assert str(parsed) == public
+    assert str(normalized(parsed, prv_keys)) == canonical
+
+
+def test_a_rawtr_key_is_the_output_key_and_a_tr_key_is_not() -> None:
+    """The whole difference between the two functions, in one comparison.
+
+    ``rawtr(KEY)`` writes the key into ``OP_1 <32 bytes>`` as it is, where
+    ``tr(KEY)`` tweaks it with an empty merkle root: same key, two
+    scripts, two addresses. Which is also why a `RawTrDescriptor` is not
+    a `TrDescriptor` carrying no tree.
+    """
+    raw_tr = parse(f"rawtr({XONLY_A})")
+    assert isinstance(raw_tr, RawTrDescriptor)
+    assert raw_tr.script_pub_key().script == serialize(["OP_1", bytes.fromhex(XONLY_A)])
+    assert raw_tr.script_pub_key().script[2:] == bytes.fromhex(XONLY_A)
+
+    # the even-y SEC form of the same key, which is what a KeyExpression
+    # holds an x-only one as and what the tweak is computed from
+    sec = bytes.fromhex(f"02{XONLY_A}")
+    tweaked = parse(f"tr({XONLY_A})")
+    assert tweaked.script_pub_key().script[2:] == taproot.output_pubkey(sec)[0]
+    assert raw_tr.script_pub_key() != tweaked.script_pub_key()
+
+
+def test_a_rawtr_spend_is_the_untweaked_key_path() -> None:
+    """A signature by the key as written, which the engine is the oracle for.
+
+    The signer must not tweak what it holds -- the opposite of a ``tr()``
+    key path spend, where the signature the output key verifies is made by
+    a signer that tweaked the internal key. `psbt.finalize` verifies
+    against the output key it reads out of the script, so the same
+    signature finalizes the psbt to the same witness `satisfy` builds.
+    """
+    descriptor = parse(f"rawtr({XONLY_A})")
+    script_pub_key = descriptor.script_pub_key()
+    prevouts = [TxOut(100_000, script_pub_key)]
+    tx = Tx(
+        vin=[TxIn(OutPoint(b"\x11" * 32, 0))],
+        vout=[TxOut(90_000, script_pub_key)],
+    )
+    # a key path witness is one element and the hash does not commit to
+    # it, so a placeholder of the right shape is what there is to sign
+    # against: sig_hash reads the stack to tell the two paths apart
+    tx.vin[0].script_witness = Witness([b"\x00" * 64])
+    msg_hash = sig_hash.from_tx(prevouts, tx, 0, sig_hash.DEFAULT)
+    # key 1 is XONLY_A itself, signing with no tweak at all
+    signature = ssa.sign_(msg_hash, 1).serialize()
+
+    script_sig, witness = descriptor.satisfy({XONLY_A: signature})
+    assert script_sig == b""
+    assert witness == Witness([signature])
+    tx.vin[0].script_witness = witness
+    verify_transaction(prevouts, tx)
+
+    psbt = descriptor.update_psbt(psbt_spending(descriptor), 0)
+    psbt.assert_signable()
+    psbt.inputs[0].taproot_key_spend_signature = ssa.sign_(
+        taproot_sig_hash(psbt, 0), 1
+    ).serialize()
+    assert finalize(psbt).inputs[0].final_script_witness == Witness(
+        [psbt.inputs[0].taproot_key_spend_signature]
+    )
+
+
+def test_the_updater_writes_one_taproot_field_for_a_rawtr() -> None:
+    """The derivation, and none of the other three.
+
+    PSBT_IN_TAP_INTERNAL_KEY names the key a verifier tweaks and a
+    ``rawtr()`` has none, so it has no merkle root and no leaf script
+    either; what it does have is a key with an origin, keyed by the 32
+    bytes the script holds. `hd_key_paths` stays empty for the reason it
+    does under a ``tr()``: the same key in its 33-byte spelling would be a
+    second entry for a signer that signs with neither.
+    """
+    descriptor = parse(f"rawtr([d34db33f/86h/0h/0h]{XPUB}/0/*)")
+    key = descriptor.key_expressions[0]
+    psbt_in = descriptor.update_psbt(psbt_spending(descriptor, 3), 0, 3).inputs[0]
+
+    assert not psbt_in.hd_key_paths
+    assert not psbt_in.taproot_internal_key
+    assert not psbt_in.taproot_merkle_root
+    assert not psbt_in.taproot_leaf_scripts
+    leaf_hashes, origin = psbt_in.taproot_hd_key_paths[key.sec(3)[1:]]
+    assert leaf_hashes == []
+    assert origin.description == "d34db33f/86h/0h/0h/0/3"
+
+
+def test_a_rawtr_without_an_origin_writes_nothing_at_all() -> None:
+    """There is no other field of it to fill, so the input is left as it is.
+
+    Which is not a refusal: the script an input spends is its
+    script_pub_key and the psbt has that from the utxo, so a ``rawtr()``
+    naming a key with no origin has told the psbt everything it knows by
+    saying nothing.
+    """
+    descriptor = parse(f"rawtr({XONLY_A})")
+    psbt = descriptor.update_psbt(psbt_spending(descriptor), 0)
+    assert psbt.inputs[0] == psbt_spending(descriptor).inputs[0]
 
 
 def test_the_normalized_origin_keeps_the_fingerprint_that_was_given() -> None:
