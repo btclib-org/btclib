@@ -2786,6 +2786,31 @@ edit.
 
 ### The public API and the module layout
 
+- **a descriptor writes itself back: `str(descriptor)`** (issue #381).
+  `btclib.descriptors` parsed, derived, satisfied and updated a psbt, and
+  had no way back to the text — the one thing every workflow that talks
+  to Bitcoin Core needs, from `importdescriptors` to an address display.
+  Every fragment answers, the nested ones by writing their argument with
+  the same method, and `MultiA` and a ``tr()`` script tree with it.
+
+  Without the checksum, because a fragment inside another one is written
+  by that very method and a checksum there would be part of the outer
+  text: `add_checksum(str(descriptor))` is the checksummed form. Core
+  splits it the same way, `ToString` writing none and the rpc layer
+  appending it; HWI and Electrum instead name the checksummed one
+  `to_string`, and are not followed.
+
+  Two spellings are normalized rather than echoed, both because the parse
+  keeps the meaning and not the characters: a WIF and an uppercase hex
+  key come back as lowercase hex, and an xprv as the xpub it was neutered
+  to. Core's `ToString` writes the same, having only the public key to
+  write. The hardening symbol is not one of them, `KeyExpression`
+  remembering which of ``h`` and ``'`` was read. Every descriptor the
+  suite reads — Bitcoin Core's derivation vectors, BIP387's, and the ones
+  the Core documentation lists — is written back, read again and checked
+  against itself, and the ones whose text differs from the input differ
+  only by those two normalizations.
+
 - **a key expression remembers which hardening symbol spelled it**
   (issue #381). `KeyExpression.hardening` is ``h`` or ``'``, whichever
   the expression used, defaulting to ``h`` where it hardened nothing.

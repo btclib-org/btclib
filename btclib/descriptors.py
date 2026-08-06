@@ -66,6 +66,13 @@ any chain, which is why Bitcoin Core takes the chain from its own context
 too. ``addr()`` is the exception, an address carrying the network in its
 own prefix.
 
+`str(descriptor)` is the way back: the descriptor as text, without its
+checksum, `add_checksum` being what appends one. Bitcoin Core splits it
+the same way -- `ToString` writes none and the rpc layer appends it --
+where HWI and Electrum name the checksummed form `to_string`. What it
+writes is public by construction, there being no private material left
+in a parsed descriptor to write.
+
 What this module exports is the checksum functions, `parse` and
 `multipath_descriptors`, and the fragment classes a parsed descriptor is
 made of -- `KeyExpression`, `DescriptorTree` and the `MultiA` a tree leaf
@@ -94,6 +101,8 @@ from btclib.bip32.der_path import (
     _HARDENING,
     hardenings_from_der_path,
     indexes_from_der_path,
+    str_from_der_path,
+    str_from_index_int,
 )
 from btclib.bip32.key_origin import BIP32KeyOrigin
 from btclib.exceptions import BTClibValueError
@@ -357,6 +366,33 @@ class KeyExpression:
         xkey = prv_keys.get(self.xkey, self.xkey) if prv_keys else self.xkey
         return pub_keyinfo_from_key(derive(xkey, der_path), network)[0]
 
+    def __str__(self) -> str:
+        """Return the KEY expression, in the spelling it was read in.
+
+        Public whatever was read: an xprv is the xpub `parse` neutered it
+        to, and a WIF is the hex of the public key it was reduced to.
+        Bitcoin Core writes the same, `ToString` having only the public
+        key to write and `ToPrivateString` taking the private material
+        back from the caller.
+
+        An x-only key is written as the 32 bytes a ``tr()`` holds, which
+        is the spelling it was read in and the only one allowed there.
+        """
+        text = ""
+        if self.origin is not None:
+            path = str_from_der_path(
+                self.origin.der_path, self.origin.master_fingerprint, self.hardening
+            )
+            text = f"[{path}]"
+        if self.pub_key is not None:
+            return text + (self.pub_key[1:] if self.x_only else self.pub_key).hex()
+        text += self.xkey
+        for index in self.der_path:
+            text += "/" + str_from_index_int(index, self.hardening)
+        if self.wildcard is not None:
+            text += "/*" + (self.hardening if self.wildcard else "")
+        return text
+
 
 @dataclass(frozen=True)
 class MultiA:
@@ -376,6 +412,11 @@ class MultiA:
     # sorted in the script, so the participants need not agree on an order
     # to agree on an address
     sort: bool = False
+
+    def __str__(self) -> str:
+        """Return the ``multi_a()`` or ``sortedmulti_a()`` leaf as text."""
+        name = "sortedmulti_a" if self.sort else "multi_a"
+        return _expression(name, str(self.threshold), *map(str, self.keys))
 
     def _pub_keys(
         self, index: int, network: str, prv_keys: PrvKeys | None
@@ -462,6 +503,20 @@ class MultiA:
 
 
 # a tr() script tree: a leaf, or a branch of two subtrees. A leaf is the
+def _expression(name: str, *args: str) -> str:
+    """Return a descriptor function written out: its name and its arguments."""
+    return f"{name}({','.join(args)})"
+
+
+def _tree_expression(tree: DescriptorTree) -> str:
+    """Return a BIP386 TREE as text: a leaf, or two subtrees in braces."""
+    if isinstance(tree, tuple):
+        return f"{{{_tree_expression(tree[0])},{_tree_expression(tree[1])}}}"
+    if isinstance(tree, MultiA):
+        return str(tree)
+    return _expression("pk", str(tree))
+
+
 # KEY expression a `pk()` leaf is, or the `MultiA` of BIP387's two
 # functions; a branch is a tuple, which is what tells a branch from a
 # leaf. The leaves hold KEY expressions and not scripts because a ranged
@@ -593,6 +648,30 @@ class Descriptor(ABC):
     @abstractmethod
     def key_expressions(self) -> tuple[KeyExpression, ...]:
         """Return every KEY expression the descriptor holds."""
+
+    @abstractmethod
+    def __str__(self) -> str:
+        """Return the descriptor as text, without its checksum.
+
+        Public by construction, `parse` having kept no private material
+        to write: the same guarantee Bitcoin Core's `ToString` gives by
+        holding only a neutered key, where its `ToPrivateString` has to
+        be handed the keys back.
+
+        Without the checksum because a fragment inside another one is
+        written by this very method, and a checksum there would be part
+        of the outer descriptor's text. `add_checksum(str(descriptor))`
+        is the checksummed form, which is the split Core has too --
+        `ToString` writes none and the rpc layer appends it. HWI and
+        Electrum instead name the checksummed one `to_string`.
+
+        Two things are normalized rather than echoed, both because the
+        parse keeps the meaning and not the characters: a WIF and an
+        uppercase hex key come back as lowercase hex, and an xprv as its
+        xpub. The hardening symbol is not one of them -- `KeyExpression`
+        remembers which of `h` and `'` was read, the two spellings being
+        two checksums.
+        """
 
     @abstractmethod
     def _scripts(self, index: int, prv_keys: PrvKeys | None) -> list[bytes]:
@@ -808,6 +887,9 @@ class PkDescriptor(Descriptor):
 
     key: KeyExpression
 
+    def __str__(self) -> str:
+        return _expression("pk", str(self.key))
+
     @property
     def key_expressions(self) -> tuple[KeyExpression, ...]:
         """Return the one KEY expression, as the base class's tuple."""
@@ -835,6 +917,9 @@ class PkhDescriptor(Descriptor):
 
     key: KeyExpression
 
+    def __str__(self) -> str:
+        return _expression("pkh", str(self.key))
+
     @property
     def key_expressions(self) -> tuple[KeyExpression, ...]:
         """Return the one KEY expression, as the base class's tuple."""
@@ -860,6 +945,9 @@ class WpkhDescriptor(Descriptor):
     """``wpkh(KEY)``: a p2wpkh output, BIP382."""
 
     key: KeyExpression
+
+    def __str__(self) -> str:
+        return _expression("wpkh", str(self.key))
 
     @property
     def key_expressions(self) -> tuple[KeyExpression, ...]:
@@ -898,6 +986,9 @@ class ShDescriptor(Descriptor):
     """``sh(SCRIPT)``: the argument, p2sh-embedded, BIP381."""
 
     inner: Descriptor
+
+    def __str__(self) -> str:
+        return _expression("sh", str(self.inner))
 
     @property
     def key_expressions(self) -> tuple[KeyExpression, ...]:
@@ -945,6 +1036,9 @@ class WshDescriptor(Descriptor):
 
     inner: Descriptor
 
+    def __str__(self) -> str:
+        return _expression("wsh", str(self.inner))
+
     @property
     def key_expressions(self) -> tuple[KeyExpression, ...]:
         """Return the wrapped SCRIPT's KEY expressions."""
@@ -990,6 +1084,10 @@ class MultiDescriptor(Descriptor):
     # functions: the keys of a sortedmulti() are sorted in the script, so
     # the participants need not agree on an order to agree on an address
     sort: bool = False
+
+    def __str__(self) -> str:
+        name = "sortedmulti" if self.sort else "multi"
+        return _expression(name, str(self.threshold), *map(str, self.keys))
 
     @property
     def key_expressions(self) -> tuple[KeyExpression, ...]:
@@ -1057,6 +1155,9 @@ class ComboDescriptor(Descriptor):
 
     key: KeyExpression
 
+    def __str__(self) -> str:
+        return _expression("combo", str(self.key))
+
     @property
     def key_expressions(self) -> tuple[KeyExpression, ...]:
         """Return the one KEY expression, as the base class's tuple."""
@@ -1108,6 +1209,9 @@ class AddrDescriptor(Descriptor):
 
     addr: str
 
+    def __str__(self) -> str:
+        return _expression("addr", self.addr)
+
     @property
     def key_expressions(self) -> tuple[KeyExpression, ...]:
         """Return no KEY expression, the descriptor fixing none."""
@@ -1146,6 +1250,9 @@ class RawDescriptor(Descriptor):
     """``raw(HEX)``: the script those bytes are, BIP385."""
 
     script: bytes
+
+    def __str__(self) -> str:
+        return _expression("raw", self.script.hex())
 
     @property
     def key_expressions(self) -> tuple[KeyExpression, ...]:
@@ -1186,6 +1293,11 @@ class TrDescriptor(Descriptor):
 
     internal_key: KeyExpression
     tree: DescriptorTree | None = None
+
+    def __str__(self) -> str:
+        if self.tree is None:
+            return _expression("tr", str(self.internal_key))
+        return _expression("tr", str(self.internal_key), _tree_expression(self.tree))
 
     @property
     def key_expressions(self) -> tuple[KeyExpression, ...]:
