@@ -265,9 +265,9 @@ def test_derive_exceptions() -> None:
         xkey = _derive(xprv, der_path)
         assert fingerprint == xkey.parent_fingerprint
 
-    err_msg = "invalid literal for int"
+    err_msg = "invalid derivation index: "
     for der_path in (";/0", "invalid index"):
-        with pytest.raises(ValueError, match=err_msg):
+        with pytest.raises(BTClibValueError, match=err_msg):
             derive(xprv, der_path)
 
     with pytest.raises(BTClibValueError, match="depth greater than 255: "):

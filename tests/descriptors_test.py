@@ -793,6 +793,16 @@ UNPARSABLE = [
     (f"pkh({XPUB}/2147483648)", "invalid index"),
     (f"pkh({XPUB}/1aa)", "invalid derivation index"),
     (f"pkh({XPUB}/+1)", "invalid derivation index"),
+    # BIP380's own invalid hardened indicators: the uppercase H that
+    # BIP32 writes its vectors with is not one a descriptor may hold
+    (f"pk([deadbeef/0H/0H/0H]{KEY})", "invalid derivation index"),
+    (f"pk([deadbeef/0f/0f/0f]{KEY})", "invalid derivation index"),
+    (f"pk([deadbeef/-0/-0/-0]{KEY})", "invalid derivation index"),
+    (f"pkh({XPUB}/3H/4h/5h)", "invalid derivation index"),
+    # what the lenient BIP32 reading takes and BIP380's grammar does not
+    (f"pkh({XPUB}/m/0)", "invalid derivation index"),
+    (f"pkh({XPUB}/0//1)", "invalid derivation index"),
+    (f"pkh({XPUB}/ 0 h)", "invalid derivation index"),
     # Core: an address that is not one, and a script that is not hex
     ("addr(asdf)", "base58"),
     ("raw(asdf)", "hex script"),

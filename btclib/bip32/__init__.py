@@ -17,6 +17,7 @@ from btclib.bip32.bip32 import (
 )
 from btclib.bip32.der_path import (
     bytes_from_der_path,
+    hardenings_from_der_path,
     indexes_from_der_path,
     int_from_index_str,
     str_from_der_path,
@@ -44,6 +45,7 @@ __all__ = [
     "derive",
     "derive_from_account",
     "encode_to_bip32_derivs",
+    "hardenings_from_der_path",
     "indexes_from_der_path",
     "int_from_index_str",
     "pub_key_derivation_tweaks",

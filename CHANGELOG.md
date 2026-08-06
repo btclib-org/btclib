@@ -848,6 +848,29 @@ edit.
 
 ### Malformed input and the exception contract
 
+- **a derivation path step that is not one raises btclib's own error**,
+  where `int_from_index_str` let `int` raise: `derive(xprv, ";/0")` died
+  with `invalid literal for int() with base 10: ';'` and now raises
+  `BTClibValueError: invalid derivation index: ;`. `BTClibValueError` is
+  a `ValueError`, so a caller catching that still catches; only the
+  message changes. What the same function was *meant* to do it did not:
+  it opened with `s.strip().lower()` and dropped the result on the
+  floor, a statement with no effect, so it read two hardening symbols
+  where its docstring promised three and `_indexes_from_der_path_str`
+  -- which lowercases each step itself -- delivered three. BIP32 spells
+  its own test vectors `m/0H/1/2H`, so `int_from_index_str("0H")` now
+  answers as the path reader around it always has. No linter available
+  here reports the discarded call: ruff's B018 finds the discarded
+  attribute and the discarded constant beside it, and skips calls
+  because a call may have side effects, and mypy `--strict` with every
+  optional error code is silent.
+- **a descriptor's derivation path is held to BIP380's grammar**, by
+  `indexes_from_der_path(..., bip380_enforced=True)` rather than by a
+  regular expression of its own. The rule is unchanged and now stated
+  once: `h` and `'` are the two hardened indicators, the uppercase `H`
+  of BIP32 is not one, and a step's number is decimal digits -- not the
+  `+1`, `1_0` and `m / 0 h / 0` that `int` and the BIP32 reader take.
+  BIP380's four invalid-hardened-indicator vectors are in the suite.
 - **a psbt claiming a version that does not exist is refused as one.**
   `invalid non-zero version: 1` is `invalid psbt version: 1`, and the
   rule behind it is no longer "anything but 0": version 2 is read now,
@@ -2738,6 +2761,20 @@ edit.
 
 ### The public API and the module layout
 
+- **`hardenings_from_der_path` reports the symbol each step was spelled
+  with**, one entry per index and `""` where the step is unhardened or
+  the path is not text. `0h` and `0'` are one index and two strings, and
+  a descriptor *is* the string: the two spellings have different
+  checksums, so a serializer that cannot tell them apart hands back a
+  descriptor that is not the one it read. `indexes_from_der_path` and
+  `int_from_index_str` take the `bip380_enforced` keyword beside it, for
+  the stricter reading a descriptor needs. **`str_from_index_int` no
+  longer accepts `"H"`**: three symbols are read and two are written,
+  because the uppercase one is a hardened indicator BIP380 lists as
+  invalid and neither of Bitcoin Core's two parsers accepts -- the
+  descriptor one taking `'` and `h`, `ParseHDKeypath` the apostrophe
+  alone. `str_from_index_int(0x80000000, "H")` returned `"0H"` and now
+  raises `invalid hardening symbol: H`.
 - **Core's chain names are spoken in the module that speaks to Core**, and
   btclib's network names everywhere else (issue #379). The two vocabularies
   name one chain and two of the names differ -- Core's `main` and `test`

@@ -77,7 +77,7 @@ from typing import cast
 
 from btclib.alias import Octets, ScriptList, TaprootScriptTree
 from btclib.bip32.bip32 import BIP32KeyData, derive
-from btclib.bip32.der_path import int_from_index_str
+from btclib.bip32.der_path import indexes_from_der_path
 from btclib.bip32.key_origin import BIP32KeyOrigin
 from btclib.exceptions import BTClibValueError
 from btclib.psbt.psbt import Psbt
@@ -234,7 +234,6 @@ _UNIMPLEMENTED = {
 }
 
 _FINGERPRINT = re.compile("[0-9a-fA-F]{8}")
-_DERIVATION_INDEX = re.compile("[0-9]+[h']?")
 _HEX = re.compile("[0-9a-fA-F]*")
 _THRESHOLD = re.compile("[0-9]+")
 # the BIP389 multipath step, brackets included: re.split hands back what
@@ -1115,17 +1114,15 @@ def _one_argument(arguments: list[str], name: str) -> str:
 
 
 def _der_path(path: str) -> list[int]:
-    """Return the indexes of a `/`-separated derivation path."""
-    if not path:
-        return []
-    indexes = []
-    for step in path.split("/"):
-        if not _DERIVATION_INDEX.fullmatch(step):
-            raise BTClibValueError(f"invalid derivation index: {step}")
-        # int_from_index_str is what refuses 2**31 and above written
-        # unhardened, there being no such BIP32 index
-        indexes.append(int_from_index_str(step))
-    return indexes
+    """Return the indexes of a `/`-separated derivation path.
+
+    `bip380_enforced` is the whole of the difference from what a BIP32
+    path may spell: an uppercase "H", a "+1", a leading "m" and the
+    spaces of "0 h" are all read elsewhere in btclib and none of them is
+    a step BIP380 allows. It also refuses 2**31 and above written
+    unhardened, there being no such BIP32 index.
+    """
+    return indexes_from_der_path(path, bip380_enforced=True) if path else []
 
 
 def _key_origin(description: str) -> BIP32KeyOrigin:
