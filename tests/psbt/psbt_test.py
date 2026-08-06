@@ -6,6 +6,7 @@
 """Tests for the `btclib.psbt.psbt` module."""
 
 import base64
+import dataclasses
 import inspect
 from copy import deepcopy
 from io import BytesIO
@@ -3345,3 +3346,112 @@ def test_sign_leaves_alone_an_input_with_no_candidate() -> None:
 
     assert signed_vins == []
     assert result.inputs[0].partial_sigs == {}
+
+
+# the Finalizer's clearing rule, one list for both kinds of input
+
+
+def _fully_populated(psbt: Psbt) -> Psbt:
+    """Fill in every field a Finalizer is meant to drop, and some it keeps.
+
+    The preimage maps are keyed by the hash of their own preimage, which
+    `PsbtIn.assert_valid` checks, so they cannot be filled with
+    arbitrary bytes.
+    """
+    psbt_in = psbt.inputs[0]
+    psbt_in.ripemd160_preimages = {ripemd160(b"one"): b"one"}
+    psbt_in.sha256_preimages = {sha256(b"two"): b"two"}
+    psbt_in.hash160_preimages = {hash160(b"three"): b"three"}
+    psbt_in.hash256_preimages = {hash256(b"four"): b"four"}
+    psbt_in.unknown = {b"\xfc\x01": b"vendor"}
+    return psbt
+
+
+@pytest.mark.parametrize("kind", ["p2wsh", "p2tr"])
+def test_a_finalized_input_keeps_the_utxo_and_the_unknown_fields_only(
+    kind: str,
+) -> None:
+    """BIP174's rule, and the same one whichever kind the input is.
+
+    "All other data except the UTXO and unknown fields in the input
+    key-value map should be cleared from the PSBT." The taproot branch
+    cleared nothing at all, so a finalized psbt went on publishing that
+    input's key origins -- master fingerprint and derivation path, per
+    key -- where an ECDSA input published none; and the ECDSA branch left
+    the four preimage maps, which after finalization are in the witness
+    anyway.
+
+    btclib is stricter than Bitcoin Core here, whose
+    `PSBTInput::FromSignatureData` clears four fields and leaves the
+    taproot ones, the sighash type and the preimages.
+    """
+    if kind == "p2tr":
+        psbt, prevouts = _taproot_key_path_psbt()
+        psbt.inputs[0].hd_key_paths = {_PUB_KEY: BIP32KeyOrigin(b"\x00" * 4, "m/0")}
+        key_manager = _KeyManager(by_pub_key={_TAPROOT_INTERNAL_KEY: _TAPROOT_PRV_KEY})
+    else:
+        signed, prevouts = _single_key_psbt(kind)
+        psbt = deepcopy(signed)
+        psbt.inputs[0].partial_sigs = {}
+        psbt.inputs[0].hd_key_paths = {_PUB_KEY: BIP32KeyOrigin(b"\x00" * 4, "m/0")}
+        key_manager = _KeyManager(by_pub_key={_PUB_KEY: _PRV_KEY})
+
+    signed, signed_vins = sign(_fully_populated(psbt), key_manager)
+    assert signed_vins == [0]
+    psbt_in = finalize(signed).inputs[0]
+
+    # spelled out rather than imported from psbt.py: `_FINALIZED_KEEPS`
+    # is what the code believes, and a test that imported it would agree
+    # with a wrong list as readily as with a right one. Every other field
+    # of PsbtIn is walked, so a field added there and left out of both
+    # lists fails here
+    kept = {
+        "non_witness_utxo",
+        "witness_utxo",
+        "unknown",
+        "previous_tx_id",
+        "output_index",
+        "sequence",
+        "required_time_lock_time",
+        "required_height_lock_time",
+        "final_script_sig",
+        "final_script_witness",
+    }
+    empty = PsbtIn(check_validity=False)
+    for field in dataclasses.fields(psbt_in):
+        if field.name not in kept:
+            assert getattr(psbt_in, field.name) == getattr(empty, field.name), (
+                f"{field.name} survived finalization"
+            )
+
+    # the two BIP174 exempts by name, and the spend it built
+    assert psbt_in.unknown == {b"\xfc\x01": b"vendor"}
+    assert psbt_in.witness_utxo or psbt_in.non_witness_utxo
+    assert psbt_in.final_script_sig or psbt_in.final_script_witness
+    verify_transaction(prevouts, extract_tx(finalize(signed), check_validity=False))
+
+
+@pytest.mark.parametrize("kind", ["p2wsh", "p2tr"])
+def test_finalizing_twice_is_finalizing_once(kind: str) -> None:
+    """An input already finalized is left alone, not refused.
+
+    "The Input Finalizer determines if the input has enough data" and one
+    carrying its final scripts has more than enough; Core's
+    `SignPSBTInput` skips it too. Refusing it meant a psbt whose signer
+    had finalized one input could not be finalized at all: the second
+    pass raised "missing signatures" for the input already done, the
+    first pass having cleared the signatures it used.
+    """
+    if kind == "p2tr":
+        psbt, _ = _taproot_key_path_psbt()
+        key_manager = _KeyManager(by_pub_key={_TAPROOT_INTERNAL_KEY: _TAPROOT_PRV_KEY})
+    else:
+        signed, _ = _single_key_psbt(kind)
+        psbt = deepcopy(signed)
+        psbt.inputs[0].partial_sigs = {}
+        psbt.inputs[0].hd_key_paths = {_PUB_KEY: BIP32KeyOrigin(b"\x00" * 4, "m/0")}
+        key_manager = _KeyManager(by_pub_key={_PUB_KEY: _PRV_KEY})
+
+    signed, _ = sign(psbt, key_manager)
+    once = finalize(signed)
+    assert finalize(once) == once

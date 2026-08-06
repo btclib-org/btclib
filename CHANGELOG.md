@@ -2167,6 +2167,28 @@ edit.
 
 ### Transactions, blocks and PSBT
 
+- **the Finalizer clears one list of fields, whichever kind the input
+  is, and finalizing twice is finalizing once.** BIP174: "All other data
+  except the UTXO and unknown fields in the input key-value map should
+  be cleared from the PSBT". The taproot branch cleared *nothing*, so a
+  finalized psbt went on publishing that input's key origins — master
+  fingerprint and derivation path, per key — where an ECDSA input
+  published none; and the ECDSA branch left the four preimage maps,
+  which by then are in the witness anyway. Neither was a wrong spend,
+  the witness being built already, but no reader could state what the
+  rule was. `_FINALIZED_KEEPS` is now that rule, once: the utxo and
+  `unknown`, which the sentence above exempts by name, the two finalized
+  scripts, and BIP370's transaction fields — which are not data *about*
+  the input but the input itself, a v2 psbt with `previous_tx_id`
+  cleared naming no outpoint. It is a keep list rather than a clear
+  list, so a field added to `PsbtIn` is dropped by default. An input
+  that already carries its final scripts is now skipped rather than
+  refused: "the Input Finalizer determines if the input has enough
+  data", one already finalized has more than enough, and refusing it
+  meant a psbt whose signer had finalized one input could not be
+  finalized at all. btclib is stricter than Bitcoin Core here, whose
+  `PSBTInput::FromSignatureData` clears four fields and leaves the
+  taproot ones, the sighash type and the preimages in place.
 - **`psbt.sign` is the Signer role, played over a `KeyManager`'s
   answers** (issue #439). BIP174 leaves the caller to find which keys
   are its own and write a signature back; the guide's own **Signer**
