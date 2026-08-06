@@ -171,6 +171,26 @@ pyroma), build, wheel smoke test — and publishes to
    [documentation](https://btclib.readthedocs.io/en/latest/) render
    correctly.
 
+   Two things about that pull request, both of them before the button
+   rather than after it.
+
+   Give it its title and its body. The title is the version; the body
+   says what the release is — what moved, what did not, and which of the
+   two a user would notice. A rebase leaves no merge commit, so none of
+   that reaches `master`'s history: the pull request is where it stays,
+   and where a reader of any commit in it arrives. A template left
+   unfilled, or a bot's summary of the diff, is not a substitute — the
+   summary can stay, but what the diff cannot say has to be written.
+
+   And merge it with **"Rebase and merge"**, never *"Squash and merge"*.
+   All three methods are enabled here and GitHub preselects whichever was
+   used last, so which button it is has to be read before it is pressed.
+   A squash folds every landed change into one commit, leaving `master`
+   with a single line where `dev` carried the reasoning one decision at a
+   time — and that cannot be undone afterwards, the tag on the squashed
+   commit and the attestations bound to it outliving any attempt to
+   rewrite the history back.
+
 1. Dispatch the `rpc-smoke` workflow (Actions → rpc-smoke → Run workflow)
    and see both cells green. It is the one job here that talks to a live
    bitcoind: everything about the rpc client of `btclib.fetch` is otherwise
