@@ -2786,6 +2786,29 @@ edit.
 
 ### The public API and the module layout
 
+- **a parsed descriptor holds no key that signs** (issue #381).
+  `KeyExpression.xkey` kept the xprv the descriptor was written with, so
+  a `repr()`, a log line or a bug report could carry it, and every
+  reader of a `Descriptor` was reading private material it had no use
+  for. `parse` now neuters it to the xpub and hands the private spelling
+  back through a `prv_keys` mapping the caller passes in, keyed by that
+  xpub — public identity to private material, which is how Bitcoin
+  Core's `Parse(desc, out, error)` fills the `FlatSigningProvider` its
+  descriptor keeps no reference to. A caller that passes nothing gets a
+  descriptor with nothing in it.
+
+  What that costs is the one thing an xpub cannot do, a hardened step,
+  and it is why `script_pub_keys`, `script_pub_key`, `redeem_script`,
+  `address`, `addresses`, `satisfy`, `update_psbt`,
+  `taproot_merkle_root`, `taproot_leaf_scripts` and
+  `KeyExpression.sec` all end in an optional `prv_keys`: expansion takes
+  the keys back for the call that needs them, the way Core's `Expand`
+  takes a `SigningProvider`. Four of Core's own derivation vectors are
+  the ones that need it. `PrvKeys` is the exported alias to annotate the
+  mapping with. A WIF is not in it, having been reduced to its public
+  key on the way in since before this: nothing here derives from one or
+  signs with it.
+
 - **`hardenings_from_der_path` reports the symbol each step was spelled
   with**, one entry per index and `""` where the step is unhardened or
   the path is not text. `0h` and `0'` are one index and two strings, and
