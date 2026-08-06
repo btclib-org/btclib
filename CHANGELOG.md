@@ -1505,6 +1505,12 @@ edit.
 
 ### What an error says
 
+- an invalid partial-signature public key is named rather than described
+  as `{pub_key!r}`: the message was a format string missing its `f`, so
+  `PsbtIn.assert_valid` printed the placeholder instead of the key. Found
+  by a test asserting on that message. `ruff --select RUF027` catches the
+  shape and reports the tree otherwise clean, but the rule is in preview,
+  which this project does not enable.
 - a script verification failure says what went wrong, and where. The 76
   bare `BTClibValueError()` raises — 70 of them under `script/engine/` —
   carried an empty message, so a wrong public key encoding, an unbalanced
@@ -2167,6 +2173,37 @@ edit.
 
 ### Transactions, blocks and PSBT
 
+- **`psbt.assert_signatures_only` is the check that belongs before
+  `combine` when the psbt came from somebody else** (issue #381).
+  BIP174 gives the Combiner no such role: it takes the union of what it
+  is given and may resolve a conflict by picking either side, so it
+  compares the psbt's identifier and merges the rest. That left three
+  ways for an answer to change what was sent — adding a field the
+  request left empty, overwriting *one entry* of a field that is a map
+  (`_combine_field` merges those pair by pair, so a single
+  `hd_key_paths` origin or leaf script can be replaced), and, in a
+  version 2 psbt, changing a sequence, which the identifier cannot see
+  because BIP370 zeroes every sequence in it. The rule is one sentence:
+  everything that is not a signature comes back as it was sent, the
+  signature fields may only gain entries, and every signature that
+  arrived is verified before anything is merged. `_SIGNATURE_FIELDS` is
+  the list of what may grow — `partial_sigs`, the two taproot signature
+  fields and BIP373's two round maps — and every other field of `PsbtIn`
+  and `PsbtOut` is walked with `dataclasses.fields`, so a field added
+  later must come back unchanged by default. Two consequences worth
+  naming: an answer that *finalizes* an input is refused, a finalized
+  script being no signature and its correctness a question for the
+  script engine rather than for a field comparison; and an answer that
+  adds an `unknown` vendor field is refused too. Where the Finalizer
+  leaves a signature it has no message for alone, this refuses it — a
+  signature that cannot be checked is the one thing that must not be
+  merged. `tx_modifiable` is the single field an answer may change, and
+  only by tightening, which is `_combined_tx_modifiable`'s own rule. The
+  two musig2 maps are permitted additions and are not verified here: a
+  BIP327 partial signature is checked against an aggregate nonce that
+  needs every participant's, which a psbt mid-session need not carry
+  yet, and `musig2.partial_sigs_agg` refuses an aggregate that does not
+  verify.
 - **the Finalizer clears one list of fields, whichever kind the input
   is, and finalizing twice is finalizing once.** BIP174: "All other data
   except the UTXO and unknown fields in the input key-value map should

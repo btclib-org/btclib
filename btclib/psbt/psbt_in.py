@@ -174,7 +174,7 @@ def _assert_valid_partial_sigs(partial_sigs: Mapping[bytes, bytes]) -> None:
             # pub_key must be a valid secp256k1 Point in SEC representation
             sec_point.point_from_octets(pub_key)
         except BTClibValueError as e:
-            err_msg = "invalid partial signature pub_key: {pub_key!r}"
+            err_msg = f"invalid partial signature pub_key: {pub_key!r}"
             raise BTClibValueError(err_msg) from e
         try:
             # the DER signature alone: a partial signature is that plus a

@@ -24,6 +24,7 @@ from btclib.psbt import (
     Psbt,
     PsbtIn,
     PsbtOut,
+    assert_signatures_only,
     combine,
     ecdsa_sig_hash,
     extract_tx,
@@ -3455,3 +3456,344 @@ def test_finalizing_twice_is_finalizing_once(kind: str) -> None:
     signed, _ = sign(psbt, key_manager)
     once = finalize(signed)
     assert finalize(once) == once
+
+
+# the check that belongs before combine when the answer came from
+# somebody else
+
+
+def _request_and_answer() -> tuple[Psbt, Psbt]:
+    """Return a 2-of-2 request the first signer signed, and the answer.
+
+    The shape the validator exists for: the coordinator holds `request`
+    and gets `returned` back, and everything in it but the second
+    signature has to be what was sent.
+    """
+    request, signed_vins = sign(
+        _unsigned_multisig_psbt(), _KeyManager(by_pub_key={_PUB_KEY: _PRV_KEY})
+    )
+    assert signed_vins == [0]
+    returned, signed_vins = sign(
+        deepcopy(request), _KeyManager(by_pub_key={_OTHER_PUB_KEY: _OTHER_PRV_KEY})
+    )
+    assert signed_vins == [0]
+    return request, returned
+
+
+def test_an_answer_carrying_only_a_new_signature_is_accepted() -> None:
+    """The honest case, and the one that has to keep working.
+
+    Both signatures are there afterwards, so the psbt finalizes: the
+    validator refusing a good answer would be the expensive kind of
+    wrong.
+    """
+    request, returned = _request_and_answer()
+
+    assert_signatures_only(request, returned)
+
+    combined = combine([request, returned])
+    assert set(combined.inputs[0].partial_sigs) == {_PUB_KEY, _OTHER_PUB_KEY}
+
+
+def test_an_answer_that_changes_the_transaction_is_refused() -> None:
+    """Whichever field of it, and a sequence included (issue #381).
+
+    `combine` compares the psbt's identifier, and for a version 2 psbt
+    that identifier zeroes every sequence -- BIP370 making the sequence a
+    field an Updater may set. So a changed sequence is exactly what it
+    cannot see, and comparing the transaction whole is what does.
+    """
+    request, returned = _request_and_answer()
+    returned.outputs[0].amount = 1
+    with pytest.raises(BTClibValueError, match="the transaction being signed"):
+        assert_signatures_only(request, returned)
+
+    request, returned = _request_and_answer()
+    returned.inputs[0].sequence = 0xFFFFFFFD
+    with pytest.raises(BTClibValueError, match="the transaction being signed"):
+        assert_signatures_only(request, returned)
+
+
+@pytest.mark.parametrize(
+    "field, value",
+    [
+        ("witness_script", b"\x51"),
+        ("redeem_script", b"\x51"),
+        ("sig_hash_type", 3),
+        ("final_script_sig", b"\x51"),
+        ("taproot_internal_key", b"\x02" * 32),
+    ],
+)
+def test_an_answer_that_changes_a_context_field_is_refused(
+    field: str, value: object
+) -> None:
+    """A signer's answer may add a signature and nothing else.
+
+    Equality and not `combine`'s "was not overwritten": a signer that
+    fills in a script the request left empty is playing Updater too, and
+    a caller who wants that has `combine` and no illusion it was checked.
+    `final_script_sig` is here because that is the decision about a
+    finalized answer -- it is not a signature, so it must be equal, and
+    an answer that finalizes an input is refused rather than merged.
+    """
+    request, returned = _request_and_answer()
+    setattr(returned.inputs[0], field, value)
+    with pytest.raises(BTClibValueError, match=f"input 0: {field} was changed"):
+        assert_signatures_only(request, returned)
+
+
+def test_an_answer_that_overwrites_one_entry_of_a_map_is_refused() -> None:
+    """The sharp edge `combine` has: `_combine_field` does dict.update.
+
+    A field that is several key-value pairs is merged pair by pair, so an
+    answer cannot add a whole `hd_key_paths` where the request had one --
+    but it can replace the origin filed under a single public key, and
+    the merge takes it.
+    """
+    request, returned = _request_and_answer()
+    returned.inputs[0].hd_key_paths[_PUB_KEY] = BIP32KeyOrigin(b"\xff" * 4, "m/9")
+    with pytest.raises(BTClibValueError, match="input 0: hd_key_paths was changed"):
+        assert_signatures_only(request, returned)
+
+
+def test_an_answer_that_adds_a_preimage_or_a_vendor_field_is_refused() -> None:
+    """Neither is a signature, so neither may appear (issue #381).
+
+    An `unknown` entry is the decision about vendor fields: they are data
+    a caller re-serializes and hands on, and an answer is not the place
+    they arrive from.
+    """
+    request, returned = _request_and_answer()
+    returned.inputs[0].sha256_preimages = {sha256(b"x"): b"x"}
+    with pytest.raises(BTClibValueError, match="input 0: sha256_preimages"):
+        assert_signatures_only(request, returned)
+
+    request, returned = _request_and_answer()
+    returned.inputs[0].unknown = {b"\xfc\x01": b"vendor"}
+    with pytest.raises(BTClibValueError, match="input 0: unknown was changed"):
+        assert_signatures_only(request, returned)
+
+
+def test_an_answer_that_touches_the_first_signature_is_refused() -> None:
+    """Dropped or replaced, both refused.
+
+    `combine` would put a dropped signature back with nobody the wiser
+    that it had been taken out, and a replaced one is a signature this
+    coordinator never saw made.
+    """
+    request, returned = _request_and_answer()
+    del returned.inputs[0].partial_sigs[_PUB_KEY]
+    with pytest.raises(BTClibValueError, match="partial_sigs of .* was dropped"):
+        assert_signatures_only(request, returned)
+
+    request, returned = _request_and_answer()
+    returned.inputs[0].partial_sigs[_PUB_KEY] = returned.inputs[0].partial_sigs[
+        _OTHER_PUB_KEY
+    ]
+    with pytest.raises(BTClibValueError, match="partial_sigs of .* was changed"):
+        assert_signatures_only(request, returned)
+
+
+def test_an_answer_carrying_a_signature_that_does_not_verify_is_refused() -> None:
+    """Every signature that arrived is checked before anything is merged."""
+    request, returned = _request_and_answer()
+    good = returned.inputs[0].partial_sigs[_OTHER_PUB_KEY]
+    # the same key, a signature of some other message: the DER of the
+    # first signer's signature under the second signer's key
+    returned.inputs[0].partial_sigs[_OTHER_PUB_KEY] = (
+        request.inputs[0].partial_sigs[_PUB_KEY][:-1] + good[-1:]
+    )
+    err_msg = "input 0: invalid signature for pub_key"
+    with pytest.raises(BTClibValueError, match=err_msg):
+        assert_signatures_only(request, returned)
+
+
+def test_a_signature_whose_message_cannot_be_computed_is_refused() -> None:
+    """Where the Finalizer leaves it alone, the validator refuses it.
+
+    `_assert_partial_sigs_verify` skips a signature the psbt gives it no
+    message for -- a Finalizer learns nothing about a signature from a
+    psbt that does not say what was signed. Here it is the one thing that
+    must not be merged, so the same silence is a refusal.
+
+    Both psbts lose the witness script, so it is not a changed field: the
+    request is one that never said what the signature covers.
+    """
+    request, returned = _request_and_answer()
+    request.inputs[0].witness_script = b""
+    returned.inputs[0].witness_script = b""
+    del request.inputs[0].partial_sigs[_PUB_KEY]
+
+    err_msg = "cannot verify the signature of .*does not say what was signed"
+    with pytest.raises(BTClibValueError, match=err_msg):
+        assert_signatures_only(request, returned)
+
+
+def test_an_answer_that_loosens_tx_modifiable_is_refused() -> None:
+    """The one field an answer may change, and only in one direction.
+
+    A Signer clears a modifiable bit when it adds a signature a change
+    would break, so tightening is the legitimate answer; setting a bit
+    the request had clear says the psbt may still be modified in a way
+    the request said it may not. `_combined_tx_modifiable` is the rule,
+    and an answer no more permissive than the request is one the two
+    combine into unchanged.
+
+    Version 2, `PSBT_GLOBAL_TX_MODIFIABLE` being a field BIP370 does not
+    allow a version 0 psbt to carry.
+    """
+    request, returned = _request_and_answer()
+    request, returned = request.to_v2(), returned.to_v2()
+    request.tx_modifiable = 0
+    returned.tx_modifiable = INPUTS_MODIFIABLE
+    with pytest.raises(BTClibValueError, match="tx_modifiable is more permissive"):
+        assert_signatures_only(request, returned)
+
+    # the other way round is a Signer doing its job
+    request.tx_modifiable = INPUTS_MODIFIABLE | OUTPUTS_MODIFIABLE
+    returned.tx_modifiable = OUTPUTS_MODIFIABLE
+    assert_signatures_only(request, returned)
+
+
+def test_an_answer_that_changes_the_fallback_lock_time_is_refused() -> None:
+    """Inert for this psbt, and a field that travels all the same.
+
+    The transaction comparison catches a changed fallback wherever the
+    lock time is computed from it, which is every psbt whose inputs
+    require none. This is the other case: an input requiring a height
+    lock time makes the fallback unused, so the two psbts agree on the
+    transaction and differ on a field that becomes live again the moment
+    that requirement is dropped. Not a signature, so it must be equal.
+    """
+    request, returned = _request_and_answer()
+    request, returned = request.to_v2(), returned.to_v2()
+    for psbt in (request, returned):
+        psbt.inputs[0].required_height_lock_time = 700_000
+    request.fallback_lock_time = 500_000
+    returned.fallback_lock_time = 600_000
+    assert request.lock_time == returned.lock_time == 700_000
+
+    with pytest.raises(BTClibValueError, match="fallback_lock_time was changed"):
+        assert_signatures_only(request, returned)
+
+
+def test_an_answer_that_changes_a_global_field_or_an_output_is_refused() -> None:
+    """The global maps and every output field, none of them signatures."""
+    request, returned = _request_and_answer()
+    returned.version = 2
+    with pytest.raises(BTClibValueError, match="mismatched psbt version"):
+        assert_signatures_only(request, returned)
+
+    request, returned = _request_and_answer()
+    returned.hd_key_paths = {_PUB_KEY: BIP32KeyOrigin(b"\xff" * 4, "m/9")}
+    with pytest.raises(BTClibValueError, match="global hd_key_paths were changed"):
+        assert_signatures_only(request, returned)
+
+    request, returned = _request_and_answer()
+    returned.unknown = {b"\xfc\x02": b"vendor"}
+    with pytest.raises(BTClibValueError, match="global unknown fields were changed"):
+        assert_signatures_only(request, returned)
+
+    request, returned = _request_and_answer()
+    returned.outputs[0].redeem_script = b"\x51"
+    with pytest.raises(BTClibValueError, match="output 0: redeem_script was changed"):
+        assert_signatures_only(request, returned)
+
+
+def _taproot_request_and_answer() -> tuple[Psbt, Psbt, list[TxOut]]:
+    """Return an unsigned p2tr key path request, and the answer to it."""
+    request, prevouts_ = _taproot_key_path_psbt()
+    returned, signed_vins = sign(
+        deepcopy(request),
+        _KeyManager(by_pub_key={_TAPROOT_INTERNAL_KEY: _TAPROOT_PRV_KEY}),
+    )
+    assert signed_vins == [0]
+    return request, returned, prevouts_
+
+
+def test_a_taproot_answer_is_checked_against_the_output_key() -> None:
+    """The Finalizer's own check, asked one role earlier."""
+    request, returned, prevouts_ = _taproot_request_and_answer()
+    assert_signatures_only(request, returned)
+    verify_transaction(prevouts_, extract_tx(finalize(returned), check_validity=False))
+
+    request, returned, _ = _taproot_request_and_answer()
+    returned.inputs[0].taproot_key_spend_signature = b"\x01" * 64
+    err_msg = "invalid taproot key path signature for output key"
+    with pytest.raises(BTClibValueError, match=err_msg):
+        assert_signatures_only(request, returned)
+
+
+def test_a_taproot_answer_that_changes_the_signature_it_was_sent_is_refused() -> None:
+    """The scalar field's own rule: set once, it must come back as it was."""
+    # the answer of the first round is the request of the second, which is
+    # what makes the signature a field that is already set
+    signed_request = _taproot_request_and_answer()[1]
+    tampered = deepcopy(signed_request)
+    tampered.inputs[0].taproot_key_spend_signature = b"\x02" * 64
+
+    err_msg = "taproot_key_spend_signature was changed"
+    with pytest.raises(BTClibValueError, match=err_msg):
+        assert_signatures_only(signed_request, tampered)
+
+
+def test_a_taproot_signature_beside_a_non_taproot_input_is_refused() -> None:
+    """There is no output key to check it against.
+
+    An answer that files a schnorr signature on an input spending a
+    witness v0 output is describing some other input, and the Finalizer
+    would not read the field either -- it dispatches on the spent script.
+    """
+    request, returned = _request_and_answer()
+    returned.inputs[0].taproot_key_spend_signature = b"\x01" * 64
+    err_msg = "a taproot signature for an input spending no taproot output"
+    with pytest.raises(BTClibValueError, match=err_msg):
+        assert_signatures_only(request, returned)
+
+
+def test_an_answer_whose_signature_commits_to_another_sig_hash_type() -> None:
+    """The type the input asks for is the type the answer must sign.
+
+    `_assert_sig_hash_type` is BIP174's rule for the Finalizer, asked
+    here as well: a signature committing to something other than the
+    input asked for is one the other participants did not agree to, and
+    refusing it before the merge is cheaper than refusing it after.
+    """
+    request, returned = _request_and_answer()
+    request.inputs[0].sig_hash_type = 1
+    returned.inputs[0].sig_hash_type = 1
+    sig = returned.inputs[0].partial_sigs[_OTHER_PUB_KEY]
+    returned.inputs[0].partial_sigs[_OTHER_PUB_KEY] = sig[:-1] + b"\x03"
+    with pytest.raises(BTClibValueError, match="mismatched sig_hash type"):
+        assert_signatures_only(request, returned)
+
+
+def test_a_taproot_script_path_answer_is_checked_against_the_leaf_key() -> None:
+    """The script path half, against the key its tapleaf hash names.
+
+    BIP373's own vector is the signature, aggregated from the session the
+    psbt carries; the request is that psbt with the signature taken back
+    out, so every other field agrees by construction and the signature is
+    the only difference.
+    """
+    description = "a key in a script is a MuSig2 Aggregate Pubkey, with all partial"
+    returned = _taproot_signed(description)
+    request = deepcopy(returned)
+    request.inputs[0].taproot_script_spend_signatures = {}
+
+    assert_signatures_only(request, returned)
+
+    key_data = next(iter(returned.inputs[0].taproot_script_spend_signatures))
+    returned.inputs[0].taproot_script_spend_signatures[key_data] = b"\x01" * 64
+    err_msg = "invalid taproot script path signature for key"
+    with pytest.raises(BTClibValueError, match=err_msg):
+        assert_signatures_only(request, returned)
+
+
+def test_an_answer_that_is_not_a_valid_psbt_is_refused() -> None:
+    """It came from outside, so it is validated before it is compared."""
+    request, returned = _request_and_answer()
+    returned.inputs[0].partial_sigs[b"\x02" * 10] = b"\x30\x06"
+    err_msg = "invalid partial signature pub_key"
+    with pytest.raises(BTClibValueError, match=err_msg):
+        assert_signatures_only(request, returned)
