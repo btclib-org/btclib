@@ -171,12 +171,24 @@ dev = [
 # are never behind the floor and there is nothing here to go stale
 required-version = ">=0.12.0"
 
-# TEMPORARY, and the one line of this pull request to delete before it
+# TEMPORARY, and the one thing in this pull request to delete before it
 # merges: bitcoin-core-rpc is not on PyPI yet -- both indices answer 404 --
-# so without a source uv cannot resolve it and there is no lock to commit.
-# Pointing at the tag makes the branch reviewable and lets every gate but
-# `dist-py` run; that one installs the wheel from the index and is red
-# until the package ships, which is exactly what it is there to say.
+# so without a source uv cannot resolve it and there is no lock to commit
+# at all. Pointing at the branch makes this reviewable.
+#
+# It also defeats the one job that would have caught the missing package,
+# which is the reason this cannot merge and not merely a note. `dist-py`
+# builds a constraints file with `uv export --locked`, and that export
+# carries the source:
+#
+#     bitcoin-core-rpc @ git+https://github.com/btclib-org/...@<sha>
+#
+# so the step named "with its dependencies from PyPI" installs from git
+# and passes. Measured: `dist-py` is green on this branch, and a plain
+# `uv pip install dist/*.whl` against the index is not --
+# "bitcoin-core-rpc was not found in the package registry". Do not read
+# that green as the wheel being installable.
+#
 # btclib carried a `tool.uv.sources` for the bindings once and removed it
 # when they were published: this goes the same way, and the dependency
 # above is already written as the ordinary requirement it becomes
