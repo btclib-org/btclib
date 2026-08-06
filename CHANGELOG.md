@@ -2786,6 +2786,35 @@ edit.
 
 ### The public API and the module layout
 
+- **`btclib.core_import` is new: the requests Bitcoin Core's
+  `importdescriptors` takes** (issue #381). `import_request` is one json
+  object and `account_import_requests` the pair a BIP44 account is — the
+  receiving chain, and the change chain marked `internal`. That mark is
+  why the pair is a function of its own: change imported as a receiving
+  chain is money the wallet reports as incoming payments, and the mistake
+  is invisible until a balance is wrong.
+
+  No rpc call and no client, deliberately: the caller already has one,
+  `bitcoin-core-rpc` being a package of its own that
+  `btclib.fetch.bitcoin_core` builds on, and a second way to reach a node
+  would be a second thing to keep working. What this module adds is the
+  object, and every rule `ProcessDescriptorImport` enforces on one is
+  enforced here, where the error can still name the field rather than
+  arriving as an rpc failure half a rescan later: the descriptor carries
+  its checksum, which Core requires; an `active` descriptor is ranged; a
+  `range` belongs to a ranged descriptor and to no other, both ends
+  inclusive as Core reads them; `next_index` is inside it; and a `label`
+  goes with neither `internal` nor a range.
+
+  Two fields HWI's `getkeypool` writes are not written: `watchonly` and
+  `keypool` are `importmulti`'s, the other rpc that dict targets, and
+  `importdescriptors` declares neither. A descriptor wallet is watch-only
+  by holding no private key, which is what `descriptors.parse` guarantees
+  of every descriptor it returns. A multipath descriptor is not built
+  either — Core reads the second element of a two-element step as the
+  internal descriptor, while `parse` refuses a ``<a;b>`` step outright —
+  so the pair of requests is what says the same thing here.
+
 - **`descriptors.account_descriptors` builds the pair a wallet exports**
   (issue #381): the receive and change descriptors of a BIP44 account,
   from an account xpub and the master fingerprint of the key it came from.

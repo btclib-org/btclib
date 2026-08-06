@@ -76,6 +76,13 @@ btclib.bip44 module
    :members:
    :show-inheritance:
 
+btclib.core_import module
+-------------------------
+
+.. automodule:: btclib.core_import
+   :members:
+   :show-inheritance:
+
 btclib.descriptors module
 -------------------------
 
