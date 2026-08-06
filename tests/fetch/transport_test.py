@@ -491,6 +491,7 @@ def test_a_transport_equal_to_the_default_is_still_the_callers_transport(
         ),
     )
 
+    # a test helper answering equal to one sentinel object, never hashed
     class EqualTransport:  # noqa: PLW1641
         def __init__(self) -> None:
             self.requests: list[Request] = []

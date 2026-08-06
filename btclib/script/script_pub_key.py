@@ -485,6 +485,10 @@ def type_and_payload(script_pub_key: Octets) -> tuple[ScriptType, bytes]:  # noq
 # and Script is frozen so that `tx_out.script_pub_key.script = b""` cannot
 # reach through a frozen TxOut. So __init__ assigns through
 # object.__setattr__, as Network's and the three Sig classes' do
+#
+# the hand-written __eq__ below leaves __hash__ at Python's default for a
+# class defining __eq__ without __hash__, None; whether that is the shape
+# this class is meant to have is issue #416, open
 @dataclass(init=False, eq=False, frozen=True)
 class ScriptPubKey(Script):  # noqa: PLW1641
     """A Script with the network its addresses render on.

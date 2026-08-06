@@ -813,6 +813,7 @@ def test_eq_witness(monkeypatch: pytest.MonkeyPatch) -> None:
     the whole of the answer.
     """
 
+    # narrows equality by dropping a field, a test helper never hashed
     class TxInIgnoringWitness(TxIn):  # noqa: PLW1641
         """A TxIn compared on everything but its witness."""
 
