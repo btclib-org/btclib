@@ -28,6 +28,7 @@ from btclib.script import (
     input_script_sig,
     is_p2tr,
     output_prvkey,
+    output_prvkey_from_merkle_root,
     output_pubkey,
     output_pubkey_from_merkle_root,
     taproot,
@@ -248,6 +249,24 @@ def test_the_two_output_keys_are_one_tweak() -> None:
     merkle_root = tree_helper(script_tree)[1]
     assert output_pubkey_from_merkle_root(x_only, merkle_root) == (
         output_pubkey(internal_pubkey, script_tree)
+    )
+
+
+def test_the_two_output_prvkeys_are_one_tweak() -> None:
+    """A tree and its own merkle root tweak a private key the same way.
+
+    The private counterpart of `test_the_two_output_keys_are_one_tweak`:
+    a `KeyManager` signing a taproot key path spend has the merkle root
+    a psbt carries and not the tree that produced it, and this is what
+    tweaks a private key from the one it is given.
+    """
+    prv_key = 123456
+    assert output_prvkey_from_merkle_root(prv_key) == output_prvkey(prv_key)
+
+    script_tree: TaprootScriptTree = [[(0xC0, ["OP_2"])], [(0xC0, ["OP_3"])]]
+    merkle_root = tree_helper(script_tree)[1]
+    assert output_prvkey_from_merkle_root(prv_key, merkle_root) == output_prvkey(
+        prv_key, script_tree
     )
 
 

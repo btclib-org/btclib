@@ -7,14 +7,16 @@
 
 What this package exports is the format and the roles: the three maps a
 psbt is made of, the Combiner, the Finalizer, the Extractor, the outputs
-an unsigned psbt spends, the two messages a Signer signs, and the size
+an unsigned psbt spends, the two messages a Signer signs and `sign`
+which plays the role over a `KeyManager`'s answers, and the size
 estimation a fee rate is applied to. `musig2` is named as a module, being
 the BIP373 role rather than one function, the way btclib.ecc names dsa.
 
 `ecdsa_sig_hash` and `taproot_sig_hash` are here for the same reason
-`prevouts` is: the Signer role is the one BIP174 leaves to the caller,
-who has the keys, and the message is what it needs from the psbt to
-play it.
+`prevouts` is: `sign` needs the message before it needs anything else,
+and a caller playing the Signer by hand -- writing a signature into a
+psbt without going through `sign` -- needs it too, `KeyManager` not
+being the only way to hold a key.
 
 btclib.psbt.psbt_utils is not exported, and this is where that decision is
 recorded: serialize_bytes, deserialize_map, deserialize_tx,
@@ -31,6 +33,7 @@ half of that module from already.
 
 from btclib.psbt import musig2
 from btclib.psbt.psbt import (
+    KeyManager,
     Psbt,
     combine,
     ecdsa_sig_hash,
@@ -38,6 +41,7 @@ from btclib.psbt.psbt import (
     finalize,
     join,
     prevouts,
+    sign,
     taproot_sig_hash,
 )
 from btclib.psbt.psbt_in import PsbtIn
@@ -45,6 +49,7 @@ from btclib.psbt.psbt_out import PsbtOut
 from btclib.psbt.psbt_size import estimated_input_sizes
 
 __all__ = [
+    "KeyManager",
     "Psbt",
     "PsbtIn",
     "PsbtOut",
@@ -56,5 +61,6 @@ __all__ = [
     "join",
     "musig2",
     "prevouts",
+    "sign",
     "taproot_sig_hash",
 ]

@@ -463,6 +463,7 @@ def test_psbt_exports_the_format_not_its_plumbing() -> None:
     of the format.
     """
     assert sorted(btclib.psbt.__all__) == [
+        "KeyManager",
         "Psbt",
         "PsbtIn",
         "PsbtOut",
@@ -474,6 +475,7 @@ def test_psbt_exports_the_format_not_its_plumbing() -> None:
         "join",
         "musig2",
         "prevouts",
+        "sign",
         "taproot_sig_hash",
     ]
 

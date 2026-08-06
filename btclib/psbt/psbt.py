@@ -32,7 +32,7 @@ from collections.abc import Callable, Mapping, Sequence
 from copy import deepcopy
 from dataclasses import dataclass
 from math import ceil
-from typing import Any, TypeVar, cast
+from typing import Any, Protocol, TypeVar, cast
 
 from btclib.alias import BinaryData, Octets, ScriptList, String
 from btclib.bip32 import (
@@ -103,6 +103,7 @@ __all__ = [
     "PSBT_MAGIC_BYTES",
     "PSBT_V0",
     "PSBT_V2",
+    "KeyManager",
     "Psbt",
     "combine",
     "ecdsa_sig_hash",
@@ -111,6 +112,7 @@ __all__ = [
     "join",
     "leaf_script",
     "prevouts",
+    "sign",
     "single_leaf_key",
     "taproot_sig_hash",
 ]
@@ -1881,6 +1883,149 @@ def ecdsa_sig_hash(psbt: Psbt, vin_i: int, *, hash_type: int | None = None) -> b
         err_msg += "no utxo, no redeem script, or no witness script"
         raise BTClibValueError(err_msg)
     return msg_hash
+
+
+class KeyManager(Protocol):
+    """A signature over a hash, by public key or origin: what `sign` asks.
+
+    `sign` has no key of its own; a KeyManager is where the keys are, and
+    each method answers what `sign` cannot -- is this key one you hold,
+    and if so, what does it sign msg_hash with. None answers "not mine"
+    rather than raising, which is what lets one signer of an m-of-n
+    answer for its own key alone: an input none of its keys can answer
+    for is somebody else's turn, not an error.
+
+    Both pub_key and origin travel on every call, in the order a psbt
+    itself gives them precedence: a key match is a fact, an origin only
+    a claim about a four-byte fingerprint, which collides. The claim is
+    what a watch-only-shaped manager -- one xprv, many children it has
+    never derived -- needs to answer at all, having no way to recognize
+    a child key it has not yet computed.
+
+    What comes back is the bare signature -- DER for ECDSA, 64 bytes
+    r||s for schnorr -- with no sig_hash type appended. `sign` appends
+    it, being the one that fixed the hash and therefore the type the
+    signature answers for; the secret stays inside the manager, which is
+    what lets a hardware backend implement this same contract without
+    `sign` ever holding what signs for it.
+    """
+
+    def sign_ecdsa(
+        self, pub_key: bytes, origin: BIP32KeyOrigin | None, msg_hash: bytes
+    ) -> bytes | None:
+        """Return the DER signature of msg_hash by pub_key, or None."""
+        ...
+
+    def sign_schnorr(
+        self,
+        pub_key: bytes,
+        origin: BIP32KeyOrigin | None,
+        msg_hash: bytes,
+        merkle_root: bytes,
+    ) -> bytes | None:
+        """Return the BIP340 signature of msg_hash by pub_key, or None.
+
+        pub_key is the taproot internal key, x-only and untweaked, and
+        the signature has to be the tweaked output key's: merkle_root is
+        `PSBT_IN_TAP_MERKLE_ROOT`, empty for a key-path-only output, and
+        tweaking by it is the manager's to do, `sign` never holding what
+        tweaking a private key needs.
+        """
+        ...
+
+
+def _sign_ecdsa_input(psbt: Psbt, vin_i: int, key_manager: KeyManager) -> bool:
+    """Write every partial signature key_manager gives for one input.
+
+    hd_key_paths is the candidate list: what a psbt names for an ECDSA
+    spend is a public key, never an address, and usually an origin
+    beside it. A key already in partial_sigs is left alone rather than
+    asked for again, and the message is computed at most once and only
+    once there is a candidate to ask for it -- an input key_manager
+    holds nothing for never reaches `ecdsa_sig_hash` to be refused for a
+    reason that is not key_manager's.
+    """
+    psbt_in = psbt.inputs[vin_i]
+    hash_type = ALL if psbt_in.sig_hash_type is None else psbt_in.sig_hash_type
+    msg_hash: bytes | None = None
+    signed = False
+    for pub_key, origin in psbt_in.hd_key_paths.items():
+        if pub_key in psbt_in.partial_sigs:
+            continue
+        if msg_hash is None:
+            msg_hash = ecdsa_sig_hash(psbt, vin_i, hash_type=hash_type)
+        sig = key_manager.sign_ecdsa(pub_key, origin, msg_hash)
+        if sig is None:
+            continue
+        psbt_in.partial_sigs[pub_key] = sig + hash_type.to_bytes(1, "big")
+        signed = True
+    return signed
+
+
+def _sign_taproot_key_path(psbt: Psbt, vin_i: int, key_manager: KeyManager) -> bool:
+    """Write the taproot key path signature key_manager gives, if any.
+
+    One candidate, the internal key, already signed or absent being the
+    two reasons there is nothing to ask for. Its origin is whichever
+    taproot_hd_key_paths entry is filed under it, and absent where the
+    Updater wrote none -- BIP371 does not require one, and key_manager
+    is left the pub_key alone to answer from.
+    """
+    psbt_in = psbt.inputs[vin_i]
+    if not psbt_in.taproot_internal_key or psbt_in.taproot_key_spend_signature:
+        return False
+    origin = psbt_in.taproot_hd_key_paths.get(psbt_in.taproot_internal_key)
+    msg_hash = taproot_sig_hash(psbt, vin_i)
+    sig = key_manager.sign_schnorr(
+        psbt_in.taproot_internal_key,
+        origin[1] if origin else None,
+        msg_hash,
+        psbt_in.taproot_merkle_root,
+    )
+    if sig is None:
+        return False
+    hash_type = psbt_in.sig_hash_type or DEFAULT
+    if hash_type:
+        sig += hash_type.to_bytes(1, "big")
+    psbt_in.taproot_key_spend_signature = sig
+    return True
+
+
+def sign(psbt: Psbt, key_manager: KeyManager) -> tuple[Psbt, list[int]]:
+    """Run the Signer role over every input key_manager answers for.
+
+    Per input the candidates are what the psbt itself names: hd_key_paths
+    for an ECDSA spend, the taproot internal key and its own
+    taproot_hd_key_paths entry for a taproot one. None from key_manager
+    skips the key rather than raising -- one signer of an m-of-n holds
+    one key, and an input it cannot answer for is not an error but
+    somebody else's turn. What comes back besides the copy is which
+    inputs got a new signature, since a caller collecting a quorum needs
+    to tell "there was nothing for me" from "done".
+
+    Taproot is limited to the key path: MuSig2's own Signer is
+    `btclib.psbt.musig2`, and a script path spend needs a leaf and a
+    control block `sign` does not choose between. Every other kind is
+    whatever `_finalized_input` can close over -- p2pk, p2pkh, p2wpkh,
+    p2sh-p2wpkh, p2wsh, bare and wrapped multisig.
+
+    Raises where the psbt cannot be signed at all -- `assert_signable`'s
+    question -- and where a candidate's own hash cannot be computed,
+    which is `ecdsa_sig_hash` refusing to guess at a caller's stop. A key
+    key_manager has nothing to say about is a different question and
+    does not raise.
+    """
+    psbt = deepcopy(psbt)
+    psbt.assert_signable()
+    signed_vins: list[int] = []
+    for vin_i, psbt_in in enumerate(psbt.inputs):
+        if is_p2tr(_spent_script(psbt_in)):
+            if _sign_taproot_key_path(psbt, vin_i, key_manager):
+                signed_vins.append(vin_i)
+            continue
+        if _sign_ecdsa_input(psbt, vin_i, key_manager):
+            signed_vins.append(vin_i)
+    return psbt, signed_vins
 
 
 def _assert_sig_hash_type(psbt_in: PsbtIn) -> None:

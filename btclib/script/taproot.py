@@ -49,6 +49,7 @@ __all__ = [
     "input_script_sig",
     "leaf_hash",
     "output_prvkey",
+    "output_prvkey_from_merkle_root",
     "output_pubkey",
     "output_pubkey_from_merkle_root",
     "parse",
@@ -290,12 +291,16 @@ def output_prvkey(
     script tree's root hash, so its public point is the output key
     exactly.
     """
-    internal_prvkey: int = int_from_prv_key(prv_key)
-    if script_tree:
-        _, h = tree_helper(script_tree)
-    else:
-        h = b""
+    h = tree_helper(script_tree)[1] if script_tree else b""
+    return _tweaked_prvkey(int_from_prv_key(prv_key), h, ec)
 
+
+def _tweaked_prvkey(internal_prvkey: int, h: bytes, ec: Curve) -> int:
+    """Return the private key an internal one tweaked by h.
+
+    The private half of `_tweaked_pubkey`, h coming from the same two
+    places: a tree the caller built, or the merkle root a psbt carries.
+    """
     # secp256k1_keypair_xonly_tweak_add is the whole of this function
     # below the tweak: it negates the key whose public point has an odd
     # y, as BIP341 requires, and adds the tweak to it -- in constant
@@ -316,6 +321,22 @@ def output_prvkey(
     internal_prvkey = internal_prvkey if has_even_y else ec.n - internal_prvkey
     t = _tap_tweak(P[0].to_bytes(32, "big"), h, ec)
     return (internal_prvkey + t) % ec.n
+
+
+def output_prvkey_from_merkle_root(
+    prv_key: PrvKey, merkle_root: Octets = b"", ec: Curve = secp256k1
+) -> int:
+    """Return the private key of a taproot output from a merkle root.
+
+    `output_prvkey` with the root already in hand, the shape
+    `PSBT_IN_TAP_MERKLE_ROOT` carries it in: a `KeyManager` signing a
+    taproot key path spend holds the internal private key and this
+    field, never the script tree that produced the root, a psbt naming
+    a script path by its leaf and control block instead.
+    """
+    return _tweaked_prvkey(
+        int_from_prv_key(prv_key), bytes_from_octets(merkle_root), ec
+    )
 
 
 def input_script_sig(
