@@ -19,7 +19,7 @@ import pytest
 
 from btclib import b32
 from btclib.alias import ScriptList
-from btclib.curves import mult
+from btclib.curves import bytes_from_point, mult
 from btclib.exceptions import BTClibValueError
 from btclib.script import (
     TaprootScriptTree,
@@ -29,10 +29,11 @@ from btclib.script import (
     is_p2tr,
     output_prvkey,
     output_pubkey,
+    output_pubkey_from_merkle_root,
     taproot,
     type_and_payload,
 )
-from btclib.script.taproot import parse, serialize
+from btclib.script.taproot import parse, serialize, tree_helper
 from btclib.tx import TxOut
 from tests import load, vector_id
 from tests.curves.curve_test import low_card_curves
@@ -224,6 +225,30 @@ def test_control_block() -> None:
     pub_key = output_pubkey(internal_pubkey, script_tree)[0]
     script, control = input_script_sig(internal_pubkey, script_tree, 0)
     assert check_output_pubkey(pub_key, serialize(script), control)
+
+
+def test_the_two_output_keys_are_one_tweak() -> None:
+    """A tree and its own merkle root reach the same output key.
+
+    Which is the whole claim of `output_pubkey_from_merkle_root`: it is
+    `output_pubkey` with the root already computed, the form a psbt
+    carries it in. Both halves of BIP341's tweak are checked -- the key
+    path, where the root is empty, and a tree, whose root comes from
+    `tree_helper`.
+
+    The unspendable internal key `output_pubkey` substitutes for a
+    missing one is not this function's business: the psbt field it
+    serves is either present or the input says nothing to check.
+    """
+    internal_pubkey = mult(123456)
+    x_only = bytes_from_point(internal_pubkey)[1:]
+    assert output_pubkey_from_merkle_root(x_only) == output_pubkey(internal_pubkey)
+
+    script_tree: TaprootScriptTree = [[(0xC0, ["OP_2"])], [(0xC0, ["OP_3"])]]
+    merkle_root = tree_helper(script_tree)[1]
+    assert output_pubkey_from_merkle_root(x_only, merkle_root) == (
+        output_pubkey(internal_pubkey, script_tree)
+    )
 
 
 # the vector's scriptTree, not a tree: nested json lists of

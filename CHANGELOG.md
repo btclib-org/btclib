@@ -2153,6 +2153,30 @@ edit.
 
 ### Transactions, blocks and PSBT
 
+- **`Psbt.assert_signable` accepts a taproot input, and checks it**
+  (issue #435). It refused every one of them: `_signable_payload`
+  accepts only a witness kind beside a `witness_utxo`, and p2tr was not
+  in that list — BIP174 wrote the rule when witness v0 was the only
+  witness there was, so BIP371's own valid psbts failed the Signer's
+  pre-flight. An input carrying a `non_witness_utxo` took the other
+  branch and passed, which was worse: nothing about its taproot fields
+  was looked at, so an internal key tweaking to some other output key
+  and a leaf script no control block proves were both signable. What is
+  checked now is BIP341's version of the question the redeem and witness
+  script checks ask — that what the input says reaches the output being
+  spent — and a taproot output can be spent two ways, so it is two
+  answers: the internal key tweaked by `PSBT_IN_TAP_MERKLE_ROOT` must be
+  the output key, and each `PSBT_IN_TAP_LEAF_SCRIPT`'s control block
+  must prove its leaf against it. The leaf version is held to the
+  control block's, the two being read by different callers:
+  `check_output_pubkey` folds the hash from the version the control
+  block declares and `leaf_script` finds a leaf by the version the field
+  stores, so where they differ the proof is of a leaf nothing else looks
+  up. Absence is still absence, as for a p2sh input with no redeem
+  script. `taproot.output_pubkey_from_merkle_root` is the tweak with the
+  root already in hand, which is the form a psbt has it in —
+  `output_pubkey` takes the tree that produced the root, and a psbt
+  never carries one.
 - **`psbt.ecdsa_sig_hash` is the message a Signer signs** (issue #430),
   and with it `btclib.psbt` exports the pair: the ECDSA hash for the
   inputs whose signatures go in `PSBT_IN_PARTIAL_SIG` and
