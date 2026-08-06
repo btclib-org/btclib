@@ -67,6 +67,8 @@ def _assert_valid_coinbase(vin: Sequence[TxIn], *, is_coinbase: bool) -> None:
             raise BTClibValueError("coinbase input in a non-coinbase transaction")
 
 
+# mutable (a builder and a signer edit it in place), so unhashable is the
+# dataclass default: eq=True and frozen=False set __hash__ to None
 @dataclass
 class Tx:  # noqa: PLW1641
     """A Bitcoin transaction: version, lock time, inputs, outputs.

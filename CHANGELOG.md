@@ -5469,6 +5469,14 @@ edit.
   dependency, the bindings included, to the newest release that satisfies
   pyproject.toml. `pip install -e .` works here now, and readthedocs
   drives uv for the lock rather than for the resolution.
+- **Each of the four `PLW1641` sites the audit above narrowed to now
+  states its own reason, not a bare `# noqa`.** `Tx` is mutable, which is
+  the dataclass default that sets `__hash__` to `None`; `EqualTransport`
+  and `TxInIgnoringWitness` are test doubles nothing hashes.
+  `ScriptPubKey`'s is different: its hand-written `__eq__` sets
+  `__hash__` to `None` the same way Python does for any class defining
+  one without the other, and whether that is the shape the class is
+  meant to have is issue #416, still open (issue #417)
 
 ### Documentation and the website
 
