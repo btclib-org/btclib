@@ -179,31 +179,20 @@ and under upstream's own names: `key_sort_vectors.json`,
 `key_agg_vectors.json`, `nonce_gen_vectors.json`,
 `nonce_agg_vectors.json`, `sign_verify_vectors.json`,
 `tweak_vectors.json`, `det_sign_vectors.json` and
-`sig_agg_vectors.json`.
-
-One pin serves all eight, the entries below differing only in the blob:
-
-```text
-repo    bitcoin/bips
-path    bip-0327/vectors/<name>.json
-commit  1c6ac0c4cf1f39ea806b8594d6060b6d52fd1439  2024-07-19
-pulled  2026-08-02
-behind  0 revisions; that commit is the tip of the path, which has
-        three revisions in all
-```
-
-Verdict for every one of them: **identical**. The eight blobs are
-
-```text
-de088a746e27953614b9f5394553911fb2c86d59  key_sort_vectors.json
-b2e623de60f302c4004a6d656581bdba1f4e1e05  key_agg_vectors.json
-ced946f3efd9f80cb1a3819939f2b39de2061e42  nonce_gen_vectors.json
-1c04b8818f340a5fe2e10eaf73c17a2c9e020f46  nonce_agg_vectors.json
-f71c8dd9d935c8c5f398e6a3888943e1e68b729d  sign_verify_vectors.json
-d0a7cfe832bfe22375af0d64cd5d0dbb350592e0  tweak_vectors.json
-261669ccd01cd4098fa97045f3d32654f64a48af  det_sign_vectors.json
-519562c343b6e4bf686ba6e3eda8cee5c8e8b55d  sig_agg_vectors.json
-```
+`sig_agg_vectors.json`. Each is pinned below in its own entry, one real
+path per pin, rather than to one placeholder path shared by all eight:
+a placeholder is not a path GitHub's own "commits touching a path" API
+can be asked about, which is what kept every one of the eight out of
+the monthly check. It also papered over a real difference between
+them: six were untouched since the commit that added all eight,
+`87394eaeb436d02e0a68b38a1e94bc526d50056e` (2023-03-27, "Add BIP327:
+MuSig2 for BIP340-compatible Multi-Signatures"); `sign_verify_vectors.json`
+was fixed once since, at `508e3a6a40a6e73c73cbfa8a33aa18a2bc7b9d91`
+(2024-05-14, "Fix the four test vectors"); and `sig_agg_vectors.json`
+once more again, at `1c6ac0c4cf1f39ea806b8594d6060b6d52fd1439`
+(2024-07-19, "bip327: minor fixes") -- the one commit the shared
+placeholder cited as the tip of all eight paths, when it is the tip of
+only that one.
 
 56 cases between them, and `tests/ecc/musig2_test.py` runs every one:
 1 sorting, 4 + 5 aggregations valid and failing, 4 nonce derivations,
@@ -222,27 +211,146 @@ because the `error.message` field of a case is compared byte for byte.
 That file is not vendored — it is an implementation, not data, and
 btclib's is the one under test.
 
-### BIP324 (ElligatorSwift): two files under `tests/ecc/_data/`
-
-`ellswift_decode_test_vectors.csv` and `xswiftec_inv_test_vectors.csv`,
-under upstream's own names. One commit is the tip of both paths, so one
-pin serves the pair:
+### `tests/ecc/_data/key_sort_vectors.json`
 
 ```text
 repo    bitcoin/bips
-path    bip-0324/<name>.csv
-commit  cc177ab7bc5abcdcdf9c956ee88afd1052053328  2023-01-11
-pulled  2026-08-03
-behind  0 revisions; that commit is the tip of both paths
+path    bip-0327/vectors/key_sort_vectors.json
+commit  87394eaeb436d02e0a68b38a1e94bc526d50056e  2023-03-27
+blob    de088a746e27953614b9f5394553911fb2c86d59
+pulled  2026-08-02, split into its own pin 2026-08-06
+behind  0 revisions; that commit is the tip of the path
 ```
 
-Verdict for both: **identical**, line endings included — these two are
-LF upstream, where `bip340_test_vectors.csv` above is CRLF. The blobs:
+Verdict: **identical**.
+
+### `tests/ecc/_data/key_agg_vectors.json`
 
 ```text
-1bab96b721e2f3ab90142c318523551eb520f753  ellswift_decode_test_vectors.csv
-138c4cf85c040785a45c6552c0169c8c12fd3cfc  xswiftec_inv_test_vectors.csv
+repo    bitcoin/bips
+path    bip-0327/vectors/key_agg_vectors.json
+commit  87394eaeb436d02e0a68b38a1e94bc526d50056e  2023-03-27
+blob    b2e623de60f302c4004a6d656581bdba1f4e1e05
+pulled  2026-08-02, split into its own pin 2026-08-06
+behind  0 revisions; that commit is the tip of the path
 ```
+
+Verdict: **identical**.
+
+### `tests/ecc/_data/nonce_gen_vectors.json`
+
+```text
+repo    bitcoin/bips
+path    bip-0327/vectors/nonce_gen_vectors.json
+commit  87394eaeb436d02e0a68b38a1e94bc526d50056e  2023-03-27
+blob    ced946f3efd9f80cb1a3819939f2b39de2061e42
+pulled  2026-08-02, split into its own pin 2026-08-06
+behind  0 revisions; that commit is the tip of the path
+```
+
+Verdict: **identical**.
+
+### `tests/ecc/_data/nonce_agg_vectors.json`
+
+```text
+repo    bitcoin/bips
+path    bip-0327/vectors/nonce_agg_vectors.json
+commit  87394eaeb436d02e0a68b38a1e94bc526d50056e  2023-03-27
+blob    1c04b8818f340a5fe2e10eaf73c17a2c9e020f46
+pulled  2026-08-02, split into its own pin 2026-08-06
+behind  0 revisions; that commit is the tip of the path
+```
+
+Verdict: **identical**.
+
+### `tests/ecc/_data/sign_verify_vectors.json`
+
+```text
+repo    bitcoin/bips
+path    bip-0327/vectors/sign_verify_vectors.json
+commit  508e3a6a40a6e73c73cbfa8a33aa18a2bc7b9d91  2024-05-14
+blob    f71c8dd9d935c8c5f398e6a3888943e1e68b729d
+pulled  2026-08-02, split into its own pin 2026-08-06
+behind  0 revisions; that commit is the tip of the path
+```
+
+Verdict: **identical**.
+
+### `tests/ecc/_data/tweak_vectors.json`
+
+```text
+repo    bitcoin/bips
+path    bip-0327/vectors/tweak_vectors.json
+commit  87394eaeb436d02e0a68b38a1e94bc526d50056e  2023-03-27
+blob    d0a7cfe832bfe22375af0d64cd5d0dbb350592e0
+pulled  2026-08-02, split into its own pin 2026-08-06
+behind  0 revisions; that commit is the tip of the path
+```
+
+Verdict: **identical**.
+
+### `tests/ecc/_data/det_sign_vectors.json`
+
+```text
+repo    bitcoin/bips
+path    bip-0327/vectors/det_sign_vectors.json
+commit  87394eaeb436d02e0a68b38a1e94bc526d50056e  2023-03-27
+blob    261669ccd01cd4098fa97045f3d32654f64a48af
+pulled  2026-08-02, split into its own pin 2026-08-06
+behind  0 revisions; that commit is the tip of the path
+```
+
+Verdict: **identical**.
+
+### `tests/ecc/_data/sig_agg_vectors.json`
+
+```text
+repo    bitcoin/bips
+path    bip-0327/vectors/sig_agg_vectors.json
+commit  1c6ac0c4cf1f39ea806b8594d6060b6d52fd1439  2024-07-19
+blob    519562c343b6e4bf686ba6e3eda8cee5c8e8b55d
+pulled  2026-08-02, split into its own pin 2026-08-06
+behind  0 revisions; that commit is the tip of the path
+```
+
+Verdict: **identical**.
+
+### BIP324 (ElligatorSwift): two files under `tests/ecc/_data/`
+
+`ellswift_decode_test_vectors.csv` and `xswiftec_inv_test_vectors.csv`,
+under upstream's own names, both genuinely tipped by the same commit --
+unlike BIP327 above, there is no exception a shared pin would have
+papered over here. Each is pinned below in its own entry, one real path
+per pin, rather than to one placeholder path standing in for both: a
+placeholder is not a path GitHub's own "commits touching a path" API can
+be asked about, which is what kept the pair out of the monthly check.
+
+### `tests/ecc/_data/ellswift_decode_test_vectors.csv`
+
+```text
+repo    bitcoin/bips
+path    bip-0324/ellswift_decode_test_vectors.csv
+commit  cc177ab7bc5abcdcdf9c956ee88afd1052053328  2023-01-11
+blob    1bab96b721e2f3ab90142c318523551eb520f753
+pulled  2026-08-03, split into its own pin 2026-08-06
+behind  0 revisions; that commit is the tip of the path
+```
+
+Verdict: **identical**, line endings included — LF upstream, where
+`bip340_test_vectors.csv` above is CRLF.
+
+### `tests/ecc/_data/xswiftec_inv_test_vectors.csv`
+
+```text
+repo    bitcoin/bips
+path    bip-0324/xswiftec_inv_test_vectors.csv
+commit  cc177ab7bc5abcdcdf9c956ee88afd1052053328  2023-01-11
+blob    138c4cf85c040785a45c6552c0169c8c12fd3cfc
+pulled  2026-08-03, split into its own pin 2026-08-06
+behind  0 revisions; that commit is the tip of the path
+```
+
+Verdict: **identical**, line endings included too.
 
 The two files test the two halves of the map, and both halves are
 btclib's own Python: `tests/ecc/ellswift_test.py` runs the decode file
