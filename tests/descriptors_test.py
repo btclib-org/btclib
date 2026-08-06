@@ -32,14 +32,17 @@ the parser test asks is that each one expands and that every address it
 produces is the address of that very script.
 """
 
+from typing import get_args
+
 import pytest
 from hypothesis import given
 from hypothesis import strategies as st
 
-from btclib.alias import Octets
+from btclib.alias import BIP44ScriptType, Octets
 from btclib.bip32 import BIP32KeyOrigin
-from btclib.bip32.bip32 import xpub_from_xprv
+from btclib.bip32.bip32 import derive, xpub_from_xprv
 from btclib.bip32.der_path import _HARDENING
+from btclib.bip44 import SCRIPT_TYPE_FROM_PURPOSE
 from btclib.descriptors import (
     AddrDescriptor,
     ComboDescriptor,
@@ -52,8 +55,10 @@ from btclib.descriptors import (
     RawTrDescriptor,
     ShDescriptor,
     TrDescriptor,
+    WpkhDescriptor,
     WshDescriptor,
     __descsum_expand,
+    account_descriptors,
     add_checksum,
     checksum,
     from_address,
@@ -2393,6 +2398,151 @@ def test_a_rawtr_without_an_origin_writes_nothing_at_all() -> None:
     descriptor = parse(f"rawtr({XONLY_A})")
     psbt = descriptor.update_psbt(psbt_spending(descriptor), 0)
     assert psbt.inputs[0] == psbt_spending(descriptor).inputs[0]
+
+
+def test_the_account_descriptor_pair() -> None:
+    """One account, two chains, and one difference between them.
+
+    BIP44 puts receiving addresses under `/0` and change under `/1`, and a
+    wallet is both: what the pair says about the account -- the key origin,
+    the account xpub, the wildcard, the script type the purpose means -- is
+    the same on both sides, and the chain step is not. The addresses those
+    descriptors describe are checked against `bip44.address_from_der_path`
+    in `tests/bip44_test.py`, which holds the published vectors.
+    """
+    receive, change = account_descriptors(XPRV_ROOT, "m/84h/0h/0h")
+    account_xpub = xpub_from_xprv(derive(XPRV_ROOT, "m/84h/0h/0h"))
+    master_fingerprint = fingerprint(XPRV_ROOT).hex()
+
+    for descriptor, chain in ((receive, 0), (change, 1)):
+        assert isinstance(descriptor, WpkhDescriptor)
+        assert descriptor.is_ranged
+        assert descriptor.network == "mainnet"
+        (key,) = descriptor.key_expressions
+        assert key.xkey == account_xpub
+        assert key.der_path == (chain,)
+        assert key.wildcard == 0
+        assert key.origin is not None
+        assert key.origin.description == f"{master_fingerprint}/84h/0h/0h"
+        assert str(descriptor) == (
+            f"wpkh([{master_fingerprint}/84h/0h/0h]{account_xpub}/{chain}/*)"
+        )
+
+    assert receive.address(7) != change.address(7)
+    # and each is a descriptor like any other: it writes itself back and
+    # parses again to the same scripts
+    for descriptor in (receive, change):
+        assert parse(str(descriptor)).script_pub_keys(3) == descriptor.script_pub_keys(
+            3
+        )
+
+
+def test_the_account_descriptors_of_each_purpose() -> None:
+    """The purpose selects the fragment, as it selects the encoding.
+
+    Four purposes, four shapes, and the table is checked against
+    `bip44`'s own: a fifth script type would be a purpose this cannot
+    build, which is a refusal rather than a guess.
+    """
+    for purpose, expected in (
+        (44, "pkh("),
+        (49, "sh(wpkh("),
+        (84, "wpkh("),
+        (86, "tr("),
+    ):
+        receive, change = account_descriptors(XPRV_ROOT, f"m/{purpose}h/0h/0h")
+        assert str(receive).startswith(expected)
+        assert str(change).startswith(expected)
+    assert set(SCRIPT_TYPE_FROM_PURPOSE.values()) == set(get_args(BIP44ScriptType))
+
+    # a purpose the mapping does not name is refused, and script_type is
+    # the override -- BIP48 multisig, whose script type an account key does
+    # not determine
+    with pytest.raises(BTClibValueError, match="unknown BIP44 purpose: 48"):
+        account_descriptors(XPRV_ROOT, "m/48h/0h/0h")
+    overridden = account_descriptors(XPRV_ROOT, "m/48h/0h/0h", None, "p2wpkh")[0]
+    assert str(overridden).startswith("wpkh(")
+    with pytest.raises(BTClibValueError, match="unknown script type: p2wsh"):
+        account_descriptors(XPRV_ROOT, "m/48h/0h/0h", None, "p2wsh")  # type: ignore[arg-type]
+
+
+def test_an_account_descriptor_needs_a_fingerprint_it_cannot_compute() -> None:
+    """The origin names the *master* key, and only the master key says so.
+
+    A key at depth three carries its own fingerprint and its parent's, and
+    neither is the master's, so an account xpub has to be told. Where the
+    key is the master one it is computed instead — and a value handed in
+    beside it has to agree, neither being more likely to be right.
+    """
+    account_xpub = xpub_from_xprv(derive(XPRV_ROOT, "m/84h/0h/0h"))
+    with pytest.raises(BTClibValueError, match="no master fingerprint"):
+        account_descriptors(account_xpub, "m/84h/0h/0h")
+
+    master_fingerprint = fingerprint(XPRV_ROOT)
+    told = account_descriptors(account_xpub, "m/84h/0h/0h", master_fingerprint)
+    computed = account_descriptors(XPRV_ROOT, "m/84h/0h/0h")
+    assert str(told[0]) == str(computed[0])
+    # the same key with the fingerprint named too, which is what it is
+    assert str(
+        account_descriptors(XPRV_ROOT, "m/84h/0h/0h", master_fingerprint)[0]
+    ) == (str(computed[0]))
+    with pytest.raises(BTClibValueError, match="is not the key's own"):
+        account_descriptors(XPRV_ROOT, "m/84h/0h/0h", "deadbeef")
+
+
+def test_an_account_descriptor_holds_a_bip32_version() -> None:
+    """A SLIP132 zpub says what the descriptor function already says.
+
+    Same key, one spelling of it: the version bytes come back BIP32's, so
+    the descriptor is one every implementation reads -- Bitcoin Core
+    decodes those versions and no others -- and the script type is stated
+    once, by `wpkh()`.
+    """
+    zprv = (
+        "zprvAWgYBBk7JR8Gjrh4UJQ2uJdG1r3WNRRfURiABBE3RvMXYSrRJL62XuezvGdPv"
+        "G6GFBZduosCc1YP5wixPox7zhZLfiUm8aunE96BBa4Kei5"
+    )
+    receive = account_descriptors(zprv, "m/84h/0h/0h")[0]
+    (key,) = receive.key_expressions
+    assert key.xkey.startswith("xpub")
+    # the same account key, spelled with BIP32's own private version and
+    # then neutered: 0488ade4 is xprv and 0488b21e the xpub it becomes
+    assert key.xkey == xpub_from_xprv(derive(zprv, "m/84h/0h/0h", b"\x04\x88\xad\xe4"))
+    # and the scripts are the ones the SLIP132 spelling describes
+    assert receive.address(0) == "bc1qcr8te4kr609gcawutmrza0j4xv80jy8z306fyu"
+
+
+def test_an_account_path_is_three_hardened_levels() -> None:
+    """What an account xpub stands for, and what the coin type has to say.
+
+    The two levels below an account are the unhardened ones, so an account
+    path is exactly as much as a wallet exports -- a fourth level is
+    already a chain, and an unhardened account level would leave the level
+    above it the last that needed a private key.
+    """
+    for der_path, err_msg in (
+        ("m/84h/0h", "2 levels instead of 3"),
+        ("m/84h/0h/0h/0", "4 levels instead of 3"),
+        ("m/84h/0h/0", "must be hardened"),
+        ("m/84/0h/0h", "must be hardened"),
+    ):
+        with pytest.raises(BTClibValueError, match=err_msg):
+            account_descriptors(XPRV_ROOT, der_path)
+
+    # the coin type is a claim about the chain and the key is the chain
+    with pytest.raises(BTClibValueError, match="coin type 1 is test"):
+        account_descriptors(XPRV_ROOT, "m/84h/1h/0h")
+    with pytest.raises(BTClibValueError, match="unregistered BIP44 coin type: 2"):
+        account_descriptors(XPRV_ROOT, "m/84h/2h/0h")
+
+    # a key below the account level has walked past the path
+    deeper = derive(XPRV_ROOT, "m/84h/0h/0h/0")
+    with pytest.raises(BTClibValueError, match="past the 3 levels of the path"):
+        account_descriptors(deeper, "m/84h/0h/0h")
+    # and one at the account level has to be *that* account
+    other = xpub_from_xprv(derive(XPRV_ROOT, "m/84h/0h/1h"))
+    with pytest.raises(BTClibValueError, match="is not the path's 0h"):
+        account_descriptors(other, "m/84h/0h/0h", "deadbeef")
 
 
 def test_the_normalized_origin_keeps_the_fingerprint_that_was_given() -> None:

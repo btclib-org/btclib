@@ -20,8 +20,14 @@ address encodes the *tweaked* output key of BIP341, which
 and may not import it. `slip132` sits beside it at the top level for a
 narrower version of the same shape: it needs `b58` and `b32`, which
 import `bip32`, so it cannot live inside the package whose keys it
-derives addresses from either. Nothing in the library imports this
-module.
+derives addresses from either.
+
+What imports this module is what the mapping and the checks are for, and
+in one direction only: `keystore` takes the encoders and the purpose
+lookup rather than keeping a second copy of either, and `descriptors`
+takes the path checks and the same lookup for the account descriptor pair
+it builds. Neither is imported back -- a descriptor is what a wallet
+exports, and this is what a path means.
 """
 
 from __future__ import annotations
@@ -52,6 +58,10 @@ __all__ = [
 # purpose, coin type, account, change, address index: BIP44 fixes the
 # meaning of each level, so a path of any other length is not one
 _LEVELS = 5
+# the first three of them, which are the hardened ones and as much of the
+# path as an account xpub stands for: what a wallet exports, and what a
+# descriptor's key origin names
+_ACCOUNT_LEVELS = 3
 
 # the mapping is data and lives with the network data, not in this file:
 # it is the canonical row of the wallet-format table electrum ships as
@@ -124,12 +134,36 @@ def _assert_valid_path(indexes: list[int]) -> None:
         err_msg = f"invalid BIP44 path: {len(indexes)} levels instead of {_LEVELS}"
         raise BTClibValueError(err_msg)
 
-    if any(index < _HARDENED_OFFSET for index in indexes[:3]):
+    if any(index < _HARDENED_OFFSET for index in indexes[:_ACCOUNT_LEVELS]):
         err_msg = "invalid BIP44 path: purpose, coin type and account must be hardened"
         raise BTClibValueError(err_msg)
 
-    if any(index >= _HARDENED_OFFSET for index in indexes[3:]):
+    if any(index >= _HARDENED_OFFSET for index in indexes[_ACCOUNT_LEVELS:]):
         err_msg = "invalid BIP44 path: change and address index must not be hardened"
+        raise BTClibValueError(err_msg)
+
+
+def _assert_valid_account_path(indexes: list[int]) -> None:
+    """Raise unless the indexes are the three hardened levels of an account.
+
+    m/purpose'/coin_type'/account', which is what a wallet exports and what
+    a descriptor names in its key origin: the two levels below it are the
+    unhardened ones public derivation can walk, so an account path is
+    exactly as much as an xpub is useful for.
+
+    The hardening is checked for the reason the five-level check gives, and
+    one more: the whole point of stopping here is that nothing below needs
+    a private key, and an unhardened account level would make the level
+    above it -- not this path -- the last one that did.
+    """
+    if len(indexes) != _ACCOUNT_LEVELS:
+        err_msg = f"invalid BIP44 account path: {len(indexes)} levels"
+        err_msg += f" instead of {_ACCOUNT_LEVELS}"
+        raise BTClibValueError(err_msg)
+
+    if any(index < _HARDENED_OFFSET for index in indexes):
+        err_msg = "invalid BIP44 account path: purpose, coin type and account"
+        err_msg += " must be hardened"
         raise BTClibValueError(err_msg)
 
 
@@ -202,10 +236,14 @@ def _indexes_left_to_derive(xkey: BIP32KeyData, indexes: list[int]) -> list[int]
     the path of another account; it cannot catch a key from another
     purpose or another coin, nothing in an extended key recording where
     it came from, so the caller's word is taken for the levels above.
+
+    The bound is the path's own length rather than BIP44's five, because
+    an account path is three of them: a key deeper than the path it is
+    handed has walked past its end, whichever of the two paths it is.
     """
-    if xkey.depth > _LEVELS:
-        err_msg = f"invalid key depth: {xkey.depth} is past the {_LEVELS}"
-        err_msg += " levels of a BIP44 path"
+    if xkey.depth > len(indexes):
+        err_msg = f"invalid key depth: {xkey.depth} is past the {len(indexes)}"
+        err_msg += " levels of the path"
         raise BTClibValueError(err_msg)
 
     if xkey.depth and xkey.index != indexes[xkey.depth - 1]:

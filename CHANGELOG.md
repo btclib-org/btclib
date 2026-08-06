@@ -2786,6 +2786,46 @@ edit.
 
 ### The public API and the module layout
 
+- **`descriptors.account_descriptors` builds the pair a wallet exports**
+  (issue #381): the receive and change descriptors of a BIP44 account,
+  from an account xpub and the master fingerprint of the key it came from.
+  It is what HWI's `getdescriptors` answers with and what a Bitcoin Core
+  import takes, and every piece of it was already here — the purpose
+  mapping in `bip44`, the fragments and the serializer in `descriptors` —
+  with nothing composing them.
+
+  The purpose selects the fragment as it selects the encoding: 44 is
+  `pkh()`, 49 `sh(wpkh())`, 84 `wpkh()`, 86 `tr()`, read from
+  `bip44.SCRIPT_TYPE_FROM_PURPOSE` rather than from a second copy, so a
+  purpose added to that data file is a pair this builds. `script_type`
+  overrides it for a purpose the mapping does not name — BIP48 multisig,
+  say — and a purpose with no override raises rather than guessing p2pkh.
+
+  Both chains come back because a wallet is both: BIP44 puts receiving
+  addresses under `/0` and change under `/1`, and a wallet that imported
+  one and not the other cannot recognize its own change, which is a lost
+  output rather than a missing feature. The path is the three hardened
+  levels of the account, which is exactly as much as an xpub is useful for
+  — nothing below it hardens — and the key may be the master one or
+  anything down to the account itself, the depth saying how much is left
+  to derive.
+
+  Two things it will not guess. The master fingerprint is a parameter,
+  because a key at depth three carries its own and its parent's and
+  neither is the master's: it is computed only where the key *is* the
+  master one, and a value handed in beside it has to agree. And a SLIP132
+  `ypub` or `zpub` comes back as the BIP32 xpub of the same key: the
+  version bytes would say what the descriptor function already says, and a
+  descriptor holding a zpub is one no other implementation reads, Bitcoin
+  Core decoding the BIP32 versions and no others.
+
+  The addresses the pair describes are checked against
+  `bip44.address_from_der_path` over the published SLIP132, BIP49, BIP84
+  and BIP86 vectors: two entry points, one mapping, the same addresses.
+  `bip44._indexes_left_to_derive` bounds the key's depth by the path's own
+  length now rather than by BIP44's five, an account path being three of
+  them.
+
 - **`musig()` is read: BIP390's key expression** (issue #454), which was
   the last descriptor function the parser refused by name. The
   cryptography was already here — `btclib.ecc.musig2` is BIP327 function
