@@ -210,9 +210,9 @@ def test_the_top_of_the_four_byte_range_round_trips() -> None:
     and 0x80000000 does not serialize at all, so a transaction below
     0x80000000 cannot tell the two spellings apart. Both are valid
     versions, which is the other half of the boundary: `assert_valid`
-    takes the whole four-byte range and `assert_standard` refuses this end
-    of it -- what Core's own field is, signed in v27.2 and unsigned in
-    v31.1, is issue 387's, and no assertion here needs it.
+    takes the whole four-byte range and `assert_standard` refuses this
+    end of it -- what Core's own field is, signed in v27.2 and unsigned
+    in v31.1, is a different question, and no assertion here needs it.
     """
     tx = Tx(
         0xFFFFFFFF,
@@ -230,14 +230,13 @@ def test_the_top_of_the_four_byte_range_round_trips() -> None:
     assert parsed == tx
 
 
-def test_a_standard_version_excludes_zero_and_the_top_bit_set_ones() -> None:
-    """Versions 1 and 2 are standard; zero and a set top bit are not.
+def test_a_standard_version_is_core_v31_1s_window() -> None:
+    """Versions 1 through 3 are standard; 0, 4 and a set top bit are not.
 
-    Only the part of the window both Core policies agree on: 1 and 2 are
-    standard for v27.2 and v31.1 alike, and every version whose top bit is
-    set is standard for neither. Where `assert_standard` currently puts the
-    upper end -- 0x7FFFFFFF, which is standard for no Core -- is issue 387's
-    to answer, so it is deliberately not a test here.
+    Core v31.1's policy.h: 1 and 2 are standard for v27.2 and v31.1
+    alike, 3 is v31.1's own addition, BIP431's TRUC, and everything
+    outside 1..3 is refused, immediately below and above it as well as
+    every version whose top bit is set (issue #387).
 
     What the low end is worth saying is that these are valid versions:
     `assert_valid` takes zero and takes 0xFFFFFFFF, standardness being the
@@ -245,11 +244,11 @@ def test_a_standard_version_excludes_zero_and_the_top_bit_set_ones() -> None:
     """
     tx = Tx(1, 0, [TxIn(OutPoint(b"\x01" * 32, 0))], [TxOut(1, "")])
 
-    for version in (1, 2):
+    for version in (1, 2, 3):
         tx.version = version
         tx.assert_standard()
 
-    for version in (0, 0x7FFFFFFF + 1, 0xFFFFFFFF):
+    for version in (0, 4, 0x80000000, 0xFFFFFFFF):
         tx.version = version
         tx.assert_valid()
         with pytest.raises(BTClibValueError, match="invalid version: "):

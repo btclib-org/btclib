@@ -781,6 +781,17 @@ edit.
   proof-of-work target" of `block_work` instead of dividing by zero.
   A test walks every exponent against a transcription of `SetCompact`,
   value and both flags, rather than pinning a handful of numbers
+- **`Tx.assert_standard` refuses a version outside Core v31.1's relay
+  window, not outside the positive half of the four-byte range**
+  (issue #387). It read the version as though standardness were "not
+  the top bit", so 4 and every value up to 0x7FFFFFFF passed as
+  standard where Core's `policy.h` relays 1 through 3 only —
+  `TX_MIN_STANDARD_VERSION` and `TX_MAX_STANDARD_VERSION`, the second
+  being v31.1's own addition over v27.2's 2, BIP431's TRUC. The window
+  is closed on both sides now, `_TX_MIN_STANDARD_VERSION` and
+  `_TX_MAX_STANDARD_VERSION` in `btclib/tx/tx.py`, and a test pins both
+  accepted endpoints and the first refused value on either side; found
+  while reviewing #386
 
 ### Malformed input and the exception contract
 
