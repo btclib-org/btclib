@@ -16,7 +16,7 @@ import pytest
 from btclib import var_bytes
 from btclib.bip32 import BIP32KeyOrigin
 from btclib.curves import sec_point
-from btclib.ecc import dsa
+from btclib.ecc import dsa, ssa
 from btclib.exceptions import BTClibValueError
 from btclib.hashes import hash160, hash256, ripemd160, sha256, tagged_hash
 from btclib.psbt import (
@@ -28,6 +28,7 @@ from btclib.psbt import (
     extract_tx,
     finalize,
     join,
+    sign,
 )
 from btclib.psbt import musig2 as psbt_musig2
 from btclib.psbt.psbt import (
@@ -45,8 +46,16 @@ from btclib.psbt.psbt_in import _V2_FIELDS as _V2_INPUT_FIELDS
 from btclib.psbt.psbt_in import LOCK_TIME_THRESHOLD
 from btclib.psbt.psbt_out import _V2_FIELDS as _V2_OUTPUT_FIELDS
 from btclib.psbt.psbt_utils import PSBT_SEPARATOR
-from btclib.script import ScriptPubKey, Witness, serialize, sig_hash
+from btclib.script import (
+    ScriptPubKey,
+    TaprootScriptTree,
+    Witness,
+    output_prvkey_from_merkle_root,
+    serialize,
+    sig_hash,
+)
 from btclib.script.engine import verify_transaction
+from btclib.script.taproot import tree_helper
 from btclib.to_pub_key import pub_keyinfo_from_prv_key
 from btclib.tx import OutPoint, Tx, TxIn, TxOut
 from tests import load, vector_id
@@ -1947,9 +1956,10 @@ def _spending_tx(prev_out: TxOut) -> tuple[Tx, Tx]:
 def _single_key_psbt(kind: str) -> tuple[Psbt, list[TxOut]]:
     """Build a one-input psbt of the given kind, signed and not finalized.
 
-    The Updater's job, done here because btclib has no Signer: the psbt
-    carries the utxo, the scripts the input needs, and one partial
-    signature filed under the public key that made it.
+    The Updater's job: the psbt carries the utxo, the scripts the input
+    needs, and one partial signature filed under the public key that
+    made it, built directly rather than through `sign` so these
+    finalizer-focused tests do not depend on it.
     """
     p2pk = serialize([_PUB_KEY, "OP_CHECKSIG"])
     witness_script = p2pk if "p2wsh" in kind else b""
@@ -2941,3 +2951,323 @@ def test_what_a_taproot_input_cannot_be_finalized_from() -> None:
     err_msg = "invalid taproot script path signature for key"
     with pytest.raises(BTClibValueError, match=err_msg):
         finalize(psbt)
+
+
+# issue 439: sign() over a KeyManager
+
+
+class _KeyManager:
+    """A `KeyManager` test double: keys known by pub_key, or by origin.
+
+    sign_calls counts every call that found a key, which is what the
+    idempotency test checks: a key `sign` already has a signature for
+    must never reach either method a second time.
+    """
+
+    def __init__(
+        self,
+        by_pub_key: dict[bytes, int] | None = None,
+        by_origin: dict[str, int] | None = None,
+    ) -> None:
+        self.by_pub_key = dict(by_pub_key or {})
+        self.by_origin = dict(by_origin or {})
+        self.sign_calls = 0
+
+    def _prv_key(self, pub_key: bytes, origin: BIP32KeyOrigin | None) -> int | None:
+        if pub_key in self.by_pub_key:
+            return self.by_pub_key[pub_key]
+        if origin is not None:
+            return self.by_origin.get(origin.description)
+        return None
+
+    def sign_ecdsa(
+        self, pub_key: bytes, origin: BIP32KeyOrigin | None, msg_hash: bytes
+    ) -> bytes | None:
+        prv_key = self._prv_key(pub_key, origin)
+        if prv_key is None:
+            return None
+        self.sign_calls += 1
+        return dsa.sign_(msg_hash, prv_key).serialize()
+
+    def sign_schnorr(
+        self,
+        pub_key: bytes,
+        origin: BIP32KeyOrigin | None,
+        msg_hash: bytes,
+        merkle_root: bytes,
+    ) -> bytes | None:
+        prv_key = self._prv_key(pub_key, origin)
+        if prv_key is None:
+            return None
+        self.sign_calls += 1
+        tweaked = output_prvkey_from_merkle_root(prv_key, merkle_root)
+        return ssa.sign_(msg_hash, tweaked).serialize()
+
+
+def _unsigned_multisig_psbt() -> Psbt:
+    """Build a one-input, unsigned native p2wsh 2-of-2 psbt.
+
+    Both cosigners' keys are in hd_key_paths, as BIP174 has the Updater
+    write them; the two origins only need to be distinct from each
+    other, their fingerprint and path not being what this test is about.
+    """
+    witness_script = serialize(
+        ["OP_2", _PUB_KEY, _OTHER_PUB_KEY, "OP_2", "OP_CHECKMULTISIG"]
+    )
+    script_pub_key = ScriptPubKey.p2wsh(witness_script)
+    prev_out = TxOut(100_000, script_pub_key)
+    tx, _ = _spending_tx(prev_out)
+
+    psbt = Psbt.from_tx(tx)
+    psbt.inputs[0].witness_utxo = prev_out
+    psbt.inputs[0].witness_script = witness_script
+    psbt.inputs[0].hd_key_paths = {
+        _PUB_KEY: BIP32KeyOrigin(b"\x00" * 4, "m/0"),
+        _OTHER_PUB_KEY: BIP32KeyOrigin(b"\x00" * 4, "m/1"),
+    }
+    return psbt
+
+
+_TAPROOT_PRV_KEY = _PRV_KEY + 2
+_TAPROOT_PUB_KEY = pub_keyinfo_from_prv_key(_TAPROOT_PRV_KEY)[0]
+# x-only, dropping the parity byte compressed carries and x-only never
+# does: PSBT_IN_TAP_INTERNAL_KEY is 32 bytes, and so is a KeyManager's
+# pub_key for a schnorr candidate
+_TAPROOT_INTERNAL_KEY = _TAPROOT_PUB_KEY[1:]
+
+
+def _taproot_key_path_psbt(
+    script_tree: TaprootScriptTree | None = None,
+) -> tuple[Psbt, list[TxOut]]:
+    """Build a one-input, unsigned p2tr psbt spendable by the key path.
+
+    script_tree only produces the merkle root the output key is tweaked
+    by: the psbt itself carries the root and not the tree, as BIP371
+    has it, and `sign` is never told the tree either.
+    """
+    script_pub_key = ScriptPubKey.p2tr(_TAPROOT_PUB_KEY, script_tree)
+    prev_out = TxOut(100_000, script_pub_key)
+    tx, _ = _spending_tx(prev_out)
+
+    psbt = Psbt.from_tx(tx)
+    psbt.inputs[0].witness_utxo = prev_out
+    psbt.inputs[0].taproot_internal_key = _TAPROOT_INTERNAL_KEY
+    psbt.inputs[0].taproot_merkle_root = (
+        tree_helper(script_tree)[1] if script_tree else b""
+    )
+    return psbt, [prev_out]
+
+
+@pytest.mark.parametrize(
+    "kind", ["p2pkh", "p2wpkh", "p2wsh", "p2sh-p2wpkh", "p2sh-p2wsh"]
+)
+def test_sign_writes_the_signature_a_key_manager_makes(kind: str) -> None:
+    """sign() reaches the same partial signature `_single_key_psbt` has.
+
+    hd_key_paths is the only difference between the two psbts: the one
+    built here carries no signature yet, and a BIP32KeyOrigin under
+    _PUB_KEY is what makes it the one candidate `sign` finds.
+    """
+    signed, prevouts = _single_key_psbt(kind)
+    expected_sig = signed.inputs[0].partial_sigs[_PUB_KEY]
+
+    psbt = deepcopy(signed)
+    psbt.inputs[0].partial_sigs = {}
+    psbt.inputs[0].hd_key_paths = {_PUB_KEY: BIP32KeyOrigin(b"\x00" * 4, "m/0")}
+
+    result, signed_vins = sign(psbt, _KeyManager(by_pub_key={_PUB_KEY: _PRV_KEY}))
+
+    assert signed_vins == [0]
+    assert result.inputs[0].partial_sigs == {_PUB_KEY: expected_sig}
+    verify_transaction(prevouts, extract_tx(finalize(result), check_validity=False))
+
+
+def test_sign_falls_back_to_the_origin_the_key_manager_recognizes() -> None:
+    """A manager that misses the exact key still answers by its origin.
+
+    Decision #1 of issue #439: both travel on every call, key first and
+    origin as the fallback a watch-only-shaped manager needs -- one that
+    knows a fingerprint and path rather than every child key derived
+    from it.
+    """
+    signed, _ = _single_key_psbt("p2wpkh")
+    expected_sig = signed.inputs[0].partial_sigs[_PUB_KEY]
+    origin = BIP32KeyOrigin(b"\x01\x02\x03\x04", "m/84h/0h/0h/0/0")
+
+    psbt = deepcopy(signed)
+    psbt.inputs[0].partial_sigs = {}
+    psbt.inputs[0].hd_key_paths = {_PUB_KEY: origin}
+
+    key_manager = _KeyManager(by_origin={origin.description: _PRV_KEY})
+    result, signed_vins = sign(psbt, key_manager)
+
+    assert signed_vins == [0]
+    assert result.inputs[0].partial_sigs == {_PUB_KEY: expected_sig}
+
+
+def test_sign_skips_a_key_the_key_manager_does_not_hold() -> None:
+    """One signer of a 2-of-2 answers for its own key, and stops there.
+
+    Decision #3 of issue #439: None is not an error, so the other
+    cosigner's key is left for its own turn rather than raised on.
+    """
+    result, signed_vins = sign(
+        _unsigned_multisig_psbt(), _KeyManager(by_pub_key={_PUB_KEY: _PRV_KEY})
+    )
+
+    assert signed_vins == [0]
+    assert list(result.inputs[0].partial_sigs) == [_PUB_KEY]
+
+
+def test_sign_never_asks_twice_for_a_key_already_signed() -> None:
+    """A second sign() over the first result asks key_manager nothing new."""
+    key_manager = _KeyManager(
+        by_pub_key={_PUB_KEY: _PRV_KEY, _OTHER_PUB_KEY: _OTHER_PRV_KEY}
+    )
+
+    once, signed_vins = sign(_unsigned_multisig_psbt(), key_manager)
+    assert signed_vins == [0]
+    assert key_manager.sign_calls == 2
+
+    twice, signed_vins_again = sign(once, key_manager)
+    assert signed_vins_again == []
+    assert key_manager.sign_calls == 2
+    assert twice.inputs[0].partial_sigs == once.inputs[0].partial_sigs
+
+
+def test_sign_returns_a_copy() -> None:
+    """The psbt handed to sign() is untouched, as finalize's own is."""
+    psbt = _unsigned_multisig_psbt()
+    sign(psbt, _KeyManager(by_pub_key={_PUB_KEY: _PRV_KEY}))
+    assert psbt.inputs[0].partial_sigs == {}
+
+
+def test_sign_writes_the_taproot_key_path_signature() -> None:
+    """A key-path-only p2tr input, signed and then finalized."""
+    psbt, prevouts = _taproot_key_path_psbt()
+    key_manager = _KeyManager(by_pub_key={_TAPROOT_INTERNAL_KEY: _TAPROOT_PRV_KEY})
+
+    result, signed_vins = sign(psbt, key_manager)
+
+    assert signed_vins == [0]
+    verify_transaction(prevouts, extract_tx(finalize(result), check_validity=False))
+
+
+def test_sign_tweaks_the_taproot_key_by_the_merkle_root() -> None:
+    """The key path signature of an output that also carries script leaves.
+
+    key_manager is handed only psbt_in.taproot_merkle_root, never the
+    tree that produced it -- BIP371's own shape -- and still has to
+    produce a signature of the tweaked output key the engine accepts.
+    """
+    script_tree: TaprootScriptTree = [[(0xC0, ["OP_2"])], [(0xC0, ["OP_3"])]]
+    psbt, prevouts = _taproot_key_path_psbt(script_tree)
+    key_manager = _KeyManager(by_pub_key={_TAPROOT_INTERNAL_KEY: _TAPROOT_PRV_KEY})
+
+    result, signed_vins = sign(psbt, key_manager)
+
+    assert signed_vins == [0]
+    verify_transaction(prevouts, extract_tx(finalize(result), check_validity=False))
+
+
+def test_sign_skips_a_taproot_key_the_key_manager_does_not_hold() -> None:
+    """None from sign_schnorr leaves the input without a signature."""
+    psbt, _ = _taproot_key_path_psbt()
+    result, signed_vins = sign(psbt, _KeyManager())
+
+    assert signed_vins == []
+    assert not result.inputs[0].taproot_key_spend_signature
+
+
+def test_sign_leaves_a_taproot_input_already_signed_alone() -> None:
+    """A second sign() over the first result asks key_manager nothing new.
+
+    The taproot counterpart of
+    `test_sign_never_asks_twice_for_a_key_already_signed`: the one
+    candidate is the internal key, and taproot_key_spend_signature
+    already holding a signature is what says there is nothing to ask
+    for.
+    """
+    psbt, _ = _taproot_key_path_psbt()
+    key_manager = _KeyManager(by_pub_key={_TAPROOT_INTERNAL_KEY: _TAPROOT_PRV_KEY})
+
+    once, signed_vins = sign(psbt, key_manager)
+    assert signed_vins == [0]
+    assert key_manager.sign_calls == 1
+
+    twice, signed_vins_again = sign(once, key_manager)
+    assert signed_vins_again == []
+    assert key_manager.sign_calls == 1
+    assert (
+        twice.inputs[0].taproot_key_spend_signature
+        == once.inputs[0].taproot_key_spend_signature
+    )
+
+
+def test_sign_appends_the_sig_hash_type_a_taproot_input_asks_for() -> None:
+    """BIP341 appends the type where it is not the default, as `sign` does.
+
+    Every other taproot test here leaves sig_hash_type unset, which is
+    SIGHASH_DEFAULT and appends nothing; this is the other half.
+    """
+    psbt, prevouts = _taproot_key_path_psbt()
+    psbt.inputs[0].sig_hash_type = 1  # ALL
+    key_manager = _KeyManager(by_pub_key={_TAPROOT_INTERNAL_KEY: _TAPROOT_PRV_KEY})
+
+    result, signed_vins = sign(psbt, key_manager)
+
+    assert signed_vins == [0]
+    signature = result.inputs[0].taproot_key_spend_signature
+    assert len(signature) == 65
+    assert signature[-1] == sig_hash.ALL
+    verify_transaction(prevouts, extract_tx(finalize(result), check_validity=False))
+
+
+def test_sign_raises_on_a_psbt_that_cannot_be_signed() -> None:
+    """assert_signable's own pre-flight runs before any candidate does."""
+    psbt = Psbt.b64decode("cHNidP8BAAoAAAAAAAAAAAAAAA==")
+    with pytest.raises(BTClibValueError, match="nothing to sign: no inputs"):
+        sign(psbt, _KeyManager())
+
+
+def test_sign_raises_when_a_candidate_cannot_be_hashed() -> None:
+    """A candidate whose message cannot be built stops sign() outright.
+
+    A p2wsh input naming _PUB_KEY as a candidate but carrying no witness
+    script leaves ecdsa_sig_hash nothing to build the message from: the
+    same "no utxo, no redeem script, or no witness script" it refuses a
+    Signer with directly.
+    """
+    witness_script = serialize([_PUB_KEY, "OP_CHECKSIG"])
+    prev_out = TxOut(100_000, ScriptPubKey.p2wsh(witness_script))
+    tx, _ = _spending_tx(prev_out)
+
+    psbt = Psbt.from_tx(tx)
+    psbt.inputs[0].witness_utxo = prev_out
+    psbt.inputs[0].hd_key_paths = {_PUB_KEY: BIP32KeyOrigin(b"\x00" * 4, "m/0")}
+    # no witness_script: assert_signable does not require one, and
+    # ecdsa_sig_hash is what has nothing to compute a hash from
+
+    err_msg = "does not say what is being signed"
+    with pytest.raises(BTClibValueError, match=err_msg):
+        sign(psbt, _KeyManager(by_pub_key={_PUB_KEY: _PRV_KEY}))
+
+
+def test_sign_leaves_alone_an_input_with_no_candidate() -> None:
+    """The same defect, with no candidate: sign() never asks and never raises.
+
+    hd_key_paths empty is "nothing here is mine to sign", which is not
+    the same claim as "this input is broken" -- an input none of
+    key_manager's keys are named for is not this Signer's business.
+    """
+    witness_script = serialize([_PUB_KEY, "OP_CHECKSIG"])
+    prev_out = TxOut(100_000, ScriptPubKey.p2wsh(witness_script))
+    tx, _ = _spending_tx(prev_out)
+
+    psbt = Psbt.from_tx(tx)
+    psbt.inputs[0].witness_utxo = prev_out
+
+    result, signed_vins = sign(psbt, _KeyManager(by_pub_key={_PUB_KEY: _PRV_KEY}))
+
+    assert signed_vins == []
+    assert result.inputs[0].partial_sigs == {}

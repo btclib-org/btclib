@@ -2153,6 +2153,32 @@ edit.
 
 ### Transactions, blocks and PSBT
 
+- **`psbt.sign` is the Signer role, played over a `KeyManager`'s
+  answers** (issue #439). BIP174 leaves the caller to find which keys
+  are its own and write a signature back; the guide's own **Signer**
+  paragraph asked the psbt for the hash and inserted the signature by
+  hand, keyed by public key. What a psbt offers to resolve a key by is
+  a public key, usually a `BIP32KeyOrigin` beside it, never an address,
+  so both travel together on every call to `KeyManager.sign_ecdsa` or
+  `.sign_schnorr` — a key match is a fact, an origin only a claim about
+  a four-byte fingerprint, and the second is what a watch-only-shaped
+  manager, one xprv over many unseen children, needs to answer from at
+  all. The manager signs and returns the bare signature; `sign` never
+  holds an xprv, appends the sig_hash type itself, and writes what came
+  back — the shape an external or hardware backend can implement
+  without a different contract. None is not an error: one signer of an
+  m-of-n answers for its own key and nothing else, and every input it
+  cannot answer for is left for another signer's turn rather than
+  raised on — so `sign` returns which inputs got a new signature beside
+  the copy, "there was nothing for me" and "done" being different
+  answers to a caller collecting a quorum. Taproot is limited to the
+  key path: MuSig2 is already `btclib.psbt.musig2`'s own Signer, and a
+  script path spend needs a leaf and a control block `sign` does not
+  choose between. `taproot.output_prvkey_from_merkle_root` is the
+  private counterpart of `output_pubkey_from_merkle_root` (issue #435,
+  below): the tweak with `PSBT_IN_TAP_MERKLE_ROOT` already in hand,
+  which is what a `KeyManager` signing a taproot key path spend needs
+  and never the script tree that produced the root.
 - **`Psbt.assert_signable` accepts a taproot input, and checks it**
   (issue #435). It refused every one of them: `_signable_payload`
   accepts only a witness kind beside a `witness_utxo`, and p2tr was not

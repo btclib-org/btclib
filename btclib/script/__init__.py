@@ -72,6 +72,7 @@ from btclib.script.taproot import (
     check_output_pubkey,
     input_script_sig,
     output_prvkey,
+    output_prvkey_from_merkle_root,
     output_pubkey,
     output_pubkey_from_merkle_root,
 )
@@ -111,6 +112,7 @@ __all__ = [
     "is_segwit",
     "op_int",
     "output_prvkey",
+    "output_prvkey_from_merkle_root",
     "output_pubkey",
     "output_pubkey_from_merkle_root",
     "p2ms_m_and_keys",
