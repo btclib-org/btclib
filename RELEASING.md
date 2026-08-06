@@ -111,6 +111,19 @@ pyroma), build, wheel smoke test — and publishes to
 
 ## Release to PyPI
 
+`latest` is worth dispatching before the tag rather than waiting for its
+Wednesday cron, because what it answers is cheaper to know before a version
+is consumed than after. It gates nothing, so it will not stop you:
+reading it is the point. A release ships what `uv.lock` pins, so a red
+run here does not make the release wrong — it says the next dependency
+bump is going to be work. Its `test-bindings-latest` job is the one worth
+reading closely: it asks about the newest btclib_libsecp256k1 release
+alone, precisely, rather than folding it into the broader upgrade the
+rest of the workflow makes — a release of the bindings is a release in
+another repository, which nothing here has to change for the pair to
+stop working, and this release is the moment to find out before shipping
+against a pin about to be a version behind.
+
 1. Make sure the released btclib_libsecp256k1 satisfies the pin in
    pyproject.toml: if the pin is only satisfied by an unreleased version,
    release the bindings first. The wheel smoke test of the `dist-py` job
