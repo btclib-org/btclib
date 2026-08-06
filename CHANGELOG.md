@@ -32,6 +32,21 @@ edit.
   `btclib.fetch.transport` and `btclib.fetch.bitcoin_core` re-export the
   package's names, so every import path a caller had still resolves except
   `btclib.bitcoin_core_rpc` itself.
+- **btclib develops against the released `bitcoin-core-rpc`**, once
+  v2026.8.6 published it. `pyproject.toml`'s `[tool.uv.sources]` is gone:
+  it pointed the package at a commit on its own `dev` branch because no
+  index had a release yet, and without a source `uv lock` could not
+  resolve it at all. The floor moves with it, from `>=2026.8`, which had
+  named intent with nothing to satisfy it, to `>=2026.8.6`, the release
+  itself. What that unlocks is `dist-py`'s wheel smoke test for the right
+  reason: it had already been green, but only because its constraints
+  file comes from `uv export --locked`, which carried the git source
+  through -- so the step named "with its dependencies from PyPI" installed
+  from git, and a plain `uv pip install` against the index answered
+  "bitcoin-core-rpc was not found in the package registry". Measured
+  after removing the override: the export names
+  `bitcoin-core-rpc==2026.8.6` from `pypi.org/simple` alone, and the
+  built wheel installs into an empty environment and imports clean.
 - **`btclib.exceptions` declares its own six classes again.** They were
   defined in the vendorable file and re-exported here, an exception
   wanting one identity; with the file gone the choice was to import
