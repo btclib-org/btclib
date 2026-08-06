@@ -110,6 +110,7 @@ def _entries_at_tip(readme: str) -> tuple[list[Entry], list[str]]:
             fields.get("commit"),
         )
         if not (repo and path and commit):
+            skipped.append(f"{heading} (no commit to check against)")
             continue
         if "<" in path:
             skipped.append(f"{heading} (one pin serves several files)")

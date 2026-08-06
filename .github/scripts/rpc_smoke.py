@@ -40,6 +40,14 @@ doing so has to fail this rather than be accommodated by it.
 Run it against a node of your own with `--bitcoind`; CONTRIBUTING.md
 carries the command, and `.github/workflows/rpc-smoke.yml` the download
 that verifies which binary it is.
+
+`tests/rpc_smoke_test.py` covers every function with no client behind it
+-- `check`, `port_is_free`, `check_legacy_reply`, `check_v2_reply`,
+`check_cookie` and `print_log_tail`, plus `main`'s own argument parsing.
+Everything else here is `# pragma: no cover`: it takes a real
+`BitcoinCoreRpcClient` talking to a real node, and mocking that node
+would be the recording this script exists to not trust. That half is
+`rpc-smoke.yml`'s to monitor, against Core itself.
 """
 
 from __future__ import annotations
@@ -157,7 +165,9 @@ def port_is_free(port: int) -> bool:
 
 
 @contextmanager
-def node(bitcoind: Path, datadir: Path) -> Iterator[BitcoinCoreRpcClient]:
+def node(
+    bitcoind: Path, datadir: Path
+) -> Iterator[BitcoinCoreRpcClient]:  # pragma: no cover
     """Run a regtest bitcoind on Core's own rpc port, and stop it after.
 
     No `-rpcport` and no `-rpcuser`: the port, the datadir layout and the
@@ -202,7 +212,7 @@ def node(bitcoind: Path, datadir: Path) -> Iterator[BitcoinCoreRpcClient]:
 
 def wait_for_rpc(
     client: BitcoinCoreRpcClient, process: subprocess.Popen[bytes]
-) -> None:
+) -> None:  # pragma: no cover
     """Wait until the node answers, or say what it did instead.
 
     Both failures on the way are the node not being up yet: no cookie file
@@ -224,7 +234,9 @@ def wait_for_rpc(
     raise SmokeError(f"no rpc answer in {STARTUP_TIMEOUT} s")
 
 
-def stop(client: BitcoinCoreRpcClient, process: subprocess.Popen[bytes]) -> None:
+def stop(
+    client: BitcoinCoreRpcClient, process: subprocess.Popen[bytes]
+) -> None:  # pragma: no cover
     """Ask the node to stop, and make sure it did.
 
     Through the rpc, which is how a node is stopped without losing what it
@@ -242,7 +254,7 @@ def stop(client: BitcoinCoreRpcClient, process: subprocess.Popen[bytes]) -> None
 
 def probe(
     client: BitcoinCoreRpcClient, method: str, params: Sequence[Any]
-) -> tuple[int, Mapping[str, Any]]:
+) -> tuple[int, Mapping[str, Any]]:  # pragma: no cover
     """Return the status and the json of a reply, before btclib reads it.
 
     The same request `call` builds, the 2.0 marker included, sent through
@@ -310,7 +322,7 @@ def check_v2_reply(status: int, reply: Mapping[str, Any], *, rpc_error: bool) ->
 
 def check_protocol(
     client: BitcoinCoreRpcClient, protocol: str, unknown_tx_id: str
-) -> None:
+) -> None:  # pragma: no cover
     """Read the two reply shapes off the wire, and then through `call`.
 
     A result and an error under the version the node speaks: the minimum,
@@ -355,7 +367,7 @@ def check_cookie(cookie_path: Path) -> None:
     check(bool(password), "the cookie carries a password after the colon")
 
 
-def check_credentials_refused(client: BitcoinCoreRpcClient) -> None:
+def check_credentials_refused(client: BitcoinCoreRpcClient) -> None:  # pragma: no cover
     """Check that a wrong credential is an HTTP failure with its status.
 
     Which is what `HttpError.status` is for: a 401 is the node refusing
@@ -379,7 +391,7 @@ def check_credentials_refused(client: BitcoinCoreRpcClient) -> None:
         raise SmokeError("the node accepted a credential that is not its cookie")
 
 
-def check_wallet_endpoint(client: BitcoinCoreRpcClient) -> None:
+def check_wallet_endpoint(client: BitcoinCoreRpcClient) -> None:  # pragma: no cover
     """Check `/wallet/<name>` against a node with two wallets loaded.
 
     Two, because that is the case where the endpoint is load-bearing: a
@@ -402,7 +414,7 @@ def check_wallet_endpoint(client: BitcoinCoreRpcClient) -> None:
         check(info["walletname"] == name, f"the endpoint of the wallet named {name!r}")
 
 
-def check_named_params(client: BitcoinCoreRpcClient) -> None:
+def check_named_params(client: BitcoinCoreRpcClient) -> None:  # pragma: no cover
     """Check both parameter structures Core accepts, against one method.
 
     An array read positionally and an object read by name, plus Core's
@@ -418,7 +430,7 @@ def check_named_params(client: BitcoinCoreRpcClient) -> None:
     )
 
 
-def check_amount_is_decimal(wallet: BitcoinCoreRpcClient) -> None:
+def check_amount_is_decimal(wallet: BitcoinCoreRpcClient) -> None:  # pragma: no cover
     """Check that an amount arrives as a Decimal and is exact.
 
     The reply is parsed with `parse_float=Decimal`, so a bitcoin amount
@@ -431,7 +443,9 @@ def check_amount_is_decimal(wallet: BitcoinCoreRpcClient) -> None:
     check(balance == SUBSIDY, f"the matured subsidy is exactly {SUBSIDY}")
 
 
-def generate_chain(client: BitcoinCoreRpcClient) -> tuple[int, str, str]:
+def generate_chain(
+    client: BitcoinCoreRpcClient,
+) -> tuple[int, str, str]:  # pragma: no cover
     """Generate the chain the fetcher answers are then checked against.
 
     Returns the height it left, the id of a wallet transaction and the id
@@ -467,7 +481,7 @@ def generate_chain(client: BitcoinCoreRpcClient) -> tuple[int, str, str]:
 
 def check_fetcher(
     client: BitcoinCoreRpcClient, height: int, tx_id: str, foreign_coinbase: str
-) -> None:
+) -> None:  # pragma: no cover
     """Check the three fetcher answers against the generated chain.
 
     The height is what was generated, so the expected value is arithmetic;
@@ -492,7 +506,9 @@ def check_fetcher(
     )
 
 
-def check_version(client: BitcoinCoreRpcClient, core_version: str) -> None:
+def check_version(
+    client: BitcoinCoreRpcClient, core_version: str
+) -> None:  # pragma: no cover
     """Check that the node is the version this run is about.
 
     What it catches is a download, an unpack or a `--bitcoind` naming
@@ -504,7 +520,9 @@ def check_version(client: BitcoinCoreRpcClient, core_version: str) -> None:
     check(subversion.startswith(expected), f"the node is Core {core_version}")
 
 
-def smoke(bitcoind: Path, datadir: Path, core_version: str, protocol: str) -> None:
+def smoke(
+    bitcoind: Path, datadir: Path, core_version: str, protocol: str
+) -> None:  # pragma: no cover
     """Ask a node of a stated version every question the client answers."""
     with node(bitcoind, datadir) as client:
         check_version(client, core_version)
@@ -548,18 +566,18 @@ def main() -> int:
         help="the json-rpc version that node answers",
     )
     args = parser.parse_args()
-    with TemporaryDirectory(prefix="btclib-rpc-smoke-") as tmp:
+    with TemporaryDirectory(prefix="btclib-rpc-smoke-") as tmp:  # pragma: no cover
         datadir = Path(tmp)
         try:
             smoke(args.bitcoind, datadir, args.core_version, args.protocol)
         except Exception:
             print_log_tail(datadir)
             raise
-    print(
+    print(  # pragma: no cover
         f"\nCore {args.core_version} answered every check,"
         f" over json-rpc {args.protocol}"
     )
-    return 0
+    return 0  # pragma: no cover
 
 
 if __name__ == "__main__":

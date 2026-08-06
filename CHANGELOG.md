@@ -5140,6 +5140,24 @@ edit.
   already documented. Nothing in either file's vectors changed; the fix
   is the Verdict describing them, and the Summary list moving the pair
   from "identical byte for byte" to "identical but for CRLF against LF"
+- **`check_vendored_vectors.py` and `rpc_smoke.py` now have test files,
+  matching `mutation_counts.py`'s own** -- both are loaded by path and
+  their `gh`/socket/file boundaries replaced with fakes, the same
+  pattern `tests/mutation_counts_test.py` already uses and for the same
+  reason. Writing `check_vendored_vectors.py`'s found a real bug on the
+  way: an entry with no `commit` at all -- chain data, a file this
+  project composed itself, a section heading with no pin of its own --
+  was silently skipped, in contradiction of the script's own docstring,
+  which already claimed every such heading would be named. It is now,
+  and the README's seven chain-data and composed-locally headings appear
+  in a `--dry-run` report for the first time. `check_vendored_vectors.py`
+  reaches 100% this way. `rpc_smoke.py` cannot: most of it is a real
+  `BitcoinCoreRpcClient` talking to a real bitcoind, which is the one
+  thing the script exists to have rather than mock, so that half is
+  `# pragma: no cover`, monitored instead by `rpc-smoke.yml` against
+  Core itself -- what is covered is every function with no client behind
+  it, `check_legacy_reply`, `check_v2_reply`, `check_cookie` and
+  `print_log_tail` among them, plus `main`'s own argument parsing
 - **80 columns on the prose, and the yaml measured for the first time.**
   `ruff-format` reflows code to its 88 columns and never touches a
   comment or a docstring, which is why `E501` is ignored and stays so:
