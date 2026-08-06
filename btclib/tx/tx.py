@@ -41,6 +41,12 @@ __all__ = [
 
 _SEGWIT_MARKER = b"\x00\x01"
 
+# Core v31.1's policy.h, TX_MIN_STANDARD_VERSION through
+# TX_MAX_STANDARD_VERSION: 1 and 2 are what v27.2 and v31.1 agree on, 3
+# is v31.1's own addition, BIP431's TRUC (issue #387)
+_TX_MIN_STANDARD_VERSION = 1
+_TX_MAX_STANDARD_VERSION = 3
+
 
 def _assert_valid_coinbase(vin: Sequence[TxIn], *, is_coinbase: bool) -> None:
     """Raise an exception if the inputs disagree with the coinbase rule.
@@ -242,14 +248,15 @@ class Tx:
     def assert_standard(self) -> None:
         """Refuse what assert_valid refuses, plus a non-standard version.
 
-        Standardness reads the version as the signed int Core relays
-        on, so zero and anything above 0x7FFFFFFF fail here and not in
-        assert_valid, negative-as-signed versions being in blocks.
+        Core v31.1's relay policy, `TX_MIN_STANDARD_VERSION` through
+        `TX_MAX_STANDARD_VERSION`: 1 and 2 both v27.2 and v31.1 relay,
+        3 is v31.1's own addition, BIP431's TRUC, and every version
+        outside that window fails here and not in assert_valid, whose
+        four-byte range takes it.
         """
         self.assert_valid()
 
-        # should be a 4-bytes __signed__ integer
-        if not 0 < self.version <= 0x7FFFFFFF:
+        if not _TX_MIN_STANDARD_VERSION <= self.version <= _TX_MAX_STANDARD_VERSION:
             raise BTClibValueError(f"invalid version: {self.version}")
 
     def assert_valid(self, *, unsigned_template: bool = False) -> None:
