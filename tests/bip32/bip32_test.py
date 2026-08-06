@@ -14,6 +14,7 @@ import pytest
 from btclib import base58
 from btclib.b58 import p2pkh
 from btclib.bip32 import (
+    BIP328_CHAIN_CODE,
     BIP32KeyData,
     crack_prv_key,
     derive,
@@ -31,8 +32,10 @@ from btclib.curves import (
     point_from_octets,
 )
 from btclib.curves import secp256k1 as ec
+from btclib.ecc.musig2 import key_agg
 from btclib.exceptions import BTClibTypeError, BTClibValueError
 from btclib.hashes import hash160
+from btclib.network import NETWORKS
 from btclib.to_pub_key import pub_keyinfo_from_key
 from tests import load, vector_id
 
@@ -656,3 +659,73 @@ def test_the_tweaks_of_a_public_derivation_are_the_derivation() -> None:
     err_msg = "invalid hardened derivation from public key"
     with pytest.raises(BTClibValueError, match=err_msg):
         pub_key_derivation_tweaks(xpub.key, xpub.chain_code, "m/1h")
+
+
+# BIP328's own test vectors: a MuSig2 aggregate public key, the synthetic
+# xpub it becomes, and the participant keys it aggregates. The keys are
+# *not* sorted here -- BIP328 aggregates the list as written, where BIP390
+# sorts it first, so the three vectors say which of the two rules is whose
+BIP328_VECTORS = [
+    (
+        "0354240c76b8f2999143301a99c7f721ee57eee0bce401df3afeaa9ae218c70f23",
+        "xpub661MyMwAqRbcFt6tk3uaczE1y6EvM1TqXvawXcYmFEWijEM4PDBnuCXwwXEKGEouzXE6QLLRxjatMcLLzJ5LV5Nib1BN7vJg6yp45yHHRbm",
+        [
+            "03935F972DA013F80AE011890FA89B67A27B7BE6CCB24D3274D18B2D4067F261A9",
+            "02F9308A019258C31049344F85F89D5229B531C845836F99B08601F113BCE036F9",
+        ],
+    ),
+    (
+        "0290539eede565f5d054f32cc0c220126889ed1e5d193baf15aef344fe59d4610c",
+        "xpub661MyMwAqRbcFt6tk3uaczE1y6EvM1TqXvawXcYmFEWijEM4PDBnuCXwwVk5TFJk8Tw5WAdV3DhrGfbFA216sE9BsQQiSFTdudkETnKdg8k",
+        [
+            "02F9308A019258C31049344F85F89D5229B531C845836F99B08601F113BCE036F9",
+            "03DFF1D77F2A671C5F36183726DB2341BE58FEAE1DA2DECED843240F7B502BA659",
+            "023590A94E768F8E1815C2F24B4D80A8E3149316C3518CE7B7AD338368D038CA66",
+        ],
+    ),
+    (
+        "022479f134cdb266141dab1a023cbba30a870f8995b95a91fc8464e56a7d41f8ea",
+        "xpub661MyMwAqRbcFt6tk3uaczE1y6EvM1TqXvawXcYmFEWijEM4PDBnuCXwwUvaZYpysLX4wN59tjwU5pBuDjNrPEJbfxjLwn7ruzbXTcUTHkZ",
+        [
+            "02DFF1D77F2A671C5F36183726DB2341BE58FEAE1DA2DECED843240F7B502BA659",
+            "023590A94E768F8E1815C2F24B4D80A8E3149316C3518CE7B7AD338368D038CA66",
+            "02F9308A019258C31049344F85F89D5229B531C845836F99B08601F113BCE036F9",
+            "03935F972DA013F80AE011890FA89B67A27B7BE6CCB24D3274D18B2D4067F261A9",
+        ],
+    ),
+]
+
+
+@pytest.mark.parametrize(
+    "aggregate_pub_key, synthetic_xpub, participants",
+    [
+        pytest.param(aggregate, xpub, keys, id=vector_id(index, aggregate))
+        for index, (aggregate, xpub, keys) in enumerate(BIP328_VECTORS)
+    ],
+)
+def test_bip328_synthetic_xpub(
+    aggregate_pub_key: str, synthetic_xpub: str, participants: list[str]
+) -> None:
+    """Reproduce BIP328's vectors: an aggregate key made derivable.
+
+    The construction is the whole of the specification -- depth zero, child
+    number zero, and `BIP328_CHAIN_CODE` where an aggregate key has no
+    chain code of its own -- and the xpub it produces is what a
+    ``musig()`` descriptor derives from and what BIP373 lets a psbt leave
+    out, the fingerprint of that xpub being enough to recognize it.
+    """
+    aggregate = bytes.fromhex(aggregate_pub_key)
+    assert bytes_from_point(key_agg(participants).Q, ec) == aggregate
+
+    xkey = BIP32KeyData(
+        version=NETWORKS["mainnet"].bip32_pub,
+        depth=0,
+        parent_fingerprint=b"\x00" * 4,
+        index=0,
+        chain_code=BIP328_CHAIN_CODE,
+        key=aggregate,
+    )
+    assert xkey.b58encode() == synthetic_xpub
+    # and a child of it is a child of the group: what the tweaks above
+    # reach, which is the arithmetic a signer does instead of deriving
+    assert derive(synthetic_xpub, "m/0") == derive(xkey, "m/0")

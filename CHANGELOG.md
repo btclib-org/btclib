@@ -2786,6 +2786,64 @@ edit.
 
 ### The public API and the module layout
 
+- **`musig()` is read: BIP390's key expression** (issue #454), which was
+  the last descriptor function the parser refused by name. The
+  cryptography was already here — `btclib.ecc.musig2` is BIP327 function
+  for function, `bip32.pub_key_derivation_tweaks` is BIP328 derivation of
+  a key with no private half, and `btclib.psbt.musig2` is BIP373's three
+  roles — so what was missing was the descriptor.
+
+  `KeyExpression` widens rather than gaining a sibling: a KEY expression
+  is now one fixed key, or one extended key with a path, or the
+  `participants` an aggregate is made of with a path of its own. Every
+  holder of a key expression therefore reads a `musig()` without knowing
+  it is one — a ``tr()`` internal key, a ``rawtr()`` output key, a
+  ``pk()`` leaf and a ``multi_a()`` key, which are the positions BIP390
+  allows and the positions Bitcoin Core's own parse context allows.
+  `Descriptor.key_expressions` answers with the aggregate, the
+  participants being reachable through it: what the scripts are built from
+  is the aggregate key, and `participant_keys` is the list underneath.
+
+  `KeySort` before `KeyAgg`, which is BIP390's rule and its rationale: a
+  set of keys is what MuSig2 is about, so the order the descriptor writes
+  them in changes neither the key nor the script — and a descriptor that
+  was not backed up does not need the order guessed as well. The text
+  keeps the order it was read in all the same, as Core's `ToString` does.
+  A path after the `musig()` derives the *aggregate* key, through BIP328's
+  synthetic xpub: the aggregate at depth zero with the fixed chain code an
+  aggregate has instead of one of its own, so `derive` is what refuses a
+  hardened step there. That chain code moved to
+  `bip32.BIP328_CHAIN_CODE`, beside the tweaks that walk it, and
+  `psbt.musig2` takes it from there rather than declaring a second copy.
+
+  The Updater writes what BIP373 asks for, which is what makes a
+  `musig()` descriptor more than a way to compute an address:
+  `PSBT_IN_MUSIG2_PARTICIPANT_PUBKEYS` keyed by the aggregate key — the
+  undervied one, as BIP373 requires — the BIP328 path from that key to the
+  one in the script, filed under the fingerprint of the synthetic xpub,
+  and each participant's own key origin. `psbt.musig2` reads all three
+  back, so a psbt a `tr(musig(...)/0/*)` updated is one its group can sign:
+  the suite runs both rounds over one and `finalize` verifies the
+  aggregate signature against the output key.
+
+  Checked against BIP390's own vectors, both lists: the six valid
+  descriptors with the scripts they produce, and all fourteen invalid ones
+  with the message each is refused with. Five refusals are btclib's own,
+  for what the BIP states in prose — no nesting, no key origin in front of
+  one, at least one participant, no x-only participant (a point is what is
+  aggregated, and x-only drops the byte that says which), and a `musig()`
+  where a tree leaf belongs. One of the fourteen is refused for a reason
+  of btclib's own rather than the BIP's: a multipath `musig()` holding
+  multipath participants cannot exist here, `parse` taking no `<a;b>` step
+  at all and `multipath_descriptors` expanding them textually as BIP389
+  defines. BIP328's three vectors are read too, in
+  `tests/bip32/bip32_test.py`, and they say what BIP390's cannot: BIP328
+  aggregates the keys as written, where BIP390 sorts them first.
+
+  `_UNIMPLEMENTED` is gone with the entry it held, and `musig()` in a
+  position that takes no key expression now answers the position rule
+  rather than "not implemented".
+
 - **`rawtr()` is read, and the specification it was filed under was the
   wrong one** (issue #453). `_UNIMPLEMENTED` named BIP386, which
   specifies `tr()`, its tree expression and the x-only key inside them and
@@ -3063,9 +3121,9 @@ edit.
   two halves of the checksum a caller needs, and `parse` verifies one
   that is there. Every position rule is enforced rather than assumed —
   `sh()` at the top level only, no uncompressed key inside a witness
-  program, x-only only inside `tr()` — and what is not implemented raises
-  NotImplementedError naming what it is: miniscript is issue #187,
-  `rawtr` is BIP386 and `musig` is BIP390. The derivation is checked
+  program, x-only only where a taproot key expression goes — and the one
+  thing not implemented raises NotImplementedError naming itself:
+  miniscript, which is issue #187. The derivation is checked
   against Bitcoin Core's own `descriptor_tests.cpp` vectors, both
   spellings of each, so a WIF and an xprv are checked to reach the script
   their public halves reach (issue #186)

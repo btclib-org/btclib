@@ -569,6 +569,74 @@ and their five p2sh addresses — appear verbatim in the pinned text, and
 re-checking against the tip on 2026-07-30 and again on 2026-08-06 found no
 sixth group. Nothing to refresh.
 
+### Not vendored as a file: BIP387's `multi_a()` vectors
+
+```text
+repo    bitcoin/bips
+path    bip-0387.mediawiki
+commit  24e96e870fffaa257b465ce1f0370c14aac588e8  2026-01-12
+pulled  2026-08-06
+behind  0 revisions; that commit is the tip of the path
+```
+
+Verdict: **transcribed**, and cited inline rather than vendored: they are
+descriptors and scripts read where they are used, in
+`tests/descriptors_test.py`'s `BIP387_VECTORS` and `BIP387_INVALID`. Every
+descriptor of the BIP's Test Vectors section is there with the
+scriptPubKey it produces, at each index the BIP lists, and every invalid
+one with the message btclib refuses it with — two of those refusals
+answering the uncompressed key before the threshold the BIP was
+illustrating, which the entries say. Each value was matched against the
+pinned text on 2026-08-06.
+
+### Not vendored as a file: BIP390's `musig()` vectors
+
+```text
+repo    bitcoin/bips
+path    bip-0390.mediawiki
+commit  7517a8b2ac8fdb13e586d0e139a7f5b87ceab994  2026-08-06
+pulled  2026-08-06
+behind  0 revisions; that commit is the tip of the path
+```
+
+Verdict: **transcribed**, complete for both lists and cited inline, in
+`tests/descriptors_test.py`'s `BIP390_VECTORS` and `BIP390_INVALID`: the
+six valid descriptors with the scripts they produce at each index listed,
+and all fourteen invalid ones with the message each is refused with. Five
+further invalid cases there are btclib's own, for what the BIP states in
+prose rather than listing — no nesting, no key origin in front of one, at
+least one participant, no x-only participant, and a `musig()` where a tree
+leaf belongs.
+
+The pin is the tip and it is the day it was taken: that commit is
+`bip390: fix missing parenthesis in test vector`, which closed the last
+invalid descriptor's brackets, so a copy taken a day earlier would hold a
+descriptor upstream no longer publishes. Ours is the fixed one.
+
+One of the fourteen is refused for a reason of btclib's own rather than
+the BIP's, and the entry in the module says so: a multipath `musig()`
+holding multipath participants is refused because `parse` takes no `<a;b>`
+step at all, `multipath_descriptors` being what expands them textually as
+BIP389 defines.
+
+### Not vendored as a file: BIP328's synthetic xpub vectors
+
+```text
+repo    bitcoin/bips
+path    bip-0328.mediawiki
+commit  24e96e870fffaa257b465ce1f0370c14aac588e8  2026-01-12
+pulled  2026-08-06
+behind  0 revisions; that commit is the tip of the path
+```
+
+Verdict: **transcribed**, complete: all three aggregate keys, the
+synthetic xpub each becomes and the participant keys each aggregates, in
+`tests/bip32/bip32_test.py`'s `BIP328_VECTORS`. The keys of those vectors
+aggregate **as written**, unsorted, which is what makes them worth holding
+beside BIP390's: sorting before aggregation is BIP390's rule and not
+BIP328's, and a `key_sort` applied here reaches none of the three
+published keys. Matched against the pinned text on 2026-08-06.
+
 ## bitcoin/bitcoin
 
 ### `tests/script/_data/sig_hash_legacy_test_vectors.json`
@@ -759,6 +827,34 @@ concrete descriptors we do not hold (a `tr(musig(...))`, a
 being syntax templates like `sh(SCRIPT)`), and each would need a checksum
 computed by something that is not btclib. That is a decision to take with
 a tool at hand, not a refresh.
+
+### Not vendored as a file: Core's descriptor derivation vectors
+
+```text
+repo    bitcoin/bitcoin
+path    src/test/descriptor_tests.cpp
+commit  8ecbe270f0dee68b7eec6cea1714f453c5e215ad  2026-07-29
+pulled  2026-08-02, rawtr() added 2026-08-06
+behind  0 revisions; that commit is the tip of the path
+```
+
+Verdict: **transcribed**, a subset by design. `tests/descriptors_test.py`
+holds the `Check(prv, pub, ...)` cases of the `descriptor_test` case as
+`CORE_VECTORS` — the descriptor in both spellings and the scriptPubKey
+each expands to, at every index the case lists — plus the public spellings
+of the four Core expands from the private form alone, and the two
+`rawtr()` cases, which no BIP publishes and only this file has.
+
+Not vendored as a file because there is no file: the values are literals
+in C++ source, so a copy of it would be a copy of a test program. What
+this pin buys instead is the upstream re-check: a case added to that
+function moves the commit, and the monthly run says so.
+
+The subset is deliberate and is what a refresh would revisit: Core's file
+also holds `CheckUnparsable` cases, which this module has as `UNPARSABLE`
+with btclib's own messages, and the `musig()` cases of BIP390, which are
+transcribed from the BIP itself above rather than from here. Matched
+against the pinned file on 2026-08-06.
 
 ## bitcoin-core/qa-assets
 

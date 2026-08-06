@@ -45,11 +45,19 @@ The grammar read is BIP380 to BIP387 and BIP389, minus miniscript:
   ``tr()`` and ``rawtr()``, x-only), WIF private keys, xpub/xprv with a
   derivation path, key origin, ``/*`` and ``/*h`` wildcards, both ``h``
   and ``'`` hardened markers
+- ``musig``, the BIP390 key expression: the BIP327 aggregate of its
+  participants, inside a ``tr()`` or a ``rawtr()`` and nowhere else, with
+  BIP328 derivation of the aggregate key where it has a path of its own
 - the ``<a;b>`` multipath form of BIP389, through `multipath_descriptors`
 
 What raises NotImplementedError, rather than being read wrong: every
-miniscript expression, which is issue #187; and ``musig``, which is
-BIP390 and belongs with the work that adds it.
+miniscript expression, which is issue #187.
+
+BIP390's rule that a multipath ``musig()`` may not hold multipath
+participants has no counterpart here, and cannot: `parse` refuses a
+``<a;b>`` step anywhere, `multipath_descriptors` expands it textually as
+BIP389 defines, and what reaches a `Descriptor` is one path per key. Such
+a descriptor is refused, and for the more general reason.
 
 A parsed descriptor holds no key that signs. `parse` neuters an xprv to
 the xpub the `KeyExpression` then carries, and hands the private spelling
@@ -98,13 +106,18 @@ from __future__ import annotations
 
 import re
 from abc import ABC, abstractmethod
-from collections.abc import Callable, Mapping
+from collections.abc import Callable, Mapping, Sequence
 from copy import deepcopy
 from dataclasses import dataclass, fields, replace
 from typing import Any, cast
 
 from btclib.alias import Octets, ScriptList, TaprootScriptTree
-from btclib.bip32.bip32 import BIP32KeyData, derive, xpub_from_xprv
+from btclib.bip32.bip32 import (
+    BIP328_CHAIN_CODE,
+    BIP32KeyData,
+    derive,
+    xpub_from_xprv,
+)
 from btclib.bip32.der_path import (
     _HARDENED_OFFSET,
     _HARDENING,
@@ -114,7 +127,12 @@ from btclib.bip32.der_path import (
     str_from_index_int,
 )
 from btclib.bip32.key_origin import BIP32KeyOrigin
+from btclib.curves import secp256k1
+from btclib.curves.sec_point import bytes_from_point
+from btclib.ecc.musig2 import key_agg, key_sort
 from btclib.exceptions import BTClibValueError
+from btclib.hashes import hash160
+from btclib.network import NETWORKS
 from btclib.psbt.psbt import Psbt
 from btclib.psbt.psbt_in import PsbtIn
 from btclib.script.script import op_int, serialize
@@ -263,13 +281,6 @@ _MINISCRIPT_FRAGMENTS = frozenset(
     )
 )
 
-# descriptor functions read as such and refused rather than guessed at:
-# each is a specification of its own, and a script derived wrong is an
-# address that loses money
-_UNIMPLEMENTED = {
-    "musig": "BIP390",
-}
-
 # BIP387's own bound on the keys of a multi_a(): the satisfaction puts one
 # stack element per key, and a script whose spend would push more than the
 # 1000 elements BIP342 allows is one nobody can spend
@@ -302,11 +313,14 @@ PrvKeys = Mapping[str, str]
 class KeyExpression:
     """A BIP380 KEY expression: an origin, a key, a derivation path.
 
-    Either `pub_key` is the key the descriptor fixes, in SEC bytes, or
-    `xkey` is the extended key that `der_path` and `wildcard` derive
-    from. An x-only key is held as its even-y SEC form, which is what
-    BIP340 says those 32 bytes mean, so that everything downstream sees
-    one representation of a public key.
+    One of three things is the key. Either `pub_key` is the one the
+    descriptor fixes, in SEC bytes; or `xkey` is the extended key that
+    `der_path` and `wildcard` derive from; or `participants` are the KEY
+    expressions BIP390's ``musig()`` aggregates, `der_path` and `wildcard`
+    then deriving from the aggregate key as BIP328 prescribes. An x-only
+    key is held as its even-y SEC form, which is what BIP340 says those 32
+    bytes mean, so that everything downstream sees one representation of a
+    public key.
 
     `origin` never changes the script. It says which master key and which
     path the key came from, which is what a hardware signer needs and
@@ -330,6 +344,11 @@ class KeyExpression:
     # is only meaningful when there is a wildcard to harden
     wildcard: int | None = None
     x_only: bool = False
+    # BIP390's ``musig()``: the participants whose keys aggregate to this
+    # one, in the order the descriptor writes them. `KeySort` is applied
+    # at aggregation and not here, so what is kept is the text's order and
+    # what is computed does not depend on it
+    participants: tuple[KeyExpression, ...] = ()
     # the symbol every hardened step of this expression is written with:
     # BIP380 gives "h" and "'" one meaning and two spellings, and the two
     # are different strings with different checksums, so a descriptor
@@ -342,8 +361,20 @@ class KeyExpression:
 
     @property
     def is_ranged(self) -> bool:
-        """Answer whether the key has a wildcard to derive at an index."""
-        return self.wildcard is not None
+        """Answer whether the key has a wildcard to derive at an index.
+
+        A ``musig()`` is ranged where its own path has one and where a
+        participant has one: BIP390 forbids both at once, so whichever it
+        is, the index is read in one place.
+        """
+        return self.wildcard is not None or any(
+            key.is_ranged for key in self.participants
+        )
+
+    @property
+    def is_aggregate(self) -> bool:
+        """Answer whether the key is the aggregate of BIP390 participants."""
+        return bool(self.participants)
 
     @property
     def is_compressed(self) -> bool:
@@ -367,7 +398,31 @@ class KeyExpression:
         from the xpub the descriptor holds. A key it does not name is
         left as it is, so a mapping covering some of a multisig's keys
         answers for those and no more.
+
+        A ``musig()`` answers with the key its participants aggregate to,
+        derived along its own path where it has one: BIP328's synthetic
+        xpub is that key at depth zero with the fixed chain code an
+        aggregate has instead of one of its own, and `derive` is then what
+        refuses a hardened step -- there being no aggregate private key to
+        take one with. The index derives the participants or the aggregate
+        and never both, BIP390 allowing a wildcard on one side only.
         """
+        if self.participants:
+            aggregate = self.aggregate(index, network, prv_keys)
+            musig_path = list(self.der_path)
+            if self.wildcard is not None:
+                musig_path.append(self.wildcard + index)
+            if not musig_path:
+                return aggregate
+            synthetic = BIP32KeyData(
+                version=NETWORKS[network].bip32_pub,
+                depth=0,
+                parent_fingerprint=b"\x00" * 4,
+                index=0,
+                chain_code=BIP328_CHAIN_CODE,
+                key=aggregate,
+            )
+            return pub_keyinfo_from_key(derive(synthetic, musig_path), network)[0]
         if self.pub_key is not None:
             return self.pub_key
         der_path = list(self.der_path)
@@ -375,6 +430,45 @@ class KeyExpression:
             der_path.append(self.wildcard + index)
         xkey = prv_keys.get(self.xkey, self.xkey) if prv_keys else self.xkey
         return pub_keyinfo_from_key(derive(xkey, der_path), network)[0]
+
+    def participant_keys(
+        self,
+        index: int = 0,
+        network: str = "mainnet",
+        prv_keys: PrvKeys | None = None,
+    ) -> list[bytes]:
+        """Return the participant keys in the order they are aggregated in.
+
+        Which is `KeySort`'s order and not the descriptor's: BIP390 sorts
+        after all derivation and before aggregation, so that the order the
+        keys were written in does not change the key -- a set of keys is
+        what MuSig2 is about, and a descriptor that was not backed up does
+        not need the order guessed as well. BIP373 stores the participants
+        of a psbt in aggregation order too, which is what makes this the
+        list that goes into `PSBT_IN_MUSIG2_PARTICIPANT_PUBKEYS`.
+        """
+        derived = [key.sec(index, network, prv_keys) for key in self.participants]
+        return key_sort(derived)
+
+    def aggregate(
+        self,
+        index: int = 0,
+        network: str = "mainnet",
+        prv_keys: PrvKeys | None = None,
+    ) -> bytes:
+        """Return the key BIP390's participants aggregate to, derived.
+
+        `KeyAgg` over the sorted participants, and nothing more: the
+        ``/NUM/.../*`` path of the expression derives *from* this key, and
+        `sec` is what walks it. The two are separate because BIP373 keys
+        its MuSig2 psbt fields by the aggregate key itself even where what
+        the script holds is a child of it -- an aggregate key is what the
+        participants make, and a derivation of it is a key the same group
+        answers for.
+        """
+        return bytes_from_point(
+            key_agg(self.participant_keys(index, network, prv_keys)).Q, secp256k1
+        )
 
     def __str__(self) -> str:
         """Return the KEY expression, in the spelling it was read in.
@@ -387,7 +481,18 @@ class KeyExpression:
 
         An x-only key is written as the 32 bytes a ``tr()`` holds, which
         is the spelling it was read in and the only one allowed there.
+
+        A ``musig()`` writes its participants in the order they were read,
+        which is not the order they aggregate in: `KeySort` is applied when
+        the key is computed, so the text keeps what the descriptor said.
         """
+        if self.participants:
+            text = _expression("musig", *(str(key) for key in self.participants))
+            for index in self.der_path:
+                text += "/" + str_from_index_int(index, self.hardening)
+            if self.wildcard is not None:
+                text += "/*"
+            return text
         text = ""
         if self.origin is not None:
             path = str_from_der_path(
@@ -641,6 +746,93 @@ def _derived_origin(key: KeyExpression, index: int) -> BIP32KeyOrigin | None:
     if key.wildcard is not None:
         der_path.append(key.wildcard + index)
     return BIP32KeyOrigin(key.origin.master_fingerprint, der_path)
+
+
+def _aggregate_origin(
+    key: KeyExpression, index: int, network: str, prv_keys: PrvKeys | None
+) -> BIP32KeyOrigin | None:
+    """Return where a derived aggregate key came from, None where it is one.
+
+    BIP373's answer to "how does this key relate to the aggregate the
+    participants make": the derivation path, under the fingerprint of
+    BIP328's synthetic xpub, which is hash160 of the aggregate key -- and
+    which is what lets a signer recognize the field as BIP328 derivation
+    without a `PSBT_GLOBAL_XPUB` naming that synthetic key.
+    `psbt.musig2` reads it back exactly that way.
+
+    None where the expression derives nothing, the key in the script then
+    being the aggregate itself and the psbt having nothing to say about how
+    to get from one to the other.
+    """
+    der_path = [*key.der_path]
+    if key.wildcard is not None:
+        der_path.append(key.wildcard + index)
+    if not der_path:
+        return None
+    aggregate = key.aggregate(index, network, prv_keys)
+    return BIP32KeyOrigin(hash160(aggregate)[:4], der_path)
+
+
+def _taproot_derivations(
+    keys: Sequence[KeyExpression],
+    leaf_hashes: Mapping[bytes, list[bytes]],
+    index: int,
+    network: str,
+    prv_keys: PrvKeys | None,
+) -> dict[bytes, tuple[list[bytes], BIP32KeyOrigin]]:
+    """Return BIP371's derivation field for a set of taproot key expressions.
+
+    Keyed by the 32 bytes a tapscript holds, and carrying the tapleaf hash
+    of every leaf the key appears in, which the caller has worked out: none
+    for a key that is only the internal one, and one per leaf otherwise.
+
+    A ``musig()`` puts two kinds of entry here, both of which BIP373 asks
+    the Updater for: the key in the script, under the synthetic origin
+    `_aggregate_origin` computes, and each participant that carries an
+    origin of its own -- the second being how a signer finds out that one
+    of the keys it holds is in this group at all. A participant is in no
+    leaf, so its leaf hashes are empty; what says which leaves the group
+    signs for is the aggregate's own entry.
+    """
+    derivations: dict[bytes, tuple[list[bytes], BIP32KeyOrigin]] = {}
+    for key in keys:
+        origin = (
+            _aggregate_origin(key, index, network, prv_keys)
+            if key.is_aggregate
+            else _derived_origin(key, index)
+        )
+        if origin is not None:
+            x_only = key.sec(index, network, prv_keys)[1:]
+            derivations[x_only] = (list(leaf_hashes.get(x_only, [])), origin)
+        for participant in key.participants:
+            participant_origin = _derived_origin(participant, index)
+            if participant_origin is None:
+                continue
+            x_only = participant.sec(index, network, prv_keys)[1:]
+            derivations[x_only] = ([], participant_origin)
+    return derivations
+
+
+def _musig2_participants(
+    keys: Sequence[KeyExpression],
+    index: int,
+    network: str,
+    prv_keys: PrvKeys | None,
+) -> dict[bytes, list[bytes]]:
+    """Return BIP373's participant field: each aggregate key's own list.
+
+    Keyed by the 33-byte aggregate key rather than by what the script
+    holds, which BIP373 requires and which is the whole use of the field:
+    the participants are what a signer checks its own keys against, and a
+    child of the aggregate is a key the same list answers for.
+    """
+    return {
+        key.aggregate(index, network, prv_keys): key.participant_keys(
+            index, network, prv_keys
+        )
+        for key in keys
+        if key.is_aggregate
+    }
 
 
 @dataclass(frozen=True, kw_only=True)
@@ -1413,14 +1605,9 @@ class TrDescriptor(Descriptor):
                     )
                     if hash_ not in hashes:
                         hashes.append(hash_)
-        hd_key_paths: dict[bytes, tuple[list[bytes], BIP32KeyOrigin]] = {}
-        for key in self.key_expressions:
-            origin = _derived_origin(key, index)
-            if origin is None:
-                continue
-            x_only = key.sec(index, self.network, prv_keys)[1:]
-            hd_key_paths[x_only] = (leaf_hashes.get(x_only, []), origin)
-        return hd_key_paths
+        return _taproot_derivations(
+            self.key_expressions, leaf_hashes, index, self.network, prv_keys
+        )
 
     def _satisfy(
         self,
@@ -1478,6 +1665,10 @@ class TrDescriptor(Descriptor):
         key, and a 33-byte entry in `hd_key_paths` beside it would be the
         same key twice in two spellings, for a signer that signs with
         neither.
+
+        A fifth field where a key of the descriptor is a ``musig()``:
+        BIP373's participant list, which is what tells a signer that one of
+        the keys it holds is in the group this input is spent by.
         """
         psbt_in.taproot_internal_key = self.internal_key.sec(
             index, self.network, prv_keys
@@ -1490,6 +1681,10 @@ class TrDescriptor(Descriptor):
         psbt_in.taproot_hd_key_paths = {
             **psbt_in.taproot_hd_key_paths,
             **self._taproot_hd_key_paths(index, prv_keys),
+        }
+        psbt_in.musig2_participant_pub_keys = {
+            **psbt_in.musig2_participant_pub_keys,
+            **_musig2_participants(self.key_expressions, index, self.network, prv_keys),
         }
 
 
@@ -1564,14 +1759,20 @@ class RawTrDescriptor(Descriptor):
         through its internal key and therefore leaves this input alone
         rather than tweaking a key it should not: an input with no
         internal key is one that role skips.
+
+        BIP373's participant list is written beside it where the key is a
+        ``musig()``, as it is under a ``tr()``: an aggregate key that is
+        the output key itself is the first of the four ways BIP373 has of
+        reaching what is spent.
         """
-        origin = _derived_origin(self.key, index)
-        if origin is None:
-            return
-        x_only = self.key.sec(index, self.network, prv_keys)[1:]
+        keys = self.key_expressions
         psbt_in.taproot_hd_key_paths = {
             **psbt_in.taproot_hd_key_paths,
-            x_only: ([], origin),
+            **_taproot_derivations(keys, {}, index, self.network, prv_keys),
+        }
+        psbt_in.musig2_participant_pub_keys = {
+            **psbt_in.musig2_participant_pub_keys,
+            **_musig2_participants(keys, index, self.network, prv_keys),
         }
 
 
@@ -1611,12 +1812,16 @@ def _split_function(expression: str) -> tuple[str, str]:
     return expression[:open_bracket], expression[open_bracket + 1 : -1]
 
 
-def _assert_implemented(name: str) -> None:
+def _assert_not_miniscript(name: str) -> None:
+    """Refuse a miniscript fragment, which is the one thing left unread.
+
+    A wrapper is caught by its colon, and every other function this module
+    does not read is answered "unknown descriptor function": miniscript is
+    named on its own because it is a language of its own rather than a
+    function missing from a table (issue #187).
+    """
     if ":" in name or name in _MINISCRIPT_FRAGMENTS:
         err_msg = f"miniscript is not implemented: {name} (issue #187)"
-        raise NotImplementedError(err_msg)
-    if name in _UNIMPLEMENTED:
-        err_msg = f"{name}() is not implemented ({_UNIMPLEMENTED[name]})"
         raise NotImplementedError(err_msg)
 
 
@@ -1679,7 +1884,11 @@ def _pub_key_from_hex(key: str, *, x_only: bool) -> tuple[bytes, bool]:
     length = len(key)
     if length == 64:
         if not x_only:
-            raise BTClibValueError("x-only public keys are allowed inside tr() only")
+            # "inside tr()" would not be true of every position that
+            # refuses one: a musig() participant is inside a tr() and is
+            # aggregated as a point, so it needs the byte an x-only key drops
+            err_msg = "x-only public keys are allowed in a taproot key expression only"
+            raise BTClibValueError(err_msg)
         # the even-y lift of BIP340, which is what an x-only key means
         pub_key = b"\x02" + bytes_from_octets(key)
     elif length in (66, 130):
@@ -1744,6 +1953,23 @@ def _origin_and_rest(expression: str) -> tuple[BIP32KeyOrigin | None, str, str]:
     return origin, hardening, expression[end + 1 :]
 
 
+def _assert_musig_allowed(*, musig_allowed: bool) -> None:
+    """Refuse a ``musig()`` anywhere BIP390 does not put one.
+
+    Which is everywhere but a ``tr()`` and a ``rawtr()``: their internal
+    or output key, and the keys of the ``pk()``, ``multi_a()`` and
+    ``sortedmulti_a()`` leaves of a script tree. A participant is one of
+    the places it is refused, which is BIP390's "cannot be nested within
+    another musig()", and the message names both -- Bitcoin Core's own,
+    and the same sentence answers a nested one and a ``wpkh(musig())``.
+
+    BIP390 names ``sp()`` as a third position; btclib does not read
+    ``sp()`` at all, so there is nothing here to allow it in.
+    """
+    if not musig_allowed:
+        raise BTClibValueError("musig() is only allowed in tr() and rawtr()")
+
+
 def _assert_key_characters(rest: str) -> None:
     """Refuse what a KEY expression cannot hold once the origin is off."""
     if "]" in rest:
@@ -1752,9 +1978,12 @@ def _assert_key_characters(rest: str) -> None:
         err_msg = "multipath key expression: use multipath_descriptors first"
         raise BTClibValueError(err_msg)
     if "(" in rest:
-        # the one KEY expression that is a function is BIP390's musig(),
-        # and a key nothing reads is not a key to guess at
-        _assert_implemented(rest[: rest.index("(")])
+        # a function where a key belongs. BIP390's musig() is the one that
+        # is a key expression, and reaching here means it was written
+        # behind a key origin, which is not where it may be nested
+        if rest.startswith("musig("):
+            raise BTClibValueError("musig() cannot be nested inside a key origin")
+        _assert_not_miniscript(rest[: rest.index("(")])
         raise BTClibValueError("not a key expression")
 
 
@@ -1787,12 +2016,76 @@ def _fixed_pub_key(key: str, *, x_only: bool) -> tuple[bytes, bool]:
         raise BTClibValueError("invalid key expression") from e
 
 
+def _musig_der_path(suffix: str) -> tuple[tuple[int, ...], int | None]:
+    """Return the path and wildcard a ``musig()`` derives the aggregate by.
+
+    Every one of BIP390's rules about it is a refusal here: no hardened
+    step and no hardened wildcard, an aggregate key having no private half
+    to take either with, which is BIP328's own restriction.
+    """
+    if not suffix:
+        return (), None
+    if not suffix.startswith("/"):
+        raise BTClibValueError(f"not a musig() derivation path: {suffix}")
+    steps, wildcard, wildcard_hardening = _split_wildcard(suffix[1:].split("/"))
+    if wildcard_hardening:
+        raise BTClibValueError("musig() cannot have a hardened wildcard")
+    der_path = _der_path("/".join(steps))
+    if any(index >= _HARDENED_OFFSET for index in der_path):
+        raise BTClibValueError("musig() cannot have hardened derivation steps")
+    return tuple(der_path), wildcard
+
+
+def _parse_musig(expression: str, prv_keys: dict[str, str]) -> KeyExpression:
+    """Return the KeyExpression of a BIP390 ``musig()`` expression.
+
+    The participants are KEY expressions read as any other key in a
+    ``tr()`` is, except that none of them may be x-only: MuSig2
+    aggregation is over points, so it needs the evenness byte an x-only
+    spelling drops -- which is Bitcoin Core's rule too, its own parse
+    context allowing 32-byte keys under ``tr()`` and not under
+    ``musig()``.
+
+    Derivation on the aggregate key costs three further conditions, all
+    BIP390's: every participant an extended key, none of them ranged, and
+    no hardened step. The first two are what make one aggregate key per
+    index well defined -- with both sides ranged there would be two
+    indexes and one wildcard to read them from.
+    """
+    close = expression.rfind(")")
+    inner = expression[len("musig(") : close]
+    arguments = _split_arguments(inner)
+    if arguments == [""]:
+        raise BTClibValueError("musig() takes at least one key")
+    try:
+        participants = tuple(
+            _parse_key(key, prv_keys, compressed=True) for key in arguments
+        )
+    # which of several participants was wrong is half the answer, and the
+    # inner message names neither the function nor the position. Bitcoin
+    # Core prefixes its own the same way, "musig(): ..."
+    except BTClibValueError as e:
+        raise BTClibValueError(f"musig(): {e}") from e
+    der_path, wildcard = _musig_der_path(expression[close + 1 :])
+    if der_path or wildcard is not None:
+        if any(not key.xkey for key in participants):
+            err_msg = "musig() derivation requires every participant to be extended"
+            raise BTClibValueError(err_msg)
+        if any(key.is_ranged for key in participants):
+            err_msg = "musig() cannot have a ranged participant and derivation too"
+            raise BTClibValueError(err_msg)
+    return KeyExpression(
+        participants=participants, der_path=der_path, wildcard=wildcard
+    )
+
+
 def _parse_key(
     expression: str,
     prv_keys: dict[str, str],
     *,
     x_only: bool = False,
     compressed: bool = False,
+    musig_allowed: bool = False,
 ) -> KeyExpression:
     """Return the KeyExpression of a BIP380 KEY expression.
 
@@ -1804,7 +2097,15 @@ def _parse_key(
     order it is written: the origin's path, then the key's, then the
     wildcard. A fixed key hardens nothing and keeps the default, there
     being no step of it to write.
+
+    A ``musig()`` is read before the key origin and not after it, which is
+    Bitcoin Core's order and where BIP390's "cannot be nested" comes from:
+    the expression is a musig one or it is not, so an origin in front of it
+    is not a musig expression with an origin -- it is a key that is no key.
     """
+    if expression.startswith("musig("):
+        _assert_musig_allowed(musig_allowed=musig_allowed)
+        return _parse_musig(expression, prv_keys)
     origin, origin_hardening, rest = _origin_and_rest(expression)
     _assert_key_characters(rest)
     key, separator, path = rest.partition("/")
@@ -1850,7 +2151,8 @@ def _parse_multi_a(name: str, args: list[str], prv_keys: dict[str, str]) -> Mult
     if not _THRESHOLD.fullmatch(args[0]):
         raise BTClibValueError(f"invalid {name}() threshold: {args[0]}")
     keys = tuple(
-        _parse_key(key, prv_keys, x_only=True, compressed=True) for key in args[1:]
+        _parse_key(key, prv_keys, x_only=True, compressed=True, musig_allowed=True)
+        for key in args[1:]
     )
     return MultiA(int(args[0]), keys, sort=name == "sortedmulti_a")
 
@@ -1869,10 +2171,15 @@ def _parse_tree(expression: str, prv_keys: dict[str, str]) -> DescriptorTree:
             _parse_tree(branches[1], prv_keys),
         )
     name, arguments = _split_function(expression)
-    _assert_implemented(name)
+    _assert_not_miniscript(name)
     args = _split_arguments(arguments)
     if name in _TREE_FUNCTIONS:
         return _parse_multi_a(name, args, prv_keys)
+    if name == "musig":
+        # allowed inside tr(), and as a key rather than as a leaf: a leaf
+        # is a script, and what a musig() aggregates to is one key of one
+        err_msg = "musig() is a key expression: pk(musig(...)) is the leaf"
+        raise BTClibValueError(err_msg)
     if name in _PARSERS:
         # a SCRIPT function where a leaf is expected: a position rule and
         # not something a later release adds, which is what the position
@@ -1881,7 +2188,13 @@ def _parse_tree(expression: str, prv_keys: dict[str, str]) -> DescriptorTree:
         _assert_position(name, _P2TR, _PARSERS[name][0])
     if name != "pk":
         raise BTClibValueError(f"unknown descriptor function: {name}()")
-    return _parse_key(_one_argument(args, name), prv_keys, x_only=True, compressed=True)
+    return _parse_key(
+        _one_argument(args, name),
+        prv_keys,
+        x_only=True,
+        compressed=True,
+        musig_allowed=True,
+    )
 
 
 # inside a witness program an uncompressed key is unspendable, so
@@ -1979,7 +2292,9 @@ def _parse_tr(
     if len(args) > 2:
         err_msg = f"tr() takes a key and at most one tree, {len(args)} given"
         raise BTClibValueError(err_msg)
-    internal_key = _parse_key(args[0], prv_keys, x_only=True, compressed=True)
+    internal_key = _parse_key(
+        args[0], prv_keys, x_only=True, compressed=True, musig_allowed=True
+    )
     tree = None if len(args) == 1 else _parse_tree(args[1], prv_keys)
     return TrDescriptor(internal_key, tree, network=network)
 
@@ -1990,7 +2305,11 @@ def _parse_rawtr(
     # one key and no tree: what Core's error says too, "rawtr(): only one
     # key expected", the function having nothing to put a second key in
     key = _parse_key(
-        _one_argument(args, "rawtr"), prv_keys, x_only=True, compressed=True
+        _one_argument(args, "rawtr"),
+        prv_keys,
+        x_only=True,
+        compressed=True,
+        musig_allowed=True,
     )
     return RawTrDescriptor(key, network=network)
 
@@ -2045,7 +2364,12 @@ def _parse_expression(
 ) -> Descriptor:
     """Return the Descriptor of a SCRIPT expression, in its context."""
     name, arguments = _split_function(expression)
-    _assert_implemented(name)
+    _assert_not_miniscript(name)
+    if name == "musig":
+        # a key expression where a SCRIPT one is expected: BIP390's own
+        # invalid vectors write it as sh(musig()) and wsh(musig()), and
+        # what is wrong with both is the position rather than the word
+        _assert_musig_allowed(musig_allowed=False)
     if name in _TREE_FUNCTIONS:
         # a tree leaf and no SCRIPT expression, so reaching this is the
         # position rule of BIP387 being broken: `_assert_position` says
@@ -2085,7 +2409,20 @@ def _normalized_key(key: KeyExpression, prv_keys: PrvKeys | None) -> KeyExpressi
     Bitcoin Core's first branch too, and for the same reason -- the step
     that needs the private key is the one taken at every index, so there
     is no point to re-root to.
+
+    A ``musig()`` is its participants normalized: its own path cannot
+    harden, BIP390 forbidding it, so there is nothing else of it to
+    re-root.
     """
+    if key.participants:
+        return replace(
+            key,
+            participants=tuple(
+                _normalized_key(participant, prv_keys)
+                for participant in key.participants
+            ),
+            hardening=_HARDENING,
+        )
     if key.pub_key is not None or key.wildcard == _HARDENED_OFFSET:
         return replace(key, hardening=_HARDENING)
     hardened = [i for i, step in enumerate(key.der_path) if step >= _HARDENED_OFFSET]
