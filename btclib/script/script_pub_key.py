@@ -53,6 +53,7 @@ __all__ = [
     "is_p2wpkh",
     "is_p2wsh",
     "is_segwit",
+    "p2ms_m_and_keys",
     "type_and_payload",
 ]
 
@@ -89,8 +90,25 @@ def address(script_pub_key: Octets, network: str = "mainnet") -> str:
     return ""
 
 
-def addresses(script_pub_key: Octets, network: str = "mainnet") -> list[str]:
-    """Return the p2pkh addresses of the pub_keys in a p2ms script_pub_key."""
+def p2ms_m_and_keys(script_pub_key: Octets) -> tuple[int, list[bytes]]:
+    """Return the threshold and the pub keys of a p2ms script_pub_key.
+
+    The bounds are checked -- 0 < m <= n < 17 -- and each key is read as
+    a push of the declared length and then parsed as a public key: a
+    push that is not one is what makes the bytes not a p2ms, which is the
+    answer `is_p2ms` gives.
+
+    The keys come back as the script holds them, uncompressed ones
+    included, and not as the parse normalized them: BIP174 keys a partial
+    signature by the key "as it appears in the scriptPubKey or
+    redeemScript", so the Finalizer below matches these bytes.
+
+    Three callers ask this one question, which is why it is asked in one
+    place: `addresses` wants a p2pkh address per key, `assert_p2ms` the
+    exception alone, and the psbt Finalizer both halves of the answer --
+    OP_CHECKMULTISIG takes m signatures, in the order the script lists
+    the keys they belong to.
+    """
     script_pub_key = bytes_from_octets(script_pub_key)
     # p2ms: m pub_keys n OP_CHECKMULTISIG
     length = len(script_pub_key)
@@ -111,6 +129,15 @@ def addresses(script_pub_key: Octets, network: str = "mainnet") -> list[str]:
     if stream.read(1):
         raise BTClibValueError("invalid p2ms script_pub_key size")
 
+    for pub_key in pub_keys:
+        pub_keyinfo_from_key(pub_key)
+
+    return m, pub_keys
+
+
+def addresses(script_pub_key: Octets, network: str = "mainnet") -> list[str]:
+    """Return the p2pkh addresses of the pub_keys in a p2ms script_pub_key."""
+    _, pub_keys = p2ms_m_and_keys(script_pub_key)
     return [b58.p2pkh(pub_key, network) for pub_key in pub_keys]
 
 
@@ -217,11 +244,9 @@ def is_p2sh(script_pub_key: Octets) -> bool:
 def assert_p2ms(script_pub_key: Octets) -> None:
     """Refuse bytes that are not p2ms: m, the pushed keys, n, OP_CHECKMULTISIG.
 
-    The bounds are checked -- 0 < m <= n < 17 -- and each key is read
-    as a push of the declared length; the keys are not checked to be
-    curve points.
+    `p2ms_m_and_keys` is the whole of the check, and says what it is.
     """
-    addresses(script_pub_key)
+    p2ms_m_and_keys(script_pub_key)
 
 
 def is_p2ms(script_pub_key: Octets) -> bool:

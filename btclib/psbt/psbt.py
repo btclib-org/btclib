@@ -74,12 +74,13 @@ from btclib.script import (
     is_p2tr,
     is_p2wpkh,
     is_p2wsh,
+    p2ms_m_and_keys,
     serialize,
     sig_hash,
     taproot,
     type_and_payload,
 )
-from btclib.script.sig_hash import DEFAULT
+from btclib.script.sig_hash import ALL, DEFAULT, assert_valid_hash_type
 from btclib.tx import Tx, TxIn, TxOut
 from btclib.utils import (
     assert_no_trailing,
@@ -104,6 +105,7 @@ __all__ = [
     "PSBT_V2",
     "Psbt",
     "combine",
+    "ecdsa_sig_hash",
     "extract_tx",
     "finalize",
     "join",
@@ -1215,11 +1217,37 @@ def _combined_tx_modifiable(psbts: Sequence[Psbt]) -> int | None:
     return (and_bits & modifiable) | (or_bits & ~modifiable & 0xFF)
 
 
+def _combine_musig2_participants(
+    psbt_map: PsbtIn | PsbtOut, out: PsbtIn | PsbtOut
+) -> None:
+    """Merge the participant lists, refusing two of them under one key.
+
+    Not `_combine_field`'s union, which for a map takes each side's pairs
+    and lets the second write over the first: an aggregate key is
+    computed from its participants, so two different lists filed under
+    one key are not a conflict to resolve by picking. One of the two says
+    that key aggregates something it does not, and nothing in either psbt
+    says which.
+    """
+    for key, participants in psbt_map.musig2_participant_pub_keys.items():
+        other = out.musig2_participant_pub_keys.get(key)
+        if other is not None and other != participants:
+            err_msg = f"mismatched musig2 participants for aggregate key {key.hex()}"
+            raise BTClibValueError(err_msg)
+        out.musig2_participant_pub_keys[key] = participants
+
+
 def combine(psbts: Sequence[Psbt]) -> Psbt:
     """Merge the data of several psbts of one transaction: the Combiner.
 
     BIP174's Combiner role, whose ordinary use is merging the partial
     signatures different signers added to copies of one psbt.
+
+    Every field a psbt map holds is merged, and the four left out are
+    left out for one reason: `amount`, `script_pub_key`, `previous_tx_id`
+    and `output_index` are part of what identifies the psbt, so the psbt
+    being merged into carries them already and two psbts disagreeing
+    about one of them are two transactions, refused above.
 
     Which psbts are of one transaction is a question the two versions
     answer differently, and each is asked its own: a version 0 psbt is
@@ -1262,6 +1290,29 @@ def combine(psbts: Sequence[Psbt]) -> Psbt:
             _combine_field(psbt.inputs[i], inp, "final_script_sig")
             _combine_field(psbt.inputs[i], inp, "final_script_witness")
             _combine_field(psbt.inputs[i], inp, "unknown")
+            _combine_field(psbt.inputs[i], inp, "ripemd160_preimages")
+            _combine_field(psbt.inputs[i], inp, "sha256_preimages")
+            _combine_field(psbt.inputs[i], inp, "hash160_preimages")
+            _combine_field(psbt.inputs[i], inp, "hash256_preimages")
+            # the key path signature is one key-value pair, so the rule
+            # for it is the arbitrary pick, and here that pick is between
+            # two spends rather than between two descriptions of one.
+            # Taking the first is defensible only because either one
+            # finalizes the input on its own -- unlike the merged maps
+            # below, where the halves are of one spend
+            _combine_field(psbt.inputs[i], inp, "taproot_key_spend_signature")
+            _combine_field(psbt.inputs[i], inp, "taproot_script_spend_signatures")
+            _combine_field(psbt.inputs[i], inp, "taproot_leaf_scripts")
+            _combine_field(psbt.inputs[i], inp, "taproot_hd_key_paths")
+            _combine_field(psbt.inputs[i], inp, "taproot_internal_key")
+            _combine_field(psbt.inputs[i], inp, "taproot_merkle_root")
+            # merging the musig2 maps is what makes a session survive a
+            # Combiner: BIP373 puts round 1 in one psbt per signer, and
+            # a nonce that does not reach the aggregate is a session the
+            # partial signatures of the others are not against
+            _combine_musig2_participants(psbt.inputs[i], inp)
+            _combine_field(psbt.inputs[i], inp, "musig2_pub_nonces")
+            _combine_field(psbt.inputs[i], inp, "musig2_partial_sigs")
             # the two lock times an input may require are not part of
             # what identifies the psbt -- the identifier holds the lock
             # time they compute, not which input asked for it -- so a
@@ -1278,6 +1329,13 @@ def combine(psbts: Sequence[Psbt]) -> Psbt:
             _combine_field(psbt.outputs[i], out, "witness_script")
             _combine_field(psbt.outputs[i], out, "hd_key_paths")
             _combine_field(psbt.outputs[i], out, "unknown")
+            _combine_field(psbt.outputs[i], out, "taproot_internal_key")
+            # a taproot tree is positional -- depth, leaf version and
+            # script, in the order that rebuilds the merkle root -- so it
+            # is taken whole or not at all, the way a witness stack is
+            _combine_field(psbt.outputs[i], out, "taproot_tree")
+            _combine_field(psbt.outputs[i], out, "taproot_hd_key_paths")
+            _combine_musig2_participants(psbt.outputs[i], out)
 
         _combine_field(psbt, final_psbt, "hd_key_paths")
         _combine_field(psbt, final_psbt, "unknown")
@@ -1348,6 +1406,21 @@ def _single_key(psbt_in: PsbtIn) -> bytes:
     return next(iter(psbt_in.partial_sigs))
 
 
+def _satisfied_script(psbt_in: PsbtIn) -> bytes:
+    """Return the script the input's signatures are pushed for, or b"".
+
+    The witness script where the multisig is wrapped in a p2wsh,
+    `_spent_script` naming the p2wsh there rather than what it commits
+    to; and `_spent_script` itself for a bare multisig and for a legacy
+    p2sh, whose redeem script that already is.
+
+    Two questions read it -- how many elements the spend pushes, and in
+    which order -- and both are the script's to answer, so it is found
+    in one place.
+    """
+    return psbt_in.witness_script or _spent_script(psbt_in)
+
+
 def _bip147_dummy(psbt_in: PsbtIn) -> list[bytes]:
     """Return the empty push OP_CHECKMULTISIG pops, or nothing.
 
@@ -1363,10 +1436,8 @@ def _bip147_dummy(psbt_in: PsbtIn) -> list[bytes]:
     all the same, and on a p2pk carrying two signatures, which is caller
     error and gets a dummy on top of it (issue #305).
 
-    The script to read is the witness script where the multisig is
-    wrapped in a p2wsh, `_spent_script` naming the p2wsh there rather
-    than what it commits to; and it is `_spent_script` itself for a bare
-    multisig and for a legacy p2sh, whose redeem script that already is.
+    `_satisfied_script` is the script to read, and says why it is that
+    one.
 
     The count survives as the fallback for an input that says nothing.
     A bare multisig needs no script of its own to be finalized, so it
@@ -1376,10 +1447,52 @@ def _bip147_dummy(psbt_in: PsbtIn) -> list[bytes]:
     an element short, unknowably: one signature, no script, and nothing
     to tell it from a p2pk.
     """
-    script = psbt_in.witness_script or _spent_script(psbt_in)
+    script = _satisfied_script(psbt_in)
     if script:
         return [b""] if is_p2ms(script) else []
     return [b""] if len(psbt_in.partial_sigs) > 1 else []
+
+
+def _pushed_sigs(psbt_in: PsbtIn) -> list[bytes]:
+    """Return the signatures the spend pushes, in the order it needs them.
+
+    A multisig input pushes the signatures of the keys its script lists,
+    in the order the script lists them, and as many as the script asks
+    for. Both halves matter to OP_CHECKMULTISIG: it walks the keys
+    forward and never goes back, so a signature out of that order is one
+    it cannot match; and it pops one element beyond the threshold, which
+    BIP147 requires to be empty, so an extra signature is one that lands
+    where the dummy belongs (issue #431).
+
+    Nothing about `partial_sigs` gives that order. A dict holds what it
+    was given in the order it was given, and `combine` merges with an
+    update, so for a coordinator it is the order the copies came back
+    in.
+
+    A signature whose key the script does not list is dropped rather
+    than refused: the Finalizer builds the spend this script asks for,
+    and a key that is not in it is not evidence of anything wrong.
+    Fewer than the threshold is refused, being an input that cannot be
+    finalized at all.
+
+    Every other kind pushes what the input carries, which for the
+    single-key ones is the one signature `_single_key` pairs with its
+    key, and for a p2pk the one the script already names.
+    """
+    script = _satisfied_script(psbt_in)
+    if not is_p2ms(script):
+        return list(psbt_in.partial_sigs.values())
+
+    m, pub_keys = p2ms_m_and_keys(script)
+    sigs = [
+        psbt_in.partial_sigs[pub_key]
+        for pub_key in pub_keys
+        if pub_key in psbt_in.partial_sigs
+    ]
+    if len(sigs) < m:
+        err_msg = f"{len(sigs)} signatures for a {m}-of-{len(pub_keys)} multisig"
+        raise BTClibValueError(err_msg)
+    return sigs[:m]
 
 
 def _finalized_input(psbt_in: PsbtIn) -> tuple[bytes, Witness]:
@@ -1402,7 +1515,7 @@ def _finalized_input(psbt_in: PsbtIn) -> tuple[bytes, Witness]:
     own engine refuses as "non-empty script_sig for a native segwit
     input" (issue #249).
     """
-    sigs: list[bytes] = list(psbt_in.partial_sigs.values())
+    sigs: list[bytes] = _pushed_sigs(psbt_in)
     cmds: list[bytes] = _bip147_dummy(psbt_in) + sigs
     redeem_script: list[bytes] = (
         [psbt_in.redeem_script] if psbt_in.redeem_script else []
@@ -1660,6 +1773,47 @@ def _sig_hash_from_psbt_in(
     if not script or is_p2tr(script):
         return None
     return sig_hash.legacy(script, tx, vin_i, hash_type)
+
+
+def ecdsa_sig_hash(psbt: Psbt, vin_i: int, *, hash_type: int | None = None) -> bytes:
+    """Return the hash an ECDSA spend of one input signs.
+
+    What a Signer puts in `PSBT_IN_PARTIAL_SIG` is a signature of this,
+    with the hash type appended; `taproot_sig_hash` is the same question
+    for the schnorr signatures of a taproot input, and the two are the
+    split `finalize` dispatches on.
+
+    hash_type defaults to the type the input asks for, and to
+    SIGHASH_ALL when it asks for none. An input asking for
+    SIGHASH_DEFAULT is refused: 0 is a taproot type, no ECDSA signature
+    carries it, and a psbt asking for it is one no partial signature can
+    finalize -- which is what `_assert_sig_hash_type` says from the
+    Finalizer's end.
+
+    Every kind a partial signature can belong to is covered, the wrapped
+    ones included: `_sig_hash_from_psbt_in` is the dispatch and says how.
+    Where it answers None this raises, and the difference is the caller:
+    a Finalizer checking a signature it was handed learns nothing from a
+    psbt that does not say what was signed, while a Signer about to make
+    one has to stop.
+    """
+    psbt_in = psbt.inputs[vin_i]
+    if hash_type is None:
+        hash_type = ALL if psbt_in.sig_hash_type is None else psbt_in.sig_hash_type
+    assert_valid_hash_type(hash_type)
+    if hash_type == DEFAULT:
+        raise BTClibValueError("SIGHASH_DEFAULT is not an ECDSA sig_hash type")
+
+    if is_p2tr(_spent_script(psbt_in)):
+        err_msg = f"input {vin_i} is taproot: its message is taproot_sig_hash's"
+        raise BTClibValueError(err_msg)
+
+    msg_hash = _sig_hash_from_psbt_in(psbt_in, psbt.tx, vin_i, hash_type)
+    if msg_hash is None:
+        err_msg = f"input {vin_i} does not say what is being signed: "
+        err_msg += "no utxo, no redeem script, or no witness script"
+        raise BTClibValueError(err_msg)
+    return msg_hash
 
 
 def _assert_sig_hash_type(psbt_in: PsbtIn) -> None:

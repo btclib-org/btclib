@@ -2153,6 +2153,55 @@ edit.
 
 ### Transactions, blocks and PSBT
 
+- **`psbt.ecdsa_sig_hash` is the message a Signer signs** (issue #430),
+  and with it `btclib.psbt` exports the pair: the ECDSA hash for the
+  inputs whose signatures go in `PSBT_IN_PARTIAL_SIG` and
+  `taproot_sig_hash` for the schnorr ones, which is the split `finalize`
+  dispatches on. The dispatch existed and was private, reached only by
+  the Finalizer verifying signatures it had been handed, so a Signer
+  computed the hash itself — as the guide's own **Signer** paragraph did,
+  reaching past the psbt for `sig_hash.from_tx`. That function cannot
+  serve here: it reads the redeem script out of an input's script_sig and
+  the witness script off its witness stack, and in a psbt they are
+  fields. The hash type defaults to the one the input asks for and to
+  SIGHASH_ALL where it asks for none; SIGHASH_DEFAULT is refused, 0 being
+  a taproot type no ECDSA signature carries. Where the private helper
+  answers None — no utxo, no redeem script, no witness script — this
+  raises: a Finalizer checking a signature learns nothing from a psbt
+  that does not say what was signed, and a Signer about to make one has
+  to stop.
+- **the Finalizer orders a multisig input's signatures, and pushes the
+  threshold many** (issue #431). OP_CHECKMULTISIG walks the keys forward
+  and never goes back, so the signatures have to arrive in the order the
+  script lists the keys they belong to — and `partial_sigs` is a dict,
+  whose order is the order it was written in, which for a coordinator is
+  the order the copies came back from `combine`. Nothing related the two,
+  so a 2-of-3 whose signers answered out of order finalized into a spend
+  no node accepts. The count was wrong the same way: every signature the
+  input carried was pushed, so a 1-of-2 that both participants signed put
+  a signature where BIP147's empty element belongs. Both are now read off
+  the script — `script_pub_key.p2ms_m_and_keys`, which is `addresses`
+  and `assert_p2ms`'s own parser with the answer kept — and an input
+  short of the threshold is refused rather than built into a script_sig
+  one element shy. A signature whose key the script does not list is
+  dropped, not refused: the Finalizer builds the spend that script asks
+  for.
+- **`combine` merges every field a psbt map holds** (issue #432). It
+  walked BIP174's list, so the preimage maps, every BIP371 taproot field
+  and every BIP373 musig2 field were dropped, silently and both ways
+  round. The cost was not only that a Combiner could not merge what an
+  external signer returns: **a MuSig2 session did not survive its own
+  Combiner** — round 1 puts one nonce in one psbt per signer, and keeping
+  the first psbt's alone leaves `session_context` deriving a session no
+  partial signature was made against. Two fields do not take the union:
+  `taproot_tree` is positional and is taken whole, the way a witness
+  stack is, and two different participant lists under one aggregate key
+  are refused rather than picked from — the key is computed from the
+  list, so one of the two says it aggregates something it does not, and
+  nothing in either psbt says which. `amount`, `script_pub_key`,
+  `previous_tx_id` and `output_index` stay out: they are part of what
+  identifies the psbt, and two psbts disagreeing on one of them are two
+  transactions.
 - **a MuSig2 session is carried out over a psbt** (issue #266, the second
   half): `btclib.psbt.musig2` is BIP373's three roles over
   `btclib.ecc.musig2` — `add_participant_pub_keys` for an Updater,

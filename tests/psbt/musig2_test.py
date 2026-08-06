@@ -5,6 +5,7 @@
 
 """Tests for the `btclib.psbt.musig2` module."""
 
+from copy import deepcopy
 from typing import Any
 
 import pytest
@@ -12,7 +13,7 @@ import pytest
 from btclib.curves import secp256k1
 from btclib.ecc import ssa
 from btclib.exceptions import BTClibValueError
-from btclib.psbt import Psbt, extract_tx, finalize, musig2
+from btclib.psbt import Psbt, combine, extract_tx, finalize, musig2
 from btclib.psbt.psbt import prevouts, taproot_sig_hash
 from btclib.script import type_and_payload
 from btclib.script.engine import verify_transaction
@@ -128,6 +129,27 @@ def test_aggregating_bip373s_partial_signatures_spends_the_output(
     verify_transaction(spent, tx)
 
 
+def _participants_only_psbt() -> Psbt:
+    """Return BIP373's first vector: the participants of the output key.
+
+    The one psbt in the file that carries a session's participants and
+    nothing else, so that what a Signer and a Finalizer add to it is
+    everything the two rounds write.
+    """
+    return Psbt.b64decode(
+        next(
+            test_vector["encoded psbt"]
+            for test_vector in load("psbt", "_data", "bip373_test_vectors.json")[
+                "valid psbts"
+            ]
+            if test_vector["description"].startswith(
+                "Spend of a Taproot output where the output key"
+            )
+            and "participant pubkeys only" in test_vector["description"]
+        )
+    )
+
+
 def test_a_whole_session_is_run_over_the_psbt() -> None:
     """Both rounds and every role, with btclib as all three signers.
 
@@ -140,17 +162,7 @@ def test_a_whole_session_is_run_over_the_psbt() -> None:
     `nonce_gen` returning them -- and each is spent exactly once, `sign`
     zeroing the bytearray it consumes.
     """
-    encoded = next(
-        test_vector["encoded psbt"]
-        for test_vector in load("psbt", "_data", "bip373_test_vectors.json")[
-            "valid psbts"
-        ]
-        if test_vector["description"].startswith(
-            "Spend of a Taproot output where the output key"
-        )
-        and "participant pubkeys only" in test_vector["description"]
-    )
-    psbt = Psbt.b64decode(encoded)
+    psbt = _participants_only_psbt()
     aggregate_pub_key = bytes.fromhex(AGGREGATE_PUB_KEY)
     spent = prevouts(psbt)
 
@@ -180,6 +192,49 @@ def test_a_whole_session_is_run_over_the_psbt() -> None:
 
     tx = extract_tx(finalize(psbt))
     verify_transaction(spent, tx)
+
+
+def test_a_session_survives_the_combiner() -> None:
+    """The same two rounds, each signer on its own copy (issue #432).
+
+    Which is how BIP373 is actually run: the coordinator hands out the
+    psbt, every signer writes its own nonce into its own copy, and what
+    comes back is merged. A Combiner that drops the musig2 fields keeps
+    one signer's nonce out of three, and the session `session_context`
+    then derives is one no partial signature was made against -- so the
+    round that follows fails on a psbt in which nothing is wrong.
+
+    The secret nonces are the signers' and never travel: only the psbts
+    are combined.
+    """
+    psbt = _participants_only_psbt()
+    aggregate_pub_key = bytes.fromhex(AGGREGATE_PUB_KEY)
+    spent = prevouts(psbt)
+
+    round_1 = [deepcopy(psbt) for _ in PARTICIPANT_PRV_KEYS]
+    sec_nonces = [
+        musig2.nonce_gen(copy, 0, prv_key, aggregate_pub_key)
+        for copy, prv_key in zip(round_1, PARTICIPANT_PRV_KEYS, strict=True)
+    ]
+    for copy in round_1:
+        assert len(copy.inputs[0].musig2_pub_nonces) == 1
+    nonces_in = combine(round_1)
+    assert len(nonces_in.inputs[0].musig2_pub_nonces) == 3
+
+    round_2 = [deepcopy(nonces_in) for _ in PARTICIPANT_PRV_KEYS]
+    for copy, prv_key, sec_nonce in zip(
+        round_2, PARTICIPANT_PRV_KEYS, sec_nonces, strict=True
+    ):
+        musig2.partial_sign(copy, 0, sec_nonce, prv_key, aggregate_pub_key)
+    signed = combine(round_2)
+    assert len(signed.inputs[0].musig2_partial_sigs) == 3
+
+    for participant_pub_key in PARTICIPANT_PUB_KEYS:
+        assert musig2.partial_sig_verify(
+            signed, 0, participant_pub_key, aggregate_pub_key
+        )
+    musig2.partial_sigs_agg(signed, 0, aggregate_pub_key)
+    verify_transaction(spent, extract_tx(finalize(signed)))
 
 
 def test_the_updater_files_a_list_under_the_key_it_aggregates_to() -> None:
