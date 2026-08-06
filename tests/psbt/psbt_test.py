@@ -506,6 +506,34 @@ def test_the_identifier_of_a_v2_psbt_ignores_the_sequences() -> None:
         combine([psbt, psbt.to_v0()])
 
 
+def test_combining_keeps_a_fallback_lock_time_whichever_copy_holds_it() -> None:
+    """The Combiner answers the same whichever psbt came first.
+
+    The fallback is only reached when no input requires a lock time, so
+    two psbts differing in it can compute the same lock time, be the same
+    transaction by the unique id, and still disagree about the field --
+    which is the case Bitcoin Core's Merge takes it in.
+    """
+    psbt = _bip370_psbt("1 input, 2 output updated PSBTv2")
+    psbt.inputs[0].required_height_lock_time = 700_000
+    psbt.fallback_lock_time = None
+    other = deepcopy(psbt)
+    other.fallback_lock_time = 500_000
+
+    assert psbt.unique_id == other.unique_id
+    assert psbt.lock_time == other.lock_time == 700_000
+
+    for psbts in ([psbt, other], [other, psbt]):
+        combined = combine([deepcopy(p) for p in psbts])
+        assert combined.fallback_lock_time == 500_000
+        assert combined.lock_time == 700_000
+
+    # and the one already there is kept, as every other combined field is
+    both = deepcopy(other)
+    both.fallback_lock_time = 400_000
+    assert combine([both, deepcopy(other)]).fallback_lock_time == 400_000
+
+
 def test_combining_keeps_the_flags_no_more_permissive_than_they_were() -> None:
     """A combine cannot hand back what a Signer took away.
 
@@ -2762,6 +2790,55 @@ def test_what_a_signer_cannot_be_given_a_hash_for() -> None:
 
     with pytest.raises(BTClibValueError, match="invalid sig_hash type: 0x4"):
         ecdsa_sig_hash(psbt, 0, hash_type=4)
+
+
+def test_a_witness_utxo_alone_signs_no_non_witness_spend() -> None:
+    """No role reads a legacy sig_hash out of a witness utxo.
+
+    BIP174 puts `PSBT_IN_WITNESS_UTXO` on segwit inputs alone, and its
+    Signer checks a non-witness utxo against the outpoint it claims to
+    be -- a line it has none of for the other field, whose script_pub_key
+    is therefore unvouched for. Bitcoin Core stops for the same reason,
+    `require_witness_sig`. Signing, verifying an answer and finalizing
+    all raise, rather than the Signer alone: skipping the check is what
+    would finalize the input whose signature cannot be believed.
+    """
+    signed, _ = _single_key_psbt("p2pkh")
+    prev_tx = signed.inputs[0].non_witness_utxo
+    assert prev_tx is not None
+    prev_out = prev_tx.vout[0]
+
+    unvouched = deepcopy(signed)
+    unvouched.inputs[0].non_witness_utxo = None
+    unvouched.inputs[0].witness_utxo = prev_out
+
+    err_msg = "input 0: a witness utxo alone does not say what a non-witness"
+    with pytest.raises(BTClibValueError, match=err_msg):
+        ecdsa_sig_hash(unvouched, 0)
+    with pytest.raises(BTClibValueError, match=err_msg):
+        finalize(unvouched)
+    with pytest.raises(BTClibValueError, match=err_msg):
+        assert_signatures_only(_stripped_of_signatures(unvouched), unvouched)
+
+    # the same psbt is refused before that, where a caller runs the check
+    # BIP174 wrote for the Updater's output
+    with pytest.raises(BTClibValueError, match="script type not in"):
+        unvouched.assert_signable()
+
+    # and the very same input, with the transaction it is spent against,
+    # signs and finalizes
+    assert ecdsa_sig_hash(signed, 0) == sig_hash.legacy(
+        prev_out.script_pub_key.script, signed.tx, 0, 1
+    )
+    assert finalize(signed).inputs[0].final_script_sig
+
+
+def _stripped_of_signatures(psbt: Psbt) -> Psbt:
+    """Return the psbt as it was before a Signer answered."""
+    request = deepcopy(psbt)
+    for psbt_in in request.inputs:
+        psbt_in.partial_sigs = {}
+    return request
 
 
 def test_the_outpoint_names_an_output_of_the_non_witness_utxo() -> None:
