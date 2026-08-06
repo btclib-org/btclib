@@ -2786,6 +2786,44 @@ edit.
 
 ### The public API and the module layout
 
+- **`rawtr()` is read, and the specification it was filed under was the
+  wrong one** (issue #453). `_UNIMPLEMENTED` named BIP386, which
+  specifies `tr()`, its tree expression and the x-only key inside them and
+  never mentions `rawtr()`; no BIP does. What defines it is Bitcoin Core's
+  own `doc/descriptors.md`, added by Core PR #23480, and the label was
+  wrong whether or not the function was implemented.
+
+  `RawTrDescriptor` is the fragment, top level only and one key. That key
+  is BIP341's *output* key, written into `OP_1 <32 bytes>` as it is with
+  no tweak at all: the whole difference from `tr(KEY)`, which tweaks its
+  internal key with an empty merkle root, and the reason this is not a
+  `TrDescriptor` carrying `tree=None`. Satisfaction is a key path witness
+  whose signature verifies against the key as written, so a signer must
+  not tweak what it holds — the opposite of the `tr()` lookup, which
+  expects a signature the *tweaked* key verifies. The Updater writes one
+  taproot field, PSBT_IN_TAP_BIP32_DERIVATION: an output key has no
+  internal key a verifier could tweak, so there is no merkle root and no
+  leaf script either, and `psbt.sign` therefore leaves such an input alone
+  rather than tweaking a key it should not. The docstring carries Core's
+  own warning with it — an output key whose internal key nobody knows
+  cannot be shown to have no hidden script path — because a `rawtr()`
+  describes an output a wallet already holds rather than one to build.
+  Checked against Core's two `descriptor_tests.cpp` vectors, in all three
+  of the spellings each has, and the spend against btclib's script engine.
+
+  Two things measured on the way. A WIF in a taproot position is written
+  back as 32 bytes and not 33: a private key has no spelling of its own to
+  echo, so the position decides, which is Core's own bool per key —
+  `false` for a hex key it read whole, `ctx == P2TR` for a private one —
+  and what makes its `tr(WIF)` and `rawtr(WIF)` vectors come back x-only.
+  btclib wrote 33 bytes there. And a SCRIPT function where a tree leaf is
+  expected is refused by the position rule rather than as unimplemented:
+  `tr(KEY,pkh(KEY))` said "pkh() inside tr() is not implemented", which
+  was never going to be implemented, and now says it is not allowed there
+  — a `BTClibValueError`, as every other position error is, with an
+  unknown function inside `tr()` answered the way it is answered anywhere
+  else.
+
 - **`descriptors.normalized` puts the xpub at each last hardened step**
   (issue #381), which is Bitcoin Core's `ToNormalizedString` and what
   `getdescriptorinfo` answers with. A descriptor written with hardened
