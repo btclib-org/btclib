@@ -49,6 +49,17 @@ What raises NotImplementedError, rather than being read wrong: every
 miniscript expression, which is issue #187; and ``rawtr`` and ``musig``,
 which are BIP386 and BIP390 and belong with the work that adds them.
 
+A parsed descriptor holds no key that signs. `parse` neuters an xprv to
+the xpub the `KeyExpression` then carries, and hands the private spelling
+back through the `prv_keys` mapping a caller passes in -- Bitcoin Core's
+`Parse(desc, out, error)`, whose descriptor keeps no reference to the
+`FlatSigningProvider` it filled. Expansion takes the mapping back for the
+one thing an xpub cannot do, a hardened step, which is why
+`script_pub_keys`, `satisfy`, `update_psbt` and the rest all end in an
+optional `prv_keys`. A WIF is not in that mapping: it was already reduced
+to its public key on the way in, this module deriving nothing from it and
+signing nothing with it.
+
 The network is a parameter of `parse` and not part of a descriptor: a
 descriptor names keys and scripts, and the same one means something on
 any chain, which is why Bitcoin Core takes the chain from its own context
@@ -59,7 +70,8 @@ What this module exports is the checksum functions, `parse` and
 `multipath_descriptors`, and the fragment classes a parsed descriptor is
 made of -- `KeyExpression`, `DescriptorTree` and the `MultiA` a tree leaf
 may be among them, all three being names a caller reads off
-`Descriptor.key_expressions` and `TrDescriptor.tree`. `INPUT_CHARSET`,
+`Descriptor.key_expressions` and `TrDescriptor.tree`, and `PrvKeys` being
+what a caller annotates the mapping above with. `INPUT_CHARSET`,
 `CHECKSUM_CHARSET` and `GENERATOR` stay out: they are the three tables
 BIP380's checksum is computed from, which is what `checksum`,
 `add_checksum` and `strip_checksum` answer, and each is still importable
@@ -76,7 +88,7 @@ from dataclasses import dataclass
 from typing import cast
 
 from btclib.alias import Octets, ScriptList, TaprootScriptTree
-from btclib.bip32.bip32 import BIP32KeyData, derive
+from btclib.bip32.bip32 import BIP32KeyData, derive, xpub_from_xprv
 from btclib.bip32.der_path import indexes_from_der_path
 from btclib.bip32.key_origin import BIP32KeyOrigin
 from btclib.exceptions import BTClibValueError
@@ -100,6 +112,7 @@ __all__ = [
     "MultiDescriptor",
     "PkDescriptor",
     "PkhDescriptor",
+    "PrvKeys",
     "RawDescriptor",
     "ShDescriptor",
     "TrDescriptor",
@@ -252,6 +265,15 @@ _THRESHOLD = re.compile("[0-9]+")
 _MULTIPATH_STEP = re.compile("(<[^<>]*>)")
 
 
+# what `parse` hands back beside the descriptor, and what expansion takes
+# when a hardened step needs it: the extended private key each extended
+# key was read from, filed under the neutered spelling the descriptor
+# keeps. Public identity to private material, which is how Bitcoin Core's
+# `FlatSigningProvider` is keyed too -- by the key id there, by the xpub
+# here, an extended key being what a descriptor derives from
+PrvKeys = Mapping[str, str]
+
+
 @dataclass(frozen=True)
 class KeyExpression:
     """A BIP380 KEY expression: an origin, a key, a derivation path.
@@ -265,6 +287,13 @@ class KeyExpression:
     `origin` never changes the script. It says which master key and which
     path the key came from, which is what a hardware signer needs and
     what BIP174 carries in a PSBT.
+
+    `xkey` is public whatever the descriptor spelled: `parse` neuters an
+    xprv and hands the private material back to its caller, so no part of
+    a parsed descriptor holds a key that signs. What that costs is a
+    hardened step, which an xpub cannot take -- `sec` takes the keys back
+    as a parameter for it, the way Bitcoin Core's expansion takes a
+    `SigningProvider`.
     """
 
     origin: BIP32KeyOrigin | None = None
@@ -292,14 +321,27 @@ class KeyExpression:
         """
         return self.pub_key is None or len(self.pub_key) == 33
 
-    def sec(self, index: int = 0, network: str = "mainnet") -> bytes:
-        """Return the SEC public key bytes, derived at `index` if ranged."""
+    def sec(
+        self,
+        index: int = 0,
+        network: str = "mainnet",
+        prv_keys: PrvKeys | None = None,
+    ) -> bytes:
+        """Return the SEC public key bytes, derived at `index` if ranged.
+
+        `prv_keys` is what `parse` handed back, and is needed for a
+        hardened step and for nothing else: an unhardened path derives
+        from the xpub the descriptor holds. A key it does not name is
+        left as it is, so a mapping covering some of a multisig's keys
+        answers for those and no more.
+        """
         if self.pub_key is not None:
             return self.pub_key
         der_path = list(self.der_path)
         if self.wildcard is not None:
             der_path.append(self.wildcard + index)
-        return pub_keyinfo_from_key(derive(self.xkey, der_path), network)[0]
+        xkey = prv_keys.get(self.xkey, self.xkey) if prv_keys else self.xkey
+        return pub_keyinfo_from_key(derive(xkey, der_path), network)[0]
 
 
 @dataclass(frozen=True)
@@ -321,7 +363,9 @@ class MultiA:
     # to agree on an address
     sort: bool = False
 
-    def _pub_keys(self, index: int, network: str) -> list[bytes]:
+    def _pub_keys(
+        self, index: int, network: str, prv_keys: PrvKeys | None
+    ) -> list[bytes]:
         """Return the SEC keys in the order the script holds them.
 
         Sorted on the x-only bytes and not on these: what a tapscript
@@ -331,10 +375,10 @@ class MultiA:
         naming a key by its WIF would get another script than the same
         key written x-only.
         """
-        pub_keys = [key.sec(index, network) for key in self.keys]
+        pub_keys = [key.sec(index, network, prv_keys) for key in self.keys]
         return sorted(pub_keys, key=lambda sec: sec[1:]) if self.sort else pub_keys
 
-    def _script(self, index: int, network: str) -> ScriptList:
+    def _script(self, index: int, network: str, prv_keys: PrvKeys | None) -> ScriptList:
         """Return the tapscript of BIP387: a CHECKSIG, then CHECKSIGADDs.
 
         The threshold is pushed as OP_1 to OP_16 where an op code means
@@ -346,7 +390,7 @@ class MultiA:
         of more keys than there are describes a script nobody can spend,
         and a descriptor built by hand reaches this and not the parser.
         """
-        pub_keys = self._pub_keys(index, network)
+        pub_keys = self._pub_keys(index, network, prv_keys)
         if not 1 <= self.threshold <= len(pub_keys):
             err_msg = f"invalid k in k-of-n multi_a: {self.threshold}"
             raise BTClibValueError(err_msg)
@@ -360,7 +404,11 @@ class MultiA:
         return [*script, threshold, "OP_NUMEQUAL"]
 
     def _stack(
-        self, signatures: Mapping[bytes, bytes], index: int, network: str
+        self,
+        signatures: Mapping[bytes, bytes],
+        index: int,
+        network: str,
+        prv_keys: PrvKeys | None,
     ) -> list[bytes] | None:
         """Return one element per key, or None where the keys have not signed.
 
@@ -383,7 +431,7 @@ class MultiA:
         """
         offered = [
             _offered_signature(signatures, sec, x_only=True)
-            for sec in self._pub_keys(index, network)
+            for sec in self._pub_keys(index, network, prv_keys)
         ]
         if sum(signature is not None for signature in offered) < self.threshold:
             return None
@@ -432,32 +480,40 @@ def _tree_keys(tree: DescriptorTree) -> tuple[KeyExpression, ...]:
     return keys
 
 
-def _leaf_script(leaf: DescriptorLeaf, index: int, network: str) -> ScriptList:
+def _leaf_script(
+    leaf: DescriptorLeaf, index: int, network: str, prv_keys: PrvKeys | None
+) -> ScriptList:
     """Return the tapscript of one leaf: a ``pk()``, or a ``multi_a()``."""
     if isinstance(leaf, MultiA):
-        return leaf._script(index, network)
-    return [leaf.sec(index, network)[1:], "OP_CHECKSIG"]
+        return leaf._script(index, network, prv_keys)
+    return [leaf.sec(index, network, prv_keys)[1:], "OP_CHECKSIG"]
 
 
 def _leaf_stack(
-    leaf: DescriptorLeaf, signatures: Mapping[bytes, bytes], index: int, network: str
+    leaf: DescriptorLeaf,
+    signatures: Mapping[bytes, bytes],
+    index: int,
+    network: str,
+    prv_keys: PrvKeys | None,
 ) -> list[bytes] | None:
     """Return what satisfies one leaf, None where the signatures do not."""
     if isinstance(leaf, MultiA):
-        return leaf._stack(signatures, index, network)
-    signature = _offered_signature(signatures, leaf.sec(index, network), x_only=True)
+        return leaf._stack(signatures, index, network, prv_keys)
+    signature = _offered_signature(
+        signatures, leaf.sec(index, network, prv_keys), x_only=True
+    )
     return None if signature is None else [signature]
 
 
 def _taproot_script_tree(
-    tree: DescriptorTree, index: int, network: str
+    tree: DescriptorTree, index: int, network: str, prv_keys: PrvKeys | None
 ) -> TaprootScriptTree:
     if isinstance(tree, tuple):
         return [
-            _taproot_script_tree(tree[0], index, network),
-            _taproot_script_tree(tree[1], index, network),
+            _taproot_script_tree(tree[0], index, network, prv_keys),
+            _taproot_script_tree(tree[1], index, network, prv_keys),
         ]
-    return [(_TAPSCRIPT_LEAF_VERSION, _leaf_script(tree, index, network))]
+    return [(_TAPSCRIPT_LEAF_VERSION, _leaf_script(tree, index, network, prv_keys))]
 
 
 def _offered_signature(
@@ -525,7 +581,7 @@ class Descriptor(ABC):
         """Return every KEY expression the descriptor holds."""
 
     @abstractmethod
-    def _scripts(self, index: int) -> list[bytes]:
+    def _scripts(self, index: int, prv_keys: PrvKeys | None) -> list[bytes]:
         """Return the scriptPubKey bytes at `index`, in Bitcoin Core's order."""
 
     @property
@@ -546,38 +602,51 @@ class Descriptor(ABC):
             err_msg = f"not a ranged descriptor: no script at index {index}"
             raise BTClibValueError(err_msg)
 
-    def script_pub_keys(self, index: int = 0) -> list[ScriptPubKey]:
+    def script_pub_keys(
+        self, index: int = 0, prv_keys: PrvKeys | None = None
+    ) -> list[ScriptPubKey]:
         """Return the scripts the descriptor describes at `index`.
 
         A list because ``combo()`` is a set of scripts and not one
         script; every other fragment answers with exactly one.
         """
         self._assert_index(index)
-        return [ScriptPubKey(script, self.network) for script in self._scripts(index)]
+        return [
+            ScriptPubKey(script, self.network)
+            for script in self._scripts(index, prv_keys)
+        ]
 
-    def script_pub_key(self, index: int = 0) -> ScriptPubKey:
+    def script_pub_key(
+        self, index: int = 0, prv_keys: PrvKeys | None = None
+    ) -> ScriptPubKey:
         """Return the one script the descriptor describes at `index`."""
-        script_pub_keys = self.script_pub_keys(index)
+        script_pub_keys = self.script_pub_keys(index, prv_keys)
         if len(script_pub_keys) != 1:
             err_msg = f"{len(script_pub_keys)} scripts: use script_pub_keys instead"
             raise BTClibValueError(err_msg)
         return script_pub_keys[0]
 
-    def redeem_script(self, index: int = 0) -> bytes:
+    def redeem_script(self, index: int = 0, prv_keys: PrvKeys | None = None) -> bytes:
         """Return the script that ``sh()`` or ``wsh()`` embeds this one as."""
-        return self.script_pub_key(index).script
+        return self.script_pub_key(index, prv_keys).script
 
-    def address(self, index: int = 0) -> str:
+    def address(self, index: int = 0, prv_keys: PrvKeys | None = None) -> str:
         """Return the address of the script at `index`, if it has one."""
-        return self.script_pub_key(index).address
+        return self.script_pub_key(index, prv_keys).address
 
-    def addresses(self, index: int = 0) -> list[str]:
+    def addresses(self, index: int = 0, prv_keys: PrvKeys | None = None) -> list[str]:
         """Return the address of each script at `index`, empty where none."""
         return [
-            script_pub_key.address for script_pub_key in self.script_pub_keys(index)
+            script_pub_key.address
+            for script_pub_key in self.script_pub_keys(index, prv_keys)
         ]
 
-    def _stack(self, signatures: Mapping[bytes, bytes], index: int) -> list[bytes]:
+    def _stack(
+        self,
+        signatures: Mapping[bytes, bytes],
+        index: int,
+        prv_keys: PrvKeys | None,
+    ) -> list[bytes]:
         """Return the elements that satisfy this fragment's own script.
 
         What ``sh()`` writes into its script_sig and what ``wsh()`` puts
@@ -592,7 +661,10 @@ class Descriptor(ABC):
         raise BTClibValueError(err_msg)
 
     def satisfy(
-        self, signatures: Mapping[Octets, Octets], index: int = 0
+        self,
+        signatures: Mapping[Octets, Octets],
+        index: int = 0,
+        prv_keys: PrvKeys | None = None,
     ) -> tuple[bytes, Witness]:
         """Return the script_sig and witness that spend the script at `index`.
 
@@ -620,10 +692,14 @@ class Descriptor(ABC):
                 for key, signature in signatures.items()
             },
             index,
+            prv_keys,
         )
 
     def _satisfy(
-        self, signatures: Mapping[bytes, bytes], index: int
+        self,
+        signatures: Mapping[bytes, bytes],
+        index: int,
+        prv_keys: PrvKeys | None,
     ) -> tuple[bytes, Witness]:
         """Return the satisfaction, the mapping being already in bytes.
 
@@ -633,9 +709,17 @@ class Descriptor(ABC):
         Separate from `satisfy` so that a wrapper can satisfy its
         argument without normalizing the same mapping a second time.
         """
-        return serialize(cast(ScriptList, self._stack(signatures, index))), Witness()
+        return serialize(
+            cast(ScriptList, self._stack(signatures, index, prv_keys))
+        ), Witness()
 
-    def update_psbt(self, psbt: Psbt, vin_i: int, index: int = 0) -> Psbt:
+    def update_psbt(
+        self,
+        psbt: Psbt,
+        vin_i: int,
+        index: int = 0,
+        prv_keys: PrvKeys | None = None,
+    ) -> Psbt:
         """Return the psbt with input `vin_i` told what the descriptor knows.
 
         BIP174's Updater, for the one input this descriptor describes:
@@ -666,11 +750,11 @@ class Descriptor(ABC):
         if not 0 <= vin_i < len(psbt.inputs):
             raise BTClibValueError(f"invalid input index: {vin_i}")
         psbt = deepcopy(psbt)
-        self._update(psbt.inputs[vin_i], index)
+        self._update(psbt.inputs[vin_i], index, prv_keys)
         psbt.assert_valid()
         return psbt
 
-    def _update(self, psbt_in: PsbtIn, index: int) -> None:
+    def _update(self, psbt_in: PsbtIn, index: int, prv_keys: PrvKeys | None) -> None:
         """Fill the key origins, which is what every fragment knows.
 
         And the whole of what ``pk()``, ``pkh()``, ``wpkh()`` and
@@ -682,9 +766,14 @@ class Descriptor(ABC):
         public key, so a psbt already carrying another signer's key keeps
         it, and this descriptor's entry wins for a key held by both.
         """
-        psbt_in.hd_key_paths = {**psbt_in.hd_key_paths, **self._hd_key_paths(index)}
+        psbt_in.hd_key_paths = {
+            **psbt_in.hd_key_paths,
+            **self._hd_key_paths(index, prv_keys),
+        }
 
-    def _hd_key_paths(self, index: int) -> dict[bytes, BIP32KeyOrigin]:
+    def _hd_key_paths(
+        self, index: int, prv_keys: PrvKeys | None
+    ) -> dict[bytes, BIP32KeyOrigin]:
         """Return the origin of each key that has one, keyed by public key.
 
         A key with no origin is skipped and not refused: a descriptor may
@@ -695,7 +784,7 @@ class Descriptor(ABC):
         for key in self.key_expressions:
             origin = _derived_origin(key, index)
             if origin is not None:
-                hd_key_paths[key.sec(index, self.network)] = origin
+                hd_key_paths[key.sec(index, self.network, prv_keys)] = origin
         return hd_key_paths
 
 
@@ -710,13 +799,20 @@ class PkDescriptor(Descriptor):
         """Return the one KEY expression, as the base class's tuple."""
         return (self.key,)
 
-    def _scripts(self, index: int) -> list[bytes]:
-        return [ScriptPubKey.p2pk(self.key.sec(index, self.network)).script]
+    def _scripts(self, index: int, prv_keys: PrvKeys | None) -> list[bytes]:
+        return [ScriptPubKey.p2pk(self.key.sec(index, self.network, prv_keys)).script]
 
-    def _stack(self, signatures: Mapping[bytes, bytes], index: int) -> list[bytes]:
+    def _stack(
+        self,
+        signatures: Mapping[bytes, bytes],
+        index: int,
+        prv_keys: PrvKeys | None,
+    ) -> list[bytes]:
         # the key is in the script already, so the signature is the whole
         # of what spending a p2pk output takes
-        return [_required_signature(signatures, self.key.sec(index, self.network))]
+        return [
+            _required_signature(signatures, self.key.sec(index, self.network, prv_keys))
+        ]
 
 
 @dataclass(frozen=True)
@@ -730,13 +826,18 @@ class PkhDescriptor(Descriptor):
         """Return the one KEY expression, as the base class's tuple."""
         return (self.key,)
 
-    def _scripts(self, index: int) -> list[bytes]:
-        return [ScriptPubKey.p2pkh(self.key.sec(index, self.network)).script]
+    def _scripts(self, index: int, prv_keys: PrvKeys | None) -> list[bytes]:
+        return [ScriptPubKey.p2pkh(self.key.sec(index, self.network, prv_keys)).script]
 
-    def _stack(self, signatures: Mapping[bytes, bytes], index: int) -> list[bytes]:
+    def _stack(
+        self,
+        signatures: Mapping[bytes, bytes],
+        index: int,
+        prv_keys: PrvKeys | None,
+    ) -> list[bytes]:
         # what the output commits to is the hash of the key, so the key
         # goes on the stack for the script to hash for itself
-        sec = self.key.sec(index, self.network)
+        sec = self.key.sec(index, self.network, prv_keys)
         return [_required_signature(signatures, sec), sec]
 
 
@@ -751,23 +852,31 @@ class WpkhDescriptor(Descriptor):
         """Return the one KEY expression, as the base class's tuple."""
         return (self.key,)
 
-    def _scripts(self, index: int) -> list[bytes]:
-        return [ScriptPubKey.p2wpkh(self.key.sec(index, self.network)).script]
+    def _scripts(self, index: int, prv_keys: PrvKeys | None) -> list[bytes]:
+        return [ScriptPubKey.p2wpkh(self.key.sec(index, self.network, prv_keys)).script]
 
-    def _stack(self, signatures: Mapping[bytes, bytes], index: int) -> list[bytes]:
+    def _stack(
+        self,
+        signatures: Mapping[bytes, bytes],
+        index: int,
+        prv_keys: PrvKeys | None,
+    ) -> list[bytes]:
         # the witness of a p2wpkh spend is what the script_sig of a p2pkh
         # one is, BIP143 having moved it and changed nothing else
-        sec = self.key.sec(index, self.network)
+        sec = self.key.sec(index, self.network, prv_keys)
         return [_required_signature(signatures, sec), sec]
 
     def _satisfy(
-        self, signatures: Mapping[bytes, bytes], index: int
+        self,
+        signatures: Mapping[bytes, bytes],
+        index: int,
+        prv_keys: PrvKeys | None,
     ) -> tuple[bytes, Witness]:
         # the empty script_sig of BIP141, which is not the same as an
         # empty push: btclib's own engine refuses a native segwit input
         # whose script_sig is there at all (issue #249). A sh(wpkh())
         # gets its one push from the sh() above
-        return b"", Witness(self._stack(signatures, index))
+        return b"", Witness(self._stack(signatures, index, prv_keys))
 
 
 @dataclass(frozen=True)
@@ -781,11 +890,14 @@ class ShDescriptor(Descriptor):
         """Return the wrapped SCRIPT's KEY expressions."""
         return self.inner.key_expressions
 
-    def _scripts(self, index: int) -> list[bytes]:
-        return [ScriptPubKey.p2sh(self.inner.redeem_script(index)).script]
+    def _scripts(self, index: int, prv_keys: PrvKeys | None) -> list[bytes]:
+        return [ScriptPubKey.p2sh(self.inner.redeem_script(index, prv_keys)).script]
 
     def _satisfy(
-        self, signatures: Mapping[bytes, bytes], index: int
+        self,
+        signatures: Mapping[bytes, bytes],
+        index: int,
+        prv_keys: PrvKeys | None,
     ) -> tuple[bytes, Witness]:
         """Return the argument's satisfaction, the redeem script pushed last.
 
@@ -797,11 +909,11 @@ class ShDescriptor(Descriptor):
         pushes and nothing else, so serializing them together and
         serializing them apart give the same bytes.
         """
-        script_sig, witness = self.inner._satisfy(signatures, index)
-        redeem_script = self.inner.redeem_script(index)
+        script_sig, witness = self.inner._satisfy(signatures, index, prv_keys)
+        redeem_script = self.inner.redeem_script(index, prv_keys)
         return script_sig + serialize(cast(ScriptList, [redeem_script])), witness
 
-    def _update(self, psbt_in: PsbtIn, index: int) -> None:
+    def _update(self, psbt_in: PsbtIn, index: int, prv_keys: PrvKeys | None) -> None:
         """Fill the redeem script, and let the argument fill its own fields.
 
         Delegated rather than dispatched on: the argument of a
@@ -809,8 +921,8 @@ class ShDescriptor(Descriptor):
         redeem script, and it is the same method that fills it for a
         native ``wsh()``.
         """
-        self.inner._update(psbt_in, index)
-        psbt_in.redeem_script = self.inner.redeem_script(index)
+        self.inner._update(psbt_in, index, prv_keys)
+        psbt_in.redeem_script = self.inner.redeem_script(index, prv_keys)
 
 
 @dataclass(frozen=True)
@@ -824,11 +936,14 @@ class WshDescriptor(Descriptor):
         """Return the wrapped SCRIPT's KEY expressions."""
         return self.inner.key_expressions
 
-    def _scripts(self, index: int) -> list[bytes]:
-        return [ScriptPubKey.p2wsh(self.inner.redeem_script(index)).script]
+    def _scripts(self, index: int, prv_keys: PrvKeys | None) -> list[bytes]:
+        return [ScriptPubKey.p2wsh(self.inner.redeem_script(index, prv_keys)).script]
 
     def _satisfy(
-        self, signatures: Mapping[bytes, bytes], index: int
+        self,
+        signatures: Mapping[bytes, bytes],
+        index: int,
+        prv_keys: PrvKeys | None,
     ) -> tuple[bytes, Witness]:
         """Return the witness of a p2wsh spend: the stack, then the script.
 
@@ -837,18 +952,18 @@ class WshDescriptor(Descriptor):
         stack already, so BIP141 puts them in it one by one and the
         witness script last.
         """
-        stack = self.inner._stack(signatures, index)
-        return b"", Witness([*stack, self.inner.redeem_script(index)])
+        stack = self.inner._stack(signatures, index, prv_keys)
+        return b"", Witness([*stack, self.inner.redeem_script(index, prv_keys)])
 
-    def _update(self, psbt_in: PsbtIn, index: int) -> None:
+    def _update(self, psbt_in: PsbtIn, index: int, prv_keys: PrvKeys | None) -> None:
         """Fill the witness script; the redeem script is ``sh()``'s to fill.
 
         Which is the whole difference between a native ``wsh()`` and a
         wrapped one, in the psbt as in the spend: the same witness script,
         and a redeem script only where something wraps it.
         """
-        self.inner._update(psbt_in, index)
-        psbt_in.witness_script = self.inner.redeem_script(index)
+        self.inner._update(psbt_in, index, prv_keys)
+        psbt_in.witness_script = self.inner.redeem_script(index, prv_keys)
 
 
 @dataclass(frozen=True)
@@ -867,7 +982,7 @@ class MultiDescriptor(Descriptor):
         """Return the KEY expressions, in descriptor order."""
         return self.keys
 
-    def _pub_keys(self, index: int) -> list[bytes]:
+    def _pub_keys(self, index: int, prv_keys: PrvKeys | None) -> list[bytes]:
         """Return the keys in the order the script holds them.
 
         `sorted` and not `p2ms`'s own `lexicographic_sorting`, which
@@ -875,19 +990,24 @@ class MultiDescriptor(Descriptor):
         a satisfaction go in, so one of the two has somewhere to ask for
         it rather than a second copy of the rule.
         """
-        pub_keys = [key.sec(index, self.network) for key in self.keys]
+        pub_keys = [key.sec(index, self.network, prv_keys) for key in self.keys]
         return sorted(pub_keys) if self.sort else pub_keys
 
-    def _scripts(self, index: int) -> list[bytes]:
+    def _scripts(self, index: int, prv_keys: PrvKeys | None) -> list[bytes]:
         script_pub_key = ScriptPubKey.p2ms(
             self.threshold,
-            self._pub_keys(index),
+            self._pub_keys(index, prv_keys),
             self.network,
             lexicographic_sorting=False,
         )
         return [script_pub_key.script]
 
-    def _stack(self, signatures: Mapping[bytes, bytes], index: int) -> list[bytes]:
+    def _stack(
+        self,
+        signatures: Mapping[bytes, bytes],
+        index: int,
+        prv_keys: PrvKeys | None,
+    ) -> list[bytes]:
         """Return the dummy element and `threshold` signatures, in key order.
 
         OP_CHECKMULTISIG walks the signatures and the keys in one pass
@@ -901,7 +1021,8 @@ class MultiDescriptor(Descriptor):
         reading, which BIP147 requires to be the empty push.
         """
         offered = [
-            (sec, _offered_signature(signatures, sec)) for sec in self._pub_keys(index)
+            (sec, _offered_signature(signatures, sec))
+            for sec in self._pub_keys(index, prv_keys)
         ]
         found = [signature for _, signature in offered if signature is not None]
         if len(found) < self.threshold:
@@ -927,8 +1048,8 @@ class ComboDescriptor(Descriptor):
         """Return the one KEY expression, as the base class's tuple."""
         return (self.key,)
 
-    def _scripts(self, index: int) -> list[bytes]:
-        pub_key = self.key.sec(index, self.network)
+    def _scripts(self, index: int, prv_keys: PrvKeys | None) -> list[bytes]:
+        pub_key = self.key.sec(index, self.network, prv_keys)
         scripts = [
             ScriptPubKey.p2pk(pub_key).script,
             ScriptPubKey.p2pkh(pub_key).script,
@@ -939,7 +1060,10 @@ class ComboDescriptor(Descriptor):
         return scripts
 
     def _satisfy(
-        self, signatures: Mapping[bytes, bytes], index: int
+        self,
+        signatures: Mapping[bytes, bytes],
+        index: int,
+        prv_keys: PrvKeys | None,
     ) -> tuple[bytes, Witness]:
         """Refuse: four scripts, and each of them spent differently.
 
@@ -951,7 +1075,7 @@ class ComboDescriptor(Descriptor):
         err_msg = "combo() is four scripts: satisfy the one being spent"
         raise BTClibValueError(err_msg)
 
-    def _update(self, psbt_in: PsbtIn, index: int) -> None:
+    def _update(self, psbt_in: PsbtIn, index: int, prv_keys: PrvKeys | None) -> None:
         """Refuse: the four scripts are updated into an input differently.
 
         One of them is p2sh and wants a redeem script, the other three
@@ -975,11 +1099,14 @@ class AddrDescriptor(Descriptor):
         """Return no KEY expression, the descriptor fixing none."""
         return ()
 
-    def _scripts(self, index: int) -> list[bytes]:
+    def _scripts(self, index: int, prv_keys: PrvKeys | None) -> list[bytes]:
         return [ScriptPubKey.from_address(self.addr).script]
 
     def _satisfy(
-        self, signatures: Mapping[bytes, bytes], index: int
+        self,
+        signatures: Mapping[bytes, bytes],
+        index: int,
+        prv_keys: PrvKeys | None,
     ) -> tuple[bytes, Witness]:
         """Refuse: an address names a script and not what spends it.
 
@@ -990,7 +1117,7 @@ class AddrDescriptor(Descriptor):
         """
         raise BTClibValueError("addr() cannot be satisfied: it holds no key")
 
-    def _update(self, psbt_in: PsbtIn, index: int) -> None:
+    def _update(self, psbt_in: PsbtIn, index: int, prv_keys: PrvKeys | None) -> None:
         """Refuse: there is nothing of an address to write into an input.
 
         No key, so no origin; no script below the address, so no redeem or
@@ -1011,11 +1138,14 @@ class RawDescriptor(Descriptor):
         """Return no KEY expression, the descriptor fixing none."""
         return ()
 
-    def _scripts(self, index: int) -> list[bytes]:
+    def _scripts(self, index: int, prv_keys: PrvKeys | None) -> list[bytes]:
         return [self.script]
 
     def _satisfy(
-        self, signatures: Mapping[bytes, bytes], index: int
+        self,
+        signatures: Mapping[bytes, bytes],
+        index: int,
+        prv_keys: PrvKeys | None,
     ) -> tuple[bytes, Witness]:
         """Refuse: a script and no key expression to satisfy it with.
 
@@ -1026,7 +1156,7 @@ class RawDescriptor(Descriptor):
         """
         raise BTClibValueError("raw() cannot be satisfied: it holds no key")
 
-    def _update(self, psbt_in: PsbtIn, index: int) -> None:
+    def _update(self, psbt_in: PsbtIn, index: int, prv_keys: PrvKeys | None) -> None:
         """Refuse, for the reason ``addr()`` does: bytes hold no key origin.
 
         Those bytes may be the script an input spends, and they are then
@@ -1050,17 +1180,21 @@ class TrDescriptor(Descriptor):
             return (self.internal_key,)
         return (self.internal_key, *_tree_keys(self.tree))
 
-    def _scripts(self, index: int) -> list[bytes]:
+    def _scripts(self, index: int, prv_keys: PrvKeys | None) -> list[bytes]:
         script_tree = (
             None
             if self.tree is None
-            else _taproot_script_tree(self.tree, index, self.network)
+            else _taproot_script_tree(self.tree, index, self.network, prv_keys)
         )
-        internal_key = self.internal_key.sec(index, self.network)
+        internal_key = self.internal_key.sec(index, self.network, prv_keys)
         return [ScriptPubKey.p2tr(internal_key, script_tree).script]
 
     def _leaf(
-        self, script_tree: TaprootScriptTree, index: int, leaf: int
+        self,
+        script_tree: TaprootScriptTree,
+        index: int,
+        leaf: int,
+        prv_keys: PrvKeys | None,
     ) -> tuple[bytes, bytes]:
         """Return one leaf's serialized script and its control block.
 
@@ -1069,11 +1203,13 @@ class TrDescriptor(Descriptor):
         callers have computed it already -- and because a ``tr()`` with no
         tree has no leaf, which they answer for themselves.
         """
-        internal_key = self.internal_key.sec(index, self.network)
+        internal_key = self.internal_key.sec(index, self.network, prv_keys)
         script, control_block = input_script_sig(internal_key, script_tree, leaf)
         return serialize(script), control_block
 
-    def taproot_merkle_root(self, index: int = 0) -> bytes:
+    def taproot_merkle_root(
+        self, index: int = 0, prv_keys: PrvKeys | None = None
+    ) -> bytes:
         """Return the root the output key commits to, b"" where there is none.
 
         BIP371's PSBT_IN_TAP_MERKLE_ROOT, and empty is how that field
@@ -1083,9 +1219,13 @@ class TrDescriptor(Descriptor):
         self._assert_index(index)
         if self.tree is None:
             return b""
-        return tree_helper(_taproot_script_tree(self.tree, index, self.network))[1]
+        return tree_helper(
+            _taproot_script_tree(self.tree, index, self.network, prv_keys)
+        )[1]
 
-    def taproot_leaf_scripts(self, index: int = 0) -> dict[bytes, tuple[bytes, int]]:
+    def taproot_leaf_scripts(
+        self, index: int = 0, prv_keys: PrvKeys | None = None
+    ) -> dict[bytes, tuple[bytes, int]]:
         """Return every leaf script and its version, keyed by control block.
 
         The shape of BIP371's PSBT_IN_TAP_LEAF_SCRIPT, and the field an
@@ -1097,15 +1237,15 @@ class TrDescriptor(Descriptor):
         self._assert_index(index)
         if self.tree is None:
             return {}
-        script_tree = _taproot_script_tree(self.tree, index, self.network)
+        script_tree = _taproot_script_tree(self.tree, index, self.network, prv_keys)
         leaf_scripts: dict[bytes, tuple[bytes, int]] = {}
         for leaf in range(len(_tree_leaves(self.tree))):
-            script, control_block = self._leaf(script_tree, index, leaf)
+            script, control_block = self._leaf(script_tree, index, leaf, prv_keys)
             leaf_scripts[control_block] = (script, _TAPSCRIPT_LEAF_VERSION)
         return leaf_scripts
 
     def _taproot_hd_key_paths(
-        self, index: int
+        self, index: int, prv_keys: PrvKeys | None
     ) -> dict[bytes, tuple[list[bytes], BIP32KeyOrigin]]:
         """Return each key's origin and leaf hashes, keyed by x-only key.
 
@@ -1127,13 +1267,13 @@ class TrDescriptor(Descriptor):
         """
         leaf_hashes: dict[bytes, list[bytes]] = {}
         if self.tree is not None:
-            script_tree = _taproot_script_tree(self.tree, index, self.network)
+            script_tree = _taproot_script_tree(self.tree, index, self.network, prv_keys)
             for number, leaf in enumerate(_tree_leaves(self.tree)):
-                script = self._leaf(script_tree, index, number)[0]
+                script = self._leaf(script_tree, index, number, prv_keys)[0]
                 hash_ = leaf_hash(_TAPSCRIPT_LEAF_VERSION, script)
                 for key in _leaf_keys(leaf):
                     hashes = leaf_hashes.setdefault(
-                        key.sec(index, self.network)[1:], []
+                        key.sec(index, self.network, prv_keys)[1:], []
                     )
                     if hash_ not in hashes:
                         hashes.append(hash_)
@@ -1142,12 +1282,15 @@ class TrDescriptor(Descriptor):
             origin = _derived_origin(key, index)
             if origin is None:
                 continue
-            x_only = key.sec(index, self.network)[1:]
+            x_only = key.sec(index, self.network, prv_keys)[1:]
             hd_key_paths[x_only] = (leaf_hashes.get(x_only, []), origin)
         return hd_key_paths
 
     def _satisfy(
-        self, signatures: Mapping[bytes, bytes], index: int
+        self,
+        signatures: Mapping[bytes, bytes],
+        index: int,
+        prv_keys: PrvKeys | None,
     ) -> tuple[bytes, Witness]:
         """Return the witness of a key path spend, or of a script path one.
 
@@ -1176,22 +1319,22 @@ class TrDescriptor(Descriptor):
         The script_sig is empty whichever path is taken: BIP341 spends
         a witness v1 program with the witness alone.
         """
-        internal_key = self.internal_key.sec(index, self.network)
+        internal_key = self.internal_key.sec(index, self.network, prv_keys)
         signature = _offered_signature(signatures, internal_key, x_only=True)
         if signature is not None:
             return b"", Witness([signature])
         if self.tree is None:
             raise BTClibValueError("no signature for the tr() internal key")
-        script_tree = _taproot_script_tree(self.tree, index, self.network)
+        script_tree = _taproot_script_tree(self.tree, index, self.network, prv_keys)
         for number, leaf in enumerate(_tree_leaves(self.tree)):
-            stack = _leaf_stack(leaf, signatures, index, self.network)
+            stack = _leaf_stack(leaf, signatures, index, self.network, prv_keys)
             if stack is not None:
-                script, control_block = self._leaf(script_tree, index, number)
+                script, control_block = self._leaf(script_tree, index, number, prv_keys)
                 return b"", Witness([*stack, script, control_block])
         err_msg = "no signature for the tr() internal key or for any of its leaves"
         raise BTClibValueError(err_msg)
 
-    def _update(self, psbt_in: PsbtIn, index: int) -> None:
+    def _update(self, psbt_in: PsbtIn, index: int, prv_keys: PrvKeys | None) -> None:
         """Fill the four taproot fields: internal key, root, leaves, origins.
 
         This replaces the base method rather than adding to it: a taproot
@@ -1200,15 +1343,17 @@ class TrDescriptor(Descriptor):
         same key twice in two spellings, for a signer that signs with
         neither.
         """
-        psbt_in.taproot_internal_key = self.internal_key.sec(index, self.network)[1:]
-        psbt_in.taproot_merkle_root = self.taproot_merkle_root(index)
+        psbt_in.taproot_internal_key = self.internal_key.sec(
+            index, self.network, prv_keys
+        )[1:]
+        psbt_in.taproot_merkle_root = self.taproot_merkle_root(index, prv_keys)
         psbt_in.taproot_leaf_scripts = {
             **psbt_in.taproot_leaf_scripts,
-            **self.taproot_leaf_scripts(index),
+            **self.taproot_leaf_scripts(index, prv_keys),
         }
         psbt_in.taproot_hd_key_paths = {
             **psbt_in.taproot_hd_key_paths,
-            **self._taproot_hd_key_paths(index),
+            **self._taproot_hd_key_paths(index, prv_keys),
         }
 
 
@@ -1325,6 +1470,27 @@ def _is_extended_key(key: str) -> bool:
     return True
 
 
+def _neutered(xkey: str, prv_keys: dict[str, str]) -> str:
+    """Return the public spelling of an extended key, filing the private one.
+
+    The one place a descriptor's private material is separated from the
+    descriptor, and the reason `KeyExpression.xkey` can be said to be
+    public: an xprv is answered with its xpub, and the xprv goes to the
+    caller's mapping under that xpub. An xpub is answered with itself and
+    files nothing.
+
+    Filed under the public spelling, so that what indexes the mapping is
+    not itself a secret -- which is how Bitcoin Core keys the
+    `FlatSigningProvider` its own parser fills, by the id of the public
+    key rather than by anything that signs.
+    """
+    if not BIP32KeyData.b58decode(xkey).is_private:
+        return xkey
+    xpub = xpub_from_xprv(xkey)
+    prv_keys[xpub] = xkey
+    return xpub
+
+
 def _origin_and_rest(expression: str) -> tuple[BIP32KeyOrigin | None, str]:
     """Split the `[fingerprint/path]` prefix off a KEY expression."""
     if not expression.startswith("["):
@@ -1371,7 +1537,11 @@ def _fixed_pub_key(key: str, *, x_only: bool) -> tuple[bytes, bool]:
 
 
 def _parse_key(
-    expression: str, *, x_only: bool = False, compressed: bool = False
+    expression: str,
+    prv_keys: dict[str, str],
+    *,
+    x_only: bool = False,
+    compressed: bool = False,
 ) -> KeyExpression:
     """Return the KeyExpression of a BIP380 KEY expression.
 
@@ -1386,7 +1556,7 @@ def _parse_key(
         steps, wildcard = _split_wildcard(path.split("/") if separator else [])
         return KeyExpression(
             origin=origin,
-            xkey=key,
+            xkey=_neutered(key, prv_keys),
             der_path=tuple(_der_path("/".join(steps))),
             wildcard=wildcard,
         )
@@ -1399,7 +1569,7 @@ def _parse_key(
     return key_expression
 
 
-def _parse_multi_a(name: str, args: list[str]) -> MultiA:
+def _parse_multi_a(name: str, args: list[str], prv_keys: dict[str, str]) -> MultiA:
     """Return the leaf of a BIP387 ``multi_a()`` or ``sortedmulti_a()``.
 
     The keys are read as a ``pk()`` leaf's key is, which is what allows
@@ -1411,11 +1581,13 @@ def _parse_multi_a(name: str, args: list[str]) -> MultiA:
         raise BTClibValueError(f"{name}() takes a threshold and at least one key")
     if not _THRESHOLD.fullmatch(args[0]):
         raise BTClibValueError(f"invalid {name}() threshold: {args[0]}")
-    keys = tuple(_parse_key(key, x_only=True, compressed=True) for key in args[1:])
+    keys = tuple(
+        _parse_key(key, prv_keys, x_only=True, compressed=True) for key in args[1:]
+    )
     return MultiA(int(args[0]), keys, sort=name == "sortedmulti_a")
 
 
-def _parse_tree(expression: str) -> DescriptorTree:
+def _parse_tree(expression: str, prv_keys: dict[str, str]) -> DescriptorTree:
     """Return the script tree of a BIP386 TREE expression."""
     if expression.startswith("{"):
         if not expression.endswith("}"):
@@ -1424,15 +1596,18 @@ def _parse_tree(expression: str) -> DescriptorTree:
         if len(branches) != 2:
             err_msg = f"a tr() branch takes two subtrees, {len(branches)} given"
             raise BTClibValueError(err_msg)
-        return (_parse_tree(branches[0]), _parse_tree(branches[1]))
+        return (
+            _parse_tree(branches[0], prv_keys),
+            _parse_tree(branches[1], prv_keys),
+        )
     name, arguments = _split_function(expression)
     _assert_implemented(name)
     args = _split_arguments(arguments)
     if name in _TREE_FUNCTIONS:
-        return _parse_multi_a(name, args)
+        return _parse_multi_a(name, args, prv_keys)
     if name != "pk":
         raise NotImplementedError(f"{name}() inside tr() is not implemented")
-    return _parse_key(_one_argument(args, name), x_only=True, compressed=True)
+    return _parse_key(_one_argument(args, name), prv_keys, x_only=True, compressed=True)
 
 
 # inside a witness program an uncompressed key is unspendable, so
@@ -1442,77 +1617,111 @@ def _no_uncompressed(context: str) -> bool:
     return context in (_P2WSH, _P2TR)
 
 
-def _parse_pk(args: list[str], context: str, network: str) -> Descriptor:
+def _parse_pk(
+    args: list[str], context: str, network: str, prv_keys: dict[str, str]
+) -> Descriptor:
     key = _parse_key(
         _one_argument(args, "pk"),
+        prv_keys,
         x_only=context == _P2TR,
         compressed=_no_uncompressed(context),
     )
     return PkDescriptor(key, network=network)
 
 
-def _parse_pkh(args: list[str], context: str, network: str) -> Descriptor:
-    key = _parse_key(_one_argument(args, "pkh"), compressed=_no_uncompressed(context))
+def _parse_pkh(
+    args: list[str], context: str, network: str, prv_keys: dict[str, str]
+) -> Descriptor:
+    key = _parse_key(
+        _one_argument(args, "pkh"), prv_keys, compressed=_no_uncompressed(context)
+    )
     return PkhDescriptor(key, network=network)
 
 
-def _parse_wpkh(args: list[str], context: str, network: str) -> Descriptor:
-    key = _parse_key(_one_argument(args, "wpkh"), compressed=True)
+def _parse_wpkh(
+    args: list[str], context: str, network: str, prv_keys: dict[str, str]
+) -> Descriptor:
+    key = _parse_key(_one_argument(args, "wpkh"), prv_keys, compressed=True)
     return WpkhDescriptor(key, network=network)
 
 
-def _parse_combo(args: list[str], context: str, network: str) -> Descriptor:
-    return ComboDescriptor(_parse_key(_one_argument(args, "combo")), network=network)
+def _parse_combo(
+    args: list[str], context: str, network: str, prv_keys: dict[str, str]
+) -> Descriptor:
+    return ComboDescriptor(
+        _parse_key(_one_argument(args, "combo"), prv_keys), network=network
+    )
 
 
-def _parse_sh(args: list[str], context: str, network: str) -> Descriptor:
-    inner = _parse_expression(_one_argument(args, "sh"), _P2SH, network)
+def _parse_sh(
+    args: list[str], context: str, network: str, prv_keys: dict[str, str]
+) -> Descriptor:
+    inner = _parse_expression(_one_argument(args, "sh"), _P2SH, network, prv_keys)
     return ShDescriptor(inner, network=network)
 
 
-def _parse_wsh(args: list[str], context: str, network: str) -> Descriptor:
-    inner = _parse_expression(_one_argument(args, "wsh"), _P2WSH, network)
+def _parse_wsh(
+    args: list[str], context: str, network: str, prv_keys: dict[str, str]
+) -> Descriptor:
+    inner = _parse_expression(_one_argument(args, "wsh"), _P2WSH, network, prv_keys)
     return WshDescriptor(inner, network=network)
 
 
-def _parse_multi(name: str, args: list[str], context: str, network: str) -> Descriptor:
+def _parse_multi(
+    name: str,
+    args: list[str],
+    context: str,
+    network: str,
+    prv_keys: dict[str, str],
+) -> Descriptor:
     if len(args) < 2:
         raise BTClibValueError(f"{name}() takes a threshold and at least one key")
     if not _THRESHOLD.fullmatch(args[0]):
         raise BTClibValueError(f"invalid {name}() threshold: {args[0]}")
     keys = tuple(
-        _parse_key(key, compressed=_no_uncompressed(context)) for key in args[1:]
+        _parse_key(key, prv_keys, compressed=_no_uncompressed(context))
+        for key in args[1:]
     )
     return MultiDescriptor(
         int(args[0]), keys, sort=name == "sortedmulti", network=network
     )
 
 
-def _parse_ordered_multi(args: list[str], context: str, network: str) -> Descriptor:
-    return _parse_multi("multi", args, context, network)
+def _parse_ordered_multi(
+    args: list[str], context: str, network: str, prv_keys: dict[str, str]
+) -> Descriptor:
+    return _parse_multi("multi", args, context, network, prv_keys)
 
 
-def _parse_sorted_multi(args: list[str], context: str, network: str) -> Descriptor:
-    return _parse_multi("sortedmulti", args, context, network)
+def _parse_sorted_multi(
+    args: list[str], context: str, network: str, prv_keys: dict[str, str]
+) -> Descriptor:
+    return _parse_multi("sortedmulti", args, context, network, prv_keys)
 
 
-def _parse_tr(args: list[str], context: str, network: str) -> Descriptor:
+def _parse_tr(
+    args: list[str], context: str, network: str, prv_keys: dict[str, str]
+) -> Descriptor:
     if len(args) > 2:
         err_msg = f"tr() takes a key and at most one tree, {len(args)} given"
         raise BTClibValueError(err_msg)
-    internal_key = _parse_key(args[0], x_only=True, compressed=True)
-    tree = None if len(args) == 1 else _parse_tree(args[1])
+    internal_key = _parse_key(args[0], prv_keys, x_only=True, compressed=True)
+    tree = None if len(args) == 1 else _parse_tree(args[1], prv_keys)
     return TrDescriptor(internal_key, tree, network=network)
 
 
-def _parse_addr(args: list[str], context: str, network: str) -> Descriptor:
+def _parse_addr(
+    args: list[str], context: str, network: str, prv_keys: dict[str, str]
+) -> Descriptor:
     address = _one_argument(args, "addr")
     # the network of an addr() descriptor is the address's own: it is
     # written in the prefix, so a parameter could only contradict it
     return AddrDescriptor(address, network=ScriptPubKey.from_address(address).network)
 
 
-def _parse_raw(args: list[str], context: str, network: str) -> Descriptor:
+def _parse_raw(
+    args: list[str], context: str, network: str, prv_keys: dict[str, str]
+) -> Descriptor:
     hex_script = _one_argument(args, "raw")
     try:
         script = bytes_from_octets(hex_script)
@@ -1528,7 +1737,8 @@ def _parse_raw(args: list[str], context: str, network: str) -> Descriptor:
 # position rule is the interesting half and belongs where it can be read
 # beside the others
 _PARSERS: dict[
-    str, tuple[tuple[str, ...], Callable[[list[str], str, str], Descriptor]]
+    str,
+    tuple[tuple[str, ...], Callable[[list[str], str, str, dict[str, str]], Descriptor]],
 ] = {
     "pk": ((_TOP, _P2SH, _P2WSH, _P2TR), _parse_pk),
     "pkh": ((_TOP, _P2SH, _P2WSH), _parse_pkh),
@@ -1544,7 +1754,9 @@ _PARSERS: dict[
 }
 
 
-def _parse_expression(expression: str, context: str, network: str) -> Descriptor:
+def _parse_expression(
+    expression: str, context: str, network: str, prv_keys: dict[str, str]
+) -> Descriptor:
     """Return the Descriptor of a SCRIPT expression, in its context."""
     name, arguments = _split_function(expression)
     _assert_implemented(name)
@@ -1558,12 +1770,18 @@ def _parse_expression(expression: str, context: str, network: str) -> Descriptor
         raise BTClibValueError(f"unknown descriptor function: {name}()")
     allowed, parser = _PARSERS[name]
     _assert_position(name, context, allowed)
-    return parser(_split_arguments(arguments), context, network)
+    return parser(_split_arguments(arguments), context, network, prv_keys)
 
 
-def parse(descriptor: str, network: str = "mainnet") -> Descriptor:
+def parse(
+    descriptor: str,
+    network: str = "mainnet",
+    prv_keys: dict[str, str] | None = None,
+) -> Descriptor:
     """Return the Descriptor of a descriptor string, checksum verified."""
-    return _parse_expression(strip_checksum(descriptor), _TOP, network)
+    if prv_keys is None:
+        prv_keys = {}
+    return _parse_expression(strip_checksum(descriptor), _TOP, network, prv_keys)
 
 
 def multipath_descriptors(descriptor: str) -> list[str]:

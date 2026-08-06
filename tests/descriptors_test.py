@@ -34,6 +34,7 @@ from hypothesis import strategies as st
 
 from btclib.alias import Octets
 from btclib.bip32 import BIP32KeyOrigin
+from btclib.bip32.bip32 import xpub_from_xprv
 from btclib.descriptors import (
     AddrDescriptor,
     ComboDescriptor,
@@ -68,6 +69,7 @@ from btclib.script.engine import verify_transaction
 from btclib.script.script import serialize
 from btclib.script.script_pub_key import ScriptPubKey
 from btclib.script.witness import Witness
+from btclib.to_prv_key import prv_keyinfo_from_prv_key
 from btclib.to_pub_key import pub_keyinfo_from_key
 from btclib.tx import OutPoint, Tx, TxIn, TxOut
 from tests import load, vector_id
@@ -455,16 +457,23 @@ def test_core_derivation_vector(
 
     Both spellings derive the same scripts at every index, and the
     addresses are the addresses of those very scripts.
+
+    The private material `parse` hands back goes into every expansion,
+    which four of these vectors need and the rest do not: a hardened step
+    under an xprv is the one thing an xpub cannot take, and the four
+    public spellings of those are `HARDENED_PUBLIC` below.
     """
     for descriptor in (private, public):
         if descriptor is None:
             continue
-        parsed = parse(descriptor)
+        prv_keys: dict[str, str] = {}
+        parsed = parse(descriptor, prv_keys=prv_keys)
+        assert prv_keys == {} or descriptor is private
         assert parsed.is_ranged == (len(scripts) > 1)
         for index, expected in enumerate(scripts):
-            derived = parsed.script_pub_keys(index)
+            derived = parsed.script_pub_keys(index, prv_keys)
             assert [spk.script.hex() for spk in derived] == expected
-            assert parsed.addresses(index) == [spk.address for spk in derived]
+            assert parsed.addresses(index, prv_keys) == [spk.address for spk in derived]
 
 
 @pytest.mark.parametrize(
@@ -666,6 +675,70 @@ def test_index_out_of_range() -> None:
     assert not fixed.is_ranged
     with pytest.raises(BTClibValueError, match="not a ranged descriptor"):
         fixed.script_pub_keys(1)
+
+
+def test_no_private_key_survives_the_parse() -> None:
+    """Nothing reachable from a parsed descriptor is a key that signs.
+
+    The whole object graph is searched and not `xkey` alone: what the
+    property has to be is that a descriptor cannot leak a secret, and a
+    field added later must not be the place it does.
+    """
+    xprv = (
+        "xprv9s21ZrQH143K3QTDL4LXw2F7HEK3wJUD2nW2nRk4stbPy6cq3jPPqjiChkVvv"
+        "NKmPGJxWUtg6LnF5kejMRNNU3TGtRBeJgk33yuGBxrMPHi"
+    )
+    wif = "L4rK1yDtCWekvXuE6oXD9jCYfFNV2cWRpVuPLBcCU2z8TrisoyY1"
+    descriptor = f"wsh(multi(1,{xprv}/10/20,{wif}))"
+
+    prv_keys: dict[str, str] = {}
+    parsed = parse(descriptor, prv_keys=prv_keys)
+
+    # the mapping is keyed by the public spelling, and holds the private
+    # one: the xprv left the descriptor rather than being dropped
+    xpub = xpub_from_xprv(xprv)
+    assert prv_keys == {xpub: xprv}
+    assert parsed.key_expressions[0].xkey == xpub
+
+    for secret in (xprv, wif, str(prv_keyinfo_from_prv_key(wif)[0])):
+        assert secret not in repr(parsed)
+        assert secret not in str(vars(parsed))
+
+    # and asking for nothing gets a descriptor with nothing in it
+    assert parse(descriptor).key_expressions[0].xkey == xpub
+
+    # the WIF was already public before this: no derivation is made from
+    # it and nothing here signs, so it is reduced and not filed
+    assert wif not in prv_keys.values()
+    assert parsed.key_expressions[1].pub_key == pub_keyinfo_from_key(wif)[0]
+
+
+def test_a_hardened_step_takes_the_keys_back() -> None:
+    """The parsed descriptor derives what an xpub can, and no more."""
+    xprv = (
+        "xprv9s21ZrQH143K3QTDL4LXw2F7HEK3wJUD2nW2nRk4stbPy6cq3jPPqjiChkVvv"
+        "NKmPGJxWUtg6LnF5kejMRNNU3TGtRBeJgk33yuGBxrMPHi"
+    )
+    prv_keys: dict[str, str] = {}
+    hardened = parse(f"wpkh({xprv}/10h/*)", prv_keys=prv_keys)
+
+    with pytest.raises(BTClibValueError, match="hardened derivation"):
+        hardened.script_pub_keys(0)
+    assert hardened.script_pub_keys(0, prv_keys)
+
+    # every expansion method takes them, and answers the same either way
+    # where the path has no hardened step to take
+    unhardened = parse(f"wpkh({xprv}/10/*)", prv_keys=prv_keys)
+    for index in (0, 7):
+        assert unhardened.script_pub_keys(index) == unhardened.script_pub_keys(
+            index, prv_keys
+        )
+        assert unhardened.address(index) == unhardened.address(index, prv_keys)
+
+    # a mapping that does not name this key leaves it as it is, so the
+    # hardened step is refused the way it is with no mapping at all
+    with pytest.raises(BTClibValueError, match="hardened derivation"):
+        hardened.script_pub_keys(0, {"xpub-of-somebody-else": xprv})
 
 
 def test_key_origin_is_kept() -> None:
@@ -919,11 +992,16 @@ BIP387_VECTORS: list[tuple[str, list[str]]] = [
     ],
 )
 def test_bip387_vector(descriptor: str, scripts: list[str]) -> None:
-    """Reproduce BIP387's own vectors: the script at each index it lists."""
-    parsed = parse(descriptor)
+    """Reproduce BIP387's own vectors: the script at each index it lists.
+
+    One of them takes a hardened step under an xprv, which is what the
+    private material `parse` hands back is for.
+    """
+    prv_keys: dict[str, str] = {}
+    parsed = parse(descriptor, prv_keys=prv_keys)
     assert parsed.is_ranged == (len(scripts) > 1)
     for index, expected in enumerate(scripts):
-        assert parsed.script_pub_key(index).script.hex() == expected
+        assert parsed.script_pub_key(index, prv_keys).script.hex() == expected
 
 
 # BIP387's invalid descriptors, and what each is refused with. The
