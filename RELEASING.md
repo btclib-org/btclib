@@ -191,18 +191,6 @@ pyroma), build, wheel smoke test — and publishes to
    commit and the attestations bound to it outliving any attempt to
    rewrite the history back.
 
-1. Dispatch the `rpc-smoke` workflow (Actions → rpc-smoke → Run workflow)
-   and see both cells green. It is the one job here that talks to a live
-   bitcoind: everything about the rpc client of `btclib.fetch` is otherwise
-   tested against recorded replies, which cannot say that Core still sends
-   them — so this asks the legacy compatibility boundary and current Core,
-   the last v27 release for the JSON-RPC 1.1 path and v31.1 for 2.0. That
-   first one is end of life upstream, which is what makes it the boundary:
-   it is the last major that does not know the 2.0 marker. Red here is a
-   release that must not describe that client as production ready.
-   CONTRIBUTING.md has the same command for a node of your own, and
-   `.github/workflows/rpc-smoke.yml` the rule for moving the two pins.
-
 1. Rehearse on TestPyPI (see above) from master.
 
 1. Tag the release commit and push the tag:
