@@ -171,6 +171,26 @@ pyroma), build, wheel smoke test — and publishes to
    [documentation](https://btclib.readthedocs.io/en/latest/) render
    correctly.
 
+   Two things about that pull request, both of them before the button
+   rather than after it.
+
+   Give it its title and its body. The title is the version; the body
+   says what the release is — what moved, what did not, and which of the
+   two a user would notice. A rebase leaves no merge commit, so none of
+   that reaches `master`'s history: the pull request is where it stays,
+   and where a reader of any commit in it arrives. A template left
+   unfilled, or a bot's summary of the diff, is not a substitute — the
+   summary can stay, but what the diff cannot say has to be written.
+
+   And merge it with **"Rebase and merge"**, never *"Squash and merge"*.
+   All three methods are enabled here and GitHub preselects whichever was
+   used last, so which button it is has to be read before it is pressed.
+   A squash folds every landed change into one commit, leaving `master`
+   with a single line where `dev` carried the reasoning one decision at a
+   time — and that cannot be undone afterwards, the tag on the squashed
+   commit and the attestations bound to it outliving any attempt to
+   rewrite the history back.
+
 1. Dispatch the `rpc-smoke` workflow (Actions → rpc-smoke → Run workflow)
    and see both cells green. It is the one job here that talks to a live
    bitcoind: everything about the rpc client of `btclib.fetch` is otherwise
@@ -231,9 +251,87 @@ pyroma), build, wheel smoke test — and publishes to
    `attestation_bundles[].publisher` should name this repository and
    `release.yml`.
 
+1. Realign `dev` onto `master`, before anything else is committed to it.
+   **Rebase and merge** replays `dev`'s commits with new SHAs, so the
+   moment a release lands the two branches hold the same tree through
+   different histories, and their merge base stops advancing. Left
+   alone, the next release's pull request presents the whole of this one
+   as new, and asks the rebase to replay commits `master` already
+   carries — which is exactly what happened to btclib-bitcoin-core-rpc
+   after its first rebase-and-merge release, `dev` and `master` sitting
+   on two different commits for the one that cut it, neither an ancestor
+   of the other. Archive what is about to become unreachable, then move
+   the branch:
+
+   ```shell
+   git fetch origin
+   git tag -a history/dev-2026.8.4 dev -m "dev's own commits for 2026.8.4"
+   git push origin history/dev-2026.8.4
+   git switch dev && git reset --hard origin/master
+   git push --force-with-lease origin dev
+   ```
+
+   the tag is what keeps `dev`'s own commits readable, and it must not
+   start with `v`, `release.yml` triggering on `tags: ["v*"]`. Nothing in
+   the working tree changes, the two trees being identical, and
+   `git diff origin/master origin/dev` is how to say so rather than
+   assume it.
+
+   That last push can fail on its own: `dev`'s branch protection blocking
+   force pushes is not one of the rules "Include administrators" being
+   off exempts an administrator from — that toggle covers required
+   reviews, required status checks, required signatures and required
+   linear history, and blocking force pushes is a rule of its own that
+   GitHub applies to every push over the git protocol regardless of who
+   is pushing. btclib_libsecp256k1's 0.7.1.1 release is where this was
+   learned: the maintainer's own push, run by hand, came back
+   `remote: - Cannot force-push to this branch`. What worked was flipping
+   the setting itself, immediately before the push and immediately
+   after, reading its other fields back first so the PUT does not
+   silently drop them:
+
+   ```shell
+   gh api repos/btclib-org/btclib/branches/dev/protection --jq \
+     '{required_status_checks, enforce_admins: .enforce_admins.enabled,
+       required_pull_request_reviews, restrictions,
+       required_linear_history: .required_linear_history.enabled,
+       allow_force_pushes: true, allow_deletions: .allow_deletions.enabled,
+       block_creations: .block_creations.enabled,
+       required_conversation_resolution: .required_conversation_resolution.enabled,
+       lock_branch: .lock_branch.enabled,
+       allow_fork_syncing: .allow_fork_syncing.enabled}' \
+     | gh api -X PUT repos/btclib-org/btclib/branches/dev/protection --input -
+   ```
+
+   push, then set `allow_force_pushes` back to `false` through the same
+   PUT at once — the setting, not only this one push, is what stands open
+   in between.
+
+   Every branch still open against `dev` has had its base moved out from
+   under it, and reports the whole release as its own diff until it is
+   rebased:
+
+   ```shell
+   git rebase --onto origin/master <the old dev tip> <branch>
+   ```
+
+   this comes before the next step rather than after it: that step's
+   bump is on `dev`, and the force update above would discard it.
+
 1. Open the next cycle: set a generic next version without the day
    (e.g. after 2026.8.4, use 2026.9) in pyproject.toml, and start a new
    "work in progress" section in HISTORY.md and CHANGELOG.md.
+
+1. Open a draft pull request from `dev` to `master` for the cycle just
+   opened, title included, and leave its body for what the merge step
+   above already asks for: written before the release is cut, not
+   reconstructed from the diff at the last minute. A draft one is what
+   that step could not be until now — everything that lands on `dev`
+   between one release and the next has a place to be described as it
+   lands, rather than a promise kept only if someone remembers to keep
+   it. Marking it ready and pressing **Rebase and merge** is what that
+   step still is; this one is what makes reaching it with a body already
+   written the ordinary case rather than the exception.
 
 ## If something goes wrong
 
