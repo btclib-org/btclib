@@ -322,6 +322,17 @@ pyroma), build, wheel smoke test — and publishes to
    (e.g. after 2026.8.4, use 2026.9) in pyproject.toml, and start a new
    "work in progress" section in HISTORY.md and CHANGELOG.md.
 
+1. Open a draft pull request from `dev` to `master` for the cycle just
+   opened, title included, and leave its body for what the merge step
+   above already asks for: written before the release is cut, not
+   reconstructed from the diff at the last minute. A draft one is what
+   that step could not be until now — everything that lands on `dev`
+   between one release and the next has a place to be described as it
+   lands, rather than a promise kept only if someone remembers to keep
+   it. Marking it ready and pressing **Rebase and merge** is what that
+   step still is; this one is what makes reaching it with a body already
+   written the ordinary case rather than the exception.
+
 ## If something goes wrong
 
 - The workflow failed before the `publish-pypi` job: nothing was
