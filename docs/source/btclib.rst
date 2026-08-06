@@ -132,6 +132,13 @@ btclib.number\_theory module
    :members:
    :show-inheritance:
 
+btclib.psbt\_signer module
+--------------------------
+
+.. automodule:: btclib.psbt_signer
+   :members:
+   :show-inheritance:
+
 btclib.slip132 module
 ---------------------
 
