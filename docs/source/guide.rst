@@ -680,14 +680,26 @@ puts it in:
 600000000
 
 **Signer.** btclib does not sign a PSBT for you — it has no idea which
-keys are yours. You compute the sighash and put the signature in the
-slot BIP174 defines for it, keyed by public key, with the hash type
+keys are yours. What it hands you is the message: ``ecdsa_sig_hash``
+reads the utxo and the scripts off the psbt, which is where a psbt keeps
+them, and returns the hash the input signs. The signature then goes in
+the slot BIP174 defines for it, keyed by public key, with the hash type
 appended:
 
->>> msg_hash = sig_hash.from_tx([prevout], psbt.tx, 0, 0x01)
+>>> from btclib.psbt import ecdsa_sig_hash
+>>> msg_hash = ecdsa_sig_hash(psbt, 0)
 >>> der = dsa.sign_(msg_hash, prv_key).serialize()
 >>> psbt.inputs[0].partial_sigs = {pub_key: der + b"\x01"}
 >>> psbt.assert_signable()
+
+The hash type is the one the input asks for, ``SIGHASH_ALL`` when it
+asks for none, and a keyword argument when the signer chooses.
+``sig_hash.from_tx`` above cannot serve here: it reads the redeem script
+out of an input's script_sig and the witness script off its witness
+stack, and an unsigned transaction has neither — in a psbt they are
+fields. A taproot input signs ``taproot_sig_hash`` instead, its
+signature being schnorr and travelling in the taproot fields rather than
+in ``partial_sigs``.
 
 A PSBT survives base64 round-tripping, which is how it moves between
 programs:

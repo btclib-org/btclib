@@ -467,12 +467,14 @@ def test_psbt_exports_the_format_not_its_plumbing() -> None:
         "PsbtIn",
         "PsbtOut",
         "combine",
+        "ecdsa_sig_hash",
         "estimated_input_sizes",
         "extract_tx",
         "finalize",
         "join",
         "musig2",
         "prevouts",
+        "taproot_sig_hash",
     ]
 
     # BIP373 is a role, so the module is the name, as btclib.ecc.dsa is

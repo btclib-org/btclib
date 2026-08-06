@@ -64,6 +64,7 @@ from btclib.script.script_pub_key import (
     is_p2wpkh,
     is_p2wsh,
     is_segwit,
+    p2ms_m_and_keys,
     type_and_payload,
 )
 from btclib.script.sig_ops import sig_op_count
@@ -110,6 +111,7 @@ __all__ = [
     "op_int",
     "output_prvkey",
     "output_pubkey",
+    "p2ms_m_and_keys",
     "parse",
     "script_from_dict",
     "script_to_dict",

@@ -24,6 +24,7 @@ from btclib.psbt import (
     PsbtIn,
     PsbtOut,
     combine,
+    ecdsa_sig_hash,
     extract_tx,
     finalize,
     join,
@@ -2075,7 +2076,9 @@ def test_a_single_key_input_takes_one_signature() -> None:
 # signatures'
 
 
-def _multisig_psbt(threshold: int, kind: str) -> tuple[Psbt, list[TxOut]]:
+def _multisig_psbt(
+    threshold: int, kind: str, signers: int | None = None
+) -> tuple[Psbt, list[TxOut]]:
     """Build a one-input threshold-of-2 psbt, signed and not finalized.
 
     `_single_key_psbt` one key further, and the four kinds are the four
@@ -2088,6 +2091,12 @@ def _multisig_psbt(threshold: int, kind: str) -> tuple[Psbt, list[TxOut]]:
     `lexicographic_sorting=False` makes the order given here:
     OP_CHECKMULTISIG never goes back, so a witness ordered otherwise is
     one the engine refuses whatever the dummy.
+
+    `signers` is how many of the two sign, and defaults to the threshold,
+    which is the psbt a coordinator stops collecting at. The other two
+    counts are what a Finalizer has to answer for: everyone signing a
+    1-of-2, which is more signatures than the script pops, and one
+    signer of a 2-of-2, which is fewer.
     """
     keys = [_PUB_KEY, _OTHER_PUB_KEY]
     multisig = ScriptPubKey.p2ms(threshold, keys, lexicographic_sorting=False).script
@@ -2121,7 +2130,7 @@ def _multisig_psbt(threshold: int, kind: str) -> tuple[Psbt, list[TxOut]]:
         # script and for a bare multisig the script_pub_key: the same
         # bytes either way here
         msg_hash = sig_hash.legacy(multisig, tx, 0, 1)
-    prv_keys = [_PRV_KEY, _OTHER_PRV_KEY][:threshold]
+    prv_keys = [_PRV_KEY, _OTHER_PRV_KEY][: threshold if signers is None else signers]
     psbt.inputs[0].partial_sigs = {
         pub_keyinfo_from_prv_key(prv_key)[0]: dsa.sign_(msg_hash, prv_key).serialize()
         + b"\x01"
@@ -2213,6 +2222,116 @@ def test_an_input_that_says_no_script_is_left_with_the_count() -> None:
     assert final.final_script_sig == serialize([b"", *sigs])
 
 
+def _spent_with(
+    psbt_in: PsbtIn, sigs: tuple[bytes, ...]
+) -> tuple[bytes, tuple[bytes, ...]]:
+    """Return the script_sig and witness stack a multisig input spends with.
+
+    The shape the test above asserts, as the expectation of the tests
+    below, which vary the signatures rather than the kind: BIP147's empty
+    element, the signatures, and the script the spend names -- the
+    witness script in the witness of a p2wsh, the redeem script last in
+    the script_sig of everything else.
+
+    The input has to be the one before `finalize`, which clears both
+    scripts.
+    """
+    redeem_script = [psbt_in.redeem_script] if psbt_in.redeem_script else []
+    if psbt_in.witness_script:
+        return serialize(redeem_script), (b"", *sigs, psbt_in.witness_script)
+    return serialize([b"", *sigs, *redeem_script]), ()
+
+
+@pytest.mark.parametrize("kind", ["multi", "sh-multi", "wsh-multi", "sh-wsh-multi"])
+def test_a_multisig_input_is_spent_in_the_order_the_script_lists_its_keys(
+    kind: str,
+) -> None:
+    """The Finalizer orders the signatures, and the dict does not (issue #431).
+
+    OP_CHECKMULTISIG walks the keys forward and never goes back, so the
+    signatures have to arrive in the order the script lists the keys they
+    belong to. `partial_sigs` cannot supply it: a dict holds what it was
+    given in the order it was given, and `combine` merges with an update,
+    so for a coordinator it is the order the copies came back in.
+
+    Reversing the map is that coordinator, and the engine is the
+    authority on the result.
+    """
+    psbt, prev_outs = _multisig_psbt(2, kind)
+    in_script_order = tuple(psbt.inputs[0].partial_sigs.values())
+    expected = _spent_with(psbt.inputs[0], in_script_order)
+    psbt.inputs[0].partial_sigs = dict(
+        reversed(list(psbt.inputs[0].partial_sigs.items()))
+    )
+
+    finalized = finalize(psbt)
+    verify_transaction(prev_outs, extract_tx(finalized, check_validity=False))
+    final = finalized.inputs[0]
+    assert (final.final_script_sig, final.final_script_witness.stack) == expected
+
+
+@pytest.mark.parametrize("kind", ["multi", "sh-multi", "wsh-multi", "sh-wsh-multi"])
+def test_a_multisig_input_pushes_the_threshold_and_not_every_signature(
+    kind: str,
+) -> None:
+    """A 1-of-2 both participants signed spends with one (issue #431).
+
+    OP_CHECKMULTISIG pops as many signatures as the script says and then
+    one element more, which BIP147 requires to be empty. Pushing both
+    signatures therefore puts the first of them where the dummy belongs,
+    and the spend fails on the dummy rule with the real dummy left over.
+
+    Which of the two is kept is the script's answer and not the map's:
+    the first key it lists that has signed.
+    """
+    psbt, prev_outs = _multisig_psbt(1, kind, signers=2)
+    first_in_script_order = next(iter(psbt.inputs[0].partial_sigs.values()))
+    expected = _spent_with(psbt.inputs[0], (first_in_script_order,))
+
+    finalized = finalize(psbt)
+    verify_transaction(prev_outs, extract_tx(finalized, check_validity=False))
+    final = finalized.inputs[0]
+    assert (final.final_script_sig, final.final_script_witness.stack) == expected
+
+
+def test_a_multisig_input_short_of_the_threshold_is_not_finalized() -> None:
+    """One signature does not satisfy a 2-of-2 (issue #431).
+
+    The Finalizer's own question -- whether the input has enough data to
+    pass validation -- and for a multisig the script answers it. What
+    used to be built instead was a script_sig one element short, which
+    only the engine then refused.
+    """
+    psbt, _ = _multisig_psbt(2, "multi", signers=1)
+    with pytest.raises(BTClibValueError, match="1 signatures for a 2-of-2 multisig"):
+        finalize(psbt)
+
+
+def test_a_signature_of_a_key_the_multisig_script_omits_is_dropped() -> None:
+    """A signature is not evidence that its key belongs to this script.
+
+    The Finalizer builds the spend the script asks for, and a key the
+    script does not list has no place in it -- so the signature is left
+    out rather than refused, an input being free to carry what some other
+    branch would need. It is a real signature over this input's own
+    sig_hash, which is what the Finalizer verifies every one of them
+    against.
+    """
+    psbt, prev_outs = _multisig_psbt(1, "multi")
+    signed = tuple(psbt.inputs[0].partial_sigs.values())
+    expected = _spent_with(psbt.inputs[0], signed)
+    msg_hash = sig_hash.legacy(prev_outs[0].script_pub_key.script, psbt.tx, 0, 1)
+    stranger = _PRV_KEY + 2
+    psbt.inputs[0].partial_sigs[pub_keyinfo_from_prv_key(stranger)[0]] = (
+        dsa.sign_(msg_hash, stranger).serialize() + b"\x01"
+    )
+
+    finalized = finalize(psbt)
+    verify_transaction(prev_outs, extract_tx(finalized, check_validity=False))
+    final = finalized.inputs[0]
+    assert (final.final_script_sig, final.final_script_witness.stack) == expected
+
+
 def _one_input_finalized_each() -> tuple[Psbt, Psbt]:
     """Return the two psbts of two participants, one input finalized each."""
     finalized = finalize(Psbt.b64decode(TO_BE_FINALIZED))
@@ -2253,6 +2372,74 @@ def test_combining_takes_the_union_of_the_final_witnesses() -> None:
     first.inputs[1].final_script_witness = Witness([b"\x01"])
     combined = combine([first, second])
     assert combined.inputs[1].final_script_witness == Witness([b"\x01"])
+
+
+def test_combining_merges_every_field_a_map_holds() -> None:
+    """The preimages, the taproot fields and the musig2 maps too (issue #432).
+
+    "The resulting PSBT must contain all of the key-value pairs from each
+    of the PSBTs", and the list of fields the Combiner walked was the
+    BIP174 one: everything BIP371 and BIP373 added to an input or an
+    output was dropped, silently and both ways round.
+
+    One field of each kind here -- a map, a single value, and the
+    positional list a taproot tree is -- with the two psbts carrying
+    disjoint halves so that the union is the whole.
+    """
+    first = Psbt.b64decode(TO_BE_FINALIZED)
+    second = deepcopy(first)
+    internal_key = bytes.fromhex("aa" * 32)
+    leaf_hash = bytes.fromhex("bb" * 32)
+
+    first.inputs[0].sha256_preimages = {sha256(b"one"): b"one"}
+    second.inputs[0].sha256_preimages = {sha256(b"two"): b"two"}
+    first.inputs[0].taproot_internal_key = internal_key
+    second.inputs[0].taproot_script_spend_signatures = {
+        internal_key + leaf_hash: bytes.fromhex("cc" * 64)
+    }
+    second.outputs[0].taproot_tree = [(0, 192, b"\x51")]
+
+    combined = combine([first, second])
+    assert combined.inputs[0].sha256_preimages == {
+        sha256(b"one"): b"one",
+        sha256(b"two"): b"two",
+    }
+    assert combined.inputs[0].taproot_internal_key == internal_key
+    assert combined.inputs[0].taproot_script_spend_signatures
+    assert combined.outputs[0].taproot_tree == [(0, 192, b"\x51")]
+
+
+def test_combining_refuses_two_participant_lists_for_one_aggregate_key() -> None:
+    """A merge that would write a key's participants into something else.
+
+    An aggregate key is computed from its list, so two different lists
+    under one key are not the conflict BIP174 lets a Combiner pick from:
+    one of them says that key aggregates something it does not, and no
+    reader could tell which. The same list twice is no conflict at all.
+    """
+    first = Psbt.b64decode(TO_BE_FINALIZED)
+    second = deepcopy(first)
+    aggregate_pub_key = bytes.fromhex(f"02{'aa' * 32}")
+    participants = [bytes.fromhex(f"02{'bb' * 32}"), bytes.fromhex(f"02{'cc' * 32}")]
+
+    first.inputs[0].musig2_participant_pub_keys = {aggregate_pub_key: participants}
+    second.inputs[0].musig2_participant_pub_keys = {
+        aggregate_pub_key: list(participants)
+    }
+    combined = combine([first, second])
+    assert combined.inputs[0].musig2_participant_pub_keys[aggregate_pub_key] == (
+        participants
+    )
+
+    first = Psbt.b64decode(TO_BE_FINALIZED)
+    second = deepcopy(first)
+    first.outputs[0].musig2_participant_pub_keys = {aggregate_pub_key: participants}
+    second.outputs[0].musig2_participant_pub_keys = {
+        aggregate_pub_key: list(reversed(participants))
+    }
+    err_msg = "mismatched musig2 participants for aggregate key "
+    with pytest.raises(BTClibValueError, match=err_msg):
+        combine([first, second])
 
 
 def test_finalize_refuses_a_signature_of_another_sig_hash_type() -> None:
@@ -2402,6 +2589,93 @@ def test_the_sig_hash_of_every_input_kind_a_partial_signature_signs() -> None:
     # a count, so that a loop that stops finding signatures is a failure
     # and not a green run over nothing
     assert checked == 3
+
+
+def test_the_signer_signs_the_hash_the_finalizer_checks() -> None:
+    """`ecdsa_sig_hash` is the public half of the Finalizer's own dispatch.
+
+    Both halves of BIP174's valid psbts are covered by asking the two
+    for the same input: whatever the private helper answers a Finalizer,
+    the Signer is told, and a signature made over one verifies under the
+    other. The vectors' own signatures are what
+    `test_the_sig_hash_of_every_input_kind_a_partial_signature_signs`
+    checks that hash against.
+    """
+    psbt = Psbt.b64decode(TO_BE_FINALIZED)
+    for vin_i, psbt_in in enumerate(psbt.inputs):
+        for sig in psbt_in.partial_sigs.values():
+            assert ecdsa_sig_hash(psbt, vin_i, hash_type=sig[-1]) == (
+                _sig_hash_from_psbt_in(psbt_in, psbt.tx, vin_i, sig[-1])
+            )
+
+
+def test_the_signer_is_told_the_hash_type_the_input_asks_for() -> None:
+    """The default is the input's field, and SIGHASH_ALL where it has none.
+
+    An input that asks for a type is an input whose signatures must
+    commit to it, which is what the Finalizer refuses them for; a Signer
+    reading the psbt therefore needs no argument in the ordinary case.
+    SIGHASH_ALL is the fallback because it is what a signature with
+    nothing said about it means.
+    """
+    psbt, _ = _single_key_psbt("p2wpkh")
+    assert psbt.inputs[0].sig_hash_type is None
+    assert ecdsa_sig_hash(psbt, 0) == ecdsa_sig_hash(psbt, 0, hash_type=1)
+
+    psbt.inputs[0].sig_hash_type = 3
+    assert ecdsa_sig_hash(psbt, 0) == ecdsa_sig_hash(psbt, 0, hash_type=3)
+    assert ecdsa_sig_hash(psbt, 0) != ecdsa_sig_hash(psbt, 0, hash_type=1)
+
+
+def test_what_a_signer_cannot_be_given_a_hash_for() -> None:
+    """Four inputs a Signer is stopped on, where the Finalizer is not.
+
+    None out of the private helper is "the psbt does not say what is
+    being signed", and a Finalizer checking a signature it was handed
+    learns nothing from that. A Signer about to make one has to stop, so
+    the same three cases raise here -- and a taproot input is named for
+    what it is rather than reported as silence, its message being
+    `taproot_sig_hash`'s.
+
+    SIGHASH_DEFAULT is the fourth, and it is not about the input: 0 is a
+    taproot type that no ECDSA signature carries, so a psbt asking for it
+    is one the Finalizer could not accept a partial signature for either.
+    """
+    psbt = Psbt.b64decode(TO_BE_FINALIZED)
+    err_msg = "input 0 does not say what is being signed"
+
+    no_utxo = deepcopy(psbt)
+    no_utxo.inputs[0].non_witness_utxo = None
+    with pytest.raises(BTClibValueError, match=err_msg):
+        ecdsa_sig_hash(no_utxo, 0)
+
+    no_redeem_script = deepcopy(psbt)
+    no_redeem_script.inputs[0].redeem_script = b""
+    with pytest.raises(BTClibValueError, match=err_msg):
+        ecdsa_sig_hash(no_redeem_script, 0)
+
+    no_witness_script = deepcopy(psbt)
+    no_witness_script.inputs[1].witness_script = b""
+    with pytest.raises(BTClibValueError, match="input 1 does not say"):
+        ecdsa_sig_hash(no_witness_script, 1)
+
+    taproot_input = deepcopy(psbt)
+    taproot_input.inputs[0].non_witness_utxo = None
+    taproot_input.inputs[0].witness_utxo = TxOut(
+        100000, ScriptPubKey("5120" + "aa" * 32)
+    )
+    with pytest.raises(BTClibValueError, match="input 0 is taproot"):
+        ecdsa_sig_hash(taproot_input, 0)
+
+    with pytest.raises(BTClibValueError, match="SIGHASH_DEFAULT is not an ECDSA"):
+        ecdsa_sig_hash(psbt, 0, hash_type=0)
+    asking_for_default = deepcopy(psbt)
+    asking_for_default.inputs[0].sig_hash_type = 0
+    with pytest.raises(BTClibValueError, match="SIGHASH_DEFAULT is not an ECDSA"):
+        ecdsa_sig_hash(asking_for_default, 0)
+
+    with pytest.raises(BTClibValueError, match="invalid sig_hash type: 0x4"):
+        ecdsa_sig_hash(psbt, 0, hash_type=4)
 
 
 def test_the_outpoint_names_an_output_of_the_non_witness_utxo() -> None:
