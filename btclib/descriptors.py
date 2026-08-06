@@ -21,13 +21,17 @@ the signatures are a parameter rather than something this module makes.
 `psbt.finalize` does have one and does check, and builds the same
 bytes from a psbt carrying the same signatures.
 
-`update_psbt` is the third answer, and the one for a spend the signers
-do not make all at once: BIP174's Updater, writing the scripts and the
-key origins into a psbt input, for signers to fill in at their own pace
-and `psbt.finalize` to assemble. This module imports `psbt` for it
-and nothing there imports back, which is the direction of the layering:
-a psbt is a transaction being built, and a descriptor is what a wallet
-knows about the outputs it holds.
+`update_psbt_input` and `update_psbt_output` are the third answer, and
+the one for a spend the signers do not make all at once: BIP174's Updater,
+writing the scripts and the key origins into a psbt, for signers to fill
+in at their own pace and `psbt.finalize` to assemble. The output half is
+also what tells change from a payment, and it makes that claim only where
+the descriptor derives the very script being paid -- `index_of` is the
+same question asked the other way round, and neither answers from a key
+origin whose fingerprint happens to match. This module imports `psbt` for
+all of it and nothing there imports back, which is the direction of the
+layering: a psbt is a transaction being built, and a descriptor is what a
+wallet knows about the outputs it holds.
 
 BIP380: https://github.com/bitcoin/bips/blob/master/bip-0380.mediawiki
 
@@ -65,7 +69,8 @@ back through the `prv_keys` mapping a caller passes in -- Bitcoin Core's
 `Parse(desc, out, error)`, whose descriptor keeps no reference to the
 `FlatSigningProvider` it filled. Expansion takes the mapping back for the
 one thing an xpub cannot do, a hardened step, which is why
-`script_pub_keys`, `satisfy`, `update_psbt` and the rest all end in an
+`script_pub_keys`, `satisfy`, the two `update_psbt` halves and the rest
+all end in an
 optional `prv_keys`. A WIF is not in that mapping: it was already reduced
 to its public key on the way in, this module deriving nothing from it and
 signing nothing with it.
@@ -150,6 +155,7 @@ from btclib.hashes import hash160
 from btclib.network import NETWORKS, network_from_xkeyversion
 from btclib.psbt.psbt import Psbt
 from btclib.psbt.psbt_in import PsbtIn
+from btclib.psbt.psbt_out import PsbtOut
 from btclib.script.script import op_int, serialize
 from btclib.script.script_pub_key import ScriptPubKey
 from btclib.script.taproot import input_script_sig, leaf_hash, tree_helper
@@ -689,6 +695,28 @@ def _leaf_script(
     return [leaf.sec(index, network, prv_keys)[1:], "OP_CHECKSIG"]
 
 
+def _leaf_scripts(
+    tree: DescriptorTree,
+    depth: int,
+    index: int,
+    network: str,
+    prv_keys: PrvKeys | None,
+) -> list[tuple[int, bytes]]:
+    """Return each leaf's depth and serialized script, left to right.
+
+    The depth is what BIP371's PSBT_OUT_TAP_TREE carries beside the
+    script, and the two together are the tree: a depth-first walk that
+    records how deep each leaf sits is enough to rebuild the shape it was
+    walked from. The order is `_tree_leaves`'s, which is the order
+    `taproot.tree_helper` numbers them in.
+    """
+    if isinstance(tree, tuple):
+        return _leaf_scripts(tree[0], depth + 1, index, network, prv_keys) + (
+            _leaf_scripts(tree[1], depth + 1, index, network, prv_keys)
+        )
+    return [(depth, serialize(_leaf_script(tree, index, network, prv_keys)))]
+
+
 def _leaf_stack(
     leaf: DescriptorLeaf,
     signatures: Mapping[bytes, bytes],
@@ -1024,7 +1052,37 @@ class Descriptor(ABC):
             cast(ScriptList, self._stack(signatures, index, prv_keys))
         ), Witness()
 
-    def update_psbt(
+    def index_of(
+        self,
+        script_pub_key: Octets,
+        last_index: int = 999,
+        prv_keys: PrvKeys | None = None,
+    ) -> int | None:
+        """Return the index whose script is this one, None where none is.
+
+        What makes an output *this wallet's*, and the only thing that
+        does: the script is derived and compared whole. A key origin whose
+        fingerprint matches is not an answer -- four bytes of a hash160
+        collide, and a psbt is written by whoever sends it, so an output
+        marked as change on a fingerprint is an output a wallet may hand
+        to somebody else believing it keeps it.
+
+        `last_index` bounds the search, both ends included, and is the
+        caller's: how far ahead of its own gap limit a wallet is willing
+        to look is a policy this module has no view on. A descriptor that
+        is not ranged has one script and answers 0 or None.
+        """
+        script = bytes_from_octets(script_pub_key)
+        last = last_index if self.is_ranged else 0
+        for index in range(last + 1):
+            if any(
+                candidate.script == script
+                for candidate in self.script_pub_keys(index, prv_keys)
+            ):
+                return index
+        return None
+
+    def update_psbt_input(
         self,
         psbt: Psbt,
         vin_i: int,
@@ -1065,7 +1123,57 @@ class Descriptor(ABC):
         psbt.assert_valid()
         return psbt
 
-    def _update(self, psbt_in: PsbtIn, index: int, prv_keys: PrvKeys | None) -> None:
+    def update_psbt_output(
+        self,
+        psbt: Psbt,
+        vout_i: int,
+        index: int = 0,
+        prv_keys: PrvKeys | None = None,
+    ) -> Psbt:
+        """Return the psbt with output `vout_i` told what the descriptor knows.
+
+        The Updater's other half, and what makes an output recognizable as
+        the wallet's own: the redeem script of a ``sh()``, the witness
+        script of a ``wsh()``, the internal key and the whole script tree
+        of a ``tr()``, and the origin of every key that carries one. A
+        signing device reads them to tell change from a payment -- it can
+        derive the script itself and see that the money comes back -- and
+        a wallet reading a psbt somebody else built reads them for the same
+        reason.
+
+        Unlike the input half, the script *is* checked: the output being
+        paid is in the psbt already, so this refuses unless the descriptor
+        derives exactly that script at `index`. Marking an output as one's
+        own is a claim about where money goes, and the only evidence for it
+        is the whole script -- never a key origin whose four-byte
+        fingerprint matches, which is what `index_of` is for and what it
+        says.
+
+        The output tree is BIP371's PSBT_OUT_TAP_TREE and not the leaf
+        script an input carries: an output has no leaf being spent, so what
+        it publishes is every leaf, each with its depth, which is what lets
+        a reader rebuild the tree and check the output key for itself.
+        """
+        self._assert_index(index)
+        # an IndexError out of a public method is not an answer, and a
+        # negative index would quietly update the output at the other end
+        if not 0 <= vout_i < len(psbt.outputs):
+            raise BTClibValueError(f"invalid output index: {vout_i}")
+        paid = psbt.tx.vout[vout_i].script_pub_key.script
+        if all(
+            script.script != paid for script in self.script_pub_keys(index, prv_keys)
+        ):
+            err_msg = f"output {vout_i} pays to {paid.hex()}, which is not the"
+            err_msg += f" script this descriptor describes at index {index}"
+            raise BTClibValueError(err_msg)
+        psbt = deepcopy(psbt)
+        self._update_out(psbt.outputs[vout_i], index, prv_keys)
+        psbt.assert_valid()
+        return psbt
+
+    def _update_map(
+        self, psbt_map: PsbtIn | PsbtOut, index: int, prv_keys: PrvKeys | None
+    ) -> None:
         """Fill the key origins, which is what every fragment knows.
 
         And the whole of what ``pk()``, ``pkh()``, ``wpkh()`` and
@@ -1073,14 +1181,32 @@ class Descriptor(ABC):
         psbt has from the utxo rather than from here. The fragments that
         embed one of those add their scripts to this.
 
+        One method for an input and an output, because BIP174 gives the
+        two maps the same fields wherever they mean the same thing: a
+        redeem script, a witness script and a key origin say what they say
+        whether the psbt is spending the script or paying to it. Only a
+        ``tr()`` differs, an input carrying the leaf it spends and an
+        output the whole tree, and that is where the two methods below
+        part company.
+
         The mapping is added to and not replaced: BIP174 keys it by
         public key, so a psbt already carrying another signer's key keeps
         it, and this descriptor's entry wins for a key held by both.
         """
-        psbt_in.hd_key_paths = {
-            **psbt_in.hd_key_paths,
+        psbt_map.hd_key_paths = {
+            **psbt_map.hd_key_paths,
             **self._hd_key_paths(index, prv_keys),
         }
+
+    def _update(self, psbt_in: PsbtIn, index: int, prv_keys: PrvKeys | None) -> None:
+        """Fill what an input of this descriptor's script carries."""
+        self._update_map(psbt_in, index, prv_keys)
+
+    def _update_out(
+        self, psbt_out: PsbtOut, index: int, prv_keys: PrvKeys | None
+    ) -> None:
+        """Fill what an output paying to this descriptor's script carries."""
+        self._update_map(psbt_out, index, prv_keys)
 
     def _hd_key_paths(
         self, index: int, prv_keys: PrvKeys | None
@@ -1236,7 +1362,9 @@ class ShDescriptor(Descriptor):
         redeem_script = self.inner.redeem_script(index, prv_keys)
         return script_sig + serialize(cast(ScriptList, [redeem_script])), witness
 
-    def _update(self, psbt_in: PsbtIn, index: int, prv_keys: PrvKeys | None) -> None:
+    def _update_map(
+        self, psbt_map: PsbtIn | PsbtOut, index: int, prv_keys: PrvKeys | None
+    ) -> None:
         """Fill the redeem script, and let the argument fill its own fields.
 
         Delegated rather than dispatched on: the argument of a
@@ -1244,8 +1372,8 @@ class ShDescriptor(Descriptor):
         redeem script, and it is the same method that fills it for a
         native ``wsh()``.
         """
-        self.inner._update(psbt_in, index, prv_keys)
-        psbt_in.redeem_script = self.inner.redeem_script(index, prv_keys)
+        self.inner._update_map(psbt_map, index, prv_keys)
+        psbt_map.redeem_script = self.inner.redeem_script(index, prv_keys)
 
 
 @dataclass(frozen=True)
@@ -1281,15 +1409,17 @@ class WshDescriptor(Descriptor):
         stack = self.inner._stack(signatures, index, prv_keys)
         return b"", Witness([*stack, self.inner.redeem_script(index, prv_keys)])
 
-    def _update(self, psbt_in: PsbtIn, index: int, prv_keys: PrvKeys | None) -> None:
+    def _update_map(
+        self, psbt_map: PsbtIn | PsbtOut, index: int, prv_keys: PrvKeys | None
+    ) -> None:
         """Fill the witness script; the redeem script is ``sh()``'s to fill.
 
         Which is the whole difference between a native ``wsh()`` and a
         wrapped one, in the psbt as in the spend: the same witness script,
         and a redeem script only where something wraps it.
         """
-        self.inner._update(psbt_in, index, prv_keys)
-        psbt_in.witness_script = self.inner.redeem_script(index, prv_keys)
+        self.inner._update_map(psbt_map, index, prv_keys)
+        psbt_map.witness_script = self.inner.redeem_script(index, prv_keys)
 
 
 @dataclass(frozen=True)
@@ -1408,7 +1538,9 @@ class ComboDescriptor(Descriptor):
         err_msg = "combo() is four scripts: satisfy the one being spent"
         raise BTClibValueError(err_msg)
 
-    def _update(self, psbt_in: PsbtIn, index: int, prv_keys: PrvKeys | None) -> None:
+    def _update_map(
+        self, psbt_map: PsbtIn | PsbtOut, index: int, prv_keys: PrvKeys | None
+    ) -> None:
         """Refuse: the four scripts are updated into an input differently.
 
         One of them is p2sh and wants a redeem script, the other three
@@ -1453,7 +1585,9 @@ class AddrDescriptor(Descriptor):
         """
         raise BTClibValueError("addr() cannot be satisfied: it holds no key")
 
-    def _update(self, psbt_in: PsbtIn, index: int, prv_keys: PrvKeys | None) -> None:
+    def _update_map(
+        self, psbt_map: PsbtIn | PsbtOut, index: int, prv_keys: PrvKeys | None
+    ) -> None:
         """Refuse: there is nothing of an address to write into an input.
 
         No key, so no origin; no script below the address, so no redeem or
@@ -1495,7 +1629,9 @@ class RawDescriptor(Descriptor):
         """
         raise BTClibValueError("raw() cannot be satisfied: it holds no key")
 
-    def _update(self, psbt_in: PsbtIn, index: int, prv_keys: PrvKeys | None) -> None:
+    def _update_map(
+        self, psbt_map: PsbtIn | PsbtOut, index: int, prv_keys: PrvKeys | None
+    ) -> None:
         """Refuse, for the reason ``addr()`` does: bytes hold no key origin.
 
         Those bytes may be the script an input spends, and they are then
@@ -1673,8 +1809,32 @@ class TrDescriptor(Descriptor):
         err_msg = "no signature for the tr() internal key or for any of its leaves"
         raise BTClibValueError(err_msg)
 
-    def _update(self, psbt_in: PsbtIn, index: int, prv_keys: PrvKeys | None) -> None:
-        """Fill the four taproot fields: internal key, root, leaves, origins.
+    def taproot_tree(
+        self, index: int = 0, prv_keys: PrvKeys | None = None
+    ) -> list[tuple[int, int, bytes]]:
+        """Return every leaf with its depth: BIP371's PSBT_OUT_TAP_TREE.
+
+        The whole tree, where an input publishes the one leaf it spends and
+        the control block that proves it: an output has no leaf being spent
+        yet, so what it carries is each script with the depth it sits at,
+        in the order a depth-first walk reaches them. A reader rebuilds the
+        tree from those two facts and can then check the output key itself
+        -- which is why the field is the tree and not the merkle root, a
+        root proving nothing about the scripts underneath it.
+
+        Empty for a ``tr(KEY)``, whose output key commits to no script at
+        all, and which BIP371 says so about by leaving the field out.
+        """
+        self._assert_index(index)
+        if self.tree is None:
+            return []
+        scripts = _leaf_scripts(self.tree, 0, index, self.network, prv_keys)
+        return [(depth, _TAPSCRIPT_LEAF_VERSION, script) for depth, script in scripts]
+
+    def _update_map(
+        self, psbt_map: PsbtIn | PsbtOut, index: int, prv_keys: PrvKeys | None
+    ) -> None:
+        """Fill the taproot fields an input and an output share.
 
         This replaces the base method rather than adding to it: a taproot
         key origin belongs in `taproot_hd_key_paths`, keyed by the x-only
@@ -1682,26 +1842,50 @@ class TrDescriptor(Descriptor):
         same key twice in two spellings, for a signer that signs with
         neither.
 
-        A fifth field where a key of the descriptor is a ``musig()``:
-        BIP373's participant list, which is what tells a signer that one of
-        the keys it holds is in the group this input is spent by.
+        The participant list of BIP373 goes here too where a key of the
+        descriptor is a ``musig()``: it tells a signer that one of the keys
+        it holds is in the group, which is as true of an output being paid
+        as of an input being spent.
         """
-        psbt_in.taproot_internal_key = self.internal_key.sec(
+        psbt_map.taproot_internal_key = self.internal_key.sec(
             index, self.network, prv_keys
         )[1:]
+        psbt_map.taproot_hd_key_paths = {
+            **psbt_map.taproot_hd_key_paths,
+            **self._taproot_hd_key_paths(index, prv_keys),
+        }
+        psbt_map.musig2_participant_pub_keys = {
+            **psbt_map.musig2_participant_pub_keys,
+            **_musig2_participants(self.key_expressions, index, self.network, prv_keys),
+        }
+
+    def _update(self, psbt_in: PsbtIn, index: int, prv_keys: PrvKeys | None) -> None:
+        """Add what an input carries: the merkle root and the leaf scripts.
+
+        A control block is the field an Updater is needed for rather than
+        convenient -- it holds the merkle path from its leaf to the root,
+        which is the whole tree seen from that leaf -- and the merkle root
+        is what a verifier tweaks the internal key with.
+        """
+        self._update_map(psbt_in, index, prv_keys)
         psbt_in.taproot_merkle_root = self.taproot_merkle_root(index, prv_keys)
         psbt_in.taproot_leaf_scripts = {
             **psbt_in.taproot_leaf_scripts,
             **self.taproot_leaf_scripts(index, prv_keys),
         }
-        psbt_in.taproot_hd_key_paths = {
-            **psbt_in.taproot_hd_key_paths,
-            **self._taproot_hd_key_paths(index, prv_keys),
-        }
-        psbt_in.musig2_participant_pub_keys = {
-            **psbt_in.musig2_participant_pub_keys,
-            **_musig2_participants(self.key_expressions, index, self.network, prv_keys),
-        }
+
+    def _update_out(
+        self, psbt_out: PsbtOut, index: int, prv_keys: PrvKeys | None
+    ) -> None:
+        """Add what an output carries: the tree, every leaf of it at once.
+
+        BIP371 gives an output PSBT_OUT_TAP_TREE and no merkle root: the
+        root is computed from the tree and would be the same fact twice,
+        where the tree is what a reader needs to compute the output key and
+        find out that this output is one it can spend.
+        """
+        self._update_map(psbt_out, index, prv_keys)
+        psbt_out.taproot_tree = self.taproot_tree(index, prv_keys)
 
 
 @dataclass(frozen=True)
@@ -1762,7 +1946,9 @@ class RawTrDescriptor(Descriptor):
             raise BTClibValueError("no signature for the rawtr() output key")
         return b"", Witness([signature])
 
-    def _update(self, psbt_in: PsbtIn, index: int, prv_keys: PrvKeys | None) -> None:
+    def _update_map(
+        self, psbt_map: PsbtIn | PsbtOut, index: int, prv_keys: PrvKeys | None
+    ) -> None:
         """Fill the one taproot field a ``rawtr()`` has anything to say in.
 
         BIP371's PSBT_IN_TAP_BIP32_DERIVATION, keyed by the x-only key,
@@ -1782,12 +1968,12 @@ class RawTrDescriptor(Descriptor):
         reaching what is spent.
         """
         keys = self.key_expressions
-        psbt_in.taproot_hd_key_paths = {
-            **psbt_in.taproot_hd_key_paths,
+        psbt_map.taproot_hd_key_paths = {
+            **psbt_map.taproot_hd_key_paths,
             **_taproot_derivations(keys, {}, index, self.network, prv_keys),
         }
-        psbt_in.musig2_participant_pub_keys = {
-            **psbt_in.musig2_participant_pub_keys,
+        psbt_map.musig2_participant_pub_keys = {
+            **psbt_map.musig2_participant_pub_keys,
             **_musig2_participants(keys, index, self.network, prv_keys),
         }
 
