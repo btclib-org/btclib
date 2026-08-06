@@ -436,12 +436,11 @@ edit.
   `serialize`: those three call it to ask whether the bytes are a block,
   and a block of another network is built with `check_validity=False` and
   then asked, which is the pair of steps a header being mined already
-  takes. What the four do not yet close is issue #402's: `SetCompact`
-  masks the significand before computing the value, so the two `nBits`
-  Core reads as zero, `03800000` and `1d800000`, are a target of 2^23 and
-  one of 2^215 here and reach the zero check as neither.
-  `tests/block/block_test.py` carries both as the `xfail` that turns red
-  the day the mask lands (issue #403)
+  takes. The zero check is only as good as the target handed to it, which
+  is what issue #402 was about: the two `nBits` Core reads as zero,
+  `03800000` and `1d800000`, reach it as zero because the significand is
+  masked before the value is computed, and
+  `tests/block/block_test.py` carries both rows (issue #403)
 - **btclib can check a Merkle proof, not only compute a root.** It had
   the builder's side, `merkle_root_and_mutated_from_hashes`, and no
   entry point for the verifier's: from a txid, a branch of siblings and
@@ -759,6 +758,29 @@ edit.
   TAPROOT off; the shapes they miss are a test. No consensus verdict
   moves: every flag named here is outside ALL_FLAGS, save WITNESS and
   TAPROOT, which move nothing when both are on
+- **the sign bit of `nBits` is a sign, and `target_from_bits` no longer
+  reads it as magnitude** (issue #402). The compact form is a float with
+  a sign bit: Core's `SetCompact` takes the number out of `nCompact &
+  0x007fffff` and reports the bit separately, through the `fNegative`
+  out-parameter `DeriveTarget` refuses the header on. btclib read all
+  three significand bytes, so every `nBits` with `0x00800000` set
+  answered a number no node computes — `0x1d80ffff` put the sign bit
+  *inside* the target's own bytes and made it 2^7 easier than the
+  genesis one, and `0x03800000`, which Core reads as zero, came back as
+  `0x800000`. The mask is Core's now, so `target_from_bits` still answers
+  one target and every call site of it is left alone; the sign it hides
+  is `is_negative_bits`, which `assert_valid_pow` refuses the header on.
+  That predicate reads the magnitude after the exponent, as Core reads it
+  for `nWord != 0 &&`, so a sign bit over a significand the exponent
+  shifts away is not negative either: `0x018000ff` is zero, as
+  `0x03800000` is. `BlockHeader.difficulty` stops redoing
+  the compact arithmetic by hand and takes the ratio of two targets, so
+  one header can no longer have a `target` and a `difficulty` that
+  disagree about which number its `bits` denote; the difficulty of every
+  real header is unchanged, and a zero target now answers the "zero
+  proof-of-work target" of `block_work` instead of dividing by zero.
+  A test walks every exponent against a transcription of `SetCompact`,
+  value and both flags, rather than pinning a handful of numbers
 
 ### Malformed input and the exception contract
 

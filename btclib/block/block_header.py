@@ -103,16 +103,25 @@ class BlockHeader:
         The difficulty of the genesis block is 2^32 (4*2^30), i.e. 4
         GigaHash function evaluations.
         """
-        # genesis block target
-        genesis_significand = 0x00FFFF
-        genesis_exponent = 0x1D
-        # significand ratio
-        significand = genesis_significand / int.from_bytes(
-            self.bits[1:], byteorder="big", signed=False
-        )
-        # power term ratio
-        power_term = pow(256, genesis_exponent - self.bits[0])
-        return float(significand * power_term)
+        # the ratio of the two targets, and never the compact form
+        # decoded a second time here: the sign bit of `bits` is masked
+        # off in one place, `target_from_bits`, so that this and `target`
+        # cannot disagree about which number the header carries. Core's
+        # GetDifficulty divides by the unmasked significand, which it can
+        # afford to: the header reaching it has passed CheckProofOfWork,
+        # so the bit is not set. This property answers for any header.
+        # MAINNET_POW_LIMIT_BITS is the genesis target, which is what
+        # makes the genesis difficulty 1
+        genesis_target = int.from_bytes(target_from_bits(MAINNET_POW_LIMIT_BITS), "big")
+        target = int.from_bytes(self.target, "big")
+        if not target:
+            # no hash can satisfy a zero target, so no block carries one.
+            # Raised as the exception contract requires, rather than left
+            # to the ZeroDivisionError of the division below, which names
+            # neither the field nor the header
+            raise BTClibValueError(f"zero proof-of-work target: {self.bits.hex()}")
+
+        return genesis_target / target
 
     @property
     def hash(self) -> bytes:

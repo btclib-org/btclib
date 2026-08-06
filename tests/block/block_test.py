@@ -538,6 +538,33 @@ def test_difficulty_from_compact_bits(
     assert round(header.difficulty, 3) == difficulty
 
 
+def test_difficulty_decodes_bits_once() -> None:
+    """The difficulty and the target decode `bits` once (issue #402).
+
+    `difficulty` used to redo the compact arithmetic itself, so masking
+    the sign bit in `target_from_bits` alone would leave one header with
+    two answers: a target with the bit taken off and a difficulty
+    computed with it in. The genesis bits signed are the case that shows
+    it -- difficulty 1, which is what the unsigned spelling gives, and
+    not the 0.00775 of a target 2^7 easier.
+    """
+    genesis = BlockHeader(bits="1d00ffff", check_validity=False)
+    signed = BlockHeader(bits="1d80ffff", check_validity=False)
+
+    assert signed.target == genesis.target
+    assert signed.difficulty == genesis.difficulty == 1
+
+    # a zero target is no ratio to take, and the answer is the refusal
+    # assert_valid_pow and block_work give it rather than a
+    # ZeroDivisionError out of the library. Both spellings: an exponent
+    # that shifts the significand away, and a significand that is only
+    # the sign bit
+    for bits in ("00000000", "0000ffff", "03800000"):
+        header = BlockHeader(bits=bits, check_validity=False)
+        with pytest.raises(BTClibValueError, match="zero proof-of-work target: "):
+            _ = header.difficulty
+
+
 def test_block_without_transactions() -> None:
     """A block with no coinbase is not a block with nothing in it.
 
@@ -918,21 +945,16 @@ def test_assert_valid_pow_makes_derive_targets_range_checks() -> None:
             header.assert_valid_pow()
 
 
-@pytest.mark.xfail(reason="issue #402: the nBits sign bit is read as magnitude")
 @pytest.mark.parametrize("bits_hex", ["03800000", "1d800000"])
 def test_the_zero_target_check_is_only_as_good_as_the_target(bits_hex: str) -> None:
-    """Two nBits Core reads as zero, and btclib does not.
+    """Two nBits Core reads as zero, and so does btclib.
 
     `SetCompact` masks the significand with 0x007fffff before computing
     the value, so `nWord` is zero for both of these and `DeriveTarget`
-    refuses the header on `bnTarget == 0`. btclib reads the sign bit as
-    magnitude, so 0x03800000 is a target of 2^23 and 0x1d800000 one of
-    2^215, and the zero check below fires for neither.
-
-    That is issue #402 and not the range checks of #403: every other row
-    of `DeriveTarget`'s condition already agrees with Core, and this one
-    will the day the significand is masked, which is what turns this
-    marker red.
+    refuses the header on `bnTarget == 0`. btclib used to read the sign
+    bit as magnitude, which made 0x03800000 a target of 2^23 and
+    0x1d800000 one of 2^215, and the zero check fired for neither: the
+    check was only as good as the number it was handed (issue #402).
     """
     fname = "block_1.bin"
     filename = path.join(path.dirname(__file__), "_data", fname)

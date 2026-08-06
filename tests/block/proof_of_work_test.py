@@ -96,6 +96,107 @@ def test_target_from_bits() -> None:
         target_from_bits("00ffff")
 
 
+@pytest.mark.parametrize(
+    ("bits_hex", "target_hex", "negative"),
+    [
+        # the genesis bits, where the sign bit is not set and nothing
+        # about them changes
+        ("1d00ffff", f"{'00' * 4}{'ff' * 2}{'00' * 26}", False),
+        # the sign bit alone, in the significand's own byte: masked off,
+        # so the number is 0x7fffff and not 0xffffff
+        ("03ffffff", f"{'00' * 29}7fffff", True),
+        # a significand that is nothing but the sign bit is zero, which
+        # is why Core's fNegative asks nWord != 0 as well
+        ("03800000", "00" * 32, False),
+        # the genesis bits signed: the same target, not one 2^7 easier
+        ("1d80ffff", f"{'00' * 4}{'ff' * 2}{'00' * 26}", True),
+        # the magnitude is read after the exponent, as Core reads it: the
+        # one byte left of the masked significand is shifted out
+        ("018000ff", "00" * 32, False),
+        # regtest's limit signed, and the target above it unchanged
+        ("20ffffff", f"7fffff{'00' * 29}", True),
+    ],
+)
+def test_target_from_bits_sign_bit(
+    bits_hex: str, target_hex: str, negative: bool
+) -> None:
+    """The sign bit of nBits is a sign, and not the target's high bit.
+
+    Core's `SetCompact` masks the significand with 0x007fffff and reports
+    0x00800000 through its `fNegative` out-parameter; the rows are its
+    values for the same input, `target_from_bits` answering the number
+    and `is_negative_bits` the flag (issue #402).
+    """
+    assert target_from_bits(bits_hex).hex() == target_hex
+    assert is_negative_bits(bits_hex) is negative
+
+    # the sign does not survive the round trip, and cannot: bits_from_target
+    # never emits a negative encoding, which is what its docstring is about
+    assert not is_negative_bits(bits_from_target(target_from_bits(bits_hex)))
+
+
+def _set_compact(n_compact: int) -> tuple[int, bool, bool]:
+    """Return what Core's `arith_uint256::SetCompact` computes.
+
+    A transcription of the reference, value and both out-parameters,
+    kept here rather than folded into vectors: the claim being checked is
+    that btclib agrees with it over the whole four-byte space, and a
+    handful of hard-coded numbers cannot say that. The value wraps, as
+    the arith_uint256 it is assigned to does.
+    """
+    n_size = n_compact >> 24
+    n_word = n_compact & 0x007FFFFF
+    if n_size <= 3:
+        n_word >>= 8 * (3 - n_size)
+        value = n_word
+    else:
+        value = n_word << (8 * (n_size - 3))
+    negative = n_word != 0 and (n_compact & 0x00800000) != 0
+    overflow = n_word != 0 and (
+        n_size > 34
+        or (n_word > 0xFF and n_size > 33)
+        or (n_word > 0xFFFF and n_size > 32)
+    )
+    return value % 2**256, negative, overflow
+
+
+def test_target_from_bits_agrees_with_set_compact() -> None:
+    """Every exponent against Core's SetCompact, sign bit included.
+
+    The significands are the edges: zero, the smallest, the byte and
+    two-byte boundaries the overflow rule reads, and each of them with
+    the sign bit set. Where Core flags an overflow btclib raises instead,
+    which is the same refusal and is asserted as such -- and where it
+    does not, the two numbers and the two flags must agree.
+    """
+    significands = (
+        0x000000,
+        0x000001,
+        0x0000FF,
+        0x000100,
+        0x00FFFF,
+        0x010000,
+        0x123456,
+        0x7FFFFF,
+    )
+    for exponent in range(0x100):
+        for significand in significands:
+            for sign in (0, 0x800000):
+                n_compact = (exponent << 24) | sign | significand
+                bits = n_compact.to_bytes(4, "big")
+                value, negative, overflow = _set_compact(n_compact)
+
+                assert is_negative_bits(bits) is negative, bits.hex()
+                if overflow:
+                    err_msg = "invalid proof-of-work target: "
+                    with pytest.raises(BTClibValueError, match=err_msg):
+                        target_from_bits(bits)
+                else:
+                    assert int.from_bytes(target_from_bits(bits), "big") == value, (
+                        bits.hex()
+                    )
+
+
 def test_bits_from_target_round_trip() -> None:
     """Bits taken from real headers survive the round trip."""
     # every vendored block, i.e. every bits value this directory already
