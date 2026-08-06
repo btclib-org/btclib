@@ -239,6 +239,17 @@ pyroma), build, wheel smoke test — and publishes to
    `attestation_bundles[].publisher` should name this repository and
    `release.yml`.
 
+1. Dispatch the `published` workflow (Actions → published → Run workflow)
+   and expect it green: no checkout, so it resolves to what PyPI actually
+   serves rather than to a source tree. It checks a BIP39 vector against
+   the twenty-five `_data/` files a wheel missing one would still install
+   and import cleanly, and a BIP340 vector besides -- both fixed forever,
+   so neither needs an edit after a release the way a version-pinned
+   assertion would. From then on it runs weekly on its own, and a failure
+   means the outside world moved, not this repository — a new interpreter
+   release, PyPI serving a file that does not match its own hash — which
+   is why it is a workflow of its own rather than a job of this one.
+
 1. Realign `dev` onto `master`, before anything else is committed to it.
    **Rebase and merge** replays `dev`'s commits with new SHAs, so the
    moment a release lands the two branches hold the same tree through
