@@ -2927,8 +2927,8 @@ edit.
   descriptor pays to at that index — with the address of each, where the
   script has one. The grammar is BIP380 to BIP386 and BIP389 minus
   miniscript: `pk`, `pkh`, `wpkh`, `combo`, `sh`, `wsh`, `multi`,
-  `sortedmulti`, `addr`, `raw`, and `tr` with a key path and a tree of
-  `pk()` leaves; key expressions cover hex keys compressed, uncompressed
+  `sortedmulti`, `addr`, `raw`, and `tr` with a key path and a script
+  tree; key expressions cover hex keys compressed, uncompressed
   and x-only, WIF, xpub/xprv with a derivation path, key origin, the `/*`
   and `/*h` wildcards and both hardened markers, and
   `multipath_descriptors` expands the BIP389 `<a;b>` form into the
@@ -2938,11 +2938,10 @@ edit.
   `sh()` at the top level only, no uncompressed key inside a witness
   program, x-only only inside `tr()` — and what is not implemented raises
   NotImplementedError naming what it is: miniscript is issue #187,
-  `multi_a` and `sortedmulti_a` are BIP387, `rawtr` is BIP386 and
-  `musig` is BIP390. The derivation is checked against Bitcoin Core's
-  own `descriptor_tests.cpp` vectors, both spellings of each, so a WIF
-  and an xprv are checked to reach the script their public halves reach
-  (issue #186)
+  `rawtr` is BIP386 and `musig` is BIP390. The derivation is checked
+  against Bitcoin Core's own `descriptor_tests.cpp` vectors, both
+  spellings of each, so a WIF and an xprv are checked to reach the script
+  their public halves reach (issue #186)
 - **`Descriptor.satisfy` spends what `script_pub_keys` receives into**:
   given a mapping from public key to signature — the shape
   `PsbtIn.partial_sigs` has — it returns the `script_sig` and the
@@ -2992,6 +2991,31 @@ edit.
   BIP341 tapleaf hash that `tree_helper`, `check_output_pubkey` and the
   psbt's own `leaf_script` each used to compute for themselves (issue
   #306)
+- **`multi_a()` and `sortedmulti_a()` are read inside `tr()`**, which is
+  BIP387 and what the parser refused by name until now. A leaf of a script
+  tree is either a `pk()`, which is the bare `KeyExpression` it always
+  was, or the new `MultiA` — a threshold, the keys, and whether they are
+  sorted — so `DescriptorTree` has two kinds of leaf and `DescriptorLeaf`
+  names them; neither is a `Descriptor`, no output paying to a
+  `multi_a()` on its own. The script is BIP387's: a CHECKSIG and one
+  CHECKSIGADD per further key, with the threshold pushed as OP_1 to OP_16
+  where an op code means it and as the number itself above that. The keys
+  of a `sortedmulti_a()` are sorted on the 32 x-only bytes the script
+  carries and not on their 33-byte SEC form, which for a key of odd y is
+  another order — and reachable, a KEY expression naming such a key by its
+  WIF or its xpub. Satisfaction puts one element per key, threshold of
+  them signatures and the rest the empty push, in the reverse of the key
+  order: OP_CHECKSIGADD counts every signature that verifies and
+  OP_NUMEQUAL compares that count with the threshold, so the first key's
+  signature has to be on top of the stack and a signature beyond the
+  threshold would make the count wrong — both the opposite of what
+  `multi()` needs. `tr()` walks its leaves and takes the first the
+  signatures open, a leaf they do not open no longer being an error but
+  the next leaf's turn. `TrDescriptor.taproot_hd_key_paths` reads the
+  keys off each leaf rather than off its script bytes, which a leaf of one
+  key allowed and a `multi_a()` does not. Checked against BIP387's own
+  vectors, and the satisfaction against btclib's script engine, which
+  runs it rather than reading its shape (issue #448)
 - **`btclib.fetch` is new, and is the one package that goes out to the
   network.** `Fetcher` is three questions the library cannot answer from
   bytes it was handed — the transaction with this id, the output an
