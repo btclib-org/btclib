@@ -69,8 +69,10 @@ def test_the_single_copied_file_imports_and_calls_without_btclib(
     vendored = tmp_path / "bitcoin_core_rpc.py"
     shutil.copy2(_source_path(), vendored)
     smoke = """
+import copy
 import importlib.util
 import json
+import pickle
 import sys
 from decimal import Decimal
 
@@ -80,6 +82,18 @@ for module_name in ("a_vendored_bitcoin_core_rpc", "z_vendored_bitcoin_core_rpc"
     rpc = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(rpc)
     assert rpc.FetchError.__module__ == module_name
+    # a copy's exceptions cross a process boundary the way the package's
+    # do, and pickle looks a class up by the module it names: registering
+    # what importlib loaded is what makes that name resolve, here and in
+    # any application loading the copy the same way
+    sys.modules[module_name] = rpc
+    error = rpc.RpcError("getrawtransaction: not found", -5, {"tx": 1})
+    said = "getrawtransaction: not found (rpc error code -5)"
+    assert str(error) == said
+    for back in (pickle.loads(pickle.dumps(error)), copy.deepcopy(error)):
+        assert type(back) is rpc.RpcError
+        assert str(back) == said
+        assert back.code == -5 and back.data == {"tx": 1}
 
 # what -I -S bought, asserted rather than assumed: no site packages, no
 # PYTHONPATH and no script directory on sys.path, so there is no btclib

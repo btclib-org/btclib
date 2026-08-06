@@ -211,6 +211,23 @@ __all__ = [
 #
 # The three BTClib bases come with them so the established TypeError,
 # ValueError, and RuntimeError hierarchies remain exact.
+#
+# The two carrying a field hand every constructor argument to
+# `BaseException.__init__` and compose their message in `__str__`, which is
+# what `subprocess.CalledProcessError` and `UnicodeDecodeError` do, and what
+# makes them picklable: `BaseException.__reduce__` returns `(cls, self.args)`,
+# so a class whose `args` is the composed message alone is rebuilt by calling
+# it with one argument, and one argument is not what it takes. That is a
+# TypeError out of `pickle`, out of `copy.copy` and out of `copy.deepcopy` --
+# and out of a `ProcessPoolExecutor`, which cannot send the exception back and
+# reports a broken pool instead of the status the worker died of. Composing in
+# `__str__` is the half that keeps the round trip faithful rather than merely
+# possible: a message composed in `__init__` from an argument that is itself a
+# composed message gains a second `(rpc error code -5)` every time.
+#
+# The visible price is `args`, which is a tuple of the arguments now and not a
+# one-tuple of the message, and `repr`, which names the fields with it. `str`
+# is the message it always was.
 
 
 class BTClibValueError(ValueError):
@@ -268,7 +285,12 @@ class HttpError(FetchError):
 
     def __init__(self, message: str, status: int) -> None:
         self.status = status
-        super().__init__(message)
+        super().__init__(message, status)
+
+    def __str__(self) -> str:
+        # the message alone, which is what BaseException returns for a
+        # single argument and not for the two this now carries
+        return str(self.args[0])
 
 
 class RpcError(FetchError):
@@ -294,7 +316,10 @@ class RpcError(FetchError):
     def __init__(self, message: str, code: int, data: Any = None) -> None:
         self.code = code
         self.data = data
-        super().__init__(f"{message} (rpc error code {code})")
+        super().__init__(message, code, data)
+
+    def __str__(self) -> str:
+        return f"{self.args[0]} (rpc error code {self.code})"
 
 
 # Inside btclib these have always been public from `btclib.exceptions`, and a

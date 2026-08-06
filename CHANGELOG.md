@@ -1523,6 +1523,24 @@ edit.
   and a size are not secret. Both classes are `BTClibValueError`s, so code
   catching that is unaffected. `to_pub_key` still guesses the same way and
   is untouched
+- **an exception carrying a field can be pickled and copied**, where
+  `HttpError`, `RpcError`, `ScriptError` and `InvalidContributionError`
+  answered a TypeError about their own constructor. Each composed its
+  message in `__init__` and handed that one string to
+  `BaseException.__init__`, so `args` held the message alone, and
+  `BaseException.__reduce__` returns `(cls, self.args)`: a class taking
+  two or three arguments is not rebuilt from one. `pickle`, `copy.copy`
+  and `copy.deepcopy` failed on it alike, and so did a
+  `ProcessPoolExecutor` — a fetch fanned out across processes, which is
+  the reason `HttpError.status` exists, got a `BrokenProcessPool` and no
+  status wherever the node answered 503 and a working pool wherever it
+  answered. The four now hand every constructor argument to
+  `BaseException.__init__` and compose their message in `__str__`, which
+  is what `subprocess.CalledProcessError` and `UnicodeDecodeError` do;
+  composing there is the half that keeps a round trip from adding a
+  second `(rpc error code -5)` every time. `str(e)` is unchanged; `e.args`
+  is the tuple of arguments now rather than a one-tuple of the composed
+  message, and `repr(e)` names the fields with it (issue #391)
 
 ### Curves, signatures and keys
 

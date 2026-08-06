@@ -16,6 +16,24 @@ The exceptions to that are the few classes below carrying a field: what
 a peer got wrong, the node's rpc error code, an HTTP status. Those are
 values a caller acts on, and reading them back out of a message is what
 the field spares them.
+
+Each of those hands every constructor argument to
+`BaseException.__init__` and composes its message in `__str__`, which is
+what `subprocess.CalledProcessError` and `UnicodeDecodeError` do, and
+what makes it picklable: `BaseException.__reduce__` returns `(cls,
+self.args)`, so a class whose `args` is the composed message alone is
+rebuilt by calling it with one argument, and one argument is not what it
+takes. That is a TypeError out of `pickle`, out of `copy.copy` and out
+of `copy.deepcopy` -- and out of a `ProcessPoolExecutor`, which cannot
+send the exception back and reports a broken pool instead of the failure
+the worker died of. Composing in `__str__` is the half that keeps the
+round trip faithful rather than merely possible: a message composed in
+`__init__` from an argument that is itself a composed message gains a
+second `(command 3, stack depth 2)` every time.
+
+The visible price is `args`, which is a tuple of the arguments now and
+not a one-tuple of the message, and `repr`, which names the fields with
+it. `str` is the message it always was.
 """
 
 from __future__ import annotations
@@ -81,7 +99,11 @@ class ScriptError(BTClibValueError):
     def __init__(self, message: str, index: int, stack_depth: int) -> None:
         self.index = index
         self.stack_depth = stack_depth
-        super().__init__(f"{message} (command {index}, stack depth {stack_depth})")
+        super().__init__(message, index, stack_depth)
+
+    def __str__(self) -> str:
+        where = f"command {self.index}, stack depth {self.stack_depth}"
+        return f"{self.args[0]} ({where})"
 
 
 class NotAPrvKeyError(BTClibValueError):
@@ -133,8 +155,11 @@ class InvalidContributionError(BTClibRuntimeError):
     def __init__(self, signer: int | None, contrib: str) -> None:
         self.signer = signer
         self.contrib = contrib
-        who = "the aggregator" if signer is None else f"signer {signer}"
-        super().__init__(f"invalid {contrib} from {who}")
+        super().__init__(signer, contrib)
+
+    def __str__(self) -> str:
+        who = "the aggregator" if self.signer is None else f"signer {self.signer}"
+        return f"invalid {self.contrib} from {who}"
 
 
 class BTClibUserWarning(UserWarning):
