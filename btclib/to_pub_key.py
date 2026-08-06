@@ -229,8 +229,8 @@ def pub_keyinfo_from_prv_key(
 def fingerprint(key: Key, network: str | None = None) -> bytes:
     """Return the public key fingerprint from a private/public key.
 
-    The fingerprint is the last four bytes of the compressed public key
-    HASH160.
+    The fingerprint is the first four bytes of the compressed public key
+    HASH160, which is what BIP32 defines it as.
     """
     pub_key, _ = pub_keyinfo_from_key(key, network, compressed=True)
     return hash160(pub_key)[:4]

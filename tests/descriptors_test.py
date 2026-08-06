@@ -53,6 +53,7 @@ from btclib.descriptors import (
     checksum,
     from_address,
     multipath_descriptors,
+    normalized,
     parse,
     strip_checksum,
 )
@@ -71,7 +72,7 @@ from btclib.script.script import serialize
 from btclib.script.script_pub_key import ScriptPubKey
 from btclib.script.witness import Witness
 from btclib.to_prv_key import prv_keyinfo_from_prv_key
-from btclib.to_pub_key import pub_keyinfo_from_key
+from btclib.to_pub_key import fingerprint, pub_keyinfo_from_key
 from btclib.tx import OutPoint, Tx, TxIn, TxOut
 from tests import load, vector_id
 
@@ -1898,3 +1899,88 @@ def test_every_fragment_writes_its_own_function() -> None:
     ]
     for descriptor in written:
         assert str(parse(descriptor)) == descriptor
+
+
+XPRV_ROOT = (
+    "xprv9s21ZrQH143K3QTDL4LXw2F7HEK3wJUD2nW2nRk4stbPy6cq3jPPqjiChkVvv"
+    "NKmPGJxWUtg6LnF5kejMRNNU3TGtRBeJgk33yuGBxrMPHi"
+)
+
+
+def test_the_normalized_form_derives_from_an_xpub_alone() -> None:
+    """The point of it: a hardened descriptor a watch-only wallet can use.
+
+    The extended key becomes the xpub at the last hardened step and the
+    hardened prefix moves into the origin, so every script the descriptor
+    describes is computable with no private key at all -- which is what
+    `getdescriptorinfo` answers with and what an export wants.
+    """
+    for descriptor in (
+        f"wpkh({XPRV_ROOT}/44h/0h/0h/0/*)",
+        f"wpkh([deadbeef/84h]{XPRV_ROOT}/0h/1/*)",
+        f"sh(wsh(multi(1,{XPRV_ROOT}/1h/2,{XPRV_ROOT}/3/4)))",
+        f"tr({XPRV_ROOT}/86h/0h/0h/0/*)",
+        f"tr({XPRV_ROOT}/1h/0,multi_a(1,{XPRV_ROOT}/2h/0))",
+    ):
+        prv_keys: dict[str, str] = {}
+        parsed = parse(descriptor, prv_keys=prv_keys)
+        canonical = normalized(parsed, prv_keys)
+
+        for index in (0, 5):
+            if index and not parsed.is_ranged:
+                continue
+            # no prv_keys at all on the normalized side: that is the claim
+            assert canonical.script_pub_keys(index) == parsed.script_pub_keys(
+                index, prv_keys
+            )
+        # and it is a descriptor, so it writes itself back and parses again
+        assert str(parse(str(canonical))) == str(canonical)
+
+
+def test_what_the_normalized_form_leaves_alone() -> None:
+    """Three keys have no hardened step to re-root at, and one cannot."""
+    xpub = xpub_from_xprv(XPRV_ROOT)
+
+    # a path that hardens nothing, and a key that is not extended
+    for descriptor in (f"wpkh({xpub}/0/1/*)", f"pk({KEY})"):
+        assert str(normalized(parse(descriptor))) == descriptor
+
+    # a hardened wildcard: the step that needs the private key is the one
+    # taken at every index, so there is no point to re-root to. Bitcoin
+    # Core's first branch, and for the same reason
+    hardened_range = f"wpkh({xpub}/0/*h)"
+    assert str(normalized(parse(hardened_range))) == hardened_range
+
+    # the symbol is h throughout, whichever was read: a normalized
+    # descriptor is a canonical spelling and not the one that came in
+    assert str(normalized(parse(f"wpkh({xpub}/0/*')"))) == f"wpkh({xpub}/0/*h)"
+    prv_keys: dict[str, str] = {}
+    apostrophes = parse(f"wpkh([deadbeef/84']{XPRV_ROOT}/0'/1/*)", prv_keys=prv_keys)
+    assert "'" not in str(normalized(apostrophes, prv_keys))
+
+
+def test_normalizing_without_the_key_says_so() -> None:
+    """A hardened step and no private key is refused, not quietly kept."""
+    xpub = xpub_from_xprv(XPRV_ROOT)
+    err_msg = "no private key to normalize the hardened derivation"
+    with pytest.raises(BTClibValueError, match=err_msg):
+        normalized(parse(f"wpkh({xpub}/0h/1/*)"))
+
+    # and the mapping has to name this key, not merely be non-empty
+    with pytest.raises(BTClibValueError, match=err_msg):
+        normalized(parse(f"wpkh({xpub}/0h/1/*)"), {"somebody-else": XPRV_ROOT})
+
+
+def test_the_normalized_origin_keeps_the_fingerprint_that_was_given() -> None:
+    """An origin already there is extended; one absent is the key's own."""
+    prv_keys: dict[str, str] = {}
+    given = parse(f"wpkh([deadbeef/84h]{XPRV_ROOT}/0h/1/*)", prv_keys=prv_keys)
+    origin = normalized(given, prv_keys).key_expressions[0].origin
+    assert origin is not None
+    assert origin.description == "deadbeef/84h/0h"
+
+    absent = parse(f"wpkh({XPRV_ROOT}/44h/0h/0h/0/*)", prv_keys=prv_keys)
+    origin = normalized(absent, prv_keys).key_expressions[0].origin
+    assert origin is not None
+    assert origin.master_fingerprint == fingerprint(XPRV_ROOT)
+    assert origin.description == f"{fingerprint(XPRV_ROOT).hex()}/44h/0h/0h"

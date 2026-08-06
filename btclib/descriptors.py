@@ -73,6 +73,13 @@ where HWI and Electrum name the checksummed form `to_string`. What it
 writes is public by construction, there being no private material left
 in a parsed descriptor to write.
 
+`normalized` is the other direction Bitcoin Core has, its
+`ToNormalizedString`: the same descriptor with the xpub at each last
+hardened step and the hardened prefix moved into the key origin, so that
+a holder of no private key can compute every script it describes. That is
+what `getdescriptorinfo` answers with, and what an export to a watch-only
+wallet wants.
+
 What this module exports is the checksum functions, `parse` and
 `multipath_descriptors`, and the fragment classes a parsed descriptor is
 made of -- `KeyExpression`, `DescriptorTree` and the `MultiA` a tree leaf
@@ -91,8 +98,8 @@ import re
 from abc import ABC, abstractmethod
 from collections.abc import Callable, Mapping
 from copy import deepcopy
-from dataclasses import dataclass
-from typing import cast
+from dataclasses import dataclass, fields, replace
+from typing import Any, cast
 
 from btclib.alias import Octets, ScriptList, TaprootScriptTree
 from btclib.bip32.bip32 import BIP32KeyData, derive, xpub_from_xprv
@@ -112,7 +119,7 @@ from btclib.script.script import op_int, serialize
 from btclib.script.script_pub_key import ScriptPubKey
 from btclib.script.taproot import input_script_sig, leaf_hash, tree_helper
 from btclib.script.witness import Witness
-from btclib.to_pub_key import point_from_pub_key, pub_keyinfo_from_key
+from btclib.to_pub_key import fingerprint, point_from_pub_key, pub_keyinfo_from_key
 from btclib.utils import bytes_from_octets
 
 __all__ = [
@@ -136,6 +143,7 @@ __all__ = [
     "checksum",
     "from_address",
     "multipath_descriptors",
+    "normalized",
     "parse",
     "strip_checksum",
 ]
@@ -1949,6 +1957,89 @@ def parse(
     if prv_keys is None:
         prv_keys = {}
     return _parse_expression(strip_checksum(descriptor), _TOP, network, prv_keys)
+
+
+def _normalized_key(key: KeyExpression, prv_keys: PrvKeys | None) -> KeyExpression:
+    """Return the key expression re-rooted at its last hardened step.
+
+    What makes a descriptor written with hardened derivation useful to a
+    wallet that holds no private key: the extended key becomes the xpub
+    at that step, and the hardened prefix moves into the key origin,
+    where it is a statement about where the key came from rather than a
+    derivation anybody has to perform.
+
+    Three keys are returned as they are, with the symbol normalized and
+    nothing else: one that is not extended, one whose path hardens
+    nothing, and one whose wildcard is the hardened `/*h`. The last is
+    Bitcoin Core's first branch too, and for the same reason -- the step
+    that needs the private key is the one taken at every index, so there
+    is no point to re-root to.
+    """
+    if key.pub_key is not None or key.wildcard == _HARDENED_OFFSET:
+        return replace(key, hardening=_HARDENING)
+    hardened = [i for i, step in enumerate(key.der_path) if step >= _HARDENED_OFFSET]
+    if not hardened:
+        return replace(key, hardening=_HARDENING)
+
+    xprv = prv_keys.get(key.xkey) if prv_keys else None
+    if xprv is None:
+        err_msg = "no private key to normalize the hardened derivation of a key"
+        raise BTClibValueError(err_msg)
+    last = hardened[-1] + 1
+    prefix = list(key.der_path[:last])
+    return replace(
+        key,
+        origin=BIP32KeyOrigin(
+            key.origin.master_fingerprint if key.origin else fingerprint(key.xkey),
+            [*(key.origin.der_path if key.origin else []), *prefix],
+        ),
+        xkey=xpub_from_xprv(derive(xprv, prefix)),
+        der_path=key.der_path[last:],
+        hardening=_HARDENING,
+    )
+
+
+def _normalized(value: object, prv_keys: PrvKeys | None) -> object:
+    """Return one field of a descriptor with every key in it normalized."""
+    if isinstance(value, KeyExpression):
+        return _normalized_key(value, prv_keys)
+    if isinstance(value, MultiA):
+        return replace(
+            value, keys=tuple(_normalized_key(k, prv_keys) for k in value.keys)
+        )
+    if isinstance(value, Descriptor):
+        return normalized(value, prv_keys)
+    if isinstance(value, tuple):
+        return tuple(_normalized(item, prv_keys) for item in value)
+    return value
+
+
+def normalized(descriptor: Descriptor, prv_keys: PrvKeys | None = None) -> Descriptor:
+    """Return the descriptor with the xpub at each last hardened step.
+
+    Bitcoin Core's `ToNormalizedString`, which is what `getdescriptorinfo`
+    answers with and what an export to a watch-only wallet wants: every
+    key of it derives from an xpub, so a holder of no private key can
+    compute every script the descriptor describes.
+
+    The private material is the caller's, as everywhere else here, and is
+    needed for exactly the keys that have a hardened step to re-root at.
+    Where one of those is missing this raises rather than handing back a
+    descriptor that quietly still needs a key.
+
+    The hardening symbol is `h` throughout the result, whichever was
+    read: a normalized descriptor is a canonical spelling and not the one
+    that came in, which is Core's rule -- "always use h for hardened
+    derivation" is how its own interface states it.
+    """
+    changed: dict[str, Any] = {
+        field.name: _normalized(getattr(descriptor, field.name), prv_keys)
+        for field in fields(descriptor)
+    }
+    # `replace` is what keeps this one function rather than a method per
+    # fragment: every field is walked, so a field added later carries its
+    # keys through here by default
+    return replace(descriptor, **changed)
 
 
 def multipath_descriptors(descriptor: str) -> list[str]:
