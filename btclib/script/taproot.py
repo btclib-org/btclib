@@ -50,6 +50,7 @@ __all__ = [
     "leaf_hash",
     "output_prvkey",
     "output_pubkey",
+    "output_pubkey_from_merkle_root",
     "parse",
     "serialize",
     "tree_helper",
@@ -230,6 +231,15 @@ def output_pubkey(
         _, h = tree_helper(script_tree)
     else:
         h = b""
+    return _tweaked_pubkey(pub_key, h, ec)
+
+
+def _tweaked_pubkey(pub_key: bytes, h: bytes, ec: Curve) -> tuple[bytes, int]:
+    """Return the x-only key an internal key tweaked by h, and its parity.
+
+    The half of BIP341's output key that does not care where h came
+    from: a tree the caller built, or the merkle root a psbt carries.
+    """
     t = _tap_tweak(pub_key, h, ec)
 
     # secp256k1_xonly_pubkey_tweak_add is this very operation, parity
@@ -245,6 +255,27 @@ def output_pubkey(
     P_x = int.from_bytes(pub_key, "big")
     Q = ec.add((P_x, ec.y_even(P_x)), mult(t))
     return Q[0].to_bytes(32, "big"), Q[1] % 2
+
+
+def output_pubkey_from_merkle_root(
+    internal_pubkey: Octets, merkle_root: Octets = b"", ec: Curve = secp256k1
+) -> tuple[bytes, int]:
+    """Return a taproot output key from a merkle root, per BIP341.
+
+    `output_pubkey` with the root already in hand, which is the shape a
+    psbt has it in: BIP371's `PSBT_IN_TAP_MERKLE_ROOT` is the root and
+    not the tree that produced it, an input naming the branch it spends
+    by its leaf script and control block instead -- so a signer that
+    takes the key path is told the root and nothing else about the tree.
+    An empty root is key path only, as an empty tree is.
+
+    The internal key is x-only and 32 bytes, which is what BIP341 tweaks
+    and what the psbt field holds; `output_pubkey` takes the wider `Key`
+    because a caller building an output has the key in whatever form it
+    reached them in.
+    """
+    internal_pubkey = bytes_from_octets(internal_pubkey, 32)
+    return _tweaked_pubkey(internal_pubkey, bytes_from_octets(merkle_root), ec)
 
 
 def output_prvkey(

@@ -73,6 +73,7 @@ from btclib.script.taproot import (
     input_script_sig,
     output_prvkey,
     output_pubkey,
+    output_pubkey_from_merkle_root,
 )
 from btclib.script.witness import Witness
 
@@ -111,6 +112,7 @@ __all__ = [
     "op_int",
     "output_prvkey",
     "output_pubkey",
+    "output_pubkey_from_merkle_root",
     "p2ms_m_and_keys",
     "parse",
     "script_from_dict",

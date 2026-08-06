@@ -2751,6 +2751,107 @@ def test_a_taproot_input_is_finalized_from_its_own_fields() -> None:
     )
 
 
+def _bip371_psbt(description: str) -> Psbt:
+    """Return the valid BIP371 psbt whose description contains this."""
+    return Psbt.b64decode(
+        next(
+            test_vector["encoded psbt"]
+            for test_vector in load("psbt", "_data", "bip371_test_vectors.json")[
+                "valid psbts"
+            ]
+            if description in test_vector["description"]
+        )
+    )
+
+
+@pytest.mark.parametrize(
+    "test_vector", psbt_vectors("bip371_test_vectors.json", "valid psbts")
+)
+def test_bip371s_own_psbts_are_signable(test_vector: dict[str, str]) -> None:
+    """Every valid BIP371 psbt passes the Signer's pre-flight (issue #435).
+
+    None of them did: a p2tr input carrying a witness_utxo was refused
+    as "script type not in ('p2wpkh', 'p2wsh')", the rule BIP174 wrote
+    for a witness utxo beside a legacy input, applied to a witness kind
+    that did not exist when it was written.
+
+    They are the positive case for what replaces it, and they cover both
+    ways a taproot output is spent: the key path ones carry an internal
+    key and no merkle root, the script path ones a root and three leaf
+    scripts with their control blocks.
+    """
+    Psbt.b64decode(test_vector["encoded psbt"]).assert_signable()
+
+
+def test_what_a_taproot_input_cannot_be_signed_from() -> None:
+    """Every way the taproot fields of an input fail to reach its output key.
+
+    What the redeem and witness script checks are for the other kinds:
+    the psbt is held to the output being spent, so a field that does not
+    reach it is a field a Signer must not act on.
+    """
+    key_path = "one P2TR key only input with internal key"
+    script_path = "one P2TR script path only input with dummy internal key"
+
+    # an internal key that tweaks to some other output key
+    psbt = _bip371_psbt(key_path)
+    psbt.inputs[0].taproot_internal_key = _PUB_KEY[1:]
+    with pytest.raises(BTClibValueError, match="is not the output key being spent"):
+        psbt.assert_signable()
+
+    # the right internal key and a merkle root the output does not
+    # commit to: a key path spend is the tweak by no root at all
+    psbt = _bip371_psbt(key_path)
+    psbt.inputs[0].taproot_merkle_root = b"\x01" * 32
+    with pytest.raises(BTClibValueError, match="is not the output key being spent"):
+        psbt.assert_signable()
+
+    # a leaf script the control block beside it does not prove
+    psbt = _bip371_psbt(script_path)
+    control_block, (script, leaf_version) = next(
+        iter(psbt.inputs[0].taproot_leaf_scripts.items())
+    )
+    psbt.inputs[0].taproot_leaf_scripts[control_block] = (
+        script + b"\x51",
+        leaf_version,
+    )
+    with pytest.raises(BTClibValueError, match="does not prove leaf script"):
+        psbt.assert_signable()
+
+    # a leaf version that is not the one the control block declares:
+    # the proof is then of a leaf `leaf_script` will not find
+    psbt = _bip371_psbt(script_path)
+    psbt.inputs[0].taproot_leaf_scripts[control_block] = (script, 0xC2)
+    with pytest.raises(BTClibValueError, match="is not the control block's"):
+        psbt.assert_signable()
+
+
+def test_a_taproot_input_is_checked_whichever_utxo_it_carries() -> None:
+    """The non_witness_utxo path used to be the one that checked nothing.
+
+    A taproot input carrying the whole previous transaction took the
+    branch that returns the payload without typing it, so the two checks
+    below never ran and every taproot field was signable. The output
+    being spent is the same output either way, which is what `_prev_out`
+    answers and what this asks it for.
+
+    The script_pub_key is built by `ScriptPubKey.p2tr`, which tweaks by
+    an empty *tree*, and the check tweaks by an empty *root*: that the
+    psbt is signable at all is the two spellings agreeing on this key.
+    """
+    internal_key = _PUB_KEY[1:]
+    prev_out = TxOut(100_000, ScriptPubKey.p2tr(_PUB_KEY))
+    tx, prev_tx = _spending_tx(prev_out)
+    psbt = Psbt.from_tx(tx)
+    psbt.inputs[0].non_witness_utxo = prev_tx
+    psbt.inputs[0].taproot_internal_key = internal_key
+    psbt.assert_signable()
+
+    psbt.inputs[0].taproot_internal_key = _OTHER_PUB_KEY[1:]
+    with pytest.raises(BTClibValueError, match="is not the output key being spent"):
+        psbt.assert_signable()
+
+
 def test_what_a_taproot_input_cannot_be_finalized_from() -> None:
     """Every way the taproot fields of an input fail to be a spend of it."""
     # a signature of the wrong sig_hash type: the input asks for one and

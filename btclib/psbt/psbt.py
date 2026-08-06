@@ -502,19 +502,26 @@ def _signable_payload(psbt_in: PsbtIn) -> bytes:
     """Return the hash the input's script_pub_key commits to.
 
     Which utxo the input carries is which kind of input it is. A
-    witness_utxo is the spent output itself, and it has to be a segwit
+    witness_utxo is the spent output itself, and it has to be a witness
     one: p2sh is accepted only as the wrapper, so what is typed then is
     the redeem script, while the payload stays the p2sh one -- the
     hash160 the caller checks that redeem script against. A
     non_witness_utxo is the whole previous transaction, and the output
     being spent is the one the input's own outpoint names.
+
+    p2tr is one of the three because it is a witness kind, which is the
+    whole of the rule: BIP174 wrote the rule when witness v0 was the
+    only witness there was. Only unwrapped, there being no p2sh-wrapped
+    taproot spend -- and a redeem script beside one is refused by the
+    hash160 the caller checks next, 20 bytes never equalling the 32 of
+    an output key.
     """
     if witness_utxo := psbt_in.witness_utxo:
         script_type, payload = type_and_payload(witness_utxo.script_pub_key.script)
         if script_type == "p2sh":
             script_type, _ = type_and_payload(psbt_in.redeem_script)
-        if script_type not in ("p2wpkh", "p2wsh"):
-            raise BTClibValueError("script type not in ('p2wpkh', 'p2wsh')")
+        if script_type not in ("p2wpkh", "p2wsh", "p2tr"):
+            raise BTClibValueError("script type not in ('p2wpkh', 'p2wsh', 'p2tr')")
         return payload
 
     if psbt_in.non_witness_utxo:
@@ -528,6 +535,60 @@ def _signable_payload(psbt_in: PsbtIn) -> bytes:
     raise BTClibValueError(err_msg)
 
 
+def _assert_taproot_signable(psbt_in: PsbtIn) -> None:
+    """Raise unless a taproot input's fields commit to the key being spent.
+
+    The same question the script checks below ask, in BIP341's terms:
+    what the input says about how it is spent has to reach the output
+    that is being spent. A taproot output commits to one key and can be
+    spent two ways, so there are two answers and an input may carry
+    either or both (issue #435):
+
+    - the key path: the output key is the internal key tweaked by the
+      merkle root, and `PSBT_IN_TAP_INTERNAL_KEY` with
+      `PSBT_IN_TAP_MERKLE_ROOT` has to produce the 32 bytes the
+      script_pub_key holds. No merkle root is key path only;
+    - the script path: each `PSBT_IN_TAP_LEAF_SCRIPT` is keyed by its
+      control block, which is BIP341's proof of that leaf against the
+      output key -- `check_output_pubkey`'s whole question.
+
+    Absence is not refused, as it is not for a p2sh input carrying no
+    redeem script: an input that says nothing about how it is spent has
+    told the signer nothing that can be wrong. What is there must be
+    true.
+
+    The leaf version is checked against the control block's because the
+    two are read by different callers: `check_output_pubkey` folds the
+    leaf hash from the version the *control block* declares, while
+    `leaf_script` finds a leaf by the hash of the version the *field*
+    stores. Where they disagree, the proof is of a leaf no other reader
+    will look up.
+    """
+    prev_out = _prev_out(psbt_in)
+    if prev_out is None or not is_p2tr(prev_out.script_pub_key.script):
+        return
+    output_key = type_and_payload(prev_out.script_pub_key.script)[1]
+
+    if psbt_in.taproot_internal_key:
+        tweaked = taproot.output_pubkey_from_merkle_root(
+            psbt_in.taproot_internal_key, psbt_in.taproot_merkle_root
+        )[0]
+        if tweaked != output_key:
+            err_msg = f"the tweaked internal key {tweaked.hex()} is not "
+            err_msg += f"the output key being spent, {output_key.hex()}"
+            raise BTClibValueError(err_msg)
+
+    for control_block, (script, leaf_version) in psbt_in.taproot_leaf_scripts.items():
+        if control_block[0] & 0xFE != leaf_version & 0xFE:
+            err_msg = f"leaf version {hex(leaf_version)} is not the control "
+            err_msg += f"block's {hex(control_block[0] & 0xFE)}"
+            raise BTClibValueError(err_msg)
+        if not taproot.check_output_pubkey(output_key, script, control_block):
+            err_msg = "the control block does not prove leaf script "
+            err_msg += f"{script.hex()} against output key {output_key.hex()}"
+            raise BTClibValueError(err_msg)
+
+
 def _assert_input_signable(psbt_in: PsbtIn) -> None:
     """Raise an exception unless the input carries what a Signer needs.
 
@@ -536,8 +597,14 @@ def _assert_input_signable(psbt_in: PsbtIn) -> None:
     names, and the witness script the sha256 in whichever of the two is
     the level above *it* -- the redeem script when the input is wrapped,
     the script_pub_key when it is native.
+
+    A taproot input has neither script and answers the same question
+    with its own fields, which `_assert_taproot_signable` asks. The two
+    are not exclusive: the checks below still run, and refuse the redeem
+    or witness script a taproot input has no use for.
     """
     payload = _signable_payload(psbt_in)
+    _assert_taproot_signable(psbt_in)
     redeem_script = psbt_in.redeem_script
 
     if redeem_script and payload != hash160(redeem_script):
