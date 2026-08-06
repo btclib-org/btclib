@@ -23,6 +23,19 @@ The changes below break code that worked on v2023.7.12. Each is described in
 full in [CHANGELOG.md](./CHANGELOG.md). Every "before" spelling was checked
 against the `v2023.7.12` tag.
 
+- **`btclib.bitcoin_core_rpc` is the `bitcoin-core-rpc` package.** The
+  Bitcoin Core rpc client is no longer a module of btclib: it is
+  [a distribution of its own](https://pypi.org/project/bitcoin-core-rpc/),
+  which btclib now depends on, so `pip install btclib` still brings it and
+  `import btclib.bitcoin_core_rpc` no longer resolves. `from
+  bitcoin_core_rpc import ...` is the spelling, and
+  `btclib.fetch.BitcoinCoreRpcClient` and
+  `btclib.fetch.bitcoin_core.BitcoinCoreRpcClient` keep working unchanged.
+  The one behaviour that moves with it: reaching the client through either
+  of those names and catching `btclib.exceptions.RpcError` no longer
+  catches, the package raising its own — `bitcoin_core_rpc.RpcError` is
+  what a direct `client.call` raises now. A `Fetcher` is unaffected and
+  still raises btclib's, `status` and `code` included.
 - **`from btclib.ec import ...` is `from btclib.curves import ...`.** Every
   name the package exports is the name it exported before.
 - **`Block.weight` is the weight of the block**, where it was the sum of

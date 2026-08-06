@@ -23,8 +23,16 @@ from abc import ABC, abstractmethod
 from collections.abc import Iterator
 from contextlib import contextmanager
 
+import bitcoin_core_rpc as rpc
+
 from btclib.alias import Octets
-from btclib.exceptions import BTClibRuntimeError, BTClibValueError, FetchError
+from btclib.exceptions import (
+    BTClibRuntimeError,
+    BTClibValueError,
+    FetchError,
+    HttpError,
+    RpcError,
+)
 from btclib.network import NETWORKS
 from btclib.script import ScriptPubKey
 from btclib.tx import OutPoint, Tx, TxOut
@@ -32,11 +40,45 @@ from btclib.utils import bytes_from_octets
 
 __all__ = [
     "Fetcher",
+    "client_errors",
     "fetch_errors",
     "tx_for_network",
     "tx_from_raw",
     "tx_id_hex",
 ]
+
+
+@contextmanager
+def client_errors() -> Iterator[None]:
+    """Re-raise what the rpc client raises as btclib's own exception.
+
+    `bitcoin_core_rpc` declares a `FetchError`, an `HttpError` and an
+    `RpcError` of its own -- it imports nothing of btclib's, that being
+    what lets its one file be vendored -- so those three are not the
+    classes `btclib.exceptions` declares, and an `except FetchError`
+    written against btclib does not catch them. This is the one place the
+    two meet, and every call that crosses into the package goes through
+    it: `EsploraFetcher.text` and `BitcoinCoreFetcher._call` are the two
+    lines that do.
+
+    The fields are what make this a translation rather than a blanket
+    wrap: `status` and `code` are the whole reason those two classes
+    exist, and losing them would leave a caller matching on the text of a
+    message again.
+
+    `args[0]` and not `str(e)`: both sides compose their message in
+    `__str__`, so handing the composed one back in would report
+    "not found (rpc error code -5) (rpc error code -5)" -- once more per
+    translation.
+    """
+    try:
+        yield
+    except rpc.RpcError as e:
+        raise RpcError(e.args[0], e.code, e.data) from e
+    except rpc.HttpError as e:
+        raise HttpError(e.args[0], e.status) from e
+    except rpc.FetchError as e:
+        raise FetchError(str(e)) from e
 
 
 @contextmanager

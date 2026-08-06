@@ -27,9 +27,9 @@ is not a claim any one of those modules could hold.
 from __future__ import annotations
 
 import pytest
+from bitcoin_core_rpc import network_from_core_chain
 
 from btclib import b32, b58
-from btclib.bitcoin_core_rpc import network_from_core_chain
 from btclib.exceptions import BTClibValueError
 from btclib.network import network_type_from_network
 from btclib.script import ScriptPubKey

@@ -369,13 +369,11 @@ every mutant identically and the session reports a perfect kill rate,
 which is the one failure mode of a mutation run that looks like good news.
 `cr-filter-operators` marks as skipped the mutants a configuration
 excludes by operator, and is a no-op for one that excludes none, so the
-same five commands run any of them: `parsers.toml` and
-`bitcoin_core_rpc.toml` are the two that exclude a family, and each states
-which and why. `sig_hash.toml` or
+same five commands run any of them: `parsers.toml` is the one that
+excludes a family, and it states which and why. `sig_hash.toml` or
 `engine.toml` in place of it is the consensus profile, at 727 mutants and half
 an hour of cpu against 2768 and five and a half hours; the parser profile
-is 1034 mutants and minutes and the rpc one 719, so those two are the ones
-that finish. Each
+is 1034 mutants and minutes, so it is the one that finishes. Each
 configuration carries its own arithmetic. The report is `--surviving-only`,
 which is the whole of what anybody acts on: a killed mutant is the suite
 doing its job, and printing all 727 of them buries the dozen that are not.

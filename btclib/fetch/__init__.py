@@ -15,19 +15,25 @@ never branches on which one it got.
 
 **It adds no dependency.** `urllib.request`, `json` and `base64` from the
 standard library are the whole of the client. Its canonical implementation is
-the independently vendorable `btclib.bitcoin_core_rpc`; the transport exports
-here are aliases to that same source, not another implementation. The seam
-lets the test suite exercise all of this while opening no socket.
+the `bitcoin-core-rpc` package, which btclib depends on and does not
+contain; the transport exports here are aliases to that same source, not
+another implementation. The seam lets the test suite exercise all of this
+while opening no socket.
 
-It is no longer free for a user who never fetches, and that is what one
-exception identity costs. `FetchError` and the two below it are defined in
-the standalone file and re-exported by `btclib.exceptions`, so that the
-class is one whichever import path a caller reached it by -- the alternative
-being two of them that no single `except` catches. Most of the library
-imports `btclib.exceptions`, so most of it now loads `urllib.request`, with
-`ssl` and `socket` under it; `import btclib` and `btclib.alias` are the kind
-that still do not. What no arrangement buys is a copy of that file raising
-btclib's class: a copy is another module, and its exceptions are its own.
+**The exceptions a `Fetcher` raises are btclib's**, and that costs one
+translation. The package declares a `FetchError`, an `HttpError` and an
+`RpcError` of its own -- it imports nothing of btclib's, which is what
+lets its one file be vendored -- so those are not the classes
+`btclib.exceptions` declares, and `fetcher.client_errors` re-raises them
+as the ones a caller catches, `status` and `code` carried across. What
+that buys back is the import cost: `btclib.exceptions` no longer reaches
+a protocol client, so `urllib.request`, `ssl` and `socket` are loaded by
+the code that fetches and not by every module that catches.
+
+The re-exported client is the exception: `btclib.fetch.BitcoinCoreRpcClient`
+is the package's class unchanged, so calling it directly raises the
+package's exceptions and not btclib's. It is the client's API, reached
+through btclib's name for it.
 
 Importing the package does not connect to anything, and constructing a
 fetcher does not either: the first call is what opens a connection, and
@@ -57,7 +63,8 @@ is: `btclib.exceptions` holds every one of them together, which is what
 lets a caller see at a glance what the library raises.
 """
 
-from btclib.bitcoin_core_rpc import BitcoinCoreRpcClient
+from bitcoin_core_rpc import BitcoinCoreRpcClient
+
 from btclib.fetch.bitcoin_core import BitcoinCoreFetcher
 from btclib.fetch.esplora import BLOCKSTREAM_INFO, EsploraFetcher
 from btclib.fetch.fetcher import Fetcher

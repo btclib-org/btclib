@@ -277,10 +277,16 @@ wheels = [
 ]
 
 [[package]]
+name = "bitcoin-core-rpc"
+version = "2026.8"
+source = { git = "https://github.com/btclib-org/btclib-bitcoin-core-rpc?rev=dev#c9ac514be799eee6fcbc77063b61c37b351dabf5" }
+
+[[package]]
 name = "btclib"
 version = "2026.8"
 source = { editable = "." }
 dependencies = [
+    { name = "bitcoin-core-rpc" },
     { name = "btclib-libsecp256k1" },
 ]
 
@@ -339,7 +345,10 @@ test = [
 ]
 
 [package.metadata]
-requires-dist = [{ name = "btclib-libsecp256k1", specifier = ">=0.7.1" }]
+requires-dist = [
+    { name = "bitcoin-core-rpc", git = "https://github.com/btclib-org/btclib-bitcoin-core-rpc?rev=dev" },
+    { name = "btclib-libsecp256k1", specifier = ">=0.7.1" },
+]
 
 [package.metadata.requires-dev]
 build = [

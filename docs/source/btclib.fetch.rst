@@ -7,9 +7,17 @@ Submodules
 btclib.fetch.bitcoin_core integration module
 --------------------------------------------
 
+.. `BitcoinCoreRpcClient` is re-exported by this module and by the package
+   below, and belongs to neither: it is `bitcoin-core-rpc`'s, and autodoc
+   resolves both names to that one class. Documented once, under the
+   package, which is where a caller reaches it -- without this it is
+   rendered twice, at two cross-reference targets, and -W fails the build
+   on the duplicate.
+
 .. automodule:: btclib.fetch.bitcoin_core
    :members:
    :show-inheritance:
+   :exclude-members: BitcoinCoreRpcClient
 
 btclib.fetch.esplora module
 ---------------------------

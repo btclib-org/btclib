@@ -76,22 +76,6 @@ btclib.bip44 module
    :members:
    :show-inheritance:
 
-btclib.bitcoin_core_rpc module
-------------------------------
-
-.. the six exception classes are in this module's ``__all__``, being defined
-   in it -- so that the compatibility import paths of an installed btclib
-   name one class rather than two -- and they are documented under
-   ``btclib.exceptions``, which is where the library's exceptions are read
-   together. Without this, autodoc renders each of them twice on this page,
-   at two cross-reference targets.
-
-.. automodule:: btclib.bitcoin_core_rpc
-   :members:
-   :show-inheritance:
-   :exclude-members: BTClibRuntimeError, BTClibTypeError, BTClibValueError,
-      FetchError, HttpError, RpcError
-
 btclib.descriptors module
 -------------------------
 
