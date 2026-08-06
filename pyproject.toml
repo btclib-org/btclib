@@ -514,28 +514,6 @@ exclude = [
     "build",
 ]
 
-[[tool.mypy.overrides]]
-# bitcoin-core-rpc is annotated throughout and type checked in strict mode
-# in its own repository, but it cannot say so from here: PEP 561's marker
-# is a `py.typed` file inside a package directory, and that distribution is
-# a top-level module with no directory to put one in. Measured against the
-# installed wheel: without this, every name imported from it is `Any` --
-# which under `strict` is eight errors about the import and two more about
-# the `Any` leaking into a return type, and, worse, silence wherever it
-# should have been checking.
-#
-# So the annotations are read off the installed source instead. Scoped to
-# the one module rather than set globally: `follow_untyped_imports` at the
-# top of this table would extend the same trust to any dependency that
-# stops shipping a marker, and there is no other untyped import here to
-# want it. The alternatives are the other repository's to take -- a
-# `bitcoin_core_rpc-stubs` distribution, which is a hand-written second
-# copy of the interface, or a package directory, which costs the file the
-# single name that makes it copyable -- and its pyproject.toml records why
-# it took neither
-module = ["bitcoin_core_rpc"]
-follow_untyped_imports = true
-
 [tool.ruff]
 # target-version is inferred from project.requires-python
 
