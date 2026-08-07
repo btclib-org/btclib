@@ -2786,6 +2786,34 @@ edit.
 
 ### The public API and the module layout
 
+- **`btclib.hwi` reads `signed`, and the surface it depends on is pinned**
+  (issue #381). Staying aligned with a project btclib does not import is
+  two things, and neither is a copy of it: `tests/hwi_test.py` writes out
+  the surface used — the five commands with their arguments, the three
+  global flags, the answer keys, the four chains, and all eighteen error
+  codes with the names HWI gives them — and `tests/_data/README.md` pins
+  `hwilib/_cli.py` and `hwilib/errors.py` to the revisions they were read
+  from, so the monthly upstream re-check reports a command line that
+  moved. The transcription catches btclib changing what it sends; the pin
+  catches HWI changing what it takes.
+
+  Writing it down caught the first one immediately: `signtx` has answered
+  `{"psbt": …, "signed": …}` since 2021 — HWI's own docstring still says
+  it answers a psbt alone — and `sign_psbt` read the first key only. It
+  now holds the flag to the two strings that crossed the boundary, which
+  is a check only this layer can make: HWI computes `signed` as "what I
+  return is not what I was given", and a device claiming it signed while
+  handing back the psbt it was sent has answered two things that cannot
+  both be true. `psbt_signer.request_signatures` compares psbts and never
+  sees the flag. A device that signed *nothing* is not an error and does
+  not raise: one signer of an m-of-n answers for its own key and no
+  other, which is the answer `psbt.sign` gives by adding nothing.
+
+  `pyproject.toml` gains one identifier for the `typos` hook:
+  `UNKNWON_DEVICE_TYPE` is HWI's own spelling of error code -4, and a
+  transcription that corrects its source is not one — the name a caller
+  reads in HWI's output would be one this repository never mentions.
+
 - **an integration suite, opt-in and off by default** (issue #381), in
   `tests/integration/`. A unit test can say a signature verifies; only a
   node can say it relays the transaction that carries it — so the regtest

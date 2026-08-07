@@ -41,6 +41,14 @@ is parsed rather than what is buffered.
 Failures come back as `exceptions.SignerError`, carrying HWI's own error
 code where there is one: -14 is the user pressing the button that says
 no, -3 is a cable, -9 is a model that will never do it.
+
+Staying aligned with a project this does not import is two things, and
+neither is a copy of it. `tests/hwi_test.py` writes out the surface used
+-- the commands, the flags, the answer keys, the error codes -- and
+`tests/_data/README.md` pins `hwilib/_cli.py` and `hwilib/errors.py` to
+the revisions it was read from, so the monthly upstream re-check reports
+a command line that moved. What that already caught: `signtx` answers
+`signed` beside the psbt, which `sign_psbt` now holds the two strings to.
 """
 
 from __future__ import annotations
@@ -345,11 +353,39 @@ class HwiSigner:
     def sign_psbt(self, psbt: Psbt) -> Psbt:
         """Return what `hwi signtx` answered, parsed and otherwise untouched.
 
-        Untouched deliberately: the answer is checked against the psbt
-        that was sent by `psbt_signer.request_signatures`, which is the
-        caller of this and the one place that comparison belongs.
+        Untouched deliberately: what the answer *contains* is checked
+        against the psbt that was sent by
+        `psbt_signer.request_signatures`, which is the caller of this and
+        the one place that comparison belongs.
+
+        What is checked here is the other thing, and only this layer can:
+        `signtx` answers `signed` beside the psbt -- HWI computes it as
+        "the base64 I return is not the base64 I was given" -- so the flag
+        and the two strings have to agree. A device claiming it signed
+        while handing back what it was sent, or denying it while handing
+        back something else, has answered inconsistently, and the psbt is
+        not the place that shows it: the comparison is over the very
+        strings that crossed the boundary.
+
+        A device that signed nothing is not an error and does not raise.
+        One signer of an m-of-n answers for its own key and for no other,
+        which is the same answer `psbt.sign` gives by adding nothing; what
+        a caller compares is the psbt it gets back.
         """
-        return Psbt.b64decode(self._answer(["signtx", psbt.b64encode()], "psbt"))
+        sent = psbt.b64encode()
+        answer = self._hwi("signtx", sent)
+        if not isinstance(answer, dict) or "psbt" not in answer:
+            raise SignerError(f"hwi signtx did not answer a psbt: {answer!r}")
+        returned = str(answer["psbt"])
+        # absent from HWI before the flag existed, and a caller may be
+        # running one of those: what is not answered is not checked
+        signed = answer.get("signed")
+        if signed is not None and bool(signed) != (returned != sent):
+            err_msg = f"hwi signtx answered signed={signed!r} and a psbt that"
+            err_msg += " was" if returned == sent else " was not"
+            err_msg += " the one it was given"
+            raise SignerError(err_msg)
+        return Psbt.b64decode(returned)
 
     def sign_message(self, message: Octets, der_path: DerPath) -> str:
         """Return the compact signature of a message: HWI's `signmessage`.

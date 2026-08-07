@@ -856,6 +856,71 @@ with btclib's own messages, and the `musig()` cases of BIP390, which are
 transcribed from the BIP itself above rather than from here. Matched
 against the pinned file on 2026-08-06.
 
+## bitcoin-core/HWI
+
+Nothing is vendored from HWI and nothing is imported from it: `btclib.hwi`
+runs its JSON command line as a subprocess, which is what keeps its
+`hidapi`, `libusb1`, `cbor2`, `pyserial`, `noiseprotocol` and `protobuf`
+out of btclib's dependencies. What is pinned here is therefore not a file
+but an *interface*, and the two entries are the two halves of it: the
+commands and flags a caller sends, and the numbers it gets back.
+
+Which makes these pins do something the others do not. A vector file is
+refreshed or it is not; an interface that moves is code here that stops
+working against the next release somebody installs — so the monthly
+re-check is the alignment, and `tests/hwi_test.py` carries the
+transcription it is checked against.
+
+### Not vendored as a file: the commands and flags of HWI's JSON CLI
+
+```text
+repo    bitcoin-core/HWI
+path    hwilib/_cli.py
+commit  27c1b4272a137af1dfd6f4fd12db2cc9143e0b16  2024-03-30
+pulled  2026-08-07
+behind  0 revisions; that commit is the tip of the path
+```
+
+Verdict: **transcribed**, and a subset by design. `tests/hwi_test.py`
+holds the five commands `btclib.hwi` runs — `enumerate`, `getxpub`,
+`signtx`, `signmessage`, `displayaddress` — with the positional arguments
+of each, the three global flags it passes (`--chain`, `--fingerprint`,
+`--emulators`), the `--desc` of `displayaddress`, the four chains
+`--chain` takes, and the keys read out of each answer. The other eleven
+commands are the device lifecycle — setup, wipe, restore, backup, the PIN
+and passphrase flows — which issue #381 keeps out of the signing surface
+deliberately, and `getdescriptors`, `getkeypool` and `getmasterxpub`,
+which btclib computes for itself: `descriptors.account_descriptors` and
+`btclib.core_import` are those three, on btclib's own types.
+
+The parser has moved twice since 2021 and both times additively:
+`--emulators` in 2024 (the pin), `--chain` and `--expert` on enumerate in
+2022. `signtx` gained a second answer key, `signed`, in 2021 — which is
+how this pin earned itself: btclib read only `psbt` until the surface was
+written down, and now checks the two against each other.
+
+### Not vendored as a file: HWI's error codes
+
+```text
+repo    bitcoin-core/HWI
+path    hwilib/errors.py
+commit  b209f369778aae0b441cb096e4afb7a2ea3717b4  2021-02-24
+pulled  2026-08-07
+behind  0 revisions; that commit is the tip of the path
+```
+
+Verdict: **transcribed**, complete: all eighteen numbers with the names
+HWI gives them, in `tests/hwi_test.py`, and one test per number that a
+`{"error": …, "code": …}` answer arrives as an `exceptions.SignerError`
+carrying it. The numbers are what a caller acts on — -14 is somebody
+pressing the button that says no, -3 is a cable, -9 is a model that will
+never do it — so an adapter that dropped them would leave a caller
+matching on the text of a message.
+
+The last change to the values was in 2019, and the file has not been
+touched since a docstring pass in 2021: of everything btclib depends on
+here, this is the stillest.
+
 ## bitcoin-core/qa-assets
 
 ### `tests/script/_data/script_assets_test.json`
