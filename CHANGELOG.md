@@ -997,6 +997,23 @@ edit.
 
 ### Malformed input and the exception contract
 
+- **`core_import` refuses the three `importdescriptors` arguments Core
+  refuses and it took.** Its docstring said "every rule Core enforces on
+  a request is enforced here" and named five; these are the rules that
+  were not among them, each one a request the node rejects whole. Two
+  are `ParseDescriptorRange`'s bounds on the field, in
+  `src/rpc/util.cpp`: an end at or above `2**31` is "End of range is too
+  high", and a span of a million indexes or more is "Range is too large"
+  -- `key_range=(0, 2**62)` and `key_range=(0, 1_000_000)` were both
+  built without a word. The third is `GetImportTimestamp`'s: a timestamp
+  is a number or the exact string `now`, so `"NOW"` and `"yesterday"`
+  were passed through to fail at the node. What the module exists for is
+  that the error names the field before a rescan rather than after one,
+  which is what these three did not get. The five rules already checked
+  had a test each, written from the same list the code was, so the
+  agreement between code, docstring and suite is what kept the gap
+  invisible at 100% coverage. `UniValue::getInt<int64_t>` is deliberately
+  not repeated: after the bounds above no number here can reach it.
 - **a derivation path step that is not one raises btclib's own error**,
   where `int_from_index_str` let `int` raise: `derive(xprv, ";/0")` died
   with `invalid literal for int() with base 10: ';'` and now raises

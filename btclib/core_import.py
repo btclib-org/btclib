@@ -30,8 +30,13 @@ half a rescan later:
 - an `active` descriptor is ranged, an unranged one having no keypool to
   be the active source of;
 - a `range` belongs to a ranged descriptor and to no other;
+- both ends of a `range` are what `ParseRange` and `ParseDescriptorRange`
+  in `src/rpc/util.cpp` take: ordered, non-negative, an end below 2**31,
+  and fewer than a million indexes between them;
 - `next_index` is inside that range;
-- a `label` goes with neither `internal` nor a range.
+- a `label` goes with neither `internal` nor a range;
+- a `timestamp` is a number or the exact string `now`, which is what
+  `GetImportTimestamp` accepts and nothing else -- `"NOW"` is not it.
 
 Two things are not written, where HWI's `getkeypool` writes them:
 `watchonly` and `keypool` are `importmulti` fields -- the other rpc that
@@ -52,6 +57,7 @@ from typing import Any
 
 from btclib.descriptors import Descriptor, add_checksum, parse
 from btclib.exceptions import BTClibValueError
+from btclib.utils import is_integer
 
 __all__ = [
     "DEFAULT_RANGE",
@@ -72,6 +78,11 @@ NOW = "now"
 # cannot tell which indexes were imported
 DEFAULT_RANGE = (0, 999)
 
+# `high >= low + 1000000` is "Range is too large" in ParseDescriptorRange,
+# so a million indexes is what a range may hold and 999_999 the widest
+# gap between its inclusive ends
+_MAX_RANGE_SPAN = 1_000_000
+
 
 def _is_ranged(descriptor: Descriptor | str) -> bool:
     """Answer whether the descriptor describes a range of scripts.
@@ -84,6 +95,28 @@ def _is_ranged(descriptor: Descriptor | str) -> bool:
     if isinstance(descriptor, Descriptor):
         return descriptor.is_ranged
     return parse(descriptor).is_ranged
+
+
+def _assert_timestamp(timestamp: int | str) -> None:
+    """Refuse a timestamp Core's GetImportTimestamp would refuse.
+
+    A number, or the string `now` and no other string: Core compares the
+    text against "now" and answers `Expected number or "now" timestamp
+    value for key` to everything else, so `"NOW"` and `"yesterday"` fail
+    the whole request. A refusal here names the field, where the rpc
+    error names the key it was importing.
+
+    `is_integer` rather than `isinstance(timestamp, int)`, which is the
+    predicate every integer field of the library is held to: `True` is an
+    `int` to Python and a boolean to json, and Core reads a json boolean
+    as neither a number nor a string.
+    """
+    if is_integer(timestamp):
+        return
+    if timestamp == NOW:
+        return
+    err_msg = f'expected a number or "{NOW}" as timestamp: {timestamp!r}'
+    raise BTClibValueError(err_msg)
 
 
 def _assert_no_label(label: str, why: str) -> None:
@@ -100,6 +133,20 @@ def _range_fields(
     Both ends of the range are inclusive, which is how Core reads them --
     it adds one to the second itself -- and `next_index` is where the
     wallet carries on from, so it is inside the range or it is nothing.
+
+    The two bounds are `ParseDescriptorRange`'s, which `importdescriptors`
+    calls on this field: an end of 2**31 or above is "End of range is too
+    high", and a span of a million indexes or more is "Range is too
+    large". Neither is a shape a keypool has any use for -- Core's own
+    default is a thousand -- so what they catch is an argument computed
+    wrongly, and catching it here is the difference between naming the
+    field and reading an rpc failure after a rescan.
+
+    A rule of Core's that is deliberately not repeated: every numeric
+    field arrives through `UniValue::getInt<int64_t>`, which refuses what
+    does not fit. After the bounds above, `start` and `end` are inside
+    [0, 2**31) and `next_index` is between them, so nothing here can
+    reach it.
     """
     if key_range is None:
         if next_index is not None:
@@ -109,6 +156,12 @@ def _range_fields(
     start, end = key_range
     if not 0 <= start <= end:
         raise BTClibValueError(f"invalid range: [{start}, {end}]")
+    if end >> 31:
+        raise BTClibValueError(f"end of range is too high: {end}")
+    if end - start >= _MAX_RANGE_SPAN:
+        err_msg = f"range is too large: {end - start + 1} indexes, "
+        err_msg += f"max is {_MAX_RANGE_SPAN}"
+        raise BTClibValueError(err_msg)
     fields: dict[str, Any] = {"range": [start, end]}
     if next_index is not None:
         if not start <= next_index <= end:
@@ -140,6 +193,8 @@ def import_request(
     the time of the wallet's first use is what finds its history. `NOW` is
     the default for the reason there is no default restore date -- this
     module cannot know one, and a silent 0 would rescan the whole chain.
+    A number or `NOW` itself, and no other string: Core takes those two
+    and refuses the rest, `"NOW"` included.
 
     `internal` marks the change chain, which Core then keeps out of what
     it reports as incoming payments.
@@ -151,7 +206,9 @@ def import_request(
 
     `key_range` is the inclusive pair Core takes, both ends included --
     Core adds one to the second itself. None leaves the field out, which
-    is what an unranged descriptor takes.
+    is what an unranged descriptor takes. Ordered, non-negative, an end
+    below 2**31 and fewer than a million indexes wide, which are
+    `ParseDescriptorRange`'s bounds.
 
     `next_index` is where an active ranged descriptor hands out its next
     address, and has to be inside the range, as Core checks.
@@ -161,6 +218,8 @@ def import_request(
     """
     text = add_checksum(descriptor if isinstance(descriptor, str) else str(descriptor))
     is_ranged = _is_ranged(descriptor)
+
+    _assert_timestamp(timestamp)
 
     if active and not is_ranged:
         err_msg = "an active descriptor must be ranged: one script is no keypool"
