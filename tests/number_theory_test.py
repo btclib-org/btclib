@@ -91,8 +91,7 @@ def test_mod_sqrt() -> None:
     """Verify both roots of every residue, exhaustively on small primes."""
     for p in primes[:30]:  # exhaustable only for small p
         has_root = {0, 1}
-        for i in range(2, p):
-            has_root.add(i * i % p)
+        has_root.update(i * i % p for i in range(2, p))
         for i in range(p):
             if i in has_root:
                 root1 = mod_sqrt(i, p)

@@ -53,7 +53,7 @@ _HARDENING = "h"
 # `int` is what the lenient reading uses instead, and it takes "+1", "1_0"
 # and the spaces of "m / 0 h / 0" -- none of them a step a descriptor may
 # carry, and all of them a path this module has always accepted
-_BIP380_INDEX = re.compile("[0-9]+")
+_BIP380_INDEX = re.compile(r"[0-9]+")
 
 # the offset a hardened index carries: BIP32 splits the 2**32 indexes in
 # half at 2**31, so an index is hardened when it reaches this value, and

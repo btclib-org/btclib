@@ -47,6 +47,7 @@ import sqlite3
 import sys
 from collections import Counter
 from contextlib import closing
+from itertools import starmap
 from pathlib import Path
 
 # `closing` and not `with sqlite3.connect(...)` alone: that context manager
@@ -106,7 +107,7 @@ def counts(session: Path) -> dict[str, int]:
     """Return how many results the session holds, by what happened to them."""
     query = "SELECT test_outcome, worker_outcome FROM work_results"
     with closing(sqlite3.connect(_read_only(session), uri=True)) as db:
-        return Counter(_outcome(*row) for row in db.execute(query))
+        return Counter(starmap(_outcome, db.execute(query)))
 
 
 def enumerated_mutants(session: Path) -> int:

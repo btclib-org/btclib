@@ -73,7 +73,7 @@ _SAFE = "/:@!$'()*+,;"
 # "label=%25ZZ" -- two URIs meaning one request, with only one of them
 # written, which is the canonical-form rule the binary parsers of this
 # library are held to as well
-_MALFORMED_ESCAPE = re.compile("%(?![0-9A-Fa-f]{2})")
+_MALFORMED_ESCAPE = re.compile(r"%(?![0-9A-Fa-f]{2})")
 
 
 def _network_from_address(address: str) -> str:

@@ -19,6 +19,15 @@ edit.
 
 ### Repository
 
+- **Four more preview rules, ruff's own safe fix applied and read
+  rather than trusted.** `RUF031` drops the parentheses a tuple
+  subscript does not need, one file's worth; `RUF039` adds the `r`
+  prefix a handful of `re.compile` patterns lacked, none of them
+  actually holding a backslash today, which is the gap the prefix
+  closes before one is added without noticing; `FURB140` rewrites a
+  generator of `f(a, b)` pairs as `itertools.starmap(f, pairs)`, and
+  `FURB142` a `for` loop of `set.add` as one `set.update`. Fixed and
+  reformatted, isort included; the suite passes unchanged.
 - **Preview's `FURB113` merges repeated `.append()` calls into one
   `.extend()` -- correct where the appended values do not depend on
   each other, and wrong where they do.** `curve_group.py`'s three
