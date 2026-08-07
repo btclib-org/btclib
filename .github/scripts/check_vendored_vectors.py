@@ -20,6 +20,10 @@ commit moves it further, `behind`'s own count in the README goes stale
 in a way this script cannot see either, which is the reason it never
 tries to judge relevance, only tip-vs-pinned identity.
 
+A path upstream has renamed or deleted is reported rather than raising:
+it has no commit to name as a tip, and a pin standing on a file that is
+not there any more is the one drift nobody would otherwise notice.
+
 Two shapes in the README this script does not attempt: an entry with no
 `commit` at all (chain data self-identified by hash, files this project
 composed itself, a section heading with no pin of its own), and a path
@@ -85,6 +89,16 @@ class Drift:
     latest_commit: str
     latest_date: str
 
+    @property
+    def path_is_gone(self) -> bool:
+        """True where upstream has no commit touching the pinned path.
+
+        The empty `latest_commit` is what says so: there is no tip to
+        name, `_latest_commit` having answered None. Reading it through
+        a name keeps that encoding in one place.
+        """
+        return not self.latest_commit
+
 
 def _entries_at_tip(readme: str) -> tuple[list[Entry], list[str]]:
     """Return the checkable entries, and the headings this skips.
@@ -122,8 +136,17 @@ def _entries_at_tip(readme: str) -> tuple[list[Entry], list[str]]:
     return entries, skipped
 
 
-def _latest_commit(repo: str, path: str) -> tuple[str, str]:
-    """Return the sha and date of the most recent commit touching path."""
+def _latest_commit(repo: str, path: str) -> tuple[str, str] | None:
+    """Return the sha and date of the most recent commit touching path.
+
+    None where upstream has no commit touching it at all, which means the
+    path has been renamed or deleted: the sharpest drift there is, a pin
+    naming a file that is not there any more. This used to unpack one
+    commit out of an empty list and raise `ValueError` instead, so the
+    monthly run went red and `report` was never reached -- no issue
+    opened, on the one kind of drift nobody would otherwise notice, which
+    is what this workflow exists for.
+    """
     result = subprocess.run(  # noqa: S603
         [
             _GH,
@@ -140,7 +163,10 @@ def _latest_commit(repo: str, path: str) -> tuple[str, str]:
         check=True,
         text=True,
     )
-    (commit,) = json.loads(result.stdout)
+    commits = json.loads(result.stdout)
+    if not commits:
+        return None
+    commit = commits[0]
     date: str = commit["commit"]["committer"]["date"][:10]
     sha: str = commit["sha"]
     return sha, date
@@ -151,9 +177,12 @@ def find_drift(readme_path: Path) -> tuple[list[Drift], list[str]]:
     entries, skipped = _entries_at_tip(readme_path.read_text(encoding="utf-8"))
     drifted = []
     for entry in entries:
-        latest_sha, latest_date = _latest_commit(entry.repo, entry.path)
-        if latest_sha != entry.commit:
-            drifted.append(Drift(entry, latest_sha, latest_date))
+        latest = _latest_commit(entry.repo, entry.path)
+        if latest is None:
+            # a path upstream no longer has: drift with no tip to name
+            drifted.append(Drift(entry, "", ""))
+        elif latest[0] != entry.commit:
+            drifted.append(Drift(entry, *latest))
     return drifted, skipped
 
 
@@ -164,6 +193,14 @@ def _issue_body(readme_path: Path, drifted: list[Drift], skipped: list[str]) -> 
         "",
     ]
     for drift in drifted:
+        if drift.path_is_gone:
+            lines.append(
+                f"- **{drift.entry.heading}**: pinned to"
+                f" `{drift.entry.commit[:12]}`, and `{drift.entry.repo}` has no"
+                f" commit touching `{drift.entry.path}` any more -- renamed,"
+                " moved or deleted upstream"
+            )
+            continue
         lines.append(
             f"- **{drift.entry.heading}**: pinned to `{drift.entry.commit[:12]}`,"
             f" upstream's tip of `{drift.entry.path}` is now"
@@ -240,6 +277,13 @@ def main() -> int:
     readme_path = Path(args[0])
     drifted, skipped = find_drift(readme_path)
     for drift in drifted:
+        if drift.path_is_gone:
+            print(
+                f"GONE: {drift.entry.heading} pinned to"
+                f" {drift.entry.commit[:12]}, and {drift.entry.repo} has no"
+                f" commit touching {drift.entry.path} any more"
+            )
+            continue
         print(
             f"BEHIND: {drift.entry.heading} pinned to {drift.entry.commit[:12]},"
             f" tip is {drift.latest_commit[:12]} ({drift.latest_date})"

@@ -53,15 +53,17 @@ def checker(monkeypatch: pytest.MonkeyPatch) -> ModuleType:
 class FakeGh:
     """A `subprocess.run` stand-in, answering by which `gh` call this is.
 
-    `commits` maps a (repo, path) pair to the sha and date `_latest_commit`
-    should read back; `open_issue` is the number `_open_issue_number`
-    should report open, or None for no issue open. Every call is recorded
-    in `calls`, argv and all, so a test can assert what was asked for
-    rather than only what came back.
+    `commits` maps a (repo, path) pair to the sha and date
+    `_latest_commit` should read back, or to None for a path upstream no
+    longer has -- which the api answers with an empty list rather than an
+    error. `open_issue` is the number `_open_issue_number` should report
+    open, or None for no issue open. Every call is recorded in `calls`,
+    argv and all, so a test can assert what was asked for rather than
+    only what came back.
     """
 
     def __init__(self) -> None:
-        self.commits: dict[tuple[str, str], tuple[str, str]] = {}
+        self.commits: dict[tuple[str, str], tuple[str, str] | None] = {}
         self.open_issue: int | None = None
         self.calls: list[list[str]] = []
 
@@ -73,7 +75,12 @@ class FakeGh:
         if argv[1] == "api":
             repo = argv[4].removeprefix("repos/").removesuffix("/commits")
             path = argv[6].removeprefix("path=")
-            sha, date = self.commits[(repo, path)]
+            answer = self.commits[(repo, path)]
+            # None is what the api answers for a path upstream no longer
+            # has: an empty list, which is a 200 and not an error
+            if answer is None:
+                return subprocess.CompletedProcess(argv, 0, stdout="[]")
+            sha, date = answer
             commit = {
                 "sha": sha,
                 "commit": {"committer": {"date": f"{date}T00:00:00Z"}},
@@ -236,6 +243,81 @@ def test_latest_commit_asks_for_one_commit_touching_the_path(
     assert call[1:5] == ["api", "--method", "GET", "repos/btclib-org/btclib/commits"]
     assert "path=tests/f.json" in call
     assert "per_page=1" in call
+
+
+def test_latest_commit_is_none_when_upstream_has_no_commit_for_the_path(
+    checker: ModuleType, fake_gh: FakeGh
+) -> None:
+    """An empty answer is None, not an unpacking error.
+
+    `repos/{repo}/commits?path=` answers `[]` with a 200 when upstream
+    has no commit touching that path -- it was renamed, moved or deleted.
+    Unpacking one commit out of that raised `ValueError`, which took
+    `find_drift` down with it and left `report` unreached: a red monthly
+    run and no issue, on the one drift a vendored file nobody re-reads
+    would otherwise hide.
+    """
+    fake_gh.commits[("btclib-org/btclib", "tests/gone.json")] = None
+    assert checker._latest_commit("btclib-org/btclib", "tests/gone.json") is None
+
+
+def test_find_drift_reports_a_path_upstream_no_longer_has(
+    checker: ModuleType, fake_gh: FakeGh, tmp_path: Path
+) -> None:
+    """A pin whose path is gone is drift, and says so rather than a tip."""
+    path = tmp_path / "README.md"
+    path.write_text(
+        readme(
+            entry(
+                "`gone.json`",
+                repo="r",
+                path="gone.json",
+                commit="old0000  2020-01-01",
+                behind="0",
+            )
+        ),
+        encoding="utf-8",
+    )
+    fake_gh.commits[("r", "gone.json")] = None
+
+    drifted, skipped = checker.find_drift(path)
+
+    assert skipped == []
+    (drift,) = drifted
+    assert drift.path_is_gone
+    assert (drift.latest_commit, drift.latest_date) == ("", "")
+
+    body = checker._issue_body(path, drifted, [])
+    assert "commit touching `gone.json` any more" in body
+    assert "renamed, moved or deleted upstream" in body
+
+
+def test_main_says_gone_rather_than_behind_for_a_vanished_path(
+    checker: ModuleType,
+    fake_gh: FakeGh,
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    """Stdout distinguishes a moved pin from one whose path is gone."""
+    path = _write_readme(
+        tmp_path,
+        entry(
+            "`gone.json`",
+            repo="r",
+            path="gone.json",
+            commit="old0000  2020-01-01",
+            behind="0",
+        ),
+    )
+    fake_gh.commits[("r", "gone.json")] = None
+    monkeypatch.setattr(sys, "argv", ["prog", str(path), "--dry-run"])
+
+    assert checker.main() == 0
+
+    out = capsys.readouterr().out
+    assert "GONE: `gone.json` pinned to old0000" in out
+    assert "BEHIND" not in out
 
 
 def test_find_drift_tells_moved_pins_from_still_current_ones(
