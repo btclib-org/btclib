@@ -183,6 +183,7 @@ __all__ = [
     "WshDescriptor",
     "account_descriptors",
     "add_checksum",
+    "at_index",
     "checksum",
     "from_address",
     "multipath_descriptors",
@@ -2649,19 +2650,38 @@ def _normalized_key(key: KeyExpression, prv_keys: PrvKeys | None) -> KeyExpressi
     )
 
 
-def _normalized(value: object, prv_keys: PrvKeys | None) -> object:
-    """Return one field of a descriptor with every key in it normalized."""
+def _mapped_field(
+    value: object, key_map: Callable[[KeyExpression], KeyExpression]
+) -> object:
+    """Return one field of a descriptor with every key in it mapped.
+
+    Where a key can be: the field itself, a key of a ``multi_a()`` leaf, a
+    key of a fragment another one wraps, or an element of a script tree,
+    which is a tuple of tuples. Nothing else in a fragment holds one, and
+    a field added later that does will be walked here by construction --
+    which is the whole reason this is one function rather than a method
+    per fragment.
+    """
     if isinstance(value, KeyExpression):
-        return _normalized_key(value, prv_keys)
+        return key_map(value)
     if isinstance(value, MultiA):
-        return replace(
-            value, keys=tuple(_normalized_key(k, prv_keys) for k in value.keys)
-        )
+        return replace(value, keys=tuple(key_map(key) for key in value.keys))
     if isinstance(value, Descriptor):
-        return normalized(value, prv_keys)
+        return _mapped_keys(value, key_map)
     if isinstance(value, tuple):
-        return tuple(_normalized(item, prv_keys) for item in value)
+        return tuple(_mapped_field(item, key_map) for item in value)
     return value
+
+
+def _mapped_keys(
+    descriptor: Descriptor, key_map: Callable[[KeyExpression], KeyExpression]
+) -> Descriptor:
+    """Return the descriptor with `key_map` applied to every key it holds."""
+    changed: dict[str, Any] = {
+        field.name: _mapped_field(getattr(descriptor, field.name), key_map)
+        for field in fields(descriptor)
+    }
+    return replace(descriptor, **changed)
 
 
 def normalized(descriptor: Descriptor, prv_keys: PrvKeys | None = None) -> Descriptor:
@@ -2682,14 +2702,40 @@ def normalized(descriptor: Descriptor, prv_keys: PrvKeys | None = None) -> Descr
     that came in, which is Core's rule -- "always use h for hardened
     derivation" is how its own interface states it.
     """
-    changed: dict[str, Any] = {
-        field.name: _normalized(getattr(descriptor, field.name), prv_keys)
-        for field in fields(descriptor)
-    }
-    # `replace` is what keeps this one function rather than a method per
-    # fragment: every field is walked, so a field added later carries its
-    # keys through here by default
-    return replace(descriptor, **changed)
+    return _mapped_keys(descriptor, lambda key: _normalized_key(key, prv_keys))
+
+
+def at_index(descriptor: Descriptor, index: int = 0) -> Descriptor:
+    """Return the descriptor of one index, with no wildcard left in it.
+
+    A ranged descriptor describes a range of scripts and names none of
+    them; this names one, by writing the index the wildcard stands for
+    into the derivation path -- ``.../0/*`` at index 5 becomes ``.../0/5``.
+    The scripts are the same scripts: what changes is that the answer is
+    a descriptor of one, which is what a reader wanting *this* script has
+    to be given, an external signer displaying an address among them.
+
+    Bitcoin Core's `deriveaddresses` is the same operation with the
+    address as its answer rather than the descriptor.
+
+    A descriptor with no wildcard comes back unchanged, index 0 being the
+    only index it has; the participants of a ``musig()`` are walked too,
+    the range being on either side of the aggregation and never on both.
+    """
+    descriptor._assert_index(index)
+
+    def fixed(key: KeyExpression) -> KeyExpression:
+        if key.participants:
+            key = replace(
+                key, participants=tuple(fixed(one) for one in key.participants)
+            )
+        if key.wildcard is None:
+            return key
+        return replace(
+            key, der_path=(*key.der_path, key.wildcard + index), wildcard=None
+        )
+
+    return _mapped_keys(descriptor, fixed)
 
 
 def multipath_descriptors(descriptor: str) -> list[str]:
