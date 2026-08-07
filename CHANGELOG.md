@@ -19,6 +19,25 @@ edit.
 
 ### Repository
 
+- **The legacy and tapscript interpreter loops moved out of
+  `verify_script` and `verify_script_path_vc0`, into a private
+  `_run_ops` of their own.** Preview's `PLW0717`
+  (too-many-statements-in-try-clause) named what the `try` around each
+  loop already was, well past the rule's own default -- correctly, for
+  a `try` whose job is turning any refusal from the loop into
+  `ScriptError`, and whose shape is right for that job regardless. The
+  `try` now wraps one call instead: `script_index_ref`, a one-element
+  list the loop writes at the top of every iteration, is how the
+  failing command's index still reaches the `except` that used to read
+  the loop's own local. Both loops' own test suites -- Core's vectors
+  among them -- pass unchanged. `verify_script`'s own `too-many-locals`
+  goes with it, down to what setup and error reporting need; `_run_ops`
+  inherits the dispatch's, which moving it does not shrink and which --
+  `PLR0914` being a preview rule -- cannot carry a `# noqa` the way
+  `PLR0912` does while preview stays off: `RUF100` reads a noqa for a
+  code that cannot fire without `--preview` as unused and removes it.
+  Left as what it is, a rule this codebase cannot yet suppress site by
+  site, unlike its stable sibling.
 - **Issue #445's preview-rules sweep found four real defects, fixed
   outright.** A docstring's `µ` (MICRO SIGN) written where `μ` (GREEK
   SMALL LETTER MU) was meant; `hwi.py`'s two `dict.get(key, False)`
