@@ -17,6 +17,14 @@
   // default is "consistent", which asks each file to agree with itself and
   // therefore lets two files disagree. That is what let an indented block
   // pass in one repository and fail in another.
+  //
+  // A rule that only one file needs is not here: bitcoin-core-rpc's
+  // CHANGELOG.md repeats "### Added" under every release, which is what
+  // MD024 exists to catch and what its own `siblings_only` setting is for
+  // -- but the other files, in every repository, have no such repeat, and
+  // a per-file exception belongs in that file's own
+  // `markdownlint-configure-file` comment rather than in a shared config
+  // read by files that never trip the rule it relaxes.
 
   // MD003/heading-style - ATX, the "## Heading" spelling, everywhere
   "MD003": { "style": "atx" },
@@ -28,14 +36,6 @@
   "MD007": {
     // Spaces for indent
     "indent": 4
-  },
-
-  // MD024/no-duplicate-heading - CHANGELOG.md and HISTORY.md group every
-  // release under the same few headings, which is what makes them
-  // readable down the page
-  "MD024": {
-    // Only headings under the same parent have to differ
-    "siblings_only": true
   },
 
   // MD029/ol-prefix - every item numbered "1.", the renderer numbering
