@@ -128,7 +128,7 @@ def _b58decode(v: bytes) -> bytes:
     if vlen:
         i = _b58decode_to_int(v)
         nbytes = (i.bit_length() + 7) // 8
-        result = result + i.to_bytes(nbytes, byteorder="big", signed=False)
+        result += i.to_bytes(nbytes, byteorder="big", signed=False)
 
     return result
 

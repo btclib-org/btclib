@@ -189,7 +189,7 @@ def tree_helper(script_tree: TaprootScriptTree) -> tuple[TaprootLeafPaths, bytes
 
 def _tree_helper(script_tree: TaprootScriptTree) -> tuple[TaprootLeafPaths, bytes]:
     leaf_version, script = cast("TaprootLeaf", script_tree[0])
-    leaf_version = leaf_version & 0xFE
+    leaf_version &= 0xFE
     h = leaf_hash(leaf_version, serialize(script))
     return ([((leaf_version, script), b"")], h)
 
