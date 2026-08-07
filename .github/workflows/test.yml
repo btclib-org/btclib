@@ -161,10 +161,15 @@ jobs:
           # the fail_under comment in pyproject.toml names this version,
           # and the two have to move together
           python-version: "3.14"
+      # `--cov` and nothing after it: what is measured is tool.coverage.run's
+      # source and how it is reported is tool.coverage.report, so naming
+      # either here would be a second copy of a list that already exists --
+      # and the copy a contributor cannot run, this file not being what
+      # anyone types locally. One command, one scope, one report
       - name: Run pytest under coverage
         run: >
           uv run --locked --no-default-groups --group test
-          pytest --cov-report term-missing:skip-covered --cov=btclib --cov=tests
+          pytest --cov
 
   # the packaging metadata is checked on every pull request, not only on
   # the tag that ships it: a release is the one place where finding a

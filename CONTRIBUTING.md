@@ -236,9 +236,13 @@ touching `.venv`. The command is what CI runs, verbatim, and CI has no
 The `coverage-py` job, gated by `fail_under` in pyproject.toml:
 
 ```shell
-uv run --locked --no-default-groups --group test \
-    pytest --cov=btclib --cov=tests
+uv run --locked --no-default-groups --group test pytest --cov
 ```
+
+What `--cov` measures and how it reports are `tool.coverage.run`'s
+`source` and `tool.coverage.report` in pyproject.toml, so this command
+and the `pytest --cov` above are the same measurement: the job cannot
+gate on a scope a contributor's run does not have.
 
 The `dist-py` job, which inspects what would be published and then
 installs it. The last commands ask for the wheel and nothing else, so
