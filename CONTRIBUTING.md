@@ -587,6 +587,22 @@ hook can check that a docstring exists but not what it says.
 everywhere: no wit, no salesmanship, no emphasis where the fact is
 enough. Explanatory detail is wanted; decoration is not.
 
+**Length is a cost, and the reason is what buys it.** One
+sentence where one will carry it, and a paragraph only where a
+shorter one would leave the reader wrong. Three habits lengthen
+prose here without adding to it, and each is worth deleting on
+sight:
+
+- the same reason in a second wording — not emphasis, but a
+  second copy to keep true, and the one that drifts;
+- the sentence that only introduces the next one;
+- the tour of alternatives, where the rejected one and the thing
+  that rejects it are the whole of the negative result.
+
+Nothing checks prose the way the suite checks code, so every line
+of it is one a later change can falsify in silence. That is what
+its length is weighed against.
+
 **A docstring states the contract.** What the function takes, what it
 returns or raises, and the rule the behaviour comes from — not a
 restatement of the name. Most readers of a docstring here are new to
