@@ -80,20 +80,39 @@ dependencies = [
     "bitcoin-core-rpc>=2026.8.7",
 ]
 keywords = [
+    # The GitHub repository topics, in the same order, and the order is by
+    # relevance rather than alphabetical: PyPI shows keywords as they are
+    # given, and the first few are read as what the package is. GitHub
+    # sorts its own alphabetically and takes lowercase only, which is the
+    # spelling here too, so the two lists differ in nothing but length.
     "bitcoin",
     "cryptography",
     "elliptic-curves",
+    "secp256k1",
     "ecdsa",
     "schnorr",
-    "RFC-6979",
+    "bip340",
+    "musig2",
     "bip32",
     "bip39",
+    "slip39",
     "electrum",
+    "psbt",
+    "taproot",
+    "segwit",
     "base58",
     "bech32",
-    "segwit",
+    "output-descriptors",
+    "hardware-wallet",
     "message-signing",
-    "bip340",
+    # Past the twenty topics GitHub allows, so these are keywords and not
+    # topics. Nothing caps this list, and a keyword for a feature the
+    # library has costs nothing.
+    "rfc-6979",
+    "mnemonic",
+    "merkle-proof",
+    "bip44",
+    "bitcoin-script",
 ]
 classifiers = [
     "Programming Language :: Python :: 3 :: Only",
