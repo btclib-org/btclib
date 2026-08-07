@@ -274,6 +274,15 @@ def main() -> int:
     """
     args = [a for a in sys.argv[1:] if a != "--dry-run"]
     dry_run = len(args) != len(sys.argv) - 1
+    if len(args) != 1:
+        # a human running this by hand is the only way here, the workflow
+        # passing the path every time: an IndexError naming a list is
+        # what they used to get
+        print(
+            f"usage: {Path(sys.argv[0]).name} <README path> [--dry-run]",
+            file=sys.stderr,
+        )
+        return 2
     readme_path = Path(args[0])
     drifted, skipped = find_drift(readme_path)
     for drift in drifted:

@@ -32,6 +32,12 @@ edit.
   issue body and stdout say `GONE` with the reason rather than naming a
   tip that does not exist. Three tests hold it, and each fails against
   the old unpacking.
+- **And it says how to be called when it is not.** `Path(args[0])` with
+  no README named answered `IndexError: list index out of range`, about a
+  list the caller never saw; two READMEs named took the first silently.
+  Only a human running the script by hand reaches either, the workflow
+  passing the path every time, which is the whole argument for the
+  message being a usage line rather than a traceback.
 
 - **the Bitcoin Core rpc client is a package of its own**, and btclib
   depends on it rather than carrying it. `btclib/bitcoin_core_rpc.py` was
