@@ -5116,6 +5116,25 @@ edit.
   this same function it measures 7.67 µs, 0.8% below the slice, so what
   argues for it upstream is the bindings' API convention that public keys
   come out compressed, and not btclib's speed (issue #127)
+- **`bytes_from_prv_key_int` calls the bindings' `pubkey_from_prvkey`
+  now, and the slice above is gone** (issue #459).
+  `btclib_libsecp256k1#68` shipped the function the previous entry
+  named as the alternative in `0.7.1.2`, so `pyproject.toml`'s floor
+  moves there from `>=0.7.1`, which had named the decision with
+  nothing yet to satisfy it. What goes with the slice is `sec[64]`'s
+  parity read and the comment explaining why it is not `sec[-1]`, and
+  `test_the_bindings_answer_65_bytes`, which pinned a contract of
+  `mult_`'s answer that nothing here reads any more: `mult_` is
+  defined as this function's `compressed=False` case on the bindings'
+  side now, so they assert that same contract themselves. No call
+  site moves and no btclib API changes — BIP32 neutering,
+  non-hardened private derivation, the parent fingerprint of the last
+  derivation step and `pub_keyinfo_from_prv_key` still reach the curve
+  through `bytes_from_prv_key_int` alone — but one message underneath
+  it does: a scalar outside `[1, n-1]` now raises naming a private
+  key where it named a scalar, `secp256k1_ec_pubkey_create` calling
+  its argument a seckey. Nothing in btclib matched the old text and
+  nothing matches the new one
 - **sign-to-contract's two tweaks go through libsecp256k1, one of them
   slower on purpose** (issue #271). `commit_point_`'s public half,
   `keys.pubkey_tweak_add`, computes the receipt plus the tweak times the
