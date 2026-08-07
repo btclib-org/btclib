@@ -28,8 +28,8 @@ from bitcoin_core_rpc import (
     COOKIE_USER,
     DEFAULT_DATADIR,
     BitcoinCoreRpcClient,
+    chain_from_network,
     cookie_auth,
-    core_chain_from_network,
 )
 
 from btclib import var_bytes
@@ -52,8 +52,8 @@ __all__ = [
     "DEFAULT_DATADIR",
     "BitcoinCoreFetcher",
     "BitcoinCoreRpcClient",
+    "chain_from_network",
     "cookie_auth",
-    "core_chain_from_network",
 ]
 
 # What a reply that is a number or a hash may weigh: the JSON envelope and a
@@ -155,7 +155,7 @@ class BitcoinCoreFetcher(Fetcher):
         mainnet address for every output it fetches, for coins that are
         not there. `getblockchaininfo` answers that in one round trip;
         what it needs is a vocabulary to be compared through, which is
-        `core_chain_from_network`, Core naming the chain `main` where
+        `chain_from_network`, Core naming the chain `main` where
         btclib names it `mainnet`.
 
         Signet is the case a name cannot settle: Core reports `signet` for
@@ -204,10 +204,10 @@ class BitcoinCoreFetcher(Fetcher):
                 raise BTClibValueError(err_msg)
             return
         try:
-            expected_chain = core_chain_from_network(self.network)
+            expected_chain = chain_from_network(self.network)
         except rpc.BtcRpcValueError as e:
             # `BtcRpcValueError` and not btclib's `BTClibValueError`:
-            # `core_chain_from_network` is the package's function and raises
+            # `chain_from_network` is the package's function and raises
             # the package's class, so catching btclib's here would let a
             # name it does not know escape as something no caller of
             # `assert_network` is told to expect. The two were spelled

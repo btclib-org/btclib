@@ -70,10 +70,14 @@ requires-python = ">=3.10"
 # copy of that file btclib used to carry, and `btclib/fetch/` is the whole
 # of what reaches it. Its lower bound went the same way the bindings' did:
 # >=2026.8 named intent while no index had anything at all, not even a
-# candidate, and >=2026.8.6 is that pin now that it is the first release.
+# candidate, and >=2026.8.6 was that pin once the first release existed.
+# >=2026.8.7 is a floor a caller cannot go under rather than a preference:
+# that release renamed `core_chain_from_network` and
+# `network_from_core_chain` with no alias left behind, so an older one does
+# not satisfy the import `btclib/fetch/bitcoin_core.py` makes.
 dependencies = [
     "btclib_libsecp256k1>=0.7.1.2",
-    "bitcoin-core-rpc>=2026.8.6",
+    "bitcoin-core-rpc>=2026.8.7",
 ]
 keywords = [
     "bitcoin",

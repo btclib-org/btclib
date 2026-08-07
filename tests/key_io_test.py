@@ -27,7 +27,7 @@ is not a claim any one of those modules could hold.
 from __future__ import annotations
 
 import pytest
-from bitcoin_core_rpc import network_from_core_chain
+from bitcoin_core_rpc import network_from_chain
 
 from btclib import b32, b58
 from btclib.exceptions import BTClibValueError
@@ -38,7 +38,7 @@ from tests import load, vector_id
 
 # the `chain` of each vector is Core's name for it, as its `-chain=`
 # argument spells it, and btclib's name is what the encoders here take:
-# `network_from_core_chain` is the pair, which lives with the rest of
+# `network_from_chain` is the pair, which lives with the rest of
 # Core's vocabulary in the module that speaks Core's protocol -- and
 # imports nothing of btclib, so a key-encoding test reads it without
 # acquiring `btclib.fetch`.
@@ -52,7 +52,7 @@ ADDRESS_VECTORS = [
     pytest.param(
         string,
         hexed,
-        network_from_core_chain(meta["chain"]),
+        network_from_chain(meta["chain"]),
         id=vector_id(index, string),
     )
     for index, (string, hexed, meta) in enumerate(_VALID)
@@ -63,7 +63,7 @@ WIF_VECTORS = [
     pytest.param(
         string,
         hexed,
-        network_from_core_chain(meta["chain"]),
+        network_from_chain(meta["chain"]),
         meta["isCompressed"],
         id=vector_id(index, string),
     )

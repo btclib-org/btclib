@@ -176,11 +176,15 @@ def test_each_answer_is_bounded_by_what_it_is() -> None:
     for the newline a proxy adds and for nothing else.
     """
     height = fetcher((200, b"9" * 65))
-    with pytest.raises(FetchError, match="response of 65 bytes, more than the 64"):
+    with pytest.raises(
+        FetchError, match="response of 65 bytes, more than the max_body_size of 64"
+    ):
         height.get_block_count()
 
     tip = fetcher((200, b"a" * 129))
-    with pytest.raises(FetchError, match="response of 129 bytes, more than the 128"):
+    with pytest.raises(
+        FetchError, match="response of 129 bytes, more than the max_body_size of 128"
+    ):
         tip.get_best_block_id()
 
     # and the recorded answers are inside their limits, which is the other

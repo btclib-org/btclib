@@ -31,8 +31,8 @@ import bitcoin_core_rpc as rpc
 import pytest
 from bitcoin_core_rpc import (
     BitcoinCoreRpcClient,
-    core_chain_from_network,
-    network_from_core_chain,
+    chain_from_network,
+    network_from_chain,
 )
 
 from btclib.exceptions import BTClibValueError, FetchError, HttpError, RpcError
@@ -207,7 +207,7 @@ def test_every_network_btclib_ships_has_a_chain_name() -> None:
     registry: the four names of `_data/`, not whatever a test registered.
     """
     for network in NETWORKS:
-        assert network_from_core_chain(core_chain_from_network(network)) == network
+        assert network_from_chain(chain_from_network(network)) == network
 
 
 @pytest.mark.parametrize("network, chain", [("mainnet", "main"), ("testnet", "test")])
@@ -359,7 +359,7 @@ def test_a_small_reply_carries_a_small_limit() -> None:
     The two answers that are a number and a hash say so instead.
     """
     oversized = b'{"result":' + b"9" * 1100 + b',"error":null,"id":"x"}'
-    with pytest.raises(FetchError, match="more than the 1024 allowed"):
+    with pytest.raises(FetchError, match="more than the max_body_size of 1024"):
         fetcher((200, oversized)).get_block_count()
 
     # the recorded answers are well inside it, which is the other half of

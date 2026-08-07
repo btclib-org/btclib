@@ -278,11 +278,11 @@ wheels = [
 
 [[package]]
 name = "bitcoin-core-rpc"
-version = "2026.8.6"
+version = "2026.8.7"
 source = { registry = "https://pypi.org/simple" }
-sdist = { url = "https://files.pythonhosted.org/packages/6d/f7/730c6799742191c9f4fd0767aaaf75f260a6c9ac6d31cd775d4f97422151/bitcoin_core_rpc-2026.8.6.tar.gz", hash = "sha256:255146afd79db13692349032c64f8607e729833b81eb3c576afbba0eea30f730", size = 283266, upload-time = "2026-08-06T11:52:12.471Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/fb/d2/5a21a824267b81e9b564b08facfda02398cc3eafac9f4535aee052cd231e/bitcoin_core_rpc-2026.8.7.tar.gz", hash = "sha256:051c740351378b560fd611d4692cfde4ef6bf2090f2f8de2d67df89353d75741", size = 303435, upload-time = "2026-08-07T09:16:13.533Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/72/41/d7e3ef7d96d2fe4485e810da5840bba6d15bc225236225411b9d9a8b8357/bitcoin_core_rpc-2026.8.6-py3-none-any.whl", hash = "sha256:7a282080f9f24ff0de86ba020eb1dcb1491c872a9ac08bd66d684a9c29735104", size = 32693, upload-time = "2026-08-06T11:52:11.013Z" },
+    { url = "https://files.pythonhosted.org/packages/05/e7/cdd633599ba97c8bc16c5323b47a5e0a9404c0bac43fdabb086ed414fc03/bitcoin_core_rpc-2026.8.7-py3-none-any.whl", hash = "sha256:f95acefee60cb38f2d9925c278da727dd7c8cf5d08b21ebd13b45da0b951d536", size = 35584, upload-time = "2026-08-07T09:16:12.1Z" },
 ]
 
 [[package]]
@@ -350,7 +350,7 @@ test = [
 
 [package.metadata]
 requires-dist = [
-    { name = "bitcoin-core-rpc", specifier = ">=2026.8.6" },
+    { name = "bitcoin-core-rpc", specifier = ">=2026.8.7" },
     { name = "btclib-libsecp256k1", specifier = ">=0.7.1.2" },
 ]
 

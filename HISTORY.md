@@ -47,6 +47,13 @@ against the `v2023.7.12` tag.
   catches, the package raising its own — `bitcoin_core_rpc.RpcError` is
   what a direct `client.call` raises now. A `Fetcher` is unaffected and
   still raises btclib's, `status` and `code` included.
+- **`btclib.fetch.bitcoin_core.core_chain_from_network` is
+  `chain_from_network`**, and its pair
+  `bitcoin_core_rpc.network_from_core_chain` is `network_from_chain`. The
+  rename is the `bitcoin-core-rpc` package's, in the v2026.8.7 release
+  btclib now requires, and it leaves no alias behind: the `core_` prefix
+  said inside a package named for Core what the package name already said.
+  Both take and return what they always did.
 - **`from btclib.ec import ...` is `from btclib.curves import ...`.** Every
   name the package exports is the name it exported before.
 - **`Block.weight` is the weight of the block**, where it was the sum of

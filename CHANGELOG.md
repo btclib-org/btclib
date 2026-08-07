@@ -146,6 +146,29 @@ edit.
   after removing the override: the export names
   `bitcoin-core-rpc==2026.8.6` from `pypi.org/simple` alone, and the
   built wheel installs into an empty environment and imports clean.
+- **`btclib.fetch.bitcoin_core` re-exports `chain_from_network`**, where
+  it re-exported `core_chain_from_network`, and `bitcoin-core-rpc`'s floor
+  is `>=2026.8.7`. The package renamed both halves of the pair in that
+  release -- `core_chain_from_network` to `chain_from_network`,
+  `network_from_core_chain` to `network_from_chain` -- with no alias left
+  behind, the `core_` prefix having said inside a package named for Core
+  what the package name already said. The floor is what the import needs
+  rather than a preference: an older release does not carry the name
+  `btclib/fetch/bitcoin_core.py` imports, so it is a version btclib cannot
+  run against rather than one it would rather not. The `latest` workflow
+  is what caught it, a day after the release: `deps at latest` resolves
+  past `uv.lock` on purpose, so what it reported was this rename and not a
+  fault of its own.
+
+  Two more of that release reach a caller through `btclib.fetch`. **A
+  reply refused for its size names the limit**: `response of 65 bytes,
+  more than the max_body_size of 64`, where it read `more than the 64
+  allowed` -- so code matching on that text has to change, and three
+  assertions here did. And **`request_timeout` now bounds the whole
+  exchange** rather than each socket operation, so a call cannot outlive
+  it by waiting on a peer that keeps sending; a `get_tx` of a large
+  transaction over a slow link that used to succeed under a timeout not
+  covering it needs a wider one.
 - **`btclib.exceptions` declares its own six classes again.** They were
   defined in the vendorable file and re-exported here, an exception
   wanting one identity; with the file gone the choice was to import
