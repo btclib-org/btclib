@@ -286,6 +286,8 @@ def test_odds_and_ends_of_the_grammar() -> None:
     assert Bip21.parse(f"bitcoin:{ADDR}?&amount=1&").amount == Decimal(1)
     # a parameter with no value
     assert Bip21.parse(f"bitcoin:{ADDR}?foo").others == {"foo": ""}
+    # not `not label`: label is `str | None`, and this is the case of
+    # an explicit but empty label, which a missing one is not
     assert Bip21.parse(f"bitcoin:{ADDR}?label=").label == ""
     # a fragment is not a parameter
     assert not Bip21.parse(f"bitcoin:{ADDR}?#foo=1").others

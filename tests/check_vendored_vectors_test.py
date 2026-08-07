@@ -313,7 +313,7 @@ def test_main_says_how_to_be_called_when_it_is_not(
     # argv[0] is what names the program, so the fixture's own "prog" is
     # what comes back here rather than the script's file name
     assert captured.err == "usage: prog <README path> [--dry-run]\n"
-    assert captured.out == ""
+    assert not captured.out
 
 
 def test_main_says_gone_rather_than_behind_for_a_vanished_path(

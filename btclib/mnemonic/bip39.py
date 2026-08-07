@@ -156,6 +156,8 @@ def mnemonic_from_entropy(entropy: Entropy | None = None, lang: str = "en") -> M
     length; if the integer bit length is longer than the maximum length,
     then only the leftmost bits are retained.
     """
+    # not `not entropy`: entropy can be an int, and int 0 is a value to
+    # convert, not a missing one -- only the empty *string* means that
     if entropy is None or entropy == "":
         entropy = secrets.randbits(128)
     bin_str_entropy, checksum = _entropy_checksum(entropy)

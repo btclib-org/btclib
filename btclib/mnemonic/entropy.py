@@ -357,7 +357,7 @@ def bin_str_entropy_from_random(
     - XOR-ed with CSPRNG system entropy
     - possibly hashed (if requested)
     """
-    if entropy is None or entropy == "":
+    if entropy is None or not entropy:
         i = secrets.randbits(bits)
     else:
         if len(entropy) > bits:

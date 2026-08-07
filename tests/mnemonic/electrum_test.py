@@ -984,7 +984,7 @@ def test_vectors(
     same at greater length.
     """
     lang = "en"
-    if mnemonic != "":
+    if mnemonic:
         assert rmxprv == electrum.mxprv_from_mnemonic(mnemonic, passphrase)
 
         mnemonic_type, mnemonic = electrum.version_from_mnemonic(mnemonic)
