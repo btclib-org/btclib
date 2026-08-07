@@ -19,6 +19,10 @@ edit.
 
 ### Repository
 
+- **`base58.py` and `taproot.py`'s two `x = x + y`/`x = x & y` are `+=`
+  and `&=` now**, preview's `PLR6104` on the two sites in the tree
+  shaped that way; `bytes` and `int` being immutable, an augmented
+  assignment rebinds the name exactly as the spelled-out version did.
 - **Four more preview rules, ruff's own safe fix applied and read
   rather than trusted.** `RUF031` drops the parentheses a tuple
   subscript does not need, one file's worth; `RUF039` adds the `r`
