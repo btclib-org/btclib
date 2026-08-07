@@ -18,63 +18,12 @@ name = "btclib"
 version = "2026.9"
 description = "A library for 'bitcoin cryptography'"
 readme = "README.md"
-# PEP 639: an SPDX expression, which becomes the `License-Expression`
-# metadata field, and the files it is carried by. The TOML-table form
-# setuptools deprecates wrote a free-text `License:` field instead, and
-# there is no license classifier below for the same reason -- one
-# machine-readable statement rather than three spellings of it.
-#
-# AUTHORS.md is named beside LICENSE rather than dropped: setuptools'
-# default globs match both, so both are in `dist-info/licenses/` today, and
-# the MIT notice this repository carries names "The btclib developers" --
-# the same holder `authors` below declares -- rather than a list of
-# people. AUTHORS.md answers where that list would be instead: by
-# pointing at the revision history, the record that keeps itself, not by
-# keeping one of its own. `["LICENSE"]` alone would take that pointer out
-# of every wheel
+# PEP 639: a SPDX expression and the files it refers to, replacing the
+# deprecated license table and the License :: classifier
 license = "MIT"
-license-files = ["LICENSE", "AUTHORS.md"]
+license-files = ["LICENSE", "COPYRIGHT", "AUTHORS.md"]
 authors = [{ name = "The btclib developers", email = "devs@btclib.org" }]
-# Python 3.9 is end-of-life since 2025-10, and keeping it out buys more
-# than one fewer column in the matrix: a fresh resolve at ">=3.9" splits a
-# large part of the lock into a modern version and an older one reachable
-# only from 3.9 -- the type checker, the test runner and the property-based
-# testing library all appear twice -- so 3.9 jobs would be the only ones
-# not testing against what everybody else runs. At ">=3.10" few packages
-# split at all. How many, at either floor, is a question for the resolver
-# rather than for a number here that every dependency bump moves: edit this
-# floor, `rm uv.lock`, `uv lock`, read the answer, `git checkout uv.lock`.
-# 3.10 is also the oldest mypy can be aimed at (tool.mypy below), so the
-# floor and the type checker's target agree
 requires-python = ">=3.10"
-# No upper bound, and that is a decision rather than an omission (issue
-# 325). The bindings are a btclib-org project developed by the same people,
-# so a breaking change there is coordinated with the release here -- which
-# is what a version ceiling substitutes for when it cannot be. `<0.8` would
-# cost a btclib release for every bindings minor, including the ones that
-# break nothing, and would make a published artifact refuse a version it
-# works with; `<1` constrains nothing at all, pre-1.0 semver putting the
-# breaking changes in the minor. CONTRIBUTING.md states the policy, and
-# what it costs an artifact that is no longer supported.
-#
-# The lower bound is the oldest final release this version supports, and
-# 0.7.1rc1 is below it: the candidate is what the pin named while nothing
-# final satisfied it, and what btclib is developed and tested against is
-# now a release.
-#
-# bitcoin-core-rpc is the second, and the same reasoning applies to its
-# ceiling: another btclib-org project, released by the same people, so a
-# breaking change there is coordinated rather than guarded against here.
-# It is one file with nothing but the standard library behind it, so
-# depending on it adds no transitive anything -- what it replaces is the
-# copy of that file btclib used to carry, and `btclib/fetch/` is the whole
-# of what reaches it. Its lower bound went the same way the bindings' did:
-# >=2026.8 named intent while no index had anything at all, not even a
-# candidate, and >=2026.8.6 was that pin once the first release existed.
-# >=2026.8.7 is a floor a caller cannot go under rather than a preference:
-# that release renamed `core_chain_from_network` and
-# `network_from_core_chain` with no alias left behind, so an older one does
-# not satisfy the import `btclib/fetch/bitcoin_core.py` makes.
 dependencies = [
     "btclib_libsecp256k1>=0.7.1.2",
     "bitcoin-core-rpc>=2026.8.7",
@@ -136,18 +85,15 @@ classifiers = [
 ]
 
 [project.urls]
-Homepage = "https://btclib.org"
-Download = "https://github.com/btclib-org/btclib/releases"
-Documentation = "https://btclib.readthedocs.io/"
-GitHub = "https://github.com/btclib-org/btclib"
-Issues = "https://github.com/btclib-org/btclib/issues"
-"Pull Requests" = "https://github.com/btclib-org/btclib/pulls"
+homepage = "https://btclib.org"
+documentation = "https://btclib.readthedocs.io/"
+download = "https://github.com/btclib-org/btclib/releases"
+changelog = "https://github.com/btclib-org/btclib/blob/master/HISTORY.md"
+repository = "https://github.com/btclib-org/btclib"
+issues = "https://github.com/btclib-org/btclib/issues"
+pull_requests = "https://github.com/btclib-org/btclib/pulls"
 
 [dependency-groups]
-# packages required to develop, build, and test btclib
-# hypothesis generates the input the fixed vectors cannot: the vectors
-# are the conformance suite, and a codec library needs the malformed
-# bytes nobody thought to write down as well
 test = [
     "coverage",
     "hypothesis",
@@ -157,23 +103,10 @@ test = [
     "pytest-xdist",
 ]
 lint = ["mypy", "pre-commit", "ruff"]
-# mutation testing, which asks the question coverage cannot: a line the
-# suite executes is not a line the suite checks. Its own group and not part
-# of test, because every cell of the matrix installs that one and none of
-# them runs this -- the scheduled mutation workflow is the only consumer,
-# and it asks for --group test as well, cosmic-ray shelling out to pytest.
-# cosmic-ray rather than mutmut, measured on this tree: mutmut 3.7 has to
-# copy an importable package, so a source_paths of one file leaves its
-# mutants/ copy without the module beside it (ModuleNotFoundError on
-# btclib.script.script) and scoping moves out of the configuration into a
-# name filter on the command line, while cosmic-ray's module-path is the
-# scope. It also runs the test command written in .github/mutation/*.toml
-# verbatim, which is what lets a run override the -n auto of
-# tool.pytest.ini_options and add -x
-mutation = ["cosmic-ray"]
 # the distribution files are built and published by uv itself: what this
 # group holds is what inspects them, before an upload consumes the version
 build = ["check-manifest", "check-wheel-contents", "pyroma", "twine"]
+mutation = ["cosmic-ray"]
 docs = ["myst-parser", "sphinx", "sphinx_rtd_theme"]
 dev = [
     { include-group = "test" },
