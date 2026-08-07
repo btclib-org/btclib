@@ -6,7 +6,6 @@
 """Tests for the `btclib.sec_point` module."""
 
 import pytest
-from btclib_libsecp256k1.mult import mult_ as libsecp256k1_mult_
 
 from btclib.alias import INF
 from btclib.curves import (
@@ -207,9 +206,10 @@ def test_sec_from_octets(bindings: bool, monkeypatch: pytest.MonkeyPatch) -> Non
 def test_bytes_from_prv_key_int() -> None:
     """It composes mult and bytes_from_point, so it must answer as they do.
 
-    For secp256k1 it does not: it slices the bindings' uncompressed
-    serialization instead (issue #127), which is why the equality is
-    asserted here scalar by scalar rather than taken as read.
+    For secp256k1 it does not: it calls the bindings'
+    pubkey_from_prvkey directly, without ever building a point of this
+    module's own (issue #459), which is why the equality is asserted
+    here scalar by scalar rather than taken as read.
     """
     ec = CURVES["secp256k1"]
     prefixes = set()
@@ -250,17 +250,6 @@ def test_bytes_from_prv_key_int() -> None:
                 BTClibValueError, match="no bytes representation for infinity point"
             ):
                 bytes_from_prv_key_int(q, ec)
-
-
-def test_the_bindings_answer_65_bytes() -> None:
-    """bytes_from_prv_key_int slices mult_ at 33 and reads its byte 64.
-
-    A 33-byte answer would raise IndexError there instead of taking a
-    byte of x for the parity of y, so the failure would be loud; this
-    pins the contract that makes the slice right in the first place.
-    """
-    assert len(libsecp256k1_mult_(1)) == 65
-    assert libsecp256k1_mult_(1)[0] == 0x04
 
 
 def test_infinity_point_bytes() -> None:

@@ -8,7 +8,9 @@
 import contextlib
 
 from btclib_libsecp256k1.keys import parse as libsecp256k1_pubkey_parse
-from btclib_libsecp256k1.mult import mult_ as libsecp256k1_mult_
+from btclib_libsecp256k1.keys import (
+    pubkey_from_prvkey as libsecp256k1_pubkey_from_prvkey,
+)
 
 from btclib.alias import Integer, Octets, Point
 from btclib.curves.curve import (
@@ -58,43 +60,18 @@ def bytes_from_prv_key_int(
     representation and raises.
 
     That composition is what BIP32 derivation and every private-to-public
-    conversion do once per key (issue #127), and for secp256k1 this
-    never materializes the point. The bindings serialize the point they
-    create with SECP256K1_EC_UNCOMPRESSED, i.e. 0x04 || x || y (SEC 1
-    v.2, section 2.3.3), so the compressed form is the first 33 bytes of
-    it with the prefix rewritten to the parity of the y being dropped --
-    the rule bytes_from_point applies above, and the whole of what those
-    32 discarded bytes are needed for. Asking for the uncompressed form
-    is then free.
-
-    Measured per call over 2000 random keys, best of nine: 7.75 us here
-    against 8.90 for bytes_from_point(mult(...)), which turns 64 bytes
-    into two ints, re-proves on curve a point libsecp256k1 has just
-    created, and serializes it again; and 8.13 for
-    keys.serialize(keys.parse(``mult_``(...))), which pays a
-    secp256k1_ec_pubkey_parse to undo a serialization the same library had
-    just done. The floor is ``mult_`` alone, 7.60.
-
-    That floor is the reason the decision here was btclib's to take and
-    not the bindings'. A pubkey_from_prvkey of their own -- one
-    secp256k1_ec_pubkey_create plus one compressed serialize, proposed in
-    btclib_libsecp256k1#41 -- measures 7.67 dropped into this same
-    function, i.e. 0.06 us or 0.8% below the slice, since the 32 bytes it
-    does not serialize cost about what the slice costs. It remains worth
-    having for the bindings' own API, whose stated convention is that
-    public keys come out compressed unless otherwise required; when it
-    lands it replaces the three lines below and nothing else.
+    conversion do once per key (issue #127). For secp256k1 this never
+    materializes the point: keys.pubkey_from_prvkey is one
+    secp256k1_ec_pubkey_create plus one serialize, with the compressed
+    flag passed straight through, so the bindings are the ones writing
+    the compressed encoding rather than btclib slicing it out of the
+    uncompressed one (issue #459).
     """
     q = int_from_integer(prv_key_int) % ec.n
 
     # q == 0 is the infinity point, which the bindings reject as a scalar
     if q and _libsecp256k1_applicable(ec):
-        sec = libsecp256k1_mult_(q)
-        if not compressed:
-            return sec
-        # sec[64], not sec[-1]: were mult_ ever to answer 33 bytes, this
-        # raises IndexError instead of taking a byte of x for a parity
-        return (b"\x03" if sec[64] & 1 else b"\x02") + sec[1:33]
+        return libsecp256k1_pubkey_from_prvkey(q, compressed)
 
     return bytes_from_point(mult(q, ec=ec), ec, compressed)
 
