@@ -5,7 +5,7 @@ Notable changes to the codebase are documented here.
 Release names follow *[calendar versioning](https://calver.org/)*:
 full year, short month, short day (YYYY-M-D)
 
-## v2026.8 (work in progress, not released yet)
+## v2026.8.7
 
 The first release since 2023, and the largest; every entry of it is in
 [CHANGELOG.md](./CHANGELOG.md). What follows is what a user has to act on
@@ -198,6 +198,17 @@ against the `v2023.7.12` tag.
   legacy script code is the script as it stands; a segwit v0 one keeps
   them, as BIP143 says; and `from_tx(..., codesep_index=k)` is how a
   signer asks for the script code after the k-th of them.
+- **`sig_hash.taproot_annex_and_ext` loses its `prevouts` parameter.**
+  `taproot_annex_and_ext(tx, prevouts, vin_i)` is
+  `taproot_annex_and_ext(tx, vin_i)`, the parameter having gone unused;
+  dropping it moves `vin_i` to second position, so a positional caller
+  breaks even where it passed `prevouts` as `None` or `[]`.
+- **`sig_hash.SIG_HASH_TYPES` is a `frozenset`, not a `list`.** Every use
+  of it is a membership test — `assert_valid_hash_type` and the script
+  engine's own check — and a `list` was one shared mutable value nobody
+  was meant to hold onto. Indexing it, appending to it, or comparing it
+  against an equal-content list breaks; `sig_hash_type in
+  SIG_HASH_TYPES` is unaffected.
 - **`btclib.network.n_versions` is gone**, with the `_REPEATED_NETWORKS` list
   it counted for: the version-prefix lookups no longer index a parallel list
   of names, so the number of prefixes per network stopped being a fact about
@@ -291,6 +302,15 @@ against the `v2023.7.12` tag.
   `CScript::IsPushOnly`, which compares each op code against OP_16 — and
   the name says which script it is asked about, the script_sig, at both
   call sites as in Core.
+- **`script.engine.script.calculate_script_code` and `.op_checksig` name
+  their code-separator parameter `codesep_offset`**, where it was
+  `separator_index` and `codesep_index`. `script.engine.tapscript.
+  op_checksig` gains a required `flags: ScriptFlag` parameter besides,
+  which is what lets it refuse a tapscript public key that is neither
+  empty nor 32 bytes under DISCOURAGE_UPGRADABLE_PUBKEYTYPE. All three
+  are the script engine's own internals — `verify_input` and
+  `verify_transaction` take no new parameter — and break only a caller
+  driving the interpreter's op codes directly.
 - **`join_psbts` and `join_txs` no longer take `merge_out`.** It was the
   fourth positional parameter of both, and `merge_out=True` raised
   `output merge not implemented yet`: delete the argument at each call
@@ -304,6 +324,13 @@ against the `v2023.7.12` tag.
   Core's PSBT stores it. Nothing replaces the call — `PsbtOut.assert_valid`
   simply no longer parses the leaves — and a caller that wants to know
   whether a leaf can be executed runs it.
+- **`psbt_utils.assert_valid_taproot_signatures`'s second parameter is
+  `what`, not `err_msg`.** It used to be raised as the whole message; now
+  it names what is being validated, and the function builds one of three
+  messages around it depending on the failure — a wrong length, an
+  explicit SIGHASH_DEFAULT byte, an unsupported hash type — so a caller
+  passing a full sentence gets it wrapped inside a new one rather than
+  raised verbatim.
 - **`BIP32DerPath` is `DerPath`, and the three `*_from_bip32_path`
   converters are `*_from_der_path`.** `indexes_from_bip32_path`,
   `str_from_bip32_path` and `bytes_from_bip32_path` answer as they did
@@ -505,6 +532,21 @@ and `verify` families now let a `TypeError` out where they used to answer
   `btclib.exceptions` loads `urllib.request` too, `import btclib` itself
   still costing the metadata lookup alone. Nothing connects until a call is
   made.
+- **btclib can hand a psbt to an external signer.** `btclib.psbt_signer`
+  defines the `PsbtSigner` protocol — `master_fingerprint`, `xpub`,
+  `sign_psbt`, `capabilities`, `close` — and the checks a caller runs
+  over an untrusted answer: `request_signatures` holds the returned psbt
+  to the one that was sent, `export_account` refuses an xpub that is not
+  the account the path names, `display_address` compares a device's own
+  address against btclib's. `btclib.hwi.HwiSigner` is the one shipped
+  implementation, over Bitcoin Core HWI's five JSON commands — HWI
+  reaching Trezor, Ledger, KeepKey, Digital Bitbox, Coldcard, BitBox02
+  and Jade — selecting a device by fingerprint rather than by
+  enumeration order, with nothing imported from `hwilib` and nothing to
+  install: an executable named at the call site is the whole runtime
+  requirement. `exceptions.SignerError` carries HWI's own error code, so
+  a declined signature and a disconnected cable answer as different
+  numbers rather than as one unread message (issue #381).
 - **Borromean ring signatures work on a curve other than secp256k1**, which
   is what the `ec` parameter has been offering since it stopped being a module
   global: the arithmetic ignored it and computed on secp256k1, so the first

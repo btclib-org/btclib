@@ -9,7 +9,7 @@ Only v2026.8 is here. The releases before it were documented at
 release-notes length in the first place, and are still in
 [HISTORY.md](./HISTORY.md) rather than duplicated here.
 
-## v2026.8 (work in progress, not released yet)
+## v2026.8.7
 
 Grouped, and the order runs from what breaks a caller to what only
 maintainers see; [HISTORY.md](./HISTORY.md) lists the source-breaking
