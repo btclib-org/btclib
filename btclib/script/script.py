@@ -378,8 +378,12 @@ def _serialize_bytes_command(command: bytes) -> bytes:
 
 
 def _pushdata(i: int, length: int, out: list[bytes]) -> None:
-    out.append(BYTE_FROM_OP_CODE_NAME[f"OP_PUSHDATA{i}"])
-    out.append(length.to_bytes(i, byteorder="little", signed=False))
+    out.extend(
+        (
+            BYTE_FROM_OP_CODE_NAME[f"OP_PUSHDATA{i}"],
+            length.to_bytes(i, byteorder="little", signed=False),
+        )
+    )
 
 
 def serialize(script: Sequence[Command]) -> bytes:

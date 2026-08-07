@@ -986,9 +986,11 @@ class Psbt:
             # the counts are what tells the parser how many maps follow,
             # so they are written from the maps themselves rather than
             # held as fields that could disagree with them
-            psbt_bin.append(serialize_count(PSBT_GLOBAL_INPUT_COUNT, len(self.inputs)))
-            psbt_bin.append(
-                serialize_count(PSBT_GLOBAL_OUTPUT_COUNT, len(self.outputs))
+            psbt_bin.extend(
+                (
+                    serialize_count(PSBT_GLOBAL_INPUT_COUNT, len(self.inputs)),
+                    serialize_count(PSBT_GLOBAL_OUTPUT_COUNT, len(self.outputs)),
+                )
             )
             if self.tx_modifiable is not None:
                 psbt_bin.append(
