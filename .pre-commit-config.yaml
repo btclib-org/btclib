@@ -234,8 +234,9 @@ repos:
         args: [--fix]
   # the width of a yaml line, which nothing else here measured: the hook
   # above holds markdown to 80 columns and ruff holds Python comments and
-  # docstrings to the same, and the workflows were the one place prose
-  # could grow without a limit -- 117 columns at the worst.
+  # docstrings to the same, and the workflows were a place prose could
+  # grow without a limit -- 117 columns at the worst. Toml was the other,
+  # and the hook below is what closed it.
   # Configured in .yamllint.yaml rather than in args here, as codespell
   # and typos are configured in pyproject.toml: the two rules enabled and
   # the two left off need a paragraph each, and the width is not 80 for a
@@ -247,6 +248,34 @@ repos:
     hooks:
       - id: yamllint
         name: yamllint (line width and document start)
+  # the width of a toml comment, which was the last prose here held to
+  # nothing. pyproject.toml carries more reasoning than any single file
+  # the rules above cover, and one of its comments had reached 118
+  # columns -- found by reading, which is the only thing that was
+  # looking.
+  # A local pygrep rule because nothing off the shelf does it: taplo
+  # formats values and leaves comments alone, by design, a formatter that
+  # reflowed prose being a formatter that rewrites it.
+  # `.{80}\S*[ \t]` reports a line only when whitespace is left past
+  # column 80, which is MD013's amnesty and ruff's: a comment ending in a
+  # link that cannot be broken is not a defect, and every Python comment
+  # here over 80 columns is exactly that. Without the amnesty this would
+  # be stricter on toml prose than the rules it mirrors are on the same
+  # sentences in a .py or a .md.
+  # The `#` after optional indent selects a comment and not a long value:
+  # `addopts` and `skip` in pyproject.toml are single tokens no width can
+  # break, and a value is not prose.
+  # pygrep matches bytes, so a non-ascii character would count as its
+  # utf-8 length. Every toml file here is ascii today, and the error is
+  # in the safe direction anyway -- a line reported one column early is
+  # rewrapped, never a line silently let through
+  - repo: local
+    hooks:
+      - id: toml-comment-width
+        name: toml comment width (80 columns, unbreakable links exempt)
+        language: pygrep
+        entry: '^(?=[ \t]*#).{80}\S*[ \t]'
+        files: \.toml$
   # .github/dependabot.yml is validated by nothing else here: check-yaml
   # above asks whether it is yaml, and actionlint below reads workflows
   # and not this. A typo in a package-ecosystem or a directory is not an

@@ -377,8 +377,9 @@ ands = "ands"
 # and identifiers are what this hook is here for.
 # Not a preference either: with --write-changes and without this section,
 # the hook corrects three such quotations into nonsense -- prose saying
-# `lenght` is now `length` reads as prose saying nothing. Narrow enough that `y-simmetry`, unquoted in HISTORY.md, was
-# still found and fixed with the rule already in place
+# `lenght` is now `length` reads as prose saying nothing. Narrow enough
+# that `y-simmetry`, unquoted in HISTORY.md, was still found and fixed
+# with the rule already in place
 extend-glob = ["CHANGELOG.md", "HISTORY.md", ".pre-commit-config.yaml"]
 extend-ignore-re = ['`[^`]*`']
 
