@@ -16,12 +16,19 @@ exist for these to run.
 is not how Windows runs anything, and the matrix has a Windows job.
 
 What the stand-in answers is HWI's own shapes, read from its `_cli.py`
-and `errors.py` at commit 5e0fd5e: a list for `enumerate`, `{"xpub": …}`,
-`{"psbt": …}`, `{"signature": …}`, `{"address": …}` for the rest, and
+and `errors.py`: a list for `enumerate`, `{"xpub": …}`, `{"psbt": …,
+"signed": …}`, `{"signature": …}`, `{"address": …}` for the rest, and
 `{"error": …, "code": …}` for a failure. The signing answers are made by
 `psbt_signer.SoftwareSigner`, so the psbt that comes back is one a real
-device could have sent -- which is what lets the checks in
-`psbt_signer` run over it here.
+device could have sent -- which is what lets the checks in `psbt_signer`
+run over it here.
+
+The tables below that transcription is written out in are the other half
+of staying aligned with a project btclib does not import: they say what
+btclib sends and reads, and `tests/_data/README.md` pins the two upstream
+paths they were read from, so the monthly re-check reports a command line
+that moved. The module cites, the README carries the revision -- the same
+split every vendored vector here has.
 """
 
 from __future__ import annotations
@@ -37,6 +44,7 @@ from btclib.bip32.bip32 import derive, xpub_from_xprv
 from btclib.descriptors import Descriptor, at_index, parse
 from btclib.exceptions import BTClibValueError, SignerError
 from btclib.hwi import (
+    _HWI_CHAIN,
     DEFAULT_MAX_OUTPUT,
     DEFAULT_TIMEOUT,
     HwiDevice,
@@ -101,6 +109,67 @@ elif command == "displayaddress":
 else:
     print(json.dumps({{"error": "unknown command " + command, "code": -13}}))
 """
+
+
+# The surface btclib depends on, transcribed from HWI's `_cli.py` and
+# `errors.py`; `tests/_data/README.md` carries the revision each is
+# pinned to, so the monthly upstream re-check reports a path that moved.
+#
+# Written out rather than derived from `btclib.hwi`: a table that read
+# the adapter would agree with it by construction and say nothing. This
+# is the other side of the comparison, and what it catches is btclib
+# changing what it sends -- upstream changing what it takes is what the
+# pin is for, and the two together are the whole of the alignment.
+#
+# Each command with the positional arguments it takes, in order.
+HWI_COMMANDS = {
+    "enumerate": (),
+    "getxpub": ("path",),
+    "signtx": ("psbt",),
+    "signmessage": ("message", "path"),
+    "displayaddress": (),
+}
+
+# the global flags, which HWI's parser takes before the command, and the
+# per-command one btclib passes
+HWI_GLOBAL_FLAGS = ("--chain", "--fingerprint", "--emulators")
+HWI_COMMAND_FLAGS = {"displayaddress": ("--desc",)}
+
+# what btclib reads out of each answer. `signed` is the second key of
+# signtx, added in 2021 and absent from HWI's own docstring for it
+HWI_ANSWER_KEYS = {
+    "getxpub": ("xpub",),
+    "signtx": ("psbt", "signed"),
+    "signmessage": ("signature",),
+    "displayaddress": ("address",),
+}
+
+# the chains `--chain` takes, which is what decides the version bytes of
+# every extended key HWI answers with
+HWI_CHAINS = ("main", "test", "signet", "regtest")
+
+# every error code HWI defines, with the name it gives it: the numbers a
+# caller acts on, and `exceptions.SignerError` carries them through
+HWI_ERROR_CODES = {
+    -1: "NO_DEVICE_TYPE",
+    -2: "MISSING_ARGUMENTS",
+    -3: "DEVICE_CONN_ERROR",
+    -4: "UNKNWON_DEVICE_TYPE",
+    -5: "INVALID_TX",
+    -6: "NO_PASSWORD",
+    -7: "BAD_ARGUMENT",
+    -8: "NOT_IMPLEMENTED",
+    -9: "UNAVAILABLE_ACTION",
+    -10: "DEVICE_ALREADY_INIT",
+    -11: "DEVICE_ALREADY_UNLOCKED",
+    -12: "DEVICE_NOT_READY",
+    -13: "UNKNOWN_ERROR",
+    -14: "ACTION_CANCELED",
+    -15: "DEVICE_BUSY",
+    -16: "NEED_TO_BE_ROOT",
+    -17: "HELP_TEXT",
+    -18: "DEVICE_NOT_INITIALIZED",
+}
 
 
 @pytest.fixture
@@ -443,6 +512,128 @@ def test_the_defaults_are_the_two_bounds(hwi: list[str]) -> None:
     assert device.max_output == DEFAULT_MAX_OUTPUT == 1 << 20
     # and nothing of hwilib is imported to get any of this
     assert not [name for name in sys.modules if name.startswith("hwilib")]
+
+
+def test_btclib_runs_the_commands_hwi_publishes(tmp_path: Path) -> None:
+    """Every command sent is one of the five, spelled as HWI takes it.
+
+    The argv is read back from what crossed the process boundary, so what
+    is compared with the table is what a device would have received: the
+    command name, the positional arguments in order, and the flags of
+    each -- `--desc` being the one that is per-command rather than global.
+    """
+    hwi = stand_in(tmp_path, {})
+    device = signer(hwi)
+    receive = export_account(device, "m/84h/0h/0h")[0]
+
+    ran = {}
+    enumerate_devices(executable=hwi)
+    ran["enumerate"] = last_argv(hwi)
+    device.xpub("m/84h/0h/0h")
+    ran["getxpub"] = last_argv(hwi)
+    device.sign_message(b"hello", "m/84h/0h/0h/0/0")
+    ran["signmessage"] = last_argv(hwi)
+    device.display_address(receive, 0)
+    ran["displayaddress"] = last_argv(hwi)
+
+    for command, argv in ran.items():
+        assert command in HWI_COMMANDS
+        # the global flags come first, as HWI's parser wants them, and
+        # each is one of the three btclib passes
+        flags = [arg for arg in argv[: argv.index(command)] if arg.startswith("-")]
+        assert set(flags) <= set(HWI_GLOBAL_FLAGS)
+        after = argv[argv.index(command) + 1 :]
+        positional = [arg for arg in after if not arg.startswith("-")]
+        command_flags = [arg for arg in after if arg.startswith("-")]
+        assert len(positional) == len(HWI_COMMANDS[command]) + len(command_flags)
+        assert tuple(command_flags) == HWI_COMMAND_FLAGS.get(command, ())
+
+    # and the chain is one of the four HWI names
+    assert set(_HWI_CHAIN.values()) == set(HWI_CHAINS)
+    assert ran["getxpub"][ran["getxpub"].index("--chain") + 1] in HWI_CHAINS
+
+
+def test_btclib_reads_the_keys_hwi_answers_with(tmp_path: Path) -> None:
+    """One key per command, and the refusal names the one that was missing.
+
+    An answer of the right shape with the wrong key is the drift this
+    catches on the btclib side: what the table says is read is what the
+    adapter asks for, and nothing else.
+    """
+    fixed = parse(f"wpkh({xpub_from_xprv(XPRV_ROOT)}/0)")
+    wrong = {"not-a": "key"}
+
+    with pytest.raises(SignerError, match="did not answer a xpub"):
+        signer(stand_in(tmp_path, {"getxpub": wrong})).xpub("m/0")
+    with pytest.raises(SignerError, match="did not answer a signature"):
+        signer(stand_in(tmp_path, {"signmessage": wrong})).sign_message(b"hi", "m/0")
+    with pytest.raises(SignerError, match="did not answer a address"):
+        signer(stand_in(tmp_path, {"displayaddress": wrong})).display_address(fixed)
+    # signtx's two keys are checked where the pair is, `signed` being read
+    # against the psbt rather than on its own
+    assert HWI_ANSWER_KEYS["signtx"] == ("psbt", "signed")
+    assert set(HWI_ANSWER_KEYS) == set(HWI_COMMANDS) - {"enumerate"}
+
+
+def test_signtx_answers_a_psbt_and_whether_it_signed(tmp_path: Path) -> None:
+    """HWI's `signed` is "what I return is not what I was given".
+
+    So it is checked rather than believed: only this layer holds both
+    strings, and a device that claims to have signed while handing back
+    the psbt it was sent has answered two things that cannot both be
+    true. Nothing else in the stack can see it -- `request_signatures`
+    compares psbts and never sees the flag.
+    """
+    device = signer(stand_in(tmp_path, {}))
+    psbt = account_psbt(device)[0]
+    sent = psbt.b64encode()
+
+    # the honest answers: signed with a different psbt, and not signed
+    # with the same one. Neither raises, and an answer with no flag at
+    # all is an older HWI and is not checked
+    for answer in (
+        {"psbt": device.sign_psbt(psbt).b64encode(), "signed": True},
+        {"psbt": sent, "signed": False},
+        {"psbt": sent},
+    ):
+        honest = signer(stand_in(tmp_path, {"signtx": answer}))
+        assert honest.sign_psbt(psbt).b64encode() == answer["psbt"]
+
+    # a device that signed nothing is not an error: one signer of an
+    # m-of-n answers for its own key and for no other
+    unchanged = signer(stand_in(tmp_path, {"signtx": {"psbt": sent, "signed": False}}))
+    assert unchanged.sign_psbt(psbt) == psbt
+
+    for answer, why in (
+        ({"psbt": sent, "signed": True}, "was the one it was given"),
+        (
+            {"psbt": device.sign_psbt(psbt).b64encode(), "signed": False},
+            "was not the one it was given",
+        ),
+    ):
+        lying = signer(stand_in(tmp_path, {"signtx": answer}))
+        with pytest.raises(SignerError, match=why):
+            lying.sign_psbt(psbt)
+
+    with pytest.raises(SignerError, match="did not answer a psbt"):
+        signer(stand_in(tmp_path, {"signtx": {"signed": True}})).sign_psbt(psbt)
+
+
+@pytest.mark.parametrize("code", sorted(HWI_ERROR_CODES))
+def test_every_error_code_arrives_with_its_number(tmp_path: Path, code: int) -> None:
+    """All eighteen, because the number is what a caller acts on.
+
+    -14 is somebody pressing the button that says no and is not worth a
+    retry, -3 is a cable and is worth one, -9 says this model will never
+    do it. An adapter that dropped the number would leave a caller
+    matching on the text of a message, which is what the field spares
+    them.
+    """
+    name = HWI_ERROR_CODES[code]
+    hwi = stand_in(tmp_path, {"enumerate": {"error": name, "code": code}})
+    with pytest.raises(SignerError, match=f"{name} .signer error code {code}") as e:
+        enumerate_devices(executable=hwi)
+    assert e.value.code == code
 
 
 def test_the_stand_in_is_a_subprocess_and_not_a_mock(hwi: list[str]) -> None:
