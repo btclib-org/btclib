@@ -128,7 +128,7 @@ def point_from_octets(
 
     bsize = len(pub_key)  # bytes
     prefix = pub_key[0]
-    if prefix in (0x02, 0x03):  # compressed point
+    if prefix in {0x02, 0x03}:  # compressed point
         if bsize != ec.p_size + 1:
             err_msg = "invalid size for compressed point: "
             err_msg += f"{bsize} instead of {ec.p_size + 1}"
@@ -140,7 +140,7 @@ def point_from_octets(
         except BTClibValueError as e:
             msg = f"invalid x-coordinate: '{hex_string(x_Q)}'"
             raise BTClibValueError(msg) from e
-    elif prefix == 0x04 or (hybrid and prefix in (0x06, 0x07)):  # both coordinates
+    elif prefix == 0x04 or (hybrid and prefix in {0x06, 0x07}):  # both coordinates
         if bsize != 2 * ec.p_size + 1:
             err_msg = "invalid size for uncompressed point: "
             err_msg += f"{bsize} instead of {2 * ec.p_size + 1}"

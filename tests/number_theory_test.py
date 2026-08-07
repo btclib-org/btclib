@@ -102,7 +102,7 @@ def test_mod_sqrt() -> None:
                 root = mod_sqrt(i + p, p)
                 assert i == (root * root) % p
                 if p % 4 == 3 or p % 8 == 5:
-                    assert tonelli(i, p) in (root1, root2)
+                    assert tonelli(i, p) in {root1, root2}
             else:
                 with pytest.raises(BTClibValueError, match="no root for "):
                     mod_sqrt(i, p)
@@ -186,7 +186,7 @@ def test_mod_sqrt_squares_back(a: int, p: int) -> None:
     are the whole domain, which is the point of generating a.
     """
     symbol = legendre_symbol(a, p)
-    assert symbol in (-1, 0, 1)
+    assert symbol in {-1, 0, 1}
     if symbol == -1:
         with pytest.raises(BTClibValueError, match="no root for "):
             mod_sqrt(a, p)

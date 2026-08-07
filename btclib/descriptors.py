@@ -2096,9 +2096,9 @@ def _pub_key_from_hex(key: str, *, x_only: bool) -> tuple[bytes, bool]:
             raise BTClibValueError(err_msg)
         # the even-y lift of BIP340, which is what an x-only key means
         pub_key = b"\x02" + bytes_from_octets(key)
-    elif length in (66, 130):
+    elif length in {66, 130}:
         prefix = key[:2]
-        if (length == 66 and prefix not in ("02", "03")) or (
+        if (length == 66 and prefix not in {"02", "03"}) or (
             length == 130 and prefix != "04"
         ):
             # 06 and 07 are the hybrid encoding, which nothing in bitcoin
@@ -2194,7 +2194,7 @@ def _assert_key_characters(rest: str) -> None:
 
 def _split_wildcard(steps: list[str]) -> tuple[list[str], int | None, str]:
     """Split the final `/*` step off a path: its offset, and its symbol."""
-    if steps and steps[-1] in ("*", "*'", "*h"):
+    if steps and steps[-1] in {"*", "*'", "*h"}:
         offset = 0 if steps[-1] == "*" else _HARDENED_OFFSET
         return steps[:-1], offset, steps[-1][1:]
     return steps, None, ""
@@ -2406,7 +2406,7 @@ def _parse_tree(expression: str, prv_keys: dict[str, str]) -> DescriptorTree:
 # BIP382 refuses one rather than describing a script nobody can spend;
 # inside tr() the keys are x-only to begin with
 def _no_uncompressed(context: str) -> bool:
-    return context in (_P2WSH, _P2TR)
+    return context in {_P2WSH, _P2TR}
 
 
 def _parse_pk(

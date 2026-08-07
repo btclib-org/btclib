@@ -496,7 +496,7 @@ def segwit_v0(
         )
 
     hash_outputs = b"\x00" * 32
-    if hash_type & 0x1F not in (SINGLE, NONE):
+    if hash_type & 0x1F not in {SINGLE, NONE}:
         hash_outputs = (
             hash256(_serialized_outputs(tx))
             if precomputed is None
@@ -554,7 +554,7 @@ def taproot(
         raise BTClibValueError("Sighash single without a corresponding output")
 
     anyone_can_pay = hashtype & 0x80 == ANYONECANPAY
-    all_outputs = hashtype & 0x03 not in (NONE, SINGLE)
+    all_outputs = hashtype & 0x03 not in {NONE, SINGLE}
     annex_present = int(bool(annex))
 
     # b"".join of the parts, as the rest of the module does, rather than

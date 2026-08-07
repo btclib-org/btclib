@@ -19,6 +19,15 @@ edit.
 
 ### Repository
 
+- **Every inline literal tuple or list an `in`/`not in` test compared
+  against is a set literal now**, preview's `PLR6201` on a tree where
+  the sets involved are almost all two or three constants, so what the
+  rule is written to buy -- an O(1) test over an O(n) one -- barely
+  applies; idiom is the whole of the reason. `B033` (already selected,
+  and not a preview rule) caught one set literal a fix produced with a
+  duplicate element, `script_test.py`'s list of disabled op codes
+  carrying `152` twice -- harmless either way for a membership test,
+  and removed since the rule now says so on its own.
 - **The legacy and tapscript interpreter loops moved out of
   `verify_script` and `verify_script_path_vc0`, into a private
   `_run_ops` of their own.** Preview's `PLW0717`

@@ -55,7 +55,7 @@ def address_from_xpub(xpub: BIP32Key) -> str:
     if not isinstance(xpub, BIP32KeyData):
         xpub = BIP32KeyData.b58decode(xpub)
 
-    if xpub.key[0] not in (2, 3):
+    if xpub.key[0] not in {2, 3}:
         # this branch is reached with an xprv: never echo it,
         # the prefix already says what is wrong
         raise BTClibValueError(f"not a public key: prefix 0x{xpub.key[:1].hex()}")

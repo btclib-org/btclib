@@ -650,7 +650,7 @@ def assert_valid_taproot_signatures(signatures: list[bytes], what: str) -> None:
         # 63 and 66 bytes are what BIP371's own two invalid vectors carry
         # for each of the two fields, so widening 64 to (64, 65) leaves
         # every one of them rejected
-        if len(signature) not in (64, 65):
+        if len(signature) not in {64, 65}:
             err_msg = f"invalid {what} length: {len(signature)} bytes"
             err_msg += " instead of 64 or 65"
             raise BTClibValueError(err_msg)

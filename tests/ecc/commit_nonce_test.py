@@ -283,7 +283,7 @@ def test_the_commitment_reaches_the_nonce() -> None:
     plain_nonce = rfc6979_nonce_(reduce_to_hlen(_MSG, hf), _PRV_KEY)
     plain_point = mult(plain_nonce, secp256k1.G, secp256k1)
     assert receipt_a != receipt_b
-    assert plain_point not in (receipt_a, receipt_b)
+    assert plain_point not in {receipt_a, receipt_b}
 
     # ssa keeps its aux and mixes the commitment into it, so the same
     # holds there with the aux held fixed -- random aux would hide it
@@ -293,7 +293,7 @@ def test_the_commitment_reaches_the_nonce() -> None:
     _, receipt_b = ssa.sign(_MSG, prv_key, aux, commit=b"contract B")
     plain_k, _, _, _ = bip340_nonce_(reduce_to_hlen(_MSG, hf), prv_key, aux)
     assert receipt_a != receipt_b
-    assert mult(plain_k, secp256k1.G, secp256k1) not in (receipt_a, receipt_b)
+    assert mult(plain_k, secp256k1.G, secp256k1) not in {receipt_a, receipt_b}
 
 
 def test_a_commitment_derives_its_own_nonce() -> None:

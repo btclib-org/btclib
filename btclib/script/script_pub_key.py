@@ -72,9 +72,9 @@ def address(script_pub_key: Octets, network: str = "mainnet") -> str:
     """
     if script_pub_key:
         script_type, payload = type_and_payload(script_pub_key)
-        if script_type in ("p2pkh", "p2sh"):
+        if script_type in {"p2pkh", "p2sh"}:
             return b58.address_from_h160(script_type, payload, network)
-        if script_type in ("p2wsh", "p2wpkh"):
+        if script_type in {"p2wsh", "p2wpkh"}:
             return b32.address_from_witness(0, payload, network)
         if script_type == "p2tr":
             return b32.address_from_witness(1, payload, network)

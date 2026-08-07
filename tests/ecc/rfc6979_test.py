@@ -128,7 +128,7 @@ def test_rfc6979_secp256k1_s_is_normalized() -> None:
     for prv_key, msg, _, _, s in SECP256K1_VECTORS:
         msg_hash = hashlib.sha256(msg.encode()).digest()
         raw = dsa.sign_(msg_hash, prv_key, lower_s=False)
-        assert raw.s in (int(s, 16), secp256k1.n - int(s, 16))
+        assert raw.s in {int(s, 16), secp256k1.n - int(s, 16)}
         normalized += raw.s != int(s, 16)
     assert normalized == 4
 

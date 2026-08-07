@@ -450,7 +450,7 @@ def script_path_vectors() -> list[Any]:
         stack = witness.stack[:-1] if has_annex(witness) else witness.stack
         # signature, script, control block: no leaf takes an input off
         # the stack, so the script is always the last but one
-        if len(stack) != 3 or len(stack[0]) not in (64, 65):
+        if len(stack) != 3 or len(stack[0]) not in {64, 65}:
             continue
         # <32-byte push> OP_CHECKSIG, and nothing else
         if len(stack[1]) != 34 or stack[1][0] != 0x20 or stack[1][-1] != 0xAC:

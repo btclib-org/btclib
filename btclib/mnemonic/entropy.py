@@ -259,7 +259,7 @@ def collect_rolls(bits: int) -> tuple[int, list[int]]:
         msg += "; prefix with 'a' to automate rolls, hit enter for 'a6'): "
         dice_sides_str = input(msg)
         dice_sides_str = dice_sides_str.lower()
-        if dice_sides_str in ["", "a"]:
+        if dice_sides_str in {"", "a"}:
             automate = True
             dice_sides = 6
         else:

@@ -125,7 +125,7 @@ def _from_num(x: int) -> bytes:
 def _to_bool(element: bytes) -> bool:
     return next(
         (True for x in element[:-1] if x != 0),
-        bool(element and element[-1] not in (0x00, 0x80)),
+        bool(element and element[-1] not in {0x00, 0x80}),
     )
 
 
@@ -259,7 +259,7 @@ def op_if(
     minimalif = segwit_version == 1 or (
         segwit_version == 0 and ScriptFlag.MINIMALIF in flags
     )
-    if minimalif and stack[-1] not in [b"", b"\x01"]:
+    if minimalif and stack[-1] not in {b"", b"\x01"}:
         raise BTClibValueError(f"non-minimal OP_IF condition: {stack[-1].hex()}")
     condition = _to_bool(stack.pop())
 
@@ -284,7 +284,7 @@ def op_notif(
     minimalif = segwit_version == 1 or (
         segwit_version == 0 and ScriptFlag.MINIMALIF in flags
     )
-    if minimalif and stack[-1] not in [b"", b"\x01"]:
+    if minimalif and stack[-1] not in {b"", b"\x01"}:
         raise BTClibValueError(f"non-minimal OP_NOTIF condition: {stack[-1].hex()}")
     condition = _to_bool(stack.pop())
 

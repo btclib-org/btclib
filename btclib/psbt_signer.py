@@ -440,7 +440,7 @@ class SoftwareSigner:
         except BTClibValueError:
             return None
         sec = pub_keyinfo_from_key(derived)[0]
-        if pub_key not in (sec, sec[1:]):
+        if pub_key not in {sec, sec[1:]}:
             return None
         return prv_keyinfo_from_prv_key(derived)[0]
 

@@ -531,7 +531,7 @@ def test_old_vectors(hex_seed: str, mnemonic: str, master_pub_key: str | None) -
 
     assert electrum.old_master_pub_key_from_mnemonic(mnemonic) == master_pub_key
 
-    if len(hex_seed) in (32, 64):
+    if len(hex_seed) in {32, 64}:
         # the hex seed is a seed electrum restores from as readily as the
         # words, which is what makes the hex branch of the recognizer
         # more than a curiosity

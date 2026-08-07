@@ -160,7 +160,7 @@ def assert_valid_hd_key_paths(hd_key_paths: Mapping[bytes, BIP32KeyOrigin]) -> N
         # the length and not the point: BIP174 test vector 6 carries a
         # pub_key that is not on the curve, so parsing it here would
         # refuse a psbt the specification calls valid
-        if len(pub_key) not in (78, 33, 65):
+        if len(pub_key) not in {78, 33, 65}:
             err_msg = f"invalid public key length: {len(pub_key)}"
             raise BTClibValueError(err_msg)
         key_origin.assert_valid()
