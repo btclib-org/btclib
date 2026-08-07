@@ -555,11 +555,20 @@ def _session_key_agg_coeff(session_ctx: SessionContext, pub_key: bytes) -> int:
 def sign(sec_nonce: bytearray, prv_key: PrvKey, session_ctx: SessionContext) -> bytes:
     """Return the 32-byte partial signature of one signer.
 
-    The secnonce is consumed: its first 64 bytes are zeroed before
-    anything else happens, so that calling this twice with the same
-    bytearray raises instead of handing out the private key. That is why
+    The secnonce is consumed: its first 64 bytes are zeroed the moment
+    they are read, before either is used for anything, so that calling
+    this twice with the same bytearray reads two zero scalars and raises
+    "out of range" instead of handing out the private key. That is why
     the argument is a bytearray and not bytes -- an immutable secnonce
     is one nothing can spend -- and why a caller must not keep a copy.
+
+    `session_values` runs first, and that is the one thing this order
+    leaves spendable: a session that does not assemble -- a pubnonce that
+    is no point, a tweak out of range -- raises before the nonce is
+    touched, so the same bytearray may be used for the corrected session.
+    Nothing was signed with it, which is what makes reuse safe there and
+    only there, and BIP327's reference implementation has the two calls
+    in this order for the same reason.
     """
     values = session_values(session_ctx)
     k_1_ = int.from_bytes(sec_nonce[:_SCALAR_SIZE], "big")
