@@ -76,6 +76,15 @@ used to teach and to prototype as much as to build:
     the tweaking of a key, the shared point of a key agreement and the
     tweaking of a sign-to-contract nonce being three other places a
     secret meets the curve.
+    Verification crosses it whole, not only in its multiplication:
+    `dsa.verify` and `ssa.verify` are one libsecp256k1 call each for
+    secp256k1 with sha256, a high-s signature being normalized first
+    where the lower-s form is not being enforced. Batch verification is
+    the exception, libsecp256k1 having no call for it, so
+    `ssa.batch_verify` is the Python equation over delegated
+    multiplications. This paragraph is about a secret meeting the curve
+    and verification holds none, which is why it is named here only to
+    say that the sentence below is not about it.
     A signature the bindings decline is not all Python for that:
     `dsa.gen_keys` and the nonce point of `dsa._sign_` go through `mult`,
     and the verification equation of both `dsa` and `ssa` through
