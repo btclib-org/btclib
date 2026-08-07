@@ -19,6 +19,20 @@ edit.
 
 ### Repository
 
+- **The vendored-vector re-checker reports a path upstream has deleted,
+  rather than raising on it.** `repos/{repo}/commits?path=` answers `[]`
+  with a 200 when no commit touches that path any more -- it was renamed,
+  moved or deleted -- and `(commit,) = json.loads(...)` unpacked one
+  commit out of that, raising `ValueError`. `find_drift` went down with
+  it and `report` was never reached: the monthly run turned red and no
+  issue was opened, which is the one outcome the workflow exists to
+  prevent, on the one kind of drift a vendored file nobody re-reads would
+  otherwise hide. `_latest_commit` answers None there now, `Drift`
+  carries a `path_is_gone` that reads the encoding in one place, and the
+  issue body and stdout say `GONE` with the reason rather than naming a
+  tip that does not exist. Three tests hold it, and each fails against
+  the old unpacking.
+
 - **the Bitcoin Core rpc client is a package of its own**, and btclib
   depends on it rather than carrying it. `btclib/bitcoin_core_rpc.py` was
   one standard-library-only source file that a project could copy whole
