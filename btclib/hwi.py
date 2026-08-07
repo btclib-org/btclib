@@ -197,8 +197,8 @@ def _device(entry: dict[str, Any]) -> HwiDevice:
         model=str(entry.get("model", "")),
         path=str(entry.get("path", "")),
         fingerprint=None if fingerprint is None else bytes_from_octets(fingerprint, 4),
-        needs_pin_sent=bool(entry.get("needs_pin_sent", False)),
-        needs_passphrase_sent=bool(entry.get("needs_passphrase_sent", False)),
+        needs_pin_sent=bool(entry.get("needs_pin_sent")),
+        needs_passphrase_sent=bool(entry.get("needs_passphrase_sent")),
         error=str(entry.get("error", "")),
         code=entry.get("code"),
     )

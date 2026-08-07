@@ -116,6 +116,7 @@ from this module the way the test suite takes them.
 
 from __future__ import annotations
 
+import operator
 import re
 from abc import ABC, abstractmethod
 from collections.abc import Callable, Mapping, Sequence
@@ -569,7 +570,8 @@ class MultiA:
         key written x-only.
         """
         pub_keys = [key.sec(index, network, prv_keys) for key in self.keys]
-        return sorted(pub_keys, key=lambda sec: sec[1:]) if self.sort else pub_keys
+        key_x = operator.itemgetter(slice(1, None))
+        return sorted(pub_keys, key=key_x) if self.sort else pub_keys
 
     def _script(self, index: int, network: str, prv_keys: PrvKeys | None) -> ScriptList:
         """Return the tapscript of BIP387: a CHECKSIG, then CHECKSIGADDs.
