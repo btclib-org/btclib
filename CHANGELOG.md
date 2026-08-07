@@ -1,5 +1,16 @@
 # Changelog
 
+<!-- markdownlint-configure-file
+  {
+    // MD024/no-duplicate-heading - a group heading repeats under every
+    // release with an entry in that group ("Packaging, linting and CI",
+    // "Tests", "Repository"), which is what keeps the page readable
+    // scrolling down it; only a duplicate under the same release heading
+    // would be the accident this rule looks for
+    "MD024": { "siblings_only": true }
+  }
+-->
+
 Every change of a release, in full: what changed, why, and what it cost.
 [HISTORY.md](./HISTORY.md) has the release notes, which say what a user has
 to act on; this file is the record behind them, and is where a claim in
@@ -10,6 +21,33 @@ documented at release-notes length in the first place, and are still in
 [HISTORY.md](./HISTORY.md) rather than duplicated here.
 
 ## v2026.9 (work in progress, not released yet)
+
+### Packaging, linting and CI
+
+- **`keywords` and the GitHub repository topics name the same features.**
+  The keyword list had neither `psbt` nor `taproot`, and none of what
+  v2026.8.7 added: `secp256k1` for the libsecp256k1 bindings every wheel
+  requires, `musig2` for BIP327 and the BIP373 psbt fields, `slip39` for
+  the Shamir backup, `output-descriptors` for the BIP380 grammar
+  `descriptors.py` reads, and `hardware-wallet` for the HWI signer behind
+  `psbt_signer`. `RFC-6979` is `rfc-6979` with them: a GitHub topic is
+  lowercase or it is not a topic, and one spelling across the two lists is
+  what lets them be compared. The order is by relevance rather than
+  alphabetical, PyPI showing keywords as the metadata gives them; GitHub
+  sorts its own, so there the order decides only which topic goes when the
+  twenty GitHub allows are full -- which is why `rfc-6979`, `mnemonic`,
+  `merkle-proof`, `bip44` and `bitcoin-script` are keywords with no topic
+  beside them.
+- **this file relaxes MD024 (no-duplicate-heading) for itself**, a group
+  heading repeating under every release that has an entry in that group:
+  the rule reads that repeat as the accident it usually is, and
+  `siblings_only` is what tells the two apart, a duplicate under one
+  release heading still failing. It is a `markdownlint-configure-file`
+  comment here rather than a line in `.markdownlint.jsonc`, which is
+  shared with btclib-libsecp256k1 and bitcoin-core-rpc and says so
+  itself: a rule one file needs belongs to that file, not to a config
+  read by files that never trip it. bitcoin-core-rpc's CHANGELOG.md
+  carries the same comment for the same reason.
 
 ## v2026.8.7
 
