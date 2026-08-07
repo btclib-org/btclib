@@ -197,6 +197,16 @@ against a pin about to be a version behind.
    what a reader should not have to discover at the button belongs there
    too.
 
+   The previous cycle's last step opened this pull request asking for the
+   body to fill in one merged pull request at a time, and said so itself:
+   "a promise kept only if someone remembers to keep it." Check it against
+   `git log v<previous version>..dev --oneline` regardless of how current
+   it looks, rather than trust that every line landed when it should have.
+   Griffe's result and `latest`'s run belong here too, each a line rather
+   than a screenshot — both are steps nothing else enforces, and a pull
+   request that never mentions them reads exactly like one that skipped
+   them.
+
    And merge it with **"Rebase and merge"**, never *"Squash and merge"*.
    All three methods are enabled here and GitHub preselects whichever was
    used last, so which button it is has to be read before it is pressed.
