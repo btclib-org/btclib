@@ -18,7 +18,11 @@ kramdown having hard_wrap off. -->
 [![pre-commit.ci status](https://results.pre-commit.ci/badge/github/btclib-org/btclib/master.svg)](https://results.pre-commit.ci/latest/github/btclib-org/btclib/master)
 [![documentation build](https://readthedocs.org/projects/btclib/badge/?version=latest)](https://btclib.readthedocs.io)
 
-[Browse GitHub Code Repository](https://github.com/btclib-org/btclib/)
+<!-- the two places to go, in the same form as each other: the repository
+and the channel. Neither reports state, which is why they are here and not
+in the lines above -- what they answer is "where do I read the code" and
+"where do I ask", both questions the reader has after reading. -->
+[![GitHub repository: btclib-org/btclib](https://img.shields.io/badge/GitHub-btclib--org%2Fbtclib-181717?logo=github)](https://github.com/btclib-org/btclib/)
 [![slack: btclib_dev](https://img.shields.io/badge/slack-btclib_dev-white.svg?logo=slack)](https://bbt-training.slack.com/messages/C01CCJ85AES)
 
 ---

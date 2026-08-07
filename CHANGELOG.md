@@ -58,8 +58,14 @@ documented at release-notes length in the first place, and are still in
   reported no state at all — `uv`, `cal_ver`, `pre-commit enabled`, three
   ruff badges, mypy, markdownlint-cli2 — so they are in CONTRIBUTING.md's
   "Getting started", beside the prose that says how each choice is
-  enforced, and the Slack badge is down with the repository link, "where
-  do I ask" being a question the reader has after reading. The table that
+  enforced, and the Slack badge is down with the repository, "where do I
+  ask" being a question the reader has after reading. The repository is a
+  badge there too, where it was the sentence "Browse GitHub Code
+  Repository": the two links out of this page answer "where do I read the
+  code" and "where do I ask", so they are one kind of thing and now look
+  like it — and the badge names `btclib-org/btclib`, which the sentence
+  did not, the organization being what tells this repository from the
+  forks a search returns. The table that
   held them is gone with them: its left column was the taxonomy, and
   nine self-describing badges do not need one — `pypi`, `python`, `test`
   read as their own labels, which is also why the alternative text is now
