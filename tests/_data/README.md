@@ -168,9 +168,11 @@ repository is LF throughout, which `mixed-line-ending` enforces with
 vectors, all eight columns.
 
 Four of the 19 are messages of 0, 1, 17 and 100 bytes: BIP340 accepts a
-message of any size, the bindings still insist on a 32-byte hash, so
-these four take the Python path (issue 169). All four pass: `verify_`
-accepts each, and `sign_` reproduces each signature byte for byte.
+message of any size, and so do the bindings — `sign_custom` and `verify`
+take one, and the 32-byte gate that used to send these four down the
+Python path (issue 169) is gone. All four pass on either arithmetic:
+`verify_` accepts each, and `sign_` reproduces each signature byte for
+byte.
 
 ### BIP327 (MuSig2): eight files under `tests/ecc/_data/`
 
