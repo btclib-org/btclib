@@ -28,7 +28,7 @@ floor the build enforces — and reproduces the published vectors of
 the BIPs, of RFC 6979, and of Bitcoin Core.
 
 Originally developed for the
-_[Bitcoin and Blockchain Technology](https://www.ametrano.net/bbt/)_
+*[Bitcoin and Blockchain Technology](https://www.ametrano.net/bbt/)*
 course at the University of Milano-Bicocca,
 btclib is not intended for production environments:
 it is often refactored for improved clarity,

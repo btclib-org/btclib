@@ -16,9 +16,9 @@ Three audiences, in the order they matter:
 
 1. the reader of the documentation and of the BIPs, who wants the
    worked example to be runnable rather than quotable;
-2. the person checking one value — an address, a checksum, a sighash, a
+1. the person checking one value — an address, a checksum, a sighash, a
    descriptor — for whom opening a REPL is heavier than the question;
-3. the shell script: conformance runs, exercises graded automatically,
+1. the shell script: conformance runs, exercises graded automatically,
    cross-checks against Bitcoin Core's `bitcoin-cli` where both tools
    answer the same question.
 
@@ -91,19 +91,19 @@ already maintains for its own reasons.
 1. every non-private module and package declares its own `__all__`; an
    empty list is valid where a module has no public surface of its own,
    and declaring nothing is not;
-2. `btclib.__all__` is the root of the tree: the packages and top-level
+1. `btclib.__all__` is the root of the tree: the packages and top-level
    modules of the library, `getattr` answering each on a fresh
    interpreter through a module `__getattr__` that imports it on demand.
    The metadata — `name`, `__version__` — is not part of the tree;
-3. a module-valued name in a list is an edge, and it is a submodule of
+1. a module-valued name in a list is an edge, and it is a submodule of
    the module publishing it, so the command path is the import path by
    construction rather than by convention;
-4. a module declares its surface whether or not its parent publishes an
+1. a module declares its surface whether or not its parent publishes an
    edge to it. `psbt.psbt_utils` and `curves.curve_group` say what they
    hold and are reachable by import; the walk never arrives, so no
    command comes of them. Being a group is the parent's decision, and
    being declared is the module's;
-5. a public name a module keeps out of its list is recorded, in the
+1. a public name a module keeps out of its list is recorded, in the
    module docstring and in that test file's `UNEXPORTED` table.
 
 Point 4 is what makes the mirror implementable from outside this
@@ -291,26 +291,26 @@ the audit above.
    its prefix, and rightly, is `BIP32KeyData.b58encode` and
    `Psbt.b64encode`: on a class the prefix names which encoding, rather
    than repeating the module.
-2. **`pubkey` becomes `pub_key` in the taproot names.**
+1. **`pubkey` becomes `pub_key` in the taproot names.**
    `output_pubkey`, `output_prvkey`, `check_output_pubkey`, the
    `internal_pubkey` parameter and `ssa.point_from_bip340pub_key` are the
    only btclib-owned names spelled that way; `pub_key` is what the rest
    of the library writes, and every other `pubkey` in the tree is a
    libsecp256k1 entry point — `ec_pubkey_parse`, `pubkey_tweak_add` —
    which must not move.
-3. **`descriptors.descriptor_checksum` becomes `checksum`, and
+1. **`descriptors.descriptor_checksum` becomes `checksum`, and
    `descriptor_from_address` becomes `from_address`.** `add_checksum`
    and `strip_checksum`, in that same file, already drop the prefix.
-4. **`psbt.combine_psbts`, `join_psbts` and `finalize_psbt` become
+1. **`psbt.combine_psbts`, `join_psbts` and `finalize_psbt` become
    `combine`, `join` and `finalize`; `tx.join_txs` becomes `join`.** The
    same stutter and the same remedy at the import site. `extract_tx`
    keeps its noun, which names what comes out rather than what goes in.
-5. **One name for the master extended key.** `bip32.rootxprv_from_seed`
+1. **One name for the master extended key.** `bip32.rootxprv_from_seed`
    against `mnemonic.*.mxprv_from_mnemonic`, at 53 occurrences of
    `rootxprv` and 51 of `mxprv` over library and tests: two names for one
    object, not a stray. `mxprv` is the one that matches the `m/...`
    notation the derivation paths already use.
-6. **`mnemonic.dispatch` stops being a name.** The module says how it
+1. **`mnemonic.dispatch` stops being a name.** The module says how it
    works rather than what it answers; its two functions belong in
    `mnemonic.__all__` beside the rest, and the module drops out of it.
 
@@ -746,35 +746,35 @@ repository, not this one, releases and versions.
    proper?** The recommendation is click; the counter-argument is that
    btclib's single dependency is a promise, and an extra is still a
    second name in `pyproject.toml`.
-2. **The mirror rule, at full verbosity?** The alternative is a small
+1. **The mirror rule, at full verbosity?** The alternative is a small
    alias table (`btclib address` for `b58 p2pkh` and friends), which
    costs a second set of names and a second thing to keep true.
-3. ~~**Is the `__all__` audit a prerequisite or a consequence?**~~
+1. ~~**Is the `__all__` audit a prerequisite or a consequence?**~~
    Decided: a prerequisite, and done. The eight package pull requests
    (#319, #320, #328 to #334), the three renamings (#335 to #337), the
    move of #340 and the declaration everywhere of #338 all landed before
    any command line exists, so the first version of the tree reads a
    surface somebody decided rather than one an import section left
    behind — and the traversal contract above is what it reads.
-4. **Do the six renamings go in, and in one commit or six?** Each is
+1. **Do the six renamings go in, and in one commit or six?** Each is
    source-breaking on its own, and HISTORY.md's breaking-changes list is
    where a user reads them; one release absorbing all six is one entry
    to read instead of six spread over months.
-5. **Does `HashF` get a name?** The command line needs
+1. **Does `HashF` get a name?** The command line needs
    `--hf sha256`, and the library has no table from a string to a hash
    function. Either the CLI keeps a private one — the only CLI-only
    vocabulary in the design — or `btclib.hashes` grows one, which the
    library itself could then use in its own error messages.
-6. **Is `--json` off by default, or on?** Off reads better for a human
+1. **Is `--json` off by default, or on?** Off reads better for a human
    and pipes better for `$(...)`; on gives a script one shape everywhere.
-7. **Does `fetch` get a write path?** `broadcast` is one method, and it
+1. **Does `fetch` get a write path?** `broadcast` is one method, and it
    is the difference between a PSBT walkthrough that ends in a hex string
    and one that ends on the chain.
-8. **Does the PSBT Signer come first?** The phase 3 list has every
+1. **Does the PSBT Signer come first?** The phase 3 list has every
    BIP174 role but that one, so either the command line ships with the
    gap in plain sight, or the Signer is written before it — which is
    library work this proposal has no business deciding on its own.
-9. **Where does this document live?** ~~It is in `docs/proposals/` so
+1. **Where does this document live?** ~~It is in `docs/proposals/` so
    that it stays out of btclib.org — `_config.yml` excludes `docs/` —
    and out of the sphinx build, which reads `docs/source/` only. An
    issue is the other candidate, and is where the discussion would

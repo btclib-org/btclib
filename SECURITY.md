@@ -13,7 +13,7 @@ advisory is published, and a CVE can be requested from it if the
 vulnerability warrants one.
 
 If you have no GitHub account, or would rather not use it for this,
-responsible disclosure by email to _security at btclib dot org_ is
+responsible disclosure by email to *security at btclib dot org* is
 equally welcome.
 
 ## What belongs here, and what belongs upstream
