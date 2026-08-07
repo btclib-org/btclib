@@ -121,6 +121,25 @@ def test_the_timestamp_is_where_the_rescan_starts() -> None:
     assert import_request(receive, 0)["timestamp"] == 0
 
 
+def test_the_timestamp_is_a_number_or_the_word_now() -> None:
+    """`GetImportTimestamp` takes those two and refuses every other value.
+
+    Core compares the string against "now" and answers `Expected number
+    or "now" timestamp value for key` to anything else, which fails the
+    whole request: the case of the letters is the whole difference
+    between a working import and an rpc error after the descriptors were
+    built.
+
+    A bool is refused for the reason every integer field of the library
+    refuses one: `True` is an `int` to Python, and Core reads a json
+    boolean as neither a number nor a string.
+    """
+    receive = account_pair()[0]
+    for timestamp in ("NOW", "Now", "yesterday", "", "1455191478", True):
+        with pytest.raises(BTClibValueError, match="expected a number"):
+            import_request(receive, timestamp)
+
+
 def test_an_active_descriptor_must_be_ranged() -> None:
     """Core's own rule: an unranged descriptor is no source of addresses.
 
@@ -155,6 +174,32 @@ def test_a_range_belongs_to_a_ranged_descriptor() -> None:
     for key_range in ((5, 1), (-1, 5)):
         with pytest.raises(BTClibValueError, match="invalid range"):
             import_request(receive, key_range=key_range)
+
+
+def test_both_ends_of_the_range_are_bounded_as_core_bounds_them() -> None:
+    """`ParseDescriptorRange`'s two bounds, on the widths either side of them.
+
+    `high >> 31` is "End of range is too high" and `high >= low + 1000000`
+    is "Range is too large", so 2**31 - 1 is the highest end and a million
+    indexes the widest span -- both of them accepted here, and the next
+    value along refused. Core's own keypool default is a thousand, so what
+    these catch is a range computed wrongly rather than one meant.
+    """
+    receive = account_pair()[0]
+
+    top = 2**31 - 1
+    assert import_request(receive, key_range=(top - 1, top))["range"] == [top - 1, top]
+    with pytest.raises(BTClibValueError, match="end of range is too high"):
+        import_request(receive, key_range=(0, 2**31))
+
+    widest = 999_999
+    assert import_request(receive, key_range=(0, widest))["range"] == [0, widest]
+    assert import_request(receive, key_range=(7, 7 + widest))["range"] == [7, 1_000_006]
+    with pytest.raises(BTClibValueError, match="range is too large: 1000001 indexes"):
+        import_request(receive, key_range=(0, 1_000_000))
+    # the span and not the end: a range high up is refused for its width
+    with pytest.raises(BTClibValueError, match="range is too large"):
+        import_request(receive, key_range=(1000, 1000 + 1_000_000))
 
 
 def test_next_index_is_inside_the_range() -> None:
