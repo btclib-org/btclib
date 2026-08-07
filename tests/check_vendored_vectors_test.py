@@ -292,6 +292,30 @@ def test_find_drift_reports_a_path_upstream_no_longer_has(
     assert "renamed, moved or deleted upstream" in body
 
 
+@pytest.mark.parametrize("argv", [["prog"], ["prog", "a.md", "b.md"]])
+def test_main_says_how_to_be_called_when_it_is_not(
+    checker: ModuleType,
+    argv: list[str],
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    """No README, or two of them, is the usage rather than an IndexError.
+
+    Only a human running this by hand reaches it -- the workflow passes
+    the path every time -- and what they used to get was `IndexError:
+    list index out of range` naming a list they never saw.
+    """
+    monkeypatch.setattr(sys, "argv", argv)
+
+    assert checker.main() == 2
+
+    captured = capsys.readouterr()
+    # argv[0] is what names the program, so the fixture's own "prog" is
+    # what comes back here rather than the script's file name
+    assert captured.err == "usage: prog <README path> [--dry-run]\n"
+    assert captured.out == ""
+
+
 def test_main_says_gone_rather_than_behind_for_a_vanished_path(
     checker: ModuleType,
     fake_gh: FakeGh,
