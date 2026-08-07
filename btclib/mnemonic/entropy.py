@@ -253,9 +253,9 @@ def collect_rolls(bits: int) -> tuple[int, list[int]]:
     """
     automate = False
     dice_sides = 0
-    _dice_sides = (4, 6, 8, 12, 20, 24, 30, 48, 60, 120)
-    while dice_sides not in _dice_sides:
-        msg = f"dice sides {f'{_dice_sides}'[:-1]}"
+    valid_dice_sides = (4, 6, 8, 12, 20, 24, 30, 48, 60, 120)
+    while dice_sides not in valid_dice_sides:
+        msg = f"dice sides {f'{valid_dice_sides}'[:-1]}"
         msg += "; prefix with 'a' to automate rolls, hit enter for 'a6'): "
         dice_sides_str = input(msg)
         dice_sides_str = dice_sides_str.lower()

@@ -225,7 +225,7 @@ def test_from_tx_loop_hashes_the_transaction_once(
 
     Without the precomputed data every segwit input rebuilds the
     prevouts of the whole transaction: N passes over N inputs, which is
-    what the issue measured as 15 µs per input at N=1 and 414 µs at
+    what the issue measured as 15 μs per input at N=1 and 414 μs at
     N=400. With it there is one pass, in the constructor.
     """
     tx, prevouts = spending_tx()

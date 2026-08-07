@@ -19,6 +19,14 @@ edit.
 
 ### Repository
 
+- **Issue #445's preview-rules sweep found four real defects, fixed
+  outright.** A docstring's `µ` (MICRO SIGN) written where `μ` (GREEK
+  SMALL LETTER MU) was meant; `hwi.py`'s two `dict.get(key, False)`
+  fallbacks, redundant since `.get`'s own default, `None`, is already
+  falsy; `descriptors.py`'s sort key, a lambda reimplementing
+  `operator.itemgetter`; and `entropy.py`'s `_dice_sides`, a leading
+  underscore that reads as a discarded value on a tuple the loop right
+  below goes on to use.
 - **The vendored-vector re-checker reports a path upstream has deleted,
   rather than raising on it.** `repos/{repo}/commits?path=` answers `[]`
   with a 200 when no commit touches that path any more -- it was renamed,
