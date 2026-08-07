@@ -75,6 +75,27 @@ it — and the branch cannot be rewritten or deleted under them.
 Requiring the four checks on `dev` as well is the next step if one is
 wanted, and it costs the direct push.
 
+## Head branches after a merge
+
+`delete_branch_on_merge` is on, since 7 August 2026:
+
+```shell
+gh api repos/btclib-org/btclib --jq '.delete_branch_on_merge'
+```
+
+GitHub deletes the head branch of a pull request when it is merged, which
+is what keeps the branch list a list of live work rather than a history of
+every change ever made. It was turned on after a sweep that removed nine
+merged head branches from here, none of which anybody could tell from live
+work without comparing each against `dev` commit by commit.
+
+Two cases it does not cover, both deliberate. A protected branch is never
+deleted, protection winning over this setting, so the release pull request
+that merges `dev` into `master` leaves `dev` where it is. And a pull
+request **closed without merging** keeps its head branch: GitHub cannot
+know whether that work was abandoned or is waiting, so those are the ones
+still worth looking at now and then.
+
 ## Token permissions
 
 **The default `GITHUB_TOKEN` is read-only repository-wide**, so a job
