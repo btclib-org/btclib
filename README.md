@@ -18,40 +18,38 @@ kramdown having hard_wrap off. -->
 [![pre-commit.ci status](https://results.pre-commit.ci/badge/github/btclib-org/btclib/master.svg)](https://results.pre-commit.ci/latest/github/btclib-org/btclib/master)
 [![documentation build](https://readthedocs.org/projects/btclib/badge/?version=latest)](https://btclib.readthedocs.io)
 
-[Browse GitHub Code Repository](https://github.com/btclib-org/btclib/)
+[![GitHub repository: btclib-org/btclib](https://img.shields.io/badge/GitHub-btclib--org%2Fbtclib-181717?logo=github)](https://github.com/btclib-org/btclib/)
 [![slack: btclib_dev](https://img.shields.io/badge/slack-btclib_dev-white.svg?logo=slack)](https://bbt-training.slack.com/messages/C01CCJ85AES)
 
 ---
 
-[btclib](https://btclib.org) is a
-Python3 [type annotated](https://docs.python.org/3/library/typing.html)
-library intended for teaching, learning, and using bitcoin;
-the focus is on elliptic curve cryptography and bitcoin's blockchain.
-
-The test suite covers virtually the whole code base — a coverage
-floor the build enforces — and reproduces the published vectors of
-the BIPs, of RFC 6979, and of Bitcoin Core.
-
-Originally developed for the
+[btclib](https://btclib.org) is a Python3
+[type annotated](https://docs.python.org/3/library/typing.html) library
+for teaching, learning and using bitcoin, focused on elliptic curve
+cryptography and bitcoin's blockchain. It started as a teaching tool for
+Ferdinando Ametrano's
 *[Bitcoin and Blockchain Technology](https://www.ametrano.net/bbt/)*
-course at the University of Milano-Bicocca,
-btclib is not intended for production environments:
-it is often refactored for improved clarity,
-without care for backward compatibility; moreover,
-some of its algorithms could be broken using side-channel attacks.
+course, it is used in production today (still marked as beta
+because it is often refactored for improved clarity).
 
-The library is not limited to the bitcoin elliptic curve secp256k1;
-for that curve, though, it always relies on
+The test suite covers virtually the whole code base, a floor the build
+enforces, and it answers to vectors their authors publish: the BIPs' and
+the SLIPs' own, Bitcoin Core's script, transaction, sighash and
+key-encoding files, HWI's, trezor's for BIP39 and SLIP39, and Appendix A.2
+of RFC 6979. `tests/_data/README.md` pins each vendored file to the
+upstream commit it was copied from, and says whether the two still match —
+including the few vectors that are btclib's own, having no upstream.
+
+The library is not limited to secp256k1, and for that curve it always
+calls
 [btclib_libsecp256k1](https://github.com/btclib-org/btclib-libsecp256k1),
-FFI bindings to
-[libsecp256k1](https://github.com/bitcoin-core/secp256k1)
-(the optimized C library used by Bitcoin Core):
-they are a required dependency, not an optional accelerator, so
-installing btclib needs either one of their wheels or a C toolchain to
-build them. The Python implementation is what every other curve uses,
-and the test suite validates it against the bindings: it is libsecp256k1
-that says what the right answer is, being the implementation bitcoin
-consensus itself relies on.
+FFI bindings to Bitcoin Core's optimized C library
+[libsecp256k1](https://github.com/bitcoin-core/secp256k1). They are a
+required dependency and not an optional accelerator, so installing btclib
+needs one of their wheels or a C toolchain. The Python arithmetic serves
+every other curve, and the suite validates it against the bindings:
+libsecp256k1 says what the right answer is, being what bitcoin consensus
+relies on.
 
 Included features are:
 
@@ -82,7 +80,10 @@ Included features are:
       primitive per round of the protocol
 - Borromean ring signature
 - Sign-to-contract commitment
-- Diffie-Hellman
+- Diffie-Hellman, and the x-only ECDH on the
+  [BIP324](https://github.com/bitcoin/bips/blob/master/bip-0324.mediawiki)
+  ElligatorSwift encoding of a public key
+- ECIES in the BIE1 layout, the block cipher supplied by the caller
 - Pedersen commitment
 - Base58 encoding/decoding
 - p2pkh/p2sh addresses and WIFs
@@ -90,15 +91,6 @@ Included features are:
 - p2wpkh/p2wsh native segwit addresses and their legacy p2sh-wrapped versions
 - [BIP32](https://github.com/bitcoin/bips/blob/master/bip-0032.mediawiki)
   hierarchical deterministic key chains
-- [SLIP132](https://github.com/satoshilabs/slips/blob/master/slip-0132.md)
-  key versions (xprv, yprv, zprv, Yprv, Zprv, tprv, uprv, vprv, and Uprv)
-  with corresponding mapping to
-  p2pkh/p2sh, p2wpkh-p2sh, p2wpkh, p2wsh-p2sh, p2wsh and p2tr addresses
-- [BIP44](https://github.com/bitcoin/bips/blob/master/bip-0044.mediawiki)
-  address from an extended key and a
-  `m/purpose'/coin_type'/account'/change/address_index` path, the purpose
-  selecting the encoding: 44 p2pkh, 49 p2wpkh-p2sh, 84 p2wpkh (BIP84),
-  86 p2tr (BIP86)
 - [BIP39](https://github.com/bitcoin/bips/blob/master/bip-0039.mediawiki)
   mnemonic for generating deterministic keys, in the twelve wordlists of
   the reference implementation, with the language read off the words
@@ -107,37 +99,59 @@ Included features are:
 - [SLIP39](https://github.com/satoshilabs/slips/blob/master/slip-0039.md)
   Shamir backup: a master secret split into mnemonic shares, of which a
   threshold number recovers it
+- [BIP44](https://github.com/bitcoin/bips/blob/master/bip-0044.mediawiki)
+  address from an extended key and a
+  `m/purpose'/coin_type'/account'/change/address_index` path, the purpose
+  selecting the encoding: 44 p2pkh, 49 p2wpkh-p2sh, 84 p2wpkh (BIP84),
+  86 p2tr (BIP86)
+- [SLIP132](https://github.com/satoshilabs/slips/blob/master/slip-0132.md)
+  key versions (xprv, yprv, zprv, Yprv, Zprv, tprv, uprv, vprv, and Uprv)
+  with corresponding mapping to
+  p2pkh/p2sh, p2wpkh-p2sh, p2wpkh, p2wsh-p2sh, p2wsh and p2tr addresses
 - Script encoding/decoding
 - nulldata, p2pk, p2ms, p2pkh, p2sh, p2wpkh, p2wsh and p2tr ScriptPubKeys
-- BlockHeader and Block data classes
+- a script engine: a transaction verified against the consensus rules,
+  legacy, segwit and tapscript, with Bitcoin Core's own vectors behind it
+- [BIP380](https://github.com/bitcoin/bips/blob/master/bip-0380.mediawiki)
+  output descriptors: the checksum, the parser, the scripts a descriptor
+  names, and the spend
 - OutPoint, TxIn, TxOut, and TX data classes
 - legacy, segwit_v0 and taproot transaction hash signatures
+- BlockHeader and Block data classes
+- merkle proofs verified against a header's merkle root
+- proof-of-work arithmetic: compact targets, retargeting, work, hash rate
 - [BIP174](https://github.com/bitcoin/bips/blob/master/bip-0174.mediawiki)
   partially signed bitcoin transactions (PSBT):
-  PsbtIn, PsbtOut, and Psbt data classes
+  PsbtIn, PsbtOut, and Psbt data classes, with the taproot fields of
+  [BIP371](https://github.com/bitcoin/bips/blob/master/bip-0371.mediawiki)
+  and the MuSig2 ones of
+  [BIP373](https://github.com/bitcoin/bips/blob/master/bip-0373.mediawiki)
 - [BIP370](https://github.com/bitcoin/bips/blob/master/bip-0370.mediawiki)
-  PSBT version 2, where the unsigned transaction is computed from the
-  fields rather than carried as one: the lock time its inputs require,
-  the identifier that ignores their sequences, the modifiable flags a
-  Constructor must obey, and conversion either way
+  PSBT version 2, the unsigned transaction computed from the fields rather
+  than carried as one: the lock time its inputs require, the identifier
+  that ignores their sequences, the modifiable flags a Constructor must
+  obey, and conversion either way
+- [BIP21](https://github.com/bitcoin/bips/blob/master/bip-0021.mediawiki)
+  `bitcoin:` payment URIs
 - fee rates carrying their unit (sat/kvB and sat/vB), the fee a virtual
-  size owes at one, and the dust threshold of any output type — computed
-  the way Bitcoin Core computes it, rather than tabulated
+  size owes at one, and the dust threshold of any output type, computed as
+  Bitcoin Core computes it rather than tabulated
 - keystore: the addresses an extended key or a set of individual keys has
   handed out, the derivation path of each, and the private key that signs
-  for one — which is what `sign(address, msg)` needs and what a message
-  signature by address had no way to find
+  for one — what `sign(address, msg)` needs
+- an external signer behind one contract, with Bitcoin Core's
+  [HWI](https://github.com/bitcoin-core/HWI) behind it for a hardware
+  wallet
 - a chain backend behind one interface — a transaction by id, the output
   an outpoint names, the chain tip — over a full node's JSON-RPC or a
-  block explorer's HTTP api, written on the standard library so that it
-  adds no dependency
+  block explorer's HTTP api
 
 ---
 
 ## Module layout
 
 Three pairs of modules are one idea split in two, and each split runs one
-way only. Knowing which half is which is most of finding your way around:
+way only:
 
 | the codec / the arithmetic | the bitcoin semantics on top |
 | --- | --- |
@@ -147,85 +161,64 @@ way only. Knowing which half is which is most of finding your way around:
 
 The right column imports the left one; the left never imports the right.
 
-So `from btclib.ecc import dsa` for a signature and
-`from btclib.curves import mult` for a point multiplication; `btclib.b58`
-for an address and `btclib.base58` only if you want the encoding on its
-own. It is the split the standard library draws between `base64` and
-whatever uses it. Each of the six modules repeats the rule in its own
-docstring.
+So `from btclib.ecc import dsa` for a signature,
+`from btclib.curves import mult` for a point multiplication, `btclib.b58`
+for an address, `btclib.base58` for the encoding on its own. Each of the
+six modules says the same in its own docstring.
 
-The rest, roughly bottom-up: `to_prv_key` and `to_pub_key` accept any key
-representation and hand back one; `bip32` and `mnemonic` derive keys;
-`script`, `tx`, `block` and `psbt` build and validate what goes on the
-chain. `bip21` parses and builds `bitcoin:` payment URIs, and sits on top
-of everything: it imports `b58`, `b32`, `amount` and `network`, and nothing
-in the library imports it. `bip44` is up there as well, and for the same
-reason: an address from an extended key and a derivation path is `bip32`
-and `script.taproot` and both address encodings composed, so it imports
-all four and nothing imports it. `keystore` is one level above even that:
-it remembers which addresses `bip44` has handed out and signs for one
-with `ecc.bms`, so it imports `bip44` and nothing imports it. `fetch`
-sits up there too, and is the one package that goes out to the network:
-nothing below it imports it.
+The rest, roughly bottom-up. `alias` holds the types the public API
+accepts, much of it taking anything convertible rather than one type, and
+`exceptions` the errors it raises. `to_prv_key` and `to_pub_key` accept
+any key representation and hand back one. `bip32` and `mnemonic` derive
+keys. `script`, `tx`, `block` and `psbt` build and validate what goes on
+the chain, and `script.engine` runs a transaction against the consensus
+rules.
 
-The Bitcoin Core rpc client `fetch` speaks through is not in that stack at
-all: it is
-[bitcoin-core-rpc](https://github.com/btclib-org/btclib-bitcoin-core-rpc),
-a package of its own that btclib depends on. One file with nothing but the
-standard library behind it, installable or copyable, and usable without
-btclib by anyone who wants a node client and no bitcoin library. What
-btclib adds on top is `btclib.fetch`: the answers turned into `Tx` and
-`TxOut`, and the chain the node reports checked against the network those
-are labelled for.
+Above them, `bip44` composes `bip32`, `script.taproot` and both address
+encodings into an address from an extended key and a derivation path, and
+`descriptors` reads the BIP380 grammar and hands back the scripts a
+descriptor names. `psbt_signer` is the contract an external signer
+answers; `hwi` is that contract over Bitcoin Core's HWI.
 
-The dependency stops at `btclib/fetch/`. The exceptions a `Fetcher` raises
-are `btclib.exceptions`' own — the package declares its own `FetchError`,
-importing nothing of btclib's being what lets its one file be vendored, and
-`btclib.fetch.fetcher.client_errors` re-raises them as btclib's with the
-`status` and the `code` carried across. So an `except FetchError` written
-against btclib catches what a fetcher raises, and no module outside that
-package loads `urllib.request` to find out. Nothing connects to anything
-either: constructing a client opens no socket, and the first call is what
-does.
+Nothing in the library imports `bip21`, `slip132`, `fee`, `keystore`,
+`hwi` or `fetch`: they are the top of the stack, and `fetch` is the only
+one that goes out to the network. `keystore` remembers which addresses
+`bip44` has handed out and signs for one with `ecc.bms`.
+
+The rpc client `fetch` speaks through is not in that stack: it is
+[bitcoin-core-rpc](https://github.com/btclib-org/bitcoin-core-rpc), a
+package of its own that btclib depends on — one file, standard library
+only, installable or copyable, and usable by anyone who wants a node
+client and no bitcoin library. `btclib.fetch` turns its answers into `Tx`
+and `TxOut`, and checks the chain the node reports against the network
+those are labelled for.
+
+The dependency stops at `btclib/fetch/`. bitcoin-core-rpc declares its own
+`FetchError`, importing nothing of btclib's being what lets its file be
+vendored, and `btclib.fetch.fetcher.client_errors` re-raises it as
+`btclib.exceptions`' own, with the `status` and the `code` carried across:
+an `except FetchError` written against btclib catches what a fetcher
+raises, and no module outside that package loads `urllib.request`.
+Constructing a client opens no socket; the first call does.
 
 ---
 
-To install (and/or upgrade) btclib:
+To install, or upgrade:
 
 ```shell
 python -m pip install --upgrade btclib
 ```
 
-You might want to install btclib into a
-Python virtual environment; e.g. from the root folder:
-
-Shell:
+In a virtual environment:
 
 ```shell
 python -m venv venv_btclib
-source ./venv_btclib/bin/activate
+source venv_btclib/bin/activate
 python -m pip install --upgrade btclib
 ```
 
-Windows CMD or PowerShell:
+On Windows the second line is `venv_btclib\Scripts\activate` in CMD and
+PowerShell, `source venv_btclib/Scripts/activate` in Git bash.
 
-```powershell
-python -m venv venv_btclib
-.\venv_btclib\Scripts\activate
-python -m pip install --upgrade btclib
-```
-
-Windows Git bash shell:
-
-```bash
-python -m venv venv_btclib
-cd ./venv_btclib/Scripts
-. activate
-cd ../..
-python -m pip install --upgrade btclib
-```
-
-See [CONTRIBUTING](./CONTRIBUTING.md) if you are interested
-in btclib development.
-
-See [SECURITY](./SECURITY.md) if you have found a security vulnerability.
+[CONTRIBUTING](./CONTRIBUTING.md) is for development,
+[SECURITY](./SECURITY.md) for reporting a vulnerability.

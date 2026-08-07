@@ -24,75 +24,41 @@ documented at release-notes length in the first place, and are still in
 
 ### Packaging, linting and CI
 
-- **RELEASING.md says what griffe actually reports, and takes back four
-  steps from bitcoin-core-rpc's copy of it.** The griffe paragraph
-  promised "every difference and not only the breaking ones"; measured,
-  `griffe check` reports breakage alone -- an object removed, a parameter
-  whose kind, default or position moved, an attribute whose value changed
-  -- and is silent on an addition, which is what makes every line it
-  prints want an entry in HISTORY.md. The noise it does carry is breakage
-  by its own classification rather than breakage a user meets, and the
-  paragraph now says which shapes those are. Four things the sibling
-  repository had learned and this file had not: reading `lint` and `test`
-  on the commit `master` ends up at, that push firing both workflows again
-  from their own trigger; realigning `dev` with a `--force-with-lease`
-  keyed to a ref rather than `git switch dev`, which asks for a checkout
-  the worktree convention does not give; `gh run rerun --failed` for a
-  token exchange that failed after the matrix had built everything, where
-  retagging would rebuild what was never at fault; and
-  `pypi-attestations verify`, which checks a signature where the integrity
-  endpoint only says one is there. The two `.dev<run number>` bullets were
-  one string described twice, and are now one bullet.
-- **`keywords` and the GitHub repository topics name the same features.**
-  The keyword list had neither `psbt` nor `taproot`, and none of what
-  v2026.8.7 added: `secp256k1` for the libsecp256k1 bindings every wheel
-  requires, `musig2` for BIP327 and the BIP373 psbt fields, `slip39` for
-  the Shamir backup, `output-descriptors` for the BIP380 grammar
-  `descriptors.py` reads, and `hardware-wallet` for the HWI signer behind
-  `psbt_signer`. `RFC-6979` is `rfc-6979` with them: a GitHub topic is
-  lowercase or it is not a topic, and one spelling across the two lists is
-  what lets them be compared. The order is by relevance rather than
-  alphabetical, PyPI showing keywords as the metadata gives them; GitHub
-  sorts its own, so there the order decides only which topic goes when the
-  twenty GitHub allows are full -- which is why `rfc-6979`, `mnemonic`,
-  `merkle-proof`, `bip44` and `bitcoin-script` are keywords with no topic
-  beside them.
-- **this file relaxes MD024 (no-duplicate-heading) for itself**, a group
-  heading repeating under every release that has an entry in that group:
-  the rule reads that repeat as the accident it usually is, and
-  `siblings_only` is what tells the two apart, a duplicate under one
-  release heading still failing. It is a `markdownlint-configure-file`
-  comment here rather than a line in `.markdownlint.jsonc`, which is
-  shared with btclib-libsecp256k1 and bitcoin-core-rpc and says so
-  itself: a rule one file needs belongs to that file, not to a config
-  read by files that never trip it. bitcoin-core-rpc's CHANGELOG.md
-  carries the same comment for the same reason.
+- **RELEASING.md says what `griffe check` actually reports**: breakage
+  alone, and never an addition, where the paragraph promised "every
+  difference" -- so every line it prints wants a HISTORY.md entry, and the
+  noise it carries is breakage by its own classification rather than
+  breakage a user meets. Four steps come back from bitcoin-core-rpc's
+  copy: reading `lint` and `test` on the commit `master` ends up at,
+  realigning `dev` with `--force-with-lease` on a ref rather than a
+  checkout the worktree convention does not give, `gh run rerun --failed`
+  for a token exchange that failed after the matrix had built everything,
+  and `pypi-attestations verify`, the integrity endpoint only saying a
+  signature is there. The two `.dev<run number>` bullets were one string
+  described twice, and are one.
+- **`keywords` and the GitHub repository topics name the same features**:
+  `psbt`, `taproot`, `secp256k1`, `musig2`, `slip39`,
+  `output-descriptors` and `hardware-wallet` are new, and `RFC-6979` is
+  `rfc-6979` with them -- a topic is lowercase or it is not a topic, and
+  one spelling is what lets the two lists be compared. Ordered by
+  relevance, not alphabetically; `rfc-6979`, `mnemonic`, `merkle-proof`,
+  `bip44` and `bitcoin-script` are keywords with no topic beside them,
+  being what did not fit the twenty GitHub allows.
+- **this file relaxes MD024 (no-duplicate-heading) for itself**, its group
+  headings repeating under every release; `siblings_only` still fails a
+  duplicate under one release heading. In a `markdownlint-configure-file`
+  comment rather than in `.markdownlint.jsonc`, which three repositories
+  share: a rule one file needs belongs to that file. bitcoin-core-rpc's
+  CHANGELOG.md carries the same comment.
 
 ### Documentation and the website
 
-- **The README badges are the ones that can turn red**, in the order the
-  reader asks for them: version, downloads, development status, license
-  and supported interpreters on the first line; test, lint, pre-commit.ci
-  and the documentation build on the second. Eight of the eighteen
-  reported no state at all — `uv`, `cal_ver`, `pre-commit enabled`, three
-  ruff badges, mypy, markdownlint-cli2 — so they are in CONTRIBUTING.md's
-  "Getting started", beside the prose that says how each choice is
-  enforced, and the Slack badge is down with the repository link, "where
-  do I ask" being a question the reader has after reading. The table that
-  held them is gone with them: its left column was the taxonomy, and
-  nine self-describing badges do not need one — `pypi`, `python`, `test`
-  read as their own labels, which is also why the alternative text is now
-  "PyPI version" and "test workflow status" rather than the name of the
-  site serving the image. Two defects went with the table: `calver:
-  yyy.m.d` was missing a `y`, and the badge for the docstring rules
-  carried "lint: ruff", copied from the row above it, so a screen reader
-  announced two different links identically. One badge per source line
-  now, which puts a badge change in one line of a diff and keeps every
-  line inside MD013 — its 80 columns bind only where a space follows
-  them, and in a bare URL none does, so the file no longer disables the
-  rule to hold a 900-character row. The line break renders as a space:
-  `_config.yml` leaves kramdown's `hard_wrap` at Jekyll's default, which
-  is off, as btclib.org's own `<p>` for a wrapped paragraph shows.
+- **The README badges are the ones that can turn red**, on two lines:
+  version, downloads, development status, license and interpreters; test,
+  lint, pre-commit.ci and the documentation build. The ones naming a tool
+  choice are in CONTRIBUTING.md, the repository and the channel are badges
+  below, and the table that grouped them is gone -- the alternative text
+  says what a badge means, which is what the table's left column did.
 
 ## v2026.8.7
 
