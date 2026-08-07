@@ -46,16 +46,15 @@ Telling these apart is most of what can go wrong when cutting a release.
 - **`v2026.8.4`**, the tag, carries no version of its own: it picks the
   index, PyPI rather than TestPyPI, and `version-check` exists to
   confirm it says what `pyproject.toml` says
-- **`.dev<run number>`** is not a version but the template the `build`
-  job patches into `pyproject.toml` before a rehearsal, `github.
-  run_number` counted for `release.yml` alone. Only `workflow_dispatch`
-  adds it, and nothing commits the result: `uv lock` runs straight
-  after, so the lockfile the sdist ships agrees with the version it is
-  named for
-- **`2026.8.4.dev7`** is what that template produces rehearsing
-  `2026.8.4` the seventh time `release.yml` has run. That count is
-  what makes a rehearsal's version unique, and what makes re-running a
-  finished one collide with itself rather than mint a new one
+- **`2026.8.4.dev7`** is a rehearsal, and nobody types it either half at
+  a time: `.dev<run number>` is the template the `build` job patches into
+  `pyproject.toml` when `workflow_dispatch` starts the workflow, the
+  number being `github.run_number` counted for `release.yml` alone, so
+  the seventh such run rehearsing `2026.8.4` produces exactly that. The
+  count is what makes a rehearsal's version unique, and what makes
+  re-running a finished one collide with itself rather than mint a new
+  one. Nothing commits the result: `uv lock` runs straight after, so the
+  lockfile the sdist ships agrees with the version it is named for
 - **`2026.8.4rc1`**, and a `v2026.8.4rc1` tag, have no place in this
   scheme: there is no pre-release here, only a version not yet tagged.
   `version-check` refuses anything that is not digits and dots, which
@@ -190,17 +189,21 @@ word, and step 1 asks it of both.
    it rejects entry counts and breaking-change totals, because those
    figures drift and create merge conflicts. It cannot know whether the
    list is complete, the list being prose about the public API. griffe
-   reads both revisions and answers that: it finds a removed name, a
-   parameter that changed kind or default, an attribute whose value moved.
-   Expect more lines than the list has bullets, since it reports every
-   difference and not only the breaking ones; what matters is that nothing
-   it calls a removal or a signature change is missing from HISTORY.md.
+   reads both revisions and answers that: it reports breakage alone — a
+   public object removed, a parameter that changed kind or default or
+   moved, an attribute whose value changed — and says nothing at all about
+   an addition, so every line it prints wants an entry. What the step asks
+   is that nothing it names is missing from HISTORY.md. The converse is
+   not its to answer: an entry describing a break it did not find is a
+   claim about the prose, which review still has to read. It exits 1 on a
+   finding.
 
-   Two shapes are most of the noise and are worth knowing before reading
-   228 lines, which is what v2026.8.7 produced. `Attribute value was
-   changed: Union[X, Y] -> X | Y` is PEP 604 spelling and breaks nobody.
-   And one systemic change repeats once per site: `check_validity` going
-   keyword-only accounted for dozens of lines and belongs in HISTORY.md
+   Breakage by griffe's classification is not breakage a user would
+   notice, though, and two shapes are most of the noise. `Attribute value
+   was changed: Union[X, Y] -> X | Y` is PEP 604 spelling and breaks
+   nobody, and `__version__` and `__copyright__` report the same way. And
+   one systemic change repeats once per site: `check_validity` going
+   keyword-only is dozens of lines on its own and belongs in HISTORY.md
    once, as a rule, not once per class. Discount those and what is left
    is short enough to check bullet by bullet — four entries were missing
    from v2026.8.7's list, and all four were in that remainder.
@@ -299,6 +302,18 @@ word, and step 1 asks it of both.
    makes it moot. `git diff origin/master origin/dev` answers which
    happened rather than leaving it to be assumed.
 
+   Either way, read `lint` and `test` on the commit `master` ends up at
+   before tagging, rather than trust the pull request's own green run:
+
+   ```shell
+   gh run list --commit "$(git rev-parse origin/master)"
+   ```
+
+   the merge pushes to `master`, and that push fires both workflows again
+   from their own `push` trigger — a run of its own, not the
+   `pull_request` run already green a moment earlier, and the paragraph
+   above on the local gates is why there is no third one to fall back on.
+
 1. Rehearse on TestPyPI (see above) from master.
 
 1. Tag the release commit and push the tag. **Name the commit**, and read
@@ -331,8 +346,12 @@ word, and step 1 asks it of both.
    already built, rather than the whole matrix again. The upload itself
    is the point of no return, PyPI accepting no file name twice even
    after deletion; the GitHub release follows it, with the distribution
-   files attached and the HISTORY.md section as its body. Give the
-   release notes a read once it lands.
+   files attached and the HISTORY.md section as its body. Read those notes
+   once it lands: a run that logs
+   `HISTORY.md has no v<version> section` generated them from the merged
+   pull requests instead — the fallback `version-check` exists to make
+   unreachable, not a second way to write release notes — and they are
+   worth replacing by hand if it ever fires.
 
 1. Install what was just published into an environment of its own,
    then exercise something that touches the shipped data rather than
@@ -357,6 +376,15 @@ word, and step 1 asks it of both.
    `/integrity/<project>/<version>/<filename>/provenance`, whose
    `attestation_bundles[].publisher` should name this repository and
    `release.yml`.
+
+   That endpoint answers whether an attestation is *there*. Whether it
+   verifies is a second question, and the one worth asking:
+
+   ```shell
+   uv run --isolated --no-project --with pypi-attestations \
+     pypi-attestations verify pypi <file> \
+     --repository https://github.com/btclib-org/btclib
+   ```
 
 1. Dispatch the `published` workflow (Actions → published → Run workflow)
    and expect it green: no checkout, so it resolves to what PyPI actually
@@ -407,6 +435,21 @@ word, and step 1 asks it of both.
    `git diff origin/master origin/dev` is how to say so rather than
    assume it.
 
+   `git switch dev` assumes a checkout free to hold it, which the
+   convention CLAUDE.md asks every session to follow — its own worktree,
+   never the primary checkout — does not give a worktree already busy
+   with a branch of its own, and should not be made to have by switching
+   branches inside it. Without a local checkout of `dev` at all:
+
+   ```shell
+   git push --force-with-lease=refs/heads/dev:<the old dev tip> origin \
+     origin/master:refs/heads/dev
+   ```
+
+   pushes the read-only remote-tracking ref `origin/master` straight to
+   `refs/heads/dev`, the lease keyed to the `dev` tip a `git fetch`
+   already holds rather than to a branch checked out locally.
+
    That last push can fail on its own: `dev`'s branch protection blocking
    force pushes is not one of the rules "Include administrators" being
    off exempts an administrator from — that toggle covers required
@@ -445,6 +488,12 @@ word, and step 1 asks it of both.
    git rebase --onto origin/master <the old dev tip> <branch>
    ```
 
+   GitHub's own `mergeable`/`mergeStateStatus` on that branch's pull
+   request can still read `CONFLICTING`/`DIRTY` for a few seconds after
+   the force-push that follows, before it finishes recomputing against
+   the new tip — worth a second look rather than read as the rebase above
+   having failed.
+
    this comes before the next step rather than after it: that step's
    bump is on `dev`, and the force update above would discard it.
 
@@ -478,6 +527,25 @@ word, and step 1 asks it of both.
   worktree leaves it in every other, and the `git tag -a` that follows
   answers `fatal: tag 'v2026.8.4' already exists` — from a checkout that
   looks uninvolved. Delete locally wherever it is, then re-create.
+
+- `publish-pypi` itself ran and failed at the token exchange
+  (`invalid-publisher`), after the matrix had already built everything:
+  nothing was uploaded, but retagging would rebuild what was never at
+  fault. A registration that matched once goes stale on its own — a
+  repository rename is enough — and nothing here flags it before the
+  upload tries; sibling repository btclib_libsecp256k1 hit exactly this
+  on a real tag rather than a rehearsal. Fix the registration and re-run
+  the publish job alone against what is already built:
+
+  ```shell
+  gh run rerun <run id> --failed
+  ```
+
+  a fresh approval of the `pypi` environment is still required, the
+  protection applying per deployment attempt rather than once per run.
+  This is a different case from the one above: there, the workflow never
+  reached `publish-pypi`, so there is nothing to re-run and no artifact
+  to re-run it against.
 
 - The upload succeeded but the release is broken: PyPI never accepts a
   file name twice, even after deletion. Yank the bad release on PyPI

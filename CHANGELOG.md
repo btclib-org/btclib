@@ -24,6 +24,25 @@ documented at release-notes length in the first place, and are still in
 
 ### Packaging, linting and CI
 
+- **RELEASING.md says what griffe actually reports, and takes back four
+  steps from bitcoin-core-rpc's copy of it.** The griffe paragraph
+  promised "every difference and not only the breaking ones"; measured,
+  `griffe check` reports breakage alone -- an object removed, a parameter
+  whose kind, default or position moved, an attribute whose value changed
+  -- and is silent on an addition, which is what makes every line it
+  prints want an entry in HISTORY.md. The noise it does carry is breakage
+  by its own classification rather than breakage a user meets, and the
+  paragraph now says which shapes those are. Four things the sibling
+  repository had learned and this file had not: reading `lint` and `test`
+  on the commit `master` ends up at, that push firing both workflows again
+  from their own trigger; realigning `dev` with a `--force-with-lease`
+  keyed to a ref rather than `git switch dev`, which asks for a checkout
+  the worktree convention does not give; `gh run rerun --failed` for a
+  token exchange that failed after the matrix had built everything, where
+  retagging would rebuild what was never at fault; and
+  `pypi-attestations verify`, which checks a signature where the integrity
+  endpoint only says one is there. The two `.dev<run number>` bullets were
+  one string described twice, and are now one bullet.
 - **`keywords` and the GitHub repository topics name the same features.**
   The keyword list had neither `psbt` nor `taproot`, and none of what
   v2026.8.7 added: `secp256k1` for the libsecp256k1 bindings every wheel
