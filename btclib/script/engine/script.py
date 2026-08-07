@@ -465,7 +465,153 @@ OPERATIONS: Mapping[str, ScriptOp] = {
 # what the OPERATIONS table cannot hold, read against Core's EvalScript:
 # the op codes needing the engine's own state, and the pushes matched by
 # shape rather than by name
-def verify_script(  # noqa: C901, PLR0912
+def _run_ops(  # noqa: C901, PLR0912
+    script_bytes: bytes,
+    stack: list[bytes],
+    altstack: list[bytes],
+    condition_stack: list[bool],
+    prevout_value: int,
+    tx: Tx,
+    i: int,
+    flags: ScriptFlag,
+    segwit: bool,
+    precomputed: PrecomputedTxData | None,
+    op_code_stops: list[int],
+    script_index_ref: list[int],
+) -> None:
+    """Run verify_script's opcode dispatch loop.
+
+    Split out of verify_script so that the try/except reporting where a
+    refusal happened wraps one call rather than the loop -- the loop
+    itself is the C901/PLR0912 this carries, the shape Core's own
+    EvalScript has for the same dispatch, and moving it here does not
+    make it smaller. `script_index_ref` is how the failing index still
+    reaches that except: set at the top of every iteration, before
+    anything the iteration does that could raise.
+    """
+    segwit_version = 0 if segwit else -1
+    op_code_num = 0
+    codesep_offset = 0
+    script_index = -1
+    s = bytesio_from_binarydata(script_bytes)
+    while True:
+        script_index += 1
+        script_index_ref[0] = script_index
+
+        script_op_codes.check_stack_size(stack, altstack)
+
+        skip_execution = not all(condition_stack)
+
+        b = s.read(1)
+        if not b:
+            break
+        t = b[0]
+        if 0 < t <= 78:  # pushdata
+            script_op_codes.read_push_data(
+                t, s, stack, skip_execution, flags, serialize_script
+            )
+            continue
+
+        if t > 96:  # OP_16
+            op_code_num = script_op_count(op_code_num, 1)
+
+        check_not_disabled(t)
+
+        if skip_execution and t not in EVALUATED_WHEN_UNEXECUTED:
+            continue
+        op = op_code_name(t)
+
+        if op == "OP_CHECKSIG":
+            pub_key = stack.pop()
+            signature = stack.pop()
+            result = op_checksig(
+                signature,
+                [signature],
+                pub_key,
+                script_bytes,
+                codesep_offset,
+                prevout_value,
+                tx,
+                i,
+                flags,
+                segwit,
+                precomputed,
+            )
+            check_nullfail(flags, result, [signature], "OP_CHECKSIG")
+            stack.append(_from_num(int(result)))
+
+        elif op == "OP_CHECKMULTISIG":
+            # Core's order, and it is the order that makes the two
+            # counts safe to build a `range` out of: each is bounded
+            # before anything is popped with it
+            pub_key_num = _to_num(stack.pop(), flags)
+            check_pub_key_num(pub_key_num)
+            op_code_num = script_op_count(op_code_num, pub_key_num)
+            pub_keys = [stack.pop() for _ in range(pub_key_num)]
+            signature_num = _to_num(stack.pop(), flags)
+            check_signature_num(signature_num, pub_key_num)
+            signatures = [stack.pop() for _ in range(signature_num)]
+
+            check_nulldummy(stack.pop(), flags)  # dummy value
+            signature_index = 0
+            for pub_key_index in range(pub_key_num):
+                if signature_index == signature_num:
+                    break
+                if pub_key_num - pub_key_index < signature_num - signature_index:
+                    break
+                pub_key = pub_keys[pub_key_index]
+                signature = signatures[signature_index]
+                signature_index += op_checksig(
+                    signature,
+                    signatures,
+                    pub_key,
+                    script_bytes,
+                    codesep_offset,
+                    prevout_value,
+                    tx,
+                    i,
+                    flags,
+                    segwit,
+                    precomputed,
+                )
+
+            if signature_index == signature_num:
+                stack.append(b"\x01")
+            else:
+                check_nullfail(flags, False, signatures, "OP_CHECKMULTISIG")
+                stack.append(b"")
+
+        elif op == "OP_CHECKLOCKTIMEVERIFY":
+            script_op_codes.op_checklocktimeverify(stack, tx, i, flags)
+        elif op == "OP_CHECKSEQUENCEVERIFY":
+            script_op_codes.op_checksequenceverify(stack, tx, i, flags)
+        elif op[3:].isdigit():
+            stack.append(_from_num(int(op[3:])))
+        elif op == "OP_CODESEPARATOR":
+            codesep_offset = op_code_stops[script_index]
+        elif op == "OP_IF":
+            script_op_codes.op_if(stack, condition_stack, flags, segwit_version)
+        elif op == "OP_NOTIF":
+            script_op_codes.op_notif(stack, condition_stack, flags, segwit_version)
+        elif op == "OP_ELSE":
+            script_op_codes.op_else(condition_stack)
+        elif op == "OP_ENDIF":
+            script_op_codes.op_endif(condition_stack)
+        elif op == "OP_NOP":
+            pass
+        elif "OP_NOP" in op:
+            script_op_codes.op_nop(flags)
+        elif op in OPERATIONS:
+            r = OPERATIONS[op](stack, altstack, flags)
+            if r:
+                script_index -= len(r)
+                op_code_num -= len(r)
+                s = bytesio_from_binarydata(serialize_script(r) + s.read())
+        else:
+            script_op_codes.unknown_op_code(op)
+
+
+def verify_script(
     script_bytes: bytes,
     stack: list[bytes],
     prevout_value: int,
@@ -493,8 +639,6 @@ def verify_script(  # noqa: C901, PLR0912
     script = parse(script_bytes)
     prepare_script(script, flags, segwit)
 
-    segwit_version = 0 if segwit else -1
-
     # Core's pbegincodehash, an offset into script_bytes and not an index
     # into the parse: a script code is a slice of the script's own bytes,
     # and measuring where to cut it by re-serializing the op codes before
@@ -507,143 +651,38 @@ def verify_script(  # noqa: C901, PLR0912
     # the index is the right one wherever it is read below. Hence this:
     # the byte one past each op code, walked once and only for a script
     # that has a separator to cut at
-    codesep_offset = 0
     op_code_stops = (
         [stop for _, _, stop in op_code_spans(script_bytes)]
         if "OP_CODESEPARATOR" in script
         else []
     )
 
-    script_index = -1
-
     altstack: list[bytes] = []
     condition_stack: list[bool] = [True]
 
-    op_code_num = 0
-
-    s = bytesio_from_binarydata(script_bytes)
+    script_index_ref = [-1]
     try:
-        while True:
-            script_index += 1
-
-            script_op_codes.check_stack_size(stack, altstack)
-
-            skip_execution = not all(condition_stack)
-
-            b = s.read(1)
-            if not b:
-                break
-            t = b[0]
-            if 0 < t <= 78:  # pushdata
-                script_op_codes.read_push_data(
-                    t, s, stack, skip_execution, flags, serialize_script
-                )
-                continue
-
-            if t > 96:  # OP_16
-                op_code_num = script_op_count(op_code_num, 1)
-
-            check_not_disabled(t)
-
-            if skip_execution and t not in EVALUATED_WHEN_UNEXECUTED:
-                continue
-            op = op_code_name(t)
-
-            if op == "OP_CHECKSIG":
-                pub_key = stack.pop()
-                signature = stack.pop()
-                result = op_checksig(
-                    signature,
-                    [signature],
-                    pub_key,
-                    script_bytes,
-                    codesep_offset,
-                    prevout_value,
-                    tx,
-                    i,
-                    flags,
-                    segwit,
-                    precomputed,
-                )
-                check_nullfail(flags, result, [signature], "OP_CHECKSIG")
-                stack.append(_from_num(int(result)))
-
-            elif op == "OP_CHECKMULTISIG":
-                # Core's order, and it is the order that makes the two
-                # counts safe to build a `range` out of: each is bounded
-                # before anything is popped with it
-                pub_key_num = _to_num(stack.pop(), flags)
-                check_pub_key_num(pub_key_num)
-                op_code_num = script_op_count(op_code_num, pub_key_num)
-                pub_keys = [stack.pop() for _ in range(pub_key_num)]
-                signature_num = _to_num(stack.pop(), flags)
-                check_signature_num(signature_num, pub_key_num)
-                signatures = [stack.pop() for _ in range(signature_num)]
-
-                check_nulldummy(stack.pop(), flags)  # dummy value
-                signature_index = 0
-                for pub_key_index in range(pub_key_num):
-                    if signature_index == signature_num:
-                        break
-                    if pub_key_num - pub_key_index < signature_num - signature_index:
-                        break
-                    pub_key = pub_keys[pub_key_index]
-                    signature = signatures[signature_index]
-                    signature_index += op_checksig(
-                        signature,
-                        signatures,
-                        pub_key,
-                        script_bytes,
-                        codesep_offset,
-                        prevout_value,
-                        tx,
-                        i,
-                        flags,
-                        segwit,
-                        precomputed,
-                    )
-
-                if signature_index == signature_num:
-                    stack.append(b"\x01")
-                else:
-                    check_nullfail(flags, False, signatures, "OP_CHECKMULTISIG")
-                    stack.append(b"")
-
-            elif op == "OP_CHECKLOCKTIMEVERIFY":
-                script_op_codes.op_checklocktimeverify(stack, tx, i, flags)
-            elif op == "OP_CHECKSEQUENCEVERIFY":
-                script_op_codes.op_checksequenceverify(stack, tx, i, flags)
-            elif op[3:].isdigit():
-                stack.append(_from_num(int(op[3:])))
-            elif op == "OP_CODESEPARATOR":
-                codesep_offset = op_code_stops[script_index]
-            elif op == "OP_IF":
-                script_op_codes.op_if(stack, condition_stack, flags, segwit_version)
-            elif op == "OP_NOTIF":
-                script_op_codes.op_notif(stack, condition_stack, flags, segwit_version)
-            elif op == "OP_ELSE":
-                script_op_codes.op_else(condition_stack)
-            elif op == "OP_ENDIF":
-                script_op_codes.op_endif(condition_stack)
-            elif op == "OP_NOP":
-                pass
-            elif "OP_NOP" in op:
-                script_op_codes.op_nop(flags)
-            elif op in OPERATIONS:
-                r = OPERATIONS[op](stack, altstack, flags)
-                if r:
-                    script_index -= len(r)
-                    op_code_num -= len(r)
-                    s = bytesio_from_binarydata(serialize_script(r) + s.read())
-            else:
-                script_op_codes.unknown_op_code(op)
+        _run_ops(
+            script_bytes,
+            stack,
+            altstack,
+            condition_stack,
+            prevout_value,
+            tx,
+            i,
+            flags,
+            segwit,
+            precomputed,
+            op_code_stops,
+            script_index_ref,
+        )
     except BTClibValueError as e:
-        raise ScriptError(str(e), script_index, len(stack)) from e
+        raise ScriptError(str(e), script_index_ref[0], len(stack)) from e
     except IndexError as e:
         # what the loop indexes and pops is the stack and the altstack,
         # so an IndexError out of it is an underflow; the chained
         # exception is there for the cases in which it is not
-        raise ScriptError("stack underflow", script_index, len(stack)) from e
+        raise ScriptError("stack underflow", script_index_ref[0], len(stack)) from e
 
     script_op_codes.check_stack_size(stack, altstack)
     script_op_codes.check_balanced_if(condition_stack)

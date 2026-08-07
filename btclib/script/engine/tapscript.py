@@ -232,7 +232,108 @@ OPERATIONS: Mapping[str, ScriptOp] = {
 # what the OPERATIONS table cannot hold, read against Core's tapscript
 # rules: the op codes needing the engine's own state, the sigops budget
 # among it
-def verify_script_path_vc0(  # noqa: C901, PLR0912
+def _run_ops(  # noqa: C901, PLR0912
+    script_bytes: bytes,
+    stack: list[bytes],
+    altstack: list[bytes],
+    condition_stack: list[bool],
+    prevouts: list[TxOut],
+    tx: Tx,
+    i: int,
+    annex: bytes,
+    sigops_budget: int,
+    flags: ScriptFlag,
+    precomputed: PrecomputedTxData | None,
+    script_index_ref: list[int],
+) -> None:
+    """Run verify_script_path_vc0's opcode dispatch loop.
+
+    Split out of verify_script_path_vc0 so that the try/except reporting
+    where a refusal happened wraps one call rather than the loop --
+    script.py's `_run_ops` for the reasoning, shared rather than
+    repeated. `script_index_ref` is how the failing index still reaches
+    that except: set at the top of every iteration, before anything the
+    iteration does that could raise.
+    """
+    codesep_pos = 0xFFFFFFFF
+    script_index = -1
+    s = bytesio_from_binarydata(script_bytes)
+    while True:
+        script_index += 1
+        script_index_ref[0] = script_index
+
+        skip_execution = not all(condition_stack)
+
+        script_op_codes.check_stack_size(stack, altstack)
+
+        b = s.read(1)
+        if not b:
+            break
+        t = b[0]
+        if 0 < t <= 78:  # pushdata
+            script_op_codes.read_push_data(
+                # the element limit is taproot.parse's here, deferred
+                # to the end of the walk so that an OP_SUCCESSx met
+                # first forgives an oversized push, as Core's
+                # pre-scan does. Measured again in the loop it would
+                # refuse what that parse has already forgiven
+                t,
+                s,
+                stack,
+                skip_execution,
+                flags,
+                serialize_script,
+                element_size_limit=None,
+            )
+            continue
+        if skip_execution and t not in EVALUATED_WHEN_UNEXECUTED:
+            continue
+        op = OP_CODE_NAMES[t]
+
+        if op == "OP_CHECKSIG":
+            sigops_budget = op_checksig(
+                stack,
+                script_bytes,
+                codesep_pos,
+                tx,
+                i,
+                prevouts,
+                annex,
+                sigops_budget,
+                flags,
+                precomputed,
+            )
+
+        elif op == "OP_CHECKLOCKTIMEVERIFY":
+            script_op_codes.op_checklocktimeverify(stack, tx, i, flags)
+        elif op == "OP_CHECKSEQUENCEVERIFY":
+            script_op_codes.op_checksequenceverify(stack, tx, i, flags)
+        elif op[3:].isdigit():
+            stack.append(_from_num(int(op[3:])))
+        elif op == "OP_CODESEPARATOR":
+            codesep_pos = script_index
+        elif op == "OP_IF":
+            script_op_codes.op_if(stack, condition_stack, flags, 1)
+        elif op == "OP_NOTIF":
+            script_op_codes.op_notif(stack, condition_stack, flags, 1)
+        elif op == "OP_ELSE":
+            script_op_codes.op_else(condition_stack)
+        elif op == "OP_ENDIF":
+            script_op_codes.op_endif(condition_stack)
+        elif op == "OP_NOP":
+            pass
+        elif "OP_NOP" in op:
+            script_op_codes.op_nop(flags)
+        elif op in OPERATIONS:
+            r = OPERATIONS[op](stack, altstack, flags)
+            if r:
+                script_index -= len(r)
+                s = bytesio_from_binarydata(serialize_script(r) + s.read())
+        else:
+            script_op_codes.unknown_op_code(op)
+
+
+def verify_script_path_vc0(
     script_bytes: bytes,
     stack: list[bytes],
     prevouts: list[TxOut],
@@ -267,94 +368,32 @@ def verify_script_path_vc0(  # noqa: C901, PLR0912
             raise BTClibValueError("upgradable OP_SUCCESS op code")
         return
 
-    codesep_pos = 0xFFFFFFFF
-
     altstack: list[bytes] = []
     condition_stack: list[bool] = [True]
 
-    script_index = -1
-
-    s = bytesio_from_binarydata(script_bytes)
+    script_index_ref = [-1]
     try:
-        while True:
-            script_index += 1
-
-            skip_execution = not all(condition_stack)
-
-            script_op_codes.check_stack_size(stack, altstack)
-
-            b = s.read(1)
-            if not b:
-                break
-            t = b[0]
-            if 0 < t <= 78:  # pushdata
-                script_op_codes.read_push_data(
-                    # the element limit is taproot.parse's here, deferred
-                    # to the end of the walk so that an OP_SUCCESSx met
-                    # first forgives an oversized push, as Core's
-                    # pre-scan does. Measured again in the loop it would
-                    # refuse what that parse has already forgiven
-                    t,
-                    s,
-                    stack,
-                    skip_execution,
-                    flags,
-                    serialize_script,
-                    element_size_limit=None,
-                )
-                continue
-            if skip_execution and t not in EVALUATED_WHEN_UNEXECUTED:
-                continue
-            op = OP_CODE_NAMES[t]
-
-            if op == "OP_CHECKSIG":
-                sigops_budget = op_checksig(
-                    stack,
-                    script_bytes,
-                    codesep_pos,
-                    tx,
-                    i,
-                    prevouts,
-                    annex,
-                    sigops_budget,
-                    flags,
-                    precomputed,
-                )
-
-            elif op == "OP_CHECKLOCKTIMEVERIFY":
-                script_op_codes.op_checklocktimeverify(stack, tx, i, flags)
-            elif op == "OP_CHECKSEQUENCEVERIFY":
-                script_op_codes.op_checksequenceverify(stack, tx, i, flags)
-            elif op[3:].isdigit():
-                stack.append(_from_num(int(op[3:])))
-            elif op == "OP_CODESEPARATOR":
-                codesep_pos = script_index
-            elif op == "OP_IF":
-                script_op_codes.op_if(stack, condition_stack, flags, 1)
-            elif op == "OP_NOTIF":
-                script_op_codes.op_notif(stack, condition_stack, flags, 1)
-            elif op == "OP_ELSE":
-                script_op_codes.op_else(condition_stack)
-            elif op == "OP_ENDIF":
-                script_op_codes.op_endif(condition_stack)
-            elif op == "OP_NOP":
-                pass
-            elif "OP_NOP" in op:
-                script_op_codes.op_nop(flags)
-            elif op in OPERATIONS:
-                r = OPERATIONS[op](stack, altstack, flags)
-                if r:
-                    script_index -= len(r)
-                    s = bytesio_from_binarydata(serialize_script(r) + s.read())
-            else:
-                script_op_codes.unknown_op_code(op)
+        _run_ops(
+            script_bytes,
+            stack,
+            altstack,
+            condition_stack,
+            prevouts,
+            tx,
+            i,
+            annex,
+            sigops_budget,
+            flags,
+            precomputed,
+            script_index_ref,
+        )
     except BTClibValueError as e:
-        raise ScriptError(str(e), script_index, len(stack)) from e
+        raise ScriptError(str(e), script_index_ref[0], len(stack)) from e
     except IndexError as e:
         # what the loop indexes and pops is the stack and the altstack,
         # so an IndexError out of it is an underflow; the chained
         # exception is there for the cases in which it is not
-        raise ScriptError("stack underflow", script_index, len(stack)) from e
+        raise ScriptError("stack underflow", script_index_ref[0], len(stack)) from e
 
     script_op_codes.check_balanced_if(condition_stack)
 
