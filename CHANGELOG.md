@@ -171,6 +171,21 @@ edit.
 
 ### Security
 
+- **`SECURITY.md` says that verification is delegated whole**, where it
+  had named `dsa.sign` and `ssa.sign` and left verification to be
+  inferred from the sentence after -- *"the verification equation of both
+  `dsa` and `ssa` through `double_mult`, so those multiplications are
+  delegated"*, which is about a signature the bindings **decline** and
+  reads, out of that context, as though only the multiplication were ever
+  delegated. It is not: `dsa.verify` and `ssa.verify` are one libsecp256k1
+  call each for secp256k1 with sha256, the first normalizing a high-s
+  signature where the lower-s form is not enforced. Batch verification is
+  the exception and is named as one, libsecp256k1 having no call for it.
+  Found by reading the paragraph and drawing the wrong conclusion from
+  it, then measuring: a recorder in front of both bindings functions says
+  `dsa.verify_` and `ssa.verify_` reach them and `batch_verify_` does
+  not.
+
 - **A BIP340 message of any size is signed and verified by libsecp256k1**,
   where every size but 32 had been taking the Python arithmetic that
   `SECURITY.md` publishes as not constant time. The size was one of three
