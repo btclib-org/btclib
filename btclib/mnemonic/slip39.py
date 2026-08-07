@@ -465,8 +465,9 @@ def _split_secret(
     # the polynomial down
     points = [(i, entropy_source(n)) for i in range(threshold - 2)]
     random_part = entropy_source(n - _DIGEST_BYTES)
-    points.append((_DIGEST_X, _digest(random_part, secret) + random_part))
-    points.append((_SECRET_X, secret))
+    points.extend(
+        ((_DIGEST_X, _digest(random_part, secret) + random_part), (_SECRET_X, secret))
+    )
     shares = [value for _, value in points[: threshold - 2]]
     shares += [_interpolate(points, i) for i in range(threshold - 2, share_count)]
     return shares

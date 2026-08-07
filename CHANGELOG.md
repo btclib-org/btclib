@@ -19,6 +19,22 @@ edit.
 
 ### Repository
 
+- **Preview's `FURB113` merges repeated `.append()` calls into one
+  `.extend()` -- correct where the appended values do not depend on
+  each other, and wrong where they do.** `curve_group.py`'s three
+  fixed-window tables are exactly that: each appends `double_jac(...)`
+  and then `add_jac(T[-1], Q)`, the second reading the list's own tail
+  the first just wrote. A tuple literal evaluates both elements before
+  either is appended, so `ruff --unsafe-fixes --fix` applied there
+  reads the *previous* iteration's tail instead -- caught by
+  re-running the suite after applying it everywhere the rule fired,
+  reverted, and commented so a future preview run does not reapply it
+  unnoticed. Seven other sites merge safely and do: none of the merged
+  values reads the list it is about to join. Three more -- `ssa.py`'s
+  two, interleaved with appends to a different list, and
+  `entropy_test.py`'s two, split by a comment describing each -- ruff
+  itself declined to offer a fix for and are left alone, the merge
+  available only by hand and the rule only stylistic.
 - **Every inline literal tuple or list an `in`/`not in` test compared
   against is a set literal now**, preview's `PLR6201` on a tree where
   the sets involved are almost all two or three constants, so what the

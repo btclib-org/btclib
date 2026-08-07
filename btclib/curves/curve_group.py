@@ -687,6 +687,11 @@ def multiples(Q: JacPoint, size: int, ec: CurveGroup) -> list[JacPoint]:
     k, odd = divmod(size, 2)
     T = [INFJ, Q]
     for i in range(3, k * 2, 2):
+        # not T.extend((double_jac(...), add_jac(T[-1], Q))): a tuple
+        # literal evaluates both elements before either is appended, so
+        # T[-1] there would still be the previous iteration's, not the
+        # double_jac just computed -- preview's FURB113 suggests it and
+        # unsafe-fixes applies it without noticing
         T.append(ec.double_jac(T[(i - 1) // 2]))
         T.append(ec.add_jac(T[-1], Q))
 
@@ -708,6 +713,7 @@ def cached_multiples(Q: JacPoint, ec: CurveGroup) -> list[JacPoint]:
     """
     T = [INFJ, Q]
     for i in range(3, 2**MAX_W, 2):
+        # not extend(): multiples() above has why
         T.append(ec.double_jac(T[(i - 1) // 2]))
         T.append(ec.add_jac(T[-1], Q))
     return T
@@ -727,6 +733,7 @@ def cached_multiples_fixwind(
     for _ in range((ec.p_size * 8) // w + 1):
         sublist = [INFJ, K]
         for j in range(3, 2**w, 2):
+            # not extend(): multiples() above has why
             sublist.append(ec.double_jac(sublist[(j - 1) // 2]))
             sublist.append(ec.add_jac(sublist[-1], K))
         K = ec.double_jac(sublist[2 ** (w - 1)])

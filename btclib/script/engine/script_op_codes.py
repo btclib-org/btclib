@@ -715,18 +715,14 @@ def op_rot(stack: list[bytes], altstack: list[bytes], flags: ScriptFlag) -> None
     x3 = stack.pop()
     x2 = stack.pop()
     x1 = stack.pop()
-    stack.append(x2)
-    stack.append(x3)
-    stack.append(x1)
+    stack.extend((x2, x3, x1))
 
 
 def op_tuck(stack: list[bytes], altstack: list[bytes], flags: ScriptFlag) -> None:
     """Insert a copy of the top element below the one under it."""
     x2 = stack.pop()
     x1 = stack.pop()
-    stack.append(x2)
-    stack.append(x1)
-    stack.append(x2)
+    stack.extend((x2, x1, x2))
 
 
 def op_3dup(stack: list[bytes], altstack: list[bytes], flags: ScriptFlag) -> None:
@@ -753,12 +749,7 @@ def op_2rot(stack: list[bytes], altstack: list[bytes], flags: ScriptFlag) -> Non
     x3 = stack.pop()
     x2 = stack.pop()
     x1 = stack.pop()
-    stack.append(x3)
-    stack.append(x4)
-    stack.append(x5)
-    stack.append(x6)
-    stack.append(x1)
-    stack.append(x2)
+    stack.extend((x3, x4, x5, x6, x1, x2))
 
 
 def op_2swap(stack: list[bytes], altstack: list[bytes], flags: ScriptFlag) -> None:

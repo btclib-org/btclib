@@ -208,8 +208,7 @@ def _issue_body(readme_path: Path, drifted: list[Drift], skipped: list[str]) -> 
             f" `{drift.entry.repo}`"
         )
     if skipped:
-        lines.append("")
-        lines.append("Not checked by this run, for the reason named:")
+        lines.extend(("", "Not checked by this run, for the reason named:"))
         lines.extend(f"- {heading}" for heading in skipped)
     return "\n".join(lines)
 
