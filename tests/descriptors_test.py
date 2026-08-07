@@ -679,7 +679,7 @@ def test_combo_is_a_set_of_scripts() -> None:
     with pytest.raises(BTClibValueError, match="use script_pub_keys instead"):
         parsed.address()
     # the p2pk of the four has no address, and says so with an empty one
-    assert parsed.addresses()[0] == ""
+    assert not parsed.addresses()[0]
 
 
 def test_redeem_script() -> None:

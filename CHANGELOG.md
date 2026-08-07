@@ -19,6 +19,20 @@ edit.
 
 ### Repository
 
+- **`PLC1901` (compare-to-empty-string) simplifies `x == ""` to
+  `not x`, right wherever `x` is provably `str` and wrong wherever it
+  is not.** `der_path.py`'s, `entropy.py`'s and thirteen test sites'
+  `x` come from `.strip()`, a CSV row, `capsys`, or a return type that
+  is `str` outright, so `not x` there is the same test the same way
+  `RUF031`'s and `RUF039`'s fixes were. Three are not: `bip39.py`'s and
+  `electrum.py`'s `entropy` is `Entropy | None`, a union that also
+  admits `int`, and `int 0` is a value to convert rather than a
+  missing one that only the empty *string* -- not general falsiness
+  -- should read as absent; `bip21_test.py`'s `label` is `str | None`,
+  and the line is the one that tests an explicit empty label against a
+  missing one, the distinction `not label` erases. Commented at each
+  so a future preview run does not silently apply what looks like the
+  same fix as the fourteen beside it.
 - **`base58.py` and `taproot.py`'s two `x = x + y`/`x = x & y` are `+=`
   and `&=` now**, preview's `PLR6104` on the two sites in the tree
   shaped that way; `bytes` and `int` being immutable, an augmented

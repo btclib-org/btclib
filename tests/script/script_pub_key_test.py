@@ -87,7 +87,7 @@ def test_nulldata() -> None:
     # data -> payload in this case is invertible (no hash functions)
     assert payload.decode("ascii") == string
 
-    assert address(script_pub_key) == ""
+    assert not address(script_pub_key)
 
     # documented test cases: https://learnmeabitcoin.com/guide/nulldata
     string = "hello world"
@@ -231,7 +231,7 @@ def test_p2pk() -> None:
     assert script_pub_key == ScriptPubKey.p2pk(pub_key).script
     assert ("p2pk", bytes.fromhex(pub_key)) == type_and_payload(script_pub_key)
 
-    assert address(script_pub_key) == ""
+    assert not address(script_pub_key)
 
     err_msg = "invalid pub_key length marker: "
     with pytest.raises(BTClibValueError, match=err_msg):
@@ -429,7 +429,7 @@ def test_unknown() -> None:
     so it is not a witness program at all and no address can carry it.
     """
     script_pub_key = serialize(["OP_16", 41 * b"\x00"])
-    assert address(script_pub_key) == ""
+    assert not address(script_pub_key)
     assert type_and_payload(script_pub_key) == ("unknown", script_pub_key)
 
 
@@ -483,7 +483,7 @@ def test_where_witness_unknown_begins_and_ends() -> None:
 
     v0_not_20_or_32 = serialize(["OP_0", bytes(21)])
     assert type_and_payload(v0_not_20_or_32) == ("unknown", v0_not_20_or_32)
-    assert address(v0_not_20_or_32) == ""
+    assert not address(v0_not_20_or_32)
 
 
 def test_p2ms_1() -> None:
@@ -502,7 +502,7 @@ def test_p2ms_1() -> None:
         "ae"  # OP_CHECKMULTISIG
     )
     assert is_p2ms(script_pub_key)
-    assert address(script_pub_key) == ""
+    assert not address(script_pub_key)
     script_type, payload = type_and_payload(script_pub_key)
     assert script_type == "p2ms"
     assert payload == script_pub_key[:-1]
@@ -600,7 +600,7 @@ def test_p2ms_2() -> None:
                 m, pub_keys, lexicographic_sorting=lexicographic_sorting
             ).script
             assert is_p2ms(script_pub_key)
-            assert address(script_pub_key) == ""
+            assert not address(script_pub_key)
             script_type, payload = type_and_payload(script_pub_key)
             assert script_type == "p2ms"
             assert payload == script_pub_key[:-1]
@@ -659,7 +659,7 @@ def test_bip67(keys: list[str], addr: str) -> None:
     m = 2
     script_pub_key = ScriptPubKey.p2ms(m, keys, lexicographic_sorting=True).script
     assert is_p2ms(script_pub_key)
-    assert address(script_pub_key) == ""
+    assert not address(script_pub_key)
     script_type, payload = type_and_payload(script_pub_key)
     assert script_type == "p2ms"
     assert payload == script_pub_key[:-1]

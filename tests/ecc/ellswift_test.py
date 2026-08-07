@@ -112,7 +112,7 @@ def test_xswiftec_inv_vectors(row: list[str]) -> None:
     for case in range(8):
         cell = row[2 + case]
         t = _xswiftec_inv(x, u, case, secp256k1)
-        if cell == "":
+        if not cell:
             assert t is None, f"case {case} should have no preimage"
         else:
             assert t == int(cell, 16), f"case {case}"

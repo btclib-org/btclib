@@ -398,7 +398,7 @@ def test_a_key_added_to_a_bip32_keystore_is_not_derived() -> None:
     assert bms.verify(_MSG, added, keystore.sign(added, _MSG))
     with pytest.raises(BTClibValueError, match="watch-only keystore"):
         keystore.prv_key(derived)
-    assert keystore.address_info(added).der_path == ""
+    assert not keystore.address_info(added).der_path
 
 
 def test_an_address_is_found_however_it_is_spelled() -> None:

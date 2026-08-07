@@ -136,7 +136,7 @@ def test_bip340_vectors(row: list[str]) -> None:
     """
     (_index, seckey, pub_key, aux_rand, m, sig, result, _comment) = row
 
-    if seckey != "":
+    if seckey:
         _, pub_key_actual = ssa.gen_keys(seckey)
         assert pub_key == hex(pub_key_actual).upper()[2:]
 

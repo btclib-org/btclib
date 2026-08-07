@@ -485,6 +485,8 @@ def mnemonic_from_entropy(
 
     int_entropy = (
         _random_int_entropy(lang)
+        # not `not entropy`: entropy can be an int, and int 0 is a value
+        # to search from, not a missing one -- bip39.py's version has why
         if entropy is None or entropy == ""
         else int(bin_str_entropy_from_entropy(entropy), 2)
     )

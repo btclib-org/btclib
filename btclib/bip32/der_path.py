@@ -144,7 +144,7 @@ def _pairs_from_der_path_str(
     if skip_m and not bip380_enforced and steps[0].lower() == "m":
         steps = steps[1:]
     if not bip380_enforced:
-        steps = [s for s in steps if s != ""]
+        steps = [s for s in steps if s]
 
     pairs = [
         _index_and_hardening_from_str(s, bip380_enforced=bip380_enforced) for s in steps
