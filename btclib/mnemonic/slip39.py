@@ -435,6 +435,22 @@ def _recover_secret(threshold: int, shares: Sequence[tuple[int, bytes]]) -> byte
     secret = _interpolate(shares, _SECRET_X)
     digest_share = _interpolate(shares, _DIGEST_X)
     random_part = digest_share[_DIGEST_BYTES:]
+    # `!=` and not hmac.compare_digest, which ecies.assert_valid_mac does
+    # use: the two comparisons look alike and are not the same question.
+    # There the mac key comes from an ECDH secret the attacker does not
+    # hold, so the expected mac is not computable by whoever submits the
+    # envelope, and a byte-at-a-time early exit is a forgery oracle --
+    # the comment there says so.
+    # Here both operands come out of the shares the caller just passed
+    # in: `random_part` and `secret` are interpolated from them, so the
+    # expected digest is something the caller can compute offline, for
+    # any shares, without calling this at all. A timing signal can only
+    # hand back what its observer already has, which is why the constant
+    # time version buys nothing -- and it is why this check is an
+    # integrity test that the shares belong together, not a security
+    # boundary against somebody who chooses them: such an attacker forges
+    # a passing digest directly rather than searching for one.
+    # SLIP-0039's reference implementation compares with `!=` too.
     if digest_share[:_DIGEST_BYTES] != _digest(random_part, secret):
         raise BTClibValueError("invalid digest: the shares do not belong together")
     return secret
