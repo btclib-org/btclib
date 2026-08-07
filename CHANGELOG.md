@@ -19,6 +19,19 @@ edit.
 
 ### Repository
 
+- **`uv.lock` is at every dependency's newest release**, which closed the
+  seven advisories the default branch was carrying: six on GitPython,
+  reached through `cosmic-ray`, and one on `cryptography`, reached
+  through `twine` -- both development groups, so neither was ever in a
+  wheel, and what the upgrade fixes is the environment a contributor
+  builds rather than anything a caller installs. It was done by hand
+  because **Dependabot cannot do it**: its uv ecosystem supports uv
+  0.11.31 and `pyproject.toml` asks for `>=0.12.0`, so every lock update
+  it has attempted since fails with `tool_version_not_supported` and the
+  file had been frozen at whatever the last successful run left. Nothing
+  in the lint gate or the suite moved for the upgrade -- mypy is not
+  among the twelve packages it touched, and `ruff` is pinned for the
+  hooks by `.pre-commit-config.yaml` rather than by this file.
 - **`PLC1901` (compare-to-empty-string) simplifies `x == ""` to
   `not x`, right wherever `x` is provably `str` and wrong wherever it
   is not.** `der_path.py`'s, `entropy.py`'s and thirteen test sites'
