@@ -35,6 +35,41 @@ Finally, the fastest test execution can be accomplished running pytest only
 uv run pytest
 ```
 
+## The integration tests, and why they are off by default
+
+`tests/integration/` is the only part of the suite that needs something
+this repository does not ship: a `bitcoind` to talk to, an `hwi` to run,
+a device to press a button on. Each test skips itself without the switch
+that asks for it, so an ordinary run reports them skipped and says which
+switch was off:
+
+```shell
+BTCLIB_INTEGRATION=1 uv run pytest tests/integration
+```
+
+That runs the regtest flow — btclib exports an account, Core imports it,
+Core pays it, btclib builds and signs the spend, and the node accepts the
+transaction or the test fails. The node is this session's own: a data
+directory under pytest's `tmp_path` and an ephemeral port, so nothing
+reaches a node you are running. Name another binary with
+`BTCLIB_BITCOIND=/path/to/bitcoind`.
+
+The HWI tests need a device as well, and a second switch for the one that
+asks it to sign:
+
+```shell
+BTCLIB_INTEGRATION=1 BTCLIB_HWI=hwi BTCLIB_HWI_SIGN=1 uv run pytest tests/integration
+```
+
+`BTCLIB_HWI` is the executable, split on spaces, so an emulator is
+reached with `BTCLIB_HWI="hwi --emulators"`. Nothing there is
+destructive: enumerate, an xpub, an address on a screen, a signature.
+
+These tests are outside the coverage ratchet, which `pyproject.toml`
+says where it omits them: the ratchet measures what an ordinary run
+executes, and a body that skips itself would be an uncovered line at
+every commit rather than a defect.
+
 ## There is no `slow` marker, and that is a measurement
 
 `addopts` in pyproject.toml passes `--strict-markers`, so a marker has to
