@@ -1,22 +1,27 @@
 # A Python library for 'bitcoin cryptography'
 
-<!-- markdownlint-disable MD013 -->
-| | |
-| --- | --- |
-| Project | [![status](https://img.shields.io/pypi/status/btclib.svg)](https://pypi.python.org/pypi/btclib/) [![license](https://img.shields.io/github/license/btclib-org/btclib.svg)](https://github.com/btclib-org/btclib/blob/master/LICENSE) |
-| Package | [![uv](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/astral-sh/uv/main/assets/badge/v0.json)](https://github.com/astral-sh/uv) [![calver: yyy.m.d](https://img.shields.io/badge/cal_ver-yyyy.m.d-1674b1.svg?logo=calver)](https://calver.org/) [![pypi](https://img.shields.io/pypi/v/btclib.svg?logo=pypi)](https://pypi.python.org/pypi/btclib/) [![downloads](https://static.pepy.tech/badge/btclib)](https://pepy.tech/project/btclib) |
-| Supported platforms | [![python](https://img.shields.io/pypi/pyversions/btclib.svg?logo=python)](https://pypi.python.org/pypi/btclib/) |
-| Formatting standards | [![format: ruff](https://img.shields.io/badge/format-ruff-yellowgreen.svg?logo=ruff)](https://docs.astral.sh/ruff/formatter/) [![lint: markdownlint-cli2](https://img.shields.io/badge/lint-markdownlint--cli2-yellowgreen.svg?logo=markdown)](https://github.com/DavidAnson/markdownlint-cli2) |
-| Coding standards | [![lint: ruff](https://img.shields.io/badge/lint-ruff-yellowgreen.svg?logo=ruff)](https://docs.astral.sh/ruff/) |
-| Type checking | [![type check: mypy](https://img.shields.io/badge/type_check-mypy-yellowgreen.svg?logo=mypy)](https://mypy-lang.org/) |
-| Documentation | [![docs](https://readthedocs.org/projects/btclib/badge/?version=latest)](https://btclib.readthedocs.io) [![lint: ruff](https://img.shields.io/badge/docstrings-ruff-yellowgreen.svg?logo=ruff)](https://docs.astral.sh/ruff/rules/#pydocstyle-d) |
-| CI/CD | [![pre-commit](https://img.shields.io/badge/pre--commit-enabled-brightgreen?logo=pre-commit)](https://github.com/pre-commit/pre-commit) [![pre-commit.ci status](https://results.pre-commit.ci/badge/github/btclib-org/btclib/master.svg)](https://results.pre-commit.ci/latest/github/btclib-org/btclib/master) [![lint](https://github.com/btclib-org/btclib/actions/workflows/lint.yml/badge.svg)](https://github.com/btclib-org/btclib/actions/workflows/lint.yml) [![test](https://github.com/btclib-org/btclib/actions/workflows/test.yml/badge.svg)](https://github.com/btclib-org/btclib/actions/workflows/test.yml) |
-| Conversations | [![slack](https://img.shields.io/badge/slack-btclib_dev-white.svg?logo=slack)](https://bbt-training.slack.com/messages/C01CCJ85AES) |
+<!-- The badges are what the reader decides with: the first line says what
+this is and whether it can be used, the second whether it works. A badge
+that reports no state -- "we use ruff", "we use uv" -- reports a choice
+instead, and those are in CONTRIBUTING.md, beside the prose that says how
+the choice is enforced. One badge per line keeps a change to one line and
+every line inside MD013; the site renders the line break as a space, its
+kramdown having hard_wrap off. -->
+[![PyPI version](https://img.shields.io/pypi/v/btclib.svg?logo=pypi)](https://pypi.python.org/pypi/btclib/)
+[![downloads](https://static.pepy.tech/badge/btclib)](https://pepy.tech/project/btclib)
+[![development status](https://img.shields.io/pypi/status/btclib.svg)](https://pypi.python.org/pypi/btclib/)
+[![license](https://img.shields.io/github/license/btclib-org/btclib.svg)](https://github.com/btclib-org/btclib/blob/master/LICENSE)
+[![supported Python versions](https://img.shields.io/pypi/pyversions/btclib.svg?logo=python)](https://pypi.python.org/pypi/btclib/)
+
+[![test workflow status](https://github.com/btclib-org/btclib/actions/workflows/test.yml/badge.svg)](https://github.com/btclib-org/btclib/actions/workflows/test.yml)
+[![lint workflow status](https://github.com/btclib-org/btclib/actions/workflows/lint.yml/badge.svg)](https://github.com/btclib-org/btclib/actions/workflows/lint.yml)
+[![pre-commit.ci status](https://results.pre-commit.ci/badge/github/btclib-org/btclib/master.svg)](https://results.pre-commit.ci/latest/github/btclib-org/btclib/master)
+[![documentation build](https://readthedocs.org/projects/btclib/badge/?version=latest)](https://btclib.readthedocs.io)
 
 [Browse GitHub Code Repository](https://github.com/btclib-org/btclib/)
+[![slack: btclib_dev](https://img.shields.io/badge/slack-btclib_dev-white.svg?logo=slack)](https://bbt-training.slack.com/messages/C01CCJ85AES)
 
 ---
-<!-- markdownlint-enable MD013 -->
 
 [btclib](https://btclib.org) is a
 Python3 [type annotated](https://docs.python.org/3/library/typing.html)

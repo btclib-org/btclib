@@ -49,6 +49,32 @@ documented at release-notes length in the first place, and are still in
   read by files that never trip it. bitcoin-core-rpc's CHANGELOG.md
   carries the same comment for the same reason.
 
+### Documentation and the website
+
+- **The README badges are the ones that can turn red**, in the order the
+  reader asks for them: version, downloads, development status, license
+  and supported interpreters on the first line; test, lint, pre-commit.ci
+  and the documentation build on the second. Eight of the eighteen
+  reported no state at all — `uv`, `cal_ver`, `pre-commit enabled`, three
+  ruff badges, mypy, markdownlint-cli2 — so they are in CONTRIBUTING.md's
+  "Getting started", beside the prose that says how each choice is
+  enforced, and the Slack badge is down with the repository link, "where
+  do I ask" being a question the reader has after reading. The table that
+  held them is gone with them: its left column was the taxonomy, and
+  nine self-describing badges do not need one — `pypi`, `python`, `test`
+  read as their own labels, which is also why the alternative text is now
+  "PyPI version" and "test workflow status" rather than the name of the
+  site serving the image. Two defects went with the table: `calver:
+  yyy.m.d` was missing a `y`, and the badge for the docstring rules
+  carried "lint: ruff", copied from the row above it, so a screen reader
+  announced two different links identically. One badge per source line
+  now, which puts a badge change in one line of a diff and keeps every
+  line inside MD013 — its 80 columns bind only where a space follows
+  them, and in a bare URL none does, so the file no longer disables the
+  rule to hold a 900-character row. The line break renders as a space:
+  `_config.yml` leaves kramdown's `hard_wrap` at Jekyll's default, which
+  is off, as btclib.org's own `<p>` for a wrapped paragraph shows.
+
 ## v2026.8.7
 
 Grouped, and the order runs from what breaks a caller to what only
