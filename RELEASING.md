@@ -11,6 +11,18 @@ configured to trust the workflow itself
 The same workflow, started by hand instead of by a tag, is a full
 rehearsal against TestPyPI. A rehearsal is never tagged.
 
+**A workflow GitHub has not registered cannot be dispatched, and it
+registers one only once its file has reached the default branch.** That
+makes `release.yml`, `latest.yml` and `published.yml` — `schedule` and
+`workflow_dispatch` only, so nothing else ever triggers them — answer
+`gh: Not Found (HTTP 404)` until the release pull request is merged. It
+bites once, on the first release after any of them is written, and it
+inverts the order below: the TestPyPI rehearsal and the `latest` run
+that this file asks for *before* the merge can only happen after it,
+still before the tag. It also means such a workflow reaches `master`
+having never run, which is how `published.yml` shipped a
+`windows-11-arm` cell that failed at setup.
+
 ## Which version string is which
 
 Telling these apart is most of what can go wrong when cutting a release.
@@ -114,9 +126,7 @@ pyroma), build, wheel smoke test — and publishes to
 `latest` is worth dispatching before the tag rather than waiting for its
 Wednesday cron, because what it answers is cheaper to know before a version
 is consumed than after. It gates nothing, so it will not stop you:
-reading it is the point. A release ships what `uv.lock` pins, so a red
-run here does not make the release wrong — it says the next dependency
-bump is going to be work. Its `test-bindings-latest` job is the one worth
+reading it is the point. Its `test-bindings-latest` job is the one worth
 reading closely: it asks about the newest btclib_libsecp256k1 release
 alone, precisely, rather than folding it into the broader upgrade the
 rest of the workflow makes — a release of the bindings is a release in
@@ -124,10 +134,38 @@ another repository, which nothing here has to change for the pair to
 stop working, and this release is the moment to find out before shipping
 against a pin about to be a version behind.
 
-1. Make sure the released btclib_libsecp256k1 satisfies the pin in
-   pyproject.toml: if the pin is only satisfied by an unreleased version,
-   release the bindings first. The wheel smoke test of the `dist-py` job
-   fails exactly on this, so every pull request already says so.
+**Read it per job, not as a verdict.** A red run means either "one
+dependency moved and this tree has not caught up" or "the bindings are
+broken against it", and only the second is a reason to stop — so which
+job failed is the question, and a run that is red overall while
+`bindings at latest` is green on every runner is saying the pin is
+sound. Open the failure rather than inferring it from a sibling: on
+v2026.8.7 seven jobs were red, six tests and the lint one, and reading
+a single test log and generalising happened to be right — the lint job
+was mypy reporting the same four errors — but nothing said so until it
+was checked.
+
+**Usually a red run is future work, and sometimes it blocks.** A release
+ships what `uv.lock` pins, so drift against a newer version of some
+dependency does not make the release wrong — it says the next bump is
+going to be work. That holds while the dependency that moved is a
+stranger. It does not hold when it is another btclib-org
+project whose new release this release should depend on: v2026.8.7 was
+cut the day `bitcoin-core-rpc` renamed two exported functions with no
+alias, and shipping against the pinned older one would have published a
+btclib that could not be installed beside its own sibling. The paragraph
+above says exactly this about the bindings; it is true of both, word for
+word, and step 1 asks it of both.
+
+1. Make sure the newest release of **each btclib-org dependency** —
+   btclib_libsecp256k1 and bitcoin-core-rpc — is the one this release
+   should depend on, and that `pyproject.toml`'s pin says so. Two
+   questions, not one: whether the pin *resolves*, which the wheel smoke
+   test of the `dist-py` job already answers on every pull request by
+   failing when only an unreleased version satisfies it, and whether the
+   floor should *move*, which nothing automates because only a person
+   knows what the sibling's release was for. Both projects are pinned
+   without a ceiling and both can publish on the morning of a release.
 
 1. Set the release version (calendar versioning, `YYYY.M.D`) in
    pyproject.toml, the only place it is declared, and re-lock (the
@@ -158,6 +196,15 @@ against a pin about to be a version behind.
    difference and not only the breaking ones; what matters is that nothing
    it calls a removal or a signature change is missing from HISTORY.md.
 
+   Two shapes are most of the noise and are worth knowing before reading
+   228 lines, which is what v2026.8.7 produced. `Attribute value was
+   changed: Union[X, Y] -> X | Y` is PEP 604 spelling and breaks nobody.
+   And one systemic change repeats once per site: `check_validity` going
+   keyword-only accounted for dozens of lines and belongs in HISTORY.md
+   once, as a rule, not once per class. Discount those and what is left
+   is short enough to check bullet by bullet — four entries were missing
+   from v2026.8.7's list, and all four were in that remainder.
+
    Not a gate on every commit, and deliberately so: the comparison is
    against the previous *release*, so it reports the whole of a
    development cycle, typically hundreds of differences. Against
@@ -176,13 +223,25 @@ against a pin about to be a version behind.
    progress, not released yet" as the release notes. A rehearsal is
    exempt, being what runs before this step.
 
-1. Run `uv run pre-commit run --all-files` and `uv run pytest`, follow
-   docs/README.rst to check that the documentation builds, and get the
-   above onto master through the usual pull request. Verify the
+1. Run `uv run pre-commit run --all-files` and `uv run pytest --cov`,
+   follow docs/README.rst to check that the documentation builds, and get
+   the above onto master through the usual pull request. The local gates
+   are the evidence here in a way they are not on an ordinary branch:
+   `test.yml` and `lint.yml` trigger on `pull_request` and on a push to
+   `master` alone, deliberately, so that a branch with an open pull
+   request is not tested twice — which means **a commit pushed straight
+   to `dev` runs neither**, and the next CI it meets is the push to
+   `master`. Correcting the release branch after the pull request is
+   merged is exactly that case.
+
+   Then verify the
    [read the docs](https://readthedocs.org/projects/btclib/builds/)
    build, and that [the website](https://btclib.org) and the
    [documentation](https://btclib.readthedocs.io/en/latest/) render
-   correctly.
+   correctly. Read the *builds* page and not only the rendered one: a
+   site that answers 200 may be serving the last build that succeeded,
+   which for three years was v2023.7.12's — the webhook had been
+   refusing every delivery with a 400 and nobody was told (issue #484).
 
    Two things about that pull request, both of them before the button
    rather than after it.
@@ -216,14 +275,49 @@ against a pin about to be a version behind.
    commit and the attestations bound to it outliving any attempt to
    rewrite the history back.
 
-1. Rehearse on TestPyPI (see above) from master.
-
-1. Tag the release commit and push the tag:
+   **Past 100 commits there is no button at all.** "Rebase and merge" is
+   [limited to 100 commits](https://docs.github.com/en/repositories/creating-and-managing-repositories/repository-limits),
+   and answers `This branch can't be rebased` above it — v2026.8.7
+   carried 469. The limit belongs to the feature, so no branch rule and
+   no administrator bypasses it, and the other two buttons are barred by
+   the paragraph above and by `master`'s required linear history. What is
+   left is the command line the button wraps:
 
    ```shell
-   git tag -a v2026.8.4 -m "release v2026.8.4"
+   git fetch origin
+   git merge-base --is-ancestor origin/master origin/dev && echo fast-forward
+   git push origin origin/dev:master
+   ```
+
+   Read that middle line before pushing, because it decides the last step
+   of this file too. If `master` is already an ancestor of `dev` — which
+   it is whenever nothing has landed on `master` alone since the previous
+   release — the push is a **fast-forward**: every commit keeps its sha,
+   `dev` and `master` end on the same commit, and "Realign `dev` onto
+   `master`" below has nothing to do. A rebase, replaying commits under
+   new shas, is what makes that step necessary; a fast-forward is what
+   makes it moot. `git diff origin/master origin/dev` answers which
+   happened rather than leaving it to be assumed.
+
+1. Rehearse on TestPyPI (see above) from master.
+
+1. Tag the release commit and push the tag. **Name the commit**, and read
+   the tag back before pushing it:
+
+   ```shell
+   git tag -a v2026.8.4 -m "release v2026.8.4" <sha of the release commit>
+   git show v2026.8.4:pyproject.toml | grep '^version'
    git push origin v2026.8.4
    ```
+
+   `git tag` with no commit tags whatever HEAD the shell is in, and every
+   step above ran in a worktree while the primary checkout sits on
+   another branch — so the argumentless form is one `cd` away from
+   tagging the commit before the version bump. That is how v2026.8.7 was
+   first tagged; `version-check` refused it, comparing `2026.8` against
+   the tag's `2026.8.7` and failing the run with nothing uploaded, which
+   is the guard doing its job. The `git show` above is the same check one
+   step earlier, where it costs nothing.
 
 1. The workflow builds the full matrix and the distribution files, then
    pauses at the `pypi` environment for the review "One-time setup"
@@ -275,7 +369,19 @@ against a pin about to be a version behind.
    release, PyPI serving a file that does not match its own hash — which
    is why it is a workflow of its own rather than a job of this one.
 
-1. Realign `dev` onto `master`, before anything else is committed to it.
+1. Realign `dev` onto `master`, before anything else is committed to it —
+   **if the merge was a rebase.** Ask first, because a fast-forward needs
+   none of what follows:
+
+   ```shell
+   git fetch origin
+   git rev-parse origin/master origin/dev    # the same sha? then skip this step
+   ```
+
+   after a fast-forward the two branches *are* one commit, the merge base
+   is that commit, and there is nothing to archive or move; v2026.8.7 was
+   this case. The rest of this step is for the other one.
+
    **Rebase and merge** replays `dev`'s commits with new SHAs, so the
    moment a release lands the two branches hold the same tree through
    different histories, and their merge base stops advancing. Left
@@ -366,6 +472,12 @@ against a pin about to be a version behind.
   git tag -d v2026.8.4
   git push origin :refs/tags/v2026.8.4
   ```
+
+  Both lines, and the local one is the half that is easy to skip: a tag
+  is per-repository where a branch is per-worktree, so deleting it in one
+  worktree leaves it in every other, and the `git tag -a` that follows
+  answers `fatal: tag 'v2026.8.4' already exists` — from a checkout that
+  looks uninvolved. Delete locally wherever it is, then re-create.
 
 - The upload succeeded but the release is broken: PyPI never accepts a
   file name twice, even after deletion. Yank the bad release on PyPI
