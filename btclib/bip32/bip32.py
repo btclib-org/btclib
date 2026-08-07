@@ -293,7 +293,10 @@ class BIP32KeyData:
             parent_fingerprint=key_bin[5:9],
             index=int.from_bytes(key_bin[9:13], byteorder="big", signed=False),
             chain_code=key_bin[13:45],
-            key=key_bin[45:78],
+            # the constant the read and the length check above are written
+            # in, rather than a second spelling of it: the offsets are this
+            # field's own, the total is the format's
+            key=key_bin[45:_REQUIRED_LENGTH],
             check_validity=check_validity,
         )
 
