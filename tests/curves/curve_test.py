@@ -774,8 +774,7 @@ def test_symmetry() -> None:
 
         # compute all quadratic residues
         hasRoot = {1}
-        for i in range(2, ec.p):
-            hasRoot.add(i * i % ec.p)
+        hasRoot.update(i * i % ec.p for i in range(2, ec.p))
 
         if ec.p % 4 == 3:
             quad_res = ec.y_quadratic_residue(x_Q)

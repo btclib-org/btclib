@@ -75,7 +75,7 @@ class FakeGh:
         if argv[1] == "api":
             repo = argv[4].removeprefix("repos/").removesuffix("/commits")
             path = argv[6].removeprefix("path=")
-            answer = self.commits[(repo, path)]
+            answer = self.commits[repo, path]
             # None is what the api answers for a path upstream no longer
             # has: an empty list, which is a 200 and not an error
             if answer is None:
@@ -236,7 +236,7 @@ def test_latest_commit_asks_for_one_commit_touching_the_path(
     checker: ModuleType, fake_gh: FakeGh
 ) -> None:
     """The one `gh api` call, and the sha and date it reads back."""
-    fake_gh.commits[("btclib-org/btclib", "tests/f.json")] = ("cafe1234", "2026-08-01")
+    fake_gh.commits["btclib-org/btclib", "tests/f.json"] = ("cafe1234", "2026-08-01")
     sha, date = checker._latest_commit("btclib-org/btclib", "tests/f.json")
     assert (sha, date) == ("cafe1234", "2026-08-01")
     (call,) = fake_gh.calls
@@ -257,7 +257,7 @@ def test_latest_commit_is_none_when_upstream_has_no_commit_for_the_path(
     run and no issue, on the one drift a vendored file nobody re-reads
     would otherwise hide.
     """
-    fake_gh.commits[("btclib-org/btclib", "tests/gone.json")] = None
+    fake_gh.commits["btclib-org/btclib", "tests/gone.json"] = None
     assert checker._latest_commit("btclib-org/btclib", "tests/gone.json") is None
 
 
@@ -278,7 +278,7 @@ def test_find_drift_reports_a_path_upstream_no_longer_has(
         ),
         encoding="utf-8",
     )
-    fake_gh.commits[("r", "gone.json")] = None
+    fake_gh.commits["r", "gone.json"] = None
 
     drifted, skipped = checker.find_drift(path)
 
@@ -334,7 +334,7 @@ def test_main_says_gone_rather_than_behind_for_a_vanished_path(
             behind="0",
         ),
     )
-    fake_gh.commits[("r", "gone.json")] = None
+    fake_gh.commits["r", "gone.json"] = None
     monkeypatch.setattr(sys, "argv", ["prog", str(path), "--dry-run"])
 
     assert checker.main() == 0
@@ -369,8 +369,8 @@ def test_find_drift_tells_moved_pins_from_still_current_ones(
         ),
         encoding="utf-8",
     )
-    fake_gh.commits[("r", "moved.json")] = ("new0000", "2026-01-01")
-    fake_gh.commits[("r", "still.json")] = ("cur0000", "2020-01-01")
+    fake_gh.commits["r", "moved.json"] = ("new0000", "2026-01-01")
+    fake_gh.commits["r", "still.json"] = ("cur0000", "2020-01-01")
 
     drifted, skipped = checker.find_drift(path)
 
@@ -485,7 +485,7 @@ def test_main_dry_run_prints_but_never_calls_issue(
         ),
         entry("stale", repo="r", path="s.json", commit="x", behind="1"),
     )
-    fake_gh.commits[("r", "p.json")] = ("new0000", "2026-01-01")
+    fake_gh.commits["r", "p.json"] = ("new0000", "2026-01-01")
     monkeypatch.setattr(sys, "argv", ["prog", str(path), "--dry-run"])
 
     assert checker.main() == 0
@@ -514,7 +514,7 @@ def test_main_reports_and_says_nothing_drifted_when_clean(
             behind="0",
         ),
     )
-    fake_gh.commits[("r", "p.json")] = ("old0000", "2020-01-01")
+    fake_gh.commits["r", "p.json"] = ("old0000", "2020-01-01")
     fake_gh.open_issue = 3
     monkeypatch.setattr(sys, "argv", ["prog", str(path)])
 
@@ -551,7 +551,7 @@ def test_the_main_guard_runs_the_script_as___main__(
         ),
     )
     fake = FakeGh()
-    fake.commits[("r", "p.json")] = ("old0000", "2020-01-01")
+    fake.commits["r", "p.json"] = ("old0000", "2020-01-01")
     monkeypatch.setattr(subprocess, "run", fake)
     monkeypatch.setattr(sys, "argv", ["prog", str(path), "--dry-run"])
 

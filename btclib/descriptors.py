@@ -316,12 +316,12 @@ _MAX_MULTI_A_KEYS = 999
 # is what refuses them anywhere a SCRIPT expression is expected
 _TREE_FUNCTIONS = ("multi_a", "sortedmulti_a")
 
-_FINGERPRINT = re.compile("[0-9a-fA-F]{8}")
-_HEX = re.compile("[0-9a-fA-F]*")
-_THRESHOLD = re.compile("[0-9]+")
+_FINGERPRINT = re.compile(r"[0-9a-fA-F]{8}")
+_HEX = re.compile(r"[0-9a-fA-F]*")
+_THRESHOLD = re.compile(r"[0-9]+")
 # the BIP389 multipath step, brackets included: re.split hands back what
 # it split on when the pattern captures it
-_MULTIPATH_STEP = re.compile("(<[^<>]*>)")
+_MULTIPATH_STEP = re.compile(r"(<[^<>]*>)")
 
 
 # what `parse` hands back beside the descriptor, and what expansion takes

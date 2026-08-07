@@ -23,6 +23,7 @@ a table copied out of it.
 from __future__ import annotations
 
 from copy import deepcopy
+from itertools import starmap
 
 import pytest
 
@@ -313,10 +314,10 @@ def test_the_bip174_spend_is_read_back_off_the_wire() -> None:
     signed = extract_tx(Psbt.b64decode(BIP174_FINALIZED_PSBT))
     psbt = psbt_from_spend(signed)
     assert psbt is not None
-    assert [
-        spend_kind(tx_in, psbt_in)
-        for tx_in, psbt_in in zip(signed.vin, psbt.inputs, strict=True)
-    ] == ["p2sh-p2ms", "p2sh-p2wsh"]
+    assert list(starmap(spend_kind, zip(signed.vin, psbt.inputs, strict=True))) == [
+        "p2sh-p2ms",
+        "p2sh-p2wsh",
+    ]
     # the three signatures a byte short of the assumption, as above
     assert assert_input_is_the_spend_with_maximal_signatures(psbt, signed) == 3
 
@@ -358,10 +359,7 @@ def test_a_block_of_real_spends(
         added = assert_input_is_the_spend_with_maximal_signatures(psbt, tx)
         if added >= 0:
             assert psbt.estimated_weight >= tx.weight
-        seen.update(
-            spend_kind(tx_in, psbt_in)
-            for tx_in, psbt_in in zip(tx.vin, psbt.inputs, strict=True)
-        )
+        seen.update(starmap(spend_kind, zip(tx.vin, psbt.inputs, strict=True)))
         checked += 1
     # a corpus that stopped being read would otherwise pass the loop
     # vacuously, and both files are frozen
