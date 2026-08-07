@@ -97,7 +97,8 @@ def test_signature() -> None:
         ssa.assert_as_valid_(m_bytes[:31], x_Q, sig)
 
     # and signing it works, giving a signature over those 31 bytes and no
-    # other: the Python path serves it, the bindings taking 32 bytes only
+    # other -- through the bindings, `sign_custom` taking a message of any
+    # size, which is what the length used to gate on
     sig_31 = ssa.sign_(m_bytes[:31], q)
     assert ssa.verify_(m_bytes[:31], x_Q, sig_31)
     assert not ssa.verify_(m_bytes, x_Q, sig_31)
@@ -111,8 +112,9 @@ def bip340_vectors() -> list[Any]:
     """One case per BIP340 vector.
 
     Four of the nineteen are the arbitrary-size messages BIP340 gained in
-    2023-04, of 0, 1, 17 and 100 bytes: only the Python path can serve
-    them, the bindings taking a 32-byte message hash alone (issue 169).
+    2023-04, of 0, 1, 17 and 100 bytes. They were the Python path's alone
+    while a 32-byte gate stood in front of the bindings (issue 169); it
+    is gone, and all nineteen are signed and verified by libsecp256k1.
     """
     return [
         pytest.param(row, id=vector_id(int(row[0]), row[7]))
@@ -296,18 +298,66 @@ def test_low_cardinality() -> None:
                             ssa._assert_as_valid_(e, QJ, r, (s - 1) % ec.n, ec)
 
 
+def test_a_message_of_any_size_reaches_the_bindings(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Both calls are made whatever the size of the message.
+
+    Nothing in an answer says which implementation produced it, which is
+    how the 32-byte gate in front of the bindings went unnoticed until
+    four of BIP340's own vectors fell through it (issue 169). So the two
+    calls are recorded here and the record is asserted: a gate put back
+    would leave it empty for every size but 32, while every assertion
+    about the signatures still passed.
+
+    31, 32 and 33 are the boundary; 0, 1, 17 and 100 are the sizes of the
+    four vectors themselves.
+
+    Args:
+        monkeypatch: patches the two bindings functions with recorders.
+    """
+    sizes = (0, 1, 17, 31, 32, 33, 100)
+    calls: list[tuple[str, int]] = []
+    real_sign_custom = libsecp256k1_ssa.sign_custom
+    real_verify = libsecp256k1_ssa.verify
+
+    def sign_custom(msg: bytes, prvkey: int, aux: bytes) -> bytes:
+        calls.append(("sign_custom", len(msg)))
+        return real_sign_custom(msg, prvkey, aux)
+
+    def verify(msg: bytes, pubkey: bytes, sig: bytes) -> bool:
+        calls.append(("verify", len(msg)))
+        return real_verify(msg, pubkey, sig)
+
+    monkeypatch.setattr(libsecp256k1_ssa, "sign_custom", sign_custom)
+    monkeypatch.setattr(libsecp256k1_ssa, "verify", verify)
+
+    q, x_Q = ssa.gen_keys(0x1234567890ABCDEF)
+    for size in sizes:
+        msg = bytes(size)
+        sig = ssa.sign_(msg, q)
+        assert ssa.verify_(msg, x_Q, sig)
+
+    assert calls == [
+        (name, size) for size in sizes for name in ("sign_custom", "verify")
+    ]
+
+
 def test_verify_with_a_message_that_is_not_32_bytes_on_both_arithmetics(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """Issue 169's path, on both arithmetics.
+    """Issue 169's message, on both arithmetics.
 
-    BIP340 takes a message of any size and so does btclib, while the
-    bindings answer "the message hash must be 32 bytes", so any other
-    length is verified by `_assert_as_valid_` -- the only path that can
-    verify four of BIP340's own vectors. Its multiplication is the
-    bindings' all the same on secp256k1, 183 us against the 1.17 ms of
-    the Python arithmetic, and the two must not disagree about a
-    signature.
+    BIP340 takes a message of any size, and so now does every path here:
+    `sign_custom` and `verify` take one, and the 32-byte gate that used
+    to stand in front of them -- which made `_assert_as_valid_` the only
+    path able to verify four of BIP340's own vectors -- is gone. So this
+    exercises the bindings first and the Python arithmetic second, under
+    `no_bindings`, because the two must not disagree about a signature
+    and only one of them is now reached by default. The Python one is
+    reached in earnest by another curve or another hash function; its
+    multiplication is still the bindings' on secp256k1, 183 us against
+    the 1.17 ms of the arithmetic under it.
     """
     msg = b"a message that is not 32 bytes"
     assert len(msg) != 32

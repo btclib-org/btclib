@@ -39,12 +39,13 @@ which is the single most important thing to know before touching
   recognized before the call and answered by the Python arithmetic of
   `curves/curve_group.py`, which is what every other curve runs
 - `ecc.dsa.sign` calls them for secp256k1 with sha256, lower-s, and no
-  caller-imposed nonce; `ecc.ssa.sign` for secp256k1 with sha256 **and a
-  32-byte message**. That last clause is issue 169: BIP340 accepts a
-  message of any size and so does btclib, but the bindings still answer
-  "the message hash must be 32 bytes", so any other length takes the
-  Python path — which makes it the only path that can verify four of
-  BIP340's own vectors
+  caller-imposed nonce; `ecc.ssa.sign` for secp256k1 with sha256, a
+  message of **any** size, and no sign-to-contract commitment. The size
+  used to be a third condition, which was issue 169 and the four
+  arbitrary-size vectors BIP340 gained in 2023-04: the bindings'
+  `ssa.sign` takes a 32-byte message, but `ssa.sign_custom` beside it
+  takes any, and `ssa.verify` always did — it was the gate in front of
+  them that sent those four down the Python path
 - the Python path is not dead code and not constant-time: it serves every
   other curve, other hash functions, and caller-supplied nonces, and the
   test suite validates it *against* the bindings, which are the authority

@@ -151,6 +151,35 @@ edit.
 
 ### Security
 
+- **A BIP340 message of any size is signed and verified by libsecp256k1**,
+  where every size but 32 had been taking the Python arithmetic that
+  `SECURITY.md` publishes as not constant time. The size was one of three
+  conditions on the dispatch in `ecc.ssa.sign_` and `ecc.ssa.verify_`, and
+  the comment beside it said why: the bindings answer "the message hash
+  must be 32 bytes", measured on 0.7.1rc1. That is `ssa.sign`. Beside it
+  `ssa.sign_custom` takes BIP340's message of any size — it has been in
+  the bindings since 0.7.1, which is the floor `pyproject.toml` already
+  declares — and `ssa.verify` had never had the restriction at all: what
+  sent issue 169's four arbitrary-size vectors down the Python path was
+  the gate in front of the call, not the call. Both gates are gone, and
+  the secret-bearing half of the pair is what this buys: signing a message
+  of 0, 1, 17 or 100 octets no longer multiplies in Python.
+  No answer changes, which is the whole of the risk and was measured
+  rather than argued: over BIP340's own nineteen vectors the two
+  implementations produce the same signature octet for octet and the same
+  verdict, the four arbitrary-size ones included, and over a sweep of 47
+  message lengths from 0 to 4096 with three random keys each, every
+  signature agrees and each verifies under the other implementation.
+  `sign_custom` serves the 32-byte case too, rather than a branch keeping
+  `sign` for it: the two answer the same octets there, and the extraparams
+  struct costs 15.66 us against 15.43 (best of nine, 3000 calls each) of a
+  signature that is 15. A sign-to-contract commitment stays with the
+  Python path, its nonce being tweaked rather than derived.
+  `test_a_message_of_any_size_reaches_the_bindings` records the two calls
+  and asserts the record, because nothing in an answer says which
+  implementation produced it — which is how the gate went unnoticed in the
+  first place; put back, it fails while every assertion about the
+  signatures still passes.
 - **`btclib.fetch` follows no redirect, so an rpc credential reaches one
   host** (issue #358). `urlopen` uses urllib's default opener, whose
   `HTTPRedirectHandler` answered a 30x before this module saw a response,

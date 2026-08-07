@@ -381,18 +381,27 @@ def sign_(
     if commit_hash is not None:
         aux = commit_entropy_(aux + bytes_from_octets(commit_hash), _S2C_DATA_TAG, hf)
 
-    # len(msg) == 32 as well as the curve and the hash function: BIP340
-    # takes a message of any size, but the bindings require 32 bytes --
-    # "the message hash must be 32 bytes", measured on 0.7.1rc1 -- so
-    # anything else takes the Python path, which is the pattern already in
-    # place for a caller-supplied nonce and for every other curve.
-    # A commitment joins them: it tweaks the nonce, and the nonce is the
-    # bindings' own to derive
-    if len(msg) == 32 and _libsecp256k1_applicable(ec, hf) and commit_hash is None:
+    # the curve and the hash function decide this, and the size of the
+    # message does not. `libsecp256k1_ssa.sign` is the 32-byte entry point
+    # the length used to gate on -- "the message hash must be 32 bytes",
+    # measured on 0.7.1rc1 -- but `sign_custom` beside it takes BIP340's
+    # message of any size, so every length now reaches the constant-time C
+    # instead of the Python arithmetic SECURITY.md publishes as not being
+    # constant time.
+    #
+    # One call rather than a branch on the length: for a 32-byte message
+    # the two answer the same signature octet for octet, and the
+    # extraparams struct sign_custom fills costs 15.66 us against 15.43
+    # (best of nine, 3000 calls each) -- not a second code path's worth of
+    # a signature that is 15.
+    #
+    # A commitment stays with the Python path: it tweaks the nonce, and
+    # the nonce is the bindings' own to derive
+    if _libsecp256k1_applicable(ec, hf) and commit_hash is None:
         # the bindings take a scalar, not the many representations of a
         # private key btclib accepts
         q = int_from_prv_key(prv_key, ec)
-        return Sig.parse(libsecp256k1_ssa.sign(msg, q, aux))
+        return Sig.parse(libsecp256k1_ssa.sign_custom(msg, q, aux))
 
     # k is the nonce: an integer in the range 1..n-1.
     k, x_K, q, x_Q = bip340_nonce_(msg, prv_key, aux, ec, hf)
@@ -482,12 +491,12 @@ def _assert_as_valid_(c: int, QJ: JacPoint, r: int, s: int, ec: Curve) -> None:
     # Let K = sG - eQ.
     # in Jacobian coordinates, and through the dispatching double_mult of
     # curves.curve rather than the Python arithmetic under it: what
-    # reaches here is the verification the bindings' own declined -- a
-    # message that is not 32 bytes above all, which is issue 169 and four
-    # of BIP340's own vectors -- and on secp256k1 the multiplication is
-    # still theirs, 28 us against 1.02 ms. This whole verification is then
-    # 38 us against 1.17 ms, the two lifts around it -- the r of the
-    # signature and the x-only key -- being theirs as well
+    # reaches here is the verification the bindings' own declined, which
+    # is another curve or another hash function -- the size of the message
+    # was the third of those and is not any more -- and on secp256k1 the
+    # multiplication is still theirs, 28 us against 1.02 ms. This whole
+    # verification is then 38 us against 1.17 ms, the two lifts around it
+    # -- the r of the signature and the x-only key -- being theirs as well
     KJ = _jac_double_mult(ec.n - c, QJ, s, ec.GJ, ec)
 
     # The following check is prescribed by BIP340 but it is useless:
@@ -555,12 +564,12 @@ def assert_as_valid_(
     x_Q, y_Q = point_from_bip340pub_key(Q, sig.ec)
     msg = bytes_from_octets(msg)
 
-    # len(msg) == 32 as well as the curve and the hash function: see sign_.
-    # Reporting a message the bindings cannot take as a *failed
-    # verification* would answer False to four of BIP340's own TRUE
-    # vectors (issue 169), so the length decides which implementation
-    # runs, not whether the answer is no
-    if len(msg) == 32 and _libsecp256k1_applicable(sig.ec, hf):
+    # the curve and the hash function, and not the size of the message:
+    # see sign_. `libsecp256k1_ssa.verify` has always taken BIP340's
+    # message of any size -- what sent the four arbitrary-size vectors of
+    # issue 169 down the Python path was the 32-byte gate in front of it,
+    # never the call itself, and they are verified here now
+    if _libsecp256k1_applicable(sig.ec, hf):
         pubkey_bytes = x_Q.to_bytes(32, "big")
         # check_validity=False, because assert_valid has just run above --
         # on the Sig handed in, or inside the Sig.parse that made one. What

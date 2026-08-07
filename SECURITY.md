@@ -70,8 +70,8 @@ used to teach and to prototype as much as to build:
     zero scalar and the point at infinity excepted — libsecp256k1 has no
     scalar for the one and no public key for the other; `dsa.sign` for
     secp256k1 with sha256, the lower-s form, no caller-imposed nonce and
-    no commitment; `ssa.sign` for secp256k1 with sha256, a 32-byte
-    message and no commitment; `taproot.output_prvkey`,
+    no commitment; `ssa.sign` for secp256k1 with sha256, a message of
+    any size and no commitment; `taproot.output_prvkey`,
     `dh.diffie_hellman` and `commit_nonce.commit_nonce_` for secp256k1,
     the tweaking of a key, the shared point of a key agreement and the
     tweaking of a sign-to-contract nonce being three other places a
@@ -89,8 +89,8 @@ used to teach and to prototype as much as to build:
     Python path — which the test suite reaches by switching the dispatch
     off, and which no caller can.
     Anything else — another
-    curve, another hash function, another message size, a nonce of your
-    own — runs the Python implementation, whose scalar multiplication is
+    curve, another hash function, a nonce of your own — runs the Python
+    implementation, whose scalar multiplication is
     a double-and-add in Jacobian coordinates: it is validated against the
     bindings, which are the authority on the answer, but it is not
     constant-time. It tries, which is not the same claim. The Jacobian
