@@ -5,8 +5,8 @@ name: published
 # installs -- which no pull request asks, checking out the tree it is
 # testing being the whole point of one. No checkout here either, on
 # purpose: nothing from this repository takes part, which is what
-# guarantees the checks below resolve to what pip installed and not to
-# a source tree.
+# guarantees the checks below resolve to what was installed from the
+# index and not to a source tree.
 #
 # `import btclib` runs __init__.py alone, and 25 files under
 # btclib/*/_data/ -- the twelve BIP39 wordlists among them -- are opened
@@ -82,14 +82,42 @@ jobs:
         python: ["3.10", "3.14", "3.14t"]
     timeout-minutes: 20
     steps:
-      - name: Set up Python ${{ matrix.python }}
-        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+      # uv rather than actions/setup-python, which is what every other
+      # workflow here already uses and what this one has to use for a
+      # reason of its own: setup-python installs from the runner tool
+      # cache, whose manifest has no Windows arm64 build below 3.11 --
+      # measured, it starts at 3.11 -- because CPython never produced
+      # one. So the windows-11-arm cell at 3.10 died asking for an
+      # interpreter that does not exist, "The version '3.10' with
+      # architecture 'arm64' was not found", having never reached the
+      # install this workflow exists to check. uv fetches
+      # python-build-standalone and takes the emulated x86-64 build
+      # there, which is what test.yml's own windows-11-arm cells have
+      # been doing all along.
+      #
+      # Nothing about btclib is arm64-specific here, and the gap is not
+      # one a user falls into: 3.10 on a Windows arm64 machine *is* the
+      # emulated x86-64 build, there being no other, so the resolver
+      # takes btclib_libsecp256k1's cp310-win_amd64 wheel and it runs
+      # under the same emulation the interpreter does. The bindings'
+      # own wheel matrix says the same thing from the other side --
+      # win_arm64 from cp311 up, cp310 win_amd64 alone -- because a
+      # wheel cannot be built for an interpreter that was never built.
+      # Measured on the first run this workflow ever had: seventeen cells
+      # green, that one red, and the release it was checking was sound
+      - name: Setup uv with Python ${{ matrix.python }}
+        uses: astral-sh/setup-uv@c771a70e6277c0a99b617c7a806ffedaca235ff9 # v9.0.0
         with:
           python-version: ${{ matrix.python }}
+      # --verbose so the log names the btclib_libsecp256k1 wheel this cell
+      # resolved to, which is the whole of what varies across the matrix.
+      # A venv of its own, and every step below runs --no-project against
+      # it: there is no checkout, so nothing of this repository is on the
+      # path either way, and that is the property the header claims
       - name: Install btclib from PyPI
         run: |
-          python -m pip install -U pip
-          python -m pip install --verbose btclib
+          uv venv --python ${{ matrix.python }}
+          uv pip install --verbose btclib
       # BIP340 vector 0 for the ecc surface, exactly what dist-py and
       # release.yml already assert; a signature round trip is the one
       # thing an import cannot get wrong by itself, and a bindings release
@@ -97,7 +125,7 @@ jobs:
       - name: Verify a signature, round tripped
         shell: bash
         run: |
-          python -c "import btclib; \
+          uv run --no-project python -c "import btclib; \
             from btclib.ecc import dsa; \
             from btclib.to_pub_key import pub_keyinfo_from_prv_key; \
             print(btclib.__version__); \
@@ -110,7 +138,8 @@ jobs:
       - name: Verify a BIP39 seed, derived from shipped word lists
         shell: bash
         run: |
-          python -c "from btclib.mnemonic.bip39 import seed_from_mnemonic; \
+          uv run --no-project python -c \
+            "from btclib.mnemonic.bip39 import seed_from_mnemonic; \
             m = 'abandon abandon abandon abandon abandon abandon abandon ' \
                 'abandon abandon abandon abandon about'; \
             seed = seed_from_mnemonic(m, 'TREZOR').hex(); \
