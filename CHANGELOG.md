@@ -2786,6 +2786,36 @@ edit.
 
 ### The public API and the module layout
 
+- **an integration suite, opt-in and off by default** (issue #381), in
+  `tests/integration/`. A unit test can say a signature verifies; only a
+  node can say it relays the transaction that carries it — so the regtest
+  flow runs the whole pure half against `bitcoind` and lets Core decide:
+  `account_descriptors` builds the pair, `core_import` hands it to
+  `importdescriptors`, Core derives the same addresses and pays one,
+  btclib builds the psbt and updates both halves,
+  `psbt_signer.request_signatures` signs it through the contract, and
+  `sendrawtransaction` accepts the result or the test fails. A second
+  test reads the output updater's fields back through `decodepsbt`, which
+  is the interoperability half of that work package.
+
+  Off unless `BTCLIB_INTEGRATION` is set, and skipped with the reason
+  named where the program is missing: these start processes, listen on a
+  socket and write to disk, which is not what `uv run pytest` should do
+  to somebody who asked for the unit suite. The node is the session's
+  own — a data directory under `tmp_path`, an ephemeral port, a cookie —
+  so nothing reaches a node the maintainer is running. `tests/README.md`
+  carries the commands, and `pyproject.toml` leaves the package out of
+  the coverage ratchet: a body that skips itself would be an uncovered
+  line at every commit rather than a defect.
+
+  The HWI tests take a device rather than shipping one. HWI's own suite
+  starts a simulator per device family, each with its binary, image and
+  udev rules, and vendoring that is the surface #381 rules out; so
+  `BTCLIB_HWI` names the executable — `hwi --emulators` reaches an
+  emulator — and `BTCLIB_HWI_SIGN` is the second switch for the one test
+  that needs a person to press a button. Nothing there is destructive:
+  enumerate, an xpub, an address on a screen, a signature.
+
 - **`btclib.hwi` is new: a `PsbtSigner` over Bitcoin Core HWI's JSON
   command line** (issue #381), which is the first integration that issue
   calls for and the one that needs no vendor driver in btclib. Five

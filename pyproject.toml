@@ -242,6 +242,13 @@ addopts = "-ra --durations=8 -n auto --dist worksteal --strict-config --strict-m
 # a test that was expected to fail and passed is a fixed bug still marked
 # as broken: strict turns it red instead of reporting xpass
 xfail_strict = true
+# --strict-markers is on, so a marker is declared here or it is a typo.
+# `integration` is what needs something this repository does not ship: a
+# bitcoind to talk to, an HWI to run. Those tests skip themselves without
+# BTCLIB_INTEGRATION in the environment, so the marker is for selecting
+# them (`-m integration`) and for excluding them from a run that has the
+# variable set for other reasons
+markers = ["integration: needs an external program, opt-in via BTCLIB_INTEGRATION"]
 # a deprecation warning is the early form of a break, emitted years before
 # the removal that will fail the suite: on a 3.10 to 3.14 spread, plus
 # pypy, there is time to act on it only if it is not silent.
@@ -385,7 +392,13 @@ extend-glob = ["electrum_test.py"]
 extend-ignore-re = ['\w*[a-z][A-Z]\w*']
 
 [tool.coverage.run]
-omit = ["*/site-packages/*"]
+# tests/integration is omitted because the ratchet measures what an
+# ordinary run executes, and those tests skip themselves without
+# BTCLIB_INTEGRATION: their bodies would be uncovered lines of tests/ at
+# every commit, which is the ratchet reporting the switch rather than a
+# defect. What covers them is the opt-in run, and the module docstrings
+# carry the command
+omit = ["*/site-packages/*", "tests/integration/*"]
 
 [tool.coverage.report]
 show_missing = true
