@@ -247,6 +247,12 @@ edit.
   either tracked or produced by the current tooling — a rule matching
   nothing reads as still enforcing something, the same shape CLAUDE.md and
   `check-useless-excludes` already treat as worth removing elsewhere.
+- **The README's Conversations row loses its Twitter badge, keeping
+  Slack.** bitcoin-core-rpc and btclib_libsecp256k1 are dropping theirs
+  too, in the same pass that brings their own badge sets and order in
+  line with this one's -- three READMEs reading the same way is the
+  point, and a platform this project does not otherwise mention was the
+  one thing among them not worth carrying into all three.
 
 ### Security
 
