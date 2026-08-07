@@ -193,7 +193,7 @@ def _assert_valid_version(version: int) -> None:
     # version btclib does not know": a psbt claiming version 3 is not a
     # psbt of a later BIP, no such BIP being written -- version 1 was
     # skipped and nothing has taken any number since
-    if version not in (PSBT_V0, PSBT_V2):
+    if version not in {PSBT_V0, PSBT_V2}:
         raise BTClibValueError(f"invalid psbt version: {version}")
 
 
@@ -523,7 +523,7 @@ def _signable_payload(psbt_in: PsbtIn) -> bytes:
         script_type, payload = type_and_payload(witness_utxo.script_pub_key.script)
         if script_type == "p2sh":
             script_type, _ = type_and_payload(psbt_in.redeem_script)
-        if script_type not in ("p2wpkh", "p2wsh", "p2tr"):
+        if script_type not in {"p2wpkh", "p2wsh", "p2tr"}:
             raise BTClibValueError("script type not in ('p2wpkh', 'p2wsh', 'p2tr')")
         return payload
 

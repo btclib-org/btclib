@@ -110,17 +110,17 @@ def test_from_prv_key() -> None:
         assert q == int_from_prv_key(prv_key4)
         with pytest.raises(BTClibValueError):
             int_from_prv_key(prv_key4, secp256r1)
-        assert prv_keyinfo_from_prv_key(prv_key4) in (m_c, m_unc)
-        assert prv_keyinfo_from_prv_key(prv_key4, "mainnet") in (m_c, m_unc)
+        assert prv_keyinfo_from_prv_key(prv_key4) in {m_c, m_unc}
+        assert prv_keyinfo_from_prv_key(prv_key4, "mainnet") in {m_c, m_unc}
         with pytest.raises(BTClibValueError):
             prv_keyinfo_from_prv_key(prv_key4, "testnet")
 
     for prv_key5 in [q, *net_unaware_prv_keys]:
         assert q == int_from_prv_key(prv_key5)
         assert q == int_from_prv_key(prv_key5, secp256r1)
-        assert prv_keyinfo_from_prv_key(prv_key5) in (m_c, m_unc)
-        assert prv_keyinfo_from_prv_key(prv_key5, "mainnet") in (m_c, m_unc)
-        assert prv_keyinfo_from_prv_key(prv_key5, "testnet") in (t_c, t_unc)
+        assert prv_keyinfo_from_prv_key(prv_key5) in {m_c, m_unc}
+        assert prv_keyinfo_from_prv_key(prv_key5, "mainnet") in {m_c, m_unc}
+        assert prv_keyinfo_from_prv_key(prv_key5, "testnet") in {t_c, t_unc}
 
     for invalid_prv_key in [q0, qn, xprv0_data, xprvn_data, *invalid_prv_keys]:
         with pytest.raises(BTClibValueError):

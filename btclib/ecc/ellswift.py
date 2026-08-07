@@ -329,7 +329,7 @@ def xdh(
     """
     ell_a = _ell_from_octets(ell_a, ec)
     ell_b = _ell_from_octets(ell_b, ec)
-    if party not in (0, 1):
+    if party not in {0, 1}:
         err_msg = f"invalid party: {party}, not 0 (A) or 1 (B)"
         raise BTClibValueError(err_msg)
     q = int_from_prv_key(prv_key, ec)

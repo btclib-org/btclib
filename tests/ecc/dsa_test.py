@@ -103,7 +103,7 @@ def test_signature() -> None:
     r = 0x934B1EA10A4B3C1757E2B0C017D0B6143CE3C9A7E6A4A49860D7A6AB210EE3D8
     s = 0x2442CE9D2B916064108014783E923EC36B49743E2FFA1C4496F01A512AAFD9E5
     assert sig.r == r
-    assert sig.s in (s, sig.ec.n - s)
+    assert sig.s in {s, sig.ec.n - s}
 
     # malleability
     malleated_sig = dsa.Sig(sig.r, sig.ec.n - sig.s)
@@ -364,8 +364,8 @@ def test_crack_prv_key() -> None:
     sig2 = dsa.Sig(sig2.r, ec.n - sig2.s)
     qc2, kc2 = dsa.crack_prv_key(msg1, sig1, msg2, sig2.serialize())
 
-    assert (q == q_cracked and k in (k_cracked, ec.n - k_cracked)) or (
-        q == qc2 and k in (kc2, ec.n - kc2)
+    assert (q == q_cracked and k in {k_cracked, ec.n - k_cracked}) or (
+        q == qc2 and k in {kc2, ec.n - kc2}
     )
 
     with pytest.raises(BTClibValueError, match="not the same r in signatures"):

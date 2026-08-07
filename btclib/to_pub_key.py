@@ -136,7 +136,7 @@ def _pub_keyinfo_from_xpub(
     else:
         xpub = BIP32KeyData.b58decode(xpub)
 
-    if xpub.key[0] not in (2, 3):
+    if xpub.key[0] not in {2, 3}:
         # this branch is reached with an xprv: never echo it,
         # the prefix already says what is wrong
         err_msg = f"not a public key: prefix 0x{xpub.key[:1].hex()}"

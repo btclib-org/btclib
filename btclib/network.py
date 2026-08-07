@@ -267,7 +267,7 @@ class Network:
         # NetworkType is a Literal, which is a mypy fact and not a runtime
         # one: from_dict takes whatever the json says, so this is the only
         # place a third network type can be refused
-        if self.network_type not in ("main", "test"):
+        if self.network_type not in {"main", "test"}:
             err_msg = f"invalid network type: {self.network_type!r}"
             raise BTClibValueError(err_msg)
 

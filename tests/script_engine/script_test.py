@@ -989,7 +989,7 @@ def _one_op_code_script(op_code: int) -> bytes:
     """Build that op code alone, a push carrying the data it declares."""
     if 0 < op_code < 0x4C:  # a push of its own length
         return bytes([op_code]) + b"\x2a" * op_code
-    if op_code in (0x4C, 0x4D, 0x4E):  # OP_PUSHDATA1, OP_PUSHDATA2, OP_PUSHDATA4
+    if op_code in {0x4C, 0x4D, 0x4E}:  # OP_PUSHDATA1, OP_PUSHDATA2, OP_PUSHDATA4
         return (
             bytes([op_code]) + (1).to_bytes(2 ** (op_code - 0x4C), "little") + b"\x2a"
         )

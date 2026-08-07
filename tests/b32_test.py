@@ -372,7 +372,7 @@ def test_a_changed_character_is_not_an_address(
     wit_ver: int, wit_prg: bytes, position: int, value: int
 ) -> None:
     """A typo in an address is caught, not paid to a stranger."""
-    if wit_ver == 0 and len(wit_prg) not in (20, 32):
+    if wit_ver == 0 and len(wit_prg) not in {20, 32}:
         return
     address = b32.address_from_witness(wit_ver, wit_prg)
     # the hrp is left alone: changing it makes a different address

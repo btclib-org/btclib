@@ -167,8 +167,8 @@ def _check_net_aware(api: Conversions, keys: Sequence[Key]) -> None:
     point_from, keyinfo_from = api
     for key in keys:
         _check_point(point_from, key)
-        assert keyinfo_from(key) in (m_c, m_unc)
-        assert keyinfo_from(key, "mainnet") in (m_c, m_unc)
+        assert keyinfo_from(key) in {m_c, m_unc}
+        assert keyinfo_from(key, "mainnet") in {m_c, m_unc}
         with pytest.raises(BTClibValueError):
             keyinfo_from(key, "testnet")
 
@@ -178,9 +178,9 @@ def _check_net_unaware(api: Conversions, keys: Sequence[Key]) -> None:
     point_from, keyinfo_from = api
     for key in keys:
         _check_point(point_from, key)
-        assert keyinfo_from(key) in (m_c, m_unc)
-        assert keyinfo_from(key, "mainnet") in (m_c, m_unc)
-        assert keyinfo_from(key, "testnet") in (t_c, t_unc)
+        assert keyinfo_from(key) in {m_c, m_unc}
+        assert keyinfo_from(key, "mainnet") in {m_c, m_unc}
+        assert keyinfo_from(key, "testnet") in {t_c, t_unc}
 
 
 def _check_refused(api: Conversions, keys: Sequence[Key]) -> None:

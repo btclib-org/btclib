@@ -274,10 +274,10 @@ def _is_old_mnemonic(mnemonic: Mnemonic) -> bool:
     # answer wherever the answer is used, the count there being 12 or 24
     uses_old_words = all(word in _old_word_indexes() for word in words)
     try:
-        is_hex = len(bytes.fromhex(mnemonic)) in (16, 32)
+        is_hex = len(bytes.fromhex(mnemonic)) in {16, 32}
     except ValueError:
         is_hex = False
-    return is_hex or (uses_old_words and len(words) in (12, 24))
+    return is_hex or (uses_old_words and len(words) in {12, 24})
 
 
 def _seed_version(mnemonic: Mnemonic) -> str:
@@ -305,7 +305,7 @@ def _is_bip39_mnemonic(mnemonic: Mnemonic, lang: str) -> bool:
     # electrum answers "checksum invalid" rather than raising for a length
     # outside this set, so the length is a question of its own and not
     # something to read out of an exception
-    if len(words) not in (12, 15, 18, 21, 24):
+    if len(words) not in {12, 15, 18, 21, 24}:
         return False
     try:
         indexes = indexes_from_mnemonic(mnemonic, lang, ELECTRUM_WORDLISTS)

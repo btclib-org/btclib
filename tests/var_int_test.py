@@ -184,7 +184,7 @@ def test_round_trip(i: int) -> None:
 def test_round_trip_past_max_size(i: int) -> None:
     """The cap is a range check on parse, not a limit of the encoding."""
     encoded = var_int.serialize(i)
-    assert len(encoded) in (1, 3, 5, 9)
+    assert len(encoded) in {1, 3, 5, 9}
     assert var_int.parse(encoded, max_size=0xFFFFFFFFFFFFFFFF) == i
 
 

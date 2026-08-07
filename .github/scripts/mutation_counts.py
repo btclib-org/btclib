@@ -130,7 +130,7 @@ def report(by_outcome: dict[str, int], enumerated: int) -> tuple[str, bool]:
     failed = {
         outcome: count
         for outcome, count in sorted(by_outcome.items())
-        if outcome not in (_KILLED, _SURVIVED, _SKIPPED)
+        if outcome not in {_KILLED, _SURVIVED, _SKIPPED}
     }
 
     line = f"killed {killed}, survived {survived}, skipped {skipped}"

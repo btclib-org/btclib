@@ -40,22 +40,22 @@ def test_operators() -> None:
         assert i == b[0]
     for name, code in BYTE_FROM_OP_CODE_NAME.items():
         # skip duplicated
-        if name in ("OP_FALSE", "OP_TRUE", "OP_NOP2", "OP_NOP3"):
+        if name in {"OP_FALSE", "OP_TRUE", "OP_NOP2", "OP_NOP3"}:
             continue
         i = code[0]
         assert name == OP_CODE_NAME_FROM_INT[i]
     for i in range(76, 186):
         # skip disabled 'splice' opcodes
-        if i in (126, 127, 128, 129):
+        if i in {126, 127, 128, 129}:
             continue
         # skip disabled 'bitwise logic' opcodes
-        if i in (131, 132, 133, 134):
+        if i in {131, 132, 133, 134}:
             continue
         # skip disabled 'splice' opcodes
-        if i in (141, 142, 149, 150, 151, 152, 152, 153):
+        if i in {141, 142, 149, 150, 151, 152, 153}:
             continue
         # skip 'reserved' opcodes
-        if i in (80, 98, 101, 102, 137, 138):
+        if i in {80, 98, 101, 102, 137, 138}:
             continue
         assert i in OP_CODE_NAME_FROM_INT
 

@@ -115,7 +115,7 @@ def _assert_valid_key(version: bytes, key: bytes) -> None:
             # never echo the scalar: it is (attempted) key material
             raise BTClibValueError("invalid private key not in 1..n-1")
     elif version in XPUB_VERSIONS_ALL:
-        if key[0] not in (2, 3):
+        if key[0] not in {2, 3}:
             err_msg = "invalid public key prefix not in (0x02, 0x03): "
             err_msg += f"0x{key[:1].hex()}"
             raise BTClibValueError(err_msg)
@@ -702,7 +702,7 @@ def _derive_from_account(
     if branch > max_index:
         err_msg = f"invalid branch number: {branch} is higher than {max_index}."
         raise BTClibValueError(err_msg)
-    if branches_0_1_only and branch not in (0, 1):
+    if branches_0_1_only and branch not in {0, 1}:
         raise BTClibValueError(f"invalid branch number: {branch} not in (0, 1)")
 
     if address_index >= _HARDENED_OFFSET:
@@ -746,7 +746,7 @@ def crack_prv_key(parent_xpub: BIP32Key, child_xprv: BIP32Key) -> str:
     else:
         p = BIP32KeyData.b58decode(parent_xpub)
 
-    if p.key[0] not in (2, 3):
+    if p.key[0] not in {2, 3}:
         raise BTClibValueError(_err_msg("parent", "not a public", p))
     if isinstance(child_xprv, BIP32KeyData):
         c = child_xprv

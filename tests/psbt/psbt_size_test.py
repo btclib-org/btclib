@@ -122,7 +122,7 @@ def psbt_input_from_spend(tx_in: TxIn) -> tuple[PsbtIn, bytes] | None:  # noqa: 
     redeem_script = script_sig_pushes[-1] if script_sig_pushes else b""
 
     if stack:
-        if len(stack) == 2 and len(stack[1]) in (33, 65):
+        if len(stack) == 2 and len(stack[1]) in {33, 65}:
             program = ScriptPubKey.p2wpkh(stack[1]).script
             witness_script = b""
         elif is_p2ms(stack[-1]):
@@ -148,7 +148,7 @@ def psbt_input_from_spend(tx_in: TxIn) -> tuple[PsbtIn, bytes] | None:  # noqa: 
         )
         return psbt_in, script_pub_key
 
-    if len(script_sig_pushes) == 2 and len(script_sig_pushes[1]) in (33, 65):
+    if len(script_sig_pushes) == 2 and len(script_sig_pushes[1]) in {33, 65}:
         pub_key = script_sig_pushes[1]
         psbt_in = PsbtIn(hd_key_paths={pub_key: DUMMY_KEY_ORIGIN}, check_validity=False)
         return psbt_in, ScriptPubKey.p2pkh(pub_key).script

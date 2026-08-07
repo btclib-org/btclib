@@ -775,7 +775,7 @@ def test_threshold() -> None:
 
     # ADDITIONAL PHASE: reconstruction of the private key ###
     secret = (omega1 * alpha1 + omega3 * alpha3) % ec.n
-    assert (q1 + q2 + q3) % ec.n in (secret, ec.n - secret)
+    assert (q1 + q2 + q3) % ec.n in {secret, ec.n - secret}
 
 
 def test_libsecp256k1() -> None:
@@ -820,7 +820,7 @@ def test_libsecp256k1_x_only_conversion() -> None:
     Q = mult(q)
     assert Q[1] % 2  # y is odd, so the parity byte is the one dropped
     for pub_key in (bytes_from_point(Q), bytes_from_point(Q, compressed=False)):
-        assert len(pub_key) in (33, 65)
+        assert len(pub_key) in {33, 65}
         assert ssa.verify(msg, pub_key, sig)
 
 

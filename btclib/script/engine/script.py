@@ -126,13 +126,13 @@ def check_pub_key(pub_key: bytes, segwit: bool, flags: ScriptFlag) -> bool:
     """
     if not pub_key:
         return False
-    if pub_key[0] in [4, 6, 7]:
-        if pub_key[0] in [6, 7] and ScriptFlag.STRICTENC in flags:
+    if pub_key[0] in {4, 6, 7}:
+        if pub_key[0] in {6, 7} and ScriptFlag.STRICTENC in flags:
             raise BTClibValueError(f"hybrid public key prefix: {hex(pub_key[0])}")
         if segwit and ScriptFlag.WITNESS_PUBKEYTYPE in flags:
             raise BTClibValueError("uncompressed public key in a segwit script")
         return len(pub_key) == 65
-    return len(pub_key) == 33 if pub_key[0] in [2, 3] else False
+    return len(pub_key) == 33 if pub_key[0] in {2, 3} else False
 
 
 def find_and_delete(script: bytes, target: bytes) -> tuple[bytes, int]:
