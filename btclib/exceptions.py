@@ -52,6 +52,7 @@ __all__ = [
     "NotAPrvKeyError",
     "RpcError",
     "ScriptError",
+    "SignerError",
 ]
 
 
@@ -144,6 +145,39 @@ class RpcError(FetchError):
 
     def __str__(self) -> str:
         return f"{self.args[0]} (rpc error code {self.code})"
+
+
+class SignerError(BTClibRuntimeError):
+    """An external signer failed, and `code` is the number it gave.
+
+    What `btclib.psbt_signer`'s contract fails with, and what
+    `btclib.hwi` raises around HWI's structured errors: the JSON CLI
+    answers `{"error": <msg>, "code": <n>}`, and the number is the part a
+    caller acts on. -14 is ACTION_CANCELED, which is somebody pressing the
+    button that says no and is not worth a retry; -3 is DEVICE_CONN_ERROR,
+    which is a cable and is worth one; -9 is UNAVAILABLE_ACTION, which
+    says this model will never do it. Matching on the text of a message is
+    what a field spares a caller writing that policy.
+
+    A RuntimeError for the reason `FetchError` is one: nothing the caller
+    passed is wrong. The device is unplugged, locked, busy, or its owner
+    said no -- retrying can work, and correcting an argument cannot. The
+    numbers HWI reserves for a bad argument (-2, -7) arrive here too, that
+    being the one thing the code says and the class cannot.
+
+    `code` is None where the failure produced no number: a backend that
+    could not be started, an answer that was not JSON, an output past the
+    limit. Those are failures of the exchange rather than of the device.
+    """
+
+    def __init__(self, message: str, code: int | None = None) -> None:
+        self.code = code
+        super().__init__(message, code)
+
+    def __str__(self) -> str:
+        if self.code is None:
+            return str(self.args[0])
+        return f"{self.args[0]} (signer error code {self.code})"
 
 
 class ScriptError(BTClibValueError):

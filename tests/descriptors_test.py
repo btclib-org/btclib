@@ -60,6 +60,7 @@ from btclib.descriptors import (
     __descsum_expand,
     account_descriptors,
     add_checksum,
+    at_index,
     checksum,
     from_address,
     multipath_descriptors,
@@ -2620,6 +2621,54 @@ def test_a_rawtr_without_an_origin_writes_nothing_at_all() -> None:
     descriptor = parse(f"rawtr({XONLY_A})")
     psbt = descriptor.update_psbt_input(psbt_spending(descriptor), 0)
     assert psbt.inputs[0] == psbt_spending(descriptor).inputs[0]
+
+
+def test_a_descriptor_at_one_index_names_one_script() -> None:
+    """The wildcard written out, which is what a reader of one script needs.
+
+    `.../0/*` at index 5 is `.../0/5`: the same script the ranged
+    descriptor describes at that index, said as a descriptor of its own —
+    which is what an external signer displaying an address has to be given,
+    and what Bitcoin Core's `deriveaddresses` answers the address of.
+    """
+    descriptor = parse(f"wpkh([d34db33f/84h/0h/0h]{XPUB}/0/*)")
+    for index in (0, 5):
+        fixed = at_index(descriptor, index)
+        assert not fixed.is_ranged
+        assert str(fixed).endswith(f"/0/{index})")
+        assert fixed.script_pub_key() == descriptor.script_pub_key(index)
+        assert fixed.key_expressions[0].origin == descriptor.key_expressions[0].origin
+        # and it is a descriptor like any other: written back and read again
+        assert parse(str(fixed)).script_pub_key() == fixed.script_pub_key()
+
+    # a descriptor with no wildcard has one index, and comes back as it was
+    unranged = parse(f"wpkh({KEY_A})")
+    assert str(at_index(unranged)) == str(unranged)
+    with pytest.raises(BTClibValueError, match="not a ranged descriptor"):
+        at_index(unranged, 1)
+    with pytest.raises(BTClibValueError, match="invalid derivation index"):
+        at_index(descriptor, -1)
+
+
+def test_the_index_of_a_musig_is_written_where_the_range_is() -> None:
+    """Either side of the aggregation, and BIP390 forbids both at once.
+
+    So the walk reaches the participants and the aggregate alike, and what
+    comes back has no wildcard on either side.
+    """
+    aggregate = parse(f"tr(musig({MUSIG_XPUB_A},{MUSIG_XPUB_B})/0/*)")
+    participants = parse(f"tr(musig({MUSIG_XPUB_A}/*,{MUSIG_XPUB_B}/*))")
+    for descriptor in (aggregate, participants):
+        fixed = at_index(descriptor, 3)
+        assert not fixed.is_ranged
+        assert "*" not in str(fixed)
+        assert fixed.script_pub_key() == descriptor.script_pub_key(3)
+
+    # a tree leaf is walked too, being where the other keys of a tr() are
+    tree = parse(f"tr({XONLY_A},{{pk({XPUB}/0/*),multi_a(1,{XPUB}/1/*)}})")
+    fixed = at_index(tree, 2)
+    assert not fixed.is_ranged
+    assert fixed.script_pub_key() == tree.script_pub_key(2)
 
 
 def test_the_account_descriptor_pair() -> None:

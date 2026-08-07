@@ -92,6 +92,7 @@ __all__ = [
     "fee",
     "fetch",
     "hashes",
+    "hwi",
     "keystore",
     "mnemonic",
     "network",

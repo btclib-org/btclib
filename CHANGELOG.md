@@ -2786,6 +2786,46 @@ edit.
 
 ### The public API and the module layout
 
+- **`btclib.hwi` is new: a `PsbtSigner` over Bitcoin Core HWI's JSON
+  command line** (issue #381), which is the first integration that issue
+  calls for and the one that needs no vendor driver in btclib. Five
+  commands — `enumerate`, `getxpub`, `signtx`, `signmessage`,
+  `displayaddress` — become the contract, and `HwiSigner` answers all
+  three protocols.
+
+  **Nothing is imported from hwilib and nothing has to be installed.** HWI
+  declares `hidapi`, `libusb1`, `cbor2`, `pyserial`, `noiseprotocol`,
+  `protobuf` and vendor libraries, and a narrower Python range than
+  btclib's: a mandatory dependency on that is what the issue rules out. An
+  executable named by the caller is the whole of the runtime requirement,
+  so the import costs `json` and `subprocess`, and the tests run against a
+  stand-in with no HWI present at all.
+
+  A device is named by its fingerprint, and selection is not optional:
+  HWI's `--device-type` connects to "the first device of this type
+  enumerated", so with two of one vendor which one signs would be a
+  question of enumeration order. Passing none enumerates and refuses
+  unless exactly one device is usable, naming the fingerprints where there
+  are two and what was wrong with each where there is none; every command
+  then carries `--fingerprint`. The subprocess is bounded by a timeout —
+  on a person pressing a button, so two minutes by default — and by a
+  limit on the answer it accepts.
+
+  `exceptions.SignerError` is new with it, and carries HWI's own error
+  code: -14 is somebody pressing the button that says no, -3 is a cable,
+  -9 is a model that will never do it. A caller writing a retry policy
+  needs the number, and matching on the text of a message is what a field
+  spares them; it is None where the failure produced no number, which is a
+  failure of the exchange rather than of the device.
+
+  `descriptors.at_index` is new beside it: the descriptor of one index,
+  with the wildcard written into the path — `.../0/*` at 5 becomes
+  `.../0/5`. HWI derives a ranged descriptor at index 0 whatever was
+  meant, so a caller asking to display index 5 would be shown index 0 and
+  told it was 5; what goes out is the descriptor of the one script. It is
+  Bitcoin Core's `deriveaddresses` with the descriptor as its answer
+  rather than the address, and `normalized` now shares its walker.
+
 - **`psbt_signer.SoftwareSigner` is the reference implementation** (issue
   #381): one extended key, in this process, answering all three protocols.
   What it is for is a signer whose answers a test can predict, so every

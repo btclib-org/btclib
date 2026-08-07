@@ -111,6 +111,13 @@ btclib.hashes module
    :members:
    :show-inheritance:
 
+btclib.hwi module
+-----------------
+
+.. automodule:: btclib.hwi
+   :members:
+   :show-inheritance:
+
 btclib.keystore module
 ----------------------
 
