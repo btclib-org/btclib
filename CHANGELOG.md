@@ -24,6 +24,20 @@ documented at release-notes length in the first place, and are still in
 
 ### Descriptors and miniscript
 
+- **The in-process HWI adapter is refused, in `btclib.hwi` and not only in
+  a closed issue** (#469). The reason is a Python range: HWI declares
+  `^3.9,<3.13`, this library supports 3.10 to 3.14 and pypy, so an optional
+  extra importing `hwilib` cannot be installed on the two newest
+  interpreters here -- a second and narrower support matrix wearing the word
+  "optional", where a subprocess keeps the executable in an environment of
+  its own. Of the three things it was to buy, one is void since #187 (Ledger
+  policy registration was blocked by miniscript, not by the transport), one
+  is small (a signing session is dominated by a human pressing a button, and
+  `signtx` signs every input of a psbt in one call), and one needs no
+  transport change (HWI's numeric codes have not moved since 2019, and
+  `SignerError` already carries them). What a caller holding an open
+  `hwilib` device writes instead is a `PsbtSigner` of their own, which is a
+  shape `psbt_signer_contract` already names.
 - **Two CHANGELOG references to #499 named the wrong thing.** #499 is the
   merged pull request whose note on BIP388 wallet policies said what a
   Ledger cannot be shown; the *template rewriting* that note describes has

@@ -21,6 +21,16 @@ by the caller and absent until a device is actually being used, so the
 import costs `json` and `subprocess` and the tests run with no HWI at
 all.
 
+An optional extra importing `hwilib` beside this was weighed and refused
+(#469), and the reason is that Python range: HWI declares `^3.9,<3.13`,
+where this library supports 3.10 to 3.14 and pypy, so an extra nobody can
+install on the two newest interpreters is a second and narrower support
+matrix rather than an option. A subprocess has no such problem, the
+executable living in an environment of its own. What a caller who does hold
+an open `hwilib` device writes instead is a `psbt_signer.PsbtSigner` of
+their own: that contract names an in-process driver as one of its shapes,
+and it is met in the caller's environment rather than in this one.
+
 `enumerate_devices` is the one call that names no device; everything else
 is `HwiSigner`, which is selected by fingerprint and passes `--fingerprint`
 to every command it runs. That is issue #381's own rule, and the reason
