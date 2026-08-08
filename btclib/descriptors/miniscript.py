@@ -74,6 +74,7 @@ from btclib.script.script import (
     serialize,
 )
 from btclib.utils import bytes_from_octets, decode_num, encode_num
+from btclib.var_int import serialize as var_int_serialize
 
 __all__ = ["P2WSH", "TAPSCRIPT", "Miniscript", "from_script", "parse"]
 
@@ -91,12 +92,35 @@ _MAX_STANDARD_P2WSH_SCRIPT_SIZE = 3600
 _MAX_STANDARD_P2WSH_STACK_ITEMS = 100
 
 # a tapscript has no size limit of its own, so what bounds one is the
-# weight of a transaction that could spend it: Bitcoin Core takes the
-# standard transaction weight, less a spending transaction's body and less
-# a maximal witness. The number is copied rather than recomputed -- every
-# term of it is a policy constant this library has no other use for, and a
-# bound this loose is not one a real script runs into
-_MAX_TAPSCRIPT_SIZE = 245290
+# weight of a transaction that could spend it: Bitcoin Core's
+# `MaxScriptSize` takes the standard transaction weight, less the body of a
+# spending transaction and less a maximal witness. Derived here rather than
+# copied, every term being a constant with a name -- a bound this loose is
+# not one a real script runs into, so a wrong copy of it would go unnoticed
+_MAX_STANDARD_TX_WEIGHT = 400000
+_WITNESS_SCALE_FACTOR = 4
+# version and nLockTime, the input count and one input's 41 bytes without
+# its witness, the output count and one p2wsh output's 43 bytes, and the
+# two bytes of the segwit marker, which are witness and not body
+_TX_BODY_LEEWAY_WEIGHT = (8 + 1 + 41 + 1 + 43) * _WITNESS_SCALE_FACTOR + 2
+# and the largest witness: a full stack of the largest element a tapscript
+# miniscript puts on it -- a BIP340 signature and its sighash byte -- each
+# with its length prefix, plus the largest control block, which is 33 bytes
+# and 128 nodes of 32
+_MAX_TAPSCRIPT_SAT_SIZE = (
+    len(var_int_serialize(MAX_STACK_SIZE))
+    + (1 + 65) * MAX_STACK_SIZE
+    + len(var_int_serialize(33 + 32 * 128))
+    + (33 + 32 * 128)
+)
+_TAPSCRIPT_WEIGHT_LEFT = (
+    _MAX_STANDARD_TX_WEIGHT - _TX_BODY_LEEWAY_WEIGHT - _MAX_TAPSCRIPT_SAT_SIZE
+)
+# less what says how long the script itself is, that being part of the same
+# witness
+_MAX_TAPSCRIPT_SIZE = _TAPSCRIPT_WEIGHT_LEFT - len(
+    var_int_serialize(_TAPSCRIPT_WEIGHT_LEFT)
+)
 
 # BIP342 puts no bound of its own on the keys of a multi_a(), so the bound
 # is the stack: one element per key, and no more than 1000 elements
