@@ -31,7 +31,11 @@ from btclib.block import Block
 from btclib.ecc import dsa
 from btclib.exceptions import BTClibValueError
 from btclib.psbt import Psbt, PsbtIn, PsbtOut, extract_tx
-from btclib.psbt.psbt_size import SIG_SIZE, estimated_input_sizes
+from btclib.psbt.psbt_size import (
+    SCHNORR_SIG_SIZE,
+    SIG_SIZE,
+    estimated_input_sizes,
+)
 from btclib.script import ScriptPubKey, Witness, is_p2ms, parse, serialize
 from btclib.tx import OutPoint, Tx, TxIn, TxOut
 from tests import load, load_bin, vector_id
@@ -454,3 +458,82 @@ def test_every_bip174_vector_answers(test_vector: dict[str, str]) -> None:
     else:
         # the unsigned transaction plus what the signatures will take
         assert vsize >= psbt.tx.vsize
+
+
+def test_a_sizer_answers_for_the_scripts_this_file_cannot_read() -> None:
+    """What a caller who does not have to guess says, and where it is asked.
+
+    A p2wsh of no standard type -- the shape a custody script has, a
+    branch chosen by CHECKSEQUENCEVERIFY -- and the whole of what it will
+    push, the witness script included: one rule, so that neither side
+    appends the other's element.
+    """
+    witness_script = serialize(["OP_IF", "OP_1", "OP_ELSE", "OP_2", "OP_ENDIF"])
+    psbt = Psbt.b64decode(BIP174_SIGNED_PSBT)
+    tx_in = psbt.tx.vin[0]
+    psbt.inputs[0].non_witness_utxo = None
+    psbt.inputs[0].witness_utxo = TxOut(1000, ScriptPubKey.p2wsh(witness_script))
+    psbt.inputs[0].witness_script = witness_script
+    psbt.inputs[0].redeem_script = b""
+
+    # unasked, the refusal is the one that was there before
+    with pytest.raises(BTClibValueError, match="type 'unknown'"):
+        estimated_input_sizes(psbt.inputs[0], tx_in)
+
+    stack = [SIG_SIZE, SIG_SIZE, len(witness_script)]
+    script_sig_size, witness_sizes = estimated_input_sizes(
+        psbt.inputs[0], tx_in, sizer=lambda _in, _tx: list(stack)
+    )
+    assert witness_sizes == stack
+    assert script_sig_size == 0
+
+    # a sizer that does not answer for this input is the refusal again
+    with pytest.raises(BTClibValueError, match="type 'unknown'"):
+        estimated_input_sizes(psbt.inputs[0], tx_in, sizer=lambda _in, _tx: None)
+
+
+def test_a_sizer_answers_for_a_taproot_script_path() -> None:
+    """Which leaf will be spent is the caller's to say, and then all of it.
+
+    The solution, the leaf script and the control block are one answer
+    because one choice decides the three, and the psbt carries every leaf
+    it could have been.
+    """
+    psbt = bip371_psbt(3)
+    psbt_in = psbt.inputs[0]
+    assert psbt_in.taproot_leaf_scripts
+
+    with pytest.raises(BTClibValueError, match="taproot script path"):
+        _ = psbt.estimated_vsize
+
+    ((leaf_script, leaf_version),) = list(psbt_in.taproot_leaf_scripts.values())[:1]
+    # the control block of a tree of one leaf: the version byte with the
+    # parity, and the internal key
+    control_block_size = 33
+    stack = [SCHNORR_SIG_SIZE, len(leaf_script), control_block_size]
+    assert leaf_version is not None
+
+    def sizer(_in: PsbtIn, _tx: TxIn) -> list[int]:
+        return list(stack)
+
+    _, witness_sizes = estimated_input_sizes(psbt_in, psbt.tx.vin[0], sizer=sizer)
+    assert witness_sizes == stack
+
+    # and the same answer reaches the weight, which is what a fee is
+    # computed from: the placeholder witness is the one the sizer named
+    asked = psbt.vsize_estimate(sizer)
+    assert asked > psbt.vsize_estimate(lambda _in, _tx: [SCHNORR_SIG_SIZE])
+
+
+def test_a_sizer_is_never_asked_where_this_file_knows() -> None:
+    """A key path spend and a multisig: neither of them is asked about."""
+
+    def refuse(_in: PsbtIn, _tx: TxIn) -> list[int]:
+        msg = "the sizer was asked about an input this file can read"
+        raise AssertionError(msg)
+
+    psbt = Psbt.b64decode(BIP174_SIGNED_PSBT)
+    assert psbt.vsize_estimate(refuse) == psbt.estimated_vsize
+
+    key_path = bip371_psbt(0)
+    assert key_path.vsize_estimate(refuse) == key_path.estimated_vsize

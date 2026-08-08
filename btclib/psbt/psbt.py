@@ -47,7 +47,7 @@ from btclib.exceptions import BTClibValueError
 from btclib.hashes import hash160, sha256
 from btclib.psbt.psbt_in import PsbtIn
 from btclib.psbt.psbt_out import PsbtOut
-from btclib.psbt.psbt_size import estimated_input_sizes
+from btclib.psbt.psbt_size import SolutionSizer, estimated_input_sizes
 from btclib.psbt.psbt_utils import (
     LEAF_HASH_SIZE,
     PSBT_SEPARATOR,
@@ -729,6 +729,17 @@ class Psbt:
         transaction is once they are in place is one arithmetic, written
         once, in the class whose serialization it is.
         """
+        return self.weight_estimate()
+
+    def weight_estimate(self, sizer: SolutionSizer | None = None) -> int:
+        """Return the weight once signed, asking a sizer where needed.
+
+        What `estimated_weight` is, with the one thing a property cannot
+        take: a `psbt_size.SolutionSizer`, for the inputs this library
+        refuses to estimate because what they will push is knowledge only
+        the caller has -- a script of no standard type, a taproot script
+        path. Without one this is that property exactly.
+        """
         vin: list[TxIn] = []
         # read once: the transaction is computed at every access, being
         # the psbt's fields put together rather than a field of its own
@@ -737,7 +748,9 @@ class Psbt:
         # the two are of one length by construction
         for i, (psbt_in, tx_in) in enumerate(zip(self.inputs, tx.vin, strict=True)):
             try:
-                script_sig_size, witness_sizes = estimated_input_sizes(psbt_in, tx_in)
+                script_sig_size, witness_sizes = estimated_input_sizes(
+                    psbt_in, tx_in, sizer=sizer
+                )
             except BTClibValueError as e:
                 raise BTClibValueError(f"input {i}: {e}") from e
             vin.append(
@@ -762,7 +775,16 @@ class Psbt:
         The name Bitcoin Core's `analyzepsbt` reports it under, and the
         `Tx.vsize` arithmetic: a quarter of the weight, rounded up.
         """
-        return ceil(self.estimated_weight / 4)
+        return self.vsize_estimate()
+
+    def vsize_estimate(self, sizer: SolutionSizer | None = None) -> int:
+        """Return the virtual size once signed, asking a sizer where needed.
+
+        `estimated_vsize` over `weight_estimate`, so that a fee computed
+        from a caller's own solution sizes is the same arithmetic as one
+        computed from this library's.
+        """
+        return ceil(self.weight_estimate(sizer) / 4)
 
     def __init__(
         self,

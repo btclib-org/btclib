@@ -52,13 +52,14 @@ from btclib.psbt.psbt import (
 )
 from btclib.psbt.psbt_in import PsbtIn
 from btclib.psbt.psbt_out import PsbtOut
-from btclib.psbt.psbt_size import estimated_input_sizes
+from btclib.psbt.psbt_size import SolutionSizer, estimated_input_sizes
 
 __all__ = [
     "KeyManager",
     "Psbt",
     "PsbtIn",
     "PsbtOut",
+    "SolutionSizer",
     "assert_signatures_only",
     "combine",
     "ecdsa_sig_hash",
