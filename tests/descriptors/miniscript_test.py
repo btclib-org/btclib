@@ -607,9 +607,20 @@ def test_a_key_hash_without_its_key_cannot_be_read() -> None:
 
 
 def test_a_script_too_large_for_its_context_is_refused() -> None:
-    """Refuse a script no witness of that kind may carry."""
+    """Refuse a script no witness of that kind may carry.
+
+    3600 bytes is standardness for a p2wsh witness script. A tapscript has
+    no limit of its own, so what bounds it is the weight of a transaction
+    that could spend it: 329482 bytes, which is what Bitcoin Core's
+    `MaxScriptSize` works out to for that context and the one number here
+    that is worth pinning -- nothing a real script does comes near it, so a
+    wrong bound would never be met.
+    """
     with pytest.raises(BTClibValueError, match="script too large for P2WSH"):
         from_script(b"\x51" * 3601)
+    with pytest.raises(BTClibValueError, match="script too large for tapscript"):
+        from_script(b"\x51" * 329483, TAPSCRIPT)
+    assert parse("1", TAPSCRIPT).is_valid
 
 
 def test_a_truncated_push_is_not_a_script() -> None:
