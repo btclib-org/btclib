@@ -353,6 +353,21 @@ documented at release-notes length in the first place, and are still in
   revision is unchanged from the rev the uv-lock hook of
   `.pre-commit-config.yaml` pins, which is what actually regenerates the
   committed file and keeps its own newer pin regardless of this floor.
+- **`[tool.ruff.lint]`'s `ignore` list names its ten entries instead of
+  coding them**, each re-measured against the reason already on file
+  rather than trusted: every one is still either pervasive across the
+  tree with no short list of exceptions to give a `# noqa` of its own, or
+  -- incorrect-blank-line-before-class and multi-line-summary-second-line
+  -- pydocstyle's alternative to a rule the "D" family already selects,
+  D211 and D212, which no docstring can satisfy both sides of regardless
+  of any count. Naming a rule needs `preview = true`, paired with
+  `explicit-preview-rules = true` so no other preview rule turns on
+  unasked, the same pairing btclib_libsecp256k1's own config already
+  carries for the same reason. Preview mode's own undefined-export does
+  not special-case a module-level `__getattr__` (astral-sh/ruff#18504,
+  open), so `btclib/__init__.py` and `btclib/script/__init__.py` carry a
+  per-file exemption from that one rule, where `tests/all_test.py`
+  already walks `__all__` with `getattr` and fails on the same drift.
 
 ### Documentation and the website
 
