@@ -494,6 +494,17 @@ exclude = [
 # target-version is inferred from project.requires-python
 
 [tool.ruff.lint]
+# preview and explicit-preview-rules only make sense as a pair. Naming a
+# rule in `ignore` below, instead of coding it, is itself a preview
+# feature, so the first line is what buys the second -- and alone it
+# would also turn on every rule ruff is still designing. The second
+# takes that back off: a preview rule then runs only where this file
+# names it exactly, and every entry of `select` below is a family, which
+# no preview rule can be reached through. The rule set stays the stable
+# one it already was; what preview changes here is only how `ignore`
+# spells its own entries
+preview = true
+explicit-preview-rules = true
 # A, BLE, C90, FA, FIX, FLY, RSE, SLOT, T10, T20 and TID are here by
 # measurement: every unselected rule set was run over btclib and tests,
 # and these are the ones that either find nothing today
@@ -510,13 +521,13 @@ exclude = [
 # than the count it reached -- `uv run ruff check --select N --no-cache
 # btclib tests` re-derives any of these in a second, and a number here
 # rots with the next test file: N (uppercase math symbols are the
-# convention here, as the PLR2004 note below already says), COM (COM812,
-# which ruff's own documentation recommends against alongside the
-# formatter), EM, FBT, EXE (all EXE001, i.e. the shebang-not-executable
-# finding that .pre-commit-config.yaml records the same decision about),
-# TC, ARG, ANN (all ANN401, the explicit Any of the vector loaders),
-# SLF (all SLF001, tests reaching into private members on purpose), PERF
-# (all PERF203, try/except in a retry loop).
+# convention here, as the magic-value-comparison note below already
+# says), COM (COM812, which ruff's own documentation recommends against
+# alongside the formatter), EM, FBT, EXE (all EXE001, i.e. the
+# shebang-not-executable finding that .pre-commit-config.yaml records
+# the same decision about), TC, ARG, ANN (all ANN401, the explicit Any
+# of the vector loaders), SLF (all SLF001, tests reaching into private
+# members on purpose), PERF (all PERF203, try/except in a retry loop).
 # ERA is selected despite what it found on that survey: about half was
 # genuine dead code and the other half prose that ERA read as code, and the
 # half did not need a single noqa -- a reworded comment reads as prose to
@@ -571,49 +582,71 @@ select = [
     "UP",   # pyupgrade
     "W",    # pycodestyle warnings
 ]
+# named rather than coded, here and in per-file-ignores below: `select`
+# above has no choice, a family having no name of its own, but an entry
+# that suppresses a single rule can say which -- so the reason sits in
+# the comment and the rule sits in the entry, with no code left to look
+# up between them
 ignore = [
     # docstrings: every public module, class, method and function must
     # carry one -- D100/D104 and the D101/D102/D103 left out of this
     # list enforce exactly that (issue #290). The two still ignored are
     # the ones pep257 does not ask for: __init__ is documented by its
     # class, and a magic method by the data model it implements
-    "D105", # undocumented-magic-method
-    "D107", # undocumented-public-init
-    "D203", # incorrect-blank-line-before-class (conflicts with D211)
-    "D213", # multi-line-summary-second-line (conflicts with D212)
+    "undocumented-magic-method",
+    "undocumented-public-init",
+    # pydocstyle offers each of these as a mutually exclusive alternative
+    # to a rule the "D" family above already selects -- D211
+    # (blank-line-before-class) and D212 (multi-line-summary-first-line)
+    # in order -- so no docstring can satisfy both sides of either pair
+    # and disabling one is permanent, not a count that a future cleanup
+    # could shrink
+    "incorrect-blank-line-before-class",
+    "multi-line-summary-second-line",
     # code length is enforced by the formatter, which reflows to its 88
-    # columns everything it is allowed to rewrite. What is left for E501
-    # to find is what no width can break, almost all of it a test vector,
-    # an extended key or a base64 signature on one line. The prose the
-    # formatter never touches is measured instead by max-doc-length below
-    "E501", # line-too-long
+    # columns everything it is allowed to rewrite. What is left for this
+    # rule to find is what no width can break, almost all of it a test
+    # vector, an extended key or a base64 signature on one line. The
+    # prose the formatter never touches is measured instead by
+    # max-doc-length below
+    "line-too-long",
     # complexity metrics this codebase does not bound globally: measured
-    # one at a time, PLR0913 and PLR0917 find many functions with several
-    # parameters and PLR0915 finds several long ones too, none of it a
-    # short, nameable list of exceptions the way PLR0904, PLR0911,
-    # PLR0912 and PLR0914 were -- those four are gone from this list now,
-    # the first and last for finding nothing, the middle two carrying a
-    # `# noqa` at each of their sites instead
-    "PLR0913", # too-many-arguments
-    "PLR0915", # too-many-statements
-    "PLR0917", # too-many-positional-arguments
+    # one at a time, too-many-arguments and too-many-positional-arguments
+    # find many functions with several parameters and too-many-statements
+    # finds several long ones too, none of it a short, nameable list of
+    # exceptions the way too-many-public-methods, too-many-return-
+    # statements, too-many-branches and too-many-locals were -- those
+    # four are gone from this list now, the first and last for finding
+    # nothing, the middle two carrying a `# noqa` at each of their sites
+    # instead
+    "too-many-arguments",
+    "too-many-statements",
+    "too-many-positional-arguments",
     # not a complexity metric, and measured widely on its own: what is
     # compared is almost always the size of a cryptographic object -- 32
     # or 33 for a key, 64 or 65 for a signature, 20 for a hash160 -- or an
     # index into a standardized algorithm's own constants, as
     # _ripemd160.py's 2, 3 and 4 are. The size *is* the domain, not a
     # value this code chose and could have named instead
-    "PLR2004", # magic-value-comparison
+    "magic-value-comparison",
     # measured widely too, and every one on purpose: the message is built
     # where the exception is raised because that is the only place holding
     # what went wrong -- the value refused, the length found instead of the
     # one expected -- and a shared exception class could not say that
     # without every raise site passing it back in anyway
-    "TRY003", # raise-vanilla-args
+    "raise-vanilla-args",
 ]
 
 [tool.ruff.lint.per-file-ignores]
 "**/__init__.py" = ["F401"] # re-exported imports
+# preview mode's undefined-export does not special-case a module-level
+# __getattr__ (astral-sh/ruff#18504, open): both modules publish every
+# submodule this way, as each docstring says, and F822 sees no import to
+# bind the name to. tests/all_test.py already walks `__all__` with
+# getattr and fails on the same drift this rule would catch, so nothing
+# here goes unchecked while the upstream rule does not know the pattern
+"btclib/__init__.py" = ["F822"]
+"btclib/script/__init__.py" = ["F822"]
 # collecting entropy from dice is a conversation: the module prompts with
 # input() and prints how many rolls it needs and which ones count, so its
 # prints are the interface, not a debugging leftover -- unlike a print
