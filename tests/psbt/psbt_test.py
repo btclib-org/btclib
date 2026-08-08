@@ -3959,14 +3959,31 @@ def test_a_solver_spends_the_taproot_leaf_the_psbt_cannot_choose() -> None:
 
 
 def test_a_solver_does_not_take_over_checking_the_signatures() -> None:
-    """What satisfies the script is the caller's; a bad signature is not."""
+    """What satisfies the script is the caller's; a bad signature is not.
+
+    The solver is never reached, which is the fact: a caller cannot
+    finalize an invalid signature by answering over it. What the solver
+    was asked is recorded rather than refused, so that the very same
+    solver can then finalize the psbt whose signature is good -- what
+    stopped the first call was the signature, and this is what says so.
+    """
     signed, _ = _single_key_psbt("p2wsh")
     psbt = deepcopy(signed)
     ((pub_key, _),) = psbt.inputs[0].partial_sigs.items()
     psbt.inputs[0].partial_sigs = {pub_key: b"\x30" * 71 + b"\x01"}
 
-    def solver(_psbt: Psbt, _vin_i: int) -> tuple[bytes, Witness]:
-        return b"", Witness([b"", psbt.inputs[0].witness_script])
+    asked: list[int] = []
+
+    def solver(psbt_: Psbt, vin_i: int) -> tuple[bytes, Witness]:
+        asked.append(vin_i)
+        return b"", Witness([b"", psbt_.inputs[vin_i].witness_script])
 
     with pytest.raises(BTClibValueError):
         finalize(psbt, solver=solver)
+    assert not asked
+
+    solved = finalize(signed, solver=solver)
+    assert asked == [0]
+    assert solved.inputs[0].final_script_witness.stack[-1] == (
+        signed.inputs[0].witness_script
+    )
