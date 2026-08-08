@@ -98,6 +98,7 @@ __all__ = [
     "number_theory",
     "psbt",
     "psbt_signer",
+    "psbt_signer_contract",
     "script",
     "slip132",
     "to_prv_key",

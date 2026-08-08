@@ -54,7 +54,7 @@ from btclib.bip32.der_path import DerPath, indexes_from_der_path, str_from_der_p
 from btclib.bip32.key_origin import BIP32KeyOrigin
 from btclib.descriptors import Descriptor, account_descriptors
 from btclib.ecc import bms, dsa, ssa
-from btclib.exceptions import BTClibValueError
+from btclib.exceptions import BTClibValueError, SignerError
 from btclib.psbt.psbt import Psbt, assert_signatures_only, combine, sign
 from btclib.script.taproot import output_prvkey_from_merkle_root
 from btclib.to_prv_key import prv_keyinfo_from_prv_key
@@ -62,18 +62,21 @@ from btclib.to_pub_key import fingerprint, pub_keyinfo_from_key
 from btclib.utils import bytes_from_octets
 
 if TYPE_CHECKING:
-    from collections.abc import Mapping
+    from collections.abc import Mapping, Sequence
 
 __all__ = [
     "AddressDisplay",
     "MessageSigner",
     "PsbtSigner",
     "SignerCapabilities",
+    "SignerDevice",
     "SoftwareSigner",
     "assert_public",
     "display_address",
     "export_account",
+    "merge_devices",
     "request_signatures",
+    "select_device",
     "sign_message",
 ]
 
@@ -174,6 +177,92 @@ class MessageSigner(Protocol):
     def sign_message(self, message: Octets, der_path: DerPath) -> str:
         """Return the compact signature of a message, by the key at a path."""
         ...
+
+
+@runtime_checkable
+class SignerDevice(Protocol):
+    """What a caller knows of a device before it has a signer for it.
+
+    Selecting which device answers is the one thing a caller does with no
+    signer in hand, and it is the same rule for every transport: the
+    fingerprint identifies the master key, so it identifies the device
+    that holds it, whatever answered for it. `hwi.HwiDevice` satisfies
+    this; so does a caller's own record of a signer that is not a device
+    at all.
+
+    `fingerprint` is None for a device that cannot be asked for one yet
+    -- a locked Trezor, a Ledger with no app open -- and `error` says
+    why. Such a device is listed on purpose: what a caller does about a
+    locked device is unlock it, and a list that left it out would say it
+    is not there.
+    """
+
+    @property
+    def fingerprint(self) -> bytes | None:
+        """Return the master fingerprint, or None if it cannot be asked."""
+        ...
+
+    @property
+    def error(self) -> str:
+        """Return why the device could not be asked, empty if it could."""
+        ...
+
+
+def _fingerprint(fingerprint: Octets) -> bytes:
+    """Return the four bytes of a fingerprint, however it was spelled."""
+    return bytes_from_octets(fingerprint, 4)
+
+
+def merge_devices(
+    *sources: Sequence[SignerDevice],
+) -> list[SignerDevice]:
+    """Return one list of devices from several, the earlier source winning.
+
+    A caller with more than one way of reaching a signer -- a command
+    line, an in-process driver, keys of its own -- has one question to
+    answer that none of the adapters can: which of them answers for a
+    fingerprint two of them offer. Order is that answer, and it is the
+    caller's to state, so the sources are positional and the first one
+    that names a fingerprint keeps it.
+
+    Devices that cannot be asked for a fingerprint yet are all kept:
+    there is no fingerprint to be a duplicate of, and dropping them would
+    say a locked device is not plugged in.
+    """
+    merged: list[SignerDevice] = []
+    seen: set[bytes] = set()
+    for source in sources:
+        for device in source:
+            if device.fingerprint is None:
+                merged.append(device)
+                continue
+            if device.fingerprint in seen:
+                continue
+            seen.add(device.fingerprint)
+            merged.append(device)
+    return merged
+
+
+def select_device(devices: Sequence[SignerDevice], fingerprint: Octets) -> SignerDevice:
+    """Return the one device answering for a fingerprint, or raise.
+
+    Two failures and they are different news, so they are different
+    messages: no device answers for it, or one does and it said why it
+    cannot be asked -- which is a device to unlock rather than a device
+    to look for.
+
+    More than one is not among them: `merge_devices` is where a caller
+    states which source wins, and a single source answering one
+    fingerprint twice is two cables to one device, so the first is taken.
+    """
+    wanted = _fingerprint(fingerprint)
+    for device in devices:
+        if device.fingerprint == wanted:
+            if device.error:
+                err_msg = f"device {wanted.hex()} cannot be used: {device.error}"
+                raise SignerError(err_msg)
+            return device
+    raise SignerError(f"no device with fingerprint {wanted.hex()}")
 
 
 def assert_public(descriptor: Descriptor) -> None:

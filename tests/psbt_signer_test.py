@@ -31,7 +31,8 @@ from btclib.descriptors import (
     parse,
 )
 from btclib.ecc import bms, dsa
-from btclib.exceptions import BTClibValueError
+from btclib.exceptions import BTClibValueError, SignerError
+from btclib.hwi import HwiDevice
 from btclib.psbt.psbt import Psbt, sign
 from btclib.psbt_signer import (
     AddressDisplay,
@@ -41,7 +42,9 @@ from btclib.psbt_signer import (
     assert_public,
     display_address,
     export_account,
+    merge_devices,
     request_signatures,
+    select_device,
     sign_message,
 )
 from btclib.to_prv_key import prv_keyinfo_from_prv_key
@@ -383,3 +386,54 @@ def test_a_signed_message_is_verified_against_the_address_asked_for() -> None:
     elsewhere = _MessageSigner("m/84h/0h/0h/0/1")
     with pytest.raises(BTClibValueError):
         sign_message(elsewhere, b"hello", der_path, address)
+
+
+def test_a_device_is_selected_by_fingerprint() -> None:
+    """The one thing a caller does before it has a signer at all."""
+    wanted = HwiDevice(type="ledger", model="nanos", path="a", fingerprint=b"\x01" * 4)
+    other = HwiDevice(type="trezor", model="one", path="b", fingerprint=b"\x02" * 4)
+
+    assert select_device([other, wanted], b"\x01" * 4) is wanted
+    assert select_device([other, wanted], "01010101") is wanted
+
+    with pytest.raises(SignerError, match="no device with fingerprint 03030303"):
+        select_device([other, wanted], b"\x03" * 4)
+
+
+def test_a_device_that_said_why_it_cannot_be_asked_is_not_selected() -> None:
+    """Different news from "not there": this one is a device to unlock."""
+    locked = HwiDevice(
+        type="trezor",
+        model="one",
+        path="a",
+        fingerprint=b"\x01" * 4,
+        error="device is locked",
+    )
+    with pytest.raises(SignerError, match="cannot be used: device is locked"):
+        select_device([locked], b"\x01" * 4)
+
+
+def test_devices_of_several_sources_are_merged_in_the_caller_s_order() -> None:
+    """Which source wins is the caller's to state, so order states it."""
+    hardware = HwiDevice(
+        type="ledger", model="nanos", path="a", fingerprint=b"\x01" * 4
+    )
+    software = HwiDevice(
+        type="software", model="emulated", path="b", fingerprint=b"\x01" * 4
+    )
+    only_software = HwiDevice(
+        type="software", model="emulated", path="c", fingerprint=b"\x02" * 4
+    )
+
+    merged = merge_devices([hardware], [software, only_software])
+    assert merged == [hardware, only_software]
+    assert merge_devices([software], [hardware]) == [software]
+    assert merge_devices() == []
+
+
+def test_a_device_with_no_fingerprint_yet_is_kept_by_the_merge() -> None:
+    """There is no fingerprint to be a duplicate of, and it is plugged in."""
+    locked = HwiDevice(type="trezor", model="one", path="a", error="locked")
+    also_locked = HwiDevice(type="trezor", model="one", path="b", error="locked")
+
+    assert merge_devices([locked], [also_locked]) == [locked, also_locked]

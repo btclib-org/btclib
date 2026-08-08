@@ -67,6 +67,49 @@ documented at release-notes length in the first place, and are still in
   side appends the other's element. A sizer answering None is the refusal
   that was there before it was asked.
 
+- **`psbt_signer_contract` checks an implementation of the signer
+  contract, from outside btclib.** A protocol is a promise the type
+  checker reads and nothing runs, so an adapter answering a five-byte
+  fingerprint, an xpub derived from the wrong path, or a signature on
+  an input whose key origin names another master, type-checks and is
+  wrong at the first spend. btclib's own adapters were checked by
+  btclib's tests, which is no help to whoever writes the next one:
+  `check_psbt_signer` is that question asked from outside, and it takes
+  any `PsbtSigner` -- a command line adapter, an in-process driver, a
+  signing service. It is a function and not a test suite, so it belongs
+  to no test framework, and it checks what a type cannot say rather
+  than repeating what one already does. The psbt it needs for the "not
+  my key" check is built from the signer's own fingerprint, so no
+  caller has to supply material for it; a path the signer holds and a
+  psbt it can sign are the two things only the caller has, and both
+  are optional.
+- **`select_device` and `merge_devices` share the one thing a caller
+  does before it has a signer.** Selecting by fingerprint is the same
+  rule for every transport, and a caller with more than one way of
+  reaching a signer has to decide which of them answers for a
+  fingerprint two of them offer -- which is the caller's decision, so
+  it is the order of the arguments. A device that cannot be asked for
+  a fingerprint yet is kept by the merge and refused by the selection
+  with what it said, a locked device being one to unlock rather than
+  one to look for. `SignerDevice` is the protocol both read;
+  `hwi.HwiDevice` satisfies it.
+- **`SignerNotFoundError` says the backend is not installed**, a
+  `SignerError` subclass so that code catching that keeps catching
+  this. `btclib.hwi` turned every `OSError` into one `SignerError`, so
+  a missing executable and a permission the udev rules do not grant
+  arrived as one class with one `code` of None: a caller offering
+  signers of several kinds had to match on the text of a message, or
+  look for the executable itself and ask a second question that can
+  disagree with the first.
+- **What `btclib.hwi` cannot register, and why, is written down.** A
+  Ledger will not sign a multisig it has not been shown, BIP388 wallet
+  policies are how it is shown, and `hwilib/_cli.py` does not expose
+  registration -- so this module cannot, and a caller registers out of
+  band. Whether btclib could grow it is not a transport question: a
+  policy is a descriptor template with the keys lifted out, but the
+  fragments one may hold are BIP388's fixed set plus miniscript inside
+  `wsh()`, and btclib reads no miniscript (#187).
+
 ### Packaging, linting and CI
 
 - **RELEASING.md says what `griffe check` actually reports**: breakage

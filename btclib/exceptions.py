@@ -52,6 +52,7 @@ __all__ = [
     "RpcError",
     "ScriptError",
     "SignerError",
+    "SignerNotFoundError",
 ]
 
 
@@ -177,6 +178,29 @@ class SignerError(BTClibRuntimeError):
         if self.code is None:
             return str(self.args[0])
         return f"{self.args[0]} (signer error code {self.code})"
+
+
+class SignerNotFoundError(SignerError):
+    """The backend an adapter runs is not installed.
+
+    A `SignerError` still, so a caller catching that keeps catching this,
+    and separate because it is the one failure that is not about a
+    device: nothing is unplugged, locked or busy, and no retry will
+    change it. A caller that offers signers of several kinds tells "there
+    is no hardware here" from "the hardware could not be reached" on this
+    class, and the two are not the same thing to report before a signing
+    operation.
+
+    Without it the distinction is not recoverable. `btclib.hwi` turns
+    every `OSError` into a `SignerError` -- a missing executable and a
+    permission the udev rules do not grant arrive as one class with one
+    `code` of None -- so a caller had to either match on the text of a
+    message or look for the executable itself, and looking for it is
+    asking a second question that can disagree with the first.
+
+    `code` is None, as for every failure of the exchange rather than of a
+    device.
+    """
 
 
 class ScriptError(BTClibValueError):

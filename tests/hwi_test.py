@@ -41,7 +41,7 @@ import pytest
 
 from btclib.bip32.bip32 import derive, xpub_from_xprv
 from btclib.descriptors import Descriptor, at_index, parse
-from btclib.exceptions import BTClibValueError, SignerError
+from btclib.exceptions import BTClibValueError, SignerError, SignerNotFoundError
 from btclib.hwi import (
     _HWI_CHAIN,
     DEFAULT_MAX_OUTPUT,
@@ -427,8 +427,21 @@ def test_what_the_subprocess_can_do_wrong(tmp_path: Path) -> None:
     past the limit, a command that prints nothing, and the error object
     HWI itself returns — the last being the one that carries a number.
     """
+    # not installed is its own subclass: a caller offering signers of
+    # other kinds tells it from a device it could not reach, and a
+    # SignerError still, so code catching that keeps catching this
+    with pytest.raises(SignerNotFoundError, match="cannot run"):
+        enumerate_devices(executable=str(tmp_path / "nowhere"))
     with pytest.raises(SignerError, match="cannot run"):
         enumerate_devices(executable=str(tmp_path / "nowhere"))
+
+    # an OSError that is not a missing executable is not that subclass:
+    # a directory is there, and running it is a different failure
+    unrunnable = tmp_path / "a_directory"
+    unrunnable.mkdir()
+    with pytest.raises(SignerError, match="cannot run") as raised:
+        enumerate_devices(executable=str(unrunnable))
+    assert not isinstance(raised.value, SignerNotFoundError)
 
     not_json = tmp_path / "not_json.py"
     not_json.write_text("print('hello')\n", encoding="ascii")
