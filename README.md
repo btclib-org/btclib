@@ -67,6 +67,11 @@ Included features are:
 - ECDSA signature with (message) compact encoding: standard p2pkh and
   [BIP137](https://github.com/bitcoin/bips/blob/master/bip-0137.mediawiki)/[Electrum](https://electrum.org/#home)
   extensions to p2wpkh and p2wpkh-p2sh
+- [BIP322](https://github.com/bitcoin/bips/blob/master/bip-0322.mediawiki)
+  signed messages, where the address is a script to satisfy rather than a
+  key to recover: the simple, full and proof-of-funds variants, verified
+  by the script engine, so multisig, taproot and time locks sign as well
+  as p2pkh does
 - [RFC 6979](https://www.rfc-editor.org/rfc/rfc6979.html) for deterministic signature
   schemes
 - EC Schnorr signature (according to
@@ -189,10 +194,13 @@ satisfying one. `psbt_signer`
 is the contract an external signer answers; `hwi` is that contract over
 Bitcoin Core's HWI.
 
-Nothing in the library imports `bip21`, `slip132`, `fee`, `keystore`,
-`hwi` or `fetch`: they are the top of the stack, and `fetch` is the only
-one that goes out to the network. `keystore` remembers which addresses
-`bip44` has handed out and signs for one with `ecc.bms`.
+Nothing in the library imports `bip21`, `bip322`, `slip132`, `fee`,
+`keystore`, `hwi` or `fetch`: they are the top of the stack, and `fetch`
+is the only one that goes out to the network. `keystore` remembers which
+addresses `bip44` has handed out and signs for one with `ecc.bms`.
+`bip322` is the other message signing, and it is at the top rather than
+beside `ecc.bms` because it needs everything below it: a script, a
+transaction, a psbt and the engine that runs them.
 
 The rpc client `fetch` speaks through is not in that stack: it is
 [bitcoin-core-rpc](https://github.com/btclib-org/bitcoin-core-rpc), a

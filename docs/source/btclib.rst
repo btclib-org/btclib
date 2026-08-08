@@ -70,6 +70,13 @@ btclib.bip21 module
    :members:
    :show-inheritance:
 
+btclib.bip322 module
+--------------------
+
+.. automodule:: btclib.bip322
+   :members:
+   :show-inheritance:
+
 btclib.bip44 module
 -------------------
 

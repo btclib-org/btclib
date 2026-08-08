@@ -239,6 +239,34 @@ documented at release-notes length in the first place, and are still in
   the same objects -- and `miniscript` is published beside them as the
   subgroup a caller reaches by name.
 
+### Curves, signatures and keys
+
+- **BIP322 signed messages, in the new `btclib.bip322`**. `ecc.bms` signs
+  with a key and lets the verifier recover it, so it can only speak about
+  the addresses that *are* a public key hash; a taproot address is a
+  tweaked BIP340 key and a p2wsh address is a hash of a script, and no
+  recovery flag names either. BIP322 makes the address the script_pub_key
+  of a virtual output and the signature whatever spends it, so
+  verification is `script.engine` rather than a key comparison and every
+  script the engine runs is a script that can sign -- multisig, taproot,
+  time locks. Both directions and all four variants: `sign` writes the
+  *simple* and *full* ones for the four script types a single key
+  satisfies, `assert_as_valid` and `verify` read those two, the
+  *proof of funds* psbt, and the *legacy* compact signature `ecc.bms`
+  made, which BIP322 keeps for a p2pkh address alone. Verification
+  answers BIP322's three states rather than two: valid, invalid, and the
+  new `InconclusiveError` for what today's rules cannot judge -- a
+  version that is neither 0 nor 2, an upgradeable NOP, a witness program
+  of an unknown version, each of them successful *because* nothing checks
+  it. The BIP's own two vector files are vendored whole and every case
+  runs, the three transaction hashes and the 36 error cases included; two
+  proof-of-funds vectors are `xfail` against #513, `OutPoint` refusing
+  the synthetic funding transactions they carry. One required rule is not
+  enforced, SIGHASH_ALL, and #514 is what it costs and what closing it
+  would take: which stack elements were consumed as signatures is
+  bookkeeping the interpreter does not report, and picking them out by
+  shape would refuse a control block that happens to be 65 bytes long.
+
 ### Transactions, blocks and PSBT
 
 - **`finalize` takes an `InputSolver`**, for the inputs whose spend is
