@@ -49,10 +49,9 @@ GENERATED = load("_data", "generated-test-vectors.json", encoding="utf-8")
 WIF = "L3VFeEujGtevx9w18HD1fhRbCH67Az2dpCymeRE1SoPK6XQtaN2k"
 OTHER_WIF = "L4DksdGZ4KQJfcLHD5Dv25fu8Rxyv7hHi2RjZR4TYzr8c6h9VNrp"
 
-# the utxo types a psbt describes with a witness_utxo alone. Every other
-# type needs the whole transaction that funded it, which is what issue
-# 513 refuses to parse in the proof-of-funds vectors
-_WITNESS_ONLY = frozenset({"p2wpkh", "p2wsh", "p2tr"})
+# native segwit: the script types whose signature the simple variant may
+# carry, the rest of `to_sign` being fixed for them
+_NATIVE_SEGWIT = frozenset({"p2wpkh", "p2wsh", "p2tr"})
 
 
 def _address(wif: str, script_type: str) -> str:
@@ -122,38 +121,27 @@ def test_full_vector(case: dict[str, Any]) -> None:
 
 
 def _proof_of_funds_params() -> list[Any]:
-    """Return the proof-of-funds vectors, the two issue 513 blocks xfailed.
-
-    Both carry a p2pkh or p2sh-p2wpkh utxo, which a psbt shows with the
-    whole funding transaction -- and the generator wrote those with a
-    null tx_id and vout 0, which `OutPoint.assert_valid` refuses. The
-    marker is strict, so the day 513 is fixed this file is what says so.
-    """
+    """Return the proof-of-funds vectors, named by what they show control of."""
     params = []
     for i, case in enumerate(GENERATED["proof_of_funds"]):
         types = {
             spent["type"] for group in case["additional_inputs"] for spent in group
         }
-        marks = (
-            pytest.mark.xfail(
-                reason="issue 513: OutPoint refuses the vectors' funding tx",
-                strict=True,
-                raises=BTClibValueError,
-            )
-            if types - _WITNESS_ONLY
-            else ()
-        )
-        params.append(
-            pytest.param(
-                case, marks=marks, id=vector_id(i, case["type"], *sorted(types))
-            )
-        )
+        params.append(pytest.param(case, id=vector_id(i, case["type"], *sorted(types))))
     return params
 
 
 @pytest.mark.parametrize("case", _proof_of_funds_params())
 def test_proof_of_funds_vector(case: dict[str, Any]) -> None:
-    """A finalized psbt verifies, the utxos it shows control of included."""
+    """A finalized psbt verifies, the utxos it shows control of included.
+
+    Two of the three show a p2pkh or p2sh-p2wpkh output, which a psbt
+    names with the whole funding transaction rather than with a
+    `witness_utxo` -- and the generator wrote those transactions with a
+    null tx_id and vout 0, which `OutPoint.assert_valid` refused until
+    issue 513. So these two are also the test that the refusal is gone:
+    without it they never reach a script at all.
+    """
     for signature in case["bip322_signatures"]:
         bip322.assert_as_valid(case["message"].encode(), case["address"], signature)
 
@@ -188,7 +176,7 @@ def test_sign_and_verify(script_type: str, msg: bytes) -> None:
     addr = _address(WIF, script_type)
     sig = bip322.sign(msg, WIF, addr)
     assert sig.variant == (
-        bip322.SIMPLE if script_type in _WITNESS_ONLY else bip322.FULL
+        bip322.SIMPLE if script_type in _NATIVE_SEGWIT else bip322.FULL
     )
 
     text = sig.b64encode()

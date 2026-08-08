@@ -102,12 +102,12 @@ def test_check_validity_positional_is_a_type_error() -> None:
 def test_check_validity_keyword_still_works() -> None:
     """Source-compatible for a caller that already used the keyword."""
     assert Tx(1, 0, [], [], check_validity=False).version == 1
-    assert OutPoint(b"\x00" * 32, 0, check_validity=False).vout == 0
+    assert OutPoint(b"\x00" * 31, 0, check_validity=False).vout == 0
     assert ScriptPubKey("", "mainnet", check_validity=False).network == "mainnet"
 
     # and it still switches validation off, which is the whole point of it
-    with pytest.raises(BTClibValueError, match="invalid OutPoint"):
-        OutPoint(b"\x00" * 32, 0)
+    with pytest.raises(BTClibValueError, match="invalid OutPoint tx_id"):
+        OutPoint(b"\x00" * 31, 0)
 
 
 def test_dsa_sig_is_still_a_dataclass() -> None:
@@ -163,10 +163,17 @@ def test_a_parameter_before_the_flag_stays_positional() -> None:
     )
 
 
-# an outpoint that is neither a coinbase marker nor an ordinary reference:
-# the all-zero tx_id with a real vout, which assert_valid refuses and
-# nothing else looks at
-_HALF_COINBASE = OutPoint(b"\x00" * 32, 0, check_validity=False)
+# an outpoint whose vout is a bool, which `is_integer` refuses: a bool is
+# an int, so it passes every range check, and naming the type is the
+# whole of what assert_valid has to say about it.
+# It used to be the half-coinbase outpoint -- the all-zero tx_id with a
+# real vout -- which is a valid OutPoint since issue 513, Bitcoin Core
+# accepting it. What is left to be invalid about the two fields is a
+# tx_id of the wrong length and a vout outside four bytes or beside the
+# type, and only the last of the three survives a conversion: the other
+# two are what serialize and to_dict cannot write, rather than what
+# assert_valid refuses about what they wrote
+_BOOL_VOUT = OutPoint(b"\x01" * 32, True, check_validity=False)
 _GOOD_OUT_POINT = OutPoint(b"\x01" * 32, 0)
 
 # invalid objects, built with the check off, and two shapes of invalid
@@ -190,36 +197,58 @@ _GOOD_OUT_POINT = OutPoint(b"\x01" * 32, 0)
 # MoneyRange all serialize, so what refuses them is the flag and not the
 # arithmetic underneath
 _INVALID: list[tuple[str, Any]] = [
-    ("outpoint", _HALF_COINBASE),
+    ("outpoint", _BOOL_VOUT),
     ("tx_in-itself", TxIn(_GOOD_OUT_POINT, b"", True, check_validity=False)),
-    ("tx_in-nested", TxIn(_HALF_COINBASE, check_validity=False)),
+    ("tx_in-nested", TxIn(_BOOL_VOUT, check_validity=False)),
     ("tx_out", TxOut(_MAX_SATOSHI + 1, "", check_validity=False)),
     ("tx-itself", Tx(1, 0, [], [TxOut(1, "")], check_validity=False)),
+    # two nested transactions and not one, because the two boundaries
+    # cannot be asked about the same child: an invalid vout survives
+    # to_dict and not serialize, an invalid amount serialize and not
+    # to_dict, and the exclusion lists below are where each says so
     (
-        "tx-nested",
+        "tx-nested-in",
         Tx(
             1,
             0,
-            [TxIn(_HALF_COINBASE, check_validity=False)],
+            [TxIn(_BOOL_VOUT, check_validity=False)],
             [TxOut(1, "")],
+            check_validity=False,
+        ),
+    ),
+    (
+        "tx-nested-out",
+        Tx(
+            1,
+            0,
+            [TxIn(_GOOD_OUT_POINT)],
+            [TxOut(_MAX_SATOSHI + 1, "", check_validity=False)],
             check_validity=False,
         ),
     ),
 ]
 
-# what a `parse` cannot be asked, and why: a sequence of `True` reads back as
-# the number one, which is a valid input, and a transaction without inputs
-# has no octets to read back at all -- the input count is where the segwit
-# marker lives, so its `\x00` opens a witness section rather than an empty
-# list
-_NO_OCTETS = {"tx_in-itself", "tx-itself"}
+# what a `parse` cannot be asked, and why: a bool reads back as the number
+# it is -- a sequence of `True` and a vout of `True` both as one, which is
+# valid -- and a transaction without inputs has no octets to read back at
+# all, the input count being where the segwit marker lives, so its `\x00`
+# opens a witness section rather than an empty list.
+#
+# That takes the outpoint and everything holding one out of the octets
+# test, and `tx-nested-out` is what keeps a nested case in it: an amount
+# above MoneyRange survives the round trip, eight little-endian bytes
+# carrying it, and `Tx.assert_valid` reaches it through
+# `tx_out.assert_valid()` before the total it would also refuse
+_NO_OCTETS = {"outpoint", "tx_in-itself", "tx_in-nested", "tx-itself", "tx-nested-in"}
 
 # and what a dict cannot be asked. TxOut's only validity question is the
 # amount, and `to_dict` puts that amount through `btc_from_sats`, which is
 # `valid_sats_amount` -- the conversion asks what assert_valid would ask, so
 # there is no answer the flag could change. The last test below is that
-# exclusion, stated as a test rather than as prose here
-_NO_DICT = {"tx_out"}
+# exclusion, stated as a test rather than as prose here, and
+# `tx-nested-out` is excluded by it too, that conversion running on the
+# output it nests whatever the transaction was told
+_NO_DICT = {"tx_out", "tx-nested-out"}
 
 _OCTETS = [case for case in _INVALID if case[0] not in _NO_OCTETS]
 _DICTS = [case for case in _INVALID if case[0] not in _NO_DICT]

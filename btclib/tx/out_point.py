@@ -36,8 +36,13 @@ class OutPoint:
     tx_id is held in the byte order hex explorers print, reversed on
     the wire by serialize and back by parse. Frozen and hashable, so
     an OutPoint can key the dict a utxo set is; the default instance
-    is the coinbase marker, all-zero tx_id and 0xFFFFFFFF vout, and
-    assert_valid refuses a half-coinbase mix of the two.
+    is the coinbase marker, all-zero tx_id and 0xFFFFFFFF vout, which
+    `is_coinbase` is the question about.
+
+    What is refused is a field no four bytes or thirty-two hold, and
+    nothing about the pair: an all-zero tx_id with a real vout, and a
+    real tx_id with the sentinel vout, are both outpoints Bitcoin Core
+    accepts and this class used to refuse (issue 513).
     """
 
     tx_id: bytes
@@ -71,11 +76,23 @@ class OutPoint:
         return self.tx_id == b"\x00" * 32 and self.vout == 0xFFFFFFFF
 
     def assert_valid(self) -> None:
-        """Refuse a tx_id not of 32 bytes, a vout no 4 bytes hold, a mix.
+        """Refuse a tx_id not of 32 bytes and a vout no 4 bytes hold.
 
-        The mix is an all-zero tx_id with a real vout or the reverse:
-        the coinbase marker is both fields at their sentinel or
-        neither.
+        The two fields and not the pair, which is where this used to be
+        stricter than consensus. Core's `COutPoint::IsNull` is the
+        *conjunction* -- `hash.IsNull() && n == NULL_INDEX` -- and
+        `CheckTransaction` refuses a null outpoint in a non-coinbase and
+        nothing else, so `000...000:0` is a transaction Core parses and
+        checks, unspendable though it is. Refusing it here refused a
+        transaction that exists: BIP322's proof-of-funds vectors carry
+        exactly that shape as the funding transaction of an input they
+        prove control of, and `Psbt.parse` could not read them (issue
+        513).
+
+        What reads the pair is `is_coinbase`, which is Core's own
+        conjunction, and `Tx.assert_valid` through it: a coinbase input
+        in a transaction that is not a coinbase is refused there, which
+        is the rule consensus actually has.
         """
         if len(self.tx_id) != 32:
             err_msg = f"invalid OutPoint tx_id: {len(self.tx_id)}"
@@ -89,9 +106,6 @@ class OutPoint:
         # must be a 4-bytes int
         if not 0 <= self.vout <= 0xFFFFFFFF:
             raise BTClibValueError(f"invalid vout: {self.vout}")
-        # not a coinbase, not a regular OutPoint
-        if (self.tx_id == b"\x00" * 32) ^ (self.vout == 0xFFFFFFFF):
-            raise BTClibValueError("invalid OutPoint")
 
     def to_dict(self, *, check_validity: bool = True) -> dict[str, str | int]:
         """Return {"txid", "vout"}, the keys Bitcoin Core's RPC uses.
