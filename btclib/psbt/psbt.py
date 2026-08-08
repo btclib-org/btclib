@@ -1,5 +1,4 @@
 # Copyright (c) The btclib developers
-#
 # Distributed under the MIT software license, see the accompanying
 # LICENSE file or https://opensource.org/license/mit for the full text.
 
@@ -48,7 +47,7 @@ from btclib.exceptions import BTClibValueError
 from btclib.hashes import hash160, sha256
 from btclib.psbt.psbt_in import PsbtIn
 from btclib.psbt.psbt_out import PsbtOut
-from btclib.psbt.psbt_size import estimated_input_sizes
+from btclib.psbt.psbt_size import SolutionSizer, estimated_input_sizes
 from btclib.psbt.psbt_utils import (
     LEAF_HASH_SIZE,
     PSBT_SEPARATOR,
@@ -103,6 +102,7 @@ __all__ = [
     "PSBT_MAGIC_BYTES",
     "PSBT_V0",
     "PSBT_V2",
+    "InputSolver",
     "KeyManager",
     "Psbt",
     "assert_signatures_only",
@@ -730,6 +730,17 @@ class Psbt:
         transaction is once they are in place is one arithmetic, written
         once, in the class whose serialization it is.
         """
+        return self.weight_estimate()
+
+    def weight_estimate(self, sizer: SolutionSizer | None = None) -> int:
+        """Return the weight once signed, asking a sizer where needed.
+
+        What `estimated_weight` is, with the one thing a property cannot
+        take: a `psbt_size.SolutionSizer`, for the inputs this library
+        refuses to estimate because what they will push is knowledge only
+        the caller has -- a script of no standard type, a taproot script
+        path. Without one this is that property exactly.
+        """
         vin: list[TxIn] = []
         # read once: the transaction is computed at every access, being
         # the psbt's fields put together rather than a field of its own
@@ -738,7 +749,9 @@ class Psbt:
         # the two are of one length by construction
         for i, (psbt_in, tx_in) in enumerate(zip(self.inputs, tx.vin, strict=True)):
             try:
-                script_sig_size, witness_sizes = estimated_input_sizes(psbt_in, tx_in)
+                script_sig_size, witness_sizes = estimated_input_sizes(
+                    psbt_in, tx_in, sizer=sizer
+                )
             except BTClibValueError as e:
                 raise BTClibValueError(f"input {i}: {e}") from e
             vin.append(
@@ -763,7 +776,16 @@ class Psbt:
         The name Bitcoin Core's `analyzepsbt` reports it under, and the
         `Tx.vsize` arithmetic: a quarter of the weight, rounded up.
         """
-        return ceil(self.estimated_weight / 4)
+        return self.vsize_estimate()
+
+    def vsize_estimate(self, sizer: SolutionSizer | None = None) -> int:
+        """Return the virtual size once signed, asking a sizer where needed.
+
+        `estimated_vsize` over `weight_estimate`, so that a fee computed
+        from a caller's own solution sizes is the same arithmetic as one
+        computed from this library's.
+        """
+        return ceil(self.weight_estimate(sizer) / 4)
 
     def __init__(
         self,
@@ -2431,7 +2453,32 @@ def _clear_finalized(psbt_in: PsbtIn) -> None:
             setattr(psbt_in, field.name, getattr(empty, field.name))
 
 
-def finalize(psbt: Psbt) -> Psbt:
+# the spend of one input, by the caller who knows: the final script_sig
+# and the final witness, and None for an input this caller leaves to the
+# generic finalizer
+InputSolver = Callable[[Psbt, int], "tuple[bytes, Witness] | None"]
+
+
+def _finalized_by_caller(
+    psbt: Psbt, vin_i: int, spend: tuple[bytes, Witness]
+) -> tuple[bytes, Witness]:
+    """Return the caller's spend, with the checks that still apply to it.
+
+    A solver says what satisfies the script; whether the signatures the
+    input carries are good is not a matter of opinion, so where there are
+    any they are verified exactly as they would have been. An input with
+    none -- a taproot script path, whose signatures travel in fields of
+    their own -- has nothing here to check, and the spend is the
+    caller's word.
+    """
+    psbt_in = psbt.inputs[vin_i]
+    if psbt_in.partial_sigs:
+        _assert_sig_hash_type(psbt_in)
+        _assert_partial_sigs_verify(psbt_in, psbt.tx, vin_i)
+    return spend
+
+
+def finalize(psbt: Psbt, *, solver: InputSolver | None = None) -> Psbt:
     """Finalize the Psbt.
 
     The Input Finalizer must only accept a PSBT.
@@ -2463,6 +2510,24 @@ def finalize(psbt: Psbt) -> Psbt:
     too. Refusing it would mean a psbt whose signer finalized one input
     could not be finalized at all -- the rest of it would raise "missing
     signatures" for the input that is already done.
+
+    A `solver` answers for the inputs whose spend is the caller's to
+    know. It is asked before this function builds anything, and not only
+    where this function refuses, which the sizer of `psbt_size` is: two
+    of the shapes below are refusals -- a taproot input with more than
+    one script path signature, and a leaf that is not a single-key one --
+    but a witness script of no standard kind is *not*. That one is built
+    from the signatures and the script, which is the satisfaction of a
+    multisig and a guess for anything else, so a caller with a script of
+    their own has to be able to answer over it rather than after it.
+    `descriptors.miniscript_solver` is that answer wherever the witness
+    script is a BIP379 miniscript, and it is a solver rather than a branch
+    of this function for a reason of layering: `descriptors` imports this
+    module and nothing here imports back.
+
+    What the solver does not take over is the bookkeeping: the clearing
+    BIP174 asks for, what is kept, and the verification of whatever
+    signatures the input does carry are this function's either way.
     """
     psbt = deepcopy(psbt)
     psbt.assert_valid()
@@ -2474,12 +2539,15 @@ def finalize(psbt: Psbt) -> Psbt:
         if psbt_in.final_script_sig or psbt_in.final_script_witness:
             continue
 
+        answered = solver(psbt, vin_i) if solver else None
+        if answered is not None:
+            script_sig, witness = _finalized_by_caller(psbt, vin_i, answered)
         # a taproot input is finalized from its own fields and not from
         # partial_sigs, which is keyed by compressed key and holds ECDSA
         # signatures: a schnorr signature travels in PSBT_IN_TAP_KEY_SIG
         # or PSBT_IN_TAP_SCRIPT_SIG, and BIP373 is what writes the
         # aggregate signature of a MuSig2 session into them
-        if is_p2tr(_spent_script(psbt_in)):
+        elif is_p2tr(_spent_script(psbt_in)):
             script_sig, witness = _finalized_taproot_input(psbt, vin_i)
         else:
             if not psbt_in.partial_sigs:

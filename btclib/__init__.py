@@ -1,5 +1,4 @@
 # Copyright (c) The btclib developers
-#
 # Distributed under the MIT software license, see the accompanying
 # LICENSE file or https://opensource.org/license/mit for the full text.
 
@@ -67,7 +66,8 @@ __author__ = "The btclib developers"
 __author_email__ = "devs@btclib.org"
 # the one place the years are written. The notice at the head of every
 # source file carries none, by design: it comes from the COPYRIGHT file,
-# which the copyright-notice hook enforces, so it never needs editing.
+# which ruff's CPY001 (flake8-copyright) enforces, so it never needs
+# editing.
 # docs/source/conf.py reads this line rather than importing it, read the
 # docs not installing this package into the environment it builds in
 __copyright__ = "Copyright (c) 2017-2026 The btclib developers"
@@ -99,6 +99,7 @@ __all__ = [
     "number_theory",
     "psbt",
     "psbt_signer",
+    "psbt_signer_contract",
     "script",
     "slip132",
     "to_prv_key",

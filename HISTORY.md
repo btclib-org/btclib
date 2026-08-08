@@ -1,9 +1,34 @@
 # Release notes
 
+<!-- markdownlint-configure-file
+  {
+    // MD024/no-duplicate-heading - "Breaking changes" is the heading of a
+    // subsection under every release that has one, which is what keeps
+    // the page readable scrolling down it; only a duplicate under the
+    // same release heading would be the accident this rule looks for.
+    // CHANGELOG.md carries the same comment, for its group headings
+    "MD024": { "siblings_only": true }
+  }
+-->
+
 Notable changes to the codebase are documented here.
 
 Release names follow *[calendar versioning](https://calver.org/)*:
 full year, short month, short day (YYYY-M-D)
+
+## v2026.9 (work in progress, not released yet)
+
+### Breaking changes
+
+- **`btclib.descriptors` is a package, and its three checksum tables moved
+  with the module into it.** `INPUT_CHARSET`, `CHECKSUM_CHARSET` and
+  `GENERATOR` are `btclib.descriptors.descriptors.INPUT_CHARSET` and its
+  two neighbours; they were never exported and are the tables BIP380's
+  checksum is computed from, which `checksum`, `add_checksum` and
+  `strip_checksum` answer with. Every exported name is unchanged: `from
+  btclib.descriptors import parse` and its neighbours reach the same
+  objects, and `btclib.descriptors.miniscript` is the new subgroup beside
+  them.
 
 ## v2026.8.7
 

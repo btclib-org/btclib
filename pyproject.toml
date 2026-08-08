@@ -15,85 +15,53 @@ name = "btclib"
 # file. Not a literal in btclib/__init__.py for setuptools to import and
 # conf.py to repeat: two declarations are two things a release workflow
 # has to compare before trusting either
-version = "2026.8.7"
+version = "2026.9"
 description = "A library for 'bitcoin cryptography'"
 readme = "README.md"
-# PEP 639: an SPDX expression, which becomes the `License-Expression`
-# metadata field, and the files it is carried by. The TOML-table form
-# setuptools deprecates wrote a free-text `License:` field instead, and
-# there is no license classifier below for the same reason -- one
-# machine-readable statement rather than three spellings of it.
-#
-# AUTHORS.md is named beside LICENSE rather than dropped: setuptools'
-# default globs match both, so both are in `dist-info/licenses/` today, and
-# the MIT notice this repository carries names "The btclib developers" --
-# the same holder `authors` below declares -- rather than a list of
-# people. AUTHORS.md answers where that list would be instead: by
-# pointing at the revision history, the record that keeps itself, not by
-# keeping one of its own. `["LICENSE"]` alone would take that pointer out
-# of every wheel
+# PEP 639: a SPDX expression and the files it refers to, replacing the
+# deprecated license table and the License :: classifier
 license = "MIT"
-license-files = ["LICENSE", "AUTHORS.md"]
+license-files = ["LICENSE", "COPYRIGHT", "AUTHORS.md"]
 authors = [{ name = "The btclib developers", email = "devs@btclib.org" }]
-# Python 3.9 is end-of-life since 2025-10, and keeping it out buys more
-# than one fewer column in the matrix: a fresh resolve at ">=3.9" splits a
-# large part of the lock into a modern version and an older one reachable
-# only from 3.9 -- the type checker, the test runner and the property-based
-# testing library all appear twice -- so 3.9 jobs would be the only ones
-# not testing against what everybody else runs. At ">=3.10" few packages
-# split at all. How many, at either floor, is a question for the resolver
-# rather than for a number here that every dependency bump moves: edit this
-# floor, `rm uv.lock`, `uv lock`, read the answer, `git checkout uv.lock`.
-# 3.10 is also the oldest mypy can be aimed at (tool.mypy below), so the
-# floor and the type checker's target agree
 requires-python = ">=3.10"
-# No upper bound, and that is a decision rather than an omission (issue
-# 325). The bindings are a btclib-org project developed by the same people,
-# so a breaking change there is coordinated with the release here -- which
-# is what a version ceiling substitutes for when it cannot be. `<0.8` would
-# cost a btclib release for every bindings minor, including the ones that
-# break nothing, and would make a published artifact refuse a version it
-# works with; `<1` constrains nothing at all, pre-1.0 semver putting the
-# breaking changes in the minor. CONTRIBUTING.md states the policy, and
-# what it costs an artifact that is no longer supported.
-#
-# The lower bound is the oldest final release this version supports, and
-# 0.7.1rc1 is below it: the candidate is what the pin named while nothing
-# final satisfied it, and what btclib is developed and tested against is
-# now a release.
-#
-# bitcoin-core-rpc is the second, and the same reasoning applies to its
-# ceiling: another btclib-org project, released by the same people, so a
-# breaking change there is coordinated rather than guarded against here.
-# It is one file with nothing but the standard library behind it, so
-# depending on it adds no transitive anything -- what it replaces is the
-# copy of that file btclib used to carry, and `btclib/fetch/` is the whole
-# of what reaches it. Its lower bound went the same way the bindings' did:
-# >=2026.8 named intent while no index had anything at all, not even a
-# candidate, and >=2026.8.6 was that pin once the first release existed.
-# >=2026.8.7 is a floor a caller cannot go under rather than a preference:
-# that release renamed `core_chain_from_network` and
-# `network_from_core_chain` with no alias left behind, so an older one does
-# not satisfy the import `btclib/fetch/bitcoin_core.py` makes.
 dependencies = [
     "btclib_libsecp256k1>=0.7.1.2",
     "bitcoin-core-rpc>=2026.8.7",
 ]
 keywords = [
+    # The GitHub repository topics, in the same order, and the order is by
+    # relevance rather than alphabetical: PyPI shows keywords as they are
+    # given, and the first few are read as what the package is. GitHub
+    # sorts its own alphabetically and takes lowercase only, which is the
+    # spelling here too, so the two lists differ in nothing but length.
     "bitcoin",
     "cryptography",
     "elliptic-curves",
+    "secp256k1",
     "ecdsa",
     "schnorr",
-    "RFC-6979",
+    "bip340",
+    "musig2",
     "bip32",
     "bip39",
+    "slip39",
     "electrum",
+    "psbt",
+    "taproot",
+    "segwit",
     "base58",
     "bech32",
-    "segwit",
+    "output-descriptors",
+    "hardware-wallet",
     "message-signing",
-    "bip340",
+    # Past the twenty topics GitHub allows, so these are keywords and not
+    # topics. Nothing caps this list, and a keyword for a feature the
+    # library has costs nothing.
+    "rfc-6979",
+    "mnemonic",
+    "merkle-proof",
+    "bip44",
+    "bitcoin-script",
 ]
 classifiers = [
     "Programming Language :: Python :: 3 :: Only",
@@ -117,18 +85,15 @@ classifiers = [
 ]
 
 [project.urls]
-Homepage = "https://btclib.org"
-Download = "https://github.com/btclib-org/btclib/releases"
-Documentation = "https://btclib.readthedocs.io/"
-GitHub = "https://github.com/btclib-org/btclib"
-Issues = "https://github.com/btclib-org/btclib/issues"
-"Pull Requests" = "https://github.com/btclib-org/btclib/pulls"
+homepage = "https://btclib.org"
+documentation = "https://btclib.readthedocs.io/"
+download = "https://github.com/btclib-org/btclib/releases"
+changelog = "https://github.com/btclib-org/btclib/blob/master/HISTORY.md"
+repository = "https://github.com/btclib-org/btclib"
+issues = "https://github.com/btclib-org/btclib/issues"
+pull_requests = "https://github.com/btclib-org/btclib/pulls"
 
 [dependency-groups]
-# packages required to develop, build, and test btclib
-# hypothesis generates the input the fixed vectors cannot: the vectors
-# are the conformance suite, and a codec library needs the malformed
-# bytes nobody thought to write down as well
 test = [
     "coverage",
     "hypothesis",
@@ -138,23 +103,10 @@ test = [
     "pytest-xdist",
 ]
 lint = ["mypy", "pre-commit", "ruff"]
-# mutation testing, which asks the question coverage cannot: a line the
-# suite executes is not a line the suite checks. Its own group and not part
-# of test, because every cell of the matrix installs that one and none of
-# them runs this -- the scheduled mutation workflow is the only consumer,
-# and it asks for --group test as well, cosmic-ray shelling out to pytest.
-# cosmic-ray rather than mutmut, measured on this tree: mutmut 3.7 has to
-# copy an importable package, so a source_paths of one file leaves its
-# mutants/ copy without the module beside it (ModuleNotFoundError on
-# btclib.script.script) and scoping moves out of the configuration into a
-# name filter on the command line, while cosmic-ray's module-path is the
-# scope. It also runs the test command written in .github/mutation/*.toml
-# verbatim, which is what lets a run override the -n auto of
-# tool.pytest.ini_options and add -x
-mutation = ["cosmic-ray"]
 # the distribution files are built and published by uv itself: what this
 # group holds is what inspects them, before an upload consumes the version
 build = ["check-manifest", "check-wheel-contents", "pyroma", "twine"]
+mutation = ["cosmic-ray"]
 docs = ["myst-parser", "sphinx", "sphinx_rtd_theme"]
 dev = [
     { include-group = "test" },
@@ -165,17 +117,21 @@ dev = [
 ]
 
 [tool.uv]
-# the oldest uv allowed to touch uv.lock, matching the rev the uv-lock
-# hook of .pre-commit-config.yaml pins: that hook is what regenerates the
-# file, and its rev is something pre-commit.ci moves on its own schedule.
-# Declared here the floor holds for every uv command rather than for the
-# hook alone, so an older uv on a developer's machine says so instead of
-# rewriting the lock in a format the runners then fail to read -- uv is
+# the oldest uv Dependabot's own uv-ecosystem updater bundles: it runs
+# `uv lock` with exactly that version regardless of this key, so any
+# higher floor fails every update it attempts before it starts. That
+# version already understands the lock format the uv-lock hook of
+# .pre-commit-config.yaml writes -- the hook pins a newer rev that
+# pre-commit.ci moves on its own schedule, and regenerates the committed
+# file, so this floor only has to stay low enough for Dependabot rather
+# than match the hook. Declared here the floor still holds for every uv
+# command, not the hook alone, so an uv older than this refuses rather
+# than rewriting the lock in a format a newer one cannot read -- uv is
 # pre-1.0 and has changed that format before. It also reaches CI without
 # a second pin: setup-uv, given no version input, reads this key, and a
 # bare minimum specifier makes it install the latest uv, so the runners
 # are never behind the floor and there is nothing here to go stale
-required-version = ">=0.12.0"
+required-version = ">=0.11.31"
 
 [tool.setuptools.packages.find]
 include = ["btclib*"]
@@ -370,6 +326,9 @@ repository_nwo = "repository_nwo"
 # bindings predicate. Neither can be written differently
 nd = "nd"
 ands = "ands"
+# ruff's own name for flake8-copyright, in the comment above
+# [tool.ruff.lint.flake8-copyright] explaining why it is selected
+CPY = "CPY"
 
 [tool.typos.type.verbatim]
 # the three files that quote misspellings on purpose: the #161 entry names
@@ -535,6 +494,17 @@ exclude = [
 # target-version is inferred from project.requires-python
 
 [tool.ruff.lint]
+# preview and explicit-preview-rules only make sense as a pair. Naming a
+# rule in `ignore` below, instead of coding it, is itself a preview
+# feature, so the first line is what buys the second -- and alone it
+# would also turn on every rule ruff is still designing. The second
+# takes that back off: a preview rule then runs only where this file
+# names it exactly, and every entry of `select` below is a family, which
+# no preview rule can be reached through. The rule set stays the stable
+# one it already was; what preview changes here is only how `ignore`
+# spells its own entries
+preview = true
+explicit-preview-rules = true
 # A, BLE, C90, FA, FIX, FLY, RSE, SLOT, T10, T20 and TID are here by
 # measurement: every unselected rule set was run over btclib and tests,
 # and these are the ones that either find nothing today
@@ -551,13 +521,13 @@ exclude = [
 # than the count it reached -- `uv run ruff check --select N --no-cache
 # btclib tests` re-derives any of these in a second, and a number here
 # rots with the next test file: N (uppercase math symbols are the
-# convention here, as the PLR2004 note below already says), COM (COM812,
-# which ruff's own documentation recommends against alongside the
-# formatter), EM, FBT, EXE (all EXE001, i.e. the shebang-not-executable
-# finding that .pre-commit-config.yaml records the same decision about),
-# TC, ARG, ANN (all ANN401, the explicit Any of the vector loaders),
-# SLF (all SLF001, tests reaching into private members on purpose), PERF
-# (all PERF203, try/except in a retry loop).
+# convention here, as the magic-value-comparison note below already
+# says), COM (COM812, which ruff's own documentation recommends against
+# alongside the formatter), EM, FBT, EXE (all EXE001, i.e. the
+# shebang-not-executable finding that .pre-commit-config.yaml records
+# the same decision about), TC, ARG, ANN (all ANN401, the explicit Any
+# of the vector loaders), SLF (all SLF001, tests reaching into private
+# members on purpose), PERF (all PERF203, try/except in a retry loop).
 # ERA is selected despite what it found on that survey: about half was
 # genuine dead code and the other half prose that ERA read as code, and the
 # half did not need a single noqa -- a reworded comment reads as prose to
@@ -576,6 +546,14 @@ select = [
     "BLE",  # flake8-blind-except
     "C4",   # flake8-comprehensions
     "C90",  # mccabe, at ruff's default with noqa'd exceptions: see below
+    # flake8-copyright, replacing the copyright-notice pre-commit hook:
+    # ed6e8014 found that hook checking only staged files unless given
+    # --enforce-all, so "pre-commit run --all-files" -- what the lint
+    # workflow actually runs -- silently checked nothing until that flag
+    # was added by hand. A rule living inside ruff's own file-selection
+    # logic has no separate flag to forget, checking whatever files it is
+    # given the same way whoever is asking
+    "CPY",
     "D",    # pydocstyle
     "E",    # pycodestyle errors
     "ERA",  # eradicate: code that was commented out instead of deleted
@@ -604,49 +582,71 @@ select = [
     "UP",   # pyupgrade
     "W",    # pycodestyle warnings
 ]
+# named rather than coded, here and in per-file-ignores below: `select`
+# above has no choice, a family having no name of its own, but an entry
+# that suppresses a single rule can say which -- so the reason sits in
+# the comment and the rule sits in the entry, with no code left to look
+# up between them
 ignore = [
     # docstrings: every public module, class, method and function must
     # carry one -- D100/D104 and the D101/D102/D103 left out of this
     # list enforce exactly that (issue #290). The two still ignored are
     # the ones pep257 does not ask for: __init__ is documented by its
     # class, and a magic method by the data model it implements
-    "D105", # undocumented-magic-method
-    "D107", # undocumented-public-init
-    "D203", # incorrect-blank-line-before-class (conflicts with D211)
-    "D213", # multi-line-summary-second-line (conflicts with D212)
+    "undocumented-magic-method",
+    "undocumented-public-init",
+    # pydocstyle offers each of these as a mutually exclusive alternative
+    # to a rule the "D" family above already selects -- D211
+    # (blank-line-before-class) and D212 (multi-line-summary-first-line)
+    # in order -- so no docstring can satisfy both sides of either pair
+    # and disabling one is permanent, not a count that a future cleanup
+    # could shrink
+    "incorrect-blank-line-before-class",
+    "multi-line-summary-second-line",
     # code length is enforced by the formatter, which reflows to its 88
-    # columns everything it is allowed to rewrite. What is left for E501
-    # to find is what no width can break, almost all of it a test vector,
-    # an extended key or a base64 signature on one line. The prose the
-    # formatter never touches is measured instead by max-doc-length below
-    "E501", # line-too-long
+    # columns everything it is allowed to rewrite. What is left for this
+    # rule to find is what no width can break, almost all of it a test
+    # vector, an extended key or a base64 signature on one line. The
+    # prose the formatter never touches is measured instead by
+    # max-doc-length below
+    "line-too-long",
     # complexity metrics this codebase does not bound globally: measured
-    # one at a time, PLR0913 and PLR0917 find many functions with several
-    # parameters and PLR0915 finds several long ones too, none of it a
-    # short, nameable list of exceptions the way PLR0904, PLR0911,
-    # PLR0912 and PLR0914 were -- those four are gone from this list now,
-    # the first and last for finding nothing, the middle two carrying a
-    # `# noqa` at each of their sites instead
-    "PLR0913", # too-many-arguments
-    "PLR0915", # too-many-statements
-    "PLR0917", # too-many-positional-arguments
+    # one at a time, too-many-arguments and too-many-positional-arguments
+    # find many functions with several parameters and too-many-statements
+    # finds several long ones too, none of it a short, nameable list of
+    # exceptions the way too-many-public-methods, too-many-return-
+    # statements, too-many-branches and too-many-locals were -- those
+    # four are gone from this list now, the first and last for finding
+    # nothing, the middle two carrying a `# noqa` at each of their sites
+    # instead
+    "too-many-arguments",
+    "too-many-statements",
+    "too-many-positional-arguments",
     # not a complexity metric, and measured widely on its own: what is
     # compared is almost always the size of a cryptographic object -- 32
     # or 33 for a key, 64 or 65 for a signature, 20 for a hash160 -- or an
     # index into a standardized algorithm's own constants, as
     # _ripemd160.py's 2, 3 and 4 are. The size *is* the domain, not a
     # value this code chose and could have named instead
-    "PLR2004", # magic-value-comparison
+    "magic-value-comparison",
     # measured widely too, and every one on purpose: the message is built
     # where the exception is raised because that is the only place holding
     # what went wrong -- the value refused, the length found instead of the
     # one expected -- and a shared exception class could not say that
     # without every raise site passing it back in anyway
-    "TRY003", # raise-vanilla-args
+    "raise-vanilla-args",
 ]
 
 [tool.ruff.lint.per-file-ignores]
 "**/__init__.py" = ["F401"] # re-exported imports
+# preview mode's undefined-export does not special-case a module-level
+# __getattr__ (astral-sh/ruff#18504, open): both modules publish every
+# submodule this way, as each docstring says, and F822 sees no import to
+# bind the name to. tests/all_test.py already walks `__all__` with
+# getattr and fails on the same drift this rule would catch, so nothing
+# here goes unchecked while the upstream rule does not know the pattern
+"btclib/__init__.py" = ["F822"]
+"btclib/script/__init__.py" = ["F822"]
 # collecting entropy from dice is a conversation: the module prompts with
 # input() and prints how many rolls it needs and which ones count, so its
 # prints are the interface, not a debugging leftover -- unlike a print
@@ -717,3 +717,18 @@ convention = "pep257"
 # a decision this file made -- every other setting in it carries the
 # measurement or the reason that chose it, and this one had neither
 parametrize-names-type = "csv"
+
+[tool.ruff.lint.flake8-copyright]
+# COPYRIGHT is still the one place the notice text is written down; this
+# is all three of its lines as one regex, not only the holder line --
+# a file keeping the first and dropping the licence/text lines below it
+# would have passed the single-line version and does not pass this one.
+# Escaped literally rather than searched loosely, so the dated holder
+# variants ed6e8014 found and reverted (2017-2021, 2017-2022,
+# 2020-2022) would not have matched either.
+# Anchored with ^ for the same reason: unanchored, CPY001 is a search
+# over the first 4096 bytes and not a check that the notice opens the
+# file, so an import or a docstring placed above it would still pass.
+# No file here opens with a shebang, so nothing legitimate sits between
+# byte zero and the notice for the anchor to exclude
+notice-rgx = "^# Copyright \\(c\\) The btclib developers\\n# Distributed under the MIT software license, see the accompanying\\n# LICENSE file or https://opensource\\.org/license/mit for the full text\\."

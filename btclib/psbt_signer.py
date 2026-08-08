@@ -1,5 +1,4 @@
 # Copyright (c) The btclib developers
-#
 # Distributed under the MIT software license, see the accompanying
 # LICENSE file or https://opensource.org/license/mit for the full text.
 
@@ -47,32 +46,46 @@ from __future__ import annotations
 
 from base64 import b64encode
 from dataclasses import dataclass
-from typing import Protocol, runtime_checkable
+from typing import TYPE_CHECKING, Protocol, runtime_checkable
 
 from btclib.alias import BIP44ScriptType, Octets, String
 from btclib.bip32.bip32 import BIP32Key, BIP32KeyData, derive, xpub_from_xprv
-from btclib.bip32.der_path import DerPath
+from btclib.bip32.der_path import DerPath, indexes_from_der_path, str_from_der_path
 from btclib.bip32.key_origin import BIP32KeyOrigin
 from btclib.descriptors import Descriptor, account_descriptors
 from btclib.ecc import bms, dsa, ssa
-from btclib.exceptions import BTClibValueError
+from btclib.exceptions import BTClibValueError, SignerError
 from btclib.psbt.psbt import Psbt, assert_signatures_only, combine, sign
 from btclib.script.taproot import output_prvkey_from_merkle_root
 from btclib.to_prv_key import prv_keyinfo_from_prv_key
 from btclib.to_pub_key import fingerprint, pub_keyinfo_from_key
+from btclib.utils import bytes_from_octets
+
+if TYPE_CHECKING:
+    from collections.abc import Mapping, Sequence
 
 __all__ = [
     "AddressDisplay",
     "MessageSigner",
     "PsbtSigner",
     "SignerCapabilities",
+    "SignerDevice",
     "SoftwareSigner",
     "assert_public",
     "display_address",
     "export_account",
+    "merge_devices",
     "request_signatures",
+    "select_device",
     "sign_message",
 ]
+
+
+def _b58_text(xkey: BIP32Key) -> str:
+    """Return the b58 spelling of a key, whatever spelling came in."""
+    if isinstance(xkey, BIP32KeyData):
+        return xkey.b58encode()
+    return BIP32KeyData.b58decode(xkey).b58encode()
 
 
 @dataclass(frozen=True)
@@ -164,6 +177,92 @@ class MessageSigner(Protocol):
     def sign_message(self, message: Octets, der_path: DerPath) -> str:
         """Return the compact signature of a message, by the key at a path."""
         ...
+
+
+@runtime_checkable
+class SignerDevice(Protocol):
+    """What a caller knows of a device before it has a signer for it.
+
+    Selecting which device answers is the one thing a caller does with no
+    signer in hand, and it is the same rule for every transport: the
+    fingerprint identifies the master key, so it identifies the device
+    that holds it, whatever answered for it. `hwi.HwiDevice` satisfies
+    this; so does a caller's own record of a signer that is not a device
+    at all.
+
+    `fingerprint` is None for a device that cannot be asked for one yet
+    -- a locked Trezor, a Ledger with no app open -- and `error` says
+    why. Such a device is listed on purpose: what a caller does about a
+    locked device is unlock it, and a list that left it out would say it
+    is not there.
+    """
+
+    @property
+    def fingerprint(self) -> bytes | None:
+        """Return the master fingerprint, or None if it cannot be asked."""
+        ...
+
+    @property
+    def error(self) -> str:
+        """Return why the device could not be asked, empty if it could."""
+        ...
+
+
+def _fingerprint(fingerprint: Octets) -> bytes:
+    """Return the four bytes of a fingerprint, however it was spelled."""
+    return bytes_from_octets(fingerprint, 4)
+
+
+def merge_devices(
+    *sources: Sequence[SignerDevice],
+) -> list[SignerDevice]:
+    """Return one list of devices from several, the earlier source winning.
+
+    A caller with more than one way of reaching a signer -- a command
+    line, an in-process driver, keys of its own -- has one question to
+    answer that none of the adapters can: which of them answers for a
+    fingerprint two of them offer. Order is that answer, and it is the
+    caller's to state, so the sources are positional and the first one
+    that names a fingerprint keeps it.
+
+    Devices that cannot be asked for a fingerprint yet are all kept:
+    there is no fingerprint to be a duplicate of, and dropping them would
+    say a locked device is not plugged in.
+    """
+    merged: list[SignerDevice] = []
+    seen: set[bytes] = set()
+    for source in sources:
+        for device in source:
+            if device.fingerprint is None:
+                merged.append(device)
+                continue
+            if device.fingerprint in seen:
+                continue
+            seen.add(device.fingerprint)
+            merged.append(device)
+    return merged
+
+
+def select_device(devices: Sequence[SignerDevice], fingerprint: Octets) -> SignerDevice:
+    """Return the one device answering for a fingerprint, or raise.
+
+    Two failures and they are different news, so they are different
+    messages: no device answers for it, or one does and it said why it
+    cannot be asked -- which is a device to unlock rather than a device
+    to look for.
+
+    More than one is not among them: `merge_devices` is where a caller
+    states which source wins, and a single source answering one
+    fingerprint twice is two cables to one device, so the first is taken.
+    """
+    wanted = _fingerprint(fingerprint)
+    for device in devices:
+        if device.fingerprint == wanted:
+            if device.error:
+                err_msg = f"device {wanted.hex()} cannot be used: {device.error}"
+                raise SignerError(err_msg)
+            return device
+    raise SignerError(f"no device with fingerprint {wanted.hex()}")
 
 
 def assert_public(descriptor: Descriptor) -> None:
@@ -279,7 +378,7 @@ def sign_message(
 
 
 class SoftwareSigner:
-    """One extended key, in this process, answering the contract above.
+    """Keys in this process, at known paths, answering the contract above.
 
     The reference implementation of `PsbtSigner`, `AddressDisplay` and
     `MessageSigner`, and what makes the contract testable without
@@ -295,12 +394,19 @@ class SoftwareSigner:
     adapter and this answer the same questions, so a caller can be
     developed against this and run against that.
 
-    A key is answered for when the origin's fingerprint is this key's own
+    A key is answered for when the origin's fingerprint is this signer's
     and the path derives to the very public key the psbt names. That
     second half is the check a device makes too: a psbt saying "this key
     is at that path" is a psbt somebody else wrote, and signing with what
     the path derives to without looking would sign with a key the caller
     was not told about.
+
+    One key or several is the same model: what is held is a key at a path
+    from the master, and `SoftwareSigner(xkey)` is the case where that
+    path is empty and the key *is* the master. `from_accounts` is the
+    other case, where a device exported accounts and kept its master --
+    the shape a psbt names, its key origins being a master fingerprint
+    and a path from it.
     """
 
     def __init__(self, xkey: BIP32Key, *, musig2: bool = False) -> None:
@@ -309,19 +415,108 @@ class SoftwareSigner:
         # inside, rather than a branch at every use. The round trip is
         # also what refuses a key that is no key, at construction rather
         # than at the first question asked
-        self.xkey = (
-            xkey.b58encode()
-            if isinstance(xkey, BIP32KeyData)
-            else BIP32KeyData.b58decode(xkey).b58encode()
-        )
+        key = _b58_text(xkey)
         self._musig2 = musig2
-        self._fingerprint = fingerprint(self.xkey)
+        self._fingerprint = fingerprint(key)
+        # the empty path is the master itself: every origin descends from
+        # it, so the lookup below finds this key for any of them
+        self._keys: dict[tuple[int, ...], str] = {(): key}
         self._closed = False
+
+    @classmethod
+    def from_accounts(
+        cls,
+        master_fingerprint: Octets,
+        accounts: Mapping[DerPath, BIP32Key],
+        *,
+        musig2: bool = False,
+    ) -> SoftwareSigner:
+        """Return a signer holding accounts, for the master they came from.
+
+        What a device that exported its accounts leaves behind, and what
+        `SoftwareSigner(xkey)` cannot express: the fingerprint a psbt
+        names is the *master*'s, and an account key's own is a different
+        four bytes, so a signer built on an account would answer for no
+        origin the device's psbts carry.
+
+        The fingerprint is therefore told rather than computed, and is a
+        claim: nothing in an extended key records where it came from, so
+        an account paired with the wrong master answers for origins whose
+        keys it does not hold -- and the public key check refuses each of
+        them, one derivation later.
+
+        Each path is the account's own, from that master. An origin is
+        answered by the account whose path is a prefix of it, the
+        remainder being what is derived; where two accounts prefix the
+        same origin the longer one answers, having less left to derive.
+        Fingerprint, then prefix, then the public key: the three are what
+        HWI's ledger driver matches on and what electrum's keystore tries
+        first, which is the shape a psbt written by a wallet has.
+
+        An origin naming an *account's* own fingerprint rather than the
+        master's is the other thing a wallet writes, and it is
+        `SoftwareSigner(account_xkey)`: a signer answers one fingerprint,
+        `master_fingerprint` being a single question, so which of the two
+        a psbt carries decides which constructor reads it.
+
+        What is not done is electrum's third attempt, which ignores the
+        fingerprint and tries the last few indexes against the public key
+        anyway. It is a search for a key the psbt did not say is there,
+        and a match found that way is a coincidence a signature would
+        make binding.
+        """
+        if not accounts:
+            raise BTClibValueError("no account: the signer would hold no key")
+        signer = cls.__new__(cls)
+        signer._musig2 = musig2
+        signer._fingerprint = bytes_from_octets(master_fingerprint, 4)
+        signer._keys = {
+            tuple(indexes_from_der_path(path)): _b58_text(key)
+            for path, key in accounts.items()
+        }
+        signer._closed = False
+        return signer
+
+    @property
+    def xkey(self) -> str:
+        """Return the key this signer was built on, where it was built on one.
+
+        A signer holding accounts was built on none: there is no key of
+        which the others are derivations, and answering one of them would
+        be answering a key the caller did not ask about.
+        """
+        try:
+            return self._keys[()]
+        except KeyError:
+            err_msg = "this signer holds accounts, not one key"
+            raise BTClibValueError(err_msg) from None
+
+    def _at(self, der_path: DerPath) -> str:
+        """Return the key at a path from the master, derived from what is held.
+
+        The account whose path is a prefix of the one asked for is the one
+        that can reach it; the longest such account is the one with the
+        least left to derive, and where the signer holds a master that
+        account is the master.
+        """
+        indexes = tuple(indexes_from_der_path(der_path))
+        candidates = [
+            (len(path), key)
+            for path, key in self._keys.items()
+            if indexes[: len(path)] == path
+        ]
+        if not candidates:
+            err_msg = f"no key held for the path {str_from_der_path(der_path)}"
+            raise BTClibValueError(err_msg)
+        depth, key = max(candidates)
+        return derive(key, list(indexes[depth:])) if indexes[depth:] else key
 
     @property
     def is_watch_only(self) -> bool:
         """Answer whether this signer holds no key that signs."""
-        return not BIP32KeyData.b58decode(self.xkey).is_private
+        return not any(
+            BIP32KeyData.b58decode(key).is_private for key in self._keys.values()
+        )
 
     def master_fingerprint(self) -> bytes:
         """Return the fingerprint of the key this signer was built on.
@@ -342,7 +537,7 @@ class SoftwareSigner:
         key that signs where a caller expects one that cannot.
         """
         self._assert_open()
-        derived = derive(self.xkey, der_path)
+        derived = self._at(der_path)
         if BIP32KeyData.b58decode(derived).is_private:
             return xpub_from_xprv(derived)
         return derived
@@ -416,7 +611,7 @@ class SoftwareSigner:
         self._assert_open()
         if self.is_watch_only:
             raise BTClibValueError("watch-only signer: it holds no key that signs")
-        prv_key = derive(self.xkey, der_path)
+        prv_key = self._at(der_path)
         return b64encode(bms.sign(message, prv_key).serialize()).decode("ascii")
 
     def _prv_key(self, pub_key: bytes, origin: BIP32KeyOrigin | None) -> int | None:
@@ -434,9 +629,10 @@ class SoftwareSigner:
         if origin is None or origin.master_fingerprint != self._fingerprint:
             return None
         try:
-            derived = derive(self.xkey, origin.der_path)
-        # a path this key cannot walk is a key this signer does not hold:
-        # a hardened step under an xpub, or an index BIP32 refuses
+            derived = self._at(origin.der_path)
+        # a path this signer cannot walk is a key it does not hold: an
+        # origin no account of it prefixes, a hardened step under an
+        # xpub, or an index BIP32 refuses
         except BTClibValueError:
             return None
         sec = pub_keyinfo_from_key(derived)[0]

@@ -1,5 +1,4 @@
 # Copyright (c) The btclib developers
-#
 # Distributed under the MIT software license, see the accompanying
 # LICENSE file or https://opensource.org/license/mit for the full text.
 
@@ -3874,3 +3873,117 @@ def test_an_answer_that_is_not_a_valid_psbt_is_refused() -> None:
     err_msg = "invalid partial signature pub_key"
     with pytest.raises(BTClibValueError, match=err_msg):
         assert_signatures_only(request, returned)
+
+
+def test_a_solver_spends_a_script_this_finalizer_would_guess_at() -> None:
+    """A witness script of no standard kind, and the caller's own stack.
+
+    The generic construction is the satisfaction of a multisig -- the
+    signatures, the BIP147 dummy where one is popped, the witness script
+    -- which is a guess for any other script. It is not refused, so a
+    caller with a script of their own answers over it rather than after
+    it, and what they answer is used whole.
+    """
+    signed, prevouts_ = _single_key_psbt("p2wsh")
+    witness_script = signed.inputs[0].witness_script
+    ((_, signature),) = signed.inputs[0].partial_sigs.items()
+
+    # the guess: signature and script, which for a p2pk witness script is
+    # right, and is what makes this comparison meaningful
+    guessed = finalize(signed)
+    assert guessed.inputs[0].final_script_witness.stack == (signature, witness_script)
+
+    # the caller's own, with an element the finalizer had no reason to add
+    stack = Witness([b"", signature, witness_script])
+
+    def solver(_psbt: Psbt, _vin_i: int) -> tuple[bytes, Witness]:
+        return b"", stack
+
+    solved = finalize(signed, solver=solver)
+    assert solved.inputs[0].final_script_witness == stack
+    assert solved.inputs[0].final_script_sig == b""
+    # the bookkeeping is the finalizer's either way: what BIP174 says to
+    # clear is cleared, and the utxo it says to keep is kept
+    assert not solved.inputs[0].partial_sigs
+    assert not solved.inputs[0].witness_script
+    assert solved.inputs[0].witness_utxo or solved.inputs[0].non_witness_utxo
+    assert prevouts_
+
+
+def test_a_solver_answering_none_leaves_the_input_to_the_finalizer() -> None:
+    """The refusals and the answers are both what they were unasked."""
+    signed, _ = _single_key_psbt("p2wsh")
+
+    def abstain(_psbt: Psbt, _vin_i: int) -> tuple[bytes, Witness] | None:
+        return None
+
+    assert finalize(signed, solver=abstain) == finalize(signed)
+
+    # an input with nothing to finalize is refused as before
+    psbt = deepcopy(signed)
+    psbt.inputs[0].partial_sigs = {}
+    with pytest.raises(BTClibValueError, match="missing signatures"):
+        finalize(psbt, solver=abstain)
+
+
+def test_a_solver_spends_the_taproot_leaf_the_psbt_cannot_choose() -> None:
+    """Two script path signatures are two spends, and the caller picks one.
+
+    Which leaf to spend is a choice the psbt does not record, so the
+    finalizer refuses it. A caller that has chosen says so with the
+    witness BIP341 asks for -- the signature, the leaf script, the
+    control block -- and the refusal becomes their answer.
+    """
+    psbt = _taproot_signed(
+        "a key in a script is a MuSig2 Aggregate Pubkey, with all partial"
+    )
+    _, sig = next(iter(psbt.inputs[0].taproot_script_spend_signatures.items()))
+    psbt.inputs[0].taproot_script_spend_signatures[b"\x01" * 64] = sig
+    with pytest.raises(BTClibValueError, match="2 taproot script path signatures"):
+        finalize(psbt)
+
+    control_block, (leaf, _version) = next(
+        iter(psbt.inputs[0].taproot_leaf_scripts.items())
+    )
+    chosen = Witness([sig, leaf, control_block])
+
+    def solver(_psbt: Psbt, _vin_i: int) -> tuple[bytes, Witness]:
+        return b"", chosen
+
+    solved = finalize(psbt, solver=solver)
+    assert solved.inputs[0].final_script_witness == chosen
+    # an empty script_sig, which is what BIP341 spends a witness v1
+    # program with, and the caller's to get right
+    assert solved.inputs[0].final_script_sig == b""
+    assert not solved.inputs[0].taproot_script_spend_signatures
+
+
+def test_a_solver_does_not_take_over_checking_the_signatures() -> None:
+    """What satisfies the script is the caller's; a bad signature is not.
+
+    The solver is never reached, which is the fact: a caller cannot
+    finalize an invalid signature by answering over it. What the solver
+    was asked is recorded rather than refused, so that the very same
+    solver can then finalize the psbt whose signature is good -- what
+    stopped the first call was the signature, and this is what says so.
+    """
+    signed, _ = _single_key_psbt("p2wsh")
+    psbt = deepcopy(signed)
+    ((pub_key, _),) = psbt.inputs[0].partial_sigs.items()
+    psbt.inputs[0].partial_sigs = {pub_key: b"\x30" * 71 + b"\x01"}
+
+    asked: list[int] = []
+
+    def solver(psbt_: Psbt, vin_i: int) -> tuple[bytes, Witness]:
+        asked.append(vin_i)
+        return b"", Witness([b"", psbt_.inputs[vin_i].witness_script])
+
+    with pytest.raises(BTClibValueError):
+        finalize(psbt, solver=solver)
+    assert not asked
+
+    solved = finalize(signed, solver=solver)
+    assert asked == [0]
+    assert solved.inputs[0].final_script_witness.stack[-1] == (
+        signed.inputs[0].witness_script
+    )

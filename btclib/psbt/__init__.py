@@ -1,5 +1,4 @@
 # Copyright (c) The btclib developers
-#
 # Distributed under the MIT software license, see the accompanying
 # LICENSE file or https://opensource.org/license/mit for the full text.
 
@@ -39,6 +38,7 @@ half of that module from already.
 
 from btclib.psbt import musig2
 from btclib.psbt.psbt import (
+    InputSolver,
     KeyManager,
     Psbt,
     assert_signatures_only,
@@ -53,13 +53,15 @@ from btclib.psbt.psbt import (
 )
 from btclib.psbt.psbt_in import PsbtIn
 from btclib.psbt.psbt_out import PsbtOut
-from btclib.psbt.psbt_size import estimated_input_sizes
+from btclib.psbt.psbt_size import SolutionSizer, estimated_input_sizes
 
 __all__ = [
+    "InputSolver",
     "KeyManager",
     "Psbt",
     "PsbtIn",
     "PsbtOut",
+    "SolutionSizer",
     "assert_signatures_only",
     "combine",
     "ecdsa_sig_hash",

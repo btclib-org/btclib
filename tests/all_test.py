@@ -1,5 +1,4 @@
 # Copyright (c) The btclib developers
-#
 # Distributed under the MIT software license, see the accompanying
 # LICENSE file or https://opensource.org/license/mit for the full text.
 
@@ -58,7 +57,11 @@ from btclib.script import script_pub_key
 UNEXPORTED = {
     "btclib": ["name"],
     "btclib.curves.curve": ["datadir"],
-    "btclib.descriptors": ["CHECKSUM_CHARSET", "GENERATOR", "INPUT_CHARSET"],
+    "btclib.descriptors.descriptors": [
+        "CHECKSUM_CHARSET",
+        "GENERATOR",
+        "INPUT_CHARSET",
+    ],
     "btclib.network": ["datadir"],
 }
 
@@ -127,6 +130,10 @@ CHILD_MODULES = {
             "curve_group_f",
             "sec_point",
         ],
+    },
+    "btclib.descriptors": {
+        "groups": ["miniscript"],
+        "unpublished": ["descriptors", "key_expression"],
     },
     "btclib.ecc": {
         "groups": [
@@ -463,10 +470,12 @@ def test_psbt_exports_the_format_not_its_plumbing() -> None:
     of the format.
     """
     assert sorted(btclib.psbt.__all__) == [
+        "InputSolver",
         "KeyManager",
         "Psbt",
         "PsbtIn",
         "PsbtOut",
+        "SolutionSizer",
         "assert_signatures_only",
         "combine",
         "ecdsa_sig_hash",

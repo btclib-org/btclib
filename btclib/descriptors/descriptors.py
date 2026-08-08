@@ -1,5 +1,4 @@
 # Copyright (c) The btclib developers
-#
 # Distributed under the MIT software license, see the accompanying
 # LICENSE file or https://opensource.org/license/mit for the full text.
 
@@ -35,7 +34,7 @@ wallet knows about the outputs it holds.
 
 BIP380: https://github.com/bitcoin/bips/blob/master/bip-0380.mediawiki
 
-The grammar read is BIP380 to BIP387 and BIP389, minus miniscript:
+The grammar read is BIP380 to BIP390:
 
 - ``pk``, ``pkh``, ``wpkh``, ``combo`` (BIP381, BIP382, BIP384)
 - ``sh``, ``wsh``, including ``sh(wpkh())`` and ``sh(wsh())``
@@ -53,9 +52,28 @@ The grammar read is BIP380 to BIP387 and BIP389, minus miniscript:
   participants, inside a ``tr()`` or a ``rawtr()`` and nowhere else, with
   BIP328 derivation of the aggregate key where it has a path of its own
 - the ``<a;b>`` multipath form of BIP389, through `multipath_descriptors`
+- a BIP379 miniscript, in both of the positions that BIP allows: inside
+  ``wsh()``, where it is a `MiniscriptDescriptor`, and as a leaf of a
+  ``tr()`` script tree, where it is a leaf beside the ``pk()`` and the
+  ``multi_a()`` ones. Which expression is read as which is the order
+  Bitcoin Core reads them in: the functions above are tried first, so the
+  ``pk()``, ``pkh()`` and ``multi()`` that belong to both grammars are the
+  descriptor functions they were before miniscript, and what is left is a
+  miniscript -- of the P2WSH dialect inside ``wsh()`` and of the tapscript
+  one inside ``tr()``, which is where ``multi_a()`` replaces ``multi()``
 
-What raises NotImplementedError, rather than being read wrong: every
-miniscript expression, which is issue #187.
+`satisfy` takes a `SpendContext` beside the signatures for the one
+fragment that reads more than they carry: a miniscript satisfaction
+chooses among branches, and the choice reads hash preimages and the lock
+times the transaction being built will carry. Every other fragment ignores
+it, having neither a branch to choose nor a preimage to look up.
+
+`miniscript_solver` is the same satisfaction reached from the other side,
+where there is a psbt and no descriptor: an `InputSolver` for
+`psbt.finalize`, which reads the witness script back into the expression
+it is and satisfies it from the input's own fields. It lives here rather
+than in `psbt` because of the direction above -- this module imports that
+one -- and a caller passes it: `finalize(psbt, solver=miniscript_solver)`.
 
 BIP390's rule that a multipath ``musig()`` may not hold multipath
 participants has no counterpart here, and cannot: `parse` refuses a
@@ -104,14 +122,15 @@ wallet wants.
 
 What this module exports is the checksum functions, `parse` and
 `multipath_descriptors`, and the fragment classes a parsed descriptor is
-made of -- `KeyExpression`, `DescriptorTree` and the `MultiA` a tree leaf
-may be among them, all three being names a caller reads off
-`Descriptor.key_expressions` and `TrDescriptor.tree`, and `PrvKeys` being
-what a caller annotates the mapping above with. `INPUT_CHARSET`,
-`CHECKSUM_CHARSET` and `GENERATOR` stay out: they are the three tables
-BIP380's checksum is computed from, which is what `checksum`,
-`add_checksum` and `strip_checksum` answer, and each is still importable
-from this module the way the test suite takes them.
+made of -- `DescriptorTree` and the `MultiA` a tree leaf may be among
+them, both being names a caller reads off `TrDescriptor.tree`.
+`KeyExpression` and `PrvKeys` are `key_expression`'s and the `Miniscript`
+a `MiniscriptDescriptor` holds is `miniscript`'s; the package `__init__`
+re-exports the first two, being what a caller reads off
+`Descriptor.key_expressions` and annotates a mapping with.
+`INPUT_CHARSET`, `CHECKSUM_CHARSET` and `GENERATOR` stay out: they are the
+three tables BIP380's checksum is computed from, which is what `checksum`,
+`add_checksum` and `strip_checksum` answer.
 """
 
 from __future__ import annotations
@@ -126,7 +145,6 @@ from typing import Any, cast
 
 from btclib.alias import BIP44ScriptType, Octets, ScriptList, TaprootScriptTree
 from btclib.bip32.bip32 import (
-    BIP328_CHAIN_CODE,
     BIP32Key,
     BIP32KeyData,
     derive,
@@ -136,10 +154,7 @@ from btclib.bip32.der_path import (
     _HARDENED_OFFSET,
     _HARDENING,
     DerPath,
-    hardenings_from_der_path,
     indexes_from_der_path,
-    str_from_der_path,
-    str_from_index_int,
 )
 from btclib.bip32.key_origin import BIP32KeyOrigin
 from btclib.bip44 import (
@@ -148,9 +163,24 @@ from btclib.bip44 import (
     _indexes_left_to_derive,
     _script_type_from_purpose,
 )
-from btclib.curves import secp256k1
-from btclib.curves.sec_point import bytes_from_point
-from btclib.ecc.musig2 import key_agg, key_sort
+from btclib.descriptors import miniscript
+from btclib.descriptors.key_expression import (
+    KeyExpression,
+    PrvKeys,
+    _assert_musig_allowed,
+    _expression,
+    _offered_signature,
+    _parse_key,
+    _split_arguments,
+    _split_function,
+)
+from btclib.descriptors.miniscript import (
+    Miniscript,
+    SpendContext,
+    _assert_sane,
+)
+from btclib.descriptors.miniscript import from_script as _miniscript_from_script
+from btclib.descriptors.miniscript import parse as _parse_miniscript
 from btclib.exceptions import BTClibValueError
 from btclib.hashes import hash160
 from btclib.network import NETWORKS, network_from_xkeyversion
@@ -158,10 +188,12 @@ from btclib.psbt.psbt import Psbt
 from btclib.psbt.psbt_in import PsbtIn
 from btclib.psbt.psbt_out import PsbtOut
 from btclib.script.script import op_int, serialize
+from btclib.script.script import parse as _parse_script
 from btclib.script.script_pub_key import ScriptPubKey
 from btclib.script.taproot import input_script_sig, leaf_hash, tree_helper
 from btclib.script.witness import Witness
-from btclib.to_pub_key import fingerprint, point_from_pub_key, pub_keyinfo_from_key
+from btclib.to_pub_key import fingerprint
+from btclib.tx.tx_in import TxIn
 from btclib.utils import bytes_from_octets
 
 __all__ = [
@@ -170,12 +202,11 @@ __all__ = [
     "Descriptor",
     "DescriptorLeaf",
     "DescriptorTree",
-    "KeyExpression",
+    "MiniscriptDescriptor",
     "MultiA",
     "MultiDescriptor",
     "PkDescriptor",
     "PkhDescriptor",
-    "PrvKeys",
     "RawDescriptor",
     "RawTrDescriptor",
     "ShDescriptor",
@@ -187,6 +218,8 @@ __all__ = [
     "at_index",
     "checksum",
     "from_address",
+    "miniscript_sizer",
+    "miniscript_solver",
     "multipath_descriptors",
     "normalized",
     "parse",
@@ -280,30 +313,12 @@ _P2SH = "sh()"
 _P2WSH = "wsh()"
 _P2TR = "tr()"
 
-# BIP379 fragments that are miniscript and nothing else. pk, pkh and
-# multi are miniscript too, but they are descriptor functions first and
-# are read as such; a wrapper (`s:pk(...)`) is caught by the colon
-_MINISCRIPT_FRAGMENTS = frozenset(
-    (
-        "pk_k",
-        "pk_h",
-        "older",
-        "after",
-        "sha256",
-        "hash256",
-        "ripemd160",
-        "hash160",
-        "andor",
-        "and_v",
-        "and_b",
-        "and_n",
-        "or_b",
-        "or_c",
-        "or_d",
-        "or_i",
-        "thresh",
-    )
-)
+# where a miniscript may be written, and which of BIP379's two contexts
+# that position is: inside wsh() and inside a tr() leaf, and nowhere else,
+# which is the BIP's own "only valid in wsh() and tr() contexts". The two
+# dialects differ in more than their keys, so the position is what picks
+# between them rather than something a caller passes
+_MINISCRIPT_CONTEXTS = {_P2WSH: miniscript.P2WSH, _P2TR: miniscript.TAPSCRIPT}
 
 # BIP387's own bound on the keys of a multi_a(): the satisfaction puts one
 # stack element per key, and a script whose spend would push more than the
@@ -316,221 +331,10 @@ _MAX_MULTI_A_KEYS = 999
 # is what refuses them anywhere a SCRIPT expression is expected
 _TREE_FUNCTIONS = ("multi_a", "sortedmulti_a")
 
-_FINGERPRINT = re.compile(r"[0-9a-fA-F]{8}")
-_HEX = re.compile(r"[0-9a-fA-F]*")
 _THRESHOLD = re.compile(r"[0-9]+")
 # the BIP389 multipath step, brackets included: re.split hands back what
 # it split on when the pattern captures it
 _MULTIPATH_STEP = re.compile(r"(<[^<>]*>)")
-
-
-# what `parse` hands back beside the descriptor, and what expansion takes
-# when a hardened step needs it: the extended private key each extended
-# key was read from, filed under the neutered spelling the descriptor
-# keeps. Public identity to private material, which is how Bitcoin Core's
-# `FlatSigningProvider` is keyed too -- by the key id there, by the xpub
-# here, an extended key being what a descriptor derives from
-PrvKeys = Mapping[str, str]
-
-
-@dataclass(frozen=True)
-class KeyExpression:
-    """A BIP380 KEY expression: an origin, a key, a derivation path.
-
-    One of three things is the key. Either `pub_key` is the one the
-    descriptor fixes, in SEC bytes; or `xkey` is the extended key that
-    `der_path` and `wildcard` derive from; or `participants` are the KEY
-    expressions BIP390's ``musig()`` aggregates, `der_path` and `wildcard`
-    then deriving from the aggregate key as BIP328 prescribes. An x-only
-    key is held as its even-y SEC form, which is what BIP340 says those 32
-    bytes mean, so that everything downstream sees one representation of a
-    public key.
-
-    `origin` never changes the script. It says which master key and which
-    path the key came from, which is what a hardware signer needs and
-    what BIP174 carries in a PSBT.
-
-    `xkey` is public whatever the descriptor spelled: `parse` neuters an
-    xprv and hands the private material back to its caller, so no part of
-    a parsed descriptor holds a key that signs. What that costs is a
-    hardened step, which an xpub cannot take -- `sec` takes the keys back
-    as a parameter for it, the way Bitcoin Core's expansion takes a
-    `SigningProvider`.
-    """
-
-    origin: BIP32KeyOrigin | None = None
-    pub_key: bytes | None = None
-    xkey: str = ""
-    der_path: tuple[int, ...] = ()
-    # the final `/*` step, as the offset its hardening adds to the index:
-    # None where the descriptor has no wildcard, 0 for `/*`, 2**31 for
-    # `/*h`. One field rather than a flag and a bool, because "hardened"
-    # is only meaningful when there is a wildcard to harden
-    wildcard: int | None = None
-    x_only: bool = False
-    # BIP390's ``musig()``: the participants whose keys aggregate to this
-    # one, in the order the descriptor writes them. `KeySort` is applied
-    # at aggregation and not here, so what is kept is the text's order and
-    # what is computed does not depend on it
-    participants: tuple[KeyExpression, ...] = ()
-    # the symbol every hardened step of this expression is written with:
-    # BIP380 gives "h" and "'" one meaning and two spellings, and the two
-    # are different strings with different checksums, so a descriptor
-    # handed back in the other one is not the descriptor that was read.
-    # One symbol for the whole expression, origin included, which is
-    # Bitcoin Core's single `m_apostrophe` per key: a path spelled both
-    # ways -- BIP380's own valid `[deadbeef/0'/0h/0']` -- is read and
-    # written back in the symbol its last hardened step used
-    hardening: str = _HARDENING
-
-    @property
-    def is_ranged(self) -> bool:
-        """Answer whether the key has a wildcard to derive at an index.
-
-        A ``musig()`` is ranged where its own path has one and where a
-        participant has one: BIP390 forbids both at once, so whichever it
-        is, the index is read in one place.
-        """
-        return self.wildcard is not None or any(
-            key.is_ranged for key in self.participants
-        )
-
-    @property
-    def is_aggregate(self) -> bool:
-        """Answer whether the key is the aggregate of BIP390 participants."""
-        return bool(self.participants)
-
-    @property
-    def is_compressed(self) -> bool:
-        """Return False for an uncompressed SEC public key, True otherwise.
-
-        An extended key is compressed by construction: BIP32 has no
-        uncompressed serialization.
-        """
-        return self.pub_key is None or len(self.pub_key) == 33
-
-    def sec(
-        self,
-        index: int = 0,
-        network: str = "mainnet",
-        prv_keys: PrvKeys | None = None,
-    ) -> bytes:
-        """Return the SEC public key bytes, derived at `index` if ranged.
-
-        `prv_keys` is what `parse` handed back, and is needed for a
-        hardened step and for nothing else: an unhardened path derives
-        from the xpub the descriptor holds. A key it does not name is
-        left as it is, so a mapping covering some of a multisig's keys
-        answers for those and no more.
-
-        A ``musig()`` answers with the key its participants aggregate to,
-        derived along its own path where it has one: BIP328's synthetic
-        xpub is that key at depth zero with the fixed chain code an
-        aggregate has instead of one of its own, and `derive` is then what
-        refuses a hardened step -- there being no aggregate private key to
-        take one with. The index derives the participants or the aggregate
-        and never both, BIP390 allowing a wildcard on one side only.
-        """
-        if self.participants:
-            aggregate = self.aggregate(index, network, prv_keys)
-            musig_path = list(self.der_path)
-            if self.wildcard is not None:
-                musig_path.append(self.wildcard + index)
-            if not musig_path:
-                return aggregate
-            synthetic = BIP32KeyData(
-                version=NETWORKS[network].bip32_pub,
-                depth=0,
-                parent_fingerprint=b"\x00" * 4,
-                index=0,
-                chain_code=BIP328_CHAIN_CODE,
-                key=aggregate,
-            )
-            return pub_keyinfo_from_key(derive(synthetic, musig_path), network)[0]
-        if self.pub_key is not None:
-            return self.pub_key
-        der_path = list(self.der_path)
-        if self.wildcard is not None:
-            der_path.append(self.wildcard + index)
-        xkey = prv_keys.get(self.xkey, self.xkey) if prv_keys else self.xkey
-        return pub_keyinfo_from_key(derive(xkey, der_path), network)[0]
-
-    def participant_keys(
-        self,
-        index: int = 0,
-        network: str = "mainnet",
-        prv_keys: PrvKeys | None = None,
-    ) -> list[bytes]:
-        """Return the participant keys in the order they are aggregated in.
-
-        Which is `KeySort`'s order and not the descriptor's: BIP390 sorts
-        after all derivation and before aggregation, so that the order the
-        keys were written in does not change the key -- a set of keys is
-        what MuSig2 is about, and a descriptor that was not backed up does
-        not need the order guessed as well. BIP373 stores the participants
-        of a psbt in aggregation order too, which is what makes this the
-        list that goes into `PSBT_IN_MUSIG2_PARTICIPANT_PUBKEYS`.
-        """
-        derived = [key.sec(index, network, prv_keys) for key in self.participants]
-        return key_sort(derived)
-
-    def aggregate(
-        self,
-        index: int = 0,
-        network: str = "mainnet",
-        prv_keys: PrvKeys | None = None,
-    ) -> bytes:
-        """Return the key BIP390's participants aggregate to, derived.
-
-        `KeyAgg` over the sorted participants, and nothing more: the
-        ``/NUM/.../*`` path of the expression derives *from* this key, and
-        `sec` is what walks it. The two are separate because BIP373 keys
-        its MuSig2 psbt fields by the aggregate key itself even where what
-        the script holds is a child of it -- an aggregate key is what the
-        participants make, and a derivation of it is a key the same group
-        answers for.
-        """
-        return bytes_from_point(
-            key_agg(self.participant_keys(index, network, prv_keys)).Q, secp256k1
-        )
-
-    def __str__(self) -> str:
-        """Return the KEY expression, in the spelling it was read in.
-
-        Public whatever was read: an xprv is the xpub `parse` neutered it
-        to, and a WIF is the hex of the public key it was reduced to.
-        Bitcoin Core writes the same, `ToString` having only the public
-        key to write and `ToPrivateString` taking the private material
-        back from the caller.
-
-        An x-only key is written as the 32 bytes a ``tr()`` holds, which
-        is the spelling it was read in and the only one allowed there.
-
-        A ``musig()`` writes its participants in the order they were read,
-        which is not the order they aggregate in: `KeySort` is applied when
-        the key is computed, so the text keeps what the descriptor said.
-        """
-        if self.participants:
-            text = _expression("musig", *(str(key) for key in self.participants))
-            for index in self.der_path:
-                text += "/" + str_from_index_int(index, self.hardening)
-            if self.wildcard is not None:
-                text += "/*"
-            return text
-        text = ""
-        if self.origin is not None:
-            path = str_from_der_path(
-                self.origin.der_path, self.origin.master_fingerprint, self.hardening
-            )
-            text = f"[{path}]"
-        if self.pub_key is not None:
-            return text + (self.pub_key[1:] if self.x_only else self.pub_key).hex()
-        text += self.xkey
-        for index in self.der_path:
-            text += "/" + str_from_index_int(index, self.hardening)
-        if self.wildcard is not None:
-            text += "/*" + (self.hardening if self.wildcard else "")
-        return text
 
 
 @dataclass(frozen=True)
@@ -642,32 +446,31 @@ class MultiA:
         return stack
 
 
-def _expression(name: str, *args: str) -> str:
-    """Return a descriptor function written out: its name and its arguments."""
-    return f"{name}({','.join(args)})"
-
-
 def _tree_expression(tree: DescriptorTree) -> str:
     """Return a BIP386 TREE as text: a leaf, or two subtrees in braces."""
     if isinstance(tree, tuple):
         return f"{{{_tree_expression(tree[0])},{_tree_expression(tree[1])}}}"
-    if isinstance(tree, MultiA):
+    if isinstance(tree, (MultiA, Miniscript)):
         return str(tree)
     return _expression("pk", str(tree))
 
 
 # a tr() script tree: a leaf, or a branch of two subtrees. A leaf is the
-# KEY expression a `pk()` leaf is, or the `MultiA` of BIP387's two
+# KEY expression a `pk()` leaf is, the `MultiA` of BIP387's two
 # functions; a branch is a tuple, which is what tells a branch from a
 # leaf. The leaves hold KEY expressions and not scripts because a ranged
 # descriptor has no script until an index is given
-DescriptorLeaf = KeyExpression | MultiA
+DescriptorLeaf = KeyExpression | MultiA | Miniscript
 DescriptorTree = DescriptorLeaf | tuple["DescriptorTree", "DescriptorTree"]
 
 
 def _leaf_keys(leaf: DescriptorLeaf) -> tuple[KeyExpression, ...]:
     """Return the KEY expressions of one leaf, in the order it names them."""
-    return leaf.keys if isinstance(leaf, MultiA) else (leaf,)
+    if isinstance(leaf, MultiA):
+        return leaf.keys
+    if isinstance(leaf, Miniscript):
+        return leaf.key_expressions
+    return (leaf,)
 
 
 def _tree_leaves(tree: DescriptorTree) -> tuple[DescriptorLeaf, ...]:
@@ -692,9 +495,16 @@ def _tree_keys(tree: DescriptorTree) -> tuple[KeyExpression, ...]:
 def _leaf_script(
     leaf: DescriptorLeaf, index: int, network: str, prv_keys: PrvKeys | None
 ) -> ScriptList:
-    """Return the tapscript of one leaf: a ``pk()``, or a ``multi_a()``."""
+    """Return the tapscript of one leaf: a key, a ``multi_a()``, a miniscript.
+
+    Read back into commands where the leaf is a miniscript, that being
+    what a `TaprootLeaf` holds: the round trip is exact for these bytes,
+    every push a miniscript writes being the minimal one.
+    """
     if isinstance(leaf, MultiA):
         return leaf._script(index, network, prv_keys)
+    if isinstance(leaf, Miniscript):
+        return _parse_script(leaf.script(index, network, prv_keys))
     return [leaf.sec(index, network, prv_keys)[1:], "OP_CHECKSIG"]
 
 
@@ -726,10 +536,24 @@ def _leaf_stack(
     index: int,
     network: str,
     prv_keys: PrvKeys | None,
+    spend: SpendContext | None = None,
 ) -> list[bytes] | None:
-    """Return what satisfies one leaf, None where the signatures do not."""
+    """Return what satisfies one leaf, None where the signatures do not.
+
+    None rather than a refusal, for a miniscript leaf as for the other
+    two: which leaf the signatures at hand open is the question the caller
+    is walking the tree to answer, so a leaf they do not open is an answer
+    and not an error -- including one whose branches want a preimage or a
+    lock time this spend does not have.
+    """
     if isinstance(leaf, MultiA):
         return leaf._stack(signatures, index, network, prv_keys)
+    if isinstance(leaf, Miniscript):
+        offered = cast("Mapping[Octets, Octets]", signatures)
+        try:
+            return leaf.satisfy(offered, spend, index, network, prv_keys)
+        except BTClibValueError:
+            return None
     signature = _offered_signature(
         signatures, leaf.sec(index, network, prv_keys), x_only=True
     )
@@ -745,24 +569,6 @@ def _taproot_script_tree(
             _taproot_script_tree(tree[1], index, network, prv_keys),
         ]
     return [(_TAPSCRIPT_LEAF_VERSION, _leaf_script(tree, index, network, prv_keys))]
-
-
-def _offered_signature(
-    signatures: Mapping[bytes, bytes], sec: bytes, *, x_only: bool = False
-) -> bytes | None:
-    """Return the signature offered for a public key, None where none is.
-
-    A taproot key answers to either of its two spellings: the 32 x-only
-    bytes the script holds, and the 33-byte even-y SEC form a
-    KeyExpression keeps it as. Neither is the more correct one, a caller
-    has whichever its signer handed back, and 32 bytes cannot be taken
-    for 33.
-    """
-    if sec in signatures:
-        return signatures[sec]
-    if x_only and sec[1:] in signatures:
-        return signatures[sec[1:]]
-    return None
 
 
 def _required_signature(signatures: Mapping[bytes, bytes], sec: bytes) -> bytes:
@@ -988,6 +794,7 @@ class Descriptor(ABC):
         signatures: Mapping[bytes, bytes],
         index: int,
         prv_keys: PrvKeys | None,
+        spend: SpendContext | None,
     ) -> list[bytes]:
         """Return the elements that satisfy this fragment's own script.
 
@@ -1007,6 +814,7 @@ class Descriptor(ABC):
         signatures: Mapping[Octets, Octets],
         index: int = 0,
         prv_keys: PrvKeys | None = None,
+        spend: SpendContext | None = None,
     ) -> tuple[bytes, Witness]:
         """Return the script_sig and witness that spend the script at `index`.
 
@@ -1026,6 +834,14 @@ class Descriptor(ABC):
         for the second, `psbt.PsbtIn.partial_sigs` is where that state
         belongs, and bytes that do not spend would be a second and
         weaker spelling of it.
+
+        `spend` is what a miniscript satisfaction reads beside the
+        signatures -- hash preimages, and the lock times the transaction
+        being built will carry -- and is ignored by every other fragment,
+        none of which has a branch to choose or a preimage to look up. A
+        `wsh()` holding a miniscript is the one shape that needs it, and
+        it says so: without one it refuses the fragments that would have
+        read it.
         """
         self._assert_index(index)
         return self._satisfy(
@@ -1035,6 +851,7 @@ class Descriptor(ABC):
             },
             index,
             prv_keys,
+            spend,
         )
 
     def _satisfy(
@@ -1042,6 +859,7 @@ class Descriptor(ABC):
         signatures: Mapping[bytes, bytes],
         index: int,
         prv_keys: PrvKeys | None,
+        spend: SpendContext | None,
     ) -> tuple[bytes, Witness]:
         """Return the satisfaction, the mapping being already in bytes.
 
@@ -1052,7 +870,7 @@ class Descriptor(ABC):
         argument without normalizing the same mapping a second time.
         """
         return serialize(
-            cast(ScriptList, self._stack(signatures, index, prv_keys))
+            cast(ScriptList, self._stack(signatures, index, prv_keys, spend))
         ), Witness()
 
     def index_of(
@@ -1250,6 +1068,7 @@ class PkDescriptor(Descriptor):
         signatures: Mapping[bytes, bytes],
         index: int,
         prv_keys: PrvKeys | None,
+        spend: SpendContext | None,
     ) -> list[bytes]:
         # the key is in the script already, so the signature is the whole
         # of what spending a p2pk output takes
@@ -1280,6 +1099,7 @@ class PkhDescriptor(Descriptor):
         signatures: Mapping[bytes, bytes],
         index: int,
         prv_keys: PrvKeys | None,
+        spend: SpendContext | None,
     ) -> list[bytes]:
         # what the output commits to is the hash of the key, so the key
         # goes on the stack for the script to hash for itself
@@ -1309,6 +1129,7 @@ class WpkhDescriptor(Descriptor):
         signatures: Mapping[bytes, bytes],
         index: int,
         prv_keys: PrvKeys | None,
+        spend: SpendContext | None,
     ) -> list[bytes]:
         # the witness of a p2wpkh spend is what the script_sig of a p2pkh
         # one is, BIP143 having moved it and changed nothing else
@@ -1320,12 +1141,13 @@ class WpkhDescriptor(Descriptor):
         signatures: Mapping[bytes, bytes],
         index: int,
         prv_keys: PrvKeys | None,
+        spend: SpendContext | None,
     ) -> tuple[bytes, Witness]:
         # the empty script_sig of BIP141, which is not the same as an
         # empty push: btclib's own engine refuses a native segwit input
         # whose script_sig is there at all (issue #249). A sh(wpkh())
         # gets its one push from the sh() above
-        return b"", Witness(self._stack(signatures, index, prv_keys))
+        return b"", Witness(self._stack(signatures, index, prv_keys, spend))
 
 
 @dataclass(frozen=True)
@@ -1350,6 +1172,7 @@ class ShDescriptor(Descriptor):
         signatures: Mapping[bytes, bytes],
         index: int,
         prv_keys: PrvKeys | None,
+        spend: SpendContext | None,
     ) -> tuple[bytes, Witness]:
         """Return the argument's satisfaction, the redeem script pushed last.
 
@@ -1361,7 +1184,7 @@ class ShDescriptor(Descriptor):
         pushes and nothing else, so serializing them together and
         serializing them apart give the same bytes.
         """
-        script_sig, witness = self.inner._satisfy(signatures, index, prv_keys)
+        script_sig, witness = self.inner._satisfy(signatures, index, prv_keys, spend)
         redeem_script = self.inner.redeem_script(index, prv_keys)
         return script_sig + serialize(cast(ScriptList, [redeem_script])), witness
 
@@ -1401,6 +1224,7 @@ class WshDescriptor(Descriptor):
         signatures: Mapping[bytes, bytes],
         index: int,
         prv_keys: PrvKeys | None,
+        spend: SpendContext | None,
     ) -> tuple[bytes, Witness]:
         """Return the witness of a p2wsh spend: the stack, then the script.
 
@@ -1409,7 +1233,7 @@ class WshDescriptor(Descriptor):
         stack already, so BIP141 puts them in it one by one and the
         witness script last.
         """
-        stack = self.inner._stack(signatures, index, prv_keys)
+        stack = self.inner._stack(signatures, index, prv_keys, spend)
         return b"", Witness([*stack, self.inner.redeem_script(index, prv_keys)])
 
     def _update_map(
@@ -1423,6 +1247,60 @@ class WshDescriptor(Descriptor):
         """
         self.inner._update_map(psbt_map, index, prv_keys)
         psbt_map.witness_script = self.inner.redeem_script(index, prv_keys)
+
+
+@dataclass(frozen=True)
+class MiniscriptDescriptor(Descriptor):
+    """A BIP379 miniscript where a SCRIPT expression may be one.
+
+    Which is inside ``wsh()``: a miniscript inside ``tr()`` is a leaf of
+    the script tree and not a SCRIPT expression, so `DescriptorTree` holds
+    that one directly, the way it holds a ``multi_a()``. What this holds is
+    the `Miniscript`, whose own interface -- the type properties, the
+    resource bounds, the script both ways, the satisfaction -- is
+    `btclib.descriptors.miniscript`'s.
+
+    A fragment like the others in what it answers: the script at an index,
+    the KEY expressions it names, and the psbt fields those keys fill.
+    Unlike the others it does not satisfy: a miniscript satisfaction needs
+    more than a mapping of public keys to signatures, so `satisfy` refuses
+    and says so.
+    """
+
+    node: Miniscript
+
+    def __str__(self) -> str:
+        return str(self.node)
+
+    @property
+    def key_expressions(self) -> tuple[KeyExpression, ...]:
+        """Return the KEY expressions of the fragments, left to right."""
+        return self.node.key_expressions
+
+    def _scripts(self, index: int, prv_keys: PrvKeys | None) -> list[bytes]:
+        return [self.node.script(index, self.network, prv_keys)]
+
+    def _stack(
+        self,
+        signatures: Mapping[bytes, bytes],
+        index: int,
+        prv_keys: PrvKeys | None,
+        spend: SpendContext | None,
+    ) -> list[bytes]:
+        """Return the witness elements that satisfy the miniscript.
+
+        The one fragment that reads the spend context, and the reason
+        `satisfy` takes one: a miniscript satisfaction chooses among
+        branches, and the choice reads the hash preimages a ``sha256()``
+        wants and the lock times an ``older()`` or an ``after()`` is
+        checked against. Non-malleable or refused, which is
+        `Miniscript.satisfy`'s rule and BIP379's.
+        """
+        # cast because `Mapping` is invariant in its key: these bytes are
+        # every bit an `Octets`, and a mapping of them is still not a
+        # mapping of "bytes or hex" as far as the type checker is concerned
+        offered = cast("Mapping[Octets, Octets]", signatures)
+        return self.node.satisfy(offered, spend, index, self.network, prv_keys)
 
 
 @dataclass(frozen=True)
@@ -1470,6 +1348,7 @@ class MultiDescriptor(Descriptor):
         signatures: Mapping[bytes, bytes],
         index: int,
         prv_keys: PrvKeys | None,
+        spend: SpendContext | None,
     ) -> list[bytes]:
         """Return the dummy element and `threshold` signatures, in key order.
 
@@ -1530,6 +1409,7 @@ class ComboDescriptor(Descriptor):
         signatures: Mapping[bytes, bytes],
         index: int,
         prv_keys: PrvKeys | None,
+        spend: SpendContext | None,
     ) -> tuple[bytes, Witness]:
         """Refuse: four scripts, and each of them spent differently.
 
@@ -1578,6 +1458,7 @@ class AddrDescriptor(Descriptor):
         signatures: Mapping[bytes, bytes],
         index: int,
         prv_keys: PrvKeys | None,
+        spend: SpendContext | None,
     ) -> tuple[bytes, Witness]:
         """Refuse: an address names a script and not what spends it.
 
@@ -1622,6 +1503,7 @@ class RawDescriptor(Descriptor):
         signatures: Mapping[bytes, bytes],
         index: int,
         prv_keys: PrvKeys | None,
+        spend: SpendContext | None,
     ) -> tuple[bytes, Witness]:
         """Refuse: a script and no key expression to satisfy it with.
 
@@ -1769,6 +1651,7 @@ class TrDescriptor(Descriptor):
         signatures: Mapping[bytes, bytes],
         index: int,
         prv_keys: PrvKeys | None,
+        spend: SpendContext | None,
     ) -> tuple[bytes, Witness]:
         """Return the witness of a key path spend, or of a script path one.
 
@@ -1782,8 +1665,12 @@ class TrDescriptor(Descriptor):
 
         A script path witness is what satisfies the leaf, then the leaf
         script and the control block, which is BIP341's order: one
-        signature for a ``pk()`` leaf, and one element per key for a
-        ``multi_a()`` one. Both the parity bit and the merkle path in that
+        signature for a ``pk()`` leaf, one element per key for a
+        ``multi_a()`` one, and for a miniscript leaf whatever its
+        non-malleable satisfaction is -- which is where `spend` is read, a
+        branch of one wanting a preimage or a lock time.
+
+        Both the parity bit and the merkle path in that
         control block are the descriptor's to compute, holding the whole
         tree as it does, where a psbt has to be handed them: it is the one
         thing satisfaction here knows that finalization there cannot work
@@ -1805,7 +1692,7 @@ class TrDescriptor(Descriptor):
             raise BTClibValueError("no signature for the tr() internal key")
         script_tree = _taproot_script_tree(self.tree, index, self.network, prv_keys)
         for number, leaf in enumerate(_tree_leaves(self.tree)):
-            stack = _leaf_stack(leaf, signatures, index, self.network, prv_keys)
+            stack = _leaf_stack(leaf, signatures, index, self.network, prv_keys, spend)
             if stack is not None:
                 script, control_block = self._leaf(script_tree, index, number, prv_keys)
                 return b"", Witness([*stack, script, control_block])
@@ -1931,6 +1818,7 @@ class RawTrDescriptor(Descriptor):
         signatures: Mapping[bytes, bytes],
         index: int,
         prv_keys: PrvKeys | None,
+        spend: SpendContext | None,
     ) -> tuple[bytes, Witness]:
         """Return the witness of a BIP341 key path spend: one signature.
 
@@ -1981,55 +1869,6 @@ class RawTrDescriptor(Descriptor):
         }
 
 
-def _split_arguments(arguments: str) -> list[str]:
-    """Split a comma-separated argument list, at nesting depth zero.
-
-    Parentheses and braces only: they are what nests and what can hold a
-    comma of its own, a nested SCRIPT expression and a tr() branch. The
-    key origin brackets are deliberately not counted, so that a bracket
-    written wrong reaches the key expression parser, which can say which
-    of the two ways it is wrong.
-    """
-    depth = 0
-    start = 0
-    result = []
-    for i, char in enumerate(arguments):
-        if char in "({":
-            depth += 1
-        elif char in ")}":
-            depth -= 1
-            if depth < 0:
-                raise BTClibValueError(f"unbalanced brackets: {arguments}")
-        elif char == "," and depth == 0:
-            result.append(arguments[start:i])
-            start = i + 1
-    if depth:
-        raise BTClibValueError(f"unbalanced brackets: {arguments}")
-    result.append(arguments[start:])
-    return result
-
-
-def _split_function(expression: str) -> tuple[str, str]:
-    """Return the function name and the argument string it encloses."""
-    open_bracket = expression.find("(")
-    if open_bracket < 1 or not expression.endswith(")"):
-        raise BTClibValueError(f"not a descriptor expression: {expression}")
-    return expression[:open_bracket], expression[open_bracket + 1 : -1]
-
-
-def _assert_not_miniscript(name: str) -> None:
-    """Refuse a miniscript fragment, which is the one thing left unread.
-
-    A wrapper is caught by its colon, and every other function this module
-    does not read is answered "unknown descriptor function": miniscript is
-    named on its own because it is a language of its own rather than a
-    function missing from a table (issue #187).
-    """
-    if ":" in name or name in _MINISCRIPT_FRAGMENTS:
-        err_msg = f"miniscript is not implemented: {name} (issue #187)"
-        raise NotImplementedError(err_msg)
-
-
 def _assert_position(name: str, context: str, allowed: tuple[str, ...]) -> None:
     if context not in allowed:
         raise BTClibValueError(f"{name}() is not allowed inside {context}")
@@ -2040,307 +1879,6 @@ def _one_argument(arguments: list[str], name: str) -> str:
         err_msg = f"{name}() takes one argument, {len(arguments)} given"
         raise BTClibValueError(err_msg)
     return arguments[0]
-
-
-def _der_path(path: str) -> list[int]:
-    """Return the indexes of a `/`-separated derivation path.
-
-    `bip380_enforced` is the whole of the difference from what a BIP32
-    path may spell: an uppercase "H", a "+1", a leading "m" and the
-    spaces of "0 h" are all read elsewhere in btclib and none of them is
-    a step BIP380 allows. It also refuses 2**31 and above written
-    unhardened, there being no such BIP32 index.
-    """
-    return indexes_from_der_path(path, bip380_enforced=True) if path else []
-
-
-def _hardening(path: str) -> str:
-    """Return the symbol the last hardened step of a path was written with.
-
-    Empty where the path hardens nothing, so that a caller choosing
-    between two paths can tell "no opinion" from "an apostrophe". The
-    last and not the first, which is Bitcoin Core's rule by construction:
-    its parser assigns the bool per hardened element, so the one it ends
-    on is the one that is written back.
-    """
-    if not path:
-        return ""
-    symbols = [s for s in hardenings_from_der_path(path, bip380_enforced=True) if s]
-    return symbols[-1] if symbols else ""
-
-
-def _key_origin(description: str) -> tuple[BIP32KeyOrigin, str]:
-    """Return the key origin of a `[fingerprint/path]` prefix, and its symbol.
-
-    The symbol is the origin's alone, and the caller picks between it and
-    the key path's: `BIP32KeyOrigin` does not carry it, an origin being a
-    fingerprint and a path whichever way the path was spelled -- two
-    origins that differ in nothing else are the same origin, and equality
-    and `serialize` both have to keep saying so.
-    """
-    fingerprint, _, path = description.partition("/")
-    if not _FINGERPRINT.fullmatch(fingerprint):
-        raise BTClibValueError(f"invalid key origin fingerprint: {fingerprint}")
-    return BIP32KeyOrigin(fingerprint, _der_path(path)), _hardening(path)
-
-
-def _pub_key_from_hex(key: str, *, x_only: bool) -> tuple[bytes, bool]:
-    """Return the SEC bytes of a hex key, and whether it was x-only."""
-    length = len(key)
-    if length == 64:
-        if not x_only:
-            # "inside tr()" would not be true of every position that
-            # refuses one: a musig() participant is inside a tr() and is
-            # aggregated as a point, so it needs the byte an x-only key drops
-            err_msg = "x-only public keys are allowed in a taproot key expression only"
-            raise BTClibValueError(err_msg)
-        # the even-y lift of BIP340, which is what an x-only key means
-        pub_key = b"\x02" + bytes_from_octets(key)
-    elif length in {66, 130}:
-        prefix = key[:2]
-        if (length == 66 and prefix not in {"02", "03"}) or (
-            length == 130 and prefix != "04"
-        ):
-            # 06 and 07 are the hybrid encoding, which nothing in bitcoin
-            # produces and Bitcoin Core refuses in a descriptor too
-            raise BTClibValueError(f"invalid public key prefix: 0x{prefix}")
-        pub_key = bytes_from_octets(key)
-    else:
-        raise BTClibValueError(f"invalid public key length: {length} characters")
-    # a key expression is parsed in order to be used, and a point off the
-    # curve has no script to derive: refuse it here, where the error can
-    # still say it was the key
-    point_from_pub_key(pub_key)
-    return pub_key, length == 64
-
-
-def _is_extended_key(key: str) -> bool:
-    try:
-        BIP32KeyData.b58decode(key)
-    # ValueError, not Exception: the question is whether these characters
-    # are an extended key, and characters that are not are False
-    except ValueError:
-        return False
-    return True
-
-
-def _neutered(xkey: str, prv_keys: dict[str, str]) -> str:
-    """Return the public spelling of an extended key, filing the private one.
-
-    The one place a descriptor's private material is separated from the
-    descriptor, and the reason `KeyExpression.xkey` can be said to be
-    public: an xprv is answered with its xpub, and the xprv goes to the
-    caller's mapping under that xpub. An xpub is answered with itself and
-    files nothing.
-
-    Filed under the public spelling, so that what indexes the mapping is
-    not itself a secret -- which is how Bitcoin Core keys the
-    `FlatSigningProvider` its own parser fills, by the id of the public
-    key rather than by anything that signs.
-    """
-    if not BIP32KeyData.b58decode(xkey).is_private:
-        return xkey
-    xpub = xpub_from_xprv(xkey)
-    prv_keys[xpub] = xkey
-    return xpub
-
-
-def _origin_and_rest(expression: str) -> tuple[BIP32KeyOrigin | None, str, str]:
-    """Split the `[fingerprint/path]` prefix off a KEY expression."""
-    if not expression.startswith("["):
-        if "]" in expression:
-            raise BTClibValueError("']' without the '[' that opens a key origin")
-        return None, "", expression
-    end = expression.find("]")
-    if end < 0:
-        raise BTClibValueError("missing ']' in the key origin")
-    origin, hardening = _key_origin(expression[1:end])
-    return origin, hardening, expression[end + 1 :]
-
-
-def _assert_musig_allowed(*, musig_allowed: bool) -> None:
-    """Refuse a ``musig()`` anywhere BIP390 does not put one.
-
-    Which is everywhere but a ``tr()`` and a ``rawtr()``: their internal
-    or output key, and the keys of the ``pk()``, ``multi_a()`` and
-    ``sortedmulti_a()`` leaves of a script tree. A participant is one of
-    the places it is refused, which is BIP390's "cannot be nested within
-    another musig()", and the message names both -- Bitcoin Core's own,
-    and the same sentence answers a nested one and a ``wpkh(musig())``.
-
-    BIP390 names ``sp()`` as a third position; btclib does not read
-    ``sp()`` at all, so there is nothing here to allow it in.
-    """
-    if not musig_allowed:
-        raise BTClibValueError("musig() is only allowed in tr() and rawtr()")
-
-
-def _assert_key_characters(rest: str) -> None:
-    """Refuse what a KEY expression cannot hold once the origin is off."""
-    if "]" in rest:
-        raise BTClibValueError("more than one ']' in a single key expression")
-    if "<" in rest:
-        err_msg = "multipath key expression: use multipath_descriptors first"
-        raise BTClibValueError(err_msg)
-    if "(" in rest:
-        # a function where a key belongs. BIP390's musig() is the one that
-        # is a key expression, and reaching here means it was written
-        # behind a key origin, which is not where it may be nested
-        if rest.startswith("musig("):
-            raise BTClibValueError("musig() cannot be nested inside a key origin")
-        _assert_not_miniscript(rest[: rest.index("(")])
-        raise BTClibValueError("not a key expression")
-
-
-def _split_wildcard(steps: list[str]) -> tuple[list[str], int | None, str]:
-    """Split the final `/*` step off a path: its offset, and its symbol."""
-    if steps and steps[-1] in {"*", "*'", "*h"}:
-        offset = 0 if steps[-1] == "*" else _HARDENED_OFFSET
-        return steps[:-1], offset, steps[-1][1:]
-    return steps, None, ""
-
-
-def _fixed_pub_key(key: str, *, x_only: bool) -> tuple[bytes, bool]:
-    """Return the SEC bytes of a hex or WIF key, and whether x-only.
-
-    A hex key is x-only when it was written in 32 bytes, and a WIF when it
-    sits where only an x-only key is written: it has no spelling of its
-    own to echo, so what is written back is the spelling the position
-    takes. Bitcoin Core makes the same distinction with one bool per key
-    -- `false` for a hex key it read whole, `ctx == ParseScriptContext::
-    P2TR` for a private one -- which is what makes its ``tr(WIF)`` and
-    ``rawtr(WIF)`` vectors come back in 32 bytes and not 33.
-    """
-    if _HEX.fullmatch(key):
-        return _pub_key_from_hex(key, x_only=x_only)
-    # what is left is a WIF, and pub_keyinfo_from_key answers both for it
-    # and for characters that are no key expression at all
-    try:
-        return pub_keyinfo_from_key(key)[0], x_only
-    except (TypeError, ValueError) as e:
-        raise BTClibValueError("invalid key expression") from e
-
-
-def _musig_der_path(suffix: str) -> tuple[tuple[int, ...], int | None]:
-    """Return the path and wildcard a ``musig()`` derives the aggregate by.
-
-    Every one of BIP390's rules about it is a refusal here: no hardened
-    step and no hardened wildcard, an aggregate key having no private half
-    to take either with, which is BIP328's own restriction.
-    """
-    if not suffix:
-        return (), None
-    if not suffix.startswith("/"):
-        raise BTClibValueError(f"not a musig() derivation path: {suffix}")
-    steps, wildcard, wildcard_hardening = _split_wildcard(suffix[1:].split("/"))
-    if wildcard_hardening:
-        raise BTClibValueError("musig() cannot have a hardened wildcard")
-    der_path = _der_path("/".join(steps))
-    if any(index >= _HARDENED_OFFSET for index in der_path):
-        raise BTClibValueError("musig() cannot have hardened derivation steps")
-    return tuple(der_path), wildcard
-
-
-def _parse_musig(expression: str, prv_keys: dict[str, str]) -> KeyExpression:
-    """Return the KeyExpression of a BIP390 ``musig()`` expression.
-
-    The participants are KEY expressions read as any other key in a
-    ``tr()`` is, except that none of them may be x-only: MuSig2
-    aggregation is over points, so it needs the evenness byte an x-only
-    spelling drops -- which is Bitcoin Core's rule too, its own parse
-    context allowing 32-byte keys under ``tr()`` and not under
-    ``musig()``.
-
-    Derivation on the aggregate key costs three further conditions, all
-    BIP390's: every participant an extended key, none of them ranged, and
-    no hardened step. The first two are what make one aggregate key per
-    index well defined -- with both sides ranged there would be two
-    indexes and one wildcard to read them from.
-    """
-    close = expression.rfind(")")
-    inner = expression[len("musig(") : close]
-    arguments = _split_arguments(inner)
-    if arguments == [""]:
-        raise BTClibValueError("musig() takes at least one key")
-    try:
-        participants = tuple(
-            _parse_key(key, prv_keys, compressed=True) for key in arguments
-        )
-    # which of several participants was wrong is half the answer, and the
-    # inner message names neither the function nor the position. Bitcoin
-    # Core prefixes its own the same way, "musig(): ..."
-    except BTClibValueError as e:
-        raise BTClibValueError(f"musig(): {e}") from e
-    der_path, wildcard = _musig_der_path(expression[close + 1 :])
-    if der_path or wildcard is not None:
-        if any(not key.xkey for key in participants):
-            err_msg = "musig() derivation requires every participant to be extended"
-            raise BTClibValueError(err_msg)
-        if any(key.is_ranged for key in participants):
-            err_msg = "musig() cannot have a ranged participant and derivation too"
-            raise BTClibValueError(err_msg)
-    return KeyExpression(
-        participants=participants, der_path=der_path, wildcard=wildcard
-    )
-
-
-def _parse_key(
-    expression: str,
-    prv_keys: dict[str, str],
-    *,
-    x_only: bool = False,
-    compressed: bool = False,
-    musig_allowed: bool = False,
-) -> KeyExpression:
-    """Return the KeyExpression of a BIP380 KEY expression.
-
-    Never echo the key in an error message: a KEY expression is a WIF or
-    an xprv as often as it is a public key, and an error message ends up
-    in logs and in bug reports.
-
-    The hardening symbol is the last one the expression used, read in the
-    order it is written: the origin's path, then the key's, then the
-    wildcard. A fixed key hardens nothing and keeps the default, there
-    being no step of it to write.
-
-    A ``musig()`` is read before the key origin and not after it, which is
-    Bitcoin Core's order and where BIP390's "cannot be nested" comes from:
-    the expression is a musig one or it is not, so an origin in front of it
-    is not a musig expression with an origin -- it is a key that is no key.
-    """
-    if expression.startswith("musig("):
-        _assert_musig_allowed(musig_allowed=musig_allowed)
-        return _parse_musig(expression, prv_keys)
-    origin, origin_hardening, rest = _origin_and_rest(expression)
-    _assert_key_characters(rest)
-    key, separator, path = rest.partition("/")
-    if _is_extended_key(key):
-        steps, wildcard, wildcard_hardening = _split_wildcard(
-            path.split("/") if separator else []
-        )
-        der_path = "/".join(steps)
-        hardening = origin_hardening
-        for symbol in (_hardening(der_path), wildcard_hardening):
-            hardening = symbol or hardening
-        return KeyExpression(
-            origin=origin,
-            xkey=_neutered(key, prv_keys),
-            der_path=tuple(_der_path(der_path)),
-            wildcard=wildcard,
-            hardening=hardening or _HARDENING,
-        )
-    if separator:
-        raise BTClibValueError("derivation path after a key that cannot derive")
-    pub_key, was_x_only = _fixed_pub_key(key, x_only=x_only)
-    key_expression = KeyExpression(
-        origin=origin,
-        pub_key=pub_key,
-        x_only=was_x_only,
-        hardening=origin_hardening or _HARDENING,
-    )
-    if compressed and not key_expression.is_compressed:
-        raise BTClibValueError("uncompressed public keys are not allowed here")
-    return key_expression
 
 
 def _parse_multi_a(name: str, args: list[str], prv_keys: dict[str, str]) -> MultiA:
@@ -2362,6 +1900,22 @@ def _parse_multi_a(name: str, args: list[str], prv_keys: dict[str, str]) -> Mult
     return MultiA(int(args[0]), keys, sort=name == "sortedmulti_a")
 
 
+def _parse_leaf_miniscript(expression: str, prv_keys: dict[str, str]) -> Miniscript:
+    """Return the miniscript of a tr() leaf, sanity checked as a wsh() one is.
+
+    The tapscript dialect: 32-byte keys, ``multi_a()`` where ``wsh()`` has
+    ``multi()``, and a ``d:`` wrapper that is "u" because MINIMALIF is
+    consensus under taproot. What is refused is what a descriptor refuses
+    anywhere -- an expression that is malleable, needs no signature, mixes
+    timelocks, repeats a key, or has a spend past a resource limit -- and
+    the leaf is where it is said, a tree being several scripts of which
+    this one is unspendable or unsafe.
+    """
+    node = _parse_miniscript(expression, miniscript.TAPSCRIPT, prv_keys)
+    _assert_sane(node)
+    return node
+
+
 def _parse_tree(expression: str, prv_keys: dict[str, str]) -> DescriptorTree:
     """Return the script tree of a BIP386 TREE expression."""
     if expression.startswith("{"):
@@ -2375,24 +1929,27 @@ def _parse_tree(expression: str, prv_keys: dict[str, str]) -> DescriptorTree:
             _parse_tree(branches[0], prv_keys),
             _parse_tree(branches[1], prv_keys),
         )
-    name, arguments = _split_function(expression)
-    _assert_not_miniscript(name)
-    args = _split_arguments(arguments)
+    name = expression.partition("(")[0]
     if name in _TREE_FUNCTIONS:
-        return _parse_multi_a(name, args, prv_keys)
+        return _parse_multi_a(
+            name, _split_arguments(expression[len(name) + 1 : -1]), prv_keys
+        )
     if name == "musig":
         # allowed inside tr(), and as a key rather than as a leaf: a leaf
         # is a script, and what a musig() aggregates to is one key of one
         err_msg = "musig() is a key expression: pk(musig(...)) is the leaf"
         raise BTClibValueError(err_msg)
-    if name in _PARSERS:
+    if name in _PARSERS and name != "pk":
         # a SCRIPT function where a leaf is expected: a position rule and
         # not something a later release adds, which is what the position
         # table says and Bitcoin Core's own message says too. ``pk()``
         # allows tr() among its positions and falls through to be read
         _assert_position(name, _P2TR, _PARSERS[name][0])
     if name != "pk":
-        raise BTClibValueError(f"unknown descriptor function: {name}()")
+        # a leaf that is no BIP386 leaf is a BIP379 miniscript, which is
+        # the same order the wsh() half reads its two grammars in
+        return _parse_leaf_miniscript(expression, prv_keys)
+    args = _split_arguments(expression[len(name) + 1 : -1])
     return _parse_key(
         _one_argument(args, name),
         prv_keys,
@@ -2564,12 +2121,36 @@ _PARSERS: dict[
 }
 
 
+def _parse_miniscript_expression(
+    expression: str, context: str, network: str, prv_keys: dict[str, str]
+) -> Descriptor:
+    """Return the MiniscriptDescriptor of a BIP379 expression, sanity checked.
+
+    Refused where the miniscript is not sane, which is what Bitcoin Core
+    refuses too: a descriptor is what a wallet spends from, and an
+    expression that can be satisfied without a signature, or whose witness
+    a third party can rewrite, or whose timelocks contradict each other, is
+    not one to hand a wallet. `miniscript.parse` on its own answers for the
+    language and leaves the judgement to the caller.
+    """
+    node = _parse_miniscript(expression, _MINISCRIPT_CONTEXTS[context], prv_keys)
+    _assert_sane(node)
+    return MiniscriptDescriptor(node, network=network)
+
+
 def _parse_expression(
     expression: str, context: str, network: str, prv_keys: dict[str, str]
 ) -> Descriptor:
-    """Return the Descriptor of a SCRIPT expression, in its context."""
-    name, arguments = _split_function(expression)
-    _assert_not_miniscript(name)
+    """Return the Descriptor of a SCRIPT expression, in its context.
+
+    A miniscript is what an expression is where it is not one of the
+    functions below: the two grammars share ``pk()``, ``pkh()`` and
+    ``multi()``, which BIP379 says mean the same thing in both, so those
+    are read as the descriptor functions they were before miniscript --
+    which is Bitcoin Core's order too, its own parser trying the functions
+    it knows and falling through to miniscript for the rest.
+    """
+    name = expression.partition("(")[0]
     if name == "musig":
         # a key expression where a SCRIPT one is expected: BIP390's own
         # invalid vectors write it as sh(musig()) and wsh(musig()), and
@@ -2579,8 +2160,13 @@ def _parse_expression(
         # a tree leaf and no SCRIPT expression, so reaching this is the
         # position rule of BIP387 being broken: `_assert_position` says
         # which position it was, where "unknown function" would say the
-        # language has no such word
+        # language has no such word. Before the miniscript branch below,
+        # which would answer for the same two names as a tapscript
+        # fragment written where a p2wsh one belongs
         _assert_position(name, context, (_P2TR,))
+    if name not in _PARSERS and context in _MINISCRIPT_CONTEXTS:
+        return _parse_miniscript_expression(expression, context, network, prv_keys)
+    name, arguments = _split_function(expression)
     if name not in _PARSERS:
         raise BTClibValueError(f"unknown descriptor function: {name}()")
     allowed, parser = _PARSERS[name]
@@ -2738,6 +2324,109 @@ def at_index(descriptor: Descriptor, index: int = 0) -> Descriptor:
         )
 
     return _mapped_keys(descriptor, fixed)
+
+
+def miniscript_sizer(psbt_in: PsbtIn, tx_in: TxIn) -> list[int] | None:
+    """Size the spend of a psbt input whose witness script is a miniscript.
+
+    A `SolutionSizer`, which is what `psbt_size.estimated_input_sizes` takes
+    for the inputs whose spend it cannot read -- and it lives here for
+    `miniscript_solver`'s reason, the layering: `descriptors` imports `psbt`
+    and nothing there imports back. A caller passes it::
+
+        script_sig, witness = estimated_input_sizes(
+            psbt_in, tx_in, sizer=miniscript_sizer
+        )
+
+    The witness of a p2wsh spend is the satisfaction and then the witness
+    script, so that is the list: `Miniscript.max_witness_stack` and the
+    script's own length. It needs no signature and no preimage, an estimate
+    being made before either exists -- the size of a signature is the
+    context's, and BIP379 fixes a preimage at 32 bytes.
+
+    None where the input is not this sizer's business: no witness script,
+    one that is no miniscript, or one no witness can satisfy at all. The
+    caller then answers as it did before, which for the last of those is a
+    refusal: a script nobody can spend has no spend to estimate.
+    """
+    if not psbt_in.witness_script:
+        return None
+    known = (*psbt_in.partial_sigs, *psbt_in.hd_key_paths)
+    try:
+        node = _miniscript_from_script(
+            psbt_in.witness_script,
+            miniscript.P2WSH,
+            {hash160(key): key for key in known},
+        )
+    # not a miniscript, which is the answer "not mine" and not an error
+    except BTClibValueError:
+        return None
+    stack = node.max_witness_stack
+    if stack is None:
+        return None
+    return [*stack, len(psbt_in.witness_script)]
+
+
+def miniscript_solver(psbt: Psbt, vin_i: int) -> tuple[bytes, Witness] | None:
+    """Spend a psbt input whose witness script is a miniscript.
+
+    An `InputSolver`, which is what `psbt.finalize` takes for the inputs
+    whose spend is the caller's to know -- and a miniscript is one of
+    them, for a reason of layering rather than of design: `descriptors`
+    imports `psbt` and nothing there imports back, so the finalizer cannot
+    reach the language that reads its witness script. Passing this is what
+    closes that circle from the outside::
+
+        final = psbt.finalize(unsigned, solver=miniscript_solver)
+
+    Everything it needs is in the psbt. The witness script is read back
+    into the expression it is -- which is what `miniscript.from_script`
+    is for, and what makes a signer able to spend a script nobody handed
+    it a descriptor for -- and the satisfaction reads the input's own
+    fields: the signatures of `partial_sigs`, the four preimage mappings
+    BIP174 gave fields to, and the lock times of the transaction the psbt
+    is building. A ``pk_h()`` names its key by a hash160, so the keys the
+    input knows are offered for that lookup.
+
+    None where the input is not this solver's business: no witness script,
+    or one that is not a miniscript, both of which `finalize` then answers
+    for as it did before. Where the script *is* a miniscript and the
+    signatures do not satisfy it, the refusal is the satisfier's and says
+    so -- a witness built from a guess would be worse, being one the
+    network refuses after the transaction is broadcast rather than one
+    this refuses while it is built.
+    """
+    psbt_in = psbt.inputs[vin_i]
+    if not psbt_in.witness_script:
+        return None
+    # a pk_h() holds the hash of its key and not the key, so the keys the
+    # input carries are what can be recognized: the ones that signed, and
+    # the ones an origin names
+    known = (*psbt_in.partial_sigs, *psbt_in.hd_key_paths)
+    try:
+        node = _miniscript_from_script(
+            psbt_in.witness_script,
+            miniscript.P2WSH,
+            {hash160(key): key for key in known},
+        )
+    # not a miniscript, which is not an error: it is the answer "not mine"
+    except BTClibValueError:
+        return None
+    tx = psbt.tx
+    spend = SpendContext(
+        sha256_preimages=psbt_in.sha256_preimages,
+        hash256_preimages=psbt_in.hash256_preimages,
+        ripemd160_preimages=psbt_in.ripemd160_preimages,
+        hash160_preimages=psbt_in.hash160_preimages,
+        locktime=tx.lock_time,
+        sequence=tx.vin[vin_i].sequence,
+        version=tx.version,
+    )
+    stack = node.satisfy(cast("Mapping[Octets, Octets]", psbt_in.partial_sigs), spend)
+    # the redeem script of a wrapped p2wsh, and the empty script_sig BIP141
+    # requires of a native one
+    script_sig: ScriptList = [psbt_in.redeem_script] if psbt_in.redeem_script else []
+    return serialize(script_sig), Witness([*stack, psbt_in.witness_script])
 
 
 def multipath_descriptors(descriptor: str) -> list[str]:

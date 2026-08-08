@@ -10,6 +10,7 @@ Subpackages
    btclib.bip32
    btclib.block
    btclib.curves
+   btclib.descriptors
    btclib.ecc
    btclib.fetch
    btclib.mnemonic
@@ -83,13 +84,6 @@ btclib.core_import module
    :members:
    :show-inheritance:
 
-btclib.descriptors module
--------------------------
-
-.. automodule:: btclib.descriptors
-   :members:
-   :show-inheritance:
-
 btclib.exceptions module
 ------------------------
 
@@ -143,6 +137,13 @@ btclib.psbt\_signer module
 --------------------------
 
 .. automodule:: btclib.psbt_signer
+   :members:
+   :show-inheritance:
+
+btclib.psbt\_signer\_contract module
+------------------------------------
+
+.. automodule:: btclib.psbt_signer_contract
    :members:
    :show-inheritance:
 

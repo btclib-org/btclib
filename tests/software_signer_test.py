@@ -1,5 +1,4 @@
 # Copyright (c) The btclib developers
-#
 # Distributed under the MIT software license, see the accompanying
 # LICENSE file or https://opensource.org/license/mit for the full text.
 
@@ -271,3 +270,121 @@ def test_the_account_a_signer_exports_is_the_one_core_imports() -> None:
     ]
     assert [request["internal"] for request in requests] == [False, True]
     assert all(request["range"] == [0, 24] for request in requests)
+
+
+def test_a_signer_of_accounts_answers_for_the_master_it_names() -> None:
+    """What a device that exported its accounts and kept its master leaves.
+
+    The same flow as the whole-flow test above, signed by a signer that
+    holds the account key alone: the origins a wallet writes name the
+    master fingerprint, so the fingerprint is told rather than computed
+    and the account path is what the remainder is derived from. Built on
+    that account key the ordinary way, the signer answers the account's
+    own fingerprint and therefore for no origin of this psbt.
+    """
+    account_path = "m/84h/0h/0h"
+    account = derive(XPRV_ROOT, account_path)
+    master = SoftwareSigner(XPRV_ROOT)
+    signer = SoftwareSigner.from_accounts(
+        master.master_fingerprint(), {account_path: account}
+    )
+
+    assert signer.master_fingerprint() == master.master_fingerprint()
+    assert signer.xpub(account_path) == master.xpub(account_path)
+    assert not signer.is_watch_only
+    assert isinstance(signer, PsbtSigner)
+
+    receive, change = export_account(signer, account_path)
+    psbt, prevouts = spending(receive, change)
+    signed = request_signatures(signer, psbt)
+    assert signed != psbt
+
+    final = finalize(signed)
+    tx = final.tx
+    tx.vin[0].script_sig = final.inputs[0].final_script_sig
+    tx.vin[0].script_witness = final.inputs[0].final_script_witness
+    verify_transaction(prevouts, tx)
+
+    # the same key, built on the ordinary way: its own fingerprint is
+    # four other bytes, and no origin of this psbt names them
+    plain = SoftwareSigner(account)
+    assert plain.master_fingerprint() != master.master_fingerprint()
+    assert plain.sign_psbt(psbt) == psbt
+
+
+def test_the_longest_account_prefixing_an_origin_answers() -> None:
+    """Two accounts on one path, and the deeper one has less left to derive."""
+    signer = SoftwareSigner.from_accounts(
+        SoftwareSigner(XPRV_ROOT).master_fingerprint(),
+        {
+            "m/84h/0h": derive(XPRV_ROOT, "m/84h/0h"),
+            "m/84h/0h/0h": derive(XPRV_ROOT, "m/84h/0h/0h"),
+        },
+    )
+    # both could reach it; what matters is that the answer is the key the
+    # path names, whichever account was walked to get there
+    assert signer.xpub("m/84h/0h/0h/0/7") == xpub_from_xprv(
+        derive(XPRV_ROOT, "m/84h/0h/0h/0/7")
+    )
+    # a path no account of it prefixes is a key it does not hold
+    with pytest.raises(BTClibValueError, match="no key held for the path"):
+        signer.xpub("m/44h/0h/0h")
+
+
+def test_a_signer_of_accounts_has_no_single_key() -> None:
+    """`xkey` is the key a signer was built on, and there was none."""
+    account_path = "m/84h/0h/0h"
+    signer = SoftwareSigner.from_accounts(
+        SoftwareSigner(XPRV_ROOT).master_fingerprint(),
+        {account_path: derive(XPRV_ROOT, account_path)},
+    )
+    with pytest.raises(BTClibValueError, match="holds accounts, not one key"):
+        _ = signer.xkey
+    # built on one key, the property is that key, and the empty path
+    # reaches it as any other account path reaches its own
+    assert (
+        SoftwareSigner(XPRV_ROOT).xkey == BIP32KeyData.b58decode(XPRV_ROOT).b58encode()
+    )
+
+    with pytest.raises(BTClibValueError, match="the signer would hold no key"):
+        SoftwareSigner.from_accounts(b"\x00" * 4, {})
+
+
+def test_an_account_paired_with_the_wrong_master_answers_for_nothing() -> None:
+    """The fingerprint is a claim, and the public key is what checks it.
+
+    Nothing in an extended key records the master it came from, so an
+    account told the wrong one matches origins whose keys it does not
+    hold. One derivation later the public key is not the one the psbt
+    names, and the key is refused there rather than signed with.
+    """
+    account_path = "m/84h/0h/0h"
+    honest = SoftwareSigner(XPRV_ROOT)
+    receive, change = export_account(honest, account_path)
+    psbt, _ = spending(receive, change)
+
+    # another master's account, told this master's fingerprint
+    other_root = derive(XPRV_ROOT, "m/9h")
+    liar = SoftwareSigner.from_accounts(
+        honest.master_fingerprint(), {account_path: derive(other_root, account_path)}
+    )
+    assert liar.sign_psbt(psbt) == psbt
+
+
+def test_a_signer_of_watch_only_accounts_derives_but_does_not_sign() -> None:
+    """Accounts exported as xpubs hold no key that signs."""
+    account_path = "m/84h/0h/0h"
+    account = xpub_from_xprv(derive(XPRV_ROOT, account_path))
+    signer = SoftwareSigner.from_accounts(
+        SoftwareSigner(XPRV_ROOT).master_fingerprint(), {account_path: account}
+    )
+
+    assert signer.is_watch_only
+    assert signer.xpub(f"{account_path}/0/0") == xpub_from_xprv(
+        derive(XPRV_ROOT, f"{account_path}/0/0")
+    )
+    # the account it was handed is what a watch-only signer cannot
+    # derive for itself: every level of the path is hardened
+    receive, change = export_account(SoftwareSigner(XPRV_ROOT), account_path)
+    with pytest.raises(BTClibValueError, match="watch-only signer"):
+        signer.sign_psbt(spending(receive, change)[0])

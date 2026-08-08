@@ -1,13 +1,396 @@
 # Changelog
 
+<!-- markdownlint-configure-file
+  {
+    // MD024/no-duplicate-heading - a group heading repeats under every
+    // release with an entry in that group ("Packaging, linting and CI",
+    // "Tests", "Repository"), which is what keeps the page readable
+    // scrolling down it; only a duplicate under the same release heading
+    // would be the accident this rule looks for
+    "MD024": { "siblings_only": true }
+  }
+-->
+
 Every change of a release, in full: what changed, why, and what it cost.
 [HISTORY.md](./HISTORY.md) has the release notes, which say what a user has
 to act on; this file is the record behind them, and is where a claim in
 those notes can be checked.
 
-Only v2026.8 is here. The releases before it were documented at
-release-notes length in the first place, and are still in
+Only v2026.8.7 and what follows it are here. The releases before it were
+documented at release-notes length in the first place, and are still in
 [HISTORY.md](./HISTORY.md) rather than duplicated here.
+
+## v2026.9 (work in progress, not released yet)
+
+### Descriptors and miniscript
+
+- **The in-process HWI adapter is refused, in `btclib.hwi` and not only in
+  a closed issue** (#469). The reason is a Python range: HWI declares
+  `^3.9,<3.13`, this library supports 3.10 to 3.14 and pypy, so an optional
+  extra importing `hwilib` cannot be installed on the two newest
+  interpreters here -- a second and narrower support matrix wearing the word
+  "optional", where a subprocess keeps the executable in an environment of
+  its own. Of the three things it was to buy, one is void since #187 (Ledger
+  policy registration was blocked by miniscript, not by the transport), one
+  is small (a signing session is dominated by a human pressing a button, and
+  `signtx` signs every input of a psbt in one call), and one needs no
+  transport change (HWI's numeric codes have not moved since 2019, and
+  `SignerError` already carries them). What a caller holding an open
+  `hwilib` device writes instead is a `PsbtSigner` of their own, which is a
+  shape `psbt_signer_contract` already names.
+- **Two CHANGELOG references to #499 named the wrong thing.** #499 is the
+  merged pull request whose note on BIP388 wallet policies said what a
+  Ledger cannot be shown; the *template rewriting* that note describes has
+  no issue of its own, and #469 -- the in-process HWI adapter -- is where a
+  caller asked for what it would unblock. Both entries now say so.
+
+  Caught by reading the numbers back rather than by any check: a `#N` in
+  prose is never verified, and a merged pull request and an open issue read
+  exactly the same.
+- **A miniscript input is sized before it is signed**, through
+  `descriptors.miniscript_sizer`: the `SolutionSizer` that
+  `psbt_size.estimated_input_sizes` takes, answering with the witness a
+  p2wsh spend will carry -- the satisfaction element by element, then the
+  witness script. It asks for no signature and no preimage, an estimate
+  being made before either exists: the size of a signature is the
+  context's and not the key's, and BIP379 fixes a preimage at 32 bytes.
+
+  `Miniscript.max_witness_stack` is what it reads, and it is
+  `max_witness_size` broken into its elements: the largest witness the
+  expression can be satisfied by, with every signature assumed and every
+  lock time taken as met. The two are computed by different roads -- one
+  over BIP379's type tables, the other over the satisfaction -- and a test
+  asserts they agree on every vector, element sizes plus the length prefix
+  the transaction writes against the tables' one number. They do, in both
+  contexts, which is what says neither transcription drifted.
+
+  The largest and not the cheapest, which is the one thing the estimate
+  does differently from `satisfy`: where several branches are open, a
+  satisfaction reports the witness a signer will build and an estimate
+  reports the heaviest one it may be pushed onto -- the cheap branch is the
+  one a missing preimage or an unmet lock time shuts, and an estimate that
+  assumed it would pay too little a fee. Bitcoin Core's `MaxSatSize` for a
+  miniscript is the same choice, returning its static bound rather than a
+  satisfaction. What both keep is the malleability rule: a witness this
+  library will not build bounds nothing that will be broadcast.
+
+  No third availability state came out of it. Bitcoin Core's MAYBE exists
+  to arbitrate between a stack built from a real signature and one built
+  from a dummy; here an estimate assumes every signature and a satisfaction
+  assumes none, so the two never meet in one comparison, and the flag that
+  was written for it was removed once the vectors showed it unread.
+- **`btclib.hwi`'s note on wallet policies is no longer wrong about
+  miniscript.** It said "btclib reads no miniscript (issue #187)" and drew
+  the conclusion that a script outside BIP388's fixed set is not
+  expressible here whatever the transport -- both true when it was written
+  and neither true now. What stands between a caller and a registered
+  Ledger policy is the template rewriting, which #469 asked for and no
+  issue holds yet, not the language and not the transport. Found by
+  grepping the tree for claims the miniscript work had falsified, which is
+  the only thing that finds a docstring gone stale: no test asserts prose.
+- **A ``tr()`` leaf may be a miniscript**, which is the second of the two
+  positions BIP379 allows one in and the last one this library was short
+  of: `DescriptorTree` holds a `Miniscript` beside the ``pk()`` and the
+  ``multi_a()`` leaves it held before, `_parse_tree` reads the tapscript
+  dialect wherever a leaf is not one of those, and a script path spend
+  satisfies it -- the witness being the satisfaction, the leaf script and
+  the control block, the same order every other leaf is spent in.
+
+  The dialect is what the position picks: 32-byte keys, ``multi_a()`` where
+  ``wsh()`` has ``multi()``, a ``d:`` wrapper that is "u" because MINIMALIF
+  is consensus under taproot and only policy under P2WSH, and resource
+  limits of its own. All of it was implemented and tested against Core's
+  tapscript column when the language landed; what this adds is the
+  descriptor plumbing that reaches it, and the sanity every leaf is now
+  held to -- a tree is several scripts, and one that can be spent without
+  a signature is one no wallet should be handed whatever the others are.
+
+  A leaf that the signatures at hand do not open is still an answer and not
+  an error, which is what walking a tree means: a miniscript leaf whose
+  branches want a preimage or a lock time the spend does not carry is
+  simply not the leaf being spent, and the walk goes on to the next.
+
+  What a taproot *psbt* input needs is not this: its leaf script,
+  signatures and control block live in BIP371 fields of their own rather
+  than in a witness script, so `miniscript_solver` does not answer for one.
+  That is a solver of its own shape and the next thing here.
+- **`psbt.finalize` spends a miniscript input**, through
+  `descriptors.miniscript_solver`: the `InputSolver` the finalizer already
+  takes, which reads an input's witness script back into the expression it
+  is and satisfies it from the input's own fields -- the signatures of
+  `partial_sigs`, the four preimage mappings BIP174 gave fields to, and the
+  lock times of the transaction the psbt is building. A ``pk_h()`` names
+  its key by a hash160, so the keys the input knows -- the ones that signed
+  and the ones a key origin names -- are what make that fragment readable.
+
+  A solver rather than a branch of `finalize`, and the reason is layering
+  and not taste: `descriptors` imports `psbt` and nothing there imports
+  back, so the finalizer cannot reach the language that reads its own
+  witness script. What closes the circle is the caller, in one keyword:
+  `finalize(psbt, solver=miniscript_solver)`. The solver answers None for
+  an input that is not its business -- no witness script, or one that is no
+  miniscript -- which is what leaves every other input to the finalizer
+  unchanged, and it refuses where the script *is* a miniscript and the
+  signatures do not satisfy it: a witness built from a guess is one the
+  network refuses after the broadcast rather than one this refuses while it
+  is built.
+
+  What it does not do is estimate: `psbt_size`'s `SolutionSizer` is the
+  same shape for the same reason, but sizing happens before signing, so it
+  wants the satisfaction with dummy signatures in place of the ones a
+  caller does not have yet -- Bitcoin Core's MAYBE availability, which this
+  satisfier does not model. `max_witness_size` already bounds the whole
+  witness statically; what a sizer needs beyond it is the per-element list.
+- **A miniscript is satisfied, non-malleably** (issue #187):
+  `Miniscript.satisfy` returns the witness elements that spend the script,
+  and `Descriptor.satisfy` takes a `SpendContext` beside the signatures for
+  the fragment that reads more than they carry. BIP379's algorithm and not
+  an assembly: several branches of an expression may be open at once, and
+  which witness to build is a choice between them -- the one reported is
+  the one no third party could rewrite, and where every candidate is
+  rewritable there is no answer. A witness that is valid and malleable is
+  worse than none, because it is one a relay can change under the
+  transaction carrying it; a satisfaction with no signature in it is
+  refused for the same reason, the lock times having been checked against
+  an nLockTime and an nSequence that would then be a third party's to
+  change.
+
+  The context is what the signatures cannot carry: the four preimage
+  mappings BIP174 gave psbt fields, and the lock times the transaction
+  being built will carry -- with its version, because BIP68's relative
+  locks are enforced from version 2, so an `older()` in a version-1
+  transaction is a branch nothing opens. `PsbtIn` holds all of it already,
+  which is what makes `psbt.finalize` able to build one without asking its
+  caller; that integration is the stage after this one. Every other
+  fragment ignores the context, having neither a branch to choose nor a
+  preimage to look up, and `satisfy` without one still spends everything it
+  spent before.
+
+  The oracle is btclib's own script engine, which is what Core's
+  satisfaction test uses its interpreter for: every valid P2WSH expression
+  of `fixed_tests` is satisfied against four spends -- an absolute lock
+  time of each kind and a relative one of each -- the signatures are real,
+  over the sig hash of the very transaction the witness goes into, and
+  `verify_transaction` is what says the witness is right. Two properties
+  come out of it: the engine accepts every witness produced, and every sane
+  and satisfiable expression is satisfied by at least one of the four
+  spends, which is BIP379's guarantee. The witness size and the element
+  count of each satisfaction are checked against the bounds the static
+  analysis promised for it.
+- **btclib reads and writes miniscript** (issue #187): `wsh()` no longer
+  refuses one, and `btclib.descriptors.miniscript` is BIP379's language on
+  its own -- `parse` reads an expression, `Miniscript.script` compiles it,
+  `from_script` reads a script back into the expression it is, and `str`
+  writes that expression out again. The round trip is the property both
+  directions are for: a signer handed a witness script can say what spends
+  it without being told, which is what miniscript exists for.
+
+  The type system comes with it, because it is what makes a fragment
+  composable: `Miniscript.properties` is BIP379's type and its properties,
+  one character each, and `parse` refuses an ill-typed expression naming
+  the innermost fragment that failed rather than the whole. So do the
+  bounds a satisfaction is analysed by -- `max_ops`, `max_stack_items`,
+  `max_exec_stack_items` and `max_witness_size` -- and the sanity a
+  descriptor is held to: `wsh(<miniscript>)` is refused where the
+  expression is malleable, needs no signature, mixes timelocks in blocks
+  with timelocks in seconds, repeats a key, or has a spend that would pass
+  a resource limit, each with the subexpression at fault named. Bitcoin
+  Core refuses the same five, in the same words.
+
+  Both of BIP379's contexts are implemented, `P2WSH` and `TAPSCRIPT`,
+  because the type system differs between them and a language with one of
+  them is a language whose tables cannot be checked: `multi()` belongs to
+  the first and `multi_a()` to the second, a key is 33 bytes there and 32
+  here, `d:` is "u" only under tapscript -- MINIMALIF being consensus for
+  taproot and policy for P2WSH -- and each bounds its own resources. Only
+  the P2WSH half is reachable from a descriptor: a miniscript inside
+  `tr()` is the stage after this one, and BIP387's `multi_a()` is what a
+  `tr()` leaf reads today.
+
+  What is not implemented is satisfaction, and that is the interface
+  question rather than a missing table: `Descriptor.satisfy` takes a
+  public-key-to-signature mapping, and a miniscript satisfaction also
+  needs hash preimages, the locktimes the spending transaction will carry,
+  and a choice among branches of different weight. `MiniscriptDescriptor`
+  therefore refuses to satisfy, and says what a caller would have to hand
+  over. The policy-to-miniscript compiler is not implemented either and is
+  a separate question: it is an optimiser with a cost model, no BIP
+  specifies it, and Bitcoin Core has neither the code nor a vector for it.
+
+  The oracle is Core's own `fixed_tests`, transcribed into
+  `tests/_data/miniscript_fixed_tests.json`: every expression it holds is
+  checked in both contexts for validity, the script it compiles to, the
+  three type answers Core asserts and every resource bound its calls pass,
+  plus the two round trips. One thing came out of the two production
+  custody scripts issue #187 mapped by hand: `v:older(n)` writes `<n>
+  CHECKSEQUENCEVERIFY VERIFY`, not `<n> CHECKSEQUENCEVERIFY DROP`, so a
+  script written the second way is not miniscript at all whatever its
+  policy is -- BIP379 has no fragment that writes an OP_DROP. The other of
+  the two maps opcode for opcode, `andor()` and all. Both were confirmed
+  against Bitcoin Core v31.1 before the code was written.
+- **`btclib.descriptors` is a package**, three modules deep and in one
+  direction: `key_expression` holds BIP380's KEY expressions, `miniscript`
+  reads the same KEY expressions inside BIP379's fragments, and
+  `descriptors` is the rest of BIP380 to BIP390 above both. The split is
+  what lets the language read a key without the descriptor grammar
+  importing the language back, and it is the shape `btclib.bip32` and
+  `btclib.script` already have. Every flat import is unchanged --
+  `from btclib.descriptors import parse, KeyExpression, PrvKeys` reaches
+  the same objects -- and `miniscript` is published beside them as the
+  subgroup a caller reaches by name.
+
+### Transactions, blocks and PSBT
+
+- **`finalize` takes an `InputSolver`**, for the inputs whose spend is
+  the caller's to know. Two of the shapes it refuses are refusals -- a
+  taproot input carrying more than one script path signature, and a leaf
+  that is not a single-key one -- but a witness script of no standard
+  kind is not: it is built from the signatures and the script, which is
+  the satisfaction of a multisig and a guess for anything else, and a
+  psbt finalized from that guess fails when the network runs it rather
+  than when it is built. The solver is therefore asked before anything is
+  built and not only where this function refuses, which is where the
+  `SolutionSizer` of `psbt_size` differs. What it does not take over is
+  the bookkeeping: the clearing BIP174 asks for, what is kept, and the
+  verification of whatever signatures the input does carry stay
+  `finalize`'s, which is the half a caller should not have to reproduce
+  to spend a script of their own.
+
+- **`SoftwareSigner.from_accounts` builds a signer on the accounts a
+  device exported**, for the master fingerprint they came from, where the
+  constructor takes one key and answers that key's own fingerprint. What
+  a psbt names in a key origin is the master's four bytes and a path from
+  it, so a signer built on an account answered for no origin of the
+  psbts that account's device writes -- the class docstring said so, and
+  left the caller to write the lookup. An origin is answered by the
+  account whose path is a prefix of it, the longest one where several
+  are, with the public key check unchanged: the fingerprint is told
+  rather than computed and is therefore a claim, and an account paired
+  with the wrong master is refused one derivation later. `xkey` is now
+  the key a signer was built on where it was built on one, and raises
+  for a signer of accounts, there being no key of which the others are
+  derivations.
+- **`estimated_input_sizes` takes a `SolutionSizer`**, and `Psbt` grows
+  `weight_estimate` and `vsize_estimate` to pass one, a property being
+  unable to take it. Two inputs were refused not for want of data but for
+  want of knowledge nobody but the caller has -- a script of no standard
+  type, and a taproot script path, where which leaf will be spent is not
+  in the psbt -- and a caller who does not have to guess had nothing to
+  say so with, so the fee arithmetic beyond the estimate was theirs to
+  write again. The sizer is asked exactly at those two refusals and never
+  in place of an answer this library can work out; what it returns is the
+  whole of what the input will push, the witness script of a p2wsh and
+  the control block of a taproot leaf included, one rule so that neither
+  side appends the other's element. A sizer answering None is the refusal
+  that was there before it was asked.
+
+- **`psbt_signer_contract` checks an implementation of the signer
+  contract, from outside btclib.** A protocol is a promise the type
+  checker reads and nothing runs, so an adapter answering a five-byte
+  fingerprint, an xpub derived from the wrong path, or a signature on
+  an input whose key origin names another master, type-checks and is
+  wrong at the first spend. btclib's own adapters were checked by
+  btclib's tests, which is no help to whoever writes the next one:
+  `check_psbt_signer` is that question asked from outside, and it takes
+  any `PsbtSigner` -- a command line adapter, an in-process driver, a
+  signing service. It is a function and not a test suite, so it belongs
+  to no test framework, and it checks what a type cannot say rather
+  than repeating what one already does. The psbt it needs for the "not
+  my key" check is built from the signer's own fingerprint, so no
+  caller has to supply material for it; a path the signer holds and a
+  psbt it can sign are the two things only the caller has, and both
+  are optional.
+- **`select_device` and `merge_devices` share the one thing a caller
+  does before it has a signer.** Selecting by fingerprint is the same
+  rule for every transport, and a caller with more than one way of
+  reaching a signer has to decide which of them answers for a
+  fingerprint two of them offer -- which is the caller's decision, so
+  it is the order of the arguments. A device that cannot be asked for
+  a fingerprint yet is kept by the merge and refused by the selection
+  with what it said, a locked device being one to unlock rather than
+  one to look for. `SignerDevice` is the protocol both read;
+  `hwi.HwiDevice` satisfies it.
+- **`SignerNotFoundError` says the backend is not installed**, a
+  `SignerError` subclass so that code catching that keeps catching
+  this. `btclib.hwi` turned every `OSError` into one `SignerError`, so
+  a missing executable and a permission the udev rules do not grant
+  arrived as one class with one `code` of None: a caller offering
+  signers of several kinds had to match on the text of a message, or
+  look for the executable itself and ask a second question that can
+  disagree with the first.
+- **What `btclib.hwi` cannot register, and why, is written down.** A
+  Ledger will not sign a multisig it has not been shown, BIP388 wallet
+  policies are how it is shown, and `hwilib/_cli.py` does not expose
+  registration -- so this module cannot, and a caller registers out of
+  band. Whether btclib could grow it is not a transport question: a
+  policy is a descriptor template with the keys lifted out, and the
+  fragments one may hold are BIP388's fixed set plus miniscript inside
+  `wsh()`, which btclib now reads -- what is left is the template, which is
+  the expression with the keys lifted into a vector, and #469 is where it
+  was asked for.
+
+### Packaging, linting and CI
+
+- **RELEASING.md says what `griffe check` actually reports**: breakage
+  alone, and never an addition, where the paragraph promised "every
+  difference" -- so every line it prints wants a HISTORY.md entry, and the
+  noise it carries is breakage by its own classification rather than
+  breakage a user meets. Four steps come back from bitcoin-core-rpc's
+  copy: reading `lint` and `test` on the commit `master` ends up at,
+  realigning `dev` with `--force-with-lease` on a ref rather than a
+  checkout the worktree convention does not give, `gh run rerun --failed`
+  for a token exchange that failed after the matrix had built everything,
+  and `pypi-attestations verify`, the integrity endpoint only saying a
+  signature is there. The two `.dev<run number>` bullets were one string
+  described twice, and are one.
+- **`keywords` and the GitHub repository topics name the same features**:
+  `psbt`, `taproot`, `secp256k1`, `musig2`, `slip39`,
+  `output-descriptors` and `hardware-wallet` are new, and `RFC-6979` is
+  `rfc-6979` with them -- a topic is lowercase or it is not a topic, and
+  one spelling is what lets the two lists be compared. Ordered by
+  relevance, not alphabetically; `rfc-6979`, `mnemonic`, `merkle-proof`,
+  `bip44` and `bitcoin-script` are keywords with no topic beside them,
+  being what did not fit the twenty GitHub allows.
+- **this file relaxes MD024 (no-duplicate-heading) for itself**, its group
+  headings repeating under every release; `siblings_only` still fails a
+  duplicate under one release heading. In a `markdownlint-configure-file`
+  comment rather than in `.markdownlint.jsonc`, which three repositories
+  share: a rule one file needs belongs to that file. bitcoin-core-rpc's
+  CHANGELOG.md carries the same comment.
+- **`[tool.uv]`'s `required-version` floor drops to `>=0.11.31`, from
+  `>=0.12.0`** (issue #485). Dependabot's own uv-ecosystem updater bundles
+  exactly 0.11.31 and does not self-update to satisfy a higher floor, so
+  it failed every update it attempted -- security updates included --
+  with `tool_version_not_supported` before a single one started. The
+  floor exists to stop an uv old enough to rewrite `uv.lock` in a format
+  a newer one cannot read; 0.11.31 is not that uv -- its lock schema
+  revision is unchanged from the rev the uv-lock hook of
+  `.pre-commit-config.yaml` pins, which is what actually regenerates the
+  committed file and keeps its own newer pin regardless of this floor.
+- **`[tool.ruff.lint]`'s `ignore` list names its ten entries instead of
+  coding them**, each re-measured against the reason already on file
+  rather than trusted: every one is still either pervasive across the
+  tree with no short list of exceptions to give a `# noqa` of its own, or
+  -- incorrect-blank-line-before-class and multi-line-summary-second-line
+  -- pydocstyle's alternative to a rule the "D" family already selects,
+  D211 and D212, which no docstring can satisfy both sides of regardless
+  of any count. Naming a rule needs `preview = true`, paired with
+  `explicit-preview-rules = true` so no other preview rule turns on
+  unasked, the same pairing btclib_libsecp256k1's own config already
+  carries for the same reason. Preview mode's own undefined-export does
+  not special-case a module-level `__getattr__` (astral-sh/ruff#18504,
+  open), so `btclib/__init__.py` and `btclib/script/__init__.py` carry a
+  per-file exemption from that one rule, where `tests/all_test.py`
+  already walks `__all__` with `getattr` and fails on the same drift.
+
+### Documentation and the website
+
+- **The README badges are the ones that can turn red**, on two lines:
+  version, downloads, development status, license and interpreters; test,
+  lint, pre-commit.ci and the documentation build. The ones naming a tool
+  choice are in CONTRIBUTING.md, the repository and the channel are badges
+  below, and the table that grouped them is gone -- the alternative text
+  says what a badge means, which is what the table's left column did.
 
 ## v2026.8.7
 
