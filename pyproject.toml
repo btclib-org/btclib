@@ -326,6 +326,9 @@ repository_nwo = "repository_nwo"
 # bindings predicate. Neither can be written differently
 nd = "nd"
 ands = "ands"
+# ruff's own name for flake8-copyright, in the comment above
+# [tool.ruff.lint.flake8-copyright] explaining why it is selected
+CPY = "CPY"
 
 [tool.typos.type.verbatim]
 # the three files that quote misspellings on purpose: the #161 entry names
@@ -532,6 +535,14 @@ select = [
     "BLE",  # flake8-blind-except
     "C4",   # flake8-comprehensions
     "C90",  # mccabe, at ruff's default with noqa'd exceptions: see below
+    # flake8-copyright, replacing the copyright-notice pre-commit hook:
+    # ed6e8014 found that hook checking only staged files unless given
+    # --enforce-all, so "pre-commit run --all-files" -- what the lint
+    # workflow actually runs -- silently checked nothing until that flag
+    # was added by hand. A rule living inside ruff's own file-selection
+    # logic has no separate flag to forget, checking whatever files it is
+    # given the same way whoever is asking
+    "CPY",
     "D",    # pydocstyle
     "E",    # pycodestyle errors
     "ERA",  # eradicate: code that was commented out instead of deleted
@@ -673,3 +684,17 @@ convention = "pep257"
 # a decision this file made -- every other setting in it carries the
 # measurement or the reason that chose it, and this one had neither
 parametrize-names-type = "csv"
+
+[tool.ruff.lint.flake8-copyright]
+# COPYRIGHT is still the one place the notice text is written down; this
+# is all three of its lines as one regex, not only the holder line --
+# a file keeping the first and dropping the licence/text lines below it
+# would have passed the single-line version and does not pass this one.
+# Escaped literally rather than searched loosely, so the dated holder
+# variants ed6e8014 found and reverted (2017-2021, 2017-2022,
+# 2020-2022) would not have matched either. What it still does not do
+# is diff a file against COPYRIGHT byte for byte the way the retired
+# hook's --enforce-all did: nothing here anchors the match to the very
+# start of the file, so text prepended above the notice would go
+# unnoticed
+notice-rgx = "Copyright \\(c\\) The btclib developers\\n# Distributed under the MIT software license, see the accompanying\\n# LICENSE file or https://opensource\\.org/license/mit for the full text\\."

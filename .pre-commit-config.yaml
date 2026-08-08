@@ -29,8 +29,7 @@ repos:
   # environment to install. A `files` or `exclude` pattern that stops
   # matching anything is a hook that has quietly stopped running, which is
   # the shape of issue #145 one level up: the rule is still written down
-  # and no longer enforced. One pattern to go stale today, the
-  # `files: \.py$` on copyright-notice -- and nothing else would say so
+  # and no longer enforced
   - repo: meta
     hooks:
       - id: check-hooks-apply
@@ -352,14 +351,9 @@ repos:
         # pre-commit.ci (zizmor issue 582) -- not reproducible from here,
         # and not a reason to drop a flag its author put there
         args: [--offline, --no-progress]
-  - repo: https://github.com/leoll2/copyright_notice_precommit
-    rev: 0.1.1
-    hooks:
-      - id: copyright-notice
-        args: [--notice=COPYRIGHT, --enforce-all]
-        files: \.py$
-  # ruff replaces autoflake, bandit, black, docformatter, flake8, isort,
-  # pydocstringformatter, pydocstyle, pylint, pyupgrade, and yesqa
+  # ruff replaces autoflake, bandit, black, copyright_notice_precommit,
+  # docformatter, flake8, isort, pydocstringformatter, pydocstyle, pylint,
+  # pyupgrade, and yesqa
   - repo: https://github.com/astral-sh/ruff-pre-commit
     rev: v0.16.0
     hooks:
