@@ -24,6 +24,21 @@ documented at release-notes length in the first place, and are still in
 
 ### Transactions, blocks and PSBT
 
+- **`finalize` takes an `InputSolver`**, for the inputs whose spend is
+  the caller's to know. Two of the shapes it refuses are refusals -- a
+  taproot input carrying more than one script path signature, and a leaf
+  that is not a single-key one -- but a witness script of no standard
+  kind is not: it is built from the signatures and the script, which is
+  the satisfaction of a multisig and a guess for anything else, and a
+  psbt finalized from that guess fails when the network runs it rather
+  than when it is built. The solver is therefore asked before anything is
+  built and not only where this function refuses, which is where the
+  `SolutionSizer` of `psbt_size` differs. What it does not take over is
+  the bookkeeping: the clearing BIP174 asks for, what is kept, and the
+  verification of whatever signatures the input does carry stay
+  `finalize`'s, which is the half a caller should not have to reproduce
+  to spend a script of their own.
+
 - **`SoftwareSigner.from_accounts` builds a signer on the accounts a
   device exported**, for the master fingerprint they came from, where the
   constructor takes one key and answers that key's own fingerprint. What
