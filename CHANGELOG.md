@@ -22,6 +22,70 @@ documented at release-notes length in the first place, and are still in
 
 ## v2026.9 (work in progress, not released yet)
 
+### Descriptors and miniscript
+
+- **btclib reads and writes miniscript** (issue #187): `wsh()` no longer
+  refuses one, and `btclib.descriptors.miniscript` is BIP379's language on
+  its own -- `parse` reads an expression, `Miniscript.script` compiles it,
+  `from_script` reads a script back into the expression it is, and `str`
+  writes that expression out again. The round trip is the property both
+  directions are for: a signer handed a witness script can say what spends
+  it without being told, which is what miniscript exists for.
+
+  The type system comes with it, because it is what makes a fragment
+  composable: `Miniscript.properties` is BIP379's type and its properties,
+  one character each, and `parse` refuses an ill-typed expression naming
+  the innermost fragment that failed rather than the whole. So do the
+  bounds a satisfaction is analysed by -- `max_ops`, `max_stack_items`,
+  `max_exec_stack_items` and `max_witness_size` -- and the sanity a
+  descriptor is held to: `wsh(<miniscript>)` is refused where the
+  expression is malleable, needs no signature, mixes timelocks in blocks
+  with timelocks in seconds, repeats a key, or has a spend that would pass
+  a resource limit, each with the subexpression at fault named. Bitcoin
+  Core refuses the same five, in the same words.
+
+  Both of BIP379's contexts are implemented, `P2WSH` and `TAPSCRIPT`,
+  because the type system differs between them and a language with one of
+  them is a language whose tables cannot be checked: `multi()` belongs to
+  the first and `multi_a()` to the second, a key is 33 bytes there and 32
+  here, `d:` is "u" only under tapscript -- MINIMALIF being consensus for
+  taproot and policy for P2WSH -- and each bounds its own resources. Only
+  the P2WSH half is reachable from a descriptor: a miniscript inside
+  `tr()` is the stage after this one, and BIP387's `multi_a()` is what a
+  `tr()` leaf reads today.
+
+  What is not implemented is satisfaction, and that is the interface
+  question rather than a missing table: `Descriptor.satisfy` takes a
+  public-key-to-signature mapping, and a miniscript satisfaction also
+  needs hash preimages, the locktimes the spending transaction will carry,
+  and a choice among branches of different weight. `MiniscriptDescriptor`
+  therefore refuses to satisfy, and says what a caller would have to hand
+  over. The policy-to-miniscript compiler is not implemented either and is
+  a separate question: it is an optimiser with a cost model, no BIP
+  specifies it, and Bitcoin Core has neither the code nor a vector for it.
+
+  The oracle is Core's own `fixed_tests`, transcribed into
+  `tests/_data/miniscript_fixed_tests.json`: every expression it holds is
+  checked in both contexts for validity, the script it compiles to, the
+  three type answers Core asserts and every resource bound its calls pass,
+  plus the two round trips. One thing came out of the two production
+  custody scripts issue #187 mapped by hand: `v:older(n)` writes `<n>
+  CHECKSEQUENCEVERIFY VERIFY`, not `<n> CHECKSEQUENCEVERIFY DROP`, so a
+  script written the second way is not miniscript at all whatever its
+  policy is -- BIP379 has no fragment that writes an OP_DROP. The other of
+  the two maps opcode for opcode, `andor()` and all. Both were confirmed
+  against Bitcoin Core v31.1 before the code was written.
+- **`btclib.descriptors` is a package**, three modules deep and in one
+  direction: `key_expression` holds BIP380's KEY expressions, `miniscript`
+  reads the same KEY expressions inside BIP379's fragments, and
+  `descriptors` is the rest of BIP380 to BIP390 above both. The split is
+  what lets the language read a key without the descriptor grammar
+  importing the language back, and it is the shape `btclib.bip32` and
+  `btclib.script` already have. Every flat import is unchanged --
+  `from btclib.descriptors import parse, KeyExpression, PrvKeys` reaches
+  the same objects -- and `miniscript` is published beside them as the
+  subgroup a caller reaches by name.
+
 ### Transactions, blocks and PSBT
 
 - **`finalize` takes an `InputSolver`**, for the inputs whose spend is
@@ -106,9 +170,10 @@ documented at release-notes length in the first place, and are still in
   policies are how it is shown, and `hwilib/_cli.py` does not expose
   registration -- so this module cannot, and a caller registers out of
   band. Whether btclib could grow it is not a transport question: a
-  policy is a descriptor template with the keys lifted out, but the
+  policy is a descriptor template with the keys lifted out, and the
   fragments one may hold are BIP388's fixed set plus miniscript inside
-  `wsh()`, and btclib reads no miniscript (#187).
+  `wsh()`, which btclib now reads -- what is left for #499 is the
+  template, which is the expression with the keys lifted into a vector.
 
 ### Packaging, linting and CI
 

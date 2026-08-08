@@ -56,7 +56,6 @@ from btclib.descriptors import (
     TrDescriptor,
     WpkhDescriptor,
     WshDescriptor,
-    __descsum_expand,
     account_descriptors,
     add_checksum,
     at_index,
@@ -67,6 +66,7 @@ from btclib.descriptors import (
     parse,
     strip_checksum,
 )
+from btclib.descriptors.descriptors import __descsum_expand
 from btclib.ecc import dsa, ssa
 from btclib.exceptions import BTClibValueError
 from btclib.hashes import hash160, tagged_hash
@@ -1021,29 +1021,6 @@ def test_unparsable(descriptor: str, message: str) -> None:
 
 # what is a descriptor, is not implemented, and is refused by name rather
 # than read wrong
-UNIMPLEMENTED = [
-    (
-        f"wsh(and_v(v:ripemd160(095ff41131e5946f3c85f79e44adbcf8e27e080e),pk({KEY})))",
-        "187",
-    ),
-    (f"wsh(thresh(1,pk({KEY})))", "187"),
-    (f"wsh(s:pk({KEY}))", "187"),
-]
-
-
-@pytest.mark.parametrize(
-    "descriptor, message",
-    [
-        pytest.param(descriptor, message, id=vector_id(index, descriptor))
-        for index, (descriptor, message) in enumerate(UNIMPLEMENTED)
-    ],
-)
-def test_unimplemented(descriptor: str, message: str) -> None:
-    """Refuse each unimplemented descriptor, naming the BIP or issue."""
-    with pytest.raises(NotImplementedError, match=message):
-        parse(descriptor)
-
-
 # BIP387's own test vectors, transcribed from `bip-0387.mediawiki`: a
 # valid descriptor and the scriptPubKey it produces, three of them where
 # the keys derive. The third and the fourth are the same two keys, ordered

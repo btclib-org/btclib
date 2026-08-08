@@ -10,6 +10,7 @@ Subpackages
    btclib.bip32
    btclib.block
    btclib.curves
+   btclib.descriptors
    btclib.ecc
    btclib.fetch
    btclib.mnemonic
@@ -80,13 +81,6 @@ btclib.core_import module
 -------------------------
 
 .. automodule:: btclib.core_import
-   :members:
-   :show-inheritance:
-
-btclib.descriptors module
--------------------------
-
-.. automodule:: btclib.descriptors
    :members:
    :show-inheritance:
 
