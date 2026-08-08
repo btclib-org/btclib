@@ -66,6 +66,13 @@ chooses among branches, and the choice reads hash preimages and the lock
 times the transaction being built will carry. Every other fragment ignores
 it, having neither a branch to choose nor a preimage to look up.
 
+`miniscript_solver` is the same satisfaction reached from the other side,
+where there is a psbt and no descriptor: an `InputSolver` for
+`psbt.finalize`, which reads the witness script back into the expression
+it is and satisfies it from the input's own fields. It lives here rather
+than in `psbt` because of the direction above -- this module imports that
+one -- and a caller passes it: `finalize(psbt, solver=miniscript_solver)`.
+
 BIP390's rule that a multipath ``musig()`` may not hold multipath
 participants has no counterpart here, and cannot: `parse` refuses a
 ``<a;b>`` step anywhere, `multipath_descriptors` expands it textually as
@@ -170,6 +177,7 @@ from btclib.descriptors.miniscript import (
     SpendContext,
     _assert_sane,
 )
+from btclib.descriptors.miniscript import from_script as _miniscript_from_script
 from btclib.descriptors.miniscript import parse as _parse_miniscript
 from btclib.exceptions import BTClibValueError
 from btclib.hashes import hash160
@@ -206,6 +214,7 @@ __all__ = [
     "at_index",
     "checksum",
     "from_address",
+    "miniscript_solver",
     "multipath_descriptors",
     "normalized",
     "parse",
@@ -2261,6 +2270,68 @@ def at_index(descriptor: Descriptor, index: int = 0) -> Descriptor:
         )
 
     return _mapped_keys(descriptor, fixed)
+
+
+def miniscript_solver(psbt: Psbt, vin_i: int) -> tuple[bytes, Witness] | None:
+    """Spend a psbt input whose witness script is a miniscript.
+
+    An `InputSolver`, which is what `psbt.finalize` takes for the inputs
+    whose spend is the caller's to know -- and a miniscript is one of
+    them, for a reason of layering rather than of design: `descriptors`
+    imports `psbt` and nothing there imports back, so the finalizer cannot
+    reach the language that reads its witness script. Passing this is what
+    closes that circle from the outside::
+
+        final = psbt.finalize(unsigned, solver=miniscript_solver)
+
+    Everything it needs is in the psbt. The witness script is read back
+    into the expression it is -- which is what `miniscript.from_script`
+    is for, and what makes a signer able to spend a script nobody handed
+    it a descriptor for -- and the satisfaction reads the input's own
+    fields: the signatures of `partial_sigs`, the four preimage mappings
+    BIP174 gave fields to, and the lock times of the transaction the psbt
+    is building. A ``pk_h()`` names its key by a hash160, so the keys the
+    input knows are offered for that lookup.
+
+    None where the input is not this solver's business: no witness script,
+    or one that is not a miniscript, both of which `finalize` then answers
+    for as it did before. Where the script *is* a miniscript and the
+    signatures do not satisfy it, the refusal is the satisfier's and says
+    so -- a witness built from a guess would be worse, being one the
+    network refuses after the transaction is broadcast rather than one
+    this refuses while it is built.
+    """
+    psbt_in = psbt.inputs[vin_i]
+    if not psbt_in.witness_script:
+        return None
+    # a pk_h() holds the hash of its key and not the key, so the keys the
+    # input carries are what can be recognized: the ones that signed, and
+    # the ones an origin names
+    known = (*psbt_in.partial_sigs, *psbt_in.hd_key_paths)
+    try:
+        node = _miniscript_from_script(
+            psbt_in.witness_script,
+            miniscript.P2WSH,
+            {hash160(key): key for key in known},
+        )
+    # not a miniscript, which is not an error: it is the answer "not mine"
+    except BTClibValueError:
+        return None
+    tx = psbt.tx
+    spend = SpendContext(
+        sha256_preimages=psbt_in.sha256_preimages,
+        hash256_preimages=psbt_in.hash256_preimages,
+        ripemd160_preimages=psbt_in.ripemd160_preimages,
+        hash160_preimages=psbt_in.hash160_preimages,
+        locktime=tx.lock_time,
+        sequence=tx.vin[vin_i].sequence,
+        version=tx.version,
+    )
+    stack = node.satisfy(cast("Mapping[Octets, Octets]", psbt_in.partial_sigs), spend)
+    # the redeem script of a wrapped p2wsh, and the empty script_sig BIP141
+    # requires of a native one
+    script_sig: ScriptList = [psbt_in.redeem_script] if psbt_in.redeem_script else []
+    return serialize(script_sig), Witness([*stack, psbt_in.witness_script])
 
 
 def multipath_descriptors(descriptor: str) -> list[str]:

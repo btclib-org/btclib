@@ -24,6 +24,33 @@ documented at release-notes length in the first place, and are still in
 
 ### Descriptors and miniscript
 
+- **`psbt.finalize` spends a miniscript input**, through
+  `descriptors.miniscript_solver`: the `InputSolver` the finalizer already
+  takes, which reads an input's witness script back into the expression it
+  is and satisfies it from the input's own fields -- the signatures of
+  `partial_sigs`, the four preimage mappings BIP174 gave fields to, and the
+  lock times of the transaction the psbt is building. A ``pk_h()`` names
+  its key by a hash160, so the keys the input knows -- the ones that signed
+  and the ones a key origin names -- are what make that fragment readable.
+
+  A solver rather than a branch of `finalize`, and the reason is layering
+  and not taste: `descriptors` imports `psbt` and nothing there imports
+  back, so the finalizer cannot reach the language that reads its own
+  witness script. What closes the circle is the caller, in one keyword:
+  `finalize(psbt, solver=miniscript_solver)`. The solver answers None for
+  an input that is not its business -- no witness script, or one that is no
+  miniscript -- which is what leaves every other input to the finalizer
+  unchanged, and it refuses where the script *is* a miniscript and the
+  signatures do not satisfy it: a witness built from a guess is one the
+  network refuses after the broadcast rather than one this refuses while it
+  is built.
+
+  What it does not do is estimate: `psbt_size`'s `SolutionSizer` is the
+  same shape for the same reason, but sizing happens before signing, so it
+  wants the satisfaction with dummy signatures in place of the ones a
+  caller does not have yet -- Bitcoin Core's MAYBE availability, which this
+  satisfier does not model. `max_witness_size` already bounds the whole
+  witness statically; what a sizer needs beyond it is the per-element list.
 - **A miniscript is satisfied, non-malleably** (issue #187):
   `Miniscript.satisfy` returns the witness elements that spend the script,
   and `Descriptor.satisfy` takes a `SpendContext` beside the signatures for
