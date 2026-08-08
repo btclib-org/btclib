@@ -95,6 +95,16 @@ documented at release-notes length in the first place, and are still in
   comment rather than in `.markdownlint.jsonc`, which three repositories
   share: a rule one file needs belongs to that file. bitcoin-core-rpc's
   CHANGELOG.md carries the same comment.
+- **`[tool.uv]`'s `required-version` floor drops to `>=0.11.31`, from
+  `>=0.12.0`** (issue #485). Dependabot's own uv-ecosystem updater bundles
+  exactly 0.11.31 and does not self-update to satisfy a higher floor, so
+  it failed every update it attempted -- security updates included --
+  with `tool_version_not_supported` before a single one started. The
+  floor exists to stop an uv old enough to rewrite `uv.lock` in a format
+  a newer one cannot read; 0.11.31 is not that uv -- its lock schema
+  revision is unchanged from the rev the uv-lock hook of
+  `.pre-commit-config.yaml` pins, which is what actually regenerates the
+  committed file and keeps its own newer pin regardless of this floor.
 
 ### Documentation and the website
 
