@@ -526,14 +526,28 @@ def test_a_sizer_answers_for_a_taproot_script_path() -> None:
 
 
 def test_a_sizer_is_never_asked_where_this_file_knows() -> None:
-    """A key path spend and a multisig: neither of them is asked about."""
+    """A key path spend and a multisig: neither of them is asked about.
 
-    def refuse(_in: PsbtIn, _tx: TxIn) -> list[int]:
-        msg = "the sizer was asked about an input this file can read"
-        raise AssertionError(msg)
+    What the sizer was asked about is recorded, and the same recorder
+    then meets the input that has to be asked about: the two halves of
+    the rule -- asked exactly where this file has no answer, and
+    nowhere else -- are one list either way. A sizer that raised would
+    state the first half by never running, which is a body no run
+    executes and an assertion no test makes.
+    """
+    asked: list[PsbtIn] = []
+
+    def record(psbt_in: PsbtIn, _tx: TxIn) -> list[int]:
+        asked.append(psbt_in)
+        return [SCHNORR_SIG_SIZE]
 
     psbt = Psbt.b64decode(BIP174_SIGNED_PSBT)
-    assert psbt.vsize_estimate(refuse) == psbt.estimated_vsize
+    assert psbt.vsize_estimate(record) == psbt.estimated_vsize
 
     key_path = bip371_psbt(0)
-    assert key_path.vsize_estimate(refuse) == key_path.estimated_vsize
+    assert key_path.vsize_estimate(record) == key_path.estimated_vsize
+    assert not asked
+
+    script_path = bip371_psbt(3)
+    _ = script_path.vsize_estimate(record)
+    assert asked == [script_path.inputs[0]]

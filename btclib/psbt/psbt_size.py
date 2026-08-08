@@ -81,11 +81,6 @@ COMPRESSED_PUB_KEY_SIZE = 33
 # multisig script are each written as its value plus this
 _OP_INT_OFFSET = 0x50
 
-# the types _solution_sizes answers for, named here so that the caller of
-# it can tell "this file knows" from "it raised", without asking by
-# catching what it raises
-_SOLVED = frozenset({"p2pkh", "p2pk", "p2wpkh", "p2ms"})
-
 
 def _script_pub_key(psbt_in: PsbtIn, tx_in: TxIn) -> bytes:
     """Return the script_pub_key of the output the input spends.
@@ -123,12 +118,21 @@ def _pub_key_size(psbt_in: PsbtIn, payload: bytes) -> int:
     return COMPRESSED_PUB_KEY_SIZE
 
 
-def _solution_sizes(script_type: str, payload: bytes, psbt_in: PsbtIn) -> list[int]:
+def _solution_sizes(
+    script_type: str, payload: bytes, psbt_in: PsbtIn
+) -> list[int] | None:
     """Return the size of each element that will satisfy the script.
 
     In the order the elements go on the stack, so this is the witness
     stack of a segwit input and the pushes of a legacy script_sig, one
     list because it is one list of signatures either way.
+
+    None for a type this file has no answer for, which is the word a
+    `SolutionSizer` uses for the same thing: the caller of both tells
+    "no answer" from an answer by looking at what came back, and a
+    second spelling of it -- a raise, a set of the types answered for,
+    a caller catching what it does not want -- would be one more thing
+    to keep in agreement with the branches below.
     """
     if script_type == "p2pkh":
         return [SIG_SIZE, _pub_key_size(psbt_in, payload)]
@@ -151,7 +155,7 @@ def _solution_sizes(script_type: str, payload: bytes, psbt_in: PsbtIn) -> list[i
         m = payload[0] - _OP_INT_OFFSET
         return [0, *[SIG_SIZE] * m]
 
-    raise BTClibValueError(f"no estimate for a script of type '{script_type}'")
+    return None
 
 
 def _asked(
@@ -194,13 +198,11 @@ def _p2wsh_witness_sizes(
     if not witness_script:
         raise BTClibValueError("no witness script")
     inner_type, inner_payload = type_and_payload(witness_script)
-    if inner_type in _SOLVED:
-        return [
-            *_solution_sizes(inner_type, inner_payload, psbt_in),
-            len(witness_script),
-        ]
-    err_msg = f"no estimate for a script of type '{inner_type}'"
-    return _asked(sizer, psbt_in, tx_in, err_msg)
+    sizes = _solution_sizes(inner_type, inner_payload, psbt_in)
+    if sizes is None:
+        err_msg = f"no estimate for a script of type '{inner_type}'"
+        return _asked(sizer, psbt_in, tx_in, err_msg)
+    return [*sizes, len(witness_script)]
 
 
 def _taproot_witness_sizes(
@@ -271,15 +273,15 @@ def estimated_input_sizes(
         # is not an estimate
         return len(serialize(wrapper)), _taproot_witness_sizes(psbt_in, tx_in, sizer)
 
-    if script_type == "p2wpkh":
-        return len(serialize(wrapper)), _solution_sizes(script_type, payload, psbt_in)
-
-    # a legacy script takes the whole of what unlocks it in the script_sig
-    if script_type in _SOLVED:
-        sizes = _solution_sizes(script_type, payload, psbt_in)
-    else:
+    sizes = _solution_sizes(script_type, payload, psbt_in)
+    if sizes is None:
         err_msg = f"no estimate for a script of type '{script_type}'"
         sizes = _asked(sizer, psbt_in, tx_in, err_msg)
+
+    if script_type == "p2wpkh":
+        return len(serialize(wrapper)), sizes
+
+    # a legacy script takes the whole of what unlocks it in the script_sig
     # the pushes are measured rather than counted: how a push is written
     # -- a one-byte length below 76, OP_PUSHDATA1 above it -- is
     # script.serialize's rule, and a second implementation of it here is
