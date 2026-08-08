@@ -24,6 +24,15 @@ documented at release-notes length in the first place, and are still in
 
 ### Descriptors and miniscript
 
+- **`btclib.hwi`'s note on wallet policies is no longer wrong about
+  miniscript.** It said "btclib reads no miniscript (issue #187)" and drew
+  the conclusion that a script outside BIP388's fixed set is not
+  expressible here whatever the transport -- both true when it was written
+  and neither true now. What stands between a caller and a registered
+  Ledger policy is the template rewriting of #499, not the language and not
+  the transport. Found by grepping the tree for claims the miniscript work
+  had falsified, which is the only thing that finds a docstring gone stale:
+  no test asserts prose.
 - **A ``tr()`` leaf may be a miniscript**, which is the second of the two
   positions BIP379 allows one in and the last one this library was short
   of: `DescriptorTree` holds a `Miniscript` beside the ``pk()`` and the
