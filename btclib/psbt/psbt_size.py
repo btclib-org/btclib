@@ -30,6 +30,10 @@ guessing costs bytes in one direction only, and a fee computed from a
 guess is a transaction that does not relay.
 
 A caller who does not have to guess says so, with a `SolutionSizer`.
+`descriptors.miniscript_sizer` is one for every input whose witness script
+is a BIP379 miniscript, and it is a sizer rather than a branch of this
+module for a reason of layering: `descriptors` imports this one and nothing
+here imports back.
 Two inputs are refused above not for want of data but for want of
 knowledge nobody but the caller has -- a script of no standard type, and
 a taproot script path, where which leaf will be spent is not in the psbt

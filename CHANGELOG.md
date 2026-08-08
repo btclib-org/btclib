@@ -24,6 +24,38 @@ documented at release-notes length in the first place, and are still in
 
 ### Descriptors and miniscript
 
+- **A miniscript input is sized before it is signed**, through
+  `descriptors.miniscript_sizer`: the `SolutionSizer` that
+  `psbt_size.estimated_input_sizes` takes, answering with the witness a
+  p2wsh spend will carry -- the satisfaction element by element, then the
+  witness script. It asks for no signature and no preimage, an estimate
+  being made before either exists: the size of a signature is the
+  context's and not the key's, and BIP379 fixes a preimage at 32 bytes.
+
+  `Miniscript.max_witness_stack` is what it reads, and it is
+  `max_witness_size` broken into its elements: the largest witness the
+  expression can be satisfied by, with every signature assumed and every
+  lock time taken as met. The two are computed by different roads -- one
+  over BIP379's type tables, the other over the satisfaction -- and a test
+  asserts they agree on every vector, element sizes plus the length prefix
+  the transaction writes against the tables' one number. They do, in both
+  contexts, which is what says neither transcription drifted.
+
+  The largest and not the cheapest, which is the one thing the estimate
+  does differently from `satisfy`: where several branches are open, a
+  satisfaction reports the witness a signer will build and an estimate
+  reports the heaviest one it may be pushed onto -- the cheap branch is the
+  one a missing preimage or an unmet lock time shuts, and an estimate that
+  assumed it would pay too little a fee. Bitcoin Core's `MaxSatSize` for a
+  miniscript is the same choice, returning its static bound rather than a
+  satisfaction. What both keep is the malleability rule: a witness this
+  library will not build bounds nothing that will be broadcast.
+
+  No third availability state came out of it. Bitcoin Core's MAYBE exists
+  to arbitrate between a stack built from a real signature and one built
+  from a dummy; here an estimate assumes every signature and a satisfaction
+  assumes none, so the two never meet in one comparison, and the flag that
+  was written for it was removed once the vectors showed it unread.
 - **`btclib.hwi`'s note on wallet policies is no longer wrong about
   miniscript.** It said "btclib reads no miniscript (issue #187)" and drew
   the conclusion that a script outside BIP388's fixed set is not

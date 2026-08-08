@@ -26,7 +26,13 @@ The bounds are the same analysis read statically: `max_ops`,
 `max_stack_items`, `max_exec_stack_items` and `max_witness_size` answer
 what a spend may cost before there is a spend, and `is_sane` is the
 conjunction Bitcoin Core requires of a miniscript before it accepts a
-descriptor holding one.
+descriptor holding one. `max_witness_stack` is the last of those broken
+into its elements, which is what an estimator needs: the largest witness
+this can be satisfied by, element by element, with every signature assumed
+and every lock time taken as met. Its bytes and `max_witness_size` are the
+same number by two roads -- one over the type tables, one over the
+satisfaction -- and the test that they agree on every vector is what says
+neither transcription drifted.
 
 The type system is why a fragment can be trusted to compose. Every
 expression has one of four basic types -- "B" base, "V" verify, "K" key,
@@ -867,6 +873,21 @@ def _computed_stack(node: Miniscript) -> tuple[_Trace | None, _Trace | None]:
     return _binary_stack(node)
 
 
+def _signature_size(context: str) -> int:
+    """Return the largest signature the context's CHECKSIG takes.
+
+    A low-s DER signature and its sighash byte under P2WSH; a BIP340
+    signature and its sighash byte under tapscript, that byte being what a
+    non-default sighash type costs there.
+    """
+    return 65 if context == TAPSCRIPT else 72
+
+
+def _pub_key_size(context: str) -> int:
+    """Return the public key size the context writes: x-only, or SEC."""
+    return 32 if context == TAPSCRIPT else 33
+
+
 def _leaf_witness(node: Miniscript) -> _Bounds:
     """Return the witness bytes a leaf's satisfaction and dissatisfaction take.
 
@@ -875,8 +896,8 @@ def _leaf_witness(node: Miniscript) -> _Bounds:
     tapscript, plus in both cases the byte that says how long the element
     is. A dissatisfaction is the empty push, which is one byte.
     """
-    signature = 1 + (65 if node.context == TAPSCRIPT else 72)
-    pub_key = 1 + (32 if node.context == TAPSCRIPT else 33)
+    signature = 1 + _signature_size(node.context)
+    pub_key = 1 + _pub_key_size(node.context)
     fragment = node.fragment
     if fragment == "0":
         bounds = _Bounds(None, 0)
@@ -1203,6 +1224,35 @@ class Miniscript:
         and a caller counting a whole input adds it.
         """
         return self._witness.sat
+
+    @property
+    def max_witness_stack(self) -> tuple[int, ...] | None:
+        """Return the size of every element of the largest satisfying witness.
+
+        In witness order, the script excluded, and None where no
+        satisfaction exists at all. What `max_witness_size` answers as one
+        number, broken up: an estimator wants the elements, because it is
+        the transaction's layout that turns them into bytes -- a count
+        prefix and a length prefix each -- and only the transaction knows
+        that.
+
+        Estimated and not satisfied: every signature and preimage is
+        assumed to turn up and every lock time to be met, so what comes
+        back is the largest witness a signer could end up broadcasting
+        rather than the one a particular caller can build now. That is what
+        a fee wants to be computed from, and it is why this asks for
+        nothing: a signature's size is the context's, not the key's.
+        """
+
+        def up(_state: None, node: Miniscript, subs: list[_Inputs]) -> _Inputs:
+            return _computed_input(
+                node, subs, SpendContext(), {}, 0, "mainnet", None, estimate=True
+            )
+
+        satisfaction = _tree_eval(self, None, lambda *_: None, up).sat
+        if satisfaction.stack is None:
+            return None
+        return tuple(len(element) for element in satisfaction.stack)
 
     @property
     def is_satisfiable(self) -> bool:
@@ -2778,6 +2828,36 @@ def _better(first: _Input, second: _Input) -> _Input:
     return first if first.size <= second.size else second
 
 
+# which of two candidate stacks a walk keeps: `_better` for the witness a
+# signer will build, `_larger` for how large one can get
+_Choice = Callable[["_Input", "_Input"], "_Input"]
+
+
+def _larger(first: _Input, second: _Input) -> _Input:
+    """Return the larger of two stacks, which is what an estimate keeps.
+
+    Where `_better` answers "which of these will be built", this answers
+    "how large can this get": the malleability rules of the first are
+    about choosing a witness and say nothing about the size of the one a
+    signer ends up with when the cheap branch is the one that is shut. It
+    is what makes this the same number Bitcoin Core's `MaxSatSize` reports,
+    which is the static bound of `max_witness_size` and not the
+    satisfaction of any particular spend.
+    """
+    if first.stack is None:
+        return second
+    if second.stack is None:
+        return first
+    # a malleable option is one no satisfaction of this library builds, so
+    # its size bounds nothing that will be broadcast: this is the one rule
+    # of `_better` an estimate keeps, and it is what makes the answer agree
+    # with `max_witness_size`, whose own tables count the canonical
+    # satisfactions alone
+    if first.malleable != second.malleable:
+        return second if first.malleable else first
+    return first if first.size >= second.size else second
+
+
 @dataclass(frozen=True)
 class _Inputs:
     """The best stack for satisfying an expression, and for dissatisfying it."""
@@ -2786,12 +2866,30 @@ class _Inputs:
     dsat: _Input
 
 
+def _assumed_signature(node: Miniscript) -> _Input:
+    """Return the stack of a signature the caller does not have yet.
+
+    Which is what an estimate is made of: the largest signature the context
+    takes, in bytes that are not a signature and never leave this module --
+    only their length is read.
+
+    Nothing marks them as assumed, and nothing has to: an estimate assumes
+    every signature and a satisfaction assumes none, so the two never
+    compare a real stack against a supposed one. That is the whole of what
+    Bitcoin Core's Availability::MAYBE arbitrates, and why there is no
+    third state here.
+    """
+    return replace(_element(bytes(_signature_size(node.context))), has_sig=True)
+
+
 def _key_input(
     node: Miniscript,
     signatures: Mapping[bytes, bytes],
     index: int,
     network: str,
     prv_keys: PrvKeys | None,
+    *,
+    estimate: bool = False,
 ) -> _Inputs:
     """Return the stacks of a ``pk_k()`` or a ``pk_h()``.
 
@@ -2804,9 +2902,10 @@ def _key_input(
     # which is what `_offered_signature` answers for
     sec = node.keys[0].sec(index, network, prv_keys)
     offered = _offered_signature(signatures, sec, x_only=node.context == TAPSCRIPT)
-    signature = (
-        _NO_WITNESS if offered is None else replace(_element(offered), has_sig=True)
-    )
+    if offered is not None:
+        signature = replace(_element(offered), has_sig=True)
+    else:
+        signature = _assumed_signature(node) if estimate else _NO_WITNESS
     if node.fragment == "pk_k":
         return _Inputs(signature, _ZERO_PUSH)
     key = _element(sec[1:] if node.context == TAPSCRIPT else sec)
@@ -2819,6 +2918,9 @@ def _multi_input(
     index: int,
     network: str,
     prv_keys: PrvKeys | None,
+    choose: _Choice,
+    *,
+    estimate: bool = False,
 ) -> _Inputs:
     """Return the stacks of a ``multi()`` or a ``multi_a()``.
 
@@ -2839,13 +2941,14 @@ def _multi_input(
     for key in keys:
         sec = key.sec(index, network, prv_keys)
         offered = _offered_signature(signatures, sec, x_only=node.context == TAPSCRIPT)
-        signature = (
-            _NO_WITNESS if offered is None else replace(_element(offered), has_sig=True)
-        )
+        if offered is not None:
+            signature = replace(_element(offered), has_sig=True)
+        else:
+            signature = _assumed_signature(node) if estimate else _NO_WITNESS
         unused = _ZERO_PUSH if multi_a else _NO_PUSHES
         following = [_both(reached[0], unused)]
         following.extend(
-            _better(_both(reached[j], unused), _both(reached[j - 1], signature))
+            choose(_both(reached[j], unused), _both(reached[j - 1], signature))
             for j in range(1, len(reached))
         )
         following.append(_both(reached[-1], signature))
@@ -2868,15 +2971,26 @@ def _leaf_input(
     index: int,
     network: str,
     prv_keys: PrvKeys | None,
+    choose: _Choice,
+    *,
+    estimate: bool = False,
 ) -> _Inputs:
-    """Return the stacks of a fragment with no subexpressions."""
+    """Return the stacks of a fragment with no subexpressions.
+
+    Estimating, the three things a caller may not have are assumed: a
+    signature, a preimage, and a transaction whose lock times meet the
+    fragment. That is what makes the answer an upper bound over the
+    branches rather than the spend of one of them.
+    """
     fragment = node.fragment
     if fragment == "0":
         inputs = _Inputs(_NO_WITNESS, _NO_PUSHES)
     elif fragment == "1":
         inputs = _Inputs(_NO_PUSHES, _NO_WITNESS)
     elif fragment in {"pk_k", "pk_h"}:
-        inputs = _key_input(node, signatures, index, network, prv_keys)
+        inputs = _key_input(
+            node, signatures, index, network, prv_keys, estimate=estimate
+        )
     elif fragment in {"older", "after"}:
         met = (
             spend._older(node.threshold)
@@ -2884,15 +2998,26 @@ def _leaf_input(
             else spend._after(node.threshold)
         )
         # a lock time is met by the transaction or it is not: nothing goes
-        # on the stack either way, and nothing dissatisfies one
-        inputs = _Inputs(_NO_PUSHES if met else _NO_WITNESS, _NO_WITNESS)
+        # on the stack either way, and nothing dissatisfies one.
+        # Estimating, it is taken as met *and* as unknown -- the branch may
+        # be the one taken, and a caller is owed the larger of the two
+        satisfaction = _NO_PUSHES if estimate or met else _NO_WITNESS
+        inputs = _Inputs(satisfaction, _NO_WITNESS)
     elif fragment in _HASH_OP_CODES:
         preimage = spend._preimage(fragment, node.data)
-        inputs = _Inputs(
-            _NO_WITNESS if preimage is None else _element(preimage), _ZERO32_PUSH
-        )
+        if preimage is not None:
+            satisfaction = _element(preimage)
+        elif estimate:
+            # BIP379 allows a preimage of 32 bytes and no other size, so
+            # its size is known without the preimage
+            satisfaction = _element(bytes(32))
+        else:
+            satisfaction = _NO_WITNESS
+        inputs = _Inputs(satisfaction, _ZERO32_PUSH)
     else:
-        inputs = _multi_input(node, signatures, index, network, prv_keys)
+        inputs = _multi_input(
+            node, signatures, index, network, prv_keys, choose, estimate=estimate
+        )
     return inputs
 
 
@@ -2913,7 +3038,7 @@ def _wrapper_input(node: Miniscript, x: _Inputs) -> _Inputs:
     return _Inputs(x.sat, replace(_ZERO_PUSH, malleable=dissatisfiable))
 
 
-def _and_input(node: Miniscript, x: _Inputs, y: _Inputs) -> _Inputs:
+def _and_input(node: Miniscript, x: _Inputs, y: _Inputs, choose: _Choice) -> _Inputs:
     """Return the stacks of and_v() or and_b().
 
     The arguments are written left to right and consume the stack from the
@@ -2925,25 +3050,23 @@ def _and_input(node: Miniscript, x: _Inputs, y: _Inputs) -> _Inputs:
         return _Inputs(
             _both(y.sat, x.sat), replace(_both(y.dsat, x.sat), non_canonical=True)
         )
-    overcomplete = _better(
+    overcomplete = choose(
         replace(_both(y.sat, x.dsat), malleable=True, non_canonical=True),
         replace(_both(y.dsat, x.sat), malleable=True, non_canonical=True),
     )
-    return _Inputs(_both(y.sat, x.sat), _better(_both(y.dsat, x.dsat), overcomplete))
+    return _Inputs(_both(y.sat, x.sat), choose(_both(y.dsat, x.dsat), overcomplete))
 
 
-def _or_input(node: Miniscript, x: _Inputs, z: _Inputs) -> _Inputs:
+def _or_input(node: Miniscript, x: _Inputs, z: _Inputs, choose: _Choice) -> _Inputs:
     """Return the stacks of one of the four disjunctions."""
     fragment = node.fragment
     if fragment == "or_b":
         # satisfying both branches is overcomplete: either half can be
         # turned back into a dissatisfaction and the OP_BOOLOR still holds
         both = replace(_both(z.sat, x.sat), malleable=True, non_canonical=True)
-        satisfaction = _better(
-            _better(_both(z.dsat, x.sat), _both(z.sat, x.dsat)), both
-        )
+        satisfaction = choose(choose(_both(z.dsat, x.sat), _both(z.sat, x.dsat)), both)
         return _Inputs(satisfaction, _both(z.dsat, x.dsat))
-    satisfaction = _better(x.sat, _both(z.sat, x.dsat))
+    satisfaction = choose(x.sat, _both(z.sat, x.dsat))
     if fragment == "or_c":
         return _Inputs(satisfaction, _NO_WITNESS)
     if fragment == "or_d":
@@ -2952,23 +3075,23 @@ def _or_input(node: Miniscript, x: _Inputs, z: _Inputs) -> _Inputs:
     # OP_IF reads: OP_1 for the first branch and the empty push for the
     # second
     return _Inputs(
-        _better(_both(x.sat, _ONE_PUSH), _both(z.sat, _ZERO_PUSH)),
-        _better(_both(x.dsat, _ONE_PUSH), _both(z.dsat, _ZERO_PUSH)),
+        choose(_both(x.sat, _ONE_PUSH), _both(z.sat, _ZERO_PUSH)),
+        choose(_both(x.dsat, _ONE_PUSH), _both(z.dsat, _ZERO_PUSH)),
     )
 
 
-def _andor_input(x: _Inputs, y: _Inputs, z: _Inputs) -> _Inputs:
+def _andor_input(x: _Inputs, y: _Inputs, z: _Inputs, choose: _Choice) -> _Inputs:
     """Return the stacks of andor(X,Y,Z): X and Y, or else Z."""
     return _Inputs(
-        _better(_both(y.sat, x.sat), _both(z.sat, x.dsat)),
-        _better(
+        choose(_both(y.sat, x.sat), _both(z.sat, x.dsat)),
+        choose(
             replace(_both(y.dsat, x.sat), non_canonical=True),
             _both(z.dsat, x.dsat),
         ),
     )
 
 
-def _thresh_input(node: Miniscript, subs: list[_Inputs]) -> _Inputs:
+def _thresh_input(node: Miniscript, subs: list[_Inputs], choose: _Choice) -> _Inputs:
     """Return the stacks of a thresh(), over every way to reach its threshold.
 
     `reached[j]` is the best stack satisfying j of the branches read so
@@ -2983,7 +3106,7 @@ def _thresh_input(node: Miniscript, subs: list[_Inputs]) -> _Inputs:
     for sub in reversed(subs):
         following = [_both(reached[0], sub.dsat)]
         following.extend(
-            _better(_both(reached[j], sub.dsat), _both(reached[j - 1], sub.sat))
+            choose(_both(reached[j], sub.dsat), _both(reached[j - 1], sub.sat))
             for j in range(1, len(reached))
         )
         following.append(_both(reached[-1], sub.sat))
@@ -2998,7 +3121,7 @@ def _thresh_input(node: Miniscript, subs: list[_Inputs]) -> _Inputs:
         stack = (
             replace(reaching, malleable=True, non_canonical=True) if count else reaching
         )
-        dissatisfaction = _better(dissatisfaction, stack)
+        dissatisfaction = choose(dissatisfaction, stack)
     return _Inputs(reached[node.threshold], dissatisfaction)
 
 
@@ -3010,16 +3133,21 @@ def _computed_input(
     index: int,
     network: str,
     prv_keys: PrvKeys | None,
+    *,
+    estimate: bool = False,
 ) -> _Inputs:
     """Return the best stacks of one fragment, from its subexpressions'."""
+    choose = _larger if estimate else _better
     if not subs:
-        return _leaf_input(node, spend, signatures, index, network, prv_keys)
+        return _leaf_input(
+            node, spend, signatures, index, network, prv_keys, choose, estimate=estimate
+        )
     if node.fragment in _WRAPPERS:
         return _wrapper_input(node, subs[0])
     if node.fragment in {"and_v", "and_b"}:
-        return _and_input(node, subs[0], subs[1])
+        return _and_input(node, subs[0], subs[1], choose)
     if node.fragment == "andor":
-        return _andor_input(subs[0], subs[1], subs[2])
+        return _andor_input(subs[0], subs[1], subs[2], choose)
     if node.fragment == "thresh":
-        return _thresh_input(node, subs)
-    return _or_input(node, subs[0], subs[1])
+        return _thresh_input(node, subs, choose)
+    return _or_input(node, subs[0], subs[1], choose)
