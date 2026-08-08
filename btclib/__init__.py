@@ -83,6 +83,7 @@ __all__ = [
     "bip21",
     "bip32",
     "bip44",
+    "bip322",
     "block",
     "core_import",
     "curves",

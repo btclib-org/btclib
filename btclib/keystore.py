@@ -291,6 +291,11 @@ class KeyStore:
         the right address type -- BIP137's 35..38 for the wrapped segwit
         spelling and 39..42 for the native one -- rather than the
         compressed p2pkh flag that a key alone would produce.
+
+        BMS and no other scheme, which is what leaves p2tr out: a caller
+        wanting BIP322 for one of these addresses passes `prv_key` and
+        the address to `btclib.bip322.sign`, which signs for all four
+        script types this module hands out.
         """
         info = self.address_info(address)
         # p2tr is the one script type this module hands out and cannot
@@ -299,12 +304,10 @@ class KeyStore:
         # tweaked by BIP341, which none of the sixteen recovery flags
         # names, so bms would refuse it as a "mismatch between private
         # key and address" -- true of every wrong key and misleading
-        # here, where the key is right and the scheme is the problem.
-        # BIP322 is the signature a taproot address wants, and btclib has
-        # no implementation of it yet
+        # here, where the key is right and the scheme is the problem
         if info.script_type == "p2tr":
             err_msg = f"BMS cannot sign for a p2tr address: {info.address};"
-            err_msg += " message signing for taproot is BIP322"
+            err_msg += " message signing for taproot is btclib.bip322"
             raise BTClibValueError(err_msg)
         return bms.sign(msg, self.prv_key(info.address), info.address)
 

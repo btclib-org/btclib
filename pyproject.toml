@@ -326,6 +326,12 @@ repository_nwo = "repository_nwo"
 # bindings predicate. Neither can be written differently
 nd = "nd"
 ands = "ands"
+# BIP322's prefix for the full variant of a signature, three characters
+# as the other two are. The hook runs with --write-changes, so without
+# this line it turns `ful` into `full` in btclib/bip322.py -- which is a
+# signature every other implementation refuses, written by a spell
+# checker into a wire format
+ful = "ful"
 # ruff's own name for flake8-copyright, in the comment above
 # [tool.ruff.lint.flake8-copyright] explaining why it is selected
 CPY = "CPY"

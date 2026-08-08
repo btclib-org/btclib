@@ -46,6 +46,7 @@ __all__ = [
     "BTClibValueError",
     "FetchError",
     "HttpError",
+    "InconclusiveError",
     "InvalidContributionError",
     "InvalidPrvKeyError",
     "NotAPrvKeyError",
@@ -245,6 +246,23 @@ class InvalidPrvKeyError(BTClibValueError):
     a hex string and telling the caller it was not a private key.
 
     A BTClibValueError, so code catching that keeps catching this.
+    """
+
+
+class InconclusiveError(BTClibValueError):
+    """Not invalid, and not something today's rules can call valid.
+
+    BIP322 answers a signature with one of three states rather than two,
+    and this is the third: a `to_sign` whose version is neither 0 nor 2,
+    an upgradeable NOP, a witness program of an unknown version. Each of
+    them satisfies the script as it runs today, and each is what a soft
+    fork can give a meaning to, so a validator saying "valid" would be
+    speaking for rules it does not have.
+
+    A BTClibValueError, so code catching that keeps catching this, and
+    so that `btclib.bip322.verify` answers False without a second
+    `except`: an inconclusive signature is not one that verified. A
+    caller that means to tell the two apart names this class.
     """
 
 
