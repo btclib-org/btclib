@@ -28,9 +28,22 @@ script, the witness script and the derivation data are what the type is
 read from, and an input that carries too little of them has no estimate:
 guessing costs bytes in one direction only, and a fee computed from a
 guess is a transaction that does not relay.
+
+A caller who does not have to guess says so, with a `SolutionSizer`.
+Two inputs are refused above not for want of data but for want of
+knowledge nobody but the caller has -- a script of no standard type, and
+a taproot script path, where which leaf will be spent is not in the psbt
+-- and a sizer is asked exactly there, never in place of an answer this
+file can work out. What it returns is the whole of what the input will
+push, the witness script of a p2wsh and the control block of a taproot
+leaf included: a caller who knows the solution holds those too, and one
+rule with no exceptions is what keeps the two sides from each appending
+the other's element.
 """
 
 from __future__ import annotations
+
+from collections.abc import Callable
 
 from btclib.alias import Command
 from btclib.exceptions import BTClibValueError
@@ -43,8 +56,14 @@ __all__ = [
     "COMPRESSED_PUB_KEY_SIZE",
     "SCHNORR_SIG_SIZE",
     "SIG_SIZE",
+    "SolutionSizer",
     "estimated_input_sizes",
 ]
+
+# what an input will push, by the caller who knows: the size of every
+# element of the witness stack, or of every push of a legacy script_sig,
+# and None for an input this caller cannot answer for either
+SolutionSizer = Callable[[PsbtIn, TxIn], "list[int] | None"]
 
 # a DER signature and its sig_hash byte, at the largest a low-s signature
 # can be; see the module docstring, which is where the assumption is
@@ -61,6 +80,11 @@ COMPRESSED_PUB_KEY_SIZE = 33
 # OP_1 is 0x51 and OP_16 is 0x60, so the m and the n of an m-of-n
 # multisig script are each written as its value plus this
 _OP_INT_OFFSET = 0x50
+
+# the types _solution_sizes answers for, named here so that the caller of
+# it can tell "this file knows" from "it raised", without asking by
+# catching what it raises
+_SOLVED = frozenset({"p2pkh", "p2pk", "p2wpkh", "p2ms"})
 
 
 def _script_pub_key(psbt_in: PsbtIn, tx_in: TxIn) -> bytes:
@@ -130,6 +154,26 @@ def _solution_sizes(script_type: str, payload: bytes, psbt_in: PsbtIn) -> list[i
     raise BTClibValueError(f"no estimate for a script of type '{script_type}'")
 
 
+def _asked(
+    sizer: SolutionSizer | None,
+    psbt_in: PsbtIn,
+    tx_in: TxIn,
+    err_msg: str,
+) -> list[int]:
+    """Return what the sizer says the input pushes, or raise what it cannot.
+
+    The one place a sizer is consulted, so the rule that it answers only
+    where this file cannot is this function existing rather than a
+    condition repeated at each site. A sizer answering None is a caller
+    saying "not this input either", which is the refusal that was there
+    before it was asked.
+    """
+    sizes = sizer(psbt_in, tx_in) if sizer else None
+    if sizes is None:
+        raise BTClibValueError(err_msg)
+    return sizes
+
+
 def _taproot_sig_size(psbt_in: PsbtIn) -> int:
     """Return the size of the BIP341 key path signature.
 
@@ -137,17 +181,53 @@ def _taproot_sig_size(psbt_in: PsbtIn) -> int:
     the default one: that type is the byte appended to the signature, and
     SIGHASH_DEFAULT is the absence of it.
     """
-    if psbt_in.taproot_leaf_scripts:
-        # a script path witness is the script's own inputs, the leaf
-        # script and the control block, and which leaf will be spent is
-        # not something the psbt says: an input carrying three of them has
-        # three different answers and no way to choose
-        raise BTClibValueError("no estimate for a taproot script path")
-
     return SCHNORR_SIG_SIZE + (1 if psbt_in.sig_hash_type else 0)
 
 
-def estimated_input_sizes(psbt_in: PsbtIn, tx_in: TxIn) -> tuple[int, list[int]]:
+def _p2wsh_witness_sizes(
+    psbt_in: PsbtIn,
+    tx_in: TxIn,
+    sizer: SolutionSizer | None,
+) -> list[int]:
+    """Return the witness stack of a p2wsh input, asking where it cannot."""
+    witness_script = psbt_in.witness_script
+    if not witness_script:
+        raise BTClibValueError("no witness script")
+    inner_type, inner_payload = type_and_payload(witness_script)
+    if inner_type in _SOLVED:
+        return [
+            *_solution_sizes(inner_type, inner_payload, psbt_in),
+            len(witness_script),
+        ]
+    err_msg = f"no estimate for a script of type '{inner_type}'"
+    return _asked(sizer, psbt_in, tx_in, err_msg)
+
+
+def _taproot_witness_sizes(
+    psbt_in: PsbtIn,
+    tx_in: TxIn,
+    sizer: SolutionSizer | None,
+) -> list[int]:
+    """Return the witness stack of a taproot input, asking for a script path.
+
+    A script path witness is the script's own inputs, the leaf script and
+    the control block, and which leaf will be spent is not something the
+    psbt says: an input carrying three of them has three different
+    answers and no way to choose. A caller that has chosen answers all
+    three.
+    """
+    if psbt_in.taproot_leaf_scripts:
+        err_msg = "no estimate for a taproot script path"
+        return _asked(sizer, psbt_in, tx_in, err_msg)
+    return [_taproot_sig_size(psbt_in)]
+
+
+def estimated_input_sizes(
+    psbt_in: PsbtIn,
+    tx_in: TxIn,
+    *,
+    sizer: SolutionSizer | None = None,
+) -> tuple[int, list[int]]:
     """Return the script_sig size and the witness stack of a signed input.
 
     The second element is the size of each element the witness stack will
@@ -156,7 +236,8 @@ def estimated_input_sizes(psbt_in: PsbtIn, tx_in: TxIn) -> tuple[int, list[int]]
     one place that knows.
 
     A signature is assumed to be 72 bytes; an input whose type cannot be
-    read raises. Both rules, and why, are in the module docstring.
+    read raises, unless `sizer` answers for it. All three rules, and why,
+    are in the module docstring.
     """
     if psbt_in.final_script_sig or psbt_in.final_script_witness:
         # nothing to estimate: a Finalizer has been here, and what it
@@ -182,27 +263,23 @@ def estimated_input_sizes(psbt_in: PsbtIn, tx_in: TxIn) -> tuple[int, list[int]]
     wrapper: list[Command] = [redeem_script] if redeem_script else []
 
     if script_type == "p2wsh":
-        witness_script = psbt_in.witness_script
-        if not witness_script:
-            raise BTClibValueError("no witness script")
-        inner_type, inner_payload = type_and_payload(witness_script)
-        witness_sizes = [
-            *_solution_sizes(inner_type, inner_payload, psbt_in),
-            len(witness_script),
-        ]
-        return len(serialize(wrapper)), witness_sizes
+        return len(serialize(wrapper)), _p2wsh_witness_sizes(psbt_in, tx_in, sizer)
 
     if script_type == "p2tr":
         # a witness v1 program wrapped in p2sh is not refused here: it is
         # unspendable by consensus, so what a psbt carrying one is missing
         # is not an estimate
-        return len(serialize(wrapper)), [_taproot_sig_size(psbt_in)]
+        return len(serialize(wrapper)), _taproot_witness_sizes(psbt_in, tx_in, sizer)
 
     if script_type == "p2wpkh":
         return len(serialize(wrapper)), _solution_sizes(script_type, payload, psbt_in)
 
     # a legacy script takes the whole of what unlocks it in the script_sig
-    sizes = _solution_sizes(script_type, payload, psbt_in)
+    if script_type in _SOLVED:
+        sizes = _solution_sizes(script_type, payload, psbt_in)
+    else:
+        err_msg = f"no estimate for a script of type '{script_type}'"
+        sizes = _asked(sizer, psbt_in, tx_in, err_msg)
     # the pushes are measured rather than counted: how a push is written
     # -- a one-byte length below 76, OP_PUSHDATA1 above it -- is
     # script.serialize's rule, and a second implementation of it here is

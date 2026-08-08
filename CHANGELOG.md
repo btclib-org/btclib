@@ -38,6 +38,19 @@ documented at release-notes length in the first place, and are still in
   the key a signer was built on where it was built on one, and raises
   for a signer of accounts, there being no key of which the others are
   derivations.
+- **`estimated_input_sizes` takes a `SolutionSizer`**, and `Psbt` grows
+  `weight_estimate` and `vsize_estimate` to pass one, a property being
+  unable to take it. Two inputs were refused not for want of data but for
+  want of knowledge nobody but the caller has -- a script of no standard
+  type, and a taproot script path, where which leaf will be spent is not
+  in the psbt -- and a caller who does not have to guess had nothing to
+  say so with, so the fee arithmetic beyond the estimate was theirs to
+  write again. The sizer is asked exactly at those two refusals and never
+  in place of an answer this library can work out; what it returns is the
+  whole of what the input will push, the witness script of a p2wsh and
+  the control block of a taproot leaf included, one rule so that neither
+  side appends the other's element. A sizer answering None is the refusal
+  that was there before it was asked.
 
 ### Packaging, linting and CI
 

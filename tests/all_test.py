@@ -466,6 +466,7 @@ def test_psbt_exports_the_format_not_its_plumbing() -> None:
         "Psbt",
         "PsbtIn",
         "PsbtOut",
+        "SolutionSizer",
         "assert_signatures_only",
         "combine",
         "ecdsa_sig_hash",
