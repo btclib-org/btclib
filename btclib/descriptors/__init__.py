@@ -11,7 +11,8 @@ none after:
 - `key_expression` is BIP380's KEY expressions, the public keys a
   descriptor names and how they derive;
 - `miniscript` is BIP379's language, which is the SCRIPT expressions
-  written as a tree of fragments rather than as a function;
+  written as a tree of fragments rather than as a function, and the
+  non-malleable witness that satisfies one;
 - `descriptors` is the rest of BIP380 to BIP390: the checksum, the
   functions, the scripts each describes, and the psbt each fills.
 
@@ -52,7 +53,7 @@ from btclib.descriptors.descriptors import (
     strip_checksum,
 )
 from btclib.descriptors.key_expression import KeyExpression, PrvKeys
-from btclib.descriptors.miniscript import Miniscript
+from btclib.descriptors.miniscript import Miniscript, SpendContext
 
 __all__ = [
     "AddrDescriptor",
@@ -71,6 +72,7 @@ __all__ = [
     "RawDescriptor",
     "RawTrDescriptor",
     "ShDescriptor",
+    "SpendContext",
     "TrDescriptor",
     "WpkhDescriptor",
     "WshDescriptor",

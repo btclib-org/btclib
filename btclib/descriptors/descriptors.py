@@ -60,10 +60,11 @@ The grammar read is BIP380 to BIP390:
   miniscript, and everything else inside a ``wsh()`` is a miniscript.
   BIP379 allows one inside ``tr()`` too, which is the stage after this one
 
-What raises NotImplementedError, rather than being read wrong: the
-satisfaction of a miniscript, which needs more than the signatures
-`satisfy` takes -- the fragment says so, and issue #187 is where the
-interface for it is being decided.
+`satisfy` takes a `SpendContext` beside the signatures for the one
+fragment that reads more than they carry: a miniscript satisfaction
+chooses among branches, and the choice reads hash preimages and the lock
+times the transaction being built will carry. Every other fragment ignores
+it, having neither a branch to choose nor a preimage to look up.
 
 BIP390's rule that a multipath ``musig()`` may not hold multipath
 participants has no counterpart here, and cannot: `parse` refuses a
@@ -159,11 +160,16 @@ from btclib.descriptors.key_expression import (
     PrvKeys,
     _assert_musig_allowed,
     _expression,
+    _offered_signature,
     _parse_key,
     _split_arguments,
     _split_function,
 )
-from btclib.descriptors.miniscript import Miniscript, _assert_sane
+from btclib.descriptors.miniscript import (
+    Miniscript,
+    SpendContext,
+    _assert_sane,
+)
 from btclib.descriptors.miniscript import parse as _parse_miniscript
 from btclib.exceptions import BTClibValueError
 from btclib.hashes import hash160
@@ -527,24 +533,6 @@ def _taproot_script_tree(
     return [(_TAPSCRIPT_LEAF_VERSION, _leaf_script(tree, index, network, prv_keys))]
 
 
-def _offered_signature(
-    signatures: Mapping[bytes, bytes], sec: bytes, *, x_only: bool = False
-) -> bytes | None:
-    """Return the signature offered for a public key, None where none is.
-
-    A taproot key answers to either of its two spellings: the 32 x-only
-    bytes the script holds, and the 33-byte even-y SEC form a
-    KeyExpression keeps it as. Neither is the more correct one, a caller
-    has whichever its signer handed back, and 32 bytes cannot be taken
-    for 33.
-    """
-    if sec in signatures:
-        return signatures[sec]
-    if x_only and sec[1:] in signatures:
-        return signatures[sec[1:]]
-    return None
-
-
 def _required_signature(signatures: Mapping[bytes, bytes], sec: bytes) -> bytes:
     """Return the signature made with a public key, refusing where none is.
 
@@ -768,6 +756,7 @@ class Descriptor(ABC):
         signatures: Mapping[bytes, bytes],
         index: int,
         prv_keys: PrvKeys | None,
+        spend: SpendContext | None,
     ) -> list[bytes]:
         """Return the elements that satisfy this fragment's own script.
 
@@ -787,6 +776,7 @@ class Descriptor(ABC):
         signatures: Mapping[Octets, Octets],
         index: int = 0,
         prv_keys: PrvKeys | None = None,
+        spend: SpendContext | None = None,
     ) -> tuple[bytes, Witness]:
         """Return the script_sig and witness that spend the script at `index`.
 
@@ -806,6 +796,14 @@ class Descriptor(ABC):
         for the second, `psbt.PsbtIn.partial_sigs` is where that state
         belongs, and bytes that do not spend would be a second and
         weaker spelling of it.
+
+        `spend` is what a miniscript satisfaction reads beside the
+        signatures -- hash preimages, and the lock times the transaction
+        being built will carry -- and is ignored by every other fragment,
+        none of which has a branch to choose or a preimage to look up. A
+        `wsh()` holding a miniscript is the one shape that needs it, and
+        it says so: without one it refuses the fragments that would have
+        read it.
         """
         self._assert_index(index)
         return self._satisfy(
@@ -815,6 +813,7 @@ class Descriptor(ABC):
             },
             index,
             prv_keys,
+            spend,
         )
 
     def _satisfy(
@@ -822,6 +821,7 @@ class Descriptor(ABC):
         signatures: Mapping[bytes, bytes],
         index: int,
         prv_keys: PrvKeys | None,
+        spend: SpendContext | None,
     ) -> tuple[bytes, Witness]:
         """Return the satisfaction, the mapping being already in bytes.
 
@@ -832,7 +832,7 @@ class Descriptor(ABC):
         argument without normalizing the same mapping a second time.
         """
         return serialize(
-            cast(ScriptList, self._stack(signatures, index, prv_keys))
+            cast(ScriptList, self._stack(signatures, index, prv_keys, spend))
         ), Witness()
 
     def index_of(
@@ -1030,6 +1030,7 @@ class PkDescriptor(Descriptor):
         signatures: Mapping[bytes, bytes],
         index: int,
         prv_keys: PrvKeys | None,
+        spend: SpendContext | None,
     ) -> list[bytes]:
         # the key is in the script already, so the signature is the whole
         # of what spending a p2pk output takes
@@ -1060,6 +1061,7 @@ class PkhDescriptor(Descriptor):
         signatures: Mapping[bytes, bytes],
         index: int,
         prv_keys: PrvKeys | None,
+        spend: SpendContext | None,
     ) -> list[bytes]:
         # what the output commits to is the hash of the key, so the key
         # goes on the stack for the script to hash for itself
@@ -1089,6 +1091,7 @@ class WpkhDescriptor(Descriptor):
         signatures: Mapping[bytes, bytes],
         index: int,
         prv_keys: PrvKeys | None,
+        spend: SpendContext | None,
     ) -> list[bytes]:
         # the witness of a p2wpkh spend is what the script_sig of a p2pkh
         # one is, BIP143 having moved it and changed nothing else
@@ -1100,12 +1103,13 @@ class WpkhDescriptor(Descriptor):
         signatures: Mapping[bytes, bytes],
         index: int,
         prv_keys: PrvKeys | None,
+        spend: SpendContext | None,
     ) -> tuple[bytes, Witness]:
         # the empty script_sig of BIP141, which is not the same as an
         # empty push: btclib's own engine refuses a native segwit input
         # whose script_sig is there at all (issue #249). A sh(wpkh())
         # gets its one push from the sh() above
-        return b"", Witness(self._stack(signatures, index, prv_keys))
+        return b"", Witness(self._stack(signatures, index, prv_keys, spend))
 
 
 @dataclass(frozen=True)
@@ -1130,6 +1134,7 @@ class ShDescriptor(Descriptor):
         signatures: Mapping[bytes, bytes],
         index: int,
         prv_keys: PrvKeys | None,
+        spend: SpendContext | None,
     ) -> tuple[bytes, Witness]:
         """Return the argument's satisfaction, the redeem script pushed last.
 
@@ -1141,7 +1146,7 @@ class ShDescriptor(Descriptor):
         pushes and nothing else, so serializing them together and
         serializing them apart give the same bytes.
         """
-        script_sig, witness = self.inner._satisfy(signatures, index, prv_keys)
+        script_sig, witness = self.inner._satisfy(signatures, index, prv_keys, spend)
         redeem_script = self.inner.redeem_script(index, prv_keys)
         return script_sig + serialize(cast(ScriptList, [redeem_script])), witness
 
@@ -1181,6 +1186,7 @@ class WshDescriptor(Descriptor):
         signatures: Mapping[bytes, bytes],
         index: int,
         prv_keys: PrvKeys | None,
+        spend: SpendContext | None,
     ) -> tuple[bytes, Witness]:
         """Return the witness of a p2wsh spend: the stack, then the script.
 
@@ -1189,7 +1195,7 @@ class WshDescriptor(Descriptor):
         stack already, so BIP141 puts them in it one by one and the
         witness script last.
         """
-        stack = self.inner._stack(signatures, index, prv_keys)
+        stack = self.inner._stack(signatures, index, prv_keys, spend)
         return b"", Witness([*stack, self.inner.redeem_script(index, prv_keys)])
 
     def _update_map(
@@ -1240,21 +1246,22 @@ class MiniscriptDescriptor(Descriptor):
         signatures: Mapping[bytes, bytes],
         index: int,
         prv_keys: PrvKeys | None,
+        spend: SpendContext | None,
     ) -> list[bytes]:
-        """Refuse to satisfy, a mapping of signatures not being enough.
+        """Return the witness elements that satisfy the miniscript.
 
-        A miniscript satisfaction chooses among branches, and the choice
-        needs what this mapping cannot carry: the hash preimages a
-        ``sha256()`` wants, the locktimes an ``older()`` or an ``after()``
-        is checked against, and the weight of each branch. The interface
-        for it is the next stage of issue #187; until then the refusal
-        names what the caller would have to hand over.
+        The one fragment that reads the spend context, and the reason
+        `satisfy` takes one: a miniscript satisfaction chooses among
+        branches, and the choice reads the hash preimages a ``sha256()``
+        wants and the lock times an ``older()`` or an ``after()`` is
+        checked against. Non-malleable or refused, which is
+        `Miniscript.satisfy`'s rule and BIP379's.
         """
-        err_msg = (
-            "miniscript satisfaction is not implemented: it needs preimages "
-            "and locktime context beside the signatures (issue #187)"
-        )
-        raise NotImplementedError(err_msg)
+        # cast because `Mapping` is invariant in its key: these bytes are
+        # every bit an `Octets`, and a mapping of them is still not a
+        # mapping of "bytes or hex" as far as the type checker is concerned
+        offered = cast("Mapping[Octets, Octets]", signatures)
+        return self.node.satisfy(offered, spend, index, self.network, prv_keys)
 
 
 @dataclass(frozen=True)
@@ -1302,6 +1309,7 @@ class MultiDescriptor(Descriptor):
         signatures: Mapping[bytes, bytes],
         index: int,
         prv_keys: PrvKeys | None,
+        spend: SpendContext | None,
     ) -> list[bytes]:
         """Return the dummy element and `threshold` signatures, in key order.
 
@@ -1362,6 +1370,7 @@ class ComboDescriptor(Descriptor):
         signatures: Mapping[bytes, bytes],
         index: int,
         prv_keys: PrvKeys | None,
+        spend: SpendContext | None,
     ) -> tuple[bytes, Witness]:
         """Refuse: four scripts, and each of them spent differently.
 
@@ -1410,6 +1419,7 @@ class AddrDescriptor(Descriptor):
         signatures: Mapping[bytes, bytes],
         index: int,
         prv_keys: PrvKeys | None,
+        spend: SpendContext | None,
     ) -> tuple[bytes, Witness]:
         """Refuse: an address names a script and not what spends it.
 
@@ -1454,6 +1464,7 @@ class RawDescriptor(Descriptor):
         signatures: Mapping[bytes, bytes],
         index: int,
         prv_keys: PrvKeys | None,
+        spend: SpendContext | None,
     ) -> tuple[bytes, Witness]:
         """Refuse: a script and no key expression to satisfy it with.
 
@@ -1601,6 +1612,7 @@ class TrDescriptor(Descriptor):
         signatures: Mapping[bytes, bytes],
         index: int,
         prv_keys: PrvKeys | None,
+        spend: SpendContext | None,
     ) -> tuple[bytes, Witness]:
         """Return the witness of a key path spend, or of a script path one.
 
@@ -1763,6 +1775,7 @@ class RawTrDescriptor(Descriptor):
         signatures: Mapping[bytes, bytes],
         index: int,
         prv_keys: PrvKeys | None,
+        spend: SpendContext | None,
     ) -> tuple[bytes, Witness]:
         """Return the witness of a BIP341 key path spend: one signature.
 

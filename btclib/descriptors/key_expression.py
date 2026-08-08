@@ -273,6 +273,24 @@ def _expression(name: str, *args: str) -> str:
     return f"{name}({','.join(args)})"
 
 
+def _offered_signature(
+    signatures: Mapping[bytes, bytes], sec: bytes, *, x_only: bool = False
+) -> bytes | None:
+    """Return the signature offered for a public key, None where none is.
+
+    A taproot key answers to either of its two spellings: the 32 x-only
+    bytes the script holds, and the 33-byte even-y SEC form a
+    KeyExpression keeps it as. Neither is the more correct one, a caller
+    has whichever its signer handed back, and 32 bytes cannot be taken
+    for 33.
+    """
+    if sec in signatures:
+        return signatures[sec]
+    if x_only and sec[1:] in signatures:
+        return signatures[sec[1:]]
+    return None
+
+
 def _split_arguments(arguments: str) -> list[str]:
     """Split a comma-separated argument list, at nesting depth zero.
 

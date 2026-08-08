@@ -24,6 +24,42 @@ documented at release-notes length in the first place, and are still in
 
 ### Descriptors and miniscript
 
+- **A miniscript is satisfied, non-malleably** (issue #187):
+  `Miniscript.satisfy` returns the witness elements that spend the script,
+  and `Descriptor.satisfy` takes a `SpendContext` beside the signatures for
+  the fragment that reads more than they carry. BIP379's algorithm and not
+  an assembly: several branches of an expression may be open at once, and
+  which witness to build is a choice between them -- the one reported is
+  the one no third party could rewrite, and where every candidate is
+  rewritable there is no answer. A witness that is valid and malleable is
+  worse than none, because it is one a relay can change under the
+  transaction carrying it; a satisfaction with no signature in it is
+  refused for the same reason, the lock times having been checked against
+  an nLockTime and an nSequence that would then be a third party's to
+  change.
+
+  The context is what the signatures cannot carry: the four preimage
+  mappings BIP174 gave psbt fields, and the lock times the transaction
+  being built will carry -- with its version, because BIP68's relative
+  locks are enforced from version 2, so an `older()` in a version-1
+  transaction is a branch nothing opens. `PsbtIn` holds all of it already,
+  which is what makes `psbt.finalize` able to build one without asking its
+  caller; that integration is the stage after this one. Every other
+  fragment ignores the context, having neither a branch to choose nor a
+  preimage to look up, and `satisfy` without one still spends everything it
+  spent before.
+
+  The oracle is btclib's own script engine, which is what Core's
+  satisfaction test uses its interpreter for: every valid P2WSH expression
+  of `fixed_tests` is satisfied against four spends -- an absolute lock
+  time of each kind and a relative one of each -- the signatures are real,
+  over the sig hash of the very transaction the witness goes into, and
+  `verify_transaction` is what says the witness is right. Two properties
+  come out of it: the engine accepts every witness produced, and every sane
+  and satisfiable expression is satisfied by at least one of the four
+  spends, which is BIP379's guarantee. The witness size and the element
+  count of each satisfaction are checked against the bounds the static
+  analysis promised for it.
 - **btclib reads and writes miniscript** (issue #187): `wsh()` no longer
   refuses one, and `btclib.descriptors.miniscript` is BIP379's language on
   its own -- `parse` reads an expression, `Miniscript.script` compiles it,
