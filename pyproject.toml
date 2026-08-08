@@ -692,9 +692,10 @@ parametrize-names-type = "csv"
 # would have passed the single-line version and does not pass this one.
 # Escaped literally rather than searched loosely, so the dated holder
 # variants ed6e8014 found and reverted (2017-2021, 2017-2022,
-# 2020-2022) would not have matched either. What it still does not do
-# is diff a file against COPYRIGHT byte for byte the way the retired
-# hook's --enforce-all did: nothing here anchors the match to the very
-# start of the file, so text prepended above the notice would go
-# unnoticed
-notice-rgx = "Copyright \\(c\\) The btclib developers\\n# Distributed under the MIT software license, see the accompanying\\n# LICENSE file or https://opensource\\.org/license/mit for the full text\\."
+# 2020-2022) would not have matched either.
+# Anchored with ^ for the same reason: unanchored, CPY001 is a search
+# over the first 4096 bytes and not a check that the notice opens the
+# file, so an import or a docstring placed above it would still pass.
+# No file here opens with a shebang, so nothing legitimate sits between
+# byte zero and the notice for the anchor to exclude
+notice-rgx = "^# Copyright \\(c\\) The btclib developers\\n# Distributed under the MIT software license, see the accompanying\\n# LICENSE file or https://opensource\\.org/license/mit for the full text\\."
