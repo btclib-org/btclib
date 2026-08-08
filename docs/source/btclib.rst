@@ -146,6 +146,13 @@ btclib.psbt\_signer module
    :members:
    :show-inheritance:
 
+btclib.psbt\_signer\_contract module
+------------------------------------
+
+.. automodule:: btclib.psbt_signer_contract
+   :members:
+   :show-inheritance:
+
 btclib.slip132 module
 ---------------------
 

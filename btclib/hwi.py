@@ -39,7 +39,36 @@ is parsed rather than what is buffered.
 
 Failures come back as `exceptions.SignerError`, carrying HWI's own error
 code where there is one: -14 is the user pressing the button that says
-no, -3 is a cable, -9 is a model that will never do it.
+no, -3 is a cable, -9 is a model that will never do it. The one failure
+that is not about a device -- the executable is not installed -- is the
+`SignerNotFoundError` subclass, so that a caller which also offers
+signers of other kinds can tell "no hardware here" from "the hardware
+could not be reached" without matching on the text of a message.
+
+## Wallet policies, and the multisig this cannot register
+
+A Ledger will not display or sign a multisig it has not been shown
+first. BIP388 wallet policies are how it is shown, and registration is a
+one-time exchange ending in an HMAC the host keeps and replays on every
+later call. `hwilib`'s ledger driver does that; `hwilib/_cli.py` does
+not expose it, so this module cannot -- issue #381 delegates policy
+registration to HWI on purpose, and the command line is where the
+delegation stops. A caller with a Ledger multisig registers it out of
+band, with HWI's Python API or Ledger's own tooling, and then this
+module signs for it: the psbt path needs no policy, only the
+registration does.
+
+Whether btclib could grow it rather than route around it is decided by
+two facts, and neither is about the transport. A policy is a descriptor
+*template* -- `wsh(sortedmulti(2,@0/**,@1/**))` -- with the keys lifted
+out into a vector beside it, which is a rewriting of what `descriptors`
+already builds. But the fragments a template may hold are BIP388's fixed
+set, plus miniscript inside `wsh()` in Ledger's app, and btclib reads no
+miniscript (issue #187). So a script outside that fixed set is not
+expressible here whatever the transport: a locking script with an
+`OP_IF` branch and a `CHECKSEQUENCEVERIFY` in it is a miniscript
+question before it is an HWI one, and an in-process adapter would not
+unblock the caller who asked.
 
 Staying aligned with a project this does not import is two things, and
 neither is a copy of it. `tests/hwi_test.py` writes out the surface used
@@ -61,7 +90,7 @@ from typing import Any
 from btclib.alias import Octets
 from btclib.bip32.der_path import DerPath, str_from_der_path
 from btclib.descriptors import Descriptor, add_checksum, at_index
-from btclib.exceptions import BTClibValueError, SignerError
+from btclib.exceptions import BTClibValueError, SignerError, SignerNotFoundError
 from btclib.network import NETWORKS
 from btclib.psbt.psbt import Psbt
 from btclib.psbt_signer import SignerCapabilities
@@ -165,6 +194,11 @@ def _run(
         )
     except subprocess.TimeoutExpired as e:
         raise SignerError(f"{argv[0]} timed out after {timeout} s") from e
+    except FileNotFoundError as e:
+        # the one failure that is not about a device: the command line is
+        # not installed, which a caller offering signers of several kinds
+        # reports differently from one it could not reach
+        raise SignerNotFoundError(f"cannot run {argv[0]}: {e}") from e
     except OSError as e:
         raise SignerError(f"cannot run {argv[0]}: {e}") from e
 
