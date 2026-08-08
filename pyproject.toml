@@ -26,7 +26,7 @@ authors = [{ name = "The btclib developers", email = "devs@btclib.org" }]
 requires-python = ">=3.10"
 dependencies = [
     "btclib_libsecp256k1>=0.7.1.2",
-    "bitcoin-core-rpc>=2026.8.7",
+    "bitcoin-core-rpc>=2026.8.8",
 ]
 keywords = [
     # The GitHub repository topics, in the same order, and the order is by
