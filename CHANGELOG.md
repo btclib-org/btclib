@@ -442,6 +442,14 @@ documented at release-notes length in the first place, and are still in
   `http_request` directly and does not check `self.timeout` itself, so a
   caller passing it a bad one now meets `bitcoin_core_rpc`'s own
   exception unwrapped rather than whatever the socket layer made of it.
+- **`btclib_libsecp256k1`'s floor moves to `>=0.7.1.3`, from
+  `>=0.7.1.2`.** The bindings themselves are unchanged -- the same
+  libsecp256k1 0.7.1 (`1a53f49`) as the release before it, no breaking
+  change. A dynamic wheel's `ImportError` now names every shared-object
+  candidate `_load_lib` rejected and chains the last loader error,
+  instead of only saying "no loadable shared libsecp256k1 found"; that
+  reaches a caller here on a platform with no wheel of its own. Nothing
+  else about the release touches this package's own code.
 
 ### Documentation and the website
 
