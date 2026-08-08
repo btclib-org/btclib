@@ -50,13 +50,19 @@ from btclib.descriptors.miniscript import (
     P2WSH,
     TAPSCRIPT,
     Miniscript,
+    SpendContext,
     from_script,
     parse,
 )
+from btclib.ecc import dsa
 from btclib.exceptions import BTClibValueError
-from btclib.hashes import hash160
+from btclib.hashes import hash160, hash256, ripemd160, sha256
 from btclib.psbt.psbt import Psbt
+from btclib.script import sig_hash
+from btclib.script.engine import verify_transaction
 from btclib.script.script import serialize
+from btclib.script.script_pub_key import ScriptPubKey
+from btclib.script.witness import Witness
 from btclib.to_pub_key import pub_keyinfo_from_prv_key
 from btclib.tx.out_point import OutPoint
 from btclib.tx.tx import Tx
@@ -779,16 +785,31 @@ def test_a_wsh_descriptor_holds_a_miniscript(descriptor: str) -> None:
     assert not parsed.is_ranged
 
 
-def test_a_miniscript_descriptor_does_not_satisfy_yet() -> None:
-    """Refuse to spend, and say what a satisfaction would need.
+def test_a_miniscript_descriptor_spends_with_a_context() -> None:
+    """Spend a wsh(<miniscript>), and refuse where the context does not.
 
-    The signatures alone cannot choose a branch: a preimage, a locktime
-    and the weight of each branch are what a miniscript satisfaction
-    reads, and none of them is in the mapping.
+    The witness of a p2wsh spend is the satisfaction and then the witness
+    script, which is what every other `wsh()` puts there too; what is new
+    is that the elements before it come from the miniscript satisfier, and
+    that the lock time the branch needs has to be in the context. Without
+    it the same signatures satisfy nothing, which is the honest answer: the
+    branch is unspendable until the transaction carries the sequence.
     """
-    parsed = parse_descriptor(f"wsh(and_v(v:pk({KEY}),older(36)))")
-    with pytest.raises(NotImplementedError, match="187"):
-        parsed.satisfy({KEY: "00" * 71})
+    descriptor = f"wsh(and_v(v:pk({KEY}),older(36)))"
+    parsed = parse_descriptor(descriptor)
+    assert isinstance(parsed, WshDescriptor)
+    signature = "30" * 71 + "01"
+    script_sig, witness = parsed.satisfy(
+        {KEY: signature}, spend=SpendContext(sequence=36)
+    )
+    assert script_sig == b""
+    assert witness.stack == (bytes.fromhex(signature), parsed.inner.redeem_script())
+    # the sequence of the transaction is what says whether the branch is
+    # open, and 35 is not 36
+    with pytest.raises(BTClibValueError, match="no satisfaction"):
+        parsed.satisfy({KEY: signature}, spend=SpendContext(sequence=35))
+    with pytest.raises(BTClibValueError, match="no satisfaction"):
+        parsed.satisfy({KEY: signature})
 
 
 def test_a_ranged_miniscript_descriptor_fills_a_psbt() -> None:
@@ -839,3 +860,157 @@ def test_a_refused_descriptor_says_what_is_wrong(descriptor: str, message: str) 
     """Refuse each descriptor, naming the expression and the reason."""
     with pytest.raises(BTClibValueError, match=message):
         parse_descriptor(descriptor)
+
+
+# Core's TestData, which is what its vectors are named from: the private
+# keys 1 to 255, and the four digests of each key's own 32 bytes -- every
+# hash fragment in the vectors commits to one of those arrays
+PRV_KEYS = [31 * b"\x00" + bytes([i]) for i in range(1, 256)]
+SHA256_PREIMAGES: dict[Octets, Octets] = {sha256(k): k for k in PRV_KEYS}
+HASH256_PREIMAGES: dict[Octets, Octets] = {hash256(k): k for k in PRV_KEYS}
+RIPEMD160_PREIMAGES: dict[Octets, Octets] = {ripemd160(k): k for k in PRV_KEYS}
+HASH160_PREIMAGES: dict[Octets, Octets] = {hash160(k): k for k in PRV_KEYS}
+SIGNING_KEYS = dict(zip(KEYS, PRV_KEYS, strict=True))
+
+# the four spends a satisfaction is tried against: an absolute lock time
+# of each kind, either side of the 500000000 threshold, and a relative one
+# of each, either side of BIP68's bit 22. A fragment is met by the kind it
+# is written in and by no other, so an expression whose branches want
+# different kinds is satisfiable in one of these and not in another --
+# which is what makes four of them rather than one
+# Each is the largest of its kind, so that a fragment of that kind is met
+# whatever value it names: 499999999 is the last lock time read as a block
+# height, 2147483647 the largest a script number holds, and 65535 the
+# largest relative lock either unit can ask for
+SPENDS = [
+    (499999999, 0x0000FFFF),
+    (499999999, 0x0040FFFF),
+    (2147483647, 0x0000FFFF),
+    (2147483647, 0x0040FFFF),
+]
+
+
+def spendable(node: Miniscript, locktime: int, sequence: int) -> list[bytes] | None:
+    """Satisfy the expression and let the script engine judge the witness.
+
+    Which is the oracle Core's own satisfaction test uses, and the only one
+    worth having: a witness is right when the interpreter accepts it. The
+    signatures are real, over the sig hash of the very transaction the
+    witness goes into, so a CHECKSIG that verifies is a CHECKSIG that
+    verified this spend.
+
+    None where the expression cannot be satisfied with what this spend
+    offers -- a lock time of the wrong kind, most often.
+    """
+    script = node.script()
+    prevout = TxOut(50_000, ScriptPubKey.p2wsh(script))
+    tx = Tx(
+        version=2,
+        lock_time=locktime,
+        vin=[TxIn(OutPoint(b"\x02" * 32, 0), sequence=sequence)],
+        vout=[TxOut(49_000, ScriptPubKey.p2wpkh(KEYS[0]))],
+    )
+    msg_hash = sig_hash.segwit_v0(script, tx, 0, 1, prevout.value)
+    signatures: dict[Octets, Octets] = {
+        sec: dsa.sign_(msg_hash, SIGNING_KEYS[sec.hex()]).serialize() + b"\x01"
+        for sec in {key.sec() for key in node.key_expressions}
+    }
+    spend = SpendContext(
+        sha256_preimages=SHA256_PREIMAGES,
+        hash256_preimages=HASH256_PREIMAGES,
+        ripemd160_preimages=RIPEMD160_PREIMAGES,
+        hash160_preimages=HASH160_PREIMAGES,
+        locktime=locktime,
+        sequence=sequence,
+    )
+    try:
+        stack = node.satisfy(signatures, spend)
+    except BTClibValueError:
+        return None
+    tx.vin[0].script_witness = Witness([*stack, script])
+    verify_transaction([prevout], tx)
+    return stack
+
+
+@pytest.mark.parametrize(
+    "vector",
+    [
+        pytest.param(vector, id=vector_id(index, vector["miniscript"]))
+        for index, vector in enumerate(VECTORS)
+        if vector["valid"] and not vector["p2wsh_invalid"]
+    ],
+)
+def test_a_satisfaction_is_a_witness_the_engine_accepts(
+    vector: dict[str, Any],
+) -> None:
+    """Spend each of Core's valid expressions, and have the engine verify it.
+
+    Two properties at once. Every witness this produces is one
+    `verify_transaction` accepts, which is what makes the satisfaction
+    right rather than plausible; and every *sane* expression is satisfied
+    by at least one of the four spends, which is what makes it complete --
+    BIP379's guarantee is that a sane miniscript has a non-malleable
+    satisfaction whenever its conditions can be met at all.
+    """
+    node = parse(vector["miniscript"])
+    satisfied = [spendable(node, locktime, sequence) for locktime, sequence in SPENDS]
+    if node.is_sane and node.is_satisfiable:
+        assert any(stack is not None for stack in satisfied)
+    # and the bound the analysis promised is one no satisfaction passes
+    for stack in satisfied:
+        if stack is not None:
+            witness = sum(len(element) + 1 for element in stack)
+            assert node.max_witness_size is not None
+            assert node.max_stack_items is not None
+            assert witness <= node.max_witness_size
+            assert len(stack) <= node.max_stack_items
+
+
+def test_what_the_context_does_not_carry_cannot_be_satisfied() -> None:
+    """Refuse where a preimage is missing, or a lock time cannot be met.
+
+    Each of these is a branch that exists in the script and not in the
+    caller's hands, which is the difference a satisfier has to report: the
+    expression is fine, the spend is not.
+    """
+    signature = "30" * 71 + "01"
+    preimage = bytes(32)
+    digest = sha256(preimage)
+    node = parse(f"and_v(v:pk({KEY}),sha256({digest.hex()}))")
+    with pytest.raises(BTClibValueError, match="no satisfaction"):
+        node.satisfy({KEY: signature}, SpendContext())
+    # the preimage is under the signature: the sha256() runs after the
+    # v:pk() and takes its input from further down the stack
+    assert node.satisfy(
+        {KEY: signature}, SpendContext(sha256_preimages={digest: preimage})
+    ) == [preimage, bytes.fromhex(signature)]
+    # a digest the mapping does not hold is the same answer as no mapping
+    with pytest.raises(BTClibValueError, match="no satisfaction"):
+        node.satisfy(
+            {KEY: signature}, SpendContext(sha256_preimages={bytes(32): preimage})
+        )
+    # and BIP68's relative locks are enforced from version 2, so a
+    # version-1 transaction opens no older() branch whatever its sequence
+    timelocked = parse(f"and_v(v:pk({KEY}),older(36))")
+    with pytest.raises(BTClibValueError, match="no satisfaction"):
+        timelocked.satisfy({KEY: signature}, SpendContext(sequence=36, version=1))
+    with pytest.raises(BTClibValueError, match="no satisfaction"):
+        timelocked.satisfy({KEY: signature}, SpendContext(sequence=36 | (1 << 31)))
+
+
+def test_a_tapscript_multi_a_is_satisfied_with_one_element_per_key() -> None:
+    """Satisfy a multi_a(), which counts every key rather than popping some.
+
+    Where OP_CHECKMULTISIG pops the signatures it is given and no more,
+    OP_CHECKSIGADD is run once per key: a key that did not sign leaves the
+    empty push in its place, so the witness has one element per key and the
+    first key's is at the bottom.
+    """
+    signature = "30" * 64 + "01"
+    keys = ",".join(KEYS[:3])
+    node = parse(f"multi_a(1,{keys})", TAPSCRIPT)
+    stack = node.satisfy({KEYS[1]: signature})
+    assert stack == [b"", bytes.fromhex(signature), b""]
+    assert len(stack) == len(node.keys)
+    with pytest.raises(BTClibValueError, match="no satisfaction"):
+        node.satisfy({})

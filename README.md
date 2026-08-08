@@ -116,9 +116,10 @@ Included features are:
   output descriptors: the checksum, the parser, the scripts a descriptor
   names, and the spend
 - [BIP379](https://github.com/bitcoin/bips/blob/master/bip-0379.md)
-  miniscript, both ways: the expression compiled to a script, a script read
-  back into the expression it is, the type system that says an expression
-  is well formed, and the bounds a spend of it is analysed by
+  miniscript, read, written and spent: the expression compiled to a script,
+  a script read back into the expression it is, the type system that says
+  an expression is well formed, the bounds a spend of it is analysed by,
+  and the non-malleable witness that satisfies it
 - OutPoint, TxIn, TxOut, and TX data classes
 - legacy, segwit_v0 and taproot transaction hash signatures
 - BlockHeader and Block data classes
@@ -182,7 +183,8 @@ Above them, `bip44` composes `bip32`, `script.taproot` and both address
 encodings into an address from an extended key and a derivation path, and
 `descriptors` reads the BIP380 grammar and hands back the scripts a
 descriptor names -- with `descriptors.miniscript` reading BIP379's
-language, which is a script written as a tree of fragments. `psbt_signer`
+language, which is a script written as a tree of fragments, and
+satisfying one. `psbt_signer`
 is the contract an external signer answers; `hwi` is that contract over
 Bitcoin Core's HWI.
 

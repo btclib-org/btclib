@@ -12,15 +12,21 @@ BIP379 defines and `from_script` reads a script back into it; `str` and
 `from_script(node.script())` is `node` again, so a signer handed a witness
 script can say what it means without being told.
 
-What this module does not do is satisfy one. A satisfaction needs more
-than the public-key-to-signature mapping `Descriptor.satisfy` takes --
-hash preimages, the locktimes the spending transaction will carry, and a
-choice among branches of different weight -- so it needs an interface of
-its own, which is the next stage of issue #187. The analysis that stage
-will need is here: every bound BIP379 defines is a property of the
-expression alone, `max_ops`, `max_stack_items`, `max_exec_stack_items` and
-`max_witness_size` compute them, and `is_sane` is the conjunction Bitcoin
-Core requires of a miniscript before it accepts a descriptor holding one.
+`satisfy` is the third thing it does: the witness that spends the script,
+which for a miniscript is a choice and not an assembly -- several branches
+may be open at once, and which one to take is what BIP379's non-malleable
+satisfaction algorithm decides. It reads the signatures a caller has and a
+`SpendContext`: the hash preimages, and the lock times the transaction
+being built will carry, because an ``older()`` or an ``after()`` is a
+branch only the right transaction opens. Non-malleable or refused, which
+is Bitcoin Core's default too: a witness a third party could rewrite is
+worse than none.
+
+The bounds are the same analysis read statically: `max_ops`,
+`max_stack_items`, `max_exec_stack_items` and `max_witness_size` answer
+what a spend may cost before there is a spend, and `is_sane` is the
+conjunction Bitcoin Core requires of a miniscript before it accepts a
+descriptor holding one.
 
 The type system is why a fragment can be trusted to compose. Every
 expression has one of four basic types -- "B" base, "V" verify, "K" key,
@@ -50,13 +56,14 @@ from __future__ import annotations
 
 import re
 from collections.abc import Callable, Mapping, Sequence
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from typing import TypeVar
 
 from btclib.alias import Octets, ScriptList
 from btclib.descriptors.key_expression import (
     KeyExpression,
     PrvKeys,
+    _offered_signature,
     _parse_key,
     _split_arguments,
 )
@@ -76,7 +83,14 @@ from btclib.script.script import (
 from btclib.utils import bytes_from_octets, decode_num, encode_num
 from btclib.var_int import serialize as var_int_serialize
 
-__all__ = ["P2WSH", "TAPSCRIPT", "Miniscript", "from_script", "parse"]
+__all__ = [
+    "P2WSH",
+    "TAPSCRIPT",
+    "Miniscript",
+    "SpendContext",
+    "from_script",
+    "parse",
+]
 
 # the two contexts BIP379 is specified for, P2SH and bare scripts being
 # excluded from it. Spelled as the BIP spells them, these being what an
@@ -1280,6 +1294,68 @@ class Miniscript:
             )
 
         return _tree_eval(self, False, _verify_state, up)
+
+    def satisfy(
+        self,
+        signatures: Mapping[Octets, Octets] | None = None,
+        spend: SpendContext | None = None,
+        index: int = 0,
+        network: str = "mainnet",
+        prv_keys: PrvKeys | None = None,
+    ) -> list[bytes]:
+        """Return the witness elements that satisfy the expression.
+
+        In witness order, the script itself excluded: what a p2wsh spend
+        puts in front of the witness script, or a tapscript spend in front
+        of the script and its control block.
+
+        Non-malleable or refused, which is BIP379's algorithm and Bitcoin
+        Core's default: of the stacks that would satisfy this script, the
+        one reported is the one no third party could rewrite, and where
+        every candidate is rewritable there is no answer -- a witness that
+        is valid and malleable is worse than none, because it is one a
+        relay can change under the transaction that carries it. A
+        satisfaction with no signature in it is refused for the same
+        reason: without one, the nLockTime and the nSequence the timelocks
+        were checked against are a third party's to change too.
+
+        `signatures` maps a public key to the signature made with it, as
+        `Descriptor.satisfy` takes it; `spend` is the rest of what a
+        satisfaction reads. The refusal says which of the two was short,
+        because adding to either changes the answer: a preimage or a
+        higher sequence can turn "none" into a satisfaction, and can also
+        turn a non-malleable one malleable, which is why the two are
+        separate messages.
+        """
+        offered = (
+            {}
+            if signatures is None
+            else {
+                bytes_from_octets(key): bytes_from_octets(signature)
+                for key, signature in signatures.items()
+            }
+        )
+        context = SpendContext() if spend is None else spend
+
+        def up(_state: None, node: Miniscript, subs: list[_Inputs]) -> _Inputs:
+            return _computed_input(
+                node, subs, context, offered, index, network, prv_keys
+            )
+
+        satisfaction = _tree_eval(self, None, lambda *_: None, up).sat
+        if satisfaction.stack is None:
+            err_msg = (
+                f"no satisfaction of {self} with the signatures, preimages "
+                "and lock times given"
+            )
+            raise BTClibValueError(err_msg)
+        if satisfaction.malleable or not satisfaction.has_sig:
+            err_msg = (
+                f"no non-malleable satisfaction of {self}: every witness that "
+                "would satisfy it is one a third party could rewrite"
+            )
+            raise BTClibValueError(err_msg)
+        return list(satisfaction.stack)
 
     def __str__(self) -> str:
         """Return the expression as BIP379 writes it.
@@ -2544,3 +2620,403 @@ def _assert_sane(node: Miniscript) -> None:
         raise BTClibValueError(f"{insane} is not sane: it repeats a public key")
     err_msg = f"{insane} is not sane: satisfying it may exceed the resource limits"
     raise BTClibValueError(err_msg)
+
+
+@dataclass(frozen=True)
+class SpendContext:
+    """What a miniscript satisfaction reads beside the signatures.
+
+    The signatures are `Descriptor.satisfy`'s own parameter and are not
+    here: one source of truth for them, and this is the rest of what a
+    satisfaction may need -- the preimage of a hash fragment, and the
+    lock times the transaction being built will carry, which say whether
+    an ``older()`` or an ``after()`` can be met at all.
+
+    The four preimage mappings are `PsbtIn`'s four, field for field, and
+    keyed the same way: the digest to the bytes that hash to it. A psbt
+    carries them because BIP174 gave them fields, and `psbt.finalize`
+    therefore has a `SpendContext` without asking its caller for one.
+
+    `sequence` is the input's own, `locktime` the transaction's, and
+    `version` matters for the same reason it matters to the interpreter:
+    BIP68's relative locks are enforced from version 2, so an ``older()``
+    in a version-1 transaction is a branch nothing can spend.
+    """
+
+    sha256_preimages: Mapping[Octets, Octets] = field(default_factory=dict)
+    hash256_preimages: Mapping[Octets, Octets] = field(default_factory=dict)
+    ripemd160_preimages: Mapping[Octets, Octets] = field(default_factory=dict)
+    hash160_preimages: Mapping[Octets, Octets] = field(default_factory=dict)
+    locktime: int = 0
+    sequence: int = 0
+    version: int = 2
+
+    def _preimage(self, fragment: str, digest: bytes) -> bytes | None:
+        """Return the preimage of a digest, None where the caller has none."""
+        preimages = {
+            "sha256": self.sha256_preimages,
+            "hash256": self.hash256_preimages,
+            "ripemd160": self.ripemd160_preimages,
+            "hash160": self.hash160_preimages,
+        }[fragment]
+        for candidate, preimage in preimages.items():
+            if bytes_from_octets(candidate) == digest:
+                return bytes_from_octets(preimage, 32)
+        return None
+
+    def _after(self, value: int) -> bool:
+        """Answer whether the transaction's lock time meets an ``after()``.
+
+        BIP65's rule, which is what the interpreter enforces in
+        `script.engine`: the two must be the same kind of lock time --
+        both block heights or both timestamps, either side of the
+        500000000 threshold -- and the transaction's must have reached
+        the fragment's. The final sequence that would let a transaction
+        ignore its own lock time is a refusal there and cannot be one
+        here: `sequence` is what this context carries, and a caller that
+        set it to 0xffffffff has asked for a transaction with no lock
+        time at all.
+        """
+        if (value >= _LOCKTIME_THRESHOLD) != (self.locktime >= _LOCKTIME_THRESHOLD):
+            return False
+        return value <= self.locktime and self.sequence != 0xFFFFFFFF
+
+    def _older(self, value: int) -> bool:
+        """Answer whether the input's sequence meets an ``older()``.
+
+        BIP112's rule, again the interpreter's: from version 2, with the
+        disable bit clear, the same unit on bit 22 -- blocks against
+        512-second intervals -- and a relative lock time at least the
+        fragment's.
+        """
+        if self.version < 2 or self.sequence & (1 << 31):
+            return False
+        if value & _SEQUENCE_LOCKTIME_TYPE_FLAG != (
+            self.sequence & _SEQUENCE_LOCKTIME_TYPE_FLAG
+        ):
+            return False
+        return value & 0x0000FFFF <= self.sequence & 0x0000FFFF
+
+
+@dataclass(frozen=True)
+class _Input:
+    """One witness stack that satisfies or dissatisfies an expression.
+
+    `stack` is None where there is no such stack at all -- Bitcoin Core's
+    Availability::NO, and BIP379's *(none)*. The three flags are what the
+    non-malleable algorithm chooses by: whether the stack carries a
+    signature, whether a third party could rewrite it, and whether it is
+    one of the options BIP379 lists as unnecessary. `size` is the witness
+    bytes it takes, which is what breaks a tie.
+    """
+
+    stack: tuple[bytes, ...] | None
+    has_sig: bool = False
+    malleable: bool = False
+    non_canonical: bool = False
+    size: int = 0
+
+
+def _element(data: bytes) -> _Input:
+    """Return a one-element stack, its length prefix counted."""
+    return _Input((data,), size=len(data) + 1)
+
+
+_NO_WITNESS = _Input(None)
+_NO_PUSHES = _Input(())
+_ZERO_PUSH = _element(b"")
+_ONE_PUSH = _element(b"\x01")
+# the dissatisfaction of a hash fragment: any 32 bytes that are not the
+# preimage, and malleable by construction -- a third party can put other
+# 32 bytes there, which is why BIP379 rules it out of a non-malleable
+# satisfaction rather than merely listing it
+_ZERO32_PUSH = _Input((bytes(32),), malleable=True, size=33)
+
+
+def _both(first: _Input, second: _Input) -> _Input:
+    """Return the stack that is the first followed by the second.
+
+    Which is Bitcoin Core's ``+``: the elements of one and then of the
+    other, and every flag of either. Absent where either is absent -- a
+    satisfaction needing two things has neither if one is missing.
+    """
+    if first.stack is None or second.stack is None:
+        return _NO_WITNESS
+    return _Input(
+        first.stack + second.stack,
+        has_sig=first.has_sig or second.has_sig,
+        malleable=first.malleable or second.malleable,
+        non_canonical=first.non_canonical or second.non_canonical,
+        size=first.size + second.size,
+    )
+
+
+def _better(first: _Input, second: _Input) -> _Input:
+    """Return the one of two stacks a non-malleable satisfaction takes.
+
+    BIP379's algorithm, as Bitcoin Core's ``|`` implements it: a stack
+    without a signature is one an attacker can produce too, so where only
+    one option carries a signature the other is what a malleator would
+    use and is therefore the one to report; where neither does, both are
+    malleable, because either could be swapped for the other; where both
+    do, the non-malleable one wins, and between two of a kind the smaller
+    witness does.
+    """
+    if first.stack is None:
+        return second
+    if second.stack is None:
+        return first
+    if first.has_sig != second.has_sig:
+        return second if first.has_sig else first
+    if not first.has_sig:
+        return replace(first if first.size <= second.size else second, malleable=True)
+    if first.malleable != second.malleable:
+        return second if first.malleable else first
+    return first if first.size <= second.size else second
+
+
+@dataclass(frozen=True)
+class _Inputs:
+    """The best stack for satisfying an expression, and for dissatisfying it."""
+
+    sat: _Input
+    dsat: _Input
+
+
+def _key_input(
+    node: Miniscript,
+    signatures: Mapping[bytes, bytes],
+    index: int,
+    network: str,
+    prv_keys: PrvKeys | None,
+) -> _Inputs:
+    """Return the stacks of a ``pk_k()`` or a ``pk_h()``.
+
+    A ``pk_h()`` puts the key on the stack beside the signature, the
+    script holding its hash alone; both are dissatisfied by the empty
+    push where a signature belongs.
+    """
+    # the 33-byte form for the lookup, whatever the script writes: a
+    # signer hands back a signature under either spelling of a taproot key,
+    # which is what `_offered_signature` answers for
+    sec = node.keys[0].sec(index, network, prv_keys)
+    offered = _offered_signature(signatures, sec, x_only=node.context == TAPSCRIPT)
+    signature = (
+        _NO_WITNESS if offered is None else replace(_element(offered), has_sig=True)
+    )
+    if node.fragment == "pk_k":
+        return _Inputs(signature, _ZERO_PUSH)
+    key = _element(sec[1:] if node.context == TAPSCRIPT else sec)
+    return _Inputs(_both(signature, key), _both(_ZERO_PUSH, key))
+
+
+def _multi_input(
+    node: Miniscript,
+    signatures: Mapping[bytes, bytes],
+    index: int,
+    network: str,
+    prv_keys: PrvKeys | None,
+) -> _Inputs:
+    """Return the stacks of a ``multi()`` or a ``multi_a()``.
+
+    `reached[j]` is the best stack carrying j signatures of the keys read
+    so far, which is the only way to choose: any k of the n keys satisfy,
+    and which k are available is not known until they have been asked
+    for. The two differ in what an unused key costs -- nothing to
+    OP_CHECKMULTISIG, which pops only the signatures it is given, and an
+    empty push to OP_CHECKSIGADD, which counts them all -- and in the
+    order, the first key's signature being on top for one and at the
+    bottom for the other.
+    """
+    multi_a = node.fragment == "multi_a"
+    keys = list(reversed(node.keys)) if multi_a else list(node.keys)
+    # OP_CHECKMULTISIG pops one element more than it was given, which is
+    # the empty push every satisfaction of it starts with
+    reached = [_NO_PUSHES if multi_a else _ZERO_PUSH]
+    for key in keys:
+        sec = key.sec(index, network, prv_keys)
+        offered = _offered_signature(signatures, sec, x_only=node.context == TAPSCRIPT)
+        signature = (
+            _NO_WITNESS if offered is None else replace(_element(offered), has_sig=True)
+        )
+        unused = _ZERO_PUSH if multi_a else _NO_PUSHES
+        following = [_both(reached[0], unused)]
+        following.extend(
+            _better(_both(reached[j], unused), _both(reached[j - 1], signature))
+            for j in range(1, len(reached))
+        )
+        following.append(_both(reached[-1], signature))
+        reached = following
+    if multi_a:
+        # one element per key, so dissatisfying is satisfying none of them
+        return _Inputs(reached[node.threshold], reached[0])
+    # and k+1 empty pushes dissatisfy a multi(), the threshold being how
+    # many signatures OP_CHECKMULTISIG will look for
+    dissatisfaction = _ZERO_PUSH
+    for _ in range(node.threshold):
+        dissatisfaction = _both(dissatisfaction, _ZERO_PUSH)
+    return _Inputs(reached[node.threshold], dissatisfaction)
+
+
+def _leaf_input(
+    node: Miniscript,
+    spend: SpendContext,
+    signatures: Mapping[bytes, bytes],
+    index: int,
+    network: str,
+    prv_keys: PrvKeys | None,
+) -> _Inputs:
+    """Return the stacks of a fragment with no subexpressions."""
+    fragment = node.fragment
+    if fragment == "0":
+        inputs = _Inputs(_NO_WITNESS, _NO_PUSHES)
+    elif fragment == "1":
+        inputs = _Inputs(_NO_PUSHES, _NO_WITNESS)
+    elif fragment in {"pk_k", "pk_h"}:
+        inputs = _key_input(node, signatures, index, network, prv_keys)
+    elif fragment in {"older", "after"}:
+        met = (
+            spend._older(node.threshold)
+            if fragment == "older"
+            else spend._after(node.threshold)
+        )
+        # a lock time is met by the transaction or it is not: nothing goes
+        # on the stack either way, and nothing dissatisfies one
+        inputs = _Inputs(_NO_PUSHES if met else _NO_WITNESS, _NO_WITNESS)
+    elif fragment in _HASH_OP_CODES:
+        preimage = spend._preimage(fragment, node.data)
+        inputs = _Inputs(
+            _NO_WITNESS if preimage is None else _element(preimage), _ZERO32_PUSH
+        )
+    else:
+        inputs = _multi_input(node, signatures, index, network, prv_keys)
+    return inputs
+
+
+def _wrapper_input(node: Miniscript, x: _Inputs) -> _Inputs:
+    """Return the stacks of a wrapped expression, from its argument's."""
+    fragment = node.fragment
+    if fragment in {"a:", "s:", "c:", "n:"}:
+        return x
+    if fragment == "d:":
+        # the element the OP_IF reads is part of the witness
+        return _Inputs(_both(x.sat, _ONE_PUSH), _ZERO_PUSH)
+    if fragment == "v:":
+        return _Inputs(x.sat, _NO_WITNESS)
+    # ``j:`` is dissatisfied by the empty push its OP_SIZE reads; where the
+    # argument can also be dissatisfied without a signature, a third party
+    # has two ways to dissatisfy this and the choice is malleable
+    dissatisfiable = x.dsat.stack is not None and not x.dsat.has_sig
+    return _Inputs(x.sat, replace(_ZERO_PUSH, malleable=dissatisfiable))
+
+
+def _and_input(node: Miniscript, x: _Inputs, y: _Inputs) -> _Inputs:
+    """Return the stacks of and_v() or and_b().
+
+    The arguments are written left to right and consume the stack from the
+    top, so what satisfies the second is under what satisfies the first.
+    """
+    if node.fragment == "and_v":
+        # dissatisfying a "V" is impossible, so this stack is listed for
+        # completeness and never chosen
+        return _Inputs(
+            _both(y.sat, x.sat), replace(_both(y.dsat, x.sat), non_canonical=True)
+        )
+    overcomplete = _better(
+        replace(_both(y.sat, x.dsat), malleable=True, non_canonical=True),
+        replace(_both(y.dsat, x.sat), malleable=True, non_canonical=True),
+    )
+    return _Inputs(_both(y.sat, x.sat), _better(_both(y.dsat, x.dsat), overcomplete))
+
+
+def _or_input(node: Miniscript, x: _Inputs, z: _Inputs) -> _Inputs:
+    """Return the stacks of one of the four disjunctions."""
+    fragment = node.fragment
+    if fragment == "or_b":
+        # satisfying both branches is overcomplete: either half can be
+        # turned back into a dissatisfaction and the OP_BOOLOR still holds
+        both = replace(_both(z.sat, x.sat), malleable=True, non_canonical=True)
+        satisfaction = _better(
+            _better(_both(z.dsat, x.sat), _both(z.sat, x.dsat)), both
+        )
+        return _Inputs(satisfaction, _both(z.dsat, x.dsat))
+    satisfaction = _better(x.sat, _both(z.sat, x.dsat))
+    if fragment == "or_c":
+        return _Inputs(satisfaction, _NO_WITNESS)
+    if fragment == "or_d":
+        return _Inputs(satisfaction, _both(z.dsat, x.dsat))
+    # or_i() carries the branch selector in the witness, which is what its
+    # OP_IF reads: OP_1 for the first branch and the empty push for the
+    # second
+    return _Inputs(
+        _better(_both(x.sat, _ONE_PUSH), _both(z.sat, _ZERO_PUSH)),
+        _better(_both(x.dsat, _ONE_PUSH), _both(z.dsat, _ZERO_PUSH)),
+    )
+
+
+def _andor_input(x: _Inputs, y: _Inputs, z: _Inputs) -> _Inputs:
+    """Return the stacks of andor(X,Y,Z): X and Y, or else Z."""
+    return _Inputs(
+        _better(_both(y.sat, x.sat), _both(z.sat, x.dsat)),
+        _better(
+            replace(_both(y.dsat, x.sat), non_canonical=True),
+            _both(z.dsat, x.dsat),
+        ),
+    )
+
+
+def _thresh_input(node: Miniscript, subs: list[_Inputs]) -> _Inputs:
+    """Return the stacks of a thresh(), over every way to reach its threshold.
+
+    `reached[j]` is the best stack satisfying j of the branches read so
+    far, read from the last one: the branches are written left to right
+    and the last one's stack is at the bottom of the witness. Every count
+    but the threshold dissatisfies, and every count but zero does it with
+    more satisfactions than the OP_EQUAL wants -- overcomplete, so
+    malleable and non-canonical, and never chosen while the all-zero
+    dissatisfaction exists.
+    """
+    reached = [_NO_PUSHES]
+    for sub in reversed(subs):
+        following = [_both(reached[0], sub.dsat)]
+        following.extend(
+            _better(_both(reached[j], sub.dsat), _both(reached[j - 1], sub.sat))
+            for j in range(1, len(reached))
+        )
+        following.append(_both(reached[-1], sub.sat))
+        reached = following
+    dissatisfaction = _NO_WITNESS
+    for count, reaching in enumerate(reached):
+        if count == node.threshold:
+            continue
+        # every count but zero satisfies more branches than the OP_EQUAL
+        # asks for: overcomplete, so malleable, and never chosen while the
+        # all-dissatisfied stack exists
+        stack = (
+            replace(reaching, malleable=True, non_canonical=True) if count else reaching
+        )
+        dissatisfaction = _better(dissatisfaction, stack)
+    return _Inputs(reached[node.threshold], dissatisfaction)
+
+
+def _computed_input(
+    node: Miniscript,
+    subs: list[_Inputs],
+    spend: SpendContext,
+    signatures: Mapping[bytes, bytes],
+    index: int,
+    network: str,
+    prv_keys: PrvKeys | None,
+) -> _Inputs:
+    """Return the best stacks of one fragment, from its subexpressions'."""
+    if not subs:
+        return _leaf_input(node, spend, signatures, index, network, prv_keys)
+    if node.fragment in _WRAPPERS:
+        return _wrapper_input(node, subs[0])
+    if node.fragment in {"and_v", "and_b"}:
+        return _and_input(node, subs[0], subs[1])
+    if node.fragment == "andor":
+        return _andor_input(subs[0], subs[1], subs[2])
+    if node.fragment == "thresh":
+        return _thresh_input(node, subs)
+    return _or_input(node, subs[0], subs[1])
