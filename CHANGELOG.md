@@ -24,6 +24,15 @@ documented at release-notes length in the first place, and are still in
 
 ### Descriptors and miniscript
 
+- **Two CHANGELOG references to #499 named the wrong thing.** #499 is the
+  merged pull request whose note on BIP388 wallet policies said what a
+  Ledger cannot be shown; the *template rewriting* that note describes has
+  no issue of its own, and #469 -- the in-process HWI adapter -- is where a
+  caller asked for what it would unblock. Both entries now say so.
+
+  Caught by reading the numbers back rather than by any check: a `#N` in
+  prose is never verified, and a merged pull request and an open issue read
+  exactly the same.
 - **A miniscript input is sized before it is signed**, through
   `descriptors.miniscript_sizer`: the `SolutionSizer` that
   `psbt_size.estimated_input_sizes` takes, answering with the witness a
@@ -61,10 +70,10 @@ documented at release-notes length in the first place, and are still in
   the conclusion that a script outside BIP388's fixed set is not
   expressible here whatever the transport -- both true when it was written
   and neither true now. What stands between a caller and a registered
-  Ledger policy is the template rewriting of #499, not the language and not
-  the transport. Found by grepping the tree for claims the miniscript work
-  had falsified, which is the only thing that finds a docstring gone stale:
-  no test asserts prose.
+  Ledger policy is the template rewriting, which #469 asked for and no
+  issue holds yet, not the language and not the transport. Found by
+  grepping the tree for claims the miniscript work had falsified, which is
+  the only thing that finds a docstring gone stale: no test asserts prose.
 - **A ``tr()`` leaf may be a miniscript**, which is the second of the two
   positions BIP379 allows one in and the last one this library was short
   of: `DescriptorTree` holds a `Miniscript` beside the ``pk()`` and the
@@ -302,8 +311,9 @@ documented at release-notes length in the first place, and are still in
   band. Whether btclib could grow it is not a transport question: a
   policy is a descriptor template with the keys lifted out, and the
   fragments one may hold are BIP388's fixed set plus miniscript inside
-  `wsh()`, which btclib now reads -- what is left for #499 is the
-  template, which is the expression with the keys lifted into a vector.
+  `wsh()`, which btclib now reads -- what is left is the template, which is
+  the expression with the keys lifted into a vector, and #469 is where it
+  was asked for.
 
 ### Packaging, linting and CI
 
