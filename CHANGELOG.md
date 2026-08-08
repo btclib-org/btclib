@@ -429,6 +429,19 @@ documented at release-notes length in the first place, and are still in
   open), so `btclib/__init__.py` and `btclib/script/__init__.py` carry a
   per-file exemption from that one rule, where `tests/all_test.py`
   already walks `__all__` with `getattr` and fails on the same drift.
+- **`bitcoin-core-rpc`'s floor moves to `>=2026.8.8`, from `>=2026.8.7`.**
+  No name btclib imports changed, so the move is a preference rather than
+  a floor a caller cannot go under. What it buys: the body of a failed
+  request is now read against the same deadline the answer is, where it
+  used to be bounded only by `MAX_ERROR_BODY_SIZE` and could hold a call
+  open past its own `timeout` waiting on a slow error page; and
+  `http_request` validates its own `timeout` rather than forwarding a
+  zero, a negative number, `True` or a `NaN` straight to the transport
+  unexamined. Neither reaches `BitcoinCoreRpcClient`, which already
+  checked both before this release existed; `EsploraFetcher.text` calls
+  `http_request` directly and does not check `self.timeout` itself, so a
+  caller passing it a bad one now meets `bitcoin_core_rpc`'s own
+  exception unwrapped rather than whatever the socket layer made of it.
 
 ### Documentation and the website
 
