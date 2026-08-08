@@ -830,6 +830,42 @@ being syntax templates like `sh(SCRIPT)`), and each would need a checksum
 computed by something that is not btclib. That is a decision to take with
 a tool at hand, not a refresh.
 
+### `tests/_data/miniscript_fixed_tests.json`
+
+```text
+repo    bitcoin/bitcoin
+path    src/test/miniscript_tests.cpp
+commit  128456b62d5e38abea031f97f823d5b28aef9357  2026-08-08
+blob    6dac2aa907f853099dcf210ccb360792b89e9fca
+pulled  2026-08-08
+behind  0 revisions; that commit is the tip of the path
+```
+
+Verdict: **transcribed**, mechanically. One json object per `Test()` call
+of the `fixed_tests` case, with the fields that call passes: the
+miniscript, the script it compiles to under P2WSH and under tapscript, the
+`TESTMODE_*` flags split into booleans, and the ops, stack, witness-size
+and execution-stack numbers where the call gives them. The regex that
+produced it is not committed -- a one-off pass over C++ source is not a
+tool -- and what re-derives the file is reading those calls again.
+
+Not vendored as the file itself because there is no data file upstream:
+the vectors are arguments to a C++ function. The blob above is that source
+file, so the monthly re-check still reports a case added to it.
+
+Four of the calls are not here, being loops rather than literals: the
+`multi_a()` of twenty-one keys, the three `and_b()` chains that pass the
+p2wsh ops, stack and script-size limits, and the two nestings that reach a
+thousand elements on the stack. `tests/descriptors/miniscript_test.py`
+builds those from Core's own key set instead, and asserts the same
+formulas its calls pass -- which is why they are missing here rather than
+untested.
+
+Also not here: `random_tests`, which generates expressions from a seeded
+RNG and checks the satisfier against the script interpreter. Satisfaction
+is not implemented (issue #187), so there is nothing yet for those to
+measure.
+
 ### Not vendored as a file: Core's descriptor derivation vectors
 
 ```text

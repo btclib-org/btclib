@@ -57,7 +57,11 @@ from btclib.script import script_pub_key
 UNEXPORTED = {
     "btclib": ["name"],
     "btclib.curves.curve": ["datadir"],
-    "btclib.descriptors": ["CHECKSUM_CHARSET", "GENERATOR", "INPUT_CHARSET"],
+    "btclib.descriptors.descriptors": [
+        "CHECKSUM_CHARSET",
+        "GENERATOR",
+        "INPUT_CHARSET",
+    ],
     "btclib.network": ["datadir"],
 }
 
@@ -126,6 +130,10 @@ CHILD_MODULES = {
             "curve_group_f",
             "sec_point",
         ],
+    },
+    "btclib.descriptors": {
+        "groups": ["miniscript"],
+        "unpublished": ["descriptors", "key_expression"],
     },
     "btclib.ecc": {
         "groups": [
