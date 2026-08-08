@@ -22,6 +22,23 @@ documented at release-notes length in the first place, and are still in
 
 ## v2026.9 (work in progress, not released yet)
 
+### Transactions, blocks and PSBT
+
+- **`SoftwareSigner.from_accounts` builds a signer on the accounts a
+  device exported**, for the master fingerprint they came from, where the
+  constructor takes one key and answers that key's own fingerprint. What
+  a psbt names in a key origin is the master's four bytes and a path from
+  it, so a signer built on an account answered for no origin of the
+  psbts that account's device writes -- the class docstring said so, and
+  left the caller to write the lookup. An origin is answered by the
+  account whose path is a prefix of it, the longest one where several
+  are, with the public key check unchanged: the fingerprint is told
+  rather than computed and is therefore a claim, and an account paired
+  with the wrong master is refused one derivation later. `xkey` is now
+  the key a signer was built on where it was built on one, and raises
+  for a signer of accounts, there being no key of which the others are
+  derivations.
+
 ### Packaging, linting and CI
 
 - **RELEASING.md says what `griffe check` actually reports**: breakage
