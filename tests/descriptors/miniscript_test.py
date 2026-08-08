@@ -44,7 +44,12 @@ import pytest
 
 from btclib.alias import Octets, ScriptList
 from btclib.bip32.key_origin import BIP32KeyOrigin
-from btclib.descriptors import TrDescriptor, WshDescriptor, miniscript_solver
+from btclib.descriptors import (
+    TrDescriptor,
+    WshDescriptor,
+    miniscript_sizer,
+    miniscript_solver,
+)
 from btclib.descriptors import parse as parse_descriptor
 from btclib.descriptors.key_expression import KeyExpression
 from btclib.descriptors.miniscript import (
@@ -59,6 +64,8 @@ from btclib.ecc import dsa, ssa
 from btclib.exceptions import BTClibValueError
 from btclib.hashes import hash160, hash256, ripemd160, sha256
 from btclib.psbt.psbt import Psbt, finalize, taproot_sig_hash
+from btclib.psbt.psbt_in import PsbtIn
+from btclib.psbt.psbt_size import estimated_input_sizes
 from btclib.script import sig_hash
 from btclib.script.engine import verify_transaction
 from btclib.script.script import serialize
@@ -1251,3 +1258,150 @@ def test_a_tr_miniscript_pays_where_core_says(descriptor: str, address: str) -> 
     the tapscript dialect is wired to the right side of a ``tr()``.
     """
     assert parse_descriptor(descriptor, "regtest").address() == address
+
+
+@pytest.mark.parametrize(
+    "vector",
+    [
+        pytest.param(vector, id=vector_id(index, vector["miniscript"]))
+        for index, vector in enumerate(VECTORS)
+        if vector["valid"]
+    ],
+)
+@pytest.mark.parametrize("context", [P2WSH, TAPSCRIPT])
+def test_the_two_witness_analyses_agree(vector: dict[str, Any], context: str) -> None:
+    """Size a witness twice, by two transcriptions, and get one answer.
+
+    `max_witness_size` comes from BIP379's type tables, which compute a
+    number and never a witness; `max_witness_stack` walks the satisfaction
+    and reports the elements of the largest one. The two are independent
+    implementations of the same question -- Core's `CalcWitnessSize` and
+    its `ProduceInput` -- so their agreeing on every vector says more about
+    both than either says alone: the elements, once given the length prefix
+    the transaction writes, weigh exactly what the tables say.
+
+    The element *count* is only bounded, not matched: the two static tables
+    maximise different quantities, so the branch that is heaviest in bytes
+    need not be the one that puts the most elements on the stack.
+    """
+    if is_invalid(vector, context):
+        return
+    node = parse(vector["miniscript"], context)
+    stack = node.max_witness_stack
+    if stack is None:
+        # nothing satisfies it, so there is no witness to weigh either way
+        assert node.max_stack_items is None
+        return
+    assert sum(size + 1 for size in stack) == node.max_witness_size
+    assert node.max_stack_items is not None
+    assert len(stack) <= node.max_stack_items
+
+
+def test_the_estimate_needs_neither_signature_nor_preimage() -> None:
+    """Size a spend before there is one, which is what an estimate is for.
+
+    Every element of it is known from the expression: a signature is the
+    context's largest, a preimage is BIP379's 32 bytes, a key is 33 bytes
+    or 32, and the rest are the empty push and the OP_1 a branch selector
+    is.
+    """
+    node = parse(f"and_v(v:pk({KEY}),sha256({SHA256}))")
+    assert node.max_witness_stack == (32, 72)
+    assert parse(f"pk({KEY})", TAPSCRIPT).max_witness_stack == (65,)
+    # the key is on top of the signature, the script reading it first
+    assert parse(f"pkh({KEY})").max_witness_stack == (72, 33)
+    assert parse(f"multi(2,{KEYS[0]},{KEYS[1]})").max_witness_stack == (0, 72, 72)
+    # a branch behind an or_i() carries the selector that picks it
+    assert parse(f"or_i(pk({KEYS[0]}),pk({KEYS[1]}))").max_witness_stack == (72, 1)
+    # and what nothing satisfies has no witness to size
+    assert parse("or_b(0,a:0)").max_witness_stack is None
+
+
+def test_the_estimate_is_the_largest_branch_and_not_the_cheapest() -> None:
+    """Answer with the branch a signer may be pushed onto, not the cheap one.
+
+    `satisfy` reports the witness that will be built where everything is
+    available, which is the cheaper branch of this expression: the preimage
+    and the dissatisfied multisig. The estimate reports the other one,
+    because the cheap branch is the one a missing preimage shuts, and an
+    estimate that assumed it would pay too little a fee.
+    """
+    digest = ripemd160(PRV_KEYS[3]).hex()
+    expression = (
+        f"c:and_v(or_c(multi(2,{KEYS[0]},{KEYS[1]}),v:ripemd160({digest}))"
+        f",pk_k({KEYS[2]}))"
+    )
+    node = parse(expression)
+    assert node.is_sane
+    signatures: dict[Octets, Octets] = dict.fromkeys(KEYS[:3], "30" * 71 + "01")
+    spend = SpendContext(ripemd160_preimages={ripemd160(PRV_KEYS[3]): PRV_KEYS[3]})
+    built = node.satisfy(signatures, spend)
+    assert sum(len(element) + 1 for element in built) == 109
+    assert node.max_witness_size == 220
+    assert sum(size + 1 for size in node.max_witness_stack or ()) == 220
+
+
+def psbt_input(node: Miniscript) -> tuple[PsbtIn, TxIn]:
+    """Return an unsigned p2wsh input of the expression, and its TxIn.
+
+    With the key origins an Updater writes, which is what a `pkh()`
+    fragment needs to be readable at all: its script holds the hash of its
+    key, so an input carrying neither a signature nor an origin for that
+    key is one whose witness script is not miniscript as far as anything
+    can tell.
+    """
+    script = node.script()
+    psbt_in = PsbtIn(
+        witness_utxo=TxOut(50_000, ScriptPubKey.p2wsh(script)),
+        witness_script=script,
+        # one origin per key, and a path of its own for each: a psbt refuses
+        # two keys claiming the same one
+        hd_key_paths={
+            key.sec(): BIP32KeyOrigin("deadbeef", [position])
+            for position, key in enumerate(node.key_expressions)
+        },
+    )
+    return psbt_in, TxIn(OutPoint(b"\x09" * 32, 0), sequence=36)
+
+
+@pytest.mark.parametrize(
+    "expression",
+    [
+        pytest.param(expression, id=vector_id(index, expression))
+        for index, expression in enumerate(SOLVER_EXPRESSIONS)
+    ],
+)
+def test_the_sizer_answers_before_there_is_a_signature(expression: str) -> None:
+    """Size a miniscript input, and pay the fee the spend will need.
+
+    The witness of a p2wsh spend is the satisfaction and then the witness
+    script, so that is the list; what makes it an estimate rather than a
+    measurement is that no signature exists yet, and what makes it enough
+    is that the size of one does not depend on the key.
+    """
+    node = parse(expression)
+    psbt_in, tx_in = psbt_input(node)
+    script_sig, witness = estimated_input_sizes(psbt_in, tx_in, sizer=miniscript_sizer)
+    assert script_sig == 0
+    assert witness == [*(node.max_witness_stack or ()), len(node.script())]
+    # the fee is paid on this, so it is the bound and not the cheapest
+    assert sum(size + 1 for size in witness[:-1]) == node.max_witness_size
+    # and without the sizer there is no estimate to be had
+    with pytest.raises(BTClibValueError, match="no estimate for a script"):
+        estimated_input_sizes(psbt_in, tx_in)
+
+
+def test_the_sizer_answers_for_what_is_its_business_and_no_more() -> None:
+    """Return None where the input is not a miniscript, as the solver does."""
+    node = parse(f"and_v(v:pk({KEY}),older(36))")
+    psbt_in, tx_in = psbt_input(node)
+    assert miniscript_sizer(psbt_in, tx_in) is not None
+    psbt_in.witness_script = b""
+    assert miniscript_sizer(psbt_in, tx_in) is None
+    psbt_in.witness_script = serialize(["OP_DROP", "OP_1"])
+    assert miniscript_sizer(psbt_in, tx_in) is None
+    # a script nothing satisfies has no spend to size, which is the answer
+    # "not mine" too: the refusal is the caller's to make
+    unspendable = parse("or_b(0,a:0)")
+    psbt_in.witness_script = unspendable.script()
+    assert miniscript_sizer(psbt_in, tx_in) is None

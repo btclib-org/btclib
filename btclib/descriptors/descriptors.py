@@ -193,6 +193,7 @@ from btclib.script.script_pub_key import ScriptPubKey
 from btclib.script.taproot import input_script_sig, leaf_hash, tree_helper
 from btclib.script.witness import Witness
 from btclib.to_pub_key import fingerprint
+from btclib.tx.tx_in import TxIn
 from btclib.utils import bytes_from_octets
 
 __all__ = [
@@ -217,6 +218,7 @@ __all__ = [
     "at_index",
     "checksum",
     "from_address",
+    "miniscript_sizer",
     "miniscript_solver",
     "multipath_descriptors",
     "normalized",
@@ -2322,6 +2324,47 @@ def at_index(descriptor: Descriptor, index: int = 0) -> Descriptor:
         )
 
     return _mapped_keys(descriptor, fixed)
+
+
+def miniscript_sizer(psbt_in: PsbtIn, tx_in: TxIn) -> list[int] | None:
+    """Size the spend of a psbt input whose witness script is a miniscript.
+
+    A `SolutionSizer`, which is what `psbt_size.estimated_input_sizes` takes
+    for the inputs whose spend it cannot read -- and it lives here for
+    `miniscript_solver`'s reason, the layering: `descriptors` imports `psbt`
+    and nothing there imports back. A caller passes it::
+
+        script_sig, witness = estimated_input_sizes(
+            psbt_in, tx_in, sizer=miniscript_sizer
+        )
+
+    The witness of a p2wsh spend is the satisfaction and then the witness
+    script, so that is the list: `Miniscript.max_witness_stack` and the
+    script's own length. It needs no signature and no preimage, an estimate
+    being made before either exists -- the size of a signature is the
+    context's, and BIP379 fixes a preimage at 32 bytes.
+
+    None where the input is not this sizer's business: no witness script,
+    one that is no miniscript, or one no witness can satisfy at all. The
+    caller then answers as it did before, which for the last of those is a
+    refusal: a script nobody can spend has no spend to estimate.
+    """
+    if not psbt_in.witness_script:
+        return None
+    known = (*psbt_in.partial_sigs, *psbt_in.hd_key_paths)
+    try:
+        node = _miniscript_from_script(
+            psbt_in.witness_script,
+            miniscript.P2WSH,
+            {hash160(key): key for key in known},
+        )
+    # not a miniscript, which is the answer "not mine" and not an error
+    except BTClibValueError:
+        return None
+    stack = node.max_witness_stack
+    if stack is None:
+        return None
+    return [*stack, len(psbt_in.witness_script)]
 
 
 def miniscript_solver(psbt: Psbt, vin_i: int) -> tuple[bytes, Witness] | None:
