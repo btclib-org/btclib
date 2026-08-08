@@ -43,7 +43,8 @@ fragments are the same, but ``multi()`` belongs to the first and
 ``d:`` wrapper is "u" only under tapscript -- MINIMALIF being consensus
 for taproot and policy for P2WSH -- and each context bounds its own
 resources. The context is therefore a parameter of everything, and
-`descriptors` passes the one the position gives.
+`descriptors` passes the one the position gives: `P2WSH` inside ``wsh()``,
+`TAPSCRIPT` for a leaf of a ``tr()`` script tree.
 
 Above `key_expression`, whose KEY expressions the fragments hold, and
 below `descriptors`, which reads a miniscript wherever a SCRIPT

@@ -24,6 +24,32 @@ documented at release-notes length in the first place, and are still in
 
 ### Descriptors and miniscript
 
+- **A ``tr()`` leaf may be a miniscript**, which is the second of the two
+  positions BIP379 allows one in and the last one this library was short
+  of: `DescriptorTree` holds a `Miniscript` beside the ``pk()`` and the
+  ``multi_a()`` leaves it held before, `_parse_tree` reads the tapscript
+  dialect wherever a leaf is not one of those, and a script path spend
+  satisfies it -- the witness being the satisfaction, the leaf script and
+  the control block, the same order every other leaf is spent in.
+
+  The dialect is what the position picks: 32-byte keys, ``multi_a()`` where
+  ``wsh()`` has ``multi()``, a ``d:`` wrapper that is "u" because MINIMALIF
+  is consensus under taproot and only policy under P2WSH, and resource
+  limits of its own. All of it was implemented and tested against Core's
+  tapscript column when the language landed; what this adds is the
+  descriptor plumbing that reaches it, and the sanity every leaf is now
+  held to -- a tree is several scripts, and one that can be spent without
+  a signature is one no wallet should be handed whatever the others are.
+
+  A leaf that the signatures at hand do not open is still an answer and not
+  an error, which is what walking a tree means: a miniscript leaf whose
+  branches want a preimage or a lock time the spend does not carry is
+  simply not the leaf being spent, and the walk goes on to the next.
+
+  What a taproot *psbt* input needs is not this: its leaf script,
+  signatures and control block live in BIP371 fields of their own rather
+  than in a witness script, so `miniscript_solver` does not answer for one.
+  That is a solver of its own shape and the next thing here.
 - **`psbt.finalize` spends a miniscript input**, through
   `descriptors.miniscript_solver`: the `InputSolver` the finalizer already
   takes, which reads an input's witness script back into the expression it

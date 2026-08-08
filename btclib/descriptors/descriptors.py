@@ -52,13 +52,15 @@ The grammar read is BIP380 to BIP390:
   participants, inside a ``tr()`` or a ``rawtr()`` and nowhere else, with
   BIP328 derivation of the aggregate key where it has a path of its own
 - the ``<a;b>`` multipath form of BIP389, through `multipath_descriptors`
-- a BIP379 miniscript inside ``wsh()``, read by `miniscript` and held by
-  the `MiniscriptDescriptor` this module adds for it. Which expression is
-  read as which is the order Bitcoin Core reads them in: the functions
-  above are tried first, so the ``pk()``, ``pkh()`` and ``multi()`` that
-  belong to both grammars are the descriptor functions they were before
-  miniscript, and everything else inside a ``wsh()`` is a miniscript.
-  BIP379 allows one inside ``tr()`` too, which is the stage after this one
+- a BIP379 miniscript, in both of the positions that BIP allows: inside
+  ``wsh()``, where it is a `MiniscriptDescriptor`, and as a leaf of a
+  ``tr()`` script tree, where it is a leaf beside the ``pk()`` and the
+  ``multi_a()`` ones. Which expression is read as which is the order
+  Bitcoin Core reads them in: the functions above are tried first, so the
+  ``pk()``, ``pkh()`` and ``multi()`` that belong to both grammars are the
+  descriptor functions they were before miniscript, and what is left is a
+  miniscript -- of the P2WSH dialect inside ``wsh()`` and of the tapscript
+  one inside ``tr()``, which is where ``multi_a()`` replaces ``multi()``
 
 `satisfy` takes a `SpendContext` beside the signatures for the one
 fragment that reads more than they carry: a miniscript satisfaction
@@ -186,6 +188,7 @@ from btclib.psbt.psbt import Psbt
 from btclib.psbt.psbt_in import PsbtIn
 from btclib.psbt.psbt_out import PsbtOut
 from btclib.script.script import op_int, serialize
+from btclib.script.script import parse as _parse_script
 from btclib.script.script_pub_key import ScriptPubKey
 from btclib.script.taproot import input_script_sig, leaf_hash, tree_helper
 from btclib.script.witness import Witness
@@ -309,12 +312,11 @@ _P2WSH = "wsh()"
 _P2TR = "tr()"
 
 # where a miniscript may be written, and which of BIP379's two contexts
-# that position is: inside wsh() and inside a tr() leaf, and nowhere else.
-# The tree leaves are not here yet -- BIP387's multi_a() is the leaf
-# `_parse_tree` reads, and a tapscript miniscript is the stage after this
-# one -- so the mapping has one entry and is a mapping because the second
-# is what it is for
-_MINISCRIPT_CONTEXTS = {_P2WSH: miniscript.P2WSH}
+# that position is: inside wsh() and inside a tr() leaf, and nowhere else,
+# which is the BIP's own "only valid in wsh() and tr() contexts". The two
+# dialects differ in more than their keys, so the position is what picks
+# between them rather than something a caller passes
+_MINISCRIPT_CONTEXTS = {_P2WSH: miniscript.P2WSH, _P2TR: miniscript.TAPSCRIPT}
 
 # BIP387's own bound on the keys of a multi_a(): the satisfaction puts one
 # stack element per key, and a script whose spend would push more than the
@@ -446,23 +448,27 @@ def _tree_expression(tree: DescriptorTree) -> str:
     """Return a BIP386 TREE as text: a leaf, or two subtrees in braces."""
     if isinstance(tree, tuple):
         return f"{{{_tree_expression(tree[0])},{_tree_expression(tree[1])}}}"
-    if isinstance(tree, MultiA):
+    if isinstance(tree, (MultiA, Miniscript)):
         return str(tree)
     return _expression("pk", str(tree))
 
 
 # a tr() script tree: a leaf, or a branch of two subtrees. A leaf is the
-# KEY expression a `pk()` leaf is, or the `MultiA` of BIP387's two
+# KEY expression a `pk()` leaf is, the `MultiA` of BIP387's two
 # functions; a branch is a tuple, which is what tells a branch from a
 # leaf. The leaves hold KEY expressions and not scripts because a ranged
 # descriptor has no script until an index is given
-DescriptorLeaf = KeyExpression | MultiA
+DescriptorLeaf = KeyExpression | MultiA | Miniscript
 DescriptorTree = DescriptorLeaf | tuple["DescriptorTree", "DescriptorTree"]
 
 
 def _leaf_keys(leaf: DescriptorLeaf) -> tuple[KeyExpression, ...]:
     """Return the KEY expressions of one leaf, in the order it names them."""
-    return leaf.keys if isinstance(leaf, MultiA) else (leaf,)
+    if isinstance(leaf, MultiA):
+        return leaf.keys
+    if isinstance(leaf, Miniscript):
+        return leaf.key_expressions
+    return (leaf,)
 
 
 def _tree_leaves(tree: DescriptorTree) -> tuple[DescriptorLeaf, ...]:
@@ -487,9 +493,16 @@ def _tree_keys(tree: DescriptorTree) -> tuple[KeyExpression, ...]:
 def _leaf_script(
     leaf: DescriptorLeaf, index: int, network: str, prv_keys: PrvKeys | None
 ) -> ScriptList:
-    """Return the tapscript of one leaf: a ``pk()``, or a ``multi_a()``."""
+    """Return the tapscript of one leaf: a key, a ``multi_a()``, a miniscript.
+
+    Read back into commands where the leaf is a miniscript, that being
+    what a `TaprootLeaf` holds: the round trip is exact for these bytes,
+    every push a miniscript writes being the minimal one.
+    """
     if isinstance(leaf, MultiA):
         return leaf._script(index, network, prv_keys)
+    if isinstance(leaf, Miniscript):
+        return _parse_script(leaf.script(index, network, prv_keys))
     return [leaf.sec(index, network, prv_keys)[1:], "OP_CHECKSIG"]
 
 
@@ -521,10 +534,24 @@ def _leaf_stack(
     index: int,
     network: str,
     prv_keys: PrvKeys | None,
+    spend: SpendContext | None = None,
 ) -> list[bytes] | None:
-    """Return what satisfies one leaf, None where the signatures do not."""
+    """Return what satisfies one leaf, None where the signatures do not.
+
+    None rather than a refusal, for a miniscript leaf as for the other
+    two: which leaf the signatures at hand open is the question the caller
+    is walking the tree to answer, so a leaf they do not open is an answer
+    and not an error -- including one whose branches want a preimage or a
+    lock time this spend does not have.
+    """
     if isinstance(leaf, MultiA):
         return leaf._stack(signatures, index, network, prv_keys)
+    if isinstance(leaf, Miniscript):
+        offered = cast("Mapping[Octets, Octets]", signatures)
+        try:
+            return leaf.satisfy(offered, spend, index, network, prv_keys)
+        except BTClibValueError:
+            return None
     signature = _offered_signature(
         signatures, leaf.sec(index, network, prv_keys), x_only=True
     )
@@ -1224,11 +1251,12 @@ class WshDescriptor(Descriptor):
 class MiniscriptDescriptor(Descriptor):
     """A BIP379 miniscript where a SCRIPT expression may be one.
 
-    Which is inside ``wsh()`` and nowhere else here: BIP379 allows one
-    inside ``tr()`` too, and a tapscript miniscript is the stage of issue
-    #187 after this one. What it holds is the `Miniscript`, whose own
-    interface -- the type properties, the resource bounds, the script both
-    ways -- is `btclib.descriptors.miniscript`'s.
+    Which is inside ``wsh()``: a miniscript inside ``tr()`` is a leaf of
+    the script tree and not a SCRIPT expression, so `DescriptorTree` holds
+    that one directly, the way it holds a ``multi_a()``. What this holds is
+    the `Miniscript`, whose own interface -- the type properties, the
+    resource bounds, the script both ways, the satisfaction -- is
+    `btclib.descriptors.miniscript`'s.
 
     A fragment like the others in what it answers: the script at an index,
     the KEY expressions it names, and the psbt fields those keys fill.
@@ -1635,8 +1663,12 @@ class TrDescriptor(Descriptor):
 
         A script path witness is what satisfies the leaf, then the leaf
         script and the control block, which is BIP341's order: one
-        signature for a ``pk()`` leaf, and one element per key for a
-        ``multi_a()`` one. Both the parity bit and the merkle path in that
+        signature for a ``pk()`` leaf, one element per key for a
+        ``multi_a()`` one, and for a miniscript leaf whatever its
+        non-malleable satisfaction is -- which is where `spend` is read, a
+        branch of one wanting a preimage or a lock time.
+
+        Both the parity bit and the merkle path in that
         control block are the descriptor's to compute, holding the whole
         tree as it does, where a psbt has to be handed them: it is the one
         thing satisfaction here knows that finalization there cannot work
@@ -1658,7 +1690,7 @@ class TrDescriptor(Descriptor):
             raise BTClibValueError("no signature for the tr() internal key")
         script_tree = _taproot_script_tree(self.tree, index, self.network, prv_keys)
         for number, leaf in enumerate(_tree_leaves(self.tree)):
-            stack = _leaf_stack(leaf, signatures, index, self.network, prv_keys)
+            stack = _leaf_stack(leaf, signatures, index, self.network, prv_keys, spend)
             if stack is not None:
                 script, control_block = self._leaf(script_tree, index, number, prv_keys)
                 return b"", Witness([*stack, script, control_block])
@@ -1866,6 +1898,22 @@ def _parse_multi_a(name: str, args: list[str], prv_keys: dict[str, str]) -> Mult
     return MultiA(int(args[0]), keys, sort=name == "sortedmulti_a")
 
 
+def _parse_leaf_miniscript(expression: str, prv_keys: dict[str, str]) -> Miniscript:
+    """Return the miniscript of a tr() leaf, sanity checked as a wsh() one is.
+
+    The tapscript dialect: 32-byte keys, ``multi_a()`` where ``wsh()`` has
+    ``multi()``, and a ``d:`` wrapper that is "u" because MINIMALIF is
+    consensus under taproot. What is refused is what a descriptor refuses
+    anywhere -- an expression that is malleable, needs no signature, mixes
+    timelocks, repeats a key, or has a spend past a resource limit -- and
+    the leaf is where it is said, a tree being several scripts of which
+    this one is unspendable or unsafe.
+    """
+    node = _parse_miniscript(expression, miniscript.TAPSCRIPT, prv_keys)
+    _assert_sane(node)
+    return node
+
+
 def _parse_tree(expression: str, prv_keys: dict[str, str]) -> DescriptorTree:
     """Return the script tree of a BIP386 TREE expression."""
     if expression.startswith("{"):
@@ -1879,23 +1927,27 @@ def _parse_tree(expression: str, prv_keys: dict[str, str]) -> DescriptorTree:
             _parse_tree(branches[0], prv_keys),
             _parse_tree(branches[1], prv_keys),
         )
-    name, arguments = _split_function(expression)
-    args = _split_arguments(arguments)
+    name = expression.partition("(")[0]
     if name in _TREE_FUNCTIONS:
-        return _parse_multi_a(name, args, prv_keys)
+        return _parse_multi_a(
+            name, _split_arguments(expression[len(name) + 1 : -1]), prv_keys
+        )
     if name == "musig":
         # allowed inside tr(), and as a key rather than as a leaf: a leaf
         # is a script, and what a musig() aggregates to is one key of one
         err_msg = "musig() is a key expression: pk(musig(...)) is the leaf"
         raise BTClibValueError(err_msg)
-    if name in _PARSERS:
+    if name in _PARSERS and name != "pk":
         # a SCRIPT function where a leaf is expected: a position rule and
         # not something a later release adds, which is what the position
         # table says and Bitcoin Core's own message says too. ``pk()``
         # allows tr() among its positions and falls through to be read
         _assert_position(name, _P2TR, _PARSERS[name][0])
     if name != "pk":
-        raise BTClibValueError(f"unknown descriptor function: {name}()")
+        # a leaf that is no BIP386 leaf is a BIP379 miniscript, which is
+        # the same order the wsh() half reads its two grammars in
+        return _parse_leaf_miniscript(expression, prv_keys)
+    args = _split_arguments(expression[len(name) + 1 : -1])
     return _parse_key(
         _one_argument(args, name),
         prv_keys,
