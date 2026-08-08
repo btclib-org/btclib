@@ -462,6 +462,7 @@ def test_psbt_exports_the_format_not_its_plumbing() -> None:
     of the format.
     """
     assert sorted(btclib.psbt.__all__) == [
+        "InputSolver",
         "KeyManager",
         "Psbt",
         "PsbtIn",
