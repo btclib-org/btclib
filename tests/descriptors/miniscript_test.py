@@ -44,7 +44,7 @@ import pytest
 
 from btclib.alias import Octets, ScriptList
 from btclib.bip32.key_origin import BIP32KeyOrigin
-from btclib.descriptors import WshDescriptor, miniscript_solver
+from btclib.descriptors import TrDescriptor, WshDescriptor, miniscript_solver
 from btclib.descriptors import parse as parse_descriptor
 from btclib.descriptors.key_expression import KeyExpression
 from btclib.descriptors.miniscript import (
@@ -55,14 +55,15 @@ from btclib.descriptors.miniscript import (
     from_script,
     parse,
 )
-from btclib.ecc import dsa
+from btclib.ecc import dsa, ssa
 from btclib.exceptions import BTClibValueError
 from btclib.hashes import hash160, hash256, ripemd160, sha256
-from btclib.psbt.psbt import Psbt, finalize
+from btclib.psbt.psbt import Psbt, finalize, taproot_sig_hash
 from btclib.script import sig_hash
 from btclib.script.engine import verify_transaction
 from btclib.script.script import serialize
 from btclib.script.script_pub_key import ScriptPubKey
+from btclib.script.taproot import leaf_hash
 from btclib.script.witness import Witness
 from btclib.to_pub_key import pub_keyinfo_from_prv_key
 from btclib.tx.out_point import OutPoint
@@ -1127,3 +1128,126 @@ def test_the_solver_reads_a_key_the_input_knows_by_its_hash() -> None:
         bytes.fromhex(KEYS[1]): BIP32KeyOrigin("deadbeef", [0])
     }
     assert miniscript_solver(psbt, 0) is not None
+
+
+# a tr() whose script tree holds a miniscript leaf beside a key one: the
+# recovery branch of a taproot custody, which is the shape BIP379 allows
+# inside tr() and #503 could only read as a wsh()
+TR_MINISCRIPT = f"tr({KEYS[0]},{{pk({KEYS[1]}),and_v(v:pk({KEYS[2]}),older(36))}})"
+
+
+def test_a_tr_leaf_may_be_a_miniscript() -> None:
+    """Read a miniscript where a tr() takes a leaf, and write it back.
+
+    The tapscript dialect: the keys of the leaf are the 32 bytes a
+    tapscript pushes, and the leaf script is the miniscript's own -- which
+    is what the tree commits to, so the output key changes with it.
+    """
+    parsed = parse_descriptor(TR_MINISCRIPT)
+    assert isinstance(parsed, TrDescriptor)
+    assert str(parsed) == TR_MINISCRIPT
+    leaf = parsed.tree[1] if isinstance(parsed.tree, tuple) else None
+    assert isinstance(leaf, Miniscript)
+    assert leaf.context == TAPSCRIPT
+    assert (
+        leaf.script() == parse(f"and_v(v:pk({KEYS[2]}),older(36))", TAPSCRIPT).script()
+    )
+    # the leaf is one of the two the tree commits to, and its keys are the
+    # descriptor's own
+    assert len(parsed.taproot_leaf_scripts()) == 2
+    assert {key.sec().hex() for key in parsed.key_expressions} == set(KEYS[:3])
+
+
+def test_a_tr_miniscript_leaf_is_spent_on_the_script_path() -> None:
+    """Spend the miniscript leaf of a tr(), and have the engine accept it.
+
+    The witness of a script path spend is the satisfaction, the leaf script
+    and the control block; what is new is that the elements before the
+    script come from the miniscript satisfier, and that the branch wants a
+    sequence the transaction has to carry. The signature is a real BIP340
+    one over the sig hash of that very spend, and `verify_transaction`
+    decides.
+    """
+    parsed = parse_descriptor(TR_MINISCRIPT)
+    prevout = TxOut(50_000, parsed.script_pub_key())
+    tx = Tx(
+        version=2,
+        vin=[TxIn(OutPoint(b"\x07" * 32, 0), sequence=36)],
+        vout=[TxOut(49_000, ScriptPubKey.p2wpkh(KEYS[0]))],
+    )
+    psbt = Psbt.from_tx(tx)
+    psbt.inputs[0].witness_utxo = prevout
+    leaf_script = parse(f"and_v(v:pk({KEYS[2]}),older(36))", TAPSCRIPT).script()
+    msg_hash = taproot_sig_hash(psbt, 0, leaf_hash=leaf_hash(0xC0, leaf_script))
+    signature = ssa.sign_(msg_hash, SIGNING_KEYS[KEYS[2]]).serialize()
+    script_sig, witness = parsed.satisfy(
+        {KEYS[2]: signature}, spend=SpendContext(sequence=36)
+    )
+    assert script_sig == b""
+    # the satisfaction, the leaf script, the control block
+    assert witness.stack[0] == signature
+    assert witness.stack[1] == leaf_script
+    tx.vin[0].script_witness = witness
+    verify_transaction([prevout], tx)
+    # and without the sequence the branch is shut, so no leaf is satisfied
+    with pytest.raises(BTClibValueError, match="no signature for the tr"):
+        parsed.satisfy({KEYS[2]: signature})
+
+
+def test_a_tr_miniscript_leaf_is_held_to_the_same_sanity() -> None:
+    """Refuse a leaf a descriptor would not hold, naming the leaf.
+
+    A tree is several scripts, and one that cannot be spent safely is one
+    a wallet should not be handed whatever the others are.
+    """
+    with pytest.raises(BTClibValueError, match="without signature exist"):
+        parse_descriptor(f"tr({KEYS[0]},{{pk({KEYS[1]}),older(36)}})")
+    # multi() belongs to P2WSH: inside tr() the fragment is multi_a()
+    with pytest.raises(BTClibValueError, match="not allowed in a tapscript"):
+        parse_descriptor(f"tr({KEYS[0]},and_v(v:multi(1,{KEYS[1]}),older(36)))")
+    with pytest.raises(BTClibValueError, match="ill-typed"):
+        parse_descriptor(f"tr({KEYS[0]},and_v(1,1))")
+
+
+# a tr() with a miniscript leaf and the regtest address Bitcoin Core v31.1
+# answers for it, from `getdescriptorinfo` and `deriveaddresses`. The
+# address is the output key, which commits to the whole tree, so agreeing
+# on it is agreeing on every leaf script: the tapscript dialect of the
+# fragments, the 32-byte keys, and the order the tree is built in
+CORE_TR_VECTORS = [
+    (
+        f"tr({CUSTODY_KEYS[0]},and_v(v:pk({CUSTODY_KEYS[1]}),older(36)))",
+        "bcrt1pf4p484mdhmu0436mmztpj8594tnpkhytdj0du5w0gvke6a9lr8lqtse22f",
+    ),
+    (
+        f"tr({CUSTODY_KEYS[0]},{{pk({CUSTODY_KEYS[1]}),and_v(v:pk({CUSTODY_KEYS[2]}),older(36))}})",
+        "bcrt1p0lw39vec3wgmyyyfvgr5p09ncydezxrmde5e44gjqsk30rwcqk7stm96l7",
+    ),
+    (
+        f"tr({CUSTODY_KEYS[0]},{{and_v(v:multi_a(2,{CUSTODY_KEYS[1]},{CUSTODY_KEYS[2]}),after(1231488000)),pk({CUSTODY_KEYS[2]})}})",
+        "bcrt1pxjtajh8f9lf3svdd9qhl542uehfdzh8pewen70ns8j5tzfv55peq88cxuw",
+    ),
+    (
+        f"tr({CUSTODY_KEYS[0]},or_d(pk({CUSTODY_KEYS[1]}),and_v(v:pkh({CUSTODY_KEYS[2]}),older(1008))))",
+        "bcrt1prx5z8n0jguw4v7clt4v3wsnksuyxvvaqljwl2qz4gu9lxjuev9wsmfnl08",
+    ),
+]
+
+
+@pytest.mark.parametrize(
+    "descriptor, address",
+    [
+        pytest.param(descriptor, address, id=vector_id(index, descriptor))
+        for index, (descriptor, address) in enumerate(CORE_TR_VECTORS)
+    ],
+)
+def test_a_tr_miniscript_pays_where_core_says(descriptor: str, address: str) -> None:
+    """Pay to the address Bitcoin Core derives for the same tr() descriptor.
+
+    Four trees: one miniscript leaf, one beside a key leaf, one holding a
+    ``multi_a()`` inside a miniscript, and one whose branch names its key by
+    a hash. Nothing in these is checked by Core's `fixed_tests`, which is
+    about expressions rather than about descriptors, and nothing else says
+    the tapscript dialect is wired to the right side of a ``tr()``.
+    """
+    assert parse_descriptor(descriptor, "regtest").address() == address

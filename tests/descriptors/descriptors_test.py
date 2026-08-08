@@ -974,7 +974,9 @@ UNPARSABLE = [
     (f"wsh(rawtr({XONLY}))", "not allowed inside"),
     (f"tr({XONLY},rawtr({XONLY}))", "not allowed inside"),
     (f"tr({XONLY},pkh({KEY}))", "not allowed inside"),
-    (f"tr({XONLY},nope({KEY}))", "unknown descriptor function"),
+    # inside tr() a function that is no BIP386 leaf is read as a
+    # miniscript, so what answers is the language and not the table
+    (f"tr({XONLY},nope({KEY}))", "unknown miniscript fragment"),
     # Core refuses a second key too, as rawtr(): only one key expected
     (f"rawtr({XONLY},{XONLY})", "takes one argument"),
     (f"rawtr({UNCOMPRESSED})", "uncompressed"),
