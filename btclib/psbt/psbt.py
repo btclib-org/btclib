@@ -2520,6 +2520,10 @@ def finalize(psbt: Psbt, *, solver: InputSolver | None = None) -> Psbt:
     from the signatures and the script, which is the satisfaction of a
     multisig and a guess for anything else, so a caller with a script of
     their own has to be able to answer over it rather than after it.
+    `descriptors.miniscript_solver` is that answer wherever the witness
+    script is a BIP379 miniscript, and it is a solver rather than a branch
+    of this function for a reason of layering: `descriptors` imports this
+    module and nothing here imports back.
 
     What the solver does not take over is the bookkeeping: the clearing
     BIP174 asks for, what is kept, and the verification of whatever

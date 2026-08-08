@@ -43,7 +43,8 @@ from typing import Any
 import pytest
 
 from btclib.alias import Octets, ScriptList
-from btclib.descriptors import WshDescriptor
+from btclib.bip32.key_origin import BIP32KeyOrigin
+from btclib.descriptors import WshDescriptor, miniscript_solver
 from btclib.descriptors import parse as parse_descriptor
 from btclib.descriptors.key_expression import KeyExpression
 from btclib.descriptors.miniscript import (
@@ -57,7 +58,7 @@ from btclib.descriptors.miniscript import (
 from btclib.ecc import dsa
 from btclib.exceptions import BTClibValueError
 from btclib.hashes import hash160, hash256, ripemd160, sha256
-from btclib.psbt.psbt import Psbt
+from btclib.psbt.psbt import Psbt, finalize
 from btclib.script import sig_hash
 from btclib.script.engine import verify_transaction
 from btclib.script.script import serialize
@@ -866,10 +867,10 @@ def test_a_refused_descriptor_says_what_is_wrong(descriptor: str, message: str) 
 # keys 1 to 255, and the four digests of each key's own 32 bytes -- every
 # hash fragment in the vectors commits to one of those arrays
 PRV_KEYS = [31 * b"\x00" + bytes([i]) for i in range(1, 256)]
-SHA256_PREIMAGES: dict[Octets, Octets] = {sha256(k): k for k in PRV_KEYS}
-HASH256_PREIMAGES: dict[Octets, Octets] = {hash256(k): k for k in PRV_KEYS}
-RIPEMD160_PREIMAGES: dict[Octets, Octets] = {ripemd160(k): k for k in PRV_KEYS}
-HASH160_PREIMAGES: dict[Octets, Octets] = {hash160(k): k for k in PRV_KEYS}
+SHA256_PREIMAGES: dict[bytes, bytes] = {sha256(k): k for k in PRV_KEYS}
+HASH256_PREIMAGES: dict[bytes, bytes] = {hash256(k): k for k in PRV_KEYS}
+RIPEMD160_PREIMAGES: dict[bytes, bytes] = {ripemd160(k): k for k in PRV_KEYS}
+HASH160_PREIMAGES: dict[bytes, bytes] = {hash160(k): k for k in PRV_KEYS}
 SIGNING_KEYS = dict(zip(KEYS, PRV_KEYS, strict=True))
 
 # the four spends a satisfaction is tried against: an absolute lock time
@@ -1014,3 +1015,115 @@ def test_a_tapscript_multi_a_is_satisfied_with_one_element_per_key() -> None:
     assert len(stack) == len(node.keys)
     with pytest.raises(BTClibValueError, match="no satisfaction"):
         node.satisfy({})
+
+
+# the shapes a psbt is finalized in below: a timelocked single key, a
+# 2-of-2 whose recovery branch is timelocked, a hash lock, and the
+# authorization gate of issue #187, which is the one with three branches
+SOLVER_EXPRESSIONS = [
+    f"and_v(v:pk({KEYS[0]}),older(36))",
+    f"or_d(pk({KEYS[0]}),and_v(v:pkh({KEYS[1]}),older(1008)))",
+    f"and_v(v:pk({KEYS[0]}),sha256({sha256(PRV_KEYS[3]).hex()}))",
+    AUTHORIZATION_GATE,
+]
+
+
+def signed_psbt(
+    node: Miniscript, keys: list[str], locktime: int, sequence: int
+) -> tuple[Psbt, list[TxOut]]:
+    """Return a psbt spending a p2wsh miniscript, signed by `keys`.
+
+    The Updater's work is the descriptor's: the witness script and the
+    preimages go in the input, which is where the solver reads them from.
+    """
+    script = node.script()
+    prevout = TxOut(50_000, ScriptPubKey.p2wsh(script))
+    tx = Tx(
+        version=2,
+        lock_time=locktime,
+        vin=[TxIn(OutPoint(b"\x05" * 32, 0), sequence=sequence)],
+        vout=[TxOut(49_000, ScriptPubKey.p2wpkh(KEYS[0]))],
+    )
+    psbt = Psbt.from_tx(tx)
+    psbt.inputs[0].witness_utxo = prevout
+    psbt.inputs[0].witness_script = script
+    psbt.inputs[0].sha256_preimages = {sha256(k): k for k in PRV_KEYS[:8]}
+    msg_hash = sig_hash.segwit_v0(script, tx, 0, 1, prevout.value)
+    psbt.inputs[0].partial_sigs = {
+        bytes.fromhex(key): dsa.sign_(msg_hash, SIGNING_KEYS[key]).serialize() + b"\x01"
+        for key in keys
+    }
+    return psbt, [prevout]
+
+
+@pytest.mark.parametrize(
+    "expression",
+    [
+        pytest.param(expression, id=vector_id(index, expression))
+        for index, expression in enumerate(SOLVER_EXPRESSIONS)
+    ],
+)
+def test_the_solver_finalizes_a_miniscript_input(expression: str) -> None:
+    """Finalize a p2wsh miniscript input, and run what it built.
+
+    `psbt.finalize` cannot read a miniscript itself -- `descriptors`
+    imports `psbt` and not the other way round -- so the solver is what
+    closes the circle, and this is the whole flow through it: the witness
+    script and the preimages in the input, the signatures over the sig hash
+    of the transaction being built, and `verify_transaction` on what comes
+    out.
+    """
+    node = parse(expression)
+    signers = [key.sec().hex() for key in node.key_expressions]
+    psbt, prevouts = signed_psbt(node, signers, 499999999, 0x0000FFFF)
+    final = finalize(psbt, solver=miniscript_solver)
+    psbt_in = final.inputs[0]
+    assert psbt_in.final_script_sig == b""
+    assert psbt_in.final_script_witness.stack[-1] == node.script()
+    # the finalized fields are what the extractor puts in the transaction,
+    # and the engine is what says the spend is one the network takes
+    spending = final.tx
+    spending.vin[0].script_witness = psbt_in.final_script_witness
+    verify_transaction(prevouts, spending)
+
+
+def test_the_solver_answers_for_what_is_its_business_and_no_more() -> None:
+    """Return None where the input is not a miniscript, and refuse where it is.
+
+    Three answers, and the middle one is the point of a solver returning
+    None rather than raising: an input it does not recognize is one the
+    generic finalizer still answers for, exactly as it did before.
+    """
+    node = parse(f"and_v(v:pk({KEYS[0]}),older(36))")
+    # a sequence of 35 does not open a branch that wants 36
+    psbt, _ = signed_psbt(node, [KEYS[0]], 499999999, 35)
+    with pytest.raises(BTClibValueError, match="no satisfaction"):
+        finalize(psbt, solver=miniscript_solver)
+    # an input with no witness script at all
+    psbt, _ = signed_psbt(node, [KEYS[0]], 499999999, 0x0000FFFF)
+    psbt.inputs[0].witness_script = b""
+    assert miniscript_solver(psbt, 0) is None
+    # and one whose witness script is no miniscript
+    psbt, _ = signed_psbt(node, [KEYS[0]], 499999999, 0x0000FFFF)
+    psbt.inputs[0].witness_script = serialize(["OP_DROP", "OP_1"])
+    assert miniscript_solver(psbt, 0) is None
+
+
+def test_the_solver_reads_a_key_the_input_knows_by_its_hash() -> None:
+    """Recognize a pkh() fragment, whose script holds no key.
+
+    The keys an input carries are what makes that readable: the ones that
+    signed, and the ones a key origin names. Without either the witness
+    script is not a miniscript as far as anything can tell, and the solver
+    says so by answering None.
+    """
+    node = parse(f"or_d(pk({KEYS[0]}),and_v(v:pkh({KEYS[1]}),older(1008)))")
+    psbt, _ = signed_psbt(node, [KEYS[1]], 499999999, 1008)
+    assert miniscript_solver(psbt, 0) is not None
+    # the origin of a key is enough, the psbt knowing the key from it
+    psbt, _ = signed_psbt(node, [KEYS[0]], 499999999, 0x0000FFFF)
+    assert miniscript_solver(psbt, 0) is None
+    psbt.inputs[0].hd_key_paths = {
+        bytes.fromhex(KEYS[1]): BIP32KeyOrigin("deadbeef", [0])
+    }
+    assert miniscript_solver(psbt, 0) is not None

@@ -2633,9 +2633,11 @@ class SpendContext:
     an ``older()`` or an ``after()`` can be met at all.
 
     The four preimage mappings are `PsbtIn`'s four, field for field, and
-    keyed the same way: the digest to the bytes that hash to it. A psbt
-    carries them because BIP174 gave them fields, and `psbt.finalize`
-    therefore has a `SpendContext` without asking its caller for one.
+    keyed the same way: the digest to the bytes that hash to it -- bytes
+    and not "bytes or hex", where the signatures of `satisfy` take either,
+    because these come from a psbt rather than from a keyboard. A psbt
+    carries them because BIP174 gave them fields, which is what lets
+    `descriptors.miniscript_solver` build a context out of one.
 
     `sequence` is the input's own, `locktime` the transaction's, and
     `version` matters for the same reason it matters to the interpreter:
@@ -2643,26 +2645,26 @@ class SpendContext:
     in a version-1 transaction is a branch nothing can spend.
     """
 
-    sha256_preimages: Mapping[Octets, Octets] = field(default_factory=dict)
-    hash256_preimages: Mapping[Octets, Octets] = field(default_factory=dict)
-    ripemd160_preimages: Mapping[Octets, Octets] = field(default_factory=dict)
-    hash160_preimages: Mapping[Octets, Octets] = field(default_factory=dict)
+    sha256_preimages: Mapping[bytes, bytes] = field(default_factory=dict)
+    hash256_preimages: Mapping[bytes, bytes] = field(default_factory=dict)
+    ripemd160_preimages: Mapping[bytes, bytes] = field(default_factory=dict)
+    hash160_preimages: Mapping[bytes, bytes] = field(default_factory=dict)
     locktime: int = 0
     sequence: int = 0
     version: int = 2
 
     def _preimage(self, fragment: str, digest: bytes) -> bytes | None:
         """Return the preimage of a digest, None where the caller has none."""
-        preimages = {
+        preimage = {
             "sha256": self.sha256_preimages,
             "hash256": self.hash256_preimages,
             "ripemd160": self.ripemd160_preimages,
             "hash160": self.hash160_preimages,
-        }[fragment]
-        for candidate, preimage in preimages.items():
-            if bytes_from_octets(candidate) == digest:
-                return bytes_from_octets(preimage, 32)
-        return None
+        }[fragment].get(digest)
+        # BIP379 allows a preimage of 32 bytes and no other size, which is
+        # what makes the size of a satisfaction predictable; a mapping
+        # holding another is a caller's mistake and not a missing preimage
+        return None if preimage is None else bytes_from_octets(preimage, 32)
 
     def _after(self, value: int) -> bool:
         """Answer whether the transaction's lock time meets an ``after()``.
