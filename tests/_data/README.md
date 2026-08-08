@@ -585,11 +585,11 @@ the monthly check.
 
 Between them they are what `tests/bip322_test.py` runs: three
 transaction hashes, eight *simple* signatures, ten *full*, three
-*proof of funds*, and 36 error cases. Two of the three proof-of-funds
-vectors are marked `xfail` there, against issue 513: their psbts carry a
-funding transaction whose input is a null tx_id with vout 0, which
-`OutPoint.assert_valid` refuses and Bitcoin Core's `CheckTransaction`
-accepts.
+*proof of funds*, and 36 error cases, with nothing left out and nothing
+marked `xfail`. Two of the three proof-of-funds vectors were, until
+issue 513: their psbts carry a funding transaction whose input is a null
+tx_id with vout 0, which `OutPoint.assert_valid` refused and Bitcoin
+Core's `CheckTransaction` accepts.
 
 ### `tests/_data/basic-test-vectors.json`
 

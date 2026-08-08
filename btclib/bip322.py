@@ -73,6 +73,14 @@ that happens to be 65 bytes long. `sign` here uses SIGHASH_ALL, and
 SIGHASH_DEFAULT where taproot has it; issue 514 is what it costs and what
 closing it would take.
 
+One field of the BIP is not here either:
+`PSBT_GLOBAL_GENERIC_SIGNED_MESSAGE = 0x09`, which a creator puts the
+message in so that a signing device shows "signing message m for address
+A" rather than "spending 0 satoshi". It belongs to the psbt format
+rather than to a signature encoding, and `btclib.psbt` keeps an unknown
+global field as it arrives, so such a psbt round-trips through this
+library today. Issue 516 is registering it.
+
 https://github.com/bitcoin/bips/blob/master/bip-0322.mediawiki
 """
 

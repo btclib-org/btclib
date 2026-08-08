@@ -78,7 +78,7 @@ def test_dataclasses_json_dict_out_point(json_golden: JsonGolden) -> None:
 
 
 def test_invalid_outpoint() -> None:
-    """Refuse a bad tx_id length, vout range, or half-coinbase outpoint."""
+    """Refuse a bad tx_id length or vout range, which is the whole check."""
     out_point = OutPoint(b"\x01" * 31, 18, check_validity=False)
     with pytest.raises(BTClibValueError, match="invalid OutPoint tx_id: "):
         out_point.assert_valid()
@@ -91,13 +91,23 @@ def test_invalid_outpoint() -> None:
     with pytest.raises(BTClibValueError, match="invalid vout: "):
         out_point.assert_valid()
 
-    out_point = OutPoint(b"\x00" * 31 + b"\x01", 0xFFFFFFFF, check_validity=False)
-    with pytest.raises(BTClibValueError, match="invalid OutPoint"):
-        out_point.assert_valid()
 
-    out_point = OutPoint(b"\x00" * 32, 0, check_validity=False)
-    with pytest.raises(BTClibValueError, match="invalid OutPoint"):
-        out_point.assert_valid()
+def test_half_a_coinbase_marker_is_a_valid_outpoint() -> None:
+    """Neither mix of the two sentinels is refused any more (issue 513).
+
+    Core's rule is the conjunction: `COutPoint::IsNull` is
+    `hash.IsNull() && n == NULL_INDEX`, and `CheckTransaction` refuses a
+    null outpoint in a non-coinbase and nothing else. So both of these
+    are outpoints Core parses and checks, and both were refused here --
+    which is what kept `Psbt.parse` from reading the funding
+    transactions of BIP322's proof-of-funds vectors.
+
+    Unspendable is not invalid: what an input names has to exist in the
+    utxo set, and that is a question about the chain rather than about
+    the four bytes and the thirty-two.
+    """
+    OutPoint(b"\x00" * 32, 0).assert_valid()
+    OutPoint(b"\x00" * 31 + b"\x01", 0xFFFFFFFF).assert_valid()
 
 
 def test_a_tx_id_is_exactly_32_bytes() -> None:
@@ -117,10 +127,12 @@ def test_a_tx_id_is_exactly_32_bytes() -> None:
 def test_a_coinbase_marker_is_both_fields_or_neither() -> None:
     """is_coinbase answers for the pair, and half of it is not a coinbase.
 
-    assert_valid refuses the mix, so a valid OutPoint cannot tell the
-    conjunction from either half of it: the objects built with the check
-    off are the only place the question can be put, and the answer decides
-    whether a transaction with such an input is read as a coinbase.
+    It is the only thing that reads the two fields together, `assert_valid`
+    having stopped (issue 513), so it is where the conjunction has to be
+    right: the answer decides whether a transaction with such an input is
+    read as a coinbase, and therefore whether `Tx.assert_valid` holds it
+    to the coinbase script size or refuses it as a coinbase input in a
+    transaction that is not one.
     """
     assert OutPoint().is_coinbase()
 

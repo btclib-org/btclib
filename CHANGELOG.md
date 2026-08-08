@@ -259,16 +259,35 @@ documented at release-notes length in the first place, and are still in
   version that is neither 0 nor 2, an upgradeable NOP, a witness program
   of an unknown version, each of them successful *because* nothing checks
   it. The BIP's own two vector files are vendored whole and every case
-  runs, the three transaction hashes and the 36 error cases included; two
-  proof-of-funds vectors are `xfail` against #513, `OutPoint` refusing
-  the synthetic funding transactions they carry. One required rule is not
-  enforced, SIGHASH_ALL, and #514 is what it costs and what closing it
-  would take: which stack elements were consumed as signatures is
-  bookkeeping the interpreter does not report, and picking them out by
-  shape would refuse a control block that happens to be 65 bytes long.
+  runs, the three transaction hashes and the 36 error cases included and
+  nothing marked `xfail`. One required rule is not enforced, SIGHASH_ALL,
+  and #514 is what it costs and what closing it would take: which stack
+  elements were consumed as signatures is bookkeeping the interpreter
+  does not report, and picking them out by shape would refuse a control
+  block that happens to be 65 bytes long. The global psbt field BIP322
+  adds for the coordination flow,
+  `PSBT_GLOBAL_GENERIC_SIGNED_MESSAGE = 0x09`, is #516: it belongs to
+  the psbt format rather than to a signature encoding, and an unknown
+  global field already round-trips.
 
 ### Transactions, blocks and PSBT
 
+- **`OutPoint` no longer refuses half a coinbase marker** (#513). The
+  rule was `(tx_id == 0) ^ (vout == 0xFFFFFFFF)`, i.e. both sentinels or
+  neither; Bitcoin Core's is the conjunction — `COutPoint::IsNull` is
+  `hash.IsNull() && n == NULL_INDEX`, and `CheckTransaction` refuses a
+  null outpoint in a non-coinbase and nothing else. So `000...000:0` and
+  a real tx_id with vout `0xFFFFFFFF` are outpoints Core parses and
+  checks, and this library could not read a transaction carrying either.
+  What that cost was concrete: BIP322's proof-of-funds vectors name the
+  utxo they prove control of through a synthetic funding transaction of
+  exactly that shape, and `Psbt.parse` raised `invalid OutPoint` before
+  any signature could be looked at. Unspendable is not invalid — whether
+  what an input names exists is the utxo set's answer, not four bytes'
+  and thirty-two — and `is_coinbase` is now the only thing that reads the
+  two fields together, which is where Core's conjunction belongs.
+  `Tx.assert_valid` goes on refusing a coinbase input in a transaction
+  that is not a coinbase, that being the rule consensus has.
 - **`finalize` takes an `InputSolver`**, for the inputs whose spend is
   the caller's to know. Two of the shapes it refuses are refusals -- a
   taproot input carrying more than one script path signature, and a leaf
