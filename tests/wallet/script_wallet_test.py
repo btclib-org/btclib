@@ -25,10 +25,17 @@ from btclib.script.script import op_int
 from btclib.script.script_pub_key import ScriptPubKey
 from btclib.wallet import KeyGroup, ScriptWallet
 
-# the "abandon abandon ... about" seed, and three account keys of it that
-# no wallet elsewhere in the suite uses as a quorum
+# the "abandon abandon ... about" seed, and three account keys of it in an
+# order that none of the sorts below answers: the account keys sort one
+# way, their case-folded xpubs another, and what they derive to a third,
+# so the script written at a position says which of the three wrote it.
+# The first three accounts of the same seed -- which is the quorum
+# `tests/wallet/wallet_test.py` builds -- would say nothing: they are
+# already in the byte order of both their account keys and their xpubs, so
+# a wallet that sorted by anything at all, the network beside the key
+# included, would write the script a wallet that sorted by nothing writes
 _ROOT = "xprv9s21ZrQH143K3GJpoapnV8SFfukcVBSfeCficPSGfubmSFDxo1kuHnLisriDvSnRRuL2Qrg5ggqHKNVpxR86QEC8w35uxmGoggxtQTPvfUu"
-_ACCOUNTS = [f"m/48h/0h/{i}h" for i in range(3)]
+_ACCOUNTS = ["m/48h/0h/1h", "m/48h/0h/0h", "m/48h/0h/5h"]
 _XPRVS = [bip32.derive(_ROOT, account) for account in _ACCOUNTS]
 _XPUBS = [bip32.xpub_from_xprv(xprv) for xprv in _XPRVS]
 
@@ -115,6 +122,11 @@ def test_the_account_order_is_applied_once_and_derived_afterwards() -> None:
     operation on different bytes, and a wallet has to say which it means.
     """
     by_account = sorted(_XPUBS, key=lambda xpub: BIP32KeyData.b58decode(xpub).key)
+    # the sort is a reorder over this quorum, which is what makes the
+    # equality below an assertion about the order rather than about the
+    # keys: over a quorum already in account order every sort writes the
+    # same script, and so does no sort at all
+    assert by_account != _XPUBS
     wallet = ScriptWallet([KeyGroup(2, _XPUBS)], "p2wsh", "account")
     for index in (0, 4):
         assert wallet.witness_script(0, index) == script.serialize(
@@ -126,6 +138,8 @@ def test_the_account_order_is_applied_once_and_derived_afterwards() -> None:
     # and declaration order is a third answer, which is the default
     declared = ScriptWallet([KeyGroup(2, _XPUBS)], "p2wsh")
     assert declared.witness_script(0, 0) == script.serialize(_quorum(2, _XPUBS, 0, 0))
+    assert declared.witness_script(0, 0) != wallet.witness_script(0, 0)
+    assert declared.witness_script(0, 0) != derived.witness_script(0, 0)
 
 
 def test_a_sort_key_orders_by_something_that_is_not_a_byte_order() -> None:
@@ -135,6 +149,14 @@ def test_a_sort_key_orders_by_something_that_is_not_a_byte_order() -> None:
     the sort is a strategy with a key function rather than a constant.
     """
     by_lower_case = sorted(_XPUBS, key=str.lower)
+    # a third order, and that is the whole of what makes the assertion
+    # below about the key function: it is not the declaration order, so a
+    # sort ran, and it is not the account keys' byte order either, so the
+    # sort that ran is this one and not the default
+    assert by_lower_case != _XPUBS
+    assert by_lower_case != sorted(
+        _XPUBS, key=lambda xpub: BIP32KeyData.b58decode(xpub).key
+    )
     wallet = ScriptWallet(
         [KeyGroup(2, _XPUBS)],
         "p2wsh",
@@ -294,7 +316,12 @@ def test_an_xprv_in_a_quorum_is_what_makes_a_wallet_not_watch_only() -> None:
     assert signing.address(0, 0) == watching.address(0, 0)
     # nor does the account order read the private key: sorting by
     # BIP32KeyData.key would order the xprvs by material the xpubs do not
-    # have, and answer two different scripts for one wallet
+    # have, and answer two different scripts for one wallet -- these three
+    # accounts sort one way by their private keys and the other by their
+    # public ones, which is what leaves the equality below something to say
+    assert sorted(range(3), key=lambda i: BIP32KeyData.b58decode(_XPRVS[i]).key) != (
+        sorted(range(3), key=lambda i: BIP32KeyData.b58decode(_XPUBS[i]).key)
+    )
     assert ScriptWallet([KeyGroup(2, _XPRVS)], "p2wsh", "account").address(
         0, 0
     ) == ScriptWallet([KeyGroup(2, _XPUBS)], "p2wsh", "account").address(0, 0)

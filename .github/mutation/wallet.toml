@@ -95,11 +95,23 @@ exclude-operators = ["core/ReplaceBinaryOperator_BitOr_.*"]
 #   (bms.toml states the class), and `len(indexes) is not
 #   _ACCOUNT_LEVELS`, where CPython interns both small ints.
 #
-# One is left open and is a gap: `_account_sec`'s
-# `pub_keyinfo_from_key(xkey)[0]` weakened to `[-1]` -- the network beside
-# the key -- survives because nothing builds a `ScriptWallet` with
-# `order="account"`, the one ordering that sorts participants by it.
-# Issue #561.
+# The last one, `_account_sec`'s `pub_keyinfo_from_key(xkey)[0]` weakened
+# to `[-1]` -- the network beside the key, which every participant of a
+# wallet shares, so the sort becomes a no-op -- is closed too (#561), and
+# what it took is worth writing down: not a wallet with `order="account"`,
+# which the suite did build, but a quorum over which that order is
+# *observable*. The three accounts it was built from were declared in the
+# byte order of their own account keys, and over a quorum already sorted
+# every sort writes the script no sort writes. The three
+# `tests/wallet/script_wallet_test.py` uses are declared in an order that
+# is none of the four the module reaches -- the account keys', their
+# case-folded xpubs', the derived keys', and the private keys' -- and each
+# of the four is asserted to be the one the script carries. The three
+# mutants beside it, `_account_order`'s `!= "account"` turned `==` and its
+# `sort_key or _account_sec` turned `and`, and `_quorum`'s `== "derived"`
+# turned `!=`, were dead before this and are dead after: measured, because
+# a fixture that makes one assertion vacuous is the kind of thing that
+# makes its neighbours vacuous too.
 
 # one mutant at a time, in this working tree: see sig_hash.toml
 [cosmic-ray.distributor]
