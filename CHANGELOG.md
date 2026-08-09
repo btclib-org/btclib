@@ -313,6 +313,25 @@ documented at release-notes length in the first place, and are still in
 
 ### Transactions, blocks and PSBT
 
+- **A `BitcoinCoreFetcher` asks the node which chain it serves** (#521).
+  `assert_network` has always been able to catch the one silent failure
+  of this class -- a testnet node under a `mainnet` label renders mainnet
+  addresses for outputs that are not there -- and nothing required a
+  caller to call it. `verify_network` does, and it is on by default: the
+  question is asked once, before the first fetch, and the answer is kept.
+  `verify_network=False` is the opt-out, and is what this class did
+  before.
+
+  Before the first fetch rather than in the constructor, which is the
+  other shape the issue offered: the round trip is worth paying where an
+  answer is about to be trusted and wasted where a fetcher is built and
+  never used, and a node that is merely down should not be a failure to
+  *construct* anything. What is remembered is an answer and not an
+  attempt: a chain that disagrees is a fact about a configuration, so it
+  is raised again for every later fetch without asking twice, while a
+  node that could not be reached is asked again by the fetch after it. A
+  fetcher that refused once and then served an address on the next call
+  would be the silent failure with one more step in it.
 - **`OutPoint` no longer refuses half a coinbase marker** (#513). The
   rule was `(tx_id == 0) ^ (vout == 0xFFFFFFFF)`, i.e. both sentinels or
   neither; Bitcoin Core's is the conjunction — `COutPoint::IsNull` is

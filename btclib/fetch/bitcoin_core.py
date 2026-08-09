@@ -84,13 +84,57 @@ class BitcoinCoreFetcher(Fetcher):
 
     `network` is btclib's chain label and belongs here, not to the connection:
     it is what the outputs of a fetched transaction are labelled with. The
-    client knows a URL and no chain, and no fetch asks the node which one it
-    serves; `assert_network` is that question, asked when a caller asks it.
+    client knows a URL and no chain, so the label is a claim until the node
+    is asked, and `assert_network` is the question.
+
+    `verify_network` is who asks it. On by default and before the first
+    fetch rather than in this constructor: the answer costs a round trip
+    that is worth paying where it is checked and wasted where a fetcher is
+    built and never used, and a node that is merely down should not be a
+    failure to *construct* anything. The answer is then kept -- a node
+    does not change chain under a client that goes on pointing at it --
+    and a caller that would rather not ask says `verify_network=False`,
+    which is what this class did before the option existed.
     """
 
-    def __init__(self, client: BitcoinCoreRpcClient, network: str = "mainnet") -> None:
+    def __init__(
+        self,
+        client: BitcoinCoreRpcClient,
+        network: str = "mainnet",
+        *,
+        verify_network: bool = True,
+    ) -> None:
         super().__init__(network)
         self.client = client
+        self.verify_network = verify_network
+        self._agreed = False
+        self._disagreement = ""
+
+    def _verify_once(self) -> None:
+        """Compare the node's chain with this fetcher's label, once.
+
+        Called by the three fetches and not by `_call`, which is what
+        `assert_network` itself goes through: a check in there would ask
+        the node about the node, from inside the question.
+
+        A disagreement is remembered and raised again for every later
+        fetch, because it is a settled fact about a configuration rather
+        than a request that failed -- and a fetcher that asked once,
+        refused once and then served an address would be the silent
+        failure this exists to stop. A `FetchError` is not an answer and
+        is remembered as nothing: the node was unreachable or spoke
+        nonsense, which the next fetch may well find otherwise.
+        """
+        if not self.verify_network or self._agreed:
+            return
+        if self._disagreement:
+            raise BTClibValueError(self._disagreement)
+        try:
+            self.assert_network()
+        except BTClibValueError as e:
+            self._disagreement = str(e)
+            raise
+        self._agreed = True
 
     def _call(
         self,
@@ -124,18 +168,21 @@ class BitcoinCoreFetcher(Fetcher):
         its mempool, one of its wallet's, and -- only with `-txindex` -- any
         other. Without the index the error is RPC code -5.
         """
+        self._verify_once()
         hex_ = tx_id_hex(tx_id)
         raw = self._call("getrawtransaction", [hex_])
         return tx_from_raw(raw, hex_, self.network)
 
     def get_block_count(self) -> int:
         """Return the height of the node's best chain tip."""
+        self._verify_once()
         with fetch_errors("getblockcount"):
             reply = self._call("getblockcount", max_body_size=_MAX_SMALL_REPLY)
             return int(reply)
 
     def get_best_block_id(self) -> bytes:
         """Return the hash of the node's best chain tip, display order."""
+        self._verify_once()
         with fetch_errors("getbestblockhash"):
             reply = self._call("getbestblockhash", max_body_size=_MAX_SMALL_REPLY)
             return bytes_from_octets(reply, 32)
@@ -143,12 +190,13 @@ class BitcoinCoreFetcher(Fetcher):
     def assert_network(self) -> None:
         """Raise unless the node serves the chain this fetcher labels with.
 
-        Explicit, and asked by a caller rather than by every fetch: it
-        costs an rpc round trip that a caller with one node and one chain
-        has no use for, and the answer cannot change under a client that
-        goes on pointing at the same node.
+        One round trip, asked once and not per fetch: the answer cannot
+        change under a client that goes on pointing at the same node.
+        `verify_network` is what asks it before the first fetch, and this
+        stays public for a caller that wants the question answered at a
+        moment of its own -- at startup, or after a client was repointed.
 
-        Worth one call, though, because the failure it catches is silent.
+        Worth the call, because the failure it catches is silent.
         A client built for a testnet node -- an explicit url, no port
         default in the way -- under a fetcher labelled `mainnet` renders a
         mainnet address for every output it fetches, for coins that are

@@ -102,10 +102,21 @@ def client(
 def fetcher(
     *answers: tuple[int, bytes] | Exception, **kwargs: object
 ) -> BitcoinCoreFetcher:
-    """Return a BitcoinCoreFetcher over a recorded client."""
+    """Return a BitcoinCoreFetcher over a recorded client.
+
+    `verify_network=False` unless a test says otherwise: the scripted
+    replies are consumed in order, so a fetcher that asked the node which
+    chain it serves would eat the reply the test wrote for the call it is
+    about. The tests that *are* about the question say so and script the
+    `getblockchaininfo` reply first.
+    """
     network = kwargs.pop("network", "mainnet")
     assert isinstance(network, str)
-    return BitcoinCoreFetcher(client(*answers, **kwargs), network)
+    verify_network = kwargs.pop("verify_network", False)
+    assert isinstance(verify_network, bool)
+    return BitcoinCoreFetcher(
+        client(*answers, **kwargs), network, verify_network=verify_network
+    )
 
 
 def recording(endpoint: BitcoinCoreRpcClient) -> Recorded:
@@ -122,6 +133,18 @@ def sent(endpoint: BitcoinCoreRpcClient) -> dict[str, object]:
     return body
 
 
+def asked(endpoint: BitcoinCoreRpcClient) -> list[str]:
+    """Return the method of every call a client made, in order."""
+    methods = []
+    for request in recording(endpoint).requests:
+        data = request.data
+        assert isinstance(data, bytes)
+        body = json.loads(data)
+        assert isinstance(body, dict)
+        methods.append(str(body["method"]))
+    return methods
+
+
 def test_get_tx_parses_the_serialization_the_node_sent() -> None:
     """Verbosity 0, so the id is recomputed rather than taken on trust."""
     tx = fetcher((200, recorded_body("getrawtransaction.json"))).get_tx(TX_ID)
@@ -133,7 +156,7 @@ def test_get_tx_parses_the_serialization_the_node_sent() -> None:
 def test_get_tx_asks_for_the_id_it_was_given() -> None:
     """Verify get_tx sends getrawtransaction with the hex id it was given."""
     endpoint = client((200, recorded_body("getrawtransaction.json")))
-    BitcoinCoreFetcher(endpoint).get_tx(bytes.fromhex(TX_ID))
+    BitcoinCoreFetcher(endpoint, verify_network=False).get_tx(bytes.fromhex(TX_ID))
     body = sent(endpoint)
     assert body["method"] == "getrawtransaction"
     assert body["params"] == [TX_ID]
@@ -142,7 +165,7 @@ def test_get_tx_asks_for_the_id_it_was_given() -> None:
 def test_get_tx_labels_the_outputs_for_the_fetchers_network() -> None:
     """The network is the fetcher's: the client knows a url and no chain."""
     endpoint = client((200, recorded_body("getrawtransaction.json")))
-    tx = BitcoinCoreFetcher(endpoint, "testnet").get_tx(TX_ID)
+    tx = BitcoinCoreFetcher(endpoint, "testnet", verify_network=False).get_tx(TX_ID)
     assert [out.script_pub_key.network for out in tx.vout] == ["testnet"] * 2
 
 
@@ -306,6 +329,75 @@ def test_assert_network_refuses_a_malformed_reply(result: object, message: str) 
     body = json.dumps({"jsonrpc": "2.0", "result": result, "id": "x"}).encode()
     with pytest.raises(FetchError, match=message):
         fetcher((200, body), network="mainnet").assert_network()
+
+
+def test_the_first_fetch_asks_the_node_which_chain_it_serves() -> None:
+    """Which is what `verify_network` buys, and it is on by default."""
+    endpoint = client(
+        blockchaininfo(chain="main"), (200, recorded_body("getrawtransaction.json"))
+    )
+    assert BitcoinCoreFetcher(endpoint).get_tx(TX_ID).id.hex() == TX_ID
+    assert asked(endpoint) == ["getblockchaininfo", "getrawtransaction"]
+
+
+def test_the_chain_is_asked_for_once_and_not_per_fetch() -> None:
+    """A node does not change chain under a client pointing at it."""
+    endpoint = client(
+        blockchaininfo(chain="main"),
+        (200, recorded_body("getblockcount.json")),
+        (200, recorded_body("getbestblockhash.json")),
+    )
+    core = BitcoinCoreFetcher(endpoint)
+    assert core.get_block_count() == TIP_HEIGHT
+    assert core.get_best_block_id().hex() == TIP_ID
+    assert asked(endpoint) == ["getblockchaininfo", "getblockcount", "getbestblockhash"]
+
+
+def test_a_node_on_another_chain_answers_no_fetch_at_all() -> None:
+    """The failure the option exists for, and it does not wear off.
+
+    A fetcher that asked once, was refused once and then served an
+    address on the next call would be the silent failure with an extra
+    step, so the disagreement is remembered -- and remembered rather than
+    re-asked, which is what the second call proves by adding no request.
+    """
+    endpoint = client(blockchaininfo(chain="test"))
+    core = BitcoinCoreFetcher(endpoint, "mainnet")
+    for _ in range(2):
+        with pytest.raises(BTClibValueError, match="node is on test"):
+            core.get_tx(TX_ID)
+    assert asked(endpoint) == ["getblockchaininfo"]
+
+
+def test_a_node_that_could_not_be_asked_is_asked_again() -> None:
+    """A node that did not answer said nothing about which chain it is on.
+
+    The distinction the remembering rests on: a chain that disagrees is a
+    fact about a configuration, where a socket that did not connect is a
+    request to make again.
+    """
+    endpoint = client(
+        rpc.FetchError("no answer from http://127.0.0.1:8332: refused"),
+        blockchaininfo(chain="main"),
+        (200, recorded_body("getrawtransaction.json")),
+    )
+    core = BitcoinCoreFetcher(endpoint)
+    with pytest.raises(FetchError, match="refused"):
+        core.get_tx(TX_ID)
+    assert core.get_tx(TX_ID).id.hex() == TX_ID
+    assert asked(endpoint) == [
+        "getblockchaininfo",
+        "getblockchaininfo",
+        "getrawtransaction",
+    ]
+
+
+def test_verify_network_false_asks_the_node_nothing() -> None:
+    """The opt-out is one round trip, and is what this class did before."""
+    endpoint = client((200, recorded_body("getrawtransaction.json")))
+    core = BitcoinCoreFetcher(endpoint, verify_network=False)
+    assert core.get_tx(TX_ID).id.hex() == TX_ID
+    assert asked(endpoint) == ["getrawtransaction"]
 
 
 def test_get_tx_out_reads_one_output_of_the_previous_transaction() -> None:
