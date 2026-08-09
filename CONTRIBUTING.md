@@ -423,6 +423,24 @@ exits non-zero for one, which is the only thing the workflow is red about.
 Its docstring says why it reads the session file rather than `cosmic-ray
 dump`, which cannot read one of these sessions at all.
 
+The `integration` workflow, weekly and on demand, which gates nothing
+either and asks the one question the rest of CI cannot: whether Bitcoin
+Core accepts what btclib built. It downloads a pinned Core release,
+verifies its published sha256, and runs the tests `tests/README.md`
+documents with the binary named rather than found on PATH:
+
+```shell
+BTCLIB_INTEGRATION=1 BTCLIB_BITCOIND=/path/to/bitcoind \
+    uv run --locked --no-default-groups --group test \
+    pytest tests/integration --junitxml=integration.xml
+```
+
+A step after it reads that report and fails the job if a regtest test
+skipped: pytest exits 0 for a module that skipped itself, so a job whose
+fixture stopped finding the node would stay green while asking Core
+nothing. The HWI tests skip there by design, needing a device or an
+emulator, and are not counted.
+
 The documentation, which the `Build the documentation` job of `lint.yml`
 runs with this same command, as read the docs does. `-W` is what makes an
 `automodule` whose module does not import a failure rather than an empty
