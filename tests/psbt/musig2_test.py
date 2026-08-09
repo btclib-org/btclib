@@ -481,11 +481,19 @@ def test_another_session_in_the_same_input_is_not_read_as_this_one(
     # two keys of a session that is not this one, one sorting under the
     # real aggregate key and one over it: the maps hold real keys, the
     # psbt refusing anything else, so the foreign session is built from
-    # points rather than from bytes that would not validate
-    keys = [bytes_from_point(mult(scalar)) for scalar in range(2, 40)]
-    below = next(key for key in keys if key < session)
-    above = next(key for key in keys if key > session)
-    for foreign in (below, above):
+    # points rather than from bytes that would not validate.
+    #
+    # Both sides are collected and asserted rather than taken with a
+    # `next`: a key sorts below this session's only if its prefix is
+    # smaller or its x is, and which of those a vector leaves available is
+    # the vector's business -- so a search that came up empty should say
+    # what it wanted and not end the test with a StopIteration.
+    keys = [bytes_from_point(mult(scalar)) for scalar in range(2, 200)]
+    below = [key for key in keys if key < session]
+    above = [key for key in keys if key > session]
+    assert below, "no key of these points sorts below the session's own"
+    assert above, "no key of these points sorts above the session's own"
+    for foreign in (below[0], above[0]):
         key_data = participant[:33] + foreign + leaf
         psbt_in.musig2_pub_nonces[key_data] = nonce
         psbt_in.musig2_partial_sigs[key_data] = partial_sig
