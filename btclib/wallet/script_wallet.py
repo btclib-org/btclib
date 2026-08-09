@@ -38,11 +38,13 @@ index)` and `position_of(script_pub_key)`::
 The template is a `script.serialize` command list with `KeyGroup` objects
 among the commands, and a group writes what OP_CHECKMULTISIG reads:
 `k <key>... n OP_CHECKMULTISIG`, the keys being the ones derived at the
-position. So the template is Python objects and not text: **there is no
-text format here, and no parser**. Inventing a second, worse descriptor
-language is how this feature goes wrong, and a wallet that cannot be
-written down cannot be mistaken for one that can be handed to Bitcoin
-Core.
+position -- or, with `verify=True`, `OP_CHECKMULTISIGVERIFY` in place of
+that last opcode, which is the form a required quorum takes rather than
+one left on the stack. So the template is Python objects and not text:
+**there is no text format here, and no parser**. Inventing a second,
+worse descriptor language is how this feature goes wrong, and a wallet
+that cannot be written down cannot be mistaken for one that can be
+handed to Bitcoin Core.
 
 **Not liftable, in either direction.** No `from_script`, and no
 `to_descriptor`. A wallet that a descriptor states should be one --
@@ -173,9 +175,16 @@ class KeyGroup:
     in, unless the wallet holding the group says otherwise: ordering is
     the wallet's parameter, not the group's, because the wallets deployed
     with a per-index order apply it to every quorum of the script.
+
+    `verify=True` writes `OP_CHECKMULTISIGVERIFY` in place of the last
+    opcode and nothing else about the group -- the same choice miniscript
+    makes with its `v:` wrapper, and the form `and_v(v:multi(...), ...)`
+    compiles to.
     """
 
-    def __init__(self, threshold: int, keys: Sequence[BIP32Key]) -> None:
+    def __init__(
+        self, threshold: int, keys: Sequence[BIP32Key], verify: bool = False
+    ) -> None:
         self.keys = tuple(
             key if isinstance(key, BIP32KeyData) else BIP32KeyData.b58decode(key)
             for key in keys
@@ -189,10 +198,12 @@ class KeyGroup:
             err_msg = f"invalid threshold in {threshold}-of-{n}"
             raise BTClibValueError(err_msg)
         self.threshold = threshold
+        self.verify = verify
 
     def __repr__(self) -> str:
         """Return the quorum, and no key: one of them may be an xprv."""
-        return f"KeyGroup({self.threshold}, {len(self.keys)} keys)"
+        verify = ", verify=True" if self.verify else ""
+        return f"KeyGroup({self.threshold}, {len(self.keys)} keys{verify})"
 
 
 class ScriptWallet(RangedWallet):
@@ -294,7 +305,12 @@ class ScriptWallet(RangedWallet):
         )[0]
 
     def _quorum(
-        self, threshold: int, keys: tuple[BIP32KeyData, ...], branch: int, index: int
+        self,
+        threshold: int,
+        keys: tuple[BIP32KeyData, ...],
+        verify: bool,
+        branch: int,
+        index: int,
     ) -> ScriptList:
         """Return what a group writes into the script at one position."""
         derived = [self._derived_sec(key, branch, index) for key in keys]
@@ -302,7 +318,8 @@ class ScriptWallet(RangedWallet):
             # `key=None` is the plain byte order sorted() would use
             # anyway, so one call spells both readings
             derived.sort(key=self.sort_key)
-        return [op_int(threshold), *derived, op_int(len(derived)), "OP_CHECKMULTISIG"]
+        opcode = "OP_CHECKMULTISIGVERIFY" if verify else "OP_CHECKMULTISIG"
+        return [op_int(threshold), *derived, op_int(len(derived)), opcode]
 
     def _script(self, branch: int, index: int) -> bytes:
         """Return the script the template writes at one position."""
@@ -310,7 +327,11 @@ class ScriptWallet(RangedWallet):
         for position, command in enumerate(self.template):
             if isinstance(command, KeyGroup):
                 commands += self._quorum(
-                    command.threshold, self._ordered_keys[position], branch, index
+                    command.threshold,
+                    self._ordered_keys[position],
+                    command.verify,
+                    branch,
+                    index,
                 )
             else:
                 commands.append(command)

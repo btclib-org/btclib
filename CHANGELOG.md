@@ -600,6 +600,16 @@ documented at release-notes length in the first place, and are still in
   does not ask. A `combo()` is refused: four scripts at one index are
   four addresses at one position, which would make `address(branch,
   index)` a lie, and `Descriptor.script_pub_keys` is what answers for one.
+- **`KeyGroup` can write `OP_CHECKMULTISIGVERIFY`** (#546). A group wrote
+  `OP_CHECKMULTISIG` and nothing else, so the quorum a required branch
+  needs -- `and_v(v:multi(...), older(n))` compiles to the VERIFY form,
+  which is what a BIP67 sort on the *derived* keys places outside every
+  descriptor's reach -- had no way into a template except a caller
+  reaching past `ScriptWallet` for `script.serialize` directly.
+  `KeyGroup(threshold, keys, verify=True)` writes that one opcode in
+  place of the other and changes nothing else about the group, mirroring
+  the `verify` parameter `descriptors.miniscript` already carries for the
+  same opcode.
 
 ### Packaging, linting and CI
 

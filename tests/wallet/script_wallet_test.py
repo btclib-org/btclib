@@ -43,13 +43,19 @@ def _derived(xpub: str, branch: int, index: int) -> bytes:
 
 
 def _quorum(
-    threshold: int, xpubs: list[str], branch: int, index: int, sort: bool = False
+    threshold: int,
+    xpubs: list[str],
+    branch: int,
+    index: int,
+    sort: bool = False,
+    verify: bool = False,
 ) -> list[Command]:
-    """Return `k <key>... n OP_CHECKMULTISIG`, by hand."""
+    """Return `k <key>... n OP_CHECKMULTISIG[VERIFY]`, by hand."""
     keys = [_derived(xpub, branch, index) for xpub in xpubs]
     if sort:
         keys.sort()
-    return [op_int(threshold), *keys, op_int(len(keys)), "OP_CHECKMULTISIG"]
+    opcode = "OP_CHECKMULTISIGVERIFY" if verify else "OP_CHECKMULTISIG"
+    return [op_int(threshold), *keys, op_int(len(keys)), opcode]
 
 
 def test_a_template_is_the_commands_with_the_groups_among_them() -> None:
@@ -220,6 +226,37 @@ def test_a_quorum_is_bounded_by_what_op_int_spells() -> None:
         == KeyGroup(1, _XPUBS[:1]).keys
     )
     assert repr(KeyGroup(2, _XPUBS)) == "KeyGroup(2, 3 keys)"
+
+
+def test_verify_writes_checkmultisigverify_and_nothing_else() -> None:
+    """The required-quorum form miniscript's `v:` wrapper compiles to.
+
+    One opcode differs from the group's usual script, and `repr` says so.
+    """
+    assert repr(KeyGroup(2, _XPUBS, verify=True)) == "KeyGroup(2, 3 keys, verify=True)"
+
+    template: list[Command | KeyGroup] = [
+        KeyGroup(2, _XPUBS, verify=True),
+        *_TIMELOCK,
+        KeyGroup(1, _XPUBS[:1]),
+    ]
+    wallet = ScriptWallet(template, "p2wsh", "derived")
+    for branch, index in ((0, 0), (1, 7)):
+        by_hand = script.serialize(
+            [
+                *_quorum(2, _XPUBS, branch, index, sort=True, verify=True),
+                *_TIMELOCK,
+                *_quorum(1, _XPUBS[:1], branch, index),
+            ]
+        )
+        assert wallet.witness_script(branch, index) == by_hand
+
+    # verify=False is the default, and the only difference from the plain
+    # group is the last opcode
+    plain = ScriptWallet([KeyGroup(2, _XPUBS)], "p2wsh", "derived")
+    verified = ScriptWallet([KeyGroup(2, _XPUBS, verify=True)], "p2wsh", "derived")
+    assert plain.witness_script(0, 0)[:-1] == verified.witness_script(0, 0)[:-1]
+    assert plain.witness_script(0, 0)[-1] != verified.witness_script(0, 0)[-1]
 
 
 def test_a_script_too_long_for_the_output_it_would_pay() -> None:
