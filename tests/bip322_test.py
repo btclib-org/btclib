@@ -624,7 +624,13 @@ def _sign_with(msg: bytes, script_type: str, hash_type: int) -> tuple[str, bip32
 @pytest.mark.parametrize(
     "hash_type",
     [NONE, SINGLE, ANYONECANPAY | ALL, ANYONECANPAY | NONE, ANYONECANPAY | SINGLE],
-    ids=["none", "single", "anyonecanpay-all", "anyonecanpay-none", "anyonecanpay-sin"],
+    ids=[
+        "none",
+        "single",
+        "anyonecanpay-all",
+        "anyonecanpay-none",
+        "anyonecanpay-single",
+    ],
 )
 def test_a_hash_type_that_is_not_sighash_all_is_refused(
     script_type: str, hash_type: int
