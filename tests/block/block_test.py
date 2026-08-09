@@ -116,6 +116,13 @@ def test_exceptions() -> None:
     with pytest.raises(BTClibValueError, match="invalid merkle_root length: "):
         header.assert_valid()
 
+    # too short, not just too long: `!= size` weakened to `> size` would
+    # still refuse 33 octets and miss 31
+    header = BlockHeader.parse(header_bytes)
+    header.merkle_root = b"\xff" * 31
+    with pytest.raises(BTClibValueError, match="invalid merkle_root length: "):
+        header.assert_valid()
+
     header = BlockHeader.parse(header_bytes)
     header.bits = b"\xff" * 5
     with pytest.raises(BTClibValueError, match="invalid bits length: "):

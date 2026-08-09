@@ -1,0 +1,55 @@
+# The block header and the block around it, mutated. Not a hypothetical
+# scope: issue #134 is merkle_root accepting the CVE-2012-2459 duplicate-
+# transaction mutation, and issue #163 is Block.assert_valid not checking
+# the BIP-141 witness commitment -- both found in code that already ran
+# under 100% statement coverage, which is #219's question stated twice
+# already in this one directory before mutation testing existed to ask it
+# on purpose. proof_of_work.py is beside them for the same target/nBits
+# boundary the header's own difficulty check depends on.
+
+[cosmic-ray]
+module-path = [
+  "btclib/block/block.py",
+  "btclib/block/block_header.py",
+  "btclib/block/proof_of_work.py",
+]
+
+test-command = "python -m pytest -x -q -n0 -p no:randomly tests/block"
+
+timeout = 300
+
+excluded-modules = []
+
+# 1481 mutants, complete: 1314 killed, 167 survived. 55 are the deferred-
+# annotation class fetch.toml documents, 9 the keyword-only marker, 4 an
+# `is` CPython's small-int cache makes indistinguishable from `==`.
+#
+# Two real gaps closed:
+#
+# - `block_work`'s `2**256 // (target + 1)` against `target - 1`: every
+#   existing vector's target sits within a whisker of 2^224, where the
+#   two floor-divide 2^256 to the same integer -- a target as small as 2
+#   is what separates them, `- 1` on that one being the difference
+#   between a quarter of 2^256 and all of it.
+# - `hash_rate`'s `difficulty <= 0` and `timespan <= 0`, each tested at
+#   zero only: a negative difficulty told `<= 0` from `== 0`, and
+#   timespan 1 told `<= 0` from the `<= 1` that would have refused the
+#   smallest positive one.
+#
+# One survivor is already the file's own answer, not this session's:
+# `BlockHeader.assert_valid`'s `self.hash > target` weakened to `>=` is
+# the proof-of-work check reading Core's own comparison, and the comment
+# beside it says why no vector can move it -- a hash equal to the target
+# is the last one that solves the block, and constructing one is asking
+# a 256-bit hash for one exact value.
+#
+# check_validity defaults account for a large block of the rest (Block
+# and BlockHeader each carry several), the same class parsers.toml's
+# follow-up already names; length checks scattered across
+# BlockHeader/Block's field validation are the same shape as the
+# merkle_root one fixed above and were not each given their own test;
+# the remainder is comparison operators in the parsing and validation
+# helpers, sampled as data here.
+
+[cosmic-ray.distributor]
+name = "local"

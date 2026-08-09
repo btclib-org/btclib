@@ -443,6 +443,13 @@ def test_block_work() -> None:
         with pytest.raises(BTClibValueError, match="zero proof-of-work target: "):
             block_work(bits_hex)
 
+    # every target above is within a whisker of 2^224, where `target + 1`
+    # and `target - 1` floor-divide 2^256 to the same integer -- a target
+    # this small is what tells the `+ 1` the formula is written on from
+    # the `- 1` that would only fail loudly at target 1, never silently
+    small_target_bits = bits_from_target((2).to_bytes(32, "big"))
+    assert block_work(small_target_bits) == 2**256 // 3
+
 
 def test_chain_work() -> None:
     """Best is most work, not most blocks."""
@@ -504,3 +511,10 @@ def test_hash_rate_exceptions() -> None:
 
     with pytest.raises(BTClibValueError, match="invalid difficulty: "):
         hash_rate(0.0, 600.0)
+    # zero and negative are refused by two different comparisons, and
+    # zero alone does not tell `<= 0` from `== 0`
+    with pytest.raises(BTClibValueError, match="invalid difficulty: "):
+        hash_rate(-1.0, 600.0)
+
+    # 1 is the smallest timespan `<= 0` accepts; `<= 1` would refuse it
+    assert hash_rate(1.0, 1.0) > 0
