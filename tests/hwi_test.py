@@ -422,10 +422,11 @@ def test_a_message_signature_is_verified_against_the_address(hwi: list[str]) -> 
 def test_what_the_subprocess_can_do_wrong(tmp_path: Path) -> None:
     """Every failure is a SignerError, with HWI's code where there is one.
 
-    Five ways for a command line to fail and one for the device to: an
+    The ways a command line fails and the one way the device does: an
     executable that is not there, an answer that is not json, an answer
-    past the limit, a command that prints nothing, and the error object
-    HWI itself returns — the last being the one that carries a number.
+    past the limit, diagnostics past the limit, a command that prints
+    nothing, one that never stops, and the error object HWI itself
+    returns — the last being the one that carries a number.
     """
     # not installed is its own subclass: a caller offering signers of
     # other kinds tells it from a device it could not reach, and a
@@ -457,6 +458,34 @@ def test_what_the_subprocess_can_do_wrong(tmp_path: Path) -> None:
     flood.write_text("print('x' * 100)\n", encoding="ascii")
     with pytest.raises(SignerError, match="answered more than 10 bytes"):
         enumerate_devices(executable=[sys.executable, str(flood)], max_output=10)
+
+    # the limit is on the diagnostics too, and it is not conditional on
+    # the answer: this one answered an empty device list, correctly, and
+    # is refused for what it wrote beside it
+    chatty = tmp_path / "chatty.py"
+    chatty.write_text(
+        "import sys\nsys.stderr.write('x' * 100)\nprint('[]')\n", encoding="ascii"
+    )
+    with pytest.raises(SignerError, match="wrote more than 10 bytes to stderr"):
+        enumerate_devices(executable=[sys.executable, str(chatty)], max_output=10)
+
+    # a backend that never stops writing is stopped, and the timeout is
+    # not what stops it: these two would take the generous timeout below
+    # and answer "timed out" if the limit were measured after the fact,
+    # so the message is what says the child was killed while it ran
+    endless = "import sys\nwhile True: sys.{0}.write('x' * 100_000)\n"
+    flooding = tmp_path / "flooding.py"
+    flooding.write_text(endless.format("stdout"), encoding="ascii")
+    with pytest.raises(SignerError, match="answered more than 1000 bytes"):
+        enumerate_devices(
+            executable=[sys.executable, str(flooding)], max_output=1000, timeout=60
+        )
+    noisy = tmp_path / "noisy.py"
+    noisy.write_text(endless.format("stderr"), encoding="ascii")
+    with pytest.raises(SignerError, match="wrote more than 1000 bytes to stderr"):
+        enumerate_devices(
+            executable=[sys.executable, str(noisy)], max_output=1000, timeout=60
+        )
 
     slow = tmp_path / "slow.py"
     slow.write_text("import time; time.sleep(5)\n", encoding="ascii")

@@ -18,8 +18,8 @@ btclib to work.** HWI declares `hidapi`, `libusb1`, `cbor2`, `pyserial`,
 narrower than btclib's; a mandatory dependency on that is the thing issue
 #381 rules out. What this module needs at runtime is an executable, named
 by the caller and absent until a device is actually being used, so the
-import costs `json` and `subprocess` and the tests run with no HWI at
-all.
+import costs nothing outside the standard library and the tests run with
+no HWI at all.
 
 An optional extra importing `hwilib` beside this was weighed and refused
 (#469), and the reason is that Python range: HWI declares `^3.9,<3.13`,
@@ -43,9 +43,11 @@ The subprocess is bounded twice. `timeout` is how long a command may run
 default is generous and a caller signing unattended should lower it --
 and `max_output` is how much of its answer is accepted: HWI answers with
 one json object, and a backend that sends megabytes is one whose output
-is not read to the end. The timeout is what stops it in the meantime,
-`subprocess.communicate` reading to EOF, so what the limit bounds is what
-is parsed rather than what is buffered.
+is not read to the end. It bounds stdout and stderr separately, and it
+bounds what is written rather than what is parsed: both streams go to
+temporary files whose size is watched while the child runs, so a backend
+past the limit is killed where it stands rather than read to EOF into
+memory and measured afterwards.
 
 Failures come back as `exceptions.SignerError`, carrying HWI's own error
 code where there is one: -14 is the user pressing the button that says
@@ -91,10 +93,13 @@ a command line that moved. What that already caught: `signtx` answers
 from __future__ import annotations
 
 import json
+import os
 import subprocess
+import tempfile
+import time
 from collections.abc import Sequence
 from dataclasses import dataclass
-from typing import Any
+from typing import IO, Any
 
 from btclib.alias import Octets
 from btclib.bip32.der_path import DerPath, str_from_der_path
@@ -124,6 +129,12 @@ DEFAULT_TIMEOUT = 120.0
 # any transaction standardness relays, and a backend that sends more is
 # not one whose answer should be parsed to find out
 DEFAULT_MAX_OUTPUT = 1 << 20
+
+# the slice a wait is cut into, and so how far past `max_output` a stream
+# may grow before the child is stopped: short enough that a flood is
+# caught while it is still small, long enough that watching a device wait
+# for a button press is not a busy loop
+_POLL_INTERVAL = 0.05
 
 # what a caller that has not said gets: nothing supported, which is the
 # honest default when the answer is not in any json HWI prints. A module
@@ -180,6 +191,50 @@ def _executable(executable: str | Sequence[str]) -> list[str]:
     return [executable] if isinstance(executable, str) else list(executable)
 
 
+def _watch(
+    process: subprocess.Popen[bytes],
+    streams: tuple[IO[bytes], IO[bytes]],
+    *,
+    timeout: float,
+    max_output: int,
+) -> bool:
+    """Wait for the process, answering whether it ran out of time.
+
+    It returns as soon as the child has exited, as soon as either stream
+    is past the limit, or when the deadline is reached. Killing it is the
+    caller's to do, that being what all three ways out have in common.
+    """
+    deadline = time.monotonic() + timeout
+    while (left := deadline - time.monotonic()) > 0:
+        try:
+            process.wait(timeout=min(_POLL_INTERVAL, left))
+        except subprocess.TimeoutExpired:
+            if any(
+                os.fstat(stream.fileno()).st_size > max_output for stream in streams
+            ):
+                return False
+        else:
+            return False
+    return True
+
+
+def _kill(process: subprocess.Popen[bytes]) -> None:
+    """Kill the child and reap it; a child already reaped is left alone.
+
+    `send_signal` is what does the leaving alone, doing nothing once the
+    return code is in, so this needs no state of its own and can run on
+    the way out of every path.
+    """
+    process.kill()
+    process.wait()
+
+
+def _read(stream: IO[bytes], limit: int) -> bytes:
+    """Return at most `limit` bytes of what the child wrote to a stream."""
+    stream.seek(0)
+    return stream.read(limit)
+
+
 def _run(
     argv: list[str],
     *,
@@ -193,36 +248,58 @@ def _run(
     object HWI itself returns. The last is the one carrying a code, which
     is why the others explicitly carry None -- "no number" is a fact about
     the exchange rather than a device that answered zero.
-    """
-    try:
-        completed = subprocess.run(  # noqa: S603
-            argv,
-            capture_output=True,
-            timeout=timeout,
-            check=False,
-        )
-    except subprocess.TimeoutExpired as e:
-        raise SignerError(f"{argv[0]} timed out after {timeout} s") from e
-    except FileNotFoundError as e:
-        # the one failure that is not about a device: the command line is
-        # not installed, which a caller offering signers of several kinds
-        # reports differently from one it could not reach
-        raise SignerNotFoundError(f"cannot run {argv[0]}: {e}") from e
-    except OSError as e:
-        raise SignerError(f"cannot run {argv[0]}: {e}") from e
 
-    if len(completed.stdout) > max_output:
+    The two streams are temporary files rather than pipes, which is what
+    lets the limit be enforced while the child is still running: a pipe
+    has to be drained by whoever is also timing the child, and draining it
+    is the buffering the limit is there to prevent. A file is written by
+    the child alone, so the size is a question this process can ask
+    between two waits, and one byte past the limit is read back whatever
+    the child did afterwards.
+    """
+    with tempfile.TemporaryFile() as out, tempfile.TemporaryFile() as err:
+        try:
+            process = subprocess.Popen(argv, stdout=out, stderr=err)  # noqa: S603
+        except FileNotFoundError as e:
+            # the one failure that is not about a device: the command line
+            # is not installed, which a caller offering signers of several
+            # kinds reports differently from one it could not reach
+            raise SignerNotFoundError(f"cannot run {argv[0]}: {e}") from e
+        except OSError as e:
+            raise SignerError(f"cannot run {argv[0]}: {e}") from e
+
+        try:
+            timed_out = _watch(
+                process, (out, err), timeout=timeout, max_output=max_output
+            )
+        finally:
+            _kill(process)
+
+        if timed_out:
+            raise SignerError(f"{argv[0]} timed out after {timeout} s")
+        # one byte past the limit is all that has to be read to know the
+        # limit was passed, and all that is read of a child that flooded
+        stdout = _read(out, max_output + 1)
+        stderr = _read(err, max_output + 1)
+
+    if len(stdout) > max_output:
         err_msg = f"{argv[0]} answered more than {max_output} bytes"
         raise SignerError(err_msg)
-    if not completed.stdout.strip():
+    if len(stderr) > max_output:
+        # the same limit and a separate one: stderr is diagnostics, so a
+        # backend flooding it says nothing about the answer, and a backend
+        # flooding it is still one this process will not hold in memory
+        err_msg = f"{argv[0]} wrote more than {max_output} bytes to stderr"
+        raise SignerError(err_msg)
+    if not stdout.strip():
         # a command that printed nothing has failed in its own way, and
         # stderr is where it said so: HWI prints a traceback there when it
         # cannot even build the parser
-        message = completed.stderr.decode("utf-8", "replace").strip()
+        message = stderr.decode("utf-8", "replace").strip()
         raise SignerError(f"{argv[0]} answered nothing: {message or 'no output'}")
 
     try:
-        answer = json.loads(completed.stdout)
+        answer = json.loads(stdout)
     except json.JSONDecodeError as e:
         raise SignerError(f"{argv[0]} did not answer json: {e}") from e
 
