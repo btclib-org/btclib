@@ -586,6 +586,24 @@ def test_sec_nonce_second_half_out_of_range() -> None:
         musig2.sign(sec_nonce, _SK_1, session_ctx)
 
 
+def test_sec_nonce_second_half_at_the_bottom_of_its_range() -> None:
+    """1 is a scalar sign may use, where the test above has it refuse 0.
+
+    A bound and not a zero test, which is the difference a range checked
+    at one value only cannot say. The partial signature this makes does
+    not verify -- the pubnonce the session holds is the one the generated
+    scalar produced, not this one -- and that is deliberately not what is
+    asserted: what is, is that the scalar was accepted.
+    """
+    pk_1 = musig2.individual_pub_key(_SK_1)
+    sec_nonce, pub_nonce = musig2.nonce_gen(_SK_1, pk_1, None, _MSG)
+    sec_nonce[32:64] = (1).to_bytes(32, "big")
+    session_ctx = musig2.SessionContext(
+        musig2.nonce_agg([pub_nonce]), [pk_1], [], [], _MSG
+    )
+    assert len(musig2.sign(sec_nonce, _SK_1, session_ctx)) == 32
+
+
 def test_sec_nonce_of_another_key() -> None:
     """Verify sign refuses a secnonce generated for another key."""
     pk_1 = musig2.individual_pub_key(_SK_1)
@@ -682,3 +700,22 @@ def test_invalid_contribution_names_the_party() -> None:
     assert str(InvalidContributionError(None, "aggnonce")) == (
         "invalid aggnonce from the aggregator"
     )
+
+
+def test_a_tweak_needs_a_flag_and_a_flag_needs_a_tweak() -> None:
+    """The two arrays are one list of pairs, so their lengths are equal.
+
+    Not "no more flags than tweaks", which is what the check reads as
+    once it is an ordering: a flag left over is a tweak nobody named, and
+    a tweak left over would be applied with whichever flag the shorter
+    array ran out of.
+    """
+    pub_keys = _TW_PUB_KEYS
+    tweak = bytes(range(1, 33))
+    err_msg = "must have the same length"
+    with pytest.raises(BTClibValueError, match=err_msg):
+        musig2.key_agg_and_tweak(pub_keys, [tweak, tweak], [True])
+    with pytest.raises(BTClibValueError, match=err_msg):
+        musig2.key_agg_and_tweak(pub_keys, [tweak], [True, False])
+    # and the pair that is a pair
+    assert musig2.key_agg_and_tweak(pub_keys, [tweak], [True]).Q
