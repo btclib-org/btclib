@@ -47,6 +47,57 @@ documented at release-notes length in the first place, and are still in
   request, which is the cost this filter exists to avoid. The job still
   gates nothing and is still absent from master's required checks.
 
+### Transactions, blocks and PSBT
+
+- **A declared count is bounded by what could hold it, before anything is
+  allocated for it** (#569). `var_int.parse`'s `MAX_SIZE` is Core's
+  `ReadCompactSize` range check and answers whether a CompactSize is one
+  a sane protocol would write; 33,554,432 is a sane CompactSize, so nine
+  octets naming that many maps or transactions were believed, and the
+  list comprehension that followed asked for an object per declared item.
+  What a parser also has to ask is whether what follows could possibly
+  hold this many, and the answer is consensus arithmetic rather than a
+  number this library picks: `MAX_BLOCK_WEIGHT` divided by the weight of
+  the smallest thing being counted.
+
+  Three bounds, all in `btclib.block.limits` beside the constants they
+  divide. `Block.parse` reads its transaction count with
+  `MAX_BLOCK_WEIGHT // MIN_SERIALIZABLE_TRANSACTION_WEIGHT`, 100,000 --
+  Core's *serializable* minimum and not the `MIN_TRANSACTION_WEIGHT`
+  beside it, what is being allocated for being a transaction that
+  deserializes. `Psbt.parse` holds its input and output map counts to
+  `MAX_TX_IN_COUNT` and `MAX_TX_OUT_COUNT`, 24,390 and 111,111: a PSBT's
+  maps are a transaction's inputs and outputs, so a count above what a
+  block has room for describes no transaction at all. Each refusal names
+  which of the two counts it was.
+
+  The PSBT bound is the one that pays: an empty input map is a single
+  octet on the wire and an object with a dozen fields in memory, so the
+  count believed is that amplification paid before the first map is read.
+  Measured on the issue's reproducer, a PSBTv2 declaring 100,000 empty
+  input maps in about 100 KB of payload: 125 MB of peak allocation
+  before, 0.1 MB and an immediate refusal now.
+
+  What is **not** bounded here is the witness stack, and the reason is
+  the one `btclib.script.limits` already states. The number that would
+  cap it is `MAX_STACK_SIZE`, and that is a rule about *executing* a
+  script: reading an execution limit in the decoder is what let a
+  1443-byte push be refused as unparsable when it was merely unspendable
+  (issue #123). A witness of a million items is unspendable and parses,
+  as it does for Core, whose deserializer bounds it by the size of the
+  message that carried it and not by the interpreter's stack. Its cost is
+  proportional to the input that declared it -- about 25 MB for the
+  issue's 1 MB reproducer -- which is what a parser costs rather than an
+  amplification; #569 stays open for that half.
+
+  `Tx.parse` is unchanged for a second reason: `TxIn.parse` raises on the
+  first short read, so a count with nothing behind it is refused in
+  microseconds already, and the bound that would refuse a count with
+  bytes behind it lives in `btclib.block.limits`, which `btclib.tx`
+  cannot import -- `btclib.block` imports `btclib.tx`, so the edge is a
+  cycle. Naming that here because it is what the fix would have to move
+  first.
+
 ### Curves, signatures and keys
 
 - **A MOV-weak curve is a `BTClibValueError`** (#572). `Curve` refuses
