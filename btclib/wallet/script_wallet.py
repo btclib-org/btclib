@@ -58,14 +58,19 @@ holding a script no language describes already owns the spend, and those
 two are what a psbt needs from the wallet.
 
 **The order is a parameter because deployed wallets disagree about it**,
-and the disagreement is not expressible in a ranged descriptor:
+and one of the three is why this class exists at all:
 
 - `"derived"` sorts the keys of each group at every index, which is BIP67
-  on the derived keys and the order `sortedmulti()` follows -- and which
-  no ranged descriptor can state, the order not being a property of the
-  wallet but of the position;
+  on the derived keys, so the order is a property of the position and not
+  of the wallet. `sortedmulti()` follows exactly that order and states it
+  for a quorum that is the whole script; what states it for a quorum
+  *inside* a combinator is nothing, BIP379 having no `sortedmulti`
+  fragment and its `multi()` being the declared-order one. A timelocked
+  branch is therefore where the order stops being expressible, which is
+  the wallet #538 pins and the reason for this parameter;
 - `"account"` sorts the account keys once, before deriving, so the order
-  is fixed and `multi()` states it;
+  is fixed and `multi()` states it by listing the keys in it. What this
+  saves a caller is the sort, not an inexpressible wallet;
 - `"none"` leaves the keys in the order the group declares them.
 
 `sort_key` changes what the sort compares, not when it runs: without one
