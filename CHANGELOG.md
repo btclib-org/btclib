@@ -952,36 +952,57 @@ documented at release-notes length in the first place, and are still in
   estimate: a first session over each is what wrote them, and each file
   records its own counts, what its test command covers and why, and the
   survivors worth acting on. What the sessions found, in the order the
-  findings are worth acting on:
-    - `script.toml` (406 of 2374 judged): `op_codes_tapscript.py` is
+  findings are worth acting on — the first four scopes' real gaps closed
+  by the tests in this release, each measured alive before its test and
+  dead after, one mutant at a time:
+    - `script.toml` (406 of 2374 judged): `op_codes_tapscript.py` was
     unjudged — 50 of the 51 mutants of it that ran survived, and the 236
     it holds are almost all numbers in the two BIP342 tables, so a code
-    number may be changed, duplicated or dropped and the suite still
-    passes. Beside it, `nulldata`'s 80-byte limit is unpinned in both
-    directions, `assert_segwit` accepts 0x50 as a witness version once
-    weakened, and `taproot.parse`'s 520-byte element bound is exercised
-    on one side only.
+    number could be changed, duplicated or dropped with the suite still
+    passing. Two tests hold the tables to each other rather than to a
+    second transcription of BIP342's numbers, and that module is at 236
+    of 236 killed now. Beside it: `nulldata`'s 80-byte cap had no test
+    building the 80 it allows, `assert_segwit` accepted 0x50 — OP_RESERVED
+    — as a witness version once weakened and never saw a script shorter
+    than its own marker announces, `p2ms` had never been asked for the
+    16-of-16 that tells its marker arithmetic apart from bit arithmetic,
+    `taproot.parse`'s 520-byte element bound was exercised on one side,
+    and a control block's parity bit was never flipped on a proof that is
+    otherwise correct.
     - `psbt.toml` (887 of 2611): every lock-time bound in BIP370's three
-    fields is tested in the middle of its range and at neither end;
-    `_assert_new_taproot_sigs_verify`'s `sig[:64]` widens to `[:65]`
-    unnoticed, which would hash a sighash byte with the signature; and
-    `assert_signatures_only`'s `strict=True` turns False, so a returned
-    psbt with fewer outputs would be compared as far as it goes.
+    fields was tested in the middle of its range and at neither end, and
+    each is now asserted at the value it admits as well as the one it
+    refuses — 0 included, which is the one value BIP65 gives a meaning of
+    its own. `combine`'s identity comparison was tested with the ids in
+    one arrangement only. `_assert_new_taproot_sigs_verify`'s `sig[:64]`
+    widening to `[:65]` stays open and is named: it differs only for a
+    65-byte signature, and no taproot script path in this tree can yet
+    produce one, the only source being a MuSig2 aggregation over
+    SIGHASH_DEFAULT.
     - `signer.toml` (302 of 302, the one profile that finished): 46 of
     its 66 survivors are inside `psbt_signer_contract.py`, the file whose
     job is refusing a signer that does not conform. Its checks do fire —
     each has a signer built to break it — but the arithmetic inside them
     does not, so a check could be laxer than it reads and every fixture
-    would still pass.
-    - `wallet.toml` (293 of 419): the `branch=0, index=0` defaults are
-    undefended in all four modules, nothing pins what the ledger answers
-    for a branch it has handed nothing out on, `position_of` is never
-    asked for the output at exactly `last_index`, and a negative
-    `ScriptWallet` threshold is accepted once the bound is weakened.
-    - `hwi.toml` (144 of 267): the read bound #526 added is enforced at
-    whatever offset the code says — `max_output + 1` mutates freely — and
-    `is_usable`'s `and` becomes `or` unnoticed, no fixture answering both
-    a fingerprint and an error, which is the entry #534 was about.
+    would still pass. Not closed here: the arithmetic is the next round's
+    work, and `signer.toml` lists it.
+    - `wallet.toml` (293 of 419): the `branch=0, index=0` defaults were
+    undefended in all four modules — nothing called `address`,
+    `script_pub_key`, `redeem_script`, `witness_script`, `satisfy` or
+    `update_psbt_input` without arguments, so a default could have named
+    the change chain — `position_of` was never asked for the output at
+    exactly `last_index`, a negative `ScriptWallet` quorum was accepted
+    once the bound was weakened, and `branches` could stop being abstract
+    unnoticed. All four are closed; what the ledger answers for an
+    untouched branch turned out to be equivalent, `max()` never returning
+    that fallback.
+    - `hwi.toml` (144 of 267): `is_usable`'s `and` became `or` unnoticed,
+    no fixture answering both a fingerprint and an error — the entry #534
+    was about, and the device `_select` must not pick. The four refusals
+    name `argv[0]` and no assertion said so; `--emulators` could move
+    after the subcommand, where HWI reads it as an unrecognized argument.
+    The `max_output + 1` read cap turned out equivalent: any cap above
+    the limit gives the comparison below it the same verdict.
     - `descriptors.toml` (383 of 10831, the largest scope here and
     sampled): the miniscript type-property algebra survives `|` turned
     `^` in three places, `satisfy`'s index default is undefended, and
