@@ -128,6 +128,21 @@ def test_tx_from_raw_catches_the_answer_to_another_question() -> None:
         tx_from_raw(RAW, OTHER_ID, "mainnet")
 
 
+def test_tx_from_raw_catches_it_on_either_side_of_the_id_requested() -> None:
+    """A backend's id is refused whether it sorts above or below the ask.
+
+    OTHER_ID above sorts below `TX_ID` (`b...` against `f...`), so that
+    case alone leaves `hex() > tx_id` as good a check as `hex() != tx_id`.
+    A requested id that sorts *above* the one `RAW` actually parses to is
+    the other half, and it is what a byte-for-byte comparison must catch
+    too -- a backend is not asked to sort correctly, only to answer for
+    the id it was given.
+    """
+    above = "f" * 64
+    with pytest.raises(FetchError, match=f"transaction {above}: the answer is"):
+        tx_from_raw(RAW, above, "mainnet")
+
+
 @pytest.mark.parametrize(
     "raw",
     [
@@ -147,6 +162,27 @@ def test_the_interface_is_abstract() -> None:
     """No answers here: a Fetcher is one of the backends, or nothing."""
     with pytest.raises(TypeError, match="abstract"):
         Fetcher()  # type: ignore[abstract]
+
+
+@pytest.mark.parametrize("missing", ["get_tx", "get_block_count", "get_best_block_id"])
+def test_leaving_any_one_of_the_three_abstract_refuses_construction(
+    missing: str,
+) -> None:
+    """Each of the three is `abstractmethod` on its own, not by inheriting one.
+
+    `test_the_interface_is_abstract` covers `Fetcher` itself; a subclass
+    that overrides two of the three and forgets the last one is what a
+    decorator removed from only one of them would let through.
+    """
+    methods = {
+        "get_tx": lambda self, tx_id: Tx.parse(RAW),
+        "get_block_count": lambda self: TIP_HEIGHT,
+        "get_best_block_id": lambda self: bytes.fromhex(TIP_ID),
+    }
+    del methods[missing]
+    incomplete = type("Incomplete", (Fetcher,), methods)
+    with pytest.raises(TypeError, match="abstract"):
+        incomplete("mainnet")
 
 
 def test_an_unknown_network_is_refused_at_construction() -> None:
@@ -195,7 +231,15 @@ def test_get_tx_out_answers_for_an_output_already_spent() -> None:
 
 
 def test_get_tx_out_refuses_a_vout_the_transaction_does_not_have() -> None:
-    """Refuse an out-of-range vout with a FetchError naming it."""
+    """Refuse an out-of-range vout with a FetchError naming it.
+
+    2, one past the transaction's last output, is the boundary the check
+    is written on; 1000 is not, and is what tells a `>=` refusal from one
+    that only catches an exact match -- and, being outside the range
+    CPython interns, from one that only catches identity.
+    """
     fetcher = StubFetcher(Tx.parse(RAW))
     with pytest.raises(FetchError, match="out of range vout: 2"):
         fetcher.get_tx_out(OutPoint(TX_ID, 2))
+    with pytest.raises(FetchError, match="out of range vout: 1000"):
+        fetcher.get_tx_out(OutPoint(TX_ID, 1000))

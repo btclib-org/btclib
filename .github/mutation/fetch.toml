@@ -1,0 +1,25 @@
+# The fetch boundary, mutated: the transport, the two backends built on it,
+# and the fetcher module both call into. Issue #327 proposed this scope
+# directly -- a response-size limit weakened, a status check turned into
+# an acceptance, a tx-id verification skipped -- as the same class of gap
+# #219 found in the consensus code, on a boundary that is network input
+# rather than a parsed byte string. The test transport seam already keeps
+# these runs offline and deterministic, which is what makes a mutation
+# session over this scope no slower than any other local one.
+
+[cosmic-ray]
+module-path = [
+  "btclib/fetch/transport.py",
+  "btclib/fetch/esplora.py",
+  "btclib/fetch/bitcoin_core.py",
+  "btclib/fetch/fetcher.py",
+]
+
+test-command = "python -m pytest -x -q -n0 -p no:randomly tests/fetch"
+
+timeout = 300
+
+excluded-modules = []
+
+[cosmic-ray.distributor]
+name = "local"
