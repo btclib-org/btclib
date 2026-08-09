@@ -1,0 +1,70 @@
+# Schnorr and ECDSA signing and verification, mutated. Issue #327 sized
+# ssa.py at 977 mutants while measuring the wire-format profile and left it
+# for its own session, "signing arithmetic" being a different triage from a
+# wire format; dsa.py is beside it here rather than in a profile of its own
+# because the two share both shape and test fixtures, and issue #323 -- one
+# of the five defects that opened #327 -- is `ssa.Sig.parse` accepting a
+# 63-byte or trailing-data encoding, the same class of parse boundary
+# `dsa.Sig.parse`'s DER carries.
+#
+# CLAUDE.md's own warning about this pair applies to what a survivor here
+# can mean: `curves.curve.mult`/`double_mult`/`multi_mult` call the
+# libsecp256k1 bindings for secp256k1, so a mutant of the Python arithmetic
+# in `curves/curve_group.py` is invisible to a test running the default
+# curve -- it is not in this module-path and is not what this profile is
+# asking about. What this profile mutates is `dsa.py`/`ssa.py` themselves:
+# nonce derivation, the DER and BIP340 codecs, low-s and lower-x
+# normalization, and the recovery/anti-exfil paths that stay in Python
+# regardless of curve.
+
+[cosmic-ray]
+module-path = [
+  "btclib/ecc/ssa.py",
+  "btclib/ecc/dsa.py",
+]
+
+# anti_exfil_test.py and commit_nonce_test.py are ssa's sign-to-contract
+# and anti-exfiltration paths, which sig_hash.toml's docstring notes
+# `ssa.sign` itself never takes -- they are what still calls
+# `ssa.sign_custom` and are the only tests that do. parse_contract_test.py
+# is the parse/serialize boundary convention shared with every other
+# profile that carries it.
+test-command = """python -m pytest -x -q -n0 -p no:randomly \
+  tests/ecc/ssa_test.py tests/ecc/dsa_test.py tests/ecc/anti_exfil_test.py \
+  tests/ecc/commit_nonce_test.py tests/parse_contract_test.py"""
+
+timeout = 300
+
+excluded-modules = []
+
+# 812 of the 2475 mutants sampled in 5400 s -- the largest scope in this
+# session and the one furthest from finishing, both modules together
+# being nearly as large as sig_hash.py and engine.toml combined. 507
+# killed, 305 survived: 228 the deferred-annotation class fetch.toml
+# documents (both modules carry many typed signatures), 5 the keyword-
+# only marker, 1 an `is` CPython's small-int cache makes indistinguishable
+# from `==`.
+#
+# Two real gaps closed, both a scalar's upper bound: `ssa.Sig`'s
+# `0 <= self.s < self.ec.n` and `dsa.Sig`'s two equivalents were tested
+# invalid against `ec.p` -- a different, larger prime -- and never
+# against `ec.n` itself. For `ssa.Sig` that survived: `< n` weakened to
+# `<= n` still refuses `ec.p`, which sits far enough above `n` that
+# either comparison rejects it. `dsa.Sig`'s pair did not survive the same
+# widening -- `ec.p` there already lands close enough to `ec.n` to catch
+# a boundary shifted by one -- so a test at the exact boundary was added
+# for both anyway, to say why in the suite and not only in this file.
+#
+# `gen_keys`' random-scalar formulas, in both modules and in the batch-
+# verification helper, are the same equivalence bms.toml found: a result
+# random on every call is not what a fixed vector can hold an operator to.
+# Message-formatting thresholds (`self.r > 0xFFFFFFFF` deciding hex or
+# decimal display) account for several more, cosmetic rather than a
+# validity boundary. check_validity and `lower_s` defaults account for
+# another block, the same class parsers.toml's follow-up already names;
+# the remainder is comparison operators and DER sign-byte handling
+# scattered across the parse/serialize/recover paths, sampled as data
+# here rather than chased to completion.
+
+[cosmic-ray.distributor]
+name = "local"

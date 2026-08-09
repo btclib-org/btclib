@@ -144,6 +144,13 @@ def test_signature() -> None:
     with pytest.raises(BTClibValueError, match=err_msg):
         dsa.assert_as_valid(msg, Q, sig_invalid)
 
+    # the boundary itself, not `ec.p` (a different, larger prime): `< n`
+    # weakened to `<= n` would still refuse `ec.p` and miss `n` exactly
+    with pytest.raises(BTClibValueError, match="scalar r not in 1..n-1: "):
+        dsa.Sig(sig.ec.n, sig.s)
+    with pytest.raises(BTClibValueError, match="scalar s not in 1..n-1: "):
+        dsa.Sig(sig.r, sig.ec.n)
+
     err_msg = "private key not in 1..n-1"
     with pytest.raises(BTClibValueError, match=err_msg):
         dsa.sign(msg, 0)

@@ -85,6 +85,11 @@ def test_signature() -> None:
     with pytest.raises(BTClibValueError, match=err_msg):
         ssa.assert_as_valid(msg, x_Q, sig_invalid)
 
+    # the boundary itself, not `ec.p` (a different, larger prime): `< n`
+    # weakened to `<= n` would still refuse `ec.p` and miss `n` exactly
+    with pytest.raises(BTClibValueError, match="scalar s not in 0..n-1: "):
+        ssa.Sig(sig.r, sig.ec.n)
+
     # a 31-byte message is a legal BIP340 message (since 2023-04), so a
     # truncated message is not a size error -- "invalid size: 31 bytes
     # instead of 32" -- but a *different* message, which this signature
