@@ -19,6 +19,7 @@ from pathlib import Path
 
 import pytest
 
+from btclib import var_int
 from btclib.block import (
     Block,
     BlockHeader,
@@ -28,6 +29,11 @@ from btclib.block import (
 from btclib.block.limits import (
     MAX_BLOCK_SIGOPS_COST,
     MAX_BLOCK_WEIGHT,
+    MAX_TX_IN_COUNT,
+    MAX_TX_OUT_COUNT,
+    MIN_SERIALIZABLE_TRANSACTION_WEIGHT,
+    MIN_TX_IN_SIZE,
+    MIN_TX_OUT_SIZE,
     WITNESS_SCALE_FACTOR,
 )
 from btclib.block.proof_of_work import REGTEST_POW_LIMIT_BITS
@@ -1350,3 +1356,69 @@ def test_the_pow_limit_is_the_callers_to_state() -> None:
 
     # and the same block is a block on the network those bits belong to
     block.assert_valid(REGTEST_POW_LIMIT_BITS)
+
+
+def test_a_declared_transaction_count_is_bounded_by_what_a_block_holds() -> None:
+    """A block's transaction count is refused before it is allocated for.
+
+    `var_int.parse`'s own MAX_SIZE answers whether a CompactSize is one a
+    sane protocol would write, and 33,554,432 transactions is a sane
+    CompactSize: nine octets, and a list comprehension over the count is
+    33 million objects asked for by nine octets (issue #569). What bounds
+    it instead is the block that must hold them --
+    MIN_SERIALIZABLE_TRANSACTION_WEIGHT is the smallest weight one
+    deserializes from, so MAX_BLOCK_WEIGHT divided by it is the most a
+    block may declare.
+
+    The refusal comes out of the var_int itself, before the header's own
+    bytes are past: the number is the argument, so nothing is read for a
+    count that cannot be honoured.
+    """
+    maximum = MAX_BLOCK_WEIGHT // MIN_SERIALIZABLE_TRANSACTION_WEIGHT
+    assert maximum == 100_000
+
+    filename = Path(__file__).parent / "_data" / "block_1.bin"
+    with filename.open("rb") as file_:
+        header = file_.read()[:80]
+
+    with pytest.raises(BTClibValueError, match="var_int too big"):
+        Block.parse(header + var_int.serialize(maximum + 1), check_validity=False)
+
+
+def test_the_transaction_count_bounds_are_what_consensus_derives() -> None:
+    """The three parser bounds are arithmetic on consensus, not choices.
+
+    Each is MAX_BLOCK_WEIGHT divided by the weight of the smallest thing
+    it counts, so none of them is a number this library picked: a count
+    above any of them names a transaction or a block no miner could
+    produce, which is what makes refusing it before allocating safe.
+    """
+    # a TxIn and a TxOut serialize to no less than this, and neither is
+    # witness data, so each weighs WITNESS_SCALE_FACTOR times its size
+    assert (
+        len(
+            TxIn(OutPoint(), b"", 0xFFFFFFFF, check_validity=False).serialize(
+                check_validity=False
+            )
+        )
+        == MIN_TX_IN_SIZE
+    )
+    assert (
+        len(
+            TxOut(0, ScriptPubKey(b""), check_validity=False).serialize(
+                check_validity=False
+            )
+        )
+        == MIN_TX_OUT_SIZE
+    )
+
+    assert MAX_TX_IN_COUNT == MAX_BLOCK_WEIGHT // (
+        MIN_TX_IN_SIZE * WITNESS_SCALE_FACTOR
+    )
+    assert MAX_TX_OUT_COUNT == MAX_BLOCK_WEIGHT // (
+        MIN_TX_OUT_SIZE * WITNESS_SCALE_FACTOR
+    )
+    # and they are what they compute to, so a change to either constant
+    # above is a change a reader of this test sees
+    assert MAX_TX_IN_COUNT == 24_390
+    assert MAX_TX_OUT_COUNT == 111_111
