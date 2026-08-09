@@ -481,6 +481,15 @@ documented at release-notes length in the first place, and are still in
   choice are in CONTRIBUTING.md, the repository and the channel are badges
   below, and the table that grouped them is gone -- the alternative text
   says what a badge means, which is what the table's left column did.
+- **The README and `btclib.ecc` now say where constant time ends** (#525).
+  SECURITY.md documented it and still does, in full; what was missing was a
+  pointer from where the choice is made. A reader picking a signing api met
+  the capabilities and not the conditions on them -- that a Python object
+  holding a secret is not zeroized, that the constant-time properties are
+  libsecp256k1's and hold on the C side of the call, and that another
+  curve, another hash function or a caller's own nonce takes the Python
+  path. Both places link the detailed text rather than restating it, so
+  there is one canonical answer and two ways to reach it.
 
 ## v2026.8.7
 
