@@ -16,7 +16,7 @@ Notable changes to the codebase are documented here.
 Release names follow *[calendar versioning](https://calver.org/)*:
 full year, short month, short day (YYYY-M-D)
 
-## v2026.9 (work in progress, not released yet)
+## v2026.8.9
 
 ### Breaking changes
 
@@ -66,6 +66,139 @@ full year, short month, short day (YYYY-M-D)
   btclib.descriptors import parse` and its neighbours reach the same
   objects, and `btclib.descriptors.miniscript` is the new subgroup beside
   them.
+
+### What it buys
+
+- **A message can be signed for an address no key can be recovered from.**
+  `ecc.bms` signs with a key and lets the verifier recover it, so it
+  speaks only about the addresses that *are* a public key hash: a taproot
+  address is a tweaked BIP340 key and a p2wsh address is the hash of a
+  script, and no recovery flag names either. The new `btclib.bip322`
+  makes the address the script_pub_key of a virtual output and the
+  signature whatever spends it, so verification is `script.engine` rather
+  than a key comparison, and every script the engine runs is a script
+  that can sign -- multisig, taproot, time locks. Both directions and all
+  four variants: `sign` writes the *simple* and *full* forms for the
+  script types a single key satisfies, and `verify` reads those, the
+  *proof of funds* psbt, and the *legacy* compact signature `ecc.bms`
+  already made. It answers BIP322's three states rather than two,
+  `InconclusiveError` being what today's rules cannot judge. The BIP's
+  own vector files are vendored whole and every case runs, the error
+  cases included and nothing marked `xfail`. SIGHASH_ALL is enforced
+  through the interpreter, which reports what it consumed as a signature,
+  rather than guessed at from the shape of a stack element -- and that is
+  what makes a proof of funds a proof: ANYONECANPAY commits to no other
+  input, so a signature lifted out of the transaction that really spent a
+  utxo would otherwise satisfy that utxo's input inside a proof of
+  control over it.
+- **A witness script says what spends it.** `wsh()` no longer refuses a
+  miniscript, and `btclib.descriptors.miniscript` is BIP379's language on
+  its own: `parse` reads an expression, `Miniscript.script` compiles it,
+  `from_script` reads a script back into the expression it is, and `str`
+  writes that expression out again. The round trip is the property both
+  directions are for -- a signer handed a witness script can say what
+  spends it without being told, which is what miniscript exists for. The
+  type system comes with it, `parse` naming the innermost fragment of an
+  ill-typed expression rather than the whole, and so does the sanity a
+  descriptor is held to: `wsh(<miniscript>)` is refused where the
+  expression is malleable, needs no signature, mixes timelocks in blocks
+  with timelocks in seconds, repeats a key, or has a spend that would
+  pass a resource limit -- the same five Bitcoin Core refuses, in the same
+  words. Both of BIP379's contexts are implemented, `P2WSH` and
+  `TAPSCRIPT`; a miniscript is readable and spendable as a `tr()` leaf;
+  `Miniscript.satisfy` picks a branch and satisfies it non-malleably; and
+  `psbt.finalize` spends such an input. The oracle is Core's own
+  `fixed_tests`, vendored whole: every expression it holds is checked in
+  both contexts for validity, for the script it compiles to, for the type
+  answers Core asserts, for every resource bound its calls pass, and for
+  both round trips.
+- **Three sources of addresses answer one set of questions.**
+  `btclib.keystore` is `btclib.wallet`, a package holding three kinds of
+  wallet whose words mean the same thing whichever one a caller holds:
+  `script_pub_key(branch, index)`, `address`, `next_address`,
+  `redeem_script`, `witness_script`, `position_of`, `address_info`,
+  `addresses`, `len()`, `in` and `is_watch_only`. `BIP32KeyWallet` is the
+  one that was there; `DescriptorWallet` is a descriptor per chain, built
+  from BIP389's `<0;1>` multipath spelling or from an account xpub; and
+  `ScriptWallet` is for the scripts no descriptor states -- the multisig
+  wallets predating output descriptors that miss BIP380-390 by a detail,
+  a `<n> OP_CSV OP_DROP` where miniscript writes `OP_CSV OP_VERIFY`, or a
+  BIP67 sort applied to the *derived* keys of a quorum, which is an order
+  no ranged descriptor can state. `position_of` is the one that is not a
+  convenience: it is "is this output mine", the whole script computed at
+  every position of every branch and compared -- never a key origin whose
+  four-byte fingerprint matches, which is what would send change to
+  somebody else -- and it takes the output as a `ScriptPubKey`, as bytes
+  or hex, or as the address. The non-goals are unchanged and now stated
+  once for all three: no utxos, no balances, no transaction building, no
+  persistence, no encryption at rest.
+- **A psbt taproot input is offered its script path as well as its key
+  path.** `PSBT_IN_TAP_SCRIPT_SIG` was a field this library read,
+  verified and finalized and never wrote, so the only script path
+  signature a tree could produce was a BIP373 MuSig2 aggregation, one
+  leaf shape of the several BIP371 describes. `sign` now offers each
+  candidate the psbt names -- a key filed under a tapleaf hash by
+  `PSBT_IN_TAP_BIP32_DERIVATION`, the leaf itself in
+  `PSBT_IN_TAP_LEAF_SCRIPT`, both required as Bitcoin Core's signer
+  requires them -- and asks a `KeyManager` for a leaf signature through
+  `sign_schnorr_script_path`. That key signs as it is: a script path
+  spend proves the leaf, the output key's tweak being what the control
+  block carries, so there is no merkle root to tweak by. One input may
+  come back signed for both paths, which of the two is spent being the
+  Finalizer's choice.
+- **What this library refuses to guess at, a caller can now supply.**
+  `finalize` takes an `InputSolver` and `estimated_input_sizes` a
+  `SolutionSizer`, for the inputs each was refusing not for want of data
+  but for want of knowledge nobody but the caller has: a witness script
+  of no standard kind, whose spend built from the signatures and the
+  script is a guess that fails when the network runs it rather than when
+  it is built, and a taproot script path, where which leaf will be spent
+  is not in the psbt. Neither is asked in place of an answer btclib can
+  work out, and neither takes over the bookkeeping BIP174 asks of a
+  Finalizer. `Psbt` grows `weight_estimate` and `vsize_estimate` to pass
+  a sizer, a property being unable to take one, and `satisfaction_sizer`
+  is a sizer for a miniscript: the branch a spend will build, where
+  `miniscript_sizer` answers the largest it could -- a timelocked
+  recovery quorum behind the same address used to pay for whichever
+  branch was larger even when it never opened it.
+- **A signer written outside btclib can be held to the contract.** A
+  protocol is a promise the type checker reads and nothing runs, so an
+  adapter answering a five-byte fingerprint, an xpub derived from the
+  wrong path, or a signature on an input whose key origin names another
+  master type-checks and is wrong at the first spend. `check_psbt_signer`
+  asks that question from outside and takes any `PsbtSigner` -- a command
+  line adapter, an in-process driver, a signing service -- and it is a
+  function belonging to no test framework. Beside it, `select_device` and
+  `merge_devices` are the choice a caller makes before it holds a signer
+  at all, by fingerprint and in an order that is the caller's;
+  `SignerNotFoundError` tells a backend that is not installed from a
+  device that refused; and `SoftwareSigner.from_accounts` builds a signer
+  on the accounts a device exported, for the master fingerprint they came
+  from, where the constructor takes one key and answers that key's own.
+- **Three parsers answer for their own input.** `OutPoint` accepts half a
+  coinbase marker, as Bitcoin Core does -- its rule is the conjunction
+  where this library's was the exclusive or -- so a transaction naming a
+  utxo through a synthetic funding transaction of that shape can be read
+  at all, which is what BIP322's proof-of-funds vectors do and what
+  `Psbt.parse` used to refuse before any signature could be looked at.
+  `Psbt.b64decode` raises `BTClibValueError` for base64 it cannot read,
+  where `binascii.Error` and a bare `ValueError` escaped from the codec.
+  And a malformed `hwi enumerate` entry is a `SignerError`, carrying what
+  the backend said, rather than an exception from inside the parsing of
+  it. `tests/fuzz_test.py` reaches the entry points it was missing -- the
+  base64 wrappers, `ecies.Envelope.parse`, and the two text languages
+  `descriptors.parse` and `miniscript.parse` -- and adding the first of
+  them is what found the `Psbt.b64decode` defect.
+- **The flow the ordinary suite skips is run against a real node, on a
+  schedule.** An `integration` workflow downloads a pinned Bitcoin Core
+  release, checks it against the sha256 four guix builders attested, and
+  runs the round trip end to end: btclib exports an account, Core imports
+  it and pays it, btclib signs the spend and the node relays it. Two
+  things it does not do: gate a merge -- a Core release or an unreachable
+  download is not a branch's fault -- and trust a green exit, a step
+  after the run failing the job if a regtest test skipped rather than
+  ran, which is how a fixture that stopped finding the node would
+  otherwise report success.
 
 ## v2026.8.7
 
