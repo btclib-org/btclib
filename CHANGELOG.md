@@ -575,6 +575,15 @@ documented at release-notes length in the first place, and are still in
 
 ### Tests
 
+- **The two regtest tests get an account each**, where they shared one and
+  so shared its first address. The node is the session's, and a wallet the
+  second test to run creates still saw what the first had paid: the import
+  asks for `now`, which does not mean "scan nothing" -- Core rescans from
+  that timestamp less its two-hour window, and a regtest chain minted
+  seconds ago lies inside it whole. Order-dependent, so it passed
+  whenever xdist put the two on different workers and pytest-randomly is
+  what eventually did not; the first scheduled run of the `integration`
+  workflow (#524) is what found it, which is what that workflow is for.
 - **`tests/fuzz_test.py` reaches the entry points it was missing** (#523):
   the base64 wrappers `Psbt.b64decode`, `bip322.Sig.b64decode` and
   `ecies.Envelope.b64decode`, the binary `ecies.Envelope.parse`, and the

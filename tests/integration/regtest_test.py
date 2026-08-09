@@ -45,7 +45,16 @@ pytestmark = pytest.mark.integration
 # has it for every test chain. The seed is this file's own: a key that
 # signs for coins mined in a directory pytest deletes
 ROOT = rootxprv_from_seed("0f" * 16, NETWORKS["regtest"].bip32_prv)
-ACCOUNT = "m/84h/1h/0h"
+# an account per test, and a test added here wants one of its own too.
+# The node is the session's, so two tests sharing an account derive the
+# same first address, and the wallet the second one creates sees what the
+# first paid to it: `account_import_requests` asks for `now`, which does
+# not mean "scan nothing" -- Core rescans from that timestamp less its
+# two-hour window, and a regtest chain minted seconds ago lies inside it
+# whole. Different accounts are different addresses, and `listunspent`
+# then answers for the test that asked
+RELAY_ACCOUNT = "m/84h/1h/0h"
+DECODE_ACCOUNT = "m/84h/1h/1h"
 
 
 def test_core_imports_what_btclib_exports_and_relays_what_it_signs(
@@ -55,7 +64,7 @@ def test_core_imports_what_btclib_exports_and_relays_what_it_signs(
     """The pure half of issue #381, end to end, with a node as the judge."""
     miner, watcher = wallets
     signer = SoftwareSigner(ROOT)
-    receive, change = export_account(signer, ACCOUNT)
+    receive, change = export_account(signer, RELAY_ACCOUNT)
 
     # Core imports the pair, and answers one result per request
     requests = account_import_requests(receive, change, key_range=(0, 20))
@@ -110,7 +119,7 @@ def test_the_change_output_is_what_the_node_calls_change(
     """
     miner, watcher = wallets
     signer = SoftwareSigner(ROOT)
-    receive, change = export_account(signer, ACCOUNT)
+    receive, change = export_account(signer, DECODE_ACCOUNT)
     watcher.call(
         "importdescriptors",
         [account_import_requests(receive, change, key_range=(0, 5))],
@@ -124,7 +133,7 @@ def test_the_change_output_is_what_the_node_calls_change(
 
     ((origin,),) = [output["bip32_derivs"] for output in decoded["outputs"] if output]
     assert origin["master_fingerprint"] == signer.master_fingerprint().hex()
-    assert origin["path"] == "m/84h/1h/0h/1/0"
+    assert origin["path"] == f"{DECODE_ACCOUNT}/1/0"
     assert decoded["outputs"][0] == {}
 
     # and the amount is what btclib put there, read back by Core
