@@ -65,13 +65,14 @@ consensus rules, then LOW_S, STRICTENC, NULLFAIL, MINIMALDATA,
 CLEANSTACK, MINIMALIF and CONST_SCRIPTCODE for the required ones, and the
 ``DISCOURAGE_`` family for the upgradeable ones -- the backticks because a
 name ending in an underscore is a link reference to docutils, which
-sphinx runs with `-W`. One rule of the list is not enforced:
-"all signatures MUST use SIGHASH_ALL", because which stack elements were
-consumed as signatures is bookkeeping the interpreter does not report,
-and picking them out of the witness by shape would refuse a control block
-that happens to be 65 bytes long. `sign` here uses SIGHASH_ALL, and
-SIGHASH_DEFAULT where taproot has it; issue 514 is what it costs and what
-closing it would take.
+sphinx runs with `-W`. The one rule of the list that is not a flag is
+"all signatures MUST use SIGHASH_ALL", which no set of flags can express:
+it is a rule about the stack elements the interpreter consumed as
+signatures, and which elements those were is not readable from the
+witness -- the control block of a single-leaf taproot tree is 65 bytes,
+exactly the shape of a BIP340 signature with an explicit hash type. So
+the engine reports them, through `verify_input`'s `hash_types`, and the
+rule is enforced over what it reports.
 
 One field of the BIP is not here either:
 `PSBT_GLOBAL_GENERIC_SIGNED_MESSAGE = 0x09`, which a creator puts the
@@ -368,6 +369,32 @@ def _assert_upgradeable(tx: Tx) -> None:
         raise InconclusiveError(err_msg)
 
 
+def _assert_hash_types(hash_types: list[int]) -> None:
+    """Refuse a signature that does not commit to the whole of `to_sign`.
+
+    BIP322's sixth required rule: "all signatures MUST use the
+    SIGHASH_ALL flag, unless the output type supports SIGHASH_DEFAULT,
+    which then MAY be used alternatively" -- so the two are one set
+    here, taproot being where the second is a spelling of the first and
+    the encodings refusing it elsewhere anyway.
+
+    What the rule buys is not the same at every input. The first
+    commits to the outpoint it spends whatever its hash type, and that
+    outpoint is `to_spend`'s txid, which the message and the challenge
+    script both enter; so the binding to the message survives a lax
+    hash type there, and what it loses is a commitment to an output
+    that is the constant OP_RETURN of 0. A further input of a proof of
+    funds has no such floor: ANYONECANPAY does not commit to the other
+    inputs, so a signature lifted out of the transaction that really
+    spent that utxo would satisfy it here -- a proof of control over
+    coins the prover never controlled.
+    """
+    for hash_type in hash_types:
+        if hash_type not in (ALL, DEFAULT):
+            err_msg = f"hash type {hash_type:#04x}: BIP322 requires SIGHASH_ALL"
+            raise BTClibValueError(err_msg)
+
+
 def _assert_scripts(prevouts: list[TxOut], tx: Tx) -> None:
     """Run the engine, telling an invalid signature from an inconclusive one.
 
@@ -377,12 +404,25 @@ def _assert_scripts(prevouts: list[TxOut], tx: Tx) -> None:
     that satisfies the required rules and not the upgradeable ones is
     inconclusive, and one that fails the required rules is invalid --
     which is the exception the second run raises by itself.
+
+    Each run reports its own hash types, and only a run that reached the
+    end of every script reports them all -- so the second run has a list
+    of its own rather than adding to what the first got as far as. The
+    rule is checked on either path because a required rule broken is
+    *invalid* whatever the upgradeable ones say, which is the order
+    BIP322 puts the two sets in.
     """
+    hash_types: list[int] = []
     try:
-        verify_transaction(prevouts, tx, REQUIRED_RULES | UPGRADEABLE_RULES)
+        verify_transaction(
+            prevouts, tx, REQUIRED_RULES | UPGRADEABLE_RULES, hash_types=hash_types
+        )
     except (ValueError, BTClibRuntimeError) as e:
-        verify_transaction(prevouts, tx, REQUIRED_RULES)
+        required_only: list[int] = []
+        verify_transaction(prevouts, tx, REQUIRED_RULES, hash_types=required_only)
+        _assert_hash_types(required_only)
         raise InconclusiveError(f"upgradeable rule: {e}") from e
+    _assert_hash_types(hash_types)
 
 
 def assert_as_valid(

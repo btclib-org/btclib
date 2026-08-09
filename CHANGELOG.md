@@ -382,15 +382,29 @@ documented at release-notes length in the first place, and are still in
   of an unknown version, each of them successful *because* nothing checks
   it. The BIP's own two vector files are vendored whole and every case
   runs, the three transaction hashes and the 36 error cases included and
-  nothing marked `xfail`. One required rule is not enforced, SIGHASH_ALL,
-  and #514 is what it costs and what closing it would take: which stack
-  elements were consumed as signatures is bookkeeping the interpreter
-  does not report, and picking them out by shape would refuse a control
-  block that happens to be 65 bytes long. The global psbt field BIP322
+  nothing marked `xfail`. The global psbt field BIP322
   adds for the coordination flow,
   `PSBT_GLOBAL_GENERIC_SIGNED_MESSAGE = 0x09`, is #516: it belongs to
   the psbt format rather than to a signature encoding, and an unknown
   global field already round-trips.
+- **Every required rule of BIP322 is enforced, SIGHASH_ALL included**
+  (#514). It is the one that is not a flag: a rule about which stack
+  elements the interpreter consumed as signatures, which nothing outside
+  the interpreter can work out -- the control block of a single-leaf
+  taproot tree is 65 bytes, exactly the shape of a BIP340 signature with
+  an explicit hash type, and a data push in a script-path witness can be
+  anything at all -- so a verifier picking them out by shape refuses
+  proofs that are valid. `verify_input` and `verify_transaction` take a
+  `hash_types` list and report into it what they checked, `None` and no
+  bookkeeping being the default; `bip322` reads it and refuses anything
+  but SIGHASH_ALL, or the SIGHASH_DEFAULT taproot spells as an absent
+  hash type. What that closes is the proof of funds, where the rule is
+  not a formality: ANYONECANPAY commits to no other input, so a
+  signature lifted out of the transaction that really spent a utxo
+  satisfies that same utxo's input inside a proof of control over it.
+  The first input of a `to_sign` was never open that far -- whatever its
+  hash type, it commits to the outpoint it spends, which is the txid the
+  message and the challenge script both enter.
 
 ### Transactions, blocks and PSBT
 

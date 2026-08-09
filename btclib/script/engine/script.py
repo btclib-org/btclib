@@ -222,6 +222,7 @@ def op_checksig(
     flags: ScriptFlag,
     segwit: bool,
     precomputed: PrecomputedTxData | None = None,
+    hash_types: list[int] | None = None,
 ) -> bool:
     """Verify one ECDSA signature over the script code it commits to.
 
@@ -237,6 +238,10 @@ def op_checksig(
     is BIP143's for a segwit v0 input and the legacy per-input
     serialization for the rest; tapscript signatures never reach here,
     tapscript.py verifying BIP340 on its own.
+
+    `hash_types` is `verify_input`'s collector, appended to here
+    because this is where the last byte of a stack element is known to
+    be a hash type at all.
     """
     if not signature:
         return False
@@ -254,6 +259,14 @@ def op_checksig(
         if ScriptFlag.STRICTENC in flags:
             raise BTClibValueError(f"invalid public key: {pub_key.hex()}")
         return False
+
+    if hash_types is not None:
+        # after the two encoding gates and before the verification: what
+        # is reported is what the interpreter took for a signature, and
+        # whether it verifies is a separate answer -- OP_CHECKMULTISIG
+        # tries one signature against several keys, so a report made
+        # only on success would leave out the very element under check
+        hash_types.append(signature[-1])
 
     script_code = calculate_script_code(
         script_bytes,
@@ -477,6 +490,7 @@ def _run_ops(  # noqa: C901, PLR0912
     precomputed: PrecomputedTxData | None,
     op_code_stops: list[int],
     script_index_ref: list[int],
+    hash_types: list[int] | None,
 ) -> None:
     """Run verify_script's opcode dispatch loop.
 
@@ -535,6 +549,7 @@ def _run_ops(  # noqa: C901, PLR0912
                 flags,
                 segwit,
                 precomputed,
+                hash_types,
             )
             check_nullfail(flags, result, [signature], "OP_CHECKSIG")
             stack.append(_from_num(int(result)))
@@ -572,6 +587,7 @@ def _run_ops(  # noqa: C901, PLR0912
                     flags,
                     segwit,
                     precomputed,
+                    hash_types,
                 )
 
             if signature_index == signature_num:
@@ -620,6 +636,7 @@ def verify_script(
     segwit: bool,
     final: bool = False,
     precomputed: PrecomputedTxData | None = None,
+    hash_types: list[int] | None = None,
 ) -> None:
     """Execute the script over the caller's stack, as Core's EvalScript.
 
@@ -630,6 +647,10 @@ def verify_script(
     the index of the failing command and the stack depth. With `final`
     the script must end on a non-empty stack with a true top element,
     which is the caller saying no script runs after this one.
+
+    `hash_types` is `verify_input`'s collector, threaded through to
+    `op_checksig`; chaining scripts over one stack is chaining them
+    over one collector too.
     """
     if len(script_bytes) > MAX_SCRIPT_SIZE:
         err_msg = f"script longer than {MAX_SCRIPT_SIZE} bytes: {len(script_bytes)}"
@@ -674,6 +695,7 @@ def verify_script(
             precomputed,
             op_code_stops,
             script_index_ref,
+            hash_types,
         )
     except BTClibValueError as e:
         raise ScriptError(str(e), script_index_ref[0], len(stack)) from e

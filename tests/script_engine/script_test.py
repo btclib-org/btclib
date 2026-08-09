@@ -14,6 +14,7 @@ from typing import Any, NamedTuple
 import pytest
 
 from btclib.alias import TaprootScriptTree
+from btclib.ecc import ssa
 from btclib.ecc.dsa import Sig, sign_
 from btclib.exceptions import BTClibValueError, ScriptError
 from btclib.hashes import hash160, sha256
@@ -24,6 +25,7 @@ from btclib.script.engine import (
     ScriptFlag,
     validate_push_only,
     verify_input,
+    verify_transaction,
 )
 from btclib.script.engine.script import (
     DISABLED_OP_CODES,
@@ -35,7 +37,12 @@ from btclib.script.engine.script import (
 from btclib.script.engine.script_op_codes import read_push_data
 from btclib.script.limits import MAX_SCRIPT_ELEMENT_SIZE
 from btclib.script.script import OP_CODE_NAME_FROM_INT, parse, serialize
-from btclib.script.taproot import input_script_sig, output_pubkey
+from btclib.script.taproot import (
+    input_script_sig,
+    leaf_hash,
+    output_prvkey,
+    output_pubkey,
+)
 from btclib.script.taproot import parse as parse_tapscript
 from btclib.script.taproot import serialize as serialize_tapscript
 from btclib.script.witness import Witness
@@ -1120,3 +1127,86 @@ def test_find_and_delete_takes_one_pass() -> None:
     assert find_and_delete(script, target) == (target, 1)
     # the empty target: Core returns before it can delete forever
     assert find_and_delete(script, b"") == (script, 0)
+
+
+def test_hash_types_report_every_signature_the_interpreter_checked() -> None:
+    """What `verify_input` reports back: three inputs, four hash types.
+
+    A signature and not an input is what makes an entry -- the 2-of-2
+    below carries two of them, with a hash type each -- and the list is
+    one for the whole transaction, in input order, appended to rather
+    than replaced.
+
+    No consensus rule reads it, and the caller that does is one with a
+    rule about the hash types themselves: BIP322's "all signatures MUST
+    use SIGHASH_ALL" (issue #514). Why such a caller cannot pick the
+    signatures out of the witness itself is the third input here -- its
+    control block is 65 bytes, exactly the shape of the BIP340
+    signature two elements below it.
+    """
+    keys = [
+        0x4242424242424242424242424242424242424242424242424242424242424242,
+        0x1111111111111111111111111111111111111111111111111111111111111111,
+    ]
+    sec_keys = [pub_keyinfo_from_prv_key(key)[0] for key in keys]
+
+    witness_script = serialize(["OP_2", *sec_keys, "OP_2", "OP_CHECKMULTISIG"])
+    script_tree: TaprootScriptTree = [(0xC0, [sec_keys[0][1:].hex(), "OP_CHECKSIG"])]
+    tap_script, control = input_script_sig(None, script_tree, 0)
+    leaf_script = serialize_tapscript(tap_script)
+    prevouts = [
+        TxOut(1000, ScriptPubKey(b"\x00\x20" + sha256(witness_script))),
+        TxOut(1000, ScriptPubKey.p2tr(keys[0])),
+        TxOut(
+            1000, ScriptPubKey(serialize(["OP_1", output_pubkey(None, script_tree)[0]]))
+        ),
+    ]
+    vin = [TxIn(OutPoint(b"\x01" * 32, i), b"", 1) for i in range(len(prevouts))]
+    tx = Tx(2, 0, vin, [TxOut(1000, ScriptPubKey(""))], check_validity=False)
+
+    # the 2-of-2, signed in script order and with a hash type each: the
+    # signature is what carries the type, so two signatures of one input
+    # can disagree about it and the report has to say so
+    multisig_types = [sig_hash.SINGLE, sig_hash.ANYONECANPAY | sig_hash.ALL]
+    signatures = [
+        sign_(
+            sig_hash.segwit_v0(witness_script, tx, 0, hash_type, prevouts[0].value), key
+        ).serialize()
+        + hash_type.to_bytes(1, "big")
+        for key, hash_type in zip(keys, multisig_types, strict=True)
+    ]
+    tx.vin[0].script_witness = Witness([b"", *signatures, witness_script])
+
+    # the key path, with the type spelled out: 65 bytes, and BIP341
+    # refuses the 65th being a zero, which is the DEFAULT below
+    msg_hash = sig_hash.taproot(tx, 1, prevouts, sig_hash.NONE, 0, b"", b"")
+    key_path_sig = ssa.sign_(msg_hash, output_prvkey(keys[0])).serialize()
+    tx.vin[1].script_witness = Witness(
+        [key_path_sig + sig_hash.NONE.to_bytes(1, "big")]
+    )
+
+    # and the script path, SIGHASH_DEFAULT: 64 bytes, no type byte at
+    # all, and the report says 0 for it -- the meaning BIP341 gives the
+    # absence rather than a byte read off the stack
+    ext = leaf_hash(0xC0, leaf_script) + b"\x00" + (0xFFFFFFFF).to_bytes(4, "little")
+    msg_hash = sig_hash.taproot(tx, 2, prevouts, sig_hash.DEFAULT, 1, b"", ext)
+    tx.vin[2].script_witness = Witness(
+        [ssa.sign_(msg_hash, keys[0]).serialize(), leaf_script, control]
+    )
+
+    hash_types: list[int] = []
+    verify_transaction(prevouts, tx, ALL_FLAGS, hash_types=hash_types)
+    # the two of the multisig come back the other way round, and that is
+    # the order the interpreter meets them in rather than a detail of
+    # this list: OP_CHECKMULTISIG pops its keys and its signatures off
+    # the stack, so it walks both from the last of the script towards
+    # the first. Order within an input is worth nothing to a caller for
+    # exactly this reason -- what the report answers is which types were
+    # used, and by how many signatures
+    assert hash_types == [*reversed(multisig_types), sig_hash.NONE, sig_hash.DEFAULT]
+
+    # appended to, not replaced: the caller owns the list, and verifying
+    # a second input into it is verifying two inputs into one report
+    verify_input(prevouts, tx, 1, ALL_FLAGS, hash_types=hash_types)
+    assert hash_types[-1] == sig_hash.NONE
+    assert len(hash_types) == 5
