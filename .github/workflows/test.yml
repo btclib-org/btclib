@@ -71,8 +71,14 @@ jobs:
     # the whole matrix on a tree its author is not asking anyone to
     # review yet. The gate below carries the same condition, so a draft
     # skips uniformly and the gate does not read that skip as a job that
-    # should have run
-    if: ${{ !github.event.pull_request.draft }}
+    # should have run.
+    # The exception is by base branch, and it is the release pull
+    # request: dev -> master stays a draft from one release to the
+    # next, and nothing here triggers on a push to dev, so without it
+    # a commit merged into dev would be tested by nothing at all
+    if: >-
+      ${{ !github.event.pull_request.draft
+      || github.base_ref == 'master' }}
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
@@ -151,7 +157,9 @@ jobs:
   # secret and no third party, and it applies to every run, where a
   # coveralls.io upload happens only on pull requests targeting master
   coverage-py:
-    if: ${{ !github.event.pull_request.draft }}
+    if: >-
+      ${{ !github.event.pull_request.draft
+      || github.base_ref == 'master' }}
     runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:
@@ -194,7 +202,9 @@ jobs:
   # bindings it resolves are published: while they were not, the step
   # could only be red, for a reason nobody could fix from a branch
   dist-py:
-    if: ${{ !github.event.pull_request.draft }}
+    if: >-
+      ${{ !github.event.pull_request.draft
+      || github.base_ref == 'master' }}
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
@@ -290,7 +300,9 @@ jobs:
     # satisfied. The gate has to run to be able to fail
     # and the draft condition every job above carries, so a draft
     # skips uniformly rather than tripping the skip check below
-    if: ${{ always() && !github.event.pull_request.draft }}
+    if: >-
+      ${{ always() && (!github.event.pull_request.draft
+      || github.base_ref == 'master') }}
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:

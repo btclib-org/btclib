@@ -56,8 +56,14 @@ jobs:
     # these checks on a tree its author is not asking anyone to review
     # yet. A run on the merge result still happens the moment the pull
     # request is marked ready, which is why ready_for_review is a
-    # trigger type above
-    if: ${{ !github.event.pull_request.draft }}
+    # trigger type above.
+    # The exception is by base branch, and it is the release pull
+    # request: dev -> master stays a draft from one release to the
+    # next, and nothing here triggers on a push to dev, so without it
+    # a commit merged into dev would be linted by nothing at all
+    if: >-
+      ${{ !github.event.pull_request.draft
+      || github.base_ref == 'master' }}
     runs-on: ubuntu-latest
     # nothing here takes minutes; a job that does is hung
     timeout-minutes: 20
@@ -144,7 +150,9 @@ jobs:
   # parallel and installs a different dependency group.
   docs:
     name: Build the documentation
-    if: ${{ !github.event.pull_request.draft }}
+    if: >-
+      ${{ !github.event.pull_request.draft
+      || github.base_ref == 'master' }}
     runs-on: ubuntu-latest
     # about ten seconds of sphinx; a job that takes minutes is hung
     timeout-minutes: 20
