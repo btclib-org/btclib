@@ -367,6 +367,42 @@ def test_the_type_properties_are_the_bip379_table() -> None:
     assert "u" not in parse("dv:older(1)").properties
 
 
+def test_a_composite_inherits_a_property_from_either_branch() -> None:
+    """Where the rules take the union of two branches, and not both of them.
+
+    The composition rules of BIP379 are written as a chain of terms, and
+    most of those terms select letters no other term can contribute: a
+    fragment's "u" comes from one place and its "z" from another, so the
+    chain could be a symmetric difference throughout and answer the same.
+    Four places are not like that, and they are the four asserted here --
+    each combines the *operands* rather than the terms, so a letter both
+    branches carry is a letter the composite keeps only if the rule is a
+    union.
+
+    - the timelocks of a conjunction and of a disjunction: two `older()`
+      branches are both height locks, so "h" is on both sides of it;
+    - `or_b`'s and `or_i`'s "m", non-malleability, which needs a
+      signature on *either* branch -- `_has(x | y, "s")` -- and holds for
+      two branches that both have one.
+
+    Measured the other way round as well: over the 97 expressions of
+    `miniscript_fixed_tests.json` and the composites above, no other
+    operator in those rules changes any fragment's properties when the
+    union it sits in becomes a symmetric difference.
+    """
+    assert parse("and_v(v:older(1),older(2))").properties == frozenset("Bfhkmxz")
+    assert parse("or_i(older(1),older(2))").properties == frozenset("Bfhkox")
+    assert parse("or_b(0,a:0)").properties == frozenset("Bdekmsux")
+    assert parse(
+        f"c:or_i(pk_k({KEY}),pk_k({CUSTODY_KEYS[1]}))"
+    ).properties == frozenset("Bdkmsu")
+
+    # and a height lock beside a time lock, where the union carries both
+    # letters: "g" to "j" are recorded per kind exactly so that a
+    # satisfaction can be refused for mixing them
+    assert parse("and_v(v:older(1),after(1))").properties == frozenset("Bfhjkmxz")
+
+
 def test_a_thresh_may_hold_a_dup_if_under_tapscript_alone() -> None:
     """Refuse under P2WSH the thresh() a tapscript accepts."""
     expression = (

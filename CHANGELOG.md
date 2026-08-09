@@ -1013,9 +1013,18 @@ documented at release-notes length in the first place, and are still in
     The `max_output + 1` read cap turned out equivalent: any cap above
     the limit gives the comparison below it the same verdict.
     - `descriptors.toml` (383 of 10831, the largest scope here and
-    sampled): the miniscript type-property algebra survives `|` turned
-    `^` in three places, `satisfy`'s index default is undefended, and
-    `_decomposed`'s push-size arithmetic is unpinned.
+    sampled): the miniscript type-property algebra survived `|` turned
+    `^`, and the class turned out to be four mutants rather than the
+    survivor list's many — BIP379's composition rules are a chain of
+    terms, and 50 of the 54 single-term unions in them are disjoint by
+    construction, so a symmetric difference there changes no fragment's
+    properties. The four that combine the *operands* do: the timelocks of
+    a conjunction and of a disjunction, and `or_b`'s and `or_i`'s
+    non-malleability, which asks for a signature on either branch. The
+    exact property set of the four shortest fragments that show it is
+    asserted now. `satisfy`'s index default and `_decomposed`'s push-size
+    arithmetic stay open, and `descriptors.toml` says what each would
+    take.
     - `musig2.toml` (159 of 1277): 6.29%, the lowest rate measured here,
     which is what a reference implementation's own vectors buy. Its two
     `% secp256k1.n` reductions turned `** secp256k1.n` are also the
