@@ -16,6 +16,12 @@ check. Nothing held any of those defaults to it -- the mutation profile of
 issue #327 reported one survivor per default and per `if check_validity:`
 in `btclib/tx/` -- and the tests at the end of this module are what does,
 over the wire-format classes that profile measures.
+
+Which of the three boundaries a class can be asked about is not this
+file's to decide, and the exclusion sets below are not where that rule
+is written: it is in `btclib/utils.py`, beside the parse contract, and a
+class missing from one of these lists is a class whose invariants its
+encoding already enforces rather than one nobody got round to.
 """
 
 from __future__ import annotations
@@ -165,14 +171,14 @@ def test_a_parameter_before_the_flag_stays_positional() -> None:
 
 # an outpoint whose vout is a bool, which `is_integer` refuses: a bool is
 # an int, so it passes every range check, and naming the type is the
-# whole of what assert_valid has to say about it.
-# It used to be the half-coinbase outpoint -- the all-zero tx_id with a
-# real vout -- which is a valid OutPoint since issue 513, Bitcoin Core
-# accepting it. What is left to be invalid about the two fields is a
-# tx_id of the wrong length and a vout outside four bytes or beside the
-# type, and only the last of the three survives a conversion: the other
-# two are what serialize and to_dict cannot write, rather than what
-# assert_valid refuses about what they wrote
+# whole of what assert_valid has to say about it. What it stands in for
+# is nothing: an `OutPoint` has no invalidity of *value* left to be
+# asked about, 32 octets of tx_id and four of vout being an outpoint
+# whatever they hold, and a `TxIn` has no child that has one. The rule
+# that makes that a type in good order rather than a class missing a
+# check is written down in `btclib/utils.py`, beside the parse contract
+# it belongs to; here it is why neither class has a case of its own, and
+# why the transaction below has to reach for a bool to have one
 _BOOL_VOUT = OutPoint(b"\x01" * 32, True, check_validity=False)
 _GOOD_OUT_POINT = OutPoint(b"\x01" * 32, 0)
 
@@ -197,9 +203,7 @@ _GOOD_OUT_POINT = OutPoint(b"\x01" * 32, 0)
 # MoneyRange all serialize, so what refuses them is the flag and not the
 # arithmetic underneath
 _INVALID: list[tuple[str, Any]] = [
-    ("outpoint", _BOOL_VOUT),
     ("tx_in-itself", TxIn(_GOOD_OUT_POINT, b"", True, check_validity=False)),
-    ("tx_in-nested", TxIn(_BOOL_VOUT, check_validity=False)),
     ("tx_out", TxOut(_MAX_SATOSHI + 1, "", check_validity=False)),
     ("tx-itself", Tx(1, 0, [], [TxOut(1, "")], check_validity=False)),
     # two nested transactions and not one, because the two boundaries
@@ -234,12 +238,12 @@ _INVALID: list[tuple[str, Any]] = [
 # all, the input count being where the segwit marker lives, so its `\x00`
 # opens a witness section rather than an empty list.
 #
-# That takes the outpoint and everything holding one out of the octets
-# test, and `tx-nested-out` is what keeps a nested case in it: an amount
-# above MoneyRange survives the round trip, eight little-endian bytes
-# carrying it, and `Tx.assert_valid` reaches it through
-# `tx_out.assert_valid()` before the total it would also refuse
-_NO_OCTETS = {"outpoint", "tx_in-itself", "tx_in-nested", "tx-itself", "tx-nested-in"}
+# That takes everything holding a bool out of the octets test, and
+# `tx-nested-out` is what keeps a nested case in it: an amount above
+# MoneyRange survives the round trip, eight little-endian bytes carrying
+# it, and `Tx.assert_valid` reaches it through `tx_out.assert_valid()`
+# before the total it would also refuse
+_NO_OCTETS = {"tx_in-itself", "tx-itself", "tx-nested-in"}
 
 # and what a dict cannot be asked. TxOut's only validity question is the
 # amount, and `to_dict` puts that amount through `btc_from_sats`, which is

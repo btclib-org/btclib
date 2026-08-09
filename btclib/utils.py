@@ -25,6 +25,29 @@ A fixed-size object read whole -- a 78-byte bip32 key, a 65-byte bms
 signature, an 80-byte block header -- reports its own decoded length
 instead of naming a field, the buffer being the object and not a part of
 one; that check is unconditional for the same reason.
+
+What `check_validity` does gate is the semantic half, and *where* it can
+be asked is not the same at the three boundaries the flag appears at.
+The object (`serialize`) and the json (`to_dict`/`from_dict`) ask "is
+this object well formed"; the octets (`parse`) ask "do these octets
+decode into something that is not" -- and for a class whose invariants
+are exactly the widths of its fields, nothing can. The decoding enforces
+them by construction, so at that boundary the flag is unreachable by
+design rather than unchecked, and the class is one in good order rather
+than one missing a check. `OutPoint` is such a class: 32 octets of
+tx_id and four of vout, every value of which is a valid outpoint since
+Bitcoin Core was found to accept the shapes it used to refuse. A class
+whose only invalidable child is one -- `TxIn`, whose own fields are of
+the same kind -- inherits the property.
+
+The two are not the same question asked twice, which is why an object
+can be asked one and not the other: an invalidity of *type* rather than
+of value survives the json and not the octets, a bool being an int that
+reads back as the number one, while an amount above MoneyRange survives
+the octets and not the json, the conversion to BTC asking what
+`assert_valid` would ask. `tests/check_validity_test.py` is where the
+cases live, one per class and boundary, and this is the rule they are
+read under.
 """
 
 from __future__ import annotations

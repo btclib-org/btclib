@@ -785,6 +785,21 @@ documented at release-notes length in the first place, and are still in
   the curve nearly every caller wants and says the catalogue holds more,
   which is what a reader arriving at the package needs. Counting is what
   a release does, when it wants the number.
+- **The parse contract says which boundary a class can be asked about**
+  (#517). `check_validity` gates one flag at three of them -- the object,
+  the json and the octets -- and only the first two ask "is this object
+  well formed"; the third asks "do these octets decode into something
+  that is not", which for a class whose invariants are exactly the widths
+  of its fields nothing can. That was true and written nowhere: a
+  contributor met it when a case broke in their hands, the knowledge
+  living in two exclusion sets inside `tests/check_validity_test.py`.
+  `btclib/utils.py` now states it beside the structural rule it belongs
+  to -- a class whose invariants its encoding already enforces is one in
+  good order rather than one missing a check -- and names the two that
+  are in that position, `OutPoint` and the `TxIn` whose only invalidable
+  child is one. Which is also why those two lose their fixtures in that
+  test file: what each demonstrated was a *type* error standing in for a
+  value error, and the fact is worth more written down than acted out.
 
 ### Tests
 
