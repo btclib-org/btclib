@@ -46,6 +46,26 @@ def test_indexes() -> None:
         assert indexes == expected
 
 
+def test_indexes_round_trip_a_base_that_is_not_a_power_of_two() -> None:
+    """2048 is a power of two, where `+`, `|` and `^` all agree; 1626 is not.
+
+    Electrum's Portuguese wordlist is the base the module's own comment
+    names: 13 words hold 139 bits, not the 130 that `bits_per_digit *
+    nwords` would claim, and only a base like this -- not 2048 -- makes
+    `entropy * base + index` differ from the same expression with `|` or
+    `^` for a generic index. The value itself, not the decoder's own
+    leading-zero padding for a base that is not a power of two, is what
+    ties the length to the accumulation.
+    """
+    indexes = list(range(1, 14))
+    value = 0
+    for index in indexes:
+        value = value * 1626 + index
+    entropy = bin_str_entropy_from_wordlist_indexes(indexes, 1626)
+    assert len(entropy) == 139
+    assert int(entropy, 2) == value
+
+
 def test_conversions() -> None:
     """Round-trip entropy across its str, int and bytes forms."""
     test_vectors = [
@@ -290,3 +310,10 @@ def test_bin_str_entropy_from_random() -> None:
     err_msg = "too many bits required: "
     with pytest.raises(BTClibValueError, match=err_msg):
         bin_str_entropy_from_random(1024)
+
+    # the cap itself: sha512's 512-bit digest, one bit over is refused and
+    # the bit at it is not -- 1024 above is well past either side of a
+    # cap computed one digest_size wider than it should be
+    assert len(bin_str_entropy_from_random(512)) == 512
+    with pytest.raises(BTClibValueError, match=err_msg):
+        bin_str_entropy_from_random(513)

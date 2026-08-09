@@ -1,0 +1,48 @@
+# BIP39 mnemonics, mutated: the checksum over the entropy, and the entropy
+# boundaries beneath it. A wordlist index off by one bit or a checksum
+# comparison that accepts the wrong nibble is a recovery phrase that does
+# not reproduce the wallet it was written down for -- silent on any vector
+# already in the suite, which is the same coverage-versus-boundary gap
+# #219 and #327 ask about elsewhere, on a boundary where the failure mode
+# is a wallet nobody can recover rather than a rejected transaction.
+
+[cosmic-ray]
+module-path = [
+  "btclib/mnemonic/bip39.py",
+  "btclib/mnemonic/entropy.py",
+]
+
+test-command = """python -m pytest -x -q -n0 -p no:randomly \
+  tests/mnemonic/bip39_test.py tests/mnemonic/entropy_test.py"""
+
+timeout = 300
+
+excluded-modules = []
+
+# 150 of the 739 mutants sampled in 600 s: 111 killed, 39 survived. 11 of
+# the 39 are the deferred-annotation class fetch.toml documents, and one
+# is `is` for `==` on two small ints CPython interns.
+#
+# Of the 27 real ones, two were genuine gaps in
+# `bin_str_entropy_from_wordlist_indexes`, now closed:
+# `entropy * base + index` weakened to `|` or `^`, and its `bit_length()`
+# padding weakened by a bitshift -- both equivalent for a power-of-two
+# base (2048, every wordlist this ships), so a base that is not one
+# (1626, the Electrum Portuguese wordlist the function's own comment
+# already names) is what a test needed to tell `+` from `|`/`^` at all.
+# The `-1` beside that shift survived the same test and is left open: it
+# only changes `bit_length()` at a power-of-two boundary `base **
+# len(indexes)` essentially never lands on, so it is equivalent for
+# every base this ships rather than for the one test vector above.
+#
+# The other 24 are `collect_rolls`' manual dice-entry path -- the `else`
+# branch `input()` reads from when `automate` is false. Roughly a third
+# are cosmetic (the `roll #{i + 1}` prompt text, arithmetic-mutated eight
+# ways, changes what a human is shown and nothing a test reads); the rest
+# are `valid_dice_sides` entries and the roll bounds `0 < roll <= base`,
+# real but each needing a scripted `sys.stdin` session
+# (`test_collect_rolls` already has the fixture) to reach past `automate`.
+# Left as a sampled first pass rather than chased number by number here.
+
+[cosmic-ray.distributor]
+name = "local"
