@@ -4,12 +4,16 @@
 
 """Tests for the `btclib.bip32.key_origin` module."""
 
+import dataclasses
+
 import pytest
 
+from btclib.alias import Octets
 from btclib.bip32 import (
     BIP32KeyOrigin,
     assert_valid_hd_key_paths,
     decode_from_bip32_derivs,
+    decode_hd_key_paths,
     encode_to_bip32_derivs,
 )
 from btclib.bip32.der_path import _HARDENING
@@ -21,12 +25,25 @@ def test_bip32_key_origin() -> None:
     """Parse descriptions in every hardening spelling; refuse bad ones."""
     with pytest.raises(BTClibValueError, match="invalid master fingerprint length: "):
         BIP32KeyOrigin("badbad", [0])
+    # one octet too many, not too few: `!= 4` weakened to `< 4` would
+    # still catch the short one above and miss this one
+    with pytest.raises(BTClibValueError, match="invalid master fingerprint length: "):
+        BIP32KeyOrigin("deadbeef00", [0])
 
     with pytest.raises(BTClibValueError, match="invalid der_path size: "):
         BIP32KeyOrigin("deadbeef", [0] * 256)
+    # the boundary itself, not only one past it: `> 255` weakened to
+    # `>= 255` or to `> 254` would refuse the 255 every other vector
+    # already carries a shorter version of
+    assert len(BIP32KeyOrigin("deadbeef", [0] * 255)) == 255
 
     with pytest.raises(BTClibValueError, match="invalid der_path element"):
         BIP32KeyOrigin("deadbeef", [0xFFFFFFFF + 1])
+    with pytest.raises(BTClibValueError, match="invalid der_path element"):
+        BIP32KeyOrigin("deadbeef", [-1])
+    # the upper boundary itself: `<= 0xffffffff` weakened to `<
+    # 0xffffffff` or to `<= 0xfffffffe` would refuse it
+    assert BIP32KeyOrigin("deadbeef", [0xFFFFFFFF]).der_path == [0xFFFFFFFF]
 
     description = master_fingerprint = "deadbeef"
     key_origin = BIP32KeyOrigin.from_description(description)
@@ -65,6 +82,116 @@ def test_bip32_key_origin() -> None:
     assert BIP32KeyOrigin.parse(key_origin.serialize()) == key_origin
     assert BIP32KeyOrigin.from_dict(key_origin.to_dict()) == key_origin
     assert len(key_origin) == 5
+
+
+def test_key_origin_is_frozen() -> None:
+    """`@dataclass(frozen=True)`, refusing an assignment nothing else tries."""
+    key_origin = BIP32KeyOrigin("deadbeef", [0])
+    with pytest.raises(dataclasses.FrozenInstanceError):
+        key_origin.master_fingerprint = b"\x00" * 4  # type: ignore[misc]
+
+
+def test_check_validity_defaults_to_true_on_to_dict_from_dict_and_serialize() -> None:
+    """An over-long fingerprint tells the three defaults apart from `False`.
+
+    `to_dict` and `serialize` read the field back as it is stored, no
+    boundary of their own in the way; an invalid `BIP32KeyOrigin` (built
+    with `check_validity=False`) must still be refused at the default,
+    and `from_dict` must refuse the same dict right back.
+    """
+    key_origin = BIP32KeyOrigin("deadbeef00", [0], check_validity=False)
+    err_msg = "invalid master fingerprint length: "
+
+    with pytest.raises(BTClibValueError, match=err_msg):
+        key_origin.to_dict()
+    as_dict = key_origin.to_dict(check_validity=False)
+
+    with pytest.raises(BTClibValueError, match=err_msg):
+        BIP32KeyOrigin.from_dict(as_dict)
+    assert BIP32KeyOrigin.from_dict(as_dict, check_validity=False) == key_origin
+
+    with pytest.raises(BTClibValueError, match=err_msg):
+        key_origin.serialize()
+    assert key_origin.serialize(check_validity=False)
+
+
+def test_check_validity_defaults_to_true_on_parse() -> None:
+    """`parse` always reads exactly four fingerprint octets, valid or not.
+
+    What check_validity still guards there is everything past them:
+    `assert_valid`'s own `len(self) > 255`, unreachable through a string
+    path (`_pairs_from_der_path_str` refuses the same count first) but
+    not through the raw indexes a serialized path decodes to.
+    """
+    key_origin = BIP32KeyOrigin("deadbeef", [0] * 256, check_validity=False)
+    as_bytes = key_origin.serialize(check_validity=False)
+
+    with pytest.raises(BTClibValueError, match="invalid der_path size: "):
+        BIP32KeyOrigin.parse(as_bytes)
+    assert BIP32KeyOrigin.parse(as_bytes, check_validity=False) == key_origin
+
+
+def test_check_validity_defaults_to_true_on_from_description() -> None:
+    """A description too short for its 8-hex-octet fingerprint slice.
+
+    `data[:8]` takes whatever there is of a shorter string, so a bare
+    four-hex-character fingerprint with no path at all is what reaches
+    `assert_valid`'s length check rather than being caught by the slice.
+    """
+    with pytest.raises(BTClibValueError, match="invalid master fingerprint length: "):
+        BIP32KeyOrigin.from_description("dead")
+    parsed = BIP32KeyOrigin.from_description("dead", check_validity=False)
+    assert parsed.master_fingerprint == bytes.fromhex("dead")
+
+
+def test_decode_hd_key_paths_reads_the_map_it_is_given() -> None:
+    """A populated map decodes to itself; `None` and `{}` to an empty one.
+
+    `{...} if map_ else {}` negated builds the comprehension only when
+    `map_` is falsy -- `None`, crashing on `.items()`, or empty, staying
+    empty -- and returns `{}` for the one case, a populated map, that
+    should not.
+    """
+    key_origin = BIP32KeyOrigin("deadbeef", [0])
+    pub_key = bytes(33)
+    populated: dict[Octets, BIP32KeyOrigin] = {pub_key: key_origin}
+
+    assert decode_hd_key_paths(populated) == populated
+    assert decode_hd_key_paths(None) == {}
+    assert decode_hd_key_paths({}) == {}
+
+
+def test_assert_valid_hd_key_paths_checks_the_pub_key_length() -> None:
+    """78, 65 or 33 octets: an xpub, an uncompressed or a compressed key.
+
+    Each boundary is checked on both sides, `not in {78, 33, 65}`
+    surviving being narrowed to any one of the six neighbors a single
+    `NumberReplacer` reaches.
+    """
+    key_origin = BIP32KeyOrigin("deadbeef", [0])
+    for length in (78, 65, 33):
+        hd_key_paths = {bytes(length): key_origin}
+        assert_valid_hd_key_paths(hd_key_paths)
+    for length in (77, 79, 64, 66, 32, 34):
+        hd_key_paths = {bytes(length): key_origin}
+        with pytest.raises(BTClibValueError, match="invalid public key length: "):
+            assert_valid_hd_key_paths(hd_key_paths)
+
+
+def test_assert_valid_hd_key_paths_checks_every_entry() -> None:
+    """A second, invalid entry is refused, not just the first one checked.
+
+    The per-entry loop survives being replaced with one over an empty
+    list unless an entry past the first is what is wrong with the map:
+    every existing vector either has one entry or is invalid in its
+    first one.
+    """
+    good = BIP32KeyOrigin("deadbeef", [0])
+    good2 = BIP32KeyOrigin("deadbeef", [1])  # a different origin: no duplicate
+    bad_pub_key = bytes(32)  # neither 78, 65 nor 33 octets
+    hd_key_paths = {bytes(33): good, bad_pub_key: good2}
+    with pytest.raises(BTClibValueError, match="invalid public key length: "):
+        assert_valid_hd_key_paths(hd_key_paths)
 
 
 def test_dataclasses_json_dict_key_origin(json_golden: JsonGolden) -> None:

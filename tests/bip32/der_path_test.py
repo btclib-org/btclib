@@ -15,7 +15,7 @@ from btclib.bip32 import (
     str_from_index_int,
 )
 from btclib.bip32.der_path import _HARDENING, _indexes_from_der_path_str
-from btclib.exceptions import BTClibValueError
+from btclib.exceptions import BTClibTypeError, BTClibValueError
 
 
 def test_from_der_path_str() -> None:
@@ -176,6 +176,43 @@ def test_hardenings_from_der_path() -> None:
     # BIP380's own valid vector with mixed indicators
     assert hardenings_from_der_path("0'/0h/0'") == ["'", "h", "'"]
     assert indexes_from_der_path("0'/0h/0'") == [0x80000000] * 3
+
+
+def test_only_a_leading_m_is_skipped() -> None:
+    """Any other first step is an index, not a lookalike to drop.
+
+    `steps[0].lower() == "m"` weakened to `>=` would strip any step
+    sorting at or after "m" -- most letters, not `m` alone -- silently
+    dropping it instead of refusing it as the index it is not.
+    """
+    with pytest.raises(BTClibValueError, match="invalid derivation index: zzz"):
+        indexes_from_der_path("zzz/5")
+
+
+def test_a_path_holds_at_most_255_steps() -> None:
+    """The depth byte a header carries is one octet: 0 to 255.
+
+    255 steps parse; 256 do not. `> 255` weakened to `> 256` would
+    accept the step count depth itself cannot hold.
+    """
+    path_255 = "m/" + "/".join(["0"] * 255)
+    assert len(indexes_from_der_path(path_255)) == 255
+
+    path_256 = "m/" + "/".join(["0"] * 256)
+    with pytest.raises(BTClibValueError, match="depth greater than 255: 256"):
+        indexes_from_der_path(path_256)
+
+
+def test_an_iterable_of_indexes_is_checked_element_by_element() -> None:
+    """A non-integer among otherwise good indexes is still refused.
+
+    Every existing DerPath vector that is a plain iterable is all
+    integers, so the loop that checks each one had never been asked
+    about an iterable it was not: replaced with one over an empty list,
+    nothing here would have noticed.
+    """
+    with pytest.raises(BTClibTypeError, match="invalid derivation index type: str"):
+        indexes_from_der_path([0, 1, "2"])  # type: ignore[list-item]
 
     assert hardenings_from_der_path("m/44h/0'/1H/0/10") == ["h", "'", "H", "", ""]
     assert hardenings_from_der_path("m/44h/0'/1h") == ["h", "'", "h"]
