@@ -138,7 +138,7 @@ from __future__ import annotations
 import operator
 import re
 from abc import ABC, abstractmethod
-from collections.abc import Callable, Mapping, Sequence
+from collections.abc import Callable, Iterable, Mapping, Sequence
 from copy import deepcopy
 from dataclasses import dataclass, fields, replace
 from typing import Any, cast
@@ -187,6 +187,7 @@ from btclib.network import NETWORKS, network_from_xkeyversion
 from btclib.psbt.psbt import Psbt
 from btclib.psbt.psbt_in import PsbtIn
 from btclib.psbt.psbt_out import PsbtOut
+from btclib.psbt.psbt_size import SIG_SIZE, SolutionSizer
 from btclib.script.script import op_int, serialize
 from btclib.script.script import parse as _parse_script
 from btclib.script.script_pub_key import ScriptPubKey, _script_from
@@ -223,6 +224,7 @@ __all__ = [
     "multipath_descriptors",
     "normalized",
     "parse",
+    "satisfaction_sizer",
     "strip_checksum",
 ]
 
@@ -2383,6 +2385,75 @@ def miniscript_sizer(psbt_in: PsbtIn, tx_in: TxIn) -> list[int] | None:
     if stack is None:
         return None
     return [*stack, len(psbt_in.witness_script)]
+
+
+def satisfaction_sizer(keys: Iterable[Octets]) -> SolutionSizer:
+    """Return a `SolutionSizer` for the satisfaction these keys will build.
+
+    `miniscript_sizer` answers "how large could this get", every branch
+    open and every signature assumed -- right where a caller does not yet
+    know which branch a spend will take, and an overpay where it does. A
+    quorum with a timelocked recovery quorum behind the same address is
+    exactly that second caller: which of the two a transaction takes is
+    decided before anything is estimated, the recovery spend being a
+    separate operation with its own inputs and its own signatures.
+
+    `Miniscript.satisfy` already answers the narrower question -- given
+    which keys will sign, which branch and how large -- so this is that
+    answer as a `SolutionSizer`, beside `miniscript_sizer` and not a mode
+    of it::
+
+        witness = estimated_input_sizes(
+            psbt_in, tx_in, sizer=satisfaction_sizer(recovery_keys)
+        )
+
+    `satisfy` never checks a signature against anything, so a filler one
+    of `psbt_size.SIG_SIZE` bytes for each key does exactly what a real
+    one would for sizing, and none of them has to exist yet, any more
+    than the ones `miniscript_sizer` assumes do. The preimages are the
+    psbt input's own, and the sequence is the input being sized, so an
+    ``older()`` branch is measured against what this spend actually
+    carries. An ``after()`` branch is not, `locktime` being the
+    transaction's and not this call's to read -- it is answered as unmet,
+    and a script whose only open branch needs one refuses rather than
+    guesses.
+
+    None for that refusal and the two `miniscript_sizer` already answers
+    with it: no witness script, or one that is no miniscript. A caller
+    then falls back exactly as it would for any other sizer answering
+    "not mine".
+    """
+    signer_keys = tuple(bytes_from_octets(key) for key in keys)
+
+    def sizer(psbt_in: PsbtIn, tx_in: TxIn) -> list[int] | None:
+        if not psbt_in.witness_script:
+            return None
+        known = (*psbt_in.partial_sigs, *psbt_in.hd_key_paths, *signer_keys)
+        try:
+            node = _miniscript_from_script(
+                psbt_in.witness_script,
+                miniscript.P2WSH,
+                {hash160(key): key for key in known},
+            )
+        # not a miniscript, which is the answer "not mine" and not an error
+        except BTClibValueError:
+            return None
+        signatures = dict.fromkeys(signer_keys, bytes(SIG_SIZE))
+        spend = SpendContext(
+            sha256_preimages=psbt_in.sha256_preimages,
+            hash256_preimages=psbt_in.hash256_preimages,
+            ripemd160_preimages=psbt_in.ripemd160_preimages,
+            hash160_preimages=psbt_in.hash160_preimages,
+            sequence=tx_in.sequence,
+        )
+        try:
+            stack = node.satisfy(cast("Mapping[Octets, Octets]", signatures), spend)
+        # these keys build no satisfaction, or only a malleable one
+        except BTClibValueError:
+            return None
+        return [*(len(element) for element in stack), len(psbt_in.witness_script)]
+
+    return sizer
 
 
 def miniscript_solver(psbt: Psbt, vin_i: int) -> tuple[bytes, Witness] | None:

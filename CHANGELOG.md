@@ -321,6 +321,26 @@ documented at release-notes length in the first place, and are still in
   `from btclib.descriptors import parse, KeyExpression, PrvKeys` reaches
   the same objects -- and `miniscript` is published beside them as the
   subgroup a caller reaches by name.
+- **`satisfaction_sizer` estimates the branch a spend will build, beside
+  `miniscript_sizer`'s largest it could** (#547). A quorum with a
+  timelocked recovery quorum behind the same address is a wallet that
+  knows which of the two a transaction takes before anything is
+  estimated -- the recovery spend is a separate operation, with its own
+  inputs and its own signatures -- and `miniscript_sizer` cannot use
+  that: `max_witness_stack` assumes every branch open and every signature
+  present, so a recovery spend pays for whichever branch is larger even
+  when it never opens it.
+
+  `Miniscript.satisfy` already answers the narrower question: given
+  which keys will sign, it picks the branch those satisfy and reports
+  that witness. `satisfaction_sizer(keys)` is that answer as a
+  `SolutionSizer`, a filler signature of `psbt_size.SIG_SIZE` bytes per
+  key standing in for one that does not exist yet -- `satisfy` never
+  checks a signature against anything, so the byte content is
+  irrelevant and only the length is. The sequence read is the input
+  being sized, so an `older()` branch is measured against what that
+  spend actually carries; `locktime` is not, being the transaction's and
+  not this call's to know, so an `after()` branch is answered as unmet.
 
 ### Curves, signatures and keys
 
