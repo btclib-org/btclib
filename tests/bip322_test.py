@@ -32,6 +32,7 @@ from btclib.exceptions import (
 from btclib.hashes import hash160
 from btclib.psbt import Psbt
 from btclib.script import ScriptPubKey, address, serialize
+from btclib.script.engine import ALL_FLAGS, ScriptFlag
 from btclib.script.sig_hash import ALL, segwit_v0
 from btclib.script.taproot import output_pubkey
 from btclib.script.witness import Witness
@@ -75,6 +76,42 @@ def _ids(group: str) -> list[str]:
         vector_id(i, case.get("type"), case.get("description"))
         for i, case in enumerate(_cases(group))
     ]
+
+
+def test_required_and_upgradeable_rules_are_every_flag_named() -> None:
+    """The two flag sets, against the OR of what each lists by name.
+
+    Each is built as one long `|` chain over distinct-bit `ScriptFlag`
+    members, seven and five of them respectively: an `&` anywhere in
+    that chain collapses everything already accumulated to the left of
+    it against a single bit, and nothing before this test called either
+    name to notice a REQUIRED_RULES a hundred times smaller than the
+    seven flags it names.
+    """
+    required = ALL_FLAGS
+    for flag in (
+        ScriptFlag.STRICTENC,
+        ScriptFlag.LOW_S,
+        ScriptFlag.NULLFAIL,
+        ScriptFlag.MINIMALDATA,
+        ScriptFlag.CLEANSTACK,
+        ScriptFlag.MINIMALIF,
+        ScriptFlag.CONST_SCRIPTCODE,
+    ):
+        required |= flag
+    assert required == bip322.REQUIRED_RULES
+
+    upgradeable = (
+        ScriptFlag.DISCOURAGE_UPGRADABLE_NOPS
+        | ScriptFlag.DISCOURAGE_UPGRADABLE_WITNESS_PROGRAM
+        | ScriptFlag.DISCOURAGE_UPGRADABLE_PUBKEYTYPE
+        | ScriptFlag.DISCOURAGE_OP_SUCCESS
+        | ScriptFlag.DISCOURAGE_UPGRADABLE_TAPROOT_VERSION
+    )
+    assert upgradeable == bip322.UPGRADEABLE_RULES
+    # the two sets do not overlap: a required rule failing is invalid, an
+    # upgradeable one inconclusive, and a flag in both could not be either
+    assert not bip322.REQUIRED_RULES & bip322.UPGRADEABLE_RULES
 
 
 @pytest.mark.parametrize("case", BASIC["tx_hashes"], ids=_ids("tx_hashes"))

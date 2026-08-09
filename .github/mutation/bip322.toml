@@ -1,0 +1,41 @@
+# BIP322 generic signed messages, mutated. The newest module in this
+# directory's scope -- it lands the same week as this profile -- and one
+# whose whole point is a signature an address cannot be recovered from,
+# built out of `ecc.bms`, `ecc.dsa`, `ecc.ssa`, `script.engine` and `psbt`
+# already running under their own coverage. Mutation testing on day one
+# rather than after a defect report is what #219's question is for: whether
+# the suite would notice a wrong boundary before somebody else finds one.
+
+[cosmic-ray]
+module-path = "btclib/bip322.py"
+
+test-command = "python -m pytest -x -q -n0 -p no:randomly tests/bip322_test.py"
+
+timeout = 300
+
+excluded-modules = []
+
+# 508 of the 977 mutants sampled in 1200 s: 405 killed, 103 survived. 44
+# are the deferred-annotation class fetch.toml documents, 5 the keyword-
+# only marker, 4 an `is` CPython's small-int cache makes indistinguishable
+# from `==`.
+#
+# One real gap closed, and the most consequential this session found:
+# REQUIRED_RULES and UPGRADEABLE_RULES are each a `|` chain over distinct-
+# bit ScriptFlag members, and nothing called either name to check the
+# result -- an `&` at any position collapses everything accumulated left
+# of it against a single bit, so REQUIRED_RULES could have silently been
+# one flag wide instead of the seven the module lists. A `^` at the first
+# position of UPGRADEABLE_RULES survives the same test and is equivalent
+# there on purpose: two disjoint bits combine the same way under `^` and
+# under `|`, which is not true once a third term brings the accumulator
+# past a single bit -- exactly why the later positions in both chains die.
+#
+# check_validity defaults account for another block (Sig.serialize,
+# b64encode, b64decode, assert_as_valid's `legacy` parameter), the same
+# class parsers.toml's follow-up already names; the rest is comparison
+# operators and off-by-ones scattered across the input-validation and
+# signing helpers, sampled as data here.
+
+[cosmic-ray.distributor]
+name = "local"
