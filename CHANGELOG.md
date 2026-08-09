@@ -20,6 +20,31 @@ Only v2026.8.7 and what follows it are here. The releases before it were
 documented at release-notes length in the first place, and are still in
 [HISTORY.md](./HISTORY.md) rather than duplicated here.
 
+## v2026.9 (work in progress, not released yet)
+
+### Curves, signatures and keys
+
+- **A MOV-weak curve is a `BTClibValueError`** (#572). `Curve` refuses
+  nine kinds of unusable parameter and eight of them raise the class the
+  library documents; the embedding-degree check raised `UserWarning`,
+  which is a `Warning` and not a `BTClibValueError`, so it was the one
+  `raise` in the whole library outside the exception hierarchy. A caller
+  validating a curve of its own with the default `weakness_check=True`
+  -- the only way to reach the check, the catalogue passing `False` --
+  and catching `BTClibValueError` for the other eight did not catch this
+  one: the curve came back as an escaping `UserWarning` instead of as a
+  refusal. The n == p check one branch below refuses the other weak curve
+  as a `BTClibValueError`, so the two disagreed on the class of the same
+  answer.
+
+  The message now names the embedding degree that was found rather than
+  saying "weak curve" alone: the value is what tells a curve refused for
+  being pairing-friendly from one refused for anything else, and it is
+  the number SEC 1 v.2 3.1.1.2.1 step 8 bounds. `UserWarning` was never
+  warned with -- `warnings.warn` is what a warning is raised through, and
+  `BTClibUserWarning` in `btclib.exceptions` is the class for it -- so
+  nothing that filters warnings is affected.
+
 ## v2026.8.9
 
 ### Descriptors and miniscript
