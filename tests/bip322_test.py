@@ -16,6 +16,8 @@ would pass all of the first group and none of the second.
 
 from __future__ import annotations
 
+import base64
+import dataclasses
 from typing import Any
 
 import pytest
@@ -32,6 +34,7 @@ from btclib.exceptions import (
 from btclib.hashes import hash160
 from btclib.psbt import Psbt
 from btclib.script import ScriptPubKey, address, serialize
+from btclib.script.engine import ALL_FLAGS, ScriptFlag
 from btclib.script.sig_hash import ALL, segwit_v0
 from btclib.script.taproot import output_pubkey
 from btclib.script.witness import Witness
@@ -75,6 +78,42 @@ def _ids(group: str) -> list[str]:
         vector_id(i, case.get("type"), case.get("description"))
         for i, case in enumerate(_cases(group))
     ]
+
+
+def test_required_and_upgradeable_rules_are_every_flag_named() -> None:
+    """The two flag sets, against the OR of what each lists by name.
+
+    Each is built as one long `|` chain over distinct-bit `ScriptFlag`
+    members, seven and five of them respectively: an `&` anywhere in
+    that chain collapses everything already accumulated to the left of
+    it against a single bit, and nothing before this test called either
+    name to notice a REQUIRED_RULES a hundred times smaller than the
+    seven flags it names.
+    """
+    required = ALL_FLAGS
+    for flag in (
+        ScriptFlag.STRICTENC,
+        ScriptFlag.LOW_S,
+        ScriptFlag.NULLFAIL,
+        ScriptFlag.MINIMALDATA,
+        ScriptFlag.CLEANSTACK,
+        ScriptFlag.MINIMALIF,
+        ScriptFlag.CONST_SCRIPTCODE,
+    ):
+        required |= flag
+    assert required == bip322.REQUIRED_RULES
+
+    upgradeable = (
+        ScriptFlag.DISCOURAGE_UPGRADABLE_NOPS
+        | ScriptFlag.DISCOURAGE_UPGRADABLE_WITNESS_PROGRAM
+        | ScriptFlag.DISCOURAGE_UPGRADABLE_PUBKEYTYPE
+        | ScriptFlag.DISCOURAGE_OP_SUCCESS
+        | ScriptFlag.DISCOURAGE_UPGRADABLE_TAPROOT_VERSION
+    )
+    assert upgradeable == bip322.UPGRADEABLE_RULES
+    # the two sets do not overlap: a required rule failing is invalid, an
+    # upgradeable one inconclusive, and a flag in both could not be either
+    assert not bip322.REQUIRED_RULES & bip322.UPGRADEABLE_RULES
 
 
 @pytest.mark.parametrize("case", BASIC["tx_hashes"], ids=_ids("tx_hashes"))
@@ -289,6 +328,11 @@ def test_legacy_signature_is_accepted_for_p2pkh_alone() -> None:
     assert not bip322.verify(msg, p2pkh(WIF), legacy, legacy=False)
     assert not bip322.verify(b"another", p2pkh(WIF), legacy)
 
+    # assert_as_valid's own legacy default, not verify's: verify always
+    # forwards its own `legacy` argument explicitly, so nothing above
+    # reaches assert_as_valid's default unless called directly
+    bip322.assert_as_valid(msg, p2pkh(WIF), legacy)
+
 
 def test_a_simple_signature_is_not_65_octets() -> None:
     """The size that tells a BMS signature from a witness stack.
@@ -319,6 +363,36 @@ def test_sig_round_trip() -> None:
     assert bip322.Sig.b64decode(psbt_sig.b64encode()) == psbt_sig
 
 
+def test_sig_is_frozen_and_check_validity_defaults_to_true() -> None:
+    """The one field is frozen, and serialize/b64encode/b64decode refuse.
+
+    A `Tx` payload built with `check_validity=False` is the same kind of
+    invalid object the other profiles' `Sig`-like classes use to pin this
+    default: nothing before this test assigned to `Sig.payload`, and
+    nothing called any of the three at their default check_validity
+    instead of passing the keyword explicitly.
+    """
+    msg, addr = b"frozen", _address(WIF, "p2pkh")
+    sig = bip322.sign(msg, WIF, addr)
+    with pytest.raises(dataclasses.FrozenInstanceError):
+        sig.payload = sig.payload  # type: ignore[misc]
+
+    invalid_tx = Tx(1, 0, [], [], check_validity=False)
+    invalid = bip322.Sig(invalid_tx)
+    with pytest.raises(BTClibValueError):
+        invalid.serialize()
+    invalid.serialize(check_validity=False)
+    with pytest.raises(BTClibValueError):
+        invalid.b64encode()
+    invalid.b64encode(check_validity=False)
+    data = invalid.serialize(check_validity=False)
+    with pytest.raises(BTClibValueError):
+        bip322.Sig.b64decode(bip322.FULL + base64.b64encode(data).decode("ascii"))
+    bip322.Sig.b64decode(
+        bip322.FULL + base64.b64encode(data).decode("ascii"), check_validity=False
+    )
+
+
 def test_b64decode_refuses_what_is_not_base64() -> None:
     """A prefix is stripped, a bad encoding is named, and nothing is guessed."""
     with pytest.raises(BTClibValueError, match="invalid base64 encoding"):
@@ -327,6 +401,34 @@ def test_b64decode_refuses_what_is_not_base64() -> None:
         bip322.Sig.b64decode("full!!!!")
     with pytest.raises(BTClibValueError, match="invalid base64 encoding"):
         bip322.Sig.b64decode("pof☃")
+
+    # a character outside the base64 alphabet embedded in an otherwise
+    # decodable string, not one that breaks decoding outright: `!!!!`
+    # and `☃` above fail regardless of `validate`, where a stray
+    # newline is stripped and silently decoded under `validate=False`
+    # and is what `validate=True` is actually for
+    sig = bip322.sign(b"x", WIF, _address(WIF, "p2pkh"))
+    text = sig.b64encode()
+    smuggled = text[:10] + "\n" + text[10:]
+    with pytest.raises(BTClibValueError, match="invalid base64 encoding"):
+        bip322.Sig.b64decode(smuggled)
+
+
+def test_is_bms_is_the_exact_65_octets_and_nothing_shorter() -> None:
+    """A legacy-looking signature is 65 octets exactly, not merely no more.
+
+    `_is_bms` only sniffs the size to route `assert_as_valid`'s `legacy`
+    branch; whichever way it decides, a real check waits downstream.
+    But the two downstream checks are not the same one: a base64 blob
+    that decodes to fewer than 65 octets is short for `Witness.parse`
+    (BIP322, `_is_bms` correctly says no) in one wrong way, and short
+    for `bms.Sig.parse` (`_is_bms` wrongly saying yes) in another --
+    which is what tells a weakened `<=` apart from `==` here.
+    """
+    addr = _address(WIF, "p2pkh")
+    short = base64.b64encode(b"x" * 40).decode()
+    with pytest.raises(BTClibRuntimeError, match="not enough binary data"):
+        bip322.assert_as_valid(b"hello", addr, short, legacy=True)
 
 
 def _to_sign_of(msg: bytes, addr: str, **kwargs: Any) -> tuple[Tx, Tx]:
@@ -365,6 +467,41 @@ def test_shape_of_to_sign_is_checked() -> None:
     tx.vin.clear()
     with pytest.raises(BTClibValueError, match="no input in to_sign"):
         bip322.assert_as_valid(msg, addr, bip322.Sig(tx))
+
+    # zero outputs, not only two: `len(tx.vout) != 1` weakened to `> 1`
+    # would let a to_sign with none at all through this check, past the
+    # `tx.vout[0]` right after it that a real answer never reaches empty
+    spend, tx = _to_sign_of(msg, addr, witness=signed.payload)
+    tx.vout.clear()
+    with pytest.raises(BTClibValueError, match="outputs in to_sign"):
+        bip322._assert_shape(tx, spend, list(spend.vout))
+
+    # a script that is not the OP_RETURN, sorting below it and above it:
+    # `!= _OP_RETURN` weakened to `<` or to `>` each miss the direction
+    # the vector above does not move in ("\x6a" itself, an equal script
+    # excluded by the `.value` check next to it instead)
+    for wrong_script in (b"\x00", b"\xff"):
+        _, tx = _to_sign_of(msg, addr, witness=signed.payload)
+        tx.vout[0] = TxOut(0, wrong_script)
+        with pytest.raises(BTClibValueError, match="not the OP_RETURN"):
+            bip322.assert_as_valid(msg, addr, bip322.Sig(tx))
+
+    # more utxos than inputs, not only fewer: `!= len(tx.vin)` weakened
+    # to `< len(tx.vin)` would accept the extra one silently
+    spend, tx = _to_sign_of(msg, addr, witness=signed.payload)
+    with pytest.raises(BTClibValueError, match="utxos for"):
+        bip322._assert_shape(tx, spend, list(spend.vout) * 2)
+
+    # the error message names the first input, which a second one on
+    # the same tx tells apart from the last: `tx.vin[0]` weakened to
+    # `tx.vin[-1]` in the f-string alone still raises on the same
+    # condition, and only the wrong hex in the message gives it away
+    spend, tx = _to_sign_of(msg, addr, witness=signed.payload)
+    other_id = bytes(range(32))
+    tx.vin[0].prev_out = OutPoint(other_id, 0)
+    tx.vin.append(TxIn(OutPoint(spend.id, 0), b"", 0))
+    with pytest.raises(BTClibValueError, match=other_id.hex()):
+        bip322._assert_shape(tx, spend, [spend.vout[0], spend.vout[0]])
 
 
 def test_a_version_that_is_not_0_or_2_is_inconclusive() -> None:
@@ -432,3 +569,12 @@ def test_proof_of_funds_reuses_an_earlier_non_witness_utxo() -> None:
     psbt.inputs[1].non_witness_utxo = None
     with pytest.raises(BTClibValueError, match="no utxo for input 1"):
         bip322._psbt_prevouts(psbt)
+
+    # the referenced transaction is there, but its vout is not: `vout <
+    # len(prev_tx.vout)` weakened to `<=` needs the boundary itself,
+    # weakened to `!=` needs one past it -- `<=` still refuses that one
+    psbt.inputs[1].non_witness_utxo = funding
+    for out_of_range in (len(funding.vout), len(funding.vout) + 1):
+        psbt.inputs[1].output_index = out_of_range
+        with pytest.raises(BTClibValueError, match="no utxo for input 1"):
+            bip322._psbt_prevouts(psbt)

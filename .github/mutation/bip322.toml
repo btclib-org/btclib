@@ -1,0 +1,96 @@
+# BIP322 generic signed messages, mutated. The newest module in this
+# directory's scope -- it lands the same week as this profile -- and one
+# whose whole point is a signature an address cannot be recovered from,
+# built out of `ecc.bms`, `ecc.dsa`, `ecc.ssa`, `script.engine` and `psbt`
+# already running under their own coverage. Mutation testing on day one
+# rather than after a defect report is what #219's question is for: whether
+# the suite would notice a wrong boundary before somebody else finds one.
+
+[cosmic-ray]
+module-path = "btclib/bip322.py"
+
+test-command = "python -m pytest -x -q -n0 -p no:randomly tests/bip322_test.py"
+
+timeout = 300
+
+excluded-modules = []
+
+# 508 of the 977 mutants sampled in 1200 s: 405 killed, 103 survived. 44
+# are the deferred-annotation class fetch.toml documents, 5 the keyword-
+# only marker, 4 an `is` CPython's small-int cache makes indistinguishable
+# from `==`.
+#
+# One real gap closed, and the most consequential this session found:
+# REQUIRED_RULES and UPGRADEABLE_RULES are each a `|` chain over distinct-
+# bit ScriptFlag members, and nothing called either name to check the
+# result -- an `&` at any position collapses everything accumulated left
+# of it against a single bit, so REQUIRED_RULES could have silently been
+# one flag wide instead of the seven the module lists. A `^` at the first
+# position of UPGRADEABLE_RULES survives the same test and is equivalent
+# there on purpose: two disjoint bits combine the same way under `^` and
+# under `|`, which is not true once a third term brings the accumulator
+# past a single bit -- exactly why the later positions in both chains die.
+#
+# check_validity defaults account for another block (Sig.serialize,
+# b64encode, b64decode, assert_as_valid's `legacy` parameter), the same
+# class parsers.toml's follow-up already names; the rest is comparison
+# operators and off-by-ones scattered across the input-validation and
+# signing helpers, sampled as data here.
+#
+# A second pass worked through that data and closed the real gaps in it:
+#
+# - `Sig.b64decode`'s and `_is_bms`'s own `validate=True` each had no
+#   caller telling `base64.b64decode` apart from its lenient twin --
+#   `Sig.b64decode`'s is a real gap, a smuggled newline mid-signature
+#   silently stripped and decoded instead of refused; `_is_bms`'s is
+#   equivalent, below.
+# - `_is_bms`'s `== _BMS_SIZE` weakened to `<=` let a base64 blob
+#   shorter than 65 octets sniff as a legacy signature: `assert_as_valid`
+#   still refuses it, but through `bms.Sig.parse`'s own length check
+#   rather than `Witness.parse`'s, a `BTClibValueError` where the
+#   correct routing raises `BTClibRuntimeError`.
+# - `_assert_shape`'s error message named `tx.vin[0]` in the f-string
+#   alone, never a `to_sign` with a second input whose id is not the
+#   first's -- reachable because `_assert_shape` allows more than one
+#   input (proof of funds), unlike every other index into a `tx.vin` or
+#   `tx.vout` this file also has, see below.
+# - `Sig.b64decode`'s `prefix == FULL`/`SIMPLE` `parse`'s three-way
+#   dispatch had a wrong upper boundary already caught by
+#   `test_b64decode_refuses_what_is_not_base64`; the two remaining
+#   comparisons proved equivalent rather than needing a vector, next.
+#
+# Checked and left equivalent:
+#
+# - the three-way `prefix` dispatch (`smp`/`ful`/`pof`) weakened to `<=`
+#   or `>=`: `ful` sorts first and `smp` last of the three reachable
+#   values, so each bound coincides with `==` over that closed set the
+#   same way ScriptType's alphabetical extremes do below.
+# - `_assert_key_owns`'s `len(pub_key) == 33` weakened to `<=`: a key is
+#   33 bytes compressed or 65 uncompressed, never anything shorter, so
+#   no value this function is ever called with falls between them.
+# - `sign`'s `script_type == "p2sh"` weakened to `<=` or `>=`, reachable
+#   for `p2pkh` and for `p2tr`/`p2wpkh` respectively: the `script_sig` it
+#   guards is overwritten outright for `p2pkh`, never read back for
+#   `p2tr` (returned before reaching it) or for native `p2wpkh` (the
+#   *simple* variant returns the witness alone), so a wrong value there
+#   reaches no output regardless of which address type set it.
+# - `sign`'s `script_type == "p2pkh"` weakened to `<=`: `p2pkh` sorts
+#   first of the four types `_assert_key_owns` recognizes, the same
+#   extremity as `_assert_p2pkh`'s check in `bms.toml`. `== "p2wpkh"`
+#   weakened to `>=` in the final return: `p2tr` and `p2pkh` already
+#   returned earlier, and `p2wpkh` sorts after the one type left,
+#   `p2sh`, making it the extreme of what is left to compare.
+# - `type_and_payload(script_pub_key)[0] != "p2pkh"` weakened to `>`:
+#   `from_address` only ever produces p2pkh, p2sh or a segwit type for
+#   this call, and p2pkh sorts before all four of the others, the same
+#   reasoning `bms.toml` gives for its own p2pkh dispatch.
+# - six of the seven `NumberReplacer` survivors turn `tx.vin[0]` or
+#   `tx.vout[0]` into `tx.vin[-1]`/`tx.vout[-1]`: `_assert_shape` checks
+#   `len(tx.vout) != 1` before either of its own `tx.vout[0]`s, and
+#   every one of `sign`'s own is on the `vin` `to_sign` builds with no
+#   `extra_inputs`, always length 1 -- `[0]` and `[-1]` name the same
+#   element throughout. The `_assert_shape` survivor above is the one
+#   exception, on the very field that is allowed more than one.
+
+[cosmic-ray.distributor]
+name = "local"

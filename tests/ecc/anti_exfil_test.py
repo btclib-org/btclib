@@ -151,6 +151,17 @@ def test_the_whole_handshake() -> None:
         secp256k1.add(R, secp256k1.G),
     )
 
+    # lower_s defaults to True here too: the malleated twin shares r, so
+    # the commitment check alone would still open, and only the default
+    # refuses it
+    malleated = dsa.Sig(sig.r, sig.ec.n - sig.s)
+    assert dsa.anti_exfil_host_verify(
+        _HANDSHAKE_MSG_HASH, _PUB_KEY, malleated, _RHO, R, lower_s=False
+    )
+    assert not dsa.anti_exfil_host_verify(
+        _HANDSHAKE_MSG_HASH, _PUB_KEY, malleated, _RHO, R
+    )
+
 
 def test_the_signer_keeps_no_state() -> None:
     """A rho that does not match the commitment fails step 5, and only that.

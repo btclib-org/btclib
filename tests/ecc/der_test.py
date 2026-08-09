@@ -81,6 +81,13 @@ def test_der_deserialize() -> None:
         with pytest.raises(BTClibValueError, match=err_msg):
             Sig.parse(bad_sig_bin)
 
+        # 0x80 itself is not the only negative first byte: `>= 0x80`
+        # weakened to `== 0x80` would miss every byte above it
+        bad_sig_bin = sig_bin[:offset] + b"\xff" + sig_bin[offset + 1 :]
+        err_msg = "invalid negative scalar"
+        with pytest.raises(BTClibValueError, match=err_msg):
+            Sig.parse(bad_sig_bin)
+
         bad_sig_bin = sig_bin[:offset] + b"\x00\x7f" + sig_bin[offset + 2 :]
         err_msg = "invalid 'highest bit set' padding"
         with pytest.raises(BTClibValueError, match=err_msg):

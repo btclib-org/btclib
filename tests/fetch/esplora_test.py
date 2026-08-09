@@ -122,7 +122,7 @@ def test_a_404_carries_what_the_explorer_said() -> None:
         fetcher((404, b"Transaction not found")).get_tx(TX_ID)
 
 
-@pytest.mark.parametrize("status", [404, 429, 503])
+@pytest.mark.parametrize("status", [100, 404, 429, 503])
 def test_the_status_of_a_failure_is_a_field(status: int) -> None:
     """Which is what tells a rate limit from a missing transaction.
 
@@ -130,6 +130,9 @@ def test_the_status_of_a_failure_is_a_field(status: int) -> None:
     from a public deployment is worth another attempt and a 404 is not.
     btclib retries neither -- an explorer's rate limit is the caller's
     budget to spend -- so the status has to reach them as a value.
+
+    100 is below 200, not above it: `!= 200` weakened to `> 200` would
+    still refuse every status above, and only one below tells them apart.
     """
     with pytest.raises(HttpError) as exc:
         fetcher((status, b"no")).get_tx(TX_ID)

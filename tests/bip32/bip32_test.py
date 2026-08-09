@@ -22,7 +22,7 @@ from btclib.bip32 import (
     rootxprv_from_seed,
     xpub_from_xprv,
 )
-from btclib.bip32.bip32 import _derive
+from btclib.bip32.bip32 import _BIP32KeyData, _derive
 from btclib.bip32.der_path import _indexes_from_der_path_str
 from btclib.curves import (
     bytes_from_point,
@@ -60,6 +60,13 @@ def test_exceptions() -> None:
 
     with pytest.raises(BTClibValueError, match="too few bits for seed: "):
         rootxprv_from_seed(seed[:-2])
+
+    # both boundaries themselves, not only past them: seeds come in whole
+    # bytes, so bit_length is always a multiple of 8, and every value a
+    # `< 128`/`> 512` neighbor would treat differently from `< 127`/`>
+    # 513` is one no byte-sized seed can ever reach
+    assert rootxprv_from_seed("00" * 16)
+    assert rootxprv_from_seed("00" * 64)
 
 
 def test_assert_valid2() -> None:
@@ -282,6 +289,11 @@ def test_derive_exceptions() -> None:
         with pytest.raises(OverflowError, match="int too big to convert"):
             derive(xprv, index)
 
+    # the boundary itself, not only one past it: `> 255` weakened to
+    # `>= 255` or to `> 254` would refuse the 255 the vector above stops
+    # one short of
+    assert derive(XKEY, "m" + 255 * "/0")
+
     xprv = _derive(xprv, "1")
     err_msg = "final depth greater than 255: "
     with pytest.raises(BTClibValueError, match=err_msg):
@@ -348,6 +360,22 @@ def test_derive_from_account() -> None:
     err_msg = "invalid address index: 65536"
     with pytest.raises(BTClibValueError, match=err_msg):
         derive_from_account(mxpub, 0, 0xFFFF + 1)
+
+    # max_index's own default, not one passed in: `0xffff` widened to
+    # 65536 or narrowed to 65534 would move the boundary this vector
+    # relies on being exactly 65535
+    assert derive_from_account(mxpub, 0, 0xFFFF)
+
+    # strictly above the offset, not only at it: `>= _HARDENED_OFFSET`
+    # weakened to `==` would refuse only the exact boundary above, the
+    # one 0x80000000 case already covers
+    err_msg = "invalid private derivation at branch level"
+    with pytest.raises(BTClibValueError, match=err_msg):
+        derive_from_account(mxpub, 0x80000000 + 1, 0, True)
+
+    err_msg = "invalid private derivation at address index level"
+    with pytest.raises(BTClibValueError, match=err_msg):
+        derive_from_account(mxpub, 0, 0x80000000 + 1, max_index=0xFFFFFFFF)
 
     der_path = "m / 44 h / 0"
     mxpub = xpub_from_xprv(derive(rmxprv, der_path))
@@ -632,6 +660,299 @@ def test_the_coercion_still_happens_in_init() -> None:
     assert isinstance(coerced.index, int)
     assert coerced.b58encode() == XKEY
     assert BIP32KeyData.b58decode(coerced.b58encode()) == coerced
+
+
+def test_is_root_is_all_three_fields_and_not_just_one() -> None:
+    """No caller of `is_root` exercises it, so pin the property itself.
+
+    `_assert_valid_depth_and_index` ties depth zero to index zero and to
+    a zero parent fingerprint, so a *valid* object never isolates the
+    index or the fingerprint term: it is depth alone a valid non-root key
+    can vary. The other two need `check_validity=False`, the same
+    combination `_assert_valid_depth_and_index` itself would refuse.
+    """
+    root = BIP32KeyData.b58decode(XKEY)
+    assert root.is_root
+
+    non_root_depth = BIP32KeyData(
+        version=root.version,
+        depth=1,
+        parent_fingerprint=root.parent_fingerprint,
+        index=0,
+        chain_code=root.chain_code,
+        key=root.key,
+    )
+    assert not non_root_depth.is_root
+
+    non_root_index = BIP32KeyData(
+        version=root.version,
+        depth=0,
+        parent_fingerprint=root.parent_fingerprint,
+        index=1,
+        chain_code=root.chain_code,
+        key=root.key,
+        check_validity=False,
+    )
+    assert not non_root_index.is_root
+
+    non_root_fingerprint = BIP32KeyData(
+        version=root.version,
+        depth=0,
+        parent_fingerprint=b"\x01\x02\x03\x04",
+        index=0,
+        chain_code=root.chain_code,
+        key=root.key,
+        check_validity=False,
+    )
+    assert not non_root_fingerprint.is_root
+
+    # negative, not only positive: `depth == 0`/`index == 0` weakened to
+    # `<= 0` would call this one root too, index and parent fingerprint
+    # both being the root's own
+    negative_depth = BIP32KeyData(
+        version=root.version,
+        depth=-1,
+        parent_fingerprint=root.parent_fingerprint,
+        index=0,
+        chain_code=root.chain_code,
+        key=root.key,
+        check_validity=False,
+    )
+    assert not negative_depth.is_root
+
+    negative_index = BIP32KeyData(
+        version=root.version,
+        depth=0,
+        parent_fingerprint=root.parent_fingerprint,
+        index=-1,
+        chain_code=root.chain_code,
+        key=root.key,
+        check_validity=False,
+    )
+    assert not negative_index.is_root
+
+
+def test_is_hardened_is_not_narrowed_to_the_boundary_alone() -> None:
+    """An index strictly above the offset is hardened too, not just it.
+
+    `self.index >= _HARDENED_OFFSET` weakened to `==` would call every
+    non-root path in the test vectors hardened all the same, since every
+    one of them lands exactly on the offset (`0h`, `44h`); nothing there
+    ever derives past it.
+    """
+    root = BIP32KeyData.b58decode(XKEY)
+    above_offset = BIP32KeyData(
+        version=root.version,
+        depth=1,
+        parent_fingerprint=b"\x01\x02\x03\x04",
+        index=0x80000000 + 1,
+        chain_code=root.chain_code,
+        key=root.key,
+        check_validity=False,
+    )
+    assert above_offset.is_hardened
+
+
+def test_hardened_public_derivation_is_refused_above_the_offset_too() -> None:
+    """A hardened index above the offset is refused, not just the exact one.
+
+    `any(index >= _HARDENED_OFFSET ...)` weakened to `==` in
+    `__pub_key_path_derivation` would refuse only the exact boundary
+    `derive(xpub, 0x80000000)` already covers, letting an ordinary
+    hardened index above it reach a private-only derivation instead.
+    """
+    xpub = xpub_from_xprv(XKEY)
+    err_msg = "invalid hardened derivation from public key"
+    with pytest.raises(BTClibValueError, match=err_msg):
+        derive(xpub, 0x80000000 + 1)
+
+
+def test_assert_valid_depth_and_index_accepts_its_own_boundaries() -> None:
+    """Depth 255 and index 0xffffffff are the top of their ranges, not past it.
+
+    `0 <= x <= bound` weakened on either side, or a bound replaced with a
+    neighbor, would refuse exactly the value every other vector stops one
+    short of.
+    """
+    root = BIP32KeyData.b58decode(XKEY)
+    top = BIP32KeyData(
+        version=root.version,
+        depth=255,
+        parent_fingerprint=b"\x01\x02\x03\x04",
+        index=0xFFFFFFFF,
+        chain_code=root.chain_code,
+        key=root.key,
+    )
+    assert top.depth == 255
+    assert top.index == 0xFFFFFFFF
+
+
+def test_assert_valid_key_refuses_a_scalar_above_n_too() -> None:
+    """`0 < q < n` chained: weakening the right `<` to `!=` misses q > n.
+
+    Both existing invalid-key vectors put q at 0 and at n exactly, so
+    `q != n` alone would already refuse either one; only a scalar
+    strictly above n tells `q < n` apart from it.
+    """
+    xkey_data = BIP32KeyData.b58decode(XKEY)
+    xkey_data.key = b"\x00" + (ec.n + 1).to_bytes(32, byteorder="big", signed=False)
+    with pytest.raises(BTClibValueError, match="invalid private key not in 1..n-1"):
+        xkey_data.assert_valid()
+
+
+def test_invalid_key_prefix_messages_show_exactly_one_byte() -> None:
+    """The hex in each prefix-refusal message is one byte, not a slice past it.
+
+    `key[:1].hex()` widened to `key[:2]` still contains the same text as
+    a leading substring, so only an exact match on the whole message --
+    not `pytest.raises(match=...)`'s search -- tells the two spellings
+    apart.
+    """
+    root = BIP32KeyData.b58decode(XKEY)
+
+    bad_prv = BIP32KeyData.b58decode(XKEY)
+    bad_prv.key = b"\x05" + root.key[1:]
+    with pytest.raises(BTClibValueError) as excinfo:
+        bad_prv.assert_valid()
+    assert str(excinfo.value) == "invalid private key prefix: 0x05"
+
+    xpub = BIP32KeyData.b58decode(xpub_from_xprv(XKEY))
+    bad_pub = BIP32KeyData.b58decode(xpub_from_xprv(XKEY))
+    bad_pub.key = b"\x05" + xpub.key[1:]
+    with pytest.raises(BTClibValueError) as excinfo:
+        bad_pub.assert_valid()
+    assert str(excinfo.value) == "invalid public key prefix not in (0x02, 0x03): 0x05"
+
+    with pytest.raises(BTClibValueError) as excinfo:
+        xpub_from_xprv(bad_pub)
+    assert str(excinfo.value) == "not a private key: prefix 0x05"
+
+    child_xpub_data = BIP32KeyData.b58decode(xpub_from_xprv(XKEY))
+    prefix = f"0x{child_xpub_data.key[:1].hex()}"
+    with pytest.raises(BTClibValueError) as excinfo:
+        crack_prv_key(xpub_from_xprv(XKEY), xpub_from_xprv(XKEY))
+    assert (
+        str(excinfo.value)
+        == f"extended child key is not a private key: prefix {prefix}"
+    )
+
+
+def test_pub_key_derivation_tweaks_are_32_bytes_each() -> None:
+    """`offset.to_bytes(32, ...)` widened to 33 would leak a byte per tweak.
+
+    Every existing assertion on `pub_key_derivation_tweaks` compares the
+    accumulated point, which a leading zero byte would not move: nothing
+    checks the tweaks' own length.
+    """
+    rootxprv = "xprv9s21ZrQH143K3QTDL4LXw2F7HEK3wJUD2nW2nRk4stbPy6cq3jPPqjiChkVvvNKmPGJxWUtg6LnF5kejMRNNU3TGtRBeJgk33yuGBxrMPHi"
+    xpub = BIP32KeyData.b58decode(xpub_from_xprv(rootxprv))
+    tweaks = pub_key_derivation_tweaks(xpub.key, xpub.chain_code, "m/1/2")
+    assert all(len(tweak) == 32 for tweak in tweaks)
+
+
+def test_derive_with_a_forced_version() -> None:
+    """A forced version must be the same kind, private or public, as the key.
+
+    `_force_version` is otherwise unexercised by any test: `version in
+    XPRV_VERSIONS_ALL` negated, `fversion not in allowed_versions`
+    negated, and `bytes_from_octets(forced_version, 4)` widened to 5 or
+    narrowed to 3 all survive without a single call anywhere passing
+    forced_version.
+    """
+    forced_prv = NETWORKS["mainnet"].slip132_p2wpkh_p2sh_prv
+    forced = derive(XKEY, "m/0h", forced_prv)
+    assert BIP32KeyData.b58decode(forced).version == forced_prv
+
+    err_msg = "invalid version forced on the extended key"
+    forced_pub = NETWORKS["mainnet"].slip132_p2wpkh_p2sh_pub
+    with pytest.raises(BTClibValueError, match=err_msg):
+        derive(XKEY, "m/0h", forced_pub)
+
+
+def test_b58decode_strips_a_string_and_not_bytes() -> None:
+    """A string is whitespace-stripped before decoding.
+
+    `isinstance(address, str)` negated would strip bytes instead of
+    strings and leave a padded string for base58.decode to choke on --
+    nothing downstream surfaces the swap without checking the string
+    path directly.
+    """
+    xkey_data = BIP32KeyData.b58decode(f"  {XKEY}  ")
+    assert xkey_data == BIP32KeyData.b58decode(XKEY)
+
+
+def test_check_validity_defaults_to_true() -> None:
+    """`__init__`, serialize, parse and b58encode all default to True.
+
+    A zero depth with a non-zero parent fingerprint serializes fine
+    structurally -- one byte and four, whatever they hold -- and is
+    refused only by assert_valid's cross-field check, the one
+    check_validity=False defers on every one of these four call sites.
+    """
+    root = BIP32KeyData.b58decode(XKEY)
+    invalid = BIP32KeyData(
+        version=root.version,
+        depth=0,
+        parent_fingerprint=b"\x01\x02\x03\x04",
+        index=0,
+        chain_code=root.chain_code,
+        key=root.key,
+        check_validity=False,
+    )
+    err_msg = "zero depth with non-zero parent fingerprint: "
+
+    with pytest.raises(BTClibValueError, match=err_msg):
+        BIP32KeyData(
+            version=invalid.version,
+            depth=invalid.depth,
+            parent_fingerprint=invalid.parent_fingerprint,
+            index=invalid.index,
+            chain_code=invalid.chain_code,
+            key=invalid.key,
+        )
+
+    with pytest.raises(BTClibValueError, match=err_msg):
+        invalid.serialize()
+    as_bytes = invalid.serialize(check_validity=False)
+
+    with pytest.raises(BTClibValueError, match=err_msg):
+        invalid.b58encode()
+    assert invalid.b58encode(check_validity=False)
+
+    with pytest.raises(BTClibValueError, match=err_msg):
+        BIP32KeyData.parse(as_bytes)
+    assert BIP32KeyData.parse(as_bytes, check_validity=False) == invalid
+
+
+def test_bip32keydata_init_check_validity_guard_is_not_negated() -> None:
+    """`_BIP32KeyData`'s own check_validity guard, not just its parent's.
+
+    `_derive` always builds one from an already-valid key, so nothing
+    through the public API ever constructs an invalid `_BIP32KeyData`;
+    the private class itself has to be called directly to reach `if
+    check_validity` negated to `if not check_validity`, which would
+    validate exactly backwards.
+    """
+    root = BIP32KeyData.b58decode(XKEY)
+    with pytest.raises(BTClibValueError, match="invalid depth: "):
+        _BIP32KeyData(
+            version=root.version,
+            depth=256,
+            parent_fingerprint=root.parent_fingerprint,
+            index=root.index,
+            chain_code=root.chain_code,
+            key=root.key,
+        )
+    unchecked = _BIP32KeyData(
+        version=root.version,
+        depth=256,
+        parent_fingerprint=root.parent_fingerprint,
+        index=root.index,
+        chain_code=root.chain_code,
+        key=root.key,
+        check_validity=False,
+    )
+    assert unchecked.depth == 256
 
 
 def test_the_tweaks_of_a_public_derivation_are_the_derivation() -> None:

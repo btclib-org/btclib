@@ -16,6 +16,8 @@ from __future__ import annotations
 
 import base64
 import contextlib
+import dataclasses
+from collections.abc import Callable
 from hashlib import sha256
 from typing import Any
 
@@ -23,6 +25,7 @@ import pytest
 
 from btclib import b32, b58
 from btclib.alias import Point
+from btclib.b58 import h160_from_address
 from btclib.bip32 import bip32
 from btclib.curves import mult, secp256k1
 from btclib.curves.curve import CURVES
@@ -34,6 +37,31 @@ from btclib.to_prv_key import prv_keyinfo_from_prv_key
 from tests import load, vector_id
 
 ec = secp256k1
+
+
+def test_check_validity_defaults_to_true_everywhere_it_appears() -> None:
+    """serialize, b64encode and parse all refuse an invalid Sig by default.
+
+    Built once with `check_validity=False`, an out-of-range recovery
+    flag is invalid for every one of the checks these three otherwise
+    make on the way to bytes or back: a default flipped to `False`
+    would let it through silently instead.
+    """
+    dsa_sig = dsa.Sig(1, 1, ec, check_validity=False)
+    invalid = bms.Sig(100, dsa_sig, check_validity=False)
+
+    with pytest.raises(BTClibValueError, match="invalid recovery flag: "):
+        invalid.serialize()
+    invalid.serialize(check_validity=False)
+
+    with pytest.raises(BTClibValueError, match="invalid recovery flag: "):
+        invalid.b64encode()
+    invalid.b64encode(check_validity=False)
+
+    data = invalid.serialize(check_validity=False)
+    with pytest.raises(BTClibValueError, match="invalid recovery flag: "):
+        bms.Sig.parse(data)
+    bms.Sig.parse(data, check_validity=False)
 
 
 def test_signature() -> None:
@@ -51,6 +79,12 @@ def test_signature() -> None:
 
     assert bms_sig == bms.sign(msg, wif.encode("ascii"))
 
+    # frozen: `__init__` sets both fields through `object.__setattr__`
+    # for exactly this reason, and nothing after construction reaches
+    # them the same way
+    with pytest.raises(dataclasses.FrozenInstanceError):
+        bms_sig.rf = 27  # type: ignore[misc]
+
     # malleated signature
     dsa_sig = dsa.Sig(bms_sig.dsa_sig.r, bms_sig.dsa_sig.ec.n - bms_sig.dsa_sig.s)
     # without updating rf verification will fail, even with lower_s=False
@@ -67,6 +101,12 @@ def test_signature() -> None:
     err_msg = "not a low s"
     with pytest.raises(BTClibValueError, match=err_msg):
         bms.assert_as_valid(msg, addr, bms_sig, lower_s=True)
+    # and the same is true left to the default: assert_as_valid's and
+    # verify's lower_s both default to True, and every other call in
+    # this file passes the keyword explicitly
+    with pytest.raises(BTClibValueError, match=err_msg):
+        bms.assert_as_valid(msg, addr, bms_sig)
+    assert not bms.verify(msg, addr, bms_sig)
 
     # bms_sig taken from (Electrum and) Bitcoin Core
     wif, addr = bms.gen_keys("5KMWWy2d3Mjc8LojNoj8Lcz9B1aWu8bRofUgGwQk959Dw5h2iyw")
@@ -113,9 +153,25 @@ def test_exceptions() -> None:
     with pytest.raises(BTClibValueError, match=err_msg):
         bms.assert_as_valid(msg, b32.p2wsh(32 * b"\x00"), exp_sig)
 
+    # a program's length, not only its version: p2wsh above is version 0
+    # with a 32-byte program, caught by the length half of `wit_ver != 0
+    # or len(h160) != 20` alone -- `!= 0` weakened to `< 0` needs a
+    # *non-zero* version paired with a 20-byte program, which no other
+    # witness type is, to be told apart
+    not_p2wpkh = b32.address_from_witness(5, bytes(20))
+    with pytest.raises(BTClibValueError, match=err_msg):
+        bms.assert_as_valid(msg, not_p2wpkh, exp_sig)
+
     err_msg = "invalid recovery flag: "
     with pytest.raises(BTClibValueError, match=err_msg):
         bms.Sig(26, bms_sig.dsa_sig)
+
+    # the upper boundary, not only the lower one: `self.rf > 42` weakened
+    # to `>= 42` would refuse 42 itself, which the vector above cannot
+    # show since it only ever moves the lower bound
+    bms.Sig(42, bms_sig.dsa_sig)
+    with pytest.raises(BTClibValueError, match=err_msg):
+        bms.Sig(43, bms_sig.dsa_sig)
 
     # 84 base64 characters and then a padding one, i.e. a pad following
     # a complete group: guards against b64decode discarding it, as
@@ -192,6 +248,62 @@ def test_exceptions() -> None:
     err_msg = "invalid p2wpkh address recovery flag: "
     with pytest.raises(BTClibValueError, match=err_msg):
         bms.assert_as_valid(msg, b32_p2wpkh, bms_sig)
+
+
+def test_every_recovery_flag_is_ruled_on_by_range_alone() -> None:
+    """Sweep 27..42 against each address type, the range check in isolation.
+
+    A single vector per address type -- 39 for p2pkh, 35 for p2wpkh --
+    only ever pins one side of a range that has two boundaries each
+    (p2pkh's is one-sided, p2wpkh's and p2wpkh-p2sh's are not): `> 34`
+    weakened to `>= 34` refuses 34 itself, and `30 < rf < 35 or rf > 38`
+    weakened to `30 < rf != 35 or rf > 38` accepts 36 and 37, neither of
+    which any existing vector asks about.
+
+    Called directly on the three private helpers rather than through
+    `assert_as_valid`: that entry point recovers a public key from `rf`
+    before any range check runs, and not every `rf` recovers one from a
+    fixed signature, which is a fact about elliptic-curve recovery and
+    not about the range check this test is for. A wrong pub_key and
+    h160 here still tell "recovery flag" from "address" apart -- only
+    the range check can raise the first, and the address one always
+    raises the second once the range holds.
+    """
+    wif = "Kx45GeUBSMPReYQwgXiKhG9FzNXrnCeutJp4yjTd5kKxCitadm3C"
+    dummy_pub_key = b"\x02" + 32 * b"\x00"
+    b58_p2pkh = b58.p2pkh(wif)
+    _, h160_p2pkh, _ = h160_from_address(b58_p2pkh)
+    b32_p2wpkh = b32.p2wpkh(wif)
+    b58_p2wpkh_p2sh = b58.p2wpkh_p2sh(wif)
+    _, h160_p2sh, _ = h160_from_address(b58_p2wpkh_p2sh)
+
+    checks: list[tuple[Callable[[int], None], set[int], str, str]] = [
+        (
+            lambda rf: bms._assert_p2pkh(b58_p2pkh, rf, dummy_pub_key, h160_p2pkh),
+            set(range(27, 35)),
+            "invalid p2pkh address recovery flag: ",
+            "invalid p2pkh address: ",
+        ),
+        (
+            lambda rf: bms._assert_p2wpkh(b32_p2wpkh, rf, dummy_pub_key),
+            {31, 32, 33, 34, 39, 40, 41, 42},
+            "invalid p2wpkh address recovery flag: ",
+            "invalid p2wpkh address: ",
+        ),
+        (
+            lambda rf: bms._assert_p2wpkh_p2sh(
+                b58_p2wpkh_p2sh, rf, dummy_pub_key, h160_p2sh
+            ),
+            set(range(31, 39)),
+            "invalid p2wpkh-p2sh address recovery flag: ",
+            "invalid p2wpkh-p2sh address: ",
+        ),
+    ]
+    for check, valid_range, flag_err, address_err in checks:
+        for rf in range(27, 43):
+            expected = address_err if rf in valid_range else flag_err
+            with pytest.raises(BTClibValueError, match=expected):
+                check(rf)
 
 
 def test_one_prv_key_multiple_addresses() -> None:

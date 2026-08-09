@@ -46,6 +46,26 @@ def test_indexes() -> None:
         assert indexes == expected
 
 
+def test_indexes_round_trip_a_base_that_is_not_a_power_of_two() -> None:
+    """2048 is a power of two, where `+`, `|` and `^` all agree; 1626 is not.
+
+    Electrum's Portuguese wordlist is the base the module's own comment
+    names: 13 words hold 139 bits, not the 130 that `bits_per_digit *
+    nwords` would claim, and only a base like this -- not 2048 -- makes
+    `entropy * base + index` differ from the same expression with `|` or
+    `^` for a generic index. The value itself, not the decoder's own
+    leading-zero padding for a base that is not a power of two, is what
+    ties the length to the accumulation.
+    """
+    indexes = list(range(1, 14))
+    value = 0
+    for index in indexes:
+        value = value * 1626 + index
+    entropy = bin_str_entropy_from_wordlist_indexes(indexes, 1626)
+    assert len(entropy) == 139
+    assert int(entropy, 2) == value
+
+
 def test_conversions() -> None:
     """Round-trip entropy across its str, int and bytes forms."""
     test_vectors = [
@@ -67,6 +87,17 @@ def test_conversions() -> None:
         assert bin_str_entropy_from_entropy(raw) == raw
         assert bin_str_entropy_from_entropy(i) == raw
         assert bin_str_entropy_from_entropy(b) == raw
+
+    # a decimal string starting with "0" and a digit below "b": "01" sorts
+    # below "0b", so `== "0b"` weakened to `<=` reads a plain decimal as
+    # binary too -- "010" is 10 in decimal and 2 read as binary
+    assert bin_str_entropy_from_int("010", 4) == "1010"
+    # neither prefixed nor a valid plain decimal: `int("ab")` raises, so
+    # `== "0x"` weakened to `>=` is what a string of only letters tells
+    # apart -- "ab" sorts above "0x" and parses as hex (171) where the
+    # unweakened check falls through to `int("ab")` and raises instead
+    with pytest.raises(ValueError, match="invalid literal for int"):
+        bin_str_entropy_from_int("ab", 8)
 
     max_bits = max(_bits)
 
@@ -191,6 +222,79 @@ def test_collect_rolls(monkeypatch: pytest.MonkeyPatch) -> None:
         min_roll_number = math.ceil(bits / bits_per_roll)
         assert len(dice_rolls) == min_roll_number
 
+        # the automated vector's 43 rolls, not the range check above, is
+        # what tells `1 + secrets.randbelow(dice_sides)` from an operator
+        # collapsing it to a constant (`**` makes every roll 1): the range
+        # check alone cannot see that every roll is the same one value
+        if i == 1:
+            assert len(set(dice_rolls)) > 1
+
+
+def test_collect_rolls_refuses_a_negative_or_a_short_roll(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """A negative roll is refused, and a roll under base is not base itself.
+
+    D30's base is 16 (2**4, the highest power of 2 below 30), so 5 is a
+    usable roll and not the boundary -- `0 < roll <= base` weakened to
+    `0 != roll <= base` would accept `-1` (nonzero, and `-1 <= 16`), and
+    weakened to `0 < roll == base` would refuse every usable roll that is
+    not 16 itself, which the D120 vectors above never exercise: every one
+    of their manual rolls is 64, D120's own base.
+    """
+    monkeypatch.setattr("sys.stdin", StringIO("30\n-1\n0\n5\n"))
+    dice_sides, dice_rolls = collect_rolls(4)
+    assert dice_sides == 30
+    assert dice_rolls == [5]
+
+
+@pytest.mark.parametrize("sides", [8, 48])
+def test_collect_rolls_accepts_dice_sides_this_module_lists(
+    sides: int, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """8 and 48 are two of `valid_dice_sides` no other test asks for.
+
+    A `NumberReplacer` mutant of either entry survives on the D6/D120
+    vectors above alone: nothing else in this suite ever offers 8 or 48
+    for the `while dice_sides not in valid_dice_sides` loop to accept.
+    """
+    monkeypatch.setattr("sys.stdin", StringIO(f"{sides}\n1\n"))
+    dice_sides, dice_rolls = collect_rolls(1)
+    assert dice_sides == sides
+    assert dice_rolls == [1]
+
+
+def test_collect_rolls_prompt_names_the_roll_and_the_total(
+    monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """The prompt counts from 1, and nothing but a human reads it.
+
+    `i + 1` is arithmetic no assertion in this file reaches through
+    `collect_rolls`' return value -- the prompt is printed and discarded
+    by `input()`, not part of what the function hands back -- so it
+    survived mutated eight different ways until captured here.
+    """
+    monkeypatch.setattr("sys.stdin", StringIO("4\n1\n1\n"))
+    collect_rolls(4)
+    out = capsys.readouterr().out
+    assert "roll #1/2: " in out
+    assert "roll #2/2: " in out
+
+
+def test_collect_rolls_prompt_lists_the_dice_sides(
+    monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """The dice-sides prompt names every side this module accepts.
+
+    `f'{valid_dice_sides}'[:-1]` drops the tuple's closing paren so the
+    line can add the automation note before it; `[:-0]` is `[:0]`, empty,
+    and nothing but this test reads what `input()` printed and threw away.
+    """
+    monkeypatch.setattr("sys.stdin", StringIO("4\n1\n"))
+    collect_rolls(2)
+    out = capsys.readouterr().out
+    assert "dice sides (4, 6, 8, 12, 20, 24, 30, 48, 60, 120" in out
+
 
 def test_bin_str_entropy_from_rolls() -> None:
     """Check the roll-to-bits conversion, its bounds and its refusals."""
@@ -258,6 +362,10 @@ def test_bin_str_entropy_from_rolls() -> None:
     with pytest.raises(BTClibValueError, match=err_msg):
         bin_str_entropy_from_rolls(bits, 1, rolls)
 
+    # the boundary itself, not 1: `< 2` weakened to `<= 2` still refuses
+    # 1 and would also refuse 2, the smallest base the function accepts
+    assert bin_str_entropy_from_rolls(4, 2, [1, 2, 1, 2], shuffle=False) == "0101"
+
 
 def test_bin_str_entropy_from_random() -> None:
     """Check the random entropy source, its mixing and its bit cap."""
@@ -290,3 +398,10 @@ def test_bin_str_entropy_from_random() -> None:
     err_msg = "too many bits required: "
     with pytest.raises(BTClibValueError, match=err_msg):
         bin_str_entropy_from_random(1024)
+
+    # the cap itself: sha512's 512-bit digest, one bit over is refused and
+    # the bit at it is not -- 1024 above is well past either side of a
+    # cap computed one digest_size wider than it should be
+    assert len(bin_str_entropy_from_random(512)) == 512
+    with pytest.raises(BTClibValueError, match=err_msg):
+        bin_str_entropy_from_random(513)

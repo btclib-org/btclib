@@ -104,6 +104,15 @@ def test_valid_address() -> None:
         script_pub_key: ScriptList = [op_int(wit_ver), wit_prg]
         assert serialize(script_pub_key).hex() == hexscript
 
+    # a str is stripped, a bytes object is not asked to be: `isinstance`
+    # weakened to `not isinstance` would strip nothing off a str address
+    # and leave the surrounding whitespace to fail as an invalid
+    # character further in, rather than being trimmed here
+    padded = f"  {valid_bc_addresses[0][0]}  "
+    assert b32.witness_from_address(padded) == b32.witness_from_address(
+        valid_bc_addresses[0][0]
+    )
+
 
 def test_invalid_address() -> None:
     """Test whether invalid addresses fail to decode."""
@@ -229,6 +238,15 @@ def test_address_witness() -> None:
     with pytest.raises(BTClibValueError, match="invalid value: "):
         b32.power_of_2_base_conversion(wit_prg_ints, 8, 5)
 
+    # too large, not negative: a negative value's `>> from_bits` is always
+    # -1 in Python (infinite two's complement), truthy on its own, so
+    # `or` weakened to `and` still raises above -- 256 does not have that
+    # shortcut, and needs the first half of the `or` to be false and the
+    # second true
+    wit_prg_ints[0] = 256
+    with pytest.raises(BTClibValueError, match="invalid value: "):
+        b32.power_of_2_base_conversion(wit_prg_ints, 8, 5)
+
     addr = "tb1qq5zs2pg9q5zs2pg9q5zs2pg9q5zs2pg9q5mpvsef"
     err_msg = "invalid size: "
     with pytest.raises(BTClibValueError, match=err_msg):
@@ -317,8 +335,12 @@ def test_p2tr() -> None:
     key = 1
     pub_key = output_pubkey(key)[0]
     addr = b32.p2tr(pub_key)
-    _, wit_prg, _ = b32.witness_from_address(addr)
+    wit_ver, wit_prg, _ = b32.witness_from_address(addr)
 
+    # the witness version, not only the program: p2tr is taproot's own
+    # version 1, and nothing above checked which version the address
+    # round-trips as
+    assert wit_ver == 1
     assert wit_prg == pub_key
 
 

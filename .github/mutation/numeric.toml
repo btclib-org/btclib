@@ -1,0 +1,52 @@
+# The numeric and monetary validators, mutated: satoshi amounts, fee rates,
+# and the X9.63 KDF's output length. Issue #327 proposed this scope beside
+# the wire-format and fetch profiles, listing the same defect class each
+# time -- negative, zero, maximum and maximum-plus-one, a bool passing
+# where a bool is not a number, and the rounding direction of a fee.
+# tests/integer_policy_test.py is beside each module's own file because it
+# is where the bool-is-not-a-number refusal (#326) is asserted for
+# `amount.py` and `fee.py` by name.
+
+[cosmic-ray]
+module-path = [
+  "btclib/amount.py",
+  "btclib/fee.py",
+  "btclib/ecc/dh.py",
+]
+
+test-command = """python -m pytest -x -q -n0 -p no:randomly \
+  tests/amount_test.py tests/fee_test.py tests/ecc/dh_test.py \
+  tests/integer_policy_test.py"""
+
+# wide for the reason sig_hash.toml gives, and this profile is why that
+# reason is not hypothetical: `ansi_x9_63_kdf`'s `size > max_size` guard,
+# mutated away, does not fail fast -- it goes on hashing towards the size
+# it was asked for, so the one or two mutants of that guard each pay close
+# to the full 300 s here rather than the sub-second a killed mutant costs
+# everywhere else. Measured over a 90-mutant sample of the 507 (see
+# below): two of them alone accounted for most of the wall clock a full
+# session would need
+timeout = 300
+
+excluded-modules = []
+
+# 90 of the 507 mutants sampled before the two slow ones above absorbed the
+# budget: 83 killed, 7 survived. Five of the seven are the `bytes | None`
+# annotation on `ansi_x9_63_kdf`'s `shared_info` parameter, mutated five
+# different ways -- equivalent under Python 3.14's deferred annotation
+# evaluation (PEP 649), the class fetch.toml documents at length. The other
+# two are real and left open rather than chased:
+#
+# - `range(1, ceil(size / hf_size) + 1)` widened to compute twice as many
+#   blocks: `K_temp` is truncated to `size` afterwards, so the extra
+#   blocks are wasted work and not a wrong answer -- equivalent by that
+#   truncation, not by an annotation.
+# - `hf_size * (2**32 - 1)` weakened to `hf_size | (2**32 - 1)`, which is
+#   `0xFFFFFFFF` for every hash function in `HashF`: a real bound lowered
+#   from roughly `hf_size` times as large. Killing it needs a `size`
+#   between the two bounds, and for every hash function this ships with
+#   that is gigabytes of KDF output -- the boundary the test above pays
+#   close to 300 s to exercise once already having found it.
+
+[cosmic-ray.distributor]
+name = "local"

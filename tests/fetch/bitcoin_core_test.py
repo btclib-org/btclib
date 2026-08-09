@@ -40,6 +40,7 @@ from btclib.fetch.transport import DEFAULT_MAX_BODY_SIZE
 from btclib.network import NETWORKS, Network
 from btclib.tx import OutPoint
 from tests.fetch import TIP_HEIGHT, TIP_ID, TX_ID, Recorded, recorded_body
+from tests.network_test import SIGNET_CHALLENGE
 
 # the rpc credentials every test here passes. Named once rather than
 # written at each call, which is what keeps the string out of a
@@ -215,6 +216,20 @@ def custom_signet(challenge: str) -> Network:
     )
 
 
+def test_signet_magic_is_the_reverse_of_the_digest_and_not_the_digest() -> None:
+    """`_signet_magic` itself, not the independent computation beside it.
+
+    `tests/network_test.py` computes the default signet's magic by its own
+    route and pins it to `0a03cf40` reversed; that is a fact about the
+    constant, not a call into this function, so a mutant of the slice this
+    function ends on -- dropped, or read forwards -- is not what that test
+    would notice. `custom_signet`'s docstring says the derivation is
+    "settled elsewhere", which is only true once this test exists.
+    """
+    assert _signet_magic(SIGNET_CHALLENGE).hex() == "40cf030a"
+    assert _signet_magic(SIGNET_CHALLENGE) == NETWORKS["signet"].magic_bytes
+
+
 def test_every_network_btclib_ships_has_a_chain_name() -> None:
     """The coupling between two vocabularies kept in two repositories.
 
@@ -252,6 +267,20 @@ def test_assert_network_refuses_a_node_on_another_chain() -> None:
         BTClibValueError, match="node is on test, this fetcher on mainnet"
     ):
         fetcher(blockchaininfo(chain="test"), network="mainnet").assert_network()
+
+
+def test_assert_network_refuses_a_chain_that_sorts_before_the_label() -> None:
+    """The mismatch the other direction: `main` sorts before every label here.
+
+    The sibling test asks for mainnet and gets `test`, which sorts after
+    it -- a comparison weakened from "not equal" to "sorts after" would
+    still refuse that one. Asking for testnet and getting `main`, which
+    sorts before it, is the half only a real inequality catches.
+    """
+    with pytest.raises(
+        BTClibValueError, match="node is on main, this fetcher on testnet"
+    ):
+        fetcher(blockchaininfo(chain="main"), network="testnet").assert_network()
 
 
 def test_assert_network_tells_two_signets_apart() -> None:
@@ -481,6 +510,9 @@ def test_a_status_from_the_client_arrives_as_btclibs_http_error() -> None:
         fetcher((503, b"")).get_block_count()
     assert exc.value.status == 503
     assert not isinstance(exc.value, rpc.HttpError)
+    # the message translated across, not the status carried beside it
+    # under the same positional index the message also answers to
+    assert "getblockcount" in str(exc.value)
 
 
 def test_an_error_the_client_raises_without_a_status_is_a_fetch_error() -> None:
@@ -514,3 +546,6 @@ def test_an_rpc_error_keeps_its_code_and_its_data_across_the_translation() -> No
     assert exc.value.data == {"tx": 1}
     assert not isinstance(exc.value, rpc.RpcError)
     assert str(exc.value).count("rpc error code") == 1
+    # the message itself, and not the code or the data carried beside it
+    # under the same positional index once `args` holds all three
+    assert "No such mempool transaction" in str(exc.value)

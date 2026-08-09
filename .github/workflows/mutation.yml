@@ -120,6 +120,58 @@ jobs:
             ceiling: 45
             sessions: |
               parsers.toml 30m
+          # extended keys and the checksummed codecs beneath them: bip32.toml
+          # finishes at 1356 mutants in about twenty minutes, codecs.toml is
+          # sampled at 490 of 1083 in the 30 minutes it is given -- both
+          # measured on a machine already running the rest of this matrix,
+          # so a dedicated runner has room to spare rather than needing it
+          - profile: extended keys and the checksummed codecs
+            slug: keys
+            ceiling: 95
+            sessions: |
+              bip32.toml 45m
+              codecs.toml 30m
+          # the message-signing formats: bms.toml and bip322.toml each
+          # finish their own count -- 977 mutants apiece -- in about two
+          # minutes, small enough that the budget below is headroom rather
+          # than a measurement
+          - profile: message signing and BIP322
+            slug: signing
+            ceiling: 35
+            sessions: |
+              bms.toml 10m
+              bip322.toml 10m
+          # the block header and the proof-of-work arithmetic under it:
+          # 1481 mutants, complete in under an hour on the machine that
+          # measured it
+          - profile: the block chain
+            slug: block
+            ceiling: 95
+            sessions: |
+              block.toml 75m
+          # the shared codec helpers and the numeric/network boundaries
+          # built on them: utils.toml is the slow one of the four -- a
+          # weakened size bound turns into a near-timeout mutant the way
+          # numeric.toml's own does -- so it carries the largest budget
+          # here for the same reason, sampled rather than expected to
+          # finish
+          - profile: shared helpers, numeric bounds and fetch
+            slug: shared
+            ceiling: 95
+            sessions: |
+              utils.toml 30m
+              numeric.toml 15m
+              fetch.toml 15m
+              mnemonic.toml 15m
+          # Schnorr and ECDSA signing: 2475 mutants between the two
+          # modules, nearly as large as the consensus job's own two
+          # sessions and, like the engine's, sampled rather than expected
+          # to finish -- 812 of them in the 90 minutes measured here
+          - profile: signature signing and verification
+            slug: signatures
+            ceiling: 100
+            sessions: |
+              signatures.toml 90m
     steps:
       # every action is pinned to a commit SHA, the tag in the comment: a
       # tag, let alone a branch, is a name its owner can move

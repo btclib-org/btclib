@@ -1,0 +1,75 @@
+# BIP39 mnemonics, mutated: the checksum over the entropy, and the entropy
+# boundaries beneath it. A wordlist index off by one bit or a checksum
+# comparison that accepts the wrong nibble is a recovery phrase that does
+# not reproduce the wallet it was written down for -- silent on any vector
+# already in the suite, which is the same coverage-versus-boundary gap
+# #219 and #327 ask about elsewhere, on a boundary where the failure mode
+# is a wallet nobody can recover rather than a rejected transaction.
+
+[cosmic-ray]
+module-path = [
+  "btclib/mnemonic/bip39.py",
+  "btclib/mnemonic/entropy.py",
+]
+
+test-command = """python -m pytest -x -q -n0 -p no:randomly \
+  tests/mnemonic/bip39_test.py tests/mnemonic/entropy_test.py"""
+
+timeout = 300
+
+excluded-modules = []
+
+# 150 of the 739 mutants sampled in 600 s: 111 killed, 39 survived. 11 of
+# the 39 are the deferred-annotation class fetch.toml documents, and one
+# is `is` for `==` on two small ints CPython interns.
+#
+# Of the 27 real ones, two were genuine gaps in
+# `bin_str_entropy_from_wordlist_indexes`, now closed:
+# `entropy * base + index` weakened to `|` or `^`, and its `bit_length()`
+# padding weakened by a bitshift -- both equivalent for a power-of-two
+# base (2048, every wordlist this ships), so a base that is not one
+# (1626, the Electrum Portuguese wordlist the function's own comment
+# already names) is what a test needed to tell `+` from `|`/`^` at all.
+# The `-1` beside that shift survived the same test and is left open: it
+# only changes `bit_length()` at a power-of-two boundary `base **
+# len(indexes)` essentially never lands on, so it is equivalent for
+# every base this ships rather than for the one test vector above.
+#
+# The other 24 were `collect_rolls`' manual dice-entry path and
+# `bin_str_entropy_from_int`'s prefix detection, both worked through in a
+# second pass on this same 150-mutant sample (the session itself is still
+# only 150 of 739, not re-run):
+#
+# - `bin_str_entropy_from_int`'s `== "0b"` weakened to `<=` reads a plain
+#   decimal starting with "0" and a digit below "b" as binary instead
+#   ("010" is 10 in decimal, 2 read as binary); `== "0x"` weakened to
+#   `>=` needed a string that is neither prefixed nor a valid plain
+#   decimal to distinguish -- "ab" sorts above "0x" and parses as hex
+#   where `int("ab")` raises.
+# - `collect_rolls`' roll-prompt text (`roll #{i + 1}`, arithmetic-
+#   mutated eight ways, and the dice-sides list truncated by `[:-1]`
+#   mutated to `[:-0]`) is printed and discarded by `input()`, so nothing
+#   read it until `capsys` did.
+# - the roll bounds `0 < roll <= base`: `!= 0` still refuses a negative
+#   roll only by coincidence of the D120 vectors' own numbers, and every
+#   manual roll already in the suite equals `base` exactly, so `== base`
+#   in place of `<= base` went unnoticed. `bin_str_entropy_from_rolls`'
+#   own `dice_sides < 2` was tested at 1, never at 2, the boundary itself.
+# - `valid_dice_sides` entries 8, 30 and 48 were never offered to the
+#   `while dice_sides not in valid_dice_sides` loop by any existing vector.
+#
+# Two are left open, checked rather than assumed. `automate`'s
+# `1 + secrets.randbelow(dice_sides)` shifted to `2 + ...` still produces
+# a diverse roll sequence -- the reroll loop discards whatever lands
+# outside `[1, base]` regardless of the offset -- so a "not all equal"
+# assertion (which does kill the `**` mutant collapsing every roll to 1)
+# does not kill this one; only a distribution test would, and the loop's
+# own correctness does not depend on it. `bip39.lang_from_mnemonic`'s
+# `language_length(lang) == _BIP39_WORDLIST_LENGTH` weakened to `<=`
+# needs a sentence built entirely from the 553 words `en` and `slip39`
+# share, and even then only distinguishes if entropy_from_mnemonic's
+# checksum happens to validate under both -- constructible in principle,
+# not attempted here.
+
+[cosmic-ray.distributor]
+name = "local"

@@ -1,0 +1,67 @@
+# The shared codec helpers, mutated. Nearly every other profile in this
+# directory calls into `btclib/utils.py`: `decode_num`/`encode_num` are the
+# script-number codec the engine and `Tx.height` both read, `int_from_bits`
+# is the RFC 6979 bit-string-to-int helper `borromean`, `ssa` and the other
+# deterministic-nonce modules share, and `read_exactly`/`assert_no_trailing`
+# are the exact-read boundary `tx`, `psbt` and `bip32` share. Issue #327
+# measured this file at 325 mutants while sizing the wire-format profile and
+# left it for a session of its own; #219's question is the same one here --
+# 100% statement coverage, and whether the suite would notice a wrong bound.
+
+[cosmic-ray]
+module-path = "btclib/utils.py"
+
+# tests/utils_test.py exercises decode_num/encode_num, read_exactly,
+# assert_no_trailing, hex_string and int_from_bits directly -- it
+# round-trips every sign, zero and length boundary rather than relying on
+# a caller to reach them -- but does not import is_integer or
+# int_from_json_number, so those two need a caller's test to be reached
+# at all. tests/integer_policy_test.py is is_integer's own file, already
+# named in parsers.toml for the same reason; tests/bip32 and tests/block
+# are int_from_json_number's only two callers, through `from_dict`.
+# tests/ecc/ssa_test.py is beside them for int_from_bits' own boundary --
+# every real caller hashes into exactly `ec.nlen` bits, so this file's
+# `blen < nlen` case is the only one that exercises the other direction.
+# Not tests/script_engine: encode_num/decode_num's boundaries are already
+# the round trip above, and the engine's mutants cost 7.2 s each for
+# coverage this file's own suite already gives for a tenth of a second.
+test-command = """python -m pytest -x -q -n0 -p no:randomly \
+  tests/utils_test.py tests/integer_policy_test.py tests/ecc/ssa_test.py \
+  tests/bip32 tests/block"""
+
+# seconds of wall clock: see sig_hash.toml for why a per-mutant timeout is
+# answered KILLED rather than left pending, and why the width is paid only
+# by a mutant that loops forever
+timeout = 300
+
+excluded-modules = []
+
+# 57 of the 388 mutants sampled in 1800 s -- the same shape numeric.toml
+# measured: `int_from_bits`' own bound absorbed most of the budget once
+# widened into a negative shift, `i >> n` for a negative `n` raising
+# rather than looping, so the cost here is the traceback's, paid once per
+# such mutant rather than accumulating. 50 killed, 7 survived, one an
+# `is` CPython's small-int cache makes indistinguishable from `==`.
+#
+# Three real gaps, closed:
+#
+# - `hex_string`'s `int_ < 0` was tested negative and positive, never at
+#   zero, so `<= 0` survived.
+# - Its index loop's `range(len(a_str), 0, -8)` was tested at a length
+#   the stop bound never reaches (18, the vector's own), so `-1` for `0`
+#   survived: at a length that is an exact multiple of 8 (16), it lets 0
+#   itself join the indexes and prints an empty leading group.
+# - `int_from_bits`' `n = (blen - nlen) if blen >= nlen else 0` was
+#   tested at `blen == nlen` (every real caller hashes into exactly the
+#   curve's `nlen` bits) and never at `blen < nlen`, where `!=` computes
+#   a negative shift instead of returning the input unchanged.
+#
+# Two survivors checked and left as equivalent: `encode_num`'s
+# `abs(i) | ((i < 0) << ...)` against `+` never overlaps a bit, `n_bytes`
+# being sized to hold the sign bit above `abs(i)`'s own; `decode_num`'s
+# `int.from_bytes(..., signed=False)` against `signed=True` is undone by
+# the mask correction three lines below, checked against the existing
+# suite's int64 boundary vectors rather than assumed.
+
+[cosmic-ray.distributor]
+name = "local"
