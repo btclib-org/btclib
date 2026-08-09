@@ -54,9 +54,10 @@ from btclib.script import (
     output_prvkey_from_merkle_root,
     serialize,
     sig_hash,
+    taproot,
 )
 from btclib.script.engine import verify_transaction
-from btclib.script.taproot import tree_helper
+from btclib.script.taproot import input_script_sig, tree_helper
 from btclib.to_pub_key import pub_keyinfo_from_prv_key
 from btclib.tx import OutPoint, Tx, TxIn, TxOut
 from tests import load, vector_id
@@ -3306,6 +3307,22 @@ class _KeyManager:
         tweaked = output_prvkey_from_merkle_root(prv_key, merkle_root)
         return ssa.sign_(msg_hash, tweaked).serialize()
 
+    def sign_schnorr_script_path(
+        self,
+        pub_key: bytes,
+        origin: BIP32KeyOrigin | None,
+        msg_hash: bytes,
+        leaf_hash: bytes,
+    ) -> bytes | None:
+        # no tweak, which is the whole difference from sign_schnorr
+        # above: a leaf key signs as itself, and leaf_hash is context
+        # this double has no policy to apply it to
+        prv_key = self._prv_key(pub_key, origin)
+        if prv_key is None:
+            return None
+        self.sign_calls += 1
+        return ssa.sign_(msg_hash, prv_key).serialize()
+
 
 def _unsigned_multisig_psbt() -> Psbt:
     """Build a one-input, unsigned native p2wsh 2-of-2 psbt.
@@ -3358,6 +3375,48 @@ def _taproot_key_path_psbt(
     psbt.inputs[0].taproot_merkle_root = (
         tree_helper(script_tree)[1] if script_tree else b""
     )
+    return psbt, [prev_out]
+
+
+_LEAF_PRV_KEY = _PRV_KEY + 3
+_LEAF_KEY = pub_keyinfo_from_prv_key(_LEAF_PRV_KEY)[0][1:]
+# the leaf spent below, and the one shape a Finalizer can build a witness
+# for: `single_leaf_key`'s <32-byte key> OP_CHECKSIG
+_LEAF_TREE: TaprootScriptTree = [(0xC0, [_LEAF_KEY, "OP_CHECKSIG"])]
+_LEAF_SCRIPT = taproot.serialize([_LEAF_KEY, "OP_CHECKSIG"])
+_LEAF_HASH = taproot.leaf_hash(0xC0, _LEAF_SCRIPT)
+
+
+def _taproot_script_path_psbt(
+    *, with_leaf_script: bool = True
+) -> tuple[Psbt, list[TxOut]]:
+    """Build a one-input, unsigned p2tr psbt spendable by a single leaf.
+
+    The Updater's half of a script path: the leaf script filed under the
+    control block that proves it, and the leaf's key filed under the
+    tapleaf hash it appears in, which is BIP371's way of saying that this
+    key signs for that leaf. The internal key is there too, and holds no
+    key any test here signs the key path with -- a script path spend of
+    an output that could also be spent by its owner is the ordinary
+    shape, and the one that says `sign` asks for both.
+
+    with_leaf_script drops `PSBT_IN_TAP_LEAF_SCRIPT` alone, leaving the
+    derivation naming a leaf the psbt does not carry the script of.
+    """
+    script_pub_key = ScriptPubKey.p2tr(_TAPROOT_PUB_KEY, _LEAF_TREE)
+    prev_out = TxOut(100_000, script_pub_key)
+    tx, _ = _spending_tx(prev_out)
+    control_block = input_script_sig(_TAPROOT_PUB_KEY, _LEAF_TREE, 0)[1]
+
+    psbt = Psbt.from_tx(tx)
+    psbt.inputs[0].witness_utxo = prev_out
+    psbt.inputs[0].taproot_internal_key = _TAPROOT_INTERNAL_KEY
+    psbt.inputs[0].taproot_merkle_root = tree_helper(_LEAF_TREE)[1]
+    if with_leaf_script:
+        psbt.inputs[0].taproot_leaf_scripts[control_block] = (_LEAF_SCRIPT, 0xC0)
+    psbt.inputs[0].taproot_hd_key_paths = {
+        _LEAF_KEY: ([_LEAF_HASH], BIP32KeyOrigin(b"\x00" * 4, "m/1"))
+    }
     return psbt, [prev_out]
 
 
@@ -3512,18 +3571,131 @@ def test_sign_appends_the_sig_hash_type_a_taproot_input_asks_for() -> None:
 
     Every other taproot test here leaves sig_hash_type unset, which is
     SIGHASH_DEFAULT and appends nothing; this is the other half.
+
+    `assert_signatures_only` is asked as well as the Finalizer, both
+    verifying the 64 bytes and not the 65: the type byte is what the
+    message was chosen by, and verifying it as part of the signature
+    fails an answer that is perfectly good.
     """
-    psbt, prevouts = _taproot_key_path_psbt()
-    psbt.inputs[0].sig_hash_type = 1  # ALL
+    request, prevouts = _taproot_key_path_psbt()
+    request.inputs[0].sig_hash_type = 1  # ALL
     key_manager = _KeyManager(by_pub_key={_TAPROOT_INTERNAL_KEY: _TAPROOT_PRV_KEY})
+
+    returned, signed_vins = sign(request, key_manager)
+
+    assert signed_vins == [0]
+    signature = returned.inputs[0].taproot_key_spend_signature
+    assert len(signature) == 65
+    assert signature[-1] == sig_hash.ALL
+    assert_signatures_only(request, returned)
+    verify_transaction(prevouts, extract_tx(finalize(returned), check_validity=False))
+
+
+def test_sign_writes_the_taproot_script_path_signature() -> None:
+    """A single-key leaf, signed and then finalized (issue #560).
+
+    The signature is filed under the key and the leaf hash together,
+    which is what `PSBT_IN_TAP_SCRIPT_SIG` is keyed by, and the witness
+    the Finalizer builds from it is what the engine is asked about: a
+    script path spend proves the leaf, so the leaf key signs untweaked
+    and the control block carries the rest of the proof.
+    """
+    psbt, prevouts = _taproot_script_path_psbt()
+    key_manager = _KeyManager(by_pub_key={_LEAF_KEY: _LEAF_PRV_KEY})
 
     result, signed_vins = sign(psbt, key_manager)
 
     assert signed_vins == [0]
-    signature = result.inputs[0].taproot_key_spend_signature
+    signatures = result.inputs[0].taproot_script_spend_signatures
+    assert list(signatures) == [_LEAF_KEY + _LEAF_HASH]
+    assert len(signatures[_LEAF_KEY + _LEAF_HASH]) == 64
+    verify_transaction(prevouts, extract_tx(finalize(result), check_validity=False))
+
+
+def test_sign_appends_the_sig_hash_type_to_a_script_path_signature() -> None:
+    """The 65-byte shape of a script path signature (issue #560).
+
+    The mutation session of PR 558 could reach it from no test at all,
+    the only script path signature this tree produced being a BIP373
+    aggregation of partial signatures that commit to SIGHASH_DEFAULT --
+    and appending a type byte to that one is not the same signature, the
+    hash a type commits to being another. So it is signed here, and
+    checked by the two readers of the byte: `assert_signatures_only`,
+    which verifies an answer over the 64 bytes and not the 65, and the
+    script engine, which is what says the type is the one the
+    transaction was hashed with.
+    """
+    request, prevouts = _taproot_script_path_psbt()
+    request.inputs[0].sig_hash_type = 1  # ALL
+    key_manager = _KeyManager(by_pub_key={_LEAF_KEY: _LEAF_PRV_KEY})
+
+    returned, signed_vins = sign(request, key_manager)
+
+    assert signed_vins == [0]
+    signature = returned.inputs[0].taproot_script_spend_signatures[
+        _LEAF_KEY + _LEAF_HASH
+    ]
     assert len(signature) == 65
     assert signature[-1] == sig_hash.ALL
-    verify_transaction(prevouts, extract_tx(finalize(result), check_validity=False))
+    assert_signatures_only(request, returned)
+    verify_transaction(prevouts, extract_tx(finalize(returned), check_validity=False))
+
+
+def test_sign_offers_a_taproot_input_both_of_its_paths() -> None:
+    """One manager holding both keys answers for both, and is asked once.
+
+    Which of the two spends the input is the Finalizer's choice, so a
+    signer that can answer for either has no reason to be asked twice --
+    and a second sign() over the result asks for neither again, the key
+    path signature and the leaf's entry each saying there is nothing
+    left to sign.
+    """
+    psbt, _ = _taproot_script_path_psbt()
+    key_manager = _KeyManager(
+        by_pub_key={_TAPROOT_INTERNAL_KEY: _TAPROOT_PRV_KEY, _LEAF_KEY: _LEAF_PRV_KEY}
+    )
+
+    once, signed_vins = sign(psbt, key_manager)
+    assert signed_vins == [0]
+    assert key_manager.sign_calls == 2
+    assert once.inputs[0].taproot_key_spend_signature
+    assert once.inputs[0].taproot_script_spend_signatures
+
+    twice, signed_vins_again = sign(once, key_manager)
+    assert signed_vins_again == []
+    assert key_manager.sign_calls == 2
+    assert (
+        twice.inputs[0].taproot_script_spend_signatures
+        == once.inputs[0].taproot_script_spend_signatures
+    )
+
+
+def test_sign_skips_a_leaf_key_the_key_manager_does_not_hold() -> None:
+    """None from sign_schnorr_script_path leaves the leaf unsigned."""
+    psbt, _ = _taproot_script_path_psbt()
+    result, signed_vins = sign(psbt, _KeyManager())
+
+    assert signed_vins == []
+    assert not result.inputs[0].taproot_script_spend_signatures
+
+
+def test_sign_skips_a_leaf_the_psbt_carries_no_script_for() -> None:
+    """A derivation naming a tapleaf hash is not on its own a candidate.
+
+    `PSBT_IN_TAP_LEAF_SCRIPT` is what says which condition the leaf
+    imposes, and without it there is nothing to read before signing: a
+    tapleaf hash alone is a commitment to a script this signer has never
+    seen, which is what a psbt exists to avoid. key_manager holds the
+    key and is never asked for it.
+    """
+    psbt, _ = _taproot_script_path_psbt(with_leaf_script=False)
+    key_manager = _KeyManager(by_pub_key={_LEAF_KEY: _LEAF_PRV_KEY})
+
+    result, signed_vins = sign(psbt, key_manager)
+
+    assert signed_vins == []
+    assert key_manager.sign_calls == 0
+    assert not result.inputs[0].taproot_script_spend_signatures
 
 
 def test_sign_raises_on_a_psbt_that_cannot_be_signed() -> None:

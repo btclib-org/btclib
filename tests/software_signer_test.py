@@ -21,7 +21,8 @@ import pytest
 from btclib.bip32.bip32 import BIP32KeyData, derive, xpub_from_xprv
 from btclib.bip32.key_origin import BIP32KeyOrigin
 from btclib.core_import import account_import_requests
-from btclib.descriptors import Descriptor, add_checksum
+from btclib.descriptors import Descriptor, add_checksum, parse
+from btclib.ecc import ssa
 from btclib.exceptions import BTClibValueError
 from btclib.psbt.psbt import Psbt, finalize
 from btclib.psbt_signer import (
@@ -121,6 +122,41 @@ def test_a_psbt_of_an_exported_account_is_signed_and_spends(purpose: int) -> Non
     verify_transaction(prevouts, tx)
 
 
+def test_a_taproot_script_path_is_signed_and_spends() -> None:
+    """The other half of a taproot output, end to end (issue #560).
+
+    The internal key is BIP341's NUMS point, which nobody holds: the leaf
+    is the only way into the output, so what finalizes here is a script
+    path witness -- the signature, the leaf script and the control block
+    -- and the engine is the oracle for it as it is for every other flow
+    in this file.
+
+    The descriptor is what makes the psbt answerable: `update_psbt_input`
+    writes the leaf script under its control block and files the leaf's
+    key under the tapleaf hash, which is how BIP371 says "this key signs
+    for that leaf" and is what the signer is asked by.
+    """
+    signer = SoftwareSigner(XPRV_ROOT)
+    key = f"[{signer.master_fingerprint().hex()}/86h/0h/0h]{signer.xpub('m/86h/0h/0h')}"
+    nums = "50929b74c1a04954b78b4b6035e97a5e078a5a0f28ec96d547bfee9ace803ac0"
+    receive = parse(add_checksum(f"tr({nums},pk({key}/0/*))"))
+    change = parse(add_checksum(f"tr({nums},pk({key}/1/*))"))
+    psbt, prevouts = spending(receive, change)
+
+    signed = request_signatures(signer, psbt)
+    assert not signed.inputs[0].taproot_key_spend_signature
+    ((key_data, signature),) = signed.inputs[0].taproot_script_spend_signatures.items()
+    assert key_data[:32] == receive.key_expressions[1].sec(0)[1:]
+    assert len(signature) == 64  # SIGHASH_DEFAULT appends no type byte
+
+    final = finalize(signed)
+    assert len(final.inputs[0].final_script_witness.stack) == 3
+    tx = final.tx
+    tx.vin[0].script_sig = final.inputs[0].final_script_sig
+    tx.vin[0].script_witness = final.inputs[0].final_script_witness
+    verify_transaction(prevouts, tx)
+
+
 def test_the_change_output_carries_what_a_device_reads() -> None:
     """What the signer is told about the output that comes back.
 
@@ -185,6 +221,16 @@ def test_the_signer_answers_for_its_own_keys_only() -> None:
     assert signer.sign_schnorr(x_only, tr_origin, msg_hash, b"") is not None
     assert signer.sign_schnorr(x_only, None, msg_hash, b"") is None
     assert signer.sign_schnorr(x_only, elsewhere, msg_hash, b"") is None
+
+    # and for a leaf key, which is the same three conditions again: what
+    # differs is the answer, which the key of the leaf verifies as it is
+    # -- the tweak of a script path spend is the control block's
+    leaf = b"\x08" * 32
+    signature = signer.sign_schnorr_script_path(x_only, tr_origin, msg_hash, leaf)
+    assert signature is not None
+    assert ssa.verify_(msg_hash, x_only, signature)
+    assert signer.sign_schnorr_script_path(x_only, None, msg_hash, leaf) is None
+    assert signer.sign_schnorr_script_path(x_only, elsewhere, msg_hash, leaf) is None
 
 
 def test_a_watch_only_signer_shows_and_derives_but_does_not_sign() -> None:
