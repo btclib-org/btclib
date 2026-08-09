@@ -709,6 +709,24 @@ documented at release-notes length in the first place, and are still in
 
 ### Tests
 
+- **A taproot wallet with a script tree is pinned as a `DescriptorWallet`**
+  (#542), which is what says btclib needs no taproot wallet class. The
+  shape is the one that makes `ScriptWallet` necessary for p2wsh -- an
+  internal key that spends by the key path, and two leaves behind one
+  address, a 2-of-2 that spends now and a 2-of-2 behind the 5184-block
+  timelock the wallet of #538 uses -- and as a ``tr()`` it is a descriptor,
+  so the wallet is the pair of chains over it and nothing more. Pinned:
+  the first three addresses of each chain, the BIP389 `<0;1>` expansion
+  against the same chain written on its own, the tree changing the output
+  key that the internal key alone would give, `redeem_script` and
+  `witness_script` answering `b""` -- BIP174's two version-0 fields, which
+  a p2tr output does not have -- and BIP371's psbt fields carrying what
+  they cannot: the internal key and the whole tree on the output, the leaf
+  scripts and the merkle root on the input, one key origin per key, and
+  the timelocked leaf compiled with the `OP_CSV OP_VERIFY` that
+  `and_v(v:older(n),X)` emits rather than the `OP_CSV OP_DROP` the wallet
+  of #538 writes by hand -- which is the one line of the two that has no
+  descriptor at all.
 - **A production custody wallet is pinned, in both the shape a descriptor
   covers and the shape it does not.** `tests/descriptors/` had Bitcoin
   Core's vectors and the BIPs' own, which answer "does this expression
