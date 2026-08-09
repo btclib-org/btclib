@@ -24,6 +24,47 @@ documented at release-notes length in the first place, and are still in
 
 ### Descriptors and miniscript
 
+- **`Descriptor.index_of` takes the `ScriptPubKey` beside it, and an
+  address** (#540). `script_pub_key(i)` returns a `ScriptPubKey`, so
+  handing that object back to the method next to it is what the API reads
+  like -- and it answered `None`, which does not mean "wrong type" here:
+  it means *this output is not this wallet's*, the answer a caller acts
+  on to say that an address is somebody else's or that a change output is
+  not its change. The mechanism was `bytes_from_octets` with no
+  `out_size`, which returns anything that is not a `str` untouched: the
+  object travelled through to a comparison against `bytes` that is False
+  at every index, and the loop fell off the end. An address fared better
+  by being loud, but the noise was `bytes.fromhex`'s `ValueError` rather
+  than anything this library promises.
+
+  Four spellings of one output are now accepted and all four answer the
+  same index: the `ScriptPubKey`, its script as bytes, that script as a
+  hex-string, and the address it renders as -- "which index is this
+  address" being the question a human has, and `ScriptPubKey.from_address`
+  being one call away. What is compared is the script in every case, an
+  address being read for the script it encodes; the network its prefix
+  carries is not part of the answer, the same key paying to the same
+  script on every chain. Which spelling a string is is not guesswork: it
+  is the hex of a script where `bytes.fromhex` reads it and an address
+  where it does not, and although base58 and bech32 do hold hex digits,
+  an address of hex digits only, of even length and with a valid checksum
+  is not a string anybody has.
+
+  What is refused is refused through the exception contract:
+  `BTClibTypeError` naming the type for anything that is none of the
+  four, and `BTClibValueError` for a string that names no output. The
+  empty string is one of those, and is the case this cost the most
+  thought: it is what `address` answers where a script has none, so
+  `index_of(descriptor.address(i))` on a `pk()` would otherwise be read
+  as the empty script and answer that the wallet's own output is not the
+  wallet's. Empty `bytes` still go through and still answer `None`: no
+  descriptor derives an empty script, and a caller who wrote `b""` meant
+  it.
+
+  `bytes_from_octets` itself is untouched. Whether the library's front
+  door for "anything convertible" should keep trusting every non-`str` it
+  is handed is the wider question the issue raises, and it is one about
+  every caller that compares rather than parses.
 - **A malformed `hwi enumerate` entry is a `SignerError`** (#522).
   `enumerate` is the one command whose answer is a list of objects rather
   than one object with a known field in it, and the list was the only

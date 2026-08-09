@@ -181,7 +181,7 @@ from btclib.descriptors.miniscript import (
 )
 from btclib.descriptors.miniscript import from_script as _miniscript_from_script
 from btclib.descriptors.miniscript import parse as _parse_miniscript
-from btclib.exceptions import BTClibValueError
+from btclib.exceptions import BTClibTypeError, BTClibValueError
 from btclib.hashes import hash160
 from btclib.network import NETWORKS, network_from_xkeyversion
 from btclib.psbt.psbt import Psbt
@@ -688,6 +688,58 @@ def _musig2_participants(
     }
 
 
+def _script_from(script_pub_key: Octets | ScriptPubKey) -> bytes:
+    """Return the script bytes of whatever names one output.
+
+    The spellings `index_of` takes, and which of them is which is not
+    guesswork: a `ScriptPubKey` and `bytes` are what they are, and a
+    string is the hex of a script where `bytes.fromhex` reads it and an
+    address where it does not. The two alphabets do overlap -- base58 and
+    bech32 both hold hex digits -- but an address of hex digits only,
+    of even length, and carrying a valid checksum is not a string anybody
+    has.
+
+    The empty string is the one refused outright, and for the reason the
+    whole function exists: it is what `address` answers where a script
+    has none, so `index_of(descriptor.address(i))` on a ``pk()`` would
+    otherwise read as the empty script, match nothing, and say that the
+    wallet's own output is not the wallet's. Empty `bytes` are the empty
+    script and go through: no descriptor derives one, and the caller who
+    wrote them meant them.
+
+    `bytes_from_octets` alone cannot do this: it returns anything that is
+    not a `str` untouched, so the `ScriptPubKey` the method beside
+    `index_of` returns would travel through to a comparison against
+    `bytes` that is False at every index, and the caller would read the
+    None it falls off the end with as "not this wallet's".
+    """
+    if isinstance(script_pub_key, ScriptPubKey):
+        return script_pub_key.script
+    if isinstance(script_pub_key, bytes):
+        return script_pub_key
+    # unreachable to mypy, the annotation having no fourth case, and the
+    # whole point to a caller who is not running it: `Octets` is honoured
+    # inside btclib and nowhere else
+    if not isinstance(script_pub_key, str):
+        err_msg = f"invalid script_pub_key type: {type(script_pub_key).__name__}"  # type: ignore[unreachable]
+        raise BTClibTypeError(err_msg)
+    if not script_pub_key:
+        err_msg = "empty script_pub_key: a script with no address renders as ''"
+        raise BTClibValueError(err_msg)
+    try:
+        return bytes.fromhex(script_pub_key)
+    except ValueError:
+        pass
+    try:
+        return ScriptPubKey.from_address(script_pub_key).script
+    # ValueError rather than BTClibValueError, which is one: the address
+    # codecs raise their own, and a string that reaches them is decoded
+    # before it is checked, so it may fail on a plain one from underneath
+    except ValueError as e:
+        err_msg = f"neither a script nor an address: '{script_pub_key}'"
+        raise BTClibValueError(err_msg) from e
+
+
 @dataclass(frozen=True, kw_only=True)
 class Descriptor(ABC):
     """A parsed output descriptor: the scripts it describes, on demand.
@@ -875,7 +927,7 @@ class Descriptor(ABC):
 
     def index_of(
         self,
-        script_pub_key: Octets,
+        script_pub_key: Octets | ScriptPubKey,
         last_index: int = 999,
         prv_keys: PrvKeys | None = None,
     ) -> int | None:
@@ -888,12 +940,30 @@ class Descriptor(ABC):
         marked as change on a fingerprint is an output a wallet may hand
         to somebody else believing it keeps it.
 
+        The output is named however the caller holds it: the
+        `ScriptPubKey` that `script_pub_key` returns, that script as
+        bytes or as a hex-string, or the address it renders as -- "which
+        index is this address" being the question a human has, and
+        `ScriptPubKey.from_address` being what answers it. What is
+        compared is the script in every case: an address is read for the
+        script it encodes, and the network its prefix carries is not part
+        of the answer, the same key paying to the same script on every
+        chain.
+
+        Anything else is a `BTClibTypeError`, and a string that names no
+        output -- neither hex nor an address, the `""` that a script with
+        no address renders as among them -- a `BTClibValueError`, because
+        None is not "you passed the wrong thing" here: it is *this output
+        is not this wallet's*, which is the answer a caller acts on to
+        say that an address is somebody else's or that an output is not
+        its own change (issue #540).
+
         `last_index` bounds the search, both ends included, and is the
         caller's: how far ahead of its own gap limit a wallet is willing
         to look is a policy this module has no view on. A descriptor that
         is not ranged has one script and answers 0 or None.
         """
-        script = bytes_from_octets(script_pub_key)
+        script = _script_from(script_pub_key)
         last = last_index if self.is_ranged else 0
         for index in range(last + 1):
             if any(

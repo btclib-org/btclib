@@ -68,7 +68,7 @@ from btclib.descriptors import (
 )
 from btclib.descriptors.descriptors import __descsum_expand
 from btclib.ecc import dsa, ssa
-from btclib.exceptions import BTClibValueError
+from btclib.exceptions import BTClibTypeError, BTClibValueError
 from btclib.hashes import hash160, tagged_hash
 from btclib.psbt.musig2 import nonce_gen, partial_sign, partial_sigs_agg
 from btclib.psbt.psbt import (
@@ -2193,6 +2193,54 @@ def test_index_of_answers_with_the_whole_script() -> None:
     combo = parse(f"combo({KEY_A})")
     for script_pub_key in combo.script_pub_keys():
         assert combo.index_of(script_pub_key.script) == 0
+
+
+def test_index_of_takes_the_output_however_the_caller_holds_it() -> None:
+    """The ScriptPubKey, its bytes, its hex and its address, all one index.
+
+    The object `script_pub_key` returns is the natural thing to hand back
+    to the method beside it, and the address is the question a human
+    actually has.
+    """
+    descriptor = parse(f"wpkh([d34db33f/84h/0h/0h]{XPUB}/1/*)")
+    script_pub_key = descriptor.script_pub_key(7)
+    assert descriptor.index_of(script_pub_key) == 7
+    assert descriptor.index_of(script_pub_key.script) == 7
+    assert descriptor.index_of(script_pub_key.script.hex()) == 7
+    assert descriptor.index_of(script_pub_key.address) == 7
+
+    # somebody else's address is somebody else's, which is what None says
+    other = parse(f"wpkh({KEY_B})")
+    assert descriptor.index_of(other.address()) is None
+    assert descriptor.index_of(other.script_pub_key()) is None
+
+    # a script with no address is named by its bytes and by nothing else:
+    # the "" that `address` answers for one names no output, and reading
+    # it as the empty script would deny the wallet its own p2pk
+    p2pk = parse(f"pk({KEY_A})")
+    assert p2pk.index_of(p2pk.script_pub_key()) == 0
+    assert p2pk.address() == ""
+    with pytest.raises(BTClibValueError, match="empty script_pub_key: "):
+        p2pk.index_of(p2pk.address())
+    # empty bytes are the empty script, which no descriptor derives
+    assert p2pk.index_of(b"") is None
+
+
+def test_index_of_refuses_what_it_could_only_answer_none_for() -> None:
+    """None means "not this wallet's", so a wrong type may not say it.
+
+    A value that is neither a script nor an address compares False
+    against every candidate, and the caller reads the None that falls out
+    of the loop as an answer about the output.
+    """
+    descriptor = parse(f"wpkh([d34db33f/84h/0h/0h]{XPUB}/1/*)")
+    for wrong in (7, None, [descriptor.script_pub_key().script]):
+        with pytest.raises(BTClibTypeError, match="invalid script_pub_key type: "):
+            descriptor.index_of(wrong)  # type: ignore[arg-type]
+    # a string is the hex of a script or an address, and this one is
+    # neither, so the complaint is btclib's rather than bytes.fromhex's
+    with pytest.raises(BTClibValueError, match="neither a script nor an address: "):
+        descriptor.index_of("not an address")
 
 
 def taproot_merkle_root_of(tree: list[tuple[int, int, bytes]]) -> bytes:
