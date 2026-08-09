@@ -25,7 +25,7 @@ import pytest
 from btclib import bip322
 from btclib.b32 import p2tr, p2wpkh, p2wsh
 from btclib.b58 import p2pkh, p2wpkh_p2sh, wif_from_prv_key
-from btclib.ecc import bms, dsa
+from btclib.ecc import bms, dsa, ssa
 from btclib.exceptions import (
     BTClibRuntimeError,
     BTClibValueError,
@@ -35,8 +35,17 @@ from btclib.hashes import hash160
 from btclib.psbt import Psbt
 from btclib.script import ScriptPubKey, address, serialize
 from btclib.script.engine import ALL_FLAGS, ScriptFlag
-from btclib.script.sig_hash import ALL, segwit_v0
-from btclib.script.taproot import output_pubkey
+from btclib.script.sig_hash import (
+    ALL,
+    ANYONECANPAY,
+    DEFAULT,
+    NONE,
+    SINGLE,
+    from_tx,
+    segwit_v0,
+)
+from btclib.script.sig_hash import taproot as taproot_sig_hash
+from btclib.script.taproot import output_prvkey, output_pubkey
 from btclib.script.witness import Witness
 from btclib.to_prv_key import prv_keyinfo_from_prv_key
 from btclib.to_pub_key import pub_keyinfo_from_key
@@ -578,3 +587,169 @@ def test_proof_of_funds_reuses_an_earlier_non_witness_utxo() -> None:
         psbt.inputs[1].output_index = out_of_range
         with pytest.raises(BTClibValueError, match="no utxo for input 1"):
             bip322._psbt_prevouts(psbt)
+
+
+def _sign_with(msg: bytes, script_type: str, hash_type: int) -> tuple[str, bip322.Sig]:
+    """Sign as `bip322.sign` does, with the hash type the caller names.
+
+    `sign` writes SIGHASH_ALL, and SIGHASH_DEFAULT where taproot has it,
+    so nothing in this library produces the signatures below: the rule
+    they are here for is the verifier's, and a rule about what a
+    verifier refuses needs something refusable to exist.
+    """
+    addr = _address(WIF, script_type)
+    spend = bip322.to_spend(msg, ScriptPubKey.from_address(addr).script)
+    tx = bip322.to_sign(spend)
+    q = prv_keyinfo_from_prv_key(WIF)[0]
+
+    if script_type == "p2tr":
+        msg_hash = taproot_sig_hash(tx, 0, spend.vout, hash_type, 0, b"", b"")
+        signature = ssa.sign_(msg_hash, output_prvkey(q)).serialize()
+        if hash_type != DEFAULT:
+            # BIP341's 65th byte, and the explicit zero it refuses is
+            # what makes DEFAULT the absence of one rather than a value
+            signature += hash_type.to_bytes(1, "big")
+        return addr, bip322.Sig(Witness([signature]))
+
+    msg_hash = from_tx(spend.vout, tx, 0, hash_type)
+    signature = dsa.sign_(msg_hash, q).serialize() + hash_type.to_bytes(1, "big")
+    pub_key = pub_keyinfo_from_key(WIF, compressed=True)[0]
+    if script_type == "p2pkh":
+        tx.vin[0].script_sig = serialize([signature, pub_key])
+        return addr, bip322.Sig(tx)
+    return addr, bip322.Sig(Witness([signature, pub_key]))
+
+
+@pytest.mark.parametrize("script_type", ["p2pkh", "p2wpkh", "p2tr"])
+@pytest.mark.parametrize(
+    "hash_type",
+    [NONE, SINGLE, ANYONECANPAY | ALL, ANYONECANPAY | NONE, ANYONECANPAY | SINGLE],
+    ids=[
+        "none",
+        "single",
+        "anyonecanpay-all",
+        "anyonecanpay-none",
+        "anyonecanpay-single",
+    ],
+)
+def test_a_hash_type_that_is_not_sighash_all_is_refused(
+    script_type: str, hash_type: int
+) -> None:
+    """BIP322's sixth required rule, over the three shapes that carry one.
+
+    Each of these signatures verifies -- it was made for the hash type
+    it declares -- so the refusal is the rule and not a check that
+    happened to fail, and the message says which type it was. The three
+    script types are the two places a hash type is read: the last byte
+    of an ECDSA signature, wherever the input carries it, and the 65th
+    of a BIP340 one.
+    """
+    msg = b"whatever the type says"
+    addr, sig = _sign_with(msg, script_type, hash_type)
+    with pytest.raises(BTClibValueError, match="BIP322 requires SIGHASH_ALL"):
+        bip322.assert_as_valid(msg, addr, sig)
+    assert not bip322.verify(msg, addr, sig)
+
+
+def test_sighash_all_and_taproot_s_default_are_the_two_accepted() -> None:
+    """The exemption the rule carries, and what it exempts.
+
+    "unless the output type supports SIGHASH_DEFAULT, which then MAY be
+    used alternatively": so the accepted set is two values and not one,
+    and taproot is where both spellings exist -- the 64-byte signature
+    BIP341 reads as SIGHASH_ALL, and the 65-byte one that says 0x01 out
+    loud. Either is a valid signature here, and the pair is what a rule
+    narrowed to one of them would break.
+    """
+    msg = b"the two spellings"
+    for hash_type in (DEFAULT, ALL):
+        addr, sig = _sign_with(msg, "p2tr", hash_type)
+        assert bip322.verify(msg, addr, sig)
+    for script_type in ("p2pkh", "p2wpkh"):
+        addr, sig = _sign_with(msg, script_type, ALL)
+        assert bip322.verify(msg, addr, sig)
+
+
+@pytest.mark.parametrize(
+    "hash_type", [ALL, ANYONECANPAY | ALL], ids=["all", "anyonecanpay-all"]
+)
+def test_proof_of_funds_refuses_anyonecanpay_on_a_further_input(
+    hash_type: int,
+) -> None:
+    """Where the rule stops being a formality, and the reason it is one.
+
+    The first input of a `to_sign` commits to the outpoint it spends
+    whatever its hash type, and that outpoint is `to_spend`'s txid,
+    which the message and the challenge script both enter; so the
+    binding to the message survives there, and what a lax type drops is
+    a commitment to an output that is always the OP_RETURN of nothing.
+
+    A further input of a proof of funds has no such floor.
+    ANYONECANPAY does not commit to the other inputs, so this very
+    signature -- one byte from the one above it, which verifies -- would
+    also satisfy the input inside the transaction that really spent that
+    output: a proof of control over coins the prover need never have
+    controlled.
+    """
+    msg, addr = b"and these are mine too", _address(WIF, "p2wpkh")
+    spend = bip322.to_spend(msg, ScriptPubKey.from_address(addr).script)
+    funded = TxOut(1000, ScriptPubKey.from_address(addr))
+    extra = TxIn(OutPoint(b"\x01" * 32, 0), b"", 0)
+    tx = bip322.to_sign(spend, extra_inputs=[extra])
+    prevouts = [spend.vout[0], funded]
+
+    psbt = Psbt.from_tx(tx)
+    pub_key = pub_keyinfo_from_key(WIF, compressed=True)[0]
+    q = prv_keyinfo_from_prv_key(WIF)[0]
+    for i, one_type in enumerate((ALL, hash_type)):
+        signature = dsa.sign_(from_tx(prevouts, tx, i, one_type), q).serialize()
+        psbt.inputs[i].witness_utxo = prevouts[i]
+        psbt.inputs[i].final_script_witness = Witness(
+            [signature + one_type.to_bytes(1, "big"), pub_key]
+        )
+
+    sig = bip322.Sig(psbt)
+    if hash_type == ALL:
+        bip322.assert_as_valid(msg, addr, sig)
+        return
+    with pytest.raises(BTClibValueError, match="BIP322 requires SIGHASH_ALL"):
+        bip322.assert_as_valid(msg, addr, sig)
+    assert not bip322.verify(msg, addr, sig)
+
+
+@pytest.mark.parametrize("hash_type", [ALL, NONE], ids=["all", "none"])
+def test_a_broken_required_rule_answers_before_an_upgradeable_one(
+    hash_type: int,
+) -> None:
+    """Invalid beats inconclusive, which is the order BIP322 asks in.
+
+    The script here breaks one rule of each set: an OP_NOP reserved for
+    a soft fork, which is upgradeable, and -- when the parametrization
+    says so -- a hash type that is not SIGHASH_ALL, which is required.
+    With both broken the answer is `BTClibValueError`: a signature that
+    today's rules cannot judge is one thing, and one they judge and
+    refuse is another.
+
+    The NOP is what puts the hash type on the second run's report,
+    because the first run never reaches the end of the script: it is
+    the case for the second run collecting at all.
+    """
+    keys = pub_keyinfo_from_key(WIF, compressed=True)[0]
+    witness_script = serialize([keys, "OP_CHECKSIGVERIFY", "OP_NOP4", "OP_1"])
+    msg, addr = b"two rules at once", p2wsh(witness_script)
+
+    spend = bip322.to_spend(msg, ScriptPubKey.from_address(addr).script)
+    tx = bip322.to_sign(spend)
+    msg_hash = segwit_v0(witness_script, tx, 0, hash_type, 0)
+    q = prv_keyinfo_from_prv_key(WIF)[0]
+    signature = dsa.sign_(msg_hash, q).serialize() + hash_type.to_bytes(1, "big")
+    sig = bip322.Sig(Witness([signature, witness_script]))
+
+    if hash_type == ALL:
+        # the same spend with nothing else wrong with it: inconclusive,
+        # and the assertion that the NOP is what the other case adds to
+        with pytest.raises(InconclusiveError, match="upgradeable rule"):
+            bip322.assert_as_valid(msg, addr, sig)
+        return
+    with pytest.raises(BTClibValueError, match="BIP322 requires SIGHASH_ALL"):
+        bip322.assert_as_valid(msg, addr, sig)

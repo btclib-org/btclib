@@ -93,6 +93,7 @@ def verify_key_path(
     i: int,
     annex: bytes,
     precomputed: PrecomputedTxData | None = None,
+    hash_types: list[int] | None = None,
 ) -> None:
     """Verify a taproot key-path spend, per BIP341.
 
@@ -100,8 +101,13 @@ def verify_key_path(
     itself over the taproot sig_hash with no script committed to; a
     signature that does not verify is the only refusal, get_hashtype's
     aside.
+
+    `hash_types` is `verify_input`'s collector; the one element of the
+    stack is the one signature to report.
     """
     sighash_type = get_hashtype(stack[0])
+    if hash_types is not None:
+        hash_types.append(sighash_type)
     signature = stack[0][:64]
     pub_key = type_and_payload(script_pub_key)[1]
     msg_hash = sig_hash.taproot(
@@ -123,6 +129,7 @@ def op_checksig(
     budget: int,
     flags: ScriptFlag,
     precomputed: PrecomputedTxData | None = None,
+    hash_types: list[int] | None = None,
 ) -> int:
     """Verify one BIP340 signature in a script path: BIP342's OP_CHECKSIG.
 
@@ -136,6 +143,10 @@ def op_checksig(
     room, refused only under DISCOURAGE_UPGRADABLE_PUBKEYTYPE. The
     message hash commits to the tapleaf and to the last executed
     OP_CODESEPARATOR through the BIP341 extension.
+
+    `hash_types` is `verify_input`'s collector, appended to where the
+    hash type is read: an empty signature is not one, and neither is
+    anything popped beside a public key BIP342 left upgradable.
     """
     pub_key = stack.pop()
     signature = stack.pop()
@@ -148,6 +159,8 @@ def op_checksig(
     if len(pub_key) == 32:
         if signature:
             sighash_type = get_hashtype(signature)
+            if hash_types is not None:
+                hash_types.append(sighash_type)
             preimage = b"\xc0"
             preimage += var_bytes.serialize(script_bytes)
             tapleaf_hash = tagged_hash(b"TapLeaf", preimage)
@@ -244,6 +257,7 @@ def _run_ops(  # noqa: C901, PLR0912
     flags: ScriptFlag,
     precomputed: PrecomputedTxData | None,
     script_index_ref: list[int],
+    hash_types: list[int] | None,
 ) -> None:
     """Run verify_script_path_vc0's opcode dispatch loop.
 
@@ -301,6 +315,7 @@ def _run_ops(  # noqa: C901, PLR0912
                 sigops_budget,
                 flags,
                 precomputed,
+                hash_types,
             )
 
         elif op == "OP_CHECKLOCKTIMEVERIFY":
@@ -342,6 +357,7 @@ def verify_script_path_vc0(
     sigops_budget: int,
     flags: ScriptFlag,
     precomputed: PrecomputedTxData | None = None,
+    hash_types: list[int] | None = None,
 ) -> None:
     """Execute a leaf-version-0xc0 tapscript, per BIP342.
 
@@ -352,6 +368,9 @@ def verify_script_path_vc0(
     CHECKMULTISIGs gone in favour of OP_CHECKSIGADD. Refusals leave as
     ScriptError, as they do from the legacy loop, and the script must
     end with exactly one true element on the stack.
+
+    `hash_types` is `verify_input`'s collector, threaded to
+    `op_checksig` as the legacy loop threads it to its own.
     """
     if any(len(x) > MAX_SCRIPT_ELEMENT_SIZE for x in stack):
         err_msg = f"witness stack element longer than {MAX_SCRIPT_ELEMENT_SIZE} bytes"
@@ -385,6 +404,7 @@ def verify_script_path_vc0(
             flags,
             precomputed,
             script_index_ref,
+            hash_types,
         )
     except BTClibValueError as e:
         raise ScriptError(str(e), script_index_ref[0], len(stack)) from e

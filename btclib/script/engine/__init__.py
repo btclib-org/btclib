@@ -183,6 +183,7 @@ def _verify_taproot(
     i: int,
     script_flags: ScriptFlag,
     precomputed: PrecomputedTxData | None,
+    hash_types: list[int] | None,
 ) -> None:
     """Verify a p2tr spend: the v1 arm of Core's VerifyWitnessProgram.
 
@@ -197,7 +198,9 @@ def _verify_taproot(
     if len(stack) == 0:
         raise BTClibValueError("empty taproot witness stack")
     if len(stack) == 1:
-        tapscript.verify_key_path(script, stack, prevouts, tx, i, annex, precomputed)
+        tapscript.verify_key_path(
+            script, stack, prevouts, tx, i, annex, precomputed, hash_types
+        )
         return
     script_bytes, stack, leaf_version = taproot_unwrap_script(script, stack)
     if leaf_version != 0xC0:
@@ -209,7 +212,16 @@ def _verify_taproot(
             raise BTClibValueError(f"upgradable taproot leaf version {leaf_version:#x}")
         return
     tapscript.verify_script_path_vc0(
-        script_bytes, stack, prevouts, tx, i, annex, budget, script_flags, precomputed
+        script_bytes,
+        stack,
+        prevouts,
+        tx,
+        i,
+        annex,
+        budget,
+        script_flags,
+        precomputed,
+        hash_types,
     )
 
 
@@ -222,6 +234,7 @@ def _verify_witness_v0(
     i: int,
     script_flags: ScriptFlag,
     precomputed: PrecomputedTxData | None,
+    hash_types: list[int] | None,
 ) -> None:
     """Verify a v0 spend: the v0 arm of Core's VerifyWitnessProgram.
 
@@ -259,7 +272,16 @@ def _verify_witness_v0(
         raise BTClibValueError(f"invalid segwit v0 script type: {script_type}")
 
     verify_script_legacy(
-        script, stack, prevouts[i].value, tx, i, script_flags, True, True, precomputed
+        script,
+        stack,
+        prevouts[i].value,
+        tx,
+        i,
+        script_flags,
+        True,
+        True,
+        precomputed,
+        hash_types,
     )
     # final above popped the one element the script must leave, so any
     # residue is Core's stack.size() != 1
@@ -278,6 +300,7 @@ def _verify_witness_program(
     i: int,
     script_flags: ScriptFlag,
     precomputed: PrecomputedTxData | None,
+    hash_types: list[int] | None,
 ) -> None:
     """Dispatch a witness program: Core's VerifyWitnessProgram.
 
@@ -310,6 +333,7 @@ def _verify_witness_program(
             i,
             script_flags,
             precomputed,
+            hash_types,
         )
         return
 
@@ -326,6 +350,7 @@ def _verify_witness_program(
                 i,
                 script_flags,
                 precomputed,
+                hash_types,
             )
         return
 
@@ -351,6 +376,7 @@ def verify_input(
     i: int,
     flags: ScriptFlags | None = None,
     precomputed: PrecomputedTxData | None = None,
+    hash_types: list[int] | None = None,
 ) -> None:
     """Verify one input of a transaction against the output it spends.
 
@@ -365,6 +391,18 @@ def verify_input(
     single input has nothing to share it with, so it defaults to None and
     each sig_hash computes what it needs (issue #164).
 
+    `hash_types` is the list the interpreter reports into: the hash type
+    of every stack element it consumed as a signature, in the order it
+    met them, appended to whatever the caller passed. Which elements
+    those were is what an outside caller cannot work out on its own --
+    the control block of a single-leaf taproot tree is 65 bytes, exactly
+    the shape of a BIP340 signature with an explicit hash type, and a
+    data push in a script-path witness can be anything at all -- so a
+    rule about the hash types themselves has to be enforced from here or
+    guessed at. `None`, the default, collects nothing: consensus has no
+    such rule, and BIP322's "all signatures MUST use SIGHASH_ALL" is the
+    caller that has one (issue #514).
+
     The split is Core's: this function is VerifyScript -- the two legacy
     runs on one stack, the p2sh unwrap, the malleation checks, the
     CLEANSTACK check -- and the witness arms live behind
@@ -377,13 +415,29 @@ def verify_input(
 
     stack: list[bytes] = []
     verify_script_legacy(
-        script_sig, stack, prevouts[i].value, tx, i, script_flags, False, False
+        script_sig,
+        stack,
+        prevouts[i].value,
+        tx,
+        i,
+        script_flags,
+        False,
+        False,
+        hash_types=hash_types,
     )
     p2sh_script = stack[-1] if stack else b"\x00"
 
     script = prevouts[i].script_pub_key.script
     verify_script_legacy(
-        script, stack, prevouts[i].value, tx, i, script_flags, False, True
+        script,
+        stack,
+        prevouts[i].value,
+        tx,
+        i,
+        script_flags,
+        False,
+        True,
+        hash_types=hash_types,
     )
 
     script_type, payload = type_and_payload(script)
@@ -394,7 +448,15 @@ def verify_input(
         validate_push_only(script_sig)  # BIP16 makes SIGPUSHONLY consensus here
         script = p2sh_script
         verify_script_legacy(
-            script, stack, prevouts[i].value, tx, i, script_flags, False, True
+            script,
+            stack,
+            prevouts[i].value,
+            tx,
+            i,
+            script_flags,
+            False,
+            True,
+            hash_types=hash_types,
         )
         script_type, payload = type_and_payload(script)
 
@@ -423,6 +485,7 @@ def verify_input(
             i,
             script_flags,
             precomputed,
+            hash_types,
         )
         # Core's stack.resize(1) after VerifyWitnessProgram: a witness
         # spend leaves nothing for CLEANSTACK to see, and v0's own
@@ -450,11 +513,14 @@ def verify_transaction(
     tx: Tx,
     flags: ScriptFlags | None = None,
     check_amounts: bool = True,
+    hash_types: list[int] | None = None,
 ) -> None:
     """Verify every input of a transaction against the outputs it spends.
 
     `flags` is what verify_input takes, converted once here rather than
-    once per input.
+    once per input; `hash_types` is what verify_input reports into, one
+    list for the whole transaction, so the inputs' signatures arrive in
+    it in input order.
     """
     script_flags = to_script_flags(flags)
     if len(prevouts) != len(tx.vin):
@@ -473,4 +539,4 @@ def verify_transaction(
     # quadratic the day the two disagreed
     precomputed = PrecomputedTxData(tx, prevouts)
     for i in range(len(prevouts)):
-        verify_input(prevouts, tx, i, script_flags, precomputed)
+        verify_input(prevouts, tx, i, script_flags, precomputed, hash_types)
