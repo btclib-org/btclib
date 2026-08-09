@@ -241,6 +241,25 @@ documented at release-notes length in the first place, and are still in
 
 ### Curves, signatures and keys
 
+- **A musig2 tweak has a kind, and a kind is a `bool`** (#520).
+  `apply_tweak` read `is_xonly` for its truth, so `"false"` -- true, as
+  every non-empty string is -- applied the x-only tweak to an odd-y
+  aggregate key and answered a different key from the one the signers
+  who passed `False` computed, neither side raising anything.
+  `SessionContext` kept the sequence it was handed, so such a value
+  reached signing through `key_agg_and_tweak` as well. All three refuse
+  anything that is not a `bool` now, with `BTClibTypeError`, `0` and `1`
+  included.
+
+  `utils.is_integer`'s policy mirrored, and the boundary that motivates
+  both is the one boundary: a kind written to json or to a configuration
+  file and read back arrives as whatever it was written as, and there
+  `"false"` is true. What made this one worth refusing rather than
+  coercing is what the flag decides -- which of two aggregate keys the
+  group signs under -- and that it is silent: an even-y aggregate key
+  tweaks the same either way, so the arithmetic notices nothing and the
+  signers who disagree find out when their partial signatures do not add
+  up. The BIP327 vectors are untouched.
 - **BIP322 signed messages, in the new `btclib.bip322`**. `ecc.bms` signs
   with a key and lets the verifier recover it, so it can only speak about
   the addresses that *are* a public key hash; a taproot address is a

@@ -83,6 +83,7 @@ from btclib.curves.sec_point import (
 from btclib.ecc import ssa
 from btclib.exceptions import (
     BTClibRuntimeError,
+    BTClibTypeError,
     BTClibValueError,
     InvalidContributionError,
 )
@@ -188,6 +189,28 @@ def _require_same_length(tweaks: Sequence[bytes], is_xonly: Sequence[bool]) -> N
     if len(tweaks) != len(is_xonly):
         err_msg = "The `tweaks` and `is_xonly` arrays must have the same length."
         raise BTClibValueError(err_msg)
+
+
+def _flag(is_xonly: bool) -> bool:
+    """Return the kind of a tweak, which is a `bool` and not a truth.
+
+    `utils.is_integer`'s policy mirrored: there a boolean is refused
+    where a number is meant, here anything but a boolean is refused where
+    a kind is meant, and the boundary that motivates both is the same. A
+    kind written down and read back -- json, a configuration file, a
+    coordinator's message -- arrives as whatever it was written as, and
+    `"false"` is true. What this one decides is which of two aggregate
+    keys the group signs under, so a value read for its truth would put
+    half the signers on the other key rather than raise.
+    """
+    if not isinstance(is_xonly, bool):
+        err_msg = f"invalid is_xonly type: {type(is_xonly).__name__}"  # type: ignore[unreachable]
+        raise BTClibTypeError(err_msg)
+    return is_xonly
+
+
+def _flags(is_xonly: Sequence[bool]) -> tuple[bool, ...]:
+    return tuple(_flag(flag) for flag in is_xonly)
 
 
 def individual_pub_key(prv_key: PrvKey) -> bytes:
@@ -298,12 +321,16 @@ def apply_tweak(
     even-y point, so an odd-y Q is negated first and the negation is
     accumulated in gacc for the signers to apply to their keys. A plain
     tweak is BIP32 derivation on the group key, and takes Q as it is.
+
+    Which of the two is a `bool` and nothing else: the line below reads
+    it beside the parity of Q, so a value read for its truth would tweak
+    an odd-y key the other way and answer another aggregate key.
     """
     tweak = bytes_from_octets(tweak)
     if len(tweak) != _SCALAR_SIZE:
         raise BTClibValueError(_TWEAK_SIZE_ERR)
     Q, gacc, tacc = key_agg_ctx.Q, key_agg_ctx.gacc, key_agg_ctx.tacc
-    g = secp256k1.n - 1 if (is_xonly and Q[1] % 2) else 1
+    g = secp256k1.n - 1 if (_flag(is_xonly) and Q[1] % 2) else 1
     t = int.from_bytes(tweak, "big")
     if t >= secp256k1.n:
         raise BTClibValueError(_TWEAK_RANGE_ERR)
@@ -323,6 +350,7 @@ def key_agg_and_tweak(
 ) -> KeyAggContext:
     """Aggregate the keys, then apply the tweaks in order."""
     tweaks_ = _tweaks(tweaks)
+    is_xonly = _flags(is_xonly)
     _require_same_length(tweaks_, is_xonly)
     key_agg_ctx = key_agg(pub_keys)
     for tweak, xonly in zip(tweaks_, is_xonly, strict=True):
@@ -493,7 +521,7 @@ class SessionContext:
         object.__setattr__(self, "agg_nonce", bytes_from_octets(agg_nonce, _NONCE_SIZE))
         object.__setattr__(self, "pub_keys", _pub_keys(pub_keys))
         object.__setattr__(self, "tweaks", _tweaks(tweaks))
-        object.__setattr__(self, "is_xonly", tuple(is_xonly))
+        object.__setattr__(self, "is_xonly", _flags(is_xonly))
         object.__setattr__(self, "msg", bytes_from_octets(msg))
         _require_same_length(self.tweaks, self.is_xonly)
 

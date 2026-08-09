@@ -20,6 +20,11 @@ full year, short month, short day (YYYY-M-D)
 
 ### Breaking changes
 
+- **the kind of a musig2 tweak is a `bool` and nothing else.**
+  `apply_tweak`, `key_agg_and_tweak` and `SessionContext` used to read
+  `is_xonly` for its truth, so `1` was an x-only tweak and `"false"` was
+  one too; both raise `BTClibTypeError` now. A caller passing `True` or
+  `False`, which the annotation always asked for, is unaffected.
 - **`btclib.descriptors` is a package, and its three checksum tables moved
   with the module into it.** `INPUT_CHARSET`, `CHECKSUM_CHARSET` and
   `GENERATOR` are `btclib.descriptors.descriptors.INPUT_CHARSET` and its
