@@ -605,6 +605,13 @@ edit.
 
 ### Repository
 
+- **`uv.lock` is at every dependency's newest release again**: `setuptools`
+  (84.0.0), `virtualenv` (21.7.3) and `platformdirs` (4.11.1), each one
+  patch release past what the previous upgrade had frozen two days
+  earlier. All three are reached through the `dev` group only --
+  `setuptools` through `check-manifest` and `pyroma`, `virtualenv` and
+  `platformdirs` through `pre-commit` -- so none was ever in a wheel, and
+  nothing in the lint gate or the suite moved for them.
 - **`uv.lock` is at every dependency's newest release**, which closed the
   seven advisories the default branch was carrying: six on GitPython,
   reached through `cosmic-ray`, and one on `cryptography`, reached
