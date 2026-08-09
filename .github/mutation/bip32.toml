@@ -39,6 +39,150 @@ excluded-modules = []
 # exercised at the value that would tell one operator from another --
 # each needing its own look the way `is_root` did. Sampled as data here
 # rather than chased method by method.
+#
+# A second pass worked through that data, file by file.
+#
+# `der_path.py`: three more real gaps. `steps[0].lower() == "m"` weakened
+# to `>=` would strip any step sorting at or after "m" instead of "m"
+# alone; the depth-255 boundary a der_path string can carry (`> 255`
+# weakened to `> 256`); and the per-element type check inside
+# `indexes_from_der_path`'s iterable branch, replaced with a loop over
+# nothing, uncaught because every existing iterable vector is already
+# all integers.
+#
+# `key_origin.py`: `BIP32KeyOrigin`'s own `check_validity` default was
+# untested on all four of `to_dict`/`from_dict`/`serialize`/`parse`, the
+# same class `block.toml` and `signatures.toml` already name -- with the
+# added wrinkle that `parse` reads its four fingerprint octets
+# structurally regardless of check_validity, so the over-long-fingerprint
+# vector that catches the other three needed a too-deep der_path instead
+# to reach `assert_valid`'s own check for `parse`, and `from_description`
+# needed a too-*short* description, `data[:8]` on four hex characters
+# giving a fingerprint only `assert_valid` -- not the slice -- refuses.
+# `decode_hd_key_paths`'s `{...} if map_ else {}` negated returned `{}`
+# for a populated map, silently dropping every entry; nothing had passed
+# it one, only `None` and `{}`. `assert_valid_hd_key_paths`'s pub_key
+# length set, `{78, 33, 65}`, had all six of its numeric neighbors
+# survive with no vector at any of the three lengths' plus-or-minus-one,
+# and its per-entry loop, replaced with one over nothing, survived
+# because every existing map has one entry or is invalid in that one.
+# `BIP32KeyOrigin`'s `@dataclass(frozen=True)` was untested directly.
+#
+# `bip32.py`, real gaps beyond `is_root`'s three field-comparison
+# survivors closed in the first pass, `is_root` also needing its two
+# `Eq_LtE` mutations (`self.depth == 0`/`self.index == 0` weakened to
+# `<= 0`) closed with a negative case, no existing vector using a
+# negative depth or index:
+#
+# - `is_hardened`'s `>= _HARDENED_OFFSET` weakened to `==`, and the same
+#   expression inside `__pub_key_path_derivation` and
+#   `_derive_from_account`'s branch and address_index checks: every
+#   existing hardened index in the test vectors (`0h`, `44h`) lands
+#   exactly on the offset, so nothing had ever derived, or refused to
+#   derive, past it. `__prv_key_derivation`'s and
+#   `pub_key_derivation_tweaks`'s own copies of the same expression
+#   were already exercised past the boundary (`463h`, `m/1h`) and did
+#   not survive.
+# - `_assert_valid_depth_and_index`'s two closed ranges, `0 <= depth <=
+#   255` and `0 <= index <= 0xffffffff`, tested short and long on both
+#   sides already but never at the top of either range itself.
+# - `_assert_valid_key`'s chained `0 < q < secp256k1.n`, which cosmic-ray
+#   mutates as two independent comparisons: the left one, `0 < q`
+#   weakened to `0 != q`, is equivalent (q is an unsigned parse, never
+#   negative, so the two agree everywhere); the right one, `q < n`
+#   weakened to `q != n`, is not -- both existing invalid-key vectors
+#   put q at 0 and at n exactly, so `q != n` alone already refuses
+#   either, and only a scalar strictly above n tells `q < n` apart from
+#   it.
+# - four prefix-refusal messages -- the private and public key checks in
+#   `_assert_valid_key`, `_xpub_from_xprv`'s "not a private key", and
+#   `_err_msg` -- all slice one byte, `key[:1].hex()`, widened by
+#   `NumberReplacer` to `key[:2]`. Every existing vector matches the
+#   message with `pytest.raises(match=...)`, which searches rather than
+#   anchors, so a wider slice's hex still contains the narrower one as a
+#   leading substring and the widening was never caught; an exact
+#   `str(excinfo.value) ==` comparison is what tells them apart.
+# - `pub_key_derivation_tweaks`'s `offset.to_bytes(32, ...)` widened to
+#   33: the existing test compares the point the tweaks reconstruct,
+#   which a leading zero byte does not move, so nothing had checked the
+#   tweaks' own length.
+# - `_force_version` was entirely unexercised -- no test anywhere passed
+#   `derive`'s `forced_version` argument -- so its `in`/`not in` checks
+#   negated and its `bytes_from_octets(forced_version, 4)` widened to 5
+#   or narrowed to 3 all survived for want of a single call.
+# - `b58decode`'s `isinstance(address, str)` negated would strip bytes
+#   instead of strings, untested since no vector passes a string with
+#   whitespace to strip in the first place.
+# - `BIP32KeyData`'s own `check_validity` default, untested on all four
+#   of `__init__`/`serialize`/`b58encode`/`parse` the way key_origin.py's
+#   was -- a zero depth with a non-zero parent fingerprint serializes
+#   structurally fine and is refused only by `assert_valid`'s cross-field
+#   check, the one check_validity=False defers at each of the four.
+#   `_BIP32KeyData.__init__`'s own copy of the same guard, `if
+#   check_validity` negated to `if not check_validity`, needed a direct
+#   call: `_derive` only ever builds one from an already-valid key, so
+#   nothing through the public API reaches it invalid.
+# - `_derive`'s `final_depth > 255`, tested long (256) but not at the
+#   boundary itself (255).
+# - `derive_from_account`'s `max_index: int = 0xffff` widened to 65536
+#   or narrowed to 65534: the *public* function's own default, tested at
+#   the boundary. `_derive_from_account`, the private function one layer
+#   down, carries an identical-looking default that is equivalent for a
+#   different reason below.
+#
+# Checked and left equivalent:
+#
+# - `_assert_valid_depth_and_index`'s `parent_fingerprint != b"\x00" * 4`
+#   weakened to `>`, and `index != 0` weakened to `>`: a 4-byte value
+#   can never sort below all-zero and an index can never be negative
+#   (both already checked above this point), so `!=` and the one-sided
+#   comparison agree everywhere reachable -- the same bytes-minimum and
+#   non-negative-bound reasoning `key_origin.py`'s own first pass used.
+# - `is_private`'s `self.key[0] == 0` and `__repr__`'s `self.key[:1] ==
+#   b"\x00"` weakened to `<=`: a byte value and a single all-zero byte
+#   string are each their own minimum, so `==` and `<=` coincide.
+# - four `key[1:]` reads -- in `_assert_valid_key`, `_xpub_from_xprv`,
+#   `_BIP32KeyData.__init__`, and `crack_prv_key` -- widened to `key[0:]`:
+#   each is reached only after its own `key[0] != 0` guard (directly, or
+#   through `is_private`) has already confirmed that first byte is zero,
+#   and a leading zero byte never changes a big-endian integer's value,
+#   so the extra byte in the slice is silent.
+# - `is_root`'s three-way `and` negated to `or` at either junction: the
+#   existing `non_root_depth`/`non_root_index`/`non_root_fingerprint`
+#   cases already isolate each term to false while the other two hold,
+#   which is exactly what an `and`-to-`or` widening needs a witness
+#   against.
+# - `RemoveDecorator` on `is_root`'s own `@property`: turns `.is_root`
+#   into a bound method, always truthy whether or not the key is root,
+#   which the existing `assert not other.is_root` cases already catch
+#   (a truthy bound method fails `not`).
+# - `RemoveDecorator` on `_BIP32KeyData`'s own `@dataclass(repr=False)`:
+#   the class defines its own `__init__`, which a manual `_set_new_
+#   attribute`-style check in `dataclasses` never overwrites either way;
+#   `repr=False` already means "inherit the parent's", identical with or
+#   without the decorator; and the `__eq__` the decorator would add
+#   compares `prv_key_int`/`pub_key_point` beside the six inherited
+#   fields, but both are pure functions of `key` and `is_private`, values
+#   already in that comparison -- two instances equal on the six can
+#   never disagree on the two derived from them, so the wider or the
+#   narrower `__eq__` never differs in what it answers.
+# - `_rootxprv_from_seed`'s `bit_length < 128` and `> 512` widened by one
+#   to 127 and 513: `bit_length = len(seed) * 8` is always a multiple of
+#   8, so 127 and 513 are values no byte-sized seed can ever produce --
+#   every reachable bit_length either both operators accept or both
+#   refuse.
+# - `_derive_from_account`'s own `max_index: int = 0xffff` default: the
+#   public `derive_from_account` above it always passes its own
+#   `max_index` down explicitly, so the private function's default is
+#   never the value actually used -- an unreachable default, the same
+#   class `key_origin.py`'s `_pairs_from_der_path_str` and
+#   `_decode_from_bip32_deriv` are.
+#
+# Not chased further, the same shape as the first pass's own note: the
+# `signed=False` reads and writes across the various `to_bytes`/
+# `int.from_bytes` calls in the derivation functions, and the
+# public-key-prefix set `{2, 3}`'s own numeric neighbors, both sampled
+# rather than exhausted.
 
 [cosmic-ray.distributor]
 name = "local"
