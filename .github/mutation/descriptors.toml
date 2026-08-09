@@ -66,21 +66,42 @@ excluded-modules = []
 # they group into four:
 #
 # - the type-property algebra, which is what this scope was written to
-#   ask about: `_andor_properties`' `&` turned `|` and `|` turned `-`
-#   survive, so the properties a fragment computes are not pinned by any
-#   test that would notice a wrong set.
+#   ask about -- and the class is smaller than the survivor list makes it
+#   look. BIP379's composition rules are a chain of terms, and almost
+#   every term selects letters no other term contributes: measured over
+#   the 97 expressions of miniscript_fixed_tests.json and one composite
+#   of each family, 50 of the 54 single-term `|` in those rules change no
+#   fragment's properties when they become a symmetric difference. They
+#   are equivalent by disjointness rather than untested.
+#
+#   The four that are not combine the *operands*: the timelocks of a
+#   conjunction and of a disjunction, `(x | y) & _t("ghij")`, and `or_b`'s
+#   and `or_i`'s non-malleability, `_has(x | y, "s")`. A letter both
+#   branches carry is a letter the composite keeps only if the rule is a
+#   union, and the tests beside this commit assert the exact property set
+#   of the four shortest fragments that show it -- two `older()` branches
+#   for the timelock, two signed branches for the "m". All four mutants
+#   are dead now, and the assertions are on the properties themselves
+#   rather than on something downstream of them.
 # - the sizes: `_TX_BODY_LEEWAY_WEIGHT`'s summands rearrange freely, the
 #   stack-limit term beside it takes `^` for `+`, and `_decomposed`'s
 #   `1 + 2 ** (op_code - 76)` -- the push-prefix width -- survives three
 #   ways. A wrong size here is a wrong fee estimate rather than an
-#   invalid spend, which is why nothing louder catches it.
+#   invalid spend, which is why nothing louder catches it. The prefix
+#   width wants a script whose push needs OP_PUSHDATA, which no standard
+#   fragment writes: every key is 33 bytes and every hash 20 or 32.
 # - the fragment dispatch, weakened from `==` to `>=` in seven places:
 #   equivalent wherever the fragment compared is the alphabetical
 #   extreme of the closed set it comes from, which is the class bms.toml
 #   states, and worth a look one by one rather than in bulk.
-# - `satisfy`'s `index: int = 0` default and `_thresh_ops`' and
-#   `_thresh_witness`' `reached[1]`/`reached[-1]`: an undefended default
-#   and two indexes into a list a `thresh` walk builds.
+# - `satisfy`'s `index: int = 0` default, `_thresh_input`'s `count ==
+#   node.threshold` and `_thresh_ops`' and `_thresh_witness`'
+#   `reached[1]`/`reached[-1]`: an undefended default and three indexes
+#   into what a `thresh` walk builds. The default wants a ranged key --
+#   with plain keys the index changes nothing -- and the `thresh` three
+#   want a satisfaction with more satisfiable branches than the quorum
+#   needs, which is where choosing exactly `threshold` of them is what
+#   makes the witness non-malleable.
 
 # one mutant at a time, in this working tree: see sig_hash.toml
 [cosmic-ray.distributor]
