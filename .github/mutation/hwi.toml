@@ -1,0 +1,74 @@
+# The HWI adapter, mutated: the subprocess btclib runs, the json it reads
+# back, and the bounds it holds that output to. Everything this module
+# does is with somebody else's answer -- a hardware wallet's, through a
+# tool btclib does not ship -- so its questions are #327's: a size limit
+# weakened, a status left unchecked, a malformed entry taken for a device
+# instead of refused (#534), a fingerprint compared the wrong way. The
+# adapter is also where a wrong answer is hardest to see by eye, the
+# device being the thing nobody can step through.
+
+[cosmic-ray]
+module-path = "btclib/hwi.py"
+
+# its own file, which covers the module completely, and its own profile
+# because of what that costs: every case starts a fake `hwi` executable,
+# so the command is 4.7 s of wall clock against the fifth of a second
+# signer.toml's three modules take. That is the engine's shape at a
+# smaller scale -- the budget samples this scope rather than finishing it
+# -- and it is why the two are not one command.
+#
+# tests/integration/hwi_device_test.py is not here and cannot be: it wants
+# a device or an emulator (issue #529), and it skips itself everywhere
+# else, so in a mutation session it would judge nothing while looking like
+# it had
+test-command = "python -m pytest -x -q -n0 -p no:randomly tests/hwi_test.py"
+
+# seconds of wall clock, and the one profile where the width is not only
+# about a loop: a mutant that widens a read bound leaves btclib reading
+# a pipe the fake tool has stopped writing to, which the subprocess
+# timeout in the module answers -- unless that timeout is what the mutant
+# widened. See sig_hash.toml for why a cut-short mutant is answered
+# KILLED and why that makes slack the safe direction
+timeout = 300
+
+excluded-modules = []
+
+# the exclusion wallet.toml explains, measured the same way here: `grep -n
+# ' | ' btclib/hwi.py` is annotations only, and the unfiltered session
+# executed 39 BitOr mutants without killing one. Worth the line in a scope
+# this expensive -- at 9 s a mutant on a loaded machine, an unkillable
+# survivor is 9 s spent on a verdict nobody can act on
+[cosmic-ray.filters.operators-filter]
+exclude-operators = ["core/ReplaceBinaryOperator_BitOr_.*"]
+
+# 333 mutants, 66 of them the `|` above, and 144 of the 267 left ran in the
+# 1800 s of the first session -- 9.8 s a mutant, which is this scope's
+# subprocess cost doubled by four other profiles sharing the machine: 122
+# killed, 22 survived, 15.28%.
+#
+# The gaps:
+#
+# - `_read(out, max_output + 1)`, mutated to `+ 2`, to `| 1` and to
+#   `<< 1`. The `+ 1` is the module's own comment -- one byte past the
+#   limit is all that has to be read to know the limit was passed -- and
+#   nothing holds it to that, so the bound issue #526 added is enforced
+#   at whatever offset the code happens to say.
+# - `is_usable`'s `fingerprint is not None and not self.error` with `or`
+#   for `and`: no device in the fixtures answers a fingerprint *and* an
+#   error, which is exactly the entry #534 was about.
+# - `_POLL_INTERVAL = 0.05` turned negative: it reaches
+#   `process.wait(timeout=min(_POLL_INTERVAL, left))`, where a negative
+#   timeout is a busy loop rather than the pause the constant names.
+# - `HwiDevice.needs_pin_sent`'s `False` default turned True, and
+#   `enumerate_devices`' `argv.insert(1, "--emulators")` moved: where a
+#   flag goes in the command line is not asserted.
+# - the error messages: `argv[0]` in three of them mutated to `argv[1]`
+#   or `argv[-1]` and unnoticed -- the same shape fetch.toml closed by
+#   asserting the message text rather than the exception type.
+#
+# `_select`'s `assert usable[0].fingerprint is not None` mutated to `[-1]`
+# is equivalent where the suite calls it with one usable device.
+
+# one mutant at a time, in this working tree: see sig_hash.toml
+[cosmic-ray.distributor]
+name = "local"

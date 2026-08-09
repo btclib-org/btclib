@@ -1,0 +1,78 @@
+# MuSig2, mutated: BIP327's key aggregation, nonce aggregation and partial
+# signatures, and the BIP373 psbt fields a signing session is carried in.
+# The one signature scheme in btclib where a wrong answer is not a wrong
+# signature but a lost key -- nonce reuse across sessions, a tweak applied
+# twice, a partial signature verified against the wrong aggregate nonce --
+# and where the reference vectors are the whole of what says otherwise.
+# signatures.toml asks issue #219's question of ssa and dsa; this asks it
+# of the protocol built on them.
+
+[cosmic-ray]
+# both halves, judged by the same two test files: `ecc/musig2.py` is the
+# scheme and `psbt/musig2.py` the BIP373 role, which is why psbt.toml
+# names its five other modules one by one and leaves this one here
+module-path = [
+  "btclib/ecc/musig2.py",
+  "btclib/psbt/musig2.py",
+]
+
+# both modules' own files, complete over the two -- measured with `--cov`
+# over this command -- for a seventh of a second, which makes this profile
+# and wallet.toml the two that finish soonest here
+test-command = """python -m pytest -x -q -n0 -p no:randomly \
+  tests/ecc/musig2_test.py tests/psbt/musig2_test.py"""
+
+# seconds of wall clock, wide for the reason sig_hash.toml measures --
+# a timeout is answered KILLED, so slack is the safe direction. As in
+# parsers.toml, what the width is not guarding is a loop in this scope:
+# the key and nonce aggregation walk the lists they are given with
+# comprehensions, and a tweak chain is as long as the caller's, so there
+# is no bound here for a mutant to uncap
+timeout = 300
+
+excluded-modules = []
+
+# the exclusion wallet.toml explains: every `|` in the two modules is in an
+# annotation --
+#
+#   grep -n ' | ' btclib/ecc/musig2.py btclib/psbt/musig2.py
+#
+# -- and the unfiltered session that decided it executed 10 BitOr mutants
+# and killed none of them. The arithmetic this scope does have is `^`,
+# which is `_xor_bytes` over the nonce seed, and no filter touches it
+[cosmic-ray.filters.operators-filter]
+exclude-operators = ["core/ReplaceBinaryOperator_BitOr_.*"]
+
+# 1409 mutants, 132 of them the `|` above, and 159 of the 1277 left ran in
+# the 900 s of the first session: 149 killed, 10 survived, 6.29% -- the
+# lowest rate of any profile measured here, which is what a reference
+# implementation's own vector file buys.
+#
+# 5.3 s a mutant against a test command of a seventh of a second, and two
+# mutants are where two thirds of that session went: `sign`'s two `%
+# secp256k1.n` reductions turned into `** secp256k1.n`, which is a 256-bit
+# exponent and never returns. Both spent the whole 300 s timeout and both
+# were answered KILLED, which sig_hash.toml explains and numeric.toml met
+# first in its KDF -- so the cost is real, the verdict is sound, and the
+# arithmetic is the reason this profile is sampled rather than finished
+# despite a test command nothing else here beats.
+#
+# The 10, and none of them is a hole in the protocol:
+#
+# - `partial_sig_verify`'s `len(pub_nonces) != len(pub_keys)` as `is not`,
+#   and `sign`'s `Q[1] % 2 == 0` as `<= 0` -- the interned-int and the
+#   `% 2` classes, both equivalent by construction.
+# - `apply_tweak`'s `(g * gacc) % n` as `+ n`: the value is reduced again
+#   before use, so it is equivalent here and fragile rather than wrong.
+# - `key_agg`'s `Q[0] == 0` sits under `# pragma: no cover` -- BIP327's
+#   placeholder for an aggregate key at infinity, which no vector
+#   reaches -- so its mutants are unkillable by construction, the way an
+#   annotation's are.
+# - `_require_same_length`'s `!=` as `>`, and the BIP373 field key
+#   comparisons in `psbt/musig2.py` as `>=`, `<=` and `is not`: a
+#   participant list and a key are compared one way only, which is the
+#   shape fetch.toml's `chain != expected_chain` had.
+
+# one mutant at a time, in this working tree: see sig_hash.toml
+[cosmic-ray.distributor]
+name = "local"

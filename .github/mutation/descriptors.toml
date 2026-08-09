@@ -1,0 +1,87 @@
+# Output descriptors and miniscript, mutated: the checksum, BIP380's key
+# expressions, BIP379's language and the witness that satisfies one. The
+# largest surface added to btclib since #219 was opened, and the one whose
+# answers a caller cannot check by eye -- a miniscript satisfaction is a
+# choice of branch, a set of type properties and a witness whose size
+# decides a fee, none of which a wrong bound announces. Every line of the
+# three modules runs under tests/descriptors; this asks whether the suite
+# would notice if one of them were wrong.
+
+[cosmic-ray]
+# the package, `__init__.py` included: it is re-exports and a docstring, so
+# it contributes a handful of mutants rather than a scope of its own, and
+# naming the directory is what keeps a fourth module added tomorrow from
+# being left out in silence
+module-path = "btclib/descriptors"
+
+# tests/descriptors alone, which is what covers all three modules to 100%
+# -- measured, `--cov=btclib/descriptors` over this command reports every
+# file complete -- in under four seconds. custody_wallet_test.py is in that
+# directory and is the wallet-shaped judgement of a descriptor, so the
+# scope does not need tests/wallet to reach what a wallet asks a descriptor
+# for; wallet.toml mutates the other side of that call.
+#
+# -n0 and -p no:randomly for the reasons sig_hash.toml gives: xdist's
+# worker per core is startup paid once per mutant, and with -x a shuffled
+# collection order makes both the killing test and the runtime
+# irreproducible. No --cov, same file
+test-command = "python -m pytest -x -q -n0 -p no:randomly tests/descriptors"
+
+# seconds of wall clock, wide for the reason sig_hash.toml measures -- a
+# timeout is answered KILLED, so a tight one turns a slow mutant on a
+# loaded machine into a kill nobody earned. This scope has somewhere for
+# one to hide, unlike the parsers: satisfaction and type inference walk a
+# fragment tree, and `miniscript.py` carries the ops, stack and script-size
+# bounds that stop a `thresh` or a nested `andor` from expanding without
+# end, so a mutant that widens one of those is what the slack is for
+timeout = 300
+
+excluded-modules = []
+
+# No operator filter here, and that is a decision rather than an omission:
+# parsers.toml excludes `ReplaceBinaryOperator_BitOr_.*` because every `|`
+# in its scope is an unevaluated annotation under `from __future__ import
+# annotations`, and here most of them are arithmetic. `miniscript.py`
+# computes a fragment's type properties as a set algebra over one-letter
+# properties -- `_if(_has(x, "B"), _t("W")) | (x & _t("ghijkudfems"))` and
+# some seventy lines like it -- so a `|` turned into `^` or `&` there is
+# exactly the question this profile exists to ask. The claim is a grep,
+# a line number here rotting on the next insertion above it:
+#
+#   grep -c ' | ' btclib/descriptors/*.py
+#
+# The annotation half survives instead, and is the class fetch.toml
+# documents at length: unevaluated, unkillable, and not a hole. What the
+# first session says about the trade is that a third of the `|` mutants it
+# ran were *killed*, which no annotation's ever is.
+#
+# 10831 mutants, and the first session judged 383 of them: 291 killed, 92
+# survived. Sampled at a thirtieth, then, and the reason to keep sampling
+# rather than to shrink the scope is the engine's: the verdicts in a slice
+# are stable, so one that changes is a test that stopped checking what it
+# used to.
+#
+# Every non-annotation survivor is in `miniscript.py` -- `descriptors.py`
+# and `key_expression.py` gave none in the 101 of theirs that ran -- and
+# they group into four:
+#
+# - the type-property algebra, which is what this scope was written to
+#   ask about: `_andor_properties`' `&` turned `|` and `|` turned `-`
+#   survive, so the properties a fragment computes are not pinned by any
+#   test that would notice a wrong set.
+# - the sizes: `_TX_BODY_LEEWAY_WEIGHT`'s summands rearrange freely, the
+#   stack-limit term beside it takes `^` for `+`, and `_decomposed`'s
+#   `1 + 2 ** (op_code - 76)` -- the push-prefix width -- survives three
+#   ways. A wrong size here is a wrong fee estimate rather than an
+#   invalid spend, which is why nothing louder catches it.
+# - the fragment dispatch, weakened from `==` to `>=` in seven places:
+#   equivalent wherever the fragment compared is the alphabetical
+#   extreme of the closed set it comes from, which is the class bms.toml
+#   states, and worth a look one by one rather than in bulk.
+# - `satisfy`'s `index: int = 0` default and `_thresh_ops`' and
+#   `_thresh_witness`' `reached[1]`/`reached[-1]`: an undefended default
+#   and two indexes into a list a `thresh` walk builds.
+
+# one mutant at a time, in this working tree: see sig_hash.toml
+[cosmic-ray.distributor]
+name = "local"

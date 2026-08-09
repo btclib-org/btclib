@@ -172,6 +172,54 @@ jobs:
             ceiling: 100
             sessions: |
               signatures.toml 90m
+          # output descriptors and miniscript, and the largest scope in
+          # this matrix by a factor of three: 10831 mutants, of which the
+          # first session judged 383 in 31 minutes -- 4.9 s each with four
+          # other profiles on the same machine. Sampled, then, the way the
+          # engine is, and for the same reason: no budget this workflow is
+          # worth finishes it, and a sample of the same slice each week is
+          # worth having because a verdict that changes in it is a test
+          # that stopped checking what it used to. Its own job because it
+          # would otherwise spend every other scope's budget
+          - profile: output descriptors and miniscript
+            slug: descriptors
+            ceiling: 100
+            sessions: |
+              descriptors.toml 90m
+          # the psbt format: 3524 mutants, 913 of them skipped by the
+          # operator filter that configuration explains, and 887 of the
+          # 2611 left judged in 40 minutes at 2.0 s each -- contended, so a
+          # runner on its own is faster, and 45 minutes there is most of the
+          # scope rather than a third of it
+          - profile: the psbt format
+            slug: psbt
+            ceiling: 60
+            sessions: |
+              psbt.toml 45m
+          # the script encodings the two consensus profiles sit on: 2561
+          # mutants, 187 filtered, and 406 judged in 35 minutes. Not folded
+          # into the consensus job, which spends 180 of its 200 minutes
+          # already, and not into the psbt one, which would then need 90
+          # minutes of its own
+          - profile: the script encodings
+            slug: script
+            ceiling: 60
+            sessions: |
+              script.toml 45m
+          # the four small scopes, which is what makes them one job: signer
+          # finished its 302 filtered mutants in 9 minutes and wallet its
+          # 293 in 15, musig2 spends most of a session on the two `%`
+          # turned `**` its configuration names, and hwi pays 5 s a mutant
+          # for the subprocess each of its tests starts. Budgets in that
+          # order, and the ceiling is their sum plus the environment
+          - profile: wallets, the signer boundary, musig2 and HWI
+            slug: boundaries
+            ceiling: 90
+            sessions: |
+              signer.toml 10m
+              wallet.toml 20m
+              musig2.toml 20m
+              hwi.toml 30m
     steps:
       # every action is pinned to a commit SHA, the tag in the comment: a
       # tag, let alone a branch, is a name its owner can move

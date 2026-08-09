@@ -1,0 +1,82 @@
+# The signer boundary, mutated: the role that walks a psbt asking a key
+# manager for signatures, the contract that says what an implementation of
+# one owes its caller, and the union type a caller hands either a
+# transaction or a psbt through. What is asked here is not a hash or an
+# encoding but a decision -- which input this signer can sign, whether the
+# answer it got back belongs to the request, whether what came back is
+# signatures and nothing else -- and a wrong decision is a signature over
+# somebody else's transaction. Issue #219's question, on the boundary
+# between btclib and whatever holds the keys.
+
+[cosmic-ray]
+# `hwi.py` is an implementation of that contract rather than the contract,
+# and it is in hwi.toml for a measured reason: its tests spawn a
+# subprocess per case, which costs 4.7 s against this command's 0.2 s, so
+# sharing one command would make every mutant here pay for a fake
+# `hwi.py` being started twenty times
+module-path = [
+  "btclib/psbt_signer.py",
+  "btclib/psbt_signer_contract.py",
+  "btclib/tx_or_psbt.py",
+]
+
+# the three modules' own files plus tests/software_signer_test.py, which
+# is the in-process key manager the contract test drives: measured with
+# `--cov` over the three, this command reports every one complete, in a
+# fifth of a second -- the cheapest command of any profile here
+test-command = """python -m pytest -x -q -n0 -p no:randomly \
+  tests/psbt_signer_test.py tests/psbt_signer_contract_test.py \
+  tests/software_signer_test.py tests/tx_or_psbt_test.py"""
+
+# seconds of wall clock, wide for the reason sig_hash.toml measures: what
+# it guards here is `sign`'s walk over the inputs a manager answered for,
+# where a mutated index or bound is a walk that does not end
+timeout = 300
+
+excluded-modules = []
+
+# the same exclusion wallet.toml explains and parsers.toml argues, for the
+# same measured reason: the only `|` in these three modules are in
+# annotations --
+#
+#   grep -n ' | ' btclib/psbt_signer.py btclib/psbt_signer_contract.py \
+#       btclib/tx_or_psbt.py
+#
+# -- and the first session here, run unfiltered, executed 110 BitOr
+# mutants of which not one was killed
+[cosmic-ray.filters.operators-filter]
+exclude-operators = ["core/ReplaceBinaryOperator_BitOr_.*"]
+
+# 412 mutants, 110 of them the `|` above, and the 302 left ran to
+# completion in 565 s -- the only profile of this session that finished,
+# and it finished while four others shared the machine: 236 killed, 66
+# survived, 21.85%.
+#
+# 46 of the 66 are in `psbt_signer_contract.py`, which is worth stating
+# plainly because it is the file whose whole job is refusing a signer that
+# does not conform. Its checks do fire: tests/psbt_signer_contract_test.py
+# builds a signer to break each one, and that is what kills 121 of its
+# 167 mutants. What survives is the arithmetic inside them --
+# `len(answered_in.partial_sigs) - len(psbt_in.partial_sigs)` with `|`,
+# `^`, `+`, `<<` or `>>` for the `-`, the same across the taproot
+# signature counts, and `_check_fingerprint`'s and `_check_xpub`'s `!=`
+# weakened to `>` -- so a check could be laxer than it reads and every
+# fixture in that file would still pass it. A signer conforming to a
+# weakened contract is the failure this scope exists to ask about.
+#
+# The rest:
+#
+# - `unsignable_psbt`'s own numbers, which are the fixture it builds: the
+#   9000-satoshi output, the version, the outpoint index, the flipped
+#   fingerprint byte. Equivalent, and worth saying so once: what makes
+#   that psbt unsignable is the key it pays to, not the amount, so these
+#   are the one class here that no test should chase.
+# - `PsbtSigner.display_address`'s `index: int = 0` default, mutated in
+#   both directions across the class and its two implementations -- the
+#   same undefended-default class wallet.toml measures.
+# - `merge_devices`' `break` turned into `continue`, and `_at`'s
+#   `indexes[:len(path)] == path` weakened to `>=`.
+
+# one mutant at a time, in this working tree: see sig_hash.toml
+[cosmic-ray.distributor]
+name = "local"
