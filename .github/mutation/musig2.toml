@@ -57,21 +57,37 @@ exclude-operators = ["core/ReplaceBinaryOperator_BitOr_.*"]
 # arithmetic is the reason this profile is sampled rather than finished
 # despite a test command nothing else here beats.
 #
-# The 10, and none of them is a hole in the protocol:
+# The 10, and none of them was a hole in the protocol -- five were a test
+# owed and are closed by the tests beside this commit, each measured alive
+# before its test and dead after:
 #
-# - `partial_sig_verify`'s `len(pub_nonces) != len(pub_keys)` as `is not`,
-#   and `sign`'s `Q[1] % 2 == 0` as `<= 0` -- the interned-int and the
-#   `% 2` classes, both equivalent by construction.
+# - the two length checks, `_require_same_length`'s and
+#   `partial_sig_verify`'s, weakened from `!=` to `>`: each was exercised
+#   with the longer array on one side only. The tweaks and their flags are
+#   one list of pairs, so a flag left over is a tweak nobody named.
+# - the BIP373 session filters in `psbt/musig2.py`, `key_data[32:] ==
+#   tweaked_pub_key + leaf_hash` weakened to `>=` and `<=`. One input may
+#   hold a session per leaf, so that suffix is what tells them apart, and
+#   an ordering takes in whatever sorts the right way. The test files
+#   another participant's nonce and partial signature under this
+#   participant in a session that is not this one -- one key sorting under
+#   the real aggregate key and one over it -- so a weakened comparison
+#   replaces this participant's own nonce and the spend stops verifying.
+#   The values have to be another participant's: the same nonce under a
+#   foreign session overwrites with an identical one and says nothing.
+# - `sign`'s `0 < k_2_ < secp256k1.n`, weakened to `1 <`: zero was
+#   refused and one was never offered.
+#
+# The five left are equivalent by construction:
+#
+# - `partial_sig_verify`'s `len(...) != len(...)` as `is not` and `sign`'s
+#   `Q[1] % 2 == 0` as `<= 0` -- the interned-int and the `% 2` classes.
 # - `apply_tweak`'s `(g * gacc) % n` as `+ n`: the value is reduced again
 #   before use, so it is equivalent here and fragile rather than wrong.
 # - `key_agg`'s `Q[0] == 0` sits under `# pragma: no cover` -- BIP327's
 #   placeholder for an aggregate key at infinity, which no vector
 #   reaches -- so its mutants are unkillable by construction, the way an
 #   annotation's are.
-# - `_require_same_length`'s `!=` as `>`, and the BIP373 field key
-#   comparisons in `psbt/musig2.py` as `>=`, `<=` and `is not`: a
-#   participant list and a key are compared one way only, which is the
-#   shape fetch.toml's `chain != expected_chain` had.
 
 # one mutant at a time, in this working tree: see sig_hash.toml
 [cosmic-ray.distributor]

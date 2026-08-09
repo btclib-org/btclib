@@ -9,7 +9,7 @@ from typing import Any
 
 import pytest
 
-from btclib.curves import secp256k1
+from btclib.curves import bytes_from_point, mult, secp256k1
 from btclib.ecc import ssa
 from btclib.exceptions import BTClibValueError
 from btclib.psbt import Psbt, combine, extract_tx, finalize, musig2
@@ -440,3 +440,64 @@ def test_a_session_signing_for_a_sig_hash_type_of_its_own() -> None:
     assert len(signature) == 65
     assert signature[-1] == 1
     verify_transaction(spent, extract_tx(finalize(psbt)))
+
+
+@pytest.mark.parametrize("test_vector", signed_vectors())
+def test_another_session_in_the_same_input_is_not_read_as_this_one(
+    test_vector: dict[str, str],
+) -> None:
+    """A session is what is filed under its own key and leaf, and no more.
+
+    BIP373 keys the nonces and the partial signatures by the participant
+    key *and* the session -- the tweaked aggregate key with the tapleaf
+    hash after it -- because one input may hold a session per leaf. So the
+    filter that reads a session out of those maps is an equality on that
+    suffix: an ordering would take in whatever sorts the right way, and
+    what it took in would be a nonce or a signature from a session
+    committing to another script.
+
+    Two foreign entries here, one suffix sorting above the real one and
+    one below, so neither direction of a weakened comparison can pass:
+    a nonce that is not part of this session changes the aggregate nonce,
+    and the signature the round then produces is not a spend of the
+    output.
+    """
+    psbt = Psbt.b64decode(test_vector["encoded psbt"])
+    aggregate_pub_key, leaf_hash = session_of(psbt)
+    spent = prevouts(psbt)
+    psbt_in = psbt.inputs[0]
+
+    nonces = list(psbt_in.musig2_pub_nonces.items())
+    partial_sigs = list(psbt_in.musig2_partial_sigs.items())
+    participant, _ = nonces[0]
+    # the *other* participant's nonce and signature, filed under this
+    # participant in a session that is not this one: read in, they replace
+    # this participant's own -- so the aggregate nonce is not the one the
+    # partial signatures were made against, and nothing verifies
+    nonce = nonces[-1][1]
+    partial_sig = partial_sigs[-1][1]
+    assert nonce != nonces[0][1]
+    session, leaf = participant[33:66], participant[66:]
+    # two keys of a session that is not this one, one sorting under the
+    # real aggregate key and one over it: the maps hold real keys, the
+    # psbt refusing anything else, so the foreign session is built from
+    # points rather than from bytes that would not validate.
+    #
+    # Both sides are collected and asserted rather than taken with a
+    # `next`: a key sorts below this session's only if its prefix is
+    # smaller or its x is, and which of those a vector leaves available is
+    # the vector's business -- so a search that came up empty should say
+    # what it wanted and not end the test with a StopIteration.
+    keys = [bytes_from_point(mult(scalar)) for scalar in range(2, 200)]
+    below = [key for key in keys if key < session]
+    above = [key for key in keys if key > session]
+    assert below, "no key of these points sorts below the session's own"
+    assert above, "no key of these points sorts above the session's own"
+    for foreign in (below[0], above[0]):
+        key_data = participant[:33] + foreign + leaf
+        psbt_in.musig2_pub_nonces[key_data] = nonce
+        psbt_in.musig2_partial_sigs[key_data] = partial_sig
+
+    musig2.partial_sigs_agg(psbt, 0, aggregate_pub_key, leaf_hash=leaf_hash)
+    tx = extract_tx(finalize(psbt))
+    verify_transaction(spent, tx)

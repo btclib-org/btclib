@@ -1058,9 +1058,15 @@ documented at release-notes length in the first place, and are still in
     arithmetic stay open, and `descriptors.toml` says what each would
     take.
     - `musig2.toml` (159 of 1277): 6.29%, the lowest rate measured here,
-    which is what a reference implementation's own vectors buy. Its two
-    `% secp256k1.n` reductions turned `** secp256k1.n` are also the
-    slowest mutants in this round, spending a 300-second timeout each.
+    which is what a reference implementation's own vectors buy. Five of
+    the ten survivors were tests owed and are closed: the two array
+    length checks, each exercised with the longer side only; the two
+    BIP373 session filters, where one input may hold a session per leaf
+    and an ordering would read in a nonce committing to another script;
+    and the second secnonce scalar's floor, refused at zero and never
+    offered one. Its two `% secp256k1.n` reductions turned
+    `** secp256k1.n` are also the slowest mutants in this round, spending
+    a 300-second timeout each.
 
   The operator filter is now a per-scope measurement rather than
   `parsers.toml`'s precedent applied by hand: an ast walk says where a `|`
