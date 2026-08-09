@@ -15,6 +15,7 @@ from btclib.utils import (
     decode_num,
     encode_num,
     hex_string,
+    int_from_bits,
     int_from_integer,
     read_exactly,
 )
@@ -120,6 +121,30 @@ def test_hex_string() -> None:
     int_ = -1
     with pytest.raises(BTClibValueError, match="negative integer: "):
         hex_string(int_)
+
+    # zero is not negative: `< 0` weakened to `<= 0` would refuse it
+    assert hex_string(0) == "00"
+
+    # a hex length that is an exact multiple of 8 (here 16, unlike the
+    # 18-digit vector above): the index loop's stop bound at 0 is what
+    # keeps the top group from being an empty one -- read as -1 instead,
+    # 0 itself joins the indexes and a leading space appears before "DE"
+    assert hex_string(0xDEADBEEF00000000) == "DEADBEEF 00000000"
+
+
+def test_int_from_bits() -> None:
+    """Discard bits on the right down to nlen, or none if there are fewer.
+
+    Every caller in this codebase hashes into exactly `ec.nlen` bits, so
+    `blen == nlen` is the only case they exercise; `blen > nlen` is the
+    truncation the docstring is about, and `blen < nlen` -- fewer bits
+    than asked for -- is `n` weakened from `blen - nlen` to a negative
+    shift count away from `i >> n` raising instead of returning `i`
+    unchanged.
+    """
+    assert int_from_bits(b"\xff", 4) == 0b1111
+    assert int_from_bits(b"\xff\x00", 4) == 0b1111
+    assert int_from_bits(b"\xff", 16) == 0xFF
 
 
 def test_encode_num() -> None:
