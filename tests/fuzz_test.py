@@ -28,13 +28,14 @@ import pytest
 from hypothesis import given
 from hypothesis import strategies as st
 
-from btclib import b32, b58, base58, bech32, descriptors, var_bytes, var_int
+from btclib import b32, b58, base58, bech32, bip322, descriptors, var_bytes, var_int
 from btclib.bip32.bip32 import BIP32KeyData
 from btclib.bip32.key_origin import BIP32KeyOrigin
 from btclib.block.block import Block
 from btclib.block.block_header import BlockHeader
 from btclib.curves.sec_point import point_from_octets
-from btclib.ecc import bms, dsa, ssa
+from btclib.descriptors import miniscript
+from btclib.ecc import bms, dsa, ecies, ssa
 from btclib.exceptions import BTClibRuntimeError, BTClibTypeError, BTClibValueError
 from btclib.psbt import psbt_utils
 from btclib.psbt.psbt import Psbt
@@ -88,13 +89,23 @@ BINARY_PARSERS: dict[str, Callable[[bytes], Any]] = {
     "dsa.Sig.parse": dsa.Sig.parse,
     "ssa.Sig.parse": ssa.Sig.parse,
     "bms.Sig.parse": bms.Sig.parse,
+    # no bip322.Sig.parse: that class has none, its three payloads being
+    # three unrelated serializations told apart by the prefix of the text
+    # form alone, so the text entry point below is where it is read
+    "ecies.Envelope.parse": ecies.Envelope.parse,
     "point_from_octets": point_from_octets,
     "base58.decode": base58.decode,
     "bech32.decode": bech32.decode,
 }
 
 # The same contract, for what a user pastes rather than what a peer
-# sends: an address, a WIF, an extended key, a descriptor
+# sends: an address, a WIF, an extended key, a descriptor.
+#
+# The base64 wrappers are here rather than above, and each is a parser of
+# its own: `b64decode` decodes and then hands the bytes to `parse`, so
+# what it adds is the decoding -- a str that is not ascii, padding that
+# is not canonical, a length no multiple of four -- and that is a layer
+# the binary entry point never sees
 TEXT_PARSERS: dict[str, Callable[[str], Any]] = {
     "base58.decode": base58.decode,
     "bech32.decode": bech32.decode,
@@ -102,7 +113,12 @@ TEXT_PARSERS: dict[str, Callable[[str], Any]] = {
     "b58.h160_from_address": b58.h160_from_address,
     "BIP32KeyData.b58decode": BIP32KeyData.b58decode,
     "bms.Sig.b64decode": bms.Sig.b64decode,
+    "bip322.Sig.b64decode": bip322.Sig.b64decode,
+    "Psbt.b64decode": Psbt.b64decode,
+    "ecies.Envelope.b64decode": ecies.Envelope.b64decode,
     "descriptors.checksum": descriptors.checksum,
+    "descriptors.parse": descriptors.parse,
+    "miniscript.parse": miniscript.parse,
 }
 
 

@@ -3987,3 +3987,23 @@ def test_a_solver_does_not_take_over_checking_the_signatures() -> None:
     assert solved.inputs[0].final_script_witness.stack[-1] == (
         signed.inputs[0].witness_script
     )
+
+
+@pytest.mark.parametrize(
+    "psbt_str",
+    [
+        pytest.param("0", id="one character, no group"),
+        pytest.param("\x80", id="not ascii"),
+        pytest.param("cHNidP8", id="a truncated group"),
+    ],
+)
+def test_b64decode_refuses_a_string_base64_cannot_read(psbt_str: str) -> None:
+    """A psbt that is not base64 is refused with the library's exception.
+
+    Found by tests/fuzz_test.py, and kept here as the input that found it:
+    `base64.b64decode` raises binascii.Error for the first and the third
+    and a plain ValueError for the second, and a caller catching
+    BTClibValueError to reject what somebody pasted caught neither.
+    """
+    with pytest.raises(BTClibValueError, match="invalid base64 encoding"):
+        Psbt.b64decode(psbt_str)

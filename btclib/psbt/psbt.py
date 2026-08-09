@@ -1119,7 +1119,16 @@ class Psbt:
         if isinstance(psbt_str, str):
             psbt_str = psbt_str.strip()
 
-        psbt_decoded = base64.b64decode(psbt_str)
+        # base64 answers a string it cannot read with binascii.Error, and
+        # a str carrying a non-ascii character with a plain ValueError.
+        # Neither is BTClibValueError, so a caller catching that to reject
+        # a pasted psbt -- which is the whole audience of this method --
+        # gets an exception it never asked about. `bms.Sig.b64decode` and
+        # `ecies.Envelope.b64decode` both answer with the library's own
+        try:
+            psbt_decoded = base64.b64decode(psbt_str)
+        except ValueError as e:  # binascii.Error and UnicodeEncodeError
+            raise BTClibValueError(f"invalid base64 encoding: {e}") from e
 
         return cls.parse(psbt_decoded, check_validity=check_validity)
 
