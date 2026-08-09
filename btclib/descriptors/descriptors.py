@@ -191,7 +191,12 @@ from btclib.psbt.psbt_size import SIG_SIZE, SolutionSizer
 from btclib.script.script import op_int, serialize
 from btclib.script.script import parse as _parse_script
 from btclib.script.script_pub_key import ScriptPubKey, _script_from
-from btclib.script.taproot import input_script_sig, leaf_hash, tree_helper
+from btclib.script.taproot import (
+    MAX_TREE_DEPTH,
+    input_script_sig,
+    leaf_hash,
+    tree_helper,
+)
 from btclib.script.witness import Witness
 from btclib.to_pub_key import fingerprint
 from btclib.tx.tx_in import TxIn
@@ -1936,8 +1941,23 @@ def _parse_leaf_miniscript(expression: str, prv_keys: dict[str, str]) -> Miniscr
     return node
 
 
-def _parse_tree(expression: str, prv_keys: dict[str, str]) -> DescriptorTree:
-    """Return the script tree of a BIP386 TREE expression."""
+def _parse_tree(
+    expression: str, prv_keys: dict[str, str], depth: int = 0
+) -> DescriptorTree:
+    """Return the script tree of a BIP386 TREE expression.
+
+    `depth` is how many braces enclose this subtree, and bounding it is
+    what keeps a hostile expression from recursing past the interpreter's
+    stack: without it a tree nested a thousand deep left through
+    `RecursionError`, which is not a class this library raises and not one
+    a caller of `parse` catches. MAX_TREE_DEPTH is the bound because a
+    leaf below it has no control block to be spent with, so the
+    expression describes no output rather than a large one -- and it is
+    where Core stops too, "tr() supports at most 128 nesting levels".
+    """
+    if depth > MAX_TREE_DEPTH:
+        err_msg = f"tr() supports at most {MAX_TREE_DEPTH} nesting levels"
+        raise BTClibValueError(err_msg)
     if expression.startswith("{"):
         if not expression.endswith("}"):
             raise BTClibValueError(f"unbalanced braces: {expression}")
@@ -1946,8 +1966,8 @@ def _parse_tree(expression: str, prv_keys: dict[str, str]) -> DescriptorTree:
             err_msg = f"a tr() branch takes two subtrees, {len(branches)} given"
             raise BTClibValueError(err_msg)
         return (
-            _parse_tree(branches[0], prv_keys),
-            _parse_tree(branches[1], prv_keys),
+            _parse_tree(branches[0], prv_keys, depth + 1),
+            _parse_tree(branches[1], prv_keys, depth + 1),
         )
     name = expression.partition("(")[0]
     if name in _TREE_FUNCTIONS:

@@ -1021,6 +1021,42 @@ def test_unparsable(descriptor: str, message: str) -> None:
         parse(descriptor)
 
 
+def _nested_tree(depth: int) -> str:
+    """Return a tr() whose only leaf sits under `depth` braces."""
+    leaf = f"pk({XONLY})"
+    return f"tr({XONLY}," + "{" * depth + leaf + f",{leaf}}}" * depth + ")"
+
+
+def test_tr_tree_depth_is_bounded() -> None:
+    """A tr() deeper than the control block can prove is refused (issue 571).
+
+    The parser recurses once per brace, so without a bound a deep enough
+    expression exhausts the interpreter stack and leaves through
+    `RecursionError` -- which `btclib.exceptions` does not declare and no
+    caller of `parse` catches. 1000 braces did exactly that at the
+    default recursion limit.
+
+    128 is the bound because it is `taproot.MAX_TREE_DEPTH`, i.e. Core's
+    TAPROOT_CONTROL_MAX_NODE_COUNT: a leaf below it is proved by a merkle
+    path the control block has no room for, so what the expression
+    describes is not a spendable output. Both sides of the boundary are
+    pinned here, and both were checked against Core v31.1.0's
+    `getdescriptorinfo`, which takes 128, refuses 129, and phrases the
+    refusal in the words this one repeats.
+    """
+    assert taproot.MAX_TREE_DEPTH == 128
+
+    # the deepest tree a control block can prove, and one deeper
+    parse(_nested_tree(taproot.MAX_TREE_DEPTH))
+    err_msg = "tr\\(\\) supports at most 128 nesting levels"
+    with pytest.raises(BTClibValueError, match=err_msg):
+        parse(_nested_tree(taproot.MAX_TREE_DEPTH + 1))
+
+    # what used to be a RecursionError, well past the interpreter's limit
+    with pytest.raises(BTClibValueError, match=err_msg):
+        parse(_nested_tree(5000))
+
+
 # what is a descriptor, is not implemented, and is refused by name rather
 # than read wrong
 # BIP387's own test vectors, transcribed from `bip-0387.mediawiki`: a
