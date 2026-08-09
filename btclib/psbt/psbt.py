@@ -2064,6 +2064,29 @@ class KeyManager(Protocol):
         """
         ...
 
+    def sign_schnorr_script_path(
+        self,
+        pub_key: bytes,
+        origin: BIP32KeyOrigin | None,
+        msg_hash: bytes,
+        leaf_hash: bytes,
+    ) -> bytes | None:
+        """Return the BIP342 signature of msg_hash by pub_key, or None.
+
+        The other half of a taproot spend, and the one method here whose
+        key signs as it is: pub_key is a key of the leaf script, x-only,
+        and a script path proves the leaf rather than the output key --
+        the tweak is what the control block carries, so there is nothing
+        for the manager to apply and no merkle root to apply it by.
+
+        leaf_hash is which leaf asked. One key can sit in more than one,
+        each leaf is a different message and a different entry of
+        `PSBT_IN_TAP_SCRIPT_SIG`, and a manager with a policy about
+        which conditions it signs under has only this to recognize them
+        by.
+        """
+        ...
+
 
 def _sign_ecdsa_input(psbt: Psbt, vin_i: int, key_manager: KeyManager) -> bool:
     """Write every partial signature key_manager gives for one input.
@@ -2093,6 +2116,21 @@ def _sign_ecdsa_input(psbt: Psbt, vin_i: int, key_manager: KeyManager) -> bool:
     return signed
 
 
+def _taproot_signature(sig: bytes, psbt_in: PsbtIn) -> bytes:
+    """Return a bare schnorr signature as the input's own sig_hash type.
+
+    BIP341 appends the type to the 64 bytes for every type but the
+    default one, which is appended as nothing rather than as its zero
+    byte: `_assert_taproot_sig_hash_type` is this rule read back, and
+    both taproot paths write through here so that the signature the
+    Signer files and the one the Finalizer checks are one shape.
+    """
+    hash_type = psbt_in.sig_hash_type or DEFAULT
+    if not hash_type:
+        return sig
+    return sig + hash_type.to_bytes(1, "big")
+
+
 def _sign_taproot_key_path(psbt: Psbt, vin_i: int, key_manager: KeyManager) -> bool:
     """Write the taproot key path signature key_manager gives, if any.
 
@@ -2115,30 +2153,74 @@ def _sign_taproot_key_path(psbt: Psbt, vin_i: int, key_manager: KeyManager) -> b
     )
     if sig is None:
         return False
-    hash_type = psbt_in.sig_hash_type or DEFAULT
-    if hash_type:
-        sig += hash_type.to_bytes(1, "big")
-    psbt_in.taproot_key_spend_signature = sig
+    psbt_in.taproot_key_spend_signature = _taproot_signature(sig, psbt_in)
     return True
+
+
+def _sign_taproot_script_path(psbt: Psbt, vin_i: int, key_manager: KeyManager) -> bool:
+    """Write every script path signature key_manager gives for one input.
+
+    A candidate is a key and a leaf, and BIP371 names the two in
+    different fields: `PSBT_IN_TAP_BIP32_DERIVATION` files a key under
+    the tapleaf hashes it appears in, and `PSBT_IN_TAP_LEAF_SCRIPT`
+    carries the leaves themselves. Both are asked for, as Bitcoin Core's
+    signer asks for both: a leaf hash the psbt names no script for is a
+    condition this signer cannot read, and a signature under a condition
+    nobody read is what a psbt exists to avoid -- the message commits to
+    the leaf hash and says nothing else about what the leaf demands.
+
+    What the leaf script demands *besides* this key is not asked: a key
+    in a threshold of CHECKSIGADD signs its own line, the rest of the
+    quorum being other signers' turn. Whether the leaf can then be
+    finalized is `single_leaf_key`'s question, one role later.
+    """
+    psbt_in = psbt.inputs[vin_i]
+    leaf_hashes = {
+        taproot.leaf_hash(leaf_version, script)
+        for script, leaf_version in psbt_in.taproot_leaf_scripts.values()
+    }
+    signed = False
+    for pub_key, (key_leaf_hashes, origin) in psbt_in.taproot_hd_key_paths.items():
+        for leaf_hash in key_leaf_hashes:
+            if leaf_hash not in leaf_hashes:
+                continue
+            key_data = pub_key + leaf_hash
+            if key_data in psbt_in.taproot_script_spend_signatures:
+                continue
+            msg_hash = taproot_sig_hash(psbt, vin_i, leaf_hash=leaf_hash)
+            sig = key_manager.sign_schnorr_script_path(
+                pub_key, origin, msg_hash, leaf_hash
+            )
+            if sig is None:
+                continue
+            psbt_in.taproot_script_spend_signatures[key_data] = _taproot_signature(
+                sig, psbt_in
+            )
+            signed = True
+    return signed
 
 
 def sign(psbt: Psbt, key_manager: KeyManager) -> tuple[Psbt, list[int]]:
     """Run the Signer role over every input key_manager answers for.
 
     Per input the candidates are what the psbt itself names: hd_key_paths
-    for an ECDSA spend, the taproot internal key and its own
-    taproot_hd_key_paths entry for a taproot one. None from key_manager
-    skips the key rather than raising -- one signer of an m-of-n holds
-    one key, and an input it cannot answer for is not an error but
-    somebody else's turn. What comes back besides the copy is which
-    inputs got a new signature, since a caller collecting a quorum needs
-    to tell "there was nothing for me" from "done".
+    for an ECDSA spend, the taproot internal key and the taproot
+    hd_key_paths entries for a taproot one. None from key_manager skips
+    the key rather than raising -- one signer of an m-of-n holds one key,
+    and an input it cannot answer for is not an error but somebody else's
+    turn. What comes back besides the copy is which inputs got a new
+    signature, since a caller collecting a quorum needs to tell "there
+    was nothing for me" from "done".
 
-    Taproot is limited to the key path: MuSig2's own Signer is
-    `btclib.psbt.musig2`, and a script path spend needs a leaf and a
-    control block `sign` does not choose between. Every other kind is
-    whatever `_finalized_input` can close over -- p2pk, p2pkh, p2wpkh,
-    p2sh-p2wpkh, p2wsh, bare and wrapped multisig.
+    A taproot input is offered both of its paths, the key path and every
+    leaf the psbt carries a script for, and one input may come back with
+    signatures for both: which of the two is spent is the Finalizer's
+    choice, and a signer that holds keys for both has no reason to be
+    asked twice. Which leaf a key belongs to is not `sign`'s guess
+    either -- `PSBT_IN_TAP_BIP32_DERIVATION` says it, and MuSig2's own
+    Signer is `btclib.psbt.musig2` for the aggregate case. Every other
+    kind is whatever `_finalized_input` can close over -- p2pk, p2pkh,
+    p2wpkh, p2sh-p2wpkh, p2wsh, bare and wrapped multisig.
 
     Raises where the psbt cannot be signed at all -- `assert_signable`'s
     question -- and where a candidate's own hash cannot be computed,
@@ -2151,7 +2233,12 @@ def sign(psbt: Psbt, key_manager: KeyManager) -> tuple[Psbt, list[int]]:
     signed_vins: list[int] = []
     for vin_i, psbt_in in enumerate(psbt.inputs):
         if is_p2tr(_spent_script(psbt_in)):
-            if _sign_taproot_key_path(psbt, vin_i, key_manager):
+            # both, and neither short-circuiting the other: an input can
+            # be signed for the key path and for a leaf, and `or` would
+            # leave the second unasked
+            key_path = _sign_taproot_key_path(psbt, vin_i, key_manager)
+            script_path = _sign_taproot_script_path(psbt, vin_i, key_manager)
+            if key_path or script_path:
                 signed_vins.append(vin_i)
             continue
         if _sign_ecdsa_input(psbt, vin_i, key_manager):

@@ -568,6 +568,38 @@ documented at release-notes length in the first place, and are still in
   `wsh()`, which btclib now reads -- what is left is the template, which is
   the expression with the keys lifted into a vector, and #469 is where it
   was asked for.
+- **`sign` signs a taproot script path, and a `KeyManager` answers for a
+  leaf key** (#560). A taproot input was offered its key path alone, so
+  `PSBT_IN_TAP_SCRIPT_SIG` was a field this library read, verified and
+  finalized and never wrote: the only script path signature the tree could
+  produce was a BIP373 MuSig2 aggregation, which is one leaf shape of the
+  several BIP371 describes.
+
+  A candidate is a key and a leaf, and the psbt names the two in different
+  fields: `PSBT_IN_TAP_BIP32_DERIVATION` files a key under the tapleaf
+  hashes it appears in, and `PSBT_IN_TAP_LEAF_SCRIPT` carries the leaves
+  themselves. Both are required, as Bitcoin Core's signer requires them --
+  a tapleaf hash the psbt names no script for is a commitment to a
+  condition this signer cannot read, and reading what is signed is what a
+  psbt is for. What the leaf demands *besides* this key is not asked: a
+  key in a threshold of CHECKSIGADD signs its own line, the rest of the
+  quorum being other signers' turn, and whether the leaf can then be
+  finalized is `single_leaf_key`'s question one role later.
+
+  `KeyManager.sign_schnorr_script_path` is the new method, and it is the
+  one whose key signs as it is: a script path spend proves the leaf, the
+  output key's tweak being what the control block carries, so there is no
+  merkle root to tweak by and nothing for the manager to apply. It is
+  handed the tapleaf hash that asked, one key being able to sit in more
+  than one leaf and each leaf being a different message, a different entry
+  of the field and a different condition to have a policy about.
+
+  Both paths of a taproot input are now offered and one input may come
+  back signed for both, which of the two is spent being the Finalizer's
+  choice. The sig_hash type the input asks for is appended to a script
+  path signature by BIP341's rule, the same rule and now the same code as
+  the key path's: 64 bytes for SIGHASH_DEFAULT, 65 with the type for
+  anything else.
 
 ### Wallets
 
@@ -1076,6 +1108,20 @@ documented at release-notes length in the first place, and are still in
   keys' at a position, and the private keys' -- and each of the four is
   asserted to be the one the script carries, the last of them being what
   says an xprv quorum and its xpub quorum are one wallet.
+- **A taproot script path signature is signed with an explicit sig_hash
+  type** (#560), which is what `.github/mutation/psbt.toml` left open: in
+  `_assert_new_taproot_sigs_verify`, `sig[:64]` widened to `sig[:65]`
+  survived, slicing past the end of a 64-byte signature not being an
+  error. Only the 65-byte shape tells the two apart, and the tree had no
+  way to make one for a script path -- a MuSig2 aggregation of the BIP373
+  vectors commits to SIGHASH_DEFAULT, and appending a type byte to that
+  signature is not the same signature, the hash a type commits to being
+  another. The script-path signer above is what produces one, and the
+  answer is checked by `assert_signatures_only` and by the script engine,
+  which is what says the type is the one the transaction was hashed with.
+  The key path mutant beside it was the same hole, and is closed by the
+  same assertion added to the key path test: the sampled session never ran
+  it, so it was a survivor nobody had seen.
 
 ## v2026.8.7
 

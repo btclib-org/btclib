@@ -70,9 +70,8 @@ exclude-operators = ["core/ReplaceBinaryOperator_BitOr_.*"]
 # command, four other profiles sharing the machine: 780 killed, 107
 # survived, 12.06%. Sampled, and the sample is a third of the scope.
 #
-# The gaps, and the six of them closed by the tests beside this commit --
-# each measured surviving before its test and dying after, one mutant at a
-# time:
+# The gaps, and the ones a test now answers -- each measured surviving
+# before its test and dying after, one mutant at a time:
 #
 # - every lock-time bound had a side nothing asked for. BIP370's three
 #   fields are now asserted at the value each admits as well as the one
@@ -87,8 +86,19 @@ exclude-operators = ["core/ReplaceBinaryOperator_BitOr_.*"]
 # - `combine`'s `other_id != tx_id` weakened to `>` was tested with the
 #   ids in one arrangement only; the same disagreement combined the other
 #   way round closes it -- the shape fetch.toml closed for `tx.id`.
+# - `_assert_new_taproot_sigs_verify`'s `sig[:64]` widened to `sig[:65]`
+#   is equivalent for a 64-byte signature -- slicing past the end is not
+#   an error -- and differs only for the 65-byte shape, where the last
+#   byte is a sighash type that must not be verified as part of the
+#   signature. Both of its paths are now signed with an explicit type,
+#   and the answer run through `assert_signatures_only`. The script path
+#   needed a signer to produce one at all, which `sign` gained for this
+#   (#560): the only other source of a script path signature here is a
+#   BIP373 MuSig2 aggregation, and those partial signatures commit to
+#   SIGHASH_DEFAULT. The key path mutant beside it is the same hole, and
+#   is among the two thirds of the scope this session never ran.
 #
-# Three are left open, and each has a reason rather than a test owed:
+# What is left open has a reason rather than a test owed:
 #
 # - `parse_taproot_bip32`'s `len_ * LEAF_HASH_SIZE + FINGERPRINT_SIZE`
 #   with `^` for `+` is equivalent by arithmetic: `32 * len_` is a
@@ -98,16 +108,6 @@ exclude-operators = ["core/ReplaceBinaryOperator_BitOr_.*"]
 #   transaction is compared before the walk is reached: measured, a
 #   dropped output and a dropped input each answer "the transaction being
 #   signed was changed" first.
-# - `_assert_new_taproot_sigs_verify`'s `sig[:64]` widened to `sig[:65]`
-#   is equivalent for a 64-byte signature -- slicing past the end is not
-#   an error -- and differs only for the 65-byte shape, where the last
-#   byte is a sighash type that must not be verified as part of the
-#   signature. This tree cannot produce one for a taproot script path:
-#   the only source of such a signature here is a BIP373 MuSig2
-#   aggregation, whose partial signatures commit to SIGHASH_DEFAULT. A
-#   script-path signer taking an explicit sighash type is what would kill
-#   it, and is the test to write rather than an equivalence to accept:
-#   issue #560.
 #
 # The remaining classes are the ones documented elsewhere here: a
 # `check_validity` default, an `is` over interned ints, and a comparison

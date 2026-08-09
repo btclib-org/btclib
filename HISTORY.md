@@ -47,6 +47,16 @@ full year, short month, short day (YYYY-M-D)
   Two error messages read "wallet" where they read "keystore": an address
   the wallet never handed out, and the refusal to sign without a private
   key.
+- **a `KeyManager` has one method more.** `psbt.sign` now offers a taproot
+  input its script path as well as its key path, and asks for a leaf
+  signature through `sign_schnorr_script_path(pub_key, origin, msg_hash,
+  leaf_hash)`. A manager written against v2026.8.7 implements `sign_ecdsa`
+  and `sign_schnorr` only: mypy stops accepting it where the protocol is
+  asked for, and a taproot input carrying leaf scripts reaches it with an
+  `AttributeError`. The method signs with the leaf key untweaked -- the
+  tweak is what the control block proves -- and `None` from it is a
+  manager saying it holds no key for that leaf, as `None` from the other
+  two already is.
 - **`btclib.descriptors` is a package, and its three checksum tables moved
   with the module into it.** `INPUT_CHARSET`, `CHECKSUM_CHARSET` and
   `GENERATOR` are `btclib.descriptors.descriptors.INPUT_CHARSET` and its

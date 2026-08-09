@@ -563,8 +563,9 @@ class SoftwareSigner:
     def capabilities(self) -> SignerCapabilities:
         """Return what this signer can be asked to sign.
 
-        Taproot always: `psbt.sign` signs the key path, which is what a
-        BIP341 output with no script tree is spent by. MuSig2 is a
+        Taproot always: `psbt.sign` signs the key path and every leaf the
+        psbt names this signer's keys in, which is both halves of a BIP341
+        output for a signer holding what they ask for. MuSig2 is a
         constructor argument and defaults to False, because the rounds of
         BIP373 are `psbt.musig2`'s and are played by a caller holding the
         secret nonce between them -- this signer signs in one call and
@@ -667,3 +668,27 @@ class SoftwareSigner:
             return None
         tweaked = output_prvkey_from_merkle_root(prv_key, merkle_root)
         return ssa.sign_(msg_hash, tweaked).serialize()
+
+    def sign_schnorr_script_path(
+        self,
+        pub_key: bytes,
+        origin: BIP32KeyOrigin | None,
+        msg_hash: bytes,
+        leaf_hash: bytes,
+    ) -> bytes | None:
+        """Return the BIP342 signature of msg_hash by pub_key, or None.
+
+        Untweaked, which is the `KeyManager` contract for a script path:
+        what the spend proves is the leaf, and the output key's tweak is
+        proved by the control block instead.
+
+        Every leaf the psbt names this key in is signed for. A device
+        would show the leaf script and ask, and `leaf_hash` is what it
+        would find it by; a signer holding keys at known paths and
+        answering in one call has no user to ask, so what it answers for
+        is decided by the same three conditions as the other two methods.
+        """
+        prv_key = self._prv_key(pub_key, origin)
+        if prv_key is None:
+            return None
+        return ssa.sign_(msg_hash, prv_key).serialize()

@@ -96,6 +96,16 @@ class _KeyManager:
         """Answer for no taproot key: this double signs ECDSA only."""
         return None
 
+    def sign_schnorr_script_path(
+        self,
+        pub_key: bytes,
+        origin: BIP32KeyOrigin | None,
+        msg_hash: bytes,
+        leaf_hash: bytes,
+    ) -> bytes | None:
+        """Answer for no leaf key either, for the same reason."""
+        return None
+
 
 class _Signer:
     """A `PsbtSigner` double holding one extended private key.
@@ -225,13 +235,18 @@ def test_a_signer_holding_none_of_the_keys_adds_nothing() -> None:
     one whose capabilities say it cannot sign one. The answer passes the
     check and combines into a psbt that gained nothing, which is what a
     caller then sees.
+
+    The taproot input carries a leaf as well as an internal key, both of
+    them keys this signer derives: a taproot input is offered both of its
+    paths, so both are questions this double has to answer None to.
     """
     signer = _Signer()
     stranger = _Signer(rootxprv_from_seed("000102030405060708090a0b0c0d0e0f"))
     psbt, _ = account_psbt(stranger)
     assert not request_signatures(signer, psbt).inputs[0].partial_sigs
 
-    taproot = export_account(signer, "m/86h/0h/0h")[0]
+    key = export_account(signer, "m/86h/0h/0h")[0].key_expressions[0]
+    taproot = parse(f"tr({key},pk({key}))")
     script_pub_key = taproot.script_pub_key(0)
     prev_tx = Tx(
         vin=[TxIn(OutPoint(b"\x05" * 32, 0))], vout=[TxOut(10_000, script_pub_key)]
@@ -245,6 +260,7 @@ def test_a_signer_holding_none_of_the_keys_adds_nothing() -> None:
     assert not signer.capabilities().taproot
     signed = request_signatures(signer, taproot_psbt)
     assert not signed.inputs[0].taproot_key_spend_signature
+    assert not signed.inputs[0].taproot_script_spend_signatures
 
 
 def test_an_account_is_exported_from_two_answers() -> None:
