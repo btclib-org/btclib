@@ -22,6 +22,31 @@ documented at release-notes length in the first place, and are still in
 
 ## v2026.9 (work in progress, not released yet)
 
+### Packaging, linting and CI
+
+- **The Bitcoin Core regtest job runs for the code it checks** (#570).
+  `integration.yml`'s `pull_request.paths` held the workflow file and
+  `tests/integration/**` and nothing else, so a pull request changing the
+  descriptor, psbt, transaction, script or signer path did not ask a node
+  about it unless it happened to touch a test as well -- the branch that
+  could break the flow being the one branch the flow did not check, with
+  the scheduled Friday run finding out afterwards on `dev`. Six
+  implementation paths are on the filter now: `core_import.py`, which
+  builds the `importdescriptors` request; `descriptors/`, `psbt/`, `tx/`
+  and `script/`, whose output is what Core parses, accepts, relays and
+  validates; and `psbt_signer*.py`, which assembles it.
+
+  `fetch/` is not among them, and that is measured rather than assumed:
+  nothing under `tests/integration` imports it, those tests driving the
+  node through `bitcoin_core_rpc` directly, so there is no answer of
+  Core's for a backend to be checked against until issue #204 adds one.
+  Neither is the cryptographic core, which the flow does import: what
+  holds `curves`, `ecc` and `hashes` honest is vectors, offline and on
+  every push, so a change there is red in `test.yml` before a node could
+  say so -- and listing it would spend a runner on nearly every pull
+  request, which is the cost this filter exists to avoid. The job still
+  gates nothing and is still absent from master's required checks.
+
 ### Curves, signatures and keys
 
 - **A MOV-weak curve is a `BTClibValueError`** (#572). `Curve` refuses
