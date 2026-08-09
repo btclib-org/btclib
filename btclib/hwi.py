@@ -97,7 +97,7 @@ import os
 import subprocess
 import tempfile
 import time
-from collections.abc import Sequence
+from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
 from typing import IO, Any
 
@@ -108,7 +108,7 @@ from btclib.exceptions import BTClibValueError, SignerError, SignerNotFoundError
 from btclib.network import NETWORKS
 from btclib.psbt.psbt import Psbt
 from btclib.psbt_signer import SignerCapabilities
-from btclib.utils import bytes_from_octets
+from btclib.utils import bytes_from_octets, is_integer
 
 __all__ = [
     "DEFAULT_MAX_OUTPUT",
@@ -308,18 +308,66 @@ def _run(
     return answer
 
 
-def _device(entry: dict[str, Any]) -> HwiDevice:
-    """Return one enumerate entry as an `HwiDevice`, fingerprint decoded."""
+def _fingerprint(entry: Mapping[str, Any]) -> bytes | None:
+    """Return the four octets of an entry's fingerprint, or None for none.
+
+    None is a device that cannot be asked for one yet, which `HwiDevice`
+    documents; anything that is not four octets of hex is a device
+    described by a backend that is not speaking HWI's protocol, and is
+    the caller's `SignerError` rather than the `ValueError` `bytes.fromhex`
+    raises from underneath the library.
+    """
     fingerprint = entry.get("fingerprint")
+    if fingerprint is None:
+        return None
+    try:
+        return bytes_from_octets(fingerprint, 4)
+    except (TypeError, ValueError) as e:
+        err_msg = f"hwi enumerate answered an invalid fingerprint {fingerprint!r}: {e}"
+        raise SignerError(err_msg) from e
+
+
+def _code(entry: Mapping[str, Any]) -> int | None:
+    """Return an entry's error code, refusing one that is not a number.
+
+    `HwiDevice.code` is what a caller branches on -- -14 is the button
+    that says no -- so a code is a number or there is none. `is_integer`
+    and not `isinstance`, `True` being an `int` in this language and not
+    an error code in any other.
+    """
+    code = entry.get("code")
+    if code is None or is_integer(code):
+        return code
+    raise SignerError(f"hwi enumerate answered a code that is not a number: {code!r}")
+
+
+def _device(entry: Any) -> HwiDevice:
+    """Return one enumerate entry as an `HwiDevice`, its fields narrowed.
+
+    `enumerate` is the one command whose answer is a list of objects
+    rather than one object with a known field in it, so this is where a
+    json nobody validated is read. What the entry can be wrong about is a
+    `SignerError` like everything else the exchange can be wrong about: a
+    caller catches one class, and an `AttributeError` from a string that
+    stood where an object should have is not that class.
+
+    The strings and the two flags are coerced rather than refused, which
+    is the line drawn here: `str` and `bool` accept every object there
+    is, and a model name that arrived as a number describes the device it
+    describes. A fingerprint and a code are the two fields a caller acts
+    on, and neither has a reading that is merely odd.
+    """
+    if not isinstance(entry, Mapping):
+        raise SignerError(f"hwi enumerate did not answer a device: {entry!r}")
     return HwiDevice(
         type=str(entry.get("type", "")),
         model=str(entry.get("model", "")),
         path=str(entry.get("path", "")),
-        fingerprint=None if fingerprint is None else bytes_from_octets(fingerprint, 4),
+        fingerprint=_fingerprint(entry),
         needs_pin_sent=bool(entry.get("needs_pin_sent")),
         needs_passphrase_sent=bool(entry.get("needs_passphrase_sent")),
         error=str(entry.get("error", "")),
-        code=entry.get("code"),
+        code=_code(entry),
     )
 
 

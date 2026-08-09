@@ -24,6 +24,26 @@ documented at release-notes length in the first place, and are still in
 
 ### Descriptors and miniscript
 
+- **A malformed `hwi enumerate` entry is a `SignerError`** (#522).
+  `enumerate` is the one command whose answer is a list of objects rather
+  than one object with a known field in it, and the list was the only
+  thing checked: an entry that was a string reached `.get` and left as an
+  `AttributeError`, and two more fields left through classes this module
+  does not name. The audit that closing it started found them: a
+  fingerprint that is not four octets of hex escaped as the `ValueError`
+  `bytes.fromhex` raises, and a `code` that is not a number arrived
+  intact, in a field annotated `int | None` and read by callers as one of
+  HWI's error codes -- -14 being the button that says no.
+
+  Each of the three is now a `SignerError` naming what was wrong, which
+  is the module's own contract: a caller catches one class. Where the
+  line falls is the other half of it. `type`, `model`, `path` and `error`
+  go on being coerced with `str`, and the two flags with `bool`, because
+  those accept every object there is and a model name that arrived as a
+  number describes the device it describes; a fingerprint and a code are
+  the fields a caller acts on, and neither has a reading that is merely
+  odd. A code that is `True` is refused with the rest, `utils.is_integer`
+  being where this library already says that a boolean is not a number.
 - **`btclib.hwi` bounds what the backend writes, not what it parses**
   (#519). `max_output` was checked after `subprocess.run` had read both
   streams to EOF, so what it limited was the answer handed to the json
