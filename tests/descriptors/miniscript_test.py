@@ -49,6 +49,7 @@ from btclib.descriptors import (
     WshDescriptor,
     miniscript_sizer,
     miniscript_solver,
+    satisfaction_sizer,
 )
 from btclib.descriptors import parse as parse_descriptor
 from btclib.descriptors.key_expression import KeyExpression
@@ -1405,3 +1406,56 @@ def test_the_sizer_answers_for_what_is_its_business_and_no_more() -> None:
     unspendable = parse("or_b(0,a:0)")
     psbt_in.witness_script = unspendable.script()
     assert miniscript_sizer(psbt_in, tx_in) is None
+
+
+# a primary quorum larger than its timelocked recovery quorum, which is
+# issue #547's own shape: which branch a spend takes is decided before
+# anything is estimated, and `max_witness_stack` cannot use that
+_PRIMARY = f"multi(3,{KEYS[0]},{KEYS[1]},{KEYS[2]},{KEYS[3]},{KEYS[4]})"
+_RECOVERY = f"and_v(v:older(36),multi(2,{KEYS[5]},{KEYS[6]}))"
+
+
+def test_the_satisfaction_sizer_answers_for_the_branch_these_keys_build() -> None:
+    """Size the branch a caller knows it will build, not the largest one.
+
+    `max_witness_stack` reports the larger of the two branches -- the
+    primary quorum here -- and a recovery spend pays for it too, though it
+    never opens that branch. `satisfaction_sizer` given the keys that will
+    actually sign reports what that spend builds instead, the same psbt
+    input and the same `TxIn` both times: only the signers change.
+    """
+    node = parse(f"or_i({_RECOVERY},{_PRIMARY})")
+    psbt_in, tx_in = psbt_input(node)
+    assert node.max_witness_stack == (0, 72, 72, 72, 0)
+
+    primary = estimated_input_sizes(psbt_in, tx_in, sizer=satisfaction_sizer(KEYS[0:3]))
+    assert primary == (0, [0, 72, 72, 72, 0, len(node.script())])
+    # the primary quorum is the larger branch, so this is what
+    # `miniscript_sizer` would have answered too: no savings to find
+    assert primary == estimated_input_sizes(psbt_in, tx_in, sizer=miniscript_sizer)
+
+    recovery = estimated_input_sizes(
+        psbt_in, tx_in, sizer=satisfaction_sizer(KEYS[5:7])
+    )
+    assert recovery == (0, [0, 72, 72, 1, len(node.script())])
+    # the bytes issue #547 measures: paid on every recovery spend by a
+    # sizer that does not know which branch it is, and not on this one
+    assert sum(recovery[1][:-1]) < sum(primary[1][:-1])
+
+
+def test_the_satisfaction_sizer_answers_for_what_is_its_business_and_no_more() -> None:
+    """Refuse for the two reasons `miniscript_sizer` does, and a third.
+
+    No witness script and no miniscript are the two they share; building
+    no satisfaction at all from the given keys is this sizer's own.
+    """
+    node = parse(f"and_v(v:pk({KEY}),older(36))")
+    psbt_in, tx_in = psbt_input(node)
+    assert satisfaction_sizer([KEY])(psbt_in, tx_in) is not None
+    psbt_in.witness_script = b""
+    assert satisfaction_sizer([KEY])(psbt_in, tx_in) is None
+    psbt_in.witness_script = serialize(["OP_DROP", "OP_1"])
+    assert satisfaction_sizer([KEY])(psbt_in, tx_in) is None
+    # a key that will not sign this quorum builds no satisfaction either
+    psbt_in.witness_script = node.script()
+    assert satisfaction_sizer([KEYS[0]])(psbt_in, tx_in) is None

@@ -52,6 +52,7 @@ from btclib.descriptors.descriptors import (
     multipath_descriptors,
     normalized,
     parse,
+    satisfaction_sizer,
     strip_checksum,
 )
 from btclib.descriptors.key_expression import KeyExpression, PrvKeys
@@ -89,5 +90,6 @@ __all__ = [
     "multipath_descriptors",
     "normalized",
     "parse",
+    "satisfaction_sizer",
     "strip_checksum",
 ]
