@@ -22,7 +22,7 @@ import `bip32`, so it cannot live inside the package whose keys it
 derives addresses from either.
 
 What imports this module is what the mapping and the checks are for, and
-in one direction only: `keystore` takes the encoders and the purpose
+in one direction only: `wallet` takes the encoders and the purpose
 lookup rather than keeping a second copy of either, and `descriptors`
 takes the path checks and the same lookup for the account descriptor pair
 it builds. Neither is imported back -- a descriptor is what a wallet
@@ -110,7 +110,7 @@ def _p2tr(key: Key, network: str) -> str:
 # other -- a fifth encoding is a key mypy does not know.
 #
 # The key is a Key and not the str this module always passes, because
-# all four encoders take one and `keystore` reaches for this same table
+# all four encoders take one and `wallet` reaches for this same table
 # with a key that has not been through b58: narrowing it here would make
 # the table this module's rather than the library's, for no check gained
 _ADDRESS_FROM_SCRIPT_TYPE: dict[BIP44ScriptType, Callable[[Key, str], str]] = {

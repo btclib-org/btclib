@@ -94,7 +94,6 @@ __all__ = [
     "fetch",
     "hashes",
     "hwi",
-    "keystore",
     "mnemonic",
     "network",
     "number_theory",
@@ -110,6 +109,7 @@ __all__ = [
     "utils",
     "var_bytes",
     "var_int",
+    "wallet",
 ]
 
 

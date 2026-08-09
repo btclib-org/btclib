@@ -32,6 +32,21 @@ full year, short month, short day (YYYY-M-D)
   network, verify_network=False)` is the previous behaviour, for a
   caller that has checked by other means or is talking to something that
   does not answer that call.
+- **`btclib.keystore` is `btclib.wallet`, and its two classes are named
+  after the family they now belong to.** The module is a package holding
+  three kinds of wallet behind one vocabulary, so `from btclib.keystore
+  import BIP32KeyStore, KeyStore, AddressInfo` becomes `from btclib.wallet
+  import BIP32KeyWallet, KeyWallet, AddressInfo`. The methods a caller
+  already used are unchanged in name and in answer -- `address`,
+  `next_address`, `addresses`, `address_info`, `prv_key`, `sign`, `add`,
+  `is_watch_only`, `in`, `len()` -- and what is added is the surface the
+  other two wallets share: `script_pub_key`, `redeem_script`,
+  `witness_script`, `position_of` and `branches`. `AddressInfo` carries
+  two fields more, `branch` and `index`, so a caller comparing a whole
+  record has to pass them; the three it had are in the same order.
+  Two error messages read "wallet" where they read "keystore": an address
+  the wallet never handed out, and the refusal to sign without a private
+  key.
 - **`btclib.descriptors` is a package, and its three checksum tables moved
   with the module into it.** `INPUT_CHARSET`, `CHECKSUM_CHARSET` and
   `GENERATOR` are `btclib.descriptors.descriptors.INPUT_CHARSET` and its

@@ -508,6 +508,99 @@ documented at release-notes length in the first place, and are still in
   the expression with the keys lifted into a vector, and #469 is where it
   was asked for.
 
+### Wallets
+
+- **`btclib.wallet` is one vocabulary over three sources of addresses**
+  (#542). `btclib.keystore` was the only wallet the library had, and it
+  answered one question -- the address of a `branch/index` below a BIP44
+  account -- while `Descriptor` answered the same question its own way and
+  a script no descriptor states had nobody to ask. The three now live in
+  one package, under one set of words: `Wallet` is the ledger of what has
+  been handed out, and `RangedWallet` the half addressed by a position,
+  so `script_pub_key(branch, index)`, `address(branch, index)`,
+  `next_address(branch)`, `redeem_script`, `witness_script`,
+  `position_of`, `address_info`, `addresses`, `len()`, `in` and
+  `is_watch_only` mean the same thing whichever wallet a caller holds.
+  `KeyStore` is `KeyWallet` and `BIP32KeyStore` is `BIP32KeyWallet`,
+  renamed because the family they now belong to is named after what it
+  does; HISTORY.md's breaking-changes list has the spellings.
+
+  What each of the two new answers costs is what makes the shape worth
+  it. `position_of` is the one that is not a convenience: it is "is this
+  output mine", the whole script computed at every position of every
+  branch and compared -- never a key origin whose four-byte fingerprint
+  matches, which is what would send change to somebody else -- and it
+  takes the output however the caller holds it, a `ScriptPubKey`, the
+  script as bytes or hex, or the address, exactly as
+  `Descriptor.index_of` does since #541. The two answer the same question
+  at different scopes, so the reader that turns any of those spellings
+  into script bytes is now `script.script_pub_key`'s and is imported by
+  both rather than copied. `redeem_script` and `witness_script` are the
+  two pre-images BIP174 asks an Updater for, `b""` where the output
+  commits to a key rather than to a script -- the empty answer that
+  `ScriptPubKey.address` already gives for a script with no address.
+
+  What a branch *is* stays each wallet's own, and is the one thing not
+  hidden: a key wallet and a script wallet derive it, bounded by
+  `bip32.derive_from_account`, so 0 is the receiving chain and 1 the
+  change one; a descriptor wallet has the derivation inside each
+  descriptor and reads the branch as the label of which one. The
+  non-goals are `keystore`'s, unchanged and now stated once for all three:
+  no utxos, no balances, no transaction building, no persistence, no
+  encryption at rest.
+- **`ScriptWallet` is a wallet for the scripts no descriptor states**
+  (#542). Multisig wallets predating output descriptors are still holding
+  coins, and their scripts miss BIP380-390 by a detail: a `<n> OP_CSV
+  OP_DROP` where miniscript writes `OP_CSV OP_VERIFY`, or a BIP67 sort
+  applied to the *derived* keys of a quorum, which `sortedmulti()`
+  follows and which BIP379 has no fragment for inside a combinator. Both
+  refusals are right and neither is relaxed -- #538 pins a production
+  wallet with one of each -- and "right to refuse" is not "nothing to
+  answer". A `ScriptWallet` is a script **template**, the `KeyGroup`
+  quorums it writes into it, and an **order** for the keys of each: a
+  template is a `script.serialize` command list with the groups among the
+  commands, and a group expands to `k <key>... n OP_CHECKMULTISIG` with
+  each key derived at the position. The addresses it computes are pinned
+  against the mainnet ones that deployed wallet holds coins at, through
+  the class and by hand both.
+
+  The order is a parameter because deployed wallets disagree, and the
+  disagreement is what no ranged descriptor can state: `"derived"` sorts
+  the keys at every index, which is the order `sortedmulti()` follows and
+  not a property of the wallet at all; `"account"` sorts the account keys
+  once and derives afterwards, which `multi()` states; `"none"` keeps them
+  as declared. `sort_key` changes what the sort compares and not when it
+  runs, for the wallet that orders its xpubs case-insensitively -- neither
+  a byte order nor a BIP, and deployed. `alias.KeyOrder` and
+  `alias.EmbeddedScriptType` are the two vocabularies, Literals for the
+  reason every other closed vocabulary here is one.
+
+  What it deliberately is not is most of the design. No text format and
+  no parser: the template is Python objects, because inventing a second,
+  worse descriptor language is how this goes wrong, and a wallet that
+  cannot be written down cannot be mistaken for one that can be handed to
+  Bitcoin Core. Not liftable either way -- no `from_script`, no
+  `to_descriptor` -- a wallet a descriptor states should *be* one. And not
+  a signer: miniscript knows what satisfies a fragment and a template does
+  not, so the satisfaction and the psbt Updaters stay outside, where a
+  caller holding such a script already owns the spend.
+- **`DescriptorWallet` is a descriptor per chain, and the wallet questions
+  over the pair** (#542). `Descriptor` has an index and no chains, so a
+  wallet is two of them, and this is that pairing: the descriptors in a
+  mapping or in chain order, `from_descriptor` for BIP389's `<0;1>`
+  multipath spelling -- one line of text for the whole wallet, expanded
+  positionally -- or `from_account`, which is
+  `descriptors.account_descriptors` with an account xpub and a master
+  fingerprint. Named `from_descriptor` and not `parse` for the reason
+  `ScriptPubKey.from_address` is: a `parse` classmethod in btclib reads
+  octets out of a stream. `position_of` is `Descriptor.index_of` per
+  chain rather than a second comparison, `satisfy` and the two psbt
+  Updaters take a position where the descriptor takes an index, and
+  `descriptor(branch)` hands back the `Descriptor` for everything this
+  does not ask. A `combo()` is refused: four scripts at one index are
+  four addresses at one position, which would make `address(branch,
+  index)` a lie, and `Descriptor.script_pub_keys` is what answers for one.
+
 ### Packaging, linting and CI
 
 - **The regtest integration tests now run unattended** (#524), in an

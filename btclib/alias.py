@@ -32,12 +32,14 @@ __all__ = [
     "BinaryData",
     "CipherF",
     "Command",
+    "EmbeddedScriptType",
     "H160_Net",
     "HashDigestF",
     "HashF",
     "HashObject",
     "Integer",
     "JacPoint",
+    "KeyOrder",
     "MnemonicLang",
     "NetworkField",
     "NetworkName",
@@ -281,6 +283,29 @@ ValidSigHashType = Literal[0, 1, 2, 3, 129, 130, 131]
 # it is a mypy fact and not a runtime one, so the json is still checked
 # where it is used
 BIP44ScriptType = Literal["p2pkh", "p2wpkh-p2sh", "p2wpkh", "p2tr"]
+
+# The three ways a script becomes an output, which is what a
+# wallet.ScriptWallet takes: the script is hashed into a p2sh, into a
+# p2wsh, or into a p2wsh that a p2sh wraps. Not ScriptType either, and
+# for BIP44ScriptType's reason -- `p2sh-p2wsh` is a nesting of one script
+# in another and not something type_and_payload answers -- while the
+# overlap with those four is only apparent: these three say what happens
+# to a *script*, where those four say what happens to a key.
+#
+# A parameter type: the vocabulary is closed by what a hash of a script
+# can be paid to, so a fourth entry would need a new output type rather
+# than a new line here
+EmbeddedScriptType = Literal["p2sh", "p2wsh", "p2sh-p2wsh"]
+
+# When a wallet.ScriptWallet orders the keys of a quorum, which is the
+# one thing about a pre-descriptor multisig wallet that cannot be read off
+# its script: "derived" sorts them at every index, which is BIP67 on the
+# derived keys and what sortedmulti() follows; "account" sorts the account
+# keys once and derives afterwards, which multi() states; "none" keeps
+# them as declared. The three are a strategy and not a constant because
+# deployed wallets disagree, and the sort_key beside them is what a wallet
+# ordering by something that is not a byte order needs
+KeyOrder = Literal["none", "account", "derived"]
 
 
 # What a HashF returns: as much of the hashlib object as this library uses,
