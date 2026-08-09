@@ -575,6 +575,30 @@ documented at release-notes length in the first place, and are still in
 
 ### Tests
 
+- **A production custody wallet is pinned, in both the shape a descriptor
+  covers and the shape it does not.** `tests/descriptors/` had Bitcoin
+  Core's vectors and the BIPs' own, which answer "does this expression
+  parse"; `custody_wallet_test.py` answers the other question, "does this
+  expression name the addresses the money is at". The design is two p2wsh
+  wallets ranged over two branches, each hiding a quorum that spends now
+  and a recovery quorum behind a relative timelock, and it is deployed on
+  mainnet in two shapes. One is canonical miniscript ordered once at the
+  account level, so eight ranged descriptors -- two independent
+  deployments sharing no key -- are pinned against eleven addresses each,
+  plus the checksum round-trip and the `from_script` lift of the witness
+  script back to bytes that match. The other cannot be a descriptor at
+  all: it spells its timelock `<n> OP_CSV OP_DROP` where
+  `and_v(v:older(n),X)` compiles `OP_CSV OP_VERIFY`, and it orders each
+  quorum by BIP67 on the *derived* keys, so the order is remade at every
+  index and no fixed `multi()` follows it. That half is built from
+  `derive_from_account`, a sort, `script.serialize` and `p2wsh`, and its
+  addresses are pinned the same way -- which is the claim worth keeping:
+  those four calls are the supported path for a script the descriptor
+  language does not cover. Both refusals are pinned with their messages,
+  `not a miniscript: op code 0x75 closes no fragment` and `unknown
+  miniscript fragment: sortedmulti()`, because a release that started
+  accepting either would be changing what a descriptor means rather than
+  what it parses.
 - **The two regtest tests get an account each**, where they shared one and
   so shared its first address. The node is the session's, and a wallet the
   second test to run creates still saw what the first had paid: the import
