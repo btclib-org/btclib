@@ -634,6 +634,51 @@ def test_the_coercion_still_happens_in_init() -> None:
     assert BIP32KeyData.b58decode(coerced.b58encode()) == coerced
 
 
+def test_is_root_is_all_three_fields_and_not_just_one() -> None:
+    """No caller of `is_root` exercises it, so pin the property itself.
+
+    `_assert_valid_depth_and_index` ties depth zero to index zero and to
+    a zero parent fingerprint, so a *valid* object never isolates the
+    index or the fingerprint term: it is depth alone a valid non-root key
+    can vary. The other two need `check_validity=False`, the same
+    combination `_assert_valid_depth_and_index` itself would refuse.
+    """
+    root = BIP32KeyData.b58decode(XKEY)
+    assert root.is_root
+
+    non_root_depth = BIP32KeyData(
+        version=root.version,
+        depth=1,
+        parent_fingerprint=root.parent_fingerprint,
+        index=0,
+        chain_code=root.chain_code,
+        key=root.key,
+    )
+    assert not non_root_depth.is_root
+
+    non_root_index = BIP32KeyData(
+        version=root.version,
+        depth=0,
+        parent_fingerprint=root.parent_fingerprint,
+        index=1,
+        chain_code=root.chain_code,
+        key=root.key,
+        check_validity=False,
+    )
+    assert not non_root_index.is_root
+
+    non_root_fingerprint = BIP32KeyData(
+        version=root.version,
+        depth=0,
+        parent_fingerprint=b"\x01\x02\x03\x04",
+        index=0,
+        chain_code=root.chain_code,
+        key=root.key,
+        check_validity=False,
+    )
+    assert not non_root_fingerprint.is_root
+
+
 def test_the_tweaks_of_a_public_derivation_are_the_derivation() -> None:
     """The scalars a path adds up to, against the key the path derives.
 

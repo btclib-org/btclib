@@ -116,6 +116,10 @@ def test_str_from_der_path() -> None:
     err_msg = "invalid master fingerprint length: "
     with pytest.raises(BTClibValueError, match=err_msg):
         str_from_der_path(der_path, "baaaad")
+    # one octet too many, not too few: `!= 8` weakened to `< 8` would
+    # still catch the short one above and miss this one
+    with pytest.raises(BTClibValueError, match=err_msg):
+        str_from_der_path(der_path, "deadbeef00")
 
 
 def test_three_symbols_are_read_and_two_are_written() -> None:

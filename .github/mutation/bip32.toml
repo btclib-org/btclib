@@ -1,0 +1,44 @@
+# Extended keys, mutated: serialization, the derivation path codec beneath
+# it, and the key-origin encoding PSBT carries. A wrong depth, a wrong
+# fingerprint or a hardened-index bit read the wrong way round is exactly
+# the class of boundary #219 and #327 ask mutation testing to check for --
+# every line runs under the existing vectors, and this asks whether the
+# suite would notice one of them being wrong.
+
+[cosmic-ray]
+module-path = [
+  "btclib/bip32/bip32.py",
+  "btclib/bip32/key_origin.py",
+  "btclib/bip32/der_path.py",
+]
+
+test-command = "python -m pytest -x -q -n0 -p no:randomly tests/bip32"
+
+timeout = 300
+
+excluded-modules = []
+
+# 1356 mutants, complete: 1123 killed, 233 survived. 66 are the deferred-
+# annotation class fetch.toml documents, 19 the keyword-only `*` to `/`
+# marker sig_hash.toml's docstring already names, 6 an `is` CPython's
+# small-int cache makes indistinguishable from `==`.
+#
+# Of the 142 real ones, three were genuine gaps, closed:
+#
+# - `is_root` was not exercised by any caller, so every operator on its
+#   three-way `and` survived together -- depth, index and parent
+#   fingerprint each compared, none of the three tested. A valid object
+#   can only vary the depth term (`_assert_valid_depth_and_index` ties
+#   depth zero to index zero and to a zero fingerprint), so the other two
+#   needed `check_validity=False` to isolate at all.
+# - `str_from_der_path`'s fingerprint length check was tested short
+#   (`!= 8` weakened to `< 8` still refuses six octets) and never long.
+#
+# The rest are the same shape scattered one or two at a time across forty
+# other methods -- a boundary compared or an argument's default never
+# exercised at the value that would tell one operator from another --
+# each needing its own look the way `is_root` did. Sampled as data here
+# rather than chased method by method.
+
+[cosmic-ray.distributor]
+name = "local"
