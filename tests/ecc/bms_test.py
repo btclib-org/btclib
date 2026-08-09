@@ -16,6 +16,7 @@ from __future__ import annotations
 
 import base64
 import contextlib
+import dataclasses
 from hashlib import sha256
 from typing import Any
 
@@ -50,6 +51,12 @@ def test_signature() -> None:
     assert bms_sig == bms.Sig.b64decode(bms_sig.b64encode().encode("ascii"))
 
     assert bms_sig == bms.sign(msg, wif.encode("ascii"))
+
+    # frozen: `__init__` sets both fields through `object.__setattr__`
+    # for exactly this reason, and nothing after construction reaches
+    # them the same way
+    with pytest.raises(dataclasses.FrozenInstanceError):
+        bms_sig.rf = 27  # type: ignore[misc]
 
     # malleated signature
     dsa_sig = dsa.Sig(bms_sig.dsa_sig.r, bms_sig.dsa_sig.ec.n - bms_sig.dsa_sig.s)

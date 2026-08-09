@@ -1,0 +1,50 @@
+# Bitcoin message signing, mutated: the legacy and segwit signature formats
+# `bms.py` builds on `ecc.dsa` and the address decoders. A wrong recovery
+# id or a normalization dropped silently is a signature that verifies
+# against the wrong key rather than failing, which coverage cannot
+# distinguish from the correct line running -- the same question #219 and
+# #327 ask of the consensus and wire-format code, here on the message-
+# signing boundary.
+
+[cosmic-ray]
+module-path = "btclib/ecc/bms.py"
+
+test-command = "python -m pytest -x -q -n0 -p no:randomly tests/ecc/bms_test.py"
+
+timeout = 300
+
+excluded-modules = []
+
+# 496 of the 977 mutants sampled in 1200 s: 360 killed, 136 survived. 66
+# are the deferred-annotation class fetch.toml documents, 5 the keyword-
+# only marker, 2 an `is` CPython's small-int cache makes indistinguishable
+# from `==`.
+#
+# One real gap closed: `Sig` is `@dataclass(frozen=True, init=False)`, and
+# nothing after construction ever assigned to a field to find out whether
+# the frozen half of that still held -- `frozen=False` survived next to
+# it. `__init__` itself goes through `object.__setattr__` on purpose (the
+# comment on `dsa.Sig.__init__` gives the reason), so the property being
+# pinned is what every other assignment is refused, not what the
+# constructor does.
+#
+# Two shapes account for most of the rest, checked rather than assumed:
+#
+# - `r = int.from_bytes(sig_bin[1 : 1 + n_size], ...)`: `n_size` is
+#   secp256k1's 32, whose bit 0 is unset, so `+`, `|` and `^` against the
+#   literal `1` agree -- the operator family this survives for is
+#   equivalent for the one curve this module signs on.
+# - `prv_key = 1 + secrets.randbelow(ec.n - 1)` in `gen_keys`: mutating
+#   the arithmetic changes a formula whose output is random on every call
+#   regardless, so no fixed vector distinguishes one operator from
+#   another here -- what a caller can assert is that the result lands in
+#   range, which every operator that survived still does most draws.
+#
+# check_validity defaults account for another block (`serialize`,
+# `b64encode`, `b64decode` each carry one), the same class parsers.toml's
+# highest-yield follow-up already names. The remainder is comparison
+# operators scattered across the address-type dispatch in `assert_as_valid`
+# and its helpers, each needing its own vector; sampled as data here.
+
+[cosmic-ray.distributor]
+name = "local"
