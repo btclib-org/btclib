@@ -25,6 +25,13 @@ full year, short month, short day (YYYY-M-D)
   `is_xonly` for its truth, so `1` was an x-only tweak and `"false"` was
   one too; both raise `BTClibTypeError` now. A caller passing `True` or
   `False`, which the annotation always asked for, is unaffected.
+- **a `BitcoinCoreFetcher` asks the node which chain it serves, before
+  the first fetch.** One `getblockchaininfo` per fetcher, and a node on
+  another chain than the label is a `BTClibValueError` instead of
+  addresses for coins that are not there. `BitcoinCoreFetcher(client,
+  network, verify_network=False)` is the previous behaviour, for a
+  caller that has checked by other means or is talking to something that
+  does not answer that call.
 - **`btclib.descriptors` is a package, and its three checksum tables moved
   with the module into it.** `INPUT_CHARSET`, `CHECKSUM_CHARSET` and
   `GENERATOR` are `btclib.descriptors.descriptors.INPUT_CHARSET` and its
