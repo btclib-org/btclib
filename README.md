@@ -147,9 +147,15 @@ Included features are:
 - fee rates carrying their unit (sat/kvB and sat/vB), the fee a virtual
   size owes at one, and the dust threshold of any output type, computed as
   Bitcoin Core computes it rather than tabulated
-- keystore: the addresses an extended key or a set of individual keys has
-  handed out, the derivation path of each, and the private key that signs
-  for one — what `sign(address, msg)` needs
+- wallets, three sources of addresses behind one vocabulary: an extended
+  key at a BIP44 account or a set of individual keys, which also answer
+  the private key that signs for an address — what `sign(address, msg)`
+  needs — an output descriptor per chain, and a script template with
+  multisig quorums in it, for the pre-descriptor wallets no descriptor
+  states. Each answers `address(branch, index)`,
+  `script_pub_key(branch, index)` and `position_of(script_pub_key)`, the
+  last being "is this output mine", compared whole and never on a key
+  origin's fingerprint
 - an external signer behind one contract, with Bitcoin Core's
   [HWI](https://github.com/bitcoin-core/HWI) behind it for a hardware
   wallet
@@ -228,9 +234,11 @@ is the contract an external signer answers; `hwi` is that contract over
 Bitcoin Core's HWI.
 
 Nothing in the library imports `bip21`, `bip322`, `slip132`, `fee`,
-`keystore`, `hwi` or `fetch`: they are the top of the stack, and `fetch`
-is the only one that goes out to the network. `keystore` remembers which
-addresses `bip44` has handed out and signs for one with `ecc.bms`.
+`wallet`, `hwi` or `fetch`: they are the top of the stack, and `fetch`
+is the only one that goes out to the network. `wallet` remembers which
+addresses it has handed out — over `bip44`, over `descriptors` or over a
+script template of its own — and its key wallets sign for one with
+`ecc.bms`.
 `bip322` is the other message signing, and it is at the top rather than
 beside `ecc.bms` because it needs everything below it: a script, a
 transaction, a psbt and the engine that runs them.

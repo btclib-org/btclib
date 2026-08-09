@@ -44,6 +44,15 @@ as well, message included, because a later release that started *accepting*
 either spelling would change what a descriptor means, not just what it
 parses.
 
+Those same four calls are what a `wallet.ScriptWallet` is made of, and the
+last test below is the one that matters most to it: the plain shape
+written as a template with two `KeyGroup` quorums in it, answering the
+very addresses transcribed here. The addresses are the authority in both
+directions -- by hand and through the class -- so a `ScriptWallet` that
+ordered a quorum differently, or wrote the timelock as miniscript would,
+would be caught by the deployment rather than by a unit test agreeing with
+itself.
+
 Every address below is a mainnet address that has held value. They are
 transcribed from the wallets' own committed address lists, and the two
 timelocks -- 5184 blocks, 576 blocks -- are the deployed ones.
@@ -64,6 +73,7 @@ from btclib.descriptors import (
 from btclib.exceptions import BTClibValueError
 from btclib.script import Command, op_int, script
 from btclib.utils import encode_num
+from btclib.wallet import KeyGroup, ScriptWallet
 
 # The ranged shape, twice: the descriptor of each (wallet, branch), and
 # the first eleven addresses it derives. The two deployments share the
@@ -427,3 +437,56 @@ def test_sorted_multi_is_not_a_fragment() -> None:
     # while the same expression on its own is a descriptor, and a ranged
     # one: what is missing is the combinator around it, not the sort
     assert parse(add_checksum(f"wsh(sortedmulti(1,{key}))")).is_ranged
+
+
+def _plain_script_wallet(wallet: str) -> ScriptWallet:
+    """Return the plain shape as a `ScriptWallet`: template and quorums.
+
+    The same commands `_plain_witness_script` writes by hand, with the two
+    quorums as `KeyGroup` objects instead of expanded calls -- and the
+    per-index sort as the wallet's `order`, which is the parameter that
+    exists because this deployment needs it.
+    """
+    if wallet == "vault":
+        template: list[Command | KeyGroup] = [
+            "OP_IF",
+            KeyGroup(3, _PRIMARY),
+            "OP_ELSE",
+            *_older(_VAULT_RECOVERY_BLOCKS),
+            KeyGroup(2, _RECOVERY),
+            "OP_ENDIF",
+        ]
+    else:
+        template = [
+            "OP_IF",
+            *_older(_TRANSIT_PRIMARY_BLOCKS),
+            KeyGroup(2, _CUSTODIAN),
+            "OP_ELSE",
+            KeyGroup(2, _RECOVERY),
+            "OP_ENDIF",
+        ]
+    return ScriptWallet(template, "p2wsh", "derived")
+
+
+@pytest.mark.parametrize("wallet", ["vault", "transit"])
+@pytest.mark.parametrize("branch", [0, 1])
+def test_the_plain_shape_is_a_script_wallet(wallet: str, branch: int) -> None:
+    """The deployed addresses, from a template rather than from four calls.
+
+    Which is what `btclib.wallet.ScriptWallet` is for: the script no
+    descriptor states, and the two questions a wallet is asked about it --
+    the address at a position, and whether an output is its own.
+    """
+    addresses = _PLAIN[wallet][branch]
+    script_wallet = _plain_script_wallet(wallet)
+    assert [
+        script_wallet.address(branch, i) for i in range(len(addresses))
+    ] == addresses
+    # the same witness script, byte for byte, as the four calls write
+    for index in (0, 7):
+        assert script_wallet.witness_script(branch, index) == _plain_witness_script(
+            wallet, branch, index
+        )
+    # and the other half of what a wallet answers: this output is mine,
+    # the whole script compared at each position of each branch
+    assert script_wallet.position_of(addresses[7], 10) == (branch, 7)

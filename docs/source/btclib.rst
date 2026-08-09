@@ -17,6 +17,7 @@ Subpackages
    btclib.psbt
    btclib.script
    btclib.tx
+   btclib.wallet
 
 Submodules
 ----------
@@ -116,13 +117,6 @@ btclib.hwi module
 -----------------
 
 .. automodule:: btclib.hwi
-   :members:
-   :show-inheritance:
-
-btclib.keystore module
-----------------------
-
-.. automodule:: btclib.keystore
    :members:
    :show-inheritance:
 

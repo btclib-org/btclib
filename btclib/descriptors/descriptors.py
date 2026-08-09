@@ -181,7 +181,7 @@ from btclib.descriptors.miniscript import (
 )
 from btclib.descriptors.miniscript import from_script as _miniscript_from_script
 from btclib.descriptors.miniscript import parse as _parse_miniscript
-from btclib.exceptions import BTClibTypeError, BTClibValueError
+from btclib.exceptions import BTClibValueError
 from btclib.hashes import hash160
 from btclib.network import NETWORKS, network_from_xkeyversion
 from btclib.psbt.psbt import Psbt
@@ -189,7 +189,7 @@ from btclib.psbt.psbt_in import PsbtIn
 from btclib.psbt.psbt_out import PsbtOut
 from btclib.script.script import op_int, serialize
 from btclib.script.script import parse as _parse_script
-from btclib.script.script_pub_key import ScriptPubKey
+from btclib.script.script_pub_key import ScriptPubKey, _script_from
 from btclib.script.taproot import input_script_sig, leaf_hash, tree_helper
 from btclib.script.witness import Witness
 from btclib.to_pub_key import fingerprint
@@ -686,58 +686,6 @@ def _musig2_participants(
         for key in keys
         if key.is_aggregate
     }
-
-
-def _script_from(script_pub_key: Octets | ScriptPubKey) -> bytes:
-    """Return the script bytes of whatever names one output.
-
-    The spellings `index_of` takes, and which of them is which is not
-    guesswork: a `ScriptPubKey` and `bytes` are what they are, and a
-    string is the hex of a script where `bytes.fromhex` reads it and an
-    address where it does not. The two alphabets do overlap -- base58 and
-    bech32 both hold hex digits -- but an address of hex digits only,
-    of even length, and carrying a valid checksum is not a string anybody
-    has.
-
-    The empty string is the one refused outright, and for the reason the
-    whole function exists: it is what `address` answers where a script
-    has none, so `index_of(descriptor.address(i))` on a ``pk()`` would
-    otherwise read as the empty script, match nothing, and say that the
-    wallet's own output is not the wallet's. Empty `bytes` are the empty
-    script and go through: no descriptor derives one, and the caller who
-    wrote them meant them.
-
-    `bytes_from_octets` alone cannot do this: it returns anything that is
-    not a `str` untouched, so the `ScriptPubKey` the method beside
-    `index_of` returns would travel through to a comparison against
-    `bytes` that is False at every index, and the caller would read the
-    None it falls off the end with as "not this wallet's".
-    """
-    if isinstance(script_pub_key, ScriptPubKey):
-        return script_pub_key.script
-    if isinstance(script_pub_key, bytes):
-        return script_pub_key
-    # unreachable to mypy, the annotation having no fourth case, and the
-    # whole point to a caller who is not running it: `Octets` is honoured
-    # inside btclib and nowhere else
-    if not isinstance(script_pub_key, str):
-        err_msg = f"invalid script_pub_key type: {type(script_pub_key).__name__}"  # type: ignore[unreachable]
-        raise BTClibTypeError(err_msg)
-    if not script_pub_key:
-        err_msg = "empty script_pub_key: a script with no address renders as ''"
-        raise BTClibValueError(err_msg)
-    try:
-        return bytes.fromhex(script_pub_key)
-    except ValueError:
-        pass
-    try:
-        return ScriptPubKey.from_address(script_pub_key).script
-    # ValueError rather than BTClibValueError, which is one: the address
-    # codecs raise their own, and a string that reaches them is decoded
-    # before it is checked, so it may fail on a plain one from underneath
-    except ValueError as e:
-        err_msg = f"neither a script nor an address: '{script_pub_key}'"
-        raise BTClibValueError(err_msg) from e
 
 
 @dataclass(frozen=True, kw_only=True)

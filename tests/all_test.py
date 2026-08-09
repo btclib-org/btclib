@@ -190,6 +190,15 @@ CHILD_MODULES = {
         "groups": [],
         "unpublished": ["out_point", "tx", "tx_in", "tx_out"],
     },
+    "btclib.wallet": {
+        "groups": [],
+        "unpublished": [
+            "descriptor_wallet",
+            "key_wallet",
+            "script_wallet",
+            "wallet",
+        ],
+    },
 }
 
 
@@ -642,7 +651,9 @@ def test_every_child_module_is_a_group_or_deliberately_not() -> None:
     rather than a silent pair of empty lists.
     """
     packages = [module for module in library_modules() if hasattr(module, "__path__")]
-    assert len(packages) == len(CHILD_MODULES) + 1, "btclib plus the ten packages"
+    assert len(packages) == len(CHILD_MODULES) + 1, (
+        "btclib itself plus every package CHILD_MODULES records"
+    )
     for package in packages:
         if package.__name__ == "btclib":  # the directory is its assertion
             continue
