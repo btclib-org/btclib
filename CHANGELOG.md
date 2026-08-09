@@ -1018,7 +1018,7 @@ documented at release-notes length in the first place, and are still in
     `_decomposed`'s push-size arithmetic is unpinned.
     - `musig2.toml` (159 of 1277): 6.29%, the lowest rate measured here,
     which is what a reference implementation's own vectors buy. Five of
-    the ten survivors were a test owed and are closed: the two array
+    the ten survivors were tests owed and are closed: the two array
     length checks, each exercised with the longer side only; the two
     BIP373 session filters, where one input may hold a session per leaf
     and an ordering would read in a nonce committing to another script;
