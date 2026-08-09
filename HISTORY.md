@@ -16,6 +16,20 @@ Notable changes to the codebase are documented here.
 Release names follow *[calendar versioning](https://calver.org/)*:
 full year, short month, short day (YYYY-M-D)
 
+## v2026.9 (work in progress, not released yet)
+
+### Breaking changes
+
+- **a MOV-weak curve is refused with `BTClibValueError`, not
+  `UserWarning`.** `Curve(p, a, b, G, n, cofactor)` with the default
+  `weakness_check=True` used to raise `UserWarning("weak curve")` for a
+  curve whose embedding degree is under 100, which no `except
+  BTClibValueError` catches; every other refusal in that constructor
+  already raised one. A caller that builds its own curves and catches
+  `UserWarning` has to catch `BTClibValueError` instead. The catalogued
+  curves are unaffected: they are built with `weakness_check=False`, the
+  check having been paid once in `test_catalogued_curves`.
+
 ## v2026.8.9
 
 ### Breaking changes
