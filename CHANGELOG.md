@@ -774,17 +774,24 @@ documented at release-notes length in the first place, and are still in
   the newest release. Both revs now carry the reason beside them, this
   being the second time the beta was offered -- pull request #315 was the
   first.
+- **`uv.lock` is at every dependency's newest release**: `setuptools`
+  (84.0.0), `virtualenv` (21.7.3) and `platformdirs` (4.11.1), each one
+  patch release past what the upgrade of the previous cycle had frozen
+  two days earlier. All three are reached through the `dev` group only --
+  `setuptools` through `check-manifest` and `pyroma`, `virtualenv` and
+  `platformdirs` through `pre-commit` -- so none was ever in a wheel, and
+  nothing in the lint gate or the suite moved for them.
 - **`uv.lock` is at every dependency's newest release again**:
   `cosmic-ray` (8.7.0), and it alone, everything else still being where
-  the upgrade a day earlier left it. It is reached through the `mutation`
-  group only, so it was never in a wheel, and nothing a pull request runs
-  reaches it either -- `mutation.yml` is weekly and dispatched, so the
-  minor-version jump was checked by hand instead of waiting for a
-  scheduled run to report it. Against 8.4.6 on this tree, `cosmic-ray
-  init` enumerates the same mutants for the same scope, and `baseline`,
-  `cr-filter-operators`, `exec` and `.github/scripts/mutation_counts.py`
-  read and write the session the way that script's docstring says they
-  do.
+  the upgrade above left it a day earlier. It is reached through the
+  `mutation` group only, so it was never in a wheel, and nothing a pull
+  request runs reaches it either -- `mutation.yml` is weekly and
+  dispatched, so the minor-version jump was checked by hand instead of
+  waiting for a scheduled run to report it. Against 8.4.6 on this tree,
+  `cosmic-ray init` enumerates the same mutants for the same scope, and
+  `baseline`, `cr-filter-operators`, `exec` and
+  `.github/scripts/mutation_counts.py` read and write the session the way
+  that script's docstring says they do.
 
 ### Documentation and the website
 
@@ -965,13 +972,6 @@ edit.
 
 ### Repository
 
-- **`uv.lock` is at every dependency's newest release again**: `setuptools`
-  (84.0.0), `virtualenv` (21.7.3) and `platformdirs` (4.11.1), each one
-  patch release past what the previous upgrade had frozen two days
-  earlier. All three are reached through the `dev` group only --
-  `setuptools` through `check-manifest` and `pyroma`, `virtualenv` and
-  `platformdirs` through `pre-commit` -- so none was ever in a wheel, and
-  nothing in the lint gate or the suite moved for them.
 - **`uv.lock` is at every dependency's newest release**, which closed the
   seven advisories the default branch was carrying: six on GitPython,
   reached through `cosmic-ray`, and one on `cryptography`, reached
