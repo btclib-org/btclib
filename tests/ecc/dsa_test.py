@@ -107,6 +107,13 @@ def test_signature() -> None:
     # malleability
     malleated_sig = dsa.Sig(sig.r, sig.ec.n - sig.s)
     assert dsa.verify(msg, Q, malleated_sig, lower_s=False)
+    # lower_s defaults to True on both assert_as_valid and verify, refusing
+    # the same high-s twin the line above accepts by asking not to --
+    # libsecp256k1's own verify does the refusing here, lower_s deciding
+    # only whether the signature is normalized in front of it first
+    assert not dsa.verify(msg, Q, malleated_sig)
+    with pytest.raises(BTClibRuntimeError, match="signature verification failed"):
+        dsa.assert_as_valid(msg, Q, malleated_sig)
 
     keys = dsa.recover_pub_keys(msg, sig)
     assert len(keys) == 2
@@ -150,6 +157,14 @@ def test_signature() -> None:
         dsa.Sig(sig.ec.n, sig.s)
     with pytest.raises(BTClibValueError, match="scalar s not in 1..n-1: "):
         dsa.Sig(sig.r, sig.ec.n)
+
+    # the lower boundary too, zero and not one below it: `0 < r`/`0 < s`
+    # weakened to `-1 <` would accept the one value this rule excludes
+    # that ssa.Sig's own 0..n-1 does not
+    with pytest.raises(BTClibValueError, match="scalar r not in 1..n-1: "):
+        dsa.Sig(0, sig.s)
+    with pytest.raises(BTClibValueError, match="scalar s not in 1..n-1: "):
+        dsa.Sig(sig.r, 0)
 
     err_msg = "private key not in 1..n-1"
     with pytest.raises(BTClibValueError, match=err_msg):
@@ -817,6 +832,33 @@ def test_the_key_id_survives_what_the_bindings_decline(
     sig, key_id = dsa.sign_recoverable(msg, q, ec=ec)
     assert dsa.recover_pub_key(key_id, msg, sig) == Q
     assert key_id == _search_key_id(msg, sig, Q)
+
+
+def test_recover_pub_key_dispatches_to_the_bindings_for_0_to_3_only() -> None:
+    """The bindings take a recovery id of 0, 1, 2 or 3, and nothing wider.
+
+    A key_id outside that range has to reach the Python path instead,
+    which answers in its own words rather than the bindings': recovering
+    a candidate that does not verify (public key recovery failed) or
+    finding no candidate at all congruent to r (signature verification
+    failed) -- neither of them the bindings' own "the recovery id must
+    be 0, 1, 2, or 3", which is what a widened or narrowed guard sends a
+    boundary value to instead. Four key_ids, one per boundary the six
+    ways this guard survived moved.
+    """
+    q = 0x1234567890ABCDEF1234567890ABCDEF1234567890ABCDEF1234567890ABCD
+    sig = dsa.sign(b"msg", q)
+    msg_hash = b"\x00" * 32
+
+    cases = {
+        -1: (BTClibRuntimeError, "signature verification failed"),
+        2: (BTClibValueError, "public key recovery failed"),
+        3: (BTClibValueError, "public key recovery failed"),
+        4: (BTClibRuntimeError, "signature verification failed"),
+    }
+    for key_id, (exc, err_msg) in cases.items():
+        with pytest.raises(exc, match=err_msg):
+            dsa.recover_pub_key_(key_id, msg_hash, sig)
 
 
 def test_the_low_s_negation_flips_the_key_id_parity_bit() -> None:

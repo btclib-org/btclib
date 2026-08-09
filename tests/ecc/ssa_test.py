@@ -90,6 +90,20 @@ def test_signature() -> None:
     with pytest.raises(BTClibValueError, match="scalar s not in 0..n-1: "):
         ssa.Sig(sig.r, sig.ec.n)
 
+    # the lower boundary too: `0 <= s` weakened to `-1 <= s` would accept
+    # a scalar one below the range BIP340's own zero-lower-bound allows
+    with pytest.raises(BTClibValueError, match="scalar s not in 0..n-1: "):
+        ssa.Sig(sig.r, -1)
+
+    # `serialize`'s own default, not the constructor's: an invalid Sig
+    # built with check_validity=False must still be refused when asked
+    # to serialize at the default, and only there does check_validity=False
+    # let it through
+    sig_invalid = ssa.Sig(sig.r, sig.ec.n, sig.ec, check_validity=False)
+    with pytest.raises(BTClibValueError, match="scalar s not in 0..n-1: "):
+        sig_invalid.serialize()
+    assert sig_invalid.serialize(check_validity=False)
+
     # a 31-byte message is a legal BIP340 message (since 2023-04), so a
     # truncated message is not a size error -- "invalid size: 31 bytes
     # instead of 32" -- but a *different* message, which this signature
@@ -302,6 +316,28 @@ def test_low_cardinality() -> None:
                             ssa._assert_as_valid_(e, QJ, r, (s - 1) % ec.n, ec)
 
 
+def test_assert_as_valid_rejects_the_odd_y_twin_of_a_correct_k() -> None:
+    """A K whose x matches r but whose y is odd is refused on its own.
+
+    `(s - 1) % ec.n` above moves K by a whole generator and almost
+    always moves its x-coordinate too, so the exhaustive sweep exercises
+    'Fail if x_K != r' far more than 'Fail if y_K is odd' -- and never
+    the two apart. `-(k*G)` is the one point sharing K's x-coordinate
+    without sharing its y, which the algebra reaches directly: solving
+    s'*G - e*Q = -(k*G) for s' gives n - k + e*q, a scalar this function
+    is handed like any other, without producing the point first.
+    """
+    ec = secp256k1
+    q, x_Q = ssa.gen_keys()
+    QJ = jac_from_aff((x_Q, ec.y_even(x_Q)))
+    k, r = ssa.gen_keys()  # k's point has even y, by gen_keys' own normalization
+    e = 5
+
+    s_prime = (ec.n - k + e * q) % ec.n
+    with pytest.raises(BTClibRuntimeError, match="y_K is odd"):
+        ssa._assert_as_valid_(e, QJ, r, s_prime, ec)
+
+
 def test_a_message_of_any_size_reaches_the_bindings(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
@@ -417,6 +453,14 @@ def test_batch_validation() -> None:
     assert not ssa.batch_verify(ms, Qs, sigs)
     ms.pop()  # valid again
 
+    # fewer messages than pub_keys, not only more: `!= batch_size`
+    # weakened to `>` would let this one through
+    short_ms = ms[:-1]
+    err_msg = "mismatch between number of pub_keys "
+    with pytest.raises(BTClibValueError, match=err_msg):
+        ssa.assert_batch_as_valid(short_ms, Qs, sigs)
+    assert not ssa.batch_verify(short_ms, Qs, sigs)
+
     sigs.append(sigs[0])  # add extra sig
     err_msg = "mismatch between number of pub_keys "
     with pytest.raises(BTClibValueError, match=err_msg):
@@ -443,6 +487,24 @@ def test_batch_validation() -> None:
     with pytest.raises(BTClibRuntimeError, match=err_msg):
         ssa.assert_batch_as_valid_(ms, Qs, sigs)
     assert not ssa.batch_verify_(ms, Qs, sigs)
+
+
+def test_a_batch_of_one_takes_the_single_signature_shortcut() -> None:
+    """`batch_size == 1` dispatches to `assert_as_valid_`, not the general sum.
+
+    A malformed `Sig` (built with `check_validity=False`) tells the two
+    apart: the shortcut validates it and names the field, where the
+    general multi_mult equation below has nothing that checks a lone
+    signature's own shape and would just fail the sum instead, `!= 1`
+    weakened to `< 1` routing every batch there since batch_size is
+    never below 1 by the point this check runs.
+    """
+    q, x_Q = ssa.gen_keys()
+    sig = ssa.sign(b"msg", q)
+    bad_sig = ssa.Sig(sig.r, sig.ec.n + 5, sig.ec, check_validity=False)
+    err_msg = "scalar s not in 0..n-1: "
+    with pytest.raises(BTClibValueError, match=err_msg):
+        ssa.assert_batch_as_valid_([b"msg"], [x_Q], [bad_sig])
 
 
 def test_batch_validation_on_the_python_path(monkeypatch: pytest.MonkeyPatch) -> None:

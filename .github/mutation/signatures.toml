@@ -23,15 +23,20 @@ module-path = [
   "btclib/ecc/dsa.py",
 ]
 
-# anti_exfil_test.py and commit_nonce_test.py are ssa's sign-to-contract
+# anti_exfil_test.py and commit_nonce_test.py are the sign-to-contract
 # and anti-exfiltration paths, which sig_hash.toml's docstring notes
 # `ssa.sign` itself never takes -- they are what still calls
 # `ssa.sign_custom` and are the only tests that do. parse_contract_test.py
 # is the parse/serialize boundary convention shared with every other
-# profile that carries it.
+# profile that carries it. der_test.py is dsa.py's own DER codec --
+# `_serialize_scalar`/`_deserialize_scalar`/`_parse_der_value` -- missing
+# from the first pass's command entirely, so every mutant of that codec
+# this session found was a mutant its own dedicated test file already
+# killed, uncredited for want of being asked
 test-command = """python -m pytest -x -q -n0 -p no:randomly \
-  tests/ecc/ssa_test.py tests/ecc/dsa_test.py tests/ecc/anti_exfil_test.py \
-  tests/ecc/commit_nonce_test.py tests/parse_contract_test.py"""
+  tests/ecc/ssa_test.py tests/ecc/dsa_test.py tests/ecc/der_test.py \
+  tests/ecc/anti_exfil_test.py tests/ecc/commit_nonce_test.py \
+  tests/parse_contract_test.py"""
 
 timeout = 300
 
@@ -65,6 +70,151 @@ excluded-modules = []
 # the remainder is comparison operators and DER sign-byte handling
 # scattered across the parse/serialize/recover paths, sampled as data
 # here rather than chased to completion.
+#
+# A second pass worked through that data. The most consequential real
+# gap this session found, in either module, is in `ssa._assert_as_valid_`:
+# `if ec.y_aff_from_jac(KJ) % 2:` -- "Fail if y_K is odd" -- weakened to
+# `% 1` is always zero, so the check never fires. Every existing vector
+# missed it because a wrong `s` almost always moves K by whole multiples
+# of the generator, which moves its x-coordinate too, so 'Fail if x_K !=
+# r' catches the forgery first regardless of the y check. The one input
+# that isolates the y check is the odd-y twin of the correct K, `-(k*G)`,
+# which shares K's x-coordinate and fails only on parity; solving
+# `s'*G - e*Q = -(k*G)` for `s'` gives `n - k + e*q`, computable directly
+# without ever building the point. A verifier with this check disabled
+# accepts a signature BIP340 does not, on every message it would
+# otherwise accept the honest one for.
+#
+# The rest, by file:
+#
+# `ssa.py`
+# - `assert_batch_as_valid_`'s `batch_size == 1` weakened to `< 1`: the
+#   shortcut it guards validates a lone `Sig` on its own account
+#   (`assert_as_valid_`, which runs `sig.assert_valid()`), where the
+#   general multi_mult sum below it does not; `< 1` never being true
+#   once `batch_size == 0` has already raised two lines above, the
+#   widened guard sends every batch of one through the sum instead,
+#   silently dropping that check.
+# - the same function's `len(msgs) != batch_size` weakened to `>`: every
+#   existing mismatch vector adds an extra message, which both operators
+#   catch; a batch with fewer messages than pub_keys is the direction
+#   `>` cannot see.
+# - `Sig.serialize`'s own `check_validity` default, the same class as
+#   `BlockHeader`'s and `Block`'s in `block.toml`: nothing had asked an
+#   invalid `Sig` (built with `check_validity=False`) to serialize at
+#   the default and expected a refusal.
+# - `Sig.assert_valid`'s `0 <= self.s`: pinned at zero, the same
+#   boundary `dsa.Sig`'s tests already had and `ssa.Sig`'s did not,
+#   `ssa.Sig` alone allowing zero itself.
+#
+# `dsa.py`
+# - the DER codec's own tests, `tests/ecc/der_test.py`, were missing
+#   from the first pass's `test-command` entirely -- a configuration
+#   gap and not a coverage one: `_deserialize_scalar`'s `scalar_bytes[0]
+#   >= 0x80` weakened to `> 0x80` or to `len(scalar_bytes) > 1` weakened
+#   to `== 1` (the exact one-byte-scalar IndexError the surrounding
+#   comment warns about) were already refused by vectors that file
+#   carries, uncredited for want of being asked. `>= 0x80` weakened to
+#   `== 0x80` was not: every existing vector uses the byte `0x80` itself,
+#   never one above it, so one more vector closes it.
+# - `recover_pub_key_`'s dispatch guard, `0 <= key_id <= 3`: six
+#   different mutations on the same guard, and no vector had ever asked
+#   a `key_id` outside it. Both sides of the range answer in the
+#   bindings' own words once out of it -- "the recovery id must be 0,
+#   1, 2, or 3" -- which four boundary values (-1, 2, 3, 4) against one
+#   fixed signature were enough to tell the widened or narrowed guard's
+#   own answer ("public key recovery failed", "signature verification
+#   failed") apart from the bindings' refusal, one case per mutation.
+# - `Sig.assert_valid`'s `0 < self.r` and `0 < self.s`: pinned at zero
+#   the same way `ssa.Sig`'s test already was, `-1 <` accepting the one
+#   value below the range dsa.Sig -- unlike ssa.Sig -- excludes.
+# - `lower_s`'s default, `True`, on `assert_as_valid`, `verify` and
+#   `anti_exfil_host_verify`: three functions, the same class as the
+#   guard above, and no test had asked any of the three to refuse a
+#   malleated (high-s) signature *without* passing the keyword. The
+#   malleated twin already built for `verify(..., lower_s=False)`
+#   answers the question at the default too; libsecp256k1's own verify
+#   is what refuses it there, lower_s deciding only whether the
+#   signature is normalized in front of that call, so the message is
+#   "signature verification failed" and not `_assert_as_valid_`'s "not
+#   a low s", which the Python path alone raises.
+#
+# Checked and left equivalent, most of it the patterns already
+# established elsewhere in this session applied to this pair's own call
+# sites:
+#
+# - `gen_keys`' `q = 1 + secrets.randbelow(ec.n - 1)`, in both modules,
+#   and `assert_batch_as_valid_`'s `rand = 1 if i == 0 else 1 +
+#   secrets.randbelow(ec.n - 1)`: a result random on every call, the
+#   equivalence this file's own first pass already named -- extending to
+#   `1 ** secrets.randbelow(...)`, which is not a differently-random
+#   value but always exactly 1. An ordinary signature batch cannot tell
+#   a fixed blinding coefficient from a random one either: every term of
+#   the sum is a true equation on its own, so any coefficients satisfy
+#   it, honest or fixed. Telling them apart needs a forged entry
+#   engineered to cancel under the *specific* coefficients used, a
+#   rogue-coefficient construction against Fiat-Shamir's own hash of the
+#   nonce point rather than a fixed test vector, and was not attempted.
+# - message-formatting thresholds, `self.r`/`self.s > 0xFFFFFFFF`
+#   deciding hex or decimal display in an already-invalid value's error
+#   message: this file's first pass already named the class, and the
+#   mutations sampled from it here -- the threshold negated, widened to
+#   `>=`, narrowed to `==`, or shifted by the one integer `4294967296`
+#   is off `0xFFFFFFFF` by -- are exactly it, changing which of two
+#   strings names a value already being refused rather than the refusal.
+# - `ssa._recover_pub_key_`'s `QJ[2] == 0` (Jacobian Z, "is this
+#   infinity") against `QJ[1]` (Y): every curve this file's own exhaustive
+#   `test_low_cardinality` runs was checked by hand for a point with
+#   y = 0, and none has one, so a real point's Y is never the value this
+#   would-be infinity check tests for; `INFJ = (7, 0, 0)` is what every
+#   infinity this function can return actually is, Y included, so the
+#   two checks agree on it too.
+# - `assert_batch_as_valid_`'s `Qs[0]`/`ec = sigs[0].ec` weakened to
+#   `[-1]`: the first is inside the `batch_size == 1` shortcut, where a
+#   batch of one makes index 0 and -1 the same object; the second reads
+#   `ec` only after the very next line has confirmed every signature
+#   shares one curve, which -- if it holds -- already makes `sigs[0].ec`
+#   and `sigs[-1].ec` equal, and if it does not, raises before `ec` is
+#   used for anything the choice of index could still change.
+# - `_recover_pub_keys_`'s own range, `range(2 * (ec.cofactor + 1))`
+#   weakened to `range(2 * (ec.cofactor << 1))`: equal for cofactor 1
+#   (secp256k1's own), and checked by hand rather than assumed for the
+#   two cofactor-2 low-cardinality curves the exhaustive test also
+#   carries -- every `key_id` the widened range adds was tried against
+#   every `(r, s, c)` those tiny curves have, and none ever recovers a
+#   candidate, widened or not: `j` above `cofactor` is already reaching
+#   past what `x_K = r + j*ec.n` can still land under `ec.p`.
+# - `_sign_recoverable_`'s `s > ec.n // 2` weakened to `s > ec.n / 2`:
+#   `ec.n` is prime, hence odd, so `(n - 1) / 2` (what `//` gives) and
+#   `n / 2` (what `/` gives) round to the same integer boundary for
+#   every integer `s` -- the smallest one satisfying either is
+#   `(n + 1) / 2`, and this holds regardless of which of the two call
+#   sites carrying the expression is asked.
+# - `_sign_recoverable_`'s own `s = ec.n - s` (the lower-s negation)
+#   against `s = ec.n % s`: for `s` in `(n/2, n)`, the range the branch
+#   above it already restricts `s` to, `n // s` is always 1, so `n % s
+#   == n - s` exactly -- not an approximation, the two expressions
+#   computing the identical integer over the whole reachable domain.
+# - the four `signed=False` reads/writes weakened to `signed=True` this
+#   pass closed none of and checked instead: `_serialize_scalar`'s own
+#   `to_bytes`, whose `scalar_size` already reserves the pad byte a sign
+#   bit would otherwise need, so no value it ever writes has that bit
+#   set to begin with; and `_libsecp256k1_recover_sec_`'s and
+#   `sign_recoverable_`'s reads of a lower-s `s`, bounded by `ec.n // 2`
+#   whose bit length is 255 and not 256, one bit short of ever setting
+#   the sign bit a 32-byte signed read would test.
+# - `@overload`-decorated stubs, in `RemoveDecorator`'s two mutations:
+#   `typing.overload` has no runtime body a caller ever reaches: mypy
+#   reads the decorator, and removing it changes nothing python -m
+#   pytest can see.
+#
+# One survivor is left open, not chased: `Sig.assert_valid`'s congruence
+# loop, `r < self.ec.p` weakened to `r <= self.ec.p`, moves the boundary
+# by testing one extra candidate the loop's own increment, `r += ec.n`,
+# would need to land on `ec.p` exactly to reach -- `r == ec.p - ec.n`,
+# a single fixed ~128-bit value out of the ~256-bit range `r` is drawn
+# from in practice, the same order of coincidence `bms.toml`'s key_id 3
+# is and not attempted for the same reason.
 
 [cosmic-ray.distributor]
 name = "local"
