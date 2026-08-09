@@ -759,6 +759,32 @@ documented at release-notes length in the first place, and are still in
   instead of only saying "no loadable shared libsecp256k1 found"; that
   reaches a caller here on a platform with no wheel of its own. Nothing
   else about the release touches this package's own code.
+- **Six pinned hook revisions move, and two `pre-commit autoupdate`
+  offered do not.** `codespell` (v2.4.3), `typos` (v1.49.0),
+  `check-jsonschema` (0.38.0), `zizmor` (v1.29.0), `ruff` (v0.16.2) and
+  the `uv-pre-commit` that owns the `uv-lock` hook (0.12.3) are what the
+  gate runs now: no new finding, and no fixing hook rewrote a file, which
+  for `typos` and `ruff` is the question worth asking rather than an
+  aside. The two refused are the failure modes autoupdate has no notion
+  of. It took `typos` to `v1`, which is not a release but the
+  major-version alias upstream moves onto each one -- a rev that follows
+  every future 1.x is not a pin, and a growing dictionary under
+  `--write-changes` is what would follow it in. And it took `pyroma` to
+  `5.1b1`, a prerelease, with `5.1b2` above it; the pin stays at 5.0.1,
+  the newest release. Both revs now carry the reason beside them, this
+  being the second time the beta was offered -- pull request #315 was the
+  first.
+- **`uv.lock` is at every dependency's newest release again**:
+  `cosmic-ray` (8.7.0), and it alone, everything else still being where
+  the upgrade a day earlier left it. It is reached through the `mutation`
+  group only, so it was never in a wheel, and nothing a pull request runs
+  reaches it either -- `mutation.yml` is weekly and dispatched, so the
+  minor-version jump was checked by hand instead of waiting for a
+  scheduled run to report it. Against 8.4.6 on this tree, `cosmic-ray
+  init` enumerates the same mutants for the same scope, and `baseline`,
+  `cr-filter-operators`, `exec` and `.github/scripts/mutation_counts.py`
+  read and write the session the way that script's docstring says they
+  do.
 
 ### Documentation and the website
 

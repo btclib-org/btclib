@@ -188,7 +188,7 @@ repos:
   # here: the skip list needs a paragraph of justification, and a hook
   # invocation is the wrong place for one
   - repo: https://github.com/codespell-project/codespell
-    rev: v2.4.1
+    rev: v2.4.3
     hooks:
       - id: codespell
         name: codespell (prose and comments)
@@ -211,7 +211,13 @@ repos:
   # README's `bitcon` included. pyproject.toml ([tool.typos]) has the whole
   # of the reasoning and the configuration, as for codespell
   - repo: https://github.com/crate-ci/typos
-    rev: v1.48.0
+    # a release tag, not the `v1` beside it: that one is a major-version
+    # alias upstream moves onto each release, so `pre-commit autoupdate`
+    # picks it as the newest tag and the pin stops being one -- the hook
+    # would then follow every future 1.x, which is the whole of what a rev
+    # is here to prevent. A dictionary that grows under a fixing hook is
+    # not a detail: this one rewrites what it reads
+    rev: v1.49.0
     hooks:
       - id: typos
         name: typos (identifiers and hyphenated words, in place fixes)
@@ -290,7 +296,7 @@ repos:
   # reads as yaml and nothing reads as a build definition, on a service
   # whose failure mode is a docs build that stops happening
   - repo: https://github.com/python-jsonschema/check-jsonschema
-    rev: 0.35.0
+    rev: 0.38.0
     hooks:
       - id: check-dependabot
       - id: check-readthedocs
@@ -333,7 +339,7 @@ repos:
   # and 4 in test.yml, all of them unnamed jobs) and is worth
   # running by hand rather than on every commit
   - repo: https://github.com/zizmorcore/zizmor-pre-commit
-    rev: v1.28.0
+    rev: v1.29.0
     hooks:
       - id: zizmor
         # offline is what it does by default, said out loud: it warns about
@@ -355,7 +361,7 @@ repos:
   # docformatter, flake8, isort, pydocstringformatter, pydocstyle, pylint,
   # pyupgrade, and yesqa
   - repo: https://github.com/astral-sh/ruff-pre-commit
-    rev: v0.16.0
+    rev: v0.16.2
     hooks:
       - id: ruff-check
         name: ruff check (in place fixes)
@@ -394,7 +400,7 @@ repos:
         pass_filenames: false
         require_serial: true
   - repo: https://github.com/astral-sh/uv-pre-commit
-    rev: 0.12.0
+    rev: 0.12.3
     hooks:
       # keep uv.lock in sync with pyproject.toml
       - id: uv-lock
@@ -414,6 +420,11 @@ repos:
         args: [--no-build-isolation]
         additional_dependencies: [setuptools]
   - repo: https://github.com/regebro/pyroma
+    # the newest *stable* tag: 5.1b1 and 5.1b2 sit above it, and
+    # `pre-commit autoupdate` offers a prerelease as readily as a release,
+    # having no notion of one -- it did so here and in pull request #315
+    # before it. What a beta of the packaging checker would gate is the
+    # release workflow, on a judgement its own author has not settled yet
     rev: "5.0.1"
     hooks:
       - id: pyroma
