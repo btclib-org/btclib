@@ -13,6 +13,7 @@ import pytest
 
 from btclib import b32, b58, var_bytes
 from btclib.alias import ScriptList
+from btclib.curves import bytes_from_point, mult
 from btclib.exceptions import BTClibValueError
 from btclib.hashes import hash160, sha256
 from btclib.script import (
@@ -1000,3 +1001,128 @@ def test_equality_is_by_network_type() -> None:
 
     # and a non-ScriptPubKey is still NotImplemented, i.e. not equal
     assert decoded != decoded.script
+
+
+def test_the_nulldata_payload_cap_is_reachable_not_only_crossable() -> None:
+    """80 bytes is a payload, 81 is one too many, and 76 changes the marker.
+
+    The builder's own bound, where a caller meets it, and the byte on
+    each side of it: `test_nulldata3` above asks for 81 and never for
+    the 80 that must be built.
+
+    The 76-byte payload is the other boundary in the same function, and
+    it is not the payload's: a push of 76 bytes or more needs
+    OP_PUSHDATA1, so the script grows a byte and the length marker moves
+    from `script_pub_key[1]` to `script_pub_key[2]`. 79 octets of script
+    is the first length that reads the second one.
+    """
+    assert len(ScriptPubKey.nulldata(b"\x00" * 80).script) == 83
+    err_msg = "invalid nulldata payload length: "
+    with pytest.raises(BTClibValueError, match=err_msg):
+        ScriptPubKey.nulldata(b"\x00" * 81)
+
+    script_pub_key = serialize(["OP_RETURN", b"\x00" * 76])
+    assert len(script_pub_key) == 79
+    assert script_pub_key[1] == 0x4C
+    assert_nulldata(script_pub_key)
+
+
+def test_a_segwit_script_pub_key_is_its_two_markers() -> None:
+    """OP_RESERVED is not a witness version, and the length must be exact.
+
+    0x50 sits directly below OP_1 and is the byte a version window with
+    the wrong floor lets through: it is OP_RESERVED, which BIP141 leaves
+    out of the versions a segwit output may carry.
+
+    The length is checked against the marker rather than only bounded by
+    it, so a script one byte short of what its own marker announces is
+    refused, and the refusal names both numbers -- which is what says
+    the expected one is the marker plus its two prefix bytes.
+    """
+    program = b"\x00" * 20
+    err_msg = "invalid witness version: 0x50"
+    with pytest.raises(BTClibValueError, match=err_msg):
+        assert_segwit(b"\x50" + bytes([len(program)]) + program)
+    assert_segwit(b"\x51" + bytes([len(program)]) + program)
+
+    err_msg = "invalid segwit script length: 21, 22 expected"
+    with pytest.raises(BTClibValueError, match=err_msg):
+        assert_segwit(b"\x00\x14" + b"\x00" * 19)
+    err_msg = "invalid segwit script length: 23, 22 expected"
+    with pytest.raises(BTClibValueError, match=err_msg):
+        assert_segwit(b"\x00\x14" + b"\x00" * 21)
+
+
+def test_p2ms_at_the_sixteen_key_maximum() -> None:
+    """16-of-16 is the largest m-of-n an op_int can spell.
+
+    Both markers are OP_16, and 0x60 is the one value in OP_1..OP_16
+    whose distance from OP_RESERVED is not what the low bits of the byte
+    alone would make it -- so a 16-of-16 is what tells the subtraction
+    that reads m and n from those markers apart from the bit arithmetic
+    that agrees with it up to 15.
+    """
+    keys = [bytes_from_point(mult(i)) for i in range(1, 17)]
+    script_pub_key = ScriptPubKey.p2ms(16, keys, lexicographic_sorting=False).script
+    assert script_pub_key[0] == 0x60
+    assert script_pub_key[-2] == 0x60
+    assert is_p2ms(script_pub_key)
+    script_type, payload = type_and_payload(script_pub_key)
+    assert script_type == "p2ms"
+    assert payload == script_pub_key[:-1]
+
+
+def test_p2ms_refuses_what_its_markers_cannot_mean() -> None:
+    """The two markers are read as numbers, and both are named when wrong.
+
+    A 1-of-1 with a compressed key is the shortest p2ms there is at 37
+    octets, so 36 is refused for its length and not for what a shorter
+    script happens to hold. The two after it are markers that decode to
+    a number no quorum can use, and the messages carry that number
+    because it is the only way to see which byte the parser read.
+    """
+    key = bytes_from_point(mult(1))
+    shortest = bytes([0x51, 33, *key, 0x51, 0xAE])
+    assert len(shortest) == 37
+    assert is_p2ms(shortest)
+
+    err_msg = "invalid p2ms length 36"
+    with pytest.raises(BTClibValueError, match=err_msg):
+        assert_p2ms(bytes([0x51, 32, *key[:32], 0x51, 0xAE]))
+
+    # 0xB1 is OP_CHECKLOCKTIMEVERIFY, 177: as a quorum marker it is 97,
+    # which is what the message has to say to tell the subtraction from
+    # a modulo that agrees with it for every marker a wallet writes
+    err_msg = "invalid m-of-n: 1-of-97"
+    with pytest.raises(BTClibValueError, match=err_msg):
+        assert_p2ms(bytes([0x51, 33, *key, 0xB1, 0xAE]))
+
+    # OP_18 does not exist, and 0x62 -- OP_VER -- is where it would be:
+    # 18 keys is past the 16 a p2ms may pay to, so the window has an
+    # upper end and not only an ordering against m
+    err_msg = "invalid m-of-n: 1-of-18"
+    with pytest.raises(BTClibValueError, match=err_msg):
+        assert_p2ms(bytes([0x51, 33, *key, 0x62, 0xAE]))
+
+
+def test_a_leading_op_code_is_compared_for_equality() -> None:
+    """Each template's first byte is the op code it names, not a floor.
+
+    Weakened to an inequality every one of these still refuses the byte
+    below it and accepts the byte above, which for a nulldata is a
+    script that is not an OP_RETURN classified as one. The bytes chosen
+    are one above what each template requires, and the rest of every
+    script here is what that template wants.
+    """
+    err_msg = "missing leading OP_RETURN"
+    with pytest.raises(BTClibValueError, match=err_msg):
+        assert_nulldata(b"\x6b\x01\x00")
+    assert not is_nulldata(b"\x6b\x01\x00")
+
+    err_msg = "missing leading OP_HASH160"
+    with pytest.raises(BTClibValueError, match=err_msg):
+        assert_p2sh(b"\xab\x14" + b"\x00" * 20 + b"\x87")
+
+    err_msg = "invalid redeem script hash length marker: 33 instead of 32"
+    with pytest.raises(BTClibValueError, match=err_msg):
+        assert_p2wsh(b"\x00\x21" + b"\x00" * 32)

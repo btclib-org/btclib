@@ -33,6 +33,7 @@ from btclib.script import (
     taproot,
     type_and_payload,
 )
+from btclib.script.limits import MAX_SCRIPT_ELEMENT_SIZE
 from btclib.script.taproot import parse, serialize, tree_helper
 from btclib.tx import TxOut
 from tests import load, vector_id
@@ -379,3 +380,64 @@ def test_tweak_above_group_order() -> None:
     control = b"\xc0" + bytes(32)
     with pytest.raises(BTClibValueError, match=err_msg):
         check_output_pubkey(q, "51", control, ec)
+
+
+def test_the_element_size_limit_is_reachable_not_only_crossable() -> None:
+    """520 bytes is an element a tapscript may push; 521 is one too many.
+
+    BIP342 keeps the limit script.parse enforces and moves the refusal:
+    an OP_SUCCESS makes a script valid whatever else it holds, so the
+    parse notes the oversized element and raises only if it reaches the
+    end without meeting one. What that leaves to test is the bound
+    itself, from both sides -- a limit tested above only is a limit
+    whose own value never mattered.
+    """
+    for size in (MAX_SCRIPT_ELEMENT_SIZE - 1, MAX_SCRIPT_ELEMENT_SIZE):
+        data = b"\x00" * size
+        script = b"\x4d" + size.to_bytes(2, "little") + data
+        assert parse(script) == [data.hex().upper()]
+
+    size = MAX_SCRIPT_ELEMENT_SIZE + 1
+    script = b"\x4d" + size.to_bytes(2, "little") + b"\x00" * size
+    err_msg = "Invalid pushdata length"
+    with pytest.raises(BTClibValueError, match=err_msg):
+        parse(script)
+
+    # and the same element under an OP_SUCCESS, which is valid: 0x50 is
+    # OP_SUCCESS80, and what follows one is not parsed at all
+    assert parse(b"\x50" + script) == ["OP_SUCCESS80", script]
+
+
+@pytest.mark.parametrize("internal_key", [0xC0FFEE, 0xBADC0DE])
+def test_the_control_block_commits_to_the_output_key_parity(
+    internal_key: int, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """The lowest bit of the first control byte is the output key's parity.
+
+    The rest of that byte is the leaf version, which the leaf hash reads
+    with the parity bit masked off, so flipping it leaves every hash in
+    the proof alone and changes only the claim about which of the two y
+    coordinates the output key has. Both paths compare it --
+    libsecp256k1's `tweak_add_check` takes it as an argument and the
+    Python one against Q's own y -- and a wrong claim has to be a no on
+    each.
+
+    Two internal keys because the output key's parity is what it is:
+    0xC0FFEE tweaks to an even y and 0xBADC0DE to an odd one, so between
+    them the bit is asserted in both directions rather than in whichever
+    one this tree happens to produce.
+    """
+    pub_key = mult(internal_key)
+    script_tree: TaprootScriptTree = [[(0xC0, ["OP_2"])], [(0xC0, ["OP_3"])]]
+    q, parity = output_pubkey(pub_key, script_tree)
+    script, control = input_script_sig(pub_key, script_tree, 0)
+    script_bytes = serialize(script)
+    assert control[0] & 1 == parity
+    flipped = bytes([control[0] ^ 1]) + control[1:]
+
+    assert check_output_pubkey(q, script_bytes, control)
+    assert not check_output_pubkey(q, script_bytes, flipped)
+    with monkeypatch.context() as no_bindings:
+        no_bindings.setattr(taproot, "_libsecp256k1_applicable", lambda *_: False)
+        assert check_output_pubkey(q, script_bytes, control)
+        assert not check_output_pubkey(q, script_bytes, flipped)

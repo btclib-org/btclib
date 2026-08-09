@@ -89,31 +89,42 @@ exclude-operators = ["core/ReplaceBinaryOperator_BitOr_.*"]
 # test command: 309 killed, 97 survived, 23.89%. Sampled, then, and the
 # sample already answers the question the profile was written to ask.
 #
-# `op_codes_tapscript.py` is the finding: 50 of the 51 mutants of it that
-# ran survived, and the 236 it holds are almost all numeric literals in
-# `OP_CODE_NAMES` and `OP_SUCCESS`. Nothing in the suite asserts either
-# table -- a code number may be changed, duplicated or dropped and every
-# test still passes -- and the two tables are exactly the kind of thing a
-# reader checks by eye and never re-checks. What would kill nearly all of
-# them is cheap: `OP_CODE_NAMES` has to be the inverse of `OP_CODES` for
-# every entry it names, and `OP_SUCCESS` has to be BIP342's set, which is
-# a range expression rather than a list to be transcribed.
+# `op_codes_tapscript.py` was the finding, and is now the answer: 50 of the
+# 51 mutants of it that ran survived, because nothing asserted either of
+# the two BIP342 tables -- a code number could be changed, duplicated or
+# dropped with every test still passing. Two tests hold the tables to each
+# other instead of to a transcription of the BIP's own numbers, and all 236
+# mutants of that module die now: `OP_CODE_NAMES` is the inverse of
+# `OP_CODES` in both directions, and `OP_SUCCESS` is what the two leave
+# over -- every byte below 0xFF that is neither a push nor a named code,
+# which is what BIP342's list *is*.
 #
-# The rest, in the order they are worth acting on:
+# The bounds beside it, each measured surviving before its test and dying
+# after, one mutant at a time, which is what a claim like this is worth:
 #
-# - `nulldata`'s 80-byte bound, in both directions and unpinned in both:
-#   `assert_nulldata`'s `length < 80` weakened to 79 and the builder's
-#   `len(data) > 80` to 79 each survive, so the standardness limit this
-#   library publishes is not what its tests hold it to.
-# - `assert_segwit`'s `0x51 <= script_pub_key[0] <= 0x60` weakened to
-#   `80 <=`, which accepts 0x50 -- OP_RESERVED, not a witness version.
-# - `p2ms`'s arithmetic: `length < 37` at 36, `script_pub_key[0] - 80`
-#   turned into `^ 80` and `% 80`, `m <= n <= 16` into `!= 17`, and the
-#   builder's own `0 < n <= 16` into `< 16`, which never tests 16 keys.
-# - `taproot.parse`'s `len(data) > MAX_SCRIPT_ELEMENT_SIZE` weakened to
-#   `==` and `>=`: the 520-byte element limit is exercised on one side.
-# - `read_op_code`'s `stop + size > len(script)` as `-` and `%`, and
-#   `_serialize_int_command`'s `-1 <= command <= 16` as `~1`.
+# - `nulldata`'s 80-byte cap: the builder's `len(data) > 80` had no test
+#   building the 80 it allows, only the 81 it refuses.
+# - `assert_segwit`'s `0x51 <= script_pub_key[0]`, weakened to `80 <=`,
+#   accepted 0x50 -- OP_RESERVED, which BIP141 leaves out of the witness
+#   versions -- and its exact-length check had never been given a script
+#   shorter than its own marker announces, nor its message read.
+# - `p2ms`'s arithmetic: 16-of-16 is the case that tells `- 80` from the
+#   `^ 80` agreeing with it up to 15, and 16 keys is what the builder's
+#   own `0 < n < 17` had never been asked for. The two markers that
+#   decode to no quorum -- 0xB1 and 0x62 -- name their number in the
+#   refusal now, which is what tells that subtraction from a modulo.
+# - `taproot.parse`'s `len(data) > MAX_SCRIPT_ELEMENT_SIZE`, exercised at
+#   519, 520 and 521 rather than above the limit alone.
+# - `check_output_pubkey`'s `control[0] & 1 == Q[1] % 2`: the parity bit
+#   is flipped now on a proof that is otherwise correct, for an output
+#   key of each parity and on both the bindings and the Python path.
+#
+# `assert_nulldata`'s `length < 78` weakened to 79 is equivalent, and the
+# reason is three lines above it: `length == 78` is refused before that
+# branch is reached, and 78 is the only length at which the two differ.
+#
+# Left open: `read_op_code`'s `stop + size > len(script)` as `-` and `%`,
+# and `_serialize_int_command`'s `-1 <= command <= 16` as `~1`.
 #
 # `taproot._read_push_data`'s `i > 75` and `2 ** (i - 76)` are in the list
 # too, and they are the seven lines the test command above says it does not
