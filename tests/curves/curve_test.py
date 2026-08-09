@@ -8,6 +8,7 @@ import copy
 import itertools
 from functools import partial
 from hashlib import sha256, sha512
+from math import isqrt, sqrt
 
 import pytest
 
@@ -233,6 +234,42 @@ def test_curves_with_n_above_p() -> None:
             x_K = ec.x_aff_from_jac(mult_jac(q, ec.GJ, ec))
             assert x_K < ec.n
             assert x_K % ec.n == x_K
+
+
+def test_hasse_half_width_is_exact() -> None:
+    """The Hasse half-width is floor(2*sqrt(p)), computed as isqrt(4*p).
+
+    Two spellings are wrong and each is wrong in its own direction.
+    `int(2 * sqrt(p))` rounds p to 53 bits of mantissa first, so on a
+    256-bit p it lands one above the truncation it means and admits an n
+    Hasse excludes; `2 * isqrt(p)` truncates the root before doubling it,
+    which is the same number only when p is a perfect square and is
+    otherwise too small -- on p = 7 the three are 5, 5 and 4, and the last
+    refuses the ec7_13 curve of the low-cardinality set.
+
+    Checked against the exact arithmetic rather than against a table:
+    delta is the largest d with d*d <= 4*p, which is what isqrt answers
+    and what neither float spelling promises.
+    """
+    for ec in all_curves.values():
+        delta = isqrt(4 * ec.p)
+        assert delta * delta <= 4 * ec.p < (delta + 1) * (delta + 1)
+        # the curve was built, so its own n and cofactor satisfy what the
+        # constructor computed from this delta
+        assert ec.cofactor == (1 + delta + ec.p) // ec.n
+
+    # p = 7 is where 2*isqrt(p) and isqrt(4*p) part company, and the curve
+    # of order 13 over it -- curve_group_test's own -- is the one that
+    # would stop being buildable. weakness_check=False as that test builds
+    # it: 7^12 = 1 (mod 13) makes it MOV-weak, which is a different
+    # refusal and not the one under test here
+    assert 2 * isqrt(7) == 4
+    assert isqrt(4 * 7) == 5
+    assert Curve(7, 0, 3, (1, 2), 13, 1, False).cofactor == 1
+
+    # and secp256k1 is where the float spelling parted company with both:
+    # one too many, on the widest p this library catalogues
+    assert int(2 * sqrt(secp256k1.p)) == isqrt(4 * secp256k1.p) + 1
 
 
 def test_catalogued_curves() -> None:
