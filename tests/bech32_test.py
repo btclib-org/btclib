@@ -71,6 +71,15 @@ def test_bech32() -> None:
         with pytest.raises(BTClibValueError):  # assorted error messages
             decode(test, _BECH32_1_CONST)
 
+    # a byte outside ascii is not a str decode() ever receives from the
+    # loop above, which only ever encodes an already-valid bech32 string:
+    # nothing else exercises the UnicodeDecodeError catch this raises
+    # instead of letting fly past a caller written to catch BTClibValueError
+    with pytest.raises(BTClibValueError, match="non-ascii character in bech32 string"):
+        decode(
+            b"\xff1qqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqc8247j"
+        )
+
     invalid_checksum = [
         ["\x20" + " 1nwldj5", r"HRP character out of range: *"],
         ["\x7f" + "1axkwrx", r"HRP character out of range: *"],

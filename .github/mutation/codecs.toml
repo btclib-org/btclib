@@ -1,0 +1,49 @@
+# The checksummed codecs, mutated: base58 and bech32 with the bitcoin
+# semantics on top of them, b58 and b32. A checksum is exactly the boundary
+# mutation testing is for -- a single flipped bit has to be refused, and
+# 100% statement coverage says only that the refusal's line ran on the
+# vectors already in hand, not that every wrong checksum is caught. Beyond
+# this session's own four candidates (issue #327 sized ssa.py, utils.py,
+# fetch and the numeric validators), no profile had measured this pair of
+# pairs yet; #219's question applies here as much as to the consensus code.
+
+[cosmic-ray]
+module-path = [
+  "btclib/base58.py",
+  "btclib/bech32.py",
+  "btclib/b58.py",
+  "btclib/b32.py",
+]
+
+# each module's own test file, in the order the pair builds on the codec:
+# base58/bech32 are checksums with no bitcoin in them, b58/b32 the address
+# semantics on top -- both are named because a b58/b32 mutant can be one
+# base58/bech32 does not reach and the reverse
+test-command = """python -m pytest -x -q -n0 -p no:randomly \
+  tests/base58_test.py tests/bech32_test.py tests/b58_test.py tests/b32_test.py"""
+
+timeout = 300
+
+excluded-modules = []
+
+# 490 of the 1083 mutants sampled in 1800 s: 411 killed, 79 survived. 51
+# are the deferred-annotation class fetch.toml documents, 2 an `is`
+# CPython's small-int cache makes indistinguishable from `==`.
+#
+# One real gap, closed: `bech32._decode`'s `UnicodeDecodeError` catch for
+# a byte string outside ascii had no caller supplying one -- every bytes
+# input in the suite was `str.encode("ascii")` on an already-valid bech32
+# string, which cannot raise it.
+#
+# Most of the rest -- a dozen or so -- are `b32.convertbits`'s `max_acc`
+# mask, computed with `+`, `-`, `<<` and `-1` all replaced in turn.
+# Checked by hand rather than left assumed: applying the widest of them
+# (`+` to `*`, a mask thousands of times too large) against the full
+# bech32/b32 suite still passes every vector, because `from_bits` and
+# `to_bits` are always 5 and 8 here and `acc` never approaches even the
+# correct mask's boundary -- a defensive bound BIP173's own 5-to-8 and
+# 8-to-5 regrouping never binds. Left as found rather than given a test
+# that would only assert the mask's arithmetic, not a behaviour.
+
+[cosmic-ray.distributor]
+name = "local"
