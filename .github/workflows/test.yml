@@ -30,6 +30,11 @@ on:
       - Gemfile
       - "*.md"
   pull_request:
+    # ready_for_review, so a pull request marked ready gets the run the
+    # draft condition below withheld while it was a draft: the default
+    # types do not include it, and without it a readied pull request
+    # would wait for its next push to be checked at all
+    types: [opened, reopened, synchronize, ready_for_review]
   # allows the release workflow to reuse the whole build/test pipeline
   workflow_call:
   # the escape hatch: the matrix on demand for a branch whose pull
@@ -62,6 +67,12 @@ jobs:
   # for the ones uv has to download, and the wheel is selected for the
   # interpreter rather than for the host, so either one links
   test-py:
+    # a draft pull request is work in progress: every push to one spends
+    # the whole matrix on a tree its author is not asking anyone to
+    # review yet. The gate below carries the same condition, so a draft
+    # skips uniformly and the gate does not read that skip as a job that
+    # should have run
+    if: ${{ !github.event.pull_request.draft }}
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
@@ -140,6 +151,7 @@ jobs:
   # secret and no third party, and it applies to every run, where a
   # coveralls.io upload happens only on pull requests targeting master
   coverage-py:
+    if: ${{ !github.event.pull_request.draft }}
     runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:
@@ -182,6 +194,7 @@ jobs:
   # bindings it resolves are published: while they were not, the step
   # could only be red, for a reason nobody could fix from a branch
   dist-py:
+    if: ${{ !github.event.pull_request.draft }}
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
@@ -275,7 +288,9 @@ jobs:
     # not success(): a job whose dependencies failed is skipped, and a
     # skipped check reports "skipped", which branch protection counts as
     # satisfied. The gate has to run to be able to fail
-    if: always()
+    # and the draft condition every job above carries, so a draft
+    # skips uniformly rather than tripping the skip check below
+    if: ${{ always() && !github.event.pull_request.draft }}
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
