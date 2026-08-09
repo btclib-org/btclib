@@ -6,7 +6,7 @@
 
 **The arithmetic.** btclib.curves holds the elliptic curve itself: the field
 and group operations of `curve_group`, the `Curve` built on them, the
-catalogued curves (secp256k1 among 26 others), and the SEC encoding of a
+catalogued curves (secp256k1 among them), and the SEC encoding of a
 point. Nothing here knows what a signature is.
 
 What is built *on* a curve lives in btclib.ecc -- dsa, ssa, bms, borromean,
