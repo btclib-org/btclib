@@ -1062,6 +1062,20 @@ documented at release-notes length in the first place, and are still in
   the `Psbt.b64decode` defect above. `bip322.Sig` has no binary entry
   point to add, its three payloads being told apart by the prefix of the
   text form alone.
+- **`ScriptWallet`'s key orders are asserted over a quorum that has an
+  order to assert** (#561), which is the one gap `wallet.toml` left open.
+  `_account_sec` reads the key of the `(key, network)` pair
+  `pub_keyinfo_from_key` answers, and reading the network instead --
+  which every participant of a wallet shares, so the sort becomes a
+  no-op -- was unnoticed. Not because nothing built a wallet with
+  `order="account"`: because the three accounts it was built from were
+  declared in the byte order of their own account keys, and over a quorum
+  already sorted every sort writes the script no sort writes. The three
+  accounts are declared in an order that is none of the four the module
+  reaches now -- the account keys', their case-folded xpubs', the derived
+  keys' at a position, and the private keys' -- and each of the four is
+  asserted to be the one the script carries, the last of them being what
+  says an xprv quorum and its xpub quorum are one wallet.
 
 ## v2026.8.7
 
