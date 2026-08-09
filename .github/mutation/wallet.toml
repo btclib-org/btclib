@@ -99,6 +99,7 @@ exclude-operators = ["core/ReplaceBinaryOperator_BitOr_.*"]
 # `pub_keyinfo_from_key(xkey)[0]` weakened to `[-1]` -- the network beside
 # the key -- survives because nothing builds a `ScriptWallet` with
 # `order="account"`, the one ordering that sorts participants by it.
+# Issue #561.
 
 # one mutant at a time, in this working tree: see sig_hash.toml
 [cosmic-ray.distributor]

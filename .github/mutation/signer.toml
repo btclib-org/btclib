@@ -52,30 +52,48 @@ exclude-operators = ["core/ReplaceBinaryOperator_BitOr_.*"]
 # and it finished while four others shared the machine: 236 killed, 66
 # survived, 21.85%.
 #
-# 46 of the 66 are in `psbt_signer_contract.py`, which is worth stating
+# 46 of the 66 were in `psbt_signer_contract.py`, which is worth stating
 # plainly because it is the file whose whole job is refusing a signer that
 # does not conform. Its checks do fire: tests/psbt_signer_contract_test.py
-# builds a signer to break each one, and that is what kills 121 of its
-# 167 mutants. What survives is the arithmetic inside them --
-# `len(answered_in.partial_sigs) - len(psbt_in.partial_sigs)` with `|`,
-# `^`, `+`, `<<` or `>>` for the `-`, the same across the taproot
-# signature counts, and `_check_fingerprint`'s and `_check_xpub`'s `!=`
-# weakened to `>` -- so a check could be laxer than it reads and every
-# fixture in that file would still pass it. A signer conforming to a
-# weakened contract is the failure this scope exists to ask about.
+# builds a signer to break each one, and that is what killed 121 of its
+# 167 mutants. What survived was the arithmetic inside them, so a check
+# could have been laxer than it reads with every fixture in that file
+# still passing it -- and a signer conforming to a weakened contract is
+# the failure this scope exists to ask about.
 #
-# The rest:
+# What closed it, measured one mutant at a time:
 #
-# - `unsignable_psbt`'s own numbers, which are the fixture it builds: the
-#   9000-satoshi output, the version, the outpoint index, the flipped
-#   fingerprint byte. Equivalent, and worth saying so once: what makes
-#   that psbt unsignable is the key it pays to, not the amount, so these
-#   are the one class here that no test should chase.
-# - `PsbtSigner.display_address`'s `index: int = 0` default, mutated in
-#   both directions across the class and its two implementations -- the
-#   same undefended-default class wallet.toml measures.
-# - `merge_devices`' `break` turned into `continue`, and `_at`'s
-#   `indexes[:len(path)] == path` weakened to `>=`.
+# - `_check_signable`'s `len(answered_in.partial_sigs) -
+#   len(psbt_in.partial_sigs)`, where `|`, `+`, `<<` and `>>` all agree
+#   with the `-` as long as the psbt arrives with no signatures in it:
+#   `1 - 0` is `1 | 0` is `1 + 0`. A 3-of-3 the reference signer holds one
+#   key of, two of the three signed before it is called, is what tells
+#   them apart -- the sum is then 3 against 2, and an idle signer over the
+#   same psbt gives 2 against 2, which is the case `|` reads as one
+#   signature added. `^` is left, and is equivalent: `a ^ b` is zero
+#   exactly when `a == b`, which for the reachable `a >= b` is the same
+#   answer `a - b > 0` gives.
+# - `_check_fingerprint`'s width, tested long and never short, and its
+#   drift check and `_check_xpub`'s, each tested with a second answer
+#   sorting above the first only: a signer drifting downwards closes both.
+# - `display_address`'s comparison, tested with a lie sorting above the
+#   truth; one on each side of it now, and the `index: int = 0` default of
+#   the function and of `SoftwareSigner`'s own method -- the
+#   undefended-default class wallet.toml measures.
+# - `_at`'s `indexes[:len(path)] == path` weakened to `>=`, and
+#   `_prv_key`'s `origin.master_fingerprint != self._fingerprint` to `>`:
+#   a path and a fingerprint sorting *above* what the signer holds close
+#   the direction the fixtures were missing.
+#
+# Two classes are left, and both are equivalent by construction:
+#
+# - `unsignable_psbt`'s own numbers -- the 9000-satoshi output, the
+#   version, the outpoint index, the flipped fingerprint byte -- which are
+#   the fixture it builds: what makes that psbt unsignable is the key it
+#   pays to, so no test should chase them.
+# - the `AddressDisplay` protocol's declared `index: int = 0`, which is a
+#   Protocol member and never called: the implementations' own defaults
+#   are the ones a caller reaches, and those are asserted above.
 
 # one mutant at a time, in this working tree: see sig_hash.toml
 [cosmic-ray.distributor]
