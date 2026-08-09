@@ -736,6 +736,14 @@ documented at release-notes length in the first place, and are still in
   curve, another hash function or a caller's own nonce takes the Python
   path. Both places link the detailed text rather than restating it, so
   there is one canonical answer and two ways to reach it.
+- **The `btclib.curves` docstring no longer counts the catalogue**, where
+  secp256k1 was "among 26 others". The number is spread over the four
+  catalogue files under `curves/_data`, so a reader cannot check it where
+  it is written, and a curve added to any of them makes it wrong without
+  failing anything. The sentence loses nothing by dropping it: it names
+  the curve nearly every caller wants and says the catalogue holds more,
+  which is what a reader arriving at the package needs. Counting is what
+  a release does, when it wants the number.
 
 ### Tests
 
