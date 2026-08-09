@@ -10,6 +10,17 @@ the pairing -- the three ways the chains get their labels, and the
 refusals a chain cannot be built from -- and about the delegation being
 the descriptor's own answer at the position asked for, rather than a
 second implementation of it.
+
+The last four are about one output type rather than about the class, and
+they are here because the answer to "does btclib need a taproot wallet" is
+this file: a ``tr()`` with a script tree is the shape that makes a
+`ScriptWallet` necessary for p2wsh -- two spending paths behind one
+address, one of them timelocked -- and as a descriptor it needs no
+template. What they pin is the whole of what that costs a caller: the
+addresses of both chains, the tree being inside the output key,
+`redeem_script` and `witness_script` answering `b""` because a p2tr output
+has neither, and BIP371's psbt fields carrying the leaf scripts and the
+tree in their place.
 """
 
 from __future__ import annotations
@@ -17,14 +28,22 @@ from __future__ import annotations
 import pytest
 
 from btclib.bip32 import bip32
-from btclib.descriptors import add_checksum, parse
+from btclib.descriptors import (
+    Miniscript,
+    MultiA,
+    TrDescriptor,
+    add_checksum,
+    parse,
+)
 from btclib.exceptions import BTClibTypeError, BTClibValueError
 from btclib.psbt.psbt import Psbt
+from btclib.script import script
 from btclib.script.script_pub_key import ScriptPubKey
 from btclib.tx.out_point import OutPoint
 from btclib.tx.tx import Tx
 from btclib.tx.tx_in import TxIn
 from btclib.tx.tx_out import TxOut
+from btclib.utils import encode_num
 from btclib.wallet import BIP32KeyWallet, DescriptorWallet
 
 # the "abandon abandon ... about" seed and its BIP84 account, which is the
@@ -305,3 +324,172 @@ def test_the_updaters_take_a_position_where_a_descriptor_takes_an_index() -> Non
     for method in (wallet.update_psbt_input, wallet.update_psbt_output):
         with pytest.raises(BTClibValueError, match="invalid branch: 2"):
             method(psbt, 0, 2, 2)
+
+
+# A taproot wallet of the same seed: an internal key that spends by the key
+# path, and a script tree of two leaves -- a 2-of-2 that spends now, and a
+# 2-of-2 that spends after a relative timelock. Five accounts of one seed,
+# each key carrying its own origin, which is what a hardware signer reads.
+_TAPROOT_ACCOUNTS = [f"m/86h/0h/{i}h" for i in range(5)]
+_TAPROOT_XPUBS = [
+    "xpub6BgBgsespWvERF3LHQu6CnqdvfEvtMcQjYrcRzx53QJjSxarj2afYWcLteoGVky7D3UKDP9QyrLprQ3VCECoY49yfdDEHGCtMMj92pReUsQ",
+    "xpub6BgBgsespWvEUBtu8NPpew4suu4JeuYz1ryQBqRKYk6BCN4p6nugJwXyBFjwPS93FTP4Rvkgqzhoy4ZysXh6f6jPWrjwbtG5PBzqPJghDkT",
+    "xpub6BgBgsespWvEUNQvZj72AxG29hVzAPMDoKvBra591gqt3cLWTZx3y94qLb3tcT45XdxMjocQLz9M8zv2UtQdG7Tk8FXx4JdB4PRfoTfDcd5",
+    "xpub6BgBgsespWvEWvvEW19QjiCZRXgy8ScjDH26BRXm2c4DRmt5apjJ1FyjQM6KzWajnXKwkERUzZ7BqC8evgb8LPsANycnVktLoFrXqjwQy7y",
+    "xpub6BgBgsespWvEbyJV7d8VrTwxGSQpacvMT41jPU94mnuYF2DoxYgZ3kXyuthB2PibVsPQBxAxe3pVRkTki6qkyLJQc66g9F4jE7ZiJeVDuNU",
+]
+
+# 36 days, the timelock the wallet of #538 puts on its recovery path: the
+# same design one output type further on
+_RECOVERY_BLOCKS = 5184
+
+# the first three addresses of each chain, as a regression net. The
+# authority on taproot arithmetic is elsewhere -- BIP386 and BIP387's own
+# vectors, in tests/descriptors/ -- and what these pin is that the wallet
+# goes on composing it the same way at the same positions
+_TAPROOT_ADDRESSES = {
+    0: [
+        "bc1pmxg54dnfx29hqud65z0scndw3ht75zsact939tjsfnwrqkn8wytsz2zcv2",
+        "bc1p4866xnzdfrpf3gj0z8ym6u65s2jy9wxr5prqenrf5dtxemu4fs0qfgwmnh",
+        "bc1pjdkna238d0egvedjtnhcxfk374tqjs2xf5sj86uajc6hsdw6yvmq2ec5yr",
+    ],
+    1: [
+        "bc1pkygfwanlq4nppwclxr3uhtca84xt9hpq78wl5ynh2x0ccr48q35qupxhrj",
+        "bc1p7m2rq2cs2g3rwsau7w55e3l098hytvdem45w2svfwd2lew7fredsr3jf7q",
+        "bc1plj2d9x7tw80kk8nap6y3kg7gvvfah2eqs3lr4zh4x6jyg423gs6qqx735c",
+    ],
+}
+
+
+def _taproot_key(i: int, step: str) -> str:
+    """Return the i-th key expression, at a derivation step of its own."""
+    return f"[{_FINGERPRINT}/86h/0h/{i}h]{_TAPROOT_XPUBS[i]}/{step}/*"
+
+
+def _taproot_descriptor(step: str) -> str:
+    """Return the ``tr()`` of the wallet, at one derivation step.
+
+    `<0;1>` for the wallet of both chains, and `0` or `1` for the chain
+    written on its own, which is what the multipath expansion is checked
+    against below.
+    """
+    return _descriptor(
+        f"tr({_taproot_key(0, step)},"
+        f"{{multi_a(2,{_taproot_key(1, step)},{_taproot_key(2, step)}),"
+        f"and_v(v:older({_RECOVERY_BLOCKS}),"
+        f"multi_a(2,{_taproot_key(3, step)},{_taproot_key(4, step)}))}})"
+    )
+
+
+def _taproot_wallet() -> DescriptorWallet:
+    """Return that wallet, both chains, from the one multipath line."""
+    return DescriptorWallet.from_descriptor(_taproot_descriptor("<0;1>"))
+
+
+def test_a_taproot_tree_is_a_wallet_with_nothing_added() -> None:
+    """The output type `ScriptWallet` does not cover, because this does.
+
+    A ``tr()`` with a script tree is a wallet of the shape that makes a
+    `ScriptWallet` necessary for p2wsh -- two spending paths behind one
+    address, one of them timelocked -- and here it is a descriptor, so it
+    is a `DescriptorWallet` and needs no template: the addresses, the
+    chains and `position_of` come out of the same three methods every
+    other wallet answers.
+    """
+    wallet = _taproot_wallet()
+    assert wallet.script_type == "p2tr"
+    assert wallet.branches == (0, 1)
+    assert wallet.is_ranged
+    assert wallet.is_watch_only
+
+    for branch, addresses in _TAPROOT_ADDRESSES.items():
+        assert [
+            wallet.address(branch, index) for index in range(len(addresses))
+        ] == addresses
+        # and the branch is the label of a chain, so it is the chain that
+        # descriptor states on its own: the BIP389 expansion is positional
+        single = parse(_taproot_descriptor(str(branch)))
+        assert [single.address(index) for index in range(len(addresses))] == addresses
+
+
+def test_the_leaves_are_in_the_output_key_and_reachable() -> None:
+    """A tree changes the address, and the wallet hands the tree back.
+
+    The first half is what makes `position_of` an answer about the whole
+    wallet: an output key commits to the merkle root, so the same internal
+    key with another tree is another address, and recognizing one's own
+    output is recognizing the tree too.
+
+    The second is where the vocabulary stops on purpose --
+    `descriptor(branch)` is what a caller reads the leaves off, this class
+    asking only the questions every wallet answers.
+    """
+    wallet = _taproot_wallet()
+    key_path_only = parse(_descriptor(f"tr({_taproot_key(0, '0')})"))
+    assert key_path_only.address() != wallet.address(0, 0)
+
+    descriptor = wallet.descriptor(0)
+    assert isinstance(descriptor, TrDescriptor)
+    # a branch of two leaves, and not one leaf: `DescriptorTree` is either
+    # a leaf, a pair of subtrees, or nothing at all
+    tree = descriptor.tree
+    assert isinstance(tree, tuple)
+    assert isinstance(tree[0], MultiA)
+    assert isinstance(tree[1], Miniscript)
+    assert wallet.position_of(wallet.address(1, 2), 3) == (1, 2)
+
+
+def test_a_taproot_wallet_has_neither_pre_image_of_a_v0_output() -> None:
+    """`redeem_script` and `witness_script` are `b""`, and that is honest.
+
+    They are BIP174's two version-0 fields, and a p2tr output has neither:
+    what it commits to is a merkle root over leaves, each with its own
+    control block. The psbt is where those travel, which is the test
+    below, and `b""` here is "no such script" rather than "not
+    implemented" -- the same answer a native p2wsh gives to
+    `redeem_script`.
+    """
+    wallet = _taproot_wallet()
+    for branch in (0, 1):
+        assert not wallet.redeem_script(branch, 2)
+        assert not wallet.witness_script(branch, 2)
+
+
+def test_the_psbt_carries_what_the_two_pre_images_cannot() -> None:
+    """BIP371's fields, filled by the descriptor at the wallet's position.
+
+    The output half publishes the internal key and the whole tree, which
+    is what lets a reader rebuild the output key and see that the money
+    comes back; the input half publishes the leaf scripts and the merkle
+    root, which is what a signer of one leaf needs. Both come from
+    `Descriptor`, and what the wallet adds is that the position they are
+    asked at is a `(branch, index)`.
+    """
+    wallet = _taproot_wallet()
+    script_pub_key = wallet.script_pub_key(1, 2)
+    psbt = _psbt_spending(script_pub_key)
+
+    psbt_out = wallet.update_psbt_output(psbt, 0, 1, 2).outputs[0]
+    assert psbt_out.taproot_internal_key
+    assert len(psbt_out.taproot_tree) == 2
+    # one origin per key of the wallet, the internal one included: it is
+    # what a hardware signer matches its own fingerprint against
+    assert len(psbt_out.taproot_hd_key_paths) == len(_TAPROOT_XPUBS)
+
+    psbt_in = wallet.update_psbt_input(psbt, 0, 1, 2).inputs[0]
+    assert psbt_in.taproot_internal_key == psbt_out.taproot_internal_key
+    assert psbt_in.taproot_merkle_root
+    # keyed by control block, and each value is the leaf script with its
+    # version: 0xc0 is the tapscript BIP342 defines, and the only one a
+    # descriptor can name
+    assert len(psbt_in.taproot_leaf_scripts) == 2
+    leaves = list(psbt_in.taproot_leaf_scripts.values())
+    assert {version for _, version in leaves} == {0xC0}
+    # and the timelocked leaf is there as the script it compiles to, which
+    # is the pre-image the recovery path is spent with -- with the OP_VERIFY
+    # that and_v(v:older(n),X) emits, and not the OP_DROP the wallet of #538
+    # writes by hand, which is why that one has no descriptor at all
+    timelock = script.serialize(
+        [encode_num(_RECOVERY_BLOCKS).hex(), "OP_CHECKSEQUENCEVERIFY", "OP_VERIFY"]
+    )
+    assert sum(leaf_script.startswith(timelock) for leaf_script, _ in leaves) == 1
