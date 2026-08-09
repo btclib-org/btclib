@@ -40,11 +40,51 @@ excluded-modules = []
 #   another here -- what a caller can assert is that the result lands in
 #   range, which every operator that survived still does most draws.
 #
-# check_validity defaults account for another block (`serialize`,
-# `b64encode`, `b64decode` each carry one), the same class parsers.toml's
-# highest-yield follow-up already names. The remainder is comparison
-# operators scattered across the address-type dispatch in `assert_as_valid`
-# and its helpers, each needing its own vector; sampled as data here.
+# A second pass worked through the address-type dispatch and the
+# check_validity/lower_s defaults this file's first pass sampled rather
+# than chased, closing the rest of the real gaps:
+#
+# - `_assert_p2pkh`/`_assert_p2wpkh`/`_assert_p2wpkh_p2sh`'s recovery-
+#   flag ranges were each pinned by a single vector -- 39 for p2pkh, 35
+#   for p2wpkh -- which only ever moves one side of a range that has
+#   two boundaries apiece. Swept 27..42 against all three directly
+#   (bypassing `assert_as_valid`'s own recovery, which does not find a
+#   point for every `rf`/signature pair and is a fact about elliptic-
+#   curve recovery rather than about the range check) with a wrong key
+#   and a real address: every valid `rf` fails on the address, every
+#   invalid one on the flag itself, so a boundary moved either way shows.
+# - `Sig.assert_valid`'s own `self.rf > 42` was tested at 26 below the
+#   range and never at 42, the upper boundary itself.
+# - the four hash/signature comparisons (`!=` weakened to `<` or `>`)
+#   guarding p2wpkh, p2wpkh-p2sh and the base64 canonical check were each
+#   tested with a mismatch that happens to sort the wrong way for `<`/`>`
+#   to also catch; sorting the other way is what a real forged key or a
+#   non-canonical encoding is not guaranteed to do.
+# - `_assert_p2wpkh`'s `wit_ver != 0` weakened to `< 0` survived because
+#   wit_ver is never negative; a *non-zero* version paired with a
+#   20-byte program -- valid for no other witness type -- is what a
+#   version-0-only length check cannot rule out on its own.
+# - check_validity defaults on `serialize`, `b64encode` and `parse` had
+#   no test building an invalid `Sig` and calling any of the three at
+#   their default; `assert_as_valid`'s and `verify`'s `lower_s` default
+#   had no test relying on it instead of passing the keyword.
+#
+# Checked and left equivalent: `script_type == "p2pkh"` against `<=`,
+# `p2sh` being the only other value and always sorting after `p2pkh`;
+# `Sig.parse`'s `len(sig_bin) != 65` against `<`, `stream.read(65)`
+# never returning more than 65 bytes to begin with; `_assert_p2wpkh`'s
+# `len(h160) != 20` against `>`, wit_ver 0 restricted upstream to
+# exactly 20 or 32 bytes, both already caught by `> 20`; the base64
+# decode's own `validate=True` against `False`, undone by the re-encode
+# comparison the line right after it already makes; and
+# `_libsecp256k1_applicable`'s branch negated, both paths already held
+# to the same answer by `test_the_python_path_answers_the_same`.
+#
+# One survivor left open: `compressed = sig.rf > 30` needs `rf == 30`
+# exactly to move, which needs key_id 3 -- the recovery id secp256k1
+# assigns when a nonce's x-coordinate lands past the group order,
+# probability on the order of (p-n)/p, roughly 2^-128. Not constructible
+# without a synthetic (r, s) built to force it, which was not attempted.
 
 [cosmic-ray.distributor]
 name = "local"
