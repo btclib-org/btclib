@@ -1,0 +1,170 @@
+---
+name: integration
+
+# The suite's one part that needs a program this repository does not ship.
+# `tests/integration/` skips itself without BTCLIB_INTEGRATION, so every
+# other workflow reports those tests skipped and nothing ever asks a real
+# node whether btclib's psbt is one it will relay. This is where that
+# question is asked: a disposable regtest bitcoind, the account export,
+# the funding, the spend and the broadcast, against Core itself.
+#
+# It gates nothing, for the reason links.yml gates nothing and the
+# mutation workflow gates nothing: what it can go red on is a release of
+# Bitcoin Core, an unreachable bitcoincore.org or a runner slow enough to
+# miss the node's startup timeout, and none of those is the branch's
+# fault. It therefore does not appear in master's required checks, and
+# must not -- that rule lives outside the repository and names its checks
+# as literal strings.
+#
+# The HWI half of `tests/integration/` does not run here and skips with
+# its reason: it needs a device to press a button on, or an emulator to
+# stand in for one, which is a service to pin and keep working rather
+# than a tarball to download. Issue #529 is where that is decided; what
+# runs against the actual HWI command line meanwhile is tests/hwi_test.py,
+# whose stand-in device is a subprocess answering HWI's own json.
+
+on:
+  schedule:
+    # Fridays, 04:29 UTC. Not on the hour: GitHub queues scheduled
+    # workflows across every repository that asked for the same minute,
+    # and the run can be dropped outright when the queue is long.
+    # After the four weekday sentinels -- links Monday, published
+    # Tuesday, latest Wednesday, Dependabot Thursday -- and before the
+    # mutation session that has the weekend, so each of the week's
+    # unattended questions is answered on a day of its own and a failure
+    # notification names the workflow by the day it arrived.
+    # Cron runs from the default branch only, so this file asks nothing
+    # until it reaches master -- on dev it is reachable through the
+    # dispatch button below and nowhere else
+    - cron: "29 4 * * 5"
+  # the escape hatch, and the way to ask a node about a branch that
+  # touches the psbt or the descriptor path before merging it
+  workflow_dispatch:
+  # so a change to the tests this runs, or to this file, is checked by the
+  # thing it configures -- links.yml does the same for its ignore list.
+  # As there, the filter is evaluated against the pull request's whole
+  # diff against its base rather than against the push that triggered the
+  # run, so once a pull request touches one of these every later push to
+  # that branch runs this too
+  pull_request:
+    paths:
+      - .github/workflows/integration.yml
+      - tests/integration/**
+
+# least privilege for the GITHUB_TOKEN: nothing here writes, and the
+# tarball is fetched from bitcoincore.org, which does not know this token
+permissions:
+  contents: read
+
+# cancel superseded runs. Named literally rather than through
+# github.workflow, as everywhere else here: in a called workflow that
+# expression is the caller's name
+concurrency:
+  group: integration-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  regtest:
+    name: Regtest against Bitcoin Core
+    runs-on: ubuntu-latest
+    # the whole flow is seconds -- two tests, a node that answers its
+    # first rpc call in well under a second, and a chain of a few blocks
+    # -- so this bounds the download and the failure cases rather than
+    # the work
+    timeout-minutes: 20
+    env:
+      # the release under test, and the sha256 of its linux tarball as
+      # four independent guix builders attested it in
+      # bitcoin-core/guix.sigs. Pinned rather than resolved to "latest":
+      # a run that installs whatever is newest reports the day Core
+      # released rather than the day btclib changed, and the version that
+      # answered is then unknowable from a green run. Raising it is a
+      # commit, with the new sha read from the same place
+      BITCOIND_VERSION: "31.1"
+      BITCOIND_SHA256: >-
+        b80d9c3e04da78fb6f0569685673418cf686fadba9042d926d13fb87ff503f9e
+    steps:
+      # every action is pinned to a commit SHA, the tag in the comment: a
+      # tag, let alone a branch, is a name its owner can move
+      - name: Checkout code
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          # see the checkout of the test-py job in test.yml
+          persist-credentials: false
+      - name: Setup uv
+        uses: astral-sh/setup-uv@c771a70e6277c0a99b617c7a806ffedaca235ff9 # v9.0.0
+        with:
+          # the wheels uv.lock pins do not change between runs, so the
+          # cache is the difference between a download and a copy
+          enable-cache: true
+      # the release tarball rather than a package or a third-party action:
+      # ubuntu's archive carries no bitcoind, and an action would be a
+      # fourth party between this job and a binary whose checksum is
+      # published and attested. --fail so an html error page is not
+      # unpacked as a tarball, and the checksum before the unpacking, not
+      # after
+      - name: Install bitcoind
+        run: |
+          base="https://bitcoincore.org/bin/bitcoin-core-$BITCOIND_VERSION"
+          tarball="bitcoin-$BITCOIND_VERSION-x86_64-linux-gnu.tar.gz"
+          curl --fail --silent --show-error --location --retry 3 \
+            --output "$tarball" "$base/$tarball"
+          echo "$BITCOIND_SHA256  $tarball" | sha256sum --check --strict
+          # the daemon alone: the tarball carries the cli, the wallet tool
+          # and the gui's libraries, and the tests speak rpc
+          tar -xzf "$tarball" "bitcoin-$BITCOIND_VERSION/bin/bitcoind"
+          echo "BTCLIB_BITCOIND=$PWD/bitcoin-$BITCOIND_VERSION/bin/bitcoind" \
+            >> "$GITHUB_ENV"
+      # what answered, in the log of the run that used it: a green run
+      # whose node version is only in this file is one nobody can date,
+      # and the version string carries the build the sha256 above pinned
+      - name: Record the node version
+        run: |
+          "$BTCLIB_BITCOIND" -version | head -n 1
+      # the same command tests/README.md documents, with the binary named
+      # rather than found on PATH. The junit report is for the step below,
+      # the run itself being read from the log
+      - name: Run the integration tests
+        env:
+          BTCLIB_INTEGRATION: "1"
+        run: |
+          uv run --locked --no-default-groups --group test \
+            pytest tests/integration --junitxml=integration.xml
+      # a skip is not a failure, and that is exactly why this step is
+      # here: pytest exits 0 for a module that skipped itself, so a job
+      # whose fixture stopped finding the node would stay green while
+      # asking Core nothing -- the failure mode of an unattended run that
+      # looks like good news. The hwi tests skip here by design and are
+      # not counted; the regtest ones have a node, so a skip among them
+      # means a prerequisite this job thought it had provided
+      - name: Fail if the node tests did not run
+        run: |
+          uv run --locked --no-default-groups --group test python - <<'PY'
+          import sys
+          import xml.etree.ElementTree as ET
+
+          cases = ET.parse("integration.xml").getroot().iter("testcase")
+          ran = [one for one in cases
+                 if "regtest" in one.get("classname", "")]
+          skipped = [one for one in ran if one.find("skipped") is not None]
+          for one in skipped:
+              reason = one.find("skipped").get("message", "")
+              print(f"::error::{one.get('name')} skipped: {reason}")
+          if not ran or skipped:
+              print(f"::error::{len(ran)} regtest tests, {len(skipped)} skipped")
+              sys.exit(1)
+          print(f"{len(ran)} regtest tests ran against the node")
+          PY
+      # always(), because a failure is what somebody reads on Friday and
+      # the report is what says whether the node refused the transaction
+      # or the test never reached it
+      - name: Upload the report
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: integration-report
+          path: integration.xml
+          if-no-files-found: error
+          # long enough to compare a run with the one before it, short
+          # enough that a weekly job does not accumulate a year of xml
+          retention-days: 90

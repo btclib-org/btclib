@@ -419,6 +419,19 @@ documented at release-notes length in the first place, and are still in
 
 ### Packaging, linting and CI
 
+- **The regtest integration tests now run unattended** (#524), in an
+  `integration` workflow that is weekly, dispatchable, and triggered by a
+  pull request touching `tests/integration/` or the workflow itself. It
+  downloads a pinned Bitcoin Core release, checks it against the sha256
+  four guix builders attested, and runs the flow the ordinary suite skips:
+  btclib exports an account, Core imports it and pays it, btclib signs the
+  spend and the node relays it. Two things it does not do: gate a merge --
+  a Core release or an unreachable download is not a branch's fault -- and
+  trust a green exit, a step after the run failing the job if a regtest
+  test skipped rather than ran, which is how a fixture that stopped
+  finding the node would otherwise report success. The HWI half needs a
+  device or an emulator and skips there with its reason; #529 is where
+  that is decided.
 - **RELEASING.md says what `griffe check` actually reports**: breakage
   alone, and never an addition, where the paragraph promised "every
   difference" -- so every line it prints wants a HISTORY.md entry, and the

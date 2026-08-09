@@ -70,6 +70,12 @@ says where it omits them: the ratchet measures what an ordinary run
 executes, and a body that skips itself would be an uncovered line at
 every commit rather than a defect.
 
+The regtest flow does run unattended: the `integration` workflow
+downloads a pinned Core release weekly and on demand, and fails if a
+regtest test skipped rather than ran. The HWI half does not — a device
+or an emulator is a thing to keep working rather than a tarball to
+download, which is issue #529.
+
 ## There is no `slow` marker, and that is a measurement
 
 `addopts` in pyproject.toml passes `--strict-markers`, so a marker has to
