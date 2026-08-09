@@ -18,6 +18,7 @@ from btclib.block.block_header import BlockHeader
 from btclib.block.limits import (
     MAX_BLOCK_SIGOPS_COST,
     MAX_BLOCK_WEIGHT,
+    MIN_SERIALIZABLE_TRANSACTION_WEIGHT,
     WITNESS_SCALE_FACTOR,
 )
 from btclib.block.proof_of_work import MAINNET_POW_LIMIT_BITS
@@ -550,7 +551,16 @@ class Block:
         """Return a Block by parsing binary data."""
         stream = bytesio_from_binarydata(data)
         header = BlockHeader.parse(stream, check_validity=check_validity)
-        n = var_int.parse(stream)
+        # bounded by what this block could hold rather than by var_int's
+        # own MAX_SIZE, which would let nine octets ask for 33 million
+        # transactions before a byte of the first one is read (issue #569).
+        # MIN_SERIALIZABLE_TRANSACTION_WEIGHT and not the
+        # MIN_TRANSACTION_WEIGHT beside it: what is being allocated for is
+        # a transaction that deserializes, which is Core's own distinction
+        # between the two names
+        n = var_int.parse(
+            stream, MAX_BLOCK_WEIGHT // MIN_SERIALIZABLE_TRANSACTION_WEIGHT
+        )
         transactions = [
             Tx.parse(stream, check_validity=check_validity) for _ in range(n)
         ]

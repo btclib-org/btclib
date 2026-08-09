@@ -13,8 +13,9 @@ from typing import Any
 
 import pytest
 
-from btclib import var_bytes
+from btclib import var_bytes, var_int
 from btclib.bip32 import BIP32KeyOrigin
+from btclib.block.limits import MAX_TX_IN_COUNT, MAX_TX_OUT_COUNT
 from btclib.curves import sec_point
 from btclib.ecc import dsa, ssa
 from btclib.exceptions import BTClibValueError
@@ -4330,3 +4331,50 @@ def test_b64decode_refuses_a_string_base64_cannot_read(psbt_str: str) -> None:
     """
     with pytest.raises(BTClibValueError, match="invalid base64 encoding"):
         Psbt.b64decode(psbt_str)
+
+
+def _psbt_v2_declaring(input_count: int, output_count: int) -> bytes:
+    """Return a PSBTv2 whose global map declares those two counts.
+
+    The maps themselves are not written: what is under test is the count
+    being believed, and the point of the check is that it is refused
+    before anything is allocated for what the count promised.
+    """
+
+    def count_field(type_: int, count: int) -> bytes:
+        value = var_int.serialize(count)
+        return bytes([1, type_, len(value)]) + value
+
+    global_map = (
+        bytes([1, 0xFB, 4])
+        + (2).to_bytes(4, "little")  # PSBT_GLOBAL_VERSION
+        + bytes([1, 0x02, 4])
+        + (2).to_bytes(4, "little")  # PSBT_GLOBAL_TX_VERSION
+        + count_field(0x04, input_count)
+        + count_field(0x05, output_count)
+        + b"\x00"
+    )
+    return b"psbt\xff" + global_map
+
+
+def test_a_declared_map_count_is_bounded_before_it_is_allocated_for() -> None:
+    """A count no transaction could have is refused, not believed (issue 569).
+
+    A PSBT's maps are a transaction's inputs and outputs, so a count
+    above what a block has room for describes no transaction at all --
+    `MAX_TX_IN_COUNT` and `MAX_TX_OUT_COUNT` in `btclib.block.limits`.
+    Believing one costs an object per declared map before the first is
+    read: an empty input map is a single octet on the wire and a dozen
+    fields in memory, which is the amplification the check exists to
+    refuse. Measured on the issue's own reproducer, a PSBTv2 declaring
+    100,000 empty input maps in about 100 KB: 125 MB of peak allocation
+    before, 0.1 MB now.
+
+    Both counts are checked because each names itself in the refusal,
+    which is what a caller reads to know which of the two was wrong.
+    """
+    with pytest.raises(BTClibValueError, match="too many input maps"):
+        Psbt.parse(_psbt_v2_declaring(MAX_TX_IN_COUNT + 1, 0))
+
+    with pytest.raises(BTClibValueError, match="too many output maps"):
+        Psbt.parse(_psbt_v2_declaring(0, MAX_TX_OUT_COUNT + 1))

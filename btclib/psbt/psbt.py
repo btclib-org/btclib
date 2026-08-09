@@ -42,6 +42,7 @@ from btclib.bip32 import (
     decode_hd_key_paths,
     encode_to_bip32_derivs,
 )
+from btclib.block.limits import MAX_TX_IN_COUNT, MAX_TX_OUT_COUNT
 from btclib.ecc import dsa, ssa
 from btclib.exceptions import BTClibValueError
 from btclib.hashes import hash160, sha256
@@ -178,6 +179,21 @@ HAS_SIG_HASH_SINGLE = 0b0000_0100
 # spells out: "if omitted, the sequence number is assumed to be the final
 # sequence number"
 _FINAL_SEQUENCE = 0xFFFFFFFF
+
+
+def _assert_map_count(count: int, maximum: int, what: str) -> None:
+    """Refuse a declared map count no transaction could have.
+
+    `btclib.tx.limits` is where the two bounds come from and why: a PSBT's
+    maps are a transaction's inputs and outputs, so the count that would
+    not fit in a block does not fit here either. What this buys over
+    finding out later is the allocation: an empty input map is one octet
+    on the wire and an object with a dozen fields in memory, so a count
+    believed is that amplification paid before the first map is read.
+    """
+    if count > maximum:
+        err_msg = f"too many {what} maps: {count}, max is {maximum}"
+        raise BTClibValueError(err_msg)
 
 
 def _global_version(global_map: Mapping[bytes, bytes]) -> int:
@@ -1127,6 +1143,16 @@ class Psbt:
         _settle_globals(tx, globals_, version)
         input_count = cast(int, globals_["input_count"])
         output_count = cast(int, globals_["output_count"])
+
+        # what a PSBT's maps describe are a transaction's inputs and
+        # outputs, so what bounds them is what bounds those: a count above
+        # it names a transaction no block has room for, and believing it
+        # is a map object allocated per declared input before a byte of
+        # the first one is read (issue #569). Checked here rather than in
+        # deserialize_count, which reads both counts and so could not say
+        # which one it was refusing
+        _assert_map_count(input_count, MAX_TX_IN_COUNT, "input")
+        _assert_map_count(output_count, MAX_TX_OUT_COUNT, "output")
 
         inputs = [
             PsbtIn.parse(stream, psbt_version=version) for _ in range(input_count)
