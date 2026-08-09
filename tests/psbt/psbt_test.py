@@ -1375,6 +1375,103 @@ def test_global_unknown() -> None:
     assert Psbt.b64decode(psbt.b64encode()) == psbt
 
 
+def _one_input_psbt() -> Psbt:
+    """Return the smallest psbt these tests need: one input, one output."""
+    tx_in = TxIn(OutPoint(bytes(range(32)), 1), b"", 0xFFFFFFFF)
+    tx_out = TxOut(2500000, "a914f987c321394968be164053d352fc49763b2be55c87")
+    return Psbt.from_tx(Tx(1, 0, [tx_in], [tx_out]))
+
+
+@pytest.mark.parametrize("message", [b"hello world", b"", "öäü \U0001f604".encode()])
+def test_the_signed_message_round_trips_in_both_versions(message: bytes) -> None:
+    """BIP322's global field, a field now rather than an unknown key.
+
+    "Versions allowing inclusion: 0, 2" is what keeps it out of the
+    BIP370 table beside it, and is what the two halves below are: the
+    same message in a version 0 psbt and in the version 2 psbt of the
+    same transaction, each written and read back as itself. Nothing is
+    left under `unknown`, which is where it went before it was a field
+    and is what says the registration took.
+
+    The empty message is the case a truthiness test loses: BIP322 signs
+    it like any other -- its own vectors do -- so what says a psbt
+    carries no message is the absence of the field, not an empty value.
+    """
+    psbt = _one_input_psbt()
+    assert psbt.signed_message is None
+
+    for one in (psbt, psbt.to_v2()):
+        one.signed_message = message
+        parsed = Psbt.parse(one.serialize())
+        assert parsed.signed_message == message
+        assert not parsed.unknown
+        assert parsed == one
+        assert Psbt.from_dict(one.to_dict()) == one
+
+
+def test_the_signed_message_key_is_its_type_byte_alone() -> None:
+    """<keydata> is "none", so a longer key is not this field.
+
+    The rule every field written that way is held to, and the reason it
+    is a rule: a key of two octets is a second field of one type, which
+    is one psbt with two messages in it.
+    """
+    psbt = _one_input_psbt()
+    psbt.signed_message = b"hi"
+    raw = psbt.serialize()
+
+    # 0x01 0x09, the key length and the global type, then the message as
+    # a var_bytes; the replacement is the same field with a zero octet
+    # of keydata after the type
+    assert raw.count(bytes.fromhex("0109026869")) == 1
+    keyed = raw.replace(bytes.fromhex("0109026869"), bytes.fromhex("020900026869"))
+    with pytest.raises(BTClibValueError, match="invalid global signed message key"):
+        Psbt.parse(keyed)
+
+
+def test_combining_takes_a_signed_message_from_either_side() -> None:
+    """The Combiner's rule for a field that is one key-value pair.
+
+    Taken where the psbt combined into has none, kept where it has one,
+    and the empty message is a message in both directions: a truthy test
+    would drop it, so combine([a, b]) and combine([b, a]) would answer
+    differently for the same pair.
+    """
+    for message in (b"a message", b""):
+        plain, carrying = _one_input_psbt(), _one_input_psbt()
+        carrying.signed_message = message
+        assert combine([deepcopy(plain), deepcopy(carrying)]).signed_message == message
+        assert combine([deepcopy(carrying), deepcopy(plain)]).signed_message == message
+
+    kept, other = _one_input_psbt(), _one_input_psbt()
+    kept.signed_message = b"the first"
+    other.signed_message = b"the second"
+    assert combine([kept, other]).signed_message == b"the first"
+
+    assert combine([_one_input_psbt(), _one_input_psbt()]).signed_message is None
+
+
+def test_joining_does_not_carry_a_signed_message_over() -> None:
+    """A message names a transaction, and joining builds another one.
+
+    BIP322 binds the message to the first input's outpoint, and a join
+    can put a different input first; carrying the field over would name
+    a challenge the joined transaction does not answer.
+    """
+    first = _one_input_psbt()
+    first.signed_message = b"mine"
+    second = Psbt.from_tx(
+        Tx(
+            1,
+            0,
+            [TxIn(OutPoint(bytes(reversed(range(32))), 0), b"", 0xFFFFFFFF)],
+            [TxOut(1000, "a914f987c321394968be164053d352fc49763b2be55c87")],
+        )
+    )
+    joined = join([first, second], False, False, False, False)
+    assert joined.signed_message is None
+
+
 def test_output_unknown() -> None:
     """Round-trip a psbt carrying an unknown output key."""
     psbt_str = "cHNidP8BAJoCAAAAAljoeiG1ba8MI76OcHBFbDNvfLqlyHV5JPVFiHuyq911AAAAAAD/////g40EJ9DsZQpoqka7CwmK6kQiwHGyyng1Kgd5WdB86h0BAAAAAP////8CcKrwCAAAAAAWABTYXCtx0AYLCcmIauuBXlCZHdoSTQDh9QUAAAAAFgAUAK6pouXw+HaliN9VRuh0LR2HAI8AAAAAAAEAuwIAAAABqtc5MQGL0l+ErkALaISL4J23BurCrBgpi6vucatlb4sAAAAASEcwRAIgWPb8fGoz4bMVSNSByCbAFb0wE1qtQs1neQ2rZtKtJDsCIEoc7SYExnNbY5PltBaR3XiwDwxZQvufdRhW+qk4FX26Af7///8CgPD6AgAAAAAXqRQPuUY0IWlrgsgzryQceMF9295JNIfQ8gonAQAAABepFCnKdPigj4GZlCgYXJe12FLkBj9hh2UAAAAiAgKVg785rgpgl0etGZrd1jT6YQhVnWxc05tMIYPxq5bgf0cwRAIgdAGK1BgAl7hzMjwAFXILNoTMgSOJEEjn282bVa1nnJkCIHPTabdA4+tT3O+jOCPIBwUUylWn3ZVE8VfBZ5EyYRGMASICAtq2H/SaFNtqfQKwzR+7ePxLGDErW05U2uTbovv+9TbXSDBFAiEA9hA4swjcHahlo0hSdG8BV3KTQgjG0kRUOTzZm98iF3cCIAVuZ1pnWm0KArhbFOXikHTYolqbV2C+ooFvZhkQoAbqAQEDBAEAAAABBEdSIQKVg785rgpgl0etGZrd1jT6YQhVnWxc05tMIYPxq5bgfyEC2rYf9JoU22p9ArDNH7t4/EsYMStbTlTa5Nui+/71NtdSriIGApWDvzmuCmCXR60Zmt3WNPphCFWdbFzTm0whg/GrluB/ENkMak8AAACAAAAAgAAAAIAiBgLath/0mhTban0CsM0fu3j8SxgxK1tOVNrk26L7/vU21xDZDGpPAAAAgAAAAIABAACAAAEBIADC6wsAAAAAF6kUt/X69A49QKWkWbHbNTXyty+pIeiHIgIDCJ3BDHrG21T5EymvYXMz2ziM6tDCMfcjN50bmQMLAtxHMEQCIGLrelVhB6fHP0WsSrWh3d9vcHX7EnWWmn84Pv/3hLyyAiAMBdu3Rw2/LwhVfdNWxzJcHtMJE+mWzThAlF2xIijaXwEiAgI63ZBPPW3PWd25BrDe4jUpt/+57VDl6GFRkmhgIh8Oc0cwRAIgZfRbpZmLWaJ//hp77QFq8fH5DVSzqo90UKpfVqJRA70CIH9yRwOtHtuWaAsoS1bU/8uI9/t1nqu+CKow8puFE4PSAQEDBAEAAAABBCIAIIwjUxc3Q7WV37Sge3K6jkLjeX2nTof+fZ10l+OyAokDAQVHUiEDCJ3BDHrG21T5EymvYXMz2ziM6tDCMfcjN50bmQMLAtwhAjrdkE89bc9Z3bkGsN7iNSm3/7ntUOXoYVGSaGAiHw5zUq4iBgI63ZBPPW3PWd25BrDe4jUpt/+57VDl6GFRkmhgIh8OcxDZDGpPAAAAgAAAAIADAACAIgYDCJ3BDHrG21T5EymvYXMz2ziM6tDCMfcjN50bmQMLAtwQ2QxqTwAAAIAAAACAAgAAgAAiAgOppMN/WZbTqiXbrGtXCvBlA5RJKUJGCzVHU+2e7KWHcRDZDGpPAAAAgAAAAIAEAACAACICAn9jmXV9Lv9VoTatAsaEsYOLZVbl8bazQoKpS2tQBRCWENkMak8AAACAAAAAgAUAAIAA"
