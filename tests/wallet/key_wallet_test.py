@@ -160,8 +160,12 @@ def test_a_bip32keydata_is_taken_as_it_is() -> None:
 
 def test_the_key_index_must_be_the_path_element_at_its_depth() -> None:
     """Refuse a key at the wrong index, or past the account depth."""
-    # the account 0 xpub against the path of account 1
-    with pytest.raises(BTClibValueError, match="is not the account path's"):
+    # the account 0 xpub against the path of account 1, and the message
+    # names the index the path has at that depth -- which is what says
+    # the comparison read the element the key's own depth points at,
+    # rather than some other element of the same path
+    err_msg = "key index 2147483648 at depth 3 is not the account path's 2147483649"
+    with pytest.raises(BTClibValueError, match=err_msg):
         BIP32KeyWallet(_ACCOUNT_44_XPUB, "m/44h/0h/1h")
     # a key already below the account level
     too_deep = bip32.derive(_ACCOUNT_44_XPUB, "m/0/0")

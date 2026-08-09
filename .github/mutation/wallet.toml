@@ -55,32 +55,50 @@ exclude-operators = ["core/ReplaceBinaryOperator_BitOr_.*"]
 # finishes there with room, which is what makes its rate comparable week to
 # week.
 #
-# What the 56 are, in the order they are worth acting on:
+# What the 56 were, and what the tests beside this commit closed -- each
+# measured alive before its test and dead after, one mutant at a time:
 #
-# - the branch and index defaults. `redeem_script`, `witness_script`,
+# - the branch and index defaults, which is the largest class here.
+#   `address`, `script_pub_key`, `redeem_script`, `witness_script`,
 #   `satisfy` and `update_psbt_input` all take `branch: int = 0, index:
-#   int = 0`, and every mutant of every one of those defaults survives in
-#   all four modules: no test calls them without arguments, so the
-#   defaults are undefended. The cheapest kills in the profile.
-# - `Wallet.address`'s `self._next_index.get(branch, 0)`, mutated either
-#   way: nothing pins what the ledger answers for a branch it has not
-#   handed anything out on yet, which is what `next_address` reads.
-# - `position_of`'s `range(last_index + 1)`, weakened to `+ 0` and to
-#   `^ 1`: the search is never asked for the output sitting at exactly
-#   `last_index`, so the inclusive end of its own bound is untested.
-# - `ScriptWallet.__init__`'s `not 0 < threshold <= n` weakened to
-#   `not 0 != threshold <= n`, which accepts a negative threshold: the
-#   suite refuses 0 and refuses `threshold > n`, and asks nothing below
-#   zero.
-# - `RangedWallet.branches`' `@abstractmethod`, removed and unnoticed --
-#   the class fetch.toml names, where three abstract methods were only
-#   ever exercised together.
+#   int = 0` and nothing called any of them without arguments, so a
+#   default was free to name the change chain -- the address a caller
+#   would then have somebody else pay. Each is now asserted to answer
+#   what the explicit first position answers, with the two neighbouring
+#   positions asserted different so the equality is an assertion.
+# - `position_of`'s `range(last_index + 1)`: the search is now asked for
+#   the output at exactly `last_index`, and for one at the index below
+#   its bound, which is what says the bound is inclusive and is a bound.
+# - `KeyGroup`'s `not 0 < threshold <= n` weakened to `not 0 !=
+#   threshold`, which accepts a negative quorum: 0 and `threshold > n`
+#   were refused and nothing asked below zero.
+# - `RangedWallet.branches`' `@abstractmethod`, removed and unnoticed:
+#   the class fetch.toml names. The subclass in the test implements the
+#   other two abstract members and leaves this one out, so the TypeError
+#   is about the member being asserted.
+# - `_account_xkey`'s `indexes[xkey.depth - 1]` in its message, where
+#   `% 1` and `& 1` name a different element of the same path: the
+#   refusal is now read for the index it names.
 #
-# The rest are the two equivalence classes the other profiles here already
-# document: `script_type != "p2wpkh-p2sh"` and friends weakened to an
-# inequality, where the value compared is the alphabetical extreme of the
-# closed set it comes from (bms.toml states it), and `len(indexes) is not
-# _ACCOUNT_LEVELS`, where CPython interns both small ints.
+# Four survive, and each is equivalent rather than a test owed:
+#
+# - `Wallet.redeem_script`'s and `witness_script`'s own defaults, in the
+#   base class: both answer `b""` for every position they accept, so a
+#   default moved to another valid position answers the same. The
+#   overrides that compute a script are the ones the tests above kill.
+# - `Wallet.address`'s `self._next_index.get(branch, 0)`, mutated to -1
+#   or 1: the value is the other argument of `max(..., index + 1)`, and
+#   `index + 1` is at least 1, so the fallback cannot be what max
+#   returns.
+# - the string comparisons weakened to an inequality, where the value
+#   compared is the alphabetical extreme of the closed set it comes from
+#   (bms.toml states the class), and `len(indexes) is not
+#   _ACCOUNT_LEVELS`, where CPython interns both small ints.
+#
+# One is left open and is a gap: `_account_sec`'s
+# `pub_keyinfo_from_key(xkey)[0]` weakened to `[-1]` -- the network beside
+# the key -- survives because nothing builds a `ScriptWallet` with
+# `order="account"`, the one ordering that sorts participants by it.
 
 # one mutant at a time, in this working tree: see sig_hash.toml
 [cosmic-ray.distributor]

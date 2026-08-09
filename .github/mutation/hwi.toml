@@ -46,25 +46,40 @@ exclude-operators = ["core/ReplaceBinaryOperator_BitOr_.*"]
 # subprocess cost doubled by four other profiles sharing the machine: 122
 # killed, 22 survived, 15.28%.
 #
-# The gaps:
+# The gaps, and what closed each -- measured one mutant at a time, alive
+# before its test and dead after:
 #
-# - `_read(out, max_output + 1)`, mutated to `+ 2`, to `| 1` and to
-#   `<< 1`. The `+ 1` is the module's own comment -- one byte past the
-#   limit is all that has to be read to know the limit was passed -- and
-#   nothing holds it to that, so the bound issue #526 added is enforced
-#   at whatever offset the code happens to say.
-# - `is_usable`'s `fingerprint is not None and not self.error` with `or`
-#   for `and`: no device in the fixtures answers a fingerprint *and* an
-#   error, which is exactly the entry #534 was about.
-# - `_POLL_INTERVAL = 0.05` turned negative: it reaches
+# - `is_usable`'s `fingerprint is not None and not self.error` became
+#   `or` and nothing noticed: no fixture answered a fingerprint *and* an
+#   error, which is the entry #534 was about and the one device
+#   `_select` must not pick. A device carrying both is now asserted
+#   unusable, and the two flags a device does not carry asserted off.
+# - the four refusals name `argv[0]`, and `argv[1]` or `argv[-1]` read
+#   the same to a test matching on the tail of the message: what the
+#   assertions now anchor is the element the message opens with -- for
+#   the not-found one against the colon after it, the OSError carried
+#   behind it naming the same path.
+# - `argv.insert(-1, "--emulators")` moved without a word, and where it
+#   goes is not style: a global flag after the subcommand is an
+#   unrecognized argument to that subcommand. The flag is now asserted
+#   to sit immediately before `enumerate`.
+#
+# Three survive with a reason rather than a test owed:
+#
+# - `_read(out, max_output + 1)` mutated to `+ 2`, `| 1` or `<< 1` is
+#   equivalent: the cap only has to exceed the limit for the comparison
+#   below it to see that the limit was passed, so any larger cap gives
+#   the same verdict and only the byte count read differs. What matters
+#   is the limit itself, and `> max_output` is what the flood tests pin.
+# - `_POLL_INTERVAL = 0.05` turned negative reaches
 #   `process.wait(timeout=min(_POLL_INTERVAL, left))`, where a negative
-#   timeout is a busy loop rather than the pause the constant names.
-# - `HwiDevice.needs_pin_sent`'s `False` default turned True, and
-#   `enumerate_devices`' `argv.insert(1, "--emulators")` moved: where a
-#   flag goes in the command line is not asserted.
-# - the error messages: `argv[0]` in three of them mutated to `argv[1]`
-#   or `argv[-1]` and unnoticed -- the same shape fetch.toml closed by
-#   asserting the message text rather than the exception type.
+#   timeout returns at once rather than waiting: the deadline still ends
+#   the loop, so what the mutant buys is a busy wait and not a wrong
+#   answer -- unobservable to a test that is not timing the process.
+# - `sign_psbt`'s `" was" if returned == sent` weakened to `>=` picks the
+#   wording by comparing two base64 strings for order, and which way a
+#   signed psbt sorts against the one it was built from is nothing a test
+#   should pin.
 #
 # `_select`'s `assert usable[0].fingerprint is not None` mutated to `[-1]`
 # is equivalent where the suite calls it with one usable device.

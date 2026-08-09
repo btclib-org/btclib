@@ -241,3 +241,83 @@ def test_an_address_of_a_bech32_spelling_is_found_however_it_is_written() -> Non
     for spelling in (address.upper(), f"  {address}  ", address.encode("ascii")):
         assert spelling in wallet
         assert wallet.address_info(spelling).address == address
+
+
+@BUILDERS
+def test_every_position_argument_defaults_to_the_first_receiving_address(
+    build: Callable[[], RangedWallet],
+) -> None:
+    """Branch 0 and index 0, which is what "the" address of a wallet means.
+
+    Each of these takes the pair and nothing called them without it, so
+    the defaults were free to name any position -- the change chain
+    included, which is the address a caller would then have somebody else
+    pay. The neighbours are asserted different afterwards, an equality
+    against a position that answers the same everywhere being no
+    assertion at all.
+    """
+    wallet = build()
+    assert wallet.address() == wallet.address(0, 0)
+    assert wallet.script_pub_key() == wallet.script_pub_key(0, 0)
+    assert wallet.redeem_script() == wallet.redeem_script(0, 0)
+    assert wallet.witness_script() == wallet.witness_script(0, 0)
+
+    assert wallet.script_pub_key(0, 0) != wallet.script_pub_key(0, 1)
+    assert wallet.script_pub_key(0, 0) != wallet.script_pub_key(1, 0)
+
+
+@BUILDERS
+def test_position_of_searches_up_to_last_index_inclusive(
+    build: Callable[[], RangedWallet],
+) -> None:
+    """`last_index` is the last index searched, not the first one left out.
+
+    The output at exactly that index is the case that says which, and
+    the index below it is what says the search is bounded at all: a
+    walk one short of its own bound answers None for an output the
+    wallet holds, which is the answer a caller reads as "somebody
+    else's".
+    """
+    wallet = build()
+    script_pub_key = wallet.script_pub_key(0, 3)
+    assert wallet.position_of(script_pub_key, last_index=3) == (0, 3)
+    assert wallet.position_of(script_pub_key, last_index=2) is None
+
+
+def test_a_wallet_that_names_no_branches_is_not_a_wallet() -> None:
+    """`branches` is abstract, and a subclass leaving it out cannot be built.
+
+    Three abstract members, and a test that builds a subclass implementing
+    all of them says nothing about any one of them: what makes this an
+    assertion is that the class below implements the other two, so the
+    TypeError names the one it left out. `position_of` searches whatever
+    this answers, so a wallet without it would search nothing and answer
+    that every output is somebody else's.
+    """
+
+    class Branchless(RangedWallet):
+        """A wallet with an output at every position and no chains."""
+
+        @property
+        def is_watch_only(self) -> bool:
+            return True
+
+        def _script_pub_key(self, branch: int, index: int) -> ScriptPubKey:
+            return ScriptPubKey(b"\x51")
+
+    with pytest.raises(TypeError, match="branches"):
+        Branchless()  # type: ignore[abstract]
+
+    # the same class with the chains it was missing, which is what says the
+    # refusal above was about that member and not about the other two
+    class OneBranch(Branchless):
+        """The same wallet, on the receiving chain alone."""
+
+        @property
+        def branches(self) -> tuple[int, ...]:
+            return (0,)
+
+    wallet = OneBranch()
+    assert wallet.is_watch_only
+    assert wallet.script_pub_key(0, 0).script == b"\x51"
+    assert wallet.position_of(b"\x51") == (0, 0)

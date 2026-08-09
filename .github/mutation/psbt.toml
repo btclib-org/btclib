@@ -70,31 +70,45 @@ exclude-operators = ["core/ReplaceBinaryOperator_BitOr_.*"]
 # command, four other profiles sharing the machine: 780 killed, 107
 # survived, 12.06%. Sampled, and the sample is a third of the scope.
 #
-# The gaps, in the order they are worth acting on:
+# The gaps, and the six of them closed by the tests beside this commit --
+# each measured surviving before its test and dying after, one mutant at a
+# time:
 #
-# - every lock-time bound, at both ends and in three places:
-#   `0 <= fallback_lock_time <= 0xFFFFFFFF` weakened to `-1 <=` and to
-#   `< 0xFFFFFFFF`, `LOCK_TIME_THRESHOLD <= required_time_lock_time <=
-#   0xFFFFFFFF` to 0x100000000, and `0 < required_height_lock_time <
-#   LOCK_TIME_THRESHOLD` to `1 <`. The values these accept or refuse are
-#   what BIP370 says a psbt may carry, and the suite asks about the
-#   middle of the range.
-# - `0 <= tx_modifiable <= 0xFF` weakened to `0 != tx_modifiable`, which
-#   accepts a negative flag byte.
-# - `_assert_new_taproot_sigs_verify`'s `sig[:64]` widened to `sig[:65]`:
-#   what is verified is the 64 bytes of a Schnorr signature, and a
-#   65-byte one carries a sighash byte that must not be hashed with it.
-# - `parse_taproot_bip32`'s `len_ * LEAF_HASH_SIZE + FINGERPRINT_SIZE >
-#   available` with `^` for `+`, the bound that stops a leaf-hash count
-#   from being read past the end of the value.
-# - `assert_signatures_only`'s `zip(..., strict=True)` turned to False, in
-#   the walk that compares a returned psbt's outputs against the request:
-#   a returned psbt with fewer outputs would be compared as far as it goes
-#   and accepted.
-# - `combine`'s `other_id != tx_id` weakened to `>`, tested with an id
-#   sorting one way only -- the same shape fetch.toml closed for `tx.id`.
+# - every lock-time bound had a side nothing asked for. BIP370's three
+#   fields are now asserted at the value each admits as well as the one
+#   it refuses: `fallback_lock_time` at 0 and 0xFFFFFFFF and refusing -1,
+#   `required_time_lock_time` at 0xFFFFFFFF and refusing the second after
+#   it, `required_height_lock_time` at 1 and refusing 0 -- which is the
+#   one value BIP65 gives a meaning of its own, nLockTime's "no lock time
+#   at all".
+# - `0 <= tx_modifiable <= 0xFF` weakened to `0 != tx_modifiable`
+#   accepted a negative flag byte: no flag set is now asserted valid,
+#   being a psbt nobody may modify rather than an invalid one.
+# - `combine`'s `other_id != tx_id` weakened to `>` was tested with the
+#   ids in one arrangement only; the same disagreement combined the other
+#   way round closes it -- the shape fetch.toml closed for `tx.id`.
 #
-# The equivalence classes are the ones already documented elsewhere here: a
+# Three are left open, and each has a reason rather than a test owed:
+#
+# - `parse_taproot_bip32`'s `len_ * LEAF_HASH_SIZE + FINGERPRINT_SIZE`
+#   with `^` for `+` is equivalent by arithmetic: `32 * len_` is a
+#   multiple of 32, so bit 2 is clear and `^ 4` is `+ 4` for every count.
+# - `assert_signatures_only`'s `zip(..., strict=True)` turned False needs
+#   a returned psbt with a different number of outputs, and the whole
+#   transaction is compared before the walk is reached: measured, a
+#   dropped output and a dropped input each answer "the transaction being
+#   signed was changed" first.
+# - `_assert_new_taproot_sigs_verify`'s `sig[:64]` widened to `sig[:65]`
+#   is equivalent for a 64-byte signature -- slicing past the end is not
+#   an error -- and differs only for the 65-byte shape, where the last
+#   byte is a sighash type that must not be verified as part of the
+#   signature. This tree cannot produce one for a taproot script path:
+#   the only source of such a signature here is a BIP373 MuSig2
+#   aggregation, whose partial signatures commit to SIGHASH_DEFAULT. A
+#   script-path signer taking an explicit sighash type is what would kill
+#   it, and is the test to write rather than an equivalence to accept.
+#
+# The remaining classes are the ones documented elsewhere here: a
 # `check_validity` default, an `is` over interned ints, and a comparison
 # against a value at the extreme of its closed set.
 

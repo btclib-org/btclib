@@ -220,6 +220,10 @@ def test_a_quorum_is_bounded_by_what_op_int_spells() -> None:
         KeyGroup(4, _XPUBS)
     with pytest.raises(BTClibValueError, match="invalid threshold in 0-of-3"):
         KeyGroup(0, _XPUBS)
+    # and below zero, which a window asserted at 0 alone lets through: the
+    # floor is a quorum of one and not "not zero"
+    with pytest.raises(BTClibValueError, match="invalid threshold in -1-of-3"):
+        KeyGroup(-1, _XPUBS)
     # a group takes any spelling of an extended key, decoded or not
     assert (
         KeyGroup(1, [BIP32KeyData.b58decode(_XPUBS[0])]).keys
