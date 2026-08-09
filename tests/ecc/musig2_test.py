@@ -18,7 +18,11 @@ import pytest
 
 from btclib.curves import bytes_from_point, mult
 from btclib.ecc import musig2, ssa
-from btclib.exceptions import BTClibValueError, InvalidContributionError
+from btclib.exceptions import (
+    BTClibTypeError,
+    BTClibValueError,
+    InvalidContributionError,
+)
 from tests import load, vector_id
 
 # the two exception types BIP327 tells apart: a caller's own bad
@@ -613,6 +617,41 @@ def test_tweaks_and_is_xonly_pair_up() -> None:
         musig2.key_agg_and_tweak([pk_1], [bytes(32)], [])
     with pytest.raises(BTClibValueError, match="must have the same length"):
         musig2.SessionContext(bytes(66), [pk_1], [bytes(32)], [], _MSG)
+
+
+@pytest.mark.parametrize("not_a_flag", ["false", "", 0, 1, None])
+def test_the_kind_of_a_tweak_is_a_bool(not_a_flag: Any) -> None:
+    """Verify a kind that is not a bool is refused wherever one is taken.
+
+    Not read for its truth: `"false"` is true, and what the flag decides
+    is which of two aggregate keys the group signs under, so an odd-y key
+    tweaked by a string would answer a key the signers passing `False`
+    never see. The three doors are the one that reads it and the two that
+    carry a sequence of them.
+    """
+    pk_1 = musig2.individual_pub_key(_SK_1)
+    key_agg_ctx = musig2.key_agg([pk_1])
+    with pytest.raises(BTClibTypeError, match="invalid is_xonly type"):
+        musig2.apply_tweak(key_agg_ctx, bytes(32), not_a_flag)
+    with pytest.raises(BTClibTypeError, match="invalid is_xonly type"):
+        musig2.key_agg_and_tweak([pk_1], [bytes(32)], [not_a_flag])
+    with pytest.raises(BTClibTypeError, match="invalid is_xonly type"):
+        musig2.SessionContext(bytes(66), [pk_1], [bytes(32)], [not_a_flag], _MSG)
+
+
+def test_the_two_kinds_of_tweak_differ_on_an_odd_key() -> None:
+    """Verify the flag is what the refusal above is protecting.
+
+    An aggregate key with an odd y is the case where the two kinds part
+    company: the x-only one negates it first. A key with an even y
+    tweaks the same either way, which is why the refusal cannot be left
+    to the arithmetic to notice.
+    """
+    key_agg_ctx = musig2.key_agg([musig2.individual_pub_key(_SK_1)])
+    assert key_agg_ctx.Q[1] % 2
+    plain = musig2.apply_tweak(key_agg_ctx, bytes(32), False)
+    x_only = musig2.apply_tweak(key_agg_ctx, bytes(32), True)
+    assert plain != x_only
 
 
 def test_tweak_size() -> None:
