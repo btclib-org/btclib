@@ -1,0 +1,105 @@
+# The wallets, mutated: the ledger of what has been handed out, the two
+# key-derived sources, the descriptor-backed one and the script template
+# beside it. What a wallet answers is an address somebody is about to be
+# paid at, and the failure this asks about is the one a test suite is
+# built to miss -- a gap index quietly reused, a branch swapped, a change
+# address answered where a receive one was asked for. Every line runs
+# under tests/wallet; whether the suite would notice a wrong one is this
+# profile's question (issue #219).
+
+[cosmic-ray]
+# the package, `__init__.py` included, for the reason descriptors.toml
+# gives: it is re-exports, and naming the directory is what keeps a fifth
+# module from being left out in silence
+module-path = "btclib/wallet"
+
+# tests/wallet alone, and it is enough for a reason worth stating: the
+# four modules measure 100% under it -- `--cov=btclib/wallet` over this
+# command reports no missing line -- and the whole command costs half a
+# second, which is what makes this the cheapest profile in the directory
+# to run to completion. The descriptor a `DescriptorWallet` delegates to
+# is mutated by descriptors.toml from the other side of the same call
+test-command = "python -m pytest -x -q -n0 -p no:randomly tests/wallet"
+
+# seconds of wall clock, wide for the reason sig_hash.toml measures. What
+# it guards against here is `position_of`, the one loop in the scope with
+# a bound a mutant can widen: it computes the script at every index of
+# every branch up to `last_index` and compares it whole, so a widened
+# bound is minutes of derivation rather than a wrong answer
+timeout = 300
+
+excluded-modules = []
+
+# every `|` in this scope is an annotation, so its mutants are unevaluated
+# and unkillable: parsers.toml carries the whole argument for excluding
+# them by operator, and what belongs here is the measurement behind the
+# claim. The grep, a line number rotting on the next insertion above it:
+#
+#   grep -n ' | ' btclib/wallet/*.py
+#
+# Every hit is an annotation today, and the first session over this scope
+# -- run before this filter, which is how the decision was made rather
+# than assumed -- executed 131 BitOr mutants and every one of them
+# survived, against a rate of 19.11% over what is left. That is the
+# difference between a survivor list somebody reads and one nobody does,
+# and it is minutes as well: an unkillable mutant is a survivor, and a
+# survivor pays the whole test command where most kills pay a fraction
+[cosmic-ray.filters.operators-filter]
+exclude-operators = ["core/ReplaceBinaryOperator_BitOr_.*"]
+
+# 595 mutants, 176 of them the `|` above, and 293 of the 419 left ran in
+# the 900 s of the first session: 237 killed, 56 survived, 19.11%. Measured
+# with four other profiles of this directory on the same ten-core machine,
+# so 2.1 s a mutant is the contended figure and a runner on its own is
+# faster; what it says about the budget in mutation.yml is that this scope
+# finishes there with room, which is what makes its rate comparable week to
+# week.
+#
+# What the 56 were, and what the tests beside this commit closed -- each
+# measured alive before its test and dead after, one mutant at a time:
+#
+# - the branch and index defaults, which is the largest class here.
+#   `address`, `script_pub_key`, `redeem_script`, `witness_script`,
+#   `satisfy` and `update_psbt_input` all take `branch: int = 0, index:
+#   int = 0` and nothing called any of them without arguments, so a
+#   default was free to name the change chain -- the address a caller
+#   would then have somebody else pay. Each is now asserted to answer
+#   what the explicit first position answers, with the two neighbouring
+#   positions asserted different so the equality is an assertion.
+# - `position_of`'s `range(last_index + 1)`: the search is now asked for
+#   the output at exactly `last_index`, and for one at the index below
+#   its bound, which is what says the bound is inclusive and is a bound.
+# - `KeyGroup`'s `not 0 < threshold <= n` weakened to `not 0 !=
+#   threshold`, which accepts a negative quorum: 0 and `threshold > n`
+#   were refused and nothing asked below zero.
+# - `RangedWallet.branches`' `@abstractmethod`, removed and unnoticed:
+#   the class fetch.toml names. The subclass in the test implements the
+#   other two abstract members and leaves this one out, so the TypeError
+#   is about the member being asserted.
+# - `_account_xkey`'s `indexes[xkey.depth - 1]` in its message, where
+#   `% 1` and `& 1` name a different element of the same path: the
+#   refusal is now read for the index it names.
+#
+# Four survive, and each is equivalent rather than a test owed:
+#
+# - `Wallet.redeem_script`'s and `witness_script`'s own defaults, in the
+#   base class: both answer `b""` for every position they accept, so a
+#   default moved to another valid position answers the same. The
+#   overrides that compute a script are the ones the tests above kill.
+# - `Wallet.address`'s `self._next_index.get(branch, 0)`, mutated to -1
+#   or 1: the value is the other argument of `max(..., index + 1)`, and
+#   `index + 1` is at least 1, so the fallback cannot be what max
+#   returns.
+# - the string comparisons weakened to an inequality, where the value
+#   compared is the alphabetical extreme of the closed set it comes from
+#   (bms.toml states the class), and `len(indexes) is not
+#   _ACCOUNT_LEVELS`, where CPython interns both small ints.
+#
+# One is left open and is a gap: `_account_sec`'s
+# `pub_keyinfo_from_key(xkey)[0]` weakened to `[-1]` -- the network beside
+# the key -- survives because nothing builds a `ScriptWallet` with
+# `order="account"`, the one ordering that sorts participants by it.
+
+# one mutant at a time, in this working tree: see sig_hash.toml
+[cosmic-ray.distributor]
+name = "local"

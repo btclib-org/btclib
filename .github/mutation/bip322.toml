@@ -15,10 +15,13 @@ timeout = 300
 
 excluded-modules = []
 
-# 508 of the 977 mutants sampled in 1200 s: 405 killed, 103 survived. 44
-# are the deferred-annotation class fetch.toml documents, 5 the keyword-
-# only marker, 4 an `is` CPython's small-int cache makes indistinguishable
-# from `==`.
+# all 552 mutants, complete in under ten minutes: 456 killed, 96 survived,
+# 17.39%. 67 of the 96 are the deferred-annotation class fetch.toml
+# documents, 6 the keyword-only marker, 4 an `is` CPython's small-int cache
+# makes indistinguishable from `==`. The other 120 mutants of a `|` here
+# die, which is the point of the first finding below: this is the one scope
+# in this directory whose `|` is arithmetic in the places that matter, so
+# no operator filter belongs in it.
 #
 # One real gap closed, and the most consequential this session found:
 # REQUIRED_RULES and UPGRADEABLE_RULES are each a `|` chain over distinct-

@@ -359,13 +359,14 @@ The `mutation` workflow, weekly and on demand, which gates nothing either
 and for a different reason: it asks whether the suite would *notice* a
 wrong line, where coverage only says the line ran, and a surviving mutant
 is a test nobody has written rather than a regression somebody just
-caused. Three profiles, a parallel job with its own budget each: the
-consensus code — `btclib/script/engine/` and `btclib/script/sig_hash.py` —
-the wire format, `btclib/tx/` with the `var_int` and `var_bytes`
-codecs under it, and the standalone Bitcoin Core rpc client. The
-configurations under `.github/mutation/` are
-what says so, and are what a local run reads, so there is one statement of
-what is mutated and what judges it:
+caused. One parallel job per profile, each under its own budget, and no
+list of them here: `.github/mutation/` is the list, and every file in it
+states what it mutates, what judges it, and what the last session over it
+measured — the consensus code and the wire format it reads, the key,
+codec, descriptor, wallet, psbt and script layers, the signature schemes,
+and the boundaries where somebody else's bytes arrive. Those
+configurations are also what a local run reads, so there is one statement
+of what is mutated and what judges it:
 
 ```shell
 uv run --locked --no-default-groups --group test --group mutation \

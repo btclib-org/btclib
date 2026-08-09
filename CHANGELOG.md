@@ -883,9 +883,10 @@ documented at release-notes length in the first place, and are still in
   below): extended keys, the checksummed codecs, bitcoin message
   signing, BIP322, the block header and its proof-of-work arithmetic,
   and the shared codec helpers, beside the fetch boundary and the
-  numeric validators #327 already named. Ten `.github/mutation/*.toml`
-  profiles in total, each measured on this tree rather than estimated,
-  wired into `mutation.yml` as three new jobs beside the two #327 added.
+  numeric validators #327 already named. Each new
+  `.github/mutation/*.toml` profile measured on this tree rather than
+  estimated, and wired into `mutation.yml` as three new jobs beside the
+  two #327 added.
   The real gaps each one found and closed:
     - `bip32.toml` (1356 mutants, complete): `BIP32KeyData.is_root` had no
     caller at all, so every operator on its three-way `and` survived
@@ -925,8 +926,8 @@ documented at release-notes length in the first place, and are still in
     tested only together, and the BIP39 entropy codec's non-power-of-two
     base.
 
-  A wide class recurs across all ten and is documented, not fixed, in
-  each profile's own file: Python 3.14 evaluates annotations lazily by
+  A wide class recurs across every one of them and is documented, not
+  fixed, in each profile's own file: Python 3.14 evaluates annotations lazily by
   default (PEP 649), so an operator confined to a type annotation is
   equivalent on this interpreter regardless of
   `from __future__ import annotations` — a broader class than the one
@@ -942,6 +943,97 @@ documented at release-notes length in the first place, and are still in
   `ssa.Sig`'s `0 <= self.s < self.ec.n` and `dsa.Sig`'s two equivalents
   were exercised invalid with `ec.p` — a different, larger prime — and
   never with `ec.n` itself
+- **Mutation testing reaches the code added since #327 was written**:
+  output descriptors and miniscript, the wallets, the psbt format, the
+  script encodings the two consensus profiles sit on, MuSig2 with the
+  BIP373 fields it is carried in, the signer boundary and its conformance
+  checker, and the HWI adapter. Seven `.github/mutation/*.toml` profiles
+  and four new jobs in `mutation.yml`, and none of the budgets is an
+  estimate: a first session over each is what wrote them, and each file
+  records its own counts, what its test command covers and why, and the
+  survivors worth acting on. What the sessions found, in the order the
+  findings are worth acting on — the first four scopes' real gaps closed
+  by the tests in this release, each measured alive before its test and
+  dead after, one mutant at a time:
+    - `script.toml` (406 of 2374 judged): `op_codes_tapscript.py` was
+    unjudged — 50 of the 51 mutants of it that ran survived, and the 236
+    it holds are almost all numbers in the two BIP342 tables, so a code
+    number could be changed, duplicated or dropped with the suite still
+    passing. Two tests hold the tables to each other rather than to a
+    second transcription of BIP342's numbers, and that module is at 236
+    of 236 killed now. Beside it: `nulldata`'s 80-byte cap had no test
+    building the 80 it allows, `assert_segwit` accepted 0x50 — OP_RESERVED
+    — as a witness version once weakened and never saw a script shorter
+    than its own marker announces, `p2ms` had never been asked for the
+    16-of-16 that tells its marker arithmetic apart from bit arithmetic,
+    `taproot.parse`'s 520-byte element bound was exercised on one side,
+    and a control block's parity bit was never flipped on a proof that is
+    otherwise correct.
+    - `psbt.toml` (887 of 2611): every lock-time bound in BIP370's three
+    fields was tested in the middle of its range and at neither end, and
+    each is now asserted at the value it admits as well as the one it
+    refuses — 0 included, which is the one value BIP65 gives a meaning of
+    its own. `combine`'s identity comparison was tested with the ids in
+    one arrangement only. `_assert_new_taproot_sigs_verify`'s `sig[:64]`
+    widening to `[:65]` stays open and is named: it differs only for a
+    65-byte signature, and no taproot script path in this tree can yet
+    produce one, the only source being a MuSig2 aggregation over
+    SIGHASH_DEFAULT.
+    - `signer.toml` (302 of 302, the one profile that finished): 46 of
+    its 66 survivors are inside `psbt_signer_contract.py`, the file whose
+    job is refusing a signer that does not conform. Its checks do fire —
+    each has a signer built to break it — but the arithmetic inside them
+    does not, so a check could be laxer than it reads and every fixture
+    would still pass. Not closed here: the arithmetic is the next round's
+    work, and `signer.toml` lists it.
+    - `wallet.toml` (293 of 419): the `branch=0, index=0` defaults were
+    undefended in all four modules — nothing called `address`,
+    `script_pub_key`, `redeem_script`, `witness_script`, `satisfy` or
+    `update_psbt_input` without arguments, so a default could have named
+    the change chain — `position_of` was never asked for the output at
+    exactly `last_index`, a negative `ScriptWallet` quorum was accepted
+    once the bound was weakened, and `branches` could stop being abstract
+    unnoticed. All four are closed; what the ledger answers for an
+    untouched branch turned out to be equivalent, `max()` never returning
+    that fallback.
+    - `hwi.toml` (144 of 267): `is_usable`'s `and` became `or` unnoticed,
+    no fixture answering both a fingerprint and an error — the entry #534
+    was about, and the device `_select` must not pick. The four refusals
+    name `argv[0]` and no assertion said so; `--emulators` could move
+    after the subcommand, where HWI reads it as an unrecognized argument.
+    The `max_output + 1` read cap turned out equivalent: any cap above
+    the limit gives the comparison below it the same verdict.
+    - `descriptors.toml` (383 of 10831, the largest scope here and
+    sampled): the miniscript type-property algebra survives `|` turned
+    `^` in three places, `satisfy`'s index default is undefended, and
+    `_decomposed`'s push-size arithmetic is unpinned.
+    - `musig2.toml` (159 of 1277): 6.29%, the lowest rate measured here,
+    which is what a reference implementation's own vectors buy. Its two
+    `% secp256k1.n` reductions turned `** secp256k1.n` are also the
+    slowest mutants in this round, spending a 300-second timeout each.
+
+  The operator filter is now a per-scope measurement rather than
+  `parsers.toml`'s precedent applied by hand: an ast walk says where a `|`
+  is arithmetic and where it is an unevaluated annotation, and the first
+  unfiltered session says the same thing from the other side — in the five
+  scopes that exclude it, not one `|` mutant was ever killed. `psbt.toml`
+  excludes it too and names the two expressions that costs, and
+  `descriptors.toml` and `bip322.toml` keep it because in those two the
+  operator is the semantics. `tests/fuzz_test.py` is in no profile, and
+  that is now written down where the decision is: hypothesis draws fresh
+  input on each run, so a verdict from it is not reproducible, and the
+  value of a weekly report is the comparison with the week before.
+
+  Two existing profiles were re-measured over code that changed under
+  them, and both now finish rather than sample: `utils.toml` at 388
+  mutants, 2.84%, ten of its eleven survivors equivalent by arithmetic
+  the file now states; and `bip322.toml` at 552, 17.39%, where the 120
+  mutants of a `|` that #537's test was written for all die.
+
+  `CONTRIBUTING.md` no longer counts the profiles or names the Bitcoin
+  Core rpc client that has moved to a repository of its own: it points at
+  `.github/mutation/`, which is the list, and says what each file in it
+  states.
 - **The two regtest tests get an account each**, where they shared one and
   so shared its first address. The node is the session's, and a wallet the
   second test to run creates still saw what the first had paid: the import

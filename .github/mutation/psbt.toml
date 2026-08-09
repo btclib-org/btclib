@@ -1,0 +1,117 @@
+# The partially signed transaction, mutated: the three maps, the key-value
+# codecs under them and the size estimate a fee rate is applied to. A psbt
+# is a format two programs exchange, so its boundaries are somebody else's
+# input in the sense issue #327 means -- an unknown field kept or dropped,
+# a required one missing, a duplicate key, a map ending where the next one
+# begins -- and the vectors that judge it are BIP174's, BIP370's, BIP371's
+# and BIP373's own. Every line runs under tests/psbt; this asks whether the
+# suite would notice a wrong one.
+
+[cosmic-ray]
+# `musig2.py` is not here: musig2.toml mutates it beside `ecc/musig2.py`,
+# the BIP327 half it implements the BIP373 fields for, and the two are
+# judged by the same two test files. Named one by one for that reason,
+# where descriptors.toml and wallet.toml can name their directory
+module-path = [
+  "btclib/psbt/psbt.py",
+  "btclib/psbt/psbt_in.py",
+  "btclib/psbt/psbt_out.py",
+  "btclib/psbt/psbt_utils.py",
+  "btclib/psbt/psbt_size.py",
+  "btclib/psbt/__init__.py",
+]
+
+# tests/psbt, which covers these six to a single line -- measured with
+# `--cov=btclib.psbt` over this command. The line is `psbt_utils`'
+# refusal of an empty PSBT_IN_TAP_LEAF_SCRIPT value, a record with no room
+# for the leaf version it must end with, and the only thing that reaches
+# it is tests/fuzz_test.py: hypothesis draws that input rather than a
+# vector file holding it. That file is deliberately in no profile here --
+# a `@given` draws fresh bytes on each run, so its verdict is not
+# reproducible, and the value of a weekly report is the comparison with
+# the week before -- so the mutants of that one line are expected
+# survivors.
+#
+# tests/psbt/musig2_test.py is left in: it costs a tenth of a second and
+# it exercises the shared key-value codecs through the BIP373 fields,
+# where musig2.toml is what judges the module those fields are parsed by
+test-command = "python -m pytest -x -q -n0 -p no:randomly tests/psbt"
+
+# seconds of wall clock, wide for the reason sig_hash.toml measures, and
+# with somewhere to hide here: `psbt_utils.deserialize_map` reads
+# key-value records in a `while True` until the 0x00 separator, so a
+# mutated end condition is a read that never stops rather than a wrong
+# answer
+timeout = 300
+
+excluded-modules = []
+
+# the `BitOr` exclusion parsers.toml argues, and the one scope here where
+# it costs something rather than nothing, which is why the price is stated
+# instead of the rule. 913 of the 3524 mutants are `|`, and all but two
+# lines' worth of them are annotations:
+#
+#   grep -n ' | ' btclib/psbt/psbt.py btclib/psbt/psbt_in.py \
+#       btclib/psbt/psbt_out.py btclib/psbt/psbt_utils.py \
+#       btclib/psbt/psbt_size.py btclib/psbt/__init__.py
+#
+# The two are `_tx_modifiable`'s `INPUTS_MODIFIABLE | OUTPUTS_MODIFIABLE`
+# and the mask that combines two flag bytes below it, and the unfiltered
+# session says what skipping them loses: of the BitOr mutants it ran, the
+# only five it killed are on those two lines, and the sixth mutant there
+# -- `|` for `+` over two disjoint bits -- is equivalent. So the exclusion
+# gives up mutants that a `combine` test already answers, and takes 913
+# unkillable survivors out of a list somebody has to read
+[cosmic-ray.filters.operators-filter]
+exclude-operators = ["core/ReplaceBinaryOperator_BitOr_.*"]
+
+# 3524 mutants, 913 of them the `|` above, and 887 of the 2611 left ran in
+# the 2400 s of the first session -- 2.0 s a mutant against a 0.9 s test
+# command, four other profiles sharing the machine: 780 killed, 107
+# survived, 12.06%. Sampled, and the sample is a third of the scope.
+#
+# The gaps, and the six of them closed by the tests beside this commit --
+# each measured surviving before its test and dying after, one mutant at a
+# time:
+#
+# - every lock-time bound had a side nothing asked for. BIP370's three
+#   fields are now asserted at the value each admits as well as the one
+#   it refuses: `fallback_lock_time` at 0 and 0xFFFFFFFF and refusing -1,
+#   `required_time_lock_time` at 0xFFFFFFFF and refusing the second after
+#   it, `required_height_lock_time` at 1 and refusing 0 -- which is the
+#   one value BIP65 gives a meaning of its own, nLockTime's "no lock time
+#   at all".
+# - `0 <= tx_modifiable <= 0xFF` weakened to `0 != tx_modifiable`
+#   accepted a negative flag byte: no flag set is now asserted valid,
+#   being a psbt nobody may modify rather than an invalid one.
+# - `combine`'s `other_id != tx_id` weakened to `>` was tested with the
+#   ids in one arrangement only; the same disagreement combined the other
+#   way round closes it -- the shape fetch.toml closed for `tx.id`.
+#
+# Three are left open, and each has a reason rather than a test owed:
+#
+# - `parse_taproot_bip32`'s `len_ * LEAF_HASH_SIZE + FINGERPRINT_SIZE`
+#   with `^` for `+` is equivalent by arithmetic: `32 * len_` is a
+#   multiple of 32, so bit 2 is clear and `^ 4` is `+ 4` for every count.
+# - `assert_signatures_only`'s `zip(..., strict=True)` turned False needs
+#   a returned psbt with a different number of outputs, and the whole
+#   transaction is compared before the walk is reached: measured, a
+#   dropped output and a dropped input each answer "the transaction being
+#   signed was changed" first.
+# - `_assert_new_taproot_sigs_verify`'s `sig[:64]` widened to `sig[:65]`
+#   is equivalent for a 64-byte signature -- slicing past the end is not
+#   an error -- and differs only for the 65-byte shape, where the last
+#   byte is a sighash type that must not be verified as part of the
+#   signature. This tree cannot produce one for a taproot script path:
+#   the only source of such a signature here is a BIP373 MuSig2
+#   aggregation, whose partial signatures commit to SIGHASH_DEFAULT. A
+#   script-path signer taking an explicit sighash type is what would kill
+#   it, and is the test to write rather than an equivalence to accept.
+#
+# The remaining classes are the ones documented elsewhere here: a
+# `check_validity` default, an `is` over interned ints, and a comparison
+# against a value at the extreme of its closed set.
+
+# one mutant at a time, in this working tree: see sig_hash.toml
+[cosmic-ray.distributor]
+name = "local"

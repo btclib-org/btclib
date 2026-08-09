@@ -1,0 +1,139 @@
+# The script encodings, mutated: the command codec, the standard output
+# templates, the taproot tree and control block, the witness stack and the
+# signature-operation count. What the consensus profiles sit on -- the
+# engine executes what `script.parse` produced and `sig_hash` hashes what
+# `script_pub_key` built -- and until now the half of `btclib/script` no
+# profile mutated: sig_hash.toml takes one file of it and engine.toml the
+# subdirectory, leaving these seven. Issue #219's question on the layer
+# below the one it opened.
+
+[cosmic-ray]
+# named one by one rather than as `btclib/script` with the other two
+# scopes excluded, which is what sig_hash.toml explains: the test command
+# is per-configuration, and an engine mutant costs 7.2 s where these cost
+# under two. `limits.py` is here for its arithmetic -- the tapscript
+# script-size bound is derived from the stack and element limits rather
+# than copied
+module-path = [
+  "btclib/script/script.py",
+  "btclib/script/script_pub_key.py",
+  "btclib/script/taproot.py",
+  "btclib/script/witness.py",
+  "btclib/script/sig_ops.py",
+  "btclib/script/op_codes_tapscript.py",
+  "btclib/script/limits.py",
+  "btclib/script/__init__.py",
+]
+
+# tests/script first, where nearly every mutant dies, and four files after
+# it that each reach statements no test in that directory does -- measured
+# with `--cov=btclib.script` over this command, which reports every module
+# here complete but for the seven lines named below:
+#
+# - tests/all_test.py is `btclib/script/__init__.py`'s only caller: the
+#   PEP 562 `__getattr__` and `__dir__` that import `engine` and
+#   `sig_hash` on demand are reached by nothing that imports them by name
+# - tests/tx/tx_out_test.py is what asks a `ScriptPubKey` for its
+#   `addresses`, whose p2ms fallback the templates' own tests never take
+# - tests/wallet/wallet_test.py and tests/psbt/psbt_test.py are the two
+#   callers of `_script_of` and of `assert_valid_control_block`
+#
+# Not tests/script_engine, which sig_hash.toml pairs with tests/script and
+# which is the only thing that reaches `taproot._read_push_data`'s
+# OP_PUSHDATA branch (lines 100-104, 107 and 152 -- an unknown op code
+# past a push in a tapscript). Its vectors cost 7.2 s against this
+# command's 1.7 s, so buying those seven lines would multiply the session
+# by four; the handful of mutants on them are reported as survivors here
+# instead, and engine.toml kills them from its own side.
+#
+# Also not tests/fuzz_test.py, and for a different reason -- see the
+# comment on the operator filter below
+test-command = """python -m pytest -x -q -n0 -p no:randomly \
+  tests/script tests/all_test.py tests/tx/tx_out_test.py \
+  tests/wallet/wallet_test.py tests/psbt/psbt_test.py"""
+
+# seconds of wall clock, wide for the reason sig_hash.toml measures. This
+# scope holds the loops that need it: `script.parse` reads a push length
+# off the stream and then reads that many bytes, and `taproot.parse` walks
+# a tree, so a mutated bound is how one stops ending
+timeout = 300
+
+excluded-modules = []
+
+# The `BitOr` exclusion wallet.toml explains and parsers.toml argues.
+# Expected to be the other way here -- the templates do arithmetic on a
+# witness version and on flags -- and measured to be annotations only:
+#
+#   grep -n ' | ' btclib/script/script.py btclib/script/script_pub_key.py \
+#       btclib/script/taproot.py btclib/script/witness.py \
+#       btclib/script/sig_ops.py btclib/script/op_codes_tapscript.py \
+#       btclib/script/limits.py btclib/script/__init__.py
+#
+# Every hit is an annotation, the arithmetic being `&`, `<<` and `+` and
+# untouched by this, and the unfiltered session that settled it executed
+# 37 BitOr mutants without killing one.
+#
+# No hypothesis, either, which is the other exclusion worth stating once:
+# tests/fuzz_test.py reaches parsers in this scope that no vector file
+# does, and every `@given` in it draws fresh input on each run. A verdict
+# drawn that way is not reproducible, so a mutant killed one week and
+# surviving the next would say nothing about the suite -- and a weekly
+# report whose value is the comparison cannot afford that. The same reason
+# -p no:randomly is in every test command here
+[cosmic-ray.filters.operators-filter]
+exclude-operators = ["core/ReplaceBinaryOperator_BitOr_.*"]
+
+# 2561 mutants, 187 of them the `|` above, and 406 of the 2374 left ran in
+# the 2100 s of the first session -- 4.7 s a mutant with four other
+# profiles of this directory on the same ten-core machine, against a 1.7 s
+# test command: 309 killed, 97 survived, 23.89%. Sampled, then, and the
+# sample already answers the question the profile was written to ask.
+#
+# `op_codes_tapscript.py` was the finding, and is now the answer: 50 of the
+# 51 mutants of it that ran survived, because nothing asserted either of
+# the two BIP342 tables -- a code number could be changed, duplicated or
+# dropped with every test still passing. Two tests hold the tables to each
+# other instead of to a transcription of the BIP's own numbers, and all 236
+# mutants of that module die now: `OP_CODE_NAMES` is the inverse of
+# `OP_CODES` in both directions, and `OP_SUCCESS` is what the two leave
+# over -- every byte below 0xFF that is neither a push nor a named code,
+# which is what BIP342's list *is*.
+#
+# The bounds beside it, each measured surviving before its test and dying
+# after, one mutant at a time, which is what a claim like this is worth:
+#
+# - `nulldata`'s 80-byte cap: the builder's `len(data) > 80` had no test
+#   building the 80 it allows, only the 81 it refuses.
+# - `assert_segwit`'s `0x51 <= script_pub_key[0]`, weakened to `80 <=`,
+#   accepted 0x50 -- OP_RESERVED, which BIP141 leaves out of the witness
+#   versions -- and its exact-length check had never been given a script
+#   shorter than its own marker announces, nor its message read.
+# - `p2ms`'s arithmetic: 16-of-16 is the case that tells `- 80` from the
+#   `^ 80` agreeing with it up to 15, and 16 keys is what the builder's
+#   own `0 < n < 17` had never been asked for. The two markers that
+#   decode to no quorum -- 0xB1 and 0x62 -- name their number in the
+#   refusal now, which is what tells that subtraction from a modulo.
+# - `taproot.parse`'s `len(data) > MAX_SCRIPT_ELEMENT_SIZE`, exercised at
+#   519, 520 and 521 rather than above the limit alone.
+# - `check_output_pubkey`'s `control[0] & 1 == Q[1] % 2`: the parity bit
+#   is flipped now on a proof that is otherwise correct, for an output
+#   key of each parity and on both the bindings and the Python path.
+#
+# `assert_nulldata`'s `length < 78` weakened to 79 is equivalent, and the
+# reason is three lines above it: `length == 78` is refused before that
+# branch is reached, and 78 is the only length at which the two differ.
+#
+# Left open: `read_op_code`'s `stop + size > len(script)` as `-` and `%`,
+# and `_serialize_int_command`'s `-1 <= command <= 16` as `~1`.
+#
+# `taproot._read_push_data`'s `i > 75` and `2 ** (i - 76)` are in the list
+# too, and they are the seven lines the test command above says it does not
+# reach: engine.toml is what judges them, exactly as predicted here rather
+# than found out afterwards. The equivalence classes are the ones the other
+# profiles document: an `is` where CPython interns both ints, a
+# `check_validity` default, a `@dataclass(eq=True)` flag, and comparisons
+# against a marker byte at the extreme of the closed set it comes from.
+
+# one mutant at a time, in this working tree: see sig_hash.toml
+[cosmic-ray.distributor]
+name = "local"

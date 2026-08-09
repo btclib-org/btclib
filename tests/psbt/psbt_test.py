@@ -497,7 +497,12 @@ def test_the_identifier_of_a_v2_psbt_ignores_the_sequences() -> None:
     other = deepcopy(psbt)
     other.inputs[0].output_index = 1
     with pytest.raises(BTClibValueError, match="mismatched psbt.tx.id: "):
-        combine([psbt, other])
+        combine([deepcopy(psbt), deepcopy(other)])
+    # and the other way round: what is compared is two identifiers for
+    # equality, where an ordering would refuse one of the two arrangements
+    # of the same disagreement and accept the other
+    with pytest.raises(BTClibValueError, match="mismatched psbt.tx.id: "):
+        combine([deepcopy(other), deepcopy(psbt)])
 
     # and the two versions are not combined into each other: which of
     # them the result would be is the caller's to say, with to_v0/to_v2
@@ -806,6 +811,55 @@ def test_the_values_the_v2_fields_may_hold() -> None:
 
     psbt.fallback_lock_time = 0xFFFFFFFF + 1
     with pytest.raises(BTClibValueError, match="invalid fallback locktime: "):
+        psbt.assert_valid()
+
+
+def test_the_v2_fields_are_valid_at_both_ends_of_their_range() -> None:
+    """The value each bound allows, beside the one the test above refuses.
+
+    A range asserted from one side only is a range whose own number never
+    mattered: every one of these bounds survives being moved by one as
+    long as nothing asks for the value it is supposed to admit. So each
+    is exercised here at the edge it accepts -- and at zero, which is a
+    number three of these fields treat differently from each other.
+    """
+    psbt = _bip370_psbt("1 input, 2 output updated PSBTv2")
+    psbt_in = psbt.inputs[0]
+
+    # a timestamp of 0xFFFFFFFF is the last second nLockTime can express,
+    # and the second after it is a field that does not fit
+    psbt_in.required_time_lock_time = 0xFFFFFFFF
+    psbt_in.assert_valid()
+    psbt_in.required_time_lock_time = 0xFFFFFFFF + 1
+    with pytest.raises(BTClibValueError, match="invalid required time locktime: "):
+        psbt_in.assert_valid()
+    psbt_in.required_time_lock_time = None
+
+    # height 1 is the first block a lock time can require: 0 is
+    # nLockTime's "no lock time at all", so an input requiring it
+    # requires nothing
+    psbt_in.required_height_lock_time = 1
+    psbt_in.assert_valid()
+    psbt_in.required_height_lock_time = 0
+    with pytest.raises(BTClibValueError, match="invalid required height locktime: 0"):
+        psbt_in.assert_valid()
+    psbt_in.required_height_lock_time = None
+
+    # no flag set is a psbt nobody may modify, which is a psbt ready to
+    # be signed rather than an invalid one
+    psbt.tx_modifiable = 0
+    psbt.assert_valid()
+    psbt.tx_modifiable = 0xFF
+    psbt.assert_valid()
+    psbt.tx_modifiable = None
+
+    # and both ends of the fallback lock time, which is the field the
+    # Creator writes when no input requires one
+    for lock_time in (0, 0xFFFFFFFF):
+        psbt.fallback_lock_time = lock_time
+        psbt.assert_valid()
+    psbt.fallback_lock_time = -1
+    with pytest.raises(BTClibValueError, match="invalid fallback locktime: -1"):
         psbt.assert_valid()
 
 

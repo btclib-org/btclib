@@ -33,6 +33,7 @@ split every vendored vector here has.
 from __future__ import annotations
 
 import json
+import re
 import subprocess
 import sys
 from pathlib import Path
@@ -749,3 +750,85 @@ def test_the_stand_in_is_a_subprocess_and_not_a_mock(hwi: list[str]) -> None:
     )
     (device,) = json.loads(completed.stdout)
     assert device["fingerprint"] == FINGERPRINT
+
+
+def test_a_device_is_usable_only_with_a_fingerprint_and_no_error() -> None:
+    """Both halves, and HWI can answer both at once.
+
+    A locked device answers an error and no fingerprint, and that is the
+    pair this reads like -- but a device can be enumerated with a
+    fingerprint *and* an error, HWI having asked it two questions, and
+    then the fingerprint is one nothing may be signed against. Which is
+    why the two are an `and`: either half alone would make that device
+    usable, and `_select` would pick it as the one to sign with.
+    """
+    known = bytes.fromhex(FINGERPRINT)
+    usable = HwiDevice(type="trezor", model="1", path="0001:0002", fingerprint=known)
+    assert usable.is_usable
+
+    locked = HwiDevice(type="trezor", model="1", path="0001:0002", error="locked")
+    assert not locked.is_usable
+
+    both = HwiDevice(
+        type="trezor",
+        model="1",
+        path="0001:0002",
+        fingerprint=known,
+        error="Could not open client or get fingerprint",
+    )
+    assert not both.is_usable
+
+    # and the flags a device does not carry are off: HWI omits them for a
+    # device that needs nothing sent, so the default is what most devices
+    # are read with
+    assert not usable.needs_pin_sent
+    assert not usable.needs_passphrase_sent
+
+
+def test_every_refusal_names_the_command_it_ran(tmp_path: Path) -> None:
+    """The message names argv[0], which is the executable and not a flag.
+
+    A caller offering signers of several kinds reads that name to know
+    which one failed, and every one of these messages is built from the
+    same argv -- so naming any other element of it would name a chain
+    flag, a subcommand or the script the interpreter was given.
+    """
+    # anchored on the colon that follows it, the OSError carried after it
+    # naming the same path: what is being asserted is which element of the
+    # argv the message opens with
+    missing = str(tmp_path / "nowhere")
+    with pytest.raises(SignerNotFoundError, match=f"cannot run {re.escape(missing)}:"):
+        enumerate_devices(executable=missing)
+
+    flood = tmp_path / "flood.py"
+    flood.write_text("print('x' * 100)\n", encoding="ascii")
+    with pytest.raises(SignerError, match=re.escape(sys.executable)):
+        enumerate_devices(executable=[sys.executable, str(flood)], max_output=10)
+
+    chatty = tmp_path / "chatty.py"
+    chatty.write_text(
+        "import sys\nsys.stderr.write('x' * 100)\nprint('[]')\n", encoding="ascii"
+    )
+    with pytest.raises(SignerError, match=re.escape(sys.executable)):
+        enumerate_devices(executable=[sys.executable, str(chatty)], max_output=10)
+
+    slow = tmp_path / "slow.py"
+    slow.write_text("import time; time.sleep(5)\n", encoding="ascii")
+    with pytest.raises(SignerError, match=re.escape(sys.executable)):
+        enumerate_devices(executable=[sys.executable, str(slow)], timeout=0.2)
+
+
+def test_the_emulators_flag_is_global_and_goes_before_the_command(
+    tmp_path: Path,
+) -> None:
+    """HWI's parser reads it as a global flag, so it goes ahead of enumerate.
+
+    Where in the argv it is inserted is not a style question: a global
+    flag after the subcommand is an unrecognized argument to that
+    subcommand, and the answer is HWI's usage message rather than a
+    device list.
+    """
+    hwi = stand_in(tmp_path, {"enumerate": []})
+    enumerate_devices(executable=hwi, emulators=True)
+    argv = last_argv(hwi)
+    assert argv[argv.index("--emulators") + 1] == "enumerate"
