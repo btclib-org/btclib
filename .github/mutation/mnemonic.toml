@@ -35,14 +35,41 @@ excluded-modules = []
 # len(indexes)` essentially never lands on, so it is equivalent for
 # every base this ships rather than for the one test vector above.
 #
-# The other 24 are `collect_rolls`' manual dice-entry path -- the `else`
-# branch `input()` reads from when `automate` is false. Roughly a third
-# are cosmetic (the `roll #{i + 1}` prompt text, arithmetic-mutated eight
-# ways, changes what a human is shown and nothing a test reads); the rest
-# are `valid_dice_sides` entries and the roll bounds `0 < roll <= base`,
-# real but each needing a scripted `sys.stdin` session
-# (`test_collect_rolls` already has the fixture) to reach past `automate`.
-# Left as a sampled first pass rather than chased number by number here.
+# The other 24 were `collect_rolls`' manual dice-entry path and
+# `bin_str_entropy_from_int`'s prefix detection, both worked through in a
+# second pass on this same 150-mutant sample (the session itself is still
+# only 150 of 739, not re-run):
+#
+# - `bin_str_entropy_from_int`'s `== "0b"` weakened to `<=` reads a plain
+#   decimal starting with "0" and a digit below "b" as binary instead
+#   ("010" is 10 in decimal, 2 read as binary); `== "0x"` weakened to
+#   `>=` needed a string that is neither prefixed nor a valid plain
+#   decimal to distinguish -- "ab" sorts above "0x" and parses as hex
+#   where `int("ab")` raises.
+# - `collect_rolls`' roll-prompt text (`roll #{i + 1}`, arithmetic-
+#   mutated eight ways, and the dice-sides list truncated by `[:-1]`
+#   mutated to `[:-0]`) is printed and discarded by `input()`, so nothing
+#   read it until `capsys` did.
+# - the roll bounds `0 < roll <= base`: `!= 0` still refuses a negative
+#   roll only by coincidence of the D120 vectors' own numbers, and every
+#   manual roll already in the suite equals `base` exactly, so `== base`
+#   in place of `<= base` went unnoticed. `bin_str_entropy_from_rolls`'
+#   own `dice_sides < 2` was tested at 1, never at 2, the boundary itself.
+# - `valid_dice_sides` entries 8, 30 and 48 were never offered to the
+#   `while dice_sides not in valid_dice_sides` loop by any existing vector.
+#
+# Two are left open, checked rather than assumed. `automate`'s
+# `1 + secrets.randbelow(dice_sides)` shifted to `2 + ...` still produces
+# a diverse roll sequence -- the reroll loop discards whatever lands
+# outside `[1, base]` regardless of the offset -- so a "not all equal"
+# assertion (which does kill the `**` mutant collapsing every roll to 1)
+# does not kill this one; only a distribution test would, and the loop's
+# own correctness does not depend on it. `bip39.lang_from_mnemonic`'s
+# `language_length(lang) == _BIP39_WORDLIST_LENGTH` weakened to `<=`
+# needs a sentence built entirely from the 553 words `en` and `slip39`
+# share, and even then only distinguishes if entropy_from_mnemonic's
+# checksum happens to validate under both -- constructible in principle,
+# not attempted here.
 
 [cosmic-ray.distributor]
 name = "local"
