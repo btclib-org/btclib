@@ -159,6 +159,39 @@ Included features are:
 
 ---
 
+## Secrets, and where constant time ends
+
+btclib is used to teach and to prototype as much as to build, and the two
+uses want different things of it. What follows is the boundary between
+them, before a private key is handed to any of the above.
+
+A Python object carrying secret material cannot be reliably zeroized: it
+stays in the process memory until garbage collection, and the interpreter
+may have copied it meanwhile. The constant-time properties are
+libsecp256k1's, and they hold on the C side of the call — not before it,
+and not after.
+
+Not every operation crosses that call. `dsa.sign` and `ssa.sign` reach the
+bindings for secp256k1 with sha256 and no nonce of the caller's; another
+curve, another hash function, or a nonce you supply runs the Python
+arithmetic instead, which the suite validates against the bindings but
+which is not constant-time. So a caller whose threat model includes timing
+should stay on the delegated paths, or keep the key out of the process
+altogether: `btclib.hwi` drives a hardware wallet through HWI, behind the
+same `PsbtSigner` contract a software signer answers.
+
+<!-- The link is to the file and not to its section: the documentation
+build renders this README with myst, which mints no heading ids, so a
+fragment naming one is an unresolved reference and fails sphinx-build -W.
+The section is named in the prose instead, which costs the reader one
+scroll and the build nothing. -->
+[SECURITY](./SECURITY.md)'s "Limitations, not vulnerabilities" states each
+condition exactly — which arguments delegate, which do not, and what the
+Python path does hide — and is the canonical text; this section is the
+pointer to it.
+
+---
+
 ## Module layout
 
 Three pairs of modules are one idea split in two, and each split runs one
