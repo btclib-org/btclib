@@ -44,6 +44,27 @@ documented at release-notes length in the first place, and are still in
   warned with -- `warnings.warn` is what a warning is raised through, and
   `BTClibUserWarning` in `btclib.exceptions` is the class for it -- so
   nothing that filters warnings is affected.
+- **Hasse's half-width is computed in integer arithmetic** (#573).
+  `Curve` bounded `n` with `int(2 * sqrt(self.p))`, which rounds `p` to
+  the 53 bits of a float mantissa before truncating: on secp256k1 the
+  result is one above `floor(2*sqrt(p))`, so the interval the constructor
+  admitted was a shade wider than Hasse's. `isqrt(4 * self.p)` is that
+  floor exactly, `delta` being the largest `d` with `d*d <= 4*p`.
+
+  Not `2 * isqrt(self.p)`, which is the same number only when `p` is a
+  perfect square and is otherwise too small -- the two are 5 and 4 on
+  `p = 7`, and the second refuses the order-13 curve over it that
+  `tests/curves/curve_group_test.py` builds. The distinction is what the
+  new `test_hasse_half_width_is_exact` pins, against the exact
+  arithmetic rather than against a table of expected widths.
+
+  The cofactor estimate below it reads the same `delta` and was three
+  float divisions of 256-bit integers, each rounding before they were
+  added; it is `(1 + delta + self.p) // n` now. No catalogued curve and
+  no low-cardinality test curve changes what it is built as: the two
+  spellings were measured to agree on all 27 of the first and all of the
+  second, which is why this is a correctness fix with no behaviour to
+  record.
 
 ## v2026.8.9
 
