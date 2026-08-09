@@ -21,5 +21,35 @@ timeout = 300
 
 excluded-modules = []
 
+# 183 mutants, complete: 129 killed, 54 survived, 33 the deferred-
+# annotation class documented in this session's other profiles. Of the
+# 17 real candidates, seven are fixed by the tests in this commit and the
+# one before it:
+#
+# - `tx.id.hex() != tx_id` weakened to `>` was tested with a requested id
+#   sorting below the actual one only; one sorting above closes the
+#   other half.
+# - `out_point.vout >= len(tx.vout)` weakened to `==` or to `is` was
+#   tested at the exact boundary only; a vout far past it and outside
+#   CPython's interned range closes both.
+# - `Fetcher`'s three abstract methods were only ever exercised together.
+# - `chain != expected_chain` weakened to `>` was tested in the direction
+#   where the actual chain sorts after the expected one only.
+# - `_signet_magic` was never called by a test asserting its output.
+# - `RpcError`/`HttpError`'s translation checked the code, status and
+#   data carried across, never the message itself -- one assertion on
+#   the message text kills the mutant in both `fetcher.py`'s shared
+#   translation and, being the same line, every caller of it.
+# - `esplora.py`'s `status != 200` weakened to `> 200` was tested above
+#   200 only; 100 is what tells them apart.
+#
+# Two are left open. `network == "mainnet"` weakened to `<=` is
+# equivalent for every name `NETWORKS` currently holds -- mainnet sorts
+# first alphabetically among mainnet/regtest/signet/testnet/testnet4 --
+# but the equivalence is fragile: a network named before "mainnet" would
+# break it silently. `check_validity=True` surviving where `tx_for_network`
+# builds a relabelled `Tx` is the same deferred class parsers.toml's
+# follow-up already names.
+
 [cosmic-ray.distributor]
 name = "local"
