@@ -106,7 +106,8 @@ exclude-operators = ["core/ReplaceBinaryOperator_BitOr_.*"]
 #   the only source of such a signature here is a BIP373 MuSig2
 #   aggregation, whose partial signatures commit to SIGHASH_DEFAULT. A
 #   script-path signer taking an explicit sighash type is what would kill
-#   it, and is the test to write rather than an equivalence to accept.
+#   it, and is the test to write rather than an equivalence to accept:
+#   issue #560.
 #
 # The remaining classes are the ones documented elsewhere here: a
 # `check_validity` default, an `is` over interned ints, and a comparison

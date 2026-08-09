@@ -161,8 +161,12 @@ def test_the_signer_answers_for_its_own_keys_only() -> None:
     assert signer.sign_ecdsa(pub_key, origin, msg_hash) is not None
     assert signer.sign_ecdsa(pub_key, None, msg_hash) is None
 
-    stranger = BIP32KeyOrigin("deadbeef", origin.der_path)
-    assert signer.sign_ecdsa(pub_key, stranger, msg_hash) is None
+    # one stranger on each side of this signer's own fingerprint in byte
+    # order -- 73c5da0a -- the question being whose master it is and not
+    # which of the two sorts first
+    for stranger_fingerprint in ("deadbeef", "0badcafe"):
+        stranger = BIP32KeyOrigin(stranger_fingerprint, origin.der_path)
+        assert signer.sign_ecdsa(pub_key, stranger, msg_hash) is None
 
     # a hardened step under an xpub, which no derivation can take
     watch_only = SoftwareSigner(xpub_from_xprv(derive(XPRV_ROOT, "m/84h/0h/0h")))
@@ -208,6 +212,10 @@ def test_a_watch_only_signer_shows_and_derives_but_does_not_sign() -> None:
     holder = SoftwareSigner(XPRV_ROOT)
     receive, change = export_account(holder, "m/84h/0h/0h")
     assert display_address(signer, receive, 2) == receive.address(2)
+    # and the method's own default, which the function above always passes
+    # explicitly: the first address of the chain is what "the" address of a
+    # descriptor means
+    assert signer.display_address(receive) == receive.address(0)
 
     psbt = spending(receive, change)[0]
     with pytest.raises(BTClibValueError, match="watch-only signer"):
@@ -326,9 +334,13 @@ def test_the_longest_account_prefixing_an_origin_answers() -> None:
     assert signer.xpub("m/84h/0h/0h/0/7") == xpub_from_xprv(
         derive(XPRV_ROOT, "m/84h/0h/0h/0/7")
     )
-    # a path no account of it prefixes is a key it does not hold
-    with pytest.raises(BTClibValueError, match="no key held for the path"):
-        signer.xpub("m/44h/0h/0h")
+    # a path no account of it prefixes is a key it does not hold, and that
+    # is a prefix and not an ordering: the second of these sorts above
+    # both accounts where the first sorts below them, and neither is a
+    # path either account can walk to
+    for elsewhere in ("m/44h/0h/0h", "m/99h/0h/0h"):
+        with pytest.raises(BTClibValueError, match="no key held for the path"):
+            signer.xpub(elsewhere)
 
 
 def test_a_signer_of_accounts_has_no_single_key() -> None:

@@ -980,12 +980,21 @@ documented at release-notes length in the first place, and are still in
     produce one, the only source being a MuSig2 aggregation over
     SIGHASH_DEFAULT.
     - `signer.toml` (302 of 302, the one profile that finished): 46 of
-    its 66 survivors are inside `psbt_signer_contract.py`, the file whose
+    its 66 survivors were inside `psbt_signer_contract.py`, the file whose
     job is refusing a signer that does not conform. Its checks do fire —
     each has a signer built to break it — but the arithmetic inside them
-    does not, so a check could be laxer than it reads and every fixture
-    would still pass. Not closed here: the arithmetic is the next round's
-    work, and `signer.toml` lists it.
+    did not, so a check could have been laxer than it reads with every
+    fixture still passing. `_check_signable` sums
+    `len(answered_in.partial_sigs) - len(psbt_in.partial_sigs)`, and `|`,
+    `+`, `<<` and `>>` all agree with that `-` as long as the psbt arrives
+    with no signature in it: a 3-of-3 the reference signer holds one key
+    of, two of the three signed before it is called, is what tells them
+    apart. The rest of that file's survivors, and the signer boundary's
+    own, were comparisons exercised in one direction: a fingerprint width
+    tested long and never short, two drift checks whose second answer
+    always sorted above the first, a displayed address lied about upwards
+    only, and a path prefix and an origin fingerprint never tried above
+    what the signer holds.
     - `wallet.toml` (293 of 419): the `branch=0, index=0` defaults were
     undefended in all four modules — nothing called `address`,
     `script_pub_key`, `redeem_script`, `witness_script`, `satisfy` or

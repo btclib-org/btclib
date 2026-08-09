@@ -310,10 +310,20 @@ def test_a_displayed_address_is_compared_with_the_descriptor_s() -> None:
     receive = export_account(signer, ACCOUNT)[0]
 
     assert display_address(signer, receive, 3) == receive.address(3)
+    # and the index defaults to the first address of the chain, which is
+    # what a caller asking for "the" address of a descriptor means
+    assert display_address(signer, receive) == receive.address(0)
 
-    lying = _Display("bc1qcr8te4kr609gcawutmrza0j4xv80jy8z306fyu")
-    with pytest.raises(BTClibValueError, match="the signer displayed"):
-        display_address(lying, receive, 3)
+    # a lie on each side of the truth in byte order: what the check asks
+    # is whether the two strings are the same string, where an ordering
+    # would accept every address that sorts the right way
+    truth = receive.address(3)
+    below = "bc1q" + "0" * (len(truth) - 4)
+    above = "bc1q" + "z" * (len(truth) - 4)
+    assert below < truth < above
+    for lie in (below, above):
+        with pytest.raises(BTClibValueError, match="the signer displayed"):
+            display_address(_Display(lie), receive, 3)
 
 
 def test_a_descriptor_that_holds_a_private_key_is_not_sent() -> None:
