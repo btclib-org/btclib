@@ -28,7 +28,7 @@ import contextlib
 import json
 from collections.abc import Sequence
 from hashlib import sha256
-from math import sqrt
+from math import isqrt
 from pathlib import Path
 from typing import Any
 
@@ -193,7 +193,14 @@ class Curve(CurveGroup):
             err_msg = "n is not prime: "
             err_msg += f"{hex_string(n)}" if n > HEX_THRESHOLD else f"{n}"
             raise BTClibValueError(err_msg)
-        delta = int(2 * sqrt(self.p))
+        # Hasse's half-width, floor(2*sqrt(p)), in integer arithmetic:
+        # math.sqrt rounds p to 53 bits of mantissa before the truncation,
+        # which on a 256-bit p overshoots by one and widens the interval
+        # below by that much. isqrt(4*p) and not 2*isqrt(p): the two are
+        # the same number only when p is a perfect square, floor(2*sqrt(p))
+        # being what this is -- on p = 7 they are 5 and 4, and the second
+        # refuses an n of 13 that Hasse admits
+        delta = isqrt(4 * self.p)
         # also check n with Hasse Theorem
         if cofactor < 2 and not self.p + 1 - delta <= n <= self.p + 1 + delta:
             err_msg = "n not in p+1-delta..p+1+delta: "
@@ -225,7 +232,13 @@ class Curve(CurveGroup):
             raise BTClibValueError(err_msg)
 
         # 6. Check cofactor
-        exp_cofactor = int(1 / n + delta / n + self.p / n)
+        # floor((p + 1 + delta) / n), the upper end of the Hasse interval
+        # divided by the subgroup order, in integer arithmetic for the
+        # reason delta is: three float divisions of 256-bit integers each
+        # round before they are added, where the quotient of a curve with
+        # a cofactor of 1 sits one ulp above the integer it must truncate
+        # to
+        exp_cofactor = (1 + delta + self.p) // n
         if cofactor != exp_cofactor:
             err_msg = f"invalid cofactor: {cofactor}, expected {exp_cofactor}"
             raise BTClibValueError(err_msg)
