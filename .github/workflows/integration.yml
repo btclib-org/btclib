@@ -55,6 +55,32 @@ on:
     paths:
       - .github/workflows/integration.yml
       - tests/integration/**
+      # and the implementation whose answer a node is what checks
+      # (issue #570). What the two regtest tests put in front of Core is
+      # a descriptor it imports, the request that carries it, a psbt it
+      # signs beside btclib, the transaction extracted from it and the
+      # script that spends: a change to any of those can be accepted by
+      # 18k offline vectors and refused by the node, which is the whole
+      # of why this workflow exists. Without them the job ran only when
+      # a test or this file changed, so the branch that could break the
+      # flow was the one branch it did not check.
+      - btclib/core_import.py
+      - btclib/descriptors/**
+      - btclib/psbt/**
+      - btclib/psbt_signer*.py
+      - btclib/script/**
+      - btclib/tx/**
+      # What is deliberately not here, both halves measured rather than
+      # guessed. `btclib/fetch/**` is imported by nothing under
+      # tests/integration: the tests drive the node through
+      # `bitcoin_core_rpc` directly, so a fetch backend has no answer of
+      # Core's to be checked against until issue #204 gives it one.
+      # And the cryptographic core -- curves, ecc, hashes, utils -- is in
+      # the transitive imports of the flow and stays out all the same:
+      # what it is held to is vectors, offline and on every push, so a
+      # change there is red in `test.yml` long before a node sees it,
+      # while listing it would spend a runner on nearly every pull
+      # request and leave "outside the covered paths" meaning nothing
 
 # least privilege for the GITHUB_TOKEN: nothing here writes, and the
 # tarball is fetched from bitcoincore.org, which does not know this token
