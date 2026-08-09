@@ -30,20 +30,47 @@ excluded-modules = []
 # are the deferred-annotation class fetch.toml documents, 2 an `is`
 # CPython's small-int cache makes indistinguishable from `==`.
 #
-# One real gap, closed: `bech32._decode`'s `UnicodeDecodeError` catch for
-# a byte string outside ascii had no caller supplying one -- every bytes
-# input in the suite was `str.encode("ascii")` on an already-valid bech32
-# string, which cannot raise it.
+# A second pass on this same 490-mutant sample closed every other real
+# candidate:
 #
-# Most of the rest -- a dozen or so -- are `b32.convertbits`'s `max_acc`
-# mask, computed with `+`, `-`, `<<` and `-1` all replaced in turn.
-# Checked by hand rather than left assumed: applying the widest of them
-# (`+` to `*`, a mask thousands of times too large) against the full
-# bech32/b32 suite still passes every vector, because `from_bits` and
-# `to_bits` are always 5 and 8 here and `acc` never approaches even the
-# correct mask's boundary -- a defensive bound BIP173's own 5-to-8 and
-# 8-to-5 regrouping never binds. Left as found rather than given a test
-# that would only assert the mask's arithmetic, not a behaviour.
+# - `bech32._decode`'s `UnicodeDecodeError` catch for a byte string
+#   outside ascii had no caller supplying one -- every bytes input in the
+#   suite was `str.encode("ascii")` on an already-valid bech32 string,
+#   which cannot raise it.
+# - the HRP character range `47 < ord(x) < 123` was tested at \\x20,
+#   \\x7f and \\x80, all far outside it, and never at the boundary itself
+#   -- "/" (47) and "{" (123).
+# - the checksum alphabet check `bech[-6:]` weakened to `bech[-5:]` was
+#   tested with the invalid byte at the very last position, where both
+#   slices agree; six characters from the end, where they do not, was not.
+# - `base58.decode`'s `len(result) == out_size` weakened to `>=` was
+#   tested with an `out_size` larger than the decoded length -- which
+#   both comparisons refuse -- and never smaller, where `>=` wrongly
+#   accepts.
+# - `b32.witness_from_address`'s `isinstance(b32addr, str)` weakened to
+#   `not isinstance` was never told an address padded with the
+#   whitespace only the `str` branch strips.
+# - `power_of_2_base_conversion`'s `value < 0 or (value >> from_bits)`
+#   weakened to `and` was tested with a negative value only, whose
+#   right shift is always -1 (truthy) in Python's infinite two's
+#   complement, satisfying `and` on its own; a value merely too large
+#   and not negative is what the `or` is actually for.
+# - `b32.p2tr` hardcodes witness version 1, and nothing checked which
+#   version the address it built decoded back as.
+#
+# Checked by hand and left as equivalent, not assumed: `bech32._polymod`'s
+# `chk << 5 ^ value` against `|` never overlaps a bit, the shift clearing
+# exactly the low five bits `value` (five bits itself) then occupies.
+# `b32.convertbits`'s `max_acc` mask, computed with `+`, `-`, `<<` and
+# `-1` all replaced in turn, keeps every vector passing even at the
+# widest of them (`+` to `*`, a mask thousands of times too large)
+# because `from_bits`/`to_bits` are always 5 and 8 here and `acc` never
+# approaches even the correct bound -- a defensive mask BIP173's own
+# regrouping does not bind. `bech32._decode`'s second case-check,
+# `bech.upper() != bech` weakened to `<`, is provably the same
+# comparison here: upper-casing never increases a character's code
+# point, so the first position where the two strings differ is always
+# the position where the upper-cased one sorts lower.
 
 [cosmic-ray.distributor]
 name = "local"

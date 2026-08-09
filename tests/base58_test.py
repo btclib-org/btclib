@@ -85,6 +85,13 @@ def test_exceptions() -> None:
     with pytest.raises(BTClibValueError, match="invalid decoded size: "):
         decode(encoded, wrong_length)
 
+    # a requested size smaller than what decoded, not larger: the vector
+    # above asks for more than the 11 decoded bytes, which `== out_size`
+    # weakened to `>= out_size` also refuses (11 is not >= 19); asking
+    # for fewer is what tells them apart, 11 being >= 5
+    with pytest.raises(BTClibValueError, match="invalid decoded size: "):
+        decode(encoded, 5)
+
     invalid_checksum = encoded[:-4] + b"1111"
     with pytest.raises(BTClibValueError, match="invalid checksum: "):
         decode(invalid_checksum, 4)

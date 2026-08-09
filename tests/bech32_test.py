@@ -84,12 +84,27 @@ def test_bech32() -> None:
         ["\x20" + " 1nwldj5", r"HRP character out of range: *"],
         ["\x7f" + "1axkwrx", r"HRP character out of range: *"],
         ["\x80" + "1eym55h", r"HRP character out of range: *"],
+        # the boundary itself, not \x20/\x7f/\x80 (all far outside it):
+        # `47 < ord(x) < 123` weakened at either end to `<=` still
+        # refuses those three and would accept "/" (47) or "{" (123)
+        ["/1nwldj5", r"HRP character out of range: *"],
+        ["{1axkwrx", r"HRP character out of range: *"],
+        # mixed case where lowering it does not sort below the original:
+        # `bech.lower() != bech` weakened to `< bech` is false here (the
+        # raised "u" sorts above the "U" it replaces), and the `and`
+        # after it only raises if the upper-casing check also does
+        ["a12UEL5L", r"mixed case: *"],
         ["pzry9x0s0muk", r"no separator character: *"],
         ["1pzry9x0s0muk", r"empty HRP: *"],
         ["x1b4n0q5v", r"invalid data character: *"],
         ["li1dgmt3", r"too short checksum: *"],
         # Invalid character in checksum
         ["de1lg7wt\xff", r"invalid character in checksum: *"],
+        # the same, at the far end of the checksum rather than the near
+        # one: `bech[-6:]` weakened to `bech[-5:]` still catches the
+        # vector above (its invalid byte is the very last character) and
+        # misses this one, six characters from the end and not five
+        ["de1\xffqpzry", r"invalid character in checksum: *"],
         # checksum calculated with uppercase form of HRP
         ["A1G7SGD8", r"invalid checksum: *"],
         ["10a06t8", r"empty HRP: *"],
