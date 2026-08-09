@@ -24,6 +24,28 @@ documented at release-notes length in the first place, and are still in
 
 ### Descriptors and miniscript
 
+- **`btclib.hwi` bounds what the backend writes, not what it parses**
+  (#519). `max_output` was checked after `subprocess.run` had read both
+  streams to EOF, so what it limited was the answer handed to the json
+  parser, while the memory the exchange cost was whatever the executable
+  managed to write before the timeout -- and stderr was not limited at
+  all, being decoded only when stdout was empty. Both streams are now
+  temporary files whose size is watched between two waits: either one
+  past the limit kills the child and raises `SignerError`, and no more
+  than one byte past the limit is ever read back. The limit on stderr is
+  its own and applies to a backend whose answer was perfectly good, which
+  is what keeps the refusal from depending on when the child was noticed.
+
+  Temporary files rather than pipes read a chunk at a time, which is what
+  the issue proposed: a pipe has to be drained by whoever is also timing
+  the child, and draining it is the buffering the limit exists to
+  prevent, so bounding both streams that way needs a reader thread each
+  -- `selectors` does not read pipes on Windows, and the matrix runs
+  Windows. A file is written by the child alone, so its size is a
+  question `os.fstat` answers between two `Popen.wait` slices, and the
+  module keeps its one thread. What the slice costs is how far past the
+  limit a flood can get before it is stopped, which is bounded by the
+  disk rather than by the memory of this process.
 - **The in-process HWI adapter is refused, in `btclib.hwi` and not only in
   a closed issue** (#469). The reason is a Python range: HWI declares
   `^3.9,<3.13`, this library supports 3.10 to 3.14 and pypy, so an optional
