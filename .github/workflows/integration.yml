@@ -47,6 +47,11 @@ on:
   # run, so once a pull request touches one of these every later push to
   # that branch runs this too
   pull_request:
+    # ready_for_review, so a pull request marked ready gets the run the
+    # draft condition below withheld while it was a draft: the default
+    # types do not include it, and without it a readied pull request
+    # would wait for its next push to be checked at all
+    types: [opened, reopened, synchronize, ready_for_review]
     paths:
       - .github/workflows/integration.yml
       - tests/integration/**
@@ -66,6 +71,15 @@ concurrency:
 jobs:
   regtest:
     name: Regtest against Bitcoin Core
+    # a draft pull request is work in progress and spends no runner
+    # here either, the release pull request excepted: dev -> master is
+    # a draft from one release to the next, and its runs are what
+    # checks a commit merged into dev. The same condition lint.yml and
+    # test.yml carry, and ready_for_review is a trigger type above for
+    # the same reason
+    if: >-
+      ${{ !github.event.pull_request.draft
+      || github.base_ref == 'master' }}
     runs-on: ubuntu-latest
     # the whole flow is seconds -- two tests, a node that answers its
     # first rpc call in well under a second, and a chain of a few blocks

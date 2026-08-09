@@ -27,6 +27,11 @@ on:
     - cron: "53 4 1 * *"
   workflow_dispatch:
   pull_request:
+    # ready_for_review, so a pull request marked ready gets the run the
+    # draft condition below withheld while it was a draft: the default
+    # types do not include it, and without it a readied pull request
+    # would wait for its next push to be checked at all
+    types: [opened, reopened, synchronize, ready_for_review]
     paths:
       - .github/workflows/vendored-vectors.yml
       - .github/scripts/check_vendored_vectors.py
@@ -43,6 +48,15 @@ concurrency:
 jobs:
   check:
     name: Check vendored vectors against upstream
+    # a draft pull request is work in progress and spends no runner
+    # here either, the release pull request excepted: dev -> master is
+    # a draft from one release to the next, and its runs are what
+    # checks a commit merged into dev. The same condition lint.yml and
+    # test.yml carry, and ready_for_review is a trigger type above for
+    # the same reason
+    if: >-
+      ${{ !github.event.pull_request.draft
+      || github.base_ref == 'master' }}
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
