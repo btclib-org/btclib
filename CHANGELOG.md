@@ -751,6 +751,70 @@ documented at release-notes length in the first place, and are still in
   miniscript fragment: sortedmulti()`, because a release that started
   accepting either would be changing what a descriptor means rather than
   what it parses.
+- **Mutation testing reaches nine more scopes beyond issue #327's own
+  four** (ssa.py was #327's fifth candidate and is not among them; see
+  below): extended keys, the checksummed codecs, bitcoin message
+  signing, BIP322, the block header and its proof-of-work arithmetic,
+  and the shared codec helpers, beside the fetch boundary and the
+  numeric validators #327 already named. Ten `.github/mutation/*.toml`
+  profiles in total, each measured on this tree rather than estimated,
+  wired into `mutation.yml` as three new jobs beside the two #327 added.
+  The real gaps each one found and closed:
+    - `bip32.toml` (1356 mutants, complete): `BIP32KeyData.is_root` had no
+    caller at all, so every operator on its three-way `and` survived
+    together; `str_from_der_path`'s fingerprint length check was tested
+    short and never long.
+    - `codecs.toml` (490 of 1083 sampled): `bech32._decode`'s own comment
+    already said a `UnicodeDecodeError` let out "would fly past every
+    caller written to catch `BTClibValueError`", and nothing supplied
+    the bytes that would raise it.
+    - `bms.toml` (496 of 977 sampled): `Sig` is
+    `@dataclass(frozen=True, init=False)`, and nothing after
+    construction assigned to a field to find out whether the frozen
+    half still held.
+    - `bip322.toml` (508 of 977 sampled), the most consequential single
+    finding: `REQUIRED_RULES` and `UPGRADEABLE_RULES` are each a `|`
+    chain over distinct-bit `ScriptFlag` members, and nothing called
+    either name to check the result — an `&` at any position collapses
+    everything accumulated left of it against a single bit, so
+    `REQUIRED_RULES` could have silently been one flag wide instead of
+    the seven it names.
+    - `block.toml` (1481 mutants, complete): `block_work`'s
+    `target + 1` against `target - 1` agree for every existing vector,
+    whose target sits within a whisker of 2^224; a target as small as 2
+    is what tells them apart. `hash_rate`'s two bounds were each tested
+    at zero only, missing a negative difficulty and a timespan of 1.
+    (One survivor needed no fix: `BlockHeader.assert_valid`'s
+    `self.hash > target` weakened to `>=` is Core's own proof-of-work
+    comparison, and the comment already beside it says why no vector
+    can move it.)
+    - `utils.toml` (57 of 388 sampled): `hex_string`'s negative check was
+    never tried at zero, its index loop's stop bound was never tried at
+    a length landing exactly on it, and `int_from_bits`' truncation
+    guard was never tried below the length it guards.
+    - `numeric.toml`, `fetch.toml`, `mnemonic.toml` (sampled): six more
+    real gaps closed across the KDF's output-length cap, `fetch`'s
+    tx-id and chain-mismatch comparisons and its three abstract methods
+    tested only together, and the BIP39 entropy codec's non-power-of-two
+    base.
+
+  A wide class recurs across all ten and is documented, not fixed, in
+  each profile's own file: Python 3.14 evaluates annotations lazily by
+  default (PEP 649), so an operator confined to a type annotation is
+  equivalent on this interpreter regardless of
+  `from __future__ import annotations` — a broader class than the one
+  `sig_hash.toml`/`parsers.toml` documented for pre-3.14 semantics, and
+  the majority of every profile's raw survivor count. `check_validity`
+  defaults account for most of the rest, the same class `parsers.toml`'s
+  own follow-up already names.
+
+  `btclib/ecc/ssa.py` and `dsa.py`, #327's fifth candidate, are mutated
+  together as `signatures.toml` (812 of 2475 sampled, the largest and
+  least complete scope this round). Two real gaps closed, both a
+  scalar's upper bound tested against the wrong "invalid" value:
+  `ssa.Sig`'s `0 <= self.s < self.ec.n` and `dsa.Sig`'s two equivalents
+  were exercised invalid with `ec.p` — a different, larger prime — and
+  never with `ec.n` itself
 - **The two regtest tests get an account each**, where they shared one and
   so shared its first address. The node is the session's, and a wallet the
   second test to run creates still saw what the first had paid: the import
