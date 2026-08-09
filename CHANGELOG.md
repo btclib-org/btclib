@@ -332,6 +332,17 @@ documented at release-notes length in the first place, and are still in
   node that could not be reached is asked again by the fetch after it. A
   fetcher that refused once and then served an address on the next call
   would be the silent failure with one more step in it.
+- **`Psbt.b64decode` refuses unreadable base64 with `BTClibValueError`**
+  (#523), where it let `binascii.Error` out for a string base64 cannot
+  group and a bare `ValueError` for one that is not ascii. The audience of
+  that method is a caller handing it what somebody pasted, and that caller
+  catches the library's exception; `bms.Sig.b64decode` and
+  `ecies.Envelope.b64decode` already answered with it. Both escapes derive
+  from `ValueError`, as `BTClibValueError` does, so an `except ValueError`
+  written against either behaviour still catches. Found by
+  `tests/fuzz_test.py` on the day the method was added to it, and the
+  three inputs that found it are a test of their own in
+  `tests/psbt/psbt_test.py`.
 - **`OutPoint` no longer refuses half a coinbase marker** (#513). The
   rule was `(tx_id == 0) ^ (vout == 0xFFFFFFFF)`, i.e. both sentinels or
   neither; Bitcoin Core's is the conjunction — `COutPoint::IsNull` is
@@ -541,6 +552,19 @@ documented at release-notes length in the first place, and are still in
   curve, another hash function or a caller's own nonce takes the Python
   path. Both places link the detailed text rather than restating it, so
   there is one canonical answer and two ways to reach it.
+
+### Tests
+
+- **`tests/fuzz_test.py` reaches the entry points it was missing** (#523):
+  the base64 wrappers `Psbt.b64decode`, `bip322.Sig.b64decode` and
+  `ecies.Envelope.b64decode`, the binary `ecies.Envelope.parse`, and the
+  two text languages `descriptors.parse` and `miniscript.parse`. A
+  wrapper is a parser of its own -- what it adds is the decoding, a str
+  that is not ascii and padding that is not canonical, which the binary
+  entry point beneath it never sees -- and adding the first of them found
+  the `Psbt.b64decode` defect above. `bip322.Sig` has no binary entry
+  point to add, its three payloads being told apart by the prefix of the
+  text form alone.
 
 ## v2026.8.7
 
