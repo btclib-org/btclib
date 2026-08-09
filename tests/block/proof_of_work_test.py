@@ -57,6 +57,10 @@ def test_consensus_parameters() -> None:
     assert POW_TARGET_TIMESPAN == 14 * 24 * 60 * 60
     assert POW_TARGET_SPACING == 10 * 60
     assert DIFFICULTY_ADJUSTMENT_INTERVAL == 2016
+    # a `//` weakened to `/` still equals 2016, floating point being exact
+    # at this size, but is no longer the int retarget_first_height's own
+    # subtraction wants
+    assert isinstance(DIFFICULTY_ADJUSTMENT_INTERVAL, int)
 
     # mainnet's limit is the genesis block target, which is what makes
     # the genesis difficulty 1
@@ -242,6 +246,12 @@ def test_bits_from_target_edges() -> None:
     assert bits_from_target("01").hex() == "01010000"
     assert bits_from_target("0102").hex() == "02010200"
 
+    # exponent 4 exactly, the first value of the *other* branch: `<= 3`
+    # weakened to `<= 4` sends it through the left shift above instead,
+    # by a negative amount, which is not a quiet wrong answer but a
+    # `ValueError` of its own
+    assert bits_from_target((0x01000000).to_bytes(32, "big")).hex() == "04010000"
+
     # zero occupies no bytes at all
     assert bits_from_target(b"").hex() == "00000000"
     assert bits_from_target(b"\x00" * 32).hex() == "00000000"
@@ -399,6 +409,28 @@ def test_next_bits_pow_limit_is_per_network() -> None:
     )
 
 
+def test_next_bits_reads_the_pow_limit_unsigned() -> None:
+    """A pow_limit past 2^255 is read as itself, not as its negative twin.
+
+    `min(target, pow_limit)` has nothing downstream to wrap a misread
+    back into range the way the multiplication two lines above does for
+    `target` itself (see `test_next_bits_wraps_as_core_does`): a signed
+    read of `pow_limit_bits` here raises trying to re-encode a negative
+    result instead of leaving the small, unclamped target alone.
+    """
+    first = _time(1262152739)
+    two_weeks = timedelta(seconds=POW_TARGET_TIMESPAN)
+    assert (
+        next_bits(
+            MAINNET_POW_LIMIT_BITS,
+            first,
+            first + two_weeks,
+            pow_limit_bits="2100ffff",
+        )
+        == MAINNET_POW_LIMIT_BITS
+    )
+
+
 def test_next_bits_wraps_as_core_does() -> None:
     """Core multiplies in arith_uint256, and arith_uint256 wraps.
 
@@ -421,6 +453,14 @@ def test_next_bits_wraps_as_core_does() -> None:
     assert target_from_bits("220000ff")[0] == 0xFF
 
     assert next_bits("220000ff", first, first + two_weeks) == bytes(4)
+
+    # the ring is 2^256 and not 2^255: this target's bit 255 is the one
+    # the product's wrap carries into the quotient, which a `% 2**256`
+    # weakened to `% 2**255` drops before the floor division ever sees
+    # it, changing an unchanged two-week period into a wrong one instead
+    assert next_bits(
+        "1e080000", first, first + two_weeks, pow_limit_bits=REGTEST_POW_LIMIT_BITS
+    ) == bytes.fromhex("1e080000")
 
 
 def test_block_work() -> None:
@@ -449,6 +489,17 @@ def test_block_work() -> None:
     # the `- 1` that would only fail loudly at target 1, never silently
     small_target_bits = bits_from_target((2).to_bytes(32, "big"))
     assert block_work(small_target_bits) == 2**256 // 3
+
+    # target 1, odd rather than even: `+ 1` weakened to `| 1` or `^ 1`
+    # agrees with it on every even target, 2 above included, and only an
+    # odd one tells the three apart (2 vs 1 vs 0 for a target of 1)
+    odd_target_bits = bits_from_target((1).to_bytes(32, "big"))
+    assert block_work(odd_target_bits) == 2**256 // 2
+
+    # a target past 2^255, the sign bit of a 32-byte signed read: nothing
+    # downstream masks or wraps this one back, unlike `next_bits`'s own
+    # `int.from_bytes` of a target, see there
+    assert block_work("2100ffff") == 1
 
 
 def test_chain_work() -> None:

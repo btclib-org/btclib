@@ -50,6 +50,169 @@ excluded-modules = []
 # merkle_root one fixed above and were not each given their own test;
 # the remainder is comparison operators in the parsing and validation
 # helpers, sampled as data here.
+#
+# A second pass worked through that data. Real gaps closed, by file:
+#
+# `proof_of_work.py`
+# - `block_work`'s `target + 1` weakened to `| 1` or `^ 1` agrees with
+#   `+` on every even target, 2 (the earlier vector) included; only an
+#   odd one -- 1, giving 2, 1 and 0 respectively -- tells the three apart.
+# - `block_work`'s own `int.from_bytes(..., signed=False)` read of the
+#   target: a target past 2^255 is misread negative, and nothing here
+#   wraps it back the way `next_bits`'s multiply-mod-2^256 does for the
+#   equivalent read there (below) -- `2**256 // (target + 1)` on a
+#   negative target is simply wrong.
+# - `next_bits`'s own read of `pow_limit_bits`, the same signedness bug
+#   one call further down: `min(target, pow_limit)` has no modulus after
+#   it to undo a misread, and a synthetic `pow_limit_bits` past 2^255
+#   turns the `min` negative, `to_bytes(..., signed=False)` then raising
+#   `OverflowError` where the correct read returns the smaller, positive
+#   `target` unclamped.
+# - `next_bits`'s `% 2**256` weakened to `% 2**255`: provably reachable,
+#   unlike the read above -- the two moduli agree whenever the product
+#   stays under 2^255, which most vectors do, but a target and timespan
+#   chosen so the product's own bit 255 is set (bits `1e080000`, an
+#   unchanged two-week period) came back wrong under the narrower ring.
+# - `bits_from_target`'s `exponent <= 3` weakened to `<= 4` sends
+#   exponent 4 through the left-shift branch by a *negative* amount --
+#   `ValueError`, not a quiet wrong answer, and exponent 4 is the first
+#   value the widened boundary newly admits.
+# - `DIFFICULTY_ADJUSTMENT_INTERVAL`'s `//` weakened to `/`: the float it
+#   produces still equals 2016, floating point being exact at this size,
+#   but is no longer the `int` `retarget_first_height`'s subtraction wants.
+#
+# `block_header.py`
+# - `assert_valid`'s version range, `0 < self.version <= 0x7FFFFFFF`: the
+#   lower bound was pinned at zero, `0 != self.version` still refusing
+#   only that one value and letting every negative one through; the
+#   upper bound had no vector at 0x7FFFFFFF itself, so `< 0x7FFFFFFF` and
+#   the literal `2147483646` each passed by refusing a version every
+#   other vector in the suite already carries.
+# - `assert_valid`'s `0 <= self.nonce`: pinned at zero the same way,
+#   `-1 <=` unrefused by any existing vector, all of them non-negative.
+# - `check_validity` defaults on `__init__`, `to_dict`, `from_dict`,
+#   `serialize` and `parse`, and the `if check_validity:` guards in
+#   `to_dict` and `serialize` themselves (`AddNot`) -- the same class
+#   `parsers.toml`'s follow-up names, closed here the way `bms.toml` and
+#   `bip322.toml` closed theirs: a negative version is invalid on its
+#   own and needs `signed=True` to survive the round trip below, so one
+#   fixture exercises the checked-vs-bypassed default at every one of
+#   the five entry points at once.
+# - `hash`'s own `serialize(check_validity=False)` weakened to `True`:
+#   `True` there would refuse to hash the very header being mined,
+#   before its proof-of-work exists to check.
+# - `serialize`'s `self.version.to_bytes(..., signed=True)` and `parse`'s
+#   `int.from_bytes(header_bin[:4], ..., signed=True)`: the same negative
+#   version above needs both to survive a `check_validity=False` round
+#   trip without an `OverflowError` on the way out or a wrong 4-byte
+#   unsigned reading on the way back.
+# - `parse`'s own `t = int.from_bytes(rest[:4], ..., signed=False)` for
+#   the *timestamp*: unrelated to the version bug above, and unguarded
+#   by any round trip through `assert_valid` -- a real, valid instant
+#   past 2038 (`assert_valid` allows up to 2106) has its top bit set and
+#   comes back over a century early, silently, under `signed=True`.
+# - `_EPOCH`'s `datetime.fromtimestamp(0, ...)`, and `__init__`'s
+#   `version: int = 1` and `nonce: int = 0` defaults: nothing had ever
+#   asked what a bare `BlockHeader(check_validity=False)` carries in the
+#   three fields it does not name.
+#
+# `block.py`
+# - `assert_valid_length`'s transaction-count check, `count *
+#   WITNESS_SCALE_FACTOR > MAX_BLOCK_WEIGHT` weakened to `count <<
+#   WITNESS_SCALE_FACTOR`: the existing vector at `limit + 1` triggers
+#   both, so a count between the count check's own boundary and the
+#   *stripped-size* check's -- 250,001, a quarter-million real (if
+#   reused) coinbases -- raises on a different message under each,
+#   proving the widened check moved.
+# - The same check's `stripped_size` half, and `assert_valid_weight`'s
+#   `weight > MAX_BLOCK_WEIGHT`, each weakened to `>=`: all three had a
+#   vector one past the cap and none sitting on it, so each rule's own
+#   boundary value was untested territory of its own.
+# - `vsize`'s `ceil(self.weight / 4)` weakened to `// 4`: every existing
+#   weight vector happens to be a multiple of four, where the two agree;
+#   one more witness byte moves the weight off that multiple.
+# - `height`'s `self.header.version == 1` weakened to `<= 1`: version 0
+#   is not version 1, and nothing had asked a coinbase with a BIP34
+#   commitment and a version below 1 whether it still decoded.
+# - `assert_valid_merkle_root`'s `!=` and `assert_valid_witness_commitment`'s
+#   `!=`, each weakened to one direction (`<` and `>` respectively): the
+#   existing wrong-value vectors each happen to sort the direction the
+#   weakened operator still catches; block 170 with its last transaction
+#   popped, and a witness nonce of `21 * 32`, each sort the other way.
+# - `bip34_commitment`'s `-1 <= height`: four different mutations on the
+#   same term (`!=`, `<`, `~1` i.e. -2, and the literal `-0`), and no
+#   test had ever called the function directly. Height -1 and -2 are the
+#   two boundary values `op_int`'s own op-code range needs told apart --
+#   `-2` is refused by `op_int` outright, not silently miscoded.
+# - `witness_commitment`'s `len(script) >= _COMMITMENT_LENGTH` weakened
+#   to `==` or `<=`: every commitment output on hand happens to be
+#   exactly the minimum length; nothing followed the prefix with extra
+#   bytes the way an unrelated later push in the same script could.
+# - `assert_valid`'s `self.transactions[0].assert_valid()` weakened to
+#   `[-1]`: on the one-transaction block 1 the two names are the same
+#   object, so a second, non-coinbase transaction -- block 200,000's --
+#   is what tells a coinbase validated from one that merely resembles it
+#   because the loop below already checked it once as `transactions[1:]`.
+# - `check_validity` defaults on `to_dict`, `from_dict` and `serialize`,
+#   the `to_dict` guard (`AddNot`), and the six internal calls that
+#   hardcode `check_validity=False` when a sub-object is converted
+#   without being judged -- the header and each transaction inside
+#   `to_dict`/`from_dict`, and the transactions inside the merkle-root
+#   and witness-commitment hash loops. One fixture (a valid coinbase
+#   beside a transaction with no outputs, refused on its own) exercises
+#   the whole set: every conversion has to survive it, and `True`
+#   anywhere in the chain raises on the second transaction's own account
+#   instead of leaving that to whichever `assert_valid` a caller made.
+#
+# Checked and left equivalent, the patterns already established
+# elsewhere in this session applied to this module's own call sites:
+#
+# - bit-disjoint offsets, `4 + _HF_LEN`/`4 + 2 * _HF_LEN` in
+#   `BlockHeader.parse` and `len(_COMMITMENT_PREFIX) + 32` in `block.py`:
+#   4, 6, 32 and 64 share no set bit with each other, so `|` and `^`
+#   against `+` agree everywhere these constants are used.
+# - the exponent-3 boundary, on both sides: `target_from_bits`'s
+#   `exponent < 3` weakened to `<= 3` and `bits_from_target`'s
+#   `exponent <= 3` weakened to `< 3` each move exponent 3 to the other
+#   branch, and both branches shift by zero there -- `3 - 3` either way
+#   -- so the branch taken is not observable. The same identity, `3 - e
+#   == 3 ^ e` for e in 0..3, is what makes `ReplaceBinaryOperator_Sub_BitXor`
+#   equivalent at both of the two lines it appears on.
+# - masking cancels an extra byte or a sign, three ways: `_value_from_bits`'s
+#   and `is_negative_bits`'s `bits[1:]` weakened to `bits[0:]` is undone
+#   by `_SIGNIFICAND_MASK`/`_SIGNIFICAND_SIGN_BIT` immediately after,
+#   both masks landing below the extra byte's own bit positions;
+#   `bool(significand & _SIGNIFICAND_SIGN_BIT)` weakened to `//` agrees
+#   with `&` because `significand` is always under 2^24 at both call
+#   sites (the second by construction, the shift just above it sized to
+#   guarantee it); and `assert_valid_pow`'s zero-check, `int.from_bytes`
+#   read `signed=False` weakened to `True`, is a truthiness test that a
+#   sign flip cannot change -- zero is zero, negative-nonzero is still
+#   truthy nonzero.
+# - a coinbase has exactly one input, `Tx.is_coinbase` requiring it, and
+#   `_assert_coinbase` having already asked before any of `height`,
+#   `assert_valid_witness_commitment` or `assert_valid_coinbase_height`
+#   reads `self.transactions[0].vin[0]`: `[-1]` there names the same
+#   object. The witness stack index right after it is the same
+#   argument once more, guarded by the `len(witness_stack) != 1` check
+#   on the line above instead.
+# - `next_bits`'s own two remaining `signed=False` reads: the one for
+#   `target` is undone the same way the modulus above is real for --
+#   `(target * timespan) % 2**256` cancels a misread by exactly 2^256,
+#   which subtracting or not on the way in does not survive -- and the
+#   final `target.to_bytes(..., signed=False)` never reaches a value
+#   past 2^236 to begin with, `// POW_TARGET_TIMESPAN` on a sub-2^256
+#   numerator bounding it three orders of magnitude below the sign bit
+#   the mutation would need.
+# - `BlockHeader.parse`'s `len(header_bin) != _REQUIRED_LENGTH` against
+#   `<`: `stream.read(_REQUIRED_LENGTH)` never returns more, the same
+#   bounded-read reasoning `bms.toml`'s `Sig.parse` gives; its final
+#   `rest[8:12]` against `rest[8:13]`, `rest` itself exactly 12 bytes by
+#   that point, Python's own slice-past-the-end silently clipping to it.
+# - `BlockHeader.assert_valid_pow`'s `self.hash > target` against `>=` is
+#   the file's own pre-existing answer, unchanged: a hash equal to the
+#   target is the last one that solves the block, and constructing one
+#   is asking a 256-bit hash for one exact value.
 
 [cosmic-ray.distributor]
 name = "local"

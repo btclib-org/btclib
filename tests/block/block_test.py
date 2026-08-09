@@ -19,7 +19,12 @@ from pathlib import Path
 
 import pytest
 
-from btclib.block import Block, BlockHeader
+from btclib.block import (
+    Block,
+    BlockHeader,
+    bip34_commitment,
+    merkle_root_and_mutated_from_transactions,
+)
 from btclib.block.limits import (
     MAX_BLOCK_SIGOPS_COST,
     MAX_BLOCK_WEIGHT,
@@ -27,10 +32,11 @@ from btclib.block.limits import (
 )
 from btclib.block.proof_of_work import REGTEST_POW_LIMIT_BITS
 from btclib.exceptions import BTClibTypeError, BTClibValueError
+from btclib.hashes import hash256, merkle_root_and_mutated_from_hashes
 from btclib.network import NETWORKS
 from btclib.script import ScriptPubKey
 from btclib.script.witness import Witness
-from btclib.tx import TxOut
+from btclib.tx import OutPoint, Tx, TxIn, TxOut
 from tests.conftest import JsonGolden
 
 
@@ -104,6 +110,19 @@ def test_exceptions() -> None:
         header.assert_valid()
     header.version = 0x7FFFFFFF + 1
     with pytest.raises(BTClibValueError, match="invalid version: "):
+        header.assert_valid()
+    # the upper boundary itself, not only past it: `<= 0x7fffffff`
+    # weakened to `<` would refuse the one version every other test
+    # vector already carries, and no vector for it means no signal
+    header.version = 0x7FFFFFFF
+    header.assert_valid()
+
+    header = BlockHeader.parse(header_bytes)
+    # a nonce below zero, not only one past the top: `0 <=` loosened to
+    # `-1 <=` would let it through, the negative side `> 0x100000000`
+    # above never reaches
+    header.nonce = -1
+    with pytest.raises(BTClibValueError, match="invalid nonce: "):
         header.assert_valid()
 
     header = BlockHeader.parse(header_bytes)
@@ -197,6 +216,191 @@ def test_block_header_keywords() -> None:
     assert header.serialize() == header_bytes
 
 
+def test_block_header_defaults() -> None:
+    """Every default `__init__` leaves unset, read back off a bare header."""
+    header = BlockHeader(check_validity=False)
+    assert header.version == 1
+    assert header.nonce == 0
+    # the epoch itself, not one second either side of it: aware, because
+    # a naive one would compare differently depending on the machine
+    assert header.time == datetime(1970, 1, 1, tzinfo=timezone.utc)
+
+
+def test_parse_reads_the_timestamp_field_unsigned() -> None:
+    """A post-2038 timestamp is not a pre-1970 one misread as negative.
+
+    The field is four unsigned bytes, valid up to 2106 per `assert_valid`;
+    `signed=True` would turn one past 2038 negative and `fromtimestamp`
+    would still accept the result, silently, rather than raising or even
+    landing in the right century.
+    """
+    time = datetime(2040, 1, 1, tzinfo=timezone.utc)
+    header = BlockHeader(
+        1,
+        bytes(32),
+        bytes(32),
+        time,
+        bytes.fromhex("1d00ffff"),
+        0,
+        check_validity=False,
+    )
+    parsed = BlockHeader.parse(
+        header.serialize(check_validity=False), check_validity=False
+    )
+    assert parsed.time == time
+
+
+def test_check_validity_defaults_to_true_everywhere_it_appears() -> None:
+    """`__init__`, `to_dict`, `serialize`, `from_dict`, `parse`: five guards.
+
+    One field breaks two rules at once and is reused throughout: a
+    negative version fails `assert_valid` (`0 < version`) and needs
+    `signed=True` to survive `serialize` and `parse` without an
+    `OverflowError` or a silently different number coming back --
+    `to_bytes`/`from_bytes` weakened to `signed=False` would raise on
+    the way out and misread on the way back respectively.
+    """
+    header = BlockHeader(
+        -1,
+        bytes(32),
+        bytes(32),
+        datetime(2009, 1, 9, 2, 54, 25, tzinfo=timezone.utc),
+        bytes.fromhex("1d00ffff"),
+        0,
+        check_validity=False,
+    )
+
+    with pytest.raises(BTClibValueError, match="invalid version: -0x1"):
+        BlockHeader(
+            -1,
+            bytes(32),
+            bytes(32),
+            datetime(2009, 1, 9, 2, 54, 25, tzinfo=timezone.utc),
+            bytes.fromhex("1d00ffff"),
+            0,
+        )
+
+    with pytest.raises(BTClibValueError, match="invalid version: -0x1"):
+        header.to_dict()
+    as_dict = header.to_dict(check_validity=False)
+    assert as_dict["version"] == -1
+
+    with pytest.raises(BTClibValueError, match="invalid version: -0x1"):
+        header.serialize()
+    as_bytes = header.serialize(check_validity=False)
+    assert as_bytes[:4] == (-1).to_bytes(4, "little", signed=True)
+
+    with pytest.raises(BTClibValueError, match="invalid version: -0x1"):
+        BlockHeader.from_dict(as_dict)
+    assert BlockHeader.from_dict(as_dict, check_validity=False) == header
+
+    with pytest.raises(BTClibValueError, match="invalid version: -0x1"):
+        BlockHeader.parse(as_bytes)
+    assert BlockHeader.parse(as_bytes, check_validity=False) == header
+
+    # `hash` always serializes with check_validity=False, whatever the
+    # header's own state: True there would refuse the very header being
+    # hashed, which is what mining a not-yet-valid candidate does not do
+    assert header.hash
+
+
+def _coinbase_and_a_transaction_missing_its_outputs() -> tuple[Tx, Tx]:
+    """Return a valid coinbase and a second transaction `assert_valid` refuses.
+
+    Shared by the tests below: each exercises a different place that
+    must serialize or dict-ify the second transaction without judging
+    it, `Block.assert_valid` -- or a real caller's own -- being what
+    judges it instead, once.
+    """
+    coinbase = Tx(
+        1,
+        0,
+        [TxIn(OutPoint(bytes(32), 0xFFFFFFFF), b"\x01\x01", 0xFFFFFFFF, Witness())],
+        [TxOut(0, b"\x6a")],
+        check_validity=False,
+    )
+    missing_outputs = Tx(
+        1,
+        0,
+        [TxIn(OutPoint(bytes(32), 0), b"\x00", 0xFFFFFFFF, Witness())],
+        [],
+        check_validity=False,
+    )
+    return coinbase, missing_outputs
+
+
+def test_block_check_validity_defaults_to_true_everywhere_it_appears() -> None:
+    """`__init__`, `to_dict`, `serialize`, `from_dict`: the same four guards.
+
+    `BlockHeader`'s own test names, plus the header and every transaction
+    dict-ified or read back at their own default in the process.
+    """
+    coinbase, missing_outputs = _coinbase_and_a_transaction_missing_its_outputs()
+    header = BlockHeader(
+        0,  # invalid on its own, so the header dict/from_dict calls below
+        # cannot pass by accident
+        bytes(32),
+        bytes(32),
+        datetime(2009, 1, 9, 2, 54, 25, tzinfo=timezone.utc),
+        bytes.fromhex("1d00ffff"),
+        0,
+        check_validity=False,
+    )
+    block = Block(header, [coinbase, missing_outputs], check_validity=False)
+
+    with pytest.raises(BTClibValueError, match="invalid version: "):
+        Block(header, [coinbase, missing_outputs])
+
+    with pytest.raises(BTClibValueError, match="invalid version: "):
+        block.to_dict()
+    as_dict = block.to_dict(check_validity=False)
+    assert as_dict["header"]["version"] == 0
+    assert as_dict["transactions"][1]["vout"] == []
+
+    with pytest.raises(BTClibValueError, match="invalid version: "):
+        block.serialize()
+    assert block.serialize(check_validity=False)
+
+    with pytest.raises(BTClibValueError, match="invalid version: "):
+        Block.from_dict(as_dict)
+    assert Block.from_dict(as_dict, check_validity=False) == block
+
+
+def test_merkle_root_and_witness_commitment_serialize_without_judging() -> None:
+    """The two internal hash loops over transactions, at their own default.
+
+    `merkle_root_and_mutated_from_transactions` and the witness-tree
+    loop inside `assert_valid_witness_commitment` each serialize every
+    transaction with `check_validity=False`: `True` there would raise
+    on the second transaction's own account, rather than leaving that
+    to whichever `assert_valid` call the caller made once, outside
+    either loop.
+    """
+    coinbase, missing_outputs = _coinbase_and_a_transaction_missing_its_outputs()
+
+    root, mutated = merkle_root_and_mutated_from_transactions(
+        [coinbase, missing_outputs]
+    )
+    assert root
+    assert not mutated
+
+    nonce = bytes(32)
+    hashes = [
+        b"\x00" * 32,
+        hash256(missing_outputs.serialize(True, check_validity=False)),
+    ]
+    witness_root = merkle_root_and_mutated_from_hashes(hashes, hash256)[0]
+    commitment = hash256(witness_root + nonce)
+    coinbase.vin[0].script_witness = Witness([nonce])
+    coinbase.vout[0] = TxOut(
+        0, ScriptPubKey(bytes.fromhex("6a24aa21a9ed") + commitment)
+    )
+
+    header = BlockHeader(check_validity=False)
+    block = Block(header, [coinbase, missing_outputs], check_validity=False)
+    block.assert_valid_witness_commitment()
+
+
 def test_block_170() -> None:
     """Test first block with a transaction."""
     fname = "block_170.bin"
@@ -233,6 +437,13 @@ def test_block_170() -> None:
     assert header == BlockHeader.parse(header.serialize())
     assert header == BlockHeader.from_dict(header.to_dict())
 
+    # a computed root that sorts *above* the claimed one, not only below
+    # it: `!= self.header.merkle_root` weakened to `<` would miss this
+    # direction, which the vector in test_block_200000 does not exercise
+    block.transactions.pop()
+    with pytest.raises(BTClibValueError, match="invalid merkle root: "):
+        block.assert_valid_merkle_root()
+
 
 def test_block_200000() -> None:
     """Verify block 200,000: 388 transactions and a BIP34 height."""
@@ -247,6 +458,11 @@ def test_block_200000() -> None:
     assert block.weight == 990_132
     assert block.sig_op_count == 822
     assert block.height == 200_000
+    # only version 1 skips the BIP34 decode, not version 0 too: `== 1`
+    # weakened to `<= 1` would read this same coinbase as heightless
+    block.header.version = 0
+    assert block.height == 200_000
+    block.header.version = 2
     assert not block.has_segwit_tx()
     assert block == Block.parse(block.serialize())
     assert block == Block.from_dict(block.to_dict())
@@ -352,6 +568,24 @@ def test_block_481824() -> None:
             assert block.vsize == 988_519
 
 
+def test_vsize_rounds_up_a_weight_that_is_not_a_multiple_of_four() -> None:
+    """988,720 above is exact; `/ 4` weakened to `// 4` needs a remainder.
+
+    One more byte of witness moves the weight by one without moving the
+    stripped size at all, which is what a witness byte costs.
+    """
+    fname = "block_481824_complete.bin"
+    filename = Path(__file__).parent / "_data" / fname
+    with filename.open("rb") as file_:
+        block_bytes = file_.read()
+
+    block = Block.parse(block_bytes)
+    stack = block.transactions[1].vin[0].script_witness.stack
+    block.transactions[1].vin[0].script_witness = Witness([*stack, b"\x00"])
+    assert block.weight == 3_954_885
+    assert block.vsize == 988_722
+
+
 def test_block_witness_commitment() -> None:
     """A block whose witness data was replaced is rejected (BIP141).
 
@@ -398,6 +632,38 @@ def test_block_witness_commitment() -> None:
     assert block.witness_commitment == b"\x00" * 32
     with pytest.raises(BTClibValueError, match="invalid witness commitment: "):
         block.assert_valid_witness_commitment()
+
+    # a wrong commitment that sorts *below* the claimed one, not only
+    # above it: `!= commitment` weakened to `>` would miss this
+    # direction, both other vectors here happening to sort the other way
+    block = Block.parse(block_bytes)
+    block.transactions[0].vin[0].script_witness = Witness([bytes([21]) * 32])
+    computed = "4f367b1b732e90a5f2892968cbdfa0955d089882ca0c377b368063cc24b71228"
+    assert computed < commitment
+    err_msg = f"invalid witness commitment: {commitment} instead of: {computed}"
+    with pytest.raises(BTClibValueError, match=err_msg):
+        block.assert_valid_witness_commitment()
+
+
+def test_witness_commitment_output_may_carry_more_than_the_commitment() -> None:
+    """`>= _COMMITMENT_LENGTH`, not `==` or `<=`: trailing bytes are legal.
+
+    Nothing in BIP141 bounds the output script from above, and Core's
+    own GetWitnessCommitmentIndex does not either -- the 32 bytes right
+    after the prefix are the commitment regardless of what, if
+    anything, follows them.
+    """
+    commitment = bytes(range(32))
+    extra_script = bytes.fromhex("6a24aa21a9ed") + commitment + b"\xff\xff"
+    tx = Tx(
+        1,
+        0,
+        [TxIn(OutPoint(bytes(32), 0xFFFFFFFF), b"\x00", 0xFFFFFFFF, Witness())],
+        [TxOut(0, ScriptPubKey(extra_script))],
+        check_validity=False,
+    )
+    block = Block(BlockHeader(check_validity=False), [tx], check_validity=False)
+    assert block.witness_commitment == commitment
 
 
 def test_block_witness_nonce() -> None:
@@ -589,6 +855,36 @@ def test_block_without_transactions() -> None:
         Block(header, [])
 
 
+def test_bip34_commitment_op_int_range_is_minus_one_to_sixteen() -> None:
+    """The op-code branch is `-1..16`, not one wider on either side.
+
+    -1 is `OP_1NEGATE` and the boundary itself; -2 is a minimal data
+    push instead and the value `op_int` refuses, which is what tells
+    `<=` weakened to `!=`, to `<`, and `-1` itself replaced by `~1`
+    (also -2) or by `-0` apart: each moves one boundary, and the two
+    values here are the two boundaries.
+    """
+    assert bip34_commitment(-1) == bytes.fromhex("4f")
+    assert bip34_commitment(-2) == bytes.fromhex("0182")
+    assert bip34_commitment(16) == bytes.fromhex("60")
+    assert bip34_commitment(17) == bytes.fromhex("0111")
+
+
+def test_assert_valid_coinbase_height_reads_the_first_transaction() -> None:
+    """`self.transactions[0]`, on a coinbase a second transaction is not.
+
+    Block 200,000 is BIP34 and multi-transaction, so a `vin[0]`
+    weakened to the *last* transaction's reads a script_sig that never
+    started with the height commitment to begin with.
+    """
+    fname = "block_200000.bin"
+    filename = Path(__file__).parent / "_data" / fname
+    with filename.open("rb") as file_:
+        block = Block.parse(file_.read())
+
+    block.assert_valid_coinbase_height(200_000)
+
+
 def test_a_block_carries_one_coinbase() -> None:
     """A second coinbase is refused, as Core's bad-cb-multiple.
 
@@ -629,6 +925,25 @@ def test_assert_valid_checks_the_coinbase_transaction() -> None:
         block = Block.parse(file_.read())
 
     block.transactions[0].vin[0].script_sig = b""
+    with pytest.raises(BTClibValueError, match="Invalid coinbase script size"):
+        block.assert_valid()
+
+
+def test_assert_valid_checks_the_first_transaction_and_not_the_last() -> None:
+    """`self.transactions[0]` and not `[-1]`, on a block that tells them apart.
+
+    Block 1 above has one transaction, where the two names the same
+    object: `self.transactions[0].assert_valid()` weakened to `[-1]`
+    needs a second transaction to be told from the loop that already
+    validates every one but the first.
+    """
+    fname = "block_200000.bin"
+    filename = Path(__file__).parent / "_data" / fname
+    with filename.open("rb") as file_:
+        block = Block.parse(file_.read())
+
+    assert len(block.transactions) > 1
+    block.transactions[0].vin[0].script_sig = b"\x00" * 101
     with pytest.raises(BTClibValueError, match="Invalid coinbase script size"):
         block.assert_valid()
 
@@ -889,6 +1204,47 @@ def test_a_block_cannot_weigh_more_than_the_cap() -> None:
     assert block.weight == 4_000_850
     with pytest.raises(BTClibValueError, match="invalid witness nonce: "):
         block.assert_valid()
+
+    # the cap itself, not only one past it: `> MAX_BLOCK_WEIGHT` weakened
+    # to `>=` would refuse a block every node on the network accepts
+    block = Block.parse(block_bytes)
+    block.transactions[1].vin[0].script_witness = Witness([b"\x00" * 45_114])
+    assert block.weight == MAX_BLOCK_WEIGHT
+    block.assert_valid_weight()
+
+
+def test_the_length_and_weight_caps_are_reachable_not_only_crossable() -> None:
+    """The count, the stripped size and the weight, each at its own cap.
+
+    Three `>` comparisons weakened to `>=` would each refuse the one
+    value the rule is written to allow, and none of the three vectors
+    above happens to land on it.
+    """
+    fname = "block_1.bin"
+    filename = Path(__file__).parent / "_data" / fname
+    with filename.open("rb") as file_:
+        block_bytes = file_.read()
+
+    limit = MAX_BLOCK_WEIGHT // WITNESS_SCALE_FACTOR
+    parsed = Block.parse(block_bytes)
+
+    # the count cap: a million transactions is not too many, whatever
+    # `assert_valid_length` finds wrong with them next
+    at_cap = Block(
+        parsed.header, [parsed.transactions[0]] * limit, check_validity=False
+    )
+    with pytest.raises(BTClibValueError, match="invalid stripped size: "):
+        at_cap.assert_valid_length()
+
+    # the stripped-size cap, this time genuinely unrefused: the 215
+    # bytes of block 1, less its 68-byte scripted output, plus one this
+    # size exactly
+    block = Block.parse(block_bytes)
+    block.transactions[0].vout[0] = TxOut(
+        block.transactions[0].vout[0].value, ScriptPubKey(b"\x00" * 999_848)
+    )
+    assert block.stripped_size == limit
+    block.assert_valid_length()
 
 
 def test_a_block_still_requires_the_work() -> None:
