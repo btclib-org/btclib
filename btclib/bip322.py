@@ -74,13 +74,15 @@ exactly the shape of a BIP340 signature with an explicit hash type. So
 the engine reports them, through `verify_input`'s `hash_types`, and the
 rule is enforced over what it reports.
 
-One field of the BIP is not here either:
-`PSBT_GLOBAL_GENERIC_SIGNED_MESSAGE = 0x09`, which a creator puts the
-message in so that a signing device shows "signing message m for address
-A" rather than "spending 0 satoshi". It belongs to the psbt format
-rather than to a signature encoding, and `btclib.psbt` keeps an unknown
-global field as it arrives, so such a psbt round-trips through this
-library today. Issue 516 is registering it.
+The fourth flow of the BIP is not a signature encoding at all: a
+multisig signature is coordinated as a psbt, and the psbt says what is
+being signed through `PSBT_GLOBAL_GENERIC_SIGNED_MESSAGE = 0x09`, the
+global field BIP322 adds to BIP174's registry. `Psbt.signed_message`
+holds it; here `to_sign_psbt` is the Creator that writes one and
+`signed_message` the question a Signer puts to what it received --
+"is this a BIP322 psbt, and for which message" -- so that a device shows
+"signing message m for address A" rather than "spending 0 satoshi",
+which is the promise the field exists to let it keep.
 
 https://github.com/bitcoin/bips/blob/master/bip-0322.mediawiki
 """
@@ -120,9 +122,12 @@ __all__ = [
     "UPGRADEABLE_RULES",
     "Sig",
     "assert_as_valid",
+    "assert_signed_message",
     "message_hash",
     "sign",
+    "signed_message",
     "to_sign",
+    "to_sign_psbt",
     "to_spend",
     "verify",
 ]
@@ -241,6 +246,34 @@ def to_sign(
     return Tx(version, lock_time, vin, [TxOut(0, _OP_RETURN)])
 
 
+def to_sign_psbt(msg: Octets, addr: String) -> Psbt:
+    """Return the psbt a Creator hands the signers of this challenge.
+
+    BIP322's fourth flow: a signature that several keys make together is
+    coordinated as a psbt, so what a Signer receives is the unsigned
+    `to_sign` rather than a witness stack to fill in. Two fields make it
+    one -- the message, in the global
+    `PSBT_GLOBAL_GENERIC_SIGNED_MESSAGE`, and the output being spent,
+    without which no signature can be made -- and `signed_message` is
+    the question this answers on the other side.
+
+    The whole of `to_spend` goes in as the non-witness utxo rather than
+    its one output as a witness utxo: it is the answer for a challenge
+    script of any type, where a witness utxo is the answer for the
+    segwit ones alone, and the transaction is virtual but it is a
+    transaction. Nothing is signed here, and nothing is finalized: what
+    comes back is what a Signer signs, `psbt.sign` and `psbt.finalize`
+    being the roles that follow, and `Sig` of the finalized psbt the
+    proof-of-funds encoding.
+    """
+    script_pub_key = ScriptPubKey.from_address(addr).script
+    spend = to_spend(msg, script_pub_key)
+    psbt = Psbt.from_tx(to_sign(spend))
+    psbt.inputs[0].non_witness_utxo = spend
+    psbt.signed_message = bytes_from_octets(msg)
+    return psbt
+
+
 @dataclass(frozen=True)
 class Sig:
     """A BIP322 signature: what the variant carries, and nothing beside it.
@@ -337,6 +370,21 @@ def _psbt_prevouts(psbt: Psbt) -> list[TxOut]:
     return outs
 
 
+def _assert_op_return_output(tx: Tx) -> None:
+    """Refuse a `to_sign` whose output is not the one BIP322 fixes.
+
+    Exactly one, paying nothing, to an OP_RETURN: the output every
+    `to_sign` has, whatever the message and whatever the challenge. Its
+    own function because a verifier and a Signer ask it of two different
+    things -- a transaction that carries a signature, and a psbt that is
+    about to -- and one rule read in two places is one rule.
+    """
+    if len(tx.vout) != 1:
+        raise BTClibValueError(f"{len(tx.vout)} outputs in to_sign instead of one")
+    if tx.vout[0].value or tx.vout[0].script_pub_key.script != _OP_RETURN:
+        raise BTClibValueError("the output of to_sign is not the OP_RETURN of 0")
+
+
 def _assert_shape(tx: Tx, spend: Tx, prevouts: list[TxOut]) -> None:
     """Refuse a `to_sign` that is not one, the signature apart.
 
@@ -356,10 +404,7 @@ def _assert_shape(tx: Tx, spend: Tx, prevouts: list[TxOut]) -> None:
     if len(prevouts) != len(tx.vin):
         err_msg = f"{len(prevouts)} utxos for {len(tx.vin)} inputs"
         raise BTClibValueError(err_msg)
-    if len(tx.vout) != 1:
-        raise BTClibValueError(f"{len(tx.vout)} outputs in to_sign instead of one")
-    if tx.vout[0].value or tx.vout[0].script_pub_key.script != _OP_RETURN:
-        raise BTClibValueError("the output of to_sign is not the OP_RETURN of 0")
+    _assert_op_return_output(tx)
 
 
 def _assert_upgradeable(tx: Tx) -> None:
@@ -492,6 +537,76 @@ def verify(
         return False
 
     return True
+
+
+def _challenge_script(psbt: Psbt) -> bytes:
+    """Return the script_pub_key the psbt's first input spends.
+
+    Either utxo field answers it, and a psbt carries whichever its
+    Updater had. The non-witness one is indexed without a bounds check
+    because `assert_valid` is what the caller ran first: an outpoint
+    naming an output that transaction does not have is what it refuses.
+    """
+    psbt_in = psbt.inputs[0]
+    if psbt_in.witness_utxo is not None:
+        return psbt_in.witness_utxo.script_pub_key.script
+    if psbt_in.non_witness_utxo is None:
+        raise BTClibValueError("no utxo for the first input")
+    return psbt_in.non_witness_utxo.vout[
+        psbt_in.output_index or 0
+    ].script_pub_key.script
+
+
+def assert_signed_message(psbt: Psbt) -> bytes:
+    """Return the message this psbt is the BIP322 challenge of, or refuse.
+
+    The Signer's own question, and it is not "does the psbt carry a
+    message": a message that the transaction does not commit to is what
+    a device showing "signing message m" would be lying about. So the
+    field is one of five conditions and the other four are the psbt
+    being a `to_sign` -- an input to spend, its outpoint being output 0
+    of the `to_spend` this very message and this very challenge script
+    rebuild, and the one output that pays nothing to an OP_RETURN.
+
+    The challenge script comes from the psbt itself, which is what
+    leaves the caller nothing to be told: `assert_as_valid` is handed an
+    address and checks a signature against it, where a Signer has not
+    been told an address and is working out what it would be signing.
+    """
+    psbt.assert_valid()
+    msg = psbt.signed_message
+    if msg is None:
+        raise BTClibValueError("no signed message in the psbt")
+    if not psbt.inputs:
+        raise BTClibValueError("no input in to_sign")
+
+    tx = psbt.tx
+    spend = to_spend(msg, _challenge_script(psbt))
+    if tx.vin[0].prev_out != OutPoint(spend.id, 0):
+        err_msg = "the first input does not spend to_spend: "
+        err_msg += f"{tx.vin[0].prev_out.tx_id.hex()} instead of {spend.id.hex()}"
+        raise BTClibValueError(err_msg)
+    _assert_op_return_output(tx)
+    return msg
+
+
+def signed_message(psbt: Psbt) -> bytes | None:
+    """Return the message the psbt signs, or None if it signs no message.
+
+    `assert_signed_message` collapsed to what a signing device does with
+    it: a message to show in place of the spend, or nothing and the
+    spend as usual. None is both "no such field" and "a field the
+    transaction does not bear out", the second being the one worth an
+    exception, so a caller that has to tell them apart asks the other
+    one and reads what it says.
+    """
+    # as `verify` catches them, and for its reasons: a psbt that is not
+    # a BIP322 one is an answer rather than an error, and a TypeError is
+    # the caller handing this something that is not a psbt
+    try:
+        return assert_signed_message(psbt)
+    except (ValueError, BTClibRuntimeError):
+        return None
 
 
 def _is_bms(sig: String) -> bool:

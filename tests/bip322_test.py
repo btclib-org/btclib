@@ -18,6 +18,7 @@ from __future__ import annotations
 
 import base64
 import dataclasses
+from copy import deepcopy
 from typing import Any
 
 import pytest
@@ -32,7 +33,7 @@ from btclib.exceptions import (
     InconclusiveError,
 )
 from btclib.hashes import hash160
-from btclib.psbt import Psbt
+from btclib.psbt import Psbt, finalize
 from btclib.script import ScriptPubKey, address, serialize
 from btclib.script.engine import ALL_FLAGS, ScriptFlag
 from btclib.script.sig_hash import (
@@ -753,3 +754,146 @@ def test_a_broken_required_rule_answers_before_an_upgradeable_one(
         return
     with pytest.raises(BTClibValueError, match="BIP322 requires SIGHASH_ALL"):
         bip322.assert_as_valid(msg, addr, sig)
+
+
+@pytest.mark.parametrize("script_type", ["p2pkh", "p2wpkh", "p2sh-p2wpkh", "p2tr"])
+@pytest.mark.parametrize("msg", [b"", b"Hello World", "öäüéàè 测试文本 😄".encode()])
+def test_a_created_psbt_says_which_message_it_signs(
+    script_type: str, msg: bytes
+) -> None:
+    """What the Creator writes, the Signer reads: the round trip of #516.
+
+    Through the wire form, which is the point of registering the field:
+    a psbt that says what is being signed is only useful if it still
+    says it after the trip to the device. The empty message goes through
+    the same as the others -- absent and empty are two answers, and the
+    field is what tells them apart.
+    """
+    addr = _address(WIF, script_type)
+    psbt = bip322.to_sign_psbt(msg, addr)
+
+    assert psbt.signed_message == msg
+    assert bip322.signed_message(psbt) == msg
+    assert bip322.assert_signed_message(psbt) == msg
+
+    parsed = Psbt.b64decode(psbt.b64encode())
+    assert parsed == psbt
+    assert bip322.signed_message(parsed) == msg
+
+    # and it is a `to_sign` of that very challenge, which is what makes
+    # the message worth showing: the psbt signs the address it names
+    spend = bip322.to_spend(msg, ScriptPubKey.from_address(addr).script)
+    assert psbt.tx.vin[0].prev_out == OutPoint(spend.id, 0)
+    assert psbt.inputs[0].non_witness_utxo == spend
+
+
+def test_a_psbt_that_signs_no_message() -> None:
+    """The three answers a Signer gets, and the two that are the same one.
+
+    No field is `None` and no exception: an ordinary psbt spending
+    ordinary coins, which a device shows as the spend it is. A field the
+    transaction does not bear out is `None` too, and *that* is the one
+    worth an exception -- a device showing "signing message m" for a
+    transaction that does not commit to m would be lying about it.
+    """
+    msg, addr = b"the challenge", _address(WIF, "p2wpkh")
+    psbt = bip322.to_sign_psbt(msg, addr)
+
+    plain = Psbt.from_tx(psbt.tx)
+    assert plain.signed_message is None
+    assert bip322.signed_message(plain) is None
+    with pytest.raises(BTClibValueError, match="no signed message in the psbt"):
+        bip322.assert_signed_message(plain)
+
+    # the field alone is not the answer: this psbt spends the output of
+    # a `to_spend` built from another message, so the message it claims
+    # is one the transaction does not commit to
+    lying = bip322.to_sign_psbt(msg, addr)
+    lying.signed_message = b"another message entirely"
+    assert bip322.signed_message(lying) is None
+    with pytest.raises(BTClibValueError, match="does not spend to_spend"):
+        bip322.assert_signed_message(lying)
+
+
+def test_a_signed_message_psbt_is_a_to_sign_in_every_field() -> None:
+    """Each of the five conditions, refused one at a time.
+
+    The message is checked against what the psbt itself says the
+    challenge is -- the script of the output its first input spends --
+    so a psbt with no utxo for that input is a psbt with nothing to
+    check the message against, and not one that passes.
+    """
+    msg, addr = b"five conditions", _address(WIF, "p2wpkh")
+
+    no_utxo = bip322.to_sign_psbt(msg, addr)
+    no_utxo.inputs[0].non_witness_utxo = None
+    with pytest.raises(BTClibValueError, match="no utxo for the first input"):
+        bip322.assert_signed_message(no_utxo)
+
+    # the witness utxo answers it as well, which is the field a psbt of
+    # a segwit challenge may carry instead
+    witness_utxo = bip322.to_sign_psbt(msg, addr)
+    spend = witness_utxo.inputs[0].non_witness_utxo
+    assert spend is not None
+    witness_utxo.inputs[0].non_witness_utxo = None
+    witness_utxo.inputs[0].witness_utxo = spend.vout[0]
+    assert bip322.assert_signed_message(witness_utxo) == msg
+
+    # the outpoint is output 0 of to_spend, and the index is half of
+    # that condition: `to_spend` has one output, so any other index is a
+    # challenge that does not exist. Moved on the witness utxo, the
+    # non-witness one having a vout for `assert_valid` to bound it by --
+    # which is the same refusal one question earlier
+    wrong_vout = deepcopy(witness_utxo)
+    wrong_vout.inputs[0].output_index = 1
+    with pytest.raises(BTClibValueError, match="does not spend to_spend"):
+        bip322.assert_signed_message(wrong_vout)
+
+    # and the output every to_sign has: exactly one, paying nothing to
+    # an OP_RETURN
+    for amount, script in ((0, b"\x6a\x51"), (1, b"\x6a")):
+        wrong_output = bip322.to_sign_psbt(msg, addr)
+        wrong_output.outputs[0].amount = amount
+        wrong_output.outputs[0].script_pub_key = script
+        with pytest.raises(BTClibValueError, match="not the OP_RETURN"):
+            bip322.assert_signed_message(wrong_output)
+
+    two_outputs = bip322.to_sign_psbt(msg, addr)
+    two_outputs.outputs.append(deepcopy(two_outputs.outputs[0]))
+    with pytest.raises(BTClibValueError, match="outputs in to_sign"):
+        bip322.assert_signed_message(two_outputs)
+
+    no_input = bip322.to_sign_psbt(msg, addr)
+    no_input.inputs.clear()
+    with pytest.raises(BTClibValueError, match="no input in to_sign"):
+        bip322.assert_signed_message(no_input)
+
+
+def test_a_created_psbt_is_signed_and_finalized_into_a_proof() -> None:
+    """The flow the field is there for, end to end.
+
+    A 2-of-2 p2wsh: the Creator writes the psbt and the message in it,
+    the Signer reads the message rather than the spend, `psbt.sign` and
+    `psbt.finalize` play their roles, and what comes out is the proof of
+    funds `assert_as_valid` accepts. Which is the whole point of the
+    coordination flow -- the psbt is how the two signatures meet, and
+    the field is how the second signer knows what it is signing.
+    """
+    keys = [pub_keyinfo_from_key(wif, compressed=True)[0] for wif in (WIF, OTHER_WIF)]
+    witness_script = serialize(["OP_2", *keys, "OP_2", "OP_CHECKMULTISIG"])
+    addr = p2wsh(witness_script)
+    msg = b"two keys, one psbt"
+
+    psbt = bip322.to_sign_psbt(msg, addr)
+    assert bip322.signed_message(psbt) == msg
+
+    spend = bip322.to_spend(msg, ScriptPubKey.from_address(addr).script)
+    psbt.inputs[0].witness_utxo = spend.vout[0]
+    psbt.inputs[0].witness_script = witness_script
+    msg_hash = segwit_v0(witness_script, psbt.tx, 0, ALL, 0)
+    for key, wif in zip(keys, (WIF, OTHER_WIF), strict=True):
+        psbt.inputs[0].partial_sigs[key] = dsa_sign(msg_hash, wif)
+
+    sig = bip322.Sig(finalize(psbt))
+    assert sig.variant == bip322.PROOF_OF_FUNDS
+    assert bip322.verify(msg, addr, sig.b64encode())

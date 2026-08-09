@@ -382,11 +382,8 @@ documented at release-notes length in the first place, and are still in
   of an unknown version, each of them successful *because* nothing checks
   it. The BIP's own two vector files are vendored whole and every case
   runs, the three transaction hashes and the 36 error cases included and
-  nothing marked `xfail`. The global psbt field BIP322
-  adds for the coordination flow,
-  `PSBT_GLOBAL_GENERIC_SIGNED_MESSAGE = 0x09`, is #516: it belongs to
-  the psbt format rather than to a signature encoding, and an unknown
-  global field already round-trips.
+  nothing marked `xfail`. The psbt coordination flow is
+  `to_sign_psbt` and `signed_message`, the entry below.
 - **Every required rule of BIP322 is enforced, SIGHASH_ALL included**
   (#514). It is the one that is not a flag: a rule about which stack
   elements the interpreter consumed as signatures, which nothing outside
@@ -407,6 +404,36 @@ documented at release-notes length in the first place, and are still in
   message and the challenge script both enter.
 
 ### Transactions, blocks and PSBT
+
+- **`PSBT_GLOBAL_GENERIC_SIGNED_MESSAGE = 0x09` is a field**, and
+  `btclib.bip322` has the two ends of the flow it exists for (#516).
+  BIP322 adds the global to BIP174's registry so that a psbt says what
+  is being signed: the transaction it carries spends a virtual output of
+  0 to an OP_RETURN of 0 and says nothing about any message, and a
+  signing device reading it can only offer "spending 0 satoshi" where
+  what the user is being asked is "sign this message for this address".
+  `Psbt.signed_message` holds it -- through `parse` and `serialize`,
+  `to_dict` and `from_dict`, and `combine`, which takes it from either
+  side by the rule that keeps the empty message a message. Allowed in
+  versions 0 and 2 both, which is why it is neither in the BIP370 table
+  nor version-gated: no other field of the eight is in both. It arrived
+  as an unknown global before this and round-tripped as one, so what
+  changes for a psbt from another wallet is that the message is now
+  readable rather than kept.
+
+  `bip322.to_sign_psbt` is the Creator half -- the message, the psbt of
+  `to_sign`, and the whole of `to_spend` as the utxo of its first input,
+  which is what a signer of any challenge type can read -- and
+  `bip322.signed_message` is the Signer's question: the message this
+  psbt signs, or `None` where it signs none. The field alone is not that
+  answer, and this is the half a library can be held to: a message the
+  transaction does not commit to is what a device showing "signing
+  message m" would be lying about, so the field is one of five
+  conditions and the other four are the psbt being a `to_sign` of that
+  very message and that very challenge script.
+  `bip322.assert_signed_message` is the same question with the reason,
+  for a caller that has to tell "no message" from "a message this psbt
+  does not bear out".
 
 - **A `BitcoinCoreFetcher` asks the node which chain it serves** (#521).
   `assert_network` has always been able to catch the one silent failure

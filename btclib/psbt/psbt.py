@@ -54,6 +54,7 @@ from btclib.psbt.psbt_utils import (
     assert_not_a_v2_field,
     assert_valid_unknown,
     decode_dict_bytes_bytes,
+    deserialize_bytes,
     deserialize_count,
     deserialize_map,
     deserialize_sized_int,
@@ -92,6 +93,7 @@ __all__ = [
     "INPUTS_MODIFIABLE",
     "OUTPUTS_MODIFIABLE",
     "PSBT_GLOBAL_FALLBACK_LOCKTIME",
+    "PSBT_GLOBAL_GENERIC_SIGNED_MESSAGE",
     "PSBT_GLOBAL_INPUT_COUNT",
     "PSBT_GLOBAL_OUTPUT_COUNT",
     "PSBT_GLOBAL_TX_MODIFIABLE",
@@ -132,6 +134,15 @@ PSBT_GLOBAL_FALLBACK_LOCKTIME = b"\x03"
 PSBT_GLOBAL_INPUT_COUNT = b"\x04"
 PSBT_GLOBAL_OUTPUT_COUNT = b"\x05"
 PSBT_GLOBAL_TX_MODIFIABLE = b"\x06"
+# BIP322's addition to BIP174's registry, and the only global field of
+# the eight that is not about the transaction being built: the message a
+# BIP322 signature is *for*, which the transaction says nothing about --
+# it spends a virtual output of 0 to an OP_RETURN of 0. A signer that
+# reads it shows "signing message m for address A" rather than "spending
+# 0 satoshi", which is the whole reason the field exists. Allowed in
+# versions 0 and 2 both, so it is neither in _V2_GLOBAL_FIELDS below nor
+# in the parser table beside it
+PSBT_GLOBAL_GENERIC_SIGNED_MESSAGE = b"\x09"
 PSBT_GLOBAL_VERSION = b"\xfb"
 # 0xfc is reserved for proprietary use, and needs no constant of its own:
 # explicit support for proprietary (and por) is unnecessary,
@@ -308,7 +319,11 @@ _V2_GLOBAL_PARSERS: dict[bytes, tuple[str, str, Callable[[bytes, bytes, str], in
 def _parse_global_map(
     global_map: Mapping[bytes, bytes], version: int
 ) -> tuple[
-    Tx | None, dict[str, int | None], dict[Octets, BIP32KeyOrigin], dict[Octets, Octets]
+    Tx | None,
+    dict[str, int | None],
+    dict[Octets, BIP32KeyOrigin],
+    dict[Octets, Octets],
+    bytes | None,
 ]:
     """Return what the global map holds: the transaction, if any, and the rest.
 
@@ -319,6 +334,11 @@ def _parse_global_map(
     indistinguishable from a *parsed* one with no inputs, and a count of
     0 from a psbt with no maps, so a check on the value would refuse the
     two zero-input psbts BIP174 lists as valid (issue 170).
+
+    The signed message is the same distinction and the one field where
+    it is the caller's to see: `None` is a psbt that carries no message
+    and `b""` one that carries the empty one, which BIP322 signs like
+    any other -- its own vectors do.
     """
     tx: Tx | None = None
     globals_: dict[str, int | None] = {
@@ -326,6 +346,7 @@ def _parse_global_map(
     }
     hd_key_paths: dict[Octets, BIP32KeyOrigin] = {}
     unknown: dict[Octets, Octets] = {}
+    signed_message: bytes | None = None
 
     for k, v in global_map.items():
         type_ = k[:1]
@@ -333,6 +354,11 @@ def _parse_global_map(
         if type_ in _V2_GLOBAL_PARSERS:
             field, what, deserialize = _V2_GLOBAL_PARSERS[type_]
             globals_[field] = deserialize(k, v, what)
+        elif type_ == PSBT_GLOBAL_GENERIC_SIGNED_MESSAGE:
+            # keydata "none", so a key longer than its type byte is a
+            # second field of one type rather than this one, which
+            # deserialize_bytes refuses for every field written that way
+            signed_message = deserialize_bytes(k, v, "global signed message")
         elif type_ == PSBT_GLOBAL_UNSIGNED_TX:
             if version != PSBT_V0:
                 err_msg = "PSBT_GLOBAL_UNSIGNED_TX is not allowed in a v2 psbt"
@@ -347,7 +373,7 @@ def _parse_global_map(
         else:  # unknown
             unknown[k] = v
 
-    return tx, globals_, hd_key_paths, unknown
+    return tx, globals_, hd_key_paths, unknown, signed_message
 
 
 def _settle_globals(
@@ -639,6 +665,7 @@ class Psbt:
     unknown: dict[bytes, bytes]
     fallback_lock_time: int | None
     tx_modifiable: int | None
+    signed_message: bytes | None
 
     @property
     def lock_time(self) -> int:
@@ -797,6 +824,7 @@ class Psbt:
         unknown: Mapping[Octets, Octets] | None = None,
         fallback_lock_time: int | None = None,
         tx_modifiable: int | None = None,
+        signed_message: Octets | None = None,
         *,
         check_validity: bool = True,
     ) -> None:
@@ -808,6 +836,11 @@ class Psbt:
         self.unknown = dict(sorted(decode_dict_bytes_bytes(unknown).items()))
         self.fallback_lock_time = fallback_lock_time
         self.tx_modifiable = tx_modifiable
+        # `is None` and not truthiness: the empty message is a message,
+        # and the absence of the field is what says there is none
+        self.signed_message = (
+            None if signed_message is None else bytes_from_octets(signed_message)
+        )
 
         if check_validity:
             self.assert_valid()
@@ -925,6 +958,12 @@ class Psbt:
             "unknown": dict(sorted(encode_dict_bytes_bytes(self.unknown).items())),
             "fallback_lock_time": self.fallback_lock_time,
             "tx_modifiable": self.tx_modifiable,
+            # hex like every other octet string here, and `None` where
+            # the field is absent: the empty string is the message of
+            # zero octets, which is a message
+            "signed_message": (
+                None if self.signed_message is None else self.signed_message.hex()
+            ),
             # what the fields above make, for whoever is reading rather
             # than round-tripping: from_dict ignores it, as it must --
             # two ways in would let a dict say two different things.
@@ -964,6 +1003,7 @@ class Psbt:
             dict_["unknown"],
             dict_["fallback_lock_time"],
             dict_["tx_modifiable"],
+            dict_["signed_message"],
             check_validity=check_validity,
         )
 
@@ -1027,6 +1067,15 @@ class Psbt:
             # skipped over
             _assert_valid_version(self.version)
 
+        # written by both versions, BIP322 allowing it in either, and
+        # written here rather than in the two branches above for that
+        # reason. `is not None`: the empty message is a message, and a
+        # psbt that carries the field with nothing in it is a psbt whose
+        # signer must be shown the empty message rather than a spend
+        if self.signed_message is not None:
+            psbt_bin.append(
+                serialize_bytes(PSBT_GLOBAL_GENERIC_SIGNED_MESSAGE, self.signed_message)
+            )
         if self.version:
             temp = self.version.to_bytes(4, byteorder="little", signed=False)
             psbt_bin.append(serialize_bytes(PSBT_GLOBAL_VERSION, temp))
@@ -1072,7 +1121,9 @@ class Psbt:
         # a map has no order to put the version first in
         version = _global_version(global_map)
         _assert_valid_version(version)
-        tx, globals_, hd_key_paths, unknown = _parse_global_map(global_map, version)
+        tx, globals_, hd_key_paths, unknown, signed_message = _parse_global_map(
+            global_map, version
+        )
         _settle_globals(tx, globals_, version)
         input_count = cast(int, globals_["input_count"])
         output_count = cast(int, globals_["output_count"])
@@ -1103,6 +1154,7 @@ class Psbt:
             unknown,
             globals_["fallback_lock_time"],
             globals_["tx_modifiable"],
+            signed_message,
             check_validity=check_validity,
         )
 
@@ -1274,12 +1326,13 @@ def _combine_field(
 def _combine_optional_field(
     psbt_map: PsbtIn | PsbtOut | Psbt, out: PsbtIn | PsbtOut | Psbt, key: str
 ) -> None:
-    """Add one optional integer field of psbt_map to out.
+    """Add one optional field of psbt_map to out, whatever it holds.
 
     _combine_field's rule -- take it when out has none, keep out's when
     it has one -- read with `is not None` rather than with truthiness,
     which for these fields answers the wrong question: 0 is a sequence
-    BIP125 gives a meaning to, and an amount of 0 is an amount.
+    BIP125 gives a meaning to, an amount of 0 is an amount, and the
+    empty signed message is a message.
     """
     item = getattr(psbt_map, key)
     if item is None:
@@ -1460,6 +1513,11 @@ def combine(psbts: Sequence[Psbt]) -> Psbt:
         # for combine([a, b]) and another for combine([b, a]), the copy
         # merged into being the one that happened to come first
         _combine_optional_field(psbt, final_psbt, "fallback_lock_time")
+        # the optional rule and not the truthy one, for the reason that
+        # function gives: the empty message is a message, and taking it
+        # only when it is non-empty would answer one thing for
+        # combine([a, b]) and another for combine([b, a])
+        _combine_optional_field(psbt, final_psbt, "signed_message")
 
     return final_psbt
 
@@ -2696,6 +2754,13 @@ def join(
     every psbt in the sequence, so without the copy the joined psbt's
     inputs *are* theirs, and an Updater filling one in afterwards fills
     in a psbt somebody else is still holding.
+
+    A signed message is not carried over, and that is not an omission:
+    it says which challenge *this* transaction answers, and joining
+    builds a transaction that is not it -- BIP322 binds the message to
+    the first input's outpoint, which the join can move. A caller
+    building a proof of funds this way sets the field on the result,
+    where what it names is a transaction that exists.
     """
     _ensure_consistency(psbts)
     psbts = deepcopy(list(psbts))
