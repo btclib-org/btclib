@@ -43,6 +43,7 @@ from btclib.to_pub_key import Key, pub_keyinfo_from_key
 from btclib.utils import bytes_from_octets, bytesio_from_binarydata
 
 __all__ = [
+    "MAX_TREE_DEPTH",
     "assert_valid_control_block",
     "check_output_pubkey",
     "input_script_sig",
@@ -55,6 +56,19 @@ __all__ = [
     "serialize",
     "tree_helper",
 ]
+
+# How deep a script tree may be, which is Core's
+# TAPROOT_CONTROL_MAX_NODE_COUNT in script/interpreter.h. One number for
+# two things that cannot differ: a leaf at depth d is proved by a merkle
+# path of d nodes, and the control block carrying that path is capped at
+# TAPROOT_CONTROL_MAX_SIZE = 33 + 32 * 128 -- so a leaf deeper than this
+# has no control block to be spent with, whatever built the tree.
+#
+# Here rather than in script/limits.py, whose five caps are the ones at
+# the top of Core's script/script.h: this one is BIP341's, declared
+# beside the control block it bounds and read by the descriptor parser
+# through this name
+MAX_TREE_DEPTH = 128
 
 
 def serialize(script: ScriptList) -> bytes:
@@ -375,7 +389,7 @@ def check_output_pubkey(
     q = bytes_from_octets(q)
     script = bytes_from_octets(script)
     control = bytes_from_octets(control)
-    if len(control) > 4129:  # 33 + 32 * 128
+    if len(control) > 33 + 32 * MAX_TREE_DEPTH:
         raise BTClibValueError("control block too long")
     m = (len(control) - 33) // 32
     if len(control) != 33 + 32 * m:

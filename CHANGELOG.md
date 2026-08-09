@@ -66,6 +66,32 @@ documented at release-notes length in the first place, and are still in
   second, which is why this is a correctness fix with no behaviour to
   record.
 
+### Descriptors and miniscript
+
+- **A tr() script tree is bounded at 128 nesting levels** (#571).
+  `_parse_tree` recurses once per brace and had no bound, so a `tr()`
+  expression nested a thousand deep exhausted the interpreter stack and
+  left through `RecursionError` -- a class `btclib.exceptions` does not
+  declare, which no `except BTClibValueError` around `parse` catches, and
+  which a descriptor arriving from a counterparty could therefore raise.
+  The miniscript half of the same parser was already bounded; this was
+  the BIP386 TREE half alone.
+
+  128 is `taproot.MAX_TREE_DEPTH`, new in this release and Core's
+  `TAPROOT_CONTROL_MAX_NODE_COUNT` under btclib's name: a leaf deeper
+  than that is proved by a merkle path the control block has no room for
+  -- `TAPROOT_CONTROL_MAX_SIZE` being 33 + 32 * 128 -- so the expression
+  describes an output nobody can spend rather than a large one. The
+  constant is declared in `btclib.script.taproot`, beside the control
+  block it bounds, and `check_output_pubkey` reads its own cap off it
+  instead of the literal 4129 it carried.
+
+  Both sides of the boundary are checked against Bitcoin Core v31.1.0's
+  `getdescriptorinfo`, which takes 128, refuses 129, and phrases the
+  refusal "tr() supports at most 128 nesting levels" -- the words btclib
+  now repeats, the two parsers agreeing on the message as well as on the
+  number.
+
 ## v2026.8.9
 
 ### Descriptors and miniscript
