@@ -512,6 +512,63 @@ def test_an_answer_of_the_wrong_shape_is_a_failure(tmp_path: Path) -> None:
         enumerate_devices(executable=listed)
 
 
+@pytest.mark.parametrize(
+    "entry, message",
+    [
+        pytest.param("not a mapping", "did not answer a device", id="not-an-object"),
+        pytest.param(["neither"], "did not answer a device", id="a-list"),
+        pytest.param(
+            {"fingerprint": "not hex"}, "invalid fingerprint", id="fingerprint-not-hex"
+        ),
+        pytest.param(
+            {"fingerprint": "0011"}, "invalid fingerprint", id="fingerprint-too-short"
+        ),
+        pytest.param(
+            {"fingerprint": 5}, "invalid fingerprint", id="fingerprint-a-number"
+        ),
+        pytest.param({"code": "oops"}, "code that is not a number", id="code-a-string"),
+        pytest.param({"code": True}, "code that is not a number", id="code-a-bool"),
+    ],
+)
+def test_a_malformed_enumerate_entry_is_a_signer_error(
+    tmp_path: Path, entry: object, message: str
+) -> None:
+    """A list of the right shape holding the wrong thing is still a failure.
+
+    `enumerate` is the one command whose answer is a list of objects, so
+    it is where a backend that is not speaking HWI's protocol reaches the
+    fields a caller acts on. Every one of these used to leave through a
+    class this module does not name: an `AttributeError` from `.get` on a
+    string, a `ValueError` from `bytes.fromhex` -- and a `code` that is
+    not a number used to arrive intact, in a field annotated `int | None`
+    and read as an HWI error code.
+    """
+    listed = stand_in(tmp_path, {"enumerate": [entry]})
+    with pytest.raises(SignerError, match=message):
+        enumerate_devices(executable=listed)
+
+
+def test_an_enumerate_entry_is_read_for_what_it_says(tmp_path: Path) -> None:
+    """And the fields that are prose are coerced rather than refused.
+
+    `str` and `bool` accept every object there is, and a model name that
+    arrived as a number describes the device it describes; the two fields
+    a caller acts on are the two that are refused above. A device with no
+    fingerprint is not one of those failures either -- it is a locked
+    Trezor, which `HwiDevice` documents and `_select` names in its
+    refusal.
+    """
+    entry = {"type": 5, "model": None, "error": ["locked"], "needs_pin_sent": "yes"}
+    (device,) = enumerate_devices(executable=stand_in(tmp_path, {"enumerate": [entry]}))
+    assert device.type == "5"
+    assert device.model == "None"
+    assert device.error == "['locked']"
+    assert device.needs_pin_sent
+    assert device.fingerprint is None
+    assert device.code is None
+    assert not device.is_usable
+
+
 def test_a_closed_signer_runs_nothing(hwi: list[str]) -> None:
     """A subprocess per command holds nothing open, so closing is a decision.
 
