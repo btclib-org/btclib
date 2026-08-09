@@ -98,10 +98,19 @@ def _assert_mov_resistant(p: int, n: int) -> None:
     curve, once nG is gated: 5.2 ms of the 9.7 ms the catalogue would
     spend at import time, which is why the catalogue passes
     weakness_check=False and test_catalogued_curves runs it instead.
+
+    A BTClibValueError, as every other rejection in this constructor is:
+    the embedding degree is a parameter of the curve being refused, so
+    the caller that catches an unusable `n` catches this one too. The
+    n == p check below is the other weak-curve refusal, and the two
+    disagreeing on their class is what left this one uncatchable for
+    anyone holding the library to its own exception contract.
     """
     for i in range(1, 100):
         if pow(p, i, n) == 1:
-            raise UserWarning("weak curve")
+            err_msg = "weak curve: the embedding degree is "
+            err_msg += f"{i}, which is below 100"
+            raise BTClibValueError(err_msg)
 
 
 class Curve(CurveGroup):

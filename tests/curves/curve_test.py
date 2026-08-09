@@ -173,7 +173,7 @@ def test_exceptions() -> None:
     with pytest.raises(BTClibValueError, match="invalid cofactor: "):
         Curve(13, 0, 2, (1, 9), 19, 2, False)
 
-    with pytest.raises(UserWarning, match="weak curve"):
+    with pytest.raises(BTClibValueError, match="weak curve: the embedding degree"):
         Curve(11, 2, 7, (6, 9), 7, 2, True)
 
 
