@@ -60,6 +60,7 @@ from btclib.descriptors.miniscript import (
     SpendContext,
     from_script,
     parse,
+    reads_back,
 )
 from btclib.ecc import dsa, ssa
 from btclib.exceptions import BTClibValueError
@@ -164,9 +165,12 @@ def test_core_fixed_vector(vector: dict[str, Any], context: str) -> None:
     ):
         if vector[name] is not None:
             assert bound == vector[name], name
-    # the two round trips: through the text, and through the script
+    # the two round trips: through the text, and through the script --
+    # the second asked of the bytes as well, `reads_back` being that
+    # comparison for a caller who holds a script and not an expression
     assert parse(str(node), context) == node
     assert from_script(script, context, key_hashes(node)).script() == script
+    assert reads_back(script, context, key_hashes(node))
 
 
 def and_b_chain(count: int) -> str:
@@ -656,6 +660,38 @@ def test_a_key_hash_without_its_key_cannot_be_read() -> None:
         from_script(script)
     node = from_script(script, P2WSH, {hash160(bytes.fromhex(KEY)): KEY})
     assert str(node) == f"pkh({KEY})"
+
+
+def test_a_key_answered_for_a_hash_that_is_not_its_own_is_refused() -> None:
+    """Refuse a mapping whose key does not hash to the hash it is filed under.
+
+    The one input for which reading a script back gave an expression
+    writing a different script: the hash is all the script holds, so a
+    caller's answer to "which key is this" is believed, and a wrong one
+    put a key in the expression that hashes elsewhere. The script it
+    writes is then somebody else's output, which is the opposite of what
+    reading a script back is for.
+    """
+    script = parse(f"pkh({KEY})").script()
+    key_hash = hash160(bytes.fromhex(KEY))
+    lying: dict[Octets, Octets] = {key_hash: CUSTODY_KEYS[1]}
+    with pytest.raises(BTClibValueError, match="the key answered for the hash160"):
+        from_script(script, P2WSH, lying)
+    assert not reads_back(script, P2WSH, lying)
+    assert reads_back(script, P2WSH, {key_hash: KEY})
+
+
+def test_a_script_says_whether_it_is_the_expression_it_reads_as() -> None:
+    """Answer the round trip as a question, over the three answers there are.
+
+    A miniscript reads back as itself; a script no language reads is
+    False rather than a refusal, not every script being a miniscript;
+    and so are bytes that are no script at all, a caller holding a
+    witness script off a psbt having no promise about them either.
+    """
+    assert reads_back(parse(f"and_v(v:pk({KEY}),older(36))").script())
+    assert not reads_back(serialize(["OP_DROP", "OP_1"]))
+    assert not reads_back("21" + KEY[:-2])
 
 
 def test_a_script_too_large_for_its_context_is_refused() -> None:
