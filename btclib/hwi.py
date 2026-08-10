@@ -56,6 +56,10 @@ that is not about a device -- the executable is not installed -- is the
 `SignerNotFoundError` subclass, so that a caller which also offers
 signers of other kinds can tell "no hardware here" from "the hardware
 could not be reached" without matching on the text of a message.
+`available` is that one question asked *before* anything is run, which is
+when a caller deciding what to offer at all has to have the answer: a
+refusal is the right answer to a question that was asked, and the wrong
+way to find out there was nothing to ask.
 
 ## Wallet policies, and the multisig this cannot register
 
@@ -94,6 +98,7 @@ from __future__ import annotations
 
 import json
 import os
+import shutil
 import subprocess
 import tempfile
 import time
@@ -111,13 +116,21 @@ from btclib.psbt_signer import SignerCapabilities
 from btclib.utils import bytes_from_octets, is_integer
 
 __all__ = [
+    "DEFAULT_EXECUTABLE",
     "DEFAULT_MAX_OUTPUT",
     "DEFAULT_TIMEOUT",
     "NO_CAPABILITIES",
     "HwiDevice",
     "HwiSigner",
+    "available",
     "enumerate_devices",
 ]
+
+# the command HWI publishes, and the one name for it here: what
+# `available` looks for on the PATH and what every command runs are the
+# same string, so that "it is not installed" and "it is installed" cannot
+# be answers about two different executables
+DEFAULT_EXECUTABLE = "hwi"
 
 # a button press is what a signing command waits for, so the bound is on
 # a person and not on a computation: two minutes is long enough for a
@@ -189,6 +202,33 @@ def _executable(executable: str | Sequence[str]) -> list[str]:
     use to run a stand-in with no HWI installed.
     """
     return [executable] if isinstance(executable, str) else list(executable)
+
+
+def available(executable: str | Sequence[str] = DEFAULT_EXECUTABLE) -> bool:
+    """Whether the command line this module runs is there to be run.
+
+    Asked before running it, rather than read off a failure afterwards. A
+    caller that offers signers of several kinds decides which to offer at
+    all -- what devices to enumerate, whether to fall back to a software
+    signer, what to put in front of a user -- and that decision comes
+    before there is a device to ask about, so a refusal is not the shape
+    of the answer: `enumerate_devices` on a host with no HWI raises
+    `SignerNotFoundError`, which is the right answer to a question that
+    was asked and the wrong way to find out that there was nothing to ask.
+
+    What is looked for is argv[0] of what would be run, which is why this
+    belongs here and not in the caller: an `executable` is a name on the
+    PATH or a whole argv -- `["python", "-m", "hwilib"]`, a wrapper with
+    flags of its own -- and which part of it has to be on the PATH is
+    this module's own convention, `_executable`'s. A caller writing
+    `shutil.which("hwi")` beside it writes the default name a second
+    time and takes that convention as read.
+
+    True is not a promise that a device will answer, or that what is on
+    the PATH is HWI at all: it is that there is something to run, which
+    is the half of it a caller cannot find out without running one.
+    """
+    return shutil.which(_executable(executable)[0]) is not None
 
 
 def _watch(
@@ -373,7 +413,7 @@ def _device(entry: Any) -> HwiDevice:
 
 def enumerate_devices(
     *,
-    executable: str | Sequence[str] = "hwi",
+    executable: str | Sequence[str] = DEFAULT_EXECUTABLE,
     network: str = "mainnet",
     timeout: float = DEFAULT_TIMEOUT,
     max_output: int = DEFAULT_MAX_OUTPUT,
@@ -430,7 +470,7 @@ class HwiSigner:
         self,
         fingerprint: Octets | None = None,
         *,
-        executable: str | Sequence[str] = "hwi",
+        executable: str | Sequence[str] = DEFAULT_EXECUTABLE,
         network: str = "mainnet",
         timeout: float = DEFAULT_TIMEOUT,
         max_output: int = DEFAULT_MAX_OUTPUT,
