@@ -39,6 +39,7 @@ from btclib.psbt_signer import (
     MessageSigner,
     PsbtSigner,
     SignerCapabilities,
+    SignerDecorator,
     assert_public,
     display_address,
     export_account,
@@ -463,3 +464,136 @@ def test_a_device_with_no_fingerprint_yet_is_kept_by_the_merge() -> None:
     also_locked = HwiDevice(type="trezor", model="one", path="b", error="locked")
 
     assert merge_devices([locked], [also_locked]) == [locked, also_locked]
+
+
+class _Counting(_Signer):
+    """A signer that records the psbts it was asked to sign."""
+
+    def __init__(self) -> None:
+        super().__init__()
+        self.requests: list[Psbt] = []
+
+    def sign_psbt(self, psbt: Psbt) -> Psbt:
+        """Record the request, then sign it as the double does."""
+        self.requests.append(psbt)
+        return super().sign_psbt(psbt)
+
+
+class _Refusing(SignerDecorator):
+    """A decorator with one rule: no output may pay more than a limit.
+
+    The shape of every "sign, but only if" -- a whitelist, a spending
+    cap, a prompt -- written here as the smallest rule that can refuse.
+    """
+
+    def __init__(self, signer: PsbtSigner, limit: int) -> None:
+        super().__init__(signer)
+        self.limit = limit
+
+    def sign_psbt(self, psbt: Psbt) -> Psbt:
+        """Sign, unless an output pays more than the limit allows."""
+        for out in psbt.tx.vout:
+            if out.value > self.limit:
+                err_msg = f"{out.value} is over the {self.limit} limit"
+                raise SignerError(err_msg)
+        return super().sign_psbt(psbt)
+
+
+def test_a_decorated_signer_answers_what_the_signer_underneath_answers() -> None:
+    """Every method but the one a subclass is about, forwarded.
+
+    A wrapper that answered `capabilities` for itself would tell a caller
+    a taproot input cannot be signed by a signer that can, and one that
+    forgot `close` would leave what the signer holds open after the
+    caller closed it.
+    """
+    signer = _Signer()
+    wrapped = SignerDecorator(signer)
+    assert isinstance(wrapped, PsbtSigner)
+
+    assert wrapped.master_fingerprint() == signer.master_fingerprint()
+    assert wrapped.xpub(ACCOUNT) == signer.xpub(ACCOUNT)
+    assert wrapped.capabilities() == signer.capabilities()
+
+    psbt, _ = account_psbt(signer)
+    assert wrapped.sign_psbt(deepcopy(psbt)) == signer.sign_psbt(deepcopy(psbt))
+
+    wrapped.close()
+    assert signer.closed
+
+
+def test_a_rule_is_what_a_subclass_adds_and_the_only_thing_it_adds() -> None:
+    """The psbt reaches the signer, or nothing does."""
+    signer = _Counting()
+    psbt, _ = account_psbt(signer)
+
+    allowed = _Refusing(signer, 9_000)
+    assert allowed.sign_psbt(deepcopy(psbt)).inputs[0].partial_sigs
+    assert len(signer.requests) == 1
+
+    asked = _Counting()
+    refused = _Refusing(asked, 8_999)
+    with pytest.raises(SignerError, match="9000 is over the 8999 limit"):
+        refused.sign_psbt(deepcopy(psbt))
+    # and the signer underneath was never asked, which is what a rule in
+    # front of a device is for: a device that refuses is a device that
+    # was shown the transaction
+    assert not asked.requests
+
+
+def test_wrapping_a_signer_does_not_hide_what_it_offers() -> None:
+    """`isinstance` answers about the wrapped signer, either way.
+
+    The optional protocols are how a caller asks whether an operation is
+    there at all, so a wrapper that carried them would turn a signer that
+    cannot show an address into one that fails when asked, and a wrapper
+    that dropped them would turn one that can into one that cannot.
+    """
+    assert not isinstance(SignerDecorator(_Signer()), AddressDisplay)
+    assert not isinstance(SignerDecorator(_Signer()), MessageSigner)
+
+    display = SignerDecorator(_Display())
+    assert isinstance(display, AddressDisplay)
+    receive = export_account(display, ACCOUNT)[0]
+    assert display.display_address(receive, 3) == receive.address(3)
+
+    assert isinstance(SignerDecorator(_MessageSigner()), MessageSigner)
+
+
+def test_a_decorator_carries_the_contract_and_not_the_adapter() -> None:
+    """What the wrapper answers is the five methods and the two operations.
+
+    An attribute of the signer that is not part of either -- a timeout, a
+    path, whatever the adapter holds -- is read off `.signer`, which is
+    what the caller passed in: a wrapper that forwarded everything would
+    be answering for the wrong object, copying and pickling included.
+    """
+    signer = _Signer()
+    wrapped = SignerDecorator(signer)
+    assert wrapped.signer is signer
+    assert wrapped.signer.xprv == XPRV_ROOT
+    with pytest.raises(AttributeError):
+        _ = wrapped.xprv  # type: ignore[attr-defined]
+
+
+def test_a_subclass_that_writes_an_operation_keeps_it() -> None:
+    """An operation written by a class is the subclass answering it itself.
+
+    The wrapped signer's is bound on the instance, which would otherwise
+    shadow it: a subclass overriding `display_address` -- to refuse it,
+    to log it, to show something else -- has said what it means.
+    """
+
+    class _Silent(SignerDecorator):
+        """A wrapper over a device whose screen is not to be used."""
+
+        def display_address(self, descriptor: Descriptor, index: int = 0) -> str:
+            """Refuse to ask the device to show anything."""
+            err_msg = "this signer's screen is not to be used"
+            raise SignerError(err_msg)
+
+    silent = _Silent(_Display())
+    assert isinstance(silent, AddressDisplay)
+    receive = export_account(silent, ACCOUNT)[0]
+    with pytest.raises(SignerError, match="screen is not to be used"):
+        silent.display_address(receive)

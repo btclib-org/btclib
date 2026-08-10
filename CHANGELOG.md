@@ -267,6 +267,35 @@ documented at release-notes length in the first place, and are still in
 
 ### The public API and the module layout
 
+- **`psbt_signer.SignerDecorator` is a signer wrapping a signer** (#600).
+  It forwards the five methods of the contract to the signer it holds, so
+  that a caller adding one rule in front of `sign_psbt` -- a whitelist of
+  outputs a device may pay to, a limit on what a psbt may spend, a prompt
+  somebody has to confirm -- overrides that one method and nothing else.
+  The rule is the caller's business and belongs nowhere near this
+  library; the forwarding is what goes wrong when it is written by hand,
+  a wrapper answering `capabilities` for itself telling a caller that a
+  taproot input cannot be signed by a signer that can, and one that
+  forgets `close` leaving a subprocess running after the caller closed
+  what it was holding.
+
+  The optional protocols survive the wrapping, which is the half a
+  copyist gets wrong in a way nothing reports. `AddressDisplay` and
+  `MessageSigner` are what a caller asks about with `isinstance`, so a
+  wrapper that never carries them turns a device that can show an address
+  into one that cannot, and one that always declares them turns a signer
+  that cannot into one that fails when asked: each operation is bound on
+  the instance, and only where the wrapped signer has it. On the instance
+  rather than through `__getattr__` because since 3.12 a
+  runtime-checkable protocol is checked with `inspect.getattr_static`,
+  which does not call `__getattr__` -- measured on both ends of the
+  supported range, the same wrapper over the same signer is an
+  `AddressDisplay` on 3.10 and is not on 3.14. A subclass that writes an
+  operation of its own keeps it, an attribute written by a class being
+  what says the subclass means to answer that question itself. Nothing
+  else is forwarded: this is the contract and not the surface of the
+  adapter underneath, and `.signer` is what a caller reads for that.
+
 - **`hwi.available` says whether the command line is there, before it is
   run** (#599). A caller that offers signers of several kinds decides
   which to offer at all -- what to enumerate, whether to fall back to a
