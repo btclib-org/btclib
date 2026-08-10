@@ -331,6 +331,38 @@ documented at release-notes length in the first place, and are still in
 
 ### Descriptors and miniscript
 
+- **`at_index()` and `normalized()` reach the keys inside a miniscript**
+  (#592). `_mapped_keys` is the one walk both are written in terms of,
+  and `_mapped_field` decides what counts as a field holding a key: a
+  `KeyExpression`, a `MultiA`, a nested `Descriptor`, or a tuple of
+  those. A `Miniscript` was none of them, so `MiniscriptDescriptor.node`
+  came back as it stood and every key of the BIP379 half of the language
+  was left where it was -- both functions answering the descriptor they
+  had been given, and saying nothing about it.
+
+  What that cost is different on each side. `at_index` is what a reader
+  wanting *this* script has to be handed, an external signer displaying
+  one address among a range: handed the descriptor back unchanged it
+  named index 0 at every index, and `is_ranged` still answering True was
+  the shape of it, the post-condition of that function being that no
+  wildcard is left. `normalized` is `getdescriptorinfo`'s answer and what
+  an export to a watch-only wallet takes, and its refusal of a hardened
+  step with no private key could not fire either, the key never being
+  visited. A `tr()` leaf was the same gap, and shows it was about the
+  type and not about where it sits: what came back had the internal key
+  written at the index and the leaf's keys still ranged, one descriptor
+  half walked.
+
+  The walk has a `Miniscript` branch now, recursing through the node's
+  own `subs` and `keys`. What a node derives from its arguments is
+  `init=False`, so replacing those two fields recomputes the type, the
+  script size and the bounds from the keys that are there -- which is why
+  rebuilding bottom-up is the whole of it. What comes with it is the test
+  that would have caught this: both functions over every fragment the
+  language has, the list of them read from the parser's own `_ARITY`
+  table rather than written beside the test, so a fragment added later is
+  walked or is red.
+
 - **A tr() script tree is bounded at 128 nesting levels** (#571).
   `_parse_tree` recurses once per brace and had no bound, so a `tr()`
   expression nested a thousand deep exhausted the interpreter stack and
