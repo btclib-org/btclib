@@ -15,7 +15,6 @@ import pytest
 
 from btclib import var_bytes, var_int
 from btclib.bip32 import BIP32KeyOrigin
-from btclib.block.limits import MAX_TX_IN_COUNT, MAX_TX_OUT_COUNT
 from btclib.curves import sec_point
 from btclib.ecc import dsa, ssa
 from btclib.exceptions import BTClibValueError
@@ -61,6 +60,7 @@ from btclib.script.engine import verify_transaction
 from btclib.script.taproot import input_script_sig, tree_helper
 from btclib.to_pub_key import pub_keyinfo_from_prv_key
 from btclib.tx import OutPoint, Tx, TxIn, TxOut
+from btclib.tx.limits import MAX_TX_IN_COUNT, MAX_TX_OUT_COUNT
 from tests import load, vector_id
 from tests.conftest import JsonGolden
 
@@ -4362,7 +4362,7 @@ def test_a_declared_map_count_is_bounded_before_it_is_allocated_for() -> None:
 
     A PSBT's maps are a transaction's inputs and outputs, so a count
     above what a block has room for describes no transaction at all --
-    `MAX_TX_IN_COUNT` and `MAX_TX_OUT_COUNT` in `btclib.block.limits`.
+    `MAX_TX_IN_COUNT` and `MAX_TX_OUT_COUNT` in `btclib.tx.limits`.
     Believing one costs an object per declared map before the first is
     read: an empty input map is a single octet on the wire and a dozen
     fields in memory, which is the amplification the check exists to

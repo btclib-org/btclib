@@ -85,6 +85,13 @@ btclib.bip44 module
    :members:
    :show-inheritance:
 
+btclib.consensus module
+-----------------------
+
+.. automodule:: btclib.consensus
+   :members:
+   :show-inheritance:
+
 btclib.core_import module
 -------------------------
 

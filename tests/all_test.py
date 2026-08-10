@@ -46,6 +46,7 @@ import btclib.ecc
 import btclib.mnemonic
 import btclib.psbt
 import btclib.script
+from btclib import consensus
 from btclib.curves import curve_group, curve_group_2
 from btclib.psbt import psbt_utils
 from btclib.script import script_pub_key
@@ -66,33 +67,51 @@ UNEXPORTED = {
 }
 
 # what a module exports without defining it, which for a module rather than a
-# package is a leak -- and these two are the exception, both of it one
-# decision. The `bitcoin-core-rpc` package is the canonical source of the rpc
-# client and of the transport under it, and btclib depends on it rather than
-# carrying a copy; the two modules below are where those objects were before
-# it was a package of its own, and they alias them rather than declaring a
-# second of anything. A transport has one bounded-read policy, and
-# an import path that used to work still does.
+# package is a leak -- and these three are the exception, on two decisions.
+# The `bitcoin-core-rpc` package is the canonical source of the rpc client and
+# of the transport under it, and btclib depends on it rather than carrying a
+# copy; the first two modules below are where those objects were before it was
+# a package of its own, and they alias them rather than declaring a second of
+# anything. A transport has one bounded-read policy, and an import path that
+# used to work still does.
+#
+# `btclib.consensus` is the second: a transaction's counts and a witness
+# stack's are arithmetic on the block weight, and neither `btclib.tx` nor
+# `btclib.script` can import `btclib.block`, so the two constants they divide
+# by are defined below all three. `btclib.block.limits` names them still,
+# being where the rest of Core's header is and where a caller reading a
+# block's own rules goes.
 #
 # So a name here is not a name about to leak: it is the same object under the
-# name a caller already had. What would be a leak is a *fourth* module, or a
-# name in these three that the canonical file does not export
+# name a caller already had, which each entry records its canonical module for
+# and the test below asserts. What would be a leak is a *fourth* module, or a
+# name in these three that the canonical module does not export
 REEXPORTED = {
-    "btclib.fetch.bitcoin_core": [
-        "COOKIE_USER",
-        "DEFAULT_DATADIR",
-        "BitcoinCoreRpcClient",
-        "chain_from_network",
-        "cookie_auth",
-    ],
-    "btclib.fetch.transport": [
-        "DEFAULT_MAX_BODY_SIZE",
-        "DEFAULT_TIMEOUT",
-        "MAX_ERROR_BODY_SIZE",
-        "HttpTransport",
-        "http_request",
-        "urlopen_transport",
-    ],
+    "btclib.fetch.bitcoin_core": (
+        bitcoin_core_rpc,
+        [
+            "COOKIE_USER",
+            "DEFAULT_DATADIR",
+            "BitcoinCoreRpcClient",
+            "chain_from_network",
+            "cookie_auth",
+        ],
+    ),
+    "btclib.fetch.transport": (
+        bitcoin_core_rpc,
+        [
+            "DEFAULT_MAX_BODY_SIZE",
+            "DEFAULT_TIMEOUT",
+            "MAX_ERROR_BODY_SIZE",
+            "HttpTransport",
+            "http_request",
+            "urlopen_transport",
+        ],
+    ),
+    "btclib.block.limits": (
+        consensus,
+        ["MAX_BLOCK_WEIGHT", "WITNESS_SCALE_FACTOR"],
+    ),
 }
 
 # every direct child module of every package, on the side of the decision
@@ -188,7 +207,7 @@ CHILD_MODULES = {
     },
     "btclib.tx": {
         "groups": [],
-        "unpublished": ["out_point", "tx", "tx_in", "tx_out"],
+        "unpublished": ["limits", "out_point", "tx", "tx_in", "tx_out"],
     },
     "btclib.wallet": {
         "groups": [],
@@ -555,35 +574,39 @@ def test_no_module_exports_a_name_it_imported() -> None:
     module with a reason to re-export something is a conversation to have
     with this test, not around it.
 
-    `REEXPORTED` is that conversation, held once: the two modules whose
+    `REEXPORTED` is that conversation, held twice: the two modules whose
     objects moved into the `bitcoin-core-rpc` package alias them back under
     the names callers had, a transport having one bounded-read policy to
-    keep.
+    keep; and `btclib.block.limits` names the two constants `btclib.consensus`
+    defines below the package, which is where a caller reading a block's
+    rules looks for them.
 
     Asserted both ways, because a skip list is only half a table: it says
     which names may be re-exported and nothing about whether they still are,
     so dropping one of these aliases from an `__all__` would have been
     invisible to every test in this file. The recorded names and the
     re-exported ones must be the same set, and each must be the canonical
-    object rather than a same-named one -- which is the property the whole
-    arrangement exists for.
+    object of the module the entry records rather than a same-named one --
+    which is the property the whole arrangement exists for.
     """
     for module in library_modules():
         if hasattr(module, "__path__"):  # a package re-exports for a living
             continue
         imported = imported_names(module)
         leaked = {name for name in module.__all__ if name in imported}
-        allowed = REEXPORTED.get(module.__name__)
-        if allowed is None:
+        recorded = REEXPORTED.get(module.__name__)
+        if recorded is None:
             assert not leaked, f"{module.__name__} re-exports {sorted(leaked)}"
             continue
+        canonical, allowed = recorded
         assert leaked == set(allowed), (
             f"{module.__name__} re-exports {sorted(leaked)}, where REEXPORTED"
             f" records {sorted(allowed)}"
         )
         for name in allowed:
-            assert getattr(module, name) is getattr(bitcoin_core_rpc, name), (
-                f"{module.__name__}.{name} is not the canonical bitcoin_core_rpc.{name}"
+            assert getattr(module, name) is getattr(canonical, name), (
+                f"{module.__name__}.{name} is not the canonical"
+                f" {canonical.__name__}.{name}"
             )
 
 

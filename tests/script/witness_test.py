@@ -8,6 +8,9 @@ from dataclasses import FrozenInstanceError
 
 import pytest
 
+from btclib import var_int
+from btclib.consensus import MAX_WITNESS_STACK_ITEMS
+from btclib.exceptions import BTClibValueError
 from btclib.script import Witness
 from tests.conftest import JsonGolden
 
@@ -83,3 +86,26 @@ def test_dataclasses_json_dict(json_golden: JsonGolden) -> None:
     assert len(witness2.stack) > 0
 
     assert witness == witness2
+
+
+def test_a_declared_stack_size_is_bounded_before_allocation() -> None:
+    """A count no block could carry is refused (issue 569).
+
+    An element costs a witness octet at least, so MAX_BLOCK_WEIGHT is the
+    count no witness in a block can exceed -- and it is that, and not the
+    interpreter's MAX_STACK_SIZE, that a decoder may read: a stack of a
+    million elements is unspendable and parses here as it does for Core,
+    refusing it being issue #123 all over again.
+
+    What the bound buys is measured on a payload that carries the octets
+    to keep the old parser going: the var_int maximum declared over 4 MB
+    of empty elements peaked at 34.7 MB before, allocating until the
+    stream ran out, and is refused now for what the count says.
+    """
+    payload = var_int.serialize(0x02000000) + bytes(4_000_000)
+    with pytest.raises(BTClibValueError, match="var_int too big"):
+        Witness.parse(payload)
+
+    # the bound itself is not refused: what stops that one is the stream
+    with pytest.raises(BTClibValueError, match="not enough binary data"):
+        Witness.parse(var_int.serialize(MAX_WITNESS_STACK_ITEMS))

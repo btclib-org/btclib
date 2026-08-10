@@ -53,50 +53,64 @@ documented at release-notes length in the first place, and are still in
   allocated for it** (#569). `var_int.parse`'s `MAX_SIZE` is Core's
   `ReadCompactSize` range check and answers whether a CompactSize is one
   a sane protocol would write; 33,554,432 is a sane CompactSize, so nine
-  octets naming that many maps or transactions were believed, and the
-  list comprehension that followed asked for an object per declared item.
-  What a parser also has to ask is whether what follows could possibly
-  hold this many, and the answer is consensus arithmetic rather than a
-  number this library picks: `MAX_BLOCK_WEIGHT` divided by the weight of
-  the smallest thing being counted.
+  octets naming that many maps, transactions, inputs or witness elements
+  were believed, and the list comprehension that followed asked for an
+  object per declared item. What a parser also has to ask is whether what
+  follows could possibly hold this many, and the answer is consensus
+  arithmetic rather than a number this library picks: `MAX_BLOCK_WEIGHT`
+  divided by the weight of the smallest thing being counted.
 
-  Three bounds, all in `btclib.block.limits` beside the constants they
-  divide. `Block.parse` reads its transaction count with
-  `MAX_BLOCK_WEIGHT // MIN_SERIALIZABLE_TRANSACTION_WEIGHT`, 100,000 --
-  Core's *serializable* minimum and not the `MIN_TRANSACTION_WEIGHT`
-  beside it, what is being allocated for being a transaction that
-  deserializes. `Psbt.parse` holds its input and output map counts to
-  `MAX_TX_IN_COUNT` and `MAX_TX_OUT_COUNT`, 24,390 and 111,111: a PSBT's
-  maps are a transaction's inputs and outputs, so a count above what a
-  block has room for describes no transaction at all. Each refusal names
-  which of the two counts it was.
+  Every count a parser reads before allocating is bounded now.
+  `Block.parse` reads its transaction count with `MAX_BLOCK_WEIGHT //
+  MIN_SERIALIZABLE_TRANSACTION_WEIGHT`, 100,000 -- Core's *serializable*
+  minimum and not the `MIN_TRANSACTION_WEIGHT` beside it, what is being
+  allocated for being a transaction that deserializes. `Tx.parse` and
+  `Psbt.parse` hold their input and output counts to `MAX_TX_IN_COUNT`
+  and `MAX_TX_OUT_COUNT`, 24,390 and 111,111: a PSBT's maps are a
+  transaction's inputs and outputs, so a count above what a block has
+  room for describes no transaction at all, and each refusal names which
+  of the two counts it was. `Witness.parse` holds its element count to
+  `MAX_WITNESS_STACK_ITEMS`: a witness octet weighs one and an element
+  costs at least the octet announcing it empty, so the weight a block may
+  not exceed is the count no witness in it can exceed either.
 
-  The PSBT bound is the one that pays: an empty input map is a single
-  octet on the wire and an object with a dozen fields in memory, so the
-  count believed is that amplification paid before the first map is read.
-  Measured on the issue's reproducer, a PSBTv2 declaring 100,000 empty
-  input maps in about 100 KB of payload: 125 MB of peak allocation
-  before, 0.1 MB and an immediate refusal now.
+  Two of them pay in memory. A PSBTv2 declaring 100,000 empty input maps
+  in about 100 KB of payload, the issue's own reproducer: 125 MB of peak
+  allocation before, 0.1 MB and an immediate refusal now -- an empty
+  input map being a single octet on the wire and an object with a dozen
+  fields in memory. A witness declaring the CompactSize maximum over
+  4 MB of empty elements, which is a count with the octets behind it to
+  keep the old parser allocating until the stream ran out: 34.7 MB
+  before, refused for what the count says now. The transaction counts pay
+  in the answer rather than in memory: `TxIn.parse` and `TxOut.parse`
+  raise on the first short read, so a count with nothing behind it was
+  already refused in microseconds, and what the bound adds is a refusal
+  that names the number that was wrong before a byte of the first input
+  is read.
 
-  What is **not** bounded here is the witness stack, and the reason is
-  the one `btclib.script.limits` already states. The number that would
-  cap it is `MAX_STACK_SIZE`, and that is a rule about *executing* a
-  script: reading an execution limit in the decoder is what let a
-  1443-byte push be refused as unparsable when it was merely unspendable
-  (issue #123). A witness of a million items is unspendable and parses,
-  as it does for Core, whose deserializer bounds it by the size of the
-  message that carried it and not by the interpreter's stack. Its cost is
-  proportional to the input that declared it -- about 25 MB for the
-  issue's 1 MB reproducer -- which is what a parser costs rather than an
-  amplification; #569 stays open for that half.
+  `MAX_WITNESS_STACK_ITEMS` is **not** `MAX_STACK_SIZE`, and the
+  difference is the one `btclib.script.limits` states: the interpreter's
+  cap is a rule about *executing* a script, and reading an execution
+  limit in the decoder is what let a 1443-byte push be refused as
+  unparsable when it was merely unspendable (issue #123). A witness of a
+  million items is unspendable and parses, here as it does for Core --
+  about 25 MB for the issue's 1 MB reproducer, which is what a parser
+  costs rather than an amplification. What consensus arithmetic refuses
+  is the count nothing could have carried, which is the whole of what a
+  decoder can say.
 
-  `Tx.parse` is unchanged for a second reason: `TxIn.parse` raises on the
-  first short read, so a count with nothing behind it is refused in
-  microseconds already, and the bound that would refuse a count with
-  bytes behind it lives in `btclib.block.limits`, which `btclib.tx`
-  cannot import -- `btclib.block` imports `btclib.tx`, so the edge is a
-  cycle. Naming that here because it is what the fix would have to move
-  first.
+  The bounds a transaction and a witness divide by could not be read
+  where they were. `btclib.block` imports `btclib.tx`, which imports
+  `btclib.script`, so either edge back is a cycle, and
+  `MAX_BLOCK_WEIGHT` and `WITNESS_SCALE_FACTOR` now live in the new
+  `btclib.consensus`, a module below all three that imports nothing.
+  `btclib.block.limits` names both still -- a caller reading a block's
+  rules reads them where the rest of Core's header is -- and
+  `btclib.tx.limits` is the new home of the input and output counts, with
+  the minimum sizes they divide by. `tests/all_test.py` records the
+  re-export beside the two the `bitcoin-core-rpc` package already had,
+  with the module each name is canonical in: the same object under the
+  name a caller already had, rather than a second declaration of it.
 
 - **A child pays for its parent, and the arithmetic is `fee.package_fee`**
   (#584). `fee_from_vsize` prices a transaction in isolation, and a
