@@ -362,6 +362,34 @@ documented at release-notes length in the first place, and are still in
   language has, the list of them read from the parser's own `_ARITY`
   table rather than written beside the test, so a fragment added later is
   walked or is red.
+- **`miniscript.reads_back` asks a script whether it is the expression it
+  reads as** (#594). The round trip put as a question: the script is read
+  back into an expression, the expression writes a script, and the answer
+  is whether those are the same bytes. What it is asked about is a script
+  somebody else wrote -- a witness script off a psbt, the pre-image a
+  wallet computes -- where "this is a 2-of-3 with a timelock" is an
+  intention and reading it back is the only thing that says the bytes
+  agree with it: a script well formed by accident hashes to a perfectly
+  good address, so the address is derived and the deposit watched, and
+  what cannot be spent is found out at the spend. False wherever no
+  language reads the script, which is an answer and not a refusal -- not
+  every script is a miniscript, and `from_script` is what says which part
+  of one is not.
+
+  `from_script` documents itself as the inverse of `Miniscript.script`,
+  and one input made that false. The decoder earns the claim everywhere
+  else by refusing every second spelling of one expression -- a
+  non-minimal push, a number with a byte to spare, a VERIFY written as
+  two op codes -- but `key_hashes` is the caller's answer to "which key
+  is behind this hash160", that being all a ``pk_h()`` leaves in the
+  script, and the answer was believed: a mapping filing a key under a
+  hash that is not its own read the script into an expression whose
+  `script()` writes somebody else's output. It is held to what `script()`
+  would write now, and refused where it does not hold, which is also why
+  this function can be written as the round trip rather than as "the
+  decoder accepted it". A caller answering a 33-byte compressed key for a
+  tapscript ``pk_h()`` meets the same refusal, correctly: a tapscript
+  hashes the 32 x-only bytes, so that was never the key behind that hash.
 
 - **A tr() script tree is bounded at 128 nesting levels** (#571).
   `_parse_tree` recurses once per brace and had no bound, so a `tr()`
