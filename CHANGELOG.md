@@ -204,6 +204,70 @@ documented at release-notes length in the first place, and are still in
   second, which is why this is a correctness fix with no behaviour to
   record.
 
+### The public API and the module layout
+
+- **`core_import` reads the two answers Core gives about an import, which
+  is what makes importing a descriptor twice idempotent** (#585). The
+  module built the requests `importdescriptors` takes and read neither
+  reply, and both of them carry something a caller cannot work out from
+  outside: `assert_imported`, `watched_range` and `widened_range` are the
+  three functions of a reply the caller already has -- still no rpc call
+  and no client, which is this module's own rule.
+
+  `assert_imported(requests, answers)` is the first.
+  `ProcessDescriptorImport` catches its own `JSONRPCError` and answers
+  `{"success": false, "error": {...}}` for that request, so
+  `importdescriptors` replies 200 with a result and the rpc layer has
+  nothing to raise: a caller not reading every element of the list goes on
+  believing the wallet watches what was asked for, and the first thing to
+  say otherwise is a balance short of a deposit. The requests are read in
+  step with the answers because an answer carries the error and not the
+  descriptor it was for, and a reply of the wrong length is itself a node
+  that did not answer this. A `BTClibRuntimeError`: the request was one
+  Core parsed, and what it refused is the state of a wallet, which no
+  argument of the caller's spells.
+
+  `widened_range(wanted, watched)` is the second, and the rule behind it
+  is why re-importing was not idempotent. Core tops any ranged descriptor
+  up to `next_index` plus its keypool -- a thousand scripts by default --
+  whatever range the request asked for, and `AddWalletDescriptor` then
+  refuses every later import that would narrow what it widened to
+  ("range must include current range"), the whole request failing on it.
+  So the range to ask for is the union of the one wanted and the one
+  already there, and `DEFAULT_RANGE` stands in for a descriptor the wallet
+  does not hold yet -- what Core would widen a first import to anyway, and
+  asking for it makes the reply state which indexes were imported instead
+  of leaving them to be assumed. A node whose keypool is not the default
+  needs no allowance: whatever it widened to is what the next
+  `listdescriptors` says.
+
+  `watched_range(descriptor, reply)` is what reads that, and reads it past
+  two normalizations. The entry echoes the checksum Core computed and the
+  hardening symbol Core was *given*, so a wallet imported by another tool
+  holds the same descriptor spelled with apostrophes: compared literally
+  it is a descriptor never seen, and the import that follows is the one
+  Core refuses. By text and not by `parse`, which would be the stronger
+  comparison and the wrong one -- an entry is any descriptor that wallet
+  holds, a `<0;1>` multipath step among them, and a lookup that raises
+  over another entry answers nothing about the one asked about. The answer
+  is the union of the entries that match, a wallet being allowed to hold
+  one expression as both of its chains while `listdescriptors`
+  distinguishes them by `internal` for an active descriptor alone.
+
+  Every one of those claims is about Core and about nothing in this
+  library, so a unit test can only restate them:
+  `tests/integration/regtest_test.py` asks a node instead -- an import of
+  one index comes back widened to [0, 999], the import that would narrow
+  it is refused inside the reply, and the same wanted range widened by
+  what the wallet answered goes through. Green against Bitcoin Core
+  v31.1.0.
+
+  `import_request`'s range checks moved into `_assert_key_range` on the
+  way, `widened_range` refusing the range it is *given* rather than the
+  one it computes: an inverted `(20, 5)` unioned with the keypool is a
+  valid range and not the one asked for, which would be a caller's
+  arithmetic reported as a successful import of something else.
+
 ### Descriptors and miniscript
 
 - **A tr() script tree is bounded at 128 nesting levels** (#571).
