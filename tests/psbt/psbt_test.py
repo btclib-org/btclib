@@ -24,11 +24,13 @@ from btclib.psbt import (
     PsbtIn,
     PsbtOut,
     assert_signatures_only,
+    assert_signed,
     combine,
     ecdsa_sig_hash,
     extract_tx,
     finalize,
     join,
+    new_signers,
     sign,
 )
 from btclib.psbt import musig2 as psbt_musig2
@@ -4190,6 +4192,33 @@ def test_a_taproot_script_path_answer_is_checked_against_the_leaf_key() -> None:
         assert_signatures_only(request, returned)
 
 
+def test_an_answer_that_signs_the_other_path_of_a_taproot_input() -> None:
+    """The key path signature it was sent is not checked a second time.
+
+    An input its owner can spend and a leaf key can spend is signable on
+    both paths, one round each, so the second round's request is a psbt
+    whose `taproot_key_spend_signature` is already set. What the check owes
+    that field is the rule of every signature the request carried -- set
+    once, it comes back as it was, which is
+    `_assert_signatures_added_only`'s -- and not a verification of the
+    caller's own psbt.
+    """
+    request, _ = _taproot_script_path_psbt()
+    request, signed_vins = sign(
+        request, _KeyManager(by_pub_key={_TAPROOT_INTERNAL_KEY: _TAPROOT_PRV_KEY})
+    )
+    assert signed_vins == [0]
+    assert request.inputs[0].taproot_key_spend_signature
+
+    returned, signed_vins = sign(
+        deepcopy(request), _KeyManager(by_pub_key={_LEAF_KEY: _LEAF_PRV_KEY})
+    )
+    assert signed_vins == [0]
+    assert returned.inputs[0].taproot_script_spend_signatures
+
+    assert_signatures_only(request, returned)
+
+
 def test_an_answer_that_is_not_a_valid_psbt_is_refused() -> None:
     """It came from outside, so it is validated before it is compared."""
     request, returned = _request_and_answer()
@@ -4197,6 +4226,331 @@ def test_an_answer_that_is_not_a_valid_psbt_is_refused() -> None:
     err_msg = "invalid partial signature pub_key"
     with pytest.raises(BTClibValueError, match=err_msg):
         assert_signatures_only(request, returned)
+
+
+# the two wallets below are what `new_signers` answers, so they are told
+# apart by their master fingerprint and not by their derivation path:
+# `_unsigned_multisig_psbt` gives both keys the fingerprint zero, distinct
+# paths being all its own tests need
+_FIRST_WALLET = bytes.fromhex("01020304")
+_SECOND_WALLET = bytes.fromhex("deadbeef")
+
+
+def _two_wallets_psbt() -> Psbt:
+    """Return the 2-of-2 psbt with an origin per wallet, and no signature."""
+    psbt = _unsigned_multisig_psbt()
+    psbt.inputs[0].hd_key_paths = {
+        _PUB_KEY: BIP32KeyOrigin(_FIRST_WALLET, "m/0"),
+        _OTHER_PUB_KEY: BIP32KeyOrigin(_SECOND_WALLET, "m/0"),
+    }
+    return psbt
+
+
+def _two_wallets_request_and_answer() -> tuple[Psbt, Psbt]:
+    """Return that psbt signed by the first wallet, and by both."""
+    request, signed_vins = sign(
+        _two_wallets_psbt(), _KeyManager(by_pub_key={_PUB_KEY: _PRV_KEY})
+    )
+    assert signed_vins == [0]
+    returned, signed_vins = sign(
+        deepcopy(request), _KeyManager(by_pub_key={_OTHER_PUB_KEY: _OTHER_PRV_KEY})
+    )
+    assert signed_vins == [0]
+    return request, returned
+
+
+def test_a_psbt_whose_inputs_all_carry_a_verified_signature_is_accepted() -> None:
+    """The honest case, and what "signed" does and does not mean.
+
+    The request is accepted too, one signature short of what its 2-of-2
+    script needs: the question is whether every input carries a signature
+    that verifies, not whether what it carries satisfies the script, which
+    is `finalize`'s and the script engine's. A caller wanting the second
+    answer has `finalize`, which builds the spend or refuses to.
+    """
+    request, returned = _two_wallets_request_and_answer()
+    assert len(returned.inputs[0].partial_sigs) == 2
+
+    assert_signed(returned)
+    assert_signed(request)
+
+
+def test_an_unsigned_input_is_refused_unless_the_session_is_partial() -> None:
+    """Which of the two a psbt is is the caller's to say.
+
+    A device holds keys for some of the inputs only whenever one psbt
+    spans several wallets, so an input it left alone is legitimate
+    mid-session and is the psbt being incomplete at the end of one.
+    Nothing in the psbt says which of the two it is looking at.
+    """
+    psbt = _two_wallets_psbt()
+
+    with pytest.raises(BTClibValueError, match="input 0: not signed"):
+        assert_signed(psbt)
+
+    assert_signed(psbt, allow_partial=True)
+
+
+def test_a_signature_that_does_not_verify_is_refused_however_many_there_are() -> None:
+    """The count and the arithmetic are independent questions.
+
+    The two signatures are swapped, so each is a valid DER signature of
+    this transaction under the *other* cosigner's key: the input carries
+    as many as it did, and neither verifies where it is filed.
+    allow_partial does not excuse it either -- it drops the requirement
+    that an input be signed, not the check on what it holds.
+    """
+    _, returned = _two_wallets_request_and_answer()
+    partial_sigs = returned.inputs[0].partial_sigs
+    partial_sigs[_PUB_KEY], partial_sigs[_OTHER_PUB_KEY] = (
+        partial_sigs[_OTHER_PUB_KEY],
+        partial_sigs[_PUB_KEY],
+    )
+
+    with pytest.raises(BTClibValueError, match="invalid signature for pub_key"):
+        assert_signed(returned)
+    with pytest.raises(BTClibValueError, match="invalid signature for pub_key"):
+        assert_signed(returned, allow_partial=True)
+
+
+def test_a_signature_of_an_input_that_says_nothing_of_what_it_spends() -> None:
+    """Refused, where the Finalizer leaves it alone.
+
+    A p2wsh input without its witness script does not say what was
+    signed, and `_assert_partial_sigs_verify` skips exactly this case: the
+    Finalizer has the psbt's other fields to fall back on and learns
+    nothing about the signature from a missing one. A caller asking
+    whether the signatures are good has to be told that this one could
+    not be checked.
+    """
+    _, returned = _two_wallets_request_and_answer()
+    returned.inputs[0].witness_script = b""
+
+    err_msg = "the psbt does not say what was signed"
+    with pytest.raises(BTClibValueError, match=err_msg):
+        assert_signed(returned)
+
+
+def test_a_psbt_with_no_inputs_carries_no_signature_at_all() -> None:
+    """BIP174 calls it valid, and the loop below would pass it vacuously.
+
+    `assert_signable`'s answer to the same shape, for the same reason: a
+    caller told that a psbt with nothing in it is signed is told the
+    opposite of what it asked.
+    """
+    # "PSBT with global unsigned tx that has 0 inputs and 0 outputs"
+    psbt = Psbt.b64decode("cHNidP8BAAoAAAAAAAAAAAAAAA==")
+
+    with pytest.raises(BTClibValueError, match="nothing is signed: no inputs"):
+        assert_signed(psbt)
+    with pytest.raises(BTClibValueError, match="nothing is signed: no inputs"):
+        assert_signed(psbt, allow_partial=True)
+
+
+def test_a_finalized_input_is_refused_rather_than_reported_unsigned() -> None:
+    """It carries no partial signature because finalizing cleared them.
+
+    BIP174 has the Finalizer drop everything but the utxo and the unknown
+    fields, so the psbt that holds a complete spend is the one this would
+    otherwise call unsigned. What it now carries is a script_sig and a
+    witness, whose signatures the script engine verifies.
+    """
+    finalized = finalize(_two_wallets_request_and_answer()[1])
+
+    with pytest.raises(BTClibValueError, match="input 0 is finalized"):
+        assert_signed(finalized)
+
+
+def test_a_taproot_signature_is_verified_against_the_key_it_spends() -> None:
+    """`_assert_taproot_sigs_verify`'s, so both paths are covered."""
+    returned = _taproot_request_and_answer()[1]
+    assert_signed(returned)
+
+    returned.inputs[0].taproot_key_spend_signature = b"\x01" * 64
+    err_msg = "invalid taproot key path signature for output key"
+    with pytest.raises(BTClibValueError, match=err_msg):
+        assert_signed(returned)
+
+    script_path = _taproot_signed(
+        "a key in a script is a MuSig2 Aggregate Pubkey, with all partial"
+    )
+    assert_signed(script_path)
+
+    key_data = next(iter(script_path.inputs[0].taproot_script_spend_signatures))
+    script_path.inputs[0].taproot_script_spend_signatures[key_data] = b"\x01" * 64
+    err_msg = "invalid taproot script path signature for key"
+    with pytest.raises(BTClibValueError, match=err_msg):
+        assert_signed(script_path)
+
+
+def test_a_musig2_session_is_not_a_signature_until_it_is_aggregated() -> None:
+    """Round 1 and round 2 are what a participant answered, not a spend.
+
+    BIP373's own vector with every public nonce in it is a session going
+    round, and the input is unsigned until `partial_sigs_agg` adds the
+    partial signatures up into the BIP340 signature the spend needs --
+    which is the signature this then verifies, and which the same vector's
+    "with all partial signatures" sibling produces.
+    """
+    mid_session = _bip373_psbt(
+        "Spend of a Taproot output where the output key is a MuSig2 "
+        "Aggregate Pubkey, with all pubnonces"
+    )
+    assert mid_session.inputs[0].musig2_pub_nonces
+
+    with pytest.raises(BTClibValueError, match="input 0: not signed"):
+        assert_signed(mid_session)
+
+    aggregated = _taproot_signed(
+        "the output key is a MuSig2 Aggregate Pubkey, with all partial"
+    )
+    assert_signed(aggregated)
+
+
+def test_new_signers_names_the_wallet_whose_key_the_answer_signed_with() -> None:
+    """One round at a time, each read against what was sent.
+
+    Which is what `combine` cannot be asked afterwards: the union it takes
+    records nothing of which side an entry came from.
+    """
+    request, returned = _two_wallets_request_and_answer()
+
+    assert new_signers(_two_wallets_psbt(), request) == {_FIRST_WALLET}
+    assert new_signers(request, returned) == {_SECOND_WALLET}
+
+
+def test_an_answer_that_adds_no_signature_names_no_signer() -> None:
+    """A device that had already signed, and one that holds no key here.
+
+    Both add nothing, and the two are not distinguishable from the psbt:
+    an empty answer is what the caller asked about, so it is an empty set
+    and not an error. Asked of each kind of signature a psbt carries,
+    "was already there" being the case every one of them walks past.
+    """
+    signed_psbts = [
+        _two_wallets_request_and_answer()[1],
+        _taproot_request_and_answer()[1],
+        _taproot_signed(
+            "a key in a script is a MuSig2 Aggregate Pubkey, with all partial"
+        ),
+        _bip373_psbt(
+            "Spend of a Taproot output where the output key is a MuSig2 "
+            "Aggregate Pubkey, with all pubnonces"
+        ),
+    ]
+
+    for signed in signed_psbts:
+        assert new_signers(signed, deepcopy(signed)) == set()
+
+
+def test_a_wallet_that_signed_with_two_keys_is_one_signer() -> None:
+    """A fingerprint is what a psbt states about a key, and all it states.
+
+    `_unsigned_multisig_psbt`'s two cosigners share a master fingerprint
+    and differ by path, which is one wallet holding both keys of its own
+    2-of-2 -- so two signatures arrive and one wallet made them.
+    """
+    request = _unsigned_multisig_psbt()
+    returned, signed_vins = sign(
+        deepcopy(request),
+        _KeyManager(by_pub_key={_PUB_KEY: _PRV_KEY, _OTHER_PUB_KEY: _OTHER_PRV_KEY}),
+    )
+    assert signed_vins == [0]
+    assert len(returned.inputs[0].partial_sigs) == 2
+
+    assert new_signers(request, returned) == {b"\x00" * 4}
+
+
+def test_a_signature_the_psbt_states_no_origin_for_is_refused() -> None:
+    """Which device made it is not a thing to guess at.
+
+    The shape this arrives in is a countersigner's file: a signature under
+    a key nothing in the psbt derives, where an empty answer would read as
+    "nobody signed" and a caller filing the answer would file it under the
+    wrong name.
+    """
+    request, returned = _two_wallets_request_and_answer()
+    del returned.inputs[0].hd_key_paths[_OTHER_PUB_KEY]
+
+    err_msg = "no key origin for the signature of"
+    with pytest.raises(BTClibValueError, match=err_msg):
+        new_signers(request, returned)
+
+
+def test_a_taproot_key_path_answer_is_read_through_the_internal_key() -> None:
+    """What BIP371 says about who holds the key the output commits to.
+
+    The signature is under the output key, which is the internal key
+    tweaked by the merkle root: no psbt field states the output key's
+    origin, and the internal key's entry in
+    `PSBT_IN_TAP_BIP32_DERIVATION` is what names the wallet that can sign
+    for it.
+    """
+    request, returned, _ = _taproot_request_and_answer()
+    derivation: dict[bytes, tuple[list[bytes], BIP32KeyOrigin]] = {
+        _TAPROOT_INTERNAL_KEY: ([], BIP32KeyOrigin(_SECOND_WALLET, "m/0"))
+    }
+    request.inputs[0].taproot_hd_key_paths = derivation
+    returned.inputs[0].taproot_hd_key_paths = derivation
+
+    assert_signatures_only(request, returned)
+    assert new_signers(request, returned) == {_SECOND_WALLET}
+
+
+def test_a_taproot_script_path_answer_is_read_through_the_leaf_key() -> None:
+    """The key its key data names, whose origin the same field states."""
+    request, _ = _taproot_script_path_psbt()
+    request.inputs[0].taproot_hd_key_paths = {
+        _LEAF_KEY: ([_LEAF_HASH], BIP32KeyOrigin(_FIRST_WALLET, "m/1"))
+    }
+    returned, signed_vins = sign(
+        deepcopy(request), _KeyManager(by_pub_key={_LEAF_KEY: _LEAF_PRV_KEY})
+    )
+    assert signed_vins == [0]
+
+    assert new_signers(request, returned) == {_FIRST_WALLET}
+
+
+def test_a_musig2_round_is_the_answer_of_the_participant_it_is_filed_under() -> None:
+    """As `assert_signatures_only` counts the two maps among the signatures.
+
+    A public nonce is what round 1 of that participant *is*, so a session
+    that gained one gained an answer, and the participant is the first 33
+    bytes of the key data it is filed under. BIP373's vector carries three
+    of them and no origin for any -- the field is optional and these psbts
+    were written to exercise the musig2 fields -- so the origins are what
+    this test adds, one wallet holding two of the three keys.
+    """
+    returned = _bip373_psbt(
+        "Spend of a Taproot output where the output key is a MuSig2 "
+        "Aggregate Pubkey, with all pubnonces"
+    )
+    request = deepcopy(returned)
+    request.inputs[0].musig2_pub_nonces = {}
+
+    wallets = [_FIRST_WALLET, _FIRST_WALLET, _SECOND_WALLET]
+    participants = [key_data[:33] for key_data in returned.inputs[0].musig2_pub_nonces]
+    assert len(participants) == len(wallets)
+    for i, (participant, wallet) in enumerate(zip(participants, wallets, strict=True)):
+        returned.inputs[0].hd_key_paths[participant] = BIP32KeyOrigin(wallet, f"m/{i}")
+
+    assert new_signers(request, returned) == {_FIRST_WALLET, _SECOND_WALLET}
+
+
+def test_new_signers_refuses_two_psbts_with_a_different_number_of_inputs() -> None:
+    """An answer to some other request, which there is nothing to read.
+
+    Only the counts are compared here, being what the walk below needs;
+    that the two are otherwise the same request is
+    `assert_signatures_only`'s question, and the merge is what must not
+    happen before both have answered.
+    """
+    request, returned = _two_wallets_request_and_answer()
+    del request.inputs[0]
+
+    err_msg = "mismatched number of psbt inputs"
+    with pytest.raises(BTClibValueError, match=err_msg):
+        new_signers(request, returned)
 
 
 def test_a_solver_spends_a_script_this_finalizer_would_guess_at() -> None:
