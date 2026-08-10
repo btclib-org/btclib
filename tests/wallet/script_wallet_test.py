@@ -599,6 +599,8 @@ def test_the_updaters_refuse_a_position_or_a_psbt_index_they_have_not() -> None:
     for method in (wallet.update_psbt_input, wallet.update_psbt_output):
         with pytest.raises(BTClibValueError, match="invalid branch: 2"):
             method(psbt, 0, 2, 0)
+
+
 @pytest.mark.parametrize("branch", [0, 1])
 @pytest.mark.parametrize(
     "order, name",
@@ -798,6 +800,22 @@ def test_a_required_quorum_on_its_own_is_no_script_at_all() -> None:
     """
     wallet = ScriptWallet([KeyGroup(2, _XPUBS, verify=True)], "p2wsh")
     with pytest.raises(NoDescriptorError, match="not a miniscript script"):
+        wallet.descriptor()
+
+
+def test_a_per_index_sort_that_is_not_bip67_is_stated_by_nothing() -> None:
+    """``sortedmulti()`` is byte order on the derived keys, and only that.
+
+    So the one quorum that has a descriptor in the plain per-index order
+    stops having one as soon as the sort is the caller's own: the function
+    would state a different order, and `multi()` cannot state this one
+    either, it not being a property of the wallet. Refused whatever the
+    key function computes -- one that happens to agree with byte order at
+    every index is not something this could know, and a descriptor is
+    right or it is not offered.
+    """
+    wallet = ScriptWallet([KeyGroup(2, _XPUBS)], "p2wsh", "derived", sort_key=bytes.hex)
+    with pytest.raises(NoDescriptorError, match="sorted after derivation"):
         wallet.descriptor()
 
 

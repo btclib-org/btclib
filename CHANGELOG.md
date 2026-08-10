@@ -354,10 +354,15 @@ documented at release-notes length in the first place, and are still in
   A template that is a single `KeyGroup` and nothing else does not go
   through miniscript at all: it is BIP383's quorum, so it is stated for
   every order this class has -- `sortedmulti()` for the per-index one,
-  which is what that function follows, and `multi()` for the other two --
-  and in a legacy `sh()` too, where no miniscript could be read for want
-  of a context. `sh(sortedmulti(2,...))` is the pre-descriptor multisig
-  wallet, and it now comes back out of one.
+  which is BIP67 on the derived keys and what that function follows
+  exactly, and `multi()` for the other two -- and in a legacy `sh()` too,
+  where no miniscript could be read for want of a context.
+  `sh(sortedmulti(2,...))` is the pre-descriptor multisig wallet, and it
+  now comes back out of one. A per-index `sort_key` of the caller's own is
+  the exception, and is refused with the combinator: it is a third order,
+  which `sortedmulti()` does not state and `multi()` cannot: a key
+  function that happens to agree with byte order at every index is not
+  something this could know.
 
   `NoDescriptorError` is new in `btclib.exceptions` and is what the
   refusals raise: the `<n> OP_CSV OP_DROP` timelock no fragment emits, a

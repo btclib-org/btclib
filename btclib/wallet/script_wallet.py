@@ -640,6 +640,7 @@ class ScriptWallet(RangedWallet):
             **psbt_map.hd_key_paths,
             **self._hd_key_paths(branch, index),
         }
+
     def _key_origins(self) -> dict[str, BIP32KeyOrigin]:
         """Return the origin of each account key, keyed by its xpub.
 
