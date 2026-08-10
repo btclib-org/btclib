@@ -417,6 +417,39 @@ documented at release-notes length in the first place, and are still in
 
 ### Wallets
 
+- **`RangedWallet.assert_derives` reads a span of addresses back against
+  the branch that derived it** (#596). A list of addresses written down
+  -- a whitelist, a monitor's import, the deposit block a counterparty
+  was given -- is a file that outlives the process that wrote it and that
+  nobody re-derives afterwards. This is that file put back to the wallet:
+  the first address at `first_index`, the next at the index after it, to
+  the end of the span. It catches a list written under another key, or
+  under this key before a threshold or a device changed it, or shifted by
+  one position; and what makes it an answer rather than the same call
+  twice is when it is asked, since deriving a list and checking it in the
+  same breath says nothing.
+
+  Two refusals, each a different accident. An address that is not what
+  its position derives is named by that position, with what is written
+  and what the wallet computes. Two positions deriving one output is a
+  wallet whose script ignores its index -- the span is then one address
+  repeated, and every entry is "correct" where it sits, which the first
+  comparison cannot see and nothing downstream would either. No wallet
+  here can be built that way, a `ScriptWallet` with no `KeyGroup` in its
+  template being refused at construction and a descriptor that is not
+  ranged having no script past index 0, but `_script_pub_key` is one of
+  the three hooks a caller subclasses, so the test writes such a subclass
+  rather than calling the check unreachable. An empty span is refused
+  before either: there is nothing there to be right about.
+
+  Not the two ends through `position_of`, which is what a caller writes
+  by hand: that scans a branch from index 0 for each address, so a span
+  costs one scan per address and only the ends are affordable. Deriving
+  the position the span claims costs one derivation per address and
+  proves every entry. Outputs are named however the caller holds them, as
+  `position_of` takes them, and the ledger is left alone -- checking what
+  was handed out is not handing it out again.
+
 - **`ScriptWallet` is BIP174's Updater for the scripts no descriptor
   states** (#587). `DescriptorWallet` has `update_psbt_input` and
   `update_psbt_output` and this class had neither, so a caller spending a

@@ -30,6 +30,8 @@ worth an abstraction:
   never because a key origin's four-byte fingerprint matches.
   `Descriptor.index_of` asks it of one descriptor and answers the index
   alone; a wallet has branches, so the answer here is the pair.
+  `assert_derives` runs it over a whole span at once, which is the
+  question a caller has about a list of addresses it wrote down.
 
 What a branch *is* differs, and the difference is the one thing not
 hidden: a key wallet and a script wallet derive it, `branch/index` below
@@ -56,6 +58,7 @@ https://github.com/bitcoin/bips/blob/master/bip-0044.mediawiki
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
+from collections.abc import Sequence
 from dataclasses import dataclass
 
 from btclib import b32
@@ -365,3 +368,57 @@ class RangedWallet(Wallet, ABC):
                 if self._script_pub_key(branch, index).script == script:
                     return branch, index
         return None
+
+    def assert_derives(
+        self,
+        addresses: Sequence[Octets | ScriptPubKey],
+        branch: int = 0,
+        first_index: int = 0,
+    ) -> None:
+        """Refuse a span of outputs that is not what this branch derives.
+
+        A list of addresses written down -- a whitelist, a monitor's
+        import, the deposit block a counterparty was given -- read back
+        against the wallet that is supposed to have derived it: the first
+        one at `first_index`, the next at the index after it, and so on to
+        the end of the span. What it catches is the list that was written
+        under another key, or under this key before a threshold or a
+        device changed it, or shifted by one position; and what makes it
+        an answer rather than the same call twice is *when* it is asked --
+        deriving a list and then checking it in the same breath says
+        nothing, and asking it of the file an environment has been
+        operating under says everything.
+
+        Two refusals, and each is a different accident. An address that is
+        not what the position derives names the position, what was
+        written and what the wallet computes. Two positions deriving one
+        output is a wallet whose script ignores its index -- a span that
+        is then one address repeated, every one of them "correct" at the
+        position it sits at -- which the comparison above cannot see and
+        nothing downstream would either.
+
+        An empty span is refused too: there is nothing to be right about,
+        and a caller that has written an empty file has not written a
+        span. Outputs are named however the caller holds them, as in
+        `position_of`, and the wallet's ledger is left alone -- checking
+        what was handed out is not handing it out again.
+        """
+        if not addresses:
+            err_msg = f"no addresses to check against branch {branch}"
+            raise BTClibValueError(err_msg)
+        scripts = [
+            self.script_pub_key(branch, first_index + offset).script
+            for offset in range(len(addresses))
+        ]
+        if len(set(scripts)) != len(scripts):
+            last_index = first_index + len(scripts) - 1
+            err_msg = f"branch {branch} derives one output twice"
+            err_msg += f" between {first_index} and {last_index}"
+            raise BTClibValueError(err_msg)
+        for offset, address in enumerate(addresses):
+            script = _script_from(address)
+            if script != scripts[offset]:
+                index = first_index + offset
+                err_msg = f"not what {branch}/{index} derives: {script.hex()}"
+                err_msg += f" is written where {scripts[offset].hex()} is derived"
+                raise BTClibValueError(err_msg)

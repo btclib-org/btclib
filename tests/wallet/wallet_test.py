@@ -284,6 +284,84 @@ def test_position_of_searches_up_to_last_index_inclusive(
     assert wallet.position_of(script_pub_key, last_index=2) is None
 
 
+@BUILDERS
+def test_a_span_is_what_a_branch_derives_from_an_index_on(
+    build: Callable[[], RangedWallet],
+) -> None:
+    """A list of addresses read back against the wallet said to derive it.
+
+    Written however the caller holds them, as `position_of` takes them,
+    and asking hands nothing out: a span on disk is checked against the
+    wallet, not issued by it.
+    """
+    wallet = build()
+    span = [build().address(1, index) for index in range(3, 8)]
+    wallet.assert_derives(span, 1, 3)
+    wallet.assert_derives([ScriptPubKey.from_address(a) for a in span], 1, 3)
+    wallet.assert_derives(span[:1], 1, 3)
+    assert not len(wallet)
+
+
+@BUILDERS
+def test_a_span_filed_at_the_wrong_position_is_refused(
+    build: Callable[[], RangedWallet],
+) -> None:
+    """Shifted by one, on the other chain, or holding somebody else's output.
+
+    The three accidents that write a whitelist nobody re-derived, and
+    each is named by the position that disagrees rather than by the
+    span as a whole. An empty span is refused before any of them: there
+    is nothing there to be right about.
+    """
+    wallet = build()
+    span = [build().address(1, index) for index in range(3, 8)]
+
+    with pytest.raises(BTClibValueError, match="no addresses to check"):
+        wallet.assert_derives([], 1, 3)
+    with pytest.raises(BTClibValueError, match="not what 1/2 derives"):
+        wallet.assert_derives(span, 1, 2)
+    with pytest.raises(BTClibValueError, match="not what 0/3 derives"):
+        wallet.assert_derives(span, 0, 3)
+
+    span[2] = _ELSEWHERE
+    with pytest.raises(BTClibValueError, match="not what 1/5 derives"):
+        wallet.assert_derives(span, 1, 3)
+
+
+def test_a_span_of_one_output_repeated_is_no_span() -> None:
+    """Refuse a branch that derives the same output at every position.
+
+    The one accident the comparison above cannot see: a script that
+    ignores its index derives one address everywhere, so every entry of
+    the span is "what that position derives" and the file is that address
+    a hundred times. No wallet here can be built that way -- a
+    `ScriptWallet` with no `KeyGroup` in its template is refused, and a
+    descriptor that is not ranged has no script past index 0 -- but
+    `RangedWallet` is what a caller subclasses, and `_script_pub_key` is
+    theirs to write.
+    """
+
+    class OneOutput(RangedWallet):
+        """A wallet paying to the same anyone-can-spend script everywhere."""
+
+        @property
+        def is_watch_only(self) -> bool:
+            return True
+
+        @property
+        def branches(self) -> tuple[int, ...]:
+            return (0,)
+
+        def _script_pub_key(self, branch: int, index: int) -> ScriptPubKey:
+            return ScriptPubKey(b"\x51")
+
+    wallet = OneOutput()
+    assert wallet.is_watch_only
+    wallet.assert_derives([b"\x51"], 0, 0)
+    with pytest.raises(BTClibValueError, match="derives one output twice"):
+        wallet.assert_derives([b"\x51"] * 3, 0, 0)
+
+
 def test_a_wallet_that_names_no_branches_is_not_a_wallet() -> None:
     """`branches` is abstract, and a subclass leaving it out cannot be built.
 
