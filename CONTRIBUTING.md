@@ -228,6 +228,29 @@ Anything machine-local — an interpreter path, a telemetry answer, a theme —
 belongs in the editor's own user settings instead, those two files being
 read by every checkout of this repository.
 
+### What runs when
+
+| workflow | when | what it varies |
+| --- | --- | --- |
+| `test` | pull request, push | 4 platforms × 7 interpreters |
+| `lint`, `docs` | pull request, push | — |
+| `integration` | pull request, push | a regtest node |
+| `macos` | Wednesday, a release | 2 macOS images × 7 interpreters |
+| `latest` | Wednesday | platforms sampled, deps upgraded |
+| `links`, `mutation` | weekly | — |
+| `vendored-vectors` | monthly | upstream's vectors |
+| `published` | monthly, a release | what PyPI serves |
+| `release` | a tag | calls test, lint, docs, macos, published |
+
+The first three rows are what a merge waits for. macOS is not among them on
+purpose: it is the platform whose runners queue — 29.4 and 23.2 minutes of
+mean wait against 0.5 to 1.6 elsewhere, on a run of 45 jobs that spent 93
+minutes working and 399 waiting — so it answers weekly, and before a
+release, rather than before a review. `macos` and `latest` share a morning
+half an hour apart, which is what makes the pair readable: red in both is
+the platform, red in `latest` alone is the upgrade. Everything but the
+first three rows also takes `workflow_dispatch`.
+
 ### Reproducing what CI runs
 
 Every job of every workflow is a `uv` command, and `uv` fetches what it

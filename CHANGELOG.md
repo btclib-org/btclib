@@ -1740,6 +1740,57 @@ edit.
 
 ### Repository
 
+- **A pull request no longer waits for macOS.** One run of the full matrix is
+  45 jobs, 93 minutes of compute and 399 minutes of queueing, and the two
+  macOS images account for most of the second number: 29.4 and 23.2 minutes
+  of mean wait for a runner, one of them 42.2, against 0.5 to 1.6 for ubuntu
+  and windows. So `test.yml` keeps all seven interpreters and drops to four
+  platforms, and the new `macos.yml` runs the two macOS images against the
+  same lock weekly, on demand, and from a release -- which is what keeps a
+  macOS regression from being published while nobody waits for one. It is
+  scheduled the same morning as `latest.yml`, half an hour before, so the two
+  read as a difference: red in both is the platform, red in `latest` alone is
+  the upgrade
+- **The documentation build is a workflow of its own**, `docs.yml`, where it
+  was the second job of `lint.yml`: a failed sphinx build and a failed hook
+  are different verdicts, and a workflow each is what gives them a badge each
+  and a line each in the checks list. The job keeps its name, `Build the
+  documentation`, so the required check did not have to move -- a context is
+  matched by name and not by the workflow that reported it
+- **`integration.yml` gates a merge**, where it gated only a release: 36
+  seconds of work for a disposable regtest node, less than the matrix it runs
+  beside, and it answers the one claim the recorded vectors cannot make. Its
+  `paths` filter goes with the promotion, a required check that never runs
+  blocking a merge where a skipped one satisfies it
+- **Every CI job has a name, and the names say what the job answers**, the
+  same vocabulary bitcoin-core-rpc uses: `suite`, `coverage`, `dist` and the
+  aggregate `test: every job passed` where the ids carried a `-py` suffix
+  that distinguished nothing, `suite-latest` and `install-published` where a
+  suffix does name a variant, and a sentence on each of the eleven jobs of
+  `release.yml`, which showed their ids in the checks list
+- **`published.yml` is called by `release.yml`** with the tag's version, and
+  waits for the index to serve it before installing -- so it can no longer
+  pass by testing the release before this one, which the dispatch
+  RELEASING.md asked for by hand could do. Its schedule goes from weekly to
+  monthly, the release path now answering the question the weekly stood in
+  for. Not a `workflow_run` trigger, which zizmor rates dangerous: that runs
+  the default branch's copy on a push nobody reviewed
+- **`release.yml` has a concurrency group**, the last workflow without one
+  and the only one whose runs have side effects, and it calls the docs and
+  macOS workflows beside the ones it already called
+- **A pre-commit rev that is not a released version fails the gate.** A local
+  pygrep hook rejects a rev naming only a major version, which follows every
+  future release of it, and a prerelease, which is not a release: the two
+  moves `autoupdate` offered in bitcoin-core-rpc, one of which was merged
+  before anyone read the diff. pre-commit warns about the first and exits
+  zero, which is the difference the hook makes
+- The dead `github.base_ref == 'master'` exception is gone from every job
+  that carried it, along with the prose describing a two-branch release flow:
+  `master` is not a branch here any more, so the clause could never be true
+  and `push` was aimed at a ref that does not exist -- which meant nothing
+  ran on the trunk, and no cache was written where a pull request could read
+  it
+
 - **`uv.lock` is at every dependency's newest release**, which closed the
   seven advisories the default branch was carrying: six on GitPython,
   reached through `cosmic-ray`, and one on `cryptography`, reached

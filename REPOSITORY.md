@@ -9,28 +9,64 @@ The branch rules and the repository settings live *outside* the
 repository, so this file is the whole of them: nothing here can be
 recovered by reading the tree.
 
-## Required checks on master
+## Required checks on main
 
 **Never name matrix contexts in the branch rule.** The rule lives outside
 the repository, so a context that stops being produced blocks every merge
-with nothing in the tree to explain why. `tests-passed` is an aggregate
-job at the end of `test.yml` that `needs` the matrix; a new job in
-`test.yml` belongs in that job's `needs`, or it gates nothing.
+with nothing in the tree to explain why. `test: every job passed` is an
+aggregate job at the end of `test.yml` that `needs` the matrix; a new job in
+`test.yml` belongs in that job's `needs`, or it gates nothing. Its name
+carries the workflow because a context is keyed by name alone: two
+workflows with a job named the same thing produce one ambiguous check.
 
-`master` requires four checks, and only four:
+`main` requires five checks, and only five:
 
 | Check | Produced by |
 | --- | --- |
-| `tests-passed` | `test.yml`, aggregate over the matrix |
-| `Lint and type-check` | `lint.yml`, first job |
+| `test: every job passed` | `test.yml`, aggregate over the matrix |
+| `Lint and type-check` | `lint.yml`, its only job |
+| `Build the documentation` | `docs.yml`, its only job |
+| `Regtest against Bitcoin Core` | `integration.yml`, its only job |
 | `CodeQL` | CodeQL workflow |
-| `Build the documentation` | `lint.yml`, second job |
+
+A workflow with one job needs no aggregate: the job *is* the context, which
+is why three of the five are job names. The day one of them grows a second
+job, an aggregate and a change to this rule are what that costs.
 
 `Build the documentation` is named on its own on purpose: a rule naming
 `Lint and type-check` alone would leave a red docs build outside the
-required checks entirely. `lint.yml` triggers on `pull_request` with no
-branch and no `paths` filter, so both its jobs report on every pull
-request, forks included.
+required checks entirely. It moved from `lint.yml` to a workflow of its own
+without the rule changing, which is worth knowing before renaming anything:
+a context is matched by name, not by the workflow that reported it, so
+moving a job is free and renaming one is not — the pull request that renames
+a required check stops producing the old name and never produces one the
+rule is waiting for.
+
+`Regtest against Bitcoin Core` is the newest of the five, and it is here
+because its cost was measured rather than assumed: 36 seconds of work for a
+disposable regtest node, which is less than the matrix it runs beside. It
+answers the one claim the recorded vectors cannot make. `integration.yml`
+therefore carries no `paths` filter: a required check that never runs blocks
+a merge, where a skipped one satisfies it.
+
+Renaming a required check is the one change that cannot be made in a pull
+request, so the rule moves first, against the branch, and the pull request
+that renames the job reports the name the rule now wants:
+
+```shell
+branch=repos/btclib-org/btclib/branches/main
+gh api -X PATCH "$branch"/protection/required_status_checks \
+  -F strict=true \
+  -f 'contexts[]=test: every job passed' \
+  -f 'contexts[]=Lint and type-check' \
+  -f 'contexts[]=Build the documentation' \
+  -f 'contexts[]=Regtest against Bitcoin Core' \
+  -f 'contexts[]=CodeQL'
+```
+
+`contexts` rather than `checks` with an `app_id`, which is the shape the
+rule already has here: binding each context to the app that produces it is
+the stricter form, and adopting it is a separate decision from this list.
 
 Each check is bound to the app that produces it — `checks` with an
 `app_id` rather than the bare `contexts` list, 15368 for Actions and

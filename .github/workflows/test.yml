@@ -3,25 +3,28 @@ name: test
 
 on:
   push:
-    # master only: a push to a branch that has an open pull request would
+    # main only: a push to a branch that has an open pull request would
     # run this workflow twice, once per event, and the two runs land in
-    # different concurrency groups (refs/heads/dev against
+    # different concurrency groups (refs/heads/<branch> against
     # refs/pull/N/merge) so neither cancels the other. The pull_request
     # run is the one worth keeping, because it tests the merge commit and
     # is the only run a fork's pull request produces at all.
-    # master keeps a trigger of its own because a merge creates a commit
+    # main keeps a trigger of its own because a merge creates a commit
     # that is not the one the pull request tested, and nothing else would
-    # ever test it. Tag pushes are covered by the release workflow
-    branches: [master]
-    # GitHub Pages serves btclib.org from master's root, so a
+    # ever test it -- and because a cache is readable only from the branch
+    # that wrote it and from the default branch, so without a run here
+    # every pull request starts cold. Tag pushes are covered by the release
+    # workflow
+    branches: [main]
+    # GitHub Pages serves btclib.org from main's root, so a
     # website-only commit lands here and would otherwise run the whole
     # matrix.
     # None of these files is imported by the library or read by a test --
     # README.md is the homepage, not a doctest source; CONTRIBUTING.md is
     # checked by markdownlint, which is the lint workflow's business.
     # Only on push: the same list on pull_request would be wrong, because
-    # tests-passed is a required check on master and a required check that
-    # produces no run at all blocks the merge instead of passing it
+    # the aggregate below is a required check on main, and a required check
+    # that produces no run at all blocks the merge instead of passing it
     paths-ignore:
       - _config.yml
       - _layouts/**
@@ -66,28 +69,28 @@ jobs:
   # image, native arm64 for the versions it caches and emulated x86-64
   # for the ones uv has to download, and the wheel is selected for the
   # interpreter rather than for the host, so either one links
-  test-py:
+  suite:
+    name: Run the suite on ${{ matrix.python }}, ${{ matrix.os }}
     # a draft pull request is work in progress: every push to one spends
     # the whole matrix on a tree its author is not asking anyone to
     # review yet. The gate below carries the same condition, so a draft
     # skips uniformly and the gate does not read that skip as a job that
-    # should have run.
-    # The exception is by base branch, and it is the release pull
-    # request: dev -> master stays a draft from one release to the
-    # next, and nothing here triggers on a push to dev, so without it
-    # a commit merged into dev would be tested by nothing at all
-    if: >-
-      ${{ !github.event.pull_request.draft
-      || github.base_ref == 'master' }}
+    # should have run
+    if: ${{ !github.event.pull_request.draft }}
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
       matrix:
+        # four, and macos.yml carries the other two: on one run of the
+        # full six every macOS cell waited 29.4 and 23.2 minutes on average
+        # for a runner, against 0.5 to 1.6 here, so two rows of twelve set
+        # most of the wait of a pull request -- 45 jobs, 93 minutes of work
+        # and 399 minutes of queueing. What they sample is a platform this
+        # library has no branch for, which is worth a week rather than
+        # worth a review's patience
         os:
           - ubuntu-latest
           - ubuntu-24.04-arm
-          - macos-26-intel
-          - macos-latest
           - windows-latest
           - windows-11-arm
         # 3.14t is the free-threaded interpreter, and it is in the matrix
@@ -151,11 +154,10 @@ jobs:
   # The number is a gate rather than a report: fail_under, in
   # tool.coverage.report, fails this job on a regression. It needs no
   # secret and no third party, and it applies to every run, where a
-  # coveralls.io upload happens only on pull requests targeting master
-  coverage-py:
-    if: >-
-      ${{ !github.event.pull_request.draft
-      || github.base_ref == 'master' }}
+  # coveralls.io upload happens only on a pull request
+  coverage:
+    name: Measure coverage, gated at 100%
+    if: ${{ !github.event.pull_request.draft }}
     runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:
@@ -197,10 +199,9 @@ jobs:
   # gate here rather than in the release workflow alone because the
   # bindings it resolves are published: while they were not, the step
   # could only be red, for a reason nobody could fix from a branch
-  dist-py:
-    if: >-
-      ${{ !github.event.pull_request.draft
-      || github.base_ref == 'master' }}
+  dist:
+    name: Build the distribution and install it
+    if: ${{ !github.event.pull_request.draft }}
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
@@ -277,28 +278,35 @@ jobs:
             assert dsa.verify(b'btclib', pub_keyinfo_from_prv_key(1)[0], \
               dsa.sign(b'btclib', 1))"
 
-  # the single check master's branch protection requires from this
+  # the single check main's branch protection requires from this
   # workflow, and it exists because that rule names its checks as literal
   # strings, stored outside the repository. The matrix above produces one
-  # per (runner label, interpreter) pair, 42 of them today -- a count that
-  # moves whenever the matrix does: naming those directly means every
-  # matrix edit has to be mirrored in a setting no pull request can
+  # per (runner label, interpreter) pair -- `gh api` on a run's jobs counts
+  # them, and the count moves whenever the matrix does: naming those
+  # directly means every matrix edit has to be mirrored in a setting no
+  # pull request can
   # review, and a name that stops being produced -- macos-latest moving
   # on, 3.10 aging out in its turn -- becomes a required check that never
   # reports, which blocks every merge until someone remembers where the
   # rule lives.
   # This job depends on the others instead, so the rule names one thing
   # that never changes and adding a job here is enough to gate on it
-  tests-passed:
-    needs: [test-py, coverage-py, dist-py]
+  test-passed:
+    # the name and not the id is what branch protection matches, and it
+    # carries the workflow on purpose: a context is keyed by name alone, so
+    # two workflows with a job named "every job passed" would produce one
+    # ambiguous check. lint and docs need no aggregate of their own while
+    # they have one job each -- the job *is* the context there -- and the
+    # day either grows a second one, this pattern and a change to the rule
+    # are what that costs
+    name: "test: every job passed"
+    needs: [suite, coverage, dist]
     # not success(): a job whose dependencies failed is skipped, and a
     # skipped check reports "skipped", which branch protection counts as
     # satisfied. The gate has to run to be able to fail
     # and the draft condition every job above carries, so a draft
     # skips uniformly rather than tripping the skip check below
-    if: >-
-      ${{ always() && (!github.event.pull_request.draft
-      || github.base_ref == 'master') }}
+    if: ${{ always() && !github.event.pull_request.draft }}
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:

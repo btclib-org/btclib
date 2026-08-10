@@ -34,6 +34,33 @@ repos:
     hooks:
       - id: check-hooks-apply
       - id: check-useless-excludes
+  # this file checking itself further, on the two moves `autoupdate` makes
+  # that it must not take. A rev naming only a major version follows every
+  # future release of that major, which is the one thing a rev is here to
+  # prevent -- and a prerelease is not a release.
+  #
+  # Not hypothetical: pre-commit.ci's weekly pull request offered both in
+  # bitcoin-core-rpc, typos onto `v1` -- its repository keeps a floating
+  # major tag beside the versioned one, and autoupdate prefers the shorter
+  # name -- and pyroma onto 5.1b1, 5.1 having no released tag at all. One of
+  # the two was merged before anyone read the two-line diff. This hook is
+  # what makes the bot's pull request go red instead.
+  #
+  # pre-commit says the first half itself -- "appears to be a mutable
+  # reference (moving tag / branch) ... not supported" -- on stderr, on a run
+  # that then exits zero, which is the whole difference between a warning and
+  # a gate.
+  #
+  # A commit SHA stays acceptable, should a hook ever want one: the pattern
+  # requires the prerelease marker and its digits to end the value, which
+  # forty hex characters do not
+  - repo: local
+    hooks:
+      - id: pinned-rev
+        name: every pre-commit rev names a released version
+        language: pygrep
+        entry: '^ *rev: "?v?([0-9]+|[0-9][0-9.]*(a|b|rc|dev)[0-9]+)"?$'
+        files: ^\.pre-commit-config\.yaml$
   - repo: https://github.com/pre-commit/pre-commit-hooks
     rev: v6.0.0
     hooks:

@@ -21,7 +21,7 @@ name: latest
 # The obvious alternative, dropping --locked from test.yml and resolving
 # afresh on every run, is what this workflow exists instead of: a pull
 # request would go red for a release in somebody else's repository, with
-# master's required checks in front of it, and the contributor
+# main's required checks in front of it, and the contributor
 # holding the branch cannot fix any of it. pytest runs with
 # filterwarnings = ["error"] and coverage with a fail_under ratchet, so
 # the ways an upstream release turns this tree red without touching it are
@@ -85,8 +85,8 @@ jobs:
   # being tested against what everybody else runs. That is not a
   # hypothetical: 3.9 left the floor resolving 35 of the 132 locked
   # packages to older versions
-  test-latest:
-    name: "Test ${{ matrix.python }} on ${{ matrix.os }}, deps at latest"
+  suite-latest:
+    name: "Run the suite on ${{ matrix.python }}, ${{ matrix.os }}, dependencies at latest"
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
@@ -140,9 +140,9 @@ jobs:
   # third-party wheel". Moved here from published.yml (issue #397): it
   # is a question about drift against a tree not yet published, which
   # belongs before publication rather than after
-  test-bindings-latest:
+  suite-bindings-latest:
     name: >-
-      Test ${{ matrix.python }} on ${{ matrix.os }}, bindings at latest
+      Run the suite on ${{ matrix.python }}, ${{ matrix.os }}, bindings at latest
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
@@ -179,7 +179,7 @@ jobs:
   # shells out to uv, mypy -- the tool whose new release adds a check the
   # existing code base fails, on a schedule of its own
   lint-latest:
-    name: Lint and type-check, deps at latest
+    name: Lint and type-check, dependencies at latest
     runs-on: ubuntu-latest
     # nothing here takes minutes; a job that does is hung
     timeout-minutes: 20
@@ -218,7 +218,7 @@ jobs:
   # pinned by uv.lock like everything else, and a new pyroma with a
   # stricter rating would fail --min 10 for the first time on a tag
   dist-latest:
-    name: Check the distribution files, deps at latest
+    name: Build the distribution and inspect it, dependencies at latest
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:

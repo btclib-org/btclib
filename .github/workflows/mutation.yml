@@ -12,7 +12,7 @@ name: mutation
 # needs a number nobody has measured yet, and a survival rate is not a
 # regression: a mutant survives because a test is missing, so a red merge
 # would block whoever next touched the file for a hole somebody else left.
-# It therefore does not appear in master's required checks, and must not --
+# It therefore does not appear in main's required checks, and must not --
 # that rule lives outside the repository and names its checks as literal
 # strings.
 #
@@ -32,7 +32,8 @@ on:
     # different axis entirely -- the suite's own quality, not a
     # dependency's -- which is what leaves it the weekend on its own.
     # Cron runs from the default branch only, so this file gates nothing
-    # until it reaches master -- on dev it is reachable through the
+    # until it reaches the default branch -- elsewhere it is reachable
+    # through the
     # dispatch button below and nowhere else
     - cron: "41 3 * * 0"
   # the escape hatch, and the way to spend a whole afternoon on the engine
