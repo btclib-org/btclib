@@ -171,7 +171,7 @@ documented at release-notes length in the first place, and are still in
 ### Wallets
 
 - **`ScriptWallet` is BIP174's Updater for the scripts no descriptor
-  states**. `DescriptorWallet` has `update_psbt_input` and
+  states** (#587). `DescriptorWallet` has `update_psbt_input` and
   `update_psbt_output` and this class had neither, so a caller spending a
   script outside BIP380-390 wrote the psbt fields by hand: the witness
   script under each input, and, under every key of it, the origin a
