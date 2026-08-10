@@ -14,6 +14,13 @@ against the mainnet addresses it holds coins at.
 The psbt half is asserted the same way: the key paths against the account
 path with the two derived levels appended, which is the path a signer
 walks, and the pre-images against `redeem_script` and `witness_script`.
+
+`descriptor()` too: the expression is written out by hand from the keys
+the quorum names, and what the lift produces has to be that text -- so a
+change of spelling is a failure here rather than a descriptor somebody
+imports and finds derives something else. The same method against a
+deployment, which is the authority the addresses give it, is in that
+other module too.
 """
 
 from __future__ import annotations
@@ -24,7 +31,12 @@ from btclib.alias import Command
 from btclib.bip32 import bip32
 from btclib.bip32.bip32 import BIP32KeyData, derive_from_account
 from btclib.bip32.key_origin import BIP32KeyOrigin
-from btclib.exceptions import BTClibValueError
+from btclib.descriptors import KeyExpression, add_checksum, parse
+from btclib.exceptions import (
+    BTClibRuntimeError,
+    BTClibValueError,
+    NoDescriptorError,
+)
 from btclib.psbt.psbt import Psbt
 from btclib.script import script
 from btclib.script.script import op_int
@@ -34,7 +46,8 @@ from btclib.tx.out_point import OutPoint
 from btclib.tx.tx import Tx
 from btclib.tx.tx_in import TxIn
 from btclib.tx.tx_out import TxOut
-from btclib.wallet import KeyGroup, ScriptWallet
+from btclib.wallet import DescriptorWallet, KeyGroup, ScriptWallet
+from btclib.wallet import script_wallet as script_wallet_module
 
 # the "abandon abandon ... about" seed, and three account keys of it in an
 # order that none of the sorts below answers: the account keys sort one
@@ -50,15 +63,54 @@ _ACCOUNTS = ["m/48h/0h/1h", "m/48h/0h/0h", "m/48h/0h/5h"]
 _XPRVS = [bip32.derive(_ROOT, account) for account in _ACCOUNTS]
 _XPUBS = [bip32.xpub_from_xprv(xprv) for xprv in _XPRVS]
 
+# two more accounts of the same seed, for the tests that need a second
+# quorum: a descriptor naming one key twice is refused as insane, so a
+# combinator whose two branches share a key has no descriptor for a reason
+# that is not the one under test
+_RECOVERY = [
+    bip32.xpub_from_xprv(bip32.derive(_ROOT, account))
+    for account in ("m/48h/0h/7h", "m/48h/0h/9h")
+]
+
 # the timelock of the example in the module docstring, spelled the way the
 # wallets that need this class spell it: a push, OP_CSV, OP_DROP
 _TIMELOCK: list[Command] = ["9000", "OP_CHECKSEQUENCEVERIFY", "OP_DROP"]
 
 # where those three accounts came from, which is what a psbt carries
-# beside each key: the master fingerprint, which only the root key
-# supplies, and the path down to the account
+# beside each key, and what a descriptor writes in front of it: the master
+# fingerprint, which only the root key supplies, and the path down to the
+# account
 _FINGERPRINT = fingerprint(_ROOT)
 _ORIGINS = [BIP32KeyOrigin(_FINGERPRINT, account) for account in _ACCOUNTS]
+
+# the same 144 blocks as miniscript writes them, which is the whole
+# difference between a wallet that has a descriptor and one that does not:
+# `older(144)` compiles to the push and OP_CSV, and leaves the number on
+# the stack for the fragment above it to consume
+_MINISCRIPT_TIMELOCK: list[Command] = ["9000", "OP_CHECKSEQUENCEVERIFY"]
+
+
+def _key_expression(xpub: str, branch: int, origins: bool = True) -> str:
+    """Return the ranged KEY expression of an account key, as text.
+
+    With the origin the group declared in front of it, where the wallet
+    under test declared one: a key of a group given none is written as the
+    xpub alone, which is what `origins=False` asks for here.
+    """
+    prefix = f"[{_ORIGINS[_XPUBS.index(xpub)].description}]" if origins else ""
+    return f"{prefix}{xpub}/{branch}/*"
+
+
+def _multi(
+    threshold: int,
+    xpubs: list[str],
+    branch: int,
+    name: str = "multi",
+    origins: bool = True,
+) -> str:
+    """Return the BIP383 quorum of some account keys, written out."""
+    keys = ",".join(_key_expression(xpub, branch, origins) for xpub in xpubs)
+    return f"{name}({threshold},{keys})"
 
 
 def _derived(xpub: str, branch: int, index: int) -> bytes:
@@ -547,3 +599,302 @@ def test_the_updaters_refuse_a_position_or_a_psbt_index_they_have_not() -> None:
     for method in (wallet.update_psbt_input, wallet.update_psbt_output):
         with pytest.raises(BTClibValueError, match="invalid branch: 2"):
             method(psbt, 0, 2, 0)
+
+
+@pytest.mark.parametrize("branch", [0, 1])
+@pytest.mark.parametrize(
+    "order, name",
+    [("none", "multi"), ("account", "multi"), ("derived", "sortedmulti")],
+)
+def test_one_quorum_is_a_descriptor_in_every_order(
+    order: str, name: str, branch: int
+) -> None:
+    """A template that is one group is BIP383's, per-index order included.
+
+    Which is the one place `sortedmulti()` states the order a quorum is
+    given after derivation: it is a descriptor function and not a
+    miniscript fragment, so it says this and cannot say it inside a
+    combinator. `multi()` states the other two orders by listing the keys
+    in the order the script carries them, so the account sort shows up in
+    the text and not only in the script.
+    """
+    group = KeyGroup(2, _XPUBS, origins=_ORIGINS)
+    wallet = ScriptWallet([group], "p2wsh", order)  # type: ignore[arg-type]
+    ordered = (
+        sorted(_XPUBS, key=lambda xpub: BIP32KeyData.b58decode(xpub).key)
+        if order == "account"
+        else _XPUBS
+    )
+    descriptor = wallet.descriptor(branch)
+    assert str(descriptor) == f"wsh({_multi(2, ordered, branch, name)})"
+    assert descriptor.is_ranged
+    # the addresses of the branch, which is what the descriptor is for and
+    # what makes the equality above more than a claim about text
+    assert [descriptor.address(i) for i in range(5)] == [
+        wallet.address(branch, i) for i in range(5)
+    ]
+    # and the text is a descriptor to whoever reads it back, checksum and
+    # all: what `descriptor()` returns is what `parse` answers for it
+    assert parse(add_checksum(str(descriptor))) == descriptor
+
+
+def test_the_lift_reads_the_script_and_puts_the_keys_back() -> None:
+    """A shape no argument of this class names, out of the script itself.
+
+    The timelocked spending path miniscript *does* state -- OP_CSV with no
+    OP_DROP after it -- and the lift is what recognizes it: nothing here
+    says `or_i`, `and_v` or `older`, the script says them and
+    `miniscript.from_script` reads them.
+    """
+    template: list[Command | KeyGroup] = [
+        "OP_IF",
+        KeyGroup(2, _XPUBS, origins=_ORIGINS),
+        "OP_ELSE",
+        KeyGroup(2, _RECOVERY, verify=True),
+        *_MINISCRIPT_TIMELOCK,
+        "OP_ENDIF",
+    ]
+    wallet = ScriptWallet(template, "p2wsh")
+    descriptor = wallet.descriptor(1, 8)
+    recovery = _multi(2, _RECOVERY, 1, origins=False)
+    assert str(descriptor) == (
+        f"wsh(or_i({_multi(2, _XPUBS, 1)},and_v(v:{recovery},older(144))))"
+    )
+    # the recovery group declared no origin, so its keys are written
+    # without one -- the same thing an empty `hd_key_paths` says, and a
+    # descriptor BIP380 allows
+    assert "[" not in recovery
+    assert [descriptor.address(i) for i in range(8)] == [
+        wallet.address(1, i) for i in range(8)
+    ]
+    # and the wallet of the pair of descriptors answers the same addresses
+    # from the other source, which is the bridge this method is
+    both = DescriptorWallet({b: wallet.descriptor(b) for b in wallet.branches})
+    assert both.address(0, 3) == wallet.address(0, 3)
+    assert both.position_of(wallet.script_pub_key(1, 5), 6) == (1, 5)
+
+
+def test_a_key_the_wallet_does_not_derive_stays_the_key_it_is() -> None:
+    """A literal push in the template is a fixed key in the descriptor.
+
+    The honest answer rather than a refusal: BIP380 states a public key as
+    the hex it is, so what comes out is ranged in the keys of the groups
+    and fixed in the one the template wrote down -- which is exactly what
+    the wallet computes at every index.
+    """
+    literal = _derived(_RECOVERY[0], 0, 0).hex()
+    wallet = ScriptWallet(
+        [literal, "OP_CHECKSIGVERIFY", KeyGroup(1, _XPUBS[:1], origins=_ORIGINS[:1])],
+        "p2wsh",
+    )
+    descriptor = wallet.descriptor()
+    assert str(descriptor) == (
+        f"wsh(and_v(v:pk({literal}),{_multi(1, _XPUBS[:1], 0)}))"
+    )
+    assert [descriptor.address(i) for i in range(4)] == [
+        wallet.address(0, i) for i in range(4)
+    ]
+
+
+@pytest.mark.parametrize(
+    "script_type, text",
+    [
+        ("p2sh", "sh({})"),
+        ("p2wsh", "wsh({})"),
+        ("p2sh-p2wsh", "sh(wsh({}))"),
+    ],
+)
+def test_a_quorum_has_a_descriptor_for_each_way_it_becomes_an_output(
+    script_type: str, text: str
+) -> None:
+    """Including the legacy p2sh one, which no miniscript can be read in.
+
+    `sh(sortedmulti(2,...))` is the pre-descriptor multisig wallet, and it
+    is BIP381 wrapping BIP383 rather than a miniscript: the quorum is
+    written from the groups, so the script type is the only thing that
+    changes here.
+    """
+    group = KeyGroup(2, _XPUBS, origins=_ORIGINS)
+    wallet = ScriptWallet([group], script_type, "derived")  # type: ignore[arg-type]
+    descriptor = wallet.descriptor()
+    assert str(descriptor) == text.format(_multi(2, _XPUBS, 0, "sortedmulti"))
+    assert descriptor.address(3) == wallet.address(0, 3)
+
+
+def test_an_xprv_in_a_quorum_is_not_written_into_the_descriptor() -> None:
+    """A descriptor is text that gets logged, and `parse` neuters one too.
+
+    The origins are looked up under the xpub for the same reason: it is
+    the spelling the answer carries, whichever of the two the group was
+    given.
+    """
+    signing = ScriptWallet([KeyGroup(2, _XPRVS, origins=_ORIGINS)], "p2wsh")
+    watching = ScriptWallet([KeyGroup(2, _XPUBS, origins=_ORIGINS)], "p2wsh")
+    assert not signing.is_watch_only
+    assert signing.descriptor() == watching.descriptor()
+    assert all(xprv not in str(signing.descriptor()) for xprv in _XPRVS)
+
+
+def test_a_quorum_ordered_per_index_inside_a_combinator_has_no_descriptor() -> None:
+    """The refusal the class exists for, and the one nothing can widen.
+
+    `sortedmulti()` states the order of a quorum that is the whole script;
+    inside a combinator BIP379 has no fragment that states it, so the
+    order is a property of the index and no ranged expression covers it.
+    """
+    template: list[Command | KeyGroup] = [
+        "OP_IF",
+        KeyGroup(2, _XPUBS),
+        "OP_ELSE",
+        KeyGroup(2, _RECOVERY, verify=True),
+        *_MINISCRIPT_TIMELOCK,
+        "OP_ENDIF",
+    ]
+    wallet = ScriptWallet(template, "p2wsh", "derived")
+    with pytest.raises(NoDescriptorError, match="sorted after derivation"):
+        wallet.descriptor()
+    # the very same template in the declared order does have one, which is
+    # what leaves the refusal above about the order and nothing else
+    declared = ScriptWallet(template, "p2wsh").descriptor()
+    assert str(declared).startswith("wsh(or_i(multi(2,")
+
+
+def test_a_script_no_miniscript_reads_has_no_descriptor() -> None:
+    """`<n> OP_CSV OP_DROP` closes no fragment: the deployed spelling.
+
+    The message is `from_script`'s own, this being a refusal about the
+    script rather than one this class works out for itself.
+    """
+    template: list[Command | KeyGroup] = [
+        "OP_IF",
+        KeyGroup(2, _XPUBS),
+        "OP_ELSE",
+        *_TIMELOCK,
+        KeyGroup(2, _RECOVERY),
+        "OP_ENDIF",
+    ]
+    err_msg = "not a miniscript: op code 0x75 closes no fragment"
+    with pytest.raises(NoDescriptorError, match=err_msg):
+        ScriptWallet(template, "p2wsh").descriptor()
+
+
+def test_a_legacy_script_that_is_not_a_bare_quorum_has_no_descriptor() -> None:
+    """A p2sh miniscript is not a thing: P2WSH and tapscript are the two."""
+    template: list[Command | KeyGroup] = [
+        "OP_IF",
+        KeyGroup(2, _XPUBS),
+        "OP_ELSE",
+        KeyGroup(1, _RECOVERY[:1]),
+        "OP_ENDIF",
+    ]
+    with pytest.raises(NoDescriptorError, match="no legacy one"):
+        ScriptWallet(template, "p2sh").descriptor()
+
+
+def test_a_required_quorum_on_its_own_is_no_script_at_all() -> None:
+    """An OP_CHECKMULTISIGVERIFY leaves nothing on the stack: a V, not a B.
+
+    Which the lift is what says: a template of one group is BIP383's
+    quorum, and `verify=True` is not that quorum -- so it falls through to
+    `from_script`, where the type of the expression is the answer.
+    """
+    wallet = ScriptWallet([KeyGroup(2, _XPUBS, verify=True)], "p2wsh")
+    with pytest.raises(NoDescriptorError, match="not a miniscript script"):
+        wallet.descriptor()
+
+
+def test_a_per_index_sort_that_is_not_bip67_is_stated_by_nothing() -> None:
+    """``sortedmulti()`` is byte order on the derived keys, and only that.
+
+    So the one quorum that has a descriptor in the plain per-index order
+    stops having one as soon as the sort is the caller's own: the function
+    would state a different order, and `multi()` cannot state this one
+    either, it not being a property of the wallet. Refused whatever the
+    key function computes -- one that happens to agree with byte order at
+    every index is not something this could know, and a descriptor is
+    right or it is not offered.
+    """
+    wallet = ScriptWallet([KeyGroup(2, _XPUBS)], "p2wsh", "derived", sort_key=bytes.hex)
+    with pytest.raises(NoDescriptorError, match="sorted after derivation"):
+        wallet.descriptor()
+
+
+def test_an_expression_no_descriptor_may_hold_has_no_descriptor() -> None:
+    """Sane or refused, which is Bitcoin Core's rule for a descriptor.
+
+    The lift reads the script and `parse` judges it, so a wallet whose two
+    spending paths share a key is refused with the reason a descriptor is
+    refused for -- not with a failure to read the script, which read fine.
+    """
+    template: list[Command | KeyGroup] = [
+        "OP_IF",
+        KeyGroup(2, _XPUBS),
+        "OP_ELSE",
+        KeyGroup(2, _XPUBS[:2], verify=True),
+        *_MINISCRIPT_TIMELOCK,
+        "OP_ENDIF",
+    ]
+    with pytest.raises(NoDescriptorError, match="it repeats a public key"):
+        ScriptWallet(template, "p2wsh").descriptor()
+
+
+def test_a_substitution_that_put_no_key_back_is_not_a_range(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """A lift that missed every key describes one script, and says so.
+
+    Which is the first thing the confirmation asks, and it has to be
+    asked before the comparison: a descriptor of one script has no index 1
+    to compare at, so a caller would otherwise be told the index is out of
+    range and left to work out why.
+    """
+    template: list[Command | KeyGroup] = [
+        "OP_IF",
+        KeyGroup(2, _XPUBS),
+        "OP_ELSE",
+        KeyGroup(2, _RECOVERY, verify=True),
+        *_MINISCRIPT_TIMELOCK,
+        "OP_ENDIF",
+    ]
+    # the quorum path writes the key expressions itself, so the lift is
+    # only reached by a template a combinator makes of it
+    monkeypatch.setattr(script_wallet_module, "_lifted", lambda node, expressions: node)
+    with pytest.raises(BTClibRuntimeError, match="not a range"):
+        ScriptWallet(template, "p2wsh").descriptor()
+
+
+def test_a_lift_that_derives_something_else_is_not_handed_back(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """The confirmation, on a substitution that is ranged and wrong.
+
+    A key expression naming the other chain is the shape of the mistake
+    this guards against: every key is put back, the descriptor is ranged,
+    and what it derives is a wallet nobody has. The addresses are what
+    tells the two apart, which is why they are compared rather than
+    trusted.
+    """
+
+    def other_branch(
+        self: ScriptWallet,
+        key: BIP32KeyData,
+        branch: int,
+        origins: object,
+    ) -> KeyExpression:
+        return KeyExpression(xkey=key.b58encode(), der_path=(1 - branch,), wildcard=0)
+
+    monkeypatch.setattr(ScriptWallet, "_key_expression", other_branch)
+    wallet = ScriptWallet([KeyGroup(2, _XPUBS)], "p2wsh")
+    with pytest.raises(BTClibRuntimeError, match="where this wallet pays to"):
+        wallet.descriptor()
+
+
+def test_a_lift_is_confirmed_at_two_positions_or_the_call_is_refused() -> None:
+    """One is index 0, which is where the expression was read: no evidence."""
+    wallet = ScriptWallet([KeyGroup(2, _XPUBS)], "p2wsh")
+    with pytest.raises(BTClibValueError, match="invalid checked_indexes: 1"):
+        wallet.descriptor(0, 1)
+    # and a branch this wallet has no chain at is refused as everywhere
+    # else, the position being checked before anything is derived
+    with pytest.raises(BTClibValueError, match="invalid branch: 2"):
+        wallet.descriptor(2)
