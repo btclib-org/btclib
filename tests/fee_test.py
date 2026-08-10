@@ -28,6 +28,7 @@ from btclib.fee import (
     FeeRate,
     dust_threshold,
     fee_from_vsize,
+    package_fee,
 )
 from btclib.script import ScriptPubKey, serialize
 from btclib.script.limits import MAX_SCRIPT_SIZE
@@ -106,6 +107,90 @@ def test_a_rate_that_is_not_a_number(rate: Any) -> None:
     err_msg = "invalid sat/vB fee rate: "
     with pytest.raises(BTClibValueError, match=err_msg):
         FeeRate.from_sats_per_vbyte(rate)
+
+
+@pytest.mark.parametrize(
+    "btc_per_kvbyte, sats_per_kvbyte",
+    [
+        # Core's own defaults, quoted in the unit its options take them
+        # in: -minrelaytxfee and -incrementalrelayfee are 0.00001 BTC/kvB
+        # and -dustrelayfee 0.00003, which are 1000 and 3000 sat/kvB
+        ("0.00001", 1000),
+        ("0.00003", 3000),
+        # the finest a rate held as sat/kvB can be, and the coarsest a
+        # BTC quote can name: one satoshi per kilo-virtual-byte
+        ("0.00000001", 1),
+        (0, 0),
+        (Decimal("0.0001"), 10_000),
+        ("1", 100_000_000),
+        # a float is read through its repr here as well
+        (1e-8, 1),
+        ("1E-8", 1),
+    ],
+)
+def test_btc_per_kvbyte_quotes(btc_per_kvbyte: Any, sats_per_kvbyte: int) -> None:
+    """Read Core's BTC/kvB quote into the sat/kvB the same node stores."""
+    rate = FeeRate.from_btc_per_kvbyte(btc_per_kvbyte)
+    assert rate.sats_per_kvbyte == sats_per_kvbyte
+
+
+def test_the_three_units_agree_on_one_rate() -> None:
+    """1 sat/vB is 1000 sat/kvB is 0.00001 BTC/kvB, exactly.
+
+    The two factors are the whole of the unit trouble: a thousand
+    virtual bytes to the kvB and a hundred million satoshi to the BTC,
+    which is the 100_000 between a BTC/kvB quote and the sat/vB a user
+    reads.
+    """
+    assert FeeRate.from_btc_per_kvbyte("0.00001") == FeeRate(sats_per_kvbyte=1000)
+    assert FeeRate.from_btc_per_kvbyte("0.00001") == FeeRate.from_sats_per_vbyte(1)
+    assert FeeRate.from_btc_per_kvbyte("0.00003") == DUST_RELAY_FEE_RATE
+    # and the factor itself, at a rate no round number hides it behind
+    rate = FeeRate.from_btc_per_kvbyte("0.00002345")
+    assert rate.sats_per_vbyte == Decimal("2.345")
+
+
+def test_a_btc_quote_is_exact_or_it_is_an_error() -> None:
+    """A fraction of a satoshi per kvB is refused, not truncated."""
+    with pytest.raises(BTClibValueError, match="too many decimals"):
+        FeeRate.from_btc_per_kvbyte("0.000000001")
+
+
+@pytest.mark.parametrize(
+    "rate",
+    [
+        "NaN",
+        "Infinity",
+        "abc",
+        "1,2",
+        "",
+        [1],
+        # a price is not an amount in one respect: it has no cap of its
+        # own, but the conversion is an amount's and 21 million BTC per
+        # kvB is refused as an amount
+        "21000000.00000001",
+        # and a negative quote, which the amount validator refuses before
+        # __post_init__ has a rate to call negative
+        "-0.00001",
+    ],
+)
+def test_a_btc_quote_that_is_not_a_rate(rate: Any) -> None:
+    """Refuse what `sats_from_btc` refuses, in its own words."""
+    with pytest.raises(BTClibValueError, match="BTC amount"):
+        FeeRate.from_btc_per_kvbyte(rate)
+
+
+def test_a_missing_btc_quote_is_not_a_free_transaction() -> None:
+    """None is zero to an amount and no rate at all to a price.
+
+    `estimatesmartfee` answers an `errors` array and no `feerate` key
+    when it cannot estimate one, so the None a caller reads out of that
+    reply is the case this refusal is for.
+    """
+    with pytest.raises(BTClibValueError, match="invalid BTC/kvB fee rate: "):
+        FeeRate.from_btc_per_kvbyte(None)
+    # a zero a caller means is still a zero rate
+    assert FeeRate.from_btc_per_kvbyte("0") == FeeRate(sats_per_kvbyte=0)
 
 
 def test_a_rate_is_a_non_negative_integer_number_of_sats_per_kvbyte() -> None:
@@ -193,6 +278,110 @@ def test_a_virtual_size_is_a_non_negative_integer() -> None:
 
     with pytest.raises(BTClibValueError, match="negative virtual size: "):
         fee_from_vsize(-1, DUST_RELAY_FEE_RATE)
+
+
+_TEN_SATS_PER_VBYTE = FeeRate(sats_per_kvbyte=10_000)
+
+
+@pytest.mark.parametrize(
+    "ancestor_vsize, ancestor_fee, fee",
+    [
+        # nothing unconfirmed behind it: the child's own fee, and the
+        # answer `fee_from_vsize` gives for the same size and rate
+        (0, 0, 2000),
+        # a parent that paid 1 sat/vB where the child wants 10: the
+        # package is 1200 vB and owes 12000, of which 1000 is paid
+        (1000, 1000, 11000),
+        # the same parent having paid nothing at all -- a child lifting a
+        # zero-fee parent, which is what CPFP is for
+        (1000, 0, 12000),
+        # the boundary: a parent already paying exactly the rate leaves
+        # the child its own fee and not a satoshi more
+        (1000, 10_000, 2000),
+        # and a parent that overpaid, where the package arithmetic would
+        # hand the child a discount: refused by the maximum, so the child
+        # still pays the rate it asked for
+        (1000, 20_000, 2000),
+        (1000, 21_000_000 * 100_000_000, 2000),
+    ],
+)
+def test_a_child_pays_for_its_parent(
+    ancestor_vsize: int, ancestor_fee: int, fee: int
+) -> None:
+    """Price a 200 vB child at 10 sat/vB behind a 1000 vB parent."""
+    assert (
+        package_fee(
+            200,
+            _TEN_SATS_PER_VBYTE,
+            ancestor_vsize=ancestor_vsize,
+            ancestor_fee=ancestor_fee,
+        )
+        == fee
+    )
+
+
+def test_no_ancestors_is_the_plain_fee() -> None:
+    """The default arguments make this `fee_from_vsize`, at every size."""
+    rate = FeeRate.from_sats_per_vbyte("1.5")
+    assert all(
+        package_fee(vsize, rate) == fee_from_vsize(vsize, rate)
+        for vsize in (0, 1, 141, 1000, 100_000)
+    )
+
+
+def test_the_package_is_rounded_once_and_not_twice() -> None:
+    """The ceiling is taken over the package, not over each transaction.
+
+    At one satoshi per kvB a 400 vB transaction owes one satoshi, so two
+    of them owe two -- while the 800 vB package they make owes one. The
+    child pays what the package owes, and the difference is the rounding
+    that was not performed twice.
+    """
+    rate = FeeRate(sats_per_kvbyte=1)
+    assert fee_from_vsize(400, rate) + fee_from_vsize(400, rate) == 2
+    assert package_fee(400, rate, ancestor_vsize=400) == 1
+
+
+def test_a_zero_rate_owes_zero_however_much_was_paid() -> None:
+    """No discount goes the other way either: a fee is never negative."""
+    rate = FeeRate(sats_per_kvbyte=0)
+    assert package_fee(200, rate, ancestor_vsize=1000, ancestor_fee=50_000) == 0
+
+
+def test_an_ancestor_virtual_size_is_a_non_negative_integer() -> None:
+    """Refuse a float, a bool and a negative ancestor size."""
+    err_msg = "non-integer ancestor virtual size: "
+    with pytest.raises(BTClibTypeError, match=err_msg):
+        package_fee(200, DUST_RELAY_FEE_RATE, ancestor_vsize=1000.0)  # type: ignore[arg-type]
+    with pytest.raises(BTClibTypeError, match=err_msg):
+        package_fee(200, DUST_RELAY_FEE_RATE, ancestor_vsize=True)
+    # refused rather than added to `vsize`, where it would cancel against
+    # the child's own size and price the package below the child
+    with pytest.raises(BTClibValueError, match="negative ancestor virtual size: "):
+        package_fee(200, DUST_RELAY_FEE_RATE, ancestor_vsize=-1)
+
+
+def test_an_ancestor_fee_is_a_satoshi_amount() -> None:
+    """The amount validator is the gate, MAX_MONEY bound included."""
+    err_msg = "non-integer satoshi amount: "
+    with pytest.raises(BTClibTypeError, match=err_msg):
+        package_fee(200, DUST_RELAY_FEE_RATE, ancestor_fee=1000.5)  # type: ignore[arg-type]
+    with pytest.raises(BTClibTypeError, match=err_msg):
+        package_fee(200, DUST_RELAY_FEE_RATE, ancestor_fee=True)
+    err_msg = "invalid satoshi amount: "
+    with pytest.raises(BTClibValueError, match=err_msg):
+        package_fee(200, DUST_RELAY_FEE_RATE, ancestor_fee=-1)
+    with pytest.raises(BTClibValueError, match=err_msg):
+        package_fee(200, DUST_RELAY_FEE_RATE, ancestor_fee=21_000_000 * 10**8 + 1)
+    # and the child's own size is checked where every other fee checks it
+    with pytest.raises(BTClibTypeError, match="non-integer virtual size: "):
+        package_fee(200.0, DUST_RELAY_FEE_RATE, ancestor_vsize=1000)  # type: ignore[arg-type]
+
+
+def test_the_ancestor_totals_cannot_be_swapped_by_position() -> None:
+    """Two same-typed ints, so neither is positional."""
+    with pytest.raises(TypeError):
+        package_fee(200, _TEN_SATS_PER_VBYTE, 1000, 1000)  # type: ignore[call-arg]
 
 
 def _script_pub_keys() -> dict[str, bytes]:

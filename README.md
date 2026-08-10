@@ -144,9 +144,11 @@ Included features are:
   obey, and conversion either way
 - [BIP21](https://github.com/bitcoin/bips/blob/master/bip-0021.mediawiki)
   `bitcoin:` payment URIs
-- fee rates carrying their unit (sat/kvB and sat/vB), the fee a virtual
-  size owes at one, and the dust threshold of any output type, computed as
-  Bitcoin Core computes it rather than tabulated
+- fee rates carrying their unit (sat/kvB, sat/vB, and the BTC/kvB Bitcoin
+  Core quotes one in), the fee a virtual size owes at one, what a child
+  owes for the unconfirmed ancestors it is mined with, and the dust
+  threshold of any output type, computed as Bitcoin Core computes it
+  rather than tabulated
 - wallets, three sources of addresses behind one vocabulary: an extended
   key at a BIP44 account or a set of individual keys, which also answer
   the private key that signs for an address — what `sign(address, msg)`

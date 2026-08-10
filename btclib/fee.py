@@ -2,25 +2,30 @@
 # Distributed under the MIT software license, see the accompanying
 # LICENSE file or https://opensource.org/license/mit for the full text.
 
-"""Fee rates, the fee a virtual size owes, and the dust threshold.
+"""Fee rates, the fee a virtual size owes, package fees, and dust.
 
-Three answers, each a function of its arguments alone: what a fee rate
-is, what fee a transaction of a given virtual size owes at that rate, and
-how small an output has to be before the network refuses to relay it.
+Each answer is a function of its arguments alone: what a fee rate is,
+what fee a transaction of a given virtual size owes at that rate, what a
+child owes when the outputs it spends are unconfirmed, and how small an
+output has to be before the network refuses to relay it.
 
 A fee rate is a price, and the unit is where the mistakes are. Bitcoin
-Core states it in satoshi per kilo-virtual-byte, wallets and their users
-state it in satoshi per virtual byte, and the two differ by a factor of a
-thousand that a bare int does not record. `FeeRate` names the unit in the
-one constructor and in both accessors, so the factor is never the
-caller's to remember, and it refuses a sat/vB rate it could not hold
-exactly rather than truncating one.
+Core stores it in satoshi per kilo-virtual-byte, quotes it in BTC per
+kilo-virtual-byte wherever its RPC replies mention one, and wallets and
+their users state it in satoshi per virtual byte: three units and two
+factors that a bare int does not record. `FeeRate` names the unit in
+every constructor and accessor, so no factor is the caller's to
+remember, and it refuses a rate it could not hold exactly rather than
+truncating one.
 
 Explicitly not here, and the boundary is the point: everything downstream
 of a network. Mempool histograms, a fee estimate for a confirmation
 target, an ETA, a "how many blocks" slider -- those are policy fed by
 live data. They need a node, they answer differently every minute, and
-they belong to an application rather than to a library. What this module
+they belong to an application rather than to a library. `package_fee` is
+on this side of that line and its inputs are on the other: which
+ancestors are unconfirmed and what each of them paid is what a node
+answers, the arithmetic over those totals is not. What this module
 computes it computes from its arguments and from Bitcoin Core's
 constants, and the same arguments give the same answer forever.
 """
@@ -33,6 +38,7 @@ from typing import Any
 
 from btclib import var_int
 from btclib.alias import Octets
+from btclib.amount import sats_from_btc, valid_sats_amount
 from btclib.exceptions import BTClibTypeError, BTClibValueError
 from btclib.script.limits import MAX_SCRIPT_SIZE
 from btclib.script.script import BYTE_FROM_OP_CODE_NAME
@@ -44,6 +50,7 @@ __all__ = [
     "FeeRate",
     "dust_threshold",
     "fee_from_vsize",
+    "package_fee",
 ]
 
 # the kilo in sat/kvB, i.e. how many virtual bytes a rate is quoted over
@@ -140,6 +147,40 @@ class FeeRate:
             )
         return cls(sats_per_kvbyte=sats_per_kvbyte)
 
+    @classmethod
+    def from_btc_per_kvbyte(cls, btc_per_kvbyte: Any) -> FeeRate:
+        """Return the same rate in sat/kvB from a BTC/kvB quote.
+
+        BTC/kvB is the unit Bitcoin Core quotes a rate in wherever an
+        RPC reply carries one -- `estimatesmartfee`'s `feerate`,
+        `getmempoolinfo`'s `mempoolminfee` and `minrelaytxfee`,
+        `getnetworkinfo`'s `relayfee` -- and it is a unit of the
+        interface rather than of the node: what those numbers are
+        compared against internally is the sat/kvB this class holds.
+        `getblockstats` is the exception worth knowing, quoting its
+        `minfeerate` and `avgfeerate` in sat/vB, which is the
+        constructor above.
+
+        A rate per kvB scales from BTC to satoshi by the factor an
+        amount does, so `sats_from_btc` is the conversion and its
+        refusals are the ones that apply: what does not read as a
+        decimal number, what is not finite, a negative quote, and one
+        naming a fraction of a satoshi -- what sat/kvB cannot hold
+        exactly. Its complaints name a BTC amount, which is what is
+        being converted.
+        """
+        # `valid_btc_amount` reads None as zero, which is right for an
+        # amount -- no amount is no money -- and wrong for a price:
+        # `estimatesmartfee` answers an `errors` array and no `feerate`
+        # key at all when it cannot estimate one, so the missing quote a
+        # caller reads out of that reply would become a free
+        # transaction, and paying nothing is not what "no estimate"
+        # says. Only the absent quote is refused: a zero a caller means
+        # is a zero rate through this constructor like any other
+        if btc_per_kvbyte is None:
+            raise BTClibValueError(f"invalid BTC/kvB fee rate: {btc_per_kvbyte}")
+        return cls(sats_per_kvbyte=sats_from_btc(btc_per_kvbyte))
+
     @property
     def sats_per_vbyte(self) -> Decimal:
         """Return the rate in satoshi per virtual byte, exactly.
@@ -191,6 +232,69 @@ def fee_from_vsize(vsize: int, fee_rate: FeeRate) -> int:
     # also how Core answers for a rate it holds as no rate at all
     sats, remainder = divmod(fee_rate.sats_per_kvbyte * vsize, _VBYTES_PER_KVBYTE)
     return sats + 1 if remainder else sats
+
+
+def package_fee(
+    vsize: int,
+    fee_rate: FeeRate,
+    *,
+    ancestor_vsize: int = 0,
+    ancestor_fee: int = 0,
+) -> int:
+    """Return the fee in satoshi owed by a transaction and its ancestors.
+
+    Child pays for parent. A transaction spending an unconfirmed output
+    is mined with what it depends on or not at all, so the rate a miner
+    reads is the package's -- Core's mempool scores a transaction by
+    `fees.ancestor` over `ancestorsize`, both of `getmempoolentry` --
+    and buying a rate for the child means buying it for everything
+    unconfirmed behind it, less what that already paid.
+
+    The answer is the larger of two fees: what the child owes for its
+    own virtual size, and what the package owes for the sum of the
+    sizes, less `ancestor_fee`. The second is what lifts a package its
+    ancestors underpay. The first is what stands when they pay the rate
+    or more, where the difference would be a *discount* on the child --
+    a child cheaper than the rate because its parent overpaid, which is
+    a transaction that may not relay on its own and a fee no caller
+    asked for.
+
+    `ancestor_vsize` and `ancestor_fee` are totals over the unconfirmed
+    ancestors, the child itself excluded; zero for both, the default, is
+    a child with nothing unconfirmed behind it and the answer is
+    `fee_from_vsize`. Which transactions those are, whether the set
+    stops at the parents or walks the whole graph, and what each of them
+    paid is a mempool question, and it stays with the caller: an
+    ancestor's own descendants are not in it, and neither are Core's
+    `-limitancestorcount` and `-limitancestorsize`, which bound what it
+    will accept but not what a fee is.
+
+    Keyword-only, the two of them, because they are same-typed
+    non-negative ints beside each other: a swapped pair is a wrong fee
+    that nothing else in the arithmetic can notice.
+    """
+    if not is_integer(ancestor_vsize):
+        raise BTClibTypeError(f"non-integer ancestor virtual size: {ancestor_vsize}")
+    # bounded here rather than left to the sum below, where a negative
+    # total would cancel against `vsize` and price the package as
+    # something smaller than the child it holds
+    if ancestor_vsize < 0:
+        raise BTClibValueError(f"negative ancestor virtual size: {ancestor_vsize}")
+    # the ancestors' fee is money, so the amount validator is the gate:
+    # non-integer, negative and above MAX_MONEY are its answers to give,
+    # and that bound is one this module has no business restating
+    ancestor_fee = valid_sats_amount(ancestor_fee)
+
+    # `vsize` itself is checked where it is used, `fee_from_vsize` being
+    # the whole of the arithmetic here -- and not two optional arguments
+    # on that function, which is exact ceiling division and nothing else:
+    # the maximum below is the rule that a child is never priced under
+    # the rate it was asked for, and a rule reads better under a name of
+    # its own than as a branch inside the primitive every fee goes
+    # through
+    own_fee = fee_from_vsize(vsize, fee_rate)
+    package = fee_from_vsize(vsize + ancestor_vsize, fee_rate)
+    return max(own_fee, package - ancestor_fee)
 
 
 # Core's DUST_RELAY_TX_FEE, the default of its -dustrelayfee option. A
