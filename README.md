@@ -154,7 +154,9 @@ Included features are:
   the private key that signs for an address — what `sign(address, msg)`
   needs — an output descriptor per chain, and a script template with
   multisig quorums in it, for the pre-descriptor wallets no descriptor
-  states. Each answers `address(branch, index)`,
+  states — and, for the ones that turn out to have a descriptor after all,
+  the ranged descriptor lifted out of the script itself, confirmed against
+  the addresses it derives. Each answers `address(branch, index)`,
   `script_pub_key(branch, index)` and `position_of(script_pub_key)`, the
   last being "is this output mine", compared whole and never on a key
   origin's fingerprint

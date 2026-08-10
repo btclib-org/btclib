@@ -44,14 +44,20 @@ as well, message included, because a later release that started *accepting*
 either spelling would change what a descriptor means, not just what it
 parses.
 
-Those same four calls are what a `wallet.ScriptWallet` is made of, and the
-last test below is the one that matters most to it: the plain shape
-written as a template with two `KeyGroup` quorums in it, answering the
-very addresses transcribed here. The addresses are the authority in both
-directions -- by hand and through the class -- so a `ScriptWallet` that
-ordered a quorum differently, or wrote the timelock as miniscript would,
-would be caught by the deployment rather than by a unit test agreeing with
-itself.
+Those same four calls are what a `wallet.ScriptWallet` is made of, and one
+of the tests below matters most to it: the plain shape written as a
+template with two `KeyGroup` quorums in it, answering the very addresses
+transcribed here. The addresses are the authority in both directions --
+by hand and through the class -- so a `ScriptWallet` that ordered a
+quorum differently, or wrote the timelock as miniscript would, would be
+caught by the deployment rather than by a unit test agreeing with itself.
+
+The ranged shape is where the two halves of the module meet, and it is
+`ScriptWallet.descriptor` that makes them: the same design written as a
+template lifts back to the very descriptor text above, checksum included,
+while the plain shape refuses to be lifted at all. So both directions of
+the boundary are pinned against a deployment rather than against an
+example -- what a lift must reproduce, and what no lift may invent.
 
 Every address below is a mainnet address that has held value. They are
 transcribed from the wallets' own committed address lists, and the two
@@ -70,7 +76,7 @@ from btclib.descriptors import (
     parse,
     strip_checksum,
 )
-from btclib.exceptions import BTClibValueError
+from btclib.exceptions import BTClibValueError, NoDescriptorError
 from btclib.script import Command, op_int, script
 from btclib.utils import encode_num
 from btclib.wallet import KeyGroup, ScriptWallet
@@ -341,6 +347,17 @@ def _older(blocks: int) -> list[Command]:
     return [encode_num(blocks).hex(), "OP_CHECKSEQUENCEVERIFY", "OP_DROP"]
 
 
+def _miniscript_older(blocks: int) -> list[Command]:
+    """Return the same timelock as `older()` compiles to: no OP_DROP.
+
+    The one opcode between the two shapes, and the whole of why one has a
+    descriptor and the other has none: `and_v(v:older(n),X)` leaves the
+    number for the fragment above it to consume, where the plain shape
+    drops it.
+    """
+    return [encode_num(blocks).hex(), "OP_CHECKSEQUENCEVERIFY"]
+
+
 def _plain_witness_script(wallet: str, branch: int, index: int) -> bytes:
     """Return the witness script of the plain shape, at one position."""
     if wallet == "vault":
@@ -490,3 +507,123 @@ def test_the_plain_shape_is_a_script_wallet(wallet: str, branch: int) -> None:
     # and the other half of what a wallet answers: this output is mine,
     # the whole script compared at each position of each branch
     assert script_wallet.position_of(addresses[7], 10) == (branch, 7)
+
+
+@pytest.mark.parametrize("wallet", ["vault", "transit"])
+@pytest.mark.parametrize("branch", [0, 1])
+def test_the_plain_shape_has_no_descriptor_to_lift(wallet: str, branch: int) -> None:
+    """`ScriptWallet.descriptor` refuses it, and the order is what it names.
+
+    The refusal a caller acts on: this deployment is watched by its
+    addresses, and there is no expression to hand a monitor instead. The
+    order is answered before the script is even read, being a property of
+    the wallet -- the OP_DROP is the second reason and is pinned above,
+    against `from_script` itself.
+    """
+    with pytest.raises(NoDescriptorError, match="sorted after derivation"):
+        _plain_script_wallet(wallet).descriptor(branch)
+
+
+# how many keys each quorum of the ranged shape holds, in the order the
+# expression reads them: `andor(X,Y,Z)` names its quorums X, Y, Z and
+# writes them into the script as X, Z, Y, so this is the order
+# `key_expressions` hands them back in and not the order of the template
+# below. The thresholds are the deployment's: 2-of-3 and 3-of-6 to spend
+# the vault, 2-of-3 after the timelock; 2-of-3 either way on the transit
+# wallet
+_RANGED_QUORUMS: dict[str, tuple[tuple[int, int], ...]] = {
+    "vault": ((2, 3), (3, 6), (2, 3)),
+    "transit": ((2, 3), (2, 3)),
+}
+
+
+def _ranged_script_wallet(deployment: str, wallet: str, branch: int) -> ScriptWallet:
+    """Return the ranged shape as a template, origins declared and all.
+
+    The account keys and their origins are read off the deployed
+    descriptor rather than transcribed a second time: the text above is
+    the authority, so a template built from its key expressions and lifted
+    back to it is a claim about the lift and not about a copy of the keys.
+    The order is `"none"` -- this shape sorts its keys once, before
+    deployment, so what the script carries is the order the descriptor
+    lists.
+    """
+    text, _ = _RANGED[deployment][wallet][branch]
+    keys = parse(text).key_expressions
+    quorums = []
+    read = 0
+    for threshold, count in _RANGED_QUORUMS[wallet]:
+        quorum = keys[read : read + count]
+        quorums.append(
+            KeyGroup(
+                threshold,
+                [key.xkey for key in quorum],
+                origins=[key.origin for key in quorum],
+            )
+        )
+        read += count
+
+    if wallet == "vault":
+        # andor(X,Y,Z) is `X NOTIF Z ELSE Y ENDIF`: the two quorums that
+        # spend together, and the timelocked one in the branch where the
+        # first of them does not sign
+        first, second, recovery = quorums
+        template: list[Command | KeyGroup] = [
+            first,
+            "OP_NOTIF",
+            KeyGroup(
+                recovery.threshold,
+                list(recovery.keys),
+                verify=True,
+                origins=list(recovery.origins),
+            ),
+            *_miniscript_older(_VAULT_RECOVERY_BLOCKS),
+            "OP_ELSE",
+            second,
+            "OP_ENDIF",
+        ]
+    else:
+        # or_i(X,Z) is `IF X ELSE Z ENDIF`, and the timelock is on the
+        # branch the deployment spends from every day
+        custodian, recovery = quorums
+        template = [
+            "OP_IF",
+            custodian,
+            "OP_ELSE",
+            KeyGroup(
+                recovery.threshold,
+                list(recovery.keys),
+                verify=True,
+                origins=list(recovery.origins),
+            ),
+            *_miniscript_older(_TRANSIT_PRIMARY_BLOCKS),
+            "OP_ENDIF",
+        ]
+    return ScriptWallet(template, "p2wsh")
+
+
+@pytest.mark.parametrize("deployment,wallet,branch", _POSITIONS)
+def test_the_ranged_shape_lifts_back_to_its_own_descriptor(
+    deployment: str, wallet: str, branch: int
+) -> None:
+    """A template of the deployed shape answers the deployed descriptor.
+
+    The strongest thing the deployment says about `ScriptWallet
+    .descriptor`: nothing in the template names `andor`, `or_i`, `and_v`
+    or `older`, and the text that comes back is the one this custodian
+    imports into Bitcoin Core -- checksum included, which is eight
+    characters over the whole expression and the one place a spelling
+    difference cannot hide.
+
+    Every address is confirmed on the way, `checked_indexes` being the
+    length of the transcribed list, so the addresses above are the
+    authority in a third direction: by hand, through the descriptor, and
+    now from the template through the descriptor the template lifts to.
+    """
+    text, addresses = _RANGED[deployment][wallet][branch]
+    script_wallet = _ranged_script_wallet(deployment, wallet, branch)
+    descriptor = script_wallet.descriptor(branch, len(addresses))
+    assert add_checksum(str(descriptor)) == text
+    assert [
+        script_wallet.address(branch, i) for i in range(len(addresses))
+    ] == addresses

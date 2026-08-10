@@ -49,6 +49,7 @@ __all__ = [
     "InconclusiveError",
     "InvalidContributionError",
     "InvalidPrvKeyError",
+    "NoDescriptorError",
     "NotAPrvKeyError",
     "RpcError",
     "ScriptError",
@@ -263,6 +264,24 @@ class InconclusiveError(BTClibValueError):
     so that `btclib.bip322.verify` answers False without a second
     `except`: an inconclusive signature is not one that verified. A
     caller that means to tell the two apart names this class.
+    """
+
+
+class NoDescriptorError(BTClibValueError):
+    """No output descriptor states this script: it is not that a lift failed.
+
+    What `wallet.ScriptWallet.descriptor` refuses with, and the one
+    refusal there that is a fact about the wallet rather than about the
+    code asking: a script spelling its timelock `<n> OP_CSV OP_DROP`, or
+    ordering a quorum after derivation inside a combinator, is a script
+    BIP380 to BIP390 cannot write down -- and will still be one at the
+    next release. A caller catching this has an answer ("watch these
+    addresses instead"), where a caller catching a parse failure has a
+    bug report.
+
+    A BTClibValueError, so code catching that keeps catching this: the
+    refusal it most often stands in front of is
+    `miniscript.from_script`'s, which is one.
     """
 
 

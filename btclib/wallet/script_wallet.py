@@ -46,11 +46,30 @@ worse descriptor language is how this feature goes wrong, and a wallet
 that cannot be written down cannot be mistaken for one that can be
 handed to Bitcoin Core.
 
-**Not liftable, in either direction.** No `from_script`, and no
-`to_descriptor`. A wallet that a descriptor states should be one --
-`DescriptorWallet.from_descriptor` is where it goes -- and this class is for the
-ones no descriptor states; offering a conversion would re-open the
-ambiguity that refusing the script closes.
+**No `from_script`.** A template is not recoverable from a script: the
+bytes at one position say which keys are in it and not which account keys
+derived them, so a class reading one back would be guessing, and guessing
+is the parser this module refuses to have.
+`DescriptorWallet.from_descriptor` is where a wallet written down in
+BIP380's language is read.
+
+**`descriptor(branch)` is the other direction, and it is a lift rather
+than a conversion.** No shape is spelled out for it: the wallet derives
+its own script at index 0, `miniscript.from_script` reads those bytes
+back into the expression they are, each derived key is put back as the
+KEY expression that produced it -- `[fingerprint/path]xpub/branch/*` --
+and the text goes through `descriptors.parse`, so what comes back is the
+descriptor a reader of that text gets and not an object of this module's
+own making. A shape this file has never heard of therefore comes out
+right, and the two shapes this class exists for come out not at all:
+`NoDescriptorError` for the `OP_DROP` timelock, which is no miniscript,
+and for a quorum ordered per index inside a combinator, which no ranged
+expression covers. Nothing is guessed and nothing is approximated, which
+is what the old "no conversion either way" was guarding against, and the
+guard is now the check rather than the absence: the addresses the
+descriptor derives are compared with the wallet's own before it is handed
+back, so a lift that was not faithful is an exception and not a
+descriptor.
 
 **Not a signer, and an Updater.** `DescriptorWallet.satisfy` can assemble
 a spend because miniscript knows what satisfies a fragment; a template
@@ -68,7 +87,9 @@ one: BIP174 carries the master fingerprint and the path from the master
 key down, and an extended key below the root records neither -- the same
 reason `descriptors.account_descriptors` takes the fingerprint beside the
 key. A group given no origin is a wallet that computes addresses and
-writes no `hd_key_paths`, which is what a psbt of it then lacks.
+writes no `hd_key_paths`, which is what a psbt of it then lacks -- and
+what the `[fingerprint/path]` of its descriptor then lacks too, the two
+being one declaration read twice rather than two places to say it.
 
 **The order is a parameter because deployed wallets disagree about it**,
 and one of the three is why this class exists at all:
@@ -80,7 +101,9 @@ and one of the three is why this class exists at all:
   *inside* a combinator is nothing, BIP379 having no `sortedmulti`
   fragment and its `multi()` being the declared-order one. A timelocked
   branch is therefore where the order stops being expressible, which is
-  the wallet #538 pins and the reason for this parameter;
+  the wallet #538 pins and the reason for this parameter -- and the line
+  `descriptor()` draws: one quorum and nothing else is a
+  ``sortedmulti()``, the same quorum inside a combinator is nothing;
 - `"account"` sorts the account keys once, before deriving, so the order
   is fixed and `multi()` states it by listing the keys in it. What this
   saves a caller is the sort, not an inexpressible wallet;
@@ -97,15 +120,26 @@ https://github.com/bitcoin/bips/blob/master/bip-0067.mediawiki
 
 from __future__ import annotations
 
-from collections.abc import Callable, Sequence
+from collections.abc import Callable, Mapping, Sequence
 from copy import deepcopy
+from dataclasses import replace
 from typing import Any
 
 from btclib.alias import Command, EmbeddedScriptType, KeyOrder, ScriptList
-from btclib.bip32.bip32 import BIP32Key, BIP32KeyData, derive_from_account
+from btclib.bip32.bip32 import (
+    BIP32Key,
+    BIP32KeyData,
+    derive_from_account,
+    xpub_from_xprv,
+)
 from btclib.bip32.der_path import str_from_index_int
 from btclib.bip32.key_origin import BIP32KeyOrigin
-from btclib.exceptions import BTClibValueError
+from btclib.descriptors.descriptors import Descriptor
+from btclib.descriptors.descriptors import parse as _parse_descriptor
+from btclib.descriptors.key_expression import KeyExpression
+from btclib.descriptors.miniscript import P2WSH, Miniscript
+from btclib.descriptors.miniscript import from_script as _miniscript_from_script
+from btclib.exceptions import BTClibRuntimeError, BTClibValueError, NoDescriptorError
 from btclib.psbt.psbt import Psbt
 from btclib.psbt.psbt_in import PsbtIn
 from btclib.psbt.psbt_out import PsbtOut
@@ -152,6 +186,45 @@ def _p2sh_p2wsh(script: bytes, network: str) -> ScriptPubKey:
     other.
     """
     return ScriptPubKey.p2sh(ScriptPubKey.p2wsh(script, network).script, network)
+
+
+# how the descriptor of a script is written, per script type: the
+# expression goes where the brace is. `sh(SCRIPT)` is BIP381's and holds a
+# BIP383 quorum here and nothing else -- a miniscript is P2WSH or
+# tapscript, there being no legacy context for one to be read in
+_DESCRIPTOR_FROM_SCRIPT_TYPE: dict[EmbeddedScriptType, str] = {
+    "p2sh": "sh({})",
+    "p2wsh": "wsh({})",
+    "p2sh-p2wsh": "sh(wsh({}))",
+}
+
+# how few positions a lift may be confirmed at, and why not one: index 0
+# is where the expression was read, so a key left as the fixed hex it was
+# derived to -- the one way a substitution can miss -- writes the very
+# script that was lifted there and a different one at every other index
+_MIN_CHECKED_INDEXES = 2
+
+
+def _lifted(node: Miniscript, expressions: Mapping[bytes, KeyExpression]) -> Miniscript:
+    """Return the miniscript with each key back as the expression it came from.
+
+    The tree rebuilt bottom-up, `Miniscript` being frozen and its derived
+    fields recomputed by `__post_init__` at every `replace`: what changes
+    is the KEY expressions of `pk_k()`, `pk_h()` and `multi()`, and a key
+    the mapping does not name is left exactly as it is. That last case is
+    a script holding a key no account of this wallet derives -- a literal
+    push in the template -- and BIP380 states one as the hex it is, so the
+    honest answer is a descriptor ranged in the other keys and fixed in
+    that one.
+    """
+    return replace(
+        node,
+        subs=tuple(_lifted(sub, expressions) for sub in node.subs),
+        keys=tuple(
+            expressions.get(key.pub_key, key) if key.pub_key else key
+            for key in node.keys
+        ),
+    )
 
 
 # the script and the network in, the output out
@@ -311,6 +384,9 @@ class ScriptWallet(RangedWallet):
         # lookup typed: `Wallet.script_type` is the str every wallet
         # answers, and a str is not a key of a table keyed by the three
         self._output = _SCRIPT_PUB_KEY_FROM_SCRIPT_TYPE[script_type]
+        # and the same for the descriptor function wrapping the expression,
+        # for the same reason and in the same place
+        self._descriptor_form = _DESCRIPTOR_FROM_SCRIPT_TYPE[script_type]
         self.order = order
         self.sort_key = sort_key
         self.template = tuple(template)
@@ -564,3 +640,215 @@ class ScriptWallet(RangedWallet):
             **psbt_map.hd_key_paths,
             **self._hd_key_paths(branch, index),
         }
+    def _key_origins(self) -> dict[str, BIP32KeyOrigin]:
+        """Return the origin of each account key, keyed by its xpub.
+
+        The groups' own `origins`, which is where a caller declares them
+        and what `_hd_key_paths` writes into a psbt: one fact, read twice,
+        rather than a second place to say it. Keyed by the neutered
+        spelling because that is what the answer carries, and what
+        `descriptors.PrvKeys` keys by for the same reason.
+
+        A key with no origin is absent, and its expression is written
+        without one -- which BIP380 allows and Bitcoin Core imports. What
+        it costs is the same thing an empty `hd_key_paths` costs: a signer
+        cannot tell that the key is its own.
+        """
+        return {
+            self._xpub(key): origin
+            for command in self.template
+            if isinstance(command, KeyGroup)
+            for key, origin in zip(command.keys, command.origins, strict=True)
+            if origin is not None
+        }
+
+    @staticmethod
+    def _xpub(key: BIP32KeyData) -> str:
+        """Return the public spelling of an account key.
+
+        A descriptor is text that gets handed to a monitor and written to
+        a log, so an xprv is neutered before it goes in one -- which is
+        `descriptors.parse`'s rule for a descriptor read the other way.
+        """
+        return xpub_from_xprv(key) if key.is_private else key.b58encode()
+
+    def _key_expression(
+        self, key: BIP32KeyData, branch: int, origins: Mapping[str, BIP32KeyOrigin]
+    ) -> KeyExpression:
+        """Return the KEY expression one account key of a group derives by.
+
+        `xpub/branch/*`, which is the ranged expression: the wildcard is
+        the index, and the branch is the step the group takes above it, so
+        one expression covers the whole of a chain.
+        """
+        xpub = self._xpub(key)
+        return KeyExpression(
+            origin=origins.get(xpub),
+            xkey=xpub,
+            der_path=(branch,),
+            wildcard=0,
+        )
+
+    def _quorum_expression(
+        self, branch: int, origins: Mapping[str, BIP32KeyOrigin]
+    ) -> str | None:
+        """Return the BIP383 quorum this wallet is, or None if it is more.
+
+        The one shape a descriptor states without reading the script at
+        all: a template that is a single group and nothing else is that
+        group, so ``multi()`` or ``sortedmulti()`` writes it whatever the
+        order and whatever the script type -- `sh(sortedmulti(2,...))` is
+        the legacy multisig wallet, and no miniscript can be read in a
+        legacy context.
+
+        ``sortedmulti()`` is what makes the per-index order expressible
+        here and nowhere else: it sorts the derived keys, in byte order,
+        which is `order="derived"` with no `sort_key` exactly. A
+        `sort_key` of its own is a third order that neither function
+        states, and `verify=True` is an OP_CHECKMULTISIGVERIFY, which is
+        no script on its own -- both fall through to the lift, which
+        refuses them with its own reason.
+        """
+        if len(self.template) != 1:
+            return None
+        group = self.template[0]
+        if not isinstance(group, KeyGroup) or group.verify:
+            return None
+        if self.order == "derived" and self.sort_key is not None:
+            return None
+        keys = ",".join(
+            str(self._key_expression(key, branch, origins))
+            for key in self._ordered_keys[0]
+        )
+        name = "sortedmulti" if self.order == "derived" else "multi"
+        return f"{name}({group.threshold},{keys})"
+
+    def _lifted_expression(
+        self, branch: int, origins: Mapping[str, BIP32KeyOrigin]
+    ) -> str:
+        """Return the miniscript of the script at index 0, keys put back.
+
+        Which is the lift: the concrete script of one position read back
+        into the expression it is, and each derived key traded for the
+        ranged expression that derived it. What the mapping is keyed by is
+        what `from_script` puts in the tree -- the SEC bytes of the key at
+        this branch and index 0 -- so the substitution is a lookup and
+        never a guess at which account key a script key came from.
+        """
+        if self.order == "derived":
+            err_msg = "a quorum sorted after derivation inside a combinator:"
+            err_msg += " the order is a property of the index, so no ranged"
+            err_msg += " expression states it -- sortedmulti() states one"
+            err_msg += " quorum that is the whole script, and BIP379 has no"
+            err_msg += " sortedmulti fragment to state one inside another"
+            raise NoDescriptorError(err_msg)
+        if self.script_type == "p2sh":
+            err_msg = "a p2sh script that is not a bare quorum: miniscript is"
+            err_msg += " read in a P2WSH or a tapscript context, and BIP379"
+            err_msg += " has no legacy one for this script to be read in"
+            raise NoDescriptorError(err_msg)
+        script = self._script(branch, 0)
+        try:
+            node = _miniscript_from_script(script, P2WSH)
+        except BTClibValueError as exception:
+            raise NoDescriptorError(str(exception)) from exception
+        expressions = {
+            self._derived_sec(key, branch, 0): self._key_expression(
+                key, branch, origins
+            )
+            for keys in self._ordered_keys.values()
+            for key in keys
+        }
+        return str(_lifted(node, expressions))
+
+    def _assert_lift(
+        self, descriptor: Descriptor, branch: int, checked_indexes: int
+    ) -> None:
+        """Require the descriptor and the template to write the same script.
+
+        The whole script and not the addresses, which is `position_of`'s
+        rule here too: a script type this wallet has no address for -- and
+        every position of it -- is compared just the same.
+
+        The range is checked first because a descriptor that has none has
+        no index 1 to compare at: every group key becomes a ranged
+        expression, so a lift where none did is one that put no key back
+        at all, and it would otherwise be reported as an index out of
+        range rather than as the substitution it is.
+        """
+        if not descriptor.is_ranged:
+            err_msg = "the lifted descriptor names one script and not a range:"
+            err_msg += " no key of the template came back as the expression it"
+            err_msg += " was derived from"
+            raise BTClibRuntimeError(err_msg)
+        for index in range(checked_indexes):
+            lifted = descriptor.script_pub_key(index).script
+            own = self._script_pub_key(branch, index).script
+            if lifted != own:
+                err_msg = f"the lifted descriptor pays to {lifted.hex()} at"
+                err_msg += f" {branch}/{index}, where this wallet pays to"
+                err_msg += f" {own.hex()}"
+                raise BTClibRuntimeError(err_msg)
+
+    def descriptor(
+        self, branch: int = 0, checked_indexes: int = _MIN_CHECKED_INDEXES
+    ) -> Descriptor:
+        """Return the ranged descriptor of a branch, confirmed, or refuse to.
+
+        The bridge between this class and `DescriptorWallet`, and the
+        answer to "what do I hand a monitor, or Bitcoin Core's
+        `importdescriptors`, for this wallet". `DescriptorWallet.descriptor`
+        is the same question of a wallet that was built from one; this
+        derives the answer, and the module docstring has how.
+
+        `NoDescriptorError` is the refusal, and it is about the wallet: the
+        `<n> OP_CSV OP_DROP` timelock no miniscript fragment emits, a
+        quorum ordered per index inside a combinator, a legacy p2sh script
+        that is not a bare quorum. Each of those is a script BIP380 to
+        BIP390 does not state, so a caller catching it has to watch the
+        addresses themselves -- which is what this class is for -- rather
+        than a bug to report.
+
+        The key origins are the groups' own, the same ones a psbt gets:
+        `[fingerprint/44h/0h/0h]` in front of a key expression is what a
+        hardware signer recognises its key by, it changes no script, and a
+        group given none is written without one -- a descriptor BIP380
+        allows and Core imports, and the same thing an empty
+        `hd_key_paths` says.
+
+        `checked_indexes` is how many positions the answer is confirmed at
+        before it is handed back: the descriptor's script is compared with
+        the template's at each, and a disagreement is a
+        `BTClibRuntimeError` -- the lift was not faithful, which is a
+        failure of this code and not of the caller's wallet. Two is the
+        floor and the default, being what tells a substituted key from a
+        fixed one; a caller with a committed span of addresses to stand
+        behind passes its length, and pays a derivation of every key at
+        every index for it.
+
+        A `DescriptorWallet` of both chains, where that is what a caller
+        wants, is `DescriptorWallet({b: w.descriptor(b) for b in
+        w.branches})` -- and the two wallets then answer the same
+        addresses, from the two sources.
+        """
+        self._assert_position(branch, 0)
+        if checked_indexes < _MIN_CHECKED_INDEXES:
+            err_msg = f"invalid checked_indexes: {checked_indexes} is fewer than"
+            err_msg += f" the {_MIN_CHECKED_INDEXES} a lift is confirmed at"
+            raise BTClibValueError(err_msg)
+        origins = self._key_origins()
+        expression = self._quorum_expression(
+            branch, origins
+        ) or self._lifted_expression(branch, origins)
+        text = self._descriptor_form.format(expression)
+        try:
+            descriptor = _parse_descriptor(text, self.network)
+        except BTClibValueError as exception:
+            # what a descriptor may hold and not what miniscript can read:
+            # Bitcoin Core refuses an insane expression -- one satisfiable
+            # without a signature, or whose witness a third party can
+            # rewrite -- and a wallet of that shape has no descriptor for
+            # the same reason it has no safe spend
+            raise NoDescriptorError(f"{text}: {exception}") from exception
+        self._assert_lift(descriptor, branch, checked_indexes)
+        return descriptor

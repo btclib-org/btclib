@@ -327,6 +327,61 @@ documented at release-notes length in the first place, and are still in
   and, for a master key, the fingerprint itself -- so an origin that
   would send a signer to derive another key is refused where it is
   declared rather than written into a psbt.
+- **`ScriptWallet.descriptor(branch)` is the bridge to `DescriptorWallet`,
+  where a template turns out to have a descriptor after all.** The two
+  classes were sister sources of addresses with nothing between them, and
+  a caller holding the older one had no answer to "what do I hand a
+  monitor, or `importdescriptors`, for this wallet" -- while a good half
+  of the wallets that need a template need it for one detail of the
+  script and are sayable in BIP380 to BIP390 apart from it.
+
+  Built by lifting rather than by writing, which is what keeps it honest
+  about shapes this code has never seen: the wallet derives its own script
+  at index 0, `miniscript.from_script` reads those bytes back into the
+  expression they are, each derived key is traded for the ranged KEY
+  expression that produced it -- `[fingerprint/path]xpub/branch/*`, the
+  origin being the one its `KeyGroup` declares, the same one the psbt
+  Updater above writes -- and the text goes through `descriptors.parse`.
+  So the answer is the descriptor a reader of that text gets, not an
+  object assembled here,
+  and it is confirmed before it is handed back: the scripts it derives are
+  compared with the template's at `checked_indexes` positions, two being
+  the floor because index 0 is where the expression was read and a key
+  left as the hex it was derived to writes the right script exactly there.
+  A caller with a committed span of addresses to stand behind passes its
+  length instead.
+
+  A template that is a single `KeyGroup` and nothing else does not go
+  through miniscript at all: it is BIP383's quorum, so it is stated for
+  every order this class has -- `sortedmulti()` for the per-index one,
+  which is what that function follows, and `multi()` for the other two --
+  and in a legacy `sh()` too, where no miniscript could be read for want
+  of a context. `sh(sortedmulti(2,...))` is the pre-descriptor multisig
+  wallet, and it now comes back out of one.
+
+  `NoDescriptorError` is new in `btclib.exceptions` and is what the
+  refusals raise: the `<n> OP_CSV OP_DROP` timelock no fragment emits, a
+  quorum ordered after derivation *inside* a combinator, a legacy script
+  that is not a bare quorum, and an expression a descriptor may not hold
+  at all -- Bitcoin Core refusing an insane one, which is a wallet with no
+  safe spend rather than a text that failed to parse. It derives from
+  `BTClibValueError`, so `except BTClibValueError` around either half
+  keeps working, and it exists because those refusals are facts about the
+  wallet that will still hold at the next release: a caller catching one
+  watches the addresses instead, where a caller catching a parse failure
+  files a bug. A lift that was not faithful is the other outcome and is a
+  `BTClibRuntimeError`, that being this code's failure and not the
+  caller's wallet.
+
+  The deployment in `tests/descriptors/custody_wallet_test.py` is what
+  says the lift is right rather than merely plausible: the ranged shape of
+  a mainnet custody design, written as a template naming no `andor`, no
+  `or_i` and no `older`, lifts back to the very descriptor text that
+  custodian imports -- checksum included, for both wallets, both chains
+  and two independent deployments -- while the plain shape beside it
+  refuses. `ScriptWallet` gains no `from_script` and still has no text
+  format of its own; the direction that was refused for being ambiguous is
+  the one that stays refused.
 
 ## v2026.8.9
 
