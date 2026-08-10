@@ -48,21 +48,43 @@ the second element of a two-element step as the internal descriptor, while
 `descriptors.parse` refuses a ``<a;b>`` step outright and
 `multipath_descriptors` is what expands one. So the pair of requests is
 what this module has, and it says the same thing in two objects.
+
+Two of Core's answers are read here too, for the reason the requests are
+built here: both are knowledge of how the node behaves rather than of the
+protocol, and neither needs a node to be reached, being a function of a
+reply the caller already has. `assert_imported` reads what
+`importdescriptors` answered, which reports a refusal inside the reply
+instead of failing the call. `watched_range` reads what `listdescriptors`
+answered, and `widened_range` turns it into the range a second import may
+ask for: Core widens any ranged import to its keypool and then refuses
+every later one that would narrow what it widened to, so importing the
+same descriptor twice is idempotent only for a caller that asks for at
+least what is there already.
 """
 
 from __future__ import annotations
 
+# imported at runtime and not under TYPE_CHECKING, which the annotations
+# below would not need and the documentation build does: with the names
+# missing from the module, `get_type_hints` fails on the signatures using
+# them and autodoc falls back to the text of the annotation, where
+# `Descriptor` is a cross-reference with two targets -- one sphinx warning,
+# which `lint.yml` runs with -W
+from collections.abc import Mapping, Sequence
 from typing import Any
 
 from btclib.descriptors import Descriptor, add_checksum, parse
-from btclib.exceptions import BTClibValueError
+from btclib.exceptions import BTClibRuntimeError, BTClibValueError
 from btclib.utils import is_integer
 
 __all__ = [
     "DEFAULT_RANGE",
     "NOW",
     "account_import_requests",
+    "assert_imported",
     "import_request",
+    "watched_range",
+    "widened_range",
 ]
 
 # what Core substitutes the current chain time for, and what a caller
@@ -124,14 +146,11 @@ def _assert_no_label(label: str, why: str) -> None:
         raise BTClibValueError(f"a {why} descriptor takes no label")
 
 
-def _range_fields(
-    key_range: tuple[int, int] | None, next_index: int | None
-) -> dict[str, Any]:
-    """Return the range fields of a request, checked against each other.
+def _assert_key_range(start: int, end: int) -> None:
+    """Refuse a range Core's ParseDescriptorRange would refuse.
 
-    Both ends of the range are inclusive, which is how Core reads them --
-    it adds one to the second itself -- and `next_index` is where the
-    wallet carries on from, so it is inside the range or it is nothing.
+    Both ends are inclusive, which is how Core reads them -- it adds one to
+    the second itself -- so an end below its start is no range at all.
 
     The two bounds are `ParseDescriptorRange`'s, which `importdescriptors`
     calls on this field: an end of 2**31 or above is "End of range is too
@@ -144,15 +163,8 @@ def _range_fields(
     A rule of Core's that is deliberately not repeated: every numeric
     field arrives through `UniValue::getInt<int64_t>`, which refuses what
     does not fit. After the bounds above, `start` and `end` are inside
-    [0, 2**31) and `next_index` is between them, so nothing here can
-    reach it.
+    [0, 2**31), so nothing here can reach it.
     """
-    if key_range is None:
-        if next_index is not None:
-            raise BTClibValueError("next_index without a range to be inside of")
-        return {}
-
-    start, end = key_range
     if not 0 <= start <= end:
         raise BTClibValueError(f"invalid range: [{start}, {end}]")
     if end >> 31:
@@ -161,6 +173,25 @@ def _range_fields(
         err_msg = f"range is too large: {end - start + 1} indexes, "
         err_msg += f"max is {_MAX_RANGE_SPAN}"
         raise BTClibValueError(err_msg)
+
+
+def _range_fields(
+    key_range: tuple[int, int] | None, next_index: int | None
+) -> dict[str, Any]:
+    """Return the range fields of a request, checked against each other.
+
+    The range is `_assert_key_range`'s, and `next_index` is where the
+    wallet carries on from, so it is inside the range or it is nothing --
+    which is the one rule of the two fields that is about the pair rather
+    than about either.
+    """
+    if key_range is None:
+        if next_index is not None:
+            raise BTClibValueError("next_index without a range to be inside of")
+        return {}
+
+    start, end = key_range
+    _assert_key_range(start, end)
     fields: dict[str, Any] = {"range": [start, end]}
     if next_index is not None:
         if not start <= next_index <= end:
@@ -269,3 +300,130 @@ def account_import_requests(
             change, timestamp, internal=True, active=active, key_range=key_range
         ),
     ]
+
+
+def _comparable(descriptor: Descriptor | str) -> str:
+    """Return the text of a descriptor as one is compared to another.
+
+    The expression without its checksum, every hardened step spelled `h`:
+    `listdescriptors` echoes the checksum Core computed and the hardening
+    symbol Core was given, and neither is a difference between two
+    descriptors describing the same scripts. An expression this library
+    wrote carries `h` already -- `str_from_index_int` writes the symbol
+    Core's own `FormatHDKeypath` writes -- and one a wallet was imported
+    with by another tool can carry apostrophes, which is the case this
+    normalization is for: read as a descriptor never seen, it would be
+    imported a second time over a range Core refuses to narrow.
+
+    `partition` and not `strip_checksum`, which verifies what it strips: an
+    entry of a wallet is any descriptor that wallet holds, including one
+    whose checksum or charset this library would refuse, and such an entry
+    is still not the descriptor being looked for -- a lookup that raises
+    over it answers nothing about the one asked about.
+    """
+    text = descriptor if isinstance(descriptor, str) else str(descriptor)
+    expression, _, _checksum = text.partition("#")
+    return expression.replace("'", "h")
+
+
+def watched_range(
+    descriptor: Descriptor | str, reply: Mapping[str, Any]
+) -> tuple[int, int] | None:
+    """Return the range of a descriptor a wallet watches, None for none.
+
+    `reply` is what `listdescriptors` answered, which is a wallet's account
+    of itself: one entry per descriptor it holds, echoing the expression it
+    was imported with and the range it ended up with. This is the question a
+    caller has to ask before importing a descriptor a second time, Core
+    refusing an import that would narrow that range, and `widened_range` is
+    what the answer is for.
+
+    None is a descriptor the wallet does not hold, and equally one it holds
+    unranged: an entry with no `range` watches one script and has no index
+    to be widened from, which is the same "nothing to include" to whoever
+    is building the next request.
+
+    The union of the entries where a wallet holds the same expression more
+    than once -- the same descriptor imported as both the receiving and the
+    change chain, which Core allows and which `listdescriptors`
+    distinguishes only for an active descriptor, `internal` being defined
+    for those alone. Asking for the union is accepted for either of them,
+    where asking for one entry's range can be a narrowing of the other's.
+    """
+    wanted = _comparable(descriptor)
+    ranges = [
+        entry["range"]
+        for entry in reply["descriptors"]
+        if _comparable(str(entry["desc"])) == wanted and "range" in entry
+    ]
+    if not ranges:
+        return None
+    return (
+        min(int(key_range[0]) for key_range in ranges),
+        max(int(key_range[1]) for key_range in ranges),
+    )
+
+
+def widened_range(
+    wanted: tuple[int, int], watched: tuple[int, int] | None = None
+) -> tuple[int, int]:
+    """Return the range to import: the one wanted, and never a narrower one.
+
+    Core widens every ranged import to its keypool -- `next_index` plus a
+    thousand scripts by default, whatever the request asked for -- and then
+    refuses any later import that would narrow what it widened to: "New
+    range must include current range" is what the second request is
+    answered, and the whole import fails on it. So a caller whose range has
+    grown asks for the union of the two, which is this, and importing a
+    descriptor again is idempotent because of it.
+
+    `watched` is what `watched_range` read of the wallet, and None is the
+    descriptor it does not hold yet: `DEFAULT_RANGE` stands in for it, that
+    being what Core widens a first import to anyway -- asking for it makes
+    the reply state which indexes were imported instead of leaving a caller
+    to assume them. A node whose keypool is not the default needs no
+    allowance here: whatever it widened to is what the next
+    `listdescriptors` says, and the union with that is what the next import
+    asks for.
+
+    What the widening costs is worth stating where it is decided: a wallet
+    watches every script of the range, so the addresses past the ones a
+    caller meant are the node's too, and money paid to one of them is money
+    that wallet reports. An import of exactly what is meant, and no
+    keypool, is what an unranged descriptor per script is for.
+    """
+    start, end = wanted
+    _assert_key_range(start, end)
+    watched_start, watched_end = DEFAULT_RANGE if watched is None else watched
+    return (min(start, watched_start), max(end, watched_end))
+
+
+def assert_imported(
+    requests: Sequence[Mapping[str, Any]], answers: Sequence[Mapping[str, Any]]
+) -> None:
+    """Refuse an `importdescriptors` reply that did not honour every request.
+
+    Core answers one object per request instead of failing the call, so a
+    request it did not honour arrives as `success: false` inside what the
+    rpc layer calls a reply -- a result, which nothing under the caller has
+    any reason to doubt. Left unread, a wallet goes on watching less than
+    its owner believes it does, and the first thing to say so is a balance
+    short of a deposit.
+
+    The request is what names the failure: an answer carries the error and
+    not the descriptor it was for, so the two are read in step, and a reply
+    of the wrong length is itself a node that did not answer this.
+
+    `warnings` is not read, that being what Core says about a request it
+    did honour -- "Range not given, using default keypool range" is the one
+    `DEFAULT_RANGE` exists to avoid -- and neither is a refusal turned into
+    a value error: the request was one Core parsed, and what it refused is
+    the state of a wallet, which no argument of the caller's spells.
+    """
+    if len(requests) != len(answers):
+        err_msg = f"{len(requests)} import requests, {len(answers)} answers"
+        raise BTClibRuntimeError(err_msg)
+    for request, answer in zip(requests, answers, strict=True):
+        if not answer.get("success"):
+            err_msg = f"import refused for {request.get('desc')}: {answer.get('error')}"
+            raise BTClibRuntimeError(err_msg)
