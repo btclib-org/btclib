@@ -98,6 +98,68 @@ documented at release-notes length in the first place, and are still in
   cycle. Naming that here because it is what the fix would have to move
   first.
 
+- **A child pays for its parent, and the arithmetic is `fee.package_fee`**
+  (#584). `fee_from_vsize` prices a transaction in isolation, and a
+  transaction spending an unconfirmed output is not mined in isolation:
+  it is mined with what it depends on or not at all, so the rate a miner
+  reads is the package's -- Core's mempool scores a transaction by
+  `fees.ancestor` over `ancestorsize`, both of `getmempoolentry` -- and
+  buying a rate for the child means buying it for everything unconfirmed
+  behind it, less what that already paid. `package_fee(vsize, fee_rate,
+  *, ancestor_vsize=0, ancestor_fee=0)` is the larger of the child's own
+  fee and the package's fee less `ancestor_fee`, with both totals
+  defaulting to zero, which is `fee_from_vsize`.
+
+  The two halves are each what a caller doing this by hand gets wrong,
+  and in the direction that costs money. Adding the two fees rounds
+  *twice*: at one satoshi per kvB, two 400 vB transactions owe a satoshi
+  each and the 800 vB package they make owes one, so the sum overpays.
+  Subtracting the ancestors' fee without a floor goes the other way and
+  hands the child a *discount* when a parent overpaid -- a child below the
+  rate it was priced at, which may not relay on its own -- so the maximum
+  is the rule and not a guard: it is why this is a function of its own
+  rather than two optional arguments on `fee_from_vsize`, which stays
+  exact ceiling division and nothing else.
+
+  What is **not** here is the mempool: which transactions are ancestors,
+  whether the set stops at the parents or walks the graph, and what each
+  of them paid is a node's answer, as are `-limitancestorcount` and
+  `-limitancestorsize`, which bound what a node accepts rather than what
+  a fee is. Given the two totals the answer is a function of its
+  arguments, which is the boundary the module docstring drew in #205 and
+  this stays inside of. The ancestors' virtual size is refused if
+  negative rather than added to `vsize`, where it would cancel against
+  the child's own size and price a package as smaller than the
+  transaction in it; their fee is money, so `valid_sats_amount` is the
+  gate and MAX_MONEY the bound this module does not restate.
+
+- **`FeeRate` reads the BTC/kvB that Core's RPC quotes** (#584).
+  `FeeRate` held sat/kvB and took sat/vB, and the numbers a caller has in
+  hand arrive in neither: `estimatesmartfee`'s `feerate`,
+  `getmempoolinfo`'s `mempoolminfee` and `minrelaytxfee`,
+  `getnetworkinfo`'s `relayfee` and the `-minrelaytxfee`, `-dustrelayfee`
+  and `-paytxfee` options are all quoted in BTC/kvB -- a unit of the
+  interface and of nothing the node stores, sat/kvB being what those
+  numbers are compared against internally. Converting it at the call site
+  is `float(reply["feerate"]) * 100_000`, which is a float in front of a
+  fee and the factor this type exists to keep out of call sites.
+  `FeeRate.from_btc_per_kvbyte` is the third constructor;
+  `getblockstats`, whose `minfeerate` and `avgfeerate` are sat/vB, is the
+  exception the docstring names so that the wrong one is not reached for.
+
+  A rate per kvB scales from BTC to satoshi by the factor an amount
+  does, so `sats_from_btc` is the conversion and its refusals are the
+  ones that apply, a quote naming a fraction of a satoshi per kvB
+  included; its complaints name a BTC amount, which is what is being
+  converted, and the 21-million cap comes with them, which costs a
+  caller nothing. One case is refused before it gets there:
+  `valid_btc_amount` reads `None` as zero, right for an amount and wrong
+  for a price, and `estimatesmartfee` answers an `errors` array with no
+  `feerate` key at all when it cannot estimate one -- so the missing quote
+  a caller reads out of that reply would have become a free transaction,
+  where paying nothing is not what "no estimate" says. A zero a caller
+  means is still a zero rate.
+
 ### Curves, signatures and keys
 
 - **A MOV-weak curve is a `BTClibValueError`** (#572). `Curve` refuses
