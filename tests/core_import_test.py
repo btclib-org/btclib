@@ -15,6 +15,11 @@ which is what the citations in the module docstring are for.
 Every request built here is checked to be json, because that is what it is
 for: a dict Python is happy with and `json.dumps` refuses is a request
 that fails at the rpc boundary rather than here.
+
+The replies read back are Core's too, `listdescriptors` and
+`importdescriptors` as their help declares them; what a node really
+answers, and what it does with a range it was asked for, is
+`tests/integration/regtest_test.py`, where a node is what says so.
 """
 
 from __future__ import annotations
@@ -28,7 +33,10 @@ from btclib.core_import import (
     DEFAULT_RANGE,
     NOW,
     account_import_requests,
+    assert_imported,
     import_request,
+    watched_range,
+    widened_range,
 )
 from btclib.descriptors import (
     Descriptor,
@@ -37,7 +45,7 @@ from btclib.descriptors import (
     from_address,
     parse,
 )
-from btclib.exceptions import BTClibValueError
+from btclib.exceptions import BTClibRuntimeError, BTClibValueError
 
 # the "abandon abandon ... about" root of BIP39, which BIP84 publishes:
 # the same key `tests/bip44_test.py` walks, so the account descriptors
@@ -268,3 +276,163 @@ def test_the_pair_passes_its_arguments_through() -> None:
         assert request["timestamp"] == 1455191478
         assert request["active"] is False
         assert request["range"] == [3, 8]
+
+
+def listed(*entries: dict[str, Any]) -> dict[str, Any]:
+    """Return the entries as the reply `listdescriptors` wraps them in.
+
+    A wallet name and the list, which is the shape of the answer and the
+    reason the whole reply is what is passed: a caller hands on what the
+    node said rather than the one field of it that is read.
+    """
+    return {"wallet_name": "watcher", "descriptors": list(entries)}
+
+
+def entry(
+    descriptor: Descriptor | str, key_range: list[int] | None = None, **fields: Any
+) -> dict[str, Any]:
+    """Return one entry of that reply, checksummed as Core echoes it."""
+    text = descriptor if isinstance(descriptor, str) else str(descriptor)
+    listing: dict[str, Any] = {
+        "desc": add_checksum(text),
+        "timestamp": 1455191478,
+        "active": False,
+        **fields,
+    }
+    if key_range is not None:
+        listing["range"] = key_range
+        listing["next"] = 0
+    return listing
+
+
+def test_a_descriptor_the_wallet_does_not_hold_has_no_watched_range() -> None:
+    """Which is the descriptor about to be imported for the first time."""
+    receive, change = account_pair()
+    assert watched_range(receive, listed()) is None
+    assert watched_range(receive, listed(entry(change, [0, 999]))) is None
+
+
+def test_the_watched_range_is_matched_past_the_checksum_and_the_hardening() -> None:
+    """Core echoes the checksum it computed and the symbol it was given.
+
+    A wallet imported by another tool can hold the very same descriptor
+    spelled with apostrophes: read as one never seen, it would be imported
+    again over a range Core refuses to narrow, which is a failed import
+    rather than a wrong number -- and the failure is of the whole request.
+    """
+    receive = account_pair()[0]
+    apostrophes = str(receive).replace("h/", "'/")
+    assert apostrophes != str(receive)
+
+    assert watched_range(receive, listed(entry(apostrophes, [0, 999]))) == (0, 999)
+    # the text of a descriptor asks the same question as the object does,
+    # a checksum on either side being no part of the comparison
+    assert watched_range(str(receive), listed(entry(receive, [0, 5]))) == (0, 5)
+    # and an entry this library would refuse to parse is another
+    # descriptor's, not an answer to the question asked
+    multipath = str(receive).replace("/0/*", "/<0;1>/*")
+    assert watched_range(receive, listed(entry(multipath, [0, 999]))) is None
+
+
+def test_an_unranged_entry_watches_one_script_and_no_range() -> None:
+    """So there is nothing for the next import to have to include."""
+    address = from_address(ADDRESS)
+    assert watched_range(address, listed(entry(address))) is None
+
+
+def test_the_watched_range_is_the_union_of_the_entries_that_match() -> None:
+    """A wallet can hold one expression twice, as both of its chains.
+
+    `listdescriptors` tells the two apart by `internal`, which Core defines
+    for an active descriptor alone, so which entry an import is checked
+    against is not always readable: the union is the range that no entry
+    can be narrowed by.
+    """
+    receive = account_pair()[0]
+    reply = listed(
+        entry(receive, [0, 999], active=True, internal=False),
+        entry(receive, [5, 1500], active=True, internal=True),
+    )
+    assert watched_range(receive, reply) == (0, 1500)
+
+
+def test_a_first_import_asks_for_the_keypool_core_would_widen_it_to() -> None:
+    """A range narrower than the keypool is a range Core overrides.
+
+    Asked for, the reply states which indexes were imported; left to Core,
+    the caller has a warning to read and a keypool size to assume.
+    """
+    assert widened_range((0, 0)) == DEFAULT_RANGE
+    assert widened_range((0, 0), None) == DEFAULT_RANGE
+    # and a caller wanting more than the keypool gets what it wanted
+    assert widened_range((0, 1500)) == (0, 1500)
+
+
+def test_a_later_import_asks_for_the_union_with_what_is_watched() -> None:
+    """Core's refusal is "New range must include current range", avoided here.
+
+    The committed span grows, the wallet's range only grows with it, and an
+    import of a span already inside the range is not a narrowing of it.
+    """
+    assert widened_range((0, 1500), (0, 999)) == (0, 1500)
+    assert widened_range((0, 0), (0, 1500)) == (0, 1500)
+    assert widened_range((0, 1500), (0, 1500)) == (0, 1500)
+    # both ends, an entry imported from an index that is not zero being
+    # one this has to include too
+    assert widened_range((7, 20), (5, 30)) == (5, 30)
+    # a node whose keypool is under Core's default needs no allowance: what
+    # it widened to is what is measured, and the union with it is asked for
+    assert widened_range((0, 3), (0, 499)) == (0, 499)
+
+
+def test_the_range_wanted_is_the_one_a_request_would_be_refused_for() -> None:
+    """Refused where it is written, and not where min and max hide it.
+
+    An inverted range unioned with the keypool is a valid range and not the
+    one asked for, which is a caller's arithmetic gone wrong reported as a
+    successful import of something else.
+    """
+    with pytest.raises(BTClibValueError, match=r"invalid range: \[20, 5\]"):
+        widened_range((20, 5))
+    with pytest.raises(BTClibValueError, match="end of range is too high"):
+        widened_range((0, 2**31))
+    with pytest.raises(BTClibValueError, match="range is too large"):
+        widened_range((0, 1_000_000))
+
+
+def test_an_import_the_node_refused_is_not_read_as_one_it_did() -> None:
+    """`importdescriptors` reports a refusal inside a reply of its own.
+
+    A wallet that imported nothing goes on answering every balance with
+    what it does watch, so the deposit it never heard of is missing from a
+    number nobody has reason to doubt: the reply is the one place that says
+    so, and the request is what names which descriptor it was.
+    """
+    requests = account_import_requests(*account_pair())
+    assert_imported(requests, [{"success": True}, {"success": True}])
+    # warnings are what Core says about a request it did honour
+    assert_imported(requests, [{"success": True, "warnings": ["odd"]}] * 2)
+
+    refused: list[dict[str, Any]] = [
+        {"success": True},
+        {"success": False, "error": {"message": "no"}},
+    ]
+    with pytest.raises(BTClibRuntimeError, match="import refused for wpkh"):
+        assert_imported(requests, refused)
+    with pytest.raises(BTClibRuntimeError, match="'message': 'no'"):
+        assert_imported(requests, refused)
+    # an answer that says nothing is not one that said yes
+    with pytest.raises(BTClibRuntimeError, match="import refused"):
+        assert_imported(requests, [{}, {}])
+
+
+def test_a_reply_of_the_wrong_length_answered_something_else() -> None:
+    """One answer per request is the shape of the reply, and the check.
+
+    Read in step with anything else, the answers name the wrong
+    descriptors -- an import refused for the change chain reported as one
+    refused for the receiving chain.
+    """
+    requests = account_import_requests(*account_pair())
+    with pytest.raises(BTClibRuntimeError, match="2 import requests, 1 answers"):
+        assert_imported(requests, [{"success": True}])

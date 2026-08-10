@@ -10,6 +10,9 @@ counterparty is the one that decides:
 - `descriptors.account_descriptors` builds the pair, and Bitcoin Core
   imports it through `core_import.account_import_requests` — so Core's
   own parser, checksum rule and range handling are what accept it;
+- and the range handling is the node's alone: `core_import.widened_range`
+  claims Core widens a ranged import to its keypool and then refuses to be
+  narrowed, which nothing but a node can confirm;
 - Core derives the addresses of that account itself and pays one, so the
   scripts btclib computes are the scripts Core watches;
 - btclib builds the psbt, updates both halves, and
@@ -34,7 +37,15 @@ from bitcoin_core_rpc import BitcoinCoreRpcClient
 
 from btclib.amount import sats_from_btc
 from btclib.bip32.bip32 import rootxprv_from_seed
-from btclib.core_import import account_import_requests
+from btclib.core_import import (
+    DEFAULT_RANGE,
+    account_import_requests,
+    assert_imported,
+    import_request,
+    watched_range,
+    widened_range,
+)
+from btclib.exceptions import BTClibRuntimeError
 from btclib.network import NETWORKS
 from btclib.psbt_signer import SoftwareSigner, export_account, request_signatures
 from tests.integration.conftest import as_regtest, broadcast, fund, spending_psbt
@@ -55,6 +66,7 @@ ROOT = rootxprv_from_seed("0f" * 16, NETWORKS["regtest"].bip32_prv)
 # then answers for the test that asked
 RELAY_ACCOUNT = "m/84h/1h/0h"
 DECODE_ACCOUNT = "m/84h/1h/1h"
+RANGE_ACCOUNT = "m/84h/1h/2h"
 
 
 def test_core_imports_what_btclib_exports_and_relays_what_it_signs(
@@ -105,6 +117,53 @@ def test_core_imports_what_btclib_exports_and_relays_what_it_signs(
     # and Core names the path it came down: the change chain, index zero,
     # which is the descriptor imported as `internal`
     assert "/1/0]" in change_utxo[0]["desc"]
+
+
+def test_core_widens_a_range_to_its_keypool_and_refuses_to_be_narrowed(
+    wallets: tuple[BitcoinCoreRpcClient, BitcoinCoreRpcClient],
+) -> None:
+    """The rule `widened_range` is written against, with the node as judge.
+
+    Every claim of that docstring is a claim about Core and about nothing
+    in this library: it widens a ranged import to its keypool whatever
+    range was asked for, it refuses any later import that would narrow
+    what it widened to, and the refusal arrives as `success: false` inside
+    a reply rather than as a failed call. A unit test can only restate
+    them; this is what can be wrong about them.
+    """
+    watcher = wallets[1]
+    receive = export_account(SoftwareSigner(ROOT), RANGE_ACCOUNT)[0]
+
+    # nothing is watched before the first import
+    assert watched_range(receive, watcher.call("listdescriptors")) is None
+
+    # which asks for one index, and Core widens it to a keypool's worth
+    one = import_request(receive, active=False, key_range=(0, 0))
+    assert_imported([one], watcher.call("importdescriptors", [[one]]))
+    watched = watched_range(receive, watcher.call("listdescriptors"))
+    assert watched == DEFAULT_RANGE
+    # so `widened_range` asks for that from the start, and the reply then
+    # states the indexes the caller would otherwise have to assume
+    assert widened_range((0, 0)) == watched
+
+    # a span grown past the keypool is imported over the union of the two
+    wider = import_request(receive, active=False, key_range=widened_range((0, 1500)))
+    assert_imported([wider], watcher.call("importdescriptors", [[wider]]))
+    watched = watched_range(receive, watcher.call("listdescriptors"))
+    assert watched == (0, 1500)
+
+    # and the import that would narrow it back is refused, inside a reply
+    narrow = import_request(receive, active=False, key_range=(0, 999))
+    with pytest.raises(BTClibRuntimeError, match="import refused for wpkh"):
+        assert_imported([narrow], watcher.call("importdescriptors", [[narrow]]))
+    # where the same wanted range, widened by what the wallet answered, is
+    # the import that goes through: a span already inside the range is
+    # nothing left to import, and not a narrowing of it
+    again = import_request(
+        receive, active=False, key_range=widened_range((0, 999), watched)
+    )
+    assert_imported([again], watcher.call("importdescriptors", [[again]]))
+    assert watched_range(receive, watcher.call("listdescriptors")) == watched
 
 
 def test_the_change_output_is_what_the_node_calls_change(
