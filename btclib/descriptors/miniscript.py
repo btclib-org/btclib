@@ -10,7 +10,10 @@ read rather than something it has to recognize. `parse` reads the text
 BIP379 defines and `from_script` reads a script back into it; `str` and
 `Miniscript.script` are the two ways out. The round trip is the point:
 `from_script(node.script())` is `node` again, so a signer handed a witness
-script can say what it means without being told.
+script can say what it means without being told. `reads_back` is that
+round trip asked of a script instead of assumed of it -- whether the bytes
+in hand are the expression they look like -- which is the question a
+caller has about a script somebody else wrote.
 
 `satisfy` is the third thing it does: the witness that spends the script,
 which for a miniscript is a choice and not an assembly -- several branches
@@ -97,6 +100,7 @@ __all__ = [
     "SpendContext",
     "from_script",
     "parse",
+    "reads_back",
 ]
 
 # the two contexts BIP379 is specified for, P2SH and bare scripts being
@@ -2289,8 +2293,18 @@ class _Decoder:
             if key_hash not in self.key_hashes:
                 err_msg = f"no public key for the hash160 {key_hash.hex()}"
                 raise BTClibValueError(err_msg)
+            sec = self.key_hashes[key_hash]
+            # the answer is checked against the question, which is the one
+            # thing the script itself cannot say: a mapping filing a key
+            # under a hash that is not its own reads the script into an
+            # expression writing a different script back, and the inverse
+            # this module documents would hold for every input but that one
+            if hash160(sec) != key_hash:
+                err_msg = f"the key answered for the hash160 {key_hash.hex()}"
+                err_msg += f" hashes to {hash160(sec).hex()}"
+                raise BTClibValueError(err_msg)
             self.pos += 5
-            key = _key_from_sec(self.key_hashes[key_hash], self.context)
+            key = _key_from_sec(sec, self.context)
             return Miniscript("pk_h", self.context, keys=(key,))
         return None
 
@@ -2611,7 +2625,12 @@ def from_script(
     fragment that keeps no key in the script: ``pk_h()`` and its sugared
     ``pkh()`` write the hash alone, so a script holding one is readable
     only where the key is supplied. Bitcoin Core asks a signing provider
-    the same question.
+    the same question, and the answer is held to it: a key filed under a
+    hash that is not its own is refused rather than read, that being the
+    one input for which the inverse above did not hold.
+
+    `reads_back` is this question asked without the refusal, for a caller
+    that holds a script and wants to know whether any language reads it.
     """
     script = bytes_from_octets(script)
     if len(script) > _max_script_size(context):
@@ -2635,6 +2654,43 @@ def from_script(
         err_msg = f"not a miniscript script: {node} is a {basic}, not a B"
         raise BTClibValueError(err_msg)
     return node
+
+
+def reads_back(
+    script: Octets,
+    context: str = P2WSH,
+    key_hashes: Mapping[Octets, Octets] | None = None,
+) -> bool:
+    """Whether a script is the miniscript it reads as.
+
+    The round trip as a question: the script is read back into an
+    expression and the expression writes a script, and the answer is
+    whether those are the same bytes. What it is asked about is a script
+    somebody else wrote -- a witness script off a psbt, the pre-image a
+    wallet computes -- where "this is a 2-of-3 with a timelock" is an
+    intention, and reading it back is the only thing that says the bytes
+    agree with it. A script that is well formed by accident hashes to a
+    perfectly good address, and nothing else notices.
+
+    False is the answer wherever no language reads the script: not every
+    script is a miniscript -- an ``OP_DROP`` where nothing drops, a
+    quorum whose count does not match its keys -- and a caller wanting to
+    know *what* is wrong with it calls `from_script` and reads the
+    refusal.
+
+    Written as the round trip rather than as "`from_script` accepted it",
+    which is what it comes to today: the decoder refuses every second
+    spelling of one expression -- a non-minimal push, a number with a
+    byte to spare, a VERIFY written as two op codes -- and a key answered
+    for the wrong hash, so what it accepts writes itself back. That is
+    the claim, and this is the proof of it rather than a restatement.
+    """
+    script = bytes_from_octets(script)
+    try:
+        node = from_script(script, context, key_hashes)
+    except BTClibValueError:
+        return False
+    return node.script() == script
 
 
 def _assert_sane(node: Miniscript) -> None:
