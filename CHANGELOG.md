@@ -267,6 +267,27 @@ documented at release-notes length in the first place, and are still in
 
 ### The public API and the module layout
 
+- **`script.push_int` writes the shortest push of a number** (#598).
+  `op_int` where the number has an op code of its own -- -1 to 16 -- and
+  the CScriptNum encoding of it otherwise, as the hex a data push is
+  written as. Both halves were here already and the choice between them
+  was not, so every caller assembling a script by hand wrote it out again
+  for each number it put in one: a threshold, a relative timelock, a
+  size. Which half applies is a property of the value and not of what the
+  number means, which is where writing it by hand goes wrong -- a
+  template holding 16 and one holding 17 are written the same way and
+  serialize differently -- and minimal is what the consumers require:
+  `miniscript.from_script` refuses a push written the long way and the
+  interpreter refuses it under MINIMALDATA, so a number pushed with a
+  byte to spare is a script that reads as nothing and may not spend.
+  `serialize` reaches the same bytes from the integer itself above 16 and
+  warns below 17 that the op code is one byte shorter; this is that op
+  code. Re-exported flat from `btclib.script`, beside `op_int`, and the
+  two places here that were making the choice are the call now:
+  `miniscript._pushed_number`, and the `ScriptWallet` docstring whose
+  timelock example wrote `encode_num(144).hex()` -- right at 144 and
+  wrong at 16, in the one place a caller copies from.
+
 - **`core_import` reads the two answers Core gives about an import, which
   is what makes importing a descriptor twice idempotent** (#585). The
   module built the requests `importdescriptors` takes and read neither
