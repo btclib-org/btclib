@@ -147,7 +147,12 @@ jobs:
         run: |
           base="https://bitcoincore.org/bin/bitcoin-core-$BITCOIND_VERSION"
           tarball="bitcoin-$BITCOIND_VERSION-x86_64-linux-gnu.tar.gz"
-          curl --fail --silent --show-error --location --retry 3 \
+          # --proto/--proto-redir: --location follows redirects, and a
+          # redirect to http:// would be followed too. The checksum below
+          # protects the integrity either way, so this is not a hole it
+          # closes -- it is the download refusing to leave https at all
+          curl --proto '=https' --proto-redir '=https' \
+            --fail --silent --show-error --location --retry 3 \
             --output "$tarball" "$base/$tarball"
           echo "$BITCOIND_SHA256  $tarball" | sha256sum --check --strict
           # the daemon alone: the tarball carries the cli, the wallet tool
