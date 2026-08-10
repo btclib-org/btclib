@@ -267,6 +267,26 @@ documented at release-notes length in the first place, and are still in
 
 ### The public API and the module layout
 
+- **`hwi.available` says whether the command line is there, before it is
+  run** (#599). A caller that offers signers of several kinds decides
+  which to offer at all -- what to enumerate, whether to fall back to a
+  software signer, what to put in front of a user -- and that decision
+  comes before there is a device to ask about, so a refusal is not the
+  shape of the answer: `enumerate_devices` on a host with no HWI raises
+  `SignerNotFoundError`, which is the right answer to a question that was
+  asked and the wrong way to find out that there was nothing to ask.
+  Which part of an `executable` has to be on the PATH is this module's
+  own convention -- a name, or a whole argv like ``python -m hwilib``, of
+  which the first element is what runs -- so a caller writing
+  `shutil.which("hwi")` beside it takes that convention as read and
+  writes the default name a second time. `DEFAULT_EXECUTABLE` is that
+  name once, and the default of `available`, `enumerate_devices` and
+  `HwiSigner` alike: what is looked for and what is run cannot become two
+  different executables. True is not a promise that a device will answer,
+  or that what is on the PATH is HWI at all -- it is that there is
+  something to run, which is the half a caller cannot find out without
+  running one.
+
 - **`script.push_int` writes the shortest push of a number** (#598).
   `op_int` where the number has an op code of its own -- -1 to 16 -- and
   the CScriptNum encoding of it otherwise, as the hex a data push is

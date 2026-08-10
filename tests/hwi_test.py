@@ -34,6 +34,7 @@ from __future__ import annotations
 
 import json
 import re
+import shutil
 import subprocess
 import sys
 from pathlib import Path
@@ -45,10 +46,12 @@ from btclib.descriptors import Descriptor, at_index, parse
 from btclib.exceptions import BTClibValueError, SignerError, SignerNotFoundError
 from btclib.hwi import (
     _HWI_CHAIN,
+    DEFAULT_EXECUTABLE,
     DEFAULT_MAX_OUTPUT,
     DEFAULT_TIMEOUT,
     HwiDevice,
     HwiSigner,
+    available,
     enumerate_devices,
 )
 from btclib.psbt.psbt import Psbt
@@ -611,6 +614,29 @@ def test_the_defaults_are_the_two_bounds(hwi: list[str]) -> None:
     assert device.max_output == DEFAULT_MAX_OUTPUT == 1 << 20
     # and nothing of hwilib is imported to get any of this
     assert not [name for name in sys.modules if name.startswith("hwilib")]
+
+
+def test_whether_the_command_line_is_there_is_asked_before_it_is_run(
+    hwi: list[str], tmp_path: Path
+) -> None:
+    """`available` looks for argv[0] of what would be run, and nothing else.
+
+    The stand-in is `[sys.executable, script]`, so what has to be on the
+    PATH is the interpreter and not the script: which element that is is
+    this module's convention, which is the whole reason the question is
+    answered here rather than by a caller writing `shutil.which` beside
+    it. A path that names nothing is False, and it is False *before* any
+    subprocess -- the same fact `enumerate_devices` reports afterwards,
+    and by then it has run one.
+    """
+    assert available(hwi)
+    assert available(sys.executable)
+    assert not available(str(tmp_path / "nowhere"))
+    assert not available([str(tmp_path / "nowhere"), "--flag"])
+    # the default is the name every command here runs, so the two cannot
+    # be answers about different executables
+    assert DEFAULT_EXECUTABLE == "hwi"
+    assert available() == (shutil.which(DEFAULT_EXECUTABLE) is not None)
 
 
 def test_btclib_runs_the_commands_hwi_publishes(tmp_path: Path) -> None:
