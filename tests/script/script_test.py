@@ -16,6 +16,7 @@ from btclib.script import (
     Script,
     op_int,
     parse,
+    push_int,
     script_from_dict,
     script_to_dict,
     serialize,
@@ -27,7 +28,7 @@ from btclib.script.script import (
     op_code_spans,
     read_op_code,
 )
-from btclib.utils import hex_string
+from btclib.utils import encode_num, hex_string
 from tests import load, vector_id
 from tests.script import serialize_non_canonical
 
@@ -68,6 +69,31 @@ def test_op_int() -> None:
     err_msg = "invalid OP_INT: "
     with pytest.raises(BTClibValueError, match=err_msg):
         op_int(17)
+
+
+def test_push_int_is_the_shortest_command_that_pushes_a_number() -> None:
+    """The op code where there is one, the CScriptNum encoding above it.
+
+    One byte from -1 to 16 and the push of the encoded number after
+    that, which is the choice `op_int` refuses to make and `encode_num`
+    knows nothing about. Minimal at the boundary, 16 against 17 being
+    where a caller writing it by hand goes wrong, and minimal is what
+    the consumers require: `parse` reads back what was written, and
+    nothing is warned about, a warning being what `serialize` answers
+    the caller who passed the integer instead.
+    """
+    for i in range(-1, 17):
+        assert push_int(i) == op_int(i)
+        assert len(serialize([push_int(i)])) == 1
+
+    assert push_int(17) == "11"
+    assert serialize([push_int(17)]) == b"\x01\x11"
+    assert push_int(144) == encode_num(144).hex()
+    # the numbers a script writes as a push, sign included, read back as
+    # the very bytes `encode_num` writes -- `parse` spelling its hex in
+    # upper case, which is the one difference between the two spellings
+    for i in (-2, 127, 128, 255, 256, 2**31 - 1):
+        assert parse(serialize([push_int(i)])) == [encode_num(i).hex().upper()]
 
 
 def test_serialize_bytes_command() -> None:

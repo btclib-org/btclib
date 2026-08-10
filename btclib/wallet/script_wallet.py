@@ -25,7 +25,7 @@ index)` and `position_of(script_pub_key)`::
             "OP_IF",
             KeyGroup(2, [xpub_a, xpub_b, xpub_c]),
             "OP_ELSE",
-            encode_num(144).hex(),
+            push_int(144),
             "OP_CHECKSEQUENCEVERIFY",
             "OP_DROP",
             KeyGroup(1, [xpub_recovery]),
@@ -36,7 +36,10 @@ index)` and `position_of(script_pub_key)`::
     )
 
 The template is a `script.serialize` command list with `KeyGroup` objects
-among the commands, and a group writes what OP_CHECKMULTISIG reads:
+among the commands -- a number in one is written with `script.push_int`,
+which is the op code below 17 and the CScriptNum encoding above it, so
+that a timelock of 16 blocks and one of 144 are written the same way --
+and a group writes what OP_CHECKMULTISIG reads:
 `k <key>... n OP_CHECKMULTISIG`, the keys being the ones derived at the
 position -- or, with `verify=True`, `OP_CHECKMULTISIGVERIFY` in place of
 that last opcode, which is the form a required quorum takes rather than
