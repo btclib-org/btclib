@@ -42,7 +42,6 @@ from btclib.bip32 import (
     decode_hd_key_paths,
     encode_to_bip32_derivs,
 )
-from btclib.block.limits import MAX_TX_IN_COUNT, MAX_TX_OUT_COUNT
 from btclib.ecc import dsa, ssa
 from btclib.exceptions import BTClibValueError
 from btclib.hashes import hash160, sha256
@@ -83,6 +82,7 @@ from btclib.script import (
 )
 from btclib.script.sig_hash import ALL, DEFAULT, assert_valid_hash_type
 from btclib.tx import Tx, TxIn, TxOut
+from btclib.tx.limits import MAX_TX_IN_COUNT, MAX_TX_OUT_COUNT
 from btclib.utils import (
     assert_no_trailing,
     bytes_from_octets,

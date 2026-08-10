@@ -11,6 +11,7 @@ from dataclasses import dataclass
 
 from btclib import var_bytes, var_int
 from btclib.alias import BinaryData, Octets
+from btclib.consensus import MAX_WITNESS_STACK_ITEMS
 from btclib.utils import (
     assert_no_trailing,
     bytes_from_octets,
@@ -111,7 +112,16 @@ class Witness:
         octet case is what a PSBT_IN_FINAL_SCRIPTWITNESS value is.
         """
         stream = bytesio_from_binarydata(data)
-        n = var_int.parse(stream)
+        # bounded by the block that would have to carry the stack rather
+        # than by var_int's own MAX_SIZE, which answers whether a
+        # CompactSize is sane and not whether anything could hold this
+        # many: an element costs a witness octet at least, so a count
+        # above MAX_WITNESS_STACK_ITEMS is one no transaction was ever
+        # serialized with (issue #569). Not MAX_STACK_SIZE, which is the
+        # interpreter's -- a stack of a million elements is unspendable
+        # and parses, here as it does for Core, and refusing it here would
+        # be issue #123 again
+        n = var_int.parse(stream, MAX_WITNESS_STACK_ITEMS)
         stack = [var_bytes.parse(stream) for _ in range(n)]
         assert_no_trailing(data, stream, "witness")
         return cls(stack, check_validity=check_validity)
