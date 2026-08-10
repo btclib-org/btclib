@@ -10,6 +10,10 @@ because those four calls are what a caller had to write before this class
 existed, and what it must keep answering. The deployed wallet that made
 the case for it is pinned in `tests/descriptors/custody_wallet_test.py`,
 against the mainnet addresses it holds coins at.
+
+The psbt half is asserted the same way: the key paths against the account
+path with the two derived levels appended, which is the path a signer
+walks, and the pre-images against `redeem_script` and `witness_script`.
 """
 
 from __future__ import annotations
@@ -19,10 +23,17 @@ import pytest
 from btclib.alias import Command
 from btclib.bip32 import bip32
 from btclib.bip32.bip32 import BIP32KeyData, derive_from_account
+from btclib.bip32.key_origin import BIP32KeyOrigin
 from btclib.exceptions import BTClibValueError
+from btclib.psbt.psbt import Psbt
 from btclib.script import script
 from btclib.script.script import op_int
 from btclib.script.script_pub_key import ScriptPubKey
+from btclib.to_pub_key import fingerprint
+from btclib.tx.out_point import OutPoint
+from btclib.tx.tx import Tx
+from btclib.tx.tx_in import TxIn
+from btclib.tx.tx_out import TxOut
 from btclib.wallet import KeyGroup, ScriptWallet
 
 # the "abandon abandon ... about" seed, and three account keys of it in an
@@ -42,6 +53,12 @@ _XPUBS = [bip32.xpub_from_xprv(xprv) for xprv in _XPRVS]
 # the timelock of the example in the module docstring, spelled the way the
 # wallets that need this class spell it: a push, OP_CSV, OP_DROP
 _TIMELOCK: list[Command] = ["9000", "OP_CHECKSEQUENCEVERIFY", "OP_DROP"]
+
+# where those three accounts came from, which is what a psbt carries
+# beside each key: the master fingerprint, which only the root key
+# supplies, and the path down to the account
+_FINGERPRINT = fingerprint(_ROOT)
+_ORIGINS = [BIP32KeyOrigin(_FINGERPRINT, account) for account in _ACCOUNTS]
 
 
 def _derived(xpub: str, branch: int, index: int) -> bytes:
@@ -333,3 +350,200 @@ def test_the_derivation_bounds_are_bip32s_own() -> None:
     assert wallet.branches == (0, 1)
     with pytest.raises(BTClibValueError, match="invalid address index"):
         wallet.address(0, 0x10000)
+
+
+def _psbt_spending(script_pub_key: ScriptPubKey) -> Psbt:
+    """Return a psbt whose one input spends an output of that script."""
+    prev_tx = Tx(
+        vin=[TxIn(OutPoint(b"\x02" * 32, 0))], vout=[TxOut(1000, script_pub_key)]
+    )
+    psbt = Psbt.from_tx(
+        Tx(vin=[TxIn(OutPoint(prev_tx.id, 0))], vout=[TxOut(900, script_pub_key)])
+    )
+    psbt.inputs[0].non_witness_utxo = prev_tx
+    return psbt
+
+
+def _derived_path(account: str, branch: int, index: int) -> str:
+    """Return the path a signer walks to the key of a position.
+
+    The account path, which is the origin the caller declared, with the
+    two levels `derive_from_account` adds to it.
+    """
+    return f"{_FINGERPRINT.hex()}{account[1:]}/{branch}/{index}"
+
+
+def test_the_updater_writes_the_pre_image_and_the_key_origins() -> None:
+    """BIP174's Updater over a script no descriptor states.
+
+    Which is what a signer needs of a position and what it cannot derive
+    for itself: the script the output commits to, and the path down to
+    each key in it. What is not written is what the wallet does not know
+    -- the utxo, the sighash type, the signatures.
+    """
+    wallet = ScriptWallet([KeyGroup(2, _XPUBS, origins=_ORIGINS)], "p2wsh", "derived")
+    psbt = _psbt_spending(wallet.script_pub_key(1, 2))
+
+    psbt_in = wallet.update_psbt_input(psbt, 0, 1, 2).inputs[0]
+    assert psbt_in.witness_script == wallet.witness_script(1, 2)
+    # `b""` is not written: a native p2wsh has no redeem script, and the
+    # field already holds the empty answer
+    assert not psbt_in.redeem_script
+    assert len(psbt_in.hd_key_paths) == len(_XPUBS)
+    for xpub, account in zip(_XPUBS, _ACCOUNTS, strict=True):
+        origin = psbt_in.hd_key_paths[_derived(xpub, 1, 2)]
+        assert origin.description == _derived_path(account, 1, 2)
+    assert not psbt_in.sig_hash_type
+    assert not psbt_in.partial_sigs
+
+    # the psbt handed in is left alone, the copy being what carries them
+    assert not psbt.inputs[0].hd_key_paths
+    assert not psbt.inputs[0].witness_script
+
+
+def test_an_output_is_marked_only_where_the_whole_script_says_so() -> None:
+    """The evidence for "this comes back to me" is the script itself.
+
+    A reader derives it at the position given and compares it with what
+    the output pays; a position that derives another script is refused
+    rather than marked, which is `position_of` asked as a claim.
+    """
+    wallet = ScriptWallet([KeyGroup(2, _XPUBS, origins=_ORIGINS)], "p2wsh", "derived")
+    psbt = _psbt_spending(wallet.script_pub_key(1, 2))
+
+    psbt_out = wallet.update_psbt_output(psbt, 0, 1, 2).outputs[0]
+    assert psbt_out.witness_script == wallet.witness_script(1, 2)
+    # the same fields on either side of BIP174's two maps: what a script
+    # and a key origin say does not depend on which of them holds it
+    psbt_in = wallet.update_psbt_input(psbt, 0, 1, 2).inputs[0]
+    assert psbt_out.hd_key_paths == psbt_in.hd_key_paths
+    assert not psbt.outputs[0].hd_key_paths
+
+    with pytest.raises(BTClibValueError, match="which is not the script"):
+        wallet.update_psbt_output(psbt, 0, 1, 3)
+
+
+def test_both_pre_images_of_a_wrapped_script_and_every_key_of_it() -> None:
+    """A p2sh-p2wsh input pushes one and commits to the other.
+
+    And the key paths are the template's own, quorum by quorum: an output
+    is not a signing instruction, so the keys of the branch nobody is
+    spending are in it too -- which is what lets a reader rebuild the
+    whole script rather than the part a spend uses.
+    """
+    template: list[Command | KeyGroup] = [
+        "OP_IF",
+        KeyGroup(2, _XPUBS, origins=_ORIGINS),
+        "OP_ELSE",
+        *_TIMELOCK,
+        KeyGroup(1, _XPUBS[:1], origins=_ORIGINS[:1]),
+        "OP_ENDIF",
+    ]
+    wallet = ScriptWallet(template, "p2sh-p2wsh")
+    psbt = _psbt_spending(wallet.script_pub_key())
+
+    psbt_in = wallet.update_psbt_input(psbt, 0).inputs[0]
+    assert psbt_in.redeem_script == wallet.redeem_script()
+    assert psbt_in.witness_script == wallet.witness_script()
+    # the recovery key is the first account again, and the mapping is
+    # keyed by key: one entry per distinct key of the script, not per
+    # appearance of one
+    assert len(psbt_in.hd_key_paths) == len(_XPUBS)
+
+    plain = ScriptWallet(template, "p2sh")
+    psbt_in = plain.update_psbt_input(_psbt_spending(plain.script_pub_key()), 0).inputs[
+        0
+    ]
+    assert psbt_in.redeem_script == plain.redeem_script()
+    assert not psbt_in.witness_script
+
+
+def test_the_account_order_does_not_move_an_origin_off_its_key() -> None:
+    """The sort reorders the script, and the mapping is keyed by the key.
+
+    `order="account"` sorts the keys of a group before deriving them, so
+    the script carries them in an order the caller did not write. What
+    would be wrong silently is a path under the key of another
+    participant: a signer would derive a key it does not hold, or worse,
+    the wrong key of one it does.
+    """
+    wallet = ScriptWallet([KeyGroup(2, _XPUBS, origins=_ORIGINS)], "p2wsh", "account")
+    # the sort is a reorder over this quorum, which is what leaves the
+    # assertion below something to say
+    assert sorted(_XPUBS, key=lambda xpub: BIP32KeyData.b58decode(xpub).key) != _XPUBS
+
+    psbt = _psbt_spending(wallet.script_pub_key())
+    hd_key_paths = wallet.update_psbt_input(psbt, 0).inputs[0].hd_key_paths
+    for xpub, account in zip(_XPUBS, _ACCOUNTS, strict=True):
+        assert hd_key_paths[_derived(xpub, 0, 0)].description == _derived_path(
+            account, 0, 0
+        )
+
+
+def test_a_group_given_no_origin_writes_no_key_path() -> None:
+    """Which is a wallet that computes addresses and updates nothing else.
+
+    An account key records neither the master fingerprint nor the path
+    down to itself, so a caller who has neither has nothing to declare,
+    and the psbt is short of exactly that field.
+    """
+    wallet = ScriptWallet([KeyGroup(2, _XPUBS)], "p2wsh", "derived")
+    psbt = _psbt_spending(wallet.script_pub_key())
+
+    psbt_in = wallet.update_psbt_input(psbt, 0).inputs[0]
+    assert psbt_in.witness_script == wallet.witness_script()
+    assert not psbt_in.hd_key_paths
+
+    # and one origin among several is one entry, the missing ones being
+    # skipped rather than refused
+    partial = ScriptWallet(
+        [KeyGroup(2, _XPUBS, origins=[_ORIGINS[0], None, None])], "p2wsh", "derived"
+    )
+    psbt = _psbt_spending(partial.script_pub_key())
+    assert len(partial.update_psbt_input(psbt, 0).inputs[0].hd_key_paths) == 1
+
+
+def test_a_key_origin_is_checked_against_the_key_it_belongs_to() -> None:
+    """The depth and the index, which are what an extended key records.
+
+    The levels above cannot be checked -- nothing in the key names them --
+    so what is refused is a path that does not end at this key: another
+    length, or another index at the right depth. A master key is the one
+    whose fingerprint is checkable, and it is checked.
+    """
+    with pytest.raises(BTClibValueError, match="2 levels for a key at depth 3"):
+        KeyGroup(1, _XPUBS[:1], origins=[BIP32KeyOrigin(_FINGERPRINT, "m/48h/0h")])
+    with pytest.raises(BTClibValueError, match="it ends at 0h, and the key's own"):
+        KeyGroup(1, _XPUBS[:1], origins=[BIP32KeyOrigin(_FINGERPRINT, "m/48h/0h/0h")])
+    with pytest.raises(BTClibValueError, match="own fingerprint is"):
+        KeyGroup(1, [_ROOT], origins=[BIP32KeyOrigin("deadbeef", "m")])
+    # the root key with its own origin is the empty path, and passes
+    assert KeyGroup(1, [_ROOT], origins=[BIP32KeyOrigin(_FINGERPRINT, "m")]).origins
+
+    with pytest.raises(BTClibValueError, match="2 origins for 3 keys"):
+        KeyGroup(2, _XPUBS, origins=_ORIGINS[:2])
+    # no origin at all is the default, and it is one None per key rather
+    # than an empty tuple: the pairing is positional
+    assert KeyGroup(2, _XPUBS).origins == (None,) * len(_XPUBS)
+
+
+def test_the_updaters_refuse_a_position_or_a_psbt_index_they_have_not() -> None:
+    """An IndexError out of a public method is not an answer.
+
+    Nor is the input at the other end, which a negative index would
+    quietly update instead.
+    """
+    wallet = ScriptWallet([KeyGroup(2, _XPUBS, origins=_ORIGINS)], "p2wsh", "derived")
+    psbt = _psbt_spending(wallet.script_pub_key())
+
+    with pytest.raises(BTClibValueError, match="invalid input index: 1"):
+        wallet.update_psbt_input(psbt, 1)
+    with pytest.raises(BTClibValueError, match="invalid input index: -1"):
+        wallet.update_psbt_input(psbt, -1)
+    with pytest.raises(BTClibValueError, match="invalid output index: 1"):
+        wallet.update_psbt_output(psbt, 1)
+    with pytest.raises(BTClibValueError, match="invalid output index: -1"):
+        wallet.update_psbt_output(psbt, -1)
+    for method in (wallet.update_psbt_input, wallet.update_psbt_output):
+        with pytest.raises(BTClibValueError, match="invalid branch: 2"):
+            method(psbt, 0, 2, 0)
